@@ -24,47 +24,50 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
-// Flags: --noanalyze-environment-liveness
 
+let {session, contextGroup, Protocol} =
+    InspectorTest.start('Tests regress-109195.');
 
-// Test that a variable in the local scope that shadows a context-allocated
-// variable is correctly resolved when being evaluated in the debugger.
+contextGroup.addScript(`
+var F = function () {
+  1, function () {
+    var d = 0;
+    (function () { d; });
+    debugger;
+  }();
+};
 
-Debug = debug.Debug;
+Function.prototype.__defineGetter__("f", function () {
+  debugger;
+  return 0;
+});
 
-var exceptionThrown = false;
+var G = function () {
+  1, function () {
+    var d = 0;
+    (function () { d; });
+    debugger;
+  }['f'];
+};
 
-function listener(event, exec_state, event_data, data) {
-  if (event != Debug.DebugEvent.Break) return;
-  var breakpoint = exec_state.frame(0);
-  try {
-    // Assert correct break point.
-    assertTrue(breakpoint.sourceLineText().indexOf("// Break") > -1);
-    // Assert correct value.
-    assertEquals(3, breakpoint.evaluate('x').value());
-  } catch (e) {
-    exceptionThrown = true;
-  }
+function run() {
+  var src = "(" + F.toString() + ")()";
+  eval(src);
+  src = "(" + G.toString() + ")()";
+  eval(src);
 }
+`);
 
-Debug.setListener(listener);
-
-function h() {
-  var x;  // Context-allocated due to g().
-
-  var g = function g() {
-    x = -7;
-  };
-
-  var f = function f() {
-    var x = 3;  // Allocated in the local scope.
-    debugger;  // Break.
-  };
-
-  f();
-}
-
-h();
-
-assertFalse(exceptionThrown);
+(async function test() {
+  await Protocol.Debugger.enable();
+  let pauseCount = 0;
+  Protocol.Debugger.onPaused(message => {
+    pauseCount++;
+    const counts = message.params.callFrames.map(f => f.scopeChain.length);
+    InspectorTest.log(
+        'Pause ' + pauseCount + ' scope counts: ' + counts.join(','));
+    Protocol.Debugger.stepOver();
+  });
+  await Protocol.Runtime.evaluate({expression: 'run()'});
+  InspectorTest.completeTest();
+})();

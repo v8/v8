@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,41 +25,37 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-var Debug = debug.Debug;
+// Make sure that the retrieval of local variables is performed correctly even
+// when an adapter frame is present.
 
-function listener(event, exec_state, event_data, data) {
-  if (event != Debug.DebugEvent.Break) return;
-  for (var i = 0, n = exec_state.frameCount(); i < n; i++) {
-    exec_state.frame().scopeCount(i);
-  }
-  exec_state.prepareStep(Debug.StepAction.StepOver);
+let {session, contextGroup, Protocol} =
+    InspectorTest.start('Tests regress-1170187.');
+
+contextGroup.addScript(`
+function run() {
+  return (function(x,y){
+    var a,b,c;
+    // Make sure a, b, and c are used.
+    a,b,c;
+    debugger;
+    return 3
+  })();
 }
+`);
 
-Debug.setListener(listener);
-
-var F = function () {
-  1, function () {
-    var d = 0;
-    (function () { d; });
-    debugger;
-  }();
-};
-
-var src = "(" + F.toString() + ")()";
-eval(src);
-
-Function.prototype.__defineGetter__("f", function () {
-  debugger;
-  return 0;
-});
-
-var G = function () {
-  1, function () {
-    var d = 0;
-    (function () { d; });
-    debugger;
-  }['f'];
-};
-
-var src = "(" + G.toString() + ")()";
-eval(src);
+(async function test() {
+  await Protocol.Debugger.enable();
+  const pausedPromise = Protocol.Debugger.oncePaused();
+  const evalPromise = Protocol.Runtime.evaluate({expression: 'run()'});
+  const {params: {callFrames}} = await pausedPromise;
+  const {result: {result: props}} = await Protocol.Runtime.getProperties({
+    objectId: callFrames[0].scopeChain[0].object.objectId,
+    ownProperties: true,
+  });
+  InspectorTest.logMessage(
+      props.map(p => ({name: p.name, type: p.value.type})));
+  await Protocol.Debugger.resume();
+  const {result: {result}} = await evalPromise;
+  InspectorTest.logMessage(result);
+  InspectorTest.completeTest();
+})();

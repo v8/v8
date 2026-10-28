@@ -25,62 +25,27 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Make sure that the backtrace command can be processed when the receiver is
+// undefined.
 
-// Make sure that the retreival of local variables are performed correctly even
-// when an adapter frame is present.
+let {session, contextGroup, Protocol} =
+    InspectorTest.start('Tests regress-1081309.');
 
-Debug = debug.Debug
-
-let listenerCalled = false;
-let exceptionThrown = false;
-
-
-function checkName(name) {
-  const validNames = new Set([ 'a', 'b', 'c', 'x', 'y' ]);
-  assertTrue(validNames.has(name));
+contextGroup.addScript(`
+function g() {
+  (void 0).f();
 }
+`);
 
-
-function checkValue(value) {
-  assertEquals(void 0, value);
-}
-
-
-function listener(event, exec_state, event_data, data) {
-  try {
-    if (event == Debug.DebugEvent.Break) {
-      var local0Name = exec_state.frame(0).localName(0);
-      var local1Name = exec_state.frame(0).localName(1);
-      var local2Name = exec_state.frame(0).localName(2);
-      checkName(local0Name);
-      checkName(local1Name);
-      checkName(local2Name);
-      var local0Value = exec_state.frame(0).localValue(0).value();
-      var local1Value = exec_state.frame(0).localValue(1).value();
-      var local2Value = exec_state.frame(0).localValue(2).value();
-      checkValue(local0Value);
-      checkValue(local1Value);
-      checkValue(local2Value);
-      listenerCalled = true;
-    }
-  } catch (e) {
-    exceptionThrown = true;
-  };
-};
-
-// Add the debug event listener.
-Debug.setListener(listener);
-
-// Call a function with local variables passing a different number parameters
-// that the number of arguments.
-(function(x,y){
-  var a,b,c;
-  // Make sure a, b, and c are used.
-  a,b,c;
-  debugger;
-  return 3
-})()
-
-// Make sure that the debug event listener vas invoked (again).
-assertTrue(listenerCalled);
-assertFalse(exceptionThrown, "exception in listener")
+(async function test() {
+  await Protocol.Debugger.enable();
+  await Protocol.Debugger.setPauseOnExceptions({state: 'all'});
+  const pausedPromise = Protocol.Debugger.oncePaused();
+  const evalPromise =
+      Protocol.Runtime.evaluate({expression: 'try { g(); } catch (e) {}'});
+  const {params: {callFrames}} = await pausedPromise;
+  InspectorTest.logMessage(callFrames.map(f => f.functionName));
+  await Protocol.Debugger.resume();
+  await evalPromise;
+  InspectorTest.completeTest();
+})();

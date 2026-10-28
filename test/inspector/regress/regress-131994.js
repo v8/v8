@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -24,49 +24,43 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
+// Flags: --noanalyze-environment-liveness
 
-Debug = debug.Debug
+// Test that a variable in the local scope that shadows a context-allocated
+// variable is correctly resolved when being evaluated in the debugger.
 
-// Make sure that the backtrace command can be processed when the receiver is
-// undefined.
-let listenerCalled = false;
-let exceptionThrown = false;
+let {session, contextGroup, Protocol} =
+    InspectorTest.start('Tests regress-131994.');
 
-function listener(event, exec_state, event_data, data) {
-  try {
-    if (event == Debug.DebugEvent.Exception) {
-      // The expected backtrace is
-      // 1: g
-      // 0: [anonymous]
+session.setupScriptMap();
+contextGroup.addScript(`
+function h() {
+  var x;  // Context-allocated due to g().
 
-      assertEquals(2, exec_state.frameCount());
-      assertEquals("g", exec_state.frame(0).func().name());
-      assertEquals("", exec_state.frame(1).func().name());
-
-      listenerCalled = true;
-    }
-  } catch (e) {
-    print(e);
-    exceptionThrown = true;
+  var g = function g() {
+    x = -7;
   };
-};
 
-// Add the debug event listener.
-Debug.setListener(listener);
+  var f = function f() {
+    var x = 3;  // Allocated in the local scope.
+    debugger;  // Break.
+  };
 
-// Call method on undefined.
-function g() {
-  (void 0).f();
-};
-
-// Break on the exception to do a backtrace with undefined as receiver.
-Debug.setBreakOnException(true);
-try {
-  g();
-} catch(e) {
-  // Ignore the exception "Cannot call method 'x' of undefined"
+  f();
 }
+`);
 
-assertFalse(exceptionThrown, "exception in listener");
-// Make sure that the debug event listener vas invoked.
-assertTrue(listenerCalled, "listener not called");
+(async function test() {
+  await Protocol.Debugger.enable();
+  const pausedPromise = Protocol.Debugger.oncePaused();
+  const evalPromise = Protocol.Runtime.evaluate({expression: 'h()'});
+  const {params: {callFrames}} = await pausedPromise;
+  await session.logSourceLocation(callFrames[0].location);
+  const {result: {result}} = await Protocol.Debugger.evaluateOnCallFrame(
+      {callFrameId: callFrames[0].callFrameId, expression: 'x'});
+  InspectorTest.log('x -> ' + result.value);
+  await Protocol.Debugger.resume();
+  await evalPromise;
+  InspectorTest.completeTest();
+})();

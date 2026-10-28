@@ -25,31 +25,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+let {session, contextGroup, Protocol} =
+    InspectorTest.start('Tests regress-119609.');
 
-Debug = debug.Debug;
-
-var exceptionThrown = false;
-
-function listener(event, exec_state, event_data, data) {
-  try {
-    if (event == Debug.DebugEvent.Break) {
-      function lookup(name) {
-        return exec_state.frame(0).evaluate(name).value();
-      }
-
-      assertEquals(3, lookup("e"));
-      assertEquals(4, lookup("f"));
-      assertEquals(1, lookup("a"));
-
-      assertThrows(() => lookup("b"), ReferenceError);
-    }
-  } catch (e) {
-    exceptionThrown = true;
-  }
-}
-
-Debug.setListener(listener);
-
+contextGroup.addScript(`
 function f(a, b) {
   var c = 3;
   function d(e, f) {
@@ -60,7 +39,28 @@ function f(a, b) {
 
   return d;
 }
+`);
 
-f(1, 2)(3, 4);
+(async function test() {
+  await Protocol.Debugger.enable();
+  const pausedPromise = Protocol.Debugger.oncePaused();
+  const evalPromise = Protocol.Runtime.evaluate({expression: 'f(1, 2)(3, 4)'});
+  const {params: {callFrames}} = await pausedPromise;
+  const callFrameId = callFrames[0].callFrameId;
 
-assertFalse(exceptionThrown);
+  for (const expr of ['e', 'f', 'a', 'b']) {
+    const {result} = await Protocol.Debugger.evaluateOnCallFrame(
+        {callFrameId, expression: expr});
+    if (result.exceptionDetails) {
+      InspectorTest.log(
+          expr + ' -> ' +
+          result.exceptionDetails.exception.description.split('\n')[0]);
+    } else {
+      InspectorTest.log(expr + ' -> ' + result.result.value);
+    }
+  }
+
+  await Protocol.Debugger.resume();
+  await evalPromise;
+  InspectorTest.completeTest();
+})();
