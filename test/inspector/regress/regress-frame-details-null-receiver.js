@@ -25,62 +25,24 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+let {session, contextGroup, Protocol} =
+    InspectorTest.start('Tests regress-frame-details-null-receiver.');
 
-Debug = debug.Debug;
+(async function test() {
+  await Protocol.Debugger.enable();
+  await Protocol.Debugger.setPauseOnExceptions({state: 'all'});
 
-function listener(event, exec_state, event_data, data) {
-  if (event != Debug.DebugEvent.Break) return;
-  try {
-    assertEquals("foo", exec_state.frame(0).evaluate("bar").value());
-  } catch (e) {
-    exception = e;
-  };
-  listened++;
-};
+  Protocol.Debugger.onPaused(message => {
+    for (const frame of message.params.callFrames) {
+      InspectorTest.log(
+          `functionName: ${frame.functionName}, this: ${frame.this.type}`);
+    }
+    Protocol.Debugger.resume();
+  });
 
-var exception = null;
-var listened = 0;
-
-var f = function() {
-  var bar = "foo";
-  var baz = bar;  // Break point should be here.
-  return bar;
-};
-
-var g = function() {
-  var bar = "foo";
-  var baz = bar;  // Break point should be here.
-  return bar;
-};
-
-%PrepareFunctionForOptimization(f);
-%PrepareFunctionForOptimization(g);
-
-f();
-f();
-g();
-g();
-
-// Mark with builtin.
-%OptimizeFunctionOnNextCall(f);
-if (%IsConcurrentRecompilationSupported()) {
-  %OptimizeFunctionOnNextCall(g, "concurrent");
-}
-
-// Activate debugger.
-Debug.setListener(listener);
-
- // Set break point.
-Debug.setBreakPoint(f, 2, 0);
-Debug.setBreakPoint(g, 2, 0);
-
-// Trigger break point.
-f();
-g();
-
-// Assert that break point is set at expected location.
-assertTrue(Debug.showBreakPoints(f).indexOf("var baz = [B0]bar;") > 0);
-assertTrue(Debug.showBreakPoints(g).indexOf("var baz = [B0]bar;") > 0);
-
-assertEquals(2, listened);
-assertNull(exception);
+  await Protocol.Runtime.evaluate({
+    expression: `try { (function() { delete null['foo']; })(); } catch (e) {}`
+  });
+  await Protocol.Debugger.setPauseOnExceptions({state: 'none'});
+  InspectorTest.completeTest();
+})();

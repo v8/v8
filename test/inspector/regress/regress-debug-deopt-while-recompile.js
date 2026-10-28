@@ -25,26 +25,61 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
 
-Debug = debug.Debug;
-var listened = false;
+let {session, contextGroup, Protocol} =
+    InspectorTest.start('Tests regress-debug-deopt-while-recompile.');
 
-function listener(event, exec_state, event_data, data) {
-  if (event == Debug.DebugEvent.Exception) {
-    for (var i = 0; i < exec_state.frameCount(); i++) {
-      print(exec_state.frame(i).receiver());
-      print(exec_state.frame(i).func().name());
-    }
+contextGroup.addScript(
+    `
+var f = function() {
+  var bar = "foo";
+  var baz = bar;  // Break point should be here.
+  return bar;
+};
+
+var g = function() {
+  var bar = "foo";
+  var baz = bar;  // Break point should be here.
+  return bar;
+};
+
+function warmup() {
+  %PrepareFunctionForOptimization(f);
+  %PrepareFunctionForOptimization(g);
+
+  f();
+  f();
+  g();
+  g();
+
+  %OptimizeFunctionOnNextCall(f);
+  if (%IsConcurrentRecompilationSupported()) {
+    %OptimizeFunctionOnNextCall(g, "concurrent");
   }
-  listened = true;
 }
+`,
+    0, 0, 'test.js');
 
-Debug.setListener(listener);
-Debug.setBreakOnException();
+(async function test() {
+  session.setupScriptMap();
+  await Protocol.Runtime.evaluate({expression: 'warmup()'});
+  await Protocol.Debugger.enable();
 
-assertThrows(function() { delete null['foo']; });
+  Protocol.Debugger.onPaused(async message => {
+    const frame = message.params.callFrames[0];
+    await session.logSourceLocation(frame.location);
+    const {result: {result}} = await Protocol.Debugger.evaluateOnCallFrame(
+        {callFrameId: frame.callFrameId, expression: 'bar'});
+    InspectorTest.log('bar = ' + result.value);
+    Protocol.Debugger.resume();
+  });
 
-Debug.clearBreakOnException();
-Debug.setListener(null);
+  await Protocol.Debugger.setBreakpointByUrl(
+      {lineNumber: 3, columnNumber: 0, url: 'test.js'});
+  await Protocol.Debugger.setBreakpointByUrl(
+      {lineNumber: 9, columnNumber: 0, url: 'test.js'});
 
-assertTrue(listened);
+  await Protocol.Runtime.evaluate({expression: 'f(); g();'});
+  InspectorTest.completeTest();
+})();
