@@ -1537,6 +1537,12 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
                                           const std::string& module_specifier,
                                           ModuleType module_type) {
   Isolate* isolate = Isolate::GetCurrent();
+  if (module_type == ModuleType::kWebAssembly) {
+    ThrowError(
+        isolate,
+        "d8: WebAssembly modules are only supported in source phase imports");
+    return MaybeLocal<Module>();
+  }
   i::CppGCManaged<ModuleEmbedderData>::Ptr module_data =
       GetModuleDataFromContext(context);
   DCHECK_IMPLIES(referrer.IsEmpty(), module_data->inserted_modules.empty());
