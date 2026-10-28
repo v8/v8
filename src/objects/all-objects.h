@@ -78,6 +78,7 @@
 #include "src/objects/js-weak-refs.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/lookup-cache.h"
+#include "src/objects/lookup-table.h"
 #include "src/objects/lookup.h"
 #include "src/objects/managed.h"
 #include "src/objects/map.h"

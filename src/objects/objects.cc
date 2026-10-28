@@ -3895,21 +3895,38 @@ Maybe<bool> JSProxy::IsExtensible(DirectHandle<JSProxy> proxy) {
 
 DirectHandle<DescriptorArray> DescriptorArray::CopyUpTo(
     Isolate* isolate, DirectHandle<DescriptorArray> desc, int enumeration_index,
-    int slack) {
-  return DescriptorArray::CopyUpToAddAttributes(isolate, desc,
-                                                enumeration_index, NONE, slack);
+    int slack, bool replace_source) {
+  return DescriptorArray::CopyUpToAddAttributes(
+      isolate, desc, enumeration_index, NONE, slack, replace_source);
 }
 
 DirectHandle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
     Isolate* isolate, DirectHandle<DescriptorArray> source_handle,
-    int enumeration_index, PropertyAttributes attributes, int slack) {
+    int enumeration_index, PropertyAttributes attributes, int slack,
+    bool replace_source) {
   if (enumeration_index + slack == 0) {
     return isolate->factory()->empty_descriptor_array();
   }
 
   int size = enumeration_index;
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  bool reuse_lookup_table = false;
+  if (replace_source && enumeration_index > kMaxElementsForLinearSearch) {
+    DCHECK_EQ(enumeration_index, source_handle->number_of_descriptors());
+    Tagged<DescriptorLookupTable> source_table =
+        Cast<DescriptorLookupTable>(source_handle->lookup_table());
+    if (DescriptorLookupTable::CapacityFor(enumeration_index + slack) <=
+        source_table->capacity()) {
+      reuse_lookup_table = true;
+    }
+  }
+  DirectHandle<DescriptorArray> copy_handle = DescriptorArray::Allocate(
+      isolate, size, slack, AllocationType::kYoung, !reuse_lookup_table);
+#else
+  USE(replace_source);
   DirectHandle<DescriptorArray> copy_handle =
       DescriptorArray::Allocate(isolate, size, slack);
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 
   DisallowGarbageCollection no_gc;
   Tagged<DescriptorArray> source = *source_handle;
@@ -3941,7 +3958,28 @@ DirectHandle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
     }
   }
 
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  if (reuse_lookup_table) {
+    copy->set_lookup_table(source->lookup_table());
+  } else if (enumeration_index > kMaxElementsForLinearSearch) {
+    Tagged<DescriptorLookupTable> source_table =
+        Cast<DescriptorLookupTable>(source->lookup_table());
+    Tagged<DescriptorLookupTable> copy_table =
+        Cast<DescriptorLookupTable>(copy->lookup_table());
+    if (enumeration_index == source->number_of_descriptors() &&
+        copy_table->capacity() == source_table->capacity()) {
+      copy_table->CopyFrom(source_table);
+    } else {
+      copy->RebuildLookupTable(enumeration_index);
+    }
+  }
+  if (replace_source && !IsUndefined(source->lookup_table())) {
+    source->set_lookup_table(ReadOnlyRoots(isolate).undefined_value(),
+                             SKIP_WRITE_BARRIER);
+  }
+#else
   if (source->number_of_descriptors() != enumeration_index) copy->Sort();
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 
   return copy_handle;
 }
@@ -4067,18 +4105,62 @@ template <typename IsolateT>
 Handle<DescriptorArray> DescriptorArray::Allocate(IsolateT* isolate,
                                                   int nof_descriptors,
                                                   int slack,
-                                                  AllocationType allocation) {
+                                                  AllocationType allocation
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+                                                  ,
+                                                  bool allocate_lookup_table
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+) {
   return nof_descriptors + slack == 0
              ? isolate->factory()->empty_descriptor_array()
              : isolate->factory()->NewDescriptorArray(nof_descriptors, slack,
-                                                      allocation);
+                                                      allocation
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+                                                      ,
+                                                      allocate_lookup_table
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+               );
 }
 template Handle<DescriptorArray> DescriptorArray::Allocate(
-    Isolate* isolate, int nof_descriptors, int slack,
-    AllocationType allocation);
+    Isolate* isolate, int nof_descriptors, int slack, AllocationType allocation
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+    ,
+    bool allocate_lookup_table
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+);
 template Handle<DescriptorArray> DescriptorArray::Allocate(
     LocalIsolate* isolate, int nof_descriptors, int slack,
-    AllocationType allocation);
+    AllocationType allocation
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+    ,
+    bool allocate_lookup_table
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+);
+
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+template <typename IsolateT>
+void DescriptorArray::EnsureLookupTable(IsolateT* isolate,
+                                        DirectHandle<DescriptorArray> array) {
+  if (!IsUndefined(array->lookup_table())) return;
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array);
+  // Shared-space DescriptorArrays (AllocationType::kSharedOld, used by
+  // JSSharedStruct) have fixed layouts and never grow incrementally across
+  // linear search boundary via Append.
+  DCHECK(!chunk->InWritableSharedSpace());
+  AllocationType allocation = HeapLayout::InYoungGeneration(chunk, *array)
+                                  ? AllocationType::kYoung
+                                  : AllocationType::kOld;
+
+  DirectHandle<DescriptorLookupTable> table = DescriptorLookupTable::New(
+      isolate, array->number_of_all_descriptors(), allocation);
+  array->set_lookup_table(*table);
+  array->RebuildLookupTable(array->number_of_descriptors());
+}
+template void DescriptorArray::EnsureLookupTable(
+    Isolate* isolate, DirectHandle<DescriptorArray> array);
+template void DescriptorArray::EnsureLookupTable(
+    LocalIsolate* isolate, DirectHandle<DescriptorArray> array);
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 
 void DescriptorArray::Initialize(Tagged<EnumCache> empty_enum_cache,
                                  Tagged<HeapObject> undefined_value,
@@ -4089,6 +4171,10 @@ void DescriptorArray::Initialize(Tagged<EnumCache> empty_enum_cache,
   set_number_of_all_descriptors(nof_descriptors + slack, kReleaseStore);
   set_number_of_descriptors(nof_descriptors);
   set_enum_cache(empty_enum_cache, SKIP_WRITE_BARRIER);
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  set_lookup_table(UncheckedCast<Undefined>(undefined_value),
+                   SKIP_WRITE_BARRIER);
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   set_flags(Flags().with_fast_iterable(FastIterableState::kUnknown),
             kRelaxedStore);
   MemsetTagged(GetDescriptorSlot(0), undefined_value,
@@ -4129,8 +4215,14 @@ void DescriptorArray::CopyFrom(InternalIndex index,
 }
 
 void DescriptorArray::SortImpl(const int len) {
-  // In-place heap sort.
   DCHECK_EQ(len, number_of_descriptors());
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  if (len > kMaxElementsForLinearSearch) {
+    RebuildLookupTable(len);
+  }
+  DCHECK(VerifyLookupTable());
+#else
+  // In-place heap sort.
   // Reset sorting since the descriptor array might contain invalid pointers.
   for (int i = 0; i < len; ++i) SetSortedKey(i, i);
   // Bottom-up max-heap construction.
@@ -4180,6 +4272,7 @@ void DescriptorArray::SortImpl(const int len) {
     }
   }
   DCHECK(IsSortedNoDuplicates());
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 }
 
 void DescriptorArray::CheckNameCollisionDuringInsertion(Descriptor* desc,

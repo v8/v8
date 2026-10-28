@@ -11,6 +11,7 @@
 #include "src/objects/string-inl.h"
 #include "src/objects/transitions-inl.h"
 #include "test/common/code-assembler-tester.h"
+#include "test/common/flag-utils.h"
 #include "test/unittests/compiler/function-tester.h"
 #include "test/unittests/test-utils.h"
 
@@ -55,9 +56,18 @@ void CheckDescriptorArrayLookups(Isolate* isolate, Handle<Map> map,
   {
     DisallowGarbageCollection no_gc;
     Tagged<DescriptorArray> descriptors = map->instance_descriptors();
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+    DCHECK(descriptors->VerifyLookupTable());
+#else
     DCHECK(descriptors->IsSortedNoDuplicates());
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
     int nof_descriptors = descriptors->number_of_descriptors();
 
+    // Avoid O(N^3) redundant VerifyLookupTable() calls in Search() when all
+    // hashes collide; the table was already verified above.
+#ifdef ENABLE_SLOW_DCHECKS
+    FlagScope<bool> no_slow_asserts(&v8_flags.enable_slow_asserts, false);
+#endif  // ENABLE_SLOW_DCHECKS
     for (size_t i = 0; i < names.size(); ++i) {
       Tagged<Name> name = *names[i];
       InternalIndex index = descriptors->Search(name, nof_descriptors, false);

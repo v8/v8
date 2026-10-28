@@ -12137,6 +12137,73 @@ TNode<Uint32T> CodeStubAssembler::DescriptorArrayGetDetails(
       EntryIndexToIndex<DescriptorArray>(descriptor_number), details_offset));
 }
 
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+void CodeStubAssembler::LookupTable(TNode<Name> unique_name,
+                                    TNode<DescriptorArray> descriptors,
+                                    TNode<Uint32T> number_of_valid_entries,
+                                    Label* if_found,
+                                    TVariable<IntPtrT>* var_name_index,
+                                    Label* if_not_found) {
+  using Table = DescriptorLookupTable;
+  Comment("LookupTable");
+  TNode<UnionOf<DescriptorLookupTable, Undefined>> maybe_lookup_table =
+      LoadObjectField<UnionOf<DescriptorLookupTable, Undefined>>(
+          descriptors, offsetof(DescriptorArray, lookup_table_));
+  CSA_DCHECK(this, IsNotUndefined(maybe_lookup_table));
+  TNode<DescriptorLookupTable> lookup_table = CAST(maybe_lookup_table);
+
+  TNode<Uint32T> byte_length = LoadFixedArrayBaseLengthAsUint32(lookup_table);
+  TNode<Uint32T> capacity = Unsigned(Word32Shr(byte_length, Int32Constant(2)));
+  TNode<Uint32T> mask = Unsigned(Int32Sub(capacity, Int32Constant(1)));
+  TNode<Uint32T> hash = LoadNameHashAssumeComputed(unique_name);
+  CSA_DCHECK(this, Word32NotEqual(hash, Int32Constant(0)));
+  // First probe.
+  TVARIABLE(Uint32T, var_count, Uint32Constant(0));
+  TVARIABLE(Uint32T, var_slot, Word32And(hash, mask));
+
+  Label probe_loop(this, {&var_count, &var_slot});
+  Goto(&probe_loop);
+  BIND(&probe_loop);
+  {
+    TNode<IntPtrT> offset =
+        IntPtrAdd(IntPtrConstant(Table::OffsetOfElementAt(0) - kHeapObjectTag),
+                  Signed(WordShl(ChangeUint32ToWord(var_slot.value()),
+                                 IntPtrConstant(2))));
+    TNode<Uint32T> entry = UncheckedCast<Uint32T>(
+        LoadFromObject(MachineType::Uint32(), lookup_table, offset));
+    GotoIf(Word32Equal(entry, Int32Constant(Table::kEmptyEntry)), if_not_found);
+
+    Label next(this);
+    // Compare the low kHashBits of `entry` and `hash` without masking both
+    // values separately. This relies on HashBits starting at bit 0.
+    static_assert(Table::Entry::HashBits::kShift == 0);
+    GotoIf(
+        Word32NotEqual(Word32And(Word32Xor(entry, hash),
+                                 Int32Constant(Table::Entry::HashBits::kMask)),
+                       Int32Constant(0)),
+        &next);
+
+    // The index stored in the entry is 1-based.
+    TNode<Uint32T> desc_index =
+        Unsigned(Int32Sub(DecodeWord32<Table::Entry::OneBasedIndexBits>(entry),
+                          Int32Constant(1)));
+    GotoIf(Uint32GreaterThanOrEqual(desc_index, number_of_valid_entries),
+           &next);
+    TNode<Name> current_name = GetKey<DescriptorArray>(descriptors, desc_index);
+    GotoIf(TaggedNotEqual(current_name, unique_name), &next);
+    *var_name_index = ToKeyIndex<DescriptorArray>(desc_index);
+    Goto(if_found);
+
+    BIND(&next);
+    // Next probe.
+    var_count = Unsigned(Int32Add(var_count.value(), Int32Constant(1)));
+    var_slot = Unsigned(
+        Word32And(Int32Add(var_slot.value(), var_count.value()), mask));
+    Goto(&probe_loop);
+  }
+}
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+
 template <typename Array>
 void CodeStubAssembler::LookupBinary(TNode<Name> unique_name,
                                      TNode<Array> array,
@@ -12559,18 +12626,25 @@ void CodeStubAssembler::Lookup(TNode<Name> unique_name, TNode<Array> array,
     number_of_valid_entries = NumberOfEntries(array);
   }
   GotoIf(Word32Equal(number_of_valid_entries, Int32Constant(0)), if_not_found);
-  Label linear_search(this), binary_search(this);
+  Label linear_search(this), non_linear_search(this);
   Branch(
       Uint32LessThanOrEqual(number_of_valid_entries,
                             Int32Constant(Array::kMaxElementsForLinearSearch)),
-      &linear_search, &binary_search);
+      &linear_search, &non_linear_search);
   BIND(&linear_search);
   {
     LookupLinear<Array>(unique_name, array, number_of_valid_entries, if_found,
                         var_name_index, if_not_found);
   }
-  BIND(&binary_search);
+  BIND(&non_linear_search);
   {
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+    if constexpr (std::is_same_v<Array, DescriptorArray>) {
+      LookupTable(unique_name, array, number_of_valid_entries, if_found,
+                  var_name_index, if_not_found);
+      return;
+    }
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
     LookupBinary<Array>(unique_name, array, number_of_valid_entries, if_found,
                         var_name_index, if_not_found);
   }

@@ -427,6 +427,9 @@ declare_args() {
   # as the backing store for all dictionary mode objects.
   v8_enable_swiss_name_dictionary = false
 
+  # Enable hash lookup table in DescriptorArray instead of binary search.
+  v8_enable_descriptor_array_lookup_table = false
+
   # If enabled then macro definitions that are used in externally visible
   # header files are placed in a separate header file v8-gn.h.
   v8_generate_external_defines_header = false
@@ -1616,6 +1619,9 @@ config("features") {
   }
   if (v8_enable_swiss_name_dictionary) {
     defines += [ "V8_ENABLE_SWISS_NAME_DICTIONARY" ]
+  }
+  if (v8_enable_descriptor_array_lookup_table) {
+    defines += [ "V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE" ]
   }
   if (v8_enable_system_instrumentation) {
     defines += [ "V8_ENABLE_SYSTEM_INSTRUMENTATION" ]
@@ -4931,6 +4937,8 @@ v8_header_set("v8_internal_headers") {
     "src/objects/lookup-cache-inl.h",
     "src/objects/lookup-cache.h",
     "src/objects/lookup-inl.h",
+    "src/objects/lookup-table-inl.h",
+    "src/objects/lookup-table.h",
     "src/objects/lookup.h",
     "src/objects/managed-inl.h",
     "src/objects/managed-type-id.h",

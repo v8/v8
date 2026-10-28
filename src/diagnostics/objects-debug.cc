@@ -740,13 +740,13 @@ void Map::MapVerify(Isolate* isolate) {
         CHECK_EQ(IsInobjectSlackTrackingInProgress(),
                  parent->IsInobjectSlackTrackingInProgress());
       }
-      if (descriptors == parent->instance_descriptors()) {
-        if (NumberOfOwnDescriptors() == parent->NumberOfOwnDescriptors() + 1) {
-          // Descriptors sharing through property transitions takes over
-          // ownership from the parent map.
-          CHECK(!parent->owns_descriptors());
-        } else {
-          CHECK_EQ(NumberOfOwnDescriptors(), parent->NumberOfOwnDescriptors());
+      if (NumberOfOwnDescriptors() == parent->NumberOfOwnDescriptors()) {
+        // Special transition maps (such as an elements kind transition maps)
+        // must not have descriptors in the descriptor array that do not belong
+        // to the map.
+        CHECK_EQ(NumberOfOwnDescriptors(),
+                 descriptors->number_of_descriptors());
+        if (descriptors == parent->instance_descriptors()) {
           // Descriptors sharing through special transitions properly takes over
           // ownership from the parent map unless it uses the canonical empty
           // descriptor array.
@@ -755,13 +755,30 @@ void Map::MapVerify(Isolate* isolate) {
             CHECK_IMPLIES(parent->owns_descriptors(), !owns_descriptors());
           }
         }
+      } else {
+        CHECK_EQ(NumberOfOwnDescriptors(),
+                 parent->NumberOfOwnDescriptors() + 1);
+        if (descriptors == parent->instance_descriptors()) {
+          // Descriptors sharing through property transitions takes over
+          // ownership from the parent map, which must not be a root map or a
+          // special transition map.
+          CHECK(!parent->owns_descriptors());
+          CHECK(!IsUndefined(parent->GetBackPointer()));
+          CHECK_NE(
+              parent->NumberOfOwnDescriptors(),
+              Cast<Map>(parent->GetBackPointer())->NumberOfOwnDescriptors());
+        }
       }
     }
   }
   if (!is_wasm_struct) {
     VerifyDescriptorInObjectBits(instance_descriptors(),
                                  NumberOfOwnDescriptors());
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+    SLOW_DCHECK(instance_descriptors()->VerifyLookupTable());
+#else
     SLOW_DCHECK(instance_descriptors()->IsSortedNoDuplicates());
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   }
   SLOW_DCHECK(TransitionsAccessor(isolate, this).IsSortedNoDuplicates());
   SLOW_DCHECK(
@@ -1269,6 +1286,11 @@ void DescriptorArray::DescriptorArrayEntryTypesVerify(Isolate* isolate) {
   // Header: enum_cache_ is strong.
   Object::VerifyPointer(isolate, enum_cache());
   CHECK(IsEnumCache(enum_cache()));
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  Object::VerifyPointer(isolate, lookup_table());
+  CHECK(Is<DescriptorLookupTable>(lookup_table()) ||
+        IsUndefined(lookup_table()));
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   // Descriptors tail: verify each (key, details, value) triple. Key and
   // details slots are always strong; only the value slot may be weak.
   const int nof = number_of_all_descriptors();
@@ -4149,6 +4171,27 @@ void JSObject::SpillInformation::Print() {
 
   PrintF("\n");
 }
+
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+bool DescriptorArray::VerifyLookupTable() {
+  int nof = number_of_descriptors();
+  if (nof <= kMaxElementsForLinearSearch) {
+    if (!IsUndefined(lookup_table())) {
+      Print(this);
+      return false;
+    }
+    return true;
+  }
+  if (!Is<DescriptorLookupTable>(lookup_table()) ||
+      !Cast<DescriptorLookupTable>(lookup_table())
+           ->Verify(nof, number_of_all_descriptors(),
+                    [this](uint32_t i) { return GetKey(InternalIndex(i)); })) {
+    Print(this);
+    return false;
+  }
+  return true;
+}
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 
 bool DescriptorArray::IsSortedNoDuplicates() {
   // Up to the linear search limit the array is not sorted and that's fine.

@@ -739,8 +739,13 @@ void Map::DeprecateTransitionTreeImpl(Isolate* isolate) {
 // proper sharing of descriptor arrays.
 void Map::ReplaceDescriptors(Isolate* isolate,
                              Tagged<DescriptorArray> new_descriptors) {
-  // Don't overwrite the empty descriptor array or initial map's descriptors.
-  if (NumberOfOwnDescriptors() == 0 || IsUndefined(GetBackPointer())) {
+  // Don't overwrite the empty descriptor array, initial map's descriptors, or
+  // special transition map's descriptors (such as an elements kind transition
+  // or integrity level transition).
+  int nof = NumberOfOwnDescriptors();
+  Tagged<Object> back_pointer = GetBackPointer();
+  if (nof == 0 || IsUndefined(back_pointer) ||
+      Cast<Map>(back_pointer)->NumberOfOwnDescriptors() == nof) {
     return;
   }
 
@@ -923,8 +928,11 @@ void Map::EnsureDescriptorSlack(Isolate* isolate, DirectHandle<Map> map,
   int old_size = map->NumberOfOwnDescriptors();
   if (slack <= descriptors->number_of_slack_descriptors()) return;
 
-  DirectHandle<DescriptorArray> new_descriptors =
-      DescriptorArray::CopyUpTo(isolate, descriptors, old_size, slack);
+  // Since this map owns the descriptor array and we are going to replace the
+  // old descriptor array with a new one, we can reuse the previous lookup
+  // table and remove it from the old descriptor array.
+  DirectHandle<DescriptorArray> new_descriptors = DescriptorArray::CopyUpTo(
+      isolate, descriptors, old_size, slack, /*replace_source=*/true);
 
   DisallowGarbageCollection no_gc;
   if (old_size == 0) {
@@ -948,7 +956,12 @@ void Map::EnsureDescriptorSlack(Isolate* isolate, DirectHandle<Map> map,
   Tagged<Map> current = Cast<Map>(next);
   while (current->instance_descriptors() == *descriptors) {
     next = current->GetBackPointer();
-    if (IsUndefined(next)) break;
+    // Initial maps and special transition maps never share their descriptors
+    // with child property transitions, so {current} must be a property
+    // transition map and cannot be an initial map or a special transition map.
+    CHECK(!IsUndefined(next));
+    DCHECK_NE(Cast<Map>(next)->NumberOfOwnDescriptors(),
+              current->NumberOfOwnDescriptors());
     current->UpdateDescriptors(*new_descriptors,
                                current->NumberOfOwnDescriptors());
     current = Cast<Map>(next);
@@ -1611,6 +1624,13 @@ Handle<Map> Map::ShareDescriptor(Isolate* isolate, DirectHandle<Map> map,
     }
   }
 
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  if (descriptors->number_of_descriptors() ==
+      DescriptorArray::kMaxElementsForLinearSearch) {
+    DescriptorArray::EnsureLookupTable(isolate, descriptors);
+  }
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+
   {
     DisallowGarbageCollection no_gc;
     descriptors->Append(descriptor);
@@ -1678,7 +1698,11 @@ Handle<Map> Map::CopyReplaceDescriptors(
     DirectHandle<DescriptorArray> descriptors, TransitionFlag flag,
     const InitMapCb& InitMap, MaybeDirectHandle<Name> maybe_name,
     const char* reason, TransitionKindFlag transition_kind) {
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  DCHECK(descriptors->VerifyLookupTable());
+#else
   DCHECK(descriptors->IsSortedNoDuplicates());
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 
   Handle<Map> result = CopyDropDescriptors(isolate, map);
   bool is_connected = false;
@@ -1732,7 +1756,11 @@ Handle<Map> Map::CopyReplaceDescriptors(
 Handle<Map> Map::AddMissingTransitions(
     Isolate* isolate, DirectHandle<Map> split_map,
     DirectHandle<DescriptorArray> descriptors) {
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  DCHECK(descriptors->VerifyLookupTable());
+#else
   DCHECK(descriptors->IsSortedNoDuplicates());
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   int split_nof = split_map->NumberOfOwnDescriptors();
   int nof_descriptors = descriptors->number_of_descriptors();
   CHECK_LT(split_nof, nof_descriptors);
@@ -1780,7 +1808,11 @@ void Map::InstallDescriptors(Isolate* isolate, DirectHandle<Map> parent,
                              InternalIndex new_descriptor,
                              DirectHandle<DescriptorArray> descriptors,
                              bool force_connect) {
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  DCHECK(descriptors->VerifyLookupTable());
+#else
   DCHECK(descriptors->IsSortedNoDuplicates());
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 
   child->SetInstanceDescriptors(*descriptors, new_descriptor.as_int() + 1);
   child->CopyUnusedPropertyFields(*parent);
@@ -2274,16 +2306,25 @@ Handle<Map> Map::CopyAddDescriptor(Isolate* isolate, DirectHandle<Map> map,
   DirectHandle<DescriptorArray> descriptors(map->instance_descriptors(),
                                             isolate);
 
-  // Share descriptors only if map owns descriptors and is not an initial map.
+  int nof = map->NumberOfOwnDescriptors();
+
+  // Share descriptors only if map owns descriptors and is not an initial map
+  // or a special transition (such as an elements kind transition or integrity
+  // level transition).
   if (flag == INSERT_TRANSITION && map->owns_descriptors() &&
       !IsUndefined(map->GetBackPointer()) &&
+      Cast<Map>(map->GetBackPointer())->NumberOfOwnDescriptors() != nof &&
       TransitionsAccessor::CanHaveMoreTransitions(isolate, map)) {
     return ShareDescriptor(isolate, map, descriptors, descriptor);
   }
 
-  int nof = map->NumberOfOwnDescriptors();
   DirectHandle<DescriptorArray> new_descriptors =
       DescriptorArray::CopyUpTo(isolate, descriptors, nof, 1);
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  if (nof == DescriptorArray::kMaxElementsForLinearSearch) {
+    DescriptorArray::EnsureLookupTable(isolate, new_descriptors);
+  }
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   new_descriptors->Append(descriptor);
 
   auto InitMap = [&](DirectHandle<Map> new_map) {

@@ -402,7 +402,8 @@ TEST(GetObjectProperties) {
   props = d::GetObjectProperties(
       ReadProp<i::Tagged_t>(*props, "instance_descriptors"), &ReadMemory,
       heap_addresses);
-  CHECK_EQ(props->num_properties, 6);
+  CHECK_EQ(props->num_properties,
+           V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE_BOOL ? 7 : 6);
   // It should have at least two descriptors (possibly plus slack).
   CheckProp(*props->properties[1], "uint16_t", "number_of_all_descriptors");
   uint16_t number_of_all_descriptors =
@@ -410,7 +411,9 @@ TEST(GetObjectProperties) {
   CHECK_GE(number_of_all_descriptors, 2);
   // The "entries" property should describe the struct layout for each
   // element in the array.
-  const d::ObjectProperty& descriptors = *props->properties[5];
+  const int descriptor_idx =
+      V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE_BOOL ? 6 : 5;
+  const d::ObjectProperty& descriptors = *props->properties[descriptor_idx];
   // No C++ type is reported directly because there may not be an actual C++
   // struct with this layout, hence the empty string in this check.
   CheckProp(descriptors, /*type=*/"", "entries",

@@ -4824,6 +4824,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                     TNode<Uint32T> number_of_valid_entries, Label* if_found,
                     TVariable<IntPtrT>* var_name_index, Label* if_not_found);
 
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  void LookupTable(TNode<Name> unique_name, TNode<DescriptorArray> descriptors,
+                   TNode<Uint32T> number_of_valid_entries, Label* if_found,
+                   TVariable<IntPtrT>* var_name_index, Label* if_not_found);
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+
   // Converts [Descriptor/Transition]Array entry number to a fixed array index.
   template <typename Array>
   TNode<IntPtrT> EntryIndexToIndex(TNode<Uint32T> entry_index);

@@ -53,6 +53,8 @@ class BuildFlags : public base::ContextualClass<BuildFlags> {
 #endif
     build_flags_["V8_ENABLE_SWISS_NAME_DICTIONARY"] =
         V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL;
+    build_flags_["V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE"] =
+        V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE_BOOL;
 #ifdef V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
     build_flags_["V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS"] = true;
 #else

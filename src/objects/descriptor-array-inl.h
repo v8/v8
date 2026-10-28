@@ -19,6 +19,7 @@
 #include "src/objects/heap-number.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/lookup-cache-inl.h"
+#include "src/objects/lookup-table-inl.h"
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/property-details-inl.h"
 #include "src/objects/property.h"
@@ -47,6 +48,13 @@ void EnumCache::set_keys(Tagged<FixedArray> value, WriteBarrierMode mode) {
 Tagged<FixedArray> EnumCache::indices() const { return indices_.load(); }
 void EnumCache::set_indices(Tagged<FixedArray> value, WriteBarrierMode mode) {
   indices_.store(this, value, mode);
+}
+
+template <typename IsolateT>
+Handle<DescriptorLookupTable> DescriptorLookupTable::New(
+    IsolateT* isolate, uint32_t number_of_elements, AllocationType allocation) {
+  return Cast<DescriptorLookupTable>(
+      Super::New(isolate, number_of_elements, allocation));
 }
 
 int16_t DescriptorArray::number_of_all_descriptors() const {
@@ -95,6 +103,46 @@ void DescriptorArray::set_enum_cache(Tagged<EnumCache> value,
   enum_cache_.store(this, value, mode);
 }
 
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+Tagged<UnionOf<DescriptorLookupTable, Undefined>>
+DescriptorArray::lookup_table() const {
+  return lookup_table_.load();
+}
+
+void DescriptorArray::set_lookup_table(
+    Tagged<UnionOf<DescriptorLookupTable, Undefined>> value,
+    WriteBarrierMode mode) {
+  lookup_table_.store(this, value, mode);
+}
+
+void DescriptorArray::InsertIntoLookupTable(Tagged<Name> key, uint32_t hash,
+                                            int descriptor_index) {
+  DCHECK(!IsUndefined(lookup_table()));
+  Cast<DescriptorLookupTable>(lookup_table())
+      ->Insert(key, hash, descriptor_index,
+               [this](uint32_t index) { return GetKey(InternalIndex(index)); });
+}
+
+void DescriptorArray::RebuildLookupTable(int len) {
+  DCHECK_LE(len, number_of_descriptors());
+  DCHECK_GE(len, kMaxElementsForLinearSearch);
+  DCHECK(!IsUndefined(lookup_table()));
+  Cast<DescriptorLookupTable>(lookup_table())
+      ->Rebuild(
+          len, [this](uint32_t index) { return GetKey(InternalIndex(index)); });
+}
+
+void DescriptorArray::RemoveFromLookupTable(int old_nof, int new_nof) {
+  DCHECK_EQ(old_nof, number_of_descriptors());
+  DCHECK_GT(new_nof, kMaxElementsForLinearSearch);
+  DCHECK(!IsUndefined(lookup_table()));
+  Cast<DescriptorLookupTable>(lookup_table())
+      ->RemoveEntries(old_nof, new_nof, [this](uint32_t index) {
+        return GetKey(InternalIndex(index));
+      });
+}
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+
 DescriptorArray::FastIterableState DescriptorArray::fast_iterable() const {
   return flags(kRelaxedLoad).fast_iterable();
 }
@@ -118,7 +166,11 @@ void DescriptorArray::CopyEnumCacheFrom(Tagged<DescriptorArray> array) {
 InternalIndex DescriptorArray::Search(Tagged<Name> name, int valid_descriptors,
                                       bool concurrent_search) {
   DCHECK(IsUniqueName(name));
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  SLOW_DCHECK_IMPLIES(!concurrent_search, VerifyLookupTable());
+#else
   SLOW_DCHECK_IMPLIES(!concurrent_search, IsSortedNoDuplicates());
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 
   if (valid_descriptors == 0) {
     return InternalIndex::NotFound();
@@ -128,8 +180,28 @@ InternalIndex DescriptorArray::Search(Tagged<Name> name, int valid_descriptors,
     return LinearSearch(name, valid_descriptors);
   }
 
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  return TableSearch(name, valid_descriptors);
+#else
   return BinarySearch(name, valid_descriptors);
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 }
+
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+InternalIndex DescriptorArray::TableSearch(Tagged<Name> name,
+                                           int valid_descriptors) {
+  DCHECK_LT(kMaxElementsForLinearSearch, number_of_descriptors());
+  uint32_t index;
+  if (Cast<DescriptorLookupTable>(lookup_table())
+          ->Lookup(
+              name, valid_descriptors,
+              [this](uint32_t i) { return GetKey(InternalIndex(i)); },
+              &index)) {
+    return InternalIndex(index);
+  }
+  return InternalIndex::NotFound();
+}
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 
 InternalIndex DescriptorArray::BinarySearch(Tagged<Name> name,
                                             int valid_descriptors) {
@@ -343,18 +415,21 @@ void DescriptorArray::Append(Descriptor* desc) {
     CHECK_EQ(LinearSearch(*desc->GetKey(), descriptor_number),
              InternalIndex::NotFound());
     return;
+  }
 
-  } else if (new_number_of_descriptors == kMaxElementsForLinearSearch + 1) {
+  uint32_t desc_hash = desc->GetKey()->hash();
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  InsertIntoLookupTable(*desc->GetKey(), desc_hash, descriptor_number);
+#else
+  if (new_number_of_descriptors == kMaxElementsForLinearSearch + 1) {
     // Sort descriptors as we've just crossed the unsorted-sorted boundary.
     SortImpl(new_number_of_descriptors);
 
-    uint32_t desc_hash = desc->GetKey()->hash();
     CheckNameCollisionDuringInsertion(desc, desc_hash,
                                       desc->GetSortedKeyIndex());
     return;
   }
 
-  uint32_t desc_hash = desc->GetKey()->hash();
   // Hash value can't be zero, see String::ComputeAndSetHash()
   uint32_t collision_hash = 0;
 
@@ -371,6 +446,7 @@ void DescriptorArray::Append(Descriptor* desc) {
   if (V8_LIKELY(collision_hash != desc_hash)) return;
 
   CheckNameCollisionDuringInsertion(desc, desc_hash, insertion);
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 }
 
 void DescriptorArray::Sort() {

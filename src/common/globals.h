@@ -270,6 +270,12 @@ const size_t kShortBuiltinCallsOldSpaceSizeThreshold = size_t{2} * GB;
 #define V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL false
 #endif
 
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+#define V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE_BOOL true
+#else
+#define V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE_BOOL false
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+
 // Determine whether dict property constness tracking feature is enabled.
 #ifdef V8_DICT_PROPERTY_CONST_TRACKING
 #define V8_DICT_PROPERTY_CONST_TRACKING_BOOL true

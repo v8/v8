@@ -2649,6 +2649,10 @@ void V8HeapExplorer::ExtractDescriptorArrayReferences(
     HeapEntry* entry, Tagged<DescriptorArray> array) {
   SetInternalReference(entry, "enum_cache", array->enum_cache(),
                        offsetof(DescriptorArray, enum_cache_));
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  SetInternalReference(entry, "lookup_table", array->lookup_table(),
+                       offsetof(DescriptorArray, lookup_table_));
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   MaybeObjectSlot start = MaybeObjectSlot(array->GetDescriptorSlot(0));
   MaybeObjectSlot end = MaybeObjectSlot(
       array->GetDescriptorSlot(array->number_of_all_descriptors()));

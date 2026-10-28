@@ -283,6 +283,11 @@ v8_flag(
     default = False,
 )
 
+v8_flag(
+    name = "v8_enable_descriptor_array_lookup_table",
+    default = False,
+)
+
 selects.config_setting_group(
     name = "enable_drumbrake_x64",
     match_all = [
@@ -578,6 +583,7 @@ v8_config(
         "v8_x64_16byte_stack_alignment": "V8_X64_16BYTE_STACK_ALIGNMENT",
         "v8_support_la57": "V8_SUPPORT_LA57",
         "v8_enable_ecma402_icu4x": "V8_ENABLE_ECMA402_ICU4X",
+        "v8_enable_descriptor_array_lookup_table": "V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE",
     },
     defines = [
         "GOOGLE3",
@@ -2314,6 +2320,8 @@ filegroup(
         "src/objects/lookup-cache.h",
         "src/objects/lookup-cache-inl.h",
         "src/objects/lookup-inl.h",
+        "src/objects/lookup-table.h",
+        "src/objects/lookup-table-inl.h",
         "src/objects/managed.cc",
         "src/objects/managed.h",
         "src/objects/managed-inl.h",

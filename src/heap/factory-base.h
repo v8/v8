@@ -413,7 +413,12 @@ class FactoryBase {
 
   Handle<DescriptorArray> NewDescriptorArray(
       int number_of_descriptors, int slack = 0,
-      AllocationType allocation = AllocationType::kYoung);
+      AllocationType allocation = AllocationType::kYoung
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+      ,
+      bool allocate_lookup_table = true
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  );
 
   Handle<ClassPositions> NewClassPositions(int start, int end);
 

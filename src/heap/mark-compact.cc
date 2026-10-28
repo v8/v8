@@ -4121,6 +4121,21 @@ void MarkCompactCollector::TrimDescriptorArray(
   DCHECK_IMPLIES(to_trim == 0, descriptors->number_of_all_descriptors() ==
                                    number_of_own_descriptors);
   if (to_trim > 0) {
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+    const int old_nof_descriptors = descriptors->number_of_descriptors();
+    // TODO(572302954): add heuristics for trimming the lookup table too.
+    if (number_of_own_descriptors <=
+        DescriptorArray::kMaxElementsForLinearSearch) {
+      descriptors->set_lookup_table(ReadOnlyRoots(heap_).undefined_value(),
+                                    SKIP_WRITE_BARRIER);
+    } else if (old_nof_descriptors - number_of_own_descriptors <=
+               number_of_own_descriptors) {
+      descriptors->RemoveFromLookupTable(old_nof_descriptors,
+                                         number_of_own_descriptors);
+    } else {
+      descriptors->RebuildLookupTable(number_of_own_descriptors);
+    }
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
     descriptors->set_number_of_descriptors(number_of_own_descriptors);
     if (can_trim) {
       RightTrimDescriptorArray(heap_, descriptors, to_trim);
@@ -4130,7 +4145,11 @@ void MarkCompactCollector::TrimDescriptorArray(
                    to_trim * DescriptorArray::kEntrySize);
     }
     TrimEnumCache(heap_, map, descriptors);
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+    DCHECK(descriptors->VerifyLookupTable());
+#else
     descriptors->Sort();
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   }
   DCHECK_IMPLIES(can_trim, descriptors->number_of_all_descriptors() ==
                                number_of_own_descriptors);

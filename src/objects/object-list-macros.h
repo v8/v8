@@ -320,6 +320,7 @@ namespace internal {
   V(BooleanWrapper)                 \
   V(Callable)                       \
   V(Constructor)                    \
+  V(DescriptorLookupTable)          \
   V(Filler)                         \
   V(HandlerTable)                   \
   V(JSContextExtensionObject)       \

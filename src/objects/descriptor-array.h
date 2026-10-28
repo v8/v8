@@ -12,6 +12,7 @@
 #include "src/objects/bit-field-group.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/internal-index.h"
+#include "src/objects/lookup-table.h"
 #include "src/objects/objects.h"
 #include "src/objects/struct.h"
 #include "src/utils/utils.h"
@@ -70,6 +71,21 @@ V8_OBJECT class EnumCache : public Struct {
   TaggedMember<FixedArray> indices_;
 } V8_OBJECT_END;
 
+V8_OBJECT
+class DescriptorLookupTable : public LookupTable<kDescriptorIndexBitCount> {
+  V8_IT_REUSE_PARENT;
+  using Super = LookupTable<kDescriptorIndexBitCount>;
+
+ public:
+  template <typename IsolateT>
+  static inline Handle<DescriptorLookupTable> New(
+      IsolateT* isolate, uint32_t number_of_elements,
+      AllocationType allocation = AllocationType::kYoung);
+} V8_OBJECT_END;
+// Subtract 1 because descriptor index is 1-based.
+static_assert(kMaxNumberOfDescriptors <=
+              DescriptorLookupTable::kMaxElements - 1);
+
 // A DescriptorArray is a custom array that holds instance descriptors.
 // It has the following layout:
 //   Header:
@@ -77,6 +93,8 @@ V8_OBJECT class EnumCache : public Struct {
 //     [32:16 bits]: number_of_descriptors
 //     [64:32 bits]: raw_gc_state (used by GC)
 //     [kEnumCacheOffset]: enum cache
+//     [kLookupTableOffset]: lookup table (behind #ifdef
+//          V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE)
 //   Elements:
 //     [kHeaderSize + 0]: first key (and internalized String)
 //     [kHeaderSize + 1]: first descriptor details (see PropertyDetails)
@@ -142,6 +160,31 @@ V8_OBJECT class DescriptorArray : public HeapObject {
   inline void set_enum_cache(Tagged<EnumCache> value,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  inline Tagged<UnionOf<DescriptorLookupTable, Undefined>> lookup_table() const;
+  inline void set_lookup_table(
+      Tagged<UnionOf<DescriptorLookupTable, Undefined>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  // Allocates and attaches an empty DescriptorLookupTable sized for
+  // `number_of_all_descriptors()` if one is not already present.
+  template <typename IsolateT>
+  V8_EXPORT_PRIVATE static void EnsureLookupTable(
+      IsolateT* isolate, DirectHandle<DescriptorArray> array);
+
+  // Clears and populates the lookup table with the first `len` descriptors.
+  inline void RebuildLookupTable(int len);
+
+  // Removes descriptors in `[new_nof, old_nof)` from the lookup table during
+  // right-trimming.
+  inline void RemoveFromLookupTable(int old_nof, int new_nof);
+
+  // Inserts `(key, descriptor_index)` with precomputed `hash` into the lookup
+  // table.
+  inline void InsertIntoLookupTable(Tagged<Name> key, uint32_t hash,
+                                    int descriptor_index);
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+
   // Accessors for fetching instance descriptor at descriptor number.
   inline Tagged<Name> GetKey(InternalIndex descriptor_number) const;
   inline Tagged<Object> GetStrongValue(InternalIndex descriptor_number);
@@ -172,15 +215,22 @@ V8_OBJECT class DescriptorArray : public HeapObject {
   // array.
   inline void Append(Descriptor* desc);
 
+  // If `replace_source` is true, the caller guarantees that `desc` will be
+  // replaced by the returned DescriptorArray, allowing `desc`'s lookup table
+  // to be reused and removed from `desc`.
   static DirectHandle<DescriptorArray> CopyUpTo(
       Isolate* isolate, DirectHandle<DescriptorArray> desc,
-      int enumeration_index, int slack = 0);
+      int enumeration_index, int slack = 0, bool replace_source = false);
 
   static DirectHandle<DescriptorArray> CopyUpToAddAttributes(
       Isolate* isolate, DirectHandle<DescriptorArray> desc,
-      int enumeration_index, PropertyAttributes attributes, int slack = 0);
+      int enumeration_index, PropertyAttributes attributes, int slack = 0,
+      bool replace_source = false);
 
-  // Sort the instance descriptors by the hash codes of their keys.
+  // Sort the instance descriptors by the hash codes of their keys or build
+  // the lookup table if the descriptor array is bigger than the linear
+  // lookup limit.
+  // TODO(572302954): rename to BuildLookupTable().
   inline void Sort();
 
   // Iterate through Name hash collisions in the descriptor array starting from
@@ -212,7 +262,12 @@ V8_OBJECT class DescriptorArray : public HeapObject {
   template <typename IsolateT>
   V8_EXPORT_PRIVATE static Handle<DescriptorArray> Allocate(
       IsolateT* isolate, int nof_descriptors, int slack,
-      AllocationType allocation = AllocationType::kYoung);
+      AllocationType allocation = AllocationType::kYoung
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+      ,
+      bool allocate_lookup_table = true
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  );
 
   void Initialize(Tagged<EnumCache> enum_cache,
                   Tagged<HeapObject> undefined_value, int nof_descriptors,
@@ -262,6 +317,11 @@ V8_OBJECT class DescriptorArray : public HeapObject {
 #endif
 
 #ifdef DEBUG
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  // Verifies that the lookup table is consistent with the descriptor array
+  // and that there are no duplicate keys.
+  V8_EXPORT_PRIVATE bool VerifyLookupTable();
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   // Is the descriptor array sorted and without duplicates?
   V8_EXPORT_PRIVATE bool IsSortedNoDuplicates();
 
@@ -291,6 +351,12 @@ V8_OBJECT class DescriptorArray : public HeapObject {
   inline void SetDetails(InternalIndex descriptor_number,
                          PropertyDetails details);
 
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  // Searches the descriptor lookup table for `name` within the first
+  // `number_of_own_descriptors` descriptors.
+  V8_INLINE InternalIndex TableSearch(Tagged<Name> name,
+                                      int number_of_own_descriptors);
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   V8_INLINE InternalIndex BinarySearch(Tagged<Name> name,
                                        int number_of_own_descriptors);
   V8_INLINE InternalIndex LinearSearch(Tagged<Name> name,
@@ -326,6 +392,9 @@ V8_OBJECT class DescriptorArray : public HeapObject {
   std::atomic<uint16_t> number_of_descriptors_;
   std::atomic<Flags> flags_;
   TaggedMember<EnumCache> enum_cache_;
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  TaggedMember<UnionOf<DescriptorLookupTable, Undefined>> lookup_table_;
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   V8_TQ_TAIL_LENGTH(number_of_all_descriptors);
   FLEXIBLE_ARRAY_MEMBER(Entry, entries, V8_TQ_TYPE(DescriptorEntry));
 } V8_OBJECT_END;
