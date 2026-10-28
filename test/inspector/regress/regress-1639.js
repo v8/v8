@@ -1,4 +1,4 @@
-// Copyright 2013 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,20 +25,49 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+let {session, contextGroup, Protocol} =
+    InspectorTest.start('Tests regress-1639.');
 
-Debug = debug.Debug;
-
-function listener(event, exec_state, event_data, data) {
-  if (event == Debug.DebugEvent.Break) {
-    exec_state.prepareStep(Debug.StepAction.StepOver);
+session.setupScriptMap();
+contextGroup.addScript(
+    `
+function a(f) {
+  if (f) {  // NOBREAK: should not break here!
+    try {
+      f();
+    } catch(e) {
+    }
   }
-};
+}  // BREAK 2
 
-Debug.setListener(listener);
+function b() {
+  c();  // BREAK 0
+}  // BREAK 1
 
-var statement = "";
-for (var i = 0; i < 1024; i++) statement += "z";
-statement = 'with(0)' + statement + '=function foo(){}';
+function c() {
+  a();
+}
 
-debugger;
-eval(statement);
+function run() {
+  a(b);
+  a(); // BREAK 3
+}`,
+    0, 0, 'test.js');
+
+(async function test() {
+  await Protocol.Debugger.enable();
+  await Protocol.Debugger.setBreakpointByUrl(
+      {url: 'test.js', lineNumber: 11, columnNumber: 0});
+  let breaks = 0;
+  Protocol.Debugger.onPaused(async message => {
+    await session.logSourceLocation(message.params.callFrames[0].location);
+    breaks++;
+    if (breaks < 4) {
+      Protocol.Debugger.stepOver();
+    } else {
+      Protocol.Debugger.resume();
+    }
+  });
+  await Protocol.Runtime.evaluate({expression: 'run()'});
+  InspectorTest.completeTest();
+})();

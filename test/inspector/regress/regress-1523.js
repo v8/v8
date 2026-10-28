@@ -27,19 +27,12 @@
 
 // See: http://code.google.com/p/v8/issues/detail?id=1523
 
+let {session, contextGroup, Protocol} =
+    InspectorTest.start('Tests regress-1523.');
 
-Debug = debug.Debug
-
-var listenerCalled = false;
-var result = -1;
-
-function listener(event, exec_state, event_data, data) {
-  listenerCalled = true;
-};
-
-// Add the debug event listener.
-Debug.setListener(listener);
-
+session.setupScriptMap();
+contextGroup.addScript(
+    `
 function test_and(x) {
   if (x && (bar === this.baz))
     return 0;
@@ -50,18 +43,25 @@ function test_or(x) {
   if (x || (bar === this.baz))
     return 0;
   return 1;
-}
+}`,
+    0, 0, 'test.js');
 
-// Set a break points and call each function to invoke the debug event listener.
-Debug.setBreakPoint(test_and, 0, 0);
-Debug.setBreakPoint(test_or, 0, 0);
+(async function test() {
+  await Protocol.Debugger.enable();
+  await Protocol.Debugger.setBreakpointByUrl(
+      {url: 'test.js', lineNumber: 2, columnNumber: 0});
+  await Protocol.Debugger.setBreakpointByUrl(
+      {url: 'test.js', lineNumber: 8, columnNumber: 0});
 
-listenerCalled = false;
-result = test_and(false);
-assertEquals(1, result);
-assertTrue(listenerCalled);
+  for (const expr of ['test_and(false)', 'test_or(true)']) {
+    const pausedPromise = Protocol.Debugger.oncePaused();
+    const evalPromise = Protocol.Runtime.evaluate({expression: expr});
+    const {params: {callFrames}} = await pausedPromise;
+    await session.logSourceLocation(callFrames[0].location);
+    await Protocol.Debugger.resume();
+    const {result: {result}} = await evalPromise;
+    InspectorTest.log(expr + ' -> ' + result.value);
+  }
 
-listenerCalled = false;
-result = test_or(true);
-assertEquals(0, result);
-assertTrue(listenerCalled);
+  InspectorTest.completeTest();
+})();

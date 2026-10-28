@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,51 +25,28 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-Debug = debug.Debug
-var breaks = 0;
-var exceptionThrown = false;
+let {session, contextGroup, Protocol} =
+    InspectorTest.start('Tests regress-147497.');
 
-function listener(event, exec_state, event_data, data) {
-  try {
-    if (event == Debug.DebugEvent.Break) {
-      var line = event_data.sourceLineText();
-      print('break: ' + line);
+contextGroup.addScript(`
+var statement = "";
+for (var i = 0; i < 1024; i++) statement += "z";
+statement = 'with(0)' + statement + '=function foo(){}';
 
-      assertEquals(-1, line.indexOf('NOBREAK'),
-                   "should not break on unexpected lines")
-      assertEquals('BREAK ' + breaks, line.substr(-7));
-      breaks++;
-      if (breaks < 4) exec_state.prepareStep(Debug.StepAction.StepOver);
-    }
-  } catch (e) {
-    print(e);
-    exceptionThrown = true;
-  }
+function run() {
+  debugger;
+  eval(statement);
 }
+`);
 
-// Add the debug event listener.
-Debug.setListener(listener);
-
-function a(f) {
-  if (f) {  // NOBREAK: should not break here!
-    try {
-      f();
-    } catch(e) {
-    }
-  }
-}  // BREAK 2
-
-function b() {
-  c();  // BREAK 0
-}  // BREAK 1
-
-function c() {
-  a();
-}
-
-// Set a break point and call to invoke the debug event listener.
-Debug.setBreakPoint(b, 0, 0);
-a(b);
-a(); // BREAK 3
-
-assertFalse(exceptionThrown);
+(async function test() {
+  await Protocol.Debugger.enable();
+  let steps = 0;
+  Protocol.Debugger.onPaused(() => {
+    steps++;
+    Protocol.Debugger.stepOver();
+  });
+  await Protocol.Runtime.evaluate({expression: 'run()'});
+  InspectorTest.log('Steps: ' + steps);
+  InspectorTest.completeTest();
+})();

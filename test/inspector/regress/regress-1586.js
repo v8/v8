@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,23 +25,41 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-Debug = debug.Debug
+// Test debug evaluation for functions without local context, but with
+// nested catch contexts.
 
-function listener(event, exec_state, event_data, data) {
-  if (event == Debug.DebugEvent.Break) {
-    exec_state.prepareStep(Debug.StepAction.StepInto);
-  }
-};
+let {session, contextGroup, Protocol} =
+    InspectorTest.start('Tests regress-1586.');
 
-// Add the debug event listener.
-Debug.setListener(listener);
-
-function g() {
-}
-
+session.setupScriptMap();
+contextGroup.addScript(
+    `
 function f() {
-  debugger;
-  g.apply(null, ['']);
-}
+  var i = 1;          // Line 1.
+  {                   // Line 2.
+    try {             // Line 3.
+      throw 'stuff';  // Line 4.
+    } catch (e) {     // Line 5.
+      x = 2;          // Line 6.
+    }
+  }
+};`,
+    0, 0, 'test.js');
 
-f()
+(async function test() {
+  await Protocol.Debugger.enable();
+  const {result: {breakpointId}} = await Protocol.Debugger.setBreakpointByUrl(
+      {url: 'test.js', lineNumber: 7});
+  const pausedPromise = Protocol.Debugger.oncePaused();
+  const evalPromise = Protocol.Runtime.evaluate({expression: 'f()'});
+  const {params: {callFrames}} = await pausedPromise;
+  await session.logSourceLocation(callFrames[0].location);
+  const {result: {result}} = await Protocol.Debugger.evaluateOnCallFrame(
+      {callFrameId: callFrames[0].callFrameId, expression: 'i'});
+  InspectorTest.log('i -> ' + result.value);
+  await Protocol.Debugger.resume();
+  await evalPromise;
+  await Protocol.Debugger.removeBreakpoint({breakpointId});
+  await Protocol.Debugger.disable();
+  InspectorTest.completeTest();
+})();

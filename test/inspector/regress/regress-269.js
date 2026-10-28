@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,40 +25,26 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+let {session, contextGroup, Protocol} =
+    InspectorTest.start('Tests regress-269.');
 
-// Test debug evaluation for functions without local context, but with
-// nested catch contexts.
+session.setupScriptMap();
+contextGroup.addScript(`
+function g() {
+}
 
 function f() {
-  var i = 1;          // Line 1.
-  {                   // Line 2.
-    try {             // Line 3.
-      throw 'stuff';  // Line 4.
-    } catch (e) {     // Line 5.
-      x = 2;          // Line 6.
-    }
-  }
-};
+  debugger;
+  g.apply(null, ['']);
+}
+`);
 
-Debug = debug.Debug
-
-function listener(event, exec_state, event_data, data) {
-  if (event == Debug.DebugEvent.Break) {
-    result = exec_state.frame().evaluate("i").value();
-  }
-};
-
-// Add the debug event listener.
-Debug.setListener(listener);
-
-//Set breakpoint on line 6.
-var bp = Debug.setBreakPoint(f, 6);
-
-result = -1;
-f();
-assertEquals(1, result);
-
-// Clear breakpoint.
-Debug.clearBreakPoint(bp);
-// Get rid of the debug event listener.
-Debug.setListener(null);
+(async function test() {
+  await Protocol.Debugger.enable();
+  Protocol.Debugger.onPaused(async message => {
+    await session.logSourceLocation(message.params.callFrames[0].location);
+    Protocol.Debugger.stepInto();
+  });
+  await Protocol.Runtime.evaluate({expression: 'f()'});
+  InspectorTest.completeTest();
+})();
