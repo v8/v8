@@ -585,7 +585,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // and reused on subsequent entries.
   class PerIsolateThreadData {
    public:
-    PerIsolateThreadData(Isolate* isolate, ThreadId thread_id)
+    PerIsolateThreadData(Isolate* isolate, base::ThreadId thread_id)
         : isolate_(isolate),
           thread_id_(thread_id),
           stack_limit_(0),
@@ -600,7 +600,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     PerIsolateThreadData(const PerIsolateThreadData&) = delete;
     PerIsolateThreadData& operator=(const PerIsolateThreadData&) = delete;
     Isolate* isolate() const { return isolate_; }
-    ThreadId thread_id() const { return thread_id_; }
+    base::ThreadId thread_id() const { return thread_id_; }
 
     FIELD_ACCESSOR(uintptr_t, stack_limit)
     FIELD_ACCESSOR(ThreadState*, thread_state)
@@ -608,13 +608,13 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     FIELD_ACCESSOR(Simulator*, simulator)
 #endif
 
-    bool Matches(Isolate* isolate, ThreadId thread_id) const {
+    bool Matches(Isolate* isolate, base::ThreadId thread_id) const {
       return isolate_ == isolate && thread_id_ == thread_id;
     }
 
    private:
     Isolate* isolate_;
-    ThreadId thread_id_;
+    base::ThreadId thread_id_;
     uintptr_t stack_limit_;
     ThreadState* thread_state_;
 
@@ -719,7 +719,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // Find the PerThread for given (isolate, thread) combination
   // If one does not yet exist, return null.
-  PerIsolateThreadData* FindPerThreadDataForThread(ThreadId thread_id);
+  PerIsolateThreadData* FindPerThreadDataForThread(base::ThreadId thread_id);
 
   // Discard the PerThread for this particular (isolate, thread) combination
   // If one does not yet exist, no-op.
@@ -825,10 +825,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
   // Access to current thread id.
-  inline void set_thread_id(ThreadId id) {
+  inline void set_thread_id(base::ThreadId id) {
     thread_local_top()->thread_id_.store(id, std::memory_order_relaxed);
   }
-  inline ThreadId thread_id() const {
+  inline base::ThreadId thread_id() const {
     return thread_local_top()->thread_id_.load(std::memory_order_relaxed);
   }
 
@@ -2536,19 +2536,19 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
    public:
     ThreadDataTable() = default;
 
-    PerIsolateThreadData* Lookup(ThreadId thread_id);
+    PerIsolateThreadData* Lookup(base::ThreadId thread_id);
     void Insert(PerIsolateThreadData* data);
     void Remove(PerIsolateThreadData* data);
     void RemoveAllThreads();
 
    private:
     struct Hasher {
-      std::size_t operator()(const ThreadId& t) const {
+      std::size_t operator()(const base::ThreadId& t) const {
         return std::hash<int>()(t.ToInteger());
       }
     };
 
-    std::unordered_map<ThreadId, PerIsolateThreadData*, Hasher> table_;
+    std::unordered_map<base::ThreadId, PerIsolateThreadData*, Hasher> table_;
   };
 
   // These items form a stack synchronously with threads Enter'ing and Exit'ing
@@ -3016,7 +3016,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #endif
 
 #ifdef V8_ENABLE_CHECKS
-  ThreadId current_thread_id_;
+  base::ThreadId current_thread_id_ = base::ThreadId::Invalid();
   int current_thread_counter_ = 0;
 #endif
 
@@ -3210,7 +3210,7 @@ class V8_NODISCARD MutexGuardIfOffThread<Isolate> final {
   MutexGuardIfOffThread(base::Mutex* mutex, Isolate* isolate) {
     DCHECK_NOT_NULL(mutex);
     DCHECK_NOT_NULL(isolate);
-    DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+    DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
   }
 
   MutexGuardIfOffThread(const MutexGuardIfOffThread&) = delete;

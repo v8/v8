@@ -2534,7 +2534,7 @@ Isolate* GetCurrentIsolateForGc() {
   if (Isolate* isolate = Isolate::TryGetCurrent()) {
     // Note: instead of failing, this CHECK could also crash if `isolate` was
     // deallocated in the meantime (and hence is *not* the current isolate).
-    CHECK_EQ(isolate->thread_id(), ThreadId::Current());
+    CHECK_EQ(isolate->thread_id(), base::ThreadId::Current());
     return isolate;
   }
   return nullptr;

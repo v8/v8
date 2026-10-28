@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/execution/thread-id.h"
+#include "src/base/thread-id.h"
+
 #include "src/base/lazy-instance.h"
 #include "src/base/platform/platform.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::base {
 
 namespace {
 
@@ -31,5 +31,4 @@ int ThreadId::GetCurrentThreadId() {
   return thread_id;
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::base

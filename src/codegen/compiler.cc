@@ -393,7 +393,7 @@ CompilationJob::Status UnoptimizedCompilationJob::ExecuteJob() {
 
 CompilationJob::Status UnoptimizedCompilationJob::FinalizeJob(
     DirectHandle<SharedFunctionInfo> shared_info, Isolate* isolate) {
-  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+  DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
   DisallowCodeDependencyChange no_dependency_change;
   DisallowJavascriptExecution no_js(isolate);
 
@@ -438,7 +438,7 @@ void LogUnoptimizedCompilation(Isolate* isolate,
 // Implementation of OptimizedCompilationJob
 
 CompilationJob::Status OptimizedCompilationJob::PrepareJob(Isolate* isolate) {
-  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+  DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
   DisallowJavascriptExecution no_js(isolate);
 
   // Delegate to the underlying implementation.
@@ -459,7 +459,7 @@ CompilationJob::Status OptimizedCompilationJob::ExecuteJob(
 }
 
 CompilationJob::Status OptimizedCompilationJob::FinalizeJob(Isolate* isolate) {
-  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+  DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
   DisallowJavascriptExecution no_js(isolate);
 
   // Delegate to the underlying implementation.
@@ -1575,7 +1575,7 @@ MaybeHandle<SharedFunctionInfo> CompileToplevel(
     IsCompiledScope* is_compiled_scope) {
   TimerEventScope<TimerEventCompileCode> top_level_timer(isolate);
   TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileCode");
-  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+  DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
 
   PostponeInterruptsScope postpone(isolate);
   DCHECK(!isolate->native_context().is_null());
@@ -1937,7 +1937,7 @@ bool BackgroundCompileTask::is_streaming_compilation() const {
 }
 
 void BackgroundCompileTask::Run() {
-  DCHECK_NE(ThreadId::Current(), isolate_for_local_isolate_->thread_id());
+  DCHECK_NE(base::ThreadId::Current(), isolate_for_local_isolate_->thread_id());
   LocalIsolate isolate(isolate_for_local_isolate_, ThreadKind::kBackground);
   UnparkedScope unparked_scope(&isolate);
   LocalHandleScope handle_scope(&isolate);
@@ -2974,7 +2974,7 @@ bool Compiler::CollectSourcePositions(
   }
 
   DCHECK(AllowCompilation::IsAllowed(isolate));
-  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+  DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
 
   DCHECK(!isolate->has_exception());
   VMState<BYTECODE_COMPILER> state(isolate);
@@ -3055,7 +3055,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
   DCHECK(!shared_info->is_compiled());
   DCHECK(!is_compiled_scope->is_compiled());
   DCHECK(AllowCompilation::IsAllowed(isolate));
-  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+  DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
   DCHECK(!isolate->has_exception());
   DCHECK(!shared_info->HasBytecodeArray());
 

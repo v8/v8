@@ -1506,7 +1506,7 @@ using NullContextScopeFor = typename NullContextScopeHelper<Isolate>::Type;
 template <typename IsolateT>
 Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(
     IsolateT* isolate, Handle<Script> script) {
-  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+  DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
 #ifdef DEBUG
   // Unoptimized compilation should be context-independent. Verify that we don't
   // access the native context by nulling it out during finalization.
@@ -1544,7 +1544,7 @@ template Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(
 template <typename IsolateT>
 DirectHandle<TrustedByteArray> BytecodeGenerator::FinalizeSourcePositionTable(
     IsolateT* isolate) {
-  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+  DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
 #ifdef DEBUG
   // Unoptimized compilation should be context-independent. Verify that we don't
   // access the native context by nulling it out during finalization.

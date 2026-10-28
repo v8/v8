@@ -666,7 +666,7 @@ void Parser::DeserializeScopeChain(
   InitializeEmptyScopeChain(info);
   DirectHandle<ScopeInfo> outer_scope_info;
   if (maybe_outer_scope_info.ToHandle(&outer_scope_info)) {
-    DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+    DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
     Tagged<Script> eval_from_script = *script;
     Tagged<ScopeInfo> eval_from_scope_info;
     if (eval_from_script->has_eval_from_scope_info()) {

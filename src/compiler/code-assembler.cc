@@ -173,7 +173,7 @@ void CodeAssembler::BuiltinCompilationScheduler::CompileCode(
 #endif  // V8_USE_ADDRESS_SANITIZER
 
   // This must be called from the main thread.
-  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+  DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
 
   DCHECK(job->compilation_info()->code_kind() == CodeKind::BUILTIN ||
          job->compilation_info()->code_kind() == CodeKind::BYTECODE_HANDLER);
@@ -353,7 +353,7 @@ void CodeAssembler::CanonicalizeEmbeddedBuiltinsConstantIfNeeded(
     Handle<HeapObject> object) {
   // This must be called on the main thread so that the builtins constant
   // indices are reproducible from run to run of mksnapshot.
-  DCHECK_EQ(ThreadId::Current(), isolate()->thread_id());
+  DCHECK_EQ(base::ThreadId::Current(), isolate()->thread_id());
   RootIndex dummy_root;
   Builtin dummy_builtin;
   if (isolate()->IsGeneratingEmbeddedBuiltins() &&

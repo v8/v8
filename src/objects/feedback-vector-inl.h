@@ -285,7 +285,7 @@ bool FeedbackVector::tiering_in_progress() const {
 
 std::optional<Tagged<Code>> FeedbackVector::GetOptimizedOsrCode(
     Isolate* isolate, Handle<BytecodeArray> bytecode, FeedbackSlot slot) {
-  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+  DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
 
   // Since this is only called in the main thread, we don't need to take the
   // mutex for reading.

@@ -491,7 +491,7 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(
   std::array<Handle<Code>, Builtins::kBuiltinCount> generated_builtins;
   auto install_generated_builtin = [&generated_builtins, isolate](
                                        Builtin builtin, Handle<Code> code) {
-    DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+    DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
     USE(isolate);
     generated_builtins[Builtins::ToInt(builtin)] = code;
   };

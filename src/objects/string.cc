@@ -9,12 +9,12 @@
 #include "include/v8config.h"
 #include "src/base/small-vector.h"
 #include "src/base/strong-alias.h"
+#include "src/base/thread-id.h"
 #include "src/base/unique-array.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/common/synchronization-point-support.h"
 #include "src/execution/isolate-utils.h"
-#include "src/execution/thread-id.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-layout-inl.h"
@@ -2204,7 +2204,7 @@ FlatStringReader::FlatStringReader(Isolate* isolate, DirectHandle<String> str)
     : Relocatable(isolate), str_(str), length_(str->length()) {
 #if DEBUG
   // Check that this constructor is called only from the main thread.
-  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+  DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
 #endif
   PostGarbageCollection();
 }

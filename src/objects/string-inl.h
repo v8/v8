@@ -1576,7 +1576,7 @@ const uint8_t* ExternalOneByteString::GetChars() const {
     {
       Isolate* isolate;
       DCHECK_IMPLIES(GetIsolateFromHeapObject(this, &isolate),
-                     ThreadId::Current() == isolate->thread_id());
+                     base::ThreadId::Current() == isolate->thread_id());
     }
 #endif
   }
@@ -1640,7 +1640,7 @@ const uint16_t* ExternalTwoByteString::GetChars() const {
     {
       Isolate* isolate;
       DCHECK_IMPLIES(GetIsolateFromHeapObject(this, &isolate),
-                     ThreadId::Current() == isolate->thread_id());
+                     base::ThreadId::Current() == isolate->thread_id());
     }
 #endif
   }

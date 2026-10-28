@@ -16,7 +16,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
-#include "src/execution/thread-id.h"
+#include "src/base/thread-id.h"
 #include "src/heap/local-heap-inl.h"
 
 namespace v8 {
@@ -37,7 +37,7 @@ void SynchronizationPointSupport::RequestBlockAt(
       states_[std::move(synchronization_point)];
   if (!state) state = std::make_unique<SyncPointState>();
   state->block_requested = true;
-  state->block_requester_thread = ThreadId::Current();
+  state->block_requester_thread = base::ThreadId::Current();
   state->block_timeout = timeout;
 }
 
@@ -110,7 +110,7 @@ void SynchronizationPointSupport::BlockIfRequestedSlow(
     if (it == states_.end()) return;
     state = it->second.get();
     if (!state->block_requested) return;
-    if (state->block_requester_thread == ThreadId::Current()) {
+    if (state->block_requester_thread == base::ThreadId::Current()) {
       base::OS::PrintError(
           "Warning: ignoring self-deadlock at synchronization point '%.*s'\n",
           static_cast<int>(synchronization_point.length()),

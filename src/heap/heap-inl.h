@@ -65,7 +65,7 @@ Tagged<T> ForwardingAddress(Tagged<T> heap_obj) {
 Isolate* Heap::isolate() const { return Isolate::FromHeap(this); }
 
 bool Heap::IsMainThread() const {
-  return isolate()->thread_id() == ThreadId::Current();
+  return isolate()->thread_id() == base::ThreadId::Current();
 }
 
 uint64_t Heap::external_memory() const {

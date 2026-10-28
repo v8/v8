@@ -270,7 +270,7 @@ WasmInterpreterThreadMap* WasmInterpreterThread::thread_interpreter_map_s =
 
 WasmInterpreterThread* WasmInterpreterThreadMap::GetCurrentInterpreterThread(
     Isolate* isolate) {
-  const int current_thread_id = ThreadId::Current().ToInteger();
+  const int current_thread_id = base::ThreadId::Current().ToInteger();
   // Key by both the OS thread id and the isolate: the same OS thread can run
   // wasm for different isolates over time (v8::Locker multiplexing), and each
   // isolate needs its own WasmInterpreterThread so that isolate_,

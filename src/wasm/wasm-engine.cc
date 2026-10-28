@@ -1678,7 +1678,7 @@ void WasmEngine::FreeNativeModule(NativeModule* native_module) {
     // Note: instead of failing, this CHECK could also crash if `isolate` was
     // deallocated in the meantime (and hence is *not* the current isolate).
     // TODO(clemensb): Add this check to `Isolate::TryGetCurrent()` directly.
-    CHECK_EQ(isolate->thread_id(), ThreadId::Current());
+    CHECK_EQ(isolate->thread_id(), base::ThreadId::Current());
     native_module->counter_updates()->Publish(isolate);
   }
   for (Isolate* isolate : module->second->isolates) {

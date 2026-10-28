@@ -606,7 +606,7 @@ std::atomic<int> isolate_counter{0};
 
 Isolate::PerIsolateThreadData*
 Isolate::FindOrAllocatePerThreadDataForThisThread() {
-  ThreadId thread_id = ThreadId::Current();
+  base::ThreadId thread_id = base::ThreadId::Current();
   PerIsolateThreadData* per_thread = nullptr;
   {
     base::MutexGuard lock_guard(&thread_data_table_mutex_);
@@ -624,7 +624,7 @@ Isolate::FindOrAllocatePerThreadDataForThisThread() {
 }
 
 void Isolate::DiscardPerThreadDataForThisThread() {
-  ThreadId thread_id = ThreadId::TryGetCurrent();
+  base::ThreadId thread_id = base::ThreadId::TryGetCurrent();
   if (thread_id.IsValid()) {
     DCHECK_NE(thread_manager_->mutex_owner_.load(std::memory_order_relaxed),
               thread_id);
@@ -638,12 +638,12 @@ void Isolate::DiscardPerThreadDataForThisThread() {
 }
 
 Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThisThread() {
-  ThreadId thread_id = ThreadId::Current();
+  base::ThreadId thread_id = base::ThreadId::Current();
   return FindPerThreadDataForThread(thread_id);
 }
 
 Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThread(
-    ThreadId thread_id) {
+    base::ThreadId thread_id) {
   PerIsolateThreadData* per_thread = nullptr;
   {
     base::MutexGuard lock_guard(&thread_data_table_mutex_);
@@ -2390,7 +2390,7 @@ class MinimalStackPrinter {
 }  // namespace
 
 std::string Isolate::BuildMinimalStack(size_t max_length) {
-  DCHECK_EQ(thread_id(), ThreadId::Current());
+  DCHECK_EQ(thread_id(), base::ThreadId::Current());
   DisallowGarbageCollection no_gc;
   HandleScope scope(this);
 
@@ -4712,7 +4712,7 @@ Isolate::PerIsolateThreadData::~PerIsolateThreadData() {
 }
 
 Isolate::PerIsolateThreadData* Isolate::ThreadDataTable::Lookup(
-    ThreadId thread_id) {
+    base::ThreadId thread_id) {
   auto t = table_.find(thread_id);
   if (t == table_.end()) return nullptr;
   return t->second;
@@ -4786,7 +4786,7 @@ void Isolate::Deinitialize(Isolate* isolate) {
   PerIsolateThreadData* saved_data = isolate->CurrentPerIsolateThreadData();
   Isolate* saved_isolate = isolate->TryGetCurrent();
   SetIsolateThreadLocals(isolate, nullptr);
-  isolate->set_thread_id(ThreadId::Current());
+  isolate->set_thread_id(base::ThreadId::Current());
   isolate->heap()->SetStackStart();
 
   isolate->Deinit();
@@ -6672,7 +6672,7 @@ void Isolate::Enter() {
 
 #ifdef V8_ENABLE_CHECKS
   // No different thread must have entered the isolate. Allow re-entering.
-  ThreadId thread_id = ThreadId::Current();
+  base::ThreadId thread_id = base::ThreadId::Current();
   if (current_thread_id_.IsValid()) {
     CHECK_EQ(current_thread_id_, thread_id);
   } else {
@@ -6694,7 +6694,7 @@ void Isolate::Enter() {
       DCHECK_NOT_NULL(entry_stack);
       DCHECK(entry_stack->previous_thread_data == nullptr ||
              entry_stack->previous_thread_data->thread_id() ==
-                 ThreadId::Current());
+                 base::ThreadId::Current());
       // Same thread re-enters the isolate, no need to re-init anything.
       entry_stack->entry_count++;
       return;
@@ -6720,12 +6720,14 @@ void Isolate::Exit() {
   DCHECK_NOT_NULL(current_entry_stack);
   DCHECK(current_entry_stack->previous_thread_data == nullptr ||
          current_entry_stack->previous_thread_data->thread_id() ==
-             ThreadId::Current());
+             base::ThreadId::Current());
 
 #ifdef V8_ENABLE_CHECKS
   // The current thread must have entered the isolate.
-  CHECK_EQ(current_thread_id_, ThreadId::Current());
-  if (--current_thread_counter_ == 0) current_thread_id_ = ThreadId::Invalid();
+  CHECK_EQ(current_thread_id_, base::ThreadId::Current());
+  if (--current_thread_counter_ == 0) {
+    current_thread_id_ = base::ThreadId::Invalid();
+  }
 #endif
 
   if (--current_entry_stack->entry_count > 0) return;

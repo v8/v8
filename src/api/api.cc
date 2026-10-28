@@ -274,7 +274,7 @@ void i::V8::FatalProcessOutOfMemory(i::Isolate* i_isolate, const char* location,
     i_isolate->heap()->RecordStats(&heap_stats);
     i_isolate->heap()->ReportStatsAsCrashKeys(heap_stats);
 
-    if (i_isolate->thread_id() == ThreadId::Current()) {
+    if (i_isolate->thread_id() == base::ThreadId::Current()) {
       i_isolate->ReportStackAsCrashKey();
     }
 
@@ -10954,7 +10954,7 @@ void Isolate::MemoryPressureNotification(MemoryPressureLevel level) {
   bool on_isolate_thread =
       i_isolate->was_locker_ever_used()
           ? i_isolate->thread_manager()->IsLockedByCurrentThread()
-          : i::ThreadId::Current() == i_isolate->thread_id();
+          : base::ThreadId::Current() == i_isolate->thread_id();
   i_isolate->heap()->MemoryPressureNotification(level, on_isolate_thread);
 }
 

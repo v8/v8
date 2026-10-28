@@ -153,7 +153,7 @@ Address* JSHeapBroker::AllocatePersistentHandle(Tagged<Object> object) {
 
 bool JSHeapBroker::StackHasOverflowed() const {
   DCHECK_IMPLIES(local_isolate_ == nullptr,
-                 ThreadId::Current() == isolate_->thread_id());
+                 base::ThreadId::Current() == isolate_->thread_id());
   return (local_isolate_ != nullptr)
              ? StackLimitCheck::HasOverflowed(local_isolate_)
              : StackLimitCheck(isolate_).HasOverflowed();

@@ -4833,7 +4833,7 @@ DirectHandle<JSAny> JSObject::FastPropertyAt(Isolate* isolate,
 Handle<Object> JSObject::DictionaryPropertyAt(Isolate* isolate,
                                               DirectHandle<JSObject> object,
                                               InternalIndex dict_index) {
-  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+  DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
   if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     Tagged<SwissNameDictionary> dict = object->property_dictionary_swiss();
     return handle(dict->ValueAt(dict_index), isolate);

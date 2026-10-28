@@ -13951,7 +13951,7 @@ void ApiTestFuzzer::ContextSwitch() {
   if (!NextThread()) return;
   // Mark the stack of this background thread for conservative stack scanning.
   CcTest::i_isolate()->heap()->stack().SetMarkerForBackgroundThreadAndCallback(
-      i::ThreadId::Current().ToInteger(), [this]() {
+      v8::base::ThreadId::Current().ToInteger(), [this]() {
         // Exit the isolate from this thread.
         CcTest::i_isolate()->Exit();
         {

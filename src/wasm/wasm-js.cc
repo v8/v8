@@ -82,7 +82,7 @@ class WasmStreaming::WasmStreamingImpl {
   }
   void Finish(const WasmStreaming::ModuleCachingCallback& caching_callback) {
     // Finish can only be called on the main thread of the isolate.
-    CHECK_EQ(i_isolate_->thread_id(), i::ThreadId::Current());
+    CHECK_EQ(i_isolate_->thread_id(), base::ThreadId::Current());
     streaming_decoder_->Finish(caching_callback);
   }
 

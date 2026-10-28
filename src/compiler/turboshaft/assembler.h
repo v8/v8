@@ -4363,7 +4363,7 @@ class AssemblerOpInterface : public Next {
               int line, SourceLocation loc = SourceLocation::CurrentIfDebug()) {
     Isolate* isolate = Asm().data()->isolate();
     DCHECK_NOT_NULL(isolate);
-    DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+    DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
     if (v8_flags.debug_code) {
       Check(condition(), message, file, line, loc);
     }
@@ -4376,7 +4376,7 @@ class AssemblerOpInterface : public Next {
     Isolate* isolate = Asm().data()->isolate();
     USE(isolate);
     DCHECK_NOT_NULL(isolate);
-    DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+    DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
 
     if (message != nullptr) {
       CodeComment({"[ Assert: ", loc}, message);
@@ -4412,7 +4412,7 @@ class AssemblerOpInterface : public Next {
 
     Isolate* isolate = Asm().data()->isolate();
     DCHECK_NOT_NULL(isolate);
-    DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+    DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
     const std::string str = stream.str();
     Handle<String> internalized_string =
         isolate->factory()->InternalizeString(str);
@@ -4665,7 +4665,7 @@ class AssemblerOpInterface : public Next {
         Isolate* isolate = Asm().data()->isolate();
         // If we don't have a broker, we can only allocate the string on the
         // main thread.
-        DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+        DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
         internalized_string = isolate->factory()->InternalizeString(label);
         CanonicalizeEmbeddedBuiltinsConstantIfNeeded(internalized_string);
       }
@@ -4691,7 +4691,7 @@ class AssemblerOpInterface : public Next {
       Isolate* isolate = Asm().data()->isolate();
       // If we don't have a broker, we can only allocate the string on the main
       // thread.
-      DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+      DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
       internalized_string = isolate->factory()->InternalizeString(str);
       CanonicalizeEmbeddedBuiltinsConstantIfNeeded(internalized_string);
     }

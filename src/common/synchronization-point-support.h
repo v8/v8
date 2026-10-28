@@ -17,7 +17,7 @@
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
-#include "src/execution/thread-id.h"
+#include "src/base/thread-id.h"
 
 namespace v8 {
 namespace internal {
@@ -66,7 +66,7 @@ class V8_EXPORT_PRIVATE SynchronizationPointSupport {
     // Number of threads that have reached the point and are currently blocked.
     int blocked_threads = 0;
     // The identity of the thread that set the `block_requested` flag.
-    ThreadId block_requester_thread = ThreadId::Invalid();
+    base::ThreadId block_requester_thread = base::ThreadId::Invalid();
     // How long a thread should remain blocked, unless resumed.
     base::TimeDelta block_timeout;
   };

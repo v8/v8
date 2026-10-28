@@ -114,7 +114,7 @@ MaglevCompilationJob::~MaglevCompilationJob() = default;
 
 CompilationJob::Status MaglevCompilationJob::AbortOptimization(
     Isolate* isolate, BailoutReason reason) {
-  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+  DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
   bailout_reason_ = reason;
   DirectHandle<SharedFunctionInfo> shared(function()->shared(), isolate);
   shared->DisableOptimization(isolate, reason);
@@ -194,7 +194,7 @@ CompilationJob::Status MaglevCompilationJob::FinalizeJobImpl(Isolate* isolate) {
 }
 
 void MaglevCompilationJob::DisposeOnMainThread(Isolate* isolate) {
-  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+  DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
   if (auto canonical_handles = info()->DetachCanonicalHandles()) {
     canonical_handles->Clear();
   }
