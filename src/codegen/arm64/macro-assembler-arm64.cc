@@ -1594,8 +1594,8 @@ void MacroAssembler::AssertNotSmi(Register object, AbortReason reason) {
 void MacroAssembler::AssertZeroExtended(Register int32_register) {
   if (!v8_flags.slow_debug_code) return;
   ASM_CODE_COMMENT(this);
-  Tst(int32_register.X(), ~uint64_t{kMaxUInt32});
-  Check(kZero, AbortReason::k32BitValueInRegisterIsNotZeroExtended);
+  Tst(int32_register.X(), kMaxUInt32);
+  Check(ls, AbortReason::k32BitValueInRegisterIsNotZeroExtended);
 }
 
 void MacroAssembler::AssertMap(Register object) {

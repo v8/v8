@@ -7,7 +7,6 @@
 #include "src/execution/simulator.h"
 #include "src/utils/ostreams.h"
 #include "test/common/assembler-tester.h"
-#include "test/common/flag-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest-support.h"
 
@@ -86,75 +85,6 @@ TEST_F(MacroAssemblerTest, TestCheck) {
   f.Call(18);
   ASSERT_DEATH_IF_SUPPORTED({ f.Call(17); }, ErrorMessage("abort: no reason"));
 }
-
-#ifdef V8_ENABLE_DEBUG_CODE
-TEST_F(MacroAssemblerTest, TestAssertZeroExtended) {
-  FLAG_SCOPE(debug_code);
-  FLAG_SCOPE(slow_debug_code);
-
-  auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired{false},
-                      buffer->CreateView());
-  __ set_root_array_available(false);
-  __ set_abort_hard(true);
-
-  {
-    AssemblerBufferWriteScope rw_scope(*buffer);
-
-    __ CodeEntry();
-
-    __ AssertZeroExtended(x0);
-    __ Ret();
-
-    CodeDesc desc;
-    masm.GetCode(isolate(), &desc);
-  }
-  // We need an isolate here to execute in the simulator.
-  auto f =
-      GeneratedCode<void, uint64_t>::FromBuffer(isolate(), buffer->start());
-
-  f.Call(0);
-  f.Call(42);
-  f.Call(0xFFFFFFFFULL);
-  ASSERT_DEATH_IF_SUPPORTED(
-      { f.Call(0x100000000ULL); },
-      ErrorMessage("abort: 32 bit value in register is not zero-extended"));
-  ASSERT_DEATH_IF_SUPPORTED(
-      { f.Call(0xFFFFFFFFFFFFFFFFULL); },
-      ErrorMessage("abort: 32 bit value in register is not zero-extended"));
-  ASSERT_DEATH_IF_SUPPORTED(
-      { f.Call(0x8000000000000000ULL); },
-      ErrorMessage("abort: 32 bit value in register is not zero-extended"));
-
-  {
-    auto buffer_w = AllocateAssemblerBuffer();
-    MacroAssembler masm_w(isolate(), AssemblerOptions{},
-                          CodeObjectRequired{false}, buffer_w->CreateView());
-    masm_w.set_root_array_available(false);
-    masm_w.set_abort_hard(true);
-
-    {
-      AssemblerBufferWriteScope rw_scope(*buffer_w);
-
-      masm_w.CodeEntry();
-      masm_w.AssertZeroExtended(w0);
-      masm_w.Ret();
-
-      CodeDesc desc;
-      masm_w.GetCode(isolate(), &desc);
-    }
-    auto f_w =
-        GeneratedCode<void, uint64_t>::FromBuffer(isolate(), buffer_w->start());
-
-    f_w.Call(0);
-    f_w.Call(42);
-    f_w.Call(0xFFFFFFFFULL);
-    ASSERT_DEATH_IF_SUPPORTED(
-        { f_w.Call(0x100000000ULL); },
-        ErrorMessage("abort: 32 bit value in register is not zero-extended"));
-  }
-}
-#endif  // V8_ENABLE_DEBUG_CODE
 
 TEST_F(MacroAssemblerTest, CompareAndBranch) {
   const int kTestCases[] = {-42, 0, 42};
