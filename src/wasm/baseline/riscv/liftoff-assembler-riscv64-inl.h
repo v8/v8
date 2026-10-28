@@ -483,14 +483,21 @@ namespace liftoff {
 inline Register CalculateActualAddress(LiftoffAssembler* lasm,
                                        UseScratchRegisterScope& temps,
                                        Register addr_reg, Register offset_reg,
-                                       uintptr_t offset_imm) {
+                                       uintptr_t offset_imm, bool i64_offset) {
   DCHECK_NE(addr_reg, no_reg);
   if (offset_reg == no_reg && offset_imm == 0) return addr_reg;
   Register result = temps.Acquire();
   if (offset_reg == no_reg) {
     __ AddWord(result, addr_reg, Operand(offset_imm));
   } else {
-    __ AddWord(result, addr_reg, Operand(offset_reg));
+    if (i64_offset) {
+      __ AddWord(result, addr_reg, Operand(offset_reg));
+    } else if (CpuFeatures::IsSupported(ZBA)) {
+      __ adduw(result, offset_reg, addr_reg);
+    } else {
+      __ ZeroExtendWord(result, offset_reg);
+      __ AddWord(result, addr_reg, Operand(result));
+    }
     if (offset_imm != 0) __ AddWord(result, result, Operand(offset_imm));
   }
   return result;
@@ -501,7 +508,8 @@ enum class Binop { kAdd, kSub, kAnd, kOr, kXor, kExchange };
 inline void AtomicBinop(LiftoffAssembler* lasm, Register dst_addr,
                         Register offset_reg, uintptr_t offset_imm,
                         LiftoffRegister value, LiftoffRegister result,
-                        StoreType type, uint32_t* trapping_load_pc, Binop op) {
+                        StoreType type, uint32_t* trapping_load_pc, Binop op,
+                        bool i64_offset) {
   LiftoffRegList pinned{dst_addr, value, result};
   if (offset_reg != no_reg) pinned.set(offset_reg);
   Register store_result = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
@@ -515,7 +523,7 @@ inline void AtomicBinop(LiftoffAssembler* lasm, Register dst_addr,
 
   UseScratchRegisterScope temps(lasm);
   Register actual_addr = liftoff::CalculateActualAddress(
-      lasm, temps, dst_addr, offset_reg, offset_imm);
+      lasm, temps, dst_addr, offset_reg, offset_imm, i64_offset);
 
   bool is_subword = type.value() == StoreType::kI64Store8 ||
                     type.value() == StoreType::kI32Store8 ||
@@ -765,11 +773,12 @@ inline void AtomicCompareExchange(LiftoffAssembler* lasm, Register dst_addr,
                                   Register expected, Register new_value,
                                   Register result, StoreType type,
                                   uint32_t* trapping_load_pc,
-                                  LiftoffRegList pinned) {
+                                  LiftoffRegList pinned, bool i64_offset) {
   Register temp0 = pinned.set(lasm->GetUnusedRegister(kGpReg, pinned)).gp();
   Register temp1 = pinned.set(lasm->GetUnusedRegister(kGpReg, pinned)).gp();
   Register temp2 = pinned.set(lasm->GetUnusedRegister(kGpReg, pinned)).gp();
-  MemOperand dst_op = GetMemOp(lasm, dst_addr, offset_reg, offset_imm);
+  MemOperand dst_op =
+      GetMemOp(lasm, dst_addr, offset_reg, offset_imm, i64_offset);
   __ Add64(temp0, dst_op.rm(), dst_op.offset());
   switch (type.value()) {
     case StoreType::kI64Store8:
@@ -809,12 +818,12 @@ void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
                                   Register offset_reg, uintptr_t offset_imm,
                                   LoadType type, uint32_t* trapping_load_pc,
                                   AtomicMemoryOrder /* memory_order  */,
-                                  LiftoffRegList /* pinned */,
-                                  bool /* i64_offset */,
+                                  LiftoffRegList /* pinned */, bool i64_offset,
                                   Endianness /* endianness */) {
   UseScratchRegisterScope temps(this);
-  Register src_reg = liftoff::CalculateActualAddress(this, temps, src_addr,
-                                                     offset_reg, offset_imm);
+  Register src_reg = liftoff::CalculateActualAddress(
+      this, temps, src_addr, offset_reg, offset_imm, i64_offset);
+  BlockPoolsScope blocked_pools_scope(this);
   if (trapping_load_pc) *trapping_load_pc = pc_offset();
   switch (type.value()) {
     case LoadType::kI32Load8U:
@@ -877,12 +886,11 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
                                    uintptr_t offset_imm, LiftoffRegister src,
                                    StoreType type, uint32_t* trapping_store_pc,
                                    AtomicMemoryOrder memory_order,
-                                   LiftoffRegList /* pinned */,
-                                   bool /* i64_offset */,
+                                   LiftoffRegList /* pinned */, bool i64_offset,
                                    Endianness /* endianness */) {
   UseScratchRegisterScope temps(this);
-  Register dst_reg = liftoff::CalculateActualAddress(this, temps, dst_addr,
-                                                     offset_reg, offset_imm);
+  Register dst_reg = liftoff::CalculateActualAddress(
+      this, temps, dst_addr, offset_reg, offset_imm, i64_offset);
   sync();
   if (trapping_store_pc) *trapping_store_pc = pc_offset();
   switch (type.value()) {
@@ -914,8 +922,8 @@ void LiftoffAssembler::AtomicStoreTaggedPointer(
     LiftoffRegList pinned, AtomicMemoryOrder memory_order,
     uint32_t* trapping_store_pc) {
   UseScratchRegisterScope temps(this);
-  Register dst_reg = liftoff::CalculateActualAddress(this, temps, dst_addr,
-                                                     offset_reg, offset_imm);
+  Register dst_reg = liftoff::CalculateActualAddress(
+      this, temps, dst_addr, offset_reg, offset_imm, false);
   auto trapper = [trapping_store_pc](int offset) {
     if (trapping_store_pc) *trapping_store_pc = static_cast<uint32_t>(offset);
   };
@@ -953,62 +961,59 @@ void LiftoffAssembler::AtomicStoreTaggedPointer(
 void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type,
-                                 uint32_t* trapping_load_pc,
-                                 bool /* i64_offset */,
+                                 uint32_t* trapping_load_pc, bool i64_offset,
                                  Endianness /* endianness */) {
   liftoff::AtomicBinop(this, dst_addr, offset_reg, offset_imm, value, result,
-                       type, trapping_load_pc, liftoff::Binop::kAdd);
+                       type, trapping_load_pc, liftoff::Binop::kAdd,
+                       i64_offset);
 }
 
 void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type,
-                                 uint32_t* trapping_load_pc,
-                                 bool /* i64_offset */,
+                                 uint32_t* trapping_load_pc, bool i64_offset,
                                  Endianness /* endianness */) {
   liftoff::AtomicBinop(this, dst_addr, offset_reg, offset_imm, value, result,
-                       type, trapping_load_pc, liftoff::Binop::kSub);
+                       type, trapping_load_pc, liftoff::Binop::kSub,
+                       i64_offset);
 }
 
 void LiftoffAssembler::AtomicAnd(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type,
-                                 uint32_t* trapping_load_pc,
-                                 bool /* i64_offset */,
+                                 uint32_t* trapping_load_pc, bool i64_offset,
                                  Endianness /* endianness */) {
   liftoff::AtomicBinop(this, dst_addr, offset_reg, offset_imm, value, result,
-                       type, trapping_load_pc, liftoff::Binop::kAnd);
+                       type, trapping_load_pc, liftoff::Binop::kAnd,
+                       i64_offset);
 }
 
 void LiftoffAssembler::AtomicOr(Register dst_addr, Register offset_reg,
                                 uintptr_t offset_imm, LiftoffRegister value,
                                 LiftoffRegister result, StoreType type,
-                                uint32_t* trapping_load_pc,
-                                bool /* i64_offset */,
+                                uint32_t* trapping_load_pc, bool i64_offset,
                                 Endianness /* endianness */) {
   liftoff::AtomicBinop(this, dst_addr, offset_reg, offset_imm, value, result,
-                       type, trapping_load_pc, liftoff::Binop::kOr);
+                       type, trapping_load_pc, liftoff::Binop::kOr, i64_offset);
 }
 
 void LiftoffAssembler::AtomicXor(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type,
-                                 uint32_t* trapping_load_pc,
-                                 bool /* i64_offset */,
+                                 uint32_t* trapping_load_pc, bool i64_offset,
                                  Endianness /* endianness */) {
   liftoff::AtomicBinop(this, dst_addr, offset_reg, offset_imm, value, result,
-                       type, trapping_load_pc, liftoff::Binop::kXor);
+                       type, trapping_load_pc, liftoff::Binop::kXor,
+                       i64_offset);
 }
 
-void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
-                                      uintptr_t offset_imm,
-                                      LiftoffRegister value,
-                                      LiftoffRegister result, StoreType type,
-                                      uint32_t* trapping_load_pc,
-                                      bool /* i64_offset */,
-                                      Endianness /* endianness */) {
+void LiftoffAssembler::AtomicExchange(
+    Register dst_addr, Register offset_reg, uintptr_t offset_imm,
+    LiftoffRegister value, LiftoffRegister result, StoreType type,
+    uint32_t* trapping_load_pc, bool i64_offset, Endianness /* endianness */) {
   liftoff::AtomicBinop(this, dst_addr, offset_reg, offset_imm, value, result,
-                       type, trapping_load_pc, liftoff::Binop::kExchange);
+                       type, trapping_load_pc, liftoff::Binop::kExchange,
+                       i64_offset);
 }
 
 void LiftoffAssembler::AtomicExchangeTaggedPointer(
@@ -1018,7 +1023,7 @@ void LiftoffAssembler::AtomicExchangeTaggedPointer(
   {
     UseScratchRegisterScope temps(this);
     Register actual_addr = liftoff::CalculateActualAddress(
-        this, temps, dst_addr, offset_reg, offset_imm);
+        this, temps, dst_addr, offset_reg, offset_imm, false);
 
     if (trapping_load_pc) *trapping_load_pc = pc_offset();
     if constexpr (COMPRESS_POINTERS_BOOL) {
@@ -1057,13 +1062,13 @@ void LiftoffAssembler::AtomicExchangeTaggedPointer(
 void LiftoffAssembler::AtomicCompareExchange(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
-    StoreType type, uint32_t* trapping_load_pc, bool /* i64_offset */,
+    StoreType type, uint32_t* trapping_load_pc, bool i64_offset,
     Endianness /* endianness */) {
   LiftoffRegList pinned{dst_addr, expected, new_value, result};
   if (offset_reg != no_reg) pinned.set(offset_reg);
   liftoff::AtomicCompareExchange(this, dst_addr, offset_reg, offset_imm,
                                  expected.gp(), new_value.gp(), result.gp(),
-                                 type, trapping_load_pc, pinned);
+                                 type, trapping_load_pc, pinned, i64_offset);
 }
 
 void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(

@@ -6517,7 +6517,7 @@ class LiftoffCompiler {
     } else {
       LiftoffRegister full_index = __ PopToRegister();
       index = BoundsCheckMem(decoder, imm.memory, type.size(), imm.offset,
-                             full_index, {}, kDoForceCheck, kCheckAlignment);
+                             full_index, {}, kDontForceCheck, kCheckAlignment);
       pinned.set(index);
       CODE_COMMENT("atomic load");
     }
@@ -6525,8 +6525,13 @@ class LiftoffCompiler {
     Register addr = pinned.set(GetMemoryStart(imm.mem_index, pinned));
     RegClass rc = reg_class_for(kind);
     LiftoffRegister value = pinned.set(__ GetUnusedRegister(rc, pinned));
-    __ AtomicLoad(value, addr, index, offset, type, nullptr, imm.memory_order,
-                  pinned, i64_offset);
+    uint32_t trapping_load_pc = 0;
+    __ AtomicLoad(value, addr, index, offset, type, &trapping_load_pc,
+                  imm.memory_order, pinned, i64_offset);
+    if (index != no_reg && imm.memory->bounds_checks == kTrapHandler) {
+      DCHECK_NE(trapping_load_pc, 0);
+      RegisterTrappingInstruction(decoder, trapping_load_pc);
+    }
     __ PushRegister(kind, value);
 
     if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
