@@ -5508,7 +5508,8 @@ void MacroAssembler::BranchAndLinkLong(Label* L) {
   imm = branch_long_offset(L);
   if (L->is_bound() && is_intn(imm, Assembler::kJumpOffsetBits) &&
       (imm & 1) == 0) {
-    jal(t6, imm);
+    // This is a call, so write the return address to ra.
+    jal(imm);
     return;
   }
   GenPCRelativeJumpAndLink(t6, imm, block_pools);

@@ -139,6 +139,36 @@ TEST_F(MacroAssemblerTest, TestCheck) {
       { f.Call(17); }, v8_flags.debug_code ? "abort: no reason" : "");
 }
 
+// The outer range check treats -1 MiB as out of range, but the long-call
+// helper accepts it as a JAL displacement. Exercise that exact boundary.
+TEST_F(MacroAssemblerTest, BranchAndLinkLongBackwardJalBoundary) {
+  constexpr int kJalBackwardRange = 1 << (Assembler::kJumpOffsetBits - 1);
+  auto f = AssembleCode<int()>(isolate(), [](MacroAssembler& masm) {
+    Label target;
+    Label entry;
+    masm.j(&entry);
+    masm.bind(&target);
+    masm.Ret();
+    masm.bind(&entry);
+    masm.li(a0, 1);
+    masm.Mv(t0, ra);
+
+    const int padding = kJalBackwardRange - (masm.pc_offset() - target.pos());
+    CHECK_GE(padding, 0);
+    CHECK_EQ(0, padding % kInstrSize);
+    for (int i = 0; i < padding / kInstrSize; ++i) {
+      masm.addi(zero_reg, zero_reg, 0);  // addi x0, x0, 0
+    }
+    CHECK_EQ(target.pos() + kJalBackwardRange, masm.pc_offset());
+
+    masm.Call(&target);
+    masm.Mv(ra, t0);
+    masm.li(a0, 42);
+    masm.Ret();
+  });
+  EXPECT_EQ(42, f.Call());
+}
+
 TEST_F(MacroAssemblerTest, LoadConstants) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
