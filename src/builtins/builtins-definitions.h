@@ -543,6 +543,8 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
       kHandler)                                                                \
   TFC(ProxyGetPropertyTrapResultLazyDeoptContinuation,                         \
       ProxyGetPropertyTrapResultLazyDeoptContinuation)                         \
+  TFC(ProxySetPropertyTrapResultLazyDeoptContinuation,                         \
+      ProxySetPropertyTrapResultLazyDeoptContinuation)                         \
   TFC(CopyDataPropertiesWithExcludedPropertiesOnStack,                         \
       CopyDataPropertiesWithExcludedPropertiesOnStack)                         \
   TFC(CopyDataPropertiesWithExcludedProperties,                                \

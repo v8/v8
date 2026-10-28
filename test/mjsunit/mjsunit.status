@@ -1209,6 +1209,7 @@
   'regress/wasm/regress-561662099': [SKIP],
   'regress/wasm/regress-563427048*': [SKIP],
   'regress/wasm/regress-567171844': [SKIP],
+  'regress/wasm/regress-572399718': [SKIP],
   'regress/wasm/regress-577267579': [SKIP],
   'wasm/custom-descriptors*': [SKIP],
   'wasm/exact-types': [SKIP],

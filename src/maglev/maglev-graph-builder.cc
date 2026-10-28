@@ -6462,8 +6462,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildProxyPropertyAccess(
     LazyDeoptFrameScope deopt_continuation(
         &reducer_, GetContext(),
         Builtin::kProxyGetPropertyTrapResultLazyDeoptContinuation, {},
-        base::VectorOf<ValueNode*>(
-            {proxy_target, lookup_start_object, argument_name}));
+        base::VectorOf<ValueNode*>({proxy_target, argument_name}));
     MaybeReduceResult call_result =
         TryReduceCallForConstant(trap_js_function_ref, args, feedback_source);
     if (!call_result.IsDone()) {

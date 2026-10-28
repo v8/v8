@@ -635,6 +635,12 @@ ProxyGetPropertyTrapResultLazyDeoptContinuationDescriptor::registers() {
 }
 
 // static
+constexpr auto
+ProxySetPropertyTrapResultLazyDeoptContinuationDescriptor::registers() {
+  return RegisterArray();
+}
+
+// static
 constexpr auto ForOfNextResultDeoptContinuationDescriptor::registers() {
   return RegisterArray();
 }

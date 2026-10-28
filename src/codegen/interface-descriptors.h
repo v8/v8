@@ -136,6 +136,7 @@ namespace internal {
   V(NoContext)                                                  \
   V(OnStackReplacement)                                         \
   V(ProxyGetPropertyTrapResultLazyDeoptContinuation)            \
+  V(ProxySetPropertyTrapResultLazyDeoptContinuation)            \
   V(RegExpTrampoline)                                           \
   V(RestartFrameTrampoline)                                     \
   V(ResumeGenerator)                                            \
@@ -1847,13 +1848,31 @@ class ProxyGetPropertyTrapResultLazyDeoptContinuationDescriptor final
  public:
   INTERNAL_DESCRIPTOR()
   SANDBOXING_MODE(kSandboxed)
-  DEFINE_RESULT_AND_PARAMETERS(1, kTarget, kProxy, kName, kTrapResult)
+  DEFINE_RESULT_AND_PARAMETERS(1, kTarget, kKey, kTrapResult)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result value
                                     MachineType::AnyTagged(),  // kTarget
-                                    MachineType::AnyTagged(),  // kProxy
-                                    MachineType::AnyTagged(),  // kName
+                                    MachineType::AnyTagged(),  // kKey
                                     MachineType::AnyTagged())  // kTrapResult
   DECLARE_DESCRIPTOR(ProxyGetPropertyTrapResultLazyDeoptContinuationDescriptor)
+
+  static constexpr auto registers();
+};
+
+class ProxySetPropertyTrapResultLazyDeoptContinuationDescriptor final
+    : public StaticCallInterfaceDescriptor<
+          ProxySetPropertyTrapResultLazyDeoptContinuationDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_RESULT_AND_PARAMETERS(1, kTarget, kKey, kValue, kLanguageMode,
+                               kTrapResult)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result value
+                                    MachineType::AnyTagged(),  // kTarget
+                                    MachineType::AnyTagged(),  // kKey
+                                    MachineType::AnyTagged(),  // kValue
+                                    MachineType::AnyTagged(),  // kLanguageMode
+                                    MachineType::AnyTagged())  // kTrapResult
+  DECLARE_DESCRIPTOR(ProxySetPropertyTrapResultLazyDeoptContinuationDescriptor)
 
   static constexpr auto registers();
 };

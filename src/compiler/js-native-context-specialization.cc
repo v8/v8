@@ -3518,9 +3518,23 @@ JSNativeContextSpecialization::BuildPrototypeProxyElementAccess(
   if (access_info.string_keys()) {
     index = effect = graph()->NewNode(
         simplified()->CheckString(FeedbackSource()), index, effect, control);
+  } else {
+    index = effect = graph()->NewNode(
+        simplified()->CheckBounds(FeedbackSource(),
+                                  CheckBoundsFlag::kConvertStringAndMinusZero),
+        index, jsgraph()->ConstantNoHole(kMaxInt), effect, control);
   }
+  // The fast path omits trap-result checks thanks to
+  // ObjectIsSuitableProxyTarget, but if the trap mutates a stable-map target
+  // (or otherwise triggers a lazy deopt), the continuation must run the spec's
+  // post-trap checks.
   Node* call = nullptr;
   if (keyed_mode.access_mode() == AccessMode::kLoad) {
+    Node* lazy_deopt_parameters[] = {proxy_target, index};
+    Node* call_frame_state = CreateStubBuiltinContinuationFrameState(
+        jsgraph(), Builtin::kProxyGetPropertyTrapResultLazyDeoptContinuation,
+        context, lazy_deopt_parameters, arraysize(lazy_deopt_parameters),
+        frame_state, ContinuationFrameStateMode::LAZY);
     value = effect = control = graph()->NewNode(
         jsgraph()->javascript()->Call(JSCallNode::ArityForArgc(3),
                                       CallFrequency(), FeedbackSource(),
@@ -3529,9 +3543,17 @@ JSNativeContextSpecialization::BuildPrototypeProxyElementAccess(
         // Parameters of the "get" trap: target, name, original receiver.
         proxy_target, index, receiver,
         // TF "internal" parameters:
-        feedback, context, frame_state, effect, control);
+        feedback, context, call_frame_state, effect, control);
   } else {
     DCHECK_EQ(keyed_mode.access_mode(), AccessMode::kStore);
+    Node* language_mode_smi =
+        jsgraph()->SmiConstant(static_cast<int>(language_mode));
+    Node* lazy_deopt_parameters[] = {proxy_target, index, value,
+                                     language_mode_smi};
+    Node* call_frame_state = CreateStubBuiltinContinuationFrameState(
+        jsgraph(), Builtin::kProxySetPropertyTrapResultLazyDeoptContinuation,
+        context, lazy_deopt_parameters, arraysize(lazy_deopt_parameters),
+        frame_state, ContinuationFrameStateMode::LAZY);
     call = effect = control = graph()->NewNode(
         jsgraph()->javascript()->Call(JSCallNode::ArityForArgc(4),
                                       CallFrequency(), FeedbackSource(),
@@ -3540,7 +3562,7 @@ JSNativeContextSpecialization::BuildPrototypeProxyElementAccess(
         // Parameters of the "set" trap: target, name, value, original receiver.
         proxy_target, index, value, receiver,
         // TF "internal" parameters:
-        feedback, context, frame_state, effect, control);
+        feedback, context, call_frame_state, effect, control);
   }
   if (if_exceptions != nullptr) {
     if_exceptions->push_back(

@@ -492,13 +492,16 @@ bool AccessInfoFactory::ObjectIsSuitableProxyTarget(KeyType key_type,
   // of other Proxy traps. So we also support objects where we can register
   // sufficient code dependencies to get a deopt if the object gains elements.
   //
-  // For now, we support objects that are currently empty, have a stable map,
-  // and have fast elements (which are always configurable and writable) by
-  // installing a dependency on their map stability. Adding properties or
-  // elements with non-default attributes would cause a map transition and
-  // loss of stability.
-  if (map.is_stable() && map.NumberOfOwnDescriptors() == 0 &&
+  // For now, we support ordinary objects that are currently empty, have a
+  // stable map, and have fast elements (which are always configurable and
+  // writable) by installing a dependency on their map stability. Adding
+  // properties or elements with non-default attributes would cause a map
+  // transition and loss of stability.
+  if (!IsCustomElementsReceiverInstanceType(map.instance_type()) &&
+      map.is_stable() && map.NumberOfOwnDescriptors() == 0 &&
       IsFastElementsKind(map.elements_kind())) {
+    DCHECK(!IsSpecialReceiverInstanceType(map.instance_type()));
+    DCHECK(!map.is_dictionary_map());
     dependencies()->DependOnStableMap(map);
     return true;
   }
