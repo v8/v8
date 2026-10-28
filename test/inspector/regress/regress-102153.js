@@ -25,32 +25,32 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
 // Test that the break point is set before initializing the loop variable
 // so that we break before any iteration has been run.
 
-Debug = debug.Debug;
+let {session, contextGroup, Protocol} =
+    InspectorTest.start('Tests regress-102153.');
 
-var break_hit = false;
-
-function listener(event, exec_state, event_data, data) {
-  if (event == Debug.DebugEvent.Break) {
-    break_hit = true;
-  }
-}
-
-Debug.setListener(listener);
-
+session.setupScriptMap();
+contextGroup.addScript(
+    `
 function test() {
   for (var i = 0; i < 3; i++) {  // Break here.
     if (i == 0) break;
   }
-}
+}`,
+    0, 0, 'test.js');
 
-Debug.setBreakPoint(test, 1, 0);
-
-assertTrue(Debug.showBreakPoints(test).indexOf("// Break here.") >= 0);
-
-test();
-
-assertTrue(break_hit);
+(async function runTest() {
+  await Protocol.Debugger.enable();
+  const {result: {locations}} = await Protocol.Debugger.setBreakpointByUrl(
+      {url: 'test.js', lineNumber: 2, columnNumber: 0});
+  await session.logSourceLocation(locations[0]);
+  const pausedPromise = Protocol.Debugger.oncePaused();
+  const evalPromise = Protocol.Runtime.evaluate({expression: 'test()'});
+  const {params: {callFrames}} = await pausedPromise;
+  await session.logSourceLocation(callFrames[0].location);
+  await Protocol.Debugger.resume();
+  await evalPromise;
+  InspectorTest.completeTest();
+})();

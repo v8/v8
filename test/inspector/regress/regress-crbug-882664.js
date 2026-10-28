@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+let {session, contextGroup, Protocol} =
+    InspectorTest.start('Tests crbug.com/882664.');
+
+contextGroup.addScript(`
 function provoke_scaling_prefix() {
   var a = [0];
   a[0]++; a[0]++; a[0]++; a[0]++; a[0]++; a[0]++; a[0]++; a[0]++; a[0]++;
@@ -30,12 +34,15 @@ function provoke_scaling_prefix() {
   a[0]++; a[0]++; a[0]++; a[0]++; a[0]++; a[0]++; a[0]++; a[0]++; a[0]++;
   return a;
 }
+`);
 
-Debug = debug.Debug;
-
-function success(expectation, source) {
-  const result = Debug.evaluateGlobal(source, true).value();
-  assertEquals(expectation, result);
-}
-
-success([216], "provoke_scaling_prefix()");
+(async function test() {
+  await Protocol.Runtime.enable();
+  const {result: {result}} = await Protocol.Runtime.evaluate({
+    expression: 'provoke_scaling_prefix()',
+    throwOnSideEffect: true,
+    returnByValue: true,
+  });
+  InspectorTest.logMessage(result);
+  InspectorTest.completeTest();
+})();
