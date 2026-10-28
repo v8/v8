@@ -1188,7 +1188,6 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   mutable std::optional<std::pair<MaybeObjectHandle, MaybeObjectHandle>>
       feedback_cache_;
   NexusConfig config_;
-  Isolate* isolate_;
 };
 
 class V8_EXPORT_PRIVATE FeedbackIterator final {
