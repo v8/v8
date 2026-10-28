@@ -3572,6 +3572,7 @@
   # Requires test-only sync points
   'compiler/concurrent-string-ext-seq': [SKIP],
   'regress/regress-511263221': [SKIP],
+  'sandbox/regress/regress-571204561': [SKIP],
 }],  # not test_only_sync_points
 
 ##############################################################################
