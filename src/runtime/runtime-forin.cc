@@ -87,20 +87,28 @@ MaybeDirectHandle<HeapObject> Enumerate(Isolate* isolate,
                                  KeyCollectionMode::kIncludePrototypes,
                                  ENUMERABLE_STRINGS, true);
   // Test if we have an enum cache for {receiver}.
-  if (!accumulator.is_receiver_simple_enum()) {
+  if (!accumulator.has_initialized_and_usable_enum_cache()) {
     if (DirectHandle<ForInEnumeratorHolder> holder;
         TryCreateEnumeratorHolder(isolate, receiver, &accumulator)
             .ToHandle(&holder)) {
       return holder;
     }
-    DirectHandle<FixedArray> keys;
+    Handle<FixedArray> keys;
+    bool is_from_enum_cache = false;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, keys,
         accumulator.GetKeys(accumulator.may_have_elements()
                                 ? GetKeysConversion::kConvertToString
-                                : GetKeysConversion::kNoNumbers));
+                                : GetKeysConversion::kNoNumbers,
+                            is_from_enum_cache));
     // Test again, since cache may have been built by GetKeys() calls above.
-    if (!accumulator.is_receiver_simple_enum()) return keys;
+    if (!accumulator.has_initialized_and_usable_enum_cache()) {
+      if (is_from_enum_cache) {
+        // Don't leak the enum cache.
+        keys = isolate->factory()->CopyFixedArray(keys);
+      }
+      return keys;
+    }
   }
   DCHECK(!IsJSModuleNamespace(*receiver));
   return direct_handle(receiver->map(), isolate);
