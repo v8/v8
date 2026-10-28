@@ -146,7 +146,6 @@ class JSSegments;
 class JSSet;
 class JSSetIterator;
 class JSShadowRealm;
-class JSSharedArray;
 class JSSharedStruct;
 class JSSpecialObject;
 class JSStringIterator;

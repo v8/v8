@@ -9015,28 +9015,6 @@ TNode<BoolT> CodeStubAssembler::IsAlwaysSharedSpaceJSObjectInstanceType(
                    LAST_ALWAYS_SHARED_SPACE_JS_OBJECT_TYPE);
 }
 
-TNode<BoolT> CodeStubAssembler::IsJSSharedArrayInstanceType(
-    TNode<Int32T> instance_type) {
-  return InstanceTypeEqual(instance_type, JS_SHARED_ARRAY_TYPE);
-}
-
-TNode<BoolT> CodeStubAssembler::IsJSSharedArrayMap(TNode<Map> map) {
-  return IsJSSharedArrayInstanceType(LoadMapInstanceType(map));
-}
-
-TNode<BoolT> CodeStubAssembler::IsJSSharedArray(TNode<HeapObject> object) {
-  return IsJSSharedArrayMap(LoadMap(object));
-}
-
-TNode<BoolT> CodeStubAssembler::IsJSSharedArray(TNode<Object> object) {
-  return Select<BoolT>(
-      TaggedIsSmi(object), [=, this] { return Int32FalseConstant(); },
-      [=, this] {
-        TNode<HeapObject> heap_object = CAST(object);
-        return IsJSSharedArray(heap_object);
-      });
-}
-
 TNode<BoolT> CodeStubAssembler::IsJSSharedStructInstanceType(
     TNode<Int32T> instance_type) {
   return InstanceTypeEqual(instance_type, JS_SHARED_STRUCT_TYPE);
@@ -15152,13 +15130,7 @@ void CodeStubAssembler::EmitElementStore(
       StoreElement(elements, elements_kind, intptr_key, float_value.value());
     }
   } else {
-    if (elements_kind == SHARED_ARRAY_ELEMENTS) {
-      TVARIABLE(Object, shared_value, value);
-      SharedValueBarrier(context, &shared_value);
-      StoreElement(elements, elements_kind, intptr_key, shared_value.value());
-    } else {
-      StoreElement(elements, elements_kind, intptr_key, value);
-    }
+    StoreElement(elements, elements_kind, intptr_key, value);
   }
 }
 

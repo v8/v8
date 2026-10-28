@@ -837,8 +837,6 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kSharedSpaceJSObjectHasInstance:
     case Builtin::kSharedStructTypeConstructor:
     case Builtin::kSharedStructTypeIsSharedStruct:
-    case Builtin::kSharedArrayConstructor:
-    case Builtin::kSharedArrayIsSharedArray:
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.harmony_struct);
     case Builtin::kSharedStructConstructor:
       RETURN_FLAG_DEPENDENT_LAZY_BUILTIN_STATE(v8_flags.harmony_struct);

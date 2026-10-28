@@ -27,7 +27,6 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-regexp-inl.h"
-#include "src/objects/js-shared-array.h"
 #include "src/objects/js-struct.h"
 #include "src/objects/map-updater.h"
 #include "src/objects/object-conversions-inl.h"
@@ -700,8 +699,6 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(
       }
       return WriteJSError(js_error);
     }
-    case JS_SHARED_ARRAY_TYPE:
-      return WriteJSSharedArray(Cast<JSSharedArray>(receiver));
     case JS_SHARED_STRUCT_TYPE:
       return WriteJSSharedStruct(Cast<JSSharedStruct>(receiver));
 #if V8_ENABLE_WEBASSEMBLY
@@ -1232,11 +1229,6 @@ Maybe<bool> ValueSerializer::WriteJSSharedStruct(
     DirectHandle<JSSharedStruct> shared_struct) {
   // TODO(v8:12547): Support copying serialization for shared structs as well.
   return WriteSharedObject(shared_struct);
-}
-
-Maybe<bool> ValueSerializer::WriteJSSharedArray(
-    DirectHandle<JSSharedArray> shared_array) {
-  return WriteSharedObject(shared_array);
 }
 
 #if V8_ENABLE_WEBASSEMBLY

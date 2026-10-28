@@ -9,7 +9,6 @@
 #include "src/logging/counters.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
-#include "src/objects/js-shared-array.h"
 #include "src/objects/js-struct.h"
 #include "src/runtime/runtime-utils.h"
 

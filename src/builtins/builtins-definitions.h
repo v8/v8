@@ -1559,8 +1559,6 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   CPP(SharedStructTypeConstructor, kDontAdaptArgumentsSentinel)                \
   CPP(SharedStructTypeIsSharedStruct, JSParameterCount(1))                     \
   CPP(SharedStructConstructor, JSParameterCount(0))                            \
-  CPP(SharedArrayConstructor, JSParameterCount(0))                             \
-  CPP(SharedArrayIsSharedArray, JSParameterCount(1))                           \
                                                                                \
   /* AsyncGenerator */                                                         \
                                                                                \

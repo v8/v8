@@ -103,11 +103,9 @@
 
   # TODO(572988458): Skip --harmony-struct/--shared-string-table tests.
   # To be removed soon.
-  'regress/regress-476509600': [SKIP],
   'regress/regress-499155348': [SKIP],
   'regress/regress-505101417': [SKIP],
   'regress/wasm/regress-474491347': [SKIP],
-  'regress/wasm/regress-490877756': [SKIP],
   'turbolev/instanceof': [SKIP],
   'shared-memory/brand-checks': [SKIP],
   'shared-memory/builtins': [SKIP],
@@ -116,7 +114,6 @@
   'shared-memory/private-brand': [SKIP],
   'shared-memory/private-field': [SKIP],
   'shared-memory/private-name': [SKIP],
-  'shared-memory/regress-488754149': [SKIP],
   'shared-memory/regress-crbug-1394741': [SKIP],
   'shared-memory/regress-crbug-1395117': [SKIP],
   'shared-memory/regress-crbug-1425710': [SKIP],
@@ -127,11 +124,6 @@
   'shared-memory/regress/regress-468231509': [SKIP],
   'shared-memory/regress/regress-469804007': [SKIP],
   'shared-memory/regress/regress-541880797': [SKIP],
-  'shared-memory/shared-array-atomics': [SKIP],
-  'shared-memory/shared-array-atomics-workers': [SKIP],
-  'shared-memory/shared-array-concat': [SKIP],
-  'shared-memory/shared-array-surface': [SKIP],
-  'shared-memory/shared-array-workers': [SKIP],
   'shared-memory/shared-external-string-dictionary-lookup': [SKIP],
   'shared-memory/shared-external-string-megamorphic-ic': [SKIP],
   'shared-memory/shared-object-has-instance': [SKIP],
@@ -1123,7 +1115,6 @@
   # --wasm-shared
   'regress/wasm/regress-454276076': [SKIP],
   'regress/wasm/regress-475896261': [SKIP],
-  'regress/wasm/regress-490877756': [SKIP],
   'regress/wasm/regress-490877757': [SKIP],
   'regress/wasm/regress-490877758': [SKIP],
   'regress/wasm/regress-493088266': [SKIP],

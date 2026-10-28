@@ -234,8 +234,6 @@ class RootVisitor;
   V(Map, null_map, NullMap)                                                    \
   V(Map, boolean_map, BooleanMap)                                              \
   V(Map, hole_map, HoleMap)                                                    \
-  /* Shared space object maps */                                               \
-  V(Map, js_shared_array_map, JSSharedArrayMap)                                \
   V(Map, descriptor_array_map, DescriptorArrayMap)                             \
   V(Map, on_heap_basic_block_profiler_data_map,                                \
     OnHeapBasicBlockProfilerDataMap)                                           \
@@ -574,7 +572,7 @@ enum class RootIndex : uint16_t {
 
   // Keep this in sync with the first map allocated by
   // Heap::CreateLateReadOnlyJSReceiverMaps.
-  kFirstJSReceiverMapRoot = kJSSharedArrayMap,
+  kFirstJSReceiverMapRoot = kJSMessageObjectMap,
 
   kSingleCharacterStringRootsCount =
       SINGLE_CHARACTER_INTERNALIZED_STRING_LIST_GENERATOR(COUNT_ROOT, n/a),

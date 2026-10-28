@@ -465,7 +465,6 @@ V8_OBJECT class JSObject : public JSReceiver {
   DECL_GETTER(HasPackedElements, bool)
   DECL_GETTER(HasAnyNonextensibleElements, bool)
   DECL_GETTER(HasSealedElements, bool)
-  DECL_GETTER(HasSharedArrayElements, bool)
   DECL_GETTER(HasNonextensibleElements, bool)
 
   DECL_GETTER(HasTypedArrayOrRabGsabTypedArrayElements, bool)

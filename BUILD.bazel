@@ -1330,7 +1330,6 @@ filegroup(
         "src/objects/js-regexp.tq",
         "src/objects/js-regexp-string-iterator.tq",
         "src/objects/js-shadow-realm.tq",
-        "src/objects/js-shared-array.tq",
         "src/objects/js-struct.tq",
         # Temporal is currently gn-only
         # "src/objects/js-temporal-objects.tq",
@@ -1569,7 +1568,6 @@ filegroup(
         "src/builtins/builtins-reflect.cc",
         "src/builtins/builtins-regexp.cc",
         "src/builtins/builtins-shadow-realm.cc",
-        "src/builtins/builtins-shared-array.cc",
         "src/builtins/builtins-sharedarraybuffer.cc",
         "src/builtins/builtins-string.cc",
         "src/builtins/builtins-struct.cc",
@@ -2294,7 +2292,6 @@ filegroup(
         "src/objects/js-regexp-string-iterator-inl.h",
         "src/objects/js-shadow-realm.h",
         "src/objects/js-shadow-realm-inl.h",
-        "src/objects/js-shared-array.h",
         "src/objects/js-struct.cc",
         "src/objects/js-struct.h",
         # Temporal is currently gn-only

@@ -182,8 +182,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     case HOLEY_FROZEN_ELEMENTS:
     case HOLEY_SEALED_ELEMENTS:
     case HOLEY_NONEXTENSIBLE_ELEMENTS:
-    case HOLEY_ELEMENTS:
-    case SHARED_ARRAY_ELEMENTS: {
+    case HOLEY_ELEMENTS: {
       DirectHandle<FixedArray> elements(Cast<FixedArray>(copy->elements()),
                                         isolate);
       uint32_t elements_len = elements->ulength().value();

@@ -2833,7 +2833,7 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it,
   }
 
   DCHECK(!IsWasmObject(*receiver));
-  if (V8_UNLIKELY(IsJSSharedStruct(*receiver) || IsJSSharedArray(*receiver))) {
+  if (V8_UNLIKELY(IsJSSharedStruct(*receiver))) {
     // Shared structs can only point to primitives or shared values.
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, to_assign, Object::Share(isolate, to_assign, kThrowOnError));

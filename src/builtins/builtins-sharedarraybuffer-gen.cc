@@ -167,8 +167,6 @@ void SharedArrayBufferBuiltinsAssembler::ValidateIntegerTypedArray(
     if (is_shared_struct_or_shared_array) {
       GotoIf(IsJSSharedStruct(maybe_array_or_shared_object),
              is_shared_struct_or_shared_array);
-      GotoIf(IsJSSharedArray(maybe_array_or_shared_object),
-             is_shared_struct_or_shared_array);
     }
     ThrowTypeError(context, MessageTemplate::kNotIntegerTypedArray,
                    maybe_array_or_shared_object);

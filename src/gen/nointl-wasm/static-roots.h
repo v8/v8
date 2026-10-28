@@ -887,9 +887,8 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kSetIterator_string = kset_string + 16;
   static constexpr Tagged_t ksetPrototypeOf_string = kSetIterator_string + 24;
   static constexpr Tagged_t kShadowRealm_string = ksetPrototypeOf_string + 28;
-  static constexpr Tagged_t kSharedArray_string = kShadowRealm_string + 24;
   static constexpr Tagged_t kSharedArrayBuffer_string =
-      kSharedArray_string + 24;
+      kShadowRealm_string + 24;
   static constexpr Tagged_t kSharedStruct_string =
       kSharedArrayBuffer_string + 32;
   static constexpr Tagged_t kshort_string = kSharedStruct_string + 24;
@@ -1085,15 +1084,14 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kExternalMap = 0x1b0029;
   static constexpr Tagged_t kCppHeapExternalMap = 0x1b0051;
   static constexpr Tagged_t kCppGCManagedBaseMap = 0x1b0079;
-  static constexpr Tagged_t kJSSharedArrayMap = 0x1b00a1;
-  static constexpr Tagged_t kNoOpNamedInterceptorInfo = 0x1b00e5;
-  static constexpr Tagged_t kNoOpIndexedInterceptorInfo = 0x1b0139;
+  static constexpr Tagged_t kNoOpNamedInterceptorInfo = 0x1b00a1;
+  static constexpr Tagged_t kNoOpIndexedInterceptorInfo = 0x1b00f5;
 
   static constexpr Tagged_t kFirstAllocatedRoot = 0x11;
-  static constexpr Tagged_t kLastAllocatedRoot = 0x1b0139;
+  static constexpr Tagged_t kLastAllocatedRoot = 0x1b00f5;
 };
 
-static constexpr std::array<Tagged_t, 896> StaticReadOnlyRootsPointerTable = {
+static constexpr std::array<Tagged_t, 894> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kUndefinedValue,
     StaticReadOnlyRoot::kTheHoleValue,
     StaticReadOnlyRoot::kNullValue,
@@ -1252,7 +1250,6 @@ static constexpr std::array<Tagged_t, 896> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kNullMap,
     StaticReadOnlyRoot::kBooleanMap,
     StaticReadOnlyRoot::kHoleMap,
-    StaticReadOnlyRoot::kJSSharedArrayMap,
     StaticReadOnlyRoot::kDescriptorArrayMap,
     StaticReadOnlyRoot::kOnHeapBasicBlockProfilerDataMap,
     StaticReadOnlyRoot::kTurbofanBitsetTypeMap,
@@ -1817,7 +1814,6 @@ static constexpr std::array<Tagged_t, 896> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kSetIterator_string,
     StaticReadOnlyRoot::ksetPrototypeOf_string,
     StaticReadOnlyRoot::kShadowRealm_string,
-    StaticReadOnlyRoot::kSharedArray_string,
     StaticReadOnlyRoot::kSharedArrayBuffer_string,
     StaticReadOnlyRoot::kSharedStruct_string,
     StaticReadOnlyRoot::kshort_string,

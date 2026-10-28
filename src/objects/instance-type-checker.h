@@ -24,9 +24,11 @@ class Map;
   V(JSObjectExact, JS_OBJECT_TYPE)       \
   V(FixedArrayExact, FIXED_ARRAY_TYPE)
 
-#define INSTANCE_TYPE_CHECKERS_RANGE(V)                  \
-  INSTANCE_TYPE_LIST_RANGE(V)                            \
-  V(CallableJSFunction, FIRST_CALLABLE_JS_FUNCTION_TYPE, \
+#define INSTANCE_TYPE_CHECKERS_RANGE(V)                                  \
+  INSTANCE_TYPE_LIST_RANGE(V)                                            \
+  V(AlwaysSharedSpaceJSObject, FIRST_ALWAYS_SHARED_SPACE_JS_OBJECT_TYPE, \
+    LAST_ALWAYS_SHARED_SPACE_JS_OBJECT_TYPE)                             \
+  V(CallableJSFunction, FIRST_CALLABLE_JS_FUNCTION_TYPE,                 \
     LAST_CALLABLE_JS_FUNCTION_TYPE)
 
 #define INSTANCE_TYPE_CHECKERS_CUSTOM(V) \

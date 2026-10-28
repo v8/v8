@@ -819,7 +819,6 @@
   V(_, SetIterator_string, "Set Iterator")                                    \
   V(_, setPrototypeOf_string, "setPrototypeOf")                               \
   V(_, ShadowRealm_string, "ShadowRealm")                                     \
-  V(_, SharedArray_string, "SharedArray")                                     \
   V(_, SharedArrayBuffer_string, "SharedArrayBuffer")                         \
   V(_, SharedStruct_string, "SharedStruct")                                   \
   V(_, short_string, "short")                                                 \

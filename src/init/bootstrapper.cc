@@ -70,7 +70,6 @@
 #endif  // V8_INTL_SUPPORT
 #include "src/codegen/script-details.h"
 #include "src/objects/js-raw-json.h"
-#include "src/objects/js-shared-array.h"
 #include "src/objects/js-struct.h"
 #ifdef V8_TEMPORAL_SUPPORT
 #include "src/objects/js-temporal-objects-inl.h"
@@ -624,28 +623,6 @@ V8_NOINLINE Handle<JSFunction> InstallFunctionAtSymbol(
       SimpleCreateFunction(isolate, internalized_symbol, call, len, adapt);
   JSObject::AddProperty(isolate, base, symbol, fun, attrs);
   return fun;
-}
-
-V8_NOINLINE DirectHandle<JSFunction> CreateSharedObjectConstructor(
-    Isolate* isolate, DirectHandle<String> name, DirectHandle<Map> instance_map,
-    Builtin builtin, int len, AdaptArguments adapt) {
-  Factory* factory = isolate->factory();
-  DirectHandle<SharedFunctionInfo> info =
-      factory->NewSharedFunctionInfoForBuiltin(name, builtin, len, adapt);
-  info->set_language_mode(LanguageMode::kStrict);
-  DirectHandle<JSFunction> constructor =
-      Factory::JSFunctionBuilder{isolate, info, isolate->native_context()}
-          .set_map(isolate->function_with_readonly_prototype_map())
-          .Build();
-  constructor->set_prototype_or_initial_map(*instance_map, kReleaseStore);
-
-  JSObject::AddProperty(
-      isolate, constructor, factory->has_instance_symbol(),
-      direct_handle(
-          isolate->native_context()->shared_space_js_object_has_instance(),
-          isolate),
-      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY));
-  return constructor;
 }
 
 V8_NOINLINE void SimpleInstallGetterSetter(Isolate* isolate,
@@ -5823,22 +5800,6 @@ void Genesis::InitializeGlobal_harmony_struct() {
 
     SimpleInstallFunction(isolate(), shared_struct_type_fun, "isSharedStruct",
                           Builtin::kSharedStructTypeIsSharedStruct, 1, kAdapt);
-  }
-
-  {  // SharedArray
-    DirectHandle<String> shared_array_str =
-        isolate()->factory()->InternalizeUtf8String("SharedArray");
-    DirectHandle<JSFunction> shared_array_fun = CreateSharedObjectConstructor(
-        isolate(), shared_array_str,
-        isolate()->factory()->js_shared_array_map(),
-        Builtin::kSharedArrayConstructor, 0, kAdapt);
-
-    // Install SharedArray constructor.
-    JSObject::AddProperty(isolate(), global, "SharedArray", shared_array_fun,
-                          DONT_ENUM);
-
-    SimpleInstallFunction(isolate(), shared_array_fun, "isSharedArray",
-                          Builtin::kSharedArrayIsSharedArray, 1, kAdapt);
   }
 }
 

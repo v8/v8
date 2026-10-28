@@ -163,7 +163,6 @@ DEF_CAST_TRAITS(JSRegExpStringIterator)
 DEF_CAST_TRAITS(JSSet)
 DEF_CAST_TRAITS(JSSetIterator)
 DEF_CAST_TRAITS(JSShadowRealm)
-DEF_CAST_TRAITS(JSSharedArray)
 DEF_CAST_TRAITS(JSSharedStruct)
 DEF_CAST_TRAITS(JSSpecialObject)
 DEF_CAST_TRAITS(JSStringIterator)
@@ -1128,8 +1127,7 @@ bool Object::CanBeHeldWeakly(Tagged<Object> obj) {
       return false;
     }
 #endif
-    return (!v8_flags.harmony_struct ||
-            (!IsJSSharedStruct(obj) && !IsJSSharedArray(obj)));
+    return (!v8_flags.harmony_struct || !IsJSSharedStruct(obj));
   }
   return IsSymbol(obj) && !Cast<Symbol>(obj)->is_in_public_symbol_table();
 }

@@ -31,7 +31,6 @@
 #include "src/objects/instance-type.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/js-objects.h"
-#include "src/objects/js-shared-array.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/objects/struct.h"
 #include "src/regexp/regexp.h"
@@ -2395,14 +2394,6 @@ void JSFinalizationRegistry::JSFinalizationRegistryPrint(std::ostream& os) {
     cleared_cell = Cast<WeakCell>(cleared_cell)->next();
   }
   os << "\n - key_map: " << Brief(key_map());
-  JSObjectPrintBody(os, this);
-}
-
-void JSSharedArray::JSSharedArrayPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, this, "JSSharedArray");
-  if (HeapLayout::InWritableSharedSpace(Tagged<HeapObject>(this))) {
-    os << " (shared)";
-  }
   JSObjectPrintBody(os, this);
 }
 

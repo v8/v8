@@ -31,7 +31,6 @@
 #include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-generator.h"
-#include "src/objects/js-shared-array.h"
 #include "src/objects/js-weak-refs.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/lookup-cache.h"
@@ -95,9 +94,7 @@ bool IsMutableMap(InstanceType instance_type, ElementsKind elements_kind) {
                      !Map::CanHaveFastTransitionableElementsKind(instance_type),
                  IsDictionaryElementsKind(elements_kind) ||
                      IsTerminalElementsKind(elements_kind) ||
-                     is_maybe_read_only_js_object ||
-                     (is_always_shared_space_js_object &&
-                      elements_kind == SHARED_ARRAY_ELEMENTS));
+                     is_maybe_read_only_js_object);
   // JSObjects have maps with a mutable prototype_validity_cell, so they cannot
   // go in RO_SPACE. Maps for managed Wasm objects have mutable subtype lists.
   return (is_js_object && !is_maybe_read_only_js_object &&
@@ -871,7 +868,6 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
 
 bool Heap::CreateLateReadOnlyJSReceiverMaps() {
   HandleScope late_jsreceiver_maps_handle_scope(isolate());
-  Factory* factory = isolate()->factory();
   ReadOnlyRoots roots(this);
 
   {
@@ -892,30 +888,6 @@ bool Heap::CreateLateReadOnlyJSReceiverMaps() {
                  CppHeapExternalObject::kHeaderSize, cpp_heap_external)
     ALLOCATE_MAP(CPP_GCMANAGED_BASE_TYPE, CppGCManagedBase::kHeaderSize,
                  cpp_gc_managed_base)
-  }
-
-  // Shared space object maps are immutable and can be in RO space.
-  {
-    Tagged<Map> shared_array_map;
-    if (!AllocateMap(AllocationType::kReadOnly, JS_SHARED_ARRAY_TYPE,
-                     JSSharedArray::kSize, SHARED_ARRAY_ELEMENTS,
-                     JSSharedArray::kInObjectFieldCount)
-             .To(&shared_array_map)) {
-      return false;
-    }
-    AlwaysSharedSpaceJSObject::PrepareMapNoEnumerableProperties(
-        shared_array_map);
-    DirectHandle<DescriptorArray> descriptors =
-        factory->NewDescriptorArray(1, 0, AllocationType::kReadOnly);
-    Descriptor length_descriptor = Descriptor::DataField(
-        factory->length_string(),
-        shared_array_map->GetInObjectPropertyOffset(
-            JSSharedArray::kLengthFieldIndex),
-        ALL_ATTRIBUTES_MASK, PropertyConstness::kConst, Representation::Smi(),
-        MaybeObjectDirectHandle(FieldType::Any(isolate())), true);
-    descriptors->Set(InternalIndex(0), &length_descriptor);
-    shared_array_map->InitializeDescriptors(*descriptors);
-    set_js_shared_array_map(shared_array_map);
   }
 
 #undef ALLOCATE_PRIMITIVE_MAP

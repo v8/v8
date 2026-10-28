@@ -20,7 +20,6 @@
 #include "src/objects/field-type.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
-#include "src/objects/js-shared-array.h"
 #include "src/objects/js-struct.h"
 #include "src/objects/map-updater.h"
 #include "src/objects/object-conversions-inl.h"
@@ -1156,9 +1155,8 @@ Handle<Object> LookupIterator::GetDataValue(
 
 DirectHandle<Object> LookupIterator::GetDataValue(SeqCstAccessTag tag) const {
   DCHECK_EQ(DATA, state_);
-  // Currently only shared structs and arrays support sequentially consistent
-  // access.
-  DCHECK(IsJSSharedStruct(*holder_) || IsJSSharedArray(*holder_));
+  // Currently only shared structs support sequentially consistent access.
+  DCHECK(IsJSSharedStruct(*holder_));
   DirectHandle<JSObject> holder = GetHolder<JSObject>();
   if (IsElement(*holder)) {
     ElementsAccessor* accessor = holder->GetElementsAccessor();
@@ -1232,9 +1230,8 @@ void LookupIterator::WriteDataValue(DirectHandle<Object> value,
 void LookupIterator::WriteDataValue(DirectHandle<Object> value,
                                     SeqCstAccessTag tag) {
   DCHECK_EQ(DATA, state_);
-  // Currently only shared structs and arrays support sequentially consistent
-  // access.
-  DCHECK(IsJSSharedStruct(*holder_) || IsJSSharedArray(*holder_));
+  // Currently only shared structs support sequentially consistent access.
+  DCHECK(IsJSSharedStruct(*holder_));
   DirectHandle<JSObject> holder = GetHolder<JSObject>();
   if (IsElement(*holder)) {
     ElementsAccessor* accessor = holder->GetElementsAccessor();
@@ -1252,9 +1249,8 @@ void LookupIterator::WriteDataValue(DirectHandle<Object> value,
 DirectHandle<Object> LookupIterator::SwapDataValue(DirectHandle<Object> value,
                                                    SeqCstAccessTag tag) {
   DCHECK_EQ(DATA, state_);
-  // Currently only shared structs and arrays support sequentially consistent
-  // access.
-  DCHECK(IsJSSharedStruct(*holder_) || IsJSSharedArray(*holder_));
+  // Currently only shared structs support sequentially consistent access.
+  DCHECK(IsJSSharedStruct(*holder_));
   DirectHandle<JSObject> holder = GetHolder<JSObject>();
   if (IsElement(*holder)) {
     ElementsAccessor* accessor = holder->GetElementsAccessor();
@@ -1274,9 +1270,8 @@ DirectHandle<Object> LookupIterator::CompareAndSwapDataValue(
     DirectHandle<Object> expected, DirectHandle<Object> value,
     SeqCstAccessTag tag) {
   DCHECK_EQ(DATA, state_);
-  // Currently only shared structs and arrays support sequentially consistent
-  // access.
-  DCHECK(IsJSSharedStruct(*holder_) || IsJSSharedArray(*holder_));
+  // Currently only shared structs support sequentially consistent access.
+  DCHECK(IsJSSharedStruct(*holder_));
   DisallowGarbageCollection no_gc;
   DirectHandle<JSObject> holder = GetHolder<JSObject>();
   if (IsElement(*holder)) {

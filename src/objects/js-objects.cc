@@ -51,7 +51,6 @@
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/js-regexp-string-iterator.h"
 #include "src/objects/js-shadow-realm.h"
-#include "src/objects/js-shared-array.h"
 #include "src/objects/js-struct.h"
 #include "src/objects/map-word.h"
 #include "src/objects/object-conversions-inl.h"
@@ -640,7 +639,6 @@ Tagged<String> JSReceiver::class_name() {
   if (Is<JSWeakSet>(this)) return roots.WeakSet_string();
   if (IsShared(this)) {
     if (Is<JSSharedStruct>(this)) return roots.SharedStruct_string();
-    if (Is<JSSharedArray>(this)) return roots.SharedArray_string();
 #if V8_ENABLE_WEBASSEMBLY
     if (Is<WasmObject>(this)) return roots.Object_string();
 #endif
@@ -2742,8 +2740,6 @@ int JSObject::GetHeaderSize(InstanceType type) {
       return JSModuleNamespace::kHeaderSize;
     case JS_DEFERRED_MODULE_NAMESPACE_TYPE:
       return JSDeferredModuleNamespace::kHeaderSize;
-    case JS_SHARED_ARRAY_TYPE:
-      return JSSharedArray::kHeaderSize;
     case JS_SHARED_STRUCT_TYPE:
       return JSSharedStruct::kHeaderSize;
 #ifdef V8_TEMPORAL_SUPPORT
@@ -3081,9 +3077,6 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
       accumulator->Add("<JS AsyncGenerator>");
       break;
     }
-    case JS_SHARED_ARRAY_TYPE:
-      accumulator->Add("<JSSharedArray>");
-      break;
     case JS_SHARED_STRUCT_TYPE:
       accumulator->Add("<JSSharedStruct>");
       break;
@@ -4869,8 +4862,7 @@ bool JSObject::HasEnumerableElements() {
     case PACKED_FROZEN_ELEMENTS:
     case PACKED_SEALED_ELEMENTS:
     case PACKED_NONEXTENSIBLE_ELEMENTS:
-    case PACKED_DOUBLE_ELEMENTS:
-    case SHARED_ARRAY_ELEMENTS: {
+    case PACKED_DOUBLE_ELEMENTS: {
       uint32_t length = IsJSArray(object)
                             ? Smi::ToUInt(Cast<JSArray>(object)->length())
                             : object->elements()->ulength().value();
@@ -5810,7 +5802,6 @@ uint32_t JSObject::GetFastElementsUsage() {
     case PACKED_FROZEN_ELEMENTS:
     case PACKED_SEALED_ELEMENTS:
     case PACKED_NONEXTENSIBLE_ELEMENTS:
-    case SHARED_ARRAY_ELEMENTS:
       return Is<JSArray>(this) ? Smi::ToUInt(Cast<JSArray>(this)->length())
                                : store->ulength().value();
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:

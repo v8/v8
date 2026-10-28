@@ -967,10 +967,6 @@ DEF_GETTER(JSObject, HasSealedElements, bool) {
   return IsSealedElementsKind(GetElementsKind());
 }
 
-DEF_GETTER(JSObject, HasSharedArrayElements, bool) {
-  return GetElementsKind() == SHARED_ARRAY_ELEMENTS;
-}
-
 DEF_GETTER(JSObject, HasNonextensibleElements, bool) {
   return IsNonextensibleElementsKind(GetElementsKind());
 }

@@ -82,7 +82,6 @@
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/hole.h"
 #include "src/objects/js-raw-json-inl.h"
-#include "src/objects/js-shared-array.h"
 #include "src/objects/js-struct.h"
 #ifdef V8_TEMPORAL_SUPPORT
 #include "src/objects/js-temporal-objects-inl.h"
@@ -842,7 +841,7 @@ void Map::MapVerify(Isolate* isolate) {
                  JSObject::GetEmbedderFieldCount(this) * kEmbedderDataSlotSize,
              inobject_fields_start_offset);
 
-    if (IsJSSharedStructMap(this) || IsJSSharedArrayMap(this)) {
+    if (IsJSSharedStructMap(this)) {
       if (COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL) {
         // TODO(v8:14089): Verify what should be checked in this configuration
         // and again merge with the else-branch below.
@@ -854,9 +853,6 @@ void Map::MapVerify(Isolate* isolate) {
         CHECK(!is_prototype_map());
         CHECK(OnlyHasSimpleProperties());
         // CHECK(instance_descriptors().InSharedHeap());
-        if (IsJSSharedArrayMap(this)) {
-          CHECK(has_shared_array_elements());
-        }
       } else {
         CHECK(HeapLayout::InAnySharedSpace(this));
         CHECK(IsUndefined(GetBackPointer()));
@@ -868,9 +864,6 @@ void Map::MapVerify(Isolate* isolate) {
         CHECK(!is_prototype_map());
         CHECK(OnlyHasSimpleProperties());
         CHECK(HeapLayout::InAnySharedSpace(instance_descriptors()));
-        if (IsJSSharedArrayMap(this)) {
-          CHECK(has_shared_array_elements());
-        }
       }
     }
 
@@ -901,8 +894,7 @@ void Map::MapVerify(Isolate* isolate) {
   CHECK_IMPLIES(IsJSObjectMap(this) && !CanHaveFastTransitionableElementsKind(),
                 IsDictionaryElementsKind(elements_kind()) ||
                     IsTerminalElementsKind(elements_kind()) ||
-                    IsAnyHoleyNonextensibleElementsKind(elements_kind()) ||
-                    IsSharedArrayElementsKind(elements_kind()));
+                    IsAnyHoleyNonextensibleElementsKind(elements_kind()));
   CHECK_IMPLIES(is_deprecated(), !is_stable());
   if (is_prototype_map()) {
     CHECK(prototype_info() == Smi::zero() ||
@@ -2357,20 +2349,6 @@ void JSSyncDisposableStack::JSSyncDisposableStackVerify(Isolate* isolate) {
 
 void JSAsyncDisposableStack::JSAsyncDisposableStackVerify(Isolate* isolate) {
   JSDisposableStackBaseVerify(isolate);
-}
-
-void JSSharedArray::JSSharedArrayVerify(Isolate* isolate) {
-  CHECK(Is<JSSharedArray>(this));
-  JSObjectVerify(isolate);
-  CHECK(HasFastProperties());
-  // Shared arrays can only point to primitives or other shared HeapObjects,
-  // even internally.
-  Tagged<FixedArray> storage = Cast<FixedArray>(elements());
-  uint32_t length = storage->ulength().value();
-  for (uint32_t j = 0; j < length; j++) {
-    Tagged<Object> element_value = storage->get(j);
-    VerifyElementIsShared(element_value);
-  }
 }
 
 // TODO(42203505): Review and improve the verifiers for the hierarchy of
@@ -4095,8 +4073,7 @@ void JSObject::IncrementSpillStatistics(Isolate* isolate,
     case PACKED_FROZEN_ELEMENTS:
     case PACKED_SEALED_ELEMENTS:
     case PACKED_NONEXTENSIBLE_ELEMENTS:
-    case FAST_STRING_WRAPPER_ELEMENTS:
-    case SHARED_ARRAY_ELEMENTS: {
+    case FAST_STRING_WRAPPER_ELEMENTS: {
       info->number_of_objects_with_fast_elements_++;
       int holes = 0;
       Tagged<FixedArray> e = Cast<FixedArray>(elements());
