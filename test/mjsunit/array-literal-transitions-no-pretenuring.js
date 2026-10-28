@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax
+// Flags: --no-incremental-marking --no-stress-incremental-marking
+// Flags: --no-stress-concurrent-allocation
 
 (function TestPackedDoubleToPackedObject() {
   function make() {

@@ -2807,9 +2807,6 @@
 
 ##############################################################################
 ['variant == stress_incremental_marking', {
-  # Incremental marking GCs can clear young-generation AllocationMementos
-  # before elements kind transitions occur.
-  'array-literal-transitions-no-pretenuring': [SKIP],
   'harmony/sharedarraybuffer-worker-gc-stress': [PASS, ['gc_stress', SKIP]],
   'regress/regress-crbug-540324230': [SKIP],
   'regress/regress-crbug-820312': [PASS, SLOW],
@@ -2818,9 +2815,6 @@
 
 ##############################################################################
 ['variant == stress_concurrent_allocation', {
-  # Concurrent allocations trigger GCs that clear AllocationMementos before
-  # elements kind transitions occur.
-  'array-literal-transitions-no-pretenuring': [SKIP],
   # BUG(v8:9506): slow tests.
   'wasm/shared-memory-worker-gc-stress': [SKIP],
   # BUG(v8:12607): flaky test.
