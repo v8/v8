@@ -577,7 +577,8 @@ Tagged<JSAny> JSFunction::prototype() const {
 }
 
 bool JSFunction::is_compiled(IsolateForSandbox isolate) const {
-  return code(isolate, kAcquireLoad)->builtin_id() != Builtin::kCompileLazy &&
+  return dispatch_handle(kAcquireLoad) != kNullJSDispatchHandle &&
+         code(isolate, kAcquireLoad)->builtin_id() != Builtin::kCompileLazy &&
          shared()->is_compiled();
 }
 
