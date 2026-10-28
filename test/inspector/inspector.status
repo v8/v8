@@ -298,4 +298,10 @@
   'regress/regress-526163463': [SKIP],
 }],  # sandbox_hardware_support
 
+##############################################################################
+['verify_predictable', {
+  # https://crbug.com/374722652
+  'regress/regress-374013413': [SKIP],
+}],  # 'verify_predictable'
+
 ]
