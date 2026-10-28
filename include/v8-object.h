@@ -440,7 +440,7 @@ class V8_EXPORT Object : public Value {
    */
   V8_WARN_UNUSED_RESULT Maybe<bool> SetLazyDataProperty(
       Local<Context> context, Local<Name> name,
-      AccessorNameGetterCallback getter, Local<Value> data = Local<Value>(),
+      AccessorNameGetterCallback getter, Local<Data> data = Local<Data>(),
       PropertyAttribute attributes = None,
       SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
       SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);

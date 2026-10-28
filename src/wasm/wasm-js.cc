@@ -936,14 +936,16 @@ void StartAsyncCompilationWithResolver(
           resolver));
   i::DirectHandle<i::CppGCManaged<WasmStreaming>> data =
       i::CppGCManaged<WasmStreaming>::Create(i_isolate, 0, streaming);
+  Local<Data> callback_data =
+      Utils::Convert<i::Object, v8::Data>(i::Cast<i::Object>(data));
 
   DCHECK_NOT_NULL(i_isolate->wasm_streaming_callback());
   Local<v8::Function> compile_callback, reject_callback;
   if (!v8::Function::New(context, i_isolate->wasm_streaming_callback(),
-                         Utils::ToLocal(i::Cast<i::Object>(data)), 1)
+                         callback_data, 1)
            .ToLocal(&compile_callback) ||
       !v8::Function::New(context, WasmStreamingPromiseFailedCallback,
-                         Utils::ToLocal(i::Cast<i::Object>(data)), 1)
+                         callback_data, 1)
            .ToLocal(&reject_callback)) {
     return js_api_scope.AssertException();
   }

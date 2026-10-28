@@ -32622,12 +32622,12 @@ TEST(LocalCasts) {
 class TestGarbagedCollectedData
     : public cppgc::GarbageCollected<TestGarbagedCollectedData> {
  public:
-  void MarkUsed() { was_used_ = true; }
-  bool was_used() const { return was_used_; }
+  void MarkUsed() { ++use_count_; }
+  int use_count() const { return use_count_; }
   void Trace(cppgc::Visitor*) const {}
 
  private:
-  bool was_used_ = false;
+  int use_count_ = 0;
 };
 
 void ReadCppHeapExternalCallback(
@@ -32648,6 +32648,31 @@ void ReadCppHeapExternalPropertyCallback(
   v8::Local<v8::CppHeapExternal>::Cast(data)
       ->Value<TestGarbagedCollectedData>(
           info.GetIsolate(),
+          v8::CppHeapPointerTagRange(i::kTagForTesting, i::kTagForTesting))
+      ->MarkUsed();
+}
+
+v8::Intercepted ReadCppHeapExternalNamedGetterCallback(
+    v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  ReadCppHeapExternalPropertyCallback(v8::Local<v8::Name>(), info);
+  info.GetReturnValue().Set(v8_num(42));
+  return v8::Intercepted::kYes;
+}
+
+v8::Intercepted ReadCppHeapExternalIndexedGetterCallback(
+    uint32_t, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  ReadCppHeapExternalPropertyCallback(v8::Local<v8::Name>(), info);
+  info.GetReturnValue().Set(v8_num(42));
+  return v8::Intercepted::kYes;
+}
+
+void ReadCppHeapExternalFastCallback(v8::Local<v8::Object> receiver,
+                                     v8::FastApiCallbackOptions& options) {
+  v8::Local<v8::Data> data = options.DataV2();
+  CHECK(data->IsCppHeapExternal());
+  v8::Local<v8::CppHeapExternal>::Cast(data)
+      ->Value<TestGarbagedCollectedData>(
+          options.isolate,
           v8::CppHeapPointerTagRange(i::kTagForTesting, i::kTagForTesting))
       ->MarkUsed();
 }
@@ -32901,6 +32926,9 @@ TEST(FunctionTemplateCallbackDataV2_CppHeapExternal) {
   {
     LocalContext env(isolate);
     v8::Global<v8::Function> function;
+    v8::Global<v8::Function> cached_function;
+    v8::Global<v8::Function> overloaded_function;
+    v8::Global<v8::Object> callable_object;
     cppgc::WeakPersistent<TestGarbagedCollectedData> cpp_object(
         cppgc::MakeGarbageCollected<TestGarbagedCollectedData>(
             cpp_heap->GetAllocationHandle()));
@@ -32911,11 +32939,38 @@ TEST(FunctionTemplateCallbackDataV2_CppHeapExternal) {
           v8::CppHeapExternal::New<TestGarbagedCollectedData>(
               isolate, cpp_object.Get(), i::kTagForTesting);
       v8::Local<v8::FunctionTemplate> function_template =
-          v8::FunctionTemplate::New(isolate);
-      function_template->SetCallHandler(ReadCppHeapExternalCallback, external);
+          v8::FunctionTemplate::New(isolate, ReadCppHeapExternalCallback,
+                                    external);
       function.Reset(
           isolate,
           function_template->GetFunction(env.local()).ToLocalChecked());
+      v8::Local<v8::FunctionTemplate> cached_function_template =
+          v8::FunctionTemplate::NewWithCache(
+              isolate, ReadCppHeapExternalCallback, v8::Private::New(isolate),
+              external);
+      cached_function.Reset(
+          isolate,
+          cached_function_template->GetFunction(env.local()).ToLocalChecked());
+
+      static const v8::CFunction c_func =
+          v8::CFunction::Make(ReadCppHeapExternalFastCallback);
+      static const v8::CFunction c_function_overloads[] = {c_func};
+      v8::Local<v8::FunctionTemplate> overloaded_template =
+          v8::FunctionTemplate::NewWithCFunctionOverloads(
+              isolate, ReadCppHeapExternalCallback, external,
+              v8::Local<v8::Signature>(), 0, v8::ConstructorBehavior::kThrow,
+              v8::SideEffectType::kHasSideEffect, {c_function_overloads, 1});
+      overloaded_function.Reset(
+          isolate,
+          overloaded_template->GetFunction(env.local()).ToLocalChecked());
+
+      v8::Local<v8::ObjectTemplate> callable_template =
+          v8::ObjectTemplate::New(isolate);
+      callable_template->SetCallAsFunctionHandler(ReadCppHeapExternalCallback,
+                                                  external);
+      callable_object.Reset(
+          isolate,
+          callable_template->NewInstance(env.local()).ToLocalChecked());
     }
 
     {
@@ -32931,9 +32986,22 @@ TEST(FunctionTemplateCallbackDataV2_CppHeapExternal) {
       CHECK(!function.Get(isolate)
                  ->Call(env.local(), v8::Undefined(isolate), 0, nullptr)
                  .IsEmpty());
+      CHECK(!cached_function.Get(isolate)
+                 ->Call(env.local(), v8::Undefined(isolate), 0, nullptr)
+                 .IsEmpty());
+      CHECK(!overloaded_function.Get(isolate)
+                 ->Call(env.local(), v8::Undefined(isolate), 0, nullptr)
+                 .IsEmpty());
+      CHECK(
+          !callable_object.Get(isolate)
+               ->CallAsFunction(env.local(), v8::Undefined(isolate), 0, nullptr)
+               .IsEmpty());
     }
-    CHECK(cpp_object->was_used());
+    CHECK_EQ(4, cpp_object->use_count());
     function.Reset();
+    cached_function.Reset();
+    overloaded_function.Reset();
+    callable_object.Reset();
   }
 
   isolate->Exit();
@@ -32954,6 +33022,7 @@ TEST(PropertyCallbackInfoDataV2_CppHeapExternal) {
   {
     LocalContext env(isolate);
     v8::Global<v8::Object> object;
+    v8::Global<v8::Object> template_object;
     cppgc::WeakPersistent<TestGarbagedCollectedData> cpp_object(
         cppgc::MakeGarbageCollected<TestGarbagedCollectedData>(
             cpp_heap->GetAllocationHandle()));
@@ -32961,25 +33030,35 @@ TEST(PropertyCallbackInfoDataV2_CppHeapExternal) {
     {
       v8::HandleScope scope(isolate);
       v8::Local<v8::Name> name = v8_str("property");
+      v8::Local<v8::Name> lazy_name = v8_str("lazy_property");
       v8::Local<v8::Object> local_object = v8::Object::New(isolate);
-      CHECK(local_object
-                ->SetNativeDataProperty(env.local(), name,
-                                        ReadCppHeapExternalPropertyCallback)
-                .FromJust());
-
       v8::Local<v8::CppHeapExternal> external =
           v8::CppHeapExternal::New<TestGarbagedCollectedData>(
               isolate, cpp_object.Get(), i::kTagForTesting);
-      // Keep producer inputs Value-typed until the output migration completes.
-      i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-      i::LookupIterator it(i_isolate,
-                           v8::Utils::OpenDirectHandle(*local_object),
-                           v8::Utils::OpenDirectHandle(*name),
-                           i::LookupIterator::OWN_SKIP_INTERCEPTOR);
-      CHECK_EQ(i::LookupIterator::ACCESSOR, it.state());
-      i::Cast<i::AccessorInfo>(it.GetAccessors())
-          ->set_data(*v8::Utils::OpenDirectHandle(*external));
+      CHECK(local_object
+                ->SetNativeDataProperty(env.local(), name,
+                                        ReadCppHeapExternalPropertyCallback,
+                                        nullptr, external)
+                .FromJust());
+      CHECK(local_object
+                ->SetLazyDataProperty(env.local(), lazy_name,
+                                      ReadCppHeapExternalPropertyCallback,
+                                      external)
+                .FromJust());
       object.Reset(isolate, local_object);
+
+      v8::Local<v8::ObjectTemplate> object_template =
+          v8::ObjectTemplate::New(isolate);
+      object_template->SetNativeDataProperty(
+          name, ReadCppHeapExternalPropertyCallback, nullptr, external);
+      object_template->SetHandler(v8::NamedPropertyHandlerConfiguration(
+          ReadCppHeapExternalNamedGetterCallback, nullptr, nullptr, nullptr,
+          nullptr, external, v8::PropertyHandlerFlags::kNonMasking));
+      object_template->SetHandler(v8::IndexedPropertyHandlerConfiguration(
+          ReadCppHeapExternalIndexedGetterCallback, nullptr, nullptr, nullptr,
+          nullptr, external));
+      template_object.Reset(
+          isolate, object_template->NewInstance(env.local()).ToLocalChecked());
     }
 
     {
@@ -32994,9 +33073,20 @@ TEST(PropertyCallbackInfoDataV2_CppHeapExternal) {
       v8::HandleScope scope(isolate);
       CHECK(
           !object.Get(isolate)->Get(env.local(), v8_str("property")).IsEmpty());
+      CHECK(!object.Get(isolate)
+                 ->Get(env.local(), v8_str("lazy_property"))
+                 .IsEmpty());
+      CHECK(!template_object.Get(isolate)
+                 ->Get(env.local(), v8_str("property"))
+                 .IsEmpty());
+      CHECK(!template_object.Get(isolate)
+                 ->Get(env.local(), v8_str("intercepted"))
+                 .IsEmpty());
+      CHECK(!template_object.Get(isolate)->Get(env.local(), 0).IsEmpty());
     }
-    CHECK(cpp_object->was_used());
+    CHECK_EQ(5, cpp_object->use_count());
     object.Reset();
+    template_object.Reset();
   }
 
   isolate->Exit();

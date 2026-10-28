@@ -1276,7 +1276,7 @@ void FunctionTemplate::Inherit(v8::Local<FunctionTemplate> value) {
 }
 
 Local<FunctionTemplate> FunctionTemplate::New(
-    Isolate* v8_isolate, FunctionCallback callback, v8::Local<Value> data,
+    Isolate* v8_isolate, FunctionCallback callback, v8::Local<Data> data,
     v8::Local<Signature> signature, int length, ConstructorBehavior behavior,
     SideEffectType side_effect_type, const CFunction* c_function,
     uint16_t instance_type, uint16_t allowed_receiver_instance_type_range_start,
@@ -1334,7 +1334,7 @@ Local<FunctionTemplate> FunctionTemplate::New(
 }
 
 Local<FunctionTemplate> FunctionTemplate::NewWithCFunctionOverloads(
-    Isolate* v8_isolate, FunctionCallback callback, v8::Local<Value> data,
+    Isolate* v8_isolate, FunctionCallback callback, v8::Local<Data> data,
     v8::Local<Signature> signature, int length, ConstructorBehavior behavior,
     SideEffectType side_effect_type,
     const std::span<const CFunction>& c_function_overloads) {
@@ -1369,8 +1369,8 @@ Local<FunctionTemplate> FunctionTemplate::NewWithCFunctionOverloads(
 
 Local<FunctionTemplate> FunctionTemplate::NewWithCache(
     Isolate* v8_isolate, FunctionCallback callback,
-    Local<Private> cache_property, Local<Value> data,
-    Local<Signature> signature, int length, SideEffectType side_effect_type) {
+    Local<Private> cache_property, Local<Data> data, Local<Signature> signature,
+    int length, SideEffectType side_effect_type) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ApiRuntimeCallStatsScope rcs_scope(i_isolate,
                                      RCCId::kAPI_FunctionTemplate_NewWithCache);
@@ -1617,7 +1617,7 @@ void TemplateSetAccessor(Template* template_obj, v8::Local<Name> name,
 void Template::SetNativeDataProperty(v8::Local<Name> name,
                                      AccessorNameGetterCallback getter,
                                      AccessorNameSetterCallbackV2 setter,
-                                     v8::Local<Value> data,
+                                     v8::Local<Data> data,
                                      PropertyAttribute attribute,
                                      SideEffectType getter_side_effect_type,
                                      SideEffectType setter_side_effect_type) {
@@ -1654,7 +1654,7 @@ template <i::InterceptorKind kind, typename Getter, typename Setter,
 i::DirectHandle<i::InterceptorInfo> CreateInterceptorInfo(
     i::Isolate* i_isolate, Getter getter, Setter setter, Query query,
     Descriptor descriptor, Deleter deleter, Enumerator enumerator,
-    Definer definer, Local<Value> data,
+    Definer definer, Local<Data> data,
     base::Flags<PropertyHandlerFlags> flags) {
   // TODO(saelo): instead of an in-sandbox struct with a lot of external
   // pointers (with different tags), consider creating an object in trusted
@@ -1692,7 +1692,7 @@ template <typename Getter, typename Setter, typename Query, typename Descriptor,
 i::DirectHandle<i::InterceptorInfo> CreateNamedInterceptorInfo(
     i::Isolate* i_isolate, Getter getter, Setter setter, Query query,
     Descriptor descriptor, Deleter remover, Enumerator enumerator,
-    Definer definer, Local<Value> data,
+    Definer definer, Local<Data> data,
     base::Flags<PropertyHandlerFlags> flags) {
   auto interceptor = CreateInterceptorInfo<i::InterceptorKind::kNamed>(
       i_isolate, getter, setter, query, descriptor, remover, enumerator,
@@ -1705,7 +1705,7 @@ template <typename Getter, typename Setter, typename Query, typename Descriptor,
 i::DirectHandle<i::InterceptorInfo> CreateIndexedInterceptorInfo(
     i::Isolate* i_isolate, Getter getter, Setter setter, Query query,
     Descriptor descriptor, Deleter remover, Enumerator enumerator,
-    Definer definer, Local<Value> data,
+    Definer definer, Local<Data> data,
     base::Flags<PropertyHandlerFlags> flags) {
   auto interceptor = CreateInterceptorInfo<i::InterceptorKind::kIndexed>(
       i_isolate, getter, setter, query, descriptor, remover, enumerator,
@@ -1718,7 +1718,7 @@ template <typename Getter, typename Setter, typename Query, typename Descriptor,
 void ObjectTemplateSetNamedPropertyHandler(
     ObjectTemplate* templ, Getter getter, Setter setter, Query query,
     Descriptor descriptor, Deleter remover, Enumerator enumerator,
-    Definer definer, Local<Value> data, PropertyHandlerFlags flags) {
+    Definer definer, Local<Data> data, PropertyHandlerFlags flags) {
   i::Isolate* i_isolate = i::Isolate::Current();
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
   i::HandleScope scope(i_isolate);
@@ -1842,7 +1842,7 @@ void ObjectTemplate::SetHandler(
 }
 
 void ObjectTemplate::SetCallAsFunctionHandler(FunctionCallback callback,
-                                              Local<Value> data) {
+                                              Local<Data> data) {
   i::Isolate* i_isolate = i::Isolate::Current();
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
   i::HandleScope scope(i_isolate);
@@ -5372,7 +5372,7 @@ Maybe<bool> Object::SetNativeDataProperty(
 
 Maybe<bool> Object::SetLazyDataProperty(
     v8::Local<v8::Context> context, v8::Local<Name> name,
-    AccessorNameGetterCallback getter, v8::Local<Value> data,
+    AccessorNameGetterCallback getter, v8::Local<Data> data,
     PropertyAttribute attributes, SideEffectType getter_side_effect_type,
     SideEffectType setter_side_effect_type) {
   return ObjectSetAccessor(context, this, name, getter,
@@ -12272,40 +12272,26 @@ const CTypeInfo& CFunctionInfo::ArgumentInfo(unsigned int index) const {
 }
 
 namespace api_internal {
-namespace {
-i::DirectHandle<i::Object> GetFunctionTemplateDataImpl(
-    v8::Isolate* isolate, v8::Local<v8::Data> raw_target,
-    const char* location) {
+V8_EXPORT v8::Local<v8::Data> GetFunctionTemplateDataV2(
+    v8::Isolate* isolate, v8::Local<v8::Data> raw_target) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::DirectHandle<i::Object> target = Utils::OpenDirectHandle(*raw_target);
   if (i::IsFunctionTemplateInfo(*target)) {
-    return i::DirectHandle<i::Object>(
+    return ToApiHandle<Data>(i::DirectHandle<i::Object>(
         i::Cast<i::FunctionTemplateInfo>(*target)->callback_data(kAcquireLoad),
-        i_isolate);
+        i_isolate));
   }
   if (i::IsJSFunction(*target)) {
     i::DirectHandle<i::JSFunction> target_func = i::Cast<i::JSFunction>(target);
     auto shared = target_func->shared();
     if (shared->IsApiFunction()) {
-      return i::DirectHandle<i::Object>(
-          shared->api_func_data()->callback_data(kAcquireLoad), i_isolate);
+      return ToApiHandle<Data>(i::DirectHandle<i::Object>(
+          shared->api_func_data()->callback_data(kAcquireLoad), i_isolate));
     }
   }
-  Utils::ApiCheck(false, location, "Target function is not an Api function");
+  Utils::ApiCheck(false, "api_internal::GetFunctionTemplateDataV2",
+                  "Target function is not an Api function");
   UNREACHABLE();
-}
-}  // namespace
-
-V8_EXPORT v8::Local<v8::Value> GetFunctionTemplateData(
-    v8::Isolate* isolate, v8::Local<v8::Data> raw_target) {
-  return Utils::ToLocal(GetFunctionTemplateDataImpl(
-      isolate, raw_target, "api_internal::GetFunctionTemplateData"));
-}
-
-V8_EXPORT v8::Local<v8::Data> GetFunctionTemplateDataV2(
-    v8::Isolate* isolate, v8::Local<v8::Data> raw_target) {
-  return ToApiHandle<Data>(GetFunctionTemplateDataImpl(
-      isolate, raw_target, "api_internal::GetFunctionTemplateDataV2"));
 }
 }  // namespace api_internal
 

@@ -104,7 +104,7 @@ class V8_EXPORT Template : public Data {
   void SetNativeDataProperty(
       Local<Name> name, AccessorNameGetterCallback getter,
       AccessorNameSetterCallbackV2 setter = nullptr,
-      Local<Value> data = Local<Value>(), PropertyAttribute attribute = None,
+      Local<Data> data = Local<Data>(), PropertyAttribute attribute = None,
       SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
       SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
 
@@ -554,7 +554,7 @@ class V8_EXPORT FunctionTemplate : public Template {
   /** Creates a function template.*/
   static Local<FunctionTemplate> New(
       Isolate* isolate, FunctionCallback callback = nullptr,
-      Local<Value> data = Local<Value>(),
+      Local<Data> data = Local<Data>(),
       Local<Signature> signature = Local<Signature>(), int length = 0,
       ConstructorBehavior behavior = ConstructorBehavior::kAllow,
       SideEffectType side_effect_type = SideEffectType::kHasSideEffect,
@@ -565,7 +565,7 @@ class V8_EXPORT FunctionTemplate : public Template {
   /** Creates a function template for multiple overloaded fast API calls.*/
   static Local<FunctionTemplate> NewWithCFunctionOverloads(
       Isolate* isolate, FunctionCallback callback = nullptr,
-      Local<Value> data = Local<Value>(),
+      Local<Data> data = Local<Data>(),
       Local<Signature> signature = Local<Signature>(), int length = 0,
       ConstructorBehavior behavior = ConstructorBehavior::kAllow,
       SideEffectType side_effect_type = SideEffectType::kHasSideEffect,
@@ -576,7 +576,7 @@ class V8_EXPORT FunctionTemplate : public Template {
    */
   static Local<FunctionTemplate> NewWithCache(
       Isolate* isolate, FunctionCallback callback,
-      Local<Private> cache_property, Local<Value> data = Local<Value>(),
+      Local<Private> cache_property, Local<Data> data = Local<Data>(),
       Local<Signature> signature = Local<Signature>(), int length = 0,
       SideEffectType side_effect_type = SideEffectType::kHasSideEffect);
 
@@ -765,7 +765,7 @@ struct NamedPropertyHandlerConfiguration {
       NamedPropertyEnumeratorCallback enumerator,  //
       NamedPropertyDefinerCallbackV2 definer,      //
       NamedPropertyDescriptorCallback descriptor,  //
-      Local<Value> data = Local<Value>(),
+      Local<Data> data = Local<Data>(),
       PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
       : getter(getter),
         setter(setter),
@@ -783,7 +783,7 @@ struct NamedPropertyHandlerConfiguration {
       NamedPropertyQueryCallback query = nullptr,            //
       NamedPropertyDeleterCallback deleter = nullptr,        //
       NamedPropertyEnumeratorCallback enumerator = nullptr,  //
-      Local<Value> data = Local<Value>(),
+      Local<Data> data = Local<Data>(),
       PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
       : getter(getter),
         setter(setter),
@@ -802,7 +802,7 @@ struct NamedPropertyHandlerConfiguration {
       NamedPropertyDeleterCallback deleter,        //
       NamedPropertyEnumeratorCallback enumerator,  //
       NamedPropertyDefinerCallbackV2 definer,      //
-      Local<Value> data = Local<Value>(),
+      Local<Data> data = Local<Data>(),
       PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
       : getter(getter),
         setter(setter),
@@ -821,7 +821,7 @@ struct NamedPropertyHandlerConfiguration {
   NamedPropertyEnumeratorCallback enumerator;
   NamedPropertyDefinerCallbackV2 definer;
   NamedPropertyDescriptorCallback descriptor;
-  Local<Value> data;
+  Local<Data> data;
   PropertyHandlerFlags flags;
 };
 
@@ -844,7 +844,7 @@ struct IndexedPropertyHandlerConfiguration {
       IndexedPropertyEnumeratorCallback enumerator,  //
       IndexedPropertyDefinerCallback definer,        //
       IndexedPropertyDescriptorCallback descriptor,  //
-      Local<Value> data = Local<Value>(),
+      Local<Data> data = Local<Data>(),
       PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
       : getter(getter),
         setter(setter),
@@ -862,7 +862,7 @@ struct IndexedPropertyHandlerConfiguration {
       IndexedPropertyQueryCallback query = nullptr,            //
       IndexedPropertyDeleterCallback deleter = nullptr,        //
       IndexedPropertyEnumeratorCallback enumerator = nullptr,  //
-      Local<Value> data = Local<Value>(),                      //
+      Local<Data> data = Local<Data>(),                        //
       PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
       : getter(getter),
         setter(setter),
@@ -881,7 +881,7 @@ struct IndexedPropertyHandlerConfiguration {
       IndexedPropertyDeleterCallback deleter,        //
       IndexedPropertyEnumeratorCallback enumerator,  //
       IndexedPropertyDefinerCallback definer,        //
-      Local<Value> data = Local<Value>(),
+      Local<Data> data = Local<Data>(),
       PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
       : getter(getter),
         setter(setter),
@@ -904,7 +904,7 @@ struct IndexedPropertyHandlerConfiguration {
       IndexedPropertyDefinerCallback definer,        //
       IndexedPropertyDescriptorCallback descriptor,  //
       IndexedPropertyIndexOfCallback index_of,       //
-      Local<Value> data = Local<Value>(),
+      Local<Data> data = Local<Data>(),
       PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
       : getter(getter),
         setter(setter),
@@ -928,7 +928,7 @@ struct IndexedPropertyHandlerConfiguration {
       IndexedPropertyDescriptorCallback descriptor,  //
       IndexedPropertyIndexOfCallback index_of,       //
       IndexedPropertyIterableToListCallback iterable_to_list,
-      Local<Value> data = Local<Value>(),
+      Local<Data> data = Local<Data>(),
       PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
       : getter(getter),
         setter(setter),
@@ -951,7 +951,7 @@ struct IndexedPropertyHandlerConfiguration {
   IndexedPropertyDescriptorCallback descriptor;
   IndexedPropertyIndexOfCallback index_of = nullptr;
   IndexedPropertyIterableToListCallback iterable_to_list = nullptr;
-  Local<Value> data;
+  Local<Data> data;
   PropertyHandlerFlags flags;
 };
 
@@ -1007,7 +1007,7 @@ class V8_EXPORT ObjectTemplate : public Template {
    * function.
    */
   void SetCallAsFunctionHandler(FunctionCallback callback,
-                                Local<Value> data = Local<Value>());
+                                Local<Data> data = Local<Data>());
 
   /**
    * Mark object instances of the template as undetectable.
