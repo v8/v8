@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <thread>
+
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/default-platform.h"
 #include "include/cppgc/heap-consistency.h"
@@ -217,6 +219,8 @@ class WeakTable {
  public:
   static constexpr std::string_view kSyncPoint =
       "cppgc.ConcurrentMarkingTest.TraceWeakTable";
+  static constexpr std::string_view kAfterTraceSyncPoint =
+      "cppgc.ConcurrentMarkingTest.AfterTraceWeakTable";
 
   WeakTable() = default;
   explicit WeakTable(AllocationHandle& handle)
@@ -227,12 +231,17 @@ class WeakTable {
     const WeakTableBacking* backing = backing_.Get();
     SYNCHRONIZATION_POINT(kSyncPoint);
     visitor->TraceWeakContainer(backing, WeakCallback, this);
+    SYNCHRONIZATION_POINT(kAfterTraceSyncPoint);
   }
 
   void Swap(WeakTable& other) {
     backing_.Swap(other.backing_);
     WriteBarrier(backing_);
     WriteBarrier(other.backing_);
+  }
+
+  V8_NOINLINE const WeakMember<GCed>* begin() const {
+    return &backing_->value_;
   }
 
  private:
@@ -266,7 +275,8 @@ class WeakTable {
 };
 
 struct WeakTableHolder : public GarbageCollected<WeakTableHolder> {
-  explicit WeakTableHolder(AllocationHandle& handle) : table(handle) {}
+  V8_NOINLINE explicit WeakTableHolder(AllocationHandle& handle)
+      : table(handle) {}
   void Trace(cppgc::Visitor* visitor) const { visitor->Trace(table); }
 
   WeakTable table;
@@ -310,6 +320,51 @@ TEST_F(ConcurrentMarkingTest, SwapWeakTableWithStackDuringConcurrentMarking) {
   testing_heap.FinalizeGarbageCollection(EmbedderStackState::kNoHeapPointers);
 
   ConservativeGC();
+}
+
+TEST_F(ConcurrentMarkingTest,
+       WeakTableOnStackDuringConcurrentMarkingIsStrongified) {
+  // Regression test: https://crbug.com/578064662.
+  static constexpr v8::base::TimeDelta kTimeout =
+      v8::base::TimeDelta::FromSeconds(5);
+  static constexpr std::string_view kConservativeSyncPoint =
+      "ConservativeMarkingVisitor::VisitFullyConstructedConservatively";
+
+  auto* sync_points = v8::base::SynchronizationPointSupport::Get();
+  sync_points->RequestBlockAt(std::string(WeakTable::kSyncPoint), kTimeout);
+  std::thread([sync_points]() {
+    sync_points->RequestBlockAt(std::string(kConservativeSyncPoint), kTimeout);
+  }).join();
+
+  Persistent<WeakTableHolder> holder = MakeGarbageCollected<WeakTableHolder>(
+      GetAllocationHandle(), GetAllocationHandle());
+  const WeakMember<GCed>* it = holder->table.begin();
+
+  cppgc::testing::StandaloneTestingHeap testing_heap(GetHeapHandle());
+  testing_heap.StartGarbageCollection();
+
+  ASSERT_TRUE(sync_points->WaitUntilBlocked(WeakTable::kSyncPoint, kTimeout));
+
+  // This helper thread is only used for determining the order of execution
+  // between the main thread and the concurrent marker, so that we can reliably
+  // hit the race.
+  std::thread helper([sync_points]() {
+    ASSERT_TRUE(
+        sync_points->WaitUntilBlocked(kConservativeSyncPoint, kTimeout));
+    sync_points->RequestBlockAt(std::string(WeakTable::kAfterTraceSyncPoint),
+                                kTimeout);
+    ASSERT_TRUE(sync_points->Resume(WeakTable::kSyncPoint));
+    ASSERT_TRUE(sync_points->WaitUntilBlocked(WeakTable::kAfterTraceSyncPoint,
+                                              kTimeout));
+    ASSERT_TRUE(sync_points->Resume(WeakTable::kAfterTraceSyncPoint));
+    ASSERT_TRUE(sync_points->Resume(kConservativeSyncPoint));
+  });
+
+  testing_heap.FinalizeGarbageCollection(
+      EmbedderStackState::kMayContainHeapPointers);
+  helper.join();
+
+  EXPECT_NE(nullptr, it->Get());
 }
 
 }  // namespace internal
