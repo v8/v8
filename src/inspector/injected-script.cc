@@ -312,19 +312,7 @@ class InjectedScript::ProtocolPromiseHandler {
           result, m_objectGroup, *m_wrapOptions, &wrappedValue);
     }
     if (!response.IsSuccess()) {
-      if (m_throwOnSideEffect && scope.tryCatch().HasCaught()) {
-        std::unique_ptr<protocol::Runtime::ExceptionDetails> exceptionDetails;
-        response = scope.injectedScript()->wrapEvaluateResult(
-            v8::MaybeLocal<v8::Value>(), scope.tryCatch(), m_objectGroup,
-            *m_wrapOptions, m_throwOnSideEffect, &wrappedValue,
-            &exceptionDetails);
-        if (response.IsSuccess()) {
-          EvaluateCallback::sendSuccess(m_callback, scope.injectedScript(),
-                                        std::move(wrappedValue),
-                                        std::move(exceptionDetails));
-          return;
-        }
-      }
+      if (sendSideEffectErrorIfCaught(scope)) return;
       EvaluateCallback::sendFailure(m_callback, scope.injectedScript(),
                                     response);
       return;
@@ -355,6 +343,7 @@ class InjectedScript::ProtocolPromiseHandler {
             message, exception, m_objectGroup, &exceptionDetails);
       }
       if (!response.IsSuccess()) {
+        if (sendSideEffectErrorIfCaught(scope)) return;
         EvaluateCallback::sendFailure(m_callback, scope.injectedScript(),
                                       response);
         return;
@@ -415,6 +404,7 @@ class InjectedScript::ProtocolPromiseHandler {
           result, exceptionDetails.get(), m_objectGroup);
     }
     if (!response.IsSuccess()) {
+      if (sendSideEffectErrorIfCaught(scope)) return;
       EvaluateCallback::sendFailure(m_callback, scope.injectedScript(),
                                     response);
       return;
@@ -430,6 +420,20 @@ class InjectedScript::ProtocolPromiseHandler {
     EvaluateCallback::sendSuccess(m_callback, scope.injectedScript(),
                                   std::move(wrappedValue),
                                   std::move(exceptionDetails));
+  }
+
+  bool sendSideEffectErrorIfCaught(InjectedScript::ContextScope& scope) {
+    if (!m_throwOnSideEffect || !scope.tryCatch().HasCaught()) return false;
+    std::unique_ptr<protocol::Runtime::RemoteObject> wrappedValue;
+    std::unique_ptr<protocol::Runtime::ExceptionDetails> exceptionDetails;
+    Response response = scope.injectedScript()->wrapEvaluateResult(
+        v8::MaybeLocal<v8::Value>(), scope.tryCatch(), m_objectGroup,
+        *m_wrapOptions, m_throwOnSideEffect, &wrappedValue, &exceptionDetails);
+    if (!response.IsSuccess()) return false;
+    EvaluateCallback::sendSuccess(m_callback, scope.injectedScript(),
+                                  std::move(wrappedValue),
+                                  std::move(exceptionDetails));
+    return true;
   }
 
   V8InspectorImpl* m_inspector;

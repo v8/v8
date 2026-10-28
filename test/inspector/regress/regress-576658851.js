@@ -24,6 +24,10 @@ contextGroup.addScript(`
     get: Array.prototype.pop,
     enumerable: true,
   });
+  var rejectedWithoutMessage = Promise.reject(arrayLike);
+  rejectedWithoutMessage.catch(() => {});
+  var rejectedWithMessage = (async () => { throw arrayLike; })();
+  rejectedWithMessage.catch(() => {});
 `);
 
 async function throwWithPreview(name, expression) {
@@ -54,6 +58,28 @@ InspectorTest.runAsyncTestSuite([
     await Protocol.Runtime.enable();
     await throwWithPreview('throw objectWithBody', 'throw objectWithBody');
     await logExpression('sideEffects after preview', 'sideEffects');
+    await Protocol.Runtime.disable();
+  },
+
+  async function testRejectedPromiseWithoutMessagePreviewSideEffect() {
+    await Protocol.Runtime.enable();
+    InspectorTest.logMessage(await Protocol.Runtime.evaluate({
+      expression: 'rejectedWithoutMessage',
+      awaitPromise: true,
+      throwOnSideEffect: true,
+    }));
+    await logExpression('length after preview', 'arrayLike.length');
+    await Protocol.Runtime.disable();
+  },
+
+  async function testRejectedPromiseWithMessagePreviewSideEffect() {
+    await Protocol.Runtime.enable();
+    InspectorTest.logMessage(await Protocol.Runtime.evaluate({
+      expression: 'rejectedWithMessage',
+      awaitPromise: true,
+      throwOnSideEffect: true,
+    }));
+    await logExpression('length after preview', 'arrayLike.length');
     await Protocol.Runtime.disable();
   },
 ]);
