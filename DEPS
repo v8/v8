@@ -79,9 +79,6 @@ vars = {
   # CPython 3 CIPD package version for Siso hermetic toolchain.
   'cpython3_version': 'version:3@3.11.9.chromium.38',
 
-  # reclient CIPD package version
-  'reclient_version': 're_client_version:0.185.0.db415f21-gomaip',
-
   # Fetch configuration files required for the 'use_remoteexec' gn arg
   'download_remoteexec_cfg': False,
 
@@ -193,16 +190,6 @@ deps = {
     ],
     'dep_type': 'cipd',
     'condition': 'host_os == "win"',
-  },
-  'buildtools/reclient': {
-    'packages': [
-      {
-        'package': 'infra/rbe/client/${{platform}}',
-        'version': Var('reclient_version'),
-      }
-    ],
-    'dep_type': 'cipd',
-    'condition': '(host_os == "linux" or host_os == "mac" or host_os == "win") and host_cpu != "s390x" and host_os != "zos" and host_cpu != "ppc64" and (host_cpu != "arm64" or host_os == "mac")',
   },
   # TODO(498118202): Use checkout_benchmarks here too.
   'test/benchmarks/data':
