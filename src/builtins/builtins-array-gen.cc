@@ -247,7 +247,7 @@ void ArrayBuiltinsAssembler::VisitAllTypedArrayElements(
         Label process(this);
         if (is_rab_gsab) {
           // If `index` is out of bounds, Get returns undefined.
-          CheckJSTypedArrayIndex(typed_array, index, &detached);
+          CheckIsValidIntegerIndex(typed_array, index, &detached);
         } else {
           GotoIf(IsDetachedBuffer(array_buffer), &detached);
         }

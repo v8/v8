@@ -19915,7 +19915,8 @@ TNode<BoolT> CodeStubAssembler::IsJSArrayBufferViewDetachedOrOutOfBoundsBoolean(
   return result.value();
 }
 
-void CodeStubAssembler::CheckJSTypedArrayIndex(
+// https://tc39.es/ecma262/#sec-isvalidintegerindex
+void CodeStubAssembler::CheckIsValidIntegerIndex(
     TNode<JSTypedArray> typed_array, TNode<UintPtrT> index,
     Label* detached_or_out_of_bounds) {
   TNode<UintPtrT> len = LoadJSTypedArrayLengthAndValidate(

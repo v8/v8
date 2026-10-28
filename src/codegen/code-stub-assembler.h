@@ -4463,9 +4463,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsJSArrayBufferViewDetachedOrOutOfBoundsBoolean(
       TNode<JSArrayBufferView> array_buffer_view);
 
-  void CheckJSTypedArrayIndex(TNode<JSTypedArray> typed_array,
-                              TNode<UintPtrT> index,
-                              Label* detached_or_out_of_bounds);
+  void CheckIsValidIntegerIndex(TNode<JSTypedArray> typed_array,
+                                TNode<UintPtrT> index,
+                                Label* detached_or_out_of_bounds);
 
   TNode<Uint8T> ElementsKindToElementByteShift(TNode<Int32T> elementsKind);
   TNode<RawPtrT> LoadJSTypedArrayDataPtr(TNode<JSTypedArray> typed_array);
