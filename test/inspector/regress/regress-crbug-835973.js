@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Test that stepping works correctly with bytecode scaling prefix.
+let {session, contextGroup, Protocol} = InspectorTest.start(
+    'Test that stepping works correctly with bytecode scaling prefix.');
+
+contextGroup.addScript(`
 class MyClass { f(p) { this.x += p; } };
 
 let obj = new MyClass();
@@ -270,20 +273,16 @@ function foo() {
   obj.f(258);
   obj.f(259);
 }
+`);
 
-let break_count = 0;
-
-function listener(event, exec_state, event_data, data) {
-  if (event != debug.Debug.DebugEvent.Break) return;
-  try {
-    exec_state.prepareStep(debug.Debug.StepAction.StepOver);
-    break_count++;
-  } catch {
-    %AbortJS("unexpected exception");
-  }
-}
-
-debug.Debug.setListener(listener);
-foo();
-debug.Debug.setListener(null);
-assertEquals(7, break_count);
+(async function test() {
+  await Protocol.Debugger.enable();
+  let breakCount = 0;
+  Protocol.Debugger.onPaused(() => {
+    breakCount++;
+    Protocol.Debugger.stepOver();
+  });
+  await Protocol.Runtime.evaluate({expression: 'foo()'});
+  InspectorTest.log('breakCount: ' + breakCount);
+  InspectorTest.completeTest();
+})();
