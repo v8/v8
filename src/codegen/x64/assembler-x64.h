@@ -2697,6 +2697,19 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vinstr_evex(0x59, dst, src1, src2, kNoPrefix, kMap5, kW0, kFull);
   }
 
+  void vdivph(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vinstr_evex(0x5e, dst, src1, src2, kNoPrefix, kMap5, kW0);
+  }
+  void vdivph(XMMRegister dst, XMMRegister src1, Operand src2) {
+    vinstr_evex(0x5e, dst, src1, src2, kNoPrefix, kMap5, kW0, kFull);
+  }
+  void vdivph(YMMRegister dst, YMMRegister src1, YMMRegister src2) {
+    vinstr_evex(0x5e, dst, src1, src2, kNoPrefix, kMap5, kW0);
+  }
+  void vdivph(YMMRegister dst, YMMRegister src1, Operand src2) {
+    vinstr_evex(0x5e, dst, src1, src2, kNoPrefix, kMap5, kW0, kFull);
+  }
+
   // Packed FP16 FMA, without masking, broadcast, or embedded rounding.
   // The destination is also the first multiplicand: (+/- dst * src1) + src2.
   void vfmadd213ph(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
