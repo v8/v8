@@ -12,6 +12,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "include/cppgc/persistent.h"
 #include "include/v8-inspector.h"
 #include "src/base/macros.h"
 #include "src/inspector/inspected-context.h"
@@ -335,7 +336,8 @@ class V8Debugger : public v8::debug::DebugDelegate,
 
   std::unique_ptr<TerminateExecutionCallback> m_terminateExecutionCallback;
   v8::Global<v8::Context> m_terminateExecutionCallbackContext;
-  v8::MicrotaskQueue* m_terminateExecutionCallbackMicrotaskQueue = nullptr;
+  cppgc::WeakPersistent<v8::MicrotaskQueue>
+      m_terminateExecutionCallbackMicrotaskQueue;
   bool m_terminateExecutionReported = true;
 };
 

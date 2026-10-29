@@ -10,12 +10,15 @@
 #include "include/v8-function.h"
 #include "include/v8-inspector.h"
 #include "include/v8-local-handle.h"
+#include "include/v8-microtask-queue.h"
 #include "include/v8-primitive.h"
+#include "src/heap/heap.h"
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-inspector-impl.h"
 #include "src/inspector/v8-inspector-session-impl.h"
 #include "src/inspector/v8-runtime-agent-impl.h"
 #include "test/common/flag-utils.h"
+#include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -931,6 +934,76 @@ TEST_F(InspectorTest, TerminateExecutionWithDetachedDefaultContext) {
   })"));
   session2.reset();
   inspector2.reset();
+}
+
+TEST_F(InspectorTest, TerminateExecutionWithDetachedCustomMicrotaskQueue) {
+  v8::Isolate* isolate = v8_isolate();
+  v8::HandleScope handle_scope(isolate);
+
+  // 1. Destroying session and inspector after DetachGlobal + GC.
+  {
+    v8::MicrotaskQueue* microtask_queue = v8::MicrotaskQueue::New(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(
+        isolate, nullptr, MaybeLocal<ObjectTemplate>(), MaybeLocal<Value>(),
+        DeserializeInternalFieldsCallback(), microtask_queue);
+    DefaultContextClient client(isolate, context);
+    std::unique_ptr<V8Inspector> inspector =
+        V8Inspector::create(isolate, &client);
+    V8ContextInfo context_info(context, 1, toStringView(""));
+    inspector->contextCreated(context_info);
+
+    NoopChannel channel;
+    std::unique_ptr<V8InspectorSession> session =
+        inspector->connect(1, &channel, toStringView("{}"),
+                           v8_inspector::V8Inspector::kFullyTrusted);
+
+    session->dispatchProtocolMessage(toStringView(R"({
+      "id": 1,
+      "method": "Runtime.terminateExecution"
+    })"));
+    context->DetachGlobal();
+    {
+      EmbedderStackStateScope stack_scope(
+          i_isolate()->heap(), EmbedderStackStateOrigin::kExplicitInvocation,
+          StackState::kNoHeapPointers);
+      ::v8::internal::InvokeMajorGC(i_isolate(), GCFlag::kForced);
+    }
+    session.reset();
+    inspector.reset();
+  }
+
+  // 2. Running JS to trigger reportTermination after DetachGlobal + GC.
+  {
+    v8::MicrotaskQueue* microtask_queue = v8::MicrotaskQueue::New(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(
+        isolate, nullptr, MaybeLocal<ObjectTemplate>(), MaybeLocal<Value>(),
+        DeserializeInternalFieldsCallback(), microtask_queue);
+    DefaultContextClient client(isolate, context);
+    std::unique_ptr<V8Inspector> inspector =
+        V8Inspector::create(isolate, &client);
+    V8ContextInfo context_info(context, 1, toStringView(""));
+    inspector->contextCreated(context_info);
+
+    NoopChannel channel;
+    std::unique_ptr<V8InspectorSession> session =
+        inspector->connect(1, &channel, toStringView("{}"),
+                           v8_inspector::V8Inspector::kFullyTrusted);
+
+    session->dispatchProtocolMessage(toStringView(R"({
+      "id": 1,
+      "method": "Runtime.terminateExecution"
+    })"));
+    context->DetachGlobal();
+    {
+      EmbedderStackStateScope stack_scope(
+          i_isolate()->heap(), EmbedderStackStateOrigin::kExplicitInvocation,
+          StackState::kNoHeapPointers);
+      ::v8::internal::InvokeMajorGC(i_isolate(), GCFlag::kForced);
+    }
+    TryRunJS("1");
+    session.reset();
+    inspector.reset();
+  }
 }
 
 namespace {
