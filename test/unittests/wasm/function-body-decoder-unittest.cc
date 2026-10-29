@@ -4580,6 +4580,20 @@ TEST_F(FunctionBodyDecoderTest, BrOnCastOrCastFail) {
       kAppendEnd,
       "type error in fallthru[0] (expected (ref null 1), got (ref null 0))");
   ExpectFailure(
+      FunctionSig::Build(this->zone(), {subtype}, {subtype}),
+      {WASM_BLOCK_R(supertype, WASM_LOCAL_GET(0),
+                    WASM_BR_ON_CAST_FAIL_NULL(0, super_struct, super_struct),
+                    WASM_RETURN0)},
+      kAppendEnd,
+      "type error in return[0] (expected (ref null 1), got (ref null 0))");
+  ExpectFailure(
+      FunctionSig::Build(this->zone(), {subtype}, {subtype.AsNonNull()}),
+      {WASM_BLOCK_R(supertype, WASM_LOCAL_GET(0),
+                    WASM_BR_ON_CAST_FAIL(0, super_struct, super_struct),
+                    WASM_RETURN0)},
+      kAppendEnd,
+      "type error in return[0] (expected (ref null 1), got (ref 0))");
+  ExpectFailure(
       FunctionSig::Build(this->zone(), {supertype}, {supertype}),
       {WASM_BLOCK_I(WASM_LOCAL_GET(0),
                     WASM_BR_ON_CAST_FAIL(0, super_struct, sub_struct))},

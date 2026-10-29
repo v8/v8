@@ -6841,7 +6841,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           } else {
             // Otherwise, the type check always succeeds. Do not branch. Also,
             // make sure the object remains on the stack.
-            result_on_fallthrough = obj;
+            CALL_INTERFACE(Forward, obj, &result_on_fallthrough);
           }
         } else {
           if (target_imm.type.has_index()) {
