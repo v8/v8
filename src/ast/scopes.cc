@@ -658,6 +658,27 @@ void DeclarationScope::DeclareSloppyBlockFunction(
   sloppy_block_functions_.Add(sloppy_block_function);
 }
 
+namespace {
+
+// Whether {var}, a binding in {scope}, conflicts with a var declaration of the
+// same name in {scope} or an inner scope. Besides lexical bindings, this is the
+// case for the implicit 'arguments' binding in the parameter scope of a
+// function with non-simple parameters: it has kVar mode, but var declarations
+// in direct eval inside parameter initializers conflict with it.
+bool ConflictsWithVarDeclaration(Scope* scope, Variable* var) {
+  if (IsLexicalVariableMode(var->mode())) return true;
+  if (var->mode() == VariableMode::kVar && scope->is_function_scope() &&
+      !scope->AsDeclarationScope()->has_simple_parameters()) {
+    // Formal parameters were made lexical by MakeParametersNonSimple and
+    // body-level vars live in the inner var block scope.
+    DCHECK(var->raw_name()->IsOneByteEqualTo("arguments"));
+    return true;
+  }
+  return false;
+}
+
+}  // namespace
+
 void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
   DCHECK(is_sloppy(language_mode()));
   DCHECK(is_function_scope() || is_eval_scope() || is_script_scope() ||
@@ -703,7 +724,7 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
     // scope and we terminate the iteration there anyway.
     do {
       Variable* var = query_scope->LookupInScopeOrScopeInfo(name, query_scope);
-      if (var != nullptr && IsLexicalVariableMode(var->mode()) &&
+      if (var != nullptr && ConflictsWithVarDeclaration(query_scope, var) &&
           !var->is_sloppy_block_function()) {
         should_hoist = false;
         break;
@@ -1411,45 +1432,16 @@ Declaration* DeclarationScope::CheckConflictingVarDeclarations(
       Variable* other_var =
           current->LookupInScopeOrScopeInfo(decl->var()->raw_name(), current);
       if (other_var != nullptr && !current->is_catch_scope()) {
-        // If this is a VAR, then we know that it doesn't conflict with
-        // anything, so we can't conflict with anything either. The two
-        // exceptions are:
-        // - the binding variable in catch scopes, which is handled by the if
-        //   above, and
-        // - the implicit 'arguments' binding in the parameter scope of a
-        //   function with non-simple parameters, which has kVar mode even
-        //   though var declarations in direct eval inside parameter
-        //   initializers conflict with it.
-        if (!IsLexicalVariableMode(other_var->mode()) &&
-            !(current->is_function_scope() &&
-              !current->AsDeclarationScope()->has_simple_parameters())) {
-          break;
-        }
-        return decl;
+        if (ConflictsWithVarDeclaration(current, other_var)) return decl;
+        // Otherwise {other_var} is a var-like binding that does not conflict
+        // with anything, so neither can {decl}. Catch scope bindings are
+        // handled by the if above.
+        break;
       }
       current = current->outer_scope();
     } while (current != end);
   }
   return nullptr;
-}
-
-bool DeclarationScope::HasConflictingArgumentsVarDeclaration(
-    AstValueFactory* ast_value_factory) {
-  DCHECK(is_eval_scope());
-  if (!is_sloppy(language_mode())) return false;
-
-  Variable* var = LookupLocal(ast_value_factory->arguments_string());
-  if (var == nullptr || IsLexicalVariableMode(var->mode())) return false;
-
-  // During parameter initialization, the parameter environment of a
-  // non-arrow function with non-simple parameters contains an implicit
-  // `arguments` binding between the eval's lexical and variable environments.
-  DeclarationScope* var_scope = outer_scope()->GetNonEvalDeclarationScope();
-  if (!var_scope->is_function_scope() || var_scope->is_arrow_scope()) {
-    return false;
-  }
-  DCHECK(var_scope->from_scope_info());
-  return !var_scope->scope_info()->HasSimpleParameters();
 }
 
 const AstRawString* Scope::FindVariableDeclaredIn(Scope* scope,
