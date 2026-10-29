@@ -9129,8 +9129,9 @@ class TurboshaftGraphBuildingInterface
                         compiler::WasmTypeCheckConfig config,
                         const Value& object, Value* value_on_fallthrough,
                         uint32_t br_depth, bool null_succeeds) {
-    OpIndex cast_succeeds = __ WasmTypeCheck(object.get<Object>(), rtt, config);
-    IF (__ Word32Equal(cast_succeeds, 0)) {
+    V<Word32> cast_succeeds =
+        __ WasmTypeCheck(object.get<Object>(), rtt, config);
+    IF_NOT (cast_succeeds) {
       // It is necessary in case of {null_succeeds} to forward the value.
       // This will add a TypeGuard to the non-null type (as in this case the
       // object is non-nullable).
