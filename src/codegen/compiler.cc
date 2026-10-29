@@ -1461,6 +1461,20 @@ void FinalizeUnoptimizedCompilation(
   for (const auto& finalize_data : finalize_unoptimized_compilation_data_list) {
     DirectHandle<SharedFunctionInfo> shared_info =
         finalize_data.function_handle();
+    // If the compilation was merged into a cached script, skip any newly
+    // compiled SFI that was discarded in favor of an already-compiled cached
+    // SFI, and otherwise resolve the surviving SFI from the script's SFI list.
+    if (shared_info->script() != *script) continue;
+    if (flags.is_toplevel()) {
+      Tagged<HeapObject> heap_object;
+      if (!script->infos()
+               ->get(shared_info->function_literal_id(kRelaxedLoad))
+               .GetHeapObjectIfWeak(&heap_object)) {
+        continue;
+      }
+      shared_info =
+          direct_handle(Cast<SharedFunctionInfo>(heap_object), isolate);
+    }
     // It's unlikely, but possible, that the bytecode was flushed between being
     // allocated and now, so guard against that case, and against it being
     // flushed in the middle of this loop.
@@ -2695,7 +2709,7 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
   state_ = kDone;
 
   if (isolate->NeedsSourcePositions()) {
-    Script::InitLineEnds(isolate, new_script);
+    Script::InitLineEnds(isolate, old_script);
     SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, result);
   }
 
@@ -2772,6 +2786,7 @@ MaybeHandle<SharedFunctionInfo> BackgroundCompileTask::FinalizeScript(
         merge.CompleteMergeInForeground(isolate, script);
     maybe_result = result;
     script = handle(Cast<Script>(result->script()), isolate);
+    DCHECK_EQ(*script, *cached_script);
     DCHECK(Object::StrictEquals(script->source(), *source));
     DCHECK(isolate->factory()->script_list()->Contains(MakeWeak(*script)));
   } else {
