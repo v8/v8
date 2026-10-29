@@ -207,6 +207,8 @@ class V8_EXPORT_PRIVATE ScopeIterator {
                        ScopeType scope_type) const;
   void VisitScriptScope(const Visitor& visitor) const;
   void VisitModuleScope(const Visitor& visitor) const;
+  bool IsLocalInTdz(VariableMode mode, Tagged<Object> value,
+                    int initializer_position) const;
   bool VisitLocals(const Visitor& visitor, Mode mode,
                    ScopeType scope_type) const;
   bool VisitContextLocals(const Visitor& visitor,

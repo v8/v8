@@ -11,6 +11,7 @@
 #include "src/debug/debug-scope-info.h"
 #include "src/debug/debug.h"
 #include "src/execution/frames-inl.h"
+#include "src/objects/contexts-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/source-text-module.h"
 #include "src/objects/string-set.h"
@@ -725,6 +726,18 @@ int ScopeIterator::GetSourcePosition() const {
   }
 }
 
+bool ScopeIterator::IsLocalInTdz(VariableMode mode, Tagged<Object> value,
+                                 int initializer_position) const {
+  if (IsTheHole(value) || IsTdzHole(value)) return true;
+  if (IsLexicalVariableMode(mode) && IsUndefined(value) &&
+      initializer_position != kNoSourcePosition &&
+      GetSourcePosition() != kNoSourcePosition &&
+      GetSourcePosition() <= initializer_position) {
+    return true;
+  }
+  return false;
+}
+
 void ScopeIterator::VisitScriptScope(const Visitor& visitor) const {
   DirectHandle<ScriptContextTable> script_contexts(
       context_->native_context()->script_context_table(), isolate_);
@@ -893,6 +906,9 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
           CHECK_LT(static_cast<uint32_t>(index),
                    parameters_and_registers->ulength().value());
           value = handle(parameters_and_registers->get(index), isolate_);
+          if (IsLocalInTdz(var.mode, *value, var.initializer_position)) {
+            value = isolate_->factory()->tdz_hole_value();
+          }
         } else {
           JavaScriptFrame* frame = GetFrame();
           if (frame->is_unoptimized()) {
@@ -906,9 +922,7 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
                 args_index == var.index) {
               continue;
             }
-          } else if (IsLexicalVariableMode(var.mode) && IsUndefined(*value) &&
-                     GetSourcePosition() != kNoSourcePosition &&
-                     GetSourcePosition() <= var.initializer_position) {
+          } else if (IsLocalInTdz(var.mode, *value, var.initializer_position)) {
             // Variables that are `undefined` could also mean an elided hole
             // write. We explicitly check the static scope information if we
             // are currently stopped before the variable is actually initialized
@@ -1074,6 +1088,7 @@ bool ScopeIterator::SetLocalVariableValue(DirectHandle<String> variable_name,
 
         case VariableLocation::PARAMETER: {
           if (!InInnerScope() || var.is_receiver) return false;
+          DCHECK_EQ(var.mode, VariableMode::kVar);
           if (frame_inspector_ == nullptr) {
             // Set the variable in the suspended generator.
             DCHECK(!generator_.is_null());
@@ -1105,6 +1120,10 @@ bool ScopeIterator::SetLocalVariableValue(DirectHandle<String> variable_name,
             CHECK_GE(index, 0);
             CHECK_LT(static_cast<uint32_t>(index),
                      parameters_and_registers->ulength().value());
+            Tagged<Object> current_val = parameters_and_registers->get(index);
+            if (IsLocalInTdz(var.mode, current_val, var.initializer_position)) {
+              return false;
+            }
             parameters_and_registers->set(index, *new_value);
           } else {
             // Set the variable on the stack.
@@ -1113,11 +1132,18 @@ bool ScopeIterator::SetLocalVariableValue(DirectHandle<String> variable_name,
 
             CHECK_GE(index, 0);
             CHECK_LT(index, frame->ComputeExpressionsCount());
+            DirectHandle<Object> current_val =
+                frame_inspector_->GetExpression(index);
+            if (IsOptimizedOut(*current_val)) return false;
+            if (IsLocalInTdz(var.mode, *current_val,
+                             var.initializer_position)) {
+              return false;
+            }
             frame->SetExpression(index, *new_value);
           }
           return true;
 
-        case VariableLocation::CONTEXT:
+        case VariableLocation::CONTEXT: {
           if (!HasContext()) return false;
           // We know of at least one open bug where the context and scope chain
           // don't match (https://crbug.com/753338).
@@ -1127,14 +1153,21 @@ bool ScopeIterator::SetLocalVariableValue(DirectHandle<String> variable_name,
               index) {
             return false;
           }
+          CHECK_LT(static_cast<unsigned>(index),
+                   static_cast<unsigned>(context_->length()));
+          if (context_->IsElementTdzHole(index)) return false;
           Context::Set(context_, index, new_value, isolate_);
           return true;
+        }
 
-        case VariableLocation::MODULE:
+        case VariableLocation::MODULE: {
           if (!HasContext() || !var.is_export()) return false;
           DirectHandle<SourceTextModule> module(context_->module(), isolate_);
+          Tagged<Object> current_val = module->GetCell(var.index)->value();
+          if (IsTheHole(current_val) || IsTdzHole(current_val)) return false;
           SourceTextModule::StoreVariable(module, var.index, new_value);
           return true;
+        }
       }
       UNREACHABLE();
     }
@@ -1162,6 +1195,9 @@ bool ScopeIterator::SetContextVariableValue(DirectHandle<String> variable_name,
                                             DirectHandle<Object> new_value) {
   int slot_index = context_->scope_info()->ContextSlotIndex(*variable_name);
   if (slot_index < 0) return false;
+  CHECK_LT(static_cast<unsigned>(slot_index),
+           static_cast<unsigned>(context_->length()));
+  if (context_->IsElementTdzHole(slot_index)) return false;
   Context::Set(context_, slot_index, new_value, isolate_);
   return true;
 }
@@ -1183,6 +1219,8 @@ bool ScopeIterator::SetModuleVariableValue(DirectHandle<String> variable_name,
   }
 
   DirectHandle<SourceTextModule> module(context_->module(), isolate_);
+  Tagged<Object> current_val = module->GetCell(cell_index)->value();
+  if (IsTheHole(current_val) || IsTdzHole(current_val)) return false;
   SourceTextModule::StoreVariable(module, cell_index, new_value);
   return true;
 }
@@ -1195,6 +1233,11 @@ bool ScopeIterator::SetScriptVariableValue(DirectHandle<String> variable_name,
   if (script_contexts->Lookup(variable_name, &lookup_result)) {
     DirectHandle<Context> script_context(
         script_contexts->get(lookup_result.context_index), isolate_);
+    CHECK_LT(static_cast<unsigned>(lookup_result.slot_index),
+             static_cast<unsigned>(script_context->length()));
+    if (script_context->IsElementTdzHole(lookup_result.slot_index)) {
+      return false;
+    }
     Context::Set(script_context, lookup_result.slot_index, new_value, isolate_);
     return true;
   }
