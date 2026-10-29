@@ -1911,8 +1911,8 @@ MaybeDirectHandle<String> JSDateTimeFormat::ToLocaleDateTime(
       (IsString(*locales) || IsUndefined(*locales)) && IsUndefined(*options);
   if (can_cache) {
     // Both locales and options are undefined, check the cache.
-    icu::SimpleDateFormat* cached_icu_simple_date_format =
-        static_cast<icu::SimpleDateFormat*>(
+    std::shared_ptr<icu::SimpleDateFormat> cached_icu_simple_date_format =
+        std::static_pointer_cast<icu::SimpleDateFormat>(
             isolate->get_cached_icu_object(cache_type, locales));
     if (cached_icu_simple_date_format != nullptr) {
       return FormatDateTime(isolate, *cached_icu_simple_date_format, x);

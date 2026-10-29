@@ -8226,11 +8226,11 @@ void Isolate::ResetDefaultLocale() {
   Deoptimizer::DeoptimizeAll(this);
 }
 
-icu::UMemory* Isolate::get_cached_icu_object(ICUObjectCacheType cache_type,
-                                             DirectHandle<Object> locales) {
+std::shared_ptr<icu::UMemory> Isolate::get_cached_icu_object(
+    ICUObjectCacheType cache_type, DirectHandle<Object> locales) {
   const ICUObjectCacheEntry& entry =
       icu_object_cache_[static_cast<int>(cache_type)];
-  return StringEqualsLocales(this, entry.locales, locales) ? entry.obj.get()
+  return StringEqualsLocales(this, entry.locales, locales) ? entry.obj
                                                            : nullptr;
 }
 

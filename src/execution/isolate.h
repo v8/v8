@@ -1709,8 +1709,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
       kDefaultSimpleDateFormatForTime, kDefaultSimpleDateFormatForDate};
   static constexpr int kICUObjectCacheTypeCount = 5;
 
-  icu::UMemory* get_cached_icu_object(ICUObjectCacheType cache_type,
-                                      DirectHandle<Object> locales);
+  // Returns a shared_ptr, not a raw pointer, so that the object stays alive
+  // while the caller uses it, even if the cache entry is replaced.
+  std::shared_ptr<icu::UMemory> get_cached_icu_object(
+      ICUObjectCacheType cache_type, DirectHandle<Object> locales);
   void set_icu_object_in_cache(ICUObjectCacheType cache_type,
                                DirectHandle<Object> locales,
                                std::shared_ptr<icu::UMemory> obj);

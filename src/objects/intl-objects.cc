@@ -1079,8 +1079,8 @@ std::optional<int> Intl::StringLocaleCompare(Isolate* isolate,
       CompareStringsOptionsFor(isolate, locales, options);
   if (can_cache) {
     // Both locales and options are undefined, check the cache.
-    icu::Collator* cached_icu_collator =
-        static_cast<icu::Collator*>(isolate->get_cached_icu_object(
+    std::shared_ptr<icu::Collator> cached_icu_collator =
+        std::static_pointer_cast<icu::Collator>(isolate->get_cached_icu_object(
             Isolate::ICUObjectCacheType::kDefaultCollator, locales));
     // We may use the cached icu::Collator for a fast path.
     if (cached_icu_collator != nullptr) {
@@ -1587,16 +1587,18 @@ MaybeDirectHandle<String> Intl::NumberToLocaleString(
   bool can_cache =
       (IsString(*locales) || IsUndefined(*locales)) && IsUndefined(*options);
   if (can_cache) {
-    icu::number::LocalizedNumberFormatter* cached_number_format =
-        static_cast<icu::number::LocalizedNumberFormatter*>(
-            isolate->get_cached_icu_object(
-                Isolate::ICUObjectCacheType::kDefaultNumberFormat, locales));
-    // We may use the cached icu::NumberFormat for a fast path.
+    std::shared_ptr<icu::number::LocalizedNumberFormatter>
+        cached_number_format =
+            std::static_pointer_cast<icu::number::LocalizedNumberFormatter>(
+                isolate->get_cached_icu_object(
+                    Isolate::ICUObjectCacheType::kDefaultNumberFormat,
+                    locales));
+    // We may use the cached formatter for a fast path. Do not copy it. ICU
+    // builds an optimized formatter inside it after a few calls, and the
+    // copy constructor drops that optimized formatter.
     if (cached_number_format != nullptr) {
-      std::shared_ptr<icu::number::LocalizedNumberFormatter> lfmt =
-          std::make_shared<icu::number::LocalizedNumberFormatter>(
-              *cached_number_format);
-      return JSNumberFormat::FormatNumeric(isolate, lfmt.get(), numeric_obj);
+      return JSNumberFormat::FormatNumeric(isolate, cached_number_format.get(),
+                                           numeric_obj);
     }
   }
 
