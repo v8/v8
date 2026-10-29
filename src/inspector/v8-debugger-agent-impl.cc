@@ -1295,6 +1295,8 @@ Response V8DebuggerAgentImpl::restartFrame(
   }
   m_skipList.clear();
   m_session->releaseObjectGroup(kBacktraceObjectGroup);
+  m_instrumentationFinished = true;
+  m_debugger->continueProgram(m_session->contextGroupId());
   *newCallFrames = std::make_unique<Array<CallFrame>>();
   return Response::Success();
 }

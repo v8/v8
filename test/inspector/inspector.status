@@ -79,6 +79,7 @@
 ##############################################################################
 # TODO(v8:7777): Change this once wasm is supported in jitless mode.
 ['not has_webassembly or variant == jitless', {
+  'debugger/restart-frame/wasm-*': [SKIP],
   'debugger/wasm-*': [SKIP],
   'cpu-profiler/console-profile-wasm': [SKIP],
   'runtime/get-properties': [SKIP],

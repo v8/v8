@@ -763,7 +763,7 @@ void Debug::Break(JavaScriptFrame* frame,
   if (hitInstrumentationBreak) {
     debug::DebugDelegate::ActionAfterInstrumentation action =
         OnInstrumentationBreak();
-    if (IsRestartFrameScheduled()) return;
+    if (has_scheduled_restart_frame()) return;
     switch (action) {
       case debug::DebugDelegate::ActionAfterInstrumentation::kPause:
         shouldPauseAfterInstrumentation = true;

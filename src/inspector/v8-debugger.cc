@@ -461,11 +461,7 @@ bool V8Debugger::restartFrame(int targetContextGroupId, int callFrameOrdinal) {
   DCHECK(targetContextGroupId);
   m_targetContextGroupId = targetContextGroupId;
 
-  if (v8::debug::PrepareRestartFrame(m_isolate, callFrameOrdinal)) {
-    continueProgram(targetContextGroupId);
-    return true;
-  }
-  return false;
+  return v8::debug::PrepareRestartFrame(m_isolate, callFrameOrdinal);
 }
 
 bool V8Debugger::shouldContinueToCurrentLocation() {

@@ -1038,7 +1038,7 @@ bool ExecuteWasmDebugBreaks(
     DCHECK(!trusted_instance_data->break_on_entry());
     if (!maybe_on_entry_breakpoints.is_null()) {
       isolate->debug()->OnInstrumentationBreak();
-      if (isolate->debug()->IsRestartFrameScheduled()) return true;
+      if (isolate->debug()->has_scheduled_restart_frame()) return true;
       paused_on_instrumentation = true;
     }
   }

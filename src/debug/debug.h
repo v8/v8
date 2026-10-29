@@ -488,9 +488,17 @@ class V8_EXPORT_PRIVATE Debug {
     return thread_local_.scheduled_break_on_next_function_call_;
   }
 
+  // Raw state, for Debug-internal checks right after a delegate callback
+  // returns while a DebugScope is still on the stack (e.g.
+  // OnInstrumentationBreak).
+  bool has_scheduled_restart_frame() const {
+    return thread_local_.restart_frame_id_ != StackFrameId::NO_ID;
+  }
+  // For code that runs JS or unwinds frames. False while a DebugScope is
+  // active, so embedder JS that runs from inspector notifications does not see
+  // the pending restart.
   bool IsRestartFrameScheduled() const {
-    return !in_debug_scope() &&
-           thread_local_.restart_frame_id_ != StackFrameId::NO_ID;
+    return !in_debug_scope() && has_scheduled_restart_frame();
   }
   bool ShouldRestartFrame(StackFrameId id) const {
     return IsRestartFrameScheduled() && thread_local_.restart_frame_id_ == id;
