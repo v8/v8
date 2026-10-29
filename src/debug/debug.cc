@@ -1497,14 +1497,18 @@ void Debug::PrepareStepOnThrow() {
 
   int current_frame_count = CurrentFrameCount();
 
-  // Iterate through the JavaScript stack looking for handlers.
-  JavaScriptStackFrameIterator it(isolate_);
+  // Iterate through the stack looking for handlers.
+  // To keep current_frame_count consistent with CurrentFrameCount() and
+  // target_frame_count_, iterate with DebuggableStackFrameIterator and
+  // decrement by it.FrameFunctionCount() for every frame visited (including
+  // Wasm frames, which cannot contain JS catch handlers).
+  DebuggableStackFrameIterator it(isolate_);
   while (!it.done()) {
-    JavaScriptFrame* frame = it.frame();
-    if (frame->LookupExceptionHandlerInTable(nullptr, nullptr) > 0) break;
-    std::vector<Tagged<SharedFunctionInfo>> infos;
-    frame->GetFunctions(&infos);
-    current_frame_count -= infos.size();
+    if (it.is_javascript()) {
+      JavaScriptFrame* frame = it.javascript_frame();
+      if (frame->LookupExceptionHandlerInTable(nullptr, nullptr) > 0) break;
+    }
+    current_frame_count -= it.FrameFunctionCount();
     it.Advance();
   }
 
@@ -1515,7 +1519,11 @@ void Debug::PrepareStepOnThrow() {
   // Iterate frames, including inlined frames. First, find the handler frame.
   // Then skip to the frame we want to break in, then instrument for stepping.
   for (; !it.done(); it.Advance()) {
-    JavaScriptFrame* frame = JavaScriptFrame::cast(it.frame());
+    if (!it.is_javascript()) {
+      current_frame_count -= it.FrameFunctionCount();
+      continue;
+    }
+    JavaScriptFrame* frame = it.javascript_frame();
     if (last_step_action() == StepInto) {
       // Deoptimize frame to ensure calls are checked for step-in.
       Deoptimizer::DeoptimizeFunction(frame->function(),
