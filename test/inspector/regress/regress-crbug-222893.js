@@ -27,59 +27,64 @@
 //
 // Flags: --noanalyze-environment-liveness
 
-Debug = debug.Debug
+let {session, contextGroup, Protocol} =
+    InspectorTest.start('Tests regress-crbug-222893.');
 
-var error = null;
+contextGroup.addScript(`
 var array = ["a", "b", "c"];
-var result = null;
-
-function listener(event, exec_state, event_data, data) {
-  try {
-    if (event == Debug.DebugEvent.Break) {
-      result = exec_state.frame(0).evaluate('arguments').value();
-    }
-  } catch (e) {
-    error = e;
-  }
-};
-
-Debug.setListener(listener);
-
 
 function f(a, b) {
   arguments;
   debugger;  // Arguments object is already materialized.
 }
 
-result = null;
-f.apply(this, array);
-assertArrayEquals(array, result);
-result = null;
-f("a", "b", "c");
-assertArrayEquals(array, result);
-assertNull(error);
-
 function g(a, b) {
   debugger;  // Arguments object is not yet materialized.
 }
-
-result = null;
-g.apply(this, array);
-assertArrayEquals(array, result);
-result = null;
-g("a", "b", "c");
-assertArrayEquals(array, result);
-assertNull(error);
 
 function h(a, b) {
   var arguments = undefined;
   debugger;  // Arguments already used as local variable.
 }
+`);
 
-result = null;
-h.apply(this, array);
-assertEquals(undefined, result);
-result = null;
-h("a", "b", "c");
-assertEquals(undefined, result);
-assertNull(error);
+(async function test() {
+  await Protocol.Debugger.enable();
+
+  Protocol.Debugger.onPaused(async message => {
+    const callFrameId = message.params.callFrames[0].callFrameId;
+    const {result: {result}} = await Protocol.Debugger.evaluateOnCallFrame({
+      callFrameId,
+      expression: 'arguments',
+    });
+    if (result.type === 'object' && result.objectId) {
+      const {result: {result: props}} = await Protocol.Runtime.getProperties({
+        objectId: result.objectId,
+        ownProperties: true,
+      });
+      const values = [];
+      for (const prop of props) {
+        if (/^\d+$/.test(prop.name)) {
+          values[Number(prop.name)] = prop.value.value;
+        }
+      }
+      InspectorTest.log(`arguments: ${JSON.stringify(values)}`);
+    } else {
+      InspectorTest.log(`arguments: ${result.type}`);
+    }
+    Protocol.Debugger.resume();
+  });
+
+  await Protocol.Runtime.evaluate({
+    expression: `
+      f.apply(this, array);
+      f("a", "b", "c");
+      g.apply(this, array);
+      g("a", "b", "c");
+      h.apply(this, array);
+      h("a", "b", "c");
+    `,
+  });
+  await Protocol.Debugger.disable();
+  InspectorTest.completeTest();
+})();

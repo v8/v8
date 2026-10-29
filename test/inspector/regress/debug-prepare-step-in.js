@@ -25,31 +25,46 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-gc
-Debug = debug.Debug
+// Flags: --expose-gc --allow-natives-syntax
 
-function breakListener(event, exec_state, event_data, data) {
-  exec_state.prepareStep(Debug.StepAction.StepInto);
-}
+let {session, contextGroup, Protocol} =
+    InspectorTest.start('Tests debug-prepare-step-in.');
 
-Debug.setListener(breakListener);
+session.setupScriptMap();
 
-var o = {x:function() { return 10; }};
+contextGroup.addScript(
+    `var o = {x: function() { return 10; }};
 
 function f(o) {
   var m = "x";
   o[m]();
 }
+`,
+    0, 0, 'test.js');
 
-Debug.setBreakPoint(f, 2, 0);
+(async function test() {
+  await Protocol.Debugger.enable();
+  await Protocol.Debugger.setBreakpointByUrl({
+    lineNumber: 4,
+    columnNumber: 0,
+    url: 'test.js',
+  });
 
-f(o);
+  Protocol.Debugger.onPaused(async message => {
+    await session.logSourceLocation(message.params.callFrames[0].location);
+    Protocol.Debugger.stepInto();
+  });
 
-%NotifyContextDisposed();
-function g() {
-  gc();
-}
-
-g();
-
-Debug.setListener(null);
+  await Protocol.Runtime.evaluate({
+    expression: `
+      f(o);
+      %NotifyContextDisposed();
+      function g() {
+        gc();
+      }
+      g();
+    `,
+  });
+  await Protocol.Debugger.disable();
+  InspectorTest.completeTest();
+})();

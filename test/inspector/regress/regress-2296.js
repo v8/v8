@@ -25,19 +25,19 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+let {session, contextGroup, Protocol} =
+    InspectorTest.start('Tests regress-2296.');
 
-Debug = debug.Debug
-
-function listener(event, exec_state, event_data, data) {
-  try {
-    event_data.script().setSource(1);
-  } catch (e) {
-    assertTrue(String(e).indexOf("Source is not a string") > 0);
-  }
-};
-
-Debug.setListener(listener);
-
-eval('0');
-
-Debug.setListener(null);
+(async function test() {
+  await Protocol.Debugger.enable();
+  const scriptParsedPromise = Protocol.Debugger.onceScriptParsed();
+  await Protocol.Runtime.evaluate({expression: 'eval(\'0\')'});
+  const {params: {scriptId}} = await scriptParsedPromise;
+  const response = await Protocol.Debugger.setScriptSource({
+    scriptId,
+    scriptSource: 1,
+  });
+  InspectorTest.logMessage(InspectorTest.trimErrorMessage(response));
+  await Protocol.Debugger.disable();
+  InspectorTest.completeTest();
+})();
