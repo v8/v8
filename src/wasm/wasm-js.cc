@@ -169,10 +169,13 @@ void WasmStreaming::SetUrl(const char* url, size_t length) {
 std::shared_ptr<WasmStreaming> WasmStreaming::Unpack(Isolate* isolate,
                                                      Local<Data> data) {
   TRACE_EVENT("v8.wasm", "wasm.WasmStreaming.Unpack");
-  i::HandleScope scope(reinterpret_cast<i::Isolate*>(isolate));
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::HandleScope scope(i_isolate);
   auto managed =
       i::Cast<i::CppGCManaged<WasmStreaming>>(Utils::OpenDirectHandle(*data));
-  return managed->ptr().as_shared_ptr();
+  std::shared_ptr<WasmStreaming> streaming = managed->get();
+  managed->SetManagedObject({}, i_isolate, 0);
+  return streaming;
 }
 
 class WasmModuleCompilation::Impl {
@@ -888,11 +891,22 @@ void WasmStreamingCallbackForTesting(
   CHECK(!thrower.error());
 }
 
+void WasmStreamingStartCallback(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  auto managed = i::Cast<i::CppGCManaged<WasmStreaming>>(
+      Utils::OpenDirectHandle(*info.DataV2()));
+  if (!managed->get()) return;
+  i_isolate->wasm_streaming_callback()(info);
+}
+
 void WasmStreamingPromiseFailedCallback(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
   std::shared_ptr<v8::WasmStreaming> streaming =
       v8::WasmStreaming::Unpack(info.GetIsolate(), info.DataV2());
+  if (!streaming) return;
   streaming->Abort(info[0]);
 }
 
@@ -941,8 +955,7 @@ void StartAsyncCompilationWithResolver(
 
   DCHECK_NOT_NULL(i_isolate->wasm_streaming_callback());
   Local<v8::Function> compile_callback, reject_callback;
-  if (!v8::Function::New(context, i_isolate->wasm_streaming_callback(),
-                         callback_data, 1)
+  if (!v8::Function::New(context, WasmStreamingStartCallback, callback_data, 1)
            .ToLocal(&compile_callback) ||
       !v8::Function::New(context, WasmStreamingPromiseFailedCallback,
                          callback_data, 1)
