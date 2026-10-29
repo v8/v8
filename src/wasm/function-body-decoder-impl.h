@@ -1338,6 +1338,7 @@ struct PcForErrors {
   explicit PcForErrors(const uint8_t* /* pc */) {}
 
   const uint8_t* pc() const { return nullptr; }
+  void set_pc_for_errors(const uint8_t* /* pc */) {}
 };
 
 template <>
@@ -1347,6 +1348,7 @@ struct PcForErrors<true> {
   explicit PcForErrors(const uint8_t* pc) : pc_for_errors(pc) {}
 
   const uint8_t* pc() const { return pc_for_errors; }
+  void set_pc_for_errors(const uint8_t* pc) { pc_for_errors = pc; }
 };
 
 // An entry on the value stack.
@@ -5477,13 +5479,21 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
     CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(PopControl, c);
 
-    // - In non-unreachable code, a loop just leaves the values on the stack.
+    // - In non-unreachable code, a loop keeps the Values on the stack (avoiding
+    //   a control-flow merge in the compiler interface), but updates their type
+    //   and error pc to match the loop's end_merge.
     // - In unreachable code, it is not guaranteed that we have Values of the
     //   correct types on the stack, so we have to make sure we do. Their values
     //   do not matter, so we might as well push the (uninitialized) values of
     //   the loop's end merge.
     if (!c->is_loop() || c->unreachable()) {
       PushMergeValues(c, &c->end_merge);
+    } else if (c->end_merge.arity > 0) {
+      Value* stack_base = stack_value(c->end_merge.arity);
+      for (uint32_t i = 0; i < c->end_merge.arity; i++) {
+        stack_base[i].type = c->end_merge[i].type;
+        stack_base[i].set_pc_for_errors(c->pc());
+      }
     }
     RollbackLocalsInitialization(c);
 
@@ -8231,9 +8241,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     // the most basic subtype check).
     if (arity == 1 && (strict_count ? actual == arity : actual >= arity)) {
       if (stack_.back().type == merge->vals.first.type) {
-        if constexpr (static_cast<bool>(rewrite_types) &&
-                      ValidationTag::validate) {
-          stack_.back().pc_for_errors = this->pc_;
+        if constexpr (static_cast<bool>(rewrite_types)) {
+          stack_.back().set_pc_for_errors(this->pc_);
         }
         return true;
       }
@@ -8278,9 +8287,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         if constexpr (static_cast<bool>(rewrite_types)) {
           // Upcast type on the stack to the target type of the label.
           val.type = old.type;
-          if constexpr (ValidationTag::validate) {
-            val.pc_for_errors = this->pc_;
-          }
+          val.set_pc_for_errors(this->pc_);
         }
       }
       return true;
@@ -8307,9 +8314,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         for (uint32_t i = 0; i < std::min(arity, inserted_value_count); i++) {
           if (stack_base[i].type == kWasmBottom) {
             stack_base[i].type = (*merge)[i].type;
-            if constexpr (static_cast<bool>(rewrite_types) &&
-                          ValidationTag::validate) {
-              stack_base[i].pc_for_errors = this->pc_;
+            if constexpr (static_cast<bool>(rewrite_types)) {
+              stack_base[i].set_pc_for_errors(this->pc_);
             }
           }
         }

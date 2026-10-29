@@ -3177,7 +3177,8 @@ TEST_F(FunctionBodyDecoderTest, MultiValLoop1) {
                               kExprI32Add});
   ExpectFailure(
       sigs.i_ii(),
-      {WASM_LOOP_X(sig0, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)), kExprF32Add});
+      {WASM_LOOP_X(sig0, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)), kExprF32Add},
+      kAppendEnd, "f32.add[0] expected type f32, found loop of type i32");
 }
 
 TEST_F(FunctionBodyDecoderTest, MultiValIf) {
