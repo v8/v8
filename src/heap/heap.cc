@@ -4407,7 +4407,17 @@ void ClearStaleLeftTrimmedPointerVisitor::ClearLeftTrimmedOrForward(
   if (!IsHeapObject(*p)) return;
 
   if (IsLeftTrimmed(p)) {
+#if defined(V8_COMPRESS_POINTERS) || defined(V8_ENABLE_SANDBOX)
+    // Overwrite stale slots with decompressed Smi 0 (the upper 32-bit point
+    // into the cage). This ensures we remain in the sandbox for stores like
+    // `base + index * 8`. If base would be 0 here, we could write to an address
+    // outside the sandbox (address 0 to 32GB). If base is the
+    // cage base instead, the store can't escape the 1 TB sandbox.
+    p.store(Tagged<Object>(
+        V8HeapCompressionScheme::DecompressTagged(Smi::zero().ptr())));
+#else
     p.store(Smi::zero());
+#endif
   } else {
     visitor_->VisitRootPointer(root, description, p);
   }

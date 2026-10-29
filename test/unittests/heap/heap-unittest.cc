@@ -7429,5 +7429,28 @@ TEST_F(HeapTest, StressJS) {
   CHECK_EQ(true, result->BooleanValue(v8_isolate()));
 }
 
+TEST_F(HeapTest, ClearLeftTrimmedSlotPreservesCageBase) {
+  ManualGCScope manual_gc_scope(i_isolate());
+  DisableConservativeStackScanningScopeForTesting no_css(heap());
+  HandleScope scope(i_isolate());
+
+  IndirectHandle<FixedArray> stale_handle =
+      i_isolate()->factory()->NewFixedArray(100);
+  IndirectHandle<FixedArrayBase> trimmed_handle(
+      heap()->LeftTrimFixedArray(*stale_handle, 10), i_isolate());
+  USE(trimmed_handle);
+
+  InvokeMajorGC();
+
+  FullObjectSlot slot(stale_handle.location());
+  EXPECT_TRUE(IsSmi(*slot));
+#if defined(V8_COMPRESS_POINTERS) || defined(V8_ENABLE_SANDBOX)
+  EXPECT_EQ((*slot).ptr(),
+            V8HeapCompressionScheme::DecompressTagged(Smi::zero().ptr()));
+#else
+  EXPECT_EQ(*slot, Smi::zero());
+#endif
+}
+
 }  // namespace internal
 }  // namespace v8
