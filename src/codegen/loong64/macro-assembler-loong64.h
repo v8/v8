@@ -524,12 +524,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   inline void PushAll(DoubleRegList registers,
                       int stack_slot_size = kDoubleSize) {
     DCHECK_EQ(stack_slot_size, kDoubleSize);
+    if (registers.is_empty()) return;
     MultiPushFPU(registers);
   }
 
   inline void PopAll(DoubleRegList registers,
                      int stack_slot_size = kDoubleSize) {
     DCHECK_EQ(stack_slot_size, kDoubleSize);
+    if (registers.is_empty()) return;
     MultiPopFPU(registers);
   }
 
