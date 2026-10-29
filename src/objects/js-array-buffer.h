@@ -150,6 +150,7 @@ V8_OBJECT class JSArrayBuffer : public JSAPIObjectWithEmbedderSlots {
   void AttachView(Tagged<JSArrayBufferView> view);
 
   inline Tagged<Object> DetachKey(Isolate* isolate);
+  inline bool has_detach_key() const;
   static void SetDetachKey(DirectHandle<JSArrayBuffer> array_buffer,
                            DirectHandle<Object> key, Isolate* isolate);
 
@@ -232,7 +233,6 @@ V8_OBJECT class JSArrayBuffer : public JSAPIObjectWithEmbedderSlots {
   inline Tagged<Cell> detach_key() const;
   inline void set_detach_key(Tagged<Cell> value,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline bool has_detach_key() const;
 
   static void DetachInternal(DirectHandle<JSArrayBuffer> array_buffer,
                              bool force_for_wasm_memory, Isolate* isolate);

@@ -2952,7 +2952,7 @@ void CheckArrayBufferViewTrackingConsistency(Tagged<JSArrayBuffer> ab,
                                              Isolate* isolate) {
   if (ab->is_shared()) return;
   Tagged<MaybeObject> views = ab->views_or_detach_key();
-  if (!IsUndefined(ab->DetachKey(isolate))) {
+  if (ab->has_detach_key()) {
     CHECK_EQ(ab->views(), JSArrayBuffer::kManyViews);
     CHECK(!views.IsSmi() && views.IsStrong() && Is<Cell>(views));
     return;

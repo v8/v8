@@ -329,6 +329,7 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
   switch (id) {
     // Functions used in testing and outside
     case Runtime::kArrayBufferDetach:
+    case Runtime::kArrayBufferSetDetachKey:
 #define F(name, nargs, ressize, ...) case k##name:
 #define I(name, nargs, ressize, ...) \
   case k##name:                      \

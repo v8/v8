@@ -83,7 +83,6 @@ constexpr bool CanTriggerGC(T... properties) {
   F(BigIntEqualToNumber, 2, 1)                                        \
   F(BigIntEqualToString, 2, 1)                                        \
   F(BigIntExponentiate, 2, 1)                                         \
-  F(BigIntMaxBits, 0, 1)                                              \
   F(BigIntToNumber, 1, 1)                                             \
   F(BigIntUnaryOp, 2, 1)                                              \
   F(ToBigInt, 1, 1)                                                   \
@@ -129,7 +128,6 @@ constexpr bool CanTriggerGC(T... properties) {
   F(CompileOptimizedOSRFromMaglevInlined, 2, 1)                  \
   F(LogOrTraceOptimizedOSREntry, 0, 1)                           \
   F(CompileLazy, 1, 1)                                           \
-  F(CompileBaseline, 1, 1)                                       \
   F(InstallBaselineCode, 1, 1)                                   \
   F(InstallSFICode, 1, 1)                                        \
   F(NotifyDeoptimized, 0, 1)                                     \
@@ -559,10 +557,12 @@ constexpr bool CanTriggerGC(T... properties) {
   F(BaselineOsr, -1, 1)                                                  \
   F(BenchMaglev, 2, 1)                                                   \
   F(BenchTurbofan, 2, 1)                                                 \
+  F(BigIntMaxBits, 0, 1)                                                 \
   F(BlockAt, 2, 1)                                                       \
   F(VerifyGetJSBuiltinState, 1, 1)                                       \
   F(ClearFunctionFeedback, 1, 1)                                         \
   F(ClearMegamorphicStubCache, 0, 1)                                     \
+  F(CompileBaseline, 1, 1)                                               \
   F(CompleteInobjectSlackTracking, 1, 1)                                 \
   F(ConstructConsString, 2, 1)                                           \
   F(ConstructDouble, 2, 1)                                               \

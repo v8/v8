@@ -45,6 +45,9 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferSetDetachKey) {
         isolate, NewTypeError(MessageTemplate::kNotTypedArray));
   }
   auto array_buffer = Cast<JSArrayBuffer>(argument);
+  if (!array_buffer->is_detachable()) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
   JSArrayBuffer::SetDetachKey(array_buffer, key, isolate);
   return ReadOnlyRoots(isolate).undefined_value();
 }
