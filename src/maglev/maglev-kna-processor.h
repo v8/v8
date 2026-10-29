@@ -418,6 +418,28 @@ class RecomputeKnownNodeAspectsProcessor {
     return RecordMaps(node->ReceiverInput().node(), node->maps());
   }
 
+  ProcessResult ProcessNode(CheckMapsWithMigration* node) {
+    return RecordMaps(node->ReceiverInput().node(), node->maps());
+  }
+
+  ProcessResult ProcessNode(CheckMapsWithMigrationAndDeopt* node) {
+    return RecordMaps(node->ReceiverInput().node(), node->maps());
+  }
+
+  ProcessResult ProcessNode(StoreMap* node) {
+    compiler::MapRef map = node->map();
+    ValueNode* object = node->ValueInput().node();
+    if (!GetOrCreateInfoFor(object)->SetPossibleMaps(
+            PossibleMaps{map}, !map.is_stable(),
+            StaticTypeForMap(map, broker()), broker(), known_node_aspects())) {
+      return OnContradiction();
+    }
+    if (!map.is_stable()) {
+      known_node_aspects().MarkSideEffectsRequireInvalidation();
+    }
+    return ProcessResult::kContinue;
+  }
+
   ProcessResult ProcessNode(LoadTaggedField* node) {
     // Re-establish the static type recorded at graph building time (field
     // representation / stable field map derived).

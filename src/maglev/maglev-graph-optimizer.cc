@@ -1102,9 +1102,6 @@ ProcessResult MaglevGraphOptimizer::ProcessCheckMaps(NodeT* node,
     return ProcessResult::kTruncateBlock;
   }
   if (result.IsDone()) {
-    if (merger.emit_check_with_migration()) {
-      return ProcessResult::kContinue;
-    }
     return RemoveCurrentNode();
   }
   if constexpr (std::is_same_v<NodeT, CheckMaps> ||

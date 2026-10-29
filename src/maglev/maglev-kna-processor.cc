@@ -27,6 +27,7 @@ ProcessResult RecomputeKnownNodeAspectsProcessor::OnContradiction() {
     CHECK(current_node()->opcode() == Opcode::kAssumeType ||
           current_node()->opcode() == Opcode::kAssumeMap ||
           current_node()->opcode() == Opcode::kLoadTaggedField ||
+          current_node()->opcode() == Opcode::kStoreMap ||
           current_node()->opcode() == Opcode::kReturnedValue ||
           current_node()->opcode() == Opcode::kIdentity);
     result = reducer_.BuildAbort(AbortReason::kUnreachable);
