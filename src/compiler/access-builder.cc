@@ -254,7 +254,7 @@ FieldAccess AccessBuilder::ForJSExternalObjectValue() {
   return access;
 }
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
 // static
 FieldAccess AccessBuilder::ForJSExternalObjectPointerHandle() {
   FieldAccess access = {kTaggedBase,

@@ -401,10 +401,10 @@ static_assert(kExternalPointerShiftedTagMask << kExternalPointerTagShift ==
 // that it is smaller than the size of the table.
 using ExternalPointerHandle = uint32_t;
 
-// ExternalPointers point to objects located outside the sandbox. When the V8
-// sandbox is enabled, these are stored on heap as ExternalPointerHandles,
+// ExternalPointers point to objects located outside the V8 heap. When pointer
+// compression is enabled, these are stored on heap as ExternalPointerHandles,
 // otherwise they are simply raw pointers.
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
 using ExternalPointer_t = ExternalPointerHandle;
 #else
 using ExternalPointer_t = Address;
@@ -648,9 +648,9 @@ enum class ManagedTypeId : uint32_t {
 //
 // External Pointers.
 //
-// When the sandbox is enabled, external pointers are stored in an external
-// pointer table and are referenced from HeapObjects through an index (a
-// "handle"). When stored in the table, the pointers are tagged with per-type
+// When pointer compression is enabled, external pointers are stored in an
+// external pointer table and are referenced from HeapObjects through an index
+// (a "handle"). When stored in the table, the pointers are tagged with per-type
 // tags to prevent type confusion attacks between different external objects.
 //
 // When loading an external pointer, a range of allowed tags can be specified.
@@ -678,14 +678,6 @@ enum class ManagedTypeId : uint32_t {
 // that the Embedder is not using this byte (really only this one bit) for any
 // other purpose. This bit also does not collide with the memory tagging
 // extension (MTE) which would use bits [56, 60).
-//
-// External pointer tables are also available even when the sandbox is off but
-// pointer compression is on. In that case, the mechanism can be used to ease
-// alignment requirements as it turns unaligned 64-bit raw pointers into
-// aligned 32-bit indices. To "opt-in" to the external pointer table mechanism
-// for this purpose, instead of using the ExternalPointer accessors one needs to
-// use ExternalPointerHandles directly and use them to access the pointers in an
-// ExternalPointerTable.
 //
 // The tag is limited to 7 bits since it needs to fit together with a marking
 // bit into the unused parts of a 57-bit pointer to support LA57 on x64.
@@ -1390,7 +1382,7 @@ class Internals {
     return *GetRootSlot(isolate, index);
   }
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   V8_INLINE static Address* GetExternalPointerTableBase(v8::Isolate* isolate) {
     Address addr = reinterpret_cast<Address>(isolate) +
                    kIsolateExternalPointerTableOffset +
@@ -1451,10 +1443,10 @@ class Internals {
   V8_EXPORT static v8::Isolate* GetCurrentIsolate();
 
   V8_INLINE static v8::Isolate* GetCurrentIsolateForSandbox() {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
     return GetCurrentIsolate();
 #else
-    // Not used in non-sandbox mode.
+    // Not used in non-pointer-compression mode.
     return nullptr;
 #endif
   }
@@ -1463,7 +1455,7 @@ class Internals {
   V8_INLINE static Address ReadExternalPointerField(v8::Isolate* isolate,
                                                     Address heap_object_ptr,
                                                     int offset) {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
     static_assert(!tag_range.IsEmpty());
     // See src/sandbox/external-pointer-table.h. Logic duplicated here so
     // it can be inlined and doesn't require an additional call.
@@ -1487,13 +1479,13 @@ class Internals {
     return safe_entry;
 #else
     return ReadRawField<Address>(heap_object_ptr, offset);
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
   }
 
   V8_INLINE static Address ReadExternalPointerField(
       v8::Isolate* isolate, Address heap_object_ptr, int offset,
       ExternalPointerTagRange tag_range) {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
     // See src/sandbox/external-pointer-table.h. Logic duplicated here so
     // it can be inlined and doesn't require an additional call.
     Address* table = IsSharedExternalPointerType(tag_range)
@@ -1517,7 +1509,7 @@ class Internals {
     return safe_entry;
 #else
     return ReadRawField<Address>(heap_object_ptr, offset);
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
   }
 
 #ifdef V8_COMPRESS_POINTERS

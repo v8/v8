@@ -2980,14 +2980,14 @@ class AssemblerOpInterface : public Next {
 
   V<WordPtr> LoadExternalPointerFromObject(V<Object> object, int offset,
                                            ExternalPointerTag tag) {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
     V<Word32> handle = __ Load(object, LoadOp::Kind::TaggedBase(),
                                MemoryRepresentation::Uint32(), offset);
     return __ LoadExternalPointer(handle, tag);
 #else
     return __ Load(object, LoadOp::Kind::TaggedBase(),
                    MemoryRepresentation::UintPtr(), offset);
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
   }
 
   V<Object> LoadFixedArrayElement(V<FixedArray> array, int index) {
@@ -3190,28 +3190,39 @@ class AssemblerOpInterface : public Next {
     }
     MemoryRepresentation rep =
         MemoryRepresentation::FromMachineType(machine_type);
-#ifdef V8_ENABLE_SANDBOX
-    bool is_sandboxed_external =
+#ifdef V8_COMPRESS_POINTERS
+    bool is_external_pointer_handle =
         access.type.Is(compiler::Type::ExternalPointer());
-    if (is_sandboxed_external) {
-      // Fields for sandboxed external pointer contain a 32-bit handle, not a
+#ifndef V8_ENABLE_SANDBOX
+    // When the sandbox is disabled, SandboxedPointer fields (e.g.
+    // JSTypedArray::external_pointer_ and JSDataView::data_pointer_) are
+    // represented as raw pointers with Type::ExternalPointer() and
+    // kExternalPointerNullTag rather than ExternalPointerTable handles.
+    if (access.external_pointer_tag == kExternalPointerNullTag) {
+      is_external_pointer_handle = false;
+    }
+#endif  // !V8_ENABLE_SANDBOX
+    if (is_external_pointer_handle) {
+      // Fields in the external pointer table contain a 32-bit handle, not a
       // 64-bit raw pointer.
       rep = MemoryRepresentation::Uint32();
     }
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
     LoadOp::Kind kind = LoadOp::Kind::Aligned(access.base_is_tagged);
     if (access.is_immutable) {
       kind = kind.Immutable();
     }
     if (access.shared_base) kind = kind.SharedBase();
     V<Rep> value = Load(object, kind, rep, access.offset);
-#ifdef V8_ENABLE_SANDBOX
-    if (is_sandboxed_external) {
+#ifdef V8_COMPRESS_POINTERS
+    if (is_external_pointer_handle) {
       value = V<Rep>::CastIfNeeded(LoadExternalPointer(
           V<Word32>::CastIfNeeded(value), access.external_pointer_tag));
     }
+#endif  // V8_COMPRESS_POINTERS
+#ifdef V8_ENABLE_SANDBOX
     if (access.is_bounded_size_access) {
-      DCHECK(!is_sandboxed_external);
+      DCHECK(!is_external_pointer_handle);
       value = V<Rep>::CastIfNeeded(
           ShiftRightLogical(V<WordPtr>::CastIfNeeded(value), kBoundedSizeShift,
                             WordRepresentation::WordPtr()));
@@ -3296,7 +3307,9 @@ class AssemblerOpInterface : public Next {
     }
     // External pointer must never be stored by optimized code.
     DCHECK(!access.type.Is(compiler::Type::ExternalPointer()) ||
-           !V8_ENABLE_SANDBOX_BOOL);
+           !COMPRESS_POINTERS_BOOL ||
+           (!V8_ENABLE_SANDBOX_BOOL &&
+            access.external_pointer_tag == kExternalPointerNullTag));
     // SandboxedPointers are not currently stored by optimized code.
     DCHECK(!access.type.Is(compiler::Type::SandboxedPointer()));
 
@@ -3472,11 +3485,11 @@ class AssemblerOpInterface : public Next {
     return __ FinishInitialization(std::move(result));
   }
 
-#if V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   V<WordPtr> LoadExternalPointer(V<Word32> handle, ExternalPointerTag tag) {
     return ReduceIfReachableLoadExternalPointer(handle, tag);
   }
-#endif
+#endif  // V8_COMPRESS_POINTERS
 
 #if V8_ENABLE_WEBASSEMBLY
   void WasmStackCheck(WasmStackCheckOp::Kind kind) {

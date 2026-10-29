@@ -370,17 +370,23 @@ class ReadStringVisitor : public TqObjectVisitor {
     if (IsExternalStringCached(object)) {
       ExternalPointer_t resource_data =
           GetOrFinish(object->GetResourceDataValue(accessor_));
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
       Address memory_chunk =
           MemoryChunk::FromAddress(object->GetMapAddress())->address();
+#ifdef V8_ENABLE_SANDBOX
       uint32_t metadata_index = GetOrFinish(ReadValue<uint32_t>(
           memory_chunk + MemoryChunk::MetadataIndexOffset()));
       auto metadata_entry =
           GetOrFinish(ReadValue<IsolateGroup::BasePageTableEntry>(
               heap_addresses_.metadata_pointer_table, metadata_index));
-      Address heap = GetOrFinish(ReadValue<Address>(
-          reinterpret_cast<uintptr_t>(metadata_entry.metadata()) +
-          BasePage::HeapOffset()));
+      Address metadata_address =
+          reinterpret_cast<uintptr_t>(metadata_entry.metadata());
+#else
+      Address metadata_address = GetOrFinish(
+          ReadValue<Address>(memory_chunk + MemoryChunk::MetadataOffset()));
+#endif  // V8_ENABLE_SANDBOX
+      Address heap = GetOrFinish(
+          ReadValue<Address>(metadata_address + BasePage::HeapOffset()));
       // Get the Isolate pointer from the Heap object. The Heap class has a
       // field "Isolate* isolate_" that points to the owning Isolate. The offset
       // of this field is provided by the debugger (from PDB symbols). If the
@@ -409,7 +415,7 @@ class ReadStringVisitor : public TqObjectVisitor {
       Address data_address = tagged_data & kExternalPointerPayloadMask;
 #else
       uintptr_t data_address = static_cast<uintptr_t>(resource_data);
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
       if (done_) return;
       ReadStringCharacters<TChar>(object, data_address);
     } else {

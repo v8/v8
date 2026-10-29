@@ -14,7 +14,7 @@
 #include "test/unittests/heap/heap-utils.h"  // For ManualGCScope
 #include "test/unittests/test-utils.h"
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
 
 namespace v8::internal {
 
@@ -430,4 +430,4 @@ TEST_F(PointerTableTest, ExternalPointerTableHandleOverwriteBailouts) {
 
 }  // namespace v8::internal
 
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS

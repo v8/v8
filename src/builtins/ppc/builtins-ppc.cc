@@ -4930,9 +4930,10 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   if (mode == CallApiCallbackMode::kGeneric) {
     api_function_address = ReassignRegister(topmost_script_having_context);
 
-    __ LoadU64(
+    __ LoadExternalPointerField(
         api_function_address,
-        FieldMemOperand(func_templ, offsetof(FunctionTemplateInfo, callback_)));
+        FieldMemOperand(func_templ, offsetof(FunctionTemplateInfo, callback_)),
+        kFunctionTemplateInfoCallbackTag);
   }
   __ EnterExitFrame(FC::getExtraSlotsCountFrom<ExitFrameConstants>(),
                     StackFrame::API_CALLBACK_EXIT);
@@ -5091,18 +5092,24 @@ void Builtins::Generate_CallApiAccessorImpl(MacroAssembler* masm,
   if (for_interceptor) {
     if (for_setter) {
       thunk_ref = ER::invoke_named_interceptor_setter_callback();
-      __ LoadU64(api_function_address,
-                 FieldMemOperand(callback, offsetof(InterceptorInfo, setter_)));
+      __ LoadExternalPointerField(
+          api_function_address,
+          FieldMemOperand(callback, offsetof(InterceptorInfo, setter_)),
+          kApiNamedPropertySetterCallbackTag);
     } else {
       thunk_ref = ER::invoke_named_interceptor_getter_callback();
-      __ LoadU64(api_function_address,
-                 FieldMemOperand(callback, offsetof(InterceptorInfo, getter_)));
+      __ LoadExternalPointerField(
+          api_function_address,
+          FieldMemOperand(callback, offsetof(InterceptorInfo, getter_)),
+          kApiNamedPropertyGetterCallbackTag);
     }
   } else {
     DCHECK(!for_setter);
     thunk_ref = ER::invoke_accessor_getter_callback();
-    __ LoadU64(api_function_address,
-               FieldMemOperand(callback, offsetof(AccessorInfo, getter_)));
+    __ LoadExternalPointerField(
+        api_function_address,
+        FieldMemOperand(callback, offsetof(AccessorInfo, getter_)),
+        kAccessorInfoGetterTag);
   }
   callback = no_reg;
 

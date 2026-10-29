@@ -813,7 +813,7 @@ void AllocateOp::PrintOptions(std::ostream& os) const {
   os << ']';
 }
 
-#if V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
 void LoadExternalPointerOp::PrintOptions(std::ostream& os) const {
   os << '[';
   os << "tag_range: [" << tag_range.first << ", " << tag_range.last << "]";

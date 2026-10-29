@@ -492,13 +492,13 @@ FUNCTION_REFERENCE(ephemeron_key_write_barrier_function,
 
 ExternalPointerHandle AllocateAndInitializeYoungExternalPointerTableEntry(
     Isolate* isolate, Address pointer) {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   return isolate->external_pointer_table().AllocateAndInitializeEntry(
       isolate->heap()->young_external_pointer_space(), pointer,
       kFastApiExternalTypeTag);
 #else
   return 0;
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 }
 
 FUNCTION_REFERENCE(allocate_and_initialize_young_external_pointer_table_entry,

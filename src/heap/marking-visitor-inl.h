@@ -236,9 +236,6 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitExternalPointer(
     Tagged<HeapObject> host, ExternalPointerSlot slot) {
 #ifdef V8_COMPRESS_POINTERS
   DCHECK(!slot.tag_range().IsEmpty());
-  if (!slot.HasExternalPointerHandle()) {
-    return;
-  }
   const ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
   ExternalPointerTable* table;
   ExternalPointerTable::Space* space;

@@ -432,7 +432,7 @@ class FastApiCallLoweringReducer : public Next {
     __ InitializeField(external, AccessBuilder::ForJSObjectElements(),
                        empty_fixed_array);
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
     OpIndex isolate_ptr =
         __ ExternalConstant(ExternalReference::isolate_address());
     MachineSignature::Builder builder(__ graph_zone(), 1, 2);
@@ -455,7 +455,7 @@ class FastApiCallLoweringReducer : public Next {
 #else
     __ InitializeField(external, AccessBuilder::ForJSExternalObjectValue(),
                        pointer);
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
     GOTO(done, __ FinishInitialization(std::move(external)));
 
     BIND(done, result);

@@ -2121,15 +2121,10 @@ TEST_F(StringsTest, CheckCachedDataInternalExternalUncachedString) {
   Factory* factory = i_isolate()->factory();
   v8::HandleScope scope(v8_isolate());
 
-  // Due to different size restrictions the string needs to be small but not too
-  // small. One of these restrictions is whether pointer compression is enabled.
-#ifdef V8_COMPRESS_POINTERS
-  const char* raw_small = "small string";
-#elif V8_TARGET_ARCH_32_BIT
+  // The string needs to be large enough to be externalizable in-place
+  // (>= sizeof(UncachedExternalString)), but too small for a cached
+  // ExternalString (< sizeof(ExternalString)).
   const char* raw_small = "smol";
-#else
-  const char* raw_small = "smalls";
-#endif  // V8_COMPRESS_POINTERS
 
   DirectHandle<String> string =
       factory->InternalizeString(factory->NewStringFromAsciiChecked(raw_small));
@@ -2146,15 +2141,11 @@ TEST_F(StringsTest, CheckCachedDataInternalExternalUncachedString) {
   // that we indeed cached it.
   DirectHandle<ExternalOneByteString> external_string =
       Cast<ExternalOneByteString>(string);
-  // If the sandbox is enabled, string objects will always be cacheable because
-  // they are smaller.
-  CHECK(V8_ENABLE_SANDBOX_BOOL || external_string->is_uncached());
+  CHECK(external_string->is_uncached());
   CHECK(external_string->resource()->IsCacheable());
-  if (!V8_ENABLE_SANDBOX_BOOL) {
-    CHECK_NOT_NULL(external_string->resource()->cached_data());
-    CHECK_EQ(external_string->resource()->cached_data(),
-             external_string->resource()->data());
-  }
+  CHECK_NOT_NULL(external_string->resource()->cached_data());
+  CHECK_EQ(external_string->resource()->cached_data(),
+           external_string->resource()->data());
 }
 
 // Show that we cache the data pointer for internal, external and uncached
@@ -2163,15 +2154,10 @@ TEST_F(StringsTest, CheckCachedDataInternalExternalUncachedStringTwoByte) {
   Factory* factory = i_isolate()->factory();
   v8::HandleScope scope(v8_isolate());
 
-  // Due to different size restrictions the string needs to be small but not too
-  // small. One of these restrictions is whether pointer compression is enabled.
-#ifdef V8_COMPRESS_POINTERS
-  const char16_t* raw_small = u"smøl🤓";
-#elif V8_TARGET_ARCH_32_BIT
+  // The string needs to be large enough to be externalizable in-place
+  // (>= sizeof(UncachedExternalString)), but too small for a cached
+  // ExternalString (< sizeof(ExternalString)).
   const char16_t* raw_small = u"🤓";
-#else
-  const char16_t* raw_small = u"s🤓";
-#endif  // V8_COMPRESS_POINTERS
 
   size_t len;
   const uint16_t* two_byte = AsciiToTwoByteString(raw_small, &len);
@@ -2190,15 +2176,11 @@ TEST_F(StringsTest, CheckCachedDataInternalExternalUncachedStringTwoByte) {
   // that we indeed cached it.
   DirectHandle<ExternalTwoByteString> external_string =
       Cast<ExternalTwoByteString>(string);
-  // If the sandbox is enabled, string objects will always be cacheable because
-  // they are smaller.
-  CHECK(V8_ENABLE_SANDBOX_BOOL || external_string->is_uncached());
+  CHECK(external_string->is_uncached());
   CHECK(external_string->resource()->IsCacheable());
-  if (!V8_ENABLE_SANDBOX_BOOL) {
-    CHECK_NOT_NULL(external_string->resource()->cached_data());
-    CHECK_EQ(external_string->resource()->cached_data(),
-             external_string->resource()->data());
-  }
+  CHECK_NOT_NULL(external_string->resource()->cached_data());
+  CHECK_EQ(external_string->resource()->cached_data(),
+           external_string->resource()->data());
 }
 
 TEST_F(StringsUninitializedTest,

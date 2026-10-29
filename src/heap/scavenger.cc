@@ -504,10 +504,6 @@ class ScavengerObjectVisitorBase : public NewSpaceVisitor<ConcreteVisitor> {
     DCHECK_IMPLIES(kExpectedObjectAge == ObjectAge::kYoung,
                    HeapLayout::InYoungGeneration(host));
 
-    // TODO(chromium:337580006): Remove when pointer compression always uses
-    // EPT.
-    if (!slot.HasExternalPointerHandle()) return;
-
     ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
     Heap* heap = scavenger_->heap();
     ExternalPointerTable& table = heap->isolate()->external_pointer_table();

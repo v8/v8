@@ -1178,7 +1178,7 @@ void Serializer::ObjectSerializer::VisitCodeTarget(
 void Serializer::ObjectSerializer::OutputExternalReference(
     Address target, int target_size, bool sandboxify, ExternalPointerTag tag) {
   DCHECK_LE(target_size, sizeof(target));  // Must fit in Address.
-  DCHECK_IMPLIES(sandboxify, V8_ENABLE_SANDBOX_BOOL);
+  DCHECK_IMPLIES(sandboxify, COMPRESS_POINTERS_BOOL);
   DCHECK_IMPLIES(sandboxify,
                  tag != kExternalPointerNullTag || target == kNullAddress);
   ExternalReferenceEncoder::Value encoded_reference;
@@ -1272,7 +1272,7 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
       InstanceTypeChecker::IsExternalString(instance_type)) {
     // If necessary, output any raw data preceding this slot.
     OutputRawData(slot.address());
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
     ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
     const ExternalPointerTable& table =
         IsolateForSandbox(isolate()).GetExternalPointerTableFor(
@@ -1285,7 +1285,7 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
 #else
     Address value = slot.load(isolate());
     ExternalPointerTag tag = kExternalPointerNullTag;
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
     if (slot.tag_range() == kExternalStringResourceDataTag ||
         slot.tag_range() == kArrayBufferExtensionTag) {
       // resource_data_ is initialized in PostProcessExternalString, and
@@ -1300,7 +1300,7 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
       sink_->PutRaw(reinterpret_cast<const uint8_t*>(&kNullExternalPointer),
                     kExternalPointerSlotSize, "null external pointer");
     } else {
-      const bool sandboxify = V8_ENABLE_SANDBOX_BOOL;
+      const bool sandboxify = COMPRESS_POINTERS_BOOL;
       OutputExternalReference(value, kSystemPointerSize, sandboxify, tag);
     }
     bytes_processed_so_far_ += kExternalPointerSlotSize;

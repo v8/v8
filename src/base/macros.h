@@ -576,6 +576,12 @@ static_assert(V8_ENABLE_SIMD128);
 #define IF_SANDBOX(V, ...)
 #endif  // V8_ENABLE_SANDBOX
 
+#ifdef V8_COMPRESS_POINTERS
+#define IF_COMPRESS_POINTERS(V, ...) EXPAND(V(__VA_ARGS__))
+#else
+#define IF_COMPRESS_POINTERS(V, ...)
+#endif  // V8_COMPRESS_POINTERS
+
 // Defines IF_INTL, to be used in macro lists for elements that should only be
 // there if INTL is enabled.
 #ifdef V8_INTL_SUPPORT

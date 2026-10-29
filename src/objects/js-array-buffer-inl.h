@@ -124,11 +124,9 @@ void JSArrayBuffer::init_extension() {
 
 ArrayBufferExtension* JSArrayBuffer::extension() const {
 #if V8_COMPRESS_POINTERS
-  Isolate* isolate = Isolate::Current();
-  ExternalPointerHandle handle =
-      base::AsAtomic32::Relaxed_Load(extension_handle_location());
   return reinterpret_cast<ArrayBufferExtension*>(
-      isolate->external_pointer_table().Get(handle, kArrayBufferExtensionTag));
+      ReadExternalPointerField<kArrayBufferExtensionTag>(
+          offsetof(JSArrayBuffer, extension_), Isolate::Current()));
 #else
   return base::AsAtomicPointer::Acquire_Load(extension_location());
 #endif  // V8_COMPRESS_POINTERS
@@ -137,18 +135,9 @@ ArrayBufferExtension* JSArrayBuffer::extension() const {
 void JSArrayBuffer::set_extension(ArrayBufferExtension* extension) {
   DCHECK_NOT_NULL(extension);
 #if V8_COMPRESS_POINTERS
-  // TODO(saelo): if we ever use the external pointer table for all external
-  // pointer fields in the no-sandbox-ptr-compression config, replace this code
-  // here and above with the respective external pointer accessors.
-  IsolateForPointerCompression isolate = Isolate::Current();
-  constexpr ExternalPointerTag tag = kArrayBufferExtensionTag;
-  Address value = reinterpret_cast<Address>(extension);
-  ExternalPointerTable& table = isolate.GetExternalPointerTableFor(tag);
-  ExternalPointerHandle handle = table.AllocateAndInitializeEntry(
-      isolate.GetExternalPointerTableSpaceFor(tag, address()), value, tag);
-  base::AsAtomic32::Release_Store(extension_handle_location(), handle);
-  WriteBarrier::ForExternalPointer(this, ExternalPointerSlot(&extension_),
-                                   handle);
+  InitExternalPointerField<kArrayBufferExtensionTag>(
+      offsetof(JSArrayBuffer, extension_), Isolate::Current(),
+      reinterpret_cast<Address>(extension));
 #else
   base::AsAtomicPointer::Release_Store(extension_location(), extension);
 #endif  // V8_COMPRESS_POINTERS

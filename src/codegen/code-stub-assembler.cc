@@ -2006,7 +2006,7 @@ void CodeStubAssembler::StoreBoundedSizeToObject(TNode<HeapObject> object,
 #endif  // V8_ENABLE_SANDBOX
 }
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
 TNode<RawPtrT> CodeStubAssembler::ExternalPointerTableAddress(
     ExternalPointerTagRange tag_range) {
   if (IsSharedExternalPointerType(tag_range)) {
@@ -2017,12 +2017,12 @@ TNode<RawPtrT> CodeStubAssembler::ExternalPointerTableAddress(
   }
   return IsolateField(IsolateFieldId::kExternalPointerTable);
 }
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 
 TNode<RawPtrT> CodeStubAssembler::LoadExternalPointerFromObject(
     TNode<HeapObject> object, TNode<IntPtrT> offset,
     ExternalPointerTagRange tag_range) {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   DCHECK(!tag_range.IsEmpty());
   TNode<RawPtrT> external_pointer_table_address =
       ExternalPointerTableAddress(tag_range);
@@ -2066,14 +2066,14 @@ TNode<RawPtrT> CodeStubAssembler::LoadExternalPointerFromObject(
       WordAnd(entry, UniqueUintPtrConstant(kExternalPointerPayloadMask)));
 #else
   return LoadObjectField<RawPtrT>(object, offset);
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 }
 
 void CodeStubAssembler::StoreExternalPointerToObject(TNode<HeapObject> object,
                                                      TNode<IntPtrT> offset,
                                                      TNode<RawPtrT> pointer,
                                                      ExternalPointerTag tag) {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   DCHECK_NE(tag, kExternalPointerNullTag);
   TNode<RawPtrT> external_pointer_table_address =
       ExternalPointerTableAddress(tag);
@@ -2099,7 +2099,7 @@ void CodeStubAssembler::StoreExternalPointerToObject(TNode<HeapObject> object,
                       value);
 #else
   StoreObjectFieldNoWriteBarrier<RawPtrT>(object, offset, pointer);
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 }
 
 TNode<RawPtrT> CodeStubAssembler::LoadCppHeapPointerFromObject(

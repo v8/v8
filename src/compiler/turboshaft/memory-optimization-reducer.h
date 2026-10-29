@@ -418,7 +418,7 @@ class MemoryOptimizationReducer : public Next {
         __ WordPtrAdd(obj_addr, __ IntPtrConstant(kHeapObjectTag)));
   }
 
-#if V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   V<WordPtr> REDUCE(LoadExternalPointer)(V<Word32> handle,
                                          ExternalPointerTagRange tag_range) {
     // Decode loaded external pointer.
@@ -465,7 +465,7 @@ class MemoryOptimizationReducer : public Next {
     __ BindReachable(done);
     return __ Word64BitwiseAnd(pointer, kExternalPointerPayloadMask);
   }
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 
   V<None> REDUCE(MajorGCForCompilerTesting)() {
     __ template CallRuntime<runtime::MajorGCForCompilerTesting>(

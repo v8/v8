@@ -1744,7 +1744,9 @@ OpIndex GraphBuilder::Process(
       FieldAccess const& access = FieldAccessOf(node->op());
       // External pointer must never be stored by optimized code.
       DCHECK(!access.type.Is(compiler::Type::ExternalPointer()) ||
-             !V8_ENABLE_SANDBOX_BOOL);
+             !COMPRESS_POINTERS_BOOL ||
+             (!V8_ENABLE_SANDBOX_BOOL &&
+              access.external_pointer_tag == kExternalPointerNullTag));
       // SandboxedPointers are not currently stored by optimized code.
       DCHECK(!access.type.Is(compiler::Type::SandboxedPointer()));
 
@@ -1805,22 +1807,33 @@ OpIndex GraphBuilder::Process(
       }
       MemoryRepresentation rep =
           MemoryRepresentation::FromMachineType(machine_type);
-#ifdef V8_ENABLE_SANDBOX
-      bool is_sandboxed_external =
+#ifdef V8_COMPRESS_POINTERS
+      bool is_external_pointer_handle =
           access.type.Is(compiler::Type::ExternalPointer());
-      if (is_sandboxed_external) {
-        // Fields for sandboxed external pointer contain a 32-bit handle, not a
+#ifndef V8_ENABLE_SANDBOX
+      // When the sandbox is disabled, SandboxedPointer fields (e.g.
+      // JSTypedArray::external_pointer_ and JSDataView::data_pointer_) are
+      // represented as raw pointers with Type::ExternalPointer() and
+      // kExternalPointerNullTag rather than ExternalPointerTable handles.
+      if (access.external_pointer_tag == kExternalPointerNullTag) {
+        is_external_pointer_handle = false;
+      }
+#endif  // !V8_ENABLE_SANDBOX
+      if (is_external_pointer_handle) {
+        // Fields in the external pointer table contain a 32-bit handle, not a
         // 64-bit raw pointer.
         rep = MemoryRepresentation::Uint32();
       }
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
       OpIndex value = __ Load(Map(object), kind, rep, access.offset);
-#ifdef V8_ENABLE_SANDBOX
-      if (is_sandboxed_external) {
+#ifdef V8_COMPRESS_POINTERS
+      if (is_external_pointer_handle) {
         value = __ LoadExternalPointer(value, access.external_pointer_tag);
       }
+#endif  // V8_COMPRESS_POINTERS
+#ifdef V8_ENABLE_SANDBOX
       if (access.is_bounded_size_access) {
-        DCHECK(!is_sandboxed_external);
+        DCHECK(!is_external_pointer_handle);
         value = __ WordPtrShiftRightLogical(value, kBoundedSizeShift);
       }
 #endif  // V8_ENABLE_SANDBOX

@@ -97,7 +97,7 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // field.
   static FieldAccess ForJSExternalObjectValue();
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   // Provides access to JSExternalObject::value() field.
   static FieldAccess ForJSExternalObjectPointerHandle();
 #endif

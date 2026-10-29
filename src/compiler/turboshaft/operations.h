@@ -374,7 +374,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(Allocate)                              \
   V(MajorGCForCompilerTesting)             \
   V(JSStackCheck)                          \
-  IF_SANDBOX(V, LoadExternalPointer)
+  IF_COMPRESS_POINTERS(V, LoadExternalPointer)
 
 #define TURBOSHAFT_OPERATION_LIST_NOT_BLOCK_TERMINATOR(V) \
   TURBOSHAFT_WASM_OPERATION_LIST(V)                       \
@@ -3895,7 +3895,7 @@ struct AllocateOp : FixedArityOperationT<1, AllocateOp> {
   }
 };
 
-#if V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
 struct LoadExternalPointerOp : FixedArityOperationT<1, LoadExternalPointerOp> {
   ExternalPointerTagRange tag_range;
 

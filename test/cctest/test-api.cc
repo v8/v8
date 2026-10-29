@@ -784,10 +784,11 @@ TEST(MakingExternalStringConditions) {
   // Old space strings should be accepted.
   CHECK(local_string->CanMakeExternal(String::Encoding::TWO_BYTE_ENCODING));
 
-  // Tiny strings are not in-place externalizable when pointer compression is
-  // enabled, but they are if the sandbox is enabled.
-  CHECK_EQ(
-      V8_ENABLE_SANDBOX_BOOL || i::kTaggedSize == i::kSystemPointerSize,
+  // Tiny strings are in-place externalizable when external pointers are stored
+  // in the ExternalPointerTable (COMPRESS_POINTERS_BOOL) or when tagged size
+  // equals system pointer size, so kExternalPointerSlotSize == kTaggedSize in
+  // all configurations.
+  CHECK(
       tiny_local_string->CanMakeExternal(String::Encoding::TWO_BYTE_ENCODING));
 
   // Change of representation is not allowed.

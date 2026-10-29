@@ -143,6 +143,7 @@ bool CodeSerializer::SerializeTrustedExport(Tagged<HeapObject> obj) {
 // it refers to them by index into a table in the trusted section.
 bool CodeSerializer::SerializeTrustedExternalReference(
     ExternalReferenceEncoder::Value reference, ExternalPointerTag tag) {
+  if (!V8_ENABLE_SANDBOX_BOOL) return false;
   // The tag is read from the external pointer table entry that an in-sandbox
   // object refers to, so it can be the tag of any entry.
   SBXCHECK(base::contains(kSerializableExternalPointerTags, tag));

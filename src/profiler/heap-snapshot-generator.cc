@@ -1284,8 +1284,8 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
       const char* tag_name = ToString(tag);
       name = names_->GetFormatted("system / Managed (%s)", tag_name);
     } else if (kAnyForeignExternalPointerTagRange.Contains(tag)) {
-      // Only sandbox configurations set tags properly, so we cannot CHECK here
-      // but merely improve the tag if present.
+      // Only pointer-compression configurations set tags properly, so we cannot
+      // CHECK here but merely improve the tag if present.
       const char* tag_name = ToString(tag);
       name = names_->GetFormatted("system / Foreign (%s)", tag_name);
     }

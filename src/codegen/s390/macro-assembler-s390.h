@@ -1551,6 +1551,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void DecompressTagged(Register destination, Register source);
   void DecompressTagged(const Register& destination, Tagged_t immediate);
 
+  // Loads a field containing an off-heap ("external") pointer and untags it if
+  // necessary.
+  void LoadExternalPointerField(Register destination, MemOperand field_operand,
+                                ExternalPointerTagRange tag_range,
+                                Register isolate_root = no_reg);
+
   // CountLeadingZeros will corrupt the scratch register pair (eg. r0:r1)
   void CountLeadingZerosU32(Register dst, Register src,
                             Register scratch_pair = r0);

@@ -144,8 +144,6 @@ void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
                                ExternalPointerSlot slot,
                                ExternalPointerHandle handle) {
 #ifdef V8_COMPRESS_POINTERS
-  if (!slot.HasExternalPointerHandle()) return;
-
   DCHECK_EQ(handle, slot.Relaxed_LoadHandle());
 
   MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);

@@ -571,14 +571,16 @@ class ReadOnlyPromotionImpl final : public AllStatic {
    public:
     UpdatePointersVisitor(Isolate* isolate, const HeapObjectMap* moves)
         : isolate_(isolate), moves_(moves) {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
       for (auto [_src, dst] : *moves_) {
         promoted_objects_.emplace(dst);
+#ifdef V8_ENABLE_SANDBOX
         if (IsExposedTrustedObject(dst)) {
           PromoteTrustedPointerEntryFor(TrustedCast<ExposedTrustedObject>(dst));
         }
-      }
 #endif  // V8_ENABLE_SANDBOX
+      }
+#endif  // V8_COMPRESS_POINTERS
     }
 
     // The RootVisitor interface.
@@ -609,7 +611,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
     }
     void VisitExternalPointer(Tagged<HeapObject> host,
                               ExternalPointerSlot slot) final {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
       if (promoted_objects_.find(host) == promoted_objects_.end()) return;
 
       // If we reach here, `host` is a moved object with external pointer slots
@@ -635,7 +637,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       if (V8_UNLIKELY(v8_flags.trace_read_only_promotion_verbose)) {
         LogUpdatedExternalPointerTableEntry(host, slot, slot_value);
       }
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
     }
     void VisitTrustedPointer(Tagged<HeapObject> host, TrustedPointerSlot slot,
                              TrustedPointerMode mode) final {
@@ -837,9 +839,11 @@ class ReadOnlyPromotionImpl final : public AllStatic {
     Isolate* const isolate_;
     const HeapObjectMap* moves_;
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
     HeapObjectSet promoted_objects_;
+#endif  // V8_COMPRESS_POINTERS
 
+#ifdef V8_ENABLE_SANDBOX
     // When an object owning an pointer table entry is relocated to the RO
     // space, it cannot just update the entry to point to its new location
     // (see b/330450848). A new pointer table entry must be allocated for the

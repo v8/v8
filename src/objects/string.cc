@@ -550,14 +550,7 @@ bool String::SupportsExternalization(v8::String::Encoding encoding) {
     return false;
   }
 
-#if V8_COMPRESS_POINTERS && !V8_ENABLE_SANDBOX
-  // In this configuration, small strings may not be in-place externalizable.
-  if (this->Size() < static_cast<int>(sizeof(UncachedExternalString))) {
-    return false;
-  }
-#else
   DCHECK_LE(sizeof(UncachedExternalString), this->Size());
-#endif
 
   StringShape shape(this);
 

@@ -1700,7 +1700,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void StoreSandboxedPointerField(Register value, MemOperand dst_field_operand);
 
   // Loads a field containing an off-heap ("external") pointer and does
-  // necessary decoding if the sandbox is enabled.
+  // necessary decoding if pointer compression is enabled.
   void LoadExternalPointerField(Register destination, MemOperand field_operand,
                                 ExternalPointerTagRange tag_range,
                                 Register isolate_root = Register::no_reg());
