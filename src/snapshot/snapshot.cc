@@ -6,6 +6,7 @@
 
 #include "src/snapshot/snapshot.h"
 
+#include "include/v8-cppgc.h"
 #include "src/api/api-inl.h"  // For OpenHandle.
 #include "src/base/numerics/safe_conversions.h"
 #include "src/baseline/baseline-batch-compiler.h"
@@ -25,6 +26,7 @@
 #include "src/snapshot/shared-heap-serializer.h"
 #include "src/snapshot/snapshot-utils.h"
 #include "src/snapshot/startup-serializer.h"
+#include "src/tracing/trace-event.h"
 #include "src/utils/memcopy.h"
 #include "src/utils/version.h"
 

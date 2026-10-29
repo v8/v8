@@ -9,6 +9,7 @@
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
+#include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/factory.h"
 #include "src/heap/free-list.h"
 #include "src/heap/gc-tracer-inl.h"

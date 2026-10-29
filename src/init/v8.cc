@@ -23,6 +23,7 @@
 #include "src/execution/isolate.h"
 #include "src/execution/simulator.h"
 #include "src/flags/flags.h"
+#include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/init/bootstrapper.h"
 #include "src/libsampler/sampler.h"
 #include "src/objects/elements.h"
@@ -35,6 +36,7 @@
 #if defined(V8_USE_PERFETTO)
 #include "src/tracing/code-data-source.h"
 #endif  // defined(V8_USE_PERFETTO)
+#include "src/tracing/trace-event.h"
 #include "src/tracing/tracing-category-observer.h"
 
 #if V8_ENABLE_WEBASSEMBLY

@@ -32,6 +32,7 @@
 #include "src/objects/js-function-inl.h"
 #include "src/objects/oddball.h"
 #include "src/snapshot/embedded/embedded-data.h"
+#include "src/tracing/trace-event.h"
 #include "src/utils/utils.h"
 #if V8_ENABLE_MAGLEV
 #include "src/maglev/maglev-concurrent-dispatcher.h"

@@ -15,6 +15,7 @@
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/api-callbacks-inl.h"
 #include "src/roots/roots-inl.h"
+#include "src/tracing/trace-event.h"
 
 namespace v8 {
 namespace internal {

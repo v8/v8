@@ -14,6 +14,7 @@
 #include "src/logging/counters-scopes.h"
 #include "src/logging/log.h"
 #include "src/objects/code-inl.h"
+#include "src/tracing/trace-event.h"
 #include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/turboshaft-graph-interface.h"

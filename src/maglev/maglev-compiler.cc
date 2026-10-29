@@ -40,6 +40,7 @@
 #include "src/maglev/maglev-truncation.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/js-function.h"
+#include "src/tracing/trace-event.h"
 
 #ifdef ALWAYS_MAGLEV_GRAPH_LABELLER
 #define ALWAYS_MAGLEV_GRAPH_LABELLER_BOOL true

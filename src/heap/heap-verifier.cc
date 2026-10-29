@@ -36,6 +36,7 @@
 #include "src/objects/maybe-object.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/string-table.h"
+#include "src/tracing/trace-event.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-export-wrapper-cache.h"

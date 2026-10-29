@@ -34,6 +34,7 @@
 #include "src/logging/log.h"
 #include "src/objects/objects-inl.h"
 #include "src/snapshot/embedded/embedded-data-inl.h"
+#include "src/tracing/trace-event.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/code-space-access.h"
 #include "src/wasm/compilation-environment.h"

@@ -43,6 +43,8 @@
 #include "src/handles/handles-inl.h"
 #include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/combined-heap.h"
+#include "src/heap/cppgc-internal/stats-collector.h"
+#include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/factory.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"

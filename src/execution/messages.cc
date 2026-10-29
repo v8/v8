@@ -26,6 +26,7 @@
 #include "src/roots/roots.h"
 #include "src/sandbox/trusted-pointer-inl.h"
 #include "src/strings/string-builder-inl.h"
+#include "src/tracing/trace-event.h"
 
 namespace v8 {
 namespace internal {

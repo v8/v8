@@ -9,6 +9,7 @@
 #include "src/base/iterator.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
+#include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/factory.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/heap-layout-inl.h"

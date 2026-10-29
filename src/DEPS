@@ -177,6 +177,15 @@ specific_include_rules = {
     "+src/heap/cppgc-js/cpp-heap.h",
     "+src/heap/cppgc-js/cpp-snapshot.h",
   ],
+  "isolate\.cc": [
+    "+src/heap/cppgc-js/cpp-heap.h",
+  ],
+  "traced-handles-inl\.h": [
+    "+src/heap/cppgc-js/cpp-heap.h",
+  ],
+  "v8\.cc": [
+    "+src/heap/cppgc-js/cpp-heap.h",
+  ],
   "generated-code-validator-arm64\.cc": [
     "+third_party/disarm/src/disarm64.h",
   ],

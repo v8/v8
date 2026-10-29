@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "include/cppgc/allocation.h"
+#include "include/v8-cppgc.h"
 #include "include/v8-fast-api-calls.h"
 #include "src/api/api.h"
 #include "src/base/bits.h"

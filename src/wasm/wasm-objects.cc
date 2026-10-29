@@ -33,6 +33,7 @@
 #include "src/objects/oddball.h"
 #include "src/objects/shared-function-info.h"
 #include "src/roots/roots-inl.h"
+#include "src/tracing/trace-event.h"
 #include "src/utils/utils.h"
 #include "src/wasm/canonical-types.h"
 #include "src/wasm/code-space-access.h"

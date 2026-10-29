@@ -22,6 +22,7 @@
 #include "src/maglev/maglev-pipeline-statistics.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/shared-function-info-inl.h"
+#include "src/tracing/trace-event.h"
 #include "src/utils/identity-map.h"
 #include "src/utils/locked-queue-inl.h"
 

@@ -32,6 +32,7 @@
 #include "src/snapshot/object-deserializer.h"
 #include "src/snapshot/snapshot-utils.h"
 #include "src/snapshot/snapshot.h"
+#include "src/tracing/trace-event.h"
 #include "src/utils/memcopy.h"
 #include "src/utils/version.h"
 

@@ -31,6 +31,7 @@
 #include "src/heap/base-page.h"
 #include "src/heap/base/basic-slot-set.h"
 #include "src/heap/concurrent-marking.h"
+#include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/ephemeron-remembered-set.h"
 #include "src/heap/evacuation-allocator-inl.h"
 #include "src/heap/evacuation-verifier.h"
