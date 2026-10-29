@@ -587,6 +587,8 @@ v8_cluster_source_set("v8_unittests_sources") {
     "api/interceptor-unittest.cc",
     "base/virtual-address-space-unittest.cc",
     "base/hashing-unittest.cc",
+    "compiler/code-generator-unittest.cc",
+    "compiler/run-load-store-unittest.cc",
     "compiler/run-variables-unittest.cc",
     "compiler/linkage-unittest.cc",
     "heap/cppgc-js/cpp-heap-stack-start-marker-unittest.cc",
@@ -612,6 +614,7 @@ v8_cluster_source_set("v8_unittests_sources") {
     sources += [
       "codegen/code-stub-assembler-unittest.cc",
       "codegen/code-stub-assembler-unittest.h",
+      "compiler/atomic-load-store-codegen-unittest.cc",
       "compiler/backend/instruction-selector-unittest.cc",
       "compiler/backend/instruction-selector-unittest.h",
       "compiler/backend/instruction-sequence-unittest.cc",
@@ -619,9 +622,14 @@ v8_cluster_source_set("v8_unittests_sources") {
       "compiler/backend/instruction-unittest.cc",
       "compiler/backend/turboshaft-instruction-selector-unittest.cc",
       "compiler/backend/turboshaft-instruction-selector-unittest.h",
+      "compiler/basic-block-profiler-unittest.cc",
+      "compiler/branch-combine-unittest.cc",
       "compiler/branch-elimination-unittest.cc",
       "compiler/bytecode-analysis-unittest.cc",
+      "compiler/calls-with-arraylike-or-spread-unittest.cc",
       "compiler/checkpoint-elimination-unittest.cc",
+      "compiler/code-assembler-unittest.cc",
+      "compiler/code-generator-unittest.cc",
       "compiler/codegen-tester.cc",
       "compiler/codegen-tester.h",
       "compiler/codegen-unittest.cc",
@@ -629,6 +637,7 @@ v8_cluster_source_set("v8_unittests_sources") {
       "compiler/common-operator-unittest.cc",
       "compiler/compiler-test-utils.h",
       "compiler/compiler-unittest.cc",
+      "compiler/concurrent-shared-function-info-unittest.cc",
       "compiler/constant-folding-reducer-unittest.cc",
       "compiler/control-equivalence-unittest.cc",
       "compiler/dead-code-elimination-unittest.cc",
@@ -636,20 +645,29 @@ v8_cluster_source_set("v8_unittests_sources") {
       "compiler/frame-unittest.cc",
       "compiler/function-tester.cc",
       "compiler/function-tester.h",
+      "compiler/gap-resolver-unittest.cc",
+      "compiler/graph-and-builders.h",
       "compiler/graph-reducer-unittest.cc",
       "compiler/graph-reducer-unittest.h",
       "compiler/graph-trimmer-unittest.cc",
       "compiler/graph-unittest.cc",
       "compiler/graph-unittest.h",
+      "compiler/graph-visualizer-unittest.cc",
+      "compiler/instruction-scheduler-unittest.cc",
       "compiler/js-call-reducer-unittest.cc",
+      "compiler/js-constant-cache-unittest.cc",
+      "compiler/js-context-specialization-unittest.cc",
       "compiler/js-create-lowering-unittest.cc",
+      "compiler/js-heap-broker-base.h",
       "compiler/js-intrinsic-lowering-unittest.cc",
       "compiler/js-native-context-specialization-unittest.cc",
       "compiler/js-operator-unittest.cc",
       "compiler/js-typed-lowering-unittest.cc",
+      "compiler/jump-threading-unittest.cc",
       "compiler/linkage-tail-call-unittest.cc",
       "compiler/linkage-unittest.cc",
       "compiler/load-elimination-unittest.cc",
+      "compiler/loop-analysis-unittest.cc",
       "compiler/loop-peeling-unittest.cc",
       "compiler/machine-operator-reducer-unittest.cc",
       "compiler/machine-operator-unittest.cc",
@@ -660,18 +678,23 @@ v8_cluster_source_set("v8_unittests_sources") {
       "compiler/node-test-utils.h",
       "compiler/node-unittest.cc",
       "compiler/opcodes-unittest.cc",
+      "compiler/operator-unittest.cc",
       "compiler/persistent-unittest.cc",
       "compiler/redundancy-elimination-unittest.cc",
       "compiler/regalloc/live-range-unittest.cc",
       "compiler/regalloc/move-optimizer-unittest.cc",
       "compiler/regalloc/register-allocator-unittest.cc",
+      "compiler/representation-change-unittest.cc",
       "compiler/run-bytecode-graph-builder-unittest.cc",
+      "compiler/run-calls-to-external-references-unittest.cc",
       "compiler/run-deopt-unittest.cc",
       "compiler/run-jsbranches-unittest.cc",
       "compiler/run-jscalls-unittest.cc",
       "compiler/run-jsexceptions-unittest.cc",
       "compiler/run-jsobjects-unittest.cc",
       "compiler/run-jsops-unittest.cc",
+      "compiler/run-load-store-unittest.cc",
+      "compiler/run-machops-unittest.cc",
       "compiler/run-stackcheck-unittest.cc",
       "compiler/run-tail-calls-unittest.cc",
       "compiler/run-unwinding-info-unittest.cc",
@@ -679,12 +702,18 @@ v8_cluster_source_set("v8_unittests_sources") {
       "compiler/schedule-unittest.cc",
       "compiler/scheduler-rpo-unittest.cc",
       "compiler/scheduler-unittest.cc",
+      "compiler/select-combine-unittest.cc",
       "compiler/simd-shuffle-unittest.cc",
       "compiler/simplified-lowering-unittest.cc",
       "compiler/simplified-operator-reducer-unittest.cc",
       "compiler/simplified-operator-unittest.cc",
       "compiler/sloppy-equality-unittest.cc",
       "compiler/state-values-utils-unittest.cc",
+      "compiler/turboshaft-branch-combine-unittest.cc",
+      "compiler/turboshaft-codegen-tester.cc",
+      "compiler/turboshaft-codegen-tester.h",
+      "compiler/turboshaft-compare-combine-unittest.cc",
+      "compiler/turboshaft-select-combine-unittest.cc",
       "compiler/turboshaft/call-runtime-unittest.cc",
       "compiler/turboshaft/control-flow-unittest.cc",
       "compiler/turboshaft/duplication-optimization-reducer-unittest.cc",
@@ -705,6 +734,7 @@ v8_cluster_source_set("v8_unittests_sources") {
       "compiler/typer-unittest.cc",
       "compiler/types-unittest.cc",
       "compiler/value-numbering-reducer-unittest.cc",
+      "compiler/verify-type-unittest.cc",
       "compiler/zone-stats-unittest.cc",
       "interpreter/interpreter-assembler-unittest.cc",
       "interpreter/interpreter-assembler-unittest.h",
@@ -724,6 +754,11 @@ v8_cluster_source_set("v8_unittests_sources") {
       "../../test/common/wasm/wasm-macro-gen.h",
       "api/api-wasm-unittest.cc",
       "compiler/int64-lowering-unittest.cc",
+      "compiler/multiple-return-unittest.cc",
+
+      # run-native-calls-unittest uses wasm's LinkageAllocator.
+      "compiler/run-native-calls-unittest.cc",
+      "compiler/turboshaft-simd-shift-unittest.cc",
       "compiler/turboshaft/wasm-simd-unittest.cc",
       "objects/wasm-backing-store-unittest.cc",
       "wasm/backing-store-unittest.cc",
@@ -948,6 +983,7 @@ v8_cluster_source_set("v8_unittests_sources") {
     if (v8_enable_turbofan) {
       sources += [
         "compiler/loong64/turboshaft-instruction-selector-loong64-unittest.cc",
+        "compiler/run-machops-select-loong64-unittest.cc",
       ]
     }
   }
@@ -1051,11 +1087,24 @@ v8_cluster_source_set("v8_unittests_sources") {
     ]
   }
 
+  cflags = []
+  if (v8_current_cpu == "ppc64" || v8_current_cpu == "arm" ||
+      v8_current_cpu == "arm64" || v8_current_cpu == "s390x" ||
+      v8_current_cpu == "mips64" || v8_current_cpu == "mips64el" ||
+      v8_current_cpu == "riscv64" || v8_current_cpu == "loong64" ||
+      v8_current_cpu == "riscv32") {
+    # Disable fmadd/fmsub so that expected results match generated code in
+    # RunFloat64MulAndFloat64Add1 and friends.
+    if (!is_win) {
+      cflags += [ "-ffp-contract=off" ]
+    }
+  }
+
   if (is_win) {
     # This warning is benignly triggered by the U16 and U32 macros in
     # bytecode-utils.h.
     # C4309: 'static_cast': truncation of constant value
-    cflags = [ "/wd4309" ]
+    cflags += [ "/wd4309" ]
 
     sources += [ "avoid-windows-h-includes.cc" ]
   }

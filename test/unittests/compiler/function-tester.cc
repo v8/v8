@@ -63,7 +63,7 @@ FunctionTester::FunctionTester(Isolate* isolate, DirectHandle<Code> code,
   function->UpdateCode(isolate, *code);
 }
 
-void FunctionTester::CheckThrows(Handle<Object> a) {
+void FunctionTester::CheckThrows(DirectHandle<Object> a) {
   TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
   MaybeDirectHandle<Object> no_result = Call(a);
   CHECK(isolate->has_exception());
@@ -71,7 +71,8 @@ void FunctionTester::CheckThrows(Handle<Object> a) {
   CHECK(no_result.is_null());
 }
 
-void FunctionTester::CheckThrows(Handle<Object> a, Handle<Object> b) {
+void FunctionTester::CheckThrows(DirectHandle<Object> a,
+                                 DirectHandle<Object> b) {
   TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
   MaybeDirectHandle<Object> no_result = Call(a, b);
   CHECK(isolate->has_exception());
@@ -80,7 +81,7 @@ void FunctionTester::CheckThrows(Handle<Object> a, Handle<Object> b) {
 }
 
 v8::Local<v8::Message> FunctionTester::CheckThrowsReturnMessage(
-    Handle<Object> a) {
+    DirectHandle<Object> a) {
   TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
   MaybeDirectHandle<Object> no_result = Call(a);
   CHECK(isolate->has_exception());
@@ -91,7 +92,7 @@ v8::Local<v8::Message> FunctionTester::CheckThrowsReturnMessage(
 }
 
 v8::Local<v8::Message> FunctionTester::CheckThrowsReturnMessage(
-    Handle<Object> a, Handle<Object> b) {
+    DirectHandle<Object> a, DirectHandle<Object> b) {
   TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
   MaybeDirectHandle<Object> no_result = Call(a, b);
   CHECK(isolate->has_exception());
@@ -101,9 +102,9 @@ v8::Local<v8::Message> FunctionTester::CheckThrowsReturnMessage(
   return try_catch.Message();
 }
 
-void FunctionTester::CheckCall(DirectHandle<Object> expected, Handle<Object> a,
-                               Handle<Object> b, Handle<Object> c,
-                               Handle<Object> d) {
+void FunctionTester::CheckCall(DirectHandle<Object> expected,
+                               DirectHandle<Object> a, DirectHandle<Object> b,
+                               DirectHandle<Object> c, DirectHandle<Object> d) {
   DirectHandle<Object> result = Call(a, b, c, d).ToHandleChecked();
   CHECK(Object::SameValue(*expected, *result));
 }

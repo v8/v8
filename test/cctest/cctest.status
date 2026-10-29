@@ -83,13 +83,6 @@
   # reenable this test.
   'test-torque/TestLoadEliminationVariable': [SKIP],
 
-  # TODO(391750831, nicohartmann): Currently broken with Turboshaft backend.
-  # Needs to be ported.
-  'test-basic-block-profiler/*': [SKIP],
-  'test-run-load-store/*': [SKIP],
-  'test-run-machops/*': [SKIP],
-  'test-select-combine/*': [SKIP],
-
   ##############################################################################
   # Behavioural differences between Maglev and Turbofan when the former is used
   # for OptimizeFunctionOnNextCall or as a frontend for Turboshaft.
@@ -121,11 +114,6 @@
   'test-js-to-wasm/TestFastJSWasmCall_NoReturnTypes': [SKIP],
   'test-js-to-wasm/TestFastJSWasmCall_ExternrefNullArg': [SKIP],
   'test-js-to-wasm/TestFastJSWasmCall_F32ArgDoesntExpectBigInt': [SKIP],
-  'test-calls-with-arraylike-or-spread/ReduceJSCallWithArrayLike': [SKIP],
-  'test-calls-with-arraylike-or-spread/ReduceJSCallWithSpread': [SKIP],
-  'test-calls-with-arraylike-or-spread/ReduceJSCreateBoundFunction': [SKIP],
-  'test-calls-with-arraylike-or-spread/ReduceJSCreateClosure': [SKIP],
-  'test-verify-type/TestVerifyType': [SKIP],
   'test-js-to-wasm/*': [SKIP],
   # Maglev doesn't support FastApi calls.
   'test-api/FastApiCalls': [SKIP, SLOW],
@@ -183,9 +171,7 @@
 ##############################################################################
 ['variant == nooptimization', {
   # %ObserveNode tests rely on TurboFan.
-  'test-calls-with-arraylike-or-spread/*': [SKIP],
   'test-js-to-wasm/*': [SKIP],
-  'test-verify-type/*': [SKIP],
 }],  # variant == nooptimization
 
 ##############################################################################
@@ -255,24 +241,6 @@
 }],  # 'arch == arm and simulator_run'
 
 ##############################################################################
-['arch == mips64el or arch == mips64', {
-  # The uint32 values are sign-extended on MIPS64.
-  'test-run-load-store/RunLoadStoreZeroExtend64': [SKIP],
-  'test-run-load-store/RunUnalignedLoadStoreZeroExtend64': [SKIP],
-}],  # 'arch == mips64el or arch == mips64'
-
-##############################################################################
-['mips_arch_variant == r6', {
-  # For MIPS[64] architecture release 6, fusion multiply-accumulate instructions
-  # will cause failures on several tests that expect exact floating-point
-  # results.
-  'test-run-machops/RunFloat64MulAndFloat64Add1': [SKIP],
-  'test-run-machops/RunFloat64MulAndFloat64Add2': [SKIP],
-  'test-run-machops/RunFloat64MulAndFloat64Sub1': [SKIP],
-  'test-run-machops/RunFloat64MulAndFloat64Sub2': [SKIP],
-}],  # 'mips_arch_variant == r6'
-
-##############################################################################
 ['arch == riscv64 or (arch == riscv32)', {
   # This test is unstable, sometimes fail when running w/ other tests.
   'test-cpu-profiler/CrossScriptInliningCallerLineNumbers2': [SKIP],
@@ -290,31 +258,14 @@
 
 
 ##############################################################################
-['arch == loong64', {
-  # The instruction scheduler is disabled on loong64.
-  'test-instruction-scheduler/DeoptInMiddleOfBasicBlock': [SKIP],
-  # The uint32 values are sign-extended on loong64.
-  'test-run-load-store/RunLoadStoreZeroExtend64': [SKIP],
-  'test-run-load-store/RunUnalignedLoadStoreZeroExtend64': [SKIP],
-}],  # 'arch == loong64'
-
-##############################################################################
 ['system == android', {
   # Uses too much memory.
   'test-api/NewStringRangeError': [SKIP],
 }],  # 'system == android'
 
 ##############################################################################
-['system != android and arch in [arm, arm64] and not simulator_run', {
-  # Consumes too much memory on ODROIDs in debug mode and optimize_for_size.
-  'test-code-generator/FuzzAssemble*': [PASS, ['(mode == debug) and optimize_for_size', SKIP]],
-}],  # 'system != android and arch in [arm, arm64] and not simulator_run'
-
-##############################################################################
 ['system == aix or (arch == ppc64 and byteorder == big)', {
 
-  # TODO(ppc): Fix for platforms with function desciptors.
-  'test-run-machops/RunComputedCodeObject' : [SKIP],
   # slow in PASE emulator
   'test-cpu-profiler/Inlining2': [PASS, SLOW],
   'test-cpu-profiler/CollectCpuProfileCallerLineNumbers': [PASS, SLOW],
@@ -333,8 +284,6 @@
   'test-api/Threading*': [PASS, SLOW],
   'test-api/ExternalArrays': [PASS, SLOW],
   'test-debug/DebugBreakStackTrace': [PASS, SLOW],
-  'turboshaft-test-compare-combine/CombineCompareWord64Logic1': [PASS, SLOW],
-  'turboshaft-test-compare-combine/CombineCompareTwoLogicInputs': [PASS, SLOW],
 
 }],  # 'arch == ppc64 and simulator_run'
 
@@ -357,9 +306,7 @@
   'test-debug/*': [SKIP],
   'test-heap-profiler/*': [SKIP],
   'test-lockers/*': [SKIP],
-  'test-run-machops/*': [SKIP],
   'test-page-promotion/*': [SKIP],
-  'test-gap-resolver/*': [SKIP],
   'test-dtoa/*': [SKIP],
 }],  # variant == no_wasm_traps
 
@@ -385,33 +332,14 @@
 
   # Tests that generate code at runtime.
   'test-accessor-assembler/*': [SKIP],
-  'test-atomic-load-store-codegen/*': [SKIP],
-  'test-basic-block-profiler/*': [SKIP],
-  'test-branch-combine/*': [SKIP],
-  'test-calls-with-arraylike-or-spread/*': [SKIP],
-  'test-code-assembler/*': [SKIP],
-  'test-code-generator/*': [SKIP],
   'test-code-stub-assembler/*': [SKIP],
   'test-debug-helper/GetObjectProperties': [SKIP],
-  'test-js-context-specialization/*': [SKIP],
-  'test-multiple-return/*': [SKIP],
-  'test-run-calls-to-external-references/*': [SKIP],
   'test-run-intrinsics/*': [SKIP],
-  'test-run-load-store/*': [SKIP],
-  'test-run-machops/*': [SKIP],
-  'test-run-native-calls/*': [SKIP],
   'test-run-stackcheck/*': [SKIP],
   'test-run-unwinding-info/*': [SKIP],
   'test-run-variables/*': [SKIP],
-  'test-select-combine/*': [SKIP],
   'test-torque/*': [SKIP],
-  'test-verify-type/*': [SKIP],
-  'test-concurrent-shared-function-info/*': [SKIP],
   'test-sync-primitives-arm64/*': [SKIP],
-  'turboshaft-test-branch-combine/*': [SKIP],
-  'turboshaft-test-compare-combine/*': [SKIP],
-  'turboshaft-test-select-combine/*': [SKIP],
-  'turboshaft-test-simd-shift/*': [SKIP],
 
   'test-unwinder-code-pages/PCIsInV8_LargeCodeObject_CodePagesAPI': [SKIP],
   'test-heap-profiler/WeakReference': [SKIP],
@@ -436,7 +364,6 @@
   # https://crbug.com/v8/7777
   'test-cpu-profiler/TickLinesOptimized': [SKIP],
   'test-js-to-wasm/*': [SKIP],
-  'test-verify-type/*': [SKIP],
 }], # variant == jitless
 
 ################################################################################
@@ -452,24 +379,6 @@
   # BUG(11524): Crashing flakily.
   'test-cpu-profiler/TracingCpuProfiler': [PASS, FAIL],
 }], # variant == stress_concurrent_inlining
-
-################################################################################
-['variant == always_sparkplug or variant == always_sparkplug_and_stress_regexp_jit', {
-  # %ObserveNode tests rely on TurboFan.
-  'test-calls-with-arraylike-or-spread/*': [SKIP],
-}],
-
-################################################################################
-['variant == no_lfa', {
-  'test-calls-with-arraylike-or-spread/*': [SKIP],
-}],
-
-##############################################################################
-['variant == assert_types', {
-  # Type assertions only work without concurrent compilation, but this test
-  # always triggers a concurrent compilation.
-  'test-concurrent-shared-function-info/TestConcurrentSharedFunctionInfo': [SKIP],
-}],  # variant == assert_types
 
 ['clang_coverage and mode == debug', {
   # Too slow tests.

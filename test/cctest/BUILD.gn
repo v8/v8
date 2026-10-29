@@ -79,8 +79,6 @@ v8_cluster_source_set("cctest_sources") {
   testonly = true
 
   exclude_from_cluster = [
-    "compiler/test-code-generator.cc",
-    "compiler/test-run-load-store.cc",
     "test-accessors.cc",
     "test-api.cc",
     "test-debug.cc",
@@ -134,40 +132,8 @@ v8_cluster_source_set("cctest_sources") {
 
   if (v8_enable_turbofan) {
     sources += [
-      "compiler/codegen-tester.cc",
-      "compiler/codegen-tester.h",
       "compiler/function-tester.cc",
       "compiler/function-tester.h",
-      "compiler/test-atomic-load-store-codegen.cc",
-      "compiler/test-basic-block-profiler.cc",
-      "compiler/test-branch-combine.cc",
-      "compiler/test-calls-with-arraylike-or-spread.cc",
-      "compiler/test-code-assembler.cc",
-      "compiler/test-code-generator.cc",
-      "compiler/test-concurrent-shared-function-info.cc",
-      "compiler/test-gap-resolver.cc",
-      "compiler/test-graph-visualizer.cc",
-      "compiler/test-instruction-scheduler.cc",
-      "compiler/test-instruction.cc",
-      "compiler/test-js-constant-cache.cc",
-      "compiler/test-js-context-specialization.cc",
-      "compiler/test-js-typed-lowering.cc",
-      "compiler/test-jump-threading.cc",
-      "compiler/test-loop-analysis.cc",
-      "compiler/test-machine-operator-reducer.cc",
-      "compiler/test-node.cc",
-      "compiler/test-operator.cc",
-      "compiler/test-representation-change.cc",
-      "compiler/test-run-calls-to-external-references.cc",
-      "compiler/test-run-load-store.cc",
-      "compiler/test-run-machops.cc",
-      "compiler/test-select-combine.cc",
-      "compiler/test-verify-type.cc",
-      "compiler/turboshaft-codegen-tester.cc",
-      "compiler/turboshaft-codegen-tester.h",
-      "compiler/turboshaft-test-branch-combine.cc",
-      "compiler/turboshaft-test-compare-combine.cc",
-      "compiler/turboshaft-test-select-combine.cc",
       "test-accessor-assembler.cc",
       "test-code-stub-assembler.cc",
       "torque/test-torque.cc",
@@ -198,10 +164,6 @@ v8_cluster_source_set("cctest_sources") {
     if (is_win) {
       sources += [ "test-stack-unwinding-win64.cc" ]
     }
-  } else if (v8_current_cpu == "loong64") {
-    if (v8_enable_turbofan) {
-      sources += [ "compiler/test-run-machops-select-loong64.cc" ]
-    }
   }
 
   if (v8_use_perfetto) {
@@ -230,11 +192,6 @@ v8_cluster_source_set("cctest_sources") {
       "../common/wasm/test-signatures.h",
       "../common/wasm/wasm-macro-gen.h",
       "../common/wasm/wasm-run-utils.h",
-      "compiler/test-multiple-return.cc",
-
-      # test-run-native-calls uses wasm's LinkageAllocator.
-      "compiler/test-run-native-calls.cc",
-      "compiler/turboshaft-test-simd-shift.cc",
       "test-js-to-wasm.cc",
       "wasm/wasm-runner.h",
     ]
@@ -253,24 +210,11 @@ v8_cluster_source_set("cctest_sources") {
     public_deps += [ v8_icu_path ]
   }
 
-  cflags = []
-  if (v8_current_cpu == "ppc64" || v8_current_cpu == "arm" ||
-      v8_current_cpu == "arm64" || v8_current_cpu == "s390x" ||
-      v8_current_cpu == "mips64" || v8_current_cpu == "mips64el" ||
-      v8_current_cpu == "riscv64" || v8_current_cpu == "loong64" ||
-      v8_current_cpu == "riscv32") {
-    # Disable fmadd/fmsub so that expected results match generated code in
-    # RunFloat64MulAndFloat64Add1 and friends.
-    if (!is_win) {
-      cflags += [ "-ffp-contract=off" ]
-    }
-  }
-
   if (is_win) {
     # This warning is benignly triggered by the U16 and U32 macros in
     # bytecode-utils.h.
     # C4309: 'static_cast': truncation of constant value
-    cflags += [ "/wd4309" ]
+    cflags = [ "/wd4309" ]
 
     # MSVS wants this for gay-{precision,shortest}.cc.
     cflags += [ "/bigobj" ]

@@ -86,12 +86,24 @@
   # We cannot run them in unittest mode as they would produce flakes.
   'SmokeTest.*': [SKIP],
 
+  # TODO(391750831, nicohartmann): Currently broken with Turboshaft backend.
+  # Needs to be ported.
+  'BasicBlockProfilerTest.*': [SKIP],
+  'RunLoadStoreTest.*': [SKIP],
+  'RunMachOpsTest.*': [SKIP],
+  'SelectCombineTest.*': [SKIP],
+
   ##############################################################################
   # Behavioural differences between Maglev and Turbofan when the former is used
   # for OptimizeFunctionOnNextCall.
   #
   # Maglev doesn't support compiler::NodeObserver machinery.
+  'CallsWithArrayLikeOrSpreadTest.ReduceJSCallWithArrayLike': [SKIP],
+  'CallsWithArrayLikeOrSpreadTest.ReduceJSCallWithSpread': [SKIP],
+  'CallsWithArrayLikeOrSpreadTest.ReduceJSCreateBoundFunction': [SKIP],
+  'CallsWithArrayLikeOrSpreadTest.ReduceJSCreateClosure': [SKIP],
   'SloppyEqualityTest.SloppyEqualityTest': [SKIP],
+  'VerifyTypeTest.TestVerifyType': [SKIP],
    # RunDeoptTest checks frame->is_turbofan().
   'RunDeoptTest.DeoptSimple': [SKIP],
   'RunDeoptTest.DeoptSimpleInExpr': [SKIP],
@@ -255,7 +267,44 @@
 
   # TODO(mips-team): Improve code-size on large RegExp's.
   'HeapTest.TestSizeOfRegExpCode': [SKIP],
+
+  # The uint32 values are sign-extended on MIPS64.
+  'RunLoadStoreTest.RunLoadStoreZeroExtend64': [SKIP],
+  'RunLoadStoreTest.RunUnalignedLoadStoreZeroExtend64': [SKIP],
 }],  # 'arch == mips64el or arch == mips64'
+
+##############################################################################
+['mips_arch_variant == r6', {
+  # For MIPS[64] architecture release 6, fusion multiply-accumulate instructions
+  # will cause failures on several tests that expect exact floating-point
+  # results.
+  'RunMachOpsTest.RunFloat64MulAndFloat64Add1': [SKIP],
+  'RunMachOpsTest.RunFloat64MulAndFloat64Add2': [SKIP],
+  'RunMachOpsTest.RunFloat64MulAndFloat64Sub1': [SKIP],
+  'RunMachOpsTest.RunFloat64MulAndFloat64Sub2': [SKIP],
+}],  # 'mips_arch_variant == r6'
+
+##############################################################################
+['arch == loong64', {
+  # The instruction scheduler is disabled on loong64.
+  'InstructionSchedulerTest.DeoptInMiddleOfBasicBlock': [SKIP],
+  # The uint32 values are sign-extended on loong64.
+  'RunLoadStoreTest.RunLoadStoreZeroExtend64': [SKIP],
+  'RunLoadStoreTest.RunUnalignedLoadStoreZeroExtend64': [SKIP],
+}],  # 'arch == loong64'
+
+##############################################################################
+['system != android and arch in [arm, arm64] and not simulator_run', {
+  # Consumes too much memory on ODROIDs in debug mode and optimize_for_size.
+  'CodeGeneratorTest.FuzzAssemble*': [PASS, ['(mode == debug) and optimize_for_size', SKIP]],
+}],  # 'system != android and arch in [arm, arm64] and not simulator_run'
+
+##############################################################################
+['arch == ppc64 and simulator_run', {
+  # Pass but take too long with the simulator.
+  'TurboshaftCompareCombineTest.CombineCompareWord64Logic1': [PASS, SLOW],
+  'TurboshaftCompareCombineTest.CombineCompareTwoLogicInputs': [PASS, SLOW],
+}],  # 'arch == ppc64 and simulator_run'
 
 ##############################################################################
 ['system == windows and asan', {
@@ -381,6 +430,10 @@
 
   # Field representation tracking is disabled in nooptimization mode.
   'FieldTypeTrackingTest.*': [SKIP],
+
+  # %ObserveNode tests rely on TurboFan.
+  'CallsWithArrayLikeOrSpreadTest.*': [SKIP],
+  'VerifyTypeTest.*': [SKIP],
 }],  # variant == nooptimization
 
 ##############################################################################
@@ -406,6 +459,7 @@
 ##############################################################################
 ['system == aix or (arch == ppc64 and byteorder == big)', {
   # TODO(ppc): Fix for platforms with function desciptors.
+  'RunMachOpsTest.RunComputedCodeObject': [SKIP],
   'RunWasmModuleTest.Run_WasmModule_Return114': [SKIP],
   'RunWasmModuleTest.Run_WasmModule_CallAdd': [SKIP],
   'RunWasmModuleTest.Run_WasmModule_CallMain_recursive': [SKIP],
@@ -529,6 +583,7 @@
   'RunWasmExceptionsTest.RunWasmTurbofan_TryCatchCallIndirect': [SKIP],
   'RunWasmExceptionsTest.RunWasmTurbofan_TryCatchThrow': [SKIP],
   'RunWasmExceptionsTest.RunWasmTurbofan_TryCatchTrapTypeError': [SKIP],
+  'VerifyTypeTest.*': [SKIP],
 }], # jitless
 
 ##############################################################################
@@ -564,7 +619,27 @@
 
   # Tests that generate code at runtime.
   'Assembler*': [SKIP],
+  'AtomicLoadStoreCodegenTest.*': [SKIP],
+  'BasicBlockProfilerTest.*': [SKIP],
+  'BranchCombineTest.*': [SKIP],
+  'CallsWithArrayLikeOrSpreadTest.*': [SKIP],
+  'CodeAssemblerTest.*': [SKIP],
+  'CodeGeneratorTest.*': [SKIP],
+  'ConcurrentSharedFunctionInfoTest.*': [SKIP],
+  'JSContextSpecializationTest.*': [SKIP],
+  'MultipleReturnTest.*': [SKIP],
+  'RunCallsToExternalReferencesTest.*': [SKIP],
+  'RunLoadStoreTest.*': [SKIP],
+  'RunMachOpsSelectLoong64Test.*': [SKIP],
+  'RunMachOpsTest.*': [SKIP],
+  'RunNativeCallsTest.*': [SKIP],
+  'SelectCombineTest.*': [SKIP],
   'SyncPrimitivesArmTest*': [SKIP],
+  'TurboshaftBranchCombineTest.*': [SKIP],
+  'TurboshaftCompareCombineTest.*': [SKIP],
+  'TurboshaftSelectCombineTest.*': [SKIP],
+  'TurboshaftSimdShiftTest.*': [SKIP],
+  'VerifyTypeTest.*': [SKIP],
   'CodePagesTest.*': [SKIP],
   'ConcurrentAllocationUninitializedTest.*': [SKIP],
   'HeapTest.CodeLargeObjectSpace': [SKIP],
@@ -631,13 +706,26 @@
   'DeclsTest.*': [SKIP],
   'FieldTypeTrackingTest.*': [SKIP],
   'GlobalHandlesTest.*': [SKIP],
+  'GapResolverTest.*': [SKIP],
   'InObjectSlackTrackingTest.*': [SKIP],
   'ParsingTest/*': [SKIP],
+  'RunMachOpsTest.*': [SKIP],
   'SerializeTest.*': [SKIP],
   'StringsTest.*': [SKIP],
   'StringsUninitializedTest.*': [SKIP],
   'UninitializedSerializeTest.*': [SKIP],
 }],  # variant == no_wasm_traps
+
+################################################################################
+['variant == always_sparkplug or variant == always_sparkplug_and_stress_regexp_jit', {
+  # %ObserveNode tests rely on TurboFan.
+  'CallsWithArrayLikeOrSpreadTest.*': [SKIP],
+}],
+
+################################################################################
+['variant == no_lfa', {
+  'CallsWithArrayLikeOrSpreadTest.*': [SKIP],
+}],
 
 ##############################################################################
 ['not i18n', {
@@ -741,6 +829,9 @@
   'HeapTest.NewSpaceObjectsInOptimizedCode': [SKIP],
   'TestWithHeapInternals.LeakNativeContextViaMapKeyed': [SKIP],
   'HeapTest.CellsInOptimizedCodeAreWeak': [SKIP],
+  # Type assertions only work without concurrent compilation, but this test
+  # always triggers a concurrent compilation.
+  'ConcurrentSharedFunctionInfoTest.TestConcurrentSharedFunctionInfo': [SKIP],
 }],  # variant == assert_types
 
 ['clang_coverage', {
