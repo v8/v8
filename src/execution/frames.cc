@@ -25,6 +25,7 @@
 #include "src/execution/frames-inl.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/ic/ic-stats.h"
+#include "src/interpreter/bytecode-register.h"
 #include "src/logging/counters.h"
 #include "src/objects/abstract-code-inl.h"
 #include "src/objects/casting-inl.h"
@@ -3541,8 +3542,39 @@ Tagged<BytecodeArray> UnoptimizedJSFrame::GetBytecodeArray() const {
   return TrustedCast<BytecodeArray>(GetExpression(index));
 }
 
+namespace {
+// Validates that an interpreter register index points to a legitimate register
+// in the unoptimized frame: either a local register in the register file,
+// a parameter passed by the caller, or a recognized fixed frame
+// pseudo-register. This prevents out-of-bounds reads into adjacent frames or
+// into the frame linkage gap (saved FP / return address) between the context
+// and parameters.
+bool IsValidInterpreterRegisterIndex(Tagged<BytecodeArray> bytecode_array,
+                                     int register_index) {
+  if (register_index >= 0) {
+    return register_index < bytecode_array->register_count();
+  }
+  if (bytecode_array->parameter_count() > 0) {
+    int max_param_reg = interpreter::Register::FromParameterIndex(0).index();
+    int min_param_reg = interpreter::Register::FromParameterIndex(
+                            bytecode_array->parameter_count() - 1)
+                            .index();
+    if (register_index >= min_param_reg && register_index <= max_param_reg) {
+      return true;
+    }
+  }
+  return register_index == interpreter::Register::current_context().index() ||
+         register_index == interpreter::Register::function_closure().index() ||
+         register_index == interpreter::Register::bytecode_array().index() ||
+         register_index == interpreter::Register::bytecode_offset().index() ||
+         register_index == interpreter::Register::feedback_vector().index();
+}
+}  // namespace
+
 Tagged<Object> UnoptimizedJSFrame::ReadInterpreterRegister(
     int register_index) const {
+  Tagged<BytecodeArray> bytecode_array = GetBytecodeArray();
+  SBXCHECK(IsValidInterpreterRegisterIndex(bytecode_array, register_index));
   const int index = UnoptimizedFrameConstants::kRegisterFileExpressionIndex;
   DCHECK_EQ(UnoptimizedFrameConstants::kRegisterFileFromFp,
             UnoptimizedFrameConstants::kExpressionsOffset -

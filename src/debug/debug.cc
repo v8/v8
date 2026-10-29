@@ -355,13 +355,13 @@ void BreakLocation::AllAtCurrentStatement(
 Tagged<JSGeneratorObject> BreakLocation::GetGeneratorObjectForSuspendedFrame(
     JavaScriptFrame* frame) const {
   DCHECK(IsSuspend());
-  DCHECK_GE(generator_obj_reg_index_, 0);
+  SBXCHECK_GE(generator_obj_reg_index_, 0);
 
   Tagged<Object> generator_obj =
       UnoptimizedJSFrame::cast(frame)->ReadInterpreterRegister(
           generator_obj_reg_index_);
 
-  return Cast<JSGeneratorObject>(generator_obj);
+  return CheckedCast<JSGeneratorObject>(generator_obj);
 }
 
 int BreakLocation::BreakIndexFromCodeOffset(
@@ -748,12 +748,31 @@ void Debug::Break(JavaScriptFrame* frame,
   DebugScope debug_scope(this);
   DisableBreak no_recursive_break(this);
 
-  // Return if we fail to retrieve debug info.
   Handle<SharedFunctionInfo> shared(break_target->shared(), isolate_);
   if (!EnsureBreakInfo(shared)) return;
-  PrepareFunctionForDebugExecution(shared);
 
   Handle<DebugInfo> debug_info(TryGetDebugInfo(*shared).value(), isolate_);
+  if (!debug_info->CanBreakAtEntry()) {
+    SBXCHECK(frame->is_unoptimized_js());
+    Tagged<BytecodeArray> active_bytecode =
+        shared->GetActiveBytecodeArray(isolate_);
+    Tagged<BytecodeArray> frame_bytecode =
+        UnoptimizedJSFrame::cast(frame)->GetBytecodeArray();
+    SBXCHECK_EQ(active_bytecode, frame_bytecode);
+  }
+
+  PrepareFunctionForDebugExecution(shared);
+
+  if (debug_info->CanBreakAtEntry()) {
+    SBXCHECK(debug_info->BreakAtEntry());
+  } else {
+    SBXCHECK(debug_info->HasInstrumentedBytecodeArray());
+    Tagged<BytecodeArray> debug_bytecode =
+        debug_info->DebugBytecodeArray(isolate_);
+    Tagged<BytecodeArray> frame_bytecode =
+        UnoptimizedJSFrame::cast(frame)->GetBytecodeArray();
+    SBXCHECK_EQ(debug_bytecode, frame_bytecode);
+  }
 
   // Find the break location where execution has stopped.
   BreakLocation location = BreakLocation::FromFrame(debug_info, frame);
