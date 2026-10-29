@@ -1256,9 +1256,8 @@ MaybeDirectHandle<String> Factory::NewStringFromTwoByteLittleEndian(
 DirectHandle<InternalizedString> Factory::NewInternalizedStringImpl(
     DirectHandle<String> string, int len, uint32_t hash_field,
     bool known_one_byte_content) {
-  const bool one_byte =
-      string->IsOneByteRepresentation() || known_one_byte_content;
-  if (one_byte) {
+  DCHECK_IMPLIES(string->IsOneByteRepresentation(), known_one_byte_content);
+  if (known_one_byte_content) {
     DirectHandle<SeqOneByteString> result =
         AllocateRawOneByteInternalizedString(len, hash_field);
     DisallowGarbageCollection no_gc;
@@ -1270,6 +1269,7 @@ DirectHandle<InternalizedString> Factory::NewInternalizedStringImpl(
       AllocateRawTwoByteInternalizedString(len, hash_field);
   DisallowGarbageCollection no_gc;
   String::WriteToFlat(*string, result->GetChars(no_gc), 0, len);
+  DCHECK(!String::IsOneByte(result->GetChars(no_gc), len));
   return Cast<InternalizedString>(result);
 }
 

@@ -7,6 +7,7 @@
 
 #include <atomic>
 #include <iosfwd>
+#include <optional>
 #include <span>
 
 #include "src/base/bit-field.h"
@@ -295,10 +296,10 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
   // a forwarding index.
   inline uint32_t EnsureRawHash();
   // If `out_one_byte_content` is non-null and the hasher actually scans the
-  // content here, it is set to true iff the content fits in one byte. Stays
+  // content here, it is set to whether the content fits in one byte. Stays
   // untouched on the early-return paths (hash already computed, hashed via
   // the forwarding table, length > kMaxHashCalcLength).
-  inline uint32_t EnsureRawHash(bool* out_one_byte_content);
+  inline uint32_t EnsureRawHash(std::optional<bool>* out_one_byte_content);
   inline uint32_t EnsureRawHash(const SharedStringAccessGuardIfNeeded&);
   inline uint32_t RawHash();
 

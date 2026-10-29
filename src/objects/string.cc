@@ -1891,7 +1891,7 @@ template <typename Char>
 uint32_t HashString(Tagged<String> string, size_t start, uint32_t length,
                     const HashSeed seed,
                     const SharedStringAccessGuardIfNeeded& access_guard,
-                    bool* out_one_byte_content) {
+                    std::optional<bool>* out_one_byte_content) {
   DisallowGarbageCollection no_gc;
 
   if (length > String::kMaxHashCalcLength) {
@@ -1921,7 +1921,8 @@ uint32_t String::ComputeAndSetRawHash() {
   return ComputeAndSetRawHash(/*out_one_byte_content=*/nullptr);
 }
 
-uint32_t String::ComputeAndSetRawHash(bool* out_one_byte_content) {
+uint32_t String::ComputeAndSetRawHash(
+    std::optional<bool>* out_one_byte_content) {
   DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(this));
   return ComputeAndSetRawHash(SharedStringAccessGuardIfNeeded::NotNeeded(),
                               out_one_byte_content);
@@ -1946,7 +1947,7 @@ void Name::set_raw_hash_field_if_empty(uint32_t hash) {
 
 uint32_t String::ComputeAndSetRawHash(
     const SharedStringAccessGuardIfNeeded& access_guard,
-    bool* out_one_byte_content) {
+    std::optional<bool>* out_one_byte_content) {
   DisallowGarbageCollection no_gc;
   // Should only be called if hash code has not yet been computed.
   //

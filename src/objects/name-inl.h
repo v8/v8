@@ -188,7 +188,7 @@ uint32_t Name::GetRawHashFromForwardingTable(uint32_t raw_hash) const {
 
 uint32_t Name::EnsureRawHash() { return EnsureRawHash(nullptr); }
 
-uint32_t Name::EnsureRawHash(bool* out_one_byte_content) {
+uint32_t Name::EnsureRawHash(std::optional<bool>* out_one_byte_content) {
   // Fast case: has hash code already been computed?
   uint32_t field = raw_hash_field(kAcquireLoad);
   if (IsHashFieldComputed(field)) return field;

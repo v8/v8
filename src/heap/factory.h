@@ -389,13 +389,12 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   DirectHandle<JSStringIterator> NewJSStringIterator(Handle<String> string);
 
-  // `known_one_byte_content` indicates that the caller (typically the
-  // string-table lookup path that just hashed `string`) knows the content
-  // fits in one byte; the impl then allocates a SeqOneByteString even when
-  // `string`'s representation is two-byte. False is always safe.
+  // `known_one_byte_content` indicates that `string`'s content fits in one
+  // byte; the impl then allocates a SeqOneByteString even when `string`'s
+  // representation is two-byte.
   DirectHandle<InternalizedString> NewInternalizedStringImpl(
       DirectHandle<String> string, int len, uint32_t hash_field,
-      bool known_one_byte_content = false);
+      bool known_one_byte_content);
 
   // Compute the internalization strategy for the input string.
   //
@@ -413,7 +412,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   V8_WARN_UNUSED_RESULT StringTransitionStrategy
   ComputeInternalizationStrategyForString(
       DirectHandle<String> string, MaybeDirectHandle<Map>* internalized_map,
-      bool known_one_byte_content = false);
+      bool known_one_byte_content);
 
   // Creates an internalized copy of an external string. |string| must be
   // of type StringClass.
