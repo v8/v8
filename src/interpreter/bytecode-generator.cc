@@ -1621,6 +1621,7 @@ void BytecodeGenerator::AllocateDeferredConstants(IsolateT* isolate,
   }
 
   for (std::pair<Call*, Scope*> call : eval_calls_) {
+    DCHECK_EQ(call.second->GetClosureScope(), closure_scope());
     Tagged<ScopeInfo> current;
     int index = call.first->eval_scope_info_index();
     if (script->infos()
@@ -7116,7 +7117,8 @@ void BytecodeGenerator::VisitCall(Call* expr) {
       private_name_lookup_skips_outer_class =
           scope_with_context->AsClassScope()->IsParsingHeritage();
     }
-    if (scope_with_context) {
+    if (scope_with_context &&
+        scope_with_context->IsOuterScopeUpToClosureScopeOf(current_scope())) {
       eval_calls_.emplace_back(expr, scope_with_context);
     }
     int eval_flags = ResolveEvalFlags::Encode(
