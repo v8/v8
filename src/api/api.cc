@@ -2940,6 +2940,7 @@ ScriptCompiler::ConsumeCodeCacheTask* ScriptCompiler::StartConsumingCodeCache(
     Isolate* v8_isolate, std::unique_ptr<CachedData> cached_data) {
   if (!i::v8_flags.concurrent_cache_deserialization) return nullptr;
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  if (i_isolate->requires_bytecode_for_code_coverage()) return nullptr;
   i::DisallowJavascriptExecutionDebugOnly no_execution(i_isolate);
   i::DisallowExceptionsDebugOnly no_exceptions(i_isolate);
   return new ScriptCompiler::ConsumeCodeCacheTask(
@@ -2952,6 +2953,7 @@ ScriptCompiler::StartConsumingCodeCacheOnBackground(
     Isolate* v8_isolate, std::unique_ptr<CachedData> cached_data) {
   if (!i::v8_flags.concurrent_cache_deserialization) return nullptr;
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  if (i_isolate->requires_bytecode_for_code_coverage()) return nullptr;
   return new ScriptCompiler::ConsumeCodeCacheTask(
       std::make_unique<i::BackgroundDeserializeTask>(i_isolate,
                                                      std::move(cached_data)));

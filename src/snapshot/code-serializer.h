@@ -160,6 +160,7 @@ class SerializedCodeData : public SerializedData {
 
   base::Vector<const uint8_t> UntrustedPayload() const;
   base::Vector<const uint8_t> TrustedPayload() const;
+  bool IsEmpty() const { return GetHeaderValue(kPayloadLengthOffset) == 0; }
 
  private:
   friend class CodeSerializer;

@@ -2159,13 +2159,94 @@ TEST_F(SerializeTest, CodeSerializerOnePlusOneWithDebugger) {
 }
 
 TEST_F(SerializeTest, CodeSerializerOnePlusOneWithBlockCoverage) {
+  Isolate* isolate = i_isolate();
+  isolate->compilation_cache()->DisableScriptAndEval();
+
   v8::HandleScope scope(v8_isolate());
   static v8::debug::DebugDelegate dummy_delegate;
   v8::debug::SetDebugDelegate(v8_isolate(), &dummy_delegate);
-  Coverage::SelectMode(i_isolate(), debug::CoverageMode::kBlockCount);
-  TestCodeSerializerOnePlusOneImpl(i_isolate());
-  Coverage::SelectMode(i_isolate(), debug::CoverageMode::kBestEffort);
+  Coverage::SelectMode(isolate, debug::CoverageMode::kBlockCount);
+
+  const char* source = "1 + 1";
+  Handle<String> orig_source =
+      isolate->factory()->NewStringFromAsciiChecked(source);
+  Handle<String> copy_source =
+      isolate->factory()->NewStringFromAsciiChecked(source);
+
+  AlignedCachedData* cache = nullptr;
+  ScriptDetails default_script_details;
+  DirectHandle<SharedFunctionInfo> orig = CompileScriptAndProduceCache(
+      isolate, orig_source, default_script_details, &cache,
+      v8::ScriptCompiler::kNoCompileOptions);
+
+  auto raw_cache = std::make_unique<v8::ScriptCompiler::CachedData>(
+      cache->data(), cache->length(),
+      v8::ScriptCompiler::CachedData::BufferNotOwned);
+  CHECK_NULL(v8::ScriptCompiler::StartConsumingCodeCache(v8_isolate(),
+                                                         std::move(raw_cache)));
+
+  DirectHandle<SharedFunctionInfo> copy =
+      CompileScript(isolate, copy_source, default_script_details, cache,
+                    v8::ScriptCompiler::kConsumeCodeCache);
+  CHECK_NE(*orig, *copy);
+  CHECK(!cache->rejected());
+
+  Coverage::SelectMode(isolate, debug::CoverageMode::kBestEffort);
+  DirectHandle<SharedFunctionInfo> copy2 =
+      CompileScript(isolate, copy_source, default_script_details, cache,
+                    v8::ScriptCompiler::kConsumeCodeCache);
+  CHECK_NE(*orig, *copy2);
+  CHECK(!cache->rejected());
+
   v8::debug::SetDebugDelegate(v8_isolate(), nullptr);
+  delete cache;
+}
+
+TEST_F(SerializeTest, CodeSerializerLazySourcePositionsSwitchToBlockCoverage) {
+  FlagScope<bool> enable_lazy_source_positions(
+      &v8_flags.enable_lazy_source_positions, true);
+  Isolate* isolate = i_isolate();
+  isolate->compilation_cache()->DisableScriptAndEval();
+
+  v8::HandleScope scope(v8_isolate());
+
+  const char* source =
+      "function f(x) { if (x) return 1; if (!x) return 2; return 3; } f(1);";
+  Handle<String> orig_source =
+      isolate->factory()->NewStringFromAsciiChecked(source);
+  Handle<String> copy_source =
+      isolate->factory()->NewStringFromAsciiChecked(source);
+
+  AlignedCachedData* cache = nullptr;
+  ScriptDetails default_script_details;
+  CompileScriptAndProduceCache(isolate, orig_source, default_script_details,
+                               &cache, v8::ScriptCompiler::kEagerCompile);
+
+  static v8::debug::DebugDelegate dummy_delegate;
+  v8::debug::SetDebugDelegate(v8_isolate(), &dummy_delegate);
+  Coverage::SelectMode(isolate, debug::CoverageMode::kBlockBinary);
+
+  DirectHandle<SharedFunctionInfo> copy =
+      CompileScript(isolate, copy_source, default_script_details, cache,
+                    v8::ScriptCompiler::kConsumeCodeCache);
+
+  DirectHandle<JSFunction> copy_fun =
+      Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
+          .Build();
+  DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);
+  Execution::CallScript(isolate, copy_fun, global,
+                        isolate->factory()->empty_fixed_array())
+      .ToHandleChecked();
+
+  Handle<Script> copy_script(Cast<Script>(copy->script()), isolate);
+  int position = 20;
+  int id = 0;
+  isolate->debug()->SetBreakPointForScript(
+      copy_script, isolate->factory()->empty_string(), &position, &id);
+
+  Coverage::SelectMode(isolate, debug::CoverageMode::kBestEffort);
+  v8::debug::SetDebugDelegate(v8_isolate(), nullptr);
+  delete cache;
 }
 
 TEST_F(SerializeTest, CodeSerializerPromotedToCompilationCache) {

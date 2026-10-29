@@ -1362,10 +1362,8 @@ void Serializer::ObjectSerializer::VisitProtectedPointer(
   SBXCHECK(OutsideSandbox(host.address()));
   Tagged<Object> content = slot.load(isolate());
 
-  // Similar to the indirect pointer case, if the slot is empty (i.e. contains
-  // Smi::zero()), then we skip it here.
-  if (content == Smi::zero()) return;
-  DCHECK(!IsSmi(content));
+  // Empty slots (Smi::zero()) and Smi slots can be skipped here.
+  if (IsSmi(content)) return;
 
   // If necessary, output any raw data preceding this slot.
   OutputRawData(slot.address());

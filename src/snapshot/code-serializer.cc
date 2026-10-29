@@ -110,12 +110,14 @@ AlignedCachedData* CodeSerializer::SerializeSharedFunctionInfo(
     Handle<SharedFunctionInfo> info) {
   DisallowGarbageCollection no_gc;
 
-  VisitRootPointer(Root::kHandleScope, nullptr,
-                   FullObjectSlot(info.location()));
-  SerializeDeferredObjects();
-  trusted_serializer_.SerializeExports();
-  trusted_serializer_.FinishSection();
-  FinishSection();
+  if (!isolate()->requires_bytecode_for_code_coverage()) {
+    VisitRootPointer(Root::kHandleScope, nullptr,
+                     FullObjectSlot(info.location()));
+    SerializeDeferredObjects();
+    trusted_serializer_.SerializeExports();
+    trusted_serializer_.FinishSection();
+    FinishSection();
+  }
 
   SerializedCodeData data(Payload(),
                           trusted_serializer_.ExternalReferencesPayload(),
@@ -535,6 +537,7 @@ MaybeDirectHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
         static_cast<int>(sanity_check_result));
     return MaybeDirectHandle<SharedFunctionInfo>();
   }
+  if (scd.IsEmpty()) return MaybeDirectHandle<SharedFunctionInfo>();
 
   // Deserialize.
   MaybeDirectHandle<SharedFunctionInfo> maybe_result =
@@ -608,6 +611,7 @@ void CodeSerializer::StartDeserializeOffThread(LocalIsolate* local_isolate,
     DCHECK(cached_data->rejected());
     return;
   }
+  if (scd.IsEmpty()) return;
 
   MaybeDirectHandle<SharedFunctionInfo> local_maybe_result =
       OffThreadObjectDeserializer::DeserializeSharedFunctionInfo(

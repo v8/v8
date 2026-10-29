@@ -1605,6 +1605,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return code_coverage_mode() == debug::CoverageMode::kBestEffort;
   }
 
+  bool requires_bytecode_for_code_coverage() const {
+    return !is_best_effort_code_coverage();
+  }
+
   bool is_precise_count_code_coverage() const {
     return code_coverage_mode() == debug::CoverageMode::kPreciseCount;
   }

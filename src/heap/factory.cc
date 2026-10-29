@@ -3460,7 +3460,11 @@ DirectHandle<BytecodeArray> Factory::CopyBytecodeArray(
     copy->set_source_position_table(
         raw_source->source_position_table(kAcquireLoad), kReleaseStore);
   } else {
+    // Initialize the slot before set_source_positions_coverage_flags reads it.
     copy->clear_source_position_table(kReleaseStore);
+    copy->set_source_positions_coverage_flags(
+        raw_source->coverage_enabled_for_source_positions(),
+        raw_source->block_coverage_enabled_for_source_positions());
   }
   raw_source->CopyBytecodesTo(copy);
   copy->InitAndPublish(isolate());

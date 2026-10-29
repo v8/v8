@@ -1527,6 +1527,9 @@ Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(
 
   if (HasStackOverflow()) return Handle<BytecodeArray>();
   Handle<BytecodeArray> bytecode_array = builder()->ToBytecodeArray(isolate);
+  bytecode_array->set_source_positions_coverage_flags(
+      info()->flags().coverage_enabled(),
+      info()->flags().block_coverage_enabled());
 
   if (incoming_new_target_or_generator_.is_valid()) {
     bytecode_array->set_incoming_new_target_or_generator_register(

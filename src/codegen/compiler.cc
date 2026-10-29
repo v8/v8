@@ -4078,7 +4078,8 @@ MaybeDirectHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
   IsCompiledScope is_compiled_scope;
   if (use_compilation_cache) {
     bool can_consume_code_cache =
-        compile_options & ScriptCompiler::kConsumeCodeCache;
+        (compile_options & ScriptCompiler::kConsumeCodeCache) &&
+        !isolate->requires_bytecode_for_code_coverage();
     if (can_consume_code_cache) {
       compile_timer.set_consuming_code_cache();
     }
@@ -4298,7 +4299,8 @@ MaybeDirectHandle<JSFunction> Compiler::GetWrappedFunction(
   Handle<Script> script;
   IsCompiledScope is_compiled_scope;
   bool can_consume_code_cache =
-      compile_options & ScriptCompiler::kConsumeCodeCache;
+      (compile_options & ScriptCompiler::kConsumeCodeCache) &&
+      !isolate->requires_bytecode_for_code_coverage();
   CompilationCache* compilation_cache = isolate->compilation_cache();
   // First check per-isolate compilation cache.
   CompilationCacheScript::LookupResult lookup_result =
