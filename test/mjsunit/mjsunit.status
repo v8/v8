@@ -3162,6 +3162,10 @@
 
   # Cannot open trace file 'v8_trace.json' for writing: Permission denied.
   'd8_trace': [SKIP],
+
+  # Short strings cannot be externalized in-place with pointer compression
+  # when the sandbox is disabled:
+  'compiler/string-equal-short-constant': [SKIP],
 }], # variant == google3
 
 # Tests that cannot run without JS shared memory
