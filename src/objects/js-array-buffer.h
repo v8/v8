@@ -289,54 +289,54 @@ class ArrayBufferExtension final
  public:
   enum class Age : uint8_t { kYoung = 0, kOld = 1 };
 
-  // Packs `accounting_length` and `age` into a single integer for consistent
-  // accounting, allowing resize while concurrently sweeping.
+  // Packs `accounting_length`, `age` and the GC mark bit into a single integer
+  // for consistent accounting, allowing resize while concurrently marking and
+  // sweeping. With separate atomics for `marked` and `accounting_length`, a
+  // `Resize(delta)` on the main thread races with `Mark()` on a marker thread.
+  // Main thread:
+  //   R1: `accounting_length += delta`
+  //   R2: `if (marked) marked_bytes_ += delta`
+  // MarkerThread:
+  //   M1: `if (!marked.exchange(true))`
+  //   M2: `marked_bytes_ += accounting_length`
+  // A possible interleaving of these operations is M1 -> R1 -> M2 -> R2 which
+  // results in double-accounting of `delta`.
   struct AccountingState final {
     size_t accounting_length() const {
       return AccountingLengthField::decode(value);
     }
     Age age() const { return static_cast<Age>(AgeField::decode(value)); }
+    bool is_marked() const { return MarkedField::decode(value); }
 
     uint64_t value;
   };
 
-  ArrayBufferExtension(std::shared_ptr<BackingStore> backing_store,
+  ArrayBufferExtension(Heap* heap, std::shared_ptr<BackingStore> backing_store,
                        ArrayBufferExtension::Age age, SharedFlag is_shared,
                        ResizableFlag is_resizable_by_js)
-      : backing_store_(std::move(backing_store)),
+      : heap_(heap),
+        backing_store_(std::move(backing_store)),
         accounting_state_(AccountingLengthField::encode(static_cast<size_t>(
                               backing_store_->PerIsolateAccountingLength())) |
                           AgeField::encode(static_cast<uint8_t>(age))),
         is_shared_(is_shared),
         is_resizable_by_js_(is_resizable_by_js) {}
 
-  void Mark() { marked_.store(true, std::memory_order_relaxed); }
-  void Unmark() { marked_.store(false, std::memory_order_relaxed); }
-  bool IsMarked() const { return marked_.load(std::memory_order_relaxed); }
+  inline void Mark();
+  void Unmark() {
+    accounting_state_.fetch_and(~MarkedField::kMask, std::memory_order_relaxed);
+  }
+  bool IsMarked() const {
+    return AccountingState{accounting_state_.load(std::memory_order_relaxed)}
+        .is_marked();
+  }
 
-  void YoungMark() {
-    SBXCHECK_EQ(ArrayBufferExtension::Age::kYoung, age());
-    GcState old_state = set_young_gc_state(GcState::Copied);
-    if (v8_flags.minor_ms) {
-      SBXCHECK_NE(old_state, GcState::Promoted);
-    } else {
-      SBXCHECK_EQ(old_state, GcState::Dead);
-    }
-  }
-  void YoungMarkPromoted() {
-    // When iterating promoted pages the extension object is already set as
-    // being promoted which happens before the page iteration. This may even run
-    // racefully between AB sweeping and page iteration.
-    GcState old_state = set_young_gc_state(GcState::Promoted);
-    if (v8_flags.minor_ms) {
-      SBXCHECK_NE(old_state, GcState::Promoted);
-    } else {
-      SBXCHECK_EQ(old_state, GcState::Dead);
-    }
-  }
+  inline void YoungMark();
+  inline void YoungMarkPromoted();
   void YoungUnmark() {
     DCHECK_EQ(ArrayBufferExtension::Age::kYoung, age());
     set_young_gc_state(GcState::Dead);
+    Unmark();
   }
   bool IsYoungMarked() const {
     DCHECK_EQ(ArrayBufferExtension::Age::kYoung, age());
@@ -374,7 +374,7 @@ class ArrayBufferExtension final
   // Clears `accounting_length` and returns the AccountingState before the
   // update.
   AccountingState ClearAccountingLength() {
-    return {accounting_state_.fetch_and(AgeField::kMask,
+    return {accounting_state_.fetch_and(AgeField::kMask | MarkedField::kMask,
                                         std::memory_order_relaxed)};
   }
 
@@ -406,7 +406,8 @@ class ArrayBufferExtension final
   enum class GcState : uint8_t { Dead = 0, Copied, Promoted };
 
   using AgeField = base::BitField<uint8_t, 0, 1, uint64_t>;
-  using AccountingLengthField = AgeField::Next<size_t, 63>;
+  using MarkedField = AgeField::Next<bool, 1>;
+  using AccountingLengthField = MarkedField::Next<size_t, 62>;
 
   GcState young_gc_state() const {
     return young_gc_state_.load(std::memory_order_relaxed);
@@ -416,10 +417,10 @@ class ArrayBufferExtension final
     return young_gc_state_.exchange(value, std::memory_order_relaxed);
   }
 
+  Heap* const heap_;
   std::shared_ptr<BackingStore> backing_store_;
   ArrayBufferExtension* next_ = nullptr;
   std::atomic<uint64_t> accounting_state_;
-  std::atomic<bool> marked_{false};
   std::atomic<GcState> young_gc_state_{GcState::Dead};
 
   // Trusted copies of the in-sandbox JSArrayBuffer flags. We verify that the

@@ -621,6 +621,7 @@ class Heap final {
   V8_EXPORT_PRIVATE void ResizeArrayBufferExtension(
       ArrayBufferExtension* extension, int64_t delta);
   void DetachArrayBufferExtension(ArrayBufferExtension* extension);
+  void AccountMarkedArrayBufferExtension(size_t bytes);
 
   V8_EXPORT_PRIVATE void ExpandNewSpaceSizeForTesting();
   V8_EXPORT_PRIVATE void ReduceNewSpaceSizeForTesting();

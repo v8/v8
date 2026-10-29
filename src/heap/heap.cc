@@ -4058,6 +4058,10 @@ void Heap::DetachArrayBufferExtension(ArrayBufferExtension* extension) {
   return array_buffer_sweeper_->Detach(extension);
 }
 
+void Heap::AccountMarkedArrayBufferExtension(size_t bytes) {
+  array_buffer_sweeper_->AccountMarkedExtension(bytes);
+}
+
 void Heap::AutomaticallyRestoreInitialHeapLimit(double threshold_percent) {
   initial_max_old_generation_size_threshold_ =
       limits()->initial_max_old_generation_size() * threshold_percent;

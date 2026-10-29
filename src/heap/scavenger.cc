@@ -1621,6 +1621,7 @@ void ScavengerCollector::CollectGarbage() {
   ScopedFullHeapCrashKey collect_full_heap_dump_if_crash(isolate);
 
   DCHECK(!quarantined_page_sweeper_->IsSweeping());
+  DCHECK(!heap_->array_buffer_sweeper()->sweeping_in_progress());
 
   SemiSpaceNewSpace* new_space = SemiSpaceNewSpace::From(heap_->new_space());
   new_space->GarbageCollectionPrologue();

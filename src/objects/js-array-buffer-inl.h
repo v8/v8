@@ -9,6 +9,7 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/heap/heap.h"
 #include "src/heap/local-heap.h"
 #include "src/objects/heap-object-field-inl.h"
 #include "src/objects/heap-object-inl.h"
@@ -599,6 +600,45 @@ bool JSRabGsabDataView::IsOutOfBounds() const {
     return byte_offset() > buffer()->GetByteLength();
   }
   return byte_offset() + byte_length() > buffer()->GetByteLength();
+}
+
+void ArrayBufferExtension::Mark() {
+  const AccountingState state{
+      accounting_state_.load(std::memory_order_relaxed)};
+  if (state.is_marked()) return;
+  const AccountingState previous_state{accounting_state_.fetch_or(
+      MarkedField::kMask, std::memory_order_relaxed)};
+  if (!previous_state.is_marked()) {
+    heap_->AccountMarkedArrayBufferExtension(
+        previous_state.accounting_length());
+  }
+}
+
+void ArrayBufferExtension::YoungMark() {
+  SBXCHECK_EQ(ArrayBufferExtension::Age::kYoung, age());
+  GcState old_state = set_young_gc_state(GcState::Copied);
+  if (v8_flags.minor_ms) {
+    SBXCHECK_NE(old_state, GcState::Promoted);
+  } else {
+    SBXCHECK_EQ(old_state, GcState::Dead);
+  }
+  // Safe since minor and major GCs are not interleaved.
+  Mark();
+}
+
+void ArrayBufferExtension::YoungMarkPromoted() {
+  // When iterating promoted pages the extension object is already set as
+  // being promoted which happens before the page iteration. This may even run
+  // racefully between AB sweeping and page iteration.
+  GcState old_state = set_young_gc_state(GcState::Promoted);
+  if (v8_flags.minor_ms) {
+    SBXCHECK_NE(old_state, GcState::Promoted);
+  } else {
+    SBXCHECK_EQ(ArrayBufferExtension::Age::kYoung, age());
+    SBXCHECK_EQ(old_state, GcState::Dead);
+    // Safe since minor and major GCs are not interleaved.
+    Mark();
+  }
 }
 
 }  // namespace internal
