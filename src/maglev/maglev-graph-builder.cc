@@ -4333,7 +4333,7 @@ ReduceResult MaglevGraphBuilder::BuildLoadField(
         heap_number,
         AddNewNode<LoadTaggedField>(
             {load_source}, field_index.offset(), NodeType::kHeapNumber,
-            PropertyConstness::kMutable, PropertyKey::None(),
+            PropertyConstness::kMutable, PropertyKey::DoubleField(name),
             IsArrayLength::kNo, compiler::OptionalMapRef{}));
     return AddNewNode<LoadFloat64>(
         {heap_number}, static_cast<int>(offsetof(HeapNumber, value_)));
@@ -4516,7 +4516,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
           reducer_.BuildInlinedAllocation(reducer_.CreateHeapNumber(value)));
       RETURN_IF_ABORT(BuildStoreTaggedField(
           store_target, heapnumber_value, field_index.offset(),
-          StoreTaggedMode::kTransitioning, name));
+          StoreTaggedMode::kTransitioning, PropertyKey::DoubleField(name)));
       return reducer_.BuildStoreMap(receiver,
                                     access_info.transition_map().value(),
                                     StoreMap::Kind::kTransitioning);
@@ -4526,7 +4526,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
           heap_number,
           AddNewNode<LoadTaggedField>(
               {store_target}, field_index.offset(), NodeType::kHeapNumber,
-              PropertyConstness::kMutable, PropertyKey::None(),
+              PropertyConstness::kMutable, PropertyKey::DoubleField(name),
               IsArrayLength::kNo, compiler::OptionalMapRef{}));
       RETURN_IF_ABORT(AddNewNode<StoreFloat64>(
           {heap_number, value},

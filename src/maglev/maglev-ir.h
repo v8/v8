@@ -8425,6 +8425,7 @@ class PropertyKey {
   enum Type {
     // kName must be zero so that pointers are unaffected.
     kName = 0,
+    kDoubleField,
     kElements,
     kTypedArrayLength,
     // TODO(leszeks): We could probably share kStringLength with
@@ -8436,10 +8437,17 @@ class PropertyKey {
   };
   static constexpr int kTypeMask = 0x7;
   static_assert((kName & ~kTypeMask) == 0);
+  static_assert((kDoubleField & ~kTypeMask) == 0);
   static_assert((kElements & ~kTypeMask) == 0);
   static_assert((kTypedArrayLength & ~kTypeMask) == 0);
   static_assert((kStringLength & ~kTypeMask) == 0);
+  static_assert((kArrayBufferViewByteLength & ~kTypeMask) == 0);
+  static_assert((kArrayBufferViewDataPointer & ~kTypeMask) == 0);
   static_assert((kNone & ~kTypeMask) == 0);
+
+  static PropertyKey DoubleField(compiler::NameRef ref) {
+    return PropertyKey(ref, kDoubleField);
+  }
 
   static PropertyKey Elements() { return PropertyKey(kElements); }
 
@@ -8460,10 +8468,7 @@ class PropertyKey {
   // Allow implicit conversion from NameRef to key, so that callers in the
   // common path can use a NameRef directly.
   // NOLINTNEXTLINE
-  PropertyKey(compiler::NameRef ref)
-      : data_(reinterpret_cast<Address>(ref.data())) {
-    DCHECK_EQ(data_ & kTypeMask, kName);
-  }
+  PropertyKey(compiler::NameRef ref) : PropertyKey(ref, kName) {}
 
   PropertyKey(const PropertyKey&) V8_NOEXCEPT = default;
   PropertyKey& operator=(const PropertyKey&) V8_NOEXCEPT = default;
@@ -8473,9 +8478,10 @@ class PropertyKey {
   }
   bool operator<(const PropertyKey& other) const { return data_ < other.data_; }
 
-  compiler::NameRef name() {
-    DCHECK_EQ(type(), kName);
-    return compiler::NameRef(reinterpret_cast<compiler::ObjectData*>(data_),
+  compiler::NameRef name() const {
+    DCHECK(type() == kName || type() == kDoubleField);
+    return compiler::NameRef(reinterpret_cast<compiler::ObjectData*>(
+                                 data_ & ~static_cast<Address>(kTypeMask)),
                              false);
   }
 
@@ -8485,7 +8491,14 @@ class PropertyKey {
   Address data() const { return data_; }
 
  private:
-  explicit PropertyKey(Type type) : data_(type) { DCHECK_NE(type, kName); }
+  explicit PropertyKey(Type type) : data_(type) {
+    DCHECK(type != kName && type != kDoubleField);
+  }
+  PropertyKey(compiler::NameRef ref, Type type)
+      : data_(reinterpret_cast<Address>(ref.data()) | type) {
+    DCHECK(type == kName || type == kDoubleField);
+    DCHECK_EQ(reinterpret_cast<Address>(ref.data()) & kTypeMask, 0);
+  }
 
   Address data_;
 };
@@ -8494,6 +8507,9 @@ inline std::ostream& operator<<(std::ostream& os, PropertyKey key) {
   switch (key.type()) {
     case PropertyKey::kName:
       os << *key.name().object();
+      break;
+    case PropertyKey::kDoubleField:
+      os << "DoubleField(" << *key.name().object() << ")";
       break;
     case PropertyKey::kElements:
       os << "Elements";

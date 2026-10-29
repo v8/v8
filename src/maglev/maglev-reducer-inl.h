@@ -5036,6 +5036,11 @@ void MaglevReducer<BaseT>::RecordKnownProperty(
     if constexpr (ReducerBaseWithLoopEffectTracking<BaseT>) {
       if (base_->loop_effects()) {
         base_->loop_effects()->keys_cleared.insert(key);
+        if (key.type() == PropertyKey::kName) {
+          // Also mark the double-field HeapNumber box key as cleared for LICM.
+          base_->loop_effects()->keys_cleared.insert(
+              PropertyKey::DoubleField(key.name()));
+        }
       }
     }
     // We don't do any aliasing analysis, so stores clobber all other cached

@@ -507,6 +507,17 @@ class RecomputeKnownNodeAspectsProcessor {
     }
     // ... otherwise we try the properties cache.
     if (node->property_key().is_none()) return;
+    // Transitioning stores only mark maps as stale without clearing
+    // loaded_properties_, so a store to a tagged field must also invalidate
+    // any cached double-field HeapNumber box for the same property name (and
+    // vice versa for transitioning double-field box stores).
+    if (node->property_key().type() == PropertyKey::kName) {
+      known_node_aspects().ClearLoadedPropertiesForKey(
+          PropertyKey::DoubleField(node->property_key().name()));
+    } else if (node->property_key().type() == PropertyKey::kDoubleField) {
+      known_node_aspects().ClearLoadedPropertiesForKey(
+          PropertyKey(node->property_key().name()));
+    }
     auto& props_for_key = known_node_aspects().GetLoadedPropertiesForKey(
         zone(), PropertyConstness::kMutable, node->property_key());
     // We don't do any aliasing analysis, so stores clobber all other cached

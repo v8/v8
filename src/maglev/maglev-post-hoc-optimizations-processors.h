@@ -309,7 +309,8 @@ class LoopOptimizationProcessor {
   }
 
   ProcessResult Process(LoadTaggedField* ltf, const ProcessingState& state) {
-    if (ltf->property_key().type() != PropertyKey::kName) {
+    if (ltf->property_key().type() != PropertyKey::kName &&
+        ltf->property_key().type() != PropertyKey::kDoubleField) {
       return ProcessResult::kContinue;
     }
     return ProcessNamedLoad(ltf, ltf->ValueInput().node(), ltf->property_key());
