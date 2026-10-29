@@ -1095,6 +1095,11 @@ Response InjectedScript::wrapEvaluateResult(
     }
     if (!response.IsSuccess()) {
       if (sideEffectTryCatch.HasCaught()) {
+        v8::debug::SideEffectCheckScope sideEffectCheckScope(
+            m_context->isolate());
+        response = wrapObject(sideEffectTryCatch.Exception(), objectGroup,
+                              WrapOptions({WrapMode::kIdOnly}), result);
+        if (!response.IsSuccess()) return response;
         return createExceptionDetails(sideEffectTryCatch, objectGroup,
                                       exceptionDetails);
       }
