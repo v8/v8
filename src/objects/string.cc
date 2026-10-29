@@ -2116,8 +2116,8 @@ Handle<String> SeqString::Truncate(Isolate* isolate, Handle<SeqString> string,
   if (!HeapLayout::InAnyLargeSpace(*string)) {
     // Sizes are pointer size aligned, so that we can use filler objects
     // that are a multiple of pointer size.
-    // No slot invalidation needed since this method is only used on freshly
-    // allocated strings.
+    // No slot invalidation needed since sequential strings hold no recorded
+    // slots.
     heap->NotifyObjectSizeChange(*string, old_size, new_size,
                                  ClearRecordedSlots{false});
   }

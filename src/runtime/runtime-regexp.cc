@@ -797,12 +797,12 @@ StringReplaceGlobalRegExpWithEmptyString(
   int prev = 0;
   int position = 0;
 
-  DisallowGarbageCollection no_gc;
   do {
     start = current_match[0];
     end = current_match[1];
     if (prev < start) {
       // Add substring subject[prev;start] to answer string.
+      DisallowGarbageCollection no_gc;
       String::WriteToFlat(*subject, answer->GetChars(no_gc) + position, prev,
                           start - prev);
       position += start - prev;
@@ -819,33 +819,14 @@ StringReplaceGlobalRegExpWithEmptyString(
 
   if (prev < subject_length) {
     // Add substring subject[prev;length] to answer string.
+    DisallowGarbageCollection no_gc;
     String::WriteToFlat(*subject, answer->GetChars(no_gc) + position, prev,
                         subject_length - prev);
     position += subject_length - prev;
   }
 
-  if (position == 0) return ReadOnlyRoots(isolate).empty_string();
-
-  // Shorten string and fill
-  int string_size = ResultSeqString::SizeFor(position);
-  int allocated_string_size = ResultSeqString::SizeFor(new_length);
-  int delta = allocated_string_size - string_size;
-
-  answer->set_length(position);
-  answer->ClearPadding();
-  if (delta == 0) return *answer;
-
-  Address end_of_string = answer->address() + string_size;
-  Heap* heap = isolate->heap();
-
-  // The trimming is performed on a newly allocated object, which is on a
-  // freshly allocated page or on an already swept page. Hence, the sweeper
-  // thread can not get confused with the filler creation. No synchronization
-  // needed.
-  if (!HeapLayout::InAnyLargeSpace(*answer)) {
-    heap->CreateFillerObjectAt(end_of_string, delta);
-  }
-  return *answer;
+  return *SeqString::Truncate(isolate, indirect_handle(answer, isolate),
+                              position);
 }
 
 RUNTIME_FUNCTION(Runtime_StringSplit) {
