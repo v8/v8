@@ -1882,6 +1882,72 @@ BUILTIN(WebAssemblyGlobal) {
     }
   }
 
+  // Convert value to a WebAssembly value, the default value is 0.
+  DirectHandle<Object> value_arg = args.atOrUndefined(isolate, 2);
+  int32_t i32_value = 0;
+  int64_t i64_value = 0;
+  float f32_value = 0;
+  double f64_value = 0;
+  DirectHandle<Object> ref_value;
+  switch (type.kind()) {
+    case wasm::kI32:
+      if (!ToI32(isolate, value_arg, &i32_value)) {
+        return js_api_scope.AssertException();
+      }
+      break;
+    case wasm::kI64:
+      if (!ToI64(isolate, value_arg, &i64_value)) {
+        return js_api_scope.AssertException();
+      }
+      break;
+    case wasm::kF32:
+      if (!ToF32(isolate, value_arg, &f32_value)) {
+        return js_api_scope.AssertException();
+      }
+      break;
+    case wasm::kF64:
+      if (!ToF64(isolate, value_arg, &f64_value)) {
+        return js_api_scope.AssertException();
+      }
+      break;
+    case wasm::kRef:
+      if (args.length() < 3) {
+        thrower.TypeError("Non-defaultable global needs initial value");
+        return js_api_scope.AssertException();
+      }
+      [[fallthrough]];
+    case wasm::kRefNull:
+      // We need the wasm default value {null} over {undefined}.
+      if (args.length() < 3) {
+        ref_value = DefaultReferenceValue(isolate, type);
+      } else {
+        const char* error_message;
+        // While the JS API generally allows indexed types, it currently has
+        // no way to specify such types in `new WebAssembly.Global(...)`.
+        // TODO(14034): Fix this if that changes.
+        DCHECK(!type.has_index());
+        wasm::CanonicalValueType canonical_type{type};
+        if (!wasm::JSToWasmObject(isolate, value_arg, canonical_type,
+                                  &error_message)
+                 .ToHandle(&ref_value)) {
+          thrower.TypeError("%s", error_message);
+          return js_api_scope.AssertException();
+        }
+      }
+      break;
+    case wasm::kS128:
+      thrower.TypeError(
+          "A global of type 'v128' cannot be created in JavaScript");
+      return js_api_scope.AssertException();
+    case wasm::kI8:
+    case wasm::kI16:
+    case wasm::kF16:
+    case wasm::kVoid:
+    case wasm::kTop:
+    case wasm::kBottom:
+      UNREACHABLE();
+  }
+
   DirectHandle<Map> map;
   if (!GetDerivedMap(isolate, args).ToHandle(&map)) {
     return js_api_scope.AssertException();
@@ -1898,75 +1964,24 @@ BUILTIN(WebAssemblyGlobal) {
     return js_api_scope.AssertException();
   }
 
-  // Convert value to a WebAssembly value, the default value is 0.
-  DirectHandle<Object> value_arg = args.atOrUndefined(isolate, 2);
   switch (type.kind()) {
-    case wasm::kI32: {
-      int32_t i32_value = 0;
-      if (!ToI32(isolate, value_arg, &i32_value)) {
-        return js_api_scope.AssertException();
-      }
+    case wasm::kI32:
       global_obj->SetI32(i32_value);
       break;
-    }
-    case wasm::kI64: {
-      int64_t i64_value = 0;
-      if (!ToI64(isolate, value_arg, &i64_value)) {
-        return js_api_scope.AssertException();
-      }
+    case wasm::kI64:
       global_obj->SetI64(i64_value);
       break;
-    }
-    case wasm::kF32: {
-      float f32_value = 0;
-      if (!ToF32(isolate, value_arg, &f32_value)) {
-        return js_api_scope.AssertException();
-      }
+    case wasm::kF32:
       global_obj->SetF32(f32_value);
       break;
-    }
-    case wasm::kF64: {
-      double f64_value = 0;
-      if (!ToF64(isolate, value_arg, &f64_value)) {
-        return js_api_scope.AssertException();
-      }
+    case wasm::kF64:
       global_obj->SetF64(f64_value);
       break;
-    }
     case wasm::kRef:
-      if (args.length() < 3) {
-        thrower.TypeError("Non-defaultable global needs initial value");
-        return js_api_scope.AssertException();
-      }
-      [[fallthrough]];
-    case wasm::kRefNull: {
-      // We need the wasm default value {null} over {undefined}.
-      DirectHandle<Object> value_handle;
-      if (args.length() < 3) {
-        value_handle = DefaultReferenceValue(isolate, type);
-      } else {
-        value_handle = value_arg;
-        const char* error_message;
-        // While the JS API generally allows indexed types, it currently has
-        // no way to specify such types in `new WebAssembly.Global(...)`.
-        // TODO(14034): Fix this if that changes.
-        DCHECK(!type.has_index());
-        wasm::CanonicalValueType canonical_type{type};
-        if (!wasm::JSToWasmObject(isolate, value_handle, canonical_type,
-                                  &error_message)
-                 .ToHandle(&value_handle)) {
-          thrower.TypeError("%s", error_message);
-          return js_api_scope.AssertException();
-        }
-      }
-      global_obj->SetRef(value_handle);
+    case wasm::kRefNull:
+      global_obj->SetRef(ref_value);
       break;
-    }
-    case wasm::kS128: {
-      thrower.TypeError(
-          "A global of type 'v128' cannot be created in JavaScript");
-      return js_api_scope.AssertException();
-    }
+    case wasm::kS128:
     case wasm::kI8:
     case wasm::kI16:
     case wasm::kF16:
@@ -2193,17 +2208,8 @@ BUILTIN(WebAssemblyException) {
     return js_api_scope.AssertException();
   }
 
-  DirectHandle<Map> map;
-  if (!GetDerivedMap(isolate, args).ToHandle(&map)) {
-    return js_api_scope.AssertException();
-  }
-
   uint32_t size = WasmExceptionPackage::GetEncodedSize(sig);
-  DirectHandle<WasmExceptionPackage> runtime_exception =
-      WasmExceptionPackage::New(isolate, tag, size, map);
-  // The constructor above should guarantee that the cast below succeeds.
-  DirectHandle<FixedArray> values = Cast<FixedArray>(
-      WasmExceptionPackage::GetExceptionValues(isolate, runtime_exception));
+  DirectHandle<FixedArray> values = isolate->factory()->NewFixedArray(size);
   DirectHandle<Object> arg1 = args.atOrUndefined(isolate, 2);
   if (!EncodeExceptionValues(isolate, sig, tag_object, arg1, &thrower,
                              values)) {
@@ -2216,6 +2222,7 @@ BUILTIN(WebAssemblyException) {
     thrower.TypeError("Argument 2 is not an object");
     return js_api_scope.AssertException();
   }
+  bool trace_stack = false;
   if (DirectHandle<JSReceiver> trace_stack_obj;
       TryCast<JSReceiver>(arg2, &trace_stack_obj)) {
     DirectHandle<Object> trace_stack_value;
@@ -2223,20 +2230,28 @@ BUILTIN(WebAssemblyException) {
              .ToHandle(&trace_stack_value)) {
       return js_api_scope.AssertException();
     }
-    if (Object::BooleanValue(*trace_stack_value, isolate)) {
-      // Skip frames up to and including `new.target` (to exclude the
-      // WebAssembly.Exception constructor and any subclass constructors), or
-      // just the top builtin frame if `new.target` is not a JSFunction (e.g. a
-      // Proxy).
-      Handle<Object> caller = args.new_target();
-      FrameSkipMode mode = IsJSFunction(*caller) ? SKIP_UNTIL_SEEN : SKIP_FIRST;
+    trace_stack = Object::BooleanValue(*trace_stack_value, isolate);
+  }
 
-      DirectHandle<Object> capture_result;
-      if (!ErrorUtils::CaptureStackTrace(isolate, runtime_exception, mode,
-                                         caller)
-               .ToHandle(&capture_result)) {
-        return js_api_scope.AssertException();
-      }
+  DirectHandle<Map> map;
+  if (!GetDerivedMap(isolate, args).ToHandle(&map)) {
+    return js_api_scope.AssertException();
+  }
+
+  DirectHandle<WasmExceptionPackage> runtime_exception =
+      WasmExceptionPackage::New(isolate, tag, values, map);
+  if (trace_stack) {
+    // Skip frames up to and including `new.target` (to exclude the
+    // WebAssembly.Exception constructor and any subclass constructors), or
+    // just the top builtin frame if `new.target` is not a JSFunction (e.g. a
+    // Proxy).
+    Handle<Object> caller = args.new_target();
+    FrameSkipMode mode = IsJSFunction(*caller) ? SKIP_UNTIL_SEEN : SKIP_FIRST;
+
+    DirectHandle<Object> capture_result;
+    if (!ErrorUtils::CaptureStackTrace(isolate, runtime_exception, mode, caller)
+             .ToHandle(&capture_result)) {
+      return js_api_scope.AssertException();
     }
   }
 
