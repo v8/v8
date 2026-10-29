@@ -216,11 +216,6 @@ using NamedPropertyGetterCallback = Intercepted (*)(
 using NamedPropertySetterCallbackV2 =
     Intercepted (*)(Local<Name> property, Local<Value> value,
                     const PropertyCallbackInfo<Boolean>& info);
-// TODO(https://crbug.com/348660658): deprecate and remove.
-using NamedPropertySetterCallback  //
-    V8_DEPRECATED("Use NamedPropertySetterCallbackV2 instead.") =
-        Intercepted (*)(Local<Name> property, Local<Value> value,
-                        const PropertyCallbackInfo<void>& info);
 
 /**
  * Intercepts all requests that query the attributes of the property,
@@ -316,11 +311,6 @@ using NamedPropertyEnumeratorCallback =
 using NamedPropertyDefinerCallbackV2 =
     Intercepted (*)(Local<Name> property, const PropertyDescriptor& desc,
                     const PropertyCallbackInfo<Boolean>& info);
-// TODO(https://crbug.com/348660658): deprecate and remove.
-using NamedPropertyDefinerCallback  //
-    V8_DEPRECATED("Use NamedPropertyDefinerCallbackV2 instead.") =
-        Intercepted (*)(Local<Name> property, const PropertyDescriptor& desc,
-                        const PropertyCallbackInfo<void>& info);
 
 /**
  * Interceptor for [[GetOwnProperty]] requests on an object.
@@ -351,10 +341,6 @@ using NamedPropertyDescriptorCallback = Intercepted (*)(
  */
 using IndexedPropertyGetterCallback =
     Intercepted (*)(uint32_t index, const PropertyCallbackInfo<Value>& info);
-// TODO(https://crbug.com/348660658): deprecate and remove.
-using IndexedPropertyGetterCallbackV2  //
-    V8_DEPRECATED("Use IndexedPropertyGetterCallback instead.") =
-        IndexedPropertyGetterCallback;
 
 /**
  * See `v8::NamedPropertySetterCallback`.
@@ -362,31 +348,18 @@ using IndexedPropertyGetterCallbackV2  //
 using IndexedPropertySetterCallback =
     Intercepted (*)(uint32_t index, Local<Value> value,
                     const PropertyCallbackInfo<Boolean>& info);
-// TODO(https://crbug.com/348660658): deprecate and remove.
-using IndexedPropertySetterCallbackV2  //
-    V8_DEPRECATED("Use IndexedPropertySetterCallback instead.") =
-        Intercepted (*)(uint32_t index, Local<Value> value,
-                        const PropertyCallbackInfo<void>& info);
 
 /**
  * See `v8::NamedPropertyQueryCallback`.
  */
 using IndexedPropertyQueryCallback =
     Intercepted (*)(uint32_t index, const PropertyCallbackInfo<Integer>& info);
-// TODO(https://crbug.com/348660658): deprecate and remove.
-using IndexedPropertyQueryCallbackV2  //
-    V8_DEPRECATED("Use IndexedPropertyQueryCallback instead.") =
-        IndexedPropertyQueryCallback;
 
 /**
  * See `v8::NamedPropertyDeleterCallback`.
  */
 using IndexedPropertyDeleterCallback =
     Intercepted (*)(uint32_t index, const PropertyCallbackInfo<Boolean>& info);
-// TODO(https://crbug.com/348660658): deprecate and remove.
-using IndexedPropertyDeleterCallbackV2  //
-    V8_DEPRECATED("Use IndexedPropertyDeleterCallback instead.") =
-        IndexedPropertyDeleterCallback;
 
 /**
  * Returns an array containing the indices of the properties the indexed
@@ -403,21 +376,12 @@ using IndexedPropertyEnumeratorCallback =
 using IndexedPropertyDefinerCallback =
     Intercepted (*)(uint32_t index, const PropertyDescriptor& desc,
                     const PropertyCallbackInfo<Boolean>& info);
-// TODO(https://crbug.com/348660658): deprecate and remove.
-using IndexedPropertyDefinerCallbackV2  //
-    V8_DEPRECATED("Use IndexedPropertyDefinerCallback instead.") =
-        Intercepted (*)(uint32_t index, const PropertyDescriptor& desc,
-                        const PropertyCallbackInfo<void>& info);
 
 /**
  * See `v8::NamedPropertyDescriptorCallback`.
  */
 using IndexedPropertyDescriptorCallback =
     Intercepted (*)(uint32_t index, const PropertyCallbackInfo<Value>& info);
-// TODO(https://crbug.com/348660658): deprecate and remove.
-using IndexedPropertyDescriptorCallbackV2  //
-    V8_DEPRECATED("Use IndexedPropertyDescriptorCallback instead.") =
-        IndexedPropertyDescriptorCallback;
 
 /**
  * Experimental API, do not use!

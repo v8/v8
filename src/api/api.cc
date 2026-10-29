@@ -1441,20 +1441,7 @@ i::DirectHandle<i::AccessorInfo> MakeAccessorInfo(i::Isolate* i_isolate,
   obj->set_getter(i_isolate, reinterpret_cast<i::Address>(getter));
   DCHECK_IMPLIES(replace_on_access, setter == nullptr);
   if (setter == nullptr) {
-    // TODO(https://crbug.com/348660658): remove once AccessorNameSetterCallback
-    // is deprecated and removed.
-#if (__GNUC__ >= 8) || defined(__clang__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-function-type"
-#endif
-    // Cast from 'void (*)(v8::Local<v8::Name>, v8::Local<v8::Value>, const
-    // v8::PropertyCallbackInfo<v8::Boolean> &)' to 'void
-    // (*)(v8::Local<v8::Name>, v8::Local<v8::Value>, const
-    // v8::PropertyCallbackInfo<void> &)'.
-    setter = reinterpret_cast<Setter>(&i::Accessors::ReconfigureToDataProperty);
-#if (__GNUC__ >= 8) || defined(__clang__)
-#pragma GCC diagnostic pop
-#endif
+    setter = &i::Accessors::ReconfigureToDataProperty;
   }
   obj->set_setter(i_isolate, reinterpret_cast<i::Address>(setter));
 

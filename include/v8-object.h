@@ -201,11 +201,6 @@ using AccessorNameGetterCallback =
 using AccessorNameSetterCallbackV2 =
     void (*)(Local<Name> property, Local<Value> value,
              const PropertyCallbackInfo<Boolean>& info);
-// TODO(https://crbug.com/348660658): deprecate and remove.
-using AccessorNameSetterCallback  //
-    V8_DEPRECATED("Use AccessorNameSetterCallbackV2 instead.") =
-        void (*)(Local<Name> property, Local<Value> value,
-                 const PropertyCallbackInfo<void>& info);
 
 /**
  * Property filter bits. They can be or'ed to build a composite filter.
