@@ -121,10 +121,6 @@
                                         INTERNAL_FEATURE) /*   (80 columns) */ \
                                                                                \
   /* V8 side owner: leszeks */                                                 \
-  INTERNAL_FEATURE(always_specialize_for_script_context,                       \
-                   "always specialize for script contexts in optimized code")  \
-                                                                               \
-  /* V8 side owner: leszeks */                                                 \
   INTERNAL_FEATURE(                                                            \
       code_cache_source_hash_sha256,                                           \
       "hashing code cache source string with SHA256 instead of string length") \
@@ -174,6 +170,10 @@
                                                                                \
   JS_FEATURE(js_regexp_buffer_boundaries,                                      \
              "RegExp \\A \\z \\Z buffer boundary assertions")                  \
+                                                                               \
+  /* V8 side owner: leszeks */                                                 \
+  INTERNAL_FEATURE(always_specialize_for_script_context,                       \
+                   "always specialize for script contexts in optimized code")  \
                                                                                \
   /* Custom Descriptors proposal. */                                           \
   /* https://github.com/WebAssembly/custom-descriptors */                      \
