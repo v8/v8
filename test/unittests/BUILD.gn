@@ -279,7 +279,16 @@ v8_cluster_source_set("v8_unittests_sources") {
     "../common/version-utils.h",
     "api/access-check-unittest.cc",
     "api/accessor-unittest.cc",
+    "api/accessors-unittest.cc",
+    "api/api-array-buffer-unittest.cc",
     "api/api-icu-unittest.cc",
+    "api/api-incumbent-unittest.cc",
+    "api/api-interceptors-unittest.cc",
+    "api/api-stack-traces-unittest.cc",
+    "api/api-test-utils.cc",
+    "api/api-test-utils.h",
+    "api/api-typed-array-unittest.cc",
+    "api/api-unittest.cc",
     "api/context-unittest.cc",
     "api/deserialize-unittest.cc",
     "api/dictionary-template-unittest.cc",
@@ -290,6 +299,7 @@ v8_cluster_source_set("v8_unittests_sources") {
     "api/remote-object-unittest.cc",
     "api/resource-constraints-unittest.cc",
     "api/smi-tagging-unittest.cc",
+    "api/usecounters-unittest.cc",
     "api/v8-array-buffer-unittest.cc",
     "api/v8-array-unittest.cc",
     "api/v8-maybe-unittest.cc",
@@ -583,6 +593,9 @@ v8_cluster_source_set("v8_unittests_sources") {
   ]
 
   exclude_from_cluster = [
+    "api/access-check-unittest.cc",  # Defines v8_str.
+    "api/accessors-unittest.cc",
+    "api/api-unittest.cc",
     "api/dictionary-template-unittest.cc",
     "api/interceptor-unittest.cc",
     "base/virtual-address-space-unittest.cc",

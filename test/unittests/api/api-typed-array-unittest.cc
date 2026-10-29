@@ -9,8 +9,13 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-buffer.h"
 #include "src/objects/object-conversions-inl.h"
-#include "test/cctest/heap/heap-utils.h"
-#include "test/cctest/test-api.h"
+#include "test/unittests/api/api-test-utils.h"
+#include "test/unittests/heap/heap-utils.h"
+
+namespace v8 {
+namespace api_typed_array_unittest {
+
+using ApiTypedArrayTest = ::v8::TestWithIsolate;
 
 using ::v8::Array;
 using ::v8::Context;
@@ -143,7 +148,7 @@ void ObjectWithExternalArrayTestHelper(v8::Isolate* v8_isolate,
       "}"
       "sum;");
   // Force GC to trigger verification.
-  i::heap::InvokeMajorGC(CcTest::heap());
+  i::InvokeMajorGC(isolate);
   CHECK_EQ(28, result->Int32Value(context).FromJust());
 
   // Make sure out-of-range loads do not throw.
@@ -403,52 +408,52 @@ void TypedArrayTestHelper(i::ExternalArrayType array_type, int64_t low,
 
 }  // namespace
 
-THREADED_TEST(Uint8Array) {
+THREADED_TEST(ApiTypedArrayTest, Uint8Array) {
   TypedArrayTestHelper<uint8_t, v8::Uint8Array, v8::ArrayBuffer>(
       i::kExternalUint8Array, 0, 0xFF);
 }
 
-THREADED_TEST(Int8Array) {
+THREADED_TEST(ApiTypedArrayTest, Int8Array) {
   TypedArrayTestHelper<int8_t, v8::Int8Array, v8::ArrayBuffer>(
       i::kExternalInt8Array, -0x80, 0x7F);
 }
 
-THREADED_TEST(Uint16Array) {
+THREADED_TEST(ApiTypedArrayTest, Uint16Array) {
   TypedArrayTestHelper<uint16_t, v8::Uint16Array, v8::ArrayBuffer>(
       i::kExternalUint16Array, 0, 0xFFFF);
 }
 
-THREADED_TEST(Int16Array) {
+THREADED_TEST(ApiTypedArrayTest, Int16Array) {
   TypedArrayTestHelper<int16_t, v8::Int16Array, v8::ArrayBuffer>(
       i::kExternalInt16Array, -0x8000, 0x7FFF);
 }
 
-THREADED_TEST(Uint32Array) {
+THREADED_TEST(ApiTypedArrayTest, Uint32Array) {
   TypedArrayTestHelper<uint32_t, v8::Uint32Array, v8::ArrayBuffer>(
       i::kExternalUint32Array, 0, UINT_MAX);
 }
 
-THREADED_TEST(Int32Array) {
+THREADED_TEST(ApiTypedArrayTest, Int32Array) {
   TypedArrayTestHelper<int32_t, v8::Int32Array, v8::ArrayBuffer>(
       i::kExternalInt32Array, INT_MIN, INT_MAX);
 }
 
-THREADED_TEST(Float32Array) {
+THREADED_TEST(ApiTypedArrayTest, Float32Array) {
   TypedArrayTestHelper<float, v8::Float32Array, v8::ArrayBuffer>(
       i::kExternalFloat32Array, -500, 500);
 }
 
-THREADED_TEST(Float64Array) {
+THREADED_TEST(ApiTypedArrayTest, Float64Array) {
   TypedArrayTestHelper<double, v8::Float64Array, v8::ArrayBuffer>(
       i::kExternalFloat64Array, -500, 500);
 }
 
-THREADED_TEST(Uint8ClampedArray) {
+THREADED_TEST(ApiTypedArrayTest, Uint8ClampedArray) {
   TypedArrayTestHelper<uint8_t, v8::Uint8ClampedArray, v8::ArrayBuffer>(
       i::kExternalUint8ClampedArray, 0, 0xFF);
 }
 
-THREADED_TEST(DataView) {
+THREADED_TEST(ApiTypedArrayTest, DataView) {
   const int kSize = 50;
 
   LocalContext env;
@@ -473,52 +478,52 @@ THREADED_TEST(DataView) {
   CHECK(!i_dv->is_backed_by_rab());
 }
 
-THREADED_TEST(SharedUint8Array) {
+THREADED_TEST(ApiTypedArrayTest, SharedUint8Array) {
   TypedArrayTestHelper<uint8_t, v8::Uint8Array, v8::SharedArrayBuffer>(
       i::kExternalUint8Array, 0, 0xFF);
 }
 
-THREADED_TEST(SharedInt8Array) {
+THREADED_TEST(ApiTypedArrayTest, SharedInt8Array) {
   TypedArrayTestHelper<int8_t, v8::Int8Array, v8::SharedArrayBuffer>(
       i::kExternalInt8Array, -0x80, 0x7F);
 }
 
-THREADED_TEST(SharedUint16Array) {
+THREADED_TEST(ApiTypedArrayTest, SharedUint16Array) {
   TypedArrayTestHelper<uint16_t, v8::Uint16Array, v8::SharedArrayBuffer>(
       i::kExternalUint16Array, 0, 0xFFFF);
 }
 
-THREADED_TEST(SharedInt16Array) {
+THREADED_TEST(ApiTypedArrayTest, SharedInt16Array) {
   TypedArrayTestHelper<int16_t, v8::Int16Array, v8::SharedArrayBuffer>(
       i::kExternalInt16Array, -0x8000, 0x7FFF);
 }
 
-THREADED_TEST(SharedUint32Array) {
+THREADED_TEST(ApiTypedArrayTest, SharedUint32Array) {
   TypedArrayTestHelper<uint32_t, v8::Uint32Array, v8::SharedArrayBuffer>(
       i::kExternalUint32Array, 0, UINT_MAX);
 }
 
-THREADED_TEST(SharedInt32Array) {
+THREADED_TEST(ApiTypedArrayTest, SharedInt32Array) {
   TypedArrayTestHelper<int32_t, v8::Int32Array, v8::SharedArrayBuffer>(
       i::kExternalInt32Array, INT_MIN, INT_MAX);
 }
 
-THREADED_TEST(SharedFloat32Array) {
+THREADED_TEST(ApiTypedArrayTest, SharedFloat32Array) {
   TypedArrayTestHelper<float, v8::Float32Array, v8::SharedArrayBuffer>(
       i::kExternalFloat32Array, -500, 500);
 }
 
-THREADED_TEST(SharedFloat64Array) {
+THREADED_TEST(ApiTypedArrayTest, SharedFloat64Array) {
   TypedArrayTestHelper<double, v8::Float64Array, v8::SharedArrayBuffer>(
       i::kExternalFloat64Array, -500, 500);
 }
 
-THREADED_TEST(SharedUint8ClampedArray) {
+THREADED_TEST(ApiTypedArrayTest, SharedUint8ClampedArray) {
   TypedArrayTestHelper<uint8_t, v8::Uint8ClampedArray, v8::SharedArrayBuffer>(
       i::kExternalUint8ClampedArray, 0, 0xFF);
 }
 
-THREADED_TEST(SharedDataView) {
+THREADED_TEST(ApiTypedArrayTest, SharedDataView) {
   const int kSize = 50;
 
   LocalContext env;
@@ -545,7 +550,7 @@ THREADED_TEST(SharedDataView) {
 }
 
 #define IS_ARRAY_BUFFER_VIEW_TEST(View)                                     \
-  THREADED_TEST(Is##View) {                                                 \
+  THREADED_TEST(ApiTypedArrayTest, Is##View) {                              \
     LocalContext env;                                                       \
     v8::Isolate* isolate = env.isolate();                                   \
     v8::HandleScope handle_scope(isolate);                                  \
@@ -571,7 +576,7 @@ IS_ARRAY_BUFFER_VIEW_TEST(DataView)
 
 #undef IS_ARRAY_BUFFER_VIEW_TEST
 
-TEST(InternalFieldsOnTypedArray) {
+TEST_F(ApiTypedArrayTest, InternalFieldsOnTypedArray) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -586,7 +591,7 @@ TEST(InternalFieldsOnTypedArray) {
   }
 }
 
-TEST(InternalFieldsOnDataView) {
+TEST_F(ApiTypedArrayTest, InternalFieldsOnDataView) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -601,7 +606,8 @@ TEST(InternalFieldsOnDataView) {
   }
 }
 
-TEST(DetachedArrayBufferViewsPretendOffsetAndLengthAreZero) {
+TEST_F(ApiTypedArrayTest,
+       DetachedArrayBufferViewsPretendOffsetAndLengthAreZero) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -652,7 +658,8 @@ TEST(DetachedArrayBufferViewsPretendOffsetAndLengthAreZero) {
   CHECK_EQ(0, length_tracking_ta->Length());
 }
 
-TEST(OutOfBoundsArrayBufferViewsPretendOffsetAndLengthAreZero) {
+TEST_F(ApiTypedArrayTest,
+       OutOfBoundsArrayBufferViewsPretendOffsetAndLengthAreZero) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -766,12 +773,12 @@ void TestOffHeapHasBuffer(const char* array_name, size_t elem_size) {
 
 }  // namespace
 
-#define TEST_HAS_BUFFER(array_name, elem_size)    \
-  TEST(OnHeap_##array_name##Array_HasBuffer) {    \
-    TestOnHeapHasBuffer(#array_name, elem_size);  \
-  }                                               \
-  TEST(OffHeap_##array_name##_HasBuffer) {        \
-    TestOffHeapHasBuffer(#array_name, elem_size); \
+#define TEST_HAS_BUFFER(array_name, elem_size)                      \
+  TEST_F(ApiTypedArrayTest, OnHeap_##array_name##Array_HasBuffer) { \
+    TestOnHeapHasBuffer(#array_name, elem_size);                    \
+  }                                                                 \
+  TEST_F(ApiTypedArrayTest, OffHeap_##array_name##_HasBuffer) {     \
+    TestOffHeapHasBuffer(#array_name, elem_size);                   \
   }
 
 TEST_HAS_BUFFER(Uint8, 1)
@@ -784,3 +791,6 @@ TEST_HAS_BUFFER(Float32, 4)
 TEST_HAS_BUFFER(Float64, 8)
 
 #undef TEST_HAS_BUFFER
+
+}  // namespace api_typed_array_unittest
+}  // namespace v8

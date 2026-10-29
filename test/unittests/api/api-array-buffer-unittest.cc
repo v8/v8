@@ -15,9 +15,14 @@
 #include "src/objects/backing-store.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/sandbox/sandbox.h"
-#include "test/cctest/heap/heap-utils.h"
-#include "test/cctest/test-api.h"
 #include "test/common/flag-utils.h"
+#include "test/unittests/api/api-test-utils.h"
+#include "test/unittests/heap/heap-utils.h"
+
+namespace v8 {
+namespace api_array_buffer_unittest {
+
+using ApiArrayBufferTest = ::v8::TestWithIsolate;
 
 using ::v8::Array;
 using ::v8::Context;
@@ -78,7 +83,7 @@ std::shared_ptr<v8::BackingStore> Externalize(Local<v8::SharedArrayBuffer> ab) {
 
 }  // namespace
 
-THREADED_TEST(ArrayBuffer_ApiInternalToExternal) {
+THREADED_TEST(ApiArrayBufferTest, ArrayBuffer_ApiInternalToExternal) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
@@ -86,7 +91,7 @@ THREADED_TEST(ArrayBuffer_ApiInternalToExternal) {
   Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 1024);
   CheckInternalFieldsAreZero(ab);
   CHECK_EQ(1024, ab->ByteLength());
-  i::heap::InvokeMajorGC(CcTest::heap());
+  i::InvokeMajorGC(i::Isolate::Current());
 
   std::shared_ptr<v8::BackingStore> backing_store = Externalize(ab);
   CHECK_EQ(1024, backing_store->ByteLength());
@@ -112,7 +117,7 @@ THREADED_TEST(ArrayBuffer_ApiInternalToExternal) {
   CHECK_EQ(0xDD, result->Int32Value(env.local()).FromJust());
 }
 
-THREADED_TEST(ArrayBuffer_ApiMaybeNew) {
+THREADED_TEST(ApiArrayBufferTest, ArrayBuffer_ApiMaybeNew) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
@@ -124,7 +129,7 @@ THREADED_TEST(ArrayBuffer_ApiMaybeNew) {
   auto ab = v8::Local<v8::ArrayBuffer>::Cast(maybe_ab.ToLocalChecked());
   CheckInternalFieldsAreZero(ab);
   CHECK_EQ(1024, ab->ByteLength());
-  i::heap::InvokeMajorGC(CcTest::heap());
+  i::InvokeMajorGC(i::Isolate::Current());
 
   std::shared_ptr<v8::BackingStore> backing_store = Externalize(ab);
   CHECK_EQ(1024, backing_store->ByteLength());
@@ -168,7 +173,7 @@ class RestrictedAllocator final : public v8::ArrayBuffer::Allocator {
       v8::ArrayBuffer::Allocator::NewDefaultAllocator();
 };
 
-TEST(ArrayBuffer_MaxSize) {
+TEST_F(ApiArrayBufferTest, ArrayBuffer_MaxSize) {
   RestrictedAllocator allocator(32768);
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = &allocator;
@@ -249,7 +254,7 @@ class TotalAllocator final : public v8::ArrayBuffer::Allocator {
       v8::ArrayBuffer::Allocator::NewDefaultAllocator();
 };
 
-TEST(ArrayBuffer_TotalSize) {
+TEST_F(ApiArrayBufferTest, ArrayBuffer_TotalSize) {
   TotalAllocator allocator(32768);
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = &allocator;
@@ -346,7 +351,7 @@ TEST(ArrayBuffer_TotalSize) {
   isolate->Dispose();
 }
 
-THREADED_TEST(ArrayBuffer_JSInternalToExternal) {
+THREADED_TEST(ApiArrayBufferTest, ArrayBuffer_JSInternalToExternal) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
@@ -385,7 +390,7 @@ THREADED_TEST(ArrayBuffer_JSInternalToExternal) {
   CHECK_EQ(0xDD, result->Int32Value(env.local()).FromJust());
 }
 
-THREADED_TEST(ArrayBuffer_DisableDetach) {
+THREADED_TEST(ApiArrayBufferTest, ArrayBuffer_DisableDetach) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
@@ -399,7 +404,7 @@ THREADED_TEST(ArrayBuffer_DisableDetach) {
   CHECK(!ab->IsDetachable());
 }
 
-THREADED_TEST(ArrayBuffer_DetachingApi) {
+THREADED_TEST(ApiArrayBufferTest, ArrayBuffer_DetachingApi) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
@@ -448,7 +453,7 @@ THREADED_TEST(ArrayBuffer_DetachingApi) {
   CheckDataViewIsDetached(dv);
 }
 
-THREADED_TEST(ArrayBuffer_DetachingScript) {
+THREADED_TEST(ApiArrayBufferTest, ArrayBuffer_DetachingScript) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
@@ -499,7 +504,7 @@ THREADED_TEST(ArrayBuffer_DetachingScript) {
   CheckDataViewIsDetached(dv);
 }
 
-THREADED_TEST(ArrayBuffer_WasDetached) {
+THREADED_TEST(ApiArrayBufferTest, ArrayBuffer_WasDetached) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
@@ -511,7 +516,7 @@ THREADED_TEST(ArrayBuffer_WasDetached) {
   CHECK(ab->WasDetached());
 }
 
-THREADED_TEST(ArrayBuffer_NonDetachableWasDetached) {
+THREADED_TEST(ApiArrayBufferTest, ArrayBuffer_NonDetachableWasDetached) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
@@ -530,7 +535,7 @@ THREADED_TEST(ArrayBuffer_NonDetachableWasDetached) {
   CHECK(non_detachable->WasDetached());
 }
 
-THREADED_TEST(ArrayBuffer_ExternalizeEmpty) {
+THREADED_TEST(ApiArrayBufferTest, ArrayBuffer_ExternalizeEmpty) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
@@ -551,7 +556,7 @@ THREADED_TEST(ArrayBuffer_ExternalizeEmpty) {
   CHECK_EQ(2, backing_store->ByteLength());
 }
 
-THREADED_TEST(SharedArrayBuffer_ApiInternalToExternal) {
+THREADED_TEST(ApiArrayBufferTest, SharedArrayBuffer_ApiInternalToExternal) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
@@ -559,7 +564,7 @@ THREADED_TEST(SharedArrayBuffer_ApiInternalToExternal) {
   Local<v8::SharedArrayBuffer> ab = v8::SharedArrayBuffer::New(isolate, 1024);
   CheckInternalFieldsAreZero(ab);
   CHECK_EQ(1024, ab->ByteLength());
-  i::heap::InvokeMajorGC(CcTest::heap());
+  i::InvokeMajorGC(i::Isolate::Current());
 
   std::shared_ptr<v8::BackingStore> backing_store = Externalize(ab);
 
@@ -585,7 +590,7 @@ THREADED_TEST(SharedArrayBuffer_ApiInternalToExternal) {
   CHECK_EQ(0xDD, result->Int32Value(env.local()).FromJust());
 }
 
-THREADED_TEST(SharedArrayBuffer_JSInternalToExternal) {
+THREADED_TEST(ApiArrayBufferTest, SharedArrayBuffer_JSInternalToExternal) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
@@ -625,12 +630,13 @@ THREADED_TEST(SharedArrayBuffer_JSInternalToExternal) {
   CHECK_EQ(0xDD, result->Int32Value(env.local()).FromJust());
 }
 
-THREADED_TEST(SkipArrayBufferBackingStoreDuringGC) {
+THREADED_TEST(ApiArrayBufferTest, SkipArrayBufferBackingStoreDuringGC) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
-  void* buffer = CcTest::array_buffer_allocator()->Allocate(100);
+  void* buffer =
+      v8::Isolate::GetCurrent()->GetArrayBufferAllocator()->Allocate(100);
   // Make sure the pointer looks like a heap object
   uintptr_t address = reinterpret_cast<uintptr_t>(buffer) | i::kHeapObjectTag;
   void* store_ptr = reinterpret_cast<void*>(address);
@@ -642,18 +648,18 @@ THREADED_TEST(SkipArrayBufferBackingStoreDuringGC) {
       v8::ArrayBuffer::New(isolate, std::move(backing_store));
 
   // Should not crash
-  i::heap::EmptyNewSpaceUsingGC(CcTest::heap());
-  i::heap::InvokeMajorGC(CcTest::heap());
-  i::heap::InvokeMajorGC(CcTest::heap());
+  i::InvokeMajorGC(i::Isolate::Current());
+  i::InvokeMajorGC(i::Isolate::Current());
+  i::InvokeMajorGC(i::Isolate::Current());
 
   // Should not move the pointer
   CHECK_EQ(ab->GetBackingStore()->Data(), store_ptr);
   CHECK_EQ(ab->Data(), store_ptr);
 
-  CcTest::array_buffer_allocator()->Free(buffer, 100);
+  v8::Isolate::GetCurrent()->GetArrayBufferAllocator()->Free(buffer, 100);
 }
 
-THREADED_TEST(SkipArrayBufferDuringScavenge) {
+THREADED_TEST(ApiArrayBufferTest, SkipArrayBufferDuringScavenge) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
@@ -665,7 +671,7 @@ THREADED_TEST(SkipArrayBufferDuringScavenge) {
   auto backing_store = v8::ArrayBuffer::NewBackingStore(
       store_ptr, 8, [](void*, size_t, void*) {}, nullptr);
 
-  i::heap::InvokeMinorGC(CcTest::heap());
+  i::InvokeMinorGC(i::Isolate::Current());
 
   // Create ArrayBuffer with pointer-that-cannot-be-visited in the backing store
   Local<v8::ArrayBuffer> ab =
@@ -673,13 +679,13 @@ THREADED_TEST(SkipArrayBufferDuringScavenge) {
 
   // Should not crash,
   // i.e. backing store pointer should not be treated as a heap object pointer
-  i::heap::EmptyNewSpaceUsingGC(CcTest::heap());
+  i::InvokeMajorGC(i::Isolate::Current());
 
   CHECK_EQ(ab->GetBackingStore()->Data(), store_ptr);
   CHECK_EQ(ab->Data(), store_ptr);
 }
 
-THREADED_TEST(Regress1006600) {
+THREADED_TEST(ApiArrayBufferTest, Regress1006600) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
@@ -691,7 +697,7 @@ THREADED_TEST(Regress1006600) {
   }
 }
 
-THREADED_TEST(ArrayBuffer_NewBackingStore) {
+THREADED_TEST(ApiArrayBufferTest, ArrayBuffer_NewBackingStore) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
@@ -704,7 +710,7 @@ THREADED_TEST(ArrayBuffer_NewBackingStore) {
   CHECK_EQ(backing_store->Data(), ab->Data());
 }
 
-THREADED_TEST(ArrayBuffer_NewResizableBackingStore) {
+THREADED_TEST(ApiArrayBufferTest, ArrayBuffer_NewResizableBackingStore) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
@@ -719,7 +725,7 @@ THREADED_TEST(ArrayBuffer_NewResizableBackingStore) {
   CHECK_EQ(backing_store->MaxByteLength(), ab->MaxByteLength());
 }
 
-THREADED_TEST(SharedArrayBuffer_NewBackingStore) {
+THREADED_TEST(ApiArrayBufferTest, SharedArrayBuffer_NewBackingStore) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
@@ -733,7 +739,8 @@ THREADED_TEST(SharedArrayBuffer_NewBackingStore) {
   CHECK_EQ(backing_store->Data(), ab->Data());
 }
 
-THREADED_TEST(SharedArrayBuffer_NewBackingStore_Unreasonable) {
+THREADED_TEST(ApiArrayBufferTest,
+              SharedArrayBuffer_NewBackingStore_Unreasonable) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
@@ -745,7 +752,7 @@ THREADED_TEST(SharedArrayBuffer_NewBackingStore_Unreasonable) {
   CHECK(!backing_store);
 }
 
-THREADED_TEST(ArrayBuffer_NewBackingStore_Unreasonable) {
+THREADED_TEST(ApiArrayBufferTest, ArrayBuffer_NewBackingStore_Unreasonable) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
@@ -769,15 +776,16 @@ static void BackingStoreCustomDeleter(void* data, size_t length,
   CHECK_EQ(backing_store_custom_length, length);
   CHECK_EQ(backing_store_custom_deleter_data,
            reinterpret_cast<intptr_t>(deleter_data));
-  CcTest::array_buffer_allocator()->Free(data, length);
+  v8::Isolate::GetCurrent()->GetArrayBufferAllocator()->Free(data, length);
   backing_store_custom_called = true;
 }
 
-TEST(ArrayBuffer_NewBackingStore_CustomDeleter) {
+TEST_F(ApiArrayBufferTest, ArrayBuffer_NewBackingStore_CustomDeleter) {
   {
     // Create and destroy a backing store.
     backing_store_custom_called = false;
-    backing_store_custom_data = CcTest::array_buffer_allocator()->Allocate(100);
+    backing_store_custom_data =
+        v8_isolate()->GetArrayBufferAllocator()->Allocate(100);
     backing_store_custom_length = 100;
     v8::ArrayBuffer::NewBackingStore(
         backing_store_custom_data, backing_store_custom_length,
@@ -787,11 +795,12 @@ TEST(ArrayBuffer_NewBackingStore_CustomDeleter) {
   CHECK(backing_store_custom_called);
 }
 
-TEST(SharedArrayBuffer_NewBackingStore_CustomDeleter) {
+TEST_F(ApiArrayBufferTest, SharedArrayBuffer_NewBackingStore_CustomDeleter) {
   {
     // Create and destroy a backing store.
     backing_store_custom_called = false;
-    backing_store_custom_data = CcTest::array_buffer_allocator()->Allocate(100);
+    backing_store_custom_data =
+        v8_isolate()->GetArrayBufferAllocator()->Allocate(100);
     backing_store_custom_length = 100;
     v8::SharedArrayBuffer::NewBackingStore(
         backing_store_custom_data, backing_store_custom_length,
@@ -801,12 +810,12 @@ TEST(SharedArrayBuffer_NewBackingStore_CustomDeleter) {
   CHECK(backing_store_custom_called);
 }
 
-TEST(ArrayBuffer_NewBackingStore_EmptyDeleter) {
+TEST_F(ApiArrayBufferTest, ArrayBuffer_NewBackingStore_EmptyDeleter) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
   size_t size = 100;
-  void* buffer = CcTest::array_buffer_allocator()->Allocate(size);
+  void* buffer = v8_isolate()->GetArrayBufferAllocator()->Allocate(size);
   std::unique_ptr<v8::BackingStore> backing_store =
       v8::ArrayBuffer::NewBackingStore(buffer, size,
                                        v8::BackingStore::EmptyDeleter, nullptr);
@@ -818,15 +827,15 @@ TEST(ArrayBuffer_NewBackingStore_EmptyDeleter) {
   // The ArrayBuffer constructor does not increase the external memory counter.
   // The counter may decrease however if the allocation triggers GC.
   CHECK_GE(external_memory_before, external_memory_after);
-  CcTest::array_buffer_allocator()->Free(buffer, size);
+  v8_isolate()->GetArrayBufferAllocator()->Free(buffer, size);
 }
 
-TEST(SharedArrayBuffer_NewBackingStore_EmptyDeleter) {
+TEST_F(ApiArrayBufferTest, SharedArrayBuffer_NewBackingStore_EmptyDeleter) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
   size_t size = 100;
-  void* buffer = CcTest::array_buffer_allocator()->Allocate(size);
+  void* buffer = v8_isolate()->GetArrayBufferAllocator()->Allocate(size);
   std::unique_ptr<v8::BackingStore> backing_store =
       v8::SharedArrayBuffer::NewBackingStore(
           buffer, size, v8::BackingStore::EmptyDeleter, nullptr);
@@ -838,10 +847,10 @@ TEST(SharedArrayBuffer_NewBackingStore_EmptyDeleter) {
   // The SharedArrayBuffer constructor does not increase the external memory
   // counter. The counter may decrease however if the allocation triggers GC.
   CHECK_GE(external_memory_before, external_memory_after);
-  CcTest::array_buffer_allocator()->Free(buffer, size);
+  v8_isolate()->GetArrayBufferAllocator()->Free(buffer, size);
 }
 
-THREADED_TEST(BackingStore_NotShared) {
+THREADED_TEST(ApiArrayBufferTest, BackingStore_NotShared) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
@@ -849,7 +858,8 @@ THREADED_TEST(BackingStore_NotShared) {
   CHECK(!ab->GetBackingStore()->IsShared());
   CHECK(!v8::ArrayBuffer::NewBackingStore(isolate, 8)->IsShared());
   backing_store_custom_called = false;
-  backing_store_custom_data = CcTest::array_buffer_allocator()->Allocate(100);
+  backing_store_custom_data =
+      v8::Isolate::GetCurrent()->GetArrayBufferAllocator()->Allocate(100);
   backing_store_custom_length = 100;
   CHECK(!v8::ArrayBuffer::NewBackingStore(
              backing_store_custom_data, backing_store_custom_length,
@@ -858,7 +868,7 @@ THREADED_TEST(BackingStore_NotShared) {
              ->IsShared());
 }
 
-THREADED_TEST(BackingStore_Shared) {
+THREADED_TEST(ApiArrayBufferTest, BackingStore_Shared) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
@@ -866,7 +876,8 @@ THREADED_TEST(BackingStore_Shared) {
   CHECK(ab->GetBackingStore()->IsShared());
   CHECK(v8::SharedArrayBuffer::NewBackingStore(isolate, 8)->IsShared());
   backing_store_custom_called = false;
-  backing_store_custom_data = CcTest::array_buffer_allocator()->Allocate(100);
+  backing_store_custom_data =
+      v8::Isolate::GetCurrent()->GetArrayBufferAllocator()->Allocate(100);
   backing_store_custom_length = 100;
   CHECK(v8::SharedArrayBuffer::NewBackingStore(
             backing_store_custom_data, backing_store_custom_length,
@@ -875,7 +886,7 @@ THREADED_TEST(BackingStore_Shared) {
             ->IsShared());
 }
 
-THREADED_TEST(ArrayBuffer_NewBackingStore_NullData) {
+THREADED_TEST(ApiArrayBufferTest, ArrayBuffer_NewBackingStore_NullData) {
   // This test creates a BackingStore with nullptr as data. The test then
   // creates an ArrayBuffer and a TypedArray from this BackingStore. Writing
   // into that TypedArray at index 0 is expected to be a no-op, reading from
@@ -925,7 +936,8 @@ class DummyAllocator final : public v8::ArrayBuffer::Allocator {
   uint64_t allocation_count_ = 0;
 };
 
-TEST(BackingStore_HoldAllocatorAlive_UntilIsolateShutdown) {
+TEST_F(ApiArrayBufferTest,
+       BackingStore_HoldAllocatorAlive_UntilIsolateShutdown) {
   std::shared_ptr<DummyAllocator> allocator =
       std::make_shared<DummyAllocator>();
   std::weak_ptr<DummyAllocator> allocator_weak(allocator);
@@ -958,7 +970,8 @@ TEST(BackingStore_HoldAllocatorAlive_UntilIsolateShutdown) {
   CHECK(allocator_weak.expired());
 }
 
-TEST(BackingStore_HoldAllocatorAlive_AfterIsolateShutdown) {
+TEST_F(ApiArrayBufferTest,
+       BackingStore_HoldAllocatorAlive_AfterIsolateShutdown) {
   std::shared_ptr<DummyAllocator> allocator =
       std::make_shared<DummyAllocator>();
   std::weak_ptr<DummyAllocator> allocator_weak(allocator);
@@ -1004,7 +1017,7 @@ class NullptrAllocator final : public v8::ArrayBuffer::Allocator {
   void Free(void* data, size_t length) override { CHECK_EQ(data, nullptr); }
 };
 
-TEST(BackingStore_ReleaseAllocator_NullptrBackingStore) {
+TEST_F(ApiArrayBufferTest, BackingStore_ReleaseAllocator_NullptrBackingStore) {
   std::shared_ptr<NullptrAllocator> allocator =
       std::make_shared<NullptrAllocator>();
   std::weak_ptr<NullptrAllocator> allocator_weak(allocator);
@@ -1031,7 +1044,7 @@ TEST(BackingStore_ReleaseAllocator_NullptrBackingStore) {
   CHECK(allocator_weak.expired());
 }
 
-TEST(ArrayBuffer_Resizable) {
+TEST_F(ApiArrayBufferTest, ArrayBuffer_Resizable) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
@@ -1052,7 +1065,7 @@ TEST(ArrayBuffer_Resizable) {
   CHECK_EQ(gsab->MaxByteLength(), gsab->GetBackingStore()->MaxByteLength());
 }
 
-TEST(ArrayBuffer_FixedLength) {
+TEST_F(ApiArrayBufferTest, ArrayBuffer_FixedLength) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
@@ -1072,7 +1085,7 @@ TEST(ArrayBuffer_FixedLength) {
   CHECK_EQ(sab->MaxByteLength(), sab->GetBackingStore()->MaxByteLength());
 }
 
-THREADED_TEST(ArrayBuffer_DataApiWithEmptyExternal) {
+THREADED_TEST(ApiArrayBufferTest, ArrayBuffer_DataApiWithEmptyExternal) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
@@ -1087,7 +1100,8 @@ THREADED_TEST(ArrayBuffer_DataApiWithEmptyExternal) {
   CHECK_EQ(empty_buffer_ptr, ab->Data());
   CHECK_EQ(0, ab->ByteLength());
 
-  void* buffer = CcTest::array_buffer_allocator()->Allocate(1);
+  void* buffer =
+      v8::Isolate::GetCurrent()->GetArrayBufferAllocator()->Allocate(1);
   std::unique_ptr<v8::BackingStore> backing_store =
       v8::ArrayBuffer::NewBackingStore(buffer, 0,
                                        v8::BackingStore::EmptyDeleter, nullptr);
@@ -1116,13 +1130,13 @@ void TestArrayBufferViewGetContent(const char* source, void* expected) {
 }
 }  // namespace
 
-TEST(ArrayBufferView_GetContentsSmallUint8) {
+TEST_F(ApiArrayBufferTest, ArrayBufferView_GetContentsSmallUint8) {
   const char* source = "new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9])";
   uint8_t expected[]{1, 2, 3, 4, 5, 6, 7, 8, 9};
   TestArrayBufferViewGetContent(source, expected);
 }
 
-TEST(ArrayBufferView_GetContentsLargeUint8) {
+TEST_F(ApiArrayBufferTest, ArrayBufferView_GetContentsLargeUint8) {
   const char* source =
       "let array = new Uint8Array(100);"
       "for (let i = 0; i < 100; ++i) {"
@@ -1136,7 +1150,7 @@ TEST(ArrayBufferView_GetContentsLargeUint8) {
   TestArrayBufferViewGetContent(source, expected);
 }
 
-TEST(ArrayBufferView_GetContentsUint8View) {
+TEST_F(ApiArrayBufferTest, ArrayBufferView_GetContentsUint8View) {
   const char* source =
       "let array = new Uint8Array(100);"
       "for (let i = 0; i < 100; ++i) {"
@@ -1147,13 +1161,13 @@ TEST(ArrayBufferView_GetContentsUint8View) {
   TestArrayBufferViewGetContent(source, expected);
 }
 
-TEST(ArrayBufferView_GetContentsSmallUint32) {
+TEST_F(ApiArrayBufferTest, ArrayBufferView_GetContentsSmallUint32) {
   const char* source = "new Uint16Array([1, 2, 3, 4, 5, 6, 7, 8, 9])";
   uint16_t expected[]{1, 2, 3, 4, 5, 6, 7, 8, 9};
   TestArrayBufferViewGetContent(source, expected);
 }
 
-TEST(ArrayBufferView_GetContentsLargeUint16) {
+TEST_F(ApiArrayBufferTest, ArrayBufferView_GetContentsLargeUint16) {
   const char* source =
       "let array = new Uint16Array(100);"
       "for (let i = 0; i < 100; ++i) {"
@@ -1167,7 +1181,7 @@ TEST(ArrayBufferView_GetContentsLargeUint16) {
   TestArrayBufferViewGetContent(source, expected);
 }
 
-TEST(ArrayBufferView_GetContentsUint16View) {
+TEST_F(ApiArrayBufferTest, ArrayBufferView_GetContentsUint16View) {
   const char* source =
       "let array = new Uint16Array(100);"
       "for (let i = 0; i < 100; ++i) {"
@@ -1178,7 +1192,7 @@ TEST(ArrayBufferView_GetContentsUint16View) {
   TestArrayBufferViewGetContent(source, expected);
 }
 
-TEST(ArrayBufferView_GetContentsSmallDataView) {
+TEST_F(ApiArrayBufferTest, ArrayBufferView_GetContentsSmallDataView) {
   const char* source =
       "let array = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9]);"
       "new DataView(array.buffer)";
@@ -1186,7 +1200,7 @@ TEST(ArrayBufferView_GetContentsSmallDataView) {
   TestArrayBufferViewGetContent(source, expected);
 }
 
-TEST(ArrayBufferView_GetContentsLargeDataView) {
+TEST_F(ApiArrayBufferTest, ArrayBufferView_GetContentsLargeDataView) {
   const char* source =
       "let array = new Uint8Array(100);"
       "for (let i = 0; i < 100; ++i) {"
@@ -1200,7 +1214,7 @@ TEST(ArrayBufferView_GetContentsLargeDataView) {
   TestArrayBufferViewGetContent(source, expected);
 }
 
-TEST(ArrayBufferView_GetContentsDataViewWithOffset) {
+TEST_F(ApiArrayBufferTest, ArrayBufferView_GetContentsDataViewWithOffset) {
   const char* source =
       "let array = new Uint8Array(100);"
       "for (let i = 0; i < 100; ++i) {"
@@ -1211,7 +1225,7 @@ TEST(ArrayBufferView_GetContentsDataViewWithOffset) {
   TestArrayBufferViewGetContent(source, expected);
 }
 
-TEST(ArrayBufferView_GetContentsSmallResizableDataView) {
+TEST_F(ApiArrayBufferTest, ArrayBufferView_GetContentsSmallResizableDataView) {
   const char* source =
       "let rsab = new ArrayBuffer(10, {maxByteLength: 20});"
       "let array = new Uint8Array(rsab);"
@@ -1223,7 +1237,7 @@ TEST(ArrayBufferView_GetContentsSmallResizableDataView) {
   TestArrayBufferViewGetContent(source, expected);
 }
 
-TEST(ArrayBufferView_GetContentsResizableTypedArray) {
+TEST_F(ApiArrayBufferTest, ArrayBufferView_GetContentsResizableTypedArray) {
   const char* source =
       "let rsab = new ArrayBuffer(8, {maxByteLength: 8});"
       "let array = new Uint8Array(rsab);"
@@ -1235,7 +1249,7 @@ TEST(ArrayBufferView_GetContentsResizableTypedArray) {
   TestArrayBufferViewGetContent(source, expected);
 }
 
-TEST(ArrayBufferView_GetContentsLargeResizableDataView) {
+TEST_F(ApiArrayBufferTest, ArrayBufferView_GetContentsLargeResizableDataView) {
   const char* source =
       "let rsab = new ArrayBuffer(100, {maxByteLength: 200});"
       "let array = new Uint8Array(rsab);"
@@ -1250,7 +1264,8 @@ TEST(ArrayBufferView_GetContentsLargeResizableDataView) {
   TestArrayBufferViewGetContent(source, expected);
 }
 
-TEST(ArrayBufferView_GetContentsResizableDataViewWithOffset) {
+TEST_F(ApiArrayBufferTest,
+       ArrayBufferView_GetContentsResizableDataViewWithOffset) {
   const char* source =
       "let rsab = new ArrayBuffer(100, {maxByteLength: 200});"
       "let array = new Uint8Array(rsab);"
@@ -1262,7 +1277,7 @@ TEST(ArrayBufferView_GetContentsResizableDataViewWithOffset) {
   TestArrayBufferViewGetContent(source, expected);
 }
 
-TEST(ArrayBufferView_GetContentsDetached) {
+TEST_F(ApiArrayBufferTest, ArrayBufferView_GetContentsDetached) {
   const char* source =
       "let array = new Uint8Array(100);"
       "for (let i = 0; i < 100; ++i) {"
@@ -1274,7 +1289,7 @@ TEST(ArrayBufferView_GetContentsDetached) {
   TestArrayBufferViewGetContent(source, nullptr);
 }
 
-TEST(ArrayBufferView_GetContentsOutOfBounds) {
+TEST_F(ApiArrayBufferTest, ArrayBufferView_GetContentsOutOfBounds) {
   const char* source =
       "let ab = new ArrayBuffer(100, {maxByteLength: 200}); "
       "let ta = new Uint8Array(ab, 2); "
@@ -1283,7 +1298,7 @@ TEST(ArrayBufferView_GetContentsOutOfBounds) {
   TestArrayBufferViewGetContent(source, nullptr);
 }
 
-TEST(ArrayBuffer_ImmutableBackingStore) {
+TEST_F(ApiArrayBufferTest, ArrayBuffer_ImmutableBackingStore) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -1307,7 +1322,7 @@ TEST(ArrayBuffer_ImmutableBackingStore) {
   CHECK(ab->IsImmutable());
 }
 
-TEST(ArrayBuffer_CopyArrayBufferBytes) {
+TEST_F(ApiArrayBufferTest, ArrayBuffer_CopyArrayBufferBytes) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -1339,7 +1354,7 @@ TEST(ArrayBuffer_CopyArrayBufferBytes) {
   CHECK_EQ(0, ab1->CopyArrayBufferBytes(0, 6, ab3, 0));
 }
 
-TEST(SharedArrayBuffer_CopyArrayBufferBytes) {
+TEST_F(ApiArrayBufferTest, SharedArrayBuffer_CopyArrayBufferBytes) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -1357,7 +1372,7 @@ TEST(SharedArrayBuffer_CopyArrayBufferBytes) {
   CHECK_EQ(0, std::memcmp(ab2->Data(), "1212", 4));
 }
 
-TEST(ArrayBuffer_DetachCallback_NonWrapped) {
+TEST_F(ApiArrayBufferTest, ArrayBuffer_DetachCallback_NonWrapped) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -1372,7 +1387,7 @@ TEST(ArrayBuffer_DetachCallback_NonWrapped) {
   isolate->SetArrayBufferDetachCallback(nullptr);
 }
 
-TEST(ArrayBuffer_DetachCallback_Wrapped) {
+TEST_F(ApiArrayBufferTest, ArrayBuffer_DetachCallback_Wrapped) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -1411,7 +1426,7 @@ TEST(ArrayBuffer_DetachCallback_Wrapped) {
   isolate->SetArrayBufferDetachCallback(nullptr);
 }
 
-TEST(ArrayBufferBase_Methods) {
+TEST_F(ApiArrayBufferTest, ArrayBufferBase_Methods) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -1458,3 +1473,6 @@ TEST(ArrayBufferBase_Methods) {
   CHECK_EQ(0u, sab->CopyArrayBufferBytes(0, 8, ab, 0));
   CHECK_EQ(0u, ab->CopyArrayBufferBytes(0, 8, sab, 0));
 }
+
+}  // namespace api_array_buffer_unittest
+}  // namespace v8

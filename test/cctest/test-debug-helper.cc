@@ -546,7 +546,7 @@ static void FrameIterationCheck(
   }
 }
 
-THREADED_TEST(GetFrameStack) {
+TEST(GetFrameStack) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   i::Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);

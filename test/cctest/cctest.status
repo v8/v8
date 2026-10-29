@@ -27,26 +27,6 @@
 
 [
 [ALWAYS, {
-  # All tests prefixed with 'Bug' are expected to fail.
-  'test-api/Bug*': [FAIL],
-
-  ##############################################################################
-
-  # These tests always fail.  They are here to test test.py.  If
-  # they don't fail then test.py has failed.
-  'test-api/SealHandleScope': [FAIL],
-
-  # BUG(chromium:1310062): these tests must crash once the side effect check
-  # is enabled.
-  #'test-api-interceptors/Crash*': [FAIL, CRASH],
-
-  # This test always fails.  It tests that DisallowJavascriptExecutionScope
-  # works as intended.
-  'test-api/DisallowJavascriptExecutionScope': [FAIL],
-
-  # This tests API threading, no point in running several variants.
-  'test-api/Threading*': [PASS, SLOW, NO_VARIANTS],
-
   # BUG(5193). The cpu profiler tests are notoriously flaky.
   'test-cpu-profiler/CollectCpuProfile': [SKIP],
   'test-cpu-profiler/JsNative1JsNative2JsSample': [SKIP],
@@ -67,13 +47,11 @@
   'test-code-stub-assembler/PopAndReturnFromTFCBuiltinWithStackParameters' : [FAIL, ['official_build', CRASH]],
 
   # Slow tests.
-  'test-api/InternalFieldsSubclassing': [PASS, SLOW],
   'test-cpu-profiler/NoProfilingProtectorCPUProfiler': [PASS, SLOW],
   'test-debug/CallFunctionInDebugger': [PASS, ['mode == debug', SLOW]],
   'test-heap-profiler/ManyLocalsInSharedContext': [PASS, SLOW],
 
   # Tests that need to run sequentially (e.g. due to memory consumption).
-  'test-api/NewStringRangeError': [PASS, HEAVY],
   'test-lockers/LockerUnlocker': [PASS, HEAVY],
   'test-lockers/LockTwiceAndUnlock': [PASS, HEAVY],
   'test-lockers/SeparateIsolatesLocksNonexclusive': [PASS, HEAVY],
@@ -115,15 +93,6 @@
   'test-js-to-wasm/TestFastJSWasmCall_ExternrefNullArg': [SKIP],
   'test-js-to-wasm/TestFastJSWasmCall_F32ArgDoesntExpectBigInt': [SKIP],
   'test-js-to-wasm/*': [SKIP],
-  # Maglev doesn't support FastApi calls.
-  'test-api/FastApiCalls': [SKIP, SLOW],
-  'test-api/FastApiCallWithAllocationAndGCInJS': [SKIP],
-  'test-api/FastApiCallWithAllocationAndGCInC': [SKIP],
-  'test-api/FastApiSequenceOverloads': [SKIP],
-  'test-api/FastApiCallRecursionNoException': [SKIP],
-  'test-api/FastApiCallRecursionWithException': [SKIP],
-  'test-api/FastApiCallWithThrowInReentrantCode': [SKIP],
-  'test-api/FastApiCallsString': [SKIP],
   # Maglev is still missing some optimizations compared to Turbofan, which means
   # that some old Turbofan tests don't pass when using Maglev as a frontend for
   # Turboshaft.
@@ -157,8 +126,6 @@
 ['arch == arm64 and simulator_run', {
 
   # Pass but take too long with the simulator.
-  'test-api/ExternalArrays': [PASS, SLOW],
-  'test-api/Threading*': [SKIP],
   'test-cpu-profiler/MultipleIsolates': [PASS, ['not pointer_compression', SLOW]],
 }],  # 'arch == arm64 and simulator_run'
 
@@ -196,28 +163,10 @@
 }],  # 'msan == True'
 
 ##############################################################################
-['tsan == True', {
-  # BUG(v8:6924). The test allocates a lot of memory.
-  'test-api/NewStringRangeError': [PASS, NO_VARIANTS],
-}],  # 'tsan == True'
-
-##############################################################################
 ['full_debug', {
-  # Tests too slow in non-optimized debug mode.
-  'test-api/FastApiCalls': [SKIP],
-  'test-api/InternalFieldsSubclassing': [SKIP],
-  'test-api/Threading8': [SKIP],
-
   # https://issues.chromium.org/issues/407932138
   'test-cpu-profiler/NoProfilingProtectorCPUProfiler': [SKIP],
 }],  # 'full_debug'
-
-##############################################################################
-['byteorder == big', {
-  # BUG(v8:12505). Tests which share Wasm memory buffer with Js Typed arrays.
-  'test-api/WasmI32AtomicWaitCallback': [SKIP],
-  'test-api/WasmI64AtomicWaitCallback': [SKIP],
-}],  # 'byteorder == big'
 
 ##############################################################################
 ['system == windows', {
@@ -235,12 +184,6 @@
 }],  # 'system == windows and arch == x64 and mode == debug'
 
 ##############################################################################
-['arch == arm and simulator_run', {
-  # Pass but take too long with the simulator.
-  'test-api/Threading*': [SKIP],
-}],  # 'arch == arm and simulator_run'
-
-##############################################################################
 ['arch == riscv64 or (arch == riscv32)', {
   # This test is unstable, sometimes fail when running w/ other tests.
   'test-cpu-profiler/CrossScriptInliningCallerLineNumbers2': [SKIP],
@@ -250,18 +193,10 @@
 ['((arch == riscv64) or (arch == riscv32)) and simulator_run', {
 
   # Pass but take too long with the simulator.
-  'test-api/Threading*': [PASS, SLOW],
-  'test-api/ExternalArrays': [PASS, SLOW],
   'test-heap-profiler/ManyLocalsInSharedContext': [PASS, SLOW],
 
 }],  # 'arch == riscv64 and simulator_run'
 
-
-##############################################################################
-['system == android', {
-  # Uses too much memory.
-  'test-api/NewStringRangeError': [SKIP],
-}],  # 'system == android'
 
 ##############################################################################
 ['system == aix or (arch == ppc64 and byteorder == big)', {
@@ -281,8 +216,6 @@
 ['arch == ppc64 and simulator_run', {
 
   # Pass but take too long with the simulator.
-  'test-api/Threading*': [PASS, SLOW],
-  'test-api/ExternalArrays': [PASS, SLOW],
   'test-debug/DebugBreakStackTrace': [PASS, SLOW],
 
 }],  # 'arch == ppc64 and simulator_run'
@@ -290,17 +223,10 @@
 ##############################################################################
 ['variant == stress_incremental_marking', {
   'test-heap-profiler/SamplingHeapProfiler': [SKIP],
-
-  # BUG(https://crbug.com/v8/12999): Very slow test.
-  'test-api/InternalFieldsSubclassing': [PASS, ['mode == debug and arch == ia32', SKIP]],
 }],  # variant == stress_incremental_marking
 
 ##############################################################################
 ['variant == no_wasm_traps', {
-  'test-accessors/*': [SKIP],
-  'test-api-interceptors/*': [SKIP],
-  'test-api-stack-traces/*': [SKIP],
-  'test-api/*': [SKIP],
   'test-bignum-dtoa/*': [SKIP],
   'test-cpu-profiler/*': [SKIP],
   'test-debug/*': [SKIP],
@@ -319,9 +245,6 @@
 ##############################################################################
 # TODO(v8:7777): Change this once wasm is supported in jitless mode.
 ['not has_webassembly or variant == jitless', {
-  'test-api-array-buffer/ArrayBuffer_NonDetachableWasDetached': [SKIP],
-  'test-api/TurboAsmDisablesDetach': [SKIP],
-  'test-api/Wasm*': [SKIP],
   'test-heap-profiler/HeapSnapshotWithWasmInstance': [SKIP],
   'test-js-to-wasm/*': [SKIP],
   'wasm-run-utils/*': [SKIP],
@@ -349,8 +272,6 @@
 ['has_jitless', {
   # invocation_count maintenance is disabled.
   'test-debug/DebugCoverage*': [SKIP],
-  # WebAssembly not included.
-  'test-api/Threading8': [SKIP],
 }],  # has_jitless
 
 ##############################################################################
@@ -380,23 +301,12 @@
   'test-cpu-profiler/TracingCpuProfiler': [PASS, FAIL],
 }], # variant == stress_concurrent_inlining
 
-['clang_coverage and mode == debug', {
-  # Too slow tests.
-  'test-api/Threading8': [SKIP],
-}],  # 'clang_coverage and mode == debug'
-
 ##############################################################################
 ['sandbox_hardware_support', {
   # Tests that require the sampler/profiler, which doesn't work on older kernel
   # versions if hardware sandboxing is active. See https://crbug.com/429173713.
   'test-cpu-profiler/*': [SKIP],
   'test-profile-generator/*': [SKIP],
-  'test-api/SimpleCallbackWithProfiler': [SKIP],
-  'test-api/FastReturnValuesWithProfiler': [SKIP],
-  'test-api/FunctionTemplateWithProfiler': [SKIP],
-  'test-api/CallICFastApi_TrivialSignatureWithProfiler': [SKIP],
-  'test-api/LoadICFastApi_DirectCall_GCMoveStubWithProfiler': [SKIP],
-  'test-api/InterceptorCallICFastApi_TrivialSignatureWithProfiler': [SKIP],
 }] # sandbox_hardware_support
 
 ]

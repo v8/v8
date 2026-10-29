@@ -24,6 +24,7 @@
 #include "src/base/utils/random-number-generator.h"
 #include "src/flags/save-flags.h"
 #include "src/handles/handles.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/heap/parked-scope.h"
 #include "src/logging/log.h"
 #include "src/objects/objects-inl.h"
@@ -49,6 +50,12 @@ template <typename T, typename TCallbackInfo>
 static T* GetData(const TCallbackInfo& info) {
   USE(MakeData);
   v8::Local<v8::Data> data = info.DataV2();
+  return reinterpret_cast<T*>(v8::External::Cast(*data)->Value(kTestConfigTag));
+}
+
+template <typename T>
+static T* GetData(v8::Local<v8::Data> data) {
+  USE(MakeData);
   return reinterpret_cast<T*>(v8::External::Cast(*data)->Value(kTestConfigTag));
 }
 
@@ -434,11 +441,15 @@ class PrintExtension : public v8::Extension {
 // Run a ScriptStreamingTask in a separate thread.
 class StreamerThread : public v8::base::Thread {
  public:
+  // The main thread is parked while joining, so that a GC requested by the
+  // streaming task cannot deadlock with the blocked main thread.
   static void StartThreadForTaskAndJoin(
-      v8::ScriptCompiler::ScriptStreamingTask* task) {
+      v8::ScriptCompiler::ScriptStreamingTask* task,
+      i::Isolate* i_isolate = i::Isolate::Current()) {
     StreamerThread thread(task);
     CHECK(thread.Start());
-    thread.Join();
+    i_isolate->main_thread_local_heap()->ExecuteWhileParked(
+        [&thread]() { thread.Join(); });
   }
 
   explicit StreamerThread(v8::ScriptCompiler::ScriptStreamingTask* task)

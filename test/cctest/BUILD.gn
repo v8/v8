@@ -78,11 +78,7 @@ config("cctest_sources_config") {
 v8_cluster_source_set("cctest_sources") {
   testonly = true
 
-  exclude_from_cluster = [
-    "test-accessors.cc",
-    "test-api.cc",
-    "test-debug.cc",
-  ]
+  exclude_from_cluster = [ "test-debug.cc" ]
 
   sources = [
     ### gcmole(all) ###
@@ -98,7 +94,6 @@ v8_cluster_source_set("cctest_sources") {
     "cctest-utils.h",
     "expression-type-collector-macros.h",
     "feedback-vector-helper.h",
-    "heap/heap-tester.h",
     "heap/heap-utils.cc",
     "heap/heap-utils.h",
     "jsonstream-helper.h",
@@ -106,14 +101,6 @@ v8_cluster_source_set("cctest_sources") {
     "print-extension.h",
     "profiler-extension.cc",
     "profiler-extension.h",
-    "test-accessors.cc",
-    "test-api-array-buffer.cc",
-    "test-api-incumbent.cc",
-    "test-api-interceptors.cc",
-    "test-api-stack-traces.cc",
-    "test-api-typed-array.cc",
-    "test-api.cc",
-    "test-api.h",
     "test-cpu-profiler.cc",
     "test-debug-helper.cc",
     "test-debug.cc",
@@ -125,7 +112,6 @@ v8_cluster_source_set("cctest_sources") {
     "test-sampler-api.cc",
     "test-trace-event.cc",
     "test-unwinder-code-pages.cc",
-    "test-usecounters.cc",
     "trace-extension.cc",
     "trace-extension.h",
   ]
@@ -193,7 +179,6 @@ v8_cluster_source_set("cctest_sources") {
       "../common/wasm/wasm-macro-gen.h",
       "../common/wasm/wasm-run-utils.h",
       "test-js-to-wasm.cc",
-      "wasm/wasm-runner.h",
     ]
     public_deps += [ "../..:wasm_test_common" ]
   }

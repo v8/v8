@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "test/cctest/cctest.h"
+#include "test/unittests/api/api-test-utils.h"
 
 namespace v8 {
 namespace internal {
-namespace test_usecounters {
+namespace usecounters_unittest {
+
+using UseCountersTest = ::v8::TestWithIsolate;
 
 int* global_use_counts = nullptr;
 
@@ -15,13 +17,13 @@ void MockUseCounterCallback(v8::Isolate* isolate,
   ++global_use_counts[feature];
 }
 
-TEST(AssigmentExpressionLHSIsCall) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(UseCountersTest, AssigmentExpressionLHSIsCall) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
   LocalContext env;
   int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
   global_use_counts = use_counts;
-  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
+  v8_isolate()->SetUseCounterCallback(MockUseCounterCallback);
 
   // AssignmentExpressions whose LHS is not a call do not increment counters
   CompileRun("function f(){ a = 0; a()[b] = 0; }");
@@ -52,13 +54,13 @@ TEST(AssigmentExpressionLHSIsCall) {
   global_use_counts = nullptr;
 }
 
-TEST(RegExpMatchIsTrueishOnNonJSRegExp) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(UseCountersTest, RegExpMatchIsTrueishOnNonJSRegExp) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
   LocalContext env;
   int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
   global_use_counts = use_counts;
-  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
+  v8_isolate()->SetUseCounterCallback(MockUseCounterCallback);
 
   CompileRun("new RegExp(/./); new RegExp('');");
   CHECK_EQ(0, use_counts[v8::Isolate::kRegExpMatchIsTrueishOnNonJSRegExp]);
@@ -71,13 +73,13 @@ TEST(RegExpMatchIsTrueishOnNonJSRegExp) {
   global_use_counts = nullptr;
 }
 
-TEST(RegExpMatchIsFalseishOnJSRegExp) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(UseCountersTest, RegExpMatchIsFalseishOnJSRegExp) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
   LocalContext env;
   int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
   global_use_counts = use_counts;
-  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
+  v8_isolate()->SetUseCounterCallback(MockUseCounterCallback);
 
   CompileRun("new RegExp(/./); new RegExp('');");
   CHECK_EQ(0, use_counts[v8::Isolate::kRegExpMatchIsTrueishOnNonJSRegExp]);
@@ -90,13 +92,13 @@ TEST(RegExpMatchIsFalseishOnJSRegExp) {
   global_use_counts = nullptr;
 }
 
-TEST(ObjectPrototypeHasElements) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(UseCountersTest, ObjectPrototypeHasElements) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
   LocalContext env;
   int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
   global_use_counts = use_counts;
-  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
+  v8_isolate()->SetUseCounterCallback(MockUseCounterCallback);
 
   CompileRun("var o = {}; o[1] = 2;");
   CHECK_EQ(0, use_counts[v8::Isolate::kObjectPrototypeHasElements]);
@@ -110,13 +112,13 @@ TEST(ObjectPrototypeHasElements) {
   global_use_counts = nullptr;
 }
 
-TEST(HoleyArrayReadthrough) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(UseCountersTest, HoleyArrayReadthrough) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
   LocalContext env;
   int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
   global_use_counts = use_counts;
-  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
+  v8_isolate()->SetUseCounterCallback(MockUseCounterCallback);
 
   // No readthrough: own property.
   CompileRun("var x = [1]; x[0];");
@@ -149,13 +151,13 @@ TEST(HoleyArrayReadthrough) {
   global_use_counts = nullptr;
 }
 
-TEST(ArrayPrototypeHasElements) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(UseCountersTest, ArrayPrototypeHasElements) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
   LocalContext env;
   int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
   global_use_counts = use_counts;
-  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
+  v8_isolate()->SetUseCounterCallback(MockUseCounterCallback);
 
   CompileRun("var a = []; a[1] = 2;");
   CHECK_EQ(0, use_counts[v8::Isolate::kArrayPrototypeHasElements]);
@@ -169,13 +171,13 @@ TEST(ArrayPrototypeHasElements) {
   global_use_counts = nullptr;
 }
 
-TEST(RegExpMatchAllUseCounters) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(UseCountersTest, RegExpMatchAllUseCounters) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
   LocalContext env;
   int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
   global_use_counts = use_counts;
-  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
+  v8_isolate()->SetUseCounterCallback(MockUseCounterCallback);
 
   // Normal RegExp matchAll: neither counter is triggered.
   CompileRun("/a/g[Symbol.matchAll]('a');");
@@ -229,13 +231,13 @@ TEST(RegExpMatchAllUseCounters) {
   global_use_counts = nullptr;
 }
 
-TEST(RegExpSplitUseCounters) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(UseCountersTest, RegExpSplitUseCounters) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
   LocalContext env;
   int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
   global_use_counts = use_counts;
-  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
+  v8_isolate()->SetUseCounterCallback(MockUseCounterCallback);
 
   // Normal RegExp split: neither counter is triggered.
   CompileRun("/a/[Symbol.split]('a-a');");
@@ -273,13 +275,13 @@ TEST(RegExpSplitUseCounters) {
   global_use_counts = nullptr;
 }
 
-TEST(BigInt) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(UseCountersTest, BigInt) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
   LocalContext env;
   int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
   global_use_counts = use_counts;
-  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
+  v8_isolate()->SetUseCounterCallback(MockUseCounterCallback);
 
   CompileRun("1 + 2; '123'; new Int32Array(1); new Float64Array(1);");
   CHECK_EQ(0, use_counts[v8::Isolate::kBigInt]);
@@ -311,6 +313,6 @@ TEST(BigInt) {
   global_use_counts = nullptr;
 }
 
-}  // namespace test_usecounters
+}  // namespace usecounters_unittest
 }  // namespace internal
 }  // namespace v8
