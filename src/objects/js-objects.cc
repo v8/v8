@@ -1619,6 +1619,20 @@ Maybe<InterceptorResult> DefinePropertyWithInterceptorInternal(
   return args.GetBooleanReturnValue(isolate, intercepted, "Definer");
 }
 
+V8_WARN_UNUSED_RESULT Maybe<bool> PerformAccessCheck(LookupIterator* it) {
+  Isolate* isolate = it->isolate();
+  while (it->state() == LookupIterator::ACCESS_CHECK) {
+    if (!it->HasAccess()) {
+      RETURN_ON_EXCEPTION_VALUE(
+          isolate, isolate->ReportFailedAccessCheck(it->GetHolder<JSObject>()),
+          Nothing<bool>());
+      UNREACHABLE();
+    }
+    it->Next();
+  }
+  return Just(true);
+}
+
 }  // namespace
 
 // ES6 9.1.6.1
@@ -1629,15 +1643,7 @@ Maybe<bool> JSReceiver::OrdinaryDefineOwnProperty(
   LookupIterator it(isolate, object, key, LookupIterator::OWN);
 
   // Deal with access checks first.
-  while (it.state() == LookupIterator::ACCESS_CHECK) {
-    if (!it.HasAccess()) {
-      RETURN_ON_EXCEPTION_VALUE(
-          isolate, isolate->ReportFailedAccessCheck(it.GetHolder<JSObject>()),
-          Nothing<bool>());
-      UNREACHABLE();
-    }
-    it.Next();
-  }
+  MAYBE_RETURN(PerformAccessCheck(&it), Nothing<bool>());
 
   // 1. Let current be O.[[GetOwnProperty]](P).
   // 2. ReturnIfAbrupt(current).
@@ -3859,6 +3865,7 @@ bool TryFastAddDataProperty(Isolate* isolate, DirectHandle<JSObject> object,
                             DirectHandle<Name> name, DirectHandle<Object> value,
                             PropertyAttributes attributes) {
   DCHECK(IsUniqueName(*name));
+  if (IsSpecialReceiverMap(object->map())) return false;
   Tagged<Map> map =
       TransitionsAccessor(isolate, object->map())
           .SearchTransition(*name, PropertyKind::kData, attributes);
@@ -5038,14 +5045,7 @@ MaybeDirectHandle<Object> JSObject::DefineOwnAccessorIgnoreAttributes(
 
   it->UpdateProtector();
 
-  while (it->state() == LookupIterator::ACCESS_CHECK) {
-    if (!it->HasAccess()) {
-      RETURN_ON_EXCEPTION(
-          isolate, isolate->ReportFailedAccessCheck(it->GetHolder<JSObject>()));
-      UNREACHABLE();
-    }
-    it->Next();
-  }
+  MAYBE_RETURN_NULL(PerformAccessCheck(it));
 
   auto object = Cast<JSObject>(it->GetReceiver());
   // Ignore accessors on typed arrays.
@@ -5072,18 +5072,9 @@ MaybeDirectHandle<Object> JSObject::SetAccessor(DirectHandle<JSObject> object,
   PropertyKey key(isolate, name);
   LookupIterator it(isolate, object, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
 
-  // Duplicate ACCESS_CHECK outside of GetPropertyAttributes for the case that
-  // the FailedAccessCheckCallbackFunction doesn't throw an exception.
-  while (it.state() == LookupIterator::ACCESS_CHECK) {
-    if (!it.HasAccess()) {
-      RETURN_ON_EXCEPTION(isolate, isolate->ReportFailedAccessCheck(object));
-      UNREACHABLE();
-    }
-    it.Next();
-  }
-
   // Ignore accessors on typed arrays.
   if (it.IsElement() && object->HasTypedArrayOrRabGsabTypedArrayElements()) {
+    DCHECK_NE(it.state(), LookupIterator::ACCESS_CHECK);
     return it.factory()->undefined_value();
   }
 
@@ -5103,6 +5094,8 @@ Maybe<bool> JSObject::CheckIfCanDefineAsConfigurable(
     Isolate* isolate, LookupIterator* it, DirectHandle<Object> value,
     Maybe<ShouldThrow> should_throw) {
   DCHECK(IsJSObject(*it->GetReceiver()));
+  // Deal with access checks first.
+  MAYBE_RETURN(PerformAccessCheck(it), Nothing<bool>());
   if (it->IsFound()) {
     Maybe<PropertyAttributes> attributes = GetPropertyAttributes(it);
     MAYBE_RETURN(attributes, Nothing<bool>());
