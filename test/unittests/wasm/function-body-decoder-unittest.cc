@@ -4042,6 +4042,11 @@ TEST_F(FunctionBodyDecoderTest, BrOnNonNull) {
     // br_on_non_null does not leave a value on the stack.
     ExpectFailure(&sig, {WASM_BR_ON_NON_NULL(0, WASM_LOCAL_GET(0))}, kAppendEnd,
                   "expected 1 elements on the stack for fallthru, found 0");
+
+    // Target branch must have arity >= 1.
+    ExpectFailure(FunctionSig::Build(this->zone(), {}, {reps[1]}),
+                  {WASM_BR_ON_NON_NULL(0, WASM_LOCAL_GET(0))}, kAppendEnd,
+                  "br_on_non_null must target a branch of arity at least 1");
   }
 }
 

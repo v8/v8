@@ -3995,10 +3995,15 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           "subtype of ((ref null any), (ref null extern) or (ref null func))");
       return 0;
     }
+    Control* c = control_at(imm.depth);
+    if (!VALIDATE(c->br_merge()->arity > 0)) {
+      this->DecodeError(
+          "br_on_non_null must target a branch of arity at least 1");
+      return 0;
+    }
     // Typechecking the branch and creating the branch merges requires the
     // non-null value on the stack, so we push it temporarily.
     Value* value_on_branch = Push(ref_object.type.AsNonNull());
-    Control* c = control_at(imm.depth);
     if (!VALIDATE(
             (TypeCheckBranch<PushBranchValues::kYes, RewriteStackTypes::kYes>(
                 c)))) {
