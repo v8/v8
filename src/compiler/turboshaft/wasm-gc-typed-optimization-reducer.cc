@@ -433,25 +433,8 @@ void WasmGCTypeAnalyzer::ProcessAllocateStruct(
 
 wasm::ValueType WasmGCTypeAnalyzer::GetTypeForPhiInput(const PhiOp& phi,
                                                        int input_index) {
-  OpIndex phi_id = graph_.Index(phi);
-  OpIndex raw_input = phi.input(input_index);
-  // If the un-aliased input of the phi is in the same block as the phi and
-  // appears before the phi, don't use the predecessor value. Note that we must
-  // check the un-aliased input, as resolving aliases first could incorrectly
-  // map a backedge input (e.g. a cast in the loop body) to an operation in the
-  // loop header.
-  if (current_block_->begin().id() <= raw_input.id() &&
-      raw_input.id() < phi_id.id()) {
-    // Phi instructions have to be at the beginning of the block, so this can
-    // only happen for inputs that are also phis. Furthermore, this is only
-    // possible in loop headers of loops and only for the backedge-input.
-    DCHECK(graph_.Get(raw_input).Is<PhiOp>());
-    DCHECK(current_block_->IsLoop());
-    DCHECK_EQ(input_index, 1);
-    return types_table_.Get(raw_input);
-  }
-  OpIndex input = ResolveAliases(raw_input);
-  return types_table_.GetPredecessorValue(input, input_index);
+  return types_table_.GetPredecessorValue(
+      ResolveAliases(phi.input(input_index)), input_index);
 }
 
 void WasmGCTypeAnalyzer::ProcessPhi(const PhiOp& phi) {
