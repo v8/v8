@@ -1,22 +1,73 @@
 ---
 name: v8-review
-description: Runs a parallel multi-subagent V8 code review covering security, V8 Sandbox safety, GC invariants, compiler/codegen logic, concurrency, performance, tests, and style, then verifies and merges the findings. Use when reviewing a V8 CL, commit, or local diff. Do not use for triaging bug reports or writing fixes from scratch.
+description: Reviews a V8 CL, commit, or local diff using targeted parallel subagents. Use when reviewing code changes in V8. Do not use for triaging bugs or authoring fixes.
 ---
 
 # V8 Code Review Workflow
 
-## Step 1: Context Setup (Main Agent)
+## Step 1: Context Setup & Triage (Main Agent)
 
 1. Save the target commit (`git --no-pager show <commit>`), Gerrit CL
    (`gerrit_fetch`), or local diff (`git --no-pager diff HEAD`, plus any
    untracked files from `git status --short`) including the commit message (if
    any) to `v8-review-<id>.patch` in the conversation's `scratch/` directory.
    Never write temporary files into the V8 checkout.
+2. **Select relevant subagents**: Inspect the patch (modified paths, subsystems,
+   diff size, and whether the change is a bug fix, feature, or refactoring) and
+   choose **only the applicable subagents** from Step 2 rather than spawning all
+   8 unconditionally. If unsure whether a subagent applies (especially
+   `sandbox-security`, `correctness-gc`, or `compiler-codegen`), include it
+   rather than skipping it. If no subagents are needed (e.g., trivial comment,
+   build, or 1–2 line edits), skip Step 2 and review the diff directly in Step
+   3:
+   - `sandbox-security`: Select when touching in-sandbox/out-of-sandbox
+     boundaries, `HeapObject` layouts/fields, pointer tables (`*PointerTable`,
+     `TrustedObject`, `ProtectedPointerSlot`, `SbxCast`/`TrustedCast`),
+     `ArrayBuffer`/RAB/GSAB, Wasm instance/trusted data, JIT
+     codegen/builtins/ICs/runtime functions reachable from untrusted JS/Wasm, or
+     `SBXCHECK`s. Skip for pure internal compiler graph helpers with no sandbox
+     boundary, test-only, build, or comment-only changes.
+   - `correctness-gc`: Select when touching runtime/builtins, JS/Wasm semantics,
+     heap/GC/Oilpan (`src/heap/`, `Tagged<T>`, `DirectHandle`/`Handle`,
+     allocations, write barriers), Torque (`.tq`), object layouts
+     (`src/objects/`), parser/interpreter, or arithmetic on sizes/offsets/Smis.
+     Skip when the diff has no heap/GC, handle, exception, or integer-overflow
+     surface.
+   - `compiler-codegen`: Select **only** when touching JIT compilers
+     (`src/compiler/`, `src/maglev/`, `src/baseline/`, `src/wasm/baseline/`),
+     assemblers/codegen (`src/codegen/`, `src/execution/`, arch backends),
+     deoptimizer (`src/deoptimizer/`), CSA/Torque builtins (`src/builtins/`,
+     `.tq`), or ICs (`src/ic/`).
+   - `concurrency`: Select **only** when touching multi-threaded or concurrent
+     code: background compilation (`LocalIsolate`, `LocalHeap`, concurrent
+     Maglev/Turboshaft/Wasm jobs), concurrent GC/marking/sweeping/evacuation,
+     shared objects (`SharedStruct`, `SharedArray`, shared Wasm),
+     atomics/locks/mutexes, concurrent map/descriptor/transition/feedback reads,
+     or thread isolation/signal handlers. Skip for purely single-threaded
+     main-thread code.
+   - `architecture-api`: Select for all non-trivial code changes (especially bug
+     fixes, new features, cross-tier/cross-arch changes, API/header edits, or
+     flag additions) to evaluate minimal fix design, variant completeness, and
+     architectural fit. Skip only for trivial comment, formatting, or test-only
+     edits.
+   - `performance-containers`: Select when touching hot paths (ICs,
+     interpreter/JIT fast paths, frequent compiler passes, GC, Wasm execution,
+     hot builtins) or adding/modifying data structures, containers, and loops.
+     Skip for cold error paths, small localized fixes with no container/loop
+     changes, or test-only diffs.
+   - `tests`: Select when `test/` files are added/modified **or** when reviewing
+     a bug fix (to verify the mandatory regression test is present and
+     effective). Skip for pure refactorings, comments, or build changes that
+     neither touch `test/` nor fix a bug.
+   - `style-comments`: Select when adding/modifying C++ (`.cc`, `.h`, `-inl.h`)
+     or Torque (`.tq`) files. Skip for test-only `.js`/`.mjs` diffs or tiny 1–2
+     line changes where the main agent can check style directly in Step 3.
 
 ## Step 2: Parallel Subagents
 
-Call `invoke_subagent` ONCE with 8 entries (`TypeName: "self"`,
-`Model: "inherit"`):
+Call `invoke_subagent` for each selected subagent in parallel in a single turn
+(`TypeName: "self"`, `Model: "inherit"`), passing each subagent only its own
+checklist and the shared subagent instructions below:
 
 1. `sandbox-security`:
 
@@ -112,6 +163,13 @@ Call `invoke_subagent` ONCE with 8 entries (`TypeName: "self"`,
 
 5. `architecture-api`:
 
+   - **Minimal design fix & maintainability**: Check whether the change is the
+     smallest, simplest design fix for the underlying root cause rather than
+     patching symptoms across multiple call sites. Question fixes that plumb new
+     state, parameters, flags, or special-case branches across layers, or
+     introduce unnecessary abstractions/helpers, when a smaller, more local fix
+     at a single choke point or an existing invariant/helper would be cleaner
+     and more maintainable long-term.
    - **Cross-arch, cross-tier & variant completeness**: Parity across the 4
      supported architectures (`x64`, `arm64`, `ia32`, `arm` — ignore community
      ports like `riscv`, `loong64`, `ppc64`, `s390x`, `mips64` unless targeted
@@ -119,12 +177,12 @@ Call `invoke_subagent` ONCE with 8 entries (`TypeName: "self"`,
      Liftoff), and all affected opcodes/builtins. For bug fixes, perform variant
      analysis to check if the same bug pattern exists in sibling opcodes,
      builtins, reducers, or tiers.
-   - **Optimization preservation & design**: Fix specific invariant flaws rather
-     than disabling fast paths wholesale; reuse existing helpers/passes and
-     encapsulate state mutations on the owning class; keep headers lean (`.cc`
-     definitions for non-hot methods, `namespace {}` in `.cc` for helpers not
-     using `this`); avoid `#if V8_TARGET_ARCH_...` in shared code; flag edits to
-     generated files (`out/`) or unrelated drive-by refactors.
+   - **Optimization preservation & encapsulation**: Fix specific invariant flaws
+     rather than disabling fast paths wholesale; reuse existing helpers/passes
+     and encapsulate state mutations on the owning class; keep headers lean
+     (`.cc` definitions for non-hot methods, `namespace {}` in `.cc` for helpers
+     not using `this`); avoid `#if V8_TARGET_ARCH_...` in shared code; flag
+     edits to generated files (`out/`) or unrelated drive-by refactors.
    - **API surface, flags & presubmit**: Swallowed errors or defensive
      workarounds instead of `CHECK`/`DCHECK`/`UNREACHABLE()` (never suggest
      defensive fallbacks that mask unexpected states or invariant violations),
