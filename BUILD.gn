@@ -3021,23 +3021,23 @@ v8_cluster_source_set("torque_generated_initializers") {
   generated_sources = true
 
   deps = [
-    ":generate_bytecode_builtins_list",
-    ":run_torque",
     ":v8_base_without_compiler",
     ":v8_internal_headers",
     ":v8_maybe_ecma402_icu4x",
     ":v8_maybe_temporal",
     ":v8_tracing",
   ]
-  if (v8_enable_experimental_tq_to_tsa) {
-    deps += [ ":run_torque_to_tsa" ]
-  }
 
   public_deps = [
+    ":generate_bytecode_builtins_list",
+    ":run_torque",
     ":torque_runtime_support",
     ":v8_abseil",
     ":v8_maybe_icu",
   ]
+  if (v8_enable_experimental_tq_to_tsa) {
+    public_deps += [ ":run_torque_to_tsa" ]
+  }
 
   sources = torque_csa_cc_files + [
               "$target_gen_dir/torque-generated/bit-field-asserts.cc",
