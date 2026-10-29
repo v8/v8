@@ -807,7 +807,6 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(RoundUint32ToFloat32, Operator::kNoProperties, 1, 0, 1)                \
   V(RoundUint64ToFloat32, Operator::kNoProperties, 1, 0, 1)                \
   V(RoundUint64ToFloat64, Operator::kNoProperties, 1, 0, 1)                \
-  V(BitcastWord32ToWord64, Operator::kNoProperties, 1, 0, 1)               \
   V(ChangeInt32ToInt64, Operator::kNoProperties, 1, 0, 1)                  \
   V(ChangeUint32ToFloat64, Operator::kNoProperties, 1, 0, 1)               \
   V(ChangeUint32ToUint64, Operator::kNoProperties, 1, 0, 1)                \

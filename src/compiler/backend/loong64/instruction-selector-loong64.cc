@@ -1917,12 +1917,6 @@ void InstructionSelector::VisitTryTruncateFloat64ToUint32(OpIndex node) {
   Emit(kLoong64Float64ToUint32, output_count, outputs, 1, inputs);
 }
 
-void InstructionSelector::VisitBitcastWord32ToWord64(OpIndex node) {
-  DCHECK(SmiValuesAre31Bits());
-  DCHECK(COMPRESS_POINTERS_BOOL);
-  EmitIdentity(node);
-}
-
 void InstructionSelector::VisitChangeInt32ToInt64(OpIndex node) {
   Loong64OperandGenerator g(this);
   const ChangeOp& change_op = this->Get(node).template Cast<ChangeOp>();

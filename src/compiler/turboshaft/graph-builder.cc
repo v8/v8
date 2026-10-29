@@ -756,7 +756,6 @@ OpIndex GraphBuilder::Process(
       UNARY_CASE(Float64Atanh, Float64Atanh)
       UNARY_CASE(Float64Cbrt, Float64Cbrt)
 
-      UNARY_CASE(BitcastWord32ToWord64, BitcastWord32ToWord64)
       UNARY_CASE(BitcastFloat32ToInt32, BitcastFloat32ToWord32)
       UNARY_CASE(BitcastInt32ToFloat32, BitcastWord32ToFloat32)
       UNARY_CASE(BitcastFloat64ToInt64, BitcastFloat64ToWord64)

@@ -1464,16 +1464,6 @@ void InstructionSelector::VisitTryTruncateFloat64ToUint64(OpIndex node) {
   Emit(kRiscvTruncUlD, output_count, outputs, 1, inputs);
 }
 
-void InstructionSelector::VisitBitcastWord32ToWord64(OpIndex node) {
-  DCHECK(SmiValuesAre31Bits());
-  DCHECK(COMPRESS_POINTERS_BOOL);
-  RiscvOperandGenerator g(this);
-  const Operation& op = this->Get(node);
-  DCHECK_EQ(op.input_count, 1);
-  Emit(kRiscvZeroExtendWord, g.DefineAsRegister(node),
-       g.UseRegister(op.input(0)));
-}
-
 void EmitSignExtendWord(InstructionSelector* selector, OpIndex node) {
   RiscvOperandGenerator g(selector);
   const Operation& op = selector->Get(node);

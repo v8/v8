@@ -84,7 +84,7 @@ Node* WasmGraphAssembler::BuildSmiShiftBitsConstant32() {
 
 Node* WasmGraphAssembler::BuildChangeInt32ToSmi(Node* value) {
   // With pointer compression, only the lower 32 bits are used.
-  return COMPRESS_POINTERS_BOOL ? BitcastWord32ToWord64(Word32Shl(
+  return COMPRESS_POINTERS_BOOL ? ChangeUint32ToUint64(Word32Shl(
                                       value, BuildSmiShiftBitsConstant32()))
                                 : WordShl(BuildChangeInt32ToIntPtr(value),
                                           BuildSmiShiftBitsConstant());

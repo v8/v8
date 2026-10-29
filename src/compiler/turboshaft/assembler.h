@@ -2577,7 +2577,6 @@ class AssemblerOpInterface : public Next {
         TryChange(input, TryChangeOp::Kind::kind, V<from>::rep, V<to>::rep)); \
   }
 
-  DECL_CHANGE_V(BitcastWord32ToWord64, kBitcast, kNoAssumption, Word32, Word64)
   DECL_CHANGE_V(BitcastFloat32ToWord32, kBitcast, kNoAssumption, Float32,
                 Word32)
   DECL_CHANGE_V(BitcastWord32ToFloat32, kBitcast, kNoAssumption, Word32,

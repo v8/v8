@@ -1789,12 +1789,6 @@ void InstructionSelector::VisitTryTruncateFloat64ToUint32(OpIndex node) {
   VisitTryTruncateDouble(this, kS390_DoubleToUint32, node);
 }
 
-void InstructionSelector::VisitBitcastWord32ToWord64(OpIndex node) {
-  DCHECK(SmiValuesAre31Bits());
-  DCHECK(COMPRESS_POINTERS_BOOL);
-  EmitIdentity(node);
-}
-
 void InstructionSelector::VisitFloat64Mod(OpIndex node) {
   S390OperandGenerator g(this);
   const FloatBinopOp& op = Cast<FloatBinopOp>(node);

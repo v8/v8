@@ -2398,7 +2398,7 @@ struct ChangeOp : FixedArityOperationT<1, ChangeOp> {
   RegisterRepresentation from;
   RegisterRepresentation to;
 
-  // Returns true if change<kind>(change<reverse_kind>(a)) == a for all a.
+  // Returns true if change<reverse_kind>(change<kind>(a)) == a for all a.
   // This assumes that change<reverse_kind> uses the inverted {from} and {to}
   // representations, i.e. the input to the inner change op has the same
   // representation as the result of the outer change op.
@@ -2454,7 +2454,7 @@ struct ChangeOp : FixedArityOperationT<1, ChangeOp> {
       case Kind::kTruncate:
         DCHECK_EQ(from, RegisterRepresentation::Word64());
         DCHECK_EQ(to, RegisterRepresentation::Word32());
-        return reverse_kind == Kind::kBitcast;
+        return false;
       case Kind::kBitcast:
         return reverse_kind == Kind::kBitcast;
     }
@@ -2488,11 +2488,14 @@ struct ChangeOp : FixedArityOperationT<1, ChangeOp> {
       : Base(input), kind(kind), assumption(assumption), from(from), to(to) {}
 
   void Validate(const Graph& graph) const {
+    // Bitcasts from and to Tagged should use a TaggedBitcast instead (which has
+    // different effects, since it's unsafe to reorder such bitcasts across
+    // GCs).
     DCHECK_NE(from, RegisterRepresentation::Tagged());
     DCHECK_NE(to, RegisterRepresentation::Tagged());
-    // Bitcasts from and to Tagged should use a TaggedBitcast instead (which has
-    // different effects, since it's unsafe to reorder such bitcasts accross
-    // GCs).
+    // Bitcasts must preserve bit width (e.g. Word32 -> Word64 should use
+    // kZeroExtend or kSignExtend instead).
+    DCHECK_IMPLIES(kind == Kind::kBitcast, from.bit_width() == to.bit_width());
   }
   auto options() const { return std::tuple{kind, assumption, from, to}; }
 };

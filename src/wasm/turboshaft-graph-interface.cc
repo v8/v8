@@ -5923,12 +5923,7 @@ class TurboshaftGraphBuildingInterface
     if constexpr (SmiValuesAre31Bits()) {
       V<Word32> shifted =
           __ Word32ShiftLeft(input.get<Word32>(), kSmiTagSize + kSmiShiftSize);
-      if constexpr (Is64()) {
-        // The uppermost bits don't matter.
-        result->op = __ BitcastWord32ToWord64(shifted);
-      } else {
-        result->op = shifted;
-      }
+      result->op = __ ChangeUint32ToUintPtr(shifted);
     } else {
       // Set the topmost bit to sign-extend the second bit. This way,
       // interpretation in JS (if this value escapes there) will be the same as

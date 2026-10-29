@@ -264,7 +264,7 @@ Node* GraphAssembler::TaggedEqual(Node* left, Node* right) {
 
 Node* GraphAssembler::SmiSub(Node* left, Node* right) {
   if (COMPRESS_POINTERS_BOOL) {
-    return BitcastWord32ToWord64(Int32Sub(left, right));
+    return ChangeUint32ToUint64(Int32Sub(left, right));
   } else {
     return IntSub(left, right);
   }

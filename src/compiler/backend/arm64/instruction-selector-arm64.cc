@@ -2900,7 +2900,7 @@ void InstructionSelector::VisitInt32MulHigh(OpIndex node) {
   InstructionOperand const smull_operand = g.TempRegister();
   Emit(kArm64Smull, smull_operand, g.UseRegister(op.left()),
        g.UseRegister(op.right()));
-  Emit(kArm64Asr, g.DefineAsRegister(node), smull_operand, g.TempImmediate(32));
+  Emit(kArm64Lsr, g.DefineAsRegister(node), smull_operand, g.TempImmediate(32));
 }
 
 void InstructionSelector::VisitInt64MulHigh(OpIndex node) {
@@ -3082,12 +3082,6 @@ void InstructionSelector::VisitTryTruncateFloat64ToUint32(OpIndex node) {
   Emit(kArm64Float64ToUint32, output_count, outputs, 1, inputs);
 }
 
-void InstructionSelector::VisitBitcastWord32ToWord64(OpIndex node) {
-  DCHECK(SmiValuesAre31Bits());
-  DCHECK(COMPRESS_POINTERS_BOOL);
-  EmitIdentity(node);
-}
-
 void InstructionSelector::VisitChangeInt32ToInt64(OpIndex node) {
   const ChangeOp& change_op = this->Get(node).template Cast<ChangeOp>();
   const Operation& input_op = this->Get(change_op.input());
@@ -3150,8 +3144,18 @@ bool InstructionSelector::ZeroExtendsWord32ToWord64NoPhis(OpIndex node) {
   switch (op.opcode) {
     case Opcode::kWordBinop:
       return op.Cast<WordBinopOp>().rep == WordRepresentation::Word32();
-    case Opcode::kShift:
-      return op.Cast<ShiftOp>().rep == WordRepresentation::Word32();
+    case Opcode::kShift: {
+      const ShiftOp& shift = op.Cast<ShiftOp>();
+      if (shift.rep != WordRepresentation::Word32()) return false;
+      if ((shift.kind == ShiftOp::Kind::kShiftRightArithmetic ||
+           shift.kind == ShiftOp::Kind::kShiftRightArithmeticShiftOutZeros) &&
+          Get(shift.left()).Is<Opmask::kWord32SignedMulOverflownBits>()) {
+        // VisitWord32Sar combines Word32Sar(Int32MulHigh, const) into a 64-bit
+        // Smull + Asr, which leaves sign bits in the upper 32 bits.
+        return false;
+      }
+      return true;
+    }
     case Opcode::kComparison:
       return op.Cast<ComparisonOp>().rep == RegisterRepresentation::Word32();
     case Opcode::kOverflowCheckedBinop: {

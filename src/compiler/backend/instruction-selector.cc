@@ -1877,7 +1877,6 @@ VISIT_UNSUPPORTED_OP(Int64LessThan)
 VISIT_UNSUPPORTED_OP(Int64LessThanOrEqual)
 VISIT_UNSUPPORTED_OP(Uint64LessThan)
 VISIT_UNSUPPORTED_OP(Uint64LessThanOrEqual)
-VISIT_UNSUPPORTED_OP(BitcastWord32ToWord64)
 VISIT_UNSUPPORTED_OP(ChangeInt32ToInt64)
 VISIT_UNSUPPORTED_OP(ChangeInt64ToFloat64)
 VISIT_UNSUPPORTED_OP(ChangeUint32ToUint64)
@@ -3115,8 +3114,6 @@ void InstructionSelector::VisitNode(OpIndex node) {
           return VisitTruncateInt64ToInt32(node);
         case ChangeOp::Kind::kBitcast:
           switch (multi(change.from, change.to)) {
-            case multi(Rep::Word32(), Rep::Word64()):
-              return VisitBitcastWord32ToWord64(node);
             case multi(Rep::Word32(), Rep::Float32()):
               return VisitBitcastInt32ToFloat32(node);
             case multi(Rep::Word64(), Rep::Float64()):

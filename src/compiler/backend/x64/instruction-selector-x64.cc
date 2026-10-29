@@ -2734,12 +2734,6 @@ void InstructionSelector::VisitTryTruncateFloat64ToInt32(OpIndex node) {
   Emit(kSSEFloat64ToInt32, output_count, outputs, 1, inputs, temp_count, temps);
 }
 
-void InstructionSelector::VisitBitcastWord32ToWord64(OpIndex node) {
-  DCHECK(SmiValuesAre31Bits());
-  DCHECK(COMPRESS_POINTERS_BOOL);
-  EmitIdentity(node);
-}
-
 void InstructionSelector::VisitChangeInt32ToInt64(OpIndex node) {
   const ChangeOp& op = Cast<ChangeOp>(node);
   DCHECK_EQ(op.input_count, 1);

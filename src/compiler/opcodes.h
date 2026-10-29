@@ -848,7 +848,6 @@
   V(TryTruncateFloat64ToInt32)           \
   V(TryTruncateFloat64ToUint32)          \
   V(ChangeInt32ToFloat64)                \
-  V(BitcastWord32ToWord64)               \
   V(ChangeInt32ToInt64)                  \
   V(ChangeInt64ToFloat64)                \
   V(ChangeUint32ToFloat64)               \

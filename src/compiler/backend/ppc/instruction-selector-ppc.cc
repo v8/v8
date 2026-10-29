@@ -1315,12 +1315,6 @@ void InstructionSelector::VisitTryTruncateFloat64ToUint32(OpIndex node) {
   VisitTryTruncateDouble(this, kPPC_DoubleToUint32, node);
 }
 
-void InstructionSelector::VisitBitcastWord32ToWord64(OpIndex node) {
-  DCHECK(SmiValuesAre31Bits());
-  DCHECK(COMPRESS_POINTERS_BOOL);
-  EmitIdentity(node);
-}
-
 void InstructionSelector::VisitChangeInt32ToInt64(OpIndex node) {
   // TODO(mbrandy): inspect input to see if nop is appropriate.
   VisitRR(this, kPPC_ExtendSignWord32, node);
