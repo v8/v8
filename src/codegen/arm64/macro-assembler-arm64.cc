@@ -54,6 +54,19 @@ constexpr bool kSaveFullFPRegistersOnStack = true;
 constexpr bool kSaveFullFPRegistersOnStack = false;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+// A tagged value points into the read-only reservation iff none of these bits
+// of its compressed half is set, the check MemoryChunk::InReadOnlySpace()
+// makes: the reservation is a power of two at the base of the cage. The mask
+// is a logical immediate, so the test is a single tst, whereas the reservation
+// size, one past the largest add/sub immediate, would have to be materialized
+// for a cmp.
+constexpr uint32_t kReadOnlyReservationMask =
+    static_cast<uint32_t>(kContiguousReadOnlySpaceMask);
+static_assert(kReadOnlyReservationMask ==
+              ~static_cast<uint32_t>(kContiguousReadOnlyReservationSize - 1));
+#endif  // CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+
 }  // namespace
 
 void MacroAssembler::PushCPURegList(CPURegList registers) {
@@ -3836,7 +3849,7 @@ void MacroAssembler::PreCheckSkippedWriteBarrier(Register object,
   }
 
 #if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
-  JumpIfUnsignedLessThan(value, kContiguousReadOnlyReservationSize, ok);
+  TestAndBranchIfAllClear(value.W(), kReadOnlyReservationMask, ok);
 #else   // !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
   // Write barier can also be removed if value is in read-only space.
   CheckPageFlag(value, scratch, MemoryChunk::kIsInReadOnlyHeapMask, ne, ok);
@@ -3885,7 +3898,7 @@ void MacroAssembler::MaybeJumpIfReadOnlyOrSmallSmi(Register value,
   constexpr int kLastStaticRootPage =
       RoundUp<kRegularPageSize>(StaticReadOnlyRoot::kLastAllocatedRoot);
   static_assert(kLastStaticRootPage <= kContiguousReadOnlyReservationSize);
-  JumpIfUnsignedLessThan(value, kContiguousReadOnlyReservationSize, dest);
+  TestAndBranchIfAllClear(value.W(), kReadOnlyReservationMask, dest);
 #endif  // V8_STATIC_ROOTS_BOOL && CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
 }
 

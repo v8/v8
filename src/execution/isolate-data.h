@@ -365,7 +365,7 @@ class IsolateData final {
   LinearAllocationArea new_allocation_info_;
   LinearAllocationArea old_allocation_info_;
 
-  Address last_young_allocation_;
+  Address last_young_allocation_ = kNullAddress;
 
   // Aligns fast_c_call_XXX fields so that they stay in the same CPU cache line.
   Address fast_c_call_alignment_padding_[kFastCCallAlignmentPaddingCount];
