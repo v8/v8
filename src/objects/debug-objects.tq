@@ -24,6 +24,7 @@ bitfield struct DebugInfoFlags extends uint31 {
   break_at_entry: bool: 1 bit;
   can_break_at_entry: bool: 1 bit;
   debug_execution_mode: bool: 1 bit;
+  deoptimized_for_break_info: bool: 1 bit;
 }
 
 @cppScope('DebugInfo::DebuggerHints')

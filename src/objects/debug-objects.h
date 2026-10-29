@@ -48,6 +48,7 @@ V8_OBJECT class DebugInfo : public ExposedTrustedObject {
     using BreakAtEntryBit = HasCoverageInfoBit::Next<bool, 1>;
     using CanBreakAtEntryBit = BreakAtEntryBit::Next<bool, 1>;
     using DebugExecutionModeBit = CanBreakAtEntryBit::Next<bool, 1>;
+    using DeoptimizedForBreakInfoBit = DebugExecutionModeBit::Next<bool, 1>;
 
     BIT_FIELD_GROUP_ACCESSORS(has_break_info, HasBreakInfoBit)
     BIT_FIELD_GROUP_ACCESSORS(prepared_for_debug_execution,
@@ -56,6 +57,8 @@ V8_OBJECT class DebugInfo : public ExposedTrustedObject {
     BIT_FIELD_GROUP_ACCESSORS(break_at_entry, BreakAtEntryBit)
     BIT_FIELD_GROUP_ACCESSORS(can_break_at_entry, CanBreakAtEntryBit)
     BIT_FIELD_GROUP_ACCESSORS(debug_execution_mode, DebugExecutionModeBit)
+    BIT_FIELD_GROUP_ACCESSORS(deoptimized_for_break_info,
+                              DeoptimizedForBreakInfoBit)
   };
   enum Flag : uint32_t {
     kNone = 0,
@@ -65,8 +68,9 @@ V8_OBJECT class DebugInfo : public ExposedTrustedObject {
     kBreakAtEntry = Flags::BreakAtEntryBit::kMask,
     kCanBreakAtEntry = Flags::CanBreakAtEntryBit::kMask,
     kDebugExecutionMode = Flags::DebugExecutionModeBit::kMask,
+    kDeoptimizedForBreakInfo = Flags::DeoptimizedForBreakInfoBit::kMask,
   };
-  static constexpr int kFlagCount = 6;
+  static constexpr int kFlagCount = 7;
 
   // DebugInfo can be detached from the SharedFunctionInfo iff it is empty.
   bool IsEmpty() const;

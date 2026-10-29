@@ -58,7 +58,8 @@ void DebugInfo::ClearBreakInfo(Isolate* isolate) {
                         .with_prepared_for_debug_execution(false)
                         .with_break_at_entry(false)
                         .with_can_break_at_entry(false)
-                        .with_debug_execution_mode(false);
+                        .with_debug_execution_mode(false)
+                        .with_deoptimized_for_break_info(false);
   set_flags(new_flags, kRelaxedStore);
 }
 
