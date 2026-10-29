@@ -28,6 +28,7 @@ namespace v8 {
 namespace internal {
 
 using SharedHeapTest = TestJSSharedMemoryWithIsolate;
+using SharedHeapTestWithInternals = WithHeapInternals<SharedHeapTest>;
 
 class SharedHeapNoClientsTest : public TestJSSharedMemoryWithPlatform {
  public:
@@ -101,6 +102,22 @@ TEST_F(SharedHeapTest, ConcurrentAllocationInSharedOldSpace) {
 
         ParkingThread::ParkedJoinAll(parked, threads);
       });
+}
+
+TEST_F(SharedHeapTestWithInternals,
+       AllocationGCInSharedTrustedSpaceOnMainIsolate) {
+  CHECK(i_isolate()->is_shared_space_isolate());
+  ManualGCScope manual_gc_scope(i_isolate());
+  SimulateFullSpace(heap()->shared_trusted_space());
+  SetForceGCOnNextAllocation(true);
+
+  const GCEpoch initial_gc_count = heap()->gc_count();
+  DirectHandle<TrustedByteArray> array =
+      i_isolate()->factory()->NewTrustedByteArray(
+          16, AllocationType::kSharedTrusted);
+  CHECK_EQ(MemoryChunk::FromHeapObject(*array)->Metadata()->owner()->identity(),
+           SHARED_TRUSTED_SPACE);
+  EXPECT_GT(heap()->gc_count(), initial_gc_count);
 }
 
 namespace {

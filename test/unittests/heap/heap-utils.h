@@ -39,6 +39,7 @@ class HeapInternalsBase {
                                              AllocationType allocation);
   AllocationResult AllocateMapForTest(Isolate* isolate);
   void SetForceOOM(Heap* heap, bool value);
+  void SetForceGCOnNextAllocation(Heap* heap, bool value);
   void SetDelaySweeperTasksForTesting(Heap* heap, bool value);
   int MemoryReducerStateId(Heap* heap);
   std::vector<Handle<FixedArray>> CreatePadding(
@@ -172,6 +173,9 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
   }
   void SetForceOOM(bool value) {
     HeapInternalsBase::SetForceOOM(heap(), value);
+  }
+  void SetForceGCOnNextAllocation(bool value) {
+    HeapInternalsBase::SetForceGCOnNextAllocation(heap(), value);
   }
   void SetDelaySweeperTasksForTesting(bool value) {
     HeapInternalsBase::SetDelaySweeperTasksForTesting(heap(), value);

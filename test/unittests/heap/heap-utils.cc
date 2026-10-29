@@ -30,6 +30,10 @@ void HeapInternalsBase::SetForceOOM(Heap* heap, bool value) {
   heap->set_force_oom(value);
 }
 
+void HeapInternalsBase::SetForceGCOnNextAllocation(Heap* heap, bool value) {
+  heap->set_force_gc_on_next_allocation(value);
+}
+
 void HeapInternalsBase::SetDelaySweeperTasksForTesting(Heap* heap, bool value) {
   heap->delay_sweeper_tasks_for_testing_ = value;
 }

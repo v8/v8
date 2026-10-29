@@ -159,10 +159,10 @@ constexpr AllocationSpace AllocationTypeToGCSpace(AllocationType type) {
     case AllocationType::kTrusted:
     case AllocationType::kSharedMap:
     case AllocationType::kSharedOld:
+    case AllocationType::kSharedTrusted:
       // OLD_SPACE indicates full GC.
       return OLD_SPACE;
     case AllocationType::kReadOnly:
-    case AllocationType::kSharedTrusted:
       UNREACHABLE();
   }
   UNREACHABLE();
