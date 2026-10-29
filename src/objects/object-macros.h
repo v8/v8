@@ -478,28 +478,6 @@
     TaggedField<Smi, offset>::Relaxed_Store(this, Smi::FromInt(value)); \
   }
 
-#define BOOL_GETTER(holder, field, name, offset) \
-  bool holder::name() const { return BooleanBit::get(field(), offset); }
-
-#define BOOL_ACCESSORS(holder, field, name, offset)                      \
-  bool holder::name() const { return BooleanBit::get(field(), offset); } \
-  void holder::set_##name(bool value) {                                  \
-    set_##field(BooleanBit::set(field(), offset, value));                \
-  }
-
-#define DECL_RELAXED_BOOL_ACCESSORS(name) \
-  inline bool name(RelaxedLoadTag) const; \
-  inline void set_##name(bool value, RelaxedStoreTag);
-
-#define RELAXED_BOOL_ACCESSORS(holder, field, name, offset)          \
-  bool holder::name(RelaxedLoadTag) const {                          \
-    return BooleanBit::get(field(kRelaxedLoad), offset);             \
-  }                                                                  \
-  void holder::set_##name(bool value, RelaxedStoreTag) {             \
-    set_##field(BooleanBit::set(field(kRelaxedLoad), offset, value), \
-                kRelaxedStore);                                      \
-  }
-
 // Host objects in ReadOnlySpace can't define the isolate-less accessor.
 #define DECL_LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(name, type) \
   inline void init_##name();                                                  \
@@ -883,10 +861,10 @@
 
 #define BIT_FIELD_ACCESSORS2(holder, get_field, set_field, name, BitField) \
   typename BitField::FieldType holder::name() const {                      \
-    return BitField::decode(get_field());                                  \
+    return get_field().template get<BitField>();                           \
   }                                                                        \
   void holder::set_##name(typename BitField::FieldType value) {            \
-    set_##set_field(BitField::update(set_field(), value));                 \
+    set_##set_field(set_field().template with<BitField>(value));           \
   }
 
 #define BIT_FIELD_ACCESSORS(holder, field, name, BitField) \

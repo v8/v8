@@ -13385,9 +13385,11 @@ TNode<JSAny> CodeStubAssembler::GetInterestingProperty(
       if constexpr (!V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
         TNode<Smi> flags =
             GetNameDictionaryFlags<NameDictionary>(CAST(properties));
-        GotoIf(IsSetSmi(flags,
-                        NameDictionary::MayHaveInterestingPropertiesBit::kMask),
-               &lookup);
+        GotoIf(
+            IsSetSmi(
+                flags,
+                NameDictionary::Flags::MayHaveInterestingPropertiesBit::kMask),
+            &lookup);
         *var_holder = LoadMapPrototype(holder_map);
         *var_holder_map = LoadMap((*var_holder).value());
       }

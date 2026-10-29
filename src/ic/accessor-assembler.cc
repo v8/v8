@@ -1843,7 +1843,8 @@ void AccessorAssembler::UpdateMayHaveInterestingProperty(
     flags = SmiOr(
         flags,
         SmiConstant(
-            NameDictionary::MayHaveInterestingPropertiesBit::encode(true)));
+            NameDictionary::Flags::MayHaveInterestingPropertiesBit::encode(
+                true)));
     SetNameDictionaryFlags(dict, flags);
     Goto(&done);
   }
