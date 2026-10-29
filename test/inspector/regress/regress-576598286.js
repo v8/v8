@@ -6,7 +6,7 @@
 
 const {session, contextGroup, Protocol} = InspectorTest.start(
     'Checks that CommandLineAPI values() stops reading properties once ' +
-    'execution is terminated, and consistently ignores getter exceptions.');
+    'execution is terminated, and propagates getter exceptions.');
 
 const nonLastThrowExpression = `
   (function() {

@@ -1,6 +1,6 @@
-Checks that CommandLineAPI values() stops reading properties once execution is terminated, and consistently ignores getter exceptions.
-getter throws (non-last): [null,2]
-getter throws (last): [1,null]
+Checks that CommandLineAPI values() stops reading properties once execution is terminated, and propagates getter exceptions.
+getter throws (non-last): threw first
+getter throws (last): threw last
 paused
 ran: false
 after: false

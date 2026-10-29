@@ -698,25 +698,12 @@ void V8Console::valuesCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   if (!obj->GetOwnPropertyNames(context).ToLocal(&names)) return;
   v8::Local<v8::Array> values = v8::Array::New(isolate, names->Length());
-  v8::TryCatch tryCatch(isolate);
   for (uint32_t i = 0; i < names->Length(); ++i) {
     v8::Local<v8::Value> key;
-    if (!names->Get(context, i).ToLocal(&key)) {
-      if (tryCatch.HasTerminated()) return;
-      tryCatch.Reset();
-      continue;
-    }
+    if (!names->Get(context, i).ToLocal(&key)) return;
     v8::Local<v8::Value> value;
-    if (!obj->Get(context, key).ToLocal(&value)) {
-      if (tryCatch.HasTerminated()) return;
-      tryCatch.Reset();
-      continue;
-    }
-    if (createDataProperty(context, values, i, value).IsNothing()) {
-      if (tryCatch.HasTerminated()) return;
-      tryCatch.Reset();
-      continue;
-    }
+    if (!obj->Get(context, key).ToLocal(&value)) return;
+    if (createDataProperty(context, values, i, value).IsNothing()) return;
   }
   info.GetReturnValue().Set(values);
 }
