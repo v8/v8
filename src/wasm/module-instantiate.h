@@ -41,12 +41,13 @@ struct WasmModule;
 // type of the target function/callable and whether the signature matches the
 // argument arity.
 enum class ImportCallKind : uint8_t {
-  kLinkError,         // static Wasm->Wasm type error
-  kRuntimeTypeError,  // runtime Wasm->JS type error
-  kWasmToCapi,        // fast Wasm->C-API call
-  kWasmToJSFastApi,   // fast Wasm->JS Fast API C call
-  kWasmToWasm,        // fast Wasm->Wasm call
-  kJSFunction,        // fast Wasm->JS call
+  kLinkError,             // static Wasm->Wasm type error
+  kRuntimeTypeError,      // runtime Wasm->JS type error
+  kWasmToCapi,            // fast Wasm->C-API call
+  kWasmToJSFastApi,       // fast Wasm->JS Fast API C call
+  kWasmToWasm,            // fast Wasm->Wasm call
+  kReexportedJSFunction,  // Wasm->JS call reusing an existing wrapper
+  kJSFunction,            // fast Wasm->JS call
   // For everything else, there's the call builtin.
   kUseCallBuiltin
 };

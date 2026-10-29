@@ -123,6 +123,12 @@ class ImportedFunctionEntry {
       std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle,
       wasm::Suspend suspend, const wasm::CanonicalSig* sig);
 
+  // Initialize this entry as a call to a re-exported JS function, reusing the
+  // existing WasmImportData and import wrapper from the exporting instance.
+  void SetReexportedJSFunction(
+      Tagged<WasmImportData> import_data,
+      std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle);
+
   Tagged<JSReceiver> callable();
   Tagged<Object> maybe_callable();
   Tagged<Object> implicit_arg();
@@ -323,19 +329,17 @@ V8_OBJECT class WasmTableObject : public JSObject {
       DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
       int func_index);
 
-  static const int kCurrentLengthOffsetEnd;
-  static const int kTrustedDispatchTableOffsetEnd;
-  static const int kTrustedDataOffsetEnd;
-  static const int kHeaderSize;
-
- private:
-  // {entry} is either {Null} or a {WasmInternalFunction}.
+  // {entry} is either {WasmNull} or a {WasmFuncRef}.
   static void SetFunctionTableEntry(
       Isolate* isolate, DirectHandle<WasmTableObject> table,
       DirectHandle<WasmDispatchTable> dispatch_table, int entry_index,
       DirectHandle<Object> entry);
 
- public:
+  static const int kCurrentLengthOffsetEnd;
+  static const int kTrustedDispatchTableOffsetEnd;
+  static const int kTrustedDataOffsetEnd;
+  static const int kHeaderSize;
+
   TaggedMember<FixedArray> entries_;
   TaggedMember<Smi> current_length_;
   TaggedMember<UnionOf<Smi, HeapNumber, BigInt, Undefined>> maximum_length_;

@@ -728,7 +728,9 @@ ResolvedWasmImport::ResolvedWasmImport(
   // we try to re-export that function.
   // This should also be caught by an SBXCHECK in {GetOrCreateFuncRef} which
   // protects against a more general version of this issue.
-  CHECK(!(suspend_ == kSuspend && kind_ == ImportCallKind::kWasmToWasm));
+  CHECK(!(suspend_ == kSuspend &&
+          (kind_ == ImportCallKind::kWasmToWasm ||
+           kind_ == ImportCallKind::kReexportedJSFunction)));
 }
 
 void ResolvedWasmImport::SetCallable(Isolate* isolate,
@@ -787,11 +789,23 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
           data->instance_data()->module()->num_imported_functions) {
         return ImportCallKind::kWasmToWasm;
       }
-      // Resolve the shortcut to the underlying callable and continue.
       ImportedFunctionEntry entry(direct_handle(data->instance_data(), isolate),
                                   function_index);
-      suspend_ = TrustedCast<WasmImportData>(entry.implicit_arg())->suspend();
-      SetCallable(isolate, entry.callable());
+      Tagged<WasmImportData> import_data =
+          TrustedCast<WasmImportData>(entry.implicit_arg());
+      if (data->internal()->sig() != expected_sig ||
+          import_data->native_context() != isolate->raw_native_context()) {
+        if (!v8_flags.wasm_jitless) {
+          return ImportCallKind::kReexportedJSFunction;
+        }
+        // In jitless mode, fall through without unwrapping so direct
+        // JS-compatible calls invoke the exported function's JS-to-Wasm
+        // interpreter wrapper, preserving its signature checks.
+      } else {
+        // Resolve the shortcut to the underlying callable and continue.
+        suspend_ = import_data->suspend();
+        SetCallable(isolate, entry.callable());
+      }
     }
   }
   if (WasmCapiFunction::IsWasmCapiFunction(*callable_)) {
@@ -1768,6 +1782,30 @@ bool InstanceBuilder::ProcessImportedFunction(int import_index,
       return true;
     }
 
+    case ImportCallKind::kReexportedJSFunction: {
+      DisallowGarbageCollection no_gc;
+      auto function_data =
+          TrustedCast<WasmExportedFunctionData>(trusted_function_data);
+      Tagged<WasmTrustedInstanceData> instance_data =
+          function_data->instance_data();
+      int imported_func_index = function_data->function_index();
+      CHECK_LT(imported_func_index,
+               instance_data->module()->num_imported_functions);
+      Tagged<WasmImportData> import_data = TrustedCast<WasmImportData>(
+          instance_data->dispatch_table_for_imports()->implicit_arg(
+              imported_func_index));
+      DCHECK_EQ(import_data->sig()->signature_hash(),
+                expected_sig->signature_hash());
+      std::optional<std::shared_ptr<wasm::WasmWrapperHandle>> wrapper_handle =
+          instance_data->dispatch_table_for_imports()->MaybeGetWrapperHandle(
+              imported_func_index);
+      DCHECK(!v8_flags.wasm_jitless);
+      CHECK(wrapper_handle.has_value());
+      imported_entry.SetReexportedJSFunction(import_data,
+                                             *std::move(wrapper_handle));
+      return true;
+    }
+
     case ImportCallKind::kWasmToJSFastApi: {
 #ifdef V8_ENABLE_TURBOFAN
       DCHECK(IsJSFunction(*callable) || IsJSBoundFunction(*callable));
@@ -2446,15 +2484,21 @@ V8_INLINE void SetFunctionTablePlaceholder(
     DirectHandle<WasmTableObject> table_object,
     DirectHandle<WasmDispatchTable> dispatch_table, uint32_t entry_index,
     uint32_t func_index) {
-  const WasmModule* module = trusted_instance_data->module();
-  const WasmFunction* function = &module->functions[func_index];
   Tagged<WasmFuncRef> func_ref;
   if (trusted_instance_data->try_get_func_ref(func_index, &func_ref)) {
-    table_object->entries()->set(entry_index, func_ref);
-  } else {
-    WasmTableObject::SetFunctionTablePlaceholder(
-        isolate, table_object, entry_index, trusted_instance_data, func_index);
+    // Imported functions from another instance have a pre-populated `func_ref`
+    // whose canonical signature may be a proper subtype of this module's import
+    // signature. Populate both the table entry and the dispatch table from
+    // `func_ref` so they stay consistent and preserve the original signature.
+    WasmTableObject::SetFunctionTableEntry(isolate, table_object,
+                                           dispatch_table, entry_index,
+                                           direct_handle(func_ref, isolate));
+    return;
   }
+  const WasmModule* module = trusted_instance_data->module();
+  const WasmFunction* function = &module->functions[func_index];
+  WasmTableObject::SetFunctionTablePlaceholder(
+      isolate, table_object, entry_index, trusted_instance_data, func_index);
   WasmTableObject::UpdateDispatchTable(isolate, dispatch_table, entry_index,
                                        function, trusted_instance_data
 #if V8_ENABLE_DRUMBRAKE

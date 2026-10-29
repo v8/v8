@@ -1155,6 +1155,7 @@
   'regress/wasm/regress-407797300': [SKIP],
   'regress/wasm/regress-408254017': [SKIP],
   'regress/wasm/regress-567481597': [SKIP],
+  'regress/wasm/regress-578382523-2': [SKIP],
   'regress/wasm/regress-crbug-408253898': [SKIP],
 
   # --wasm-fp16

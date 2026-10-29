@@ -207,13 +207,11 @@ namespace {
 void UpdateDispatchTableMultiple(Isolate* isolate,
                                  DirectHandle<WasmDispatchTable> dispatch_table,
                                  int start_index, int count,
-                                 DirectHandle<Object> external) {
-  if (WasmExportedFunction::IsWasmExportedFunction(*external)) {
-    auto exported_function = Cast<WasmExportedFunction>(external);
-    auto func_data = exported_function->shared()->wasm_exported_function_data();
+                                 DirectHandle<WasmInternalFunction> internal) {
+  int func_index = internal->function_index();
+  if (func_index >= 0) {
     DirectHandle<WasmTrustedInstanceData> target_instance_data(
-        func_data->instance_data(), isolate);
-    int func_index = func_data->function_index();
+        internal->instance_data(), isolate);
     const wasm::WasmModule* module = target_instance_data->module();
     SBXCHECK_BOUNDS(func_index, module->functions.size());
     auto* wasm_function = module->functions.data() + func_index;
@@ -228,11 +226,12 @@ void UpdateDispatchTableMultiple(Isolate* isolate,
       );
     }
   } else {
-    DCHECK(WasmCapiFunction::IsWasmCapiFunction(*external));
+    DCHECK_EQ(-1, func_index);
+    DirectHandle<WasmCapiFunction> capi_function(
+        Cast<WasmCapiFunction>(internal->external()), isolate);
     for (int i = 0; i < count; ++i) {
       WasmTableObject::UpdateDispatchTable(isolate, dispatch_table,
-                                           start_index + i,
-                                           Cast<WasmCapiFunction>(external));
+                                           start_index + i, capi_function);
     }
   }
 }
@@ -260,14 +259,13 @@ DirectHandle<WasmTableObject> WasmTableObject::New(
 
   if (is_function_table && initial > 0 && !IsWasmNull(*initial_value) &&
       IsWasmFuncRef(*initial_value)) {
-    DirectHandle<Object> external =
-        WasmInternalFunction::GetOrCreateExternal(direct_handle(
-            Cast<WasmFuncRef>(*initial_value)->internal(isolate), isolate));
+    DirectHandle<WasmInternalFunction> internal(
+        Cast<WasmFuncRef>(*initial_value)->internal(isolate), isolate);
 
     // The entries array was filled with *initial_value above, so this loop
     // only has to do the dispatch-table half.
     UpdateDispatchTableMultiple(isolate, dispatch_table, 0,
-                                static_cast<int>(initial), external);
+                                static_cast<int>(initial), internal);
   }
 
   DirectHandle<UnionOf<Undefined, Number, BigInt>> max =
@@ -407,11 +405,11 @@ void WasmTableObject::SetFunctionTableEntry(
     return;
   }
   DCHECK(IsWasmFuncRef(*entry));
-  DirectHandle<Object> external = WasmInternalFunction::GetOrCreateExternal(
-      direct_handle(Cast<WasmFuncRef>(*entry)->internal(isolate), isolate));
+  DirectHandle<WasmInternalFunction> internal(
+      Cast<WasmFuncRef>(*entry)->internal(isolate), isolate);
 
   UpdateDispatchTableMultiple(isolate, dispatch_table, entry_index, 1,
-                              external);
+                              internal);
   table->entries()->set(entry_index, *entry);
 }
 
@@ -1392,6 +1390,38 @@ void ImportedFunctionEntry::SetWasmToWrapper(
                                 WasmDispatchTable::kNewEntry);
 }
 
+void ImportedFunctionEntry::SetReexportedJSFunction(
+    Tagged<WasmImportData> import_data,
+    std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle) {
+  DCHECK(!v8_flags.wasm_jitless);
+  DCHECK_NOT_NULL(wrapper_handle);
+  const wasm::CanonicalSig* sig = import_data->sig();
+
+  TRACE_IFT("Import re-exported callable 0x%" PRIxPTR
+            "[%d] = {import_data=0x%" PRIxPTR ", target=%p}\n",
+            importing_instance_data_->ptr(), index_, import_data.ptr(),
+            wrapper_handle->has_code()
+                ? wrapper_handle->code()->instructions().begin()
+                : nullptr);
+
+#if DEBUG
+  if (wrapper_handle->has_code()) {
+    DCHECK(wrapper_handle->code()->kind() == wasm::WasmCode::kWasmToJsWrapper ||
+           wrapper_handle->code()->kind() ==
+               wasm::WasmCode::kWasmToCapiWrapper);
+    DCHECK_EQ(wrapper_handle->code()->signature_hash(), sig->signature_hash());
+  }
+#endif  // DEBUG
+
+  DisallowGarbageCollection no_gc;
+  importing_instance_data_->dispatch_table_for_imports()->SetForWrapper(
+      index_, import_data, std::move(wrapper_handle), sig->index(),
+#if V8_ENABLE_DRUMBRAKE
+      WasmDispatchTable::kInvalidFunctionIndex,
+#endif  // V8_ENABLE_DRUMBRAKE
+      WasmDispatchTable::kNewEntry);
+}
+
 void ImportedFunctionEntry::SetWasmToWasm(
     Tagged<WasmTrustedInstanceData> target_instance_data,
     WasmCodePointer call_target, wasm::CanonicalTypeIndex sig_id
@@ -1816,15 +1846,22 @@ DirectHandle<WasmFuncRef> WasmTrustedInstanceData::GetOrCreateFuncRef(
                               ->implicit_arg(function_index)),
                       isolate)
                 : trusted_instance_data;
-  // Imported Wasm functions should always have a cached func ref. Recreating
-  // the `WasmInternalFunction` below does not work because the `function_index`
-  // is an import index which cannot be interpreted in the context of the
-  // imported `WasmTrustedInstanceData`.
-  SBXCHECK(!is_import || Is<WasmImportData>(implicit_arg));
-
   wasm::CanonicalTypeIndex canonical_sig_id = module->canonical_sig_id(sig_id);
   const wasm::CanonicalSig* sig =
       wasm::GetTypeCanonicalizer()->LookupFunctionSignature(canonical_sig_id);
+
+  // Imported Wasm functions and re-exported JS functions from another instance
+  // should always have a cached func ref. Recreating the `WasmInternalFunction`
+  // below does not work for them because `function_index` is an import index in
+  // `trusted_instance_data`, which cannot be interpreted in the context of
+  // another `WasmTrustedInstanceData`.
+  if (is_import) {
+    Tagged<WasmImportData> import_data;
+    SBXCHECK(TryCast<WasmImportData>(*implicit_arg, &import_data) &&
+             import_data->has_importing_instance_data() &&
+             import_data->importing_instance_data() == *trusted_instance_data &&
+             import_data->sig() == sig);
+  }
 
   // TODO(14034): Create funcref RTTs lazily?
   DirectHandle<Map> rtt{

@@ -600,6 +600,8 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   wasm::ImportCallKind kind = resolved.kind();
   callable = resolved.callable();  // Update to ultimate target.
   DCHECK_NE(wasm::ImportCallKind::kLinkError, kind);
+  DCHECK_NE(wasm::ImportCallKind::kWasmToWasm, kind);
+  DCHECK_NE(wasm::ImportCallKind::kReexportedJSFunction, kind);
   int expected_arity = static_cast<int>(sig->parameter_count());
   if (kind == wasm::ImportCallKind::kJSFunction) {
     expected_arity = Cast<JSFunction>(callable)

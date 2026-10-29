@@ -514,6 +514,7 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
     int expected_arity, wasm::Suspend suspend) {
   DCHECK_NE(wasm::ImportCallKind::kLinkError, kind);
   DCHECK_NE(wasm::ImportCallKind::kWasmToWasm, kind);
+  DCHECK_NE(wasm::ImportCallKind::kReexportedJSFunction, kind);
   DCHECK_NE(wasm::ImportCallKind::kWasmToJSFastApi, kind);
 
   TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
