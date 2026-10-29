@@ -120,11 +120,6 @@
 #define FOREACH_PRE_STAGED_FEATURE_FLAG(JS_FEATURE, WASM_FEATURE,              \
                                         INTERNAL_FEATURE) /*   (80 columns) */ \
                                                                                \
-  /* V8 side owner: leszeks */                                                 \
-  INTERNAL_FEATURE(                                                            \
-      code_cache_source_hash_sha256,                                           \
-      "hashing code cache source string with SHA256 instead of string length") \
-                                                                               \
   /* Reference-Typed Strings Proposal. */                                      \
   /* https://github.com/WebAssembly/stringref */                               \
   /* V8 side owner: jkummerow */                                               \
@@ -174,6 +169,11 @@
   /* V8 side owner: leszeks */                                                 \
   INTERNAL_FEATURE(always_specialize_for_script_context,                       \
                    "always specialize for script contexts in optimized code")  \
+                                                                               \
+  /* V8 side owner: leszeks */                                                 \
+  INTERNAL_FEATURE(                                                            \
+      code_cache_source_hash_sha256,                                           \
+      "hashing code cache source string with SHA256 instead of string length") \
                                                                                \
   /* Custom Descriptors proposal. */                                           \
   /* https://github.com/WebAssembly/custom-descriptors */                      \
