@@ -1587,6 +1587,7 @@ class MaglevReducer {
                                   ConvertReceiverMode mode);
   bool CanInlineCall(const MaglevCompilationUnit* current_unit,
                      compiler::SharedFunctionInfoRef shared,
+                     compiler::FeedbackCellRef feedback_cell,
                      float call_frequency, base::Vector<ValueNode*> arguments,
                      UseRepresentationSet use_repr_hints);
 

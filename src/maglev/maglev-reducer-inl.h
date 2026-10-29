@@ -2235,7 +2235,8 @@ void MaglevReducer<BaseT>::FlushNodesToBlock() {
 template <typename BaseT>
 bool MaglevReducer<BaseT>::CanInlineCall(
     const MaglevCompilationUnit* current_unit,
-    compiler::SharedFunctionInfoRef shared, float call_frequency,
+    compiler::SharedFunctionInfoRef shared,
+    compiler::FeedbackCellRef feedback_cell, float call_frequency,
     base::Vector<ValueNode*> arguments, UseRepresentationSet use_repr_hints) {
   auto tracer_ = tracer();
   if (broker()->StackHasOverflowed()) {
@@ -2261,6 +2262,11 @@ bool MaglevReducer<BaseT>::CanInlineCall(
     return false;
   }
   compiler::BytecodeArrayRef bytecode = shared.GetBytecodeArray(broker());
+  // Recheck the feedback vector in case it was flushed before bytecode pinning.
+  if (!feedback_cell.feedback_vector(broker())) {
+    TRACE_CANNOT_INLINE("feedback vector flushed");
+    return false;
+  }
   const CompilationFlags& flags = graph()->compilation_info()->flags();
   bool is_small =
       IsSmallFunction(bytecode.length(), arguments, use_repr_hints, flags);

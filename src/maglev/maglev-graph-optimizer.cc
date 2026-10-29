@@ -1719,7 +1719,8 @@ ProcessResult MaglevGraphOptimizer::VisitCall(Call* node,
     arguments[i] = node->arg(i).node();
   }
 
-  if (!reducer_.CanInlineCall(current_unit, shared, call_frequency, arguments,
+  if (!reducer_.CanInlineCall(current_unit, shared, feedback_cell,
+                              call_frequency, arguments,
                               new_call_node->use_repr_hints())) {
     return ReplaceWith(new_call_node);
   }

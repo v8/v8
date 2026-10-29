@@ -7730,8 +7730,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
   auto [result, arguments] = GetArgumentsAsArrayOfValueNodes(shared, args);
   RETURN_IF_ABORT(result);
 
-  if (!reducer_.CanInlineCall(compilation_unit(), shared, call_frequency,
-                              arguments, {})) {
+  if (!reducer_.CanInlineCall(compilation_unit(), shared, feedback_cell,
+                              call_frequency, arguments, {})) {
     return {};
   }
 
