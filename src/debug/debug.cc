@@ -3044,18 +3044,18 @@ void Debug::UpdateHookOnFunctionCall() {
       thread_local_.break_on_next_function_call_;
 }
 
-void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode,
+bool Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode,
                              v8::debug::BreakReasons break_reasons) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   // Ignore debug break during bootstrapping.
-  if (isolate_->bootstrapper()->IsActive()) return;
+  if (isolate_->bootstrapper()->IsActive()) return false;
   // Just continue if breaks are disabled.
-  if (break_disabled() || IsRestartFrameScheduled()) return;
+  if (break_disabled() || IsRestartFrameScheduled()) return false;
   // Ignore debug break if debugger is not active.
-  if (!is_active()) return;
+  if (!is_active()) return false;
 
   StackLimitCheck check(isolate_);
-  if (check.HasOverflowed()) return;
+  if (check.HasOverflowed()) return false;
 
   HandleScope scope(isolate_);
   MaybeHandle<FixedArray> break_points;
@@ -3094,7 +3094,7 @@ void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode,
           (ignore_break_mode == kIgnoreIfTopFrameBlackboxed
                ? IsBlackboxed(shared)
                : AllFramesOnStackAreBlackboxed());
-      if (ignore_break) return;
+      if (ignore_break) return false;
 
       // kScheduled and kOOM breaks are triggered by the stack check. While we
       // could pause here, the JSFunction didn't have time yet to create and
@@ -3107,10 +3107,10 @@ void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode,
       if ((break_reasons.contains(v8::debug::BreakReason::kScheduled) ||
            break_reasons.contains(v8::debug::BreakReason::kOOM)) &&
           BreakLocation::IsPausedInJsFunctionEntry(frame)) {
-        if (ignore_events()) return;
+        if (ignore_events()) return false;
         thread_local_.scheduled_break_on_next_function_call_.Add(break_reasons);
         FloodWithOneShotIncludingBlackboxed(handle(*shared, isolate_));
-        return;
+        return true;
       }
 
       Handle<DebugInfo> debug_info;
@@ -3123,12 +3123,15 @@ void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode,
         BreakLocation::AllAtCurrentStatement(debug_info, frame,
                                              &break_locations);
 
-        if (IsMutedAtAnyBreakLocation(shared, break_locations)) {
+        if (!break_reasons.contains(v8::debug::BreakReason::kOOM) &&
+            IsMutedAtAnyBreakLocation(shared, break_locations)) {
           // If we get to this point, a break was triggered because e.g. of
           // a debugger statement, an assert, .. . However, we do not stop
           // if this position "is muted", which happens if a conditional
-          // breakpoint at this point evaluated to false.
-          return;
+          // breakpoint at this point evaluated to false. The exception are
+          // OOM breaks: They are a last resort before the process dies and
+          // the inspector relies on them to happen.
+          return false;
         }
       }
 #if V8_ENABLE_WEBASSEMBLY
@@ -3145,7 +3148,7 @@ void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode,
         // pause cannot invalidate load-eliminated state in the optimized Wasm
         // frame.
         if (!wasm_frame->wasm_code()->is_liftoff()) {
-          if (ignore_events()) return;
+          if (ignore_events()) return false;
           thread_local_.scheduled_break_on_next_function_call_.Add(
               break_reasons);
           SetBreakOnNextFunctionCall();
@@ -3181,7 +3184,7 @@ void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode,
             }
             if (flooded) break;
           }
-          return;
+          return true;
         }
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -3197,6 +3200,7 @@ void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode,
   OnDebugBreak(break_points.is_null() ? isolate_->factory()->empty_fixed_array()
                                       : break_points.ToHandleChecked(),
                lastStepAction, break_reasons);
+  return true;
 }
 
 #ifdef DEBUG

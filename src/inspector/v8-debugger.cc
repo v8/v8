@@ -613,15 +613,25 @@ size_t V8Debugger::nearHeapLimitCallback(void* data, size_t current_heap_limit,
   thisPtr->m_targetContextGroupId =
       context.IsEmpty() ? 0 : thisPtr->m_inspector->contextGroupId(context);
   thisPtr->m_isolate->RequestInterrupt(
-      [](v8::Isolate* isolate, void*) {
-        // There's a redundancy  between setting `m_scheduledOOMBreak` and
+      [](v8::Isolate* isolate, void* data) {
+        V8Debugger* thisPtr = static_cast<V8Debugger*>(data);
+        // There's a redundancy between setting `m_scheduledOOMBreak` and
         // passing the reason along in `BreakRightNow`. The
         // `m_scheduledOOMBreak` is used elsewhere, so we cannot remove it. And
         // for being explicit, we still pass the break reason along.
-        v8::debug::BreakRightNow(
+        bool delivered = v8::debug::BreakRightNow(
             isolate, v8::debug::BreakReasons({v8::debug::BreakReason::kOOM}));
+        // If the break was dropped (e.g. breaks disabled, ignore_events, or
+        // stack overflow), clear m_scheduledOOMBreak so a future
+        // near-heap-limit callback can schedule another break attempt.
+        if (!delivered && thisPtr->m_scheduledOOMBreak) {
+          // RestoreOriginalHeapLimit is a no-op in V8, so the limit stays
+          // raised.
+          thisPtr->m_isolate->RestoreOriginalHeapLimit();
+          thisPtr->m_scheduledOOMBreak = false;
+        }
       },
-      nullptr);
+      thisPtr);
   return HeapLimitForDebugging(initial_heap_limit);
 }
 

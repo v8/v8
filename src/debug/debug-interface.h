@@ -155,7 +155,11 @@ V8_EXPORT_PRIVATE void PrepareStep(Isolate* isolate, StepAction action,
                                    bool enter_functions = false);
 bool PrepareRestartFrame(Isolate* isolate, int callFrameOrdinal);
 void ClearStepping(Isolate* isolate);
-V8_EXPORT_PRIVATE void BreakRightNow(
+// Breaks execution at the current statement if possible, or schedules a break
+// on function entry / next function call. Returns true if the break was
+// delivered or scheduled; false if it was dropped (e.g. breaks disabled,
+// ignore_events, or stack overflow).
+V8_EXPORT_PRIVATE bool BreakRightNow(
     Isolate* isolate, base::EnumSet<BreakReason> break_reason = {});
 
 // Use `SetTerminateOnResume` to indicate that an TerminateExecution interrupt

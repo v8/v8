@@ -273,7 +273,11 @@ class V8_EXPORT_PRIVATE Debug {
   void OnCompileError(DirectHandle<Script> script);
   void OnAfterCompile(DirectHandle<Script> script);
 
-  void HandleDebugBreak(IgnoreBreakMode ignore_break_mode,
+  // Breaks execution at the current statement if possible, or schedules a break
+  // on function entry / next function call. Returns true if the break was
+  // delivered or scheduled; false if it was dropped (e.g. breaks disabled,
+  // ignore_events, or stack overflow).
+  bool HandleDebugBreak(IgnoreBreakMode ignore_break_mode,
                         debug::BreakReasons break_reasons);
 
   // The break target may not be the top-most frame, since we may be

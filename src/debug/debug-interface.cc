@@ -444,15 +444,16 @@ void ClearStepping(Isolate* v8_isolate) {
   isolate->debug()->ClearStepping();
 }
 
-void BreakRightNow(Isolate* v8_isolate,
+bool BreakRightNow(Isolate* v8_isolate,
                    base::EnumSet<debug::BreakReason> break_reasons) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   EnterV8BasicScope api_scope(isolate);
-  isolate->debug()->HandleDebugBreak(i::kIgnoreIfAllFramesBlackboxed,
-                                     break_reasons);
+  bool delivered = isolate->debug()->HandleDebugBreak(
+      i::kIgnoreIfAllFramesBlackboxed, break_reasons);
   if (isolate->debug()->IsRestartFrameScheduled()) {
     isolate->TerminateExecution();
   }
+  return delivered;
 }
 
 void SetTerminateOnResume(Isolate* v8_isolate) {
