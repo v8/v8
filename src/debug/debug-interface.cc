@@ -82,9 +82,26 @@ i::Handle<i::String> GetBigIntStringPresentationHandle(
   // For large BigInts computing the decimal string representation
   // can take a long time, so we go with hexadecimal in that case.
   int radix = (i_bigint->Words64Count() > 100 * 1000) ? 16 : 10;
-  i::Handle<i::String> string_value =
-      i::BigInt::ToString(i_isolate, i_bigint, radix, i::kDontThrow)
-          .ToHandleChecked();
+  i::Handle<i::String> string_value;
+  if (!i::BigInt::ToString(i_isolate, i_bigint, radix, i::kDontThrow)
+           .ToHandle(&string_value)) {
+    // If ToString was interrupted by a termination request, clear the
+    // internal termination exception from V8 so subsequent allocations do
+    // not fail, but re-arm the stack guard so that termination will be
+    // delivered at the next interrupt check.
+    if (i_isolate->is_execution_terminating()) {
+      i_isolate->clear_internal_exception();
+      i_isolate->stack_guard()->RequestTerminateExecution();
+    }
+    // Retry with radix 16. Power-of-two radix conversion in the bigint
+    // processor uses the linear base-case algorithm which does not check
+    // InterruptRequested() and therefore cannot be interrupted.
+    radix = 16;
+    if (!i::BigInt::ToString(i_isolate, i_bigint, radix, i::kDontThrow)
+             .ToHandle(&string_value)) {
+      return i_isolate->factory()->empty_string();
+    }
+  }
   if (radix == 16) {
     if (i_bigint->IsNegative()) {
       string_value =

@@ -54,10 +54,12 @@ void SetInspector(Isolate* isolate, v8_inspector::V8Inspector*);
 v8_inspector::V8Inspector* GetInspector(Isolate* isolate);
 
 // Returns a debug string representation of the bigint without tailing `n`.
-Local<String> GetBigIntStringValue(Isolate* isolate, Local<BigInt> bigint);
+V8_EXPORT_PRIVATE Local<String> GetBigIntStringValue(Isolate* isolate,
+                                                     Local<BigInt> bigint);
 
 // Returns a debug string representation of the bigint.
-Local<String> GetBigIntDescription(Isolate* isolate, Local<BigInt> bigint);
+V8_EXPORT_PRIVATE Local<String> GetBigIntDescription(Isolate* isolate,
+                                                     Local<BigInt> bigint);
 
 // Returns a debug string representation of the date.
 Local<String> GetDateDescription(Local<Date> date);

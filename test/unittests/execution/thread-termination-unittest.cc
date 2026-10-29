@@ -308,6 +308,86 @@ TEST_F(ThreadTerminationTest, TerminateBigIntFromString) {
       "fail();\n");
 }
 
+TEST_F(ThreadTerminationTest, TerminateGetBigIntDescription) {
+  HandleScope scope(isolate());
+  Local<Context> context = Context::New(isolate());
+  Context::Scope context_scope(context);
+
+  Local<Value> val = RunJS("1n << (64n * 20000n)");
+  CHECK(val->IsBigInt());
+  Local<BigInt> bigint = val.As<BigInt>();
+  CHECK(!i_isolate()->has_exception());
+
+  isolate()->TerminateExecution();
+
+  Local<String> desc = debug::GetBigIntDescription(isolate(), bigint);
+  CHECK(!desc.IsEmpty());
+  CHECK_GT(desc->Length(), 0);
+  CHECK(!i_isolate()->has_exception());
+
+  // Subsequent JS execution must be terminated, proving termination was
+  // preserved.
+  {
+    TryCatch try_catch(isolate());
+    MaybeLocal<Value> res = TryRunJS("1 + 1");
+    CHECK(res.IsEmpty());
+    CHECK(try_catch.HasTerminated());
+  }
+
+  // Cancel termination for cleanup and value verification.
+  isolate()->CancelTerminateExecution();
+  CHECK(!isolate()->IsExecutionTerminating());
+  CHECK(!i_isolate()->has_exception());
+
+  // Verify that the description matches the BigInt value.
+  context->Global()->Set(context, NewString("bigint"), bigint).Check();
+  context->Global()->Set(context, NewString("desc"), desc).Check();
+  Local<Value> check = RunJS("desc === '0x' + bigint.toString(16) + 'n'");
+  CHECK(check->IsTrue());
+  Local<Value> parsed = RunJS("BigInt(desc.slice(0, -1)) === bigint");
+  CHECK(parsed->IsTrue());
+}
+
+TEST_F(ThreadTerminationTest, TerminateGetBigIntStringValue) {
+  HandleScope scope(isolate());
+  Local<Context> context = Context::New(isolate());
+  Context::Scope context_scope(context);
+
+  Local<Value> val = RunJS("1n << (64n * 20000n)");
+  CHECK(val->IsBigInt());
+  Local<BigInt> bigint = val.As<BigInt>();
+  CHECK(!i_isolate()->has_exception());
+
+  isolate()->TerminateExecution();
+
+  Local<String> str = debug::GetBigIntStringValue(isolate(), bigint);
+  CHECK(!str.IsEmpty());
+  CHECK_GT(str->Length(), 0);
+  CHECK(!i_isolate()->has_exception());
+
+  // Subsequent JS execution must be terminated, proving termination was
+  // preserved.
+  {
+    TryCatch try_catch(isolate());
+    MaybeLocal<Value> res = TryRunJS("1 + 1");
+    CHECK(res.IsEmpty());
+    CHECK(try_catch.HasTerminated());
+  }
+
+  // Cancel termination for cleanup and value verification.
+  isolate()->CancelTerminateExecution();
+  CHECK(!isolate()->IsExecutionTerminating());
+  CHECK(!i_isolate()->has_exception());
+
+  // Verify that the string value matches the BigInt value.
+  context->Global()->Set(context, NewString("bigint"), bigint).Check();
+  context->Global()->Set(context, NewString("str"), str).Check();
+  Local<Value> check = RunJS("str === '0x' + bigint.toString(16)");
+  CHECK(check->IsTrue());
+  Local<Value> parsed = RunJS("BigInt(str) === bigint");
+  CHECK(parsed->IsTrue());
+}
+
 void LoopGetProperty(const FunctionCallbackInfo<Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   TryCatch try_catch(info.GetIsolate());
