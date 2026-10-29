@@ -3405,6 +3405,8 @@ void WasmTableObject::WasmTableObjectVerify(Isolate* isolate) {
 void WasmValueObject::WasmValueObjectVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(Is<WasmValueObject>(this));
+  CHECK(IsString(type()));
+  CHECK(Is<JSAny>(value()));
 }
 
 void WasmExceptionPackage::WasmExceptionPackageVerify(Isolate* isolate) {

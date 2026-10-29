@@ -700,11 +700,11 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildCapiCallWrapper() {
   // Store arguments on our stack, then align the stack for calling to C.
   int param_bytes = 0;
   for (CanonicalValueType type : sig_->parameters()) {
-    param_bytes += type.value_kind_size();
+    param_bytes += type.value_kind_full_size();
   }
   int return_bytes = 0;
   for (CanonicalValueType type : sig_->returns()) {
-    return_bytes += type.value_kind_size();
+    return_bytes += type.value_kind_full_size();
   }
 
   int stack_slot_bytes = std::max(param_bytes, return_bytes);
@@ -716,10 +716,8 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildCapiCallWrapper() {
   for (size_t i = 0; i < sig_->parameter_count(); ++i) {
     CanonicalValueType type = sig_->GetParam(i);
     // Start from the parameter with index 1 to drop the instance_node.
-    // TODO(jkummerow): When a values is a reference type, we should pass it
-    // in a GC-safe way, not just as a raw pointer.
     SafeStore(offset, type, values, incoming_params[i + 1]);
-    offset += type.value_kind_size();
+    offset += type.value_kind_full_size();
   }
 
   V<Object> function_node = __ LoadTaggedField(
@@ -777,7 +775,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildCapiCallWrapper() {
       CanonicalValueType type = sig_->GetReturn(i);
       OpIndex val = SafeLoad(values, offset, type);
       returns[i] = val;
-      offset += type.value_kind_size();
+      offset += type.value_kind_full_size();
     }
     __ Return(__ Word32Constant(0), base::VectorOf(returns));
   }
@@ -816,7 +814,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildCWasmEntryWrapper() {
   int offset = 0;
   for (CanonicalValueType type : sig_->parameters()) {
     args[pos++] = SafeLoad(arg_buffer, offset, type);
-    offset += type.value_kind_size();
+    offset += type.value_kind_full_size();
   }
 
   const TSCallDescriptor* descriptor = TSCallDescriptor::Create(
@@ -846,7 +844,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildCWasmEntryWrapper() {
       CanonicalValueType type = sig_->GetReturn(i);
       OpIndex val = __ Projection(call, i, this->RepresentationFor(type));
       SafeStore(offset, type, arg_buffer, val);
-      offset += type.value_kind_size();
+      offset += type.value_kind_full_size();
     }
   }
   __ Return(__ IntPtrConstant(0));

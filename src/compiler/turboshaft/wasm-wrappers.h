@@ -888,7 +888,7 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
 
   void SafeStore(int offset, CanonicalValueType type, OpIndex base,
                  OpIndex value) {
-    int alignment = offset % type.value_kind_size();
+    int alignment = offset % type.value_kind_full_size();
     auto rep = MemoryRepresentation::FromMachineRepresentation(
         type.machine_representation());
     if (COMPRESS_POINTERS_BOOL && rep.IsCompressibleTagged()) {
@@ -925,7 +925,7 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
   }
 
   const OpIndex SafeLoad(OpIndex base, int offset, CanonicalValueType type) {
-    int alignment = offset % type.value_kind_size();
+    int alignment = offset % type.value_kind_full_size();
     auto rep = MemoryRepresentation::FromMachineRepresentation(
         type.machine_representation());
     if (COMPRESS_POINTERS_BOOL && rep.IsCompressibleTagged()) {

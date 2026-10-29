@@ -97,6 +97,7 @@
   'regress/regress-569886678': [SKIP],
   'regress/regress-570538338': [SKIP],
   'regress/regress-570547314': [SKIP],
+  'regress/regress-571960156': [SKIP],
   'regress/regress-571965281': [SKIP],
   'regress/regress-572276045': [SKIP],
   'regress/regress-572403047': [SKIP],
