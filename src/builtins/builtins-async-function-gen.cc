@@ -176,9 +176,6 @@ TF_BUILTIN(AsyncFunctionEnter, AsyncFunctionBuiltinsAssembler) {
   StoreObjectFieldNoWriteBarrier(async_function_object,
                                  offsetof(JSAsyncFunctionObject, promise_),
                                  promise);
-  StoreObjectFieldRoot(async_function_object,
-                       offsetof(JSAsyncFunctionObject, yielded_value_),
-                       RootIndex::kUndefinedValue);
 
   // Initialize closure fields to undefined. They will be lazily allocated
   // on first await. This saves memory for async functions that never suspend

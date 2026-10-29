@@ -6174,8 +6174,6 @@ VirtualObject* MaglevReducer<BaseT>::CreateJSGeneratorObject(
             GetInt32Constant(JSGeneratorObject::kGeneratorExecuting));
   vobj->set(offsetof(JSGeneratorObject, parameters_and_registers_),
             register_file);
-  vobj->set(offsetof(JSGeneratorObject, yielded_value_),
-            GetRootConstant(RootIndex::kUndefinedValue));
   if (is_async) {
     vobj->set(offsetof(JSAsyncGeneratorObject, queue_),
               GetRootConstant(RootIndex::kUndefinedValue));
@@ -6195,7 +6193,7 @@ VirtualObject* MaglevReducer<BaseT>::CreateJSAsyncFunctionObject(
       &VirtualJSAsyncFunctionObjectShape::kObjectLayout;
 
   constexpr int slot_count = sizeof(JSAsyncFunctionObject) / kTaggedSize;
-  static_assert(slot_count == 14,
+  static_assert(slot_count == 13,
                 "If the number of slots in JSAsyncFunctionObject changes, then "
                 "the additional slots need to be initialized below");
 
@@ -6221,8 +6219,6 @@ VirtualObject* MaglevReducer<BaseT>::CreateJSAsyncFunctionObject(
   vobj->set(offsetof(JSAsyncFunctionObject, await_resolve_closure_),
             GetRootConstant(RootIndex::kUndefinedValue));
   vobj->set(offsetof(JSAsyncFunctionObject, await_reject_closure_),
-            GetRootConstant(RootIndex::kUndefinedValue));
-  vobj->set(offsetof(JSAsyncFunctionObject, yielded_value_),
             GetRootConstant(RootIndex::kUndefinedValue));
 
   return vobj;

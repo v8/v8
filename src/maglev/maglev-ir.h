@@ -6133,8 +6133,7 @@ struct VirtualJSGeneratorObjectShape : VirtualJSObjectShape {
   V(resume_mode, offsetof(T, resume_mode_), vobj::FieldType::kTagged)   \
   V(continuation, offsetof(T, continuation_), vobj::FieldType::kTagged) \
   V(parameters_and_registers, offsetof(T, parameters_and_registers_),   \
-    vobj::FieldType::kTagged)                                           \
-  V(yielded_value, offsetof(T, yielded_value_), vobj::FieldType::kTagged)
+    vobj::FieldType::kTagged)
 
   DEF_SHAPE(VirtualJSObjectShape, FIELD_LIST);
 #undef FIELD_LIST
@@ -6152,21 +6151,20 @@ struct VirtualJSAsyncGeneratorObjectShape : VirtualJSGeneratorObjectShape {
 
 struct VirtualJSAsyncFunctionObjectShape : VirtualJSObjectShape {
   using T = JSAsyncFunctionObject;
-#define FIELD_LIST(V)                                                     \
-  V(function, offsetof(T, function_), vobj::FieldType::kTagged)           \
-  V(context, offsetof(T, context_), vobj::FieldType::kTagged)             \
-  V(receiver, offsetof(T, receiver_), vobj::FieldType::kTagged)           \
-  V(input_or_debug_pos, offsetof(T, input_or_debug_pos_),                 \
-    vobj::FieldType::kTagged)                                             \
-  V(resume_mode, offsetof(T, resume_mode_), vobj::FieldType::kTagged)     \
-  V(continuation, offsetof(T, continuation_), vobj::FieldType::kTagged)   \
-  V(parameters_and_registers, offsetof(T, parameters_and_registers_),     \
-    vobj::FieldType::kTagged)                                             \
-  V(yielded_value, offsetof(T, yielded_value_), vobj::FieldType::kTagged) \
-  V(promise, offsetof(T, promise_), vobj::FieldType::kTagged)             \
-  V(await_resolve_closure, offsetof(T, await_resolve_closure_),           \
-    vobj::FieldType::kTagged)                                             \
-  V(await_reject_closure, offsetof(T, await_reject_closure_),             \
+#define FIELD_LIST(V)                                                   \
+  V(function, offsetof(T, function_), vobj::FieldType::kTagged)         \
+  V(context, offsetof(T, context_), vobj::FieldType::kTagged)           \
+  V(receiver, offsetof(T, receiver_), vobj::FieldType::kTagged)         \
+  V(input_or_debug_pos, offsetof(T, input_or_debug_pos_),               \
+    vobj::FieldType::kTagged)                                           \
+  V(resume_mode, offsetof(T, resume_mode_), vobj::FieldType::kTagged)   \
+  V(continuation, offsetof(T, continuation_), vobj::FieldType::kTagged) \
+  V(parameters_and_registers, offsetof(T, parameters_and_registers_),   \
+    vobj::FieldType::kTagged)                                           \
+  V(promise, offsetof(T, promise_), vobj::FieldType::kTagged)           \
+  V(await_resolve_closure, offsetof(T, await_resolve_closure_),         \
+    vobj::FieldType::kTagged)                                           \
+  V(await_reject_closure, offsetof(T, await_reject_closure_),           \
     vobj::FieldType::kTagged)
   DEF_SHAPE(VirtualJSObjectShape, FIELD_LIST);
 #undef FIELD_LIST

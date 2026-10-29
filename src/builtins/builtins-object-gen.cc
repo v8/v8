@@ -1466,8 +1466,6 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
   TNode<Smi> executing = SmiConstant(JSGeneratorObject::kGeneratorExecuting);
   StoreObjectFieldNoWriteBarrier(
       result, offsetof(JSGeneratorObject, continuation_), executing);
-  StoreObjectFieldNoWriteBarrier(
-      result, offsetof(JSGeneratorObject, yielded_value_), UndefinedConstant());
   GotoIfNot(InstanceTypeEqual(LoadMapInstanceType(map),
                               JS_ASYNC_GENERATOR_OBJECT_TYPE),
             &done);

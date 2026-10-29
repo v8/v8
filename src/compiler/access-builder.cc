@@ -441,16 +441,6 @@ FieldAccess AccessBuilder::ForJSGeneratorObjectResumeMode() {
 }
 
 // static
-FieldAccess AccessBuilder::ForJSGeneratorObjectYieldedValue() {
-  FieldAccess access = {
-      kTaggedBase,       offsetof(JSGeneratorObject, yielded_value_),
-      Handle<Name>(),    OptionalMapRef(),
-      Type::Any(),       MachineType::AnyTagged(),
-      kFullWriteBarrier, "JSGeneratorObjectYieldedValue"};
-  return access;
-}
-
-// static
 FieldAccess AccessBuilder::ForJSAsyncFunctionObjectPromise() {
   FieldAccess access = {
       kTaggedBase,          offsetof(JSAsyncFunctionObject, promise_),

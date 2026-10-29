@@ -445,7 +445,6 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
             jsgraph()->ConstantNoHole(JSGeneratorObject::kGeneratorExecuting));
     a.Store(AccessBuilder::ForJSGeneratorObjectParametersAndRegisters(),
             parameters_and_registers);
-    a.Store(AccessBuilder::ForJSGeneratorObjectYieldedValue(), undefined);
 
     if (initial_map.instance_type() == JS_ASYNC_GENERATOR_OBJECT_TYPE) {
       a.Store(AccessBuilder::ForJSAsyncGeneratorObjectQueue(), undefined);
@@ -815,9 +814,6 @@ Reduction JSCreateLowering::ReduceJSCreateAsyncFunctionObject(Node* node) {
           jsgraph()->ConstantNoHole(JSGeneratorObject::kGeneratorExecuting));
   a.Store(AccessBuilder::ForJSGeneratorObjectParametersAndRegisters(),
           parameters_and_registers);
-  a.Store(AccessBuilder::ForJSGeneratorObjectYieldedValue(),
-          jsgraph()->UndefinedConstant());
-
   a.Store(AccessBuilder::ForJSAsyncFunctionObjectPromise(), promise);
   // Initialize await closure fields to undefined. Closures are lazily
   // allocated on first await in AwaitWithReusableClosures.
