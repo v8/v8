@@ -6637,11 +6637,7 @@ void Worker::WorkerThread::Run() {
   auto worker = std::move(worker_);
   worker_ = nullptr;
   worker->ExecuteInThread();
-  // Hand over our reference, so that it is dropped while holding the
-  // workers_mutex_ (see Shell::RemoveRunningWorker). The Worker (and
-  // therefore this WorkerThread) may be deleted by this call, so `this` must
-  // not be accessed afterwards.
-  Shell::RemoveRunningWorker(std::move(worker));
+  Shell::RemoveRunningWorker(worker);
 }
 
 class ProcessMessageTask : public i::CancelableTask {
@@ -8136,18 +8132,10 @@ void Shell::AddRunningWorker(std::shared_ptr<Worker> worker) {
   running_workers_.insert(worker);
 }
 
-void Shell::RemoveRunningWorker(std::shared_ptr<Worker> worker) {
+void Shell::RemoveRunningWorker(const std::shared_ptr<Worker>& worker) {
   base::MutexGuard lock_guard(workers_mutex_.Pointer());
-  running_workers_.erase(worker);
-  // Drop the caller's reference while still holding the workers_mutex_. If this
-  // was the last reference, the Worker is destroyed here on the worker thread.
-  // Doing this under the mutex ensures that the destruction (including freeing
-  // any ArrayBuffer backing stores still held in its message queues) happens
-  // before WaitForRunningWorkers() acquires the mutex on the main thread, and
-  // therefore before V8 is disposed. Otherwise, the worker would no longer be
-  // in running_workers_, so the main thread would not join its thread, and the
-  // destruction could race with V8::Dispose().
-  worker.reset();
+  auto it = running_workers_.find(worker);
+  if (it != running_workers_.end()) running_workers_.erase(it);
 }
 
 void Shell::WaitForRunningWorkers(const i::ParkedScope& parked) {

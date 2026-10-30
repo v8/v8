@@ -946,7 +946,7 @@ class Shell : public i::AllStatic {
 
   static void WaitForRunningWorkers(const i::ParkedScope& parked);
   static void AddRunningWorker(std::shared_ptr<Worker> worker);
-  static void RemoveRunningWorker(std::shared_ptr<Worker> worker);
+  static void RemoveRunningWorker(const std::shared_ptr<Worker>& worker);
 
   static void Initialize(Isolate* isolate, D8Console* console,
                          bool isOnMainThread = true);
