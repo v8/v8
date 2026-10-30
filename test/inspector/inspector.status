@@ -5,6 +5,10 @@
 [
 ##############################################################################
 [ALWAYS, {
+  # Issue 3660: Replacing activated TurboFan frames by unoptimized code does
+  # not work, but we expect it to not crash.
+  'debugger/debug-step-turbofan': [PASS, FAIL],
+
   # https://crbug.com/v8/7932
   'runtime/command-line-api-without-side-effects': [SKIP],
 
