@@ -520,17 +520,22 @@ void bodyCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
 }
 }  // anonymous namespace
 
-void generateCustomPreview(v8::Isolate* isolate, int sessionId,
+void generateCustomPreview(InjectedScript* injectedScript,
                            const String16& groupName,
                            v8::Local<v8::Object> object,
                            v8::MaybeLocal<v8::Value> maybeConfig, int maxDepth,
                            CustomPreviewBudget* budget,
                            std::unique_ptr<CustomPreview>* preview) {
+  v8::Isolate* isolate = injectedScript->context()->isolate();
+  int sessionId = injectedScript->sessionId();
+  int wrappingContextId = injectedScript->context()->contextId();
+
   v8::Local<v8::Context> context;
   if (!object->GetCreationContext(isolate).ToLocal(&context)) {
     return;
   }
 
+  v8::Context::Scope contextScope(context);
   v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::TryCatch tryCatch(isolate);
@@ -675,19 +680,18 @@ void generateCustomPreview(v8::Isolate* isolate, int sessionId,
       V8InspectorImpl* inspector =
           static_cast<V8InspectorImpl*>(v8::debug::GetInspector(isolate));
       std::shared_ptr<InspectedContext> inspectedContext =
-          inspector->getContext(InspectedContext::contextId(context));
+          inspector->getContext(wrappingContextId);
       if (!inspectedContext) {
         reportError(context, tryCatch, "cannot find context with specified id");
         return;
       }
-      std::shared_ptr<InjectedScript> injectedScript =
+      std::shared_ptr<InjectedScript> script =
           inspectedContext->getInjectedScript(sessionId);
-      if (!injectedScript) {
+      if (!script) {
         reportError(context, tryCatch, "cannot find context with specified id");
         return;
       }
-      (*preview)->setBodyGetterId(
-          injectedScript->bindObject(bodyFunction, groupName));
+      (*preview)->setBodyGetterId(script->bindObject(bodyFunction, groupName));
     }
     return;
   }

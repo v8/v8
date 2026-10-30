@@ -725,9 +725,9 @@ Response InjectedScript::wrapObjectMirror(
       (wrapOptions.mode == WrapMode::kPreview ||
        !customPreviewConfig.IsEmpty())) {
     std::unique_ptr<protocol::Runtime::CustomPreview> customPreview;
-    generateCustomPreview(m_context->isolate(), sessionId, groupName,
-                          value.As<v8::Object>(), customPreviewConfig,
-                          maxCustomPreviewDepth, budget, &customPreview);
+    generateCustomPreview(this, groupName, value.As<v8::Object>(),
+                          customPreviewConfig, maxCustomPreviewDepth, budget,
+                          &customPreview);
     // Custom formatters might terminate execution. Don't call into V8 anymore
     // in that case, since the next V8 API call would clear the pending
     // termination exception.

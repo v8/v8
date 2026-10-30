@@ -14,6 +14,8 @@
 
 namespace v8_inspector {
 
+class InjectedScript;
+
 const int kMaxCustomPreviewDepth = 20;
 
 // Limits the total size of the JSONML that custom formatters can produce for a
@@ -27,7 +29,7 @@ struct CustomPreviewBudget {
 };
 
 void generateCustomPreview(
-    v8::Isolate* isolate, int sessionId, const String16& groupName,
+    InjectedScript* injectedScript, const String16& groupName,
     v8::Local<v8::Object> object, v8::MaybeLocal<v8::Value> config,
     int maxDepth, CustomPreviewBudget* budget,
     std::unique_ptr<protocol::Runtime::CustomPreview>* preview);

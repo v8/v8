@@ -84,6 +84,7 @@ class InjectedScript final {
   InjectedScript& operator=(const InjectedScript&) = delete;
 
   InspectedContext* context() const { return m_context; }
+  int sessionId() const { return m_sessionId; }
 
   Response getProperties(
       v8::Local<v8::Object>, const String16& groupName, bool ownProperties,

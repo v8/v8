@@ -9,6 +9,7 @@
 #include "include/v8-external.h"
 #include "include/v8-function.h"
 #include "include/v8-inspector.h"
+#include "include/v8-json.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-microtask-queue.h"
 #include "include/v8-primitive.h"
@@ -283,6 +284,127 @@ TEST_F(InspectorTest, BinaryFromBase64) {
     auto binary = v8_inspector::protocol::Binary::fromBase64(" ", &success);
     CHECK(!success);
   }
+}
+
+namespace {
+
+class CustomPreviewChannel : public v8_inspector::V8Inspector::Channel {
+ public:
+  ~CustomPreviewChannel() override = default;
+  void sendResponse(
+      int callId,
+      std::unique_ptr<v8_inspector::StringBuffer> message) override {
+    responses_[callId] = v8_inspector::toString16(message->string());
+  }
+  void sendNotification(
+      std::unique_ptr<v8_inspector::StringBuffer> message) override {}
+  void flushProtocolNotifications() override {}
+
+  std::unordered_map<int, v8_inspector::String16> responses_;
+};
+
+}  // namespace
+
+TEST_F(InspectorTest, CrossContextCustomPreviewBody) {
+  v8::Isolate* isolate = v8_isolate();
+  v8::HandleScope handle_scope(isolate);
+
+  v8::Local<v8::Context> context_a = v8_context();
+  v8::Local<v8::Context> context_b = v8::Context::New(isolate);
+  v8::Local<v8::String> token = NewString("same-token");
+  context_a->SetSecurityToken(token);
+  context_b->SetSecurityToken(token);
+
+  {
+    v8::Context::Scope scope_b(context_b);
+    v8::Local<v8::Value> target_obj =
+        RunJS(context_b,
+              "globalThis.devtoolsFormatters = [{\n"
+              "  header: (x) => x && x.isTarget ? ['span', {}, 'custom "
+              "header'] : null,\n"
+              "  hasBody: (x) => x && x.isTarget,\n"
+              "  body: (x) => ['span', {}, 'custom body']\n"
+              "}];\n"
+              "({isTarget: true})");
+    context_a->Global()
+        ->Set(context_a, NewString("target"), target_obj)
+        .ToChecked();
+  }
+
+  v8_inspector::V8InspectorClient default_client;
+  std::unique_ptr<v8_inspector::V8InspectorImpl> inspector(
+      new v8_inspector::V8InspectorImpl(isolate, &default_client));
+  const char kContextAName[] = "contextA";
+  StringView name_a(reinterpret_cast<const uint8_t*>(kContextAName),
+                    strlen(kContextAName));
+  V8ContextInfo context_info_a(context_a, 1, name_a);
+  inspector->contextCreated(context_info_a);
+
+  const char kContextBName[] = "contextB";
+  StringView name_b(reinterpret_cast<const uint8_t*>(kContextBName),
+                    strlen(kContextBName));
+  V8ContextInfo context_info_b(context_b, 1, name_b);
+  inspector->contextCreated(context_info_b);
+
+  CustomPreviewChannel channel;
+  std::unique_ptr<V8InspectorSession> session = inspector->connect(
+      1, &channel, toStringView("{}"), v8_inspector::V8Inspector::kFullyTrusted,
+      v8_inspector::V8Inspector::kNotWaitingForDebugger);
+
+  session->dispatchProtocolMessage(
+      toStringView(R"({"id": 1, "method": "Runtime.enable"})"));
+  session->dispatchProtocolMessage(toStringView(
+      R"({"id": 2, "method": "Runtime.setCustomObjectFormatterEnabled", "params": {"enabled": true}})"));
+
+  session->dispatchProtocolMessage(toStringView(
+      R"({"id": 3, "method": "Runtime.evaluate", "params": {"expression": "target", "contextId": 1, "generatePreview": true}})"));
+
+  CHECK(channel.responses_.find(3) != channel.responses_.end());
+  v8_inspector::String16 evaluate_response = channel.responses_[3];
+
+  v8::Context::Scope scope_a(context_a);
+  v8::Local<v8::Object> eval_json =
+      v8::JSON::Parse(context_a, NewString(evaluate_response.utf8().c_str()))
+          .ToLocalChecked()
+          .As<v8::Object>();
+  v8::Local<v8::Object> result_obj =
+      eval_json->Get(context_a, NewString("result"))
+          .ToLocalChecked()
+          .As<v8::Object>()
+          ->Get(context_a, NewString("result"))
+          .ToLocalChecked()
+          .As<v8::Object>();
+  v8::Local<v8::String> object_id =
+      result_obj->Get(context_a, NewString("objectId"))
+          .ToLocalChecked()
+          .As<v8::String>();
+  v8::Local<v8::Object> custom_preview =
+      result_obj->Get(context_a, NewString("customPreview"))
+          .ToLocalChecked()
+          .As<v8::Object>();
+  v8::Local<v8::String> body_getter_id =
+      custom_preview->Get(context_a, NewString("bodyGetterId"))
+          .ToLocalChecked()
+          .As<v8::String>();
+
+  v8::String::Utf8Value object_id_utf8(isolate, object_id);
+  v8::String::Utf8Value body_getter_id_utf8(isolate, body_getter_id);
+
+  std::string call_command =
+      std::string(
+          R"({"id": 4, "method": "Runtime.callFunctionOn", "params": {)") +
+      R"("objectId": ")" + *object_id_utf8 + R"(", )" +
+      R"("functionDeclaration": "function(bodyGetter) { return bodyGetter.call(this); }", )" +
+      R"("arguments": [{"objectId": ")" + *body_getter_id_utf8 + R"("}], )" +
+      R"("returnByValue": true}})";
+
+  session->dispatchProtocolMessage(
+      toStringView(String16(call_command.c_str())));
+
+  CHECK(channel.responses_.find(4) != channel.responses_.end());
+  v8_inspector::String16 call_response = channel.responses_[4];
+  CHECK_NE(call_response.find(v8_inspector::String16("custom body")),
+           v8_inspector::String16::kNotFound);
 }
 
 TEST_F(InspectorTest, BinaryToBase64) {
@@ -1421,6 +1543,5 @@ TEST_F(InspectorTest, IsTopScriptOpaque) {
                               /*is_opaque=*/false)
                   ->BooleanValue(isolate));
 }
-
 }  // namespace internal
 }  // namespace v8
