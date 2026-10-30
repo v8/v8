@@ -2775,7 +2775,7 @@ DEFINE_INT(external_memory_max_reasonable_size, 32,
            "Max external memory value (in GB) checked for a reasonable size, 0 "
            "to disable the check.")
 DEFINE_BOOL(
-    sqrt_allocation_limits, false,
+    sqrt_allocation_limits, true,
     "Old generation and global heap limit growth scale based on the sqrt of "
     "estimated GC cost.")
 DEFINE_INT(
