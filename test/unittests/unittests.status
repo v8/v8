@@ -5,17 +5,6 @@
 [
 
 [ALWAYS, {
-  # BUG(chromium:1310062): these tests must crash once the side effect check
-  # is enabled.
-  #'ApiInterceptorsTest.Crash*': [FAIL, CRASH],
-
-  # This test always fails.  It tests that DisallowJavascriptExecutionScope
-  # works as intended.
-  'ApiTest.DisallowJavascriptExecutionScope': [FAIL],
-
-  # This tests API threading, no point in running several variants.
-  'ApiThreadingTest.Threading*': [PASS, SLOW, NO_VARIANTS],
-
   'IntlTest.StringLocaleCompareFastPath': [['mode != release', SKIP], SLOW, NO_VARIANTS],
 
   # BUG(5193). The cpu profiler tests are notoriously flaky.
@@ -36,7 +25,6 @@
   # TODO(v8:13945, olivf) We could make FAILs in official builds
   #                       distinguishable from crashes and improve the test
   #                       runner. So far, it only affects very few tests.
-  'ApiTest.SealHandleScope': [FAIL],
   'UninitializedSerializeTest.TestCheckThatAlwaysFails': [FAIL, ['official_build', CRASH]],
   'UninitializedSerializeTest.TestFatal': [FAIL],
 
@@ -67,7 +55,6 @@
   'ParsingTest.ParserSync': [PASS, NO_VARIANTS],
 
   # Slow tests.
-  'ApiTest.InternalFieldsSubclassing': [PASS, SLOW],
   'ConcurrentAllocationUninitializedTest.ConcurrentAllocationInLargeSpace': [PASS, SLOW],
   'Mutex.SharedMutexThreadsFuzz': [PASS, SLOW],
   'ParsingTest.ObjectRestNegativeTestSlow': [PASS, ['mode == debug', SKIP]],
@@ -79,7 +66,6 @@
   'UninitializedSerializeTest.StartupSerializerTwice': [PASS, SLOW],
 
   # Tests that need to run sequentially (e.g. due to memory consumption).
-  'ApiTest.NewStringRangeError': [PASS, HEAVY],
   'JumpTableAssemblerTest.JumpTablePatchingStress': [PASS, HEAVY],
   'LogAllTest.LogAll': [PASS, SLOW, HEAVY],
   'PtrComprCageTest.SharedPtrComprCageRace': [PASS, HEAVY],
@@ -121,14 +107,6 @@
    # RunDeoptTest checks frame->is_turbofan().
   'RunDeoptTest.DeoptSimple': [SKIP],
   'RunDeoptTest.DeoptSimpleInExpr': [SKIP],
-  # Maglev doesn't support FastApi calls.
-  'ApiTest.FastApiCalls': [SKIP, SLOW],
-  'ApiTest.FastApiCallWithAllocationAndGCInJS': [SKIP],
-  'ApiTest.FastApiCallWithAllocationAndGCInC': [SKIP],
-  'ApiTest.FastApiCallRecursionNoException': [SKIP],
-  'ApiTest.FastApiCallRecursionWithException': [SKIP],
-  'ApiTest.FastApiCallWithThrowInReentrantCode': [SKIP],
-  'ApiTest.FastApiCallsString': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
@@ -187,8 +165,6 @@
 ##############################################################################
 # TODO(v8:7777): Change this once wasm is supported in jitless mode.
 ['not has_webassembly or variant == jitless', {
-  'ApiArrayBufferTest.ArrayBuffer_NonDetachableWasDetached': [SKIP],
-  'ApiTest.Wasm*': [SKIP],
   'ValueSerializerTestWithSharedArrayBufferClone.RoundTripWebAssemblyMemory': [SKIP],
   'ValueSerializerTestWithWasm.*': [SKIP],
   'ApiWasmTest.WasmStreaming*': [SKIP],
@@ -368,9 +344,6 @@
 }],  # 'msan == True'
 
 ['tsan == True', {
-  # BUG(v8:6924). The test allocates a lot of memory.
-  'ApiTest.NewStringRangeError': [PASS, NO_VARIANTS],
-
   # https://crbug.com/v8/9380
   # The test is broken and needs to be fixed to use separate isolates.
   'BackingStoreTest.RacyGrowWasmMemoryInPlace': [SKIP],
@@ -513,8 +486,6 @@
 
 ##############################################################################
 ['variant == stress_incremental_marking', {
-  # BUG(https://crbug.com/v8/12999): Very slow test.
-  'ApiTest.InternalFieldsSubclassing': [PASS, ['mode == debug and arch == ia32', SKIP]],
   # BUG(v8:11820): the test adjusts GC flags, which does not work
   # if GC starts before the test.
   'RuntimeCallStatsTest.GarbageCollection': [SKIP],
@@ -617,8 +588,6 @@
 
 ##############################################################################
 ['has_jitless', {
-  # WebAssembly not included.
-  'ApiThreadingTest.Threading8': [SKIP],
   # Feedback collection maintenance is (mostly) disabled.
   'FeedbackVectorTest.Vector*': [SKIP],
   'HeapTest.IncrementalMarkingPreservesMonomorphicCallIC': [SKIP],
@@ -720,19 +689,7 @@
 
 ##############################################################################
 ['variant == no_wasm_traps', {
-  'AccessorsTest.*': [SKIP],
   'APIExceptionTest.*': [SKIP],
-  'ApiInterceptorsTest.*': [SKIP],
-  'ApiMockPlatformTest.*': [SKIP],
-  'ApiShadowRealmTest.*': [SKIP],
-  'ApiSourcePhaseImportsTest.*': [SKIP],
-  'ApiStackTracesTest.*': [SKIP],
-  'ApiStackTracesUninitializedTest.*': [SKIP],
-  'ApiTest.*': [SKIP],
-  'ApiThreadingTest.*': [SKIP],
-  'ApiUninitializedHeapInternalsTest.*': [SKIP],
-  'ApiUninitializedOwnPlatformTest.*': [SKIP],
-  'ApiUninitializedTest.*': [SKIP],
   'LogTest.*': [SKIP],
   'TestWithIsolate.Issue23768': [SKIP],
   'LogAllTest.LogAll': [SKIP],
@@ -848,8 +805,6 @@
 
 ##############################################################################
 ['system == android', {
-  # Uses too much memory.
-  'ApiTest.NewStringRangeError': [SKIP],
   # https://crbug.com/v8/14545
   'LogAllTest.LogAll': [SKIP],
   'LogTimerTest.ConsoleTimeEvents': [SKIP],
@@ -887,7 +842,6 @@
 
 ['clang_coverage and mode == debug', {
   # Too slow tests.
-  'ApiThreadingTest.Threading8': [SKIP],
   'ConcurrentAllocationUninitializedTest.ConcurrentAllocationInLargeSpace': [SKIP],
   'LogAllTest.LogAll': [SKIP],
   'HeapTest.Regress8014': [SKIP],
@@ -912,26 +866,6 @@
   'MacroAssemblerTest.TestHardAbort': [SKIP],
 }],  # simulator_run
 
-['arch == arm64 and simulator_run', {
-  # Pass but take too long with the simulator.
-  'ApiThreadingTest.Threading*': [SKIP],
-}],  # 'arch == arm64 and simulator_run'
-
-['arch == arm and simulator_run', {
-  # Pass but take too long with the simulator.
-  'ApiThreadingTest.Threading*': [SKIP],
-}],  # 'arch == arm and simulator_run'
-
-['((arch == riscv64) or (arch == riscv32)) and simulator_run', {
-  # Pass but take too long with the simulator.
-  'ApiThreadingTest.Threading*': [PASS, SLOW],
-}],  # '((arch == riscv64) or (arch == riscv32)) and simulator_run'
-
-['arch == ppc64 and simulator_run', {
-  # Pass but take too long with the simulator.
-  'ApiThreadingTest.Threading*': [PASS, SLOW],
-}],  # 'arch == ppc64 and simulator_run'
-
 ##############################################################################
 ['sandbox_hardware_support', {
   # The liftoff-for-fuzzing configuration is currently incompatible with
@@ -940,12 +874,6 @@
 
   # Tests that require the sampler/profiler, which doesn't work on older kernel
   # versions if hardware sandboxing is active. See https://crbug.com/429173713.
-  'ApiTest.SimpleCallbackWithProfiler': [SKIP],
-  'ApiTest.FastReturnValuesWithProfiler': [SKIP],
-  'ApiTest.FunctionTemplateWithProfiler': [SKIP],
-  'ApiTest.CallICFastApi_TrivialSignatureWithProfiler': [SKIP],
-  'ApiTest.LoadICFastApi_DirectCall_GCMoveStubWithProfiler': [SKIP],
-  'ApiTest.InterceptorCallICFastApi_TrivialSignatureWithProfiler': [SKIP],
   'LogTest.*': [SKIP],
   'LogMapsTest.*': [SKIP],
   'LogAllTest.LogAll': [SKIP],
@@ -969,9 +897,6 @@
 ##############################################################################
 ['full_debug', {
   # Tests too slow in non-optimized debug mode.
-  'ApiTest.FastApiCalls': [SKIP],
-  'ApiTest.InternalFieldsSubclassing': [SKIP],
-  'ApiThreadingTest.Threading8': [SKIP],
   'ConcurrentAllocationUninitializedTest.ConcurrentAllocationInLargeSpace': [SKIP],
   'LogAllTest.LogAll': [SKIP],
   'HeapTest.Regress8014': [SKIP],

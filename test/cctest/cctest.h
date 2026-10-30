@@ -41,8 +41,8 @@
 #include "src/heap/local-heap-inl.h"
 #include "src/objects/js-function.h"
 #include "src/objects/objects.h"
+#include "src/sandbox/sandboxable-thread.h"
 #include "src/zone/accounting-allocator.h"
-#include "test/common/fast-api-test-helpers.h"
 #include "test/common/simulator-helper.h"
 
 namespace v8 {
@@ -223,6 +223,109 @@ class CcTest {
 
   friend int main(int argc, char** argv);
   friend class v8::internal::ManualGCScope;
+};
+
+// Switches between all the Api tests using the threading support.
+// In order to get a surprising but repeatable pattern of thread
+// switching it has extra semaphores to control the order in which
+// the tests alternate, not relying solely on the big V8 lock.
+//
+// A test is augmented with calls to ApiTestFuzzer::Fuzz() in its
+// callbacks.  This will have no effect when we are not running the
+// thread fuzzing test.  In the thread fuzzing test it will
+// pseudorandomly select a successor thread and switch execution
+// to that thread, suspending the current test.
+class ApiTestFuzzer : public v8::internal::SandboxableThread {
+ public:
+  ~ApiTestFuzzer() override = default;
+
+  void CallTest();
+
+  // The ApiTestFuzzer is also a Thread, so it has a Run method.
+  void Run() override;
+
+  enum PartOfTest {
+    FIRST_PART,
+    SECOND_PART,
+    THIRD_PART,
+    FOURTH_PART,
+    FIFTH_PART,
+    SIXTH_PART,
+    SEVENTH_PART,
+    EIGHTH_PART,
+    LAST_PART = EIGHTH_PART
+  };
+
+  static void SetUp(PartOfTest part);
+  static void RunAllTests();
+  static void TearDown();
+  // This method switches threads if we are running the Threading test.
+  // Otherwise it does nothing.
+  static void Fuzz();
+
+ private:
+  explicit ApiTestFuzzer(int num)
+      : SandboxableThread(Options("ApiTestFuzzer")),
+        test_number_(num),
+        gate_(0),
+        active_(true) {}
+
+  static bool NextThread();
+  void ContextSwitch();
+  static int GetNextFuzzer();
+
+  static unsigned linear_congruential_generator;
+  static std::vector<std::unique_ptr<ApiTestFuzzer>> fuzzers_;
+  static bool fuzzing_;
+  static v8::base::Semaphore all_tests_done_;
+  static int tests_being_run_;
+  static int active_tests_;
+  static int current_fuzzer_;
+
+  int test_number_;
+  v8::base::Semaphore gate_;
+  bool active_;
+};
+
+// In threaded cctests, control flow alternates between different threads, each
+// of which runs a single test. All threaded cctests share the same isolate and
+// a heap. With conservative stack scanning (CSS), whenever a thread invokes a
+// GC for the common heap, the stacks of all threads are scanned. In this
+// setting, it is not possible to disable CSS without losing correctness.
+// Therefore, tests defined with THREADED_TEST:
+//
+// 1.  must not explicitly disable CSS, using the scope
+//     internal::DisableConservativeStackScanningScopeForTesting, and
+// 2.  cannot rely on the assumption that garbage collection will reclaim all
+//     non-live objects.
+
+#define THREADED_TEST(Name)                                \
+  static void Test##Name();                                \
+  RegisterThreadedTest register_##Name(Test##Name, #Name); \
+  /* */ TEST(Name)
+
+class RegisterThreadedTest {
+ public:
+  explicit RegisterThreadedTest(CcTest::TestFunction* callback,
+                                const char* name)
+      : callback_(callback), name_(name) {
+    tests_.push_back(this);
+  }
+  static int count() { return static_cast<int>(tests_.size()); }
+  static const RegisterThreadedTest* nth(int i) {
+    DCHECK_LE(0, i);
+    DCHECK_LT(i, count());
+    // Added tests used to be prepended to a linked list and therefore the last
+    // one to be added was at index 0. This ensures that we keep this behavior.
+    return tests_[count() - i - 1];
+  }
+  CcTest::TestFunction* callback() const { return callback_; }
+  const char* name() const { return name_; }
+
+ private:
+  static std::vector<const RegisterThreadedTest*> tests_;
+  CcTest::TestFunction* callback_;
+  const char* name_;
 };
 
 // A LocalContext holds a reference to a v8::Context.
@@ -632,5 +735,27 @@ class TestPlatform : public v8::Platform {
  protected:
   TestPlatform() = default;
 };
+
+// The following should correspond to Chromium's kV8DOMWrapperTypeIndex and
+// kV8DOMWrapperObjectIndex.
+static const int kV8WrapperTypeIndex = 0;
+static const int kV8WrapperObjectIndex = 1;
+
+enum class ApiCheckerResult : uint8_t {
+  kNotCalled = 0,
+  kSlowCalled = 1 << 0,
+  kFastCalled = 1 << 1,
+};
+using ApiCheckerResultFlags = v8::base::Flags<ApiCheckerResult>;
+DEFINE_OPERATORS_FOR_FLAGS(ApiCheckerResultFlags)
+
+bool IsValidUnwrapObject(v8::Object* object);
+
+template <typename T>
+T* GetInternalField(v8::Object* wrapper, v8::EmbedderDataTypeTag tag) {
+  assert(kV8WrapperObjectIndex < wrapper->InternalFieldCount());
+  return reinterpret_cast<T*>(
+      wrapper->GetAlignedPointerFromInternalField(kV8WrapperObjectIndex, tag));
+}
 
 #endif  // ifndef CCTEST_H_

@@ -414,6 +414,18 @@ int main(int argc, char* argv[]) {
   return 0;
 }
 
+std::vector<const RegisterThreadedTest*> RegisterThreadedTest::tests_;
+
+bool IsValidUnwrapObject(v8::Object* object) {
+  i::Address addr = i::ValueHelper::ValueAsAddress(object);
+  auto instance_type = i::Internals::GetInstanceType(addr);
+  return (v8::base::IsInRange(instance_type,
+                              i::Internals::kFirstJSApiObjectType,
+                              i::Internals::kLastJSApiObjectType) ||
+          instance_type == i::Internals::kJSObjectType ||
+          instance_type == i::Internals::kJSSpecialApiObjectType);
+}
+
 v8::PageAllocator* TestPlatform::GetPageAllocator() {
   return CcTest::default_platform()->GetPageAllocator();
 }
