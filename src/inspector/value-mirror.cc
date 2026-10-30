@@ -268,6 +268,14 @@ String16 abbreviateString(const String16& value, AbbreviateMode mode) {
   return String16::concat(value.substring(0, maxLength - 1), ellipsis);
 }
 
+constexpr size_t kMaxConstructorNameLength = 1000;
+
+String16 constructorNameForObject(v8::Isolate* isolate,
+                                  v8::Local<v8::Object> object) {
+  return toProtocolStringTruncated(isolate, object->GetConstructorName(),
+                                   kMaxConstructorNameLength);
+}
+
 String16 descriptionForSymbol(v8::Local<v8::Context> context,
                               v8::Local<v8::Symbol> symbol) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
@@ -371,7 +379,7 @@ String16 descriptionForError(v8::Local<v8::Context> context,
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::TryCatch tryCatch(isolate);
 
-  String16 name = toProtocolString(isolate, object->GetConstructorName());
+  String16 name = constructorNameForObject(isolate, object);
   {
     v8::Local<v8::Value> nameValue;
     if (getErrorProperty(context, object, toV8String(isolate, "name"))
@@ -427,7 +435,7 @@ String16 descriptionForError(v8::Local<v8::Context> context,
 
 String16 descriptionForObject(v8::Isolate* isolate,
                               v8::Local<v8::Object> object) {
-  return toProtocolString(isolate, object->GetConstructorName());
+  return constructorNameForObject(isolate, object);
 }
 
 String16 descriptionForProxy(v8::Isolate* isolate, v8::Local<v8::Proxy> proxy) {
@@ -465,7 +473,7 @@ String16 descriptionForScope(v8::Local<v8::Context> context,
 
 String16 descriptionForCollection(v8::Isolate* isolate,
                                   v8::Local<v8::Object> object, size_t length) {
-  String16 className = toProtocolString(isolate, object->GetConstructorName());
+  String16 className = constructorNameForObject(isolate, object);
   return String16::concat(className, '(', String16::fromInteger(length), ')');
 }
 
@@ -946,8 +954,8 @@ class FunctionMirror final : public ValueMirrorBase {
     } else {
       *result = RemoteObject::create()
                     .setType(RemoteObject::TypeEnum::Function)
-                    .setClassName(toProtocolStringWithTypeCheck(
-                        v8::Isolate::GetCurrent(), value->GetConstructorName()))
+                    .setClassName(constructorNameForObject(
+                        v8::Isolate::GetCurrent(), value))
                     .setDescription(descriptionForFunction(value))
                     .build();
     }
@@ -1237,8 +1245,7 @@ class ObjectMirror final : public ValueMirrorBase {
     } else {
       *result = RemoteObject::create()
                     .setType(RemoteObject::TypeEnum::Object)
-                    .setClassName(
-                        toProtocolString(isolate, value->GetConstructorName()))
+                    .setClassName(constructorNameForObject(isolate, value))
                     .setDescription(m_description)
                     .build();
       if (m_hasSubtype) (*result)->setSubtype(m_subtype);

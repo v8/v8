@@ -718,6 +718,15 @@ Response InjectedScript::wrapObjectMirror(
   response = bindRemoteObjectIfNeeded(sessionId, context, value, groupName,
                                       result->get());
   if (!response.IsSuccess()) return response;
+  if (budget) {
+    size_t wrapperChars =
+        (*result)->getClassName(String16()).length() +
+        (*result)->getDescription(String16()).length() +
+        (*result)->getUnserializableValue(String16()).length();
+    if (!budget->takeCharacters(wrapperChars)) {
+      return Response::InternalError();
+    }
+  }
   // Only perform custom previews if either preview is requested or we're
   // already being recursively called from generateCustomPreview() (via
   // substituteObjectTags()).

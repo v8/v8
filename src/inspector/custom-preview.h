@@ -26,6 +26,32 @@ struct CustomPreviewBudget {
   // The remaining number of characters in strings and property names.
   uint32_t characters = kMaxArrayLength;
   bool exhausted = false;
+
+  // Charges array elements or object properties against the remaining
+  // custom-preview budget. When |count| exceeds the remaining budget, clamps
+  // |values| to 0, sets |exhausted = true|, and returns false.
+  bool takeValues(uint32_t count) {
+    if (count > values) {
+      values = 0;
+      exhausted = true;
+      return false;
+    }
+    values -= count;
+    return true;
+  }
+
+  // Charges UTF-16 code units against the remaining custom-preview budget.
+  // When |count| exceeds the remaining budget, clamps |characters| to 0,
+  // sets |exhausted = true|, and returns false.
+  bool takeCharacters(size_t count) {
+    if (count > characters) {
+      characters = 0;
+      exhausted = true;
+      return false;
+    }
+    characters -= static_cast<uint32_t>(count);
+    return true;
+  }
 };
 
 void generateCustomPreview(
