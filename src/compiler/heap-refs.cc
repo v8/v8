@@ -737,8 +737,11 @@ void JSFunctionData::Cache(JSHeapBroker* broker) {
   // guaranteed to see an initialized JSFunction object, and after
   // initialization fields remain in a valid state.
 
+  // `context` can be updated in-place with a newly allocated Context by
+  // `Compiler::GetFunctionFromEval` using `kReleaseStore`, so it needs
+  // `kAcquireLoad` to synchronize with the new Context's initialization.
   ContextRef context =
-      MakeRefAssumeMemoryFence(broker, function->context(kRelaxedLoad));
+      MakeRefAssumeMemoryFence(broker, function->context(kAcquireLoad));
   context_ = context.data();
 
   SharedFunctionInfoRef shared =
