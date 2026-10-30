@@ -30,12 +30,8 @@ V8_EXPORT_PRIVATE constexpr Tagged<Smi>
 
 Tagged<Union<Smi, TrustedObject>> SharedFunctionInfo::GetTrustedData(
     IsolateForSandbox isolate) const {
-  if (HasUnpublishedTrustedData(isolate)) return Smi::zero();
-  return TrustedPointerField::ReadMaybeEmptyTrustedPointerField<
-      kTrustedDataTrustedPointerRange>(
-      Tagged<HeapObject>(this),
-      offsetof(SharedFunctionInfo, trusted_function_data_), isolate,
-      kAcquireLoad);
+  return TrustedCast<Union<Smi, TrustedObject>>(
+      trusted_function_data_.load_if_published(isolate));
 }
 
 uint32_t SharedFunctionInfo::Hash() {

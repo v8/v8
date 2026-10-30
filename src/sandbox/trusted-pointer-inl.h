@@ -223,6 +223,7 @@ TrustedPointerMember<T, kTagRange>::TrustedPointerMember(
     clear(witness.object());
   }
 }
+// TODO(arashk): Remove the indirection between load and Acquire_Load.
 template <typename T, TrustedPointerTagRange kTagRange>
 Tagged<T> TrustedPointerMember<T, kTagRange>::load(
     IsolateForSandbox isolate) const {
@@ -232,6 +233,11 @@ template <typename T, TrustedPointerTagRange kTagRange>
 Tagged<Object> TrustedPointerMember<T, kTagRange>::load_maybe_empty(
     IsolateForSandbox isolate) const {
   return Acquire_Load_maybe_empty(isolate);
+}
+template <typename T, TrustedPointerTagRange kTagRange>
+Tagged<Object> TrustedPointerMember<T, kTagRange>::load_if_published(
+    IsolateForSandbox isolate) const {
+  return Acquire_Load_if_published(isolate);
 }
 template <typename T, TrustedPointerTagRange kTagRange>
 void TrustedPointerMember<T, kTagRange>::store(HeapObject* host,
@@ -266,6 +272,22 @@ Tagged<Object> TrustedPointerMember<T, kTagRange>::Acquire_Load_maybe_empty(
 #else
   return Base::Acquire_Load();
 #endif
+}
+
+template <typename T, TrustedPointerTagRange kTagRange>
+Tagged<Object> TrustedPointerMember<T, kTagRange>::Acquire_Load_if_published(
+    IsolateForSandbox isolate) const {
+#ifdef V8_ENABLE_SANDBOX
+  TrustedPointerHandle handle = handle_.load(std::memory_order::acquire);
+  if (handle == kNullTrustedPointerHandle) return Smi::zero();
+  const TrustedPointerTable& table =
+      isolate.GetTrustedPointerTableFor(kTagRange);
+  Address pointer = table.GetIfPublished(handle, kTagRange);
+  if (pointer == kNullAddress) return Smi::zero();
+  return Tagged<Object>(pointer);
+#else
+  return Base::Acquire_Load();
+#endif  // V8_ENABLE_SANDBOX
 }
 
 template <typename T, TrustedPointerTagRange kTagRange>

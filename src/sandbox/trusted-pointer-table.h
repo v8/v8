@@ -57,6 +57,10 @@ struct TrustedPointerTableEntry {
   // {kUnpublishedTrustedPointerTag}.
   inline Address GetMaybeUnpublished(TrustedPointerTagRange tag_range) const;
 
+  // Returns kNullAddress if this entry is unpublished, otherwise checks that
+  // the payload matches {tag_range} and returns it.
+  inline Address GetIfPublished(TrustedPointerTagRange tag_range) const;
+
   // Returns the tag of this entry.
   inline TrustedPointerTag GetTag() const;
 
@@ -159,6 +163,10 @@ class V8_EXPORT_PRIVATE TrustedPointerTable
   // Allows kUnpublishedTrustedPointerTag in addition to the specified {tag}.
   inline Address GetMaybeUnpublished(TrustedPointerHandle handle,
                                      TrustedPointerTagRange tag_range) const;
+
+  // Returns kNullAddress if the entry is unpublished.
+  inline Address GetIfPublished(TrustedPointerHandle handle,
+                                TrustedPointerTagRange tag_range) const;
 
   // Sets the content of the entry referenced by the given handle.
   //
