@@ -630,30 +630,44 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
       return (avl_ == expected_avl);
     }
 
-    void SetSimd128(VSew sew, TailAgnosticType tail = ta) {
-      Vlmul lmul;
-      // Just support riscv zve64x now.
-      // ELEN * LMUL >= SEW
-      //  --> 2^(elen + 3) * 2^(-n) >= 2^(sew + 3)
-      //  --> elen >= sew + n
-      // mf2 -> n is 1.
-      // mf4 -> n is 2.
-      // mf8 -> n is 3.
-      DCHECK_EQ(kRvvELEN, 64);
-      switch (CpuFeatures::vlen()) {
-        case 128:
-          lmul = m1;
-          break;
-        case 256:
-          lmul = (sew + 1) > E64 ? m1 : mf2;
-          break;
-        case 512:
-          lmul = (sew + 2) > E64 ? m1 : mf4;
-          break;
-        default:
-          static_assert(kMaxRvvVLEN <= 512, "Unsupported VLEN");
-          UNIMPLEMENTED();
+    static Vlmul MinimumLmulForTargetBits(int target_bits, VSew sew) {
+      const int vlen = CpuFeatures::vlen();
+      DCHECK(vlen >= 128 && vlen <= kMaxRvvVLEN && (vlen % 128) == 0);
+      const int sew_bits = 8 << static_cast<int>(sew);
+      // LMUL must satisfy RVV 1.0: LMUL * ELEN >= SEW and VLMAX >= avl, where
+      // avl = target_bits / SEW. Equivalently, LMUL >= max(SEW / ELEN,
+      // target_bits / VLEN).
+      const int64_t req_num_from_sew = sew_bits;
+      const int64_t req_den_from_sew = kRvvELEN;
+      const int64_t req_num_from_vlen = target_bits;
+      const int64_t req_den_from_vlen = vlen;
+      int64_t req_num;
+      int64_t req_den;
+      if (req_num_from_sew * req_den_from_vlen >=
+          req_num_from_vlen * req_den_from_sew) {
+        req_num = req_num_from_sew;
+        req_den = req_den_from_sew;
+      } else {
+        req_num = req_num_from_vlen;
+        req_den = req_den_from_vlen;
       }
+      static constexpr struct {
+        Vlmul lmul;
+        int num;
+        int den;
+      } kOptions[] = {{mf8, 1, 8}, {mf4, 1, 4}, {mf2, 1, 2}, {m1, 1, 1},
+                      {m2, 2, 1},  {m4, 4, 1},  {m8, 8, 1}};
+      for (const auto& option : kOptions) {
+        if (static_cast<int64_t>(option.num) * req_den >=
+            req_num * option.den) {
+          return option.lmul;
+        }
+      }
+      UNREACHABLE();
+    }
+
+    void SetSimd128(VSew sew, TailAgnosticType tail = ta) {
+      Vlmul lmul = MinimumLmulForTargetBits(128, sew);
       if (sew == E8) {
         set(16, sew, lmul, tail);
       } else if (sew == E16) {
@@ -668,22 +682,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     }
 
     void SetSimd128Half(VSew sew, TailAgnosticType tail = ta) {
-      Vlmul lmul;
-      DCHECK_EQ(kRvvELEN, 64);
-      switch (CpuFeatures::vlen()) {
-        case 128:
-          lmul = (sew + 1) > E64 ? m1 : mf2;
-          break;
-        case 256:
-          lmul = (sew + 2) > E64 ? (sew == E32 ? mf2 : m1) : mf4;
-          break;
-        case 512:
-          lmul = (sew + 3) > E64 ? (sew <= E32 ? mf2 : m1) : mf8;
-          break;
-        default:
-          static_assert(kMaxRvvVLEN <= 512, "Unsupported VLEN");
-          UNIMPLEMENTED();
-      }
+      Vlmul lmul = MinimumLmulForTargetBits(64, sew);
       if (sew == E8) {
         set(8, sew, lmul, tail);
       } else if (sew == E16) {
@@ -698,22 +697,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     }
 
     void SetSimd128x2(VSew sew, TailAgnosticType tail = ta) {
-      Vlmul lmul;
-      DCHECK_EQ(kRvvELEN, 64);
-      switch (CpuFeatures::vlen()) {
-        case 128:
-          lmul = m2;
-          break;
-        case 256:
-          lmul = m1;
-          break;
-        case 512:
-          lmul = (sew + 1) > E64 ? m1 : mf2;
-          break;
-        default:
-          static_assert(kMaxRvvVLEN <= 512, "Unsupported VLEN");
-          UNIMPLEMENTED();
-      }
+      Vlmul lmul = MinimumLmulForTargetBits(256, sew);
       if (sew == E8) {
         set(32, sew, lmul, tail);
       } else if (sew == E16) {
