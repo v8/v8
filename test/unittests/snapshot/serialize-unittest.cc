@@ -36,6 +36,7 @@
 #include "include/v8-cppgc.h"
 #include "include/v8-extension.h"
 #include "include/v8-function.h"
+#include "include/v8-inspector.h"
 #include "include/v8-locker.h"
 #include "include/v8-platform.h"
 #include "include/v8-sandbox.h"
@@ -48,6 +49,7 @@
 #include "src/codegen/script-details.h"
 #include "src/common/assert-scope.h"
 #include "src/debug/debug-coverage.h"
+#include "src/debug/debug-interface.h"
 #include "src/flags/flags.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-layout-inl.h"
@@ -4105,6 +4107,50 @@ TEST_F(UninitializedSerializeTest, SnapshotCreatorBlobNotCreated) {
     // blob is created.
   }
 
+  FreeCurrentEmbeddedBlob();
+}
+
+TEST_F(UninitializedSerializeTest, SnapshotCreatorDisallowsDebugging) {
+  DisableEmbeddedBlobRefcounting();
+  // Passive V8Inspector attachment is allowed during snapshot creation
+  // (matching Blink's v8_context_snapshot_generator behavior).
+  {
+    SnapshotCreatorParams testing_params;
+    v8::SnapshotCreator creator(testing_params.create_params);
+    v8::Isolate* isolate = creator.GetIsolate();
+    v8_inspector::V8InspectorClient client;
+    std::unique_ptr<v8_inspector::V8Inspector> inspector =
+        v8_inspector::V8Inspector::create(isolate, &client);
+    {
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> default_context = v8::Context::New(isolate);
+      creator.SetDefaultContext(default_context);
+    }
+    v8::StartupData blob =
+        creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
+    delete[] blob.data;
+  }
+  ASSERT_DEATH_IF_SUPPORTED(
+      {
+        SnapshotCreatorParams testing_params;
+        v8::SnapshotCreator creator(testing_params.create_params);
+        v8::Isolate* isolate = creator.GetIsolate();
+        v8::HandleScope handle_scope(isolate);
+        v8::Local<v8::Context> warmup_context = v8::Context::New(isolate);
+        v8::Context::Scope context_scope(warmup_context);
+        v8::debug::SetContextId(warmup_context, 1);
+      },
+      "Cannot set debug context ID while creating a snapshot");
+  ASSERT_DEATH_IF_SUPPORTED(
+      {
+        SnapshotCreatorParams testing_params;
+        v8::SnapshotCreator creator(testing_params.create_params);
+        v8::Isolate* isolate = creator.GetIsolate();
+        class DummyDelegate : public v8::debug::DebugDelegate {};
+        DummyDelegate delegate;
+        v8::debug::SetDebugDelegate(isolate, &delegate);
+      },
+      "Cannot set debug delegate while creating a snapshot");
   FreeCurrentEmbeddedBlob();
 }
 

@@ -43,6 +43,8 @@ namespace debug {
 void SetContextId(Local<Context> context, int id) {
   auto v8_context = Utils::OpenDirectHandle(*context);
   auto* i_isolate = i::Isolate::Current();
+  Utils::ApiCheck(!i_isolate->serializer_enabled(), "v8::debug::SetContextId",
+                  "Cannot set debug context ID while creating a snapshot");
   i::DisallowJavascriptExecutionDebugOnly no_execution(i_isolate);
   i::DisallowExceptionsDebugOnly no_exceptions(i_isolate);
   v8_context->set_debug_context_id(i::Smi::FromInt(id));
@@ -61,6 +63,9 @@ void SetInspector(Isolate* isolate, v8_inspector::V8Inspector* inspector) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::DisallowJavascriptExecutionDebugOnly no_execution(i_isolate);
   i::DisallowExceptionsDebugOnly no_exceptions(i_isolate);
+  // Setting a passive V8Inspector pointer is allowed during snapshot creation
+  // (e.g. Blink's v8_context_snapshot_generator creates MainThreadDebugger).
+  // It does not allocate global/eternal handles or activate Debug.
   if (inspector == nullptr) {
     i_isolate->set_inspector(nullptr);
   } else {
@@ -1125,6 +1130,11 @@ void LeaveDebuggingForIsolate(Isolate* v8_isolate) {
 
 void SetDebugDelegate(Isolate* v8_isolate, DebugDelegate* delegate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  if (delegate != nullptr) {
+    Utils::ApiCheck(!isolate->serializer_enabled(),
+                    "v8::debug::SetDebugDelegate",
+                    "Cannot set debug delegate while creating a snapshot");
+  }
   isolate->debug()->SetDebugDelegate(delegate);
 }
 

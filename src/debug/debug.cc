@@ -252,6 +252,7 @@ void Debug::GetContextScripts(
 }
 
 void Debug::RecordScriptContext(DirectHandle<Script> script) {
+  DCHECK(!isolate_->serializer_enabled());
   HandleScope scope(isolate_);
   DirectHandle<NativeContext> context = isolate_->native_context();
   Handle<EphemeronHashTable> table;
@@ -3017,6 +3018,7 @@ int Debug::CurrentFrameCount() {
 }
 
 void Debug::SetDebugDelegate(debug::DebugDelegate* delegate) {
+  DCHECK(!isolate_->serializer_enabled() || delegate == nullptr);
   debug_delegate_ = delegate;
   UpdateState();
 }
@@ -3026,6 +3028,7 @@ void Debug::UpdateState() {
   bool is_active = debug_delegate_ != nullptr;
   if (is_active == is_active_) return;
   if (is_active) {
+    DCHECK(!isolate_->serializer_enabled());
     // Note that the debug context could have already been loaded to
     // bootstrap test cases.
     isolate_->compilation_cache()->DisableScriptAndEval();

@@ -47,8 +47,8 @@ class Script;
 
 namespace debug {
 
-void SetContextId(Local<Context> context, int id);
-int GetContextId(Local<Context> context);
+V8_EXPORT_PRIVATE void SetContextId(Local<Context> context, int id);
+V8_EXPORT_PRIVATE int GetContextId(Local<Context> context);
 
 void SetInspector(Isolate* isolate, v8_inspector::V8Inspector*);
 v8_inspector::V8Inspector* GetInspector(Isolate* isolate);
