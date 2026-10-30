@@ -1065,10 +1065,13 @@ void InstructionSelector::VisitInt32Mul(OpIndex node) {
         right_op.Is<Opmask::kWord64ShiftRightLogical>()) {
       RiscvOperandGenerator g(this);
       int64_t constant_left;
-      MatchSignedIntegralConstant(left_op.input(1), &constant_left);
+      bool is_constant_left =
+          MatchSignedIntegralConstant(left_op.input(1), &constant_left);
       int64_t constant_right;
-      MatchSignedIntegralConstant(right_op.input(1), &constant_right);
-      if (constant_right == 32 && constant_right == 32) {
+      bool is_constant_right =
+          MatchSignedIntegralConstant(right_op.input(1), &constant_right);
+      if (is_constant_left && is_constant_right && constant_left == 32 &&
+          constant_right == 32) {
         // Combine untagging shifts with Dmul high.
         Emit(kRiscvMulHigh64, g.DefineSameAsFirst(node),
              g.UseRegister(left_op.input(0)), g.UseRegister(right_op.input(0)));
