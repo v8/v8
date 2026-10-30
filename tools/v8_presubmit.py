@@ -76,6 +76,9 @@ LINT_RULES = """
 
 LINT_OUTPUT_PATTERN = re.compile(r'^.+[:(]\d+[:)]')
 FLAGS_LINE = re.compile(r"//\s*Flags:.*--([A-z0-9-])+_[A-z0-9].*\n")
+WRAPPED_FLAGS_LINE = re.compile(
+    r"//\s*Flags:[^\n]*\n[ \t]*//[ \t]+--[a-zA-Z0-9_-]+(?:=[^\s]+)?"
+    r"(?:[ \t]+--[a-zA-Z0-9_-]+(?:=[^\s]+)?)*[ \t]*\n")
 ASSERT_OPTIMIZED_PATTERN = re.compile("assertOptimized")
 FLAGS_ENABLE_MAGLEV = re.compile(r"//\s*Flags:.*--maglev[^-].*\n")
 FLAGS_ENABLE_TURBOLEV = re.compile(r"//\s*Flags:.*--turbolev[^-].*\n")
@@ -667,6 +670,11 @@ class SourceProcessor(SourceFileProcessor):
       match = FLAGS_LINE.search(contents)
       if match:
         print("%s Flags should use '-' (not '_')" % name)
+        result = False
+      if WRAPPED_FLAGS_LINE.search(contents):
+        print(
+            "%s Continuation of '// Flags:' must also start with '// Flags:'" %
+            name)
         result = False
       if (not "mjsunit/mjsunit.js" in name and
           not "mjsunit/mjsunit_numfuzz.js" in name):

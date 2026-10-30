@@ -693,6 +693,7 @@ def _CommonChecks(input_api, output_api):
       _CheckMetagenHeaders,
       _CheckNoexceptAnnotations,
       _CheckBannedCpp,
+      _CheckPublicApiHeaders,
       _RunTestsWithVPythonSpec,
       _CheckPythonLiterals,
       _CheckMultiLineIfBraces,
@@ -932,44 +933,109 @@ def _CheckMetagenHeaders(input_api, output_api):
 
 
 def _CheckBannedCpp(input_api, output_api):
-  # We only check for a single pattern right now; feel free to add more, but
-  # potentially change the logic for files_to_skip then (and skip individual
-  # checks for individual files instead).
+  # Each entry is (regex_pattern, message, optional_files_to_skip_tuple).
   bad_cpp = [
-      ('std::bit_cast',
-       'Use base::bit_cast instead, which has additional checks'),
+      (
+          r'\bstd::bit_cast\b',
+          'Use base::bit_cast instead, which has additional checks',
+          (
+              # The implementation of base::bit_cast uses std::bit_cast.
+              r'src[\\\/]base[\\\/]macros\.h',
+              # src/base/numerics is a dependency-free header-only library,
+              # hence uses std::bit_cast directly.
+              r'src[\\\/]base[\\\/]numerics[\\\/].*',
+          ),
+      ),
+      (
+          r'\bstd::vector<\s*(?:v8::)?Local<',
+          'Use v8::LocalVector<T> instead of std::vector<v8::Local<T>> for GC '
+          'stack-scanning safety.',
+          (),
+      ),
+      (
+          r'\bfor\s*\(\s*(?:uint(?:8|16|32|64)_t|size_t|unsigned)\s+(\w+)\s*='
+          r'[^;]+;\s*\1\s*>=\s*0\s*;',
+          'Unsigned loop index with ">= 0" termination condition is an '
+          'infinite loop; use "for (uint32_t i = n; i-- > 0;)".',
+          (),
+      ),
+      (
+          r'\b__u?int128(?:_t)?\b',
+          'Use absl::int128 or absl::uint128 instead of compiler-specific '
+          '__int128 types.',
+          (
+              r'src[\\\/]bigint[\\\/].*',
+              r'src[\\\/]base[\\\/].*',
+              r'src[\\\/].*[\\\/](?:arm|arm64|ia32|loong64|mips64|ppc|riscv|s390|x64)[\\\/].*',
+          ),
+      ),
   ]
+
+  compiled_bad_cpp = [(
+      pattern,
+      input_api.re.compile(pattern),
+      message,
+      [input_api.re.compile(skip) for skip in skips],
+  ) for pattern, message, skips in bad_cpp]
 
   def file_filter(x):
     return input_api.FilterSourceFile(
         x,
-        files_to_skip=[
-            # The implementation of base::bit_cast uses std::bit_cast.
-            r'src/base/macros\.h',
-            # src/base/numerics is a dependency-free header-only library, hence
-            # uses std::bit_cast directly.
-            r'src/base/numerics/.*'
-        ],
+        files_to_skip=_EXCLUDED_PATHS,
         files_to_check=[r'.*\.h$', r'.*\.cc$'])
 
   errors = []
   for f in input_api.AffectedSourceFiles(file_filter):
+    local_path = f.LocalPath()
     for line_number, line in f.ChangedContents():
-      for pattern, message in bad_cpp:
-        if not pattern in line:
+      # Strip trailing single-line comments before matching.
+      code_line = line.split('//', 1)[0]
+      if not code_line.strip():
+        continue
+      for raw_pattern, compiled_regex, message, skip_regexes in compiled_bad_cpp:
+        if any(skip_re.search(local_path) for skip_re in skip_regexes):
           continue
-        # Skip if part of a comment.
-        if '//' in line and line.index('//') < line.index(pattern):
-          continue
-
-        # Make sure there are word separators around the pattern.
-        regex = r'\b%s\b' % pattern
-        if not input_api.re.search(regex, line):
+        if not compiled_regex.search(code_line):
           continue
 
         errors.append(
             output_api.PresubmitError('Banned pattern ({}):\n  {}:{} {}'.format(
-                regex, f.LocalPath(), line_number, message)))
+                raw_pattern, local_path, line_number, message)))
+  return errors
+
+
+def _CheckPublicApiHeaders(input_api, output_api):
+  """Checks public API headers under include/ for banned patterns."""
+  bad_public_api = [
+      (
+          r'^\s*#\s*(?:ifdef\s+DEBUG\b|if\s+defined\s*\(\s*DEBUG\s*\))',
+          'Use #ifdef V8_ENABLE_CHECKS instead of #ifdef DEBUG in public API '
+          'headers.',
+      ),
+  ]
+
+  compiled_checks = [(pattern, input_api.re.compile(pattern), message)
+                     for pattern, message in bad_public_api]
+
+  def file_filter(x):
+    return input_api.FilterSourceFile(
+        x,
+        files_to_skip=_EXCLUDED_PATHS + (r'^include[\\\/]v8config\.h$',),
+        files_to_check=[r'^include[\\\/].*\.h$'])
+
+  errors = []
+  for f in input_api.AffectedSourceFiles(file_filter):
+    local_path = f.LocalPath()
+    for line_number, line in f.ChangedContents():
+      code_line = line.split('//', 1)[0]
+      if not code_line.strip():
+        continue
+      for raw_pattern, compiled_regex, message in compiled_checks:
+        if compiled_regex.search(code_line):
+          errors.append(
+              output_api.PresubmitError(
+                  'Banned public API header pattern ({}):\n  {}:{} {}'.format(
+                      raw_pattern, local_path, line_number, message)))
   return errors
 
 
