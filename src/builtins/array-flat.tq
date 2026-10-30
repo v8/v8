@@ -116,8 +116,8 @@ transitioning macro CalculateFlattenedLengthFast(
           targetLength =
               math::TrySmiAdd(targetLength, subLen) otherwise goto Bailout;
           if (targetLength > kFixedArrayMaxLength) deferred {
-              ThrowRangeError(MessageTemplate::kInvalidArrayLength);
-            }
+            ThrowRangeError(MessageTemplate::kInvalidArrayLength);
+          }
           index++;
           continue;
         }
@@ -128,8 +128,8 @@ transitioning macro CalculateFlattenedLengthFast(
           targetLength =
               math::TrySmiAdd(targetLength, subLen) otherwise goto Bailout;
           if (targetLength > kFixedArrayMaxLength) deferred {
-              ThrowRangeError(MessageTemplate::kInvalidArrayLength);
-            }
+            ThrowRangeError(MessageTemplate::kInvalidArrayLength);
+          }
           index++;
           continue;
         }
@@ -161,8 +161,8 @@ transitioning macro CalculateFlattenedLengthFast(
       }
       targetLength = math::TrySmiAdd(targetLength, 1) otherwise goto Bailout;
       if (targetLength > kFixedArrayMaxLength) deferred {
-          ThrowRangeError(MessageTemplate::kInvalidArrayLength);
-        }
+        ThrowRangeError(MessageTemplate::kInvalidArrayLength);
+      }
       index++;
     }
 
@@ -494,10 +494,9 @@ transitioning macro FlattenIntoArrayFast(
     } else {
       // 1. If targetIndex >= 2^53-1, throw a TypeError exception.
       if (targetIndex >= kMaxSafeInteger) deferred {
-          ThrowTypeError(
-              MessageTemplate::kFlattenPastSafeLength, sourceLength,
-              targetIndex);
-        }
+        ThrowTypeError(
+            MessageTemplate::kFlattenPastSafeLength, sourceLength, targetIndex);
+      }
       // 2. Perform ? CreateDataPropertyOrThrow(target,
       //                                        ! ToString(targetIndex),
       //                                        element).
@@ -554,10 +553,10 @@ transitioning macro FlattenIntoArraySlow(
       } else {
         // 1. If targetIndex >= 2^53-1, throw a TypeError exception.
         if (targetIndex >= kMaxSafeInteger) deferred {
-            ThrowTypeError(
-                MessageTemplate::kFlattenPastSafeLength, sourceLength,
-                targetIndex);
-          }
+          ThrowTypeError(
+              MessageTemplate::kFlattenPastSafeLength, sourceLength,
+              targetIndex);
+        }
         // 2. Perform ? CreateDataPropertyOrThrow(target,
         //                                        ! ToString(targetIndex),
         //                                        element).

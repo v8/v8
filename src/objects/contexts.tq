@@ -340,8 +340,8 @@ extern runtime NotifyContextCellStateWillChange(NoContext, ContextCell): JSAny;
 
 macro NotifyContextCellStateWillChange(cell: ContextCell): void {
   if (!IsEmptyDependentCode(cell.dependent_code)) deferred {
-      runtime::NotifyContextCellStateWillChange(kNoContext, cell);
-    }
+    runtime::NotifyContextCellStateWillChange(kNoContext, cell);
+  }
 }
 
 macro TransitionContextCellToUntagged(
