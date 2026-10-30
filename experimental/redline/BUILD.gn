@@ -29,6 +29,11 @@ config("redline_warnings") {
       "--system-header-prefix=src/",
       "--system-header-prefix=third_party/",
       "--system-header-prefix=absl/",
+
+      # The toolchain compiles with -MMD, which omits system headers from the
+      # dependency file. Keep these headers in the dependency file.
+      "-Xclang",
+      "-sys-header-deps",
     ]
   }
   cflags_cc = [
