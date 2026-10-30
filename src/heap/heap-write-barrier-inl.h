@@ -420,7 +420,13 @@ void WriteBarrier::SharedForRelocInfo(Tagged<InstructionStream> host,
 
 void WriteBarrier::ForArrayBufferExtension(Tagged<JSArrayBuffer> host,
                                            ArrayBufferExtension* extension) {
-  if (!extension || V8_LIKELY(!IsMarking(host))) {
+  if (!extension) {
+    return;
+  }
+  // Rely on trusted marking state to avoid desync between table entry and
+  // extension object.
+  MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
+  if (!marking_barrier->is_activated()) [[likely]] {
     return;
   }
   MarkingSlow(host, extension);

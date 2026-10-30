@@ -57,6 +57,8 @@ class MarkingBarrier {
 
   inline void MarkValue(Tagged<HeapObject> host, Tagged<HeapObject> value);
 
+  bool is_activated() const { return is_activated_; }
+
   bool is_minor() const { return marking_mode_ == MarkingMode::kMinorMarking; }
 
   bool is_not_major() const {
