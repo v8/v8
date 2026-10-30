@@ -15247,8 +15247,8 @@ TNode<FixedArrayBase> CodeStubAssembler::CheckForCapacityGrow(
 
     BIND(&grow_bailout);
     {
-      GotoIf(IntPtrLessThan(key, IntPtrConstant(0)), bailout);
-      TNode<Number> tagged_key = ChangeUintPtrToTagged(Unsigned(key));
+      GotoIfNot(IsValidPositiveSmi(key), bailout);
+      TNode<Smi> tagged_key = SmiTag(key);
       TNode<Object> maybe_elements = CallRuntime(
           Runtime::kGrowArrayElements, NoContextConstant(), object, tagged_key);
       GotoIf(TaggedIsSmi(maybe_elements), bailout);
