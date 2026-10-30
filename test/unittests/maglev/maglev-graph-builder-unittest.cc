@@ -267,6 +267,63 @@ TEST_F(MaglevGraphBuilderTest, UnusedArgumentsRemovalSignExtension) {
   persistent_scope.Detach();
 }
 
+TEST_F(MaglevGraphBuilderTest, OldInlinedAllocationFoldingAndWriteBarriers) {
+  FlagScope<bool> allow_natives_syntax(&v8_flags.allow_natives_syntax, true);
+  HandleScope scope(isolate());
+  Handle<JSFunction> function = RunJS<JSFunction>(R"(
+      function f() { return {}; }
+      %PrepareFunctionForOptimization(f);
+      f();
+      (f)
+    )");
+  auto info =
+      MaglevCompilationInfo::New(isolate(), function, BytecodeOffset::None());
+  Graph* graph = Graph::New(info.get());
+  compiler::CurrentHeapBrokerScope current_broker(info->broker());
+  info->broker()->AttachLocalIsolateForMaglev(info.get(),
+                                              isolate()->AsLocalIsolate());
+  MaglevGraphBuilder graph_builder(isolate()->AsLocalIsolate(),
+                                   info->toplevel_compilation_unit(), graph);
+  CHECK(graph_builder.Build());
+
+  compiler::MapRef object_map = getUniqueNode<StoreMap>(graph)->map();
+  BasicBlock* block = graph->blocks().back();
+  block->nodes().clear();
+  graph_builder.set_current_block(block);
+
+  auto allocate = [&](AllocationType type) {
+    return graph_builder
+        .BuildInlinedAllocation(graph_builder.CreateJSObject(object_map), type)
+        .value()
+        ->Cast<InlinedAllocation>();
+  };
+
+  InlinedAllocation* young_1 = allocate(AllocationType::kYoung);
+  InlinedAllocation* young_2 = allocate(AllocationType::kYoung);
+  EXPECT_EQ(young_1->allocation_block(), young_2->allocation_block());
+  EXPECT_TRUE(
+      graph_builder.TryElideWriteBarrierForAllocation(young_1, young_2));
+
+  InlinedAllocation* old_1 = allocate(AllocationType::kOld);
+  InlinedAllocation* old_2 = allocate(AllocationType::kOld);
+  EXPECT_NE(young_2->allocation_block(), old_1->allocation_block());
+  EXPECT_EQ(old_1->allocation_block(), old_2->allocation_block());
+  EXPECT_FALSE(graph_builder.TryElideWriteBarrierForAllocation(old_1, old_2));
+
+  graph_builder.FlushNodesToBlock();
+  int store_map_count = 0;
+  for (Node* node : block->nodes()) {
+    if (StoreMap* store_map = node->TryCast<StoreMap>()) {
+      ++store_map_count;
+      EXPECT_EQ(store_map->ValueInput().node() == young_1 ||
+                    store_map->ValueInput().node() == young_2,
+                store_map->NoWriteBarrier());
+    }
+  }
+  EXPECT_EQ(4, store_map_count);
+  info->broker()->DetachLocalIsolateForMaglev(info.get());
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

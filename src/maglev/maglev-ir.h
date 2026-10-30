@@ -6439,8 +6439,8 @@ class InlinedAllocation : public FixedInputValueNodeT<1, InlinedAllocation> {
 
   void VerifyInputs() const;
 
-  AllocationBlock* allocation_block();
-  const AllocationBlock* allocation_block() const;
+  V8_EXPORT_PRIVATE AllocationBlock* allocation_block();
+  V8_EXPORT_PRIVATE const AllocationBlock* allocation_block() const;
 
   NodeType type(compiler::JSHeapBroker* broker) {
     VirtualObject* obj = object();
@@ -6645,7 +6645,9 @@ inline void VirtualObject::ForEachNestedRuntimeInput(
 
 class AllocationBlock : public FixedInputValueNodeT<0, AllocationBlock> {
  public:
-  explicit AllocationBlock(uint64_t bitfield) : Base(bitfield) {}
+  explicit AllocationBlock(uint64_t bitfield, AllocationType allocation_type =
+                                                  AllocationType::kYoung)
+      : Base(AllocationTypeField::update(bitfield, allocation_type)) {}
 
   static constexpr OpProperties kProperties = OpProperties::CanAllocate() |
                                               OpProperties::DeferredCall() |
@@ -6654,7 +6656,11 @@ class AllocationBlock : public FixedInputValueNodeT<0, AllocationBlock> {
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const;
 
+  AllocationType allocation_type() const {
+    return AllocationTypeField::decode(bitfield());
+  }
   int size() const { return size_; }
   void set_size(int size) { size_ = size; }
 
@@ -6666,6 +6672,7 @@ class AllocationBlock : public FixedInputValueNodeT<0, AllocationBlock> {
   }
 
  private:
+  using AllocationTypeField = NextBitField<AllocationType, 4>;
   int size_ = 0;
   InlinedAllocation::List allocation_list_;
 };
@@ -6735,8 +6742,11 @@ class ArgumentsElements : public FixedInputValueNodeT<1, ArgumentsElements> {
 class AllocateElementsArray
     : public FixedInputValueNodeT<1, AllocateElementsArray> {
  public:
-  explicit AllocateElementsArray(uint64_t bitfield, ElementsKind elements_kind)
-      : Base(bitfield), elements_kind_(elements_kind) {}
+  explicit AllocateElementsArray(
+      uint64_t bitfield, ElementsKind elements_kind,
+      AllocationType allocation_type = AllocationType::kYoung)
+      : Base(AllocationTypeField::update(bitfield, allocation_type)),
+        elements_kind_(elements_kind) {}
 
   static constexpr OpProperties kProperties =
       OpProperties::CanAllocate() | OpProperties::EagerDeopt() |
@@ -6750,8 +6760,12 @@ class AllocateElementsArray
   void PrintParams(std::ostream&) const;
 
   ElementsKind elements_kind() const { return elements_kind_; }
+  AllocationType allocation_type() const {
+    return AllocationTypeField::decode(bitfield());
+  }
 
  private:
+  using AllocationTypeField = NextBitField<AllocationType, 4>;
   const ElementsKind elements_kind_;
 };
 
@@ -8133,7 +8147,14 @@ class ProcessWasmArgument
 class CreateFastArrayElements
     : public FixedInputValueNodeT<1, CreateFastArrayElements> {
  public:
-  explicit CreateFastArrayElements(uint64_t bitfield) : Base(bitfield) {}
+  explicit CreateFastArrayElements(
+      uint64_t bitfield,
+      AllocationType allocation_type = AllocationType::kYoung)
+      : Base(AllocationTypeField::update(bitfield, allocation_type)) {}
+
+  AllocationType allocation_type() const {
+    return AllocationTypeField::decode(bitfield());
+  }
 
   static constexpr OpProperties kProperties =
       OpProperties::CanAllocate() | OpProperties::NotIdempotent();
@@ -8142,6 +8163,10 @@ class CreateFastArrayElements
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const;
+
+ private:
+  using AllocationTypeField = NextBitField<AllocationType, 4>;
 };
 
 class NewConsString : public FixedInputValueNodeT<3, NewConsString> {
@@ -9381,7 +9406,7 @@ class StoreMap : public FixedInputNodeT<1, StoreMap> {
 
   compiler::MapRef map() const { return map_; }
   Kind kind() const { return KindField::decode(bitfield()); }
-  bool NoWriteBarrier() const;
+  V8_EXPORT_PRIVATE bool NoWriteBarrier() const;
 
   bool is_transitioning() const {
     switch (kind()) {

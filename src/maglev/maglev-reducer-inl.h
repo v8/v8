@@ -930,18 +930,19 @@ ReduceResult MaglevReducer<BaseT>::BuildInitializeStore(
 template <typename BaseT>
 InlinedAllocation*
 MaglevReducer<BaseT>::ExtendOrReallocateCurrentAllocationBlock(
-    VirtualObject* vobject) {
+    AllocationType allocation_type, VirtualObject* vobject) {
   DCHECK_LE(vobject->size(), kMaxRegularHeapObjectSize);
   if (!current_allocation_block_ || v8_flags.maglev_allocation_folding == 0 ||
+      current_allocation_block_->allocation_type() != allocation_type ||
       !v8_flags.inline_new || is_turbolev()) {
     current_allocation_block_ =
-        AddNewNodeNoInputConversion<AllocationBlock>({});
+        AddNewNodeNoInputConversion<AllocationBlock>({}, allocation_type);
   }
 
   int current_size = current_allocation_block_->size();
   if (current_size + vobject->size() > kMaxRegularHeapObjectSize) {
     current_allocation_block_ =
-        AddNewNodeNoInputConversion<AllocationBlock>({});
+        AddNewNodeNoInputConversion<AllocationBlock>({}, allocation_type);
   }
 
   DCHECK_GE(current_size, 0);
@@ -968,14 +969,14 @@ void MaglevReducer<BaseT>::AddNonEscapingUses(InlinedAllocation* allocation,
 
 template <typename BaseT>
 ReduceResult MaglevReducer<BaseT>::BuildInlinedAllocation(
-    VirtualObject* vobject) {
+    VirtualObject* vobject, AllocationType allocation_type) {
   SmallZoneVector<std::pair<ValueNode*, vobj::Field>, 8> values(zone());
   bool result =
       vobject->ForEachSlot([&](ValueNode* node, vobj::Field desc) -> bool {
         CHECK_NE(node, VirtualObject::kUninitializedSlotValue);
         if (node->Is<VirtualObject>()) {
           VirtualObject* nested = node->Cast<VirtualObject>();
-          ReduceResult result = BuildInlinedAllocation(nested);
+          ReduceResult result = BuildInlinedAllocation(nested, allocation_type);
           if (result.IsDoneWithAbort()) {
             return false;
           }
@@ -995,7 +996,7 @@ ReduceResult MaglevReducer<BaseT>::BuildInlinedAllocation(
     return ReduceResult::DoneWithAbort();
   }
   InlinedAllocation* allocation =
-      ExtendOrReallocateCurrentAllocationBlock(vobject);
+      ExtendOrReallocateCurrentAllocationBlock(allocation_type, vobject);
   StoreTaggedMode store_mode = StoreTaggedMode::kInitializing;
   compiler::OptionalScopeInfoRef scope_info;
   if (vobject->has_static_map() && vobject->map()->IsContextMap()) {

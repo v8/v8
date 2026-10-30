@@ -4020,6 +4020,7 @@ bool MaglevGraphBuilder::TryElideWriteBarrierForAllocation(ValueNode* object,
   AllocationBlock* allocation = get_allocation(object);
   if (!is_turbolev() && allocation != nullptr &&
       reducer_.current_allocation_block() == allocation &&
+      allocation->allocation_type() == AllocationType::kYoung &&
       allocation == get_allocation(value)) {
     return true;
   }
@@ -17876,6 +17877,17 @@ int MaglevGraphBuilder::GetLoopDepth() const {
 ReduceResult MaglevGraphBuilder::BuildSmiUntag(ValueNode* node) {
   return reducer_.BuildSmiUntag(node);
 }
+
+VirtualObject* MaglevGraphBuilder::CreateJSObject(compiler::MapRef map) {
+  return reducer_.CreateJSObject(map);
+}
+
+ReduceResult MaglevGraphBuilder::BuildInlinedAllocation(
+    VirtualObject* object, AllocationType allocation_type) {
+  return reducer_.BuildInlinedAllocation(object, allocation_type);
+}
+
+void MaglevGraphBuilder::FlushNodesToBlock() { reducer_.FlushNodesToBlock(); }
 
 #undef TRACE
 #undef MAGLEV_FAIL

@@ -244,7 +244,8 @@ class MaglevGraphBuilder {
   SourcePosition GetCurrentSourcePosition() const;
 
   BasicBlock* current_block() const;
-  void set_current_block(BasicBlock* block);
+  V8_EXPORT_PRIVATE void set_current_block(BasicBlock* block);
+  V8_EXPORT_PRIVATE void FlushNodesToBlock();
   BasicBlock* FinishInlinedBlockForCaller(
       ControlNode* control_node, ZoneVector<Node*> rem_nodes_in_call_block);
 
@@ -1265,7 +1266,12 @@ class MaglevGraphBuilder {
       ValueNode* object, int offset);
   MaybeReduceResult TryBuildLoadFixedDoubleArrayElementFromAllocation(
       ValueNode* elements, int index);
-  bool TryElideWriteBarrierForAllocation(ValueNode* object, ValueNode* value);
+  V8_EXPORT_PRIVATE bool TryElideWriteBarrierForAllocation(ValueNode* object,
+                                                           ValueNode* value);
+  V8_EXPORT_PRIVATE VirtualObject* CreateJSObject(compiler::MapRef map);
+  V8_EXPORT_PRIVATE ReduceResult BuildInlinedAllocation(
+      VirtualObject* object,
+      AllocationType allocation_type = AllocationType::kYoung);
 
   ReduceResult BuildLoadTaggedField(
       ValueNode* object, uint32_t offset, NodeType type = NodeType::kUnknown,

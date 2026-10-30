@@ -1082,7 +1082,9 @@ class MaglevReducer {
   ReduceResult BuildStoreMap(ValueNode* object, compiler::MapRef map,
                              StoreMap::Kind kind);
 
-  ReduceResult BuildInlinedAllocation(VirtualObject* object);
+  ReduceResult BuildInlinedAllocation(
+      VirtualObject* object,
+      AllocationType allocation_type = AllocationType::kYoung);
   ReduceResult BuildAndAllocateJSArrayIterator(ValueNode* array,
                                                IterationKind iteration_kind);
   void ClearCurrentAllocationBlock();
@@ -1825,7 +1827,7 @@ class MaglevReducer {
   std::optional<ValueNode*> TryGetConstantAlternative(ValueNode* node);
 
   InlinedAllocation* ExtendOrReallocateCurrentAllocationBlock(
-      VirtualObject* value);
+      AllocationType allocation_type, VirtualObject* value);
 
   // Converts a VirtualObject slot value to the ValueRepresentation expected by
   // BuildInitializeStore for `desc.type`.
