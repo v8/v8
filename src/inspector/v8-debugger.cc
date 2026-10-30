@@ -404,12 +404,12 @@ void V8Debugger::reportTermination() {
   }
   m_terminateExecutionCallbackMicrotaskQueue.Clear();
   m_isolate->CancelTerminateExecution();
-  if (m_terminateExecutionCallback) {
-    m_terminateExecutionCallback->sendSuccess();
-    m_terminateExecutionCallback.reset();
-  }
   m_terminateExecutionCallbackContext.Reset();
   m_terminateExecutionReported = true;
+  if (std::unique_ptr<TerminateExecutionCallback> callback =
+          std::move(m_terminateExecutionCallback)) {
+    callback->sendSuccess();
+  }
 }
 
 void V8Debugger::terminateExecutionCompletedCallback(v8::Isolate* isolate) {

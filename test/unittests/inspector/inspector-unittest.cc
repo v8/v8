@@ -1366,6 +1366,88 @@ TEST_F(InspectorTest, ChannelCanRunJSWhenPausedOnInterrupt) {
 
 namespace {
 
+class ReentrantReportTerminationChannel
+    : public V8Inspector::Channel,
+      public v8_inspector::V8InspectorClient {
+ public:
+  ReentrantReportTerminationChannel(v8::Isolate* isolate,
+                                    v8::Local<v8::Context> context)
+      : isolate_(isolate), context_(isolate, context) {}
+  ~ReentrantReportTerminationChannel() override = default;
+
+  void set_session(V8InspectorSession* session) { session_ = session; }
+
+  v8::Local<v8::Context> ensureDefaultContextInGroup(int) override {
+    return context_.Get(isolate_);
+  }
+
+  void sendResponse(int callId,
+                    std::unique_ptr<StringBuffer> message) override {
+    if (callId == 1) {
+      ++first_terminate_responses_;
+      if (first_terminate_responses_ == 1) {
+        session_->dispatchProtocolMessage(
+            toStringView(R"({"id": 2, "method": "Debugger.enable"})"));
+        session_->dispatchProtocolMessage(toStringView(
+            R"({"id": 3, "method": "Runtime.evaluate", "params": {"expression": "debugger; for (;;){}"}})"));
+        session_->dispatchProtocolMessage(toStringView(
+            R"({"id": 5, "method": "Runtime.terminateExecution"})"));
+      }
+    } else if (callId == 5) {
+      String16 message_str = toString16(message->string());
+      if (message_str.find("\"result\":{}") != String16::kNotFound) {
+        ++second_terminate_responses_;
+      }
+    }
+  }
+
+  void sendNotification(std::unique_ptr<StringBuffer> message) override {
+    String16 message_str = toString16(message->string());
+    if (message_str.find("Debugger.paused") != String16::kNotFound) {
+      session_->dispatchProtocolMessage(toStringView(
+          R"({"id": 4, "method": "Debugger.resume", "params": {"terminateOnResume": true}})"));
+    }
+  }
+
+  void flushProtocolNotifications() override {}
+
+  int first_terminate_responses() const { return first_terminate_responses_; }
+  int second_terminate_responses() const { return second_terminate_responses_; }
+
+ private:
+  v8::Isolate* isolate_;
+  v8::Global<v8::Context> context_;
+  V8InspectorSession* session_ = nullptr;
+  int first_terminate_responses_ = 0;
+  int second_terminate_responses_ = 0;
+};
+
+}  // namespace
+
+TEST_F(InspectorTest, ReentrantReportTermination) {
+  v8::Isolate* isolate = v8_isolate();
+  v8::HandleScope handle_scope(isolate);
+
+  ReentrantReportTerminationChannel channel(isolate, v8_context());
+  std::unique_ptr<V8Inspector> inspector =
+      V8Inspector::create(isolate, &channel);
+  V8ContextInfo context_info(v8_context(), 1, StringView());
+  inspector->contextCreated(context_info);
+
+  std::unique_ptr<V8InspectorSession> session = inspector->connect(
+      1, &channel, toStringView("{}"), v8_inspector::V8Inspector::kFullyTrusted,
+      v8_inspector::V8Inspector::kNotWaitingForDebugger);
+  channel.set_session(session.get());
+
+  session->dispatchProtocolMessage(
+      toStringView(R"({"id": 1, "method": "Runtime.terminateExecution"})"));
+  CHECK(TryRunJS("for (;;){}").IsEmpty());
+  CHECK_EQ(1, channel.first_terminate_responses());
+  CHECK_EQ(1, channel.second_terminate_responses());
+}
+
+namespace {
+
 class DeoptOnRestartFrameChannel : public V8Inspector::Channel,
                                    public v8_inspector::V8InspectorClient {
  public:
