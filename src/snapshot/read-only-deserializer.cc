@@ -156,7 +156,7 @@ class ReadOnlyHeapImageDeserializer final {
 ReadOnlyDeserializer::ReadOnlyDeserializer(Isolate* isolate,
                                            const SnapshotData* data,
                                            bool can_rehash)
-    : Deserializer(isolate, data->Payload(), /* trusted_payload */ {},
+    : Deserializer(isolate, data->UntrustedPayload(), data->TrustedPayload(),
                    data->GetMagicNumber(), /* deserializing_user_code */ false,
                    can_rehash, SnapshotTrustLevel::kTrusted) {}
 

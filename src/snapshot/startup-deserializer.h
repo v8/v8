@@ -17,8 +17,9 @@ class StartupDeserializer final : public Deserializer<Isolate> {
   explicit StartupDeserializer(Isolate* isolate,
                                const SnapshotData* startup_data,
                                bool can_rehash)
-      : Deserializer(isolate, startup_data->Payload(),
-                     /* trusted_payload */ {}, startup_data->GetMagicNumber(),
+      : Deserializer(isolate, startup_data->UntrustedPayload(),
+                     startup_data->TrustedPayload(),
+                     startup_data->GetMagicNumber(),
                      /* deserializing_user_code */ false, can_rehash,
                      SnapshotTrustLevel::kTrusted) {}
 

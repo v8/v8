@@ -131,19 +131,15 @@ class SerializedCodeData : public SerializedData {
   // The data header consists of uint32_t-sized entries (except for the 256-bit
   // source hash):
   static constexpr uint32_t kVersionHashOffset =
-      kMagicNumberOffset + kUInt32Size;
+      kTrustedPayloadLengthOffset + kUInt32Size;
   static constexpr uint32_t kSourceHashOffset =
       kVersionHashOffset + kUInt32Size;
   static constexpr uint32_t kFlagHashOffset =
       kSourceHashOffset + kSizeOfSha256Digest;
   static constexpr uint32_t kReadOnlySnapshotChecksumOffset =
       kFlagHashOffset + kUInt32Size;
-  static constexpr uint32_t kPayloadLengthOffset =
-      kReadOnlySnapshotChecksumOffset + kUInt32Size;
-  static constexpr uint32_t kTrustedPayloadLengthOffset =
-      kPayloadLengthOffset + kUInt32Size;
   static constexpr uint32_t kChecksumOffset =
-      kTrustedPayloadLengthOffset + kUInt32Size;
+      kReadOnlySnapshotChecksumOffset + kUInt32Size;
   static constexpr uint32_t kUnalignedHeaderSize =
       kChecksumOffset + kUInt32Size;
   static constexpr uint32_t kHeaderSize =

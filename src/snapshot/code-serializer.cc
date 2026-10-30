@@ -805,47 +805,27 @@ SerializedCodeData::SerializedCodeData(
     const std::vector<uint8_t>* trusted_payload, const CodeSerializer* cs) {
   DisallowGarbageCollection no_gc;
 
-  size_t trusted_length =
-      external_references_payload->size() + trusted_payload->size();
-  size_t payload_length = trusted_length + untrusted_payload->size();
-
-  // Calculate sizes.
-  uint32_t size = base::checked_cast<uint32_t>(kHeaderSize + payload_length);
-  CHECK_LE(size, kMaxInt);
-  DCHECK(IsAligned(size, kPointerAlignment));
-  DCHECK(IsAligned(trusted_length, kPointerAlignment));
-
   // Allocate backing store and create result data.
-  AllocateData(size);
-
-  // Zero out pre-payload data. Part of that is only used for padding.
-  std::fill_n(data_, kHeaderSize, 0);
+  AllocateWithPayload(kHeaderSize, untrusted_payload,
+                      external_references_payload, trusted_payload);
+  CHECK_LE(size_, kMaxInt);
+  DCHECK(IsAligned(size_, kPointerAlignment));
+  DCHECK(IsAligned(GetHeaderValue(kTrustedPayloadLengthOffset),
+                   kPointerAlignment));
 
   // Set header values.
-  SetMagicNumber();
   SetHeaderValue(kVersionHashOffset, Version::Hash());
   SetHeaderSourceHash(cs->source_hash());
   SetHeaderValue(kFlagHashOffset, FlagList::Hash());
   SetHeaderValue(kReadOnlySnapshotChecksumOffset,
                  Snapshot::ExtractReadOnlySnapshotChecksum(
                      cs->isolate()->snapshot_blob()));
-  SetHeaderValue(kPayloadLengthOffset,
-                 base::checked_cast<uint32_t>(payload_length));
-  SetHeaderValue(kTrustedPayloadLengthOffset,
-                 base::checked_cast<uint32_t>(trusted_length));
 
   // Zero out any padding in the header.
   static_assert(kUnalignedHeaderSize <= kHeaderSize);
   std::fill_n(data_ + kUnalignedHeaderSize, kHeaderSize - kUnalignedHeaderSize,
               0);
 
-  // Copy serialized data.
-  CopyBytes(data_ + kHeaderSize, external_references_payload->data(),
-            external_references_payload->size());
-  CopyBytes(data_ + kHeaderSize + external_references_payload->size(),
-            trusted_payload->data(), trusted_payload->size());
-  CopyBytes(data_ + kHeaderSize + trusted_length, untrusted_payload->data(),
-            untrusted_payload->size());
   uint32_t checksum =
       v8_flags.verify_snapshot_checksum ? Checksum(ChecksummedContent()) : 0;
   SetHeaderValue(kChecksumOffset, checksum);
