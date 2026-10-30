@@ -803,16 +803,16 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
   }
 
   if (current_scope().has_function_variable()) {
-    DirectHandle<String> name(current_scope().function_variable_name(),
-                              isolate_);
-    Handle<Object> function_value;
-    if (InInnerScope()) {
-      function_value = frame_inspector_ == nullptr
-                           ? function_
-                           : frame_inspector_->GetFunction();
-    } else {
-      auto [fn_alloc, fn_index] = current_scope().function_variable_info();
-      if (fn_alloc == VariableAllocationInfo::CONTEXT && HasContext()) {
+    auto [fn_alloc, fn_index] = current_scope().function_variable_info();
+    if (mode != Mode::STACK || fn_alloc != VariableAllocationInfo::CONTEXT) {
+      DirectHandle<String> name(current_scope().function_variable_name(),
+                                isolate_);
+      Handle<Object> function_value;
+      if (InInnerScope()) {
+        function_value = frame_inspector_ == nullptr
+                             ? function_
+                             : frame_inspector_->GetFunction();
+      } else if (fn_alloc == VariableAllocationInfo::CONTEXT && HasContext()) {
         CHECK_LT(static_cast<unsigned>(fn_index),
                  static_cast<unsigned>(context_->length()));
         function_value = indirect_handle(
@@ -820,8 +820,8 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
       } else {
         function_value = isolate_->factory()->optimized_out();
       }
+      if (visitor(name, function_value, scope_type)) return true;
     }
-    if (visitor(name, function_value, scope_type)) return true;
   }
 
   DebugScriptScope scope = current_scope();
