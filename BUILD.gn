@@ -7473,8 +7473,6 @@ v8_cluster_source_set("v8_base_without_compiler") {
   }
 
   if (v8_enable_i18n_support) {
-    deps += [ ":run_gen-regexp-special-case" ]
-    sources += [ "$target_gen_dir/src/regexp/special-case.cc" ]
     if (is_win) {
       deps += [ "$v8_icu_path:icudata" ]
     }
@@ -7550,6 +7548,9 @@ group("v8_base") {
   if (v8_use_checked_in_generated_headers) {
     public_deps += [ ":torque_generated_definitions" ]
     deps = [ ":verify_checked_in_generated_headers" ]
+  }
+  if (v8_enable_i18n_support) {
+    public_deps += [ ":regexp_special_case" ]
   }
 }
 
@@ -8624,6 +8625,9 @@ if (current_toolchain == v8_snapshot_toolchain) {
       # see verify_checked_in_generated_headers.
       deps += [ ":verify_checked_in_generated_headers" ]
     }
+    if (v8_enable_i18n_support) {
+      deps += [ ":regexp_special_case" ]
+    }
   }
 
   # This config disables a link time optimization "ICF", which may merge
@@ -8737,6 +8741,22 @@ if (v8_enable_i18n_support) {
               root_build_dir),
       rebase_path(output_file, root_build_dir),
     ]
+  }
+
+  v8_source_set("regexp_special_case") {
+    visibility = [ ":*" ]
+
+    sources = [ "$target_gen_dir/src/regexp/special-case.cc" ]
+
+    deps = [
+      ":run_gen-regexp-special-case",
+      ":v8_internal_headers",
+      ":v8_libbase",
+    ]
+
+    public_deps = [ ":v8_maybe_icu" ]
+
+    configs = [ ":internal_config" ]
   }
 }
 
