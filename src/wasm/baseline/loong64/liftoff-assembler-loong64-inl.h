@@ -56,14 +56,19 @@ inline MemOperand GetInstanceDataOperand() {
 inline Register CalculateActualAddress(LiftoffAssembler* lasm,
                                        UseScratchRegisterScope& temps,
                                        Register addr_reg, Register offset_reg,
-                                       uintptr_t offset_imm) {
+                                       uintptr_t offset_imm, bool i64_offset) {
   DCHECK_NE(addr_reg, no_reg);
   if (offset_reg == no_reg && offset_imm == 0) return addr_reg;
   Register result = temps.Acquire();
   if (offset_reg == no_reg) {
     lasm->Add_d(result, addr_reg, Operand(offset_imm));
   } else {
-    lasm->Add_d(result, addr_reg, Operand(offset_reg));
+    if (i64_offset) {
+      lasm->Add_d(result, addr_reg, Operand(offset_reg));
+    } else {
+      lasm->Bstrpick_d(result, offset_reg, 31, 0);
+      lasm->Add_d(result, addr_reg, Operand(result));
+    }
     if (offset_imm != 0) lasm->Add_d(result, result, Operand(offset_imm));
   }
   return result;
@@ -1087,7 +1092,7 @@ void LiftoffAssembler::AtomicExchangeTaggedPointer(
   {
     UseScratchRegisterScope temps(this);
     Register actual_addr = liftoff::CalculateActualAddress(
-        this, temps, dst_addr, offset_reg, offset_imm);
+        this, temps, dst_addr, offset_reg, offset_imm, false);
     if (trapping_load_pc) *trapping_load_pc = pc_offset();
     if constexpr (COMPRESS_POINTERS_BOOL) {
       amswap_db_w(result.gp(), value.gp(), actual_addr);
