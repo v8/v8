@@ -358,7 +358,7 @@ double sinh(double x) {
 #undef SET_HIGH_WORD
 #undef SET_LOW_WORD
 
-double tanh(double x) { return std::tanh(x); }
+double tanh(double x) { return LIBC_NAMESPACE::shared::tanh(x); }
 
 }  // namespace ieee754
 }  // namespace base
