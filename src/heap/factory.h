@@ -460,9 +460,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // because we cannot change the underlying buffer.  Note that these strings
   // are backed by a string resource that resides outside the V8 heap.
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewExternalStringFromOneByte(
-      const v8::String::ExternalOneByteStringResource* resource);
+      v8::String::ExternalOneByteStringResource* resource);
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewExternalStringFromTwoByte(
-      const v8::String::ExternalStringResource* resource);
+      v8::String::ExternalStringResource* resource);
 
   // Create a symbol in old or read-only space.
   Handle<Symbol> NewSymbol(AllocationType allocation = AllocationType::kOld);

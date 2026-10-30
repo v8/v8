@@ -6898,11 +6898,17 @@ void Heap::ExternalStringTable::CleanUp() {
 }
 
 void Heap::ExternalStringTable::TearDown() {
+  // The resources must be unaccounted while the isolate is alive, which the
+  // resource wrapper finalizers can't guarantee: the CppHeap may outlive it.
+  // TODO(crbug.com/562847435): Find a better solution.
   for (size_t i = 0; i < old_strings_.size(); ++i) {
     Tagged<Object> o = old_strings_[i];
     // Dont finalize thin strings.
     if (IsThinString(o)) continue;
-    heap_->FinalizeExternalString(Cast<ExternalString>(o));
+    if (ExternalStringResourceWrapper* wrapper =
+            Cast<ExternalString>(o)->resource_wrapper(heap_->isolate())) {
+      wrapper->DisposeResource();
+    }
   }
   old_strings_.clear();
 }

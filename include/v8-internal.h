@@ -694,8 +694,7 @@ enum ExternalPointerTag : uint16_t {
   // be accessed from multiple threads at the same time. The objects referenced
   // in this way must therefore always be thread-safe.
   kFirstSharedExternalPointerTag,
-  kExternalStringResourceTag = kFirstSharedExternalPointerTag,
-  kExternalStringResourceDataTag,
+  kExternalStringResourceDataTag = kFirstSharedExternalPointerTag,
   kLastSharedExternalPointerTag = kExternalStringResourceDataTag,
 
   // External pointers using these tags are kept in a per-Isolate external
@@ -986,6 +985,11 @@ class Internals {
   static const int kMapInstanceTypeOffset = 1 * kApiTaggedSize + kApiInt32Size;
   static const int kStringResourceOffset =
       1 * kApiTaggedSize + 2 * kApiInt32Size;
+  // The resource field of an external string references a cppgc object
+  // (ExternalStringResourceWrapper) which stores the resource pointer at this
+  // offset.
+  static const int kExternalStringResourceWrapperResourceOffset =
+      kApiSystemPointerSize;
 
   static const int kOddballKindOffset = 4 * kApiTaggedSize + kApiDoubleSize;
   static const int kJSObjectHeaderSize = 3 * kApiTaggedSize;

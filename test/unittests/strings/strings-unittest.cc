@@ -1432,7 +1432,7 @@ TEST_F(StringsTest, SliceFromExternal) {
   CHECK(IsExternalString(Cast<SlicedString>(*slice)->parent()));
   CHECK(slice->IsFlat());
   // This avoids the GC from trying to free stack allocated resources.
-  i::Cast<i::ExternalOneByteString>(string)->SetResource(i_isolate(), nullptr);
+  i::Cast<i::ExternalString>(string)->ReleaseResourceForTesting(i_isolate());
 }
 
 static void ExternalizeDuringJsonStringifyCallback(
@@ -2132,7 +2132,7 @@ TEST_F(StringsTest, CheckCachedDataInternalExternalUncachedString) {
       new OneByteResource(i::StrDup(raw_small), strlen(raw_small));
 
   // Check it is external, internalized, and uncached with a cacheable resource.
-  string->MakeExternal(i_isolate(), resource);
+  String::MakeExternal(i_isolate(), string, resource);
   CHECK(string->IsOneByteRepresentation());
   CHECK(IsExternalString(*string));
   CHECK(IsInternalizedString(*string));
@@ -2167,7 +2167,7 @@ TEST_F(StringsTest, CheckCachedDataInternalExternalUncachedStringTwoByte) {
   Resource* resource = new Resource(two_byte, len);
 
   // Check it is external, internalized, and uncached with a cacheable resource.
-  string->MakeExternal(i_isolate(), resource);
+  String::MakeExternal(i_isolate(), string, resource);
   CHECK(string->IsTwoByteRepresentation());
   CHECK(IsExternalString(*string));
   CHECK(IsInternalizedString(*string));

@@ -35,8 +35,7 @@ class SerializerDeserializer : public RootVisitor {
 
   // clang-format off
 #define UNUSED_SERIALIZER_BYTE_CODES(V)                           \
-  /* Free range 0x27..0x2f */                                     \
-                                                          V(0x27) \
+  /* Free range 0x28..0x2f */                                     \
   V(0x28) V(0x29) V(0x2a) V(0x2b) V(0x2c) V(0x2d) V(0x2e) V(0x2f)
   // clang-format on
 
@@ -58,7 +57,7 @@ class SerializerDeserializer : public RootVisitor {
 
   enum Bytecode : uint8_t {
     //
-    // ---------- byte code range 0x00..0x26 ----------
+    // ---------- byte code range 0x00..0x27 ----------
     //
 
     // 0x00..0x03  Allocate new object, in specified space.
@@ -157,6 +156,11 @@ class SerializerDeserializer : public RootVisitor {
     // Reference to previously allocated object, also registering it in the
     // fixed backref table for subsequent 1-byte kFixedBackref references.
     kRegisterFixedBackref,
+    // The host external string's resource, as an index into the API external
+    // references. The deserializer stores a newly allocated cppgc wrapper for
+    // it. Trusted sections only; an untrusted section refers to the resource
+    // through the trusted section's table instead (kTrustedExternalRef).
+    kExternalStringResource,
 
     //
     // ---------- byte code range 0x30..0x7f ----------
@@ -192,6 +196,7 @@ class SerializerDeserializer : public RootVisitor {
       case kInitializeSelfTrustedPointer:
       case kAllocateJSDispatchEntry:
       case kProtectedPointerPrefix:
+      case kExternalStringResource:
         return true;
       case kNewObject:
       case kBackref:
@@ -331,6 +336,9 @@ class SerializerDeserializer : public RootVisitor {
   // section of a code cache, see kTrustedExternalRef.
   struct EncodedExternalReference {
     ExternalReferenceEncoder::Value reference;
+    // kExternalPointerNullTag marks an external string resource, see
+    // kExternalStringResource.
+    // TODO(crbug.com/564863360): Use a proper CppHeapPointer tagging scheme.
     ExternalPointerTag tag;
     // Explicit padding, so that code caches are deterministic.
     uint16_t padding = 0;

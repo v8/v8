@@ -231,12 +231,6 @@ void Heap::RegisterExternalString(Tagged<String> string) {
   external_string_table_.AddString(string);
 }
 
-void Heap::FinalizeExternalString(Tagged<String> string) {
-  DCHECK(IsExternalString(string));
-  Tagged<ExternalString> ext_string = Cast<ExternalString>(string);
-  ext_string->DisposeResource(isolate());
-}
-
 Address Heap::NewSpaceTop() {
   return new_space_ || v8_flags.sticky_mark_bits
              ? allocator()->new_space_allocator()->top()

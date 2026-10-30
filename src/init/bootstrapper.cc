@@ -5232,9 +5232,13 @@ bool Genesis::CompileExtension(Isolate* isolate, v8::Extension* extension) {
   HandleScope scope(isolate);
   DirectHandle<SharedFunctionInfo> function_info;
 
+  // TODO(crbug.com/562847435): Make v8::Extension::source() non-const to avoid
+  // the const_cast.
   Handle<String> source =
       isolate->factory()
-          ->NewExternalStringFromOneByte(extension->source())
+          ->NewExternalStringFromOneByte(
+              const_cast<v8::String::ExternalOneByteStringResource*>(
+                  extension->source()))
           .ToHandleChecked();
   DCHECK(source->IsOneByteRepresentation());
 
