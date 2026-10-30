@@ -1367,26 +1367,18 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
     uint32_t* trapping_load_pc, LiftoffRegList pinned) {
-  // We expect that the offset has already been added to {dst_addr}, and no
-  // {offset_reg} is provided. This is to save registers.
-  DCHECK_EQ(offset_reg, no_reg);
   DCHECK_EQ(result, expected);
-  // "Save" the value to be stored as it is needed for the write barrier.
-  Register new_value_for_write_barrier =
-      pinned.set(GetUnusedRegister(RegClass::kGpReg, pinned)).gp();
-  mov(new_value_for_write_barrier, new_value.gp());
   Register value_reg = new_value.gp();
   Register result_reg = expected.gp();
-  // The cmpxchg instruction uses rax to store the old value of the
+  // The cmpxchg instruction uses eax to store the old value of the
   // compare-exchange primitive. Therefore we have to spill the register and
   // move any use to another register.
-  ClearRegister(eax, {&dst_addr, &value_reg, &new_value_for_write_barrier},
-                pinned);
+  ClearRegister(eax, {&dst_addr, &offset_reg, &value_reg}, pinned);
   if (expected.gp() != eax) {
     mov(eax, expected.gp());
   }
 
-  Operand dst_op = Operand(dst_addr, offset_imm);
+  Operand dst_op = liftoff::MemOperand(dst_addr, offset_reg, offset_imm);
   lock();
   cmpxchg(dst_op, value_reg);
   if (result_reg != eax) {
@@ -1397,14 +1389,15 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
   Label done;
   j(not_equal, &done, Label::kNear);
   // This assumes that the caller didn't pin any additional registers.
-  // {expected}, {value_reg} and {new_value} are no longer needed; we need to
-  // unpin them so that enough registers are available for the write barrier.
-  LiftoffRegList new_pinned{dst_addr, new_value_for_write_barrier, result_reg};
-  DCHECK(pinned.MaskOut(new_pinned)
-             .MaskOut(LiftoffRegList{expected, new_value, eax, value_reg})
-             .is_empty());
+  // If one of the inputs started in {eax}, {ClearRegister} moved it to a
+  // replacement register and kept {eax} in {pinned}; unpin {eax} (unless
+  // {result_reg == eax}) so that enough registers are available for the write
+  // barrier.
+  LiftoffRegList new_pinned{dst_addr, value_reg, result_reg};
+  if (offset_reg != no_reg) new_pinned.set(offset_reg);
+  DCHECK(pinned.MaskOut(new_pinned).MaskOut(LiftoffRegList{eax}).is_empty());
   pinned = new_pinned;
-  EmitWriteBarrier(dst_addr, dst_op, new_value_for_write_barrier, pinned);
+  EmitWriteBarrier(dst_addr, dst_op, value_reg, pinned);
   bind(&done);
 }
 

@@ -7477,21 +7477,29 @@ class LiftoffCompiler {
     ValueKind elem_kind = imm.array_type->element_type().kind();
     if (!CheckSupportedType(decoder, elem_kind, "array load")) return;
 
-    // As we don't have `PeekToModifiableRegister`, simply allocate a new
-    // register for the array + index  and then "free" the array and
-    // index registers.
-    LiftoffRegister mem_location =
+    // As we don't have `PeekToModifiableRegister`, allocate a new register for
+    // the scaled index (or for `array + scaled_index` for non-reference types,
+    // where i64 values need register pairs and no write barrier is emitted).
+    LiftoffRegister offset_or_mem_location =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     int elem_size_shift = value_kind_size_log2(elem_kind);
-    if (elem_size_shift != 0) {
-      __ emit_i32_shli(mem_location.gp(), index->gp(), elem_size_shift);
-      __ emit_i32_add(mem_location.gp(), mem_location.gp(), array->gp());
+    if (is_reference(elem_kind)) {
+      DCHECK_NE(elem_size_shift, 0);
+      __ emit_i32_shli(offset_or_mem_location.gp(), index->gp(),
+                       elem_size_shift);
+    } else if (elem_size_shift != 0) {
+      __ emit_i32_shli(offset_or_mem_location.gp(), index->gp(),
+                       elem_size_shift);
+      __ emit_i32_add(offset_or_mem_location.gp(), offset_or_mem_location.gp(),
+                      array->gp());
+      pinned.clear(*array);
+      array = {};
     } else {
-      __ emit_i32_add(mem_location.gp(), array->gp(), index->gp());
+      __ emit_i32_add(offset_or_mem_location.gp(), array->gp(), index->gp());
+      pinned.clear(*array);
+      array = {};
     }
-    pinned.clear(*array);
     pinned.clear(*index);
-    array = {};
     index = {};
 
     LiftoffRegister new_value = pinned.set(__ PopToRegister(pinned));
@@ -7501,11 +7509,11 @@ class LiftoffCompiler {
 
     LiftoffRegister result_reg = expected_value;
     if (is_reference(elem_kind)) {
-      __ AtomicCompareExchangeTaggedPointer(mem_location.gp(), no_reg, offset,
-                                            expected_value, new_value,
-                                            result_reg, nullptr, pinned);
+      __ AtomicCompareExchangeTaggedPointer(
+          array->gp(), offset_or_mem_location.gp(), offset, expected_value,
+          new_value, result_reg, nullptr, pinned);
     } else {
-      __ AtomicCompareExchange(mem_location.gp(), no_reg, offset,
+      __ AtomicCompareExchange(offset_or_mem_location.gp(), no_reg, offset,
                                expected_value, new_value, result_reg,
                                StoreType::ForValueKind(elem_kind), nullptr,
                                false, LiftoffAssembler::kNative);
