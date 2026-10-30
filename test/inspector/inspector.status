@@ -25,6 +25,11 @@
 
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'runtime/console-messages-limits': [PASS, SLOW, HEAVY],
+  'debugger/debug-stepout-scope-part4': [PASS, HEAVY],
+  'debugger/debug-stepout-scope-part5': [PASS, HEAVY],
+  'debugger/debug-stepout-scope-part6': [PASS, HEAVY],
+  'debugger/debug-stepout-scope-part7': [PASS, HEAVY],
+  'debugger/debug-stepout-scope-part8': [PASS, HEAVY],
   'runtime/regression-732717': [PASS, HEAVY],
 
   # Use-after-free regression tests, only meaningful under ASan.
@@ -305,5 +310,15 @@
   # https://crbug.com/374722652
   'regress/regress-374013413': [SKIP],
 }],  # 'verify_predictable'
+
+##############################################################################
+['arch == arm and mode == debug', {
+  # Tests taking too long
+  'debugger/debug-stepout-scope-part4': [SKIP],
+  'debugger/debug-stepout-scope-part5': [SKIP],
+  'debugger/debug-stepout-scope-part6': [SKIP],
+  'debugger/debug-stepout-scope-part7': [SKIP],
+  'debugger/debug-stepout-scope-part8': [SKIP],
+}],  # 'arch == arm and mode == debug'
 
 ]
