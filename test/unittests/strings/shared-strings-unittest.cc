@@ -302,8 +302,8 @@ TEST_F(SharedStringsTest, StringShare) {
     OneByteResource* one_byte_res =
         resource_factory.CreateOneByte(raw_one_byte);
     TwoByteResource* two_byte_res = resource_factory.CreateTwoByte(two_byte);
-    CHECK(String::MakeExternal(i_isolate, one_byte_ext, one_byte_res));
-    CHECK(String::MakeExternal(i_isolate, two_byte_ext, two_byte_res));
+    CHECK(one_byte_ext->MakeExternal(i_isolate, one_byte_res));
+    CHECK(two_byte_ext->MakeExternal(i_isolate, two_byte_res));
     if (v8_flags.always_use_string_forwarding_table) {
       i_isolate->heap()->CollectGarbageShared(
           i_isolate->main_thread_local_heap(),

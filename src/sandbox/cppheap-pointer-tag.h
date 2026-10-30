@@ -21,7 +21,6 @@ namespace v8::internal {
   V(kMicrotaskQueueTag)                                \
   V(kCppGCManagedTag)                                  \
   V(kEmbedderDataSlotTag)                              \
-  V(kExternalStringResourceTag)                        \
   V(kInspectorV8ConsoleTag)                            \
   V(kInspectorCommandLineAPIDataTag)                   \
   V(kInspectorCommandLineAPIScopeDataTag)
@@ -80,11 +79,6 @@ static_assert(
       static_cast<CppHeapPointerTag>(NonWrappableCppHeapPointerTag::name);
 V8_NON_WRAPPABLE_CPP_HEAP_POINTER_TAGS_LIST(DEFINE_NON_WRAPPABLE_TAG_CONSTANT)
 #undef DEFINE_NON_WRAPPABLE_TAG_CONSTANT
-
-// The external string resource tag is also part of the public API, as the
-// inline fast paths in include/v8-primitive.h need it.
-static_assert(kExternalStringResourceTag ==
-              CppHeapPointerTag::kExternalStringResourceTag);
 
 }  // namespace v8::internal
 

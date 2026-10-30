@@ -34,7 +34,6 @@
 #include "src/objects/string-table-inl.h"
 #include "src/roots/roots.h"
 #include "src/roots/static-roots.h"
-#include "src/sandbox/cppheap-pointer-inl.h"
 #include "src/sandbox/external-pointer-inl.h"
 #include "src/sandbox/isolate.h"
 #include "src/strings/string-hasher-inl.h"
@@ -1475,27 +1474,25 @@ bool ExternalString::is_uncached() const {
   return (type & kUncachedExternalStringMask) == kUncachedExternalStringTag;
 }
 
-void ExternalString::InitPointerTableFields(Isolate* isolate) {
-  resource_.SetupLazilyInitialized();
+void ExternalString::InitExternalPointerFields(Isolate* isolate) {
+  resource_.Init(address(), isolate, kNullAddress);
   if (is_uncached()) return;
   resource_data_.Init(address(), isolate, kNullAddress);
 }
 
 void ExternalString::VisitExternalPointers(ObjectVisitor* visitor) {
+  visitor->VisitExternalPointer(this, ExternalPointerSlot(&resource_));
   if (is_uncached()) return;
   visitor->VisitExternalPointer(this, ExternalPointerSlot(&resource_data_));
 }
 
-ExternalStringResourceWrapper* ExternalString::resource_wrapper(
-    Isolate* isolate) const {
-  return reinterpret_cast<ExternalStringResourceWrapper*>(
-      resource_.load(isolate, kExternalStringResourceTag));
+Address ExternalString::resource_as_address(Isolate* isolate) const {
+  return resource_.load(isolate);
 }
 
-v8::String::ExternalStringResourceBase* ExternalString::resource(
-    Isolate* isolate) const {
-  ExternalStringResourceWrapper* wrapper = resource_wrapper(isolate);
-  return wrapper ? wrapper->resource() : nullptr;
+Address ExternalString::resource_as_address() const {
+  Isolate* isolate = Isolate::Current();
+  return resource_as_address(isolate);
 }
 
 void ExternalString::InitResourceDataAfterDeserialization(Isolate* isolate) {
@@ -1503,36 +1500,39 @@ void ExternalString::InitResourceDataAfterDeserialization(Isolate* isolate) {
     DCHECK_EQ(resource_data_.load_encoded(), kNullExternalPointer);
     resource_data_.Init(address(), isolate, kNullAddress);
   }
-  v8::String::ExternalStringResourceBase* value = resource(isolate);
-  UpdateDataCache(isolate, value);
-}
-
-void ExternalString::SetResourceWrapper(
-    Isolate* isolate, ExternalStringResourceWrapper* wrapper) {
-  DCHECK_NOT_NULL(wrapper);
-  resource_.StoreLazy(isolate, reinterpret_cast<Address>(wrapper),
-                      kExternalStringResourceTag);
-  // TODO(crbug.com/42203417): Find a better solution for
-  // cppgc-young-generation, as the string added to the remembered set might
-  // become a thin string by the time of the GC.
-  WriteBarrier::ForCppHeapPointer(Tagged<ExternalString>(this),
-                                  CppHeapPointerSlot(&resource_), wrapper);
-  UpdateDataCache(isolate, wrapper->resource());
-}
-
-void ExternalString::UpdateDataCache(
-    Isolate* isolate, v8::String::ExternalStringResourceBase* resource) {
+  Address value = resource_as_address(isolate);
   if (Is<ExternalOneByteString>(this)) {
-    UpdateDataCacheImpl(
-        isolate, static_cast<ExternalOneByteString::Resource*>(resource));
+    Cast<ExternalOneByteString>(this)->update_data_cache(
+        isolate, reinterpret_cast<ExternalOneByteString::Resource*>(value));
   } else {
-    UpdateDataCacheImpl(
-        isolate, static_cast<ExternalTwoByteString::Resource*>(resource));
+    Cast<ExternalTwoByteString>(this)->update_data_cache(
+        isolate, reinterpret_cast<ExternalTwoByteString::Resource*>(value));
   }
 }
 
-template <typename Resource>
-void ExternalString::UpdateDataCacheImpl(Isolate* isolate, Resource* resource) {
+void ExternalString::DisposeResource(Isolate* isolate) {
+  DisallowGarbageCollection no_gc;
+
+  Address value = resource_.exchange(isolate, kNullAddress);
+  v8::String::ExternalStringResourceBase* resource =
+      reinterpret_cast<v8::String::ExternalStringResourceBase*>(value);
+
+  // Dispose of the C++ object if it has not already been disposed.
+  if (resource != nullptr) {
+    if (!IsShared() && !HeapLayout::InWritableSharedSpace(this)) {
+      resource->Unaccount(reinterpret_cast<v8::Isolate*>(isolate));
+    }
+    DisableGCMole no_gc_mole;
+    resource->Dispose();
+  }
+}
+
+const ExternalOneByteString::Resource* ExternalOneByteString::resource() const {
+  return reinterpret_cast<const Resource*>(resource_as_address());
+}
+
+void ExternalOneByteString::update_data_cache(
+    Isolate* isolate, ExternalOneByteString::Resource* resource) {
   DisallowGarbageCollection no_gc;
   if (is_uncached()) {
     if (resource->IsCacheable()) resource->UpdateDataCache();
@@ -1541,15 +1541,24 @@ void ExternalString::UpdateDataCacheImpl(Isolate* isolate, Resource* resource) {
   }
 }
 
-v8::String::ExternalStringResourceBase*
-ExternalString::ReleaseResourceForTesting(Isolate* isolate) {
-  ExternalStringResourceWrapper* wrapper = resource_wrapper(isolate);
-  return wrapper ? wrapper->ReleaseResource() : nullptr;
+void ExternalOneByteString::SetResource(
+    Isolate* isolate, const ExternalOneByteString::Resource* resource) {
+  set_resource(isolate, resource);
 }
 
-const ExternalOneByteString::Resource* ExternalOneByteString::resource() const {
-  return static_cast<const Resource*>(
-      ExternalString::resource(Isolate::Current()));
+void ExternalOneByteString::set_resource(
+    Isolate* isolate, const ExternalOneByteString::Resource* resource) {
+  resource_.store(isolate, reinterpret_cast<Address>(resource));
+  if (resource != nullptr) {
+    update_data_cache(isolate,
+                      const_cast<ExternalOneByteString::Resource*>(resource));
+  }
+}
+
+const ExternalOneByteString::Resource* ExternalOneByteString::ExchangeResource(
+    Isolate* isolate, const ExternalOneByteString::Resource* resource) {
+  return reinterpret_cast<const Resource*>(
+      resource_.exchange(isolate, reinterpret_cast<Address>(resource)));
 }
 
 const uint8_t* ExternalOneByteString::GetChars() const {
@@ -1583,8 +1592,37 @@ uint8_t ExternalOneByteString::Get(
 }
 
 const ExternalTwoByteString::Resource* ExternalTwoByteString::resource() const {
-  return static_cast<const Resource*>(
-      ExternalString::resource(Isolate::Current()));
+  return reinterpret_cast<const Resource*>(resource_as_address());
+}
+
+void ExternalTwoByteString::update_data_cache(
+    Isolate* isolate, ExternalTwoByteString::Resource* resource) {
+  DisallowGarbageCollection no_gc;
+  if (is_uncached()) {
+    if (resource->IsCacheable()) resource->UpdateDataCache();
+  } else {
+    resource_data_.store(isolate, reinterpret_cast<Address>(resource->data()));
+  }
+}
+
+void ExternalTwoByteString::SetResource(
+    Isolate* isolate, const ExternalTwoByteString::Resource* resource) {
+  set_resource(isolate, resource);
+}
+
+void ExternalTwoByteString::set_resource(
+    Isolate* isolate, const ExternalTwoByteString::Resource* resource) {
+  resource_.store(isolate, reinterpret_cast<Address>(resource));
+  if (resource != nullptr) {
+    update_data_cache(isolate,
+                      const_cast<ExternalTwoByteString::Resource*>(resource));
+  }
+}
+
+const ExternalTwoByteString::Resource* ExternalTwoByteString::ExchangeResource(
+    Isolate* isolate, const ExternalTwoByteString::Resource* resource) {
+  return reinterpret_cast<const Resource*>(
+      resource_.exchange(isolate, reinterpret_cast<Address>(resource)));
 }
 
 const uint16_t* ExternalTwoByteString::GetChars() const {

@@ -203,12 +203,6 @@ class Deserializer : public SerializerDeserializer {
   template <typename SlotAccessor>
   int ReadApiReference(uint8_t data, SlotAccessor slot_accessor);
   template <typename SlotAccessor>
-  int ReadExternalStringResource(uint8_t data, SlotAccessor slot_accessor);
-  // Stores a new cppgc wrapper of the resource (an API reference) in the slot.
-  template <typename SlotAccessor>
-  int WriteExternalStringResource(SlotAccessor slot_accessor,
-                                  uint32_t reference_id);
-  template <typename SlotAccessor>
   int ReadClearedWeakReference(uint8_t data, SlotAccessor slot_accessor);
   template <typename SlotAccessor>
   int ReadWeakPrefix(uint8_t data, SlotAccessor slot_accessor);

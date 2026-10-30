@@ -6,8 +6,6 @@
 
 #include "absl/functional/overload.h"
 #include "hwy/highway.h"
-#include "include/cppgc/allocation.h"
-#include "include/v8-cppgc.h"
 #include "include/v8config.h"
 #include "src/base/small-vector.h"
 #include "src/base/strong-alias.h"
@@ -90,29 +88,46 @@ template V8_EXPORT_PRIVATE IndirectHandle<String> String::SlowShare(
 
 namespace {
 
+template <class StringClass>
+void MigrateExternalStringResource(Isolate* isolate,
+                                   Tagged<ExternalString> from,
+                                   Tagged<StringClass> to) {
+  Address to_resource_address = to->resource_as_address(isolate);
+  if (to_resource_address == kNullAddress) {
+    Tagged<StringClass> cast_from = Cast<StringClass>(from);
+    // |to| is a just-created internalized copy of |from|. Migrate the resource.
+    // Zap |from|'s resource pointer to reflect the fact that |from| has
+    // relinquished ownership of its resource.
+    const typename StringClass::Resource* resource =
+        cast_from->ExchangeResource(isolate, nullptr);
+    to->SetResource(isolate, resource);
+  } else if (to_resource_address != from->resource_as_address(isolate)) {
+    // |to| already existed and has its own resource. Finalize |from|.
+    isolate->heap()->FinalizeExternalString(from);
+  }
+}
+
 void MigrateExternalString(Isolate* isolate, Tagged<String> string,
                            Tagged<String> internalized) {
-  ExternalStringResourceWrapper* from_wrapper =
-      Cast<ExternalString>(string)->resource_wrapper(isolate);
-  DCHECK_NOT_NULL(from_wrapper);
-  Tagged<ExternalString> to;
-  if (!TryCast(internalized, &to)) {
-    // Duped into an existing non-external string.
-    return;
+  if (IsExternalOneByteString(internalized)) {
+    MigrateExternalStringResource(isolate, Cast<ExternalString>(string),
+                                  Cast<ExternalOneByteString>(internalized));
+  } else if (IsExternalTwoByteString(internalized)) {
+    MigrateExternalStringResource(isolate, Cast<ExternalString>(string),
+                                  Cast<ExternalTwoByteString>(internalized));
+  } else {
+    // If the external string is duped into an existing non-external
+    // internalized string, free its resource (it's about to be rewritten
+    // into a ThinString below).
+    isolate->heap()->FinalizeExternalString(string);
   }
-  if (to->resource_wrapper(isolate) != nullptr) {
-    // Duped into an existing external string.
-    return;
-  }
-  // |internalized| is a new copy of |string|; hand over the wrapper.
-  to->SetResourceWrapper(isolate, from_wrapper);
 }
 
 }  // namespace
 
-void ExternalString::InitPointerTableFieldsDuringExternalization(
+void ExternalString::InitExternalPointerFieldsDuringExternalization(
     Tagged<Map> new_map, Isolate* isolate) {
-  resource_.SetupLazilyInitialized();
+  resource_.Init(address(), isolate, kNullAddress);
   bool is_uncached = (new_map->instance_type() & kUncachedExternalStringMask) ==
                      kUncachedExternalStringTag;
   if (!is_uncached) {
@@ -152,8 +167,8 @@ void String::MakeThin(IsolateT* isolate,
   if (initial_shape.IsExternal()) {
     // Notify GC about the layout change before the transition to avoid
     // concurrent marking from observing any in-between state (e.g.
-    // ExternalString map where the resource_ field is overwritten with a
-    // tagged pointer).
+    // ExternalString map where the resource external pointer is overwritten
+    // with a tagged pointer).
     // ExternalString -> ThinString transitions can only happen on the
     // main-thread.
     isolate->AsIsolate()->heap()->NotifyObjectLayoutChange(
@@ -277,7 +292,6 @@ Tagged<Map> ComputeExternalStringMap(Isolate* isolate, Tagged<String> string,
 
 }  // namespace
 
-// TODO(crbug.com/40096219): Unreachable, see SupportsExternalization().
 template <typename T>
 void String::MakeExternalDuringGC(Isolate* isolate, T* resource) {
   isolate->heap()->safepoint()->AssertActive();
@@ -308,26 +322,23 @@ void String::MakeExternalDuringGC(Isolate* isolate, T* resource) {
                                             ClearRecordedSlots{false});
   }
 
-  // The pointer table slots must be initialized before the new map is
+  // The external pointer slots must be initialized before the new map is
   // installed. Otherwise, a GC marking thread may see the new map before the
-  // slots are initialized and attempt to mark the (invalid) table entries as
-  // alive.
+  // slots are initialized and attempt to mark the (invalid) external pointers
+  // table entries as alive.
   static_cast<ExternalString*>(this)
-      ->InitPointerTableFieldsDuringExternalization(new_map, isolate);
+      ->InitExternalPointerFieldsDuringExternalization(new_map, isolate);
 
   // This is run during GC when no sweeping is running, so updating the map can
   // be relaxed.
   this->set_map_no_write_barrier(isolate, new_map, kRelaxedStore);
 
-  ExternalStringResourceWrapper* wrapper =
-      ExternalStringResourceWrapper::New(isolate);
-  wrapper->SetResource(resource);
   if constexpr (is_one_byte) {
     Tagged<ExternalOneByteString> self = Cast<ExternalOneByteString>(this);
-    self->SetResourceWrapper(isolate, wrapper);
+    self->SetResource(isolate, resource);
   } else {
     Tagged<ExternalTwoByteString> self = Cast<ExternalTwoByteString>(this);
-    self->SetResourceWrapper(isolate, wrapper);
+    self->SetResource(isolate, resource);
   }
   isolate->heap()->RegisterExternalString(this);
 }
@@ -338,33 +349,10 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void String::
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void String::
     MakeExternalDuringGC(Isolate* isolate, v8::String::ExternalStringResource*);
 
-// static
-bool String::MakeExternal(Isolate* isolate, DirectHandle<String> string,
+bool String::MakeExternal(Isolate* isolate,
                           v8::String::ExternalStringResource* resource) {
-  // The wrapper is allocated up front, as this may trigger a GC, which isn't
-  // allowed anymore once the transition starts. It takes over the resource only
-  // if the transition happens.
-  ExternalStringResourceWrapper* wrapper =
-      ExternalStringResourceWrapper::New(isolate);
-  return string->MakeExternalWithWrapper(isolate, resource, wrapper);
-}
-
-// static
-bool String::MakeExternal(Isolate* isolate, DirectHandle<String> string,
-                          v8::String::ExternalOneByteStringResource* resource) {
-  // See above.
-  ExternalStringResourceWrapper* wrapper =
-      ExternalStringResourceWrapper::New(isolate);
-  return string->MakeExternalWithWrapper(isolate, resource, wrapper);
-}
-
-bool String::MakeExternalWithWrapper(
-    Isolate* isolate, v8::String::ExternalStringResource* resource,
-    ExternalStringResourceWrapper* wrapper) {
   // Disallow garbage collection to avoid possible GC vs string access deadlock.
   DisallowGarbageCollection no_gc;
-  DCHECK_NOT_NULL(wrapper);
-  DCHECK_NULL(wrapper->resource());
 
   SYNCHRONIZATION_POINT("MakeExternalTwoByteString");
 
@@ -434,12 +422,12 @@ bool String::MakeExternalWithWrapper(
     DCHECK(!has_pointers);
   }
 
-  // The pointer table slots must be initialized before the new map is
+  // The external pointer slots must be initialized before the new map is
   // installed. Otherwise, a GC marking thread may see the new map before the
-  // slots are initialized and attempt to mark the (invalid) table entries as
-  // alive.
+  // slots are initialized and attempt to mark the (invalid) external pointers
+  // table entries as alive.
   static_cast<ExternalString*>(this)
-      ->InitPointerTableFieldsDuringExternalization(new_map, isolate);
+      ->InitExternalPointerFieldsDuringExternalization(new_map, isolate);
 
   // We are storing the new map using release store after creating a filler in
   // the NotifyObjectSizeChange call for the left-over space to avoid races with
@@ -447,21 +435,17 @@ bool String::MakeExternalWithWrapper(
   this->set_map(isolate, new_map, kReleaseStore);
 
   Tagged<ExternalTwoByteString> self = Cast<ExternalTwoByteString>(this);
-  wrapper->SetResource(resource);
-  self->SetResourceWrapper(isolate, wrapper);
+  self->SetResource(isolate, resource);
   isolate->heap()->RegisterExternalString(this);
   // Force regeneration of the hash value.
   if (is_internalized) self->EnsureHash();
   return true;
 }
 
-bool String::MakeExternalWithWrapper(
-    Isolate* isolate, v8::String::ExternalOneByteStringResource* resource,
-    ExternalStringResourceWrapper* wrapper) {
+bool String::MakeExternal(Isolate* isolate,
+                          v8::String::ExternalOneByteStringResource* resource) {
   // Disallow garbage collection to avoid possible GC vs string access deadlock.
   DisallowGarbageCollection no_gc;
-  DCHECK_NOT_NULL(wrapper);
-  DCHECK_NULL(wrapper->resource());
 
   SYNCHRONIZATION_POINT("MakeExternalOneByteString");
 
@@ -536,12 +520,12 @@ bool String::MakeExternalWithWrapper(
     DCHECK(!has_pointers);
   }
 
-  // The pointer table slots must be initialized before the new map is
+  // The external pointer slots must be initialized before the new map is
   // installed. Otherwise, a GC marking thread may see the new map before the
-  // slots are initialized and attempt to mark the (invalid) table entries as
-  // alive.
+  // slots are initialized and attempt to mark the (invalid) external pointers
+  // table entries as alive.
   static_cast<ExternalString*>(this)
-      ->InitPointerTableFieldsDuringExternalization(new_map, isolate);
+      ->InitExternalPointerFieldsDuringExternalization(new_map, isolate);
 
   // We are storing the new map using release store after creating a filler in
   // the NotifyObjectSizeChange call for the left-over space to avoid races with
@@ -549,8 +533,7 @@ bool String::MakeExternalWithWrapper(
   this->set_map(isolate, new_map, kReleaseStore);
 
   Tagged<ExternalOneByteString> self = Cast<ExternalOneByteString>(this);
-  wrapper->SetResource(resource);
-  self->SetResourceWrapper(isolate, wrapper);
+  self->SetResource(isolate, resource);
   isolate->heap()->RegisterExternalString(this);
   // Force regeneration of the hash value.
   if (is_internalized) self->EnsureHash();
@@ -581,7 +564,10 @@ bool String::SupportsExternalization(v8::String::Encoding encoding) {
     return false;
   }
 
-  if (HeapLayout::InAnySharedSpace(Tagged(this))) {
+  // Externalization of shared strings is only supported with shared string
+  // table.
+  if (HeapLayout::InAnySharedSpace(Tagged(this)) &&
+      !v8_flags.shared_string_table) {
     return false;
   }
 
@@ -2201,34 +2187,6 @@ uint16_t ThinString::Get(
 uint16_t SlicedString::Get(
     uint32_t index, const SharedStringAccessGuardIfNeeded& access_guard) const {
   return parent()->Get(offset() + index, access_guard);
-}
-
-// static
-ExternalStringResourceWrapper* ExternalStringResourceWrapper::New(
-    Isolate* isolate) {
-  // The inline API fast paths rely on this layout.
-  static_assert(offsetof(ExternalStringResourceWrapper, resource_) ==
-                Internals::kExternalStringResourceWrapperResourceOffset);
-  static_assert(sizeof(resource_) == sizeof(Address));
-  DCHECK(AllowGarbageCollection::IsAllowed());
-  return cppgc::MakeGarbageCollected<ExternalStringResourceWrapper>(
-      isolate->heap()->cpp_heap()->GetAllocationHandle(), isolate,
-      isolate->cpp_heap_isolate_alive_token());
-}
-
-ExternalStringResourceWrapper::~ExternalStringResourceWrapper() {
-  DisposeResource();
-}
-
-void ExternalStringResourceWrapper::DisposeResource() {
-  v8::String::ExternalStringResourceBase* resource = ReleaseResource();
-  if (!resource) return;
-  // A wrapper with an undisposed resource should not outlive the isolate.
-  CHECK(*isolate_alive_token_);
-  // The embedder callbacks must not allocate on the V8 heap.
-  DisallowGarbageCollection no_gc;
-  resource->Unaccount(reinterpret_cast<v8::Isolate*>(isolate_));
-  resource->Dispose();
 }
 
 int ExternalString::ExternalPayloadSize() const {

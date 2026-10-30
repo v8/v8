@@ -1909,7 +1909,6 @@ void V8HeapExplorer::ExtractStringReferences(HeapEntry* entry,
                          offsetof(ThinString, actual_));
   } else if (IsExternalString(string)) {
     Tagged<ExternalString> es = Cast<ExternalString>(string);
-    generator_->GetCppHeapWrappers().insert(es);
     if (const v8::String::ExternalStringResourceBase* resource =
             GetExternalStringResource(es)) {
       ExternalStringRecorder recorder(entry, this, generator_, names_);

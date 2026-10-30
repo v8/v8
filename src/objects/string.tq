@@ -83,7 +83,7 @@ extern class ConsString extends String {
 @doNotGenerateCast
 @cppObjectLayoutDefinition
 extern class ExternalString extends String {
-  resource: CppHeapPointer;
+  resource: ExternalPointer;
   // WARNING: This field is missing for uncached external strings.
   resource_data: ExternalPointer;
 }

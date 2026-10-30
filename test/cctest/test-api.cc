@@ -620,18 +620,6 @@ class TestOneByteResource : public String::ExternalOneByteStringResource {
   int* counter_;
 };
 
-namespace {
-
-// Runs memory-reducing GCs and finishes the sweeping of the unified heap.
-void InvokeMajorGCsAndFinishSweeping(i::Heap* heap) {
-  i::heap::InvokeMemoryReducingMajorGCs(heap);
-  heap->EnsureSweepingCompleted(
-      i::Heap::SweepingForcedFinalizationMode::kUnifiedHeap,
-      i::CompleteSweepingReason::kTesting);
-}
-
-}  // namespace
-
 TEST(ScriptUsingStringResource) {
   int dispose_count = 0;
   const char* c_source = "1 + 2 * 3";
@@ -661,10 +649,9 @@ TEST(ScriptUsingStringResource) {
   {
     // We need to invoke GC without stack, otherwise the resource may not be
     // reclaimed because of conservative stack scanning.
-    // Finishing the sweeping makes sure the resource is disposed.
     i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
         CcTest::heap());
-    InvokeMajorGCsAndFinishSweeping(CcTest::heap());
+    i::heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
   }
   CHECK_EQ(1, dispose_count);
 }
@@ -699,10 +686,9 @@ TEST(ScriptUsingOneByteStringResource) {
   {
     // We need to invoke GC without stack, otherwise the resource may not be
     // reclaimed because of conservative stack scanning.
-    // Finishing the sweeping makes sure the resource is disposed.
     i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
         CcTest::heap());
-    InvokeMajorGCsAndFinishSweeping(CcTest::heap());
+    i::heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
   }
   CHECK_EQ(1, dispose_count);
 }
@@ -737,10 +723,9 @@ TEST(ScriptMakingExternalString) {
   {
     // We need to invoke GC without stack, otherwise the resource may not be
     // reclaimed because of conservative stack scanning.
-    // Finishing the sweeping makes sure the resource is disposed.
     i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
         CcTest::heap());
-    InvokeMajorGCsAndFinishSweeping(CcTest::heap());
+    i::heap::InvokeMajorGC(CcTest::heap());
   }
   CHECK_EQ(1, dispose_count);
 }
@@ -769,10 +754,9 @@ TEST(ScriptMakingExternalOneByteString) {
   {
     // We need to invoke GC without stack, otherwise the resource may not be
     // reclaimed because of conservative stack scanning.
-    // Finishing the sweeping makes sure the resource is disposed.
     i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
         CcTest::heap());
-    InvokeMajorGCsAndFinishSweeping(CcTest::heap());
+    i::heap::InvokeMajorGC(CcTest::heap());
   }
   CHECK_EQ(1, dispose_count);
 }
@@ -994,11 +978,10 @@ TEST(ScavengeExternalString) {
   {
     // We need to invoke GC without stack, otherwise the resource may not be
     // reclaimed because of conservative stack scanning.
-    // Finishing the sweeping makes sure the resource is disposed.
     i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
         CcTest::heap());
     in_young_generation ? i::heap::InvokeMinorGC(CcTest::heap())
-                        : InvokeMajorGCsAndFinishSweeping(CcTest::heap());
+                        : i::heap::InvokeMajorGC(CcTest::heap());
   }
   CHECK_EQ(1, dispose_count);
 }
@@ -1028,11 +1011,10 @@ TEST(ScavengeExternalOneByteString) {
   {
     // We need to invoke GC without stack, otherwise the resource may not be
     // reclaimed because of conservative stack scanning.
-    // Finishing the sweeping makes sure the resource is disposed.
     i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
         CcTest::heap());
     in_young_generation ? i::heap::InvokeMinorGC(CcTest::heap())
-                        : InvokeMajorGCsAndFinishSweeping(CcTest::heap());
+                        : i::heap::InvokeMajorGC(CcTest::heap());
   }
   CHECK_EQ(1, dispose_count);
 }
@@ -1083,10 +1065,9 @@ TEST(ExternalStringWithDisposeHandling) {
   {
     // We need to invoke GC without stack, otherwise the resource may not be
     // reclaimed because of conservative stack scanning.
-    // Finishing the sweeping makes sure the resource is disposed.
     i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
         CcTest::heap());
-    InvokeMajorGCsAndFinishSweeping(CcTest::heap());
+    i::heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
   }
   CHECK_EQ(1, TestOneByteResourceWithDisposeControl::dispose_calls);
   CHECK_EQ(0, TestOneByteResourceWithDisposeControl::dispose_count);
@@ -1112,10 +1093,9 @@ TEST(ExternalStringWithDisposeHandling) {
   {
     // We need to invoke GC without stack, otherwise the resource may not be
     // reclaimed because of conservative stack scanning.
-    // Finishing the sweeping makes sure the resource is disposed.
     i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
         CcTest::heap());
-    InvokeMajorGCsAndFinishSweeping(CcTest::heap());
+    i::heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
   }
   CHECK_EQ(1, TestOneByteResourceWithDisposeControl::dispose_calls);
   CHECK_EQ(1, TestOneByteResourceWithDisposeControl::dispose_count);
@@ -18004,10 +17984,9 @@ TEST(ExternalInternalizedStringCollectedAtGC) {
   {
     // We need to invoke GC without stack, otherwise the resource may not be
     // reclaimed because of conservative stack scanning.
-    // Finishing the sweeping makes sure the resource is disposed.
     i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
         CcTest::heap());
-    InvokeMajorGCsAndFinishSweeping(CcTest::heap());
+    i::heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
   }
 
   // Ring has been destroyed.  Free Peoples of Middle-earth Rejoice.

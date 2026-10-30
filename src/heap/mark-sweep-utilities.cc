@@ -111,10 +111,13 @@ void ExternalStringTableCleanerVisitor::VisitRootPointers(
                                             heap_object)) {
       continue;
     }
-    // The original external string may have been internalized.
-    DCHECK(IsExternalString(o) || IsThinString(o));
-    // Set the entry to the_hole_value (as deleted). The resource is disposed by
-    // the ExternalStringResourceWrapper destructor.
+    if (IsExternalString(o)) {
+      heap_->FinalizeExternalString(Cast<String>(o));
+    } else {
+      // The original external string may have been internalized.
+      DCHECK(IsThinString(o));
+    }
+    // Set the entry to the_hole_value (as deleted).
     p.store(the_hole);
   }
 }

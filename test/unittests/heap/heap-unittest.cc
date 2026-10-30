@@ -6141,10 +6141,10 @@ TEST_F(HeapTest, Regress631969) {
 
   {
     StaticOneByteResource external_string("12345678901234");
-    String::MakeExternal(isolate, s3, &external_string);
+    s3->MakeExternal(isolate, &external_string);
     InvokeMajorGC();
     // This avoids the GC from trying to free stack allocated resources.
-    Cast<ExternalString>(s3)->ReleaseResourceForTesting(isolate);
+    Cast<ExternalOneByteString>(s3)->SetResource(isolate, nullptr);
   }
 }
 

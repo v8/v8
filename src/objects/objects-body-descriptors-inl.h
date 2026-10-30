@@ -1673,7 +1673,7 @@ class ExternalString::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
     Tagged<ExternalString> string = UncheckedCast<ExternalString>(obj);
-    v->VisitCppHeapPointer(obj, CppHeapPointerSlot(&string->resource_));
+    v->VisitExternalPointer(obj, ExternalPointerSlot(&string->resource_));
     if (string->is_uncached()) return;
     v->VisitExternalPointer(obj, ExternalPointerSlot(&string->resource_data_));
   }

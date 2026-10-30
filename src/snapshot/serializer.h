@@ -280,13 +280,6 @@ class Serializer : public SerializerDeserializer {
     return false;
   }
 
-  // Returns true if the resource of an external string was serialized as a
-  // reference into the trusted section, see kExternalStringResource.
-  virtual bool SerializeTrustedExternalStringResource(
-      ExternalReferenceEncoder::Value reference) {
-    return false;
-  }
-
   bool SerializeReadOnlyObjectReference(Tagged<HeapObject> obj,
                                         SnapshotByteSink* sink);
 

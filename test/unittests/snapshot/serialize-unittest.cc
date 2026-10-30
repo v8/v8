@@ -3044,7 +3044,7 @@ TEST_F(SerializeTest, CodeSerializerExternalString) {
   Handle<String> one_byte_string =
       isolate->factory()->NewStringFromAsciiChecked("one_byte");
   one_byte_string = isolate->factory()->InternalizeString(one_byte_string);
-  String::MakeExternal(isolate, one_byte_string, &one_byte_resource);
+  one_byte_string->MakeExternal(isolate, &one_byte_resource);
   CHECK(IsExternalOneByteString(*one_byte_string));
   CHECK(IsInternalizedString(*one_byte_string));
 
@@ -3057,7 +3057,7 @@ TEST_F(SerializeTest, CodeSerializerExternalString) {
           ->NewStringFromTwoByte(base::VectorOf(two_byte, two_byte_length))
           .ToHandleChecked();
   two_byte_string = isolate->factory()->InternalizeString(two_byte_string);
-  String::MakeExternal(isolate, two_byte_string, &two_byte_resource);
+  two_byte_string->MakeExternal(isolate, &two_byte_resource);
   CHECK(IsExternalTwoByteString(*two_byte_string));
   CHECK(IsInternalizedString(*two_byte_string));
 
@@ -3096,10 +3096,10 @@ TEST_F(SerializeTest, CodeSerializerExternalString) {
   CHECK_EQ(15.0, Object::NumberValue(*copy_result));
 
   // This avoids the GC from trying to free stack allocated resources.
-  i::Cast<i::ExternalString>(one_byte_string)
-      ->ReleaseResourceForTesting(isolate);
-  i::Cast<i::ExternalString>(two_byte_string)
-      ->ReleaseResourceForTesting(isolate);
+  i::Cast<i::ExternalOneByteString>(one_byte_string)
+      ->SetResource(isolate, nullptr);
+  i::Cast<i::ExternalTwoByteString>(two_byte_string)
+      ->SetResource(isolate, nullptr);
   delete cache;
 }
 
@@ -3253,7 +3253,7 @@ TEST_F(SerializeTest, CodeSerializerLargeExternalString) {
   Handle<String> name = f->NewStringFromUtf8(string).ToHandleChecked();
   SerializerOneByteResource one_byte_resource(string.data(), string.size());
   name = f->InternalizeString(name);
-  String::MakeExternal(isolate, name, &one_byte_resource);
+  name->MakeExternal(isolate, &one_byte_resource);
   CHECK(IsExternalOneByteString(*name));
   CHECK(IsInternalizedString(*name));
   CHECK(isolate->heap()->InSpace(*name, LO_SPACE));
@@ -3294,7 +3294,7 @@ TEST_F(SerializeTest, CodeSerializerLargeExternalString) {
   CHECK_EQ(42.0, Object::NumberValue(*copy_result));
 
   // This avoids the GC from trying to free stack allocated resources.
-  i::Cast<i::ExternalString>(name)->ReleaseResourceForTesting(isolate);
+  i::Cast<i::ExternalOneByteString>(name)->SetResource(isolate, nullptr);
   delete cache;
 }
 
@@ -3313,7 +3313,7 @@ TEST_F(SerializeTest, CodeSerializerExternalScriptName) {
 
   Handle<String> source_string = f->NewStringFromUtf8(source).ToHandleChecked();
 
-  SerializerOneByteResource one_byte_resource("one_byte", 8);
+  const SerializerOneByteResource one_byte_resource("one_byte", 8);
   Handle<String> name =
       f->NewExternalStringFromOneByte(&one_byte_resource).ToHandleChecked();
   CHECK(IsExternalOneByteString(*name));
@@ -3346,7 +3346,7 @@ TEST_F(SerializeTest, CodeSerializerExternalScriptName) {
   CHECK_EQ(10.0, Object::NumberValue(*copy_result));
 
   // This avoids the GC from trying to free stack allocated resources.
-  i::Cast<i::ExternalString>(name)->ReleaseResourceForTesting(isolate);
+  i::Cast<i::ExternalOneByteString>(name)->SetResource(isolate, nullptr);
   delete cache;
 }
 
@@ -4266,11 +4266,6 @@ void MessageCallbackForSerialization(Local<Message> message,
 SerializerOneByteResource serializable_one_byte_resource("one_byte", 8);
 SerializerTwoByteResource serializable_two_byte_resource(
     AsciiToTwoByteString(u"two_byte 🤓"), 11);
-// Resources with the same lengths but different contents, which replace the
-// ones above in `replaced_external_references`.
-SerializerOneByteResource replacement_one_byte_resource("ONE_BYTE", 8);
-SerializerTwoByteResource replacement_two_byte_resource(
-    AsciiToTwoByteString(u"TWO_BYTE 🤓"), 11);
 
 const intptr_t original_external_references[] = {
     reinterpret_cast<intptr_t>(SerializedCallback),
@@ -4289,8 +4284,8 @@ const intptr_t replaced_external_references[] = {
     reinterpret_cast<intptr_t>(&NamedPropertyGetterForSerialization),
     reinterpret_cast<intptr_t>(&AccessorForSerialization),
     reinterpret_cast<intptr_t>(&serialized_static_field),
-    reinterpret_cast<intptr_t>(&replacement_one_byte_resource),
-    reinterpret_cast<intptr_t>(&replacement_two_byte_resource),
+    reinterpret_cast<intptr_t>(&serializable_one_byte_resource),
+    reinterpret_cast<intptr_t>(&serializable_two_byte_resource),
     reinterpret_cast<intptr_t>(&MessageCallbackForSerialization),
     0};
 
@@ -4418,27 +4413,12 @@ TEST_F(UninitializedSerializeTest, SnapshotCreatorExternalReferences) {
       v8::Local<v8::Context> context = v8::Context::New(isolate);
       v8::Context::Scope context_scope(context);
       ExpectInt32(isolate, "f()", 1337);
-      // The external strings are backed by the replacement resources.
-      ExpectString(isolate, "one_byte", "ONE_BYTE");
-      ExpectString(isolate, "two_byte", "TWO_BYTE 🤓");
-      v8::Local<v8::String> one_byte =
-          CompileRun(isolate, "one_byte").As<v8::String>();
-      v8::Local<v8::String> two_byte =
-          CompileRun(isolate, "two_byte").As<v8::String>();
-      CHECK(one_byte->IsExternalOneByte());
-      CHECK(two_byte->IsExternalTwoByte());
-      CHECK(one_byte->GetExternalOneByteStringResource() ==
-            &replacement_one_byte_resource);
-      CHECK(two_byte->GetExternalStringResource() ==
-            &replacement_two_byte_resource);
     }
     isolate->Dispose();
   }
 
-  CHECK_EQ(2, serializable_one_byte_resource.dispose_count());
-  CHECK_EQ(2, serializable_two_byte_resource.dispose_count());
-  CHECK_EQ(1, replacement_one_byte_resource.dispose_count());
-  CHECK_EQ(1, replacement_two_byte_resource.dispose_count());
+  CHECK_EQ(3, serializable_one_byte_resource.dispose_count());
+  CHECK_EQ(3, serializable_two_byte_resource.dispose_count());
 
   delete[] blob.data;
   FreeCurrentEmbeddedBlob();

@@ -26,9 +26,6 @@ CppHeapObjectWrapper CppHeapObjectWrapper::From(
   if (IsCppGCManagedBase(object)) {
     return CppHeapObjectWrapper(Cast<CppGCManagedBase>(object));
   }
-  if (IsExternalString(object)) {
-    return CppHeapObjectWrapper(Cast<ExternalString>(object));
-  }
   DCHECK(IsJSObject(object));
   return CppHeapObjectWrapper(Cast<JSObject>(object));
 }
@@ -41,11 +38,6 @@ CppHeapObjectWrapper::CppHeapObjectWrapper(Tagged<CppHeapExternalObject> object)
 
 CppHeapObjectWrapper::CppHeapObjectWrapper(Tagged<CppGCManagedBase> object)
     : object_(object), offset_(offsetof(CppGCManagedBase, cpp_gc_wrapper_)) {
-  DCHECK(IsCppHeapPointerWrapperObject(object));
-}
-
-CppHeapObjectWrapper::CppHeapObjectWrapper(Tagged<ExternalString> object)
-    : object_(object), offset_(offsetof(ExternalString, resource_)) {
   DCHECK(IsCppHeapPointerWrapperObject(object));
 }
 

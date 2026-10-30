@@ -2126,6 +2126,7 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
   }
 
 #ifdef V8_COMPRESS_POINTERS
+  DCHECK(IsSharedExternalPointerType(kExternalStringResourceTag));
   DCHECK(IsSharedExternalPointerType(kExternalStringResourceDataTag));
   // All ExternalString resources are stored in the shared external pointer
   // table. Mark entries from client heaps.
