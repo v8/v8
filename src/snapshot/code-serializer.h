@@ -193,8 +193,8 @@ class CodeSerializer : public Serializer {
   using SourceHash = SerializedCodeData::SourceHash;
 
   // The external pointer tags that a code cache may contain.
-  static constexpr ExternalPointerTag kSerializableExternalPointerTags[] = {
-      kExternalStringResourceTag};
+  static constexpr std::array<ExternalPointerTag, 0>
+      kSerializableExternalPointerTags{};
 
   CodeSerializer(const CodeSerializer&) = delete;
   CodeSerializer& operator=(const CodeSerializer&) = delete;
@@ -240,6 +240,8 @@ class CodeSerializer : public Serializer {
   bool SerializeTrustedExternalReference(
       ExternalReferenceEncoder::Value reference,
       ExternalPointerTag tag) override;
+  bool SerializeTrustedExternalStringResource(
+      ExternalReferenceEncoder::Value reference) override;
   void FinishSection() {
     sink_.Put(kSynchronize, "EndOfUntrustedSection");
     OptimizeBackReferences();

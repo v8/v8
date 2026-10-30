@@ -23,6 +23,7 @@
 #include "src/logging/log.h"
 #include "src/objects/backing-store.h"
 #include "src/objects/bytecode-array-inl.h"
+#include "src/objects/cpp-heap-object-wrapper-inl.h"
 #include "src/objects/heap-object-field-inl.h"
 #include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
@@ -1113,6 +1114,8 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(uint8_t data,
     case kSandboxedApiReference:
     case kApiReference:
       return ReadApiReference(data, slot_accessor);
+    case kExternalStringResource:
+      return ReadExternalStringResource(data, slot_accessor);
     case kClearedWeakReference:
       return ReadClearedWeakReference(data, slot_accessor);
     case kWeakPrefix:
@@ -1523,6 +1526,58 @@ int Deserializer<IsolateT>::ReadApiReference(uint8_t data,
 
 template <typename IsolateT>
 template <typename SlotAccessor>
+int Deserializer<IsolateT>::ReadExternalStringResource(
+    uint8_t data, SlotAccessor slot_accessor) {
+  SBXCHECK(InTrustedSection());
+  uint32_t reference_id = static_cast<uint32_t>(source_.GetUint30());
+  if (v8_flags.trace_deserialization) {
+    PrintF("%*sExternalStringResource [%u]\n", depth_, "", reference_id);
+  }
+  return WriteExternalStringResource(slot_accessor, reference_id);
+}
+
+template <typename IsolateT>
+template <typename SlotAccessor>
+int Deserializer<IsolateT>::WriteExternalStringResource(
+    SlotAccessor slot_accessor, uint32_t reference_id) {
+  DCHECK(!next_reference_is_weak_ && !next_reference_is_trusted_pointer_ &&
+         !next_reference_is_protected_pointer);
+  DCHECK(IsExternalString(*slot_accessor.object()));
+  DCHECK_EQ(slot_accessor.offset(), Internals::kStringResourceOffset);
+
+  if constexpr (std::is_same_v<IsolateT, LocalIsolate>) {
+    // This is unsupported currently - the wrapper is a cppgc object, which
+    // can't be allocated from a background thread.
+    FATAL("External strings are not supported in off-thread deserialization");
+  }
+
+  const intptr_t* api_references =
+      main_thread_isolate()->api_external_references();
+  CHECK_WITH_MSG(api_references != nullptr,
+                 "No external references provided via API");
+  DCHECK_WITH_MSG(reference_id < num_api_references_,
+                  "too few external references provided through the API");
+  auto* resource = reinterpret_cast<v8::String::ExternalStringResourceBase*>(
+      api_references[reference_id]);
+
+  // Allocating the cppgc wrapper may trigger a GC. This is safe here: the map,
+  // hash and length are already deserialized, and the resource slots still
+  // hold the null handles pre-filled by ReadObject().
+  ExternalStringResourceWrapper* wrapper =
+      ExternalStringResourceWrapper::New(main_thread_isolate());
+
+  DisallowGarbageCollection no_gc;
+  wrapper->SetResource(resource);
+  // resource_data_ is set up in PostProcessExternalString().
+  CppHeapObjectWrapper(Cast<ExternalString>(*slot_accessor.object()))
+      .SetCppHeapWrappable(main_thread_isolate(), wrapper,
+                           kExternalStringResourceTag);
+  static_assert(kCppHeapPointerSlotSize % kTaggedSize == 0);
+  return kCppHeapPointerSlotSize / kTaggedSize;
+}
+
+template <typename IsolateT>
+template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadClearedWeakReference(
     uint8_t data, SlotAccessor slot_accessor) {
   if (v8_flags.trace_deserialization) {
@@ -1686,6 +1741,15 @@ int Deserializer<IsolateT>::ReadTrustedExternalRef(uint8_t data,
   DCHECK(InUntrustedSection());
   uint32_t index = source_.GetUint30();
   EncodedExternalReference entry = external_references_[index];
+  if (entry.tag == kExternalPointerNullTag) {
+    // An external string resource, see SerializeTrustedExternalStringResource.
+    CHECK(entry.reference.is_from_api());
+    if (v8_flags.trace_deserialization) {
+      PrintF("%*sTrustedExternalRef [%u] : ExternalStringResource [%u]\n",
+             depth_, "", index, entry.reference.index());
+    }
+    return WriteExternalStringResource(slot_accessor, entry.reference.index());
+  }
   Address address =
       entry.reference.is_from_api()
           ? GetApiReferenceAddress(entry.reference.index())

@@ -702,7 +702,7 @@ V8_INLINE constexpr bool IsCppHeapPointerWrapperObject(
   return IsJSApiWrapperObject(instance_type) ||
          IsCppHeapExternalObject(instance_type) ||
          IsCppGCManagedBase(instance_type) ||
-         IsEmbedderDataArray(instance_type);
+         IsEmbedderDataArray(instance_type) || IsExternalString(instance_type);
 }
 
 V8_INLINE bool IsCppHeapPointerWrapperObject(Tagged<Map> map_object) {

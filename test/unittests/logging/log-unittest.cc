@@ -333,7 +333,7 @@ TEST_F(TestWithIsolate, Issue23768) {
       i_isolate());
   // This situation can happen if source was an external string disposed
   // by its owner.
-  i_source->SetResource(i_isolate(), nullptr);
+  i_source->ReleaseResourceForTesting(i_isolate());
 
   // Must not crash.
   i_isolate()->v8_file_logger()->LogCompiledFunctions();

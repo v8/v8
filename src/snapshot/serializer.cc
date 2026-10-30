@@ -776,11 +776,12 @@ void Serializer::ObjectSerializer::SerializeNativeContext() {
 }
 
 void Serializer::ObjectSerializer::SerializeExternalString() {
-  // For external strings with known resources, their external pointer slots
-  // are serialized via VisitExternalPointer. For the rest we serialize them
-  // to look like ordinary sequential strings.
+  // For external strings with known resources, their resource slots are
+  // serialized via VisitCppHeapPointer. For the rest we serialize them to
+  // look like ordinary sequential strings.
   auto string = Cast<ExternalString>(object_);
-  Address resource = string->resource_as_address(isolate());
+  Address resource = reinterpret_cast<Address>(string->resource(isolate()));
+  CHECK(resource);
   ExternalReferenceEncoder::Value reference;
   if (serializer_->external_reference_encoder_.TryEncode(resource).To(
           &reference)) {
@@ -1242,6 +1243,27 @@ void Serializer::ObjectSerializer::VisitCppHeapPointer(
   OutputRawData(slot.address());
 
   PtrComprCageBase cage_base(isolate());
+
+  if (IsExternalString(*object_)) {
+    // API-registered resource (other external strings are serialized as
+    // sequential strings, see SerializeExternalString()); emit its index.
+    Address resource = reinterpret_cast<Address>(
+        Cast<ExternalString>(*object_)->resource(isolate()));
+    CHECK(resource);
+    ExternalReferenceEncoder::Value reference =
+        serializer_->EncodeExternalReference(resource);
+    DCHECK(reference.is_from_api());
+    // Untrusted sections refer to it through the trusted section instead, like
+    // for external pointers.
+    if (!V8_ENABLE_SANDBOX_BOOL ||
+        !serializer_->SerializeTrustedExternalStringResource(reference)) {
+      sink_->Put(kExternalStringResource, "ExternalStringResource");
+      sink_->PutUint30(reference.index(), "external string resource index");
+    }
+    bytes_processed_so_far_ += kCppHeapPointerSlotSize;
+    return;
+  }
+
   // Currently there's only very limited support for CppHeapPointerSlot
   // serialization.
   //

@@ -155,6 +155,18 @@ bool CodeSerializer::SerializeTrustedExternalReference(
   return true;
 }
 
+// Untrusted sections refer to external string resources through the trusted
+// section's table too, marked by the null tag.
+// TODO(crbug.com/564863360): Use a proper CppHeapPointer tagging scheme.
+bool CodeSerializer::SerializeTrustedExternalStringResource(
+    ExternalReferenceEncoder::Value reference) {
+  sink_.Put(kTrustedExternalRef, "TrustedExternalRef");
+  sink_.PutUint30(trusted_serializer_.AddExternalReference(
+                      reference, kExternalPointerNullTag),
+                  "TrustedExternalRefIndex");
+  return true;
+}
+
 void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
                                          SlotType slot_type) {
   // NOTE(mmarchini): If we try to serialize an InterpreterData our process

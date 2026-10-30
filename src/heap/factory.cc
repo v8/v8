@@ -1331,11 +1331,10 @@ DirectHandle<InternalizedString> Factory::InternalizeExternalString(
   Tagged<StringClass> external_string =
       Cast<StringClass>(New(map, AllocationType::kOld));
   DisallowGarbageCollection no_gc;
-  external_string->InitExternalPointerFields(isolate());
+  external_string->InitPointerTableFields(isolate());
   Tagged<StringClass> cast_string = Cast<StringClass>(*string);
   external_string->set_length(cast_string->length());
   external_string->set_raw_hash_field(cast_string->raw_hash_field());
-  external_string->SetResource(isolate(), nullptr);
   isolate()->heap()->RegisterExternalString(external_string);
   return direct_handle(Cast<InternalizedString>(external_string), isolate());
 }
@@ -1521,7 +1520,7 @@ Handle<String> Factory::NewProperSubString(DirectHandle<String> str,
 }
 
 MaybeHandle<String> Factory::NewExternalStringFromOneByte(
-    const ExternalOneByteString::Resource* resource) {
+    ExternalOneByteString::Resource* resource) {
   size_t length = resource->length();
   if (length > static_cast<size_t>(String::kMaxLength)) {
     THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError());
@@ -1531,13 +1530,16 @@ MaybeHandle<String> Factory::NewExternalStringFromOneByte(
   DirectHandle<Map> map = resource->IsCacheable()
                               ? external_one_byte_string_map()
                               : uncached_external_one_byte_string_map();
+  ExternalStringResourceWrapper* wrapper =
+      ExternalStringResourceWrapper::New(isolate());
   Tagged<ExternalOneByteString> external_string =
       Cast<ExternalOneByteString>(New(map, AllocationType::kOld));
   DisallowGarbageCollection no_gc;
-  external_string->InitExternalPointerFields(isolate());
+  external_string->InitPointerTableFields(isolate());
   external_string->set_length(static_cast<int>(length));
   external_string->set_raw_hash_field(String::kEmptyHashField);
-  external_string->SetResource(isolate(), resource);
+  wrapper->SetResource(resource);
+  external_string->SetResourceWrapper(isolate(), wrapper);
 
   isolate()->heap()->RegisterExternalString(external_string);
 
@@ -1545,7 +1547,7 @@ MaybeHandle<String> Factory::NewExternalStringFromOneByte(
 }
 
 MaybeHandle<String> Factory::NewExternalStringFromTwoByte(
-    const ExternalTwoByteString::Resource* resource) {
+    ExternalTwoByteString::Resource* resource) {
   size_t length = resource->length();
   if (length > static_cast<size_t>(String::kMaxLength)) {
     THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError());
@@ -1555,13 +1557,16 @@ MaybeHandle<String> Factory::NewExternalStringFromTwoByte(
   DirectHandle<Map> map = resource->IsCacheable()
                               ? external_two_byte_string_map()
                               : uncached_external_two_byte_string_map();
+  ExternalStringResourceWrapper* wrapper =
+      ExternalStringResourceWrapper::New(isolate());
   Tagged<ExternalTwoByteString> string =
       Cast<ExternalTwoByteString>(New(map, AllocationType::kOld));
   DisallowGarbageCollection no_gc;
-  string->InitExternalPointerFields(isolate());
+  string->InitPointerTableFields(isolate());
   string->set_length(static_cast<int>(length));
   string->set_raw_hash_field(String::kEmptyHashField);
-  string->SetResource(isolate(), resource);
+  wrapper->SetResource(resource);
+  string->SetResourceWrapper(isolate(), wrapper);
 
   isolate()->heap()->RegisterExternalString(string);
 

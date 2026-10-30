@@ -1110,9 +1110,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
 
   TNode<RawPtrT> LoadExternalStringResourcePtr(TNode<ExternalString> object) {
-    return LoadExternalPointerFromObject(object,
-                                         offsetof(ExternalString, resource_),
-                                         kExternalStringResourceTag);
+    TNode<RawPtrT> wrapper = LoadCppHeapPointerFromObject(
+        object, offsetof(ExternalString, resource_),
+        kExternalStringResourceTag);
+    // The wrapper is only null while the string is being constructed, before
+    // it is visible to generated code.
+    CSA_DCHECK(this, WordNotEqual(wrapper, IntPtrConstant(kNullAddress)));
+    return Load<RawPtrT>(
+        wrapper, IntPtrConstant(
+                     Internals::kExternalStringResourceWrapperResourceOffset));
   }
 
   TNode<RawPtrT> LoadExternalStringResourceDataPtr(

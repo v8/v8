@@ -1208,10 +1208,6 @@ class Heap final {
   // Registers an external string.
   inline void RegisterExternalString(Tagged<String> string);
 
-  // Finalizes an external string by deleting the associated external
-  // data and clearing the resource pointer.
-  inline void FinalizeExternalString(Tagged<String> string);
-
   // ===========================================================================
   // Methods checking/returning the space of a given object/address. ===========
   // ===========================================================================
