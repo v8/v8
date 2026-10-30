@@ -1167,6 +1167,23 @@ void D8WasmAsyncResolvePromiseCallback(
           isolate, context, resolver, result, success));
 }
 
+class V8_NODISCARD RethrowIfNotReportingScope {
+ public:
+  RethrowIfNotReportingScope(TryCatch* try_catch,
+                             Shell::ReportExceptions report_exceptions)
+      : try_catch_(try_catch), report_exceptions_(report_exceptions) {}
+  ~RethrowIfNotReportingScope() {
+    if (report_exceptions_ == Shell::kNoReportExceptions &&
+        try_catch_->HasCaught() && !try_catch_->HasTerminated()) {
+      try_catch_->ReThrow();
+    }
+  }
+
+ private:
+  TryCatch* try_catch_;
+  Shell::ReportExceptions report_exceptions_;
+};
+
 }  // namespace
 
 // Executes a source within the current v8 context.
@@ -1180,6 +1197,7 @@ bool Shell::ExecuteSource(Isolate* isolate, const Source& source,
   HandleScope handle_scope(isolate);
   TryCatch try_catch(isolate);
   try_catch.SetVerbose(report_exceptions == kReportExceptions);
+  RethrowIfNotReportingScope rethrow_scope(&try_catch, report_exceptions);
 
   Local<String> source_str;
   if (i::v8_flags.parse_only ||
@@ -1230,6 +1248,9 @@ bool Shell::ExecuteSource(Isolate* isolate, const Source& source,
   // frames, the stack check in the called frame might be too late.
   if (i::StackLimitCheck{i_isolate}.HasOverflowed()) {
     i_isolate->StackOverflow();
+    if (report_exceptions == kReportExceptions) {
+      i_isolate->ReportPendingMessages();
+    }
     return false;
   }
 
@@ -3893,10 +3914,7 @@ void Shell::ExecuteFile(const v8::FunctionCallbackInfo<v8::Value>& info) {
     if (!ExecuteSource(
             isolate, Source::FromFile(*file_name),
             String::NewFromUtf8(isolate, *file_name).ToLocalChecked(),
-            options.quiet_load ? kNoReportExceptions : kReportExceptions)) {
-      std::ostringstream oss;
-      oss << "Error executing file: \"" << *file_name << '"';
-      ThrowError(isolate, oss.view());
+            kNoReportExceptions)) {
       return;
     }
   }
@@ -7284,8 +7302,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       options.enable_os_system = true;
     } else if (FlagMatches("--no-apply-priority", &argv[i])) {
       options.apply_priority = false;
-    } else if (FlagMatches("--quiet-load", &argv[i])) {
-      options.quiet_load = true;
     } else if (FlagWithArgMatches("--thread-pool-size", &flag_value, argc, argv,
                                   &i)) {
       int requested_size = atoi(flag_value);

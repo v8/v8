@@ -617,7 +617,6 @@ class ShellOptions {
       "disable-in-process-stack-traces", false};
   DisallowReassignment<int> read_from_tcp_port = {"read-from-tcp-port", -1};
   DisallowReassignment<bool> enable_os_system = {"enable-os-system", false};
-  DisallowReassignment<bool> quiet_load = {"quiet-load", false};
   DisallowReassignment<bool> apply_priority = {"apply-priority", true};
   DisallowReassignment<int> thread_pool_size = {"thread-pool-size", 0};
   DisallowReassignment<bool> stress_delay_tasks = {"stress-delay-tasks", false};
@@ -683,7 +682,8 @@ class Shell : public i::AllStatic {
 
   // Boolean return values (for any method below) typically denote "success".
   // We return `false` on uncaught exceptions, except for termination
-  // exceptions.
+  // exceptions. For `ExecuteSource`, `kReportExceptions` reports and clears
+  // caught exceptions, whereas `kNoReportExceptions` rethrows them.
   static bool ExecuteSource(Isolate* isolate, const Source& source,
                             Local<String> name,
                             ReportExceptions report_exceptions,
