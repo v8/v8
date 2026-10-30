@@ -685,6 +685,7 @@ ValueNode* FromInt32ToTagged(Graph* graph, NodeType node_type, ValueNode* value,
   }
 
   predecessor->nodes().push_back(tagged);
+  tagged->set_owner(predecessor);
   if (graph->has_graph_labeller())
     graph->graph_labeller()->RegisterNode(tagged);
   return tagged;
@@ -703,6 +704,7 @@ ValueNode* FromUint32ToTagged(Graph* graph, NodeType node_type,
   }
 
   predecessor->nodes().push_back(tagged);
+  tagged->set_owner(predecessor);
   if (graph->has_graph_labeller())
     graph->graph_labeller()->RegisterNode(tagged);
   return tagged;
@@ -717,6 +719,7 @@ ValueNode* FromIntPtrToTagged(Graph* graph, NodeType node_type,
   ValueNode* tagged = Node::New<IntPtrToNumber>(graph->zone(), {value});
 
   predecessor->nodes().push_back(tagged);
+  tagged->set_owner(predecessor);
   if (graph->has_graph_labeller())
     graph->graph_labeller()->RegisterNode(tagged);
   return tagged;
@@ -732,6 +735,7 @@ ValueNode* FromFloat64ToTagged(Graph* graph, NodeType node_type,
       graph->zone(), {value}, NumberConversionMode::kCanonicalizeSmi);
 
   predecessor->nodes().push_back(tagged);
+  tagged->set_owner(predecessor);
   if (graph->has_graph_labeller())
     graph->graph_labeller()->RegisterNode(tagged);
   return tagged;
@@ -747,6 +751,7 @@ ValueNode* FromHoleyFloat64ToTagged(Graph* graph, NodeType node_type,
       graph->zone(), {value}, NumberConversionMode::kCanonicalizeSmi);
 
   predecessor->nodes().push_back(tagged);
+  tagged->set_owner(predecessor);
   if (graph->has_graph_labeller())
     graph->graph_labeller()->RegisterNode(tagged);
   return tagged;
