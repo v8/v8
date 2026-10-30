@@ -2453,16 +2453,6 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
       if (IsJSGlobalObject(*store_target)) {
         TRACE_HANDLER_STATS(isolate(), StoreIC_StoreGlobalTransitionDH);
 
-        if (IsJSGlobalObject(*lookup_start_object_map())) {
-          DCHECK(IsStoreGlobalIC());
-#ifdef DEBUG
-          DirectHandle<JSObject> holder = lookup->GetHolder<JSObject>();
-          DCHECK_EQ(*lookup->GetReceiver(), *holder);
-          DCHECK_EQ(*store_target, *holder);
-#endif
-          return StoreHandler::StoreGlobal(
-              indirect_handle(lookup->transition_cell(), isolate()));
-        }
         if (IsDefineKeyedOwnIC()) {
           // Private field can't be deleted from this global object and can't
           // be overwritten, so install slow handler in order to make store IC
@@ -2679,9 +2669,19 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
       }
       if (lookup->is_dictionary_holder()) {
         if (IsJSGlobalObject(*holder)) {
+          DCHECK(!IsStoreGlobalIC());
+          DCHECK(IsJSGlobalProxy(*receiver));
+          if (IsAnyDefineOwn()) {
+            TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
+            return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
+          }
           TRACE_HANDLER_STATS(isolate(), StoreIC_StoreGlobalDH);
-          return MaybeObjectHandle(StoreHandler::StoreGlobal(
-              indirect_handle(lookup->GetPropertyCell(), isolate())));
+          DirectHandle<Smi> smi_handler =
+              StoreHandler::StoreGlobalProxy(isolate());
+          Handle<Object> handler = StoreHandler::StoreThroughPrototype(
+              isolate(), lookup_start_object_map(), holder, *smi_handler,
+              MaybeObjectDirectHandle::Weak(lookup->GetPropertyCell()));
+          return MaybeObjectHandle(handler);
         }
         TRACE_HANDLER_STATS(isolate(), StoreIC_StoreNormalDH);
         DCHECK(holder.is_identical_to(receiver));
