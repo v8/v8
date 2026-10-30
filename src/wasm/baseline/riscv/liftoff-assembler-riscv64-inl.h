@@ -1921,7 +1921,7 @@ void LiftoffAssembler::emit_ptrsize_cond_jumpi(Condition cond, Label* label,
 
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
   MacroAssembler::SignExtendWord(dst, src);
-  MacroAssembler::Sltu(dst, src, 1);
+  MacroAssembler::Sltu(dst, dst, 1);
 }
 
 void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
