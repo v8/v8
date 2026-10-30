@@ -3397,6 +3397,221 @@ TEST_F(TurboshaftInstructionSelectorTest, I32x4DotI16x8S) {
   EXPECT_EQ(s.ToVreg(s[2]->InputAt(1)), s.ToVreg(s[1]->Output()));
 }
 
+TEST_F(TurboshaftInstructionSelectorTest, I32x4AddTwoDotI16x8S) {
+  StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
+                  MachineType::Simd128(), MachineType::Simd128(),
+                  MachineType::Simd128());
+  V<Simd128> dot0 = m.I32x4DotI16x8S(m.Parameter(0), m.Parameter(1));
+  V<Simd128> dot1 = m.I32x4DotI16x8S(m.Parameter(2), m.Parameter(3));
+  m.Return(m.I32x4Add(dot0, dot1));
+  Stream s = m.Build();
+  ASSERT_EQ(5U, s.size());
+
+  EXPECT_EQ(kArm64Smull, s[0]->arch_opcode());
+  EXPECT_EQ(32, LaneSizeBits(LaneSizeField::decode(s[0]->opcode())));
+  EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(1)));
+
+  EXPECT_EQ(kArm64Smull2, s[1]->arch_opcode());
+  EXPECT_EQ(32, LaneSizeBits(LaneSizeField::decode(s[1]->opcode())));
+  EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[1]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[1]->InputAt(1)));
+
+  EXPECT_EQ(kArm64Smlal, s[2]->arch_opcode());
+  EXPECT_EQ(32, LaneSizeBits(LaneSizeField::decode(s[2]->opcode())));
+  EXPECT_EQ(s.ToVreg(s[0]->Output()), s.ToVreg(s[2]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(m.Parameter(2)), s.ToVreg(s[2]->InputAt(1)));
+  EXPECT_EQ(s.ToVreg(m.Parameter(3)), s.ToVreg(s[2]->InputAt(2)));
+
+  EXPECT_EQ(kArm64Smlal2, s[3]->arch_opcode());
+  EXPECT_EQ(32, LaneSizeBits(LaneSizeField::decode(s[3]->opcode())));
+  EXPECT_EQ(s.ToVreg(s[1]->Output()), s.ToVreg(s[3]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(m.Parameter(2)), s.ToVreg(s[3]->InputAt(1)));
+  EXPECT_EQ(s.ToVreg(m.Parameter(3)), s.ToVreg(s[3]->InputAt(2)));
+
+  EXPECT_EQ(kArm64IAddp, s[4]->arch_opcode());
+  EXPECT_EQ(32, LaneSizeBits(LaneSizeField::decode(s[4]->opcode())));
+  EXPECT_EQ(s.ToVreg(s[2]->Output()), s.ToVreg(s[4]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(s[3]->Output()), s.ToVreg(s[4]->InputAt(1)));
+}
+
+TEST_F(TurboshaftInstructionSelectorTest,
+       I32x4AddDotI16x8SWithAllExtMulVariants) {
+  StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
+                  MachineType::Simd128(), MachineType::Simd128());
+  V<Simd128> p0 = m.Parameter(0);
+  V<Simd128> p1 = m.Parameter(1);
+  V<Simd128> p2 = m.Parameter(2);
+  V<Simd128> dot0 = m.I32x4DotI16x8S(p0, p1);
+  V<Simd128> dot1 = m.I32x4DotI16x8S(p1, p2);
+  V<Simd128> extmul_lo_s = m.I32x4ExtMulLowI16x8S(p0, p1);
+  V<Simd128> extmul_hi_s = m.I32x4ExtMulHighI16x8S(p1, p2);
+  V<Simd128> extmul_lo_u = m.I32x4ExtMulLowI16x8U(p0, p2);
+  V<Simd128> extmul_hi_u = m.I32x4ExtMulHighI16x8U(p1, p2);
+  V<Simd128> sum_dots = m.I32x4Add(dot0, dot1);
+  V<Simd128> sum_muls = m.I32x4Add(m.I32x4Add(extmul_lo_s, extmul_hi_s),
+                                   m.I32x4Add(extmul_lo_u, extmul_hi_u));
+  V<Simd128> res = m.I32x4Add(sum_dots, sum_muls);
+  m.Return(res);
+  Stream s = m.Build();
+
+  ASSERT_EQ(9U, s.size());
+  EXPECT_EQ(kArm64Smull, s[0]->arch_opcode());
+  EXPECT_EQ(kArm64Smull2, s[1]->arch_opcode());
+  EXPECT_EQ(kArm64Smlal, s[2]->arch_opcode());
+  EXPECT_EQ(kArm64Smlal2, s[3]->arch_opcode());
+  EXPECT_EQ(kArm64IAddp, s[4]->arch_opcode());
+  EXPECT_EQ(s.ToVreg(s[2]->Output()), s.ToVreg(s[4]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(s[3]->Output()), s.ToVreg(s[4]->InputAt(1)));
+
+  EXPECT_EQ(kArm64Smlal, s[5]->arch_opcode());
+  EXPECT_EQ(s.ToVreg(s[4]->Output()), s.ToVreg(s[5]->InputAt(0)));
+
+  EXPECT_EQ(kArm64Smlal2, s[6]->arch_opcode());
+  EXPECT_EQ(s.ToVreg(s[5]->Output()), s.ToVreg(s[6]->InputAt(0)));
+
+  EXPECT_EQ(kArm64Umlal, s[7]->arch_opcode());
+  EXPECT_EQ(s.ToVreg(s[6]->Output()), s.ToVreg(s[7]->InputAt(0)));
+
+  EXPECT_EQ(kArm64Umlal2, s[8]->arch_opcode());
+  EXPECT_EQ(s.ToVreg(s[7]->Output()), s.ToVreg(s[8]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(res), s.ToVreg(s[8]->Output()));
+}
+
+TEST_F(TurboshaftInstructionSelectorTest,
+       I32x4AddDotI16x8SChainWithAccAndExtMul) {
+  StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
+                  MachineType::Simd128(), MachineType::Simd128(),
+                  MachineType::Simd128());
+  V<Simd128> acc = m.Parameter(0);
+  V<Simd128> dot0 = m.I32x4DotI16x8S(m.Parameter(1), m.Parameter(2));
+  V<Simd128> dot1 = m.I32x4DotI16x8S(m.Parameter(2), m.Parameter(3));
+  V<Simd128> dot2 = m.I32x4DotI16x8S(m.Parameter(1), m.Parameter(3));
+  V<Simd128> extmul_lo = m.I32x4ExtMulLowI16x8S(m.Parameter(1), m.Parameter(2));
+  V<Simd128> extmul_hi =
+      m.I32x4ExtMulHighI16x8U(m.Parameter(2), m.Parameter(3));
+  V<Simd128> sum_dots =
+      m.I32x4Add(m.I32x4Add(m.I32x4Add(acc, dot0), dot1), dot2);
+  V<Simd128> sum_muls = m.I32x4Add(extmul_lo, extmul_hi);
+  m.Return(m.I32x4Add(sum_dots, sum_muls));
+  Stream s = m.Build();
+
+  ASSERT_EQ(10U, s.size());
+  EXPECT_EQ(kArm64Smull, s[0]->arch_opcode());
+  EXPECT_EQ(kArm64Smull2, s[1]->arch_opcode());
+  EXPECT_EQ(kArm64Smlal, s[2]->arch_opcode());
+  EXPECT_EQ(kArm64Smlal2, s[3]->arch_opcode());
+  EXPECT_EQ(kArm64Smlal, s[4]->arch_opcode());
+  EXPECT_EQ(kArm64Smlal2, s[5]->arch_opcode());
+  EXPECT_EQ(kArm64IAddp, s[6]->arch_opcode());
+  EXPECT_EQ(s.ToVreg(s[4]->Output()), s.ToVreg(s[6]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(s[5]->Output()), s.ToVreg(s[6]->InputAt(1)));
+
+  EXPECT_EQ(kArm64Smlal, s[7]->arch_opcode());
+  EXPECT_EQ(s.ToVreg(s[6]->Output()), s.ToVreg(s[7]->InputAt(0)));
+
+  EXPECT_EQ(kArm64Umlal2, s[8]->arch_opcode());
+  EXPECT_EQ(s.ToVreg(s[7]->Output()), s.ToVreg(s[8]->InputAt(0)));
+
+  EXPECT_EQ(kArm64IAdd, s[9]->arch_opcode());
+  EXPECT_EQ(s.ToVreg(s[8]->Output()), s.ToVreg(s[9]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(acc), s.ToVreg(s[9]->InputAt(1)));
+}
+
+TEST_F(TurboshaftInstructionSelectorTest,
+       I32x4AddDotI16x8SLongChainSplitsIntoFusedGroups) {
+  StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
+                  MachineType::Simd128(), MachineType::Simd128());
+  V<Simd128> p0 = m.Parameter(0);
+  V<Simd128> p1 = m.Parameter(1);
+  V<Simd128> p2 = m.Parameter(2);
+  // Left-associative chain of 10 dot products added to `p0` (exceeding
+  // kMaxDotProducts = 6 and kMaxVisitedAdds = 8). The top 6 dot products fuse
+  // at the root, and the remaining prefix of 4 dot products + `p0` stays intact
+  // and fuses as a second group when visited.
+  V<Simd128> sum = p0;
+  for (int i = 0; i < 10; ++i) {
+    sum = m.I32x4Add(sum, m.I32x4DotI16x8S(p1, p2));
+  }
+  m.Return(sum);
+  Stream s = m.Build();
+
+  // Group 1 (4 dots + p0): 2*4 + 1 (IAddp) + 1 (IAdd) = 10 instructions.
+  // Group 2 (6 dots + Group 1): 2*6 + 1 (IAddp) + 1 (IAdd) = 14 instructions.
+  ASSERT_EQ(24U, s.size());
+  EXPECT_EQ(kArm64IAddp, s[8]->arch_opcode());
+  EXPECT_EQ(kArm64IAdd, s[9]->arch_opcode());
+  EXPECT_EQ(s.ToVreg(s[8]->Output()), s.ToVreg(s[9]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[9]->InputAt(1)));
+
+  EXPECT_EQ(kArm64IAddp, s[22]->arch_opcode());
+  EXPECT_EQ(kArm64IAdd, s[23]->arch_opcode());
+  EXPECT_EQ(s.ToVreg(s[22]->Output()), s.ToVreg(s[23]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(s[9]->Output()), s.ToVreg(s[23]->InputAt(1)));
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, I32x4AddDotI16x8SMultiUseNotFused) {
+  StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
+                  MachineType::Simd128(), MachineType::Simd128());
+  V<Simd128> shared = m.I32x4DotI16x8S(m.Parameter(0), m.Parameter(1));
+  V<Simd128> dot1 = m.I32x4DotI16x8S(m.Parameter(1), m.Parameter(2));
+  V<Simd128> dot2 = m.I32x4DotI16x8S(m.Parameter(0), m.Parameter(2));
+  m.Return(m.I32x4Add(m.I32x4Add(m.I32x4Add(shared, dot1), dot2), shared));
+  Stream s = m.Build();
+
+  // `shared` has two uses, so it is computed once (Smull + Smull2 + IAddp) and
+  // added twice as a normal addend, while `dot1` and `dot2` are fused
+  // (Smull + Smull2 + Smlal + Smlal2 + IAddp).
+  ASSERT_EQ(10U, s.size());
+  EXPECT_EQ(kArm64Smull, s[0]->arch_opcode());
+  EXPECT_EQ(kArm64Smull2, s[1]->arch_opcode());
+  EXPECT_EQ(kArm64IAddp, s[2]->arch_opcode());
+  EXPECT_EQ(kArm64Smull, s[3]->arch_opcode());
+  EXPECT_EQ(kArm64Smull2, s[4]->arch_opcode());
+  EXPECT_EQ(kArm64Smlal, s[5]->arch_opcode());
+  EXPECT_EQ(kArm64Smlal2, s[6]->arch_opcode());
+  EXPECT_EQ(kArm64IAddp, s[7]->arch_opcode());
+  EXPECT_EQ(kArm64IAdd, s[8]->arch_opcode());
+  EXPECT_EQ(kArm64IAdd, s[9]->arch_opcode());
+}
+
+TEST_F(TurboshaftInstructionSelectorTest,
+       I32x4AddDotI16x8SPreservesBalancedNonDotSubtree) {
+  StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
+                  MachineType::Simd128(), MachineType::Simd128(),
+                  MachineType::Simd128());
+  V<Simd128> p0 = m.Parameter(0);
+  V<Simd128> p1 = m.Parameter(1);
+  V<Simd128> p2 = m.Parameter(2);
+  V<Simd128> p3 = m.Parameter(3);
+  V<Simd128> dots =
+      m.I32x4Add(m.I32x4DotI16x8S(p0, p1), m.I32x4DotI16x8S(p2, p3));
+  V<Simd128> non_dots = m.I32x4Add(m.I32x4Add(p0, p1), m.I32x4Add(p2, p3));
+  m.Return(m.I32x4Add(dots, non_dots));
+  Stream s = m.Build();
+
+  // `non_dots` has no fusable leaves, so its balanced tree of 3 `IAdd`s is
+  // preserved and added once to the fused dot-product sum (5 instructions +
+  // 4 `IAdd`s = 9 instructions total), with the final `IAdd` combining `dots`
+  // (`s[7]`) and `non_dots` (`s[2]`).
+  ASSERT_EQ(9U, s.size());
+  EXPECT_EQ(kArm64IAdd, s[0]->arch_opcode());
+  EXPECT_EQ(kArm64IAdd, s[1]->arch_opcode());
+  EXPECT_EQ(kArm64IAdd, s[2]->arch_opcode());
+  EXPECT_EQ(s.ToVreg(s[0]->Output()), s.ToVreg(s[2]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(s[1]->Output()), s.ToVreg(s[2]->InputAt(1)));
+
+  EXPECT_EQ(kArm64Smull, s[3]->arch_opcode());
+  EXPECT_EQ(kArm64Smull2, s[4]->arch_opcode());
+  EXPECT_EQ(kArm64Smlal, s[5]->arch_opcode());
+  EXPECT_EQ(kArm64Smlal2, s[6]->arch_opcode());
+  EXPECT_EQ(kArm64IAddp, s[7]->arch_opcode());
+
+  EXPECT_EQ(kArm64IAdd, s[8]->arch_opcode());
+  EXPECT_EQ(s.ToVreg(s[7]->Output()), s.ToVreg(s[8]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(s[2]->Output()), s.ToVreg(s[8]->InputAt(1)));
+}
+
 TEST_F(TurboshaftInstructionSelectorTest, AddReduce) {
   {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Simd128());
