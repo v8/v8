@@ -7265,6 +7265,10 @@ bool Shell::SetOptions(int argc, char* argv[]) {
                                   &i)) {
       options.trace_config = flag_value;
     } else if (FlagMatches("--enable-inspector", &argv[i])) {
+      fprintf(stderr,
+              "Warning: --enable-inspector is deprecated "
+              "(see http://crbug.com/573042262).\n"
+              "Please use inspector tests (test/inspector/) instead.\n");
       options.enable_inspector = true;
     } else if (FlagWithArgMatches("--lcov", &flag_value, argc, argv, &i)) {
       options.lcov_file = flag_value;
