@@ -496,11 +496,11 @@ void WasmGCTypeAnalyzer::ProcessBranchOnTarget(const BranchOp& branch,
         RefineTypeKnowledge(check.object(), check.config.to, branch);
       } else {
         DCHECK_EQ(branch.if_false, &target);
-        if (wasm::IsSubtypeOf(GetResolvedType(check.object()), check.config.to,
-                              module_) &&
+        wasm::ValueType type = GetResolvedType(check.object());
+        if (wasm::IsSubtypeOf(type, check.config.to, module_) &&
             // When checking for a particular custom descriptor, static types
             // cannot predict the outcome.
-            !(IsCastToCustomDescriptor(module_, check.config))) {
+            !IsCastToCustomDescriptor(module_, check.config)) {
           // The type check always succeeds, the target is impossible to be
           // reached.
           DCHECK_EQ(target.PredecessorCount(), 1);
@@ -512,8 +512,23 @@ void WasmGCTypeAnalyzer::ProcessBranchOnTarget(const BranchOp& branch,
               OpcodeName(condition.opcode), graph_.Index(branch).id(),
               OpcodeName(branch.opcode));
           RefineTypeKnowledge(check.object(), wasm::kWasmBottom, branch);
-        } else if (check.config.to.is_nullable()) {
-          RefineTypeKnowledgeNotNull(check.object(), branch);
+          return;
+        }
+        if (type != wasm::ValueType() && !type.is_uninhabited()) {
+          if (check.config.to.is_nullable()) {
+            type = type.AsNonNull();
+          }
+          if (check.config.to.can_be_i31()) {
+            type = type.AsNonI31();
+          }
+          if (!IsCastToCustomDescriptor(module_, check.config) &&
+              wasm::IsHeapSubtypeOf(type.AsNonI31().heap_type(),
+                                    check.config.to.heap_type(), module_)) {
+            type = wasm::ToNullSentinel({type, module_})
+                       .AsNullable(type.nullability())
+                       .AsCanBeI31(type.can_be_i31());
+          }
+          RefineTypeKnowledge(check.object(), type, branch);
         }
       }
     } break;

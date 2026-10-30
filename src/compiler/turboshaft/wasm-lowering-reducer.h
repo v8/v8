@@ -82,8 +82,7 @@ class WasmLoweringReducer : public Next {
       // (3) null checks for the object's type must check for JS null.
       bool use_explicit_check =
           null_check_strategy_ == NullCheckStrategy::kExplicit ||
-          wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), type.AsNonShared(),
-                            module_) ||
+          type.can_be_i31() ||
           wasm::IsSubtypeOf(wasm::kWasmExnRef.AsNonNull(), type.AsNonShared(),
                             module_) ||
           !type.use_wasm_null();
@@ -810,7 +809,8 @@ class WasmLoweringReducer : public Next {
                                          WasmTypeCheckConfig config,
                                          Label<Word32>& result_label) {
     if (!v8_flags.wasm_shared || config.to.is_shared() ||
-        config.from.AsNullable() != wasm::kWasmAnyRef) {
+        config.from.is_shared() ||
+        !config.from.is_reference_to(wasm::GenericKind::kAny)) {
       return;
     }
     GOTO_IF_NOT(LIKELY(ObjectIsUnshared(object)), result_label,
@@ -820,8 +820,7 @@ class WasmLoweringReducer : public Next {
   V<Word32> ReduceWasmTypeCheckAbstract(V<Object> object,
                                         WasmTypeCheckConfig config) {
     const bool object_can_be_i31 =
-        wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(),
-                          config.from.AsNonShared(), module_) ||
+        config.from.can_be_i31() ||
         config.from.is_reference_to(wasm::GenericKind::kExtern);
     // anyref may contain shared objects. However, since we reject shared
     // objects before accessing object fields in that case, we can just pass
@@ -840,9 +839,14 @@ class WasmLoweringReducer : public Next {
         result = __ IsNull(object, config.from);
         break;
       }
+      const bool only_needs_not_smi_check =
+          !config.to.can_be_i31() &&
+          wasm::IsHeapSubtypeOf(config.from.AsNonI31().heap_type(),
+                                config.to.heap_type(), module_);
       // Null checks performed by any other type check need control flow. We can
       // skip the null check if success is determined by a Smi check.
-      if (config.from.is_nullable() && config.to != wasm::kWasmRefI31) {
+      if (config.from.is_nullable() && config.to != wasm::kWasmRefI31 &&
+          !(only_needs_not_smi_check && config.to.is_nullable())) {
         const int kResult = config.to.is_nullable() ? 1 : 0;
         GOTO_IF(UNLIKELY(__ IsNull(object, config.from)), end_label,
                 __ Word32Constant(kResult));
@@ -854,10 +858,16 @@ class WasmLoweringReducer : public Next {
         result = object_can_be_i31 ? __ IsSmi(object) : __ Word32Constant(0);
         break;
       }
+      if (only_needs_not_smi_check) {
+        result = object_can_be_i31 ? __ Word32Equal(__ IsSmi(object), 0)
+                                   : __ Word32Constant(1);
+        break;
+      }
+      if (object_can_be_i31) {
+        GOTO_IF(UNLIKELY(__ IsSmi(object)), end_label,
+                config.to.can_be_i31() ? 1 : 0);
+      }
       if (to_kind == wasm::GenericKind::kEq) {
-        if (object_can_be_i31) {
-          GOTO_IF(UNLIKELY(__ IsSmi(object)), end_label, 1);
-        }
         RejectSharedWasmObjectsIfUnshared(V<HeapObject>::Cast(object), config,
                                           end_label);
         // TODO(jkummerow): Here and elsewhere in this file, use
@@ -867,10 +877,6 @@ class WasmLoweringReducer : public Next {
                             end_label);
         GOTO(end_label, 1);
         break;
-      }
-      // array, struct, string: i31 fails.
-      if (object_can_be_i31) {
-        GOTO_IF(UNLIKELY(__ IsSmi(object)), end_label, 0);
       }
       if (to_kind == wasm::GenericKind::kArray) {
         RejectSharedWasmObjectsIfUnshared(V<HeapObject>::Cast(object), config,
@@ -911,7 +917,8 @@ class WasmLoweringReducer : public Next {
       V<HeapObject> object, WasmTypeCheckConfig config,
       OptionalV<EagerFrameState> frame_state) {
     if (!v8_flags.wasm_shared || config.to.is_shared() ||
-        config.from.AsNullable() != wasm::kWasmAnyRef) {
+        config.from.is_shared() ||
+        !config.from.is_reference_to(wasm::GenericKind::kAny)) {
       return;
     }
     __ TrapIfNot(ObjectIsUnshared(object), frame_state,
@@ -922,8 +929,7 @@ class WasmLoweringReducer : public Next {
                                        OptionalV<EagerFrameState> frame_state,
                                        WasmTypeCheckConfig config) {
     const bool object_can_be_i31 =
-        wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(),
-                          config.from.AsNonShared(), module_) ||
+        config.from.can_be_i31() ||
         config.from.is_reference_to(wasm::GenericKind::kExtern);
     // anyref may contain shared objects. However, since we reject shared
     // objects before accessing object fields in that case, we can just pass
@@ -943,10 +949,14 @@ class WasmLoweringReducer : public Next {
                      TrapId::kTrapIllegalCast);
         break;
       }
+      const bool only_needs_not_smi_check =
+          !config.to.can_be_i31() &&
+          wasm::IsHeapSubtypeOf(config.from.AsNonI31().heap_type(),
+                                config.to.heap_type(), module_);
       // Null checks performed by any other type cast can only be skipped if
-      // a Smi check is the only operation we'll need (i.e. the target type
-      // is non-nullable (ref i31).
-      if (config.from.is_nullable() && config.to != wasm::kWasmRefI31) {
+      // a Smi check is the only operation we'll need.
+      if (config.from.is_nullable() && config.to != wasm::kWasmRefI31 &&
+          !(only_needs_not_smi_check && config.to.is_nullable())) {
         V<Word32> is_null = __ IsNull(object, config.from);
         if (config.to.is_nullable()) {
           GOTO_IF(UNLIKELY(is_null), end_label);
@@ -964,20 +974,26 @@ class WasmLoweringReducer : public Next {
         __ TrapIfNot(success, frame_state, TrapId::kTrapIllegalCast);
         break;
       }
-      if (to_kind == wasm::GenericKind::kEq) {
+      if (only_needs_not_smi_check) {
         if (object_can_be_i31) {
-          GOTO_IF(UNLIKELY(__ IsSmi(object)), end_label);
+          __ TrapIf(__ IsSmi(object), frame_state, TrapId::kTrapIllegalCast);
         }
+        break;
+      }
+      if (object_can_be_i31) {
+        if (config.to.can_be_i31()) {
+          GOTO_IF(UNLIKELY(__ IsSmi(object)), end_label);
+        } else {
+          __ TrapIf(__ IsSmi(object), frame_state, TrapId::kTrapIllegalCast);
+        }
+      }
+      if (to_kind == wasm::GenericKind::kEq) {
         TrapOnSharedWasmObjectsIfUnshared(V<HeapObject>::Cast(object), config,
                                           frame_state);
         TrapOnNonWasmObject(
             __ LoadMapField(V<HeapObject>::Cast(object), shared_base),
             frame_state);
         break;
-      }
-      // array, struct, string: i31 fails.
-      if (object_can_be_i31) {
-        __ TrapIf(__ IsSmi(object), frame_state, TrapId::kTrapIllegalCast);
       }
       if (to_kind == wasm::GenericKind::kArray) {
         TrapOnSharedWasmObjectsIfUnshared(V<HeapObject>::Cast(object), config,
@@ -1119,8 +1135,7 @@ class WasmLoweringReducer : public Next {
                             EarlyExitHandler early_exit_handler,
                             ResultHandler result_handler) {
     int rtt_depth = wasm::GetSubtypingDepth(module_, config.to.ref_index());
-    bool object_can_be_i31 = wasm::IsSubtypeOf(
-        wasm::kWasmI31Ref.AsNonNull(), config.from.AsNonShared(), module_);
+    bool object_can_be_i31 = config.from.can_be_i31();
     bool is_cast_from_any =
         config.from.is_reference_to(wasm::GenericKind::kAny);
     // Non-shared anyref may contain shared objects.
@@ -1129,16 +1144,31 @@ class WasmLoweringReducer : public Next {
                    (config.from.is_shared() ||
                     config.from.is_reference_to(wasm::GenericKind::kAny))};
 
+    const bool only_needs_not_smi_check =
+        !config.to.can_be_i31() &&
+        wasm::IsHeapSubtypeOf(config.from.AsNonI31().heap_type(),
+                              config.to.heap_type(), module_) &&
+        !(module_->type(config.to.ref_index()).has_descriptor() &&
+          config.exactness == kExactMatchOnly);
+
     if (config.from.is_nullable() &&
-        (config.to.is_nullable() || !skip_failing_null_check)) {
+        (config.to.is_nullable() ? !only_needs_not_smi_check
+                                 : !skip_failing_null_check)) {
       early_exit_handler(
           UNLIKELY(__ IsNull(object, wasm::kWasmAnyRef)),
           {.negated = false, .result_value = config.to.is_nullable()});
     }
 
+    if (only_needs_not_smi_check) {
+      result_handler(object_can_be_i31 ? __ Word32Equal(__ IsSmi(object), 0)
+                                       : __ Word32Constant(1));
+      return;
+    }
+
     if (object_can_be_i31) {
-      early_exit_handler(__ IsSmi(object),
-                         {.negated = false, .result_value = false});
+      early_exit_handler(
+          __ IsSmi(object),
+          {.negated = false, .result_value = config.to.can_be_i31()});
     }
 
     V<Map> map = __ LoadMapField(object, shared_base);

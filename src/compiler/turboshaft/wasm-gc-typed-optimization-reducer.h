@@ -361,6 +361,10 @@ class WasmGCTypedOptimizationReducer : public Next {
           // The inferred type is guaranteed to be a subtype of the checked
           // type.
           return __ Word32Constant(1);
+        } else if (type.is_none_type()) {
+          // The value is known to be null, and {to_nullable} is false here, so
+          // the type check always fails.
+          return __ Word32Constant(0);
         } else {
           // The inferred type is guaranteed to be a subtype of the checked
           // type if it is not null.
