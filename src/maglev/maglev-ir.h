@@ -6486,7 +6486,10 @@ class InlinedAllocation : public FixedInputValueNodeT<1, InlinedAllocation> {
     return use_count_ > non_escaping_use_count_;
   }
   void ForceEscaping() {
-    DCHECK(!HasBeenAnalysed());
+    // See AddNonEscapingUses: subsequent Turbolev phases after
+    // TurbolevEscapeAnalysis can call ForceEscaping on already-escaped
+    // allocations.
+    DCHECK(!HasBeenAnalysed() || HasEscaped());
     non_escaping_use_count_ = 0;
   }
 
