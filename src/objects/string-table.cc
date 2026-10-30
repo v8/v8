@@ -240,13 +240,16 @@ class InternalizedStringKey final : public StringTableKey {
     // requiring a copy can transition any further.
     StringShape shape(*string_);
     // External strings get special treatment, to avoid copying their
-    // contents as long as they are not uncached or the string table is shared.
+    // contents as long as they are not uncached, the string table is not
+    // shared, and we are not executing an API interrupt (where MakeThin is
+    // skipped).
     // If the string table is shared, another thread could lookup a string with
     // the same content before this thread completes MakeThin (which sets the
     // resource), resulting in a string table hit returning the string we just
     // created that is not correctly initialized.
-    const bool can_move_resource =
-        !v8_flags.shared_string_table && !shape.IsUncachedExternal();
+    const bool can_move_resource = !v8_flags.shared_string_table &&
+                                   !shape.IsUncachedExternal() &&
+                                   !isolate->is_executing_api_interrupt();
     if (can_move_resource && shape.IsExternalOneByte()) {
       // Shared external strings are always in-place internalizable.
       // If this assumption is invalidated in the future, make sure that we
@@ -386,7 +389,11 @@ void SetInternalizedReference(Isolate* isolate, Tagged<String> string,
           String::CreateInternalizedForwardingIndex(forwarding_index),
           kReleaseStore);
     }
-  } else {
+  } else if (!isolate->is_executing_api_interrupt()) {
+    // Skip transitioning strings to ThinStrings during API interrupts. MakeThin
+    // shrinks SeqStrings in-place and releases ExternalString resources, which
+    // would invalidate cached StringPrepareForGetCodeUnit pointers in compiled
+    // Wasm loops.
     DCHECK(!string->HasForwardingIndex(kAcquireLoad));
     string->MakeThin(isolate, internalized);
   }

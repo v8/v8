@@ -206,7 +206,8 @@ RUNTIME_FUNCTION(Runtime_ConstructInternalizedString) {
   CHECK(IsInternalizedString(*string) ||
         (IsThinString(*string) &&
          IsInternalizedString(Cast<ThinString>(*string)->actual())) ||
-        HeapLayout::InAnySharedSpace(*string));
+        HeapLayout::InAnySharedSpace(*string) ||
+        isolate->is_executing_api_interrupt());
   CHECK(IsInternalizedString(*internalized));
   return *internalized;
 }
@@ -219,6 +220,7 @@ RUNTIME_FUNCTION(Runtime_ConstructThinString) {
   if (IsThinString(*string)) {
     return *string;
   }
+  CHECK_UNLESS_FUZZING(!isolate->is_executing_api_interrupt());
   if (!IsConsString(*string)) {
     CHECK_UNLESS_FUZZING(string->length() >= ConsString::kMinLength);
     string = isolate->factory()->NewConsString(

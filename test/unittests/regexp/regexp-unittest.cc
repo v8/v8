@@ -3065,8 +3065,14 @@ class InterruptTest {
     v8::HandleScope scope(isolate);
     v8::Local<v8::String> string =
         v8::Local<v8::String>::New(isolate, instance->subject_string_handle_);
+    // Externalizing strings is disallowed during API interrupts, but simulate
+    // an externalization below to keep testing irregexp's subject reload path.
+    CHECK(!string->CanMakeExternal(v8::String::Encoding::ONE_BYTE_ENCODING));
+    CHECK(!string->MakeExternal(isolate, &one_byte_string_resource));
+    Isolate::PauseApiInterruptScopeForTesting pause_interrupt(
+        instance->i_isolate());
     CHECK(string->CanMakeExternal(v8::String::Encoding::ONE_BYTE_ENCODING));
-    string->MakeExternal(isolate, &one_byte_string_resource);
+    CHECK(string->MakeExternal(isolate, &one_byte_string_resource));
   }
 
   static void MakeSubjectTwoByteExternal(v8::Isolate* isolate, void* data) {
@@ -3074,8 +3080,14 @@ class InterruptTest {
     v8::HandleScope scope(isolate);
     v8::Local<v8::String> string =
         v8::Local<v8::String>::New(isolate, instance->subject_string_handle_);
+    // Externalizing strings is disallowed during API interrupts, but simulate
+    // an externalization below to keep testing irregexp's subject reload path.
+    CHECK(!string->CanMakeExternal(v8::String::Encoding::TWO_BYTE_ENCODING));
+    CHECK(!string->MakeExternal(isolate, &two_byte_string_resource));
+    Isolate::PauseApiInterruptScopeForTesting pause_interrupt(
+        instance->i_isolate());
     CHECK(string->CanMakeExternal(v8::String::Encoding::TWO_BYTE_ENCODING));
-    string->MakeExternal(isolate, &two_byte_string_resource);
+    CHECK(string->MakeExternal(isolate, &two_byte_string_resource));
   }
 
   static void TwoByteSubjectToOneByte(v8::Isolate* isolate, void* data) {
@@ -3096,20 +3108,14 @@ class InterruptTest {
     v8::Local<v8::String> string = instance->GetSubjectString();
     CHECK(!string->IsOneByte());
     CHECK(string->ContainsOnlyOneByte());
-    // Internalize the subject by using it as a computed property name in an
-    // object.
+    // MakeThin is skipped during API interrupts, leaving the subject two-byte.
+    string->InternalizeString(isolate);
+    CHECK(!string->IsOneByte());
+    // Simulate a ThinString transition to keep testing irregexp's encoding
+    // change recovery path.
     {
-      // This test is technically wrong for running JS in a C++ interrupt.
-      // However we know that the interuptee here is the regexp engine, which
-      // does not care.
-      v8::Isolate::AllowJavascriptExecutionScope allow_script(isolate);
-      v8::Local<v8::Context> context = instance->context_.Get(isolate);
-      v8::Local<v8::Script> script =
-          v8::Script::Compile(context,
-                              v8::String::NewFromUtf8Literal(
-                                  isolate, "o = { [subject_string]: 'foo' }"))
-              .ToLocalChecked();
-      script->Run(context).ToLocalChecked();
+      Isolate::PauseApiInterruptScopeForTesting pause_interrupt(i_isolate);
+      string->InternalizeString(isolate);
     }
     CHECK(string->IsOneByte());
   }

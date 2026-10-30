@@ -180,7 +180,8 @@ MaybeDirectHandle<String> CreateExternalizableString(
     DirectHandle<String> result;
     if (CopyConsStringToOld(i_isolate, Cast<ConsString>(string), encoding)
             .ToHandle(&result)) {
-      DCHECK(result->SupportsExternalization(encoding));
+      DCHECK_IMPLIES(!i_isolate->is_executing_api_interrupt(),
+                     result->SupportsExternalization(encoding));
       return result;
     } else {
       return kNullMaybeHandle;
@@ -196,7 +197,8 @@ MaybeDirectHandle<String> CreateExternalizableString(
       DisallowGarbageCollection no_gc;
       String::WriteToFlat(*string, result->GetChars(no_gc), 0,
                           string->length());
-      DCHECK(result->SupportsExternalization(encoding));
+      DCHECK_IMPLIES(!i_isolate->is_executing_api_interrupt(),
+                     result->SupportsExternalization(encoding));
       return result;
     }
   } else {
@@ -208,7 +210,8 @@ MaybeDirectHandle<String> CreateExternalizableString(
       DisallowGarbageCollection no_gc;
       String::WriteToFlat(*string, result->GetChars(no_gc), 0,
                           string->length());
-      DCHECK(result->SupportsExternalization(encoding));
+      DCHECK_IMPLIES(!i_isolate->is_executing_api_interrupt(),
+                     result->SupportsExternalization(encoding));
       return result;
     }
   }

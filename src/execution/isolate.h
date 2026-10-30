@@ -1144,6 +1144,27 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   bool is_executing_api_interrupt() const { return api_interrupt_depth_ > 0; }
 
+  class V8_NODISCARD PauseApiInterruptScopeForTesting final {
+   public:
+    explicit PauseApiInterruptScopeForTesting(Isolate* isolate)
+        : isolate_(isolate), saved_depth_(isolate->api_interrupt_depth_) {
+      DCHECK_LT(0, saved_depth_);
+      isolate_->api_interrupt_depth_ = 0;
+    }
+    ~PauseApiInterruptScopeForTesting() {
+      DCHECK_EQ(0, isolate_->api_interrupt_depth_);
+      isolate_->api_interrupt_depth_ = saved_depth_;
+    }
+    PauseApiInterruptScopeForTesting(const PauseApiInterruptScopeForTesting&) =
+        delete;
+    PauseApiInterruptScopeForTesting& operator=(
+        const PauseApiInterruptScopeForTesting&) = delete;
+
+   private:
+    Isolate* const isolate_;
+    const int saved_depth_;
+  };
+
   void RequestInvalidateNoProfilingProtector();
 
   // Administration

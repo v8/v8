@@ -581,7 +581,16 @@ bool String::SupportsExternalization(v8::String::Encoding encoding) {
     return false;
   }
 
-  if (HeapLayout::InAnySharedSpace(Tagged(this))) {
+  BasePage* page =
+      MemoryChunk::FromHeapObject(Tagged(this))->MetadataNoIsolateCheck();
+  if (page->is_writable_shared()) {
+    return false;
+  }
+  if (Isolate::FromHeap(page->heap())->is_executing_api_interrupt()) {
+    // Disallow externalizing strings during API interrupts. In-place
+    // externalization shrinks SeqStrings and changes their representation,
+    // which would invalidate cached StringPrepareForGetCodeUnit pointers in
+    // compiled Wasm loops.
     return false;
   }
 
