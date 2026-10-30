@@ -78,7 +78,7 @@ class DescriptorLookupTable : public LookupTable<kDescriptorIndexBitCount> {
 
  public:
   template <typename IsolateT>
-  static inline Handle<DescriptorLookupTable> New(
+  static inline Handle<DescriptorLookupTable> NewUninitialized(
       IsolateT* isolate, uint32_t number_of_elements,
       AllocationType allocation = AllocationType::kYoung);
 } V8_OBJECT_END;
@@ -203,8 +203,10 @@ V8_OBJECT class DescriptorArray : public HeapObject {
   // when a heap stats collector might see a half-initialized descriptor.
   inline bool IsInitializedDescriptor(InternalIndex descriptor_number) const;
 
+#ifndef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   inline Tagged<Name> GetSortedKey(int descriptor_number);
   inline int GetSortedKeyIndex(int descriptor_number);
+#endif  // !V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 
   // Accessor for complete descriptor.
   inline void Set(InternalIndex descriptor_number, Descriptor* desc);
@@ -239,6 +241,7 @@ V8_OBJECT class DescriptorArray : public HeapObject {
   // TODO(572302954): rename to BuildLookupTable().
   inline void Sort();
 
+#ifndef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   // Iterate through Name hash collisions in the descriptor array starting from
   // insertion index checking for Name collisions. Note: If we ever add binary
   // insertion for large DescriptorArrays it would need to be hardened in a
@@ -246,6 +249,7 @@ V8_OBJECT class DescriptorArray : public HeapObject {
   // DescriptorArrays.
   V8_EXPORT_PRIVATE void CheckNameCollisionDuringInsertion(
       Descriptor* desc, uint32_t descriptor_hash, int insertion_index);
+#endif  // !V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 
   // Search the instance descriptors for given name. {concurrent_search} signals
   // if we are doing the search on a background thread. If so, we will sacrifice
@@ -327,9 +331,10 @@ V8_OBJECT class DescriptorArray : public HeapObject {
   // Verifies that the lookup table is consistent with the descriptor array
   // and that there are no duplicate keys.
   V8_EXPORT_PRIVATE bool VerifyLookupTable();
-#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+#else
   // Is the descriptor array sorted and without duplicates?
   V8_EXPORT_PRIVATE bool IsSortedNoDuplicates();
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 
   // Are two DescriptorArrays equal?
   bool IsEqualTo(Tagged<DescriptorArray> other);
@@ -362,9 +367,10 @@ V8_OBJECT class DescriptorArray : public HeapObject {
   // `number_of_own_descriptors` descriptors.
   V8_INLINE InternalIndex TableSearch(Tagged<Name> name,
                                       int number_of_own_descriptors);
-#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+#else
   V8_INLINE InternalIndex BinarySearch(Tagged<Name> name,
                                        int number_of_own_descriptors);
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   V8_INLINE InternalIndex LinearSearch(Tagged<Name> name,
                                        int number_of_own_descriptors);
 
@@ -372,10 +378,12 @@ V8_OBJECT class DescriptorArray : public HeapObject {
   // descriptor array.
   inline void CopyFrom(InternalIndex index, Tagged<DescriptorArray> src);
 
+#ifndef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   inline void SetSortedKey(int pointer, int descriptor_number);
 
   // Swap first and second descriptor.
   inline void SwapSortedKeys(int first, int second);
+#endif  // !V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 
  public:
   // A single descriptor tuple (key, details, value). The three fields occupy

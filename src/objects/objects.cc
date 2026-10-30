@@ -4135,8 +4135,9 @@ void DescriptorArray::EnsureLookupTable(IsolateT* isolate,
                                   ? AllocationType::kYoung
                                   : AllocationType::kOld;
 
-  DirectHandle<DescriptorLookupTable> table = DescriptorLookupTable::New(
-      isolate, array->number_of_all_descriptors(), allocation);
+  DirectHandle<DescriptorLookupTable> table =
+      DescriptorLookupTable::NewUninitialized(
+          isolate, array->number_of_all_descriptors(), allocation);
   array->set_lookup_table(*table);
   array->RebuildLookupTable(array->number_of_descriptors());
 }
@@ -4170,7 +4171,9 @@ void DescriptorArray::ClearEnumCache() {
 }
 
 void DescriptorArray::Replace(InternalIndex index, Descriptor* descriptor) {
+#ifndef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   descriptor->SetSortedKeyIndex(GetSortedKeyIndex(index.as_int()));
+#endif  // !V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   Set(index, descriptor);
   // Resetting the fast iterable state is bottlenecked in SetKey().
   DCHECK_NE(fast_iterable(), FastIterableState::kJsonFast);
@@ -4253,6 +4256,7 @@ void DescriptorArray::SortImpl(const int len) {
 #endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 }
 
+#ifndef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 void DescriptorArray::CheckNameCollisionDuringInsertion(Descriptor* desc,
                                                         uint32_t desc_hash,
                                                         int insertion_index) {
@@ -4267,6 +4271,7 @@ void DescriptorArray::CheckNameCollisionDuringInsertion(Descriptor* desc,
     CHECK(current_key != *desc->GetKey());
   }
 }
+#endif  // !V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 
 DirectHandle<AccessorPair> AccessorPair::Copy(Isolate* isolate,
                                               DirectHandle<AccessorPair> pair) {

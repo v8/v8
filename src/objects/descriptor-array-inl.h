@@ -51,10 +51,10 @@ void EnumCache::set_indices(Tagged<FixedArray> value, WriteBarrierMode mode) {
 }
 
 template <typename IsolateT>
-Handle<DescriptorLookupTable> DescriptorLookupTable::New(
+Handle<DescriptorLookupTable> DescriptorLookupTable::NewUninitialized(
     IsolateT* isolate, uint32_t number_of_elements, AllocationType allocation) {
   return Cast<DescriptorLookupTable>(
-      Super::New(isolate, number_of_elements, allocation));
+      Super::NewUninitialized(isolate, number_of_elements, allocation));
 }
 
 int16_t DescriptorArray::number_of_all_descriptors() const {
@@ -223,8 +223,7 @@ InternalIndex DescriptorArray::TableSearch(Tagged<Name> name,
   }
   return InternalIndex::NotFound();
 }
-#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
-
+#else
 InternalIndex DescriptorArray::BinarySearch(Tagged<Name> name,
                                             int valid_descriptors) {
   // We have to binary search all descriptors, not just valid ones, since the
@@ -269,6 +268,7 @@ InternalIndex DescriptorArray::BinarySearch(Tagged<Name> name,
 
   return InternalIndex::NotFound();
 }
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 
 InternalIndex DescriptorArray::LinearSearch(Tagged<Name> name,
                                             int valid_descriptors) {
@@ -342,6 +342,7 @@ void DescriptorArray::SetKey(InternalIndex descriptor_number,
                        FastIterableState::kJsonFast);
 }
 
+#ifndef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 int DescriptorArray::GetSortedKeyIndex(int descriptor_number) {
   return GetDetails(InternalIndex(descriptor_number)).pointer();
 }
@@ -354,6 +355,7 @@ void DescriptorArray::SetSortedKey(int descriptor_number, int pointer) {
   PropertyDetails details = GetDetails(InternalIndex(descriptor_number));
   SetDetails(InternalIndex(descriptor_number), details.set_pointer(pointer));
 }
+#endif  // !V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 
 Tagged<Object> DescriptorArray::GetStrongValue(
     InternalIndex descriptor_number) {
@@ -484,11 +486,13 @@ void DescriptorArray::Sort() {
   SortImpl(len);
 }
 
+#ifndef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 void DescriptorArray::SwapSortedKeys(int first, int second) {
   int first_key = GetSortedKeyIndex(first);
   SetSortedKey(first, GetSortedKeyIndex(second));
   SetSortedKey(second, first_key);
 }
+#endif  // !V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 
 }  // namespace internal
 }  // namespace v8

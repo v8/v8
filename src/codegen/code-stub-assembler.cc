@@ -12097,6 +12097,7 @@ template TNode<IntPtrT> CodeStubAssembler::ToKeyIndex<DescriptorArray>(
 template TNode<IntPtrT> CodeStubAssembler::ToKeyIndex<TransitionArray>(
     TNode<Uint32T>);
 
+#ifndef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 template <>
 TNode<Uint32T> CodeStubAssembler::GetSortedKeyIndex<DescriptorArray>(
     TNode<DescriptorArray> descriptors, TNode<Uint32T> descriptor_number) {
@@ -12104,6 +12105,7 @@ TNode<Uint32T> CodeStubAssembler::GetSortedKeyIndex<DescriptorArray>(
       DescriptorArrayGetDetails(descriptors, descriptor_number);
   return DecodeWord32<PropertyDetails::DescriptorPointer>(details);
 }
+#endif  // !V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 
 template <>
 TNode<Uint32T> CodeStubAssembler::GetSortedKeyIndex<TransitionArray>(

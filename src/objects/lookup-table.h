@@ -67,8 +67,10 @@ class LookupTable : public FixedIntegerArrayBase<U, ByteArray> {
     return std::max(capacity, kMinCapacity);
   }
 
+  // Allocates an uninitialized LookupTable. Callers must initialize the table
+  // via Clear(), CopyFrom(), or Rebuild().
   template <typename IsolateT>
-  static inline Handle<LookupTable> New(
+  static inline Handle<LookupTable> NewUninitialized(
       IsolateT* isolate, uint32_t number_of_elements,
       AllocationType allocation = AllocationType::kYoung);
 

@@ -22,12 +22,10 @@ struct CastTraits<LookupTable<IndexBits, U>> : public CastTraits<ByteArray> {};
 
 template <uint32_t IndexBits, typename U>
 template <typename IsolateT>
-Handle<LookupTable<IndexBits, U>> LookupTable<IndexBits, U>::New(
+Handle<LookupTable<IndexBits, U>> LookupTable<IndexBits, U>::NewUninitialized(
     IsolateT* isolate, uint32_t number_of_elements, AllocationType allocation) {
-  Handle<LookupTable> result = Cast<LookupTable>(
+  return Cast<LookupTable>(
       Super::New(isolate, CapacityFor(number_of_elements), allocation));
-  result->Clear();
-  return result;
 }
 
 template <uint32_t IndexBits, typename U>

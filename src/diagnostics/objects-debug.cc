@@ -4193,8 +4193,7 @@ bool DescriptorArray::VerifyLookupTable() {
   }
   return true;
 }
-#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
-
+#else
 bool DescriptorArray::IsSortedNoDuplicates() {
   // Up to the linear search limit the array is not sorted and that's fine.
   if (number_of_descriptors() <= kMaxElementsForLinearSearch) return true;
@@ -4218,6 +4217,7 @@ bool DescriptorArray::IsSortedNoDuplicates() {
   }
   return true;
 }
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 
 bool TransitionArray::IsSortedNoDuplicates() {
   // Up to the linear search limit the array is not sorted and that's fine.

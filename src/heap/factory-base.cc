@@ -1164,7 +1164,7 @@ Handle<DescriptorArray> FactoryBase<Impl>::NewDescriptorArray(
   DirectHandle<DescriptorLookupTable> lookup_table;
   if (allocate_lookup_table &&
       number_of_descriptors > DescriptorArray::kMaxElementsForLinearSearch) {
-    lookup_table = DescriptorLookupTable::New(
+    lookup_table = DescriptorLookupTable::NewUninitialized(
         isolate(), number_of_all_descriptors, allocation);
   }
 #endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
