@@ -555,8 +555,25 @@ void LiftoffAssembler::AtomicStoreTaggedPointer(
     Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
     LiftoffRegList pinned, AtomicMemoryOrder memory_order,
     uint32_t* trapping_store_pc) {
-  StoreTaggedPointer(dst_addr, offset_reg, offset_imm, src, pinned,
-                     trapping_store_pc);
+  if (memory_order != AtomicMemoryOrder::kSeqCst) {
+    StoreTaggedPointer(dst_addr, offset_reg, offset_imm, src, pinned,
+                       trapping_store_pc);
+    return;
+  }
+  DCHECK_GE(offset_imm, 0);
+  Operand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg,
+                                     static_cast<uint32_t>(offset_imm));
+  movq(kScratchRegister, src);
+  if (trapping_store_pc) *trapping_store_pc = pc_offset();
+  if constexpr (COMPRESS_POINTERS_BOOL) {
+    xchgl(kScratchRegister, dst_op);
+  } else {
+    xchgq(kScratchRegister, dst_op);
+  }
+
+  if (v8_flags.disable_write_barriers) return;
+
+  EmitWriteBarrier(dst_addr, dst_op, src, pinned);
 }
 
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
