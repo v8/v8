@@ -3137,17 +3137,27 @@ template <typename BaseT>
 ReduceResult MaglevReducer<BaseT>::BuildCheckSmi(ValueNode* object) {
   if (object->StaticTypeIs(broker(), NodeType::kSmi)) return object;
   RETURN_IF_DONE(EnsureType(object, NodeType::kSmi, DeoptimizeReason::kSmi));
-  // For non-tagged constants, we may be able to skip the runtime check: every
-  // non-tagged arm of the switch below emits a value-range check, which is
-  // exactly what `Smi::IsValid` proves. For tagged inputs the runtime check
-  // (CheckSmi) is a tag-bit check, and value-equivalence (e.g. via the
-  // checked_value alternative, which may hold a HeapNumber constant) does not
-  // imply Smi tagging.
-  if (object->value_representation() != ValueRepresentation::kTagged) {
-    if (std::optional<int32_t> constant_value = TryGetInt32Constant(object)) {
-      if (Smi::IsValid(constant_value.value())) return object;
+
+  // Untagged constants in Smi range don't need runtime checks.
+  switch (object->opcode()) {
+    case Opcode::kInt32Constant:
+      if (Smi::IsValid(object->Cast<Int32Constant>()->value())) return object;
+      break;
+    case Opcode::kUint32Constant:
+      if (Smi::IsValid(object->Cast<Uint32Constant>()->value())) return object;
+      break;
+    case Opcode::kIntPtrConstant:
+      if (Smi::IsValid(object->Cast<IntPtrConstant>()->value())) return object;
+      break;
+    case Opcode::kFloat64Constant: {
+      double value = object->Cast<Float64Constant>()->value().get_scalar();
+      if (IsInt32Double(value) && Smi::IsValid(FastD2I(value))) return object;
+      break;
     }
+    default:
+      break;
   }
+
   switch (object->value_representation()) {
     case ValueRepresentation::kInt32:
       if (!SmiValuesAre32Bits()) {
