@@ -569,6 +569,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(ConstructInternalizedString, 1, 1)                                   \
   F(ConstructSlicedString, 2, 1)                                         \
   F(ConstructThinString, 1, 1)                                           \
+  F(ConsumeCodeCache, 2, 1)                                              \
   F(CurrentFrameIsTurbofan, 0, 1)                                        \
   F(DebugPrint, -1, 1, RuntimeCallProperty::kCannotTriggerGC)            \
   F(DebugPrintCppHeapPointerTable, -1, 1)                                \
@@ -595,6 +596,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(GetBytecode, 1, 1)                                                   \
   F(ExhaustInterruptBudget, 1, 1)                                        \
   F(GetCallable, 1, 1)                                                   \
+  F(GetCodeCache, 1, 1)                                                  \
   F(GetFeedback, 1, 1)                                                   \
   F(GetFunctionForCurrentFrame, 0, 1)                                    \
   F(GetInitializerFunction, 1, 1)                                        \

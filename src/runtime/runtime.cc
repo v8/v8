@@ -318,6 +318,13 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
       return (v8_flags.sandbox_testing || v8_flags.sandbox_fuzzing) &&
              v8_flags.verify_bytecode_full;
 
+    case Runtime::kGetCodeCache:
+    case Runtime::kConsumeCodeCache:
+      // These consume code caches with a replaced untrusted section, which
+      // only makes sense with the sandbox crash filter.
+      return (v8_flags.sandbox_testing || v8_flags.sandbox_fuzzing) &&
+             v8_flags.code_cache_fuzzing;
+
     case Runtime::kIsSmi:
       return true;  // Enabled when not performing differential fuzzing.
 

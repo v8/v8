@@ -25,6 +25,7 @@
 #include "src/debug/debug-evaluate.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/arguments-inl.h"
+#include "src/execution/execution.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/protectors-inl.h"
@@ -47,9 +48,11 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/js-regexp-inl.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/smi.h"
 #include "src/profiler/heap-snapshot-generator.h"
 #include "src/regexp/regexp.h"
+#include "src/snapshot/code-serializer.h"
 #include "src/snapshot/snapshot.h"
 
 #ifdef V8_ENABLE_MAGLEV
@@ -2874,6 +2877,122 @@ RUNTIME_FUNCTION(Runtime_InstallBytecode) {
                        *BUILTIN_CODE(isolate, InterpreterEntryTrampoline));
 
   return ReadOnlyRoots(isolate).undefined_value();
+}
+
+namespace {
+
+// The header, trusted section and source of a code cache made by
+// %GetCodeCache.
+struct CodeCacheForTesting {
+  static constexpr ManagedTypeId kTypeID = ManagedTypeId::kCodeCacheForTesting;
+  std::vector<base::uc16> source;
+  std::vector<uint8_t> header_and_trusted_section;
+};
+
+}  // namespace
+
+// Compiles and serializes a script. Returns {cache, untrusted}: a handle to the
+// header and trusted section, and a copy of the untrusted section, for
+// %ConsumeCodeCache.
+RUNTIME_FUNCTION(Runtime_GetCodeCache) {
+  HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(v8_flags.code_cache_fuzzing);
+  CHECK_UNLESS_FUZZING(args.length() == 1);
+  CHECK_UNLESS_FUZZING(IsString(args[0]));
+  Handle<String> source = String::Flatten(isolate, args.at<String>(0));
+  ScriptDetails script_details;
+  ScriptCompiler::CompilationDetails compilation_details;
+  DirectHandle<SharedFunctionInfo> shared;
+  if (!Compiler::GetSharedFunctionInfoForScript(
+           isolate, source, script_details, ScriptCompiler::kNoCompileOptions,
+           ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE,
+           &compilation_details)
+           .ToHandle(&shared)) {
+    return ReadOnlyRoots(isolate).exception();
+  }
+  std::unique_ptr<ScriptCompiler::CachedData> cached_data(
+      CodeSerializer::Serialize(isolate, handle(*shared, isolate)));
+  if (!cached_data) return ReadOnlyRoots(isolate).undefined_value();
+  base::Vector<const uint8_t> cache(cached_data->data, cached_data->length);
+  base::Vector<const uint8_t> untrusted_payload =
+      CodeSerializer::UntrustedPayloadForTesting(cache);
+
+  auto entry = std::make_shared<CodeCacheForTesting>();
+  const uint32_t source_length = source->length();
+  entry->source.resize(source_length);
+  String::WriteToFlat(*source, entry->source.data(), 0, source_length);
+  entry->header_and_trusted_section.assign(cache.begin(),
+                                           untrusted_payload.begin());
+  size_t estimated_size = entry->header_and_trusted_section.size() +
+                          entry->source.size() * sizeof(base::uc16);
+  DirectHandle<CppGCManaged<CodeCacheForTesting>> managed =
+      CppGCManaged<CodeCacheForTesting>::Create(isolate, estimated_size,
+                                                std::move(entry));
+
+  Handle<JSArrayBuffer> untrusted =
+      isolate->factory()
+          ->NewJSArrayBufferAndBackingStore(untrusted_payload.size(),
+                                            InitializedFlag{false})
+          .ToHandleChecked();
+  memcpy(untrusted->backing_store(), untrusted_payload.begin(),
+         untrusted_payload.size());
+
+  Handle<JSObject> result =
+      isolate->factory()->NewJSObject(isolate->object_function());
+  JSObject::AddProperty(isolate, result, "cache", managed,
+                        PropertyAttributes::NONE);
+  JSObject::AddProperty(isolate, result, "untrusted", untrusted,
+                        PropertyAttributes::NONE);
+  return *result;
+}
+
+// Consumes the header and trusted section of a %GetCodeCache result with the
+// given untrusted section, and runs the script. Returns its completion value,
+// or undefined if the cache was rejected.
+RUNTIME_FUNCTION(Runtime_ConsumeCodeCache) {
+  HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(v8_flags.code_cache_fuzzing);
+  CHECK_UNLESS_FUZZING(args.length() == 2);
+  CHECK_UNLESS_FUZZING(IsCppGCManagedBase(args[0]));
+  CHECK_UNLESS_FUZZING(IsJSArrayBuffer(args[1]));
+  // Checks that the handle refers to a CodeCacheForTesting.
+  CppGCManaged<CodeCacheForTesting>::Ptr entry =
+      Cast<CppGCManaged<CodeCacheForTesting>>(args[0])->ptr();
+  DirectHandle<JSArrayBuffer> buffer = args.at<JSArrayBuffer>(1);
+  DirectHandle<String> source =
+      isolate->factory()
+          ->NewStringFromTwoByte(base::VectorOf(entry->source))
+          .ToHandleChecked();
+
+  // Copy the untrusted section out of the sandbox first.
+  std::vector<uint8_t> cache = CodeSerializer::WithUntrustedPayloadForTesting(
+      base::VectorOf(entry->header_and_trusted_section),
+      base::Vector<const uint8_t>(
+          static_cast<const uint8_t*>(buffer->backing_store()),
+          buffer->GetByteLength()));
+
+  MaybeDirectHandle<SharedFunctionInfo> maybe_shared;
+  {
+    GuardedCodeCacheForTesting guarded_cache(cache.data(),
+                                             static_cast<int>(cache.size()));
+    AlignedCachedData cached_data(guarded_cache.data(), guarded_cache.length());
+    ScriptDetails script_details;
+    maybe_shared = CodeSerializer::Deserialize(isolate, &cached_data, source,
+                                               script_details);
+  }
+
+  DirectHandle<SharedFunctionInfo> shared;
+  if (!maybe_shared.ToHandle(&shared)) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+  // Run it like a script: calling the top-level function directly would skip
+  // setting up the script context.
+  DirectHandle<JSFunction> function =
+      Factory::JSFunctionBuilder{isolate, shared, isolate->native_context()}
+          .Build();
+  RETURN_RESULT_OR_FAILURE(
+      isolate, Execution::CallScript(isolate, function, isolate->global_proxy(),
+                                     isolate->factory()->empty_fixed_array()));
 }
 
 RUNTIME_FUNCTION(Runtime_AllocateHeapNumberWithValue) {

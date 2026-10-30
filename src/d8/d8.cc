@@ -84,6 +84,7 @@
 #include "src/parsing/scanner-character-streams.h"
 #include "src/profiler/profile-generator.h"
 #include "src/sandbox/trap-fuzzer.h"
+#include "src/snapshot/code-serializer.h"
 #include "src/snapshot/snapshot.h"
 #include "src/strings/owning-external-string-resource.h"
 #include "src/tasks/cancelable-task.h"
@@ -943,6 +944,18 @@ MaybeLocal<T> Shell::CompileSource(Isolate* isolate, Local<Context> context,
           LookupCodeCache(isolate, source_string, ScriptType::kModule);
     }
   }
+#ifdef V8_ENABLE_MEMORY_CORRUPTION_API
+  // For fuzzer cleanliness place the cache right before a guard page, ignoring
+  // small OOB reads.
+  std::optional<i::GuardedCodeCacheForTesting> guarded_code;
+  if (cached_code) {
+    guarded_code.emplace(cached_code->data, cached_code->length);
+    delete cached_code;
+    cached_code = new ScriptCompiler::CachedData(
+        guarded_code->data(), guarded_code->length(),
+        ScriptCompiler::CachedData::BufferNotOwned);
+  }
+#endif  // V8_ENABLE_MEMORY_CORRUPTION_API
   ScriptCompiler::Source script_source(source_string, origin, cached_code);
   MaybeLocal<T> result =
       Compile<T>(context, &script_source,

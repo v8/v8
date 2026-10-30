@@ -29,6 +29,7 @@
 #include "src/objects/visitors.h"
 #include "src/sandbox/check.h"
 #include "src/sandbox/sandbox.h"
+#include "src/sandbox/testing.h"
 #include "src/snapshot/object-deserializer.h"
 #include "src/snapshot/snapshot-utils.h"
 #include "src/snapshot/snapshot.h"
@@ -48,6 +49,34 @@ AlignedCachedData::AlignedCachedData(const uint8_t* data, int length)
     data_ = copy;
     AcquireDataOwnership();
   }
+}
+
+GuardedCodeCacheForTesting::GuardedCodeCacheForTesting(const uint8_t* data,
+                                                       int length) {
+  v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
+  size_t page_size = page_allocator->AllocatePageSize();
+  size_t data_size = RoundUp(base::checked_cast<size_t>(length), page_size);
+  memory_ = VirtualMemory(page_allocator, data_size + page_size, {}, page_size);
+  CHECK(memory_.IsReserved());
+  CHECK(memory_.SetPermissions(memory_.address(), data_size,
+                               PageAllocator::kReadWrite));
+  guard_page_ = memory_.address() + data_size;
+  // Code cache sizes are pointer-aligned, so AlignedCachedData uses the copy as
+  // is.
+  CHECK(IsAligned(length, kPointerAlignment));
+  uint8_t* copy = reinterpret_cast<uint8_t*>(guard_page_ - length);
+  std::copy_n(data, length, copy);
+  data_ = base::VectorOf(copy, length);
+#ifdef V8_ENABLE_MEMORY_CORRUPTION_API
+  SandboxTesting::RegisterSafeMemoryRegion(
+      guard_page_, page_size, SandboxTesting::kOnlyReadAccessIsSafe);
+#endif  // V8_ENABLE_MEMORY_CORRUPTION_API
+}
+
+GuardedCodeCacheForTesting::~GuardedCodeCacheForTesting() {
+#ifdef V8_ENABLE_MEMORY_CORRUPTION_API
+  SandboxTesting::UnregisterSafeMemoryRegion(guard_page_);
+#endif  // V8_ENABLE_MEMORY_CORRUPTION_API
 }
 
 CodeSerializer::CodeSerializer(Isolate* isolate, SourceHash source_hash)
@@ -997,6 +1026,32 @@ base::Vector<const uint8_t> SerializedCodeData::TrustedPayload() const {
   DCHECK(IsAligned(reinterpret_cast<intptr_t>(payload), kPointerAlignment));
   uint32_t length = GetHeaderValue(kTrustedPayloadLengthOffset);
   return base::Vector<const uint8_t>(payload, length);
+}
+
+// static
+base::Vector<const uint8_t> CodeSerializer::UntrustedPayloadForTesting(
+    base::Vector<const uint8_t> cache) {
+  return SerializedCodeData(cache.begin(),
+                            base::checked_cast<int>(cache.size()))
+      .UntrustedPayload();
+}
+
+// static
+std::vector<uint8_t> CodeSerializer::WithUntrustedPayloadForTesting(
+    base::Vector<const uint8_t> header_and_trusted_section,
+    base::Vector<const uint8_t> untrusted) {
+  std::vector<uint8_t> result(header_and_trusted_section.begin(),
+                              header_and_trusted_section.end());
+  result.insert(result.end(), untrusted.begin(), untrusted.end());
+  // Pad like Serializer::Pad: GetUint30 always reads 4 bytes, so a stream
+  // needs 3 bytes after its last operand even if it is already aligned.
+  result.insert(result.end(), sizeof(int32_t) - 1, kNop);
+  while (!IsAligned(result.size(), kPointerAlignment)) result.push_back(kNop);
+  SerializedCodeData scd(result.data(), base::checked_cast<int>(result.size()));
+  scd.SetHeaderValue(SerializedCodeData::kPayloadLengthOffset,
+                     base::checked_cast<uint32_t>(
+                         result.size() - SerializedCodeData::kHeaderSize));
+  return result;
 }
 
 SerializedCodeData::SerializedCodeData(const AlignedCachedData* data)

@@ -616,6 +616,7 @@ enum class ManagedTypeId : uint32_t {
   kD8Worker,
   kD8ModuleEmbedderData,
   kD8AsyncHooksWrap,
+  kCodeCacheForTesting,
 };
 
 #define SHARED_MANAGED_TAG_LIST(V) V(WasmFutexManagedObjectWaitListTag)
