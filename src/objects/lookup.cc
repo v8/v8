@@ -20,6 +20,7 @@
 #include "src/objects/field-type.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/js-proxy-inl.h"
 #include "src/objects/js-struct.h"
 #include "src/objects/map-updater.h"
 #include "src/objects/object-conversions-inl.h"
@@ -667,6 +668,9 @@ void LookupIterator::PrepareTransitionToDataProperty(
   DCHECK(!IsAlwaysSharedSpaceJSObject(*receiver));
 #if V8_ENABLE_WEBASSEMBLY
   DCHECK(!IsWasmObject(*receiver));
+#endif
+#ifdef DEBUG
+  JSReceiver::ValidateExtensibilityInvariant(this, receiver);
 #endif
   if (state_ == TRANSITION) return;
 

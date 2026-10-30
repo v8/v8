@@ -2880,6 +2880,7 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it,
   Isolate* isolate = it->isolate();
 
   if (it->ExtendingNonExtensible(receiver)) {
+    DCHECK(!it->GetName()->IsPrivateBrand());
     if (IsWasmObject(*receiver)) {
       RETURN_FAILURE(it->isolate(), kThrowOnError,
                      NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));

@@ -233,6 +233,11 @@ V8_OBJECT class JSReceiver : public HeapObject {
       LookupIterator* it, DirectHandle<Object> value,
       Maybe<ShouldThrow> should_throw);
 
+#ifdef DEBUG
+  static void ValidateExtensibilityInvariant(LookupIterator* it,
+                                             DirectHandle<JSReceiver> receiver);
+#endif
+
   // ES6 9.1.6.1
   V8_WARN_UNUSED_RESULT static Maybe<bool> OrdinaryDefineOwnProperty(
       Isolate* isolate, DirectHandle<JSObject> object, DirectHandle<Object> key,

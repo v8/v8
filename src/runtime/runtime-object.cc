@@ -286,12 +286,16 @@ RUNTIME_FUNCTION(Runtime_AddPrivateBrand) {
 
   LookupIterator it(isolate, receiver, brand, LookupIterator::OWN);
 
-  if (it.IsFound()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError(MessageTemplate::kInvalidPrivateBrandReinitialization,
-                     brand));
-  }
+  // InitializeInstanceElements ( O, constructor )
+  // 1. Let methods be the value of constructor.[[PrivateMethods]].
+  // 2. If methods is not empty, then
+  //   a. If the host is a web browser, then
+  //     i. Perform ? HostEnsureCanAddPrivateElement(O).
+  //   b. If ? IsExtensible(O) is false, throw a TypeError exception.
+  //   c. For each PrivateElement method of methods, do
+  //     i. Perform ? PrivateMethodOrAccessorAdd(O, method).
+  MAYBE_RETURN(JSReceiver::CheckPrivateNameStore(&it, true),
+               ReadOnlyRoots(isolate).exception());
 
   PropertyAttributes attributes =
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
@@ -307,13 +311,9 @@ RUNTIME_FUNCTION(Runtime_AddPrivateBrand) {
   DCHECK_EQ(context->scope_info()->scope_type(), ScopeType::CLASS_SCOPE);
   Maybe<bool> added_brand = Object::AddDataProperty(
       &it, context, attributes, Just(kThrowOnError), StoreOrigin::kMaybeKeyed);
-  // Objects in shared space are fixed shape, so private symbols cannot be
-  // added.
-  if (V8_UNLIKELY(IsAlwaysSharedSpaceJSObject(*receiver))) {
-    CHECK(added_brand.IsNothing());
+  if (added_brand.IsNothing()) {
     return ReadOnlyRoots(isolate).exception();
   }
-  CHECK(added_brand.IsJust());
   return *receiver;
 }
 

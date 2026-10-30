@@ -684,6 +684,7 @@ class V8_EXPORT Isolate {
     kRegExpCustomSpecies = 189,
     kWasmWideArithmetic = 190,
     kBigInt = 191,
+    kExtendingNonExtensibleWithPrivateProxyTrap = 192,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to

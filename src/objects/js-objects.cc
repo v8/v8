@@ -291,6 +291,97 @@ Maybe<bool> JSReceiver::HasInPrototypeChain(Isolate* isolate,
   }
 }
 
+namespace {
+
+Maybe<bool> CheckIsExtensibleWithPrivate(
+    LookupIterator* it,
+    Maybe<ShouldThrow> should_throw = Nothing<ShouldThrow>()) {
+  DCHECK(it->GetName()->IsAnyPrivateName());
+
+  DirectHandle<JSReceiver> receiver = it->GetStoreTarget<JSReceiver>();
+  DCHECK(!IsJSGlobalProxy(*receiver));
+  Isolate* isolate = it->isolate();
+
+  MessageTemplate disallowed_message =
+      it->GetName()->IsPrivateBrand()
+          ? MessageTemplate::kDefineDisallowedPrivateMethod
+          : MessageTemplate::kDefineDisallowed;
+
+  if (IsJSProxy(*receiver)) {
+    DirectHandle<JSProxy> proxy = Cast<JSProxy>(receiver);
+    if (!proxy->IsRevoked()) {
+      DirectHandle<JSReceiver> handler(Cast<JSReceiver>(proxy->handler()),
+                                       isolate);
+      DirectHandle<Object> trap = JSReceiver::GetDataProperty(
+          isolate, handler, isolate->factory()->isExtensible_string(),
+          AllowAllocation{false});
+      if (!IsNullOrUndefined(*trap)) {
+        isolate->CountUsage(
+            v8::Isolate::kExtendingNonExtensibleWithPrivateProxyTrap);
+      }
+    }
+    if (v8_flags.js_nonextensible_applies_to_private) {
+      // PrivateFieldAdd / InitializeInstanceElements:
+      // If ? IsExtensible(O) is false, throw a TypeError exception.
+      Maybe<bool> is_extensible = JSProxy::IsExtensible(proxy);
+      MAYBE_RETURN(is_extensible, Nothing<bool>());
+      if (!is_extensible.FromJust()) {
+        RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
+                       NewTypeError(disallowed_message, it->GetName()));
+      }
+      // Calling JSProxy::IsExtensible invokes user JavaScript (the
+      // isExtensible trap), which can re-entrantly install private fields
+      // or mutate the proxy. Restart the iterator to verify that the
+      // private field was not added during the trap.
+      it->Restart();
+    }
+    DCHECK(it->state() == LookupIterator::DATA ||
+           it->state() == LookupIterator::NOT_FOUND);
+    return Just(true);
+  }
+
+  Tagged<Map> receiver_map = receiver->map();
+  if (receiver_map->is_extensible()) return Just(true);
+
+  if (IsAlwaysSharedSpaceJSObjectMap(receiver_map)) {
+    DirectHandle<String> name_string(
+        Cast<String>(Cast<Symbol>(*it->GetName())->description()), isolate);
+    RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
+                   NewTypeError(MessageTemplate::kDefineDisallowedFixedLayout,
+                                name_string));
+  }
+
+  if (it->state() == LookupIterator::NOT_FOUND) {
+    isolate->CountUsage(v8::Isolate::kExtendingNonExtensibleWithPrivate);
+  }
+  if (v8_flags.js_nonextensible_applies_to_private) {
+    RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
+                   NewTypeError(disallowed_message, it->GetName()));
+  }
+
+  return Just(true);
+}
+
+}  // namespace
+
+#ifdef DEBUG
+// static
+void JSReceiver::ValidateExtensibilityInvariant(
+    LookupIterator* it, DirectHandle<JSReceiver> receiver) {
+  if (v8_flags.js_nonextensible_applies_to_private &&
+      it->GetName()->IsAnyPrivateName()) {
+    DCHECK(!IsJSGlobalProxy(*receiver));
+    if (IsJSProxy(*receiver)) {
+      Tagged<Object> target = Cast<JSProxy>(*receiver)->target();
+      DCHECK_IMPLIES(IsJSReceiver(target),
+                     Cast<JSReceiver>(target)->map()->is_extensible());
+    } else {
+      DCHECK(receiver->map()->is_extensible());
+    }
+  }
+}
+#endif
+
 // static
 Maybe<bool> JSReceiver::CheckPrivateNameStore(LookupIterator* it,
                                               bool is_define) {
@@ -317,34 +408,30 @@ Maybe<bool> JSReceiver::CheckPrivateNameStore(LookupIterator* it,
           UNREACHABLE();
         }
         continue;
-      case LookupIterator::DATA:
-        if (is_define) {
-          MessageTemplate message =
-              it->GetName()->IsPrivateBrand()
-                  ? MessageTemplate::kInvalidPrivateBrandReinitialization
-                  : MessageTemplate::kInvalidPrivateFieldReinitialization;
-          RETURN_FAILURE(isolate,
-                         GetShouldThrow(isolate, Nothing<ShouldThrow>()),
-                         NewTypeError(message, name_string));
-        }
-        return Just(true);
       case LookupIterator::WASM_OBJECT:
         RETURN_FAILURE(isolate, kThrowOnError,
                        NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
+      case LookupIterator::DATA:
       case LookupIterator::NOT_FOUND:
-        if (!is_define) {
-          RETURN_FAILURE(
-              isolate, GetShouldThrow(isolate, Nothing<ShouldThrow>()),
-              NewTypeError(MessageTemplate::kInvalidPrivateMemberWrite,
-                           name_string));
-
-        } else if (it->ExtendingNonExtensible(
-                       it->GetStoreTarget<JSReceiver>())) {
-          RETURN_FAILURE(
-              isolate, kThrowOnError,
-              NewTypeError(MessageTemplate::kDefineDisallowed, name_string));
+        if (is_define) {
+          MAYBE_RETURN(CheckIsExtensibleWithPrivate(it), Nothing<bool>());
+          if (it->state() == LookupIterator::DATA) {
+            MessageTemplate reinit_message =
+                it->GetName()->IsPrivateBrand()
+                    ? MessageTemplate::kInvalidPrivateBrandReinitialization
+                    : MessageTemplate::kInvalidPrivateFieldReinitialization;
+            RETURN_FAILURE(isolate,
+                           GetShouldThrow(isolate, Nothing<ShouldThrow>()),
+                           NewTypeError(reinit_message, it->GetName()));
+          }
+          return Just(true);
         }
-        return Just(true);
+        if (it->state() == LookupIterator::DATA) {
+          return Just(true);
+        }
+        RETURN_FAILURE(isolate, GetShouldThrow(isolate, Nothing<ShouldThrow>()),
+                       NewTypeError(MessageTemplate::kInvalidPrivateMemberWrite,
+                                    name_string));
     }
     UNREACHABLE();
   }
@@ -1930,26 +2017,20 @@ Maybe<bool> JSReceiver::CreateDataProperty(Isolate* isolate,
 Maybe<bool> JSReceiver::AddPrivateField(LookupIterator* it,
                                         DirectHandle<Object> value,
                                         Maybe<ShouldThrow> should_throw) {
-  DirectHandle<JSReceiver> receiver = Cast<JSReceiver>(it->GetReceiver());
-  DCHECK(!IsAlwaysSharedSpaceJSObject(*receiver));
   Isolate* isolate = it->isolate();
+#ifdef DEBUG
+  DirectHandle<JSReceiver> receiver = it->GetStoreTarget<JSReceiver>();
+  DCHECK(!IsAlwaysSharedSpaceJSObject(*receiver));
   DCHECK(it->GetName()->IsAnyPrivateName());
-  DirectHandle<Symbol> symbol = Cast<Symbol>(it->GetName());
+  ValidateExtensibilityInvariant(it, receiver);
+#endif
 
   for (;; it->Next()) {
     switch (it->state()) {
-      case LookupIterator::JSPROXY: {
-        PropertyDescriptor new_desc;
-        new_desc.set_value(Cast<JSAny>(value));
-        new_desc.set_writable(true);
-        new_desc.set_enumerable(true);
-        new_desc.set_configurable(true);
-        return JSProxy::SetPrivateSymbol(isolate, Cast<JSProxy>(receiver),
-                                         symbol, &new_desc, should_throw);
-      }
       case LookupIterator::WASM_OBJECT:
         RETURN_FAILURE(isolate, kThrowOnError,
                        NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
+      case LookupIterator::JSPROXY:
       case LookupIterator::MODULE_NAMESPACE:
       case LookupIterator::DATA:
       case LookupIterator::INTERCEPTOR:

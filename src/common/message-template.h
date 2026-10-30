@@ -781,7 +781,9 @@ namespace internal {
   T(SuppressedErrorDuringDisposal, "An error was suppressed during disposal")  \
   T(ExpectAnObjectWithUsing,                                                   \
     "An object is expected with `using` "                                      \
-    "declarations")
+    "declarations")                                                            \
+  T(DefineDisallowedPrivateMethod,                                             \
+    "Cannot add private methods of class %, object is not extensible")
 
 enum class MessageTemplate {
 #define TEMPLATE(NAME, STRING) k##NAME,
