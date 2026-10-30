@@ -1385,6 +1385,19 @@ class Heap final {
     survived_since_last_expansion_ += survived;
   }
 
+  // Records whether the scavenge that just finished had a high survival rate
+  // based on the bytes that survived in regular (non-large) young pages. Needs
+  // to be invoked after the scavenge but before the young generation is
+  // resized.
+  void UpdateHighYoungGenerationSurvivalRate(size_t survived_bytes);
+
+  // Returns true if the last scavenge had a high survival rate, i.e., at least
+  // --scavenger-high-survival-threshold percent of the young generation
+  // capacity survived.
+  bool HasHighYoungGenerationSurvivalRate() const {
+    return high_young_generation_survival_rate_;
+  }
+
   V8_EXPORT_PRIVATE uint64_t NewSpaceAllocationCounter() const;
 
   void SetNewSpaceAllocationCounterForTesting(size_t new_value) {
@@ -1860,6 +1873,9 @@ class Heap final {
 
   enum class ResizeNewSpaceMode { kShrink, kGrow, kNone };
   ResizeNewSpaceMode ShouldResizeNewSpace();
+  // Returns true if the young generation should grow earlier and faster than
+  // usual because of a high survival rate (see --scavenger-fast-growth).
+  bool ShouldGrowYoungGenerationFast();
 
   void StartResizeNewSpace();
   void ResizeNewSpace();
@@ -2107,6 +2123,9 @@ class Heap final {
   // initial_size_overwritten_ because it is not also minimum and because of
   // different behavior in NotifyContextDisposed().
   bool preconfigured_old_generation_size_ = false;
+
+  // See HasHighYoungGenerationSurvivalRate().
+  bool high_young_generation_survival_rate_ = false;
 
   size_t old_generation_capacity_after_bootstrap_ = 0;
 

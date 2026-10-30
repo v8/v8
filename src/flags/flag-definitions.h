@@ -569,6 +569,18 @@ DEFINE_UINT(
     "Scavenger in chaos mode")
 DEFINE_MAX_VALUE_IMPLICATION(scavenger_chaos_mode_threshold, 100u)
 
+DEFINE_UINT(scavenger_high_survival_threshold, 70,
+            "Percentage of the young generation capacity that has to survive a "
+            "scavenge for the young generation survival rate to be considered "
+            "high")
+DEFINE_MAX_VALUE_IMPLICATION(scavenger_high_survival_threshold, 100u)
+DEFINE_BOOL(scavenger_high_survival_promotion, true,
+            "Scavenger promotes all surviving young objects to old space if "
+            "the previous scavenge had a high survival rate")
+DEFINE_BOOL(scavenger_fast_growth, false,
+            "Grow the young generation right away and by twice the growth "
+            "factor if a scavenge had a high survival rate")
+
 #ifdef V8_ENABLE_LOCAL_OFF_STACK_CHECK
 #define V8_ENABLE_LOCAL_OFF_STACK_CHECK_BOOL true
 #else

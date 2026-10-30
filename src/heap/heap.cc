@@ -1770,6 +1770,9 @@ class TaskOnContextDispose final : public CancelableTask {
 };
 
 int Heap::NotifyContextDisposed(bool has_dependent_context) {
+  // The survival rate of the disposed context is not indicative of the
+  // survival rate of the next one.
+  high_young_generation_survival_rate_ = false;
   if (!has_dependent_context) {
     tracer()->ResetSurvivalEvents();
     if (!initial_size_overwritten_) {
@@ -2158,6 +2161,25 @@ void Heap::UpdateSurvivalStatistics(int start_new_space_size) {
   tracer()->AddSurvivalRatio(survival_rate);
 }
 
+void Heap::UpdateHighYoungGenerationSurvivalRate(size_t survived_bytes) {
+  // Survivors are compared against the young generation capacity instead of
+  // the young generation size at the start of the GC. Thus, a high survival
+  // rate also implies that the young generation was mostly full.
+  const size_t threshold =
+      new_space_->Capacity() * v8_flags.scavenger_high_survival_threshold / 100;
+  high_young_generation_survival_rate_ =
+      survived_bytes > 0 && survived_bytes >= threshold;
+}
+
+bool Heap::ShouldGrowYoungGenerationFast() {
+  // Only applies to resizing right after a scavenge, as the survival rate is
+  // only computed for scavenges.
+  return v8_flags.scavenger_fast_growth &&
+         current_or_last_garbage_collector_ == GarbageCollector::SCAVENGER &&
+         HasHighYoungGenerationSurvivalRate() &&
+         !ShouldOptimizeForMemoryUsage();
+}
+
 namespace {
 
 GCTracer::Scope::ScopeId CollectorScopeId(GarbageCollector collector) {
@@ -2534,6 +2556,10 @@ void Heap::MarkCompact() {
 
   ms_count_++;
   contexts_disposed_ = 0;
+
+  // All surviving young objects are promoted on full GCs and the survival rate
+  // of earlier scavenges is not indicative anymore.
+  high_young_generation_survival_rate_ = false;
 
   MarkCompactPrologue();
 
@@ -3614,9 +3640,14 @@ Heap::ResizeNewSpaceMode Heap::ShouldResizeNewSpace() {
                              (allocation_throughput != 0) &&
                              (allocation_throughput < kLowAllocationThroughput);
 
+  // With a high survival rate, a single scavenge cannot reach the default
+  // growing threshold as the young generation capacity excludes page headers.
+  // Grow right away in this case to avoid scavenging repeatedly a young
+  // generation that is too small for the live objects.
   const bool should_grow =
       (new_space_->TotalCapacity() < new_space_->MaximumCapacity()) &&
-      (survived_since_last_expansion_ > new_space_->TotalCapacity());
+      (ShouldGrowYoungGenerationFast() ||
+       (survived_since_last_expansion_ > new_space_->TotalCapacity()));
 
   if (should_grow) survived_since_last_expansion_ = 0;
 
@@ -3669,9 +3700,11 @@ void Heap::ExpandNewSpaceSizeForTesting() { ExpandNewSpaceSize(); }
 void Heap::ExpandNewSpaceSize() {
   // Grow the size of new space if there is room to grow, and enough data
   // has survived scavenge since the last expansion.
-  const size_t suggested_capacity =
-      static_cast<size_t>(v8_flags.semi_space_growth_factor) *
-      new_space_->TotalCapacity();
+  size_t growth_factor = static_cast<size_t>(v8_flags.semi_space_growth_factor);
+  if (ShouldGrowYoungGenerationFast()) {
+    growth_factor *= 2;
+  }
+  const size_t suggested_capacity = growth_factor * new_space_->TotalCapacity();
   const size_t chosen_capacity =
       std::min(suggested_capacity, new_space_->MaximumCapacity());
   DCHECK(IsAligned(chosen_capacity, NormalPage::kPageSize));
@@ -3683,6 +3716,9 @@ void Heap::ExpandNewSpaceSize() {
 }
 
 void Heap::ReduceNewSpaceSize() {
+  // Shrinking indicates a low allocation rate or memory reduction. The
+  // survival rate of earlier scavenges is not indicative anymore.
+  high_young_generation_survival_rate_ = false;
   if (!v8_flags.minor_ms) {
     const size_t reduced_capacity = ComputeReducedNewSpaceSize(new_space());
     semi_space_new_space()->Shrink(reduced_capacity);
