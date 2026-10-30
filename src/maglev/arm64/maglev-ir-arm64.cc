@@ -580,10 +580,10 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
   if (lhs == rhs) {
     // For the modulus algorithm described above, lhs and rhs must not alias
     // each other.
-    __ Tst(lhs, lhs);
     // TODO(victorgomes): This ideally should be kMinusZero, but Maglev only
     // allows one deopt reason per IR.
-    __ EmitEagerDeoptIf(mi, deopt_reason, this);
+    __ RecordComment("-- Jump to eager deopt");
+    __ Tbnz(lhs, lhs.SizeInBits() - 1, __ GetDeoptLabel(this, deopt_reason));
     __ Move(ToRegister(result()), 0);
     return;
   }
@@ -604,9 +604,7 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
       rhs_checked, rhs, this);
   __ Bind(*rhs_checked);
 
-  __ Cmp(lhs, Immediate(0));
-  __ JumpToDeferredIf(
-      lt,
+  Label* lhs_negative = __ MakeDeferredCode(
       [](MaglevAssembler* masm, ZoneLabelRef done, Register lhs, Register rhs,
          Register out, Int32ModulusWithOverflow* node) {
         MaglevAssembler::TemporaryRegisterScope temps(masm);
@@ -621,6 +619,8 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
         __ EmitEagerDeopt(node, deopt_reason);
       },
       done, lhs, rhs, out, this);
+  __ RecordComment("-- Jump to deferred code");
+  __ Tbnz(lhs, lhs.SizeInBits() - 1, lhs_negative);
 
   Label rhs_not_power_of_2;
   MaglevAssembler::TemporaryRegisterScope temps(masm);
