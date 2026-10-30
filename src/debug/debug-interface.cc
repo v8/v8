@@ -114,7 +114,7 @@ i::Handle<i::String> GetBigIntStringPresentationHandle(
               ->NewConsString(
                   i_isolate->factory()->NewStringFromAsciiChecked("-0x"),
                   i_isolate->factory()->NewProperSubString(
-                      string_value, 1, string_value->length() - 1))
+                      string_value, 1, string_value->length()))
               .ToHandleChecked();
     } else {
       string_value =

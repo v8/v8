@@ -346,6 +346,21 @@ TEST_F(ThreadTerminationTest, TerminateGetBigIntDescription) {
   CHECK(check->IsTrue());
   Local<Value> parsed = RunJS("BigInt(desc.slice(0, -1)) === bigint");
   CHECK(parsed->IsTrue());
+
+  val = RunJS("-(1n << (64n * 20000n))");
+  CHECK(val->IsBigInt());
+  bigint = val.As<BigInt>();
+  isolate()->TerminateExecution();
+  desc = debug::GetBigIntDescription(isolate(), bigint);
+  CHECK(!desc.IsEmpty());
+  CHECK(!i_isolate()->has_exception());
+  isolate()->CancelTerminateExecution();
+  context->Global()->Set(context, NewString("bigint"), bigint).Check();
+  context->Global()->Set(context, NewString("desc"), desc).Check();
+  check = RunJS("desc === '-0x' + (-bigint).toString(16) + 'n'");
+  CHECK(check->IsTrue());
+  parsed = RunJS("-BigInt(desc.slice(1, -1)) === bigint");
+  CHECK(parsed->IsTrue());
 }
 
 TEST_F(ThreadTerminationTest, TerminateGetBigIntStringValue) {
@@ -385,6 +400,21 @@ TEST_F(ThreadTerminationTest, TerminateGetBigIntStringValue) {
   Local<Value> check = RunJS("str === '0x' + bigint.toString(16)");
   CHECK(check->IsTrue());
   Local<Value> parsed = RunJS("BigInt(str) === bigint");
+  CHECK(parsed->IsTrue());
+
+  val = RunJS("-(1n << (64n * 20000n))");
+  CHECK(val->IsBigInt());
+  bigint = val.As<BigInt>();
+  isolate()->TerminateExecution();
+  str = debug::GetBigIntStringValue(isolate(), bigint);
+  CHECK(!str.IsEmpty());
+  CHECK(!i_isolate()->has_exception());
+  isolate()->CancelTerminateExecution();
+  context->Global()->Set(context, NewString("bigint"), bigint).Check();
+  context->Global()->Set(context, NewString("str"), str).Check();
+  check = RunJS("str === '-0x' + (-bigint).toString(16)");
+  CHECK(check->IsTrue());
+  parsed = RunJS("-BigInt(str.slice(1)) === bigint");
   CHECK(parsed->IsTrue());
 }
 
