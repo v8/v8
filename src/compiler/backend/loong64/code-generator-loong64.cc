@@ -2216,7 +2216,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ Vld(i.OutputSimd128Register(), MemOperand(fp, offset));
         }
       } else {
-        __ Ld_d(i.OutputRegister(0), MemOperand(fp, offset));
+        LocationOperand* op = LocationOperand::cast(instr->OutputAt(0));
+        if (op->representation() == MachineRepresentation::kWord32 ||
+            op->representation() == MachineRepresentation::kCompressed ||
+            op->representation() == MachineRepresentation::kCompressedPointer) {
+          // Like AssembleMove, use a sign-extending load for 32-bit slots so
+          // that the register keeps the loong64 sign-extension invariant.
+          __ Ld_w(i.OutputRegister(0), MemOperand(fp, offset));
+        } else {
+          __ Ld_d(i.OutputRegister(0), MemOperand(fp, offset));
+        }
       }
       break;
     }
@@ -5749,7 +5758,14 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
       DCHECK(destination->IsStackSlot());
       MemOperand dst = g.ToMemOperand(destination);
       __ mov(scratch, src);
-      __ Ld_d(src, dst);
+      // Like AssembleMove, never load a 32-bit stack slot into a Word32
+      // register with a 64-bit load: the register must keep the loong64
+      // sign-extension invariant even if the slot's upper half is dirty.
+      if (Use32BitMove(source, destination)) {
+        __ Ld_w(src, dst);
+      } else {
+        __ Ld_d(src, dst);
+      }
       __ St_d(scratch, dst);
     }
   } else if (source->IsStackSlot()) {

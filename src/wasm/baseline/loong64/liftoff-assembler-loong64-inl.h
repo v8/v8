@@ -165,9 +165,8 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
 inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueKind kind) {
   switch (kind) {
     case kI32:
-      assm->addi_d(sp, sp, -kSystemPointerSize);
-      assm->St_w(reg.gp(), MemOperand(sp, 0));
-      break;
+      // Store the entire (sign-extended) register, clearing any old data in the
+      // upper half—rather than storing only the lower 4 bytes.
     case kI64:
     case kRefNull:
     case kRef:
@@ -1304,6 +1303,12 @@ void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
                                             uint32_t caller_slot_idx,
                                             ValueKind kind) {
   int32_t offset = kSystemPointerSize * (caller_slot_idx + 1);
+  if (kind == kI32) {
+    // Store the full (sign-extended) register, matching liftoff::push, so
+    // that the caller-frame slot is fully initialized.
+    St_d(src.gp(), MemOperand(fp, offset));
+    return;
+  }
   liftoff::Store(this, fp, offset, src, kind);
 }
 
@@ -4488,9 +4493,18 @@ void LiftoffStackSlots::Construct(int param_slots) {
     switch (src.loc()) {
       case LiftoffAssembler::VarState::kStack:
         if (src.kind() != kS128) {
+          UseScratchRegisterScope temps(asm_);
+          Register temp = temps.Acquire();
           asm_->AllocateStackSpace(stack_decrement - kSystemPointerSize);
-          asm_->Ld_d(kScratchReg, liftoff::GetStackSlot(slot.src_offset_));
-          asm_->Push(kScratchReg);
+          if (src.kind() == kI32) {
+            // Spill() only writes the low 4 bytes of an i32 spill slot, so the
+            // upper 4 bytes are stale. Load with sign extension so that the
+            // pushed 8-byte argument slot holds a canonical i32.
+            asm_->Ld_w(temp, liftoff::GetStackSlot(slot.src_offset_));
+          } else {
+            asm_->Ld_d(temp, liftoff::GetStackSlot(slot.src_offset_));
+          }
+          asm_->Push(temp);
         } else {
           asm_->AllocateStackSpace(stack_decrement - kSimd128Size);
           asm_->Vld(kScratchDoubleReg.toV(),
