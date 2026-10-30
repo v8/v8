@@ -132,6 +132,28 @@ void DescriptorArray::RebuildLookupTable(int len) {
           len, [this](uint32_t index) { return GetKey(InternalIndex(index)); });
 }
 
+void DescriptorArray::CopyFromOrRebuildLookupTable(
+    Tagged<DescriptorArray> source) {
+  int new_nof = number_of_descriptors();
+  if (new_nof <= kMaxElementsForLinearSearch) return;
+  int old_nof = source->number_of_descriptors();
+  DCHECK_LE(new_nof, old_nof);
+  Tagged<DescriptorLookupTable> source_table =
+      Cast<DescriptorLookupTable>(source->lookup_table());
+  Tagged<DescriptorLookupTable> table =
+      Cast<DescriptorLookupTable>(lookup_table());
+  if (table->capacity() == source_table->capacity() &&
+      old_nof - new_nof <= new_nof) {
+    table->CopyFrom(source_table);
+    table->RemoveEntries(old_nof, new_nof, [source](uint32_t index) {
+      return source->GetKey(InternalIndex(index));
+    });
+  } else {
+    RebuildLookupTable(new_nof);
+  }
+  DCHECK(VerifyLookupTable());
+}
+
 void DescriptorArray::RemoveFromLookupTable(int old_nof, int new_nof) {
   DCHECK_EQ(old_nof, number_of_descriptors());
   DCHECK_GT(new_nof, kMaxElementsForLinearSearch);
@@ -397,6 +419,12 @@ void DescriptorArray::Set(InternalIndex descriptor_number, Descriptor* desc) {
   Set(descriptor_number, key, value, desc->GetDetails());
   // Resetting the fast iterable state is bottlenecked in SetKey().
   DCHECK_NE(fast_iterable(), FastIterableState::kJsonFast);
+}
+
+void DescriptorArray::CopyFrom(InternalIndex index,
+                               Tagged<DescriptorArray> src) {
+  PropertyDetails details = src->GetDetails(index);
+  Set(index, src->GetKey(index), src->GetValue(index), details);
 }
 
 void DescriptorArray::Append(Descriptor* desc) {

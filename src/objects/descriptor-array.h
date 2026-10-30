@@ -175,6 +175,12 @@ V8_OBJECT class DescriptorArray : public HeapObject {
   // Clears and populates the lookup table with the first `len` descriptors.
   inline void RebuildLookupTable(int len);
 
+  // Initializes the lookup table for a DescriptorArray whose descriptors are a
+  // prefix of `source`'s descriptors: copies `source`'s lookup table and
+  // removes trailing entries if capacities match and removal requires fewer
+  // operations than rebuilding; otherwise rebuilds from scratch.
+  inline void CopyFromOrRebuildLookupTable(Tagged<DescriptorArray> source);
+
   // Removes descriptors in `[new_nof, old_nof)` from the lookup table during
   // right-trimming.
   inline void RemoveFromLookupTable(int old_nof, int new_nof);
@@ -364,7 +370,7 @@ V8_OBJECT class DescriptorArray : public HeapObject {
 
   // Transfer a complete descriptor from the src descriptor array to this
   // descriptor array.
-  void CopyFrom(InternalIndex index, Tagged<DescriptorArray> src);
+  inline void CopyFrom(InternalIndex index, Tagged<DescriptorArray> src);
 
   inline void SetSortedKey(int pointer, int descriptor_number);
 

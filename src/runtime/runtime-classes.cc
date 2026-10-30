@@ -369,21 +369,11 @@ bool AddDescriptorsByTemplate(
     }
   }
 #ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
-  if (nof_descriptors > DescriptorArray::kMaxElementsForLinearSearch) {
-    // |descriptors_template| already has a lookup table with the same keys at
-    // indices [0, nof_descriptors). Copy it directly unless duplicate class
-    // properties caused |descriptors_template| to be allocated with a larger
-    // lookup table capacity than |descriptors|.
-    Tagged<DescriptorLookupTable> template_table =
-        Cast<DescriptorLookupTable>(descriptors_template->lookup_table());
-    Tagged<DescriptorLookupTable> table =
-        Cast<DescriptorLookupTable>(descriptors->lookup_table());
-    if (table->capacity() == template_table->capacity()) {
-      table->CopyFrom(template_table);
-    } else {
-      descriptors->RebuildLookupTable(nof_descriptors);
-    }
-  }
+  // |descriptors_template| already has a lookup table with the same keys at
+  // indices [0, nof_descriptors). Copy it directly unless duplicate class
+  // properties caused |descriptors_template| to be allocated with a larger
+  // lookup table capacity than |descriptors|.
+  descriptors->CopyFromOrRebuildLookupTable(*descriptors_template);
 #endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 
   UpdateProtectors(isolate, receiver, descriptors_template);

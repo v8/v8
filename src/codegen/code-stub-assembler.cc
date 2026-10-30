@@ -12157,6 +12157,14 @@ void CodeStubAssembler::LookupTable(TNode<Name> unique_name,
   TNode<Uint32T> mask = Unsigned(Int32Sub(capacity, Int32Constant(1)));
   TNode<Uint32T> hash = LoadNameHashAssumeComputed(unique_name);
   CSA_DCHECK(this, Word32NotEqual(hash, Int32Constant(0)));
+  TNode<Uint32T> hash_tag =
+      Unsigned(Word32Shr(hash, Int32Constant(Table::kHashTagShift)));
+  // No GC can happen during the probe loop below, so it is safe to precompute
+  // a raw pointer to the start of the entries array for the sake of a better
+  // code on hot paths.
+  TNode<RawPtrT> entries_base =
+      RawPtrAdd(ReinterpretCast<RawPtrT>(lookup_table),
+                IntPtrConstant(Table::OffsetOfElementAt(0) - kHeapObjectTag));
   // First probe.
   TVARIABLE(Uint32T, var_count, Uint32Constant(0));
   TVARIABLE(Uint32T, var_slot, Word32And(hash, mask));
@@ -12165,23 +12173,16 @@ void CodeStubAssembler::LookupTable(TNode<Name> unique_name,
   Goto(&probe_loop);
   BIND(&probe_loop);
   {
-    TNode<IntPtrT> offset =
-        IntPtrAdd(IntPtrConstant(Table::OffsetOfElementAt(0) - kHeapObjectTag),
-                  Signed(WordShl(ChangeUint32ToWord(var_slot.value()),
-                                 IntPtrConstant(2))));
+    TNode<IntPtrT> offset = Signed(
+        WordShl(ChangeUint32ToWord(var_slot.value()), IntPtrConstant(2)));
     TNode<Uint32T> entry = UncheckedCast<Uint32T>(
-        LoadFromObject(MachineType::Uint32(), lookup_table, offset));
+        Load(MachineType::Uint32(), entries_base, offset));
     GotoIf(Word32Equal(entry, Int32Constant(Table::kEmptyEntry)), if_not_found);
 
     Label next(this);
-    // Compare the low kHashBits of `entry` and `hash` without masking both
-    // values separately. This relies on HashBits starting at bit 0.
-    static_assert(Table::Entry::HashBits::kShift == 0);
-    GotoIf(
-        Word32NotEqual(Word32And(Word32Xor(entry, hash),
-                                 Int32Constant(Table::Entry::HashBits::kMask)),
-                       Int32Constant(0)),
-        &next);
+    GotoIf(Word32NotEqual(DecodeWord32<Table::Entry::HashTagBits>(entry),
+                          hash_tag),
+           &next);
 
     // The index stored in the entry is 1-based.
     TNode<Uint32T> desc_index =

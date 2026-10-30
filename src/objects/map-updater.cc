@@ -1040,7 +1040,11 @@ DirectHandle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
     }
   }
 
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  new_descriptors->CopyFromOrRebuildLookupTable(*old_descriptors_);
+#else
   new_descriptors->Sort();
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   return new_descriptors;
 }
 

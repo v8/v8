@@ -59,13 +59,13 @@ bool LookupTable<IndexBits, U>::Lookup(Tagged<Name> name,
                                        uint32_t* out_index) const {
   uint32_t mask = slot_mask();
   uint32_t hash = name->hash();
-  uint32_t tag = MaskHash(hash);
+  uint32_t hash_tag = ExtractHashTag(hash);
   uint32_t count = 1;
   uint32_t slot = FirstProbe(hash, mask);
   while (true) {
     Entry entry = this->get(slot);
     if (entry == kEmptyEntry) return false;
-    if (entry.hash() == tag) {
+    if (entry.hash_tag() == hash_tag) {
       uint32_t index = entry.one_based_index() - 1;
       if (index < valid_entries && get_key(index) == name) {
         *out_index = index;
@@ -80,17 +80,24 @@ template <uint32_t IndexBits, typename U>
 template <typename KeyGetter>
 void LookupTable<IndexBits, U>::Insert(Tagged<Name> key, uint32_t hash,
                                        uint32_t index, KeyGetter&& get_key) {
+  Insert(slot_mask(), key, hash, index, std::forward<KeyGetter>(get_key));
+}
+
+template <uint32_t IndexBits, typename U>
+template <typename KeyGetter>
+void LookupTable<IndexBits, U>::Insert(uint32_t mask, Tagged<Name> key,
+                                       uint32_t hash, uint32_t index,
+                                       KeyGetter&& get_key) {
   USE(key, get_key);
-  uint32_t mask = slot_mask();
 #ifdef DEBUG
-  uint32_t tag = MaskHash(hash);
+  uint32_t hash_tag = ExtractHashTag(hash);
 #endif
   uint32_t count = 1;
   uint32_t slot = FirstProbe(hash, mask);
   while (true) {
     Entry entry = this->get(slot);
     if (entry == kEmptyEntry) break;
-    DCHECK_IMPLIES(entry.hash() == tag,
+    DCHECK_IMPLIES(entry.hash_tag() == hash_tag,
                    get_key(entry.one_based_index() - 1) != key);
     slot = NextProbe(slot, count++, mask);
   }
@@ -102,15 +109,16 @@ template <typename KeyGetter>
 void LookupTable<IndexBits, U>::Rebuild(uint32_t number_of_elements,
                                         KeyGetter&& get_key) {
   Clear();
+  uint32_t mask = slot_mask();
   for (uint32_t i = 0; i < number_of_elements; ++i) {
     Tagged<Name> key = get_key(i);
-    Insert(key, key->hash(), i, get_key);
+    Insert(mask, key, key->hash(), i, get_key);
   }
 }
 
 template <uint32_t IndexBits, typename U>
-void LookupTable<IndexBits, U>::Remove(uint32_t hash, uint32_t index) {
-  uint32_t mask = slot_mask();
+void LookupTable<IndexBits, U>::Remove(uint32_t mask, uint32_t hash,
+                                       uint32_t index) {
   U expected = EncodeEntry(hash, index);
   uint32_t count = 1;
   uint32_t slot = FirstProbe(hash, mask);
@@ -127,9 +135,10 @@ void LookupTable<IndexBits, U>::RemoveEntries(uint32_t old_nof,
                                               uint32_t new_nof,
                                               KeyGetter&& get_key) {
   DCHECK_LE(new_nof, old_nof);
+  uint32_t mask = slot_mask();
   while (old_nof > new_nof) {
     --old_nof;
-    Remove(get_key(old_nof)->hash(), old_nof);
+    Remove(mask, get_key(old_nof)->hash(), old_nof);
   }
 }
 

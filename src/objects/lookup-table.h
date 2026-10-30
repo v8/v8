@@ -18,8 +18,11 @@ namespace v8::internal {
 
 // Open-addressed hash table with quadratic probing mapping Name keys to
 // indices. Each entry of type `U` encodes a 1-based index in the upper
-// `kIndexBits` bits and the low `kHashBits` bits of the Name's hash in the
-// lower bits. Entry value 0 denotes an empty bucket.
+// `kIndexBits` bits and a hash tag in the lower `kHashTagBits` bits. The hash
+// tag is a partial fingerprint consisting of the upper `kHashTagBits` bits of
+// the Name's hash (the low bits are already used for the initial bucket
+// calculation), used to filter out probe collisions before loading and
+// comparing the full Name key. Entry value 0 denotes an empty bucket.
 V8_OBJECT
 template <uint32_t kIndexBits_, typename U = uint32_t>
 class LookupTable : public FixedIntegerArrayBase<U, ByteArray> {
@@ -27,21 +30,26 @@ class LookupTable : public FixedIntegerArrayBase<U, ByteArray> {
   using Super = FixedIntegerArrayBase<U, ByteArray>;
 
  public:
+  // Number of bits in each Entry used to store the 1-based element index.
   static constexpr int kIndexBits = kIndexBits_;
-  static constexpr int kHashBits = sizeof(U) * kBitsPerByte - kIndexBits;
-  static_assert(kIndexBits > 0 && kHashBits > 0);
-  static_assert(kHashBits <= Name::HashBits::kSize);
+  // Number of remaining bits in each Entry used to store the hash tag.
+  static constexpr int kHashTagBits = sizeof(U) * kBitsPerByte - kIndexBits;
+  // Right-shift amount to extract the upper `kHashTagBits` bits from a
+  // `Name::HashBits::kSize`-bit Name hash.
+  static constexpr int kHashTagShift = Name::HashBits::kSize - kHashTagBits;
+  static_assert(kIndexBits > 0 && kHashTagBits > 0);
+  static_assert(kHashTagBits <= Name::HashBits::kSize);
 
   struct Entry : BitFieldGroup<Entry, U> {
     using Base = BitFieldGroup<Entry, U>;
     using Base::Base;
     using typename Base::GroupType;
 
-    using HashBits = typename Base::template First<uint32_t, kHashBits>;
+    using HashTagBits = typename Base::template First<uint32_t, kHashTagBits>;
     using OneBasedIndexBits =
-        typename HashBits::template Next<uint32_t, kIndexBits>;
+        typename HashTagBits::template Next<uint32_t, kIndexBits>;
 
-    BIT_FIELD_GROUP_ACCESSORS(hash, HashBits)
+    BIT_FIELD_GROUP_ACCESSORS(hash_tag, HashTagBits)
     BIT_FIELD_GROUP_ACCESSORS(one_based_index, OneBasedIndexBits)
   };
 
@@ -90,26 +98,32 @@ class LookupTable : public FixedIntegerArrayBase<U, ByteArray> {
 #endif  // DEBUG
 
  private:
+  template <typename KeyGetter>
+  V8_INLINE void Insert(uint32_t mask, Tagged<Name> key, uint32_t hash,
+                        uint32_t index, KeyGetter&& get_key);
+
   // Removes the most recently inserted entry (`index`). Only supports removing
   // the last entry (in reverse insertion order, as done by `RemoveEntries`):
   // since the table does not use tombstones, clearing an earlier entry's slot
   // to `kEmptyEntry` could break the probe chain of entries inserted after it.
   // TODO(572302954): implement proper remove.
-  inline void Remove(uint32_t hash, uint32_t index);
+  inline void Remove(uint32_t mask, uint32_t hash, uint32_t index);
 
   V8_INLINE uint32_t slot_mask() const;
 
-  // Mask out hash bits that do not fit into the HashBits field.
-  static constexpr uint32_t MaskHash(uint32_t hash) {
-    constexpr uint32_t kHashMask = Entry::HashBits::kMax;
-    return hash & kHashMask;
+  // Extract the upper kHashTagBits of the Name's hash as a hash tag, since the
+  // low bits are already used for the initial bucket calculation.
+  static constexpr uint32_t ExtractHashTag(uint32_t hash) {
+    DCHECK_LE(hash, Name::HashBits::kMax);
+    return hash >> kHashTagShift;
   }
 
   static constexpr Entry EncodeEntry(uint32_t hash, uint32_t index) {
     // The 1-based index is guaranteed to fit in the bit field.
     DCHECK_LT(index, kMaxElements);
-    return Entry().with_one_based_index_unchecked(index + 1).with_hash(
-        MaskHash(hash));
+    return Entry()
+        .with_one_based_index_unchecked(index + 1)
+        .with_hash_tag_unchecked(ExtractHashTag(hash));
   }
 
   static constexpr uint32_t FirstProbe(uint32_t hash, uint32_t mask) {

@@ -3954,17 +3954,8 @@ DirectHandle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
 #ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   if (reuse_lookup_table) {
     copy->set_lookup_table(source->lookup_table());
-  } else if (enumeration_index > kMaxElementsForLinearSearch) {
-    Tagged<DescriptorLookupTable> source_table =
-        Cast<DescriptorLookupTable>(source->lookup_table());
-    Tagged<DescriptorLookupTable> copy_table =
-        Cast<DescriptorLookupTable>(copy->lookup_table());
-    if (enumeration_index == source->number_of_descriptors() &&
-        copy_table->capacity() == source_table->capacity()) {
-      copy_table->CopyFrom(source_table);
-    } else {
-      copy->RebuildLookupTable(enumeration_index);
-    }
+  } else {
+    copy->CopyFromOrRebuildLookupTable(source);
   }
   if (replace_source && !IsUndefined(source->lookup_table())) {
     source->set_lookup_table(ReadOnlyRoots(isolate).undefined_value(),
@@ -4199,12 +4190,6 @@ void DescriptorArray::InitializeOrChangeEnumCache(
     enum_cache->set_keys(*keys);
     enum_cache->set_indices(*indices);
   }
-}
-
-void DescriptorArray::CopyFrom(InternalIndex index,
-                               Tagged<DescriptorArray> src) {
-  PropertyDetails details = src->GetDetails(index);
-  Set(index, src->GetKey(index), src->GetValue(index), details);
 }
 
 void DescriptorArray::SortImpl(const int len) {
