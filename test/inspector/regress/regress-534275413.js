@@ -68,14 +68,13 @@ new DataView(instance.exports.mem2.buffer).setInt32(0, 42, true);
 `);
 
 Protocol.Debugger.onPaused(async () => {
-  // Growing memory 2 should fail because it cannot grow in place (because of
-  // --stress-wasm-memory-moving).
+  // The pause is deferred until after main() returns, so growing memory 2 and
+  // memory 1 during onPaused now succeeds safely and returns the previous size
+  // (1 page).
   let {result: {result: res2}} = await Protocol.Runtime.evaluate({
     expression: 'instance.exports.mem2.grow(1)',
   });
   InspectorTest.log(res2.description.split('\n')[0]);
-  // Growing memory 1 should also fail even when it must grow in place (via
-  // toResizableBuffer()).
   let {result: {result: res1}} = await Protocol.Runtime.evaluate({
     expression: `
       instance.exports.mem1.toResizableBuffer();
