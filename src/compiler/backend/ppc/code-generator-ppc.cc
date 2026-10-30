@@ -1681,14 +1681,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(SetRC, i.OutputRCBit());
       break;
     }
-    case kPPC_Tst64:
+    case kPPC_Tst64: {
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
       if (HasRegisterInput(instr, 1)) {
-        __ and_(r0, i.InputRegister(0), i.InputRegister(1), i.OutputRCBit());
+        __ and_(scratch, i.InputRegister(0), i.InputRegister(1),
+                i.OutputRCBit());
       } else {
-        __ andi(r0, i.InputRegister(0), i.InputImmediate(1));
+        __ andi(scratch, i.InputRegister(0), i.InputImmediate(1));
       }
       DCHECK_EQ(SetRC, i.OutputRCBit());
       break;
+    }
     case kPPC_Float64SilenceNaN: {
       DoubleRegister value = i.InputDoubleRegister(0);
       DoubleRegister result = i.OutputDoubleRegister();
