@@ -69,6 +69,15 @@ Address TrustedPointerTableEntry::GetMaybeUnpublished(
   return payload.Untag(tag_range);
 }
 
+Address TrustedPointerTableEntry::GetIfPublished(
+    TrustedPointerTagRange tag_range) const {
+  auto payload = payload_.load(std::memory_order_acquire);
+  if (payload.IsTaggedWithTagIn(kUnpublishedTrustedPointerTag)) {
+    return kNullAddress;
+  }
+  return payload.Untag(tag_range);
+}
+
 TrustedPointerTag TrustedPointerTableEntry::GetTag() const {
   return payload_.load(std::memory_order_relaxed).ExtractTag();
 }
@@ -141,6 +150,11 @@ Address TrustedPointerTable::GetMaybeUnpublished(
   uint32_t index = HandleToIndex(handle);
   const TrustedPointerTableEntry& entry = at(index);
   return entry.GetMaybeUnpublished(tag_range);
+}
+
+Address TrustedPointerTable::GetIfPublished(
+    TrustedPointerHandle handle, TrustedPointerTagRange tag_range) const {
+  return at(HandleToIndex(handle)).GetIfPublished(tag_range);
 }
 
 void TrustedPointerTable::Set(TrustedPointerHandle handle, Address pointer,

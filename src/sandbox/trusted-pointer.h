@@ -157,12 +157,15 @@ class TrustedPointerMember
 
   inline Tagged<T> load(IsolateForSandbox isolate) const;
   inline Tagged<Object> load_maybe_empty(IsolateForSandbox isolate) const;
+  inline Tagged<Object> load_if_published(IsolateForSandbox isolate) const;
   inline void store(HeapObject* host, Tagged<T> value,
                     WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void store_no_write_barrier(HeapObject* host, Tagged<T> value);
 
   inline Tagged<T> Acquire_Load(IsolateForSandbox isolate) const;
   inline Tagged<Object> Acquire_Load_maybe_empty(
+      IsolateForSandbox isolate) const;
+  inline Tagged<Object> Acquire_Load_if_published(
       IsolateForSandbox isolate) const;
   inline void Release_Store(HeapObject* host, Tagged<T> value,
                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
