@@ -1320,6 +1320,22 @@ bool IsAPIFunctionWithSideEffects(v8::Local<v8::Value> value) {
   return info->has_side_effects();
 }
 
+bool IsBuiltinOrApiFunction(v8::Local<v8::Function> function) {
+  if (function.IsEmpty()) return false;
+  auto self = v8::Utils::OpenDirectHandle(*function);
+  if (!i::IsJSFunction(*self)) return false;
+  i::DirectHandle<i::JSFunction> js_function = i::Cast<i::JSFunction>(self);
+  i::Tagged<i::SharedFunctionInfo> shared = js_function->shared();
+  return (shared->HasBuiltinId() &&
+          shared->builtin_id() != i::Builtin::kCompileLazy) ||
+         shared->IsApiFunction();
+}
+
+bool IsBuiltinOrApiFunction(v8::Local<v8::Value> value) {
+  if (value.IsEmpty() || !value->IsFunction()) return false;
+  return IsBuiltinOrApiFunction(value.As<v8::Function>());
+}
+
 void GlobalLexicalScopeNames(v8::Local<v8::Context> v8_context,
                              std::vector<v8::Global<v8::String>>* names) {
   auto context = Utils::OpenDirectHandle(*v8_context);

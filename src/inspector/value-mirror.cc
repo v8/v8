@@ -318,12 +318,7 @@ String16 descriptionForRegExp(v8::Isolate* isolate,
 }
 
 bool isBuiltinGetter(v8::Local<v8::Function> function) {
-  if (function->IsProxy()) return false;
-  // A bound function may forward to user code via its bound receiver or
-  // bound arguments even when the underlying target is a builtin, so it is
-  // never treated as a plain builtin getter.
-  if (function->GetBoundFunction()->IsFunction()) return false;
-  return function->ScriptId() == v8::UnboundScript::kNoScriptId;
+  return v8::debug::IsBuiltinOrApiFunction(function);
 }
 
 v8::MaybeLocal<v8::Value> getErrorProperty(v8::Local<v8::Context> context,

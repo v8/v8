@@ -84,6 +84,142 @@ TEST_F(InspectorTest, WrapInsideWrapOnInterrupt) {
                       false);
 }
 
+using InspectorShadowRealmTest = TestShadowRealmWithContext;
+
+namespace {
+
+v8::MaybeLocal<v8::Context> CreateShadowRealmContext(
+    v8::Local<v8::Context> initiator_context) {
+  return v8::Context::New(v8::Isolate::GetCurrent());
+}
+
+// Collects every protocol response so the test can inspect the JSON.
+class CollectingChannel : public V8Inspector::Channel {
+ public:
+  ~CollectingChannel() override = default;
+  void sendResponse(int callId,
+                    std::unique_ptr<StringBuffer> message) override {
+    m_responses.push_back(toString16(message->string()));
+  }
+  void sendNotification(std::unique_ptr<StringBuffer> message) override {}
+  void flushProtocolNotifications() override {}
+
+  const String16& lastResponse() const { return m_responses.back(); }
+
+ private:
+  std::vector<String16> m_responses;
+};
+
+}  // namespace
+
+// Runtime.getProperties must not invoke a getter that is a ShadowRealm wrapped
+// function: such a getter runs user JavaScript in the shadow realm.
+TEST_F(InspectorShadowRealmTest,
+       GetPropertiesDoesNotCallWrappedFunctionGetter) {
+  v8::Isolate* isolate = v8_isolate();
+  v8::HandleScope handle_scope(isolate);
+  isolate->SetHostCreateShadowRealmContextCallback(CreateShadowRealmContext);
+
+  v8_inspector::V8InspectorClient default_client;
+  std::unique_ptr<V8Inspector> inspector =
+      V8Inspector::create(isolate, &default_client);
+  V8ContextInfo context_info(v8_context(), 1, StringView());
+  inspector->contextCreated(context_info);
+
+  CollectingChannel channel;
+  std::unique_ptr<V8InspectorSession> session =
+      inspector->connect(1, &channel, toStringView("{}"),
+                         v8_inspector::V8Inspector::kFullyTrusted);
+
+  // The holder is itself callable so that the wrapped getter's receiver can
+  // be wrapped for the shadow realm (GetWrappedValue requires a callable or a
+  // primitive).
+  RunJS(
+      "globalThis.realm = new ShadowRealm();"
+      "realm.evaluate('globalThis.calls = 0');"
+      "globalThis.obj = function holder() {};"
+      "Object.defineProperty(obj, 'x', {"
+      "  configurable: true, enumerable: true,"
+      "  get: realm.evaluate('() => { globalThis.calls++; return 42; }')"
+      "});");
+
+  session->dispatchProtocolMessage(
+      toStringView("{\"id\": 1, \"method\": \"Runtime.evaluate\", \"params\": "
+                   "{\"expression\": \"obj\", \"contextId\": 1}}"));
+  std::string response = channel.lastResponse().utf8();
+  const char kObjectIdKey[] = "\"objectId\":\"";
+  size_t object_id_start = response.find(kObjectIdKey);
+  CHECK_NE(object_id_start, std::string::npos);
+  object_id_start += strlen(kObjectIdKey);
+  size_t object_id_end = response.find("\"", object_id_start);
+  CHECK_NE(object_id_end, std::string::npos);
+  std::string object_id =
+      response.substr(object_id_start, object_id_end - object_id_start);
+
+  std::string command =
+      "{\"id\": 2, \"method\": \"Runtime.getProperties\", \"params\": "
+      "{\"ownProperties\": true, \"objectId\": \"" +
+      object_id + "\"}}";
+  session->dispatchProtocolMessage(toStringView(String16(command.c_str())));
+
+  // The property must be reported as an accessor, not as an eagerly evaluated
+  // value: the inspector must not run the wrapped getter.
+  CHECK_EQ(channel.lastResponse().utf8().find(
+               "\"name\":\"x\",\"value\":{\"type\":\"number\",\"value\":42"),
+           std::string::npos);
+
+  // And the wrapped function must not have run.
+  v8::Local<v8::Value> calls = RunJS("realm.evaluate('String(calls)')");
+  v8::String::Utf8Value calls_utf8(isolate, calls);
+  CHECK_EQ(std::string(*calls_utf8), std::string("0"));
+}
+
+// Runtime.getProperties still eagerly evaluates builtin getters (e.g.
+// Map.prototype.size).
+TEST_F(InspectorTest, GetPropertiesEagerlyEvaluatesBuiltinGetter) {
+  v8::Isolate* isolate = v8_isolate();
+  v8::HandleScope handle_scope(isolate);
+
+  v8_inspector::V8InspectorClient default_client;
+  std::unique_ptr<V8Inspector> inspector =
+      V8Inspector::create(isolate, &default_client);
+  V8ContextInfo context_info(v8_context(), 1, StringView());
+  inspector->contextCreated(context_info);
+
+  CollectingChannel channel;
+  std::unique_ptr<V8InspectorSession> session =
+      inspector->connect(1, &channel, toStringView("{}"),
+                         v8_inspector::V8Inspector::kFullyTrusted);
+
+  RunJS("globalThis.map = new Map([['a', 1], ['b', 2]]);");
+
+  session->dispatchProtocolMessage(
+      toStringView("{\"id\": 1, \"method\": \"Runtime.evaluate\", \"params\": "
+                   "{\"expression\": \"map\", \"contextId\": 1}}"));
+  std::string response = channel.lastResponse().utf8();
+  const char kObjectIdKey[] = "\"objectId\":\"";
+  size_t object_id_start = response.find(kObjectIdKey);
+  CHECK_NE(object_id_start, std::string::npos);
+  object_id_start += strlen(kObjectIdKey);
+  size_t object_id_end = response.find("\"", object_id_start);
+  CHECK_NE(object_id_end, std::string::npos);
+  std::string object_id =
+      response.substr(object_id_start, object_id_end - object_id_start);
+
+  std::string command =
+      "{\"id\": 2, \"method\": \"Runtime.getProperties\", \"params\": "
+      "{\"ownProperties\": false, \"accessorPropertiesOnly\": false, "
+      "\"objectId\": \"" +
+      object_id + "\"}}";
+  session->dispatchProtocolMessage(toStringView(String16(command.c_str())));
+
+  // Map.prototype.size is a builtin getter, so it must be eagerly evaluated to
+  // value: 2.
+  CHECK_NE(channel.lastResponse().utf8().find(
+               "\"name\":\"size\",\"value\":{\"type\":\"number\",\"value\":2"),
+           std::string::npos);
+}
+
 TEST_F(InspectorTest, BinaryFromBase64) {
   auto checkBinary = [](const v8_inspector::protocol::Binary& binary,
                         const std::vector<uint8_t>& values) {
