@@ -8705,6 +8705,20 @@ i::DirectHandle<i::JSArray> MapAsArray(i::Isolate* i_isolate,
 
 }  // namespace
 
+Local<Value> Map::Get(Local<Value> key, bool* found) const {
+  DCHECK_NOT_NULL(found);
+  auto self = Utils::OpenDirectHandle(this);
+  i::Isolate* i_isolate = i::Isolate::Current();
+  i::DisallowGarbageCollection no_gc;
+  i::Tagged<i::OrderedHashMap> table =
+      i::Cast<i::OrderedHashMap>(self->table());
+  i::InternalIndex entry =
+      table->FindEntry(i_isolate, *Utils::OpenDirectHandle(*key));
+  *found = entry.is_found();
+  if (!*found) return Utils::ToLocal(i_isolate->factory()->undefined_value());
+  return Utils::ToLocal(i::direct_handle(table->ValueAt(entry), i_isolate));
+}
+
 Local<Array> Map::AsArray() const {
   auto obj = Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate = i::Isolate::Current();

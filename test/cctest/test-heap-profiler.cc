@@ -4848,6 +4848,62 @@ TEST(SamplingHeapProfilerNullSampleContext) {
   }
 }
 
+namespace {
+
+v8::Global<v8::Map>* lookup_map = nullptr;
+v8::Global<v8::Object>* lookup_key = nullptr;
+int lookup_hits = 0;
+int lookup_failures = 0;
+
+void* MapLookupSampleContextExtractor(v8::Isolate* isolate) {
+  bool found = false;
+  lookup_map->Get(isolate)->Get(lookup_key->Get(isolate), &found);
+  if (found) {
+    ++lookup_hits;
+  } else {
+    ++lookup_failures;
+  }
+  return nullptr;
+}
+
+}  // namespace
+
+TEST(SamplingHeapProfilerMapLookupInExtractor) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+
+  v8::Global<v8::Map> map(
+      isolate, CompileRun("var key = {}; var map = new Map([[key, 1]]); map")
+                   .As<v8::Map>());
+  v8::Global<v8::Object> key(isolate, CompileRun("key").As<v8::Object>());
+  lookup_map = &map;
+  lookup_key = &key;
+  lookup_hits = lookup_failures = 0;
+
+  i::v8_flags.sampling_heap_profiler_suppress_randomness.Set(true);
+  CHECK(heap_profiler->StartSamplingHeapProfiler(
+      64, 16, v8::HeapProfiler::kSamplingNoFlags,
+      MapLookupSampleContextExtractor));
+  // Growing and shrinking the Map allocates replacement tables, so some
+  // lookups run before the replacement is installed. They must still find
+  // the key.
+  CompileRun(
+      "for (var i = 0; i < 100; i++) {\n"
+      "  var others = [];\n"
+      "  for (var j = 0; j < 40; j++) others.push({});\n"
+      "  for (var j = 0; j < 40; j++) map.set(others[j], j);\n"
+      "  for (var j = 0; j < 40; j++) map.delete(others[j]);\n"
+      "}\n");
+  heap_profiler->StopSamplingHeapProfiler();
+  lookup_map = nullptr;
+  lookup_key = nullptr;
+
+  CHECK_GT(lookup_hits, 0);
+  CHECK_EQ(0, lookup_failures);
+}
+
 TEST(HeapSnapshotPrototypeNotJSReceiver) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());

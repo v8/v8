@@ -1318,7 +1318,7 @@ class V8_EXPORT HeapProfiler {
    * AllocationProfile::Sample::context. Because it runs while the allocation is
    * being sampled, it MUST NOT run JavaScript, allocate on a managed heap
    * (including cppgc) or call into the HeapProfiler. It may create local
-   * handles.
+   * handles. It may use Map::Get(Local<Value>, bool*) to read a Map.
    *
    * Returns false if a sampling heap profiler is already running.
    */
