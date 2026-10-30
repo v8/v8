@@ -7570,4 +7570,66 @@ TEST(StepOverEnterFunctions) {
       RunStepOverEnterFunctions(true));
 }
 
+std::string RunStepOverEnterFunctionsImplicitCall() {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  StepOverEnterFunctionsDelegate delegate(isolate, true);
+  v8::debug::SetDebugDelegate(isolate, &delegate);
+  CompileRun(
+      "var o = { get t() {\n"   // 0: Entered.
+      "    return 1;\n"         // 1
+      "  }, get g() {\n"        // 2: Not entered.
+      "    return 2;\n"         // 3
+      "  }\n"                   // 4
+      "};\n"                    // 5
+      "\n"                      // 6
+      "function F() {\n"        // 7
+      "  debugger;\n"           // 8
+      "  var r = o.t + o.g;\n"  // 9
+      "  return r;\n"           // 10
+      "}\n");                   // 11
+  CompileRun("F()");
+  v8::debug::SetDebugDelegate(isolate, nullptr);
+  CheckDebuggerUnloaded();
+  return delegate.pauses();
+}
+
+TEST(StepOverEnterFunctionsImplicitCall) {
+  CHECK_EQ("F:8:2 F:9:10 get t:1:4 get t:1:13 F:10:11 :0:3 ",
+           RunStepOverEnterFunctionsImplicitCall());
+}
+
+std::string RunStepOverEnterFunctionsGenerator() {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  StepOverEnterFunctionsDelegate delegate(isolate, true);
+  v8::debug::SetDebugDelegate(isolate, &delegate);
+  CompileRun(
+      "function T() {\n"   // 0: Entered.
+      "  return 1;\n"      // 1
+      "}\n"                // 2
+      "function* G() {\n"  // 3: Not entered.
+      "  debugger;\n"      // 4
+      "  yield 1;\n"       // 5
+      "  return 2;\n"      // 6
+      "}\n"                // 7
+      "function F() {\n"   // 8
+      "  var g = G();\n"   // 9
+      "  g.next();\n"      // 10
+      "  g.next();\n"      // 11
+      "  return 0;\n"      // 12
+      "}\n");              // 13
+  CompileRun("F()");
+  v8::debug::SetDebugDelegate(isolate, nullptr);
+  CheckDebuggerUnloaded();
+  return delegate.pauses();
+}
+
+TEST(StepOverEnterFunctionsGenerator) {
+  CHECK_EQ("G:4:2 G:5:2 G:6:2 G:6:11 F:12:2 F:12:11 :0:3 ",
+           RunStepOverEnterFunctionsGenerator());
+}
+
 }  // namespace

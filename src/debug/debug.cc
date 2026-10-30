@@ -1524,7 +1524,7 @@ void Debug::PrepareStepOnThrow() {
       continue;
     }
     JavaScriptFrame* frame = it.javascript_frame();
-    if (last_step_action() == StepInto) {
+    if (last_step_action() == StepInto || step_over_enters_functions()) {
       // Deoptimize frame to ensure calls are checked for step-in.
       Deoptimizer::DeoptimizeFunction(frame->function(),
                                       LazyDeoptimizeReason::kDebugger,
@@ -1617,7 +1617,9 @@ void Debug::PrepareStep(StepAction step_action) {
         thread_local_.ignore_step_into_function_ = *function;
       }
       step_action = StepOut;
-      thread_local_.last_step_action_ = StepInto;
+      if (!step_over_enters_functions()) {
+        thread_local_.last_step_action_ = StepInto;
+      }
     }
 
     // We need to schedule DebugOnFunction call callback
@@ -1728,7 +1730,7 @@ void Debug::PrepareStep(StepAction step_action) {
         }
 #endif  // V8_ENABLE_WEBASSEMBLY
         JavaScriptFrame* js_frame = JavaScriptFrame::cast(frames_it.frame());
-        if (last_step_action() == StepInto) {
+        if (last_step_action() == StepInto || step_over_enters_functions()) {
           // Deoptimize frame to ensure calls are checked for step-in.
           Deoptimizer::DeoptimizeFunction(js_frame->function(),
                                           LazyDeoptimizeReason::kDebugger,
@@ -2787,6 +2789,7 @@ void Debug::OnException(DirectHandle<Object> exception,
       promise_object = isolate_->factory()->undefined_value();
     }
     RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebuggerCallback);
+    thread_local_.step_over_enters_functions_ = false;
     debug_delegate_->ExceptionThrown(
         v8::Utils::ToLocal(isolate_->native_context()),
         v8::Utils::ToLocal(exception), v8::Utils::ToLocal(promise_object),
@@ -2825,6 +2828,7 @@ void Debug::OnDebugBreak(DirectHandle<FixedArray> break_points_hit,
     if (lastStepAction != StepAction::StepNone) {
       break_reasons.Add(debug::BreakReason::kStep);
     }
+    thread_local_.step_over_enters_functions_ = false;
     debug_delegate_->BreakProgramRequested(
         v8::Utils::ToLocal(isolate_->native_context()),
         inspector_break_points_hit, break_reasons);

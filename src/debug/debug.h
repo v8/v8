@@ -681,8 +681,9 @@ class V8_EXPORT_PRIVATE Debug {
     bool fast_forward_to_return_;
 
     // If set, StepOver also enters functions selected by the delegate. Set by
-    // every step command and not reset by ClearStepping, so that re-prepared
-    // steps keep it.
+    // StepOver with enter_functions and preserved across internally re-prepared
+    // steps (e.g. stepping out of entered functions or generator initial
+    // yield).
     bool step_over_enters_functions_;
 
     // Source statement position from last step next action.

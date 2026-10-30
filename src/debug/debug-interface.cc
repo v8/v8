@@ -419,7 +419,8 @@ void PrepareStep(Isolate* v8_isolate, StepAction action, bool enter_functions) {
   // Clear all current stepping setup.
   isolate->debug()->ClearStepping();
   // Prepare step.
-  isolate->debug()->set_step_over_enters_functions(enter_functions);
+  isolate->debug()->set_step_over_enters_functions(action == StepOver &&
+                                                   enter_functions);
   isolate->debug()->PrepareStep(static_cast<i::StepAction>(action));
 }
 
@@ -433,6 +434,7 @@ bool PrepareRestartFrame(Isolate* v8_isolate, int callFrameOrdinal) {
 
   // Clear all current stepping setup.
   isolate->debug()->ClearStepping();
+  isolate->debug()->set_step_over_enters_functions(false);
   it.PrepareRestart();
   return true;
 }
@@ -442,6 +444,7 @@ void ClearStepping(Isolate* v8_isolate) {
   EnterV8NoScriptNoExceptionScope api_scope(isolate);
   // Clear all current stepping setup.
   isolate->debug()->ClearStepping();
+  isolate->debug()->set_step_over_enters_functions(false);
 }
 
 bool BreakRightNow(Isolate* v8_isolate,
