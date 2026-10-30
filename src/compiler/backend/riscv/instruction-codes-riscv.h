@@ -53,6 +53,7 @@ namespace compiler {
   V(RiscvAddOvf32)                                   \
   V(RiscvSubOvf32)                                   \
   V(RiscvAdd128)                                     \
+  V(RiscvAdd64_3)                                    \
   V(RiscvSub128)                                     \
   V(RiscvMulHigh64)                                  \
   V(RiscvMulHighU64)                                 \

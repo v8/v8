@@ -31,6 +31,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvMulHigh64:
     case kRiscvMulHighU64:
     case kRiscvAdd64:
+    case kRiscvAdd64_3:
     case kRiscvClz64:
     case kRiscvDiv64:
     case kRiscvDivU64:
@@ -1109,6 +1110,14 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kRiscvAdd64:
     case kRiscvAddOvf32:
       return Add64Latency(instr->InputAt(1)->IsRegister());
+    case kRiscvAdd64_3: {
+      int latency = Add64Latency(instr->InputAt(1)->IsRegister()) +
+                    Add64Latency(instr->InputAt(2)->IsRegister());
+      if (instr->OutputCount() > 1) {
+        latency += Add64Latency() + SltuLatency() * 2;
+      }
+      return latency;
+    }
     case kRiscvSub32:
     case kRiscvSub64:
     case kRiscvSubOvf32:
@@ -1786,6 +1795,7 @@ ArchInstResource InstructionScheduler::GetInstructionResource(
     case kRiscvI64x2UConvertI32x4High:
 #endif
     case kRiscvAdd64:
+    case kRiscvAdd64_3:
     case kRiscvSub64:
     case kRiscvShl64:
     case kRiscvShr64:

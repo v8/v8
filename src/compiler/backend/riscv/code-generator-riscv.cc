@@ -1548,6 +1548,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ AddWord(i.OutputRegister(), i.InputOrZeroRegister(0),
                  i.InputOperand(1));
       break;
+    case kRiscvAdd64_3: {
+      Register out_low = i.OutputRegister(0);
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      __ AddWord(scratch, i.InputRegister(0), i.InputOperand(1));
+      if (instr->OutputCount() > 1) {
+        Register high = i.OutputRegister(1);
+        __ Sltu(high, scratch, i.InputRegister(0));
+        __ AddWord(out_low, scratch, i.InputOperand(2));
+        __ Sltu(scratch, out_low, scratch);
+        __ AddWord(high, high, scratch);
+      } else {
+        __ AddWord(out_low, scratch, i.InputOperand(2));
+      }
+      break;
+    }
     case kRiscvSub64:
       __ Sub64(i.OutputRegister(), i.InputOrZeroRegister(0), i.InputOperand(1));
       break;
