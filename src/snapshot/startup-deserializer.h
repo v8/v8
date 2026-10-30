@@ -19,7 +19,8 @@ class StartupDeserializer final : public Deserializer<Isolate> {
                                bool can_rehash)
       : Deserializer(isolate, startup_data->Payload(),
                      /* trusted_payload */ {}, startup_data->GetMagicNumber(),
-                     /* deserializing_user_code */ false, can_rehash) {}
+                     /* deserializing_user_code */ false, can_rehash,
+                     SnapshotTrustLevel::kTrusted) {}
 
   // Deserialize the snapshot into an empty heap.
   void DeserializeIntoIsolate();

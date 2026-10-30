@@ -49,11 +49,25 @@ class Deserializer : public SerializerDeserializer {
   Deserializer& operator=(const Deserializer&) = delete;
 
  protected:
+  enum class SnapshotTrustLevel {
+    // Fully trusted (e.g., read-only snapshot).
+    kTrusted,
+    // An untrusted section followed by a trusted section (e.g., code caches).
+    kUntrustedWithTrustedSection,
+    // Only an untrusted section (e.g., the shared heap snapshot, which only has
+    // strings). It is read like that of a code cache, so it can't use trusted
+    // bytecodes.
+    kUntrusted,
+  };
+  static constexpr bool HasUntrustedSection(SnapshotTrustLevel trust_level) {
+    return trust_level != SnapshotTrustLevel::kTrusted;
+  }
+
   // Create a deserializer from a snapshot byte source.
   Deserializer(IsolateT* isolate, base::Vector<const uint8_t> untrusted_payload,
                base::Vector<const uint8_t> trusted_payload,
                uint32_t magic_number, bool deserializing_user_code,
-               bool can_rehash);
+               bool can_rehash, SnapshotTrustLevel trust_level);
 
   void DeserializeDeferredObjects();
   // For code caches. The untrusted section has the root and is read first.
@@ -310,9 +324,9 @@ class Deserializer : public SerializerDeserializer {
   std::vector<IndirectHandle<HeapObject>> untrusted_back_refs_;
   std::vector<std::pair<uint32_t, UnresolvedForwardRef>> trusted_export_refs_;
 
-  // With the sandbox, a code cache has an untrusted and a trusted section.
-  // Snapshots and code caches without the sandbox have a single section that
-  // combines both and is trusted as a whole.
+  // With the sandbox, the SnapshotTrustLevel decides which sections a snapshot
+  // has. Without the sandbox, every snapshot has a single section that combines
+  // both and is trusted as a whole.
   enum class Section : uint8_t {
     kUntrusted = 1 << 0,
     kTrusted = 1 << 1,

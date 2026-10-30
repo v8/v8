@@ -327,7 +327,8 @@ template <typename IsolateT>
 Deserializer<IsolateT>::Deserializer(
     IsolateT* isolate, base::Vector<const uint8_t> untrusted_payload,
     base::Vector<const uint8_t> trusted_payload, uint32_t magic_number,
-    bool deserializing_user_code, bool can_rehash)
+    bool deserializing_user_code, bool can_rehash,
+    SnapshotTrustLevel trust_level)
     : isolate_(isolate),
       attached_objects_(isolate),
       source_(untrusted_payload),
@@ -341,7 +342,7 @@ Deserializer<IsolateT>::Deserializer(
       new_exposed_trusted_objects_(isolate),
       trusted_payload_(trusted_payload),
       // Without the sandbox, trusted objects are part of the untrusted section.
-      section_(deserializing_user_code && V8_ENABLE_SANDBOX_BOOL
+      section_(V8_ENABLE_SANDBOX_BOOL && HasUntrustedSection(trust_level)
                    ? Section::kUntrusted
                    : Section::kCombined),
       deserializing_user_code_(deserializing_user_code),

@@ -23,7 +23,8 @@ ObjectDeserializer::ObjectDeserializer(Isolate* isolate,
                                        const SerializedCodeData* data)
     : Deserializer(isolate, data->UntrustedPayload(), data->TrustedPayload(),
                    data->GetMagicNumber(), /* deserializing_user_code */ true,
-                   /* can_rehash */ false) {}
+                   /* can_rehash */ false,
+                   SnapshotTrustLevel::kUntrustedWithTrustedSection) {}
 
 MaybeDirectHandle<SharedFunctionInfo>
 ObjectDeserializer::DeserializeSharedFunctionInfo(
@@ -73,7 +74,8 @@ OffThreadObjectDeserializer::OffThreadObjectDeserializer(
     LocalIsolate* isolate, const SerializedCodeData* data)
     : Deserializer(isolate, data->UntrustedPayload(), data->TrustedPayload(),
                    data->GetMagicNumber(), /* deserializing_user_code */ true,
-                   /* can_rehash */ false) {}
+                   /* can_rehash */ false,
+                   SnapshotTrustLevel::kUntrustedWithTrustedSection) {}
 
 MaybeDirectHandle<SharedFunctionInfo>
 OffThreadObjectDeserializer::DeserializeSharedFunctionInfo(

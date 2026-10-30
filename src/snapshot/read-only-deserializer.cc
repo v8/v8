@@ -158,7 +158,7 @@ ReadOnlyDeserializer::ReadOnlyDeserializer(Isolate* isolate,
                                            bool can_rehash)
     : Deserializer(isolate, data->Payload(), /* trusted_payload */ {},
                    data->GetMagicNumber(), /* deserializing_user_code */ false,
-                   can_rehash) {}
+                   can_rehash, SnapshotTrustLevel::kTrusted) {}
 
 void ReadOnlyDeserializer::DeserializeIntoIsolate() {
   base::ElapsedTimer timer;
