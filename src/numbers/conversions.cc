@@ -889,12 +889,13 @@ double InternalStringToDouble(const Char* current, const Char* end,
   static_assert(sizeof(UC) == sizeof(Char));
   const UC* current_uc = reinterpret_cast<const UC*>(current);
   const UC* end_uc = reinterpret_cast<const UC*>(end);
+  static constexpr fast_float::parse_options_t<UC> kOptions{
+      static_cast<fast_float::chars_format>(
+          fast_float::chars_format::general |
+          fast_float::chars_format::no_infnan |
+          fast_float::chars_format::allow_leading_plus)};
   auto ret =
-      fast_float::from_chars(current_uc, end_uc, value,
-                             static_cast<fast_float::chars_format>(
-                                 fast_float::chars_format::general |
-                                 fast_float::chars_format::no_infnan |
-                                 fast_float::chars_format::allow_leading_plus));
+      fast_float::from_chars_advanced(current_uc, end_uc, value, kOptions);
   if (ret.ptr == end_uc) return value;
   if (ret.ptr > current_uc) {
     current = reinterpret_cast<const Char*>(ret.ptr);
