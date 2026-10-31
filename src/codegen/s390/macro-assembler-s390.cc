@@ -2088,8 +2088,7 @@ void MacroAssembler::AssertUnreachable(AbortReason reason) {
 void MacroAssembler::AssertZeroExtended(Register int32_register) {
   if (!v8_flags.slow_debug_code) return;
   ASM_CODE_COMMENT(this);
-  mov(r0, Operand(kMaxUInt32));
-  CmpS64(int32_register, r0);
+  CmpU64(int32_register, Operand(kMaxUInt32));
   Check(le, AbortReason::k32BitValueInRegisterIsNotZeroExtended);
 }
 
