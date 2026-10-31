@@ -269,12 +269,12 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
                                          Register result, Register char_code,
                                          Register scratch,
                                          CharCodeMaskMode mask_mode) {
-  AssertZeroExtended(char_code);
   DCHECK_NE(char_code, scratch);
   ZoneLabelRef done(this);
   if (mask_mode == CharCodeMaskMode::kMustApplyMask) {
     And(char_code, char_code, Immediate(0xFFFF));
   }
+  AssertZeroExtended(char_code);
   Cmp(char_code, Immediate(String::kMaxOneByteCharCode));
   JumpToDeferredIf(
       hi,

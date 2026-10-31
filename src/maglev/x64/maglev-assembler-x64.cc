@@ -117,6 +117,7 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
   if (mask_mode == CharCodeMaskMode::kMustApplyMask) {
     andl(char_code, Immediate(0xFFFF));
   }
+  AssertZeroExtended(char_code);
   cmpl(char_code, Immediate(String::kMaxOneByteCharCode));
   JumpToDeferredIf(
       above,

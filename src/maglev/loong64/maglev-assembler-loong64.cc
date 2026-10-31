@@ -279,13 +279,12 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
                                          Register result, Register char_code,
                                          Register scratch,
                                          CharCodeMaskMode mask_mode) {
-  // AssertZeroExtended(char_code);
-  MacroAssembler::lu32i_d(char_code, 0);
   DCHECK_NE(char_code, scratch);
   ZoneLabelRef done(this);
   if (mask_mode == CharCodeMaskMode::kMustApplyMask) {
     And(char_code, char_code, Operand(0xFFFF));
   }
+  AssertZeroExtended(char_code);
   // Allocate two-bytes string if {char_code} doesn't fit one byte.
   MacroAssembler::Branch(  // FIXME: reimplement with JumpToDeferredIf
       MakeDeferredCode(
