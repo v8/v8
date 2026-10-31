@@ -275,14 +275,18 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   // If the result is undefined, we'll use the implicit receiver. Otherwise we
   // do a smi check and fall through to check if the return value is a valid
   // receiver.
+  // With 16-byte stack alignment the code in between grows (padding around
+  // calls and alignment checks), so these jumps may no longer be near.
+  constexpr Label::Distance kResultCheckDistance =
+      V8_X64_16BYTE_STACK_ALIGNMENT_BOOL ? Label::kFar : Label::kNear;
   __ JumpIfNotRoot(rax, RootIndex::kUndefinedValue, &check_result,
-                   Label::kNear);
+                   kResultCheckDistance);
 
   // Throw away the result of the constructor invocation and use the
   // on-stack receiver as the result.
   __ bind(&use_receiver);
   __ movq(rax, Operand(rsp, 0 * kSystemPointerSize));
-  __ JumpIfRoot(rax, RootIndex::kTdzHoleValue, &do_throw, Label::kNear);
+  __ JumpIfRoot(rax, RootIndex::kTdzHoleValue, &do_throw, kResultCheckDistance);
 
   __ bind(&leave_and_return);
   // Restore the arguments count.

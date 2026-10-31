@@ -673,8 +673,26 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void StubPrologue(StackFrame::Type type);
   void Prologue();
 
-  // Helpers for argument handling
+  // Helpers for argument handling.
+
+  // Pushes a single tagged-safe (Smi zero) padding slot. Callers decide
+  // whether a padding slot is needed, usually via ShouldPadArguments().
+  void PushTaggedStackPadding();
+  // Drops a single padding slot. Does not clobber EFLAGS.
+  void DropStackPadding();
+
+  // Pushes a single stack argument, preceded by a padding slot when the
+  // target requires 16-byte stack alignment. Intended for the common
+  // "Push(arg); CallRuntime(fid, 1)" pattern.
+  void PushArgument(Register arg);
+  void PushArgument(Operand arg);
+
+  // Drops {count} arguments and the return address stays on top of the stack.
+  // With 16-byte stack alignment, also drops the padding slot that the caller
+  // pushed if {count} is odd. {count} is not modified.
   void DropArguments(Register count, Register scratch);
+  // Drops {argc} (padded, see above) arguments and pushes {receiver} as the
+  // single (padded) stack argument for the following call.
   void DropArgumentsAndPushNewReceiver(Register argc, Register receiver,
                                        Register scratch);
   void DropArgumentsAndPushNewReceiver(Register argc, Operand receiver,
@@ -1299,6 +1317,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
   Register GetSmiConstant(Tagged<Smi> value);
 
   // Drops arguments assuming that the return address was already popped.
+  // With 16-byte stack alignment, also drops the caller's padding slot if
+  // {count} is odd.
   void DropArguments(Register count);
 
  private:

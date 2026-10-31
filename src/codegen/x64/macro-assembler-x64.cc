@@ -3468,8 +3468,41 @@ void MacroAssembler::DropUnderReturnAddress(int stack_elements,
   PushReturnAddressFrom(scratch);
 }
 
+void MacroAssembler::PushTaggedStackPadding() {
+  ASM_CODE_COMMENT(this);
+  // Smi zero is a valid tagged value in case the slot is visited by the GC.
+  Push(Immediate(0));
+}
+
+void MacroAssembler::DropStackPadding() {
+  ASM_CODE_COMMENT(this);
+  // leaq instead of addq to preserve EFLAGS.
+  leaq(rsp, Operand(rsp, kSystemPointerSize));
+}
+
+void MacroAssembler::PushArgument(Register arg) {
+  if (ShouldPadArguments(1)) PushTaggedStackPadding();
+  Push(arg);
+}
+
+void MacroAssembler::PushArgument(Operand arg) {
+  if (ShouldPadArguments(1)) PushTaggedStackPadding();
+  Push(arg);
+}
+
 void MacroAssembler::DropArguments(Register count) {
   leaq(rsp, Operand(rsp, count, times_system_pointer_size, 0));
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    // The caller pushed one padding slot above the arguments if {count} is
+    // odd (see ArgumentPaddingSlots). Drop it as well. This is deliberately
+    // computed from {count} rather than by re-aligning rsp, so that a
+    // misaligned caller is not silently "repaired" here.
+    Label done;
+    testb(count, Immediate(1));
+    j(zero, &done, Label::kNear);
+    DropStackPadding();
+    bind(&done);
+  }
 }
 
 void MacroAssembler::DropArguments(Register count, Register scratch) {
@@ -3485,7 +3518,8 @@ void MacroAssembler::DropArgumentsAndPushNewReceiver(Register argc,
   DCHECK(!AreAliased(argc, receiver, scratch));
   PopReturnAddressTo(scratch);
   DropArguments(argc);
-  Push(receiver);
+  // The receiver is the single stack argument of the following call.
+  PushArgument(receiver);
   PushReturnAddressFrom(scratch);
 }
 
@@ -3496,7 +3530,8 @@ void MacroAssembler::DropArgumentsAndPushNewReceiver(Register argc,
   DCHECK(!receiver.AddressUsesRegister(scratch));
   PopReturnAddressTo(scratch);
   DropArguments(argc);
-  Push(receiver);
+  // The receiver is the single stack argument of the following call.
+  PushArgument(receiver);
   PushReturnAddressFrom(scratch);
 }
 
@@ -4689,9 +4724,27 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
     {
       Label copy, check;
       Register src = r8, dest = rsp, num = r9, current = r11;
+      DCHECK_EQ(actual_parameter_count, rax);
+      DCHECK(!AreAliased(expected_parameter_count, rax, src, num, current,
+                         kScratchRegister));
       movq(src, rsp);
-      leaq(kScratchRegister,
-           Operand(expected_parameter_count, times_system_pointer_size, 0));
+      if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+        // The caller padded its {actual} stack arguments to an even slot
+        // count and the callee will drop RoundUp(expected, 2) slots, so grow
+        // the argument area by RoundUp(expected, 2) - RoundUp(actual, 2)
+        // slots. With {expected_parameter_count} now holding
+        // delta = expected - actual, this equals (delta + 1 - (actual & 1))
+        // rounded down to even.
+        movl(num, rax);
+        andl(num, Immediate(1));
+        leaq(kScratchRegister, Operand(expected_parameter_count, 1));
+        subq(kScratchRegister, num);
+        andq(kScratchRegister, Immediate(~1));
+        shlq(kScratchRegister, Immediate(kSystemPointerSizeLog2));
+      } else {
+        leaq(kScratchRegister,
+             Operand(expected_parameter_count, times_system_pointer_size, 0));
+      }
       AllocateStackSpace(kScratchRegister);
       // Extra words are for the return address (if a jump).
       int extra_words =
@@ -4713,6 +4766,19 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
     }
     // Fill remaining expected arguments with undefined values.
     LoadRoot(kScratchRegister, RootIndex::kUndefinedValue);
+    if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+      // If the total (expected) argument count is odd, the slot right above
+      // the last expected argument is the padding slot. It either still holds
+      // the caller's padding or a stale copy of a shifted argument; make sure
+      // it always holds a valid tagged value.
+      Label no_padding;
+      leaq(r9, Operand(rax, expected_parameter_count, times_1, 0));
+      testb(r9, Immediate(1));
+      j(zero, &no_padding, Label::kNear);
+      movq(Operand(r8, expected_parameter_count, times_system_pointer_size, 0),
+           kScratchRegister);
+      bind(&no_padding);
+    }
     {
       Label loop;
       bind(&loop);
@@ -5378,12 +5444,22 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
 
   if (argc_operand == nullptr) {
     DCHECK_NE(slots_to_drop_on_return, 0);
+    // {slots_to_drop_on_return} is expected to account for argument padding.
     __ Ret(slots_to_drop_on_return * kSystemPointerSize, scratch);
   } else {
     __ PopReturnAddressTo(scratch);
     // {argc_operand} was loaded into {argc_reg} above.
-    __ leaq(rsp, Operand(rsp, argc_reg, times_system_pointer_size,
-                         slots_to_drop_on_return * kSystemPointerSize));
+    if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+      // The JS caller padded (receiver + argc) to an even number of slots and
+      // the builtin's own API argument slots are even, so drop
+      // RoundUp(argc + slots_to_drop_on_return, 2) slots in total.
+      __ leaq(argc_reg, Operand(argc_reg, slots_to_drop_on_return + 1));
+      __ andq(argc_reg, Immediate(~1));
+      __ leaq(rsp, Operand(rsp, argc_reg, times_system_pointer_size, 0));
+    } else {
+      __ leaq(rsp, Operand(rsp, argc_reg, times_system_pointer_size,
+                           slots_to_drop_on_return * kSystemPointerSize));
+    }
     // Push and ret (instead of jmp) to keep the RSB and the CET shadow stack
     // balanced.
     __ PushReturnAddressFrom(scratch);
