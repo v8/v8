@@ -214,8 +214,7 @@ class V8_EXPORT_PRIVATE Pipeline {
       RUN_MAYBE_ABORT(turboshaft::WasmInJSInliningPhase);
 
       // These optimizations need a separate phase due to the analysis of the
-      // input graph. They are also somewhat risky, so keep them behind a flag
-      // at first.
+      // input graph.
       if (v8_flags.wasm_in_js_inlining_opt &&
           data_->wasm_in_js_inlined_any_body()) {
         RUN_MAYBE_ABORT(turboshaft::WasmGCOptimizePhase);
