@@ -158,7 +158,7 @@ deps = {
     'condition': 'checkout_agents_internal',
   },
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'b00e50b0afcb20b96fdcff89e90bf061193d956c',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'b8e694e483dc2dbbae6c34be54fdb9473cc5afa4',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'd0d4c192e3c718016b3a0c5d44ccec632bccfe96',
   'buildtools/linux64': {
