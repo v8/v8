@@ -681,6 +681,9 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
     }
 
     ALLOCATE_MAP(PROPERTY_CELL_TYPE, sizeof(PropertyCell), global_property_cell)
+    // Allocated early so that its address fits an arm64 compare immediate;
+    // optimized code compares context slots against it.
+    ALLOCATE_MAP(CONTEXT_CELL_TYPE, sizeof(ContextCell), context_cell)
 
     // The "no closures" and "one closure" FeedbackCell maps need
     // to be marked unstable because their objects can change maps.
@@ -804,8 +807,6 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
                  source_text_module)
     ALLOCATE_MAP(SYNTHETIC_MODULE_TYPE, sizeof(SyntheticModule),
                  synthetic_module)
-
-    ALLOCATE_MAP(CONTEXT_CELL_TYPE, sizeof(ContextCell), context_cell)
 
     IF_WASM(ALLOCATE_MAP, WASM_IMPORT_DATA_TYPE, WasmImportData::kSize,
             wasm_import_data)
@@ -1012,6 +1013,10 @@ bool Heap::CreateImportantReadOnlyObjects() {
     set_empty_property_array(Cast<PropertyArray>(obj));
   }
 
+  // Compared against by optimized code, like the context cell map.
+  set_undefined_context_cell(*factory->NewContextCell(
+      factory->undefined_value(), AllocationType::kReadOnly));
+
   // Heap Numbers
   // The -0 value must be set before NewNumber works.
   set_minus_zero_value(
@@ -1034,14 +1039,6 @@ bool Heap::CreateImportantReadOnlyObjects() {
       *factory->NewHeapNumber<AllocationType::kReadOnly>(V8_INFINITY));
   set_minus_infinity_value(
       *factory->NewHeapNumber<AllocationType::kReadOnly>(-V8_INFINITY));
-  set_max_safe_integer(
-      *factory->NewHeapNumber<AllocationType::kReadOnly>(kMaxSafeInteger));
-  set_max_uint_32(
-      *factory->NewHeapNumber<AllocationType::kReadOnly>(kMaxUInt32));
-  set_smi_min_value(
-      *factory->NewHeapNumber<AllocationType::kReadOnly>(kSmiMinValue));
-  set_smi_max_value_plus_one(
-      *factory->NewHeapNumber<AllocationType::kReadOnly>(0.0 - kSmiMinValue));
 
   return true;
 }
@@ -1051,6 +1048,17 @@ bool Heap::CreateReadOnlyObjects() {
   Factory* factory = isolate()->factory();
   ReadOnlyRoots roots(this);
   Tagged<HeapObject> obj;
+
+  // Heap Numbers that generated code never compares against, so their
+  // addresses need not fit an arm64 immediate.
+  set_max_safe_integer(
+      *factory->NewHeapNumber<AllocationType::kReadOnly>(kMaxSafeInteger));
+  set_max_uint_32(
+      *factory->NewHeapNumber<AllocationType::kReadOnly>(kMaxUInt32));
+  set_smi_min_value(
+      *factory->NewHeapNumber<AllocationType::kReadOnly>(kSmiMinValue));
+  set_smi_max_value_plus_one(
+      *factory->NewHeapNumber<AllocationType::kReadOnly>(0.0 - kSmiMinValue));
 
   {
     AllocationResult alloc =
@@ -1226,9 +1234,6 @@ bool Heap::CreateReadOnlyObjects() {
                                  USE_CUSTOM_MINIMUM_CAPACITY);
   DCHECK(!empty_symbol_table->HasSufficientCapacityToAdd(1));
   set_empty_symbol_table(*empty_symbol_table);
-
-  set_undefined_context_cell(*factory->NewContextCell(
-      factory->undefined_value(), AllocationType::kReadOnly));
 
   // Allocate the empty OrderedHashMap.
   DirectHandle<OrderedHashMap> empty_ordered_hash_map =

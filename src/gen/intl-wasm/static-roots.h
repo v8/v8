@@ -129,7 +129,8 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kInvalidPrototypeValidityCell = kCellMap + 40;
   static constexpr Tagged_t kGlobalPropertyCellMap =
       kInvalidPrototypeValidityCell + 8;
-  static constexpr Tagged_t kNoClosuresCellMap = kGlobalPropertyCellMap + 40;
+  static constexpr Tagged_t kContextCellMap = kGlobalPropertyCellMap + 40;
+  static constexpr Tagged_t kNoClosuresCellMap = kContextCellMap + 40;
   static constexpr Tagged_t kOneClosureCellMap = kNoClosuresCellMap + 40;
   static constexpr Tagged_t kManyClosuresCellMap = kOneClosureCellMap + 40;
   static constexpr Tagged_t kTransitionArrayMap = kManyClosuresCellMap + 40;
@@ -168,18 +169,15 @@ struct StaticReadOnlyRoot {
       kEmptyOrderedPropertyDictionary + 24;
   static constexpr Tagged_t kEmptyScopeInfo = kEmptyByteArray + 8;
   static constexpr Tagged_t kEmptyPropertyArray = kEmptyScopeInfo + 24;
-  static constexpr Tagged_t kMinusZeroValue = kEmptyPropertyArray + 8;
+  static constexpr Tagged_t kUndefinedContextCell = kEmptyPropertyArray + 8;
+  static constexpr Tagged_t kMinusZeroValue = kUndefinedContextCell + 24;
   static constexpr Tagged_t kNanValue = kMinusZeroValue + 12;
   static constexpr Tagged_t kUndefinedNanValue = kNanValue + 12;
   static constexpr Tagged_t kHoleNanValue = kUndefinedNanValue + 12;
   static constexpr Tagged_t kInfinityValue = kHoleNanValue + 12;
   static constexpr Tagged_t kMinusInfinityValue = kInfinityValue + 12;
-  static constexpr Tagged_t kMaxSafeInteger = kMinusInfinityValue + 12;
-  static constexpr Tagged_t kMaxUInt32 = kMaxSafeInteger + 12;
-  static constexpr Tagged_t kSmiMinValue = kMaxUInt32 + 12;
-  static constexpr Tagged_t kSmiMaxValuePlusOne = kSmiMinValue + 12;
   static constexpr Tagged_t kPromiseFulfillReactionJobTaskMap =
-      kSmiMaxValuePlusOne + 12;
+      kMinusInfinityValue + 12;
   // -- End of values that fit in arm64 add/sub immediates --
   static constexpr Tagged_t kPromiseRejectReactionJobTaskMap =
       kPromiseFulfillReactionJobTaskMap + 40;
@@ -299,8 +297,7 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kIrRegExpDataMap = kAtomRegExpDataMap + 40;
   static constexpr Tagged_t kSourceTextModuleMap = kIrRegExpDataMap + 40;
   static constexpr Tagged_t kSyntheticModuleMap = kSourceTextModuleMap + 40;
-  static constexpr Tagged_t kContextCellMap = kSyntheticModuleMap + 40;
-  static constexpr Tagged_t kWasmImportDataMap = kContextCellMap + 40;
+  static constexpr Tagged_t kWasmImportDataMap = kSyntheticModuleMap + 40;
   static constexpr Tagged_t kWasmCapiFunctionDataMap = kWasmImportDataMap + 40;
   static constexpr Tagged_t kWasmExportedFunctionDataMap =
       kWasmCapiFunctionDataMap + 40;
@@ -338,8 +335,12 @@ struct StaticReadOnlyRoot {
       kUncompiledDataWithoutPreparseDataWithJobMap + 40;
   static constexpr Tagged_t kSharedFunctionInfoWrapperMap =
       kUncompiledDataWithPreparseDataAndJobMap + 40;
-  static constexpr Tagged_t kEmptyArrayList =
+  static constexpr Tagged_t kMaxSafeInteger =
       kSharedFunctionInfoWrapperMap + 40;
+  static constexpr Tagged_t kMaxUInt32 = kMaxSafeInteger + 12;
+  static constexpr Tagged_t kSmiMinValue = kMaxUInt32 + 12;
+  static constexpr Tagged_t kSmiMaxValuePlusOne = kSmiMinValue + 12;
+  static constexpr Tagged_t kEmptyArrayList = kSmiMaxValuePlusOne + 12;
   static constexpr Tagged_t kEmptyObjectBoilerplateDescription =
       kEmptyArrayList + 12;
   static constexpr Tagged_t kEmptyArrayBoilerplateDescription =
@@ -1198,8 +1199,7 @@ struct StaticReadOnlyRoot {
       kis_concat_spreadable_symbol + 16;
   static constexpr Tagged_t kEmptySymbolTable =
       kEmptySlowElementDictionary + 36;
-  static constexpr Tagged_t kUndefinedContextCell = kEmptySymbolTable + 28;
-  static constexpr Tagged_t kEmptyOrderedHashMap = kUndefinedContextCell + 24;
+  static constexpr Tagged_t kEmptyOrderedHashMap = kEmptySymbolTable + 28;
   static constexpr Tagged_t kEmptyOrderedHashSet = kEmptyOrderedHashMap + 20;
   static constexpr Tagged_t kEmptyFeedbackMetadata = kEmptyOrderedHashSet + 20;
   static constexpr Tagged_t kGlobalThisBindingScopeInfo =
