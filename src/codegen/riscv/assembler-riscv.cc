@@ -1153,7 +1153,10 @@ void Assembler::stop(uint32_t code) {
   DCHECK_GT(code, kMaxWatchpointCode);
   DCHECK_LE(code, kMaxStopCode);
 #if defined(V8_HOST_ARCH_RISCV64) || defined(V8_HOST_ARCH_RISCV32)
-  break_(0x54321);
+  // break_() follows the ebreak with a lui carrying the code for the
+  // simulator. Running natively there is no simulator to read it, and the
+  // trap ends execution at the ebreak.
+  ebreak();
 #else  // V8_HOST_ARCH_RISCV64 || V8_HOST_ARCH_RISCV32
   break_(code, true);
 #endif
