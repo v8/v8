@@ -2681,6 +2681,8 @@ static RegList a_regs = {a0, a1, a2, a3, a4, a5, a6, a7};
 static RegList s_regs = {s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11};
 
 void MacroAssembler::MultiPush(RegList regs) {
+  // Nothing to push would otherwise still adjust sp by zero.
+  if (regs.is_empty()) return;
   int16_t num_to_push = regs.Count();
   int16_t stack_offset = num_to_push * kSystemPointerSize;
 
@@ -2728,6 +2730,7 @@ void MacroAssembler::MultiPush(RegList regs) {
 }
 
 void MacroAssembler::MultiPop(RegList regs) {
+  if (regs.is_empty()) return;
   int16_t stack_offset = 0;
 
 #define TEST_AND_POP_REG(reg)                    \
@@ -2769,6 +2772,7 @@ void MacroAssembler::MultiPop(RegList regs) {
 }
 
 void MacroAssembler::MultiPushFPU(DoubleRegList regs) {
+  if (regs.is_empty()) return;
   int16_t num_to_push = regs.Count();
   int16_t stack_offset = num_to_push * kDoubleSize;
 
@@ -2782,6 +2786,7 @@ void MacroAssembler::MultiPushFPU(DoubleRegList regs) {
 }
 
 void MacroAssembler::MultiPopFPU(DoubleRegList regs) {
+  if (regs.is_empty()) return;
   int16_t stack_offset = 0;
 
   for (int16_t i = 0; i < kNumRegisters; i++) {
