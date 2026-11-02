@@ -8,6 +8,7 @@
 #include <sys/types.h>
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -53,6 +54,12 @@ class ReprlChild {
     int max_execs_before_respawn = 1000;
     // How long to wait for the HELO handshake after spawning.
     uint64_t startup_timeout_us = static_cast<uint64_t>(60) * 1000 * 1000;
+    // If set, each new child gets the flags that this function returns,
+    // before `args`, so that a flag in `args` wins. While the child is
+    // pinned (Pin()), a new child gets the flags of the last one instead.
+    // Pin(false) kills a child whose flags ran max_execs_before_respawn
+    // executions, so that the next child gets new flags.
+    std::function<std::vector<std::string>()> random_args;
   };
 
   static std::unique_ptr<ReprlChild> Create(Options options,
@@ -79,10 +86,24 @@ class ReprlChild {
   uint64_t total_executions() const { return total_executions_; }
   const Options& options() const { return options_; }
 
+  // Keeps the random flags of the current child for the next children,
+  // until Pin(false). Most executions run pinned (the reruns and the
+  // minimizer), so most respawns happen there. Thus Pin(false) kills the
+  // child if its flags ran max_execs_before_respawn executions.
+  void Pin(bool pinned);
+  bool pinned() const { return pinned_; }
+  // Executions since the last draw of random flags.
+  int execs_since_draw() const { return execs_since_draw_; }
+  // The random flags of the current (or last) child, and all its flags.
+  const std::vector<std::string>& random_args() const { return random_args_; }
+  std::vector<std::string> CurrentArgs() const;
+
  private:
   explicit ReprlChild(Options options);
   bool Initialize(std::string* error);
   bool Spawn(std::string* error);
+  // Builds argv_ from the executable, random_args_ and the options.
+  void BuildArgv();
   void OnChildTerminated();
   void CollectOutput(Execution* result);
 
@@ -91,6 +112,8 @@ class ReprlChild {
   std::vector<std::string> env_storage_;
   std::vector<char*> argv_;
   std::vector<char*> envp_;
+  std::vector<std::string> random_args_;
+  bool pinned_ = false;
 
   std::unique_ptr<DataChannel> script_channel_;   // parent -> child (fd 102)
   std::unique_ptr<DataChannel> fuzzout_channel_;  // child -> parent (fd 103)
@@ -101,6 +124,7 @@ class ReprlChild {
   int ctrl_in_ = -1;   // we read status words here
   int ctrl_out_ = -1;  // we write commands here
   int execs_since_spawn_ = 0;
+  int execs_since_draw_ = 0;
   uint64_t total_spawns_ = 0;
   uint64_t total_executions_ = 0;
 };

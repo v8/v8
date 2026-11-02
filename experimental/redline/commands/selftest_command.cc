@@ -26,9 +26,13 @@
 #include "experimental/redline/commands/command.h"
 #include "experimental/redline/commands/selftest_checker.h"
 #include "experimental/redline/commands/selftest_selection.h"
+#include "experimental/redline/core/program.h"
+#include "experimental/redline/core/random.h"
+#include "experimental/redline/corpus/corpus.h"
 #include "experimental/redline/engine/crash.h"
 #include "experimental/redline/exec/coverage.h"
 #include "experimental/redline/exec/runner.h"
+#include "experimental/redline/minimizer/minimizer.h"
 
 namespace redline {
 
@@ -102,6 +106,15 @@ void RunCrashSignatureChecks(Checker* checker) {
                      "sig11 SEGV_MAPERR v8::internal::Top1 < v8::internal::Foo "
                      "< v8::internal::Bar",
                  c.text);
+  CrashSignature d = CrashSignature::FromOutput(
+      5, 0,
+      "abort: CSA_DCHECK failed: Torque assert 'Is<A>(o)' failed "
+      "[src/builtins/cast.tq:1025] [gen/torque-generated/src/builtins/"
+      "regexp-test-tq-csa.cc:174]\n\nStacktrace:\n");
+  checker->Check(
+      "crash signature: a failed CSA_DCHECK names its builtin and message",
+      d.text == "csa regexp-test-tq-csa.cc:174 Torque assert 'Is<A>(o)' failed",
+      d.text);
 }
 
 // Offline: the coverage header (experimental/redline/d8/cov.h) on synthetic
@@ -297,6 +310,50 @@ void RunCoverageCounterChecks(Checker* checker) {
     checker->Check("coverage counters: packed hit bits",
                    map->CurrentEdges() == packed,
                    StringPrintf("%zu features", map->CurrentEdges().size()));
+    // Slow programs get less energy than fast ones.
+    auto& sel_reg = SelectorRegistry<const Program>::Instance();
+    std::string sel_err;
+    Random rng(42);
+    // Pick() pops the max-energy seed first: the fast program (1 ms) beats
+    // the slow one (100 ms) with equal edge rarity.
+    auto time_seeds =
+        sel_reg.Create(SelectionConfig{"rarity", JsonValue()}, &sel_err);
+    auto time_partners = sel_reg.Create(
+        SelectionConfig{"uniform-partner", JsonValue()}, &sel_err);
+    Corpus time_corpus(std::move(time_seeds), std::move(time_partners));
+    Lineage l;
+    auto slow_p = Program::Parse("let x = 1;", l, &sel_err);
+    slow_p->edges = {20};
+    slow_p->exec_time_us = 100000;
+    time_corpus.Add(slow_p);
+    auto fast_p = Program::Parse("let y = 1;", l, &sel_err);
+    fast_p->edges = {21};
+    fast_p->exec_time_us = 1000;
+    ProgramPtr fast_added = time_corpus.Add(fast_p);
+    ProgramPtr first_pick = time_corpus.Pick(rng);
+    checker->Check("rarity: time weighting", first_pick == fast_added, "");
+
+    Minimizer min_check;
+    auto min_prog = Program::Parse(
+        "let u0 = 1;\nlet u1 = 2;\nlet keep = 1;\n"
+        "let u2 = 3;\nlet u3 = 4;\nkeep.m(1);\n",
+        l, &sel_err);
+    auto min_tree = min_prog->CopyTree();
+    MinimizationResult min_res = min_check.Minimize(
+        min_tree.get(),
+        [](const std::string& src) {
+          return src.find("let keep = 1") != std::string::npos &&
+                 src.find("keep.m(1)") != std::string::npos;
+        },
+        nullptr);
+    const uint64_t stmt_invocations =
+        min_check.Find("statements")->stats().invocations;
+    checker->Check(
+        "minimizer: unreferenced declarations and fixed-point stopping",
+        min_res.accepted == 1 && min_res.tests <= 8 && stmt_invocations == 1,
+        StringPrintf("tests %d, accepted %d, stmt_invocations %llu",
+                     min_res.tests, min_res.accepted,
+                     static_cast<unsigned long long>(stmt_invocations)));
   }
   munmap(mapping, CoverageMap::kShmSize);
 }
@@ -590,6 +647,73 @@ int RunSelftest(const Flags& flags) {
                   ok && spawns >= 2,
                   StringPrintf("%llu spawns in %d runs",
                                static_cast<unsigned long long>(spawns), runs));
+  }
+
+  // Random flags (randomize_d8_flags): a new target process gets new
+  // flags, except while the flags are pinned.
+  {
+    TargetOptions random_target = target;
+    int draws = 0;
+    random_target.random_args = [&draws] {
+      draws++;
+      // Two harmless flags, so that the check can see which draw a target
+      // process got.
+      return std::vector<std::string>{draws % 2 == 1 ? "--stress-ic"
+                                                     : "--no-stress-ic"};
+    };
+    std::unique_ptr<ScriptRunner> random_runner =
+        ScriptRunner::Create(random_target, 1, &error);
+    bool ok = random_runner != nullptr && random_runner->Initialize(&error);
+    std::vector<std::string> first, second, pinned, released;
+    auto respawn = [&](std::vector<std::string>* args) {
+      random_runner->child().Kill();
+      ok = ok && random_runner->Run("", &result, &error) &&
+           result.execution.succeeded();
+      *args = random_runner->child().CurrentArgs();
+    };
+    if (ok) {
+      first = random_runner->child().CurrentArgs();
+      respawn(&second);
+      random_runner->child().Pin(true);
+      respawn(&pinned);
+      random_runner->child().Pin(false);
+      respawn(&released);
+    }
+    auto starts_with = [](const std::vector<std::string>& args,
+                          const char* flag) {
+      return !args.empty() && args.front() == flag;
+    };
+    checker.Check(
+        "random flags: a new target gets new flags, a pinned one keeps them",
+        ok && starts_with(first, "--stress-ic") &&
+            starts_with(second, "--no-stress-ic") && pinned == second &&
+            starts_with(released, "--stress-ic") && draws == 3,
+        ok ? StringPrintf("%d draws", draws) : error);
+    // A respawn while pinned keeps the flags. Then Pin(false) kills the
+    // target, because its flags ran max_execs_before_respawn runs, and the
+    // next target draws new flags.
+    bool respawned = false;
+    bool killed = false;
+    std::vector<std::string> kept, renewed;
+    if (ok) {
+      random_runner->child().Pin(true);
+      uint64_t spawns_before = random_runner->child().total_spawns();
+      for (int i = 0; ok && i < random_target.max_execs_before_respawn; i++) {
+        ok = random_runner->Run("", &result, &error) &&
+             result.execution.succeeded();
+      }
+      respawned = random_runner->child().total_spawns() > spawns_before;
+      kept = random_runner->child().CurrentArgs();
+      random_runner->child().Pin(false);
+      killed = !random_runner->child().is_running();
+      ok = ok && random_runner->Run("", &result, &error) &&
+           result.execution.succeeded();
+      renewed = random_runner->child().CurrentArgs();
+    }
+    checker.Check("random flags: unpinning replaces a target with old flags",
+                  ok && respawned && kept == released && killed &&
+                      starts_with(renewed, "--no-stress-ic") && draws == 4,
+                  ok ? StringPrintf("%d draws", draws) : error);
   }
 
   // Speed (informational).

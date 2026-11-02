@@ -6,6 +6,7 @@
 #define V8_EXPERIMENTAL_REDLINE_EXEC_TARGET_OPTIONS_H_
 
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -38,6 +39,10 @@ struct TargetOptions {
   // optimized code region (coverage counters only, see exec/coverage.h).
   std::vector<uint32_t> watch_edges;
   bool watch_optimized = true;
+  // If set, each new target process gets these flags before `args`
+  // (ReprlChild::Options::random_args). A fuzzing session sets it when the
+  // configuration has randomize_d8_flags.
+  std::function<std::vector<std::string>()> random_args;
 
   // The flags Fuzzilli's V8 profile passes to d8 (without the randomized
   // part), so that coverage numbers are comparable.

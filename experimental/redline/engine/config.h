@@ -93,6 +93,15 @@ struct FuzzConfig {
   bool value_prefix = true;
   int prefix_min_values = 10;
   int prefix_extra_values = 5;
+  // Also prefix the empty program when a chain starts from scratch, like
+  // Fuzzilli's GenerativeEngine (buildPrefix() before build()). Then the
+  // first generators of a new program have values to use.
+  bool prefix_from_scratch = true;
+  // A chain from the empty program uses only the CodeGen mutator until
+  // this many of its links ran without an error (min 1). Then a new
+  // program gets several rounds of generated code, like the 10
+  // instructions of Fuzzilli's GenerativeEngine.
+  int scratch_codegen_links = 3;
   bool minimize = true;
   // Minimizer probes run with a timeout derived from the execution time of
   // the program being reduced:
@@ -126,6 +135,15 @@ struct FuzzConfig {
   // The "coverage" block: coverage counters (exec/coverage.h). They need a d8
   // built with sanitizer_coverage_flags="inline-8bit-counters,pc-table".
   bool watch_optimized = true;
+  // Report the crashes of minimizer probes and determinism reruns too.
+  bool harvest_crashes = true;
+  // Give each new target process a random set of extra d8 flags
+  // (engine/d8_flags.h). The reruns, the minimization and the crash triage
+  // of a program keep the flags of the process that ran it.
+  bool randomize_d8_flags = false;
+  // Coverage counters: the minimizer keeps only the new code edges of a
+  // program (Worker::MinimizationProperty).
+  bool minimize_code_edges = true;
   MinimizerOptions minimizer;
   // The minimizer's reducers, in the order they run (stages.minimize.reducers).
   // Empty: the default order (Minimizer::DefaultOrder).
@@ -152,8 +170,10 @@ struct FuzzConfig {
   // stage parameters are the policy fields above; the "stages" block of
   // the configuration groups them by stage:
   //   "stages": {
-  //     "prefix":   {"enabled": true, "min_values": 10, "extra_values": 5},
-  //     "mutate":   {"consecutive": 5, "rounds": 0, "log": "events",
+  //     "prefix":   {"enabled": true, "min_values": 10, "extra_values": 5,
+  //                  "from_scratch": true},
+  //     "mutate":   {"consecutive": 5, "rounds": 0, "scratch_codegen": 3,
+  //                  "log": "events",
   //                  "capture": {"on": ["timeout"], "mutators": ["Splice"],
   //                  "max": 50}},
   //     "check":    {"min_reruns": 5, "min_stable_reruns": 1, "max_reruns": 50,

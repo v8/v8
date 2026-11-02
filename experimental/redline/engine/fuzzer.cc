@@ -17,6 +17,7 @@
 #include "experimental/redline/base/time_util.h"
 #include "experimental/redline/base/v8_runtime.h"
 #include "experimental/redline/core/environment.h"
+#include "experimental/redline/engine/d8_flags.h"
 #include "experimental/redline/engine/importer.h"
 #include "experimental/redline/exec/runner.h"
 #include "experimental/redline/fast/printer.h"
@@ -28,6 +29,23 @@ namespace {
 
 constexpr char kLog[] = "fuzz";
 constexpr size_t kMaxSavedOutput = static_cast<size_t>(64) * 1024;
+
+// Keeps the random d8 flags of a target while it lives: a new target
+// process gets the flags of the last one. The reruns, the minimization and
+// the crash triage of a program run with the flags that ran it.
+class FlagPin {
+ public:
+  explicit FlagPin(ReprlChild& child) : child_(child), was_(child.pinned()) {
+    child_.Pin(true);
+  }
+  ~FlagPin() { child_.Pin(was_); }
+  FlagPin(const FlagPin&) = delete;
+  FlagPin& operator=(const FlagPin&) = delete;
+
+ private:
+  ReprlChild& child_;
+  bool was_;
+};
 
 // Runs a function when the scope ends (all exits of a loop iteration).
 class ScopeExit {
@@ -82,14 +100,22 @@ class Worker {
       : fuzzer_(fuzzer),
         id_(id),
         rng_(fuzzer->config().seed * 0x9E3779B97F4A7C15ull +
-             static_cast<uint64_t>(id) + 1) {}
+             static_cast<uint64_t>(id) + 1),
+        flags_rng_((fuzzer->config().seed * 0x9E3779B97F4A7C15ull +
+                    static_cast<uint64_t>(id) + 1) ^
+                   kFlagsSeedSalt) {}
 
   int id() const { return id_; }
 
   // Starts the target synchronously so that configuration problems are
   // reported before any thread runs.
   bool Start(std::string* error) {
-    runner_ = ScriptRunner::Create(fuzzer_->config().target, id_, error);
+    TargetOptions target = fuzzer_->config().target;
+    if (config().randomize_d8_flags) {
+      // Each new target process gets new random flags (DESIGN.md 5.4).
+      target.random_args = [this] { return RandomD8Flags(flags_rng_); };
+    }
+    runner_ = ScriptRunner::Create(target, id_, error);
     if (runner_ == nullptr) {
       return false;
     }
@@ -464,9 +490,10 @@ class Worker {
     // Fresh values at the top of the parent give every mutation of the chain
     // something new to work with (Fuzzilli's buildPrefix()). The prefix is
     // not a mutation of its own: it is only executed as part of the first
-    // child, and the minimizer drops whatever ends up unused.
-    if (!from_empty && config().value_prefix &&
-        fuzzer_->prefix_mutator_ != nullptr) {
+    // child, and the minimizer drops whatever ends up unused. The empty
+    // program gets a prefix too, unless `prefix_from_scratch` is false.
+    if ((!from_empty || config().prefix_from_scratch) &&
+        config().value_prefix && fuzzer_->prefix_mutator_ != nullptr) {
       Stopwatch prefix_time;
       std::string detail;
       std::unique_ptr<fast::Tree> prefixed =
@@ -492,10 +519,14 @@ class Worker {
       }
     }
 
+    // A chain from the empty program uses only CodeGen for its first
+    // `scratch_codegen_links` links that run without an error.
+    int scratch_links = from_empty ? config().scratch_codegen_links : 0;
     for (int round = 0; round < config().consecutive_mutations && !stopping();
          round++) {
-      Mutator* mutator = from_empty ? fuzzer_->codegen_mutator_
-                                    : mutators.Pick(rng_, corpus.size() >= 2);
+      Mutator* mutator = scratch_links > 0
+                             ? fuzzer_->codegen_mutator_
+                             : mutators.Pick(rng_, corpus.size() >= 2);
       if (mutator == nullptr) {
         return;
       }
@@ -646,10 +677,11 @@ class Worker {
           if (ancestor->id != 0) {
             corpus.OnResult(*ancestor, added != nullptr);
           }
-          // The chain continues from the child as executed, not from
-          // its minimized form (Fuzzilli's MutationEngine does the
-          // same: minimization happens on the side); the lineage of
-          // what follows refers to the published program.
+          // The chain continues from the child as it ran, not from its
+          // minimized copy. Minimization can remove material that the next
+          // mutations can use (DESIGN.md 4.2). Fuzzilli's MutationEngine also
+          // minimizes on the side. The lineage of the next links has the id
+          // of the published program.
           parent = child;
           if (added != nullptr) {
             ancestor = added;
@@ -657,7 +689,9 @@ class Worker {
           } else {
             chain++;
           }
-          from_empty = false;
+          if (scratch_links > 0) {
+            scratch_links--;
+          }
           break;
         }
         case Outcome::kCrashed: {
@@ -791,6 +825,7 @@ class Worker {
                     std::vector<uint32_t> claimed,
                     const Execution& first_execution, bool minimize,
                     Mutator* mutator) {
+    FlagPin pin(runner_->child());
     SharedCoverage& shared = fuzzer_->coverage_;
     const bool claimed_was_empty = claimed.empty();
     std::vector<uint32_t> edges = std::move(claimed);
@@ -844,6 +879,10 @@ class Worker {
       if (execution.outcome == Outcome::kTimedOut) {
         check_stage.timeouts++;
         rerun_timeout = true;
+      }
+      if (execution.crashed()) {
+        HarvestCrash(program->source(), execution, program->lineage(),
+                     "determinism rerun");
       }
       if (!execution.succeeded()) {
         deterministic = false;
@@ -922,6 +961,10 @@ class Worker {
       // A reduction can turn a terminating loop into an infinite one; such
       // probes must not pay the full target timeout (plus a child respawn).
       const uint64_t probe_timeout_us = ProbeTimeout(exec_time_us);
+      // The property that the minimizer keeps (see MinimizationProperty).
+      bool fragile_only = false;
+      const std::vector<uint32_t> property =
+          MinimizationProperty(edges, &fragile_only);
       MinimizationOracle oracle = [&](const std::string& candidate) {
         if (stopping()) {
           return false;
@@ -938,10 +981,18 @@ class Worker {
                   program->lineage().origin, program.get(), candidate,
                   JsonObject());
         }
-        return execution.succeeded() && runner_->coverage().AllEdgesSet(edges);
+        if (execution.crashed()) {
+          HarvestCrash(candidate, execution, program->lineage(),
+                       "minimizer probe");
+          return false;
+        }
+        return execution.succeeded() &&
+               runner_->coverage().AllEdgesSet(property);
       };
-      const MinimizerOptions budget =
-          config().minimizer.ForProgram(exec_time_us);
+      MinimizerOptions budget = config().minimizer.ForProgram(exec_time_us);
+      if (fragile_only) {
+        budget.max_tests = std::min(budget.max_tests, kFragileMinimizerTests);
+      }
       minimization =
           fuzzer_->Minimize(work.get(), oracle, probe_checker(), budget);
       stats().minimizer_tests += static_cast<uint64_t>(minimization.tests);
@@ -963,7 +1014,7 @@ class Worker {
           if (!execution.succeeded()) {
             break;
           }
-          if (!runner_->coverage().AllEdgesSet(edges)) {
+          if (!runner_->coverage().AllEdgesSet(property)) {
             continue;
           }
           stats().minimizer_nodes_removed += static_cast<uint64_t>(
@@ -1060,6 +1111,9 @@ class Worker {
         .Add("dropped_edges", static_cast<uint64_t>(dropped));
     event.Add("exec_time_ms", static_cast<double>(exec_time_us) / 1000.0);
     event.Add("worker", id_);
+    if (config().randomize_d8_flags) {
+      event.Add("d8_random_args", RandomArgsText());
+    }
     if (minimize) {
       event.Add("minimized", minimized).Add("min_tests", minimization.tests);
       event.Add("min_nodes_before",
@@ -1098,6 +1152,23 @@ class Worker {
     }
     stats().crash_replay_executions++;
     return execution->crashed();
+  }
+
+  // The target of this worker as it runs now, with its random flags.
+  TargetOptions CurrentTarget() const {
+    TargetOptions target = config().target;
+    target.args = runner_->child().CurrentArgs();
+    target.random_args = nullptr;
+    return target;
+  }
+
+  // The random flags of the current target, separated by spaces.
+  std::string RandomArgsText() const {
+    std::string text;
+    for (const std::string& arg : runner_->child().random_args()) {
+      text += (text.empty() ? "" : " ") + arg;
+    }
+    return text;
   }
 
   // Everything learned about one crash, for the report and the event log.
@@ -1139,8 +1210,61 @@ class Worker {
             : ("amplified_program: " + amplified_program + "\n").c_str());
   }
 
+  // The test budget of a minimization that keeps only fragile features.
+  static constexpr int kFragileMinimizerTests = 60;
+
+  // The features that the minimizer must keep. By default, all new features
+  // of the program. With --minimize-code-edges, only the new code edges and
+  // the new builtins edges. Optimized code features and hit count buckets
+  // change with most edits of a program. A minimization that keeps them
+  // spends its budget and removes little. If the program has none of the
+  // stable features, the property is all its new features, `*fragile_only`
+  // is true, and the budget is small.
+  std::vector<uint32_t> MinimizationProperty(const std::vector<uint32_t>& edges,
+                                             bool* fragile_only) const {
+    *fragile_only = false;
+    const CoverageMap& coverage = runner_->coverage();
+    if (!config().minimize_code_edges || !coverage.counters_mode()) {
+      return edges;
+    }
+    std::vector<uint32_t> robust;
+    for (uint32_t feature : edges) {
+      const CoverageMap::FeatureKind kind = coverage.KindOf(feature);
+      if (kind == CoverageMap::FeatureKind::kCode ||
+          kind == CoverageMap::FeatureKind::kBuiltins) {
+        robust.push_back(feature);
+      }
+    }
+    if (robust.empty()) {
+      *fragile_only = true;
+      return edges;
+    }
+    return robust;
+  }
+
+  // With --harvest-crashes, a crash of a minimizer probe or of a
+  // determinism rerun counts like a crash of the mutate stage. These stages
+  // run most of the executions, and their programs are close relatives of
+  // the programs that reached new coverage.
+  void HarvestCrash(const std::string& source, const Execution& execution,
+                    const Lineage& parent, const char* detail) {
+    if (!config().harvest_crashes) {
+      return;
+    }
+    Lineage lineage = parent;
+    lineage.detail = detail;
+    std::string error;
+    std::shared_ptr<Program> program = Program::Parse(source, lineage, &error);
+    if (program == nullptr) {
+      return;
+    }
+    stats().harvested_crashes++;
+    ProcessCrash(source, *program, execution, lineage);
+  }
+
   void ProcessCrash(const std::string& source, const Program& program,
                     const Execution& execution, const Lineage& lineage) {
+    FlagPin pin(runner_->child());
     SharedCoverage& shared = fuzzer_->coverage_;
     const bool unique = shared.ClaimNewCrashEdges(runner_->coverage().bitmap());
     const uint64_t hash = Program::HashSource(source);
@@ -1249,7 +1373,7 @@ class Worker {
     if (!info.reproducible() && decision.save && !stopping() &&
         fuzzer_->ClaimAmplify(info.signature)) {
       AmplifyRequest request;
-      request.target = config().target;
+      request.target = CurrentTarget();
       request.program = source;
       request.prelude = config().prelude;
       request.script_path = StringPrintf("%s/crashes/amplify_%016llx.js",
@@ -1373,6 +1497,9 @@ class Worker {
         .Add("detail", lineage.detail)
         .Add("parent", lineage.parent_id);
     event.Add("path", path).Add("worker", id_);
+    if (config().randomize_d8_flags) {
+      event.Add("d8_random_args", RandomArgsText());
+    }
     event.Add("stderr", FirstLines(execution.stderr_output));
     fuzzer_->LogEvent(event);
   }
@@ -1417,7 +1544,7 @@ class Worker {
         execution.signal, info.minimized ? "minimized" : "not minimized",
         info.signature.text.c_str(), status.c_str(), id_, info.child_age,
         lineage.origin.c_str(), lineage.detail.c_str(), lineage.parent_id,
-        lineage.generation, config().target.CommandLine().c_str());
+        lineage.generation, CurrentTarget().CommandLine().c_str());
     std::string error;
     std::string path = base + ".js";
     if (!WriteStringToFile(path, header + final_source, &error)) {
@@ -1452,7 +1579,8 @@ class Worker {
         "crash\n"
         "history_replayed: %s\nstate_dependent: %s\nhistory_needed: %zu of "
         "%zu\n"
-        "minimized: %s (%d tests, %zu -> %zu nodes)\n%s\n--- stderr "
+        "minimized: %s (%d tests, %zu -> %zu nodes)\nd8_random_args: %s\n"
+        "%s\n--- stderr "
         "---\n%s\n--- stdout ---\n%s\n"
         "--- fuzzout ---\n%s\n",
         execution.signal, execution.exit_code, info.signature.text.c_str(),
@@ -1462,6 +1590,7 @@ class Worker {
         info.history_needed, info.history_available,
         info.minimized ? "yes" : "no", info.minimization.tests,
         info.minimization.nodes_before, info.minimization.nodes_after,
+        RandomArgsText().c_str(),
         AmplifyReportLines(info, amplified_program).c_str(),
         Truncate(execution.stderr_output, kMaxSavedOutput).c_str(),
         Truncate(execution.stdout_output, kMaxSavedOutput).c_str(),
@@ -1477,9 +1606,14 @@ class Worker {
     return path;
   }
 
+  // Separates the random flags from the other random decisions: a change
+  // of the flags does not change the programs.
+  static constexpr uint64_t kFlagsSeedSalt = 0x5DEECE66Dull;
+
   Fuzzer* fuzzer_;
   int id_;
   Random rng_;
+  Random flags_rng_;  // random d8 flags (randomize_d8_flags)
   std::unique_ptr<ScriptRunner> runner_;
   std::unique_ptr<SyntaxChecker> checker_;
   std::thread thread_;
@@ -1928,6 +2062,7 @@ void Fuzzer::WriteStatsEvent() {
   AddCoverageStats(&event);
   event.Add("unique_crashes", stats_.unique_crashes.load());
   event.Add("duplicate_crashes", stats_.duplicate_crashes.load());
+  event.Add("harvested_crashes", stats_.harvested_crashes.load());
   event.Add("crash_signatures", stats_.crash_signatures.load());
   event.Add("crashes_reproduced", stats_.crashes_reproduced.load());
   event.Add("crashes_state_dependent", stats_.crashes_state_dependent.load());

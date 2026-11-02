@@ -49,18 +49,19 @@ Environment::Environment() {
         F("sort", 0, 1, T::kArray, T::kFunction),
         F("indexOf", 1, 2, T::kNumber),
         F("includes", 1, 2, T::kBoolean),
-        F("map", 1, 1, T::kArray, T::kFunction),
-        F("filter", 1, 1, T::kArray, T::kFunction),
-        F("forEach", 1, 1, T::kNullish, T::kFunction),
+        F("map", 1, 2, T::kArray, T::kFunction, T::kObject),
+        F("filter", 1, 2, T::kArray, T::kFunction, T::kObject),
+        F("forEach", 1, 2, T::kNullish, T::kFunction, T::kObject),
         F("reduce", 1, 2, T::kUnknown, T::kFunction),
-        F("some", 1, 1, T::kBoolean, T::kFunction),
-        F("every", 1, 1, T::kBoolean, T::kFunction),
-        F("find", 1, 1, T::kUnknown, T::kFunction),
-        F("findIndex", 1, 1, T::kNumber, T::kFunction),
-        F("findLast", 1, 1, T::kUnknown, T::kFunction),
+        F("some", 1, 2, T::kBoolean, T::kFunction, T::kObject),
+        F("every", 1, 2, T::kBoolean, T::kFunction, T::kObject),
+        F("find", 1, 2, T::kUnknown, T::kFunction, T::kObject),
+        F("findIndex", 1, 2, T::kNumber, T::kFunction, T::kObject),
+        F("findLast", 1, 2, T::kUnknown, T::kFunction, T::kObject),
+        F("findLastIndex", 1, 2, T::kNumber, T::kFunction, T::kObject),
         F("fill", 1, 3, T::kArray, T::kUnknown, T::kNumber, T::kNumber),
         F("flat", 0, 1, T::kArray, T::kNumber),
-        F("flatMap", 1, 1, T::kArray, T::kFunction),
+        F("flatMap", 1, 2, T::kArray, T::kFunction, T::kObject),
         F("at", 1, 1, T::kUnknown, T::kNumber),
         F("keys", 0, 0, T::kObject),
         F("values", 0, 0, T::kObject),
@@ -139,13 +140,13 @@ Environment::Environment() {
         F("has", 1, 1, T::kBoolean), F("delete", 1, 1, T::kBoolean),
         F("clear", 0, 0, T::kNullish), F("keys", 0, 0, T::kObject),
         F("values", 0, 0, T::kObject), F("entries", 0, 0, T::kObject),
-        F("forEach", 1, 1, T::kNullish, T::kFunction)},
+        F("forEach", 1, 2, T::kNullish, T::kFunction, T::kObject)},
        {"size"}},
       {T::kSet,
        {F("add", 1, 1, T::kSet), F("has", 1, 1, T::kBoolean),
         F("delete", 1, 1, T::kBoolean), F("clear", 0, 0, T::kNullish),
         F("values", 0, 0, T::kObject),
-        F("forEach", 1, 1, T::kNullish, T::kFunction),
+        F("forEach", 1, 2, T::kNullish, T::kFunction, T::kObject),
         F("union", 1, 1, T::kSet, T::kSet),
         F("intersection", 1, 1, T::kSet, T::kSet)},
        {"size"}},
@@ -159,7 +160,7 @@ Environment::Environment() {
         F("set", 1, 2, T::kNullish, T::kArray, T::kNumber),
         F("subarray", 0, 2, T::kTypedArray, T::kNumber, T::kNumber),
         F("slice", 0, 2, T::kTypedArray, T::kNumber, T::kNumber),
-        F("map", 1, 1, T::kTypedArray, T::kFunction),
+        F("map", 1, 2, T::kTypedArray, T::kFunction, T::kObject),
         F("sort", 0, 1, T::kTypedArray),
         F("indexOf", 1, 1, T::kNumber, T::kNumber), F("join", 0, 1, T::kString),
         F("reverse", 0, 0, T::kTypedArray),
@@ -183,6 +184,29 @@ Environment::Environment() {
        {"message", "name", "stack"}},
       {T::kSymbol, {F("toString", 0, 0, T::kString)}, {"description"}},
   };
+  // A store to a getter of a prototype does nothing (or throws in strict
+  // code). These properties are data properties that a store changes.
+  for (BuiltinType& type : types_) {
+    switch (type.type) {
+      case T::kArray:
+        type.writable = {"length", "0", "1"};
+        break;
+      case T::kRegExp:
+        type.writable = {"lastIndex"};
+        break;
+      case T::kTypedArray:
+        type.writable = {"0", "1"};
+        break;
+      case T::kFunction:
+        type.writable = {"prototype"};
+        break;
+      case T::kError:
+        type.writable = {"message", "name"};
+        break;
+      default:
+        break;
+    }
+  }
 
   // --- globals --------------------------------------------------------------
   globals_ = {
@@ -539,6 +563,10 @@ Environment::Environment() {
               1e6,
               16777215,
               16777216,
+              1073741823,   // the largest Smi with 31-bit Smis
+              1073741824,   // one more: a heap number with 31-bit Smis
+              -1073741824,  // the smallest Smi with 31-bit Smis
+              -1073741825,  // one less
               2147483647,
               2147483648,
               -2147483648,

@@ -91,7 +91,7 @@ flowchart LR
 Init runs first (5.1). Then each worker runs this loop:
 
 1. The worker picks a corpus program, the seed. While the corpus is small, it sometimes starts from the empty program (5.1).
-2. It puts fresh value declarations at the top of the seed (the prefix, 5.3).
+2. It puts fresh value declarations at the top of the seed (the prefix, 5.3). The empty program also gets a prefix, unless `stages.prefix.from_scratch` is false.
 3. It applies a chain of up to N mutations (`stages.mutate.consecutive`) and runs each result in its target.
    A result that runs without an error becomes the parent of the next link. After a failure or a timeout, the next link uses the same parent.
 4. A result with new edges goes to Accept. If Accept admits it, Minimize makes a smaller copy, and Publish adds the copy to the corpus.
@@ -135,7 +135,9 @@ The `init` block selects one of two strategies:
 
 While the corpus has fewer than `initial_programs` programs, a worker starts a chain from the empty program with a probability of one half.
 It always does so while the corpus is empty. This rule also applies after an import.
-A chain from the empty program uses only the `CodeGen` mutator until a result runs without an error.
+A chain from the empty program starts with a prefix, like a program of Fuzzilli's `GenerativeEngine`. Then the first generators have values to use.
+The chain uses only the `CodeGen` mutator until 3 of its results run without an error, so a new program gets several rounds of generated code.
+`stages.prefix.from_scratch` and `stages.mutate.scratch_codegen` change these two rules.
 
 The importer replaces top-level `load()` and `d8.file.execute()` calls with the statements of the loaded file, so that each program is self-contained.
 It removes the loads of `mjsunit.js`, because the prelude supplies their functions. It also removes the loads that it cannot resolve.
@@ -156,10 +158,10 @@ The seed strategy and the partner strategy share one registry. The corpus calls 
 | `uniform-partner` | a random program other than the seed. This is the default partner strategy. |
 | `rarity-partner` | the program with the highest energy among a few random programs |
 
-The `rarity` strategy prefers programs that reach rare edges, are small and had few picks (`corpus/corpus.cc`):
+The `rarity` strategy prefers programs that reach rare edges, run fast, are small and had few picks (`corpus/corpus.cc`):
 
 ```text
-energy(p) = rarity(p) / ((age(p) + 1)^age_exponent * (1 + ln(size(p))^size_exponent))
+energy(p) = rarity(p) / ((age(p) + 1)^age_exponent * (1 + ln(size(p))^size_exponent) * (1 + (exec_time_ms(p) / time_unit_ms)^time_exponent))
 rarity(p) = sum over the tracked edges e of p with count(e) < rare_edge_limit of 1 / count(e)^rarity_exponent
 ```
 
@@ -218,6 +220,11 @@ For each execution, Redline writes the script, sends a command and waits for a s
 | `timed_out` | The script ran longer than the timeout. Redline kills the target. |
 
 - Redline replaces the target after a timeout, after a crash and after `max_execs_before_respawn` executions. This limits the state in one process.
+- With `randomize_d8_flags`, each new target process gets a random set of extra d8 flags, for example `--maglev-assert` or `--maglev-non-eager-inlining` (`engine/d8_flags.h`).
+  The probabilities are tunables (`flags.*`). The random flags come before the other d8 flags, so that a flag of the configuration wins.
+  Accept, Minimize and crash triage keep the flags of the process that ran the program, also in a new process.
+  These steps run most executions, so most respawns keep the flags. Thus the worker replaces a process at the end of such a step if its flags ran `max_execs_before_respawn` executions.
+  The crash report, the `crash` event and the `corpus_add` event record the random flags (`d8_random_args`).
 - After an infrastructure failure, Redline tries the execution again once with a fresh target. Ten such failures in a row stop the session.
 - A session uses a short timeout (`FuzzConfig::Load` in `engine/config.cc`), because a mutant that runs longer is almost always an endless loop.
 - By default, the target decides if a program is valid: an uncaught SyntaxError without a stack frame marks it invalid.
@@ -377,12 +384,13 @@ The loader ignores unknown top-level keys, and unknown keys in some blocks, for 
 
 **Presets.** `--preset=NAME` loads `presets/NAME.json`, and `--preset=FILE.json` loads any file.
 A preset can add d8 flags for its area (`d8_extra_args`) and change the weights of generators and mutators.
+It can also give each new target process random extra d8 flags (`randomize_d8_flags`, section 5.4).
 Each preset selects `rarity`, `rarity-partner` and `adaptive`. Without a preset, the defaults are `uniform`, `uniform-partner` and `weighted`.
 
 | Preset | d8 flags added | Higher weights |
 |---|---|---|
 | `default` | none | none |
-| `maglev` | `--maglev --no-turbofan --jit-fuzzing` | JIT, deoptimization, OSR, elements-kind and shape generators |
+| `maglev` | `--maglev --no-turbofan --jit-fuzzing`, and random Maglev flags | JIT, deoptimization, OSR, elements-kind and shape generators |
 | `turbolev` | `--turbolev --turbolev-future --jit-fuzzing` | the same generators as `maglev` |
 | `runtime` | `--no-turbofan --no-maglev --no-sparkplug` | property, prototype, proxy, freeze and shape generators. The JIT generators are off. |
 | `parser` | none | class, destructuring, arrow, template, label, `using`, `eval` and `with` generators, and `Splice` and `Combine` |

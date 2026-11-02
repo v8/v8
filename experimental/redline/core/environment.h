@@ -30,6 +30,9 @@ struct BuiltinType {
   JsType type = JsType::kUnknown;
   std::vector<BuiltinFunction> methods;
   std::vector<std::string_view> properties;
+  // The properties that a store changes: data properties, not the getters
+  // of the prototype. Empty if the model does not know them.
+  std::vector<std::string_view> writable = {};
 };
 
 // A global binding: constructor (Array, Map, ...), namespace (Math, JSON)

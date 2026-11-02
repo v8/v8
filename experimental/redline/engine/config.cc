@@ -442,9 +442,9 @@ bool ReadStages(const JsonValue& json, FuzzConfig* c, std::string* error) {
   static constexpr std::initializer_list<std::string_view> kCommon = {
       "log", "capture", "stats"};
   static constexpr std::initializer_list<std::string_view> kKeys[kNumStages] = {
-      {},                                         // pick
-      {"enabled", "min_values", "extra_values"},  // prefix
-      {"consecutive", "rounds"},                  // mutate
+      {},                                                         // pick
+      {"enabled", "min_values", "extra_values", "from_scratch"},  // prefix
+      {"consecutive", "rounds", "scratch_codegen"},               // mutate
       {"min_reruns", "min_stable_reruns", "max_reruns",
        "flaky_threshold"},  // check
       {"enabled", "max_tests", "max_time_ms", "max_rounds", "target_time_ms",
@@ -494,12 +494,16 @@ bool ReadStages(const JsonValue& json, FuzzConfig* c, std::string* error) {
             static_cast<int>(object.GetInt("min_values", c->prefix_min_values));
         c->prefix_extra_values = static_cast<int>(
             object.GetInt("extra_values", c->prefix_extra_values));
+        c->prefix_from_scratch =
+            object.GetBool("from_scratch", c->prefix_from_scratch);
         break;
       case Stage::kMutate:
         c->consecutive_mutations = static_cast<int>(
             object.GetInt("consecutive", c->consecutive_mutations));
         c->mutation_rounds =
             static_cast<int>(object.GetInt("rounds", c->mutation_rounds));
+        c->scratch_codegen_links = static_cast<int>(
+            object.GetInt("scratch_codegen", c->scratch_codegen_links));
         break;
       case Stage::kCheck:
         c->min_reruns =
@@ -567,14 +571,16 @@ std::string StagesJson(const FuzzConfig& c) {
     JsonObject o;
     o.Add("enabled", c.value_prefix);
     o.Add("min_values", c.prefix_min_values)
-        .Add("extra_values", c.prefix_extra_values);
+        .Add("extra_values", c.prefix_extra_values)
+        .Add("from_scratch", c.prefix_from_scratch);
     common(Stage::kPrefix, &o);
     stages.AddRaw("prefix", o.ToString());
   }
   {
     JsonObject o;
     o.Add("consecutive", c.consecutive_mutations)
-        .Add("rounds", c.mutation_rounds);
+        .Add("rounds", c.mutation_rounds)
+        .Add("scratch_codegen", c.scratch_codegen_links);
     common(Stage::kMutate, &o);
     stages.AddRaw("mutate", o.ToString());
   }
@@ -654,6 +660,11 @@ bool ApplyJson(const JsonValue& json, FuzzConfig* c, std::string* error) {
   c->value_prefix = json.GetBool("value_prefix", c->value_prefix);
   c->minimize = json.GetBool("minimize", c->minimize);
   c->minimize_crashes = json.GetBool("minimize_crashes", c->minimize_crashes);
+  c->harvest_crashes = json.GetBool("harvest_crashes", c->harvest_crashes);
+  c->randomize_d8_flags =
+      json.GetBool("randomize_d8_flags", c->randomize_d8_flags);
+  c->minimize_code_edges =
+      json.GetBool("minimize_code_edges", c->minimize_code_edges);
   c->minimize_imports = json.GetBool("minimize_imports", c->minimize_imports);
   c->import_all = json.GetBool("import_all", c->import_all);
   c->initial_programs =
@@ -924,6 +935,11 @@ bool FuzzConfig::Load(const Flags& flags, FuzzConfig* c, std::string* error,
       static_cast<int>(flags.GetInt("flaky-threshold", c->flaky_threshold));
   c->value_prefix = flags.GetBool("value-prefix", c->value_prefix);
   c->minimize = flags.GetBool("minimize", c->minimize);
+  c->harvest_crashes = flags.GetBool("harvest-crashes", c->harvest_crashes);
+  c->randomize_d8_flags =
+      flags.GetBool("randomize-d8-flags", c->randomize_d8_flags);
+  c->minimize_code_edges =
+      flags.GetBool("minimize-code-edges", c->minimize_code_edges);
   c->minimize_crashes = flags.GetBool("minimize-crashes", c->minimize_crashes);
   c->minimize_imports = flags.GetBool("minimize-imports", c->minimize_imports);
   c->import_all = flags.GetBool("import-all", c->import_all);
@@ -986,6 +1002,10 @@ bool FuzzConfig::Load(const Flags& flags, FuzzConfig* c, std::string* error,
       static_cast<int>(flags.GetInt("prefix-min-values", c->prefix_min_values));
   c->prefix_extra_values = static_cast<int>(
       flags.GetInt("prefix-extra-values", c->prefix_extra_values));
+  c->prefix_from_scratch =
+      flags.GetBool("prefix-from-scratch", c->prefix_from_scratch);
+  c->scratch_codegen_links = static_cast<int>(
+      flags.GetInt("scratch-codegen", c->scratch_codegen_links));
   for (const std::string& rule : flags.GetList("capture", ';')) {
     Stage stage;
     CaptureRule capture;
@@ -1042,6 +1062,9 @@ bool FuzzConfig::Load(const Flags& flags, FuzzConfig* c, std::string* error,
   }
   if (c->prefix_extra_values < 0) {
     c->prefix_extra_values = 0;
+  }
+  if (c->scratch_codegen_links < 1) {
+    c->scratch_codegen_links = 1;
   }
   if (c->min_stable_reruns < 1) {
     c->min_stable_reruns = 1;
@@ -1172,6 +1195,9 @@ std::string FuzzConfig::ToJson(Detail detail) const {
   o.Add("syntax_check", syntax_check);
   o.Add("component_stats", component_stats);
   o.Add("minimize_crashes", minimize_crashes);
+  o.Add("harvest_crashes", harvest_crashes);
+  o.Add("randomize_d8_flags", randomize_d8_flags);
+  o.Add("minimize_code_edges", minimize_code_edges);
   o.Add("minimize_imports", minimize_imports);
   o.Add("import_all", import_all);
   o.Add("initial_programs", initial_programs);
@@ -1283,6 +1309,9 @@ std::string FuzzConfig::JsonHelp() {
       "    \"d8\": \"out/fuzzbuild/d8\", \"d8_args\": [\"--expose-gc\", ...],\n"
       "    \"d8_extra_args\": [\"--maglev\"],  // appended to d8_args (like "
       "--d8-extra-args)\n"
+      "    \"randomize_d8_flags\": false,     // random extra d8 flags for "
+      "each "
+      "new d8 (flags.* tunables)\n"
       "    \"timeout_ms\": 1000, \"jobs\": 8, \"seed\": 1, \"out_dir\": "
       "\"redline-out\",\n"
       "    \"imports\": [\"test/mjsunit\"], \"import_root\": \".\", "
@@ -1295,9 +1324,13 @@ std::string FuzzConfig::JsonHelp() {
       "stage\n"
       "      \"pick\":     {\"stats\": true},\n"
       "      \"prefix\":   {\"enabled\": true, \"min_values\": 10, "
-      "\"extra_values\": 5},\n"
+      "\"extra_values\": 5,\n"
+      "                   \"from_scratch\": true},  // also prefix the "
+      "empty program\n"
       "      \"mutate\":   {\"consecutive\": 5, \"rounds\": 0, \"log\": "
       "\"off\",\n"
+      "                   \"scratch_codegen\": 3,  // CodeGen-only links "
+      "from scratch\n"
       "                   \"capture\": {\"on\": [\"timeout\"], \"mutators\": "
       "[\"Splice\"], \"max\": 50}},\n"
       "      \"check\":    {\"min_reruns\": 5, \"min_stable_reruns\": 1, "

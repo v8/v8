@@ -193,14 +193,7 @@ bool ReprlChild::Initialize(std::string* error) {
     return false;
   }
 
-  argv_storage_.push_back(options_.executable);
-  for (const std::string& arg : options_.args) {
-    argv_storage_.push_back(arg);
-  }
-  for (std::string& s : argv_storage_) {
-    argv_.push_back(s.data());
-  }
-  argv_.push_back(nullptr);
+  BuildArgv();
 
   for (const auto& [key, value] : options_.env) {
     std::string entry = key;
@@ -258,7 +251,44 @@ void ReprlChild::Kill() {
   OnChildTerminated();
 }
 
+void ReprlChild::BuildArgv() {
+  argv_storage_.clear();
+  argv_.clear();
+  argv_storage_.push_back(options_.executable);
+  for (const std::string& arg : CurrentArgs()) {
+    argv_storage_.push_back(arg);
+  }
+  for (std::string& s : argv_storage_) {
+    argv_.push_back(s.data());
+  }
+  argv_.push_back(nullptr);
+}
+
+std::vector<std::string> ReprlChild::CurrentArgs() const {
+  std::vector<std::string> args = random_args_;
+  args.insert(args.end(), options_.args.begin(), options_.args.end());
+  return args;
+}
+
+void ReprlChild::Pin(bool pinned) {
+  pinned_ = pinned;
+  // The respawns while pinned kept the flags. Replace a child whose flags
+  // are as old as the respawn limit: the next child draws new flags.
+  if (!pinned && options_.random_args &&
+      options_.max_execs_before_respawn > 0 &&
+      execs_since_draw_ >= options_.max_execs_before_respawn) {
+    Kill();
+  }
+}
+
 bool ReprlChild::Spawn(std::string* error) {
+  // A new child gets new random flags, unless they are pinned. The first
+  // child always gets them.
+  if (options_.random_args && (!pinned_ || total_spawns_ == 0)) {
+    random_args_ = options_.random_args();
+    execs_since_draw_ = 0;
+    BuildArgv();
+  }
   int child_to_parent[2] = {-1, -1};
   int parent_to_child[2] = {-1, -1};
   if (pipe2(child_to_parent, O_CLOEXEC) != 0) {
@@ -465,6 +495,7 @@ bool ReprlChild::Execute(std::string_view script, uint64_t timeout_us,
 
   total_executions_++;
   execs_since_spawn_++;
+  execs_since_draw_++;
 
   // Wait for the status word, EOF (child died) or the timeout.
   uint64_t start = MonotonicNowUs();

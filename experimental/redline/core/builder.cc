@@ -511,7 +511,7 @@ Builder::Context Builder::ContextAt(Node* node) {
     switch (n->kind) {
       case NodeKind::kProgram:
         if (!code_boundary) {
-          c.strict = n->Cast<Program>()->strict;
+          c.strict = c.strict || n->Cast<Program>()->strict;
         }
         break;
       case NodeKind::kForStatement:
@@ -545,7 +545,7 @@ Builder::Context Builder::ContextAt(Node* node) {
           c.in_function = true;
           c.in_async = fn->is_async;
           c.in_generator = fn->is_generator;
-          c.strict = fn->strict;
+          c.strict = c.strict || fn->strict;
           code_boundary = true;
         }
         if (!this_boundary && !fn->is_arrow) {

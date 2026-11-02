@@ -713,6 +713,13 @@ fast::Expression* CodeGen::ObjectLiteral(int depth) {
         }
         case 1:
           literal_key = String();
+          if (auto* str = literal_key->As<StringLiteral>();
+              str != nullptr && str->value == "__proto__") {
+            if (has_proto) {
+              continue;
+            }
+            has_proto = true;
+          }
           break;
         default:
           literal_key = BigInt();
@@ -744,12 +751,41 @@ REDLINE_TUNABLE(kArrayIntegerElementChance,
                 "codegen.array.integer_element_chance", 0.7, 0, 1,
                 "probability that an element of a numeric array literal is an "
                 "integer literal rather than any number value");
+REDLINE_TUNABLE(kArrayHoleyNumberChance, "codegen.array.holey_number_chance",
+                0.1, 0, 1,
+                "probability that an array literal has numbers and at least "
+                "one hole ([1, , 3]), for HOLEY_SMI_ELEMENTS and "
+                "HOLEY_DOUBLE_ELEMENTS");
+REDLINE_TUNABLE(kArrayHoleyNumberHoleChance,
+                "codegen.array.holey_number_hole_chance", 0.3, 0, 1,
+                "probability that an element of such an array literal is a "
+                "hole");
 
 fast::Expression* CodeGen::ArrayLiteral(int depth) {
   Random& r = rng();
   std::vector<fast::Expression*> elements;
   int n =
       r.SmallCount(kArrayMaxElements.AsInt(), kArrayElementContinueChance());
+  if (r.Chance(kArrayHoleyNumberChance())) {
+    bool hole = false;
+    for (int i = 0; i < n; i++) {
+      if (r.Chance(kArrayHoleyNumberHoleChance())) {
+        elements.push_back(nullptr);
+        hole = true;
+      } else if (r.Chance(kArrayIntegerElementChance())) {
+        elements.push_back(Integer());
+      } else {
+        elements.push_back(Value(JsType::kNumber, depth + 1));
+      }
+    }
+    if (!hole) {
+      // At least one hole.
+      elements.insert(elements.begin() + static_cast<std::ptrdiff_t>(
+                                             r.Index(elements.size() + 1)),
+                      nullptr);
+    }
+    return mk::Array(tree(), std::move(elements));
+  }
   JsType element_type = JsType::kUnknown;
   // Homogeneous arrays are common and exercise elements kinds.
   switch (r.Index(5)) {
@@ -800,16 +836,57 @@ REDLINE_TUNABLE(kFunctionMaxExtraStatements,
                 "most statements a generated function body gets beyond its "
                 "first one (geometric count)");
 
+REDLINE_TUNABLE(kParametersRestChance, "codegen.parameters.rest_chance", 0.2, 0,
+                1,
+                "probability that the last parameter of a generated function "
+                "is a rest parameter (...a)");
+REDLINE_TUNABLE(kParametersDefaultChance, "codegen.parameters.default_chance",
+                0.1, 0, 1,
+                "probability that a parameter of a generated function gets a "
+                "default value (a = v)");
+
+std::vector<fast::Expression*> CodeGen::Parameters(
+    GenContext& nested, int count, std::string_view prefix,
+    std::vector<std::string_view>* names) {
+  Random& r = rng();
+  std::vector<fast::Expression*> params;
+  const bool rest = count > 0 && r.Chance(kParametersRestChance());
+  // A default value sees the enclosing variables and the earlier parameters.
+  CodeGen defaults(nested);
+  const size_t before = nested.visible.size();
+  for (int i = 0; i < count; i++) {
+    std::string_view name = ctx_.builder.FreshName(prefix);
+    if (names != nullptr) {
+      names->push_back(name);
+    }
+    if (rest && i == count - 1) {
+      params.push_back(mk::Rest(tree(), mk::Id(tree(), name)));
+      nested.Declare(name, JsType::kArray);
+      continue;
+    }
+    fast::Expression* param = mk::Id(tree(), name);
+    if (r.Chance(kParametersDefaultChance())) {
+      param =
+          mk::WithDefault(tree(), param, defaults.Value(JsType::kUnknown, 1));
+    }
+    params.push_back(param);
+    nested.Declare(name, JsType::kUnknown);
+  }
+  // Declare() inserts at the front, so the parameters are now last first.
+  // Put the first parameter first: JitOptimize gives its warm-up values to
+  // the first argument.
+  const size_t added = nested.visible.size() - before;
+  if (added > 1) {
+    std::reverse(nested.visible.begin(),
+                 nested.visible.begin() + static_cast<std::ptrdiff_t>(added));
+  }
+  return params;
+}
+
 fast::Expression* CodeGen::FunctionValue(int depth) {
   Random& r = rng();
-  std::vector<std::string_view> params;
   int n = static_cast<int>(r.Range(0, kFunctionMaxParams.AsInt()));
   GenContext nested = ctx_.Nested(true, /*is_arrow=*/false, false, false);
-  for (int i = 0; i < n; i++) {
-    std::string_view p = ctx_.builder.FreshName("a");
-    params.push_back(p);
-    nested.Declare(p, JsType::kUnknown);
-  }
   bool arrow = r.Chance(kFunctionArrowChance());
   bool is_async = r.Chance(kFunctionAsyncChance());
   bool is_generator = !arrow && r.Chance(kFunctionGeneratorChance());
@@ -823,6 +900,8 @@ fast::Expression* CodeGen::FunctionValue(int depth) {
     nested.syntax.in_class_field = ctx_.syntax.in_class_field;
     nested.syntax.in_static_block = ctx_.syntax.in_static_block;
   }
+  // After the context is complete: default values must respect it.
+  std::vector<fast::Expression*> params = Parameters(nested, n);
   CodeGen inner(nested);
   std::vector<Statement*> body;
   if (depth < ctx_.max_depth) {
@@ -830,14 +909,22 @@ fast::Expression* CodeGen::FunctionValue(int depth) {
                       1 + r.SmallCount(kFunctionMaxExtraStatements.AsInt()));
   }
   if (arrow && body.empty() && r.Coin()) {
-    return mk::ArrowExpr(tree(), params, inner.Expression(depth + 1), is_async);
+    ArrowFunctionExpression* fn =
+        mk::ArrowExpr(tree(), {}, inner.Expression(depth + 1), is_async);
+    fn->params = std::move(params);
+    return fn;
   }
   body.push_back(mk::Return(tree(), inner.Value(JsType::kUnknown, depth + 1)));
   if (arrow) {
-    return mk::Arrow(tree(), params, std::move(body), is_async);
+    ArrowFunctionExpression* fn =
+        mk::Arrow(tree(), {}, std::move(body), is_async);
+    fn->params = std::move(params);
+    return fn;
   }
-  return mk::Function(tree(), "", params, std::move(body), is_async,
-                      is_generator);
+  FunctionExpression* fn =
+      mk::Function(tree(), "", {}, std::move(body), is_async, is_generator);
+  fn->params = std::move(params);
+  return fn;
 }
 
 REDLINE_TUNABLE(kCallableVariableChance, "codegen.callable.variable_chance",
@@ -1040,6 +1127,11 @@ REDLINE_TUNABLE(kArgumentsCallbackArrowChance,
 REDLINE_TUNABLE(kArgumentsCallbackMaxParams,
                 "codegen.arguments.callback_max_params", 2, 0, 16,
                 "most parameters a callback arrow argument declares");
+REDLINE_TUNABLE(kArgumentsCallbackThisChance,
+                "codegen.arguments.callback_this_chance", 0.15, 0, 1,
+                "probability that a function-typed argument is a new function "
+                "expression that reads a property of this (the thisArg of "
+                "forEach, map and the other iterating methods binds it)");
 
 std::vector<fast::Expression*> CodeGen::Arguments(
     const BuiltinFunction& function) {
@@ -1052,20 +1144,32 @@ std::vector<fast::Expression*> CodeGen::Arguments(
   std::vector<fast::Expression*> args;
   for (int i = 0; i < n; i++) {
     JsType hint = i < 3 ? function.args[i] : JsType::kUnknown;
+    if (hint == JsType::kFunction && r.Chance(kArgumentsCallbackThisChance())) {
+      // A function, not an arrow: its `this` is the receiver of the call.
+      int np =
+          static_cast<int>(r.Range(0, kArgumentsCallbackMaxParams.AsInt()));
+      GenContext nested = ctx_.Nested(true, false, false, false);
+      std::vector<fast::Expression*> params = Parameters(nested, np, "e");
+      CodeGen inner(nested);
+      FunctionExpression* callback =
+          mk::Function(tree(), "", {},
+                       {mk::Return(tree(), inner.Property(mk::This(tree())))});
+      callback->params = std::move(params);
+      args.push_back(callback);
+      continue;
+    }
     if (hint == JsType::kFunction &&
         r.Chance(kArgumentsCallbackArrowChance())) {
       // Callbacks: prefer short arrows over existing functions.
-      std::vector<std::string_view> params;
       int np =
           static_cast<int>(r.Range(0, kArgumentsCallbackMaxParams.AsInt()));
       GenContext nested = ctx_.Nested(true, true, false, false);
-      for (int p = 0; p < np; p++) {
-        std::string_view name = ctx_.builder.FreshName("e");
-        params.push_back(name);
-        nested.Declare(name, JsType::kUnknown);
-      }
+      std::vector<fast::Expression*> params = Parameters(nested, np, "e");
       CodeGen inner(nested);
-      args.push_back(mk::ArrowExpr(tree(), params, inner.Expression(2)));
+      ArrowFunctionExpression* callback =
+          mk::ArrowExpr(tree(), {}, inner.Expression(2));
+      callback->params = std::move(params);
+      args.push_back(callback);
       continue;
     }
     args.push_back(Value(hint, 1));
@@ -1104,7 +1208,7 @@ fast::Expression* CodeGen::BuiltinCall() {
     return mk::Call(tree(), mk::Id(tree(), g.name), Arguments(f));
   }
   const BuiltinFunction& m = r.Pick(g.static_methods);
-  return mk::CallMethod(tree(), mk::Id(tree(), g.name), m.name, Arguments(m));
+  return CallMethod(mk::Id(tree(), g.name), m.name, Arguments(m));
 }
 
 REDLINE_TUNABLE(kMethodCallGenericChance, "codegen.method_call.generic_chance",
@@ -1112,6 +1216,33 @@ REDLINE_TUNABLE(kMethodCallGenericChance, "codegen.method_call.generic_chance",
                 "probability that a method call on a value of known type uses "
                 "a generic Object method instead of one of the type's "
                 "methods");
+REDLINE_TUNABLE(kMethodCallComputedChance,
+                "codegen.method_call.computed_chance", 0.1, 0, 1,
+                "probability that a method call reads the method with a "
+                "computed key (o[\"m\"](...)) rather than with a dot");
+REDLINE_TUNABLE(kMethodCallSpreadChance, "codegen.method_call.spread_chance",
+                0.1, 0, 1,
+                "probability that a method call appends a spread of an array "
+                "to its arguments");
+
+fast::CallExpression* CodeGen::CallMethod(fast::Expression* object,
+                                          std::string_view name,
+                                          std::vector<fast::Expression*> args) {
+  Random& r = rng();
+  if (r.Chance(kMethodCallSpreadChance())) {
+    // A visible array, or a new one: a value of another type can throw.
+    fast::Expression* iterable = HasVariable(JsType::kArray)
+                                     ? Variable(JsType::kArray)
+                                     : ArrayLiteral(1);
+    args.push_back(mk::Spread(tree(), iterable));
+  }
+  fast::Expression* callee =
+      r.Chance(kMethodCallComputedChance())
+          ? static_cast<fast::Expression*>(
+                mk::Index(tree(), object, mk::Str(tree(), name)))
+          : static_cast<fast::Expression*>(mk::Member(tree(), object, name));
+  return mk::Call(tree(), callee, std::move(args));
+}
 
 fast::Expression* CodeGen::MethodCall(fast::Expression* object, JsType type) {
   Random& r = rng();
@@ -1137,10 +1268,10 @@ fast::Expression* CodeGen::MethodCall(fast::Expression* object, JsType type) {
     };
     const BuiltinFunction& m =
         kGeneric[r.Index(sizeof(kGeneric) / sizeof(kGeneric[0]))];
-    return mk::CallMethod(tree(), object, m.name, Arguments(m));
+    return CallMethod(object, m.name, Arguments(m));
   }
   const BuiltinFunction& m = r.Pick(bt->methods);
-  return mk::CallMethod(tree(), object, m.name, Arguments(m));
+  return CallMethod(object, m.name, Arguments(m));
 }
 
 REDLINE_TUNABLE(kConstructMaxUserArgs, "codegen.construct.max_user_args", 2, 0,
@@ -1334,8 +1465,43 @@ fast::Expression* CodeGen::UnaryOperation(int depth) {
   return mk::Unary(tree(), op, Value(type, depth));
 }
 
+fast::Expression* CodeGen::BooleanMethodCall() {
+  struct Candidate {
+    std::string_view variable;
+    const BuiltinFunction* method;
+  };
+  std::vector<Candidate> candidates;
+  for (const redline::Variable& v : ctx_.visible) {
+    const BuiltinType* bt = env().ForType(v.type);
+    if (bt == nullptr || v.name == "arguments") {
+      continue;
+    }
+    for (const BuiltinFunction& m : bt->methods) {
+      if (m.result == JsType::kBoolean) {
+        candidates.push_back({v.name, &m});
+      }
+    }
+  }
+  if (candidates.empty()) {
+    return nullptr;
+  }
+  const Candidate& c = rng().Pick(candidates);
+  return mk::CallMethod(tree(), mk::Id(tree(), c.variable), c.method->name,
+                        Arguments(*c.method));
+}
+
+REDLINE_TUNABLE(kConditionMethodCallChance,
+                "codegen.condition.method_call_chance", 0.15, 0, 1,
+                "probability that a condition is a call of a method that "
+                "returns a boolean (s.startsWith(x), re.test(s), m.has(k))");
+
 fast::Expression* CodeGen::Condition(int depth) {
   Random& r = rng();
+  if (r.Chance(kConditionMethodCallChance())) {
+    if (fast::Expression* call = BooleanMethodCall()) {
+      return call;
+    }
+  }
   switch (r.Index(6)) {
     case 0:
     case 1:

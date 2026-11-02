@@ -429,26 +429,28 @@ void CheckStageConfig(Checker* checker) {
     FuzzConfig config;
     std::string error = load(
         R"({"consecutive_mutations": 9,
-                "stages": {"prefix": {"min_values": 3, "extra_values": 1},
-                           "mutate": {"consecutive": 2, "rounds": 1, "log": "events",
+                "stages": {"prefix": {"min_values": 3, "extra_values": 1, "from_scratch": false},
+                           "mutate": {"consecutive": 2, "rounds": 1, "scratch_codegen": 2, "log": "events",
                                       "capture": {"on": "timeout,invalid", "mutators": ["Input"], "max": 3}},
                            "check": {"min_reruns": 2, "max_reruns": 8, "capture": {"on": ["flaky"]}},
                            "minimize": {"enabled": false, "max_tests": 12},
                            "publish": {"save_corpus": false, "stats": false}}})",
         &config);
-    bool ok =
-        error.empty() && config.prefix_min_values == 3 &&
-        config.prefix_extra_values == 1 && config.consecutive_mutations == 2 &&
-        config.mutation_rounds == 1 && config.stage(Stage::kMutate).events &&
-        config.stage(Stage::kMutate).capture.on.size() == 2 &&
-        config.stage(Stage::kMutate).capture.mutators ==
-            std::vector<std::string>{"Input"} &&
-        config.stage(Stage::kMutate).capture.max == 3 &&
-        config.min_reruns == 2 && config.max_reruns == 8 &&
-        config.stage(Stage::kCheck)
-            .capture.Matches(CaptureTrigger::kFlaky, "") &&
-        !config.minimize && config.minimizer.max_tests == 12 &&
-        !config.save_corpus && !config.stage(Stage::kPublish).stats;
+    bool ok = error.empty() && config.prefix_min_values == 3 &&
+              config.prefix_extra_values == 1 && !config.prefix_from_scratch &&
+              config.consecutive_mutations == 2 &&
+              config.mutation_rounds == 1 &&
+              config.scratch_codegen_links == 2 &&
+              config.stage(Stage::kMutate).events &&
+              config.stage(Stage::kMutate).capture.on.size() == 2 &&
+              config.stage(Stage::kMutate).capture.mutators ==
+                  std::vector<std::string>{"Input"} &&
+              config.stage(Stage::kMutate).capture.max == 3 &&
+              config.min_reruns == 2 && config.max_reruns == 8 &&
+              config.stage(Stage::kCheck)
+                  .capture.Matches(CaptureTrigger::kFlaky, "") &&
+              !config.minimize && config.minimizer.max_tests == 12 &&
+              !config.save_corpus && !config.stage(Stage::kPublish).stats;
     checker->Check(
         "stages: block sets the stage parameters and wins over flat keys", ok,
         error.empty() ? "" : error);
@@ -458,6 +460,8 @@ void CheckStageConfig(Checker* checker) {
     bool round_trip =
         JsonValue::Parse(config.ToJson(), &again, &parse_error) &&
         again.Get("stages").Get("mutate").GetInt("consecutive", 0) == 2 &&
+        again.Get("stages").Get("mutate").GetInt("scratch_codegen", 0) == 2 &&
+        !again.Get("stages").Get("prefix").GetBool("from_scratch", true) &&
         again.Get("stages").Get("mutate").Get("capture").Get("on").is_array() &&
         !again.Get("stages").Get("minimize").GetBool("enabled", true);
     checker->Check(

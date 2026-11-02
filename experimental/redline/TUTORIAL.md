@@ -441,6 +441,7 @@ cat experimental/redline/presets/maglev.json
 ```json
 {
   "d8_extra_args": ["--maglev", "--no-turbofan", "--jit-fuzzing"],
+  "randomize_d8_flags": true,
   "selection": {"seeds": {"strategy": "rarity"}, "partners": {"strategy": "rarity-partner"}, "mutators": {"strategy": "adaptive"},
     "generators": {"strategy": "adaptive", "params": {"weights": {
       "JitOptimize": 8, "Deopt": 3, "OsrLoop": 3, "ElementsKind": 4, "ShapeChange": 3}}}}
@@ -448,6 +449,7 @@ cat experimental/redline/presets/maglev.json
 ```
 
 - `d8_extra_args` adds flags to the d8 flags, like `--d8-extra-args`.
+- `randomize_d8_flags` gives each new d8 process a random set of extra flags, for example `--maglev-assert`. The `flags.*` tunables set their probabilities.
 - `selection` sets the strategies. `weights` sets the base weight of the named generators. The other generators keep their default weights.
 
 `--preset=maglev` loads `presets/maglev.json`. `--preset=FILE.json` loads any file.

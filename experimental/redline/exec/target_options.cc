@@ -109,6 +109,7 @@ ReprlChild::Options TargetOptions::ToReprlOptions(
   options.capture_stdout = capture_output;
   options.capture_stderr = capture_output;
   options.max_execs_before_respawn = max_execs_before_respawn;
+  options.random_args = random_args;
   options.env = InheritedEnvironment();
   options.env.emplace_back("SHM_ID", shm_name);
   for (const auto& kv : extra_env) {

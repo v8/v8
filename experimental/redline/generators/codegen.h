@@ -52,6 +52,13 @@ class CodeGen {
   fast::Expression* ArrayLiteral(int depth = 0);
   // A function or arrow expression with a generated body.
   fast::Expression* FunctionValue(int depth = 0);
+  // `count` parameters for a function whose body uses `nested`. Declares
+  // each fresh name in `nested`. The last parameter can be a rest parameter
+  // (an array), and the others can have a default value that uses the
+  // earlier parameters. Appends the names to `names` if it is not null.
+  std::vector<fast::Expression*> Parameters(
+      GenContext& nested, int count, std::string_view prefix = "a",
+      std::vector<std::string_view>* names = nullptr);
   // Something callable: a function variable, a builtin function or a new
   // arrow function.
   fast::Expression* Callable();
@@ -73,6 +80,14 @@ class CodeGen {
   // Builtin calls.
   fast::Expression* BuiltinCall();  // Math.max(..) etc.
   fast::Expression* MethodCall(fast::Expression* object, JsType type);
+  // `object.name(args)`. Sometimes the callee is `object["name"]`, and
+  // sometimes the call appends a spread of an array to the arguments.
+  fast::CallExpression* CallMethod(fast::Expression* object,
+                                   std::string_view name,
+                                   std::vector<fast::Expression*> args);
+  // A call of a method that returns a boolean, on a visible variable of a
+  // type that has such methods (s.startsWith(x), re.test(s)), or nullptr.
+  fast::Expression* BooleanMethodCall();
   fast::Expression* Construct(JsType type = JsType::kUnknown);  // new X(..)
 
   // Operators.

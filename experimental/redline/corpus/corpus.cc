@@ -203,9 +203,12 @@ class UniformPartners final : public ProgramSelector {
 // Fuzzilli's RarityCorpus (Sources/Fuzzilli/Corpus/RarityCorpus.swift), on
 // Redline's shared corpus (so it is also the --sharedCorpus variant):
 //
-//   energy(p) = rarity(p) / ((age(p) + 1)^age_exponent * (1 +
-//   ln(size(p))^size_exponent)) rarity(p) = sum over the tracked edges e of p
-//   with count(e) < rare_edge_limit
+//   energy(p) = rarity(p) / ((age(p) + 1)^age_exponent *
+//                            (1 + ln(size(p))^size_exponent) *
+//                            (1 + (exec_time_ms(p) /
+//                            time_unit_ms)^time_exponent))
+//   rarity(p) = sum over the tracked edges e of p with count(e) <
+//   rare_edge_limit
 //               of 1 / count(e)^rarity_exponent
 //
 // count(e) is the number of corpus programs that reach e deterministically
@@ -227,6 +230,8 @@ class RarityState {
     double size_unit = 4.0;
     int partner_pool = 3;
     double partner_age_increment = 0.2;
+    double time_exponent = 0.5;
+    double time_unit_ms = 10.0;
   };
 
   static std::vector<ParamSpec> Specs() {
@@ -247,6 +252,10 @@ class RarityState {
          "tournament size of the partner pick"},
         {"partner_age_increment", ParamSpec::Type::kNumber, "0.2",
          "age added to a program picked as partner"},
+        {"time_exponent", ParamSpec::Type::kNumber, "0.5",
+         "execution-time penalty exponent (0 disables)"},
+        {"time_unit_ms", ParamSpec::Type::kNumber, "10",
+         "execution time (ms) at which the time penalty doubles"},
     };
   }
 
@@ -264,6 +273,8 @@ class RarityState {
         static_cast<int>(params.GetInt("partner_pool", p.partner_pool));
     p.partner_age_increment =
         params.GetNumber("partner_age_increment", p.partner_age_increment);
+    p.time_exponent = params.GetNumber("time_exponent", p.time_exponent);
+    p.time_unit_ms = params.GetNumber("time_unit_ms", p.time_unit_ms);
     return p;
   }
 
@@ -272,12 +283,15 @@ class RarityState {
       *error = "rare_edge_limit must be in [1, 254]";
       return false;
     }
-    if (p.max_tracked_edges < 1 || p.partner_pool < 1 || p.size_unit <= 0.0) {
-      *error = "max_tracked_edges and partner_pool must be >= 1, size_unit > 0";
+    if (p.max_tracked_edges < 1 || p.partner_pool < 1 || p.size_unit <= 0.0 ||
+        p.time_unit_ms <= 0.0) {
+      *error =
+          "max_tracked_edges and partner_pool must be >= 1, size_unit and "
+          "time_unit_ms > 0";
       return false;
     }
     for (double x : {p.age_exponent, p.size_exponent, p.rarity_exponent,
-                     p.partner_age_increment}) {
+                     p.partner_age_increment, p.time_exponent}) {
       if (!std::isfinite(x) || x < 0.0) {
         *error = "exponents and partner_age_increment must be finite and >= 0";
         return false;
@@ -300,6 +314,8 @@ class RarityState {
         .Add("size_unit", params_.size_unit);
     o.Add("partner_pool", params_.partner_pool)
         .Add("partner_age_increment", params_.partner_age_increment);
+    o.Add("time_exponent", params_.time_exponent)
+        .Add("time_unit_ms", params_.time_unit_ms);
     return o;
   }
 
@@ -369,8 +385,14 @@ class RarityState {
         1.0, static_cast<double>(program.node_count()) / params_.size_unit);
     double ln_size = std::log(size);
     double size_pen = 1.0 + std::pow(ln_size, params_.size_exponent);
-    return rarity /
-           (std::pow(program.age + 1.0, params_.age_exponent) * size_pen);
+    double time_pen = 1.0;
+    if (program.exec_time_us > 0 && params_.time_exponent > 0.0) {
+      double time_units = static_cast<double>(program.exec_time_us) /
+                          (params_.time_unit_ms * 1000.0);
+      time_pen += std::pow(time_units, params_.time_exponent);
+    }
+    return rarity / (std::pow(program.age + 1.0, params_.age_exponent) *
+                     size_pen * time_pen);
   }
 
   // The seed pick: highest current energy (kNoChoice if every program's

@@ -39,7 +39,11 @@ constexpr char kProbeRuntime[] = R"js(const __redline_probe = (function() {
     if (reporting) return;
     reporting = true;
     try {
-      if (ReflectHas(target, key)) return;
+      if (ReflectHas(target, key) &&
+          (kind !== 'get' ||
+           (key !== 'valueOf' && key !== 'toString' && key !== 'constructor'))) {
+        return;
+      }
       let name = key;
       if (typeof key === 'symbol') {
         const d = key.description;
@@ -264,6 +268,39 @@ REDLINE_TUNABLE(kProbingAccessorChance, "mutators.Probing.accessor_chance",
                 0.35, 0, 1,
                 "probability of installing a missing property as a "
                 "getter/setter rather than a plain value");
+REDLINE_TUNABLE(kProbingReuseFunctionChance,
+                "mutators.Probing.reuse_function_chance", 0.5, 0, 1,
+                "probability that a callable property gets a visible function "
+                "variable rather than a new function");
+REDLINE_TUNABLE(kProbingMethodMaxStatements,
+                "mutators.Probing.method_max_statements", 2, 0, 16,
+                "most generated statements in a new callable property");
+
+// Whether the engine or a builtin expects a function when it reads `key`.
+bool IsCallableProperty(std::string_view key) {
+  return key == "valueOf" || key == "toString" || key == "constructor" ||
+         key == "then" || key == "next" || key == "get" || key == "set";
+}
+
+Expression* SelectPropertyValue(GenContext& gen, CodeGen& cg, Tree* t,
+                                const std::string& key) {
+  if (!IsCallableProperty(key)) {
+    return cg.Value(JsType::kUnknown, 1);
+  }
+  Random& r = gen.rng();
+  if (r.Chance(kProbingReuseFunctionChance())) {
+    if (Identifier* fn = cg.Variable(
+            key == "constructor" ? JsType::kClass : JsType::kFunction)) {
+      return fn;
+    }
+  }
+  GenContext nested = gen.Nested(true, false, false, false);
+  CodeGen icg(nested);
+  std::vector<Statement*> body =
+      icg.Body(nested, r.SmallCount(kProbingMethodMaxStatements.AsInt()));
+  body.push_back(mk::Return(t, icg.Value(JsType::kUnknown, 1)));
+  return mk::Function(t, "", {}, std::move(body));
+}
 
 int ProbingMutator::Apply(Builder& b, const std::vector<ExploreProbe>& probes,
                           const std::string& fuzzout, MutationContext& ctx,
@@ -332,7 +369,7 @@ int ProbingMutator::Apply(Builder& b, const std::vector<ExploreProbe>& probes,
           // Object.defineProperty(v, "key", {get() {...}, set(x) {...},
           // configurable: true})
           std::vector<Statement*> getter_body = {
-              mk::Return(t, cg.Value(JsType::kUnknown, 1))};
+              mk::Return(t, SelectPropertyValue(gen, cg, t, hit.key))};
           std::vector<Node*> descriptor;
           descriptor.push_back(mk::Method(
               t, "get", mk::Function(t, "", {}, std::move(getter_body))));
@@ -357,9 +394,9 @@ int ProbingMutator::Apply(Builder& b, const std::vector<ExploreProbe>& probes,
                      {mk::Id(t, probe.variable), KeyExpression(t, hit.key),
                       mk::Object(t, std::move(descriptor))})));
         } else {
-          replacement.push_back(
-              mk::ExprStmt(t, mk::Assign(t, Target(t, probe.variable, hit.key),
-                                         cg.Value(JsType::kUnknown, 1))));
+          replacement.push_back(mk::ExprStmt(
+              t, mk::Assign(t, Target(t, probe.variable, hit.key),
+                            SelectPropertyValue(gen, cg, t, hit.key))));
         }
         if (!description.empty()) {
           description += "; ";

@@ -51,6 +51,8 @@ struct FuzzerStats {
   std::atomic<uint64_t> imports_redundant{0};  // ran fine, no new edges
   std::atomic<uint64_t> unique_crashes{0};  // crashes reaching new crash edges
   std::atomic<uint64_t> duplicate_crashes{0};
+  // Crashes of minimizer probes and determinism reruns (--harvest-crashes).
+  std::atomic<uint64_t> harvested_crashes{0};
   std::atomic<uint64_t> crash_signatures{0};    // distinct signatures so far
   std::atomic<uint64_t> crashes_reproduced{0};  // reproduced in a fresh target
   std::atomic<uint64_t> crashes_state_dependent{0};  // only with history

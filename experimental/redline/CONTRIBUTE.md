@@ -121,11 +121,9 @@ const int calls = 1 + r.SmallCount(kAtomicsOpsMaxCalls.AsInt() - 1);
 Rules:
 
 - Every probability, count and limit in a component is a tunable. Do not write a number in the code.
-- The name starts with the owner: `generators.<Generator>.`, `mutators.<Mutator>.`, `codegen.<helper>.` or `minimizer.<reducer>.`.
+- The name starts with the owner: `generators.<Generator>.`, `mutators.<Mutator>.`, `codegen.<helper>.`, `minimizer.<reducer>.` or `flags.` (the random d8 flags).
 - When you replace a number in existing code, the default is the old number. Then the behavior does not change.
 - `redline fuzz --help-tunables` lists all tunables. The flag `--tunable=NAME=VALUE` and the `tunables` block set them. The flag also works with `mutate` and `audit`.
-
-Redline has 267 tunables today: 169 in generators, 61 in the CodeGen helpers, 36 in mutators and 1 in the minimizer.
 
 ### 2.6 Configuration
 
@@ -801,6 +799,7 @@ A preset is a JSON configuration for one area of V8, in `experimental/redline/pr
 $ cat experimental/redline/presets/maglev.json
 {
   "d8_extra_args": ["--maglev", "--no-turbofan", "--jit-fuzzing"],
+  "randomize_d8_flags": true,
   "selection": {"seeds": {"strategy": "rarity"}, "partners": {"strategy": "rarity-partner"}, "mutators": {"strategy": "adaptive"},
     "generators": {"strategy": "adaptive", "params": {"weights": {
       "JitOptimize": 8, "Deopt": 3, "OsrLoop": 3, "ElementsKind": 4, "ShapeChange": 3}}}}
@@ -808,6 +807,7 @@ $ cat experimental/redline/presets/maglev.json
 ```
 
 - `d8_extra_args` is appended to the d8 flags, like `--d8-extra-args`.
+- `randomize_d8_flags` gives each new d8 process random extra flags (DESIGN.md section 5.4). The `flags.*` tunables set their probabilities.
 - `selection` sets the strategies. All presets use the strategies of the latest A/B experiment: `rarity`, `rarity-partner` and `adaptive`.
 - `weights` replaces the base weight of the named generators. The others keep their built-in weight.
 
