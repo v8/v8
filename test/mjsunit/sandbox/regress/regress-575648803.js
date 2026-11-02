@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-memory-corruption-api --expose-gc
+// Flags: --sandbox-testing --expose-gc --no-verify-heap --disable-optimizing-compilers
 
 const kPageSize = 1 << 18;
 const kPageMask = ~(kPageSize - 1);
