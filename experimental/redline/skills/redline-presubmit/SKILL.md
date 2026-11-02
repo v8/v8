@@ -133,7 +133,8 @@ Tested:
 ```
 
 If a check does not apply, write why. If you did not do a check, write that.
-After the upload, start a CQ dry run: the presubmit bots also check the
+Upload the CL and start a CQ dry run only when the user asks for it
+([AGENTS.md](../../AGENTS.md) section 3.1). The presubmit bots also check the
 formatting and the Markdown links.
 
 ## Known problems
@@ -146,3 +147,5 @@ formatting and the Markdown links.
   the base revision. Commit or stash your changes first.
 - `ste_check.py` exits with status 3 and `check.sh` shows SKIP if the linter is
   not available.
+- For a CL on top of another CL, set the upstream branch to the lower CL.
+  Otherwise `git cl format` and `git cl lint` also check the lower CL.

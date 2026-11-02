@@ -950,6 +950,22 @@ This short run shows no effect of `NegateCondition`. It does not show that the m
 - Compare at the same elapsed time first: a slower component must pay for its time. The same number of executions gives a second view.
 - For bugs, use the d8 with known bugs and the time to the first crash of each bug.
 
+### 10.3 Compare with Fuzzilli and with known bugs
+
+Three measurements tell if Redline improves.
+Compare each one with origin/main too:
+
+| Measurement | What to compare | The goal |
+|---|---|---|
+| Bug finding | Redline and Fuzzilli on known bugs that you put back into d8 | Redline finds more of these bugs, or finds them sooner. |
+| Diff mode | Diff mode (the diff mode section of [TUTORIAL.md](TUTORIAL.md)) and normal mode on the same bugs | Diff mode finds the bugs sooner. |
+| Coverage | Redline and Fuzzilli on the same d8 with the same flags, without seeds | Redline reaches more coverage. |
+
+These comparisons take many hours, and small differences in the setup change the result.
+The [redline-ab-testing](skills/redline-ab-testing/SKILL.md) skill gives the setups, the scripts and the rules.
+The [redline-bug-reinjection](skills/redline-bug-reinjection/SKILL.md) skill shows how to make a d8 with one known bug.
+Keep the results in your own notes, not in the repository.
+
 ---
 
 ## 11. Checklist for a CL

@@ -89,6 +89,7 @@ out/redline/redline fuzz --d8=out/fuzzbuild/d8 --preset=maglev --jobs=4 --durati
 - [DESIGN.md](DESIGN.md): the architecture, with the fuzzing loop, the stages, the strategies, the configuration and FAST.
 - [TUTORIAL.md](TUTORIAL.md): build Redline, explore the components, and write and run your own configuration.
 - [CONTRIBUTE.md](CONTRIBUTE.md): add or change components, run the checks before you upload, and measure a change.
+- [AGENTS.md](AGENTS.md): the instructions for AI agents. The [skills](skills) directory has one skill for each task of an agent, for example the A/B tests and the known bugs.
 
 ## Directory layout
 
@@ -105,7 +106,9 @@ out/redline/redline fuzz --d8=out/fuzzbuild/d8 --preset=maglev --jobs=4 --durati
 | `minimizer/` | The minimizer and its reducers. |
 | `mutators/` | The mutators. `Explore` and `Probing` run the program in the target before they choose a change. |
 | `presets/` | The built-in presets: one JSON configuration for each area of V8. |
+| `skills/` | The skills for AI agents: the presubmit checks, the A/B tests, the known bugs, diff mode, the generators and ASD-STE100. [AGENTS.md](AGENTS.md) lists them. |
 | `testdata/` | The golden traces of `redline selftest --offline`. [testdata/README.md](testdata/README.md) describes them. |
+| `tools/` | `edge_map.py` and `diff_targets.py`, which make the targets of diff mode. |
 
 ## Code conventions
 
