@@ -10267,19 +10267,12 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceFunctionPrototypeCall(
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceFunctionPrototypeApply(
     compiler::JSFunctionRef target, CallArguments& args) {
-  compiler::OptionalHeapObjectRef maybe_receiver;
-  if (current_speculation_feedback().IsValid()) {
-    const compiler::ProcessedFeedback& processed_feedback =
-        broker()->GetFeedbackForCall(current_speculation_feedback());
-    DCHECK_EQ(processed_feedback.kind(), compiler::ProcessedFeedback::kCall);
-    const compiler::CallFeedback& call_feedback = processed_feedback.AsCall();
-    if (call_feedback.call_feedback_content() ==
-        CallFeedbackContent::kReceiver) {
-      maybe_receiver = call_feedback.target();
-    }
-  }
+  // We should have taken the `BuildCallWithFeedback` path for the typical
+  // Function.prototype.apply speculation-based optimization. If we are on this
+  // code path, we must be inside an apply inside another inlining and shouldn't
+  // use the feedback receiver.
   return TryReduceFunctionPrototypeApplyCallWithReceiver(
-      maybe_receiver, args, current_speculation_feedback());
+      {}, args, current_speculation_feedback());
 }
 
 namespace {
@@ -12606,7 +12599,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceCallForNewClosure(
 
 MaybeReduceResult
 MaglevGraphBuilder::TryReduceFunctionPrototypeApplyCallWithReceiver(
-    compiler::OptionalHeapObjectRef maybe_receiver, CallArguments& args,
+    compiler::OptionalJSFunctionRef maybe_receiver, CallArguments& args,
     const compiler::FeedbackSource& feedback_source) {
   if (args.mode() != CallArguments::kDefault) return {};
 
