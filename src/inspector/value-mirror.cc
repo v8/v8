@@ -1233,6 +1233,9 @@ class ObjectMirror final : public ValueMirrorBase {
       v8::Local<v8::Context> context, const WrapOptions& wrapOptions,
       std::unique_ptr<RemoteObject>* result) const override {
     v8::Isolate* isolate = v8::Isolate::GetCurrent();
+    if (isolate->IsExecutionTerminating()) {
+      return Response::ServerError("Execution was terminated");
+    }
     v8::Local<v8::Object> value = v8Value(isolate).As<v8::Object>();
     if (wrapOptions.mode == WrapMode::kJson) {
       std::unique_ptr<protocol::Value> protocolValue;
@@ -1255,6 +1258,9 @@ class ObjectMirror final : public ValueMirrorBase {
         int indexLimit = 100;
         buildObjectPreview(context, false, &nameLimit, &indexLimit,
                            &previewValue);
+        if (isolate->IsExecutionTerminating()) {
+          return Response::ServerError("Execution was terminated");
+        }
         (*result)->setPreview(std::move(previewValue));
       }
     }
@@ -1695,6 +1701,7 @@ void ValueMirror::getInternalProperties(
     v8::Local<v8::Context> context, v8::Local<v8::Object> object,
     std::vector<InternalPropertyMirror>* mirrors) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  if (isolate->IsExecutionTerminating()) return;
   v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::TryCatch tryCatch(isolate);
@@ -1718,22 +1725,29 @@ void ValueMirror::getInternalProperties(
           String16("[[GeneratorLocation]]"), std::move(location)});
     }
   }
+  if (isolate->IsExecutionTerminating()) return;
   V8Debugger* debugger =
       static_cast<V8InspectorImpl*>(v8::debug::GetInspector(isolate))
           ->debugger();
   v8::Local<v8::Array> properties;
   if (debugger->internalProperties(context, object).ToLocal(&properties)) {
+    if (isolate->IsExecutionTerminating()) return;
     for (uint32_t i = 0; i < properties->Length(); i += 2) {
+      if (isolate->IsExecutionTerminating()) return;
       v8::Local<v8::Value> name;
       if (!properties->Get(context, i).ToLocal(&name) || !name->IsString()) {
         tryCatch.Reset();
+        if (isolate->IsExecutionTerminating()) return;
         continue;
       }
+      if (isolate->IsExecutionTerminating()) return;
       v8::Local<v8::Value> value;
       if (!properties->Get(context, i + 1).ToLocal(&value)) {
         tryCatch.Reset();
+        if (isolate->IsExecutionTerminating()) return;
         continue;
       }
+      if (isolate->IsExecutionTerminating()) return;
       auto wrapper = ValueMirror::create(context, value);
       // Creating the mirror can run JavaScript, which might terminate
       // execution. Don't call into V8 anymore in that case, since the next V8
@@ -1822,8 +1836,7 @@ std::unique_ptr<ValueMirror> clientMirror(v8::Local<v8::Context> context,
   if (subtype == "error") {
     String16 description = descriptionForError(context, value);
     v8::Isolate* isolate = v8::Isolate::GetCurrent();
-    if (isolate->IsExecutionTerminating() &&
-        v8::debug::SideEffectCheckScope::IsActive(isolate)) {
+    if (isolate->IsExecutionTerminating()) {
       return nullptr;
     }
     return std::make_unique<ObjectMirror>(
@@ -1842,8 +1855,7 @@ std::unique_ptr<ValueMirror> clientMirror(v8::Local<v8::Context> context,
                                      lengthValue.As<v8::Int32>()->Value()));
       }
     }
-    if (tryCatch.HasTerminated() &&
-        v8::debug::SideEffectCheckScope::IsActive(isolate)) {
+    if (tryCatch.HasTerminated() || isolate->IsExecutionTerminating()) {
       return nullptr;
     }
   }

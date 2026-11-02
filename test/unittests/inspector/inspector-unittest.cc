@@ -1625,5 +1625,224 @@ TEST_F(InspectorTest, IsTopScriptOpaque) {
                               /*is_opaque=*/false)
                   ->BooleanValue(isolate));
 }
+
+namespace {
+
+class TerminateOnPauseChannel : public V8Inspector::Channel,
+                                public v8_inspector::V8InspectorClient {
+ public:
+  TerminateOnPauseChannel(v8::Isolate* isolate, v8::Local<v8::Context> context)
+      : isolate_(isolate), context_(isolate, context) {}
+  ~TerminateOnPauseChannel() override = default;
+
+  void set_session(V8InspectorSession* session) { session_ = session; }
+  void ResetPauseState() { terminated_ = false; }
+
+  v8::Local<v8::Context> ensureDefaultContextInGroup(
+      int contextGroupId) override {
+    return context_.Get(isolate_);
+  }
+
+  void sendResponse(int callId,
+                    std::unique_ptr<StringBuffer> message) override {
+    String16 str16 = toString16(message->string());
+    responses_[callId] = str16.utf8();
+  }
+
+  void sendNotification(std::unique_ptr<StringBuffer> message) override {}
+
+  void runMessageLoopOnPause(int contextGroupId) override {
+    if (!terminated_ && session_) {
+      terminated_ = true;
+      session_->dispatchProtocolMessage(toStringView(
+          R"({"id": 100, "method": "Runtime.terminateExecution"})"));
+      session_->dispatchProtocolMessage(
+          toStringView(R"({"id": 101, "method": "Debugger.resume"})"));
+    }
+  }
+
+  void quitMessageLoopOnPause() override {}
+  void flushProtocolNotifications() override {}
+
+  const std::string& response(int callId) { return responses_[callId]; }
+
+ private:
+  v8::Isolate* isolate_;
+  v8::Global<v8::Context> context_;
+  V8InspectorSession* session_ = nullptr;
+  bool terminated_ = false;
+  std::map<int, std::string> responses_;
+};
+
+v8::Intercepted QueryCallback(
+    v8::Local<v8::Name> property,
+    const v8::PropertyCallbackInfo<v8::Integer>& info) {
+  info.GetReturnValue().Set(v8::None);
+  return v8::Intercepted::kYes;
+}
+
+v8::Intercepted ThrowingDescriptorCallback(
+    v8::Local<v8::Name> property,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Value> thrown_val;
+  if (context->Global()
+          ->Get(context, v8::String::NewFromUtf8Literal(isolate, "thrownObj"))
+          .ToLocal(&thrown_val)) {
+    isolate->ThrowException(thrown_val);
+  }
+  return v8::Intercepted::kYes;
+}
+
+void EnumeratorCallback(const v8::PropertyCallbackInfo<v8::Array>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Array> arr = v8::Array::New(isolate, 1);
+  CHECK(arr->Set(context, 0, v8::String::NewFromUtf8Literal(isolate, "prop"))
+            .FromJust());
+  info.GetReturnValue().Set(arr);
+}
+
+}  // namespace
+
+TEST_F(InspectorTest, GetPropertiesTerminationInAccessorPreview) {
+  v8::Isolate* isolate = v8_isolate();
+  v8::HandleScope handle_scope(isolate);
+
+  TerminateOnPauseChannel channel(isolate, v8_context());
+  std::unique_ptr<V8Inspector> inspector =
+      V8Inspector::create(isolate, &channel);
+  V8ContextInfo context_info(v8_context(), 1, StringView());
+  inspector->contextCreated(context_info);
+
+  std::unique_ptr<V8InspectorSession> session = inspector->connect(
+      1, &channel, toStringView("{}"), v8_inspector::V8Inspector::kFullyTrusted,
+      v8_inspector::V8Inspector::kNotWaitingForDebugger);
+  channel.set_session(session.get());
+
+  session->dispatchProtocolMessage(
+      toStringView(R"({"id": 1, "method": "Runtime.enable"})"));
+  session->dispatchProtocolMessage(
+      toStringView(R"({"id": 2, "method": "Debugger.enable"})"));
+
+  v8::Local<v8::ObjectTemplate> tmpl = v8::ObjectTemplate::New(isolate);
+  tmpl->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      /*getter=*/nullptr, /*setter=*/nullptr,
+      /*query=*/QueryCallback,
+      /*deleter=*/nullptr,
+      /*enumerator=*/EnumeratorCallback,
+      /*definer=*/nullptr,
+      /*descriptor=*/ThrowingDescriptorCallback));
+  v8::Local<v8::Object> interceptor_obj =
+      tmpl->NewInstance(v8_context()).ToLocalChecked();
+  CHECK(v8_context()
+            ->Global()
+            ->Set(v8_context(), NewString("interceptorObj"), interceptor_obj)
+            .FromJust());
+
+  RunJS(R"(
+    var log = [];
+    var pausing = false;
+    function makeError(tag, terminate) {
+      const err = new Error();
+      Object.setPrototypeOf(err, {
+        get name() {
+          if (pausing && terminate) return 'Error';
+          log.push(tag);
+          if (terminate) {
+            pausing = true;
+            Promise.resolve().then(() => log.push('microtask'));
+            debugger;
+            for (;;) {}
+          }
+          return tag;
+        },
+      });
+      return err;
+    }
+    globalThis.err1 = makeError('err1', true);
+    globalThis.err2 = makeError('err2', false);
+
+    const targetFn = () => {};
+    targetFn.e = globalThis.err1;
+
+    globalThis.getterTarget = Promise.resolve(globalThis.err2);
+    Object.defineProperty(globalThis.getterTarget, 'prop', {
+      get: new Proxy(targetFn, {}),
+      enumerable: true,
+      configurable: true,
+    });
+
+    globalThis.setterTarget = Promise.resolve(globalThis.err2);
+    Object.defineProperty(globalThis.setterTarget, 'prop', {
+      set: new Proxy(targetFn, {}),
+      enumerable: true,
+      configurable: true,
+    });
+
+    globalThis.thrownObj = { e: globalThis.err1 };
+
+    globalThis.exceptionTarget = Promise.resolve(globalThis.err2);
+    Object.setPrototypeOf(globalThis.exceptionTarget, globalThis.interceptorObj);
+  )");
+
+  struct TestCase {
+    const char* expr;
+    bool own_properties;
+  } kTestCases[] = {
+      {"globalThis.getterTarget", true},
+      {"globalThis.setterTarget", true},
+      {"globalThis.exceptionTarget", false},
+  };
+
+  int next_id = 3;
+  for (const auto& test_case : kTestCases) {
+    RunJS("log = []; pausing = false;");
+    channel.ResetPauseState();
+
+    int eval_id = next_id++;
+    std::string eval_msg = "{\"id\": " + std::to_string(eval_id) +
+                           ", \"method\": \"Runtime.evaluate\", \"params\": "
+                           "{\"expression\": \"" +
+                           std::string(test_case.expr) + "\"}}";
+    StringView eval_view(reinterpret_cast<const uint8_t*>(eval_msg.data()),
+                         eval_msg.size());
+    session->dispatchProtocolMessage(eval_view);
+
+    const std::string& eval_response = channel.response(eval_id);
+    const char kObjectIdKey[] = "\"objectId\":\"";
+    size_t start = eval_response.find(kObjectIdKey);
+    CHECK_NE(start, std::string::npos);
+    start += strlen(kObjectIdKey);
+    size_t end = eval_response.find("\"", start);
+    CHECK_NE(end, std::string::npos);
+    std::string object_id = eval_response.substr(start, end - start);
+
+    int get_props_id = next_id++;
+    std::string get_props_msg =
+        "{\"id\": " + std::to_string(get_props_id) +
+        ", \"method\": \"Runtime.getProperties\", \"params\": "
+        "{\"objectId\": \"" +
+        object_id + "\", \"ownProperties\": " +
+        (test_case.own_properties ? "true" : "false") +
+        ", \"generatePreview\": true}}";
+    StringView get_props_view(
+        reinterpret_cast<const uint8_t*>(get_props_msg.data()),
+        get_props_msg.size());
+    session->dispatchProtocolMessage(get_props_view);
+
+    const std::string& get_props_response = channel.response(get_props_id);
+    EXPECT_NE(get_props_response.find("\"error\":"), std::string::npos);
+    EXPECT_NE(
+        get_props_response.find("\"message\":\"Execution was terminated\""),
+        std::string::npos);
+    EXPECT_EQ(get_props_response.find("\"result\":["), std::string::npos);
+
+    v8::Local<v8::Value> log_json = RunJS("JSON.stringify(log)");
+    v8::String::Utf8Value log_utf8(isolate, log_json);
+    CHECK_EQ(std::string(*log_utf8), std::string("[\"err1\"]"));
+  }
+}
 }  // namespace internal
 }  // namespace v8

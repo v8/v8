@@ -487,6 +487,9 @@ Response InjectedScript::getProperties(
   if (!ValueMirror::getProperties(context, object, ownProperties,
                                   accessorPropertiesOnly,
                                   nonIndexedPropertiesOnly, &accumulator)) {
+    if (isolate->IsExecutionTerminating()) {
+      return Response::ServerError("Execution was terminated");
+    }
     return createExceptionDetails(tryCatch, groupName, exceptionDetails);
   }
   for (const PropertyMirror& mirror : mirrors) {
@@ -502,47 +505,76 @@ Response InjectedScript::getProperties(
       Response response = wrapObjectMirror(
           *mirror.value, groupName, wrapOptions, v8::MaybeLocal<v8::Value>(),
           kMaxCustomPreviewDepth, nullptr, &remoteObject);
-      if (!response.IsSuccess()) return response;
+      if (!response.IsSuccess()) {
+        if (isolate->IsExecutionTerminating()) {
+          return Response::ServerError("Execution was terminated");
+        }
+        return response;
+      }
       descriptor->setValue(std::move(remoteObject));
       descriptor->setWritable(mirror.writable);
     }
     if (mirror.getter) {
       Response response =
           mirror.getter->buildRemoteObject(context, wrapOptions, &remoteObject);
+      if (isolate->IsExecutionTerminating()) {
+        return Response::ServerError("Execution was terminated");
+      }
       if (!response.IsSuccess()) return response;
       response = bindRemoteObjectIfNeeded(sessionId, context,
                                           mirror.getter->v8Value(isolate),
                                           groupName, remoteObject.get());
+      if (isolate->IsExecutionTerminating()) {
+        return Response::ServerError("Execution was terminated");
+      }
       if (!response.IsSuccess()) return response;
       descriptor->setGet(std::move(remoteObject));
     }
     if (mirror.setter) {
       Response response =
           mirror.setter->buildRemoteObject(context, wrapOptions, &remoteObject);
+      if (isolate->IsExecutionTerminating()) {
+        return Response::ServerError("Execution was terminated");
+      }
       if (!response.IsSuccess()) return response;
       response = bindRemoteObjectIfNeeded(sessionId, context,
                                           mirror.setter->v8Value(isolate),
                                           groupName, remoteObject.get());
+      if (isolate->IsExecutionTerminating()) {
+        return Response::ServerError("Execution was terminated");
+      }
       if (!response.IsSuccess()) return response;
       descriptor->setSet(std::move(remoteObject));
     }
     if (mirror.symbol) {
       Response response =
           mirror.symbol->buildRemoteObject(context, wrapOptions, &remoteObject);
+      if (isolate->IsExecutionTerminating()) {
+        return Response::ServerError("Execution was terminated");
+      }
       if (!response.IsSuccess()) return response;
       response = bindRemoteObjectIfNeeded(sessionId, context,
                                           mirror.symbol->v8Value(isolate),
                                           groupName, remoteObject.get());
+      if (isolate->IsExecutionTerminating()) {
+        return Response::ServerError("Execution was terminated");
+      }
       if (!response.IsSuccess()) return response;
       descriptor->setSymbol(std::move(remoteObject));
     }
     if (mirror.exception) {
       Response response = mirror.exception->buildRemoteObject(
           context, wrapOptions, &remoteObject);
+      if (isolate->IsExecutionTerminating()) {
+        return Response::ServerError("Execution was terminated");
+      }
       if (!response.IsSuccess()) return response;
       response = bindRemoteObjectIfNeeded(sessionId, context,
                                           mirror.exception->v8Value(isolate),
                                           groupName, remoteObject.get());
+      if (isolate->IsExecutionTerminating()) {
+        return Response::ServerError("Execution was terminated");
+      }
       if (!response.IsSuccess()) return response;
       descriptor->setValue(std::move(remoteObject));
       descriptor->setWasThrown(true);
@@ -570,6 +602,9 @@ Response InjectedScript::getInternalAndPrivateProperties(
   int sessionId = m_sessionId;
 
   if (!accessorPropertiesOnly) {
+    if (m_context->isolate()->IsExecutionTerminating()) {
+      return Response::ServerError("Execution was terminated");
+    }
     std::vector<InternalPropertyMirror> internalPropertiesWrappers;
     ValueMirror::getInternalProperties(m_context->context(), value_obj,
                                        &internalPropertiesWrappers);
@@ -581,11 +616,17 @@ Response InjectedScript::getInternalAndPrivateProperties(
       Response response = internalProperty.value->buildRemoteObject(
           m_context->context(), WrapOptions({WrapMode::kIdOnly}),
           &remoteObject);
+      if (m_context->isolate()->IsExecutionTerminating()) {
+        return Response::ServerError("Execution was terminated");
+      }
       if (!response.IsSuccess()) return response;
       response = bindRemoteObjectIfNeeded(
           sessionId, context,
           internalProperty.value->v8Value(v8::Isolate::GetCurrent()), groupName,
           remoteObject.get());
+      if (m_context->isolate()->IsExecutionTerminating()) {
+        return Response::ServerError("Execution was terminated");
+      }
       if (!response.IsSuccess()) return response;
       (*internalProperties)
           ->emplace_back(InternalPropertyDescriptor::create()
@@ -617,11 +658,17 @@ Response InjectedScript::getInternalAndPrivateProperties(
     if (privateProperty.value) {
       Response response = privateProperty.value->buildRemoteObject(
           context, WrapOptions({WrapMode::kIdOnly}), &remoteObject);
+      if (m_context->isolate()->IsExecutionTerminating()) {
+        return Response::ServerError("Execution was terminated");
+      }
       if (!response.IsSuccess()) return response;
       response = bindRemoteObjectIfNeeded(
           sessionId, context,
           privateProperty.value->v8Value(v8::Isolate::GetCurrent()), groupName,
           remoteObject.get());
+      if (m_context->isolate()->IsExecutionTerminating()) {
+        return Response::ServerError("Execution was terminated");
+      }
       if (!response.IsSuccess()) return response;
       descriptor->setValue(std::move(remoteObject));
     }
@@ -629,11 +676,17 @@ Response InjectedScript::getInternalAndPrivateProperties(
     if (privateProperty.getter) {
       Response response = privateProperty.getter->buildRemoteObject(
           context, WrapOptions({WrapMode::kIdOnly}), &remoteObject);
+      if (m_context->isolate()->IsExecutionTerminating()) {
+        return Response::ServerError("Execution was terminated");
+      }
       if (!response.IsSuccess()) return response;
       response = bindRemoteObjectIfNeeded(
           sessionId, context,
           privateProperty.getter->v8Value(v8::Isolate::GetCurrent()), groupName,
           remoteObject.get());
+      if (m_context->isolate()->IsExecutionTerminating()) {
+        return Response::ServerError("Execution was terminated");
+      }
       if (!response.IsSuccess()) return response;
       descriptor->setGet(std::move(remoteObject));
     }
@@ -641,11 +694,17 @@ Response InjectedScript::getInternalAndPrivateProperties(
     if (privateProperty.setter) {
       Response response = privateProperty.setter->buildRemoteObject(
           context, WrapOptions({WrapMode::kIdOnly}), &remoteObject);
+      if (m_context->isolate()->IsExecutionTerminating()) {
+        return Response::ServerError("Execution was terminated");
+      }
       if (!response.IsSuccess()) return response;
       response = bindRemoteObjectIfNeeded(
           sessionId, context,
           privateProperty.setter->v8Value(v8::Isolate::GetCurrent()), groupName,
           remoteObject.get());
+      if (m_context->isolate()->IsExecutionTerminating()) {
+        return Response::ServerError("Execution was terminated");
+      }
       if (!response.IsSuccess()) return response;
       descriptor->setSet(std::move(remoteObject));
     }
