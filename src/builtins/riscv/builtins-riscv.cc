@@ -2668,6 +2668,10 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   Label stack_overflow;
   __ StackOverflowCheck(len, kScratchReg, a5, &stack_overflow);
 
+  // Skip argument setup if we don't need to push any varargs.
+  Label done;
+  __ Branch(&done, eq, len, Operand(zero_reg), Label::Distance::kNear);
+
   // Move the arguments already in the stack,
   // including the receiver and the return address.
   // a4: Number of arguments to make room for.
@@ -2678,11 +2682,10 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   // Push arguments onto the stack (thisArgument is already on the stack).
   {
     UseScratchRegisterScope temps(masm);
-    Label done, push, loop;
+    Label push, loop;
     Register src = a6;
     Register scratch = temps.Acquire();
     __ AddWord(src, args, OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag);
-    __ Branch(&done, eq, len, Operand(zero_reg), Label::Distance::kNear);
     __ SllWord(scratch, len, kTaggedSizeLog2);
     __ SubWord(scratch, sp, Operand(scratch));
 #if !V8_STATIC_ROOTS_BOOL
@@ -2706,8 +2709,8 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     __ AddWord(a7, a7, Operand(kSystemPointerSize));
     __ AddWord(scratch, scratch, Operand(kTaggedSize));
     __ Branch(&loop, ne, scratch, Operand(sp));
-    __ bind(&done);
   }
+  __ bind(&done);
 
   // Tail-call to the actual Call or Construct builtin.
   __ TailCallBuiltin(target_builtin);

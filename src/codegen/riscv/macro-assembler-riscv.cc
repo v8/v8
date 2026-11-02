@@ -5740,17 +5740,30 @@ void MacroAssembler::StackOverflowCheck(Register num_args, Register scratch1,
   // interruptions (e.g. debug break and preemption) here, so the "real stack
   // limit" is checked.
   DCHECK(stack_overflow != nullptr || done != nullptr);
+
+  // Check if the arguments count is negative. On 64-bit RISC-V an untagged
+  // length can be sign-extended (for example when it comes from a corrupted
+  // in-sandbox JSArray length), and the signed comparison below would then
+  // incorrectly treat it as "enough space left".
+  SllWord(scratch2, num_args, kSystemPointerSizeLog2);
+  if (stack_overflow != nullptr) {
+    Branch(stack_overflow, lt, scratch2, Operand(zero_reg));
+  }
+
   LoadStackLimit(scratch1, StackLimitKind::kRealStackLimit);
   // Make scratch1 the space we have left. The stack might already be overflowed
   // here which will cause scratch1 to become negative.
   SubWord(scratch1, sp, scratch1);
   // Check if the arguments will overflow the stack.
-  SllWord(scratch2, num_args, kSystemPointerSizeLog2);
   // Signed comparison.
   if (stack_overflow != nullptr) {
     Branch(stack_overflow, le, scratch1, Operand(scratch2));
   } else if (done != nullptr) {
+    // Negative counts must fall through to the caller's stack-overflow handler.
+    Label check_done;
+    Branch(&check_done, lt, scratch2, Operand(zero_reg));
     Branch(done, gt, scratch1, Operand(scratch2));
+    bind(&check_done);
   } else {
     UNREACHABLE();
   }
