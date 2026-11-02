@@ -754,7 +754,10 @@ class InstructionBase {
     return FirstHalfWord == 0;
   }
 
-  bool IsShortInstruction() const;
+  inline bool IsShortInstruction() const {
+    uint8_t FirstByte = *reinterpret_cast<const uint8_t*>(this);
+    return (FirstByte & 0x03) <= C2;
+  }
 
   inline uint8_t InstructionSize() const {
     return (this->IsShortInstruction()) ? kShortInstrSize : kInstrSize;
