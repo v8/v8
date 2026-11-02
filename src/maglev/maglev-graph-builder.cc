@@ -12832,9 +12832,12 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildAndAllocateJSGeneratorObject(
   if (!function.has_initial_map(broker())) return {};
 
   // The shared function info of this JSFunction should be the same as the
-  // current one we are compiling.
-  DCHECK_EQ(compilation_unit()->shared_function_info(),
-            function.shared(broker()));
+  // current one we are compiling. Otherwise an earlier check narrowed the
+  // closure to a different function and this block is unreachable.
+  if (!function.shared(broker()).equals(
+          compilation_unit()->shared_function_info())) {
+    return reducer_.BuildAbort(AbortReason::kUnreachable);
+  }
 
   // Create the register file.
   int length = parameter_count_without_receiver() + register_count();
