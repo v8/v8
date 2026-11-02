@@ -394,12 +394,6 @@ bool String::MakeExternalWithWrapper(
   if (IsShared()) {
     return MarkForExternalizationDuringGC(isolate, resource);
   }
-  // For strings in the shared space we need the shared space isolate instead of
-  // the current isolate.
-  if (HeapLayout::InWritableSharedSpace(this)) {
-    resource->Unaccount(reinterpret_cast<v8::Isolate*>(isolate));
-    isolate = isolate->shared_space_isolate();
-  }
   bool is_internalized = Is<InternalizedString>(this);
   bool has_pointers = StringShape(this).IsIndirect();
 
@@ -495,12 +489,6 @@ bool String::MakeExternalWithWrapper(
   if (HeapLayout::InReadOnlySpace(this)) return false;
   if (IsShared()) {
     return MarkForExternalizationDuringGC(isolate, resource);
-  }
-  // For strings in the shared space we need the shared space isolate instead of
-  // the current isolate.
-  if (HeapLayout::InWritableSharedSpace(this)) {
-    resource->Unaccount(reinterpret_cast<v8::Isolate*>(isolate));
-    isolate = isolate->shared_space_isolate();
   }
   bool is_internalized = Is<InternalizedString>(this);
   bool has_pointers = StringShape(this).IsIndirect();
