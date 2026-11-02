@@ -5242,6 +5242,7 @@ void Builtins::Generate_DeoptimizationEntry_LazyAfterFastCall(
   __ CallRuntime(Runtime::FunctionId::kPropagateException);
   __ MaybeRestoreRegisters(kCalleeSaveRegisters);
   __ LeaveFrame(StackFrame::INTERNAL);
+  __ TailCallBuiltin(Builtin::kDeoptimizationEntry_Lazy);
 
   __ bind(&no_exception);
   // Deoptimization expects that the return value of the API call is in the

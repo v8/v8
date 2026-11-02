@@ -5287,6 +5287,8 @@ void Builtins::Generate_DeoptimizationEntry_LazyAfterFastCall(
   __ MultiPop(kCalleeSaveRegisters);
   __ MultiPopFPU(kCalleeSaveFPRegisters);
   __ LeaveFrame(StackFrame::INTERNAL);
+  __ TailCallBuiltin(Builtin::kDeoptimizationEntry_Lazy);
+
   __ bind(&no_exception);
   // Deoptimization expects that the return value of the API call is in the
   // return register. As we only allow deoptimization if the return type is
