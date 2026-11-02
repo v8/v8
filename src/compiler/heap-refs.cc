@@ -2752,13 +2752,16 @@ bool NativeContextRef::GlobalIsDetached(JSHeapBroker* broker) const {
   return !proxy_proto.equals(global_object(broker));
 }
 
-OptionalPropertyCellRef JSGlobalObjectRef::GetPropertyCell(JSHeapBroker* broker,
-                                                           NameRef name) const {
+OptionalPropertyCellRef JSGlobalObjectRef::GetPropertyCell(
+    JSHeapBroker* broker, NameRef name, AccessMode access_mode) const {
   std::optional<Tagged<PropertyCell>> maybe_cell =
       ConcurrentLookupIterator::TryGetPropertyCell(
           broker->isolate(), broker->local_isolate_or_isolate(),
           broker->target_native_context().global_object(broker).object(),
-          name.object());
+          name.object(),
+          access_mode == AccessMode::kLoad
+              ? ConcurrentLookupIterator::SearchCachedProperty::kYes
+              : ConcurrentLookupIterator::SearchCachedProperty::kNo);
   if (!maybe_cell.has_value()) return {};
   return TryMakeRef(broker, *maybe_cell);
 }

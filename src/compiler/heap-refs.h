@@ -1399,8 +1399,8 @@ class JSGlobalObjectRef : public JSObjectRef {
   bool IsDetachedFrom(JSGlobalProxyRef proxy) const;
 
   // Can be called even when there is no property cell for the given name.
-  OptionalPropertyCellRef GetPropertyCell(JSHeapBroker* broker,
-                                          NameRef name) const;
+  OptionalPropertyCellRef GetPropertyCell(JSHeapBroker* broker, NameRef name,
+                                          AccessMode access_mode) const;
 };
 
 class JSGlobalProxyRef : public JSObjectRef {

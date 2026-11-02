@@ -241,6 +241,59 @@ TEST_F(AccessorTest, CachedAccessorOnGlobalObject) {
 }
 
 namespace {
+int cached_accessor_setter_call_count = 0;
+void CountingSetterCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  cached_accessor_setter_call_count++;
+}
+}  // namespace
+
+TEST_F(AccessorTest, CachedAccessorOnGlobalObjectStore) {
+  i::v8_flags.allow_natives_syntax.Set(true);
+  v8::HandleScope scope(isolate());
+
+  v8::Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate());
+  v8::Local<v8::ObjectTemplate> object_template = templ->InstanceTemplate();
+  v8::Local<v8::Private> priv =
+      v8::Private::ForApi(isolate(), NewString("Foo#draft"));
+
+  object_template->SetAccessorProperty(
+      NewString("draft"),
+      v8::FunctionTemplate::NewWithCache(isolate(), UnreachableCallback, priv,
+                                         v8::Local<v8::Value>()),
+      v8::FunctionTemplate::New(isolate(), CountingSetterCallback));
+
+  v8::Local<v8::Context> ctx =
+      v8::Context::New(isolate(), nullptr, object_template);
+  v8::Local<v8::Object> obj = ctx->Global();
+
+  cached_accessor_setter_call_count = 0;
+  // Write the cache a few times so that its PropertyCell leaves the kConstant
+  // state and becomes kMutable.
+  CHECK(obj->SetPrivate(ctx, priv, v8::Integer::New(isolate(), 11)).FromJust());
+  CHECK(obj->SetPrivate(ctx, priv, NewString("str")).FromJust());
+  CHECK(
+      obj->SetPrivate(ctx, priv, v8::Integer::New(isolate(), 123)).FromJust());
+
+  {
+    v8::Context::Scope context_scope(ctx);
+
+    RunJS(ctx,
+          "function f(v) { globalThis.draft = v; }"
+          "%PrepareFunctionForOptimization(f);"
+          "f(1); f(2);"
+          "%OptimizeMaglevOnNextCall(f);"
+          "f(3);"
+          "%OptimizeFunctionOnNextCall(f);"
+          "f(4);");
+
+    // The setter must have been invoked for every store, and the private cache
+    // value must be untouched by the stores.
+    CHECK_EQ(4, cached_accessor_setter_call_count);
+    EXPECT_THAT(RunJS(ctx, "draft"), IsInt32(123));
+  }
+}
+
+namespace {
 
 // Getter return value should be non-null to trigger lazy property paths.
 void Getter(v8::Local<v8::Name> name,

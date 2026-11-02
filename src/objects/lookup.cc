@@ -1718,7 +1718,8 @@ ConcurrentLookupIterator::Result ConcurrentLookupIterator::TryGetOwnChar(
 std::optional<Tagged<PropertyCell>>
 ConcurrentLookupIterator::TryGetPropertyCell(
     Isolate* isolate, LocalIsolate* local_isolate,
-    DirectHandle<JSGlobalObject> holder, DirectHandle<Name> name) {
+    DirectHandle<JSGlobalObject> holder, DirectHandle<Name> name,
+    SearchCachedProperty search_cached_property) {
   DisallowGarbageCollection no_gc;
 
   Tagged<Map> holder_map = holder->map();
@@ -1733,6 +1734,7 @@ ConcurrentLookupIterator::TryGetPropertyCell(
   Tagged<PropertyCell> cell = maybe_cell.value();
 
   if (cell->property_details(kAcquireLoad).kind() == PropertyKind::kAccessor) {
+    if (search_cached_property == SearchCachedProperty::kNo) return {};
     Tagged<Object> maybe_accessor_pair = cell->value(kAcquireLoad);
     if (!IsAccessorPair(maybe_accessor_pair)) return {};
 

@@ -4806,7 +4806,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
       if (!native_context.GlobalIsDetached(broker())) {
         compiler::OptionalPropertyCellRef cell =
             native_context.global_object(broker()).GetPropertyCell(
-                broker(), feedback.name());
+                broker(), feedback.name(), access_mode);
         if (!cell.has_value()) return {};
         // Note: The map check generated below ensures that we will deopt
         // when/if GlobalIsDetached becomes true.
