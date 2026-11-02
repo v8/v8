@@ -234,6 +234,14 @@ Only successful executions count for coverage, so the corpus holds only programs
 All workers share one map of the edges that the session found (`engine/shared_coverage.h`).
 A worker claims new edges with atomic operations, so two workers never claim the same edge. If no corpus program results, the worker gives the edges back.
 
+**Coverage counters.** A d8 built with `sanitizer_coverage_flags="inline-8bit-counters,pc-table"` writes one counter per edge instead of one bit (`d8/cov.cc`).
+After each execution, `CoverageMap::Refresh()` builds a derived bitmap.
+It has one bit for each edge that ran, plus eight bucket bits for each watched edge (AFL's hit count buckets).
+A bucket bit is a feature like an edge, so the rest of Redline (accept, reruns, minimizer, corpus) sees one bitmap.
+The watched edges are the edges of the optimized code region.
+The `cov` percentage counts only the code and builtins edges. The status line shows the optimized features (`opt`) and the bucket features (`buckets`) apart.
+Crash deduplication uses the edges only.
+
 ### 5.5 Accept
 
 Accept decides if a candidate enters the corpus. It has two parts:

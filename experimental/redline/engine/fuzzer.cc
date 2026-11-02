@@ -97,9 +97,12 @@ class Worker {
       return false;
     }
     const CoverageMap& coverage = runner_->coverage();
-    return fuzzer_->coverage_.Initialize(coverage.num_edges(),
-                                         coverage.bitmap_size(), error);
+    return fuzzer_->coverage_.Initialize(
+        coverage.num_edges(), coverage.bitmap_size(), error,
+        coverage.counted_edges(), coverage.edge_bitmap_size());
   }
+
+  const CoverageMap& coverage() const { return runner_->coverage(); }
 
   void Launch() {
     thread_ = std::thread([this] { Run(); });
@@ -1584,6 +1587,10 @@ bool Fuzzer::Initialize(std::string* error) {
 
   CollectImports();
 
+  // Coverage counters: whether to watch the edges of the optimized code
+  // region.
+  config_.target.watch_optimized = config_.watch_optimized;
+
   for (int i = 0; i < config_.jobs; i++) {
     auto worker = std::make_unique<Worker>(this, i);
     if (!worker->Start(error)) {
@@ -1592,6 +1599,8 @@ bool Fuzzer::Initialize(std::string* error) {
     }
     workers_.push_back(std::move(worker));
   }
+
+  InitializeCoverageGeometry();
 
   // Ask the target what it offers beyond the hand-written model.
   if (config_.introspect) {
@@ -1618,6 +1627,64 @@ bool Fuzzer::Initialize(std::string* error) {
     }
   }
   return true;
+}
+
+void Fuzzer::InitializeCoverageGeometry() {
+  const CoverageMap& coverage = workers_[0]->coverage();
+  if (!coverage.counters_mode()) {
+    return;
+  }
+  uint32_t code_edges = 0;
+  for (const CoverageMap::Region& region : coverage.regions()) {
+    if (region.kind == CoverageMap::RegionKind::kCode) {
+      code_edges += region.count;
+    } else if (region.kind == CoverageMap::RegionKind::kOptimized) {
+      geometry_.optimized_first = region.first;
+      geometry_.optimized_count = region.count;
+    }
+  }
+  geometry_.counters = true;
+  geometry_.bucket_first = coverage.bucket_base();
+  geometry_.features = coverage.num_edges();
+  geometry_.watched = static_cast<uint32_t>(coverage.watched().size());
+  REDLINE_LOG(kLog,
+              "coverage counters: %u edges (%u code), %u optimized code "
+              "features, %u watched edges",
+              coverage.real_edges(), code_edges, geometry_.optimized_count,
+              geometry_.watched);
+}
+
+std::string Fuzzer::CoverageStatus() const {
+  if (!geometry_.counters) {
+    return "";
+  }
+  std::string out;
+  if (geometry_.optimized_count != 0) {
+    out += StringPrintf(" | opt %u",
+                        coverage_.CountSeen(geometry_.optimized_first,
+                                            geometry_.optimized_first +
+                                                geometry_.optimized_count - 1));
+  }
+  if (geometry_.watched != 0) {
+    out += StringPrintf(
+        " | buckets %u",
+        coverage_.CountSeen(geometry_.bucket_first, geometry_.features));
+  }
+  return out;
+}
+
+void Fuzzer::AddCoverageStats(JsonObject* event) const {
+  if (!geometry_.counters) {
+    return;
+  }
+  if (geometry_.optimized_count != 0) {
+    event->Add("opt_found",
+               coverage_.CountSeen(
+                   geometry_.optimized_first,
+                   geometry_.optimized_first + geometry_.optimized_count - 1));
+  }
+  event->Add("bucket_found",
+             coverage_.CountSeen(geometry_.bucket_first, geometry_.features));
 }
 
 void Fuzzer::CollectImports() {
@@ -1782,8 +1849,8 @@ std::string Fuzzer::StatusLine() const {
   double exec_share = Percent(stats_.exec_time_us.load(),
                               static_cast<uint64_t>(elapsed_s * 1e6) *
                                   static_cast<uint64_t>(config_.jobs));
-  return StringPrintf(
-      "%s | execs %llu (%.0f/s) | cov %.3f%% (%u edges) | corpus %zu | "
+  std::string line = StringPrintf(
+      "%s | execs %llu (%.0f/s) | cov %.3f%% (%u edges)%s | corpus %zu | "
       "ok %.1f%% fail %.1f%% timeout %.1f%% | invalid %.2f%% noop %llu | "
       "crashes %llu (%llu sigs, %llu repro) | cands %llu flaky %llu | min %llu "
       "tests (%.1f%% of execs, %.1f%% of "
@@ -1793,7 +1860,8 @@ std::string Fuzzer::StatusLine() const {
       static_cast<unsigned long long>(execs),
       static_cast<double>(execs) / elapsed_s,
       100.0 * coverage_.coverage_fraction(), coverage_.found_edges(),
-      corpus_->size(), Percent(stats_.succeeded.load(), fuzz),
+      CoverageStatus().c_str(), corpus_->size(),
+      Percent(stats_.succeeded.load(), fuzz),
       Percent(stats_.failed.load(), fuzz),
       Percent(stats_.timed_out.load(), fuzz),
       Percent(stats_.invalid.load(), produced),
@@ -1821,6 +1889,7 @@ std::string Fuzzer::StatusLine() const {
           ? 0.0
           : static_cast<double>(stats_.corpus_nodes.load()) /
                 static_cast<double>(stats_.corpus_added.load()));
+  return line;
 }
 
 std::string Fuzzer::ComponentTables(bool include_generators) const {
@@ -1856,6 +1925,7 @@ void Fuzzer::WriteStatsEvent() {
   event.Add("found_edges", coverage_.found_edges())
       .Add("num_edges", coverage_.num_edges());
   event.Add("suppressed_flaky_edges", coverage_.suppressed_flaky_edges());
+  AddCoverageStats(&event);
   event.Add("unique_crashes", stats_.unique_crashes.load());
   event.Add("duplicate_crashes", stats_.duplicate_crashes.load());
   event.Add("crash_signatures", stats_.crash_signatures.load());
@@ -1960,6 +2030,11 @@ int Fuzzer::Run() {
     event.AddRaw("selectors", selectors.ToString());
     event.Add("imports", static_cast<uint64_t>(import_files_.size()));
     event.Add("num_edges", coverage_.num_edges());
+    event.Add("coverage_mode", geometry_.counters ? "counters" : "bits");
+    if (geometry_.counters) {
+      event.Add("watched_edges", geometry_.watched)
+          .Add("optimized_features", geometry_.optimized_count);
+    }
     LogEvent(event);
   }
   REDLINE_LOG(

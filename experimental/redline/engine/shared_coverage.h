@@ -32,7 +32,13 @@ class SharedCoverage {
 
   // Called by every worker after its target started. The first call sizes
   // the state; later calls only check that the target is the same binary.
-  bool Initialize(uint32_t num_edges, uint32_t bitmap_size, std::string* error);
+  // `num_edges` is the size of the feature index space (CoverageMap::
+  // num_edges()). Only features 1..counted_edges count for found_edges() and
+  // coverage_fraction(). Crash deduplication reads only the first
+  // `edge_bitmap_size` bytes (the edges, without bucket features). Zero means
+  // num_edges and bitmap_size.
+  bool Initialize(uint32_t num_edges, uint32_t bitmap_size, std::string* error,
+                  uint32_t counted_edges = 0, uint32_t edge_bitmap_size = 0);
   bool initialized() const { return words_ != 0; }
 
   uint32_t num_edges() const { return num_edges_; }
@@ -54,6 +60,9 @@ class SharedCoverage {
   void MarkSeen(const std::vector<uint32_t>& edges);
   // Whether `edge` is currently claimed.
   bool IsSeen(uint32_t edge) const;
+  // Number of seen features in [first, last], for the statistics. It scans
+  // the virgin bits.
+  uint32_t CountSeen(uint32_t first, uint32_t last) const;
 
   // Like ClaimNewEdges for the crash bits; returns whether the crash reached
   // edges no earlier crash reached (i.e. it is probably a new crash).
@@ -70,7 +79,9 @@ class SharedCoverage {
 
  private:
   uint32_t num_edges_ = 0;
+  uint32_t counted_edges_ = 0;
   uint32_t words_ = 0;
+  uint32_t edge_words_ = 0;
   std::unique_ptr<std::atomic<uint64_t>[]> virgin_;
   std::unique_ptr<std::atomic<uint64_t>[]> crash_virgin_;
   std::atomic<uint32_t> found_edges_{0};

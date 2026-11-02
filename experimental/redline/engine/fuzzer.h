@@ -120,6 +120,9 @@ class Fuzzer {
   void WriteStatsEvent();
   bool ShouldStop() const;
   void CollectImports();
+  // Reads the regions of the coverage counters after the workers started
+  // (coverage counters only).
+  void InitializeCoverageGeometry();
   bool SaveCorpusProgram(const Program& program);
   // Saves the programs of a stage that matched its capture rule (see
   // engine/stages.h) under out_dir/captures/<stage>/. Returns false once
@@ -141,6 +144,20 @@ class Fuzzer {
   std::mutex failure_mutex_;
 
   SharedCoverage coverage_;
+  // Coverage counters (exec/coverage.h): the feature ranges for the
+  // statistics. Empty without coverage counters.
+  struct CoverageGeometry {
+    bool counters = false;
+    uint32_t optimized_first = 0;
+    uint32_t optimized_count = 0;
+    uint32_t bucket_first = 0;
+    uint32_t features = 0;
+    uint32_t watched = 0;
+  } geometry_;
+  // " | opt n | buckets n" for the status line. Empty without coverage
+  // counters. AddCoverageStats() adds the same numbers to an event.
+  std::string CoverageStatus() const;
+  void AddCoverageStats(JsonObject* event) const;
   std::unique_ptr<Corpus> corpus_;
   std::unique_ptr<MutatorSet> mutators_;
   std::unique_ptr<GeneratorSet> generators_;

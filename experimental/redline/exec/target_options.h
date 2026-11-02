@@ -34,6 +34,10 @@ struct TargetOptions {
   uint64_t timeout_us = static_cast<uint64_t>(1000) * 1000;
   int max_execs_before_respawn = 1000;
   bool capture_output = true;
+  // Edges to watch with hit count buckets, and whether to watch the
+  // optimized code region (coverage counters only, see exec/coverage.h).
+  std::vector<uint32_t> watch_edges;
+  bool watch_optimized = true;
 
   // The flags Fuzzilli's V8 profile passes to d8 (without the randomized
   // part), so that coverage numbers are comparable.

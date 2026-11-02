@@ -182,13 +182,11 @@ void RunCoverageHeaderChecks(Checker* checker) {
   BadHeader bad[4] = {{"no magic", header},
                       {"a region beyond the edges", header},
                       {"no instrumentation", header},
-                      {"coverage counters", header}};
+                      {"a wrong edge size", header}};
   bad[0].header.magic = 0;
   bad[1].header.regions[1].count = 11;
   bad[2].header.mode = static_cast<uint32_t>(cov::Mode::kNone);
   bad[3].header.mode = static_cast<uint32_t>(cov::Mode::kInline8bitCounters);
-  bad[3].header.bits_per_edge = 8;
-  bad[3].header.max_edges = cov::MaxEdges(header.shm_size, 8);
   for (const BadHeader& b : bad) {
     std::unique_ptr<CoverageMap> fresh = CoverageMap::Create(9997, &error);
     if (fresh == nullptr) {
@@ -211,6 +209,98 @@ void RunCoverageHeaderChecks(Checker* checker) {
   munmap(mapping, CoverageMap::kShmSize);
 }
 
+// Offline: the counters layout of the coverage (exec/coverage.h) on a
+// synthetic header.
+void RunCoverageCounterChecks(Checker* checker) {
+  const uint32_t buckets[][2] = {{1, 0},   {2, 1},   {3, 2},  {4, 3},  {7, 3},
+                                 {8, 4},   {15, 4},  {16, 5}, {31, 5}, {32, 6},
+                                 {127, 6}, {128, 7}, {255, 7}};
+  bool buckets_ok = true;
+  for (const auto& [count, bucket] : buckets) {
+    buckets_ok = buckets_ok &&
+                 CoverageMap::Bucket(static_cast<uint8_t>(count)) == bucket;
+  }
+  checker->Check("coverage counters: AFL bucket table", buckets_ok, "");
+
+  std::string error;
+  std::unique_ptr<CoverageMap> map = CoverageMap::Create(9999, &error);
+  if (!checker->Check("coverage counters: create a coverage map",
+                      map != nullptr, error)) {
+    return;
+  }
+  // A target with 80 code edges, 10 builtins blocks and 10 optimized code
+  // features writes this header.
+  int fd = shm_open(map->shm_name().c_str(), O_RDWR, 0);
+  void* mapping = fd < 0 ? MAP_FAILED
+                         : mmap(nullptr, CoverageMap::kShmSize,
+                                PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+  if (fd >= 0) {
+    close(fd);
+  }
+  const bool mapped = mapping != MAP_FAILED;
+  if (!checker->Check("coverage counters: map the shared memory", mapped,
+                      mapped ? "" : strerror(errno))) {
+    return;
+  }
+  uint8_t* shm = static_cast<uint8_t*>(mapping);
+  cov::Header header = {};
+  header.magic = cov::kMagic;
+  header.version = cov::kVersion;
+  header.header_size = cov::kHeaderSize;
+  header.shm_size = static_cast<uint32_t>(CoverageMap::kShmSize);
+  header.mode = static_cast<uint32_t>(cov::Mode::kInline8bitCounters);
+  header.bits_per_edge = 8;
+  header.num_edges = 100;
+  header.max_edges = cov::MaxEdges(header.shm_size, 8);
+  header.num_regions = 3;
+  header.regions[0] = {static_cast<uint32_t>(cov::RegionKind::kCode), 1, 80};
+  header.regions[1] = {static_cast<uint32_t>(cov::RegionKind::kBuiltins), 81,
+                       10};
+  header.regions[2] = {static_cast<uint32_t>(cov::RegionKind::kOptimized), 91,
+                       10};
+  memcpy(shm, &header, sizeof(header));
+  CoverageMap::Watch watch;
+  watch.edges = {7, 5};
+  map->SetWatch(watch);
+  bool ok = map->FinishInitialization(&error);
+  checker->Check("coverage counters: read the header", ok, error);
+  if (ok) {
+    checker->Check(
+        "coverage counters: geometry",
+        map->counters_mode() && map->real_edges() == 100 &&
+            map->counted_edges() == 90 && map->watched().size() == 12 &&
+            map->num_edges() == 100 + 12 * CoverageMap::kBuckets,
+        StringPrintf("features %u, counted %u, watched %zu", map->num_edges(),
+                     map->counted_edges(), map->watched().size()));
+    uint8_t* counters = shm + cov::kHeaderSize;
+    counters[5] = 3;
+    counters[50] = 1;
+    counters[91] = 200;
+    map->Refresh();
+    // Edge 5 is watched edge 0 (bucket 2), edge 91 is watched edge 2
+    // (bucket 7). Bucket features start at 101.
+    const std::vector<uint32_t> expected = {5, 50, 91, 103, 124};
+    checker->Check(
+        "coverage counters: hit bits and bucket features",
+        map->CurrentEdges() == expected && map->CountCurrentEdges() == 2,
+        StringPrintf("%zu features, %u counted edges",
+                     map->CurrentEdges().size(), map->CountCurrentEdges()));
+    // Several counters in one 8-byte word. Also a watched edge in the middle
+    // of the optimized region: watched edge 10, bucket 4 for a count of 9.
+    map->ClearBitmap();
+    counters[8] = 1;
+    counters[12] = 255;
+    counters[15] = 128;
+    counters[99] = 9;
+    map->Refresh();
+    const std::vector<uint32_t> packed = {8, 12, 15, 99, 185};
+    checker->Check("coverage counters: packed hit bits",
+                   map->CurrentEdges() == packed,
+                   StringPrintf("%zu features", map->CurrentEdges().size()));
+  }
+  munmap(mapping, CoverageMap::kShmSize);
+}
+
 int RunSelftest(const Flags& flags) {
   Checker checker;
   std::string error;
@@ -218,6 +308,7 @@ int RunSelftest(const Flags& flags) {
   // Offline checks first: they need no target.
   RunCrashSignatureChecks(&checker);
   RunCoverageHeaderChecks(&checker);
+  RunCoverageCounterChecks(&checker);
   RunNodeKindChecks(&checker);
   RunPresetChecks(&checker);
   std::string testdata = flags.GetString("testdata", DefaultTestdataDir());

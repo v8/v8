@@ -22,6 +22,10 @@ std::unique_ptr<ScriptRunner> ScriptRunner::Create(const TargetOptions& options,
   if (!runner->coverage_) {
     return nullptr;
   }
+  CoverageMap::Watch watch;
+  watch.edges = options.watch_edges;
+  watch.optimized = options.watch_optimized;
+  runner->coverage_->SetWatch(std::move(watch));
   runner->child_ = ReprlChild::Create(
       options.ToReprlOptions(runner->coverage_->shm_name()), error);
   if (!runner->child_) {
@@ -84,6 +88,7 @@ bool ScriptRunner::ExecuteWithRetry(std::string_view script,
                                     uint64_t timeout_us, Execution* execution,
                                     std::string* error) {
   if (child_->Execute(script, timeout_us, execution, error)) {
+    coverage_->Refresh();
     return true;
   }
   // Like Fuzzilli: retry once with a fresh instance after a short pause;
@@ -99,7 +104,11 @@ bool ScriptRunner::ExecuteWithRetry(std::string_view script,
   if (child_->Execute(script, timeout_us, execution, error)) {
     // A respawned child publishes its edge count again; make sure it is
     // the same binary.
-    return coverage_->FinishInitialization(error);
+    if (!coverage_->FinishInitialization(error)) {
+      return false;
+    }
+    coverage_->Refresh();
+    return true;
   }
   stats_.infrastructure_failures++;
   return false;

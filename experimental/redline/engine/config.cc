@@ -204,6 +204,27 @@ bool ReadAmplifyConfig(const JsonValue& amplify, FuzzConfig* c,
   return true;
 }
 
+// "coverage": {"watch_optimized": BOOL} (exec/coverage.h).
+bool ReadCoverageConfig(const JsonValue& coverage, FuzzConfig* c,
+                        std::string* error) {
+  if (coverage.is_null()) {
+    return true;
+  }
+  if (!coverage.is_object()) {
+    *error = "config: \"coverage\" must be an object";
+    return false;
+  }
+  for (const auto& [key, value] : coverage.as_object()) {
+    if (key != "watch_optimized") {
+      *error = "config: unknown key \"" + key +
+               "\" in \"coverage\" (known: watch_optimized)";
+      return false;
+    }
+  }
+  c->watch_optimized = coverage.GetBool("watch_optimized", c->watch_optimized);
+  return true;
+}
+
 // Reads one {"strategy": NAME, "params": {...}} object into `out`. A plain
 // string is accepted as a strategy name without parameters.
 bool ReadSelectionConfig(const JsonValue& object, const char* point,
@@ -700,7 +721,8 @@ bool ApplyJson(const JsonValue& json, FuzzConfig* c, std::string* error) {
   std::vector<std::string> explicit_imports = c->imports;
   if (!ReadInitConfig(json.Get("init"), c, error) ||
       !ReadAcceptConfig(json.Get("accept"), c, error) ||
-      !ReadAmplifyConfig(json.Get("amplify"), c, error)) {
+      !ReadAmplifyConfig(json.Get("amplify"), c, error) ||
+      !ReadCoverageConfig(json.Get("coverage"), c, error)) {
     return false;
   }
   if (c->imports.empty() && !explicit_imports.empty() &&
@@ -876,6 +898,8 @@ bool FuzzConfig::Load(const Flags& flags, FuzzConfig* c, std::string* error,
   c->jobs = static_cast<int>(flags.GetInt("jobs", c->jobs));
   c->seed = static_cast<uint64_t>(
       flags.GetInt("seed", static_cast<int64_t>(c->seed)));
+  // Coverage counters.
+  c->watch_optimized = flags.GetBool("watch-optimized", c->watch_optimized);
   c->out_dir = flags.GetString("out", c->out_dir);
   c->import_root = flags.GetString("import-root", c->import_root);
   c->duration_sec = flags.GetDouble("duration", c->duration_sec);
@@ -1181,6 +1205,9 @@ std::string FuzzConfig::ToJson(Detail detail) const {
     amplify.Add("strategy", amplify_strategy);
     amplify.AddRaw("params", amplify_params);
     o.AddRaw("amplify", amplify.ToString());
+    JsonObject coverage;
+    coverage.Add("watch_optimized", watch_optimized);
+    o.AddRaw("coverage", coverage.ToString());
   }
   JsonObject sel;
   BuiltSelectors built;

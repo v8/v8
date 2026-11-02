@@ -123,6 +123,9 @@ struct FuzzConfig {
   // params as JSON text (engine/amplifier.h). "none" turns the step off.
   std::string amplify_strategy = "flags";
   std::string amplify_params = "{}";
+  // The "coverage" block: coverage counters (exec/coverage.h). They need a d8
+  // built with sanitizer_coverage_flags="inline-8bit-counters,pc-table".
+  bool watch_optimized = true;
   MinimizerOptions minimizer;
   // The minimizer's reducers, in the order they run (stages.minimize.reducers).
   // Empty: the default order (Minimizer::DefaultOrder).
