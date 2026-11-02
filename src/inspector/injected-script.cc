@@ -1105,6 +1105,9 @@ Response InjectedScript::wrapEvaluateResult(
   Response response = Response::Success();
   if (throwOnSideEffect) {
     v8::TryCatch sideEffectTryCatch(m_context->isolate());
+    std::unique_ptr<protocol::Runtime::RemoteObject> wrappedException;
+    std::unique_ptr<protocol::Runtime::ExceptionDetails>
+        wrappedExceptionDetails;
     {
       v8::debug::SideEffectCheckScope sideEffectCheckScope(
           m_context->isolate());
@@ -1112,24 +1115,47 @@ Response InjectedScript::wrapEvaluateResult(
                             exception->IsNativeError()
                                 ? WrapOptions({WrapMode::kIdOnly})
                                 : WrapOptions({WrapMode::kPreview}),
-                            result);
+                            &wrappedException);
+      if (response.IsSuccess()) {
+        response = createExceptionDetails(tryCatch, objectGroup,
+                                          &wrappedExceptionDetails);
+      }
     }
     if (!response.IsSuccess()) {
-      if (sideEffectTryCatch.HasCaught()) {
-        v8::debug::SideEffectCheckScope sideEffectCheckScope(
-            m_context->isolate());
-        response = wrapObject(sideEffectTryCatch.Exception(), objectGroup,
-                              WrapOptions({WrapMode::kIdOnly}), result);
-        if (!response.IsSuccess()) return response;
-        return createExceptionDetails(sideEffectTryCatch, objectGroup,
-                                      exceptionDetails);
-      }
       if (sideEffectTryCatch.HasTerminated() ||
           !sideEffectTryCatch.CanContinue()) {
         return Response::ServerError("Execution was terminated");
       }
+      if (sideEffectTryCatch.HasCaught()) {
+        std::unique_ptr<protocol::Runtime::RemoteObject> fallbackException;
+        std::unique_ptr<protocol::Runtime::ExceptionDetails>
+            fallbackExceptionDetails;
+        {
+          v8::debug::SideEffectCheckScope sideEffectCheckScope(
+              m_context->isolate());
+          response =
+              wrapObject(sideEffectTryCatch.Exception(), objectGroup,
+                         WrapOptions({WrapMode::kIdOnly}), &fallbackException);
+          if (response.IsSuccess()) {
+            response = createExceptionDetails(sideEffectTryCatch, objectGroup,
+                                              &fallbackExceptionDetails);
+          }
+        }
+        if (!response.IsSuccess()) {
+          if (m_context->isolate()->IsExecutionTerminating()) {
+            return Response::ServerError("Execution was terminated");
+          }
+          return response;
+        }
+        *result = std::move(fallbackException);
+        *exceptionDetails = std::move(fallbackExceptionDetails);
+        return Response::Success();
+      }
       return response;
     }
+    *result = std::move(wrappedException);
+    *exceptionDetails = std::move(wrappedExceptionDetails);
+    return Response::Success();
   } else {
     response = wrapObject(exception, objectGroup,
                           exception->IsNativeError()
