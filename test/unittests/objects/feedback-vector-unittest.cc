@@ -745,7 +745,7 @@ TEST_F(FeedbackVectorTest, VectorStoreICBasic) {
   CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
 }
 
-TEST_F(FeedbackVectorTest, DefineNamedOwnIC) {
+TEST_F(FeedbackVectorTest, DefineNamedOwnInLiteralIC) {
   if (!i::v8_flags.use_ic) return;
   v8_flags.allow_natives_syntax = true;
 

@@ -483,13 +483,18 @@ void JSGenericLowering::LowerJSDefineNamedOwnProperty(Node* node) {
     node->InsertInput(zone(), 1, jsgraph()->ConstantNoHole(p.name(), broker()));
     node->InsertInput(zone(), 3,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
-    Callable callable = CodeFactory::DefineNamedOwnIC(isolate());
+    Callable callable = p.in_literal()
+                            ? CodeFactory::DefineNamedOwnInLiteralIC(isolate())
+                            : CodeFactory::DefineNamedOwnIC(isolate());
     ReplaceWithBuiltinCall(node, callable, flags);
   } else {
     node->InsertInput(zone(), 1, jsgraph()->ConstantNoHole(p.name(), broker()));
     node->InsertInput(zone(), 3,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
-    Callable callable = CodeFactory::DefineNamedOwnICInOptimizedCode(isolate());
+    Callable callable =
+        p.in_literal()
+            ? CodeFactory::DefineNamedOwnInLiteralICInOptimizedCode(isolate())
+            : CodeFactory::DefineNamedOwnICInOptimizedCode(isolate());
     ReplaceWithBuiltinCall(node, callable, flags);
   }
 }

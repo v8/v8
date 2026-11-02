@@ -9988,8 +9988,11 @@ class DefineNamedOwnGeneric
     : public FixedInputValueNodeT<3, DefineNamedOwnGeneric> {
  public:
   explicit DefineNamedOwnGeneric(uint64_t bitfield, compiler::NameRef name,
+                                 bool in_literal,
                                  const compiler::FeedbackSource& feedback)
-      : Base(bitfield), name_(name), feedback_(feedback) {}
+      : Base(bitfield | InLiteralField::encode(in_literal)),
+        name_(name),
+        feedback_(feedback) {}
 
   // The implementation currently calls runtime.
   static constexpr OpProperties kProperties = OpProperties::JSCall();
@@ -9999,6 +10002,7 @@ class DefineNamedOwnGeneric
   compiler::NameRef name() const { return name_; }
   compiler::FeedbackSource feedback() const { return feedback_; }
 
+  bool in_literal() const { return InLiteralField::decode(bitfield()); }
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
@@ -10006,6 +10010,7 @@ class DefineNamedOwnGeneric
   void PrintParams(std::ostream&) const;
 
  private:
+  using InLiteralField = NextBitField<bool, 1>;
   const compiler::NameRef name_;
   const compiler::FeedbackSource feedback_;
 };

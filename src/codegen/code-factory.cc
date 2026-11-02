@@ -50,6 +50,16 @@ Callable CodeFactory::DefineNamedOwnICInOptimizedCode(Isolate* isolate) {
   return Builtins::CallableFor(isolate, Builtin::kDefineNamedOwnIC);
 }
 
+Callable CodeFactory::DefineNamedOwnInLiteralIC(Isolate* isolate) {
+  return Builtins::CallableFor(isolate,
+                               Builtin::kDefineNamedOwnInLiteralICTrampoline);
+}
+
+Callable CodeFactory::DefineNamedOwnInLiteralICInOptimizedCode(
+    Isolate* isolate) {
+  return Builtins::CallableFor(isolate, Builtin::kDefineNamedOwnInLiteralIC);
+}
+
 // static
 Callable CodeFactory::StringAdd(Isolate* isolate, StringAddFlags flags) {
   return Builtins::CallableFor(isolate, Builtins::StringAdd(flags));
