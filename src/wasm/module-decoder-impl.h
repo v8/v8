@@ -1815,8 +1815,13 @@ class ModuleDecoderImpl : public Decoder {
 
   void DecodeBranchHintsSection() {
     TRACE("DecodeBranchHints module+%d\n", static_cast<int>(pc_ - start_));
-    detected_features_->add_branch_hinting();
-    if (!has_seen_unordered_section(kBranchHintsSectionCode)) {
+    // Per spec, code metadata sections must precede the Code section. Enforcing
+    // this is also required for thread safety during streaming compilation,
+    // where background workers read hints concurrently once the Code section
+    // starts.
+    if (!has_seen_unordered_section(kBranchHintsSectionCode) &&
+        next_ordered_section_ <= kCodeSectionCode) {
+      detected_features_->add_branch_hinting();
       set_seen_unordered_section(kBranchHintsSectionCode);
       // Use an inner decoder so that errors don't fail the outer decoder.
       Decoder inner(start_, pc_, end_, buffer_offset_);
@@ -1895,8 +1900,11 @@ class ModuleDecoderImpl : public Decoder {
   void DecodeCompilationPrioritySection() {
     TRACE("DecodeCompilationPriority module+%d\n",
           static_cast<int>(pc_ - start_));
-    detected_features_->add_compilation_hints();
-    if (!has_seen_unordered_section(kCompilationPrioritySectionCode)) {
+    // Must precede the Code section (for spec compliance and streaming thread
+    // safety; see DecodeBranchHintsSection).
+    if (!has_seen_unordered_section(kCompilationPrioritySectionCode) &&
+        next_ordered_section_ <= kCodeSectionCode) {
+      detected_features_->add_compilation_hints();
       set_seen_unordered_section(kCompilationPrioritySectionCode);
       // Use an inner decoder so that errors don't fail the outer decoder.
       Decoder inner(start_, pc_, end_, buffer_offset_);
@@ -1982,8 +1990,11 @@ class ModuleDecoderImpl : public Decoder {
   void DecodeInstructionFrequenciesSection() {
     TRACE("DecodeInstructionFrequencies module+%d\n",
           static_cast<int>(pc_ - start_));
-    detected_features_->add_compilation_hints();
-    if (!has_seen_unordered_section(kInstFrequenciesSectionCode)) {
+    // Must precede the Code section (for spec compliance and streaming thread
+    // safety; see DecodeBranchHintsSection).
+    if (!has_seen_unordered_section(kInstFrequenciesSectionCode) &&
+        next_ordered_section_ <= kCodeSectionCode) {
+      detected_features_->add_compilation_hints();
       set_seen_unordered_section(kInstFrequenciesSectionCode);
       // Use an inner decoder so that errors don't fail the outer decoder.
       Decoder inner(start_, pc_, end_, buffer_offset_);
@@ -2057,8 +2068,11 @@ class ModuleDecoderImpl : public Decoder {
 
   void DecodeCallTargetsSection() {
     TRACE("DecodeCallTargets module+%d\n", static_cast<int>(pc_ - start_));
-    detected_features_->add_compilation_hints();
-    if (!has_seen_unordered_section(kCallTargetsSectionCode)) {
+    // Must precede the Code section (for spec compliance and streaming thread
+    // safety; see DecodeBranchHintsSection).
+    if (!has_seen_unordered_section(kCallTargetsSectionCode) &&
+        next_ordered_section_ <= kCodeSectionCode) {
+      detected_features_->add_compilation_hints();
       set_seen_unordered_section(kCallTargetsSectionCode);
       // Use an inner decoder so that errors don't fail the outer decoder.
       Decoder inner(start_, pc_, end_, buffer_offset_);
