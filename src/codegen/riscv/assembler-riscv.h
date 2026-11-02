@@ -40,6 +40,7 @@
 #include <memory>
 #include <optional>
 #include <set>
+#include <vector>
 
 #include "src/codegen/assembler.h"
 #include "src/codegen/constant-pool.h"
@@ -790,7 +791,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
   void RecordConstPool(int size, const BlockPoolsScope& scope);
 
-  bool is_trampoline_emitted() const { return trampoline_check_ == kMaxInt; }
+  bool is_trampoline_emitted() const { return trampoline_emitted_; }
 
  private:
   // The relocation writer's position is at least kGap bytes below the end of
@@ -876,6 +877,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
   static constexpr int kInvalidSlotPos = -1;
   Trampoline trampoline_;
+  bool trampoline_emitted_ = false;
+
+  // Jumps (jal) emitted after the trampoline pool to labels not yet bound.
+  // Each is kept within a jump's reach of a far-jump pool emitted after it,
+  // which bind_to routes the jump through if its label ends up further away,
+  // so code smaller than a jump's reach never needs one.
+  std::vector<Trampoline> far_jump_pools_;
+  int far_jumps_pending_ = 0;  // emitted since the last pool, still unbound
+  int far_jumps_start_ = 0;    // the position of the first of them
 
   int unbound_labels_count_ = 0;
   int trampoline_check_;  // The pc offset of next trampoline pool check.
@@ -883,6 +893,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   void CheckTrampolinePool();
   inline void CheckTrampolinePoolQuick(int margin);
   int32_t GetTrampolineEntry(int32_t pos);
+  void RecordFarJump();
+  void UpdateFarJumpCheck();
+  void EmitFarJumpPool();
 
   // We keep track of the position of all internal reference uses of labels,
   // so we can distinguish the use site from other kinds of uses. The other

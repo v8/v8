@@ -385,6 +385,97 @@ TEST_F(MacroAssemblerTest, jump_tables6) {
   }
 }
 
+// Emits an always-taken branch to a label bound more than a branch's reach
+// away, which forces the trampoline pool out.
+static void EmitTrampolinePool(MacroAssembler& masm) {
+  Label pending;
+  __ Branch(&pending, eq, a0, Operand(a0));
+  for (int i = 0; i < Assembler::kMaxBranchOffset / kInstrSize; ++i) {
+    __ addi(a1, a1, 1);
+  }
+  __ bind(&pending);
+}
+
+TEST_F(MacroAssemblerTest, far_jump_pool) {
+  // Past the trampoline pool, a branch to a label not bound yet is a jal, and
+  // a far-jump pool keeps it in reach of a label bound further away than a
+  // jal reaches.
+  Isolate* isolate = i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true});
+
+  const int kFillInstr = Assembler::kMaxJumpOffset / kInstrSize + 1024;
+  Label far, far_cond, done;
+
+  __ mv(a1, zero_reg);
+  EmitTrampolinePool(masm);
+
+  // The conditional branch skips a jal, and the unconditional one is one.
+  int cond_pos = masm.pc_offset();
+  __ Branch(&far_cond, eq, a0, Operand(zero_reg));
+  CHECK(Assembler::IsJal(masm.instr_at(cond_pos + kInstrSize)));
+  int jump_pos = masm.pc_offset();
+  __ Branch(&far);
+  CHECK(Assembler::IsJal(masm.instr_at(jump_pos)));
+
+  for (int i = 0; i < kFillInstr; ++i) {
+    __ addi(a1, a1, 1);
+  }
+  __ bind(&far);
+  __ li(a0, Operand(1));
+  __ Branch(&done);
+  __ bind(&far_cond);
+  __ li(a0, Operand(2));
+  __ bind(&done);
+  // a1 counts any filler that ran, which none should.
+  __ add(a0, a0, a1);
+  __ jr(ra);
+
+  CodeDesc desc;
+  masm.GetCode(isolate, &desc);
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
+  CHECK_EQ(2, reinterpret_cast<int64_t>(f.Call(0, 0, 0, 0, 0)));
+  CHECK_EQ(1, reinterpret_cast<int64_t>(f.Call(1, 0, 0, 0, 0)));
+}
+
+TEST_F(MacroAssemblerTest, far_jump_chain) {
+  // A jal to a label not bound yet also holds the link to the label's
+  // previous use. Where that use is beyond a jal's reach, the branch is
+  // auipc+jr instead.
+  Isolate* isolate = i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true});
+
+  const int kFillInstr = Assembler::kMaxJumpOffset / kInstrSize + 1024;
+  Label target;
+
+  __ mv(a1, zero_reg);
+  EmitTrampolinePool(masm);
+
+  int first_pos = masm.pc_offset();
+  __ Branch(&target, eq, a0, Operand(zero_reg));
+  CHECK(Assembler::IsJal(masm.instr_at(first_pos + kInstrSize)));
+  for (int i = 0; i < kFillInstr; ++i) {
+    __ addi(a1, a1, 1);
+  }
+  int second_pos = masm.pc_offset();
+  __ Branch(&target);
+  CHECK(Assembler::IsAuipc(masm.instr_at(second_pos)));
+  __ bind(&target);
+  __ mv(a0, a1);
+  __ jr(ra);
+
+  CodeDesc desc;
+  masm.GetCode(isolate, &desc);
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
+  CHECK_EQ(0, reinterpret_cast<int64_t>(f.Call(0, 0, 0, 0, 0)));
+  CHECK_EQ(kFillInstr, reinterpret_cast<int64_t>(f.Call(1, 0, 0, 0, 0)));
+}
+
 TEST_F(MacroAssemblerTest, CalcScaledAddress) {
   struct TestCaseLsa {
     int64_t rt;

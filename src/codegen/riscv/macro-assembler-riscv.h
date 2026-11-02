@@ -1996,6 +1996,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   bool BranchAndLinkShortCheck(int32_t offset, Label* L, Condition cond,
                                Register rs, const Operand& rt);
   void BranchAndLinkLong(Label* L);
+  // An unconditional jump to a label that a conditional branch may not reach.
+  void BranchFar(Label* L);
 #if V8_TARGET_ARCH_RISCV64
   template <typename F_TYPE>
   void RoundHelper(FPURegister dst, FPURegister src, FPURegister fpu_scratch,

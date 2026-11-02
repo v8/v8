@@ -3956,7 +3956,7 @@ void MacroAssembler::BranchTrueF(Register rs, Label* target) {
   if (long_branch) {
     Label skip;
     BranchFalseShortF(rs, &skip);
-    BranchLong(target);
+    BranchFar(target);
     bind(&skip);
   } else {
     BranchTrueShortF(rs, target);
@@ -3969,7 +3969,7 @@ void MacroAssembler::BranchFalseF(Register rs, Label* target) {
   if (long_branch) {
     Label skip;
     BranchTrueShortF(rs, &skip);
-    BranchLong(target);
+    BranchFar(target);
     bind(&skip);
   } else {
     BranchFalseShortF(rs, target);
@@ -4547,18 +4547,10 @@ void MacroAssembler::Branch(int32_t offset, Condition cond, Register rs,
 }
 
 void MacroAssembler::Branch(Label* L) {
-  if (L->is_bound()) {
-    if (is_near(L)) {
-      BranchShort(L);
-    } else {
-      BranchLong(L);
-    }
+  if (L->is_bound() && is_near(L)) {
+    BranchShort(L);
   } else {
-    if (is_trampoline_emitted()) {
-      BranchLong(L);
-    } else {
-      BranchShort(L);
-    }
+    BranchFar(L);
   }
 }
 
@@ -4579,7 +4571,7 @@ void MacroAssembler::Branch(Label* L, Condition cond, Register rs,
     // We either have a branch backward to a position too far away to reach with
     // a short branch - or a branch forward where we are unable to go through
     // the trampoline pool because it has already been emitted.
-    BranchLong(L);
+    BranchFar(L);
     return;
   }
 
@@ -4593,7 +4585,7 @@ void MacroAssembler::Branch(Label* L, Condition cond, Register rs,
   // constant pool entry or constructing a complex immediate.
   Label skip;
   BranchShort(&skip, NegateCondition(cond), rs, rt);
-  BranchLong(L);
+  BranchFar(L);
   bind(&skip);
 }
 
@@ -5498,6 +5490,22 @@ void MacroAssembler::BranchLong(Label* L) {
     j(imm);
   } else {
     GenPCRelativeJump(t6, imm, block_pools);
+  }
+}
+
+void MacroAssembler::BranchFar(Label* L) {
+  // A pool emitted here would only move the jump away from the label.
+  BlockPoolsScope block_pools(this);
+  // A jump to a label not yet bound is a jal: before the trampoline pool it
+  // can go through the pool, and after it the assembler emits a far-jump pool
+  // in reach of it. The jal also links to the label's previous use, which
+  // has to be in reach too, and BranchLong's auipc+jr reaches anything.
+  if (!L->is_bound() && !v8_flags.force_long_branches &&
+      (!L->is_linked() ||
+       is_intn(L->pos() - pc_offset(), Assembler::kJumpOffsetBits))) {
+    BranchShort(L);
+  } else {
+    BranchLong(L);
   }
 }
 
