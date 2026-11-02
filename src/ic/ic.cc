@@ -1098,6 +1098,18 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
         TraceIC("LoadGlobalIC", lookup->name());
         return;
       }
+      // Own DATA properties above are accessed directly via PropertyCell on the
+      // JSGlobalObject and don't involve the JSGlobalProxy. For anything else
+      // (e.g. prototype accessors), the handler would substitute global_proxy
+      // as the receiver without performing an access check on it, and
+      // LookupIterator didn't fail an access check because JSGlobalObject
+      // belongs to the current (detached) native context while its global_proxy
+      // may have been rebound to a new cross-origin context.
+      if (Cast<JSGlobalObject>(*lookup->GetReceiver())->IsDetached()) {
+        SetCache(lookup->GetName(), LoadHandler::LoadSlow(isolate()));
+        TraceIC("LoadGlobalIC", lookup->GetName());
+        return;
+      }
     }
     handler = ComputeHandler(lookup);
     CHECK(lookup->state() == LookupIterator::STRING_LOOKUP_START_OBJECT ||
@@ -2413,6 +2425,16 @@ void StoreIC::UpdateCaches(LookupIterator* lookup, DirectHandle<Object> value,
         DCHECK(IsJSGlobalObject(*lookup->GetReceiver()));
         // Now update the cell in the feedback vector.
         nexus()->ConfigurePropertyCellMode(lookup->GetPropertyCell());
+        TraceIC("StoreGlobalIC", lookup->GetName());
+        return;
+      }
+      // See comment in LoadIC::UpdateCaches: own DATA properties above use
+      // PropertyCell on the JSGlobalObject directly, whereas other handlers
+      // (e.g. prototype accessors) substitute global_proxy as the receiver,
+      // which may have been rebound to a cross-origin context upon detachment.
+      if (Cast<JSGlobalObject>(*lookup->GetReceiver())->IsDetached()) {
+        set_slow_stub_reason("detached global object");
+        SetCache(lookup->GetName(), StoreHandler::StoreSlow(isolate()));
         TraceIC("StoreGlobalIC", lookup->GetName());
         return;
       }
