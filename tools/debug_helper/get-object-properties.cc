@@ -13,6 +13,7 @@
 #include "src/execution/isolate-utils.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/string-inl.h"
+#include "src/roots/roots.h"
 #include "src/sandbox/external-pointer.h"
 #include "src/strings/unicode-inl.h"
 #include "torque-generated/class-debug-readers.h"
@@ -666,6 +667,72 @@ std::unique_ptr<ObjectPropertiesResult> GetHeapObjectPropertiesNotCompressed(
       std::move(guessed_types));
 }
 
+// Describes one bitfield of a SmiTagged<...> slot as a struct property. The
+// reported shift includes the Smi encoding, so a consumer can decode the value
+// without untagging:
+//
+//   untagged value: ...|  field  |...
+//                                ^ BitField::kShift
+//
+//   stored format:  ...|  field  |...                |   0 ... 0      |T|
+//                                ^                    kSmiShiftSize kSmiTagSize
+//                                BitField::kShift + kSmiShiftSize + kSmiTagSize
+//
+// kSmiShiftSize is 0 in pointer-compressed builds and 31 otherwise.
+template <typename BitField>
+std::unique_ptr<StructProperty> SmiBitFieldProperty(const char* name,
+                                                    const char* type) {
+  return std::make_unique<StructProperty>(
+      name, type, 0, BitField::kSize,
+      i::kSmiTagSize + i::kSmiShiftSize + BitField::kShift);
+}
+
+// Returns the first page of the given root. If the root cannot be read, or
+// if the generated table at the offset contains a different object, returns
+// zero, and in this case the hint is left as-is.
+uintptr_t FirstPageFromRoot(uintptr_t isolate_address,
+                            d::MemoryAccessor memory_accessor, RootIndex root,
+                            const char* name,
+                            std::string (*lookup)(uintptr_t offset)) {
+  const uintptr_t slot = isolate_address + Internals::kIsolateRootsOffset +
+                         static_cast<uintptr_t>(root) * kSystemPointerSize;
+  uintptr_t address = 0;
+  if (memory_accessor(slot, reinterpret_cast<void*>(&address),
+                      sizeof(address)) != d::MemoryAccessResult::kOk) {
+    return 0;
+  }
+  if (lookup(MemoryChunk::AddressToOffset(address)) != name) return 0;
+  return MemoryChunk::FromAddress(address)->address();
+}
+
+// Fill heap_addresses with info about first pages using the roots table
+// reached from the provided isolate pointer. The page of each space is located
+// through a root object known to live in it.
+//
+//   isolate --+ kIsolateRootsOffset
+//             v
+//   roots table   [kUndefinedValue]  an address in read-only space
+//
+//   |      page base      | offset |     e.g. 0x34ed0bf40000 | 0x11
+//              |
+//              '--> read_only_space_first_page, but only if
+//                   FindKnownObjectInReadOnlySpace(offset) == "UndefinedValue",
+//
+//   kEmptyScript works similarly, but it's known to be in old space.
+void FillHeapAddressesWithIsolate(d::HeapAddresses* heap_addresses,
+                                  d::MemoryAccessor memory_accessor) {
+  if (heap_addresses->read_only_space_first_page == 0) {
+    heap_addresses->read_only_space_first_page = FirstPageFromRoot(
+        heap_addresses->isolate, memory_accessor, RootIndex::kUndefinedValue,
+        "UndefinedValue", FindKnownObjectInReadOnlySpace);
+  }
+  if (heap_addresses->old_space_first_page == 0) {
+    heap_addresses->old_space_first_page = FirstPageFromRoot(
+        heap_addresses->isolate, memory_accessor, RootIndex::kEmptyScript,
+        "EmptyScript", FindKnownObjectInOldSpace);
+  }
+}
+
 std::unique_ptr<ObjectPropertiesResult> GetHeapObjectPropertiesMaybeCompressed(
     uintptr_t address, d::MemoryAccessor memory_accessor,
     d::HeapAddresses heap_addresses, const char* type_hint) {
@@ -693,6 +760,9 @@ std::unique_ptr<ObjectPropertiesResult> GetHeapObjectPropertiesMaybeCompressed(
   }
 #endif  // V8_COMPRESS_POINTERS
   FillInUnknownHeapAddresses(&heap_addresses, any_uncompressed_ptr);
+  if (heap_addresses.isolate != 0) {
+    FillHeapAddressesWithIsolate(&heap_addresses, memory_accessor);
+  }
   if (any_uncompressed_ptr == 0) {
     // We can't figure out the heap range. Just check for known objects.
     std::string brief = FindKnownObject(address, heap_addresses);
@@ -801,9 +871,9 @@ std::unique_ptr<StackFrameResult> GetStackFrame(
                     scope_info_address, memory_accessor,
                     i::InstanceType::SCOPE_INFO_TYPE)) {
               TqScopeInfo scope_info(scope_info_address);
-              // Torque only models the fixed ScopeInfo header; locate the
-              // function_variable_info section by hand, mirroring
-              // ScopeInfo::FunctionVariableInfoOffset.
+              // Torque only models the fixed ScopeInfo header; locate the tail
+              // sections by hand, mirroring the offset accessors in
+              // scope-info-inl.h.
               auto flags = scope_info.GetFlagsValue(memory_accessor);
               auto context_local_count =
                   scope_info.GetContextLocalCountValue(memory_accessor);
@@ -822,12 +892,16 @@ std::unique_ptr<StackFrameResult> GetStackFrame(
                 const bool has_function_variable =
                     i::ScopeInfo::Flags::FunctionVariableBits::decode(
                         flags.value) != i::VariableAllocationInfo::NONE;
-                const int preceding_slots =
-                    (is_module ? 1 : 0) + (has_hashtable ? 1 : local_count) +
-                    local_count + (has_saved_class_variable ? 1 : 0);
-                const uintptr_t function_variable_info_offset =
+                const uintptr_t context_local_names_offset =
                     OFFSET_OF_DATA_START(i::ScopeInfo) +
-                    preceding_slots * i::kTaggedSize;
+                    (is_module ? i::kTaggedSize : 0);
+                const uintptr_t context_local_infos_offset =
+                    context_local_names_offset +
+                    (has_hashtable ? 1 : local_count) * i::kTaggedSize;
+                const uintptr_t function_variable_info_offset =
+                    context_local_infos_offset +
+                    (local_count + (has_saved_class_variable ? 1 : 0)) *
+                        i::kTaggedSize;
                 props.push_back(std::make_unique<ObjectProperty>(
                     "function_name", kObjectAsStoredInHeap,
                     scope_info_address - i::kHeapObjectTag +
@@ -835,6 +909,44 @@ std::unique_ptr<StackFrameResult> GetStackFrame(
                     has_function_variable ? 1 : 0, i::kTaggedSize,
                     std::vector<std::unique_ptr<StructProperty>>(),
                     d::PropertyKind::kSingle));
+
+                // Pass the context local info to consumers to recover the
+                // context-allocated (closure-captured) parameter names.
+                props.push_back(std::make_unique<ObjectProperty>(
+                    "context_local_names",
+                    CheckTypeName<i::TaggedMember<i::String>>(
+                        "v8::internal::TaggedMember<v8::internal::String>"),
+                    scope_info_address - i::kHeapObjectTag +
+                        context_local_names_offset,
+                    has_hashtable ? 0 : local_count, i::kTaggedSize,
+                    std::vector<std::unique_ptr<StructProperty>>(),
+                    d::PropertyKind::kArrayOfKnownSize));
+                std::vector<std::unique_ptr<StructProperty>> info_fields;
+                info_fields.push_back(
+                    SmiBitFieldProperty<i::ScopeInfo::VariableModeBits>(
+                        "variable_mode", "VariableMode"));
+                info_fields.push_back(
+                    SmiBitFieldProperty<i::ScopeInfo::InitFlagBit>(
+                        "init_flag", "InitializationFlag"));
+                info_fields.push_back(
+                    SmiBitFieldProperty<i::ScopeInfo::MaybeAssignedFlagBit>(
+                        "maybe_assigned_flag", "MaybeAssignedFlag"));
+                info_fields.push_back(
+                    SmiBitFieldProperty<i::ScopeInfo::IsParameterBit>(
+                        "is_parameter", "bool"));
+                info_fields.push_back(
+                    SmiBitFieldProperty<
+                        i::ScopeInfo::ParameterNumberOrPositionBits>(
+                        "parameter_number_or_position", "uint32_t"));
+                info_fields.push_back(
+                    SmiBitFieldProperty<i::ScopeInfo::IsStaticFlagBit>(
+                        "is_static_flag", "IsStaticFlag"));
+                props.push_back(std::make_unique<ObjectProperty>(
+                    "context_local_infos", kObjectAsStoredInHeap,
+                    scope_info_address - i::kHeapObjectTag +
+                        context_local_infos_offset,
+                    local_count, i::kTaggedSize, std::move(info_fields),
+                    d::PropertyKind::kArrayOfKnownSize));
               }
               std::vector<std::unique_ptr<StructProperty>>
                   position_info_struct_field_list;
