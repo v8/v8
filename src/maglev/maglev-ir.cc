@@ -5381,10 +5381,16 @@ void SetNamedGeneric::GenerateCode(MaglevAssembler* masm,
 
 int DefineNamedOwnGeneric::MaxCallStackArgs() const {
   using D = CallInterfaceDescriptorFor<Builtin::kDefineNamedOwnIC>::type;
+  static_assert(
+      std::is_same_v<D, CallInterfaceDescriptorFor<
+                            Builtin::kDefineNamedOwnInLiteralIC>::type>);
   return D::GetStackParameterCount();
 }
 void DefineNamedOwnGeneric::SetValueLocationConstraints() {
   using D = CallInterfaceDescriptorFor<Builtin::kDefineNamedOwnIC>::type;
+  static_assert(
+      std::is_same_v<D, CallInterfaceDescriptorFor<
+                            Builtin::kDefineNamedOwnInLiteralIC>::type>);
   UseFixed(ContextInput(), kContextRegister);
   UseFixed(ObjectInput(), D::GetRegisterParameter(D::kReceiver));
   UseFixed(ValueInput(), D::GetRegisterParameter(D::kValue));
@@ -5392,14 +5398,25 @@ void DefineNamedOwnGeneric::SetValueLocationConstraints() {
 }
 void DefineNamedOwnGeneric::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
-  __ CallBuiltin<Builtin::kDefineNamedOwnIC>(
-      ContextInput(),                               // context
-      ObjectInput(),                                // receiver
-      name().object(),                              // name
-      ValueInput(),                                 // value
-      TaggedIndex::FromIntptr(feedback().index()),  // feedback slot
-      feedback().vector                             // feedback vector
-  );
+  if (in_literal()) {
+    __ CallBuiltin<Builtin::kDefineNamedOwnInLiteralIC>(
+        ContextInput(),                               // context
+        ObjectInput(),                                // receiver
+        name().object(),                              // name
+        ValueInput(),                                 // value
+        TaggedIndex::FromIntptr(feedback().index()),  // feedback slot
+        feedback().vector                             // feedback vector
+    );
+  } else {
+    __ CallBuiltin<Builtin::kDefineNamedOwnIC>(
+        ContextInput(),                               // context
+        ObjectInput(),                                // receiver
+        name().object(),                              // name
+        ValueInput(),                                 // value
+        TaggedIndex::FromIntptr(feedback().index()),  // feedback slot
+        feedback().vector                             // feedback vector
+    );
+  }
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
@@ -9401,7 +9418,7 @@ void SetNamedGeneric::PrintParams(std::ostream& os) const {
 }
 
 void DefineNamedOwnGeneric::PrintParams(std::ostream& os) const {
-  os << "(" << *name_.object() << ")";
+  os << "(" << *name_.object() << ", in_literal:" << in_literal() << ")";
 }
 
 void GapMove::PrintParams(std::ostream& os) const {

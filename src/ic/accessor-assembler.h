@@ -57,9 +57,9 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void GenerateStoreICTrampoline();
   void GenerateStoreICTrampoline_Megamorphic();
   void GenerateStoreICBaseline();
-  void GenerateDefineNamedOwnIC();
-  void GenerateDefineNamedOwnICTrampoline();
-  void GenerateDefineNamedOwnICBaseline();
+  void GenerateDefineNamedOwnIC(bool in_literal);
+  void GenerateDefineNamedOwnICTrampoline(bool in_literal);
+  void GenerateDefineNamedOwnICBaseline(bool in_literal);
   void GenerateStoreGlobalIC();
   void GenerateStoreGlobalICTrampoline();
   void GenerateStoreGlobalICBaseline();
@@ -313,6 +313,8 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     // TODO(v8:12548): rename to kDefineKeyedOwnInLiteral
     kDefault,
     kDefineNamedOwn,
+    // Initializing store inside a literal; does not invalidate constness.
+    kDefineNamedOwnInLiteral,
     kDefineKeyedOwn,
   };
 
@@ -359,11 +361,18 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     bool IsDefineNamedOwn() const {
       return mode_ == StoreICMode::kDefineNamedOwn;
     }
+    bool IsDefineNamedOwnInLiteral() const {
+      return mode_ == StoreICMode::kDefineNamedOwnInLiteral;
+    }
+    bool IsAnyDefineNamedOwn() const {
+      return IsDefineNamedOwn() || IsDefineNamedOwnInLiteral();
+    }
     bool IsDefineKeyedOwn() const {
       return mode_ == StoreICMode::kDefineKeyedOwn;
     }
     bool IsAnyDefineOwn() const {
-      return IsDefineNamedOwn() || IsDefineKeyedOwn();
+      return IsDefineNamedOwn() || IsDefineNamedOwnInLiteral() ||
+             IsDefineKeyedOwn();
     }
 
     StubCache* stub_cache(Isolate* isolate) const {
@@ -694,7 +703,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void CheckHeapObjectTypeMatchesDescriptor(TNode<Word32T> handler_word,
                                             TNode<JSObject> holder,
                                             TNode<Object> value,
-                                            Label* bailout);
+                                            StoreICMode mode, Label* bailout);
   // Double fields store double values in a mutable box, where stores are
   // writes into this box rather than HeapNumber assignment.
   void CheckDescriptorConsidersNumbersMutable(TNode<Word32T> handler_word,
