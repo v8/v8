@@ -100,6 +100,7 @@ class V8_BASE_EXPORT CPU final {
   bool has_popcnt() const { return has_popcnt_; }
   bool has_apx_f() const { return has_apx_f_; }
   bool has_avx10_1() const { return has_avx10_1_; }
+  bool has_avx10_2() const { return has_avx10_2_; }
   bool is_atom() const { return is_atom_; }
   bool has_intel_jcc_erratum() const { return has_intel_jcc_erratum_; }
   bool has_cetss() const { return has_cetss_; }
@@ -212,6 +213,7 @@ class V8_BASE_EXPORT CPU final {
   bool has_popcnt_ = false;
   bool has_apx_f_ = false;
   bool has_avx10_1_ = false;
+  bool has_avx10_2_ = false;
   bool has_idiva_ = false;
   bool has_neon_ = false;
   bool has_thumb2_ = false;

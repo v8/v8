@@ -44,6 +44,10 @@ bool UseApxCcmp() {
 bool UseAvx10_1() {
   return v8_flags.enable_avx10_1 && CpuFeatures::IsSupported(AVX10_1);
 }
+bool UseAvx10_2() {
+  return UseAvx10_1() && v8_flags.enable_avx10_2 &&
+         CpuFeatures::IsSupported(AVX10_2);
+}
 #endif
 // -----------------------------------------------------------------------------
 // Implementation of CpuFeatures
@@ -171,8 +175,11 @@ static constexpr CpuFeatureSet CpuFeaturesFromCompiler() {
 #ifdef __APX_F__
   features.Add(APX_F);
 #endif
-#ifdef __AVX10_1_512__
+#ifdef __AVX10_1__
   features.Add(AVX10_1);
+#endif
+#ifdef __AVX10_2__
+  features.Add(AVX10_2);
 #endif
 
   return features;
@@ -222,8 +229,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
     SetSupported(APX_F);
 #endif  // V8_ENABLE_APX_F
 #ifdef V8_ENABLE_AVX10_1
-  if (cpu.has_avx10_1() && cpu.has_osxsave() && OSHasAVX10Support()) {
-    SetSupported(AVX10_1);
+  if (cpu.has_osxsave() && OSHasAVX10Support()) {
+    if (cpu.has_avx10_1()) SetSupported(AVX10_1);
+    if (cpu.has_avx10_2()) SetSupported(AVX10_2);
   }
 #endif  // V8_ENABLE_AVX10_1
 
@@ -248,6 +256,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 #endif  // V8_ENABLE_APX_F
 #ifdef V8_ENABLE_AVX10_1
   if (!v8_flags.enable_avx10_1 || !IsSupported(AVX2)) SetUnsupported(AVX10_1);
+  if (!v8_flags.enable_avx10_2 || !IsSupported(AVX10_1)) {
+    SetUnsupported(AVX10_2);
+  }
 #endif  // V8_ENABLE_AVX10_1
 
   // Set a static value on whether Simd is supported.
@@ -277,6 +288,7 @@ void CpuFeatures::PrintInformation() {
       "POPCNT=%d "
       "APX_F=%d "
       "AVX10_1=%d "
+      "AVX10_2=%d "
       "ATOM=%d\n",
       CpuFeatures::IsSupported(SSE3), CpuFeatures::IsSupported(SSSE3),
       CpuFeatures::IsSupported(SSE4_1), CpuFeatures::IsSupported(SSE4_2),
@@ -286,7 +298,8 @@ void CpuFeatures::PrintInformation() {
       CpuFeatures::IsSupported(F16C), CpuFeatures::IsSupported(BMI1),
       CpuFeatures::IsSupported(BMI2), CpuFeatures::IsSupported(LZCNT),
       CpuFeatures::IsSupported(POPCNT), CpuFeatures::IsSupported(APX_F),
-      CpuFeatures::IsSupported(AVX10_1), CpuFeatures::IsSupported(INTEL_ATOM));
+      CpuFeatures::IsSupported(AVX10_1), CpuFeatures::IsSupported(AVX10_2),
+      CpuFeatures::IsSupported(INTEL_ATOM));
 }
 
 // -----------------------------------------------------------------------------

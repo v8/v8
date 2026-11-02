@@ -3004,6 +3004,9 @@ DEFINE_IMPLICATION(enable_apx_f_ccmp, enable_apx_f)
 #ifdef V8_ENABLE_AVX10_1
 DEFINE_BOOL(enable_avx10_1, false,
             "enable use of AVX10.1 instructions if available")
+DEFINE_BOOL(enable_avx10_2, false,
+            "enable use of AVX10.2 instructions if available")
+DEFINE_IMPLICATION(enable_avx10_2, enable_avx10_1)
 #endif
 DEFINE_STRING(arm_arch, ARM_ARCH_DEFAULT,
               "generate instructions for the selected ARM architecture if "

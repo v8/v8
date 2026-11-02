@@ -75,10 +75,13 @@ V8_EXPORT_PRIVATE inline bool UseApxCmovcc() { return false; }
 V8_EXPORT_PRIVATE inline bool UseApxCcmp() { return false; }
 #endif
 
+// AVX10.2 support is gated by the same V8_ENABLE_AVX10_1 build flag.
 #ifdef V8_ENABLE_AVX10_1
 V8_EXPORT_PRIVATE bool UseAvx10_1();
+V8_EXPORT_PRIVATE bool UseAvx10_2();
 #else
 V8_EXPORT_PRIVATE inline bool UseAvx10_1() { return false; }
+V8_EXPORT_PRIVATE inline bool UseAvx10_2() { return false; }
 #endif
 
 enum Condition : int {

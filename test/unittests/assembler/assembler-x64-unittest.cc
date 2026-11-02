@@ -3933,6 +3933,12 @@ TEST_F(AssemblerX64Test, CpuFeatures_ProbeImpl) {
                 CpuFeatures::IsSupported(AVX));
   CHECK_IMPLIES(CpuFeatures::IsSupported(AVX_VNNI),
                 CpuFeatures::IsSupported(AVX));
+#ifdef V8_ENABLE_AVX10_1
+  CHECK_IMPLIES(CpuFeatures::IsSupported(AVX10_2),
+                CpuFeatures::IsSupported(AVX10_1));
+  CHECK_IMPLIES(CpuFeatures::IsSupported(AVX10_1),
+                CpuFeatures::IsSupported(AVX2));
+#endif  // V8_ENABLE_AVX10_1
   CHECK_IMPLIES(CpuFeatures::IsSupported(AVX2), CpuFeatures::IsSupported(AVX));
   CHECK_IMPLIES(CpuFeatures::IsSupported(AVX),
                 CpuFeatures::IsSupported(SSE4_2));
@@ -3961,6 +3967,12 @@ TEST_F(AssemblerX64Test, CpuFeatures_ProbeImpl) {
                 !CpuFeatures::IsSupported(AVX_VNNI_INT8));
   CHECK_IMPLIES(!CpuFeatures::IsSupported(AVX),
                 !CpuFeatures::IsSupported(FMA3));
+#ifdef V8_ENABLE_AVX10_1
+  CHECK_IMPLIES(!CpuFeatures::IsSupported(AVX2),
+                !CpuFeatures::IsSupported(AVX10_1));
+  CHECK_IMPLIES(!CpuFeatures::IsSupported(AVX10_1),
+                !CpuFeatures::IsSupported(AVX10_2));
+#endif  // V8_ENABLE_AVX10_1
 }
 
 #ifdef V8_ENABLE_APX_F

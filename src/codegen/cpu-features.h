@@ -34,6 +34,7 @@ enum CpuFeature {
   F16C,
   APX_F,
   AVX10_1,
+  AVX10_2,
 
 #elif V8_TARGET_ARCH_ARM
   // - Standard configurations. The baseline is ARMv6+VFPv2.
