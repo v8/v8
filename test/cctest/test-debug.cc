@@ -157,6 +157,13 @@ void CheckDebuggerUnloaded() {
   // information stored for the debugger.
   CHECK_EQ(CcTest::i_isolate()->debug()->debug_infos_.Size(), 0);
 
+  // Concurrent (OSR) compilation jobs can still be running on background
+  // threads, e.g. when a function was deoptimized on a debug break and then
+  // immediately re-queued for OSR before termination. Their handles and
+  // conservatively scanned background stacks could keep DebugInfo objects
+  // alive, so drain and discard all pending jobs before collecting garbage.
+  CcTest::i_isolate()->AbortConcurrentOptimization(BlockingBehavior::kBlock);
+
   // Collect garbage to ensure weak handles are cleared.
   {
     // We need to invoke GC without stack, otherwise some objects may not be
