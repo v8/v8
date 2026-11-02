@@ -666,6 +666,171 @@ TEST_F(MacroAssemblerTest, OverflowInstructions) {
   }
 }
 
+// The right operand as an immediate, which is how Maglev's SmiAddConstant
+// and SmiSubConstant call these: li puts it in the scratch register that the
+// overflow computation also writes.
+TEST_F(MacroAssemblerTest, OverflowImmediate) {
+  Isolate* isolate = i_isolate();
+  HandleScope handles(isolate);
+
+  struct T {
+    int64_t lhs;
+    int64_t output_add;
+    int64_t output_add2;
+    int64_t output_sub;
+    int64_t output_sub2;
+    int64_t overflow_add;
+    int64_t overflow_add2;
+    int64_t overflow_sub;
+    int64_t overflow_sub2;
+  } t;
+
+  // Small immediates, and Smis as they are without pointer compression.
+  static const int64_t kImmediates[] = {1,
+                                        -1,
+                                        2047,
+                                        -2048,
+                                        int64_t{1} << 32,
+                                        -(int64_t{1} << 32),
+                                        int64_t{0x7FFFFFFF} << 32,
+                                        std::numeric_limits<int64_t>::min()};
+  std::vector<int64_t> lhs_values = overflow_int64_test_values();
+  lhs_values.push_back(std::numeric_limits<int64_t>::max());
+  lhs_values.push_back(std::numeric_limits<int64_t>::min());
+  lhs_values.push_back(int64_t{0x7FFFFFFF} << 32);
+  lhs_values.push_back(0);
+
+  for (int64_t imm : kImmediates) {
+    auto fn = [imm](MacroAssembler& masm) {
+      __ Ld(t0, MemOperand(a0, offsetof(T, lhs)));
+      __ AddOverflowWord(t2, t0, Operand(imm), a1);
+      __ Sd(t2, MemOperand(a0, offsetof(T, output_add)));
+      __ Sd(a1, MemOperand(a0, offsetof(T, overflow_add)));
+      __ mv(a1, zero_reg);
+      __ AddOverflowWord(t0, t0, Operand(imm), a1);
+      __ Sd(t0, MemOperand(a0, offsetof(T, output_add2)));
+      __ Sd(a1, MemOperand(a0, offsetof(T, overflow_add2)));
+
+      __ Ld(t0, MemOperand(a0, offsetof(T, lhs)));
+      __ SubOverflowWord(t2, t0, Operand(imm), a1);
+      __ Sd(t2, MemOperand(a0, offsetof(T, output_sub)));
+      __ Sd(a1, MemOperand(a0, offsetof(T, overflow_sub)));
+      __ mv(a1, zero_reg);
+      __ SubOverflowWord(t0, t0, Operand(imm), a1);
+      __ Sd(t0, MemOperand(a0, offsetof(T, output_sub2)));
+      __ Sd(a1, MemOperand(a0, offsetof(T, overflow_sub2)));
+    };
+    auto f = AssembleCode<F3>(isolate, fn);
+
+    for (int64_t lhs : lhs_values) {
+      t.lhs = lhs;
+      f.Call(&t, 0, 0, 0, 0);
+
+      int64_t expected_add, expected_sub;
+      bool expected_add_ovf =
+          base::bits::SignedAddOverflow64(lhs, imm, &expected_add);
+      bool expected_sub_ovf =
+          base::bits::SignedSubOverflow64(lhs, imm, &expected_sub);
+
+      CHECK_EQ(expected_add_ovf, t.overflow_add < 0);
+      CHECK_EQ(expected_add_ovf, t.overflow_add2 < 0);
+      CHECK_EQ(expected_sub_ovf, t.overflow_sub < 0);
+      CHECK_EQ(expected_sub_ovf, t.overflow_sub2 < 0);
+      CHECK_EQ(expected_add, t.output_add);
+      CHECK_EQ(expected_add, t.output_add2);
+      CHECK_EQ(expected_sub, t.output_sub);
+      CHECK_EQ(expected_sub, t.output_sub2);
+    }
+  }
+}
+
+TEST_F(MacroAssemblerTest, Overflow32Instructions) {
+  Isolate* isolate = i_isolate();
+  HandleScope handles(isolate);
+
+  struct T {
+    int64_t lhs;
+    int64_t rhs;
+    int64_t output_add;   // dst aliases neither input
+    int64_t output_add2;  // dst == left
+    int64_t output_add3;  // dst == right
+    int64_t output_sub;
+    int64_t output_sub2;
+    int64_t output_sub3;
+    int64_t overflow_add;
+    int64_t overflow_add2;
+    int64_t overflow_add3;
+    int64_t overflow_sub;
+    int64_t overflow_sub2;
+    int64_t overflow_sub3;
+  } t;
+
+  auto fn = [](MacroAssembler& masm) {
+    __ Lw(t0, MemOperand(a0, offsetof(T, lhs)));
+    __ Lw(t1, MemOperand(a0, offsetof(T, rhs)));
+    __ AddOverflow32(t2, t0, Operand(t1), a1);
+    __ Sd(t2, MemOperand(a0, offsetof(T, output_add)));
+    __ Sd(a1, MemOperand(a0, offsetof(T, overflow_add)));
+    __ AddOverflow32(t0, t0, Operand(t1), a1);
+    __ Sd(t0, MemOperand(a0, offsetof(T, output_add2)));
+    __ Sd(a1, MemOperand(a0, offsetof(T, overflow_add2)));
+    __ Lw(t0, MemOperand(a0, offsetof(T, lhs)));
+    __ AddOverflow32(t1, t0, Operand(t1), a1);
+    __ Sd(t1, MemOperand(a0, offsetof(T, output_add3)));
+    __ Sd(a1, MemOperand(a0, offsetof(T, overflow_add3)));
+
+    __ Lw(t0, MemOperand(a0, offsetof(T, lhs)));
+    __ Lw(t1, MemOperand(a0, offsetof(T, rhs)));
+    __ SubOverflow32(t2, t0, Operand(t1), a1);
+    __ Sd(t2, MemOperand(a0, offsetof(T, output_sub)));
+    __ Sd(a1, MemOperand(a0, offsetof(T, overflow_sub)));
+    __ SubOverflow32(t0, t0, Operand(t1), a1);
+    __ Sd(t0, MemOperand(a0, offsetof(T, output_sub2)));
+    __ Sd(a1, MemOperand(a0, offsetof(T, overflow_sub2)));
+    __ Lw(t0, MemOperand(a0, offsetof(T, lhs)));
+    __ SubOverflow32(t1, t0, Operand(t1), a1);
+    __ Sd(t1, MemOperand(a0, offsetof(T, output_sub3)));
+    __ Sd(a1, MemOperand(a0, offsetof(T, overflow_sub3)));
+  };
+  auto f = AssembleCode<F3>(isolate, fn);
+
+  static const int32_t kValues[] = {0,
+                                    1,
+                                    -1,
+                                    12345,
+                                    0x40000000,
+                                    -0x40000000,
+                                    0x7FFFFFFE,
+                                    std::numeric_limits<int32_t>::max(),
+                                    std::numeric_limits<int32_t>::min()};
+  for (int32_t lhs : kValues) {
+    for (int32_t rhs : kValues) {
+      t.lhs = lhs;
+      t.rhs = rhs;
+      f.Call(&t, 0, 0, 0, 0);
+
+      int32_t expected_add, expected_sub;
+      bool expected_add_ovf =
+          base::bits::SignedAddOverflow32(lhs, rhs, &expected_add);
+      bool expected_sub_ovf =
+          base::bits::SignedSubOverflow32(lhs, rhs, &expected_sub);
+
+      CHECK_EQ(expected_add_ovf, t.overflow_add < 0);
+      CHECK_EQ(expected_add_ovf, t.overflow_add2 < 0);
+      CHECK_EQ(expected_add_ovf, t.overflow_add3 < 0);
+      CHECK_EQ(expected_sub_ovf, t.overflow_sub < 0);
+      CHECK_EQ(expected_sub_ovf, t.overflow_sub2 < 0);
+      CHECK_EQ(expected_sub_ovf, t.overflow_sub3 < 0);
+      CHECK_EQ(expected_add, t.output_add);
+      CHECK_EQ(expected_add, t.output_add2);
+      CHECK_EQ(expected_add, t.output_add3);
+      CHECK_EQ(expected_sub, t.output_sub);
+      CHECK_EQ(expected_sub, t.output_sub2);
+      CHECK_EQ(expected_sub, t.output_sub3);
+    }
+  }
+}
+
 TEST_F(MacroAssemblerTest, min_max_nan) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);

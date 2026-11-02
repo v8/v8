@@ -6278,16 +6278,20 @@ void MacroAssembler::AddOverflowWord(Register dst, Register left,
   DCHECK(left != scratch2 && right_reg != scratch2 && dst != scratch2 &&
          overflow != scratch2);
   DCHECK(overflow != left && overflow != right_reg);
+  // The Xor into scratch goes first so that the Xor into overflow and the
+  // And that consumes it are adjacent, a pair cores such as the SpacemiT X100
+  // fuse. That writes scratch before left is read.
+  DCHECK(left != scratch);
   if (dst == left || dst == right_reg) {
     AddWord(scratch2, left, right_reg);
-    Xor(overflow, scratch2, left);
     Xor(scratch, scratch2, right_reg);
+    Xor(overflow, scratch2, left);
     And(overflow, overflow, scratch);
     Mv(dst, scratch2);
   } else {
     AddWord(dst, left, right_reg);
-    Xor(overflow, dst, left);
     Xor(scratch, dst, right_reg);
+    Xor(overflow, dst, left);
     And(overflow, overflow, scratch);
   }
 }
@@ -6309,17 +6313,19 @@ void MacroAssembler::SubOverflowWord(Register dst, Register left,
   DCHECK(left != scratch2 && right_reg != scratch2 && dst != scratch2 &&
          overflow != scratch2);
   DCHECK(overflow != left && overflow != right_reg);
+  // See AddOverflowWord for the order of the Xors.
+  DCHECK(left != scratch);
 
   if (dst == left || dst == right_reg) {
     SubWord(scratch2, left, right_reg);
-    Xor(overflow, left, scratch2);
     Xor(scratch, left, right_reg);
+    Xor(overflow, left, scratch2);
     And(overflow, overflow, scratch);
     Mv(dst, scratch2);
   } else {
     SubWord(dst, left, right_reg);
-    Xor(overflow, left, dst);
     Xor(scratch, left, right_reg);
+    Xor(overflow, left, dst);
     And(overflow, overflow, scratch);
   }
 }
@@ -6340,17 +6346,19 @@ void MacroAssembler::AddOverflow32(Register dst, Register left,
   DCHECK(left != scratch2 && right_reg != scratch2 && dst != scratch2 &&
          overflow != scratch2);
   DCHECK(overflow != left && overflow != right_reg);
+  // See AddOverflowWord for the order of the Xors.
+  DCHECK(left != scratch);
   if (dst == left || dst == right_reg) {
     Add32(scratch2, left, right_reg);
-    Xor(overflow, scratch2, left);
     Xor(scratch, scratch2, right_reg);
+    Xor(overflow, scratch2, left);
     And(overflow, overflow, scratch);
     sext_w(overflow, overflow);
     Mv(dst, scratch2);
   } else {
     Add32(dst, left, right_reg);
-    Xor(overflow, dst, left);
     Xor(scratch, dst, right_reg);
+    Xor(overflow, dst, left);
     And(overflow, overflow, scratch);
     sext_w(overflow, overflow);
   }
@@ -6373,18 +6381,20 @@ void MacroAssembler::SubOverflow32(Register dst, Register left,
   DCHECK(left != scratch2 && right_reg != scratch2 && dst != scratch2 &&
          overflow != scratch2);
   DCHECK(overflow != left && overflow != right_reg);
+  // See AddOverflowWord for the order of the Xors.
+  DCHECK(left != scratch);
 
   if (dst == left || dst == right_reg) {
     Sub32(scratch2, left, right_reg);
-    Xor(overflow, left, scratch2);
     Xor(scratch, left, right_reg);
+    Xor(overflow, left, scratch2);
     And(overflow, overflow, scratch);
     sext_w(overflow, overflow);
     Mv(dst, scratch2);
   } else {
     Sub32(dst, left, right_reg);
-    Xor(overflow, left, dst);
     Xor(scratch, left, right_reg);
+    Xor(overflow, left, dst);
     And(overflow, overflow, scratch);
     sext_w(overflow, overflow);
   }
