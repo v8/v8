@@ -1258,19 +1258,11 @@ class WasmExportedFunction : public JSFunction {
  public:
   V8_EXPORT_PRIVATE static bool IsWasmExportedFunction(Tagged<Object> object);
 
-  V8_EXPORT_PRIVATE static DirectHandle<WasmExportedFunction> New(
-      Isolate* isolate, DirectHandle<WasmTrustedInstanceData> instance_data,
-      DirectHandle<WasmFuncRef> func_ref,
-      DirectHandle<WasmInternalFunction> internal_function, int arity,
-      DirectHandle<Code> export_wrapper);
-  // Compared to the version above, the extra parameters are redundant
-  // information, but passing them along from callers that have them readily
-  // available is faster than looking them up.
   static DirectHandle<WasmExportedFunction> New(
       Isolate* isolate, DirectHandle<WasmTrustedInstanceData> instance_data,
       DirectHandle<WasmFuncRef> func_ref,
       DirectHandle<WasmInternalFunction> internal_function, int arity,
-      DirectHandle<Code> export_wrapper, int func_index, wasm::Promise promise);
+      DirectHandle<Code> export_wrapper, int func_index);
 
   // Returns the generic wrapper, or a cached compiled wrapper, or
   // a freshly-compiled wrapper.
@@ -1281,6 +1273,12 @@ class WasmExportedFunction : public JSFunction {
   // 'js-to-wasm:<sig>'.
   static std::unique_ptr<char[]> GetDebugName(const wasm::CanonicalSig* sig);
 };
+
+// Creates a JS wrapper function for `WebAssembly.promising(wasm_fn)`. Unlike
+// `WasmExportedFunction`, the returned function is a plain JS function rather
+// than a WebAssembly Exported Function.
+DirectHandle<JSFunction> NewPromisingWasmFunction(
+    Isolate* isolate, DirectHandle<WasmExportedFunctionData> data);
 
 // An external function exposed to Wasm via the C/C++ API.
 class WasmCapiFunction : public JSFunction {

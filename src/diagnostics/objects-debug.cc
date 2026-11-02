@@ -3475,7 +3475,6 @@ void WasmExportedFunctionData::WasmExportedFunctionDataVerify(
             wrapper->builtin_id() == Builtin::kJSToWasmInterpreterWrapper ||
             wrapper->builtin_id() == Builtin::kJSToWasmInterpreterWrapperAsm ||
 #endif  // V8_ENABLE_DRUMBRAKE
-            wrapper->builtin_id() == Builtin::kWasmPromising ||
             wrapper->builtin_id() == Builtin::kWasmStressSwitch)));
   }
 }

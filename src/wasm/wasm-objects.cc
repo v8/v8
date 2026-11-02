@@ -1816,7 +1816,7 @@ V8_INLINE DirectHandle<WasmExportedFunction> CreateExportedFunction(
   int arity = static_cast<int>(sig->parameter_count());
   return WasmExportedFunction::New(isolate, trusted_instance_data, func_ref,
                                    internal_function, arity, wrapper_code,
-                                   function_index, wasm::kNoPromise);
+                                   function_index);
 }
 
 }  // namespace
@@ -2909,19 +2909,21 @@ uint32_t WasmExceptionPackage::GetEncodedSize(const wasm::CanonicalSig* sig) {
 bool WasmExportedFunction::IsWasmExportedFunction(Tagged<Object> object) {
   if (!IsJSFunction(object)) return false;
   Tagged<JSFunction> js_function = Cast<JSFunction>(object);
-  Tagged<Code> code = js_function->code(GetCurrentIsolateForSandbox());
+  IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
+  Tagged<Code> code = js_function->code(isolate);
   if (CodeKind::JS_TO_WASM_FUNCTION != code->kind() &&
 #if V8_ENABLE_DRUMBRAKE
       code->builtin_id() != Builtin::kJSToWasmInterpreterWrapper &&
 #endif  // V8_ENABLE_DRUMBRAKE
       code->builtin_id() != Builtin::kJSToWasmWrapper &&
-      code->builtin_id() != Builtin::kWasmPromising &&
       code->builtin_id() != Builtin::kWasmStressSwitch) {
     return false;
   }
-  DCHECK(js_function->shared()->HasWasmExportedFunctionData(
-      GetCurrentIsolateForSandbox()));
-  return true;
+  Tagged<WasmExportedFunctionData> function_data;
+  bool has_function_data =
+      TryCast(js_function->shared()->GetTrustedData(isolate), &function_data);
+  SBXCHECK(has_function_data);
+  return !function_data->is_promising();
 }
 
 bool WasmCapiFunction::IsWasmCapiFunction(Tagged<Object> object) {
@@ -2965,34 +2967,22 @@ DirectHandle<WasmCapiFunction> WasmCapiFunction::New(
   return Cast<WasmCapiFunction>(result);
 }
 
-DirectHandle<WasmExportedFunction> WasmExportedFunction::New(
-    Isolate* isolate, DirectHandle<WasmTrustedInstanceData> instance_data,
-    DirectHandle<WasmFuncRef> func_ref,
-    DirectHandle<WasmInternalFunction> internal_function, int arity,
-    DirectHandle<Code> export_wrapper) {
-  int func_index = internal_function->function_index();
-  wasm::Promise promise =
-      export_wrapper->builtin_id() == Builtin::kWasmPromising
-          ? wasm::kPromise
-          : wasm::kNoPromise;
-  return New(isolate, instance_data, func_ref, internal_function, arity,
-             export_wrapper, func_index, promise);
-}
+namespace {
 
-DirectHandle<WasmExportedFunction> WasmExportedFunction::New(
+DirectHandle<JSFunction> CreateJSFunctionForWasmWrapper(
     Isolate* isolate, DirectHandle<WasmTrustedInstanceData> instance_data,
     DirectHandle<WasmFuncRef> func_ref,
     DirectHandle<WasmInternalFunction> internal_function, int arity,
-    DirectHandle<Code> export_wrapper, int func_index, wasm::Promise promise) {
-  DCHECK(
-      CodeKind::JS_TO_WASM_FUNCTION == export_wrapper->kind() ||
-      (export_wrapper->is_builtin() &&
-       (export_wrapper->builtin_id() == Builtin::kJSToWasmWrapper ||
+    DirectHandle<Code> wrapper, int func_index, wasm::Promise promise) {
+  DCHECK(CodeKind::JS_TO_WASM_FUNCTION == wrapper->kind() ||
+         (wrapper->is_builtin() &&
+          (wrapper->builtin_id() == Builtin::kJSToWasmWrapper ||
 #if V8_ENABLE_DRUMBRAKE
-        export_wrapper->builtin_id() == Builtin::kJSToWasmInterpreterWrapper ||
+           wrapper->builtin_id() == Builtin::kJSToWasmInterpreterWrapper ||
 #endif  // V8_ENABLE_DRUMBRAKE
-        export_wrapper->builtin_id() == Builtin::kWasmPromising ||
-        export_wrapper->builtin_id() == Builtin::kWasmStressSwitch)));
+           (promise == wasm::kPromise &&
+            wrapper->builtin_id() == Builtin::kWasmPromising) ||
+           wrapper->builtin_id() == Builtin::kWasmStressSwitch)));
   Factory* factory = isolate->factory();
   DirectHandle<WasmExportedFunctionData> function_data =
       factory->NewWasmExportedFunctionData(
@@ -3025,19 +3015,50 @@ DirectHandle<WasmExportedFunction> WasmExportedFunction::New(
   DirectHandle<JSFunction> js_function =
       Factory::JSFunctionBuilder{isolate, shared, context}
           .set_map(function_map)
-          .set_code(export_wrapper)
+          .set_code(wrapper)
           .Build();
 
-  // According to the spec, exported functions should not have a [[Construct]]
-  // method.
+  // According to the spec, exported and promising functions should not have a
+  // [[Construct]] method.
   DCHECK(!IsConstructor(*js_function));
   if (instance_data->has_instance_object()) {
     shared->set_script(instance_data->module_object()->script(), kReleaseStore);
   } else {
     shared->set_script(*isolate->factory()->undefined_value(), kReleaseStore);
   }
+  return js_function;
+}
+
+}  // namespace
+
+DirectHandle<WasmExportedFunction> WasmExportedFunction::New(
+    Isolate* isolate, DirectHandle<WasmTrustedInstanceData> instance_data,
+    DirectHandle<WasmFuncRef> func_ref,
+    DirectHandle<WasmInternalFunction> internal_function, int arity,
+    DirectHandle<Code> export_wrapper, int func_index) {
+  DirectHandle<JSFunction> js_function = CreateJSFunctionForWasmWrapper(
+      isolate, instance_data, func_ref, internal_function, arity,
+      export_wrapper, func_index, wasm::kNoPromise);
   internal_function->set_external(*js_function);
   return Cast<WasmExportedFunction>(js_function);
+}
+
+DirectHandle<JSFunction> NewPromisingWasmFunction(
+    Isolate* isolate, DirectHandle<WasmExportedFunctionData> data) {
+  DirectHandle<WasmTrustedInstanceData> instance_data{data->instance_data(),
+                                                      isolate};
+  DirectHandle<WasmFuncRef> func_ref{data->func_ref(), isolate};
+  DirectHandle<WasmInternalFunction> internal_function{data->internal(),
+                                                       isolate};
+  const wasm::CanonicalSig* sig = internal_function->sig();
+  DirectHandle<Code> wrapper =
+      wasm::IsJSCompatibleSignature(sig)
+          ? BUILTIN_CODE(isolate, WasmPromising)
+          : WasmExportedFunction::GetWrapper(isolate, sig);
+  return CreateJSFunctionForWasmWrapper(
+      isolate, instance_data, func_ref, internal_function,
+      static_cast<int>(sig->parameter_count()), wrapper, data->function_index(),
+      wasm::kPromise);
 }
 
 // static

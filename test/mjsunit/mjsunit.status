@@ -1156,6 +1156,7 @@
   'regress/wasm/regress-408254017': [SKIP],
   'regress/wasm/regress-567481597': [SKIP],
   'regress/wasm/regress-578382523-2': [SKIP],
+  'regress/wasm/regress-578382734': [SKIP],
   'regress/wasm/regress-crbug-408253898': [SKIP],
 
   # --wasm-fp16
@@ -3055,7 +3056,8 @@
   'regress/wasm/regress-365376497': [SKIP],
   'regress/wasm/regress-381917890': [SKIP],
   'regress/wasm/regress-392928805': [SKIP],
-  'regress/wasm/regress-394091686': [SKIP]
+  'regress/wasm/regress-394091686': [SKIP],
+  'regress/wasm/regress-578382734': [SKIP]
 }],  # (arch == mips64el)
 
 ##############################################################################
@@ -3268,7 +3270,8 @@
   'regress/wasm/regress-349640002': [SKIP],
   'regress/wasm/regress-364667545': [SKIP],
   'regress/wasm/regress-361123483': [SKIP],
-  'regress/wasm/regress-361717714': [SKIP]
+  'regress/wasm/regress-361717714': [SKIP],
+  'regress/wasm/regress-578382734': [SKIP]
 }],  # cet_shadow_stack
 
 ##############################################################################

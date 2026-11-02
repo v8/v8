@@ -743,8 +743,16 @@ void ResolvedWasmImport::SetCallable(Isolate* isolate,
   trusted_function_data_ = {};
   if (!IsJSFunction(*callable)) return;
   Tagged<SharedFunctionInfo> sfi = Cast<JSFunction>(*callable_)->shared();
-  if (sfi->HasWasmFunctionData(isolate)) {
-    trusted_function_data_ = direct_handle(sfi->wasm_function_data(), isolate);
+  Tagged<WasmFunctionData> function_data;
+  if (TryCast(sfi->GetTrustedData(isolate), &function_data)) {
+    if (Tagged<WasmExportedFunctionData> exported_data;
+        TryCast(function_data, &exported_data) &&
+        exported_data->is_promising()) {
+      // `WebAssembly.promising()` wrappers are plain JS functions, not Wasm
+      // exported functions.
+      return;
+    }
+    trusted_function_data_ = direct_handle(function_data, isolate);
   }
 }
 
@@ -780,6 +788,7 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
   if (!trusted_function_data_.is_null()) {
     if (Tagged<WasmExportedFunctionData> data;
         TryCast(*trusted_function_data_, &data)) {
+      DCHECK(!data->is_promising());
       if (!wasm::GetTypeCanonicalizer()->IsCanonicalSubtype(
               data->internal()->sig()->index(), expected_type)) {
         return ImportCallKind::kLinkError;
