@@ -15,6 +15,7 @@ The corpus programs and the crash files are plain JavaScript files.
 - Redline is experimental, and it builds only on Linux.
 - The V8 bots compile Redline on Linux, because the root `BUILD.gn` adds `experimental/redline` to `gn_all`.
 - The bots do not run the Redline tests yet. Run the [checks](#checks) before you upload a change.
+- With a d8 that has coverage counters, Redline can fuzz the changes of a CL (change-based fuzzing). See [TUTORIAL.md](TUTORIAL.md) section 7.9.
 
 ## Quick start
 
@@ -108,9 +109,9 @@ out/redline/redline fuzz --d8=out/fuzzbuild/d8 --preset=maglev --jobs=4 --durati
 | `minimizer/` | The minimizer and its reducers. |
 | `mutators/` | The mutators. `Explore` and `Probing` run the program in the target before they choose a change. |
 | `presets/` | The built-in presets: one JSON configuration for each area of V8. |
-| `skills/` | The skills for AI agents: the presubmit checks, the A/B tests, the known bugs, diff mode, the generators and ASD-STE100. [AGENTS.md](AGENTS.md) lists them. |
+| `skills/` | The skills for AI agents: the presubmit checks, the A/B tests, the known bugs, change-based fuzzing, the generators and ASD-STE100. [AGENTS.md](AGENTS.md) lists them. |
 | `testdata/` | The golden traces of `redline selftest --offline`. [testdata/README.md](testdata/README.md) describes them. |
-| `tools/` | `edge_map.py` and `diff_targets.py`, which make the targets of diff mode. |
+| `tools/` | `edge_map.py` and `change_targets.py`, which make the targets of change-based fuzzing. |
 
 ## Code conventions
 

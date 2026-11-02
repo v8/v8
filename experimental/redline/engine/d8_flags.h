@@ -21,6 +21,19 @@ namespace redline {
 // configuration wins.
 std::vector<std::string> RandomD8Flags(Random& rng);
 
+// Combines a target-hitting flag set `base` with a fresh random flag draw
+// `extra`. Keeps each flag of `base` with probability flags.target_keep_chance,
+// appends new flags from `extra`, and drops dependent inlining-size flags when
+// --maglev-non-eager-inlining is absent.
+std::vector<std::string> CombineD8Flags(const std::vector<std::string>& base,
+                                        const std::vector<std::string>& extra,
+                                        Random& rng);
+
+double TargetGuidedChance();
+double TargetMutateChance();
+int TargetTournament();
+int TargetProbeExecs();
+
 }  // namespace redline
 
 #endif  // V8_EXPERIMENTAL_REDLINE_ENGINE_D8_FLAGS_H_

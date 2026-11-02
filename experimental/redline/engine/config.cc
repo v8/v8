@@ -204,7 +204,10 @@ bool ReadAmplifyConfig(const JsonValue& amplify, FuzzConfig* c,
   return true;
 }
 
-// "coverage": {"watch_optimized": BOOL} (exec/coverage.h).
+// "coverage": {"targets": FILE, "watch_optimized": BOOL, "focus": BOOL,
+// "focus_optimized": BOOL, "target_boost": N, "weights": {"builtins": N,
+// "optimized": N, "bucket": N, "unfocused": N}} (exec/coverage.h,
+// corpus/feature_weights.h).
 bool ReadCoverageConfig(const JsonValue& coverage, FuzzConfig* c,
                         std::string* error) {
   if (coverage.is_null()) {
@@ -215,13 +218,48 @@ bool ReadCoverageConfig(const JsonValue& coverage, FuzzConfig* c,
     return false;
   }
   for (const auto& [key, value] : coverage.as_object()) {
-    if (key != "watch_optimized") {
+    if (key != "targets" && key != "watch_optimized" && key != "focus" &&
+        key != "focus_optimized" && key != "target_boost" && key != "weights") {
       *error = "config: unknown key \"" + key +
-               "\" in \"coverage\" (known: watch_optimized)";
+               "\" in \"coverage\" (known: targets, watch_optimized, focus, "
+               "focus_optimized, target_boost, weights)";
       return false;
     }
   }
+  c->targets_file = coverage.GetString("targets", c->targets_file);
   c->watch_optimized = coverage.GetBool("watch_optimized", c->watch_optimized);
+  c->focus = coverage.GetBool("focus", c->focus);
+  FeatureWeights::Params& w = c->feature_weights;
+  w.optimized_in_focus =
+      coverage.GetBool("focus_optimized", w.optimized_in_focus);
+  w.target_boost = coverage.GetNumber("target_boost", w.target_boost);
+  const JsonValue& weights = coverage.Get("weights");
+  if (!weights.is_null()) {
+    if (!weights.is_object()) {
+      *error = "config: \"coverage.weights\" must be an object";
+      return false;
+    }
+    for (const auto& [key, value] : weights.as_object()) {
+      if (key != "builtins" && key != "optimized" && key != "bucket" &&
+          key != "unfocused") {
+        *error = "config: unknown key \"" + key +
+                 "\" in \"coverage.weights\" (known: builtins, optimized, "
+                 "bucket, unfocused)";
+        return false;
+      }
+    }
+    w.builtins = weights.GetNumber("builtins", w.builtins);
+    w.optimized = weights.GetNumber("optimized", w.optimized);
+    w.bucket = weights.GetNumber("bucket", w.bucket);
+    w.unfocused = weights.GetNumber("unfocused", w.unfocused);
+  }
+  for (double x :
+       {w.target_boost, w.builtins, w.optimized, w.bucket, w.unfocused}) {
+    if (!std::isfinite(x) || x < 0.0) {
+      *error = "config: the coverage weights must be finite and >= 0";
+      return false;
+    }
+  }
   return true;
 }
 
@@ -909,8 +947,27 @@ bool FuzzConfig::Load(const Flags& flags, FuzzConfig* c, std::string* error,
   c->jobs = static_cast<int>(flags.GetInt("jobs", c->jobs));
   c->seed = static_cast<uint64_t>(
       flags.GetInt("seed", static_cast<int64_t>(c->seed)));
-  // Coverage counters.
+  // Coverage counters and change-based fuzzing.
+  c->targets_file = flags.GetString("targets", c->targets_file);
   c->watch_optimized = flags.GetBool("watch-optimized", c->watch_optimized);
+  c->focus = flags.GetBool("focus", c->focus);
+  {
+    FeatureWeights::Params& w = c->feature_weights;
+    w.target_boost = flags.GetDouble("target-boost", w.target_boost);
+    w.builtins = flags.GetDouble("builtins-weight", w.builtins);
+    w.optimized = flags.GetDouble("optimized-weight", w.optimized);
+    w.bucket = flags.GetDouble("bucket-weight", w.bucket);
+    w.unfocused = flags.GetDouble("unfocused-weight", w.unfocused);
+    w.optimized_in_focus =
+        flags.GetBool("focus-optimized", w.optimized_in_focus);
+    for (double x :
+         {w.target_boost, w.builtins, w.optimized, w.bucket, w.unfocused}) {
+      if (!std::isfinite(x) || x < 0.0) {
+        *error = "the coverage weights must be finite and >= 0";
+        return false;
+      }
+    }
+  }
   c->out_dir = flags.GetString("out", c->out_dir);
   c->import_root = flags.GetString("import-root", c->import_root);
   c->duration_sec = flags.GetDouble("duration", c->duration_sec);
@@ -1232,7 +1289,17 @@ std::string FuzzConfig::ToJson(Detail detail) const {
     amplify.AddRaw("params", amplify_params);
     o.AddRaw("amplify", amplify.ToString());
     JsonObject coverage;
-    coverage.Add("watch_optimized", watch_optimized);
+    coverage.Add("targets", targets_file)
+        .Add("watch_optimized", watch_optimized);
+    coverage.Add("focus", focus)
+        .Add("focus_optimized", feature_weights.optimized_in_focus)
+        .Add("target_boost", feature_weights.target_boost);
+    JsonObject weights;
+    weights.Add("builtins", feature_weights.builtins)
+        .Add("optimized", feature_weights.optimized);
+    weights.Add("bucket", feature_weights.bucket)
+        .Add("unfocused", feature_weights.unfocused);
+    coverage.AddRaw("weights", weights.ToString());
     o.AddRaw("coverage", coverage.ToString());
   }
   JsonObject sel;

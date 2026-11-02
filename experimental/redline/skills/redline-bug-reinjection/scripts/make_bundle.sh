@@ -5,8 +5,8 @@
 #
 # Makes the bug bundle of one fix. The script reverts the fix on a base
 # revision and builds the bits d8, the counters d8 and the d8 of Fuzzilli. It
-# copies them with their data files, and writes the diff mode targets of the
-# revert.
+# copies them with their data files, and writes the change-based fuzzing
+# targets of the revert.
 #
 # Usage: make_bundle.sh FIX PRESET
 #   FIX     the commit of the fix
@@ -20,8 +20,8 @@
 #   BITS_OUT       the build directory of the bits d8 in BB_V8
 #                  (default out/fuzzbuild)
 #   COUNTERS_OUT   the build directory of the counters d8 in BB_V8
-#                  (default out/rl_counters, as in the diff mode section
-#                  of TUTORIAL.md)
+#                  (default out/rl_counters, as in the change-based fuzzing
+#                  section of TUTORIAL.md)
 #   FUZZILLI_OUT   the build directory of the d8 of Fuzzilli in BB_V8, with
 #                  v8_fuzzilli=true (default out/fuzzilli)
 #   REDLINE_TOOLS  the experimental/redline/tools directory of the Redline
@@ -55,7 +55,7 @@ if [ "$(git -C "$TOOLS" rev-parse --show-toplevel)" = "$BB_V8" ]; then
 fi
 cd "$BB_V8"
 # The LLVM tools of the toolchain that builds d8. Without llvm-objdump,
-# diff_targets.py keeps the edges that only lead to a fatal error.
+# change_targets.py keeps the edges that only lead to a fatal error.
 LLVM=$BB_V8/third_party/llvm-build/Release+Asserts/bin
 for tool in llvm-objdump llvm-symbolizer; do
   [ -x "$LLVM/$tool" ] || { echo "no $LLVM/$tool" >&2; exit 1; }
@@ -92,10 +92,10 @@ restore() {
 trap restore EXIT
 
 git checkout -q --detach "$BASE"
-# The counters build needs the coverage counters of d8 (diff mode).
+# The counters build needs the coverage counters of d8 (change-based fuzzing).
 if ! grep -q 'REDLINE_PC_TABLE' experimental/redline/d8/cov.cc 2>/dev/null; then
   echo "$BASE has no coverage counters in experimental/redline/d8/cov.cc." >&2
-  echo "Use a base revision that has the d8 side of diff mode." >&2
+  echo "Use a base revision that has the d8 side of change-based fuzzing." >&2
   exit 1
 fi
 if ! git revert --no-edit "$FIX" > /dev/null 2>&1; then
@@ -122,7 +122,7 @@ echo "$FIX" > "$DST/fix"
 git rev-parse HEAD > "$DST/revision"
 python3 "$TOOLS/edge_map.py" --d8="$DST/counters/d8" \
     --symbolizer="$LLVM/llvm-symbolizer"
-python3 "$TOOLS/diff_targets.py" --repo="$BB_V8" --d8="$DST/counters/d8" \
+python3 "$TOOLS/change_targets.py" --repo="$BB_V8" --d8="$DST/counters/d8" \
     --objdump="$LLVM/llvm-objdump" --base=HEAD~1 --head=HEAD \
     --out="$DST/targets.json"
 echo "$FIX: bundle in $DST. Now do the checks of SKILL.md section 5."

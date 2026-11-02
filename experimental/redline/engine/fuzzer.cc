@@ -5,6 +5,7 @@
 #include "experimental/redline/engine/fuzzer.h"
 
 #include <algorithm>
+#include <bit>
 #include <chrono>
 #include <cstdio>
 #include <deque>
@@ -113,7 +114,11 @@ class Worker {
     TargetOptions target = fuzzer_->config().target;
     if (config().randomize_d8_flags) {
       // Each new target process gets new random flags (DESIGN.md 5.4).
-      target.random_args = [this] { return RandomD8Flags(flags_rng_); };
+      target.random_args = [this] {
+        child_target_buckets_.assign(fuzzer_->targets_.size(), 0);
+        child_target_hits_ = 0;
+        return fuzzer_->DrawD8Flags(flags_rng_);
+      };
     }
     runner_ = ScriptRunner::Create(target, id_, error);
     if (runner_ == nullptr) {
@@ -216,7 +221,80 @@ class Worker {
     stats().executions++;
     stats().exec_time_us += execution->exec_time_us;
     RememberExecution(source);
+    if (execution->succeeded()) {
+      ObserveTargetCoverage();
+    }
     return true;
+  }
+
+  // The number of target features in `edges` (0 outside change-based fuzzing).
+  static uint64_t TargetFeatures(const std::vector<uint32_t>& edges) {
+    const FeatureWeights* weights = FeatureWeights::Active();
+    if (weights == nullptr) {
+      return 0;
+    }
+    return static_cast<uint64_t>(
+        std::count_if(edges.begin(), edges.end(),
+                      [&](uint32_t edge) { return weights->IsTarget(edge); }));
+  }
+
+  // Tracks per-child target bucket coverage in change-based fuzzing and records
+  // flag combinations that reach target edges or higher hit-count buckets.
+  void ObserveTargetCoverage() {
+    if (fuzzer_->targets_.empty() || !config().randomize_d8_flags) {
+      return;
+    }
+    if (child_target_buckets_.size() != fuzzer_->targets_.size()) {
+      child_target_buckets_.assign(fuzzer_->targets_.size(), 0);
+    }
+    bool hit_any = false;
+    bool new_bucket = false;
+    for (size_t i = 0; i < fuzzer_->targets_.size(); i++) {
+      uint32_t count = runner_->coverage().HitCount(fuzzer_->targets_[i].first);
+      if (count == 0) {
+        continue;
+      }
+      hit_any = true;
+      uint8_t bit =
+          static_cast<uint8_t>(1u << CoverageMap::Bucket(static_cast<uint8_t>(
+                                   std::min<uint32_t>(count, 255))));
+      if ((child_target_buckets_[i] & bit) == 0) {
+        child_target_buckets_[i] |= bit;
+        new_bucket = true;
+      }
+    }
+    if (!hit_any) {
+      return;
+    }
+    child_target_hits_++;
+    if (!new_bucket) {
+      return;
+    }
+    double score = 0;
+    for (size_t i = 0; i < fuzzer_->targets_.size(); i++) {
+      uint8_t bits = child_target_buckets_[i];
+      if (bits != 0) {
+        score += fuzzer_->targets_[i].second *
+                 (4.0 + static_cast<double>(std::popcount(bits)) +
+                  static_cast<double>(std::bit_width(bits)));
+      }
+    }
+    fuzzer_->RecordTargetFlags(runner_->child().random_args(), score);
+  }
+
+  // Respawns an unpinned child in change-based fuzzing when it has run
+  // target_probe_execs executions without reaching a single target edge.
+  void MaybeRespawnForTargets() {
+    if (fuzzer_->targets_.empty() || !config().randomize_d8_flags) {
+      return;
+    }
+    if (runner_->child().pinned() || child_target_hits_ > 0) {
+      return;
+    }
+    const int probe = TargetProbeExecs();
+    if (probe > 0 && runner_->child().execs_since_draw() >= probe) {
+      runner_->child().Kill();
+    }
   }
 
   // The programs the current target process executed, oldest first (bounded
@@ -356,6 +434,7 @@ class Worker {
   }
 
   void ImportFile(const std::string& path, const ImportOptions& options) {
+    MaybeRespawnForTargets();
     stats().imports_total++;
     JsonObject event;
     event.Add("event", "import").Add("file", path).Add("worker", id_);
@@ -417,6 +496,7 @@ class Worker {
     }
     std::vector<uint32_t> claimed =
         fuzzer_->coverage_.ClaimNewEdges(runner_->coverage().bitmap());
+    fuzzer_->KeepFocused(&claimed);
     if (claimed.empty() && !config().import_all) {
       stats().imports_redundant++;
       fuzzer_->LogEvent(event.Add("result", "redundant"));
@@ -453,6 +533,7 @@ class Worker {
   // --- fuzzing ----------------------------------------------------------
 
   void FuzzOne() {
+    MaybeRespawnForTargets();
     Corpus& corpus = fuzzer_->corpus();
     Stopwatch pick_time;
     ProgramPtr parent = corpus.Pick(rng_);
@@ -651,6 +732,7 @@ class Worker {
         case Outcome::kSucceeded: {
           std::vector<uint32_t> claimed =
               fuzzer_->coverage_.ClaimNewEdges(runner_->coverage().bitmap());
+          fuzzer_->KeepFocused(&claimed);
           std::shared_ptr<Program> child =
               Program::FromTree(std::move(tree), lineage, source);
           ProgramPtr added;
@@ -666,9 +748,11 @@ class Worker {
                            config().minimize, mutator);
             if (added != nullptr) {
               // Each generator the mutant used gets the full credit.
+              const uint64_t targets = TargetFeatures(added->edges);
               for (Generator* g : used_generators) {
                 g->stats().interesting++;
                 g->stats().new_edges += added->edges.size();
+                g->stats().new_targets += targets;
               }
             }
           }
@@ -1091,6 +1175,7 @@ class Worker {
     if (mutator != nullptr) {
       mutator->stats().interesting++;
       mutator->stats().new_edges += added->edges.size();
+      mutator->stats().new_targets += TargetFeatures(added->edges);
     }
     if (config().save_corpus) {
       fuzzer_->SaveCorpusProgram(*added);
@@ -1214,15 +1299,16 @@ class Worker {
   static constexpr int kFragileMinimizerTests = 60;
 
   // The features that the minimizer must keep. By default, all new features
-  // of the program. With --minimize-code-edges, only the new code edges and
-  // the new builtins edges. Optimized code features and hit count buckets
-  // change with most edits of a program. A minimization that keeps them
-  // spends its budget and removes little. If the program has none of the
-  // stable features, the property is all its new features, `*fragile_only`
-  // is true, and the budget is small.
+  // of the program. With --minimize-code-edges, only the new code edges, the
+  // new builtins edges and the target features. Optimized code features and
+  // hit count buckets change with most edits of a program. A minimization
+  // that keeps them spends its budget and removes little. If the program has
+  // none of the stable features, the property is all its new features,
+  // `*fragile_only` is true, and the budget is small.
   std::vector<uint32_t> MinimizationProperty(const std::vector<uint32_t>& edges,
                                              bool* fragile_only) const {
     *fragile_only = false;
+    const FeatureWeights* weights = fuzzer_->feature_weights_.get();
     const CoverageMap& coverage = runner_->coverage();
     if (!config().minimize_code_edges || !coverage.counters_mode()) {
       return edges;
@@ -1231,7 +1317,8 @@ class Worker {
     for (uint32_t feature : edges) {
       const CoverageMap::FeatureKind kind = coverage.KindOf(feature);
       if (kind == CoverageMap::FeatureKind::kCode ||
-          kind == CoverageMap::FeatureKind::kBuiltins) {
+          kind == CoverageMap::FeatureKind::kBuiltins ||
+          (weights != nullptr && weights->IsTarget(feature))) {
         robust.push_back(feature);
       }
     }
@@ -1621,6 +1708,8 @@ class Worker {
   uint64_t executions_ = 0;  // target executions of this worker
   std::deque<std::string> history_;
   size_t history_bytes_ = 0;
+  std::vector<uint8_t> child_target_buckets_;
+  uint32_t child_target_hits_ = 0;
 };
 
 // ---------------------------------------------------------------------------
@@ -1631,6 +1720,10 @@ Fuzzer::Fuzzer(FuzzConfig config) : config_(std::move(config)) {}
 Fuzzer::~Fuzzer() {
   for (auto& worker : workers_) {
     worker->Join();
+  }
+  if (feature_weights_ != nullptr &&
+      FeatureWeights::Active() == feature_weights_.get()) {
+    FeatureWeights::SetActive(nullptr);
   }
 }
 
@@ -1721,9 +1814,23 @@ bool Fuzzer::Initialize(std::string* error) {
 
   CollectImports();
 
-  // Coverage counters: whether to watch the edges of the optimized code
-  // region.
+  // Coverage counters and change-based fuzzing: the targets become watched
+  // edges.
   config_.target.watch_optimized = config_.watch_optimized;
+  uint32_t targets_code_edges = 0;
+  if (!config_.targets_file.empty()) {
+    if (!ReadTargetsFile(config_.targets_file, &targets_, &focus_,
+                         &targets_code_edges, error)) {
+      return false;
+    }
+    if (!config_.focus) {
+      focus_.clear();
+    }
+    config_.target.watch_edges.clear();
+    for (const auto& target : targets_) {
+      config_.target.watch_edges.push_back(target.first);
+    }
+  }
 
   for (int i = 0; i < config_.jobs; i++) {
     auto worker = std::make_unique<Worker>(this, i);
@@ -1734,7 +1841,9 @@ bool Fuzzer::Initialize(std::string* error) {
     workers_.push_back(std::move(worker));
   }
 
-  InitializeCoverageGeometry();
+  if (!InitializeFeatureWeights(targets_code_edges, error)) {
+    return false;
+  }
 
   // Ask the target what it offers beyond the hand-written model.
   if (config_.introspect) {
@@ -1763,10 +1872,11 @@ bool Fuzzer::Initialize(std::string* error) {
   return true;
 }
 
-void Fuzzer::InitializeCoverageGeometry() {
+bool Fuzzer::InitializeFeatureWeights(uint32_t targets_code_edges,
+                                      std::string* error) {
   const CoverageMap& coverage = workers_[0]->coverage();
   if (!coverage.counters_mode()) {
-    return;
+    return true;
   }
   uint32_t code_edges = 0;
   for (const CoverageMap::Region& region : coverage.regions()) {
@@ -1777,15 +1887,102 @@ void Fuzzer::InitializeCoverageGeometry() {
       geometry_.optimized_count = region.count;
     }
   }
+  if (targets_code_edges != 0 && targets_code_edges != code_edges) {
+    *error = StringPrintf(
+        "%s was made for a d8 with %u code edges, but the target has %u. Run "
+        "tools/change_targets.py again for this d8.",
+        config_.targets_file.c_str(), targets_code_edges, code_edges);
+    return false;
+  }
   geometry_.counters = true;
   geometry_.bucket_first = coverage.bucket_base();
   geometry_.features = coverage.num_edges();
   geometry_.watched = static_cast<uint32_t>(coverage.watched().size());
+  feature_weights_ = FeatureWeights::Build(coverage, config_.feature_weights,
+                                           targets_, focus_);
+  FeatureWeights::SetActive(feature_weights_.get());
   REDLINE_LOG(kLog,
               "coverage counters: %u edges (%u code), %u optimized code "
-              "features, %u watched edges",
+              "features, %u watched edges, %zu target edges, %u focus edges",
               coverage.real_edges(), code_edges, geometry_.optimized_count,
-              geometry_.watched);
+              geometry_.watched, feature_weights_->target_edges().size(),
+              feature_weights_->focus_edges());
+  return true;
+}
+
+bool Fuzzer::KeepFocused(std::vector<uint32_t>* claimed) {
+  const FeatureWeights* weights = feature_weights_.get();
+  if (claimed->empty() || weights == nullptr || !weights->filters_admission()) {
+    return !claimed->empty();
+  }
+  const size_t before = claimed->size();
+  claimed->erase(std::remove_if(claimed->begin(), claimed->end(),
+                                [weights](uint32_t feature) {
+                                  return !weights->InFocus(feature);
+                                }),
+                 claimed->end());
+  unfocused_features_.fetch_add(before - claimed->size(),
+                                std::memory_order_relaxed);
+  if (claimed->empty()) {
+    unfocused_programs_.fetch_add(1, std::memory_order_relaxed);
+    return false;
+  }
+  return true;
+}
+
+void Fuzzer::RecordTargetFlags(const std::vector<std::string>& args,
+                               double score) {
+  if (score <= 0) {
+    return;
+  }
+  std::scoped_lock<std::mutex> lock(target_flags_mutex_);
+  for (TargetFlagEntry& entry : target_flags_) {
+    if (entry.args == args) {
+      entry.score = std::max(entry.score, score);
+      return;
+    }
+  }
+  if (target_flags_.size() < 64) {
+    target_flags_.push_back(TargetFlagEntry{args, score});
+  } else {
+    auto worst = std::min_element(
+        target_flags_.begin(), target_flags_.end(),
+        [](const TargetFlagEntry& a, const TargetFlagEntry& b) {
+          return a.score < b.score;
+        });
+    if (score > worst->score) {
+      *worst = TargetFlagEntry{args, score};
+    }
+  }
+  has_target_flags_.store(true, std::memory_order_relaxed);
+}
+
+std::vector<std::string> Fuzzer::DrawD8Flags(Random& rng) {
+  std::vector<std::string> fresh = RandomD8Flags(rng);
+  if (targets_.empty() || !has_target_flags_.load(std::memory_order_relaxed) ||
+      !rng.Chance(TargetGuidedChance())) {
+    return fresh;
+  }
+  std::vector<std::string> base;
+  {
+    std::scoped_lock<std::mutex> lock(target_flags_mutex_);
+    if (target_flags_.empty()) {
+      return fresh;
+    }
+    size_t best = rng.Index(target_flags_.size());
+    const int k = TargetTournament();
+    for (int i = 1; i < k; i++) {
+      size_t candidate = rng.Index(target_flags_.size());
+      if (target_flags_[candidate].score > target_flags_[best].score) {
+        best = candidate;
+      }
+    }
+    base = target_flags_[best].args;
+  }
+  if (rng.Chance(TargetMutateChance())) {
+    return CombineD8Flags(base, fresh, rng);
+  }
+  return base;
 }
 
 std::string Fuzzer::CoverageStatus() const {
@@ -1793,6 +1990,27 @@ std::string Fuzzer::CoverageStatus() const {
     return "";
   }
   std::string out;
+  if (feature_weights_ != nullptr && feature_weights_->has_focus()) {
+    out += StringPrintf(" | focus %u/%u", FocusSeen(),
+                        feature_weights_->focus_edges());
+  }
+  if (feature_weights_ != nullptr &&
+      !feature_weights_->target_edges().empty()) {
+    auto count = [this](const std::vector<uint32_t>& edges) {
+      uint32_t found = 0;
+      for (uint32_t edge : edges) {
+        if (coverage_.IsSeen(edge)) {
+          found++;
+        }
+      }
+      return found;
+    };
+    out += StringPrintf(" | target %u/%zu (line %u/%zu)",
+                        count(feature_weights_->target_edges()),
+                        feature_weights_->target_edges().size(),
+                        count(feature_weights_->line_target_edges()),
+                        feature_weights_->line_target_edges().size());
+  }
   if (geometry_.optimized_count != 0) {
     out += StringPrintf(" | opt %u",
                         coverage_.CountSeen(geometry_.optimized_first,
@@ -1807,9 +2025,34 @@ std::string Fuzzer::CoverageStatus() const {
   return out;
 }
 
+uint32_t Fuzzer::FocusSeen() const {
+  uint32_t found = 0;
+  for (const auto& [first, last] : feature_weights_->focus()) {
+    found += coverage_.CountSeen(first, last);
+  }
+  return found;
+}
+
 void Fuzzer::AddCoverageStats(JsonObject* event) const {
   if (!geometry_.counters) {
     return;
+  }
+  if (feature_weights_ != nullptr && feature_weights_->has_focus()) {
+    event->Add("focus_found", FocusSeen())
+        .Add("focus_total", feature_weights_->focus_edges());
+    event->Add("unfocused_programs",
+               unfocused_programs_.load(std::memory_order_relaxed));
+  }
+  if (feature_weights_ != nullptr) {
+    uint32_t found = 0;
+    for (uint32_t edge : feature_weights_->target_edges()) {
+      if (coverage_.IsSeen(edge)) {
+        found++;
+      }
+    }
+    event->Add("target_found", found)
+        .Add("target_total",
+             static_cast<uint64_t>(feature_weights_->target_edges().size()));
   }
   if (geometry_.optimized_count != 0) {
     event->Add("opt_found",
@@ -2169,6 +2412,14 @@ int Fuzzer::Run() {
     if (geometry_.counters) {
       event.Add("watched_edges", geometry_.watched)
           .Add("optimized_features", geometry_.optimized_count);
+      event.Add(
+          "target_edges",
+          static_cast<uint64_t>(feature_weights_ != nullptr
+                                    ? feature_weights_->target_edges().size()
+                                    : 0));
+      event.Add("focus_edges", feature_weights_ != nullptr
+                                   ? feature_weights_->focus_edges()
+                                   : 0u);
     }
     LogEvent(event);
   }

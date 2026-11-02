@@ -162,11 +162,11 @@ The `rarity` strategy prefers programs that reach rare edges, run fast, are smal
 
 ```text
 energy(p) = rarity(p) / ((age(p) + 1)^age_exponent * (1 + ln(size(p))^size_exponent) * (1 + (exec_time_ms(p) / time_unit_ms)^time_exponent))
-rarity(p) = sum over the tracked edges e of p with count(e) < rare_edge_limit of 1 / count(e)^rarity_exponent
+rarity(p) = sum over the tracked edges e of p with count(e) < rare_edge_limit (or IsTarget(e)) of w(e) / count(e)^rarity_exponent
 ```
 
-- `count(e)` is the number of corpus programs that reach edge `e`. The age grows with each pick.
-- A new corpus program records its rarest edges from its full edge set (5.7), or from its new edges if the set is missing.
+- `count(e)` is the number of corpus programs that reach edge `e`. Target features stay active past `rare_edge_limit`. The age grows with each pick.
+- A new corpus program records its rarest features from its full edge set (5.7), or from its new edges if the set is missing. Target features come first so the per-program cap does not drop them.
 - The edges of a reproducible crash count as one more program. This lowers the energy of the programs that lead to a known crash.
 
 ### 5.3 Mutate
@@ -245,9 +245,27 @@ A worker claims new edges with atomic operations, so two workers never claim the
 After each execution, `CoverageMap::Refresh()` builds a derived bitmap.
 It has one bit for each edge that ran, plus eight bucket bits for each watched edge (AFL's hit count buckets).
 A bucket bit is a feature like an edge, so the rest of Redline (accept, reruns, minimizer, corpus) sees one bitmap.
-The watched edges are the edges of the optimized code region.
+The watched edges are the targets of change-based fuzzing and the optimized code region.
 The `cov` percentage counts only the code and builtins edges. The status line shows the optimized features (`opt`) and the bucket features (`buckets`) apart.
 Crash deduplication uses the edges only.
+
+**Change-based fuzzing.** `tools/edge_map.py` maps each edge of a counters build to a source line (the PC table of d8 and `llvm-symbolizer`).
+`tools/change_targets.py` maps a git diff to target edges: the edges on changed lines (weight 1.0) and the other edges of the changed functions (weight 0.3).
+Only edges that can run without a failed check are targets.
+The script removes the edges of check reporting and library code (by their source frames).
+It also removes the edges of blocks that only lead to a fatal error (by the machine code, with `llvm-objdump`).
+`redline fuzz --targets=FILE` watches the targets and gives them a large weight in the rarity strategy (`corpus/feature_weights.h`):
+`w = region weight × (1 + target_boost × target weight) × bucket factor × focus factor`.
+
+The targets file also has a focus: the code of the directories of the changed files, for example `src/maglev/`.
+An edge is in the focus if one of its frames is in such a directory, or if its function has such an edge.
+With a focus, Redline keeps a new program only if it has a new feature in the focus.
+These features are the focus edges, the target edges and their buckets (plus the optimized code features when `--focus-optimized` is true).
+Without a focus, `--focus-optimized=false` (the default) still excludes non-target optimized code features from corpus admission.
+The other new features of the program stay claimed, but they do not make a candidate.
+Thus the corpus grows only with programs that do new things in the changed component, and the minimizer works only for them.
+The focus factor is 1 in the focus and `unfocused` (default 0.1) outside it.
+The status line shows `focus found/total` and `target found/total`.
 
 ### 5.5 Accept
 

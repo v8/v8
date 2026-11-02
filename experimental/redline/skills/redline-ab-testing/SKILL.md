@@ -1,6 +1,6 @@
 ---
 name: redline-ab-testing
-description: Plans, runs, scores and reports fair comparisons of Redline with origin/main, with other Redline builds and with Fuzzilli. Covers the three measurements of Redline, which are bug finding on re-injected bugs, diff mode against normal mode, and coverage without seeds. Lists the setup rules, the operations, the statistics rules and the known traps. Use it before you claim that a change makes Redline better or worse. For a quick check of one change, use ab_run.sh of the redline-presubmit skill.
+description: Plans, runs, scores and reports fair comparisons of Redline with origin/main, with other Redline builds and with Fuzzilli. Covers the three measurements of Redline, which are bug finding on re-injected bugs, change-based fuzzing against normal mode, and coverage without seeds. Lists the setup rules, the operations, the statistics rules and the known traps. Use it before you claim that a change makes Redline better or worse. For a quick check of one change, use ab_run.sh of the redline-presubmit skill.
 ---
 
 # Fair comparisons for Redline
@@ -17,14 +17,14 @@ Keep all results outside the V8 checkout ([AGENTS.md](../../AGENTS.md) section
 | Is the change better than origin/main? | origin/main, change | the coverage setup and the bug setup | coverage at equal time, finds and times |
 | Does Redline beat Fuzzilli on coverage? | Redline, Fuzzilli | two fuzzing d8 of one revision | coverage at equal time |
 | Does Redline find bugs that Fuzzilli misses? | Redline, Fuzzilli | re-injected bugs, bits builds | finds and time to find |
-| Is diff mode faster than normal mode? | diff mode, normal mode | re-injected bugs | finds and time to find |
+| Is change-based fuzzing faster than normal mode? | change-based fuzzing, normal mode | re-injected bugs | finds and time to find |
 
 - Always add an origin/main arm when you measure a change. Without it, you
   cannot tell if the change helps.
 - For an ablation, run a control arm of the same build at the same time. Do not
   compare an ablation with an older build or with another machine.
-- The [redline-diff-mode](../redline-diff-mode/SKILL.md) skill has the extra
-  rules for diff mode.
+- The [redline-change-fuzzing](../redline-change-fuzzing/SKILL.md) skill has
+  the extra rules for change-based fuzzing.
 
 ## 2. Setup rules
 
@@ -104,8 +104,8 @@ section 3), because Fuzzilli has no prelude.
   same d8 flags.
 - An older Redline build ignores a flag that it does not know, with the warning
   `unknown flag`. Look for this warning in the log of each arm.
-- Diff mode needs the counters build. Its coverage is not comparable with the
-  coverage of a bits build. Compare only finds and times.
+- Change-based fuzzing needs the counters build. Its coverage is not
+  comparable with the coverage of a bits build. Compare only finds and times.
 
 ## 3. Run the arms
 
@@ -140,8 +140,8 @@ export REDLINE=$BUILDS/COMMIT/out/redline/redline FUZZILLI=/path/to/FuzzilliCli 
 # Bug finding: one run of each arm on one bundle.
 setsid nohup $S/run_arm.sh redline-normal $BB_ROOT/FIX $RUNS/FIX-normal-1001 28800 1001 \
   > $RUNS/FIX-normal-1001.log 2>&1 < /dev/null &
-setsid nohup $S/run_arm.sh redline-diff $BB_ROOT/FIX $RUNS/FIX-diff-1001 28800 1001 \
-  > $RUNS/FIX-diff-1001.log 2>&1 < /dev/null &
+setsid nohup $S/run_arm.sh redline-change $BB_ROOT/FIX $RUNS/FIX-change-1001 28800 1001 \
+  > $RUNS/FIX-change-1001.log 2>&1 < /dev/null &
 setsid nohup $S/run_arm.sh fuzzilli $BB_ROOT/FIX $RUNS/FIX-fuzzilli-1001 28800 \
   > $RUNS/FIX-fuzzilli-1001.log 2>&1 < /dev/null &
 # Coverage: the same command for each tool. The fuzzilli arm gets the d8 of
@@ -151,8 +151,8 @@ JOBS=30 PRESET=turbolev EXTRA_FLAGS="--random-seed=42 --single-threaded" \
   > $RUNS/cov-redline-1.log 2>&1 < /dev/null &
 ```
 
-- The arms are `redline-normal`, `redline-diff` and `fuzzilli`. Diff mode needs
-  a bundle.
+- The arms are `redline-normal`, `redline-change` and `fuzzilli`.
+  Change-based fuzzing needs a bundle.
 - Every arm gets the base flags of Fuzzilli, the `d8_extra_args` of the preset
   and `EXTRA_FLAGS`.
 - `FUZZILLI_ARGS` sets the options of Fuzzilli (default
@@ -258,7 +258,7 @@ Rules:
 | Seeds in one arm only | Many finds come from the seed files | Same seeds or none |
 | Random d8 flags in one arm only | The flags find the bug, not the generators | Same flag rule for all arms |
 | `--d8-args` without `--d8-extra-args` | Redline loses the flags of the preset, because `--d8-args` replaces them | Give the preset flags again with `--d8-extra-args`, as `run_arm.sh` does |
-| Diff mode coverage compared with bits coverage | A larger number that means nothing | Compare finds and times |
+| Change-based fuzzing coverage compared with bits coverage | A larger number that means nothing | Compare finds and times |
 | A crash that does not reproduce with the same signature | A false find | Count only reproduced crashes |
 | A run that stopped early | Its partial numbers look like full numbers | Check the `end` event and `OUT.end` of each run |
 | A find in the first minutes, with many crashes of one signature | Maybe a generator that is a template of the bug | Run `redline audit` on that bundle before you report the find |

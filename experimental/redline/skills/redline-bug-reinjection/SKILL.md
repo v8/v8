@@ -1,6 +1,6 @@
 ---
 name: redline-bug-reinjection
-description: Builds d8 binaries that contain a known V8 bug again, to measure how Redline and Fuzzilli find bugs. Covers the choice of fixes, the training and held-out sets, the revert and the two d8 builds. Also covers the diff mode targets, the check of the crash and the scoring of a find. Use it before a bug-finding measurement of Redline. Do not use it to design generators.
+description: Builds d8 binaries that contain a known V8 bug again, to measure how Redline and Fuzzilli find bugs. Covers the choice of fixes, the training and held-out sets, the revert and the two d8 builds. Also covers the change-based fuzzing targets, the check of the crash and the scoring of a find. Use it before a bug-finding measurement of Redline. Do not use it to design generators.
 ---
 
 # Re-inject known bugs
@@ -30,8 +30,9 @@ Keep the bug lists, the builds and the results outside the V8 checkout.
 
 ## 2. Split the training set and the held-out set
 
-- The **training set** can guide work on the engine, for example the diff mode
-  weights. Do not design generators from it either (AGENTS.md section 3.4).
+- The **training set** can guide work on the engine, for example the weights
+  of change-based fuzzing. Do not design generators from it either (AGENTS.md
+  section 3.4).
 - The **held-out set** measures if a change generalizes. Decide which fixes go
   into it before anybody reads them.
 - Only the person or agent that builds a held-out bug reads its test, its fix
@@ -55,7 +56,7 @@ directory, which only the builder and the scoring step read:
 $BB_ROOT/FIX/bits/d8           # with snapshot_blob.bin and icudtl.dat
 $BB_ROOT/FIX/counters/d8       # with snapshot_blob.bin and icudtl.dat
 $BB_ROOT/FIX/fuzzilli/d8       # with snapshot_blob.bin and icudtl.dat
-$BB_ROOT/FIX/targets.json      # the diff mode targets, section 4
+$BB_ROOT/FIX/targets.json      # the change-based fuzzing targets, section 4
 $BB_ROOT/FIX/preset            # maglev, turbolev, ...
 $BB_ROOT/FIX/fix               # the commit of the fix
 $BB_ROOT/FIX/revision          # the commit of the revert
@@ -72,7 +73,7 @@ instead of `v8_redline=true`:
 | Build | `sanitizer_coverage_flags` | Use |
 |---|---|---|
 | bits | `"inline-bool-flag"` | normal mode of Redline |
-| counters | `"inline-8bit-counters,pc-table"`, with `symbol_level=1` | diff mode of Redline (the diff mode section of TUTORIAL.md) |
+| counters | `"inline-8bit-counters,pc-table"`, with `symbol_level=1` | change-based fuzzing of Redline (the change-based fuzzing section of TUTORIAL.md) |
 | fuzzilli | `"inline-bool-flag"`, with `v8_fuzzilli=true` | Fuzzilli |
 
 ### 3.1 Prepare the bundle checkout
@@ -108,21 +109,22 @@ BB_ROOT=$BB_ROOT BB_V8=$BB_V8 \
 - A bundle takes about 1 GB. On some workstations `/tmp` is in memory. Keep the
   bundles on a disk.
 
-## 4. Make the diff mode targets
+## 4. Make the change-based fuzzing targets
 
 The targets are the edges of the code that the revert puts back.
 `make_bundle.sh` writes them with the counters build. To make them again:
 
 ```shell
-python3 experimental/redline/tools/diff_targets.py --repo=$BB_V8 \
+python3 experimental/redline/tools/change_targets.py --repo=$BB_V8 \
     --d8=$BB_ROOT/FIX/counters/d8 --base=bb/FIX^ --head=bb/FIX \
     --objdump=$BB_V8/third_party/llvm-build/Release+Asserts/bin/llvm-objdump \
     --out=$BB_ROOT/FIX/targets.json
 ```
 
 Read the last line of the output. A bundle without line targets cannot
-measure diff mode. The [redline-diff-mode](../redline-diff-mode/SKILL.md)
-skill lists the causes.
+measure change-based fuzzing. The
+[redline-change-fuzzing](../redline-change-fuzzing/SKILL.md) skill lists the
+causes.
 
 ## 5. Check the bundle and write the signature
 
@@ -162,10 +164,11 @@ Only the person or agent that builds the bundle does this step.
 9. Run `redline selftest --d8=D8` on both builds. The line of the
    `DCHECK failure` crash case must say `crashes`. Without DCHECKs, a fuzzer
    cannot find a `DCHECK` bug.
-10. Start a diff mode session of 10 minutes on the counters d8. Import the
-    tests of the changed area, for example `test/mjsunit/maglev` for a fix in
-    `src/maglev/`. The first number of `target N/M` in the status line must go
-    above 0. If it stays at 0, do not use the bundle to measure diff mode.
+10. Start a change-based fuzzing session of 10 minutes on the counters d8.
+    Import the tests of the changed area, for example `test/mjsunit/maglev` for
+    a fix in `src/maglev/`. The first number of `target N/M` in the status line
+    must go above 0. If it stays at 0, do not use the bundle to measure
+    change-based fuzzing.
 
 ## 6. Score a run
 

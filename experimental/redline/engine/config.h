@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "experimental/redline/core/selection.h"
+#include "experimental/redline/corpus/feature_weights.h"
 #include "experimental/redline/engine/stages.h"
 #include "experimental/redline/exec/target_options.h"
 #include "experimental/redline/minimizer/minimizer.h"
@@ -132,18 +133,25 @@ struct FuzzConfig {
   // params as JSON text (engine/amplifier.h). "none" turns the step off.
   std::string amplify_strategy = "flags";
   std::string amplify_params = "{}";
-  // The "coverage" block: coverage counters (exec/coverage.h). They need a d8
-  // built with sanitizer_coverage_flags="inline-8bit-counters,pc-table".
+  // The "coverage" block: coverage counters and change-based fuzzing
+  // (exec/coverage.h, corpus/feature_weights.h). They need a d8 built with
+  // sanitizer_coverage_flags="inline-8bit-counters,pc-table". `targets_file`
+  // is a file of tools/change_targets.py (empty: no targets).
+  std::string targets_file;
   bool watch_optimized = true;
+  // Change-based fuzzing: use the focus of the targets file
+  // (corpus/feature_weights.h).
+  bool focus = true;
   // Report the crashes of minimizer probes and determinism reruns too.
   bool harvest_crashes = true;
   // Give each new target process a random set of extra d8 flags
   // (engine/d8_flags.h). The reruns, the minimization and the crash triage
   // of a program keep the flags of the process that ran it.
   bool randomize_d8_flags = false;
-  // Coverage counters: the minimizer keeps only the new code edges of a
-  // program (Worker::MinimizationProperty).
+  // Coverage counters: the minimizer keeps only the new code edges and the
+  // target features of a program (Worker::MinimizationProperty).
   bool minimize_code_edges = true;
+  FeatureWeights::Params feature_weights;
   MinimizerOptions minimizer;
   // The minimizer's reducers, in the order they run (stages.minimize.reducers).
   // Empty: the default order (Minimizer::DefaultOrder).

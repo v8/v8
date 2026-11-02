@@ -9,7 +9,8 @@ example Jetski and Claude Code.
 1. [README.md](README.md): what Redline is, the quick start and the directory
    layout.
 2. [DESIGN.md](DESIGN.md): the architecture, the stages and the design rules.
-3. [TUTORIAL.md](TUTORIAL.md): the commands, from the build to diff mode.
+3. [TUTORIAL.md](TUTORIAL.md): the commands, from the build to change-based
+   fuzzing.
 4. [CONTRIBUTE.md](CONTRIBUTE.md): how to add a component, measure a change and
    prepare a CL.
 
@@ -22,24 +23,24 @@ of the skill for your task:
 | Add or change a generator, a mutator, a preset or a random d8 flag | [redline-generators](skills/redline-generators/SKILL.md) |
 | Measure Redline against Fuzzilli, origin/main or another build | [redline-ab-testing](skills/redline-ab-testing/SKILL.md) |
 | Make a d8 with a known bug, to measure bug finding | [redline-bug-reinjection](skills/redline-bug-reinjection/SKILL.md) |
-| Run, debug or measure diff mode | [redline-diff-mode](skills/redline-diff-mode/SKILL.md) |
+| Run, debug or measure change-based fuzzing | [redline-change-fuzzing](skills/redline-change-fuzzing/SKILL.md) |
 | Write a comment, a Markdown file, a commit message or a CL description | [redline-ste](skills/redline-ste/SKILL.md) |
 
 ## 2. What to improve
 
 Three measurements tell if Redline improves (CONTRIBUTE.md section 10.3).
 Measure bug finding and coverage against Fuzzilli and against origin/main.
-Measure diff mode against normal mode and against origin/main.
+Measure change-based fuzzing against normal mode and against origin/main.
 
 | Measurement | Question | How to measure it |
 |---|---|---|
 | Bug finding | Does Redline find known bugs that Fuzzilli does not find, or find them sooner? | Re-injected bugs, one run for each arm and bug, at least 3 repetitions |
-| Diff mode | Does diff mode find the bug of a change sooner than normal mode? | The same bugs, diff mode against normal mode, everything else equal except the d8 build |
+| Change-based fuzzing | Does change-based fuzzing find the bug of a change sooner than normal mode? | The same bugs, change-based fuzzing against normal mode, everything else equal except the d8 build |
 | Coverage | Does Redline reach more coverage than Fuzzilli without seeds? | The same d8, the same d8 flags, the same workers and the same duration |
 
 Measure each area preset in `presets/` in the same way, for example `maglev`,
-`turbolev`, `runtime` and `builtins`. Skip diff mode for an area that has no
-C++ code in d8, for example the CSA builtins.
+`turbolev`, `runtime` and `builtins`. Skip change-based fuzzing for an area
+that has no C++ code in d8, for example the CSA builtins.
 
 ## 3. Rules
 
@@ -88,8 +89,8 @@ C++ code in d8, for example the CSA builtins.
 
 - Do not design a generator, a mutator, a generator weight or a d8 flag from a
   known bug. This rule includes its regression test, its fix and its d8 flags.
-- You can tune the diff mode weights on training bugs (redline-diff-mode
-  section 5).
+- You can tune the weights of change-based fuzzing on training bugs
+  (redline-change-fuzzing section 5).
 - The overfitting audit (CONTRIBUTE.md section 3.7) is a check, not a target.
   Do not tune a generator to stay just below 0.50%.
 - Keep a held-out set of bugs. Only the agent or person that builds a held-out

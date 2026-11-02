@@ -958,7 +958,7 @@ Compare each one with origin/main too:
 | Measurement | What to compare | The goal |
 |---|---|---|
 | Bug finding | Redline and Fuzzilli on known bugs that you put back into d8 | Redline finds more of these bugs, or finds them sooner. |
-| Diff mode | Diff mode (the diff mode section of [TUTORIAL.md](TUTORIAL.md)) and normal mode on the same bugs | Diff mode finds the bugs sooner. |
+| Change-based fuzzing | Change-based fuzzing (the change-based fuzzing section of [TUTORIAL.md](TUTORIAL.md)) and normal mode on the same bugs | Change-based fuzzing finds the bugs sooner. |
 | Coverage | Redline and Fuzzilli on the same d8 with the same flags, without seeds | Redline reaches more coverage. |
 
 These comparisons take many hours, and small differences in the setup change the result.

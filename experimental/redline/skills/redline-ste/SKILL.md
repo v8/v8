@@ -29,7 +29,7 @@ The bad examples are in backticks, so that the linter does not read them.
 | Finding | Bad example | Fix |
 |---|---|---|
 | Long sentence | A sentence with 31 words | Split it into two sentences. |
-| Passive voice | `The bug is found by diff mode.` | `Diff mode finds the bug.` |
+| Passive voice | `The bug is found by change-based fuzzing.` | `Change-based fuzzing finds the bug.` |
 | Semicolon | `It is fast; it is small.` | `It is fast. It is small.` |
 | Two words for one action | `deletes` in one sentence and `removes` in the next | Use one word every time, for example `removes`. |
 | Flag read as words | a flag name without backticks | Put the flag name in backticks, for example `--verify-turboshaft`. |

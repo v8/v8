@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <cerrno>
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <iterator>
@@ -29,7 +30,9 @@
 #include "experimental/redline/core/program.h"
 #include "experimental/redline/core/random.h"
 #include "experimental/redline/corpus/corpus.h"
+#include "experimental/redline/corpus/feature_weights.h"
 #include "experimental/redline/engine/crash.h"
+#include "experimental/redline/engine/d8_flags.h"
 #include "experimental/redline/exec/coverage.h"
 #include "experimental/redline/exec/runner.h"
 #include "experimental/redline/minimizer/minimizer.h"
@@ -223,7 +226,7 @@ void RunCoverageHeaderChecks(Checker* checker) {
 }
 
 // Offline: the counters layout of the coverage (exec/coverage.h) on a
-// synthetic header.
+// synthetic header, and the feature weights (corpus/feature_weights.h).
 void RunCoverageCounterChecks(Checker* checker) {
   const uint32_t buckets[][2] = {{1, 0},   {2, 1},   {3, 2},  {4, 3},  {7, 3},
                                  {8, 4},   {15, 4},  {16, 5}, {31, 5}, {32, 6},
@@ -310,12 +313,92 @@ void RunCoverageCounterChecks(Checker* checker) {
     checker->Check("coverage counters: packed hit bits",
                    map->CurrentEdges() == packed,
                    StringPrintf("%zu features", map->CurrentEdges().size()));
-    // Slow programs get less energy than fast ones.
+    map->ClearBitmap();
+    counters[5] = 3;
+    counters[50] = 1;
+    counters[91] = 200;
+    map->Refresh();
+    FeatureWeights::Params params;
+    std::unique_ptr<FeatureWeights> weights =
+        FeatureWeights::Build(*map, params, {{5, 1.0}, {50, 0.3}});
+    auto near = [](double a, double b) { return std::fabs(a - b) < 1e-6; };
+    checker->Check(
+        "coverage counters: feature weights",
+        near(weights->Of(5), 21.0) && near(weights->Of(50), 7.0) &&
+            near(weights->Of(85), 0.5) && near(weights->Of(91), 5.0) &&
+            near(weights->Of(101), 0.0) && near(weights->Of(103), 10.5) &&
+            near(weights->Of(124), 2.5) && near(weights->Of(10), 1.0) &&
+            weights->target_edges() == std::vector<uint32_t>{5, 50},
+        StringPrintf("%g %g %g %g %g %g %g", weights->Of(5), weights->Of(50),
+                     weights->Of(85), weights->Of(91), weights->Of(101),
+                     weights->Of(103), weights->Of(124)));
+    // A focus on code edges 40 to 60. The focus edges, the target edges and
+    // the buckets of the targets are in the focus. Optimized code features are
+    // excluded by default and included when optimized_in_focus is true.
+    std::unique_ptr<FeatureWeights> focused = FeatureWeights::Build(
+        *map, params, {{5, 1.0}}, FeatureWeights::EdgeRanges{{40, 60}});
+    FeatureWeights::Params opt_params = params;
+    opt_params.optimized_in_focus = true;
+    std::unique_ptr<FeatureWeights> focused_opt = FeatureWeights::Build(
+        *map, opt_params, {{5, 1.0}}, FeatureWeights::EdgeRanges{{40, 60}});
+    std::unique_ptr<FeatureWeights> weights_opt =
+        FeatureWeights::Build(*map, opt_params, {{5, 1.0}, {50, 0.3}});
+    checker->Check(
+        "coverage counters: focus",
+        focused->has_focus() && focused->filters_admission() &&
+            focused->focus_edges() == 21 && focused->InFocus(40) &&
+            focused->InFocus(60) && !focused->InFocus(61) &&
+            focused->InFocus(5) && !focused->InFocus(95) &&
+            focused_opt->InFocus(95) && focused->InFocus(103) &&
+            !focused->InFocus(10) && !focused->InFocus(85) &&
+            near(focused->Of(10), 0.1) && near(focused->Of(50), 1.0) &&
+            near(focused->Of(85), 0.05) && near(focused->Of(5), 21.0) &&
+            !weights->has_focus() && weights->filters_admission() &&
+            weights->InFocus(10) && !weights->InFocus(95) &&
+            !weights_opt->filters_admission() && weights_opt->InFocus(95),
+        StringPrintf("focus edges %u, w(10) %g, w(85) %g",
+                     focused->focus_edges(), focused->Of(10), focused->Of(85)));
+    // Target features stay active in the rarity scheduler past rare_edge_limit.
+    // Slow programs get less energy than fast ones, and partner picks favour
+    // target programs in change-based fuzzing.
+    FeatureWeights::SetActive(weights.get());
     auto& sel_reg = SelectorRegistry<const Program>::Instance();
     std::string sel_err;
+    auto seeds =
+        sel_reg.Create(SelectionConfig{"rarity", JsonValue()}, &sel_err);
+    auto partners = sel_reg.Create(
+        SelectionConfig{"rarity-partner", JsonValue()}, &sel_err);
+    Corpus rarity_corpus(std::move(seeds), std::move(partners));
+    ProgramPtr last_target, last_non_target;
+    for (int i = 0; i < 10; i++) {
+      Lineage l;
+      auto pt = Program::Parse("let a = 1;", l, &sel_err);
+      pt->edges = {5};
+      if (i == 9) {
+        for (uint32_t e = 15; e < 155; e++) {
+          if (e != 50) {
+            pt->edges.push_back(e);
+          }
+        }
+      }
+      pt->exec_time_us = i == 9 ? 1000 : 100000;
+      last_target = rarity_corpus.Add(pt);
+      auto pn = Program::Parse("let b = 2;", l, &sel_err);
+      pn->edges = {10};
+      pn->exec_time_us = 1000;
+      last_non_target = rarity_corpus.Add(pn);
+    }
     Random rng(42);
-    // Pick() pops the max-energy seed first: the fast program (1 ms) beats
-    // the slow one (100 ms) with equal edge rarity.
+    bool partner_picked_target = false;
+    for (int i = 0; i < 8; i++) {
+      ProgramPtr p = rarity_corpus.PickPartner(*last_non_target, rng);
+      if (p != nullptr && p->edges == std::vector<uint32_t>{5}) {
+        partner_picked_target = true;
+      }
+    }
+    FeatureWeights::SetActive(nullptr);
+    // Without active targets, Pick() pops the max-energy seed first: the fast
+    // program (1 ms) beats the slow one (100 ms) with equal edge rarity.
     auto time_seeds =
         sel_reg.Create(SelectionConfig{"rarity", JsonValue()}, &sel_err);
     auto time_partners = sel_reg.Create(
@@ -331,7 +414,40 @@ void RunCoverageCounterChecks(Checker* checker) {
     fast_p->exec_time_us = 1000;
     ProgramPtr fast_added = time_corpus.Add(fast_p);
     ProgramPtr first_pick = time_corpus.Pick(rng);
-    checker->Check("rarity: time weighting", first_pick == fast_added, "");
+    const bool kept_target_5 = std::find(last_target->rare_edges.begin(),
+                                         last_target->rare_edges.end(),
+                                         5u) != last_target->rare_edges.end();
+    checker->Check(
+        "coverage counters: rarity target retention and time weighting",
+        kept_target_5 && last_target->rare_edges.size() == 128 &&
+            last_non_target->rare_edges.empty() && partner_picked_target &&
+            first_pick == fast_added,
+        StringPrintf("target rare_edges %zu, non-target %zu",
+                     last_target->rare_edges.size(),
+                     last_non_target->rare_edges.size()));
+
+    std::vector<std::string> base_flags = {
+        "--single-threaded", "--max-maglev-eager-inlined-bytecode-size=0",
+        "--max-maglev-inlined-bytecode-size-small=0"};
+    std::vector<std::string> extra_flags = {"--single-threaded",
+                                            "--maglev-assert"};
+    std::vector<std::string> combined =
+        CombineD8Flags(base_flags, extra_flags, rng);
+    const bool stripped_orphan =
+        std::find(combined.begin(), combined.end(),
+                  "--max-maglev-eager-inlined-bytecode-size=0") ==
+            combined.end() &&
+        std::find(combined.begin(), combined.end(),
+                  "--max-maglev-inlined-bytecode-size-small=0") ==
+            combined.end();
+    const bool has_assert = std::find(combined.begin(), combined.end(),
+                                      "--maglev-assert") != combined.end();
+    const ptrdiff_t st_count =
+        std::count(combined.begin(), combined.end(), "--single-threaded");
+    checker->Check(
+        "d8 flags: CombineD8Flags deduplication and orphan stripping",
+        stripped_orphan && has_assert && st_count == 1,
+        StringPrintf("size %zu, st_count %td", combined.size(), st_count));
 
     Minimizer min_check;
     auto min_prog = Program::Parse(

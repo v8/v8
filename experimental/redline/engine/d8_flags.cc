@@ -4,6 +4,8 @@
 
 #include "experimental/redline/engine/d8_flags.h"
 
+#include <algorithm>
+
 #include "experimental/redline/core/tunable.h"
 
 namespace redline {
@@ -53,6 +55,23 @@ REDLINE_TUNABLE(kFlagsStressIc, "flags.stress_ic", 0.1, 0, 1,
                 "probability of --stress-ic");
 REDLINE_TUNABLE(kFlagsVerifyHeap, "flags.verify_heap", 0.1, 0, 1,
                 "probability of --verify-heap");
+REDLINE_TUNABLE(kFlagsTargetGuidedChance, "flags.target_guided_chance", 0.75, 0,
+                1,
+                "change-based fuzzing: probability that a new target process "
+                "picks flags that reached target edges");
+REDLINE_TUNABLE(kFlagsTargetMutateChance, "flags.target_mutate_chance", 0.4, 0,
+                1,
+                "probability that target-guided flags are combined with a "
+                "fresh random flag draw");
+REDLINE_TUNABLE(kFlagsTargetKeepChance, "flags.target_keep_chance", 0.85, 0, 1,
+                "probability that CombineD8Flags keeps each flag of the base "
+                "set");
+REDLINE_TUNABLE(kFlagsTargetTournament, "flags.target_tournament", 4, 1, 32,
+                "tournament size when picking target-hitting flags");
+REDLINE_TUNABLE(kFlagsTargetProbeExecs, "flags.target_probe_execs", 64, 0,
+                10000,
+                "change-based fuzzing: executions without a target hit "
+                "before a child respawns");
 
 }  // namespace
 
@@ -88,5 +107,40 @@ std::vector<std::string> RandomD8Flags(Random& rng) {
   maybe(kFlagsVerifyHeap, "--verify-heap");
   return flags;
 }
+
+std::vector<std::string> CombineD8Flags(const std::vector<std::string>& base,
+                                        const std::vector<std::string>& extra,
+                                        Random& rng) {
+  std::vector<std::string> combined;
+  for (const std::string& flag : base) {
+    if (rng.Chance(kFlagsTargetKeepChance())) {
+      combined.push_back(flag);
+    }
+  }
+  for (const std::string& flag : extra) {
+    if (std::find(combined.begin(), combined.end(), flag) == combined.end()) {
+      combined.push_back(flag);
+    }
+  }
+  const bool has_non_eager =
+      std::find(combined.begin(), combined.end(),
+                "--maglev-non-eager-inlining") != combined.end();
+  if (!has_non_eager) {
+    combined.erase(
+        std::remove_if(
+            combined.begin(), combined.end(),
+            [](const std::string& flag) {
+              return flag == "--max-maglev-eager-inlined-bytecode-size=0" ||
+                     flag == "--max-maglev-inlined-bytecode-size-small=0";
+            }),
+        combined.end());
+  }
+  return combined;
+}
+
+double TargetGuidedChance() { return kFlagsTargetGuidedChance(); }
+double TargetMutateChance() { return kFlagsTargetMutateChance(); }
+int TargetTournament() { return kFlagsTargetTournament.AsInt(); }
+int TargetProbeExecs() { return kFlagsTargetProbeExecs.AsInt(); }
 
 }  // namespace redline

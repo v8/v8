@@ -527,7 +527,7 @@ Write this file to `/tmp/redline-tutorial/typedarray.json`:
 
 The paths of the seed files are relative to the directory where you start Redline.
 Keep the session settings, for example `--jobs` and `--out`, on the command line.
-Then the same file can also be a preset (section 7.9).
+Then the same file can also be a preset (section 7.10).
 
 ### 7.3 Check the configuration
 
@@ -757,7 +757,40 @@ out/redline/redline amplify --d8=out/fuzzbuild/d8 --d8-extra-args=--jit-fuzzing 
 It prints the flags that reproduce the crash as `amplified_args`.
 For a state-dependent crash, run the files of the `.history/` directory in their order, and then the crash program.
 
-### 7.9 Make a named preset
+### 7.9 Fuzz the changes of a CL (change-based fuzzing)
+
+Change-based fuzzing gives more fuzzing time to the code that a CL changed. It needs a d8 with coverage counters and line tables.
+Build it next to the normal fuzzing build:
+
+```shell
+gn gen out/rl_counters --args='is_debug=false dcheck_always_on=true v8_enable_debug_code=true v8_static_library=true v8_enable_verify_heap=true v8_redline=true v8_enable_backtrace=true v8_enable_partition_alloc=false v8_enable_builtins_profiling=true sanitizer_coverage_flags="inline-8bit-counters,pc-table" symbol_level=1 target_cpu="x64"'
+autoninja -C out/rl_counters d8
+```
+
+Compute the target edges of your change against `origin/main` (the working tree counts too). The first run also writes the edge map of the build, `out/rl_counters/redline/edges.jsonl.gz`:
+
+```shell
+python3 experimental/redline/tools/change_targets.py --d8=out/rl_counters/d8 --out=/tmp/targets.json
+```
+
+For a landed commit, use `--base=COMMIT^ --head=COMMIT`.
+Then fuzz with the targets. For a Maglev change, also turn on the optimized code coverage:
+
+```shell
+out/redline/redline fuzz --d8=out/rl_counters/d8 --preset=maglev \
+    --d8-extra-args=--fuzzilli-enable-optimized-code-coverage \
+    --targets=/tmp/targets.json --jobs=16 --out=/tmp/change_session
+```
+
+The status line shows `focus found/total`, `target found/total`, `opt` and `buckets`.
+The target total counts only the edges that can run without a failed check.
+The focus is the code of the directories of the changed files (`src/maglev/` for a Maglev change).
+Redline keeps a new program only if it does something new in the focus.
+`change_targets.py --focus=src/maglev/,src/compiler/` sets other directories, and `--focus=none` removes the focus.
+`redline fuzz --focus=false` ignores the focus of the targets file.
+`--target-boost=N` (default 20) sets the extra weight of a target edge. `--optimized-weight`, `--builtins-weight`, `--bucket-weight` and `--unfocused-weight` set the other weights. The `coverage` block of a configuration file sets the same values.
+
+### 7.10 Make a named preset
 
 `--preset=NAME` loads `experimental/redline/presets/NAME.json`.
 Copy your file into this directory, and check it:
