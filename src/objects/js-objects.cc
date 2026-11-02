@@ -363,8 +363,11 @@ void JSReceiver::ValidateExtensibilityInvariant(
       it->GetName()->IsAnyPrivateName()) {
     DCHECK(!IsJSGlobalProxy(*receiver));
     if (IsJSProxy(*receiver)) {
-      Tagged<Object> target = Cast<JSProxy>(*receiver)->target();
-      DCHECK_IMPLIES(IsJSReceiver(target),
+      Tagged<Object> target = *receiver;
+      while (IsJSProxy(target)) {
+        target = Cast<JSProxy>(target)->target();
+      }
+      DCHECK_IMPLIES(IsJSReceiver(target) && !IsAccessCheckNeeded(target),
                      Cast<JSReceiver>(target)->map()->is_extensible());
     } else {
       DCHECK(receiver->map()->is_extensible());
