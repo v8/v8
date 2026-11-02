@@ -55,8 +55,18 @@ bool LookupTable<IndexBits, U>::Lookup(Tagged<Name> name,
                                        uint32_t valid_entries,
                                        KeyGetter&& get_key,
                                        uint32_t* out_index) const {
+  return Lookup(name, name->hash(), valid_entries,
+                std::forward<KeyGetter>(get_key), out_index);
+}
+
+template <uint32_t IndexBits, typename U>
+template <typename KeyGetter>
+bool LookupTable<IndexBits, U>::Lookup(Tagged<Name> name, uint32_t hash,
+                                       uint32_t valid_entries,
+                                       KeyGetter&& get_key,
+                                       uint32_t* out_index) const {
+  DCHECK_EQ(hash, name->hash());
   uint32_t mask = slot_mask();
-  uint32_t hash = name->hash();
   uint32_t hash_tag = ExtractHashTag(hash);
   uint32_t count = 1;
   uint32_t slot = FirstProbe(hash, mask);

@@ -83,6 +83,11 @@ class LookupTable : public FixedIntegerArrayBase<U, ByteArray> {
                         KeyGetter&& get_key, uint32_t* out_index) const;
 
   template <typename KeyGetter>
+  V8_INLINE bool Lookup(Tagged<Name> name, uint32_t hash,
+                        uint32_t valid_entries, KeyGetter&& get_key,
+                        uint32_t* out_index) const;
+
+  template <typename KeyGetter>
   V8_INLINE void Insert(Tagged<Name> key, uint32_t hash, uint32_t index,
                         KeyGetter&& get_key);
 

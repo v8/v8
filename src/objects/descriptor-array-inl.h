@@ -213,10 +213,11 @@ InternalIndex DescriptorArray::Search(Tagged<Name> name, int valid_descriptors,
 InternalIndex DescriptorArray::TableSearch(Tagged<Name> name,
                                            int valid_descriptors) {
   DCHECK_LT(kMaxElementsForLinearSearch, number_of_descriptors());
+  uint32_t hash = name->hash();
   uint32_t index;
   if (Cast<DescriptorLookupTable>(lookup_table())
           ->Lookup(
-              name, valid_descriptors,
+              name, hash, valid_descriptors,
               [this](uint32_t i) { return GetKey(InternalIndex(i)); },
               &index)) {
     return InternalIndex(index);

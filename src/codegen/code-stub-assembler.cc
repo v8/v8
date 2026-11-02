@@ -12164,9 +12164,9 @@ void CodeStubAssembler::LookupTable(TNode<Name> unique_name,
   // No GC can happen during the probe loop below, so it is safe to precompute
   // a raw pointer to the start of the entries array for the sake of a better
   // code on hot paths.
-  TNode<RawPtrT> entries_base =
-      RawPtrAdd(ReinterpretCast<RawPtrT>(lookup_table),
-                IntPtrConstant(Table::OffsetOfElementAt(0) - kHeapObjectTag));
+  TNode<RawPtrT> entries_base = ReinterpretCast<RawPtrT>(
+      IntPtrAdd(BitcastTaggedToWord(lookup_table),
+                IntPtrConstant(Table::OffsetOfElementAt(0) - kHeapObjectTag)));
   // First probe.
   TVARIABLE(Uint32T, var_count, Uint32Constant(0));
   TVARIABLE(Uint32T, var_slot, Word32And(hash, mask));
