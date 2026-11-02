@@ -13,6 +13,10 @@
 // modified significantly by Google Inc.
 // Copyright 2016 the V8 project authors. All rights reserved.
 
+#define LIBC_MATH                             \
+  (LIBC_MATH_NO_ERRNO | LIBC_MATH_NO_EXCEPT | \
+   LIBC_MATH_ASSUME_ROUND_NEAREST_ONLY)
+
 #include "src/base/ieee754.h"
 
 #include <cmath>
