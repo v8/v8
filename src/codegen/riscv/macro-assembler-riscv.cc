@@ -2649,6 +2649,15 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
     } else {
       immediate = j.immediate();
     }
+    if (mode == OPTIMIZE_SIZE && !ShouldRecordRelocInfo(j.rmode())) {
+      // The fixed-length sequence below is there so that whatever finds the
+      // load through its reloc info can patch in another value. Without reloc
+      // info nothing can, so load the value as the plain constant it is. That
+      // is the usual case for external references and for the off-heap
+      // builtin entries CallBuiltin and TailCallBuiltin load.
+      li(rd, Operand(immediate), mode);
+      return;
+    }
     RecordRelocInfo(j.rmode(), immediate);
     li_ptr(rd, immediate);
   } else if (mode == ADDRESS_LOAD) {
