@@ -81,6 +81,13 @@ When proposing a fix, ensure the code adheres to V8 standards:
 - **Match test configuration to build:** Ensure you are running tests against
   the correct build type (e.g., run mjsunit from out/x64.debug if you built
   x64.debug).
+- **Relocating or copying `d8` binaries (`icudtl.dat` and
+  `snapshot_blob.bin`):** `d8` resolves `icudtl.dat` and `snapshot_blob.bin`
+  relative to the executable directory. When comparing baseline vs. modified
+  `d8` across commits, either use a separate build directory (e.g.,
+  `out/x64.release-baseline`) or, if copying `out/<config>/d8` to a scratch
+  directory, also copy (do not symlink) `icudtl.dat` and `snapshot_blob.bin`
+  alongside the copied binary.
 - **Check surrounding code for conventions:** Before adding new code, always
   study the existing patterns, naming conventions, and architectural choices in
   the file and directory you are working in.
