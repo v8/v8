@@ -8041,6 +8041,9 @@ void Isolate::DetachGlobal(DirectHandle<NativeContext> env) {
   // Set security token back to default (unique) state making sure that only
   // accesses from the same native context are allowed.
   env->set_security_token(env->global_object());
+  // Invalidate LoadGlobalIC/StoreGlobalIC handlers to enforce access checks
+  // for the rewired global proxy from the detached context.
+  JSObject::InvalidatePrototypeValidityCell(env->global_object());
 }
 
 void Isolate::SetIsLoading(bool is_loading) {
