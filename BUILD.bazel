@@ -962,8 +962,6 @@ filegroup(
         "src/base/numbers/fast-dtoa.h",
         "src/base/numbers/fixed-dtoa.cc",
         "src/base/numbers/fixed-dtoa.h",
-        "src/base/numbers/strtod.cc",
-        "src/base/numbers/strtod.h",
         "src/base/numerics/angle_conversions.h",
         "src/base/numerics/basic_ops_impl.h",
         "src/base/numerics/byte_conversions.h",

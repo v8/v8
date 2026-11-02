@@ -13,7 +13,6 @@
 
 #include "include/v8config.h"
 #include "src/base/numbers/dtoa.h"
-#include "src/base/numbers/strtod.h"
 #include "src/base/unique-array.h"
 #include "src/bigint/bigint-inl.h"
 #include "src/common/assert-scope.h"
@@ -747,28 +746,28 @@ class NumberParseIntHelper : public StringToIntHelper {
 
   template <class Char>
   void HandleBaseTenCase(const Char* current, const Char* end) {
-    // Parsing with strtod.
-    // Doubles are less than 1.8e308.
-    constexpr size_t kMaxSignificantDigits = 309;
-    // The buffer may contain up to kMaxSignificantDigits + 1 digits and a zero
-    // end.
-    constexpr size_t kBufferSize = kMaxSignificantDigits + 2;
-    char buffer[kBufferSize];
-    size_t buffer_pos = 0;
-    while (*current >= '0' && *current <= '9') {
-      if (buffer_pos <= kMaxSignificantDigits) {
-        // If the number has more than kMaxSignificantDigits it will be parsed
-        // as infinity.
-        static_assert(kMaxSignificantDigits < kBufferSize);
-        buffer[buffer_pos++] = static_cast<char>(*current);
-      }
-      ++current;
-      if (current == end) break;
-    }
-
-    SLOW_DCHECK(buffer_pos < kBufferSize);
-    buffer[buffer_pos] = '\0';
-    result_ = base::Strtod({buffer, buffer_pos}, 0);
+    DCHECK_LT(current, end);
+    DCHECK(isDigit(*current, 10));
+    // fast_float takes a char/char16_t instead of a uint8_t/uint16_t. Cast the
+    // pointers to match.
+    using UC =
+        std::conditional_t<std::is_same_v<Char, uint8_t>, char, char16_t>;
+    static_assert(sizeof(UC) == sizeof(Char));
+    const UC* current_uc = reinterpret_cast<const UC*>(current);
+    const UC* end_uc = reinterpret_cast<const UC*>(end);
+    // Use '0' as the decimal point so that after scanning the integer digits,
+    // fast_float never matches a fractional part (since the integer loop stops
+    // at a non-digit, which cannot be '0'), while chars_format::fixed disables
+    // exponent parsing.
+    static constexpr fast_float::parse_options_t<UC> kOptions{
+        static_cast<fast_float::chars_format>(
+            fast_float::chars_format::fixed |
+            fast_float::chars_format::no_infnan),
+        /*decimal_point=*/UC('0')};
+    auto ret =
+        fast_float::from_chars_advanced(current_uc, end_uc, result_, kOptions);
+    DCHECK_GT(ret.ptr, current_uc);
+    USE(ret);
     set_state(State::kDone);
   }
 
