@@ -125,6 +125,11 @@ std::unique_ptr<FeatureWeights> FeatureWeights::Build(
       // Optimized code features outside the focus keep their weight.
       if (!edge_focus[edge] && region_kind[edge] != kOptimizedRegion) {
         w *= params.unfocused;
+        // Without drop_unfocused, a code edge outside the focus still admits
+        // a program, with its lower weight.
+        if (!params.drop_unfocused) {
+          result->in_focus_[f] = true;
+        }
       }
     } else if (!params.optimized_in_focus &&
                region_kind[edge] == kOptimizedRegion &&

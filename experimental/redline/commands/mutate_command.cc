@@ -541,6 +541,43 @@ int RunBench(const Flags& flags, bool audit) {
           std::vector<fast::Statement*> out;
           Builder::Slot slot;
           bool generated = false;
+          if (g->requirements() & (kClassSlot | kLiteralSlot)) {
+            // A member generator: a new member of a class body or object
+            // literal of the input.
+            std::vector<Builder::MemberSlot> slots;
+            for (const Builder::MemberSlot& s : builder.MemberSlots()) {
+              if (s.owner->Is<fast::ClassBody>() ==
+                  ((g->requirements() & kClassSlot) != 0)) {
+                slots.push_back(s);
+              }
+            }
+            std::vector<fast::Node*> members;
+            if (!slots.empty()) {
+              Builder::MemberSlot member_slot = rng.Pick(slots);
+              GenContext ctx(builder, *generators, env);
+              ctx.syntax = builder.ContextAt(member_slot.owner);
+              ctx.visible = builder.VisibleAt(member_slot.owner);
+              ctx.member_owner = member_slot.owner;
+              ctx.member_out = &members;
+              g->stats().invocations++;
+              if (g->Generate(ctx, &out) && !members.empty()) {
+                g->stats().produced++;
+                for (fast::Node* member : members) {
+                  builder.InsertMember(member_slot, member);
+                  member_slot.index++;
+                }
+                generated = true;
+              }
+            }
+            mutation_time_us += sw.ElapsedUs();
+            if (!generated) {
+              noop++;
+              continue;
+            }
+            evaluator.Evaluate(g, g->name(), i, fast::Print(tree->root()),
+                               StringPrintf("%zu members", members.size()));
+            continue;
+          }
           for (int attempt = 0; attempt < 10 && !generated; attempt++) {
             slot = builder.RandomInsertionSlot();
             if (!slot.valid()) {

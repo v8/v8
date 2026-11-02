@@ -152,6 +152,8 @@ const char kUsage[] =
     "  --no-save-corpus         do not write DIR/corpus\n"
     "  --randomize-d8-flags     give each new d8 process random extra flags\n"
     "                           (flags.* tunables, off without a preset)\n"
+    "  --d8-flag-profile=NAME   the random flags: maglev (default) or "
+    "turbolev\n"
     "  --help-config            print the config file format and exit\n"
     "  --dump-config            print the complete effective configuration "
     "(every\n"

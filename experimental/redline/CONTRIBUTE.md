@@ -69,7 +69,7 @@ clang-tidy -p out/redline experimental/redline/generators/generators.cc
 | Init | an init strategy | `engine/config.cc` | `ReadInitConfig` | `init` |
 | Pick | a seed or partner strategy (`Selector<const Program>`) | `corpus/corpus.cc` | `RegisterBuiltinSelectors<const Program>` | `selection.seeds`, `selection.partners` |
 | Mutate | a mutator (`Mutator`) | `mutators/mutators.cc` | `MutatorSet::CreateDefault` | `selection.mutators` |
-| Mutate | a generator | `generators/generators.cc` | `GeneratorSet::CreateDefault` | `selection.generators` |
+| Mutate | a generator | `generators/generators.cc`, or the file of its area: `generators/shapes_generators.cc` (new program shapes) or `generators/template_generators.cc` (Fuzzilli templates) | `GeneratorSet::CreateDefault`, or the list of the area file (`ShapesGenerators`, `TemplateGenerators`) | `selection.generators` |
 | Mutate | a mutator or generator strategy | `mutators/mutators.cc`, `generators/generators.cc` | `RegisterBuiltinSelectors<Mutator>`, `RegisterBuiltinSelectors<Generator>` | `selection.mutators`, `selection.generators` |
 | Accept | a criterion | `engine/config.cc`, `engine/fuzzer.cc` | `ReadAcceptConfig`, `Worker::Commit` | `accept`, `stages.check` |
 | Minimize | a reducer (`Reducer`) | `minimizer/minimizer.cc` | `Minimizer::CreateDefaultReducers` | `stages.minimize.reducers` |
@@ -77,6 +77,7 @@ clang-tidy -p out/redline experimental/redline/generators/generators.cc
 | any | a number (tunable) | next to its use | `REDLINE_TUNABLE` | `tunables` |
 
 Execute and Publish are fixed code in `engine/fuzzer.cc` and `exec/`. Crash triage is in `engine/crash.cc`, `engine/fuzzer.cc` and `engine/amplifier.cc`.
+Generators of one area can also be in a file of their own. For example, `generators/typing_generators.cc` has the generators for typed functions, destructuring and scopes. `RegisterTypingGenerators()` adds them in `GeneratorSet::CreateDefault`.
 File names in the text and the tables are relative to `experimental/redline/`. The commands run in the root of the V8 checkout.
 
 ### 2.2 Programs, FAST and the Builder
@@ -308,6 +309,12 @@ The first command writes a program that declares an `Int16Array`.
 With a file argument, `mutate` inserts the generated code at a random position of that program.
 Before the declaration, the typed array is not visible. Then the generator makes a new array.
 
+Some generators run only in a context that an empty program does not have. Test them with a seed program that has this context:
+
+- `PrivateAccess` needs a class with private names, and `SuperAccess` needs a method. They run only in such bodies.
+- `ClassMember` and `LiteralMember` run only at member slots. With a file argument, `mutate` adds a member to a class body or an object literal of the file.
+- `redline audit` starts from an empty program. For these generators, run `mutate --run` with a seed program on each bug build instead, and look at the `crash` column.
+
 ### 3.6 Examine it in the shell
 
 ```
@@ -381,6 +388,23 @@ Commit the new traces in the same CL as the generator.
 A generator is useful only if it finds coverage or bugs that Redline did not find before.
 Section 10 shows how to compare two sessions.
 Put the result in the CL description.
+
+### 3.10 Use the typed builtin model
+
+Do not write the arguments of a builtin call by hand. Add the signature to the typed model in `core/environment_typed.cc`, and let CodeGen make the arguments:
+
+```cpp
+// In Environment::AddTypedModel():
+methods(T::kDataView, {sig("getInt16", T::kNumber, {Range(0, 4), Opt(Of(T::kBoolean))})});
+// In a generator:
+Expression* call = cg.CallMethod(view, m.name, cg.Arguments(m));  // m: the BuiltinFunction
+```
+
+- Each parameter is an `ArgSpec` (`core/environment.h`): `Of(type)`, `Int()`, `Index()`, `Length()`, `Range(min, max)`, `Iterable(element)`, `Callback(arity)`, `arg::Enum("name")`, `arg::Options("name")` or `Instance(type)`. `Opt()` marks an optional parameter, and `Rest()` a rest parameter.
+- `enums(...)` and `bag(...)` in the same function declare the string lists and the options bags.
+- `cg.ArgumentFor(spec)` uses a visible variable of the kind (probability `codegen.argument.reuse_chance` for objects), or it makes a new value. `cg.Instance(type)` makes an object of a builtin type with its typed constructor or a static factory.
+- Keep the ranges valid. A call that always throws spends an execution and finds nothing. The tunables `codegen.argument.range_edge_chance` and `codegen.argument.enum_invalid_chance` already add a few values outside the ranges.
+- The `DiscoveredApi` generator uses the same signatures for the paths that the target reports (`Environment::DiscoveredSignature`). Add a path outside the model with `discovered(...)`.
 
 ---
 

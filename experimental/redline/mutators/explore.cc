@@ -399,6 +399,24 @@ double ExploreWeight(const Variable& v) {
     case JsType::kArrayBuffer:
     case JsType::kDate:
     case JsType::kError:
+    case JsType::kDataView:
+    case JsType::kSharedArrayBuffer:
+    case JsType::kWeakMap:
+    case JsType::kWeakSet:
+    case JsType::kWeakRef:
+    case JsType::kFinalizationRegistry:
+    case JsType::kIterator:
+    case JsType::kDisposableStack:
+    case JsType::kAsyncDisposableStack:
+    case JsType::kTemporalInstant:
+    case JsType::kTemporalDuration:
+    case JsType::kTemporalPlainDate:
+    case JsType::kTemporalPlainTime:
+    case JsType::kTemporalPlainDateTime:
+    case JsType::kTemporalPlainYearMonth:
+    case JsType::kTemporalPlainMonthDay:
+    case JsType::kTemporalZonedDateTime:
+    case JsType::kIntlLocale:
       return 2;
     default:
       return 1;

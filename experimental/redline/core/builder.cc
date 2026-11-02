@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "experimental/redline/core/ast_builder.h"
+#include "experimental/redline/core/known_keys.h"
 
 namespace redline {
 
@@ -52,6 +53,42 @@ const char* JsTypeName(JsType type) {
       return "date";
     case JsType::kError:
       return "error";
+    case JsType::kDataView:
+      return "dataview";
+    case JsType::kSharedArrayBuffer:
+      return "sharedarraybuffer";
+    case JsType::kWeakMap:
+      return "weakmap";
+    case JsType::kWeakSet:
+      return "weakset";
+    case JsType::kWeakRef:
+      return "weakref";
+    case JsType::kFinalizationRegistry:
+      return "finalizationregistry";
+    case JsType::kIterator:
+      return "iterator";
+    case JsType::kDisposableStack:
+      return "disposablestack";
+    case JsType::kAsyncDisposableStack:
+      return "asyncdisposablestack";
+    case JsType::kTemporalInstant:
+      return "temporal.instant";
+    case JsType::kTemporalDuration:
+      return "temporal.duration";
+    case JsType::kTemporalPlainDate:
+      return "temporal.plaindate";
+    case JsType::kTemporalPlainTime:
+      return "temporal.plaintime";
+    case JsType::kTemporalPlainDateTime:
+      return "temporal.plaindatetime";
+    case JsType::kTemporalPlainYearMonth:
+      return "temporal.plainyearmonth";
+    case JsType::kTemporalPlainMonthDay:
+      return "temporal.plainmonthday";
+    case JsType::kTemporalZonedDateTime:
+      return "temporal.zoneddatetime";
+    case JsType::kIntlLocale:
+      return "intl.locale";
   }
   return "?";
 }
@@ -286,6 +323,40 @@ Builder::Slot Builder::Blockify(Statement* statement) {
   return Slot{&block->body, 0, block};
 }
 
+// --- member lists ------------------------------------------------------------
+
+std::vector<Builder::MemberSlot> Builder::MemberSlots() {
+  std::vector<MemberSlot> slots;
+  Walk(tree_->root(), [&](Node* node) {
+    size_t size = 0;
+    if (auto* body = node->As<ClassBody>()) {
+      size = body->members.size();
+    } else if (auto* object = node->As<ObjectExpression>()) {
+      size = object->properties.size();
+    } else {
+      return true;
+    }
+    for (size_t i = 0; i <= size; i++) {
+      slots.push_back({node, i});
+    }
+    return true;
+  });
+  return slots;
+}
+
+void Builder::InsertMember(const MemberSlot& slot, Node* member) {
+  std::vector<Node*>* list =
+      slot.owner->Is<ClassBody>()
+          ? &slot.owner->Cast<ClassBody>()->members
+          : &slot.owner->Cast<ObjectExpression>()->properties;
+  // The new member sees what its predecessor sees.
+  int32_t position =
+      slot.index > 0 ? (*list)[slot.index - 1]->end : slot.owner->start;
+  mk::Anchor(member, position < 0 ? 0 : position);
+  list->insert(list->begin() + static_cast<ptrdiff_t>(slot.index), member);
+  Invalidate();
+}
+
 // --- node queries ------------------------------------------------------------
 
 std::vector<Node*> Builder::Collect(const std::function<bool(Node*)>& pred) {
@@ -495,6 +566,45 @@ bool IsLoopKind(NodeKind kind) {
          kind == NodeKind::kForInStatement || kind == NodeKind::kForOfStatement;
 }
 
+// Adds the private names that `body` declares to `names`, unless an inner
+// class declares the same name. A getter and a setter of one name make one
+// entry that code can read and write. `outer` marks the names of a class
+// that is not the innermost one.
+void AddPrivateNames(const ClassBody* body, bool outer,
+                     std::vector<PrivateName>* names) {
+  const size_t inner = names->size();
+  for (const Node* member : body->members) {
+    const Expression* key = nullptr;
+    PrivateName entry;
+    entry.outer = outer;
+    if (const auto* field = member->As<PropertyDefinition>()) {
+      key = field->key;
+      entry.is_static = field->is_static;
+    } else if (const auto* method = member->As<MethodDefinition>()) {
+      key = method->key;
+      entry.is_static = method->is_static;
+      entry.readable = method->method_kind != MethodKind::kSet;
+      entry.writable = method->method_kind == MethodKind::kSet;
+      entry.callable = method->method_kind == MethodKind::kMethod;
+    }
+    const auto* id = key != nullptr ? key->As<PrivateIdentifier>() : nullptr;
+    if (id == nullptr) {
+      continue;
+    }
+    entry.name = id->name;
+    auto same = std::find_if(
+        names->begin(), names->end(),
+        [&](const PrivateName& other) { return other.name == entry.name; });
+    if (same == names->end()) {
+      names->push_back(entry);
+    } else if (static_cast<size_t>(same - names->begin()) >= inner) {
+      // The other accessor of a pair.
+      same->readable = same->readable || entry.readable;
+      same->writable = same->writable || entry.writable;
+    }
+  }
+}
+
 }  // namespace
 
 Builder::Context Builder::ContextAt(Node* node) {
@@ -506,6 +616,7 @@ Builder::Context Builder::ContextAt(Node* node) {
   // this/super/arguments.
   bool this_boundary = false;
   bool class_resolved = false;
+  bool inner_class_seen = false;
   Node* child = nullptr;
   for (Node* n = node; n != nullptr; child = n, n = ParentOf(n)) {
     switch (n->kind) {
@@ -530,7 +641,12 @@ Builder::Context Builder::ContextAt(Node* node) {
         break;
       case NodeKind::kLabeledStatement:
         if (!code_boundary && n != node) {
-          c.labels.push_back(n->Cast<LabeledStatement>()->label->name);
+          auto* labeled = n->Cast<LabeledStatement>();
+          c.labels.push_back(labeled->label->name);
+          if (labeled->body != nullptr && labeled->body == child &&
+              IsLoopKind(labeled->body->kind)) {
+            c.loop_labels.push_back(labeled->label->name);
+          }
         }
         break;
       case NodeKind::kFunctionDeclaration:
@@ -557,6 +673,8 @@ Builder::Context Builder::ContextAt(Node* node) {
               if (m->value == n) {
                 c.in_method = true;
                 c.in_constructor = m->method_kind == MethodKind::kConstructor;
+                c.static_member = m->is_static;
+                c.class_this = true;
               }
             } else if (auto* p = parent->As<Property>()) {
               if (p->value == n &&
@@ -578,6 +696,8 @@ Builder::Context Builder::ContextAt(Node* node) {
           c.in_method = true;  // super.x is allowed in field initializers
           c.strict = true;
           c.in_function = false;
+          c.static_member = n->Cast<PropertyDefinition>()->is_static;
+          c.class_this = true;
           code_boundary = true;
           this_boundary = true;
         }
@@ -587,12 +707,17 @@ Builder::Context Builder::ContextAt(Node* node) {
           c.in_static_block = true;
           c.in_method = true;
           c.strict = true;
+          c.static_member = true;
+          c.class_this = true;
           code_boundary = true;
           this_boundary = true;
         }
         break;
       case NodeKind::kClassBody:
         c.strict = true;  // class bodies are strict, nested functions too
+        AddPrivateNames(n->Cast<ClassBody>(), inner_class_seen,
+                        &c.private_names);
+        inner_class_seen = true;
         break;
       case NodeKind::kClassDeclaration:
       case NodeKind::kClassExpression:
@@ -622,10 +747,13 @@ Builder::Context Builder::ContextAtSlot(const Slot& slot) {
     c.in_static_block = true;
     c.in_method = true;
     c.strict = true;
+    c.static_member = true;
+    c.class_this = true;
     c.in_function = false;
     c.in_loop = false;
     c.in_switch = false;
     c.labels.clear();
+    c.loop_labels.clear();
   }
   Node* parent = ParentOf(slot.owner);
   if (parent != nullptr && IsLoopKind(parent->kind)) {
@@ -635,6 +763,55 @@ Builder::Context Builder::ContextAtSlot(const Slot& slot) {
 }
 
 // --- variables ---------------------------------------------------------------
+
+namespace {
+
+// The type of the instances of a constructor of the typed model that is a
+// property of a namespace (`Temporal.PlainDate`, `Intl.Locale`), or kUnknown.
+JsType NamespacedConstructorType(std::string_view ns, std::string_view name) {
+  if (ns == "Intl") {
+    return name == "Locale" ? JsType::kIntlLocale : JsType::kUnknown;
+  }
+  if (ns != "Temporal") {
+    return JsType::kUnknown;
+  }
+  static const struct {
+    std::string_view name;
+    JsType type;
+  } kTemporal[] = {{"Instant", JsType::kTemporalInstant},
+                   {"Duration", JsType::kTemporalDuration},
+                   {"PlainDate", JsType::kTemporalPlainDate},
+                   {"PlainTime", JsType::kTemporalPlainTime},
+                   {"PlainDateTime", JsType::kTemporalPlainDateTime},
+                   {"PlainYearMonth", JsType::kTemporalPlainYearMonth},
+                   {"PlainMonthDay", JsType::kTemporalPlainMonthDay},
+                   {"ZonedDateTime", JsType::kTemporalZonedDateTime}};
+  for (const auto& entry : kTemporal) {
+    if (entry.name == name) {
+      return entry.type;
+    }
+  }
+  return JsType::kUnknown;
+}
+
+// `Ns.Name` as two identifiers, or false.
+bool NamespacePath(const Expression* e, std::string_view* ns,
+                   std::string_view* name) {
+  auto* member = e->As<MemberExpression>();
+  if (member == nullptr || member->computed) {
+    return false;
+  }
+  auto* object = member->object->As<Identifier>();
+  auto* property = member->property->As<Identifier>();
+  if (object == nullptr || property == nullptr) {
+    return false;
+  }
+  *ns = object->name;
+  *name = property->name;
+  return true;
+}
+
+}  // namespace
 
 // static
 JsType Builder::GuessType(const Expression* e) {
@@ -750,17 +927,45 @@ JsType Builder::GuessType(const Expression* e) {
       auto* n = e->Cast<NewExpression>();
       auto* callee = n->callee->As<Identifier>();
       if (callee == nullptr) {
+        std::string_view ns, member;
+        if (NamespacePath(n->callee, &ns, &member)) {
+          JsType type = NamespacedConstructorType(ns, member);
+          if (type != JsType::kUnknown) {
+            return type;
+          }
+        }
         return JsType::kObject;
       }
       std::string_view name = callee->name;
       if (name == "Array") {
         return JsType::kArray;
       }
-      if (name == "Map" || name == "WeakMap") {
+      if (name == "Map") {
         return JsType::kMap;
       }
-      if (name == "Set" || name == "WeakSet") {
+      if (name == "Set") {
         return JsType::kSet;
+      }
+      if (name == "WeakMap") {
+        return JsType::kWeakMap;
+      }
+      if (name == "WeakSet") {
+        return JsType::kWeakSet;
+      }
+      if (name == "WeakRef") {
+        return JsType::kWeakRef;
+      }
+      if (name == "FinalizationRegistry") {
+        return JsType::kFinalizationRegistry;
+      }
+      if (name == "DisposableStack") {
+        return JsType::kDisposableStack;
+      }
+      if (name == "AsyncDisposableStack") {
+        return JsType::kAsyncDisposableStack;
+      }
+      if (name == "DataView") {
+        return JsType::kDataView;
       }
       if (name == "Promise") {
         return JsType::kPromise;
@@ -771,8 +976,11 @@ JsType Builder::GuessType(const Expression* e) {
       if (name == "Date") {
         return JsType::kDate;
       }
-      if (name == "ArrayBuffer" || name == "SharedArrayBuffer") {
+      if (name == "ArrayBuffer") {
         return JsType::kArrayBuffer;
+      }
+      if (name == "SharedArrayBuffer") {
+        return JsType::kSharedArrayBuffer;
       }
       if (name == "String") {
         return JsType::kObject;
@@ -818,6 +1026,29 @@ JsType Builder::GuessType(const Expression* e) {
       if (auto* member = c->callee->As<MemberExpression>()) {
         auto* object = member->object->As<Identifier>();
         auto* property = member->property->As<Identifier>();
+        if (property != nullptr && !member->computed && object == nullptr) {
+          // Static factories of namespaced types: Temporal.PlainDate.from(..),
+          // Temporal.Now.instant().
+          std::string_view ns, name;
+          if (NamespacePath(member->object, &ns, &name)) {
+            if (ns == "Temporal" && name == "Now") {
+              std::string_view p = property->name;
+              return p == "instant"            ? JsType::kTemporalInstant
+                     : p == "plainDateISO"     ? JsType::kTemporalPlainDate
+                     : p == "plainTimeISO"     ? JsType::kTemporalPlainTime
+                     : p == "plainDateTimeISO" ? JsType::kTemporalPlainDateTime
+                     : p == "zonedDateTimeISO" ? JsType::kTemporalZonedDateTime
+                     : p == "timeZoneId"       ? JsType::kString
+                                               : JsType::kUnknown;
+            }
+            if (property->name != "compare") {
+              JsType type = NamespacedConstructorType(ns, name);
+              if (type != JsType::kUnknown) {
+                return type;
+              }
+            }
+          }
+        }
         if (object == nullptr || property == nullptr || member->computed) {
           return JsType::kUnknown;
         }
@@ -849,6 +1080,13 @@ JsType Builder::GuessType(const Expression* e) {
         }
         if (o == "Promise") {
           return JsType::kPromise;
+        }
+        if (o == "Iterator" && p != "prototype") {
+          return JsType::kIterator;  // Iterator.from, concat, zip, zipKeyed
+        }
+        if (p == "keys" || p == "values" || p == "entries" || p == "matchAll") {
+          // Arrays, typed arrays, maps, sets and strings return iterators.
+          return JsType::kIterator;
         }
         return JsType::kUnknown;
       }
@@ -972,6 +1210,136 @@ std::vector<Variable> Builder::OfType(const std::vector<Variable>& candidates,
     }
   }
   return result;
+}
+
+// --- facts about variables ---------------------------------------------------
+
+namespace {
+
+// The parameters of the function or class constructor that `binding`
+// declares, or nullptr if `binding` does not declare one.
+const std::vector<Expression*>* DeclaredParameters(const Binding* binding) {
+  static const std::vector<Expression*> kNone;
+  const Node* declaration = binding->declaration;
+  if (declaration == nullptr) {
+    return nullptr;
+  }
+  const ClassBody* body = nullptr;
+  if (auto* declarator = declaration->As<VariableDeclarator>()) {
+    if (declarator->target != binding->identifier ||
+        declarator->init == nullptr) {
+      return nullptr;
+    }
+    declaration = declarator->init;
+  }
+  if (auto* fn = declaration->As<FunctionDeclaration>()) {
+    return &fn->params;
+  }
+  if (auto* fn = declaration->As<FunctionExpression>()) {
+    return &fn->params;
+  }
+  if (auto* fn = declaration->As<ArrowFunctionExpression>()) {
+    return &fn->params;
+  }
+  if (auto* cls = declaration->As<ClassDeclaration>()) {
+    body = cls->body;
+  } else if (auto* cls_expr = declaration->As<ClassExpression>()) {
+    body = cls_expr->body;
+  }
+  if (body == nullptr) {
+    return nullptr;
+  }
+  for (const Node* member : body->members) {
+    auto* method = member->As<MethodDefinition>();
+    if (method != nullptr && method->method_kind == MethodKind::kConstructor &&
+        method->value != nullptr) {
+      return &method->value->params;
+    }
+  }
+  return &kNone;  // the implicit constructor
+}
+
+// Adds to `info` the parameter types of the function or class that
+// `binding` names. These are the types of the arguments of its first call
+// or `new` in the tree. Generated code calls a function with arguments of
+// its parameter types, and the call stays in the program.
+void DeriveParameters(Builder& builder, const Binding* binding,
+                      BindingInfo* info) {
+  const std::vector<Expression*>* params = DeclaredParameters(binding);
+  if (params == nullptr || params->empty()) {
+    return;
+  }
+  for (Identifier* reference : binding->references) {
+    Node* parent = builder.ParentOf(reference);
+    const std::vector<Expression*>* args = nullptr;
+    if (parent == nullptr) {
+      continue;
+    }
+    if (auto* call = parent->As<CallExpression>();
+        call != nullptr && call->callee == reference) {
+      args = &call->arguments;
+    } else if (auto* construct = parent->As<NewExpression>();
+               construct != nullptr && construct->callee == reference) {
+      args = &construct->arguments;
+    }
+    if (args == nullptr) {
+      continue;
+    }
+    for (size_t i = 0; i < params->size(); i++) {
+      JsType type = JsType::kUnknown;
+      if (i < args->size() && !(*args)[i]->Is<SpreadElement>()) {
+        const Expression* arg = (*args)[i];
+        const Binding* arg_binding = nullptr;
+        if (auto* id = arg->As<Identifier>()) {
+          arg_binding = builder.scopes().BindingOf(id);
+        }
+        type = arg_binding != nullptr ? builder.GuessType(arg_binding)
+                                      : Builder::GuessType(arg);
+      }
+      info->parameters.push_back(type);
+    }
+    return;
+  }
+}
+
+// The derivations of the different fields are separate functions, so that
+// changes of one field do not touch the code of the other fields.
+
+// Adds to `info` the property keys of the value of `binding`.
+void DeriveKeys(Builder& builder, const Binding* binding, BindingInfo* info) {
+  DeriveKnownKeys(builder, binding, &info->keys);
+}
+
+}  // namespace
+
+BindingInfo& Builder::InfoEntry(std::string_view name) {
+  auto it = binding_info_.find(name);
+  if (it != binding_info_.end()) {
+    return it->second;
+  }
+  // Derive the facts once, for the first binding with this name.
+  BindingInfo info;
+  for (const Binding* binding : scopes().bindings()) {
+    if (binding->name == name && binding->kind != BindingKind::kImplicit) {
+      DeriveParameters(*this, binding, &info);
+      DeriveKeys(*this, binding, &info);
+      break;
+    }
+  }
+  return binding_info_.try_emplace(tree_->Intern(name), std::move(info))
+      .first->second;
+}
+
+BindingInfo& Builder::RecordInfo(std::string_view name) {
+  return InfoEntry(name);
+}
+
+const BindingInfo* Builder::InfoOf(std::string_view name) {
+  const BindingInfo& info = InfoEntry(name);
+  if (info.parameters.empty() && info.keys.empty()) {
+    return nullptr;
+  }
+  return &info;
 }
 
 // --- names -------------------------------------------------------------------

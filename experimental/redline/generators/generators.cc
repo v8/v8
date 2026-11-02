@@ -10,8 +10,13 @@
 #include "experimental/redline/core/ast_builder.h"
 #include "experimental/redline/core/tunable.h"
 #include "experimental/redline/core/weighted_selector.h"
+#include "experimental/redline/generators/api_generators.h"
 #include "experimental/redline/generators/codegen.h"
 #include "experimental/redline/generators/generator.h"
+#include "experimental/redline/generators/members.h"
+#include "experimental/redline/generators/shapes_generators.h"
+#include "experimental/redline/generators/typing_generators.h"
+#include "experimental/redline/generators/values_generators.h"
 #include "experimental/redline/generators/wasm_module.h"
 
 namespace redline {
@@ -46,6 +51,21 @@ bool Generator::Applicable(const GenContext& ctx) const {
     return false;
   }
   if ((requirements_ & kRecursive) && ctx.depth >= ctx.max_depth) {
+    return false;
+  }
+  if ((requirements_ & kNeedsMethod) && !s.in_method) {
+    return false;
+  }
+  if ((requirements_ & kNeedsPrivate) && s.private_names.empty()) {
+    return false;
+  }
+  // Member generators run only at a member slot of their kind, and only
+  // they run at member slots.
+  const bool class_slot =
+      ctx.member_owner != nullptr && ctx.member_owner->Is<fast::ClassBody>();
+  const bool literal_slot = ctx.member_owner != nullptr && !class_slot;
+  if (((requirements_ & kClassSlot) != 0) != class_slot ||
+      ((requirements_ & kLiteralSlot) != 0) != literal_slot) {
     return false;
   }
   return true;
@@ -400,7 +420,29 @@ GEN(ConstructDecl) {
   return true;
 }
 
+REDLINE_TUNABLE(kTypedArrayDeclSafeMaxLength,
+                "generators.TypedArrayDecl.safe_max_length", 4096, 0, 1 << 24,
+                "largest length of a typed array in code that must not throw "
+                "(Fuzzilli: randomSize(upTo: 0x1000))");
+
 GEN(TypedArrayDecl) {
+  if (ctx.cannot_throw) {
+    // A negative or huge length, a misaligned buffer or a BigInt element
+    // throws: `new X(n)` with a valid length only.
+    std::vector<const BuiltinGlobal*> kinds =
+        ctx.env.ConstructorsOf(JsType::kTypedArray);
+    if (kinds.empty()) {
+      return false;
+    }
+    Expression* length =
+        mk::Num(T(ctx), static_cast<double>(ctx.rng().Range(
+                            0, kTypedArrayDeclSafeMaxLength.AsInt())));
+    Push(out,
+         cg.Declare(mk::New(T(ctx), mk::Id(T(ctx), ctx.rng().Pick(kinds)->name),
+                            {length}),
+                    JsType::kTypedArray, "ta"));
+    return true;
+  }
   Expression* v = cg.Construct(JsType::kTypedArray);
   if (v == nullptr) {
     return false;
@@ -437,14 +479,28 @@ GEN(TemplateDecl) {
                                        "foo", "x=", ", ", "!"};
   for (int i = 0; i < n; i++) {
     strings.emplace_back(kParts[r.Index(sizeof(kParts) / sizeof(kParts[0]))]);
+    if (ctx.cannot_throw) {
+      // The conversion of a symbol, or of an object with a generated
+      // toString, can throw: only primitives.
+      JsType type = r.Pick({JsType::kNumber, JsType::kString, JsType::kBoolean,
+                            JsType::kBigInt, JsType::kNullish});
+      Expression* value = r.Coin() ? cg.Variable(type) : nullptr;
+      if (value != nullptr && Builder::OfType(ctx.visible, type).empty()) {
+        value = nullptr;  // a fallback to a variable of unknown type
+      }
+      expressions.push_back(value != nullptr ? value : cg.Literal(type));
+      continue;
+    }
     expressions.push_back(cg.Value(JsType::kUnknown, 1));
   }
   strings.emplace_back(kParts[r.Index(sizeof(kParts) / sizeof(kParts[0]))]);
   TemplateLiteral* literal =
       mk::Template(T(ctx), std::move(strings), std::move(expressions));
   if (r.Chance(kTemplateDeclTaggedChance())) {
-    // The tag gets the array of strings and the substituted values.
-    Expression* tag = cg.Variable(JsType::kFunction);
+    // The tag gets the array of strings and the substituted values. A
+    // generated function can throw: String.raw only, where that matters.
+    Expression* tag =
+        ctx.cannot_throw ? nullptr : cg.Variable(JsType::kFunction);
     if (tag == nullptr) {
       tag = mk::Member(T(ctx), mk::Id(T(ctx), "String"), "raw");
     }
@@ -479,6 +535,11 @@ REDLINE_TUNABLE(kDestructuringRestChance,
 REDLINE_TUNABLE(kDestructuringHoleChance,
                 "generators.Destructuring.hole_chance", 0.15, 0, 1,
                 "probability that an array pattern element is a hole");
+REDLINE_TUNABLE(kDestructuringIterableChance,
+                "generators.Destructuring.iterable_chance", 0.5, 0, 1,
+                "probability that an array pattern destructures an iterable "
+                "of any kind (Map, Set, generator, custom iterable) rather "
+                "than an array or a string");
 
 GEN(Destructuring) {
   Random& r = ctx.rng();
@@ -516,9 +577,13 @@ GEN(Destructuring) {
     decl->declarations[0]->target = pattern;
     Push(out, decl);
   } else {
-    // let [a, , b = 1, ...rest] = arr;
+    // let [a, , b = 1, ...rest] = iterable
     Expression* source = nullptr;
-    if (Identifier* id = cg.Variable(JsType::kArray)) {
+    if (r.Chance(kDestructuringIterableChance())) {
+      // Any iterable kind (Fuzzilli's DestructArrayGenerator takes any
+      // iterable, CodeGenerators.swift:2487).
+      source = IterableSource(ctx, cg);
+    } else if (Identifier* id = cg.Variable(JsType::kArray)) {
       source = id;
     } else if (Identifier* id2 = cg.Variable(JsType::kString)) {
       source = id2;
@@ -580,6 +645,10 @@ REDLINE_TUNABLE(
     "probability that the function is called right after its declaration");
 REDLINE_TUNABLE(kFunctionDeclMaxCalls, "generators.FunctionDecl.max_calls", 3,
                 1, 64, "most calls emitted right after the declaration");
+REDLINE_TUNABLE(kFunctionDeclStrictChance,
+                "generators.FunctionDecl.strict_chance", 0.1, 0, 1,
+                "probability that a function with simple parameters starts "
+                "with a 'use strict' directive");
 
 GEN(FunctionDecl) {
   Random& r = ctx.rng();
@@ -590,16 +659,32 @@ GEN(FunctionDecl) {
   GenContext nested = ctx.Nested(true, false, is_async, is_generator);
   // The function may call itself.
   nested.Declare(name, JsType::kFunction);
-  std::vector<Expression*> params = cg.Parameters(nested, n);
+  // Typed parameters (Fuzzilli's randomParameters()): the body uses them as
+  // values of their types, and the calls pass values of these types.
+  std::vector<JsType> types;
+  std::vector<Expression*> params =
+      cg.Parameters(nested, n, "a", nullptr, &types);
+  ctx.builder.RecordInfo(name).parameters = types;
+  // A "use strict" directive (Fuzzilli's StrictModeFunctionGenerator,
+  // CodeGenerators.swift:1703) needs a simple parameter list.
+  const bool strict = !ctx.syntax.strict && CodeGen::SimpleParameters(params) &&
+                      r.Chance(kFunctionDeclStrictChance());
+  if (strict) {
+    nested.syntax.strict = true;
+  }
   CodeGen inner(nested);
   Statements body = inner.Body(
       nested, 1 + r.SmallCount(kFunctionDeclMaxStatements.AsInt() - 1));
   if (r.Chance(kFunctionDeclReturnChance())) {
     body.push_back(mk::Return(T(ctx), inner.Value(JsType::kUnknown, 1)));
   }
+  if (strict) {
+    body.insert(body.begin(), cg.UseStrict());
+  }
   FunctionDeclaration* fn = mk::FunctionDecl(T(ctx), name, {}, std::move(body),
                                              is_async, is_generator);
   fn->params = std::move(params);
+  fn->strict = strict;
   Push(out, fn);
   ctx.Declare(name, JsType::kFunction);
   // Use it right away most of the time.
@@ -618,8 +703,10 @@ GEN(FunctionDecl) {
 }
 
 GEN(ArrowDecl) {
-  Expression* fn = cg.FunctionValue(ctx.depth);
+  std::vector<JsType> types;
+  Expression* fn = cg.FunctionValue(ctx.depth, &types);
   Push(out, cg.Declare(fn, JsType::kFunction, "f"));
+  ctx.builder.RecordInfo(LastDeclared(ctx)).parameters = types;
   return true;
 }
 
@@ -699,17 +786,38 @@ GEN(ClassDecl) {
     }
   }
   std::vector<Node*> members;
+  // Plan the members first: their private names are visible in the whole
+  // class body, the constructor and the static block included.
+  ClassMemberSettings settings;
+  settings.count = 1 + r.SmallCount(kClassDeclMaxMembers.AsInt() - 1);
+  if (r.Chance(kClassDeclManyMembersChance())) {
+    settings.count =
+        static_cast<int>(r.Range(10, kClassDeclManyMembersCount.AsInt()));
+  }
+  settings.has_super_class = super_class != nullptr;
+  settings.static_chance = kClassDeclStaticChance();
+  settings.method_async_chance = kClassDeclMethodAsyncChance();
+  settings.method_generator_chance = kClassDeclMethodGeneratorChance();
+  settings.method_max_params = kClassDeclMethodMaxParams.AsInt();
+  settings.method_max_statements = kClassDeclMethodMaxStatements.AsInt();
+  settings.method_this_store_chance = kClassDeclMethodThisStoreChance();
+  settings.super_call_chance = kClassDeclSuperCallChance();
+  const ClassMemberPlan plan = PlanClassMembers(ctx, cg, settings);
+  ScopedPrivateNames private_names(ctx, plan.private_names);
   // Constructor.
+  std::vector<JsType> constructor_types;
   {
     GenContext nested = ctx.Nested(true, false, false, false);
     nested.syntax.strict = true;
     nested.syntax.in_method = true;
     nested.syntax.in_constructor = true;
     nested.syntax.has_super_class = super_class != nullptr;
+    nested.syntax.class_this = true;
     int n =
         static_cast<int>(r.Range(0, kClassDeclConstructorMaxParams.AsInt()));
     std::vector<std::string_view> names;
-    std::vector<Expression*> params = cg.Parameters(nested, n, "a", &names);
+    std::vector<Expression*> params =
+        cg.Parameters(nested, n, "a", &names, &constructor_types);
     CodeGen inner(nested);
     Statements body;
     if (super_class != nullptr) {
@@ -740,86 +848,7 @@ GEN(ClassDecl) {
                                       MethodKind::kConstructor));
   }
   // Methods, accessors, fields.
-  int n = 1 + r.SmallCount(kClassDeclMaxMembers.AsInt() - 1);
-  if (r.Chance(kClassDeclManyMembersChance())) {
-    n = static_cast<int>(r.Range(10, kClassDeclManyMembersCount.AsInt()));
-  }
-  for (int i = 0; i < n; i++) {
-    std::string_view mname = ctx.builder.FreshName("m");
-    bool is_static = r.Chance(kClassDeclStaticChance());
-    switch (r.Index(5)) {
-      case 0: {
-        // Field.
-        GenContext nested = ClassFieldContext(ctx);
-        CodeGen inner(nested);
-        members.push_back(mk::ClassField(
-            t, mname, inner.Value(JsType::kUnknown, 1), is_static));
-        break;
-      }
-      case 1: {
-        // Getter (+ setter).
-        GenContext nested = ctx.Nested(true, false, false, false);
-        nested.syntax.strict = true;
-        nested.syntax.in_method = true;
-        nested.syntax.has_super_class = super_class != nullptr;
-        CodeGen inner(nested);
-        Statements body = {mk::Return(t, inner.Value(JsType::kUnknown, 1))};
-        members.push_back(
-            mk::ClassMethod(t, mname, mk::Function(t, "", {}, std::move(body)),
-                            MethodKind::kGet, is_static));
-        if (r.Coin()) {
-          std::string_view p = ctx.builder.FreshName("v");
-          GenContext setter = ctx.Nested(true, false, false, false);
-          setter.syntax.strict = true;
-          setter.syntax.in_method = true;
-          setter.Declare(p, JsType::kUnknown);
-          CodeGen sg(setter);
-          Statements sbody = {sg.Stmt(
-              mk::Assign(t, mk::Member(t, mk::This(t), "x"), mk::Id(t, p)))};
-          members.push_back(mk::ClassMethod(
-              t, mname, mk::Function(t, "", {p}, std::move(sbody)),
-              MethodKind::kSet, is_static));
-        }
-        break;
-      }
-      default: {
-        // Method.
-        GenContext nested =
-            ctx.Nested(true, false, r.Chance(kClassDeclMethodAsyncChance()),
-                       r.Chance(kClassDeclMethodGeneratorChance()));
-        nested.syntax.strict = true;
-        nested.syntax.in_method = true;
-        nested.syntax.has_super_class = super_class != nullptr;
-        int np =
-            static_cast<int>(r.Range(0, kClassDeclMethodMaxParams.AsInt()));
-        std::vector<Expression*> params = cg.Parameters(nested, np);
-        CodeGen inner(nested);
-        Statements body = inner.Body(
-            nested,
-            1 + r.SmallCount(kClassDeclMethodMaxStatements.AsInt() - 1));
-        if (r.Chance(kClassDeclMethodThisStoreChance())) {
-          body.push_back(
-              inner.Stmt(mk::Assign(t, mk::Member(t, mk::This(t), "x"),
-                                    inner.Value(JsType::kUnknown, 1))));
-        }
-        if (super_class != nullptr && r.Chance(kClassDeclSuperCallChance())) {
-          MemberExpression* sm = mk::Member(
-              t, t->New<Super>(), r.Pick({"toString", "valueOf", "x", "m"}));
-          body.push_back(inner.Stmt(mk::Call(t, sm, {})));
-        }
-        body.push_back(mk::Return(t, r.Coin()
-                                         ? static_cast<Expression*>(mk::This(t))
-                                         : inner.Value(JsType::kUnknown, 1)));
-        FunctionExpression* method =
-            mk::Function(t, "", {}, std::move(body), nested.syntax.in_async,
-                         nested.syntax.in_generator);
-        method->params = std::move(params);
-        members.push_back(
-            mk::ClassMethod(t, mname, method, MethodKind::kMethod, is_static));
-        break;
-      }
-    }
-  }
+  BuildClassMembers(ctx, cg, settings, plan, &members);
   if (r.Chance(kClassDeclStaticBlockChance())) {
     // static { ... }: runs once when the class is defined; `this` is the
     // class. The same context as the builder computes for a static block
@@ -836,7 +865,10 @@ GEN(ClassDecl) {
     nested.syntax.in_constructor = false;
     nested.syntax.has_arguments = false;
     nested.syntax.has_super_class = super_class != nullptr;
+    nested.syntax.static_member = true;
+    nested.syntax.class_this = true;
     nested.syntax.labels.clear();
+    nested.syntax.loop_labels.clear();
     CodeGen inner(nested);
     StaticBlock* block = t->New<StaticBlock>();
     block->body = inner.Body(
@@ -844,6 +876,8 @@ GEN(ClassDecl) {
         1 + r.SmallCount(kClassDeclStaticBlockMaxStatements.AsInt() - 1));
     members.push_back(block);
   }
+  // Code after the class body cannot use its private names.
+  private_names.Restore();
   if (r.Chance(kClassDeclExpressionChance())) {
     Push(out,
          mk::Const(t, name, mk::Class(t, "", super_class, std::move(members))));
@@ -851,12 +885,17 @@ GEN(ClassDecl) {
     Push(out, mk::ClassDecl(t, name, super_class, std::move(members)));
   }
   ctx.Declare(name, JsType::kClass, true);
-  // Instantiate it.
+  ctx.builder.RecordInfo(name).parameters = constructor_types;
+  RecordClassKeys(ctx, name, out->back());
+  // Instantiate it, with arguments of the constructor's parameter types.
   if (r.Chance(kClassDeclInstantiateChance())) {
-    Push(out, cg.Declare(mk::New(t, mk::Id(t, name),
-                                 cg.Arguments(
-                                     0, kClassDeclInstantiateMaxArgs.AsInt())),
-                         JsType::kObject, "o"));
+    Push(out,
+         cg.Declare(
+             mk::New(t, mk::Id(t, name),
+                     constructor_types.empty()
+                         ? cg.Arguments(0, kClassDeclInstantiateMaxArgs.AsInt())
+                         : cg.ArgumentsFor(constructor_types)),
+             JsType::kObject, "o"));
   }
   return true;
 }
@@ -981,6 +1020,10 @@ REDLINE_TUNABLE(kPropertyStoreWritableChance,
                 "probability that a store to a value of known type uses a "
                 "property that a store changes, for example lastIndex of a "
                 "regexp or length of an array");
+REDLINE_TUNABLE(kPropertyStoreKeepTypeChance,
+                "generators.PropertyStore.keep_type_chance", 0.7, 0, 1,
+                "probability that a store to a known key stores a value of "
+                "the type that the key had");
 
 GEN(PropertyStore) {
   Random& r = ctx.rng();
@@ -1014,7 +1057,17 @@ GEN(PropertyStore) {
   if (target == nullptr) {
     target = cg.Property(object);
   }
-  Push(out, cg.Stmt(mk::Assign(T(ctx), target, cg.Value(JsType::kUnknown, 0))));
+  // A store to a known key mostly keeps the type of its value, so that the
+  // field keeps its representation. Other stores generalize the field.
+  // Fuzzilli: PropertyAssignmentGenerator, CodeGenerators.swift:1955.
+  JsType type = JsType::kUnknown;
+  if (std::optional<KnownKey> key = KnownKeyOf(ctx, target);
+      key.has_value() && r.Chance(kPropertyStoreKeepTypeChance())) {
+    type = key->type;
+  }
+  Expression* value = cg.Value(type, 0);
+  RecordStore(ctx, target, value);
+  Push(out, cg.Stmt(mk::Assign(T(ctx), target, value)));
   return true;
 }
 
@@ -1102,13 +1155,55 @@ REDLINE_TUNABLE(kMethodCallKeyVariableChance,
                 "generators.MethodCall.key_variable_chance", 0.1, 0, 1,
                 "probability that the method name goes to a const first and "
                 "the call reads the method with it (o[k](...))");
+REDLINE_TUNABLE(kMethodCallTypedReceiverChance,
+                "generators.MethodCall.typed_receiver_chance", 0.6, 0, 1,
+                "probability that the receiver is a visible variable of a "
+                "builtin type with its own methods, if there is one "
+                "(Fuzzilli's MethodCallGenerator calls the methods of the "
+                "receiver's type)");
 
+// The result type of `object.name(...)` in the model, or kUnknown.
+JsType MethodResultType(GenContext& ctx, Expression* object,
+                        std::string_view name) {
+  auto* id = object->As<Identifier>();
+  if (id == nullptr) {
+    return JsType::kUnknown;
+  }
+  for (const Variable& v : ctx.visible) {
+    if (v.name != id->name) {
+      continue;
+    }
+    if (const BuiltinType* bt = ctx.env.ForType(v.type)) {
+      for (const BuiltinFunction& m : bt->methods) {
+        if (m.name == name) {
+          return m.result;
+        }
+      }
+    }
+    break;
+  }
+  return JsType::kUnknown;
+}
+
+// CodeGenerators.swift:2262 (MethodCallGenerator).
 GEN(MethodCall) {
   Random& r = ctx.rng();
   Tree* t = T(ctx);
-  Expression* object = cg.ObjectLike();
+  Expression* object = nullptr;
+  if (r.Chance(kMethodCallTypedReceiverChance())) {
+    object = cg.TypedReceiver();
+  }
+  if (object == nullptr) {
+    object = cg.ObjectLike();
+  }
   Expression* call = cg.MethodCall(object, Builder::GuessType(object));
   auto* callee = call->Cast<CallExpression>()->callee->As<MemberExpression>();
+  JsType result = JsType::kUnknown;
+  if (callee != nullptr && !callee->computed) {
+    if (auto* id = callee->property->As<Identifier>()) {
+      result = MethodResultType(ctx, object, id->name);
+    }
+  }
   if (callee != nullptr && r.Chance(kMethodCallKeyVariableChance())) {
     // The name goes to a const k, and the call reads the method with o[k].
     std::string_view name;
@@ -1126,7 +1221,9 @@ GEN(MethodCall) {
     }
   }
   if (r.Chance(kMethodCallDeclareChance())) {
-    Push(out, cg.Declare(call, JsType::kUnknown));
+    // The result type lets later calls use the result (an iterator of
+    // m.keys(), the Temporal.Duration of d.until(x)).
+    Push(out, cg.Declare(call, result));
   } else {
     Push(out, cg.Stmt(call));
   }
@@ -1157,13 +1254,24 @@ GEN(FunctionCall) {
   }
   Expression* call = cg.CallWithArguments(callee);
   if (r.Chance(kFunctionCallCallApplyChance())) {
-    // f.call(thisArg, ...) / f.apply(thisArg, [...])
+    // f.call(thisArg, ...) / f.apply(thisArg, [...]), with arguments of the
+    // parameter types if they are known.
+    const BindingInfo* info = ctx.builder.InfoOf(callee->name);
+    std::vector<Expression*> typed;
+    if (info != nullptr && !info->parameters.empty()) {
+      typed = cg.ArgumentsFor(info->parameters);
+    }
     if (r.Coin()) {
-      call = mk::CallMethod(T(ctx), callee, "call",
-                            {cg.ObjectLike(), cg.Value(JsType::kUnknown, 1)});
+      std::vector<Expression*> args = {cg.ObjectLike()};
+      if (typed.empty()) {
+        args.push_back(cg.Value(JsType::kUnknown, 1));
+      }
+      args.insert(args.end(), typed.begin(), typed.end());
+      call = mk::CallMethod(T(ctx), callee, "call", std::move(args));
     } else {
-      call = mk::CallMethod(T(ctx), callee, "apply",
-                            {cg.ObjectLike(), cg.ArrayLiteral(1)});
+      Expression* list =
+          typed.empty() ? cg.ArrayLiteral(1) : mk::Array(T(ctx), typed);
+      call = mk::CallMethod(T(ctx), callee, "apply", {cg.ObjectLike(), list});
     }
   }
   if (r.Chance(kFunctionCallDeclareChance())) {
@@ -1258,29 +1366,54 @@ REDLINE_TUNABLE(kSpreadCallMethodChance, "generators.SpreadCall.method_chance",
                 "probability that the spread goes to a method call on an "
                 "object (o.m(...arr), o[\"m\"](...arr)) rather than to a "
                 "function call");
+REDLINE_TUNABLE(kSpreadCallConstructChance,
+                "generators.SpreadCall.construct_chance", 0.15, 0, 1,
+                "probability that a function call spread is a new C(...it) "
+                "of a visible class instead");
+REDLINE_TUNABLE(kSpreadCallMaxArgs, "generators.SpreadCall.max_args", 4, 1, 16,
+                "most arguments of a function call with spreads");
+REDLINE_TUNABLE(kSpreadCallSpreadChance, "generators.SpreadCall.spread_chance",
+                0.4, 0, 1,
+                "probability that each further argument is a spread too");
 
+// Spreads take any iterable kind: strings, Maps, Sets, typed arrays,
+// iterators and generator objects (AnyIterable), several times in one call,
+// as in Fuzzilli's *CallWithSpreadGenerator (CodeGenerators.swift:2283-2373).
 GEN(SpreadCall) {
-  Identifier* arr = cg.Variable(JsType::kArray);
-  if (arr == nullptr) {
-    return false;
-  }
-  if (ctx.rng().Chance(kSpreadCallMethodChance())) {
+  Random& r = ctx.rng();
+  if (r.Chance(kSpreadCallMethodChance())) {
     Expression* object = cg.ObjectLike();
     auto* call = cg.MethodCall(object, Builder::GuessType(object))
                      ->Cast<CallExpression>();
     if (call->arguments.empty() ||
         !call->arguments.back()->Is<SpreadElement>()) {
-      call->arguments.push_back(mk::Spread(T(ctx), arr));
+      call->arguments.push_back(mk::Spread(T(ctx), AnyIterable(cg)));
     }
     Push(out, cg.Declare(call, JsType::kUnknown));
     return true;
   }
-  Expression* callee = cg.Callable();
+  // The first spread is at a random position, the other arguments are
+  // spreads or values.
+  const int n = 1 + static_cast<int>(r.Index(
+                        static_cast<size_t>(kSpreadCallMaxArgs.AsInt())));
+  const size_t first = r.Index(static_cast<size_t>(n));
   std::vector<Expression*> args;
-  if (ctx.rng().Coin()) {
-    args.push_back(cg.Value(JsType::kUnknown, 1));
+  for (int i = 0; i < n; i++) {
+    if (static_cast<size_t>(i) == first ||
+        r.Chance(kSpreadCallSpreadChance())) {
+      args.push_back(mk::Spread(T(ctx), AnyIterable(cg)));
+    } else {
+      args.push_back(cg.Value(JsType::kUnknown, 1));
+    }
   }
-  args.push_back(mk::Spread(T(ctx), arr));
+  if (r.Chance(kSpreadCallConstructChance())) {
+    if (Identifier* cls = cg.Variable(JsType::kClass)) {
+      cg.DeclareMaybeGuarded(out, mk::New(T(ctx), cls, std::move(args)),
+                             JsType::kObject, "o", 1.0);
+      return true;
+    }
+  }
+  Expression* callee = cg.Callable();
   Push(out,
        cg.Declare(mk::Call(T(ctx), callee, std::move(args)), JsType::kUnknown));
   return true;
@@ -1659,14 +1792,33 @@ GEN(Return) {
   return true;
 }
 
+REDLINE_TUNABLE(kBreakContinueLabelChance,
+                "generators.BreakContinue.label_chance", 0.3, 0, 1,
+                "probability that the break or continue names an enclosing "
+                "label (a loop label for continue)");
+
+// Fuzzilli's LoopBreakGenerator and ContinueGenerator
+// (CodeGenerators.swift:3026, :3031) also name a label.
 GEN(BreakContinue) {
   Random& r = ctx.rng();
   Tree* t = T(ctx);
+  // The loop labels that are still in reach.
+  std::vector<std::string_view> loop_labels;
+  for (std::string_view label : ctx.syntax.loop_labels) {
+    if (std::find(ctx.syntax.labels.begin(), ctx.syntax.labels.end(), label) !=
+        ctx.syntax.labels.end()) {
+      loop_labels.push_back(label);
+    }
+  }
+  const bool labeled = r.Chance(kBreakContinueLabelChance());
   Statement* s = nullptr;
   if (ctx.syntax.in_loop && r.Coin()) {
-    s = mk::Continue(t);
+    s = mk::Continue(t, labeled && !loop_labels.empty() ? r.Pick(loop_labels)
+                                                        : std::string_view());
   } else {
-    s = mk::Break(t);
+    s = mk::Break(t, labeled && !ctx.syntax.labels.empty()
+                         ? r.Pick(ctx.syntax.labels)
+                         : std::string_view());
   }
   Push(out, mk::If(t, cg.Condition(0), mk::Block(t, {s})));
   return true;
@@ -1747,6 +1899,23 @@ REDLINE_TUNABLE(kJitOptimizeArrayWarmupChance,
                 "probability that each warm-up call passes a new array literal "
                 "first, so that the calls see arrays of different elements "
                 "kinds");
+REDLINE_TUNABLE(kJitOptimizeMaxArgumentLists,
+                "generators.JitOptimize.max_argument_lists", 2, 1, 8,
+                "most different argument lists among the calls of the "
+                "function to optimize");
+REDLINE_TUNABLE(kJitOptimizeWarmupReuseChance,
+                "generators.JitOptimize.warmup_reuse_chance", 0.9, 0, 1,
+                "probability that a warm-up call after the first one reuses "
+                "an earlier argument list");
+REDLINE_TUNABLE(kJitOptimizeOptimizedReuseChance,
+                "generators.JitOptimize.optimized_reuse_chance", 0.5, 0, 1,
+                "probability that a call of the optimized function reuses an "
+                "earlier argument list");
+REDLINE_TUNABLE(kJitOptimizeOtherTypesChance,
+                "generators.JitOptimize.other_types_chance", 0.15, 0, 1,
+                "probability that the first call of the optimized function "
+                "passes arguments of other types than the warm-up, to force "
+                "a deoptimization");
 
 GEN(JitOptimize) {
   Random& r = ctx.rng();
@@ -1755,6 +1924,14 @@ GEN(JitOptimize) {
   Identifier* f = FunctionForJit(ctx, cg, out, &is_generator);
   if (f == nullptr) {
     return false;
+  }
+  if (!out->empty()) {
+    // A function that FunctionForJit just declared: maybe a GC inside it.
+    auto* decl = out->back()->As<FunctionDeclaration>();
+    if (decl != nullptr && decl->name != nullptr &&
+        decl->name->name == f->name && decl->body != nullptr) {
+      MaybeInsertGcNative(ctx, cg, &decl->body->body);
+    }
   }
   std::string_view name = f->name;
   std::string_view target_name = name;
@@ -1769,11 +1946,18 @@ GEN(JitOptimize) {
     Statements caller_body;
     Expression* inner_call = nullptr;
     if (constant_caller) {
+      // Literal arguments, of the parameter types if they are known.
+      std::vector<JsType> types;
+      if (const BindingInfo* info = ctx.builder.InfoOf(name)) {
+        types = info->parameters;
+      }
+      if (types.empty()) {
+        types.assign(1 + r.Index(3), JsType::kUnknown);
+      }
       std::vector<Expression*> args;
-      int args_count = 1 + static_cast<int>(r.Index(3));
-      args.reserve(static_cast<size_t>(args_count));
-      for (int i = 0; i < args_count; i++) {
-        args.push_back(cg.Literal());
+      args.reserve(types.size());
+      for (JsType type : types) {
+        args.push_back(cg.Literal(type));
       }
       inner_call = mk::Call(t, mk::Id(t, name), std::move(args));
     } else {
@@ -1800,6 +1984,7 @@ GEN(JitOptimize) {
     } else {
       caller_body.push_back(mk::Return(t, inner_call));
     }
+    MaybeInsertGcNative(ctx, cg, &caller_body);
     Push(out, mk::FunctionDecl(t, target_name, {}, std::move(caller_body),
                                false, false));
     ctx.Declare(target_name, JsType::kFunction);
@@ -1842,12 +2027,30 @@ GEN(JitOptimize) {
                                {mk::Id(t, target_name)})));
   const bool array_warmup = r.Chance(kJitOptimizeArrayWarmupChance());
   // A call of the function to optimize. A call of a generator function also
-  // runs the body up to the first yield.
-  auto call_target = [&](bool warmup) {
+  // runs the body up to the first yield. The calls share at most a few
+  // argument lists, with the reuse probabilities of Fuzzilli's
+  // chooseArgumentLists() (V8CommonProfile.swift:155-194). The optimized
+  // code then sees the types of the warm-up. Sometimes only the optimized
+  // call gets arguments of other types, to force a deoptimization. A new
+  // list has the arguments of CallWithArguments().
+  ArgumentLists lists(
+      cg, [&]() { return cg.CallWithArguments(mk::Id(t, name))->arguments; },
+      kJitOptimizeMaxArgumentLists.AsInt());
+  const bool other_types = r.Chance(kJitOptimizeOtherTypesChance());
+  auto call_target = [&](bool warmup, int call_idx) {
     if (wrapped_caller) {
       return cg.Stmt(mk::Call(t, mk::Id(t, target_name), {}));
     }
-    CallExpression* call = cg.CallWithArguments(mk::Id(t, name));
+    std::vector<Expression*> args;
+    if (warmup) {
+      args = lists.Next(call_idx == 0 ? 1.0 : kJitOptimizeWarmupReuseChance());
+    } else if (call_idx == 0 && other_types) {
+      args = lists.OtherTypes();
+    }
+    if (!warmup && args.empty()) {
+      args = lists.Next(kJitOptimizeOptimizedReuseChance());
+    }
+    CallExpression* call = mk::Call(t, mk::Id(t, name), std::move(args));
     if (warmup && array_warmup) {
       call->arguments.insert(call->arguments.begin(), cg.ArrayLiteral(1));
     }
@@ -1858,21 +2061,21 @@ GEN(JitOptimize) {
   };
   int warmup = 1 + r.SmallCount(kJitOptimizeMaxWarmupCalls.AsInt() - 1);
   for (int i = 0; i < warmup; i++) {
-    Push(out, call_target(true));
+    Push(out, call_target(true, i));
   }
   const char* tier = r.Chance(kJitOptimizeTurbofanChance())
                          ? "OptimizeFunctionOnNextCall"
                          : "OptimizeMaglevOnNextCall";
   Push(out, cg.Stmt(mk::Native(t, tier, {mk::Id(t, target_name)})));
 
-  Push(out, call_target(false));
+  Push(out, call_target(false, 0));
   if (r.Chance(kJitOptimizeExtraCallChance())) {
-    Push(out, call_target(false));
+    Push(out, call_target(false, 1));
   }
   if (r.Chance(kJitOptimizeDeoptChance())) {
     Push(out, cg.Stmt(mk::Native(t, "DeoptimizeFunction",
                                  {mk::Id(t, target_name)})));
-    Push(out, call_target(false));
+    Push(out, call_target(false, 2));
   }
   return true;
 }
@@ -2059,7 +2262,9 @@ GEN(JitTricky) {
   nested.Declare(counter, JsType::kNumber);
   const int params_count =
       static_cast<int>(r.Range(0, kJitTrickyMaxParams.AsInt()));
-  std::vector<Expression*> params = cg.Parameters(nested, params_count);
+  std::vector<JsType> param_types;
+  std::vector<Expression*> params =
+      cg.Parameters(nested, params_count, "a", nullptr, &param_types);
   params.insert(params.begin(), mk::Id(t, counter));
   CodeGen inner(nested);
   Statements body = inner.Body(nested, statements());
@@ -2072,6 +2277,12 @@ GEN(JitTricky) {
   fn->params = std::move(params);
   Push(out, fn);
   ctx.Declare(name, JsType::kFunction);
+  {
+    // The signature: the iteration count, then the generated parameters.
+    std::vector<JsType>& signature = ctx.builder.RecordInfo(name).parameters;
+    signature = {JsType::kNumber};
+    signature.insert(signature.end(), param_types.begin(), param_types.end());
+  }
   Push(out, cg.Stmt(mk::Native(t, "PrepareFunctionForOptimization",
                                {mk::Id(t, name)})));
 
@@ -2087,7 +2298,9 @@ GEN(JitTricky) {
     if (r.Chance(kJitTrickyCallerGateChance())) {
       loop_body.push_back(gated(loop, loop_counter));
     }
-    CallExpression* call = lcg.CallWithArguments(mk::Id(t, name), params_count);
+    // Arguments of the parameter types: the same types in each iteration.
+    CallExpression* call =
+        mk::Call(t, mk::Id(t, name), lcg.ArgumentsFor(param_types));
     call->arguments.insert(call->arguments.begin(), mk::Id(t, loop_counter));
     if (r.Chance(kJitTrickyGuardChance())) {
       // A function that throws once usually throws in each iteration, so
@@ -2167,6 +2380,18 @@ REDLINE_TUNABLE(kLazyDeoptGuardChance, "generators.LazyDeopt.guard_chance", 0.7,
 REDLINE_TUNABLE(kLazyDeoptExtraCallChance,
                 "generators.LazyDeopt.extra_call_chance", 0.4, 0, 1,
                 "probability of one more call after the deoptimization");
+REDLINE_TUNABLE(kLazyDeoptMaxArgumentLists,
+                "generators.LazyDeopt.max_argument_lists", 2, 1, 8,
+                "most different lists of the arguments after the first one "
+                "among the calls of the function");
+REDLINE_TUNABLE(kLazyDeoptWarmupReuseChance,
+                "generators.LazyDeopt.warmup_reuse_chance", 0.9, 0, 1,
+                "probability that a warm-up call after the first one reuses "
+                "an earlier argument list");
+REDLINE_TUNABLE(kLazyDeoptOptimizedReuseChance,
+                "generators.LazyDeopt.optimized_reuse_chance", 0.5, 0, 1,
+                "probability that a call of the optimized function reuses an "
+                "earlier argument list");
 
 // Fuzzilli's IndirectLazyDeoptFuzzer and RecursiveLazyDeoptFuzzer templates.
 // An optimized function is on the call stack when a callback, a coercion
@@ -2280,7 +2505,9 @@ GEN(LazyDeopt) {
                 mode == kCallback ? JsType::kFunction : JsType::kUnknown);
   const int extra_params =
       static_cast<int>(r.Range(0, kLazyDeoptMaxParams.AsInt()));
-  std::vector<Expression*> params = cg.Parameters(f_ctx, extra_params);
+  std::vector<JsType> param_types;
+  std::vector<Expression*> params =
+      cg.Parameters(f_ctx, extra_params, "a", nullptr, &param_types);
   params.insert(params.begin(), mk::Id(t, first_param));
   CodeGen f_cg(f_ctx);
   Statements body = f_cg.Body(f_ctx, statements());
@@ -2331,7 +2558,7 @@ GEN(LazyDeopt) {
         t, mk::Id(t, counter),
         mk::Binary(t, BinaryOp::kAdd, mk::Id(t, counter), mk::Num(t, 1))));
     CallExpression* rec_call =
-        f_cg.CallWithArguments(mk::Id(t, fn_name), extra_params);
+        mk::Call(t, mk::Id(t, fn_name), f_cg.ArgumentsFor(param_types));
     rec_call->arguments.insert(rec_call->arguments.begin(),
                                f_cg.Value(JsType::kUnknown, 1));
     Statement* rec_stmt = f_cg.Declare(rec_call, JsType::kUnknown);
@@ -2348,15 +2575,29 @@ GEN(LazyDeopt) {
   Statements after = f_cg.Body(f_ctx, statements());
   body.insert(body.end(), after.begin(), after.end());
   body.push_back(mk::Return(t, f_cg.Value(JsType::kUnknown, 1)));
+  MaybeInsertGcNative(ctx, cg, &body);
   FunctionDeclaration* fn =
       mk::FunctionDecl(t, fn_name, {}, std::move(body), false, false);
   fn->params = std::move(params);
   Push(out, fn);
   ctx.Declare(fn_name, JsType::kFunction);
+  {
+    // The signature: the trigger (a callback or any value), then the
+    // generated parameters.
+    std::vector<JsType>& signature = ctx.builder.RecordInfo(fn_name).parameters;
+    signature = {mode == kCallback ? JsType::kFunction : JsType::kUnknown};
+    signature.insert(signature.end(), param_types.begin(), param_types.end());
+  }
 
   Push(out, cg.Stmt(mk::Native(t, "PrepareFunctionForOptimization",
                                {mk::Id(t, fn_name)})));
   const bool guard = r.Chance(kLazyDeoptGuardChance());
+  // The arguments after the first one share a few lists, as in JitOptimize,
+  // so that the optimized code sees the types of the warm-up.
+  ArgumentLists lists(
+      cg, [&]() { return cg.ArgumentsFor(param_types); },
+      kLazyDeoptMaxArgumentLists.AsInt());
+  int calls = 0;
   auto emit_call = [&](bool trigger_active) {
     if (mode == kRecursive) {
       Push(out, cg.Stmt(mk::Assign(t, mk::Id(t, counter), mk::Num(t, 0))));
@@ -2374,8 +2615,13 @@ GEN(LazyDeopt) {
     } else {
       first_arg = cg.Value(JsType::kUnknown, 1);
     }
+    const double reuse_chance = calls == 0 ? 1.0
+                                : trigger_active
+                                    ? kLazyDeoptOptimizedReuseChance()
+                                    : kLazyDeoptWarmupReuseChance();
+    calls++;
     CallExpression* call =
-        cg.CallWithArguments(mk::Id(t, fn_name), extra_params);
+        mk::Call(t, mk::Id(t, fn_name), lists.Next(reuse_chance));
     call->arguments.insert(call->arguments.begin(), first_arg);
     Statement* stmt = cg.Stmt(call);
     if (guard) {
@@ -2407,7 +2653,10 @@ GEN(NativeCall) {
   Tree* t = T(ctx);
   const NativeFunction& n = r.Pick(ctx.env.natives());
   std::vector<Expression*> args;
-  for (int i = 0; i < n.args; i++) {
+  // Some natives need a fixed argument shape, for example an integer offset
+  // for %ConstructSlicedString (values_generators.cc).
+  const bool shaped = NativeArgumentsFor(cg, n.name, &args);
+  for (int i = 0; i < n.args && !shaped; i++) {
     Expression* arg = nullptr;
     if (n.arg_type != JsType::kUnknown) {
       arg = cg.Variable(n.arg_type);
@@ -2745,10 +2994,158 @@ REDLINE_TUNABLE(kShapeChangeProtoSeqMinProps,
 REDLINE_TUNABLE(kShapeChangeProtoSeqMaxProps,
                 "generators.ShapeChange.proto_seq_max_props", 8, 2, 32,
                 "most properties assigned to the prototype in sequence");
+REDLINE_TUNABLE(kShapeChangeSharedPrefixChance,
+                "generators.ShapeChange.shared_prefix_chance", 0.25, 0, 1,
+                "probability of four sibling objects whose property sequences "
+                "share a prefix and differ in the last field");
+REDLINE_TUNABLE(kShapeChangeSharedPrefixLiteralChance,
+                "generators.ShapeChange.shared_prefix_literal_chance", 0.3, 0,
+                1,
+                "probability that the siblings are object literals instead of "
+                "empty objects followed by stores");
+REDLINE_TUNABLE(kShapeChangeSharedPrefixRenameChance,
+                "generators.ShapeChange.shared_prefix_rename_chance", 0.3, 0, 1,
+                "probability that the last sibling adds another name instead "
+                "of the same name with a value of another representation");
+REDLINE_TUNABLE(kShapeChangeSharedPrefixConsumerChance,
+                "generators.ShapeChange.shared_prefix_consumer_chance", 0.5, 0,
+                1,
+                "probability of a function that loads the last field of each "
+                "sibling and is then optimized");
+
+// A value for a field in the representation `rep`: 0 is a small integer, 1
+// a double, 2 a heap object and 3 a string.
+Expression* FieldValue(GenContext& ctx, CodeGen& cg, int rep) {
+  Random& r = ctx.rng();
+  Tree* t = T(ctx);
+  switch (rep) {
+    case 0:
+      return mk::Num(t, static_cast<double>(r.Range(-5, 100)));
+    case 1:
+      return mk::Num(t, static_cast<double>(r.Range(-100, 100)) + 0.5);
+    case 2:
+      return r.Coin() ? cg.ObjectLiteral(1) : cg.ArrayLiteral(1);
+    default:
+      return cg.String();
+  }
+}
+
+// Fuzzilli's ObjectHierarchyGenerator (CodeGenerators.swift:3519). Four
+// objects get the property sequences (a), (a, b), (a, b, c) and (a, b, c')
+// or (a, b, d). Thus the last sibling changes the representation of the last
+// field (smi, double, object, string), or adds another name. Their maps
+// make a transition tree with a shared prefix.
+void SharedPrefixFamily(GenContext& ctx, CodeGen& cg, Statements* out) {
+  Random& r = ctx.rng();
+  Tree* t = T(ctx);
+  std::vector<std::string_view> names;
+  while (names.size() < 4) {
+    std::string_view name = cg.PropertyName();
+    if (name == "__proto__" || !IsIdentifierName(name) ||
+        std::find(names.begin(), names.end(), name) != names.end()) {
+      name = ctx.builder.FreshName("p");
+    }
+    names.push_back(name);
+  }
+  // The shared values of the prefix: generated once, used by all siblings.
+  std::vector<Expression*> prefix_values;
+  for (int i = 0; i < 2; i++) {
+    Expression* value = cg.Value(JsType::kUnknown, 1);
+    if (!value->Is<Identifier>() && !value->Is<NumericLiteral>()) {
+      Push(out, cg.Declare(value, Builder::GuessType(value)));
+      value = mk::Id(t, LastDeclared(ctx));
+    }
+    prefix_values.push_back(value);
+  }
+  const int rep = static_cast<int>(r.Index(4));
+  int other_rep = static_cast<int>(r.Index(3));
+  if (other_rep >= rep) {
+    other_rep++;
+  }
+  const bool rename = r.Chance(kShapeChangeSharedPrefixRenameChance());
+  const bool literals = r.Chance(kShapeChangeSharedPrefixLiteralChance());
+  std::vector<std::string_view> objects;
+  for (int i = 0; i < 4; i++) {
+    // Sibling i has i + 1 fields, except the last one, which has 3.
+    const int fields = i < 3 ? i + 1 : 3;
+    std::vector<std::pair<std::string_view, Expression*>> props;
+    for (int k = 0; k < fields; k++) {
+      std::string_view name = names[static_cast<size_t>(k)];
+      Expression* value = nullptr;
+      if (k < 2) {
+        value = prefix_values[static_cast<size_t>(k)]->Is<Identifier>()
+                    ? static_cast<Expression*>(
+                          mk::Id(t, prefix_values[static_cast<size_t>(k)]
+                                        ->Cast<Identifier>()
+                                        ->name))
+                    : mk::Num(t, prefix_values[static_cast<size_t>(k)]
+                                     ->Cast<NumericLiteral>()
+                                     ->value);
+      } else if (i < 3) {
+        value = FieldValue(ctx, cg, rep);
+      } else if (rename) {
+        name = names[3];
+        value = FieldValue(ctx, cg, rep);
+      } else {
+        value = FieldValue(ctx, cg, other_rep);
+      }
+      props.emplace_back(name, value);
+    }
+    std::string_view obj = ctx.builder.FreshName("o");
+    if (literals) {
+      std::vector<Node*> nodes;
+      for (const auto& [name, value] : props) {
+        nodes.push_back(mk::Prop(t, name, value));
+      }
+      Push(out, mk::Const(t, obj, mk::Object(t, std::move(nodes))));
+    } else {
+      Push(out, mk::Const(t, obj, mk::Object(t, {})));
+      for (const auto& [name, value] : props) {
+        Push(out, cg.Stmt(mk::Assign(t, mk::Member(t, mk::Id(t, obj), name),
+                                     value)));
+      }
+    }
+    ctx.Declare(obj, JsType::kObject, true);
+    objects.push_back(obj);
+  }
+  if (!r.Chance(kShapeChangeSharedPrefixConsumerChance())) {
+    return;
+  }
+  // A load of the last field that sees all siblings, then optimized.
+  std::string_view fn_name = ctx.builder.FreshName("f");
+  std::string_view param = ctx.builder.FreshName("o");
+  Push(out,
+       mk::FunctionDecl(t, fn_name, {param},
+                        {mk::Return(t, mk::Member(t, mk::Id(t, param),
+                                                  names[rename ? 3 : 2]))}));
+  ctx.Declare(fn_name, JsType::kFunction);
+  Push(out, cg.Stmt(mk::Native(t, "PrepareFunctionForOptimization",
+                               {mk::Id(t, fn_name)})));
+  std::vector<Expression*> all;
+  for (std::string_view obj : objects) {
+    all.push_back(mk::Id(t, obj));
+  }
+  std::string_view elem = ctx.builder.FreshName("x");
+  Push(out, mk::ForOf(t, VariableKind::kConst, elem, mk::Array(t, all),
+                      mk::Block(t, {cg.Stmt(mk::Call(t, mk::Id(t, fn_name),
+                                                     {mk::Id(t, elem)}))})));
+  Push(out, cg.Stmt(mk::Native(t,
+                               r.Chance(kShapeChangeTurbofanChance())
+                                   ? "OptimizeFunctionOnNextCall"
+                                   : "OptimizeMaglevOnNextCall",
+                               {mk::Id(t, fn_name)})));
+  Push(out,
+       cg.Declare(mk::Call(t, mk::Id(t, fn_name), {mk::Id(t, r.Pick(objects))}),
+                  JsType::kUnknown));
+}
 
 GEN(ShapeChange) {
   Random& r = ctx.rng();
   Tree* t = T(ctx);
+  if (r.Chance(kShapeChangeSharedPrefixChance())) {
+    SharedPrefixFamily(ctx, cg, out);
+    return true;
+  }
   auto safe_prop = [&]() -> std::string_view {
     std::string_view name = cg.PropertyName();
     return (name == "__proto__" || !IsIdentifierName(name)) ? "x" : name;
@@ -2939,6 +3336,56 @@ Expression* MemberOf(Tree* t, Expression* object, std::string_view name) {
   return mk::Index(t, object, mk::Str(t, name));
 }
 
+REDLINE_TUNABLE(kDiscoveredApiStaticNewChance,
+                "generators.DiscoveredApi.static_new_chance", 0.9, 0, 1,
+                "probability that a static which the target also reported as "
+                "a constructor (Intl.Locale, Temporal.PlainDate) is called "
+                "with new");
+
+// Arguments for a discovered callable: typed if the model knows its
+// signature (Environment::DiscoveredSignature), else 0 to `arity` values.
+std::vector<Expression*> DiscoveredArguments(GenContext& ctx, CodeGen& cg,
+                                             std::string_view path,
+                                             std::string_view member,
+                                             bool prototype, int arity) {
+  if (const BuiltinFunction* f =
+          ctx.env.DiscoveredSignature(path, member, prototype)) {
+    return cg.Arguments(*f);
+  }
+  return cg.Arguments(0, arity);
+}
+
+// The type of `new Path(...)` in the model, or `fallback`.
+JsType DiscoveredInstanceType(GenContext& ctx, std::string_view path,
+                              JsType fallback) {
+  const BuiltinGlobal* g = ctx.env.Global(path);
+  return g != nullptr && g->constructible ? g->instance_type : fallback;
+}
+
+// A call of the static `m` of `api`. A static that is a constructor of its
+// own gets `new`. `*type` receives the result type that the model knows.
+Expression* DiscoveredStaticCall(GenContext& ctx, CodeGen& cg,
+                                 const DiscoveredApi& api,
+                                 const DiscoveredMember& m, JsType* type) {
+  Tree* t = T(ctx);
+  Expression* callee = MemberOf(t, PathExpression(t, api.path), m.name);
+  if (m.constructor && ctx.rng().Chance(kDiscoveredApiStaticNewChance())) {
+    std::string path = std::string(api.path) + "." + std::string(m.name);
+    if (type != nullptr) {
+      *type = DiscoveredInstanceType(ctx, path, JsType::kObject);
+    }
+    return mk::New(t, callee,
+                   DiscoveredArguments(ctx, cg, path, {}, false, m.arity));
+  }
+  const BuiltinFunction* f =
+      ctx.env.DiscoveredSignature(api.path, m.name, false);
+  if (type != nullptr) {
+    *type = f != nullptr ? f->result : JsType::kUnknown;
+  }
+  return mk::Call(t, callee,
+                  f != nullptr ? cg.Arguments(*f) : cg.Arguments(0, m.arity));
+}
+
 // A value produced by something the target reported about itself: an
 // instance of a discovered class, or the result of a discovered function or
 // namespace static. nullptr if nothing was discovered. Such values are the
@@ -2983,18 +3430,19 @@ Expression* DiscoveredValue(GenContext& ctx, CodeGen& cg,
   }
   switch (api.kind) {
     case DiscoveredApi::Kind::kConstructor:
-      return mk::New(t, PathExpression(t, api.path),
-                     cg.Arguments(0, api.arity));
+      return mk::New(
+          t, PathExpression(t, api.path),
+          DiscoveredArguments(ctx, cg, api.path, {}, false, api.arity));
     case DiscoveredApi::Kind::kFunction:
-      return mk::Call(t, PathExpression(t, api.path),
-                      cg.Arguments(0, api.arity));
+      return mk::Call(
+          t, PathExpression(t, api.path),
+          DiscoveredArguments(ctx, cg, api.path, {}, false, api.arity));
     case DiscoveredApi::Kind::kNamespace:
       if (api.statics.empty()) {
         return nullptr;
       }
       const DiscoveredMember& m = r.Pick(api.statics);
-      return mk::Call(t, MemberOf(t, PathExpression(t, api.path), m.name),
-                      cg.Arguments(0, m.arity));
+      return DiscoveredStaticCall(ctx, cg, api, m, nullptr);
   }
   return nullptr;
 }
@@ -3065,8 +3513,12 @@ REDLINE_TUNABLE(kDiscoveredApiNamespaceStaticChance,
 // Uses something the target itself reported to exist (see
 // Environment::IntrospectionScript): constructs a discovered class and calls
 // one of its prototype methods or loads a getter, calls a static method of a
-// namespace/class, or calls a discovered function. The result variables are
-// untyped; the Explore mutator takes it from there.
+// namespace/class, or calls a discovered function. Where the typed model
+// knows the signature of the callable, the arguments follow it, and the
+// result gets the model's type (Fuzzilli: ApiConstructorCallGenerator,
+// ApiMethodCallGenerator and ApiFunctionCallGenerator,
+// CodeGenerators.swift:3599-3634). Otherwise the arguments follow the arity,
+// and the Explore mutator takes it from there.
 GEN(DiscoveredApi) {
   const std::vector<DiscoveredApi>& apis = ctx.env.discovered();
   if (apis.empty()) {
@@ -3076,31 +3528,39 @@ GEN(DiscoveredApi) {
   Tree* t = T(ctx);
   const DiscoveredApi& api = apis[r.Index(apis.size())];
   auto call_static = [&](const DiscoveredMember& m) {
-    cg.DeclareMaybeGuarded(
-        out,
-        mk::Call(t, MemberOf(t, PathExpression(t, api.path), m.name),
-                 cg.Arguments(0, m.arity)),
-        JsType::kUnknown, "r", kDiscoveredApiGuardChance());
+    JsType type = JsType::kUnknown;
+    Expression* call = DiscoveredStaticCall(ctx, cg, api, m, &type);
+    cg.DeclareMaybeGuarded(out, call, type, "r", kDiscoveredApiGuardChance());
   };
   switch (api.kind) {
     case DiscoveredApi::Kind::kConstructor: {
+      const BuiltinGlobal* model = ctx.env.Global(api.path);
+      const bool no_new = model != nullptr && !model->constructible;
       if (!api.statics.empty() &&
-          r.Chance(kDiscoveredApiConstructorStaticChance())) {
+          (no_new || r.Chance(kDiscoveredApiConstructorStaticChance()))) {
+        // `new` throws for some constructors that the model knows (BigInt,
+        // Symbol, Iterator): call a static of them instead.
         call_static(r.Pick(api.statics));
         return true;
       }
       Expression* value =
-          mk::New(t, PathExpression(t, api.path), cg.Arguments(0, api.arity));
-      cg.DeclareMaybeGuarded(out, value, JsType::kObject, "o",
-                             kDiscoveredApiGuardChance());
+          mk::New(t, PathExpression(t, api.path),
+                  DiscoveredArguments(ctx, cg, api.path, {}, false, api.arity));
+      cg.DeclareMaybeGuarded(
+          out, value, DiscoveredInstanceType(ctx, api.path, JsType::kObject),
+          "o", kDiscoveredApiGuardChance());
       std::string_view name = LastDeclared(ctx);
       if (!api.methods.empty() && r.Chance(kDiscoveredApiMethodChance())) {
         const DiscoveredMember& m = r.Pick(api.methods);
-        cg.DeclareMaybeGuarded(out,
-                               mk::Call(t, MemberOf(t, mk::Id(t, name), m.name),
-                                        cg.Arguments(0, m.arity)),
-                               JsType::kUnknown, "r",
-                               kDiscoveredApiGuardChance());
+        const BuiltinFunction* f =
+            ctx.env.DiscoveredSignature(api.path, m.name, true);
+        cg.DeclareMaybeGuarded(
+            out,
+            mk::Call(
+                t, MemberOf(t, mk::Id(t, name), m.name),
+                f != nullptr ? cg.Arguments(*f) : cg.Arguments(0, m.arity)),
+            f != nullptr ? f->result : JsType::kUnknown, "r",
+            kDiscoveredApiGuardChance());
       } else if (!api.getters.empty()) {
         cg.DeclareMaybeGuarded(
             out, MemberOf(t, mk::Id(t, name), r.Pick(api.getters).name),
@@ -3108,17 +3568,23 @@ GEN(DiscoveredApi) {
       }
       return true;
     }
-    case DiscoveredApi::Kind::kFunction:
+    case DiscoveredApi::Kind::kFunction: {
       if (!api.statics.empty() &&
           r.Chance(kDiscoveredApiFunctionStaticChance())) {
         call_static(r.Pick(api.statics));
         return true;
       }
+      const BuiltinFunction* f =
+          ctx.env.DiscoveredSignature(api.path, {}, false);
       cg.DeclareMaybeGuarded(
           out,
-          mk::Call(t, PathExpression(t, api.path), cg.Arguments(0, api.arity)),
-          JsType::kUnknown, "r", kDiscoveredApiGuardChance());
+          mk::Call(
+              t, PathExpression(t, api.path),
+              f != nullptr ? cg.Arguments(*f) : cg.Arguments(0, api.arity)),
+          f != nullptr ? f->result : JsType::kUnknown, "r",
+          kDiscoveredApiGuardChance());
       return true;
+    }
     case DiscoveredApi::Kind::kNamespace:
       if (!api.statics.empty() &&
           (api.getters.empty() ||
@@ -3352,7 +3818,8 @@ GEN(BuiltinOverwrite) {
       return false;
     }
     const BuiltinGlobal& g = *r.Pick(namespaces);
-    target = mk::Member(t, mk::Id(t, g.name), r.Pick(g.static_methods).name);
+    target =
+        mk::Member(t, cg.GlobalPath(g.name), r.Pick(g.static_methods).name);
   }
   Expression* replacement = r.Chance(kBuiltinOverwriteCallableChance())
                                 ? static_cast<Expression*>(cg.Callable())
@@ -3393,8 +3860,9 @@ GEN(ConstructorFunction) {
   int np = static_cast<int>(r.Range(kConstructorFunctionMinParams.AsInt(),
                                     kConstructorFunctionMaxParams.AsInt()));
   std::vector<std::string_view> params;
+  std::vector<JsType> types;
   std::vector<Expression*> param_nodes =
-      cg.Parameters(nested, np, "a", &params);
+      cg.Parameters(nested, np, "a", &params, &types);
   CodeGen inner(nested);
   Statements body;
   // if (!new.target) { throw ... } / return new C(...)
@@ -3424,6 +3892,7 @@ GEN(ConstructorFunction) {
   decl->params = std::move(param_nodes);
   Push(out, decl);
   ctx.Declare(name, JsType::kClass);
+  ctx.builder.RecordInfo(name).parameters = types;
   if (r.Chance(kConstructorFunctionPrototypeMethodChance())) {
     // A prototype method that uses this.
     GenContext method_ctx = ctx.Nested(true, false, false, false);
@@ -3437,7 +3906,9 @@ GEN(ConstructorFunction) {
                              r.Pick({"get", "valueOf", "toString", "m", "f"})),
                   mk::Function(t, "", {}, std::move(mbody)))));
   }
-  Push(out, cg.Declare(mk::New(t, mk::Id(t, name), cg.Arguments(0, np)),
+  // Arguments of the parameter types (Fuzzilli's ObjectConstructorGenerator
+  // and ConstructorCallGenerator, CodeGenerators.swift:666 and :2341).
+  Push(out, cg.Declare(mk::New(t, mk::Id(t, name), cg.ArgumentsFor(types)),
                        JsType::kObject, "o"));
   return true;
 }
@@ -3481,11 +3952,9 @@ GEN(Yield) {
   Tree* t = T(ctx);
   Expression* y = nullptr;
   if (r.Chance(kYieldDelegateChance())) {
-    Expression* iterable = cg.Variable(JsType::kArray);
-    if (iterable == nullptr) {
-      iterable = cg.ArrayLiteral(1);
-    }
-    y = mk::Yield(t, iterable, /*delegate=*/true);
+    // Any iterable kind, as in Fuzzilli's YieldEachGenerator
+    // (CodeGenerators.swift:2443).
+    y = mk::Yield(t, AnyIterable(cg), /*delegate=*/true);
   } else {
     y = mk::Yield(t, r.Chance(kYieldValueChance())
                          ? cg.Value(JsType::kUnknown, 1)
@@ -5308,35 +5777,40 @@ GEN(CrossContextPrivateStore) {
   return true;
 }
 
-GEN(UsingDecl) {
-  Tree* t = T(ctx);
-  Expression* init = cg.Value(JsType::kObject, 1);
-  VariableDeclaration* d = mk::Declare(
-      t, VariableKind::kUsing, ctx.builder.FreshName("using_var"), init);
-  Push(out, mk::Block(t, {d}));
-  return true;
-}
+// `{ using x = <disposable, null or undefined>; ... }`: see
+// generators/values_generators.cc.
+GEN(UsingDecl) { return GenUsingBlock(ctx, cg, out, /*is_await=*/false); }
 
-GEN(AwaitUsingDecl) {
-  Tree* t = T(ctx);
-  Expression* init = cg.Value(JsType::kObject, 1);
-  VariableDeclaration* d =
-      mk::Declare(t, VariableKind::kAwaitUsing,
-                  ctx.builder.FreshName("await_using_var"), init);
-  Push(out, mk::Block(t, {d}));
-  return true;
-}
+GEN(AwaitUsingDecl) { return GenUsingBlock(ctx, cg, out, /*is_await=*/true); }
 
 REDLINE_TUNABLE(kRawThrowConditionChance,
                 "generators.RawThrow.condition_chance", 0.5, 0, 1,
                 "chance to wrap throw in an if statement");
+REDLINE_TUNABLE(kRawThrowRuntimeConditionChance,
+                "generators.RawThrow.runtime_condition_chance", 0.7, 0, 1,
+                "probability that the condition of a wrapped throw is a "
+                "runtime value rather than a boolean literal");
 
+// The condition of a wrapped throw is a runtime boolean or its negation, as
+// in Fuzzilli's ConditionalThrowGenerator (CodeGenerators.swift:3123).
 GEN(RawThrow) {
   Tree* t = T(ctx);
   Random& r = ctx.rng();
   Statement* th = mk::Throw(t, cg.Value(JsType::kUnknown, 1));
   if (r.Chance(kRawThrowConditionChance())) {
-    Push(out, mk::If(t, cg.Boolean(), th));
+    Expression* condition = nullptr;
+    if (r.Chance(kRawThrowRuntimeConditionChance())) {
+      condition = cg.Variable(JsType::kBoolean);
+      if (condition == nullptr) {
+        condition = cg.Condition(1);
+      }
+      if (r.Coin()) {
+        condition = mk::Unary(t, UnaryOp::kNot, condition);
+      }
+    } else {
+      condition = cg.Boolean();
+    }
+    Push(out, mk::If(t, condition, th));
   } else {
     Push(out, th);
   }
@@ -5442,6 +5916,19 @@ std::unique_ptr<GeneratorSet> GeneratorSet::CreateDefault() {
   add("ArrowDecl", "const f = (a) => {...}", 2, kRecursive, GenArrowDecl);
   add("ClassDecl", "class C extends ... {...}; new C()", 2, kRecursive,
       GenClassDecl);
+  add("PrivateAccess", "o.#x / o.#x = v / o.#x op= v / o.#m() / #x in o", 8,
+      kNeedsPrivate, GenPrivateAccess);
+  add("SuperAccess",
+      "super.p / super[k] / super.p = v / super.p op= v / super.m(...)", 4,
+      kNeedsMethod, GenSuperAccess);
+  // Member slots only: the CodeGen mutator inserts their output into an
+  // existing class body or object literal.
+  add("ClassMember", "a field, method or accessor for an existing class", 1,
+      kClassSlot, GenClassMember);
+  add("LiteralMember",
+      "a property, method, accessor, spread or __proto__ for an existing "
+      "object literal",
+      1, kLiteralSlot, GenLiteralMember);
   add("Iife", "(function() {...})()", 1, kRecursive, GenIife);
   add("Closure", "captured variable mutated by an arrow, called repeatedly", 1,
       kRecursive, GenClosure);
@@ -5536,6 +6023,8 @@ std::unique_ptr<GeneratorSet> GeneratorSet::CreateDefault() {
       "active optimized frame deoptimized by a callback, a coercion hook "
       "or a bounded recursion",
       1, kRecursive, GenLazyDeopt);
+  // Typed functions, destructuring and scopes (typing_generators.cc).
+  RegisterTypingGenerators(add);
   add("NativeCall", "%Native(...) from the environment table", 1,
       kNoRequirement, GenNativeCall);
   add("Gc", "gc() / %SimulateNewspaceFull()", 0.5, kNoRequirement, GenGc);
@@ -5588,6 +6077,10 @@ std::unique_ptr<GeneratorSet> GeneratorSet::CreateDefault() {
       1, kRecursive, GenGeneratorIterate);
   add("PromiseThen", "promise.then(v => ..., e => ...)", 1, kRecursive,
       GenPromiseThen);
+  // Typed builtin APIs that need several calls (api_generators.h).
+  for (const ApiGenerator& g : ApiGenerators()) {
+    add(g.name, g.description, g.weight, g.requirements, g.fn);
+  }
   add("WorkerSpawn", "spawn a WebWorker", 1.0, kNoRequirement, GenWorkerSpawn);
   add("ArrowStore", "store an object or smi to an arrow function", 1.0,
       kNoRequirement, GenArrowStore);
@@ -5595,12 +6088,23 @@ std::unique_ptr<GeneratorSet> GeneratorSet::CreateDefault() {
       kNoRequirement, GenDynamicFunctionTransition);
   add("CrossContextPrivateStore", "cross-context private field store", 1.0,
       kNoRequirement, GenCrossContextPrivateStore);
-  add("UsingDecl", "using x = ...", 1.0, kNoRequirement, GenUsingDecl);
-  add("AwaitUsingDecl", "await using x = ...", 1.0, kNeedsAsync,
-      GenAwaitUsingDecl);
+  add("UsingDecl", "{ using x = <disposable>; ... }", 1.0, kRecursive,
+      GenUsingDecl);
+  add("AwaitUsingDecl", "{ await using x = <disposable>; ... }", 1.0,
+      kNeedsAsync | kRecursive, GenAwaitUsingDecl);
   add("RawThrow", "throw ...", 0.5, kNoRequirement, GenRawThrow);
   add("NewTargetExpr", "let nt = new.target", 1.0, kNeedsArguments,
       GenNewTargetExpr);
+  // generators/values_generators.cc: builtin instances, constructor
+  // functions, iterables, disposables, resizable buffers, special values.
+  AddValueGenerators(add);
+  // Program shapes and templates from Fuzzilli (shapes_generators.h).
+  for (const ShapesGenerator& g : ShapesGenerators()) {
+    add(g.name, g.description, g.weight, g.requirements, g.fn);
+  }
+  for (const ShapesGenerator& g : TemplateGenerators()) {
+    add(g.name, g.description, g.weight, g.requirements, g.fn);
+  }
   std::string error;
   if (!set->SetSelector(
           std::make_unique<WeightedSelector<Generator>>(

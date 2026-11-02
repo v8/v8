@@ -1,8 +1,8 @@
-CodeGen	0	7fd576c43c2216de	inserted ArrayDecl	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-CodeGen	1	5bd76672d7f52260	inserted CrossContextPrivateStore	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-CodeGen	2	4ca6a681e79a15c7	inserted Update	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-CodeGen	3	ff0d33b9a85b9dd9	inserted ForOf+BinaryOp	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-CodeGen	4	2d65ed05941aec0f	inserted PrototypeMethodCall+LazyDeopt	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+CodeGen	0	526b993a964cd7d4	inserted FunctionDecl+BuiltinInstanceDecl	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+CodeGen	1	4655841d4b2fb34b	inserted Deopt	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+CodeGen	2	f0610171a91c4b7a	inserted UnaryOp+ConstructorFunctionDecl+MethodCall	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+CodeGen	3	a9784195088d4ec2	inserted NativeCall	let n = 42; let s = "text"; let a = [1, 2, 3]; %PrepareFunctionForOpti
+CodeGen	4	1ad9130d842be4a2	inserted JitOptimize	%PrepareFunctionForOptimization(f); f(23702, 46356); f(23702, 46356);
 Explore	0	229b8b1e75c3c53f	probing r f	let n = 42; let s = "text"; try {   __redline_explore("e8834", f, [s,
 Explore	1	be4a2707f13ec60b	probing f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Explore	2	0558f152f37b2388	probing f	let n = 42; let s = "text"; let a = [1, 2, 3]; try {   __redline_explo
@@ -13,11 +13,11 @@ Probing	1	278ead283dba57af	probing r C	let n = 42; let s = "text"; let a = [1, 2
 Probing	2	cf920d9572ee7281	probing f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Probing	3	6a1c72a883a17202	probing a	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Probing	4	30aa747d96df02e3	probing f t a	let n = 42; let s = "text"; try {   __redline_probe("p74410", f); } ca
-Prefix	0	f317bc305dc73f21	inserted StringDecl+RegExpDecl+ArrayDecl+RegExpDecl+IntegerDecl+IntegerDecl+StringDecl+TemplateDecl+RegExpDecl+RegExpDecl+IntegerDecl+BooleanDecl	let s0 = "iynbof"; let re0 = /(?i:\x7f(?s:[^a-z]{2})$)(?m:(?<g1>b*?.?)
-Prefix	1	d8ff81cf7af5d3b8	inserted IntegerDecl+ArrayDecl+ObjectDecl+ArrowDecl+ArrayDecl+BigIntDecl+IntegerDecl+ObjectDecl+TypedArrayDecl+FloatDecl	let v0 = 24096; const arr0 = [v0]; let obj0 = {}; var f0 = async funct
-Prefix	2	2f6d915291bfeb60	inserted ObjectDecl+ObjectDecl+ArrayDecl+BooleanDecl+IntegerDecl+ArrayDecl+ArrayDecl+FloatDecl+BooleanDecl+FloatDecl	let obj0 = {}; var obj1 = {name: obj0}; var arr0 = []; let b0 = false;
-Prefix	3	f3e26060d625f820	inserted StringDecl+FloatDecl+FloatDecl+FloatDecl+StringDecl+ArrayDecl+FloatDecl+ObjectDecl+ObjectDecl+RegExpDecl+StringDecl+ArrayDecl	let s0 = "x"; let v0 = 2.2250738585072014e-308; var v1 = 2.22507385850
-Prefix	4	ce99dba5cc212251	inserted ArrayDecl+FloatDecl+FloatDecl+IntegerDecl+ArrowDecl+RegExpDecl+ArrowDecl+ArrowDecl+FloatDecl+TypedArrayDecl+ObjectDecl	let arr0 = [44375]; let v0 = 127; let v1 = 1; let v2 = 7216; const f0
+Prefix	0	1af5fb2886e6e2b7	inserted BooleanDecl+ResizableBufferDecl+DisposableDecl+ArrowDecl+ArrowDecl+TemplateDecl+ResizableBufferDecl+BuiltinInstanceDecl+ResizableBufferDecl+RegExpDecl+DisposableDecl+BuiltinInstanceDecl	let b0 = false; let rab0 = new ArrayBuffer(264, {maxByteLength: 274});
+Prefix	1	992905de6380abc4	inserted IntegerDecl+TemplateDecl+ObjectDecl+SpecialValueDecl+AsyncDisposableDecl+TypedArrayDecl+ArrayDecl+TemplateDecl+StringDecl+StringDecl	let v0 = 24096; let s0 = String.raw`, ${null}foo${9007199254740993n}x=
+Prefix	2	8aba6763d254edca	inserted ArrowDecl+BooleanDecl+StringDecl+FloatDecl+ConstructorFunctionDecl+ArrowDecl+TypedArrayDecl+BigIntDecl+ArrayDecl+BuiltinInstanceDecl	let f0 = function(a0, a1, a2) {   const e = a1.b;   let a = new Int16A
+Prefix	3	cea32d9f449fc3c4	inserted BigIntDecl+BooleanDecl+StringDecl+StringDecl+TemplateDecl+TemplateDecl+ArrowDecl+AsyncDisposableDecl+TypedArrayDecl+TemplateDecl+IntegerDecl+ObjectDecl	let n0 = 701096n; let b0 = false; const s0 = "-1"; const s1 = "h"; con
+Prefix	4	76efb107cca5fb87	inserted ObjectDecl+ArrayDecl+BooleanDecl+ArrayDecl+ObjectDecl+FloatDecl+ResizableBufferDecl+TemplateDecl+ArrayDecl+ArrowDecl+DisposableDecl	let obj0 = {f: null}; let arr0 = [61133, , ,]; var b0 = false; const a
 Splice	0	19ac12882fc55628	spliced VariableDeclaration (2 stmts, 18 nodes; 2 renamed, 0 rewired, 0 declared)	let n = 42; let s = "text"; function g(x0) {   return x0 * 2; } let q0
 Splice	1	e6d6dbd8ae131135	spliced VariableDeclaration (1 stmts, 9 nodes; 0 renamed, 0 rewired, 0 declared)	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Splice	2	2dd1ce2e1198085b	spliced VariableDeclaration (1 stmts, 9 nodes; 0 renamed, 0 rewired, 0 declared)	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
@@ -38,15 +38,15 @@ Operation	1	a6a5717f0911ab59	assignment += -> <<=	let n = 42; let s = "text"; le
 Operation	2	1a3503d83e16668f	number 3 -> 1.5	let n = 42; let s = "text"; let a = [1, 2, 1.5]; let o = {x: 1, y: "tw
 Operation	3	15c40bc3aba651cd	number 0 -> -1	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Operation	4	2df86dc044338d03	binary + -> **	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-Expression	0	50dd7f9a0b0e19a6	expression `t += a[i]` -> expression	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Expression	0	b9eeee36f58687e6	expression `t += a[i]` -> expression	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Expression	1	538292a8d571b90d	expression `v` -> wrap	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-Expression	2	209e397fd4bfc9ff	expression `i` -> expression	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Expression	2	2ddf550805d81429	expression `i` -> expression	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Expression	3	b7dd983d6c4506d6	expression `this.v = v` -> accessor defineProperty	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Expression	4	122499e690409939	expression `i < 3` -> variable	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-Call	0	305702b13107bc51	added argument	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Call	0	f198273bf22e1ea2	added argument	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Call	1	68d472d977541808	replaced argument	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Call	2	0ac442cc4901b7eb	callee -> f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-Call	3	5a95108d4af9b41a	added argument	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Call	3	4b6d6ab90952fb60	added argument	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Call	4	68d472d977541808	replaced argument	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Remove	0	cb60992f805d2d55	removed array element	let n = 42; let s = "text"; let a = [2, 3]; let o = {x: 1, y: "two"};
 Remove	1	f616f94a2a5d3b59	removed ExpressionStatement `t += a[i];`	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
@@ -68,8 +68,8 @@ Reorder	1	8467b3581d5f6f1e	swapped VariableDeclaration and VariableDeclaration	l
 Reorder	2	85e178b5ff98c32c	swapped VariableDeclaration and VariableDeclaration	let n = 42; let a = [1, 2, 3]; let s = "text"; let o = {x: 1, y: "two"
 Reorder	3	8467b3581d5f6f1e	swapped VariableDeclaration and VariableDeclaration	let n = 42; let s = "text"; let o = {x: 1, y: "two"}; let a = [1, 2, 3
 Reorder	4	85e178b5ff98c32c	swapped VariableDeclaration and VariableDeclaration	let n = 42; let a = [1, 2, 3]; let s = "text"; let o = {x: 1, y: "two"
-JitStress	0	2dc614f900726be6	inserted JitOptimize+JitOptimize	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-JitStress	1	194264d1d9569c1d	inserted JitOptimize	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-JitStress	2	8ecc6179812a02b2	inserted NativeCall+JitOptimize+ElementsKind	let n = 42; let s = "text"; let v0 = %OptimizeFunctionOnNextCall(f); f
-JitStress	3	e487d47f9063e825	inserted Gc+ElementsKind+OsrLoop	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-JitStress	4	b9281d48d0574a46	inserted Gc+Gc+JitOptimize	let n = 42; let s = "text"; let a = [1, 2, 3]; gc({execution: "async"}
+JitStress	0	59c566773ab4f6c9	inserted JitOptimize+ElementsKind	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+JitStress	1	e0e5e89c583cf811	inserted JitOptimize	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+JitStress	2	a2a84376d550b394	inserted NativeCall+ShapeChange+NativeCall	let n = 42; let s = "text"; let v0 = %OptimizeMaglevOnNextCall(f); v0.
+JitStress	3	43f37a5f3b932710	inserted Gc+ElementsKind+OsrLoop	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+JitStress	4	3df36e315467ee3c	inserted Gc+Gc+JitOptimize	let n = 42; let s = "text"; let a = [1, 2, 3]; gc({execution: "async"}

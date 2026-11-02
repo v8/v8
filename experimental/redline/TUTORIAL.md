@@ -450,6 +450,7 @@ cat experimental/redline/presets/maglev.json
 
 - `d8_extra_args` adds flags to the d8 flags, like `--d8-extra-args`.
 - `randomize_d8_flags` gives each new d8 process a random set of extra flags, for example `--maglev-assert`. The `flags.*` tunables set their probabilities.
+  `d8_flag_profile` selects the list of random flags: `maglev` (the default) or `turbolev`.
 - `selection` sets the strategies. `weights` sets the base weight of the named generators. The other generators keep their default weights.
 
 `--preset=maglev` loads `presets/maglev.json`. `--preset=FILE.json` loads any file.

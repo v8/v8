@@ -52,6 +52,11 @@ class FeatureWeights {
     // they only weigh in the rarity strategy, and a new program needs a new
     // non-optimized or target feature.
     bool optimized_in_focus = false;
+    // With a focus: whether Fuzzer::KeepFocused drops a new program whose new
+    // code edges are all outside the focus. When false, such a program enters
+    // the corpus, and the focus only lowers the weight of its edges
+    // (`unfocused`).
+    bool drop_unfocused = true;
   };
   // Inclusive ranges [first, last] of edge indices.
   using EdgeRanges = std::vector<std::pair<uint32_t, uint32_t>>;

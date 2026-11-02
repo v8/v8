@@ -167,11 +167,12 @@ Environment::Environment() {
         F("at", 1, 1, T::kNumber, T::kNumber),
         F("copyWithin", 2, 3, T::kTypedArray, T::kNumber, T::kNumber)},
        {"length", "byteLength", "byteOffset", "buffer", "0", "1"}},
+      // No resize() and grow(): they throw for the buffers that are not
+      // resizable. The ResizableBuffer generator calls them on buffers
+      // that are.
       {T::kArrayBuffer,
        {F("slice", 0, 2, T::kArrayBuffer, T::kNumber, T::kNumber),
-        F("resize", 1, 1, T::kNullish, T::kNumber),
-        F("transfer", 0, 1, T::kArrayBuffer, T::kNumber),
-        F("grow", 1, 1, T::kNullish, T::kNumber)},
+        F("transfer", 0, 1, T::kArrayBuffer, T::kNumber)},
        {"byteLength", "maxByteLength", "resizable", "detached", "growable"}},
       {T::kDate,
        {F("getTime", 0, 0, T::kNumber), F("getFullYear", 0, 0, T::kNumber),
@@ -355,10 +356,17 @@ Environment::Environment() {
        {F("groupBy", 2, 2, T::kMap, T::kArray, T::kFunction)},
        {}},
       {"Set", T::kClass, true, T::kSet, 0, 1, {}, {}},
-      {"WeakMap", T::kClass, true, T::kMap, 0, 1, {}, {}},
-      {"WeakSet", T::kClass, true, T::kSet, 0, 1, {}, {}},
-      {"WeakRef", T::kClass, true, T::kObject, 1, 1, {}, {}},
-      {"FinalizationRegistry", T::kClass, true, T::kObject, 1, 1, {}, {}},
+      {"WeakMap", T::kClass, true, T::kWeakMap, 0, 1, {}, {}},
+      {"WeakSet", T::kClass, true, T::kWeakSet, 0, 1, {}, {}},
+      {"WeakRef", T::kClass, true, T::kWeakRef, 1, 1, {}, {}},
+      {"FinalizationRegistry",
+       T::kClass,
+       true,
+       T::kFinalizationRegistry,
+       1,
+       1,
+       {},
+       {}},
       {"Promise",
        T::kClass,
        true,
@@ -400,8 +408,15 @@ Environment::Environment() {
        2,
        {F("isView", 1, 1, T::kBoolean)},
        {}},
-      {"SharedArrayBuffer", T::kClass, true, T::kArrayBuffer, 1, 2, {}, {}},
-      {"DataView", T::kClass, true, T::kObject, 1, 3, {}, {}},
+      {"SharedArrayBuffer",
+       T::kClass,
+       true,
+       T::kSharedArrayBuffer,
+       1,
+       2,
+       {},
+       {}},
+      {"DataView", T::kClass, true, T::kDataView, 1, 3, {}, {}},
       {"Uint8Array",
        T::kClass,
        true,
@@ -489,6 +504,19 @@ Environment::Environment() {
       {"FlattenString", 1, T::kString},
       {"IsBeingInterpreted", 0, T::kUnknown},
       {"SetAllocationTimeout", 2, T::kNumber},
+      // Special values and GC natives of Fuzzilli's V8 profile. The
+      // NativeCall generator gives several of them a fixed argument shape
+      // (generators/values_generators.cc).
+      {"WasmStruct", 0, T::kUnknown},
+      {"WasmArray", 0, T::kUnknown},
+      {"GetHoleNaN", 0, T::kUnknown},
+      {"GetUndefinedNaN", 0, T::kUnknown},
+      {"AllocateHeapNumberWithValue", 1, T::kNumber},
+      {"ConstructThinString", 1, T::kString},
+      {"ConstructInternalizedString", 1, T::kString},
+      {"MajorGCForCompilerTesting", 0, T::kUnknown},
+      {"SetDispatchTableGCInterval", 1, T::kNumber},
+      {"VerifyType", 1, T::kUnknown},
   };
 
   property_names_ = {"a",
@@ -627,6 +655,7 @@ Environment::Environment() {
               {"^$", "m"},  {"[a-z]+", "gi"}, {"(?<x>a)\\k<x>", ""},
               {".", "s"},   {"a*?", "y"},     {"\\p{L}", "v"},
               {"(?:)", "d"}};
+  AddTypedModel();
 }  // NOLINT(readability/fn_size)
 
 const BuiltinType* Environment::ForType(JsType type) const {
@@ -677,25 +706,28 @@ std::string_view Environment::IntrospectionScript() {
   // "s": [["supportedLocalesOf", 1]], "m": [["format", 1], ...], "g":
   // ["<getter name>", ...]}, ...]. Kinds: F function, C constructor, N
   // namespace object. Shell I/O, process control, threads and WebAssembly
-  // are left out on purpose.
+  // are left out on purpose. The deny list names globals and members
+  // (`d8.terminateNow`). A call of d8.terminateNow() ends the script, and no
+  // try/catch can stop it.
   static constexpr char kScript[] = R"js((function() {
   const out = [];
   const seen = new Set();
   const deny = new Set(['print', 'printErr', 'write', 'quit', 'load', 'read', 'readline',
     'readbuffer', 'os', 'version', 'Worker', 'redline', 'testRunner',
     'globalThis', 'setTimeout', 'queueMicrotask', 'arguments', '__redline_explore',
-    'd8.file', 'd8.log', 'd8.terminate', 'd8.quit', 'd8.debugger', 'd8.profiler', 'd8.dom', 'd8.wasm',
+    'd8.file', 'd8.log', 'd8.terminate', 'd8.terminateNow', 'd8.quit', 'd8.debugger',
+    'd8.profiler', 'd8.dom', 'd8.wasm', 'd8.promise.setHooks',
     'Realm.dispose', 'Realm.navigate', 'Realm.detachGlobal', 'performance.measureMemory',
     'Atomics.wait', 'Atomics.waitAsync', 'Atomics.pause']);
   function isConstructor(f) {
     try { Reflect.construct(function() {}, [], f); return true; } catch (e) { return false; }
   }
-  function members(o, skip) {
+  function members(o, path) {
     const statics = [], getters = [];
     let names;
     try { names = Object.getOwnPropertyNames(o); } catch (e) { return [statics, getters]; }
     for (const n of names) {
-      if (skip.has(n) || n === 'constructor' || n === 'prototype' || n === '__proto__' ||
+      if (deny.has(path + '.' + n) || n === 'constructor' || n === 'prototype' || n === '__proto__' ||
           n === 'caller' || n === 'callee' || n === 'arguments' || n === 'length' ||
           n === 'name') continue;
       let d;
@@ -715,19 +747,19 @@ std::string_view Environment::IntrospectionScript() {
     if (t === 'function') {
       seen.add(v);
       const ctor = isConstructor(v);
-      const [statics] = members(v, new Set());
+      const [statics] = members(v, path);
       let methods = [], getters = [];
       if (ctor) {
         let proto;
         try { proto = v.prototype; } catch (e) {}
         if (proto && typeof proto === 'object') {
-          [methods, getters] = members(proto, new Set());
+          [methods, getters] = members(proto, path + '.prototype');
           // Subclasses (typed arrays, errors) inherit their methods from an
           // intermediate prototype (%TypedArray%.prototype, Error.prototype).
           let parent = null;
           try { parent = Object.getPrototypeOf(proto); } catch (e) {}
           if (parent && parent !== Object.prototype && parent !== Function.prototype) {
-            const [pm, pg] = members(parent, new Set());
+            const [pm, pg] = members(parent, path + '.prototype');
             methods = methods.concat(pm);
             getters = getters.concat(pg);
           }
@@ -737,7 +769,7 @@ std::string_view Environment::IntrospectionScript() {
       if (depth < 1) nested(path, v, depth);
     } else if (t === 'object' && v !== null) {
       seen.add(v);
-      const [statics, getters] = members(v, new Set());
+      const [statics, getters] = members(v, path);
       out.push({p: path, k: 'N', a: 0, s: statics, m: [], g: getters});
       if (depth < 2) nested(path, v, depth);
     }
@@ -843,6 +875,20 @@ std::unique_ptr<Environment> Environment::WithDiscovered(
   if (env->discovered_.empty()) {
     *error = "introspection found no usable globals";
     return nullptr;
+  }
+  // A static that the target also reported as a constructor of its own
+  // (Intl.Locale, Temporal.PlainDate) needs `new`.
+  for (DiscoveredApi& api : env->discovered_) {
+    for (DiscoveredMember& m : api.statics) {
+      std::string path = std::string(api.path) + "." + std::string(m.name);
+      for (const DiscoveredApi& other : env->discovered_) {
+        if (other.kind == DiscoveredApi::Kind::kConstructor &&
+            other.path == path) {
+          m.constructor = true;
+          break;
+        }
+      }
+    }
   }
   return env;
 }

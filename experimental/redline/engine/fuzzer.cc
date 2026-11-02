@@ -1958,7 +1958,9 @@ void Fuzzer::RecordTargetFlags(const std::vector<std::string>& args,
 }
 
 std::vector<std::string> Fuzzer::DrawD8Flags(Random& rng) {
-  std::vector<std::string> fresh = RandomD8Flags(rng);
+  D8FlagProfile profile = D8FlagProfile::kMaglev;
+  ParseD8FlagProfile(config_.d8_flag_profile, &profile);
+  std::vector<std::string> fresh = RandomD8Flags(rng, profile);
   if (targets_.empty() || !has_target_flags_.load(std::memory_order_relaxed) ||
       !rng.Chance(TargetGuidedChance())) {
     return fresh;

@@ -23,6 +23,7 @@
 #include "experimental/redline/core/tunable.h"
 #include "experimental/redline/corpus/corpus.h"
 #include "experimental/redline/engine/amplifier.h"
+#include "experimental/redline/engine/d8_flags.h"
 #include "experimental/redline/engine/prelude.h"
 #include "experimental/redline/generators/generator.h"
 #include "experimental/redline/mutators/mutator.h"
@@ -205,7 +206,8 @@ bool ReadAmplifyConfig(const JsonValue& amplify, FuzzConfig* c,
 }
 
 // "coverage": {"targets": FILE, "watch_optimized": BOOL, "focus": BOOL,
-// "focus_optimized": BOOL, "target_boost": N, "weights": {"builtins": N,
+// "focus_optimized": BOOL, "drop_unfocused": BOOL, "target_boost": N,
+// "weights": {"builtins": N,
 // "optimized": N, "bucket": N, "unfocused": N}} (exec/coverage.h,
 // corpus/feature_weights.h).
 bool ReadCoverageConfig(const JsonValue& coverage, FuzzConfig* c,
@@ -219,10 +221,11 @@ bool ReadCoverageConfig(const JsonValue& coverage, FuzzConfig* c,
   }
   for (const auto& [key, value] : coverage.as_object()) {
     if (key != "targets" && key != "watch_optimized" && key != "focus" &&
-        key != "focus_optimized" && key != "target_boost" && key != "weights") {
+        key != "focus_optimized" && key != "drop_unfocused" &&
+        key != "target_boost" && key != "weights") {
       *error = "config: unknown key \"" + key +
                "\" in \"coverage\" (known: targets, watch_optimized, focus, "
-               "focus_optimized, target_boost, weights)";
+               "focus_optimized, drop_unfocused, target_boost, weights)";
       return false;
     }
   }
@@ -232,6 +235,7 @@ bool ReadCoverageConfig(const JsonValue& coverage, FuzzConfig* c,
   FeatureWeights::Params& w = c->feature_weights;
   w.optimized_in_focus =
       coverage.GetBool("focus_optimized", w.optimized_in_focus);
+  w.drop_unfocused = coverage.GetBool("drop_unfocused", w.drop_unfocused);
   w.target_boost = coverage.GetNumber("target_boost", w.target_boost);
   const JsonValue& weights = coverage.Get("weights");
   if (!weights.is_null()) {
@@ -701,6 +705,7 @@ bool ApplyJson(const JsonValue& json, FuzzConfig* c, std::string* error) {
   c->harvest_crashes = json.GetBool("harvest_crashes", c->harvest_crashes);
   c->randomize_d8_flags =
       json.GetBool("randomize_d8_flags", c->randomize_d8_flags);
+  c->d8_flag_profile = json.GetString("d8_flag_profile", c->d8_flag_profile);
   c->minimize_code_edges =
       json.GetBool("minimize_code_edges", c->minimize_code_edges);
   c->minimize_imports = json.GetBool("minimize_imports", c->minimize_imports);
@@ -995,6 +1000,7 @@ bool FuzzConfig::Load(const Flags& flags, FuzzConfig* c, std::string* error,
   c->harvest_crashes = flags.GetBool("harvest-crashes", c->harvest_crashes);
   c->randomize_d8_flags =
       flags.GetBool("randomize-d8-flags", c->randomize_d8_flags);
+  c->d8_flag_profile = flags.GetString("d8-flag-profile", c->d8_flag_profile);
   c->minimize_code_edges =
       flags.GetBool("minimize-code-edges", c->minimize_code_edges);
   c->minimize_crashes = flags.GetBool("minimize-crashes", c->minimize_crashes);
@@ -1101,6 +1107,12 @@ bool FuzzConfig::Load(const Flags& flags, FuzzConfig* c, std::string* error,
   // Validation.
   if (c->jobs < 1) {
     *error = "--jobs must be at least 1";
+    return false;
+  }
+  D8FlagProfile flag_profile;
+  if (!ParseD8FlagProfile(c->d8_flag_profile, &flag_profile)) {
+    *error = "d8_flag_profile must be \"maglev\" or \"turbolev\", not \"" +
+             c->d8_flag_profile + "\"";
     return false;
   }
   // The run seed is drawn only when there is a run; --dump-config shows 0
@@ -1254,6 +1266,7 @@ std::string FuzzConfig::ToJson(Detail detail) const {
   o.Add("minimize_crashes", minimize_crashes);
   o.Add("harvest_crashes", harvest_crashes);
   o.Add("randomize_d8_flags", randomize_d8_flags);
+  o.Add("d8_flag_profile", d8_flag_profile);
   o.Add("minimize_code_edges", minimize_code_edges);
   o.Add("minimize_imports", minimize_imports);
   o.Add("import_all", import_all);
@@ -1293,6 +1306,7 @@ std::string FuzzConfig::ToJson(Detail detail) const {
         .Add("watch_optimized", watch_optimized);
     coverage.Add("focus", focus)
         .Add("focus_optimized", feature_weights.optimized_in_focus)
+        .Add("drop_unfocused", feature_weights.drop_unfocused)
         .Add("target_boost", feature_weights.target_boost);
     JsonObject weights;
     weights.Add("builtins", feature_weights.builtins)
@@ -1379,6 +1393,8 @@ std::string FuzzConfig::JsonHelp() {
       "    \"randomize_d8_flags\": false,     // random extra d8 flags for "
       "each "
       "new d8 (flags.* tunables)\n"
+      "    \"d8_flag_profile\": \"maglev\",    // the random flags: "
+      "\"maglev\" or \"turbolev\"\n"
       "    \"timeout_ms\": 1000, \"jobs\": 8, \"seed\": 1, \"out_dir\": "
       "\"redline-out\",\n"
       "    \"imports\": [\"test/mjsunit\"], \"import_root\": \".\", "

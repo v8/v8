@@ -55,6 +55,61 @@ REDLINE_TUNABLE(kFlagsStressIc, "flags.stress_ic", 0.1, 0, 1,
                 "probability of --stress-ic");
 REDLINE_TUNABLE(kFlagsVerifyHeap, "flags.verify_heap", 0.1, 0, 1,
                 "probability of --verify-heap");
+REDLINE_TUNABLE(kFlagsPrivateFieldBytecodes, "flags.private_field_bytecodes",
+                0.25, 0, 1, "probability of --private-field-bytecodes");
+REDLINE_TUNABLE(kFlagsTurbolevSmallInlinedSizeZero,
+                "flags.turbolev_small_inlined_size_zero", 0.3, 0, 1,
+                "Turbolev profile: probability of "
+                "--max-inlined-bytecode-size-small=0, so that small callees "
+                "stay for the later inliner");
+REDLINE_TUNABLE(kFlagsVerifyTurboshaft, "flags.verify_turboshaft", 0.2, 0, 1,
+                "Turbolev profile: probability of --verify-turboshaft");
+REDLINE_TUNABLE(kFlagsTurboshaftVerifyReductions,
+                "flags.turboshaft_verify_reductions", 0.1, 0, 1,
+                "Turbolev profile: probability of "
+                "--turboshaft-verify-reductions");
+REDLINE_TUNABLE(kFlagsMaglevRangeVerification,
+                "flags.maglev_range_verification", 0.2, 0, 1,
+                "Turbolev profile: probability of "
+                "--maglev-range-verification");
+REDLINE_TUNABLE(kFlagsAlwaysOsrFromMaglev, "flags.always_osr_from_maglev", 0.1,
+                0, 1,
+                "Turbolev profile: probability of --always-osr-from-maglev");
+REDLINE_TUNABLE(kFlagsNoAdditiveSafeIntFeedback,
+                "flags.no_additive_safe_int_feedback", 0.1, 0, 1,
+                "Turbolev profile: probability of "
+                "--no-additive-safe-int-feedback");
+REDLINE_TUNABLE(kFlagsTurbolevDisableBuiltinReducers,
+                "flags.turbolev_disable_builtin_reducers", 0.15, 0, 1,
+                "Turbolev profile: probability of "
+                "--maglev-disable-builtin-reducers");
+REDLINE_TUNABLE(kFlagsNoTurbolevUntaggedPhis, "flags.no_turbolev_untagged_phis",
+                0.1, 0, 1,
+                "Turbolev profile: probability of --no-turbolev-untagged-phis");
+REDLINE_TUNABLE(kFlagsNoTurbolevTruncatedInt32Phis,
+                "flags.no_turbolev_truncated_int32_phis", 0.1, 0, 1,
+                "Turbolev profile: probability of "
+                "--no-turbolev-truncated-int32-phis");
+REDLINE_TUNABLE(kFlagsNoTurbolevNonEagerInlining,
+                "flags.no_turbolev_non_eager_inlining", 0.1, 0, 1,
+                "Turbolev profile: probability of "
+                "--no-turbolev-non-eager-inlining");
+REDLINE_TUNABLE(kFlagsNoTurbolevLoopPeeling, "flags.no_turbolev_loop_peeling",
+                0.1, 0, 1,
+                "Turbolev profile: probability of "
+                "--no-turbolev-non-eager-loop-peeling");
+REDLINE_TUNABLE(kFlagsNoTurbolevOsrLoopPeeling,
+                "flags.no_turbolev_osr_loop_peeling", 0.1, 0, 1,
+                "Turbolev profile: probability of "
+                "--no-turbolev-eager-loop-peeling-osr");
+REDLINE_TUNABLE(kFlagsNoTurboshaftLoadElimination,
+                "flags.no_turboshaft_load_elimination", 0.1, 0, 1,
+                "Turbolev profile: probability of "
+                "--no-turboshaft-load-elimination");
+REDLINE_TUNABLE(kFlagsNoTurboshaftLoopUnrolling,
+                "flags.no_turboshaft_loop_unrolling", 0.1, 0, 1,
+                "Turbolev profile: probability of "
+                "--no-turboshaft-loop-unrolling");
 REDLINE_TUNABLE(kFlagsTargetGuidedChance, "flags.target_guided_chance", 0.75, 0,
                 1,
                 "change-based fuzzing: probability that a new target process "
@@ -75,7 +130,23 @@ REDLINE_TUNABLE(kFlagsTargetProbeExecs, "flags.target_probe_execs", 64, 0,
 
 }  // namespace
 
-std::vector<std::string> RandomD8Flags(Random& rng) {
+bool ParseD8FlagProfile(const std::string& name, D8FlagProfile* profile) {
+  if (name == "maglev") {
+    *profile = D8FlagProfile::kMaglev;
+    return true;
+  }
+  if (name == "turbolev") {
+    *profile = D8FlagProfile::kTurbolev;
+    return true;
+  }
+  return false;
+}
+
+const char* D8FlagProfileName(D8FlagProfile profile) {
+  return profile == D8FlagProfile::kTurbolev ? "turbolev" : "maglev";
+}
+
+std::vector<std::string> RandomD8Flags(Random& rng, D8FlagProfile profile) {
   std::vector<std::string> flags;
   auto maybe = [&](const Tunable& probability, const char* flag) {
     if (rng.Chance(probability())) {
@@ -87,6 +158,34 @@ std::vector<std::string> RandomD8Flags(Random& rng) {
   maybe(kFlagsSingleThreaded, "--single-threaded");
   maybe(kFlagsNoLazyFeedbackAllocation, "--no-lazy-feedback-allocation");
   maybe(kFlagsNoBaselineBatchCompilation, "--no-baseline-batch-compilation");
+  maybe(kFlagsPrivateFieldBytecodes, "--private-field-bytecodes");
+  if (profile == D8FlagProfile::kTurbolev) {
+    // Turbolev builds its graph with the Maglev graph builder, so the object
+    // tracking and the builtin reducers of Maglev apply to it too.
+    maybe(kFlagsMaglevObjectTracking, "--maglev-object-tracking");
+    maybe(kFlagsTurbolevDisableBuiltinReducers,
+          "--maglev-disable-builtin-reducers");
+    maybe(kFlagsTurbolevSmallInlinedSizeZero,
+          "--max-inlined-bytecode-size-small=0");
+    maybe(kFlagsVerifyTurboshaft, "--verify-turboshaft");
+    maybe(kFlagsTurboshaftVerifyReductions, "--turboshaft-verify-reductions");
+    maybe(kFlagsMaglevRangeVerification, "--maglev-range-verification");
+    maybe(kFlagsAlwaysOsrFromMaglev, "--always-osr-from-maglev");
+    maybe(kFlagsNoAdditiveSafeIntFeedback, "--no-additive-safe-int-feedback");
+    maybe(kFlagsNoTurbolevUntaggedPhis, "--no-turbolev-untagged-phis");
+    maybe(kFlagsNoTurbolevTruncatedInt32Phis,
+          "--no-turbolev-truncated-int32-phis");
+    maybe(kFlagsNoTurbolevNonEagerInlining, "--no-turbolev-non-eager-inlining");
+    maybe(kFlagsNoTurbolevLoopPeeling, "--no-turbolev-non-eager-loop-peeling");
+    maybe(kFlagsNoTurbolevOsrLoopPeeling,
+          "--no-turbolev-eager-loop-peeling-osr");
+    maybe(kFlagsNoTurboshaftLoadElimination,
+          "--no-turboshaft-load-elimination");
+    maybe(kFlagsNoTurboshaftLoopUnrolling, "--no-turboshaft-loop-unrolling");
+    maybe(kFlagsStressIc, "--stress-ic");
+    maybe(kFlagsVerifyHeap, "--verify-heap");
+    return flags;
+  }
   maybe(kFlagsMaglevFuture, "--maglev-future");
   maybe(kFlagsMaglevObjectTracking, "--maglev-object-tracking");
   if (maybe(kFlagsMaglevNonEagerInlining, "--maglev-non-eager-inlining")) {

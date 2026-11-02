@@ -173,6 +173,12 @@ rarity(p) = sum over the tracked edges e of p with count(e) < rare_edge_limit (o
 
 A **generator** makes new statements for one insertion point. It declares what its code needs from the context, for example a loop for `continue`.
 Redline uses a generator only where the context allows it. Generated code uses only the variables that are visible and initialized at that point.
+Like Fuzzilli's `CodeGenMutator`, `CodeGen` also inserts into existing class bodies and object literals. At such a member slot, only the member generators `ClassMember` and `LiteralMember` run.
+
+**Facts about variables.** A variable has a coarse type guess (`JsType`). The `Builder` also keeps facts about variables (`BindingInfo`): the parameter types of a function or class constructor, and the property keys of a value.
+Generators record the facts for the variables that they declare. For variables of earlier mutations, the `Builder` derives them from the tree, for example from the arguments of the first call of a function.
+A new function gets parameter types that enough visible variables have, as in Fuzzilli. Calls then pass values of these types, so that the function gets stable feedback.
+`JitOptimize` and `LazyDeopt` reuse at most two argument lists for the warm-up calls and the optimized call. `HotLoop` calls a function 100 times with the same arguments.
 
 A **mutator** changes a program. Mutators insert generated code (`CodeGen`, `JitStress`), change code in place (`Input`, `Operation`, `Expression`, `Call`),
 copy code from a partner (`Splice`, `Combine`), change the structure (`Remove`, `Wrap`, `Duplicate`, `Reorder`), or ask the target (`Explore`, `Probing`).
@@ -188,6 +194,10 @@ One link of the chain works like this:
 **Prefix.** The prefix gives the mutators new values to work with. It uses only generators whose code cannot throw,
 because an exception in the prefix would make each result of the chain fail. Minimize removes the values that a new corpus program does not use.
 The `Prefix` mutator makes the prefix. Its weight is 0, so that the mutator strategy does not pick it.
+It sets `GenContext::cannot_throw`. Then `CodeGen` makes only variables and literals as values, without operators, calls or constructors.
+The prefix values are primitives, arrays, objects, regexps, symbols, typed arrays, functions and templates.
+`generators/values_generators.cc` adds builtin instances, constructor functions, iterables and disposables.
+It also adds resizable buffers and special values such as `%GetHoleNaN()`.
 
 **Runtime-assisted mutators.** A type guess from the source does not tell which properties a value has. `Explore` and `Probing` ask the target instead.
 They insert probes, and the worker runs the instrumented program once with a helper script in front.
@@ -195,8 +205,19 @@ The helper writes its findings to the fuzzout channel. The mutator turns the fin
 `Explore` examines a variable and does an action that fits its value. `Probing` installs properties that the program asks an object for but the object does not have.
 
 **Environment.** Generators use a hand-written model of the globals, methods and runtime functions of d8 (`core/environment.h`).
+The typed part of the model (`core/environment_typed.cc`, after Fuzzilli's JavaScriptEnvironment) gives a builtin its full parameter list.
+A parameter can be an index, a length, an integer range, an iterable or a callback.
+It can also be an enum string, an options bag or an instance of a builtin type.
+`CodeGen::ArgumentFor()` uses a visible variable of the kind, or it makes a value of the kind (`generators/codegen_typed.cc`).
 At the start of a session, one target runs an introspection script that lists its globals and their members.
 With this list, the `DiscoveredApi` generator and `Explore` also reach builtins that the model does not describe.
+Where the model knows the signature of a discovered callable, `DiscoveredApi` uses it instead of the arity that the target reports.
+The deny list of the script also removes members that end the process, for example `d8.terminateNow`.
+
+**Members.** Classes, object literals and property accesses draw member names from small shared pools (`generators/members.cc`).
+The Builder also knows the keys of a value: the keys of its object literal, the members of its class and the stores `x.p = v` (`core/known_keys.cc`).
+`Property()` and `MethodCall()` use these keys, so that many accesses find a real member.
+`PrivateAccess` and `SuperAccess` use the private names of the enclosing classes and the home object of the enclosing method.
 
 **Strategies.** `weighted` is the default: one weighted random draw among the eligible components.
 `adaptive` moves the weights toward the components with a higher recent yield (`core/adaptive_selector.h`).
@@ -221,6 +242,7 @@ For each execution, Redline writes the script, sends a command and waits for a s
 
 - Redline replaces the target after a timeout, after a crash and after `max_execs_before_respawn` executions. This limits the state in one process.
 - With `randomize_d8_flags`, each new target process gets a random set of extra d8 flags, for example `--maglev-assert` or `--maglev-non-eager-inlining` (`engine/d8_flags.h`).
+  `d8_flag_profile` selects the flag list: `maglev` (the default) or `turbolev`. The `turbolev` list has Turbolev, Turboshaft and inlining-limit flags.
   The probabilities are tunables (`flags.*`). The random flags come before the other d8 flags, so that a flag of the configuration wins.
   Accept, Minimize and crash triage keep the flags of the process that ran the program, also in a new process.
   These steps run most executions, so most respawns keep the flags. Thus the worker replaces a process at the end of such a step if its flags ran `max_execs_before_respawn` executions.
@@ -260,6 +282,7 @@ It also removes the edges of blocks that only lead to a fatal error (by the mach
 The targets file also has a focus: the code of the directories of the changed files, for example `src/maglev/`.
 An edge is in the focus if one of its frames is in such a directory, or if its function has such an edge.
 With a focus, Redline keeps a new program only if it has a new feature in the focus.
+With `coverage.drop_unfocused: false`, Redline also keeps a program whose new features are all outside the focus. The focus then only lowers their weight.
 These features are the focus edges, the target edges and their buckets (plus the optimized code features when `--focus-optimized` is true).
 Without a focus, `--focus-optimized=false` (the default) still excludes non-target optimized code features from corpus admission.
 The other new features of the program stay claimed, but they do not make a candidate.
@@ -409,7 +432,7 @@ Each preset selects `rarity`, `rarity-partner` and `adaptive`. Without a preset,
 |---|---|---|
 | `default` | none | none |
 | `maglev` | `--maglev --no-turbofan --jit-fuzzing`, and random Maglev flags | JIT, deoptimization, OSR, elements-kind and shape generators |
-| `turbolev` | `--turbolev --turbolev-future --jit-fuzzing` | the same generators as `maglev` |
+| `turbolev` | `--turbolev --turbolev-future --jit-fuzzing`, and random Turbolev flags | the same generators as `maglev` |
 | `runtime` | `--no-turbofan --no-maglev --no-sparkplug` | property, prototype, proxy, freeze and shape generators. The JIT generators are off. |
 | `parser` | none | class, destructuring, arrow, template, label, `using`, `eval` and `with` generators, and `Splice` and `Combine` |
 | `builtins` | none | discovered-API, builtin-call, method-call, string, typed-array, collection and worker generators |

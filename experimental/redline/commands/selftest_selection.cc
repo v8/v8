@@ -30,6 +30,7 @@
 #include "experimental/redline/engine/stages.h"
 #include "experimental/redline/fast/parser.h"
 #include "experimental/redline/fast/printer.h"
+#include "experimental/redline/generators/codegen.h"
 #include "experimental/redline/generators/generator.h"
 #include "experimental/redline/mutators/mutator.h"
 
@@ -994,6 +995,49 @@ void CheckEdgeCases(Checker* checker) {
     checker->Check(
         "random: full int64 Range and trailing zero weight in Weighted",
         weighted_ok);
+  }
+  // CodeGen recursion cap under adversarial tunable settings.
+  {
+    TunableRegistry& reg = TunableRegistry::Instance();
+    std::string err;
+    bool set_ok = reg.Set("codegen.argument.reuse_chance", 0.0, &err) &&
+                  reg.Set("codegen.value.variable_chance", 0.0, &err) &&
+                  reg.Set("codegen.argument.optional_stop_chance", 0.0, &err) &&
+                  reg.Set("codegen.expression.max_depth", 16.0, &err) &&
+                  reg.Set("codegen.argument.max_depth", 16.0, &err) &&
+                  reg.Set("codegen.max_expr_depth", 10.0, &err);
+    std::unique_ptr<GeneratorSet> generators = GeneratorSet::CreateDefault();
+    const Environment& env = Environment::Default();
+    Random rng(12345);
+    bool depth_ok = set_ok;
+    for (int i = 0; i < 300 && depth_ok; i++) {
+      auto tree = std::make_unique<fast::Tree>();
+      tree->set_root(tree->New<fast::Program>());
+      Builder builder(tree.get(), &rng);
+      GenContext ctx(builder, *generators, env);
+      CodeGen cg(ctx);
+      fast::Expression* e1 = cg.Expression(0);
+      fast::Expression* e2 = cg.BuiltinCall();
+      fast::Expression* e3 = cg.Construct();
+      if (ctx.expr_depth != 0 || e1 == nullptr || e2 == nullptr ||
+          e3 == nullptr) {
+        depth_ok = false;
+        break;
+      }
+      tree->root()->body.push_back(cg.Stmt(e1));
+      tree->root()->body.push_back(cg.Stmt(e2));
+      tree->root()->body.push_back(cg.Stmt(e3));
+      fast::ParseError parse_err;
+      if (fast::Parser::ParseScript(fast::Print(tree->root()),
+                                    fast::ParseOptions(),
+                                    &parse_err) == nullptr) {
+        err = parse_err.message;
+        depth_ok = false;
+      }
+    }
+    reg.Reset();
+    checker->Check("codegen: expression recursion depth stays bounded",
+                   depth_ok, err);
   }
 }
 

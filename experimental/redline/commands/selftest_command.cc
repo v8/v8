@@ -17,6 +17,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <initializer_list>
 #include <iterator>
 #include <set>
 
@@ -70,6 +71,50 @@ std::string DefaultTestdataDir() {
     return selection.substr(0, selection.rfind('/'));
   }
   return RedlineDataDir("testdata");
+}
+
+// Offline: the profiles of the random d8 flags. The Turbolev profile must not
+// draw the flags that only Maglev reads, and the Maglev profile must not draw
+// the Turbolev and Turboshaft flags.
+void RunD8FlagProfileChecks(Checker* checker) {
+  auto draws_any = [](D8FlagProfile profile,
+                      std::initializer_list<const char*> prefixes) {
+    Random rng(7);
+    std::string found;
+    for (int i = 0; i < 500 && found.empty(); i++) {
+      for (const std::string& flag : RandomD8Flags(rng, profile)) {
+        for (const char* prefix : prefixes) {
+          if (flag.rfind(prefix, 0) == 0) {
+            found = flag;
+          }
+        }
+      }
+    }
+    return found;
+  };
+  D8FlagProfile parsed = D8FlagProfile::kMaglev;
+  checker->Check("random flags: the profile names parse",
+                 ParseD8FlagProfile("turbolev", &parsed) &&
+                     parsed == D8FlagProfile::kTurbolev &&
+                     ParseD8FlagProfile("maglev", &parsed) &&
+                     parsed == D8FlagProfile::kMaglev &&
+                     !ParseD8FlagProfile("turbofan", &parsed),
+                 "");
+  std::string maglev_only =
+      draws_any(D8FlagProfile::kTurbolev,
+                {"--maglev-future", "--maglev-non-eager", "--maglev-assert",
+                 "--max-maglev", "--optimize-on-next-call-optimizes-to-maglev",
+                 "--no-maglev-"});
+  checker->Check("random flags: the turbolev profile draws no Maglev-only flag",
+                 maglev_only.empty(), maglev_only);
+  std::string turbolev_only =
+      draws_any(D8FlagProfile::kMaglev,
+                {"--no-turbolev", "--no-turboshaft", "--turboshaft-",
+                 "--verify-turboshaft", "--maglev-range-verification",
+                 "--always-osr-from-maglev", "--no-additive-safe-int-feedback",
+                 "--max-inlined-bytecode-size-small"});
+  checker->Check("random flags: the maglev profile draws no Turbolev flag",
+                 turbolev_only.empty(), turbolev_only);
 }
 
 // Offline: crash signatures. A recursion that overflows the stack must get
@@ -481,6 +526,7 @@ int RunSelftest(const Flags& flags) {
   // Offline checks first: they need no target.
   RunCrashSignatureChecks(&checker);
   RunCoverageHeaderChecks(&checker);
+  RunD8FlagProfileChecks(&checker);
   RunCoverageCounterChecks(&checker);
   RunNodeKindChecks(&checker);
   RunPresetChecks(&checker);

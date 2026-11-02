@@ -15,6 +15,7 @@
 #include "experimental/redline/core/weighted_selector.h"
 #include "experimental/redline/fast/printer.h"
 #include "experimental/redline/generators/codegen.h"
+#include "experimental/redline/generators/values_generators.h"
 #include "experimental/redline/mutators/explore.h"
 #include "experimental/redline/mutators/mutator.h"
 #include "experimental/redline/mutators/probing.h"
@@ -780,6 +781,24 @@ bool IsObjectSubtype(JsType type) {
     case JsType::kArrayBuffer:
     case JsType::kDate:
     case JsType::kError:
+    case JsType::kDataView:
+    case JsType::kSharedArrayBuffer:
+    case JsType::kWeakMap:
+    case JsType::kWeakSet:
+    case JsType::kWeakRef:
+    case JsType::kFinalizationRegistry:
+    case JsType::kIterator:
+    case JsType::kDisposableStack:
+    case JsType::kAsyncDisposableStack:
+    case JsType::kTemporalInstant:
+    case JsType::kTemporalDuration:
+    case JsType::kTemporalPlainDate:
+    case JsType::kTemporalPlainTime:
+    case JsType::kTemporalPlainDateTime:
+    case JsType::kTemporalPlainYearMonth:
+    case JsType::kTemporalPlainMonthDay:
+    case JsType::kTemporalZonedDateTime:
+    case JsType::kIntlLocale:
       return true;
     default:
       return false;
@@ -982,6 +1001,10 @@ REDLINE_TUNABLE(kInsertExtraContinueChance,
                 "mutators.Insert.extra_continue_chance", 0.6, 0, 1,
                 "probability of inserting one more generator output beyond the "
                 "minimum (geometric)");
+REDLINE_TUNABLE(kInsertMemberSlotWeight, "mutators.Insert.member_slot_weight",
+                1, 0, 100,
+                "weight of a member slot (class body or object literal) "
+                "against a statement slot when CodeGen picks where to insert");
 
 class InsertMutator final : public Mutator {
  public:
@@ -993,13 +1016,14 @@ class InsertMutator final : public Mutator {
   InsertMutator(std::string name, std::string_view description, double weight,
                 std::vector<std::string> generator_names, bool prefer_functions,
                 int min_count = 1, int extra_count = 2, bool at_top = false,
-                int max_simultaneous = 1)
+                int max_simultaneous = 1, bool cannot_throw = false)
       : Mutator(std::move(name), description, weight, false, max_simultaneous),
         generator_names_(std::move(generator_names)),
         prefer_functions_(prefer_functions),
         min_count_(min_count),
         extra_count_(extra_count),
-        at_top_(at_top) {}
+        at_top_(at_top),
+        cannot_throw_(cannot_throw) {}
 
   // How many generator outputs one application inserts: min_count plus a
   // geometrically distributed 0..extra_count.
@@ -1012,6 +1036,20 @@ class InsertMutator final : public Mutator {
   bool Mutate(Builder& b, MutationContext& ctx) override {
     Random& r = b.rng();
     Builder::Slot slot;
+    // Like Fuzzilli's CodeGenMutator, CodeGen also inserts into class bodies
+    // and object literals: member slots compete with statement slots.
+    if (!at_top_ && generator_names_.empty() && kInsertMemberSlotWeight() > 0) {
+      std::vector<Builder::MemberSlot> member_slots = b.MemberSlots();
+      if (!member_slots.empty()) {
+        const double members = kInsertMemberSlotWeight() *
+                               static_cast<double>(member_slots.size());
+        const double statements =
+            static_cast<double>(b.InsertionSlots().size());
+        if (r.Chance(members / (members + statements))) {
+          return InsertMembers(b, ctx, r.Pick(member_slots));
+        }
+      }
+    }
     if (at_top_) {
       std::vector<Builder::Slot> slots = b.InsertionSlots();
       for (const Builder::Slot& s : slots) {
@@ -1039,6 +1077,7 @@ class InsertMutator final : public Mutator {
       }
     }
     GenContext gen = ContextForSlot(b, slot, ctx);
+    gen.cannot_throw = cannot_throw_;
     std::vector<Statement*> out;
     gen.out = &out;
     int count =
@@ -1071,6 +1110,33 @@ class InsertMutator final : public Mutator {
   }
 
  private:
+  // Inserts the output of one member generator at `slot`.
+  bool InsertMembers(Builder& b, MutationContext& ctx,
+                     const Builder::MemberSlot& slot) {
+    GenContext gen = ContextForNode(b, slot.owner, ctx);
+    std::vector<Node*> members;
+    std::vector<Statement*> unused;
+    gen.member_owner = slot.owner;
+    gen.member_out = &members;
+    Generator* g = PickGenerator(gen);
+    if (g == nullptr) {
+      return false;
+    }
+    g->stats().invocations++;
+    if (!g->Generate(gen, &unused) || members.empty()) {
+      return false;
+    }
+    g->stats().produced++;
+    NoteGeneratorUsed(g);
+    Builder::MemberSlot cursor = slot;
+    for (Node* member : members) {
+      b.InsertMember(cursor, member);
+      cursor.index++;
+    }
+    ctx.detail = "inserted member " + g->name();
+    return true;
+  }
+
   // Asks the generator strategy for one generator that is applicable here
   // and, if this mutator has a generator list, on that list.
   Generator* PickGenerator(const GenContext& gen) {
@@ -1094,6 +1160,7 @@ class InsertMutator final : public Mutator {
   int min_count_;
   int extra_count_;
   bool at_top_;
+  bool cannot_throw_;
 };
 
 // --- Expression mutator
@@ -2436,19 +2503,24 @@ std::unique_ptr<MutatorSet> MutatorSet::CreateDefault() {
   // Weight 0: never picked at random; the worker applies it to the parent of
   // every mutation chain so that the mutators have fresh values to work with
   // (10-15 values, like Fuzzilli's buildPrefix()). Only generators that
-  // cannot throw: an exception in the prefix would fail every mutant of the
-  // chain.
+  // cannot throw, in a context that makes CodeGen produce values that cannot
+  // throw: an exception in the prefix would fail every mutant of the chain.
+  std::vector<std::string> prefix_generators = {
+      "IntegerDecl", "FloatDecl",      "StringDecl", "BooleanDecl",
+      "BigIntDecl",  "RegExpDecl",     "SymbolDecl", "ArrayDecl",
+      "ObjectDecl",  "TypedArrayDecl", "ArrowDecl",  "TemplateDecl"};
+  for (const std::string& name : CannotThrowValueGenerators()) {
+    prefix_generators.push_back(name);
+  }
   add(std::make_unique<InsertMutator>(
       "Prefix",
       "fresh value declarations at the top of a mutation chain's parent", 0,
-      std::vector<std::string>{"IntegerDecl", "FloatDecl", "StringDecl",
-                               "BooleanDecl", "BigIntDecl", "RegExpDecl",
-                               "SymbolDecl", "ArrayDecl", "ObjectDecl",
-                               "TypedArrayDecl", "ArrowDecl", "TemplateDecl"},
-      false,
+      std::move(prefix_generators), false,
       /*min_count=*/10,
       /*extra_count=*/5,
-      /*at_top=*/true));
+      /*at_top=*/true,
+      /*max_simultaneous=*/1,
+      /*cannot_throw=*/true));
   add(std::make_unique<SpliceMutator>());
   add(std::make_unique<CombineMutator>());
   add(std::make_unique<InputMutator>());
