@@ -34,7 +34,9 @@ for more details about the presubmit API built into gcl.
 import ast
 import json
 import os
+import platform
 import re
+import subprocess
 import sys
 import traceback
 
@@ -680,6 +682,9 @@ def _CommonChecks(input_api, output_api):
       input_api.canned_checks.CheckOwnersFormat,
       input_api.canned_checks.CheckOwners,
       _CheckCommitMessageBugEntry,
+      _CheckNoLocalPathsInDescription,
+      _CheckDescriptionFooters,
+      _CheckRegressionTest,
       _CheckLandOnChromiumBranch,
       input_api.canned_checks.CheckPatchFormatted,
       _CheckGenderNeutralInLicenses,
@@ -1062,9 +1067,286 @@ def _CheckMarkdown(input_api, output_api):
   ])
 
 
+_AI_AGENT_ENV_VARS = (
+    'AI_AGENT',
+    'ANTIGRAVITY_AGENT',
+    'CLAUDECODE',
+    'CODEX_SANDBOX',
+    'COPILOT_CLI',
+    'CURSOR_AGENT',
+    'GEMINI_CLI',
+)
+
+_MAX_COMMIT_LINE_LENGTH = 72
+
+_COMMIT_FOOTER_RE = re.compile(
+    r'^(?:[A-Z][A-Za-z0-9]*-[A-Za-z0-9-]+:|(?:Bug|Fixed|Test):|[A-Z][A-Z0-9_]*=)'
+)
+
+_LOCAL_PATH_RE = re.compile(
+    r'file://\S+'
+    r'|/usr/local/(?:google/home|btrfs_mount)/\S+'
+    r'|/google/(?:src|cog)/\S+'
+    r'|(?<![\w/])(?:/home/[\w-]+|/Users/[\w-]+|/tmp|~)/\S+'
+    r'|\.gemini/\S+'
+    r'|\bworktrees/task-\S+')
+
+
+def _IsAiAgent(input_api):
+  """Returns True if the presubmit is running in an AI agent environment."""
+  if any(
+      str(input_api.environ.get(var, '')).lower() not in ('', '0', 'false')
+      for var in _AI_AGENT_ENV_VARS):
+    return True
+  desc = input_api.change.FullDescriptionText() or ''
+  return bool(input_api.re.search(r'^TAG=agy\b', desc, input_api.re.MULTILINE))
+
+
+def _CheckNoLocalPathsInDescription(input_api, output_api):
+  """Rejects local workstation paths in the CL description."""
+  desc = input_api.change.FullDescriptionText() or ''
+  hits = [
+      f'  Line {i}: "{m.group(0)}"'
+      for i, line in enumerate(desc.splitlines(), start=1)
+      if not line.lstrip().startswith('#')
+      for m in _LOCAL_PATH_RE.finditer(line)
+  ]
+  if not hits:
+    return []
+  return [
+      output_api.PresubmitError(
+          'CL description contains local machine/workspace paths '
+          '(use repo-relative paths instead):\n' + '\n'.join(hits))
+  ]
+
+
+def _CheckDescriptionFooters(input_api, output_api):
+  """Checks footer placement and single Change-Id for all CLs."""
+  desc = input_api.change.FullDescriptionText() or ''
+  lines = [
+      l.strip()
+      for l in desc.splitlines()
+      if l.strip() and not l.lstrip().startswith('#')
+  ]
+  errors = []
+  in_tags = False
+  for line in lines[1:]:
+    if line.startswith(('TAG=', 'CONV=')):
+      in_tags = True
+    elif in_tags and not _COMMIT_FOOTER_RE.match(line):
+      errors.append(
+          'TAG= and CONV= lines must be placed at the bottom of the commit '
+          'description.')
+      break
+  if sum(1 for l in lines if l.startswith('Change-Id:')) > 1:
+    errors.append('Multiple Change-Id lines detected in commit description.')
+  return [output_api.PresubmitError(e) for e in errors]
+
+
+def _CheckAgentDescription(input_api, output_api):
+  """Validates commit message formatting and footers for AI agent CLs."""
+  desc = input_api.change.FullDescriptionText() or ''
+  lines = [(i, line)
+           for i, line in enumerate(desc.splitlines(), start=1)
+           if not line.lstrip().startswith('#')]
+  while lines and not lines[0][1].strip():
+    lines.pop(0)
+  if not lines:
+    return [output_api.PresubmitError('Commit description is empty.')]
+
+  errors = []
+  _, title = lines[0]
+  if not input_api.re.match(r'^(?:\[[^\[\]]+\])+\s+\S', title):
+    errors.append(
+        f'Commit title must follow "[component] Title" format: "{title}"')
+  if len(title) > _MAX_COMMIT_LINE_LENGTH:
+    errors.append(
+        f'Commit title is {len(title)} chars (max {_MAX_COMMIT_LINE_LENGTH}): '
+        f'"{title}"')
+  if len(lines) > 1 and lines[1][1].strip():
+    errors.append('Second line of commit description must be blank.')
+
+  long_lines = []
+  for line_num, line in lines[1:]:
+    stripped = line.strip()
+    if not stripped:
+      continue
+
+    is_url = any(u in line for u in ('://', 'go/', 'goto.google.com/'))
+    if (len(line) > _MAX_COMMIT_LINE_LENGTH and not is_url and
+        not _COMMIT_FOOTER_RE.match(stripped) and ' ' in stripped):
+      long_lines.append(
+          f'  Line {line_num} ({len(line)} chars): {line[:45]}...')
+
+    m_bug = input_api.re.match(r'^(bug|fixed)\s*([:=])\s*(.*)$', stripped,
+                               input_api.re.IGNORECASE)
+    if m_bug:
+      tag, sep, val = m_bug.groups()
+      if tag not in ('Bug', 'Fixed') or sep != ':':
+        errors.append(
+            f'Line {line_num}: Use "Bug:" or "Fixed:" instead of "{tag}{sep}".')
+      bugs = [b.strip() for b in val.split(',')]
+      if not val or not all(
+          input_api.re.match(r'^(?:b:)?\d+$', b) for b in bugs):
+        errors.append(
+            f'Line {line_num}: Invalid bug ID(s) in "{stripped}" (use '
+            '"<number>" for public bugs or "b:<number>" for Buganizer).')
+      elif len(bugs) > 5:
+        errors.append(
+            f'Line {line_num}: Too many bug IDs on a single "{tag}:" line '
+            f'({len(bugs)} found, max 5).')
+
+  if long_lines:
+    errors.append(
+        f'Commit description has lines exceeding {_MAX_COMMIT_LINE_LENGTH} '
+        'chars:\n' + '\n'.join(long_lines))
+
+  return [output_api.PresubmitError(e) for e in errors]
+
+
+def _CheckRegressionTest(input_api, output_api):
+  """Requires a test/ modification when Fixed: is present and src/ is modified."""
+  desc = input_api.change.FullDescriptionText() or ''
+  if not input_api.re.search(r'^Fixed:[ \t]*\S+', desc, input_api.re.MULTILINE):
+    return []
+  if input_api.re.search(r'^No-Regression-Test:[ \t]*\S+', desc,
+                         input_api.re.MULTILINE):
+    return []
+
+  paths = [
+      f.UnixLocalPath() for f in input_api.AffectedFiles(include_deletes=False)
+  ]
+  if any(p.startswith('src/')
+         for p in paths) and not any(p.startswith('test/') for p in paths):
+    return [
+        output_api.PresubmitError(
+            'CL has a "Fixed:" footer and modifies files under src/ without '
+            'modifying any files under test/. Every bug fix in V8 must '
+            'include a regression test, or include a '
+            '"No-Regression-Test: <reason>" footer in the CL description.')
+    ]
+  return []
+
+
+def _CheckAgentNoDuplicateCL(input_api, output_api):
+  """When creating a new CL, checks that no duplicate CL is already open."""
+  if input_api.change.issue or (
+      input_api.environ.get('PRESUBMIT_ALLOW_DUPLICATE_CL') == '1'):
+    return []
+
+  desc = (input_api.change.FullDescriptionText() or '').strip()
+  if not desc:
+    return []
+
+  local_title = desc.splitlines()[0].strip()
+  change_ids = input_api.re.findall(r'^Change-Id:\s*(I[0-9a-fA-F]+)', desc,
+                                    input_api.re.MULTILINE)
+  local_change_id = change_ids[-1] if change_ids else None
+  local_files = {
+      f.UnixLocalPath(): len(f.ChangedContents())
+      for f in input_api.AffectedFiles()
+  }
+
+  try:
+    import gerrit_util
+    open_changes = gerrit_util.QueryChanges(
+        'chromium-review.googlesource.com',
+        [('owner', 'self'), ('status', 'open'), ('project', 'v8/v8')],
+        o_params=['CURRENT_REVISION', 'CURRENT_FILES'],
+        limit=50,
+    )
+  except Exception:
+    return []
+
+  duplicates = []
+  for ch in open_changes or []:
+    cl_num = ch.get('_number')
+    if not cl_num:
+      continue
+    remote_subject = (ch.get('subject') or '').strip()
+    rev_info = (ch.get('revisions') or
+                {}).get(ch.get('current_revision', ''), {})
+    remote_files = {
+        path: int(info.get('lines_inserted', 0))
+        for path, info in (rev_info.get('files') or {}).items()
+        if path != '/COMMIT_MSG'
+    }
+
+    reasons = []
+    if local_change_id and ch.get('change_id') == local_change_id:
+      reasons.append(f'same Change-Id ({local_change_id})')
+    if local_title and remote_subject.lower() == local_title.lower():
+      reasons.append(f'identical title ("{remote_subject}")')
+    if local_files and remote_files == local_files:
+      reasons.append('identical diff footprint')
+    if reasons:
+      duplicates.append(
+          f'  - https://crrev.com/c/{cl_num} ("{remote_subject}"): ' +
+          ', '.join(reasons))
+
+  if not duplicates:
+    return []
+  return [
+      output_api.PresubmitError(
+          'Potential duplicate CL(s) already open on Gerrit:\n' +
+          '\n'.join(duplicates) +
+          '\nAssociate this branch via `git cl issue <cl_number>`, or set '
+          '`PRESUBMIT_ALLOW_DUPLICATE_CL=1` if intentional.')
+  ]
+
+
+def _CheckReleaseMjsunit(input_api, output_api):
+  """Runs opt-in gm.py release mjsunit check."""
+  if input_api.environ.get('UPLOAD_CL_NOCHECK') == '1':
+    return []
+  root = input_api.PresubmitLocalPath()
+  if input_api.environ.get('V8_PRESUBMIT_RELEASE_MJSUNIT') != '1':
+    cfg = subprocess.run(
+        ['git', 'config', '--bool', 'v8.presubmit-release-mjsunit'],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False)
+    if cfg.returncode != 0 or cfg.stdout.strip().lower() != 'true':
+      return []
+
+  code_prefixes = ('src/', 'include/', 'test/', 'gni/')
+  build_files = ('BUILD.gn', 'BUILD.bazel', 'DEPS')
+  if not any(
+      p.startswith(code_prefixes) or p in build_files
+      for p in input_api.UnixLocalPaths()):
+    return []
+
+  gm_py = input_api.os_path.join(root, 'tools', 'dev', 'gm.py')
+  if not input_api.os_path.isfile(gm_py):
+    return []
+
+  v8_arch = {
+      'aarch64': 'arm64',
+      'arm64': 'arm64',
+      'i686': 'ia32',
+      'i386': 'ia32',
+  }.get(platform.machine(), 'x64')
+  return input_api.RunTests([
+      input_api.Command(
+          name=f'gm.py {v8_arch}.release mjsunit',
+          cmd=[
+              input_api.python3_executable, gm_py, 'quiet',
+              f'{v8_arch}.release', 'mjsunit'
+          ],
+          kwargs={'cwd': root},
+          message=output_api.PresubmitError)
+  ])
+
+
 def CheckChangeOnUpload(input_api, output_api):
   results = []
   results.extend(_CommonChecks(input_api, output_api))
+  if _IsAiAgent(input_api):
+    results.extend(_CheckAgentDescription(input_api, output_api))
+    results.extend(_CheckAgentNoDuplicateCL(input_api, output_api))
+  if not any(r.fatal for r in results):
+    results.extend(_CheckReleaseMjsunit(input_api, output_api))
   return results
 
 
