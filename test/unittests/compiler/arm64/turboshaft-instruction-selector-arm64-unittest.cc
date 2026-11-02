@@ -7944,8 +7944,10 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessTest, StoreWithShiftedIndex) {
 
 INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
                          TurboshaftInstructionSelectorMemoryAccessTest,
-                         (::testing::ValuesIn(kMemoryAccesses),
-                          ::testing::ValuesIn(kMemoryAccessesTagged)));
+                         ::testing::ValuesIn(kMemoryAccesses));
+INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTestTagged,
+                         TurboshaftInstructionSelectorMemoryAccessTest,
+                         ::testing::ValuesIn(kMemoryAccessesTagged));
 
 #if V8_ENABLE_WEBASSEMBLY
 TEST_F(TurboshaftInstructionSelectorTest, LoadTransform) {
