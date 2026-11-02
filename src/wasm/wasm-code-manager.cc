@@ -2920,12 +2920,16 @@ NamesProvider* NativeModule::GetNamesProvider() {
 size_t NativeModule::EstimateCurrentMemoryConsumption() const {
   UPDATE_WHEN_CLASS_CHANGES(NativeModule, 528);
   size_t result = sizeof(NativeModule);
-  result += module_->EstimateCurrentMemoryConsumption();
 
   std::shared_ptr<base::UniqueArray<const uint8_t>> wire_bytes =
       std::atomic_load(&wire_bytes_);
   size_t wire_bytes_size = wire_bytes ? wire_bytes->size() : 0;
-  result += wire_bytes_size;
+  // If wire bytes have not been set yet, a streaming decoder may still be
+  // mutating {module_}; wait until decoding finishes before reading it.
+  if (wire_bytes_size > 0) {
+    result += module_->EstimateCurrentMemoryConsumption();
+    result += wire_bytes_size;
+  }
 
   result += compilation_state_->EstimateCurrentMemoryConsumption();
   // For {tiering_budgets_}.
