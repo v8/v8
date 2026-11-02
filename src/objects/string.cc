@@ -144,6 +144,18 @@ void String::MakeThin(IsolateT* isolate,
 #endif
 
   bool may_contain_recorded_slots = initial_shape.IsIndirect();
+#if !V8_ENABLE_STICKY_MARK_BITS_BOOL
+  // Recorded slots never live on young-generation pages, so for a young string
+  // there is nothing to remove. Checking that here lets
+  // Heap::NotifyObjectSizeChange() skip its call to
+  // Heap::ClearRecordedSlotRange() for a sizable fraction of all transitions: a
+  // freshly built cons or sliced string that gets internalized has often never
+  // been promoted.
+  if (may_contain_recorded_slots &&
+      HeapLayout::InYoungGeneration(Tagged(this))) {
+    may_contain_recorded_slots = false;
+  }
+#endif
   int old_size = SizeFromMap(initial_map);
   ReadOnlyRoots roots(isolate);
   Tagged<Map> target_map = internalized->IsOneByteRepresentation()
