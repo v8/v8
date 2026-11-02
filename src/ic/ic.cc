@@ -2709,16 +2709,9 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
           return MaybeObjectHandle(StoreHandler::StoreSharedStructField(
               isolate(), descriptor, index, lookup->representation()));
         }
-        PropertyConstness constness = lookup->constness();
-        if (constness == PropertyConstness::kConst &&
-            IsDefineNamedOwnICKind(nexus()->kind())) {
-          // DefineNamedOwnICs are used for initializing object literals
-          // therefore we must store the value unconditionally even to
-          // VariableMode::kConst fields.
-          constness = PropertyConstness::kMutable;
-        }
         return MaybeObjectHandle(StoreHandler::StoreField(
-            isolate(), descriptor, index, constness, lookup->representation()));
+            isolate(), descriptor, index, lookup->constness(),
+            lookup->representation()));
       }
 
       // -------------- Constant properties --------------
@@ -3522,10 +3515,9 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
 
   FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot);
 
-  // When there is no feedback vector it is OK to use the SetNamedStrict as
-  // the feedback slot kind. We only reuse this for DefineNamedOwnIC when
-  // installing the handler for storing const properties. This will happen only
-  // when feedback vector is available.
+  // When there is no feedback vector it is OK to use SetNamedStrict as the
+  // feedback slot kind because StoreIC::Store deduces strictness from the
+  // caller frame rather than the feedback slot kind.
   FeedbackSlotKind kind = FeedbackSlotKind::kSetNamedStrict;
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
   if (!IsUndefined(*maybe_vector)) {
@@ -3541,6 +3533,9 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
   RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
 }
 
+// Shared between DefineNamedOwn and DefineNamedOwnInLiteral. This
+// is fine, since the IC handlers we create are identical - only when using the
+// handler we check whether we're in the "in literal" case or not.
 RUNTIME_FUNCTION(Runtime_DefineNamedOwnIC_Miss) {
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
@@ -3573,6 +3568,7 @@ RUNTIME_FUNCTION(Runtime_DefineNamedOwnIC_Miss) {
   RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
 }
 
+// Also usable for both DefineNamedOwn and DefineNamedOwnInLiteral.
 RUNTIME_FUNCTION(Runtime_DefineNamedOwnIC_Slow) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());

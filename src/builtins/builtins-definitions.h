@@ -894,6 +894,9 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   TFH(DefineNamedOwnIC, StoreWithVector)                                       \
   TFH(DefineNamedOwnICTrampoline, Store)                                       \
   TFH(DefineNamedOwnICBaseline, StoreBaseline)                                 \
+  TFH(DefineNamedOwnInLiteralIC, StoreWithVector)                              \
+  TFH(DefineNamedOwnInLiteralICTrampoline, Store)                              \
+  TFH(DefineNamedOwnInLiteralICBaseline, StoreBaseline)                        \
   TFH(KeyedStoreIC, StoreWithVector)                                           \
   TFH(KeyedStoreICTrampoline, Store)                                           \
   TFH(KeyedStoreICTrampoline_Megamorphic, Store)                               \
