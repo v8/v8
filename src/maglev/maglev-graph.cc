@@ -217,7 +217,7 @@ void CollectOptimizedCodeCoverageFromNode(
 
 void Graph::ExtractOptimizedCodeCoverage() {
   // We extract information from each node and its input up to this depth:
-  constexpr size_t kMaxPathLength = 3;
+  constexpr size_t kMaxPathLength = 2;
   std::set<uint32_t> hashes;
   size_t initial_hash =
       v8::base::Hasher::Combine(compilation_info_->is_turbolev());
