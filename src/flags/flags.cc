@@ -213,6 +213,12 @@ bool Flag::CheckFlagChange(SetBy new_set_by, bool change_flag,
             FlagError{} << "Flag " << FlagName{name()} << ": value implied by "
                         << FlagName{implied_by}
                         << " conflicts with explicit specification";
+          } else if (FlagHelpers::EqualNameWithSuffix(name(), implied_by)) {
+            // Self-implication from DEFINE_{MIN,MAX}_VALUE_IMPLICATION: print
+            // the normalized flag name followed by the " < min" / " > max"
+            // suffix.
+            FlagError{} << "Invalid value for flag: " << FlagName{name()}
+                        << (implied_by + strlen(name()));
           } else {
             FlagError{} << "Flag " << FlagName{name()} << " is implied by "
                         << FlagName{implied_by}
@@ -239,17 +245,11 @@ bool Flag::CheckFlagChange(SetBy new_set_by, bool change_flag,
     DCHECK_NOT_NULL(implied_by);
     implied_by_ = implied_by;
 #ifdef DEBUG
-    // This only works when implied_by is a flag_name or !flag_name, but it
-    // can also be a condition e.g. flag_name < 3. Since this is only used for
-    // checks in DEBUG mode, we will just ignore the more complex conditions
-    // for now - that will just lead to a nullptr which won't be followed.
-    if (strchr(implied_by, '<') != nullptr) {
-      implied_by_ptr_ = nullptr;
-    } else {
-      implied_by_ptr_ = static_cast<Flag*>(FindImplicationFlagByName(
-          implied_by[0] == '!' ? implied_by + 1 : implied_by));
-    }
-    DCHECK_NE(implied_by_ptr_, this);
+    implied_by_ptr_ = FindImplicationFlagByName(
+        implied_by[0] == '!' ? implied_by + 1 : implied_by);
+    // DEFINE_{MIN,MAX}_VALUE_IMPLICATION implies a flag from itself; don't
+    // record a self-edge.
+    if (implied_by_ptr_ == this) implied_by_ptr_ = nullptr;
 #endif
   }
   return change_flag;
@@ -1535,22 +1535,6 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
 
   // https://crbug.com/393401455
   RESET_WHEN_FUZZING(turboshaft);
-
-#if V8_ENABLE_WEBASSEMBLY
-  if (v8_flags.wasm_max_code_space_size_mb > kDefaultMaxWasmCodeSpaceSizeMb) {
-    // Skip the warning on correctness (differential) fuzzing to prevent false
-    // positives.
-    if (!v8_flags.correctness_fuzzer_suppressions) {
-      std::cerr << "Warning: lowering flag --wasm-max-code-space-size-mb="
-                << v8_flags.wasm_max_code_space_size_mb
-                << " to --wasm-max-code-space-size-mb="
-                << kDefaultMaxWasmCodeSpaceSizeMb
-                << ", larger values are unsupported";
-    }
-    v8_flags.wasm_max_code_space_size_mb.Overwrite(
-        kDefaultMaxWasmCodeSpaceSizeMb);
-  }
-#endif
 
   for (auto [flag1, flag2] : contradictions) {
     if (!flag1 || !flag2) continue;

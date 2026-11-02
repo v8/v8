@@ -578,6 +578,9 @@ TEST_F(FlagDefinitionsTest, FuzzingImpliesDisallowUnsafeFlags) {
 #ifdef DEBUG
         " --turboshaft-opt-bisect-break=50 --turboshaft-opt-bisect-limit=100"
 #endif
+#if V8_ENABLE_WEBASSEMBLY
+        " --wasm-max-code-space-size-mb=2000"
+#endif
         " --expose-trigger-failure --stack-size=40";
     CHECK_EQ(0, FlagList::SetFlagsFromString(str, strlen(str)));
     FlagList::ResolveContradictionsWhenFuzzing();
@@ -592,6 +595,10 @@ TEST_F(FlagDefinitionsTest, FuzzingImpliesDisallowUnsafeFlags) {
              v8_flags.turboshaft_opt_bisect_break);
     CHECK_EQ(std::numeric_limits<uint64_t>::max(),
              v8_flags.turboshaft_opt_bisect_limit);
+#endif
+#if V8_ENABLE_WEBASSEMBLY
+    CHECK_EQ(kDefaultMaxWasmCodeSpaceSizeMb,
+             v8_flags.wasm_max_code_space_size_mb);
 #endif
     CHECK(!v8_flags.expose_trigger_failure);
     CHECK_EQ(V8_DEFAULT_STACK_SIZE_KB, v8_flags.stack_size);

@@ -107,16 +107,16 @@
 
 // Enforces that `flag` is at least `min_value` (sets `flag = min_value` if
 // `flag < min_value`).
-#define DEFINE_MIN_VALUE_IMPLICATION(flag, min_value)                        \
-  changed |= TriggerImplication(v8_flags.flag < min_value,                   \
-                                #flag "<" #min_value, &v8_flags.flag, #flag, \
+#define DEFINE_MIN_VALUE_IMPLICATION(flag, min_value)                          \
+  changed |= TriggerImplication(v8_flags.flag < min_value,                     \
+                                #flag " < " #min_value, &v8_flags.flag, #flag, \
                                 min_value, kStrongImplication);
 
 // Enforces that `flag` is at most `max_value` (sets `flag = max_value` if
 // `flag > max_value`).
-#define DEFINE_MAX_VALUE_IMPLICATION(flag, max_value)                        \
-  changed |= TriggerImplication(v8_flags.flag > max_value,                   \
-                                #max_value "<" #flag, &v8_flags.flag, #flag, \
+#define DEFINE_MAX_VALUE_IMPLICATION(flag, max_value)                          \
+  changed |= TriggerImplication(v8_flags.flag > max_value,                     \
+                                #flag " > " #max_value, &v8_flags.flag, #flag, \
                                 max_value, kStrongImplication);
 
 // Enforces that `thenflag` is set to `false` if `whenflag` holds, printing a
@@ -2071,6 +2071,8 @@ DEFINE_UINT(wasm_max_committed_code_mb, kMaxCommittedWasmCodeMB,
             "maximum committed code space for wasm (in MB)")
 DEFINE_UINT(wasm_max_code_space_size_mb, kDefaultMaxWasmCodeSpaceSizeMb,
             "maximum size of a single wasm code space")
+DEFINE_MAX_VALUE_IMPLICATION(wasm_max_code_space_size_mb,
+                             kDefaultMaxWasmCodeSpaceSizeMb)
 DEFINE_BOOL(wasm_tier_up, V8_ENABLE_TURBOFAN_BOOL,
             "enable tier up to the optimizing compiler (requires --liftoff to "
             "have an effect)")
