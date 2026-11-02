@@ -8958,6 +8958,7 @@ group("v8_fuzzers") {
 if (is_component_build) {
   v8_component("v8") {
     sources = [ "src/utils/v8dll-main.cc" ]
+    public = []
 
     deps = [
       ":v8_base",
