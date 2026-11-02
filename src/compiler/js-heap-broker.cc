@@ -822,7 +822,11 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForCall(
 
   float frequency = nexus.ComputeCallFrequency();
   SpeculationMode mode = nexus.GetSpeculationMode();
-  CallFeedbackContent content = nexus.GetCallFeedbackContent();
+  CallFeedbackContent content = CallFeedbackContent::kTarget;
+  if (target_ref.has_value() && target_ref->map(this).is_callable()) {
+    DCHECK(target_ref->IsJSFunction() || target_ref->IsJSBoundFunction());
+    content = nexus.GetCallFeedbackContent();
+  }
   return *zone()->New<CallFeedback>(target_ref, frequency, mode, content,
                                     nexus.kind());
 }

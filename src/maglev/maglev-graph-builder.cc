@@ -11611,20 +11611,26 @@ ReduceResult MaglevGraphBuilder::BuildCallWithFeedback(
             broker()->target_native_context();
         compiler::JSFunctionRef apply_function =
             native_context.function_prototype_apply(broker());
-        RETURN_IF_ABORT(BuildCheckValueByReference(
-            target_node, apply_function, DeoptimizeReason::kWrongCallTarget));
-        PROCESS_AND_RETURN_IF_DONE(
-            TryReduceFunctionPrototypeApplyCallWithReceiver(
-                feedback_target, args, feedback_source),
-            SetAccumulator);
-        feedback_target = apply_function;
+        if (compiler::OptionalHeapObjectRef target_constant =
+                TryGetConstant<HeapObject>(target_node);
+            !target_constant.has_value() ||
+            target_constant->equals(apply_function)) {
+          RETURN_IF_ABORT(BuildCheckValueByReference(
+              target_node, apply_function, DeoptimizeReason::kWrongCallTarget));
+          PROCESS_AND_RETURN_IF_DONE(
+              TryReduceFunctionPrototypeApplyCallWithReceiver(
+                  feedback_target, args, feedback_source),
+              SetAccumulator);
+        }
       } else {
         DCHECK_EQ(CallFeedbackContent::kTarget, content);
+        RETURN_IF_ABORT(BuildCheckValueByReference(
+            target_node, feedback_target, DeoptimizeReason::kWrongCallTarget));
       }
-      RETURN_IF_ABORT(BuildCheckValueByReference(
-          target_node, feedback_target, DeoptimizeReason::kWrongCallTarget));
     } else if (call_feedback.target()->IsFeedbackCell() &&
                args.mode() == CallArguments::kDefault) {
+      DCHECK_EQ(CallFeedbackContent::kTarget,
+                call_feedback.call_feedback_content());
       compiler::FeedbackCellRef feedback_cell =
           call_feedback.target()->AsFeedbackCell();
       compiler::OptionalSharedFunctionInfoRef shared =
