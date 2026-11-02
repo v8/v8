@@ -3440,6 +3440,7 @@ void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
                                           LiftoffRegister rhs,
                                           const uint8_t shuffle[16],
                                           bool is_swizzle) {
+  if (is_swizzle) rhs = lhs;
   VRegister src1 = lhs.fp();
   VRegister src2 = rhs.fp();
   VRegister temp = dst.fp();
