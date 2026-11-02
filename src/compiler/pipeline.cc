@@ -484,6 +484,9 @@ TurbofanPipelineStatistics* CreatePipelineStatistics(
     std::shared_ptr<OsrHelper> osr_helper = {}) {
   turboshaft::PipelineData* turboshaft_data = turboshaft_pipeline.data();
   turboshaft_data->InitializeCodegenComponent(osr_helper);
+  turboshaft::Pipeline::ClearComponentsOnFailureScope clear_on_failure(
+      turboshaft_data);
+
   // Run Turboshaft instruction selection.
   if (!turboshaft_pipeline.PrepareForInstructionSelection()) return false;
   if (!turboshaft_pipeline.SelectInstructions(linkage)) return false;
@@ -497,6 +500,7 @@ TurbofanPipelineStatistics* CreatePipelineStatistics(
   if (!turboshaft_pipeline.AssembleCode(linkage)) {
     return false;
   }
+  clear_on_failure.MarkSucceeded();
   return true;
 }
 
@@ -519,14 +523,35 @@ class PipelineCompilationJob final : public TurbofanCompilationJob {
   Status FinalizeJobImpl(Isolate* isolate) final;
 
  private:
-  Zone zone_;
+  struct PipelineState {
+    PipelineState(Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
+                  OptimizedCompilationInfo* compilation_info,
+                  ZoneStats* zone_stats)
+        : pipeline_statistics(CreatePipelineStatistics(
+              direct_handle(Cast<Script>(shared_info->script()), isolate),
+              compilation_info, isolate, zone_stats)),
+          data(zone_stats, isolate, compilation_info,
+               pipeline_statistics.get()),
+          turboshaft_data(zone_stats, turboshaft::TurboshaftPipelineKind::kJS,
+                          isolate, compilation_info,
+                          AssemblerOptions::Default(isolate)),
+          pipeline(&data) {
+      turboshaft_data.set_pipeline_statistics(pipeline_statistics.get());
+    }
+
+    std::unique_ptr<TurbofanPipelineStatistics> pipeline_statistics;
+    TFPipelineData data;
+    turboshaft::PipelineData turboshaft_data;
+    PipelineImpl pipeline;
+    Linkage* linkage = nullptr;
+  };
+
+  void CleanupAfterFailedExecute();
+
+  std::optional<Zone> zone_;
   ZoneStats zone_stats_;
   OptimizedCompilationInfo compilation_info_;
-  std::unique_ptr<TurbofanPipelineStatistics> pipeline_statistics_;
-  TFPipelineData data_;
-  turboshaft::PipelineData turboshaft_data_;
-  PipelineImpl pipeline_;
-  Linkage* linkage_;
+  std::optional<PipelineState> state_;
 };
 
 PipelineCompilationJob::PipelineCompilationJob(
@@ -537,22 +562,13 @@ PipelineCompilationJob::PipelineCompilationJob(
     // dereferenced there.
     : TurbofanCompilationJob(isolate, &compilation_info_,
                              CompilationJob::State::kReadyToPrepare),
-      zone_(isolate->allocator(), kPipelineCompilationJobZoneName),
+      zone_(std::in_place, isolate->allocator(),
+            kPipelineCompilationJobZoneName),
       zone_stats_(isolate->allocator()),
-      compilation_info_(&zone_, isolate, shared_info, function, code_kind,
+      compilation_info_(&*zone_, isolate, shared_info, function, code_kind,
                         osr_offset),
-      pipeline_statistics_(CreatePipelineStatistics(
-          direct_handle(Cast<Script>(shared_info->script()), isolate),
-          compilation_info(), isolate, &zone_stats_)),
-      data_(&zone_stats_, isolate, compilation_info(),
-            pipeline_statistics_.get()),
-      turboshaft_data_(&zone_stats_, turboshaft::TurboshaftPipelineKind::kJS,
-                       isolate, compilation_info(),
-                       AssemblerOptions::Default(isolate)),
-      pipeline_(&data_),
-      linkage_(nullptr) {
-  turboshaft_data_.set_pipeline_statistics(pipeline_statistics_.get());
-}
+      state_(std::in_place, isolate, shared_info, compilation_info(),
+             &zone_stats_) {}
 
 PipelineCompilationJob::~PipelineCompilationJob() = default;
 
@@ -693,7 +709,8 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
     Isolate* isolate) {
   // Ensure that the RuntimeCallStats table of main thread is available for
   // phases happening during PrepareJob.
-  PipelineJobScope scope(&data_, isolate->counters()->runtime_call_stats());
+  PipelineJobScope scope(&state_->data,
+                         isolate->counters()->runtime_call_stats());
   compilation_info()->set_debug_name(compilation_info()->GetDebugName().get());
 
   if (compilation_info()->bytecode_array()->length() >
@@ -725,10 +742,10 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
           ReadOnlyRoots(isolate).one_closure_cell_map() &&
       !compilation_info()->is_osr()) {
     compilation_info()->set_function_context_specializing();
-    data_.ChooseSpecializationContext();
+    state_->data.ChooseSpecializationContext();
   } else if (v8_flags.always_specialize_for_script_context &&
              !compilation_info()->is_osr()) {
-    data_.ChooseSpecializationContext();
+    state_->data.ChooseSpecializationContext();
   }
 
   if (compilation_info()->source_positions()) {
@@ -736,19 +753,19 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
         isolate, compilation_info()->shared_info());
   }
 
-  data_.set_start_source_position(
+  state_->data.set_start_source_position(
       compilation_info()->shared_info()->StartPosition());
 
-  linkage_ = compilation_info()->zone()->New<Linkage>(
+  state_->linkage = compilation_info()->zone()->New<Linkage>(
       Linkage::ComputeIncoming(compilation_info()->zone(), compilation_info()));
 
-  if (compilation_info()->is_osr()) data_.InitializeOsrHelper();
+  if (compilation_info()->is_osr()) state_->data.InitializeOsrHelper();
 
   // InitializeHeapBroker() and CreateGraph() may already use
   // IsPendingAllocation.
   isolate->heap()->PublishMainThreadPendingAllocations();
 
-  if (!pipeline_.InitializeHeapBroker()) {
+  if (!state_->pipeline.InitializeHeapBroker()) {
     return FAILED;
   }
 
@@ -760,56 +777,83 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
 
 PipelineCompilationJob::Status PipelineCompilationJob::ExecuteJobImpl(
     RuntimeCallStats* stats, LocalIsolate* local_isolate) {
-  // Ensure that the RuntimeCallStats table is only available during execution
-  // and not during finalization as that might be on a different thread.
-  PipelineJobScope scope(&data_, stats);
-  LocalIsolateScope local_isolate_scope(data_.broker(), data_.info(),
-                                        local_isolate);
+  Status status = [this, stats, local_isolate]() -> Status {
+    // Ensure that the RuntimeCallStats table is only available during execution
+    // and not during finalization as that might be on a different thread.
+    PipelineJobScope scope(&state_->data, stats);
+    LocalIsolateScope local_isolate_scope(state_->data.broker(),
+                                          state_->data.info(), local_isolate);
 
-  turboshaft_data_.InitializeBrokerAndDependencies(data_.broker_ptr(),
-                                                   data_.dependencies());
-  turboshaft::Pipeline turboshaft_pipeline(&turboshaft_data_, linkage_);
-  if (compilation_info_.was_cancelled()) {
-    return AbortOptimization(BailoutReason::kCancelled);
-  }
-
-  if (V8_UNLIKELY(v8_flags.turbolev)) {
-    if (!turboshaft_pipeline.CreateGraphWithMaglev(linkage_)) {
-      return AbortOptimization(BailoutReason::kTurbofanGraphBuildingFailed);
-    }
-  } else {
-    if (!pipeline_.CreateGraph(linkage_)) {
-      return AbortOptimization(BailoutReason::kTurbofanGraphBuildingFailed);
+    state_->turboshaft_data.InitializeBrokerAndDependencies(
+        state_->data.broker_ptr(), state_->data.dependencies());
+    turboshaft::Pipeline turboshaft_pipeline(&state_->turboshaft_data,
+                                             state_->linkage);
+    if (compilation_info_.was_cancelled()) {
+      return AbortOptimization(BailoutReason::kCancelled);
     }
 
-    // We selectively Unpark inside OptimizeTurbofanGraph.
-    if (!pipeline_.OptimizeTurbofanGraph(linkage_)) return FAILED;
+    if (V8_UNLIKELY(v8_flags.turbolev)) {
+      if (!turboshaft_pipeline.CreateGraphWithMaglev(state_->linkage)) {
+        return AbortOptimization(BailoutReason::kTurbofanGraphBuildingFailed);
+      }
+    } else {
+      if (!state_->pipeline.CreateGraph(state_->linkage)) {
+        return AbortOptimization(BailoutReason::kTurbofanGraphBuildingFailed);
+      }
 
-    // We convert the turbofan graph to turboshaft.
-    if (!turboshaft_pipeline.CreateGraphFromTurbofan(&data_, linkage_)) {
-      data_.EndPhaseKind();
+      // We selectively Unpark inside OptimizeTurbofanGraph.
+      if (!state_->pipeline.OptimizeTurbofanGraph(state_->linkage)) {
+        return FAILED;
+      }
+
+      // We convert the turbofan graph to turboshaft.
+      if (!turboshaft_pipeline.CreateGraphFromTurbofan(&state_->data,
+                                                       state_->linkage)) {
+        state_->data.EndPhaseKind();
+        return FAILED;
+      }
+    }
+
+    if (!turboshaft_pipeline.OptimizeTurboshaftGraph(state_->linkage)) {
       return FAILED;
     }
-  }
 
-  if (!turboshaft_pipeline.OptimizeTurboshaftGraph(linkage_)) {
-    return FAILED;
-  }
+    const bool success = GenerateCodeFromTurboshaftGraph(
+        state_->linkage, turboshaft_pipeline, &state_->pipeline,
+        state_->data.osr_helper_ptr());
+    return success ? SUCCEEDED : FAILED;
+  }();
 
-  const bool success = GenerateCodeFromTurboshaftGraph(
-      linkage_, turboshaft_pipeline, &pipeline_, data_.osr_helper_ptr());
-  return success ? SUCCEEDED : FAILED;
+  if (status != SUCCEEDED) {
+    {
+      UnparkedScopeIfNeeded unparked_scope(local_isolate);
+      state_->data.broker()->DetachCanonicalHandles(compilation_info());
+    }
+    CleanupAfterFailedExecute();
+  }
+  return status;
+}
+
+void PipelineCompilationJob::CleanupAfterFailedExecute() {
+  // Failed jobs sit in OptimizingCompileDispatcher's output queue until the
+  // main thread drains them, and FinalizeJobImpl is never called on them.
+  // Destroy all execution pipeline state (including JSHeapBroker and
+  // TurbofanPipelineStatistics, which reference zone_) before resetting zone_.
+  state_.reset();
+  compilation_info_.reset_zone();
+  zone_.reset();
 }
 
 PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
     Isolate* isolate) {
   // Ensure that the RuntimeCallStats table of main thread is available for
   // phases happening during PrepareJob.
-  PipelineJobScope scope(&data_, isolate->counters()->runtime_call_stats());
+  PipelineJobScope scope(&state_->data,
+                         isolate->counters()->runtime_call_stats());
   RCS_SCOPE(isolate, RuntimeCallCounterId::kOptimizeFinalizePipelineJob);
   Handle<Code> code;
   DirectHandle<NativeContext> context;
-  turboshaft::Pipeline turboshaft_pipeline(&turboshaft_data_,
+  turboshaft::Pipeline turboshaft_pipeline(&state_->turboshaft_data,
                                            turboshaft::kNoLinkage);
   MaybeHandle<Code> maybe_code = turboshaft_pipeline.FinalizeCode();
   if (!maybe_code.ToHandle(&code)) {
@@ -823,7 +867,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
   if (context->IsDetached()) {
     return AbortOptimization(BailoutReason::kDetachedNativeContext);
   }
-  CodeGenerator* code_generator = turboshaft_data_.code_generator();
+  CodeGenerator* code_generator = state_->turboshaft_data.code_generator();
   DCHECK_NOT_NULL(code_generator);
   DCHECK(code_generator->has_background_code());
   base::Vector<const IndirectHandle<Map>> maps =

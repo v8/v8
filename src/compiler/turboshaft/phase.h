@@ -335,6 +335,14 @@ class V8_EXPORT_PRIVATE PipelineData {
     register_component_.reset();
   }
 
+  void ClearAllComponents() {
+    register_component_.reset();
+    instruction_component_.reset();
+    codegen_component_.reset();
+    graph_component_.reset();
+    builtin_component_.reset();
+  }
+
   AccountingAllocator* allocator() const;
   ZoneStats* zone_stats() const { return zone_stats_; }
   TurboshaftPipelineKind pipeline_kind() const { return pipeline_kind_; }

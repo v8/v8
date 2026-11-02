@@ -18,11 +18,16 @@
 #include "src/api/api-inl.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/script-details.h"
+#include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/heap/factory.h"
+#ifdef V8_ENABLE_MAGLEV
+#include "src/maglev/maglev-concurrent-dispatcher.h"
+#endif
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
+#include "test/common/flag-utils.h"
 #include "test/unittests/heap/heap-utils.h"  // For ManualGCScope.
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -866,6 +871,99 @@ TEST_F(CompilerTest, DeepEagerCompilationPeakMemory) {
   // peak memory than lazy compilation.
   EXPECT_LE(peak_mem_after_eager_compile - peak_mem_after_last_lazy_compile,
             peak_mem_after_last_lazy_compile);
+}
+
+TEST_F(CompilerTest, FailedConcurrentCompileReleasesZones) {
+  if (!v8_flags.turbofan || !i_isolate()->concurrent_recompilation_enabled()) {
+    return;
+  }
+  v8_flags.allow_natives_syntax.Set(true);
+  v8_flags.compilation_cache.Set(false);
+#if V8_ENABLE_SPARKPLUG
+  v8_flags.baseline_batch_compilation.Set(false);
+#endif
+
+  // Keeping 1100 distinct values live across an earlier non-inlined call `cb()`
+  // forces > 1024 spill slots (> 4KB on both 32-bit and 64-bit targets, even
+  // with --turbo-instruction-scheduling), causing register allocation to bail
+  // out while keeping bytecode small enough to enter concurrent compilation.
+  constexpr char kQueueFailingCompileJS[] =
+      "{"
+      "  function cb() { return arguments.length; }"
+      "  %NeverOptimizeFunction(cb);"
+      "  const decls = Array.from("
+      "      {length: 1100}, (_, k) => `const v${k} = p ^ ${k + 1};`).join('');"
+      "  const uses = Array.from({length: 1100}, (_, k) => `v${k}`).join(',');"
+      "  const wide = Function('x', 'cb', 'p', `"
+      "    let result = 0;"
+      "    for (let i = 0; i < 10; ++i) {"
+      "      if (x < 0) { ${decls} cb(); return cb(${uses}); }"
+      "      result = (x + i) | 0;"
+      "    }"
+      "    return result;"
+      "  `);"
+      "  %PrepareFunctionForOptimization(wide);"
+      "  wide(-1, cb, 1);"
+      "  wide(1, cb, 1);"
+      "  %DisableOptimizationFinalization();"
+      "  %OptimizeFunctionOnNextCall(wide, 'concurrent');"
+      "  wide(1, cb, 1);"
+      "  %WaitForBackgroundOptimization();"
+      "}";
+
+  {
+#ifdef V8_ENABLE_MAGLEV
+    FlagScope<bool> maglev(&v8_flags.maglev, false);
+    FlagScope<bool> optimize_to_maglev(
+        &v8_flags.optimize_on_next_call_optimizes_to_maglev, false);
+#endif
+
+    for (bool turbolev : {false, true}) {
+#ifndef V8_ENABLE_MAGLEV
+      if (turbolev) continue;
+#endif
+      FlagScope<bool> turbolev_scope(&v8_flags.turbolev, turbolev);
+      v8::HandleScope scope(isolate());
+
+      RunJS(kQueueFailingCompileJS);
+
+      // The failed job is now sitting in OptimizingCompileDispatcher's output
+      // queue waiting for main-thread finalization. Trigger a GC to verify
+      // CanonicalHandlesMap unregistered its GCRootsProvider before zone
+      // teardown, and check that no compiler zones are retained while queued.
+      ASSERT_TRUE(i_isolate()->optimizing_compile_dispatcher()->HasJobs());
+      InvokeMajorGC();
+      const size_t queued_zone_bytes =
+          i_isolate()->allocator()->GetCurrentMemoryUsage();
+      i_isolate()->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
+      i_isolate()->optimizing_compile_dispatcher()->set_finalize(true);
+      const size_t finalized_zone_bytes =
+          i_isolate()->allocator()->GetCurrentMemoryUsage();
+      EXPECT_EQ(queued_zone_bytes, finalized_zone_bytes);
+    }
+  }
+
+#ifdef V8_ENABLE_MAGLEV
+  if (i_isolate()->maglev_concurrent_dispatcher()->is_enabled()) {
+    FlagScope<bool> maglev(&v8_flags.maglev, true);
+    FlagScope<bool> optimize_to_maglev(
+        &v8_flags.optimize_on_next_call_optimizes_to_maglev, true);
+    FlagScope<bool> destroy_sync(&v8_flags.maglev_destroy_on_background, false);
+    v8::HandleScope scope(isolate());
+
+    RunJS(kQueueFailingCompileJS);
+    i_isolate()->optimizing_compile_dispatcher()->set_finalize(true);
+
+    InvokeMajorGC();
+    const size_t queued_zone_bytes =
+        i_isolate()->allocator()->GetCurrentMemoryUsage();
+    i_isolate()->maglev_concurrent_dispatcher()->FinalizeFinishedJobs();
+    i_isolate()->stack_guard()->ClearInstallMaglevCode();
+    const size_t finalized_zone_bytes =
+        i_isolate()->allocator()->GetCurrentMemoryUsage();
+    EXPECT_EQ(queued_zone_bytes, finalized_zone_bytes);
+  }
+#endif
 }
 
 namespace {

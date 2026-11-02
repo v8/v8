@@ -148,13 +148,22 @@ CompilationJob::Status MaglevCompilationJob::ExecuteJobImpl(
     RuntimeCallStats* stats, LocalIsolate* local_isolate) {
   BeginPhaseKind("V8.MaglevExecuteJob");
   SYNCHRONIZATION_POINT("MaglevExecuteJob");
-  LocalIsolateScope scope{info(), local_isolate};
-  if (!maglev::MaglevCompiler::Compile(local_isolate, info())) {
-    EndPhaseKind();
+  bool success;
+  {
+    LocalIsolateScope scope{info(), local_isolate};
+    success = maglev::MaglevCompiler::Compile(local_isolate, info());
+    if (!success) {
+      compiler::UnparkedScopeIfNeeded unparked_scope(local_isolate);
+      info()->broker()->DetachCanonicalHandles(info());
+    }
+  }
+  EndPhaseKind();
+  if (!success) {
+    pipeline_statistics_.reset();
+    info()->ReleaseBrokerAndZone();
     bailout_reason_ = BailoutReason::kMaglevGraphBuildingFailed;
     return CompilationJob::FAILED;
   }
-  EndPhaseKind();
   // TODO(v8:7700): Actual return codes.
   return CompilationJob::SUCCEEDED;
 }
