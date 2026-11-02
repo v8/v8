@@ -11322,6 +11322,11 @@ void Isolate::SetFilterETWSessionByURL2Callback(
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   i_isolate->SetFilterETWSessionByURL2Callback(callback);
 }
+
+void Isolate::RequestEnableETW() {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  i_isolate->RequestEnableETW();
+}
 #endif  // V8_ENABLE_ETW_STACK_WALKING
 
 bool v8::Object::IsCodeLike(v8::Isolate* v8_isolate) const {

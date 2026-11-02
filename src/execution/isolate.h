@@ -2150,6 +2150,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   bool IsETWTracingEnabled() const { return etw_tracing_enabled_; }
   void SetETWTracingEnabled(bool enabled) { etw_tracing_enabled_ = enabled; }
+  void RequestEnableETW();
+  void cancel_request_enable_etw() { etw_tracing_requested_ = false; }
+  bool IsETWTracingRequested() const { return etw_tracing_requested_; }
 
   bool ETWIsInRundown() const { return etw_in_rundown_; }
   void SetETWIsInRundown(bool is_rundown) { etw_in_rundown_ = is_rundown; }
@@ -2962,6 +2965,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #if defined(V8_ENABLE_ETW_STACK_WALKING)
   FilterETWSessionByURLCallback filter_etw_session_by_url_callback_ = nullptr;
   FilterETWSessionByURL2Callback filter_etw_session_by_url2_callback_ = nullptr;
+  bool etw_tracing_requested_ = false;
   bool etw_tracing_enabled_;
   bool etw_trace_interpreted_frames_;
   bool etw_in_rundown_;

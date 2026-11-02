@@ -704,6 +704,8 @@ constexpr bool CanTriggerGC(T... properties) {
   F(GetHoleNaN, 0, 1)                                                    \
   F(GetUndefinedNaN, 0, 1)
 
+#define FOR_EACH_INTRINSIC_ETW(F, I) F(RequestEnableETW, 0, 1)
+
 #define FOR_EACH_INTRINSIC_TYPEDARRAY(F, I)    \
   F(ArrayBufferDetach, -1, 1)                  \
   F(ArrayBufferSetDetachKey, 2, 1)             \
@@ -918,7 +920,8 @@ constexpr bool CanTriggerGC(T... properties) {
   IF_WASM(FOR_EACH_INTRINSIC_WASM, F, I)                          \
   IF_WASM(FOR_EACH_INTRINSIC_WASM_TEST, F, I)                     \
   IF_WASM_DRUMBRAKE(FOR_EACH_INTRINSIC_WASM_DRUMBRAKE_TEST, F, I) \
-  FOR_EACH_INTRINSIC_WEAKREF(F, I)
+  FOR_EACH_INTRINSIC_WEAKREF(F, I)                                \
+  IF_ETW(FOR_EACH_INTRINSIC_ETW, F, I)
 
 #define FOR_EACH_THROWING_INTRINSIC(F)       \
   FOR_EACH_THROWING_INTRINSIC_CLASSES(F, F)  \

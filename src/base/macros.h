@@ -600,6 +600,13 @@ static_assert(V8_ENABLE_SIMD128);
 #define IF_SHADOW_STACK(V, ...)
 #endif  // V8_ENABLE_CET_SHADOW_STACK
 
+#ifdef V8_ENABLE_ETW_STACK_WALKING
+// EXPAND is needed to work around MSVC's broken __VA_ARGS__ expansion.
+#define IF_ETW(V, ...) EXPAND(V(__VA_ARGS__))
+#else
+#define IF_ETW(V, ...)
+#endif  // V8_ENABLE_ETW_STACK_WALKING
+
 // Defines IF_TARGET_ARCH_64_BIT and IF_TARGET_ARCH_32_BIT, to be used in macro
 // lists for elements that should only be there if the target architecture is
 // 64-bit or 32-bit respectively.

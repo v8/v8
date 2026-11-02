@@ -44,6 +44,12 @@ class V8_EXPORT_PRIVATE IsolateLoadScriptData {
       std::weak_ptr<EtwIsolateCaptureStateMonitor> weak_monitor,
       uint32_t options);
 
+  static void EnableLogIfRequestedOnAllIsolates(uint32_t options);
+  static void EnableLogIfRequested(
+      Isolate* isolate, size_t event_id,
+      std::weak_ptr<EtwIsolateCaptureStateMonitor> weak_monitor,
+      uint32_t options);
+
  private:
   static IsolateLoadScriptData& GetData(Isolate* isolate);
 
@@ -54,6 +60,9 @@ class V8_EXPORT_PRIVATE IsolateLoadScriptData {
   };
 
   void EnqueueEnableLog(
+      std::weak_ptr<EtwIsolateCaptureStateMonitor> weak_monitor,
+      uint32_t options);
+  void EnqueueEnableLogIfRequested(
       std::weak_ptr<EtwIsolateCaptureStateMonitor> weak_monitor,
       uint32_t options);
 

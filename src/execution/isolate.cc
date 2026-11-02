@@ -7637,6 +7637,10 @@ void Isolate::SetFilterETWSessionByURL2Callback(
     FilterETWSessionByURL2Callback callback) {
   filter_etw_session_by_url2_callback_ = callback;
 }
+void Isolate::RequestEnableETW() {
+  etw_tracing_requested_ = true;
+  ETWJITInterface::MaybeSetHandlerNow(this);
+}
 
 FilterETWSessionByURLResult Isolate::RunFilterETWSessionByURLCallback(
     const std::string& etw_filter_payload) {
@@ -7653,10 +7657,7 @@ FilterETWSessionByURLResult Isolate::RunFilterETWSessionByURLCallback(
         filter_etw_session_by_url_callback_(context, etw_filter_payload);
     return {enable_etw_tracing, v8_flags.interpreted_frames_native_stack};
   }
-
-  // If no callback is installed, by default enable etw tracing but disable
-  // tracing of interpreter stack frames.
-  return {true, v8_flags.interpreted_frames_native_stack};
+  return {false, false};
 }
 
 #endif  // V8_ENABLE_ETW_STACK_WALKING

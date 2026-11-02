@@ -874,6 +874,8 @@ class V8_EXPORT Isolate {
   void SetFilterETWSessionByURLCallback(FilterETWSessionByURLCallback callback);
   void SetFilterETWSessionByURL2Callback(
       FilterETWSessionByURL2Callback callback);
+
+  void RequestEnableETW();
 #endif  // V8_OS_WIN
 
   /**
