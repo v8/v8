@@ -7918,6 +7918,8 @@ void MacroAssembler::PushDispatchHandle(Register dispatch_handle,
   DCHECK(!AreAliased(dispatch_handle, scratch1, scratch2));
 #ifdef V8_ENABLE_SANDBOX
   AssertZeroExtended(dispatch_handle);
+  And(dispatch_handle, dispatch_handle,
+      Operand(~((1 << kJSDispatchHandleShift) - 1)));
   LoadParameterCountFromJSDispatchTable(scratch1, dispatch_handle, scratch2);
   ZeroExtendWord(dispatch_handle, dispatch_handle);
   slli(scratch1, scratch1, 32);
