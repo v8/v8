@@ -105,6 +105,8 @@ class RiscvOperandGenerator final : public OperandGenerator {
         return UseRegister(node);
       }
       if ((constant->IsIntegral() && constant->integral() == 0) ||
+          (constant->kind == ConstantOp::Kind::kSmi &&
+           constant->smi().value() == 0) ||
           (constant->kind == ConstantOp::Kind::kFloat32 &&
            constant->float32().get_bits() == 0) ||
           (constant->kind == ConstantOp::Kind::kFloat64 &&

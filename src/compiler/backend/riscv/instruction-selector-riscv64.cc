@@ -1750,6 +1750,16 @@ void InstructionSelector::EmitPrepareArguments(
     OpIndex node) {
   RiscvOperandGenerator g(this);
 
+  // Zero-valued constants (e.g. Smi zero) can be stored through the zero
+  // register, but only for non-FP parameters: the code generator dispatches
+  // FP pokes on the operand being an FP register.
+  auto poke_value = [&](const PushParameter& input) {
+    if (IsFloatingPoint(input.location.GetType().representation())) {
+      return g.UseRegister(input.node);
+    }
+    return g.UseRegisterOrImmediateZero(input.node);
+  };
+
   // Prepare for C function call.
   if (call_descriptor->IsCFunctionCall()) {
     int gp_param_count = static_cast<int>(call_descriptor->GPParameterCount());
@@ -1759,11 +1769,11 @@ void InstructionSelector::EmitPrepareArguments(
     Emit(kArchPrepareCallCFunction, g.NoOutput(),
          g.TempImmediate(param_counts));
     // Poke any stack arguments.
-    int slot = 0;
-    for (PushParameter input : (*arguments)) {
-      Emit(kRiscvStoreToStackSlot, g.NoOutput(), g.UseRegister(input.node),
-           g.TempImmediate(slot << kSystemPointerSizeLog2));
-      ++slot;
+    for (size_t n = 0; n < arguments->size(); ++n) {
+      PushParameter input = (*arguments)[n];
+      if (!input.node.valid()) continue;
+      Emit(kRiscvStoreToStackSlot, g.NoOutput(), poke_value(input),
+           g.TempImmediate(static_cast<int>(n << kSystemPointerSizeLog2)));
     }
   } else {
     int push_count = static_cast<int>(call_descriptor->ParameterSlotCount());
@@ -1781,7 +1791,7 @@ void InstructionSelector::EmitPrepareArguments(
     for (size_t n = 0; n < arguments->size(); ++n) {
       PushParameter input = (*arguments)[n];
       if (input.node.valid()) {
-        Emit(kRiscvStoreToStackSlot, g.NoOutput(), g.UseRegister(input.node),
+        Emit(kRiscvStoreToStackSlot, g.NoOutput(), poke_value(input),
              g.TempImmediate(static_cast<int>(n << kSystemPointerSizeLog2)));
       }
     }
