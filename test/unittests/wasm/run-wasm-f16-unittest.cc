@@ -159,6 +159,75 @@ UN_OP_LIST(TEST_UN_OP)
 #undef TEST_UN_OP
 #undef UN_OP_LIST
 
+WASM_COMPILED_EXEC_TEST(F16x8SqrtRaw) {
+  i::v8_flags.wasm_fp16.Set(true);
+  WasmRunner<int32_t> runner(execution_tier);
+  constexpr int kLanes = 8;
+  uint16_t* memory = runner.builder().AddMemoryElems<uint16_t>(5 * kLanes);
+  uint8_t input = runner.AllocateLocal(kWasmS128);
+  uint8_t root = runner.AllocateLocal(kWasmS128);
+  runner.Build(
+      {WASM_LOCAL_SET(input, WASM_SIMD_LOAD_MEM(WASM_ZERO)),
+       WASM_LOCAL_SET(root,
+                      WASM_SIMD_UNOP(kExprF16x8Sqrt, WASM_LOCAL_GET(input))),
+       WASM_SIMD_STORE_MEM(WASM_I32V(16), WASM_LOCAL_GET(root)),
+       WASM_SIMD_STORE_MEM(
+           WASM_I32V(32), WASM_SIMD_UNOP(kExprF16x8Sqrt, WASM_LOCAL_GET(root))),
+       WASM_SIMD_STORE_MEM(
+           WASM_I32V(48),
+           WASM_SIMD_UNOP(kExprF16x8Sqrt, WASM_SIMD_LOAD_MEM(WASM_ZERO))),
+       WASM_SIMD_STORE_MEM(WASM_I32V(64), WASM_LOCAL_GET(input)), WASM_ONE});
+
+  auto square_root = [](uint16_t bits) {
+    double value = fp16_ieee_to_fp32_value(bits);
+    return DoubleToFloat16(std::sqrt(value));
+  };
+  auto check_lane = [](uint16_t input_bits, uint16_t expected,
+                       uint16_t actual) {
+    if (!isnan(expected)) {
+      CHECK_EQ(expected, actual);
+      return;
+    }
+    CHECK_EQ(0x7e00, actual & 0x7e00);
+    if (!isnan(input_bits) || IsCanonical(input_bits)) {
+      CHECK(IsCanonical(actual));
+    }
+  };
+  auto check = [&]() {
+    CHECK_EQ(1, runner.Call());
+    for (int lane = 0; lane < kLanes; ++lane) {
+      uint16_t input_bits = runner.builder().ReadMemory(&memory[lane]);
+      uint16_t expected_root = square_root(input_bits);
+      uint16_t actual_root =
+          runner.builder().ReadMemory(&memory[kLanes + lane]);
+      check_lane(input_bits, expected_root, actual_root);
+      check_lane(actual_root, square_root(expected_root),
+                 runner.builder().ReadMemory(&memory[2 * kLanes + lane]));
+      check_lane(input_bits, expected_root,
+                 runner.builder().ReadMemory(&memory[3 * kLanes + lane]));
+      CHECK_EQ(input_bits,
+               runner.builder().ReadMemory(&memory[4 * kLanes + lane]));
+    }
+  };
+
+  constexpr struct {
+    uint16_t input;
+    uint16_t expected;
+  } rounding_cases[kLanes] = {
+      {0x0000, 0x0000}, {0x8000, 0x8000}, {0x0001, 0x0c00}, {0x03ff, 0x1fff},
+      {0x0401, 0x2000}, {0x4000, 0x3da8}, {0x7bff, 0x5bff}, {0x7c00, 0x7c00}};
+  for (int lane = 0; lane < kLanes; ++lane) {
+    const auto& test = rounding_cases[lane];
+    CHECK_EQ(test.expected, square_root(test.input));
+    runner.builder().WriteMemory(&memory[lane], test.input);
+  }
+  check();
+  for (int lane = 0; lane < kLanes; ++lane) {
+    CHECK_EQ(rounding_cases[lane].expected,
+             runner.builder().ReadMemory(&memory[kLanes + lane]));
+  }
+}
+
 #define CMP_OP_LIST(V) \
   V(Eq, ==)            \
   V(Ne, !=)            \

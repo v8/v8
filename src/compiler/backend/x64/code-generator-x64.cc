@@ -3973,12 +3973,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         switch (lane_size) {
           case LaneSize::kL16: {
             // F16x8Sqrt
-            CpuFeatureScope f16c_scope(masm(), F16C);
-            CpuFeatureScope avx_scope(masm(), AVX);
-
-            __ vcvtph2ps(kScratchSimd256Reg, src);
-            __ vsqrtps(kScratchSimd256Reg, kScratchSimd256Reg);
-            __ vcvtps2ph(dst, kScratchSimd256Reg, 0);
+            if (UseAvx10_1()) {
+              CpuFeatureScope avx10_1_scope(masm(), AVX10_1);
+              __ vsqrtph(dst, src);
+            } else {
+              CpuFeatureScope f16c_scope(masm(), F16C);
+              CpuFeatureScope avx_scope(masm(), AVX);
+              __ vcvtph2ps(kScratchSimd256Reg, src);
+              __ vsqrtps(kScratchSimd256Reg, kScratchSimd256Reg);
+              __ vcvtps2ph(dst, kScratchSimd256Reg, 0);
+            }
             break;
           }
           case LaneSize::kL32: {

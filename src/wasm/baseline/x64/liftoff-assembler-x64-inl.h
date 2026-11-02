@@ -4746,6 +4746,11 @@ bool LiftoffAssembler::emit_f16x8_neg(LiftoffRegister dst,
 
 bool LiftoffAssembler::emit_f16x8_sqrt(LiftoffRegister dst,
                                        LiftoffRegister src) {
+  if (UseAvx10_1()) {
+    CpuFeatureScope avx10_1_scope(this, AVX10_1);
+    vsqrtph(dst.fp(), src.fp());
+    return true;
+  }
   if (!CpuFeatures::IsSupported(F16C) || !CpuFeatures::IsSupported(AVX)) {
     return false;
   }

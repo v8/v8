@@ -1084,7 +1084,9 @@ int DisassemblerX64::AVXVectorInstruction(uint8_t* data) {
     // Decode only the unmasked, non-broadcast XMM/YMM FP16 forms we emit.
     // Require EVEX.z, L', b and aaa to be zero; L and V' may be set.
     const char* mnemonic = nullptr;
+    const bool is_unary = evex_map5() && opcode == 0x51;
     if (evex_map5() && evex_pp_none()) {
+      if (opcode == 0x51) mnemonic = "vsqrtph";
       if (opcode == 0x58) mnemonic = "vaddph";
       if (opcode == 0x59) mnemonic = "vmulph";
       if (opcode == 0x5c) mnemonic = "vsubph";
@@ -1093,11 +1095,12 @@ int DisassemblerX64::AVXVectorInstruction(uint8_t* data) {
       if (opcode == 0xa8) mnemonic = "vfmadd213ph";
       if (opcode == 0xac) mnemonic = "vfnmadd213ph";
     }
-    if (mnemonic != nullptr && !evex_w() && (evex_byte3_ & 0xd7) == 0) {
+    if (mnemonic != nullptr && !evex_w() && (evex_byte3_ & 0xd7) == 0 &&
+        (!is_unary || get_vreg() == 0)) {
       int mod, regop, rm;
       get_modrm(*current, &mod, &regop, &rm);
-      AppendToBuffer("%s %s,%s,", mnemonic, NameOfAVXRegister(regop),
-                     NameOfAVXRegister(get_vreg()));
+      AppendToBuffer("%s %s,", mnemonic, NameOfAVXRegister(regop));
+      if (!is_unary) AppendToBuffer("%s,", NameOfAVXRegister(get_vreg()));
       current += PrintRightEVEXOperand(current, TupleType::kFull);
     } else {
       UnimplementedInstruction();
