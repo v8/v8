@@ -6296,14 +6296,42 @@ void PropertyCell::ClearAndInvalidate(Isolate* isolate) {
 }
 
 // static
+void PropertyCell::InvalidateCachedPropertyIfNeeded(
+    Isolate* isolate, DirectHandle<GlobalDictionary> dictionary,
+    PropertyDetails original_details, DirectHandle<Object> original_value) {
+  if (original_details.kind() != PropertyKind::kAccessor) return;
+  Tagged<AccessorPair> accessor_pair;
+  if (!TryCast<AccessorPair>(*original_value, &accessor_pair)) return;
+  std::optional<Tagged<Name>> maybe_cached_name =
+      FunctionTemplateInfo::TryGetCachedPropertyName(isolate,
+                                                     accessor_pair->getter());
+  if (!maybe_cached_name.has_value()) return;
+  InternalIndex cached_entry = dictionary->FindEntry(
+      isolate, direct_handle(*maybe_cached_name, isolate));
+  if (cached_entry.is_not_found()) return;
+  DirectHandle<PropertyCell> cached_cell(dictionary->CellAt(cached_entry),
+                                         isolate);
+  if (IsPropertyCellHole(cached_cell->value())) return;
+  if (cached_cell->property_details().kind() != PropertyKind::kData) return;
+  Handle<PropertyCell> new_cached_cell = isolate->factory()->NewPropertyCell(
+      direct_handle(cached_cell->name(), isolate),
+      cached_cell->property_details(),
+      direct_handle(cached_cell->value(), isolate));
+  dictionary->ValueAtPut(cached_entry, *new_cached_cell);
+  cached_cell->ClearAndInvalidate(isolate);
+}
+
+// static
 Handle<PropertyCell> PropertyCell::InvalidateAndReplaceEntry(
     Isolate* isolate, DirectHandle<GlobalDictionary> dictionary,
     InternalIndex entry, PropertyDetails new_details,
     DirectHandle<Object> new_value) {
   DirectHandle<PropertyCell> cell(dictionary->CellAt(entry), isolate);
   DirectHandle<Name> name(cell->name(), isolate);
-  DCHECK(cell->property_details().IsConfigurable());
-  DCHECK(!IsAnyHole(cell->value()));
+  PropertyDetails original_details = cell->property_details();
+  DirectHandle<Object> original_value(cell->value(), isolate);
+  DCHECK(original_details.IsConfigurable());
+  DCHECK(!IsAnyHole(*original_value));
 
   // Swap with a new property cell.
   Handle<PropertyCell> new_cell =
@@ -6311,6 +6339,8 @@ Handle<PropertyCell> PropertyCell::InvalidateAndReplaceEntry(
   dictionary->ValueAtPut(entry, *new_cell);
 
   cell->ClearAndInvalidate(isolate);
+  InvalidateCachedPropertyIfNeeded(isolate, dictionary, original_details,
+                                   original_value);
   return new_cell;
 }
 
@@ -6385,6 +6415,7 @@ Handle<PropertyCell> PropertyCell::PrepareForAndSetValue(
     cell = PropertyCell::InvalidateAndReplaceEntry(isolate, dictionary, entry,
                                                    details, value);
   } else {
+    DirectHandle<Object> original_value(cell->value(), isolate);
     cell->Transition(details, value);
     // Deopt when transitioning from a constant type or when making a writable
     // property read-only. Making a read-only property writable again is not
@@ -6396,6 +6427,8 @@ Handle<PropertyCell> PropertyCell::PrepareForAndSetValue(
       DependentCode::DeoptimizeDependencyGroups(
           isolate, *cell, DependentCode::kPropertyCellChangedGroup);
     }
+    InvalidateCachedPropertyIfNeeded(isolate, dictionary, original_details,
+                                     original_value);
   }
   return cell;
 }

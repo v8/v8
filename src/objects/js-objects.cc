@@ -1119,6 +1119,8 @@ void JSReceiver::DeleteNormalizedProperty(DirectHandle<JSReceiver> object,
         isolate);
 
     DirectHandle<PropertyCell> cell(dictionary->CellAt(entry), isolate);
+    PropertyDetails original_details = cell->property_details();
+    DirectHandle<Object> original_value(cell->value(), isolate);
 
     DirectHandle<GlobalDictionary> new_dictionary =
         GlobalDictionary::DeleteEntry(isolate, dictionary, entry);
@@ -1126,6 +1128,8 @@ void JSReceiver::DeleteNormalizedProperty(DirectHandle<JSReceiver> object,
                                                          kReleaseStore);
 
     cell->ClearAndInvalidate(isolate);
+    PropertyCell::InvalidateCachedPropertyIfNeeded(
+        isolate, new_dictionary, original_details, original_value);
   } else {
     if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       DirectHandle<SwissNameDictionary> dictionary(

@@ -293,6 +293,115 @@ TEST_F(AccessorTest, CachedAccessorOnGlobalObjectStore) {
   }
 }
 
+TEST_F(AccessorTest, CachedAccessorOnGlobalObjectReconfigureAndDelete) {
+  i::v8_flags.allow_natives_syntax.Set(true);
+  v8::HandleScope scope(isolate());
+
+  v8::Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate());
+  v8::Local<v8::ObjectTemplate> object_template = templ->InstanceTemplate();
+  v8::Local<v8::Private> priv =
+      v8::Private::ForApi(isolate(), NewString("Foo#draft"));
+
+  v8::Local<v8::FunctionTemplate> cached_getter =
+      v8::FunctionTemplate::NewWithCache(isolate(), UnreachableCallback, priv,
+                                         v8::Local<v8::Value>());
+  object_template->SetPrivate(priv, v8::Integer::New(isolate(), 123),
+                              v8::DontDelete);
+  object_template->SetAccessorProperty(NewString("draft"), cached_getter);
+  object_template->SetAccessorProperty(NewString("draft2"), cached_getter);
+  object_template->SetAccessorProperty(NewString("draft3"), cached_getter);
+  object_template->SetAccessorProperty(NewString("keep"), cached_getter,
+                                       v8::Local<v8::FunctionTemplate>(),
+                                       v8::DontDelete);
+
+  v8::Local<v8::Context> ctx =
+      v8::Context::New(isolate(), nullptr, object_template);
+
+  {
+    v8::Context::Scope context_scope(ctx);
+
+    RunJS(ctx,
+          "function loadGlobal() { return draft; }"
+          "function loadProp(o) { return o.draft; }"
+          "function loadGlobal2() { return draft2; }"
+          "function loadProp2(o) { return o.draft2; }"
+          "function loadGlobal3() { return draft3; }"
+          "function loadProp3(o) { return o.draft3; }"
+          "function loadKeep() { return keep; }"
+          "%PrepareFunctionForOptimization(loadGlobal);"
+          "%PrepareFunctionForOptimization(loadProp);"
+          "%PrepareFunctionForOptimization(loadGlobal2);"
+          "%PrepareFunctionForOptimization(loadProp2);"
+          "%PrepareFunctionForOptimization(loadGlobal3);"
+          "%PrepareFunctionForOptimization(loadProp3);"
+          "%PrepareFunctionForOptimization(loadKeep);"
+          "for (let i = 0; i < 10; i++) {"
+          "  loadGlobal(); loadProp(globalThis);"
+          "  loadGlobal2(); loadProp2(globalThis);"
+          "  loadGlobal3(); loadProp3(globalThis);"
+          "  loadKeep();"
+          "}"
+          "%OptimizeFunctionOnNextCall(loadGlobal);"
+          "%OptimizeFunctionOnNextCall(loadProp);"
+          "%OptimizeFunctionOnNextCall(loadGlobal2);"
+          "%OptimizeFunctionOnNextCall(loadProp2);"
+          "%OptimizeFunctionOnNextCall(loadGlobal3);"
+          "%OptimizeFunctionOnNextCall(loadProp3);"
+          "%OptimizeFunctionOnNextCall(loadKeep);");
+
+    EXPECT_THAT(RunJS(ctx, "loadGlobal()"), IsInt32(123));
+    EXPECT_THAT(RunJS(ctx, "loadProp(globalThis)"), IsInt32(123));
+    EXPECT_THAT(RunJS(ctx, "loadGlobal2()"), IsInt32(123));
+    EXPECT_THAT(RunJS(ctx, "loadProp2(globalThis)"), IsInt32(123));
+    EXPECT_THAT(RunJS(ctx, "loadGlobal3()"), IsInt32(123));
+    EXPECT_THAT(RunJS(ctx, "loadProp3(globalThis)"), IsInt32(123));
+    EXPECT_THAT(RunJS(ctx, "loadKeep()"), IsInt32(123));
+
+    // Reconfiguring "draft" into a data property must invalidate cached loads
+    // of "draft" while keeping "keep" intact.
+    RunJS(ctx,
+          "Object.defineProperty(globalThis, 'draft', {"
+          "  value: 42, configurable: true, writable: true"
+          "});");
+
+    EXPECT_THAT(RunJS(ctx, "loadGlobal()"), IsInt32(42));
+    EXPECT_THAT(RunJS(ctx, "loadProp(globalThis)"), IsInt32(42));
+    EXPECT_THAT(RunJS(ctx, "loadKeep()"), IsInt32(123));
+
+    // Warm up loadGlobal2 and loadProp2 again after the first invalidation,
+    // then delete "draft2".
+    RunJS(ctx,
+          "for (let i = 0; i < 10; i++) {"
+          "  loadGlobal2(); loadProp2(globalThis);"
+          "}"
+          "%OptimizeFunctionOnNextCall(loadGlobal2);"
+          "%OptimizeFunctionOnNextCall(loadProp2);");
+    EXPECT_THAT(RunJS(ctx, "loadGlobal2()"), IsInt32(123));
+    EXPECT_THAT(RunJS(ctx, "loadProp2(globalThis)"), IsInt32(123));
+
+    RunJS(ctx, "delete globalThis.draft2;");
+    EXPECT_THAT(RunJS(ctx, "loadProp2(globalThis)"), IsUndefined());
+    EXPECT_THAT(RunJS(ctx, "typeof draft2"), IsString("undefined"));
+    EXPECT_THAT(RunJS(ctx, "loadKeep()"), IsInt32(123));
+
+    // Warm up loadGlobal3 and loadProp3 again, then shadow "draft3" with a
+    // top-level lexical declaration.
+    RunJS(ctx,
+          "for (let i = 0; i < 10; i++) {"
+          "  loadGlobal3(); loadProp3(globalThis);"
+          "}"
+          "%OptimizeFunctionOnNextCall(loadGlobal3);"
+          "%OptimizeFunctionOnNextCall(loadProp3);");
+    EXPECT_THAT(RunJS(ctx, "loadGlobal3()"), IsInt32(123));
+    EXPECT_THAT(RunJS(ctx, "loadProp3(globalThis)"), IsInt32(123));
+
+    RunJS(ctx, "let draft3 = 99;");
+    EXPECT_THAT(RunJS(ctx, "loadGlobal3()"), IsInt32(99));
+    EXPECT_THAT(RunJS(ctx, "loadProp3(globalThis)"), IsInt32(123));
+    EXPECT_THAT(RunJS(ctx, "loadKeep()"), IsInt32(123));
+  }
+}
+
 namespace {
 
 // Getter return value should be non-null to trigger lazy property paths.
