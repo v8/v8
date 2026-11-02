@@ -65,7 +65,8 @@ V8_EXPORT_PRIVATE Local<String> GetBigIntDescription(Isolate* isolate,
 Local<String> GetDateDescription(Local<Date> date);
 
 // Returns a debug string representation of the function.
-Local<String> GetFunctionDescription(Local<Function> function);
+V8_EXPORT_PRIVATE Local<String> GetFunctionDescription(
+    Local<Function> function);
 
 // Schedule a debugger break to happen when function is called inside given
 // isolate.

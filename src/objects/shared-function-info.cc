@@ -470,15 +470,11 @@ Handle<Object> SharedFunctionInfo::GetSourceCodeHarmony(
   builder.AppendString(source);
   builder.AppendCStringLiteral("\n}");
   DirectHandle<String> result;
-  if (builder.Finish().To(&result)) {
+  if (builder.Finish(kDontThrow).ToHandle(&result)) {
     return indirect_handle(result, isolate);
   }
   // This should be extremely rare (only when {source} is close to
-  // String::kMaxLength), but it is reachable. Finish() threw an
-  // invalid-string-length error; clear it, since we return a valid fallback
-  // string rather than propagating the exception.
-  DCHECK(isolate->has_exception());
-  isolate->clear_exception();
+  // String::kMaxLength), but it is reachable.
   return isolate->factory()->NewStringFromAsciiChecked("<too long to print>");
 }
 

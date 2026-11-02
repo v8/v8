@@ -153,7 +153,7 @@ V8_OBJECT class CallSiteInfo : public Struct {
   Tagged<Object> GetScriptSource() const;
   Tagged<Object> GetScriptSourceMappingURL() const;
 
-  static Handle<PrimitiveHeapObject> GetEvalOrigin(
+  static MaybeDirectHandle<PrimitiveHeapObject> GetEvalOrigin(
       DirectHandle<CallSiteInfo> info);
   V8_EXPORT_PRIVATE static DirectHandle<PrimitiveHeapObject> GetFunctionName(
       DirectHandle<CallSiteInfo> info);
@@ -219,7 +219,8 @@ void SerializeCallSiteInfo(Isolate* isolate, DirectHandle<CallSiteInfo> frame,
                            IncrementalStringBuilder* builder);
 V8_EXPORT_PRIVATE
 MaybeDirectHandle<String> SerializeCallSiteInfo(
-    Isolate* isolate, DirectHandle<CallSiteInfo> frame);
+    Isolate* isolate, DirectHandle<CallSiteInfo> frame,
+    ShouldThrow should_throw = kThrowOnError);
 
 }  // namespace v8::internal
 

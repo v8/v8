@@ -3583,13 +3583,13 @@ void Isolate::PrintCurrentStackTrace(
                               SKIP_NONE, factory()->undefined_value());
   frames = CallSiteInfo::ExpandDeferredFrames(this, frames);
 
-  IncrementalStringBuilder builder(this);
   uint32_t frame_count =
       frames->ulength().value() / CallSiteInfo::Fields::kCount;
   for (uint32_t i = 0; i < frame_count; ++i) {
     DirectHandle<CallSiteInfo> frame =
         CallSiteInfo::ConstructFromRawData(this, frames, i);
 
+    bool include_frame = true;
     if (should_include_frame_callback) {
       Tagged<Object> raw_script_name = frame->GetScriptNameOrSourceURL();
       v8::Local<v8::String> script_name_local;
@@ -3602,21 +3602,24 @@ void Isolate::PrintCurrentStackTrace(
       } else {
         script_name_local = v8::String::Empty(v8_isolate);
       }
-
-      if (should_include_frame_callback(v8_isolate, script_name_local)) {
-        SerializeCallSiteInfo(this, frame, &builder);
-      } else {
-        builder.AppendString("<redacted>");
-      }
-    } else {
-      SerializeCallSiteInfo(this, frame, &builder);
+      include_frame =
+          should_include_frame_callback(v8_isolate, script_name_local);
     }
 
-    if (i != frame_count - 1) builder.AppendCharacter('\n');
-  }
+    if (include_frame) {
+      DirectHandle<String> serialized_frame;
+      if (SerializeCallSiteInfo(this, frame, kDontThrow)
+              .ToHandle(&serialized_frame)) {
+        serialized_frame->PrintOn(out);
+      } else {
+        out << "<error>";
+      }
+    } else {
+      out << "<redacted>";
+    }
 
-  DirectHandle<String> stack_trace = builder.Finish().ToHandleChecked();
-  stack_trace->PrintOn(out);
+    if (i != frame_count - 1) out << '\n';
+  }
 }
 
 bool Isolate::ComputeLocation(MessageLocation* target) {

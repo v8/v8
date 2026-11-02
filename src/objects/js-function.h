@@ -490,8 +490,9 @@ V8_OBJECT class JSFunction : public JSFunctionOrBoundFunctionOrWrappedFunction {
 
   // The function's string representation implemented according to
   // ES6 section 19.2.3.5 Function.prototype.toString ( ).
-  static DirectHandle<String> ToString(Isolate* isolate,
-                                       DirectHandle<JSFunction> function);
+  static MaybeDirectHandle<String> ToString(
+      Isolate* isolate, DirectHandle<JSFunction> function,
+      ShouldThrow should_throw = kThrowOnError);
 
   class BodyDescriptor;
 

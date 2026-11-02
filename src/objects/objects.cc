@@ -608,7 +608,10 @@ MaybeDirectHandle<String> Object::NoSideEffectsToMaybeString(
           JSWrappedFunction::ToString(isolate, Cast<JSWrappedFunction>(input));
     } else {
       DCHECK(IsJSFunction(*input));
-      fun_str = JSFunction::ToString(isolate, Cast<JSFunction>(input));
+      if (!JSFunction::ToString(isolate, Cast<JSFunction>(input), kDontThrow)
+               .ToHandle(&fun_str)) {
+        return {};
+      }
     }
 
     if (fun_str->length() > 128) {

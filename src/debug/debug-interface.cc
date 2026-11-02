@@ -200,7 +200,11 @@ Local<String> GetFunctionDescription(Local<Function> function) {
       return Utils::ToLocal(builder.Finish().ToHandleChecked());
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
-    return Utils::ToLocal(i::JSFunction::ToString(i_isolate, js_function));
+    i::DirectHandle<i::String> fun_str;
+    if (i::JSFunction::ToString(i_isolate, js_function, i::kDontThrow)
+            .ToHandle(&fun_str)) {
+      return Utils::ToLocal(fun_str);
+    }
   }
   return Utils::ToLocal(i_isolate->factory()->function_native_code_string());
 }

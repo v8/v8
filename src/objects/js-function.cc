@@ -1451,25 +1451,27 @@ bool JSFunction::SetName(Isolate* isolate, DirectHandle<JSFunction> function,
 
 namespace {
 
-DirectHandle<String> NativeCodeFunctionSourceString(
-    Isolate* isolate, DirectHandle<SharedFunctionInfo> shared_info) {
+MaybeDirectHandle<String> NativeCodeFunctionSourceString(
+    Isolate* isolate, DirectHandle<SharedFunctionInfo> shared_info,
+    ShouldThrow should_throw) {
   IncrementalStringBuilder builder(isolate);
   builder.AppendCStringLiteral("function ");
   builder.AppendString(direct_handle(shared_info->Name(), isolate));
   builder.AppendCStringLiteral("() { [native code] }");
-  return builder.Finish().ToHandleChecked();
+  return builder.Finish(should_throw);
 }
 
 }  // namespace
 
 // static
-DirectHandle<String> JSFunction::ToString(Isolate* isolate,
-                                          DirectHandle<JSFunction> function) {
+MaybeDirectHandle<String> JSFunction::ToString(
+    Isolate* isolate, DirectHandle<JSFunction> function,
+    ShouldThrow should_throw) {
   DirectHandle<SharedFunctionInfo> shared_info(function->shared(), isolate);
 
   // Check if {function} should hide its source code.
   if (!shared_info->IsUserJavaScript()) {
-    return NativeCodeFunctionSourceString(isolate, shared_info);
+    return NativeCodeFunctionSourceString(isolate, shared_info, should_throw);
   }
 
   if (IsClassConstructor(shared_info->kind())) {
@@ -1491,7 +1493,7 @@ DirectHandle<String> JSFunction::ToString(Isolate* isolate,
   // Check if we have source code for the {function}.
   if (!shared_info->HasSourceCode() ||
       shared_info->StartPosition() == shared_info->EndPosition()) {
-    return NativeCodeFunctionSourceString(isolate, shared_info);
+    return NativeCodeFunctionSourceString(isolate, shared_info, should_throw);
   }
 
   if (shared_info->function_token_position() == kNoSourcePosition) {
@@ -1500,7 +1502,7 @@ DirectHandle<String> JSFunction::ToString(Isolate* isolate,
     // giving inconsistent call behaviour.
     isolate->CountUsage(
         v8::Isolate::UseCounterFeature::kFunctionTokenOffsetTooLongForToString);
-    return NativeCodeFunctionSourceString(isolate, shared_info);
+    return NativeCodeFunctionSourceString(isolate, shared_info, should_throw);
   }
   return Cast<String>(
       SharedFunctionInfo::GetSourceCodeHarmony(isolate, shared_info));

@@ -296,7 +296,8 @@ BUILTIN(FunctionPrototypeToString) {
     return *JSBoundFunction::ToString(isolate, Cast<JSBoundFunction>(receiver));
   }
   if (IsJSFunction(*receiver)) {
-    return *JSFunction::ToString(isolate, Cast<JSFunction>(receiver));
+    RETURN_RESULT_OR_FAILURE(
+        isolate, JSFunction::ToString(isolate, Cast<JSFunction>(receiver)));
   }
   // With the revised toString behavior, all callable objects are valid
   // receivers for this method.
