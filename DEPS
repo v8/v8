@@ -96,7 +96,7 @@ vars = {
   'chromium_jetstream_git': 'https://chromium.googlesource.com/external/github.com/WebKit/JetStream.git',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:224f6aa73aeb73aafb05df998073ff2c7cae666f',
+  'gn_version': 'git_revision:ed7fee04cb30b96ed40ef188acfad5417349e399',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -158,7 +158,7 @@ deps = {
     'condition': 'checkout_agents_internal',
   },
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '3a23de59abccaf1a0c550edbbed08c8043808899',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f396c9039fa92f5b0937559d6a4e21c5000d3e78',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'd0d4c192e3c718016b3a0c5d44ccec632bccfe96',
   'buildtools/linux64': {
@@ -267,7 +267,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'bed65db1bb5d1022dab89cf62e7609b12084747b',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '8defb316a8fccb3645e5bcf3ed078b757106c857',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + 'beeeef91cf6fef89a4d4ba5e95d47ca64ccb3a44',
   'third_party/fp16/src':
@@ -520,7 +520,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '936f1383538f2858707a1c35faff6c6809f68503',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '5ca4307bd65b26906313b664d7efd7f3729c7767',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '9247077a82a2dbe4df42506197a9e99658833328',
   'third_party/re2/src':
