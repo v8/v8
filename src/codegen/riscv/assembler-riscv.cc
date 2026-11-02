@@ -51,7 +51,7 @@ namespace internal {
 
 #ifdef CAN_USE_RVA23U64_INSTRUCTIONS
 static const CpuFeatureSet kRVA23U64 =
-    CpuFeatureSet{} | RVC | ZFA | ZBB | ZBS | ZBA | ZICOND | ZCB;
+    CpuFeatureSet{} | RVC | ZFA | ZBB | ZBS | ZBA | ZICOND | ZCB | RVV;
 #endif
 // Get the CPU features enabled by the build. For cross compilation the
 // preprocessor symbols __riscv_f and __riscv_d
@@ -59,11 +59,12 @@ static const CpuFeatureSet kRVA23U64 =
 // snapshot.
 constexpr CpuFeatureSet CpuFeaturesImpliedByCompiler() {
   CpuFeatureSet features;
+
 #if defined(__riscv_f) && defined(__riscv_d)
   features.Add(FPU);
 #endif  // def __riscv_f
 
-#if (defined __riscv_vector) && (__riscv_v >= 1000000)
+#if ((defined __riscv_vector) && (__riscv_v >= 1000000))
   features.Add(RVV);
 #endif  // def __riscv_vector && __riscv_v >= 1000000
 
@@ -96,19 +97,17 @@ constexpr CpuFeatureSet CpuFeaturesImpliedByCompiler() {
 
 #ifdef RISCV_TARGET_SIMULATOR
 static CpuFeatureSet SimulatorFeatures() {
+  // The base ISA (F, D, C) and the extensions selected by the build
+  // configuration (see BUILD.gn, e.g. the rv64gc / rva23u64 profiles and the
+  // riscv_use_* switches) are contributed by CpuFeaturesImpliedByCompiler().
+  // This function only exposes the extra features the RISC-V simulator always
+  // provides and for which there is no GN switch.
   CpuFeatureSet features;
-  features.Add(RVV);
-  features.Add(ZBA);
-  features.Add(ZBB);
-  features.Add(ZBS);
-  features.Add(ZICOND);
-  features.Add(ZICFISS);
   features.Add(FPU);
+  features.Add(RVC);
   features.Add(ZFH);
   features.Add(ZVFH);
-  features.Add(ZFA);
-  features.Add(RVC);
-  features.Add(ZCB);
+  features.Add(ZICFISS);
   return features;
 }
 #endif

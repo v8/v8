@@ -1849,7 +1849,7 @@ config("toolchain") {
     if (riscv_use_zicfiss) {
       defines += [ "V8_ENABLE_RISCV_SHADOW_STACK" ]
     }
-    if (riscv_profile == "rva23u64") {
+    if (riscv_profile == "rva23u64" || v8_target_is_simulator) {
       defines += [ "CAN_USE_RVA23U64_INSTRUCTIONS" ]
     }
     if (riscv_use_zicond) {
