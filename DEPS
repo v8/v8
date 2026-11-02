@@ -103,7 +103,7 @@ vars = {
   'ninja_version': 'version:3@1.12.1.chromium.4',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:dfc32e4edca158cff2b64a1658ee3940f0116b3a',
+  'siso_version': 'git_revision:c508213533aa5cd425b69cb0f66e53522d77022d',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -158,7 +158,7 @@ deps = {
     'condition': 'checkout_agents_internal',
   },
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'b8e694e483dc2dbbae6c34be54fdb9473cc5afa4',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '3a23de59abccaf1a0c550edbbed08c8043808899',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'd0d4c192e3c718016b3a0c5d44ccec632bccfe96',
   'buildtools/linux64': {
@@ -267,7 +267,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'a20039648c0de69d8156906b18052bd47e9bf230',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'bed65db1bb5d1022dab89cf62e7609b12084747b',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + 'beeeef91cf6fef89a4d4ba5e95d47ca64ccb3a44',
   'third_party/fp16/src':
@@ -333,7 +333,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '9e44ea2ff4f53a60c2a3d2b6f511d7bab9ab12f0',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'b88fbdd86260fc59b892d9e21054c5388c473b0d',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '058c23f04d56417fceefbdb21fdd31ac1aeb028f',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -522,7 +522,7 @@ deps = {
   'third_party/perfetto':
     Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '936f1383538f2858707a1c35faff6c6809f68503',
   'third_party/protobuf':
-    Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '09628b94d7d74ca43fd3dfd81d6b9d11f09bebc2',
+    Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '9247077a82a2dbe4df42506197a9e99658833328',
   'third_party/re2/src':
     Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + '2da0056814cf180480a19f5cf811e7e1c054bf6d',
   'third_party/requests': {
