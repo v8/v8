@@ -187,6 +187,7 @@
   # CRASH. See cctest.status for details (v8:13945).
   'verify-check-false': [FAIL, NO_VARIANTS, ['official_build', CRASH]],
   'verify-assert-false': [NO_VARIANTS, ['mode == release and dcheck_always_on == False', PASS], ['mode == debug', FAIL]],
+  'compiler/constant-field-hole-crash': [FAIL, NO_VARIANTS, ['official_build', CRASH]],
 
   ##############################################################################
   # Tests with different versions for release and debug.

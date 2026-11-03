@@ -1845,7 +1845,7 @@ std::optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
       builder.Allocate(sizeof(HeapNumber), AllocationType::kYoung);
       builder.Store(AccessBuilder::ForMap(), map);
       builder.Store(AccessBuilder::ForHeapNumberValue(),
-                    jsgraph()->ConstantMaybeHole(number));
+                    jsgraph()->ConstantNoHole(number));
       value = effect = builder.Finish();
     } else {
       // It's fine to store the 'uninitialized' marker into a Smi field since
