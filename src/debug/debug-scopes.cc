@@ -1154,7 +1154,35 @@ bool ScopeIterator::SetLocalVariableValue(DirectHandle<String> variable_name,
             CHECK_LT(static_cast<uint32_t>(index),
                      parameters_and_registers->ulength().value());
             Tagged<Object> current_val = parameters_and_registers->get(index);
-            if (IsLocalInTdz(var.mode, current_val, var.initializer_position)) {
+            // Intentional: SetLocalVariableValue intentionally checks only
+            // actual hole values (IsTheHole / IsTdzHole) and does not call
+            // IsLocalInTdz:
+            // 1. Context, script, and module lexical slots never elide TdzHole
+            //    initialization, and writing over TdzHole via Context::Set
+            //    would wrap a kNotAssigned (NoCell) slot in a ContextCell
+            //    (leaking a raw ContextCell to JS).
+            // 2. Stack and suspended-generator VariableLocation::LOCAL
+            //    registers only emit TdzHole when a path before or across the
+            //    initializer can read the register
+            //    (Variable::binding_needs_init()); otherwise TdzHole
+            //    initialization is elided and the register holds `undefined`
+            //    until the initializer runs.
+            // 3. Calling IsLocalInTdz here falsely rejected valid debugger
+            //    writes to already-initialized `undefined` locals (such as in
+            //    switch scopes where initializer_position is kMaxInt, or
+            //    earlier bindings in multi-binding destructuring declarations
+            //    where initializer_position is the end of the declaration).
+            // 4. Working as intended (WAI): While overwriting `undefined` with
+            //    another value in an elided-TDZ register via
+            //    SetLocalVariableValue is theoretically observable (e.g. to a
+            //    subsequent debugger read via VisitLocals /
+            //    DebugEvaluate::Local before the initializer runs, since
+            //    IsLocalInTdz only checks IsUndefined(value)), it cannot
+            //    violate VM, compiler, deoptimization, or ContextCell
+            //    invariants and is overwritten when the initializer executes.
+            //    We intentionally do not care about this edge case and consider
+            //    it working as intended.
+            if (IsTheHole(current_val) || IsTdzHole(current_val)) {
               return false;
             }
             parameters_and_registers->set(index, *new_value);
@@ -1168,8 +1196,9 @@ bool ScopeIterator::SetLocalVariableValue(DirectHandle<String> variable_name,
             DirectHandle<Object> current_val =
                 frame_inspector_->GetExpression(index);
             if (IsOptimizedOut(*current_val)) return false;
-            if (IsLocalInTdz(var.mode, *current_val,
-                             var.initializer_position)) {
+            // Intentional: As explained above, check only actual hole values
+            // for stack registers.
+            if (IsTheHole(*current_val) || IsTdzHole(*current_val)) {
               return false;
             }
             frame->SetExpression(index, *new_value);

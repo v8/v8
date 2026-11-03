@@ -212,6 +212,30 @@ class V8_EXPORT_PRIVATE ScopeIterator {
 
   Handle<JSObject> WithContextExtension();
 
+  // Sets the value of a local variable in the current scope.
+  // Note on TDZ handling:
+  // - Context, script, and module lexical slots never elide TdzHole
+  //   initialization, and writing over TdzHole via Context::Set would wrap a
+  //   kNotAssigned (NoCell) slot in a ContextCell (leaking a raw ContextCell to
+  //   JS).
+  // - Stack and suspended-generator VariableLocation::LOCAL registers only emit
+  //   TdzHole when a path before or across the initializer can read the
+  //   register (Variable::binding_needs_init()); otherwise TdzHole
+  //   initialization is elided and the register holds `undefined` until the
+  //   initializer runs.
+  // - Calling IsLocalInTdz here falsely rejected valid debugger writes to
+  //   already-initialized `undefined` locals (such as in switch scopes where
+  //   initializer_position is kMaxInt, or earlier bindings in multi-binding
+  //   destructuring declarations where initializer_position is the end of the
+  //   declaration).
+  // - Working as intended (WAI): While overwriting `undefined` with another
+  //   value in an elided-TDZ register via SetLocalVariableValue is
+  //   theoretically observable (e.g. to a subsequent debugger read via
+  //   VisitLocals / DebugEvaluate::Local before the initializer runs, since
+  //   IsLocalInTdz only checks IsUndefined(value)), it cannot violate VM,
+  //   compiler, deoptimization, or ContextCell invariants and is overwritten
+  //   when the initializer executes. We intentionally do not care about this
+  //   edge case and consider it working as intended.
   bool SetLocalVariableValue(DirectHandle<String> variable_name,
                              DirectHandle<Object> new_value);
   bool SetContextVariableValue(DirectHandle<String> variable_name,

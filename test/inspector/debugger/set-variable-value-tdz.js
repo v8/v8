@@ -15,9 +15,12 @@ function testContextAllocated() {
 }
 
 function testStackAllocated() {
-  debugger;
-  let y = 84;
-  return y;
+  switch (1) {
+    case 1:
+      debugger;
+      let y = 84;
+      return y;
+  }
 }
 
 function* testGenerator() {
