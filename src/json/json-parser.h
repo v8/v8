@@ -367,8 +367,6 @@ class JsonParser final {
     return CurrentCharacter();
   }
 
-  void AdvanceToNonDecimal();
-
   V8_INLINE JsonToken peek() const;
 
   void Consume(JsonToken token) {
@@ -493,6 +491,7 @@ class JsonParser final {
   // Parses a number either as a double or a Smi. Returns true if it was a
   // double, false if it was a Smi.
   bool ParseJsonNumberAsDoubleOrSmi(double* result_double, int* result_smi);
+  bool ReparseJsonDoubleForError(const Char* start);
 
   // Parse a single JSON value from input (grammar production JSONValue).
   // A JSON value is either a (double-quoted) string literal, a number literal,

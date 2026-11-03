@@ -36,6 +36,7 @@
 #include "src/strings/char-predicates-inl.h"
 #include "src/strings/string-hasher.h"
 #include "src/utils/boxed-float.h"
+#include "third_party/fast_float/src/include/fast_float/fast_float.h"
 
 namespace v8 {
 namespace internal {
@@ -88,7 +89,7 @@ enum class EscapeKind : uint8_t {
 
 using EscapeKindField = base::BitField8<EscapeKind, 0, 3>;
 using MayTerminateStringField = EscapeKindField::Next<bool, 1>;
-using NumberPartField = MayTerminateStringField::Next<bool, 1>;
+using NumberContinuationField = MayTerminateStringField::Next<bool, 1>;
 
 constexpr bool MayTerminateJsonString(uint8_t flags) {
   return MayTerminateStringField::decode(flags);
@@ -98,8 +99,8 @@ constexpr EscapeKind GetEscapeKind(uint8_t flags) {
   return EscapeKindField::decode(flags);
 }
 
-constexpr bool IsNumberPart(uint8_t flags) {
-  return NumberPartField::decode(flags);
+constexpr bool IsNumberContinuation(uint8_t flags) {
+  return NumberContinuationField::decode(flags);
 }
 
 constexpr uint8_t GetJsonScanFlags(uint8_t c) {
@@ -118,12 +119,10 @@ constexpr uint8_t GetJsonScanFlags(uint8_t c) {
           : c == '"' ? MayTerminateStringField::encode(true)
           : c == '\\' ? MayTerminateStringField::encode(true)
           : MayTerminateStringField::encode(false)) |
-         NumberPartField::encode(c == '.' ||
-                                 c == 'e' ||
-                                 c == 'E' ||
-                                 IsDecimalDigit(c) ||
-                                 c == '-' ||
-                                 c == '+');
+         NumberContinuationField::encode(c == '.' ||
+                                         c == 'e' ||
+                                         c == 'E' ||
+                                         IsDecimalDigit(c));
   // clang-format on
 }
 
@@ -136,6 +135,54 @@ static const constexpr uint8_t character_json_scan_flags[256] = {
         INT_0_TO_127_LIST(CALL_GET_SCAN_FLAGS)
 #undef CALL_GET_SCAN_FLAGS
 };
+
+template <typename Char>
+constexpr bool IsJsonNumberContinuation(Char c) {
+  if constexpr (sizeof(Char) > 1) {
+    if (V8_UNLIKELY(c > unibrow::Latin1::kMaxChar)) return false;
+  }
+  return IsNumberContinuation(character_json_scan_flags[c]);
+}
+
+template <typename Char>
+V8_INLINE void ScanUpTo8MoreDecimalDigits(const Char*& cursor, const Char* end,
+                                          int32_t& smi_value) {
+  if (V8_LIKELY(end - cursor >= 8)) {
+    if constexpr (sizeof(Char) == 1) {
+      uint32_t digits =
+          fast_float::read4_to_u32(reinterpret_cast<const char*>(cursor));
+      if (fast_float::is_made_of_four_digits_fast(digits)) {
+        smi_value =
+            smi_value * 10000 + fast_float::parse_four_digits_unrolled(digits);
+        cursor += 4;
+        digits =
+            fast_float::read4_to_u32(reinterpret_cast<const char*>(cursor));
+        if (fast_float::is_made_of_four_digits_fast(digits)) {
+          smi_value = smi_value * 10000 +
+                      fast_float::parse_four_digits_unrolled(digits);
+          cursor += 4;
+          return;
+        }
+      }
+      for (int k = 0; k < 3; ++k) {
+        if (!IsDecimalDigit(*cursor)) break;
+        smi_value = (smi_value * 10) + ((*cursor) - '0');
+        cursor++;
+      }
+      return;
+    }
+    for (int k = 0; k < 8; ++k) {
+      if (!IsDecimalDigit(*cursor)) break;
+      smi_value = (smi_value * 10) + ((*cursor) - '0');
+      cursor++;
+    }
+  } else {
+    while (cursor < end && IsDecimalDigit(*cursor)) {
+      smi_value = (smi_value * 10) + ((*cursor) - '0');
+      cursor++;
+    }
+  }
+}
 
 #define EXPECT_RETURN_ON_ERROR(token, msg, ret) \
   if (V8_UNLIKELY(!Expect<token>(msg))) {       \
@@ -1774,12 +1821,6 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
 }
 
 template <typename Char>
-void JsonParser<Char>::AdvanceToNonDecimal() {
-  cursor_ =
-      std::find_if(cursor_, end_, [](Char c) { return !IsDecimalDigit(c); });
-}
-
-template <typename Char>
 Handle<Object> JsonParser<Char>::ParseJsonNumber() {
   double double_number;
   int smi_number;
@@ -1792,104 +1833,144 @@ Handle<Object> JsonParser<Char>::ParseJsonNumber() {
 template <typename Char>
 bool JsonParser<Char>::ParseJsonNumberAsDoubleOrSmi(double* result_double,
                                                     int* result_smi) {
-  int sign = 1;
+  const Char* cursor = cursor_;
+  const Char* end = end_;
+  const Char* start = cursor;
+  DisallowGarbageCollection no_gc;
 
-  {
-    const Char* start = cursor_;
-    DisallowGarbageCollection no_gc;
-
-    base::uc32 c = *cursor_;
-    if (c == '-') {
-      sign = -1;
-      c = NextCharacter();
-    }
-
-    if (c == '0') {
-      // Prefix zero is only allowed if it's the only digit before
-      // a decimal point or exponent.
-      c = NextCharacter();
-      if (base::IsInRange(c, 0,
-                          static_cast<int32_t>(unibrow::Latin1::kMaxChar)) &&
-          IsNumberPart(character_json_scan_flags[c])) {
-        if (V8_UNLIKELY(IsDecimalDigit(c))) {
-          AllowGarbageCollection allow_before_exception;
-          ReportUnexpectedToken(JsonToken::NUMBER);
-          *result_smi = 0;
-          return false;
-        }
-      } else if (sign > 0) {
-        *result_smi = 0;
-        return false;
-      }
-    } else {
-      const Char* smi_start = cursor_;
-      static_assert(Smi::IsValid(-999999999));
-      static_assert(Smi::IsValid(999999999));
-      const int kMaxSmiLength = 9;
-      int32_t i = 0;
-      const Char* stop = cursor_ + kMaxSmiLength;
-      if (stop > end_) stop = end_;
-      while (cursor_ < stop && IsDecimalDigit(*cursor_)) {
-        i = (i * 10) + ((*cursor_) - '0');
-        cursor_++;
-      }
-      if (V8_UNLIKELY(smi_start == cursor_)) {
-        AllowGarbageCollection allow_before_exception;
-        ReportUnexpectedToken(
-            JsonToken::ILLEGAL,
-            MessageTemplate::kJsonParseNoNumberAfterMinusSign);
-        *result_smi = 0;
-        return false;
-      }
-      c = CurrentCharacter();
-      if (!base::IsInRange(c, 0,
-                           static_cast<int32_t>(unibrow::Latin1::kMaxChar)) ||
-          !IsNumberPart(character_json_scan_flags[c])) {
-        // Smi.
-        // TODO(verwaest): Cache?
-        *result_smi = i * sign;
-        return false;
-      }
-      AdvanceToNonDecimal();
-    }
-
-    if (CurrentCharacter() == '.') {
-      c = NextCharacter();
-      if (!IsDecimalDigit(c)) {
-        AllowGarbageCollection allow_before_exception;
-        ReportUnexpectedToken(
-            JsonToken::ILLEGAL,
-            MessageTemplate::kJsonParseUnterminatedFractionalNumber);
-        *result_smi = 0;
-        return false;
-      }
-      AdvanceToNonDecimal();
-    }
-
-    if (AsciiAlphaToLower(CurrentCharacter()) == 'e') {
-      c = NextCharacter();
-      if (c == '-' || c == '+') c = NextCharacter();
-      if (!IsDecimalDigit(c)) {
-        AllowGarbageCollection allow_before_exception;
-        ReportUnexpectedToken(
-            JsonToken::ILLEGAL,
-            MessageTemplate::kJsonParseExponentPartMissingNumber);
-        *result_smi = 0;
-        return false;
-      }
-      AdvanceToNonDecimal();
-    }
-
-    base::Vector<const Char> chars(start, cursor_ - start);
-    *result_double =
-        StringToDouble(chars,
-                       NO_CONVERSION_FLAG,  // Hex, octal or trailing junk.
-                       std::numeric_limits<double>::quiet_NaN());
-    DCHECK(!std::isnan(*result_double));
-
-    // The result might still be a smi even if it has a decimal part.
-    return !DoubleToSmiInteger(*result_double, result_smi);
+  bool negative = (*cursor == '-');
+  if (negative) {
+    cursor++;
   }
+
+  if (cursor < end && *cursor == '0') {
+    // Prefix zero is only allowed if it's the only digit before
+    // a decimal point or exponent.
+    cursor++;
+    if (V8_LIKELY(cursor == end || !IsJsonNumberContinuation(*cursor))) {
+      cursor_ = cursor;
+      if (V8_UNLIKELY(negative)) {
+        *result_double = -0.0;
+        return true;
+      }
+      *result_smi = 0;
+      return false;
+    }
+  } else if (V8_LIKELY(cursor < end && IsDecimalDigit(*cursor))) {
+    // Up to 9 decimal digits (1 initial digit + up to 8 more) always fit in a
+    // Smi, whereas 10 digits ( up to 9,999,999,999 ) may overflow both 31-bit
+    // and 32-bit Smi range.
+    static_assert(Smi::IsValid(-999'999'999));
+    static_assert(Smi::IsValid(999'999'999));
+    static_assert(!Smi::IsValid(-9'999'999'999));
+    static_assert(!Smi::IsValid(9'999'999'999));
+    int32_t i = *cursor - '0';
+    cursor++;
+    ScanUpTo8MoreDecimalDigits(cursor, end, i);
+    if (V8_LIKELY(cursor == end || !IsJsonNumberContinuation(*cursor))) {
+      cursor_ = cursor;
+      *result_smi = negative ? -i : i;
+      return false;
+    }
+  }
+
+  using UC = std::conditional_t<sizeof(Char) == 1, char, char16_t>;
+  constexpr fast_float::parse_options_t<UC> kOptions{
+      fast_float::chars_format::json};
+  auto res = fast_float::from_chars_advanced(reinterpret_cast<const UC*>(start),
+                                             reinterpret_cast<const UC*>(end),
+                                             *result_double, kOptions);
+  if (V8_LIKELY(res.ec != std::errc::invalid_argument)) {
+    cursor = reinterpret_cast<const Char*>(res.ptr);
+    if (V8_LIKELY(cursor == end || AsciiAlphaToLower(*cursor) != 'e' ||
+                  !ReparseJsonDoubleForError(start))) {
+      cursor_ = cursor;
+      DCHECK(!std::isnan(*result_double));
+      // The result might still be a smi even if it has a decimal part.
+      return !DoubleToSmiInteger(*result_double, result_smi);
+    }
+  } else {
+    bool found_error = ReparseJsonDoubleForError(start);
+    DCHECK(found_error);
+    USE(found_error);
+  }
+  *result_smi = 0;
+  return false;
+}
+
+template <typename Char>
+V8_NOINLINE bool JsonParser<Char>::ReparseJsonDoubleForError(
+    const Char* start) {
+  const Char* cursor = start;
+  const Char* end = end_;
+  DisallowGarbageCollection no_gc;
+
+  if (*cursor == '-') {
+    cursor++;
+    if (cursor == end || !IsDecimalDigit(*cursor)) {
+      cursor_ = cursor;
+      AllowGarbageCollection allow_before_exception;
+      ReportUnexpectedToken(JsonToken::ILLEGAL,
+                            MessageTemplate::kJsonParseNoNumberAfterMinusSign);
+      return true;
+    }
+  }
+  DCHECK_LT(cursor, end);
+  DCHECK(IsDecimalDigit(*cursor));
+
+  if (*cursor == '0') {
+    // Prefix zero is only allowed if it's the only digit before a decimal
+    // point or exponent. If it's a digit, that's an octal literal which is an
+    // error.
+    cursor++;
+    if (cursor < end && IsDecimalDigit(*cursor)) {
+      cursor_ = cursor;
+      AllowGarbageCollection allow_before_exception;
+      ReportUnexpectedToken(JsonToken::NUMBER);
+      return true;
+    }
+  } else {
+    do {
+      cursor++;
+    } while (cursor < end && IsDecimalDigit(*cursor));
+  }
+
+  if (cursor < end && *cursor == '.') {
+    cursor++;
+    const Char* frac_start = cursor;
+    while (cursor < end && IsDecimalDigit(*cursor)) cursor++;
+    if (frac_start == cursor) {
+      cursor_ = cursor;
+      AllowGarbageCollection allow_before_exception;
+      ReportUnexpectedToken(
+          JsonToken::ILLEGAL,
+          MessageTemplate::kJsonParseUnterminatedFractionalNumber);
+      return true;
+    }
+  }
+
+  if (cursor < end && AsciiAlphaToLower(*cursor) == 'e') {
+    cursor++;
+    if (cursor < end && (*cursor == '-' || *cursor == '+')) cursor++;
+    const Char* exp_start = cursor;
+    while (cursor < end && IsDecimalDigit(*cursor)) cursor++;
+    if (exp_start == cursor) {
+      cursor_ = cursor;
+      AllowGarbageCollection allow_before_exception;
+      ReportUnexpectedToken(
+          JsonToken::ILLEGAL,
+          MessageTemplate::kJsonParseExponentPartMissingNumber);
+      return true;
+    }
+    // We only reach here if a valid number with an exponent is immediately
+    // followed by another 'e'/'E' (e.g. "1e1e"). The number itself is valid;
+    // return false so the outer parser rejects the trailing 'e'.
+    DCHECK_LT(cursor, end);
+    DCHECK_EQ(AsciiAlphaToLower(*cursor), 'e');
+    return false;
+  }
+
+  UNREACHABLE();
 }
 
 namespace {
