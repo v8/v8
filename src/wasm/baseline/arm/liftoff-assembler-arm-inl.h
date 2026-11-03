@@ -1237,6 +1237,38 @@ inline void AtomicOp64(
   }
 }
 
+inline void EmitWriteBarrier(LiftoffAssembler* lasm, Register dst_addr,
+                             Register offset_reg, uintptr_t offset_imm,
+                             Register src) {
+  if (v8_flags.disable_write_barriers) return;
+  Label exit;
+  __ JumpIfSmi(src, &exit);
+  __ CheckPageFlag(dst_addr, MemoryChunk::kPointersFromHereAreInterestingMask,
+                   kZero, &exit);
+  __ CheckPageFlag(src, MemoryChunk::kPointersToHereAreInterestingMask, kZero,
+                   &exit);
+
+  UseScratchRegisterScope temps{lasm};
+  Register actual_offset_reg = offset_reg;
+  if (offset_reg != no_reg && offset_imm != 0) {
+    if (__ cache_state()->is_used(LiftoffRegister(offset_reg))) {
+      // The code below only needs a scratch register if the {MemOperand} given
+      // to {str} has an offset outside the uint12 range. After doing the
+      // addition below we will not pass an immediate offset to {str} though, so
+      // we can use the scratch register here.
+      actual_offset_reg = temps.Acquire();
+    }
+    __ add(actual_offset_reg, offset_reg, Operand(offset_imm));
+  }
+
+  __ CallRecordWriteStubSaveRegisters(
+      dst_addr,
+      actual_offset_reg == no_reg ? Operand(offset_imm)
+                                  : Operand(actual_offset_reg),
+      SaveFPRegsMode::kSave, StubCallMode::kCallWasmRuntimeStub);
+  __ bind(&exit);
+}
+
 #undef __
 }  // namespace liftoff
 
@@ -1310,6 +1342,7 @@ void LiftoffAssembler::AtomicStoreTaggedPointer(
   AtomicStore(dst_addr, offset_reg, offset_imm, LiftoffRegister(src),
               StoreType::kI32Store, trapping_store_pc,
               AtomicMemoryOrder::kSeqCst, pinned, false);
+  liftoff::EmitWriteBarrier(this, dst_addr, offset_reg, offset_imm, src);
 }
 
 void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
@@ -1410,34 +1443,7 @@ void LiftoffAssembler::AtomicExchangeTaggedPointer(
   liftoff::AtomicOp32(this, dst_addr, offset_reg, offset_imm, value, result,
                       pinned, &Assembler::ldrex, &Assembler::strex,
                       &liftoff::Exchange);
-  if (v8_flags.disable_write_barriers) return;
-  // Emit the write barrier.
-  Label exit;
-  JumpIfSmi(value.gp(), &exit);
-  CheckPageFlag(dst_addr, MemoryChunk::kPointersFromHereAreInterestingMask,
-                kZero, &exit);
-  CheckPageFlag(value.gp(), MemoryChunk::kPointersToHereAreInterestingMask,
-                kZero, &exit);
-
-  UseScratchRegisterScope temps{this};
-  Register actual_offset_reg = offset_reg;
-  if (offset_reg != no_reg && offset_imm != 0) {
-    if (cache_state()->is_used(LiftoffRegister(offset_reg))) {
-      // The code below only needs a scratch register if the {MemOperand} given
-      // to {str} has an offset outside the uint12 range. After doing the
-      // addition below we will not pass an immediate offset to {str} though, so
-      // we can use the scratch register here.
-      actual_offset_reg = temps.Acquire();
-    }
-    add(actual_offset_reg, offset_reg, Operand(offset_imm));
-  }
-
-  CallRecordWriteStubSaveRegisters(
-      dst_addr,
-      actual_offset_reg == no_reg ? Operand(offset_imm)
-                                  : Operand(actual_offset_reg),
-      SaveFPRegsMode::kSave, StubCallMode::kCallWasmRuntimeStub);
-  bind(&exit);
+  liftoff::EmitWriteBarrier(this, dst_addr, offset_reg, offset_imm, value.gp());
 }
 
 namespace liftoff {
@@ -1640,32 +1646,8 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
   // final comparison.
   Label exit;
   b(ne, &exit);
-
-  // Emit the write barrier.
-  JumpIfSmi(new_value.gp(), &exit);
-  CheckPageFlag(dst_addr, MemoryChunk::kPointersFromHereAreInterestingMask,
-                kZero, &exit);
-  CheckPageFlag(new_value.gp(), MemoryChunk::kPointersToHereAreInterestingMask,
-                kZero, &exit);
-
-  UseScratchRegisterScope temps{this};
-  Register actual_offset_reg = offset_reg;
-  if (offset_reg != no_reg && offset_imm != 0) {
-    if (cache_state()->is_used(LiftoffRegister(offset_reg))) {
-      // The code below only needs a scratch register if the {MemOperand} given
-      // to {str} has an offset outside the uint12 range. After doing the
-      // addition below we will not pass an immediate offset to {str} though, so
-      // we can use the scratch register here.
-      actual_offset_reg = temps.Acquire();
-    }
-    add(actual_offset_reg, offset_reg, Operand(offset_imm));
-  }
-
-  CallRecordWriteStubSaveRegisters(
-      dst_addr,
-      actual_offset_reg == no_reg ? Operand(offset_imm)
-                                  : Operand(actual_offset_reg),
-      SaveFPRegsMode::kSave, StubCallMode::kCallWasmRuntimeStub);
+  liftoff::EmitWriteBarrier(this, dst_addr, offset_reg, offset_imm,
+                            new_value.gp());
   bind(&exit);
 }
 
