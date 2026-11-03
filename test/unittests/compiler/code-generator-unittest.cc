@@ -1145,7 +1145,7 @@ class CodeGeneratorTester {
  public:
   explicit CodeGeneratorTester(
       code_generator_unittest::TestEnvironment* environment,
-      int extra_stack_space = 0)
+      int extra_stack_space = 0, int scratch_spill_slots = 0)
       : zone_(environment->main_zone()),
         info_("test", environment->main_zone(), CodeKind::FOR_TESTING),
         linkage_(environment->test_descriptor()),
@@ -1181,6 +1181,11 @@ class CodeGeneratorTester {
         spill_slots_.emplace_back(old_slot, new_slot);
         i++;
       }
+    }
+    if (scratch_spill_slots > 0) {
+      int end_slot = frame_.AllocateSpillSlot(
+          scratch_spill_slots * kSystemPointerSize, kSimd128Size);
+      first_scratch_spill_slot_ = end_slot - scratch_spill_slots + 1;
     }
 
     constexpr size_t kMaxUnoptimizedFrameHeight = 0;
@@ -1363,6 +1368,8 @@ class CodeGeneratorTester {
     return Finalize();
   }
 
+  int first_scratch_spill_slot() const { return first_scratch_spill_slot_; }
+
  private:
   Zone* zone_;
   OptimizedCompilationInfo info_;
@@ -1371,6 +1378,7 @@ class CodeGeneratorTester {
   CodeGenerator* generator_;
   // List of operands to be moved from stack parameters to spill slots.
   std::vector<std::pair<LocationOperand, LocationOperand>> spill_slots_;
+  int first_scratch_spill_slot_ = 0;
 };
 
 namespace code_generator_unittest {
@@ -1661,6 +1669,54 @@ TEST_F(CodeGeneratorTest, AssembleTailCallGap) {
     if (v8_flags.print_code) {
       Print(*code);
     }
+  }
+}
+
+TEST_F(CodeGeneratorTest, PopTempStackSlots) {
+  if (kSystemPointerSize == 8 && !TestSimd128Moves()) return;
+
+  constexpr MachineRepresentation kTwoSlotRep =
+      kSystemPointerSize == 8 ? MachineRepresentation::kSimd128
+                              : MachineRepresentation::kFloat64;
+
+  TestEnvironment env(i_isolate(), zone());
+  Handle<FixedArray> state_in = env.GenerateInitialState();
+
+  // Test both a small number of temporary stack slots and a larger count whose
+  // byte size exceeds 4095 and is not a multiple of 4096.
+  for (int num_cycles : {4, 260}) {
+    const int scratch_slots = num_cycles * 4;
+    CodeGeneratorTester c(&env, 0, scratch_slots);
+    ParallelMove* moves = zone()->New<ParallelMove>(zone());
+
+    for (int i = 0; i < num_cycles; i++) {
+      int base = c.first_scratch_spill_slot() + i * 4;
+      AllocatedOperand pair_lo(LocationOperand::STACK_SLOT, kTwoSlotRep,
+                               base + 1);
+      AllocatedOperand pair_hi(LocationOperand::STACK_SLOT, kTwoSlotRep,
+                               base + 3);
+      AllocatedOperand slot_0(LocationOperand::STACK_SLOT,
+                              MachineRepresentation::kTagged, base + 0);
+      AllocatedOperand slot_1(LocationOperand::STACK_SLOT,
+                              MachineRepresentation::kTagged, base + 1);
+      AllocatedOperand slot_2(LocationOperand::STACK_SLOT,
+                              MachineRepresentation::kTagged, base + 2);
+      AllocatedOperand slot_3(LocationOperand::STACK_SLOT,
+                              MachineRepresentation::kTagged, base + 3);
+      moves->AddMove(pair_lo, pair_hi);
+      moves->AddMove(slot_2, slot_0);
+      moves->AddMove(slot_3, slot_1);
+    }
+
+    c.CheckAssembleMoves(moves);
+
+    Handle<Code> test = c.FinalizeForExecuting();
+    if (v8_flags.print_code) {
+      Print(*test);
+    }
+
+    DirectHandle<FixedArray> actual = env.Run(test, state_in);
+    env.CheckState(actual, state_in);
   }
 }
 
