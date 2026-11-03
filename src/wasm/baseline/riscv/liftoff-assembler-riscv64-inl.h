@@ -2031,13 +2031,13 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
     }
   } else if (transform == LoadTransformationKind::kZeroExtend) {
     if (memtype == MachineType::Int32()) {
-      VU.SetSimd128(E32);
+      VU.SetSimd128(E32, tu);
       vxor_vv(dst_v, dst_v, dst_v);
       Lwu(scratch, src_op, trapper);
       vmv_sx(dst_v, scratch);
     } else {
       DCHECK_EQ(MachineType::Int64(), memtype);
-      VU.SetSimd128(E64);
+      VU.SetSimd128(E64, tu);
       vxor_vv(dst_v, dst_v, dst_v);
       Ld(scratch, src_op, trapper);
       vmv_sx(dst_v, scratch);
