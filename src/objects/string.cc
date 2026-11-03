@@ -31,6 +31,7 @@
 #include "src/objects/string-comparator.h"
 #include "src/objects/string-inl.h"
 #include "src/objects/tagged.h"
+#include "src/sandbox/check.h"
 #include "src/strings/char-predicates.h"
 #include "src/strings/string-builder-inl.h"
 #include "src/strings/string-hasher.h"
@@ -749,6 +750,7 @@ std::unique_ptr<char[]> String::ToCString(uint32_t offset, uint32_t length,
                                           size_t* length_return) {
   DCHECK_LE(length, this->length());
   DCHECK_LE(offset, this->length() - length);
+  SBXCHECK_LE(length, String::kMaxLength);
 
   StringCharacterStream stream(this, offset);
 
@@ -780,6 +782,7 @@ std::unique_ptr<char[]> String::ToCString(size_t* length_return) {
 
 std::string String::ToStdString() {
   uint32_t length = this->length();
+  SBXCHECK_LE(length, String::kMaxLength);
 
   StringCharacterStream stream(this, 0);
   size_t utf8_bytes = stream.CountUtf8Bytes(length);
