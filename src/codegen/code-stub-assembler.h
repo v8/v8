@@ -338,10 +338,32 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     // This node makes the graph platform-specific. To make sure that the graph
     // structure is still platform independent, UniqueIntPtrConstants are used
     // here.
-#if V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_ARM64 || V8_X64_16BYTE_STACK_ALIGNMENT
     return UniqueIntPtrConstant(16);
 #else
     return UniqueIntPtrConstant(kSystemPointerSize);
+#endif
+  }
+
+  // Number of fixed slots that Builtins::Generate_WasmToJsWrapperAsm pushes
+  // between the caller's return address and the spilled GP parameter
+  // registers. The first fixed slot is the signature slot
+  // (WasmToJSWrapperConstants::kSignatureOffset).
+  //  - arm64 pushes one extra padding slot to keep sp 16-byte aligned (all
+  //    pushes there come in pairs).
+  //  - x64 never needs a padding slot, not even with
+  //    V8_X64_16BYTE_STACK_ALIGNMENT: the area it pushes (1 signature slot +
+  //    5 GP param registers + 6 FP param registers = 12 slots) is already an
+  //    even number of slots, so the return address stays at the same
+  //    alignment as on entry and the callee's rbp stays 16-byte aligned.
+  // This must stay in sync with the asm builtins and with {size_of_sig} in
+  // TypedFrame::IterateParamsOfGenericWasmToJSWrapper (frames.cc).
+  TNode<IntPtrT> WasmToJSWrapperFixedSlotCount() {
+    // See StackAlignmentInBytes for why UniqueIntPtrConstant is used.
+#if V8_TARGET_ARCH_ARM64
+    return UniqueIntPtrConstant(2);
+#else
+    return UniqueIntPtrConstant(1);
 #endif
   }
 

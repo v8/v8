@@ -8713,7 +8713,11 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     Register scratch_reg = r10;
     DCHECK(!call_descriptor->CalleeSavedRegisters().has(scratch_reg));
     int additional_count = g.ToConstant(additional_pop_count).ToInt32();
-    size_t pop_size = (parameter_slots + additional_count) * kSystemPointerSize;
+    // With 16-byte stack alignment, the caller pushed a padding slot above an
+    // odd number of stack arguments. Like on arm64, the callee drops it.
+    size_t pop_size =
+        AddArgumentPaddingSlots(parameter_slots + additional_count) *
+        kSystemPointerSize;
     CHECK_LE(pop_size, static_cast<size_t>(std::numeric_limits<int>::max()));
     __ Ret(static_cast<int>(pop_size), scratch_reg);
   } else {

@@ -747,7 +747,7 @@ void LiftoffAssembler::PrepareBuiltinCall(
   SpillAllRegisters();
   int param_slots = static_cast<int>(call_descriptor->ParameterSlotCount());
   if (param_slots > 0) {
-    RecordPushedCallArgs(param_slots);
+    RecordPushedCallArgs(AddArgumentPaddingSlots(param_slots));
     stack_slots.Construct(param_slots);
   }
   // Execute the stack transfers before filling the instance register.

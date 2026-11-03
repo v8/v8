@@ -2999,7 +2999,7 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
       wasm::GetTypeCanonicalizer()->LookupFunctionSignature(sig_id);
   auto [arg_buffer_size, alignment] =
       GetBufferSizeAndAlignmentFor(sig->parameters());
-#if V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_ARM64 || V8_X64_16BYTE_STACK_ALIGNMENT
   // For stack alignment.
   alignment = RoundUp(alignment, 2 * kSystemPointerSize);
 #endif
