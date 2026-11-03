@@ -529,6 +529,8 @@ inline void AtomicBinop(LiftoffAssembler* lasm, Register dst_addr,
                     type.value() == StoreType::kI32Store8 ||
                     type.value() == StoreType::kI64Store16 ||
                     type.value() == StoreType::kI32Store16;
+  bool use_amo = type.value() == StoreType::kI32Store ||
+                 type.value() == StoreType::kI64Store;
   Register word = no_reg;
   Register shift = no_reg;
   if (is_subword) {
@@ -548,10 +550,28 @@ inline void AtomicBinop(LiftoffAssembler* lasm, Register dst_addr,
     __ Sll32(shift, shift, 3);
   }
 
+  // Allocate {temp} before binding the retry label below. In the sub-word case
+  // this goes through the Liftoff register allocator, which may spill a live
+  // value-stack slot and emit a store for it. If such a store ended up inside
+  // the LR/SC loop, a failed store-conditional would re-execute it with {temp}
+  // already holding the RMW operand, overwriting the spilled local with
+  // attacker-controlled data.
+  Register temp = no_reg;
+  if (!use_amo) {
+    temp = is_subword ? pinned.set(lasm->GetUnusedRegister(kGpReg, pinned)).gp()
+                      : temps.Acquire();
+  }
+
   Label retry;
   __ bind(&retry);
-  if (type.value() == StoreType::kI32Store ||
-      type.value() == StoreType::kI64Store) {
+  // No register allocation may happen inside the retry loop. Allocating
+  // through the Liftoff register allocator ({GetUnusedRegister}) can spill a
+  // live value to its stack slot, and that store would be re-executed when the
+  // store-conditional fails, with {temp} already overwritten by the RMW
+  // operand. Freezing the cache state turns any such allocation into a DCHECK
+  // failure in debug builds.
+  FreezeCacheState frozen(*lasm);
+  if (use_amo) {
     auto trapper = [trapping_load_pc](int offset) {
       if (trapping_load_pc) *trapping_load_pc = static_cast<uint32_t>(offset);
     };
@@ -645,9 +665,6 @@ inline void AtomicBinop(LiftoffAssembler* lasm, Register dst_addr,
         break;
     }
   } else {
-    Register temp =
-        is_subword ? pinned.set(lasm->GetUnusedRegister(kGpReg, pinned)).gp()
-                   : temps.Acquire();
     if (trapping_load_pc) *trapping_load_pc = lasm->pc_offset();
     switch (type.value()) {
       case StoreType::kI64Store8:
@@ -774,6 +791,9 @@ inline void AtomicCompareExchange(LiftoffAssembler* lasm, Register dst_addr,
                                   Register result, StoreType type,
                                   uint32_t* trapping_load_pc,
                                   LiftoffRegList pinned, bool i64_offset) {
+  // All temporaries are allocated before entering the LR/SC loop below: a
+  // register allocation inside the loop could emit spill code, which must not
+  // be re-executed when the store-conditional fails (see AtomicBinop above).
   Register temp0 = pinned.set(lasm->GetUnusedRegister(kGpReg, pinned)).gp();
   Register temp1 = pinned.set(lasm->GetUnusedRegister(kGpReg, pinned)).gp();
   Register temp2 = pinned.set(lasm->GetUnusedRegister(kGpReg, pinned)).gp();
@@ -1081,6 +1101,8 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
   DCHECK(!LiftoffRegList(dst_addr, expected, new_value).has(result));
   DCHECK(offset_reg == no_reg || offset_reg != result.gp());
   MemOperand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
+  // All temporaries are allocated before entering the LR/SC loops below (see
+  // the comment in AtomicCompareExchange).
   Register temp0 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
   Register temp1 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
   Register temp2 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
