@@ -1978,10 +1978,7 @@ TEST_F(UninitializedSerializeTest, TestCheckThatAlwaysFails) {
   CHECK(ArtificialFailure);
 }
 
-TEST_F(UninitializedSerializeTest, TestFatal) {
-  base::OS::PrintError("\n# fatal\n\n");
-  exit(1);
-}
+TEST_F(UninitializedSerializeTest, TestFatal) { GRACEFUL_FATAL("fatal"); }
 
 int CountBuiltins(Isolate* isolate) {
   // Check that we have not deserialized any additional builtin.
