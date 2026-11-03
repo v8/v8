@@ -86,6 +86,66 @@ luci.builder(
     triggered_by = ["v8-trigger"],
 )
 
+# One-off builder/tester pair for testing on the dev infrastructure. Mirrors
+# "V8 Linux64 - PKU - builder" / "V8 Linux64 - PKU" from the main console, but
+# with raw configurations as it will be removed after testing.
+luci.builder(
+    bucket = "ci",
+    name = "V8 Linux64 - PKU - dev - builder",
+    swarming_host = "chromium-swarm-dev.appspot.com",
+    swarming_tags = ["vpython:native-python-wrapper"],
+    dimensions = {
+        "cores": "8",
+        "cpu": "x86-64",
+        "os": "Ubuntu-22.04",
+        "pool": "luci.chromium.ci",
+    },
+    executable = "recipe:v8",
+    properties = {
+        "$build/siso": {
+            "configs": ["builder"],
+            "enable_cloud_profiler": True,
+            "enable_cloud_trace": True,
+            "experiments": [],
+            "project": "rbe-chromium-trusted",
+            "remote_jobs": 250,
+        },
+        "builder_group": "client.v8",
+        "recipe": "v8",
+        "triggers": ["V8 Linux64 - PKU - dev"],
+    },
+    execution_timeout = 7200 * time.second,
+    build_numbers = True,
+    service_account = "v8-ci-builder-dev@chops-service-accounts.iam.gserviceaccount.com",
+    triggered_by = ["v8-trigger"],
+    triggers = ["V8 Linux64 - PKU - dev"],
+)
+
+luci.builder(
+    bucket = "ci",
+    name = "V8 Linux64 - PKU - dev",
+    swarming_host = "chromium-swarm-dev.appspot.com",
+    swarming_tags = ["vpython:native-python-wrapper"],
+    dimensions = {
+        "cores": "1",
+        "os": "Ubuntu-22.04",
+    },
+    executable = "recipe:v8",
+    properties = {
+        "builder_group": "client.v8",
+        "recipe": "v8",
+    },
+    caches = [
+        swarming.cache(
+            path = "builder",
+            name = "v8_builder_cache_nowait",
+        ),
+    ],
+    execution_timeout = 7200 * time.second,
+    build_numbers = True,
+    service_account = "v8-ci-builder-dev@chops-service-accounts.iam.gserviceaccount.com",
+)
+
 luci.console_view(
     name = "dev_image",
     title = "Dev Image",
@@ -98,4 +158,18 @@ luci.console_view(
 luci.console_view_entry(
     console_view = "dev_image",
     builder = "V8 Win64 - dev image",
+)
+
+luci.console_view_entry(
+    console_view = "dev_image",
+    builder = "V8 Linux64 - PKU - dev - builder",
+    category = "PKU",
+    short_name = "bld",
+)
+
+luci.console_view_entry(
+    console_view = "dev_image",
+    builder = "V8 Linux64 - PKU - dev",
+    category = "PKU",
+    short_name = "tst",
 )
