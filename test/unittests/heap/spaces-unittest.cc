@@ -481,12 +481,12 @@ TEST_F(SpacesTest, CodeRangeAddressReuse) {
   EXPECT_EQ(code_range6, code_range3);
 }
 
-// Tests that FreeListMany::SelectFreeListCategoryType returns what it should.
-TEST_F(SpacesTest, FreeListManySelectFreeListCategoryType) {
-  FreeListMany free_list;
+// Tests that FreeList::SelectFreeListCategoryType returns what it should.
+TEST_F(SpacesTest, FreeListSelectFreeListCategoryType) {
+  FreeList free_list;
 
   // Testing that all sizes below 256 bytes get assigned the correct category
-  for (size_t size = 0; size <= FreeListMany::kPreciseCategoryMaxSize; size++) {
+  for (size_t size = 0; size <= FreeList::kPreciseCategoryMaxSize; size++) {
     FreeListCategoryType cat = free_list.SelectFreeListCategoryType(size);
     if (cat == 0) {
       // If cat == 0, then we make sure that |size| doesn't fit in the 2nd
@@ -534,11 +534,10 @@ TEST_F(SpacesTest, FreeListManySelectFreeListCategoryType) {
 }
 
 // Tests that
-// FreeListManyCachedFastPath::SelectFastAllocationFreeListCategoryType returns
+// FreeList::SelectFastAllocationFreeListCategoryType returns
 // what it should.
-TEST_F(SpacesTest,
-       FreeListManyCachedFastPathSelectFastAllocationFreeListCategoryType) {
-  FreeListManyCachedFastPath free_list;
+TEST_F(SpacesTest, FreeListSelectFastAllocationFreeListCategoryType) {
+  FreeList free_list;
 
   for (int cat = kFirstCategory; cat <= free_list.last_category_; cat++) {
     std::vector<size_t> sizes;
@@ -558,13 +557,12 @@ TEST_F(SpacesTest,
     for (size_t size : sizes) {
       FreeListCategoryType selected =
           free_list.SelectFastAllocationFreeListCategoryType(size);
-      if (size <= FreeListManyCachedFastPath::kTinyObjectMaxSize) {
+      if (size <= FreeList::kTinyObjectMaxSize) {
         // For tiny objects, the first category of the fast path should be
         // chosen.
-        EXPECT_TRUE(selected ==
-                    FreeListManyCachedFastPath::kFastPathFirstCategory);
+        EXPECT_TRUE(selected == FreeList::kFastPathFirstCategory);
       } else if (size >= free_list.categories_min[free_list.last_category_] -
-                             FreeListManyCachedFastPath::kFastPathOffset) {
+                             FreeList::kFastPathOffset) {
         // For objects close to the minimum of the last category, the last
         // category is chosen.
         EXPECT_EQ(selected, free_list.last_category_);
@@ -572,11 +570,11 @@ TEST_F(SpacesTest,
         // For other objects, the chosen category must satisfy that its minimum
         // is at least |size|+1.85k.
         EXPECT_GE(free_list.categories_min[selected],
-                  size + FreeListManyCachedFastPath::kFastPathOffset);
+                  size + FreeList::kFastPathOffset);
         // And the smaller categoriy's minimum is less than |size|+1.85k
         // (otherwise it would have been chosen instead).
         EXPECT_LT(free_list.categories_min[selected - 1],
-                  size + FreeListManyCachedFastPath::kFastPathOffset);
+                  size + FreeList::kFastPathOffset);
       }
     }
   }
