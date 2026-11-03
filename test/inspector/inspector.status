@@ -29,6 +29,9 @@
 
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'runtime/console-messages-limits': [PASS, SLOW, HEAVY],
+  'debugger/debug-stepout-scope-part1': [PASS, HEAVY],
+  'debugger/debug-stepout-scope-part2': [PASS, HEAVY],
+  'debugger/debug-stepout-scope-part3': [PASS, HEAVY],
   'debugger/debug-stepout-scope-part4': [PASS, HEAVY],
   'debugger/debug-stepout-scope-part5': [PASS, HEAVY],
   'debugger/debug-stepout-scope-part6': [PASS, HEAVY],
@@ -320,6 +323,9 @@
 ##############################################################################
 ['arch == arm and mode == debug', {
   # Tests taking too long
+  'debugger/debug-stepout-scope-part1': [SKIP],
+  'debugger/debug-stepout-scope-part2': [SKIP],
+  'debugger/debug-stepout-scope-part3': [SKIP],
   'debugger/debug-stepout-scope-part4': [SKIP],
   'debugger/debug-stepout-scope-part5': [SKIP],
   'debugger/debug-stepout-scope-part6': [SKIP],

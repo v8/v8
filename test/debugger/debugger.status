@@ -97,9 +97,6 @@
 ##############################################################################
 ['arch == arm and mode == debug', {
   # Tests taking too long
-  'debug/debug-stepout-scope-part1': [SKIP],
-  'debug/debug-stepout-scope-part2': [SKIP],
-  'debug/debug-stepout-scope-part3': [SKIP],
 }],  # 'arch == arm and mode == debug'
 
 ['mode != debug', {
