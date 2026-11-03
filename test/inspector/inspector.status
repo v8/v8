@@ -35,6 +35,7 @@
   'debugger/debug-stepout-scope-part7': [PASS, HEAVY],
   'debugger/debug-stepout-scope-part8': [PASS, HEAVY],
   'runtime/regression-732717': [PASS, HEAVY],
+  'debugger/debug-scopes': [PASS, HEAVY],
 
   # Use-after-free regression tests, only meaningful under ASan.
   'runtime/regress-520052954': [PASS, ['not asan', SKIP]],
@@ -311,6 +312,7 @@
 
 ##############################################################################
 ['verify_predictable', {
+  'debugger/debug-set-variable-value': [SKIP],
   # https://crbug.com/374722652
   'regress/regress-374013413': [SKIP],
 }],  # 'verify_predictable'

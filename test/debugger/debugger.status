@@ -25,7 +25,6 @@
   'debug/debug-stepin-builtin-callback': [['asan == True or msan == True', SKIP]],
 
   # Tests that need to run sequentially (e.g. due to memory consumption).
-  'debug/debug-scopes': [PASS, HEAVY],
   'debug/debug-stepout-scope-part*': [PASS, HEAVY],
   'debug/ignition/debug-step-prefix-bytecodes': [PASS, HEAVY, ['mode == debug', SKIP]],
 
@@ -78,8 +77,6 @@
 
 ##############################################################################
 ['verify_predictable', {
-  'debug/debug-set-variable-value': [SKIP],
-
   # Rely on (blocking) concurrent compilation.
   'debug/regress/regress-opt-after-debug-deopt': [SKIP],
   'debug/regress/regress-prepare-break-while-recompile': [SKIP],
