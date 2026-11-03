@@ -2433,6 +2433,26 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_StoreWord64:
       ASSEMBLE_STORE_INTEGER(StoreU64);
       break;
+    case kS390_AtomicStoreCompressTagged: {
+      AddressingMode addressing_mode = kMode_None;
+      size_t index = 0;
+      MemOperand operand = i.MemoryOperand(&addressing_mode, &index);
+      Register value = i.InputRegister(index);
+      Register old_value = i.TempRegister(0);
+      __ lay(r1, operand);
+      Label do_cs;
+      if constexpr (COMPRESS_POINTERS_BOOL) {
+        __ LoadU32(old_value, MemOperand(r1));
+        __ bind(&do_cs);
+        __ cs(old_value, value, MemOperand(r1));
+      } else {
+        __ lg(old_value, MemOperand(r1));
+        __ bind(&do_cs);
+        __ csg(old_value, value, MemOperand(r1));
+      }
+      __ bne(&do_cs, Label::kNear);
+      break;
+    }
     case kS390_StoreReverse16:
       ASSEMBLE_STORE_INTEGER(strvh);
       break;

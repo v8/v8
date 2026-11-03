@@ -436,8 +436,31 @@ void LiftoffAssembler::AtomicStoreTaggedPointer(
     Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
     LiftoffRegList pinned, AtomicMemoryOrder memory_order,
     uint32_t* trapping_store_pc) {
-  StoreTaggedPointer(dst_addr, offset_reg, offset_imm, src, pinned,
-                     trapping_store_pc);
+  if (memory_order != AtomicMemoryOrder::kSeqCst) {
+    StoreTaggedPointer(dst_addr, offset_reg, offset_imm, src, pinned,
+                       trapping_store_pc);
+    return;
+  }
+
+  AtomicStore(
+      dst_addr, offset_reg, offset_imm, LiftoffRegister(src),
+      COMPRESS_POINTERS_BOOL ? StoreType::kI32Store : StoreType::kI64Store,
+      trapping_store_pc, memory_order, pinned, false, kNative);
+
+  if (v8_flags.disable_write_barriers) return;
+
+  Label exit;
+  JumpIfSmi(src, &exit);
+  CheckPageFlag(dst_addr, r1, MemoryChunk::kPointersFromHereAreInterestingMask,
+                to_condition(kZero), &exit);
+  CheckPageFlag(src, r1, MemoryChunk::kPointersToHereAreInterestingMask,
+                to_condition(kZero), &exit);
+  MemOperand dst_op =
+      MemOperand(dst_addr, offset_reg == no_reg ? r0 : offset_reg, offset_imm);
+  lay(r1, dst_op);
+  CallRecordWriteStubSaveRegisters(dst_addr, r1, SaveFPRegsMode::kSave,
+                                   StubCallMode::kCallWasmRuntimeStub);
+  bind(&exit);
 }
 
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
