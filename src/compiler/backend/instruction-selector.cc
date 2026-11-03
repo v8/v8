@@ -4337,10 +4337,16 @@ FrameStateDescriptor* InstructionSelector::GetFrameStateDescriptor(
       this->turboshaft_graph()->Get(node).template Cast<FrameStateOp>();
   auto* desc = GetFrameStateDescriptorInternal(instruction_zone(),
                                                this->turboshaft_graph(), state);
-  *max_unoptimized_frame_height_ =
-      std::max(*max_unoptimized_frame_height_,
-               desc->total_conservative_frame_size_in_bytes() +
-                   (desc->max_arguments() * kSystemPointerSize));
+  // Include the maximum stack size needed by each parent frame in the deopt
+  // chain, as a parent frame may have another call site with more outgoing
+  // arguments than the inlined call site leading to this frame state.
+  for (FrameStateDescriptor* iter = desc; iter != nullptr;
+       iter = iter->outer_state()) {
+    *max_unoptimized_frame_height_ =
+        std::max(*max_unoptimized_frame_height_,
+                 iter->total_conservative_frame_size_in_bytes() +
+                     (iter->max_arguments() * kSystemPointerSize));
+  }
   return desc;
 }
 
