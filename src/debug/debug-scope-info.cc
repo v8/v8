@@ -921,5 +921,29 @@ void DebugScriptScopeInfo::DebugScriptScopeInfoVerify(Isolate* isolate) {
 }
 #endif  // VERIFY_HEAP
 
+bool IsDebuggerVisibleParent(const DebugScriptScope& child,
+                             const DebugScriptScope& parent) {
+  if (!parent.is_hidden()) return true;
+  if (parent.variable_count() == 0) return false;
+
+  for (int p = 0; p < parent.variable_count(); ++p) {
+    DebugVariableInfo parent_var = parent.variable(p);
+    if (parent_var.is_synthetic) continue;
+
+    bool redeclared = false;
+    for (int c = 0; c < child.variable_count(); ++c) {
+      DebugVariableInfo child_var = child.variable(c);
+      if (child_var.is_synthetic) continue;
+      if (child_var.name == parent_var.name) {
+        redeclared = true;
+        break;
+      }
+    }
+    if (!redeclared) return true;
+  }
+
+  return false;
+}
+
 }  // namespace internal
 }  // namespace v8

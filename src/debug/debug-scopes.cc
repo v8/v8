@@ -311,25 +311,59 @@ bool ScopeIterator::InPausedFunctionScopes() const {
   return false;
 }
 
+bool ScopeIterator::ContextBelongsToCurrentScript() const {
+  if (!HasScope()) return true;
+
+  const bool closure_created_in_own_context =
+      current_scope().is_script_scope() || current_scope().is_module_scope();
+
+  // 1. While we are still inside the scopes of the paused function,
+  // *context_ == UnwrapEvaluationContext(function_->context()) indicates that
+  // none of the paused function's own contexts have been pushed yet (e.g.
+  // pausing in a function before context allocation). Top-level script and
+  // module functions are the exception because they execute directly within
+  // their own ScriptContext / ModuleContext.
+  if (InPausedFunctionScopes()) {
+    if (!closure_created_in_own_context &&
+        *context_ == UnwrapEvaluationContext(function_->context())) {
+      return false;
+    }
+    return true;
+  }
+
+  // 2. If the current script is a direct eval script, walk the caller's
+  // ScopeInfo chain. If context_ matches the eval call site's ScopeInfo or any
+  // enclosing caller scope, the runtime context chain has already unwound into
+  // the caller script, so context_ does not belong to script_.
+  if (script_->has_eval_from_scope_info()) {
+    Tagged<ScopeInfo> eval_caller =
+        Cast<ScopeInfo>(script_->eval_from_scope_info());
+    while (true) {
+      if (context_->scope_info() == eval_caller) return false;
+      if (!eval_caller->HasOuterScopeInfo()) break;
+      eval_caller = eval_caller->OuterScopeInfo();
+    }
+  }
+
+  // 3. For any other inner scope not in the paused function, reaching a
+  // NativeContext, ScriptContext, or ModuleContext means all runtime contexts
+  // allocated by the current script have been unwound, unless current_scope()
+  // is itself the top-level script or module scope.
+  if (!closure_created_in_own_context &&
+      (IsNativeContext(*context_) || context_->IsScriptContext() ||
+       context_->IsModuleContext())) {
+    return false;
+  }
+
+  return true;
+}
+
 bool ScopeIterator::HasContext() const {
   if (HasScope() && NeedsContext()) {
     // In rare cases we pause in a scope that doesn't have its context pushed
     // yet. E.g. when pausing in for-of loop headers (see
     // https://crbug.com/399002824).
-    //
-    // While we are still in the scopes of the paused function, the function's
-    // creation context means that none of the function's own contexts have
-    // been pushed. Check this first: the creation context can belong to a
-    // different script (the caller of a direct eval), so comparing scope IDs,
-    // which are only unique within a script, would be meaningless.
-    // Top-level script and module functions are the exception: they are
-    // created with the script/module context as their context.
-    const bool closure_created_in_own_context =
-        current_scope().is_script_scope() || current_scope().is_module_scope();
-    if (!closure_created_in_own_context && InPausedFunctionScopes() &&
-        *context_ == UnwrapEvaluationContext(function_->context())) {
-      return false;
-    }
+    if (!ContextBelongsToCurrentScript()) return false;
 
     // Otherwise, context_ belongs to the same script as current_scope() and
     // we can detect a not-yet-pushed context by comparing the scope ID of the
@@ -373,49 +407,48 @@ void ScopeIterator::AdvanceOneContext() {
 void ScopeIterator::AdvanceScope() {
   DCHECK(HasScope());
 
-  do {
+  if (NeedsAndHasContext()) {
+    // current_scope() needs a context so moving one scope up requires us to
+    // also move up one context.
+    AdvanceOneContext();
+  }
+
+  const DebugScriptScope origin = current_scope();
+  for (std::optional<DebugScriptScope> parent = origin.parent();
+       parent.has_value(); parent = parent->parent()) {
+    current_scope_index_ = parent->scope_index();
+    if (IsDebuggerVisibleParent(origin, *parent)) {
+      return;
+    }
     if (NeedsAndHasContext()) {
-      // current_scope() needs a context so moving one scope up requires us to
-      // also move up one context.
       AdvanceOneContext();
     }
+  }
 
-    if (std::optional<DebugScriptScope> parent = current_scope().parent()) {
-      if (current_scope().scope_type() != BLOCK_SCOPE && parent->is_hidden() &&
-          parent->variable_count() > 0) {
-        current_scope_index_ = parent->scope_index();
-        break;
-      }
-      current_scope_index_ = parent->scope_index();
-      continue;
-    }
-
-    if (std::optional<DebugScriptScope> outer =
-            FindEvalOuterScope(isolate_, script_)) {
-      // The root scope of the paused script is either the closure scope itself
-      // or one of its ancestors, so we have left the paused function by now.
-      // Reset `function_` right away: `closure_scope_index_` indexes into the
-      // paused script's scope tree, so comparing it with `current_scope_index_`
-      // in the caller's script tree is meaningless (e.g. both are 0 when
-      // pausing in the top-level code of a direct eval called from another
-      // eval's top-level code).
-      // Do not skip `outer` if `outer->is_hidden()` is true: like
-      // `TryParseAndRetrieveScopes()`, `FindEvalOuterScope()` lands on the
-      // innermost scope at the eval call site (such as the outer block scope
-      // of a `for (let ...)` loop when eval is called in the initializer).
-      function_ = Handle<JSFunction>();
-      script_ =
-          handle(Cast<Script>(script_->eval_from_shared()->script()), isolate_);
-      debug_scope_info_ = handle(*outer->info(), isolate_);
-      current_scope_index_ = outer->scope_index();
-    } else {
-      // We left the root of the outermost scope tree we can reach (e.g. the
-      // root of an indirect eval, a `new Function` or a wrapped function).
-      // Continue with the runtime context chain.
-      current_scope_index_ = -1;
-    }
-    break;
-  } while (current_scope().is_hidden());
+  if (std::optional<DebugScriptScope> outer =
+          FindEvalOuterScope(isolate_, script_)) {
+    // The root scope of the paused script is either the closure scope itself
+    // or one of its ancestors, so we have left the paused function by now.
+    // Reset `function_` right away: `closure_scope_index_` indexes into the
+    // paused script's scope tree, so comparing it with `current_scope_index_`
+    // in the caller's script tree is meaningless (e.g. both are 0 when
+    // pausing in the top-level code of a direct eval called from another
+    // eval's top-level code).
+    // Do not skip `outer` if `outer->is_hidden()` is true: like
+    // `TryParseAndRetrieveScopes()`, `FindEvalOuterScope()` lands on the
+    // innermost scope at the eval call site (such as the outer block scope
+    // of a `for (let ...)` loop when eval is called in the initializer).
+    function_ = Handle<JSFunction>();
+    script_ =
+        handle(Cast<Script>(script_->eval_from_shared()->script()), isolate_);
+    debug_scope_info_ = handle(*outer->info(), isolate_);
+    current_scope_index_ = outer->scope_index();
+  } else {
+    // We left the root of the outermost scope tree we can reach (e.g. the
+    // root of an indirect eval, a `new Function` or a wrapped function).
+    // Continue with the runtime context chain.
+    current_scope_index_ = -1;
+  }
 }
 
 void ScopeIterator::AdvanceContext() { AdvanceOneContext(); }

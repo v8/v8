@@ -120,6 +120,28 @@ class V8_EXPORT_PRIVATE ScopeIterator {
   }
   bool HasContext() const;
   bool InPausedFunctionScopes() const;
+  // Whether `context_` belongs to the current script (`script_`).
+  //
+  // ScopeIterator walks the static DebugScriptScope tree (`current_scope()` in
+  // `script_`) in lockstep with the runtime Context chain (`context_`), and
+  // HasContext() matches a context-requiring static scope to `context_` by
+  // comparing UniqueIdInScript().
+  //
+  // UniqueIdInScript() is only unique within a single script (character start
+  // offset for ordinary scopes, or -2 for both EVAL_SCOPE and MODULE_SCOPE).
+  // When execution pauses before an inner scope's runtime context has been
+  // pushed (or after all contexts created inside an eval / new Function script
+  // have been unwound while `current_scope()` has not yet crossed
+  // FindEvalOuterScope()), `context_` already points to an enclosing runtime
+  // context created outside the paused function or by an outer/caller script.
+  //
+  // Returns true iff `context_` was allocated for a scope in `script_` (and,
+  // while still inside InPausedFunctionScopes(), inside the paused function
+  // itself rather than its outer creation context `function_->context()`,
+  // except for top-level script/module code which executes directly in its own
+  // ScriptContext/ModuleContext), making UniqueIdInScript() comparison with
+  // `current_scope()` meaningful.
+  bool ContextBelongsToCurrentScript() const;
   bool NeedsContext() const;
   bool NeedsAndHasContext() const { return NeedsContext() && HasContext(); }
   Handle<Context> CurrentContext() const {
