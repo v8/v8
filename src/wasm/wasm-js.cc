@@ -3011,26 +3011,17 @@ DirectHandle<JSFunction> CreateFunc(
   return function;
 }
 
-DirectHandle<JSFunction> InstallFunc(
-    Isolate* isolate, DirectHandle<JSObject> object, DirectHandle<String> name,
-    FunctionCallback func, int length, PropertyAttributes attributes = NONE,
+void InstallFunc(
+    Isolate* isolate, DirectHandle<JSObject> object, const char* str,
+    FunctionCallback func, int length,
     SideEffectType side_effect_type = SideEffectType::kHasSideEffect) {
+  DirectHandle<String> name = v8_str(isolate, str);
   DirectHandle<JSFunction> function =
       CreateFunc(isolate, name, func, side_effect_type);
   function->shared()->set_length(length);
   CHECK(!JSObject::HasRealNamedProperty(isolate, object, name).FromMaybe(true));
   CHECK(object->map()->is_extensible());
-  JSObject::AddProperty(isolate, object, name, function, attributes);
-  return function;
-}
-
-DirectHandle<JSFunction> InstallFunc(
-    Isolate* isolate, DirectHandle<JSObject> object, const char* str,
-    FunctionCallback func, int length, PropertyAttributes attributes = NONE,
-    SideEffectType side_effect_type = SideEffectType::kHasSideEffect) {
-  DirectHandle<String> name = v8_str(isolate, str);
-  return InstallFunc(isolate, object, name, func, length, attributes,
-                     side_effect_type);
+  JSObject::AddProperty(isolate, object, name, function, NONE);
 }
 
 DirectHandle<JSFunction> CreateConstructorFunc(Isolate* isolate,
@@ -3207,7 +3198,7 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
                   wasm::WebAssemblyTableGetLength);
     InstallFunc(isolate, table_proto, "grow", wasm::WebAssemblyTableGrow, 1);
     InstallFunc(isolate, table_proto, "set", wasm::WebAssemblyTableSet, 1);
-    InstallFunc(isolate, table_proto, "get", wasm::WebAssemblyTableGet, 1, NONE,
+    InstallFunc(isolate, table_proto, "get", wasm::WebAssemblyTableGet, 1,
                 SideEffectType::kHasNoSideEffect);
   }
 
@@ -3237,7 +3228,7 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
         WASM_GLOBAL_OBJECT_TYPE, WasmGlobalObject::kHeaderSize,
         "WebAssembly.Global");
     InstallFunc(isolate, global_proto, "valueOf",
-                wasm::WebAssemblyGlobalValueOf, 0, NONE,
+                wasm::WebAssemblyGlobalValueOf, 0,
                 SideEffectType::kHasNoSideEffect);
     InstallGetterSetter(isolate, global_proto, "value",
                         wasm::WebAssemblyGlobalGetValue,
@@ -3358,13 +3349,13 @@ void WasmJs::InstallModule(Isolate* isolate,
   }
 
   InstallFunc(isolate, module_constructor, "imports",
-              wasm::WebAssemblyModuleImports, 1, NONE,
+              wasm::WebAssemblyModuleImports, 1,
               SideEffectType::kHasNoSideEffect);
   InstallFunc(isolate, module_constructor, "exports",
-              wasm::WebAssemblyModuleExports, 1, NONE,
+              wasm::WebAssemblyModuleExports, 1,
               SideEffectType::kHasNoSideEffect);
   InstallFunc(isolate, module_constructor, "customSections",
-              wasm::WebAssemblyModuleCustomSections, 2, NONE,
+              wasm::WebAssemblyModuleCustomSections, 2,
               SideEffectType::kHasNoSideEffect);
 }
 
