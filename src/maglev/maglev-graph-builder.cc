@@ -4329,14 +4329,16 @@ ReduceResult MaglevGraphBuilder::BuildLoadJSFunctionContext(
 ReduceResult MaglevGraphBuilder::BuildExtendPropertiesBackingStore(
     compiler::MapRef map, ValueNode* receiver, ValueNode* property_array) {
   FieldStorageLocation offset = map.NextFreeFieldStorageLocation();
-  DCHECK(!offset.is_in_object);
+  // Under normal circumstances the next free field storage location is out of
+  // object, and its offset is larger than
+  // OFFSET_OF_DATA_START(FixedArray) / kTaggedSize. However, an attacker able
+  // to corrupt heap memory can break either invariant, in which case we would
+  // get confused here and potentially cause a sandbox violation. These CHECKs
+  // defend against that.
+  SBXCHECK(!offset.is_in_object);
   int length =
       offset.offset_in_words - OFFSET_OF_DATA_START(FixedArray) / kTaggedSize;
-  // Under normal circumstances, NextFreeFieldStorageLocation()'s offset will
-  // always be larger than OFFSET_OF_DATA_START(FixedArray) / kTaggedSize.
-  // However, an attacker able to corrupt heap memory can break this invariant,
-  // in which case we'll get confused here, potentially causing a sandbox
-  // violation. This CHECK defends against that.
+  SBXCHECK_GE(length, 0);
   return AddNewNode<ExtendPropertiesBackingStore>({property_array, receiver},
                                                   map, length);
 }
