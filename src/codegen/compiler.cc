@@ -1033,14 +1033,20 @@ bool CompileTurbofan_NotConcurrent(Isolate* isolate,
   // Success!
   job->RecordCompilationStats(ConcurrencyMode::kSynchronous, isolate);
   DCHECK(!isolate->has_exception());
-  if (job->compilation_info()->is_osr()) {
-    OptimizedOSRCodeCache::Insert(
-        isolate, *compilation_info->closure(), compilation_info->osr_offset(),
-        *compilation_info->code(),
-        compilation_info->function_context_specializing());
-  } else if (!compilation_info->function_context_specializing()) {
-    compilation_info->shared_info()->set_function_context_independent_compiled(
-        true);
+  if (V8_LIKELY(!compilation_info->discard_result_for_testing())) {
+    if (job->compilation_info()->is_osr()) {
+      OptimizedOSRCodeCache::Insert(
+          isolate, *compilation_info->closure(), compilation_info->osr_offset(),
+          *compilation_info->code(),
+          compilation_info->function_context_specializing());
+    } else {
+      if (!compilation_info->function_context_specializing()) {
+        compilation_info->shared_info()
+            ->set_function_context_independent_compiled(true);
+      }
+      compilation_info->closure()->UpdateOptimizedCode(
+          isolate, *compilation_info->code());
+    }
   }
   job->RecordFunctionCompilation(LogEventListener::CodeTag::kFunction, isolate);
   return true;
@@ -3333,7 +3339,6 @@ void Compiler::CompileOptimized(Isolate* isolate,
   DirectHandle<Code> code;
   if (GetOrCompileOptimized(isolate, function, mode, code_kind)
           .ToHandle(&code)) {
-    function->UpdateOptimizedCode(isolate, *code);
     DCHECK_IMPLIES(v8_flags.log_function_events,
                    function->IsLoggingRequested(isolate));
   } else {

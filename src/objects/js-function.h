@@ -517,14 +517,6 @@ V8_OBJECT class JSFunction : public JSFunctionOrBoundFunctionOrWrappedFunction {
   inline void UpdateCodeImpl(Isolate* isolate, Tagged<Code> code,
                              WriteBarrierMode mode, bool keep_tiering_request);
 
-  // Updates the Code in this function's dispatch table entry.
-  inline void UpdateDispatchEntry(
-      Isolate* isolate, Tagged<Code> new_code,
-      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
-  inline void UpdateDispatchEntryKeepTieringRequest(
-      Isolate* isolate, Tagged<Code> new_code,
-      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
-
   // Returns the set of code kinds of compilation artifacts (bytecode,
   // generated code) attached to this JSFunction.
   // Note that attached code objects that are marked_for_deoptimization are not
