@@ -385,6 +385,7 @@ class MergePointInterpreterFrameState {
     predecessors_so_far_--;
     ReducePhiPredecessorCount(1);
     clear_is_loop();
+    bitfield_ = kWasLoopBit::update(bitfield_, true);
   }
 
   V8_EXPORT_PRIVATE void RemovePredecessorAt(int predecessor_id);
@@ -472,6 +473,11 @@ class MergePointInterpreterFrameState {
   bool is_loop() const {
     return basic_block_type() == BasicBlockType::kLoopHeader;
   }
+  bool was_loop() const {
+    bool res = kWasLoopBit::decode(bitfield_);
+    DCHECK_IMPLIES(res, !is_loop());
+    return res;
+  }
 
   bool exception_handler_was_used() const {
     DCHECK(is_exception_handler());
@@ -527,6 +533,7 @@ class MergePointInterpreterFrameState {
   using kIsResumableLoopBit = kBasicBlockTypeBits::Next<bool, 1>;
   using kIsLoopWithPeeledIterationBit = kIsResumableLoopBit::Next<bool, 1>;
   using kIsInline = kIsLoopWithPeeledIterationBit::Next<bool, 1>;
+  using kWasLoopBit = kIsInline::Next<bool, 1>;
 
   // For each non-Phi value in the frame state, store its alternative
   // representations to avoid re-converting on Phi creation.
