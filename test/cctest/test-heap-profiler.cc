@@ -4962,6 +4962,72 @@ TEST(SamplingHeapProfilerSampleDuringDeopt) {
   heap_profiler->StopSamplingHeapProfiler();
 }
 
+TEST(SamplingHeapProfilerFunctionNameChange) {
+  i::v8_flags.allow_natives_syntax.Set(true);
+  if (i::v8_flags.flush_bytecode || i::v8_flags.flush_baseline_code) {
+    i::v8_flags.stress_flush_code.Set(true);
+    i::FlagList::EnforceFlagImplications();
+  }
+  i::v8_flags.sampling_heap_profiler_suppress_randomness.Set(true);
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::HeapProfiler* heap_profiler = env.isolate()->GetHeapProfiler();
+
+  if (i::v8_flags.stress_sampling_allocation_profiler > 0) {
+    heap_profiler->StopSamplingHeapProfiler();
+  }
+  CHECK(heap_profiler->StartSamplingHeapProfiler(64));
+
+  CompileRun(
+      "var retained = [];\n"
+      "function Outer() {\n"
+      "  return (function() {\n"
+      "    var a = {};\n"
+      "    a.b = function() {\n"
+      "      for (var i = 0; i < 128; ++i) retained.push(new Array(64));\n"
+      "    };\n"
+      "    a.b();\n"
+      "  });\n"
+      "}\n"
+      "var inner = Outer();\n"
+      "inner();\n"
+      "%CollectGarbage(0);\n"
+      "inner();\n"
+      "function runEvalClass() {\n"
+      "  var C = eval('class C extends Array {};"
+      " for (var i = 0; i < 128; ++i) retained.push(new Array(64)); C');\n"
+      "  for (var i = 0; i < 128; ++i) retained.push(new C(64));\n"
+      "}\n"
+      "runEvalClass();\n");
+
+  std::unique_ptr<v8::AllocationProfile> profile(
+      heap_profiler->GetAllocationProfile());
+  CHECK(profile);
+  CHECK(!profile->GetSamples().empty());
+
+  if (i::v8_flags.lazy) {
+    const char* expected_ab_name = i::v8_flags.max_lazy ? "a.b" : "Outer.a.b";
+    const char* path_to_ab[] = {"", "", expected_ab_name};
+    auto node_ab = FindAllocationProfileNode(env.isolate(), profile.get(),
+                                             v8::base::ArrayVector(path_to_ab));
+    CHECK_NOT_NULL(node_ab);
+    CHECK_GT(NumberOfAllocations(node_ab), 0);
+  } else {
+    const char* path_to_script[] = {""};
+    auto node_script = FindAllocationProfileNode(
+        env.isolate(), profile.get(), v8::base::ArrayVector(path_to_script));
+    CHECK_NOT_NULL(node_script);
+    CHECK_GE(node_script->children.size(), 2u);
+  }
+
+  const char* path_to_eval[] = {"", "runEvalClass", ""};
+  auto node_eval = FindAllocationProfileNode(
+      env.isolate(), profile.get(), v8::base::ArrayVector(path_to_eval));
+  CHECK_NOT_NULL(node_eval);
+
+  heap_profiler->StopSamplingHeapProfiler();
+}
+
 namespace {
 class TestQueryObjectPredicate : public v8::QueryObjectPredicate {
  public:
