@@ -474,7 +474,7 @@ class V8_EXPORT ArrayBufferView : public Object {
   /**
    * Returns underlying ArrayBuffer.
    */
-  V8_DEPRECATE_SOON("Use GetBuffer instead")
+  V8_DEPRECATED("Use GetBuffer instead")
   Local<ArrayBuffer> Buffer();
   /**
    * Returns underlying ArrayBuffer or SharedArrayBuffer.
