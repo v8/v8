@@ -495,36 +495,30 @@ class KnownNodeAspects {
   }
 
   V8_NODISCARD bool CheckType(compiler::JSHeapBroker* broker, ValueNode* node,
-                              NodeType type, NodeType* current_type = nullptr) {
-    NodeType static_type = node->GetStaticType(broker);
-    if (current_type) *current_type = static_type;
-    if (NodeTypeIs(static_type, type)) return true;
-    if (IsEmptyNodeType(IntersectType(static_type, type))) return false;
-    const NodeInfo* node_info = TryGetInfoFor(node);
-    if (!node_info) return false;
-    if (current_type) *current_type = node_info->type();
-    return NodeTypeIs(node_info->type(), type);
+                              NodeType type,
+                              NodeType* current_type = nullptr) const {
+    if (!current_type && node->StaticTypeIs(broker, type)) return true;
+    NodeType known_type = GetTypeUnchecked(broker, node);
+    if (current_type) *current_type = known_type;
+    return NodeTypeIs(known_type, type);
   }
 
-  V8_NODISCARD NodeType CheckTypes(compiler::JSHeapBroker* broker,
-                                   ValueNode* node,
-                                   std::initializer_list<NodeType> types) {
-    const NodeInfo* node_info = TryGetInfoFor(node);
+  V8_NODISCARD NodeType
+  CheckTypes(compiler::JSHeapBroker* broker, ValueNode* node,
+             std::initializer_list<NodeType> types) const {
+    NodeType known_type = GetTypeUnchecked(broker, node);
     for (NodeType type : types) {
-      if (node->StaticTypeIs(broker, type)) return type;
-      if (node_info) {
-        if (NodeTypeIs(node_info->type(), type)) return type;
-      }
+      if (NodeTypeIs(known_type, type)) return type;
     }
     return NodeType::kUnknown;
   }
 
-  bool MayBeNullOrUndefined(compiler::JSHeapBroker* broker, ValueNode* node) {
-    NodeType static_type = node->GetStaticType(broker);
-    if (!NodeTypeMayBeNullOrUndefined(static_type)) return false;
-    const NodeInfo* node_info = TryGetInfoFor(node);
-    if (!node_info) return true;
-    return NodeTypeMayBeNullOrUndefined(node_info->type());
+  bool MayBeNullOrUndefined(compiler::JSHeapBroker* broker,
+                            ValueNode* node) const {
+    if (!NodeTypeMayBeNullOrUndefined(node->GetStaticType(broker))) {
+      return false;
+    }
+    return NodeTypeMayBeNullOrUndefined(GetTypeUnchecked(broker, node));
   }
 
   bool IsEmptyNodeType(NodeType type) const {
@@ -858,43 +852,19 @@ class KnownNodeAspects {
       compiler::JSHeapBroker* broker, ValueNode* node, NodeType type,
       NodeType* old_type,
       UpdateTypeOnContradiction update_type_on_contradiction) {
-    NodeType static_type = node->GetStaticType(broker);
-    if (old_type) *old_type = static_type;
-    if (NodeTypeIs(static_type, type, NodeTypeIsVariant::kAllowNone)) {
-      if (static_type == NodeType::kNone) {
-        return EnsureTypeResult::kContradiction;
-      }
-      return EnsureTypeResult::kAlreadyHadType;
-    }
-    NodeInfo* known_info = update_type_on_contradiction
-                               ? GetOrCreateInfoFor(broker, node)
-                               : TryGetInfoFor(node);
-    NodeType current_type = static_type;
-    if (known_info) {
-      current_type = known_info->type();
-      if (old_type) *old_type = current_type;
-      if (NodeTypeIs(current_type, type, NodeTypeIsVariant::kAllowNone)) {
-        if (current_type == NodeType::kNone) {
-          return EnsureTypeResult::kContradiction;
-        }
-        return EnsureTypeResult::kAlreadyHadType;
-      }
-    }
+    NodeType current_type = GetTypeUnchecked(broker, node);
+    if (old_type) *old_type = current_type;
     NodeType new_type = IntersectType(current_type, type);
-    if (auto phi = node->TryCast<Phi>()) {
-      new_type = IntersectType(new_type, phi->type());
-    }
-    if (new_type == NodeType::kNone) {
+    if (IsEmptyNodeType(new_type)) {
       if (update_type_on_contradiction) {
-        DCHECK_NOT_NULL(known_info);
-        known_info->set_type(NodeType::kNone);
+        GetOrCreateInfoFor(broker, node)->set_type(NodeType::kNone);
       }
       return EnsureTypeResult::kContradiction;
     }
-    if (!known_info) {
-      known_info = GetOrCreateInfoFor(broker, node);
+    if (NodeTypeIs(current_type, type)) {
+      return EnsureTypeResult::kAlreadyHadType;
     }
-    known_info->set_type(new_type);
+    GetOrCreateInfoFor(broker, node)->IntersectType(new_type);
     return EnsureTypeResult::kTypeUpdated;
   }
 
