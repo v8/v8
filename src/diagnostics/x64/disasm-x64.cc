@@ -1090,7 +1090,9 @@ int DisassemblerX64::AVXVectorInstruction(uint8_t* data) {
       if (opcode == 0x58) mnemonic = "vaddph";
       if (opcode == 0x59) mnemonic = "vmulph";
       if (opcode == 0x5c) mnemonic = "vsubph";
+      if (opcode == 0x5d) mnemonic = "vminph";
       if (opcode == 0x5e) mnemonic = "vdivph";
+      if (opcode == 0x5f) mnemonic = "vmaxph";
     } else if (evex_map6() && evex_pp_66()) {
       if (opcode == 0xa8) mnemonic = "vfmadd213ph";
       if (opcode == 0xac) mnemonic = "vfnmadd213ph";

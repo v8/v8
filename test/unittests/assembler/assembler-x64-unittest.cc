@@ -3417,6 +3417,75 @@ TEST_F(AssemblerX64Test, AVX10Vsubph) {
   CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
 }
 
+TEST_F(AssemblerX64Test, AVX10MinMaxPh) {
+  for (bool is_min : {true, false}) {
+    auto buffer = AllocateAssemblerBuffer();
+    Assembler masm(AssemblerOptions{}, buffer->CreateView());
+    CpuFeatureScope fscope(&masm, AVX10_1,
+                           CpuFeatureScope::kDontCheckSupported);
+    auto emit = [&](auto dst, auto src1, auto src2) {
+      if (is_min) {
+        __ vminph(dst, src1, src2);
+      } else {
+        __ vmaxph(dst, src1, src2);
+      }
+    };
+
+    emit(xmm3, xmm2, xmm1);
+    emit(ymm3, ymm2, ymm1);
+    emit(xmm19, xmm18, xmm17);
+    emit(ymm31, ymm30, ymm29);
+    emit(xmm3, xmm3, xmm1);
+    emit(xmm3, xmm2, xmm3);
+    emit(xmm3, xmm3, xmm3);
+    emit(ymm3, ymm3, ymm1);
+    emit(ymm3, ymm2, ymm3);
+    emit(ymm3, ymm3, ymm3);
+    emit(xmm3, xmm2, Operand(rbx, 2032));
+    emit(ymm3, ymm2, Operand(rbx, 4064));
+    emit(xmm3, xmm2, Operand(rbx, -2048));
+    emit(ymm3, ymm2, Operand(rbx, -4096));
+    emit(xmm3, xmm2, Operand(rbx, 20));
+    emit(ymm3, ymm2, Operand(rbx, 36));
+    emit(xmm3, xmm2, Operand(rbx, 2048));
+    emit(ymm3, ymm2, Operand(rbx, 4096));
+    emit(xmm19, xmm18, Operand(r12, r13, times_2, 64));
+    emit(ymm19, ymm18, Operand(r12, r13, times_2, 128));
+    Label xmm_label, ymm_label;
+    __ bind(&xmm_label);
+    emit(xmm3, xmm2, Operand(&xmm_label));
+    __ bind(&ymm_label);
+    emit(ymm3, ymm2, Operand(&ymm_label));
+
+    int instruction_length = masm.pc_offset();
+    CodeDesc desc;
+    masm.GetCode(i_isolate(), &desc);
+    const uint8_t opcode = is_min ? 0x5d : 0x5f;
+    const uint8_t expected[] = {
+        0x62, 0xf5,   0x6c,   0x08,   opcode, 0xd9,   0x62,   0xf5,   0x6c,
+        0x28, opcode, 0xd9,   0x62,   0xa5,   0x6c,   0x00,   opcode, 0xd9,
+        0x62, 0x05,   0x0c,   0x20,   opcode, 0xfd,   0x62,   0xf5,   0x64,
+        0x08, opcode, 0xd9,   0x62,   0xf5,   0x6c,   0x08,   opcode, 0xdb,
+        0x62, 0xf5,   0x64,   0x08,   opcode, 0xdb,   0x62,   0xf5,   0x64,
+        0x28, opcode, 0xd9,   0x62,   0xf5,   0x6c,   0x28,   opcode, 0xdb,
+        0x62, 0xf5,   0x64,   0x28,   opcode, 0xdb,   0x62,   0xf5,   0x6c,
+        0x08, opcode, 0x5b,   0x7f,   0x62,   0xf5,   0x6c,   0x28,   opcode,
+        0x5b, 0x7f,   0x62,   0xf5,   0x6c,   0x08,   opcode, 0x5b,   0x80,
+        0x62, 0xf5,   0x6c,   0x28,   opcode, 0x5b,   0x80,   0x62,   0xf5,
+        0x6c, 0x08,   opcode, 0x9b,   0x14,   0x00,   0x00,   0x00,   0x62,
+        0xf5, 0x6c,   0x28,   opcode, 0x9b,   0x24,   0x00,   0x00,   0x00,
+        0x62, 0xf5,   0x6c,   0x08,   opcode, 0x9b,   0x00,   0x08,   0x00,
+        0x00, 0x62,   0xf5,   0x6c,   0x28,   opcode, 0x9b,   0x00,   0x10,
+        0x00, 0x00,   0x62,   0x85,   0x6c,   0x00,   opcode, 0x5c,   0x6c,
+        0x04, 0x62,   0x85,   0x6c,   0x20,   opcode, 0x5c,   0x6c,   0x04,
+        0x62, 0xf5,   0x6c,   0x08,   opcode, 0x1d,   0xf6,   0xff,   0xff,
+        0xff, 0x62,   0xf5,   0x6c,   0x28,   opcode, 0x1d,   0xf6,   0xff,
+        0xff, 0xff};
+    CHECK_EQ(static_cast<int>(sizeof(expected)), instruction_length);
+    CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
+  }
+}
+
 TEST_F(AssemblerX64Test, AVX10Vmulph) {
   auto buffer = AllocateAssemblerBuffer();
   Assembler masm(AssemblerOptions{}, buffer->CreateView());

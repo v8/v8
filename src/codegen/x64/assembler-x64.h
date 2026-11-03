@@ -2684,6 +2684,32 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vinstr_evex(0x5c, dst, src1, src2, kNoPrefix, kMap5, kW0, kFull);
   }
 
+  void vminph(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vinstr_evex(0x5d, dst, src1, src2, kNoPrefix, kMap5, kW0);
+  }
+  void vminph(XMMRegister dst, XMMRegister src1, Operand src2) {
+    vinstr_evex(0x5d, dst, src1, src2, kNoPrefix, kMap5, kW0, kFull);
+  }
+  void vminph(YMMRegister dst, YMMRegister src1, YMMRegister src2) {
+    vinstr_evex(0x5d, dst, src1, src2, kNoPrefix, kMap5, kW0);
+  }
+  void vminph(YMMRegister dst, YMMRegister src1, Operand src2) {
+    vinstr_evex(0x5d, dst, src1, src2, kNoPrefix, kMap5, kW0, kFull);
+  }
+
+  void vmaxph(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vinstr_evex(0x5f, dst, src1, src2, kNoPrefix, kMap5, kW0);
+  }
+  void vmaxph(XMMRegister dst, XMMRegister src1, Operand src2) {
+    vinstr_evex(0x5f, dst, src1, src2, kNoPrefix, kMap5, kW0, kFull);
+  }
+  void vmaxph(YMMRegister dst, YMMRegister src1, YMMRegister src2) {
+    vinstr_evex(0x5f, dst, src1, src2, kNoPrefix, kMap5, kW0);
+  }
+  void vmaxph(YMMRegister dst, YMMRegister src1, Operand src2) {
+    vinstr_evex(0x5f, dst, src1, src2, kNoPrefix, kMap5, kW0, kFull);
+  }
+
   void vmulph(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
     vinstr_evex(0x59, dst, src1, src2, kNoPrefix, kMap5, kW0);
   }

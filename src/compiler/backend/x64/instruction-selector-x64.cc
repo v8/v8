@@ -6008,34 +6008,35 @@ void InstructionSelector::VisitI64x4RelaxedLaneSelect(OpIndex node) {
 }
 #endif  // V8_ENABLE_SIMD256
 
-void InstructionSelector::VisitF16x8Pmin(OpIndex node) {
-  X64OperandGenerator g(this);
-  const Simd128BinopOp& op = Cast<Simd128BinopOp>(node);
+namespace {
+void VisitF16x8PminOrPmax(InstructionSelector* selector, OpIndex node,
+                          ArchOpcode opcode) {
+  X64OperandGenerator g(selector);
+  const Simd128BinopOp& op = selector->Cast<Simd128BinopOp>(node);
   DCHECK_EQ(op.input_count, 2);
   InstructionOperand dst = g.DefineAsRegister(node);
   InstructionCode instr_code =
-      kX64Minph | VectorLengthField::encode(VectorLength::kV128);
+      opcode | VectorLengthField::encode(VectorLength::kV128);
+  if (UseAvx10_1()) {
+    selector->Emit(instr_code, dst, g.UseRegister(op.right()),
+                   g.UseRegister(op.left()));
+    return;
+  }
   InstructionOperand temps[] = {g.TempSimd256Register(),
                                 g.TempSimd256Register()};
   size_t temp_count = arraysize(temps);
 
-  Emit(instr_code, dst, g.UseUniqueRegister(op.right()),
-       g.UseUniqueRegister(op.left()), temp_count, temps);
+  selector->Emit(instr_code, dst, g.UseUniqueRegister(op.right()),
+                 g.UseUniqueRegister(op.left()), temp_count, temps);
+}
+}  // namespace
+
+void InstructionSelector::VisitF16x8Pmin(OpIndex node) {
+  VisitF16x8PminOrPmax(this, node, kX64Minph);
 }
 
 void InstructionSelector::VisitF16x8Pmax(OpIndex node) {
-  X64OperandGenerator g(this);
-  const Simd128BinopOp& op = Cast<Simd128BinopOp>(node);
-  DCHECK_EQ(op.input_count, 2);
-  InstructionOperand dst = g.DefineAsRegister(node);
-  InstructionCode instr_code =
-      kX64Maxph | VectorLengthField::encode(VectorLength::kV128);
-  InstructionOperand temps[] = {g.TempSimd256Register(),
-                                g.TempSimd256Register()};
-  size_t temp_count = arraysize(temps);
-
-  Emit(instr_code, dst, g.UseUniqueRegister(op.right()),
-       g.UseUniqueRegister(op.left()), temp_count, temps);
+  VisitF16x8PminOrPmax(this, node, kX64Maxph);
 }
 
 void InstructionSelector::VisitF16x8DemoteF64x2Zero(OpIndex node) {

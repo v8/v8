@@ -4941,12 +4941,22 @@ bool LiftoffAssembler::emit_f16x8_max(LiftoffRegister dst, LiftoffRegister lhs,
 
 bool LiftoffAssembler::emit_f16x8_pmin(LiftoffRegister dst, LiftoffRegister lhs,
                                        LiftoffRegister rhs) {
+  if (UseAvx10_1()) {
+    CpuFeatureScope avx10_1_scope(this, AVX10_1);
+    vminph(dst.fp(), rhs.fp(), lhs.fp());
+    return true;
+  }
   // Due to the way minps works, pmin(a, b) = minps(b, a).
   return F16x8BinOpViaF32<&Assembler::vminps>(this, dst, rhs, lhs);
 }
 
 bool LiftoffAssembler::emit_f16x8_pmax(LiftoffRegister dst, LiftoffRegister lhs,
                                        LiftoffRegister rhs) {
+  if (UseAvx10_1()) {
+    CpuFeatureScope avx10_1_scope(this, AVX10_1);
+    vmaxph(dst.fp(), rhs.fp(), lhs.fp());
+    return true;
+  }
   // Due to the way maxps works, pmax(a, b) = maxps(b, a).
   return F16x8BinOpViaF32<&Assembler::vmaxps>(this, dst, rhs, lhs);
 }

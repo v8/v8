@@ -4740,12 +4740,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64Minph: {
       DCHECK_EQ(VectorLengthField::decode(opcode), VectorLength::kV128);
-      ASSEMBLE_SIMD_F16x8_BINOP(vminps);
+      if (UseAvx10_1()) {
+        CpuFeatureScope avx10_1_scope(masm(), AVX10_1);
+        __ vminph(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      } else {
+        ASSEMBLE_SIMD_F16x8_BINOP(vminps);
+      }
       break;
     }
     case kX64Maxph: {
       DCHECK_EQ(VectorLengthField::decode(opcode), VectorLength::kV128);
-      ASSEMBLE_SIMD_F16x8_BINOP(vmaxps);
+      if (UseAvx10_1()) {
+        CpuFeatureScope avx10_1_scope(masm(), AVX10_1);
+        __ vmaxph(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      } else {
+        ASSEMBLE_SIMD_F16x8_BINOP(vmaxps);
+      }
       break;
     }
     case kX64F32x8Pmin: {
