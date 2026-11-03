@@ -3642,8 +3642,9 @@ bool Debug::PerformSideEffectCheckAtBytecode(InterpretedFrame* frame) {
   std::optional<Tagged<DebugInfo>> debug_info = TryGetDebugInfo(shared);
   SBXCHECK(debug_info.has_value() &&
            debug_info.value()->HasInstrumentedBytecodeArray());
-  SBXCHECK_EQ(debug_info.value()->DebugBytecodeArray(isolate_),
-              frame->GetBytecodeArray());
+  Tagged<BytecodeArray> debug_bytecode =
+      debug_info.value()->DebugBytecodeArray(isolate_);
+  SBXCHECK_EQ(debug_bytecode, frame->GetBytecodeArray());
   Tagged<BytecodeArray> bytecode_array =
       debug_info.value()->OriginalBytecodeArray(isolate_);
   int offset = frame->GetBytecodeOffset();
