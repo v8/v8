@@ -136,12 +136,6 @@ class LoadStoreSimplificationReducer : public Next,
     return min <= offset && offset <= kMaxOffset;
   }
 
-  bool CanEncodeAtomic(OptionalOpIndex index, uint8_t element_size_log2,
-                       int32_t offset) const {
-    if (element_size_log2 != 0) return false;
-    return !(index.has_value() && offset != 0);
-  }
-
   void SimplifyLoadStore(OpIndex& base, OptionalOpIndex& index,
                          LoadOp::Kind& kind, int32_t& offset,
                          uint8_t& element_size_log2,
@@ -152,11 +146,7 @@ class LoadStoreSimplificationReducer : public Next,
       element_size_log2 = 0;
     }
 
-    // TODO(nicohartmann@): Remove the case for atomics once crrev.com/c/5237267
-    // is ported to x64.
-    if (!CanEncodeOffset(offset, kind.tagged_base) ||
-        (kind.is_atomic &&
-         !CanEncodeAtomic(index, element_size_log2, offset))) {
+    if (!CanEncodeOffset(offset, kind.tagged_base)) {
       intptr_t displacement = offset;
       if (kind.tagged_base) {
         kind.tagged_base = false;

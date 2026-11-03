@@ -1553,22 +1553,11 @@ void VisitStoreCommon(InstructionSelector* selector,
 
     if (is_seqcst) {
       // SeqCst stores emit XCHG instead of MOV, so encode the inputs as we
-      // would for XCHG. XCHG can't encode the value as an immediate and has
-      // fewer addressing modes available.
+      // would for XCHG. XCHG can't encode the value as an immediate.
       inputs[input_count++] = g.UseUniqueRegister(value);
-      inputs[input_count++] = g.UseUniqueRegister(base);
-      DCHECK_EQ(element_size_log2, 0);
-      if (index.valid()) {
-        DCHECK_EQ(displacement, 0);
-        inputs[input_count++] =
-            g.GetEffectiveIndexOperand(index.value(), &addressing_mode);
-      } else if (displacement != 0) {
-        DCHECK(ValueFitsIntoImmediate(displacement));
-        inputs[input_count++] = g.UseImmediate(displacement);
-        addressing_mode = kMode_MRI;
-      } else {
-        addressing_mode = kMode_MR;
-      }
+      addressing_mode = g.GetEffectiveAddressMemoryOperand(
+          store, inputs, &input_count,
+          X64OperandGenerator::RegisterUseKind::kUseUniqueRegister);
       opcode = GetSeqCstStoreOpcode(store_rep);
     } else {
       if (ElementSizeLog2Of(store_rep.representation()) <
