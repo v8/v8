@@ -376,11 +376,6 @@ class V8_EXPORT_PRIVATE WasmEngine {
   void ClearWeakScriptHandle(Isolate* isolate,
                              std::unique_ptr<Address*> location);
 
-  // Sample the code size of the given {NativeModule} in all isolates that have
-  // access to it. Call this after top-tier compilation finished.
-  // This will spawn foreground tasks that do *not* keep the NativeModule alive.
-  void SampleTopTierCodeSizeInAllIsolates(const std::shared_ptr<NativeModule>&);
-
   // Called by each Isolate to report its live code for a GC cycle. First
   // version reports an externally determined set of live code (might be empty),
   // second version gets live code from the execution stack of that isolate.
