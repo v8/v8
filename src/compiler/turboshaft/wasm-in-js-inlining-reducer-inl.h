@@ -105,7 +105,6 @@ class WasmInJSInliningReducer : public Next {
 
       uint32_t func_idx = descriptor->js_wasm_call_parameters->function_index();
 
-      V<JSFunction> js_closure = V<JSFunction>::Cast(callee);
       V<Context> js_context = V<Context>::Cast(arguments[arguments.size() - 1]);
 
       // Prepare data for the Wasm-in-JS body inlining, if enabled.
@@ -148,8 +147,9 @@ class WasmInJSInliningReducer : public Next {
       // could transitively cause a lazy deopt via valueOf/Symbol.toPrimitive.
       CHECK_IMPLIES(sig->parameter_count() > 0, caller_frame_state.has_value());
       V<Any> result = builder.BuildJSToWasmWrapper(
-          js_closure, js_context, arguments, continuation_frame_state,
-          descriptor->lazy_deopt_on_throw, caller_frame_state);
+          descriptor->js_wasm_call_parameters->internal_function(), js_context,
+          arguments, continuation_frame_state, descriptor->lazy_deopt_on_throw,
+          caller_frame_state);
       // The wrapper inlining will always succeed and produce a JS value, except
       // if the wrapper or body inlining _unconditionally_ produced a trap /
       // type error and we are thus in unreachable code.

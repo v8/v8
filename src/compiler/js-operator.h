@@ -933,15 +933,18 @@ const ForInParameters& ForInParametersOf(const Operator* op);
 #if V8_ENABLE_WEBASSEMBLY
 class JSWasmCallParameters final {
  public:
-  explicit JSWasmCallParameters(wasm::NativeModule* native_module,
-                                int function_index,
-                                SharedFunctionInfoRef shared_fct_info,
-                                FeedbackSource const& feedback);
+  explicit JSWasmCallParameters(
+      wasm::NativeModule* native_module, int function_index,
+      SharedFunctionInfoRef shared_fct_info, FeedbackSource const& feedback,
+      IndirectHandle<WasmInternalFunction> internal_function = {});
 
   wasm::NativeModule* native_module() const { return native_module_; }
   int function_index() const { return function_index_; }
   SharedFunctionInfoRef shared_fct_info() const { return shared_fct_info_; }
   FeedbackSource const& feedback() const { return feedback_; }
+  IndirectHandle<WasmInternalFunction> internal_function() const {
+    return internal_function_;
+  }
   int input_count() const;
   int arity_without_implicit_args() const;
 
@@ -950,6 +953,7 @@ class JSWasmCallParameters final {
   int function_index_;
   SharedFunctionInfoRef shared_fct_info_;
   const FeedbackSource feedback_;
+  IndirectHandle<WasmInternalFunction> internal_function_;
 };
 
 JSWasmCallParameters const& JSWasmCallParametersOf(const Operator* op)

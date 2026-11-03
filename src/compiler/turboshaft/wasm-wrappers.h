@@ -124,11 +124,12 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
 
   // Overload for the inlined JS-to-Wasm wrapper.
   // Returns the result of the Wasm function converted to a JS value.
-  V<Any> BuildJSToWasmWrapper(V<JSFunction> js_closure, V<Context> js_context,
-                              base::Vector<const OpIndex> arguments,
-                              OptionalV<LazyFrameState> lazy_frame_state,
-                              compiler::LazyDeoptOnThrow lazy_deopt_on_throw,
-                              OptionalV<EagerFrameState> caller_frame_state);
+  V<Any> BuildJSToWasmWrapper(
+      IndirectHandle<WasmInternalFunction> inlined_internal_function,
+      V<Context> js_context, base::Vector<const OpIndex> arguments,
+      OptionalV<LazyFrameState> lazy_frame_state,
+      compiler::LazyDeoptOnThrow lazy_deopt_on_throw,
+      OptionalV<EagerFrameState> caller_frame_state);
 
   // Overload for the "regular" non-inlined compiled JS-to-Wasm wrapper.
   void BuildJSToWasmWrapper();
