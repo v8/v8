@@ -2949,7 +2949,7 @@ void CodeStubAssembler::DispatchMaybeObject(TNode<MaybeObject> maybe_object,
 void CodeStubAssembler::DcheckHasValidMap(TNode<HeapObject> object) {
 #ifdef V8_MAP_PACKING
   // Test if the map is an unpacked and valid map
-  CSA_DCHECK(this, IsMap(LoadMap(object)));
+  CSA_DCHECK(this, IsMapOrCustomMap(LoadMap(object)));
 #endif
 }
 

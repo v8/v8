@@ -1875,7 +1875,7 @@ void AccessorAssembler::CheckFieldType(TNode<DescriptorArray> descriptors,
       GotoIf(TaggedEqual(field_type, BitcastWordToTagged(IntPtrConstant(
                                          FieldType::None().ptr()))),
              &check_done);
-      CSA_DCHECK(this, IsMap(GetHeapObjectAssumeWeak(field_type)));
+      CSA_DCHECK(this, IsMapOrCustomMap(GetHeapObjectAssumeWeak(field_type)));
       Goto(&check_done);
       BIND(&check_done);
     }
@@ -2438,7 +2438,7 @@ void AccessorAssembler::CheckHeapObjectTypeMatchesDescriptor(
       GotoIf(TaggedEqual(field_type, BitcastWordToTagged(IntPtrConstant(
                                          FieldType::None().ptr()))),
              &check_done);
-      CSA_DCHECK(this, IsMap(GetHeapObjectAssumeWeak(field_type)));
+      CSA_DCHECK(this, IsMapOrCustomMap(GetHeapObjectAssumeWeak(field_type)));
       Goto(&check_done);
       BIND(&check_done);
     }
