@@ -9,6 +9,9 @@
   # not work, but we expect it to not crash.
   'debugger/debug-step-turbofan': [PASS, FAIL],
 
+  # forcing weak callback in asan build change break order
+  'debugger/debug-stepin-builtin-callback': [['asan == True or msan == True', SKIP]],
+
   # https://crbug.com/v8/7932
   'runtime/command-line-api-without-side-effects': [SKIP],
 
