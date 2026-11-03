@@ -18,17 +18,17 @@ namespace wasm {
 // static
 int WasmExportWrapperCache::CountWrappersForTesting(Isolate* isolate) {
   int num_wrappers = 0;
-  Tagged<WeakFixedArray> wrappers = isolate->heap()->js_to_wasm_wrappers();
-  const uint32_t wrappers_length = wrappers->length().value();
+  Tagged<ProtectedWeakFixedArray> wrappers =
+      isolate->heap()->js_to_wasm_wrappers();
+  const uint32_t wrappers_length = wrappers->ulength().value();
   for (uint32_t i = kReservedSlots; i < wrappers_length; i += kSlotsPerEntry) {
     // Each entry consists of two array slots, for key and value:
     // If the key is Smi(kUnused), then the value is also Smi(kUnused).
-    // Otherwise the key is Smi(hash) for a non-negative "hash" (sig index
-    // plus receiver-is-first-param bit), and the value is either a weak
-    // code wrapper or cleared.
-    Tagged<MaybeObject> key = wrappers->get(i);
+    // Otherwise the key is Smi(hash) for a non-negative "hash" (sig index),
+    // and the value is either a weak Code reference or cleared.
+    Tagged<ProtectedWeakFixedArray::ElementT> key = wrappers->get(i);
     CHECK(key.IsSmi());
-    Tagged<MaybeObject> value = wrappers->get(i + 1);
+    Tagged<ProtectedWeakFixedArray::ElementT> value = wrappers->get(i + 1);
     if (value.IsSmi()) {
       CHECK_EQ(key.ToSmi().value(), kUnused);
       CHECK_EQ(value.ToSmi().value(), kUnused);
@@ -36,9 +36,9 @@ int WasmExportWrapperCache::CountWrappersForTesting(Isolate* isolate) {
     }
     if (value.IsCleared()) continue;
     CHECK(value.IsWeak());
-    CHECK(IsCodeWrapper(value.GetHeapObjectAssumeWeak()));
-    Tagged<Code> code =
-        Cast<CodeWrapper>(value.GetHeapObjectAssumeWeak())->code(isolate);
+    Tagged<HeapObject> obj = value.GetHeapObjectAssumeWeak();
+    CHECK(IsCode(obj));
+    Tagged<Code> code = TrustedCast<Code>(obj);
     CHECK_EQ(CodeKind::JS_TO_WASM_FUNCTION, code->kind());
     ++num_wrappers;
   }

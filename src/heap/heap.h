@@ -916,7 +916,7 @@ class Heap final {
   V8_INLINE void SetWasmCanonicalRtts(Tagged<WeakFixedArray> rtts);
   V8_INLINE void SetWasmSharedCanonicalRtts(Tagged<WeakFixedArray> rtts);
   V8_INLINE void SetJSToWasmWrappers(
-      Tagged<WeakFixedArray> js_to_wasm_wrappers);
+      Tagged<ProtectedWeakFixedArray> js_to_wasm_wrappers);
 #endif
 
   StrongRootsEntry* RegisterStrongRoots(const char* label, FullObjectSlot start,

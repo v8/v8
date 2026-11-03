@@ -506,7 +506,7 @@ MaybeDirectHandle<WasmModuleObject> CompileReferenceModule(
 #if V8_ENABLE_DRUMBRAKE
 void ClearJsToWasmWrappersForTesting(Isolate* isolate) {
   isolate->heap()->SetJSToWasmWrappers(
-      ReadOnlyRoots(isolate).empty_weak_fixed_array());
+      isolate->heap()->empty_protected_weak_fixed_array());
 }
 #endif  // V8_ENABLE_DRUMBRAKE
 

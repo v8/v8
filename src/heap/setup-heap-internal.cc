@@ -1443,7 +1443,6 @@ void Heap::CreateInitialMutableObjects() {
   set_shared_wasm_memories(roots.empty_weak_array_list());
   set_locals_block_list_cache(roots.undefined_value());
 #ifdef V8_ENABLE_WEBASSEMBLY
-  set_js_to_wasm_wrappers(roots.empty_weak_fixed_array());
   set_wasm_canonical_rtts(roots.empty_weak_fixed_array());
   set_wasm_shared_canonical_rtts(roots.empty_weak_fixed_array());
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1720,6 +1719,10 @@ void Heap::CreateInitialMutableObjects() {
         *isolate_->factory()->NewWasmDispatchTable(0, wasm::kWasmFuncRef));
 #endif
   }
+
+#ifdef V8_ENABLE_WEBASSEMBLY
+  set_js_to_wasm_wrappers(empty_protected_weak_fixed_array());
+#endif
 }
 
 void Heap::CreateInternalAccessorInfoObjects() {
