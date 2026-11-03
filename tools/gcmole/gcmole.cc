@@ -46,6 +46,7 @@
 #include "clang/Basic/FileManager.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendPluginRegistry.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/LineIterator.h"
 #include "llvm/Support/raw_ostream.h"
@@ -1353,6 +1354,9 @@ class FunctionAnalyzer {
   // --------------------------------------------------------------------------
 
   ExprEffect VisitExpr(clang::Expr* expr, const Environment& env) {
+    if (expr == nullptr) {
+      return ExprEffect::None();
+    }
 #define VISIT(type)                                                         \
   do {                                                                      \
     clang::type* concrete_expr = llvm::dyn_cast_or_null<clang::type>(expr); \
@@ -1363,6 +1367,8 @@ class FunctionAnalyzer {
 
     VISIT(AbstractConditionalOperator);
     VISIT(AddrLabelExpr);
+    VISIT(ArrayInitIndexExpr);
+    VISIT(ArrayInitLoopExpr);
     VISIT(ArraySubscriptExpr);
     VISIT(BinaryOperator);
     VISIT(BlockExpr);
@@ -1371,18 +1377,22 @@ class FunctionAnalyzer {
     VISIT(CharacterLiteral);
     VISIT(ChooseExpr);
     VISIT(CompoundLiteralExpr);
+    VISIT(ConceptSpecializationExpr);
     VISIT(ConstantExpr);
     VISIT(CXXBindTemporaryExpr);
     VISIT(CXXBoolLiteralExpr);
     VISIT(CXXConstructExpr);
     VISIT(CXXDefaultArgExpr);
+    VISIT(CXXDefaultInitExpr);
     VISIT(CXXDeleteExpr);
     VISIT(CXXDependentScopeMemberExpr);
     VISIT(CXXNewExpr);
     VISIT(CXXNoexceptExpr);
     VISIT(CXXNullPtrLiteralExpr);
     VISIT(CXXPseudoDestructorExpr);
+    VISIT(CXXRewrittenBinaryOperator);
     VISIT(CXXScalarValueInitExpr);
+    VISIT(CXXStdInitializerListExpr);
     VISIT(CXXThisExpr);
     VISIT(CXXThrowExpr);
     VISIT(CXXTypeidExpr);
@@ -1409,10 +1419,13 @@ class FunctionAnalyzer {
     VISIT(ParenExpr);
     VISIT(ParenListExpr);
     VISIT(PredefinedExpr);
+    VISIT(RequiresExpr);
     VISIT(ShuffleVectorExpr);
     VISIT(SizeOfPackExpr);
+    VISIT(SourceLocExpr);
     VISIT(StmtExpr);
     VISIT(StringLiteral);
+    VISIT(SubstNonTypeTemplateParmExpr);
     VISIT(SubstNonTypeTemplateParmPackExpr);
     VISIT(TypeTraitExpr);
     VISIT(UnaryOperator);
@@ -1432,10 +1445,12 @@ class FunctionAnalyzer {
   }
 
   IGNORE_EXPR(AddrLabelExpr);
+  IGNORE_EXPR(ArrayInitIndexExpr);
   IGNORE_EXPR(BlockExpr);
   IGNORE_EXPR(CharacterLiteral);
   IGNORE_EXPR(ChooseExpr);
   IGNORE_EXPR(CompoundLiteralExpr);
+  IGNORE_EXPR(ConceptSpecializationExpr);
   IGNORE_EXPR(CXXBoolLiteralExpr);
   IGNORE_EXPR(CXXDependentScopeMemberExpr);
   IGNORE_EXPR(CXXNullPtrLiteralExpr);
@@ -1455,8 +1470,10 @@ class FunctionAnalyzer {
   IGNORE_EXPR(ImplicitValueInitExpr);
   IGNORE_EXPR(PackExpansionExpr);
   IGNORE_EXPR(PredefinedExpr);
+  IGNORE_EXPR(RequiresExpr);
   IGNORE_EXPR(ShuffleVectorExpr);
   IGNORE_EXPR(SizeOfPackExpr);
+  IGNORE_EXPR(SourceLocExpr);
   IGNORE_EXPR(StmtExpr);
   IGNORE_EXPR(StringLiteral);
   IGNORE_EXPR(SubstNonTypeTemplateParmPackExpr);
@@ -1465,13 +1482,34 @@ class FunctionAnalyzer {
   IGNORE_EXPR(GNUNullExpr);
   IGNORE_EXPR(OverloadExpr);
 
+  DECL_VISIT_EXPR(ArrayInitLoopExpr) {
+    return VisitExpr(expr->getSubExpr(), env);
+  }
+
+  DECL_VISIT_EXPR(CXXDefaultInitExpr) {
+    return VisitExpr(expr->getExpr(), env);
+  }
+
+  DECL_VISIT_EXPR(CXXStdInitializerListExpr) {
+    return VisitExpr(expr->getSubExpr(), env);
+  }
+
+  DECL_VISIT_EXPR(SubstNonTypeTemplateParmExpr) {
+    return VisitExpr(expr->getReplacement(), env);
+  }
+
+  DECL_VISIT_EXPR(CXXRewrittenBinaryOperator) {
+    return VisitExpr(expr->getSemanticForm(), env);
+  }
+
   DECL_VISIT_EXPR(CXXThisExpr) {
     return Use(expr, expr->getType(), THIS,
                clang::FullSourceLoc(expr->getLocation(), sm_), env);
   }
 
   DECL_VISIT_EXPR(AbstractConditionalOperator) {
-    Environment after_cond = env.ApplyEffect(VisitExpr(expr->getCond(), env));
+    ExprEffect cond_effect = VisitExpr(expr->getCond(), env);
+    Environment after_cond = env.ApplyEffect(cond_effect);
 
     std::vector<GCScope> saved_scopes = state_.scopes;
 
@@ -1488,7 +1526,8 @@ class FunctionAnalyzer {
       state_.scopes[i] = MergeScopes(true_scopes[i], false_scopes[i]);
     }
 
-    return ExprEffect::Merge(true_effect, false_effect);
+    return ExprEffect::MergeSeq(cond_effect,
+                                ExprEffect::Merge(true_effect, false_effect));
   }
 
   DECL_VISIT_EXPR(ArraySubscriptExpr) {
@@ -1515,8 +1554,13 @@ class FunctionAnalyzer {
         return Sequential(expr, 2, exprs, env);
 
       case clang::BO_LAnd:
-      case clang::BO_LOr:
-        return ExprEffect::Merge(VisitExpr(lhs, env), VisitExpr(rhs, env));
+      case clang::BO_LOr: {
+        ExprEffect lhs_effect = VisitExpr(lhs, env);
+        Environment after_lhs = env.ApplyEffect(lhs_effect);
+        ExprEffect rhs_effect = VisitExpr(rhs, after_lhs);
+        return ExprEffect::MergeSeq(
+            lhs_effect, ExprEffect::Merge(ExprEffect::None(), rhs_effect));
+      }
 
       case clang::BO_Assign: {
         std::string var_name;
@@ -1542,7 +1586,46 @@ class FunctionAnalyzer {
     return VisitExpr(expr->getSubExpr(), env);
   }
 
-  DECL_VISIT_EXPR(CXXConstructExpr) { return VisitArguments<>(expr, env); }
+  // Evaluates brace-enclosed initializer elements (`InitListExpr` or
+  // list-initialized `CXXConstructExpr`) in C++11+ strict left-to-right order.
+  // An earlier element becomes dangling across a later element's GC if the
+  // earlier element produced a raw on-heap value (`{*handle, CauseGC()}`),
+  // whereas a scalar loaded by value in an earlier element is already copied
+  // before the GC runs.
+  ExprEffect VisitSequencedInitList(clang::Expr* parent,
+                                    llvm::ArrayRef<clang::Expr*> inits,
+                                    const Environment& env) {
+    ExprEffect out = ExprEffect::None();
+    Environment out_env = env;
+    bool saw_unrooted_value = false;
+    bool reported_unsafe = false;
+    for (clang::Expr* init : inits) {
+      ExprEffect elem = VisitExpr(init, out_env);
+      if (elem.hasGC() && saw_unrooted_value && !reported_unsafe) {
+        ReportUnsafe(parent, BAD_EXPR_MSG);
+        reported_unsafe = true;
+      }
+      if (init != nullptr && RepresentsRawPointerType(init->getType())) {
+        saw_unrooted_value = true;
+      }
+      out = ExprEffect::MergeSeq(out, elem);
+      out_env = out_env.ApplyEffect(elem);
+    }
+    if (RepresentsRawPointerType(parent->getType())) {
+      out.setRawDef();
+    }
+    return out;
+  }
+
+  DECL_VISIT_EXPR(CXXConstructExpr) {
+    if (expr->isListInitialization()) {
+      return VisitSequencedInitList(
+          expr,
+          llvm::ArrayRef<clang::Expr*>(expr->getArgs(), expr->getNumArgs()),
+          env);
+    }
+    return VisitArguments<>(expr, env);
+  }
 
   DECL_VISIT_EXPR(CXXDefaultArgExpr) { return VisitExpr(expr->getExpr(), env); }
 
@@ -1563,7 +1646,10 @@ class FunctionAnalyzer {
   DECL_VISIT_EXPR(ConstantExpr) { return VisitExpr(expr->getSubExpr(), env); }
 
   DECL_VISIT_EXPR(InitListExpr) {
-    return Sequential(expr, expr->getNumInits(), expr->getInits(), env);
+    return VisitSequencedInitList(
+        expr,
+        llvm::ArrayRef<clang::Expr*>(expr->getInits(), expr->getNumInits()),
+        env);
   }
 
   DECL_VISIT_EXPR(MemberExpr) { return VisitExpr(expr->getBase(), env); }
@@ -1620,14 +1706,15 @@ class FunctionAnalyzer {
   }
 
   // Represents a node in the AST {parent} whose children {exprs} are
-  // executed in sequence, e.g. a switch statement or an initializer list.
+  // executed in sequence, e.g. a comma operator.
   ExprEffect Sequential(clang::Stmt* parent, int n, clang::Expr** exprs,
                         const Environment& env) {
     ExprEffect out = ExprEffect::None();
     Environment out_env = env;
     for (int i = 0; i < n; ++i) {
-      out = ExprEffect::MergeSeq(out, VisitExpr(exprs[i], out_env));
-      out_env = out_env.ApplyEffect(out);
+      ExprEffect elem = VisitExpr(exprs[i], out_env);
+      out = ExprEffect::MergeSeq(out, elem);
+      out_env = out_env.ApplyEffect(elem);
     }
     return out;
   }
@@ -1795,7 +1882,7 @@ class FunctionAnalyzer {
     // Overloaded `operator=` on a local variable (e.g. `tagged_var = GetObj()`)
     // refreshes the variable's liveness in the environment after evaluating
     // the RHS.
-    if (opcall != nullptr && opcall->isAssignmentOp() &&
+    if (opcall != nullptr && opcall->getOperator() == clang::OO_Equal &&
         IsRawPointerVar(opcall->getArg(0), &var_name)) {
       // TODO(gcmole): We are treating all assignment operator calls with
       // the left hand side looking like {raw_pointer_var} as safe independent
@@ -1824,6 +1911,7 @@ class FunctionAnalyzer {
   // --------------------------------------------------------------------------
 
   Environment VisitStmt(clang::Stmt* stmt, const Environment& env) {
+    if (stmt == nullptr) return env;
 #define VISIT(type)                                                         \
   do {                                                                      \
     clang::type* concrete_stmt = llvm::dyn_cast_or_null<clang::type>(stmt); \
@@ -1837,10 +1925,12 @@ class FunctionAnalyzer {
     }
 
     VISIT(AsmStmt);
+    VISIT(AttributedStmt);
     VISIT(BreakStmt);
     VISIT(CompoundStmt);
     VISIT(ContinueStmt);
     VISIT(CXXCatchStmt);
+    VISIT(CXXForRangeStmt);
     VISIT(CXXTryStmt);
     VISIT(DeclStmt);
     VISIT(DoStmt);
@@ -1872,13 +1962,16 @@ class FunctionAnalyzer {
   IGNORE_STMT(NullStmt);
   IGNORE_STMT(AsmStmt);
 
-  // We are ignoring control flow for simplicity.
+  // We are ignoring unstructured control flow for simplicity.
   IGNORE_STMT(GotoStmt);
-  IGNORE_STMT(LabelStmt);
 
   // We are ignoring try/catch because V8 does not use them.
   IGNORE_STMT(CXXCatchStmt);
   IGNORE_STMT(CXXTryStmt);
+
+  DECL_VISIT_STMT(LabelStmt) { return VisitStmt(stmt->getSubStmt(), env); }
+
+  DECL_VISIT_STMT(AttributedStmt) { return VisitStmt(stmt->getSubStmt(), env); }
 
   class Block {
    public:
@@ -1997,6 +2090,29 @@ class FunctionAnalyzer {
     Block block(VisitStmt(stmt->getInit(), env), this);
     do {
       block.Loop(stmt->getCond(), stmt->getBody(), stmt->getInc());
+    } while (block.changed());
+    PopScope();
+    return block.out();
+  }
+
+  // Desugared range-for loop (`for (init; decl : range) body`): visits the
+  // synthetic `__range`, `__begin`, and `__end` declarations before iterating
+  // `cond` (`__begin != __end`), `loop_var` (`decl = *__begin`), `body`, and
+  // `inc` (`++__begin`).
+  DECL_VISIT_STMT(CXXForRangeStmt) {
+    state_.scopes.push_back(GCScope());
+    Environment init_env = VisitStmt(stmt->getInit(), env);
+    init_env = VisitStmt(stmt->getRangeStmt(), init_env);
+    init_env = VisitStmt(stmt->getBeginStmt(), init_env);
+    init_env = VisitStmt(stmt->getEndStmt(), init_env);
+    Block block(init_env, this);
+    do {
+      Environment cond_out = VisitStmt(stmt->getCond(), block.in());
+      Environment var_out = VisitStmt(stmt->getLoopVarStmt(), cond_out);
+      Environment body_out = VisitStmt(stmt->getBody(), var_out);
+      Environment inc_out = VisitStmt(stmt->getInc(), body_out);
+      block.MergeOut(inc_out);
+      block.MergeIn(block.out());
     } while (block.changed());
     PopScope();
     return block.out();
