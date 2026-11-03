@@ -5,10 +5,17 @@
 import("../../../gni/v8.gni")
 
 # The code that V8 and d8 link for Redline (v8_redline=true): the REPRL file
-# descriptors, the redline() builtin and the coverage runtime. It is a copy of
-# src/fuzzilli, so that Redline can change it without changes to Fuzzilli.
+# descriptors, the redline() builtin and the coverage runtime. It started as a
+# copy of src/fuzzilli, so that Redline can change it without changes to
+# Fuzzilli.
 if (v8_redline) {
   assert(!v8_fuzzilli, "v8_redline and v8_fuzzilli exclude each other")
+
+  # The module constructors of the compiler call the coverage runtime before
+  # the static initializers run (see cov.cc).
+  config("v8_redline_config") {
+    cflags = [ "-Wglobal-constructors" ]
+  }
 
   v8_source_set("v8_redline") {
     visibility = [ "../../..:*" ]
@@ -21,6 +28,7 @@ if (v8_redline) {
     configs = [
       "../../..:internal_config_base",
       "../../..:internal_config",
+      ":v8_redline_config",
     ]
     deps = [
       "../../..:v8_internal_headers",

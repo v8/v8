@@ -99,7 +99,7 @@ out/redline/redline fuzz --d8=out/fuzzbuild/d8 --preset=maglev --jobs=4 --durati
 | `commands/` | One file for each command, for example `fuzz`, `shell` and `selftest`. `main.cc` selects the command. |
 | `core/` | Programs, the `Builder`, the `Environment`, components, random numbers, tunables, AST helpers, and the selection interface. |
 | `corpus/` | The shared corpus, and the seed and partner strategies. |
-| `d8/` | The code that d8 links for Redline (`v8_redline=true`): the REPRL file descriptors, the `redline()` builtin and the coverage runtime. It is a copy of `src/fuzzilli`. |
+| `d8/` | The code that d8 links for Redline (`v8_redline=true`): the REPRL file descriptors, the `redline()` builtin and the coverage runtime. It started as a copy of `src/fuzzilli`. |
 | `engine/` | The configuration, the fuzzer and its workers, the stages, the shared coverage, the crash signatures, the amplify step, the importer and the prelude. |
 | `exec/` | The REPRL client, the coverage map, the script runner, the target options, and the plain d8 runs of the amplify step. |
 | `fast/` | FAST: the syntax tree, the arena, the lexer, the parser, the printer and the scope analysis. |

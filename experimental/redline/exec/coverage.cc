@@ -67,40 +67,94 @@ std::unique_ptr<CoverageMap> CoverageMap::Create(int id, std::string* error) {
 CoverageMap::CoverageMap(int id, std::string shm_name, void* mapping)
     : id_(id),
       shm_name_(std::move(shm_name)),
-      shmem_(static_cast<ShmemData*>(mapping)) {}
+      shmem_(static_cast<uint8_t*>(mapping)) {}
 
 CoverageMap::~CoverageMap() {
   munmap(shmem_, kShmSize);
   shm_unlink(shm_name_.c_str());
 }
 
+namespace {
+
+// Checks the header that the target wrote. Returns an empty string if it is
+// valid, else the reason.
+std::string CheckHeader(const cov::Header& header) {
+  if (header.magic != cov::kMagic) {
+    return "The target did not write the coverage header of Redline; is it "
+           "built with v8_redline=true and coverage instrumentation "
+           "(sanitizer_coverage_flags)?";
+  }
+  if (header.version != cov::kVersion) {
+    return StringPrintf(
+        "The target writes version %u of the coverage header, but Redline "
+        "reads version %u; rebuild Redline or the target",
+        header.version, cov::kVersion);
+  }
+  const auto mode = static_cast<cov::Mode>(header.mode);
+  if (mode != cov::Mode::kTracePcGuard && mode != cov::Mode::kInlineBoolFlag &&
+      mode != cov::Mode::kInline8bitCounters) {
+    return "The target has no coverage instrumentation "
+           "(sanitizer_coverage_flags)";
+  }
+  if (header.header_size != cov::kHeaderSize ||
+      header.shm_size != CoverageMap::kShmSize ||
+      header.bits_per_edge != cov::BitsPerEdge(mode) ||
+      header.max_edges !=
+          cov::MaxEdges(header.shm_size, header.bits_per_edge) ||
+      header.num_edges == 0 || header.num_edges > header.max_edges ||
+      header.num_regions > cov::kMaxRegions ||
+      header.build_id_size > cov::kMaxBuildIdSize) {
+    return "The target wrote an invalid coverage header";
+  }
+  // The regions follow each other, from edge 1 to the last edge.
+  uint32_t next = 1;
+  for (uint32_t i = 0; i < header.num_regions; i++) {
+    const cov::Region& region = header.regions[i];
+    if (region.kind < static_cast<uint32_t>(cov::RegionKind::kCode) ||
+        region.kind > static_cast<uint32_t>(cov::RegionKind::kOptimized) ||
+        region.first != next || region.count > header.num_edges - next + 1) {
+      return "The target wrote an invalid coverage region";
+    }
+    next += region.count;
+  }
+  if (next != header.num_edges + 1) {
+    return "The coverage regions of the target do not hold all edges";
+  }
+  return "";
+}
+
+}  // namespace
+
 bool CoverageMap::FinishInitialization(std::string* error) {
-  uint32_t num_edges = shmem_->num_edges;
-  if (num_edges == 0) {
+  cov::Header header;
+  memcpy(&header, shmem_, sizeof(header));
+  std::string problem = CheckHeader(header);
+  if (!problem.empty()) {
+    *error = problem;
+    return false;
+  }
+  if (header.bits_per_edge != 1) {
     *error =
-        "The target did not publish an edge count; is it built with "
-        "coverage instrumentation (sanitizer_coverage_flags) and "
-        "v8_redline=true?";
+        "The target has coverage counters (inline-8bit-counters). This "
+        "Redline reads only one bit per edge (trace-pc-guard or "
+        "inline-bool-flag)";
     return false;
   }
-  // Index 0 is unused; the bitmap must hold indices 0..num_edges.
-  if (num_edges > kMaxEdges) {
-    *error = StringPrintf("Too many edges (%u) for the shared memory region",
-                          num_edges);
-    return false;
-  }
-  if (num_edges_ != 0 && num_edges_ != num_edges) {
-    *error = StringPrintf(
-        "The target changed its edge count (%u -> %u); mixing binaries?",
-        num_edges_, num_edges);
-    return false;
-  }
-  if (num_edges_ == num_edges) {
+  if (num_edges_ != 0) {
+    // A new process of the same target must write the same header.
+    if (memcmp(&header, &header_, sizeof(header)) != 0) {
+      *error = StringPrintf(
+          "The target changed its coverage header (%u -> %u edges); mixing "
+          "binaries?",
+          num_edges_, header.num_edges);
+      return false;
+    }
     return true;
   }
 
-  num_edges_ = num_edges;
-  uint32_t bitmap_size = (num_edges + 1 + 7) / 8;
+  header_ = header;
+  num_edges_ = header.num_edges;
+  uint32_t bitmap_size = (num_edges_ + 1 + 7) / 8;
   // Round up to a multiple of 8 bytes so that the scans can use 64-bit
   // words.
   bitmap_size += 7 - ((bitmap_size - 1) % 8);
@@ -109,6 +163,28 @@ bool CoverageMap::FinishInitialization(std::string* error) {
   crash_bits_.assign(bitmap_size_, 0xff);
   ResetState();
   return true;
+}
+
+const char* CoverageMap::mode_name() const {
+  switch (static_cast<cov::Mode>(header_.mode)) {
+    case cov::Mode::kTracePcGuard:
+      return "trace-pc-guard";
+    case cov::Mode::kInlineBoolFlag:
+      return "inline-bool-flag";
+    case cov::Mode::kInline8bitCounters:
+      return "inline-8bit-counters";
+    case cov::Mode::kNone:
+      break;
+  }
+  return "none";
+}
+
+std::string CoverageMap::build_id() const {
+  std::string hex;
+  for (uint32_t i = 0; i < header_.build_id_size; i++) {
+    hex += StringPrintf("%02x", header_.build_id[i]);
+  }
+  return hex;
 }
 
 double CoverageMap::coverage_fraction() const {

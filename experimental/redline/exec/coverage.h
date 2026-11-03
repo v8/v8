@@ -10,31 +10,24 @@
 #include <string>
 #include <vector>
 
+#include "experimental/redline/d8/cov.h"
+
 namespace redline {
 
 // The edge coverage bitmap shared with one target process, plus the
 // bookkeeping of which edges have been seen so far ("virgin bits").
 //
-// Layout and semantics are those of experimental/redline/d8/cov.cc (a copy
-// of V8's src/fuzzilli/cov.cc): a POSIX shared memory object named
-// "shm_id_<pid>_<id>" of kShmSize bytes starting with a uint32 edge count
-// written by the target at startup, followed by one bit per edge. Edge
-// indices start at 1; index 0 is never reported. The target sets a bit the
-// first time an edge executes within a REPRL iteration and resets its
-// guards at the end of every iteration, so the parent must clear the bitmap
-// before each execution and read it afterwards.
+// The layout is that of experimental/redline/d8/cov.h: a POSIX shared memory
+// object named "shm_id_<pid>_<id>" of kShmSize bytes. The target writes a
+// header at startup: the mode, the number of edges and the regions. One bit
+// per edge follows. Edge indices start at 1. Index 0 is never reported. The
+// parent must clear the bitmap before each execution and read it afterwards.
 //
 // Not thread-safe; one instance per ReprlChild.
 class CoverageMap {
  public:
-  // Must match SHM_SIZE in experimental/redline/d8/cov.cc: the target maps
-  // this many bytes, so a smaller region would make it fault.
-  static constexpr size_t kShmSize = 0x200000;
-  // The 4-byte num_edges header leaves kShmSize - 4 bytes for the bitmap,
-  // and scans read 8-byte words, so the usable bitmap is the largest multiple
-  // of 8 bytes that fits after the header.
-  static constexpr uint32_t kMaxEdges = static_cast<uint32_t>(
-      ((kShmSize - sizeof(uint32_t)) & ~size_t{7}) * 8 - 1);
+  // The size of the shared memory. The target maps the size that it gets.
+  static constexpr size_t kShmSize = cov::kShmSize;
 
   // Creates the shared memory object; `id` must be unique within this
   // process (one per target child).
@@ -47,15 +40,22 @@ class CoverageMap {
   const std::string& shm_name() const { return shm_name_; }
   int id() const { return id_; }
 
-  // Reads the edge count published by the target. Must be called after the
-  // target has started (i.e. after the REPRL handshake) and before any
-  // evaluation. Returns false if the target did not publish an edge count,
-  // which means it is not instrumented.
+  // Reads the header written by the target. Must be called after the target
+  // has started (i.e. after the REPRL handshake) and before any evaluation.
+  // Returns false if the header is missing or invalid, for example because
+  // the target is not instrumented.
   bool FinishInitialization(std::string* error);
   bool initialized() const { return num_edges_ != 0; }
 
   // Number of instrumented edges reported by the target.
   uint32_t num_edges() const { return num_edges_; }
+  // The header that the target wrote (valid after FinishInitialization()).
+  const cov::Header& header() const { return header_; }
+  // The mode of the coverage instrumentation of the target, for example
+  // "inline-bool-flag".
+  const char* mode_name() const;
+  // The GNU build ID of the target in hex, or an empty string.
+  std::string build_id() const;
   // Number of distinct edges discovered so far (through EvaluateNewEdges).
   uint32_t found_edges() const { return found_edges_; }
   // found_edges() / (num_edges() + 1): the same ratio Fuzzilli reports.
@@ -102,22 +102,16 @@ class CoverageMap {
  private:
   CoverageMap(int id, std::string shm_name, void* mapping);
 
-  // Layout of the shared memory region (shmem_data in d8/cov.cc): the edge
-  // count followed by the edge bitmap. The bitmap starts right after the
-  // header, see shm_edges().
-  struct ShmemData {
-    uint32_t num_edges;
-  };
-  uint8_t* shm_edges() { return reinterpret_cast<uint8_t*>(shmem_ + 1); }
-  const uint8_t* shm_edges() const {
-    return reinterpret_cast<const uint8_t*>(shmem_ + 1);
-  }
+  // The bitmap starts after the header (cov::kHeaderSize).
+  uint8_t* shm_edges() { return shmem_ + cov::kHeaderSize; }
+  const uint8_t* shm_edges() const { return shmem_ + cov::kHeaderSize; }
 
   uint32_t ScanNewEdges(uint8_t* virgin_bits, std::vector<uint32_t>* out);
 
   int id_;
   std::string shm_name_;
-  ShmemData* shmem_;
+  uint8_t* shmem_;
+  cov::Header header_ = {};
   uint32_t num_edges_ = 0;
   uint32_t bitmap_size_ = 0;  // bytes, multiple of 8
   uint32_t found_edges_ = 0;

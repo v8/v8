@@ -8,10 +8,14 @@
 // coverage evaluation and edge determinism). Prints one PASS/FAIL line per
 // check and exits non-zero if any check failed.
 
+#include <fcntl.h>
+#include <sys/mman.h>
 #include <unistd.h>
 
 #include <algorithm>
+#include <cerrno>
 #include <cstdio>
+#include <cstring>
 #include <iterator>
 #include <set>
 
@@ -23,6 +27,7 @@
 #include "experimental/redline/commands/selftest_checker.h"
 #include "experimental/redline/commands/selftest_selection.h"
 #include "experimental/redline/engine/crash.h"
+#include "experimental/redline/exec/coverage.h"
 #include "experimental/redline/exec/runner.h"
 
 namespace redline {
@@ -99,12 +104,120 @@ void RunCrashSignatureChecks(Checker* checker) {
                  c.text);
 }
 
+// Offline: the coverage header (experimental/redline/d8/cov.h) on synthetic
+// shared memory.
+void RunCoverageHeaderChecks(Checker* checker) {
+  std::string error;
+  std::unique_ptr<CoverageMap> map = CoverageMap::Create(9998, &error);
+  if (!checker->Check("coverage header: create a coverage map", map != nullptr,
+                      error)) {
+    return;
+  }
+  int fd = shm_open(map->shm_name().c_str(), O_RDWR, 0);
+  void* mapping = fd < 0 ? MAP_FAILED
+                         : mmap(nullptr, CoverageMap::kShmSize,
+                                PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+  if (fd >= 0) {
+    close(fd);
+  }
+  const bool mapped = mapping != MAP_FAILED;
+  if (!checker->Check("coverage header: map the shared memory", mapped,
+                      mapped ? "" : strerror(errno))) {
+    return;
+  }
+  uint8_t* shm = static_cast<uint8_t*>(mapping);
+  // A target with inline-bool-flag, 80 code edges and 10 builtins blocks
+  // writes this header.
+  cov::Header header = {};
+  header.magic = cov::kMagic;
+  header.version = cov::kVersion;
+  header.header_size = cov::kHeaderSize;
+  header.shm_size = static_cast<uint32_t>(CoverageMap::kShmSize);
+  header.mode = static_cast<uint32_t>(cov::Mode::kInlineBoolFlag);
+  header.bits_per_edge = 1;
+  header.num_edges = 90;
+  header.max_edges = cov::MaxEdges(header.shm_size, 1);
+  header.num_regions = 2;
+  header.regions[0] = {static_cast<uint32_t>(cov::RegionKind::kCode), 1, 80};
+  header.regions[1] = {static_cast<uint32_t>(cov::RegionKind::kBuiltins), 81,
+                       10};
+  header.build_id_size = 2;
+  header.build_id[0] = 0xab;
+  header.build_id[1] = 0x01;
+  memcpy(shm, &header, sizeof(header));
+  bool ok = map->FinishInitialization(&error);
+  checker->Check("coverage header: read a valid header", ok, error);
+  if (ok) {
+    checker->Check(
+        "coverage header: geometry",
+        map->num_edges() == 90 &&
+            strcmp(map->mode_name(), "inline-bool-flag") == 0 &&
+            map->build_id() == "ab01",
+        StringPrintf("%u edges, mode %s, build id %s", map->num_edges(),
+                     map->mode_name(), map->build_id().c_str()));
+    // The bitmap starts after the header.
+    uint8_t* bits = shm + cov::kHeaderSize;
+    bits[5 / 8] |= static_cast<uint8_t>(1u << (5 % 8));
+    bits[85 / 8] |= static_cast<uint8_t>(1u << (85 % 8));
+    const std::vector<uint32_t> expected = {5, 85};
+    checker->Check("coverage header: bits after the header",
+                   map->CurrentEdges() == expected,
+                   StringPrintf("%zu edges", map->CurrentEdges().size()));
+    // A new target process with other edges is another binary.
+    cov::Header other = header;
+    other.num_edges = 91;
+    other.regions[1].count = 11;
+    memcpy(shm, &other, sizeof(other));
+    std::string changed;
+    checker->Check("coverage header: a changed header is an error",
+                   !map->FinishInitialization(&changed) &&
+                       changed.find("mixing binaries") != std::string::npos,
+                   changed);
+  }
+  // Headers that this Redline rejects.
+  struct BadHeader {
+    const char* name;
+    cov::Header header;
+  };
+  BadHeader bad[4] = {{"no magic", header},
+                      {"a region beyond the edges", header},
+                      {"no instrumentation", header},
+                      {"coverage counters", header}};
+  bad[0].header.magic = 0;
+  bad[1].header.regions[1].count = 11;
+  bad[2].header.mode = static_cast<uint32_t>(cov::Mode::kNone);
+  bad[3].header.mode = static_cast<uint32_t>(cov::Mode::kInline8bitCounters);
+  bad[3].header.bits_per_edge = 8;
+  bad[3].header.max_edges = cov::MaxEdges(header.shm_size, 8);
+  for (const BadHeader& b : bad) {
+    std::unique_ptr<CoverageMap> fresh = CoverageMap::Create(9997, &error);
+    if (fresh == nullptr) {
+      checker->Check("coverage header: create a coverage map", false, error);
+      break;
+    }
+    int bad_fd = shm_open(fresh->shm_name().c_str(), O_RDWR, 0);
+    if (bad_fd >= 0) {
+      if (pwrite(bad_fd, &b.header, sizeof(b.header), 0) !=
+          static_cast<ssize_t>(sizeof(b.header))) {
+        bad_fd = -1;
+      }
+      close(bad_fd);
+    }
+    std::string reason;
+    checker->Check(StringPrintf("coverage header: reject %s", b.name).c_str(),
+                   bad_fd >= 0 && !fresh->FinishInitialization(&reason),
+                   reason);
+  }
+  munmap(mapping, CoverageMap::kShmSize);
+}
+
 int RunSelftest(const Flags& flags) {
   Checker checker;
   std::string error;
 
   // Offline checks first: they need no target.
   RunCrashSignatureChecks(&checker);
+  RunCoverageHeaderChecks(&checker);
   RunNodeKindChecks(&checker);
   RunPresetChecks(&checker);
   std::string testdata = flags.GetString("testdata", DefaultTestdataDir());
@@ -144,6 +257,23 @@ int RunSelftest(const Flags& flags) {
   }
   checker.Info("instrumented edges",
                StringPrintf("%u", runner->coverage().num_edges()));
+  {
+    const CoverageMap& coverage = runner->coverage();
+    const cov::Header& header = coverage.header();
+    std::string regions;
+    for (uint32_t i = 0; i < header.num_regions; i++) {
+      static const char* const kKinds[] = {"?", "code", "builtins",
+                                           "optimized"};
+      const cov::Region& region = header.regions[i];
+      regions +=
+          StringPrintf(" %s %u..%u", kKinds[region.kind <= 3 ? region.kind : 0],
+                       region.first, region.first + region.count - 1);
+    }
+    checker.Info("coverage header",
+                 StringPrintf("%s, %u bit(s) per edge,%s, build id %s",
+                              coverage.mode_name(), header.bits_per_edge,
+                              regions.c_str(), coverage.build_id().c_str()));
+  }
 
   ScriptRunner::Result result;
 

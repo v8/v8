@@ -116,6 +116,7 @@ out/redline/redline selftest --d8=out/fuzzbuild/d8
 ...
 PASS  REPRL handshake and coverage initialization
 INFO  instrumented edges: <n>
+INFO  coverage header: inline-bool-flag, 1 bit(s) per edge, code 1..<n> builtins <n>..<n>, build id <hex>
 PASS  empty script succeeds: succeeded (exit code 0, signal 0, <n> ms)
 PASS  uncaught exception is reported as failed: failed (exit code 1, signal 0, <n> ms)
 ...
@@ -123,6 +124,8 @@ selftest: <n> passed, 0 failed
 ```
 
 The second command checks the execution layer: the REPRL handshake, the outcomes, the output capture, the coverage and the restart of d8.
+The `coverage header` line shows the header of the shared memory of d8.
+It has the mode of `sanitizer_coverage_flags`, the regions of edges and the build ID of d8.
 If a check fails, examine the build of the target first.
 
 ## 3. Run one program

@@ -59,7 +59,7 @@ It is C++ code in the V8 tree, so that the V8 team can own and change it. It bui
 | `main.cc`, `commands/` | The command-line tool, with one file per command. |
 | `base/` | Flags, logging, JSON, files, subprocesses, and the V8 parser in the Redline process. |
 | `exec/` | The REPRL client, the coverage map, the target options, and one plain d8 run for the amplify step. |
-| `d8/` | The code that d8 links for Redline (`v8_redline=true`): the REPRL file descriptors, the `redline()` builtin and the coverage runtime. It is a copy of `src/fuzzilli`. |
+| `d8/` | The code that d8 links for Redline (`v8_redline=true`): the REPRL file descriptors, the `redline()` builtin and the coverage runtime. It started as a copy of `src/fuzzilli`. |
 | `fast/` | FAST: the AST, the arena, the lexer, the parser, the printer and the scope analysis. |
 | `core/` | `Program`, `Builder`, `Environment`, `Component`, the random generator, the selection interface and the tunables. |
 | `generators/`, `mutators/` | The generators with their shared expression synthesis (`CodeGen`), and the mutators. |
@@ -224,7 +224,11 @@ For each execution, Redline writes the script, sends a command and waits for a s
   With `syntax_check`, the V8 parser in the Redline process checks each mutant first.
 - The default prelude defines the mjsunit assertion functions so that they do not throw.
 
-**Coverage.** Each target has its own coverage map: POSIX shared memory with the edge count and one bit per edge.
+**Coverage.** Each target has its own coverage map: POSIX shared memory with a header and one bit per edge (`d8/cov.h`).
+The header has the mode of the instrumentation, the number of edges, the regions and the build ID of d8.
+The regions are the code edges, the builtins blocks and the optimized code features of `--fuzzilli-enable-optimized-code-coverage`.
+All three modes of `sanitizer_coverage_flags` (`trace-pc-guard`, `inline-bool-flag` and `inline-8bit-counters`) use this header. With `inline-8bit-counters`, d8 writes one counter per edge instead of one bit.
+When a target starts again, Redline compares its header with the header of the first process, so a different binary stops the session.
 Redline clears the bitmap before each execution and reads it after the execution.
 Only successful executions count for coverage, so the corpus holds only programs that run to the end. Crashes have a separate set of crash bits.
 All workers share one map of the edges that the session found (`engine/shared_coverage.h`).
