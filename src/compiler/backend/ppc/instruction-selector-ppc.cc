@@ -364,11 +364,7 @@ void VisitStoreCommon(InstructionSelector* selector, OpIndex node,
   bool is_atomic = store.is_atomic();
 
   MachineRepresentation rep = store_rep.representation();
-  WriteBarrierKind write_barrier_kind = kNoWriteBarrier;
-
-  if (!is_atomic) {
-    write_barrier_kind = store_rep.write_barrier_kind();
-  }
+  WriteBarrierKind write_barrier_kind = store_rep.write_barrier_kind();
 
   if (v8_flags.enable_unconditional_write_barriers &&
       CanBeTaggedOrCompressedPointer(rep)) {
@@ -409,16 +405,17 @@ void VisitStoreCommon(InstructionSelector* selector, OpIndex node,
     InstructionCode code;
 
     if (write_barrier_kind == kSkippedWriteBarrier) {
-      code = kArchStoreSkippedWriteBarrier;
+      code = is_atomic ? kArchAtomicStoreSkippedWriteBarrier
+                       : kArchStoreSkippedWriteBarrier;
     } else {
       RecordWriteMode record_write_mode =
           WriteBarrierKindToRecordWriteMode(write_barrier_kind);
-      code = kArchStoreWithWriteBarrier;
+      code = is_atomic ? kArchAtomicStoreWithWriteBarrier
+                       : kArchStoreWithWriteBarrier;
       code |= RecordWriteModeField::encode(record_write_mode);
     }
 
     code |= AddressingModeField::encode(addressing_mode);
-    CHECK_EQ(is_atomic, false);
     selector->Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
   } else {
     ArchOpcode opcode;

@@ -1205,8 +1205,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                            kScratchDoubleReg);
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
+    case kArchAtomicStoreWithWriteBarrier:  // Fall through.
     case kArchStoreWithWriteBarrier: {
       RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
+      bool is_atomic = opcode == kArchAtomicStoreWithWriteBarrier;
       Register object = i.InputRegister(0);
       Register value = i.InputRegister(2);
       Register scratch0 = i.TempRegister(0);
@@ -1222,6 +1224,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
       AddressingMode addressing_mode =
           AddressingModeField::decode(instr->opcode());
+      if (is_atomic) __ lwsync();
       if (addressing_mode == kMode_MRI) {
         int32_t offset = i.InputInt32(1);
         ool = zone()->New<OutOfLineRecordWrite>(
@@ -1236,6 +1239,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             DetermineStubCallMode(), &unwinding_info_writer_);
         __ StoreTaggedField(value, MemOperand(object, offset));
       }
+      if (is_atomic) __ sync();
       if (mode > RecordWriteMode::kValueIsPointer) {
         __ JumpIfSmi(value, ool->exit());
       }
@@ -1251,6 +1255,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       AddressingMode mode = kMode_None;
       MemOperand operand = i.MemoryOperand(&mode, &index);
       CHECK_EQ(index, 2);
+      bool is_atomic = opcode == kArchAtomicStoreSkippedWriteBarrier;
       Register object = i.InputRegister(0);
       Register value = i.InputRegister(2);
 
@@ -1268,7 +1273,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ JumpIfNotSmi(value, ool->entry());
       __ bind(ool->exit());
 
+      if (is_atomic) __ lwsync();
       __ StoreTaggedField(value, operand);
+      if (is_atomic) __ sync();
       break;
     }
     case kArchStoreTrustedSkippedWriteBarrier:
