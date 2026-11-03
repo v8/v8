@@ -298,8 +298,7 @@ class Scavenger {
             EphemeronRememberedSet::TableList* ephemeron_table_list,
             ScavengerWeakObjectsProcessor::JSWeakRefsList* js_weak_refs_list,
             ScavengerWeakObjectsProcessor::WeakCellsList* weak_cells_list,
-            bool should_handle_weak_objects_weakly,
-            bool promote_all_young_objects);
+            bool should_handle_weak_objects_weakly);
 
   // Entry point for scavenging an old generation page. For scavenging single
   // objects see RootScavengingVisitor and ScavengerCopiedObjectVisitor below.
@@ -324,7 +323,6 @@ class Scavenger {
 
   size_t bytes_copied() const { return copied_size_; }
   size_t bytes_promoted() const { return promoted_size_; }
-  bool promote_all_young_objects() const { return promote_all_young_objects_; }
 
  private:
   enum PromotionHeapChoice { kPromoteIntoLocalHeap, kPromoteIntoSharedHeap };
@@ -436,7 +434,7 @@ class Scavenger {
   template <ObjectAge>
   void RecordWeakCellIfNeeded(Tagged<WeakCell> weak_cell);
 
-  V8_INLINE bool ShouldBePromoted(Address object_address);
+  bool ShouldBePromoted(Address object_address);
 
   Heap* const heap_;
   EmptyChunksList::Local local_empty_chunks_;
@@ -457,7 +455,6 @@ class Scavenger {
   const bool mark_shared_heap_;
   const bool shortcut_strings_;
   const bool should_handle_weak_objects_weakly_;
-  const bool promote_all_young_objects_;
 
   friend class RootScavengeVisitor;
   template <typename ConcreteVisitor, ObjectAge>
@@ -1112,8 +1109,7 @@ class ObjectPinningVisitorBase : public RootVisitor {
     if (!metadata->is_quarantined()) {
       metadata->set_is_quarantined(true);
       if (v8_flags.scavenger_promote_quarantined_pages &&
-          (scavenger_.promote_all_young_objects() ||
-           heap_->semi_space_new_space()->ShouldPageBePromoted(chunk))) {
+          heap_->semi_space_new_space()->ShouldPageBePromoted(chunk)) {
         metadata->set_will_be_promoted(true);
       }
     }
@@ -1571,21 +1567,6 @@ void SweepArrayBufferExtensions(Heap* heap) {
           : ArrayBufferSweeper::TreatAllYoungAsPromoted::kNo);
 }
 
-// Returns true if all surviving young objects should be promoted in this
-// scavenge. If most of the young generation survived the previous scavenge,
-// objects surviving this scavenge are likely to survive the next one too.
-// Promoting them right away avoids copying them first within the young
-// generation and later again into the old generation.
-bool ShouldPromoteAllYoungObjects(Heap* heap) {
-  if (!v8_flags.scavenger_high_survival_promotion) return false;
-  if (v8_flags.scavenger_chaos_mode) return false;
-  if (!heap->HasHighYoungGenerationSurvivalRate()) return false;
-  if (heap->ShouldReduceMemory() || heap->ShouldOptimizeForMemoryUsage()) {
-    return false;
-  }
-  return heap->CanPromoteYoungAndExpandOldGeneration(0);
-}
-
 int NumberOfScavengeTasks(Heap* heap) {
   // The maximum number of scavenger tasks including the main thread. The actual
   // number of tasks is determined at runtime.
@@ -1610,13 +1591,11 @@ int NumberOfScavengeTasks(Heap* heap) {
   return tasks;
 }
 
-// Returns the size of all surviving new large objects.
-size_t HandleSurvivingNewLargeObjects(
-    Heap* heap, const std::vector<SurvivingNewLargeObjectsMap>&
+void HandleSurvivingNewLargeObjects(
+    Heap* heap, const std::vector<SurvivingNewLargeObjectsMap>
                     surviving_new_large_objects) {
   DCHECK(!heap->incremental_marking()->IsMarking());
 
-  size_t surviving_size = 0;
   for (const auto& surviving_object_map : surviving_new_large_objects) {
     for (const auto& update_info : surviving_object_map) {
       Tagged<HeapObject> object = update_info.first;
@@ -1625,7 +1604,6 @@ size_t HandleSurvivingNewLargeObjects(
       // Order is important here. We have to re-install the map to have access
       // to meta-data like size during page promotion.
       object->set_map_word(map, kRelaxedStore);
-      surviving_size += object->SafeSizeFromMap(map).value();
 
       LargePage* page = LargePage::FromHeapObject(heap->isolate(), object);
       SBXCHECK(page->is_large());
@@ -1634,7 +1612,6 @@ size_t HandleSurvivingNewLargeObjects(
     }
   }
   heap->new_lo_space()->set_objects_size(0);
-  return surviving_size;
 }
 
 }  // namespace
@@ -1677,7 +1654,6 @@ void ScavengerCollector::CollectGarbage() {
 
   const int num_scavenge_tasks = NumberOfScavengeTasks(heap_);
   const bool is_logging = isolate->log_object_relocation();
-  const bool promote_all_young_objects = ShouldPromoteAllYoungObjects(heap_);
 
   // Create a separate scavenger for the main thread to use during root
   // iteration. This runs in parallel with background threads, so it needs
@@ -1685,7 +1661,7 @@ void ScavengerCollector::CollectGarbage() {
   Scavenger main_thread_scavenger(
       heap_, is_logging, &empty_chunks, &copied_list, &promoted_list,
       &ephemeron_table_list, &js_weak_refs_list, &weak_cells_list,
-      should_handle_weak_objects_weakly, promote_all_young_objects);
+      should_handle_weak_objects_weakly);
 
   // Create scavengers for the parallel job (background threads + joining
   // thread).
@@ -1695,7 +1671,7 @@ void ScavengerCollector::CollectGarbage() {
     scavengers.emplace_back(std::make_unique<Scavenger>(
         heap_, is_logging, &empty_chunks, &copied_list, &promoted_list,
         &ephemeron_table_list, &js_weak_refs_list, &weak_cells_list,
-        should_handle_weak_objects_weakly, promote_all_young_objects));
+        should_handle_weak_objects_weakly));
   }
 
   {
@@ -1807,7 +1783,6 @@ void ScavengerCollector::CollectGarbage() {
         &visitor, &IsUnscavengedHeapObjectSlot);
   }
 
-  size_t surviving_new_large_objects_size = 0;
   {
     // Finalize parallel scavenging.
     TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_FINALIZE);
@@ -1827,8 +1802,8 @@ void ScavengerCollector::CollectGarbage() {
         heap_->young_external_pointer_space(), isolate->counters());
 #endif  // V8_COMPRESS_POINTERS
 
-    surviving_new_large_objects_size =
-        HandleSurvivingNewLargeObjects(heap_, surviving_new_large_objects);
+    HandleSurvivingNewLargeObjects(heap_,
+                                   std::move(surviving_new_large_objects));
   }
 
   // Update references into new space
@@ -1901,10 +1876,6 @@ void ScavengerCollector::CollectGarbage() {
 
   // Update how much has survived scavenge.
   heap_->IncrementYoungSurvivorsCounter(heap_->SurvivedYoungObjectSize());
-  // Large objects are not considered as they are not copied by the scavenger.
-  DCHECK_LE(surviving_new_large_objects_size, heap_->SurvivedYoungObjectSize());
-  heap_->UpdateHighYoungGenerationSurvivalRate(
-      heap_->SurvivedYoungObjectSize() - surviving_new_large_objects_size);
 
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_RESIZE_NEW_SPACE);
@@ -1926,7 +1897,7 @@ Scavenger::Scavenger(
     EphemeronRememberedSet::TableList* ephemeron_table_list,
     ScavengerWeakObjectsProcessor::JSWeakRefsList* js_weak_refs_list,
     ScavengerWeakObjectsProcessor::WeakCellsList* weak_cells_list,
-    bool should_handle_weak_objects_weakly, bool promote_all_young_objects)
+    bool should_handle_weak_objects_weakly)
     : heap_(heap),
       local_empty_chunks_(*empty_chunks),
       local_copied_list_(*copied_list),
@@ -1941,8 +1912,7 @@ Scavenger::Scavenger(
       mark_shared_heap_(heap->isolate()->is_shared_space_isolate()),
       shortcut_strings_(
           heap->CanShortcutStringsDuringGC(GarbageCollector::SCAVENGER)),
-      should_handle_weak_objects_weakly_(should_handle_weak_objects_weakly),
-      promote_all_young_objects_(promote_all_young_objects) {
+      should_handle_weak_objects_weakly_(should_handle_weak_objects_weakly) {
   DCHECK(!heap->incremental_marking()->IsMarking());
   if (V8_UNLIKELY(v8_flags.scavenger_chaos_mode)) {
     rng_.emplace(heap_->isolate()->fuzzer_rng()->NextInt64());
@@ -2099,7 +2069,6 @@ bool Scavenger::HandleLargeObject(Tagged<Map> map, Tagged<HeapObject> object,
 }
 
 bool Scavenger::ShouldBePromoted(Address object_address) {
-  if (V8_UNLIKELY(promote_all_young_objects_)) return true;
   if (V8_UNLIKELY(v8_flags.scavenger_chaos_mode)) {
     DCHECK(rng_.has_value());
     DCHECK_LE(v8_flags.scavenger_chaos_mode_threshold, 100u);
