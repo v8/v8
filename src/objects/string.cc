@@ -1265,14 +1265,23 @@ template <typename IsolateT>
 String::LineEndsVector String::CalculateLineEndsVector(
     IsolateT* isolate, DirectHandle<String> src, bool include_ending_line) {
   src = Flatten(isolate, src);
+  DisallowGarbageCollection no_gc;
+  DCHECK(src->IsFlat());
+  return CalculateLineEndsVector(*src, include_ending_line, no_gc);
+}
+
+// static
+String::LineEndsVector String::CalculateLineEndsVector(
+    Tagged<String> src, bool include_ending_line,
+    const DisallowGarbageCollection& no_gc) {
+  const uint32_t length = src->length();
   // Rough estimate of line count based on a roughly estimated average
   // length of packed code. Most scripts have < 32 lines.
-  int line_count_estimate = (src->length() >> 6) + 16;
+  int line_count_estimate = (length >> 6) + 16;
   LineEndsVector line_ends;
   line_ends.reserve(line_count_estimate);
-  {
-    DisallowGarbageCollection no_gc;
-    // Dispatch on type of strings.
+  // Dispatch on type of strings.
+  if (src->IsFlat()) {
     String::FlatContent content = src->GetFlatContent(no_gc);
     DCHECK(content.IsFlat());
     if (content.IsOneByte()) {
@@ -1282,6 +1291,20 @@ String::LineEndsVector String::CalculateLineEndsVector(
       CalculateLineEndsImpl(&line_ends, content.ToUC16Vector(),
                             include_ending_line);
     }
+  } else if (src->IsOneByteRepresentation()) {
+    // Copy the non-flat string into an off-heap buffer to avoid allocating on
+    // the V8 heap.
+    auto buffer = base::UniqueArray<uint8_t>::NewForOverwrite(length);
+    WriteToFlat(src, buffer.begin(), 0, length);
+    CalculateLineEndsImpl(&line_ends,
+                          base::Vector<const uint8_t>(buffer.begin(), length),
+                          include_ending_line);
+  } else {
+    auto buffer = base::UniqueArray<base::uc16>::NewForOverwrite(length);
+    WriteToFlat(src, buffer.begin(), 0, length);
+    CalculateLineEndsImpl(
+        &line_ends, base::Vector<const base::uc16>(buffer.begin(), length),
+        include_ending_line);
   }
   return line_ends;
 }

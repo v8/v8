@@ -5259,6 +5259,45 @@ TEST(ObjectRetainedInDirectHandle) {
   CHECK(!direct.is_null());
 }
 
+// Regression test for crbug.com/579051834: The allocation tracker computes
+// line ends of scripts lazily inside a no-GC scope. This must not allocate on
+// the V8 heap (e.g. by flattening a non-flat script source).
+TEST(AllocationTrackerConsStringScriptSource) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Factory* factory = i_isolate->factory();
+  v8::HandleScope scope(isolate);
+
+  const char* part1 = "function allocateOnHeap() {\n";
+  const char* part2 = "  return new Array(10000);\n}\nallocateOnHeap;";
+  std::string full_source = std::string(part1) + part2;
+  v8::Local<v8::Function> fn =
+      CompileRun(full_source.c_str()).As<v8::Function>();
+  // Make sure the function is compiled, since compiling it would flatten the
+  // source again.
+  fn->Call(env.local(), env->Global(), 0, nullptr).ToLocalChecked();
+
+  // Replace the script source with an equivalent non-flat ConsString.
+  i::DirectHandle<i::JSFunction> function =
+      i::Cast<i::JSFunction>(v8::Utils::OpenDirectHandle(*fn));
+  i::DirectHandle<i::Script> script(
+      i::Cast<i::Script>(function->shared()->script()), i_isolate);
+  i::DirectHandle<i::String> cons_source =
+      factory
+          ->NewConsString(factory->NewStringFromAsciiChecked(part1),
+                          factory->NewStringFromAsciiChecked(part2))
+          .ToHandleChecked();
+  script->set_source(*cons_source);
+  CHECK(!cons_source->IsFlat());
+  CHECK(!script->has_line_ends());
+
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+  heap_profiler->StartTrackingHeapObjects(true);
+  fn->Call(env.local(), env->Global(), 0, nullptr).ToLocalChecked();
+  heap_profiler->StopTrackingHeapObjects();
+}
+
 #if V8_ENABLE_WEBASSEMBLY
 TEST(HeapSnapshotWithWasmInstance) {
   LocalContext env2;

@@ -1431,8 +1431,8 @@ void V8HeapExplorer::PopulateLineEnds() {
   }
 
   for (auto& script : scripts) {
-    snapshot_->AddScriptLineEnds(script->id(),
-                                 Script::GetLineEnds(isolate(), script));
+    DisallowGarbageCollection no_gc;
+    snapshot_->AddScriptLineEnds(script->id(), script->GetLineEnds(no_gc));
   }
 }
 

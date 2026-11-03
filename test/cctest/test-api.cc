@@ -24207,8 +24207,8 @@ TEST(ScriptPositionInfoWithLineEnds) {
   i::DirectHandle<i::Script> script1(i::Cast<i::Script>(obj->script()),
                                      i_isolate);
 
-  i::String::LineEndsVector line_ends =
-      i::Script::GetLineEnds(i_isolate, script1);
+  i::DisallowGarbageCollection no_gc;
+  i::String::LineEndsVector line_ends = script1->GetLineEnds(no_gc);
 
   i::Script::PositionInfo info;
 

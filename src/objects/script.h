@@ -325,9 +325,10 @@ V8_OBJECT class Script : public Struct {
   static inline void InitLineEnds(LocalIsolate* isolate,
                                   DirectHandle<Script> script);
 
-  // Obtain line ends as a vector, without modifying the script object
-  V8_EXPORT_PRIVATE static String::LineEndsVector GetLineEnds(
-      Isolate* isolate, DirectHandle<Script> script);
+  // Obtain line ends as a vector, without modifying the script object and
+  // without allocating on the V8 heap.
+  V8_EXPORT_PRIVATE String::LineEndsVector GetLineEnds(
+      const DisallowGarbageCollection& no_gc) const;
 
   inline bool has_line_ends() const;
 

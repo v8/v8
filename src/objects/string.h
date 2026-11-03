@@ -698,6 +698,13 @@ V8_OBJECT class String : public Name {
                                                 DirectHandle<String> string,
                                                 bool include_ending_line);
 
+  // Like the above, but guaranteed to not allocate on the V8 heap. Instead of
+  // flattening a non-flat string, its contents are copied into a temporary
+  // off-heap buffer.
+  static LineEndsVector CalculateLineEndsVector(
+      Tagged<String> string, bool include_ending_line,
+      const DisallowGarbageCollection& no_gc);
+
   template <typename IsolateT>
   static Handle<FixedArray> CalculateLineEnds(IsolateT* isolate,
                                               DirectHandle<String> string,
