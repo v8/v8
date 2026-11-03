@@ -158,7 +158,12 @@ SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::FindOrAddChildNode(
       AllocationNode::function_id(script_id, start_position, name);
   AllocationNode* child = parent->FindChildNode(id);
   if (child) {
-    DCHECK_EQ(strcmp(child->name_, name), 0);
+    // For script functions, the inferred debug name may change across bytecode
+    // flushing and SFI reclamation, or synthetic functions (e.g. default class
+    // constructors at offset 0) may share (script_id, start_position) with the
+    // top-level script. Only kNoScriptId nodes are keyed by name pointer.
+    DCHECK_IMPLIES(script_id == v8::UnboundScript::kNoScriptId,
+                   strcmp(child->name_, name) == 0);
     return child;
   }
   auto new_child = std::make_unique<AllocationNode>(
