@@ -642,7 +642,7 @@ class CompilationStateImpl {
 
   void OnFinishedUnits(base::Vector<WasmCode*>);
 
-  void OnCompilationStopped(WasmDetectedFeatures detected);
+  void OnDetectedFeatures(WasmDetectedFeatures detected);
   void SchedulePublishCompilationResults(
       std::vector<UnpublishedWasmCode> unpublished_code, CompilationTier tier);
 
@@ -1136,7 +1136,7 @@ void CompileLazy(Isolate* isolate, NativeModule* native_module,
   WasmCompilationResult result = baseline_unit.ExecuteCompilation(
       &env, compilation_state->GetWireBytesStorage().get(),
       native_module->counter_updates(), &detected_features);
-  compilation_state->OnCompilationStopped(detected_features);
+  compilation_state->OnDetectedFeatures(detected_features);
 
   // The module was fully validated before starting its execution, so lazy
   // compilation cannot fail.
@@ -1976,10 +1976,12 @@ CompilationExecutionResult ExecuteCompilationUnits(
             std::move(counter_updates));
         DCHECK_EQ(0, counter_updates.NumOutstandingUpdates());
         results_to_publish.clear();
+        // Flush detected features before publishing code, which may trigger
+        // {kFinishedBaselineCompilation} and publish detected features.
+        compile_scope.compilation_state()->OnDetectedFeatures(
+            global_detected_features);
         compile_scope.compilation_state()->SchedulePublishCompilationResults(
             std::move(unpublished_code), tier);
-        compile_scope.compilation_state()->OnCompilationStopped(
-            global_detected_features);
         return yield ? kYield : kNoMoreUnits;
       }
 
@@ -1997,6 +1999,11 @@ CompilationExecutionResult ExecuteCompilationUnits(
             compile_scope.native_module()->AddCompiledCode(
                 base::VectorOf(results_to_publish));
         results_to_publish.clear();
+        // Flush detected features before publishing code, which may trigger
+        // {kFinishedBaselineCompilation} and publish detected features.
+        compile_scope.compilation_state()->OnDetectedFeatures(
+            global_detected_features);
+        global_detected_features = {};
         compile_scope.compilation_state()->SchedulePublishCompilationResults(
             std::move(unpublished_code), tier);
       }
@@ -4094,17 +4101,27 @@ void CompilationStateImpl::TriggerCachingAfterTimeout() {
   bytes_since_last_chunk_ = 0;
 }
 
-void CompilationStateImpl::OnCompilationStopped(
+void CompilationStateImpl::OnDetectedFeatures(
     WasmDetectedFeatures detected_features) {
   WasmDetectedFeatures new_detected_features =
       UpdateDetectedFeatures(detected_features);
   if (new_detected_features.empty()) return;
 
-  // New detected features can only happen during eager compilation.
-  // Compilation hints enables eager compilation if there are
-  // compilation-priority hints in the module, so it should be included here.
+  // New detected features can only happen during eager compilation (in
+  // particular, streaming compilation delegates validation of eagerly compiled
+  // functions to the compile job). Both --wasm-eager-tier-up-function and
+  // compilation-priority hints trigger eager compilation of selected functions
+  // even when --wasm-lazy-compilation is enabled. Check
+  // --wasm-eager-tier-up-function before `compilation_priorities` so we do not
+  // read `compilation_priorities` if a custom priority section is decoded after
+  // the code section during streaming.
   DCHECK(!v8_flags.wasm_lazy_compilation ||
-         (v8_flags.wasm_compilation_hints &&
+         (!v8_flags.liftoff_only && v8_flags.wasm_eager_tier_up_function >= 0 &&
+          static_cast<uint32_t>(v8_flags.wasm_eager_tier_up_function) >=
+              native_module_->num_imported_functions() &&
+          static_cast<uint32_t>(v8_flags.wasm_eager_tier_up_function) <
+              native_module_->num_functions()) ||
+         (native_module_->enabled_features().has_compilation_hints() &&
           !native_module_->module()->compilation_priorities.empty()));
 }
 
