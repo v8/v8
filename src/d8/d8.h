@@ -912,9 +912,9 @@ class Shell : public i::AllStatic {
   static MaybeLocal<Context> HostCreateShadowRealmContext(
       Local<Context> initiator_context);
 
-#ifdef V8_FUZZILLI
+#if defined(V8_FUZZILLI) || defined(V8_REDLINE)
   static void Fuzzilli(const v8::FunctionCallbackInfo<v8::Value>& info);
-#endif  // V8_FUZZILLI
+#endif  // defined(V8_FUZZILLI) || defined(V8_REDLINE)
 
   // Data is of type DynamicImportData* wrapped in v8::External.
   static void DoHostImportModuleDynamically(v8::Local<v8::Data> data);

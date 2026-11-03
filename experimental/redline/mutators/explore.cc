@@ -23,7 +23,7 @@ using namespace fast;  // NOLINT(build/namespaces)
 // The runtime side. Everything the helper needs from the builtins is
 // captured up front because the program under test may have replaced them.
 // Actions are reported as "EXPLORE_ACTION: <json>" lines on the fuzzout
-// channel (fuzzilli('FUZZILLI_PRINT', ...)); failures as "EXPLORE_FAILURE:
+// channel (redline('REDLINE_PRINT', ...)). Failures: "EXPLORE_FAILURE:
 // <id>". Argument descriptors: {"a": i} the i-th probe argument, {"n": "7"}
 // a number, {"s": "x"} a string, {"bi": "7"} a bigint, {"b": true},
 // {"u": 1} undefined, {"f": 1} a fresh identity-like callback.
@@ -42,7 +42,7 @@ const char kExploreRuntime[] = R"js(const __redline_explore = (function() {
   const MathFloor = Math.floor;
   const SymbolIterator = Symbol.iterator;
   const StringCharCodeAt = String.prototype.charCodeAt;
-  const emit = typeof fuzzilli === 'function' ? function(s) { fuzzilli('FUZZILLI_PRINT', s); }
+  const emit = typeof redline === 'function' ? function(s) { redline('REDLINE_PRINT', s); }
                                               : function(s) {};
   function push(a, v) { ReflectApply(ArrayPush, a, [v]); }
 

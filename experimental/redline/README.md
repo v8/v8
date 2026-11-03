@@ -24,10 +24,10 @@ Run all commands from the root of the V8 checkout.
 
 ### Build the fuzzing d8
 
-The target is a d8 with coverage instrumentation and the REPRL loop:
+The target is a d8 with coverage instrumentation, built with `v8_redline=true`:
 
 ```shell
-gn gen out/fuzzbuild --args='is_debug=false dcheck_always_on=true v8_enable_debug_code=true v8_static_library=true v8_enable_verify_heap=true v8_fuzzilli=true v8_enable_backtrace=true v8_enable_partition_alloc=false v8_enable_builtins_profiling=true sanitizer_coverage_flags="inline-bool-flag" target_cpu="x64" use_remoteexec=true'
+gn gen out/fuzzbuild --args='is_debug=false dcheck_always_on=true v8_enable_debug_code=true v8_static_library=true v8_enable_verify_heap=true v8_redline=true v8_enable_backtrace=true v8_enable_partition_alloc=false v8_enable_builtins_profiling=true sanitizer_coverage_flags="inline-bool-flag" target_cpu="x64" use_remoteexec=true'
 autoninja -C out/fuzzbuild d8
 ```
 
@@ -99,6 +99,7 @@ out/redline/redline fuzz --d8=out/fuzzbuild/d8 --preset=maglev --jobs=4 --durati
 | `commands/` | One file for each command, for example `fuzz`, `shell` and `selftest`. `main.cc` selects the command. |
 | `core/` | Programs, the `Builder`, the `Environment`, components, random numbers, tunables, AST helpers, and the selection interface. |
 | `corpus/` | The shared corpus, and the seed and partner strategies. |
+| `d8/` | The code that d8 links for Redline (`v8_redline=true`): the REPRL file descriptors, the `redline()` builtin and the coverage runtime. It is a copy of `src/fuzzilli`. |
 | `engine/` | The configuration, the fuzzer and its workers, the stages, the shared coverage, the crash signatures, the amplify step, the importer and the prelude. |
 | `exec/` | The REPRL client, the coverage map, the script runner, the target options, and the plain d8 runs of the amplify step. |
 | `fast/` | FAST: the syntax tree, the arena, the lexer, the parser, the printer and the scope analysis. |

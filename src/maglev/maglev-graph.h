@@ -382,7 +382,7 @@ class Graph final : public ZoneObject {
 
   MaglevCompilationInfo* compilation_info() const { return compilation_info_; }
 
-#ifdef V8_FUZZILLI
+#if defined(V8_FUZZILLI) || defined(V8_REDLINE)
   void ExtractOptimizedCodeCoverage();
 #endif
 

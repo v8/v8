@@ -110,12 +110,15 @@
 #include <signal.h>
 #endif  // V8_OS_POSIX
 
-#ifdef V8_FUZZILLI
-// gn check complains when not using the v8_fuzzilli arg since the public dep.
-// is added conditionally
+// gn check complains when not using the v8_fuzzilli or v8_redline arg since the
+// public dep. is added conditionally
+#if defined(V8_REDLINE)
+#include "experimental/redline/d8/cov.h"      // nogncheck
+#include "experimental/redline/d8/redline.h"  // nogncheck
+#elif defined(V8_FUZZILLI)
 #include "src/fuzzilli/cov.h"  // nogncheck
 #include "src/fuzzilli/fuzzilli.h"
-#endif  // V8_FUZZILLI
+#endif  // defined(V8_REDLINE)
 
 #ifdef V8_INTL_SUPPORT
 #include "unicode/locid.h"
@@ -166,11 +169,11 @@ std::unordered_map<std::string, std::string> bundle_module_files;
 // Used for naming anonymous bundle entrypoints. Only accessed on the main
 // thread.
 int bundle_anon_module_counter = 0;
-#ifdef V8_FUZZILLI
+#if defined(V8_FUZZILLI) || defined(V8_REDLINE)
 bool fuzzilli_reprl = true;
 #else
 bool fuzzilli_reprl = false;
-#endif  // V8_FUZZILLI
+#endif  // defined(V8_FUZZILLI) || defined(V8_REDLINE)
 
 Isolate::CreateParams GetDefaultIsolateCreateParams() {
   Isolate::CreateParams create_params;
@@ -6349,7 +6352,7 @@ bool TryExecuteBundle(Isolate* isolate, const std::string& content,
 
 bool SourceGroup::Execute(Isolate* isolate) {
   bool success = true;
-#ifdef V8_FUZZILLI
+#if defined(V8_FUZZILLI) || defined(V8_REDLINE)
   if (fuzzilli_reprl) {
     HandleScope handle_scope(isolate);
     Local<String> file_name =
@@ -6393,7 +6396,7 @@ bool SourceGroup::Execute(Isolate* isolate) {
       return true;  // Bundle execution failed
     }
   }
-#endif  // V8_FUZZILLI
+#endif  // defined(V8_FUZZILLI) || defined(V8_REDLINE)
   for (int i = begin_offset_; i < end_offset_; ++i) {
     const char* arg = argv_[i];
     if (arg == nullptr) continue;
@@ -7339,7 +7342,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       options.max_serializer_memory = atoi(flag_value) * i::MB;
     } else if (FlagMatches("--bundle", &argv[i])) {
       options.bundle = true;
-#ifdef V8_FUZZILLI
+#if defined(V8_FUZZILLI) || defined(V8_REDLINE)
     } else if (FlagMatches("--fuzzilli-enable-builtins-coverage", &argv[i])) {
       options.fuzzilli_enable_builtins_coverage = true;
     } else if (FlagMatches("--no-fuzzilli-enable-builtins-coverage",
@@ -8388,7 +8391,7 @@ int Shell::Main(int argc, char* argv[]) {
     i::v8_flags.freeze_flags_after_init.Set(false);
   }
 
-#ifdef V8_FUZZILLI
+#if defined(V8_FUZZILLI) || defined(V8_REDLINE)
   // IMPORTANT: order-sensitive, see cov.cc. With inline-bool-flag coverage,
   // the coverage of crashing executions has to be flushed from signal handlers.
   // They must be installed after the in-process stack dumping handlers
@@ -8398,7 +8401,7 @@ int Shell::Main(int argc, char* argv[]) {
   // handler (installed below), which forwards non-Wasm faults to the previous
   // handler.
   sanitizer_cov_install_crash_flush_handlers();
-#endif  // V8_FUZZILLI
+#endif  // defined(V8_FUZZILLI) || defined(V8_REDLINE)
 
   v8::V8::Initialize();
   if (options.snapshot_blob) {
@@ -8498,7 +8501,7 @@ int Shell::Main(int argc, char* argv[]) {
 
   Isolate* isolate = Isolate::New(create_params);
 
-#ifdef V8_FUZZILLI
+#if defined(V8_FUZZILLI) || defined(V8_REDLINE)
 
   if (options.fuzzilli_enable_builtins_coverage) {
     uint32_t count = i::BasicBlockProfiler::Get()->GetBuiltinsBlockCount(
@@ -8509,7 +8512,11 @@ int Shell::Main(int argc, char* argv[]) {
   }
 
   if (i::v8_flags.fuzzilli_enable_optimized_code_coverage) {
+#if defined(V8_REDLINE)
+    cov_init_optimized_code_edges(kRedlineNumOptimizedCodeEdges);
+#else
     cov_init_optimized_code_edges(kFuzzilliNumOptimizedCodeEdges);
+#endif  // defined(V8_REDLINE)
   }
 
   // Let the parent process (Fuzzilli) know we are ready.
@@ -8521,7 +8528,7 @@ int Shell::Main(int argc, char* argv[]) {
   if (memcmp(helo, "HELO", 4) != 0) {
     FATAL("REPRL: Invalid response from parent");
   }
-#endif  // V8_FUZZILLI
+#endif  // defined(V8_FUZZILLI) || defined(V8_REDLINE)
 
   {
     Isolate::Scope scope(isolate);
@@ -8541,11 +8548,11 @@ int Shell::Main(int argc, char* argv[]) {
 
     // Fuzzilli REPRL = read-eval-print-loop
     do {
-#if defined(V8_FUZZILLI) || defined(V8_DUMPLING)
+#if defined(V8_FUZZILLI) || defined(V8_REDLINE) || defined(V8_DUMPLING)
       v8::internal::Isolate* internal_isolate =
           reinterpret_cast<v8::internal::Isolate*>(isolate);
-#endif  // defined(V8_FUZZILLI) || defined(V8_DUMPLING)
-#ifdef V8_FUZZILLI
+#endif  // defined(V8_FUZZILLI) || defined(V8_REDLINE) || defined(V8_DUMPLING)
+#if defined(V8_FUZZILLI) || defined(V8_REDLINE)
       internal_isolate->descriptor_lookup_cache()->Clear();
       internal_isolate->compilation_cache()->Clear();
       internal_isolate->set_force_slow_path(i::v8_flags.force_slow_path);
@@ -8563,7 +8570,7 @@ int Shell::Main(int argc, char* argv[]) {
         // every execution.)
         sanitizer_cov_discard_bool_flags();
       }
-#endif  // V8_FUZZILLI
+#endif  // defined(V8_FUZZILLI) || defined(V8_REDLINE)
 #ifdef V8_DUMPLING
       // TODO(mdanylo): ideally this should be a part of fd-based protocol
       // between Fuzzilli and V8.
@@ -8701,7 +8708,7 @@ int Shell::Main(int argc, char* argv[]) {
       }
 #endif  // V8_DUMPLING
 
-#ifdef V8_FUZZILLI
+#if defined(V8_FUZZILLI) || defined(V8_REDLINE)
       if (Shell::fuzzilli_reprl_failed_) {
         result = 1;
         Shell::fuzzilli_reprl_failed_ = false;
@@ -8753,7 +8760,7 @@ int Shell::Main(int argc, char* argv[]) {
         CHECK_EQ(write(REPRL_CWFD, &status, 4), 4);
         sanitizer_cov_reset_edgeguards();
       }
-#endif  // V8_FUZZILLI
+#endif  // defined(V8_FUZZILLI) || defined(V8_REDLINE)
     } while (fuzzilli_reprl);
 
     // Shut down contexts and collect garbage.

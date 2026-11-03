@@ -59,6 +59,7 @@ It is C++ code in the V8 tree, so that the V8 team can own and change it. It bui
 | `main.cc`, `commands/` | The command-line tool, with one file per command. |
 | `base/` | Flags, logging, JSON, files, subprocesses, and the V8 parser in the Redline process. |
 | `exec/` | The REPRL client, the coverage map, the target options, and one plain d8 run for the amplify step. |
+| `d8/` | The code that d8 links for Redline (`v8_redline=true`): the REPRL file descriptors, the `redline()` builtin and the coverage runtime. It is a copy of `src/fuzzilli`. |
 | `fast/` | FAST: the AST, the arena, the lexer, the parser, the printer and the scope analysis. |
 | `core/` | `Program`, `Builder`, `Environment`, `Component`, the random generator, the selection interface and the tunables. |
 | `generators/`, `mutators/` | The generators with their shared expression synthesis (`CodeGen`), and the mutators. |
@@ -203,9 +204,10 @@ The weight stays between `min_factor` and `max_factor` times the base weight, be
 ### 5.4 Execute
 
 The target is the fuzzing build of d8, which has sanitizer coverage and the REPRL interface. [TUTORIAL.md](TUTORIAL.md) shows how to build it.
+This build uses `v8_redline=true`. Then d8 links `d8/` instead of `src/fuzzilli`, and V8 uses the code paths of `v8_fuzzilli=true`.
 Redline starts the target once and sends it many programs over the REPRL protocol (`exec/reprl.h`).
 The target gets two control pipes and two data channels.
-One data channel carries the script. The other carries the text that the script sends back through a builtin of the fuzzing build (fuzzout).
+One data channel carries the script. The other carries the text that the script sends back through the builtin `redline('REDLINE_PRINT', text)` (fuzzout).
 For each execution, Redline writes the script, sends a command and waits for a status word, the death of the target or the timeout.
 
 | Outcome | Meaning |
@@ -480,3 +482,4 @@ A worker owns its target, its coverage map, its random generator, its isolate fo
 | Put the prelude in front of each execution, and never store it. | Corpus files stay clean, and imported tests run without `mjsunit.js`. |
 | Run all workers in one process, with one corpus and one coverage map. | The workers need no protocol to exchange programs. |
 | Keep the pipeline fixed, and make the decisions pluggable. | The loop stays easy to read, and a decision can change without a change to the loop. |
+| Build the target with `v8_redline=true`, which links a copy of `src/fuzzilli` (`d8/`). | Redline can change its coverage runtime and its builtin without changes to Fuzzilli. |

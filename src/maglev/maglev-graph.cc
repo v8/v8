@@ -14,8 +14,12 @@
 #include "src/objects/function-kind.h"
 #include "src/objects/objects-inl.h"
 
-#ifdef V8_FUZZILLI
+#if defined(V8_FUZZILLI) || defined(V8_REDLINE)
 #include "src/base/hashing.h"
+#endif
+#if defined(V8_REDLINE)
+#include "experimental/redline/d8/cov.h"  // nogncheck
+#elif defined(V8_FUZZILLI)
 #include "src/fuzzilli/cov.h"
 #endif
 
@@ -187,7 +191,7 @@ ValueNode* Graph::GetTrustedConstant(compiler::HeapObjectRef ref,
 #endif
 }
 
-#ifdef V8_FUZZILLI
+#if defined(V8_FUZZILLI) || defined(V8_REDLINE)
 namespace {
 void CollectOptimizedCodeCoverageFromNode(
     NodeBase* node, size_t steps_to_go, size_t hash_so_far,

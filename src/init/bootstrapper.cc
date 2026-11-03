@@ -84,7 +84,9 @@
 #include "src/snapshot/snapshot.h"
 #include "src/zone/zone-hashmap.h"
 
-#ifdef V8_FUZZILLI
+#if defined(V8_REDLINE)
+#include "experimental/redline/d8/redline.h"  // nogncheck
+#elif defined(V8_FUZZILLI)
 #include "src/fuzzilli/fuzzilli.h"
 #endif
 
@@ -160,7 +162,9 @@ static bool isValidCpuTraceMarkFunctionName() {
 
 void Bootstrapper::InitializeOncePerProcess() {
   v8::RegisterExtension(std::make_unique<GCExtension>(GCFunctionName()));
-#ifdef V8_FUZZILLI
+#if defined(V8_REDLINE)
+  v8::RegisterExtension(std::make_unique<RedlineExtension>("redline"));
+#elif defined(V8_FUZZILLI)
   v8::RegisterExtension(std::make_unique<FuzzilliExtension>("fuzzilli"));
 #endif
   v8::RegisterExtension(std::make_unique<ExternalizeStringExtension>());
@@ -6514,7 +6518,9 @@ bool Genesis::InstallExtensions(Isolate* isolate,
           InstallExtension(isolate, "v8/trigger-failure", &extension_states)) &&
          (!isValidCpuTraceMarkFunctionName() ||
           InstallExtension(isolate, "v8/cpumark", &extension_states)) &&
-#ifdef V8_FUZZILLI
+#if defined(V8_REDLINE)
+         InstallExtension(isolate, "v8/redline", &extension_states) &&
+#elif defined(V8_FUZZILLI)
          InstallExtension(isolate, "v8/fuzzilli", &extension_states) &&
 #endif
 #ifdef ENABLE_VTUNE_TRACEMARK

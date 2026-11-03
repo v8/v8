@@ -119,7 +119,17 @@ specific_include_rules = {
   "instance-types-gen\.h": [
     "+src/gen/intl-wasm/instance-types.h",
   ],
+  # With v8_redline=true, V8 and d8 call experimental/redline/d8, the copy of
+  # src/fuzzilli for Redline.
+  "bootstrapper\.cc": [
+    "+experimental/redline/d8/redline.h",
+  ],
+  "maglev-graph\.cc": [
+    "+experimental/redline/d8/cov.h",
+  ],
   "d8\.cc": [
+    "+experimental/redline/d8/cov.h",
+    "+experimental/redline/d8/redline.h",
     "+include/libplatform/libplatform.h",
     "+include/libplatform/v8-tracing.h",
     "+perfetto/tracing/track_event.h",

@@ -1566,6 +1566,9 @@ config("features") {
   if (v8_fuzzilli) {
     defines += [ "V8_FUZZILLI" ]
   }
+  if (v8_redline) {
+    defines += [ "V8_REDLINE" ]
+  }
   if (v8_enable_builtins_profiling) {
     defines += [ "V8_ENABLE_BUILTINS_PROFILING" ]
   }
@@ -7445,6 +7448,10 @@ v8_cluster_source_set("v8_base_without_compiler") {
   if (v8_fuzzilli) {
     sources += [ "src/fuzzilli/fuzzilli.cc" ]
     public_deps += [ ":fuzzilli_cov" ]
+  }
+
+  if (v8_redline) {
+    public_deps += [ "experimental/redline/d8:v8_redline" ]
   }
 
   if (v8_dumpling) {

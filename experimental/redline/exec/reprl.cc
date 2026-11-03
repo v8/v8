@@ -371,7 +371,7 @@ bool ReprlChild::Spawn(std::string* error) {
     Kill();
     *error = StringPrintf(
         "Did not receive HELO from target %s (%s). Is it built with "
-        "v8_fuzzilli=true? stderr: %s",
+        "v8_redline=true? stderr: %s",
         argv_[0], res == 0 ? "timeout" : "child exited", output.c_str());
     return false;
   }

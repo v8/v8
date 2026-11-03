@@ -654,7 +654,7 @@ std::string_view Environment::IntrospectionScript() {
   const out = [];
   const seen = new Set();
   const deny = new Set(['print', 'printErr', 'write', 'quit', 'load', 'read', 'readline',
-    'readbuffer', 'os', 'version', 'Worker', 'fuzzilli', 'testRunner',
+    'readbuffer', 'os', 'version', 'Worker', 'redline', 'testRunner',
     'globalThis', 'setTimeout', 'queueMicrotask', 'arguments', '__redline_explore',
     'd8.file', 'd8.log', 'd8.terminate', 'd8.quit', 'd8.debugger', 'd8.profiler', 'd8.dom', 'd8.wasm',
     'Realm.dispose', 'Realm.navigate', 'Realm.detachGlobal', 'performance.measureMemory',
@@ -746,7 +746,7 @@ std::string_view Environment::IntrospectionScript() {
     if (!d || !('value' in d)) continue;
     describe(n, d.value, 0);
   }
-  fuzzilli('FUZZILLI_PRINT', JSON.stringify(out));
+  redline('REDLINE_PRINT', JSON.stringify(out));
 })();
 )js";
   return kScript;

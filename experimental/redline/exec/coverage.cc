@@ -80,7 +80,7 @@ bool CoverageMap::FinishInitialization(std::string* error) {
     *error =
         "The target did not publish an edge count; is it built with "
         "coverage instrumentation (sanitizer_coverage_flags) and "
-        "v8_fuzzilli=true?";
+        "v8_redline=true?";
     return false;
   }
   // Index 0 is unused; the bitmap must hold indices 0..num_edges.

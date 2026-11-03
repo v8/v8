@@ -15,7 +15,7 @@ Keep all results outside the V8 checkout ([AGENTS.md](../../AGENTS.md) section
 | Question | Arms | Target | Main number |
 |---|---|---|---|
 | Is the change better than origin/main? | origin/main, change | the coverage setup and the bug setup | coverage at equal time, finds and times |
-| Does Redline beat Fuzzilli on coverage? | Redline, Fuzzilli | one fuzzing d8 | coverage at equal time |
+| Does Redline beat Fuzzilli on coverage? | Redline, Fuzzilli | two fuzzing d8 of one revision | coverage at equal time |
 | Does Redline find bugs that Fuzzilli misses? | Redline, Fuzzilli | re-injected bugs, bits builds | finds and time to find |
 | Is diff mode faster than normal mode? | diff mode, normal mode | re-injected bugs | finds and time to find |
 
@@ -30,7 +30,9 @@ Keep all results outside the V8 checkout ([AGENTS.md](../../AGENTS.md) section
 
 Give every arm of one comparison:
 
-- the same d8 binary, or the same bug bundle,
+- the same d8 binary, or the same bug bundle. Fuzzilli needs its own d8: a
+  build of the same revision with `v8_fuzzilli=true` instead of
+  `v8_redline=true`, with the same other arguments,
 - the same d8 flags,
 - the same seeds, or no seeds for all arms,
 - the same timeout, the same number of workers and the same duration,
@@ -44,7 +46,7 @@ Typical setups:
 
 | Setup | Target | d8 flags | Workers and time |
 |---|---|---|---|
-| Coverage | one fuzzing d8 | the flags of one preset, and `--random-seed=42 --single-threaded` | 30 workers, 400 ms timeout, 12 hours |
+| Coverage | the fuzzing d8 of Redline, and the d8 of Fuzzilli | the flags of one preset, and `--random-seed=42 --single-threaded` | 30 workers, 400 ms timeout, 12 hours |
 | Bug finding | each bundle of the set | the flags of the preset of the bundle | 4 or 5 workers for each arm, 400 ms timeout, 8 hours |
 | Quick check of a change | `out/fuzzbuild/d8` | see `skills/redline-presubmit/scripts/ab_run.sh` | 8 workers, 1 hour |
 
@@ -142,7 +144,8 @@ setsid nohup $S/run_arm.sh redline-diff $BB_ROOT/FIX $RUNS/FIX-diff-1001 28800 1
   > $RUNS/FIX-diff-1001.log 2>&1 < /dev/null &
 setsid nohup $S/run_arm.sh fuzzilli $BB_ROOT/FIX $RUNS/FIX-fuzzilli-1001 28800 \
   > $RUNS/FIX-fuzzilli-1001.log 2>&1 < /dev/null &
-# Coverage: the same command for each tool on one d8.
+# Coverage: the same command for each tool. The fuzzilli arm gets the d8 of
+# Fuzzilli (v8_fuzzilli=true) instead of out/fuzzbuild/d8.
 JOBS=30 PRESET=turbolev EXTRA_FLAGS="--random-seed=42 --single-threaded" \
   setsid nohup $S/run_arm.sh redline-normal out/fuzzbuild/d8 $RUNS/cov-redline-1 43200 42 \
   > $RUNS/cov-redline-1.log 2>&1 < /dev/null &

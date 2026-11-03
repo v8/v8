@@ -167,9 +167,9 @@ int RunSelftest(const Flags& flags) {
 
   // Output channels.
   if (RunOrFail(&checker, runner.get(), "fuzzout",
-                "fuzzilli('FUZZILLI_PRINT', 'hello fuzzout');", &result)) {
+                "redline('REDLINE_PRINT', 'hello fuzzout');", &result)) {
     checker.Check(
-        "fuzzilli('FUZZILLI_PRINT') is captured",
+        "redline('REDLINE_PRINT') is captured",
         result.execution.succeeded() &&
             result.execution.fuzzout.find("hello fuzzout") != std::string::npos,
         Describe(result.execution) + ", fuzzout=\"" + result.execution.fuzzout +
@@ -236,9 +236,9 @@ int RunSelftest(const Flags& flags) {
       {"DEBUG build check", 8, false}, {"sandbox violation", 9, false},
   };
   for (const CrashCase& c : crash_cases) {
-    std::string script = StringPrintf("fuzzilli('FUZZILLI_CRASH', %d)", c.kind);
-    std::string name = StringPrintf("fuzzilli('FUZZILLI_CRASH', %d) [%s]",
-                                    c.kind, c.description);
+    std::string script = StringPrintf("redline('REDLINE_CRASH', %d)", c.kind);
+    std::string name = StringPrintf("redline('REDLINE_CRASH', %d) [%s]", c.kind,
+                                    c.description);
     if (!RunOrFail(&checker, runner.get(), name.c_str(), script, &result)) {
       continue;
     }

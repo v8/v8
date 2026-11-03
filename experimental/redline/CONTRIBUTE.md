@@ -47,7 +47,7 @@ You need two builds of d8:
 | a fuzzing d8 at your revision (`$REDLINE_D8`) | everyday checks, the shell, sessions |
 | a fuzzing d8 with known bugs (`$D8_BUGS`) | the overfitting audit (section 3.7) |
 
-To make a d8 with known bugs, build the fuzzing d8 of [TUTORIAL.md](TUTORIAL.md) section 1 at a V8 revision that is a few months old. Each `test/mjsunit/regress/` test that is newer than that revision shows a bug that this d8 has.
+To make a d8 with known bugs, follow the [redline-bug-reinjection](skills/redline-bug-reinjection/SKILL.md) skill. It reverts fixes on a recent revision, because an older revision does not have `v8_redline`.
 
 `experimental/redline/BUILD.gn` compiles Redline with `-Werror` and strict warnings, for example `-Wconversion`, `-Wshadow` and `-Wold-style-cast`.
 The build fails on every warning. Format and lint your files with these commands:

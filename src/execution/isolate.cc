@@ -6841,7 +6841,7 @@ void Isolate::DumpAndResetStats() {
 
 void Isolate::DumpAndResetBuiltinsProfileData() {
   if (BasicBlockProfiler::Get()->HasData(this)) {
-#ifndef V8_FUZZILLI
+#if !defined(V8_FUZZILLI) && !defined(V8_REDLINE)
     if (v8_flags.turbo_profiling_output) {
       FILE* f = std::fopen(v8_flags.turbo_profiling_output, "w");
       if (f == nullptr) {
@@ -6854,7 +6854,7 @@ void Isolate::DumpAndResetBuiltinsProfileData() {
       StdoutStream out;
       BasicBlockProfiler::Get()->Print(this, out);
     }
-#endif  // !V8_FUZZILLI
+#endif  // !defined(V8_FUZZILLI) && !defined(V8_REDLINE)
     BasicBlockProfiler::Get()->ResetCounts(this);
   }
 }

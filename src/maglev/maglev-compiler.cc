@@ -314,7 +314,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
     compilation_info->set_code_generator(std::move(code_generator));
   }
 
-#ifdef V8_FUZZILLI
+#if defined(V8_FUZZILLI) || defined(V8_REDLINE)
   if (v8_flags.fuzzilli_enable_optimized_code_coverage) {
     graph->ExtractOptimizedCodeCoverage();
   }

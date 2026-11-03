@@ -49,7 +49,7 @@ A d8 with coverage instrumentation executes every program. This d8 is the *targe
 Build the target:
 
 ```shell
-gn gen out/fuzzbuild --args='is_debug=false dcheck_always_on=true v8_enable_debug_code=true v8_static_library=true v8_enable_verify_heap=true v8_fuzzilli=true v8_enable_backtrace=true v8_enable_partition_alloc=false v8_enable_builtins_profiling=true sanitizer_coverage_flags="inline-bool-flag" target_cpu="x64" use_remoteexec=true'
+gn gen out/fuzzbuild --args='is_debug=false dcheck_always_on=true v8_enable_debug_code=true v8_static_library=true v8_enable_verify_heap=true v8_redline=true v8_enable_backtrace=true v8_enable_partition_alloc=false v8_enable_builtins_profiling=true sanitizer_coverage_flags="inline-bool-flag" target_cpu="x64" use_remoteexec=true'
 autoninja -C out/fuzzbuild d8
 ```
 
@@ -62,7 +62,7 @@ If you do not have remote build execution, remove `use_remoteexec=true` from the
 | `v8_enable_debug_code=true` | Makes the d8 flag `--debug-code` available. This flag adds assertions to the code that V8 generates. |
 | `v8_static_library=true` | Builds the V8 libraries as static libraries instead of source sets. |
 | `v8_enable_verify_heap=true` | Compiles the heap verifier (`VERIFY_HEAP`) into d8. |
-| `v8_fuzzilli=true` | Adds the REPRL loop and the shared-memory coverage map to d8. Redline uses both. |
+| `v8_redline=true` | Adds the REPRL loop, the `redline()` builtin and the shared-memory coverage map to d8 (`experimental/redline/d8/`). Redline uses all three. |
 | `v8_enable_backtrace=true` | Makes d8 print a stack trace when it crashes. Redline uses the top frames for crash signatures. |
 | `v8_enable_partition_alloc=false` | Makes d8 use the system allocator instead of PartitionAlloc. |
 | `v8_enable_builtins_profiling=true` | Makes d8 report the basic blocks of the builtins as additional coverage edges. |

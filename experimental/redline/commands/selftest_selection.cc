@@ -299,9 +299,33 @@ std::string FirstDifference(const std::string& expected,
                       line_at(actual, i).c_str());
 }
 
+// Removes the spaces and tabs at the end of each line. Gerrit marks trailing
+// whitespace, so the golden files must not have it.
+std::string StripTrailingWhitespace(const std::string& text) {
+  std::string out;
+  out.reserve(text.size());
+  size_t start = 0;
+  while (start < text.size()) {
+    size_t newline = text.find('\n', start);
+    size_t end = newline == std::string::npos ? text.size() : newline;
+    size_t last = end;
+    while (last > start && (text[last - 1] == ' ' || text[last - 1] == '\t')) {
+      last--;
+    }
+    out.append(text, start, last - start);
+    if (newline == std::string::npos) {
+      break;
+    }
+    out += '\n';
+    start = newline + 1;
+  }
+  return out;
+}
+
 void CompareOrWrite(Checker* checker, const std::string& check_name,
-                    const std::string& path, const std::string& trace,
+                    const std::string& path, const std::string& raw_trace,
                     bool write_golden) {
+  const std::string trace = StripTrailingWhitespace(raw_trace);
   std::string error;
   if (write_golden) {
     bool ok = WriteStringToFile(path, trace, &error);

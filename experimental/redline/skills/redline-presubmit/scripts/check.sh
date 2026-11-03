@@ -65,7 +65,12 @@ else
   record "git cl format" FAIL "run 'git cl format' (see $LOGS/format.log)"
 fi
 
-if git cl lint > "$LOGS/lint.log" 2>&1; then
+# Lint with the cpplint filters of the V8 presubmit (LINT_RULES in
+# tools/v8_presubmit.py). For example, V8 does not check the size of functions.
+LINT_FILTER="$(sed -n '/^LINT_RULES = """/,/^"""/s/^\([-+][a-z_/]*\)$/\1/p' \
+                 tools/v8_presubmit.py | paste -sd, -)"
+if git cl lint ${LINT_FILTER:+"--filter=$LINT_FILTER"} > "$LOGS/lint.log" 2>&1
+then
   record "git cl lint" PASS "0 errors"
 else
   LINT_ERRORS="$(sed -n -E 's/^(Total errors found: |cpplint: )([0-9]+).*/\2/p' \

@@ -3238,7 +3238,7 @@ DEFINE_NEG_IMPLICATION(hole_fuzzing, hard_abort)
 DEFINE_NEG_IMPLICATION(sandbox_fuzzing, hard_abort)
 
 // fuzzilli
-#if defined(V8_FUZZILLI)
+#if defined(V8_FUZZILLI) || defined(V8_REDLINE)
 DEFINE_BOOL(fuzzilli_enable_optimized_code_coverage, false,
             "enable optimized code coverage for fuzzilli")
 #else

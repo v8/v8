@@ -200,6 +200,11 @@ declare_args() {
   # Add fuzzilli fuzzer support.
   v8_fuzzilli = false
 
+  # Add support for Redline, the fuzzer in experimental/redline: the REPRL loop
+  # of Fuzzilli with the coverage runtime of Redline. Do not set it together
+  # with v8_fuzzilli.
+  v8_redline = false
+
   # Force optimizing with -O3 for increased inlining.
   v8_force_optimize_speed = false
 

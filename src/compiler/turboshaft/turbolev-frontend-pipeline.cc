@@ -464,7 +464,7 @@ std::optional<maglev::Graph*> TurbolevFrontendPipeline::Run() {
   if (V8_UNLIKELY(v8_flags.print_turbolev_inline_functions)) {
     PrintInliningTreeDebugInfo();
   }
-#ifdef V8_FUZZILLI
+#if defined(V8_FUZZILLI) || defined(V8_REDLINE)
   if (v8_flags.fuzzilli_enable_optimized_code_coverage) {
     graph_->ExtractOptimizedCodeCoverage();
   }

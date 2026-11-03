@@ -21,15 +21,14 @@ namespace redline {
 class DataChannel;
 
 // Drives one target process over the REPRL ("read-eval-print-reset-loop")
-// protocol implemented by d8 when built with v8_fuzzilli=true. This is a C++
-// port of Fuzzilli's libreprl and speaks exactly the same protocol, so any
-// d8 that works with Fuzzilli works here:
+// protocol implemented by d8 when built with v8_redline=true. This is a C++
+// port of Fuzzilli's libreprl and speaks exactly the same protocol:
 //
 //  - The child is started with four well-known file descriptors:
 //      100: control pipe, child reads commands ("exec" + 8 byte script size)
 //      101: control pipe, child writes a 4 byte status word per execution
 //      102: data channel, child reads the script source
-//      103: data channel, child writes fuzzilli('FUZZILLI_PRINT') output
+//      103: data channel, child writes redline('REDLINE_PRINT') output
 //    plus an "SHM_ID" environment variable naming the coverage bitmap.
 //  - After startup the child writes "HELO" on 101 and expects "HELO" on 100.
 //  - Per execution the parent writes the script into the 102 channel, sends

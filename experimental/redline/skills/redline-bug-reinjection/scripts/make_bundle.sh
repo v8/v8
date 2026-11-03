@@ -4,8 +4,9 @@
 # found in the LICENSE file.
 #
 # Makes the bug bundle of one fix. The script reverts the fix on a base
-# revision and builds the bits d8 and the counters d8. It copies them with
-# their data files, and writes the diff mode targets of the revert.
+# revision and builds the bits d8, the counters d8 and the d8 of Fuzzilli. It
+# copies them with their data files, and writes the diff mode targets of the
+# revert.
 #
 # Usage: make_bundle.sh FIX PRESET
 #   FIX     the commit of the fix
@@ -21,12 +22,15 @@
 #   COUNTERS_OUT   the build directory of the counters d8 in BB_V8
 #                  (default out/rl_counters, as in the diff mode section
 #                  of TUTORIAL.md)
+#   FUZZILLI_OUT   the build directory of the d8 of Fuzzilli in BB_V8, with
+#                  v8_fuzzilli=true (default out/fuzzilli)
 #   REDLINE_TOOLS  the experimental/redline/tools directory of the Redline
 #                  checkout (default: found from this script)
 #
 # The script checks out BASE in BB_V8 without a branch, commits the revert and
 # tags it bb/FIX. After the build, it checks out the old revision of BB_V8
-# again. A new build of a bundle replaces bits/, counters/ and targets.json.
+# again. A new build of a bundle replaces bits/, counters/, fuzzilli/ and
+# targets.json.
 set -euo pipefail
 
 if [ $# -ne 2 ]; then
@@ -41,6 +45,7 @@ TOOLS=$(cd "${REDLINE_TOOLS:-$HERE/../../../tools}" && pwd)
 BASE=${BASE:-origin/main}
 BITS_OUT=${BITS_OUT:-out/fuzzbuild}
 COUNTERS_OUT=${COUNTERS_OUT:-out/rl_counters}
+FUZZILLI_OUT=${FUZZILLI_OUT:-out/fuzzilli}
 
 BB_V8=$(cd "$BB_V8" && pwd -P)
 if [ "$(git -C "$TOOLS" rev-parse --show-toplevel)" = "$BB_V8" ]; then
@@ -63,6 +68,16 @@ grep -q 'inline-8bit-counters,pc-table' "$COUNTERS_OUT/args.gn" 2>/dev/null || {
   echo "$BB_V8/$COUNTERS_OUT/args.gn must set sanitizer_coverage_flags = \"inline-8bit-counters,pc-table\"" >&2
   exit 1
 }
+for out in "$BITS_OUT" "$COUNTERS_OUT"; do
+  grep -q 'v8_redline *= *true' "$out/args.gn" 2>/dev/null || {
+    echo "$BB_V8/$out/args.gn must set v8_redline = true" >&2
+    exit 1
+  }
+done
+grep -q 'v8_fuzzilli *= *true' "$FUZZILLI_OUT/args.gn" 2>/dev/null || {
+  echo "$BB_V8/$FUZZILLI_OUT/args.gn must set v8_fuzzilli = true" >&2
+  exit 1
+}
 if ! git diff --quiet || ! git diff --cached --quiet; then
   echo "$BB_V8 has local changes" >&2
   exit 1
@@ -78,8 +93,8 @@ trap restore EXIT
 
 git checkout -q --detach "$BASE"
 # The counters build needs the coverage counters of d8 (diff mode).
-if ! grep -q 'REDLINE_PC_TABLE' src/fuzzilli/cov.cc; then
-  echo "$BASE has no coverage counters in src/fuzzilli/cov.cc." >&2
+if ! grep -q 'REDLINE_PC_TABLE' experimental/redline/d8/cov.cc 2>/dev/null; then
+  echo "$BASE has no coverage counters in experimental/redline/d8/cov.cc." >&2
   echo "Use a base revision that has the d8 side of diff mode." >&2
   exit 1
 fi
@@ -92,13 +107,15 @@ echo "$FIX: revert $(git rev-parse --short=11 HEAD) on $(git rev-parse --short=1
 
 autoninja -C "$BITS_OUT" d8
 autoninja -C "$COUNTERS_OUT" d8
+autoninja -C "$FUZZILLI_OUT" d8
 
 DST=$BB_ROOT/$FIX
-rm -rf "$DST/bits" "$DST/counters" "$DST/targets.json"
-mkdir -p "$DST/bits" "$DST/counters"
+rm -rf "$DST/bits" "$DST/counters" "$DST/fuzzilli" "$DST/targets.json"
+mkdir -p "$DST/bits" "$DST/counters" "$DST/fuzzilli"
 for f in d8 snapshot_blob.bin icudtl.dat; do
   if [ -f "$BITS_OUT/$f" ]; then cp "$BITS_OUT/$f" "$DST/bits/"; fi
   if [ -f "$COUNTERS_OUT/$f" ]; then cp "$COUNTERS_OUT/$f" "$DST/counters/"; fi
+  if [ -f "$FUZZILLI_OUT/$f" ]; then cp "$FUZZILLI_OUT/$f" "$DST/fuzzilli/"; fi
 done
 echo "$PRESET" > "$DST/preset"
 echo "$FIX" > "$DST/fix"

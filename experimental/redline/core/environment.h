@@ -85,7 +85,7 @@ class Environment {
   static std::unique_ptr<Environment> WithDiscovered(const std::string& json,
                                                      std::string* error);
   // JavaScript that enumerates the target's globals and prints them as one
-  // JSON line via fuzzilli('FUZZILLI_PRINT', ...).
+  // JSON line via redline('REDLINE_PRINT', ...).
   static std::string_view IntrospectionScript();
 
   const std::vector<BuiltinGlobal>& globals() const { return globals_; }

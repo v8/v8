@@ -15,8 +15,8 @@ namespace redline {
 // The edge coverage bitmap shared with one target process, plus the
 // bookkeeping of which edges have been seen so far ("virgin bits").
 //
-// Layout and semantics are those of Fuzzilli's libcoverage / V8's
-// src/fuzzilli/cov.cc: a POSIX shared memory object named
+// Layout and semantics are those of experimental/redline/d8/cov.cc (a copy
+// of V8's src/fuzzilli/cov.cc): a POSIX shared memory object named
 // "shm_id_<pid>_<id>" of kShmSize bytes starting with a uint32 edge count
 // written by the target at startup, followed by one bit per edge. Edge
 // indices start at 1; index 0 is never reported. The target sets a bit the
@@ -27,8 +27,8 @@ namespace redline {
 // Not thread-safe; one instance per ReprlChild.
 class CoverageMap {
  public:
-  // Must match SHM_SIZE in src/fuzzilli/cov.cc: the target maps this many
-  // bytes, so a smaller region would make it fault.
+  // Must match SHM_SIZE in experimental/redline/d8/cov.cc: the target maps
+  // this many bytes, so a smaller region would make it fault.
   static constexpr size_t kShmSize = 0x200000;
   // The 4-byte num_edges header leaves kShmSize - 4 bytes for the bitmap,
   // and scans read 8-byte words, so the usable bitmap is the largest multiple
@@ -102,7 +102,7 @@ class CoverageMap {
  private:
   CoverageMap(int id, std::string shm_name, void* mapping);
 
-  // Layout of the shared memory region (libcoverage's shmem_data): the edge
+  // Layout of the shared memory region (shmem_data in d8/cov.cc): the edge
   // count followed by the edge bitmap. The bitmap starts right after the
   // header, see shm_edges().
   struct ShmemData {

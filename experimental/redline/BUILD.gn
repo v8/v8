@@ -7,8 +7,8 @@ import("../../gni/v8.gni")
 # Redline is a coverage-guided JavaScript fuzzer for d8, written in C++ and
 # living in the V8 tree. The fuzzer itself does not need coverage
 # instrumentation: it drives a separately built, instrumented d8 (built with
-# v8_fuzzilli=true and sanitizer_coverage_flags set) over the REPRL protocol
-# that d8 already implements for Fuzzilli. See README.md.
+# v8_redline=true and sanitizer_coverage_flags set) over the REPRL protocol.
+# d8/ has the code that such a d8 links. See README.md.
 
 # Stricter diagnostics for this directory only. The V8 headers that redline
 # includes (include/, src/base/, ...) are treated as system headers so that

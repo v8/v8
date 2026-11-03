@@ -54,6 +54,7 @@ directory, which only the builder and the scoring step read:
 ```text
 $BB_ROOT/FIX/bits/d8           # with snapshot_blob.bin and icudtl.dat
 $BB_ROOT/FIX/counters/d8       # with snapshot_blob.bin and icudtl.dat
+$BB_ROOT/FIX/fuzzilli/d8       # with snapshot_blob.bin and icudtl.dat
 $BB_ROOT/FIX/targets.json      # the diff mode targets, section 4
 $BB_ROOT/FIX/preset            # maglev, turbolev, ...
 $BB_ROOT/FIX/fix               # the commit of the fix
@@ -63,14 +64,16 @@ $BB_PRIVATE/FIX/d8_args        # the flags of the regression test, section 5
 $BB_PRIVATE/FIX/test.js        # the regression test, section 5
 ```
 
-The two d8 binaries come from the same revision: the base revision with the
-revert of the fix. Use the arguments of TUTORIAL.md section 1 for both, and
-change only the coverage flags:
+The three d8 binaries come from the same revision: the base revision with the
+revert of the fix. Use the arguments of TUTORIAL.md section 1 for all three,
+and change only the coverage flags. The d8 of Fuzzilli uses `v8_fuzzilli=true`
+instead of `v8_redline=true`:
 
 | Build | `sanitizer_coverage_flags` | Use |
 |---|---|---|
-| bits | `"inline-bool-flag"` | normal mode of Redline, and Fuzzilli |
+| bits | `"inline-bool-flag"` | normal mode of Redline |
 | counters | `"inline-8bit-counters,pc-table"`, with `symbol_level=1` | diff mode of Redline (the diff mode section of TUTORIAL.md) |
+| fuzzilli | `"inline-bool-flag"`, with `v8_fuzzilli=true` | Fuzzilli |
 
 ### 3.1 Prepare the bundle checkout
 
@@ -80,8 +83,9 @@ revisions in it, so your work checkout does not change.
 1. Make `BB_V8` with its own gclient solution, for example
    `mkdir bb && cd bb && fetch v8`. A `git worktree` has no gclient
    dependencies.
-2. Make the two build directories with `gn gen`: `out/fuzzbuild` with the bits
-   arguments and `out/rl_counters` with the counters arguments.
+2. Make the three build directories with `gn gen`: `out/fuzzbuild` with the
+   bits arguments, `out/rl_counters` with the counters arguments and
+   `out/fuzzilli` with the arguments of the d8 of Fuzzilli.
 3. Before each set of bundles, run `git fetch origin`,
    `git checkout --detach origin/main` and `gclient sync` in `BB_V8`.
 
@@ -95,7 +99,8 @@ BB_ROOT=$BB_ROOT BB_V8=$BB_V8 \
 ```
 
 - The base revision (`BASE`, default origin/main) must have the coverage
-  counters of d8 in `src/fuzzilli/cov.cc`. The script stops if it does not.
+  counters of d8 in `experimental/redline/d8/cov.cc`. The script stops if it
+  does not.
 - The script commits the revert without a branch and tags it `bb/FIX`.
   Branches are not necessary.
 - To build the same bundle again, run the script with `BASE=bb/FIX^`.

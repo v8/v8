@@ -30,7 +30,7 @@ struct Execution {
   // Wall time spent waiting for the target, in microseconds.
   uint64_t exec_time_us = 0;
   // Output produced by the target during this execution. The "fuzzout"
-  // channel is what fuzzilli('FUZZILLI_PRINT', ...) writes to; stdout and
+  // channel is what redline('REDLINE_PRINT', ...) writes to. stdout and
   // stderr are only captured when enabled on the ReprlChild.
   std::string fuzzout;
   std::string stdout_output;
