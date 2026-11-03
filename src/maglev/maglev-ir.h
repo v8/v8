@@ -7986,9 +7986,11 @@ class MapPrototypeGet : public FixedInputValueNodeT<2, MapPrototypeGet> {
  public:
   explicit MapPrototypeGet(uint64_t bitfield) : Base(bitfield) {}
 
+  // Looking up a string key can allocate and internalize the key in place.
   static constexpr OpProperties kProperties =
       OpProperties::Call() | OpProperties::CanAllocate() |
-      OpProperties::CanRead() | OpProperties::TaggedValue();
+      OpProperties::CanRead() | OpProperties::CanWrite() |
+      OpProperties::TaggedValue();
   DECLARE_INPUTS(Table, Key)
   DECLARE_INPUT_TYPES(Tagged, Tagged)
 
@@ -8020,11 +8022,11 @@ class SetPrototypeHas : public FixedInputValueNodeT<2, SetPrototypeHas> {
  public:
   explicit SetPrototypeHas(uint64_t bitfield) : Base(bitfield) {}
 
-  // CanAllocate is needed, since finding strings in hash tables does an
-  // equality comparison which flattens strings.
+  // Looking up a string key can allocate and internalize the key in place.
   static constexpr OpProperties kProperties =
       OpProperties::Call() | OpProperties::CanAllocate() |
-      OpProperties::CanRead() | OpProperties::TaggedValue();
+      OpProperties::CanRead() | OpProperties::CanWrite() |
+      OpProperties::TaggedValue();
   DECLARE_INPUTS(Table, Key)
   DECLARE_INPUT_TYPES(Tagged, Tagged)
 
