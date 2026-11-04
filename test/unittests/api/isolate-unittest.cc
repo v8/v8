@@ -403,4 +403,45 @@ TEST_F(IsolateTest, DeprecatedIsolateCrashKeyStringCallbacks) {
   END_ALLOW_USE_DEPRECATED()
   EXPECT_FALSE(i_isolate()->HasCrashKeyStringCallbacks());
 }
+
+TEST_F(IsolateTest, IntentionalOomArrayFillCrashKey) {
+  static int alloc_count = 0;
+  static int set_count = 0;
+  static int dummy_key = 0;
+  V8::SetCrashKeyCallbacks(
+      [](const char key[], CrashKeySize size) -> CrashKey {
+        if (strcmp(key, "v8-oom-looks-intentional") != 0) return nullptr;
+        EXPECT_EQ(CrashKeySize::Size32, size);
+        ++alloc_count;
+        return &dummy_key;
+      },
+      [](CrashKey key, std::string_view value) {
+        EXPECT_EQ(&dummy_key, key);
+        EXPECT_EQ("true", value);
+        ++set_count;
+      });
+
+  HandleScope handle_scope(isolate());
+  Local<Context> context = Context::New(isolate());
+  Context::Scope context_scope(context);
+
+  const char* source_str =
+      "const a = new Array(2 ** 32 - 1);\n"
+      "Object.defineProperty(a, 0, { writable: false });\n"
+      "for (let i = 0; i < 2; ++i) {\n"
+      "  try {\n"
+      "    a.fill(0);\n"
+      "  } catch (e) {\n"
+      "    if (!(e instanceof TypeError)) throw e;\n"
+      "  }\n"
+      "}\n";
+  Local<String> source =
+      String::NewFromUtf8(isolate(), source_str).ToLocalChecked();
+  Local<Script> script = Script::Compile(context, source).ToLocalChecked();
+  script->Run(context).ToLocalChecked();
+
+  EXPECT_EQ(1, alloc_count);
+  EXPECT_EQ(2, set_count);
+  V8::SetCrashKeyCallbacks(nullptr, nullptr);
+}
 }  // namespace v8

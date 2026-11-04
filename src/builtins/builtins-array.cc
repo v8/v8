@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/base/logging.h"
+#include "src/base/platform/mutex.h"
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
 #include "src/builtins/superspread.h"
@@ -425,8 +426,11 @@ BUILTIN(ArrayPrototypeFill) {
   if (V8_UNLIKELY(length == kSuspiciousLength) && IsJSArray(*receiver) &&
       start_index == 0 && end_index == length) {
     if (isolate->HasCrashKeyStringCallbacks()) {
-      isolate->AddCrashKeyString("v8-oom-looks-intentional",
-                                 CrashKeySize::Size32, "true");
+      static base::LazyMutex crash_key_mutex = LAZY_MUTEX_INITIALIZER;
+      base::MutexGuard guard(crash_key_mutex.Pointer());
+      static v8::CrashKey crash_key = isolate->AllocateCrashKeyString(
+          "v8-oom-looks-intentional", CrashKeySize::Size32);
+      isolate->SetCrashKeyString(crash_key, "true");
     }
   }
 
