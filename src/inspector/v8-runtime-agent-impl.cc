@@ -257,10 +257,9 @@ void innerCallFunctionOn(
   }
 
   DCHECK(!throwOnSideEffect);
-  // TODO(crbug.com/580756209): Clean up the throwOnSideEffect parameter.
   scope.injectedScript()->addPromiseCallback(
       session, maybeResultValue, objectGroup, std::move(wrapOptions),
-      false /* replMode */, false /* throwOnSideEffect */,
+      false /* replMode */,
       EvaluateCallbackWrapper<V8RuntimeAgentImpl::CallFunctionOnCallback>::wrap(
           std::move(callback)));
 }
@@ -523,10 +522,9 @@ void V8RuntimeAgentImpl::evaluate(
     return;
   }
   DCHECK(!throwOnSideEffect.value_or(false));
-  // TODO(crbug.com/580756209): Clean up the throwOnSideEffect parameter.
   scope.injectedScript()->addPromiseCallback(
       m_session, maybeResultValue, objectGroup.value_or(""),
-      std::move(wrapOptions), replMode, false /* throwOnSideEffect */,
+      std::move(wrapOptions), replMode,
       EvaluateCallbackWrapper<EvaluateCallback>::wrap(std::move(callback)));
 }
 
@@ -558,7 +556,6 @@ void V8RuntimeAgentImpl::awaitPromise(
   scope.injectedScript()->addPromiseCallback(
       m_session, scope.object(), scope.objectGroupName(),
       std::move(wrapOptions), false /* replMode */,
-      false /* throwOnSideEffect */,
       EvaluateCallbackWrapper<AwaitPromiseCallback>::wrap(std::move(callback)));
 }
 
@@ -884,7 +881,6 @@ void V8RuntimeAgentImpl::runScript(
   scope.injectedScript()->addPromiseCallback(
       m_session, maybeResultValue.ToLocalChecked(), objectGroup.value_or(""),
       std::move(wrapOptions), false /* replMode */,
-      false /* throwOnSideEffect */,
       EvaluateCallbackWrapper<RunScriptCallback>::wrap(std::move(callback)));
 }
 

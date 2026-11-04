@@ -127,7 +127,7 @@ class InjectedScript final {
                           v8::MaybeLocal<v8::Value> value,
                           const String16& objectGroup,
                           std::unique_ptr<WrapOptions> wrapOptions,
-                          bool replMode, bool throwOnSideEffect,
+                          bool replMode,
                           std::shared_ptr<EvaluateCallback> callback);
 
   Response findObject(const RemoteObjectId&, v8::Local<v8::Value>*) const;

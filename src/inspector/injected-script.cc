@@ -99,7 +99,6 @@ class InjectedScript::ProtocolPromiseHandler {
                   v8::Local<v8::Context> context, v8::Local<v8::Value> value,
                   int executionContextId, const String16& objectGroup,
                   std::unique_ptr<WrapOptions> wrapOptions, bool replMode,
-                  bool throwOnSideEffect,
                   std::weak_ptr<EvaluateCallback> callback) {
     InjectedScript::ContextScope scope(session, executionContextId);
     Response response = scope.initialize();
@@ -130,7 +129,7 @@ class InjectedScript::ProtocolPromiseHandler {
     PromiseHandlerTracker::Id handlerId =
         inspector->promiseHandlerTracker().create(
             session, executionContextId, objectGroup, std::move(wrapOptions),
-            replMode, throwOnSideEffect, callback, promise);
+            replMode, callback, promise);
     v8::Local<v8::Number> data =
         v8::Number::New(inspector->isolate(), handlerId);
     v8::Local<v8::Function> thenCallbackFunction =
@@ -207,7 +206,7 @@ class InjectedScript::ProtocolPromiseHandler {
   ProtocolPromiseHandler(V8InspectorSessionImpl* session,
                          int executionContextId, const String16& objectGroup,
                          std::unique_ptr<WrapOptions> wrapOptions,
-                         bool replMode, bool throwOnSideEffect,
+                         bool replMode,
                          std::weak_ptr<EvaluateCallback> callback,
                          v8::Local<v8::Promise> evaluationResult)
       : m_inspector(session->inspector()),
@@ -217,7 +216,6 @@ class InjectedScript::ProtocolPromiseHandler {
         m_objectGroup(objectGroup),
         m_wrapOptions(std::move(wrapOptions)),
         m_replMode(replMode),
-        m_throwOnSideEffect(throwOnSideEffect),
         m_callback(std::move(callback)),
         m_evaluationResult(m_inspector->isolate(), evaluationResult) {}
 
@@ -279,7 +277,7 @@ class InjectedScript::ProtocolPromiseHandler {
     std::unique_ptr<protocol::Runtime::ExceptionDetails> exceptionDetails;
     response = scope.injectedScript()->wrapEvaluateResult(
         result, scope.tryCatch(), m_objectGroup, *m_wrapOptions,
-        m_throwOnSideEffect, &wrappedValue, &exceptionDetails);
+        false /* throwOnSideEffect */, &wrappedValue, &exceptionDetails);
     if (!response.IsSuccess()) {
       EvaluateCallback::sendFailure(m_callback, scope.injectedScript(),
                                     response);
@@ -303,16 +301,9 @@ class InjectedScript::ProtocolPromiseHandler {
     Response response = scope.initialize();
     if (!response.IsSuccess()) return;
     std::unique_ptr<protocol::Runtime::RemoteObject> wrappedValue;
-    {
-      std::optional<v8::debug::SideEffectCheckScope> sideEffectCheckScope;
-      if (m_throwOnSideEffect) {
-        sideEffectCheckScope.emplace(m_inspector->isolate());
-      }
-      response = scope.injectedScript()->wrapObject(
-          result, m_objectGroup, *m_wrapOptions, &wrappedValue);
-    }
+    response = scope.injectedScript()->wrapObject(
+        result, m_objectGroup, *m_wrapOptions, &wrappedValue);
     if (!response.IsSuccess()) {
-      if (sendSideEffectErrorIfCaught(scope)) return;
       EvaluateCallback::sendFailure(m_callback, scope.injectedScript(),
                                     response);
       return;
@@ -329,21 +320,12 @@ class InjectedScript::ProtocolPromiseHandler {
     // we try to capture a fresh stack trace.
     if (maybeMessage.ToLocal(&message)) {
       v8::Local<v8::Value> exception = result;
-      if (!m_throwOnSideEffect) {
-        session->inspector()->client()->dispatchError(scope.context(), message,
-                                                      exception);
-      }
+      session->inspector()->client()->dispatchError(scope.context(), message,
+                                                    exception);
       std::unique_ptr<protocol::Runtime::ExceptionDetails> exceptionDetails;
-      {
-        std::optional<v8::debug::SideEffectCheckScope> sideEffectCheckScope;
-        if (m_throwOnSideEffect) {
-          sideEffectCheckScope.emplace(m_inspector->isolate());
-        }
-        response = scope.injectedScript()->createExceptionDetails(
-            message, exception, m_objectGroup, &exceptionDetails);
-      }
+      response = scope.injectedScript()->createExceptionDetails(
+          message, exception, m_objectGroup, &exceptionDetails);
       if (!response.IsSuccess()) {
-        if (sendSideEffectErrorIfCaught(scope)) return;
         EvaluateCallback::sendFailure(m_callback, scope.injectedScript(),
                                       response);
         return;
@@ -357,22 +339,16 @@ class InjectedScript::ProtocolPromiseHandler {
 
     String16 messageString;
     std::unique_ptr<V8StackTraceImpl> stack;
-    {
-      std::optional<v8::debug::SideEffectCheckScope> sideEffectCheckScope;
-      if (m_throwOnSideEffect) {
-        sideEffectCheckScope.emplace(m_inspector->isolate());
+    if (result->IsNativeError()) {
+      v8::Local<v8::String> detail;
+      if (result->ToDetailString(isolate->GetCurrentContext())
+              .ToLocal(&detail)) {
+        messageString = " " + toProtocolString(isolate, detail);
       }
-      if (result->IsNativeError()) {
-        v8::Local<v8::String> detail;
-        if (result->ToDetailString(isolate->GetCurrentContext())
-                .ToLocal(&detail)) {
-          messageString = " " + toProtocolString(isolate, detail);
-        }
-        v8::Local<v8::StackTrace> stackTrace =
-            v8::Exception::GetStackTrace(result);
-        if (!stackTrace.IsEmpty()) {
-          stack = m_inspector->debugger()->createStackTrace(stackTrace);
-        }
+      v8::Local<v8::StackTrace> stackTrace =
+          v8::Exception::GetStackTrace(result);
+      if (!stackTrace.IsEmpty()) {
+        stack = m_inspector->debugger()->createStackTrace(stackTrace);
       }
     }
     if (!stack) {
@@ -395,16 +371,9 @@ class InjectedScript::ProtocolPromiseHandler {
             .setColumnNumber(
                 stack && !stack->isEmpty() ? stack->topColumnNumber() : 0)
             .build();
-    {
-      std::optional<v8::debug::SideEffectCheckScope> sideEffectCheckScope;
-      if (m_throwOnSideEffect) {
-        sideEffectCheckScope.emplace(m_inspector->isolate());
-      }
-      response = scope.injectedScript()->addExceptionToDetails(
-          result, exceptionDetails.get(), m_objectGroup);
-    }
+    response = scope.injectedScript()->addExceptionToDetails(
+        result, exceptionDetails.get(), m_objectGroup);
     if (!response.IsSuccess()) {
-      if (sendSideEffectErrorIfCaught(scope)) return;
       EvaluateCallback::sendFailure(m_callback, scope.injectedScript(),
                                     response);
       return;
@@ -422,20 +391,6 @@ class InjectedScript::ProtocolPromiseHandler {
                                   std::move(exceptionDetails));
   }
 
-  bool sendSideEffectErrorIfCaught(InjectedScript::ContextScope& scope) {
-    if (!m_throwOnSideEffect || !scope.tryCatch().HasCaught()) return false;
-    std::unique_ptr<protocol::Runtime::RemoteObject> wrappedValue;
-    std::unique_ptr<protocol::Runtime::ExceptionDetails> exceptionDetails;
-    Response response = scope.injectedScript()->wrapEvaluateResult(
-        v8::MaybeLocal<v8::Value>(), scope.tryCatch(), m_objectGroup,
-        *m_wrapOptions, m_throwOnSideEffect, &wrappedValue, &exceptionDetails);
-    if (!response.IsSuccess()) return false;
-    EvaluateCallback::sendSuccess(m_callback, scope.injectedScript(),
-                                  std::move(wrappedValue),
-                                  std::move(exceptionDetails));
-    return true;
-  }
-
   V8InspectorImpl* m_inspector;
   int m_sessionId;
   int m_contextGroupId;
@@ -443,7 +398,6 @@ class InjectedScript::ProtocolPromiseHandler {
   String16 m_objectGroup;
   std::unique_ptr<WrapOptions> m_wrapOptions;
   bool m_replMode;
-  bool m_throwOnSideEffect;
   bool m_isActive = false;
   std::weak_ptr<EvaluateCallback> m_callback;
   v8::Global<v8::Promise> m_evaluationResult;
@@ -912,8 +866,7 @@ std::unique_ptr<protocol::Runtime::RemoteObject> InjectedScript::wrapTable(
 void InjectedScript::addPromiseCallback(
     V8InspectorSessionImpl* session, v8::MaybeLocal<v8::Value> value,
     const String16& objectGroup, std::unique_ptr<WrapOptions> wrapOptions,
-    bool replMode, bool throwOnSideEffect,
-    std::shared_ptr<EvaluateCallback> callback) {
+    bool replMode, std::shared_ptr<EvaluateCallback> callback) {
   m_evaluateCallbacks.insert(callback);
   // After stashing the shared_ptr in `m_evaluateCallback`, we reset `callback`.
   // `ProtocolPromiseHandler:add` can take longer than the life time of this
@@ -933,7 +886,7 @@ void InjectedScript::addPromiseCallback(
   ProtocolPromiseHandler::add(session, m_context->context(),
                               value.ToLocalChecked(), m_context->contextId(),
                               objectGroup, std::move(wrapOptions), replMode,
-                              throwOnSideEffect, weak_callback);
+                              weak_callback);
   // Do not add any code here! `this` might be invalid.
   // `ProtocolPromiseHandler::add` calls into JS which could kill this
   // `InjectedScript`.
