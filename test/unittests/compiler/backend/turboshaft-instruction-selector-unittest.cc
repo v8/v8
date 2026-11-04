@@ -302,6 +302,27 @@ TARGET_TEST_P(TurboshaftInstructionSelectorPhiTest, Referenceness) {
   EXPECT_EQ(s.IsReference(phi), s.IsReference(param1));
 }
 
+TARGET_TEST_P(TurboshaftInstructionSelectorPhiTest, SingleInput) {
+  const MachineType type = GetParam();
+  StreamBuilder m(this, type, type);
+  OpIndex param0 = m.Parameter(0);
+  Block* a = m.NewBlock();
+  m.Goto(a);
+  m.Bind(a);
+  OpIndex phi = m.Phi(type.representation(), param0);
+  m.Return(phi);
+  Stream s = m.Build(kAllInstructions);
+  EXPECT_TRUE(s.BlockAt(1)->phis().empty());
+  ASSERT_EQ(3U, s.size());
+  EXPECT_EQ(kArchNop, s[0]->arch_opcode());
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(s.ToVreg(param0), s.ToVreg(s[0]->OutputAt(0)));
+  EXPECT_EQ(kArchJmp, s[1]->arch_opcode());
+  EXPECT_EQ(kArchRet, s[2]->arch_opcode());
+  ASSERT_EQ(2U, s[2]->InputCount());
+  EXPECT_EQ(s.ToVreg(param0), s.ToVreg(s[2]->InputAt(1)));
+}
+
 INSTANTIATE_TEST_SUITE_P(
     TurboshaftInstructionSelectorTest, TurboshaftInstructionSelectorPhiTest,
     ::testing::Values(MachineType::Float64(), MachineType::Int8(),
