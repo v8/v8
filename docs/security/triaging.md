@@ -34,7 +34,6 @@ These bugs are currently treated differently from regular security bugs.
 Specifically, the following properties are different from regular security bugs:
 
 - **Severity**: S2
-- **[Security_Impact-None][hl-impact-none]**
 - **[v8-sandbox][hl-sandbox]**
 
 Note that further mitigating factors may additionally apply.
