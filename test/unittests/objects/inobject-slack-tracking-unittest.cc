@@ -179,9 +179,6 @@ class InObjectSlackTrackingTest : public TestWithNativeContext {
       CHECK(func->has_initial_map());
       DirectHandle<Map> initial_map(func->initial_map(), i_isolate());
 
-      // If the object is slow-mode already, bail out.
-      if (obj->map()->is_dictionary_map()) continue;
-
       // There must be at least some slack.
       CHECK_LT(fields_count, obj->map()->GetInObjectProperties());
 

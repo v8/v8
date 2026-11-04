@@ -2644,10 +2644,9 @@ MaybeHandle<JSObject> JSObject::New(DirectHandle<JSFunction> constructor,
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, initial_map,
       JSFunction::GetDerivedMap(isolate, constructor, new_target));
-  constexpr int initial_capacity = PropertyDictionary::kInitialCapacity;
-  Handle<JSObject> result = isolate->factory()->NewFastOrSlowJSObjectFromMap(
-      initial_map, initial_capacity, AllocationType::kYoung, site,
-      new_js_object_type);
+  DCHECK(!initial_map->is_dictionary_map());
+  Handle<JSObject> result = isolate->factory()->NewJSObjectFromMap(
+      initial_map, AllocationType::kYoung, site, new_js_object_type);
   return result;
 }
 
@@ -2655,11 +2654,9 @@ MaybeHandle<JSObject> JSObject::New(DirectHandle<JSFunction> constructor,
 MaybeDirectHandle<JSObject> JSObject::NewWithMap(
     Isolate* isolate, DirectHandle<Map> initial_map,
     DirectHandle<AllocationSite> site, NewJSObjectType new_js_object_type) {
-  constexpr int initial_capacity = PropertyDictionary::kInitialCapacity;
-  DirectHandle<JSObject> result =
-      isolate->factory()->NewFastOrSlowJSObjectFromMap(
-          initial_map, initial_capacity, AllocationType::kYoung, site,
-          new_js_object_type);
+  DCHECK(!initial_map->is_dictionary_map());
+  DirectHandle<JSObject> result = isolate->factory()->NewJSObjectFromMap(
+      initial_map, AllocationType::kYoung, site, new_js_object_type);
   return result;
 }
 

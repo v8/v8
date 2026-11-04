@@ -358,23 +358,7 @@ TNode<JSObject> ConstructorBuiltinsAssembler::FastNewObject(
       offsetof(Map, constructor_or_back_pointer_or_native_context_));
   GotoIf(TaggedNotEqual(target, new_target_constructor), call_runtime);
 
-  TVARIABLE(HeapObject, properties);
-
-  Label instantiate_map(this), allocate_properties(this);
-  GotoIf(IsDictionaryMap(initial_map), &allocate_properties);
-  {
-    properties = EmptyFixedArrayConstant();
-    Goto(&instantiate_map);
-  }
-  BIND(&allocate_properties);
-  {
-    properties =
-        AllocatePropertyDictionary(PropertyDictionary::kInitialCapacity);
-    Goto(&instantiate_map);
-  }
-
-  BIND(&instantiate_map);
-  return AllocateJSObjectFromMap(initial_map, properties.value(), std::nullopt,
+  return AllocateJSObjectFromMap(initial_map, std::nullopt, std::nullopt,
                                  AllocationFlag::kNone, kWithSlackTracking);
 }
 

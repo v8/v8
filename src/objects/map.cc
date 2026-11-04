@@ -2159,31 +2159,7 @@ DirectHandle<Map> Map::TransitionToDataProperty(
       reason = buffer.data();
     }
 #endif
-    DirectHandle<Object> maybe_constructor(map->GetConstructor(), isolate);
-    if (v8_flags.feedback_normalization && map->new_target_is_base() &&
-        IsJSFunction(*maybe_constructor) &&
-        !Cast<JSFunction>(*maybe_constructor)->shared()->native()) {
-      auto constructor = Cast<JSFunction>(maybe_constructor);
-      DCHECK_NE(*constructor, constructor->native_context()->object_function());
-      DirectHandle<Map> initial_map(constructor->initial_map(), isolate);
-      result = Map::Normalize(isolate, initial_map, CLEAR_INOBJECT_PROPERTIES,
-                              reason);
-      initial_map->DeprecateTransitionTree(isolate);
-      DirectHandle<JSReceiver> prototype(Cast<JSReceiver>(result->prototype()),
-                                         isolate);
-      JSFunction::SetInitialMap(isolate, constructor, result, prototype);
-
-      // Deoptimize all code that embeds the previous initial map.
-      DependentCode::DeoptimizeDependencyGroups(
-          isolate, *initial_map, DependentCode::kInitialMapChangedGroup);
-      if (!result->EquivalentToForNormalization(*map,
-                                                CLEAR_INOBJECT_PROPERTIES)) {
-        result =
-            Map::Normalize(isolate, map, CLEAR_INOBJECT_PROPERTIES, reason);
-      }
-    } else {
-      result = Map::Normalize(isolate, map, CLEAR_INOBJECT_PROPERTIES, reason);
-    }
+    return Map::Normalize(isolate, map, CLEAR_INOBJECT_PROPERTIES, reason);
   }
 
   return result;
