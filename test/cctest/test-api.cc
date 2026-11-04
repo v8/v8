@@ -23823,28 +23823,6 @@ TEST(AllowJavascriptExecutionScope) {
   }
 }
 
-TEST(ThrowOnJavascriptExecution) {
-  LocalContext context;
-  v8::Isolate* isolate = context.isolate();
-  v8::HandleScope scope(isolate);
-  v8::TryCatch try_catch(isolate);
-  v8::Isolate::DisallowJavascriptExecutionScope throw_js(
-      isolate, v8::Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
-  CompileRun("1+1");
-  CHECK(try_catch.HasCaught());
-}
-
-TEST_WITH_PLATFORM(DumpOnJavascriptExecution, MockPlatform) {
-  LocalContext context;
-  v8::Isolate* isolate = context.isolate();
-  v8::HandleScope scope(isolate);
-  v8::Isolate::DisallowJavascriptExecutionScope throw_js(
-      isolate, v8::Isolate::DisallowJavascriptExecutionScope::DUMP_ON_FAILURE);
-  CHECK(!platform.dump_without_crashing_called());
-  CompileRun("1+1");
-  CHECK(platform.dump_without_crashing_called());
-}
-
 namespace {
 void TestMicrotaskCheckpointCallback(v8::Local<v8::Data> data) {
   int* count = GetData<int>(data);
@@ -23856,6 +23834,84 @@ void TestMicrotaskFunctionCallback(
   (*count)++;
 }
 }  // namespace
+
+TEST(ThrowOnJavascriptExecution) {
+  LocalContext context;
+  v8::Isolate* isolate = context.isolate();
+  v8::HandleScope scope(isolate);
+  int api_call_count = 0;
+  v8::Local<v8::Function> api_fn =
+      v8::Function::New(context.local(), TestMicrotaskFunctionCallback,
+                        MakeData(isolate, &api_call_count))
+          .ToLocalChecked();
+  v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
+  templ->SetAccessorProperty(
+      v8_str("prop"),
+      v8::FunctionTemplate::New(isolate, TestMicrotaskFunctionCallback,
+                                MakeData(isolate, &api_call_count)));
+  v8::Local<v8::Object> obj =
+      templ->NewInstance(context.local()).ToLocalChecked();
+  v8::TryCatch try_catch(isolate);
+  v8::Isolate::DisallowJavascriptExecutionScope throw_js(
+      isolate, v8::Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
+  CompileRun("1+1");
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
+  CHECK(api_fn->Call(context.local(), context->Global(), 0, nullptr).IsEmpty());
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
+  CHECK(api_fn->NewInstance(context.local()).IsEmpty());
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
+  CHECK(obj->Get(context.local(), v8_str("prop")).IsEmpty());
+  CHECK(try_catch.HasCaught());
+  CHECK_EQ(0, api_call_count);
+  CHECK(!templ->NewInstance(context.local()).IsEmpty());
+  CHECK(
+      !api_fn
+           ->NewInstanceWithSideEffectType(context.local(), 0, nullptr,
+                                           v8::SideEffectType::kHasNoSideEffect)
+           .IsEmpty());
+  CHECK_EQ(1, api_call_count);
+}
+
+TEST_WITH_PLATFORM(DumpOnJavascriptExecution, MockPlatform) {
+  LocalContext context;
+  v8::Isolate* isolate = context.isolate();
+  v8::HandleScope scope(isolate);
+  int api_call_count = 0;
+  v8::Local<v8::Function> js_fn =
+      v8::Local<v8::Function>::Cast(CompileRun("(function() {})"));
+  v8::Local<v8::Function> api_fn =
+      v8::Function::New(context.local(), TestMicrotaskFunctionCallback,
+                        MakeData(isolate, &api_call_count))
+          .ToLocalChecked();
+  v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
+  templ->SetAccessorProperty(
+      v8_str("prop"),
+      v8::FunctionTemplate::New(isolate, TestMicrotaskFunctionCallback,
+                                MakeData(isolate, &api_call_count)));
+  v8::Local<v8::Object> obj =
+      templ->NewInstance(context.local()).ToLocalChecked();
+  v8::Isolate::DisallowJavascriptExecutionScope throw_js(
+      isolate, v8::Isolate::DisallowJavascriptExecutionScope::DUMP_ON_FAILURE);
+  CHECK(!platform.dump_without_crashing_called());
+  CompileRun("1+1");
+  CHECK(platform.dump_without_crashing_called());
+  CHECK(!js_fn->NewInstance(context.local()).IsEmpty());
+  CHECK(
+      !api_fn->Call(context.local(), context->Global(), 0, nullptr).IsEmpty());
+  CHECK(!api_fn->NewInstance(context.local()).IsEmpty());
+  CHECK(!obj->Get(context.local(), v8_str("prop")).IsEmpty());
+  CHECK_EQ(0, api_call_count);
+  CHECK(!templ->NewInstance(context.local()).IsEmpty());
+  CHECK(
+      !api_fn
+           ->NewInstanceWithSideEffectType(context.local(), 0, nullptr,
+                                           v8::SideEffectType::kHasNoSideEffect)
+           .IsEmpty());
+  CHECK_EQ(1, api_call_count);
+}
 
 TEST(MicrotaskCheckpointDisallowJavascriptExecutionScope) {
   LocalContext env;
