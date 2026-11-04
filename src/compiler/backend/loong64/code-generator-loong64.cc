@@ -1153,18 +1153,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_NE(mode, RecordWriteMode::kValueIsTrustedPointer);
       Register object = i.InputRegister(0);
       Register offset = i.InputRegister(1);
-      Register value = i.InputRegister(2);
+      Register value = i.InputOrZeroRegister(2);
+      Register scratch = i.TempRegister(0);
 
       auto ool = zone()->New<OutOfLineRecordWrite>(
           this, object, Operand(offset), value, mode, DetermineStubCallMode());
-      MemOperand dst_op = MemOperand(object, offset);
-      __ dbar(0);
+      __ Add_d(scratch, object, offset);
+
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      DCHECK(!AreAliased(zero_reg, value, scratch));
       if (COMPRESS_POINTERS_BOOL) {
-        __ St_w(value, dst_op, &trap_pc);
+        __ amswap_db_w(zero_reg, value, scratch);
       } else {
-        __ St_d(value, dst_op, &trap_pc);
+        __ amswap_db_d(zero_reg, value, scratch);
       }
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, trap_pc);
       // Skip the write barrier if the value is a Smi. However, this is only
       // valid if the value isn't an indirect pointer. Otherwise the value will
       // be a pointer table index, which will always look like a Smi (but
@@ -1179,28 +1181,27 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchAtomicStoreSkippedWriteBarrier: {
       DCHECK_EQ(AddressingModeField::decode(instr->opcode()), kMode_MRR);
+      MacroAssembler::BlockTrampolinePoolScope block_trampoline_pool(masm());
       Register object = i.InputRegister(0);
       Register offset = i.InputRegister(1);
-      Register value = i.InputRegister(2);
+      Register value = i.InputOrZeroRegister(2);
       Register temp = i.TempRegister(0);
-      __ Add_d(temp, object, offset);
 
       DCHECK(v8_flags.verify_write_barriers);
-      Register scratch = i.TempRegister(1);
-      auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
-          this, object, value, scratch);
+      auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(this, object,
+                                                                 value, temp);
       __ MaybeJumpIfReadOnlyOrSmallSmi(value, ool->exit());
       __ JumpIfNotSmi(value, ool->entry());
       __ bind(ool->exit());
 
-      MacroAssemblerBase::BlockTrampolinePoolScope block_trampoline_pool(
-          masm());
+      DCHECK(!AreAliased(zero_reg, value, temp));
+      __ Add_d(temp, object, offset);
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       if (COMPRESS_POINTERS_BOOL) {
-        __ St_w(value, MemOperand(temp, 0), &trap_pc);
+        __ amswap_db_w(zero_reg, value, temp);
       } else {
-        __ St_d(value, MemOperand(temp, 0), &trap_pc);
+        __ amswap_db_d(zero_reg, value, temp);
       }
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, trap_pc);
       break;
     }
     case kArchStoreTrustedWithWriteBarrier: {

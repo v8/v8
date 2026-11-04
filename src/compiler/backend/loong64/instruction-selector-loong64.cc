@@ -2624,8 +2624,9 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
     write_barrier_kind = kFullWriteBarrier;
   }
 
-  InstructionOperand inputs[] = {g.UseRegister(base), g.UseRegister(index),
-                                 g.UseRegisterOrImmediateZero(value)};
+  InstructionOperand inputs[] = {g.UseUniqueRegister(base),
+                                 g.UseUniqueRegister(index),
+                                 g.UseRegisterAtEndOrImmediateZero(value)};
   InstructionOperand temps[2] = {};
   size_t temp_count = 0;
   InstructionCode code;
@@ -2638,12 +2639,12 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
     if (write_barrier_kind == kSkippedWriteBarrier) {
       code = kArchAtomicStoreSkippedWriteBarrier;
       temps[temp_count++] = g.TempRegister();
-      temps[temp_count++] = g.TempRegister();
     } else {
       RecordWriteMode record_write_mode =
           WriteBarrierKindToRecordWriteMode(write_barrier_kind);
       code = kArchAtomicStoreWithWriteBarrier;
       code |= RecordWriteModeField::encode(record_write_mode);
+      temps[temp_count++] = g.TempRegister();
     }
   } else {
     switch (rep) {
