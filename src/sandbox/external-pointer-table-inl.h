@@ -401,6 +401,15 @@ void ExternalPointerTable::ManagedResource::ZapExternalPointerTableEntry() {
   ept_entry_ = kNullExternalPointerHandle;
 }
 
+void ExternalPointerTable::ManagedResource::ClearExternalPointerTableEntry() {
+  if (owning_table_ && ept_entry_ != kNullExternalPointerHandle) {
+    uint32_t index = HandleToIndex(ept_entry_);
+    owning_table_->at(index).SetExternalPointer(
+        kNullAddress, owning_table_->GetTag(ept_entry_));
+  }
+  ept_entry_ = kNullExternalPointerHandle;
+}
+
 void ExternalPointerTable::TakeOwnershipOfManagedResourceIfNecessary(
     Address value, ExternalPointerHandle handle, ExternalPointerTag tag) {
   if (IsManagedExternalPointerType(tag) && value != kNullAddress) {

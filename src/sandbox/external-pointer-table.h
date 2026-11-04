@@ -410,6 +410,11 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
     // When the sandbox is enabled, it will take care of zapping its EPT entry.
     inline void ZapExternalPointerTableEntry();
 
+    // Clears the EPT entry's pointer to kNullAddress while preserving its tag
+    // and mark bit, and unlinks this resource from the entry. Used when a
+    // resource is retired while its owning heap object may remain reachable.
+    inline void ClearExternalPointerTableEntry();
+
    private:
     friend class ExternalPointerTable;
     // Currently required for snapshot stress mode, see deserializer.cc.

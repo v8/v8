@@ -15,6 +15,7 @@
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/objects/visitors.h"
+#include "src/sandbox/external-pointer-table.h"
 #include "src/utils/allocation.h"
 #include "src/wasm/value-type.h"
 
@@ -59,7 +60,12 @@ struct JumpBuffer {
   StackState state;
 };
 
-class StackMemory {
+class StackMemory
+#ifdef V8_ENABLE_SANDBOX
+    : public ExternalPointerTable::ManagedResource {
+#else
+    : public Malloced {
+#endif  // V8_ENABLE_SANDBOX
  public:
   static std::unique_ptr<StackMemory> New() {
     return std::unique_ptr<StackMemory>(new StackMemory());

@@ -4676,11 +4676,14 @@ Isolate::SwitchStacks<wasm::JumpBuffer::Retired, wasm::JumpBuffer::Inactive>(
     Address pc);
 
 void Isolate::RetireWasmStack(wasm::StackMemory* stack) {
+  // Clear the owning {WasmStackObject}'s external pointer to prevent a UAF.
+#ifdef V8_ENABLE_SANDBOX
+  stack->ClearExternalPointerTableEntry();
+#else
   if (!stack->stack_obj().is_null()) {
-    // Clear the owning {WasmStackObject}'s external pointer to prevent a UAF.
     stack->stack_obj()->set_stack(this, nullptr);
-    stack->set_stack_obj({});
   }
+#endif
   size_t index = stack->index();
   // We can only return from a stack that was still in the global list.
   DCHECK_LT(index, wasm_stacks().size());
