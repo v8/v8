@@ -253,6 +253,7 @@
   'debugger/get-possible-breakpoints-array-literal': [SKIP],
   'debugger/get-possible-breakpoints-main': [SKIP],
   'debugger/limit-size-of-collected-scripts': [SKIP],
+  'debugger/es8/async-function-debug-scopes': [SKIP],
   'debugger/not-hold-promises': [SKIP],
   'debugger/regression-424142': [SKIP],
   'debugger/return-break-locations': [SKIP],
