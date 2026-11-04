@@ -30,6 +30,7 @@ struct DebugVariableInfo {
   int initializer_position;
   bool is_synthetic;
   bool is_receiver;
+  bool is_hole_initialization_elided;
 
   // LINT.IfChange(VariableIsExport)
   bool is_export() const {

@@ -6469,9 +6469,14 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseSwitchStatement(
     Scope* switch_scope = scope()->FinalizeBlockScope();
     if (switch_scope != nullptr) {
       // Switch scopes are nonlinear, so we need to set the initializer position
-      // to kMaxInt to prevent hole checks from being elided.
+      // to kMaxInt and force hole initialization for lexical variables to
+      // prevent hole checks and TDZ hole initialization from being elided.
       for (Variable* var : *switch_scope->locals()) {
         var->set_initializer_position(kMaxInt);
+        if (var->initialization_flag() == kNeedsInitialization) {
+          var->ForceHoleInitialization(
+              Variable::kHasHoleCheckUseInSameClosureScope);
+        }
       }
       return impl()->RewriteSwitchStatement(switch_statement, switch_scope);
     }

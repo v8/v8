@@ -759,13 +759,25 @@ int ScopeIterator::GetSourcePosition() const {
   }
 }
 
-bool ScopeIterator::IsLocalInTdz(VariableMode mode, Tagged<Object> value,
-                                 int initializer_position) const {
+bool ScopeIterator::IsLocalInTdz(const DebugVariableInfo& var,
+                                 Tagged<Object> value) const {
   if (IsTheHole(value) || IsTdzHole(value)) return true;
-  if (IsLexicalVariableMode(mode) && IsUndefined(value) &&
-      initializer_position != kNoSourcePosition &&
+  // When hole initialization is elided (var.is_hole_initialization_elided),
+  // the stack register holds `undefined` before the declaration runs instead
+  // of an actual TdzHole. In that case we intentionally use the lightweight
+  // static GetSourcePosition() <= var.initializer_position heuristic rather
+  // than scanning BytecodeArray and SourcePositionTable in the debugger. In
+  // multi-binding destructuring declarations (`let [a, b = (debugger, 2)] =
+  // [undefined]`), ParserBase::ParseVariableDeclarations assigns the end
+  // position of the entire declaration as initializer_position for all
+  // bindings in the pattern, so earlier bindings initialized to `undefined`
+  // conservatively appear unavailable (<value unavailable>) on read-side
+  // scope inspection while paused mid-declaration until the declaration
+  // finishes. We consider this edge case working as intended.
+  if (var.is_hole_initialization_elided && IsUndefined(value) &&
+      var.initializer_position != kNoSourcePosition &&
       GetSourcePosition() != kNoSourcePosition &&
-      GetSourcePosition() <= initializer_position) {
+      GetSourcePosition() <= var.initializer_position) {
     return true;
   }
   return false;
@@ -939,7 +951,7 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
           CHECK_LT(static_cast<uint32_t>(index),
                    parameters_and_registers->ulength().value());
           value = handle(parameters_and_registers->get(index), isolate_);
-          if (IsLocalInTdz(var.mode, *value, var.initializer_position)) {
+          if (IsLocalInTdz(var, *value)) {
             value = isolate_->factory()->tdz_hole_value();
           }
         } else {
@@ -955,7 +967,7 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
                 args_index == var.index) {
               continue;
             }
-          } else if (IsLocalInTdz(var.mode, *value, var.initializer_position)) {
+          } else if (IsLocalInTdz(var, *value)) {
             // Variables that are `undefined` could also mean an elided hole
             // write. We explicitly check the static scope information if we
             // are currently stopped before the variable is actually initialized

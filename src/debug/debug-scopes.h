@@ -253,8 +253,26 @@ class V8_EXPORT_PRIVATE ScopeIterator {
                        ScopeType scope_type) const;
   void VisitScriptScope(const Visitor& visitor) const;
   void VisitModuleScope(const Visitor& visitor) const;
-  bool IsLocalInTdz(VariableMode mode, Tagged<Object> value,
-                    int initializer_position) const;
+  // Checks whether a local/register slot is currently in its temporal dead
+  // zone. When hole-initialization bytecodes are elided
+  // (var.is_hole_initialization_elided), this uses the static source position
+  // heuristic (GetSourcePosition() <= var.initializer_position). Note:
+  // 1. Switch statements: ParserBase::ParseSwitchStatement forces hole
+  //    initialization for all lexical locals in a switch scope so
+  //    var.is_hole_initialization_elided is false and bytecode always emits
+  //    explicit LdaTdzHole at scope entry. Uninitialized switch locals
+  //    therefore always hold an actual TdzHole, and an `undefined` runtime
+  //    value is always an initialized value.
+  // 2. Multi-binding destructuring: When hole initialization is elided,
+  //    IsLocalInTdz intentionally uses the lightweight static
+  //    GetSourcePosition() <= var.initializer_position heuristic rather than
+  //    scanning bytecode. For multi-binding destructuring patterns (e.g.
+  //    `let [a, b = (debugger, 2)] = [undefined]`), the parser assigns the end
+  //    position of the entire declaration to all bindings in the pattern, so
+  //    earlier bindings initialized to `undefined` conservatively appear as
+  //    unavailable until the declaration finishes. This is working as
+  //    intended.
+  bool IsLocalInTdz(const DebugVariableInfo& var, Tagged<Object> value) const;
   bool VisitLocals(const Visitor& visitor, Mode mode,
                    ScopeType scope_type) const;
   bool VisitContextLocals(const Visitor& visitor,

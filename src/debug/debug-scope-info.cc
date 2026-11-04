@@ -121,7 +121,8 @@ using VariableLocationBits = base::BitField<VariableLocation, 0, 4, uint16_t>;
 using VariableModeBits = VariableLocationBits::Next<VariableMode, 4>;
 using IsSyntheticBit = VariableModeBits::Next<bool, 1>;
 using IsReceiverBit = IsSyntheticBit::Next<bool, 1>;
-static_assert(IsReceiverBit::kLastUsedBit < 16);
+using IsHoleInitializationElidedBit = IsReceiverBit::Next<bool, 1>;
+static_assert(IsHoleInitializationElidedBit::kLastUsedBit < 16);
 
 // Encodes receiver, arguments, or function variable allocation info into a
 // 32-bit word:
@@ -444,6 +445,8 @@ DebugVariableInfo DebugScriptScope::variable(int index) const {
       .initializer_position = entry.initializer_position,
       .is_synthetic = IsSyntheticBit::decode(entry.location_mode_flags),
       .is_receiver = IsReceiverBit::decode(entry.location_mode_flags),
+      .is_hole_initialization_elided =
+          IsHoleInitializationElidedBit::decode(entry.location_mode_flags),
   };
 }
 
@@ -640,11 +643,16 @@ Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
       // Variable::IsReceiver() asserts IsParameter() in debug builds.
       bool is_receiver = var->IsParameter() && var->IsReceiver();
       // LINT.ThenChange(/src/ast/variables.h:VariableIsReceiver)
+      bool is_hole_initialization_elided =
+          var->initialization_flag() == kNeedsInitialization &&
+          !var->binding_needs_init();
       uint16_t var_flags = 0;
       var_flags = VariableLocationBits::update(var_flags, var->location());
       var_flags = VariableModeBits::update(var_flags, var->mode());
       var_flags = IsSyntheticBit::update(var_flags, is_synthetic);
       var_flags = IsReceiverBit::update(var_flags, is_receiver);
+      var_flags = IsHoleInitializationElidedBit::update(
+          var_flags, is_hole_initialization_elided);
 
       writer.Write<DebugVariableEntry>(DebugVariableEntry{
           .slot_index = var->index(),
