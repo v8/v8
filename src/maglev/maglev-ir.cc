@@ -8356,10 +8356,11 @@ void RetainConstantTypedArrayBuffer(MaglevAssembler* masm,
                                     compiler::JSTypedArrayRef typed_array) {
   // The constant typed array comes from a constant-folded source (property
   // cell, const field, ...) which holds it strongly, and the code depends on
-  // that source not changing. So the buffer behind the embedded data pointer
-  // cannot die while this code is valid. Embed the buffer anyway as defense in
-  // depth: with this weak reference, the code is deoptimized when the buffer
-  // dies.
+  // that source not changing. So the typed array and the buffer behind the
+  // embedded data pointer cannot die while this code is valid. Embed both
+  // anyway as defense in depth: with these weak references, the code is
+  // deoptimized when the typed array or its buffer dies.
+  masm->code_gen_state()->Retain(typed_array.object());
   masm->code_gen_state()->Retain(
       typed_array.buffer(masm->compilation_info()->broker()).object());
 }

@@ -4125,8 +4125,11 @@ JSNativeContextSpecialization::
         simplified()->CheckIf(DeoptimizeReason::kArrayBufferWasDetached), check,
         effect, control);
 
-    // Retain the {buffer} instead of {receiver} to reduce live ranges.
-    buffer_or_receiver = buffer;
+    // Retain the {buffer} instead of {receiver} to reduce live ranges, unless
+    // {receiver} is a constant JSTypedArray (which must stay retained too).
+    if (!typed_array.has_value()) {
+      buffer_or_receiver = buffer;
+    }
   }
 
   enum Situation { kBoundsCheckDone, kHandleOOB_SmiAndRangeCheckComputed };
