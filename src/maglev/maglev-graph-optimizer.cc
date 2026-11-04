@@ -1173,7 +1173,14 @@ ProcessResult MaglevGraphOptimizer::VisitCheckNotUndefined(
 
 ProcessResult MaglevGraphOptimizer::VisitCheckHoleyFloat64NotHoleOrUndefined(
     CheckHoleyFloat64NotHoleOrUndefined* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  ValueNode* input = node->input_node(0);
+  if (std::optional<Float64> cst = reducer_.TryGetHoleyFloat64Constant(
+          input, NodeType::kNumberOrOddball)) {
+    return RemoveCheckOrDeopt(!cst->is_undefined_or_hole_nan(),
+                              DeoptimizeReason::kHoleOrUndefined);
+  }
+  REMOVE_AND_RETURN_IF_DONE(reducer_.EnsureType(
+      input, NodeType::kNumber, DeoptimizeReason::kHoleOrUndefined));
   return ProcessResult::kContinue;
 }
 #define VISIT_CHECK(Type)                                 \

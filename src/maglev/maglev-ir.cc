@@ -840,6 +840,10 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
     case ValueRepresentation::kIntPtr:
       return NodeType::kNumber;
     case ValueRepresentation::kHoleyFloat64:
+      if (const HoleyFloat64Constant* cst = TryCast<HoleyFloat64Constant>()) {
+        return cst->value().is_undefined_or_hole_nan() ? NodeType::kUndefined
+                                                       : NodeType::kNumber;
+      }
       return NodeType::kNumberOrOddball;
     case ValueRepresentation::kTagged:
       break;

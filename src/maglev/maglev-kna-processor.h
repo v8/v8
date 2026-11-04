@@ -349,6 +349,10 @@ class RecomputeKnownNodeAspectsProcessor {
     return ProcessResult::kContinue;
   }
 
+  ProcessResult ProcessNode(CheckHoleyFloat64NotHoleOrUndefined* node) {
+    return RecordType(node->input_node(0), NodeType::kNumber);
+  }
+
 #define SAFE_CONVERSION_LIST(V)                                            \
   V(CheckedSmiUntag, int32, Smi)                                           \
   V(CheckedSmiTagInt32, tagged, Smi)                                       \

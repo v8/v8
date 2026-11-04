@@ -3668,7 +3668,14 @@ ReduceResult MaglevGraphBuilder::BuildCheckStringOrOddball(ValueNode* object) {
 ReduceResult MaglevGraphBuilder::BuildCheckNumber(ValueNode* object) {
   RETURN_IF_DONE(reducer_.EnsureType(object, NodeType::kNumber,
                                      DeoptimizeReason::kNotANumber));
-  return AddNewNode<CheckNumber>({object}, Object::Conversion::kToNumber);
+  if (object->is_holey_float64()) {
+    DCHECK(!object->Is<HoleyFloat64Constant>());
+    return AddNewNodeNoInputConversion<CheckHoleyFloat64NotHoleOrUndefined>(
+        {object});
+  }
+  DCHECK(object->is_tagged());
+  return AddNewNodeNoInputConversion<CheckNumber>(
+      {object}, Object::Conversion::kToNumber);
 }
 
 ReduceResult MaglevGraphBuilder::BuildCheckSymbol(ValueNode* object) {
