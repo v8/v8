@@ -1556,8 +1556,10 @@ void Debug::PrepareStepOnThrow() {
         // functions, we have to check each one for the handler.
         // If it only contains one function, we already found the handler.
         if (summaries.size() > 1) {
+          if (!summary.IsJavaScript()) continue;
           DirectHandle<AbstractCode> code =
               summary.AsJavaScript().abstract_code();
+          if (code->kind() == CodeKind::BUILTIN) continue;
           CHECK_EQ(CodeKind::INTERPRETED_FUNCTION, code->kind());
           HandlerTable table(code->GetBytecodeArray());
           int code_offset = summary.code_offset();
@@ -1575,8 +1577,10 @@ void Debug::PrepareStepOnThrow() {
             current_frame_count > thread_local_.target_frame_count_) {
           continue;
         }
+        if (!summary.IsJavaScript()) continue;
         Handle<SharedFunctionInfo> info(
             summary.AsJavaScript().function()->shared(), isolate_);
+        if (!info->IsSubjectToDebugging()) continue;
         if (IsBlackboxed(info)) continue;
         FloodWithOneShot(info);
         return;
