@@ -85,7 +85,8 @@ class Graph final : public ZoneObject {
         heap_constants_(zone()),
         trusted_constants_(zone()),
         inlined_functions_(zone()),
-        inlining_tree_debug_info_(nullptr) {}
+        inlining_tree_debug_info_(nullptr),
+        kna_pool_(zone()) {}
 
   BasicBlock* operator[](int i) { return blocks_[i]; }
   const BasicBlock* operator[](int i) const { return blocks_[i]; }
@@ -386,6 +387,8 @@ class Graph final : public ZoneObject {
   void ExtractOptimizedCodeCoverage();
 #endif
 
+  KnownNodeAspects::KNAPool* kna_pool() { return &kna_pool_; }
+
  private:
   MaglevCompilationInfo* compilation_info_;
   uint32_t tagged_stack_slots_ = kMaxUInt32;
@@ -419,6 +422,7 @@ class Graph final : public ZoneObject {
   ZoneVector<OptimizedCompilationInfo::InlinedFunctionHolder>
       inlined_functions_;
   InliningTreeDebugInfo* inlining_tree_debug_info_;
+  KnownNodeAspects::KNAPool kna_pool_;
 
   bool has_recursive_calls_ = false;
   int total_inlined_bytecode_size_ = 0;

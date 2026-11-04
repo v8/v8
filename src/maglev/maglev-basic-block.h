@@ -140,7 +140,15 @@ class BasicBlock {
 
   bool is_dead() const { return is_dead_; }
 
-  void mark_dead() { is_dead_ = true; }
+  void mark_dead() {
+    is_dead_ = true;
+    if (has_state()) {
+      if (state_->is_loop()) {
+        state_->AsLoopHeader()->ClearBackedgeKnownNodeAspects();
+      }
+      state_->ClearKnownNodeAspects();
+    }
+  }
 
   Phi::List* phis() const {
     DCHECK(has_phi());

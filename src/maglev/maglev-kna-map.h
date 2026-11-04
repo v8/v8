@@ -43,7 +43,12 @@ class KnaMap {
   using iterator = typename ZoneMap<Key, Value>::iterator;
   using const_iterator = typename ZoneMap<Key, Value>::const_iterator;
 
-  explicit KnaMap(Zone* zone) : map_(zone) {}
+  struct Pool {
+    explicit Pool(Zone* z) : zone(z) {}
+    Zone* zone = nullptr;
+  };
+
+  explicit KnaMap(Pool* pool) : map_(pool->zone) {}
   KnaMap(const KnaMap& other) V8_NOEXCEPT = default;
   template <typename Func>
   KnaMap(const KnaMap& other, Func&& mutate) : KnaMap(other) {

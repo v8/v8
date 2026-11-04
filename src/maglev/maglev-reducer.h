@@ -300,9 +300,11 @@ template <typename BaseT>
 concept ReducerBaseWithKNA = requires(BaseT* b) { b->known_node_aspects(); };
 
 template <typename BaseT>
-concept ReducerBaseWithKNASetter = requires(BaseT* b, KnownNodeAspects* kna) {
-  b->set_known_node_aspects(kna);
-};
+concept ReducerBaseWithKNASetter =
+    requires(BaseT* b, KnownNodeAspects::Ptr kna) {
+      { b->TakeKnownNodeAspects() } -> std::same_as<KnownNodeAspects::Ptr>;
+      b->set_known_node_aspects(std::move(kna));
+    };
 
 // Bases that can emit eager deopting nodes provide both an eager deopt frame
 // and a predicate telling whether one is available at the current position.
@@ -1770,9 +1772,13 @@ class MaglevReducer {
     static_assert(ReducerBaseWithKNA<BaseT>);
     return base_->known_node_aspects();
   }
-  void set_known_node_aspects(KnownNodeAspects* kna) {
+  KnownNodeAspects::Ptr TakeKnownNodeAspects() {
     static_assert(ReducerBaseWithKNASetter<BaseT>);
-    base_->set_known_node_aspects(kna);
+    return base_->TakeKnownNodeAspects();
+  }
+  void set_known_node_aspects(KnownNodeAspects::Ptr kna) {
+    static_assert(ReducerBaseWithKNASetter<BaseT>);
+    base_->set_known_node_aspects(std::move(kna));
   }
 
   friend class Subgraph<BaseT>;

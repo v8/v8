@@ -610,27 +610,28 @@ void MaglevGraphBuilder::MaglevSubGraphBuilder::
     TakeKnownNodeAspectsAndVOsFromParent() {
   DCHECK_NULL(variable_frame_.known_node_aspects());
   variable_frame_.set_known_node_aspects(
-      builder_->current_interpreter_frame_.known_node_aspects());
+      builder_->current_interpreter_frame_.TakeKnownNodeAspects());
 }
 
 void MaglevGraphBuilder::MaglevSubGraphBuilder::
     MoveKnownNodeAspectsAndVOsToParent() {
   DCHECK_NOT_NULL(variable_frame_.known_node_aspects());
   builder_->current_interpreter_frame_.set_known_node_aspects(
-      variable_frame_.known_node_aspects());
-  variable_frame_.clear_known_node_aspects();
+      variable_frame_.TakeKnownNodeAspects());
 }
 
 void MaglevGraphBuilder::MaglevSubGraphBuilder::MergeIntoLabel(
     Label* label, BasicBlock* predecessor) {
-  BorrowParentKnownNodeAspectsAndVOs borrow(this);
   if (label->variable_merge_state_ == nullptr) {
     // If there's no merge state, allocate a new one.
     DCHECK_NULL(label->merge_state_);
-    label->variable_merge_state_ = MergePointInterpreterFrameState::New(
-        *dummy_unit_, variable_frame_, 0, label->predecessor_count_,
-        predecessor, label->variable_liveness_,
-        builder_->GetCurrentScopeInfo());
+    {
+      BorrowParentKnownNodeAspectsAndVOs borrow(this);
+      label->variable_merge_state_ = MergePointInterpreterFrameState::New(
+          *dummy_unit_, variable_frame_, 0, label->predecessor_count_,
+          predecessor, label->variable_liveness_,
+          builder_->GetCurrentScopeInfo());
+    }
     if (label->ShouldTrackInterpreterFrameState()) {
       label->merge_state_ = MergePointInterpreterFrameState::New(
           *compilation_unit(), builder_->current_interpreter_frame_, 0,
@@ -641,9 +642,12 @@ void MaglevGraphBuilder::MaglevSubGraphBuilder::MergeIntoLabel(
 
   } else {
     // If there already is a frame state, merge.
-    label->variable_merge_state_->Merge(
-        builder_->graph(), builder_->is_tracing(), *dummy_unit_,
-        variable_frame_, predecessor, builder_->GetCurrentScopeInfo());
+    {
+      BorrowParentKnownNodeAspectsAndVOs borrow(this);
+      label->variable_merge_state_->Merge(
+          builder_->graph(), builder_->is_tracing(), *dummy_unit_,
+          variable_frame_, predecessor, builder_->GetCurrentScopeInfo());
+    }
     if (label->ShouldTrackInterpreterFrameState()) {
       DCHECK_NOT_NULL(label->merge_state_);
       label->merge_state_->Merge(builder_->graph(), builder_->is_tracing(),
@@ -680,14 +684,12 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
       // Overallocate merge_states_ by one to allow always looking up the
       // next offset. This overallocated slot can also be used for the inline
       // exit when needed.
-      merge_states_(zone()->AllocateArray<MergePointInterpreterFrameState*>(
-          bytecode().length() + 1)),
+      merge_states_(bytecode().length() + 1, zone()),
       register_scope_infos_(*compilation_unit_),
       current_interpreter_frame_(
           *compilation_unit_,
-          is_inline() ? caller_details->known_node_aspects
-                      : compilation_unit_->zone()->New<KnownNodeAspects>(
-                            compilation_unit_->zone())),
+          is_inline() ? std::move(caller_details->known_node_aspects)
+                      : KnownNodeAspects::New(graph_->kna_pool())),
       is_turbolev_(compilation_unit->info()->is_turbolev()),
       entrypoint_(compilation_unit->is_osr()
                       ? bytecode_analysis_.osr_entry_point()
@@ -714,8 +716,6 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
       graph_->set_inlining_tree_debug_info(current_inlining_tree_debug_info_);
     }
   }
-  memset(merge_states_, 0,
-         (bytecode().length() + 1) * sizeof(InterpreterFrameState*));
   // Default construct basic block refs.
   // TODO(leszeks): This could be a memset of nullptr to ..._jump_targets_.
   for (int i = 0; i < bytecode().length(); ++i) {
@@ -728,7 +728,6 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
     // The allocation/initialisation logic here relies on inline_exit_offset
     // being the offset one past the end of the bytecode.
     DCHECK_EQ(inline_exit_offset(), bytecode().length());
-    merge_states_[inline_exit_offset()] = nullptr;
     new (&jump_targets_[inline_exit_offset()]) BasicBlockRef();
     if (caller_details->loop_effects) {
       loop_effects_ = caller_details->loop_effects;
@@ -7814,7 +7813,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
   // Creating the CallKnownJSFUnction node will conservatively clear the
   // unstable maps from the KNA. So, we save them before doing this, since this
   // could clear maps that don't need to be cleared.
-  KnownNodeAspects* call_aspects = known_node_aspects().Clone(zone());
+  KnownNodeAspects::Ptr call_aspects = known_node_aspects().Clone();
 
   CallKnownJSFunction* generic_call;
   GET_VALUE_OR_ABORT(generic_call, BuildCallKnownJSFunction(
@@ -7833,12 +7832,14 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
   float score =
       (call_frequency / bytecode.length()) * (IsInsideLoop() ? 1.5 : 1.0);
   MaglevCallSiteInfo* call_site = zone()->New<MaglevCallSiteInfo>(
-      MaglevCallerDetails{
-          arguments, &generic_call->lazy_deopt_info()->top_frame(),
-          call_aspects, loop_effects_, unobserved_context_slot_stores_,
-          catch_details, GetLoopDepth(), peeled_iteration_count_,
-          /* is_eager_inline */ false, /* is_small_function */ false,
-          call_frequency, current_inlining_tree_debug_info_},
+      MaglevCallerDetails{arguments,
+                          &generic_call->lazy_deopt_info()->top_frame(),
+                          std::move(call_aspects), loop_effects_,
+                          unobserved_context_slot_stores_, catch_details,
+                          GetLoopDepth(), peeled_iteration_count_,
+                          /* is_eager_inline */ false,
+                          /* is_small_function */ false, call_frequency,
+                          current_inlining_tree_debug_info_},
       generic_call, feedback_cell, score, bytecode.length());
   TRACE_INLINING(TracePush(shared)
                  << "Score: " << std::right << std::setw(6) << std::fixed
@@ -7876,7 +7877,7 @@ ReduceResult MaglevGraphBuilder::BuildEagerInlineCall(
       GetDeoptFrameForEagerCall(inner_unit, function, arguments_vector);
   MaglevCallerDetails* caller_details = zone()->New<MaglevCallerDetails>(
       arguments_vector, deopt_frame,
-      current_interpreter_frame_.known_node_aspects(), loop_effects_,
+      current_interpreter_frame_.TakeKnownNodeAspects(), loop_effects_,
       unobserved_context_slot_stores_, catch_block_details, GetLoopDepth(),
       peeled_iteration_count_,
       /* is_eager_inline */ true, /* is_small_function */ true, call_frequency,
@@ -7904,15 +7905,15 @@ ReduceResult MaglevGraphBuilder::BuildEagerInlineCall(
     should_abort_compilation_ = true;
   }
 
+  // Propagate frame information back to the caller.
+  current_interpreter_frame_.set_known_node_aspects(
+      inner_graph_builder.current_interpreter_frame_.TakeKnownNodeAspects());
+
   if (result.IsDoneWithAbort()) {
     DCHECK_NULL(inner_graph_builder.current_block());
     set_current_block(nullptr);
     return ReduceResult::DoneWithAbort();
   }
-
-  // Propagate frame information back to the caller.
-  current_interpreter_frame_.set_known_node_aspects(
-      inner_graph_builder.current_interpreter_frame_.known_node_aspects());
   if (inner_graph_builder.may_have_changed_maps()) {
     may_have_changed_maps_ = true;
     current_for_in_state.receiver_needs_map_check = true;
@@ -17023,7 +17024,7 @@ void MaglevGraphBuilder::ProcessMergePoint(int offset,
       iterator_.current_bytecode() == interpreter::Bytecode::kResumeGenerator,
       merge_state.context_scope_info() == GetCurrentScopeInfo());
   current_interpreter_frame_.CopyFrom(*compilation_unit_, merge_state,
-                                      preserve_known_node_aspects, zone());
+                                      preserve_known_node_aspects);
   SetCurrentScopeInfo(merge_state.context_scope_info());
 
   ProcessMergePointPredecessors(merge_state, jump_targets_[offset]);

@@ -5043,7 +5043,7 @@ void MaglevReducer<BaseT>::RecordKnownProperty(
     PropertyConstness constness, compiler::AccessMode access_mode) {
   DCHECK(!value->is_conversion());
   auto& props_for_key =
-      known_node_aspects().GetLoadedPropertiesForKey(zone(), constness, key);
+      known_node_aspects().GetLoadedPropertiesForKey(constness, key);
   if (constness == PropertyConstness::kMutable && IsAnyStore(access_mode)) {
     if constexpr (ReducerBaseWithLoopEffectTracking<BaseT>) {
       if (base_->loop_effects()) {

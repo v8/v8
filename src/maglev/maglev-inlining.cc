@@ -54,10 +54,25 @@ bool MaglevInliner::CanInlineCall() {
              flags_.max_inlined_bytecode_size_small_total;
 }
 
+namespace {
+class V8_NODISCARD ClearCallSiteKnaScope {
+ public:
+  explicit ClearCallSiteKnaScope(MaglevCallSiteInfo* call_site)
+      : call_site_(call_site) {}
+  ~ClearCallSiteKnaScope() {
+    call_site_->caller_details.known_node_aspects.reset();
+  }
+
+ private:
+  MaglevCallSiteInfo* call_site_;
+};
+}  // namespace
+
 bool MaglevInliner::InlineCallSites() {
   DCHECK(CanInlineCall());
   while (!graph_->inlineable_calls().empty()) {
     MaglevCallSiteInfo* call_site = ChooseNextCallSite();
+    ClearCallSiteKnaScope clear_kna(call_site);
 
     compiler::SharedFunctionInfoRef shared =
         call_site->generic_call_node->shared_function_info();
@@ -148,13 +163,25 @@ bool MaglevInliner::Run() {
   // Only the Turbolev pipeline runs the optimizer in a later phase.
   const bool always_run_optimizer = !graph_->compilation_info()->is_turbolev();
 
+  bool result = true;
   while (CanInlineCall()) {
     returned_constant_function_ = false;
-    if (!InlineCallSites()) return false;
+    if (!InlineCallSites()) {
+      result = false;
+      break;
+    }
     if (always_run_optimizer || returned_constant_function_) {
       RunOptimizer();
     }
   }
+
+  // If inlining stopped early (e.g. when the small-function budget was
+  // exhausted), release the remaining call sites' KnownNodeAspects back to the
+  // compilation's KNAPool before subsequent optimizer passes.
+  while (!graph_->inlineable_calls().empty()) {
+    ChooseNextCallSite()->caller_details.known_node_aspects.reset();
+  }
+  if (!result) return false;
 
   // Clear conversion, identities and ReturnedValues uses from deopt frames.
   graph_->UnwrapDeoptFrames();

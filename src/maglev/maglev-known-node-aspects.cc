@@ -427,7 +427,7 @@ void KnownNodeAspects::MergeForLoop(const KnownNodeAspects& backedge,
       });
 }
 
-void KnownNodeAspects::UnwrapIdentitiesAndPhisInKeys(Zone* zone) {
+void KnownNodeAspects::UnwrapIdentitiesAndPhisInKeys() {
   auto unwrap = [](ValueNode* node) -> ValueNode* {
     return node == nullptr ? nullptr : node->UnwrapIdentitiesAndPhis();
   };
@@ -636,25 +636,26 @@ void KnownNodeAspects::ClearUnstableNodeAspects(bool is_tracing_enabled) {
   may_have_aliasing_contexts_ = KnownNodeAspects::ContextSlotLoadsAlias::kNever;
 }
 
-KnownNodeAspects* KnownNodeAspects::CloneForLoopHeader(
-    bool optimistic, LoopEffects* loop_effects, Zone* zone) const {
-  return zone->New<KnownNodeAspects>(*this, optimistic, loop_effects, zone);
+KnownNodeAspects::Ptr KnownNodeAspects::CloneForLoopHeader(
+    bool optimistic, LoopEffects* loop_effects) const {
+  return pool_->New(*this, optimistic, loop_effects);
 }
 
 KnownNodeAspects::KnownNodeAspects(const KnownNodeAspects& other,
                                    bool optimistic_initial_state,
-                                   LoopEffects* loop_effects, Zone* zone)
-    : loaded_constant_properties_(other.loaded_constant_properties_),
-      loaded_properties_(zone),
-      loaded_tagged_keyed_properties_(zone),
+                                   LoopEffects* loop_effects)
+    : pool_(other.pool_),
+      loaded_constant_properties_(other.loaded_constant_properties_),
+      loaded_properties_(&pool_->loaded_property_pool),
+      loaded_tagged_keyed_properties_(&pool_->tagged_keyed_pool),
       loaded_context_constants_(other.loaded_context_constants_),
-      loaded_context_slots_(zone),
-      available_expressions_(zone),
+      loaded_context_slots_(&pool_->context_slots_pool),
+      available_expressions_(&pool_->available_expressions_pool),
       side_effects_require_invalidation_(false),
       may_have_aliasing_contexts_(
           KnownNodeAspects::ContextSlotLoadsAlias::kNever),
       effect_epoch_(other.effect_epoch_),
-      node_infos_(zone),
+      node_infos_(&pool_->node_infos_pool),
       virtual_objects_(other.virtual_objects_) {
   if (!other.side_effects_require_invalidation_) {
     node_infos_ = other.node_infos_;

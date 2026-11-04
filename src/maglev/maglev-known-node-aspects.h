@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "src/base/logging.h"
+#include "src/base/sanitizer/asan.h"
 #include "src/common/globals.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-kna-map.h"
@@ -367,34 +368,45 @@ class NodeInfo {
 };
 
 class KnownNodeAspects {
+  struct AvailableExpression {
+    NodeBase* node;
+    uint32_t effect_epoch;
+  };
+  using AvailableExpressionsMap = KnaMap<uint32_t, AvailableExpression>;
+  using TaggedKeyedPropertiesMap =
+      KnaMap<std::pair<ValueNode*, ValueNode*>, ValueNode*>;
+
  public:
   // Permanently valid if checked in a dominator.
   using NodeInfos = KnaMap<ValueNode*, NodeInfo>;
 
-  // Copy constructor is defaulted but private so that we explicitly call the
-  // Clone method.
+  struct KNAPool;
+  struct Deleter {
+    inline void operator()(KnownNodeAspects* kna) const noexcept;
+  };
+  using Ptr = std::unique_ptr<KnownNodeAspects, Deleter>;
+
+  static inline Ptr New(KNAPool* pool);
+
   KnownNodeAspects& operator=(const KnownNodeAspects& other) = delete;
   KnownNodeAspects(KnownNodeAspects&& other) = delete;
   KnownNodeAspects& operator=(KnownNodeAspects&& other) = delete;
 
-  KnownNodeAspects* Clone(Zone* zone) const {
-    return zone->New<KnownNodeAspects>(*this);
-  }
+  inline Ptr Clone() const;
 
   // Unwraps identities and single-input phis in the node-valued keys of the
   // aspect maps (node_infos_ keys, loaded-property object keys and context-slot
   // context keys), rebuilding them and combining node_infos entries whose keys
   // collide afterwards. Used at loop headers to normalize the cached backedge
   // KNA before merging it into the forward KNA.
-  void UnwrapIdentitiesAndPhisInKeys(Zone* zone);
+  void UnwrapIdentitiesAndPhisInKeys();
 
   // Loop headers can safely clone the node types, since those won't be
   // invalidated in the loop body, and similarly stable maps will have
   // dependencies installed. Unstable maps however might be invalidated by
   // calls, and we don't know about these until it's too late.
-  KnownNodeAspects* CloneForLoopHeader(bool optimistic_initial_state,
-                                       LoopEffects* loop_effects,
-                                       Zone* zone) const;
+  Ptr CloneForLoopHeader(bool optimistic_initial_state,
+                         LoopEffects* loop_effects) const;
 
   void ClearUnstableNodeAspectsForStoreMap(StoreMap* node,
                                            bool is_tracing_enabled);
@@ -595,15 +607,15 @@ class KnownNodeAspects {
     }
   }
 
-  PropertyObjectMap& GetLoadedPropertiesForKey(Zone* zone,
-                                               PropertyConstness constness,
+  PropertyObjectMap& GetLoadedPropertiesForKey(PropertyConstness constness,
                                                PropertyKey key) {
     LoadedPropertyMap& properties = constness == PropertyConstness::kConst
                                         ? loaded_constant_properties_
                                         : loaded_properties_;
     // Try to get loaded_properties[key] if it already exists, otherwise
-    // construct loaded_properties[key] = PropertyObjectMap{zone}.
-    return properties.try_emplace(key, zone).first->second;
+    // construct loaded_properties[key] = PropertyObjectMap{pool}.
+    return properties.try_emplace(key, &pool_->property_object_pool)
+        .first->second;
   }
 
   bool ClearLoadedPropertiesForKey(PropertyKey key) {
@@ -834,18 +846,57 @@ class KnownNodeAspects {
   void Print(std::ostream& os) const;
   void Print() const { return Print(std::cout); }
 
-  explicit KnownNodeAspects(Zone* zone)
-      : loaded_constant_properties_(zone),
-        loaded_properties_(zone),
-        loaded_tagged_keyed_properties_(zone),
-        loaded_context_constants_(zone),
-        loaded_context_slots_(zone),
-        available_expressions_(zone),
-        side_effects_require_invalidation_(false),
-        may_have_aliasing_contexts_(ContextSlotLoadsAlias::kNever),
-        effect_epoch_(0),
-        node_infos_(zone),
-        virtual_objects_() {}
+  // Shared per-compilation pool container for KnownNodeAspects and its KnaMap
+  // instances, allowing destroyed or merged KnownNodeAspects to recycle storage
+  // across basic blocks.
+  struct KNAPool {
+    explicit KNAPool(Zone* zone)
+        : zone(zone),
+          node_infos_pool(zone),
+          property_object_pool(zone),
+          loaded_property_pool(zone),
+          tagged_keyed_pool(zone),
+          context_slots_pool(zone),
+          available_expressions_pool(zone) {}
+
+    template <typename... Args>
+    Ptr New(Args&&... args) {
+      void* mem;
+      if (free_kna != nullptr) {
+        mem = free_kna;
+        free_kna = free_kna->next;
+        ASAN_UNPOISON_MEMORY_REGION(
+            reinterpret_cast<char*>(mem) + sizeof(FreeKna),
+            sizeof(KnownNodeAspects) - sizeof(FreeKna));
+      } else {
+        mem = zone->Allocate<KnownNodeAspects>(sizeof(KnownNodeAspects));
+      }
+      return Ptr(new (mem) KnownNodeAspects(std::forward<Args>(args)...));
+    }
+
+    void Free(KnownNodeAspects* kna) noexcept {
+      static_assert(sizeof(KnownNodeAspects) >= sizeof(FreeKna));
+      static_assert(alignof(KnownNodeAspects) >= alignof(FreeKna));
+      static_assert(alignof(KnownNodeAspects) <= 8);
+      free_kna = new (kna) FreeKna{free_kna};
+      ASAN_POISON_MEMORY_REGION(
+          reinterpret_cast<char*>(free_kna) + sizeof(FreeKna),
+          sizeof(KnownNodeAspects) - sizeof(FreeKna));
+    }
+
+    struct FreeKna {
+      FreeKna* next;
+    };
+
+    Zone* zone;
+    FreeKna* free_kna = nullptr;
+    NodeInfos::Pool node_infos_pool;
+    PropertyObjectMap::Pool property_object_pool;
+    LoadedPropertyMap::Pool loaded_property_pool;
+    TaggedKeyedPropertiesMap::Pool tagged_keyed_pool;
+    LoadedContextSlots::Pool context_slots_pool;
+    AvailableExpressionsMap::Pool available_expressions_pool;
+  };
 
  private:
   EnsureTypeResult EnsureTypeHelper(
@@ -880,14 +931,6 @@ class KnownNodeAspects {
       std::numeric_limits<uint32_t>::max();
   static constexpr uint32_t kEffectEpochOverflow =
       kEffectEpochForPureInstructions - 1;
-
-  struct AvailableExpression {
-    NodeBase* node;
-    uint32_t effect_epoch;
-  };
-  using AvailableExpressionsMap = KnaMap<uint32_t, AvailableExpression>;
-  using TaggedKeyedPropertiesMap =
-      KnaMap<std::pair<ValueNode*, ValueNode*>, ValueNode*>;
 
   // These can call GetTypeUnchecked directly. Other uses should ideally go
   // through MaglevReducer::GetType or similar and add type assertions if
@@ -932,6 +975,7 @@ class KnownNodeAspects {
     return actual_type;
   }
 
+  KNAPool* pool_;
   // Valid across side-effecting calls, as long as we install a dependency.
   LoadedPropertyMap loaded_constant_properties_;
   // Flushed after side-effecting calls.
@@ -961,15 +1005,26 @@ class KnownNodeAspects {
   NodeInfos node_infos_;
   VirtualObjectList virtual_objects_;
 
-  friend KnownNodeAspects* Zone::New<KnownNodeAspects, const KnownNodeAspects&>(
-      const KnownNodeAspects&);
+  friend struct KNAPool;
+  explicit KnownNodeAspects(KNAPool* pool)
+      : pool_(pool),
+        loaded_constant_properties_(&pool_->loaded_property_pool),
+        loaded_properties_(&pool_->loaded_property_pool),
+        loaded_tagged_keyed_properties_(&pool_->tagged_keyed_pool),
+        loaded_context_constants_(&pool_->context_slots_pool),
+        loaded_context_slots_(&pool_->context_slots_pool),
+        available_expressions_(&pool_->available_expressions_pool),
+        side_effects_require_invalidation_(false),
+        may_have_aliasing_contexts_(ContextSlotLoadsAlias::kNever),
+        effect_epoch_(0),
+        node_infos_(&pool_->node_infos_pool),
+        virtual_objects_() {}
+  // Copy constructor is defaulted but private so that we explicitly call the
+  // Clone method.
   KnownNodeAspects(const KnownNodeAspects& other) V8_NOEXCEPT = default;
-  // Copy constructor for CloneForLoopHeader
-  friend KnownNodeAspects* Zone::New<KnownNodeAspects, const KnownNodeAspects&,
-                                     bool&, LoopEffects*&, Zone*&>(
-      const KnownNodeAspects&, bool&, maglev::LoopEffects*&, Zone*&);
+  // Copy constructor for CloneForLoopHeader.
   KnownNodeAspects(const KnownNodeAspects& other, bool optimistic_initial_state,
-                   LoopEffects* loop_effects, Zone* zone);
+                   LoopEffects* loop_effects);
 
   ValueNode* TryFindLoadedProperty(const LoadedPropertyMap& properties,
                                    ValueNode* lookup_start_object,
@@ -1042,6 +1097,22 @@ class KnownNodeAspects {
     return it != node_infos_.end();
   }
 };
+
+inline void KnownNodeAspects::Deleter::operator()(
+    KnownNodeAspects* kna) const noexcept {
+  KNAPool* pool = kna->pool_;
+  kna->~KnownNodeAspects();
+  pool->Free(kna);
+}
+
+// static
+inline KnownNodeAspects::Ptr KnownNodeAspects::New(KNAPool* pool) {
+  return pool->New(pool);
+}
+
+inline KnownNodeAspects::Ptr KnownNodeAspects::Clone() const {
+  return pool_->New(*this);
+}
 
 std::ostream& operator<<(std::ostream& os, const KnownNodeAspects& aspects);
 

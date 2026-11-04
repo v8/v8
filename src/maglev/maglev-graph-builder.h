@@ -64,7 +64,7 @@ struct CatchBlockDetails {
 struct MaglevCallerDetails {
   base::Vector<ValueNode*> arguments;
   DeoptFrame* deopt_frame;
-  KnownNodeAspects* known_node_aspects;
+  KnownNodeAspects::Ptr known_node_aspects;
   LoopEffects* loop_effects;
   ZoneUnorderedMap<KnownNodeAspects::LoadedContextSlotsKey, Node*>
       unobserved_context_slot_stores;
@@ -1938,8 +1938,46 @@ class MaglevGraphBuilder {
   // TODO(leszeks): Allow having a stack of these.
   ForInState current_for_in_state = ForInState();
 
+  // Owns the active KnownNodeAspects on a merge state slot in `merge_states_`,
+  // automatically releasing its pooled storage when the slot is overwritten
+  // (e.g., when resetting a loop header's merge state in `BuildLoopHeader` or
+  // loop peeling after its forward KNA was already taken) or when the
+  // MaglevGraphBuilder is destroyed.
+  class MergeStatePtr {
+   public:
+    MergeStatePtr() = default;
+    MergeStatePtr(MergePointInterpreterFrameState* state)  // NOLINT
+        : state_(state) {}
+    ~MergeStatePtr() { Clear(); }
+    MergeStatePtr(const MergeStatePtr&) = delete;
+    MergeStatePtr& operator=(const MergeStatePtr&) = delete;
+    MergeStatePtr& operator=(MergePointInterpreterFrameState* state) {
+      if (state_ != state) {
+        Clear();
+        state_ = state;
+      }
+      return *this;
+    }
+
+    operator MergePointInterpreterFrameState*() const { return state_; }
+    MergePointInterpreterFrameState* operator->() const { return state_; }
+    MergePointInterpreterFrameState& operator*() const { return *state_; }
+
+   private:
+    void Clear() {
+      if (state_ != nullptr) {
+        // Only clear `known_node_aspects_`; `backedge_known_node_aspects_` on
+        // merged loop headers is retained on the basic block's state for later
+        // `RecomputeKnownNodeAspectsProcessor` passes.
+        state_->ClearKnownNodeAspects();
+      }
+    }
+
+    MergePointInterpreterFrameState* state_ = nullptr;
+  };
+
   BasicBlockRef* jump_targets_;
-  MergePointInterpreterFrameState** merge_states_;
+  ZoneVector<MergeStatePtr> merge_states_;
 
   RegisterFrameArray<ContextScopeInfo> register_scope_infos_;
   ContextScopeInfo accumulator_scope_info_;
