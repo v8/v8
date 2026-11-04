@@ -846,6 +846,29 @@ void ThrowTypeError(v8::Isolate* isolate, std::string_view message) {
                               static_cast<int>(message.size()))
           .ToLocalChecked()));
 }
+
+bool ValidateWatchedObject(v8::Isolate* isolate, v8::Local<v8::Value> value,
+                           i::DirectHandle<i::HeapObject>* out_object) {
+  if (!i::TryCast(Utils::OpenDirectHandle(*value), out_object)) {
+    ThrowTypeError(isolate, "First argument must be an object");
+    return false;
+  }
+  if (i::HeapLayout::InReadOnlySpace(**out_object)) {
+    ThrowTypeError(isolate, "First argument must not be a read-only object");
+    return false;
+  }
+  bool is_free_space_or_filler;
+  {
+    IgnoreWatchpointsScope ignore_watchpoints;
+    is_free_space_or_filler = i::IsFreeSpaceOrFiller(**out_object);
+  }
+  if (is_free_space_or_filler) {
+    ThrowTypeError(isolate,
+                   "First argument must not be a free-space or filler object");
+    return false;
+  }
+  return true;
+}
 }  // namespace
 
 void SetHardwareWatchpointCallback(
@@ -859,23 +882,48 @@ void SetHardwareWatchpointCallback(
   }
 
   i::DirectHandle<i::HeapObject> object;
-  if (!i::TryCast(Utils::OpenDirectHandle(*info[0]), &object)) {
-    ThrowTypeError(isolate, "First argument must be an object");
-    return;
-  }
-  if (i::HeapLayout::InReadOnlySpace(*object)) {
-    ThrowTypeError(isolate, "First argument must not be a read-only object");
+  if (!ValidateWatchedObject(isolate, info[0], &object)) {
     return;
   }
 
-  int32_t offset;
+  int32_t offset = 0;
+  std::optional<SafeUtf8Value> field_name;
   if (!info[1]->IsInt32() || !info[1]->Int32Value(context).To(&offset)) {
-    SafeUtf8Value field_name(isolate, info[1]);
-    if (!field_name) return;
+    field_name.emplace(isolate, info[1]);
+    if (!*field_name) return;
 
-    i::InstanceType instance_type = object->map()->instance_type();
+    // String conversion may execute user JavaScript, which can left-trim the
+    // object (and clear the handle slot on GC) or modify its map.
+    if (!ValidateWatchedObject(isolate, info[0], &object)) {
+      return;
+    }
+  }
+
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  int num_gcs = 0;
+  while (i::HeapLayout::InYoungGeneration(*object)) {
+    CHECK_LE(++num_gcs, 2);  // Should be promoted in <= 2 GCs.
+    TRACE("[d8] Running minor GC to promote object to old space\n");
+    {
+      IgnoreWatchpointsScope ignore_watchpoints;
+      i_isolate->heap()->PreciseCollectAllGarbage(
+          i::GCFlag::kForced, i::GarbageCollectionReason::kRuntime);
+    }
+    // GC may shortcut strings (e.g. a ThinString to a read-only string) or
+    // update the handle slot.
+    if (!ValidateWatchedObject(isolate, info[0], &object)) {
+      return;
+    }
+  }
+
+  if (field_name.has_value()) {
+    i::InstanceType instance_type;
+    {
+      IgnoreWatchpointsScope ignore_watchpoints;
+      instance_type = object->map()->instance_type();
+    }
     if (std::optional<int> offset_from_name = i::SandboxTesting::GetFieldOffset(
-            isolate, instance_type, *field_name)) {
+            isolate, instance_type, **field_name)) {
       offset = offset_from_name.value();
     } else {
       DCHECK(isolate->HasPendingException());
@@ -904,16 +952,8 @@ void SetHardwareWatchpointCallback(
     return;
   }
 
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  int num_gcs = 0;
-  while (i::HeapLayout::InYoungGeneration(*object)) {
-    CHECK_LE(++num_gcs, 2);  // Should be promoted in <= 2 GCs.
-    TRACE("[d8] Running minor GC to promote object to old space\n");
-    i_isolate->heap()->PreciseCollectAllGarbage(
-        i::GCFlag::kForced, i::GarbageCollectionReason::kRuntime);
-  }
-
   i::Address watch_addr = object->address() + offset;
+  DCHECK_EQ(0, watch_addr % i::kTaggedSize);
 
   int watchpoint_idx = 0;
   while (uintptr_t address =
