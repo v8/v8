@@ -1307,6 +1307,14 @@ MaybeLocal<Value> CallFunctionOn(Local<Context> context,
   return api_scope.EscapeMaybe(result);
 }
 
+void ThrowSideEffectError(Local<Context> context) {
+  auto isolate = i::Isolate::Current();
+  PrepareForDebugInterfaceExecutionScope api_scope(isolate, context);
+  i::DisableBreak disable_break_scope(isolate->debug());
+  isolate->Throw(*isolate->factory()->NewEvalError(
+      i::MessageTemplate::kNoSideEffectDebugEvaluate));
+}
+
 MaybeLocal<v8::Value> EvaluateGlobal(v8::Isolate* isolate,
                                      v8::Local<v8::String> source,
                                      EvaluateGlobalMode mode, bool repl) {

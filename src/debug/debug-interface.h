@@ -581,6 +581,8 @@ MaybeLocal<Value> CallFunctionOn(Local<Context> context,
                                  base::Vector<Local<Value>> args,
                                  bool throw_on_side_effect);
 
+V8_EXPORT_PRIVATE void ThrowSideEffectError(Local<Context> context);
+
 enum class EvaluateGlobalMode {
   kDefault,
   kDisableBreaks,
