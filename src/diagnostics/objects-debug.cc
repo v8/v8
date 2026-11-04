@@ -3437,11 +3437,19 @@ void WasmImportData::WasmImportDataVerify(Isolate* isolate) {
 }
 
 void WasmInternalFunction::WasmInternalFunctionVerify(Isolate* isolate) {
+  ExposedTrustedObjectVerify(isolate);
   CHECK(Is<WasmInternalFunction>(this));
+  Object::VerifyPointer(isolate, protected_implicit_arg_.load());
+  CHECK(IsWasmTrustedInstanceData(protected_implicit_arg_.load()) ||
+        IsWasmImportData(protected_implicit_arg_.load()));
   Object::VerifyPointer(isolate, external_.load());
   CHECK(IsUndefined(external_.load()) || IsJSFunction(external_.load()));
   Object::VerifyPointer(isolate, function_index_.load());
   CHECK(IsSmi(function_index_.load()));
+  if (!v8_flags.wasm_jitless) {
+    CHECK_NE(call_target(), wasm::kInvalidWasmCodePointer);
+  }
+  CHECK_NOT_NULL(sig());
 }
 
 void WasmFunctionData::WasmFunctionDataVerify(Isolate* isolate) {

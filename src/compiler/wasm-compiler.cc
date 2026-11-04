@@ -384,9 +384,9 @@ class WasmWrapperGraphBuilder {
     Node* internal = gasm_.LoadImmutableProtectedPointerFromObject(
         function_data,
         offsetof(WasmFunctionData, protected_internal_) - kHeapObjectTag);
-    args[0] = gasm_.LoadFromObject(
+    args[0] = gasm_.LoadImmutableFromObject(
         MachineType::Uint32(), internal,
-        offsetof(WasmInternalFunction, raw_call_target_) - kHeapObjectTag);
+        offsetof(WasmInternalFunction, call_target_) - kHeapObjectTag);
     Node* implicit_arg = gasm_.LoadImmutableProtectedPointerFromObject(
         internal, offsetof(WasmInternalFunction, protected_implicit_arg_) -
                       kHeapObjectTag);

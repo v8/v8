@@ -11086,7 +11086,7 @@ class LiftoffCompiler {
           offsetof(WasmInternalFunction, protected_implicit_arg_));
 
       __ LoadCodePointer(target_reg, internal_function,
-                         offsetof(WasmInternalFunction, raw_call_target_));
+                         offsetof(WasmInternalFunction, call_target_));
 
       // Now the call target is in {target_reg} and the first parameter
       // (WasmTrustedInstanceData or WasmImportData) is in

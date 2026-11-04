@@ -850,7 +850,7 @@ builtin CallRefIC(
 
   const internal = funcref.internal;
   return TargetAndImplicitArg{
-    target: internal.raw_call_target,
+    target: internal.call_target,
     implicit_arg: internal.implicit_arg
   };
 }

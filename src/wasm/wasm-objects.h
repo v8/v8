@@ -1453,8 +1453,18 @@ inline constexpr int WasmImportData::kSize = sizeof(WasmImportData);
 
 using WasmImplicitArg = UnionOf<WasmTrustedInstanceData, WasmImportData>;
 
+// Internal representation of a Wasm function reference. All fields except
+// `external` (`implicit_arg`, `function_index`, `call_target`, `sig`) are
+// immutable after construction and may be embedded as compile-time constants
+// during Wasm-in-JS inlining.
 V8_OBJECT class WasmInternalFunction : public ExposedTrustedObject {
  public:
+  inline WasmInternalFunction(const AllocationWitness& witness,
+                              Isolate* isolate,
+                              Tagged<WasmImplicitArg> implicit_arg,
+                              int function_index, WasmCodePointer call_target,
+                              const wasm::CanonicalSig* sig);
+
   // Get the external function if it exists. Returns true and writes to the
   // output parameter if an external function exists. Returns false otherwise.
   bool try_get_external(Tagged<JSFunction>* result);
@@ -1467,7 +1477,7 @@ V8_OBJECT class WasmInternalFunction : public ExposedTrustedObject {
   // target instance data (for wasm functions), or a WasmImportData object (for
   // non-wasm imports). For imported functions, this value equals the respective
   // entry in the module's dispatch_table_for_imports.
-  DECL_PROTECTED_POINTER_ACCESSORS(implicit_arg, WasmImplicitArg)
+  inline Tagged<WasmImplicitArg> implicit_arg() const;
 
   // Returns the instance data associated with the implicit_arg.
   // If the implicit_arg is a WasmTrustedInstanceData, it is returned directly.
@@ -1484,16 +1494,11 @@ V8_OBJECT class WasmInternalFunction : public ExposedTrustedObject {
   // {implicit_arg} is a {WasmImportData} describing that importing module.
   // For WasmCapiFunctions: -1.
   inline int function_index() const;
-  inline void set_function_index(int value);
-
-  inline uint32_t raw_call_target() const;
-  inline void set_raw_call_target(uint32_t value);
 
   inline const wasm::CanonicalSig* sig() const;
-  inline void set_sig(const wasm::CanonicalSig* value);
 
-  V8_INLINE WasmCodePointer call_target();
-  V8_INLINE void set_call_target(WasmCodePointer code_pointer);
+  // The call target (a permanent `WasmCodePointer` table index).
+  inline WasmCodePointer call_target() const;
 
   // Dispatched behavior.
   DECL_PRINTER(WasmInternalFunction)
@@ -1505,15 +1510,17 @@ V8_OBJECT class WasmInternalFunction : public ExposedTrustedObject {
   static const int kSize;
 
  public:
-  ProtectedTaggedMember<UnionOf<WasmTrustedInstanceData, WasmImportData>>
-      protected_implicit_arg_;
+  V8_TQ_CONST const
+      ProtectedTaggedMember<UnionOf<WasmTrustedInstanceData, WasmImportData>>
+          protected_implicit_arg_;
   TaggedMember<UnionOf<JSFunction, Undefined>> external_;
-  TaggedMember<Smi> function_index_;
-  WasmCodePointer raw_call_target_;
+  V8_TQ_CONST const TaggedMember<Smi> function_index_;
+  V8_TQ_CONST const WasmCodePointer call_target_;
 #if TAGGED_SIZE_8_BYTES
-  uint32_t optional_padding_;
+  const uint32_t optional_padding_ = 0;
 #endif  // TAGGED_SIZE_8_BYTES
-  UnalignedValueMember<Address> sig_ V8_TQ_TYPE(RawFunctionSigPtr);
+  V8_TQ_CONST const UnalignedValueMember<Address> sig_
+      V8_TQ_TYPE(RawFunctionSigPtr);
 } V8_OBJECT_END;
 
 inline constexpr int WasmInternalFunction::kHeaderSize =
@@ -1522,15 +1529,10 @@ inline constexpr int WasmInternalFunction::kSize = sizeof(WasmInternalFunction);
 
 V8_OBJECT class WasmFuncRef : public HeapObject {
  public:
+  inline WasmFuncRef(const AllocationWitness& witness,
+                     Tagged<WasmInternalFunction> internal, Tagged<Map> rtt);
+
   inline Tagged<WasmInternalFunction> internal(IsolateForSandbox isolate) const;
-  inline Tagged<WasmInternalFunction> internal(IsolateForSandbox isolate,
-                                               AcquireLoadTag) const;
-  inline void set_internal(Tagged<WasmInternalFunction> value,
-                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void set_internal(Tagged<WasmInternalFunction> value, ReleaseStoreTag,
-                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline bool has_internal() const;
-  inline void clear_internal();
 
   DECL_PRINTER(WasmFuncRef)
   DECL_VERIFIER(WasmFuncRef)
@@ -1540,8 +1542,8 @@ V8_OBJECT class WasmFuncRef : public HeapObject {
   static const int kHeaderSize;
   static const int kSize;
 
-  TrustedPointerMember<WasmInternalFunction,
-                       kWasmInternalFunctionTrustedPointerTag>
+  V8_TQ_CONST TrustedPointerMember<WasmInternalFunction,
+                                   kWasmInternalFunctionTrustedPointerTag>
       trusted_internal_;
 } V8_OBJECT_END;
 

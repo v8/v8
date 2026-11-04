@@ -792,7 +792,7 @@ macro JSToWasmWrapperHelper(
   const paramEnd = locationAllocator.GetStackEnd();
   locationAllocator.CheckBufferOverflow();
 
-  const callTarget = functionData.internal.raw_call_target;
+  const callTarget = functionData.internal.call_target;
 
   // We construct a state that will be passed to `JSToWasmWrapperAsm`
   // and `JSToWasmHandleReturns`. There are too many parameters to pass

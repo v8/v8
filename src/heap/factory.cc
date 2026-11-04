@@ -2194,34 +2194,15 @@ DirectHandle<WasmFastApiCallData> Factory::NewWasmFastApiCallData(
 DirectHandle<WasmInternalFunction> Factory::NewWasmInternalFunction(
     DirectHandle<TrustedObject> implicit_arg, int function_index,
     WasmCodePointer call_target, const wasm::CanonicalSig* sig) {
-  Tagged<WasmInternalFunction> internal =
-      TrustedCast<WasmInternalFunction>(AllocateRawWithImmortalMap(
-          WasmInternalFunction::kSize, AllocationType::kTrusted,
-          *wasm_internal_function_map()));
-
-  DisallowGarbageCollection no_gc;
-  internal->set_call_target(call_target);
-  internal->set_implicit_arg(TrustedCast<WasmImplicitArg>(*implicit_arg));
-  internal->set_function_index(function_index);
-  internal->set_external(*undefined_value());
-  internal->set_sig(sig);
-  internal->InitAndPublish(isolate());
-
-  return direct_handle(internal, isolate());
+  return New<WasmInternalFunction, AllocationType::kTrusted>(
+      isolate(), TrustedCast<WasmImplicitArg>(implicit_arg), function_index,
+      call_target, sig);
 }
 
 DirectHandle<WasmFuncRef> Factory::NewWasmFuncRef(
     DirectHandle<WasmInternalFunction> internal_function,
     DirectHandle<Map> rtt) {
-  Tagged<HeapObject> raw =
-      AllocateRaw(WasmFuncRef::kSize, AllocationType::kOld);
-  DisallowGarbageCollection no_gc;
-  DCHECK_EQ(WASM_FUNC_REF_TYPE, rtt->instance_type());
-  DCHECK_EQ(WasmFuncRef::kSize, rtt->instance_size());
-  raw->set_map_after_allocation(isolate(), *rtt);
-  Tagged<WasmFuncRef> func_ref = Cast<WasmFuncRef>(raw);
-  func_ref->set_internal(*internal_function);
-  return direct_handle(func_ref, isolate());
+  return New<WasmFuncRef, AllocationType::kOld>(internal_function, rtt);
 }
 
 DirectHandle<WasmResumeData> Factory::NewWasmResumeData(

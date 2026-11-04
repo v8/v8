@@ -914,9 +914,10 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
         V<WasmInternalFunction>::Cast(__ LoadProtectedPointerField(
             function_data, LoadOp::Kind::TaggedBase().Immutable(),
             offsetof(WasmFunctionData, protected_internal_)));
-    V<Word32> code_pointer = __ Load(
-        internal, LoadOp::Kind::TaggedBase(), MemoryRepresentation::Uint32(),
-        offsetof(WasmInternalFunction, raw_call_target_));
+    V<Word32> code_pointer =
+        __ Load(internal, LoadOp::Kind::TaggedBase().Immutable(),
+                MemoryRepresentation::Uint32(),
+                offsetof(WasmInternalFunction, call_target_));
     constexpr size_t entry_size_log2 =
         std::bit_width(sizeof(wasm::WasmCodePointerTableEntry)) - 1;
     return __ Load(
