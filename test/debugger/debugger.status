@@ -8,10 +8,6 @@
   'bugs/*': [FAIL],
 
 
-  # Issue 5651: Context mismatch in ScopeIterator::Type() for eval default
-  # parameter value (the test causes indexing a FixedArray out of bounds ->
-  # CRASH is also a reasonable outcome).
-  'debug/es6/debug-scope-default-param-with-eval': [FAIL, CRASH],
 
   # Too slow in debug mode and on slow platforms.
   'regress/regress-2318': [PASS, HEAVY, ['mode == debug or (arch != ia32 and arch != x64) or asan == True or msan == True', SKIP]],

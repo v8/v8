@@ -24,6 +24,11 @@
   # https://crbug.com/v8/13851
   'debugger/pause-on-oom': [SKIP],
 
+  # Issue 5651: Context mismatch in ScopeIterator::Type() for eval default
+  # parameter value (the test causes indexing a FixedArray out of bounds ->
+  # CRASH is also a reasonable outcome).
+  'debugger/es6/debug-scope-default-param-with-eval': [FAIL, CRASH],
+
   # Require optimization, so can't be run on Lite mode.
   'cpu-profiler/coverage-block': [PASS, ['lite_mode == True', SKIP]],
   'cpu-profiler/coverage': [PASS, ['lite_mode == True', SKIP]],
