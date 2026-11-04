@@ -102,6 +102,9 @@ class V8_EXPORT_PRIVATE WasmGraphBuilderBase {
       ConstOrV<Word32> func_index,
       V<WasmTrustedInstanceData> trusted_instance_data);
 
+  V<WasmInternalFunction> LoadInternalFunctionFromFuncRef(
+      V<WasmFuncRef> func_ref, LoadOp::Kind load_kind);
+
   // Dynamically loads the call target and `implicit_arg` at runtime from a
   // `V<WasmInternalFunction>` node (used by standalone wrappers and Wasm
   // `call_ref`).

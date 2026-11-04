@@ -106,6 +106,15 @@ auto WasmGraphBuilderBase<Assembler>::BuildImportedFunctionTargetAndImplicitArg(
 }
 
 template <typename Assembler>
+inline auto WasmGraphBuilderBase<Assembler>::LoadInternalFunctionFromFuncRef(
+    V<WasmFuncRef> func_ref, LoadOp::Kind load_kind)
+    -> V<WasmInternalFunction> {
+  return V<WasmInternalFunction>::Cast(__ LoadTrustedPointer(
+      func_ref, load_kind, kWasmInternalFunctionTrustedPointerTag,
+      offsetof(WasmFuncRef, trusted_internal_)));
+}
+
+template <typename Assembler>
 inline auto WasmGraphBuilderBase<Assembler>::BuildFunctionTargetAndImplicitArg(
     V<WasmInternalFunction> internal_function)
     -> std::pair<V<Word32>, V<ExposedTrustedObject>> {

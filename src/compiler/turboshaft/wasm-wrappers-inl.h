@@ -67,10 +67,8 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildChangeInt32ToNumber(
 template <typename Assembler>
 auto WasmWrapperTSGraphBuilder<Assembler>::BuildToJSFunctionRef(
     V<WasmFuncRef> ret, V<Context> context) -> V<Object> {
-  V<WasmInternalFunction> internal = V<WasmInternalFunction>::Cast(
-      __ LoadTrustedPointer(ret, LoadOp::Kind::TaggedBase(),
-                            kWasmInternalFunctionTrustedPointerTag,
-                            offsetof(WasmFuncRef, trusted_internal_)));
+  V<WasmInternalFunction> internal = this->LoadInternalFunctionFromFuncRef(
+      ret, LoadOp::Kind::TaggedBase().Immutable());
   V<Object> maybe_external = __ Load(internal, LoadOp::Kind::TaggedBase(),
                                      MemoryRepresentation::TaggedPointer(),
                                      offsetof(WasmInternalFunction, external_));
@@ -654,12 +652,9 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmStackEntryWrapper() {
   AbortIfNot(
       __ HasInstanceType(func_ref, WASM_FUNC_REF_TYPE, SharedFlag{false}),
       AbortReason::kUnexpectedInstanceType);
-  V<WasmInternalFunction> internal_function = V<WasmInternalFunction>::Cast(
-      __ LoadTrustedPointer(func_ref, LoadOp::Kind::TaggedBase().Immutable(),
-                            kWasmInternalFunctionTrustedPointerTag,
-                            offsetof(WasmFuncRef, trusted_internal_)));
-  auto [target, instance] =
-      this->BuildFunctionTargetAndImplicitArg(internal_function);
+  auto [target, instance] = this->BuildFunctionTargetAndImplicitArg(
+      this->LoadInternalFunctionFromFuncRef(
+          func_ref, LoadOp::Kind::TaggedBase().Immutable()));
 
   base::Vector<OpIndex> args =
       __ phase_zone()
