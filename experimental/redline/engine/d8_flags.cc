@@ -26,8 +26,6 @@ REDLINE_TUNABLE(kFlagsNoBaselineBatchCompilation,
                 "probability of --no-baseline-batch-compilation");
 REDLINE_TUNABLE(kFlagsMaglevFuture, "flags.maglev_future", 0.25, 0, 1,
                 "probability of --maglev-future");
-REDLINE_TUNABLE(kFlagsMaglevObjectTracking, "flags.maglev_object_tracking", 0.2,
-                0, 1, "probability of --maglev-object-tracking");
 REDLINE_TUNABLE(kFlagsMaglevNonEagerInlining, "flags.maglev_non_eager_inlining",
                 0.25, 0, 1, "probability of --maglev-non-eager-inlining");
 REDLINE_TUNABLE(kFlagsMaglevEagerInlinedSizeZero,
@@ -160,9 +158,8 @@ std::vector<std::string> RandomD8Flags(Random& rng, D8FlagProfile profile) {
   maybe(kFlagsNoBaselineBatchCompilation, "--no-baseline-batch-compilation");
   maybe(kFlagsPrivateFieldBytecodes, "--private-field-bytecodes");
   if (profile == D8FlagProfile::kTurbolev) {
-    // Turbolev builds its graph with the Maglev graph builder, so the object
-    // tracking and the builtin reducers of Maglev apply to it too.
-    maybe(kFlagsMaglevObjectTracking, "--maglev-object-tracking");
+    // Turbolev builds its graph with the Maglev graph builder, so the builtin
+    // reducers of Maglev apply to it too.
     maybe(kFlagsTurbolevDisableBuiltinReducers,
           "--maglev-disable-builtin-reducers");
     maybe(kFlagsTurbolevSmallInlinedSizeZero,
@@ -187,7 +184,6 @@ std::vector<std::string> RandomD8Flags(Random& rng, D8FlagProfile profile) {
     return flags;
   }
   maybe(kFlagsMaglevFuture, "--maglev-future");
-  maybe(kFlagsMaglevObjectTracking, "--maglev-object-tracking");
   if (maybe(kFlagsMaglevNonEagerInlining, "--maglev-non-eager-inlining")) {
     // Without eager inlining, the calls stay for the later inliner.
     maybe(kFlagsMaglevEagerInlinedSizeZero,

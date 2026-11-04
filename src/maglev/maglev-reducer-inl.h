@@ -79,9 +79,6 @@ MaglevReducer<BaseT>::LazyDeoptFrameScope::LazyDeoptFrameScope(
                              : reducer->zone()->CloneVector(parameters),
           context, maybe_js_target}),
       parent_(reducer->current_lazy_deopt_scope_) {
-  if constexpr (ReducerBaseWithDeoptFrameScopeHooks<BaseT>) {
-    reducer->base_->OnBeginDeoptFrameScope();
-  }
   if (!parameters.empty()) {
     if (InlinedAllocation* receiver =
             parameters[0]->TryCast<InlinedAllocation>()) {
@@ -104,9 +101,6 @@ MaglevReducer<BaseT>::LazyDeoptFrameScope::LazyDeoptFrameScope(
       data_(DeoptFrame::ConstructInvokeStubFrameData{unit, position, receiver,
                                                      context}),
       parent_(reducer->current_lazy_deopt_scope_) {
-  if constexpr (ReducerBaseWithDeoptFrameScopeHooks<BaseT>) {
-    reducer->base_->OnBeginDeoptFrameScope();
-  }
   reducer->current_lazy_deopt_scope_ = this;
 }
 
@@ -130,9 +124,6 @@ MaglevReducer<BaseT>::EagerDeoptFrameScope::EagerDeoptFrameScope(
                              : reducer->zone()->CloneVector(parameters),
           context, maybe_js_target}),
       parent_(reducer->current_lazy_deopt_scope_) {
-  if constexpr (ReducerBaseWithDeoptFrameScopeHooks<BaseT>) {
-    reducer->base_->OnBeginDeoptFrameScope();
-  }
   if (!parameters.empty()) {
     if (InlinedAllocation* receiver =
             parameters[0]->TryCast<InlinedAllocation>()) {
@@ -595,12 +586,6 @@ ReduceResult MaglevReducer<BaseT>::BuildLoadFixedDoubleArrayElement(
   // cannot end up with an empty type for it.
   DCHECK(!IsEmptyNodeType(GetType(elements)));
   RETURN_IF_ABORT(AbortIfInvalidFixedArrayIndex<FixedDoubleArray>(index));
-  if constexpr (ReducerBaseWithAllocationTracking<BaseT>) {
-    if (auto constant = TryGetInt32Constant(index)) {
-      RETURN_IF_DONE(base_->TryBuildLoadFixedDoubleArrayElementFromAllocation(
-          elements, constant.value()));
-    }
-  }
   return AddNewNode<LoadFixedDoubleArrayElement>({elements, index});
 }
 
@@ -615,11 +600,6 @@ ReduceResult MaglevReducer<BaseT>::BuildStoreTaggedField(
   // test/mjsunit/maglev/regress-538884561-2.js.
   ABORT_IF_EMPTY_TYPE(value);
 
-  if constexpr (ReducerBaseWithAllocationTracking<BaseT>) {
-    if (!IsInitializing(store_mode)) {
-      base_->TryBuildStoreTaggedFieldToAllocation(object, value, offset);
-    }
-  }
   if (CanElideWriteBarrier(object, value)) {
     return AddNewNode<StoreTaggedFieldNoWriteBarrier>(
         {object, value}, offset, store_mode, property_key, maybe_assigned);
@@ -644,11 +624,6 @@ ReduceResult MaglevReducer<BaseT>::BuildStoreTaggedFieldNoWriteBarrier(
   ABORT_IF_EMPTY_TYPE(value);
 
   DCHECK(CanElideWriteBarrier(object, value));
-  if constexpr (ReducerBaseWithAllocationTracking<BaseT>) {
-    if (!IsInitializing(store_mode)) {
-      base_->TryBuildStoreTaggedFieldToAllocation(object, value, offset);
-    }
-  }
   return AddNewNode<StoreTaggedFieldNoWriteBarrier>({object, value}, offset,
                                                     store_mode, property_key);
 }
@@ -6578,8 +6553,6 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceRegExpPrototypeTest(
       last_index, BuildLoadTaggedField(receiver, JSRegExp::kLastIndexOffset));
   // RegExpPrototypeTestFast requires lastIndex to be a positive Smi.
   RETURN_IF_ABORT(BuildCheckSmi(last_index));
-  // Virtual object tracking might return an Int32Constant, which cannot be
-  // untagged.
   ValueNode* last_index_int32;
   GET_VALUE_OR_ABORT(last_index_int32, GetInt32(last_index));
   RETURN_IF_ABORT(TryBuildCheckInt32Condition(

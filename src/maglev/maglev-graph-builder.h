@@ -227,9 +227,6 @@ class MaglevGraphBuilder {
   std::tuple<DeoptFrame*, interpreter::Register, int> GetDeoptFrameForLazyDeopt(
       bool can_throw);
 
-  void OnBeginDeoptFrameScope() {
-    current_interpreter_frame_.virtual_objects().Snapshot();
-  }
   void OnEndDeoptFrameScope() {
     // We might have cached a checkpointed frame which includes this scope;
     // reset it just in case.
@@ -247,8 +244,6 @@ class MaglevGraphBuilder {
   V8_EXPORT_PRIVATE void FlushNodesToBlock();
   BasicBlock* FinishInlinedBlockForCaller(
       ControlNode* control_node, ZoneVector<Node*> rem_nodes_in_call_block);
-
-  uint32_t NewObjectId() { return graph_->NewObjectId(); }
 
   bool is_turbolev() const { return is_turbolev_; }
 
@@ -282,7 +277,7 @@ class MaglevGraphBuilder {
   void MarkPossibleSideEffect(NodeT* node);
 
   // CRTP hook for MaglevReducer::EmitAbruptBlockEnd: registers the
-  // just-finished block in the graph and snapshots the interpreter frame.
+  // just-finished block in the graph.
   void OnAbruptBlockEnd(BasicBlock* block);
 
   template <bool is_possible_map_change = true>
@@ -477,7 +472,6 @@ class MaglevGraphBuilder {
                                         compiler::ScopeInfoRef scope_info);
   void MinimizeContextChainDepth(ValueNode** context, size_t* depth,
                                  ContextScopeInfo* scope_info);
-  void EscapeContext();
   ReduceResult BuildLoadContextSlot(ValueNode* context, size_t depth,
                                     int slot_index, ContextMode context_mode,
                                     ContextScopeInfo scope_info);
@@ -1249,8 +1243,6 @@ class MaglevGraphBuilder {
   ReduceResult BuildTestUndetectable(ValueNode* value);
   ReduceResult BuildToNumberOrToNumeric(Object::Conversion mode);
 
-  enum class TrackObjectMode { kLoad, kStore };
-  bool CanTrackObjectChanges(ValueNode* object, TrackObjectMode mode);
   bool IsFieldConstant(ValueNode* object, int offset);
 
   bool CanElideWriteBarrier(ValueNode* object, ValueNode* value) {
@@ -1259,12 +1251,8 @@ class MaglevGraphBuilder {
 
   ReduceResult BuildLoadMap(ValueNode* object);
 
-  void TryBuildStoreTaggedFieldToAllocation(ValueNode* object, ValueNode* value,
-                                            int offset);
   std::optional<ValueNode*> TryBuildLoadTaggedFieldFromAllocation(
       ValueNode* object, int offset);
-  MaybeReduceResult TryBuildLoadFixedDoubleArrayElementFromAllocation(
-      ValueNode* elements, int index);
   V8_EXPORT_PRIVATE bool TryElideWriteBarrierForAllocation(ValueNode* object,
                                                            ValueNode* value);
   V8_EXPORT_PRIVATE VirtualObject* CreateJSObject(compiler::MapRef map);
@@ -1535,11 +1523,6 @@ class MaglevGraphBuilder {
   ReduceResult ConvertForStoring(ValueNode* node, ElementsKind kind);
 
   bool IsEscaping(InlinedAllocation* allocation);
-  VirtualObject* GetObjectFromAllocation(InlinedAllocation* allocation);
-  VirtualObject* GetModifiableObjectFromAllocation(
-      InlinedAllocation* allocation);
-
-  VirtualObject* DeepCopyVirtualObject(VirtualObject* vobj);
 
   void AddDeoptUse(ValueNode* node);
   void AddMaterializedDeoptUse(ValueNode* node);

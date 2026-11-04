@@ -72,7 +72,6 @@ ALL_VARIANT_FLAGS = {
         "--trace-maglev-phi-untagging",
         "--trace-maglev-regalloc",
         "--trace-maglev-escape-analysis",
-        "--trace-maglev-object-tracking",
         "--print-maglev-code",
         "--print-maglev-deopt-verbose",
         "--print-maglev-graph",

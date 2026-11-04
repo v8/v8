@@ -215,13 +215,6 @@ void MaglevGraphBuilder::MinimizeContextChainDepth(
   }
 }
 
-void MaglevGraphBuilder::EscapeContext() {
-  ValueNode* context = GetContext();
-  if (InlinedAllocation* alloc = context->TryCast<InlinedAllocation>()) {
-    alloc->ForceEscaping();
-  }
-}
-
 // TODO(victorgomes): This scope should be moved to MaglevReducer after all its
 // uses were moved.
 class V8_NODISCARD MaglevGraphBuilder::SaveCallSpeculationScope {
@@ -1091,7 +1084,6 @@ DeoptFrame* MaglevGraphBuilder::GetLatestCheckpointedFrame() {
     return GetDeoptFrameForEntryStackCheck();
   }
   if (!latest_checkpointed_frame_) {
-    current_interpreter_frame_.virtual_objects().Snapshot();
     latest_checkpointed_frame_ = zone()->New<InterpretedDeoptFrame>(
         *compilation_unit_,
         zone()->New<CompactInterpreterFrameState>(
@@ -1210,7 +1202,6 @@ DeoptFrame* MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
     }
 #endif
 
-    current_interpreter_frame_.virtual_objects().Snapshot();
     InterpretedDeoptFrame* ret = zone()->New<InterpretedDeoptFrame>(
         *compilation_unit_,
         zone()->New<CompactInterpreterFrameState>(*compilation_unit_, liveness,
@@ -3614,7 +3605,6 @@ ReduceResult MaglevGraphBuilder::VisitStaLookupSlot() {
   ValueNode* value = GetAccumulator();
   ValueNode* name = GetConstant(GetRefOperand<Name>(0));
   uint32_t flags = GetFlag8Operand(1);
-  EscapeContext();
   SetAccumulator(
       BuildCallRuntime(StaLookupSlotFunction(flags), {name, value}).value());
   return ReduceResult::Done();
@@ -3863,176 +3853,30 @@ bool MaglevGraphBuilder::IsEscaping(InlinedAllocation* alloc) {
   return false;
 }
 
-namespace {
-
-bool VerifyIsNotEscaping(VirtualObjectList vos, InlinedAllocation* alloc) {
-  for (VirtualObject* vo : vos) {
-    DCHECK_NOT_NULL(vo->allocation());
-    if (vo->allocation() == alloc) continue;
-    bool escaped = false;
-    vo->ForEachSlot([&](ValueNode* nested_value, vobj::Field desc) -> bool {
-      if (escaped) return true;
-      if (!nested_value->Is<InlinedAllocation>()) return true;
-      ValueNode* nested_alloc = nested_value->Cast<InlinedAllocation>();
-      if (nested_alloc == alloc) {
-        if (vo->allocation()->HasEscapingUses() ||
-            !VerifyIsNotEscaping(vos, vo->allocation())) {
-          escaped = true;
-        }
-      }
-      return true;
-    });
-    if (escaped) return false;
-  }
-  return true;
-}
-}  // namespace
-
-bool MaglevGraphBuilder::CanTrackObjectChanges(ValueNode* receiver,
-                                               TrackObjectMode mode) {
-  DCHECK(!receiver->Is<VirtualObject>());
-  if (!v8_flags.maglev_object_tracking) return false;
-  if (!receiver->Is<InlinedAllocation>()) return false;
-  InlinedAllocation* alloc = receiver->Cast<InlinedAllocation>();
-  if (IsEscaping(alloc)) return false;
-  if (mode == TrackObjectMode::kStore) {
-    // If we have two objects A and B, such that A points to B (it contains B in
-    // one of its field), we cannot change B without also changing A, even if
-    // both can be elided. For now, we escape both objects instead.
-    if (graph_->allocations_elide_map().find(alloc) !=
-        graph_->allocations_elide_map().end()) {
-      return false;
-    }
-    // Ensure object is escaped if we are within a try-catch block. This is
-    // crucial because a deoptimization point inside the catch handler could
-    // re-materialize objects differently, depending on whether the throw
-    // occurred before or after this store. We could potentially relax this
-    // requirement by verifying that no throwable nodes have been emitted since
-    // the try-block started,  but for now, err on the side of caution and
-    // always escape.
-    if (IsInsideTryBlock()) return false;
-  }
-  // We don't support loop phis inside VirtualObjects, so any access inside a
-  // loop should escape the object, except for objects that were created since
-  // the last loop header.
-  if (IsInsideLoop()) {
-    if (!is_loop_effect_tracking() ||
-        !loop_effects_->allocations.contains(alloc)) {
-      return false;
-    }
-  }
-  // Iterate all live objects to be sure that the allocation is not escaping.
-  SLOW_DCHECK(
-      VerifyIsNotEscaping(current_interpreter_frame_.virtual_objects(), alloc));
-  return true;
-}
-
 bool MaglevGraphBuilder::IsFieldConstant(ValueNode* receiver, int offset) {
   if (!receiver->Is<InlinedAllocation>()) {
     return false;
   }
   InlinedAllocation* alloc = receiver->Cast<InlinedAllocation>();
-  VirtualObject* vobject = GetObjectFromAllocation(alloc);
-  if (vobject && static_cast<size_t>(offset) < vobject->size() &&
+  VirtualObject* vobject = alloc->object();
+  if (static_cast<size_t>(offset) < vobject->size() &&
       vobject->FieldForOffset(offset).constness ==
           vobj::FieldConstness::kConstAfterInit) {
+    DCHECK_NE(static_cast<size_t>(offset), offsetof(HeapObject, map_));
     return true;
   }
   return false;
 }
 
-VirtualObject* MaglevGraphBuilder::GetObjectFromAllocation(
-    InlinedAllocation* allocation) {
-  VirtualObject* vobject = allocation->object();
-  // If it hasn't be snapshotted yet, it is the latest created version of this
-  // object, we don't need to search for it.
-  if (vobject->IsSnapshot()) {
-    vobject = current_interpreter_frame_.virtual_objects().FindAllocatedWith(
-        allocation);
-  }
-  return vobject;
-}
-
-VirtualObject* MaglevGraphBuilder::GetModifiableObjectFromAllocation(
-    InlinedAllocation* allocation) {
-  VirtualObject* vobject = allocation->object();
-  // If it hasn't be snapshotted yet, it is the latest created version of this
-  // object and we can still modify it, we don't need to copy it.
-  if (vobject->IsSnapshot()) {
-    return DeepCopyVirtualObject(
-        current_interpreter_frame_.virtual_objects().FindAllocatedWith(
-            allocation));
-  }
-  return vobject;
-}
-
-void MaglevGraphBuilder::TryBuildStoreTaggedFieldToAllocation(ValueNode* object,
-                                                              ValueNode* value,
-                                                              int offset) {
-  if (offset == offsetof(HeapObject, map_)) return;
-  if (!CanTrackObjectChanges(object, TrackObjectMode::kStore)) return;
-  // This avoids loop in the object graph.
-  if (value->Is<InlinedAllocation>()) return;
-  InlinedAllocation* allocation = object->Cast<InlinedAllocation>();
-  VirtualObject* vobject = GetModifiableObjectFromAllocation(allocation);
-  CHECK_NOT_NULL(vobject);
-  vobject->set(offset, value);
-  reducer_.AddNonEscapingUses(allocation, 1);
-  if (v8_flags.trace_maglev_object_tracking) {
-    std::cout << "  * Setting value in virtual object "
-              << PrintNodeLabel(vobject) << "[" << offset
-              << "]: " << PrintNode(value) << std::endl;
-  }
-}
-
 std::optional<ValueNode*>
 MaglevGraphBuilder::TryBuildLoadTaggedFieldFromAllocation(ValueNode* object,
                                                           int offset) {
-  // TODO(jgruber): The VirtualObject now stores map slots, so theoretically we
-  // could let the path below handle map loads as well. But, maglev currently
-  // doesn't like this at all - doing so creates problems like OOB vobject field
-  // loads, and missed JSArray elements kind transitions. We should understand
-  // whether this is an issue with --maglev-object-tracking.
-  if (offset == offsetof(HeapObject, map_)) return std::nullopt;
-  if (!(IsFieldConstant(object, offset) ||
-        CanTrackObjectChanges(object, TrackObjectMode::kLoad))) {
+  if (!IsFieldConstant(object, offset)) {
     return std::nullopt;
   }
-  VirtualObject* vobject =
-      GetObjectFromAllocation(object->Cast<InlinedAllocation>());
+  VirtualObject* vobject = object->Cast<InlinedAllocation>()->object();
   CHECK_EQ(vobject->FieldForOffset(offset).type, vobj::FieldType::kTagged);
-  ValueNode* value = vobject->get(offset);
-  if (v8_flags.trace_maglev_object_tracking) {
-    std::cout << "  * Reusing value in virtual object "
-              << PrintNodeLabel(vobject) << "[" << offset
-              << "]: " << PrintNode(value) << std::endl;
-  }
-  return value;
-}
-
-MaybeReduceResult
-MaglevGraphBuilder::TryBuildLoadFixedDoubleArrayElementFromAllocation(
-    ValueNode* elements, int index) {
-  RETURN_IF_ABORT(
-      reducer_.AbortIfInvalidFixedArrayIndex<FixedDoubleArray>(index));
-  if (!CanTrackObjectChanges(elements, TrackObjectMode::kLoad)) {
-    return {};
-  }
-  VirtualObject* vobject =
-      GetObjectFromAllocation(elements->Cast<InlinedAllocation>());
-  std::optional<uint32_t> length =
-      TryGetUint32Constant(vobject->get(FixedArrayBase::kLengthOffset));
-  if (!length.has_value()) {
-    return {};
-  }
-  if (static_cast<uint32_t>(index) >= length.value()) {
-    return reducer_.BuildAbort(AbortReason::kUnreachable);
-  }
-  // Initializing stores can place conversion nodes (e.g.
-  // ChangeInt32ToFloat64) into the virtual object, but conversion nodes
-  // must not leak into the interpreter frame state -- they belong in
-  // NodeInfo as alternative representations.
-  return vobject->get(FixedDoubleArray::OffsetOfElementAt(index))->Unwrap();
+  return vobject->get(offset);
 }
 
 bool MaglevGraphBuilder::TryElideWriteBarrierForAllocation(ValueNode* object,
@@ -4066,19 +3910,6 @@ ReduceResult MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
   // cannot end up with an empty type for it.
   DCHECK(!IsEmptyNodeType(GetType(elements)));
 
-  if (CanTrackObjectChanges(elements, TrackObjectMode::kLoad)) {
-    VirtualObject* vobject =
-        GetObjectFromAllocation(elements->Cast<InlinedAllocation>());
-    DCHECK(vobject->map()->IsFixedArrayMap());
-    ValueNode* length_node = vobject->get(offsetof(FixedArray, length_));
-    if (auto length = TryGetInt32Constant(length_node)) {
-      if (index >= 0 && index < length.value()) {
-        return vobject->get(FixedArray::OffsetOfElementAt(index));
-      } else {
-        return reducer_.BuildAbort(AbortReason::kUnreachable);
-      }
-    }
-  }
   RETURN_IF_DONE(reducer_.TryBuildLoadFixedArrayElementConstantIndex(
       elements, index, type));
   return reducer_.BuildAbort(AbortReason::kUnreachable);
@@ -4106,9 +3937,6 @@ void MaglevGraphBuilder::MarkArgumentsElementsMaybeMutated(
 ReduceResult MaglevGraphBuilder::BuildStoreFixedArrayElement(
     ValueNode* elements, ValueNode* index, ValueNode* value) {
   MarkArgumentsElementsMaybeMutated(elements);
-  // TODO(victorgomes): Support storing element to a virtual object. If we
-  // modify the elements array, we need to modify the original object to point
-  // to the new elements array.
 
   // Unfortunately we need to check for empty types this late. If you think we
   // can detect them earlier, have a look at
@@ -4130,7 +3958,6 @@ ReduceResult MaglevGraphBuilder::BuildStoreFixedDoubleArrayElement(
     ElementsKind elements_kind, ValueNode* elements, ValueNode* index,
     ValueNode* value) {
   MarkArgumentsElementsMaybeMutated(elements);
-  // TODO(victorgomes): Support storing double element to a virtual object.
   DCHECK(value->is_float64_or_holey_float64());
   RETURN_IF_ABORT(
       reducer_.AbortIfInvalidFixedArrayIndex<FixedDoubleArray>(index));
@@ -9303,12 +9130,6 @@ MaybeReduceResult MaglevGraphBuilder::BuildCollectionIteratorStep(
           "of this context");
     }
     static_instance_type = kind_map->first;
-    // The table transition below is a subgraph loop, which the virtual
-    // object tracking does not recognise as a loop: its loads would fold to
-    // the state from before the loop and never observe the stores on the
-    // backedge. Materialize the iterator so those become real memory
-    // accesses.
-    allocation->ForceEscaping();
   } else if (MapInference inference(this, receiver);
              auto possible_maps = inference.TryGetPossibleMaps()) {
     if (possible_maps->is_empty()) {
@@ -11829,7 +11650,7 @@ MaglevGraphBuilder::TryExtractArgumentsFromElements(
   }
 
   if (auto* inlined_allocation = elements_value->TryCast<InlinedAllocation>()) {
-    VirtualObject* elements = GetObjectFromAllocation(inlined_allocation);
+    VirtualObject* elements = inlined_allocation->object();
     ValueNode* elements_length_node =
         elements->get(offsetof(FixedArray, length_));
     std::optional<int32_t> maybe_elements_length =
@@ -11889,6 +11710,23 @@ MaglevGraphBuilder::TryExtractArgumentsFromElements(
   return {};
 }
 
+namespace {
+bool IsSloppyMappedArgumentsObject(compiler::JSHeapBroker* broker,
+                                   compiler::MapRef map) {
+  return broker->target_native_context()
+      .fast_aliased_arguments_map(broker)
+      .equals(map);
+}
+
+#ifdef DEBUG
+bool HasUnmutatedArgumentsOrRestLength(VirtualObject* arguments_object) {
+  ValueNode* length =
+      arguments_object->get(JSStrictArgumentsObject::kLengthOffset);
+  return length->Is<ArgumentsLength>() || length->Is<RestLength>();
+}
+#endif
+}  // namespace
+
 ReduceResult MaglevGraphBuilder::ReduceCallWithArrayLikeForArgumentsObject(
     ValueNode* target_node, CallArguments& args,
     VirtualObject* arguments_object,
@@ -11900,13 +11738,10 @@ ReduceResult MaglevGraphBuilder::ReduceCallWithArrayLikeForArgumentsObject(
       arguments_object->get(offsetof(JSObject, elements_));
   if (ArgumentsElements* arguments_elements =
           elements_value->TryCast<ArgumentsElements>()) {
-    ValueNode* length_node =
-        arguments_object->get(JSStrictArgumentsObject::kLengthOffset);
-    if (length_node->Is<ArgumentsLength>() || length_node->Is<RestLength>()) {
-      args.PopArrayLikeArgument();
-      return BuildCallForwardArgumentsElements<CallForwardVarargs>(
-          target_node, args, arguments_elements);
-    }
+    DCHECK(HasUnmutatedArgumentsOrRestLength(arguments_object));
+    args.PopArrayLikeArgument();
+    return BuildCallForwardArgumentsElements<CallForwardVarargs>(
+        target_node, args, arguments_elements);
   }
 
   std::optional<base::SmallVector<ValueNode*, 8>> arg_list =
@@ -11933,11 +11768,7 @@ MaglevGraphBuilder::TryReduceConstructWithSpreadForArgumentsObject(
   ValueNode* elements_value =
       arguments_object->get(offsetof(JSObject, elements_));
   if (auto* arguments_elements = elements_value->TryCast<ArgumentsElements>()) {
-    ValueNode* length_node =
-        arguments_object->get(JSStrictArgumentsObject::kLengthOffset);
-    if (!length_node->Is<ArgumentsLength>() && !length_node->Is<RestLength>()) {
-      return {};
-    }
+    DCHECK(HasUnmutatedArgumentsOrRestLength(arguments_object));
     if (!broker()->dependencies()->DependOnArrayIteratorProtector()) {
       return {};
     }
@@ -11963,15 +11794,6 @@ MaglevGraphBuilder::TryReduceConstructWithSpreadForArgumentsObject(
   return BuildConstruct(target, new_target, new_args, feedback_source);
 }
 
-namespace {
-bool IsSloppyMappedArgumentsObject(compiler::JSHeapBroker* broker,
-                                   compiler::MapRef map) {
-  return broker->target_native_context()
-      .fast_aliased_arguments_map(broker)
-      .equals(map);
-}
-}  // namespace
-
 std::optional<VirtualObject*>
 MaglevGraphBuilder::TryGetNonEscapingArgumentsOrArray(ValueNode* value) {
   auto try_get_non_escaping_alloc = [&](ValueNode* node) -> InlinedAllocation* {
@@ -11994,8 +11816,8 @@ MaglevGraphBuilder::TryGetNonEscapingArgumentsOrArray(ValueNode* value) {
     return {};
   }
 
-  VirtualObject* object = GetObjectFromAllocation(alloc);
-  if (!object || !object->has_static_map()) {
+  VirtualObject* object = alloc->object();
+  if (!object->has_static_map()) {
     return {};
   }
   compiler::MapRef map = *object->map();
@@ -12092,11 +11914,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceCallWithSpreadForArgumentsObject(
 
   auto* elements_value = arguments_object->get(offsetof(JSObject, elements_));
   if (auto* arguments_elements = elements_value->TryCast<ArgumentsElements>()) {
-    ValueNode* length_node =
-        arguments_object->get(JSStrictArgumentsObject::kLengthOffset);
-    if (!length_node->Is<ArgumentsLength>() && !length_node->Is<RestLength>()) {
-      return {};
-    }
+    DCHECK(HasUnmutatedArgumentsOrRestLength(arguments_object));
     if (!broker()->dependencies()->DependOnArrayIteratorProtector()) {
       return {};
     }
@@ -12696,11 +12514,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceAsyncFunctionResolve(
 
   ValueNode* promise = nullptr;
   if (auto* alloc = async_function_object->TryCast<InlinedAllocation>()) {
-    if (VirtualObject* vobj = GetObjectFromAllocation(alloc)) {
-      ValueNode* slot = vobj->get(offsetof(JSAsyncFunctionObject, promise_));
-      if (slot->Is<InlinedAllocation>()) {
-        promise = slot;
-      }
+    VirtualObject* vobj = alloc->object();
+    ValueNode* slot = vobj->get(offsetof(JSAsyncFunctionObject, promise_));
+    if (slot->Is<InlinedAllocation>()) {
+      promise = slot;
     }
   }
   if (promise == nullptr) {
@@ -14150,13 +13967,6 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
   }
 
   return fast_literal;
-}
-
-VirtualObject* MaglevGraphBuilder::DeepCopyVirtualObject(VirtualObject* old) {
-  VirtualObject* vobject = old->Clone(NewObjectId(), zone());
-  current_interpreter_frame_.add_object(vobject);
-  old->allocation()->UpdateObject(vobject);
-  return vobject;
 }
 
 void MaglevGraphBuilder::AddDeoptUse(VirtualObject* vobject) {
@@ -17104,7 +16914,6 @@ void MaglevGraphBuilder::RegisterPhisWithGraphLabeller(
 void MaglevGraphBuilder::OnAbruptBlockEnd(BasicBlock* block) {
   unobserved_context_slot_stores_.clear();
   reducer_.ClearCurrentAllocationBlock();
-  current_interpreter_frame_.virtual_objects().Snapshot();
   graph()->Add(block);
 }
 
@@ -17724,7 +17533,6 @@ std::optional<BasicBlock*> MaglevGraphBuilder::FinishBlock(
 
   // TODO(olivf): Support allocation folding across control flow.
   reducer_.ClearCurrentAllocationBlock();
-  current_interpreter_frame_.virtual_objects().Snapshot();
 
   BasicBlock* block = current_block();
   reducer_.FlushNodesToBlock();

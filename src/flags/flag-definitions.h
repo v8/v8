@@ -1596,12 +1596,6 @@ DEFINE_BOOL(maglev_escape_analysis, true,
             "avoid inlined allocation of objects that cannot escape")
 DEFINE_DEVELOPER_FLAG(trace_maglev_escape_analysis,
                       "trace maglev escape analysis")
-DEFINE_EXPERIMENTAL_FEATURE(maglev_object_tracking,
-                            "track object changes to avoid escaping them")
-DEFINE_DEVELOPER_FLAG(trace_maglev_object_tracking,
-                      "trace load/stores from maglev virtual objects")
-DEFINE_WEAK_IMPLICATION(trace_maglev_graph_building,
-                        trace_maglev_object_tracking)
 DEFINE_WEAK_IMPLICATION(trace_maglev_graph_building, maglev_print_bytecode)
 
 // TODO(dmercadier): fix and re-enable string builder.

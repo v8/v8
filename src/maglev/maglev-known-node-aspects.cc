@@ -737,8 +737,6 @@ KnownNodeAspects::KnownNodeAspects(const KnownNodeAspects& other,
       available_expressions_.emplace(e);
     }
   }
-
-  virtual_objects_.Snapshot();
 }
 
 // LINT.IfChange(IsCompatibleWithLoopHeader)

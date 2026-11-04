@@ -5825,11 +5825,6 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   }
 
   void set(uint32_t offset, ValueNode* value) {
-    // Snapshotting behavior is currently not enforced or required, and the
-    // DCHECK below no longer holds.
-    // TODO(victorgomes): Re-enable if this is needed again, otherwise remove
-    // the DCHECK.
-    // DCHECK(!IsSnapshot());
     set_by_index(object_layout_->SlotAtOffset(offset), value);
   }
 
@@ -5846,25 +5841,6 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   }
 
   const vobj::ObjectLayout* object_layout() const { return object_layout_; }
-
-  bool compatible_for_merge(const VirtualObject* other) const {
-    if (object_layout_->object_type != other->object_layout_->object_type) {
-      return false;
-    }
-    if (allocation_ != other->allocation_) return false;
-    // Currently, the graph builder will never change the VO map.
-    if (has_static_map()) {
-      if (map() != other->map()) return false;
-    }
-    return slot_count() == other->slot_count();
-  }
-
-  // VOs are snapshotted at branch points and when they are leaked to
-  // DeoptInfos. This is because the snapshots need to preserve the original
-  // values at the time of branching or deoptimization. While a VO is not yet
-  // snapshotted, it can be modified freely.
-  bool IsSnapshot() const { return snapshotted_; }
-  void Snapshot() { snapshotted_ = true; }
 
   enum class ForEachSlotIterationMode {
     kDefault,
@@ -5928,40 +5904,6 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
       VirtualObjectList virtual_objects, Function&& f,
       ForEachSlotIterationMode mode = ForEachSlotIterationMode::kDefault,
       const VirtualObjectAncestors* ancestors = nullptr) const;
-
-  template <typename Function>
-  inline std::optional<VirtualObject*> Merge(const VirtualObject* other,
-                                             uint32_t new_object_id, Zone* zone,
-                                             Function MergeValue) const {
-    VirtualObject* result = Clone(new_object_id, zone, /* empty_clone */ true);
-    DCHECK(compatible_for_merge(other));
-    for (int i = 0; i < slot_count(); i++) {
-      if (auto success = MergeValue(get_by_index(i), other->get_by_index(i))) {
-        result->set_by_index(i, *success);
-      } else {
-        return {};
-      }
-    }
-    return result;
-  }
-
-  VirtualObject* Clone(uint32_t new_object_id, Zone* zone,
-                       bool empty_clone = false) const {
-    VirtualObject* result;
-    ValueNode** slots = zone->AllocateArray<ValueNode*>(slot_count());
-    result = NodeBase::New<VirtualObject>(zone, 0, map(), new_object_id,
-                                          object_layout_, slot_count(), slots);
-
-    if (empty_clone) return result;
-
-    // Copy content
-    for (int i = 0; i < slot_count(); i++) {
-      result->set_by_index(i, get_by_index(i));
-    }
-
-    result->set_allocation(allocation());
-    return result;
-  }
 
   int slot_count() const { return slots_.length(); }
 
@@ -6030,7 +5972,6 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   // map ValueNode* into a MapRef. Currently we don't always have it available.
   compiler::OptionalMapRef map_;
   const int id_;
-  bool snapshotted_ = false;  // Object should not be modified anymore.
   base::Vector<ValueNode*> slots_;
   const vobj::ObjectLayout* object_layout_;
   mutable InlinedAllocation* allocation_ = nullptr;
@@ -6332,10 +6273,6 @@ class VirtualObjectList {
     VirtualObject* entry_;
   };
 
-  bool operator==(const VirtualObjectList& other) const {
-    return head_ == other.head_;
-  }
-
   void Add(VirtualObject* object) {
     DCHECK_NOT_NULL(object);
     DCHECK_NULL(object->next_);
@@ -6357,46 +6294,6 @@ class VirtualObjectList {
   }
 
   void Print(std::ostream& os, const char* prefix) const;
-
-  // It iterates both list in reverse other of ids until a common point.
-  template <typename Function>
-  static VirtualObject* WalkUntilCommon(const VirtualObjectList& list1,
-                                        const VirtualObjectList& list2,
-                                        Function&& f) {
-    VirtualObject* vo1 = list1.head_;
-    VirtualObject* vo2 = list2.head_;
-    while (vo1 != nullptr && vo2 != nullptr && vo1 != vo2) {
-      DCHECK_NE(vo1->id(), vo2->id());
-      if (vo1->id() > vo2->id()) {
-        f(vo1, list1);
-        vo1 = vo1->next_;
-      } else {
-        f(vo2, list2);
-        vo2 = vo2->next_;
-      }
-    }
-    if (vo1 == vo2) return vo1;
-    return nullptr;
-  }
-
-  void Snapshot() const {
-    for (VirtualObject* vo : *this) {
-      if (vo->IsSnapshot()) {
-        // Stop processing once a snapshotted object is found, as all remaining
-        // objects must be snapshotted.
-        break;
-      }
-      vo->Snapshot();
-    }
-    SLOW_DCHECK(IsSnapshot());
-  }
-
-  bool IsSnapshot() const {
-    for (VirtualObject* vo : *this) {
-      if (!vo->IsSnapshot()) return false;
-    }
-    return true;
-  }
 
   VirtualObject* head() const { return head_; }
 
@@ -6430,7 +6327,9 @@ class InlinedAllocation : public FixedInputValueNodeT<1, InlinedAllocation> {
   explicit InlinedAllocation(uint64_t bitfield, VirtualObject* object)
       : Base(bitfield),
         object_(object),
-        escape_analysis_result_(EscapeAnalysisResult::kUnknown) {}
+        escape_analysis_result_(EscapeAnalysisResult::kUnknown) {
+    DCHECK_NOT_NULL(object);
+  }
 
   static constexpr OpProperties kProperties = OpProperties::NotIdempotent();
   DECLARE_INPUTS(AllocationBlock)
@@ -6518,13 +6417,8 @@ class InlinedAllocation : public FixedInputValueNodeT<1, InlinedAllocation> {
     return escape_analysis_result_ != EscapeAnalysisResult::kUnknown;
   }
 
-  void UpdateObject(VirtualObject* object) {
-    DCHECK_EQ(this, object->allocation());
-    object_ = object;
-  }
-
  private:
-  VirtualObject* object_;
+  VirtualObject* const object_;
   EscapeAnalysisResult escape_analysis_result_;
   int non_escaping_use_count_ = 0;
   int offset_ = -1;  // Set by AllocationBlock.

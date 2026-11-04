@@ -327,7 +327,6 @@ concept ReducerBaseWithLazyDeopt = requires(BaseT* b) {
 
 template <typename BaseT>
 concept ReducerBaseWithDeoptFrameScopeHooks = requires(BaseT* b) {
-  b->OnBeginDeoptFrameScope();
   b->OnEndDeoptFrameScope();
 };
 
@@ -354,13 +353,8 @@ concept ReducerBaseHasTracing = requires(BaseT* b) { b->is_tracing(); };
 
 template <typename BaseT>
 concept ReducerBaseWithAllocationTracking = requires(BaseT* b) {
-  b->TryBuildStoreTaggedFieldToAllocation(std::declval<ValueNode*>(),
-                                          std::declval<ValueNode*>(),
-                                          std::declval<int>());
   b->TryBuildLoadTaggedFieldFromAllocation(std::declval<ValueNode*>(),
                                            std::declval<int>());
-  b->TryBuildLoadFixedDoubleArrayElementFromAllocation(
-      std::declval<ValueNode*>(), std::declval<int>());
   b->TryElideWriteBarrierForAllocation(std::declval<ValueNode*>(),
                                        std::declval<ValueNode*>());
 };

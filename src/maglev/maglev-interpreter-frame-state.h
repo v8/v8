@@ -89,9 +89,6 @@ class InterpreterFrameState {
     return std::move(known_node_aspects_);
   }
 
-  void add_object(VirtualObject* vobject) {
-    known_node_aspects_->virtual_objects().Add(vobject);
-  }
   const VirtualObjectList& virtual_objects() const {
     DCHECK_NOT_NULL(known_node_aspects_);
     return known_node_aspects_->virtual_objects();
@@ -579,19 +576,6 @@ class MergePointInterpreterFrameState {
                         bool optimistic_loop_phis = false);
 
   V8_EXPORT_PRIVATE void ReducePhiPredecessorCount(unsigned num);
-
-  void MergeVirtualObjects(Graph* graph, bool is_tracing,
-                           const MaglevCompilationUnit& compilation_unit,
-                           const KnownNodeAspects& unmerged_aspects);
-
-  void MergeVirtualObject(Graph* graph, bool is_tracing,
-                          const VirtualObjectList unmerged_vos,
-                          const KnownNodeAspects& unmerged_aspects,
-                          VirtualObject* merged, VirtualObject* unmerged);
-
-  std::optional<ValueNode*> MergeVirtualObjectValue(
-      Graph* graph, const KnownNodeAspects& unmerged_aspects, ValueNode* merged,
-      ValueNode* unmerged);
 
   ValueNode* NewLoopPhi(Zone* zone, interpreter::Register reg);
 
