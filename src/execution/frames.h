@@ -722,6 +722,7 @@ class TypedFrame : public CommonFrame {
  protected:
   inline explicit TypedFrame(StackFrameIteratorBase* iterator);
 #if V8_ENABLE_WEBASSEMBLY
+  void ComputeCallerState(State* state) const override;
   void UnwindWasmReturnFromSegment(State* state) const;
 #endif
 };
@@ -1431,8 +1432,6 @@ class WasmFrame : public TypedFrame {
 
  protected:
   inline explicit WasmFrame(StackFrameIteratorBase* iterator);
-
-  void ComputeCallerState(State* state) const override;
 
  private:
   friend class StackFrameIteratorBase;

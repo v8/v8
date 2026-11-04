@@ -526,3 +526,38 @@ function growAndShrinkTwice(
 
   assertPromiseResult(wrapper(5), res => assertEquals(42, res));
 })();
+
+(function TestTailCallToThrowingJSImportFromGrownSegment() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  const sig = builder.addType(makeSig([], []));
+  const import_idx = builder.addImport('m', 'js_throw', sig);
+
+  // A function with a large enough frame (600 * 8 = 4800 bytes) to overflow
+  // the initial 4KB stack segment when called from `main`, placing it at the
+  // base of a newly grown segment before tail-calling a throwing JS import.
+  const grow_and_tail_call = builder.addFunction('grow_and_tail_call', sig)
+    .addLocals(kWasmI64, 600)
+    .addBody([
+      kExprReturnCall, import_idx,
+    ]);
+
+  builder.addFunction('main', sig)
+    .addBody([
+      kExprCallFunction, grow_and_tail_call.index,
+    ])
+    .exportFunc();
+
+  const instance = builder.instantiate({
+    m: {
+      js_throw: () => {
+        throw new Error('boom from tail-called JS import');
+      }
+    }
+  });
+
+  const promising_main = WebAssembly.promising(instance.exports.main);
+  assertPromiseResult(
+      promising_main(), () => assertUnreachable(),
+      e => assertEquals('boom from tail-called JS import', e.message));
+})();

@@ -3653,6 +3653,11 @@ uint32_t BuiltinFrame::ComputeParametersCount() const {
 }
 
 #if V8_ENABLE_WEBASSEMBLY
+void TypedFrame::ComputeCallerState(State* state) const {
+  CommonFrame::ComputeCallerState(state);
+  UnwindWasmReturnFromSegment(state);
+}
+
 void TypedFrame::UnwindWasmReturnFromSegment(State* state) const {
   if (v8_flags.wasm_growable_stacks && iterator_->wasm_stack() != nullptr &&
       state->fp != kNullAddress && *state->pc_address != kNullAddress) {
@@ -3674,11 +3679,6 @@ void TypedFrame::UnwindWasmReturnFromSegment(State* state) const {
       state->sp = current_fp + StandardFrameConstants::kCallerSPOffset;
     }
   }
-}
-
-void WasmFrame::ComputeCallerState(State* state) const {
-  TypedFrame::ComputeCallerState(state);
-  UnwindWasmReturnFromSegment(state);
 }
 
 void WasmFrame::Print(StringStream* accumulator, PrintMode mode, int index,
@@ -4086,7 +4086,6 @@ Address WasmLiftoffSetupFrame::CallingPC() const {
 
 void WasmLiftoffSetupFrame::ComputeCallerState(State* state) const {
   TypedFrame::ComputeCallerState(state);
-  UnwindWasmReturnFromSegment(state);
   // Unlike {CallingPC}, which only runs at safepoints, this can run on a
   // profiler tick: the setup builtin sets the frame marker a few instructions
   // before it signs and spills the calling PC, so the slot can still be
