@@ -25,26 +25,38 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-Debug = debug.Debug
-Debug.setListener(function(){});
+const {session, contextGroup, Protocol} =
+    InspectorTest.start('Tests regress-debug-code-recompilation.');
 
-function f() {a=1;b=2};
-function g() {
-  a=1;
-  b=2;
+session.setupScriptMap();
+
+const source = `
+function f() {
+  a = 1;
+  b = 2;
 }
+function g() {
+  a = 1;
+  b = 2;
+}
+`;
 
-%PrepareFunctionForOptimization(Debug.setBreakPoint);
-bp = Debug.setBreakPoint(f, 0, 0);
-Debug.clearBreakPoint(bp);
-%OptimizeFunctionOnNextCall(Debug.setBreakPoint);
-bp = Debug.setBreakPoint(f, 0, 0);
-Debug.clearBreakPoint(bp);
-bp = Debug.setBreakPoint(f, 0, 0);
-Debug.clearBreakPoint(bp);
-%PrepareFunctionForOptimization(Debug.setBreakPoint);
-%OptimizeFunctionOnNextCall(Debug.setBreakPoint);
-bp = Debug.setBreakPoint(f, 0, 0);
-Debug.clearBreakPoint(bp);
+(async function test() {
+  await Protocol.Debugger.enable();
+  contextGroup.addScript(source, 0, 0, 'test.js');
 
-Debug.setListener(null);
+  for (let i = 0; i < 4; ++i) {
+    InspectorTest.log(`Setting and removing breakpoint #${i + 1}`);
+    const {result: {breakpointId, locations}} =
+        await Protocol.Debugger.setBreakpointByUrl({
+          lineNumber: 1,
+          columnNumber: 0,
+          url: 'test.js',
+        });
+    await session.logSourceLocation(locations[0]);
+    await Protocol.Debugger.removeBreakpoint({breakpointId});
+  }
+
+  await Protocol.Debugger.disable();
+  InspectorTest.completeTest();
+})();

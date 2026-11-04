@@ -258,6 +258,7 @@
   'debugger/regression-424142': [SKIP],
   'debugger/return-break-locations': [SKIP],
   'debugger/script-on-after-compile': [SKIP],
+  'debugger/debug-evaluate-no-side-effect-builtins': [SKIP],
   'debugger/set-breakpoint-at-last-line': [SKIP],
   'debugger/set-breakpoint-breaks-on-first-breakable-location': [SKIP],
   'heap-profiler/collect-garbage' : [SKIP],
@@ -325,6 +326,12 @@
 }],  # 'clang_coverage and mode == debug'
 
 ##############################################################################
+# Tests requiring Sparkplug.
+['arch not in (x64, arm64, ia32, arm, mips64el, loong64)', {
+  'debugger/regress-crbug-1357554': [SKIP],
+}],
+
+##############################################################################
 ['((arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != ppc64 and arch != s390x) or (simulator_run and direct_handle))', {
   # Stack switching is only supported on x64/arm64/ia32/arm.
   'debugger/wasm-jspi-async-stack': [SKIP],
@@ -340,6 +347,8 @@
 ##############################################################################
 ['verify_predictable', {
   'debugger/debug-set-variable-value': [SKIP],
+  'debugger/regress-opt-after-debug-deopt': [SKIP],
+  'debugger/regress-prepare-break-while-recompile': [SKIP],
   # https://crbug.com/374722652
   'regress/regress-374013413': [SKIP],
 }],  # 'verify_predictable'

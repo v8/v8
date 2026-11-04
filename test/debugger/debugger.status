@@ -48,8 +48,6 @@
   'debug/es8/async-debug-caught-exception-cases2': [SKIP],
   'debug/es8/async-debug-caught-exception-cases3': [SKIP],
 
-  # https://crbug.com/v8/14420
-  'debug/side-effect/debug-evaluate-no-side-effect-builtins': [SKIP],
   # b/532099983: too many allocations under GC stress
   'debug/side-effect/regress-532099983': [SKIP],
 }],  # 'gc_stress == True'
@@ -64,8 +62,6 @@
 ##############################################################################
 ['verify_predictable', {
   # Rely on (blocking) concurrent compilation.
-  'debug/regress/regress-opt-after-debug-deopt': [SKIP],
-  'debug/regress/regress-prepare-break-while-recompile': [SKIP],
   'regress/regress-7421': [SKIP],
 }],  # 'verify_predictable'
 
@@ -101,7 +97,6 @@
 # Tests requiring Sparkplug.
 ['arch not in (x64, arm64, ia32, arm, mips64el, loong64)', {
   'regress/regress-crbug-1199681': [SKIP],
-  'debug/regress/regress-crbug-1357554': [SKIP]
 }],
 
 ################################################################################
