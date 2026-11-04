@@ -51,19 +51,10 @@ void MaybeSetHandlerNow(Isolate* isolate) {
   if (has_active_etw_tracing_session_or_custom_filter &&
       !EtwIsolateOperations::Instance()->HeapReadOnlySpaceWritable(isolate)) {
     if (etw_filter_payload_glob.Pointer()->empty()) {
-      if (v8_flags.enable_etw_stack_walking) {
-        IsolateLoadScriptData::EnableLog(
-            isolate, 0, std::weak_ptr<EtwIsolateCaptureStateMonitor>(),
-            kJitCodeEventDefault);
-      } else if (isolate->IsETWTracingRequested() &&
-                 !isolate->IsETWTracingEnabled()) {
-        // When stack walking is disabled by default, and an Isolate is
-        // explicitly opted into being traced, and no filter payload is
-        // provided, logging is enabled for that one Isolate.
-        IsolateLoadScriptData::EnableLog(
-            isolate, 0, std::weak_ptr<EtwIsolateCaptureStateMonitor>(),
-            kJitCodeEventDefault);
-      }
+      DCHECK(v8_flags.enable_etw_stack_walking);
+      IsolateLoadScriptData::EnableLog(
+          isolate, 0, std::weak_ptr<EtwIsolateCaptureStateMonitor>(),
+          kJitCodeEventDefault);
     } else {
       IsolateLoadScriptData::EnableLogWithFilterData(
           isolate, 0, *etw_filter_payload_glob.Pointer(),
@@ -151,14 +142,6 @@ void WINAPI V8_EXPORT_PRIVATE ETWEnableCallback(
   // passing a custom filter.
   if (!v8_flags.enable_etw_stack_walking &&
       (!filter_data || filter_data->Type != EVENT_FILTER_TYPE_SCHEMATIZED)) {
-    if (v8_flags.enable_etw_by_custom_filter_only) {
-      // No filter passed, record on isolates where tracing has been explicitly
-      // requested.
-      ETWTRACEDBG << "Enabling for requested Isolates" << std::endl;
-
-      has_active_etw_tracing_session_or_custom_filter = true;
-      IsolateLoadScriptData::EnableLogIfRequestedOnAllIsolates(options);
-    }
     return;
   }
 
