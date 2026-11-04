@@ -883,6 +883,12 @@ DirectHandle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
     // we'd need to generalize old_details with the root_details here.
     PropertyDetails root_details =
         root_map_->instance_descriptors()->GetDetails(i);
+    DCHECK_EQ(old_details.kind(), root_details.kind());
+    DCHECK_EQ(old_details.location(), root_details.location());
+    DCHECK_IMPLIES(old_details.location() == PropertyLocation::kDescriptor,
+                   EqualImmutableValues(
+                       old_descriptors_->GetStrongValue(i),
+                       root_map_->instance_descriptors()->GetStrongValue(i)));
     DCHECK_EQ(
         old_details.representation().generalize(root_details.representation()),
         root_details.representation());

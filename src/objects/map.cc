@@ -2229,7 +2229,9 @@ DirectHandle<Map> Map::TransitionToAccessorProperty(
   DirectHandle<AccessorPair> pair;
   Tagged<DescriptorArray> old_descriptors = map->instance_descriptors();
   if (descriptor.is_found()) {
-    if (descriptor != map->LastAdded()) {
+    Tagged<Map> parent;
+    if (descriptor != map->LastAdded() || !map->TryGetBackPointer(&parent) ||
+        parent->NumberOfOwnDescriptors() == map->NumberOfOwnDescriptors()) {
       return Map::Normalize(isolate, map, mode, "AccessorsOverwritingNonLast");
     }
     PropertyDetails old_details = old_descriptors->GetDetails(descriptor);
