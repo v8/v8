@@ -278,14 +278,31 @@ MaglevGraphBuilder::LazyDeoptResultLocationScope::
   builder_->lazy_deopt_result_location_scope_ = previous_;
 }
 
-class MaglevGraphBuilder::MaglevSubGraphBuilder::LoopLabel {
+class V8_NODISCARD MaglevGraphBuilder::MaglevSubGraphBuilder::LoopLabel {
  public:
+  LoopLabel(const LoopLabel&) = delete;
+  LoopLabel(LoopLabel&&) = delete;
+  LoopLabel& operator=(const LoopLabel&) = delete;
+  LoopLabel& operator=(LoopLabel&&) = delete;
+
+  ~LoopLabel() {
+    if (merge_state_ != nullptr) {
+      // An early abort exited the subgraph before EndLoop was reached.
+      DCHECK_NULL(sub_builder_->builder_->current_block());
+      merge_state_->MergeDeadLoop(*sub_builder_->dummy_unit_);
+    }
+  }
+
  private:
-  explicit LoopLabel(LoopMergePointInterpreterFrameState* merge_state,
-                     BasicBlock* loop_header)
-      : merge_state_(merge_state), loop_header_(loop_header) {}
+  LoopLabel(MaglevSubGraphBuilder* sub_builder,
+            LoopMergePointInterpreterFrameState* merge_state,
+            BasicBlock* loop_header)
+      : sub_builder_(sub_builder),
+        merge_state_(merge_state),
+        loop_header_(loop_header) {}
 
   friend class MaglevSubGraphBuilder;
+  MaglevSubGraphBuilder* sub_builder_;
   LoopMergePointInterpreterFrameState* merge_state_ = nullptr;
   BasicBlock* loop_header_;
 };
@@ -420,7 +437,7 @@ MaglevGraphBuilder::MaglevSubGraphBuilder::BeginLoop(
   builder_->ProcessMergePointPredecessors(*loop_state, loop_header_ref);
   builder_->StartNewBlock(nullptr, loop_state, loop_header_ref);
 
-  return LoopLabel{loop_state, loop_header_ref.block_ptr()};
+  return LoopLabel{this, loop_state, loop_header_ref.block_ptr()};
 }
 
 template <typename ControlNodeT, typename... Args>
@@ -477,8 +494,12 @@ void MaglevGraphBuilder::MaglevSubGraphBuilder::MergeDeadInterpreterFrameState(
 }
 
 void MaglevGraphBuilder::MaglevSubGraphBuilder::EndLoop(LoopLabel* loop_label) {
+  // Ensure EndLoop is called only once and disarm ~LoopLabel().
+  LoopMergePointInterpreterFrameState* merge_state = loop_label->merge_state_;
+  DCHECK_NOT_NULL(merge_state);
+  loop_label->merge_state_ = nullptr;
   if (builder_->current_block() == nullptr) {
-    loop_label->merge_state_->MergeDeadLoop(*dummy_unit_);
+    merge_state->MergeDeadLoop(*dummy_unit_);
     return;
   }
 
@@ -486,11 +507,11 @@ void MaglevGraphBuilder::MaglevSubGraphBuilder::EndLoop(LoopLabel* loop_label) {
       builder_->FinishBlockNoAbort<JumpLoop>({}, loop_label->loop_header_);
   {
     BorrowParentKnownNodeAspectsAndVOs borrow(this);
-    loop_label->merge_state_->MergeLoop(
-        builder_->graph(), builder_->is_tracing(), *dummy_unit_,
-        variable_frame_, block, builder_->GetLatestCheckpointedFrame());
+    merge_state->MergeLoop(builder_->graph(), builder_->is_tracing(),
+                           *dummy_unit_, variable_frame_, block,
+                           builder_->GetLatestCheckpointedFrame());
   }
-  block->set_predecessor_id(loop_label->merge_state_->predecessor_count() - 1);
+  block->set_predecessor_id(merge_state->predecessor_count() - 1);
 }
 
 void MaglevGraphBuilder::MaglevSubGraphBuilder::Bind(Label* label) {
