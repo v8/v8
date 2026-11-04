@@ -7,11 +7,6 @@
   # All tests in the bug directory are expected to fail.
   'bugs/*': [FAIL],
 
-  # Issue 3641: The new 'then' semantics suppress some exceptions.
-  # These tests may be changed or removed when 'chain' is deprecated.
-  'debug/es6/debug-promises/reject-with-throw-in-reject': [FAIL],
-  'debug/es6/debug-promises/reject-with-undefined-reject': [FAIL],
-  'debug/es6/debug-promises/reject-with-invalid-reject': [FAIL],
 
   # Issue 5651: Context mismatch in ScopeIterator::Type() for eval default
   # parameter value (the test causes indexing a FixedArray out of bounds ->
