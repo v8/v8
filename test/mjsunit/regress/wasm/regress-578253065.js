@@ -14,5 +14,5 @@ assertPromiseResult(
     WebAssembly.instantiate(builder.toBuffer()), assertUnreachable,
     e => {
       const instantiateThenCallback = e.stack;
-      instantiateThenCallback();
+      assertEquals(undefined, instantiateThenCallback);
     });

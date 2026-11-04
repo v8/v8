@@ -1153,7 +1153,8 @@ class CallSiteBuilder {
   bool IsStrictFrame(DirectHandle<JSFunction> function) {
     if (!encountered_strict_function_) {
       encountered_strict_function_ =
-          is_strict(function->shared()->language_mode());
+          is_strict(function->shared()->language_mode()) ||
+          function->shared()->IsApiFunction();
     }
     return encountered_strict_function_;
   }
