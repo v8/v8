@@ -18,6 +18,7 @@
 #include "src/execution/interrupts-scope.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
+#include "src/interpreter/bytecode-array-iterator.h"
 #include "src/objects/debug-objects.h"
 #include "src/objects/shared-function-info.h"
 
@@ -167,8 +168,9 @@ class V8_EXPORT_PRIVATE BreakIterator {
   int break_index_;
   int position_;
   int statement_position_;
+  V8_NO_UNIQUE_ADDRESS DisallowGarbageCollection no_gc_;
   SourcePositionTableIterator source_position_iterator_;
-  DISALLOW_GARBAGE_COLLECTION(no_gc_)
+  interpreter::BytecodeArrayIterator bytecode_iterator_;
 };
 
 // Holds all active DebugInfo objects. This is a composite data structure

@@ -1683,6 +1683,7 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
         offsetof(SharedFunctionInfo, script_);
     fields[SHARED_FUNCTION_INFO_TYPE]["unique_id"] =
         offsetof(SharedFunctionInfo, unique_id_);
+    fields[SCRIPT_TYPE]["source"] = offsetof(Script, source_);
     fields[SCRIPT_TYPE]["wasm_managed_native_module"] =
         offsetof(Script, eval_from_position_);
     fields[JS_PROMISE_TYPE]["reactions_or_result"] =

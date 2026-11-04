@@ -52,6 +52,7 @@
   'regress/regress-502337304': [PASS, ['not memory_corruption_api', SKIP]],
   'regress/regress-507490539': [PASS, ['not memory_corruption_api', SKIP]],
   'regress/regress-513048538': [PASS, ['not memory_corruption_api', SKIP]],
+  'regress/regress-513360060': [PASS, ['not memory_corruption_api', SKIP]],
   'regress/regress-568338771': [PASS, ['not memory_corruption_api', SKIP]],
   'regress/regress-570558888': [PASS, ['not memory_corruption_api', SKIP]],
   'regress/regress-576575667': [PASS, ['not memory_corruption_api', SKIP]],
