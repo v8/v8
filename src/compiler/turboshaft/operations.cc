@@ -769,7 +769,8 @@ void StoreOp::PrintOptions(std::ostream& os) const {
 
 void TaggedBitcastOp::Validate(const Graph& graph) const {
   if (kind == Kind::kSmi) {
-    DCHECK((from.IsWord() && to.IsTaggedOrCompressed()) ||
+    DCHECK((from == RegisterRepresentation::WordPtr() &&
+            to == RegisterRepresentation::Tagged()) ||
            (from.IsTaggedOrCompressed() && to.IsWord()));
     DCHECK_IMPLIES(from == RegisterRepresentation::Word64() ||
                        to == RegisterRepresentation::Word64(),

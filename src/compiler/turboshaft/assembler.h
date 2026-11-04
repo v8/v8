@@ -2113,12 +2113,15 @@ class AssemblerOpInterface : public Next {
                          TaggedBitcastOp::Kind::kind);      \
   }
   DECL_TAGGED_BITCAST(Smi, Word32, kSmi)
-  DECL_TAGGED_BITCAST(Word32, Smi, kSmi)
   DECL_TAGGED_BITCAST(Smi, WordPtr, kSmi)
   DECL_TAGGED_BITCAST(WordPtr, Smi, kSmi)
   DECL_TAGGED_BITCAST(WordPtr, HeapObject, kHeapObject)
   DECL_TAGGED_BITCAST(HeapObject, WordPtr, kHeapObject)
 #undef DECL_TAGGED_BITCAST
+
+  V<Smi> BitcastWord32ToSmi(V<Word32> input) {
+    return BitcastWordPtrToSmi(ChangeUint32ToUintPtr(input));
+  }
   template <typename T = Object>
   V<T> BitcastWordPtrToTagged(ConstOrV<WordPtr> input) {
     return TaggedBitcast(resolve(input), V<WordPtr>::rep, V<T>::rep,
@@ -2796,8 +2799,6 @@ class AssemblerOpInterface : public Next {
     // Do shift on 32bit values if Smis are stored in the lower word.
     if constexpr (Is64() && SmiValuesAre31Bits()) {
       V<Word32> shifted = Word32ShiftLeft(resolve(input), kSmiShiftBits);
-      // In pointer compression, we smi-corrupt. Then, the upper bits are not
-      // important.
       return BitcastWord32ToSmi(shifted);
     } else {
       return BitcastWordPtrToSmi(
