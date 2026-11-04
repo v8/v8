@@ -760,7 +760,7 @@ class FileSourceStream : public CompileSourceStream {
     file_ = base::Fopen(filename, "rb");
     if (file_ == nullptr) {
       std::ostringstream oss;
-      oss << "Error loading file for streaming: " << filename;
+      oss << "Error loading file for streaming: " << TruncateForError(filename);
       ThrowError(isolate, oss.view());
     }
   }
@@ -1277,10 +1277,6 @@ bool Shell::ExecuteSource(Isolate* isolate, const Source& source,
   Local<Context> context(isolate->GetCurrentContext());
   ScriptOrigin origin = CreateScriptOrigin(isolate, name, ScriptType::kClassic);
 
-  i::CppGCManaged<ModuleEmbedderData>::Ptr module_data =
-      GetModuleDataFromContext(realm);
-  module_data->origin = ToSTLString(isolate, name);
-
   for (int i = 1; i < options.repeat_compile; ++i) {
     HandleScope handle_scope_for_compiling(isolate);
     if (CompileSource<Script>(isolate, context, source, origin).IsEmpty()) {
@@ -1292,6 +1288,10 @@ bool Shell::ExecuteSource(Isolate* isolate, const Source& source,
            .ToLocal(&script)) {
     return false;
   }
+
+  i::CppGCManaged<ModuleEmbedderData>::Ptr module_data =
+      GetModuleDataFromContext(realm);
+  module_data->origin = ToSTLString(isolate, name);
 
   if (options.code_cache_options ==
       ShellOptions::CodeCacheOptions::kProduceCache) {
@@ -1513,7 +1513,7 @@ MaybeLocal<Object> Shell::FetchModuleSource(Local<Module> referrer,
   // Loading modules is only allowed for local absolute paths.
   if (!IsAbsolutePath(module_specifier)) {
     std::ostringstream msg;
-    msg << "d8: Reading module from " << module_specifier
+    msg << "d8: Reading module from " << TruncateForError(module_specifier)
         << " is not supported.";
     if (!referrer.IsEmpty()) {
       std::string referrer_specifier =
@@ -1527,7 +1527,8 @@ MaybeLocal<Object> Shell::FetchModuleSource(Local<Module> referrer,
   auto file = ReadFileData(isolate, module_specifier.c_str());
   if (!file) {
     std::ostringstream msg;
-    msg << "d8: Error reading module from " << module_specifier;
+    msg << "d8: Error reading module from "
+        << TruncateForError(module_specifier);
     if (!referrer.IsEmpty()) {
       std::string referrer_specifier =
           module_data->GetModuleSpecifier(referrer);
@@ -1600,8 +1601,10 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
 
   if (!found_in_bundle) {
     if (module_specifier.starts_with(kDataURLPrefix)) {
-      source_text = String::NewFromUtf8(
-          isolate, module_specifier.c_str() + strlen(kDataURLPrefix));
+      if (module_specifier.length() <= String::kMaxLength) {
+        source_text = String::NewFromUtf8(
+            isolate, module_specifier.c_str() + strlen(kDataURLPrefix));
+      }
     } else if (IsAbsolutePath(module_specifier)) {
       if (module_type == ModuleType::kBytes) {
         raw_file = ReadFileData(isolate, module_specifier.c_str(), false);
@@ -1619,7 +1622,7 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
     } else {
       // Loading modules is only allowed for local absolute paths.
       std::ostringstream msg;
-      msg << "d8: Reading module from " << module_specifier
+      msg << "d8: Reading module from " << TruncateForError(module_specifier)
           << " is not supported.";
       if (!referrer.IsEmpty()) {
         std::string referrer_specifier =
@@ -1631,10 +1634,14 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
     }
   }
 
+  Local<String> resource_name;
   if ((module_type == ModuleType::kBytes && !raw_file) ||
-      (module_type != ModuleType::kBytes && source_text.IsEmpty())) {
+      (module_type != ModuleType::kBytes && source_text.IsEmpty()) ||
+      !String::NewFromUtf8(isolate, module_specifier.c_str())
+           .ToLocal(&resource_name)) {
     std::ostringstream msg;
-    msg << "d8: Error reading module from " << module_specifier;
+    msg << "d8: Error reading module from "
+        << TruncateForError(module_specifier);
     if (!referrer.IsEmpty()) {
       std::string referrer_specifier =
           module_data->GetModuleSpecifier(referrer);
@@ -1644,8 +1651,6 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
     return MaybeLocal<Module>();
   }
 
-  Local<String> resource_name =
-      String::NewFromUtf8(isolate, module_specifier.c_str()).ToLocalChecked();
   ScriptOrigin origin =
       CreateScriptOrigin(isolate, resource_name, ScriptType::kModule);
 
@@ -1682,17 +1687,14 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
         {String::NewFromUtf8(isolate, "default").ToLocalChecked()});
 
     module = v8::Module::CreateSyntheticModule(
-        isolate,
-        String::NewFromUtf8(isolate, module_specifier.c_str()).ToLocalChecked(),
-        export_names, Shell::JSONModuleEvaluationSteps, parsed_json);
+        isolate, resource_name, export_names, Shell::JSONModuleEvaluationSteps,
+        parsed_json);
   } else if (module_type == ModuleType::kText) {
     auto export_names = std::to_array<Local<String>>(
         {String::NewFromUtf8(isolate, "default").ToLocalChecked()});
 
     module = v8::Module::CreateSyntheticModule(
-        isolate,
-        String::NewFromUtf8(isolate, module_specifier.c_str()).ToLocalChecked(),
-        export_names, Shell::TextModuleEvaluationSteps,
+        isolate, resource_name, export_names, Shell::TextModuleEvaluationSteps,
         source_text.ToLocalChecked());
   } else if (module_type == ModuleType::kBytes) {
     CHECK(raw_file);
@@ -1712,9 +1714,8 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
         {String::NewFromUtf8(isolate, "default").ToLocalChecked()});
 
     module = v8::Module::CreateSyntheticModule(
-        isolate,
-        String::NewFromUtf8(isolate, module_specifier.c_str()).ToLocalChecked(),
-        export_names, Shell::BytesModuleEvaluationSteps, uint8_array);
+        isolate, resource_name, export_names, Shell::BytesModuleEvaluationSteps,
+        uint8_array);
   } else {
     UNREACHABLE();
   }
@@ -2763,7 +2764,7 @@ bool Shell::LookupPerformanceMark(Isolate* isolate, v8::Local<String> name,
   }
   std::ostringstream msg;
   msg << "Invalid performance.mark \"";
-  msg << (*utf8_name) << "\" does not exist";
+  msg << TruncateForError(*utf8_name) << "\" does not exist";
   ThrowError(isolate, msg.str());
   return false;
 }
@@ -3949,10 +3950,8 @@ void Shell::ExecuteFile(const v8::FunctionCallbackInfo<v8::Value>& info) {
     HandleScope handle_scope(isolate);
     SafeUtf8Value file_name(isolate, info[i]);
     if (!file_name) return;
-    if (!ExecuteSource(
-            isolate, Source::FromFile(*file_name),
-            String::NewFromUtf8(isolate, *file_name).ToLocalChecked(),
-            kNoReportExceptions)) {
+    if (!ExecuteSource(isolate, Source::FromFile(*file_name),
+                       file_name.string(), kNoReportExceptions)) {
       return;
     }
   }
@@ -4210,7 +4209,7 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& info) {
     if (!allow_new_workers_) return;
 
     String::Utf8Value script(isolate, source);
-    if (!*script) {
+    if (!*script || script.length() > String::kMaxLength) {
       ThrowError(isolate, "Can't get worker script");
       return;
     }
@@ -5943,7 +5942,7 @@ std::unique_ptr<base::OS::MemoryMappedFile> Shell::ReadFileData(
   if (!file) {
     if (should_throw) {
       std::ostringstream oss;
-      oss << "Error loading file: " << name;
+      oss << "Error loading file: " << TruncateForError(name);
       ThrowError(isolate, oss.view());
     }
     return nullptr;

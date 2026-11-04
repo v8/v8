@@ -7694,23 +7694,15 @@ void* CppHeapExternal::ValueImpl(v8::Isolate* isolate,
 // anonymous namespace for string creation helper functions
 namespace {
 
-inline int StringLength(const char* string) {
-  size_t len = strlen(string);
-  CHECK_GE(String::kMaxLength, len);
-  static_assert(String::kMaxLength <= i::kMaxInt);
-  return static_cast<int>(len);
-}
+inline size_t StringLength(const char* string) { return strlen(string); }
 
-inline int StringLength(const uint8_t* string) {
+inline size_t StringLength(const uint8_t* string) {
   return StringLength(reinterpret_cast<const char*>(string));
 }
 
-inline int StringLength(const uint16_t* string) {
-  size_t length = 0;
-  while (string[length] != '\0') length++;
-  CHECK_GE(String::kMaxLength, length);
-  static_assert(String::kMaxLength <= i::kMaxInt);
-  return static_cast<int>(length);
+inline size_t StringLength(const uint16_t* string) {
+  return std::char_traits<char16_t>::length(
+      reinterpret_cast<const char16_t*>(string));
 }
 
 V8_WARN_UNUSED_RESULT
@@ -7750,21 +7742,20 @@ static_assert(v8::String::kMaxLength == i::String::kMaxLength);
 // TODO(dcarney): throw a context free exception.
 #define NEW_STRING(v8_isolate, class_name, function_name, Char, data, type,   \
                    length)                                                    \
+  size_t unsigned_length =                                                    \
+      length < 0 ? StringLength(data) : static_cast<size_t>(length);          \
   MaybeLocal<String> result;                                                  \
-  if (length == 0) {                                                          \
+  if (unsigned_length == 0) {                                                 \
     result = String::Empty(v8_isolate);                                       \
-  } else if (length > 0 &&                                                    \
-             static_cast<uint32_t>(length) > i::String::kMaxLength) {         \
+  } else if (unsigned_length > i::String::kMaxLength) {                       \
     result = MaybeLocal<String>();                                            \
   } else {                                                                    \
     i::Isolate* i_isolate = reinterpret_cast<internal::Isolate*>(v8_isolate); \
     EnterV8NoScriptNoExceptionScope api_scope(i_isolate);                     \
     ApiRuntimeCallStatsScope rcs_scope(                                       \
         i_isolate, RCCId::kAPI_##class_name##_##function_name);               \
-    if (length < 0) length = StringLength(data);                              \
     i::DirectHandle<i::String> handle_result =                                \
-        NewString(i_isolate->factory(), type,                                 \
-                  {data, static_cast<size_t>(length)})                        \
+        NewString(i_isolate->factory(), type, {data, unsigned_length})        \
             .ToHandleChecked();                                               \
     result = Utils::ToLocal(handle_result);                                   \
   }

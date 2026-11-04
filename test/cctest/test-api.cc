@@ -26502,15 +26502,29 @@ TEST(NewStringRangeError) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
   const int length = i::String::kMaxLength + 1;
-  const int buffer_size = length * sizeof(uint16_t);
+  const size_t buffer_size = static_cast<size_t>(length + 1) * sizeof(uint16_t);
   void* buffer = malloc(buffer_size);
   if (buffer == nullptr) return;
   memset(buffer, 'A', buffer_size);
   {
     v8::TryCatch try_catch(isolate);
+    uint16_t* data = reinterpret_cast<uint16_t*>(buffer);
+    data[length] = 0;
+    CHECK(v8::String::NewFromTwoByte(isolate, data, v8::NewStringType::kNormal,
+                                     length)
+              .IsEmpty());
+    CHECK(v8::String::NewFromTwoByte(isolate, data, v8::NewStringType::kNormal)
+              .IsEmpty());
+    CHECK(!try_catch.HasCaught());
+  }
+  reinterpret_cast<char*>(buffer)[length] = '\0';
+  {
+    v8::TryCatch try_catch(isolate);
     char* data = reinterpret_cast<char*>(buffer);
     CHECK(v8::String::NewFromUtf8(isolate, data, v8::NewStringType::kNormal,
                                   length)
+              .IsEmpty());
+    CHECK(v8::String::NewFromUtf8(isolate, data, v8::NewStringType::kNormal)
               .IsEmpty());
     CHECK(!try_catch.HasCaught());
   }
@@ -26520,13 +26534,7 @@ TEST(NewStringRangeError) {
     CHECK(v8::String::NewFromOneByte(isolate, data, v8::NewStringType::kNormal,
                                      length)
               .IsEmpty());
-    CHECK(!try_catch.HasCaught());
-  }
-  {
-    v8::TryCatch try_catch(isolate);
-    uint16_t* data = reinterpret_cast<uint16_t*>(buffer);
-    CHECK(v8::String::NewFromTwoByte(isolate, data, v8::NewStringType::kNormal,
-                                     length)
+    CHECK(v8::String::NewFromOneByte(isolate, data, v8::NewStringType::kNormal)
               .IsEmpty());
     CHECK(!try_catch.HasCaught());
   }

@@ -43,11 +43,26 @@ inline Local<Value> ThrowError(Isolate* isolate, const char (&message)[N]) {
   return isolate->ThrowError(message);
 }
 
+inline std::string_view TruncateForError(std::string_view message) {
+  constexpr size_t kMaxErrorMessageLength = 1024;
+  return message.substr(0, kMaxErrorMessageLength);
+}
+
+inline std::string_view TruncateForError(const char* message) {
+  constexpr size_t kMaxErrorMessageLength = 1024;
+  const char* end =
+      std::char_traits<char>::find(message, kMaxErrorMessageLength, '\0');
+  size_t length =
+      end ? static_cast<size_t>(end - message) : kMaxErrorMessageLength;
+  return std::string_view(message, length);
+}
+
 inline Local<Value> ThrowError(Isolate* isolate, std::string_view message) {
   if (isolate->IsExecutionTerminating()) return v8::Undefined(isolate);
+  message = TruncateForError(message);
   Local<String> exception =
-      String::NewFromUtf8(
-          isolate, std::string(message.substr(0, String::kMaxLength)).c_str())
+      String::NewFromUtf8(isolate, message.data(), NewStringType::kNormal,
+                          static_cast<int>(message.length()))
           .ToLocalChecked();
   return isolate->ThrowError(exception);
 }
@@ -72,9 +87,8 @@ class SafeUtf8Value {
 
   SafeUtf8Value(Isolate* isolate, Local<Context> context, Local<Value> value) {
     if (value.IsEmpty()) return;
-    Local<String> str;
-    if (value->ToString(context).ToLocal(&str)) {
-      utf8_.emplace(isolate, str);
+    if (value->ToString(context).ToLocal(&str_)) {
+      utf8_.emplace(isolate, str_);
     }
   }
 
@@ -87,8 +101,10 @@ class SafeUtf8Value {
   std::string_view as_view() const {
     return is_valid() ? utf8_->as_view() : std::string_view();
   }
+  Local<String> string() const { return str_; }
 
  private:
+  Local<String> str_;
   std::optional<v8::String::Utf8Value> utf8_;
 };
 
