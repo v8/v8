@@ -2072,6 +2072,10 @@ void InstructionSelector::VisitOsrValue(OpIndex node) {
 void InstructionSelector::VisitPhi(OpIndex node) {
   const Operation& op = Get(node);
   DCHECK_EQ(op.input_count, PredecessorCount(current_block_));
+  if (V8_UNLIKELY(op.input_count == 1)) {
+    EmitIdentity(node);
+    return;
+  }
   PhiInstruction* phi = instruction_zone()->template New<PhiInstruction>(
       instruction_zone(), GetVirtualRegister(node),
       static_cast<size_t>(op.input_count));
