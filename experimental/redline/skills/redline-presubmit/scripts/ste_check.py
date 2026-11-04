@@ -29,7 +29,7 @@ import tempfile
 DEFAULT_LINTER = ('/google/src/files/head/depot/google3/learning/gemini/agents/'
                   'skills/communication/asd_ste100/ste_lint.py')
 SPEC = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), 'ste_lint.vpython3')
+    os.path.dirname(os.path.abspath(__file__)), 'ste_lint.vpython.toml')
 REDLINE = 'experimental/redline/'
 FOOTER = re.compile(r'^[A-Za-z][A-Za-z-]*: \S')
 HUNK = re.compile(r'^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@')
