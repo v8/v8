@@ -3470,9 +3470,8 @@ CallBuiltin* MaglevReducer<BaseT>::BuildCallBuiltin(
 // never lazily-deoptimize with a JSReceiver triggering valueOf
 // (crbug.com/493307329). We wrap all args here (Maglev doesn't know the wasm
 // signature); the reducer only uses the frame state for numeric params.
-// LINT.IfChange(WasmWrapperInliningConditions)
 template <typename BaseT>
-bool MaglevReducer<BaseT>::ShouldWrapArgsForWasmInlining(
+bool MaglevReducer<BaseT>::CanInlineJSToWasmWrapper(
     JSDispatchHandle dispatch_handle) {
   if (!is_turbolev()) return false;
   if (!v8_flags.wasm_in_js_inlining_wrapper) return false;
@@ -3481,13 +3480,14 @@ bool MaglevReducer<BaseT>::ShouldWrapArgsForWasmInlining(
   //  - The generic kJSToWasmWrapper builtin (used before a per-signature
   //    wrapper has been compiled), or
   //  - A jitted per-signature wrapper (CodeKind::JS_TO_WASM_FUNCTION).
-  // We detect both cases by inspecting the Code object via the dispatch table.
+  // Checking CodeKind alone is not sufficient because e.g.
+  // Builtin::kWasmPromising also has CodeKind::BUILTIN and carries
+  // WasmExportedFunctionData on its SharedFunctionInfo.
   Tagged<Code> code =
       local_isolate()->js_dispatch_table().GetCode(dispatch_handle);
   return code->builtin_id() == Builtin::kJSToWasmWrapper ||
          code->kind() == CodeKind::JS_TO_WASM_FUNCTION;
 }
-// LINT.ThenChange(src/compiler/turboshaft/turbolev-graph-builder.cc:WasmWrapperInliningConditions)
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 template <typename BaseT>
@@ -3498,8 +3498,10 @@ ReduceResult MaglevReducer<BaseT>::BuildCallKnownJSFunction(
     base::FunctionRef<ReduceResult(int)> get_arg,
     compiler::FeedbackSource const& feedback_source) {
 #if V8_ENABLE_WEBASSEMBLY
-  const bool wrap_args_for_wasm =
-      ShouldWrapArgsForWasmInlining(dispatch_handle);
+  const bool can_inline_js_to_wasm_wrapper =
+      CanInlineJSToWasmWrapper(dispatch_handle);
+#else
+  const bool can_inline_js_to_wasm_wrapper = false;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   size_t input_count = arg_count + CallKnownJSFunction::kFixedInputCount;
@@ -3510,7 +3512,7 @@ ReduceResult MaglevReducer<BaseT>::BuildCallKnownJSFunction(
           ValueNode* arg;
           GET_VALUE_OR_ABORT(arg, get_arg(i));
 #if V8_ENABLE_WEBASSEMBLY
-          if (wrap_args_for_wasm) {
+          if (can_inline_js_to_wasm_wrapper) {
             GET_VALUE_OR_ABORT(arg, AddNewNode<ProcessWasmArgument>({arg}));
           }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -3519,7 +3521,7 @@ ReduceResult MaglevReducer<BaseT>::BuildCallKnownJSFunction(
         return ReduceResult::Done();
       },
       dispatch_handle, shared, tagged_function, tagged_context, tagged_receiver,
-      tagged_new_target, feedback_source);
+      tagged_new_target, feedback_source, can_inline_js_to_wasm_wrapper);
 }
 
 template <typename BaseT>

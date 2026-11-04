@@ -871,6 +871,7 @@
   'sandbox/regress/regress-349502157': [SKIP],
   'sandbox/regress/regress-572826713': [SKIP],
   'sandbox/regress/regress-574792351': [SKIP],
+  'sandbox/regress/regress-575053489': [SKIP],
   'sandbox/regress/regress-580519552': [SKIP],
   'sandbox/regress-537948358': [SKIP],
   'sandbox/regress-558640961': [SKIP],
@@ -2120,6 +2121,7 @@
   # https://crbug.com/539796962
   'compiler/concurrent-string-ext-seq': [SKIP],
   'compiler/regress-519664497': [SKIP],
+  'sandbox/regress/regress-575053489': [SKIP],
   'turboshaft/regress-539984773': [SKIP],
 
   # Exhausts 32-bit virtual address space across concurrent isolates, causing

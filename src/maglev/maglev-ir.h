@@ -10811,11 +10811,11 @@ class CallKnownJSFunction : public VarargsValueNodeT<4, CallKnownJSFunction> {
   // This ctor is used when for variable input counts.
   // Inputs must be initialized manually.
   inline CallKnownJSFunction(
-      uint64_t bitfield,
-      JSDispatchHandle dispatch_handle,
+      uint64_t bitfield, JSDispatchHandle dispatch_handle,
       compiler::SharedFunctionInfoRef shared_function_info, ValueNode* closure,
       ValueNode* context, ValueNode* receiver, ValueNode* new_target,
-      const compiler::FeedbackSource& feedback_source);
+      const compiler::FeedbackSource& feedback_source,
+      bool can_inline_js_to_wasm_wrapper);
 
   // This node might eventually be overwritten by conversion nodes that need
   // to do a deferred call.
@@ -10823,7 +10823,12 @@ class CallKnownJSFunction : public VarargsValueNodeT<4, CallKnownJSFunction> {
       OpProperties::JSCall() | OpProperties::DeferredCall();
   DECLARE_INPUTS(Target, Context, Receiver, NewTarget)
 
-  JSDispatchHandle dispatch_handle() const { return dispatch_handle_; }
+  // Snapshots MaglevReducer::CanInlineJSToWasmWrapper() at node construction
+  // time so TurbolevGraphBuilder does not re-read the mutable JSDispatchTable.
+  // When true, all argument inputs are wrapped in ProcessWasmArgument nodes.
+  constexpr bool can_inline_js_to_wasm_wrapper() const {
+    return CanInlineJSToWasmWrapperField::decode(bitfield());
+  }
   compiler::SharedFunctionInfoRef shared_function_info() const {
     return shared_function_info_;
   }
@@ -10836,6 +10841,7 @@ class CallKnownJSFunction : public VarargsValueNodeT<4, CallKnownJSFunction> {
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&) const;
+  void VerifyInputs() const;
 
   int expected_parameter_count() const { return expected_parameter_count_; }
 
@@ -10845,6 +10851,8 @@ class CallKnownJSFunction : public VarargsValueNodeT<4, CallKnownJSFunction> {
   UseRepresentationSet use_repr_hints() { return use_repr_hints_; }
 
  private:
+  using CanInlineJSToWasmWrapperField = NextBitField<bool, 1>;
+
   JSDispatchHandle dispatch_handle_;
   const compiler::SharedFunctionInfoRef shared_function_info_;
   // Cache the expected parameter count so that we can access it in

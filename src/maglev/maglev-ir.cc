@@ -1103,6 +1103,19 @@ void InlinedAllocation::VerifyInputs() const {
   CheckInputIs(0, Opcode::kAllocationBlock);
 }
 
+void CallKnownJSFunction::VerifyInputs() const {
+  Base::VerifyInputs();
+#if V8_ENABLE_WEBASSEMBLY
+  if (can_inline_js_to_wasm_wrapper()) {
+    for (int i = kFixedInputCount; i < input_count(); ++i) {
+      CheckInputIs(i, Opcode::kProcessWasmArgument);
+    }
+  }
+#else
+  DCHECK(!can_inline_js_to_wasm_wrapper());
+#endif  // V8_ENABLE_WEBASSEMBLY
+}
+
 void UnsafeFloat64ToHoleyFloat64::VerifyInputs() const {
   Base::VerifyInputs();
   CHECK(!input_node(0)->UnwrapIdentities()->MayBeHoleOrUndefinedNan());

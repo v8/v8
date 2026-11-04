@@ -1436,7 +1436,6 @@ class GraphBuildingNodeProcessor {
       Tagged<WasmExportedFunctionData> function_data,
       Handle<WasmTrustedInstanceData> instance_handle,
       wasm::NativeModule* native_module) {
-    // LINT.IfChange(WasmWrapperInliningConditions)
 #define TRACE_WASM_INLINING(...)                  \
   do {                                            \
     if (v8_flags.trace_turbo_inlining) {          \
@@ -1548,16 +1547,13 @@ class GraphBuildingNodeProcessor {
 
     JSWasmCallParameters* wasm_call_params = nullptr;
 #if V8_ENABLE_WEBASSEMBLY
-    SharedFunctionInfoRef shared = node->shared_function_info();
-    Tagged<Code> code =
-        isolate_->js_dispatch_table().GetCode(node->dispatch_handle());
-    // If the code is a JS-to-Wasm wrapper (either the generic builtin or a
-    // compiled wrapper), we might be able to inline it.
-    bool is_calling_js_to_wasm_wrapper_builtin =
-        (code->builtin_id() == Builtin::kJSToWasmWrapper) ||
-        (code->kind() == CodeKind::JS_TO_WASM_FUNCTION);
-    if (v8_flags.wasm_in_js_inlining_wrapper &&
-        is_calling_js_to_wasm_wrapper_builtin) {
+    // Reuse CanInlineJSToWasmWrapper recorded on the CallKnownJSFunction node,
+    // avoiding a TOCTOU race if the JSDispatchTable entry for the target
+    // function changes between Maglev graph building and Turbolev graph
+    // building.
+    if (node->can_inline_js_to_wasm_wrapper()) {
+      DCHECK(v8_flags.wasm_in_js_inlining_wrapper);
+      SharedFunctionInfoRef shared = node->shared_function_info();
       Tagged<WasmExportedFunctionData> function_data;
       if (TryCast(shared.object()->GetTrustedData(isolate_), &function_data)) {
         Tagged<WasmTrustedInstanceData> instance_data =
@@ -1572,7 +1568,6 @@ class GraphBuildingNodeProcessor {
                                                 instance_handle, native_module);
       }
     }
-    // LINT.ThenChange(src/maglev/maglev-reducer-inl.h:WasmWrapperInliningConditions)
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     V<Object> callee = Map(node->TargetInput());
