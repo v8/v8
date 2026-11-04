@@ -2815,50 +2815,6 @@ INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
                          TurboshaftInstructionSelectorSIMDArchShuffleTest,
                          ::testing::ValuesIn(kArchShuffles));
 
-// TODO(dmercadier): port to Turboshaft once Turboshaft supports Simd256
-// shuffles.
-#if 0
-
-struct ArchShuffle256 {
-  uint8_t shuffle[kSimd256Size];
-  ArchOpcode arch_opcode;
-  size_t input_count;
-};
-
-static constexpr ArchShuffle256 kArchShuffles256[] = {
-    {{4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 0,  1,  2,  3,
-      20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 16, 17, 18, 19},
-     kX64Vpshufd,
-     2}};
-
-using TurboshaftInstructionSelectorSIMDArchShuffle256Test =
-    TurboshaftInstructionSelectorTestWithParam<ArchShuffle256>;
-
-TEST_P(TurboshaftInstructionSelectorSIMDArchShuffle256Test,
-       SIMDArchShuffle256) {
-  MachineType type = MachineType::Simd128();
-  {
-    // Tests various shuffle optimizations
-    StreamBuilder m(this, type, type, type);
-    auto param = GetParam();
-    auto shuffle = param.shuffle;
-    const Operator* op = m.machine()->I8x32Shuffle(shuffle);
-    OpIndex n = m.AddNode(op, m.Parameter(0), m.Parameter(1));
-    m.Return(n);
-    Stream s = m.Build();
-    ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(param.arch_opcode, s[0]->arch_opcode());
-    ASSERT_EQ(param.input_count, s[0]->InputCount());
-    EXPECT_EQ(1U, s[0]->OutputCount());
-  }
-}
-
-INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
-                         TurboshaftInstructionSelectorSIMDArchShuffle256Test,
-                         ::testing::ValuesIn(kArchShuffles256));
-
-#endif
-
 struct ShuffleWithZeroInput {
   uint8_t shuffle_mask[kSimd128Size];
   ArchOpcode arch_opcode;

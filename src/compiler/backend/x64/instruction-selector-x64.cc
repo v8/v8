@@ -4797,11 +4797,9 @@ VISIT_ATOMIC_BINOP(Xor)
 
 #define SIMD_UNOP_LIST(V)   \
   V(F64x2ConvertLowI32x4S)  \
-  V(F64x4ConvertI32x4S)     \
   V(F32x4SConvertI32x4)     \
   V(F32x8SConvertI32x8)     \
   V(F32x4DemoteF64x2Zero)   \
-  V(F32x4DemoteF64x4)       \
   V(I16x8SConvertF16x8)     \
   V(I16x8UConvertF16x8)     \
   V(F16x8SConvertI16x8)     \
@@ -5665,8 +5663,6 @@ void InstructionSelector::VisitExtractF128(OpIndex node) {
          g.UseImmediate(op.lane));
   }
 }
-
-void InstructionSelector::VisitI8x32Shuffle(OpIndex node) { UNREACHABLE(); }
 #endif  // V8_ENABLE_SIMD256
 #endif  // V8_ENABLE_SIMD128
 

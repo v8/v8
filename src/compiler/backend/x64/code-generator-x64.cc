@@ -4526,11 +4526,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Cvtdq2pd(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
-    case kX64F64x4ConvertI32x4S: {
-      CpuFeatureScope avx_scope(masm(), AVX);
-      __ vcvtdq2pd(i.OutputSimd256Register(), i.InputSimd128Register(0));
-      break;
-    }
     case kX64F64x2ConvertLowI32x4U: {
       __ F64x2ConvertLowI32x4U(i.OutputSimd128Register(),
                                i.InputSimd128Register(0), kScratchRegister);
@@ -4547,11 +4542,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64F32x4DemoteF64x2Zero: {
       __ Cvtpd2ps(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
-    case kX64F32x4DemoteF64x4: {
-      CpuFeatureScope avx_scope(masm(), AVX);
-      __ vcvtpd2ps(i.OutputSimd128Register(), i.InputSimd256Register(0));
       break;
     }
     case kX64I32x4TruncSatF64x2SZero: {

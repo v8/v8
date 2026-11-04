@@ -1274,10 +1274,8 @@
   V(I8x32GeU)                      \
   V(I32x8SConvertF32x8)            \
   V(I32x8UConvertF32x8)            \
-  V(F64x4ConvertI32x4S)            \
   V(F32x8SConvertI32x8)            \
   V(F32x8UConvertI32x8)            \
-  V(F32x4DemoteF64x4)              \
   V(I64x4SConvertI32x4)            \
   V(I64x4UConvertI32x4)            \
   V(I32x8SConvertI16x8)            \
@@ -1336,7 +1334,6 @@
   V(F64x4Splat)                    \
   V(F32x8Splat)                    \
   V(F16x16Splat)                   \
-  V(I8x32Shuffle)                  \
   V(F32x8Qfma)                     \
   V(F32x8Qfms)                     \
   V(F64x4Qfma)                     \
@@ -1358,12 +1355,11 @@
   V(F32x8Trunc)                    \
   V(F32x8NearestInt)
 
-#define VALUE_OP_LIST(V)                 \
-  COMMON_OP_LIST(V)                      \
-  SIMPLIFIED_OP_LIST(V)                  \
-  MACHINE_OP_LIST(V)                     \
-  MACHINE_SIMD128_OP_LIST(V)             \
-  IF_SIMD256(MACHINE_SIMD256_OP_LIST, V) \
+#define VALUE_OP_LIST(V)     \
+  COMMON_OP_LIST(V)          \
+  SIMPLIFIED_OP_LIST(V)      \
+  MACHINE_OP_LIST(V)         \
+  MACHINE_SIMD128_OP_LIST(V) \
   JS_OP_LIST(V)
 
 // The combination of all operators at all levels and the common operators.
