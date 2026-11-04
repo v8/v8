@@ -407,7 +407,7 @@ class V8_EXPORT_PRIVATE Pipeline {
           RegisterConfiguration::RestrictGeneralRegisters(registers));
       config = restricted_config.get();
     }
-    if (!AllocateRegisters(config, call_descriptor, run_verifier)) return false;
+    if (!AllocateRegisters(config, run_verifier)) return false;
 
     // Verify the instruction sequence has the same hash in two stages.
     VerifyGeneratedCodeIsIdempotent();
@@ -465,8 +465,7 @@ class V8_EXPORT_PRIVATE Pipeline {
   }
 
   V8_WARN_UNUSED_RESULT bool AllocateRegisters(
-      const RegisterConfiguration* config, CallDescriptor* call_descriptor,
-      bool run_verifier);
+      const RegisterConfiguration* config, bool run_verifier);
 
   V8_WARN_UNUSED_RESULT bool AssembleCode(Linkage* linkage) {
     UnparkedScopeIfNeeded unparked_scope(data()->broker());

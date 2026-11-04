@@ -32,7 +32,6 @@ void SimplificationAndNormalizationPhase::Run(PipelineData* data,
 }
 
 bool Pipeline::AllocateRegisters(const RegisterConfiguration* config,
-                                 CallDescriptor* call_descriptor,
                                  bool run_verifier) {
   // Don't track usage for this zone in compiler stats.
   std::unique_ptr<Zone> verifier_zone;
@@ -52,7 +51,7 @@ bool Pipeline::AllocateRegisters(const RegisterConfiguration* config,
   data_->sequence()->ValidateDeferredBlockExitPaths();
 #endif
 
-  data_->InitializeRegisterComponent(config, call_descriptor);
+  data_->InitializeRegisterComponent(config);
   struct V8_NODISCARD ClearRegisterComponentScope {
     PipelineData* data;
     ~ClearRegisterComponentScope() { data->ClearRegisterComponent(); }
@@ -87,7 +86,6 @@ bool Pipeline::AllocateRegisters(const RegisterConfiguration* config,
     RUN_MAYBE_ABORT(AllocateSimd128RegistersPhase<LinearScanAllocator>);
   }
 
-  RUN_MAYBE_ABORT(DecideSpillingModePhase);
   RUN_MAYBE_ABORT(AssignSpillSlotsPhase);
 
   // The prologue grows the frame with a single stack pointer decrement, before

@@ -247,7 +247,6 @@ namespace v8::internal {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BytecodeGraphBuilder)              \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, CommitAssignment)                  \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, ConnectRanges)                     \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, DecideSpillingMode)                \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EarlyGraphTrimming)                \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EarlyOptimization)                 \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EscapeAnalysis)                    \

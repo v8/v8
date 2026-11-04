@@ -1402,10 +1402,6 @@ DEFINE_BOOL_READONLY(opt, false,
                      "(Wasm uses separate flags)")
 #endif  // V8_ENABLE_TURBOFAN
 
-DEFINE_BOOL(
-    turbo_always_optimize_spills, true,
-    "optimize placement of all spill instructions, not just loop-top phis")
-
 DEFINE_BOOL(turbo_wasm_address_reassociation, true,
             "refactor address components for immediate indexing")
 
