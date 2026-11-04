@@ -799,6 +799,11 @@ class Shell : public i::AllStatic {
 
   static void ResetOnProfileEndListener(Isolate* isolate);
 
+#if defined(V8_FUZZILLI) || defined(V8_REDLINE)
+  // Best-effort undo of state leaked by previous REPRL executions.
+  static void ResetIsolateStateForReprl(Isolate* isolate);
+#endif  // defined(V8_FUZZILLI) || defined(V8_REDLINE)
+
   static void Print(const v8::FunctionCallbackInfo<v8::Value>& info);
   static void PrintErr(const v8::FunctionCallbackInfo<v8::Value>& info);
   static void WriteStdout(const v8::FunctionCallbackInfo<v8::Value>& info);

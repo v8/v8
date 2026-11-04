@@ -3690,6 +3690,30 @@ void Shell::ResetOnProfileEndListener(Isolate* isolate) {
   }
 }
 
+#if defined(V8_FUZZILLI) || defined(V8_REDLINE)
+void Shell::ResetIsolateStateForReprl(Isolate* isolate) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i_isolate->descriptor_lookup_cache()->Clear();
+  i_isolate->compilation_cache()->Clear();
+  i_isolate->set_force_slow_path(i::v8_flags.force_slow_path);
+
+  // Undo %SetAllocationTimeout.
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  i::HeapAllocator::SetAllocationGcInterval(i::v8_flags.gc_interval);
+  i_isolate->heap()->allocator()->UpdateAllocationTimeout();
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
+#ifdef DEBUG
+  if (i::v8_flags.inline_new) {
+    i_isolate->heap()->EnableInlineAllocation();
+  } else {
+    i_isolate->heap()->DisableInlineAllocation();
+  }
+#endif  // DEBUG
+
+  ResetOnProfileEndListener(isolate);
+}
+#endif  // defined(V8_FUZZILLI) || defined(V8_REDLINE)
+
 void Shell::ProfilerTriggerSample(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   // If the inspector is enabled, then the installed console is not the
@@ -8548,15 +8572,12 @@ int Shell::Main(int argc, char* argv[]) {
 
     // Fuzzilli REPRL = read-eval-print-loop
     do {
-#if defined(V8_FUZZILLI) || defined(V8_REDLINE) || defined(V8_DUMPLING)
+#ifdef V8_DUMPLING
       v8::internal::Isolate* internal_isolate =
           reinterpret_cast<v8::internal::Isolate*>(isolate);
-#endif  // defined(V8_FUZZILLI) || defined(V8_REDLINE) || defined(V8_DUMPLING)
+#endif  // V8_DUMPLING
 #if defined(V8_FUZZILLI) || defined(V8_REDLINE)
-      internal_isolate->descriptor_lookup_cache()->Clear();
-      internal_isolate->compilation_cache()->Clear();
-      internal_isolate->set_force_slow_path(i::v8_flags.force_slow_path);
-      ResetOnProfileEndListener(isolate);
+      ResetIsolateStateForReprl(isolate);
       if (fuzzilli_reprl) {
         unsigned action = 0;
         ssize_t nread = read(REPRL_CRFD, &action, 4);
