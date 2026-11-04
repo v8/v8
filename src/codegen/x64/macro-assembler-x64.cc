@@ -2413,9 +2413,36 @@ void MacroAssembler::F32x8Max(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
   vandnps(dst, dst, scratch);
 }
 
+namespace {
+void CanonicalizeF16x8NaNs(MacroAssembler* masm, XMMRegister dst,
+                           XMMRegister value, XMMRegister scratch) {
+  masm->vpsllw(dst, value, uint8_t{1});
+  masm->vpsrlw(dst, dst, uint8_t{1});
+  masm->vpcmpeqw(scratch, scratch, scratch);
+  masm->vpsrlw(scratch, scratch, uint8_t{11});
+  masm->vpsllw(scratch, scratch, uint8_t{10});
+  masm->vpcmpgtw(dst, dst, scratch);
+  masm->vpor(value, value, dst);
+  masm->vpsrlw(dst, dst, uint8_t{7});
+  masm->vpandn(dst, dst, value);
+}
+}  // namespace
+
 void MacroAssembler::F16x8Min(YMMRegister dst, XMMRegister lhs, XMMRegister rhs,
                               YMMRegister scratch, YMMRegister scratch2) {
   ASM_CODE_COMMENT(this);
+  if (UseAvx10_1()) {
+    CpuFeatureScope avx10_1_scope(this, AVX10_1);
+    CpuFeatureScope avx_scope(this, AVX);
+    XMMRegister xdst = dst;
+    XMMRegister xscratch = scratch;
+    XMMRegister xscratch2 = scratch2;
+    vminph(xscratch, lhs, rhs);
+    vminph(xdst, rhs, lhs);
+    vpor(xscratch, xscratch, xdst);
+    CanonicalizeF16x8NaNs(this, xdst, xscratch, xscratch2);
+    return;
+  }
   CpuFeatureScope f16c_scope(this, F16C);
   CpuFeatureScope avx_scope(this, AVX);
   vcvtph2ps(scratch, lhs);
@@ -2447,6 +2474,20 @@ void MacroAssembler::F16x8Min(YMMRegister dst, XMMRegister lhs, XMMRegister rhs,
 void MacroAssembler::F16x8Max(YMMRegister dst, XMMRegister lhs, XMMRegister rhs,
                               YMMRegister scratch, YMMRegister scratch2) {
   ASM_CODE_COMMENT(this);
+  if (UseAvx10_1()) {
+    CpuFeatureScope avx10_1_scope(this, AVX10_1);
+    CpuFeatureScope avx_scope(this, AVX);
+    XMMRegister xdst = dst;
+    XMMRegister xscratch = scratch;
+    XMMRegister xscratch2 = scratch2;
+    vmaxph(xscratch, lhs, rhs);
+    vmaxph(xdst, rhs, lhs);
+    vpxor(xdst, xdst, xscratch);
+    vpor(xscratch, xscratch, xdst);
+    vsubph(xscratch, xscratch, xdst);
+    CanonicalizeF16x8NaNs(this, xdst, xscratch, xscratch2);
+    return;
+  }
   CpuFeatureScope f16c_scope(this, F16C);
   CpuFeatureScope avx_scope(this, AVX);
   vcvtph2ps(scratch, lhs);

@@ -4917,7 +4917,7 @@ bool LiftoffAssembler::emit_f16x8_div(LiftoffRegister dst, LiftoffRegister lhs,
 
 bool LiftoffAssembler::emit_f16x8_min(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  if (!CpuFeatures::IsSupported(F16C)) return false;
+  if (!UseAvx10_1() && !CpuFeatures::IsSupported(F16C)) return false;
   static constexpr RegClass res_rc = reg_class_for(kS128);
   LiftoffRegister tmp =
       GetUnusedRegister(res_rc, LiftoffRegList{dst, lhs, rhs});
@@ -4929,7 +4929,7 @@ bool LiftoffAssembler::emit_f16x8_min(LiftoffRegister dst, LiftoffRegister lhs,
 
 bool LiftoffAssembler::emit_f16x8_max(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  if (!CpuFeatures::IsSupported(F16C)) return false;
+  if (!UseAvx10_1() && !CpuFeatures::IsSupported(F16C)) return false;
   static constexpr RegClass res_rc = reg_class_for(kS128);
   LiftoffRegister tmp =
       GetUnusedRegister(res_rc, LiftoffRegList{dst, lhs, rhs});

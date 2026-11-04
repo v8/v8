@@ -822,6 +822,113 @@ WASM_COMPILED_EXEC_TEST(F16x8PmaxRaw) {
   RunF16x8PminPmaxRaw(execution_tier, false);
 }
 
+void RunF16x8MinMaxRaw(TestExecutionTier execution_tier, bool is_min) {
+  i::v8_flags.wasm_fp16.Set(true);
+  WasmRunner<int32_t> runner(execution_tier);
+  constexpr int kLanes = 8;
+  uint16_t* memory = runner.builder().AddMemoryElems<uint16_t>(11 * kLanes);
+  uint8_t lhs = runner.AllocateLocal(kWasmS128);
+  uint8_t rhs = runner.AllocateLocal(kWasmS128);
+  uint8_t result = runner.AllocateLocal(kWasmS128);
+  WasmOpcode opcode = is_min ? kExprF16x8Min : kExprF16x8Max;
+  runner.Build(
+      {WASM_LOCAL_SET(lhs, WASM_SIMD_LOAD_MEM(WASM_ZERO)),
+       WASM_LOCAL_SET(rhs, WASM_SIMD_LOAD_MEM(WASM_I32V(16))),
+       WASM_LOCAL_SET(result, WASM_SIMD_BINOP(opcode, WASM_LOCAL_GET(lhs),
+                                              WASM_LOCAL_GET(rhs))),
+       WASM_SIMD_STORE_MEM(WASM_I32V(32), WASM_LOCAL_GET(result)),
+       WASM_SIMD_STORE_MEM(
+           WASM_I32V(48),
+           WASM_SIMD_BINOP(opcode, WASM_LOCAL_GET(rhs), WASM_LOCAL_GET(lhs))),
+       WASM_SIMD_STORE_MEM(
+           WASM_I32V(64),
+           WASM_SIMD_BINOP(opcode, WASM_LOCAL_GET(lhs), WASM_LOCAL_GET(lhs))),
+       WASM_SIMD_STORE_MEM(WASM_I32V(80),
+                           WASM_SIMD_BINOP(opcode, WASM_LOCAL_GET(rhs),
+                                           WASM_LOCAL_GET(result))),
+       WASM_SIMD_STORE_MEM(
+           WASM_I32V(96), WASM_SIMD_BINOP(opcode, WASM_SIMD_LOAD_MEM(WASM_ZERO),
+                                          WASM_LOCAL_GET(rhs))),
+       WASM_SIMD_STORE_MEM(WASM_I32V(112),
+                           WASM_SIMD_BINOP(opcode, WASM_LOCAL_GET(lhs),
+                                           WASM_SIMD_LOAD_MEM(WASM_I32V(16)))),
+       WASM_SIMD_STORE_MEM(WASM_I32V(128), WASM_LOCAL_GET(lhs)),
+       WASM_SIMD_STORE_MEM(WASM_I32V(144), WASM_LOCAL_GET(rhs)),
+       WASM_LOCAL_SET(lhs, WASM_SIMD_LOAD_MEM(WASM_ZERO)),
+       WASM_SIMD_STORE_MEM(
+           WASM_I32V(160),
+           WASM_SIMD_OPN(
+               opcode, WASM_LOCAL_GET(lhs), WASM_LOCAL_GET(lhs),
+               WASM_LOCAL_SET(lhs, WASM_SIMD_I32x4_SPLAT(WASM_ZERO)))),
+       WASM_ONE});
+
+  auto check_lane = [=](uint16_t lhs_bits, uint16_t rhs_bits, uint16_t actual) {
+    uint16_t expected =
+        is_min ? MinF16(lhs_bits, rhs_bits) : MaxF16(lhs_bits, rhs_bits);
+    if (!isnan(expected)) {
+      CHECK_EQ(expected, actual);
+      return;
+    }
+    CHECK_EQ(0x7e00, actual & 0x7e00);
+    if ((!isnan(lhs_bits) || IsCanonical(lhs_bits)) &&
+        (!isnan(rhs_bits) || IsCanonical(rhs_bits))) {
+      CHECK(IsCanonical(actual));
+    }
+  };
+  auto check = [&]() {
+    CHECK_EQ(1, runner.Call());
+    for (int lane = 0; lane < kLanes; ++lane) {
+      auto read = [&](int slot) {
+        return runner.builder().ReadMemory(&memory[slot * kLanes + lane]);
+      };
+      uint16_t lhs_bits = read(0), rhs_bits = read(1);
+      check_lane(lhs_bits, rhs_bits, read(2));
+      check_lane(rhs_bits, lhs_bits, read(3));
+      check_lane(lhs_bits, lhs_bits, read(4));
+      check_lane(rhs_bits, read(2), read(5));
+      check_lane(lhs_bits, rhs_bits, read(6));
+      check_lane(lhs_bits, rhs_bits, read(7));
+      CHECK_EQ(lhs_bits, read(8));
+      CHECK_EQ(rhs_bits, read(9));
+      check_lane(lhs_bits, lhs_bits, read(10));
+    }
+  };
+
+  constexpr uint16_t inputs[] = {
+      0x0000, 0x8000, 0x0001, 0x8001, 0x03ff, 0x83ff, 0x0400, 0x8400,
+      0x0401, 0x8401, 0x3800, 0xb800, 0x3bff, 0xbbff, 0x3c00, 0xbc00,
+      0x3c01, 0xbc01, 0x4000, 0xc000, 0x7bff, 0xfbff, 0x7c00, 0xfc00,
+      0x7c01, 0xfc01, 0x7dff, 0xfdff, 0x7e00, 0xfe00, 0x7fff, 0xffff};
+  for (size_t left = 0; left < arraysize(inputs); left += kLanes) {
+    for (size_t right = 0; right < arraysize(inputs); ++right) {
+      for (int lane = 0; lane < kLanes; ++lane) {
+        runner.builder().WriteMemory(&memory[lane], inputs[left + lane]);
+        runner.builder().WriteMemory(
+            &memory[kLanes + lane],
+            inputs[(right + 3 * lane) % arraysize(inputs)]);
+      }
+      check();
+    }
+  }
+
+  base::RandomNumberGenerator rng(v8_flags.random_seed);
+  for (int trial = 0; trial < 512; ++trial) {
+    for (int lane = 0; lane < 2 * kLanes; ++lane) {
+      runner.builder().WriteMemory(&memory[lane],
+                                   static_cast<uint16_t>(rng.NextInt(65536)));
+    }
+    check();
+  }
+}
+
+WASM_COMPILED_EXEC_TEST(F16x8MinRaw) {
+  RunF16x8MinMaxRaw(execution_tier, true);
+}
+
+WASM_COMPILED_EXEC_TEST(F16x8MaxRaw) {
+  RunF16x8MinMaxRaw(execution_tier, false);
+}
+
 WASM_EXEC_TEST(F16x8ConvertI16x8) {
   i::v8_flags.wasm_fp16.Set(true);
   WasmRunner<int32_t, int32_t> r(execution_tier);

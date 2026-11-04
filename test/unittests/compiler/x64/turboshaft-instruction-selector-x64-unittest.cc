@@ -3153,6 +3153,47 @@ TEST_F(TurboshaftInstructionSelectorTest, F16x8SqrtChainedAVX10_1) {
 }
 #endif  // V8_ENABLE_AVX10_1
 
+TEST_F(TurboshaftInstructionSelectorTest, F16x8MinMaxRegisterConstraints) {
+  for (bool is_min : {true, false}) {
+    for (bool repeated_input : {false, true}) {
+      StreamBuilder builder(this, MachineType::Simd128(),
+                            MachineType::Simd128(), MachineType::Simd128());
+      V<Simd128> lhs = builder.Parameter<Simd128>(0);
+      V<Simd128> rhs = repeated_input ? lhs : builder.Parameter<Simd128>(1);
+      V<Simd128> result =
+          is_min ? builder.F16x8Min(lhs, rhs) : builder.F16x8Max(lhs, rhs);
+      builder.Return(is_min ? builder.F16x8Min(result, lhs)
+                            : builder.F16x8Max(result, lhs));
+      Stream stream = builder.Build();
+
+      ASSERT_EQ(2U, stream.size());
+      for (size_t index = 0; index < stream.size(); ++index) {
+        EXPECT_EQ(is_min ? kX64FMin : kX64FMax, stream[index]->arch_opcode());
+        EXPECT_EQ(LaneSize::kL16,
+                  LaneSizeField::decode(stream[index]->opcode()));
+        EXPECT_EQ(VectorLength::kV128,
+                  VectorLengthField::decode(stream[index]->opcode()));
+        ASSERT_EQ(2U, stream[index]->InputCount());
+        EXPECT_EQ(1U, stream[index]->OutputCount());
+        EXPECT_EQ(2U, stream[index]->TempCount());
+        EXPECT_TRUE(UnallocatedOperand::cast(stream[index]->Output())
+                        ->HasRegisterPolicy());
+        for (size_t operand = 0; operand < 2; ++operand) {
+          const auto* input =
+              UnallocatedOperand::cast(stream[index]->InputAt(operand));
+          EXPECT_TRUE(input->HasRegisterPolicy());
+          EXPECT_FALSE(input->IsUsedAtStart());
+        }
+      }
+      EXPECT_EQ(stream.ToVreg(lhs), stream.ToVreg(stream[0]->InputAt(0)));
+      EXPECT_EQ(stream.ToVreg(rhs), stream.ToVreg(stream[0]->InputAt(1)));
+      EXPECT_EQ(stream.ToVreg(stream[0]->Output()),
+                stream.ToVreg(stream[1]->InputAt(0)));
+      EXPECT_EQ(stream.ToVreg(lhs), stream.ToVreg(stream[1]->InputAt(1)));
+    }
+  }
+}
+
 TEST_F(TurboshaftInstructionSelectorTest, F16x8PminPmaxFallback) {
 #ifdef V8_ENABLE_AVX10_1
   FlagScope<bool> disable_avx10(&v8_flags.enable_avx10_1, false);
