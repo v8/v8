@@ -2171,6 +2171,33 @@ STREAM_TEST(StreamingErrorCrashKeyReused) {
     worker_isolate->Dispose();
   }
 
+  // Eager baseline compilation failing after OnFinishedStream (via
+  // CompilationStateCallback -> DoSync<Fail>() in async mode, or synchronously
+  // in OnFinishedStream in single-threaded mode).
+  if (!i::v8_flags.wasm_jitless) {
+    i::FlagScope<bool> eager_compile(&i::v8_flags.wasm_lazy_compilation, false);
+    i::FlagScope<int> tasks_scope(&i::v8_flags.wasm_num_compilation_tasks,
+                                  i::v8_flags.single_threaded
+                                      ? 0
+                                      : i::v8_flags.wasm_num_compilation_tasks);
+    StreamTester tester(isolate);
+    ZoneBuffer buffer(tester.zone());
+    TestSignatures sigs;
+    WasmModuleBuilder builder(tester.zone());
+    builder.AddFunction(sigs.v_v())->Emit(kExprI32Add);
+    builder.WriteTo(&buffer);
+    tester.OnBytesReceived(buffer.begin(), buffer.size());
+    tester.FinishStream();
+    tester.RunCompilerTasks();
+    CHECK(tester.IsPromiseRejected());
+    CHECK_EQ(1, local_state.alloc_count);
+    CHECK_EQ(4, local_state.set_count);
+    const char* expected_reason = i::v8_flags.wasm_num_compilation_tasks == 0
+                                      ? "CompilationState failed"
+                                      : "CompilationStateCallback failed";
+    CHECK_EQ(expected_reason, local_state.last_value);
+  }
+
   v8::V8::SetCrashKeyCallbacks(nullptr, nullptr);
   state = nullptr;
   CHECK(!i::V8::HasCrashKeyCallbacks());

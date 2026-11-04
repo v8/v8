@@ -11,6 +11,7 @@
 
 #include <atomic>
 #include <memory>
+#include <string_view>
 
 #include "include/v8-metrics.h"
 #include "src/base/platform/time.h"
@@ -195,7 +196,7 @@ class AsyncCompileJob {
   void FinishCompile(std::shared_ptr<NativeModule> final_native_module,
                      DirectHandle<WasmModuleObject> deserialized_module_object,
                      bool cache_hit) &&;
-  void Failed() &&;
+  void Failed(std::string_view failure_reason) &&;
 
   void StartForegroundTask();
   void StartBackgroundTask();
