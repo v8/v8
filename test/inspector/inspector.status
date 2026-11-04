@@ -54,11 +54,13 @@
   'debugger/debug-stepout-scope-part8': [PASS, HEAVY],
   'runtime/regression-732717': [PASS, HEAVY],
   'debugger/debug-scopes': [PASS, HEAVY],
+  'regress/regress-2318': [PASS, HEAVY, ['mode == debug or (arch != ia32 and arch != x64) or asan == True or msan == True', SKIP]],
 
   # Use-after-free regression tests, only meaningful under ASan.
   'runtime/regress-520052954': [PASS, ['not asan', SKIP]],
   'runtime/regress-520052954-2': [PASS, ['not asan', SKIP]],
   'runtime/regress-520052954-3': [PASS, ['not asan', SKIP]],
+  'regress/regress-483851884': [PASS, SLOW, ['not asan', SKIP]],
 
   # Sandbox regression tests requiring the memory corruption API.
   'regress/regress-502337304': [PASS, ['not memory_corruption_api', SKIP]],
@@ -265,6 +267,7 @@
   'runtime/context-destroyed-on-context-collected': [SKIP],
   'runtime/evaluate-async': [SKIP],
   'runtime/internal-properties-entries': [SKIP],
+  'regress/regress-2318': [SKIP],
 }], # gc_stress
 
 ##############################################################################

@@ -9,20 +9,14 @@
 
 
 
-  # Too slow in debug mode and on slow platforms.
-  'regress/regress-2318': [PASS, HEAVY, ['mode == debug or (arch != ia32 and arch != x64) or asan == True or msan == True', SKIP]],
 
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'debug/debug-stepout-scope-part*': [PASS, HEAVY],
 
-  # Test is only useful with ASAN.
-  'regress/regress-483851884': [PASS, SLOW, ['not asan', SKIP]],
 }],  # ALWAYS
 
 ##############################################################################
 ['variant == stress', {
-  # Very slow in stress mode.
-  'regress/regress-2318': [SKIP],
 
   # Currently fails because breakpoint information is inconsistent after
   # disabling and re-enabling the debugger (https://crbug.com/v8/10403).
@@ -55,7 +49,6 @@
 ##############################################################################
 ['gc_fuzzer', {
   # Slow tests.
-  'regress/regress-2318': [SKIP],
   'debug/side-effect/regress-532099983': [SKIP],
 }],  # 'gc_fuzzer'
 
