@@ -2027,7 +2027,16 @@ void UnsafeInt32ToUint32::SetValueLocationConstraints() {
   DefineSameAsFirst(this);
 }
 void UnsafeInt32ToUint32::GenerateCode(MaglevAssembler* masm,
-                                       const ProcessingState& state) {}
+                                       const ProcessingState& state) {
+  Register value = ToRegister(ValueInput());
+  DCHECK_EQ(value, ToRegister(result()));
+  if constexpr (IsZeroExtendedRepresentation(ValueRepresentation::kUint32) !=
+                IsZeroExtendedRepresentation(ValueRepresentation::kInt32)) {
+    // The int32 input and the uint32 result carry different extensions, so
+    // explicitly re-establish the zero extension of the result.
+    __ ZeroExtend32To64Bits(value, value);
+  }
+}
 
 void CheckFloat64IsSmi::SetValueLocationConstraints() {
   UseRegister(ValueInput());
@@ -7045,8 +7054,14 @@ void TruncateUint32ToInt32::SetValueLocationConstraints() {
 }
 void TruncateUint32ToInt32::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
-  // No code emitted -- as far as the machine is concerned, int32 is uint32.
-  DCHECK_EQ(ToRegister(ValueInput()), ToRegister(result()));
+  Register value = ToRegister(ValueInput());
+  DCHECK_EQ(value, ToRegister(result()));
+  if constexpr (IsZeroExtendedRepresentation(ValueRepresentation::kUint32) !=
+                IsZeroExtendedRepresentation(ValueRepresentation::kInt32)) {
+    // The uint32 input and the int32 result carry different extensions, so
+    // explicitly re-establish the sign extension of the result.
+    __ SignExtend32To64Bits(value, value);
+  }
 }
 
 void TruncateFloat64ToInt32::SetValueLocationConstraints() {

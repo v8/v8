@@ -603,12 +603,12 @@ inline void MaglevAssembler::OrInt32(Register reg, int mask) {
 
 inline void MaglevAssembler::AndInt32(Register reg, Register other) {
   and_(reg, reg, other);
-  ZeroExtend<int>(reg, reg);
+  extsw(reg, reg);
 }
 
 inline void MaglevAssembler::OrInt32(Register reg, Register other) {
   orx(reg, reg, other);
-  ZeroExtend<int>(reg, reg);
+  extsw(reg, reg);
 }
 
 inline void MaglevAssembler::ShiftLeft(Register reg, int amount) {
@@ -753,7 +753,7 @@ void MaglevAssembler::MoveTagged(Register dst, Handle<HeapObject> obj) {
 }
 
 inline void MaglevAssembler::LoadInt32(Register dst, MemOperand src) {
-  LoadU32(dst, src);
+  LoadS32(dst, src);
 }
 
 inline void MaglevAssembler::StoreInt32(MemOperand dst, Register src) {
@@ -841,6 +841,9 @@ inline void MaglevAssembler::ReverseByteOrderAndStoreUnalignedFloat64(
 inline void MaglevAssembler::SignExtend32To64Bits(Register dst, Register src) {
   // No 64-bit registers.
   extsw(dst, src);
+}
+inline void MaglevAssembler::ZeroExtend32To64Bits(Register dst, Register src) {
+  ZeroExtWord32(dst, src);
 }
 inline void MaglevAssembler::NegateInt32(Register val) {
   extsw(val, val);
@@ -1609,8 +1612,15 @@ template <>
 inline void MaglevAssembler::MoveRepr(MachineRepresentation repr, Register dst,
                                       MemOperand src) {
   switch (repr) {
+    // Unlike x64 and arm64, where all 32-bit values are zero-extended
+    // and a 32-bit access suffices, kWord32 here covers both kInt32 and
+    // kUint32 values with different extensions: kInt32 values are
+    // sign-extended while kUint32 values are zero-extended. A 32-bit
+    // access can only apply one of those extensions when reloading a
+    // spilled value, so move the full 64 bits of the pointer-sized stack
+    // slot instead, preserving whichever extension the register already
+    // holds.
     case MachineRepresentation::kWord32:
-      return LoadU32(dst, src);
     case MachineRepresentation::kTagged:
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTaggedSigned:
@@ -1625,7 +1635,6 @@ inline void MaglevAssembler::MoveRepr(MachineRepresentation repr,
                                       MemOperand dst, Register src) {
   switch (repr) {
     case MachineRepresentation::kWord32:
-      return StoreU32(src, dst);
     case MachineRepresentation::kTagged:
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTaggedSigned:

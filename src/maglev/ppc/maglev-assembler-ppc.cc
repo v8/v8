@@ -511,8 +511,8 @@ void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
   TryInlineTruncateDoubleToI(dst, src, *done, temp);
   Jump(slow_path);
   bind(*done);
-  // Zero extend the converted value to complete the truncation.
-  ZeroExtend<int>(dst, dst);
+  // Sign extend the converted value to complete the truncation.
+  extsw(dst, dst);
 }
 
 void MaglevAssembler::TryTruncateDoubleToInt32(Register dst, DoubleRegister src,
@@ -524,7 +524,7 @@ void MaglevAssembler::TryTruncateDoubleToInt32(Register dst, DoubleRegister src,
 
   // Convert the input float64 value to int32.
   ConvertDoubleToInt64(src, dst, temp);
-  ZeroExtend<int>(dst, dst);
+  extsw(dst, dst);
 
   // Convert that int32 value back to float64.
   ConvertIntToDouble(dst, temp);

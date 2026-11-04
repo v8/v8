@@ -939,6 +939,10 @@ inline constexpr bool IsZeroExtendedRepresentation(ValueRepresentation repr) {
 #if defined(V8_TARGET_ARCH_RISCV64) || defined(V8_TARGET_ARCH_LOONG64)
   // on RISC-V and LoongArch64, 32-bit values are always sign-extended.
   return false;
+#elif defined(V8_TARGET_ARCH_PPC64) || defined(V8_TARGET_ARCH_S390X)
+  // On PPC64 and S390x, int32 values are sign-extended, while uint32 values
+  // are zero-extended.
+  return (repr == ValueRepresentation::kUint32);
 #else
   return (repr == ValueRepresentation::kUint32 ||
           repr == ValueRepresentation::kInt32);
