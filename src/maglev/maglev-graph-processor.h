@@ -89,13 +89,8 @@ enum class ProcessResult {
                    // is stitched in before the truncation point (the visited
                    // node and the tail are dropped; the subgraph's exit takes
                    // the original control, which becomes a dead edge).
-  kHoist,          // Hoist the current instruction to the parent basic block
-                   // and reset the current instruction to the beginning of the
-                   // block. Parent block must be dominating.
   kAbort,      // Stop processing now, do not process subsequent nodes/blocks.
                // Should not be used when processing Constants.
-  kSkipBlock,  // Stop processing this block and skip the remaining nodes (no
-               // MultiProcessor support).
 };
 
 class ProcessingState {
@@ -175,9 +170,7 @@ class GraphProcessor {
             it = map.erase(it);
             break;
           case ProcessResult::kTruncateBlock:
-          case ProcessResult::kHoist:
           case ProcessResult::kAbort:
-          case ProcessResult::kSkipBlock:
             UNREACHABLE();
         }
       }
@@ -231,10 +224,7 @@ class GraphProcessor {
               break;
             case ProcessResult::kAbort:
               return;
-            case ProcessResult::kSkipBlock:
-              goto skip_block;
             case ProcessResult::kTruncateBlock:
-            case ProcessResult::kHoist:
               UNREACHABLE();
           }
         }
@@ -302,22 +292,8 @@ class GraphProcessor {
             node_it_ = block->nodes().end();
             graph_->set_may_have_unreachable_blocks(true);
             break;
-          case ProcessResult::kHoist: {
-            DCHECK(block->predecessor_count() == 1 ||
-                   (block->predecessor_count() == 2 && block->is_loop()));
-            BasicBlock* target = block->predecessor_at(0);
-            DCHECK_EQ(target->successors().size(), 1);
-            Node* cur = *node_it_;
-            cur->set_owner(target);
-            *node_it_ = nullptr;
-            target->nodes().push_back(cur);
-            node_it_ = block->nodes().begin();
-            break;
-          }
           case ProcessResult::kAbort:
             return;
-          case ProcessResult::kSkipBlock:
-            goto skip_block;
         }
       }
 
@@ -331,17 +307,13 @@ class GraphProcessor {
           case ProcessResult::kRevisit:
             process_control_block = true;
             break;
-          case ProcessResult::kSkipBlock:
-            break;
           case ProcessResult::kAbort:
             return;
           case ProcessResult::kRemove:
           case ProcessResult::kTruncateBlock:
-          case ProcessResult::kHoist:
             UNREACHABLE();
         }
       }
-    skip_block:
       BlockProcessResult post_action =
           node_processor_.PostProcessBasicBlock(block);
       switch (post_action) {
@@ -514,8 +486,6 @@ class GraphBackwardProcessor {
           case ProcessResult::kRevisit:
           case ProcessResult::kRemove:
           case ProcessResult::kTruncateBlock:
-          case ProcessResult::kHoist:
-          case ProcessResult::kSkipBlock:
             UNREACHABLE();
         }
       }
@@ -532,8 +502,6 @@ class GraphBackwardProcessor {
           case ProcessResult::kRevisit:
           case ProcessResult::kRemove:
           case ProcessResult::kTruncateBlock:
-          case ProcessResult::kHoist:
-          case ProcessResult::kSkipBlock:
             UNREACHABLE();
         }
       }
@@ -554,8 +522,6 @@ class GraphBackwardProcessor {
               return;
             case ProcessResult::kTruncateBlock:
             case ProcessResult::kRevisit:
-            case ProcessResult::kSkipBlock:
-            case ProcessResult::kHoist:
               UNREACHABLE();
           }
         }
@@ -575,10 +541,8 @@ class GraphBackwardProcessor {
             it = map.erase(it);
             break;
           case ProcessResult::kRevisit:
-          case ProcessResult::kHoist:
           case ProcessResult::kAbort:
           case ProcessResult::kTruncateBlock:
-          case ProcessResult::kSkipBlock:
             UNREACHABLE();
         }
       }
@@ -667,11 +631,6 @@ class NodeMultiProcessor<Processor, Processors...>
       case ProcessResult::kRemove:
       case ProcessResult::kTruncateBlock:
         return res;
-      case ProcessResult::kHoist:
-      case ProcessResult::kSkipBlock:
-        // TODO(olivf): How to combine these with multiple processors depends on
-        // the needs of the actual processors. Implement once needed.
-        UNREACHABLE();
     }
     UNREACHABLE();
   }

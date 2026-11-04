@@ -237,8 +237,7 @@ class MaglevGraphBuilder {
   }
 
   bool need_checkpointed_loop_entry() {
-    return v8_flags.maglev_speculative_hoist_phi_untagging ||
-           v8_flags.maglev_licm;
+    return v8_flags.maglev_speculative_hoist_phi_untagging;
   }
 
   SourcePosition GetCurrentSourcePosition() const;
@@ -1904,7 +1903,7 @@ class MaglevGraphBuilder {
            peeled_iteration_count_ == 1;
   }
   bool is_loop_effect_tracking_enabled() {
-    return v8_flags.maglev_escape_analysis || v8_flags.maglev_licm;
+    return v8_flags.maglev_escape_analysis;
   }
   bool is_loop_effect_tracking() { return loop_effects_; }
   LoopEffects* loop_effects_ = nullptr;

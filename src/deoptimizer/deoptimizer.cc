@@ -1899,7 +1899,6 @@ void Deoptimizer::DoComputeOutputFrames() {
         function_->SetTieringInProgress(isolate_, false);
         function_->SetInterruptBudget(isolate_, BudgetModification::kReset,
                                       CodeKind::INTERPRETED_FUNCTION);
-        function_->feedback_vector()->set_was_once_deoptimized();
 
         isolate()->counters()->deopts()->Increment();
       } else {

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --maglev-non-eager-inlining --maglev-licm
+// Flags: --allow-natives-syntax --maglev-non-eager-inlining
 // Flags: --max-maglev-eager-inlined-bytecode-size=0
 
 const holey_doubles = [1.5, , 2.5];

@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --maglev-non-eager-inlining --maglev-licm
+// Flags: --allow-natives-syntax --maglev-non-eager-inlining
 // Flags: --max-maglev-inlined-bytecode-size-small=0 --no-turbofan
 
 // 1. Double-field (in-object and out-of-object) load/store KNA tracking
-// across non-eager inlining, loops, LICM, and MaglevGraphOptimizer.
+// across non-eager inlining, loops, and MaglevGraphOptimizer.
 function Vec3(x, y, z) {
   this.x = x;
   this.y = y;
@@ -41,7 +41,7 @@ assertEquals(60, testDoubleFieldKna(2));
 assertEquals(53.25, testDoubleFieldKna(1));
 assertEquals(60, testDoubleFieldKna(2));
 
-// Loop KNA tracking and LICM of double-field HeapNumber box loads.
+// Loop KNA tracking of double-field HeapNumber box loads.
 function testDoubleFieldLoopKna(x, n) {
   let v1 = new Vec3(x + 0.5, x + 1.5, x + 2.5);
   let v2 = new Vec3(1.25, 2.25, 3.25);
@@ -53,7 +53,7 @@ function testDoubleFieldLoopKna(x, n) {
   return sum;
 }
 
-function testDoubleFieldLicm(v1, v2, n) {
+function testDoubleFieldNestedLoop(v1, v2, n) {
   let sum = 0;
   let i = 0;
   do {
@@ -67,7 +67,7 @@ function testDoubleFieldLicm(v1, v2, n) {
 }
 
 %PrepareFunctionForOptimization(testDoubleFieldLoopKna);
-%PrepareFunctionForOptimization(testDoubleFieldLicm);
+%PrepareFunctionForOptimization(testDoubleFieldNestedLoop);
 assertEquals(159.75, testDoubleFieldLoopKna(1, 3));
 assertEquals(180, testDoubleFieldLoopKna(2, 3));
 %OptimizeMaglevOnNextCall(testDoubleFieldLoopKna);
@@ -75,15 +75,15 @@ assertEquals(159.75, testDoubleFieldLoopKna(1, 3));
 assertEquals(180, testDoubleFieldLoopKna(2, 3));
 
 assertEquals(109.125,
-             testDoubleFieldLicm(new Vec3(0.5, 1.5, 2.5),
-                                 new Vec3(1.25, 2.25, 3.25), 3));
+             testDoubleFieldNestedLoop(new Vec3(0.5, 1.5, 2.5),
+                                       new Vec3(1.25, 2.25, 3.25), 3));
 assertEquals(109.125,
-             testDoubleFieldLicm(new Vec3(0.5, 1.5, 2.5),
-                                 new Vec3(1.25, 2.25, 3.25), 3));
-%OptimizeMaglevOnNextCall(testDoubleFieldLicm);
+             testDoubleFieldNestedLoop(new Vec3(0.5, 1.5, 2.5),
+                                       new Vec3(1.25, 2.25, 3.25), 3));
+%OptimizeMaglevOnNextCall(testDoubleFieldNestedLoop);
 assertEquals(109.125,
-             testDoubleFieldLicm(new Vec3(0.5, 1.5, 2.5),
-                                 new Vec3(1.25, 2.25, 3.25), 3));
+             testDoubleFieldNestedLoop(new Vec3(0.5, 1.5, 2.5),
+                                       new Vec3(1.25, 2.25, 3.25), 3));
 
 // Out-of-object double fields.
 function makeOutOfObject(x) {
@@ -116,7 +116,7 @@ assertEquals(49.1875, testOutOfObjectDoubleFieldKna(2));
 assertEquals(65.1875, testOutOfObjectDoubleFieldKna(3));
 
 // 2. Ensure Smi/Tagged property values and Double-field HeapNumber boxes with
-// the same property name do not collide in KNA or LICM when maps transition or
+// the same property name do not collide in KNA when maps transition or
 // become stale.
 function MapDouble() {
   this.x = 1.5;

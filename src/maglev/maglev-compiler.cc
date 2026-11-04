@@ -193,17 +193,6 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
                      MaglevPhase::kTruncation);
     }
 
-    if (v8_flags.maglev_licm) {
-      TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-                  "V8.Maglev.LoopOptimizations");
-      SYNCHRONIZATION_POINT("MaglevLoopOptimizations");
-      GraphProcessor<LoopOptimizationProcessor> loop_optimizations(
-          compilation_info);
-      loop_optimizations.ProcessGraph(graph);
-      PrintAndVerify(graph, v8_flags.print_maglev_graphs,
-                     MaglevPhase::kLoopOptimization);
-    }
-
     if (v8_flags.maglev_untagged_phis) {
       TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                   "V8.Maglev.PhiUntagging");

@@ -5049,7 +5049,7 @@ void MaglevReducer<BaseT>::RecordKnownProperty(
       if (base_->loop_effects()) {
         base_->loop_effects()->keys_cleared.insert(key);
         if (key.type() == PropertyKey::kName) {
-          // Also mark the double-field HeapNumber box key as cleared for LICM.
+          // Also mark the double-field HeapNumber box key as cleared.
           base_->loop_effects()->keys_cleared.insert(
               PropertyKey::DoubleField(key.name()));
         }

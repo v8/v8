@@ -269,16 +269,6 @@ void FeedbackVector::set_interrupt_budget_reset_by_ic_change(bool value) {
   set_flags(flags().with_interrupt_budget_reset_by_ic_change(value));
 }
 
-bool FeedbackVector::was_once_deoptimized() const {
-  return invocation_count_before_stable(kRelaxedLoad) ==
-         kInvocationCountBeforeStableDeoptSentinel;
-}
-
-void FeedbackVector::set_was_once_deoptimized() {
-  set_invocation_count_before_stable(kInvocationCountBeforeStableDeoptSentinel,
-                                     kRelaxedStore);
-}
-
 bool FeedbackVector::tiering_in_progress() const {
   return flags().tiering_in_progress();
 }
