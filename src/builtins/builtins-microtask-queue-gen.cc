@@ -513,11 +513,11 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
       BIND(&if_resume_exception);
       {
         // The async function body itself is wrapped in a try-catch, so only a
-        // StackOverflow thrown in ResumeGeneratorTrampoline or the callee entry
-        // prologue (before SwitchOnGeneratorState transitions continuation_ to
-        // kGeneratorExecuting) can reach this handler.
+        // StackOverflow thrown in ResumeGeneratorTrampoline, the callee entry
+        // prologue, or an OSR entry prologue (which precedes exception handler
+        // setup) can reach this handler.
 #ifdef DEBUG
-        CSA_DCHECK(this, SmiGreaterThan(
+        CSA_DCHECK(this, SmiNotEqual(
                              LoadObjectField<Smi>(
                                  generator,
                                  offsetof(JSGeneratorObject, continuation_)),

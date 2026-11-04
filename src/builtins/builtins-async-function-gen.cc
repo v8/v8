@@ -69,15 +69,15 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwaitResumeClosure(
   BIND(&if_exception);
   {
     // The async function body itself is wrapped in a try-catch, so only a
-    // StackOverflow thrown in ResumeGeneratorTrampoline or the callee entry
-    // prologue (before SwitchOnGeneratorState transitions continuation_ to
-    // kGeneratorExecuting) can reach this handler.
+    // StackOverflow thrown in ResumeGeneratorTrampoline, the callee entry
+    // prologue, or an OSR entry prologue (which precedes exception handler
+    // setup) can reach this handler.
 #ifdef DEBUG
-    CSA_DCHECK(
-        this, SmiGreaterThan(LoadObjectField<Smi>(
-                                 async_function_object,
-                                 offsetof(JSGeneratorObject, continuation_)),
-                             SmiConstant(JSGeneratorObject::kGeneratorClosed)));
+    CSA_DCHECK(this,
+               SmiNotEqual(LoadObjectField<Smi>(
+                               async_function_object,
+                               offsetof(JSGeneratorObject, continuation_)),
+                           SmiConstant(JSGeneratorObject::kGeneratorClosed)));
     CSA_DCHECK(this, TaggedIsNotSmi(var_exception.value()));
     CSA_DCHECK(this,
                HasInstanceType(CAST(var_exception.value()), JS_ERROR_TYPE));

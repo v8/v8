@@ -92,10 +92,10 @@ transitioning macro ResumeGenerator(
     ResumeGeneratorTrampoline(context, argument, generator);
   } catch (e, _message) {
     // The generator body itself is wrapped in a try-catch, so only a
-    // StackOverflow thrown in ResumeGeneratorTrampoline or the callee entry
-    // prologue (before SwitchOnGeneratorState transitions continuation to
-    // kGeneratorExecuting) can reach this handler.
-    dcheck(generator.continuation > SmiConstant(kGeneratorClosed));
+    // StackOverflow thrown in ResumeGeneratorTrampoline, the callee entry
+    // prologue, or an OSR entry prologue (which precedes exception handler
+    // setup) can reach this handler.
+    dcheck(generator.continuation != SmiConstant(kGeneratorClosed));
     generator.continuation = SmiConstant(kGeneratorClosed);
     typeswitch (generator) {
       case (asyncGen: JSAsyncGeneratorObject): {
