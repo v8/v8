@@ -353,7 +353,7 @@
       'v8_win64_cet_shadow_stack_compile_rel': 'release_x64_cet_shadow_stack',
       'v8_win64_compile_dbg': 'debug_x64_minimal_symbols',
       'v8_win64_drumbrake_compile_dbg': 'debug_x64_drumbrake',
-      'v8_win64_compile_rel': 'release_x64_trybot',
+      'v8_win64_compile_rel': 'release_x64_shared_trybot',
       'v8_win64_nodcheck_compile_rel': 'release_x64_minimal_symbols',
       'v8_mac_arm64_compile_rel': 'release_arm64',
       'v8_mac_arm64_compile_dbg': 'debug_arm64',
@@ -677,6 +677,8 @@
       'release_bot', 'x64', 'no_sandbox'],
     'release_x64_sandbox_hardware_support': [
       'release_bot', 'x64', 'sandbox_hardware_support'],
+    'release_x64_shared_trybot': [
+      'release_trybot', 'x64', 'shared'],
     'release_x64_trybot': [
       'release_trybot', 'x64'],
     'release_x64_test_features_gcmole_trybot': [
