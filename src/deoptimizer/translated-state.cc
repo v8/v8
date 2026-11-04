@@ -2846,6 +2846,8 @@ TranslatedFrame* TranslatedState::GetArgumentsInfoFromJSFrameIndex(
       if (jsframe_index > 0) {
         jsframe_index--;
       } else {
+        SBXCHECK_EQ(frames_[i].kind(), TranslatedFrame::kUnoptimizedFunction);
+
         // We have the JS function frame, now check if it has arguments
         // adaptor.
         if (i > 0 &&
@@ -2854,27 +2856,6 @@ TranslatedFrame* TranslatedState::GetArgumentsInfoFromJSFrameIndex(
           return &(frames_[i - 1]);
         }
 
-        // JavaScriptBuiltinContinuation frames that are not preceded by
-        // a arguments adapter frame are currently only used by C++ API calls
-        // from TurboFan. Calls to C++ API functions from TurboFan need
-        // a special marker frame state, otherwise the API call wouldn't
-        // be shown in a stack trace.
-        if (frames_[i].kind() ==
-            TranslatedFrame::kJavaScriptBuiltinContinuation) {
-          DCHECK(frames_[i].shared_info()->IsApiFunction());
-
-          // The argument count for this special case is always the second
-          // to last value in the TranslatedFrame. It should also always be
-          // {1}, as the GenericLazyDeoptContinuation builtin has one explicit
-          // argument (the result).
-          static constexpr int kTheContext = 1;
-          const uint32_t height = frames_[i].height() + kTheContext;
-          *args_count = frames_[i].ValueAt(height - 1)->GetSmiValue();
-          DCHECK_EQ(*args_count, JSParameterCount(1));
-          return &(frames_[i]);
-        }
-
-        DCHECK_EQ(frames_[i].kind(), TranslatedFrame::kUnoptimizedFunction);
         *args_count = frames_[i].bytecode_array()->parameter_count();
         return &(frames_[i]);
       }
