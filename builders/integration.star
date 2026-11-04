@@ -3,7 +3,7 @@
 # found in the LICENSE file.
 
 load("//lib/builders.star", "v8_builder")
-load("//lib/lib.star", "BARRIER", "in_console", "parallel_greedy_batching_of_1")
+load("//lib/lib.star", "BARRIER", "in_console", "parallel_5_greedy_batching_of_1")
 load("//lib/siso.star", "SISO")
 
 def integration_builder(**kwargs):
@@ -41,7 +41,7 @@ in_category(
         name = "V8 Blink Linux",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
-        triggering_policy = parallel_greedy_batching_of_1,
+        triggering_policy = parallel_5_greedy_batching_of_1,
         executable = "recipe:chromium_integration",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.fyi"},
