@@ -629,9 +629,9 @@ void RecordTrapInfoIfNeeded(Zone* zone, CodeGenerator* codegen,
 #define ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(load_linked, store_conditional)       \
   do {                                                                         \
     Label exchange;                                                            \
+    __ AddWord(i.TempRegister(0), i.InputRegister(0), i.InputOperand(1));      \
     __ sync();                                                                 \
     __ bind(&exchange);                                                        \
-    __ AddWord(i.TempRegister(0), i.InputRegister(0), i.InputOperand(1));      \
     __ load_linked(i.OutputRegister(0), MemOperand(i.TempRegister(0), 0),      \
                    trapper);                                                   \
     __ Move(i.TempRegister(1), i.InputRegister(2));                            \
