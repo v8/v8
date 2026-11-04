@@ -171,32 +171,6 @@ void IsolateLoadScriptData::EnableLogWithFilterDataOnAllIsolates(
 }
 
 // static
-void IsolateLoadScriptData::EnableLogIfRequestedOnAllIsolates(
-    uint32_t options) {
-  base::MutexGuard guard(isolates_mutex.Pointer());
-
-  auto monitor = std::make_shared<EtwIsolateCaptureStateMonitor>(
-      isolates_mutex.Pointer(), isolate_map.Pointer()->size());
-  bool capture_state =
-      (options & kJitCodeEventEnumExisting) == kJitCodeEventEnumExisting;
-  std::weak_ptr<EtwIsolateCaptureStateMonitor> weak_monitor = monitor;
-  std::for_each(isolate_map.Pointer()->begin(), isolate_map.Pointer()->end(),
-                [weak_monitor, options](auto& pair) {
-                  auto& isolate_data = pair.second;
-                  isolate_data.EnqueueEnableLogIfRequested(weak_monitor,
-                                                           options);
-                });
-
-  if (!capture_state) {
-    return;
-  }
-
-  bool timeout = !monitor->WaitFor(kCaptureStateTimeout);
-  ETWTRACEDBG << "EnableLogIfRequestedOnAllIsolates WaitFor "
-              << (timeout ? "timeout" : "completed") << std::endl;
-}
-
-// static
 void IsolateLoadScriptData::DisableLog(Isolate* isolate, size_t event_id) {
   {
     base::MutexGuard guard(isolates_mutex.Pointer());
@@ -248,51 +222,6 @@ void IsolateLoadScriptData::EnableLogWithFilterData(
 
   if (filter_did_match) {
     ETWTRACEDBG << "Filter was matched with event_id==" << event_id
-                << std::endl;
-    EtwIsolateOperations::Instance()->SetEtwCodeEventHandler(isolate, options);
-    isolate->SetETWTracingEnabled(true);
-  }
-
-  // Notify waiting thread if a monitor was provided.
-  if (auto monitor = weak_monitor.lock()) {
-    ETWTRACEDBG << "monitor->Notify with event_id==" << event_id << std::endl;
-    monitor->Notify();
-  }
-}
-
-// static
-void IsolateLoadScriptData::EnableLogIfRequested(
-    Isolate* isolate, size_t event_id,
-    std::weak_ptr<EtwIsolateCaptureStateMonitor> weak_monitor,
-    uint32_t options) {
-  bool tracing_requested = false;
-
-  {
-    ETWTRACEDBG << "EnableLogIfRequested called with event_id==" << event_id
-                << " and options==" << options << " taking mutex" << std::endl;
-    base::MutexGuard guard(isolates_mutex.Pointer());
-
-    auto& data = GetData(isolate);
-    if (event_id > 0 && data.CurrentEventId() != event_id) {
-      // This interrupt was canceled by a newer interrupt.
-      return;
-    }
-
-    tracing_requested = isolate->IsETWTracingRequested();
-    if (tracing_requested) {
-      if (v8_flags.interpreted_frames_native_stack) {
-        isolate->set_etw_trace_interpreted_frames();
-      }
-
-      // Cause all SourceLoad events to be re-emitted.
-      if (options & kJitCodeEventEnumExisting) {
-        data.RemoveAllLoadedScripts();
-      }
-    }
-  }
-
-  if (tracing_requested) {
-    ETWTRACEDBG << "Tracing was requested with event_id==" << event_id
                 << std::endl;
     EtwIsolateOperations::Instance()->SetEtwCodeEventHandler(isolate, options);
     isolate->SetETWTracingEnabled(true);
@@ -362,26 +291,6 @@ void IsolateLoadScriptData::EnqueueEnableLogWithFilterData(
       },
       new EnableWithFilterDataInterruptData{event_id + 1, etw_filter_payload,
                                             weak_monitor, options});
-}
-
-void IsolateLoadScriptData::EnqueueEnableLogIfRequested(
-    std::weak_ptr<EtwIsolateCaptureStateMonitor> weak_monitor,
-    uint32_t options) {
-  size_t event_id = event_id_.fetch_add(1);
-
-  EtwIsolateOperations::Instance()->RequestInterrupt(
-      isolate_,
-      // Executed in the isolate thread.
-      [](v8::Isolate* v8_isolate, void* data) {
-        std::unique_ptr<EnableInterruptData> interrupt_data(
-            reinterpret_cast<EnableInterruptData*>(data));
-        size_t event_id = interrupt_data->event_id;
-        auto weak_monitor = interrupt_data->weak_monitor;
-        uint32_t options = interrupt_data->options;
-        EnableLogIfRequested(reinterpret_cast<Isolate*>(v8_isolate), event_id,
-                             weak_monitor, options);
-      },
-      new EnableInterruptData{event_id + 1, weak_monitor, options});
 }
 
 bool IsolateLoadScriptData::IsScriptLoaded(int script_id) const {
