@@ -835,7 +835,7 @@ void AttemptOnStackReplacement(MaglevAssembler* masm,
     // A `0` return value means there is no OSR code available yet. Continue
     // execution in Maglev, OSR code will be picked up once it exists and is
     // cached on the feedback vector.
-    __ CompareInt32AndJumpIf(scratch1, 0, kEqual, *no_code_for_osr);
+    __ CompareTaggedAndJumpIf(scratch1, Smi::zero(), kEqual, *no_code_for_osr);
   }
 
   __ bind(&deopt);

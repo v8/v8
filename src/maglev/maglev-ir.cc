@@ -2513,7 +2513,9 @@ void CheckedObjectToIndex::GenerateCode(MaglevAssembler* masm,
                 __ CallCFunction(
                     ExternalReference::string_to_array_index_function(), 1);
                 // No need for safepoint since this is a fast C call.
-                __ Move(result_reg, kReturnRegister0);
+                // The callee returns an int32_t, which leaves the upper half
+                // of the return register unspecified on some ABIs.
+                __ SignExtend32To64Bits(result_reg, kReturnRegister0);
               }
               __ CompareInt32AndJumpIf(
                   result_reg, 0, kLessThan,

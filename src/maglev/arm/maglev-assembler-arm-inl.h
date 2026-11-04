@@ -789,6 +789,7 @@ inline void MaglevAssembler::ReverseByteOrderAndStoreUnalignedFloat64(
 
 inline void MaglevAssembler::SignExtend32To64Bits(Register dst, Register src) {
   // No 64-bit registers.
+  Move(dst, src);
 }
 inline void MaglevAssembler::NegateInt32(Register val) {
   rsb(val, val, Operand(0));

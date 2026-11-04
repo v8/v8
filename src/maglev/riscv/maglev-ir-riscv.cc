@@ -1027,7 +1027,9 @@ void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
     __ bind(&limit_not_zero);
   }
   Label index_no_oob;
-  __ SignExtendWord(index, index);
+  // {index} is sign-extended, so a negative index is a huge unsigned value
+  // and fails the check below.
+  __ AssertSignExtended(index);
   __ MacroAssembler::Branch(&index_no_oob, ult, index, Operand(limit),
                             Label::Distance::kNear);
   __ EmitEagerDeopt(this, DeoptimizeReason::kOutOfBounds);
