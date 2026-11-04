@@ -5718,24 +5718,23 @@ MaybeLocal<Object> Function::NewInstanceWithSideEffectType(
   i::NestedTimedHistogramScope execute_timer(i_isolate->counters()->execute(),
                                              i_isolate);
   auto self = Utils::OpenDirectHandle(this);
-  bool should_set_has_no_side_effect =
-      side_effect_type == SideEffectType::kHasNoSideEffect &&
-      i_isolate->should_check_side_effects();
-  if (should_set_has_no_side_effect) {
+  if (side_effect_type == SideEffectType::kHasNoSideEffect) {
     CHECK(IsJSFunction(*self) &&
           i::Cast<i::JSFunction>(*self)->shared()->IsApiFunction());
-    i::Tagged<i::FunctionTemplateInfo> func_data =
-        i::Cast<i::JSFunction>(*self)->shared()->api_func_data();
-    if (func_data->has_callback(i_isolate)) {
-      if (func_data->has_side_effects()) {
-        i_isolate->debug()->IgnoreSideEffectsOnNextCallTo(
-            handle(func_data, i_isolate));
+    if (i_isolate->should_check_side_effects()) {
+      i::Tagged<i::FunctionTemplateInfo> func_data =
+          i::Cast<i::JSFunction>(*self)->shared()->api_func_data();
+      if (func_data->has_callback(i_isolate)) {
+        if (func_data->has_side_effects()) {
+          i_isolate->debug()->IgnoreSideEffectsOnNextCallTo(
+              handle(func_data, i_isolate));
+        }
       }
     }
   }
   auto args = PrepareArguments(argc, argv);
-  return api_scope.EscapeMaybe(
-      Utils::ToMaybeLocal(i::Execution::New(i_isolate, self, self, args)));
+  return api_scope.EscapeMaybe(Utils::ToMaybeLocal(
+      i::Execution::New(i_isolate, self, self, args, side_effect_type)));
 }
 
 MaybeLocal<v8::Value> Function::Call(v8::Isolate* isolate,
