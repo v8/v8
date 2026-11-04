@@ -35,6 +35,7 @@
 
   # https://crbug.com/v8/9029
   'debugger/script-on-after-compile-snapshot': [SKIP],
+  'debugger/debug-step-prefix-bytecodes': [PASS, HEAVY, ['mode == debug', SKIP]],
 
   # https://crbug.com/1080638
   # The initial CL only fixed the crash. The test still causes an endless
@@ -147,6 +148,12 @@
   'cpu-profiler/coverage-block': [SKIP],
   'regress/regress-crbug-1233401': [SKIP],
 }], # variant == jitless
+
+##############################################################################
+['arch == arm and not simulator_run', {
+  # Too slow on chromebooks.
+  'debugger/debug-step-prefix-bytecodes': [SKIP],
+}],  # 'arch == arm and not simulator_run'
 
 ##############################################################################
 ['(arch == arm or arch == arm64 or arch == loong64 or arch == mips64el) and simulator_run', {

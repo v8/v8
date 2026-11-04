@@ -164,17 +164,18 @@ void InspectorIsolateData::RegisterModule(v8::Local<v8::Context> context,
   if (!v8::ScriptCompiler::CompileModule(isolate(), source).ToLocal(&module)) {
     return;
   }
+  modules_[name] = v8::Global<v8::Module>(isolate_.get(), module);
   if (!module
            ->InstantiateModule(context,
                                &InspectorIsolateData::ModuleResolveCallback)
            .FromMaybe(false)) {
+    modules_.erase(name);
     return;
   }
   if (evaluate) {
     v8::Local<v8::Value> result;
     if (!module->Evaluate(context).ToLocal(&result)) return;
   }
-  modules_[name] = v8::Global<v8::Module>(isolate_.get(), module);
 }
 
 // static

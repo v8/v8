@@ -14,7 +14,6 @@
 
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'debug/debug-stepout-scope-part*': [PASS, HEAVY],
-  'debug/ignition/debug-step-prefix-bytecodes': [PASS, HEAVY, ['mode == debug', SKIP]],
 
   # Test is only useful with ASAN.
   'regress/regress-483851884': [PASS, SLOW, ['not asan', SKIP]],
@@ -75,12 +74,6 @@
 ['variant == no_wasm_traps', {
   '*': [SKIP],
 }],  # variant == no_wasm_traps
-
-##############################################################################
-['arch == arm and not simulator_run', {
-  # Too slow on chromebooks.
-  'debug/ignition/debug-step-prefix-bytecodes': [SKIP],
-}],  # 'arch == arm and not simulator_run'
 
 ##############################################################################
 ['arch == arm and mode == debug', {

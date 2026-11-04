@@ -1,54 +1,21 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Copyright 2026 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
-// This test tests that full code compiled without debug break slots
-// is recompiled with debug break slots when debugging is started.
+let {session, contextGroup, Protocol} = InspectorTest.start(
+    'This test tests that full code compiled without debug break slots ' +
+    'is recompiled with debug break slots when debugging is started.');
 
-Debug = debug.Debug
-
+const source = `
 var done = false;
 var step_count = 0;
 var values = [];
 
-// Debug event listener which steps until the global variable done is true.
-function listener(event, exec_state, event_data, data) {
-  if (event == Debug.DebugEvent.Break) {
-    if (!done) exec_state.prepareStep(Debug.StepAction.StepOver);
-    step_count++;
-  }
-};
-
-// Set the global variables state to prpare the stepping test.
 function prepare_step_test() {
   done = false;
   step_count = 0;
 }
 
-// Test function to step through, uses widended bytecodes.
 function f() {
 var x = 10000000;
 var y = x + 1;
@@ -341,32 +308,71 @@ var _rn = 285; values[_rn] = _rn;
 var _ro = 286; values[_ro] = _ro;
 var _rp = 287; values[_rp] = _rp;
   done = true;
-};
+}
 
 function check_values() {
   for (var i = 0; i < values.length; i++) {
-    assertEquals(values[i], i);
+    if (values[i] !== i) return false;
     values[i] = -i;
   }
+  return true;
 }
+`;
 
-// Pass 1 - no debugger, no steps seen
-prepare_step_test();
-f();
-check_values();
-assertEquals(0, step_count);
+contextGroup.addScript(source, 0, 0, 'test.js');
 
-// Pass 2 - debugger attached and stepping from BP
-Debug.setListener(listener);
-var bp = Debug.setBreakPoint(f, 1);
-prepare_step_test();
-f();
-check_values();
-assertEquals(580, step_count);
-Debug.clearBreakPoint(bp);
+(async function test() {
+  await Protocol.Debugger.enable();
 
-// Pass 3 - debugger attached and no BP
-prepare_step_test();
-f();
-check_values();
-assertEquals(0, step_count);
+  let step_count = 0;
+  Protocol.Debugger.onPaused(async () => {
+    step_count++;
+    const {result: {result: doneRes}} = await Protocol.Runtime.evaluate({
+      expression: 'done',
+    });
+    if (!doneRes.value) {
+      await Protocol.Debugger.stepOver();
+    } else {
+      await Protocol.Debugger.resume();
+    }
+  });
+
+  // Pass 1 - no debugger, no steps seen
+  await Protocol.Runtime.evaluate({expression: 'prepare_step_test(); f();'});
+  let {result: {result: check1}} = await Protocol.Runtime.evaluate({
+    expression: 'check_values()',
+  });
+  InspectorTest.log(
+      `Pass 1 check_values: ${check1.value}, step_count: ${step_count}`);
+
+  // Set breakpoint on line 1 of f() ('var x = 10000000;')
+  const lines = source.split('\n');
+  const targetLine = lines.findIndex(l => l.includes('var x = 10000000;'));
+  let {result: {breakpointId}} = await Protocol.Debugger.setBreakpointByUrl({
+    url: 'test.js',
+    lineNumber: targetLine,
+  });
+
+  // Pass 2 - debugger attached and stepping from BP
+  step_count = 0;
+  await Protocol.Runtime.evaluate({expression: 'prepare_step_test(); f();'});
+  let {result: {result: check2}} = await Protocol.Runtime.evaluate({
+    expression: 'check_values()',
+  });
+  InspectorTest.log(
+      `Pass 2 check_values: ${check2.value}, step_count: ${step_count}`);
+
+  await Protocol.Debugger.removeBreakpoint({breakpointId});
+
+  // Pass 3 - debugger attached and no BP
+  step_count = 0;
+  await Protocol.Runtime.evaluate({expression: 'prepare_step_test(); f();'});
+  let {result: {result: check3}} = await Protocol.Runtime.evaluate({
+    expression: 'check_values()',
+  });
+  InspectorTest.log(
+      `Pass 3 check_values: ${check3.value}, step_count: ${step_count}`);
+
+  await Protocol.Debugger.disable();
+  InspectorTest.completeTest();
+})();
