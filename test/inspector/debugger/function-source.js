@@ -25,23 +25,56 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-Debug = debug.Debug
+// Flags: --allow-natives-syntax
+
+let {session, contextGroup, Protocol} = InspectorTest.start(
+    'Check that the script source for all functions in a script is the same.');
+
+const source = `
+function assertEquals(expected, actual) {
+  if (expected !== actual) {
+    throw new Error('Expected ' + expected + ' but got ' + actual);
+  }
+}
 
 // Check that the script source for all functions in a script is the same.
 function f() {
   function h() {
-    assertEquals(Debug.scriptSource(f), Debug.scriptSource(h));
+    assertEquals(%FunctionGetScriptSource(f), %FunctionGetScriptSource(h));
   }
   h();
 }
 
 function g() {
   function h() {
-    assertEquals(Debug.scriptSource(f), Debug.scriptSource(h));
+    assertEquals(%FunctionGetScriptSource(f), %FunctionGetScriptSource(h));
   }
   h();
 }
 
-assertEquals(Debug.scriptSource(f), Debug.scriptSource(g));
+assertEquals(%FunctionGetScriptSource(f), %FunctionGetScriptSource(g));
 f();
 g();
+`;
+
+(async function test() {
+  await Protocol.Debugger.enable();
+  const scriptParsedPromise = Protocol.Debugger.onceScriptParsed();
+  contextGroup.addScript(source, 0, 0, 'test.js');
+  const {params: {scriptId}} = await scriptParsedPromise;
+
+  const {result: {scriptSource}} =
+      await Protocol.Debugger.getScriptSource({scriptId});
+
+  const {result: {result: {value: fSource}}} = await Protocol.Runtime.evaluate(
+      {expression: '%FunctionGetScriptSource(f)'});
+
+  InspectorTest.log(
+      'getScriptSource matches source: ' + (scriptSource === source));
+  InspectorTest.log(
+      'FunctionGetScriptSource(f) matches getScriptSource: ' +
+      (fSource === scriptSource));
+
+  await Protocol.Debugger.disable();
+  InspectorTest.completeTest();
+})();

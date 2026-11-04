@@ -2,8 +2,32 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --allow-natives-syntax
 
+let {session, contextGroup, Protocol} =
+    InspectorTest.start('Tests for-in optimization and deoptimization.');
+
+const source = `
 "use strict";
+
+function print(p) {}
+
+function assertEquals(expected, actual) {
+  if (Array.isArray(expected) && Array.isArray(actual)) {
+    if (expected.length !== actual.length) {
+      throw new Error(\`Expected [\${expected}] but got [\${actual}]\`);
+    }
+    for (let i = 0; i < expected.length; i++) {
+      if (expected[i] !== actual[i]) {
+        throw new Error(\`Expected [\${expected}] but got [\${actual}]\`);
+      }
+    }
+    return;
+  }
+  if (expected !== actual) {
+    throw new Error(\`Expected \${expected} but got \${actual}\`);
+  }
+}
 
 // Test non-JSObject receiver.
 function f(o) {
@@ -46,7 +70,6 @@ var handler = {
   },
 };
 
-
 var proxy = new Proxy({}, handler);
 var o = {__proto__: proxy};
 
@@ -79,7 +102,6 @@ check_f2();
 %OptimizeFunctionOnNextCall(f2);
 deopt_property_descriptor = true;
 check_f2();
-
 
 function f3(o) {
   for (var i in o) {
@@ -126,19 +148,15 @@ check_f4();
 var x;
 var count = 0;
 
-var Debug = debug.Debug;
-
-function listener(event, exec_state, event_data, data) {
-  if (event == Debug.DebugEvent.Break) {
-    %DeoptimizeFunction(f5);
-  }
+function listener() {
+  %DeoptimizeFunction(f5);
 }
 
 var handler3 = {
   ownKeys() { return ["a", "b"] },
   getOwnPropertyDescriptor(target, k) {
     if (k == "a") count++;
-    if (x) %ScheduleBreak()
+    if (x) %ScheduleBreak();
     return { enumerable: true, configurable: true }
   }
 };
@@ -151,15 +169,35 @@ function f5() {
     print(p);
   }
 }
+`;
 
-x = false;
+contextGroup.addScript(source);
 
-%PrepareFunctionForOptimization(f5);
-f5(); f5(); f5();
-%OptimizeFunctionOnNextCall(f5);
-x = true;
-count = 0;
-Debug.setListener(listener);
-f5();
-Debug.setListener(null);
-assertEquals(1, count);
+(async function test() {
+  await Protocol.Debugger.enable();
+
+  Protocol.Debugger.onPaused(async () => {
+    await Protocol.Runtime.evaluate({expression: 'listener()'});
+    await Protocol.Debugger.resume();
+  });
+
+  await Protocol.Runtime.evaluate({
+    expression: `
+    x = false;
+    %PrepareFunctionForOptimization(f5);
+    f5(); f5(); f5();
+    %OptimizeFunctionOnNextCall(f5);
+    x = true;
+    count = 0;
+  `
+  });
+
+  await Protocol.Runtime.evaluate({expression: 'f5()'});
+
+  const {result: {result: {value: finalCount}}} =
+      await Protocol.Runtime.evaluate({expression: 'count'});
+  InspectorTest.log('count: ' + finalCount);
+
+  await Protocol.Debugger.disable();
+  InspectorTest.completeTest();
+})();

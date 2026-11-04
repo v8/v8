@@ -1,14 +1,13 @@
 // Copyright 2026 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
 // Flags: --no-turbofan
 
-// setVariableValue / scope inspection on a module scope with more module
-// variables than kScopeInfoMaxInlinedLocalNamesSize, so the debugger's
-// ScopeInfo::ModuleIndex lookups go through the module-variables hashtable.
+let {session, contextGroup, Protocol} = InspectorTest.start(
+    'Tests setVariableValue on module scope with many variables.');
 
-var Debug = debug.Debug;
-
+const source = `
 export let v0 = 0;
 export let v1 = 1;
 export let v2 = 2;
@@ -133,30 +132,83 @@ export let v119 = 119;
 let notExported = 'a';
 
 {
-  let exception;
-  function listener(event, exec_state) {
-    if (event != Debug.DebugEvent.Break) return;
-    try {
-      let module_scope = exec_state.frame().scope(1);
-      assertEquals(debug.ScopeType.Module, module_scope.scopeType());
-      // Existing variables at various positions in the module_variables list.
-      module_scope.setVariableValue('v0', 1000);
-      module_scope.setVariableValue('v74', 1074);
-      module_scope.setVariableValue('v75', 1075);
-      module_scope.setVariableValue('v119', 2000);
-      module_scope.setVariableValue('notExported', 'b');
-      // Non-existing variable must throw.
-      assertThrows(() => module_scope.setVariableValue('spargel', 42));
-    } catch (e) { exception = e; }
+  function collectResults() {
+    return Object.assign({}, {
+      v0,
+      v74,
+      v75,
+      v119,
+      notExported,
+      v1
+    });
   }
-  Debug.setListener(listener);
   debugger;
-  Debug.setListener(null);
-  assertEquals(undefined, exception);
-  assertEquals(1000, v0);
-  assertEquals(1074, v74);
-  assertEquals(1075, v75);
-  assertEquals(2000, v119);
-  assertEquals('b', notExported);
-  assertEquals(1, v1);
+  globalThis.moduleTestResults = collectResults();
 }
+`;
+
+(async function test() {
+  await Protocol.Debugger.enable();
+
+  Protocol.Debugger.onPaused(async ({params: {callFrames}}) => {
+    InspectorTest.log('Paused on debugger statement.');
+    const moduleScopeIndex =
+        callFrames[0].scopeChain.findIndex(s => s.type === 'module');
+    InspectorTest.log('Found module scope: ' + (moduleScopeIndex !== -1));
+
+    // Existing variables at various positions in the module_variables list.
+    await Protocol.Debugger.setVariableValue({
+      callFrameId: callFrames[0].callFrameId,
+      scopeNumber: moduleScopeIndex,
+      variableName: 'v0',
+      newValue: {value: 1000}
+    });
+    await Protocol.Debugger.setVariableValue({
+      callFrameId: callFrames[0].callFrameId,
+      scopeNumber: moduleScopeIndex,
+      variableName: 'v74',
+      newValue: {value: 1074}
+    });
+    await Protocol.Debugger.setVariableValue({
+      callFrameId: callFrames[0].callFrameId,
+      scopeNumber: moduleScopeIndex,
+      variableName: 'v75',
+      newValue: {value: 1075}
+    });
+    await Protocol.Debugger.setVariableValue({
+      callFrameId: callFrames[0].callFrameId,
+      scopeNumber: moduleScopeIndex,
+      variableName: 'v119',
+      newValue: {value: 2000}
+    });
+    await Protocol.Debugger.setVariableValue({
+      callFrameId: callFrames[0].callFrameId,
+      scopeNumber: moduleScopeIndex,
+      variableName: 'notExported',
+      newValue: {value: 'b'}
+    });
+
+    // Non-existing variable must return error.
+    const spargelRes = await Protocol.Debugger.setVariableValue({
+      callFrameId: callFrames[0].callFrameId,
+      scopeNumber: moduleScopeIndex,
+      variableName: 'spargel',
+      newValue: {value: 42}
+    });
+    InspectorTest.log(
+        'Setting non-existing variable returned error: ' +
+        Boolean(spargelRes.error));
+
+    await Protocol.Debugger.resume();
+  });
+
+  contextGroup.addModule(source, 'test.mjs');
+  await InspectorTest.waitForPendingTasks();
+
+  const {result: {result: {value: results}}} = await Protocol.Runtime.evaluate(
+      {expression: 'globalThis.moduleTestResults', returnByValue: true});
+  InspectorTest.log('moduleTestResults: ' + JSON.stringify(results));
+
+  await Protocol.Debugger.disable();
+  InspectorTest.completeTest();
+})();
