@@ -714,6 +714,7 @@
   # test's cell rotation finishes before the broker reads the cell.
   'regress/regress-crbug-560233248': [SKIP],
   # Tests taking too long
+  'compiler/regress-580193566': [SKIP],
   'regress/regress-1122': [SKIP],
   'regress/regress-353551': [SKIP],
   'regress/regress-crbug-119926': [SKIP],
