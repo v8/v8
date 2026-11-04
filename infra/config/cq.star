@@ -12,26 +12,6 @@ luci.cq(
 )
 
 luci.cq_group(
-    name = "infra-cq",
-    watch = cq.refset(
-        repo = "https://chromium.googlesource.com/v8/v8",
-        refs = ["refs/heads/infra/config"],
-    ),
-    retry_config = cq.retry_config(
-        single_quota = 2,
-        global_quota = 4,
-        failure_weight = 2,
-        transient_failure_weight = 1,
-        timeout_weight = 4,
-    ),
-    verifiers = [luci.cq_tryjob_verifier(
-        "try/v8_presubmit",
-        disable_reuse = True,
-        cancel_stale = False,
-    )],
-)
-
-luci.cq_group(
     name = "v8-cq",
     watch = cq.refset(
         repo = "https://chromium.googlesource.com/v8/v8",
