@@ -115,6 +115,7 @@ FullObjectSlot TracedHandles::Create(
     Address value, Address* slot, TracedReferenceStoreMode store_mode,
     TracedReferenceHandling reference_handling) {
   DCHECK_NOT_NULL(slot);
+  DCHECK(!is_processing_weakness_);
   Tagged<Object> object(value);
   auto [block, node] = AllocateNode();
   const bool needs_young_bit_update = NeedsTrackingInYoungNodes(object, node);

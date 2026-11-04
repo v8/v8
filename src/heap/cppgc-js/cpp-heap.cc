@@ -573,6 +573,20 @@ class SweepingOnMutatorThreadForGlobalHandlesScope final {
   TracedHandles& traced_handles_;
 };
 
+class WeakProcessingForGlobalHandlesScope final {
+ public:
+  explicit WeakProcessingForGlobalHandlesScope(TracedHandles& traced_handles)
+      : traced_handles_(traced_handles) {
+    traced_handles_.SetIsProcessingWeakness(true);
+  }
+  ~WeakProcessingForGlobalHandlesScope() {
+    traced_handles_.SetIsProcessingWeakness(false);
+  }
+
+ private:
+  TracedHandles& traced_handles_;
+};
+
 class SweepingOnMutatorThreadForGlobalHandlesObserver final
     : public cppgc::internal::Sweeper::SweepingOnMutatorThreadObserver {
  public:
@@ -1016,6 +1030,10 @@ void CppHeap::FinishMarkingAndProcessWeakness() {
 
   {
     cppgc::subtle::DisallowGarbageCollectionScope disallow_gc_scope(*this);
+    std::optional<WeakProcessingForGlobalHandlesScope> global_handles_scope;
+    if (isolate_) {
+      global_handles_scope.emplace(*isolate_->traced_handles());
+    }
     marker_->LeaveAtomicPause();
   }
   marker_.reset();
