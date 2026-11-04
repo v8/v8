@@ -11,6 +11,7 @@
 #include <unordered_map>
 
 #include "absl/container/flat_hash_set.h"
+#include "src/base/platform/mutex.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate-inl.h"
@@ -40,6 +41,7 @@
 #include "src/heap/slot-set.h"
 #include "src/heap/sweeper.h"
 #include "src/heap/zapping.h"
+#include "src/init/v8.h"
 #include "src/objects/casting-inl.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/embedder-data-array-inl.h"
@@ -951,21 +953,34 @@ class GlobalHandlesWeakRootsUpdatingVisitor final : public RootVisitor {
   }
 };
 
+// Remove this crashkey after chromium:1010312 is fixed.
+base::LazyMutex g_dump_type_crash_key_mutex = LAZY_MUTEX_INITIALIZER;
+size_t g_active_heap_dumps = 0;
+
+CrashKey GetDumpTypeCrashKey() {
+  static CrashKey key = V8::AllocateCrashKey("dump-type", CrashKeySize::Size32);
+  return key;
+}
+
 }  // namespace
 
-// Remove this crashkey after chromium:1010312 is fixed.
-class V8_NODISCARD ScopedFullHeapCrashKey {
- public:
-  explicit ScopedFullHeapCrashKey(Isolate* isolate) : isolate_(isolate) {
-    isolate_->AddCrashKey(v8::CrashKeyId::kDumpType, "heap");
+ScopedFullHeapCrashKey::ScopedFullHeapCrashKey()
+    : active_(V8::HasCrashKeyCallbacks()) {
+  if (!active_) return;
+  base::MutexGuard guard(g_dump_type_crash_key_mutex.Pointer());
+  if (g_active_heap_dumps++ == 0) {
+    V8::SetCrashKey(GetDumpTypeCrashKey(), "heap");
   }
-  ~ScopedFullHeapCrashKey() {
-    isolate_->AddCrashKey(v8::CrashKeyId::kDumpType, "");
-  }
+}
 
- private:
-  Isolate* isolate_ = nullptr;
-};
+ScopedFullHeapCrashKey::~ScopedFullHeapCrashKey() {
+  if (!active_) return;
+  base::MutexGuard guard(g_dump_type_crash_key_mutex.Pointer());
+  DCHECK_GT(g_active_heap_dumps, 0);
+  if (--g_active_heap_dumps == 0) {
+    V8::SetCrashKey(GetDumpTypeCrashKey(), "");
+  }
+}
 
 namespace {
 
@@ -1641,7 +1656,7 @@ size_t HandleSurvivingNewLargeObjects(
 
 void ScavengerCollector::CollectGarbage() {
   Isolate* const isolate = heap_->isolate();
-  ScopedFullHeapCrashKey collect_full_heap_dump_if_crash(isolate);
+  ScopedFullHeapCrashKey collect_full_heap_dump_if_crash;
 
   DCHECK(!quarantined_page_sweeper_->IsSweeping());
   DCHECK(!heap_->array_buffer_sweeper()->sweeping_in_progress());

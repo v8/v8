@@ -1513,6 +1513,7 @@ class V8_EXPORT Isolate {
    * predefined set of data as crash keys to be used in postmortem debugging in
    * case of a crash.
    */
+  V8_DEPRECATE_SOON("Use V8::SetCrashKeyCallbacks instead")
   void SetAddCrashKeyCallback(AddCrashKeyCallback);
 
   /**

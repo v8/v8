@@ -90,6 +90,8 @@ class V8_EXPORT V8 {
   /**
    * Enables the host application to provide a process-wide mechanism for
    * allocating crash keys and setting/updating string values for them.
+   * Should be called before initializing any Isolate so that isolate and heap
+   * crash keys are recorded during Isolate initialization.
    *
    * Each call to `allocate` is expected to allocate a new crash key whose
    * `CrashKey` handle remains valid for the lifetime of the process. V8 caches

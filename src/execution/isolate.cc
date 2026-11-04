@@ -5998,43 +5998,44 @@ static std::string ToHexString(uintptr_t address) {
 }  // namespace
 
 void Isolate::AddCrashKeysForIsolateAndHeapPointers() {
-  DCHECK_NOT_NULL(add_crash_key_callback_);
+  if (!V8::HasCrashKeyCallbacks()) return;
 
-  const uintptr_t isolate_address = reinterpret_cast<uintptr_t>(this);
-  add_crash_key_callback_(v8::CrashKeyId::kIsolateAddress,
-                          ToHexString(isolate_address));
+  static base::LazyMutex crash_key_mutex = LAZY_MUTEX_INITIALIZER;
+  base::MutexGuard guard(crash_key_mutex.Pointer());
 
-  const uintptr_t ro_space_firstpage_address =
-      heap()->read_only_space()->FirstPageAddress();
-  add_crash_key_callback_(v8::CrashKeyId::kReadonlySpaceFirstPageAddress,
-                          ToHexString(ro_space_firstpage_address));
+#define SET_CRASH_KEY(key_name, value)                        \
+  do {                                                        \
+    static CrashKey key =                                     \
+        V8::AllocateCrashKey(key_name, CrashKeySize::Size32); \
+    V8::SetCrashKey(key, ToHexString(value));                 \
+  } while (false)
 
-  const uintptr_t old_space_firstpage_address =
-      heap()->old_space()->FirstPageAddress();
-  add_crash_key_callback_(v8::CrashKeyId::kOldSpaceFirstPageAddress,
-                          ToHexString(old_space_firstpage_address));
+  SET_CRASH_KEY("v8_isolate_address", reinterpret_cast<uintptr_t>(this));
+  SET_CRASH_KEY("v8_ro_space_firstpage_address",
+                heap()->read_only_space()->FirstPageAddress());
+  SET_CRASH_KEY("v8_old_space_firstpage_address",
+                heap()->old_space()->FirstPageAddress());
 
   if (heap()->code_range_base()) {
-    const uintptr_t code_range_base_address = heap()->code_range_base();
-    add_crash_key_callback_(v8::CrashKeyId::kCodeRangeBaseAddress,
-                            ToHexString(code_range_base_address));
+    SET_CRASH_KEY("v8_code_range_base_address", heap()->code_range_base());
   }
 
   if (heap()->code_space()->first_page()) {
-    const uintptr_t code_space_firstpage_address =
-        heap()->code_space()->FirstPageAddress();
-    add_crash_key_callback_(v8::CrashKeyId::kCodeSpaceFirstPageAddress,
-                            ToHexString(code_space_firstpage_address));
+    SET_CRASH_KEY("v8_code_space_firstpage_address",
+                  heap()->code_space()->FirstPageAddress());
   }
-  const v8::StartupData* data = Snapshot::DefaultSnapshotBlob();
-  // TODO(cbruni): Implement strategy to infrequently collect this.
-  const uint32_t v8_snapshot_checksum_calculated = 0;
-  add_crash_key_callback_(v8::CrashKeyId::kSnapshotChecksumCalculated,
-                          ToHexString(v8_snapshot_checksum_calculated));
-  const uint32_t v8_snapshot_checksum_expected =
-      Snapshot::GetExpectedChecksum(data);
-  add_crash_key_callback_(v8::CrashKeyId::kSnapshotChecksumExpected,
-                          ToHexString(v8_snapshot_checksum_expected));
+
+  if (snapshot_available()) {
+    // TODO(cbruni): Implement strategy to infrequently collect this.
+    const uint32_t v8_snapshot_checksum_calculated = 0;
+    SET_CRASH_KEY("v8_snapshot_checksum_calculated",
+                  v8_snapshot_checksum_calculated);
+    const uint32_t v8_snapshot_checksum_expected =
+        Snapshot::GetExpectedChecksum(snapshot_blob());
+    SET_CRASH_KEY("v8_snapshot_checksum_expected",
+                  v8_snapshot_checksum_expected);
+  }
+#undef SET_CRASH_KEY
 }
 
 void Isolate::InitializeCodeRanges() {
@@ -6686,6 +6687,12 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 #if defined(V8_USE_PERFETTO)
   PerfettoLogger::RegisterIsolate(this);
 #endif  // defined(V8_USE_PERFETTO)
+
+  // Crash keys are process-wide; only record pointer crash keys for the main
+  // isolate so worker isolates do not overwrite them.
+  if (isolate_group()->main_isolate() == this) {
+    AddCrashKeysForIsolateAndHeapPointers();
+  }
 
   initialized_ = true;
 
@@ -7683,13 +7690,6 @@ FilterETWSessionByURLResult Isolate::RunFilterETWSessionByURLCallback(
 }
 
 #endif  // V8_ENABLE_ETW_STACK_WALKING
-
-void Isolate::SetAddCrashKeyCallback(AddCrashKeyCallback callback) {
-  add_crash_key_callback_ = callback;
-
-  // Log the initial set of data.
-  AddCrashKeysForIsolateAndHeapPointers();
-}
 
 void Isolate::SetCrashKeyStringCallbacks(
     AllocateCrashKeyStringCallback allocate_callback,

@@ -16,6 +16,7 @@
 #include "src/base/platform/platform.h"
 #include "src/base/platform/semaphore.h"
 #include "src/heap/local-heap-inl.h"
+#include "src/heap/scavenger.h"
 #include "src/init/v8.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -149,28 +150,71 @@ void CrashKeyCallback(v8::CrashKeyId id, const std::string& value) {
 }
 }  // namespace
 TEST_F(IsolateTest, SetAddCrashKeyCallback) {
+  crash_keys.clear();
+  START_ALLOW_USE_DEPRECATED()
   isolate()->SetAddCrashKeyCallback(CrashKeyCallback);
+  END_ALLOW_USE_DEPRECATED()
+  EXPECT_TRUE(crash_keys.empty());
+}
 
-  i::Isolate* i_isolate = reinterpret_cast<internal::Isolate*>(isolate());
+TEST_F(TestWithPlatform, IsolateCrashKeys) {
+  i::CrashKeyStore crash_key_store;
+  IsolateWrapper isolate_wrapper(kNoCounters);
+  i::Isolate* i_isolate = isolate_wrapper.i_isolate();
   i::Heap* heap = i_isolate->heap();
 
-  size_t expected_keys_count = 5;
-  EXPECT_EQ(crash_keys.count(v8::CrashKeyId::kIsolateAddress), 1u);
-  EXPECT_EQ(crash_keys.count(v8::CrashKeyId::kReadonlySpaceFirstPageAddress),
-            1u);
-  EXPECT_EQ(crash_keys.count(v8::CrashKeyId::kOldSpaceFirstPageAddress), 1u);
-  EXPECT_EQ(crash_keys.count(v8::CrashKeyId::kSnapshotChecksumCalculated), 1u);
-  EXPECT_EQ(crash_keys.count(v8::CrashKeyId::kSnapshotChecksumExpected), 1u);
+  size_t expected_keys_count = 3;
+  std::string main_isolate_address =
+      crash_key_store.ValueForKey("v8_isolate_address");
+  EXPECT_TRUE(main_isolate_address.starts_with("0x"));
+  EXPECT_TRUE(crash_key_store.ValueForKey("v8_ro_space_firstpage_address")
+                  .starts_with("0x"));
+  EXPECT_TRUE(crash_key_store.ValueForKey("v8_old_space_firstpage_address")
+                  .starts_with("0x"));
+  if (i_isolate->snapshot_available()) {
+    expected_keys_count += 2;
+    EXPECT_TRUE(crash_key_store.HasKey("v8_snapshot_checksum_calculated"));
+    EXPECT_TRUE(crash_key_store.HasKey("v8_snapshot_checksum_expected"));
+  }
 
   if (heap->code_range_base()) {
     ++expected_keys_count;
-    EXPECT_EQ(crash_keys.count(v8::CrashKeyId::kCodeRangeBaseAddress), 1u);
+    EXPECT_TRUE(crash_key_store.ValueForKey("v8_code_range_base_address")
+                    .starts_with("0x"));
   }
   if (heap->code_space()->first_page()) {
     ++expected_keys_count;
-    EXPECT_EQ(crash_keys.count(v8::CrashKeyId::kCodeSpaceFirstPageAddress), 1u);
+    EXPECT_TRUE(crash_key_store.ValueForKey("v8_code_space_firstpage_address")
+                    .starts_with("0x"));
   }
-  EXPECT_EQ(crash_keys.size(), expected_keys_count);
+  EXPECT_EQ(expected_keys_count, crash_key_store.size());
+
+  // A secondary Isolate must not overwrite the main Isolate's crash keys, and
+  // concurrent Scavenge scopes only clear "dump-type" when the last scope
+  // exits.
+  {
+    IsolateWrapper worker_isolate_wrapper(kNoCounters, false);
+    EXPECT_EQ(main_isolate_address,
+              crash_key_store.ValueForKey("v8_isolate_address"));
+
+    {
+      i::ScopedFullHeapCrashKey main_scavenge;
+      EXPECT_EQ("heap", crash_key_store.ValueForKey("dump-type"));
+      {
+        i::ScopedFullHeapCrashKey worker_scavenge;
+        EXPECT_EQ("heap", crash_key_store.ValueForKey("dump-type"));
+      }
+      EXPECT_EQ("heap", crash_key_store.ValueForKey("dump-type"));
+    }
+    EXPECT_EQ("", crash_key_store.ValueForKey("dump-type"));
+  }
+
+  // Deprecated per-Isolate callback is ignored (no-op).
+  crash_keys.clear();
+  START_ALLOW_USE_DEPRECATED()
+  isolate_wrapper.isolate()->SetAddCrashKeyCallback(CrashKeyCallback);
+  END_ALLOW_USE_DEPRECATED()
+  EXPECT_TRUE(crash_keys.empty());
 }
 
 TEST_F(IsolateTest, DebugTraceMinimal) {

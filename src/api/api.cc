@@ -10883,9 +10883,8 @@ void Isolate::SetMetricsRecorder(
                                                      metrics_recorder);
 }
 
-void Isolate::SetAddCrashKeyCallback(AddCrashKeyCallback callback) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  i_isolate->SetAddCrashKeyCallback(callback);
+void Isolate::SetAddCrashKeyCallback(AddCrashKeyCallback) {
+  // Deprecated no-op.
 }
 
 void Isolate::SetCrashKeyStringCallbacks(AllocateCrashKeyStringCallback alloc,

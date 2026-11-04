@@ -248,6 +248,7 @@ using LogEventCallback = void (*)(const char* name,
                                   int /* LogEventStatus */ status);
 
 // --- Crashkeys Callback ---
+// Deprecated: use V8::SetCrashKeyCallbacks instead.
 enum class CrashKeyId {
   kIsolateAddress,
   kReadonlySpaceFirstPageAddress,

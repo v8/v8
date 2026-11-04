@@ -2117,13 +2117,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
       DirectHandle<JSArray> sites);
   bool HasPrepareStackTraceCallback() const;
 
-  void SetAddCrashKeyCallback(AddCrashKeyCallback callback);
-  void AddCrashKey(CrashKeyId id, const std::string& value) {
-    if (add_crash_key_callback_) {
-      add_crash_key_callback_(id, value);
-    }
-  }
-
   v8::CrashKey AllocateCrashKeyString(const char key[], CrashKeySize size);
   v8::CrashKey AddCrashKeyString(const char key[], CrashKeySize size,
                                  std::string_view value);
@@ -3018,11 +3011,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   wasm::WasmOrphanedGlobalHandle* wasm_orphaned_handle_ = nullptr;
   wasm::StackPool stack_pool_;
 #endif  // V8_ENABLE_WEBASSEMBLY
-
-  // Enables the host application to provide a mechanism for recording a
-  // predefined set of data as crash keys to be used in postmortem debugging
-  // in case of a crash.
-  AddCrashKeyCallback add_crash_key_callback_ = nullptr;
 
   AllocateCrashKeyStringCallback allocate_crash_key_string_callback_;
   SetCrashKeyStringCallback set_crash_key_string_callback_;
