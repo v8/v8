@@ -325,7 +325,7 @@ deps = {
   'third_party/libc++/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'def01bd012f56d2fd8f5e2dc75dc28a846ab9cdb',
   'third_party/libc++abi/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'ce814c994055b107c631c310b1c668e3714c0704',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '292abbf37d1d68e548c74bb056d04ef91a3a7e2f',
   'third_party/libpfm4':
     Var('chromium_url') + '/chromium/src/third_party/libpfm4.git' + '@' + 'e02968592ac424c7f45441249e7175d4549a5e3a',
   'third_party/libpfm4/src':
@@ -520,7 +520,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '52ac869d773578d29e603af8cdd90d42d629ab68',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'd5eea1535fd43cdd23b492e89138c2f801bb6168',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + 'cbe3b4e423e74e4c0c7eb0583a197e8f8afd6bcd',
   'third_party/re2/src':
@@ -651,7 +651,7 @@ deps = {
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + '5c77c0c9fdebb2d87378bcea183e4c6937fd8c53',
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '8011abd14e3b74f624c9015971b750f17fc414d1',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '661da47592c61f085615ea0f96f442a215399688',
     'condition': 'not build_with_chromium',
   },
   'third_party/fadec/src': {
