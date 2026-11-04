@@ -293,6 +293,12 @@
 }], # asan == True
 
 ##############################################################################
+['mode != debug', {
+  # Test uses a flag only available in debug mode
+  'debugger/wasm-debug-enabled-tier-down-wasm-unsupported-liftoff': [SKIP],
+}],
+
+##############################################################################
 ['full_debug', {
   # Tests too slow in non-optimized debug mode.
   'runtime/console-messages-limits': [SKIP],
