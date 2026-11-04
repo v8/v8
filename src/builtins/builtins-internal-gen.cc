@@ -359,10 +359,12 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     if (!v8_flags.sticky_mark_bits) {
       // With sticky markbits we know everything will be old after the GC so no
       // need to check the age.
-      InYoungGeneration(object, next, &generational_barrier_check);
-
-      BIND(&generational_barrier_check);
+      InYoungGenerationOrSharedHeap(object, next, &generational_barrier_check);
+    } else {
+      InSharedHeap(object, next, &generational_barrier_check);
     }
+
+    BIND(&generational_barrier_check);
 
     TNode<IntPtrT> value = BitcastTaggedToWord(Load<HeapObject>(slot));
 
@@ -409,12 +411,21 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     }
   }
 
+  void InYoungGenerationOrSharedHeap(TNode<IntPtrT> object, Label* true_label,
+                                     Label* false_label) {
+    DCHECK(!v8_flags.sticky_mark_bits);
+    TNode<BoolT> object_is_young_or_shared =
+        IsPageFlagSet(object, MemoryChunk::kIsInYoungGenerationMask |
+                                  MemoryChunk::kInSharedHeap);
+    Branch(object_is_young_or_shared, true_label, false_label);
+  }
+
   void InSharedHeap(TNode<IntPtrT> object, Label* true_label,
                     Label* false_label) {
-    TNode<BoolT> object_is_young =
+    TNode<BoolT> object_is_shared =
         IsPageFlagSet(object, MemoryChunk::kInSharedHeap);
 
-    Branch(object_is_young, true_label, false_label);
+    Branch(object_is_shared, true_label, false_label);
   }
 
   void IncrementalWriteBarrierMinor(TNode<IntPtrT> slot, TNode<IntPtrT> value,

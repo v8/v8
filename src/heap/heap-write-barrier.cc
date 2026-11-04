@@ -293,10 +293,8 @@ int WriteBarrier::SharedMarkingFromCode(Address raw_host, Address raw_slot) {
 
 int WriteBarrier::SharedFromCode(Address raw_host, Address raw_slot) {
   Tagged<HeapObject> host = Cast<HeapObject>(Tagged<Object>(raw_host));
-
-  if (!HeapLayout::InWritableSharedSpace(host)) {
-    SharedHeapBarrierSlow(host, raw_slot);
-  }
+  DCHECK(!HeapLayout::InWritableSharedSpace(host));
+  SharedHeapBarrierSlow(host, raw_slot);
 
   // Called by WriteBarrierCodeStubAssembler, which doesn't accept void type
   return 0;
