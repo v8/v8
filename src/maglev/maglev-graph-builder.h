@@ -310,7 +310,7 @@ class MaglevGraphBuilder {
     using Label = Base::Label;
     using LabelForTrackingInterpreterFrameState =
         Base::LabelForTrackingInterpreterFrameState;
-    class LoopLabel;
+    class V8_NODISCARD LoopLabel;
 
     MaglevSubGraphBuilder(MaglevGraphBuilder* builder, int variable_count);
     LoopLabel BeginLoop(std::initializer_list<Variable*> loop_vars);
