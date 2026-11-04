@@ -243,17 +243,16 @@ Draft a short, precise synthesis based on verified subagent findings.
     **MANDATORY**: Only classify as "Vulnerability" if local reproduction was
     successful.
 
-  - **Security Impact** (1 line): Classify as "**None**" (experimental,
-    disabled, or V8 Sandbox bypass with `Security_Impact-None` and `v8-sandbox`
-    hotlist) or "**Yes**" (shipping, web-exploitable) with a brief parenthetical
-    rationale; omit specific channel labels (e.g., `Security_Impact-Stable`).
+  - **Security Impact** (1 line): Classify as "**None**" (when
+    [triaging.md](../../../docs/security/triaging.md) specifies
+    `Security_Impact-None`) or "**Yes**" (when it specifies release-channel
+    `Security_Impact-*`) with a brief parenthetical rationale; omit specific
+    channel labels (e.g., `Security_Impact-Stable`).
 
   - **Proposed Severity** (1 line): Provide the severity (e.g., `S1` or `S2`)
-    and proposed priority (if it needs adjustment) based on
-    [triaging.md](../../../docs/security/triaging.md), where priority is at
-    least the severity for active vulnerabilities, can be lower than severity
-    for `Security_Impact-None` (e.g., `S1` -> `P2`), and should be lowered
-    (e.g., `P2` or `P3`) when downgrading to a non-security `Bug`.
+    and proposed priority (if it needs adjustment) per
+    [triaging.md](../../../docs/security/triaging.md) (and lower priority, e.g.,
+    to `P2` or `P3`, when downgrading to a non-security `Bug`).
 
   - **Introduced In** (1 line): Commit and version where the bug was introduced
     (and fixed, if already fixed), including the commit title and a clickable
@@ -302,19 +301,24 @@ Draft a short, precise synthesis based on verified subagent findings.
 Task a **Generalist** subagent acting as a "Security Triage Auditor" to review
 the draft.
 
-- **Orchestrator Instruction**: "Audit the attached triage draft against
-  `docs/security/triaging.md` and the Technical Quality Checklist. Ensure the
-  classification is technically sound, the report is concise, and the formatting
-  is correct. If errors are found, distinguish between text-only corrections and
-  missing technical work."
+- **Orchestrator Instruction**: "Read `docs/security/triaging.md` and
+  `docs/security/reproducing-bugs.md`, then audit the attached triage draft
+  against their rules and the Technical Quality Checklist. Ensure the
+  classification, security impact, severity, priority, and hotlists are
+  technically sound, the report is concise, and the formatting is correct. If
+  errors are found, distinguish between text-only corrections and missing
+  technical work."
 - **Loop-back Mandate**: If the Auditor identifies missing technical evidence
   (e.g., skipped boundary checks, missing GDB analysis, or unverified impact on
   Release builds), the Orchestrator **MUST** return to the relevant previous
   phase (Phase 2, 3, or 4) and re-delegate the work to the appropriate subagent
   before proceeding.
-- **Review**: The auditor must verify that:
-  - The classification (Vulnerability vs. Bug) is consistent with the
-    reproduction results (e.g., if it needs experimental flags, it's a Bug).
+- **Review**: The auditor must read `docs/security/triaging.md` and verify that:
+  - `Classification` (`Vulnerability` / `Bug` /
+    `Not a Bug (Intended Behavior)`), `Security Impact` (`Yes` / `None`),
+    `Proposed Severity`, `Proposed Priority`, and proposed hotlists
+    (`v8-sandbox`, `v8-unsupported-chrome`, `Security_Impact-*`) strictly match
+    the reproduction results and the rules in `docs/security/triaging.md`.
   - The "Local Reproduction Findings" section contains the exact d8 command, V8
     version and revision number (skipping the git hash and Gerrit link), and the
     observed result.
@@ -337,13 +341,14 @@ the draft.
   have been addressed.
 - **Applying Approved Buganizer Updates**: Once the user approves updating
   Buganizer metadata:
-  - **Hotlist Cleanup**: When adding `Security_Impact-None` (`5433277`) via
-    `add_issue_to_hotlist`, you **MUST** also remove any existing
-    release-channel `Security_Impact-*` hotlists from the issue via
+  - **Hotlist Updates & Cleanup**: Apply any hotlists specified in
+    [triaging.md](../../../docs/security/triaging.md) (using the hotlist IDs
+    linked at the bottom of that file). When adding `Security_Impact-None`
+    (`5433277`) via `add_issue_to_hotlist`, you **MUST** also remove any
+    existing release-channel `Security_Impact-*` hotlists from the issue via
     `remove_issue_from_hotlist`: `Security_Impact-Head` (`5432216`),
     `Security_Impact-Beta` (`5433097`), `Security_Impact-Stable` (`5432902`),
-    and `Security_Impact-Extended` (`5432548`). When applicable, also add
-    `v8-sandbox` (`4802478`) or `v8-unsupported-chrome` (`8384111`).
+    and `Security_Impact-Extended` (`5432548`).
   - **Priority & ReleaseBlock Adjustment**: When lowering `Severity` or
     downgrading an issue (e.g., to `Type=Bug` or `Security_Impact-None`), you
     **MUST** check that `Priority` still makes sense and lower it accordingly
@@ -375,9 +380,10 @@ Finalize the session by securing artifacts and cleaning up the environment.
 
 - [ ] **Duplicate Check**: Did the Researcher search Buganizer (open and closed
   issues) for existing reports with the same crash signature or root cause?
-- [ ] **Classification Accuracy**: Does the result match the criteria in
-  `docs/security/triaging.md`? (e.g., `nullptr` is a Bug, safe termination is
-  Intended Behavior).
+- [ ] **Classification & Triage Accuracy**: Did the Auditor read
+  `docs/security/triaging.md` and verify that `Classification`,
+  `Security Impact`, `Proposed Severity`, `Proposed Priority`, and proposed
+  hotlists strictly match every applicable rule in `docs/security/triaging.md`?
 - [ ] **Boundary Verification**: Was the POC tested with the security filter
   flag (`--run-as-[sandbox]-security-poc`)?
 - [ ] **Mandatory Data**: Are both the V8 version and revision number (without
@@ -397,16 +403,3 @@ Finalize the session by securing artifacts and cleaning up the environment.
   ASan/UBSan logs?
 - [ ] **Component Mapping**: Does the proposed component exist with the stated
   ID and is it the most specific one available (not just `V8`)?
-
-## Common Misclassification Pitfalls
-
-- **Experimental Flags**: If a bug requires `--experimental-*` flags and is not
-  part of `--future` or `--wasm-staging`, it is a **Bug**, not a Vulnerability.
-- **DCHECK vs. CHECK**: `DCHECK` failures are **Bugs**. `CHECK` failures are
-  **Intended Behavior** (safe termination) unless they are in-sandbox and part
-  of a sandbox bypass claim.
-- **Sandbox Read-only**: Sandbox bypasses that only provide **Read** access are
-  currently **Bugs**.
-- **d8-only Flags**: Bugs requiring flags like `--shell` or `--isolate` are
-  **Bugs**.
-- **nullptr Dereference**: Always a **Bug**, never a Vulnerability.

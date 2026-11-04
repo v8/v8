@@ -24,8 +24,9 @@ security vulnerability or a regular bug through empirical technical analysis.
 - **Mandatory Non-ASan Verification:** For any potential security bug, you MUST
   verify reproduction on a standard **Release build without ASan/UBSan**.
 - **Autonomous Classification:** You are responsible for forming your own
-  technical conclusion. If your analysis shows it is a `DCHECK` failure or
-  relies on experimental flags, classify it as a **Bug**.
+  technical conclusion based on the rules in
+  [triaging.md](../../../docs/security/triaging.md) and
+  [reproducing-bugs.md](../../../docs/security/reproducing-bugs.md).
 
 ## Workflow
 
@@ -124,29 +125,17 @@ reproduction:
     and relevant stack frames (can span multiple lines if helpful; trim
     unrelated frames).
 
-Summary of rules from [triaging.md](../../../docs/security/triaging.md) based on
-the threat model:
+Read and apply [triaging.md](../../../docs/security/triaging.md) and
+[reproducing-bugs.md](../../../docs/security/reproducing-bugs.md) for the
+authoritative classification rules (`Type=Vulnerability` vs. `Type=Bug` vs.
+intended behavior, regular bugs vs. sandbox bypasses, flag restrictions, and
+special cases).
 
-#### Regular Bugs (No initial in-sandbox write)
-
-- **Type=Vulnerability**: Production code, enabled by default, survives the
-  security POC flags (`--run-as-security-poc`).
-- **Type=Bug**: Requires experimental flags (not in `--future`), developer
-  flags, or only triggers a `DCHECK` or reliable `CHECK` (safe termination).
-- **Intended Behavior**: Safe termination (e.g., via `SBXCHECK`, `FATAL`, or
-  hardened libc++ checks).
-  - **Indicators:** Look for traps like `int3` (x64), `brk #0` (arm64), or calls
-    to the Abort builtin or the runtime function in the backtrace/disassembly.
-    Also look for "Fatal error" or "Safely terminating process" in stderr, or
-    calls to `v8::base::OS::Abort` in the backtrace.
-
-#### Sandbox Bypasses (Starts with in-sandbox write/corruption)
-
-- **Type=Vulnerability**: Demonstration of **write access** outside the sandbox
-  (e.g., "V8 sandbox violation detected") using `--sandbox-testing`.
-- **Intended Behavior**: Read-only bypass, or safe termination ("Caught harmless
-  memory access violation"). Includes linear OOB writes (e.g., `memset`,
-  `memcpy`) hitting guard regions, or corrupting trusted objects with
-  well-formed data of the same type. Also includes breaking internal invariants
-  using testing-only natives (restricted by `IsEnabledForFuzzing`) if the impact
-  is safely contained.
+- **Debugging Indicators for Safe Termination (Intended Behavior)**:
+  - For regular bugs: Look for traps like `int3` (x64), `brk #0` (arm64), or
+    calls to the Abort builtin / `v8::base::OS::Abort` in the backtrace or
+    disassembly, or `"Fatal error"` / `"Safely terminating process"` in stderr.
+  - For sandbox testing (`--sandbox-testing`): Look for
+    `"V8 sandbox violation detected"` (write access outside the sandbox) vs.
+    `"Caught harmless memory access violation"` (safe termination, read-only
+    access, or guard-region hits).
