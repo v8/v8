@@ -736,8 +736,8 @@ class KnownNodeAspects {
   // Returns the value in the cache if exists without adding a new cache entry.
   ValueNode* TryGetContextCachedValue(ValueNode* context, int offset,
                                       MaybeAssignedFlag assigned) {
-    auto map = (assigned == kMaybeAssigned) ? loaded_context_slots_
-                                            : loaded_context_constants_;
+    auto& map = (assigned == kMaybeAssigned) ? loaded_context_slots_
+                                             : loaded_context_constants_;
     auto it = map.find({context, offset});
     if (it == map.end()) return nullptr;
     if (it->second) {
