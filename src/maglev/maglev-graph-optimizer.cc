@@ -2175,24 +2175,34 @@ ProcessResult MaglevGraphOptimizer::VisitLoadDoubleDataViewElement(
 ProcessResult MaglevGraphOptimizer::VisitLoadTypedArrayLength(
     LoadTypedArrayLength* node, const ProcessingState& state) {
   if (!IsRabGsabTypedArrayElementsKind(node->elements_kind())) {
-    REPLACE_AND_RETURN_IF_DONE(
-        known_node_aspects().TryFindLoadedConstantProperty(
-            node->ValueInput().node(), PropertyKey::TypedArrayLength()));
+    PropertyConstness constness = v8_flags.track_array_buffer_views
+                                      ? PropertyConstness::kMutable
+                                      : PropertyConstness::kConst;
+    REPLACE_AND_RETURN_IF_DONE(known_node_aspects().TryFindLoadedProperty(
+        node->ValueInput().node(), PropertyKey::TypedArrayLength(), constness));
   }
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitLoadDataViewByteLength(
     LoadDataViewByteLength* node, const ProcessingState& state) {
-  REPLACE_AND_RETURN_IF_DONE(known_node_aspects().TryFindLoadedConstantProperty(
-      node->ValueInput().node(), PropertyKey::ArrayBufferViewByteLength()));
+  PropertyConstness constness = v8_flags.track_array_buffer_views
+                                    ? PropertyConstness::kMutable
+                                    : PropertyConstness::kConst;
+  REPLACE_AND_RETURN_IF_DONE(known_node_aspects().TryFindLoadedProperty(
+      node->ValueInput().node(), PropertyKey::ArrayBufferViewByteLength(),
+      constness));
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitLoadDataViewDataPointer(
     LoadDataViewDataPointer* node, const ProcessingState& state) {
-  REPLACE_AND_RETURN_IF_DONE(known_node_aspects().TryFindLoadedConstantProperty(
-      node->ValueInput().node(), PropertyKey::ArrayBufferViewDataPointer()));
+  PropertyConstness constness = v8_flags.track_array_buffer_views
+                                    ? PropertyConstness::kMutable
+                                    : PropertyConstness::kConst;
+  REPLACE_AND_RETURN_IF_DONE(known_node_aspects().TryFindLoadedProperty(
+      node->ValueInput().node(), PropertyKey::ArrayBufferViewDataPointer(),
+      constness));
   return ProcessResult::kContinue;
 }
 
