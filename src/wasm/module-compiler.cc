@@ -2824,12 +2824,9 @@ void AsyncCompileJob::StartBackgroundTask() {
   }
 }
 
-template <typename Step,
-          AsyncCompileJob::UseExistingForegroundTask use_existing_fg_task,
-          typename... Args>
+template <typename Step, typename... Args>
 void AsyncCompileJob::DoSync(Args&&... args) {
   NextStep<Step>(std::forward<Args>(args)...);
-  if (use_existing_fg_task && pending_foreground_task_ != nullptr) return;
   StartForegroundTask();
 }
 
