@@ -6281,62 +6281,100 @@ void StringLength::GenerateCode(MaglevAssembler* masm,
   __ StringLength(ToRegister(result()), ToRegister(StringInput()));
 }
 
+namespace {
+
+// A constant slice index that is negative or at least String::kMaxLength is
+// clamped from the string length alone, so it never needs to be in a register.
+bool IsClampedFromLength(std::optional<int32_t> index) {
+  return index.has_value() &&
+         (*index < 0 || *index >= static_cast<int32_t>(String::kMaxLength));
+}
+
+bool IsLength(std::optional<int32_t> index) {
+  return index.has_value() &&
+         *index >= static_cast<int32_t>(String::kMaxLength);
+}
+
+}  // namespace
+
 void StringSlice::SetValueLocationConstraints() {
   using D = StringSubstringDescriptor;
   UseFixed(StringInput(), D::GetRegisterParameter(D::kString));
-  UseAndClobberFixed(StartIndexInput(), D::GetRegisterParameter(D::kFrom));
-  UseAndClobberFixed(EndIndexInput(), D::GetRegisterParameter(D::kTo));
+  auto use_index = [&](Input input, int input_index, Register reg) {
+    if (IsClampedFromLength(TryGetInt32ConstantInput(input_index))) {
+      UseAny(input);
+      RequireSpecificTemporary(reg);
+    } else {
+      UseAndClobberFixed(input, reg);
+    }
+  };
+  use_index(StartIndexInput(), kStartIndexIndex,
+            D::GetRegisterParameter(D::kFrom));
+  use_index(EndIndexInput(), kEndIndexIndex, D::GetRegisterParameter(D::kTo));
   DefineAsFixed(this, kReturnRegister0);
-  set_temporaries_needed(1);
+  // An end that is the length gets the length directly.
+  if (!IsLength(TryGetInt32ConstantInput(kEndIndexIndex))) {
+    set_temporaries_needed(1);
+  }
 }
 
 void StringSlice::GenerateCode(MaglevAssembler* masm,
                                const ProcessingState& state) {
+  using D = StringSubstringDescriptor;
   Register string = ToRegister(StringInput());
-  Register start = ToRegister(StartIndexInput());
-  Register end = ToRegister(EndIndexInput());
+  Register start = D::GetRegisterParameter(D::kFrom);
+  Register end = D::GetRegisterParameter(D::kTo);
+  std::optional<int32_t> end_constant =
+      TryGetInt32ConstantInput(kEndIndexIndex);
 
   MaglevAssembler::TemporaryRegisterScope temps(masm);
-  Register length = temps.Acquire();
+  // The index registers can be temporaries too; keep them for the indices.
+  temps.SetAvailable(temps.Available() - RegList{start, end});
+  Register length = IsLength(end_constant) ? end : temps.Acquire();
 
   __ StringLength(length, string);
 
-  // Calculate relative start.
-  {
-    Label is_neg, done;
-    __ CompareInt32AndJumpIf(start, 0, kLessThan, &is_neg);
+  // Clamp a relative index to [0, length]. A constant index has a known
+  // sign, so at most one of the two checks remains.
+  auto clamp = [&](Register index, int input_index) {
+    std::optional<int32_t> constant = TryGetInt32ConstantInput(input_index);
+    Label done;
+    if (constant) {
+      if (IsLength(constant)) {
+        if (index != length) __ Move(index, length);
+      } else if (*constant > 0) {
+        DCHECK_EQ(ToRegister(input(input_index)), index);
+        __ CompareInt32AndJumpIf(index, length, kLessThan, &done);
+        __ Move(index, length);
+      } else if (*constant < 0) {
+        __ AddInt32(index, length, *constant);
+        __ CompareInt32AndJumpIf(index, 0, kGreaterThanEqual, &done);
+        __ Move(index, 0);
+      } else {
+        DCHECK_EQ(ToRegister(input(input_index)), index);
+      }
+      __ bind(&done);
+      return;
+    }
 
-    // start >= 0
-    __ CompareInt32AndJumpIf(start, length, kLessThan, &done);
-    __ Move(start, length);
+    Label is_neg;
+    __ CompareInt32AndJumpIf(index, 0, kLessThan, &is_neg);
+
+    // index >= 0
+    __ CompareInt32AndJumpIf(index, length, kLessThan, &done);
+    __ Move(index, length);
     __ Jump(&done);
 
     __ bind(&is_neg);
-    // start < 0
-    __ AddInt32(start, length);
-    __ CompareInt32AndJumpIf(start, 0, kGreaterThanEqual, &done);
-    __ Move(start, 0);
+    // index < 0
+    __ AddInt32(index, length);
+    __ CompareInt32AndJumpIf(index, 0, kGreaterThanEqual, &done);
+    __ Move(index, 0);
 
     __ bind(&done);
-  }
-
-  {
-    Label is_neg, done;
-    __ CompareInt32AndJumpIf(end, 0, kLessThan, &is_neg);
-
-    // end >= 0
-    __ CompareInt32AndJumpIf(end, length, kLessThan, &done);
-    __ Move(end, length);
-    __ Jump(&done);
-
-    __ bind(&is_neg);
-    // end < 0
-    __ AddInt32(end, length);
-    __ CompareInt32AndJumpIf(end, 0, kGreaterThanEqual, &done);
-    __ Move(end, 0);
-
-    __ bind(&done);
-  }
+  };
+  clamp(start, kStartIndexIndex);
+  clamp(end, kEndIndexIndex);
 
   Label empty_string;
   __ CompareInt32AndJumpIf(end, start, kLessThanEqual, &empty_string);
