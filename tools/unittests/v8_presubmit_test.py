@@ -121,9 +121,10 @@ class _FakeAffectedFile:
 
 class _FakeChange:
 
-  def __init__(self, description='', issue=None):
+  def __init__(self, description='', issue=None, author_email=''):
     self._description = description
     self.issue = issue
+    self.author_email = author_email
 
   def FullDescriptionText(self):
     return self._description
@@ -131,10 +132,22 @@ class _FakeChange:
 
 class _FakeInputApi:
 
-  def __init__(self, description='', files=None, environ=None, issue=None):
-    self.change = _FakeChange(description=description, issue=issue)
+  def __init__(
+      self,
+      description='',
+      files=None,
+      environ=None,
+      issue=None,
+      author_email='',
+      is_committing=False,
+      dry_run=False,
+  ):
+    self.change = _FakeChange(
+        description=description, issue=issue, author_email=author_email)
     self._files = [_FakeAffectedFile(f) for f in (files or [])]
     self.environ = dict(environ or {})
+    self.is_committing = is_committing
+    self.dry_run = dry_run
     self.re = re
     self.os_path = os.path
     self.python3_executable = sys.executable
@@ -439,6 +452,128 @@ class AgentPresubmitChecksTest(unittest.TestCase):
       self.assertIn('same Change-Id', errors[0].message)
       self.assertIn('identical title', errors[0].message)
       self.assertIn('identical diff footprint', errors[0].message)
+
+  def testIsPriorityPrefixEnabled(self):
+    with mock.patch.object(
+        PRESUBMIT.subprocess,
+        'run',
+        return_value=mock.MagicMock(returncode=1, stdout='')):
+      self.assertFalse(
+          PRESUBMIT._IsPriorityPrefixEnabled(
+              _FakeInputApi(description='[a] B')))
+      self.assertFalse(
+          PRESUBMIT._IsPriorityPrefixEnabled(
+              _FakeInputApi(description='[a] B\n\nTAG=agy\n')))
+      self.assertTrue(
+          PRESUBMIT._IsPriorityPrefixEnabled(
+              _FakeInputApi(
+                  description='[a] B',
+                  environ={'V8_PRESUBMIT_PRIORITY_PREFIX': '1'})))
+      self.assertFalse(
+          PRESUBMIT._IsPriorityPrefixEnabled(
+              _FakeInputApi(
+                  description='[a] B',
+                  environ={'V8_PRESUBMIT_PRIORITY_PREFIX': '0'})))
+
+    with mock.patch.object(
+        PRESUBMIT.subprocess,
+        'run',
+        return_value=mock.MagicMock(returncode=0, stdout='true\n')):
+      self.assertTrue(
+          PRESUBMIT._IsPriorityPrefixEnabled(
+              _FakeInputApi(description='[a] B')))
+      self.assertFalse(
+          PRESUBMIT._IsPriorityPrefixEnabled(
+              _FakeInputApi(
+                  description='[a] B',
+                  environ={'V8_PRESUBMIT_PRIORITY_PREFIX': '0'})))
+
+    with mock.patch.object(
+        PRESUBMIT.subprocess,
+        'run',
+        return_value=mock.MagicMock(returncode=0, stdout='false\n')):
+      self.assertFalse(
+          PRESUBMIT._IsPriorityPrefixEnabled(
+              _FakeInputApi(description='[a] B')))
+
+  def testPriorityPrefixUploadAndCommit(self):
+    # Upload: skipped when not opted in
+    with mock.patch.object(
+        PRESUBMIT.subprocess,
+        'run',
+        return_value=mock.MagicMock(returncode=1, stdout='')):
+      self.assertEqual(
+          PRESUBMIT._CheckPriorityPrefix(
+              _FakeInputApi(description='[compiler] Fix bug\n\nBody.\n'),
+              self.output_api), [])
+
+    # Upload: accepts both "[P1][compiler] Title" and "[P1] [compiler] Title"
+    for valid_title in ('[P1][compiler] Fix bug', '[P1] [compiler] Fix bug'):
+      input_api = _FakeInputApi(
+          description=f'{valid_title}\n\nBody.\n',
+          environ={'V8_PRESUBMIT_PRIORITY_PREFIX': '1'})
+      self.assertEqual(
+          PRESUBMIT._CheckPriorityPrefix(input_api, self.output_api), [])
+      self.assertEqual(
+          PRESUBMIT._CheckAgentDescription(input_api, self.output_api), [])
+
+    # Upload: rejects missing [P0]-[P4] prefix when enabled
+    missing_prio = _FakeInputApi(
+        description='[compiler] Fix bug\n\nBody.\n',
+        environ={'V8_PRESUBMIT_PRIORITY_PREFIX': '1'})
+    errors = PRESUBMIT._CheckPriorityPrefix(missing_prio, self.output_api)
+    self.assertEqual(len(errors), 1)
+    self.assertIn('priority prefix "[P0]"-"[P4]"', errors[0].message)
+
+    # Upload: [P1] without [component] is allowed by _CheckPriorityPrefix for
+    # human CLs, but rejected by _CheckAgentDescription for AI agent CLs.
+    missing_comp = _FakeInputApi(
+        description='[P1] Fix bug without component\n\nBody.\n',
+        environ={'V8_PRESUBMIT_PRIORITY_PREFIX': '1'})
+    self.assertEqual(
+        PRESUBMIT._CheckPriorityPrefix(missing_comp, self.output_api), [])
+    agent_errors = PRESUBMIT._CheckAgentDescription(missing_comp,
+                                                    self.output_api)
+    self.assertTrue(any('[component] Title' in e.message for e in agent_errors))
+
+    # Upload: rejects empty subject after [P1] or duplicate priority prefix
+    for bad_title in ('[P1]', '[P1][P2] Fix bug'):
+      bad_input = _FakeInputApi(
+          description=f'{bad_title}\n\nBody.\n',
+          environ={'V8_PRESUBMIT_PRIORITY_PREFIX': '1'})
+      errors = PRESUBMIT._CheckPriorityPrefix(bad_input, self.output_api)
+      self.assertEqual(len(errors), 1)
+      self.assertIn('must include a subject after', errors[0].message)
+
+    # Commit: allows [P1] on CQ dry-runs (dry_run=True), rejects on full commit
+    commit_dry_run = _FakeInputApi(
+        description='[P1] [compiler] Fix bug\n\nBody.\n',
+        is_committing=True,
+        dry_run=True)
+    self.assertEqual(
+        PRESUBMIT._CheckPriorityPrefix(commit_dry_run, self.output_api), [])
+
+    with mock.patch.object(
+        PRESUBMIT.subprocess,
+        'run',
+        return_value=mock.MagicMock(returncode=1, stdout='')):
+      commit_full_with_prio = _FakeInputApi(
+          description='[P1] [compiler] Fix bug\n\nBody.\n',
+          is_committing=True,
+          dry_run=False)
+      commit_errors = PRESUBMIT._CheckPriorityPrefix(commit_full_with_prio,
+                                                     self.output_api)
+      self.assertEqual(len(commit_errors), 1)
+      self.assertIn('strip the priority prefix before merging',
+                    commit_errors[0].message)
+
+    commit_full_stripped = _FakeInputApi(
+        description='[compiler] Fix bug\n\nBody.\n',
+        is_committing=True,
+        dry_run=False)
+    self.assertEqual(
+        PRESUBMIT._CheckPriorityPrefix(commit_full_stripped, self.output_api),
+        [])
 
 
 if __name__ == '__main__':

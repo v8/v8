@@ -1079,6 +1079,8 @@ _AI_AGENT_ENV_VARS = (
 
 _MAX_COMMIT_LINE_LENGTH = 72
 
+_PRIORITY_PREFIX_RE = re.compile(r'^\[P([0-4])\]\s*')
+
 _COMMIT_FOOTER_RE = re.compile(
     r'^(?:[A-Z][A-Za-z0-9]*-[A-Za-z0-9-]+:|(?:Bug|Fixed|Test):|[A-Z][A-Z0-9_]*=)'
 )
@@ -1100,6 +1102,70 @@ def _IsAiAgent(input_api):
     return True
   desc = input_api.change.FullDescriptionText() or ''
   return bool(input_api.re.search(r'^TAG=agy\b', desc, input_api.re.MULTILINE))
+
+
+def _IsPriorityPrefixEnabled(input_api):
+  """Returns True if the CL priority prefix workflow is enabled."""
+  env_val = str(input_api.environ.get('V8_PRESUBMIT_PRIORITY_PREFIX',
+                                      '')).lower()
+  if env_val in ('0', 'false'):
+    return False
+  if env_val in ('1', 'true'):
+    return True
+  cfg = subprocess.run(
+      ['git', 'config', '--bool', 'v8.presubmit-priority-prefix'],
+      cwd=input_api.PresubmitLocalPath(),
+      capture_output=True,
+      text=True,
+      check=False)
+  return cfg.returncode == 0 and cfg.stdout.strip().lower() == 'true'
+
+
+def _CheckPriorityPrefix(input_api, output_api):
+  """Requires a [P0]-[P4] title prefix on upload and strips it before commit."""
+  if getattr(input_api, 'no_diffs', False):
+    return []
+  desc = input_api.change.FullDescriptionText() or ''
+  lines = [
+      line.strip()
+      for line in desc.splitlines()
+      if line.strip() and not line.lstrip().startswith('#')
+  ]
+  if not lines:
+    return []
+  title = lines[0]
+  m = _PRIORITY_PREFIX_RE.match(title)
+
+  if getattr(input_api, 'is_committing', False):
+    if getattr(input_api, 'dry_run', False):
+      return []
+    if m:
+      return [
+          output_api.PresubmitError(
+              f'Commit title still has priority prefix "[P{m.group(1)}]"; '
+              f'strip the priority prefix before merging: "{title}"')
+      ]
+    return []
+
+  if not _IsPriorityPrefixEnabled(input_api):
+    return []
+
+  if not m:
+    return [
+        output_api.PresubmitError(
+            'Commit title must start with a priority prefix "[P0]"-"[P4]" on '
+            f'upload (e.g. "[P1][component] Title"): "{title}"')
+    ]
+
+  rest = title[m.end():]
+  if not rest or _PRIORITY_PREFIX_RE.match(rest):
+    return [
+        output_api.PresubmitError(
+            'Commit title must include a subject after the "[P0]"-"[P4]" '
+            f'priority prefix: "{title}"')
+    ]
+
+  return []
 
 
 def _CheckNoLocalPathsInDescription(input_api, output_api):
@@ -1156,6 +1222,8 @@ def _CheckAgentDescription(input_api, output_api):
 
   errors = []
   _, title = lines[0]
+  if _IsPriorityPrefixEnabled(input_api):
+    title = _PRIORITY_PREFIX_RE.sub('', title, count=1)
   if not input_api.re.match(r'^(?:\[[^\[\]]+\])+\s+\S', title):
     errors.append(
         f'Commit title must follow "[component] Title" format: "{title}"')
@@ -1275,7 +1343,9 @@ def _CheckAgentNoDuplicateCL(input_api, output_api):
     reasons = []
     if local_change_id and ch.get('change_id') == local_change_id:
       reasons.append(f'same Change-Id ({local_change_id})')
-    if local_title and remote_subject.lower() == local_title.lower():
+    norm_remote = _PRIORITY_PREFIX_RE.sub('', remote_subject, count=1).lower()
+    norm_local = _PRIORITY_PREFIX_RE.sub('', local_title, count=1).lower()
+    if norm_local and norm_remote == norm_local:
       reasons.append(f'identical title ("{remote_subject}")')
     if local_files and remote_files == local_files:
       reasons.append('identical diff footprint')
@@ -1342,6 +1412,7 @@ def _CheckReleaseMjsunit(input_api, output_api):
 def CheckChangeOnUpload(input_api, output_api):
   results = []
   results.extend(_CommonChecks(input_api, output_api))
+  results.extend(_CheckPriorityPrefix(input_api, output_api))
   if _IsAiAgent(input_api):
     results.extend(_CheckAgentDescription(input_api, output_api))
     results.extend(_CheckAgentNoDuplicateCL(input_api, output_api))
@@ -1353,6 +1424,7 @@ def CheckChangeOnUpload(input_api, output_api):
 def CheckChangeOnCommit(input_api, output_api):
   results = []
   results.extend(_CommonChecks(input_api, output_api))
+  results.extend(_CheckPriorityPrefix(input_api, output_api))
   results.extend(input_api.canned_checks.CheckChangeHasDescription(
       input_api, output_api))
   if not _SkipTreeCheck(input_api, output_api):

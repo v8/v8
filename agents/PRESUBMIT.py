@@ -7,7 +7,11 @@ USE_PYTHON3 = True
 
 def _CommonChecks(input_api, output_api):
   tests = []
-  for directory in ('scripts', 'skills/clusterfuzz/scripts'):
+  for directory in (
+      'scripts',
+      'skills/cl-priority-prefix/scripts',
+      'skills/clusterfuzz/scripts',
+  ):
     tests.extend(
         input_api.canned_checks.GetUnitTestsInDirectory(
             input_api,

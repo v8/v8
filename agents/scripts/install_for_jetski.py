@@ -5,7 +5,35 @@
 from __future__ import annotations
 
 from pathlib import Path
+import os
 import os.path
+import subprocess
+
+OPT_IN_SKILLS = {
+    "cl-priority-prefix": (
+        "v8.presubmit-priority-prefix",
+        "V8_PRESUBMIT_PRIORITY_PREFIX",
+    ),
+}
+
+
+def is_skill_enabled(skill_name: str, repo_root: Path) -> bool:
+  if skill_name not in OPT_IN_SKILLS:
+    return True
+  git_cfg_key, env_var = OPT_IN_SKILLS[skill_name]
+  env_val = os.environ.get(env_var, "").strip().lower()
+  if env_val in ("0", "false"):
+    return False
+  if env_val in ("1", "true"):
+    return True
+  res = subprocess.run(
+      ["git", "config", "--bool", git_cfg_key],
+      cwd=repo_root,
+      capture_output=True,
+      text=True,
+      check=False,
+  )
+  return res.returncode == 0 and res.stdout.strip().lower() == "true"
 
 # Shared skills from `agents/shared/skills/` (chromium/agents.git DEPS) to
 # symlink into `.agents/skills/`.
@@ -108,6 +136,11 @@ for item in agents_src.iterdir():
   # Symlink individual items inside
   for sub_item in item.iterdir():
     dest_sub = dest_item / sub_item.name
+    if item.name == "skills" and not is_skill_enabled(sub_item.name, repo_root):
+      if dest_sub.is_symlink():
+        print(f"Removing disabled opt-in skill symlink {dest_sub}")
+        dest_sub.unlink()
+      continue
     if not dest_sub.exists():
       create_symlink(sub_item, dest_sub)
 
