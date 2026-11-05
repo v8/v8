@@ -208,12 +208,10 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
       break;
     }
     case kF32:
-      MacroAssembler::LoadFPRImmediate(reg.fp(),
-                                       value.to_f32_boxed().get_bits());
+      MacroAssembler::LoadFPRImmediate(reg.fp(), value.to_f32_boxed());
       break;
     case kF64:
-      MacroAssembler::LoadFPRImmediate(reg.fp(),
-                                       value.to_f64_boxed().get_bits());
+      MacroAssembler::LoadFPRImmediate(reg.fp(), value.to_f64_boxed());
       break;
     default:
       UNREACHABLE();

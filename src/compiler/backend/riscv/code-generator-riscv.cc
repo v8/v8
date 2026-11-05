@@ -5941,7 +5941,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       DoubleRegister dst = destination->IsFPRegister()
                                ? g.ToDoubleRegister(destination)
                                : kScratchDoubleReg;
-      __ LoadFPRImmediate(dst, src.ToFloat64().AsUint64());
+      __ LoadFPRImmediate(dst, Float64(src.ToFloat64()));
       if (destination->IsFPStackSlot()) {
         __ StoreDouble(dst, g.ToMemOperand(destination));
       }
