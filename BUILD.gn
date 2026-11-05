@@ -493,8 +493,10 @@ declare_args() {
   v8_enable_maglev_graph_printer = !build_with_chromium
 
   # Use a Copy-on-Write B+Tree map in Maglev KnownNodeAspects.
+  # TODO(leszeks): Remove the ZoneMap fallback shim and this build flag once the
+  # B+Tree rollout is complete.
   # Sets -DV8_ENABLE_MAGLEV_KNA_BTREE.
-  v8_enable_maglev_kna_btree = false
+  v8_enable_maglev_kna_btree = true
 
   # Enable slow tracing, e.g., tracing on every instruction or Turbofan node.
   # Sets -DV8_ENABLE_SLOW_TRACING.

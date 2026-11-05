@@ -172,7 +172,7 @@ v8_flag(
 
 v8_flag(
     name = "v8_enable_maglev_kna_btree",
-    default = False,
+    default = True,
 )
 
 v8_flag(
