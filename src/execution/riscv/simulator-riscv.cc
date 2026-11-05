@@ -4500,26 +4500,32 @@ void Simulator::AtomicMemoryHelper(sreg_t rs1, T value, OP f,
   // First, check whether the memory is accessible (for wasm trap handling).
   if (!ProbeMemory(address, element_size)) return;
 
+  if (instr->RlValue()) {
+    // Approximate store-release by issuing a full barrier before the AMO. It
+    // must order all earlier accesses before this AMO's store.
+    std::atomic_thread_fence(std::memory_order_seq_cst);
+  }
+
   local_monitor_.NotifyLoad();
 
   T data = ReadMem<T>(address, instr);
 
-  if (instr->AqValue()) {
-    // Approximate load-acquire by issuing a full barrier after the load.
-    std::atomic_thread_fence(std::memory_order_seq_cst);
-  }
-
   T result = f(data, value);
 
-  if (instr->RlValue()) {
+  {
     GlobalMonitor::SimulatorMutex lock_guard(global_monitor_);
     local_monitor_.NotifyStore();
     global_monitor_->NotifyStore_Locked(&global_monitor_thread_);
-    // Approximate store-release by issuing a full barrier before the store.
-    std::atomic_thread_fence(std::memory_order_seq_cst);
   }
 
   WriteMem<T>(address, result, instr);
+
+  if (instr->AqValue()) {
+    // Approximate load-acquire by issuing a full barrier after the AMO. It must
+    // also order this AMO's store before subsequent accesses, which is required
+    // for sequentially consistent read-modify-write operations.
+    std::atomic_thread_fence(std::memory_order_seq_cst);
+  }
   set_rd(format_result(data));
 }
 
@@ -6277,7 +6283,11 @@ void Simulator::DecodeRVIType() {
     }
 #endif /*V8_TARGET_ARCH_RISCV64*/
     case RO_FENCE: {
-      // DO nothing in sumulator
+      // The simulator executes simulated threads on different host threads, so
+      // a guest fence must translate into a host memory barrier. Otherwise
+      // simulated memory accesses are not ordered and concurrent programs such
+      // as litmus tests observe spurious weak-memory behaviors.
+      std::atomic_thread_fence(std::memory_order_seq_cst);
       break;
     }
     case RO_ECALL: {                   // RO_EBREAK
