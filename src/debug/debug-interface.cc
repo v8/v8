@@ -9,6 +9,7 @@
 #include <span>
 #include <vector>
 
+#include "include/v8-exception.h"
 #include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/base/logging.h"
@@ -88,23 +89,29 @@ i::Handle<i::String> GetBigIntStringPresentationHandle(
   // can take a long time, so we go with hexadecimal in that case.
   int radix = (i_bigint->Words64Count() > 100 * 1000) ? 16 : 10;
   i::Handle<i::String> string_value;
-  if (!i::BigInt::ToString(i_isolate, i_bigint, radix, i::kDontThrow)
-           .ToHandle(&string_value)) {
-    // If ToString was interrupted by a termination request, clear the
-    // internal termination exception from V8 so subsequent allocations do
-    // not fail, but re-arm the stack guard so that termination will be
-    // delivered at the next interrupt check.
-    if (i_isolate->is_execution_terminating()) {
-      i_isolate->clear_internal_exception();
-      i_isolate->stack_guard()->RequestTerminateExecution();
-    }
-    // Retry with radix 16. Power-of-two radix conversion in the bigint
-    // processor uses the linear base-case algorithm which does not check
-    // InterruptRequested() and therefore cannot be interrupted.
-    radix = 16;
+  {
+    v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(i_isolate));
     if (!i::BigInt::ToString(i_isolate, i_bigint, radix, i::kDontThrow)
              .ToHandle(&string_value)) {
-      return i_isolate->factory()->empty_string();
+      // If ToString was interrupted by a termination request, clear the
+      // internal termination exception from V8 so subsequent allocations do
+      // not fail, but re-arm the stack guard so that termination will be
+      // delivered at the next interrupt check. Reset the local TryCatch so
+      // its destructor does not propagate the cleared termination to an
+      // enclosing TryCatch handler.
+      if (i_isolate->is_execution_terminating()) {
+        i_isolate->clear_internal_exception();
+        i_isolate->stack_guard()->RequestTerminateExecution();
+      }
+      try_catch.Reset();
+      // Retry with radix 16. Power-of-two radix conversion in the bigint
+      // processor uses the linear base-case algorithm which does not check
+      // InterruptRequested() and therefore cannot be interrupted.
+      radix = 16;
+      if (!i::BigInt::ToString(i_isolate, i_bigint, radix, i::kDontThrow)
+               .ToHandle(&string_value)) {
+        return i_isolate->factory()->empty_string();
+      }
     }
   }
   if (radix == 16) {

@@ -361,6 +361,26 @@ TEST_F(ThreadTerminationTest, TerminateGetBigIntDescription) {
   CHECK(check->IsTrue());
   parsed = RunJS("-BigInt(desc.slice(1, -1)) === bigint");
   CHECK(parsed->IsTrue());
+
+  // When an external TryCatch is active during an interrupted
+  // GetBigIntDescription call, it should not be left in a terminated state,
+  // while subsequent JS execution should still terminate.
+  {
+    TryCatch try_catch(isolate());
+    isolate()->TerminateExecution();
+    desc = debug::GetBigIntDescription(isolate(), bigint);
+    CHECK(!desc.IsEmpty());
+    CHECK(!i_isolate()->has_exception());
+    CHECK(!try_catch.HasTerminated());
+    CHECK(!try_catch.HasCaught());
+    CHECK(try_catch.CanContinue());
+
+    MaybeLocal<Value> res = TryRunJS("1 + 1");
+    CHECK(res.IsEmpty());
+    CHECK(try_catch.HasTerminated());
+    try_catch.Reset();
+    isolate()->CancelTerminateExecution();
+  }
 }
 
 TEST_F(ThreadTerminationTest, TerminateGetBigIntStringValue) {
