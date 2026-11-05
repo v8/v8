@@ -2829,19 +2829,12 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it,
   }
 
   DCHECK(!IsWasmObject(*receiver));
-  if (V8_UNLIKELY(IsJSSharedStruct(*receiver))) {
-    // Shared structs can only point to primitives or shared values.
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, to_assign, Object::Share(isolate, to_assign, kThrowOnError));
-    it->WriteDataValue(to_assign, false);
-  } else {
-    // Possibly migrate to the most up-to-date map that will be able to store
-    // |value| under it->name().
-    it->PrepareForDataProperty(to_assign);
+  // Possibly migrate to the most up-to-date map that will be able to store
+  // |value| under it->name().
+  it->PrepareForDataProperty(to_assign);
 
-    // Write the property value.
-    it->WriteDataValue(to_assign, false);
-  }
+  // Write the property value.
+  it->WriteDataValue(to_assign, false);
 
 #if VERIFY_HEAP
   if (v8_flags.verify_heap) {
@@ -2888,17 +2881,11 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it,
       RETURN_FAILURE(it->isolate(), kThrowOnError,
                      NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
     }
-    bool is_shared_object = IsAlwaysSharedSpaceJSObject(*receiver);
-    RETURN_FAILURE(
-        isolate, GetShouldThrow(it->isolate(), should_throw),
-        NewTypeError(
-            semantics == EnforceDefineSemantics::kDefine
-                ? (is_shared_object
-                       ? MessageTemplate::kDefineDisallowedFixedLayout
-                       : MessageTemplate::kDefineDisallowed)
-                : (is_shared_object ? MessageTemplate::kObjectFixedLayout
-                                    : MessageTemplate::kObjectNotExtensible),
-            it->GetName()));
+    RETURN_FAILURE(isolate, GetShouldThrow(it->isolate(), should_throw),
+                   NewTypeError(semantics == EnforceDefineSemantics::kDefine
+                                    ? MessageTemplate::kDefineDisallowed
+                                    : MessageTemplate::kObjectNotExtensible,
+                                it->GetName()));
   }
 
   if (it->IsElement(*receiver)) {
@@ -4130,12 +4117,7 @@ template <typename IsolateT>
 void DescriptorArray::EnsureLookupTable(IsolateT* isolate,
                                         DirectHandle<DescriptorArray> array) {
   if (!IsUndefined(array->lookup_table())) return;
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array);
-  // Shared-space DescriptorArrays (AllocationType::kSharedOld, used by
-  // JSSharedStruct) have fixed layouts and never grow incrementally across
-  // linear search boundary via Append.
-  DCHECK(!chunk->InWritableSharedSpace());
-  AllocationType allocation = HeapLayout::InYoungGeneration(chunk, *array)
+  AllocationType allocation = HeapLayout::InYoungGeneration(*array)
                                   ? AllocationType::kYoung
                                   : AllocationType::kOld;
 
@@ -5691,8 +5673,7 @@ HandleType<Derived>::MaybeType BaseNameDictionary<Derived, Shape>::Add(
 }
 
 template <typename Derived, typename Shape>
-template <typename IsolateT, template <typename> typename HandleType,
-          AllocationType key_allocation>
+template <typename IsolateT, template <typename> typename HandleType>
   requires(std::is_convertible_v<HandleType<Derived>, DirectHandle<Derived>>)
 HandleType<Derived> Dictionary<Derived, Shape>::Add(
     IsolateT* isolate, HandleType<Derived> dictionary, Key key,
@@ -5706,8 +5687,7 @@ HandleType<Derived> Dictionary<Derived, Shape>::Add(
   dictionary = Derived::EnsureCapacity(isolate, dictionary);
 
   // Compute the key object.
-  DirectHandle<Object> k =
-      TodoShape::template AsHandle<key_allocation>(isolate, key);
+  DirectHandle<Object> k = TodoShape::AsHandle(isolate, key);
 
   InternalIndex entry = dictionary->FindInsertionEntry(roots, hash);
   dictionary->SetEntry(entry, *k, *value, details);
@@ -5719,8 +5699,7 @@ HandleType<Derived> Dictionary<Derived, Shape>::Add(
 }
 
 template <typename Derived, typename Shape>
-template <typename IsolateT, template <typename> typename HandleType,
-          AllocationType key_allocation>
+template <typename IsolateT, template <typename> typename HandleType>
   requires(std::is_convertible_v<HandleType<Derived>, DirectHandle<Derived>>)
 void Dictionary<Derived, Shape>::UncheckedAdd(IsolateT* isolate,
                                               HandleType<Derived> dictionary,
@@ -5734,8 +5713,7 @@ void Dictionary<Derived, Shape>::UncheckedAdd(IsolateT* isolate,
   DCHECK(dictionary->HasSufficientCapacityToAdd(1));
 
   // Compute the key object.
-  DirectHandle<Object> k =
-      TodoShape::template AsHandle<key_allocation>(isolate, key);
+  DirectHandle<Object> k = TodoShape::AsHandle(isolate, key);
 
   InternalIndex entry = dictionary->FindInsertionEntry(roots, hash);
   dictionary->SetEntry(entry, *k, *value, details);
@@ -6788,18 +6766,6 @@ EXTERN_DEFINE_MULTI_OBJECT_BASE_HASH_TABLE(ObjectTwoHashTable, 2)
 EXTERN_DEFINE_DICTIONARY(SimpleNumberDictionary, SimpleNumberDictionaryShape)
 EXTERN_DEFINE_DICTIONARY(NumberDictionary, NumberDictionaryShape)
 EXTERN_DEFINE_DICTIONARY(SimpleNameDictionary, SimpleNameDictionaryShape)
-
-template V8_EXPORT_PRIVATE void
-Dictionary<NumberDictionary, NumberDictionaryShape>::UncheckedAdd<
-    Isolate, Handle, AllocationType::kSharedOld>(Isolate*,
-                                                 Handle<NumberDictionary>,
-                                                 uint32_t, DirectHandle<Object>,
-                                                 PropertyDetails);
-template V8_EXPORT_PRIVATE void
-Dictionary<NumberDictionary, NumberDictionaryShape>::UncheckedAdd<
-    Isolate, DirectHandle, AllocationType::kSharedOld>(
-    Isolate*, DirectHandle<NumberDictionary>, uint32_t, DirectHandle<Object>,
-    PropertyDetails);
 
 EXTERN_DEFINE_BASE_NAME_DICTIONARY(NameDictionary, NameDictionaryShape)
 template V8_EXPORT_PRIVATE Handle<NameDictionary> NameDictionary::New(

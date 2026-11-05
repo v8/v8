@@ -51,7 +51,6 @@
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/js-regexp-string-iterator.h"
 #include "src/objects/js-shadow-realm.h"
-#include "src/objects/js-struct.h"
 #include "src/objects/map-word.h"
 #include "src/objects/object-conversions-inl.h"
 #include "src/objects/property-details.h"
@@ -343,14 +342,6 @@ Maybe<bool> CheckIsExtensibleWithPrivate(
   Tagged<Map> receiver_map = receiver->map();
   if (receiver_map->is_extensible()) return Just(true);
 
-  if (IsAlwaysSharedSpaceJSObjectMap(receiver_map)) {
-    DirectHandle<String> name_string(
-        Cast<String>(Cast<Symbol>(*it->GetName())->description()), isolate);
-    RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
-                   NewTypeError(MessageTemplate::kDefineDisallowedFixedLayout,
-                                name_string));
-  }
-
   if (it->state() == LookupIterator::NOT_FOUND) {
     isolate->CountUsage(v8::Isolate::kExtendingNonExtensibleWithPrivate);
   }
@@ -610,9 +601,7 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(
         !InstanceTypeChecker::IsJSGlobalProxy(target_instance_type) &&
         // Exclude remote objects (they don't have local properties anyway).
         !(InstanceTypeChecker::IsJSSpecialApiObject(target_instance_type) &&
-          !target->GetCreationContext().has_value()) &&
-        !InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(
-            target_instance_type)) {
+          !target->GetCreationContext().has_value())) {
       // Convert to slow properties if we're guaranteed to overflow the number
       // of descriptors.
       int source_length;
@@ -725,7 +714,6 @@ Tagged<String> JSReceiver::class_name() {
   if (Is<JSWeakMap>(this)) return roots.WeakMap_string();
   if (Is<JSWeakSet>(this)) return roots.WeakSet_string();
   if (IsShared(this)) {
-    if (Is<JSSharedStruct>(this)) return roots.SharedStruct_string();
 #if V8_ENABLE_WEBASSEMBLY
     if (Is<WasmObject>(this)) return roots.Object_string();
 #endif
@@ -1421,11 +1409,6 @@ Maybe<bool> JSReceiver::DefineOwnProperty(Isolate* isolate,
     RETURN_FAILURE(isolate, kThrowOnError,
                    NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
   }
-  if (IsAlwaysSharedSpaceJSObject(*object)) {
-    return AlwaysSharedSpaceJSObject::DefineOwnProperty(
-        isolate, Cast<AlwaysSharedSpaceJSObject>(object), key, desc,
-        should_throw);
-  }
 
   // OrdinaryDefineOwnProperty, by virtue of calling
   // DefineOwnPropertyIgnoreAttributes, can handle arguments
@@ -2030,7 +2013,6 @@ Maybe<bool> JSReceiver::AddPrivateField(LookupIterator* it,
   Isolate* isolate = it->isolate();
 #ifdef DEBUG
   DirectHandle<JSReceiver> receiver = it->GetStoreTarget<JSReceiver>();
-  DCHECK(!IsAlwaysSharedSpaceJSObject(*receiver));
   DCHECK(it->GetName()->IsAnyPrivateName());
   ValidateExtensibilityInvariant(it, receiver);
 #endif
@@ -2828,8 +2810,6 @@ int JSObject::GetHeaderSize(InstanceType type) {
       return JSModuleNamespace::kHeaderSize;
     case JS_DEFERRED_MODULE_NAMESPACE_TYPE:
       return JSDeferredModuleNamespace::kHeaderSize;
-    case JS_SHARED_STRUCT_TYPE:
-      return JSSharedStruct::kHeaderSize;
 #ifdef V8_TEMPORAL_SUPPORT
     case JS_TEMPORAL_DURATION_TYPE:
       return sizeof(JSTemporalDuration);
@@ -3165,9 +3145,6 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
       accumulator->Add("<JS AsyncGenerator>");
       break;
     }
-    case JS_SHARED_STRUCT_TYPE:
-      accumulator->Add("<JSSharedStruct>");
-      break;
     case JS_MESSAGE_OBJECT_TYPE:
       accumulator->Add("<JSMessageObject>");
       break;
@@ -4720,17 +4697,6 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
         isolate, PrototypeIterator::GetCurrent<JSObject>(iter), should_throw);
   }
 
-  // Shared objects are designed to have fixed layout, i.e. their maps are
-  // effectively immutable. They are constructed seal, but the semantics of
-  // ordinary ECMAScript objects allow sealed to be upgraded to frozen. This
-  // upgrade violates the fixed layout invariant and is disallowed.
-  if (IsAlwaysSharedSpaceJSObject(*object)) {
-    DCHECK(FastTestIntegrityLevel(isolate, *object, SEALED));
-    if (attrs != FROZEN) return Just(true);
-    RETURN_FAILURE(isolate, should_throw,
-                   NewTypeError(MessageTemplate::kCannotFreeze));
-  }
-
   if (object->map()->has_named_interceptor() ||
       object->map()->has_indexed_interceptor() ||
       (object->HasTypedArrayOrRabGsabTypedArrayElements() &&
@@ -4899,15 +4865,6 @@ Handle<JSAny> JSObject::FastPropertyAt(Isolate* isolate,
                                        Representation representation,
                                        FieldIndex index) {
   Handle<JSAny> raw_value(object->RawFastPropertyAt(index), isolate);
-  return Object::WrapForRead(isolate, raw_value, representation);
-}
-
-DirectHandle<JSAny> JSObject::FastPropertyAt(Isolate* isolate,
-                                             DirectHandle<JSObject> object,
-                                             Representation representation,
-                                             FieldIndex index,
-                                             SeqCstAccessTag tag) {
-  Handle<JSAny> raw_value(object->RawFastPropertyAt(index, tag), isolate);
   return Object::WrapForRead(isolate, raw_value, representation);
 }
 
@@ -5937,17 +5894,6 @@ Maybe<bool> JSObject::HasRealNamedCallbackProperty(
   Maybe<PropertyAttributes> maybe_result = GetPropertyAttributes(&it);
   return maybe_result.IsJust() ? Just(it.state() == LookupIterator::ACCESSOR)
                                : Nothing<bool>();
-}
-
-Tagged<Object> JSObject::RawFastPropertyAtCompareAndSwap(
-    FieldIndex index, Tagged<Object> expected, Tagged<Object> value,
-    SeqCstAccessTag tag) {
-  return HeapObject::SeqCst_CompareAndSwapField(
-      expected, value,
-      [=, this](Tagged<Object> expected_value, Tagged<Object> new_value) {
-        return RawFastPropertyAtCompareAndSwapInternal(index, expected_value,
-                                                       new_value, tag);
-      });
 }
 
 void JSGlobalObject::InvalidatePropertyCell(DirectHandle<JSGlobalObject> global,

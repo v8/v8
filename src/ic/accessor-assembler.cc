@@ -1520,37 +1520,6 @@ void AccessorAssembler::HandleStoreICNativeDataProperty(
                   holder, accessor_info, p->name(), p->value());
 }
 
-void AccessorAssembler::HandleStoreICSmiHandlerJSSharedStructFieldCase(
-    TNode<Context> context, TNode<Word32T> handler_word, TNode<JSObject> holder,
-    TNode<Object> value) {
-  CSA_DCHECK(this,
-             Word32Equal(DecodeWord32<StoreHandler::KindBits>(handler_word),
-                         STORE_KIND(kSharedStructField)));
-  CSA_DCHECK(
-      this,
-      Word32Equal(DecodeWord32<StoreHandler::RepresentationBits>(handler_word),
-                  Int32Constant(Representation::kTagged)));
-
-  TVARIABLE(Object, shared_value, value);
-  SharedValueBarrier(context, &shared_value);
-
-  TNode<BoolT> is_inobject =
-      IsSetWord32<StoreHandler::IsInobjectBits>(handler_word);
-  TNode<HeapObject> property_storage = Select<HeapObject>(
-      is_inobject, [&]() { return holder; },
-      [&]() { return LoadFastProperties(holder, true); });
-
-  TNode<UintPtrT> offset_in_words =
-      DecodeWordFromWord32<StoreHandler::StorageOffsetInWordsBits>(
-          handler_word);
-  TNode<IntPtrT> offset = Signed(TimesTaggedSize(offset_in_words));
-
-  StoreSharedObjectField(property_storage, offset, shared_value.value());
-
-  // Return the original value.
-  Return(value);
-}
-
 void AccessorAssembler::HandleStoreICHandlerCase(
     const StoreICParameters* p, TNode<MaybeObject> handler, Label* miss,
     ICMode ic_mode, ElementSupport support_elements) {
@@ -1629,18 +1598,12 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     }
     BIND(&if_fast_smi);
     {
-      Label data(this), shared_struct_field(this), native_data_property(this);
-      GotoIf(Word32Equal(handler_kind, STORE_KIND(kNativeDataProperty)),
-             &native_data_property);
-      Branch(Word32Equal(handler_kind, STORE_KIND(kSharedStructField)),
-             &shared_struct_field, &data);
+      Label data(this), native_data_property(this);
+      Branch(Word32Equal(handler_kind, STORE_KIND(kNativeDataProperty)),
+             &native_data_property, &data);
 
       BIND(&native_data_property);
       HandleStoreICNativeDataProperty(p, CAST(holder), handler_word);
-
-      BIND(&shared_struct_field);
-      HandleStoreICSmiHandlerJSSharedStructFieldCase(p->context(), handler_word,
-                                                     CAST(holder), p->value());
 
       BIND(&data);
       // Handle non-transitioning field stores.
@@ -2037,56 +2000,6 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
     }
     Goto(&done);
   }
-  BIND(&done);
-}
-
-void AccessorAssembler::StoreJSSharedStructField(
-    TNode<Context> context, TNode<HeapObject> shared_struct,
-    TNode<Map> shared_struct_map, TNode<DescriptorArray> descriptors,
-    TNode<IntPtrT> descriptor_name_index, TNode<Uint32T> details,
-    TNode<Object> maybe_local_value) {
-  CSA_DCHECK(this, IsJSSharedStruct(shared_struct));
-
-  Label done(this);
-
-  TNode<UintPtrT> field_word_offset =
-      DecodeWordFromWord32<PropertyDetails::OffsetInWordsField>(details);
-  TNode<BoolT> is_in_object =
-      IsSetWord32<PropertyDetails::InObjectField>(details);
-
-  TVARIABLE(Object, shared_value, maybe_local_value);
-  SharedValueBarrier(context, &shared_value);
-
-  Label inobject(this), backing_store(this);
-  Branch(is_in_object, &inobject, &backing_store);
-
-  BIND(&inobject);
-  {
-    TNode<IntPtrT> field_offset = Signed(TimesTaggedSize(field_word_offset));
-    StoreSharedObjectField(shared_struct, field_offset, shared_value.value());
-    Goto(&done);
-  }
-
-  BIND(&backing_store);
-  {
-    // TODO(leszeks): The field_word_offset already represents the offset
-    // inside the property array, we could do a direct (scaled) access to the
-    // property array.
-    TNode<IntPtrT> backing_store_index = Signed(IntPtrSub(
-        field_word_offset,
-        IntPtrConstant(OFFSET_OF_DATA_START(PropertyArray) / kTaggedSize)));
-
-    CSA_DCHECK(
-        this,
-        Word32Equal(DecodeWord32<PropertyDetails::RepresentationField>(details),
-                    Int32Constant(Representation::kTagged)));
-    TNode<PropertyArray> properties =
-        CAST(LoadFastProperties(CAST(shared_struct), true));
-    StoreJSSharedStructPropertyArrayElement(properties, backing_store_index,
-                                            shared_value.value());
-    Goto(&done);
-  }
-
   BIND(&done);
 }
 

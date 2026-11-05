@@ -1451,14 +1451,6 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     for (MapRef map : inferred_maps) {
       if (map.is_deprecated()) continue;
 
-      // TODO(v8:12547): Support writing to objects in shared space, which need
-      // a write barrier that calls Object::Share to ensure the RHS is shared.
-      if (InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(
-              map.instance_type()) &&
-          access_mode == AccessMode::kStore) {
-        return NoChange();
-      }
-
       OptionalObjectRef handler;
       for (const auto [m, h] :
            base::zip(feedback.maps(), feedback.handlers())) {
@@ -2354,14 +2346,6 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
 #endif  // V8_ENABLE_WEBASSEMBLY
             !receiver_map.PrototypesElementsDoNotHaveAccessorsOrThrow(
                 broker(), &prototype_maps)) {
-          return NoChange();
-        }
-
-        // TODO(v8:12547): Support writing to objects in shared space, which
-        // need a write barrier that calls Object::Share to ensure the RHS is
-        // shared.
-        if (InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(
-                receiver_map.instance_type())) {
           return NoChange();
         }
       }

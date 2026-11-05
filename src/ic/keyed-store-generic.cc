@@ -950,22 +950,11 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
         BIND(&data_property);
         {
-          Label shared(this);
-          GotoIf(IsJSSharedStructInstanceType(instance_type), &shared);
-
           CheckForAssociatedProtector(name, slow);
           OverwriteExistingFastDataProperty(receiver, receiver_map, descriptors,
                                             name_index, details, p->value(),
                                             slow, false);
           exit_point->Return(p->value());
-
-          BIND(&shared);
-          {
-            StoreJSSharedStructField(p->context(), receiver, receiver_map,
-                                     descriptors, name_index, details,
-                                     p->value());
-            exit_point->Return(p->value());
-          }
         }
       }
     }

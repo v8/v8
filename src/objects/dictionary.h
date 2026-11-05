@@ -37,7 +37,6 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
   using TodoShape = Shape;
   using Key = typename TodoShape::Key;
   inline Tagged<Object> ValueAt(InternalIndex entry);
-  inline Tagged<Object> ValueAt(InternalIndex entry, SeqCstAccessTag);
   // Returns {} if we would be reading out of the bounds of the object.
   inline std::optional<Tagged<Object>> TryValueAt(InternalIndex entry);
 
@@ -45,18 +44,6 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
   inline void ValueAtPut(
       InternalIndex entry, Tagged<Object> value,
       WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER);
-  inline void ValueAtPut(InternalIndex entry, Tagged<Object> value,
-                         SeqCstAccessTag);
-
-  // Swap the value for the entry.
-  inline Tagged<Object> ValueAtSwap(InternalIndex entry, Tagged<Object> value,
-                                    SeqCstAccessTag);
-
-  // Compare and swap the value for the entry.
-  inline Tagged<Object> ValueAtCompareAndSwap(InternalIndex entry,
-                                              Tagged<Object> expected,
-                                              Tagged<Object> value,
-                                              SeqCstAccessTag);
 
   // Returns the property details for the property at entry.
   inline PropertyDetails DetailsAt(InternalIndex entry);
@@ -99,10 +86,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
   // Garbage collection support.
   inline ObjectSlot RawFieldOfValueAt(InternalIndex entry);
 
-  template <typename IsolateT, template <typename> typename HandleType,
-            AllocationType key_allocation = std::is_same_v<IsolateT, Isolate>
-                                                ? AllocationType::kYoung
-                                                : AllocationType::kOld>
+  template <typename IsolateT, template <typename> typename HandleType>
     requires(std::is_convertible_v<HandleType<Derived>, DirectHandle<Derived>>)
   V8_WARN_UNUSED_RESULT static HandleType<Derived> Add(
       IsolateT* isolate, HandleType<Derived> dictionary, Key key,
@@ -113,10 +97,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
   // doesn't need to grow.
   // The number of elements stored is not updated. Use
   // |SetInitialNumberOfElements| to update the number in one go.
-  template <typename IsolateT, template <typename> typename HandleType,
-            AllocationType key_allocation = std::is_same_v<IsolateT, Isolate>
-                                                ? AllocationType::kYoung
-                                                : AllocationType::kOld>
+  template <typename IsolateT, template <typename> typename HandleType>
     requires(std::is_convertible_v<HandleType<Derived>, DirectHandle<Derived>>)
   static void UncheckedAdd(IsolateT* isolate, HandleType<Derived> dictionary,
                            Key key, DirectHandle<Object> value,
@@ -165,10 +146,8 @@ class BaseNameDictionaryShape : public BaseDictionaryShape<DirectHandle<Name>> {
   static inline uint32_t Hash(ReadOnlyRoots roots, DirectHandle<Name> key);
   static inline uint32_t HashForObject(ReadOnlyRoots roots,
                                        Tagged<Object> object);
-  template <AllocationType allocation = AllocationType::kYoung>
   static inline DirectHandle<Object> AsHandle(Isolate* isolate,
                                               DirectHandle<Name> key);
-  template <AllocationType allocation = AllocationType::kOld>
   static inline DirectHandle<Object> AsHandle(LocalIsolate* isolate,
                                               DirectHandle<Name> key);
   static const int kEntryValueIndex = 1;
@@ -373,9 +352,7 @@ V8_OBJECT class V8_EXPORT_PRIVATE GlobalDictionary
 class NumberDictionaryBaseShape : public BaseDictionaryShape<uint32_t> {
  public:
   static inline bool IsMatch(uint32_t key, Tagged<Object> other);
-  template <AllocationType allocation = AllocationType::kYoung>
   static inline DirectHandle<Object> AsHandle(Isolate* isolate, uint32_t key);
-  template <AllocationType allocation = AllocationType::kOld>
   static inline DirectHandle<Object> AsHandle(LocalIsolate* isolate,
                                               uint32_t key);
 

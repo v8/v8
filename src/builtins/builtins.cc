@@ -833,14 +833,6 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kShadowRealmImportValueFulfilled:
       RETURN_FLAG_DEPENDENT_LAZY_BUILTIN_STATE(v8_flags.harmony_shadow_realm);
 
-    // --harmony-struct
-    case Builtin::kSharedSpaceJSObjectHasInstance:
-    case Builtin::kSharedStructTypeConstructor:
-    case Builtin::kSharedStructTypeIsSharedStruct:
-      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.harmony_struct);
-    case Builtin::kSharedStructConstructor:
-      RETURN_FLAG_DEPENDENT_LAZY_BUILTIN_STATE(v8_flags.harmony_struct);
-
     // --js-iterator-sequencing:
     case Builtin::kIteratorConcat:
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_iterator_sequencing);
@@ -1005,12 +997,10 @@ void Builtins::VerifyGetJSBuiltinState(bool allow_non_initial_state) {
   //     various continuation builtins),
   //  b) the builtin is supposed to be installed into JSFunction but it belongs
   //     to an experimental, incomplete or otherwise disabled feature
-  //     controlled by a certain runtime flag (for example,
-  //     ShadowRealmConstructor),
+  //     controlled by a certain runtime flag,
   //  c) the builtin is supposed to be installed into JSFunction lazily and
   //     it belongs to an experimental, incomplete or otherwise disabled feature
-  //     controlled by a certain runtime flag (for example,
-  //     SharedStructConstructor),
+  //     controlled by a certain runtime flag,
   //  d) the builtin belongs to a JavaScript language feature but respective
   //     JSFunction instances are created lazily (for example, Temporal
   //     builtins).

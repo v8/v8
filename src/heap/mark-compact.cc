@@ -81,7 +81,6 @@
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-objects-inl.h"
-#include "src/objects/js-struct.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/objects.h"
 #include "src/objects/slots-inl.h"
@@ -3026,50 +3025,6 @@ class FullStringForwardingTableCleaner final
   Heap* const heap_;
 };
 
-namespace {
-
-class SharedStructTypeRegistryCleaner final : public RootVisitor {
- public:
-  explicit SharedStructTypeRegistryCleaner(Heap* heap) : heap_(heap) {}
-
-  void VisitRootPointers(Root root, const char* description,
-                         FullObjectSlot start, FullObjectSlot end) override {
-    UNREACHABLE();
-  }
-
-  void VisitCompressedRootPointers(Root root, const char* description,
-                                   OffHeapObjectSlot start,
-                                   OffHeapObjectSlot end) override {
-    DCHECK_EQ(root, Root::kSharedStructTypeRegistry);
-    // The SharedStructTypeRegistry holds the canonical SharedStructType
-    // instance maps weakly. Visit all Map pointers in [start, end), deleting
-    // it if unmarked.
-    auto* marking_state = heap_->marking_state();
-    Isolate* const isolate = heap_->isolate();
-    for (OffHeapObjectSlot p = start; p < end; p++) {
-      Tagged<Object> o = p.load(isolate);
-      DCHECK(!IsString(o));
-      if (IsMap(o)) {
-        Tagged<HeapObject> map = Cast<Map>(o);
-        DCHECK(HeapLayout::InAnySharedSpace(map));
-        if (MarkingHelper::IsMarkedOrAlwaysLive(heap_, marking_state, map)) {
-          continue;
-        }
-        elements_removed_++;
-        p.store(SharedStructTypeRegistry::deleted_element());
-      }
-    }
-  }
-
-  int ElementsRemoved() const { return elements_removed_; }
-
- private:
-  Heap* heap_;
-  int elements_removed_ = 0;
-};
-
-}  // namespace
-
 void MarkCompactCollector::ClearNonLiveReferences() {
   TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR);
 
@@ -3163,27 +3118,6 @@ void MarkCompactCollector::ClearNonLiveReferences() {
       TRACE_GC_NOTE_WITH_FLOW("ClearStringTableJob started",
                               perfetto::Flow::ProcessScoped(item->trace_id()));
     }
-  }
-
-  if (isolate->is_shared_space_isolate() &&
-      isolate->shared_struct_type_registry()) {
-    [[maybe_unused]] auto item =
-        MakeParallelItem(
-            "ClearSharedStructTypeRegistry",
-            [this, isolate](ParallelItem* item, JobDelegate* delegate) {
-              TRACE_GC1_WITH_FLOW(
-                  heap()->tracer(),
-                  GCTracer::Scope::MC_CLEAR_SHARED_STRUCT_TYPE_REGISTRY,
-                  delegate,
-                  perfetto::TerminatingFlow::ProcessScoped(item->trace_id()));
-              auto* registry = isolate->shared_struct_type_registry();
-              SharedStructTypeRegistryCleaner cleaner(heap());
-              registry->IterateElements(isolate, &cleaner);
-              registry->NotifyElementsRemoved(cleaner.ElementsRemoved());
-            })
-            .Enqueue(parallel_clearing_job);
-    TRACE_GC_NOTE_WITH_FLOW("ClearSharedStructTypeRegistryJob started",
-                            perfetto::Flow::ProcessScoped(item->trace_id()));
   }
 
   auto clear_external_string_table =

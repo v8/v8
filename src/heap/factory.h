@@ -1216,10 +1216,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     return New(map, allocation);
   }
 
-  DirectHandle<JSSharedStruct> NewJSSharedStruct(
-      DirectHandle<JSFunction> constructor,
-      MaybeDirectHandle<NumberDictionary> maybe_elements_template);
-
   DirectHandle<FunctionTemplateInfo> NewFunctionTemplateInfo(int length,
                                                              bool do_not_cache);
 

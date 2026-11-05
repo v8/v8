@@ -654,9 +654,8 @@ class ReadOnlyPromotionImpl final : public AllStatic {
     void VisitCompressedRootPointers(Root root, const char* description,
                                      OffHeapObjectSlot start,
                                      OffHeapObjectSlot end) override {
-      // We shouldn't have moved any string table contents or SharedStructType
-      // registry contents (which is what OffHeapObjectSlot currently refers
-      // to).
+      // We shouldn't have moved any string table contents (which is what
+      // OffHeapObjectSlot currently refers to).
       for (OffHeapObjectSlot slot = start; slot < end; slot++) {
         Tagged<Object> o = slot.load(isolate_);
         if (!IsHeapObject(o)) continue;

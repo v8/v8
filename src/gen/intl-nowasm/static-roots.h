@@ -1022,9 +1022,7 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kShadowRealm_string = ksetPrototypeOf_string + 28;
   static constexpr Tagged_t kSharedArrayBuffer_string =
       kShadowRealm_string + 24;
-  static constexpr Tagged_t kSharedStruct_string =
-      kSharedArrayBuffer_string + 32;
-  static constexpr Tagged_t kshort_string = kSharedStruct_string + 24;
+  static constexpr Tagged_t kshort_string = kSharedArrayBuffer_string + 32;
   static constexpr Tagged_t ksign_string = kshort_string + 20;
   static constexpr Tagged_t ksize_string = ksign_string + 16;
   static constexpr Tagged_t ksmallestUnit_string = ksize_string + 16;
@@ -1128,12 +1126,8 @@ struct StaticReadOnlyRoot {
       kregexp_result_regexp_input_symbol + 16;
   static constexpr Tagged_t ksealed_symbol =
       kregexp_result_regexp_last_index_symbol + 16;
-  static constexpr Tagged_t kshared_struct_map_elements_template_symbol =
-      ksealed_symbol + 16;
-  static constexpr Tagged_t kshared_struct_map_registry_key_symbol =
-      kshared_struct_map_elements_template_symbol + 16;
   static constexpr Tagged_t ktemplate_literal_function_literal_id_symbol =
-      kshared_struct_map_registry_key_symbol + 16;
+      ksealed_symbol + 16;
   static constexpr Tagged_t ktemplate_literal_slot_id_symbol =
       ktemplate_literal_function_literal_id_symbol + 16;
   static constexpr Tagged_t kwasm_cross_instance_call_symbol =
@@ -1222,7 +1216,7 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kLastAllocatedRoot = 0x1a00f5;
 };
 
-static constexpr std::array<Tagged_t, 1018> StaticReadOnlyRootsPointerTable = {
+static constexpr std::array<Tagged_t, 1015> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kUndefinedValue,
     StaticReadOnlyRoot::kTheHoleValue,
     StaticReadOnlyRoot::kNullValue,
@@ -2071,7 +2065,6 @@ static constexpr std::array<Tagged_t, 1018> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::ksetPrototypeOf_string,
     StaticReadOnlyRoot::kShadowRealm_string,
     StaticReadOnlyRoot::kSharedArrayBuffer_string,
-    StaticReadOnlyRoot::kSharedStruct_string,
     StaticReadOnlyRoot::kshort_string,
     StaticReadOnlyRoot::ksign_string,
     StaticReadOnlyRoot::ksize_string,
@@ -2162,8 +2155,6 @@ static constexpr std::array<Tagged_t, 1018> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kregexp_result_regexp_input_symbol,
     StaticReadOnlyRoot::kregexp_result_regexp_last_index_symbol,
     StaticReadOnlyRoot::ksealed_symbol,
-    StaticReadOnlyRoot::kshared_struct_map_elements_template_symbol,
-    StaticReadOnlyRoot::kshared_struct_map_registry_key_symbol,
     StaticReadOnlyRoot::ktemplate_literal_function_literal_id_symbol,
     StaticReadOnlyRoot::ktemplate_literal_slot_id_symbol,
     StaticReadOnlyRoot::kwasm_cross_instance_call_symbol,

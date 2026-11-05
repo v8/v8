@@ -4352,19 +4352,6 @@ void CodeStubAssembler::UnsafeStoreObjectFieldNoWriteBarrier(
                                           object, offset, value);
 }
 
-void CodeStubAssembler::StoreSharedObjectField(TNode<HeapObject> object,
-                                               TNode<IntPtrT> offset,
-                                               TNode<Object> value) {
-  CSA_DCHECK(this, IsPageFlagSet(BitcastTaggedToWord(object),
-                                 MemoryChunk::IN_WRITABLE_SHARED_SPACE));
-  int const_offset;
-  if (TryToInt32Constant(offset, &const_offset)) {
-    StoreObjectField(object, const_offset, value);
-  } else {
-    Store(object, IntPtrSub(offset, IntPtrConstant(kHeapObjectTag)), value);
-  }
-}
-
 void CodeStubAssembler::StoreMap(TNode<HeapObject> object, TNode<Map> map) {
   OptimizedStoreMap(object, map);
   DcheckHasValidMap(object);
@@ -9007,34 +8994,6 @@ TNode<BoolT> CodeStubAssembler::IsJSArrayMap(TNode<Map> map) {
 
 TNode<BoolT> CodeStubAssembler::IsJSArrayIterator(TNode<HeapObject> object) {
   return HasInstanceType(object, JS_ARRAY_ITERATOR_TYPE);
-}
-
-TNode<BoolT> CodeStubAssembler::IsAlwaysSharedSpaceJSObjectInstanceType(
-    TNode<Int32T> instance_type) {
-  return IsInRange(instance_type, FIRST_ALWAYS_SHARED_SPACE_JS_OBJECT_TYPE,
-                   LAST_ALWAYS_SHARED_SPACE_JS_OBJECT_TYPE);
-}
-
-TNode<BoolT> CodeStubAssembler::IsJSSharedStructInstanceType(
-    TNode<Int32T> instance_type) {
-  return InstanceTypeEqual(instance_type, JS_SHARED_STRUCT_TYPE);
-}
-
-TNode<BoolT> CodeStubAssembler::IsJSSharedStructMap(TNode<Map> map) {
-  return IsJSSharedStructInstanceType(LoadMapInstanceType(map));
-}
-
-TNode<BoolT> CodeStubAssembler::IsJSSharedStruct(TNode<HeapObject> object) {
-  return IsJSSharedStructMap(LoadMap(object));
-}
-
-TNode<BoolT> CodeStubAssembler::IsJSSharedStruct(TNode<Object> object) {
-  return Select<BoolT>(
-      TaggedIsSmi(object), [=, this] { return Int32FalseConstant(); },
-      [=, this] {
-        TNode<HeapObject> heap_object = CAST(object);
-        return IsJSSharedStruct(heap_object);
-      });
 }
 
 TNode<BoolT> CodeStubAssembler::IsJSAsyncGeneratorObject(
@@ -21913,79 +21872,6 @@ void CodeStubAssembler::SwissNameDictionaryAdd(TNode<SwissNameDictionary> table,
     SwissNameDictionaryAddPortable(table, key, value, property_details,
                                    needs_resize);
   }
-}
-
-void CodeStubAssembler::SharedValueBarrier(
-    TNode<Context> context, TVariable<Object>* var_shared_value) {
-  // The barrier ensures that the value can be shared across Isolates.
-  // The fast paths should be kept in sync with Object::Share.
-
-  TNode<Object> value = var_shared_value->value();
-  Label check_in_shared_heap(this), slow(this), skip_barrier(this), done(this);
-
-#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
-  // Fast path: Read-only objects are trivially shared. This also filters small
-  // Smis.
-  TNode<Word32T> object_as_word32 =
-      TruncateIntPtrToInt32(BitcastTaggedToWord(value));
-  GotoIf(Uint32LessThan(object_as_word32,
-                        Int32Constant(kContiguousReadOnlyReservationSize)),
-         &done);
-  // Fast path: Smis are trivially shared. This is now the exact check.
-  GotoIf(TaggedIsSmi(value), &done);
-  TNode<IntPtrT> page_flags = LoadMemoryChunkFlags(CAST(value));
-#else   // !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
-  // Fast path: Smis are trivially shared. This is now the exact check.
-  GotoIf(TaggedIsSmi(value), &done);
-  // Fast path: Read-only objects are trivially shared.
-  TNode<IntPtrT> page_flags = LoadMemoryChunkFlags(CAST(value));
-  GotoIf(WordNotEqual(
-             WordAnd(page_flags, IntPtrConstant(MemoryChunk::READ_ONLY_HEAP)),
-             IntPtrConstant(0)),
-         &done);
-#endif  // !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
-
-  // Fast path: Check if the HeapObject is already shared.
-  TNode<Uint16T> value_instance_type =
-      LoadMapInstanceType(LoadMap(CAST(value)));
-  GotoIf(IsSharedStringInstanceType(value_instance_type), &skip_barrier);
-  GotoIf(IsAlwaysSharedSpaceJSObjectInstanceType(value_instance_type),
-         &skip_barrier);
-  GotoIf(IsHeapNumberInstanceType(value_instance_type), &check_in_shared_heap);
-#if V8_ENABLE_WEBASSEMBLY
-  GotoIf(IsWasmObjectInstanceType(value_instance_type), &check_in_shared_heap);
-#endif  // V8_ENABLE_WEBASSEMBLY
-  Goto(&slow);
-
-  BIND(&check_in_shared_heap);
-  {
-    Branch(WordNotEqual(
-               WordAnd(page_flags,
-                       IntPtrConstant(MemoryChunk::IN_WRITABLE_SHARED_SPACE)),
-               IntPtrConstant(0)),
-           &skip_barrier, &slow);
-  }
-
-  // Slow path: Call out to runtime to share primitives and to throw on
-  // non-shared JS objects.
-  BIND(&slow);
-  {
-    *var_shared_value =
-        CallRuntime(Runtime::kSharedValueBarrierSlow, context, value);
-    Goto(&skip_barrier);
-  }
-
-  BIND(&skip_barrier);
-  {
-    // We skip the check for types that signal that they are shared. We do
-    // ensure that they are allocated in shared space though.
-    CSA_DCHECK(this,
-               IsPageFlagSet(BitcastTaggedToWord(var_shared_value->value()),
-                             MemoryChunk::IN_WRITABLE_SHARED_SPACE));
-    Goto(&done);
-  }
-
-  BIND(&done);
 }
 
 TNode<ArrayList> CodeStubAssembler::AllocateArrayList(TNode<Uint32T> capacity) {

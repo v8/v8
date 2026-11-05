@@ -671,10 +671,6 @@ V8_INLINE constexpr bool IsNativeContextSpecific(InstanceType instance_type) {
     // and exist only for the purpose of passing the data across V8 Api.
     // Thus they are not tied to any native context.
     return false;
-  } else if (InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(instance_type)) {
-    // JSObjects allocated in shared space are never tied to a native context.
-    return false;
-
 #if V8_ENABLE_WEBASSEMBLY
   } else if (InstanceTypeChecker::IsWasmObject(instance_type)) {
     // Wasm structs/arrays are not tied to a native context.

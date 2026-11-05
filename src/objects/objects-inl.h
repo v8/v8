@@ -163,7 +163,6 @@ DEF_CAST_TRAITS(JSRegExpStringIterator)
 DEF_CAST_TRAITS(JSSet)
 DEF_CAST_TRAITS(JSSetIterator)
 DEF_CAST_TRAITS(JSShadowRealm)
-DEF_CAST_TRAITS(JSSharedStruct)
 DEF_CAST_TRAITS(JSSpecialObject)
 DEF_CAST_TRAITS(JSStringIterator)
 DEF_CAST_TRAITS(JSDetachedTypedArray)
@@ -296,7 +295,6 @@ HOLE_LIST(DEF_CAST_TRAITS)
 
 
 DEF_CAST_TRAITS(AccessCheckNeeded)
-DEF_CAST_TRAITS(AlwaysSharedSpaceJSObject)
 DEF_CAST_TRAITS(BigIntWrapper)
 DEF_CAST_TRAITS(BooleanWrapper)
 DEF_CAST_TRAITS(Callable)
@@ -416,30 +414,6 @@ T HeapObject::Acquire_ReadField(size_t offset) const
   using AtomicT = typename base::AtomicTypeFromByteWidth<sizeof(T)>::type;
   return static_cast<T>(base::AsAtomicImpl<AtomicT>::Acquire_Load(
       reinterpret_cast<AtomicT*>(field_address(offset))));
-}
-
-// static
-template <typename CompareAndSwapImpl>
-Tagged<Object> HeapObject::SeqCst_CompareAndSwapField(
-    Tagged<Object> expected, Tagged<Object> value,
-    CompareAndSwapImpl compare_and_swap_impl) {
-  Tagged<Object> actual_expected = expected;
-  do {
-    Tagged<Object> old_value = compare_and_swap_impl(actual_expected, value);
-    if (old_value == actual_expected || !IsNumber(old_value) ||
-        !IsNumber(actual_expected)) {
-      return old_value;
-    }
-    if (!Object::SameNumberValue(
-            Object::NumberValue(Cast<Number>(old_value)),
-            Object::NumberValue(Cast<Number>(actual_expected)))) {
-      return old_value;
-    }
-    // The pointer comparison failed, but the numbers are equal. This can
-    // happen even if both numbers are HeapNumbers with the same value.
-    // Try again in the next iteration.
-    actual_expected = old_value;
-  } while (true);
 }
 
 constexpr bool FastInReadOnlySpaceOrSmallSmi(Tagged_t obj) {
@@ -1117,9 +1091,6 @@ typename HandleType<Object>::MaybeType Object::Share(
 // static
 bool Object::CanBeHeldWeakly(Tagged<Object> obj) {
   if (IsJSReceiver(obj)) {
-    // TODO(v8:12547) Shared structs and arrays should only be able to point
-    // to shared values in weak collections. For now, disallow them as weak
-    // collection keys.
 #if V8_ENABLE_WEBASSEMBLY
     if (v8_flags.wasm_shared &&
         (IsWasmStruct(obj) || IsWasmCustomMap(obj) || IsWasmArray(obj)) &&
@@ -1127,7 +1098,7 @@ bool Object::CanBeHeldWeakly(Tagged<Object> obj) {
       return false;
     }
 #endif
-    return (!v8_flags.harmony_struct || !IsJSSharedStruct(obj));
+    return true;
   }
   return IsSymbol(obj) && !Cast<Symbol>(obj)->is_in_public_symbol_table();
 }

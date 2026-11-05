@@ -817,14 +817,7 @@ V8_OBJECT class JSObject : public JSReceiver {
                                       DirectHandle<JSObject> object,
                                       Representation representation,
                                       FieldIndex index);
-  static DirectHandle<JSAny> FastPropertyAt(Isolate* isolate,
-                                            DirectHandle<JSObject> object,
-                                            Representation representation,
-                                            FieldIndex index,
-                                            SeqCstAccessTag tag);
   inline Tagged<JSAny> RawFastPropertyAt(FieldIndex index) const;
-  inline Tagged<JSAny> RawFastPropertyAt(FieldIndex index,
-                                         SeqCstAccessTag tag) const;
 
   // See comment in the body of the method to understand the conditions
   // in which this method is meant to be used, and what guarantees it
@@ -835,30 +828,11 @@ V8_OBJECT class JSObject : public JSReceiver {
 
   inline void FastPropertyAtPut(FieldIndex index, Tagged<Object> value,
                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void FastPropertyAtPut(FieldIndex index, Tagged<Object> value,
-                                SeqCstAccessTag tag);
   inline void RawFastInobjectPropertyAtPut(
       FieldIndex index, Tagged<Object> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void RawFastInobjectPropertyAtPut(FieldIndex index,
-                                           Tagged<Object> value,
-                                           SeqCstAccessTag tag);
   inline void WriteToField(InternalIndex descriptor, PropertyDetails details,
                            Tagged<Object> value);
-
-  inline Tagged<Object> RawFastInobjectPropertyAtSwap(FieldIndex index,
-                                                      Tagged<Object> value,
-                                                      SeqCstAccessTag tag);
-  inline Tagged<Object> RawFastPropertyAtSwap(FieldIndex index,
-                                              Tagged<Object> value,
-                                              SeqCstAccessTag tag);
-  Tagged<Object> RawFastPropertyAtCompareAndSwap(FieldIndex index,
-                                                 Tagged<Object> expected,
-                                                 Tagged<Object> value,
-                                                 SeqCstAccessTag tag);
-  inline Tagged<Object> RawFastInobjectPropertyAtCompareAndSwap(
-      FieldIndex index, Tagged<Object> expected, Tagged<Object> value,
-      SeqCstAccessTag tag);
 
   // Access to in object properties.
   inline int GetInObjectPropertyOffset(int index);
@@ -1037,10 +1011,6 @@ V8_OBJECT class JSObject : public JSReceiver {
   V8_WARN_UNUSED_RESULT static Maybe<bool> PreventExtensionsWithTransition(
       Isolate* isolate, DirectHandle<JSObject> object,
       ShouldThrow should_throw);
-
-  inline Tagged<Object> RawFastPropertyAtCompareAndSwapInternal(
-      FieldIndex index, Tagged<Object> expected, Tagged<Object> value,
-      SeqCstAccessTag tag);
 
  public:
   TaggedMember<FixedArrayBase> elements_;

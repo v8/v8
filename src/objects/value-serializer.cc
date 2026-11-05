@@ -27,7 +27,6 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-regexp-inl.h"
-#include "src/objects/js-struct.h"
 #include "src/objects/map-updater.h"
 #include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
@@ -699,8 +698,6 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(
       }
       return WriteJSError(js_error);
     }
-    case JS_SHARED_STRUCT_TYPE:
-      return WriteJSSharedStruct(Cast<JSSharedStruct>(receiver));
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_MODULE_OBJECT_TYPE:
       return WriteWasmModule(Cast<WasmModuleObject>(receiver));
@@ -1223,12 +1220,6 @@ Maybe<bool> ValueSerializer::WriteJSError(DirectHandle<JSObject> error) {
 
   WriteVarint(static_cast<uint8_t>(ErrorTag::kEnd));
   return ThrowIfOutOfMemory();
-}
-
-Maybe<bool> ValueSerializer::WriteJSSharedStruct(
-    DirectHandle<JSSharedStruct> shared_struct) {
-  // TODO(v8:12547): Support copying serialization for shared structs as well.
-  return WriteSharedObject(shared_struct);
 }
 
 #if V8_ENABLE_WEBASSEMBLY

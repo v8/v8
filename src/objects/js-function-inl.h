@@ -460,15 +460,9 @@ bool JSFunction::TryGetPrototypeOrInitialMap(
     out->instance_prototype = initial_map->prototype();
     out->has_initial_map = true;
     out->initial_map = initial_map;
-    // Constructors from https://tc39.es/proposal-structs/ do not have
-    // instance prototypes yet. Per-Realm prototypes is currently an open
-    // design question and not included in this draft. Thus, once bootstrapper
-    // is done, this is the only "legitimate" case of a function without an
-    // instance prototype.
     out->has_instance_prototype = !IsNull(out->instance_prototype);
     DCHECK_IMPLIES(!out->has_instance_prototype,
-                   Isolate::Current()->bootstrapper()->IsActive() ||
-                       v8_flags.harmony_struct);
+                   Isolate::Current()->bootstrapper()->IsActive());
     return true;
   }
   DCHECK(IsJSReceiver(proto_or_map));

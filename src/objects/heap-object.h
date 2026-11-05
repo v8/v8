@@ -211,13 +211,6 @@ V8_OBJECT class HeapObject {
     requires((std::is_arithmetic_v<T> || std::is_enum_v<T>) &&
              !std::is_floating_point_v<T>);
 
-  // Atomically compares and swaps a field using seq cst memory ordering.
-  // Contains the required logic to properly handle number comparison.
-  template <typename CompareAndSwapImpl>
-  static Tagged<Object> SeqCst_CompareAndSwapField(
-      Tagged<Object> expected_value, Tagged<Object> new_value,
-      CompareAndSwapImpl compare_and_swap_impl);
-
   //
   // SandboxedPointer_t field accessors.
   //

@@ -965,7 +965,6 @@ RUNTIME_FUNCTION(Runtime_SetPrototypeProperties) {
     Tagged<Map> js_proto_map = js_proto->map();
     if (IsCustomElementsReceiverMap(js_proto_map) ||
         IsJSTypedArrayMap(js_proto_map) ||
-        IsAlwaysSharedSpaceJSObjectMap(js_proto_map) ||
         js_proto_map->is_access_check_needed() ||
         js_proto_map->has_named_interceptor() ||
         js_proto_map->has_indexed_interceptor() ||

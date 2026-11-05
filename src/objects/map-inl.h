@@ -895,13 +895,8 @@ bool Map::CanTransition() const {
   // read only sapce.
   DCHECK_IMPLIES(InstanceTypeChecker::IsMaybeReadOnlyJSObject(type),
                  HeapLayout::InReadOnlySpace(this));
-  // Shared JS objects have fixed shapes and do not transition. Their maps are
-  // either in shared space or RO space.
-  DCHECK_IMPLIES(InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(type),
-                 HeapLayout::InAnySharedSpace(this));
   return InstanceTypeChecker::IsJSObject(type) &&
-         !InstanceTypeChecker::IsMaybeReadOnlyJSObject(type) &&
-         !InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(type);
+         !InstanceTypeChecker::IsMaybeReadOnlyJSObject(type);
 }
 
 bool IsBooleanMap(Tagged<Map> map) {

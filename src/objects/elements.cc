@@ -762,64 +762,6 @@ class ElementsAccessorBase : public InternalElementsAccessor {
                   isolate);
   }
 
-  Handle<Object> GetAtomic(Isolate* isolate, DirectHandle<JSObject> holder,
-                           InternalIndex entry, SeqCstAccessTag tag) final {
-    return Subclass::GetAtomicInternalImpl(isolate, holder->elements(), entry,
-                                           tag);
-  }
-
-  static Handle<Object> GetAtomicInternalImpl(
-      Isolate* isolate, Tagged<FixedArrayBase> backing_store,
-      InternalIndex entry, SeqCstAccessTag tag) {
-    UNREACHABLE();
-  }
-
-  void SetAtomic(DirectHandle<JSObject> holder, InternalIndex entry,
-                 Tagged<Object> value, SeqCstAccessTag tag) final {
-    Subclass::SetAtomicInternalImpl(holder->elements(), entry, value, tag);
-  }
-
-  static void SetAtomicInternalImpl(Tagged<FixedArrayBase> backing_store,
-                                    InternalIndex entry, Tagged<Object> value,
-                                    SeqCstAccessTag tag) {
-    UNREACHABLE();
-  }
-
-  Handle<Object> SwapAtomic(Isolate* isolate, DirectHandle<JSObject> holder,
-                            InternalIndex entry, Tagged<Object> value,
-                            SeqCstAccessTag tag) final {
-    return Subclass::SwapAtomicInternalImpl(isolate, holder->elements(), entry,
-                                            value, tag);
-  }
-
-  static Handle<Object> SwapAtomicInternalImpl(
-      Isolate* isolate, Tagged<FixedArrayBase> backing_store,
-      InternalIndex entry, Tagged<Object> value, SeqCstAccessTag tag) {
-    UNREACHABLE();
-  }
-
-  Handle<Object> CompareAndSwapAtomic(Isolate* isolate,
-                                      DirectHandle<JSObject> holder,
-                                      InternalIndex entry,
-                                      Tagged<Object> expected,
-                                      Tagged<Object> value,
-                                      SeqCstAccessTag tag) final {
-    return handle(
-        HeapObject::SeqCst_CompareAndSwapField(
-            expected, value,
-            [=](Tagged<Object> expected_value, Tagged<Object> new_value) {
-              return Subclass::CompareAndSwapAtomicInternalImpl(
-                  holder->elements(), entry, expected_value, new_value, tag);
-            }),
-        isolate);
-  }
-
-  static Tagged<Object> CompareAndSwapAtomicInternalImpl(
-      Tagged<FixedArrayBase> backing_store, InternalIndex entry,
-      Tagged<Object> expected, Tagged<Object> value, SeqCstAccessTag tag) {
-    UNREACHABLE();
-  }
-
   void Set(DirectHandle<JSObject> holder, InternalIndex entry,
            Tagged<Object> value) final {
     Subclass::SetImpl(holder, entry, value);
@@ -1759,13 +1701,6 @@ class DictionaryElementsAccessor
     return handle(GetRaw(backing_store, entry), isolate);
   }
 
-  static Handle<Object> GetAtomicInternalImpl(
-      Isolate* isolate, Tagged<FixedArrayBase> backing_store,
-      InternalIndex entry, SeqCstAccessTag tag) {
-    return handle(Cast<NumberDictionary>(backing_store)->ValueAt(entry, tag),
-                  isolate);
-  }
-
   static inline void SetImpl(DirectHandle<JSObject> holder, InternalIndex entry,
                              Tagged<Object> value) {
     SetImpl(holder->elements(), entry, value);
@@ -1774,27 +1709,6 @@ class DictionaryElementsAccessor
   static inline void SetImpl(Tagged<FixedArrayBase> backing_store,
                              InternalIndex entry, Tagged<Object> value) {
     Cast<NumberDictionary>(backing_store)->ValueAtPut(entry, value);
-  }
-
-  static void SetAtomicInternalImpl(Tagged<FixedArrayBase> backing_store,
-                                    InternalIndex entry, Tagged<Object> value,
-                                    SeqCstAccessTag tag) {
-    Cast<NumberDictionary>(backing_store)->ValueAtPut(entry, value, tag);
-  }
-
-  static Handle<Object> SwapAtomicInternalImpl(
-      Isolate* isolate, Tagged<FixedArrayBase> backing_store,
-      InternalIndex entry, Tagged<Object> value, SeqCstAccessTag tag) {
-    return handle(
-        Cast<NumberDictionary>(backing_store)->ValueAtSwap(entry, value, tag),
-        isolate);
-  }
-
-  static Tagged<Object> CompareAndSwapAtomicInternalImpl(
-      Tagged<FixedArrayBase> backing_store, InternalIndex entry,
-      Tagged<Object> expected, Tagged<Object> value, SeqCstAccessTag tag) {
-    return Cast<NumberDictionary>(backing_store)
-        ->ValueAtCompareAndSwap(entry, expected, value, tag);
   }
 
   static void ReconfigureImpl(Isolate* isolate, DirectHandle<JSObject> object,

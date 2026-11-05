@@ -1314,9 +1314,6 @@ DEFINE_WEAK_IMPLICATION(trace_baseline, trace_baseline_batch_compilation)
 // Internalize into a shared string table in the shared isolate
 DEFINE_BOOL(shared_strings, false, "allow sharing of strings")
 DEFINE_IMPLICATION(shared_strings, shared_heap)
-DEFINE_BOOL_READONLY(
-    harmony_struct, false,
-    "DEPRECATED. harmony structs, shared structs, and shared arrays")
 DEFINE_BOOL_READONLY(shared_string_table, false,
                      "DEPRECATED. internalize strings into shared table")
 DEFINE_BOOL_READONLY(always_use_string_forwarding_table, false,

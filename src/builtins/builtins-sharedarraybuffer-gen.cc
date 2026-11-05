@@ -31,7 +31,6 @@ class SharedArrayBufferBuiltinsAssembler : public CodeStubAssembler {
                                  TNode<Int32T>* out_elements_kind,
                                  TNode<RawPtrT>* out_backing_store,
                                  Label* detached,
-                                 Label* shared_struct_or_shared_array,
                                  TypedArrayAccessMode access_mode);
 
   TNode<UintPtrT> ValidateAtomicAccess(TNode<JSTypedArray> array,
@@ -91,22 +90,21 @@ class SharedArrayBufferBuiltinsAssembler : public CodeStubAssembler {
 
 // https://tc39.es/ecma262/#sec-validateintegertypedarray
 void SharedArrayBufferBuiltinsAssembler::ValidateIntegerTypedArray(
-    TNode<Object> maybe_array_or_shared_object, TNode<Context> context,
+    TNode<Object> maybe_array, TNode<Context> context,
     TNode<Int32T>* out_elements_kind, TNode<RawPtrT>* out_backing_store,
-    Label* fail, Label* is_shared_struct_or_shared_array,
-    TypedArrayAccessMode access_mode) {
+    Label* fail, TypedArrayAccessMode access_mode) {
   Label not_float_or_clamped(this), invalid(this);
 
   // The logic of TypedArrayBuiltinsAssembler::ValidateTypedArrayBuffer is
   // inlined to avoid duplicate error branches.
 
   // Fail if it is not a heap object.
-  GotoIf(TaggedIsSmi(maybe_array_or_shared_object), &invalid);
+  GotoIf(TaggedIsSmi(maybe_array), &invalid);
 
   // Fail if the array's instance type is not JSTypedArray.
-  TNode<Map> map = LoadMap(CAST(maybe_array_or_shared_object));
+  TNode<Map> map = LoadMap(CAST(maybe_array));
   GotoIfNot(IsJSTypedArrayMap(map), &invalid);
-  TNode<JSTypedArray> array = CAST(maybe_array_or_shared_object);
+  TNode<JSTypedArray> array = CAST(maybe_array);
 
   // Fail if the array's JSArrayBuffer is detached / out of bounds / immutable.
 
@@ -170,12 +168,8 @@ void SharedArrayBufferBuiltinsAssembler::ValidateIntegerTypedArray(
 
   BIND(&invalid);
   {
-    if (is_shared_struct_or_shared_array) {
-      GotoIf(IsJSSharedStruct(maybe_array_or_shared_object),
-             is_shared_struct_or_shared_array);
-    }
     ThrowTypeError(context, MessageTemplate::kNotIntegerTypedArray,
-                   maybe_array_or_shared_object);
+                   maybe_array);
   }
 
   BIND(&not_float_or_clamped);
@@ -291,25 +285,23 @@ TNode<BigInt> SharedArrayBufferBuiltinsAssembler::BigIntFromUnsigned64(
 
 // https://tc39.es/ecma262/#sec-atomicload
 TF_BUILTIN(AtomicsLoad, SharedArrayBufferBuiltinsAssembler) {
-  auto maybe_array_or_shared_object =
-      Parameter<Object>(Descriptor::kArrayOrSharedObject);
-  auto index_or_field_name = Parameter<JSAny>(Descriptor::kIndexOrFieldName);
+  auto maybe_array = Parameter<Object>(Descriptor::kArray);
+  auto index = Parameter<JSAny>(Descriptor::kIndex);
   auto context = Parameter<Context>(Descriptor::kContext);
 
   // 1. Let byteIndexInBuffer be ?
   // ValidateAtomicAccessOnIntegerTypedArray(typedArray, index).
   // Inlined: ValidateIntegerTypedArray + ValidateAtomicAccess.
-  Label validate_failed(this), is_shared_struct_or_shared_array(this);
+  Label validate_failed(this);
   TNode<Int32T> elements_kind;
   TNode<RawPtrT> backing_store;
-  ValidateIntegerTypedArray(maybe_array_or_shared_object, context,
-                            &elements_kind, &backing_store, &validate_failed,
-                            &is_shared_struct_or_shared_array,
+  ValidateIntegerTypedArray(maybe_array, context, &elements_kind,
+                            &backing_store, &validate_failed,
                             TypedArrayAccessMode::kRead);
-  TNode<JSTypedArray> array = CAST(maybe_array_or_shared_object);
+  TNode<JSTypedArray> array = CAST(maybe_array);
 
   TNode<UintPtrT> index_word =
-      ValidateAtomicAccess(array, index_or_field_name, context, elements_kind);
+      ValidateAtomicAccess(array, index, context, elements_kind);
 
   // 2. Perform ? RevalidateAtomicAccess(typedArray, byteIndexInBuffer).
   RevalidateAtomicAccess(array, index_word, context, elements_kind,
@@ -368,36 +360,28 @@ TF_BUILTIN(AtomicsLoad, SharedArrayBufferBuiltinsAssembler) {
     ThrowTypeError(context, MessageTemplate::kTypedArrayValidateErrorOperation,
                    "Atomics.load");
   }
-
-  BIND(&is_shared_struct_or_shared_array);
-  {
-    Return(CallRuntime(Runtime::kAtomicsLoadSharedStructOrArray, context,
-                       maybe_array_or_shared_object, index_or_field_name));
-  }
 }
 
 // https://tc39.es/ecma262/#sec-atomics.store
 TF_BUILTIN(AtomicsStore, SharedArrayBufferBuiltinsAssembler) {
-  auto maybe_array_or_shared_object =
-      Parameter<Object>(Descriptor::kArrayOrSharedObject);
-  auto index_or_field_name = Parameter<JSAny>(Descriptor::kIndexOrFieldName);
+  auto maybe_array = Parameter<Object>(Descriptor::kArray);
+  auto index = Parameter<JSAny>(Descriptor::kIndex);
   auto value = Parameter<JSAny>(Descriptor::kValue);
   auto context = Parameter<Context>(Descriptor::kContext);
 
   // 1. Let byteIndexInBuffer be ?
   // ValidateAtomicAccessOnIntegerTypedArray(typedArray, index).
   // Inlined: ValidateIntegerTypedArray + ValidateAtomicAccess.
-  Label validate_failed(this), is_shared_struct_or_shared_array(this);
+  Label validate_failed(this);
   TNode<Int32T> elements_kind;
   TNode<RawPtrT> backing_store;
-  ValidateIntegerTypedArray(maybe_array_or_shared_object, context,
-                            &elements_kind, &backing_store, &validate_failed,
-                            &is_shared_struct_or_shared_array,
+  ValidateIntegerTypedArray(maybe_array, context, &elements_kind,
+                            &backing_store, &validate_failed,
                             TypedArrayAccessMode::kWrite);
-  TNode<JSTypedArray> array = CAST(maybe_array_or_shared_object);
+  TNode<JSTypedArray> array = CAST(maybe_array);
 
   TNode<UintPtrT> index_word =
-      ValidateAtomicAccess(array, index_or_field_name, context, elements_kind);
+      ValidateAtomicAccess(array, index, context, elements_kind);
 
   Label u8(this), u16(this), u32(this), u64(this), other(this);
 
@@ -473,20 +457,12 @@ TF_BUILTIN(AtomicsStore, SharedArrayBufferBuiltinsAssembler) {
                    MessageTemplate::kTypedArrayValidateWriteErrorOperation,
                    "Atomics.store");
   }
-
-  BIND(&is_shared_struct_or_shared_array);
-  {
-    Return(CallRuntime(Runtime::kAtomicsStoreSharedStructOrArray, context,
-                       maybe_array_or_shared_object, index_or_field_name,
-                       value));
-  }
 }
 
 // https://tc39.es/ecma262/#sec-atomics.exchange
 TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
-  auto maybe_array_or_shared_object =
-      Parameter<Object>(Descriptor::kArrayOrSharedObject);
-  auto index_or_field_name = Parameter<JSAny>(Descriptor::kIndexOrFieldName);
+  auto maybe_array = Parameter<Object>(Descriptor::kArray);
+  auto index = Parameter<JSAny>(Descriptor::kIndex);
   auto value = Parameter<JSAny>(Descriptor::kValue);
   auto context = Parameter<Context>(Descriptor::kContext);
 
@@ -496,17 +472,16 @@ TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
   // 1. Let byteIndexInBuffer be ?
   // ValidateAtomicAccessOnIntegerTypedArray(typedArray, index).
   // Inlined: ValidateIntegerTypedArray + ValidateAtomicAccess.
-  Label validate_failed(this), is_shared_struct_or_shared_array(this);
+  Label validate_failed(this);
   TNode<Int32T> elements_kind;
   TNode<RawPtrT> backing_store;
-  ValidateIntegerTypedArray(maybe_array_or_shared_object, context,
-                            &elements_kind, &backing_store, &validate_failed,
-                            &is_shared_struct_or_shared_array,
+  ValidateIntegerTypedArray(maybe_array, context, &elements_kind,
+                            &backing_store, &validate_failed,
                             TypedArrayAccessMode::kWrite);
-  TNode<JSTypedArray> array = CAST(maybe_array_or_shared_object);
+  TNode<JSTypedArray> array = CAST(maybe_array);
 
   TNode<UintPtrT> index_word =
-      ValidateAtomicAccess(array, index_or_field_name, context, elements_kind);
+      ValidateAtomicAccess(array, index, context, elements_kind);
 
 #if V8_TARGET_ARCH_MIPS64
   TNode<Number> index_number = ChangeUintPtrToTagged(index_word);
@@ -617,20 +592,12 @@ TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
                    MessageTemplate::kTypedArrayValidateWriteErrorOperation,
                    "Atomics.exchange");
   }
-
-  BIND(&is_shared_struct_or_shared_array);
-  {
-    Return(CallRuntime(Runtime::kAtomicsExchangeSharedStructOrArray, context,
-                       maybe_array_or_shared_object, index_or_field_name,
-                       value));
-  }
 }
 
 // https://tc39.es/ecma262/#sec-atomics.compareexchange
 TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
-  auto maybe_array_or_shared_object =
-      Parameter<Object>(Descriptor::kArrayOrSharedObject);
-  auto index_or_field_name = Parameter<JSAny>(Descriptor::kIndexOrFieldName);
+  auto maybe_array = Parameter<Object>(Descriptor::kArray);
+  auto index = Parameter<JSAny>(Descriptor::kIndex);
   auto old_value = Parameter<JSAny>(Descriptor::kOldValue);
   auto new_value = Parameter<JSAny>(Descriptor::kNewValue);
   auto context = Parameter<Context>(Descriptor::kContext);
@@ -638,17 +605,16 @@ TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
   // 1. Let byteIndexInBuffer be ?
   // ValidateAtomicAccessOnIntegerTypedArray(typedArray, index).
   // Inlined: ValidateIntegerTypedArray + ValidateAtomicAccess.
-  Label validate_failed(this), is_shared_struct_or_shared_array(this);
+  Label validate_failed(this);
   TNode<Int32T> elements_kind;
   TNode<RawPtrT> backing_store;
-  ValidateIntegerTypedArray(maybe_array_or_shared_object, context,
-                            &elements_kind, &backing_store, &validate_failed,
-                            &is_shared_struct_or_shared_array,
+  ValidateIntegerTypedArray(maybe_array, context, &elements_kind,
+                            &backing_store, &validate_failed,
                             TypedArrayAccessMode::kWrite);
-  TNode<JSTypedArray> array = CAST(maybe_array_or_shared_object);
+  TNode<JSTypedArray> array = CAST(maybe_array);
 
   TNode<UintPtrT> index_word =
-      ValidateAtomicAccess(array, index_or_field_name, context, elements_kind);
+      ValidateAtomicAccess(array, index, context, elements_kind);
 
 #if V8_TARGET_ARCH_MIPS64
   TNode<Number> index_number = ChangeUintPtrToTagged(index_word);
@@ -774,13 +740,6 @@ TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
                    MessageTemplate::kTypedArrayValidateWriteErrorOperation,
                    "Atomics.compareExchange");
   }
-
-  BIND(&is_shared_struct_or_shared_array);
-  {
-    Return(CallRuntime(Runtime::kAtomicsCompareExchangeSharedStructOrArray,
-                       context, maybe_array_or_shared_object,
-                       index_or_field_name, old_value, new_value));
-  }
 }
 
 #define BINOP_BUILTIN(op, method_name)                                     \
@@ -822,8 +781,7 @@ void SharedArrayBufferBuiltinsAssembler::AtomicBinopBuiltinCommon(
   TNode<Int32T> elements_kind;
   TNode<RawPtrT> backing_store;
   ValidateIntegerTypedArray(maybe_array, context, &elements_kind,
-                            &backing_store, &validate_failed, nullptr,
-                            access_mode);
+                            &backing_store, &validate_failed, access_mode);
   TNode<JSTypedArray> array = CAST(maybe_array);
 
   TNode<UintPtrT> index_word =

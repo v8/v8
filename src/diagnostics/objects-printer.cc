@@ -2406,14 +2406,6 @@ void JSFinalizationRegistry::JSFinalizationRegistryPrint(std::ostream& os) {
   JSObjectPrintBody(os, this);
 }
 
-void JSSharedStruct::JSSharedStructPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, this, "JSSharedStruct");
-  if (HeapLayout::InWritableSharedSpace(Tagged<HeapObject>(this))) {
-    os << " (shared)";
-  }
-  JSObjectPrintBody(os, this);
-}
-
 std::ostream& operator<<(std::ostream& os, DisposableStackState state) {
   switch (state) {
     case DisposableStackState::kPending:

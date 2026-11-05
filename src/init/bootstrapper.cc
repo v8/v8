@@ -70,7 +70,6 @@
 #endif  // V8_INTL_SUPPORT
 #include "src/codegen/script-details.h"
 #include "src/objects/js-raw-json.h"
-#include "src/objects/js-struct.h"
 #ifdef V8_TEMPORAL_SUPPORT
 #include "src/objects/js-temporal-objects-inl.h"
 #endif  // V8_TEMPORAL_SUPPORT
@@ -265,8 +264,6 @@ class Genesis {
 #undef IGNORE_FEATURE
   void InitializeGlobal_regexp_linear_flag();
   void InitializeGlobal_sharedarraybuffer();
-  // TODO(572988458): Remove harmony_struct initialization.
-  void InitializeGlobal_harmony_struct();
 #if V8_ENABLE_WEBASSEMBLY
   void InitializeWasmJSPI();
 #endif
@@ -5777,37 +5774,6 @@ void Genesis::InitializeGlobal_harmony_shadow_realm() {
     shadow_realm_import_value_rejected->shared()->set_native(false);
     native_context()->set_shadow_realm_import_value_rejected(
         *shadow_realm_import_value_rejected);
-  }
-}
-
-void Genesis::InitializeGlobal_harmony_struct() {
-  if (!v8_flags.harmony_struct) return;
-
-  DirectHandle<JSGlobalObject> global(native_context()->global_object(),
-                                      isolate());
-
-  {
-    // Install shared objects @@hasInstance in the native context.
-    DirectHandle<JSFunction> has_instance = SimpleCreateFunction(
-        isolate(), factory()->empty_string(),
-        Builtin::kSharedSpaceJSObjectHasInstance, 1, kDontAdapt);
-    native_context()->set_shared_space_js_object_has_instance(*has_instance);
-  }
-
-  {  // SharedStructType
-    DirectHandle<String> name =
-        isolate()->factory()->InternalizeUtf8String("SharedStructType");
-    DirectHandle<JSFunction> shared_struct_type_fun = CreateFunctionForBuiltin(
-        isolate(), name, isolate()->function_with_readonly_prototype_map(),
-        Builtin::kSharedStructTypeConstructor, 1, kDontAdapt);
-    JSObject::MakePrototypesFast(shared_struct_type_fun, kStartAtReceiver,
-                                 isolate());
-    shared_struct_type_fun->shared()->set_native(true);
-    JSObject::AddProperty(isolate(), global, "SharedStructType",
-                          shared_struct_type_fun, DONT_ENUM);
-
-    SimpleInstallFunction(isolate(), shared_struct_type_fun, "isSharedStruct",
-                          Builtin::kSharedStructTypeIsSharedStruct, 1, kAdapt);
   }
 }
 

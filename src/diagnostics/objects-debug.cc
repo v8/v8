@@ -82,7 +82,6 @@
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/hole.h"
 #include "src/objects/js-raw-json-inl.h"
-#include "src/objects/js-struct.h"
 #ifdef V8_TEMPORAL_SUPPORT
 #include "src/objects/js-temporal-objects-inl.h"
 #endif  // V8_TEMPORAL_SUPPORT
@@ -808,10 +807,6 @@ void Map::MapVerify(Isolate* isolate) {
       // native context field must already be initialized.
       CHECK(IsNativeContext(map()->native_context_or_null()));
     }
-  } else if (InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(
-                 instance_type())) {
-    // Shared objects' maps must use the RO meta map.
-    CHECK_EQ(map(), GetReadOnlyRoots().meta_map());
   }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -857,32 +852,6 @@ void Map::MapVerify(Isolate* isolate) {
     CHECK_EQ(header_end_offset +
                  JSObject::GetEmbedderFieldCount(this) * kEmbedderDataSlotSize,
              inobject_fields_start_offset);
-
-    if (IsJSSharedStructMap(this)) {
-      if (COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL) {
-        // TODO(v8:14089): Verify what should be checked in this configuration
-        // and again merge with the else-branch below.
-        // CHECK(InSharedHeap());
-        CHECK(IsUndefined(GetBackPointer()));
-        // Object maybe_cell = prototype_validity_cell(kRelaxedLoad);
-        // if (maybe_cell.IsCell()) CHECK(maybe_cell.InSharedHeap());
-        CHECK(!is_extensible());
-        CHECK(!is_prototype_map());
-        CHECK(OnlyHasSimpleProperties());
-        // CHECK(instance_descriptors().InSharedHeap());
-      } else {
-        CHECK(HeapLayout::InAnySharedSpace(this));
-        CHECK(IsUndefined(GetBackPointer()));
-        Tagged<Object> maybe_cell = prototype_validity_cell(kRelaxedLoad);
-        if (IsCell(maybe_cell)) {
-          CHECK(HeapLayout::InAnySharedSpace(Cast<Cell>(maybe_cell)));
-        }
-        CHECK(!is_extensible());
-        CHECK(!is_prototype_map());
-        CHECK(OnlyHasSimpleProperties());
-        CHECK(HeapLayout::InAnySharedSpace(instance_descriptors()));
-      }
-    }
 
     // Check constructor value in JSFunction's maps.
     if (IsJSFunctionMap(this) && !IsMap(constructor_or_back_pointer())) {
@@ -2305,57 +2274,6 @@ void JSSegmentDataObjectWithIsWordLike::JSSegmentDataObjectWithIsWordLikeVerify(
   CHECK(IsBoolean(is_word_like()));
 }
 #endif  // V8_INTL_SUPPORT
-
-namespace {
-
-void VerifyElementIsShared(Tagged<Object> element) {
-  // Exception for ThinStrings:
-  // When storing a ThinString in a shared object, we want to store the actual
-  // string, which is shared when sharing the string table.
-  // It is possible that a stored shared string migrates to a ThinString later
-  // on, which is fine as the ThinString resides in shared space if the original
-  // string was in shared space.
-  if (IsThinString(element)) {
-    CHECK(v8_flags.shared_string_table);
-    CHECK(HeapLayout::InWritableSharedSpace(Cast<ThinString>(element)));
-  } else {
-    CHECK(IsShared(element));
-  }
-}
-
-}  // namespace
-
-void JSSharedStruct::JSSharedStructVerify(Isolate* isolate) {
-  CHECK(Is<JSSharedStruct>(this));
-  CHECK(HeapLayout::InWritableSharedSpace(Tagged<HeapObject>(this)));
-  JSObjectVerify(isolate);
-  CHECK(HasFastProperties());
-  // Shared structs can only point to primitives or other shared HeapObjects,
-  // even internally.
-  Tagged<Map> struct_map = map();
-  CHECK(HeapLayout::InAnySharedSpace(property_array()));
-  Tagged<DescriptorArray> descriptors = struct_map->instance_descriptors();
-  for (InternalIndex i : struct_map->IterateOwnDescriptors()) {
-    PropertyDetails details = descriptors->GetDetails(i);
-    CHECK_EQ(PropertyKind::kData, details.kind());
-
-    if (JSSharedStruct::IsRegistryKeyDescriptor(isolate, struct_map, i)) {
-      CHECK_EQ(PropertyLocation::kDescriptor, details.location());
-      CHECK(IsInternalizedString(descriptors->GetStrongValue(i)));
-    } else if (JSSharedStruct::IsElementsTemplateDescriptor(isolate, struct_map,
-                                                            i)) {
-      CHECK_EQ(PropertyLocation::kDescriptor, details.location());
-      CHECK(IsNumberDictionary(descriptors->GetStrongValue(i)));
-    } else {
-      CHECK_EQ(PropertyLocation::kField, details.location());
-      CHECK(details.representation().IsTagged());
-      CHECK(!IsNumberDictionary(descriptors->GetStrongValue(i)));
-      CHECK(!IsInternalizedString(descriptors->GetStrongValue(i)));
-      FieldIndex field_index = FieldIndex::ForDetails(struct_map, details);
-      VerifyElementIsShared(RawFastPropertyAt(field_index));
-    }
-  }
-}
 
 void JSDisposableStackBase::JSDisposableStackBaseVerify(Isolate* isolate) {
   JSObjectVerify(isolate);

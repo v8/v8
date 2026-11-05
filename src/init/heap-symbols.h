@@ -820,7 +820,6 @@
   V(_, setPrototypeOf_string, "setPrototypeOf")                               \
   V(_, ShadowRealm_string, "ShadowRealm")                                     \
   V(_, SharedArrayBuffer_string, "SharedArrayBuffer")                         \
-  V(_, SharedStruct_string, "SharedStruct")                                   \
   V(_, short_string, "short")                                                 \
   V(_, sign_string, "sign")                                                   \
   V(_, size_string, "size")                                                   \
@@ -921,8 +920,6 @@
   V(_, regexp_result_regexp_input_symbol)                 \
   V(_, regexp_result_regexp_last_index_symbol)            \
   V(_, sealed_symbol)                                     \
-  V(_, shared_struct_map_elements_template_symbol)        \
-  V(_, shared_struct_map_registry_key_symbol)             \
   V(_, template_literal_function_literal_id_symbol)       \
   V(_, template_literal_slot_id_symbol)                   \
   V(_, wasm_cross_instance_call_symbol)                   \
@@ -1065,7 +1062,6 @@
   F(MC_CLEAR_JOIN_JOB)                          \
   F(MC_CLEAR_JS_WEAK_REFERENCES)                \
   F(MC_CLEAR_MAPS)                              \
-  F(MC_CLEAR_SHARED_STRUCT_TYPE_REGISTRY)       \
   F(MC_CLEAR_SLOTS_BUFFER)                      \
   F(MC_CLEAR_STRING_FORWARDING_TABLE)           \
   F(MC_CLEAR_SWEEP_CODE_POINTER_TABLE)          \

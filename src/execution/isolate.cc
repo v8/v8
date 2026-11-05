@@ -98,7 +98,6 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-function.h"
 #include "src/objects/js-generator-inl.h"
-#include "src/objects/js-struct.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/managed-inl.h"
 #include "src/objects/module-inl.h"
@@ -5311,10 +5310,6 @@ void Isolate::Deinit() {
     DCHECK_NULL(string_forwarding_table_.get());
   }
 
-  if (!is_shared_space_isolate()) {
-    DCHECK_NULL(shared_struct_type_registry_.get());
-  }
-
 #ifdef V8_COMPRESS_POINTERS
   external_pointer_table().TearDownSpace(
       heap()->young_external_pointer_space());
@@ -6656,16 +6651,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   if (initialized_from_snapshot_) {
     SLOW_DCHECK(SharedFunctionInfo::UniqueIdsAreUnique(this));
-  }
-
-  if (v8_flags.harmony_struct) {
-    // Initialize or get the struct type registry shared by all isolates.
-    if (is_shared_space_isolate()) {
-      shared_struct_type_registry_ =
-          std::make_unique<SharedStructTypeRegistry>();
-    } else {
-      DCHECK_NOT_NULL(shared_struct_type_registry());
-    }
   }
 
   // A read-only heap deserialized from a snapshot was already protected when

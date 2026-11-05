@@ -158,7 +158,6 @@ class PersistentHandlesList;
 class ReadOnlyArtifacts;
 class RootVisitor;
 class SetupIsolateDelegate;
-class SharedStructTypeRegistry;
 class Simulator;
 class SnapshotData;
 class StackFrame;
@@ -785,12 +784,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return OwnsStringTables()
                ? string_forwarding_table_.get()
                : shared_space_isolate()->string_forwarding_table_.get();
-  }
-
-  SharedStructTypeRegistry* shared_struct_type_registry() const {
-    return is_shared_space_isolate()
-               ? shared_struct_type_registry_.get()
-               : shared_space_isolate()->shared_struct_type_registry_.get();
   }
 
   // Access to top context (where the current function object was created).
@@ -2968,11 +2961,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // Stores the isolate containing the shared space.
   std::optional<Isolate*> shared_space_isolate_;
-
-  // Used to deduplicate registered SharedStructType shapes.
-  //
-  // This is guaranteed empty when !is_shared_space_isolate().
-  std::unique_ptr<SharedStructTypeRegistry> shared_struct_type_registry_;
 
 #ifdef V8_COMPRESS_POINTERS
   // Stores the external pointer table space for the shared external pointer

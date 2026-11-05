@@ -4866,14 +4866,6 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
   for (compiler::MapRef map : inferred_maps) {
     if (map.is_deprecated()) continue;
 
-    // TODO(v8:12547): Support writing to objects in shared space, which
-    // need a write barrier that calls Object::Share to ensure the RHS is
-    // shared.
-    if (InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(map.instance_type()) &&
-        access_mode == compiler::AccessMode::kStore) {
-      return {};
-    }
-
     compiler::OptionalObjectRef handler;
     auto it = std::find(feedback.maps().begin(), feedback.maps().end(), map);
     if (it != feedback.maps().end()) {
@@ -5737,14 +5729,6 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccess(
              StoreModeCanGrow(refined_feedback.keyed_mode().store_mode())) &&
             !receiver_map.PrototypesElementsDoNotHaveAccessorsOrThrow(
                 broker(), &prototype_maps)) {
-          return {};
-        }
-
-        // TODO(v8:12547): Support writing to objects in shared space, which
-        // need a write barrier that calls Object::Share to ensure the RHS is
-        // shared.
-        if (InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(
-                receiver_map.instance_type())) {
           return {};
         }
       }

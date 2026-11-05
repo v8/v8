@@ -261,13 +261,6 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   Handle<Object> GetDataValue(
       AllowAllocation allow_allocation = AllowAllocation{true}) const;
   void WriteDataValue(DirectHandle<Object> value, bool initializing_store);
-  DirectHandle<Object> GetDataValue(SeqCstAccessTag tag) const;
-  void WriteDataValue(DirectHandle<Object> value, SeqCstAccessTag tag);
-  DirectHandle<Object> SwapDataValue(DirectHandle<Object> value,
-                                     SeqCstAccessTag tag);
-  DirectHandle<Object> CompareAndSwapDataValue(DirectHandle<Object> expected,
-                                               DirectHandle<Object> value,
-                                               SeqCstAccessTag tag);
   inline void UpdateProtector(MaybeDirectHandle<Object> value = {},
                               MaybeDirectHandle<Object> old_value = {});
   static inline void UpdateProtector(Isolate* isolate,

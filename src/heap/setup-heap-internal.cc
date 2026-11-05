@@ -82,8 +82,6 @@ bool IsMutableMap(InstanceType instance_type, ElementsKind elements_kind) {
   bool is_maybe_read_only_js_object =
       InstanceTypeChecker::IsMaybeReadOnlyJSObject(instance_type);
   bool is_js_object = InstanceTypeChecker::IsJSObject(instance_type);
-  bool is_always_shared_space_js_object =
-      InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(instance_type);
   bool is_wasm_object = false;
 #if V8_ENABLE_WEBASSEMBLY
   is_wasm_object = instance_type == WASM_STRUCT_TYPE ||
@@ -97,9 +95,7 @@ bool IsMutableMap(InstanceType instance_type, ElementsKind elements_kind) {
                      is_maybe_read_only_js_object);
   // JSObjects have maps with a mutable prototype_validity_cell, so they cannot
   // go in RO_SPACE. Maps for managed Wasm objects have mutable subtype lists.
-  return (is_js_object && !is_maybe_read_only_js_object &&
-          !is_always_shared_space_js_object) ||
-         is_wasm_object;
+  return (is_js_object && !is_maybe_read_only_js_object) || is_wasm_object;
 }
 #endif
 

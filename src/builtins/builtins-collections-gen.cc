@@ -486,11 +486,6 @@ void BaseCollectionsAssembler::GotoIfCannotBeHeldWeakly(
   GotoIf(TaggedIsSmi(obj), if_cannot_be_held_weakly);
   TNode<Uint16T> instance_type = LoadMapInstanceType(LoadMap(CAST(obj)));
   GotoIfNot(IsJSReceiverInstanceType(instance_type), &check_symbol_key);
-  // TODO(v8:12547) Shared structs and arrays should only be able to point
-  // to shared values in weak collections. For now, disallow them as weak
-  // collection keys.
-  GotoIf(IsAlwaysSharedSpaceJSObjectInstanceType(instance_type),
-         if_cannot_be_held_weakly);
 #if V8_ENABLE_WEBASSEMBLY
   GotoIf(IsWasmObjectInstanceType(instance_type), &check_not_in_shared_space);
 #endif

@@ -123,7 +123,6 @@
 #include "src/objects/heap-object-field-inl.h"
 #include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/instance-type.h"
-#include "src/objects/js-struct.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/objects.h"
@@ -3091,10 +3090,9 @@ class LeftTrimmerVerifierRootVisitor : public RootVisitor {
   void VisitCompressedRootPointers(Root root, const char* description,
                                    OffHeapObjectSlot start,
                                    OffHeapObjectSlot end) override {
-    DCHECK(root == Root::kStringTable ||
-           root == Root::kSharedStructTypeRegistry);
-    // We can skip iterating the string table and shared struct type registry,
-    // they don't point to any fixed arrays.
+    DCHECK_EQ(root, Root::kStringTable);
+    // We can skip iterating the string table, it doesn't point to any fixed
+    // arrays.
   }
 
  private:
@@ -4422,13 +4420,6 @@ void Heap::IterateWeakRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
     external_string_table_.Iterate(v);
   }
   v->Synchronize(VisitorSynchronization::kExternalStringsTable);
-  if (!options.contains(SkipRoot::kOldGeneration) &&
-      !options.contains(SkipRoot::kUnserializable) &&
-      isolate()->is_shared_space_isolate() &&
-      isolate()->shared_struct_type_registry()) {
-    isolate()->shared_struct_type_registry()->IterateElements(isolate(), v);
-  }
-  v->Synchronize(VisitorSynchronization::kSharedStructTypeRegistry);
 }
 
 void Heap::IterateSmiRoots(RootVisitor* v) {

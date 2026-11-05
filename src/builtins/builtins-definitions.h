@@ -1229,14 +1229,13 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   CPP(SharedArrayBufferPrototypeSlice, JSParameterCount(2))                    \
   CPP(SharedArrayBufferPrototypeGrow, JSParameterCount(1))                     \
                                                                                \
-  TFJ(AtomicsLoad, kJSArgcReceiverSlots + 2, kReceiver, kArrayOrSharedObject,  \
-      kIndexOrFieldName)                                                       \
-  TFJ(AtomicsStore, kJSArgcReceiverSlots + 3, kReceiver, kArrayOrSharedObject, \
-      kIndexOrFieldName, kValue)                                               \
-  TFJ(AtomicsExchange, kJSArgcReceiverSlots + 3, kReceiver,                    \
-      kArrayOrSharedObject, kIndexOrFieldName, kValue)                         \
-  TFJ(AtomicsCompareExchange, kJSArgcReceiverSlots + 4, kReceiver,             \
-      kArrayOrSharedObject, kIndexOrFieldName, kOldValue, kNewValue)           \
+  TFJ(AtomicsLoad, kJSArgcReceiverSlots + 2, kReceiver, kArray, kIndex)        \
+  TFJ(AtomicsStore, kJSArgcReceiverSlots + 3, kReceiver, kArray, kIndex,       \
+      kValue)                                                                  \
+  TFJ(AtomicsExchange, kJSArgcReceiverSlots + 3, kReceiver, kArray, kIndex,    \
+      kValue)                                                                  \
+  TFJ(AtomicsCompareExchange, kJSArgcReceiverSlots + 4, kReceiver, kArray,     \
+      kIndex, kOldValue, kNewValue)                                            \
   TFJ(AtomicsAdd, kJSArgcReceiverSlots + 3, kReceiver, kArray, kIndex, kValue) \
   TFJ(AtomicsSub, kJSArgcReceiverSlots + 3, kReceiver, kArray, kIndex, kValue) \
   TFJ(AtomicsAnd, kJSArgcReceiverSlots + 3, kReceiver, kArray, kIndex, kValue) \
@@ -1558,12 +1557,6 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   /* WeakSet / WeakMap Helpers */                                              \
   TFS(WeakCollectionDelete, NeedsContext{true}, kCollection, kKey)             \
   TFS(WeakCollectionSet, NeedsContext{true}, kCollection, kKey, kValue)        \
-                                                                               \
-  /* JS Structs and friends */                                                 \
-  CPP(SharedSpaceJSObjectHasInstance, kDontAdaptArgumentsSentinel)             \
-  CPP(SharedStructTypeConstructor, kDontAdaptArgumentsSentinel)                \
-  CPP(SharedStructTypeIsSharedStruct, JSParameterCount(1))                     \
-  CPP(SharedStructConstructor, JSParameterCount(0))                            \
                                                                                \
   /* AsyncGenerator */                                                         \
                                                                                \
