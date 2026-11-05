@@ -690,11 +690,13 @@ void MaglevGraphBuilder::MaglevSubGraphBuilder::EndLoop(LoopLabel* loop_label) {
 
 void MaglevGraphBuilder::MaglevSubGraphBuilder::Bind(Label* label) {
   DCHECK_NULL(builder_->current_block());
+  CHECK_NOT_NULL(label->variable_merge_state_);
 
   DCHECK_NULL(variable_frame_.known_node_aspects());
   variable_frame_.CopyFrom(*dummy_unit_, *label->variable_merge_state_);
 
   if (label->ShouldTrackInterpreterFrameState()) {
+    DCHECK_NOT_NULL(label->merge_state_);
     DCHECK_EQ(*label->future_bind_offset_,
               builder_->iterator_.current_offset());
     builder_->current_interpreter_frame_.CopyFrom(*compilation_unit(),
@@ -721,6 +723,9 @@ void MaglevGraphBuilder::MaglevSubGraphBuilder::Bind(Label* label) {
   builder_->ProcessMergePointPredecessors(*label->variable_merge_state_,
                                           label->ref_);
   builder_->StartNewBlock(nullptr, label->variable_merge_state_, label->ref_);
+
+  label->variable_merge_state_ = nullptr;
+  label->merge_state_ = nullptr;
 }
 
 template <typename FCond, typename FTrue, typename FFalse>
