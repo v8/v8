@@ -284,8 +284,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     requires(
         std::is_convertible_v<HandleType<SeqString>, DirectHandle<SeqString>>)
   Handle<String> InternalizeSubString(HandleType<SeqString>, uint32_t from,
-                                      uint32_t length,
-                                      bool convert_encoding = false);
+                                      uint32_t length);
 
   // Internalized strings are created in the old generation (data space).
   // TODO(b/42203211): InternalizeString and InternalizeName are templatized so

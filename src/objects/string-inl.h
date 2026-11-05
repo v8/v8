@@ -566,17 +566,18 @@ Char FlatStringReader::Get(uint32_t index) const {
 template <typename Char>
 class SequentialStringKey final : public StringTableKey {
  public:
-  SequentialStringKey(base::Vector<const Char> chars, const HashSeed seed,
-                      bool convert = false)
-      : SequentialStringKey(StringHasher::HashSequentialString<Char>(
-                                chars.begin(), chars.length(), seed),
-                            chars, convert) {}
+  SequentialStringKey(base::Vector<const Char> chars, const HashSeed seed)
+      : StringTableKey(0, chars.length()), chars_(chars) {
+    uint32_t raw_hash_field = StringHasher::HashSequentialString<Char>(
+        chars.begin(), chars.length(), seed, &one_byte_content_);
+    set_raw_hash_field(raw_hash_field);
+  }
 
   SequentialStringKey(int raw_hash_field, base::Vector<const Char> chars,
                       bool convert = false)
       : StringTableKey(raw_hash_field, chars.length()),
         chars_(chars),
-        convert_(convert) {}
+        one_byte_content_(sizeof(Char) == 1 || convert) {}
 
   template <typename IsolateT>
   bool IsMatch(IsolateT* isolate, Tagged<String> s) {
@@ -585,16 +586,22 @@ class SequentialStringKey final : public StringTableKey {
 
   template <typename IsolateT>
   void PrepareForInsertion(IsolateT* isolate) {
-    if (sizeof(Char) == 1) {
+    if constexpr (sizeof(Char) == 1) {
       internalized_string_ = isolate->factory()->NewOneByteInternalizedString(
           base::Vector<const uint8_t>::cast(chars_), raw_hash_field());
-    } else if (convert_) {
-      internalized_string_ =
-          isolate->factory()->NewOneByteInternalizedStringFromTwoByte(
-              base::Vector<const uint16_t>::cast(chars_), raw_hash_field());
     } else {
-      internalized_string_ = isolate->factory()->NewTwoByteInternalizedString(
-          base::Vector<const uint16_t>::cast(chars_), raw_hash_field());
+      const bool is_one_byte =
+          one_byte_content_.has_value()
+              ? *one_byte_content_
+              : detail::IsOnly8Bit(chars_.begin(), chars_.length());
+      if (is_one_byte) {
+        internalized_string_ =
+            isolate->factory()->NewOneByteInternalizedStringFromTwoByte(
+                base::Vector<const uint16_t>::cast(chars_), raw_hash_field());
+      } else {
+        internalized_string_ = isolate->factory()->NewTwoByteInternalizedString(
+            base::Vector<const uint16_t>::cast(chars_), raw_hash_field());
+      }
     }
   }
 
@@ -605,7 +612,7 @@ class SequentialStringKey final : public StringTableKey {
 
  private:
   base::Vector<const Char> chars_;
-  bool convert_;
+  std::optional<bool> one_byte_content_;
   DirectHandle<InternalizedString> internalized_string_;
 };
 
@@ -617,15 +624,13 @@ class SeqSubStringKey final : public StringTableKey {
  public:
   using Char = typename SeqString::Char;
   SeqSubStringKey(Isolate* isolate, DirectHandle<SeqString> string, int from,
-                  int len, bool convert = false)
-      : StringTableKey(0, len),
-        string_(string),
-        from_(from),
-        convert_(convert) {
+                  int len)
+      : StringTableKey(0, len), string_(string), from_(from) {
     // We have to set the hash later.
     DisallowGarbageCollection no_gc;
     uint32_t raw_hash_field = StringHasher::HashSequentialString(
-        string->GetChars(no_gc) + from, len, HashSeed(isolate));
+        string->GetChars(no_gc) + from, len, HashSeed(isolate),
+        &one_byte_content_);
     set_raw_hash_field(raw_hash_field);
 
     DCHECK_LE(0, length());
@@ -644,7 +649,17 @@ class SeqSubStringKey final : public StringTableKey {
   }
 
   void PrepareForInsertion(Isolate* isolate) {
-    if (sizeof(Char) == 1 || (sizeof(Char) == 2 && convert_)) {
+    bool is_one_byte;
+    if constexpr (sizeof(Char) == 1) {
+      is_one_byte = true;
+    } else if (one_byte_content_.has_value()) {
+      is_one_byte = *one_byte_content_;
+    } else {
+      DisallowGarbageCollection no_gc;
+      is_one_byte =
+          detail::IsOnly8Bit(string_->GetChars(no_gc) + from_, length());
+    }
+    if (is_one_byte) {
       DirectHandle<SeqOneByteString> result =
           isolate->factory()->AllocateRawOneByteInternalizedString(
               length(), raw_hash_field());
@@ -659,6 +674,7 @@ class SeqSubStringKey final : public StringTableKey {
       DisallowGarbageCollection no_gc;
       CopyChars(result->GetChars(no_gc), string_->GetChars(no_gc) + from_,
                 length());
+      DCHECK(!String::IsOneByte(result->GetChars(no_gc), length()));
       internalized_string_ = Cast<InternalizedString>(result);
     }
   }
@@ -671,7 +687,7 @@ class SeqSubStringKey final : public StringTableKey {
  private:
   DirectHandle<typename CharTraits<Char>::String> string_;
   int from_;
-  bool convert_;
+  std::optional<bool> one_byte_content_;
   DirectHandle<InternalizedString> internalized_string_;
 };
 

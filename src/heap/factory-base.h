@@ -307,16 +307,14 @@ class FactoryBase {
   Handle<CoverageInfo> NewCoverageInfo(const ZoneVector<SourceRange>& slots);
 
   Handle<InternalizedString> InternalizeString(
-      base::Vector<const uint8_t> string, bool convert_encoding = false);
+      base::Vector<const uint8_t> string);
   Handle<InternalizedString> InternalizeString(
-      base::Vector<const uint16_t> string, bool convert_encoding = false);
-  Handle<InternalizedString> InternalizeString(std::string_view str,
-                                               bool convert_encoding = false) {
+      base::Vector<const uint16_t> string);
+  Handle<InternalizedString> InternalizeString(std::string_view str) {
     DCHECK(std::all_of(str.begin(), str.end(), [](char c) {
       return static_cast<unsigned char>(c) <= 0x7f;
     }));
-    return InternalizeString(base::OneByteVector(str.data(), str.size()),
-                             convert_encoding);
+    return InternalizeString(base::OneByteVector(str.data(), str.size()));
   }
 
   template <class StringTableKey>

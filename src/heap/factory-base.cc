@@ -690,17 +690,15 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
 
 template <typename Impl>
 Handle<InternalizedString> FactoryBase<Impl>::InternalizeString(
-    base::Vector<const uint8_t> string, bool convert_encoding) {
-  SequentialStringKey<uint8_t> key(string, HashSeed(read_only_roots()),
-                                   convert_encoding);
+    base::Vector<const uint8_t> string) {
+  SequentialStringKey<uint8_t> key(string, HashSeed(read_only_roots()));
   return InternalizeStringWithKey(&key);
 }
 
 template <typename Impl>
 Handle<InternalizedString> FactoryBase<Impl>::InternalizeString(
-    base::Vector<const uint16_t> string, bool convert_encoding) {
-  SequentialStringKey<uint16_t> key(string, HashSeed(read_only_roots()),
-                                    convert_encoding);
+    base::Vector<const uint16_t> string) {
+  SequentialStringKey<uint16_t> key(string, HashSeed(read_only_roots()));
   return InternalizeStringWithKey(&key);
 }
 
@@ -720,6 +718,7 @@ Handle<InternalizedString> FactoryBase<Impl>::NewOneByteInternalizedString(
 template <typename Impl>
 Handle<InternalizedString> FactoryBase<Impl>::NewTwoByteInternalizedString(
     base::Vector<const base::uc16> str, uint32_t raw_hash_field) {
+  DCHECK(!String::IsOneByte(str.begin(), str.length()));
   Handle<SeqTwoByteString> result =
       AllocateRawTwoByteInternalizedString(str.length(), raw_hash_field);
   // No synchronization is needed since the shared string hasn't yet escaped to

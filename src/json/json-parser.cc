@@ -2254,15 +2254,14 @@ Handle<String> JsonParser<Char>::MakeString(const JsonString& string,
         if (chars_may_relocate_) {
           SeqSubStringKey<SeqOneByteString> key(
               isolate_, Cast<SeqOneByteString>(source_), string.start(),
-              string.length(), string.needs_conversion());
+              string.length());
           auto existing =
               isolate_->string_table()->TryLookupKey(isolate_, &key);
           if (existing) return handle(*existing.value(), isolate_);
         } else {
           base::Vector<const Char> chars(chars_ + string.start(),
                                          string.length());
-          SequentialStringKey<Char> key(chars, HashSeed(isolate_),
-                                        string.needs_conversion());
+          SequentialStringKey<Char> key(chars, HashSeed(isolate_));
           auto existing =
               isolate_->string_table()->TryLookupKey(isolate_, &key);
           if (existing) return handle(*existing.value(), isolate_);
@@ -2276,11 +2275,10 @@ Handle<String> JsonParser<Char>::MakeString(const JsonString& string,
       }
       if (chars_may_relocate_) {
         return factory()->InternalizeSubString(Cast<SeqString>(source_),
-                                               string.start(), string.length(),
-                                               string.needs_conversion());
+                                               string.start(), string.length());
       }
       base::Vector<const Char> chars(chars_ + string.start(), string.length());
-      return factory()->InternalizeString(chars, string.needs_conversion());
+      return factory()->InternalizeString(chars);
     }
   }
 

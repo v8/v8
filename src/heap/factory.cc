@@ -778,28 +778,22 @@ template <typename SeqString, template <typename> typename HandleType>
   requires(
       std::is_convertible_v<HandleType<SeqString>, DirectHandle<SeqString>>)
 Handle<String> Factory::InternalizeSubString(HandleType<SeqString> string,
-                                             uint32_t from, uint32_t length,
-                                             bool convert_encoding) {
+                                             uint32_t from, uint32_t length) {
   // Callers should handle the empty and one-char case themselves.
   DCHECK_GT(length, 1);
   DCHECK_IMPLIES(from == 0, length != string->length());
-  SeqSubStringKey<SeqString> key(isolate(), string, from, length,
-                                 convert_encoding);
+  SeqSubStringKey<SeqString> key(isolate(), string, from, length);
   return InternalizeStringWithKey(&key);
 }
 
 template Handle<String> Factory::InternalizeSubString(
-    Handle<SeqOneByteString> string, uint32_t from, uint32_t length,
-    bool convert_encoding);
+    Handle<SeqOneByteString> string, uint32_t from, uint32_t length);
 template Handle<String> Factory::InternalizeSubString(
-    Handle<SeqTwoByteString> string, uint32_t from, uint32_t length,
-    bool convert_encoding);
+    Handle<SeqTwoByteString> string, uint32_t from, uint32_t length);
 template Handle<String> Factory::InternalizeSubString(
-    DirectHandle<SeqOneByteString> string, uint32_t from, uint32_t length,
-    bool convert_encoding);
+    DirectHandle<SeqOneByteString> string, uint32_t from, uint32_t length);
 template Handle<String> Factory::InternalizeSubString(
-    DirectHandle<SeqTwoByteString> string, uint32_t from, uint32_t length,
-    bool convert_encoding);
+    DirectHandle<SeqTwoByteString> string, uint32_t from, uint32_t length);
 
 namespace {
 void ThrowInvalidEncodedStringBytes(Isolate* isolate, MessageTemplate message) {
