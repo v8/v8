@@ -2600,8 +2600,9 @@ std::map<std::string, std::string> LookupAndValidateUnicodeExtensions(
 std::string LookupMatcher(Isolate* isolate,
                           const std::set<std::string>& available_locales,
                           const std::vector<std::string>& requested_locales) {
+  // The lookup matcher omits materializing the result record.
+
   // 1. Let result be a new Record.
-  std::string result;
 
   // 2. For each element locale of requestedLocales in List order, do
   for (const std::string& locale : requested_locales) {

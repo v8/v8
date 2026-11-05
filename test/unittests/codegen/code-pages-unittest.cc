@@ -428,8 +428,7 @@ TEST_F(CodePagesTest, LargeCodeObjectWithSignalHandler) {
   SignalSender signal_sender(isolate());
   signal_sender.Start();
   // Take an initial sample.
-  std::vector<MemoryRange> initial_pages =
-      SamplingThread::DoSynchronousSample(isolate());
+  SamplingThread::DoSynchronousSample(isolate());
   SamplingThread sampling_thread(&signal_sender);
 
   sampling_thread.StartSynchronously();

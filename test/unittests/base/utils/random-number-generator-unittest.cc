@@ -89,22 +89,18 @@ TEST_P(RandomNumberGeneratorTest, NextDoubleReturnsValueBetween0And1) {
 
 TEST(RandomNumberGenerator, NextSampleInvalidParam) {
   RandomNumberGenerator rng(123);
-  std::vector<uint64_t> sample;
-  ASSERT_DEATH_IF_SUPPORTED(sample = rng.NextSample(10, 11),
-                            FATAL_MSG("n <= max"));
+  ASSERT_DEATH_IF_SUPPORTED(USE(rng.NextSample(10, 11)), FATAL_MSG("n <= max"));
 }
 
 TEST(RandomNumberGenerator, NextSampleSlowInvalidParam1) {
   RandomNumberGenerator rng(123);
-  std::vector<uint64_t> sample;
-  ASSERT_DEATH_IF_SUPPORTED(sample = rng.NextSampleSlow(10, 11),
+  ASSERT_DEATH_IF_SUPPORTED(USE(rng.NextSampleSlow(10, 11)),
                             FATAL_MSG("max - excluded.size"));
 }
 
 TEST(RandomNumberGenerator, NextSampleSlowInvalidParam2) {
   RandomNumberGenerator rng(123);
-  std::vector<uint64_t> sample;
-  ASSERT_DEATH_IF_SUPPORTED(sample = rng.NextSampleSlow(5, 3, {0, 2, 3}),
+  ASSERT_DEATH_IF_SUPPORTED(USE(rng.NextSampleSlow(5, 3, {0, 2, 3})),
                             FATAL_MSG("max - excluded.size"));
 }
 

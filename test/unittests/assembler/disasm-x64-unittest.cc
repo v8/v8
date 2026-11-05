@@ -1553,7 +1553,6 @@ TEST_F(DisasmX64Test, DisasmX64CheckOutputF16C) {
   }
 
   DisassemblerTester t;
-  std::string actual, exp;
   CpuFeatureScope scope(&t.assm_, F16C);
 
   COMPARE("c4e27d13c1           vcvtph2ps ymm0,xmm1", vcvtph2ps(ymm0, xmm1));

@@ -288,7 +288,6 @@ WASM_COMPILED_EXEC_TEST(WasmCollectPossibleBreakpoints) {
   CppGCManaged<NativeModule>::Ptr native_module =
       instance->module_object()->native_module();
 
-  std::vector<debug::Location> locations;
   // Check all locations for function 0.
   CheckLocations(&runner, native_module.raw(), {0, 0}, {0, 10},
                  {{0, 1}, {0, 2}, {0, 4}, {0, 6}, {0, 7}});

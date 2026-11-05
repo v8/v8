@@ -2145,7 +2145,6 @@ std::optional<ParseResult> MakeNameAndType(ParseResultIterator* child_results) {
 
 std::optional<ParseResult> MakeEnumEntry(ParseResultIterator* child_results) {
   AnnotationSet annotations(child_results, {}, {ANNOTATION_SAME_ENUM_VALUE_AS});
-  std::vector<ConditionalAnnotation> conditions;
   std::optional<std::string> alias_entry =
       annotations.GetStringParam(ANNOTATION_SAME_ENUM_VALUE_AS);
 

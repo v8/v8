@@ -3438,8 +3438,9 @@ VisitResult ImplementationVisitor::Visit(CallMethodExpression* expr) {
   StackScope scope(this);
   Arguments arguments;
   std::string method_name = expr->method->name->value;
-  TypeVector specialization_types =
-      TypeVisitor::ComputeTypeVector(expr->method->generic_arguments);
+  // Method calls don't use the generic arguments, but resolve them anyway so
+  // that invalid types are still reported.
+  TypeVisitor::ComputeTypeVector(expr->method->generic_arguments);
   LocationReference target = GetLocationReference(expr->target);
   if (!target.IsVariableAccess()) {
     VisitResult result = GenerateFetchFromLocation(target);
@@ -3454,7 +3455,6 @@ VisitResult ImplementationVisitor::Visit(CallMethodExpression* expr) {
     arguments.parameters.push_back(Visit(arg));
   }
   arguments.labels = LabelsFromIdentifiers(expr->labels);
-  TypeVector argument_types = arguments.parameters.ComputeTypeVector();
   DCHECK_EQ(expr->method->namespace_qualification.size(), 0);
   QualifiedName qualified_name = QualifiedName(method_name);
   Callable* callable = LookupMethod(method_name, target_type, arguments, {});

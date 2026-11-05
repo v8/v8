@@ -185,7 +185,6 @@ v8::MaybeLocal<v8::Module> InspectorIsolateData::ModuleResolveCallback(
     v8::Local<v8::Module> referrer) {
   // TODO(v8:11189) Consider JSON modules support in the InspectorClient
   InspectorIsolateData* data = InspectorIsolateData::FromContext(context);
-  std::string str = *v8::String::Utf8Value(data->isolate(), specifier);
   v8::MaybeLocal<v8::Module> maybe_module =
       data->modules_[ToVector(data->isolate(), specifier)].Get(data->isolate());
   if (maybe_module.IsEmpty()) {
