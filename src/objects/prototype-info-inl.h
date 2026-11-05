@@ -116,7 +116,8 @@ void PrototypeInfo::set_cached_handler(int index,
   cached_handler_[index].store(this, value, mode);
 }
 
-Tagged<MaybeObject> PrototypeInfo::ObjectCreateMap() {
+Tagged<MaybeObject> PrototypeInfo::ObjectCreateMap(
+    Tagged<Context> accessing_context) {
   auto derived = derived_maps();
   if (IsUndefined(derived)) {
     return Tagged<MaybeObject>();
@@ -126,10 +127,14 @@ Tagged<MaybeObject> PrototypeInfo::ObjectCreateMap() {
   DCHECK_GT(derived_list->length().value(), 0);
   Tagged<MaybeObject> el = derived_list->Get(0);
   DCHECK(el.IsWeakOrCleared());
+  DCHECK_IMPLIES(!el.IsCleared(),
+                 Cast<Map>(el.GetHeapObjectAssumeWeak())
+                     ->BelongsToSameNativeContextAs(accessing_context));
   return el;
 }
 
-Tagged<MaybeObject> PrototypeInfo::ObjectCreateMap(AcquireLoadTag tag) {
+Tagged<MaybeObject> PrototypeInfo::ObjectCreateMap(
+    Tagged<Context> accessing_context, AcquireLoadTag tag) {
   auto derived = derived_maps(tag);
   if (IsUndefined(derived)) {
     return Tagged<MaybeObject>();
@@ -139,6 +144,9 @@ Tagged<MaybeObject> PrototypeInfo::ObjectCreateMap(AcquireLoadTag tag) {
   DCHECK_GT(derived_list->length().value(), 0);
   Tagged<MaybeObject> el = derived_list->get(0, kAcquireLoad);
   DCHECK(el.IsWeakOrCleared());
+  DCHECK_IMPLIES(!el.IsCleared(),
+                 Cast<Map>(el.GetHeapObjectAssumeWeak())
+                     ->BelongsToSameNativeContextAs(accessing_context));
   return el;
 }
 
@@ -146,6 +154,8 @@ Tagged<MaybeObject> PrototypeInfo::ObjectCreateMap(AcquireLoadTag tag) {
 void PrototypeInfo::SetObjectCreateMap(DirectHandle<PrototypeInfo> info,
                                        DirectHandle<Map> map,
                                        Isolate* isolate) {
+  DCHECK(map->BelongsToSameNativeContextAs(isolate->raw_native_context()));
+  DCHECK(map->BelongsToSameNativeContextAs(map->prototype()->map()));
   if (IsUndefined(info->derived_maps())) {
     Tagged<WeakArrayList> derived = *isolate->factory()->NewWeakArrayList(1);
     derived->Set(0, MakeWeak(*map));
