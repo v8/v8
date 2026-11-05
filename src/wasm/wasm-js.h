@@ -54,6 +54,7 @@ CompileTimeImportsFromOptions(const v8::WasmModuleObject::CompileOptions&);
   V(WebAssemblyModuleCustomSections)       \
   V(WebAssemblyModuleExports)              \
   V(WebAssemblyModuleImports)              \
+  V(WebAssemblyPromising)                  \
   V(WebAssemblyTableGet)                   \
   V(WebAssemblyTableGetLength)             \
   V(WebAssemblyTableGrow)                  \

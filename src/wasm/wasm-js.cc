@@ -2259,7 +2259,7 @@ BUILTIN(WebAssemblyException) {
 }
 
 // WebAssembly.promising(Function) -> Function
-void WebAssemblyPromising(const v8::FunctionCallbackInfo<v8::Value>& info) {
+void WebAssemblyPromisingImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   WasmJSApiScope js_api_scope{info, "WebAssembly.promising()"};
   auto [isolate, thrower] = js_api_scope.isolate_and_thrower();
   isolate->CountUsage(v8::Isolate::kWasmJavaScriptPromiseIntegration);
@@ -3450,7 +3450,7 @@ bool WasmJs::InstallJSPromiseIntegration(Isolate* isolate,
                    Context::WASM_SUSPENDING_CONSTRUCTOR_INDEX,
                    WASM_SUSPENDING_OBJECT_TYPE,
                    WasmSuspendingObject::kHeaderSize, "WebAssembly.Suspending");
-  InstallFunc(isolate, webassembly, "promising", WebAssemblyPromising, 1);
+  InstallFunc(isolate, webassembly, "promising", wasm::WebAssemblyPromising, 1);
   InstallError(isolate, webassembly, isolate->factory()->SuspendError_string(),
                Context::WASM_SUSPEND_ERROR_FUNCTION_INDEX);
   return true;
