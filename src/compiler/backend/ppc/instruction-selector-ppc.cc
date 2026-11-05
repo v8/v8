@@ -376,7 +376,9 @@ void VisitStoreCommon(InstructionSelector* selector, OpIndex node,
 
   if (write_barrier_kind != kNoWriteBarrier &&
       !v8_flags.disable_write_barriers) {
-    DCHECK(CanBeTaggedOrCompressedPointer(rep));
+    DCHECK(CanBeTaggedOrCompressedPointer(rep) ||
+           (write_barrier_kind == kSkippedWriteBarrier &&
+            rep == MachineRepresentation::kTaggedSigned));
     // Uncompressed stores should not happen if we need a write barrier.
     CHECK((store.ts_stored_rep() !=
            MemoryRepresentation::AnyUncompressedTagged()) &&
@@ -407,6 +409,8 @@ void VisitStoreCommon(InstructionSelector* selector, OpIndex node,
     if (write_barrier_kind == kSkippedWriteBarrier) {
       code = is_atomic ? kArchAtomicStoreSkippedWriteBarrier
                        : kArchStoreSkippedWriteBarrier;
+      code |=
+          CheckSmiField::encode(rep == MachineRepresentation::kTaggedSigned);
     } else {
       RecordWriteMode record_write_mode =
           WriteBarrierKindToRecordWriteMode(write_barrier_kind);

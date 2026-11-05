@@ -1602,10 +1602,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
 
       DCHECK(v8_flags.verify_write_barriers);
-      auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
-          this, object, value, kScratchReg, &unwinding_info_writer_);
-      __ JumpIfNotSmi(value, ool->entry());
-      __ bind(ool->exit());
+      if (CheckSmiField::decode(instr->opcode())) {
+        Condition is_smi = __ CheckSmi(value);
+        __ Check(is_smi, AbortReason::kTaggedSignedNotSmi);
+      } else {
+        auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
+            this, object, value, kScratchReg, &unwinding_info_writer_);
+        __ JumpIfNotSmi(value, ool->entry());
+        __ bind(ool->exit());
+      }
 
       __ StoreTaggedField(value, operand, r0);
       break;
