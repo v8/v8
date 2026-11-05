@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "test/cctest/trace-extension.h"
+#include "test/unittests/logging/trace-extension.h"
 
 #include "include/v8-profiler.h"
 #include "include/v8-template.h"
@@ -33,7 +33,7 @@
 #include "src/execution/vm-state-inl.h"
 #include "src/objects/smi.h"
 #include "src/profiler/tick-sample.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/api/api-test-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -43,7 +43,6 @@ const char* TraceExtension::kSource =
     "native function js_trace();"
     "native function js_entry_sp();"
     "native function js_entry_sp_level2();";
-
 
 v8::Local<v8::FunctionTemplate> TraceExtension::GetNativeFunctionTemplate(
     v8::Isolate* isolate, v8::Local<v8::String> name) {
@@ -86,7 +85,9 @@ Address TraceExtension::GetFP(const v8::FunctionCallbackInfo<v8::Value>& info) {
   return fp;
 }
 
-static struct { TickSample* sample; } trace_env = {nullptr};
+static struct {
+  TickSample* sample;
+} trace_env = {nullptr};
 
 void TraceExtension::InitTraceEnv(TickSample* sample) {
   trace_env.sample = sample;
@@ -98,7 +99,7 @@ void TraceExtension::DoTrace(Address fp) {
   // sp is only used to define stack high bound
   regs.sp = reinterpret_cast<void*>(
       reinterpret_cast<Address>(trace_env.sample) - 10240);
-  trace_env.sample->Init(CcTest::i_isolate(), regs,
+  trace_env.sample->Init(i::Isolate::Current(), regs,
                          TickSample::kSkipCEntryFrame, true);
 }
 
@@ -113,13 +114,12 @@ void TraceExtension::Trace(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 // Hide c_entry_fp to emulate situation when sampling is done while
 // pure JS code is being executed
-static void DoTraceHideCEntryFPAddress(Address fp) {
-  v8::internal::Address saved_c_frame_fp =
-      *(CcTest::i_isolate()->c_entry_fp_address());
+static void DoTraceHideCEntryFPAddress(i::Isolate* isolate, Address fp) {
+  v8::internal::Address saved_c_frame_fp = *(isolate->c_entry_fp_address());
   CHECK(saved_c_frame_fp);
-  *(CcTest::i_isolate()->c_entry_fp_address()) = 0;
+  *(isolate->c_entry_fp_address()) = 0;
   i::TraceExtension::DoTrace(fp);
-  *(CcTest::i_isolate()->c_entry_fp_address()) = saved_c_frame_fp;
+  *(isolate->c_entry_fp_address()) = saved_c_frame_fp;
 }
 
 void TraceExtension::JSTrace(const v8::FunctionCallbackInfo<v8::Value>& info) {
@@ -128,12 +128,12 @@ void TraceExtension::JSTrace(const v8::FunctionCallbackInfo<v8::Value>& info) {
   i::VMState<EXTERNAL> state(isolate);
   Address address = reinterpret_cast<Address>(&TraceExtension::JSTrace);
   i::ExternalCallbackScope call_scope(isolate, address);
-  DoTraceHideCEntryFPAddress(GetFP(info));
+  DoTraceHideCEntryFPAddress(isolate, GetFP(info));
 }
 
 Address TraceExtension::GetJsEntrySp() {
-  CHECK(CcTest::i_isolate()->thread_local_top());
-  return CcTest::i_isolate()->js_entry_sp();
+  CHECK(i::Isolate::Current()->thread_local_top());
+  return i::Isolate::Current()->js_entry_sp();
 }
 
 void TraceExtension::JSEntrySP(

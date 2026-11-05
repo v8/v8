@@ -336,6 +336,9 @@
 ['asan == True', {
   # Skip tests not suitable for ASAN.
   'AssemblerX64.AssemblerX64XchglOperations': [SKIP],
+
+  # BUG(v8:7587): Strange breakage on Mac.
+  'LogStackTracerTest.PureJSStackTrace': [SKIP],
 }],  # 'asan == True'
 
 ['msan == True', {
@@ -588,6 +591,8 @@
 
 ##############################################################################
 ['has_jitless', {
+  # invocation_count maintenance is disabled.
+  'DebugTest.DebugCoverage*': [SKIP],
   # Feedback collection maintenance is (mostly) disabled.
   'FeedbackVectorTest.Vector*': [SKIP],
   'HeapTest.IncrementalMarkingPreservesMonomorphicCallIC': [SKIP],
@@ -642,6 +647,7 @@
   'VerifyTypeTest.*': [SKIP],
   'CodePagesTest.*': [SKIP],
   'ConcurrentAllocationUninitializedTest.*': [SKIP],
+  'DebugHelperTest.GetObjectProperties': [SKIP],
   'HeapTest.CodeLargeObjectSpace': [SKIP],
   'TestWithPlatform.CodeLargeObjectSpace64k': [SKIP],
   'HeapTest.CodeObjectRegistry': [SKIP],
@@ -675,6 +681,7 @@
   'RunJSOpsTest.*': [SKIP],
   'RunTailCallsTest.*': [SKIP],
   'UninitializedSerializeTest.*': [SKIP],
+  'UnwinderCodePagesTest.PCIsInV8_LargeCodeObject_CodePagesAPI': [SKIP],
   'WeakReferencesTest.WeakReferencesBasic': [SKIP],
 
   # Field representation tracking is disabled in jitless mode.
@@ -688,8 +695,16 @@
 }], # lite_mode or variant == jitless
 
 ##############################################################################
+# The stack unwinder API is only supported on x64, arm64 and arm.
+['arch != x64 and arch != arm64 and arch != arm', {
+  'UnwinderCodePagesTest.*': [SKIP],
+}],
+
+##############################################################################
 ['variant == no_wasm_traps', {
   'APIExceptionTest.*': [SKIP],
+  'DebugTest.*': [SKIP],
+  'DebugUninitializedTest.*': [SKIP],
   'LogTest.*': [SKIP],
   'TestWithIsolate.Issue23768': [SKIP],
   'LogAllTest.LogAll': [SKIP],
@@ -813,6 +828,9 @@
 }],  # 'system == android'
 
 ['variant == stress_concurrent_inlining', {
+  # crbug.com/v8/11649: Improper access to BreakInfo and friends.
+  'DebugTest.BreakPointInlinedBuiltin': [PASS, FAIL],
+  'DebugTest.BreakPointInlining': [PASS, FAIL],
   # crbug.com/v8/11513: Flakily failing due to the additional compile task.
   'HeapTest.CellsInOptimizedCodeAreWeak': [PASS, FAIL],
   'HeapTest.EnsureAllocationSiteDependentCodesProcessed': [PASS, FAIL],
@@ -865,6 +883,11 @@
   'MacroAssemblerTest.TestCheck': [SKIP],
   'MacroAssemblerTest.TestHardAbort': [SKIP],
 }],  # simulator_run
+
+['arch == ppc64 and simulator_run', {
+  # Pass but take too long with the simulator.
+  'DebugTest.DebugBreakStackTrace': [PASS, SLOW],
+}],  # 'arch == ppc64 and simulator_run'
 
 ##############################################################################
 ['sandbox_hardware_support', {

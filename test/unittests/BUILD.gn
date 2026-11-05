@@ -280,6 +280,7 @@ v8_cluster_source_set("v8_unittests_sources") {
     "api/access-check-unittest.cc",
     "api/accessor-unittest.cc",
     "api/api-icu-unittest.cc",
+    "api/api-test-utils.h",
     "api/context-unittest.cc",
     "api/deserialize-unittest.cc",
     "api/dictionary-template-unittest.cc",
@@ -357,8 +358,10 @@ v8_cluster_source_set("v8_unittests_sources") {
     "date/date-cache-unittest.cc",
     "date/date-unittest.cc",
     "debug/debug-block-list-unittest.cc",
+    "debug/debug-helper-unittest.cc",
     "debug/debug-property-iterator-unittest.cc",
     "debug/debug-scope-info-unittest.cc",
+    "debug/debug-unittest.cc",
     "deoptimizer/deoptimization-unittest.cc",
     "diagnostics/eh-frame-iterator-unittest.cc",
     "diagnostics/eh-frame-writer-unittest.cc",
@@ -367,6 +370,7 @@ v8_cluster_source_set("v8_unittests_sources") {
     "execution/microtask-queue-unittest.cc",
     "execution/thread-termination-unittest.cc",
     "execution/threads-unittest.cc",
+    "execution/unwinder-code-pages-unittest.cc",
     "flags/flag-definitions-unittest.cc",
     "fuzztest.cc",
     "fuzztest.h",
@@ -463,6 +467,8 @@ v8_cluster_source_set("v8_unittests_sources") {
     "libsampler/signals-and-mutexes-unittest.cc",
     "logging/counters-unittest.cc",
     "logging/log-unittest.cc",
+    "logging/trace-extension.cc",
+    "logging/trace-extension.h",
     "maglev/hamt-unittest.cc",
     "maglev/maglev-assembler-unittest.cc",
     "maglev/maglev-graph-builder-unittest.cc",
@@ -590,6 +596,9 @@ v8_cluster_source_set("v8_unittests_sources") {
     "compiler/run-load-store-unittest.cc",
     "compiler/run-variables-unittest.cc",
     "compiler/linkage-unittest.cc",
+    "debug/debug-unittest.cc",
+    "execution/unwinder-code-pages-unittest.cc",  # Clashes with
+                                                  # thread-termination-unittest.cc.
     "heap/cppgc-js/cpp-heap-stack-start-marker-unittest.cc",
     "heap/cppgc-js/embedder-roots-handler-unittest.cc",
     "heap/cppgc-js/unified-heap-snapshot-unittest.cc",
@@ -882,6 +891,9 @@ v8_cluster_source_set("v8_unittests_sources") {
       "execution/pointer-auth-arm64-unittest.cc",
       "execution/simulator-arm64-unittest.cc",
     ]
+    if (is_win) {
+      sources += [ "execution/stack-unwinding-win64-unittest.cc" ]
+    }
     if (v8_enable_turbofan) {
       sources += [
         "compiler/arm64/turboshaft-instruction-scheduler-arm64-unittest.cc",
@@ -893,6 +905,7 @@ v8_cluster_source_set("v8_unittests_sources") {
       "assembler/assembler-ia32-unittest.cc",
       "assembler/disasm-ia32-unittest.cc",
       "assembler/macro-assembler-ia32-unittest.cc",
+      "logging/log-stack-tracer-unittest.cc",
     ]
     if (v8_enable_turbofan) {
       sources +=
@@ -942,8 +955,12 @@ v8_cluster_source_set("v8_unittests_sources") {
       "assembler/assembler-x64-unittest.cc",
       "assembler/disasm-x64-unittest.cc",
       "assembler/macro-assembler-x64-unittest.cc",
+      "logging/log-stack-tracer-unittest.cc",
       "regress/regress-536954139-unittest.cc",
     ]
+    if (is_win) {
+      sources += [ "execution/stack-unwinding-win64-unittest.cc" ]
+    }
     if (v8_enable_turbofan) {
       sources +=
           [ "compiler/x64/turboshaft-instruction-selector-x64-unittest.cc" ]
@@ -1029,6 +1046,7 @@ v8_cluster_source_set("v8_unittests_sources") {
     "../..:v8_shared_internal_headers",
     "../..:v8_version",
     "../../third_party/inspector_protocol:crdtp_test",
+    "../../tools/debug_helper:v8_debug_helper",
     "//build/win:default_exe_manifest",
     "//testing/gmock",
     "//testing/gtest",

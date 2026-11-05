@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "src/debug/debug.h"
+
 #include <stdlib.h>
 
 #include <array>
@@ -38,7 +40,6 @@
 #include "src/codegen/compilation-cache.h"
 #include "src/debug/debug-interface.h"
 #include "src/debug/debug-scopes.h"
-#include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/microtask-queue.h"
@@ -46,8 +47,14 @@
 #include "src/objects/objects-inl.h"
 #include "src/sandbox/sandboxable-thread.h"
 #include "src/utils/utils.h"
-#include "test/cctest/cctest.h"
-#include "test/cctest/heap/heap-utils.h"
+#include "test/unittests/api/api-test-utils.h"
+#include "test/unittests/heap/heap-utils.h"
+
+namespace v8 {
+namespace debug_unittest {
+
+using DebugTest = ::v8::TestWithIsolate;
+using DebugUninitializedTest = ::v8::TestWithPlatform;
 
 using ::v8::internal::DirectHandle;
 using ::v8::internal::Handle;
@@ -70,7 +77,6 @@ static v8::Local<v8::Function> CompileFunction(v8::Isolate* isolate,
   return v8::Local<v8::Function>::Cast(maybe_function.ToLocalChecked());
 }
 
-
 // Compile and run the supplied source and return the requested function.
 static v8::Local<v8::Function> CompileFunction(LocalContext* env,
                                                const char* source,
@@ -82,7 +88,7 @@ static v8::Local<v8::Function> CompileFunction(LocalContext* env,
 static bool HasBreakInfo(v8::Local<v8::Function> fun) {
   DirectHandle<v8::internal::JSFunction> f =
       Cast<v8::internal::JSFunction>(v8::Utils::OpenDirectHandle(*fun));
-  return f->shared()->HasBreakInfo(CcTest::i_isolate());
+  return f->shared()->HasBreakInfo(i::Isolate::Current());
 }
 
 // Set a break point in a function with a position relative to function start,
@@ -108,7 +114,7 @@ static i::Handle<i::BreakPoint> SetBreakPoint(v8::Local<v8::Function> fun,
 }
 
 static void ClearBreakPoint(i::DirectHandle<i::BreakPoint> break_point) {
-  v8::internal::Isolate* isolate = CcTest::i_isolate();
+  v8::internal::Isolate* isolate = i::Isolate::Current();
   v8::internal::Debug* debug = isolate->debug();
   debug->ClearBreakPoint(break_point);
 }
@@ -124,22 +130,23 @@ static void ChangeBreakOnException(v8::Isolate* isolate, bool caught,
 
 // Prepare to step to next break location.
 static void PrepareStep(i::StepAction step_action) {
-  v8::internal::Debug* debug = CcTest::i_isolate()->debug();
+  v8::internal::Debug* debug = i::Isolate::Current()->debug();
   debug->PrepareStep(step_action);
 }
 
+}  // namespace debug_unittest
+
 // This function is in namespace v8::internal to be friend with class
 // v8::internal::Debug.
-namespace v8 {
 namespace internal {
 
 DirectHandle<ProtectedFixedArray> GetDebuggedFunctions() {
-  i::Isolate* isolate = CcTest::i_isolate();
+  i::Isolate* isolate = i::Isolate::Current();
   DebugInfoCollection* infos = &isolate->debug()->debug_infos_;
 
   int count = static_cast<int>(infos->Size());
   DirectHandle<ProtectedFixedArray> debugged_functions =
-      CcTest::i_isolate()->factory()->NewProtectedFixedArray(count);
+      i::Isolate::Current()->factory()->NewProtectedFixedArray(count);
 
   int i = 0;
   DebugInfoCollection::Iterator it(infos);
@@ -155,37 +162,36 @@ DirectHandle<ProtectedFixedArray> GetDebuggedFunctions() {
 void CheckDebuggerUnloaded() {
   // Check that the debugger context is cleared and that there is no debug
   // information stored for the debugger.
-  CHECK_EQ(CcTest::i_isolate()->debug()->debug_infos_.Size(), 0);
+  CHECK_EQ(i::Isolate::Current()->debug()->debug_infos_.Size(), 0);
 
   // Concurrent (OSR) compilation jobs can still be running on background
   // threads, e.g. when a function was deoptimized on a debug break and then
   // immediately re-queued for OSR before termination. Their handles and
   // conservatively scanned background stacks could keep DebugInfo objects
   // alive, so drain and discard all pending jobs before collecting garbage.
-  CcTest::i_isolate()->AbortConcurrentOptimization(BlockingBehavior::kBlock);
+  i::Isolate::Current()->AbortConcurrentOptimization(BlockingBehavior::kBlock);
 
   // Collect garbage to ensure weak handles are cleared.
   {
     // We need to invoke GC without stack, otherwise some objects may not be
     // reclaimed because of conservative stack scanning.
     i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-        CcTest::heap());
-    heap::InvokeMajorGC(CcTest::heap());
-    heap::InvokeMajorGC(CcTest::heap());
+        i::Isolate::Current()->heap());
+    i::InvokeMajorGC(i::Isolate::Current());
+    i::InvokeMajorGC(i::Isolate::Current());
   }
 
   // Iterate the heap and check that there are no debugger related objects left.
-  HeapObjectIterator iterator(CcTest::heap());
+  HeapObjectIterator iterator(i::Isolate::Current()->heap());
   for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     CHECK(!IsDebugInfo(obj));
   }
 }
 
-
 }  // namespace internal
-}  // namespace v8
 
+namespace debug_unittest {
 
 // Check that the debugger has been fully unloaded.
 static void CheckDebuggerUnloaded() { v8::internal::CheckDebuggerUnloaded(); }
@@ -207,7 +213,7 @@ class DebugEventCounter : public v8::debug::DebugDelegate {
     // Perform a full deoptimization when the specified number of
     // breaks have been hit.
     if (break_point_hit_count == break_point_hit_count_deoptimize) {
-      i::Deoptimizer::DeoptimizeAll(CcTest::i_isolate());
+      i::Deoptimizer::DeoptimizeAll(i::Isolate::Current());
     }
     if (step_action_ != StepNone) PrepareStep(step_action_);
   }
@@ -232,10 +238,10 @@ class DebugEventBreakPointCollectGarbage : public v8::debug::DebugDelegate {
     break_point_hit_count++;
     if (break_point_hit_count % 2 == 0) {
       // Scavenge.
-      i::heap::InvokeMinorGC(CcTest::heap());
+      i::InvokeMinorGC(i::Isolate::Current());
     } else {
       // Mark sweep compact.
-      i::heap::InvokeMajorGC(CcTest::heap());
+      i::InvokeMajorGC(i::Isolate::Current());
     }
   }
 };
@@ -252,10 +258,10 @@ class DebugEventBreak : public v8::debug::DebugDelegate {
 
     // Run the garbage collector to enforce heap verification if option
     // --verify-heap is set.
-    i::heap::InvokeMinorGC(CcTest::heap());
+    i::InvokeMinorGC(i::Isolate::Current());
 
     // Set the break flag again to come back here as soon as possible.
-    v8::debug::SetBreakOnNextFunctionCall(CcTest::isolate());
+    v8::debug::SetBreakOnNextFunctionCall(v8::Isolate::GetCurrent());
   }
 };
 
@@ -273,8 +279,8 @@ class DebugEventBreakMax : public v8::debug::DebugDelegate {
   void BreakProgramRequested(v8::Local<v8::Context>,
                              const std::vector<v8::debug::BreakpointId>&,
                              v8::debug::BreakReasons break_reasons) override {
-    v8::Isolate* v8_isolate = CcTest::isolate();
-    v8::internal::Isolate* isolate = CcTest::i_isolate();
+    v8::Isolate* v8_isolate = v8::Isolate::GetCurrent();
+    v8::internal::Isolate* isolate = i::Isolate::Current();
     if (break_point_hit_count < max_break_point_hit_count) {
       // Count the number of breaks.
       break_point_hit_count++;
@@ -299,7 +305,7 @@ class DebugEventBreakMax : public v8::debug::DebugDelegate {
 
 // Test that the debug info in the VM is in sync with the functions being
 // debugged.
-TEST(DebugInfo) {
+TEST_F(DebugTest, DebugInfo) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   // Create a couple of functions for the test.
@@ -335,9 +341,8 @@ TEST(DebugInfo) {
   CHECK(!HasBreakInfo(bar));
 }
 
-
 // Test that a break point can be set at an IC store location.
-TEST(BreakPointICStore) {
+TEST_F(DebugTest, BreakPointICStore) {
   break_point_hit_count = 0;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -368,7 +373,7 @@ TEST(BreakPointICStore) {
 }
 
 // Test that a break point can be set at an IC store location.
-TEST(BreakPointCondition) {
+TEST_F(DebugTest, BreakPointCondition) {
   break_point_hit_count = 0;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -401,7 +406,7 @@ TEST(BreakPointCondition) {
 }
 
 // Test that a break point can be set at an IC load location.
-TEST(BreakPointICLoad) {
+TEST_F(DebugTest, BreakPointICLoad) {
   break_point_hit_count = 0;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -432,9 +437,8 @@ TEST(BreakPointICLoad) {
   CheckDebuggerUnloaded();
 }
 
-
 // Test that a break point can be set at an IC call location.
-TEST(BreakPointICCall) {
+TEST_F(DebugTest, BreakPointICCall) {
   break_point_hit_count = 0;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -464,9 +468,8 @@ TEST(BreakPointICCall) {
   CheckDebuggerUnloaded();
 }
 
-
 // Test that a break point can be set at an IC call location and survive a GC.
-TEST(BreakPointICCallWithGC) {
+TEST_F(DebugTest, BreakPointICCallWithGC) {
   break_point_hit_count = 0;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -506,9 +509,8 @@ TEST(BreakPointICCallWithGC) {
   CheckDebuggerUnloaded();
 }
 
-
 // Test that a break point can be set at an IC call location and survive a GC.
-TEST(BreakPointConstructCallWithGC) {
+TEST_F(DebugTest, BreakPointConstructCallWithGC) {
   break_point_hit_count = 0;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -548,8 +550,7 @@ TEST(BreakPointConstructCallWithGC) {
   CheckDebuggerUnloaded();
 }
 
-
-TEST(BreakPointBuiltin) {
+TEST_F(DebugTest, BreakPointBuiltin) {
   i::v8_flags.verify_get_js_builtin_state.Set(false);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -581,7 +582,7 @@ TEST(BreakPointBuiltin) {
   CheckDebuggerUnloaded();
 }
 
-TEST(BreakPointApiIntrinsics) {
+TEST_F(DebugTest, BreakPointApiIntrinsics) {
   i::v8_flags.verify_get_js_builtin_state.Set(false);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -685,7 +686,7 @@ TEST(BreakPointApiIntrinsics) {
   CheckDebuggerUnloaded();
 }
 
-TEST(BreakPointJSBuiltin) {
+TEST_F(DebugTest, BreakPointJSBuiltin) {
   i::v8_flags.verify_get_js_builtin_state.Set(false);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -717,7 +718,7 @@ TEST(BreakPointJSBuiltin) {
   CheckDebuggerUnloaded();
 }
 
-TEST(BreakPointBoundBuiltin) {
+TEST_F(DebugTest, BreakPointBoundBuiltin) {
   i::v8_flags.verify_get_js_builtin_state.Set(false);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -751,7 +752,7 @@ TEST(BreakPointBoundBuiltin) {
   CheckDebuggerUnloaded();
 }
 
-TEST(BreakPointConstructorBuiltin) {
+TEST_F(DebugTest, BreakPointConstructorBuiltin) {
   i::v8_flags.verify_get_js_builtin_state.Set(false);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -814,7 +815,7 @@ TEST(BreakPointConstructorBuiltin) {
   CheckDebuggerUnloaded();
 }
 
-TEST(BreakPointInlinedBuiltin) {
+TEST_F(DebugTest, BreakPointInlinedBuiltin) {
   i::v8_flags.verify_get_js_builtin_state.Set(false);
   i::v8_flags.allow_natives_syntax.Set(true);
   LocalContext env;
@@ -859,7 +860,7 @@ TEST(BreakPointInlinedBuiltin) {
   CheckDebuggerUnloaded();
 }
 
-TEST(BreakPointInlineBoundBuiltin) {
+TEST_F(DebugTest, BreakPointInlineBoundBuiltin) {
   i::v8_flags.verify_get_js_builtin_state.Set(false);
   i::v8_flags.allow_natives_syntax.Set(true);
   LocalContext env;
@@ -908,7 +909,7 @@ TEST(BreakPointInlineBoundBuiltin) {
   CheckDebuggerUnloaded();
 }
 
-TEST(BreakPointInlinedConstructorBuiltin) {
+TEST_F(DebugTest, BreakPointInlinedConstructorBuiltin) {
   i::v8_flags.verify_get_js_builtin_state.Set(false);
   i::v8_flags.allow_natives_syntax.Set(true);
   LocalContext env;
@@ -953,7 +954,7 @@ TEST(BreakPointInlinedConstructorBuiltin) {
   CheckDebuggerUnloaded();
 }
 
-TEST(BreakPointBuiltinConcurrentOpt) {
+TEST_F(DebugTest, BreakPointBuiltinConcurrentOpt) {
   i::v8_flags.verify_get_js_builtin_state.Set(false);
   i::v8_flags.allow_natives_syntax.Set(true);
   LocalContext env;
@@ -995,7 +996,7 @@ TEST(BreakPointBuiltinConcurrentOpt) {
   CheckDebuggerUnloaded();
 }
 
-TEST(BreakPointBuiltinTFOperator) {
+TEST_F(DebugTest, BreakPointBuiltinTFOperator) {
   i::v8_flags.verify_get_js_builtin_state.Set(false);
   i::v8_flags.allow_natives_syntax.Set(true);
   LocalContext env;
@@ -1040,7 +1041,7 @@ TEST(BreakPointBuiltinTFOperator) {
   CheckDebuggerUnloaded();
 }
 
-TEST(BreakPointBuiltinNewContext) {
+TEST_F(DebugTest, BreakPointBuiltinNewContext) {
   i::v8_flags.verify_get_js_builtin_state.Set(false);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -1087,7 +1088,7 @@ void NoOpFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(v8_num(2));
 }
 
-TEST(BreakPointApiFunction) {
+TEST_F(DebugTest, BreakPointApiFunction) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -1129,7 +1130,7 @@ TEST(BreakPointApiFunction) {
   CheckDebuggerUnloaded();
 }
 
-TEST(BreakPointApiConstructor) {
+TEST_F(DebugTest, BreakPointApiConstructor) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -1178,7 +1179,7 @@ void GetWrapperCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
           .ToLocalChecked());
 }
 
-TEST(BreakPointApiGetter) {
+TEST_F(DebugTest, BreakPointApiGetter) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -1232,7 +1233,7 @@ void SetWrapperCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
             .FromJust());
 }
 
-TEST(BreakPointApiSetter) {
+TEST_F(DebugTest, BreakPointApiSetter) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -1299,7 +1300,7 @@ TEST(BreakPointApiSetter) {
   CheckDebuggerUnloaded();
 }
 
-TEST(BreakPointApiAccessor) {
+TEST_F(DebugTest, BreakPointApiAccessor) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -1378,7 +1379,7 @@ TEST(BreakPointApiAccessor) {
   CheckDebuggerUnloaded();
 }
 
-TEST(Regress1163547) {
+TEST_F(DebugTest, Regress1163547) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -1422,11 +1423,11 @@ TEST(Regress1163547) {
   CheckDebuggerUnloaded();
 }
 
-TEST(BreakPointOnLazyAccessorInNewContexts) {
+TEST_F(DebugTest, BreakPointOnLazyAccessorInNewContexts) {
   // Check that breakpoints on a lazy accessor still get hit after creating new
   // contexts.
   // Regression test for parts of http://crbug.com/1368554.
-  v8::Isolate* isolate = CcTest::isolate();
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
 
   DebugEventCounter delegate;
@@ -1489,7 +1490,7 @@ TEST(BreakPointOnLazyAccessorInNewContexts) {
   CheckDebuggerUnloaded();
 }
 
-TEST(BreakPointInlineApiFunction) {
+TEST_F(DebugTest, BreakPointInlineApiFunction) {
   i::v8_flags.allow_natives_syntax.Set(true);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -1535,7 +1536,7 @@ TEST(BreakPointInlineApiFunction) {
 }
 
 // Test that a break point can be set at a return store location.
-TEST(BreakPointConditionBuiltin) {
+TEST_F(DebugTest, BreakPointConditionBuiltin) {
   i::v8_flags.verify_get_js_builtin_state.Set(false);
   i::v8_flags.allow_natives_syntax.Set(true);
   LocalContext env;
@@ -1665,7 +1666,7 @@ TEST(BreakPointConditionBuiltin) {
   CheckDebuggerUnloaded();
 }
 
-TEST(BreakPointInlining) {
+TEST_F(DebugTest, BreakPointInlining) {
   i::v8_flags.allow_natives_syntax.Set(true);
   break_point_hit_count = 0;
   LocalContext env;
@@ -1718,9 +1719,8 @@ static void CallWithBreakPoints(v8::Local<v8::Context> context,
   }
 }
 
-
 // Test GC during break point processing.
-TEST(GCDuringBreakPointProcessing) {
+TEST_F(DebugTest, GCDuringBreakPointProcessing) {
   break_point_hit_count = 0;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -1759,7 +1759,6 @@ TEST(GCDuringBreakPointProcessing) {
   CheckDebuggerUnloaded();
 }
 
-
 // Call the function three times with different garbage collections in between
 // and make sure that the break point survives.
 static void CallAndGC(v8::Local<v8::Context> context,
@@ -1772,20 +1771,19 @@ static void CallAndGC(v8::Local<v8::Context> context,
     CHECK_EQ(1 + i * 3, break_point_hit_count);
 
     // Scavenge and call function.
-    i::heap::InvokeMinorGC(CcTest::heap());
+    i::InvokeMinorGC(i::Isolate::Current());
     f->Call(context, recv, 0, nullptr).ToLocalChecked();
     CHECK_EQ(2 + i * 3, break_point_hit_count);
 
     // Mark sweep (and perhaps compact) and call function.
-    i::heap::InvokeMajorGC(CcTest::heap());
+    i::InvokeMajorGC(i::Isolate::Current());
     f->Call(context, recv, 0, nullptr).ToLocalChecked();
     CHECK_EQ(3 + i * 3, break_point_hit_count);
   }
 }
 
-
 // Test that a break point can be set at a return store location.
-TEST(BreakPointSurviveGC) {
+TEST_F(DebugTest, BreakPointSurviveGC) {
   break_point_hit_count = 0;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -1814,9 +1812,8 @@ TEST(BreakPointSurviveGC) {
   // Test IC call break point with garbage collection.
   {
     CompileFunction(&env, "function foo(){}", "foo");
-    foo = CompileFunction(&env,
-                          "function bar(){};function foo(){bar();}",
-                          "foo");
+    foo =
+        CompileFunction(&env, "function bar(){};function foo(){bar();}", "foo");
     SetBreakPoint(foo, 0);
   }
   CallAndGC(context, env->Global(), foo);
@@ -1842,7 +1839,7 @@ TEST(BreakPointSurviveGC) {
 }
 
 // Test that the debugger statement causes a break.
-TEST(DebuggerStatement) {
+TEST_F(DebugTest, DebuggerStatement) {
   break_point_hit_count = 0;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -1880,43 +1877,42 @@ TEST(DebuggerStatement) {
   CheckDebuggerUnloaded();
 }
 
-
 // Test setting a breakpoint on the debugger statement.
-TEST(DebuggerStatementBreakpoint) {
-    break_point_hit_count = 0;
-    LocalContext env;
-    v8::HandleScope scope(env.isolate());
-    v8::Local<v8::Context> context = env.local();
-    DebugEventCounter delegate;
-    v8::debug::SetDebugDelegate(env.isolate(), &delegate);
-    v8::Script::Compile(context,
-                        v8_str(env.isolate(), "function foo(){debugger;}"))
-        .ToLocalChecked()
-        ->Run(context)
-        .ToLocalChecked();
-    v8::Local<v8::Function> foo = v8::Local<v8::Function>::Cast(
-        env->Global()
-            ->Get(context, v8_str(env.isolate(), "foo"))
-            .ToLocalChecked());
+TEST_F(DebugTest, DebuggerStatementBreakpoint) {
+  break_point_hit_count = 0;
+  LocalContext env;
+  v8::HandleScope scope(env.isolate());
+  v8::Local<v8::Context> context = env.local();
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env.isolate(), &delegate);
+  v8::Script::Compile(context,
+                      v8_str(env.isolate(), "function foo(){debugger;}"))
+      .ToLocalChecked()
+      ->Run(context)
+      .ToLocalChecked();
+  v8::Local<v8::Function> foo = v8::Local<v8::Function>::Cast(
+      env->Global()
+          ->Get(context, v8_str(env.isolate(), "foo"))
+          .ToLocalChecked());
 
-    // The debugger statement triggers breakpoint hit
-    foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-    CHECK_EQ(1, break_point_hit_count);
+  // The debugger statement triggers breakpoint hit
+  foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
+  CHECK_EQ(1, break_point_hit_count);
 
-    i::DirectHandle<i::BreakPoint> bp = SetBreakPoint(foo, 0);
+  i::DirectHandle<i::BreakPoint> bp = SetBreakPoint(foo, 0);
 
-    // Set breakpoint does not duplicate hits
-    foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
-    CHECK_EQ(2, break_point_hit_count);
+  // Set breakpoint does not duplicate hits
+  foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
+  CHECK_EQ(2, break_point_hit_count);
 
-    ClearBreakPoint(bp);
-    v8::debug::SetDebugDelegate(env.isolate(), nullptr);
-    CheckDebuggerUnloaded();
+  ClearBreakPoint(bp);
+  v8::debug::SetDebugDelegate(env.isolate(), nullptr);
+  CheckDebuggerUnloaded();
 }
 
 // Test that the conditional breakpoints work event if code generation from
 // strings is prohibited in the debuggee context.
-TEST(ConditionalBreakpointWithCodeGenerationDisallowed) {
+TEST_F(DebugTest, ConditionalBreakpointWithCodeGenerationDisallowed) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -1925,11 +1921,11 @@ TEST(ConditionalBreakpointWithCodeGenerationDisallowed) {
 
   v8::Local<v8::Context> context = env.local();
   v8::Local<v8::Function> foo = CompileFunction(&env,
-    "function foo(x) {\n"
-    "  var s = 'String value2';\n"
-    "  return s + x;\n"
-    "}",
-    "foo");
+                                                "function foo(x) {\n"
+                                                "  var s = 'String value2';\n"
+                                                "  return s + x;\n"
+                                                "}",
+                                                "foo");
 
   // Set conditional breakpoint with condition 'true'.
   SetBreakPoint(foo, 4, "true");
@@ -1943,16 +1939,14 @@ TEST(ConditionalBreakpointWithCodeGenerationDisallowed) {
   CheckDebuggerUnloaded();
 }
 
-
 // Simple test of the stepping mechanism using only store ICs.
-TEST(DebugStepLinear) {
+TEST_F(DebugTest, DebugStepLinear) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
   // Create a function for testing stepping.
-  v8::Local<v8::Function> foo = CompileFunction(&env,
-                                                "function foo(){a=1;b=1;c=1;}",
-                                                "foo");
+  v8::Local<v8::Function> foo =
+      CompileFunction(&env, "function foo(){a=1;b=1;c=1;}", "foo");
 
   // Run foo to allow it to get optimized.
   CompileRun("a=0; b=0; c=0; foo();");
@@ -1975,7 +1969,7 @@ TEST(DebugStepLinear) {
   CheckDebuggerUnloaded();
 }
 
-TEST(DebugCountLinear) {
+TEST_F(DebugTest, DebugCountLinear) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -2003,7 +1997,7 @@ TEST(DebugCountLinear) {
 }
 
 // Test of the stepping mechanism for keyed load in a loop.
-TEST(DebugStepKeyedLoadLoop) {
+TEST_F(DebugTest, DebugStepKeyedLoadLoop) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -2013,18 +2007,18 @@ TEST(DebugStepKeyedLoadLoop) {
 
   // Create a function for testing stepping of keyed load. The statement 'y=1'
   // is there to have more than one breakable statement in the loop, TODO(315).
-  v8::Local<v8::Function> foo = CompileFunction(
-      &env,
-      "function foo(a) {\n"
-      "  var x;\n"
-      "  var len = a.length;\n"
-      "  for (var i = 0; i < len; i++) {\n"
-      "    y = 1;\n"
-      "    x = a[i];\n"
-      "  }\n"
-      "}\n"
-      "y=0\n",
-      "foo");
+  v8::Local<v8::Function> foo =
+      CompileFunction(&env,
+                      "function foo(a) {\n"
+                      "  var x;\n"
+                      "  var len = a.length;\n"
+                      "  for (var i = 0; i < len; i++) {\n"
+                      "    y = 1;\n"
+                      "    x = a[i];\n"
+                      "  }\n"
+                      "}\n"
+                      "y=0\n",
+                      "foo");
 
   v8::Local<v8::Context> context = env.local();
   // Create array [0,1,2,3,4,5,6,7,8,9]
@@ -2053,9 +2047,8 @@ TEST(DebugStepKeyedLoadLoop) {
   CheckDebuggerUnloaded();
 }
 
-
 // Test of the stepping mechanism for keyed store in a loop.
-TEST(DebugStepKeyedStoreLoop) {
+TEST_F(DebugTest, DebugStepKeyedStoreLoop) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -2065,17 +2058,17 @@ TEST(DebugStepKeyedStoreLoop) {
 
   // Create a function for testing stepping of keyed store. The statement 'y=1'
   // is there to have more than one breakable statement in the loop, TODO(315).
-  v8::Local<v8::Function> foo = CompileFunction(
-      &env,
-      "function foo(a) {\n"
-      "  var len = a.length;\n"
-      "  for (var i = 0; i < len; i++) {\n"
-      "    y = 1;\n"
-      "    a[i] = 42;\n"
-      "  }\n"
-      "}\n"
-      "y=0\n",
-      "foo");
+  v8::Local<v8::Function> foo =
+      CompileFunction(&env,
+                      "function foo(a) {\n"
+                      "  var len = a.length;\n"
+                      "  for (var i = 0; i < len; i++) {\n"
+                      "    y = 1;\n"
+                      "    a[i] = 42;\n"
+                      "  }\n"
+                      "}\n"
+                      "y=0\n",
+                      "foo");
 
   v8::Local<v8::Context> context = env.local();
   // Create array [0,1,2,3,4,5,6,7,8,9]
@@ -2104,9 +2097,8 @@ TEST(DebugStepKeyedStoreLoop) {
   CheckDebuggerUnloaded();
 }
 
-
 // Test of the stepping mechanism for named load in a loop.
-TEST(DebugStepNamedLoadLoop) {
+TEST_F(DebugTest, DebugStepNamedLoadLoop) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -2116,23 +2108,23 @@ TEST(DebugStepNamedLoadLoop) {
 
   v8::Local<v8::Context> context = env.local();
   // Create a function for testing stepping of named load.
-  v8::Local<v8::Function> foo = CompileFunction(
-      &env,
-      "function foo() {\n"
-          "  var a = [];\n"
-          "  var s = \"\";\n"
-          "  for (var i = 0; i < 10; i++) {\n"
-          "    var v = new V(i, i + 1);\n"
-          "    v.y;\n"
-          "    a.length;\n"  // Special case: array length.
-          "    s.length;\n"  // Special case: string length.
-          "  }\n"
-          "}\n"
-          "function V(x, y) {\n"
-          "  this.x = x;\n"
-          "  this.y = y;\n"
-          "}\n",
-          "foo");
+  v8::Local<v8::Function> foo =
+      CompileFunction(&env,
+                      "function foo() {\n"
+                      "  var a = [];\n"
+                      "  var s = \"\";\n"
+                      "  for (var i = 0; i < 10; i++) {\n"
+                      "    var v = new V(i, i + 1);\n"
+                      "    v.y;\n"
+                      "    a.length;\n"  // Special case: array length.
+                      "    s.length;\n"  // Special case: string length.
+                      "  }\n"
+                      "}\n"
+                      "function V(x, y) {\n"
+                      "  this.x = x;\n"
+                      "  this.y = y;\n"
+                      "}\n",
+                      "foo");
 
   // Call function without any break points to ensure inlining is in place.
   foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
@@ -2150,7 +2142,6 @@ TEST(DebugStepNamedLoadLoop) {
   CheckDebuggerUnloaded();
 }
 
-
 static void DoDebugStepNamedStoreLoop(int expected) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -2161,15 +2152,15 @@ static void DoDebugStepNamedStoreLoop(int expected) {
 
   // Create a function for testing stepping of named store.
   v8::Local<v8::Context> context = env.local();
-  v8::Local<v8::Function> foo = CompileFunction(
-      &env,
-      "function foo() {\n"
-          "  var a = {a:1};\n"
-          "  for (var i = 0; i < 10; i++) {\n"
-          "    a.a = 2\n"
-          "  }\n"
-          "}\n",
-          "foo");
+  v8::Local<v8::Function> foo =
+      CompileFunction(&env,
+                      "function foo() {\n"
+                      "  var a = {a:1};\n"
+                      "  for (var i = 0; i < 10; i++) {\n"
+                      "    a.a = 2\n"
+                      "  }\n"
+                      "}\n",
+                      "foo");
 
   // Call function without any break points to ensure inlining is in place.
   foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
@@ -2187,12 +2178,11 @@ static void DoDebugStepNamedStoreLoop(int expected) {
   CheckDebuggerUnloaded();
 }
 
-
 // Test of the stepping mechanism for named load in a loop.
-TEST(DebugStepNamedStoreLoop) { DoDebugStepNamedStoreLoop(34); }
+TEST_F(DebugTest, DebugStepNamedStoreLoop) { DoDebugStepNamedStoreLoop(34); }
 
 // Test the stepping mechanism with different ICs.
-TEST(DebugStepLinearMixedICs) {
+TEST_F(DebugTest, DebugStepLinearMixedICs) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -2202,13 +2192,15 @@ TEST(DebugStepLinearMixedICs) {
 
   v8::Local<v8::Context> context = env.local();
   // Create a function for testing stepping.
-  v8::Local<v8::Function> foo = CompileFunction(&env,
-      "function bar() {};"
-      "function foo() {"
-      "  var x;"
-      "  var index='name';"
-      "  var y = {};"
-      "  a=1;b=2;x=a;y[index]=3;x=y[index];bar();}", "foo");
+  v8::Local<v8::Function> foo =
+      CompileFunction(&env,
+                      "function bar() {};"
+                      "function foo() {"
+                      "  var x;"
+                      "  var index='name';"
+                      "  var y = {};"
+                      "  a=1;b=2;x=a;y[index]=3;x=y[index];bar();}",
+                      "foo");
 
   // Run functions to allow them to get optimized.
   CompileRun("a=0; b=0; bar(); foo();");
@@ -2226,7 +2218,7 @@ TEST(DebugStepLinearMixedICs) {
   CheckDebuggerUnloaded();
 }
 
-TEST(DebugCountLinearMixedICs) {
+TEST_F(DebugTest, DebugCountLinearMixedICs) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -2260,7 +2252,7 @@ TEST(DebugCountLinearMixedICs) {
   CheckDebuggerUnloaded();
 }
 
-TEST(DebugStepDeclarations) {
+TEST_F(DebugTest, DebugStepDeclarations) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -2271,14 +2263,15 @@ TEST(DebugStepDeclarations) {
   v8::Local<v8::Context> context = env.local();
   // Create a function for testing stepping. Run it to allow it to get
   // optimized.
-  const char* src = "function foo() { "
-                    "  var a;"
-                    "  var b = 1;"
-                    "  var c = foo;"
-                    "  var d = Math.floor;"
-                    "  var e = b + d(1.2);"
-                    "}"
-                    "foo()";
+  const char* src =
+      "function foo() { "
+      "  var a;"
+      "  var b = 1;"
+      "  var c = foo;"
+      "  var d = Math.floor;"
+      "  var e = b + d(1.2);"
+      "}"
+      "foo()";
   v8::Local<v8::Function> foo = CompileFunction(&env, src, "foo");
 
   SetBreakPoint(foo, 0);
@@ -2294,8 +2287,7 @@ TEST(DebugStepDeclarations) {
   CheckDebuggerUnloaded();
 }
 
-
-TEST(DebugStepLocals) {
+TEST_F(DebugTest, DebugStepLocals) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -2306,14 +2298,15 @@ TEST(DebugStepLocals) {
   v8::Local<v8::Context> context = env.local();
   // Create a function for testing stepping. Run it to allow it to get
   // optimized.
-  const char* src = "function foo() { "
-                    "  var a,b;"
-                    "  a = 1;"
-                    "  b = a + 2;"
-                    "  b = 1 + 2 + 3;"
-                    "  a = Math.floor(b);"
-                    "}"
-                    "foo()";
+  const char* src =
+      "function foo() { "
+      "  var a,b;"
+      "  a = 1;"
+      "  b = a + 2;"
+      "  b = 1 + 2 + 3;"
+      "  a = Math.floor(b);"
+      "}"
+      "foo()";
   v8::Local<v8::Function> foo = CompileFunction(&env, src, "foo");
 
   SetBreakPoint(foo, 0);
@@ -2329,8 +2322,7 @@ TEST(DebugStepLocals) {
   CheckDebuggerUnloaded();
 }
 
-
-TEST(DebugStepIf) {
+TEST_F(DebugTest, DebugStepIf) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -2343,16 +2335,17 @@ TEST(DebugStepIf) {
   // Create a function for testing stepping. Run it to allow it to get
   // optimized.
   const int argc = 1;
-  const char* src = "function foo(x) { "
-                    "  a = 1;"
-                    "  if (x) {"
-                    "    b = 1;"
-                    "  } else {"
-                    "    c = 1;"
-                    "    d = 1;"
-                    "  }"
-                    "}"
-                    "a=0; b=0; c=0; d=0; foo()";
+  const char* src =
+      "function foo(x) { "
+      "  a = 1;"
+      "  if (x) {"
+      "    b = 1;"
+      "  } else {"
+      "    c = 1;"
+      "    d = 1;"
+      "  }"
+      "}"
+      "a=0; b=0; c=0; d=0; foo()";
   v8::Local<v8::Function> foo = CompileFunction(&env, src, "foo");
   SetBreakPoint(foo, 0);
 
@@ -2375,8 +2368,7 @@ TEST(DebugStepIf) {
   CheckDebuggerUnloaded();
 }
 
-
-TEST(DebugStepSwitch) {
+TEST_F(DebugTest, DebugStepSwitch) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -2389,22 +2381,23 @@ TEST(DebugStepSwitch) {
   // Create a function for testing stepping. Run it to allow it to get
   // optimized.
   const int argc = 1;
-  const char* src = "function foo(x) { "
-                    "  a = 1;"
-                    "  switch (x) {"
-                    "    case 1:"
-                    "      b = 1;"
-                    "    case 2:"
-                    "      c = 1;"
-                    "      break;"
-                    "    case 3:"
-                    "      d = 1;"
-                    "      e = 1;"
-                    "      f = 1;"
-                    "      break;"
-                    "  }"
-                    "}"
-                    "a=0; b=0; c=0; d=0; e=0; f=0; foo()";
+  const char* src =
+      "function foo(x) { "
+      "  a = 1;"
+      "  switch (x) {"
+      "    case 1:"
+      "      b = 1;"
+      "    case 2:"
+      "      c = 1;"
+      "      break;"
+      "    case 3:"
+      "      d = 1;"
+      "      e = 1;"
+      "      f = 1;"
+      "      break;"
+      "  }"
+      "}"
+      "a=0; b=0; c=0; d=0; e=0; f=0; foo()";
   v8::Local<v8::Function> foo = CompileFunction(&env, src, "foo");
   SetBreakPoint(foo, 0);
 
@@ -2434,8 +2427,7 @@ TEST(DebugStepSwitch) {
   CheckDebuggerUnloaded();
 }
 
-
-TEST(DebugStepWhile) {
+TEST_F(DebugTest, DebugStepWhile) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -2448,13 +2440,14 @@ TEST(DebugStepWhile) {
   // Create a function for testing stepping. Run it to allow it to get
   // optimized.
   const int argc = 1;
-  const char* src = "function foo(x) { "
-                    "  var a = 0;"
-                    "  while (a < x) {"
-                    "    a++;"
-                    "  }"
-                    "}"
-                    "foo()";
+  const char* src =
+      "function foo(x) { "
+      "  var a = 0;"
+      "  while (a < x) {"
+      "    a++;"
+      "  }"
+      "}"
+      "foo()";
   v8::Local<v8::Function> foo = CompileFunction(&env, src, "foo");
   SetBreakPoint(foo, 8);  // "var a = 0;"
 
@@ -2484,8 +2477,7 @@ TEST(DebugStepWhile) {
   CheckDebuggerUnloaded();
 }
 
-
-TEST(DebugStepDoWhile) {
+TEST_F(DebugTest, DebugStepDoWhile) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -2498,13 +2490,14 @@ TEST(DebugStepDoWhile) {
   // Create a function for testing stepping. Run it to allow it to get
   // optimized.
   const int argc = 1;
-  const char* src = "function foo(x) { "
-                    "  var a = 0;"
-                    "  do {"
-                    "    a++;"
-                    "  } while (a < x)"
-                    "}"
-                    "foo()";
+  const char* src =
+      "function foo(x) { "
+      "  var a = 0;"
+      "  do {"
+      "    a++;"
+      "  } while (a < x)"
+      "}"
+      "foo()";
   v8::Local<v8::Function> foo = CompileFunction(&env, src, "foo");
   SetBreakPoint(foo, 8);  // "var a = 0;"
 
@@ -2534,8 +2527,7 @@ TEST(DebugStepDoWhile) {
   CheckDebuggerUnloaded();
 }
 
-
-TEST(DebugStepFor) {
+TEST_F(DebugTest, DebugStepFor) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -2548,13 +2540,14 @@ TEST(DebugStepFor) {
   // Create a function for testing stepping. Run it to allow it to get
   // optimized.
   const int argc = 1;
-  const char* src = "function foo(x) { "
-                    "  a = 1;"
-                    "  for (i = 0; i < x; i++) {"
-                    "    b = 1;"
-                    "  }"
-                    "}"
-                    "a=0; b=0; i=0; foo()";
+  const char* src =
+      "function foo(x) { "
+      "  a = 1;"
+      "  for (i = 0; i < x; i++) {"
+      "    b = 1;"
+      "  }"
+      "}"
+      "a=0; b=0; i=0; foo()";
   v8::Local<v8::Function> foo = CompileFunction(&env, src, "foo");
 
   SetBreakPoint(foo, 8);  // "a = 1;"
@@ -2585,8 +2578,7 @@ TEST(DebugStepFor) {
   CheckDebuggerUnloaded();
 }
 
-
-TEST(DebugStepForContinue) {
+TEST_F(DebugTest, DebugStepForContinue) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -2599,19 +2591,20 @@ TEST(DebugStepForContinue) {
   // Create a function for testing stepping. Run it to allow it to get
   // optimized.
   const int argc = 1;
-  const char* src = "function foo(x) { "
-                    "  var a = 0;"
-                    "  var b = 0;"
-                    "  var c = 0;"
-                    "  for (var i = 0; i < x; i++) {"
-                    "    a++;"
-                    "    if (a % 2 == 0) continue;"
-                    "    b++;"
-                    "    c++;"
-                    "  }"
-                    "  return b;"
-                    "}"
-                    "foo()";
+  const char* src =
+      "function foo(x) { "
+      "  var a = 0;"
+      "  var b = 0;"
+      "  var c = 0;"
+      "  for (var i = 0; i < x; i++) {"
+      "    a++;"
+      "    if (a % 2 == 0) continue;"
+      "    b++;"
+      "    c++;"
+      "  }"
+      "  return b;"
+      "}"
+      "foo()";
   v8::Local<v8::Function> foo = CompileFunction(&env, src, "foo");
   v8::Local<v8::Value> result;
   SetBreakPoint(foo, 8);  // "var a = 0;"
@@ -2639,8 +2632,7 @@ TEST(DebugStepForContinue) {
   CheckDebuggerUnloaded();
 }
 
-
-TEST(DebugStepForBreak) {
+TEST_F(DebugTest, DebugStepForBreak) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -2653,19 +2645,20 @@ TEST(DebugStepForBreak) {
   // Create a function for testing stepping. Run it to allow it to get
   // optimized.
   const int argc = 1;
-  const char* src = "function foo(x) { "
-                    "  var a = 0;"
-                    "  var b = 0;"
-                    "  var c = 0;"
-                    "  for (var i = 0; i < 1000; i++) {"
-                    "    a++;"
-                    "    if (a == x) break;"
-                    "    b++;"
-                    "    c++;"
-                    "  }"
-                    "  return b;"
-                    "}"
-                    "foo()";
+  const char* src =
+      "function foo(x) { "
+      "  var a = 0;"
+      "  var b = 0;"
+      "  var c = 0;"
+      "  for (var i = 0; i < 1000; i++) {"
+      "    a++;"
+      "    if (a == x) break;"
+      "    b++;"
+      "    c++;"
+      "  }"
+      "  return b;"
+      "}"
+      "foo()";
   v8::Local<v8::Function> foo = CompileFunction(&env, src, "foo");
   v8::Local<v8::Value> result;
   SetBreakPoint(foo, 8);  // "var a = 0;"
@@ -2694,8 +2687,7 @@ TEST(DebugStepForBreak) {
   CheckDebuggerUnloaded();
 }
 
-
-TEST(DebugStepForIn) {
+TEST_F(DebugTest, DebugStepForIn) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -2707,13 +2699,14 @@ TEST(DebugStepForIn) {
   // Create a function for testing stepping. Run it to allow it to get
   // optimized.
   v8::Local<v8::Function> foo;
-  const char* src_1 = "function foo() { "
-                      "  var a = [1, 2];"
-                      "  for (x in a) {"
-                      "    b = 0;"
-                      "  }"
-                      "}"
-                      "foo()";
+  const char* src_1 =
+      "function foo() { "
+      "  var a = [1, 2];"
+      "  for (x in a) {"
+      "    b = 0;"
+      "  }"
+      "}"
+      "foo()";
   foo = CompileFunction(&env, src_1, "foo");
   SetBreakPoint(foo, 0);  // "var a = ..."
 
@@ -2724,13 +2717,14 @@ TEST(DebugStepForIn) {
 
   // Create a function for testing stepping. Run it to allow it to get
   // optimized.
-  const char* src_2 = "function foo() { "
-                      "  var a = {a:[1, 2, 3]};"
-                      "  for (x in a.a) {"
-                      "    b = 0;"
-                      "  }"
-                      "}"
-                      "foo()";
+  const char* src_2 =
+      "function foo() { "
+      "  var a = {a:[1, 2, 3]};"
+      "  for (x in a.a) {"
+      "    b = 0;"
+      "  }"
+      "}"
+      "foo()";
   foo = CompileFunction(&env, src_2, "foo");
   SetBreakPoint(foo, 0);  // "var a = ..."
 
@@ -2744,8 +2738,7 @@ TEST(DebugStepForIn) {
   CheckDebuggerUnloaded();
 }
 
-
-TEST(DebugStepWith) {
+TEST_F(DebugTest, DebugStepWith) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -2756,12 +2749,13 @@ TEST(DebugStepWith) {
   v8::Local<v8::Context> context = env.local();
   // Create a function for testing stepping. Run it to allow it to get
   // optimized.
-  const char* src = "function foo(x) { "
-                    "  var a = {};"
-                    "  with (a) {}"
-                    "  with (b) {}"
-                    "}"
-                    "foo()";
+  const char* src =
+      "function foo(x) { "
+      "  var a = {};"
+      "  with (a) {}"
+      "  with (b) {}"
+      "}"
+      "foo()";
   CHECK(env->Global()
             ->Set(context, v8_str(env.isolate(), "b"),
                   v8::Object::New(env.isolate()))
@@ -2779,8 +2773,7 @@ TEST(DebugStepWith) {
   CheckDebuggerUnloaded();
 }
 
-
-TEST(DebugConditional) {
+TEST_F(DebugTest, DebugConditional) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -2818,7 +2811,7 @@ TEST(DebugConditional) {
 }
 
 // Test that step in does not step into native functions.
-TEST(DebugStepNatives) {
+TEST_F(DebugTest, DebugStepNatives) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -2842,7 +2835,7 @@ TEST(DebugStepNatives) {
   CheckDebuggerUnloaded();
 }
 
-TEST(DebugCountNatives) {
+TEST_F(DebugTest, DebugCountNatives) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -2867,7 +2860,7 @@ TEST(DebugCountNatives) {
 }
 
 // Test that step in works with function.apply.
-TEST(DebugStepFunctionApply) {
+TEST_F(DebugTest, DebugStepFunctionApply) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -2895,7 +2888,7 @@ TEST(DebugStepFunctionApply) {
 }
 
 // Test that step in works with function.apply.
-TEST(DebugCountFunctionApply) {
+TEST_F(DebugTest, DebugCountFunctionApply) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -2922,24 +2915,24 @@ TEST(DebugCountFunctionApply) {
 }
 
 // Test that step in works with function.call.
-TEST(DebugStepFunctionCall) {
+TEST_F(DebugTest, DebugStepFunctionCall) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
 
   v8::Local<v8::Context> context = env.local();
   // Create a function for testing stepping.
-  v8::Local<v8::Function> foo = CompileFunction(
-      &env,
-      "function bar(x, y, z) { if (x == 1) { a = y; b = z; } }"
-      "function foo(a){ debugger;"
-      "                 if (a) {"
-      "                   bar.call(this, 1, 2, 3);"
-      "                 } else {"
-      "                   bar.call(this, 0);"
-      "                 }"
-      "}",
-      "foo");
+  v8::Local<v8::Function> foo =
+      CompileFunction(&env,
+                      "function bar(x, y, z) { if (x == 1) { a = y; b = z; } }"
+                      "function foo(a){ debugger;"
+                      "                 if (a) {"
+                      "                   bar.call(this, 1, 2, 3);"
+                      "                 } else {"
+                      "                   bar.call(this, 0);"
+                      "                 }"
+                      "}",
+                      "foo");
 
   // Register a debug event listener which steps and counts.
   DebugEventCounter run_step;
@@ -2962,7 +2955,7 @@ TEST(DebugStepFunctionCall) {
   CheckDebuggerUnloaded();
 }
 
-TEST(DebugCountFunctionCall) {
+TEST_F(DebugTest, DebugCountFunctionCall) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -2996,7 +2989,7 @@ TEST(DebugCountFunctionCall) {
 }
 
 // Test that step in works with Function.call.apply.
-TEST(DebugStepFunctionCallApply) {
+TEST_F(DebugTest, DebugStepFunctionCallApply) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -3026,7 +3019,7 @@ TEST(DebugStepFunctionCallApply) {
   CheckDebuggerUnloaded();
 }
 
-TEST(DebugCountFunctionCallApply) {
+TEST_F(DebugTest, DebugCountFunctionCallApply) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -3058,7 +3051,7 @@ TEST(DebugCountFunctionCallApply) {
 }
 
 // Tests that breakpoint will be hit if it's set in script.
-TEST(PauseInScript) {
+TEST_F(DebugTest, PauseInScript) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(env.isolate());
@@ -3100,7 +3093,7 @@ TEST(PauseInScript) {
 
 int message_callback_count = 0;
 
-TEST(DebugBreak) {
+TEST_F(DebugTest, DebugBreak) {
   i::v8_flags.stress_compaction.Set(false);
 #ifdef VERIFY_HEAP
   i::v8_flags.verify_heap.Set(true);
@@ -3115,10 +3108,11 @@ TEST(DebugBreak) {
 
   v8::Local<v8::Context> context = env.local();
   // Create a function for testing stepping.
-  const char* src = "function f0() {}"
-                    "function f1(x1) {}"
-                    "function f2(x1,x2) {}"
-                    "function f3(x1,x2,x3) {}";
+  const char* src =
+      "function f0() {}"
+      "function f1(x1) {}"
+      "function f2(x1,x2) {}"
+      "function f3(x1,x2,x3) {}";
   v8::Local<v8::Function> f0 = CompileFunction(&env, src, "f0");
   v8::Local<v8::Function> f1 = CompileFunction(&env, src, "f1");
   v8::Local<v8::Function> f2 = CompileFunction(&env, src, "f2");
@@ -3163,7 +3157,7 @@ class DebugScopingListener : public v8::debug::DebugDelegate {
                        v8::debug::ExceptionType exception_type) override {
     break_count_++;
     auto stack_traces =
-        v8::debug::StackTraceIterator::Create(CcTest::isolate());
+        v8::debug::StackTraceIterator::Create(v8::Isolate::GetCurrent());
     v8::debug::Location location = stack_traces->GetSourceLocation();
     CHECK_EQ(26, location.GetColumnNumber());
     CHECK_EQ(0, location.GetLineNumber());
@@ -3190,7 +3184,7 @@ class DebugScopingListener : public v8::debug::DebugDelegate {
   unsigned break_count_ = 0;
 };
 
-TEST(DebugBreakInWrappedScript) {
+TEST_F(DebugTest, DebugBreakInWrappedScript) {
   i::v8_flags.stress_compaction.Set(false);
 #ifdef VERIFY_HEAP
   i::v8_flags.verify_heap.Set(true);
@@ -3243,7 +3237,7 @@ class ScopeTypesListener : public v8::debug::DebugDelegate {
       const std::vector<v8::debug::BreakpointId>& inspector_break_points_hit,
       v8::base::EnumSet<v8::debug::BreakReason> break_reasons) override {
     auto stack_traces =
-        v8::debug::StackTraceIterator::Create(CcTest::isolate());
+        v8::debug::StackTraceIterator::Create(v8::Isolate::GetCurrent());
     for (auto scopes = stack_traces->GetScopeIterator(); !scopes->Done();
          scopes->Advance()) {
       scope_types_.push_back(scopes->GetType());
@@ -3260,7 +3254,7 @@ class ScopeTypesListener : public v8::debug::DebugDelegate {
 
 }  // namespace
 
-TEST(DebugScopeIteratorWrappedFunctionWithContextExtension) {
+TEST_F(DebugTest, DebugScopeIteratorWrappedFunctionWithContextExtension) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -3294,7 +3288,7 @@ TEST(DebugScopeIteratorWrappedFunctionWithContextExtension) {
   CheckDebuggerUnloaded();
 }
 
-TEST(DebugScopeIteratorWithFunctionTemplate) {
+TEST_F(DebugTest, DebugScopeIteratorWithFunctionTemplate) {
   LocalContext env;
   v8::HandleScope handle_scope(env.isolate());
   v8::Isolate* isolate = env.isolate();
@@ -3307,7 +3301,7 @@ TEST(DebugScopeIteratorWithFunctionTemplate) {
   DisableDebugger(isolate);
 }
 
-TEST(DebugBreakWithoutJS) {
+TEST_F(DebugTest, DebugBreakWithoutJS) {
   i::v8_flags.stress_compaction.Set(false);
 #ifdef VERIFY_HEAP
   i::v8_flags.verify_heap.Set(true);
@@ -3341,7 +3335,7 @@ TEST(DebugBreakWithoutJS) {
 
 // Test to ensure that JavaScript code keeps running while the debug break
 // through the stack limit flag is set but breaks are disabled.
-TEST(DisableBreak) {
+TEST_F(DebugTest, DisableBreak) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -3382,7 +3376,7 @@ TEST(DisableBreak) {
   CheckDebuggerUnloaded();
 }
 
-TEST(DisableDebuggerStatement) {
+TEST_F(DebugTest, DisableDebuggerStatement) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -3403,14 +3397,14 @@ TEST(DisableDebuggerStatement) {
 }
 
 static const char* kSimpleExtensionSource =
-  "(function Foo() {"
-  "  return 4;"
-  "})() ";
+    "(function Foo() {"
+    "  return 4;"
+    "})() ";
 
 // http://crbug.com/28933
 // Test that debug break is disabled when bootstrapper is active.
-TEST(NoBreakWhenBootstrapping) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(DebugTest, NoBreakWhenBootstrapping) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
 
   // Register a debug event listener which sets the break flag and counts.
@@ -3425,7 +3419,7 @@ TEST(NoBreakWhenBootstrapping) {
     // code is executed during bootstrapping.
     v8::RegisterExtension(
         std::make_unique<v8::Extension>("simpletest", kSimpleExtensionSource));
-    const char* extension_names[] = { "simpletest" };
+    const char* extension_names[] = {"simpletest"};
     v8::ExtensionConfiguration extensions(1, extension_names);
     v8::HandleScope handle_scope(isolate);
     v8::Context::New(isolate, &extensions);
@@ -3438,14 +3432,14 @@ TEST(NoBreakWhenBootstrapping) {
   CheckDebuggerUnloaded();
 }
 
-TEST(SetDebugEventListenerOnUninitializedVM) {
-  v8::HandleScope scope(CcTest::isolate());
-  EnableDebugger(CcTest::isolate());
+TEST_F(DebugTest, SetDebugEventListenerOnUninitializedVM) {
+  v8::HandleScope scope(v8_isolate());
+  EnableDebugger(v8_isolate());
 }
 
 // Test that clearing the debug event listener actually clears all break points
 // and related information.
-TEST(DebuggerUnload) {
+TEST_F(DebugTest, DebuggerUnload) {
   LocalContext env;
   v8::HandleScope handle_scope(env.isolate());
   // Check debugger is unloaded before it is used.
@@ -3500,7 +3494,7 @@ class EmptyExternalStringResource : public v8::String::ExternalStringResource {
   std::array<uint16_t, 1> empty_;
 };
 
-TEST(DebugScriptLineEndsAreAscending) {
+TEST_F(DebugTest, DebugScriptLineEndsAreAscending) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -3519,7 +3513,7 @@ TEST(DebugScriptLineEndsAreAscending) {
 
   DirectHandle<v8::internal::FixedArray> instances;
   {
-    v8::internal::Debug* debug = CcTest::i_isolate()->debug();
+    v8::internal::Debug* debug = i_isolate()->debug();
     instances = debug->GetLoadedScripts();
   }
 
@@ -3528,9 +3522,9 @@ TEST(DebugScriptLineEndsAreAscending) {
   for (uint32_t i = 0; i < instances_len; i++) {
     DirectHandle<v8::internal::Script> new_script(
         v8::internal::Cast<v8::internal::Script>(instances->get(i)),
-        CcTest::i_isolate());
+        i_isolate());
 
-    v8::internal::Script::InitLineEnds(CcTest::i_isolate(), new_script);
+    v8::internal::Script::InitLineEnds(i_isolate(), new_script);
     v8::internal::Tagged<v8::internal::FixedArray> ends =
         v8::internal::Cast<v8::internal::FixedArray>(new_script->line_ends());
     const uint32_t ends_len = ends->length().value();
@@ -3575,11 +3569,12 @@ class ContextCheckEventListener : public v8::debug::DebugDelegate {
 
  private:
   void CheckContext() {
-    v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
-    CHECK_EQ(context, expected_context_global.Get(CcTest::isolate()));
+    v8::Local<v8::Context> context =
+        v8::Isolate::GetCurrent()->GetCurrentContext();
+    CHECK_EQ(context, expected_context_global.Get(v8::Isolate::GetCurrent()));
     CHECK(v8::Local<v8::Value>::Cast(context->GetEmbedderDataV2(0))
               ->StrictEquals(
-                  expected_context_data_global.Get(CcTest::isolate())));
+                  expected_context_data_global.Get(v8::Isolate::GetCurrent())));
     event_listener_hit_count++;
   }
 };
@@ -3587,8 +3582,8 @@ class ContextCheckEventListener : public v8::debug::DebugDelegate {
 // Test which creates two contexts and sets different embedder data on each.
 // Checks that this data is set correctly and that when the debug event
 // listener is called the expected context is the one active.
-TEST(ContextData) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(DebugTest, ContextData) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
 
   // Create two contexts.
@@ -3659,8 +3654,8 @@ TEST(ContextData) {
 // data is set correctly and that when the debug event listener is called for
 // break event in an eval statement the expected context is the one returned by
 // Message.GetEventContext.
-TEST(EvalContextData) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(DebugTest, EvalContextData) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
 
   v8::Local<v8::Context> context_1;
@@ -3721,7 +3716,7 @@ class ScriptCompiledDelegate : public v8::debug::DebugDelegate {
 
 // Tests that after compile event is sent as many times as there are scripts
 // compiled.
-TEST(AfterCompileEventWhenEventListenerIsReset) {
+TEST_F(DebugTest, AfterCompileEventWhenEventListenerIsReset) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   v8::Local<v8::Context> context = env.local();
@@ -3752,7 +3747,7 @@ TEST(AfterCompileEventWhenEventListenerIsReset) {
 
 // Tests that syntax error event is sent as many times as there are scripts
 // with syntax error compiled.
-TEST(SyntaxErrorEventOnSyntaxException) {
+TEST_F(DebugTest, SyntaxErrorEventOnSyntaxException) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -3801,12 +3796,12 @@ class ExceptionEventCounter : public v8::debug::DebugDelegate {
   int exception_event_count = 0;
 };
 
-UNINITIALIZED_TEST(NoBreakOnStackOverflow) {
+TEST_F(DebugUninitializedTest, NoBreakOnStackOverflow) {
   // We must set v8_flags.stack_size before initializing the isolate.
   i::v8_flags.stack_size.Set(100);
   i::v8_flags.allow_natives_syntax.Set(true);
   v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  create_params.array_buffer_allocator = DefaultArrayBufferAllocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   isolate->Enter();
   {
@@ -3830,12 +3825,12 @@ UNINITIALIZED_TEST(NoBreakOnStackOverflow) {
   isolate->Dispose();
 }
 
-UNINITIALIZED_TEST(NoBreakOnStackOverflowMaglev) {
+TEST_F(DebugUninitializedTest, NoBreakOnStackOverflowMaglev) {
   // We must set v8_flags.stack_size before initializing the isolate.
   i::v8_flags.stack_size.Set(100);
   i::v8_flags.allow_natives_syntax.Set(true);
   v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  create_params.array_buffer_allocator = DefaultArrayBufferAllocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   isolate->Enter();
   {
@@ -3865,12 +3860,12 @@ UNINITIALIZED_TEST(NoBreakOnStackOverflowMaglev) {
   isolate->Dispose();
 }
 
-UNINITIALIZED_TEST(NoBreakOnStackOverflowTurbofan) {
+TEST_F(DebugUninitializedTest, NoBreakOnStackOverflowTurbofan) {
   // We must set v8_flags.stack_size before initializing the isolate.
   i::v8_flags.stack_size.Set(100);
   i::v8_flags.allow_natives_syntax.Set(true);
   v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  create_params.array_buffer_allocator = DefaultArrayBufferAllocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   isolate->Enter();
   {
@@ -3901,7 +3896,7 @@ UNINITIALIZED_TEST(NoBreakOnStackOverflowTurbofan) {
 }
 
 // Tests that break event is sent when event listener is reset.
-TEST(BreakEventWhenEventListenerIsReset) {
+TEST_F(DebugTest, BreakEventWhenEventListenerIsReset) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   v8::Local<v8::Context> context = env.local();
@@ -3930,7 +3925,7 @@ TEST(BreakEventWhenEventListenerIsReset) {
 }
 
 // Tests that script is reported as compiled when bound to context.
-TEST(AfterCompileEventOnBindToContext) {
+TEST_F(DebugTest, AfterCompileEventOnBindToContext) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
@@ -3950,10 +3945,9 @@ TEST(AfterCompileEventOnBindToContext) {
   v8::debug::SetDebugDelegate(isolate, nullptr);
 }
 
-
 // Test that if DebugBreak is forced it is ignored when code from
 // debug-delay.js is executed.
-TEST(NoDebugBreakInAfterCompileEventListener) {
+TEST_F(DebugTest, NoDebugBreakInAfterCompileEventListener) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   v8::Local<v8::Context> context = env.local();
@@ -3983,9 +3977,8 @@ TEST(NoDebugBreakInAfterCompileEventListener) {
   CheckDebuggerUnloaded();
 }
 
-
 // Test that the debug break flag works with function.apply.
-TEST(RepeatDebugBreak) {
+TEST_F(DebugTest, RepeatDebugBreak) {
   // Test that we can repeatedly set a break without JS execution continuing.
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -4045,13 +4038,13 @@ static void TestDebugBreakInLoop(const char* loop_head,
       CompileRun(buffer.data());
 
       // Set the debug break to enter the debugger as soon as possible.
-      v8::debug::SetBreakOnNextFunctionCall(CcTest::isolate());
+      v8::debug::SetBreakOnNextFunctionCall(v8::Isolate::GetCurrent());
 
       // Call function with infinite loop.
       CompileRun("f();");
       CHECK_EQ(kBreaksPerTest, break_point_hit_count);
 
-      CHECK(!CcTest::isolate()->IsExecutionTerminating());
+      CHECK(!v8::Isolate::GetCurrent()->IsExecutionTerminating());
     }
   }
 }
@@ -4099,59 +4092,51 @@ void DebugBreakLoop(const char* loop_header, const char** loop_bodies,
   CheckDebuggerUnloaded();
 }
 
-
-TEST(DebugBreakInWhileTrue1) {
+TEST_F(DebugTest, DebugBreakInWhileTrue1) {
   DebugBreakLoop("while (true) {", loop_bodies_1, "}");
 }
 
-
-TEST(DebugBreakInWhileTrue2) {
+TEST_F(DebugTest, DebugBreakInWhileTrue2) {
   DebugBreakLoop("while (true) {", loop_bodies_2, "}");
 }
 
-
-TEST(DebugBreakInWhileCondition1) {
+TEST_F(DebugTest, DebugBreakInWhileCondition1) {
   DebugBreakLoop("while (a == 1) {", loop_bodies_1, "}");
 }
 
-
-TEST(DebugBreakInWhileCondition2) {
+TEST_F(DebugTest, DebugBreakInWhileCondition2) {
   DebugBreakLoop("while (a == 1) {", loop_bodies_2, "}");
 }
 
-
-TEST(DebugBreakInDoWhileTrue1) {
+TEST_F(DebugTest, DebugBreakInDoWhileTrue1) {
   DebugBreakLoop("do {", loop_bodies_1, "} while (true)");
 }
 
-
-TEST(DebugBreakInDoWhileTrue2) {
+TEST_F(DebugTest, DebugBreakInDoWhileTrue2) {
   DebugBreakLoop("do {", loop_bodies_2, "} while (true)");
 }
 
-
-TEST(DebugBreakInDoWhileCondition1) {
+TEST_F(DebugTest, DebugBreakInDoWhileCondition1) {
   DebugBreakLoop("do {", loop_bodies_1, "} while (a == 1)");
 }
 
-
-TEST(DebugBreakInDoWhileCondition2) {
+TEST_F(DebugTest, DebugBreakInDoWhileCondition2) {
   DebugBreakLoop("do {", loop_bodies_2, "} while (a == 1)");
 }
 
+TEST_F(DebugTest, DebugBreakInFor1) {
+  DebugBreakLoop("for (;;) {", loop_bodies_1, "}");
+}
 
-TEST(DebugBreakInFor1) { DebugBreakLoop("for (;;) {", loop_bodies_1, "}"); }
+TEST_F(DebugTest, DebugBreakInFor2) {
+  DebugBreakLoop("for (;;) {", loop_bodies_2, "}");
+}
 
-
-TEST(DebugBreakInFor2) { DebugBreakLoop("for (;;) {", loop_bodies_2, "}"); }
-
-
-TEST(DebugBreakInForCondition1) {
+TEST_F(DebugTest, DebugBreakInForCondition1) {
   DebugBreakLoop("for (;a == 1;) {", loop_bodies_1, "}");
 }
 
-
-TEST(DebugBreakInForCondition2) {
+TEST_F(DebugTest, DebugBreakInForCondition2) {
   DebugBreakLoop("for (;a == 1;) {", loop_bodies_2, "}");
 }
 
@@ -4165,7 +4150,8 @@ class DebugBreakInlineListener : public v8::debug::DebugDelegate {
     int expected_line_number[] = {1, 4, 7, 13};
 
     int frame_count = 0;
-    auto iterator = v8::debug::StackTraceIterator::Create(CcTest::isolate());
+    auto iterator =
+        v8::debug::StackTraceIterator::Create(v8::Isolate::GetCurrent());
     for (; !iterator->Done(); iterator->Advance(), ++frame_count) {
       v8::debug::Location loc = iterator->GetSourceLocation();
       CHECK_EQ(expected_line_number[frame_count], loc.GetLineNumber());
@@ -4174,7 +4160,7 @@ class DebugBreakInlineListener : public v8::debug::DebugDelegate {
   }
 };
 
-TEST(DebugBreakInline) {
+TEST_F(DebugTest, DebugBreakInline) {
   i::v8_flags.allow_natives_syntax.Set(true);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -4204,13 +4190,12 @@ TEST(DebugBreakInline) {
 }
 
 static void RunScriptInANewCFrame(const char* source) {
-  v8::TryCatch try_catch(CcTest::isolate());
+  v8::TryCatch try_catch(v8::Isolate::GetCurrent());
   CompileRun(source);
   CHECK(try_catch.HasCaught());
 }
 
-
-TEST(Regress131642) {
+TEST_F(DebugTest, Regress131642) {
   // Bug description:
   // When doing StepOver through the first script, the debugger is not reset
   // after exiting through exception.  A flawed implementation enabling the
@@ -4244,7 +4229,7 @@ class DebugBreakStackTraceListener : public v8::debug::DebugDelegate {
       v8::Local<v8::Context> paused_context,
       const std::vector<v8::debug::BreakpointId>& inspector_break_points_hit,
       v8::debug::BreakReasons break_reasons) override {
-    v8::StackTrace::CurrentStackTrace(CcTest::isolate(), 10);
+    v8::StackTrace::CurrentStackTrace(v8::Isolate::GetCurrent(), 10);
   }
 };
 
@@ -4253,7 +4238,7 @@ static void AddDebugBreak(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::debug::SetBreakOnNextFunctionCall(info.GetIsolate());
 }
 
-TEST(DebugBreakStackTrace) {
+TEST_F(DebugTest, DebugBreakStackTrace) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   DebugBreakStackTraceListener delegate;
@@ -4267,15 +4252,15 @@ TEST(DebugBreakStackTrace) {
             ->Set(context, v8_str("add_debug_break"), add_debug_break)
             .FromJust());
 
-  CompileRun("(function loop() {"
-             "  for (var j = 0; j < 1000; j++) {"
-             "    for (var i = 0; i < 1000; i++) {"
-             "      if (i == 999) add_debug_break();"
-             "    }"
-             "  }"
-             "})()");
+  CompileRun(
+      "(function loop() {"
+      "  for (var j = 0; j < 1000; j++) {"
+      "    for (var i = 0; i < 1000; i++) {"
+      "      if (i == 999) add_debug_break();"
+      "    }"
+      "  }"
+      "})()");
 }
-
 
 v8::base::Semaphore terminate_requested_semaphore(0);
 v8::base::Semaphore terminate_fired_semaphore(0);
@@ -4313,7 +4298,7 @@ class TerminationThread : public v8::internal::SandboxableThread {
   v8::Isolate* isolate_;
 };
 
-TEST(DebugBreakOffThreadTerminate) {
+TEST_F(DebugTest, DebugBreakOffThreadTerminate) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -4498,8 +4483,8 @@ class ArchiveRestoreThread : public v8::internal::SandboxableThread,
 // there are still direct handle on the stack of the previous thread. This
 // results in CSS missing references. Re-enable the test once fixed.
 #ifndef V8_ENABLE_DIRECT_HANDLE
-TEST(DebugArchiveRestore) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(DebugTest, DebugArchiveRestore) {
+  v8::Isolate* isolate = v8_isolate();
 
   // This test uses the multi-threaded model and v8::Locker, so the main
   // thread must exit the isolate before the test starts.
@@ -4535,9 +4520,9 @@ class ThreadJustUsingV8Locker : public v8::base::Thread {
 };
 }  // anonymous namespace
 
-UNINITIALIZED_TEST(Bug1511649UnlockerRestoreDebug) {
+TEST_F(DebugUninitializedTest, Bug1511649UnlockerRestoreDebug) {
   v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  create_params.array_buffer_allocator = DefaultArrayBufferAllocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
 
   {
@@ -4586,7 +4571,7 @@ static void TryCatchWrappedThrowCallback(
   CHECK(try_catch.HasCaught());
 }
 
-TEST(DebugPromiseInterceptedByTryCatch) {
+TEST_F(DebugTest, DebugPromiseInterceptedByTryCatch) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -4617,7 +4602,7 @@ class NoInterruptsOnDebugEvent : public v8::debug::DebugDelegate {
     ++after_compile_handler_depth_;
     // Do not allow nested AfterCompile events.
     CHECK_LE(after_compile_handler_depth_, 1);
-    v8::Isolate* isolate = CcTest::isolate();
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();
     v8::Isolate::AllowJavascriptExecutionScope allow_script(isolate);
     isolate->RequestInterrupt(&HandleInterrupt, this);
     CompileRun("function foo() {}; foo();");
@@ -4633,7 +4618,7 @@ class NoInterruptsOnDebugEvent : public v8::debug::DebugDelegate {
   int after_compile_handler_depth_ = 0;
 };
 
-TEST(NoInterruptsInDebugListener) {
+TEST_F(DebugTest, NoInterruptsInDebugListener) {
   LocalContext env;
   v8::HandleScope handle_scope(env.isolate());
   NoInterruptsOnDebugEvent delegate;
@@ -4641,7 +4626,7 @@ TEST(NoInterruptsInDebugListener) {
   CompileRun("void(0);");
 }
 
-TEST(BreakLocationIterator) {
+TEST_F(DebugTest, BreakLocationIterator) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -4687,7 +4672,7 @@ TEST(BreakLocationIterator) {
   DisableDebugger(isolate);
 }
 
-TEST(EnsureBreakInfoFailedSourcePositions) {
+TEST_F(DebugTest, EnsureBreakInfoFailedSourcePositions) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -4756,7 +4741,7 @@ class DebugStepOverFunctionWithCaughtExceptionListener
   int break_point_hit_count = 0;
 };
 
-TEST(DebugStepOverFunctionWithCaughtException) {
+TEST_F(DebugTest, DebugStepOverFunctionWithCaughtException) {
   i::v8_flags.allow_natives_syntax.Set(true);
 
   LocalContext env;
@@ -4784,10 +4769,10 @@ size_t NearHeapLimitCallback(void* data, size_t current_heap_limit,
   return initial_heap_limit + 10u * i::MB;
 }
 
-UNINITIALIZED_TEST(DebugSetOutOfMemoryListener) {
+TEST_F(DebugUninitializedTest, DebugSetOutOfMemoryListener) {
   i::v8_flags.stress_concurrent_allocation.Set(false);
   v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  create_params.array_buffer_allocator = DefaultArrayBufferAllocator();
   create_params.constraints.set_max_old_generation_size_in_bytes(10 * i::MB);
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -4807,7 +4792,7 @@ UNINITIALIZED_TEST(DebugSetOutOfMemoryListener) {
   isolate->Dispose();
 }
 
-TEST(DebugCoverage) {
+TEST_F(DebugTest, DebugCoverage) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -4861,7 +4846,7 @@ v8::debug::Coverage::ScriptData GetScriptDataAndDeleteCoverage(
 }
 }  // namespace
 
-TEST(DebugCoverageWithCoverageOutOfScope) {
+TEST_F(DebugTest, DebugCoverageWithCoverageOutOfScope) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -4931,7 +4916,7 @@ v8::debug::Coverage::FunctionData GetFunctionDataAndDeleteCoverage(
 }
 }  // namespace
 
-TEST(DebugCoverageWithScriptDataOutOfScope) {
+TEST_F(DebugTest, DebugCoverageWithScriptDataOutOfScope) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -4951,7 +4936,7 @@ TEST(DebugCoverageWithScriptDataOutOfScope) {
   CHECK_EQ(26, function_data.EndOffset());
 }
 
-TEST(DebugGetPossibleBreakpointsReturnLocations) {
+TEST_F(DebugTest, DebugGetPossibleBreakpointsReturnLocations) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -4980,11 +4965,11 @@ TEST(DebugGetPossibleBreakpointsReturnLocations) {
   CHECK_EQ(returns_count, 4);
 }
 
-TEST(DebugEvaluateNoSideEffect) {
+TEST_F(DebugTest, DebugEvaluateNoSideEffect) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   EnableDebugger(env.isolate());
-  i::Isolate* isolate = CcTest::i_isolate();
+  i::Isolate* isolate = i_isolate();
   std::vector<i::Handle<i::JSFunction>> all_functions;
   {
     i::HeapObjectIterator iterator(isolate->heap());
@@ -5009,7 +4994,7 @@ TEST(DebugEvaluateNoSideEffect) {
   DisableDebugger(env.isolate());
 }
 
-TEST(DebugEvaluateGlobalSharedCrossOrigin) {
+TEST_F(DebugTest, DebugEvaluateGlobalSharedCrossOrigin) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -5023,12 +5008,12 @@ TEST(DebugEvaluateGlobalSharedCrossOrigin) {
   CHECK(tryCatch.Message()->IsSharedCrossOrigin());
 }
 
-TEST(DebugEvaluateLocalSharedCrossOrigin) {
+TEST_F(DebugTest, DebugEvaluateLocalSharedCrossOrigin) {
   struct BreakProgramDelegate : public v8::debug::DebugDelegate {
     void BreakProgramRequested(v8::Local<v8::Context> context,
                                std::vector<v8::debug::BreakpointId> const&,
                                v8::debug::BreakReasons) final {
-      v8::Isolate* isolate = CcTest::isolate();
+      v8::Isolate* isolate = v8::Isolate::GetCurrent();
       v8::TryCatch tryCatch(isolate);
       tryCatch.SetCaptureMessage(true);
       std::unique_ptr<v8::debug::StackTraceIterator> it =
@@ -5051,12 +5036,12 @@ TEST(DebugEvaluateLocalSharedCrossOrigin) {
   v8::debug::SetDebugDelegate(isolate, nullptr);
 }
 
-TEST(DebugEvaluateImportMetaInScript) {
+TEST_F(DebugTest, DebugEvaluateImportMetaInScript) {
   struct BreakProgramDelegate : public v8::debug::DebugDelegate {
     void BreakProgramRequested(v8::Local<v8::Context> context,
                                std::vector<v8::debug::BreakpointId> const&,
                                v8::debug::BreakReasons) final {
-      v8::Isolate* isolate = CcTest::isolate();
+      v8::Isolate* isolate = v8::Isolate::GetCurrent();
       v8::TryCatch tryCatch(isolate);
       tryCatch.SetCaptureMessage(true);
       std::unique_ptr<v8::debug::StackTraceIterator> it =
@@ -5089,12 +5074,12 @@ static v8::MaybeLocal<v8::Module> UnexpectedModuleResolveCallback(
   CHECK_WITH_MSG(false, "Unexpected call to resolve callback");
 }
 
-TEST(DebugEvaluateImportMetaInModule) {
+TEST_F(DebugTest, DebugEvaluateImportMetaInModule) {
   struct BreakProgramDelegate : public v8::debug::DebugDelegate {
     void BreakProgramRequested(v8::Local<v8::Context> context,
                                std::vector<v8::debug::BreakpointId> const&,
                                v8::debug::BreakReasons) final {
-      v8::Isolate* isolate = CcTest::isolate();
+      v8::Isolate* isolate = v8::Isolate::GetCurrent();
       v8::TryCatch tryCatch(isolate);
       tryCatch.SetCaptureMessage(true);
       std::unique_ptr<v8::debug::StackTraceIterator> it =
@@ -5141,11 +5126,11 @@ i::MaybeHandle<i::Script> FindScript(
 }
 }  // anonymous namespace
 
-UNINITIALIZED_TEST(LoadedAtStartupScripts) {
+TEST_F(DebugUninitializedTest, LoadedAtStartupScripts) {
   i::v8_flags.expose_gc.Set(true);
 
   v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  create_params.array_buffer_allocator = DefaultArrayBufferAllocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   {
@@ -5188,7 +5173,7 @@ UNINITIALIZED_TEST(LoadedAtStartupScripts) {
   isolate->Dispose();
 }
 
-TEST(SourceInfo) {
+TEST_F(DebugTest, SourceInfo) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   const char* source =
@@ -5226,7 +5211,7 @@ TEST(SourceInfo) {
   i::DirectHandle<i::Script> i_script(
       i::Cast<i::Script>(
           v8::Utils::OpenDirectHandle(*v8_script)->shared()->script()),
-      CcTest::i_isolate());
+      i_isolate());
   v8::Local<v8::debug::Script> script =
       v8::ToApiHandle<v8::debug::Script>(i_script);
 
@@ -5352,7 +5337,8 @@ class SetBreakpointOnScriptCompiled : public v8::debug::DebugDelegate {
                       bool has_compile_error) override {
     v8::Local<v8::String> name;
     if (!script->SourceURL().ToLocal(&name)) return;
-    v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
+    v8::Local<v8::Context> context =
+        v8::Isolate::GetCurrent()->GetCurrentContext();
     if (!name->Equals(context, v8_str("test")).FromJust()) return;
     CHECK(!has_compile_error);
     v8::debug::Location loc(1, 2);
@@ -5377,7 +5363,7 @@ class SetBreakpointOnScriptCompiled : public v8::debug::DebugDelegate {
 };
 }  // anonymous namespace
 
-TEST(Regress517592) {
+TEST_F(DebugTest, Regress517592) {
   LocalContext env;
   v8::HandleScope handle_scope(env.isolate());
   SetBreakpointOnScriptCompiled delegate;
@@ -5400,9 +5386,9 @@ std::string FromString(v8::Isolate* isolate, v8::Local<v8::String> str) {
 }
 }  // namespace
 
-TEST(GetPrivateFields) {
+TEST_F(DebugTest, GetPrivateFields) {
   LocalContext env;
-  v8::Isolate* v8_isolate = CcTest::isolate();
+  v8::Isolate* v8_isolate = this->v8_isolate();
   v8::HandleScope scope(v8_isolate);
   v8::Local<v8::Context> context = env.local();
   v8::Local<v8::String> source = v8_str(
@@ -5497,9 +5483,9 @@ TEST(GetPrivateFields) {
   }
 }
 
-TEST(GetPrivateMethodsAndAccessors) {
+TEST_F(DebugTest, GetPrivateMethodsAndAccessors) {
   LocalContext env;
-  v8::Isolate* v8_isolate = CcTest::isolate();
+  v8::Isolate* v8_isolate = this->v8_isolate();
   v8::HandleScope scope(v8_isolate);
   v8::Local<v8::Context> context = env.local();
 
@@ -5662,9 +5648,9 @@ TEST(GetPrivateMethodsAndAccessors) {
   }
 }
 
-TEST(GetPrivateStaticMethodsAndAccessors) {
+TEST_F(DebugTest, GetPrivateStaticMethodsAndAccessors) {
   LocalContext env;
-  v8::Isolate* v8_isolate = CcTest::isolate();
+  v8::Isolate* v8_isolate = this->v8_isolate();
   v8::HandleScope scope(v8_isolate);
   v8::Local<v8::Context> context = env.local();
 
@@ -5727,9 +5713,9 @@ TEST(GetPrivateStaticMethodsAndAccessors) {
   }
 }
 
-TEST(GetPrivateStaticAndInstanceMethodsAndAccessors) {
+TEST_F(DebugTest, GetPrivateStaticAndInstanceMethodsAndAccessors) {
   LocalContext env;
-  v8::Isolate* v8_isolate = CcTest::isolate();
+  v8::Isolate* v8_isolate = this->v8_isolate();
   v8::HandleScope scope(v8_isolate);
   v8::Local<v8::Context> context = env.local();
 
@@ -5838,10 +5824,10 @@ TEST(GetPrivateStaticAndInstanceMethodsAndAccessors) {
   }
 }
 
-TEST(GetPrivateAutoAccessors) {
+TEST_F(DebugTest, GetPrivateAutoAccessors) {
   i::v8_flags.js_decorators.Set(true);
   LocalContext env;
-  v8::Isolate* v8_isolate = CcTest::isolate();
+  v8::Isolate* v8_isolate = this->v8_isolate();
   v8::HandleScope scope(v8_isolate);
   v8::Local<v8::Context> context = env.local();
   v8::Local<v8::String> source = v8_str(
@@ -6008,7 +5994,7 @@ v8::MaybeLocal<v8::Module> DeferredModuleResolveCallback(
     v8::Local<v8::Context> context, v8::Local<v8::String> specifier,
     v8::Local<v8::FixedArray> import_attributes,
     v8::Local<v8::Module> referrer) {
-  return deferred_module_dependency.Get(CcTest::isolate());
+  return deferred_module_dependency.Get(v8::Isolate::GetCurrent());
 }
 
 // Sets up `globalThis.ns`, the namespace of a deferred module whose body would
@@ -6016,7 +6002,7 @@ v8::MaybeLocal<v8::Module> DeferredModuleResolveCallback(
 // `globalThis.evaluated = true;` at the top level.
 v8::Local<v8::Object> SetUpDeferredModuleNamespace(
     v8::Local<v8::Context> context, const char* dependency_source) {
-  v8::Isolate* v8_isolate = CcTest::isolate();
+  v8::Isolate* v8_isolate = v8::Isolate::GetCurrent();
   v8::ScriptOrigin dependency_origin(v8_str("dependency"), 0, 0, false, -1,
                                      v8::Local<v8::Value>(), false, false,
                                      true);
@@ -6056,10 +6042,10 @@ v8::Local<v8::Object> SetUpDeferredModuleNamespace(
 // The inspector collects the private members of an object while JavaScript
 // execution is disallowed, so collecting them from a deferred module namespace
 // must not evaluate the module. See crbug.com/451791624.
-TEST(GetPrivateMembersDoesNotEvaluateDeferredModule) {
+TEST_F(DebugTest, GetPrivateMembersDoesNotEvaluateDeferredModule) {
   i::v8_flags.js_defer_import_eval.Set(true);
   LocalContext env;
-  v8::Isolate* v8_isolate = CcTest::isolate();
+  v8::Isolate* v8_isolate = this->v8_isolate();
   v8::HandleScope scope(v8_isolate);
   v8::Local<v8::Context> context = env.local();
 
@@ -6096,10 +6082,10 @@ TEST(GetPrivateMembersDoesNotEvaluateDeferredModule) {
 // yet therefore reports no properties at all: every export is uninitialized, so
 // listing one would either evaluate the module or throw for an export still in
 // TDZ. The [[ModuleStatus]] internal property describes such an object instead.
-TEST(PropertyIteratorDoesNotEvaluateDeferredModule) {
+TEST_F(DebugTest, PropertyIteratorDoesNotEvaluateDeferredModule) {
   i::v8_flags.js_defer_import_eval.Set(true);
   LocalContext env;
-  v8::Isolate* v8_isolate = CcTest::isolate();
+  v8::Isolate* v8_isolate = this->v8_isolate();
   v8::HandleScope scope(v8_isolate);
   v8::Local<v8::Context> context = env.local();
 
@@ -6167,7 +6153,7 @@ class SetTerminateOnResumeDelegate : public v8::debug::DebugDelegate {
       const std::vector<v8::debug::BreakpointId>& inspector_break_points_hit,
       v8::debug::BreakReasons break_reasons) override {
     break_count_++;
-    v8::Isolate* isolate = CcTest::isolate();
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();
     v8::debug::SetTerminateOnResume(isolate);
     if (options_ == kPerformMicrotaskCheckpointAtBreakpoint) {
       v8::MicrotasksScope::PerformCheckpoint(isolate);
@@ -6182,7 +6168,7 @@ class SetTerminateOnResumeDelegate : public v8::debug::DebugDelegate {
                        v8::Local<v8::Value> promise, bool is_uncaught,
                        v8::debug::ExceptionType exception_type) override {
     exception_thrown_count_++;
-    v8::debug::SetTerminateOnResume(CcTest::isolate());
+    v8::debug::SetTerminateOnResume(v8::Isolate::GetCurrent());
   }
 
   int break_count() const { return break_count_; }
@@ -6195,7 +6181,7 @@ class SetTerminateOnResumeDelegate : public v8::debug::DebugDelegate {
 };
 }  // anonymous namespace
 
-TEST(TerminateOnResumeAtBreakpoint) {
+TEST_F(DebugTest, TerminateOnResumeAtBreakpoint) {
   break_point_hit_count = 0;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -6243,7 +6229,7 @@ static void MicrotaskOne(const v8::FunctionCallbackInfo<v8::Value>& info) {
 }
 }  // namespace
 
-TEST(TerminateOnResumeRunMicrotaskAtBreakpoint) {
+TEST_F(DebugTest, TerminateOnResumeRunMicrotaskAtBreakpoint) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   SetTerminateOnResumeDelegate delegate(
@@ -6284,7 +6270,7 @@ TEST(TerminateOnResumeRunMicrotaskAtBreakpoint) {
   CheckDebuggerUnloaded();
 }
 
-TEST(TerminateOnResumeRunJavaScriptAtBreakpoint) {
+TEST_F(DebugTest, TerminateOnResumeRunJavaScriptAtBreakpoint) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   CompileRun("var globalVariable = 0;");
@@ -6321,7 +6307,7 @@ TEST(TerminateOnResumeRunJavaScriptAtBreakpoint) {
   CheckDebuggerUnloaded();
 }
 
-TEST(TerminateOnResumeAtException) {
+TEST_F(DebugTest, TerminateOnResumeAtException) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   ChangeBreakOnException(env.isolate(), true, true);
@@ -6351,7 +6337,7 @@ TEST(TerminateOnResumeAtException) {
   CheckDebuggerUnloaded();
 }
 
-TEST(TerminateOnResumeAtBreakOnEntry) {
+TEST_F(DebugTest, TerminateOnResumeAtBreakOnEntry) {
   i::v8_flags.verify_get_js_builtin_state.Set(false);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -6375,7 +6361,7 @@ TEST(TerminateOnResumeAtBreakOnEntry) {
   CheckDebuggerUnloaded();
 }
 
-TEST(TerminateOnResumeAtBreakOnEntryUserDefinedFunction) {
+TEST_F(DebugTest, TerminateOnResumeAtBreakOnEntryUserDefinedFunction) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   SetTerminateOnResumeDelegate delegate;
@@ -6403,7 +6389,7 @@ TEST(TerminateOnResumeAtBreakOnEntryUserDefinedFunction) {
   CheckDebuggerUnloaded();
 }
 
-TEST(TerminateOnResumeAtUnhandledRejection) {
+TEST_F(DebugTest, TerminateOnResumeAtUnhandledRejection) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   ChangeBreakOnException(env.isolate(), true, true);
@@ -6468,7 +6454,7 @@ void SilentRejectPromiseThroughCpp(
 
 }  // namespace
 
-TEST(TerminateOnResumeAtUnhandledRejectionCppImpl) {
+TEST_F(DebugTest, TerminateOnResumeAtUnhandledRejectionCppImpl) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(env.isolate());
@@ -6496,7 +6482,7 @@ TEST(TerminateOnResumeAtUnhandledRejectionCppImpl) {
   CheckDebuggerUnloaded();
 }
 
-TEST(NoTerminateOnResumeAtSilentUnhandledRejectionCppImpl) {
+TEST_F(DebugTest, NoTerminateOnResumeAtSilentUnhandledRejectionCppImpl) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(env.isolate());
@@ -6533,7 +6519,7 @@ static void UnreachableMicrotask(
 }
 }  // namespace
 
-TEST(TerminateOnResumeFromMicrotask) {
+TEST_F(DebugTest, TerminateOnResumeFromMicrotask) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   SetTerminateOnResumeDelegate delegate(
@@ -6551,13 +6537,11 @@ TEST(TerminateOnResumeFromMicrotask) {
         env.isolate(),
         v8::Function::New(env.local(), UnreachableMicrotask).ToLocalChecked());
 
-    CHECK_EQ(2,
-             CcTest::i_isolate()->native_context()->microtask_queue()->size());
+    CHECK_EQ(2, i_isolate()->native_context()->microtask_queue()->size());
 
     v8::MicrotasksScope::PerformCheckpoint(env.isolate());
 
-    CHECK_EQ(0,
-             CcTest::i_isolate()->native_context()->microtask_queue()->size());
+    CHECK_EQ(0, i_isolate()->native_context()->microtask_queue()->size());
 
     CHECK(try_catch.HasTerminated());
     CHECK_EQ(delegate.break_count(), 0);
@@ -6613,7 +6597,7 @@ class SemaphoreTriggerOnBreak : public v8::debug::DebugDelegate {
 };
 }  // anonymous namespace
 
-TEST(TerminateOnResumeFromOtherThread) {
+TEST_F(DebugTest, TerminateOnResumeFromOtherThread) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   ChangeBreakOnException(env.isolate(), true, true);
@@ -6669,7 +6653,7 @@ class InterruptionBreakRightNow : public v8::base::Thread {
 
 }  // anonymous namespace
 
-TEST(TerminateOnResumeAtInterruptFromOtherThread) {
+TEST_F(DebugTest, TerminateOnResumeAtInterruptFromOtherThread) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   ChangeBreakOnException(env.isolate(), true, true);
@@ -6709,7 +6693,7 @@ class NoopDelegate : public v8::debug::DebugDelegate {};
 
 }  // namespace
 
-TEST(CreateMessageFromOldException) {
+TEST_F(DebugTest, CreateMessageFromOldException) {
   LocalContext context;
   v8::HandleScope scope(context.isolate());
 
@@ -6745,7 +6729,7 @@ TEST(CreateMessageFromOldException) {
   CHECK_EQ(2, stackTrace->GetFrameCount());
 }
 
-TEST(CreateMessageDoesNotInspectStack) {
+TEST_F(DebugTest, CreateMessageDoesNotInspectStack) {
   LocalContext context;
   v8::HandleScope scope(context.isolate());
 
@@ -6795,11 +6779,11 @@ class ClearPendingMessageOnExceptionDelegate : public v8::debug::DebugDelegate {
                        v8::Local<v8::Value> exception,
                        v8::Local<v8::Value> promise, bool is_uncaught,
                        v8::debug::ExceptionType exception_type) override {
-    CcTest::i_isolate()->clear_pending_message();
+    i::Isolate::Current()->clear_pending_message();
   }
 };
 
-TEST(DebugRethrowMessageClobber) {
+TEST_F(DebugTest, DebugRethrowMessageClobber) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -6833,7 +6817,7 @@ class ScopeListener : public v8::debug::DebugDelegate {
   void BreakProgramRequested(v8::Local<v8::Context> context,
                              const std::vector<v8::debug::BreakpointId>&,
                              v8::debug::BreakReasons break_reasons) override {
-    i::Isolate* isolate = CcTest::i_isolate();
+    i::Isolate* isolate = i::Isolate::Current();
     i::DebuggableStackFrameIterator iterator_(
         isolate, isolate->debug()->break_frame_id());
     // Go up one frame so we are on the script level.
@@ -6851,7 +6835,7 @@ class ScopeListener : public v8::debug::DebugDelegate {
 
 }  // namespace
 
-TEST(ScopeIteratorDoesNotCreateBlocklistForScriptScope) {
+TEST_F(DebugTest, ScopeIteratorDoesNotCreateBlocklistForScriptScope) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -6877,7 +6861,7 @@ class DebugEvaluateListener : public v8::debug::DebugDelegate {
   void BreakProgramRequested(v8::Local<v8::Context> context,
                              const std::vector<v8::debug::BreakpointId>&,
                              v8::debug::BreakReasons break_reasons) override {
-    v8::Isolate* isolate = CcTest::isolate();
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();
     auto it = v8::debug::StackTraceIterator::Create(isolate);
     v8::Local<v8::Value> result =
         it->Evaluate(v8_str(isolate, "x"), /* throw_on_side_effect */ false)
@@ -6892,7 +6876,7 @@ class DebugEvaluateListener : public v8::debug::DebugDelegate {
 // scopes created by `ScriptCompiler::CompileFunction`. It creates a function
 // scope nested inside an eval scope with the exact same source positions.
 // This can confuse the blocklist mechanism if not handled correctly.
-TEST(DebugEvaluateInWrappedScript) {
+TEST_F(DebugTest, DebugEvaluateInWrappedScript) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -6942,7 +6926,7 @@ class ConditionListener : public v8::debug::DebugDelegate {
 
 }  // namespace
 
-TEST(SuccessfulBreakpointConditionEvaluationEvent) {
+TEST_F(DebugTest, SuccessfulBreakpointConditionEvaluationEvent) {
   break_point_hit_count = 0;
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
@@ -6964,7 +6948,7 @@ TEST(SuccessfulBreakpointConditionEvaluationEvent) {
 
 // Checks that SyntaxErrors in breakpoint conditions are reported to the
 // DebugDelegate.
-TEST(FailedBreakpointConditoinEvaluationEvent) {
+TEST_F(DebugTest, FailedBreakpointConditoinEvaluationEvent) {
   break_point_hit_count = 0;
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
@@ -6994,7 +6978,7 @@ class ExceptionCatchPredictionChecker : public v8::debug::DebugDelegate {
     was_uncaught = is_uncaught;
     // Check that exception is the string 'f' so we know that we are
     // only throwing the intended exception.
-    CHECK(v8_str(CcTest::isolate(), "f")
+    CHECK(v8_str(v8::Isolate::GetCurrent(), "f")
               ->Equals(paused_context, exception)
               .ToChecked());
   }
@@ -7106,7 +7090,7 @@ void RunExceptionOptimizedCallstackWalkTest(bool predict_uncaught,
   RunExceptionBlackboxCheckTest(functions_checked, code);
 }
 
-TEST(CatchPredictionWithLongStar) {
+TEST_F(DebugTest, CatchPredictionWithLongStar) {
   // Simple scan for catch method, but we first exhaust the short registers
   // in the bytecode so that it doesn't use the short star instructions
   RunExceptionOptimizedCallstackWalkTest(false, 1, R"javascript(
@@ -7133,7 +7117,7 @@ TEST(CatchPredictionWithLongStar) {
   )javascript");
 }
 
-TEST(CatchPredictionInlineExceptionCaught) {
+TEST_F(DebugTest, CatchPredictionInlineExceptionCaught) {
   // Simple throw and catch, but make sure inlined functions don't affect
   // prediction.
   RunExceptionOptimizedCallstackWalkTest(false, 3, R"javascript(
@@ -7161,7 +7145,7 @@ TEST(CatchPredictionInlineExceptionCaught) {
   )javascript");
 }
 
-TEST(CatchPredictionInlineExceptionUncaught) {
+TEST_F(DebugTest, CatchPredictionInlineExceptionUncaught) {
   // Simple uncaught throw, but make sure inlined functions don't affect
   // prediction.
   RunExceptionOptimizedCallstackWalkTest(true, 4, R"javascript(
@@ -7182,7 +7166,7 @@ TEST(CatchPredictionInlineExceptionUncaught) {
   )javascript");
 }
 
-TEST(CatchPredictionExceptionCaughtAsPromise) {
+TEST_F(DebugTest, CatchPredictionExceptionCaughtAsPromise) {
   // Throw turns into promise rejection in async function, then caught
   // by catch method. Multiple intermediate stack frames with decoy catches
   // that won't actually catch and shouldn't be predicted to catch. Make sure
@@ -7228,7 +7212,7 @@ TEST(CatchPredictionExceptionCaughtAsPromise) {
   )javascript");
 }
 
-TEST(CatchPredictionExceptionCaughtAsPromiseInAsyncFunction) {
+TEST_F(DebugTest, CatchPredictionExceptionCaughtAsPromiseInAsyncFunction) {
   // Throw as promise rejection in async function, then caught
   // by catch method. Ensure we scan for catch method in an async
   // function.
@@ -7255,7 +7239,7 @@ TEST(CatchPredictionExceptionCaughtAsPromiseInAsyncFunction) {
   )javascript");
 }
 
-TEST(CatchPredictionExceptionCaughtAsPromiseInCatchingFunction) {
+TEST_F(DebugTest, CatchPredictionExceptionCaughtAsPromiseInCatchingFunction) {
   // Throw as promise rejection in async function, then caught
   // by catch method. Ensure we scan for catch method in function
   // with a (decoy) catch block.
@@ -7284,7 +7268,7 @@ TEST(CatchPredictionExceptionCaughtAsPromiseInCatchingFunction) {
   )javascript");
 }
 
-TEST(CatchPredictionTopLevelEval) {
+TEST_F(DebugTest, CatchPredictionTopLevelEval) {
   // Statement returning rejected promise is immediately followed by statement
   // catching it in top level eval context.
   RunExceptionCatchPredictionTest(false, R"javascript(
@@ -7295,7 +7279,7 @@ TEST(CatchPredictionTopLevelEval) {
   )javascript");
 }
 
-TEST(CatchPredictionClosureCapture) {
+TEST_F(DebugTest, CatchPredictionClosureCapture) {
   // Statement returning rejected promise is immediately followed by statement
   // catching it, but original promise is captured in a closure.
   RunExceptionOptimizedCallstackWalkTest(false, 1, R"javascript(
@@ -7307,7 +7291,7 @@ TEST(CatchPredictionClosureCapture) {
   )javascript");
 }
 
-TEST(CatchPredictionNestedContext) {
+TEST_F(DebugTest, CatchPredictionNestedContext) {
   // Statement returning rejected promise stores in a variable in an outer
   // context.
   RunExceptionOptimizedCallstackWalkTest(false, 1, R"javascript(
@@ -7323,7 +7307,7 @@ TEST(CatchPredictionNestedContext) {
   )javascript");
 }
 
-TEST(CatchPredictionWithContext) {
+TEST_F(DebugTest, CatchPredictionWithContext) {
   // Statement returning rejected promise stores in a variable outside a with
   // context.
   RunExceptionOptimizedCallstackWalkTest(false, 1, R"javascript(
@@ -7355,7 +7339,7 @@ class FailedScriptCompiledDelegate : public v8::debug::DebugDelegate {
   v8::Global<v8::debug::Script> script_;
 };
 
-TEST(DebugSetBreakpointWrappedScriptFailCompile) {
+TEST_F(DebugTest, DebugSetBreakpointWrappedScriptFailCompile) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::internal::Isolate* i_isolate =
@@ -7386,7 +7370,7 @@ class PromiseAllExceptionDelegate : public v8::debug::DebugDelegate {
                        v8::debug::ExceptionType exception_type) override {
     exception_count++;
     if (is_uncaught) uncaught_count++;
-    v8::Isolate* isolate = CcTest::isolate();
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();
     last_promise.Reset(isolate, promise);
     if (!exception.IsEmpty() && exception->IsObject()) {
       v8::Local<v8::Object> exc_obj = exception.As<v8::Object>();
@@ -7413,7 +7397,7 @@ static void EmptyPromiseCatchHandler(
 
 // This is the C++ equivalent of test/debugger/debug/es6/debug-promises/
 // promise-all-uncaught.js.
-TEST(PerformPromiseAllUncaughtDebug) {
+TEST_F(DebugTest, PerformPromiseAllUncaughtDebug) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -7457,7 +7441,7 @@ TEST(PerformPromiseAllUncaughtDebug) {
 
 // This is the C++ equivalent of test/debugger/debug/es6/debug-promises/
 // promise-all-caught.js.
-TEST(PerformPromiseAllCaughtDebug) {
+TEST_F(DebugTest, PerformPromiseAllCaughtDebug) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -7564,12 +7548,12 @@ std::string RunStepOverEnterFunctions(bool enter_functions) {
   return delegate.pauses();
 }
 
-TEST(StepOverWithoutEnterFunctions) {
+TEST_F(DebugTest, StepOverWithoutEnterFunctions) {
   CHECK_EQ("F:7:2 F:8:2 F:9:2 F:10:2 F:11:2 F:11:11 :0:3 ",
            RunStepOverEnterFunctions(false));
 }
 
-TEST(StepOverEnterFunctions) {
+TEST_F(DebugTest, StepOverEnterFunctions) {
   // T is entered from F and from the forEach builtin, G is never entered.
   CHECK_EQ(
       "F:7:2 F:8:2 T:1:2 T:1:13 F:9:2 F:10:2 T:1:2 T:1:13 T:1:2 T:1:13 "
@@ -7602,7 +7586,7 @@ std::string RunStepOverEnterFunctionsImplicitCall() {
   return delegate.pauses();
 }
 
-TEST(StepOverEnterFunctionsImplicitCall) {
+TEST_F(DebugTest, StepOverEnterFunctionsImplicitCall) {
   CHECK_EQ("F:8:2 F:9:10 get t:1:4 get t:1:13 F:10:11 :0:3 ",
            RunStepOverEnterFunctionsImplicitCall());
 }
@@ -7634,9 +7618,12 @@ std::string RunStepOverEnterFunctionsGenerator() {
   return delegate.pauses();
 }
 
-TEST(StepOverEnterFunctionsGenerator) {
+TEST_F(DebugTest, StepOverEnterFunctionsGenerator) {
   CHECK_EQ("G:4:2 G:5:2 G:6:2 G:6:11 F:12:2 F:12:11 :0:3 ",
            RunStepOverEnterFunctionsGenerator());
 }
 
 }  // namespace
+
+}  // namespace debug_unittest
+}  // namespace v8

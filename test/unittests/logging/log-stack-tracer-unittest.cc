@@ -40,11 +40,23 @@
 #include "src/objects/abstract-code-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/profiler/tick-sample.h"
-#include "test/cctest/cctest.h"
-#include "test/cctest/trace-extension.h"
+#include "test/unittests/api/api-test-utils.h"
+#include "test/unittests/logging/trace-extension.h"
 
 namespace v8 {
 namespace internal {
+namespace log_stack_tracer_unittest {
+
+using LogStackTracerTest = ::v8::TestWithIsolate;
+
+static v8::Local<v8::Context> NewTraceContext(v8::Isolate* isolate) {
+  static bool registered =
+      (v8::RegisterExtension(std::make_unique<i::TraceExtension>()), true);
+  USE(registered);
+  const char* extension_names[] = {"v8/trace"};
+  v8::ExtensionConfiguration config(1, extension_names);
+  return v8::Context::New(isolate, &config);
+}
 
 static bool IsAddressWithinFuncCode(Tagged<JSFunction> function,
                                     Isolate* isolate, void* addr) {
@@ -111,13 +123,12 @@ static void construct_call(const v8::FunctionCallbackInfo<v8::Value>& info) {
 void CreateFramePointerGrabberConstructor(v8::Local<v8::Context> context,
                                           const char* constructor_name) {
   Local<v8::FunctionTemplate> constructor_template =
-      v8::FunctionTemplate::New(CcTest::isolate(), construct_call);
+      v8::FunctionTemplate::New(v8::Isolate::GetCurrent(), construct_call);
   constructor_template->SetClassName(v8_str("FPGrabber"));
   Local<Function> fun =
       constructor_template->GetFunction(context).ToLocalChecked();
   context->Global()->Set(context, v8_str(constructor_name), fun).FromJust();
 }
-
 
 // Creates a global function named 'func_name' that calls the tracing
 // function 'trace_func_name' with an actual EBP register value,
@@ -141,20 +152,19 @@ static void CreateTraceCallerFunction(v8::Local<v8::Context> context,
   CompileRun(trace_call_buf.data());
 }
 
-
 // This test verifies that stack tracing works when called during
 // execution of a native function called from JS code. In this case,
 // TickSample::Trace uses Isolate::c_entry_fp as a starting point for stack
 // walking.
-TEST(CFromJSStackTrace) {
+TEST_F(LogStackTracerTest, CFromJSStackTrace) {
   // BUG(1303) Inlining of JSFuncDoTrace() in JSTrace below breaks this test.
   i::v8_flags.turbo_inlining.Set(false);
 
   TickSample sample;
   i::TraceExtension::InitTraceEnv(&sample);
 
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> context = CcTest::NewContext({TRACE_EXTENSION_ID});
+  v8::HandleScope scope(v8_isolate());
+  v8::Local<v8::Context> context = NewTraceContext(v8_isolate());
   v8::Context::Scope context_scope(context);
 
   // Create global function JSFuncDoTrace which calls
@@ -183,19 +193,18 @@ TEST(CFromJSStackTrace) {
   unsigned base = 0;
   CHECK_GT(sample.frames_count, base + 1);
 
-  CHECK(IsAddressWithinFuncCode(context, CcTest::i_isolate(), "JSFuncDoTrace",
+  CHECK(IsAddressWithinFuncCode(context, i_isolate(), "JSFuncDoTrace",
                                 sample.stack[base + 0]));
-  CHECK(IsAddressWithinFuncCode(context, CcTest::i_isolate(), "JSTrace",
+  CHECK(IsAddressWithinFuncCode(context, i_isolate(), "JSTrace",
                                 sample.stack[base + 1]));
 }
-
 
 // This test verifies that stack tracing works when called during
 // execution of JS code. However, as calling TickSample::Trace requires
 // entering native code, we can only emulate pure JS by erasing
 // Isolate::c_entry_fp value. In this case, TickSample::Trace uses passed frame
 // pointer value as a starting point for stack walking.
-TEST(PureJSStackTrace) {
+TEST_F(LogStackTracerTest, PureJSStackTrace) {
   // This test does not pass with inlining enabled since inlined functions
   // don't appear in the stack trace.
   i::v8_flags.turbo_inlining.Set(false);
@@ -203,8 +212,8 @@ TEST(PureJSStackTrace) {
   TickSample sample;
   i::TraceExtension::InitTraceEnv(&sample);
 
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> context = CcTest::NewContext({TRACE_EXTENSION_ID});
+  v8::HandleScope scope(v8_isolate());
+  v8::Local<v8::Context> context = NewTraceContext(v8_isolate());
   v8::Context::Scope context_scope(context);
 
   // Create global function JSFuncDoTrace which calls
@@ -237,9 +246,9 @@ TEST(PureJSStackTrace) {
   // Stack sampling will start from the caller of JSFuncDoTrace, i.e. "JSTrace"
   unsigned base = 0;
   CHECK_GT(sample.frames_count, base + 1);
-  CHECK(IsAddressWithinFuncCode(context, CcTest::i_isolate(), "JSTrace",
+  CHECK(IsAddressWithinFuncCode(context, i_isolate(), "JSTrace",
                                 sample.stack[base + 0]));
-  CHECK(IsAddressWithinFuncCode(context, CcTest::i_isolate(), "OuterJSTrace",
+  CHECK(IsAddressWithinFuncCode(context, i_isolate(), "OuterJSTrace",
                                 sample.stack[base + 1]));
 }
 
@@ -266,24 +275,22 @@ static int CFunc(int depth) {
   }
 }
 
-
 // This test verifies that stack tracing doesn't crash when called on
 // pure native code. TickSample::Trace only unrolls JS code, so we can't
 // get any meaningful info here.
-TEST(PureCStackTrace) {
+TEST_F(LogStackTracerTest, PureCStackTrace) {
   TickSample sample;
   i::TraceExtension::InitTraceEnv(&sample);
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> context = CcTest::NewContext({TRACE_EXTENSION_ID});
+  v8::HandleScope scope(v8_isolate());
+  v8::Local<v8::Context> context = NewTraceContext(v8_isolate());
   v8::Context::Scope context_scope(context);
   // Check that sampler doesn't crash
   CHECK_EQ(10, CFunc(10));
 }
 
-
-TEST(JsEntrySp) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> context = CcTest::NewContext({TRACE_EXTENSION_ID});
+TEST_F(LogStackTracerTest, JsEntrySp) {
+  v8::HandleScope scope(v8_isolate());
+  v8::Local<v8::Context> context = NewTraceContext(v8_isolate());
   v8::Context::Scope context_scope(context);
   CHECK(!i::TraceExtension::GetJsEntrySp());
   CompileRun("a = 1; b = a + 1;");
@@ -294,5 +301,6 @@ TEST(JsEntrySp) {
   CHECK(!i::TraceExtension::GetJsEntrySp());
 }
 
+}  // namespace log_stack_tracer_unittest
 }  // namespace internal
 }  // namespace v8

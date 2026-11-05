@@ -115,11 +115,10 @@ class JSHeapBroker;
   static void Test##Name()
 #endif
 
-#define EXTENSION_LIST(V)              \
-  V(GC_EXTENSION, "v8/gc")             \
-  V(PRINT_EXTENSION, "v8/print")       \
-  V(PROFILER_EXTENSION, "v8/profiler") \
-  V(TRACE_EXTENSION, "v8/trace")
+#define EXTENSION_LIST(V)        \
+  V(GC_EXTENSION, "v8/gc")       \
+  V(PRINT_EXTENSION, "v8/print") \
+  V(PROFILER_EXTENSION, "v8/profiler")
 
 #define DEFINE_EXTENSION_ID(Name, Ident) Name##_ID,
 enum CcTestExtensionId { EXTENSION_LIST(DEFINE_EXTENSION_ID) kMaxExtensions };

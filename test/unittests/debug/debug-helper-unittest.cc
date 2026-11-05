@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "tools/debug_helper/debug-helper.h"
+
 #include <sstream>
 
 #include "include/v8-template.h"
@@ -11,8 +13,7 @@
 #include "src/flags/flags.h"
 #include "src/heap/paged-spaces.h"
 #include "src/heap/read-only-spaces.h"
-#include "test/cctest/cctest.h"
-#include "tools/debug_helper/debug-helper.h"
+#include "test/unittests/api/api-test-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -145,9 +146,10 @@ class TestDebugHelper {
   }
 };
 
-TEST(GetObjectProperties) {
-  CcTest::InitializeVM();
-  v8::Isolate* isolate = CcTest::isolate();
+using DebugHelperTest = ::v8::TestWithIsolate;
+
+TEST_F(DebugHelperTest, GetObjectProperties) {
+  v8::Isolate* isolate = v8_isolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   PtrComprCageAccessScope ptr_compr_cage_access_scope(i_isolate);
   v8::HandleScope scope(isolate);
@@ -498,9 +500,8 @@ TEST(GetObjectProperties) {
   }
 }
 
-TEST(GetObjectPropertiesWithOnlyIsolate) {
-  CcTest::InitializeVM();
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(DebugHelperTest, GetObjectPropertiesWithOnlyIsolate) {
+  v8::Isolate* isolate = v8_isolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   PtrComprCageAccessScope ptr_compr_cage_access_scope(i_isolate);
   v8::HandleScope scope(isolate);
@@ -638,7 +639,7 @@ static void FrameIterationCheck(
   }
 }
 
-THREADED_TEST(GetFrameStack) {
+TEST_F(DebugHelperTest, GetFrameStack) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   i::Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
@@ -666,7 +667,7 @@ THREADED_TEST(GetFrameStack) {
       .ToLocalChecked();
 }
 
-TEST(SmallOrderedHashSetGetObjectProperties) {
+TEST_F(DebugHelperTest, SmallOrderedHashSetGetObjectProperties) {
   LocalContext context;
   Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();

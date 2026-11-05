@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_TEST_CCTEST_TRACE_EXTENSION_H_
-#define V8_TEST_CCTEST_TRACE_EXTENSION_H_
+#ifndef V8_UNITTESTS_LOGGING_TRACE_EXTENSION_H_
+#define V8_UNITTESTS_LOGGING_TRACE_EXTENSION_H_
 
 #include "include/v8-extension.h"
 
@@ -41,7 +41,7 @@ struct TickSample;
 
 class TraceExtension : public v8::Extension {
  public:
-  TraceExtension() : v8::Extension("v8/trace", kSource) { }
+  TraceExtension() : v8::Extension("v8/trace", kSource) {}
   v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
       v8::Isolate* isolate, v8::Local<v8::String> name) override;
   static void Trace(const v8::FunctionCallbackInfo<v8::Value>& info);
@@ -51,6 +51,7 @@ class TraceExtension : public v8::Extension {
   static Address GetJsEntrySp();
   static void InitTraceEnv(TickSample* sample);
   static void DoTrace(Address fp);
+
  private:
   static Address GetFP(const v8::FunctionCallbackInfo<v8::Value>& info);
   static const char* kSource;
@@ -59,4 +60,4 @@ class TraceExtension : public v8::Extension {
 }  // namespace internal
 }  // namespace v8
 
-#endif
+#endif  // V8_UNITTESTS_LOGGING_TRACE_EXTENSION_H_

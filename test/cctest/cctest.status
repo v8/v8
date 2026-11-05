@@ -69,7 +69,6 @@
   # Slow tests.
   'test-api/InternalFieldsSubclassing': [PASS, SLOW],
   'test-cpu-profiler/NoProfilingProtectorCPUProfiler': [PASS, SLOW],
-  'test-debug/CallFunctionInDebugger': [PASS, ['mode == debug', SLOW]],
   'test-heap-profiler/ManyLocalsInSharedContext': [PASS, SLOW],
 
   # Tests that need to run sequentially (e.g. due to memory consumption).
@@ -177,9 +176,6 @@
 ##############################################################################
 ['asan == True', {
   # Skip tests not suitable for ASAN.
-
-  # BUG(v8:7587): Strange breakage on Mac.
-  'test-log-stack-tracer/PureJSStackTrace': [SKIP],
 }],  # 'asan == True'
 
 ##############################################################################
@@ -283,7 +279,6 @@
   # Pass but take too long with the simulator.
   'test-api/Threading*': [PASS, SLOW],
   'test-api/ExternalArrays': [PASS, SLOW],
-  'test-debug/DebugBreakStackTrace': [PASS, SLOW],
 
 }],  # 'arch == ppc64 and simulator_run'
 
@@ -303,18 +298,11 @@
   'test-api/*': [SKIP],
   'test-bignum-dtoa/*': [SKIP],
   'test-cpu-profiler/*': [SKIP],
-  'test-debug/*': [SKIP],
   'test-heap-profiler/*': [SKIP],
   'test-lockers/*': [SKIP],
   'test-page-promotion/*': [SKIP],
   'test-dtoa/*': [SKIP],
 }],  # variant == no_wasm_traps
-
-##############################################################################
-# The stack unwinder API is only supported on x64, arm64 and arm.
-['arch != x64 and arch != arm64 and arch != arm', {
-  'test-unwinder-code-pages/*': [SKIP]
-}],
 
 ##############################################################################
 # TODO(v8:7777): Change this once wasm is supported in jitless mode.
@@ -333,7 +321,6 @@
   # Tests that generate code at runtime.
   'test-accessor-assembler/*': [SKIP],
   'test-code-stub-assembler/*': [SKIP],
-  'test-debug-helper/GetObjectProperties': [SKIP],
   'test-run-intrinsics/*': [SKIP],
   'test-run-stackcheck/*': [SKIP],
   'test-run-unwinding-info/*': [SKIP],
@@ -341,14 +328,11 @@
   'test-torque/*': [SKIP],
   'test-sync-primitives-arm64/*': [SKIP],
 
-  'test-unwinder-code-pages/PCIsInV8_LargeCodeObject_CodePagesAPI': [SKIP],
   'test-heap-profiler/WeakReference': [SKIP],
 }], # lite_mode or variant == jitless
 
 ##############################################################################
 ['has_jitless', {
-  # invocation_count maintenance is disabled.
-  'test-debug/DebugCoverage*': [SKIP],
   # WebAssembly not included.
   'test-api/Threading8': [SKIP],
 }],  # has_jitless
@@ -373,9 +357,6 @@
 
 ################################################################################
 ['variant == stress_concurrent_inlining', {
-  # crbug.com/v8/11649: Improper access to BreakInfo and friends.
-  'test-debug/BreakPointInlinedBuiltin': [PASS, FAIL],
-  'test-debug/BreakPointInlining': [PASS, FAIL],
   # BUG(11524): Crashing flakily.
   'test-cpu-profiler/TracingCpuProfiler': [PASS, FAIL],
 }], # variant == stress_concurrent_inlining

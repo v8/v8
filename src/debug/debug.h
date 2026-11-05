@@ -791,8 +791,8 @@ class V8_EXPORT_PRIVATE Debug {
   friend class SuppressDebug;
 
   friend DirectHandle<ProtectedFixedArray>
-  GetDebuggedFunctions();                            // In test-debug.cc
-  friend void CheckDebuggerUnloaded();               // In test-debug.cc
+  GetDebuggedFunctions();               // In debug-unittest.cc
+  friend void CheckDebuggerUnloaded();  // In debug-unittest.cc
 };
 
 // This scope is used to load and enter the debug context and create a new

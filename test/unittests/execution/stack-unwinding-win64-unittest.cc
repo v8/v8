@@ -13,7 +13,12 @@
 #include "include/v8-local-handle.h"
 #include "include/v8-template.h"
 #include "src/base/macros.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/api/api-test-utils.h"
+
+namespace v8 {
+namespace stack_unwinding_win64_unittest {
+
+using StackUnwindingWin64UninitializedTest = ::v8::TestWithPlatform;
 
 #if defined(V8_OS_WIN_X64)  // Native x64 compilation
 #define CONTEXT_PC(context) (context.Rip)
@@ -72,7 +77,7 @@ constexpr v8::ExternalPointerTypeTag kCallbackTag = 22;
 }  // namespace
 
 // Verifies that stack unwinding data has been correctly registered on Win64.
-UNINITIALIZED_TEST(StackUnwindingWin64) {
+TEST_F(StackUnwindingWin64UninitializedTest, StackUnwindingWin64) {
 #ifdef V8_WIN64_UNWINDING_INFO
 
   static const char* unwinding_win64_test_source =
@@ -93,7 +98,7 @@ UNINITIALIZED_TEST(StackUnwindingWin64) {
   i::v8_flags.win64_unwinding_info.Set(true);
 
   v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  create_params.array_buffer_allocator = DefaultArrayBufferAllocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   isolate->Enter();
   {
@@ -106,7 +111,8 @@ UNINITIALIZED_TEST(StackUnwindingWin64) {
         func_template->InstanceTemplate();
 
     UnwindingWin64Callbacks accessors;
-    v8::Local<v8::External> data = v8::External::New(isolate, &accessors, kCallbackTag);
+    v8::Local<v8::External> data =
+        v8::External::New(isolate, &accessors, kCallbackTag);
     instance_template->SetNativeDataProperty(
         v8_str("foo"), &UnwindingWin64Callbacks::Getter,
         &UnwindingWin64Callbacks::Setter, data);
@@ -134,3 +140,6 @@ UNINITIALIZED_TEST(StackUnwindingWin64) {
 }
 
 #undef CONTEXT_PC
+
+}  // namespace stack_unwinding_win64_unittest
+}  // namespace v8

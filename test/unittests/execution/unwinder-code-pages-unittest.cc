@@ -11,11 +11,14 @@
 #include "src/execution/isolate.h"
 #include "src/heap/spaces.h"
 #include "src/objects/code-inl.h"
-#include "test/cctest/cctest.h"
+#include "test/common/simulator-helper.h"
+#include "test/unittests/api/api-test-utils.h"
 
 namespace v8 {
 namespace internal {
 namespace test_unwinder_code_pages {
+
+using UnwinderCodePagesTest = ::v8::TestWithIsolate;
 
 namespace {
 
@@ -125,7 +128,7 @@ void CheckCalleeSavedRegisters(const RegisterState& register_state) {
 
 static const void* fake_stack_base = nullptr;
 
-TEST(Unwind_BadState_Fail_CodePagesAPI) {
+TEST_F(UnwinderCodePagesTest, Unwind_BadState_Fail_CodePagesAPI) {
   JSEntryStubs entry_stubs;  // Fields are initialized to nullptr.
   RegisterState register_state;
   size_t pages_length = 0;
@@ -141,7 +144,7 @@ TEST(Unwind_BadState_Fail_CodePagesAPI) {
 }
 
 // Unwind a middle JS frame (i.e not the JSEntry one).
-TEST(Unwind_BuiltinPCInMiddle_Success_CodePagesAPI) {
+TEST_F(UnwinderCodePagesTest, Unwind_BuiltinPCInMiddle_Success_CodePagesAPI) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
@@ -187,7 +190,7 @@ TEST(Unwind_BuiltinPCInMiddle_Success_CodePagesAPI) {
 // long as the PC isn't in JSEntry). This test puts the PC at the start
 // of a JS builtin and creates a fake JSEntry frame before it on the stack. The
 // unwinder should be able to unwind to the C++ frame before the JSEntry frame.
-TEST(Unwind_BuiltinPCAtStart_Success_CodePagesAPI) {
+TEST_F(UnwinderCodePagesTest, Unwind_BuiltinPCAtStart_Success_CodePagesAPI) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
@@ -264,7 +267,8 @@ bool PagesContainsAddress(size_t length, MemoryRange* pages,
 
 // Check that we can unwind when the pc is within an optimized code object on
 // the V8 heap.
-TEST(Unwind_CodeObjectPCInMiddle_Success_CodePagesAPI) {
+TEST_F(UnwinderCodePagesTest,
+       Unwind_CodeObjectPCInMiddle_Success_CodePagesAPI) {
   v8_flags.allow_natives_syntax.Set(true);
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
@@ -326,7 +330,7 @@ TEST(Unwind_CodeObjectPCInMiddle_Success_CodePagesAPI) {
 
 // If the PC is within JSEntry but we haven't set up the frame yet, then we
 // cannot unwind.
-TEST(Unwind_JSEntryBeforeFrame_Fail_CodePagesAPI) {
+TEST_F(UnwinderCodePagesTest, Unwind_JSEntryBeforeFrame_Fail_CodePagesAPI) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
 
@@ -389,7 +393,7 @@ TEST(Unwind_JSEntryBeforeFrame_Fail_CodePagesAPI) {
 // Creates a fake stack with two JS frames on top of a C++ frame and checks that
 // the unwinder correctly unwinds past the JS frames and returns the C++ frame's
 // details.
-TEST(Unwind_TwoJSFrames_Success_CodePagesAPI) {
+TEST_F(UnwinderCodePagesTest, Unwind_TwoJSFrames_Success_CodePagesAPI) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
 
@@ -443,7 +447,7 @@ TEST(Unwind_TwoJSFrames_Success_CodePagesAPI) {
 
 // If the PC is in JSEntry then the frame might not be set up correctly, meaning
 // we can't unwind the stack properly.
-TEST(Unwind_JSEntry_Fail_CodePagesAPI) {
+TEST_F(UnwinderCodePagesTest, Unwind_JSEntry_Fail_CodePagesAPI) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
@@ -470,7 +474,7 @@ TEST(Unwind_JSEntry_Fail_CodePagesAPI) {
 
 // Tries to unwind a middle frame (i.e not a JSEntry frame) first with a wrong
 // stack base, and then with the correct one.
-TEST(Unwind_StackBounds_Basic_CodePagesAPI) {
+TEST_F(UnwinderCodePagesTest, Unwind_StackBounds_Basic_CodePagesAPI) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
 
@@ -487,7 +491,7 @@ TEST(Unwind_StackBounds_Basic_CodePagesAPI) {
   uintptr_t stack[3];
   stack[0] = reinterpret_cast<uintptr_t>(stack + 2);  // saved FP.
   stack[1] = 202;                                     // saved PC.
-  stack[2] = 303;  // saved SP.
+  stack[2] = 303;                                     // saved SP.
 
   register_state.sp = stack;
   register_state.fp = stack;
@@ -507,7 +511,7 @@ TEST(Unwind_StackBounds_Basic_CodePagesAPI) {
   CHECK(unwound);
 }
 
-TEST(Unwind_StackBounds_WithUnwinding_CodePagesAPI) {
+TEST_F(UnwinderCodePagesTest, Unwind_StackBounds_WithUnwinding_CodePagesAPI) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
 
@@ -570,7 +574,7 @@ TEST(Unwind_StackBounds_WithUnwinding_CodePagesAPI) {
   CheckCalleeSavedRegisters(register_state);
 }
 
-TEST(PCIsInV8_BadState_Fail_CodePagesAPI) {
+TEST_F(UnwinderCodePagesTest, PCIsInV8_BadState_Fail_CodePagesAPI) {
   void* pc = nullptr;
   size_t pages_length = 0;
   MemoryRange* code_pages = nullptr;
@@ -578,7 +582,7 @@ TEST(PCIsInV8_BadState_Fail_CodePagesAPI) {
   CHECK(!v8::Unwinder::PCIsInV8(pages_length, code_pages, pc));
 }
 
-TEST(PCIsInV8_ValidStateNullPC_Fail_CodePagesAPI) {
+TEST_F(UnwinderCodePagesTest, PCIsInV8_ValidStateNullPC_Fail_CodePagesAPI) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
 
@@ -608,7 +612,7 @@ void TestRangeBoundaries(size_t pages_length, MemoryRange* code_pages,
   CHECK(!v8::Unwinder::PCIsInV8(pages_length, code_pages, pc));
 }
 
-TEST(PCIsInV8_InAllCodePages_CodePagesAPI) {
+TEST_F(UnwinderCodePagesTest, PCIsInV8_InAllCodePages_CodePagesAPI) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
 
@@ -627,7 +631,7 @@ TEST(PCIsInV8_InAllCodePages_CodePagesAPI) {
 
 // PCIsInV8 doesn't check if the PC is in JSEntry directly. It's assumed that
 // the CodeRange or EmbeddedCodeRange contain JSEntry.
-TEST(PCIsInV8_InJSEntryRange_CodePagesAPI) {
+TEST_F(UnwinderCodePagesTest, PCIsInV8_InJSEntryRange_CodePagesAPI) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
@@ -651,7 +655,7 @@ TEST(PCIsInV8_InJSEntryRange_CodePagesAPI) {
 
 // Large code objects can be allocated in large object space. Check that this is
 // inside the CodeRange.
-TEST(PCIsInV8_LargeCodeObject_CodePagesAPI) {
+TEST_F(UnwinderCodePagesTest, PCIsInV8_LargeCodeObject_CodePagesAPI) {
   v8_flags.allow_natives_syntax.Set(true);
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
@@ -693,8 +697,8 @@ TEST(PCIsInV8_LargeCodeObject_CodePagesAPI) {
 // needs modifications is getting the RegisterState.
 class UnwinderTestHelper {
  public:
-  explicit UnwinderTestHelper(const std::string& test_function)
-      : isolate_(CcTest::isolate()) {
+  UnwinderTestHelper(const std::string& test_function, v8::Isolate* isolate)
+      : isolate_(isolate) {
     CHECK(!instance_);
     instance_ = this;
     v8::HandleScope scope(isolate_);
@@ -712,6 +716,8 @@ class UnwinderTestHelper {
     CHECK(i::ValidateCallbackInfo(info));
     instance_->DoTryUnwind();
   }
+
+  Isolate* i_isolate() const { return reinterpret_cast<Isolate*>(isolate_); }
 
   void DoTryUnwind() {
     // Set up RegisterState.
@@ -736,7 +742,7 @@ class UnwinderTestHelper {
     // Check that we have successfully unwound past js_entry_sp.
     CHECK(unwound);
     CHECK_GT(register_state.sp,
-             reinterpret_cast<void*>(CcTest::i_isolate()->js_entry_sp()));
+             reinterpret_cast<void*>(i_isolate()->js_entry_sp()));
   }
 
   v8::Isolate* isolate_;
@@ -746,7 +752,7 @@ class UnwinderTestHelper {
 
 UnwinderTestHelper* UnwinderTestHelper::instance_;
 
-TEST(Unwind_TwoNestedFunctions_CodePagesAPI) {
+TEST_F(UnwinderCodePagesTest, Unwind_TwoNestedFunctions_CodePagesAPI) {
   i::v8_flags.allow_natives_syntax.Set(true);
   const char* test_script =
       "function test_unwinder_api_inner() {"
@@ -760,7 +766,7 @@ TEST(Unwind_TwoNestedFunctions_CodePagesAPI) {
       "%NeverOptimizeFunction(test_unwinder_api_outer);"
       "test_unwinder_api_outer();";
 
-  UnwinderTestHelper helper(test_script);
+  UnwinderTestHelper helper(test_script, v8_isolate());
 }
 #endif
 
