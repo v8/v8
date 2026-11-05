@@ -10358,6 +10358,8 @@ class Construct : public VarargsValueNodeT<3, Construct> {
   static constexpr OpProperties kProperties = OpProperties::JSCall();
   DECLARE_INPUTS(Target, NewTarget, Context)
 
+  NodeType type() const { return NodeType::kJSReceiver; }
+
   compiler::FeedbackSource feedback() const { return feedback_; }
 
   int MaxCallStackArgs() const;
@@ -10680,6 +10682,8 @@ class ConstructForwardVarargs
 
   static constexpr OpProperties kProperties = OpProperties::JSCall();
   DECLARE_INPUTS(Target, NewTarget, Context)
+
+  NodeType type() const { return NodeType::kJSReceiver; }
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
@@ -11012,6 +11016,8 @@ class ConstructWithSpread : public VarargsValueNodeT<3, ConstructWithSpread> {
 
   static constexpr OpProperties kProperties = OpProperties::JSCall();
   DECLARE_INPUTS(Target, NewTarget, Context)
+
+  NodeType type() const { return NodeType::kJSReceiver; }
 
   int num_args_no_spread() const {
     DCHECK_GT(num_args(), 0);

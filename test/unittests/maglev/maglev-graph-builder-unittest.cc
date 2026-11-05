@@ -84,6 +84,19 @@ static T* getUniqueNode(Graph* graph) {
   return target;
 }
 
+template <typename T>
+static int countNodes(Graph* graph) {
+  int count = 0;
+  for (BasicBlock* block : graph->blocks()) {
+    for (Node* node : block->nodes()) {
+      if (node->Is<T>()) {
+        ++count;
+      }
+    }
+  }
+  return count;
+}
+
 TEST_F(MaglevGraphBuilderTest, TrailingArgumentsRemoval) {
   i::v8_flags.allow_natives_syntax.Set(true);
   for (bool strict : {true, false}) {
@@ -324,6 +337,79 @@ TEST_F(MaglevGraphBuilderTest, OldInlinedAllocationFoldingAndWriteBarriers) {
   info->broker()->DetachLocalIsolateForMaglev(info.get());
 }
 
+TEST_F(MaglevGraphBuilderTest, ConstructNodesHaveJSReceiverStaticType) {
+  FlagScope<bool> allow_natives_syntax(&v8_flags.allow_natives_syntax, true);
+  FlagScope<bool> non_eager_inlining(&v8_flags.maglev_non_eager_inlining,
+                                     false);
+
+  auto BuildGraphFor = [&](const char* script) {
+    Handle<JSFunction> function = RunJS<JSFunction>(script);
+    std::unique_ptr<MaglevCompilationInfo> info =
+        MaglevCompilationInfo::New(isolate(), function, BytecodeOffset::None());
+    info->broker()->AttachLocalIsolateForMaglev(info.get(),
+                                                isolate()->AsLocalIsolate());
+    Graph* graph = Graph::New(info.get());
+    compiler::CurrentHeapBrokerScope current_broker(info->broker());
+    MaglevGraphBuilder graph_builder(isolate()->AsLocalIsolate(),
+                                     info->toplevel_compilation_unit(), graph);
+    CHECK(graph_builder.Build());
+    info->broker()->DetachLocalIsolateForMaglev(info.get());
+    return std::make_pair(std::move(info), graph);
+  };
+
+  {
+    HandleScope scope(isolate());
+    auto [info, graph] = BuildGraphFor(R"(
+      class A {}
+      class B {}
+      class Base1 {
+        constructor(ctor) { return new ctor(); }
+      }
+      function f1(ctor) { return new Base1(ctor); }
+      %PrepareFunctionForOptimization(Base1);
+      %PrepareFunctionForOptimization(f1);
+      f1(A);
+      f1(B);
+      (f1)
+    )");
+    CHECK_EQ(1, countNodes<Construct>(graph));
+    CHECK_EQ(0, countNodes<CheckConstructResult>(graph));
+  }
+
+  {
+    HandleScope scope(isolate());
+    auto [info, graph] = BuildGraphFor(R"(
+      class Base2 {
+        constructor(ctor, arr) { return new ctor(...arr); }
+      }
+      function f2(ctor, arr) { return new Base2(ctor, arr); }
+      %PrepareFunctionForOptimization(Base2);
+      %PrepareFunctionForOptimization(f2);
+      f2(A, [1]);
+      f2(B, [1, 2]);
+      (f2)
+    )");
+    CHECK_EQ(1, countNodes<ConstructWithSpread>(graph));
+    CHECK_EQ(0, countNodes<CheckConstructResult>(graph));
+  }
+
+  {
+    HandleScope scope(isolate());
+    auto [info, graph] = BuildGraphFor(R"(
+      class Base3 {
+        constructor(ctor, args) { return new ctor(...args); }
+      }
+      function f3(ctor, ...args) { return new Base3(ctor, args); }
+      %PrepareFunctionForOptimization(Base3);
+      %PrepareFunctionForOptimization(f3);
+      f3(A, 1);
+      f3(B, 1, 2);
+      (f3)
+    )");
+    CHECK_EQ(1, countNodes<ConstructForwardVarargs>(graph));
+    CHECK_EQ(0, countNodes<CheckConstructResult>(graph));
+  }
+}
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8
