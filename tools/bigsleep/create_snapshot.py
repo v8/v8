@@ -40,6 +40,7 @@ SEEDS_PATH = pathlib.Path("seeds.json")
 # List of directory names (relative to v8_dir) to skip during source copying.
 _DENY_LIST = [
     "buildtools/reclient",
+    "out",
     "third_party/llvm-build",
     "third_party/rust-toolchain",
 ]
@@ -107,6 +108,20 @@ def format_commit(v8_dir: pathlib.Path, commit_id: str) -> GitCommit:
       diff=patch)
 
 
+def copy_build_artifacts(build_dir: pathlib.Path,
+                         dest_dir: pathlib.Path) -> None:
+  """Copies d8, snapshot/ICU data, args.gn, and shared libraries from build_dir."""
+  dest_dir.mkdir(parents=True, exist_ok=True)
+  shutil.copy(build_dir / "d8", dest_dir / "d8")
+  for f in ["snapshot_blob.bin", "icudtl.dat", "args.gn"]:
+    if (build_dir / f).exists():
+      shutil.copy(build_dir / f, dest_dir / f)
+
+  # Copy built shared libraries (e.g. libsanitizer_shared_hooks.so, component DSOs)
+  for so_path in build_dir.glob("*.so"):
+    shutil.copy(so_path, dest_dir / so_path.name)
+
+
 def copy_v8_sources(
     v8_dir: pathlib.Path,
     build_dir: pathlib.Path,
@@ -116,8 +131,8 @@ def copy_v8_sources(
   """Copies all source files from v8_dir to source_dir, respecting a
     deny_list.
 
-    It skips .git directories and the build_dir, but specifically includes
-    the 'gen' subdirectory within build_dir.
+    It skips .git directories and the deny_list (including out/), and
+    specifically includes the 'gen' subdirectory within build_dir.
 
     Args:
         v8_dir: Path to the V8 source root.
@@ -130,7 +145,6 @@ def copy_v8_sources(
   # Normalize paths for easier comparison
   abs_v8_dir = v8_dir.resolve()
   abs_deny_list = {(abs_v8_dir / d).resolve() for d in deny_list}
-  abs_build_dir = build_dir.resolve()
   abs_gen_dir = (build_dir / "gen").resolve()
 
   def should_skip(path: pathlib.Path) -> bool:
@@ -138,13 +152,6 @@ def copy_v8_sources(
     if abs_path.name == ".git":
       return True
     if abs_path in abs_deny_list:
-      return True
-    if abs_path == abs_build_dir:
-      return True
-    # Skip everything in build_dir EXCEPT for the gen directory
-    is_in_build = abs_build_dir in abs_path.parents
-    is_gen = abs_gen_dir in [abs_path] + list(abs_path.parents)
-    if is_in_build and not is_gen:
       return True
     return False
 
@@ -246,10 +253,19 @@ def main():
       help="Path to the V8 checkout.",
   )
   parser.add_argument(
+      "--debug_build_dir",
       "--build_dir",
+      dest="debug_build_dir",
       required=True,
       type=pathlib.Path,
-      help="Path to the V8 build directory.",
+      help="Path to the V8 debug build directory (packaged under obj/debug/).",
+  )
+  parser.add_argument(
+      "--release_build_dir",
+      type=pathlib.Path,
+      default=None,
+      help=("Optional path to a release-mode V8 build directory"
+            " (packaged under obj/release/)."),
   )
   parser.add_argument(
       "--output_file",
@@ -267,27 +283,13 @@ def main():
     artifact_dir.mkdir()
     source_dir.mkdir()
 
-    # Copy artifacts
-    shutil.copy(args.build_dir / "d8", artifact_dir / "d8")
-    shutil.copy(
-        args.build_dir / "compile_commands.json",
-        artifact_dir / "compile_commands.json",
-    )
-    for f in ["snapshot_blob.bin", "icudtl.dat"]:
-      if (args.build_dir / f).exists():
-        shutil.copy(args.build_dir / f, artifact_dir / f)
+    # Copy artifacts into per-build subdirectories under obj/
+    copy_build_artifacts(args.debug_build_dir, artifact_dir / "debug")
+    if args.release_build_dir:
+      copy_build_artifacts(args.release_build_dir, artifact_dir / "release")
 
     # Copy all sources except filtered ones
-    copy_v8_sources(args.v8_dir, args.build_dir, source_dir, _DENY_LIST)
-
-    # Ensure wasm-module-builder is at the root for the fuzzer
-    wasm_builder = args.v8_dir / "test/mjsunit/wasm/wasm-module-builder.js"
-    if wasm_builder.exists():
-      shutil.copy(wasm_builder, artifact_dir / "wasm-module-builder.js")
-
-    # Copy built shared libraries (e.g. libsanitizer_shared_hooks.so, component DSOs)
-    for so_path in args.build_dir.glob("*.so"):
-      shutil.copy(so_path, artifact_dir / so_path.name)
+    copy_v8_sources(args.v8_dir, args.debug_build_dir, source_dir, _DENY_LIST)
 
     # Seeds generation
     seeds = []
