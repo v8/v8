@@ -667,7 +667,11 @@ std::string StagesJson(const FuzzConfig& c) {
   return stages.ToString();
 }
 
-bool ApplyJson(const JsonValue& json, FuzzConfig* c, std::string* error) {
+// Applies one layer of JSON configuration to `c`. If `kept_extra_args` is
+// not null, it collects the "d8_extra_args" that are still in the d8 flags
+// after this layer.
+bool ApplyJson(const JsonValue& json, FuzzConfig* c, std::string* error,
+               std::vector<std::string>* kept_extra_args = nullptr) {
   if (!json.is_object()) {
     *error = "config: top level must be an object";
     return false;
@@ -739,7 +743,11 @@ bool ApplyJson(const JsonValue& json, FuzzConfig* c, std::string* error) {
   }
   const JsonValue& d8_args = json.Get("d8_args");
   if (d8_args.is_array()) {
+    // "d8_args" replaces all the d8 flags of the earlier layers.
     c->target.args.clear();
+    if (kept_extra_args != nullptr) {
+      kept_extra_args->clear();
+    }
     for (const JsonValue& arg : d8_args.as_array()) {
       if (arg.is_string()) {
         c->target.args.push_back(arg.as_string());
@@ -752,6 +760,9 @@ bool ApplyJson(const JsonValue& json, FuzzConfig* c, std::string* error) {
     for (const JsonValue& arg : d8_extra_args.as_array()) {
       if (arg.is_string()) {
         c->target.args.push_back(arg.as_string());
+        if (kept_extra_args != nullptr) {
+          kept_extra_args->push_back(arg.as_string());
+        }
       }
     }
   }
@@ -843,6 +854,9 @@ bool FuzzConfig::Load(const Flags& flags, FuzzConfig* c, std::string* error,
   // almost always an endless loop, and it would eat the time of ten others.
   c->target.timeout_us = static_cast<uint64_t>(500) * 1000;
   c->prelude_source = "default";
+  // The "d8_extra_args" of the preset and of --config. The flag --d8-args
+  // replaces the other d8 flags and keeps these flags.
+  std::vector<std::string> kept_extra_args;
 
   // Layer 1b: a preset (DESIGN.md 8), a configuration for one use case:
   // --preset=NAME loads experimental/redline/presets/NAME.json (found next to
@@ -861,7 +875,8 @@ bool FuzzConfig::Load(const Flags& flags, FuzzConfig* c, std::string* error,
       return false;
     }
     JsonValue json;
-    if (!JsonValue::Parse(text, &json, error) || !ApplyJson(json, c, error)) {
+    if (!JsonValue::Parse(text, &json, error) ||
+        !ApplyJson(json, c, error, &kept_extra_args)) {
       *error = "--preset=" + preset + ": " + *error;
       return false;
     }
@@ -886,7 +901,7 @@ bool FuzzConfig::Load(const Flags& flags, FuzzConfig* c, std::string* error,
       *error = where + ":" + *error;
       return false;
     }
-    if (!ApplyJson(json, c, error)) {
+    if (!ApplyJson(json, c, error, &kept_extra_args)) {
       return false;
     }
   }
@@ -918,6 +933,8 @@ bool FuzzConfig::Load(const Flags& flags, FuzzConfig* c, std::string* error,
     c->target.executable = d8;
     if (flags.Has("d8-args")) {
       c->target.args = SplitWhitespace(flags.GetString("d8-args"));
+      c->target.args.insert(c->target.args.end(), kept_extra_args.begin(),
+                            kept_extra_args.end());
     }
     for (const std::string& arg :
          SplitWhitespace(flags.GetString("d8-extra-args"))) {

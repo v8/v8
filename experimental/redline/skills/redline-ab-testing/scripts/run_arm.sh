@@ -75,8 +75,9 @@ fi
 
 # The base flags of the V8 profile of Fuzzilli. Redline uses the same list.
 BASE="--expose-gc --expose-externalize-string --omit-quit --allow-natives-syntax --fuzzing --harmony --experimental-fuzzing --js-staging --wasm-staging --wasm-fast-api --expose-fast-api --wasm-test-streaming"
-# The flags of the preset and EXTRA_FLAGS, for every arm. --d8-args replaces
-# the flags of the preset, so Redline gets them again with --d8-extra-args.
+# The flags of the preset and EXTRA_FLAGS, for every arm. An old Redline binary
+# drops the flags of the preset when it gets --d8-args. Thus each Redline arm
+# gets them again with --d8-extra-args. Two copies of a flag do no harm.
 EXTRA=$(python3 -c 'import json, sys; print(" ".join(json.load(open(sys.argv[1])).get("d8_extra_args", [])))' "$PRESET_FILE")
 if [ -n "${EXTRA_FLAGS:-}" ]; then
   EXTRA="${EXTRA:+$EXTRA }$EXTRA_FLAGS"

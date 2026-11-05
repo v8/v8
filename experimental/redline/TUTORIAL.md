@@ -465,6 +465,8 @@ Redline makes the effective configuration from four layers. A later layer wins:
 These rules apply when the layers merge:
 
 - Each layer adds its `d8_extra_args` to the d8 flags. The flag `--d8-extra-args` adds more flags.
+- A `d8_args` key replaces all the d8 flags of the earlier layers.
+- The flag `--d8-args` replaces the default d8 flags and the `d8_args` key. It keeps the `d8_extra_args` of the preset and of the configuration.
 - A `params` object in `selection` replaces the `params` object of an earlier layer. For example, the `weights` of your file replace all the weights of the preset.
 - The flags `--generator-weights`, `--mutator-weights`, `--disable-generator` and `--disable-mutator` change single weights. The other weights stay.
 - The flag `--import` adds files to the seed files of the configuration.

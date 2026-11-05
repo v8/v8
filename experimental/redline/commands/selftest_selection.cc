@@ -793,6 +793,41 @@ void CheckConfigDump(Checker* checker) {
   TunableRegistry::Instance().Reset();
 }
 
+// A --config flag with the two d8 keys, for the checks of the d8 flags.
+constexpr const char* kD8ArgsConfig =
+    R"(--config={"d8_args": ["--file-a"], "d8_extra_args": ["--extra-a"]})";
+
+// Loads the configuration of `redline fuzz ARGS` and returns its d8 flags,
+// with a space between two flags. If the configuration is not correct, it
+// returns the error.
+std::string LoadedD8Args(std::initializer_list<std::string> args) {
+  std::vector<const char*> argv = {"redline", "fuzz"};
+  for (const std::string& arg : args) {
+    argv.push_back(arg.c_str());
+  }
+  Flags flags = Flags::Parse(static_cast<int>(argv.size()), argv.data(), 2);
+  FuzzConfig config;
+  std::string error;
+  if (!FuzzConfig::Load(flags, &config, &error, /*for_run=*/false)) {
+    return "error: " + error;
+  }
+  std::string joined;
+  for (const std::string& arg : config.target.args) {
+    joined += (joined.empty() ? "" : " ") + arg;
+  }
+  return joined;
+}
+
+// The flag --d8-args replaces the d8_args key of the configuration. The
+// d8_extra_args key of the configuration stays after the flags of --d8-args.
+void CheckD8ArgLayers(Checker* checker) {
+  std::string got = LoadedD8Args({kD8ArgsConfig, "--d8-args=--base-a --base-b",
+                                  "--d8-extra-args=--extra-b"});
+  checker->Check("config: --d8-args keeps the d8_extra_args of --config",
+                 got == "--base-a --base-b --extra-a --extra-b", got);
+  TunableRegistry::Instance().Reset();
+}
+
 // The "init" and "accept" blocks and stages.minimize.reducers: values land
 // in their fields, mistakes are reported.
 void CheckStrategyBlocks(Checker* checker) {
@@ -1091,6 +1126,7 @@ void RunSelectionChecks(Checker* checker, const std::string& testdata_dir,
   }
   CheckTunables(checker);
   CheckConfigDump(checker);
+  CheckD8ArgLayers(checker);
   CheckAdaptiveWindow(checker);
   CheckAmplifyConfig(checker);
   CheckWrapInTry(checker);
@@ -1153,6 +1189,34 @@ void RunPresetChecks(Checker* checker) {
     bool ok = FuzzConfig::Load(flags, &config, &error, /*for_run=*/false);
     checker->Check(("presets: " + BaseName(path) + " loads").c_str(), ok,
                    error);
+    // The flag --d8-args keeps the d8_extra_args of the preset. A d8_args
+    // key in --config removes them.
+    std::string text;
+    JsonValue json;
+    if (!ok || !ReadFileToString(path, &text, &error) ||
+        !JsonValue::Parse(text, &json, &error) ||
+        !json.Get("d8_extra_args").is_array() ||
+        json.Get("d8_extra_args").as_array().empty()) {
+      continue;
+    }
+    std::string preset_flags;
+    for (const JsonValue& flag : json.Get("d8_extra_args").as_array()) {
+      if (flag.is_string()) {
+        preset_flags += " " + flag.as_string();
+      }
+    }
+    std::string got =
+        LoadedD8Args({arg, "--d8-args=--base-a", "--d8-extra-args=--extra-b"});
+    checker->Check(
+        ("presets: --d8-args keeps the d8_extra_args of " + BaseName(path))
+            .c_str(),
+        got == "--base-a" + preset_flags + " --extra-b", got);
+    got = LoadedD8Args({arg, kD8ArgsConfig, "--d8-args=--base-a",
+                        "--d8-extra-args=--extra-b"});
+    checker->Check(("presets: a d8_args key removes the d8_extra_args of " +
+                    BaseName(path))
+                       .c_str(),
+                   got == "--base-a --extra-a --extra-b", got);
   }
   TunableRegistry::Instance().Reset();
 }

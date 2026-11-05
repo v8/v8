@@ -257,7 +257,7 @@ Rules:
 |---|---|---|
 | Seeds in one arm only | Many finds come from the seed files | Same seeds or none |
 | Random d8 flags in one arm only | The flags find the bug, not the generators | Same flag rule for all arms |
-| `--d8-args` without `--d8-extra-args` | Redline loses the flags of the preset, because `--d8-args` replaces them | Give the preset flags again with `--d8-extra-args`, as `run_arm.sh` does |
+| `--d8-args` with an old Redline binary | The binary drops the flags of the preset | Give the preset flags again with `--d8-extra-args`, as `run_arm.sh` does. Examine `d8_args` in the `start` event of each arm. |
 | Change-based fuzzing coverage compared with bits coverage | A larger number that means nothing | Compare finds and times |
 | A crash that does not reproduce with the same signature | A false find | Count only reproduced crashes |
 | A run that stopped early | Its partial numbers look like full numbers | Check the `end` event and `OUT.end` of each run |
