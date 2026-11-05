@@ -4,6 +4,7 @@
 
 #include "experimental/redline/engine/shared_coverage.h"
 
+#include <algorithm>
 #include <cstring>
 
 #include "experimental/redline/base/log.h"
@@ -12,12 +13,12 @@ namespace redline {
 
 bool SharedCoverage::Initialize(uint32_t num_edges, uint32_t bitmap_size,
                                 std::string* error, uint32_t counted_edges,
-                                uint32_t edge_bitmap_size) {
+                                uint32_t real_edges) {
   if (counted_edges == 0 || counted_edges > num_edges) {
     counted_edges = num_edges;
   }
-  if (edge_bitmap_size == 0 || edge_bitmap_size > bitmap_size) {
-    edge_bitmap_size = bitmap_size;
+  if (real_edges == 0 || real_edges > num_edges) {
+    real_edges = num_edges;
   }
   std::scoped_lock<std::mutex> lock(flaky_mutex_);
   if (words_ != 0) {
@@ -36,8 +37,9 @@ bool SharedCoverage::Initialize(uint32_t num_edges, uint32_t bitmap_size,
   }
   num_edges_ = num_edges;
   counted_edges_ = counted_edges;
-  edge_words_ = edge_bitmap_size / 8;
   uint32_t words = bitmap_size / 8;
+  // The words that hold the edges 0..real_edges.
+  edge_words_ = std::min(words, real_edges / 64 + 1);
   virgin_ = std::make_unique<std::atomic<uint64_t>[]>(words);
   crash_virgin_ = std::make_unique<std::atomic<uint64_t>[]>(words);
   for (uint32_t i = 0; i < words; i++) {
@@ -52,6 +54,13 @@ bool SharedCoverage::Initialize(uint32_t num_edges, uint32_t bitmap_size,
     uint64_t tail_mask = (uint64_t{1} << tail_bits) - 1;
     virgin_[words - 1].fetch_and(tail_mask, std::memory_order_relaxed);
     crash_virgin_[words - 1].fetch_and(tail_mask, std::memory_order_relaxed);
+  }
+  // Crash deduplication counts only the edges. In the counters layout, the
+  // first bucket features are in the last word of the edges.
+  uint32_t crash_tail_bits = (real_edges + 1) % 64;
+  if (crash_tail_bits != 0) {
+    crash_virgin_[edge_words_ - 1].fetch_and(
+        (uint64_t{1} << crash_tail_bits) - 1, std::memory_order_relaxed);
   }
   words_ = words;  // publishes the state (last)
   return true;

@@ -34,6 +34,7 @@
 #include "experimental/redline/corpus/feature_weights.h"
 #include "experimental/redline/engine/crash.h"
 #include "experimental/redline/engine/d8_flags.h"
+#include "experimental/redline/engine/shared_coverage.h"
 #include "experimental/redline/exec/coverage.h"
 #include "experimental/redline/exec/runner.h"
 #include "experimental/redline/minimizer/minimizer.h"
@@ -358,6 +359,31 @@ void RunCoverageCounterChecks(Checker* checker) {
     checker->Check("coverage counters: packed hit bits",
                    map->CurrentEdges() == packed,
                    StringPrintf("%zu features", map->CurrentEdges().size()));
+    // Crash deduplication counts only the edges. Edge 100 and the bucket
+    // features of edge 5 (101 to 108) are in the same 8-byte word.
+    SharedCoverage shared;
+    const bool shared_ok =
+        shared.Initialize(map->num_edges(), map->bitmap_size(), &error,
+                          map->counted_edges(), map->real_edges());
+    map->ResetState();
+    std::string crash_results;
+    auto crash = [&](std::initializer_list<std::pair<uint32_t, uint8_t>> hits) {
+      map->ClearBitmap();
+      for (const auto& [edge, count] : hits) {
+        counters[edge] = count;
+      }
+      map->Refresh();
+      const bool local = map->EvaluateCrash();
+      const bool session = shared.ClaimNewCrashEdges(map->bitmap());
+      crash_results += StringPrintf("%s%d%d", crash_results.empty() ? "" : " ",
+                                    local, session);
+    };
+    // A new edge, the same edge with a different hit count, a new edge.
+    crash({{5, 1}});
+    crash({{5, 2}});
+    crash({{5, 2}, {100, 1}});
+    checker->Check("coverage counters: crash edges ignore bucket features",
+                   shared_ok && crash_results == "11 00 11", crash_results);
     map->ClearBitmap();
     counters[5] = 3;
     counters[50] = 1;

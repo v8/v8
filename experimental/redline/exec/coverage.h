@@ -158,8 +158,9 @@ class CoverageMap {
   // engine/shared_coverage.h).
   const uint8_t* bitmap() const { return bits(); }
   uint32_t bitmap_size() const { return bitmap_size_; }
-  // The bitmap bytes that hold edges only (no bucket features), rounded up
-  // to 8 bytes. Crash deduplication uses this prefix.
+  // The bitmap bytes that hold the edges, rounded up to 8 bytes. In the
+  // counters layout, the last 8 bytes can also hold the first bucket
+  // features. Crash deduplication reads this prefix without these features.
   uint32_t edge_bitmap_size() const { return edge_bitmap_size_; }
 
  private:

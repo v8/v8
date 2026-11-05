@@ -130,7 +130,7 @@ class Worker {
     const CoverageMap& coverage = runner_->coverage();
     return fuzzer_->coverage_.Initialize(
         coverage.num_edges(), coverage.bitmap_size(), error,
-        coverage.counted_edges(), coverage.edge_bitmap_size());
+        coverage.counted_edges(), coverage.real_edges());
   }
 
   const CoverageMap& coverage() const { return runner_->coverage(); }

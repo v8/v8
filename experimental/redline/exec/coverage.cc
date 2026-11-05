@@ -512,6 +512,12 @@ void CoverageMap::ResetState() {
     ClearBit(virgin_bits_.data(), index);
     ClearBit(crash_bits_.data(), index);
   }
+  // Crash deduplication counts only the edges. In the counters layout, the
+  // first bucket features are in the last 8 bytes of the edges.
+  for (uint32_t index = real_edges_ + 1; index < edge_bitmap_size_ * 8;
+       index++) {
+    ClearBit(crash_bits_.data(), index);
+  }
   found_edges_ = 0;
 }
 
