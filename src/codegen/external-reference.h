@@ -224,24 +224,6 @@ enum class IsolateFieldId : uint8_t;
   V(replace_unpaired_surrogates, "Utf16::ReplaceUnpairedSurrogates")           \
   V(try_string_to_index_or_lookup_existing,                                    \
     "try_string_to_index_or_lookup_existing")                                  \
-  V(string_from_forward_table, "string_from_forward_table")                    \
-  V(raw_hash_from_forward_table, "raw_hash_from_forward_table")                \
-  V(name_dictionary_lookup_forwarded_string,                                   \
-    "name_dictionary_lookup_forwarded_string")                                 \
-  V(name_dictionary_find_insertion_entry_forwarded_string,                     \
-    "name_dictionary_find_insertion_entry_forwarded_string")                   \
-  V(global_dictionary_lookup_forwarded_string,                                 \
-    "global_dictionary_lookup_forwarded_string")                               \
-  V(global_dictionary_find_insertion_entry_forwarded_string,                   \
-    "global_dictionary_find_insertion_entry_forwarded_string")                 \
-  V(name_to_index_hashtable_lookup_forwarded_string,                           \
-    "name_to_index_hashtable_lookup_forwarded_string")                         \
-  V(name_to_index_hashtable_find_insertion_entry_forwarded_string,             \
-    "name_to_index_hashtable_find_insertion_entry_forwarded_string")           \
-  V(simple_name_dictionary_lookup_forwarded_string,                            \
-    "simple_name_dictionary_lookup_forwarded_string")                          \
-  V(simple_name_dictionary_find_insertion_entry_forwarded_string,              \
-    "simple_name_dictionary_find_insertion_entry_forwarded_string")            \
   V(verify_skipped_trusted_write_barrier,                                      \
     "Heap::VerifySkippedTrustedWriteBarrier")                                  \
   V(verify_skipped_write_barrier, "Heap::VerifySkippedWriteBarrier")           \

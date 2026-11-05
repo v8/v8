@@ -1510,10 +1510,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // non-computed case manually.
   TNode<Uint32T> LoadNameHashAssumeComputed(TNode<Name> name);
 
-  // Load the Name::RawHash() value of a name as an uint32 value. Follows
-  // through the forwarding table.
-  TNode<Uint32T> LoadNameRawHash(TNode<Name> name);
-
   // Load length field of a String object as Smi value.
   TNode<Smi> LoadStringLengthAsSmi(TNode<String> string);
   // Load length field of a String object as intptr_t value.
@@ -3659,15 +3655,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                             TVariable<IntPtrT>* var_name_index,
                             Label* if_not_found,
                             LookupMode mode = kFindExisting);
-  // Slow lookup for unique_names with forwarding index.
-  // Both resolving the actual hash and the lookup are handled via runtime.
-  template <typename Dictionary>
-  void NameDictionaryLookupWithForwardIndex(TNode<Dictionary> dictionary,
-                                            TNode<Name> unique_name,
-                                            Label* if_found,
-                                            TVariable<IntPtrT>* var_name_index,
-                                            Label* if_not_found,
-                                            LookupMode mode = kFindExisting);
 
   TNode<Word32T> ComputeSeededHash(TNode<IntPtrT> key);
 

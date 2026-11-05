@@ -208,10 +208,6 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) BaseNameDictionary
       Isolate* isolate, HandleType<Derived> dictionary, Key key,
       DirectHandle<Object> value, PropertyDetails details,
       InternalIndex* entry_out = nullptr);
-
-  // Exposed for NameDictionaryLookupForwardedString slow path for forwarded
-  // strings.
-  using Dictionary<Derived, Shape>::FindInsertionEntry;
 };
 
 class SimpleNameDictionaryShape : public BaseNameDictionaryShape {
@@ -245,11 +241,6 @@ V8_OBJECT class SimpleNameDictionary
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static Handle<SimpleNameDictionary>
   Set(Isolate* isolate, Handle<SimpleNameDictionary> dictionary,
       DirectHandle<Name> key, DirectHandle<Object> value);
-
-  // Exposed for NameDictionaryLookupForwardedString slow path for forwarded
-  // strings.
-  using HashTable<SimpleNameDictionary,
-                  SimpleNameDictionaryShape>::FindInsertionEntry;
 
   static const int kEntryValueIndex = 1;
 } V8_OBJECT_END;

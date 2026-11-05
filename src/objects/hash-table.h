@@ -594,10 +594,6 @@ V8_OBJECT class V8_EXPORT_PRIVATE NameToIndexHashTable
                                           DirectHandle<Name> key,
                                           int32_t value);
 
-  // Exposed for NameDictionaryLookupForwardedString slow path for forwarded
-  // strings.
-  using HashTable<NameToIndexHashTable, NameToIndexShape>::FindInsertionEntry;
-
   DECL_PRINTER(NameToIndexHashTable)
 
  private:
