@@ -43,7 +43,18 @@ def crossbench_cbb_builder(builder_name, recipe_path, os, cpu, caches = None, pr
     )
 
 presubmit_builder("Presubmit", "crossbench.try", timeout = 900, console = "crossbench")
-crossbench_cbb_builder("e2e Mac arm64 Try", "perf/crossbench", "Mac", "arm64")
+crossbench_cbb_builder(
+    "e2e Mac arm64 Try",
+    "perf/crossbench",
+    "Mac",
+    "arm64",
+    caches = [
+        swarming.cache(
+            path = "osx_sdk",
+            name = "osx_sdk",
+        ),
+    ],
+)
 crossbench_cbb_builder("e2e Linux x64 Try", "perf/crossbench", "Ubuntu-22.04", "x86-64")
 crossbench_cbb_builder("e2e Windows x64 Try", "perf/crossbench", "Windows-10", "x86-64")
 crossbench_cbb_builder(
