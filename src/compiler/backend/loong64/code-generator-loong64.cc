@@ -2562,74 +2562,50 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kLoong64S128Load8x8S: {
       CpuFeatureScope lsx_scope(masm(), LSX);
-      UseScratchRegisterScope temps(masm());
-      Register TmpReg = temps.Acquire();
-      Simd128Register scratch = kSimd128ScratchReg;
       Simd128Register dst = i.OutputSimd128Register();
-      __ Ld_d(TmpReg, i.MemoryOperand(), &trap_pc);
+      __ Fld_d(FPURegister::from_code(dst.code()), i.MemoryOperand(), &trap_pc);
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, trap_pc);
-      __ vreplgr2vr_d(scratch, TmpReg);
-      __ vexth_h_b(dst, scratch);
+      __ vsllwil_h_b(dst, dst, 0);
       break;
     }
     case kLoong64S128Load8x8U: {
       CpuFeatureScope lsx_scope(masm(), LSX);
-      UseScratchRegisterScope temps(masm());
-      Register TmpReg = temps.Acquire();
       Simd128Register dst = i.OutputSimd128Register();
-      __ vxor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
-      __ Ld_d(TmpReg, i.MemoryOperand(), &trap_pc);
+      __ Fld_d(FPURegister::from_code(dst.code()), i.MemoryOperand(), &trap_pc);
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, trap_pc);
-      __ vreplgr2vr_d(dst, TmpReg);
-      __ vilvl_b(dst, kSimd128RegZero, dst);
+      __ vsllwil_hu_bu(dst, dst, 0);
       break;
     }
     case kLoong64S128Load16x4S: {
       CpuFeatureScope lsx_scope(masm(), LSX);
-      UseScratchRegisterScope temps(masm());
-      Register TmpReg = temps.Acquire();
-      Simd128Register scratch = kSimd128ScratchReg;
       Simd128Register dst = i.OutputSimd128Register();
-      __ Ld_d(TmpReg, i.MemoryOperand(), &trap_pc);
+      __ Fld_d(FPURegister::from_code(dst.code()), i.MemoryOperand(), &trap_pc);
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, trap_pc);
-      __ vreplgr2vr_d(scratch, TmpReg);
-      __ vexth_w_h(dst, scratch);
+      __ vsllwil_w_h(dst, dst, 0);
       break;
     }
     case kLoong64S128Load16x4U: {
       CpuFeatureScope lsx_scope(masm(), LSX);
-      UseScratchRegisterScope temps(masm());
-      Register TmpReg = temps.Acquire();
       Simd128Register dst = i.OutputSimd128Register();
-      __ vxor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
-      __ Ld_d(TmpReg, i.MemoryOperand(), &trap_pc);
+      __ Fld_d(FPURegister::from_code(dst.code()), i.MemoryOperand(), &trap_pc);
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, trap_pc);
-      __ vreplgr2vr_d(dst, TmpReg);
-      __ vilvl_h(dst, kSimd128RegZero, dst);
+      __ vsllwil_wu_hu(dst, dst, 0);
       break;
     }
     case kLoong64S128Load32x2S: {
       CpuFeatureScope lsx_scope(masm(), LSX);
-      UseScratchRegisterScope temps(masm());
-      Register TmpReg = temps.Acquire();
       Simd128Register dst = i.OutputSimd128Register();
-      Simd128Register scratch = kSimd128ScratchReg;
-      __ Ld_d(TmpReg, i.MemoryOperand(), &trap_pc);
+      __ Fld_d(FPURegister::from_code(dst.code()), i.MemoryOperand(), &trap_pc);
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, trap_pc);
-      __ vreplgr2vr_d(scratch, TmpReg);
-      __ vexth_d_w(dst, scratch);
+      __ vsllwil_d_w(dst, dst, 0);
       break;
     }
     case kLoong64S128Load32x2U: {
       CpuFeatureScope lsx_scope(masm(), LSX);
-      UseScratchRegisterScope temps(masm());
-      Register TmpReg = temps.Acquire();
       Simd128Register dst = i.OutputSimd128Register();
-      __ vxor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
-      __ Ld_d(TmpReg, i.MemoryOperand(), &trap_pc);
+      __ Fld_d(FPURegister::from_code(dst.code()), i.MemoryOperand(), &trap_pc);
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, trap_pc);
-      __ vreplgr2vr_d(dst, TmpReg);
-      __ vilvl_w(dst, kSimd128RegZero, dst);
+      __ vsllwil_du_wu(dst, dst, 0);
       break;
     }
     case kLoong64S128Load32Zero: {
