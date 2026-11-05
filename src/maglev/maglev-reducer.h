@@ -2014,9 +2014,23 @@ class SubgraphBase {
     static_cast<DerivedT*>(this)->Goto(label);
   }
 
+  // Default upper bound on the number of branches a WithFallback fast path may
+  // emit into its fallback label; unused predecessors are trimmed when binding.
+  static constexpr int kMaxFallbackPredecessors = 4;
+
   void ReducePredecessorCount(Label* label, unsigned num = 1);
 
   V8_NODISCARD ReduceResult TrimPredecessorsAndBind(Label* label);
+
+  // Emits `fast_path_fn(&fallback)`, followed by `fallback_fn()` if `fallback`
+  // is reachable, merging `vars` at the join point. Both the `fallback` and
+  // join labels are always bound or trimmed even when `fast_path_fn` or
+  // `fallback_fn` aborts.
+  template <typename FFast, typename FSlow>
+  V8_NODISCARD ReduceResult
+  WithFallback(std::initializer_list<Variable*> vars, FFast&& fast_path_fn,
+               FSlow&& fallback_fn,
+               int max_fallback_predecessors = kMaxFallbackPredecessors);
 
  protected:
   SubgraphBase(MaglevReducer<BaseT>* reducer, MaglevCompilationUnit* dummy_unit)

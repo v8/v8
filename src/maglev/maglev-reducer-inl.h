@@ -7140,13 +7140,38 @@ ReduceResult SubgraphBase<DerivedT, BaseT>::TrimPredecessorsAndBind(
                   ? 0
                   : label->merge_state_->predecessors_so_far());
   }
-  DCHECK_LE(predecessors_so_far, label->predecessor_count_);
+  CHECK_LE(predecessors_so_far, label->predecessor_count_);
   reducer_->set_current_block(nullptr);
   ReducePredecessorCount(label,
                          label->predecessor_count_ - predecessors_so_far);
   if (predecessors_so_far == 0) return ReduceResult::DoneWithAbort();
   static_cast<DerivedT*>(this)->Bind(label);
   return ReduceResult::Done();
+}
+
+template <typename DerivedT, typename BaseT>
+template <typename FFast, typename FSlow>
+ReduceResult SubgraphBase<DerivedT, BaseT>::WithFallback(
+    std::initializer_list<Variable*> vars, FFast&& fast_path_fn,
+    FSlow&& fallback_fn, int max_fallback_predecessors) {
+  Label fallback(this, max_fallback_predecessors);
+  Label done(this, 2, vars);
+
+  MaybeReduceResult fast_result = fast_path_fn(&fallback);
+  CHECK(fast_result.IsDone());
+  DCHECK_EQ(fast_result.IsDoneWithAbort(),
+            reducer_->current_block() == nullptr);
+  GotoOrTrim(&done);
+
+  if (!TrimPredecessorsAndBind(&fallback).IsDoneWithAbort()) {
+    MaybeReduceResult fallback_result = fallback_fn();
+    CHECK(fallback_result.IsDone());
+    DCHECK_EQ(fallback_result.IsDoneWithAbort(),
+              reducer_->current_block() == nullptr);
+  }
+  GotoOrTrim(&done);
+
+  return TrimPredecessorsAndBind(&done);
 }
 
 inline bool IsSmallFunction(int bytecode_length,

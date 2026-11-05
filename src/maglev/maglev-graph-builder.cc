@@ -647,6 +647,8 @@ void MaglevGraphBuilder::MaglevSubGraphBuilder::MergeIntoLabel(
 
   } else {
     // If there already is a frame state, merge.
+    CHECK_LT(label->variable_merge_state_->predecessors_so_far(),
+             label->predecessor_count_);
     {
       BorrowParentKnownNodeAspectsAndVOs borrow(this);
       label->variable_merge_state_->Merge(
@@ -12543,51 +12545,53 @@ ReduceResult MaglevGraphBuilder::VisitIntrinsicAsyncFunctionAwait(
 
   MaglevSubGraphBuilder sub_graph(this, 1);
   MaglevSubGraphBuilder::Variable ret_val(0);
-  MaglevSubGraphBuilder::Label slow_path(&sub_graph, 3);
-  MaglevSubGraphBuilder::Label done(&sub_graph, 2, {&ret_val});
 
-  RETURN_IF_ABORT(sub_graph.GotoIfTrue<BranchIfSmi>(&slow_path, {value}));
+  RETURN_IF_ABORT(sub_graph.WithFallback(
+      {&ret_val},
+      [&](MaglevSubGraphBuilder::Label* slow_path) -> ReduceResult {
+        RETURN_IF_ABORT(sub_graph.GotoIfTrue<BranchIfSmi>(slow_path, {value}));
 
-  ValueNode* value_map;
-  GET_VALUE_OR_ABORT(value_map, BuildLoadMap(value));
-  RETURN_IF_ABORT(sub_graph.GotoIfFalse<BranchIfReferenceEqual>(
-      &slow_path, {value_map, GetConstant(promise_map)}));
+        ValueNode* value_map;
+        GET_VALUE_OR_ABORT(value_map, BuildLoadMap(value));
+        RETURN_IF_ABORT(sub_graph.GotoIfFalse<BranchIfReferenceEqual>(
+            slow_path, {value_map, GetConstant(promise_map)}));
 
-  ValueNode* flags;
-  GET_VALUE_OR_ABORT(
-      flags,
-      BuildLoadTaggedField(value, offsetof(JSPromise, flags_), NodeType::kSmi));
-  RETURN_IF_ABORT(sub_graph.GotoIfFalse<BranchIfReferenceEqual>(
-      &slow_path,
-      {flags, GetSmiConstant(static_cast<int>(Promise::kFulfilled))}));
+        ValueNode* flags;
+        GET_VALUE_OR_ABORT(
+            flags, BuildLoadTaggedField(value, offsetof(JSPromise, flags_),
+                                        NodeType::kSmi));
+        RETURN_IF_ABORT(sub_graph.GotoIfFalse<BranchIfReferenceEqual>(
+            slow_path,
+            {flags, GetSmiConstant(static_cast<int>(Promise::kFulfilled))}));
 
-  ValueNode* fulfilled_value;
-  GET_VALUE_OR_ABORT(
-      fulfilled_value,
-      BuildLoadTaggedField(value, offsetof(JSPromise, reactions_or_result_)));
+        ValueNode* fulfilled_value;
+        GET_VALUE_OR_ABORT(
+            fulfilled_value,
+            BuildLoadTaggedField(value,
+                                 offsetof(JSPromise, reactions_or_result_)));
 
-  RETURN_IF_ABORT(BuildStoreTaggedFieldNoWriteBarrier(
-      value,
-      GetSmiConstant(static_cast<int>(Promise::kFulfilled) |
-                     JSPromise::Flags::HasHandlerBit::kMask),
-      offsetof(JSPromise, flags_), StoreTaggedMode::kDefault));
+        RETURN_IF_ABORT(BuildStoreTaggedFieldNoWriteBarrier(
+            value,
+            GetSmiConstant(static_cast<int>(Promise::kFulfilled) |
+                           JSPromise::Flags::HasHandlerBit::kMask),
+            offsetof(JSPromise, flags_), StoreTaggedMode::kDefault));
 
-  VirtualObject* task = reducer_.CreateAsyncResumeTask(
-      async_function_object, fulfilled_value,
-      GetSmiConstant(AsyncResumeTask::kAsyncFunctionAwait));
-  ValueNode* task_node;
-  GET_VALUE_OR_ABORT(task_node, reducer_.BuildInlinedAllocation(task));
-  BuildCallBuiltin<Builtin::kEnqueueMicrotask>({task_node});
+        VirtualObject* task = reducer_.CreateAsyncResumeTask(
+            async_function_object, fulfilled_value,
+            GetSmiConstant(AsyncResumeTask::kAsyncFunctionAwait));
+        ValueNode* task_node;
+        GET_VALUE_OR_ABORT(task_node, reducer_.BuildInlinedAllocation(task));
+        BuildCallBuiltin<Builtin::kEnqueueMicrotask>({task_node});
 
-  sub_graph.set(ret_val, outer_promise);
-  sub_graph.Goto(&done);
+        sub_graph.set(ret_val, outer_promise);
+        return ReduceResult::Done();
+      },
+      [&]() -> ReduceResult {
+        sub_graph.set(ret_val, BuildCallBuiltin<Builtin::kAsyncFunctionAwait>(
+                                   {async_function_object, value}));
+        return ReduceResult::Done();
+      }));
 
-  sub_graph.Bind(&slow_path);
-  sub_graph.set(ret_val, BuildCallBuiltin<Builtin::kAsyncFunctionAwait>(
-                             {async_function_object, value}));
-  sub_graph.Goto(&done);
-
-  sub_graph.Bind(&done);
   SetAccumulator(sub_graph.get(ret_val));
   return ReduceResult::Done();
 }

@@ -465,7 +465,7 @@ void MergePointInterpreterFrameState::Merge(
     InterpreterFrameState& unmerged, BasicBlock* predecessor,
     ContextScopeInfo context_scope_info) {
   DCHECK_GT(predecessor_count_, 1);
-  DCHECK_LT(predecessors_so_far_, predecessor_count_);
+  CHECK_LT(predecessors_so_far_, predecessor_count_);
 
   predecessors_[predecessors_so_far_] = predecessor;
 
