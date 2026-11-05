@@ -4327,8 +4327,10 @@ void LinearScanAllocator::AllocateBlockedReg(LiveRange* current) {
   InstructionBlock* block =
       code()->GetInstructionBlock(current->Start().ToInstructionIndex());
   if (block->IsDeferred()) {
-    new_end = std::min(new_end, LifetimePosition::GapFromInstructionIndex(
-                                    LastDeferredInstructionIndex(block)));
+    new_end =
+        std::min(new_end, LifetimePosition::InstructionFromInstructionIndex(
+                              LastDeferredInstructionIndex(block))
+                              .NextFullStart());
   }
 
   // We couldn't spill until the next register use. Split before the register
