@@ -413,8 +413,8 @@ void LiveRange::AdvanceLastProcessedMarker(
 }
 
 LiveRange* LiveRange::SplitAt(LifetimePosition position, Zone* zone) {
-  DCHECK(Start() < position);
-  DCHECK(End() > position);
+  CHECK_LT(Start(), position);
+  CHECK_GT(End(), position);
 
   int new_id = TopLevel()->GetNextChildId();
   LiveRange* result =
