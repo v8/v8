@@ -56,8 +56,10 @@
 /.gcs_entries
 
 /_*
+/agents/common
 /agents/internal
 /agents/shared
+/agents/testing
 /base
 /build
 /buildtools

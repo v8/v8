@@ -141,6 +141,10 @@ vars = {
   # and whatever else without interference from each other.
   'jetstream_3.0-custom_revision': 'ffde597c189c9c781986a6247a5844b1c04e4a8a',
   # Three lines of non-changing comments so that
+  # the commit queue can handle CLs rolling agents-common
+  # and whatever else without interference from each other.
+  'agents_common_revision': '281f7364f86aef21ac620bc0b770d477de7c76a1',
+  # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling agents-internal
   # and whatever else without interference from each other.
   'agents_internal_revision': 'f85c3dd9f2827b62dc37a70251148a4211b5aa21',
@@ -148,11 +152,21 @@ vars = {
   # the commit queue can handle CLs rolling agents-public
   # and whatever else without interference from each other.
   'agents_public_revision': '2d8e5a29f3538dfb69ab9456845152565d706337',
+  # Three lines of non-changing comments so that
+  # the commit queue can handle CLs rolling agents-testing
+  # and whatever else without interference from each other.
+  'agents_testing_revision': 'b1f0d9a76768b01c6b17f0e123768baffd84e24d',
 }
 
 deps = {
+  'agents/common': {
+    'url': Var('chromium_url') + '/chromium/src/agents/common.git' + '@' + Var('agents_common_revision'),
+  },
   'agents/shared': {
     'url': Var('chromium_url') + '/chromium/agents.git' + '@' + Var('agents_public_revision'),
+  },
+  'agents/testing': {
+    'url': Var('chromium_url') + '/chromium/src/agents/testing.git' + '@' + Var('agents_testing_revision'),
   },
   'agents/internal': {
     'url': Var('chrome_internal_url') + '/chrome/agents-internal.git' + '@' + Var('agents_internal_revision'),
