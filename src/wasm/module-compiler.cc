@@ -96,7 +96,11 @@ class V8_NODISCARD BackgroundCompileScope {
   std::shared_ptr<NativeModule> native_module_;
 };
 
-enum CompilationTier { kBaseline = 0, kTopTier = 1, kNumTiers = kTopTier + 1 };
+enum CompilationPhase {
+  kBlockingLiftoff = 0,
+  kNonblocking = 1,
+  kNumPhases = kNonblocking + 1
+};
 
 // A set of work-stealing queues (vectors of units). Each background compile
 // task owns one of the queues and steals from all others once its own queue
@@ -173,21 +177,21 @@ class CompilationUnitQueues {
   }
 
   std::optional<WasmCompilationUnit> GetNextUnit(Queue* queue,
-                                                 CompilationTier tier) {
-    DCHECK_LT(tier, CompilationTier::kNumTiers);
-    if (auto unit = GetNextUnitOfTier(queue, tier)) {
+                                                 CompilationPhase phase) {
+    DCHECK_LT(phase, CompilationPhase::kNumPhases);
+    if (auto unit = GetNextUnitOfPhase(queue, phase)) {
       [[maybe_unused]] size_t old_units_count =
-          num_units_[tier].fetch_sub(1, std::memory_order_relaxed);
+          num_units_[phase].fetch_sub(1, std::memory_order_relaxed);
       DCHECK_LE(1, old_units_count);
       return unit;
     }
     return {};
   }
 
-  void AddUnits(base::Vector<WasmCompilationUnit> baseline_units,
-                base::Vector<WasmCompilationUnit> top_tier_units,
+  void AddUnits(base::Vector<WasmCompilationUnit> blocking_liftoff_units,
+                base::Vector<WasmCompilationUnit> nonblocking_units,
                 const WasmModule* module) {
-    DCHECK_LT(0, baseline_units.size() + top_tier_units.size());
+    DCHECK_LT(0, blocking_liftoff_units.size() + nonblocking_units.size());
     // Add to the individual queues in a round-robin fashion. No special care is
     // taken to balance them; they will be balanced by work stealing.
     QueueImpl* queue;
@@ -205,29 +209,30 @@ class CompilationUnitQueues {
     base::MutexGuard guard(&queue->mutex);
     std::optional<base::MutexGuard> big_units_guard;
     for (auto pair :
-         {std::make_pair(CompilationTier::kBaseline, baseline_units),
-          std::make_pair(CompilationTier::kTopTier, top_tier_units)}) {
-      int tier = pair.first;
+         {std::make_pair(CompilationPhase::kBlockingLiftoff,
+                         blocking_liftoff_units),
+          std::make_pair(CompilationPhase::kNonblocking, nonblocking_units)}) {
+      int phase = pair.first;
       base::Vector<WasmCompilationUnit> units = pair.second;
       if (units.empty()) continue;
-      num_units_[tier].fetch_add(units.size(), std::memory_order_relaxed);
+      num_units_[phase].fetch_add(units.size(), std::memory_order_relaxed);
       for (WasmCompilationUnit unit : units) {
         size_t func_size = module->functions[unit.func_index()].code.length();
         if (func_size <= kBigUnitsLimit) {
-          queue->units[tier].push_back(unit);
+          queue->units[phase].push_back(unit);
         } else {
           if (!big_units_guard) {
             big_units_guard.emplace(&big_units_queue_.mutex);
           }
-          big_units_queue_.has_units[tier].store(true,
-                                                 std::memory_order_relaxed);
-          big_units_queue_.units[tier].emplace(func_size, unit);
+          big_units_queue_.has_units[phase].store(true,
+                                                  std::memory_order_relaxed);
+          big_units_queue_.units[phase].emplace(func_size, unit);
         }
       }
     }
   }
 
-  void AddTopTierPriorityUnit(WasmCompilationUnit unit, size_t priority) {
+  void AddNonblockingPriorityUnit(WasmCompilationUnit unit, size_t priority) {
     base::MutexGuard queues_guard{&queues_mutex_};
     // Add to the individual queues in a round-robin fashion. No special care is
     // taken to balance them; they will be balanced by work stealing.
@@ -248,19 +253,19 @@ class CompilationUnitQueues {
     {
       auto* queue = queues_[queue_to_add].get();
       base::MutexGuard guard(&queue->mutex);
-      queue->top_tier_priority_units.emplace(priority, unit);
+      queue->nonblocking_priority_units.emplace(priority, unit);
       num_priority_units_.fetch_add(1, std::memory_order_relaxed);
-      num_units_[CompilationTier::kTopTier].fetch_add(
+      num_units_[CompilationPhase::kNonblocking].fetch_add(
           1, std::memory_order_relaxed);
     }
   }
 
-  // Get the current number of units in the queue for |tier|. This is only a
+  // Get the current number of units in the queue for |phase|. This is only a
   // momentary snapshot, it's not guaranteed that {GetNextUnit} returns a unit
   // if this method returns non-zero.
-  size_t GetSizeForTier(CompilationTier tier) const {
-    DCHECK_LT(tier, CompilationTier::kNumTiers);
-    return num_units_[tier].load(std::memory_order_relaxed);
+  size_t GetSizeForPhase(CompilationPhase phase) const {
+    DCHECK_LT(phase, CompilationPhase::kNumPhases);
+    return num_units_[phase].load(std::memory_order_relaxed);
   }
 
   void AllowAnotherTopTierJob(uint32_t func_index) {
@@ -287,14 +292,14 @@ class CompilationUnitQueues {
     }
   };
 
-  struct TopTierPriorityUnit {
-    TopTierPriorityUnit(int priority, WasmCompilationUnit unit)
+  struct NonblockingPriorityUnit {
+    NonblockingPriorityUnit(int priority, WasmCompilationUnit unit)
         : priority(priority), unit(unit) {}
 
     size_t priority;
     WasmCompilationUnit unit;
 
-    bool operator<(const TopTierPriorityUnit& other) const {
+    bool operator<(const NonblockingPriorityUnit& other) const {
       return priority < other.priority;
     }
   };
@@ -310,10 +315,10 @@ class CompilationUnitQueues {
     mutable base::Mutex mutex;
 
     // Can be read concurrently to check whether any elements are in the queue.
-    std::atomic<bool> has_units[CompilationTier::kNumTiers];
+    std::atomic<bool> has_units[CompilationPhase::kNumPhases];
 
     // Protected by {mutex}:
-    std::priority_queue<BigUnit> units[CompilationTier::kNumTiers];
+    std::priority_queue<BigUnit> units[CompilationPhase::kNumPhases];
   };
 
   struct QueueImpl : public Queue {
@@ -329,8 +334,8 @@ class CompilationUnitQueues {
     base::Mutex mutex;
 
     // All fields below are protected by {mutex}.
-    std::vector<WasmCompilationUnit> units[CompilationTier::kNumTiers];
-    std::priority_queue<TopTierPriorityUnit> top_tier_priority_units;
+    std::vector<WasmCompilationUnit> units[CompilationPhase::kNumPhases];
+    std::priority_queue<NonblockingPriorityUnit> nonblocking_priority_units;
     int next_steal_task_id;
   };
 
@@ -339,28 +344,28 @@ class CompilationUnitQueues {
     return next == static_cast<int>(num_queues) ? 0 : next;
   }
 
-  std::optional<WasmCompilationUnit> GetNextUnitOfTier(Queue* public_queue,
-                                                       int tier) {
+  std::optional<WasmCompilationUnit> GetNextUnitOfPhase(Queue* public_queue,
+                                                        int phase) {
     QueueImpl* queue = static_cast<QueueImpl*>(public_queue);
 
     // First check whether there is a priority unit. Execute that first.
-    if (tier == CompilationTier::kTopTier) {
-      if (auto unit = GetTopTierPriorityUnit(queue)) {
+    if (phase == CompilationPhase::kNonblocking) {
+      if (auto unit = GetNonblockingPriorityUnit(queue)) {
         return unit;
       }
     }
 
-    // Then check whether there is a big unit of that tier.
-    if (auto unit = GetBigUnitOfTier(tier)) return unit;
+    // Then check whether there is a big unit of that phase.
+    if (auto unit = GetBigUnitOfPhase(phase)) return unit;
 
-    // Finally check whether our own queue has a unit of the wanted tier. If
+    // Finally check whether our own queue has a unit of the wanted phase. If
     // so, return it, otherwise get the task id to steal from.
     int steal_task_id;
     {
       base::MutexGuard mutex_guard(&queue->mutex);
-      if (!queue->units[tier].empty()) {
-        auto unit = queue->units[tier].back();
-        queue->units[tier].pop_back();
+      if (!queue->units[phase].empty()) {
+        auto unit = queue->units[phase].back();
+        queue->units[phase].pop_back();
         return unit;
       }
       steal_task_id = queue->next_steal_task_id;
@@ -375,32 +380,33 @@ class CompilationUnitQueues {
         if (steal_task_id >= static_cast<int>(queues_.size())) {
           steal_task_id = 0;
         }
-        if (auto unit = StealUnitsAndGetFirst(queue, steal_task_id, tier)) {
+        if (auto unit = StealUnitsAndGetFirst(queue, steal_task_id, phase)) {
           return unit;
         }
       }
     }
 
-    // If we reach here, we didn't find any unit of the requested tier.
+    // If we reach here, we didn't find any unit of the requested phase.
     return {};
   }
 
-  std::optional<WasmCompilationUnit> GetBigUnitOfTier(int tier) {
+  std::optional<WasmCompilationUnit> GetBigUnitOfPhase(int phase) {
     // Fast path without locking.
-    if (!big_units_queue_.has_units[tier].load(std::memory_order_relaxed)) {
+    if (!big_units_queue_.has_units[phase].load(std::memory_order_relaxed)) {
       return {};
     }
     base::MutexGuard guard(&big_units_queue_.mutex);
-    if (big_units_queue_.units[tier].empty()) return {};
-    WasmCompilationUnit unit = big_units_queue_.units[tier].top().unit;
-    big_units_queue_.units[tier].pop();
-    if (big_units_queue_.units[tier].empty()) {
-      big_units_queue_.has_units[tier].store(false, std::memory_order_relaxed);
+    if (big_units_queue_.units[phase].empty()) return {};
+    WasmCompilationUnit unit = big_units_queue_.units[phase].top().unit;
+    big_units_queue_.units[phase].pop();
+    if (big_units_queue_.units[phase].empty()) {
+      big_units_queue_.has_units[phase].store(false, std::memory_order_relaxed);
     }
     return unit;
   }
 
-  std::optional<WasmCompilationUnit> GetTopTierPriorityUnit(QueueImpl* queue) {
+  std::optional<WasmCompilationUnit> GetNonblockingPriorityUnit(
+      QueueImpl* queue) {
     // Fast path without locking.
     if (num_priority_units_.load(std::memory_order_relaxed) == 0) {
       return {};
@@ -409,16 +415,16 @@ class CompilationUnitQueues {
     int steal_task_id;
     {
       base::MutexGuard mutex_guard(&queue->mutex);
-      while (!queue->top_tier_priority_units.empty()) {
-        auto unit = queue->top_tier_priority_units.top().unit;
-        queue->top_tier_priority_units.pop();
+      while (!queue->nonblocking_priority_units.empty()) {
+        auto unit = queue->nonblocking_priority_units.top().unit;
+        queue->nonblocking_priority_units.pop();
         num_priority_units_.fetch_sub(1, std::memory_order_relaxed);
 
         if (!top_tier_compiled_[declared_function_index(unit.func_index())]
                  .exchange(true, std::memory_order_relaxed)) {
           return unit;
         }
-        num_units_[CompilationTier::kTopTier].fetch_sub(
+        num_units_[CompilationPhase::kNonblocking].fetch_sub(
             1, std::memory_order_relaxed);
       }
       steal_task_id = queue->next_steal_task_id;
@@ -433,7 +439,7 @@ class CompilationUnitQueues {
         if (steal_task_id >= static_cast<int>(queues_.size())) {
           steal_task_id = 0;
         }
-        if (auto unit = StealTopTierPriorityUnit(queue, steal_task_id)) {
+        if (auto unit = StealNonblockingPriorityUnit(queue, steal_task_id)) {
           return unit;
         }
       }
@@ -442,12 +448,12 @@ class CompilationUnitQueues {
     return {};
   }
 
-  // Steal units of {wanted_tier} from {steal_from_task_id} to {queue}. Return
+  // Steal units of {wanted_phase} from {steal_from_task_id} to {queue}. Return
   // first stolen unit (rest put in queue of {task_id}), or {nullopt} if
-  // {steal_from_task_id} had no units of {wanted_tier}.
+  // {steal_from_task_id} had no units of {wanted_phase}.
   // Hold a shared lock on {queues_mutex_} when calling this method.
   std::optional<WasmCompilationUnit> StealUnitsAndGetFirst(
-      QueueImpl* queue, int steal_from_task_id, int wanted_tier) {
+      QueueImpl* queue, int steal_from_task_id, int wanted_phase) {
     auto* steal_queue = queues_[steal_from_task_id].get();
     // Cannot steal from own queue.
     if (steal_queue == queue) return {};
@@ -455,7 +461,7 @@ class CompilationUnitQueues {
     std::optional<WasmCompilationUnit> returned_unit;
     {
       base::MutexGuard guard(&steal_queue->mutex);
-      auto* steal_from_vector = &steal_queue->units[wanted_tier];
+      auto* steal_from_vector = &steal_queue->units[wanted_phase];
       if (steal_from_vector->empty()) return {};
       size_t remaining = steal_from_vector->size() / 2;
       auto steal_begin = steal_from_vector->begin() + remaining;
@@ -464,7 +470,7 @@ class CompilationUnitQueues {
       steal_from_vector->erase(steal_begin, steal_from_vector->end());
     }
     base::MutexGuard guard(&queue->mutex);
-    auto* target_queue = &queue->units[wanted_tier];
+    auto* target_queue = &queue->units[wanted_phase];
     target_queue->insert(target_queue->end(), stolen.begin(), stolen.end());
     queue->next_steal_task_id = steal_from_task_id + 1;
     return returned_unit;
@@ -473,7 +479,7 @@ class CompilationUnitQueues {
   // Steal one priority unit from {steal_from_task_id} to {task_id}. Return
   // stolen unit, or {nullopt} if {steal_from_task_id} had no priority units.
   // Hold a shared lock on {queues_mutex_} when calling this method.
-  std::optional<WasmCompilationUnit> StealTopTierPriorityUnit(
+  std::optional<WasmCompilationUnit> StealNonblockingPriorityUnit(
       QueueImpl* queue, int steal_from_task_id) {
     auto* steal_queue = queues_[steal_from_task_id].get();
     // Cannot steal from own queue.
@@ -482,10 +488,10 @@ class CompilationUnitQueues {
     {
       base::MutexGuard guard(&steal_queue->mutex);
       while (true) {
-        if (steal_queue->top_tier_priority_units.empty()) return {};
+        if (steal_queue->nonblocking_priority_units.empty()) return {};
 
-        auto unit = steal_queue->top_tier_priority_units.top().unit;
-        steal_queue->top_tier_priority_units.pop();
+        auto unit = steal_queue->nonblocking_priority_units.top().unit;
+        steal_queue->nonblocking_priority_units.pop();
         num_priority_units_.fetch_sub(1, std::memory_order_relaxed);
 
         if (!top_tier_compiled_[declared_function_index(unit.func_index())]
@@ -493,7 +499,7 @@ class CompilationUnitQueues {
           returned_unit = unit;
           break;
         }
-        num_units_[CompilationTier::kTopTier].fetch_sub(
+        num_units_[CompilationPhase::kNonblocking].fetch_sub(
             1, std::memory_order_relaxed);
       }
     }
@@ -517,7 +523,7 @@ class CompilationUnitQueues {
 
   BigUnitsQueue big_units_queue_;
 
-  std::atomic<size_t> num_units_[CompilationTier::kNumTiers];
+  std::atomic<size_t> num_units_[CompilationPhase::kNumPhases];
   std::atomic<size_t> num_priority_units_{0};
   std::unique_ptr<std::atomic<bool>[]> top_tier_compiled_;
   std::atomic<int> next_queue_to_add{0};
@@ -536,7 +542,8 @@ size_t CompilationUnitQueues::EstimateCurrentMemoryConsumption() const {
     for (const auto& q : queues_) {
       base::MutexGuard guard(&q->mutex);
       result += ContentSize(*q->units);
-      result += q->top_tier_priority_units.size() * sizeof(TopTierPriorityUnit);
+      result += q->nonblocking_priority_units.size() *
+                sizeof(NonblockingPriorityUnit);
     }
   }
   {
@@ -566,11 +573,11 @@ class CompilationStateImpl {
   CompilationStateImpl(const std::shared_ptr<NativeModule>& native_module,
                        WasmDetectedFeatures detected_features);
   ~CompilationStateImpl() {
-    if (baseline_compile_job_->IsValid()) {
-      baseline_compile_job_->CancelAndDetach();
+    if (blocking_liftoff_compile_job_->IsValid()) {
+      blocking_liftoff_compile_job_->CancelAndDetach();
     }
-    if (top_tier_compile_job_->IsValid()) {
-      top_tier_compile_job_->CancelAndDetach();
+    if (nonblocking_compile_job_->IsValid()) {
+      nonblocking_compile_job_->CancelAndDetach();
     }
   }
 
@@ -579,7 +586,7 @@ class CompilationStateImpl {
   void InitCompileJob();
 
   // {kCancelUnconditionally}: Cancel all compilation.
-  // {kCancelInitialCompilation}: Cancel all compilation if initial (baseline)
+  // {kCancelInitialCompilation}: Cancel all compilation if initial (blocking)
   // compilation is not finished yet.
   enum CancellationPolicy { kCancelUnconditionally, kCancelInitialCompilation };
   void CancelCompilation(CancellationPolicy);
@@ -604,7 +611,7 @@ class CompilationStateImpl {
   void ApplyPgoInfoLate(ProfileInformation* pgo_info);
 
   // Initialize compilation progress. Set compilation tiers to expect for
-  // baseline and top tier compilation. Must be set before
+  // blocking and nonblocking compilation. Must be set before
   // {CommitCompilationUnits} is invoked which triggers background compilation.
   void InitializeCompilationProgress(ProfileInformation* pgo_info);
 
@@ -630,21 +637,23 @@ class CompilationStateImpl {
   void AddCallback(std::unique_ptr<CompilationEventCallback> callback);
 
   // Inserts new functions to compile and kicks off compilation.
-  void CommitCompilationUnits(base::Vector<WasmCompilationUnit> baseline_units,
-                              base::Vector<WasmCompilationUnit> top_tier_units);
-  void CommitTopTierCompilationUnit(WasmCompilationUnit);
-  void AddTopTierPriorityCompilationUnit(WasmCompilationUnit, size_t);
+  void CommitCompilationUnits(
+      base::Vector<WasmCompilationUnit> blocking_liftoff_units,
+      base::Vector<WasmCompilationUnit> nonblocking_units);
+  void CommitNonblockingCompilationUnit(WasmCompilationUnit);
+  void AddNonblockingPriorityCompilationUnit(WasmCompilationUnit, size_t);
 
   CompilationUnitQueues::Queue* GetQueueForCompileTask(int task_id);
 
   std::optional<WasmCompilationUnit> GetNextCompilationUnit(
-      CompilationUnitQueues::Queue*, CompilationTier tier);
+      CompilationUnitQueues::Queue*, CompilationPhase phase);
 
   void OnFinishedUnits(base::Vector<WasmCode*>);
 
   void OnDetectedFeatures(WasmDetectedFeatures detected);
   void SchedulePublishCompilationResults(
-      std::vector<UnpublishedWasmCode> unpublished_code, CompilationTier tier);
+      std::vector<UnpublishedWasmCode> unpublished_code,
+      CompilationPhase phase);
 
   WasmDetectedFeatures detected_features() const {
     return detected_features_.load(std::memory_order_relaxed);
@@ -655,11 +664,11 @@ class CompilationStateImpl {
   V8_WARN_UNUSED_RESULT WasmDetectedFeatures
       UpdateDetectedFeatures(WasmDetectedFeatures);
 
-  size_t NumOutstandingCompilations(CompilationTier tier) const;
+  size_t NumOutstandingCompilations(CompilationPhase phase) const;
 
   void SetError();
 
-  void WaitForBaselineCompileJob();
+  void WaitForBlockingCompileJob();
 
   void TierUpAllFunctions();
 
@@ -751,8 +760,8 @@ class CompilationStateImpl {
 
   // The compile job handles, initialized right after construction of
   // {CompilationStateImpl}.
-  std::unique_ptr<JobHandle> baseline_compile_job_;
-  std::unique_ptr<JobHandle> top_tier_compile_job_;
+  std::unique_ptr<JobHandle> blocking_liftoff_compile_job_;
+  std::unique_ptr<JobHandle> nonblocking_compile_job_;
 
   // The compilation id to identify trace events linked to this compilation.
   static constexpr int kInvalidCompilationID = -1;
@@ -787,7 +796,7 @@ class CompilationStateImpl {
   // Events that already happened.
   base::EnumSet<CompilationEvent> finished_events_;
 
-  int outstanding_baseline_units_ = 0;
+  int outstanding_blocking_units_ = 0;
 
   // The amount of generated top tier code since the last
   // {kFinishedCompilationChunk} event.
@@ -800,11 +809,11 @@ class CompilationStateImpl {
   // {CompilationStateImpl::InitializeCompilationUnitForSingleFunction}).
   base::UniqueArray<uint8_t> compilation_progress_;
 
-  // The timestamp of the last top-tier compilation.
-  // This field is updated on every publishing of top-tier code, and is reset
+  // The timestamp of the last nonblocking compilation.
+  // This field is updated on every publishing of nonblocking code, and is reset
   // once caching is triggered. Hence it also informs whether a caching task is
   // currently being scheduled (whenever this is set).
-  base::TimeTicks last_top_tier_compilation_timestamp_;
+  base::TimeTicks last_nonblocking_compilation_timestamp_;
 
   // End of fields protected by {callbacks_mutex_}.
   //////////////////////////////////////////////////////////////////////////////
@@ -815,11 +824,11 @@ class CompilationStateImpl {
     std::vector<UnpublishedWasmCode> publish_queue_;
     bool publisher_running_ = false;
   };
-  PublishState publish_state_[CompilationTier::kNumTiers];
+  PublishState publish_state_[CompilationPhase::kNumPhases];
 
   // Encoding of fields in the {compilation_progress_} vector.
-  using RequiredBaselineTierField = base::BitField8<ExecutionTier, 0, 2>;
-  using RequiredTopTierField = base::BitField8<ExecutionTier, 2, 2>;
+  using RequiredBlockingTierField = base::BitField8<ExecutionTier, 0, 2>;
+  using RequiredNonblockingTierField = base::BitField8<ExecutionTier, 2, 2>;
   using ReachedTierField = base::BitField8<ExecutionTier, 4, 2>;
 };
 
@@ -965,8 +974,8 @@ WasmDetectedFeatures CompilationState::UpdateDetectedFeatures(
 namespace {
 
 struct ExecutionTierPair {
-  ExecutionTier baseline_tier;
-  ExecutionTier top_tier;
+  ExecutionTier blocking_tier;
+  ExecutionTier nonblocking_tier;
 };
 
 // Pass the debug state as a separate parameter to avoid data races: the debug
@@ -982,12 +991,12 @@ ExecutionTierPair GetDefaultTiersPerModule(NativeModule* native_module,
   if (is_in_debug_state) {
     return {ExecutionTier::kLiftoff, ExecutionTier::kLiftoff};
   }
-  ExecutionTier baseline_tier =
+  ExecutionTier blocking_tier =
       v8_flags.liftoff ? ExecutionTier::kLiftoff : ExecutionTier::kTurbofan;
   bool eager_tier_up = !v8_flags.wasm_dynamic_tiering && v8_flags.wasm_tier_up;
-  ExecutionTier top_tier =
-      eager_tier_up ? ExecutionTier::kTurbofan : baseline_tier;
-  return {baseline_tier, top_tier};
+  ExecutionTier nonblocking_tier =
+      eager_tier_up ? ExecutionTier::kTurbofan : blocking_tier;
+  return {blocking_tier, nonblocking_tier};
 }
 
 ExecutionTierPair GetLazyCompilationTiers(NativeModule* native_module,
@@ -1010,7 +1019,7 @@ ExecutionTierPair GetLazyCompilationTiers(NativeModule* native_module,
           kOptimizationPriorityExecutedOnceSentinel) {
         // In this case, the function is only executed once. We do not want to
         // tier it up to Turbofan.
-        tiers.top_tier = ExecutionTier::kNone;
+        tiers.nonblocking_tier = ExecutionTier::kNone;
       }
     }
   }
@@ -1018,15 +1027,15 @@ ExecutionTierPair GetLazyCompilationTiers(NativeModule* native_module,
   if (V8_UNLIKELY(v8_flags.wasm_tier_up_filter >= 0 &&
                   func_index !=
                       static_cast<uint32_t>(v8_flags.wasm_tier_up_filter) &&
-                  tiers.top_tier != ExecutionTier::kNone)) {
-    tiers.top_tier = tiers.baseline_tier;
+                  tiers.nonblocking_tier != ExecutionTier::kNone)) {
+    tiers.nonblocking_tier = tiers.blocking_tier;
   }
 
-  // Correct top tier if necessary.
+  // Correct nonblocking tier if necessary.
   static_assert(ExecutionTier::kLiftoff < ExecutionTier::kTurbofan,
                 "Assume an order on execution tiers");
-  if (tiers.baseline_tier > tiers.top_tier) {
-    tiers.top_tier = tiers.baseline_tier;
+  if (tiers.blocking_tier > tiers.nonblocking_tier) {
+    tiers.nonblocking_tier = tiers.blocking_tier;
   }
   return tiers;
 }
@@ -1039,27 +1048,29 @@ class CompilationUnitBuilder {
   explicit CompilationUnitBuilder(NativeModule* native_module)
       : native_module_(native_module) {}
 
-  void AddBaselineUnit(int func_index, ExecutionTier tier,
-                       Validation validation) {
-    baseline_units_.emplace_back(func_index, tier, kNotForDebugging,
-                                 validation);
+  void AddBlockingLiftoffUnit(int func_index, ExecutionTier tier,
+                              Validation validation) {
+    blocking_liftoff_units_.emplace_back(func_index, tier, kNotForDebugging,
+                                         validation);
   }
 
-  void AddTopTierUnit(int func_index, ExecutionTier tier,
-                      Validation validation) {
-    tiering_units_.emplace_back(func_index, tier, kNotForDebugging, validation);
+  void AddNonblockingUnit(int func_index, ExecutionTier tier,
+                          Validation validation) {
+    nonblocking_units_.emplace_back(func_index, tier, kNotForDebugging,
+                                    validation);
   }
 
   void Commit() {
-    if (baseline_units_.empty() && tiering_units_.empty()) return;
-    compilation_state()->CommitCompilationUnits(base::VectorOf(baseline_units_),
-                                                base::VectorOf(tiering_units_));
+    if (blocking_liftoff_units_.empty() && nonblocking_units_.empty()) return;
+    compilation_state()->CommitCompilationUnits(
+        base::VectorOf(blocking_liftoff_units_),
+        base::VectorOf(nonblocking_units_));
     Clear();
   }
 
   void Clear() {
-    baseline_units_.clear();
-    tiering_units_.clear();
+    blocking_liftoff_units_.clear();
+    nonblocking_units_.clear();
   }
 
   const WasmModule* module() { return native_module_->module(); }
@@ -1070,8 +1081,8 @@ class CompilationUnitBuilder {
   }
 
   NativeModule* const native_module_;
-  std::vector<WasmCompilationUnit> baseline_units_;
-  std::vector<WasmCompilationUnit> tiering_units_;
+  std::vector<WasmCompilationUnit> blocking_liftoff_units_;
+  std::vector<WasmCompilationUnit> nonblocking_units_;
 };
 
 DecodeResult ValidateSingleFunction(Zone* zone, const WasmModule* module,
@@ -1128,12 +1139,12 @@ void CompileLazy(Isolate* isolate, NativeModule* native_module,
 
   DCHECK_LE(native_module->num_imported_functions(), func_index);
   DCHECK_LT(func_index, native_module->num_functions());
-  WasmCompilationUnit baseline_unit{
-      func_index, tiers.baseline_tier,
+  WasmCompilationUnit blocking_unit{
+      func_index, tiers.blocking_tier,
       is_in_debug_state ? kForDebugging : kNotForDebugging, kAlreadyValidated};
   CompilationEnv env = CompilationEnv::ForModule(native_module);
   WasmDetectedFeatures detected_features;
-  WasmCompilationResult result = baseline_unit.ExecuteCompilation(
+  WasmCompilationResult result = blocking_unit.ExecuteCompilation(
       &env, compilation_state->GetWireBytesStorage().get(),
       native_module->counter_updates(), &detected_features);
   compilation_state->OnDetectedFeatures(detected_features);
@@ -1163,10 +1174,11 @@ void CompileLazy(Isolate* isolate, NativeModule* native_module,
 
   counters->wasm_lazily_compiled_functions()->Increment();
 
-  if (v8_flags.wasm_lazy_compilation && tiers.baseline_tier < tiers.top_tier) {
-    WasmCompilationUnit tiering_unit{func_index, tiers.top_tier,
-                                     kNotForDebugging, kAlreadyValidated};
-    compilation_state->CommitTopTierCompilationUnit(tiering_unit);
+  if (v8_flags.wasm_lazy_compilation &&
+      tiers.blocking_tier < tiers.nonblocking_tier) {
+    WasmCompilationUnit nonblocking_unit{func_index, tiers.nonblocking_tier,
+                                         kNotForDebugging, kAlreadyValidated};
+    compilation_state->CommitNonblockingCompilationUnit(nonblocking_unit);
   }
 }
 
@@ -1554,7 +1566,8 @@ void TriggerTierUp(Isolate* isolate,
                                              func_index);
   }
 
-  compilation_state->AddTopTierPriorityCompilationUnit(tiering_unit, priority);
+  compilation_state->AddNonblockingPriorityCompilationUnit(tiering_unit,
+                                                           priority);
 }
 
 void TierUpNowForTesting(Isolate* isolate,
@@ -1890,7 +1903,7 @@ constexpr uint8_t kMainTaskId = 0;
 // Run by the {BackgroundCompileJob} (on any thread).
 CompilationExecutionResult ExecuteCompilationUnits(
     std::weak_ptr<NativeModule> native_module, JobDelegate* delegate,
-    CompilationTier tier) {
+    CompilationPhase phase) {
   TRACE_EVENT("v8.wasm", "wasm.ExecuteCompilationUnits");
 
   // Compilation must be disabled in jitless mode.
@@ -1925,7 +1938,7 @@ CompilationExecutionResult ExecuteCompilationUnits(
     module = compile_scope.native_module()->shared_module();
     queue = compile_scope.compilation_state()->GetQueueForCompileTask(task_id);
     unit =
-        compile_scope.compilation_state()->GetNextCompilationUnit(queue, tier);
+        compile_scope.compilation_state()->GetNextCompilationUnit(queue, phase);
     if (!unit) return kNoMoreUnits;
   }
   TRACE_COMPILE("ExecuteCompilationUnits (task id %d)\n", task_id);
@@ -1968,7 +1981,7 @@ CompilationExecutionResult ExecuteCompilationUnits(
       // Yield or get next unit.
       if (yield ||
           !(unit = compile_scope.compilation_state()->GetNextCompilationUnit(
-                queue, tier))) {
+                queue, phase))) {
         std::vector<UnpublishedWasmCode> unpublished_code =
             compile_scope.native_module()->AddCompiledCode(
                 base::VectorOf(results_to_publish));
@@ -1977,11 +1990,11 @@ CompilationExecutionResult ExecuteCompilationUnits(
         DCHECK_EQ(0, counter_updates.NumOutstandingUpdates());
         results_to_publish.clear();
         // Flush detected features before publishing code, which may trigger
-        // {kFinishedBaselineCompilation} and publish detected features.
+        // {kFinishedBlockingCompilation} and publish detected features.
         compile_scope.compilation_state()->OnDetectedFeatures(
             global_detected_features);
         compile_scope.compilation_state()->SchedulePublishCompilationResults(
-            std::move(unpublished_code), tier);
+            std::move(unpublished_code), phase);
         return yield ? kYield : kNoMoreUnits;
       }
 
@@ -2000,12 +2013,12 @@ CompilationExecutionResult ExecuteCompilationUnits(
                 base::VectorOf(results_to_publish));
         results_to_publish.clear();
         // Flush detected features before publishing code, which may trigger
-        // {kFinishedBaselineCompilation} and publish detected features.
+        // {kFinishedBlockingCompilation} and publish detected features.
         compile_scope.compilation_state()->OnDetectedFeatures(
             global_detected_features);
         global_detected_features = {};
         compile_scope.compilation_state()->SchedulePublishCompilationResults(
-            std::move(unpublished_code), tier);
+            std::move(unpublished_code), phase);
       }
     }
   }
@@ -2039,13 +2052,13 @@ WasmError ValidateFunctions(const NativeModule& native_module) {
 class BackgroundCompileJob final : public JobTask {
  public:
   BackgroundCompileJob(std::weak_ptr<NativeModule> native_module,
-                       CompilationTier tier, IsolateGroup* isolate_group)
+                       CompilationPhase phase, IsolateGroup* isolate_group)
       : native_module_(std::move(native_module)),
         engine_barrier_(GetWasmEngine()->GetBarrierForBackgroundCompile()),
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
         isolate_group_(isolate_group),
 #endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
-        tier_(tier) {
+        phase_(phase) {
   }
 
   void Run(JobDelegate* delegate) override {
@@ -2054,7 +2067,7 @@ class BackgroundCompileJob final : public JobTask {
 #endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
     auto engine_scope = engine_barrier_->TryLock();
     if (!engine_scope) return;
-    ExecuteCompilationUnits(native_module_, delegate, tier_);
+    ExecuteCompilationUnits(native_module_, delegate, phase_);
   }
 
   size_t GetMaxConcurrency(size_t worker_count) const override {
@@ -2066,7 +2079,7 @@ class BackgroundCompileJob final : public JobTask {
     // workers are processing, thus add the current worker count to that number.
     return std::min(flag_limit,
                     worker_count + compile_scope.compilation_state()
-                                       ->NumOutstandingCompilations(tier_));
+                                       ->NumOutstandingCompilations(phase_));
   }
 
  private:
@@ -2075,7 +2088,7 @@ class BackgroundCompileJob final : public JobTask {
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   IsolateGroup* isolate_group_;
 #endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
-  const CompilationTier tier_;
+  const CompilationPhase phase_;
 };
 
 std::shared_ptr<NativeModule> GetOrCompileNewNativeModule(
@@ -2126,7 +2139,7 @@ std::shared_ptr<NativeModule> GetOrCompileNewNativeModule(
     std::unique_ptr<CompilationUnitBuilder> builder =
         InitializeCompilation(native_module.get(), pgo_info);
     compilation_state->InitializeCompilationUnits(std::move(builder));
-    compilation_state->WaitForBaselineCompileJob();
+    compilation_state->WaitForBlockingCompileJob();
   }
 
   bool failed = thrower->error();
@@ -2766,7 +2779,7 @@ class AsyncCompileJob::CompilationStateCallback
 
   void call(CompilationEvent event) override {
     switch (event) {
-      case CompilationEvent::kFinishedBaselineCompilation:
+      case CompilationEvent::kFinishedBlockingCompilation:
         DCHECK(!last_event_.has_value());
         if (base::TimeTicks::IsHighResolution()) {
           job_->compilation_finished_time_ = base::TimeTicks::Now();
@@ -2781,7 +2794,7 @@ class AsyncCompileJob::CompilationStateCallback
         }
         break;
       case CompilationEvent::kFinishedCompilationChunk:
-        DCHECK(CompilationEvent::kFinishedBaselineCompilation == last_event_ ||
+        DCHECK(CompilationEvent::kFinishedBlockingCompilation == last_event_ ||
                CompilationEvent::kFinishedCompilationChunk == last_event_);
         break;
       case CompilationEvent::kFailedCompilation:
@@ -2970,7 +2983,7 @@ class AsyncCompileJob::PrepareNativeModule : public CompileStep {
       // compilation. We call {WaitForCompilationEvent} here so that the current
       // thread participates and finishes the compilation.
       if (v8_flags.wasm_num_compilation_tasks == 0 || v8_flags.wasm_jitless) {
-        compilation_state->WaitForBaselineCompileJob();
+        compilation_state->WaitForBlockingCompileJob();
       }
     }
   }
@@ -3342,9 +3355,9 @@ void AsyncStreamingProcessor::OnFinishedStream(
 
   if (v8_flags.wasm_num_compilation_tasks == 0 || v8_flags.wasm_jitless) {
     // In single-threaded mode there are no worker tasks that will do the
-    // compilation. We call {WaitForBaselineCompileJob} here so that the current
+    // compilation. We call {WaitForBlockingCompileJob} here so that the current
     // thread participates and finishes the compilation.
-    Impl(final_native_module->compilation_state())->WaitForBaselineCompileJob();
+    Impl(final_native_module->compilation_state())->WaitForBlockingCompileJob();
   }
 
   // Only decrement the finisher count *after* setting the wire bytes. The
@@ -3428,19 +3441,19 @@ CompilationStateImpl::CompilationStateImpl(
       detected_features_(detected_features) {}
 
 void CompilationStateImpl::InitCompileJob() {
-  DCHECK_NULL(baseline_compile_job_);
-  DCHECK_NULL(top_tier_compile_job_);
+  DCHECK_NULL(blocking_liftoff_compile_job_);
+  DCHECK_NULL(nonblocking_compile_job_);
   // Create the job, but don't spawn workers yet. This will happen on
   // {NotifyConcurrencyIncrease}.
-  baseline_compile_job_ = V8::GetCurrentPlatform()->CreateJob(
+  blocking_liftoff_compile_job_ = V8::GetCurrentPlatform()->CreateJob(
       TaskPriority::kUserVisible,
       std::make_unique<BackgroundCompileJob>(native_module_weak_,
-                                             CompilationTier::kBaseline,
+                                             CompilationPhase::kBlockingLiftoff,
                                              IsolateGroup::current()));
-  top_tier_compile_job_ = V8::GetCurrentPlatform()->CreateJob(
+  nonblocking_compile_job_ = V8::GetCurrentPlatform()->CreateJob(
       TaskPriority::kUserVisible,
       std::make_unique<BackgroundCompileJob>(native_module_weak_,
-                                             CompilationTier::kTopTier,
+                                             CompilationPhase::kNonblocking,
                                              IsolateGroup::current()));
 }
 
@@ -3450,7 +3463,7 @@ void CompilationStateImpl::CancelCompilation(
 
   if (cancellation_policy == kCancelInitialCompilation &&
       finished_events_.contains(
-          CompilationEvent::kFinishedBaselineCompilation)) {
+          CompilationEvent::kFinishedBlockingCompilation)) {
     // Initial compilation already finished; cannot be cancelled.
     return;
   }
@@ -3470,26 +3483,27 @@ bool CompilationStateImpl::cancelled() const {
 void CompilationStateImpl::ApplyEagerTierUpToInitialProgress(size_t hint_idx) {
   // Get old information.
   uint8_t& progress = compilation_progress_[hint_idx];
-  ExecutionTier old_baseline_tier = RequiredBaselineTierField::decode(progress);
+  ExecutionTier old_blocking_tier = RequiredBlockingTierField::decode(progress);
 
   // Compute new information.
-  ExecutionTier new_baseline_tier =
+  ExecutionTier new_blocking_tier =
       v8_flags.liftoff ? ExecutionTier::kLiftoff : ExecutionTier::kTurbofan;
-  ExecutionTier new_top_tier = ExecutionTier::kTurbofan;
+  ExecutionTier new_nonblocking_tier = ExecutionTier::kTurbofan;
 
-  progress = RequiredBaselineTierField::update(progress, new_baseline_tier);
-  progress = RequiredTopTierField::update(progress, new_top_tier);
+  progress = RequiredBlockingTierField::update(progress, new_blocking_tier);
+  progress =
+      RequiredNonblockingTierField::update(progress, new_nonblocking_tier);
 
-  // Update counter for outstanding baseline units.
-  outstanding_baseline_units_ +=
-      1 - (old_baseline_tier != ExecutionTier::kNone);
+  // Update counter for outstanding blocking units.
+  outstanding_blocking_units_ +=
+      1 - (old_blocking_tier != ExecutionTier::kNone);
 }
 
 void CompilationStateImpl::ApplyCompilationPriorityToInitialProgress(
     size_t hint_idx, CompilationPriority priority) {
   // Get old information.
   uint8_t& progress = compilation_progress_[hint_idx];
-  ExecutionTier old_baseline_tier = RequiredBaselineTierField::decode(progress);
+  ExecutionTier old_blocking_tier = RequiredBlockingTierField::decode(progress);
 
   // Compute new information.
   // Always compile eagerly (blockingly) with Liftoff if a compilation-priority
@@ -3500,19 +3514,21 @@ void CompilationStateImpl::ApplyCompilationPriorityToInitialProgress(
           kOptimizationPriorityExecutedOnceSentinel ||
       priority.optimization_priority ==
           kOptimizationPriorityNotSpecifiedSentinel;
-  ExecutionTier new_baseline_tier =
+  ExecutionTier new_blocking_tier =
       v8_flags.liftoff ? ExecutionTier::kLiftoff : ExecutionTier::kTurbofan;
-  ExecutionTier new_top_tier = (optimization_priority_not_finite ||
-                                !v8_flags.liftoff || v8_flags.liftoff_only)
-                                   ? ExecutionTier::kNone
-                                   : ExecutionTier::kTurbofan;
+  ExecutionTier new_nonblocking_tier =
+      (optimization_priority_not_finite || !v8_flags.liftoff ||
+       v8_flags.liftoff_only)
+          ? ExecutionTier::kNone
+          : ExecutionTier::kTurbofan;
 
-  progress = RequiredBaselineTierField::update(progress, new_baseline_tier);
-  progress = RequiredTopTierField::update(progress, new_top_tier);
+  progress = RequiredBlockingTierField::update(progress, new_blocking_tier);
+  progress =
+      RequiredNonblockingTierField::update(progress, new_nonblocking_tier);
 
-  // Update counter for outstanding baseline units.
-  outstanding_baseline_units_ +=
-      1 - (old_baseline_tier != ExecutionTier::kNone);
+  // Update counter for outstanding blocking units.
+  outstanding_blocking_units_ +=
+      1 - (old_blocking_tier != ExecutionTier::kNone);
 }
 
 void CompilationStateImpl::ApplyPgoInfoToInitialProgress(
@@ -3523,17 +3539,17 @@ void CompilationStateImpl::ApplyPgoInfoToInitialProgress(
   for (int func_index : pgo_info->executed_functions()) {
     uint8_t& progress =
         compilation_progress_[declared_function_index(module, func_index)];
-    ExecutionTier old_baseline_tier =
-        RequiredBaselineTierField::decode(progress);
+    ExecutionTier old_blocking_tier =
+        RequiredBlockingTierField::decode(progress);
     // If the function is already marked for eager compilation, we are good.
-    if (old_baseline_tier != ExecutionTier::kNone) continue;
+    if (old_blocking_tier != ExecutionTier::kNone) continue;
 
-    // Set the baseline tier to Liftoff, so we eagerly compile to Liftoff.
+    // Set the blocking tier to Liftoff, so we eagerly compile to Liftoff.
     // TODO(13288): Compile Liftoff code in the background, if lazy compilation
     // is enabled.
     progress =
-        RequiredBaselineTierField::update(progress, ExecutionTier::kLiftoff);
-    ++outstanding_baseline_units_;
+        RequiredBlockingTierField::update(progress, ExecutionTier::kLiftoff);
+    ++outstanding_blocking_units_;
   }
 
   // Functions that were tiered up during PGO generation are eagerly compiled to
@@ -3541,17 +3557,19 @@ void CompilationStateImpl::ApplyPgoInfoToInitialProgress(
   for (int func_index : pgo_info->tiered_up_functions()) {
     uint8_t& progress =
         compilation_progress_[declared_function_index(module, func_index)];
-    ExecutionTier old_baseline_tier =
-        RequiredBaselineTierField::decode(progress);
-    ExecutionTier old_top_tier = RequiredTopTierField::decode(progress);
+    ExecutionTier old_blocking_tier =
+        RequiredBlockingTierField::decode(progress);
+    ExecutionTier old_nonblocking_tier =
+        RequiredNonblockingTierField::decode(progress);
     // If the function is already marked for eager or background compilation to
     // TurboFan, we are good.
-    if (old_baseline_tier == ExecutionTier::kTurbofan) continue;
-    if (old_top_tier == ExecutionTier::kTurbofan) continue;
+    if (old_blocking_tier == ExecutionTier::kTurbofan) continue;
+    if (old_nonblocking_tier == ExecutionTier::kTurbofan) continue;
 
-    // Set top tier to TurboFan, so we eagerly trigger compilation in the
-    // background.
-    progress = RequiredTopTierField::update(progress, ExecutionTier::kTurbofan);
+    // Set nonblocking tier to TurboFan, so we eagerly trigger compilation in
+    // the background.
+    progress = RequiredNonblockingTierField::update(progress,
+                                                    ExecutionTier::kTurbofan);
   }
 }
 
@@ -3566,25 +3584,24 @@ void CompilationStateImpl::ApplyPgoInfoLate(ProfileInformation* pgo_info) {
   for (int func_index : pgo_info->executed_functions()) {
     uint8_t& progress =
         compilation_progress_[declared_function_index(module, func_index)];
-    ExecutionTier old_baseline_tier =
-        RequiredBaselineTierField::decode(progress);
+    ExecutionTier old_blocking_tier =
+        RequiredBlockingTierField::decode(progress);
     // If the function is already marked for eager compilation, we are good.
-    if (old_baseline_tier != ExecutionTier::kNone) continue;
+    if (old_blocking_tier != ExecutionTier::kNone) continue;
 
     // If we already compiled Liftoff or TurboFan code, we are also good.
     ExecutionTier reached_tier = ReachedTierField::decode(progress);
     if (reached_tier >= ExecutionTier::kLiftoff) continue;
 
-    // Set the baseline tier to Liftoff and schedule a compilation unit.
+    // Set the blocking tier to Liftoff and schedule a compilation unit.
     progress =
-        RequiredBaselineTierField::update(progress, ExecutionTier::kLiftoff);
-    // Add this as a "top tier unit" since it does not contribute to initial
-    // compilation ("baseline finished" might already be triggered).
-    // TODO(clemensb): Rename "baseline finished" to "initial compile finished".
+        RequiredBlockingTierField::update(progress, ExecutionTier::kLiftoff);
+    // Add this as a "nonblocking unit" since it does not contribute to initial
+    // compilation ("blocking compilation finished" might already be triggered).
     // TODO(clemensb): Avoid scheduling both a Liftoff and a TurboFan unit, or
     // prioritize Liftoff when executing the units.
-    builder.AddTopTierUnit(func_index, ExecutionTier::kLiftoff,
-                           kAlreadyValidated);
+    builder.AddNonblockingUnit(func_index, ExecutionTier::kLiftoff,
+                               kAlreadyValidated);
   }
 
   // Functions that were tiered up during PGO generation are eagerly compiled to
@@ -3592,22 +3609,24 @@ void CompilationStateImpl::ApplyPgoInfoLate(ProfileInformation* pgo_info) {
   for (int func_index : pgo_info->tiered_up_functions()) {
     uint8_t& progress =
         compilation_progress_[declared_function_index(module, func_index)];
-    ExecutionTier old_baseline_tier =
-        RequiredBaselineTierField::decode(progress);
-    ExecutionTier old_top_tier = RequiredTopTierField::decode(progress);
+    ExecutionTier old_blocking_tier =
+        RequiredBlockingTierField::decode(progress);
+    ExecutionTier old_nonblocking_tier =
+        RequiredNonblockingTierField::decode(progress);
     // If the function is already marked for eager or background compilation to
     // TurboFan, we are good.
-    if (old_baseline_tier == ExecutionTier::kTurbofan) continue;
-    if (old_top_tier == ExecutionTier::kTurbofan) continue;
+    if (old_blocking_tier == ExecutionTier::kTurbofan) continue;
+    if (old_nonblocking_tier == ExecutionTier::kTurbofan) continue;
 
     // If we already compiled TurboFan code, we are also good.
     ExecutionTier reached_tier = ReachedTierField::decode(progress);
     if (reached_tier == ExecutionTier::kTurbofan) continue;
 
-    // Set top tier to TurboFan and schedule a compilation unit.
-    progress = RequiredTopTierField::update(progress, ExecutionTier::kTurbofan);
-    builder.AddTopTierUnit(func_index, ExecutionTier::kTurbofan,
-                           kAlreadyValidated);
+    // Set nonblocking tier to TurboFan and schedule a compilation unit.
+    progress = RequiredNonblockingTierField::update(progress,
+                                                    ExecutionTier::kTurbofan);
+    builder.AddNonblockingUnit(func_index, ExecutionTier::kTurbofan,
+                               kAlreadyValidated);
   }
   builder.Commit();
 }
@@ -3621,21 +3640,21 @@ void CompilationStateImpl::InitializeCompilationProgress(
   if (!v8_flags.wasm_jitless) {
     auto* module = native_module_->module();
 
-    DCHECK_EQ(0, outstanding_baseline_units_);
+    DCHECK_EQ(0, outstanding_blocking_units_);
 
     // Compute the default compilation progress for all functions, and set it.
     const ExecutionTierPair default_tiers = GetDefaultTiersPerModule(
         native_module_, native_module_->IsInDebugState(),
         v8_flags.wasm_lazy_compilation);
     const uint8_t default_progress =
-        RequiredBaselineTierField::encode(default_tiers.baseline_tier) |
-        RequiredTopTierField::encode(default_tiers.top_tier) |
+        RequiredBlockingTierField::encode(default_tiers.blocking_tier) |
+        RequiredNonblockingTierField::encode(default_tiers.nonblocking_tier) |
         ReachedTierField::encode(ExecutionTier::kNone);
     DCHECK_NULL(compilation_progress_);
     compilation_progress_ = base::UniqueArray<uint8_t>::New(
         module->num_declared_functions, default_progress);
-    if (default_tiers.baseline_tier != ExecutionTier::kNone) {
-      outstanding_baseline_units_ += module->num_declared_functions;
+    if (default_tiers.blocking_tier != ExecutionTier::kNone) {
+      outstanding_blocking_units_ += module->num_declared_functions;
     }
 
     if (native_module_->enabled_features().has_compilation_hints()) {
@@ -3671,8 +3690,8 @@ void CompilationStateImpl::InitializeCompilationProgress(
   // Apply PGO information, if available.
   if (pgo_info) ApplyPgoInfoToInitialProgress(pgo_info);
 
-  // Trigger callbacks if module needs no baseline or top tier compilation. This
-  // can be the case for an empty or fully lazy module.
+  // Trigger callbacks if module needs no blocking or nonblocking compilation.
+  // This can be the case for an empty or fully lazy module.
   TriggerOutstandingCallbacks();
 }
 
@@ -3695,23 +3714,25 @@ bool CompilationStateImpl::InitializeCompilationUnitForSingleFunction(
   // are synchronized via `callbacks_mutex_`.
   uint8_t function_progress = compilation_progress_[declared_function_index(
       native_module_->module(), function_index)];
-  ExecutionTier required_baseline_tier =
-      CompilationStateImpl::RequiredBaselineTierField::decode(
+  ExecutionTier required_blocking_tier =
+      CompilationStateImpl::RequiredBlockingTierField::decode(
           function_progress);
-  ExecutionTier required_top_tier =
-      CompilationStateImpl::RequiredTopTierField::decode(function_progress);
+  ExecutionTier required_nonblocking_tier =
+      CompilationStateImpl::RequiredNonblockingTierField::decode(
+          function_progress);
   ExecutionTier reached_tier =
       CompilationStateImpl::ReachedTierField::decode(function_progress);
 
   bool created_units = false;
-  if (reached_tier < required_baseline_tier) {
-    builder->AddBaselineUnit(function_index, required_baseline_tier,
-                             validation);
+  if (reached_tier < required_blocking_tier) {
+    builder->AddBlockingLiftoffUnit(function_index, required_blocking_tier,
+                                    validation);
     created_units = true;
   }
-  if (reached_tier < required_top_tier &&
-      required_baseline_tier != required_top_tier) {
-    builder->AddTopTierUnit(function_index, required_top_tier, validation);
+  if (reached_tier < required_nonblocking_tier &&
+      required_blocking_tier != required_nonblocking_tier) {
+    builder->AddNonblockingUnit(function_index, required_nonblocking_tier,
+                                validation);
     created_units = true;
   }
   return created_units;
@@ -3750,16 +3771,16 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
     // Initialize the compilation progress as if everything was
     // TurboFan-compiled.
     constexpr uint8_t kProgressAfterTurbofanDeserialization =
-        RequiredBaselineTierField::encode(ExecutionTier::kLiftoff) |
-        RequiredTopTierField::encode(ExecutionTier::kTurbofan) |
+        RequiredBlockingTierField::encode(ExecutionTier::kLiftoff) |
+        RequiredNonblockingTierField::encode(ExecutionTier::kTurbofan) |
         ReachedTierField::encode(ExecutionTier::kTurbofan);
     compilation_progress_ = base::UniqueArray<uint8_t>::New(
         module->num_declared_functions, kProgressAfterTurbofanDeserialization);
 
     // Update compilation state for lazy functions.
     constexpr uint8_t kProgressForLazyFunctions =
-        RequiredBaselineTierField::encode(ExecutionTier::kNone) |
-        RequiredTopTierField::encode(ExecutionTier::kNone) |
+        RequiredBlockingTierField::encode(ExecutionTier::kNone) |
+        RequiredNonblockingTierField::encode(ExecutionTier::kNone) |
         ReachedTierField::encode(ExecutionTier::kNone);
     for (auto func_index : lazy_functions) {
       compilation_progress_[declared_function_index(module, func_index)] =
@@ -3771,8 +3792,8 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
     ExecutionTierPair default_tiers = GetDefaultTiersPerModule(
         native_module_, native_module_->IsInDebugState(), kNotLazy);
     uint8_t progress_for_eager_functions =
-        RequiredBaselineTierField::encode(default_tiers.baseline_tier) |
-        RequiredTopTierField::encode(default_tiers.top_tier) |
+        RequiredBlockingTierField::encode(default_tiers.blocking_tier) |
+        RequiredNonblockingTierField::encode(default_tiers.nonblocking_tier) |
         ReachedTierField::encode(ExecutionTier::kNone);
     for (auto func_index : eager_functions) {
       // Check that {func_index} is not contained in {lazy_functions}.
@@ -3782,19 +3803,19 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
       compilation_progress_[declared_function_index(module, func_index)] =
           progress_for_eager_functions;
     }
-    DCHECK_NE(ExecutionTier::kNone, default_tiers.baseline_tier);
-    outstanding_baseline_units_ += eager_functions.size();
+    DCHECK_NE(ExecutionTier::kNone, default_tiers.blocking_tier);
+    outstanding_blocking_units_ += eager_functions.size();
 
-    // Baseline compilation is done if we do not have any Liftoff functions to
+    // Blocking compilation is done if we do not have any Liftoff functions to
     // compile.
     if (eager_functions.empty() || v8_flags.wasm_lazy_compilation) {
-      finished_events_.Add(CompilationEvent::kFinishedBaselineCompilation);
+      finished_events_.Add(CompilationEvent::kFinishedBlockingCompilation);
     }
   }
   auto builder = std::make_unique<CompilationUnitBuilder>(native_module_);
   InitializeCompilationUnits(std::move(builder));
   if (!v8_flags.wasm_lazy_compilation) {
-    WaitForBaselineCompileJob();
+    WaitForBlockingCompileJob();
   }
 }
 
@@ -3802,7 +3823,7 @@ void CompilationStateImpl::AddCallback(
     std::unique_ptr<CompilationEventCallback> callback) {
   base::MutexGuard callbacks_guard(&callbacks_mutex_);
   // Immediately trigger events that already happened.
-  for (auto event : {CompilationEvent::kFinishedBaselineCompilation,
+  for (auto event : {CompilationEvent::kFinishedBlockingCompilation,
                      CompilationEvent::kFailedCompilation}) {
     if (finished_events_.contains(event)) {
       callback->call(event);
@@ -3816,35 +3837,35 @@ void CompilationStateImpl::AddCallback(
 }
 
 void CompilationStateImpl::CommitCompilationUnits(
-    base::Vector<WasmCompilationUnit> baseline_units,
-    base::Vector<WasmCompilationUnit> top_tier_units) {
+    base::Vector<WasmCompilationUnit> blocking_liftoff_units,
+    base::Vector<WasmCompilationUnit> nonblocking_units) {
   base::MutexGuard guard{&mutex_};
-  if (!baseline_units.empty() || !top_tier_units.empty()) {
-    compilation_unit_queues_.AddUnits(baseline_units, top_tier_units,
+  if (!blocking_liftoff_units.empty() || !nonblocking_units.empty()) {
+    compilation_unit_queues_.AddUnits(blocking_liftoff_units, nonblocking_units,
                                       native_module_->module());
   }
-  if (!baseline_units.empty()) {
-    DCHECK(baseline_compile_job_->IsValid());
-    baseline_compile_job_->NotifyConcurrencyIncrease();
+  if (!blocking_liftoff_units.empty()) {
+    DCHECK(blocking_liftoff_compile_job_->IsValid());
+    blocking_liftoff_compile_job_->NotifyConcurrencyIncrease();
   }
-  if (!top_tier_units.empty()) {
-    DCHECK(top_tier_compile_job_->IsValid());
-    top_tier_compile_job_->NotifyConcurrencyIncrease();
+  if (!nonblocking_units.empty()) {
+    DCHECK(nonblocking_compile_job_->IsValid());
+    nonblocking_compile_job_->NotifyConcurrencyIncrease();
   }
 }
 
-void CompilationStateImpl::CommitTopTierCompilationUnit(
+void CompilationStateImpl::CommitNonblockingCompilationUnit(
     WasmCompilationUnit unit) {
   CommitCompilationUnits({}, {&unit, 1});
 }
 
-void CompilationStateImpl::AddTopTierPriorityCompilationUnit(
+void CompilationStateImpl::AddNonblockingPriorityCompilationUnit(
     WasmCompilationUnit unit, size_t priority) {
-  compilation_unit_queues_.AddTopTierPriorityUnit(unit, priority);
+  compilation_unit_queues_.AddNonblockingPriorityUnit(unit, priority);
   // We should not have a {CodeSpaceWriteScope} open at this point, as
   // {NotifyConcurrencyIncrease} can spawn new threads which could inherit PKU
   // permissions (which would be a security issue).
-  top_tier_compile_job_->NotifyConcurrencyIncrease();
+  nonblocking_compile_job_->NotifyConcurrencyIncrease();
 }
 
 CompilationUnitQueues::Queue* CompilationStateImpl::GetQueueForCompileTask(
@@ -3853,8 +3874,8 @@ CompilationUnitQueues::Queue* CompilationStateImpl::GetQueueForCompileTask(
 }
 
 std::optional<WasmCompilationUnit> CompilationStateImpl::GetNextCompilationUnit(
-    CompilationUnitQueues::Queue* queue, CompilationTier tier) {
-  return compilation_unit_queues_.GetNextUnit(queue, tier);
+    CompilationUnitQueues::Queue* queue, CompilationPhase phase) {
+  return compilation_unit_queues_.GetNextUnit(queue, phase);
 }
 
 void CompilationStateImpl::OnFinishedUnits(
@@ -3875,20 +3896,20 @@ void CompilationStateImpl::OnFinishedUnits(
               native_module_->module()->num_declared_functions);
   }
 
-  bool has_top_tier_code = false;
+  bool has_nonblocking_code = false;
 
   for (size_t i = 0; i < code_vector.size(); i++) {
     WasmCode* code = code_vector[i];
     DCHECK_NOT_NULL(code);
     DCHECK_LT(code->index(), native_module_->num_functions());
 
-    has_top_tier_code |= code->tier() == ExecutionTier::kTurbofan;
+    has_nonblocking_code |= code->tier() == ExecutionTier::kTurbofan;
 
     if (code->index() <
         static_cast<int>(native_module_->num_imported_functions())) {
       // Import wrapper.
       DCHECK_EQ(code->tier(), ExecutionTier::kTurbofan);
-      outstanding_baseline_units_--;
+      outstanding_blocking_units_--;
     } else {
       // Function.
       DCHECK_NE(code->tier(), ExecutionTier::kNone);
@@ -3900,15 +3921,15 @@ void CompilationStateImpl::OnFinishedUnits(
       uint8_t& function_progress =
           compilation_progress_[declared_function_index(
               native_module_->module(), code->index())];
-      ExecutionTier required_baseline_tier =
-          RequiredBaselineTierField::decode(function_progress);
+      ExecutionTier required_blocking_tier =
+          RequiredBlockingTierField::decode(function_progress);
       ExecutionTier reached_tier = ReachedTierField::decode(function_progress);
 
-      // Check whether required baseline or top tier are reached.
-      if (reached_tier < required_baseline_tier &&
-          required_baseline_tier <= code->tier()) {
-        DCHECK_GT(outstanding_baseline_units_, 0);
-        outstanding_baseline_units_--;
+      // Check whether required blocking tier is reached.
+      if (reached_tier < required_blocking_tier &&
+          required_blocking_tier <= code->tier()) {
+        DCHECK_GT(outstanding_blocking_units_, 0);
+        outstanding_blocking_units_--;
       }
       if (code->tier() == ExecutionTier::kTurbofan) {
         bytes_since_last_chunk_ += code->instructions().size();
@@ -3919,13 +3940,11 @@ void CompilationStateImpl::OnFinishedUnits(
         function_progress =
             ReachedTierField::update(function_progress, code->tier());
       }
-      // Allow another top tier compilation if deopts are enabled and the
-      // currently installed code object is a Liftoff object.
-      // Allow another top tier compilation if deopts are enabled and the
+      // Allow another top-tier compilation if deopts are enabled and the
       // currently installed code object is a Liftoff object. We check the code
       // installed on {native_module_} rather than {code->tier()} because
-      // baseline compilation can finish after top-tier compilation (without
-      // replacing the top-tier code), and publishing code and updating
+      // blocking compilation can finish after nonblocking compilation (without
+      // replacing the nonblocking code), and publishing code and updating
       // {compilation_progress_} are not synchronized.
       // Note: GetCode() acquires the NativeModule::allocation_mutex_, so this
       // could cause deadlocks if any other place acquires
@@ -3937,22 +3956,23 @@ void CompilationStateImpl::OnFinishedUnits(
         return code->is_liftoff();
       };
       if (v8_flags.wasm_deopt && published_code_is_liftoff(code->index())) {
-        // Setting the reached tier below the baseline tier would create an
+        // Setting the reached tier below the blocking tier would create an
         // inconsistent state and has actually led to crashes before (see
         // https://crbug.com/379086474).
-        DCHECK_LE(required_baseline_tier, ExecutionTier::kLiftoff);
+        DCHECK_LE(required_blocking_tier, ExecutionTier::kLiftoff);
         function_progress = ReachedTierField::update(function_progress,
                                                      ExecutionTier::kLiftoff);
         compilation_unit_queues_.AllowAnotherTopTierJob(code->index());
       }
-      DCHECK_LE(0, outstanding_baseline_units_);
+      DCHECK_LE(0, outstanding_blocking_units_);
     }
   }
 
-  // Update the {last_top_tier_compilation_timestamp_} if it is set (i.e. a
+  // Update the {last_nonblocking_compilation_timestamp_} if it is set (i.e. a
   // delayed task has already been spawned).
-  if (has_top_tier_code && !last_top_tier_compilation_timestamp_.IsNull()) {
-    last_top_tier_compilation_timestamp_ = base::TimeTicks::Now();
+  if (has_nonblocking_code &&
+      !last_nonblocking_compilation_timestamp_.IsNull()) {
+    last_nonblocking_compilation_timestamp_ = base::TimeTicks::Now();
   }
 
   TriggerOutstandingCallbacks();
@@ -3980,16 +4000,16 @@ void CompilationStateImpl::TriggerOutstandingCallbacks() {
   callbacks_mutex_.AssertHeld();
 
   base::EnumSet<CompilationEvent> triggered_events;
-  if (outstanding_baseline_units_ == 0) {
-    triggered_events.Add(CompilationEvent::kFinishedBaselineCompilation);
+  if (outstanding_blocking_units_ == 0) {
+    triggered_events.Add(CompilationEvent::kFinishedBlockingCompilation);
   }
 
   // For dynamic tiering, trigger "compilation chunk finished" after a new chunk
   // of size {v8_flags.wasm_caching_threshold}.
   // Only emit the kFinishedCompilationChunk event after
-  // kFinishedBaselineCompilation, and only when a non-zero amount of code has
+  // kFinishedBlockingCompilation, and only when a non-zero amount of code has
   // been generated (the threshold flag could be set to zero).
-  if (v8_flags.wasm_dynamic_tiering && outstanding_baseline_units_ == 0 &&
+  if (v8_flags.wasm_dynamic_tiering && outstanding_blocking_units_ == 0 &&
       bytes_since_last_chunk_ > 0 &&
       static_cast<size_t>(v8_flags.wasm_caching_threshold) <=
           bytes_since_last_chunk_) {
@@ -4002,7 +4022,7 @@ void CompilationStateImpl::TriggerOutstandingCallbacks() {
             bytes_since_last_chunk_) {
       triggered_events.Add(CompilationEvent::kFinishedCompilationChunk);
       bytes_since_last_chunk_ = 0;
-    } else if (last_top_tier_compilation_timestamp_.IsNull()) {
+    } else if (last_nonblocking_compilation_timestamp_.IsNull()) {
       // Trigger a task after the given timeout; that task will only trigger
       // caching if no new code was added until then. Otherwise, it will
       // re-schedule itself.
@@ -4013,8 +4033,8 @@ void CompilationStateImpl::TriggerOutstandingCallbacks() {
           1e-3 * v8_flags.wasm_caching_timeout_ms);
 
       // Set the timestamp (will be updated by {OnFinishedUnits} if more
-      // top-tier compilation finished before the delayed task is being run).
-      last_top_tier_compilation_timestamp_ = base::TimeTicks::Now();
+      // nonblocking compilation finished before the delayed task is being run).
+      last_nonblocking_compilation_timestamp_ = base::TimeTicks::Now();
     }
   }
 
@@ -4039,8 +4059,8 @@ void CompilationStateImpl::TriggerCallbacks(
   for (auto event :
        {std::make_pair(CompilationEvent::kFailedCompilation,
                        "wasm.CompilationFailed"),
-        std::make_pair(CompilationEvent::kFinishedBaselineCompilation,
-                       "wasm.BaselineFinished"),
+        std::make_pair(CompilationEvent::kFinishedBlockingCompilation,
+                       "wasm.BlockingCompilationFinished"),
         std::make_pair(CompilationEvent::kFinishedCompilationChunk,
                        "wasm.CompilationChunkFinished")}) {
     if (!events.contains(event.first)) continue;
@@ -4052,7 +4072,7 @@ void CompilationStateImpl::TriggerCallbacks(
     }
   }
 
-  if (outstanding_baseline_units_ == 0) {
+  if (outstanding_blocking_units_ == 0) {
     auto new_end = std::remove_if(
         callbacks_.begin(), callbacks_.end(), [](const auto& callback) {
           return callback->release_after_final_event();
@@ -4064,7 +4084,7 @@ void CompilationStateImpl::TriggerCallbacks(
 void CompilationStateImpl::TriggerCachingAfterTimeout() {
   base::MutexGuard guard{&callbacks_mutex_};
 
-  DCHECK(!last_top_tier_compilation_timestamp_.IsNull());
+  DCHECK(!last_nonblocking_compilation_timestamp_.IsNull());
 
   // It can happen that we reached the hard threshold while waiting for the
   // timeout to expire. In that case, {bytes_since_last_chunk_} was reset to
@@ -4073,12 +4093,12 @@ void CompilationStateImpl::TriggerCachingAfterTimeout() {
   if (bytes_since_last_chunk_ == 0 ||
       bytes_since_last_chunk_ <
           static_cast<size_t>(v8_flags.wasm_caching_threshold)) {
-    last_top_tier_compilation_timestamp_ = {};
+    last_nonblocking_compilation_timestamp_ = {};
     return;
   }
 
   base::TimeTicks caching_time =
-      last_top_tier_compilation_timestamp_ +
+      last_nonblocking_compilation_timestamp_ +
       base::TimeDelta::FromMilliseconds(v8_flags.wasm_caching_timeout_ms);
   base::TimeDelta time_until_caching = caching_time - base::TimeTicks::Now();
   // If we are still half a millisecond or more away from the timeout,
@@ -4094,7 +4114,7 @@ void CompilationStateImpl::TriggerCachingAfterTimeout() {
   }
 
   TriggerCallbacks({CompilationEvent::kFinishedCompilationChunk});
-  last_top_tier_compilation_timestamp_ = {};
+  last_nonblocking_compilation_timestamp_ = {};
   bytes_since_last_chunk_ = 0;
 }
 
@@ -4164,8 +4184,8 @@ std::vector<WasmCode*> CompilationStateImpl::PublishCode(
 }
 
 void CompilationStateImpl::SchedulePublishCompilationResults(
-    std::vector<UnpublishedWasmCode> unpublished_code, CompilationTier tier) {
-  PublishState& state = publish_state_[tier];
+    std::vector<UnpublishedWasmCode> unpublished_code, CompilationPhase phase) {
+  PublishState& state = publish_state_[phase];
   {
     base::MutexGuard guard(&state.mutex_);
     if (state.publisher_running_) {
@@ -4195,8 +4215,8 @@ void CompilationStateImpl::SchedulePublishCompilationResults(
 }
 
 size_t CompilationStateImpl::NumOutstandingCompilations(
-    CompilationTier tier) const {
-  return compilation_unit_queues_.GetSizeForTier(tier);
+    CompilationPhase phase) const {
+  return compilation_unit_queues_.GetSizeForPhase(phase);
 }
 
 void CompilationStateImpl::SetError() {
@@ -4210,11 +4230,13 @@ void CompilationStateImpl::SetError() {
   callbacks_.clear();
 }
 
-void CompilationStateImpl::WaitForBaselineCompileJob() {
-  if (baseline_compile_job_->IsValid()) baseline_compile_job_->Join();
+void CompilationStateImpl::WaitForBlockingCompileJob() {
+  if (blocking_liftoff_compile_job_->IsValid()) {
+    blocking_liftoff_compile_job_->Join();
+  }
 #ifdef DEBUG
   base::EnumSet<CompilationEvent> events{
-      CompilationEvent::kFinishedBaselineCompilation,
+      CompilationEvent::kFinishedBlockingCompilation,
       CompilationEvent::kFailedCompilation};
   base::MutexGuard guard(&callbacks_mutex_);
   DCHECK(finished_events_.contains_any(events));
@@ -4230,8 +4252,8 @@ void CompilationStateImpl::TierUpAllFunctions() {
     int func_index = module->num_imported_functions + i;
     WasmCode* code = native_module_->GetCode(func_index);
     if (!code || !code->is_turbofan()) {
-      builder.AddTopTierUnit(func_index, ExecutionTier::kTurbofan,
-                             kAlreadyValidated);
+      builder.AddNonblockingUnit(func_index, ExecutionTier::kTurbofan,
+                                 kAlreadyValidated);
     }
   }
   builder.Commit();
@@ -4246,7 +4268,7 @@ void CompilationStateImpl::TierUpAllFunctions() {
 
   DummyDelegate delegate;
   ExecuteCompilationUnits(native_module_weak_, &delegate,
-                          CompilationTier::kTopTier);
+                          CompilationPhase::kNonblocking);
 
   // We cannot wait for other compilation threads to finish, so we explicitly
   // compile all functions which are not yet available as TurboFan code.
