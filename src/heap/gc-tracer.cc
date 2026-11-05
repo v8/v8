@@ -203,6 +203,19 @@ GCTracer::RecordGCPhasesInfo::RecordGCPhasesInfo(
   }
 }
 
+struct GCTracer::NamedTracks {
+  explicit NamedTracks(const perfetto::NamedTrack& parent)
+      : parent_track(parent),
+        phase_track("GCPhase", 0, parent_track),
+        state_track("GCState", 0, parent_track),
+        priority_track("Priority", 0, parent_track) {}
+
+  perfetto::NamedTrack parent_track;
+  perfetto::NamedTrack phase_track;
+  perfetto::NamedTrack state_track;
+  perfetto::NamedTrack priority_track;
+};
+
 GCTracer::GCTracer(Heap* heap, base::TimeTicks startup_time,
                    GarbageCollectionReason initial_gc_reason)
     : heap_(heap),
@@ -211,10 +224,7 @@ GCTracer::GCTracer(Heap* heap, base::TimeTicks startup_time,
       previous_(current_),
       allocation_time_(startup_time),
       previous_mark_compact_end_time_(startup_time),
-      parent_track_(heap->tracing_track()),
-      phase_track_("GCPhase", 0, parent_track_),
-      state_track_("GCState", 0, parent_track_),
-      priority_track_("Priority", 0, parent_track_) {
+      named_tracks_(std::make_unique<NamedTracks>(heap->tracing_track())) {
   // All accesses to incremental_marking_scope assume that incremental marking
   // scopes come first.
   static_assert(0 == Scope::FIRST_INCREMENTAL_SCOPE);
@@ -228,11 +238,12 @@ GCTracer::GCTracer(Heap* heap, base::TimeTicks startup_time,
 
   TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                     perfetto::StaticString(ToString(*current_.priority)),
-                    priority_track_);
+                    named_tracks_->priority_track);
 }
 
 GCTracer::~GCTracer() {
-  TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), priority_track_);
+  TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                  named_tracks_->priority_track);
 }
 
 void GCTracer::ResetForTesting() {
@@ -264,13 +275,13 @@ void GCTracer::UpdateCurrentEvent(GarbageCollectionReason gc_reason,
   // reconsidered.
   current_.start_time = start_of_observable_pause_.value();
   current_.reduce_memory = heap_->ShouldReduceMemory();
-  TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), phase_track_,
-                  current_.start_time);
+  TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                  named_tracks_->phase_track, current_.start_time);
   TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "ObservablePause",
-                    phase_track_, current_.start_time);
+                    named_tracks_->phase_track, current_.start_time);
   TRACE_EVENT_INSTANT(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                       perfetto::StaticString(ToString(current_.gc_reason)),
-                      phase_track_, current_.start_time);
+                      named_tracks_->phase_track, current_.start_time);
 }
 
 void GCTracer::StartCycle(GarbageCollector collector,
@@ -324,10 +335,10 @@ void GCTracer::StartCycle(GarbageCollector collector,
                    heap_->isolate()->priority());
   TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                     perfetto::StaticString(ToString(type, false)),
-                    parent_track_);
+                    named_tracks_->parent_track);
   TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                     perfetto::StaticString(ToString(Event::State::MARKING)),
-                    state_track_);
+                    named_tracks_->state_track);
 
   switch (marking) {
     case MarkingType::kAtomic:
@@ -338,10 +349,10 @@ void GCTracer::StartCycle(GarbageCollector collector,
       current_.start_time = start_of_observable_pause_.value();
       current_.reduce_memory = heap_->ShouldReduceMemory();
       TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "ObservablePause",
-                        phase_track_, current_.start_time);
+                        named_tracks_->phase_track, current_.start_time);
       TRACE_EVENT_INSTANT(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                           perfetto::StaticString(ToString(gc_reason)),
-                          phase_track_, current_.start_time);
+                          named_tracks_->phase_track, current_.start_time);
       break;
     case MarkingType::kIncremental:
       // The current event will be updated later.
@@ -380,10 +391,11 @@ void GCTracer::StartCycle(GarbageCollector collector,
 void GCTracer::StartAtomicPause() {
   DCHECK_EQ(Event::State::MARKING, current_.state);
   current_.state = Event::State::ATOMIC;
-  TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), state_track_);
+  TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                  named_tracks_->state_track);
   TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                     perfetto::StaticString(ToString(Event::State::ATOMIC)),
-                    state_track_);
+                    named_tracks_->state_track);
 }
 
 void GCTracer::StartInSafepoint(base::TimeTicks time) {
@@ -434,7 +446,8 @@ void GCTracer::StopObservablePause(GarbageCollector collector,
   // currently the end time of the observable pause. This should be
   // reconsidered.
   current_.end_time = time;
-  TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), phase_track_, time);
+  TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                  named_tracks_->phase_track, time);
 
   FetchBackgroundCounters();
 
@@ -535,10 +548,11 @@ void GCTracer::UpdateMemoryBalancerGCSpeed() {
 void GCTracer::StopAtomicPause() {
   DCHECK_EQ(Event::State::ATOMIC, current_.state);
   current_.state = Event::State::SWEEPING;
-  TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), state_track_);
+  TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                  named_tracks_->state_track);
   TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                     perfetto::StaticString(ToString(Event::State::SWEEPING)),
-                    state_track_);
+                    named_tracks_->state_track);
 }
 
 namespace {
@@ -562,8 +576,10 @@ void GCTracer::StopCycle(GarbageCollector collector) {
   DCHECK_EQ(Event::State::SWEEPING, current_.state);
   current_.state = Event::State::NOT_RUNNING;
 
-  TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), state_track_);
-  TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), parent_track_);
+  TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                  named_tracks_->state_track);
+  TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                  named_tracks_->parent_track);
 
   DCHECK(IsConsistentWithCollector(collector));
 
@@ -778,20 +794,20 @@ void GCTracer::SampleAllocation(base::TimeTicks current,
 
   TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                 perfetto::CounterTrack("OldGenerationAllocationThroughput",
-                                       parent_track_),
+                                       named_tracks_->parent_track),
                 OldGenerationAllocationThroughputInBytesPerMillisecond());
-  TRACE_COUNTER(
-      TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-      perfetto::CounterTrack("EmbedderAllocationThroughput", parent_track_),
-      EmbedderAllocationThroughputInBytesPerMillisecond());
-  TRACE_COUNTER(
-      TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-      perfetto::CounterTrack("ExternalAllocationThroughput", parent_track_),
-      ExternalAllocationThroughputInBytesPerMillisecond());
-  TRACE_COUNTER(
-      TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-      perfetto::CounterTrack("NewSpaceAllocationThroughput", parent_track_),
-      NewSpaceAllocationThroughputInBytesPerMillisecond());
+  TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                perfetto::CounterTrack("EmbedderAllocationThroughput",
+                                       named_tracks_->parent_track),
+                EmbedderAllocationThroughputInBytesPerMillisecond());
+  TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                perfetto::CounterTrack("ExternalAllocationThroughput",
+                                       named_tracks_->parent_track),
+                ExternalAllocationThroughputInBytesPerMillisecond());
+  TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                perfetto::CounterTrack("NewSpaceAllocationThroughput",
+                                       named_tracks_->parent_track),
+                NewSpaceAllocationThroughputInBytesPerMillisecond());
 }
 
 void GCTracer::SampleConcurrencyEsimate(size_t concurrency) {
@@ -1422,10 +1438,12 @@ void GCTracer::NotifyIncrementalMarkingStart() {
   current_.incremental_marking_start_time = base::TimeTicks::Now();
   if (!start_of_observable_pause_) {
     TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "IncrementalMarking",
-                      phase_track_, current_.incremental_marking_start_time);
+                      named_tracks_->phase_track,
+                      current_.incremental_marking_start_time);
     TRACE_EVENT_INSTANT(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                         perfetto::StaticString(ToString(current_.gc_reason)),
-                        phase_track_, current_.incremental_marking_start_time);
+                        named_tracks_->phase_track,
+                        current_.incremental_marking_start_time);
   }
 }
 
@@ -1525,15 +1543,17 @@ void GCTracer::RecordGCSumCounters() {
 }
 
 void GCTracer::RecordGCSizeCounters() const {
-  TRACE_COUNTER(
-      "v8.memory",
-      perfetto::CounterTrack("OldGenerationConsumedBytes", parent_track_),
-      heap_->OldGenerationConsumedBytes());
   TRACE_COUNTER("v8.memory",
-                perfetto::CounterTrack("GlobalConsumedBytes", parent_track_),
+                perfetto::CounterTrack("OldGenerationConsumedBytes",
+                                       named_tracks_->parent_track),
+                heap_->OldGenerationConsumedBytes());
+  TRACE_COUNTER("v8.memory",
+                perfetto::CounterTrack("GlobalConsumedBytes",
+                                       named_tracks_->parent_track),
                 heap_->GlobalConsumedBytes());
   TRACE_COUNTER("v8.memory",
-                perfetto::CounterTrack("ExternalMemoryBytes", parent_track_),
+                perfetto::CounterTrack("ExternalMemoryBytes",
+                                       named_tracks_->parent_track),
                 heap_->external_memory());
 }
 
@@ -1971,10 +1991,11 @@ GarbageCollector GCTracer::GetCurrentCollector() const {
 }
 
 void GCTracer::UpdateCurrentEventPriority(GCTracer::Priority priority) {
-  TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), priority_track_);
+  TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                  named_tracks_->priority_track);
   TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                     perfetto::StaticString(ToString(priority)),
-                    priority_track_);
+                    named_tracks_->priority_track);
 
   // If the priority is changed, reset the priority field to denote a mixed
   // priority cycle.

@@ -70,6 +70,16 @@ class Stack;
 class StackVisitor;
 }  // namespace heap::base
 
+namespace perfetto {
+#if defined(V8_USE_PERFETTO)
+class NamedTrack;
+#else
+inline namespace v8_stub {
+struct NamedTrack;
+}  // namespace v8_stub
+#endif
+}  // namespace perfetto
+
 namespace v8 {
 
 namespace debug {
@@ -395,7 +405,7 @@ class Heap final {
   static inline void CopyBlock(Address dst, Address src,
                                SafeHeapObjectSize byte_size);
 
-  perfetto::NamedTrack tracing_track() const { return tracing_track_; }
+  const perfetto::NamedTrack& tracing_track() const { return *tracing_track_; }
 
   bool is_gc_tracing_category_enabled() const {
     return *gc_tracing_category_enabled_;
@@ -2404,9 +2414,10 @@ class Heap final {
 
   class GCHintState {
    public:
-    explicit GCHintState(const double max_time_ms, perfetto::NamedTrack track,
-                         perfetto::StaticString track_tag)
-        : max_time_ms_(max_time_ms), track_(track), tag_(track_tag) {}
+    GCHintState(const double max_time_ms, const char* track_name,
+                const char* track_tag,
+                const perfetto::NamedTrack& parent_track);
+    ~GCHintState();
     bool IsActive(const Heap* heap) const;
     bool IsInitialized() const;
     void NotifyStarted(Heap* heap);
@@ -2423,20 +2434,17 @@ class Heap final {
     // Maximum time spent in high responsiveness mode.
     const double max_time_ms_;
     // Track used to record whether or not high responsiveness mode is active.
-    perfetto::NamedTrack track_;
+    std::unique_ptr<perfetto::NamedTrack> track_;
     // What to tag |track_| with when high responsiveness mode is active.
-    perfetto::StaticString tag_;
+    const char* const tag_;
   };
 
-  perfetto::NamedTrack tracing_track_;
+  std::unique_ptr<perfetto::NamedTrack> tracing_track_;
 
-  GCHintState loading_state_{kMaxLoadTimeMs,
-                             perfetto::NamedTrack{"Loading", 0, tracing_track_},
-                             "IsLoading"};
-  GCHintState input_handling_state_{
-      kMaxInputHandlingTimeMs,
-      perfetto::NamedTrack{"InputHandling", 0, tracing_track_},
-      "IsInputHandling"};
+  GCHintState loading_state_{kMaxLoadTimeMs, "Loading", "IsLoading",
+                             *tracing_track_};
+  GCHintState input_handling_state_{kMaxInputHandlingTimeMs, "InputHandling",
+                                    "IsInputHandling", *tracing_track_};
 
   // On-stack address used for selective consevative stack scanning. No value
   // means that selective conservative stack scanning is not enabled.

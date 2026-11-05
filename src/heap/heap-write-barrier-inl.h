@@ -541,9 +541,7 @@ void WriteBarrier::GenerationalBarrierForCppHeapPointer(
   if (V8_LIKELY(space_id == NEW_SPACE || space_id == NEW_LO_SPACE)) {
     return;
   }
-  auto* cpp_heap = heap->cpp_heap();
-  v8::internal::CppHeap::From(cpp_heap)->RememberCrossHeapReferenceIfNeeded(
-      host, value);
+  GenerationalBarrierForCppHeapPointerSlow(heap, host, value);
 }
 
 #ifdef V8_VERIFY_WRITE_BARRIERS

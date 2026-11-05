@@ -296,9 +296,10 @@ Heap::Heap()
                                        : AllocationType::kOld),
       marking_state_(isolate_),
       non_atomic_marking_state_(isolate_),
-      tracing_track_(perfetto::NamedTrack::FromPointer(
-                         "v8::Heap", this, perfetto::ThreadTrack::Current())
-                         .disable_sibling_merge()),
+      tracing_track_(std::make_unique<perfetto::NamedTrack>(
+          perfetto::NamedTrack::FromPointer("v8::Heap", this,
+                                            perfetto::ThreadTrack::Current())
+              .disable_sibling_merge())),
       gc_tracing_category_enabled_(TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
           TRACE_DISABLED_BY_DEFAULT("v8.gc"))),
       gc_extra_tracing_category_enabled_(
@@ -309,7 +310,8 @@ Heap::Heap()
     // Because the track may not get any events of its own it must manually emit
     // the track descriptor. This is done conditionally to avoid crashing in
     // unit tests where tracing isn't initialized.
-    TrackEvent::SetTrackDescriptor(tracing_track_, tracing_track_.Serialize());
+    TrackEvent::SetTrackDescriptor(*tracing_track_,
+                                   tracing_track_->Serialize());
   }
 #endif
 
@@ -6334,7 +6336,7 @@ void Heap::TearDown() {
 
 #if defined(V8_USE_PERFETTO)
   if (perfetto::Tracing::IsInitialized()) {
-    TrackEvent::EraseTrackDescriptor(tracing_track_);
+    TrackEvent::EraseTrackDescriptor(*tracing_track_);
   }
 #endif
 }
@@ -7661,11 +7663,22 @@ void Heap::NotifyInputHandlingEnded(LeaveHeapState context) {
   }
 }
 
+Heap::GCHintState::GCHintState(const double max_time_ms, const char* track_name,
+                               const char* track_tag,
+                               const perfetto::NamedTrack& parent_track)
+    : max_time_ms_(max_time_ms),
+      track_(std::make_unique<perfetto::NamedTrack>(
+          perfetto::StaticString(track_name), 0, parent_track)),
+      tag_(track_tag) {}
+
+Heap::GCHintState::~GCHintState() = default;
+
 void Heap::GCHintState::NotifyStarted(Heap* heap) {
   if (IsInitialized()) {
-    TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), track_);
+    TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), *track_);
   }
-  TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("v8.gc"), tag_, track_);
+  TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                    perfetto::StaticString(tag_), *track_);
   double now_ms = heap->MonotonicallyIncreasingTimeInMs();
   DCHECK_NE(now_ms, kInactive);
   start_time_ms_.store(now_ms, std::memory_order_relaxed);
@@ -7673,7 +7686,7 @@ void Heap::GCHintState::NotifyStarted(Heap* heap) {
 
 void Heap::GCHintState::NotifyEnded(Heap* heap) {
   start_time_ms_.store(kInactive, std::memory_order_relaxed);
-  TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), track_);
+  TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), *track_);
 }
 
 int Heap::NextScriptId() {

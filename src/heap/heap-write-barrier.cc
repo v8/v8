@@ -5,6 +5,7 @@
 #include "src/heap/heap-write-barrier.h"
 
 #include "src/common/thread-local-storage.h"
+#include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/heap.h"
@@ -95,6 +96,14 @@ void WriteBarrier::MarkingSlowFromCppHeapWrappable(
   if (object) {
     CppHeap::From(heap->cpp_heap())->WriteBarrier(object);
   }
+}
+
+// static
+void WriteBarrier::GenerationalBarrierForCppHeapPointerSlow(
+    Heap* heap, Tagged<CppHeapPointerWrapperObjectT> host, void* value) {
+  auto* cpp_heap = heap->cpp_heap();
+  v8::internal::CppHeap::From(cpp_heap)->RememberCrossHeapReferenceIfNeeded(
+      host, value);
 }
 
 void WriteBarrier::MarkingSlow(Tagged<InstructionStream> host,
