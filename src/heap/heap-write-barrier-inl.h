@@ -426,7 +426,7 @@ void WriteBarrier::ForArrayBufferExtension(Tagged<JSArrayBuffer> host,
   // Rely on trusted marking state to avoid desync between table entry and
   // extension object.
   MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
-  if (!marking_barrier->is_activated()) [[likely]] {
+  if (!marking_barrier || !marking_barrier->is_activated()) [[likely]] {
     return;
   }
   MarkingSlow(host, extension);
@@ -441,7 +441,8 @@ void WriteBarrier::Marking(Tagged<HeapObject> host, ExternalPointerSlot slot,
 }
 
 void WriteBarrier::Marking(Tagged<HeapObject> host, TrustedPointerSlot slot) {
-  if (!IsMarking(host)) [[likely]] {
+  MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
+  if (!marking_barrier || marking_barrier->is_not_major()) [[likely]] {
     return;
   }
   MarkingSlow(host, slot);
@@ -457,7 +458,8 @@ void WriteBarrier::Marking(Tagged<TrustedObject> host,
 }
 
 void WriteBarrier::Marking(Tagged<HeapObject> host, JSDispatchHandle handle) {
-  if (!IsMarking(host)) [[likely]] {
+  MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
+  if (!marking_barrier || marking_barrier->is_not_major()) [[likely]] {
     return;
   }
   MarkingSlow(host, handle);
@@ -485,6 +487,9 @@ void WriteBarrier::ForCppHeapPointer(Tagged<CppHeapPointerWrapperObjectT> host,
   }
 
   MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
+  if (!marking_barrier) [[unlikely]] {
+    return;
+  }
 
   // The global check is probabilistic and we need an exact check here.
   if (marking_barrier->is_not_major()) [[likely]] {

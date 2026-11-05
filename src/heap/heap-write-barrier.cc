@@ -4,6 +4,7 @@
 
 #include "src/heap/heap-write-barrier.h"
 
+#include "src/common/thread-local-storage.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/heap.h"
@@ -22,16 +23,18 @@ namespace v8::internal {
 class DescriptorArray;
 
 namespace {
-thread_local MarkingBarrier* current_marking_barrier = nullptr;
+__attribute__((tls_model(V8_TLS_MODEL))) thread_local MarkingBarrier*
+    current_marking_barrier V8_CONSTINIT = nullptr;
 }  // namespace
 
 MarkingBarrier* WriteBarrier::CurrentMarkingBarrier(
     Tagged<HeapObject> verification_candidate) {
   MarkingBarrier* marking_barrier = current_marking_barrier;
-  DCHECK_NOT_NULL(marking_barrier);
 #if DEBUG
+  if (marking_barrier) {
     LocalHeap* local_heap = LocalHeap::Current();
     DCHECK_EQ(marking_barrier, local_heap->marking_barrier());
+  }
 #endif  // DEBUG
   return marking_barrier;
 }
