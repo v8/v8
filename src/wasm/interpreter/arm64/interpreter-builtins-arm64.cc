@@ -1025,8 +1025,9 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
 
   __ bind(&return_kWasmI32);
   __ JumpIfNotSmi(return_reg, &return_kWasmI32_not_smi);
-  // Change the param from Smi to int32.
+  // Untag the Smi and zero-extend the int32 result.
   __ SmiUntag(return_reg);
+  __ Mov(return_reg.W(), return_reg.W());
   __ AssertZeroExtended(return_reg);
   __ Ldr(packed_args, MemOperand(fp, kPackedArrayOffset));
   __ Str(return_reg.W(), MemOperand(packed_args, current_result_offset));
