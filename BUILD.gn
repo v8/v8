@@ -7418,6 +7418,14 @@ v8_cluster_source_set("v8_base_without_compiler") {
     "//third_party/highway:libhwy",
   ]
 
+  if (current_cpu != "ppc64" && current_cpu != "s390x") {
+    if (defined(build_with_node) && build_with_node) {
+      deps += [ "$node_openssl_path" ]
+    } else {
+      deps += [ "//third_party/boringssl" ]
+    }
+  }
+
   # With checked-in headers, link generated definitions through :v8_base.
   # A dependency here would make every compile wait for run_torque.
   if (!v8_use_checked_in_generated_headers) {

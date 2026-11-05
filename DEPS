@@ -56,6 +56,7 @@ vars = {
   'checkout_v8_builtins_pgo_profiles': False,
 
   'android_url': 'https://android.googlesource.com',
+  'boringssl_url': 'https://boringssl.googlesource.com',
   'chromium_url': 'https://chromium.googlesource.com',
   'chrome_internal_url': 'https://chrome-internal.googlesource.com',
   'download_gcmole': False,
@@ -672,6 +673,14 @@ deps = {
     'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'd8ad4495323e7b20443e7129fcbfd7ee78282818',
     'condition': 'not build_with_chromium',
   },
+  'third_party/boringssl/src': {
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' + '5e1bfb45c353b2bb36bdf26b006ea8f5566c82d5',
+    'condition': 'not build_with_chromium',
+  },
+  'third_party/nasm': {
+    'url': Var('chromium_url') + '/chromium/deps/nasm.git' + '@' + '525a09a813be0f75b646ee93fc2a31c27b87d722',
+    'condition': 'not build_with_chromium',
+  },
   'third_party/fadec/src': {
     'url': Var('chromium_url') + '/external/github.com/aengelke/fadec.git' + '@' + 'c9f78f532b9004de278489019ab2c6c28ae9746e',
   },
@@ -697,6 +706,7 @@ include_rules = [
   '+third_party/v8/codegen',
   '+third_party/vtune',
   '+hwy/highway.h',
+  '+openssl',
   '+simdutf.h',
   # Abseil features are allow-listed. Please use your best judgement when adding
   # to this set -- if in doubt, email v8-dev@. For general guidance, refer to
