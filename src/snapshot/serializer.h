@@ -370,7 +370,7 @@ class Serializer : public SerializerDeserializer {
   friend class TrustedSectionSerializer;
 
   struct BackrefLocation {
-    uint32_t position;
+    size_t position;
     uint32_t index;
     uint8_t length;
   };

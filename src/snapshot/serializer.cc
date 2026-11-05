@@ -341,10 +341,10 @@ void Serializer::PutBackReference(Tagged<HeapObject> object,
                                   SerializerReference reference) {
   uint32_t index = reference.back_ref_index();
   DCHECK_EQ(object, *back_refs_[index]);
-  uint32_t pos = static_cast<uint32_t>(sink_.Position());
+  size_t pos = sink_.Position();
   sink_.Put(kBackref, "Backref");
   sink_.PutUint30(index, "BackRefIndex");
-  uint8_t len = static_cast<uint8_t>(sink_.Position() - pos);
+  uint8_t len = base::checked_cast<uint8_t>(sink_.Position() - pos);
   backref_locations_.push_back({pos, index, len});
   if (index >= backref_counts_.size()) {
     backref_counts_.resize(num_back_refs_, 0);
