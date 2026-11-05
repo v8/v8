@@ -912,7 +912,8 @@ void FutexEmulation::ResolveAsyncWaiterPromise(FutexWaitListNode* node) {
     }
     MaybeDirectHandle<Object> resolve_result =
         JSPromise::Resolve(promise, result_string);
-    DCHECK(!resolve_result.is_null());
+    DCHECK_IMPLIES(resolve_result.is_null(),
+                   isolate->is_execution_terminating());
     USE(resolve_result);
   }
 }
@@ -942,7 +943,9 @@ void FutexEmulation::ResolveAsyncWaiterPromises(Isolate* isolate) {
     DCHECK(node->IsAsync());
     DCHECK_EQ(isolate, node->async_state_->isolate_for_async_waiters);
     DCHECK(!node->waiting_);
-    ResolveAsyncWaiterPromise(node);
+    if (!isolate->is_execution_terminating()) {
+      ResolveAsyncWaiterPromise(node);
+    }
     CleanupAsyncWaiterPromise(node);
     // We've already tried to cancel the timeout task for the node; since we're
     // now in the same thread the timeout task is supposed to run, we know the

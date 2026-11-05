@@ -1131,6 +1131,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   Tagged<Object> StackOverflow();
   Tagged<Object> TerminateExecution();
   void CancelTerminateExecution();
+  V8_WARN_UNUSED_RESULT bool CheckTerminationAfterCallback();
 
   void RequestInterrupt(InterruptCallback callback, void* data);
   void InvokeApiInterruptCallbacks();

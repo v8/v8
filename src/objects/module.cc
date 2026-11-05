@@ -360,6 +360,8 @@ MaybeDirectHandle<JSPromise> Module::Evaluate(Isolate* isolate,
   if (IsJSPromise(module->top_level_capability())) {
     DirectHandle<JSPromise> capability(
         Cast<JSPromise>(module->top_level_capability()), isolate);
+    DCHECK_IMPLIES(module->status() == kEvaluated,
+                   capability->status() == Promise::kFulfilled);
     DCHECK_IMPLIES(module->status() == kEvaluatedError,
                    capability->status() == Promise::kRejected &&
                        capability->result() == module->exception());
@@ -400,8 +402,12 @@ MaybeDirectHandle<JSPromise> Module::Evaluate(Isolate* isolate,
         // 8. InnerModuleEvaluation step 2.a returns 0.
         // 10.c.iii. Perform ! Call(capability.[[Resolve]], undefined,
         //                          « undefined »).
-        JSPromise::Resolve(capability, isolate->factory()->undefined_value())
-            .ToHandleChecked();
+        if (JSPromise::Resolve(capability,
+                               isolate->factory()->undefined_value())
+                .is_null()) {
+          m->set_top_level_capability(ReadOnlyRoots(isolate).undefined_value());
+          return {};
+        }
         // 11. Return capability.[[Promise]].
         return capability;
       },
@@ -414,11 +420,11 @@ MaybeDirectHandle<JSPromise> Module::Evaluate(Isolate* isolate,
         // 8. InnerModuleEvaluation step 2.b returns module.[[EvaluationError]].
         // 9.d. Perform ! Call(capability.[[Reject]], undefined,
         //                     « result.[[Value]] »).
-        JSPromise::Reject(capability, direct_handle(m->GetException(), isolate),
-                          debug_event);
-        if (isolate->debug()->IsRestartFrameScheduled()) {
+        if (JSPromise::Reject(capability,
+                              direct_handle(m->GetException(), isolate),
+                              debug_event)
+                .is_null()) {
           m->set_top_level_capability(ReadOnlyRoots(isolate).undefined_value());
-          isolate->TerminateExecution();
           return {};
         }
         // 11. Return capability.[[Promise]].
@@ -478,6 +484,7 @@ bool Module::EvaluateModuleSync(Isolate* isolate, Handle<Module> module) {
     if (!promise->has_handler()) {
       isolate->ReportPromiseReject(promise, DirectHandle<Object>(),
                                    v8::kPromiseHandlerAddedAfterReject);
+      if (isolate->CheckTerminationAfterCallback()) return false;
     }
     // b. Set promise.[[PromiseIsHandled]] to true.
     promise->set_has_handler(true);

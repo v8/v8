@@ -2730,6 +2730,7 @@ void Debug::OnException(DirectHandle<Object> exception,
                         v8::debug::ExceptionType exception_type,
                         bool is_stack_overflow) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
+  DCHECK(!IsRestartFrameScheduled());
   // Do not trigger exception event on stack overflow. We cannot perform
   // anything useful for debugging in that situation.
   if (is_stack_overflow) return;

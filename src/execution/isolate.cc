@@ -2602,6 +2602,19 @@ void Isolate::CancelTerminateExecution() {
   if (try_catch_handler()) try_catch_handler()->ResetInternal();
 }
 
+bool Isolate::CheckTerminationAfterCallback() {
+  if (has_exception()) {
+    DCHECK_IMPLIES(v8_flags.strict_termination_checks,
+                   is_execution_terminating());
+    return true;
+  }
+  if (debug()->IsRestartFrameScheduled()) {
+    TerminateExecution();
+    return true;
+  }
+  return false;
+}
+
 void Isolate::RequestInterrupt(InterruptCallback callback, void* data) {
   ExecutionAccess access(this);
   api_interrupts_queue_.push(InterruptEntry(callback, data));

@@ -1000,8 +1000,11 @@ SourceTextModule::TransitionAsyncToEvaluated(
     //                   undefined, « undefined »).
     DirectHandle<JSPromise> capability(
         Cast<JSPromise>(evaluated->top_level_capability()), isolate);
-    JSPromise::Resolve(capability, isolate->factory()->undefined_value())
-        .ToHandleChecked();
+    if (JSPromise::Resolve(capability, isolate->factory()->undefined_value())
+            .is_null()) {
+      evaluated->set_top_level_capability(
+          ReadOnlyRoots(isolate).undefined_value());
+    }
   }
   return evaluated;
 }
@@ -1071,33 +1074,39 @@ MaybeDirectHandle<JSPromise> SourceTextModule::Evaluate(
     isolate->clear_internal_exception();
     // d. Perform ! Call(capability.[[Reject]], undefined,
     //                   «result.[[Value]]»).
-    JSPromise::Reject(capability, exception, debug_event);
-    if (isolate->debug()->IsRestartFrameScheduled()) {
+    if (JSPromise::Reject(capability, exception, debug_event).is_null()) {
       errored_module->set_top_level_capability(
           ReadOnlyRoots(isolate).undefined_value());
-      isolate->TerminateExecution();
       return {};
     }
   } else {  // 10. Else,
     // a. Assert: module.[[Status]] is either EVALUATING-ASYNC or EVALUATED.
     DCHECK(module->status() == kEvaluatingAsync ||
            module->status() == kEvaluated);
-    MatchState(
+    const bool resolved = MatchState(
         Handle<SourceTextModule>(module),
         [](DirectHandle<InState<kEvaluatingAsync>> m) {
           DCHECK(m->HasAsyncEvaluationOrdinal());
+          return true;
         },
         [&](DirectHandle<InState<kEvaluated>> m) {
           // c. If module.[[AsyncEvaluation]] is false, then
           DCHECK(!m->HasAsyncEvaluationOrdinal());
           // ii. Perform ! Call(capability.[[Resolve]], undefined,
           //                    «undefined»).
-          JSPromise::Resolve(capability, isolate->factory()->undefined_value())
-              .ToHandleChecked();
+          if (JSPromise::Resolve(capability,
+                                 isolate->factory()->undefined_value())
+                  .is_null()) {
+            m->set_top_level_capability(
+                ReadOnlyRoots(isolate).undefined_value());
+            return false;
+          }
+          return true;
         });
 
     // d. Assert: stack is empty.
     DCHECK(stack.empty());
+    if (!resolved) return {};
   }
 
   // 11. Return capability.[[Promise]].
@@ -1169,6 +1178,7 @@ Maybe<bool> SourceTextModule::AsyncModuleExecutionFulfilled(
                     if (ExecuteModule(isolate, evaluating_m, &exception)) {
                       // iii. Else, steps 12.c.iii.1-3.
                       TransitionAsyncToEvaluated(isolate, evaluating_m);
+                      return;
                     } else if (!isolate->is_execution_terminating()) {
                       // 1. Perform AsyncModuleExecutionRejected(
                       //        m, result.[[Value]]).
@@ -1224,17 +1234,20 @@ void SourceTextModule::AsyncModuleExecutionRejected(
           // a. Assert: module.[[CycleRoot]] and module are the same Module
           //    Record.
           DCHECK_EQ(errored_module->cycle_root(), *errored_module);
-          if (isolate->is_catchable_by_javascript(*exception)) {
+          // Even if `exception` itself is catchable, an earlier
+          // `JSPromise::Reject` in this recursive walk may have triggered
+          // termination; drop `top_level_capability` without returning early so
+          // step 9 still records `exception` on all `AsyncParentModules`.
+          if (isolate->is_catchable_by_javascript(*exception) &&
+              !isolate->is_execution_terminating()) {
             // b. Perform ! Call(module.[[TopLevelCapability]].[[Reject]],
             //                   undefined, «error»).
             DirectHandle<JSPromise> capability(
                 Cast<JSPromise>(errored_module->top_level_capability()),
                 isolate);
-            JSPromise::Reject(capability, exception);
-            if (isolate->debug()->IsRestartFrameScheduled()) {
+            if (JSPromise::Reject(capability, exception).is_null()) {
               errored_module->set_top_level_capability(
                   ReadOnlyRoots(isolate).undefined_value());
-              isolate->TerminateExecution();
             }
           } else {
             errored_module->set_top_level_capability(

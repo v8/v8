@@ -4760,9 +4760,9 @@ static void MoveMessageToPromise(Isolate* isolate,
 }
 
 // static
-Handle<Object> JSPromise::Reject(DirectHandle<JSPromise> promise,
-                                 DirectHandle<Object> reason,
-                                 bool debug_event) {
+MaybeHandle<Object> JSPromise::Reject(DirectHandle<JSPromise> promise,
+                                      DirectHandle<Object> reason,
+                                      bool debug_event) {
   Isolate* const isolate = Isolate::Current();
   DCHECK(
       !reinterpret_cast<v8::Isolate*>(isolate)->GetCurrentContext().IsEmpty());
@@ -4771,12 +4771,11 @@ Handle<Object> JSPromise::Reject(DirectHandle<JSPromise> promise,
 
   if (debug_event) {
     isolate->debug()->OnPromiseReject(promise, reason);
-    if (isolate->debug()->IsRestartFrameScheduled()) {
-      return isolate->factory()->undefined_value();
-    }
+    if (isolate->CheckTerminationAfterCallback()) return kNullMaybeHandle;
   }
   isolate->RunAllPromiseHooks(PromiseHookType::kResolve, promise,
                               isolate->factory()->undefined_value());
+  if (isolate->CheckTerminationAfterCallback()) return kNullMaybeHandle;
 
   // 1. Assert: The value of promise.[[PromiseState]] is "pending".
   CHECK_EQ(Promise::kPending, promise->status());
@@ -4796,6 +4795,7 @@ Handle<Object> JSPromise::Reject(DirectHandle<JSPromise> promise,
   //    HostPromiseRejectionTracker(promise, "reject").
   if (!promise->has_handler()) {
     isolate->ReportPromiseReject(promise, reason, kPromiseRejectWithNoHandler);
+    if (isolate->CheckTerminationAfterCallback()) return kNullMaybeHandle;
   }
 
   // 8. Return TriggerPromiseReactions(reactions, reason).
@@ -4813,6 +4813,7 @@ MaybeHandle<Object> JSPromise::Resolve(DirectHandle<JSPromise> promise,
 
   isolate->RunPromiseHook(PromiseHookType::kResolve, promise,
                           isolate->factory()->undefined_value());
+  if (isolate->CheckTerminationAfterCallback()) return kNullMaybeHandle;
 
   // 7. If SameValue(resolution, promise) is true, then
   if (promise.is_identical_to(resolution_obj)) {
