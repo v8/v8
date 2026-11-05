@@ -1340,7 +1340,7 @@ ValueNode* MaglevGraphBuilder::GetUint8ClampedForToNumber(ValueNode* value) {
       if (SmiConstant* constant = value->TryCast<SmiConstant>()) {
         return GetInt32Constant(ClampToUint8(constant->value().value()));
       }
-      NodeInfo* info = known_node_aspects().TryGetInfoFor(value);
+      const NodeInfo* info = known_node_aspects().TryGetInfoFor(value);
       if (info && info->alternative().int32()) {
         return AddNewNodeNoInputConversion<Int32ToUint8Clamped>(
             {info->alternative().int32()});
@@ -3735,12 +3735,11 @@ ReduceResult MaglevGraphBuilder::BuildTransitionElementsKindOrCheckMap(
     CHECK(!transition_source.is_migration_target());
   }
 
-  NodeInfo* known_info = GetOrCreateInfoFor(heap_object);
-
   RETURN_IF_ABORT(AddNewNode<TransitionElementsKindOrCheckMap>(
       {heap_object, object_map}, transition_sources, transition_target));
   // After this operation, heap_object's map is transition_target (or we
   // deopted).
+  NodeInfo* known_info = GetOrCreateInfoFor(heap_object);
   if (!known_info->SetPossibleMaps(
           PossibleMaps{transition_target}, !transition_target.is_stable(),
           StaticTypeForMap(transition_target, broker()), broker(),
@@ -3820,8 +3819,6 @@ ReduceResult MaglevGraphBuilder::BuildTransitionElementsKindAndCompareMaps(
     std::optional<MaglevSubGraphBuilder::Label>& if_not_matched) {
   DCHECK(!transition_target.is_migration_target());
 
-  NodeInfo* known_info = GetOrCreateInfoFor(heap_object);
-
   // TODO(pthier): Calculate and use the intersection of known maps with
   // (transition_sources union transition_target).
 
@@ -3837,6 +3834,7 @@ ReduceResult MaglevGraphBuilder::BuildTransitionElementsKindAndCompareMaps(
       &*if_not_matched, {new_map, GetConstant(transition_target)}));
   // After the branch, object's map is transition_target.
   DCHECK(transition_target.IsJSReceiverMap());
+  NodeInfo* known_info = GetOrCreateInfoFor(heap_object);
   if (!known_info->SetPossibleMaps(
           PossibleMaps{transition_target}, !transition_target.is_stable(),
           StaticTypeForMap(transition_target, broker()), broker(),
@@ -8181,27 +8179,24 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
   // Reset known state that is cleared by BeginLoop, but is known to be true on
   // the first iteration, and will be re-checked at the end of the loop.
 
-  // Reload node_info which may have changed in BeginLoop.
-  if (node_info != nullptr) {
-    node_info = known_node_aspects().TryGetInfoFor(receiver);
-    DCHECK_NOT_NULL(node_info);
-  }
-
-  // Reset the known receiver maps if necessary.
+  // Reload node_info which may have changed in BeginLoop, and reset the known
+  // receiver maps if necessary.
   if (receiver_maps_were_unstable) {
-    DCHECK(node_info);
-    if (!node_info->SetPossibleMaps(
+    NodeInfo* mutable_info =
+        known_node_aspects().TryGetMutableInfoFor(receiver);
+    DCHECK_NOT_NULL(mutable_info);
+    if (!mutable_info->SetPossibleMaps(
             receiver_maps_before_loop, receiver_maps_were_unstable,
             // Node type is monotonic, no need to reset it.
             NodeType::kUnknown, broker(), known_node_aspects())) {
       return reducer_.EmitUnconditionalDeopt(DeoptimizeReason::kWrongValue);
     }
     known_node_aspects().MarkSideEffectsRequireInvalidation();
-  } else {
-    if (node_info) {
-      DCHECK_EQ(node_info->possible_maps().size(),
-                receiver_maps_before_loop.size());
-    }
+  } else if (node_info != nullptr) {
+    node_info = known_node_aspects().TryGetInfoFor(receiver);
+    DCHECK_NOT_NULL(node_info);
+    DCHECK_EQ(node_info->possible_maps().size(),
+              receiver_maps_before_loop.size());
   }
   // Reset the cached loaded array length to the length var.
   reducer_.RecordKnownProperty(
@@ -9963,18 +9958,19 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeSort(
 
     // After BeginLoop the known map/length info is reset.  Restore it following
     // the same pattern as TryReduceArrayIteratingBuiltin.
-    if (node_info != nullptr) {
-      node_info = known_node_aspects().TryGetInfoFor(receiver);
-      DCHECK_NOT_NULL(node_info);
-    }
     if (receiver_maps_were_unstable) {
-      DCHECK(node_info);
-      if (!node_info->SetPossibleMaps(
+      NodeInfo* mutable_info =
+          known_node_aspects().TryGetMutableInfoFor(receiver);
+      DCHECK_NOT_NULL(mutable_info);
+      if (!mutable_info->SetPossibleMaps(
               receiver_maps_before_loop, receiver_maps_were_unstable,
               NodeType::kUnknown, broker(), known_node_aspects())) {
         return reducer_.EmitUnconditionalDeopt(DeoptimizeReason::kWrongValue);
       }
       known_node_aspects().MarkSideEffectsRequireInvalidation();
+    } else if (node_info != nullptr) {
+      node_info = known_node_aspects().TryGetInfoFor(receiver);
+      DCHECK_NOT_NULL(node_info);
     }
     ValueNode* i_int32 = sub_builder.get(var_i);
 
@@ -15262,7 +15258,7 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfToBooleanTrue(
     // JSReceivers are true iff they are not marked as undetectable. Check if
     // all maps have the same detectability, and if yes, the boolean value is
     // known.
-    if (NodeInfo* node_info = known_node_aspects().TryGetInfoFor(node)) {
+    if (const NodeInfo* node_info = known_node_aspects().TryGetInfoFor(node)) {
       if (node_info->type() == NodeType::kNone) {
         // `node` is dead, it doesn't matter what we return.
         // TODO(428667907): Ideally we would BuildAbort here.
@@ -15322,7 +15318,7 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfToBooleanTrue(
       UNREACHABLE();
   }
 
-  NodeInfo* node_info = known_node_aspects().TryGetInfoFor(node);
+  const NodeInfo* node_info = known_node_aspects().TryGetInfoFor(node);
   if (node_info) {
     if (ValueNode* as_int32 = node_info->alternative().int32()) {
       return reducer_.BuildBranchIfInt32ToBooleanTrue(builder, as_int32);
@@ -15725,20 +15721,22 @@ ReduceResult MaglevGraphBuilder::VisitThrowReferenceErrorIfTdzHole() {
       // TODO(verwaest): Look into making loaded_context_constants_ monotonic,
       // e.g. by folding the hole check into the context load rather than
       // temporarily clearing the cached constant here.
-      ValueNode** cached_slot = nullptr;
+      LoadContextSlotNoCells* cached_load = nullptr;
       if (auto* load = value->TryCast<LoadContextSlotNoCells>();
           load && load->maybe_assigned() == kNotAssigned) {
         ValueNode*& slot = known_node_aspects().GetContextCachedValue(
             load->input(0).node(), load->offset(), kNotAssigned);
         if (slot == value) {
-          cached_slot = &slot;
-          *cached_slot = nullptr;
+          cached_load = load;
+          slot = nullptr;
         }
       }
       ReduceResult res =
           AddNewNode<ThrowReferenceErrorIfTdzHole>({value}, name);
-      if (cached_slot) {
-        *cached_slot = value;
+      if (cached_load) {
+        known_node_aspects().GetContextCachedValue(
+            cached_load->input(0).node(), cached_load->offset(), kNotAssigned) =
+            value;
       }
       return res;
     }

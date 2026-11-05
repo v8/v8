@@ -596,8 +596,10 @@ void KnownNodeAspects::ClearUnstableNodeAspectsForElementsTransition(
   // A transitioning object's elements store may be reallocated; drop cached
   // elements for any node that may alias a source-mapped object (including
   // nodes whose map is unknown or already stale).
+  auto const_it =
+      std::as_const(loaded_properties_).find(PropertyKey::Elements());
+  if (const_it == loaded_properties_.end() || const_it->second.empty()) return;
   auto it = loaded_properties_.find(PropertyKey::Elements());
-  if (it == loaded_properties_.end()) return;
   bool dropped_any = it->second.EraseIf([&](ValueNode* obj, ValueNode* const&) {
     const NodeInfo* info = TryGetInfoWithFreshMaps(obj);
     if (!info) return true;
@@ -905,7 +907,7 @@ KnownNodeAspects::ContextStoreResult KnownNodeAspects::RecordContextSlotStore(
 
 bool KnownNodeAspects::MarkSingleMapAsStale(ValueNode* node,
                                             bool is_tracing_enabled) {
-  if (NodeInfo* node_info = TryGetInfoFor(node)) {
+  if (const NodeInfo* node_info = TryGetInfoFor(node)) {
     if (node_info->possible_maps_are_known() && !node_info->maps_are_stale() &&
         node_info->possible_maps().size() == 1) {
       compiler::MapRef old_map = node_info->possible_maps().at(0);

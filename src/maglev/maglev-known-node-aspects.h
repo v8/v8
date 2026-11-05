@@ -168,7 +168,7 @@ class NodeInfo {
 #undef API
 #undef ALTERNATIVES
 
-    ValueNode* get(UseRepresentation repr) {
+    ValueNode* get(UseRepresentation repr) const {
       switch (repr) {
         case UseRepresentation::kTagged:
         case UseRepresentation::kTaggedForNumberToString:
@@ -461,11 +461,18 @@ class KnownNodeAspects {
     virtual_objects_ = {};
   }
 
+  // Returned `NodeInfo*` pointers (from `TryGetInfoFor`,
+  // `TryGetMutableInfoFor`, and `GetOrCreateInfoFor`) point directly into
+  // `node_infos_` storage and are invalidated by any subsequent insertion,
+  // erasure, merge, or `Clone()` on this `KnownNodeAspects` (including emitted
+  // IR nodes that trigger `MarkPossibleSideEffect`).
   const NodeInfo* TryGetInfoFor(ValueNode* node) const {
-    return const_cast<KnownNodeAspects*>(this)->TryGetInfoFor(node);
+    auto info_it = FindInfo(node);
+    if (!IsValid(info_it)) return nullptr;
+    return &info_it->second;
   }
 
-  NodeInfo* TryGetInfoFor(ValueNode* node) {
+  NodeInfo* TryGetMutableInfoFor(ValueNode* node) {
     auto info_it = FindInfo(node);
     if (!IsValid(info_it)) return nullptr;
     return &info_it->second;
@@ -479,25 +486,29 @@ class KnownNodeAspects {
     return nullptr;
   }
 
+  // Note: the returned `NodeInfo*` is invalidated by subsequent insertions,
+  // erasures, merges, or `Clone()` on `KnownNodeAspects`.
   NodeInfo* GetOrCreateInfoFor(compiler::JSHeapBroker* broker,
                                ValueNode* node) {
     node = UnwrapNode(node);
-    auto info_it = node_infos_.find(node);
-    if (IsValid(info_it)) return &info_it->second;
-    auto res = &node_infos_.emplace(node, NodeInfo()).first->second;
-    res->IntersectType(node->GetStaticType(broker));
+    auto [info_it, inserted] = node_infos_.try_emplace(node);
+    NodeInfo* res = &info_it->second;
+    if (inserted) {
+      res->IntersectType(node->GetStaticType(broker));
+    }
     return res;
   }
 
-  ValueNode* TryGetAlternativeFor(ValueNode* node, UseRepresentation repr) {
+  ValueNode* TryGetAlternativeFor(ValueNode* node,
+                                  UseRepresentation repr) const {
     auto info_it = FindInfo(node);
     if (!IsValid(info_it)) return nullptr;
     return info_it->second.alternative().get(repr);
   }
 
-  std::optional<PossibleMaps> TryGetPossibleMaps(ValueNode* node) {
+  std::optional<PossibleMaps> TryGetPossibleMaps(ValueNode* node) const {
     DCHECK_NOT_NULL(node);
-    if (NodeInfo* info = TryGetInfoFor(node)) {
+    if (const NodeInfo* info = TryGetInfoFor(node)) {
       if (info->possible_maps_are_known()) {
         return info->possible_maps();
       }
@@ -588,17 +599,17 @@ class KnownNodeAspects {
   using LoadedContextSlots = KnaMap<LoadedContextSlotsKey, ValueNode*>;
 
   ValueNode* TryFindLoadedProperty(ValueNode* lookup_start_object,
-                                   PropertyKey name) {
+                                   PropertyKey name) const {
     return TryFindLoadedProperty(loaded_properties_, lookup_start_object, name);
   }
   ValueNode* TryFindLoadedConstantProperty(ValueNode* lookup_start_object,
-                                           PropertyKey name) {
+                                           PropertyKey name) const {
     return TryFindLoadedProperty(loaded_constant_properties_,
                                  lookup_start_object, name);
   }
   ValueNode* TryFindLoadedProperty(ValueNode* lookup_start_object,
                                    PropertyKey name,
-                                   PropertyConstness constness) {
+                                   PropertyConstness constness) const {
     switch (constness) {
       case PropertyConstness::kConst:
         return TryFindLoadedConstantProperty(lookup_start_object, name);
@@ -607,6 +618,9 @@ class KnownNodeAspects {
     }
   }
 
+  // Note: the returned `PropertyObjectMap&` reference is invalidated by
+  // subsequent insertions, erasures, merges, or `Clone()` on the outer
+  // `LoadedPropertyMap`.
   PropertyObjectMap& GetLoadedPropertiesForKey(PropertyConstness constness,
                                                PropertyKey key) {
     LoadedPropertyMap& properties = constness == PropertyConstness::kConst
@@ -619,9 +633,11 @@ class KnownNodeAspects {
   }
 
   bool ClearLoadedPropertiesForKey(PropertyKey key) {
-    auto it = loaded_properties_.find(key);
+    auto it = std::as_const(loaded_properties_).find(key);
     if (it != loaded_properties_.end()) {
-      it->second.clear();
+      if (!it->second.empty()) {
+        loaded_properties_.find(key)->second.clear();
+      }
       return true;
     }
     return false;
@@ -630,7 +646,7 @@ class KnownNodeAspects {
   // Cache of LoadFixedArrayElement results keyed by (elements, index). Any
   // write that does not pass PreservesTaggedKeyedProperties clears it.
   LoadFixedArrayElement* TryFindTaggedKeyedProperty(ValueNode* elements,
-                                                    ValueNode* index) {
+                                                    ValueNode* index) const {
     auto it = loaded_tagged_keyed_properties_.find(
         {elements->UnwrapIdentities(), index->UnwrapIdentities()});
     if (it == loaded_tagged_keyed_properties_.end()) return nullptr;
@@ -660,7 +676,7 @@ class KnownNodeAspects {
   NodeT* FindExpression(uint32_t hash,
                         std::array<ValueNode*, NodeT::kInputCount>& inputs,
                         Args&&... args) {
-    auto it = available_expressions_.find(hash);
+    auto it = std::as_const(available_expressions_).find(hash);
     if (it == available_expressions_.end()) return nullptr;
 
     static constexpr Opcode op = Node::opcode_of<NodeT>;
@@ -668,7 +684,7 @@ class KnownNodeAspects {
 
     if (candidate->Is<Identity>()) {
       // This expression was removed from the graph. Do not reuse it.
-      available_expressions_.erase(it);
+      available_expressions_.erase(hash);
       return nullptr;
     }
 
@@ -697,7 +713,7 @@ class KnownNodeAspects {
       }
     }
     if (!epoch_check) {
-      available_expressions_.erase(it);
+      available_expressions_.erase(hash);
     }
     return nullptr;
   }
@@ -750,14 +766,21 @@ class KnownNodeAspects {
                                       MaybeAssignedFlag assigned) {
     auto& map = (assigned == kMaybeAssigned) ? loaded_context_slots_
                                              : loaded_context_constants_;
-    auto it = map.find({context, offset});
+    auto it = std::as_const(map).find({context, offset});
     if (it == map.end()) return nullptr;
-    if (it->second) {
-      it->second = it->second->UnwrapIdentities();
+    ValueNode* value = it->second;
+    if (value) {
+      ValueNode* unwrapped = value->UnwrapIdentities();
+      if (unwrapped != value) [[unlikely]] {
+        map.find({context, offset})->second = unwrapped;
+        return unwrapped;
+      }
     }
-    return it->second;
+    return value;
   }
-  // Returns the value in the cache and add a new entry.
+  // Returns a reference to the cached value, inserting a default entry if not
+  // present. The returned `ValueNode*&` reference is invalidated by subsequent
+  // insertions, erasures, merges, or `Clone()` on the context cache map.
   ValueNode*& GetContextCachedValue(ValueNode* context, int offset,
                                     MaybeAssignedFlag assigned) {
     ValueNode*& cached_value =
@@ -770,12 +793,12 @@ class KnownNodeAspects {
     return cached_value;
   }
   bool HasContextCacheValue(ValueNode* context, int offset,
-                            MaybeAssignedFlag assigned) {
+                            MaybeAssignedFlag assigned) const {
     return (assigned == kMaybeAssigned)
                ? loaded_context_slots_.contains({context, offset})
                : loaded_context_constants_.contains({context, offset});
   }
-  bool IsContextCacheEmpty(MaybeAssignedFlag assigned) {
+  bool IsContextCacheEmpty(MaybeAssignedFlag assigned) const {
     return (assigned == kMaybeAssigned) ? loaded_context_slots_.empty()
                                         : loaded_context_constants_.empty();
   }
@@ -999,9 +1022,6 @@ class KnownNodeAspects {
   // conservative about updating the state on stores.
   ContextSlotLoadsAlias may_have_aliasing_contexts_;
   uint32_t effect_epoch_;
-  // TODO(leszeks): Store these more efficiently than with std::map -- in
-  // particular, clear out entries that are no longer reachable, perhaps also
-  // allow lookup by interpreter register rather than by node pointer.
   NodeInfos node_infos_;
   VirtualObjectList virtual_objects_;
 
@@ -1028,7 +1048,7 @@ class KnownNodeAspects {
 
   ValueNode* TryFindLoadedProperty(const LoadedPropertyMap& properties,
                                    ValueNode* lookup_start_object,
-                                   PropertyKey name) {
+                                   PropertyKey name) const {
     auto props_for_name = properties.find(name);
     if (props_for_name == properties.end()) return nullptr;
 

@@ -187,23 +187,24 @@ class RecomputeKnownNodeAspectsProcessor {
       // TODO(verwaest): Look into making loaded_context_constants_ monotonic,
       // e.g. by folding the hole check into the context load rather than
       // temporarily clearing the cached constant here.
-      ValueNode** cached_slot = nullptr;
-      ValueNode* value = nullptr;
+      LoadContextSlotNoCells* cached_load = nullptr;
       if (auto* throw_if_hole = node->TryCast<ThrowReferenceErrorIfTdzHole>()) {
-        value = throw_if_hole->ValueInput().node();
+        ValueNode* value = throw_if_hole->ValueInput().node();
         if (auto* load = value->TryCast<LoadContextSlotNoCells>();
             load && load->maybe_assigned() == kNotAssigned) {
           ValueNode*& slot = known_node_aspects().GetContextCachedValue(
               load->input(0).node(), load->offset(), kNotAssigned);
           if (slot == value) {
-            cached_slot = &slot;
-            *cached_slot = nullptr;
+            cached_load = load;
+            slot = nullptr;
           }
         }
       }
       Merge(exception_handler);
-      if (cached_slot) {
-        *cached_slot = value;
+      if (cached_load) {
+        known_node_aspects().GetContextCachedValue(
+            cached_load->input(0).node(), cached_load->offset(), kNotAssigned) =
+            cached_load;
       }
     }
   }

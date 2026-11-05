@@ -846,7 +846,8 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
       }
     } else {
       if (optimistic_loop_phis) {
-        if (NodeInfo* node_info = known_node_aspects_->TryGetInfoFor(result)) {
+        if (NodeInfo* node_info =
+                known_node_aspects_->TryGetMutableInfoFor(result)) {
           node_info->UnionType(unmerged_type);
         }
         result->merge_type(unmerged_type);
