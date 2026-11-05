@@ -1007,6 +1007,7 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   int construction_counter() const;
   bool is_migration_target() const;
   bool is_extensible() const;
+  bool is_prototype_map() const;
   bool supports_fast_array_iteration(JSHeapBroker* broker) const;
   bool supports_fast_array_resize(JSHeapBroker* broker) const;
   bool is_abandoned_prototype_map() const;
@@ -1053,6 +1054,8 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   MapRef FindRootMap(JSHeapBroker* broker) const;
   OptionalObjectRef GetConstructor(JSHeapBroker* broker) const;
   NativeContextRef native_context(JSHeapBroker* broker) const;
+  bool BelongsToSameNativeContextAs(JSHeapBroker* broker,
+                                    ContextRef context) const;
 };
 
 struct HolderLookupResult {

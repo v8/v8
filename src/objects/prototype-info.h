@@ -89,8 +89,9 @@ V8_OBJECT class PrototypeInfo : public Struct {
   static inline void SetObjectCreateMap(DirectHandle<PrototypeInfo> info,
                                         DirectHandle<Map> map,
                                         Isolate* isolate);
-  inline Tagged<MaybeObject> ObjectCreateMap(AcquireLoadTag);
-  inline Tagged<MaybeObject> ObjectCreateMap();
+  inline Tagged<MaybeObject> ObjectCreateMap(Tagged<Context> accessing_context,
+                                             AcquireLoadTag);
+  inline Tagged<MaybeObject> ObjectCreateMap(Tagged<Context> accessing_context);
 
   static inline void AddDerivedMap(DirectHandle<PrototypeInfo> info,
                                    DirectHandle<Map> to, Isolate* isolate);

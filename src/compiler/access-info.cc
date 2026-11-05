@@ -56,8 +56,7 @@ bool CanInlinePropertyAccess(MapRef map, AccessMode access_mode) {
   if (IsJSObjectMap(*map.object())) {
     if (map.is_dictionary_map()) {
       if (!V8_DICT_PROPERTY_CONST_TRACKING_BOOL) return false;
-      return access_mode == AccessMode::kLoad &&
-             map.object()->is_prototype_map();
+      return access_mode == AccessMode::kLoad && map.is_prototype_map();
     }
     return !map.has_named_interceptor() &&
            // TODO(verwaest): Allowlist contexts to which we have access.
@@ -795,7 +794,7 @@ PropertyAccessInfo AccessorAccessInfoHelper(
   InstanceType holder_instance_type = holder_map.instance_type();
   if (holder_instance_type == JS_MODULE_NAMESPACE_TYPE ||
       holder_instance_type == JS_DEFERRED_MODULE_NAMESPACE_TYPE) {
-    DCHECK(holder_map.object()->is_prototype_map());
+    DCHECK(holder_map.is_prototype_map());
     DirectHandle<PrototypeInfo> proto_info = broker->CanonicalPersistentHandle(
         Cast<PrototypeInfo>(holder_map.object()->prototype_info()));
     DirectHandle<JSModuleNamespace> module_namespace =
@@ -939,7 +938,7 @@ PropertyAccessInfo AccessInfoFactory::ComputeDictionaryProtoAccessInfo(
     InternalIndex dictionary_index, AccessMode access_mode,
     PropertyDetails details) const {
   CHECK(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
-  DCHECK(holder.map(broker()).object()->is_prototype_map());
+  DCHECK(holder.map(broker()).is_prototype_map());
   DCHECK_EQ(access_mode, AccessMode::kLoad);
 
   // We can only inline accesses to constant properties.
@@ -966,7 +965,7 @@ bool AccessInfoFactory::TryLoadPropertyDetails(
     InternalIndex* index_out, PropertyDetails* details_out) const {
   if (map.is_dictionary_map()) {
     DCHECK(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
-    DCHECK(map.object()->is_prototype_map());
+    DCHECK(map.is_prototype_map());
 
     DisallowGarbageCollection no_gc;
 
@@ -1229,7 +1228,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
 
     if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL && holder.has_value()) {
       // At this point, we are past the first loop iteration.
-      DCHECK(holder->object()->map()->is_prototype_map());
+      DCHECK(holder->map(broker()).is_prototype_map());
       DCHECK(!holder->map(broker()).equals(receiver_map));
 
       fast_mode_prototype_on_chain =

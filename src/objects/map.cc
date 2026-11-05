@@ -981,18 +981,21 @@ DirectHandle<Map> Map::GetObjectCreateMap(Isolate* isolate,
     if (!js_prototype->map()->is_prototype_map()) {
       JSObject::OptimizeAsPrototype(js_prototype);
     }
-    DirectHandle<PrototypeInfo> info =
-        Map::GetOrCreatePrototypeInfo(js_prototype, isolate);
-    // TODO(verwaest): Use inobject slack tracking for this map.
-    Tagged<HeapObject> map_obj;
-    if (info->ObjectCreateMap().GetHeapObjectIfWeak(&map_obj)) {
-      map = direct_handle(Cast<Map>(map_obj), isolate);
-    } else {
-      map = Map::CopyInitialMap(isolate, map);
-      Map::SetPrototype(isolate, map, prototype);
-      PrototypeInfo::SetObjectCreateMap(info, map, isolate);
+    if (js_prototype->map()->BelongsToSameNativeContextAs(isolate->context())) {
+      DirectHandle<PrototypeInfo> info =
+          Map::GetOrCreatePrototypeInfo(js_prototype, isolate);
+      // TODO(verwaest): Use inobject slack tracking for this map.
+      Tagged<HeapObject> map_obj;
+      if (info->ObjectCreateMap(isolate->context())
+              .GetHeapObjectIfWeak(&map_obj)) {
+        map = direct_handle(Cast<Map>(map_obj), isolate);
+      } else {
+        map = Map::CopyInitialMap(isolate, map);
+        Map::SetPrototype(isolate, map, prototype);
+        PrototypeInfo::SetObjectCreateMap(info, map, isolate);
+      }
+      return map;
     }
-    return map;
   }
 
   return Map::TransitionRootMapToPrototypeForNewObject(isolate, map, prototype);

@@ -240,8 +240,13 @@ static void LookupForRead(LookupIterator* it, bool is_has_property) {
         continue;
       }
       case LookupIterator::ACCESS_CHECK:
-        // ICs know how to perform access checks on global proxies.
-        if (!IsAccessCheckNeeded(*it->GetHolder<JSObject>())) continue;
+        // ICs only support access checks on the lookup start object (when it
+        // is a global proxy), not on objects in the prototype chain.
+        if (it->GetHolder<JSObject>().is_identical_to(
+                it->lookup_start_object()) &&
+            !IsAccessCheckNeeded(*it->GetHolder<JSObject>())) {
+          continue;
+        }
         return;
       case LookupIterator::MODULE_NAMESPACE: {
         if (JSDeferredModuleNamespace::TriggersEvaluation(it)) {
@@ -2077,8 +2082,13 @@ bool StoreIC::LookupForWrite(LookupIterator* it, DirectHandle<Object> value,
         continue;
       }
       case LookupIterator::ACCESS_CHECK:
-        // ICs know how to perform access checks on global proxies.
-        if (!IsAccessCheckNeeded(*it->GetHolder<JSObject>())) continue;
+        // ICs only support access checks on the lookup start object (when it
+        // is a global proxy), not on objects in the prototype chain.
+        if (it->GetHolder<JSObject>().is_identical_to(
+                it->lookup_start_object()) &&
+            !IsAccessCheckNeeded(*it->GetHolder<JSObject>())) {
+          continue;
+        }
         return false;
       case LookupIterator::ACCESSOR:
         return !it->IsReadOnly();

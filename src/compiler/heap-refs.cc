@@ -1814,6 +1814,8 @@ HEAP_ACCESSOR_B(Map, bit_field3, NumberOfOwnDescriptors,
                 Map::Bits3::NumberOfOwnDescriptorsBits)
 HEAP_ACCESSOR_B(Map, bit_field3, is_migration_target,
                 Map::Bits3::IsMigrationTargetBit)
+HEAP_ACCESSOR_B(Map, bit_field3, is_prototype_map,
+                Map::Bits3::IsPrototypeMapBit)
 BIMODAL_ACCESSOR_B(Map, bit_field3, is_extensible, Map::Bits3::IsExtensibleBit)
 BIMODAL_ACCESSOR_B(Map, bit_field3, construction_counter,
                    Map::Bits3::ConstructionCounterBits)
@@ -2030,6 +2032,13 @@ OptionalObjectRef MapRef::GetConstructor(JSHeapBroker* broker) const {
 NativeContextRef MapRef::native_context(JSHeapBroker* broker) const {
   // Immutable after initialization.
   return MakeRefAssumeMemoryFence(broker, object()->native_context());
+}
+
+bool MapRef::BelongsToSameNativeContextAs(JSHeapBroker* broker,
+                                          ContextRef context) const {
+  MapRef this_meta_map = map(broker);
+  MapRef context_meta_map = context.map(broker).map(broker);
+  return this_meta_map.equals(context_meta_map);
 }
 
 OptionalHeapObjectRef MapRef::GetBackPointer(JSHeapBroker* broker) const {
@@ -2703,16 +2712,19 @@ int SharedFunctionInfoRef::
 }
 
 OptionalMapRef JSObjectRef::GetObjectCreateMap(JSHeapBroker* broker) const {
-  DirectHandle<Map> map_handle = Cast<Map>(map(broker).object());
+  MapRef map_ref = map(broker);
   // Note: implemented as an acquire-load.
-  if (!map_handle->is_prototype_map()) return {};
+  if (!map_ref.is_prototype_map()) return {};
+  NativeContextRef native_context = broker->target_native_context();
+  if (!map_ref.BelongsToSameNativeContextAs(broker, native_context)) return {};
 
   DirectHandle<Object> maybe_proto_info = broker->CanonicalPersistentHandle(
-      map_handle->prototype_info(kAcquireLoad));
+      map_ref.object()->prototype_info(kAcquireLoad));
   if (!IsPrototypeInfo(*maybe_proto_info)) return {};
 
   Tagged<MaybeObject> maybe_object_create_map =
-      Cast<PrototypeInfo>(maybe_proto_info)->ObjectCreateMap(kAcquireLoad);
+      Cast<PrototypeInfo>(maybe_proto_info)
+          ->ObjectCreateMap(*native_context.object(), kAcquireLoad);
   if (!maybe_object_create_map.IsWeak()) return {};
 
   return MapRef(broker->GetOrCreateData(

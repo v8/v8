@@ -12463,6 +12463,19 @@ TNode<Object> CodeStubAssembler::GetConstructor(TNode<Map> map) {
   return var_maybe_constructor.value();
 }
 
+TNode<BoolT> CodeStubAssembler::BelongsToSameNativeContextAs(
+    TNode<Map> map, TNode<Context> context) {
+  TNode<Map> context_meta_map = LoadMap(LoadMap(context));
+  // Make sure context_meta_map is both contextful and meta map.
+  CSA_DCHECK(this, TaggedEqual(context_meta_map, LoadMap(context_meta_map)));
+  CSA_DCHECK(
+      this, IsNativeContext(CAST(LoadMapConstructorOrBackPointerOrNativeContext(
+                context_meta_map))));
+
+  TNode<Map> this_meta_map = LoadMap(map);
+  return TaggedEqual(this_meta_map, context_meta_map);
+}
+
 TNode<NativeContext> CodeStubAssembler::GetCreationContextFromMap(
     TNode<Map> map, Label* if_bailout) {
   TNode<Map> meta_map = LoadMap(map);
