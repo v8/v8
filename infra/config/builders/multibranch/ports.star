@@ -4,7 +4,7 @@
 
 load("//lib/builders.star", "multibranch_builder")
 load("//lib/gclient.star", "GCLIENT_VARS")
-load("//lib/lib.star", "BARRIER", "ci_pair_factory", "greedy_batching_of_1", "in_branch_console")
+load("//lib/lib.star", "BARRIER", "ci_pair_factory", "in_branch_console", "parallel_3_greedy_batching_of_1")
 
 def port_builder(*args, **kwargs):
     experiments = kwargs.pop("experiments", {})
@@ -19,7 +19,7 @@ in_category(
     "Arm",
     multibranch_builder(
         name = "V8 Arm - builder",
-        triggering_policy = greedy_batching_of_1,
+        triggering_policy = parallel_3_greedy_batching_of_1,
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports", "target_arch": "arm", "binary_size_tracking": {"category": "linux_arm32", "binary": "d8"}},
@@ -34,7 +34,7 @@ in_category(
     ),
     multibranch_builder(
         name = "V8 Android Arm - builder",
-        triggering_policy = greedy_batching_of_1,
+        triggering_policy = parallel_3_greedy_batching_of_1,
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports", "target_arch": "arm", "target_platform": "android", "binary_size_tracking": {"category": "android_arm32", "binary": "d8"}},
@@ -89,7 +89,7 @@ in_category(
     "Arm64",
     multibranch_builder(
         name = "V8 Arm64 - builder",
-        triggering_policy = greedy_batching_of_1,
+        triggering_policy = parallel_3_greedy_batching_of_1,
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"target_arch": "arm", "target_bits": 64, "builder_group": "client.v8.ports"},
@@ -97,7 +97,7 @@ in_category(
     ),
     multibranch_builder(
         name = "V8 Android Arm64 - builder",
-        triggering_policy = greedy_batching_of_1,
+        triggering_policy = parallel_3_greedy_batching_of_1,
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports", "target_arch": "arm", "target_platform": "android", "binary_size_tracking": {"category": "android_arm64", "binary": "d8"}},

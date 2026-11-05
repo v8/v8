@@ -4,7 +4,7 @@
 
 load("//lib/builders.star", "v8_builder")
 load("//lib/gclient.star", "GCLIENT_VARS")
-load("//lib/lib.star", "BARRIER", "ci_pair_factory", "greedy_batching_of_1", "in_console")
+load("//lib/lib.star", "BARRIER", "ci_pair_factory", "in_console", "parallel_3_greedy_batching_of_1")
 load("//lib/siso.star", "SISO")
 
 builder_pair = ci_pair_factory(v8_builder)
@@ -18,7 +18,7 @@ def clusterfuzz_builder(properties = None, barrier = BARRIER.TREE_CLOSER, defaul
         barrier = barrier,
         properties = properties,
         triggered_by = ["v8-trigger"],
-        triggering_policy = greedy_batching_of_1,
+        triggering_policy = parallel_3_greedy_batching_of_1,
         use_siso = SISO.CHROMIUM_TRUSTED,
         experiments = {"v8.resultdb": 100},
         **kwargs

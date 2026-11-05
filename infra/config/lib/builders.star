@@ -147,6 +147,12 @@ def multibranch_builder(**kwargs):
             args["disable_resultdb_exports"] = True
             if skip_builder(branch.bucket, first_branch_version):
                 continue
+
+            # Greedy triggering policies (e.g. building every revision with
+            # several concurrent invocations) are only meant for the main
+            # branch, which has a much higher commit load. Branch twins use
+            # the scheduler's default batching policy to save resources.
+            args.pop("triggering_policy", None)
         add_barrier_properties(barrier, args)
         properties = args.get("properties", {})
         properties.update(barrier.properties)
