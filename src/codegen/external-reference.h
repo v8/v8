@@ -39,7 +39,6 @@ enum class IsolateFieldId : uint8_t;
     "kNoHeapWrites)")                                                          \
   V(address_of_real_jslimit, "StackGuard::address_of_real_jslimit()")          \
   V(heap_is_marking_flag_address, "heap_is_marking_flag_address")              \
-  V(heap_is_minor_marking_flag_address, "heap_is_minor_marking_flag_address")  \
   V(is_shared_space_isolate_flag_address,                                      \
     "is_shared_space_isolate_flag_address")                                    \
   V(last_young_allocation_address, "last_young_allocation_address")            \

@@ -739,11 +739,6 @@ ExternalReference ExternalReference::heap_is_marking_flag_address(
   return ExternalReference(isolate->heap()->IsMarkingFlagAddress());
 }
 
-ExternalReference ExternalReference::heap_is_minor_marking_flag_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->heap()->IsMinorMarkingFlagAddress());
-}
-
 ExternalReference ExternalReference::is_shared_space_isolate_flag_address(
     Isolate* isolate) {
   return ExternalReference(

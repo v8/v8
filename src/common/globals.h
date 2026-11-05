@@ -2906,6 +2906,15 @@ enum class IsolateExecutionModeFlag : uint8_t {
   kCheckSideEffects = 1 << 1,
 };
 
+enum class IsolateMarkingFlag : uint8_t {
+  kNoMarking = 0,
+  kLocalMajorMarking = 1 << 0,
+  kLocalMinorMarking = 1 << 1,
+  kSharedMarking = 1 << 2,
+};
+using IsolateMarkingFlags = base::Flags<IsolateMarkingFlag>;
+DEFINE_OPERATORS_FOR_FLAGS(IsolateMarkingFlags)
+
 // Flags for the runtime function kDefineKeyedOwnPropertyInLiteral.
 // - Whether the function name should be set or not.
 enum class DefineKeyedOwnPropertyInLiteralFlag {

@@ -97,7 +97,9 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
   static inline void ForRelocInfo(Tagged<InstructionStream> host,
                                   RelocInfo* rinfo, Tagged<HeapObject> value,
                                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  static inline void ForArrayBufferExtension(Tagged<JSArrayBuffer> host,
+  template <typename IsolateT>
+  static inline void ForArrayBufferExtension(IsolateT* isolate,
+                                             Tagged<JSArrayBuffer> host,
                                              ArrayBufferExtension* extension);
   static inline void ForExternalPointer(
       Tagged<HeapObject> host, ExternalPointerSlot slot,
@@ -193,7 +195,13 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
 
   static bool PageFlagsAreConsistent(Tagged<HeapObject> object);
 
-  static inline bool IsMarking(Tagged<HeapObject> object);
+  template <typename IsolateT>
+  static inline bool IsLocalMarking(IsolateT* isolate);
+
+  template <typename IsolateT>
+  static inline bool IsAnyMarking(IsolateT* isolate);
+
+  static inline bool IsMarkingUntrusted(Tagged<HeapObject> object);
 
   static inline void Marking(Tagged<HeapObject> host, HeapObjectSlot,
                              Tagged<HeapObject> value);

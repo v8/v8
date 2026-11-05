@@ -283,7 +283,7 @@ void MarkingBarrier::ActivateAll(Heap* heap, bool is_compacting) {
         [](Isolate* client) {
           // Force the RecordWrite builtin into the incremental marking code
           // path.
-          client->heap()->SetIsMarkingFlag(true);
+          client->heap()->SetIsSharedMarkingFlag(true);
           client->heap()->safepoint()->IterateLocalHeaps(
               [](LocalHeap* local_heap) {
                 local_heap->marking_barrier()->ActivateShared();
@@ -329,12 +329,7 @@ void MarkingBarrier::DeactivateAll(Heap* heap) {
   if (heap->isolate()->is_shared_space_isolate()) {
     heap->isolate()->global_safepoint()->IterateClientIsolates(
         [](Isolate* client) {
-          // We can't just simply disable the marking barrier for all clients. A
-          // client may still need it to be set for incremental marking in the
-          // local heap.
-          const bool is_marking =
-              client->heap()->incremental_marking()->IsMarking();
-          client->heap()->SetIsMarkingFlag(is_marking);
+          client->heap()->SetIsSharedMarkingFlag(false);
           client->heap()->safepoint()->IterateLocalHeaps(
               [](LocalHeap* local_heap) {
                 local_heap->marking_barrier()->DeactivateShared();

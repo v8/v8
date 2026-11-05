@@ -13,6 +13,7 @@
 // Clients of this interface shouldn't depend on lots of heap internals.
 // Do not include anything from src/heap here!
 
+#include "src/execution/isolate-data.h"
 #include "src/heap/base-page-inl.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/marking-barrier.h"
@@ -363,7 +364,21 @@ void WriteBarrier::GenerationalForRelocInfo(Tagged<InstructionStream> host,
 }
 
 // static
-bool WriteBarrier::IsMarking(Tagged<HeapObject> object) {
+template <typename IsolateT>
+bool WriteBarrier::IsLocalMarking(IsolateT* isolate) {
+  DCHECK_NOT_NULL(isolate);
+  return isolate->isolate_data()->is_local_marking();
+}
+
+// static
+template <typename IsolateT>
+bool WriteBarrier::IsAnyMarking(IsolateT* isolate) {
+  DCHECK_NOT_NULL(isolate);
+  return isolate->isolate_data()->is_any_marking_active();
+}
+
+// static
+bool WriteBarrier::IsMarkingUntrusted(Tagged<HeapObject> object) {
   return MemoryChunk::FromHeapObject(object)->IsMarking();
 }
 
@@ -393,7 +408,7 @@ void WriteBarrier::Marking(Tagged<HeapObject> host, MaybeObjectSlot slot,
 
 void WriteBarrier::Marking(Tagged<HeapObject> host, HeapObjectSlot slot,
                            Tagged<HeapObject> value) {
-  if (!IsMarking(host)) [[likely]] {
+  if (!IsMarkingUntrusted(host)) [[likely]] {
     return;
   }
   MarkingSlow(host, slot, value);
@@ -402,7 +417,7 @@ void WriteBarrier::Marking(Tagged<HeapObject> host, HeapObjectSlot slot,
 void WriteBarrier::MarkingForRelocInfo(Tagged<InstructionStream> host,
                                        RelocInfo* reloc_info,
                                        Tagged<HeapObject> value) {
-  if (!IsMarking(host)) [[likely]] {
+  if (!IsMarkingUntrusted(host)) [[likely]] {
     return;
   }
   MarkingSlow(host, reloc_info, value);
@@ -418,15 +433,15 @@ void WriteBarrier::SharedForRelocInfo(Tagged<InstructionStream> host,
   SharedSlow(host, reloc_info, value);
 }
 
-void WriteBarrier::ForArrayBufferExtension(Tagged<JSArrayBuffer> host,
+// static
+template <typename IsolateT>
+void WriteBarrier::ForArrayBufferExtension(IsolateT* isolate,
+                                           Tagged<JSArrayBuffer> host,
                                            ArrayBufferExtension* extension) {
   if (!extension) {
     return;
   }
-  // Rely on trusted marking state to avoid desync between table entry and
-  // extension object.
-  MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
-  if (!marking_barrier || !marking_barrier->is_activated()) [[likely]] {
+  if (!IsLocalMarking(isolate)) [[likely]] {
     return;
   }
   MarkingSlow(host, extension);
@@ -434,7 +449,7 @@ void WriteBarrier::ForArrayBufferExtension(Tagged<JSArrayBuffer> host,
 
 void WriteBarrier::Marking(Tagged<HeapObject> host, ExternalPointerSlot slot,
                            ExternalPointerHandle handle) {
-  if (!IsMarking(host)) [[likely]] {
+  if (!IsMarkingUntrusted(host)) [[likely]] {
     return;
   }
   MarkingSlow(host, slot, handle);
@@ -451,7 +466,7 @@ void WriteBarrier::Marking(Tagged<HeapObject> host, TrustedPointerSlot slot) {
 void WriteBarrier::Marking(Tagged<TrustedObject> host,
                            ProtectedPointerSlot slot,
                            Tagged<TrustedObject> value) {
-  if (!IsMarking(host)) [[likely]] {
+  if (!IsMarkingUntrusted(host)) [[likely]] {
     return;
   }
   MarkingSlow(host, slot, value);

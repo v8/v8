@@ -135,10 +135,13 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
   }
 
   TNode<BoolT> IsMinorMarking() {
-    TNode<ExternalReference> is_minor_marking_addr = ExternalConstant(
-        ExternalReference::heap_is_minor_marking_flag_address(this->isolate()));
-    return Word32NotEqual(Load<Uint8T>(is_minor_marking_addr),
-                          Int32Constant(0));
+    TNode<ExternalReference> is_marking_addr = ExternalConstant(
+        ExternalReference::heap_is_marking_flag_address(this->isolate()));
+    return Word32NotEqual(
+        Word32And(Load<Uint8T>(is_marking_addr),
+                  Int32Constant(static_cast<uint8_t>(
+                      IsolateMarkingFlag::kLocalMinorMarking))),
+        Int32Constant(0));
   }
 
   TNode<BoolT> IsSharedSpaceIsolate() {

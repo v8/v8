@@ -246,7 +246,25 @@ class IsolateData final {
     DCHECK(stack_is_iterable_ == 0 || stack_is_iterable_ == 1);
     return stack_is_iterable_ != 0;
   }
-  bool is_marking() const { return is_marking_flag_; }
+  bool is_marking() const { return is_any_marking_active(); }
+  bool is_local_marking() const {
+    return (is_marking_flag_ & (IsolateMarkingFlag::kLocalMajorMarking |
+                                IsolateMarkingFlag::kLocalMinorMarking)) !=
+           IsolateMarkingFlag::kNoMarking;
+  }
+  bool is_minor_marking() const {
+    return is_marking_flag_.contains(IsolateMarkingFlag::kLocalMinorMarking);
+  }
+  bool is_shared_marking() const {
+    return is_marking_flag_.contains(IsolateMarkingFlag::kSharedMarking);
+  }
+  bool is_any_marking_active() const {
+    return is_marking_flag_ != IsolateMarkingFlag::kNoMarking;
+  }
+  IsolateMarkingFlags is_marking_flag() const { return is_marking_flag_; }
+  void set_marking_flag(IsolateMarkingFlag flag, bool value) {
+    is_marking_flag_.set(flag, value);
+  }
 
   // Returns true if this address points to data stored in this instance. If
   // it's the case then the value can be accessed indirectly through the root
@@ -320,9 +338,8 @@ class IsolateData final {
   //
 
   // These flags are regularly checked by write barriers.
-  // Only valid values are 0 or 1.
-  uint8_t is_marking_flag_ = false;
-  uint8_t is_minor_marking_flag_ = false;
+  IsolateMarkingFlags is_marking_flag_ = IsolateMarkingFlag::kNoMarking;
+  uint8_t is_marking_flag_padding_ = 0;
   uint8_t is_shared_space_isolate_flag_ = false;
   uint8_t uses_shared_heap_flag_ = false;
 

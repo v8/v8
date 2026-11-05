@@ -133,16 +133,18 @@ ArrayBufferExtension* JSArrayBuffer::extension() const {
 #endif  // V8_COMPRESS_POINTERS
 }
 
-void JSArrayBuffer::set_extension(ArrayBufferExtension* extension) {
+template <typename IsolateT>
+void JSArrayBuffer::set_extension(IsolateT* isolate,
+                                  ArrayBufferExtension* extension) {
   DCHECK_NOT_NULL(extension);
 #if V8_COMPRESS_POINTERS
   InitExternalPointerField<kArrayBufferExtensionTag>(
-      offsetof(JSArrayBuffer, extension_), Isolate::Current(),
+      offsetof(JSArrayBuffer, extension_), isolate,
       reinterpret_cast<Address>(extension));
 #else
   base::AsAtomicPointer::Release_Store(extension_location(), extension);
 #endif  // V8_COMPRESS_POINTERS
-  WriteBarrier::ForArrayBufferExtension(this, extension);
+  WriteBarrier::ForArrayBufferExtension(isolate, this, extension);
 }
 
 ArrayBufferExtension* JSArrayBuffer::extract_extension(

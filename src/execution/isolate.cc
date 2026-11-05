@@ -6327,7 +6327,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
       use_shared_space_isolate->heap()
           ->incremental_marking()
           ->IsMajorMarking()) {
-    heap_.SetIsMarkingFlag(true);
+    heap_.SetIsSharedMarkingFlag(true);
   }
 
   // Set up the object heap.

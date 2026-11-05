@@ -140,6 +140,9 @@ void WriteBarrier::SharedSlow(Tagged<TrustedObject> host,
 void WriteBarrier::MarkingSlow(Tagged<JSArrayBuffer> host,
                                ArrayBufferExtension* extension) {
   MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
+  if (!marking_barrier) [[unlikely]] {
+    return;
+  }
   marking_barrier->Write(host, extension);
 }
 

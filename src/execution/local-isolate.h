@@ -26,6 +26,7 @@ class Processor;
 namespace internal {
 
 class Isolate;
+class IsolateData;
 class LocalLogger;
 class RuntimeCallStats;
 
@@ -108,6 +109,8 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   }
 
   IsolateGroup* isolate_group() const { return isolate_->isolate_group(); }
+
+  inline const IsolateData* isolate_data() const;
 
   AccountingAllocator* allocator() { return isolate_->allocator(); }
 

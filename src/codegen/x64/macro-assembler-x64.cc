@@ -5195,16 +5195,16 @@ void MacroAssembler::CheckPageFlag(Register object, Register scratch, int mask,
 
 void MacroAssembler::JumpIfMarking(Label* is_marking,
                                    Label::Distance condition_met_distance) {
-  testb(Operand(kRootRegister, IsolateData::is_marking_flag_offset()),
-        Immediate(static_cast<uint8_t>(1)));
-  j(not_zero, is_marking, condition_met_distance);
+  cmpb(Operand(kRootRegister, IsolateData::is_marking_flag_offset()),
+       Immediate(0));
+  j(not_equal, is_marking, condition_met_distance);
 }
 
 void MacroAssembler::JumpIfNotMarking(Label* not_marking,
                                       Label::Distance condition_met_distance) {
-  testb(Operand(kRootRegister, IsolateData::is_marking_flag_offset()),
-        Immediate(static_cast<uint8_t>(1)));
-  j(zero, not_marking, condition_met_distance);
+  cmpb(Operand(kRootRegister, IsolateData::is_marking_flag_offset()),
+       Immediate(0));
+  j(equal, not_marking, condition_met_distance);
 }
 
 void MacroAssembler::PreCheckSkippedWriteBarrier(Register object,

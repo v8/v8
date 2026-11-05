@@ -346,7 +346,7 @@ ArrayBufferExtension* JSArrayBuffer::CreateExtension(
   ArrayBufferExtension* extension =
       new ArrayBufferExtension(isolate->heap(), std::move(backing_store), age,
                                is_shared(), is_resizable_by_js());
-  set_extension(extension);
+  set_extension(isolate, extension);
   isolate->heap()->AppendArrayBufferExtension(extension);
   return extension;
 }

@@ -55,7 +55,8 @@ V8_OBJECT class JSArrayBuffer : public JSAPIObjectWithEmbedderSlots {
 
   // [extension]: extension object used for GC
   inline ArrayBufferExtension* extension() const;
-  inline void set_extension(ArrayBufferExtension* value);
+  template <typename IsolateT>
+  inline void set_extension(IsolateT* isolate, ArrayBufferExtension* value);
   inline void init_extension();
   // Returns the current extension and resets it to nullptr. Expects a witness
   // DisallowGarbageCollection to make sure the returned extension isn't freed

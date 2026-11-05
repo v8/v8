@@ -7454,24 +7454,29 @@ bool Heap::IsStressingScavenge() {
   return v8_flags.stress_scavenge > 0 && new_space();
 }
 
+void Heap::SetMarkingFlag(IsolateMarkingFlag flag, bool value) {
+  isolate()->isolate_data()->set_marking_flag(flag, value);
+}
+
 void Heap::SetIsMarkingFlag(bool value) {
-  isolate()->isolate_data()->is_marking_flag_ = value;
+  SetMarkingFlag(IsolateMarkingFlag::kLocalMajorMarking, value);
 }
 
 uint8_t* Heap::IsMarkingFlagAddress() {
-  return &isolate()->isolate_data()->is_marking_flag_;
+  return reinterpret_cast<uint8_t*>(
+      &isolate()->isolate_data()->is_marking_flag_);
 }
 
 void Heap::SetIsMinorMarkingFlag(bool value) {
-  isolate()->isolate_data()->is_minor_marking_flag_ = value;
+  SetMarkingFlag(IsolateMarkingFlag::kLocalMinorMarking, value);
+}
+
+void Heap::SetIsSharedMarkingFlag(bool value) {
+  SetMarkingFlag(IsolateMarkingFlag::kSharedMarking, value);
 }
 
 size_t Heap::PromotedSinceLastGC() {
   return limits()->PromotedSinceLastGC(OldGenerationSizeOfObjects());
-}
-
-uint8_t* Heap::IsMinorMarkingFlagAddress() {
-  return &isolate()->isolate_data()->is_minor_marking_flag_;
 }
 
 StrongRootAllocatorBase::StrongRootAllocatorBase(LocalHeap* heap)
