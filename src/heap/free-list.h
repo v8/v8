@@ -162,7 +162,6 @@ class V8_EXPORT_PRIVATE FreeList {
 
   explicit FreeList(
       SmallBlocksMode small_blocks_mode = SmallBlocksMode::kAllow);
-  ~FreeList();
 
   // Adds a node on the free list. The block of size {size_in_bytes} starting
   // at {start} is placed on the free list. The return value is the number of
@@ -215,8 +214,8 @@ class V8_EXPORT_PRIVATE FreeList {
 
   void EvictFreeListItems(NormalPage* page);
 
-  int number_of_categories() { return number_of_categories_; }
-  FreeListCategoryType last_category() { return last_category_; }
+  static constexpr int kNumberOfCategories = 24;
+  static constexpr FreeListCategoryType kLastCategory = kNumberOfCategories - 1;
 
   size_t min_block_size() const { return min_block_size_; }
 
@@ -232,7 +231,7 @@ class V8_EXPORT_PRIVATE FreeList {
 
   template <typename Callback>
   void ForAllFreeListCategories(Callback callback) {
-    for (int i = kFirstCategory; i < number_of_categories(); i++) {
+    for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
       ForAllFreeListCategories(static_cast<FreeListCategoryType>(i), callback);
     }
   }
@@ -277,7 +276,6 @@ class V8_EXPORT_PRIVATE FreeList {
   //      }
   //      say join ", ", @cat;
   //      say "\n", scalar @cat'
-  static constexpr int kNumberOfCategories = 24;
   static constexpr unsigned int categories_min[kNumberOfCategories] = {
       24,  32,  48,  64,  80,  96,   112,  128,  144,  160,   176,   192,
       208, 224, 240, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536};
@@ -321,28 +319,28 @@ class V8_EXPORT_PRIVATE FreeList {
       if (size_in_bytes < categories_min[1]) return 0;
       return static_cast<FreeListCategoryType>(size_in_bytes >> 4) - 1;
     }
-    for (int cat = (kPreciseCategoryMaxSize >> 4) - 1; cat < last_category_;
+    for (int cat = (kPreciseCategoryMaxSize >> 4) - 1; cat < kLastCategory;
          cat++) {
       if (size_in_bytes < categories_min[cat + 1]) {
         return cat;
       }
     }
-    return last_category_;
+    return kLastCategory;
   }
 
   FreeListCategoryType SelectFastAllocationFreeListCategoryType(
       size_t size_in_bytes) {
     DCHECK(size_in_bytes < kMaxBlockSize);
 
-    if (size_in_bytes >= categories_min[last_category_]) return last_category_;
+    if (size_in_bytes >= categories_min[kLastCategory]) return kLastCategory;
 
     size_in_bytes += kFastPathOffset;
-    for (int cat = kFastPathFirstCategory; cat < last_category_; cat++) {
+    for (int cat = kFastPathFirstCategory; cat < kLastCategory; cat++) {
       if (size_in_bytes <= categories_min[cat]) {
         return cat;
       }
     }
-    return last_category_;
+    return kLastCategory;
   }
 
   // Updates the cache after adding something in the category |cat|.
@@ -363,8 +361,8 @@ class V8_EXPORT_PRIVATE FreeList {
 
 #ifdef DEBUG
   void CheckCacheIntegrity() {
-    for (int i = 0; i <= last_category_; i++) {
-      DCHECK(next_nonempty_category[i] == last_category_ + 1 ||
+    for (int i = 0; i <= kLastCategory; i++) {
+      DCHECK(next_nonempty_category[i] == kLastCategory + 1 ||
              categories_[next_nonempty_category[i]] != nullptr);
       for (int j = i; j < next_nonempty_category[i]; j++) {
         DCHECK(categories_[j] == nullptr);
@@ -388,8 +386,6 @@ class V8_EXPORT_PRIVATE FreeList {
 
   inline NormalPage* GetPageForCategoryType(FreeListCategoryType type);
 
-  const int number_of_categories_ = 0;
-  const FreeListCategoryType last_category_ = 0;
   size_t min_block_size_ = 0;
   SmallBlocksMode small_blocks_mode_;
 
@@ -397,7 +393,7 @@ class V8_EXPORT_PRIVATE FreeList {
   // defined, and when updating the cache, we can always use cache[i+1] as long
   // as i is < kNumberOfCategories.
   int next_nonempty_category[kNumberOfCategories + 1];
-  FreeListCategory** categories_ = nullptr;
+  FreeListCategory* categories_[kNumberOfCategories] = {};
 
   // The number of bytes in this freelist that are available for allocation.
   size_t available_ = 0;

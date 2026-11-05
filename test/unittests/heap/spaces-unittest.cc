@@ -502,7 +502,7 @@ TEST_F(SpacesTest, FreeListSelectFreeListCategoryType) {
   // Testing every size above 256 would take long time, so test only some
   // "interesting cases": picking some number in the middle of the categories,
   // as well as at the categories' bounds.
-  for (int cat = kFirstCategory + 1; cat <= free_list.last_category_; cat++) {
+  for (int cat = kFirstCategory + 1; cat <= FreeList::kLastCategory; cat++) {
     std::vector<size_t> sizes;
     // Adding size less than this category's minimum
     sizes.push_back(free_list.categories_min[cat] - 8);
@@ -511,7 +511,7 @@ TEST_F(SpacesTest, FreeListSelectFreeListCategoryType) {
     // Adding size greater than this category's minimum
     sizes.push_back(free_list.categories_min[cat] + 8);
     // Adding size between this category's minimum and the next category
-    if (cat != free_list.last_category_) {
+    if (cat != FreeList::kLastCategory) {
       sizes.push_back(
           (free_list.categories_min[cat] + free_list.categories_min[cat + 1]) /
           2);
@@ -520,7 +520,7 @@ TEST_F(SpacesTest, FreeListSelectFreeListCategoryType) {
     for (size_t size : sizes) {
       FreeListCategoryType selected =
           free_list.SelectFreeListCategoryType(size);
-      if (selected == free_list.last_category_) {
+      if (selected == FreeList::kLastCategory) {
         // If selected == last_category, then we make sure that |size| indeeds
         // fits in the last category.
         EXPECT_LE(free_list.categories_min[selected], size);
@@ -539,7 +539,7 @@ TEST_F(SpacesTest, FreeListSelectFreeListCategoryType) {
 TEST_F(SpacesTest, FreeListSelectFastAllocationFreeListCategoryType) {
   FreeList free_list;
 
-  for (int cat = kFirstCategory; cat <= free_list.last_category_; cat++) {
+  for (int cat = kFirstCategory; cat <= FreeList::kLastCategory; cat++) {
     std::vector<size_t> sizes;
     // Adding size less than this category's minimum
     sizes.push_back(free_list.categories_min[cat] - 8);
@@ -548,7 +548,7 @@ TEST_F(SpacesTest, FreeListSelectFastAllocationFreeListCategoryType) {
     // Adding size greater than this category's minimum
     sizes.push_back(free_list.categories_min[cat] + 8);
     // Adding size between this category's minimum and the next category
-    if (cat != free_list.last_category_) {
+    if (cat != FreeList::kLastCategory) {
       sizes.push_back(
           (free_list.categories_min[cat] + free_list.categories_min[cat + 1]) /
           2);
@@ -561,11 +561,11 @@ TEST_F(SpacesTest, FreeListSelectFastAllocationFreeListCategoryType) {
         // For tiny objects, the first category of the fast path should be
         // chosen.
         EXPECT_TRUE(selected == FreeList::kFastPathFirstCategory);
-      } else if (size >= free_list.categories_min[free_list.last_category_] -
+      } else if (size >= free_list.categories_min[FreeList::kLastCategory] -
                              FreeList::kFastPathOffset) {
         // For objects close to the minimum of the last category, the last
         // category is chosen.
-        EXPECT_EQ(selected, free_list.last_category_);
+        EXPECT_EQ(selected, FreeList::kLastCategory);
       } else {
         // For other objects, the chosen category must satisfy that its minimum
         // is at least |size|+1.85k.
