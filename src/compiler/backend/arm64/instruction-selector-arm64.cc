@@ -1540,7 +1540,9 @@ void InstructionSelector::VisitStore(OpIndex node) {
   // TODO(arm64): I guess this could be done in a better way.
   if (write_barrier_kind != kNoWriteBarrier &&
       !v8_flags.disable_write_barriers) {
-    DCHECK(CanBeTaggedOrCompressedOrTrustedPointer(representation));
+    DCHECK(CanBeTaggedOrCompressedOrTrustedPointer(representation) ||
+           (write_barrier_kind == kSkippedWriteBarrier &&
+            representation == MachineRepresentation::kTaggedSigned));
     AddressingMode addressing_mode;
     InstructionOperand inputs[5];
     size_t input_count = 0;
@@ -1572,6 +1574,8 @@ void InstructionSelector::VisitStore(OpIndex node) {
       inputs[input_count++] = g.UseImmediate64(static_cast<int64_t>(tag));
     } else if (write_barrier_kind == kSkippedWriteBarrier) {
       code = kArchStoreSkippedWriteBarrier;
+      code |= CheckSmiField::encode(representation ==
+                                    MachineRepresentation::kTaggedSigned);
     } else {
       code = kArchStoreWithWriteBarrier;
       const RecordWriteMode record_write_mode =
@@ -1584,7 +1588,9 @@ void InstructionSelector::VisitStore(OpIndex node) {
     }
     InstructionOperand temps[1];
     size_t temp_count = 0;
-    if (write_barrier_kind == kSkippedWriteBarrier) {
+    // The inline Smi check doesn't need a scratch register.
+    if (write_barrier_kind == kSkippedWriteBarrier &&
+        !CheckSmiField::decode(code)) {
       temps[temp_count++] = g.TempRegister();
     }
     Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
@@ -4133,12 +4139,19 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
 
   if (write_barrier_kind != kNoWriteBarrier &&
       !v8_flags.disable_write_barriers) {
-    DCHECK(CanBeTaggedOrCompressedPointer(rep));
+    DCHECK(CanBeTaggedOrCompressedPointer(rep) ||
+           (write_barrier_kind == kSkippedWriteBarrier &&
+            rep == MachineRepresentation::kTaggedSigned));
     DCHECK_EQ(AtomicWidthSize(width), kTaggedSize);
 
     if (write_barrier_kind == kSkippedWriteBarrier) {
       code = kArchAtomicStoreSkippedWriteBarrier;
-      temps[temp_count++] = g.TempRegister();
+      code |=
+          CheckSmiField::encode(rep == MachineRepresentation::kTaggedSigned);
+      // The inline Smi check doesn't need a scratch register.
+      if (!CheckSmiField::decode(code)) {
+        temps[temp_count++] = g.TempRegister();
+      }
     } else {
       RecordWriteMode record_write_mode =
           WriteBarrierKindToRecordWriteMode(write_barrier_kind);

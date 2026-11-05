@@ -2159,11 +2159,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register value = i.InputRegister(index);
 
       DCHECK(v8_flags.verify_write_barriers);
-      auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
-          this, object, value, i.TempRegister(0));
-      __ MaybeJumpIfReadOnlyOrSmallSmi(value, ool->exit());
-      __ JumpIfNotSmi(value, ool->entry());
-      __ bind(ool->exit());
+      if (CheckSmiField::decode(instr->opcode())) {
+        Condition is_smi = __ CheckSmi(value);
+        __ Check(is_smi, AbortReason::kTaggedSignedNotSmi);
+      } else {
+        auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
+            this, object, value, i.TempRegister(0));
+        __ MaybeJumpIfReadOnlyOrSmallSmi(value, ool->exit());
+        __ JumpIfNotSmi(value, ool->entry());
+        __ bind(ool->exit());
+      }
 
       if (arch_opcode == kArchStoreSkippedWriteBarrier) {
         EmitTSANAwareStore(zone(), this, masm(), operand, value, i,

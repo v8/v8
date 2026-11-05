@@ -1142,11 +1142,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
 
       DCHECK(v8_flags.verify_write_barriers);
-      Register scratch = i.TempRegister(0);
-      auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
-          this, object, value, scratch, &unwinding_info_writer_);
-      __ JumpIfNotSmi(value, ool->entry());
-      __ bind(ool->exit());
+      if (CheckSmiField::decode(instr->opcode())) {
+        Condition is_smi = __ CheckSmi(value);
+        __ Check(is_smi, AbortReason::kTaggedSignedNotSmi);
+      } else {
+        Register scratch = i.TempRegister(0);
+        auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
+            this, object, value, scratch, &unwinding_info_writer_);
+        __ JumpIfNotSmi(value, ool->entry());
+        __ bind(ool->exit());
+      }
 
       if (addressing_mode == kMode_Offset_RI) {
         int32_t immediate = i.InputInt32(1);
