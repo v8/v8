@@ -1774,27 +1774,96 @@ void MacroAssembler::Vmove(VRegister dst, VRegister src) {
   if (dst != src) vaddi_bu(dst, src, 0);
 }
 
+void MacroAssembler::AdjustBaseAndOffsetVldrepl(
+    MemOperand* src, LSXSize sz, UseScratchRegisterScope& temps) {
+  bool fit = false;
+  if (!src->hasIndexReg()) {
+    int32_t offset = src->offset();
+    switch (sz) {
+      case LSX_B:
+        fit = is_int12(offset);
+        break;
+      case LSX_H:
+        fit = offset % 2 == 0 && is_int11(offset / 2);
+        break;
+      case LSX_W:
+        fit = offset % 4 == 0 && is_int10(offset / 4);
+        break;
+      case LSX_D:
+        fit = offset % 8 == 0 && is_int9(offset / 8);
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+  if (fit) return;
+
+  Register scratch = temps.Acquire();
+  if (src->hasIndexReg()) {
+    Add_d(scratch, src->base(), src->index());
+    if (src->offset() != 0) {
+      Add_d(scratch, scratch, Operand(src->offset()));
+    }
+  } else {
+    Add_d(scratch, src->base(), Operand(src->offset()));
+  }
+  *src = MemOperand(scratch, 0);
+}
+
+void MacroAssembler::Vldrepl_b(VRegister vd, const MemOperand& src,
+                               int* trap_pc) {
+  UseScratchRegisterScope temps(this);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  MemOperand source = src;
+  AdjustBaseAndOffsetVldrepl(&source, LSX_B, temps);
+  if (trap_pc != NULL) *trap_pc = pc_offset();
+  vldrepl_b(vd, source.base(), source.offset());
+}
+
+void MacroAssembler::Vldrepl_h(VRegister vd, const MemOperand& src,
+                               int* trap_pc) {
+  UseScratchRegisterScope temps(this);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  MemOperand source = src;
+  AdjustBaseAndOffsetVldrepl(&source, LSX_H, temps);
+  if (trap_pc != NULL) *trap_pc = pc_offset();
+  vldrepl_h(vd, source.base(), source.offset());
+}
+
+void MacroAssembler::Vldrepl_w(VRegister vd, const MemOperand& src,
+                               int* trap_pc) {
+  UseScratchRegisterScope temps(this);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  MemOperand source = src;
+  AdjustBaseAndOffsetVldrepl(&source, LSX_W, temps);
+  if (trap_pc != NULL) *trap_pc = pc_offset();
+  vldrepl_w(vd, source.base(), source.offset());
+}
+
+void MacroAssembler::Vldrepl_d(VRegister vd, const MemOperand& src,
+                               int* trap_pc) {
+  UseScratchRegisterScope temps(this);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  MemOperand source = src;
+  AdjustBaseAndOffsetVldrepl(&source, LSX_D, temps);
+  if (trap_pc != NULL) *trap_pc = pc_offset();
+  vldrepl_d(vd, source.base(), source.offset());
+}
+
 void MacroAssembler::LoadSplat(LSXSize sz, VRegister dst, MemOperand src,
                                int* trap_pc) {
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
   switch (sz) {
     case LSX_B:
-      Ld_b(scratch, src, trap_pc);
-      vreplgr2vr_b(dst, scratch);
+      Vldrepl_b(dst, src, trap_pc);
       break;
     case LSX_H:
-      Ld_h(scratch, src, trap_pc);
-      vreplgr2vr_h(dst, scratch);
+      Vldrepl_h(dst, src, trap_pc);
       break;
     case LSX_W:
-      Ld_w(scratch, src, trap_pc);
-      vreplgr2vr_w(dst, scratch);
+      Vldrepl_w(dst, src, trap_pc);
       break;
     case LSX_D:
-      Ld_d(scratch, src, trap_pc);
-      vreplgr2vr_d(dst, scratch);
+      Vldrepl_d(dst, src, trap_pc);
       break;
     default:
       UNREACHABLE();

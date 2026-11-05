@@ -958,6 +958,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // LSX
   void Vst(VRegister vd, const MemOperand& vj, int* trap_pc = NULL);
   void Vld(VRegister vd, const MemOperand& vj, int* trap_pc = NULL);
+  void Vldrepl_b(VRegister vd, const MemOperand& src, int* trap_pc = NULL);
+  void Vldrepl_h(VRegister vd, const MemOperand& src, int* trap_pc = NULL);
+  void Vldrepl_w(VRegister vd, const MemOperand& src, int* trap_pc = NULL);
+  void Vldrepl_d(VRegister vd, const MemOperand& src, int* trap_pc = NULL);
   void Vmove(VRegister dst, VRegister src);
   void LoadSplat(LSXSize, VRegister dst, MemOperand src, int* trap_pc = NULL);
   void ExtAddPairwise(LSXDataType type, VRegister dst, VRegister src);
@@ -1504,6 +1508,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Push a fixed frame, consisting of ra, fp.
   void PushCommonFrame(Register marker_reg = no_reg);
+
+  // Adjusts MemOperand for VLDREPL.[BHWD].
+  void AdjustBaseAndOffsetVldrepl(MemOperand* src, LSXSize sz,
+                                  UseScratchRegisterScope& temps);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MacroAssembler);
 };

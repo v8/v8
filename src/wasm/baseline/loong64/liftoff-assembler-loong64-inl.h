@@ -2494,19 +2494,9 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
     }
   } else {
     DCHECK_EQ(LoadTransformationKind::kSplat, transform);
-    if (memtype == MachineType::Int8()) {
-      Ld_b(scratch, src_op, reinterpret_cast<int*>(trapping_load_pc));
-      vreplgr2vr_b(dstReg, scratch);
-    } else if (memtype == MachineType::Int16()) {
-      Ld_h(scratch, src_op, reinterpret_cast<int*>(trapping_load_pc));
-      vreplgr2vr_h(dstReg, scratch);
-    } else if (memtype == MachineType::Int32()) {
-      Ld_w(scratch, src_op, reinterpret_cast<int*>(trapping_load_pc));
-      vreplgr2vr_w(dstReg, scratch);
-    } else if (memtype == MachineType::Int64()) {
-      Ld_d(scratch, src_op, reinterpret_cast<int*>(trapping_load_pc));
-      vreplgr2vr_d(dstReg, scratch);
-    }
+    MacroAssembler::LoadSplat(
+        LoadStoreLaneParams(memtype.representation(), 0).sz, dstReg, src_op,
+        reinterpret_cast<int*>(trapping_load_pc));
   }
 }
 
