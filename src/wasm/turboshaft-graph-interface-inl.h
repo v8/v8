@@ -64,44 +64,20 @@ auto WasmGraphBuilderBase<Assembler>::BuildChangeInt64ToBigInt(
 
 template <typename Assembler>
 auto WasmGraphBuilderBase<Assembler>::BuildImportedFunctionTargetAndImplicitArg(
-    ConstOrV<Word32> func_index,
-    V<WasmTrustedInstanceData> trusted_instance_data)
+    uint32_t func_index, V<WasmTrustedInstanceData> trusted_instance_data)
     -> std::pair<V<Word32>, V<HeapObject>> {
   V<WasmDispatchTableForImports> dispatch_table =
       LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(trusted_instance_data,
                                               DispatchTableForImports,
                                               WasmDispatchTableForImports);
-  // Handle constant indexes specially to reduce graph size, even though later
-  // optimization would optimize this to the same result.
-  if (func_index.is_constant()) {
-    int offset =
-        WasmDispatchTableForImports::OffsetOf(func_index.constant_value());
-    V<Word32> target =
-        __ Load(dispatch_table, LoadOp::Kind::TaggedBase(),
-                MemoryRepresentation::Uint32(),
-                offset + WasmDispatchTableForImports::kTargetBias);
-    V<ExposedTrustedObject> implicit_arg =
-        V<ExposedTrustedObject>::Cast(__ LoadProtectedPointerField(
-            dispatch_table, LoadOp::Kind::TaggedBase(),
-            offset + WasmDispatchTableForImports::kImplicitArgBias));
-    return {target, implicit_arg};
-  }
-
-  V<WordPtr> dispatch_table_entry_offset =
-      __ WordPtrMul(__ ChangeUint32ToUintPtr(func_index.value()),
-                    WasmDispatchTableForImports::kEntrySize);
-  V<Word32> target =
-      __ Load(dispatch_table, dispatch_table_entry_offset,
-              LoadOp::Kind::TaggedBase(), MemoryRepresentation::Uint32(),
-              WasmDispatchTableForImports::kEntriesOffset +
-                  WasmDispatchTableForImports::kTargetBias);
+  int offset = WasmDispatchTableForImports::OffsetOf(func_index);
+  V<Word32> target = __ Load(dispatch_table, LoadOp::Kind::TaggedBase(),
+                             MemoryRepresentation::Uint32(),
+                             offset + WasmDispatchTableForImports::kTargetBias);
   V<ExposedTrustedObject> implicit_arg =
       V<ExposedTrustedObject>::Cast(__ LoadProtectedPointerField(
-          dispatch_table, dispatch_table_entry_offset,
-          LoadOp::Kind::TaggedBase(),
-          WasmDispatchTableForImports::kEntriesOffset +
-              WasmDispatchTableForImports::kImplicitArgBias,
-          0));
+          dispatch_table, LoadOp::Kind::TaggedBase(),
+          offset + WasmDispatchTableForImports::kImplicitArgBias));
   return {target, implicit_arg};
 }
 
