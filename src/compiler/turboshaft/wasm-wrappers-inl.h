@@ -336,8 +336,31 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapper(
     return OpIndex::Invalid();
   }
 
-  // Convert JS parameters to wasm numbers using the default transformation
-  // and build the call.
+  // For standalone wrappers (shared across all exported functions with the same
+  // signature), resolve `WasmInternalFunction` through `js_closure`
+  // (`js_closure -> SharedFunctionInfo -> WasmExportedFunctionData ->
+  // WasmInternalFunction`) before converting JS parameters. Emitting this
+  // dependent load chain (including the `TrustedPointerTable` lookup) before
+  // parameter conversion lets its latency overlap with conversion work while
+  // keeping only a single `internal` pointer live across conversion builtin
+  // calls (whereas hoisting `(target, implicit_arg)` would spill two values per
+  // builtin call). All loaded fields are write-once, so hoisting across user JS
+  // (`valueOf` / `toString`) is safe.
+  OptionalV<WasmInternalFunction> internal;
+  if (!is_inlining_into_js_) {
+    DCHECK(js_closure.valid());
+    V<SharedFunctionInfo> sfi = LoadSharedFunctionInfo(js_closure);
+    V<WasmFunctionData> function_data =
+        V<WasmFunctionData>::Cast(__ LoadTrustedPointer(
+            sfi, LoadOp::Kind::TaggedBase().Immutable(),
+            kWasmExportedFunctionDataTrustedPointerTag,
+            offsetof(SharedFunctionInfo, trusted_function_data_)));
+    internal = V<WasmInternalFunction>::Cast(__ LoadProtectedPointerField(
+        function_data, LoadOp::Kind::TaggedBase().Immutable(),
+        offsetof(WasmFunctionData, protected_internal_)));
+  }
+
+  // Convert JS parameters to Wasm values.
   const int args_count = wasm_param_count + /* instance_data */ 1;
   base::SmallVector<OpIndex, 16> args(args_count);
   for (int i = 0; i < wasm_param_count; ++i) {
@@ -372,34 +395,17 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapper(
     }
   }
 
-  // If the wasm function was not inlined, we need to call it.
+  // If the Wasm function was not inlined, we need to call it. Even when we
+  // don't inline the Wasm body, we may be inlining the wrapper. In that case,
+  // the target Wasm function is statically known, so we can bake in its call
+  // target and `implicit_arg` as constants instead of loading them through the
+  // JS closure at runtime.
   if (!inlining_result.success) {
-    V<Word32> target;
-    V<ExposedTrustedObject> implicit_arg;
-    if (is_inlining_into_js_) {
-      // When inlining into JS, the target Wasm function is statically known, so
-      // bake in its call target and `implicit_arg` as constants instead of
-      // loading them through the JS closure at runtime.
-      std::tie(target, implicit_arg) =
-          this->BuildFunctionTargetAndImplicitArg(inlined_internal_function);
-    } else {
-      // Standalone compiled wrappers are shared across exported Wasm functions
-      // with the same signature, so load `WasmInternalFunction` from the
-      // `js_closure` parameter at runtime.
-      DCHECK(js_closure.valid());
-      V<SharedFunctionInfo> sfi = LoadSharedFunctionInfo(js_closure);
-      V<WasmFunctionData> function_data =
-          V<WasmFunctionData>::Cast(__ LoadTrustedPointer(
-              sfi, LoadOp::Kind::TaggedBase().Immutable(),
-              kWasmExportedFunctionDataTrustedPointerTag,
-              offsetof(SharedFunctionInfo, trusted_function_data_)));
-      V<WasmInternalFunction> internal =
-          V<WasmInternalFunction>::Cast(__ LoadProtectedPointerField(
-              function_data, LoadOp::Kind::TaggedBase().Immutable(),
-              offsetof(WasmFunctionData, protected_internal_)));
-      std::tie(target, implicit_arg) =
-          this->BuildFunctionTargetAndImplicitArg(internal);
-    }
+    DCHECK_EQ(is_inlining_into_js_, !internal.has_value());
+    auto [target, implicit_arg] =
+        is_inlining_into_js_
+            ? this->BuildFunctionTargetAndImplicitArg(inlined_internal_function)
+            : this->BuildFunctionTargetAndImplicitArg(internal.value());
     args[0] = implicit_arg;
     BuildCallWasmFromWrapper(__ phase_zone(), sig_, target, VectorOf(args),
                              base::VectorOf(returns), lazy_frame_state,
