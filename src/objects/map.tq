@@ -144,3 +144,4 @@ macro IsSimpleObjectMap(map: Map): bool {
 }
 
 extern macro IsSpecialReceiverInstanceType(InstanceType): bool;
+extern macro BelongsToSameNativeContextAs(Map, Context): bool;

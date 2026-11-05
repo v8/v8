@@ -2290,6 +2290,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                   const Function& materialize_target,
                                   bool target_is_new);
 
+  TNode<BoolT> BelongsToSameNativeContextAs(TNode<Map> map,
+                                            TNode<Context> context);
   TNode<NativeContext> GetCreationContextFromMap(TNode<Map> map,
                                                  Label* if_bailout);
   TNode<NativeContext> GetCreationContext(TNode<JSReceiver> receiver,
