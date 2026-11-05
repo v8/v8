@@ -38,6 +38,7 @@
 #include <stdio.h>
 
 #include <memory>
+#include <optional>
 #include <set>
 
 #include "src/codegen/assembler.h"
@@ -84,7 +85,7 @@ class Operand {
   V8_INLINE explicit Operand(intptr_t immediate,
                              RelocInfo::Mode rmode = RelocInfo::NO_INFO)
       : rm_(no_reg), rmode_(rmode) {
-    value_.immediate = immediate;
+    immediate_ = immediate;
   }
 
   V8_INLINE explicit Operand(Tagged<Smi> value)
@@ -92,7 +93,7 @@ class Operand {
 
   V8_INLINE explicit Operand(const ExternalReference& f)
       : rm_(no_reg), rmode_(RelocInfo::EXTERNAL_REFERENCE) {
-    value_.immediate = static_cast<intptr_t>(f.address());
+    immediate_ = static_cast<intptr_t>(f.address());
   }
 
   explicit Operand(Handle<HeapObject> handle,
@@ -106,30 +107,37 @@ class Operand {
   // Return true if this is a register operand.
   V8_INLINE bool is_reg() const { return rm_.is_valid(); }
 
+  // Heap-number requests do not refer to a real, relocatable handle location.
+  // They are patched into the constant pool after it has been emitted (see
+  // Assembler::PatchInHeapNumberRequest), so there is no meaningful immediate
+  // to return here. Returning 0 makes callers construct a null handle, which
+  // AssemblerBase::AddEmbeddedObject deliberately does not deduplicate.
   inline intptr_t immediate_for_heap_number_request() const {
     DCHECK(rmode() == RelocInfo::FULL_EMBEDDED_OBJECT);
-    return value_.immediate;
+    DCHECK(IsHeapNumberRequest());
+    DCHECK_EQ(immediate_, 0);
+    return immediate_;
   }
 
   inline intptr_t immediate() const {
     DCHECK(!is_reg());
     DCHECK(!IsHeapNumberRequest());
-    return value_.immediate;
+    return immediate_;
   }
 
   bool IsImmediate() const { return !rm_.is_valid(); }
 
   HeapNumberRequest heap_number_request() const {
     DCHECK(IsHeapNumberRequest());
-    return value_.heap_number_request;
+    return *heap_number_request_;
   }
 
   bool IsHeapNumberRequest() const {
-    DCHECK_IMPLIES(is_heap_number_request_, IsImmediate());
-    DCHECK_IMPLIES(is_heap_number_request_,
+    DCHECK_IMPLIES(heap_number_request_.has_value(), IsImmediate());
+    DCHECK_IMPLIES(heap_number_request_.has_value(),
                    rmode_ == RelocInfo::FULL_EMBEDDED_OBJECT ||
                        rmode_ == RelocInfo::CODE_TARGET);
-    return is_heap_number_request_;
+    return heap_number_request_.has_value();
   }
 
   Register rm() const { return rm_; }
@@ -138,12 +146,10 @@ class Operand {
 
  private:
   Register rm_;
-  union Value {
-    Value() {}
-    HeapNumberRequest heap_number_request;  // if is_heap_number_request_
-    intptr_t immediate;                     // otherwise
-  } value_;                                 // valid if rm_ == no_reg
-  bool is_heap_number_request_ = false;
+  intptr_t immediate_ = 0;  // valid if rm_ == no_reg
+  // Kept out of the immediate union so that a request's double payload can
+  // never be mistaken for a handle location.
+  std::optional<HeapNumberRequest> heap_number_request_;
   RelocInfo::Mode rmode_;
 
   friend class Assembler;

@@ -214,15 +214,15 @@ uint32_t RelocInfo::wasm_call_tag() const {
 Operand::Operand(Handle<HeapObject> handle, RelocInfo::Mode rmode)
     : rm_(no_reg), rmode_(rmode) {
   DCHECK(RelocInfo::IsEmbeddedObjectMode(rmode) || RelocInfo::IsNoInfo(rmode));
-  value_.immediate = static_cast<intptr_t>(handle.address());
+  immediate_ = static_cast<intptr_t>(handle.address());
 }
 
 Operand Operand::EmbeddedNumber(double value) {
   int32_t smi;
   if (DoubleToSmiInteger(value, &smi)) return Operand(Smi::FromInt(smi));
   Operand result(0, RelocInfo::FULL_EMBEDDED_OBJECT);
-  result.is_heap_number_request_ = true;
-  result.value_.heap_number_request = HeapNumberRequest(value);
+  result.heap_number_request_.emplace(value);
+  DCHECK(result.IsHeapNumberRequest());
   return result;
 }
 

@@ -2623,14 +2623,19 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
 #endif
       return;
     } else if (RelocInfo::IsFullEmbeddedObject(j.rmode())) {
+      Handle<HeapObject> handle;
       if (j.IsHeapNumberRequest()) {
         RequestHeapNumber(j.heap_number_request());
-        immediate = j.immediate_for_heap_number_request();
+        // Heap-number requests have no real handle location. Leave `handle`
+        // null so that AddEmbeddedObject skips handle-based deduplication (the
+        // pool slot is filled in later by PatchInHeapNumberRequest). Also keep
+        // the immediate at zero instead of exposing the request's double bits.
+        immediate = 0;
       } else {
         immediate = j.immediate();
+        handle = Handle<HeapObject>(reinterpret_cast<Address*>(immediate));
       }
 #if V8_TARGET_ARCH_RISCV64
-      Handle<HeapObject> handle(reinterpret_cast<Address*>(immediate));
       EmbeddedObjectIndex index = AddEmbeddedObject(handle);
       if (RecordEntry64(index, j.rmode()) == RelocInfoStatus::kMustRecord) {
         RecordRelocInfo(j.rmode(), index);
