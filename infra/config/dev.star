@@ -127,8 +127,9 @@ luci.builder(
     swarming_host = "chromium-swarm-dev.appspot.com",
     swarming_tags = ["vpython:native-python-wrapper"],
     dimensions = {
-        "cores": "1",
+        "cpu": "x86-64",
         "os": "Ubuntu-22.04",
+        "pool": "luci.chromium.ci",
     },
     executable = "recipe:v8",
     properties = {
