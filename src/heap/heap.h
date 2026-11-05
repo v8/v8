@@ -280,7 +280,7 @@ static constexpr v8::base::TimeDelta kMaxSynchronuousGCOperation =
 
 class Heap final {
  public:
-  using HeapGrowingMode = HeapGrowingMode;
+  using HeapGrowingMode = ::v8::internal::HeapGrowingMode;
 
   enum HeapState {
     NOT_IN_GC,
