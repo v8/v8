@@ -264,6 +264,7 @@
   'debugger/set-breakpoint-at-last-line': [SKIP],
   'debugger/set-breakpoint-breaks-on-first-breakable-location': [SKIP],
   'heap-profiler/collect-garbage' : [SKIP],
+  'debugger/regress-532099983': [SKIP],
   'runtime/context-destroyed-on-context-collected': [SKIP],
   'runtime/evaluate-async': [SKIP],
   'runtime/internal-properties-entries': [SKIP],
@@ -279,6 +280,11 @@
   'debugger/wasm-source': [SKIP],
   'debugger/wasm-stepping-with-skiplist': [SKIP],
 }], # stress_js_bg_compile_wasm_code_gc
+
+##############################################################################
+['variant == always_sparkplug or variant == always_sparkplug_and_stress_regexp_jit', {
+  'debugger/regress-532099983': [SKIP],
+}],  # variant == always_sparkplug or variant == always_sparkplug_and_stress_regexp_jit
 
 ##############################################################################
 ['variant == stress_concurrent_allocation', {

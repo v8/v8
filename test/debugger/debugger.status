@@ -39,14 +39,11 @@
   'debug/es8/async-debug-caught-exception-cases2': [SKIP],
   'debug/es8/async-debug-caught-exception-cases3': [SKIP],
 
-  # b/532099983: too many allocations under GC stress
-  'debug/side-effect/regress-532099983': [SKIP],
 }],  # 'gc_stress == True'
 
 ##############################################################################
 ['gc_fuzzer', {
   # Slow tests.
-  'debug/side-effect/regress-532099983': [SKIP],
 }],  # 'gc_fuzzer'
 
 ##############################################################################
@@ -89,10 +86,5 @@
 ['variant == stress_snapshot', {
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],
-
-################################################################################
-['variant == always_sparkplug or variant == always_sparkplug_and_stress_regexp_jit', {
-  'debug/side-effect/regress-532099983': [SKIP],
-}],  # variant == always_sparkplug or variant == always_sparkplug_and_stress_regexp_jit
 
 ]
