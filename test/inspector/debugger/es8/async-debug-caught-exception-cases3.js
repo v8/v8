@@ -1,18 +1,13 @@
-// Copyright 2016 the V8 project authors. All rights reserved.
+// Copyright 2026 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --ignore-unhandled-promises
+// Flags: --ignore-unhandled-promises --allow-natives-syntax
 
-Debug = debug.Debug
+let {session, contextGroup, Protocol} =
+    InspectorTest.start('Tests async debug caught exception cases 3.');
 
-let events = 0;
-
-function listener(event, exec_state, event_data, data) {
-  if (event != Debug.DebugEvent.Exception) return;
-  events++;
-}
-
+const source = `
 async function thrower() {
   throw "a";  // Exception a
 }
@@ -193,31 +188,58 @@ for (let producer of throws) {
   }
 }
 
-
-function runPart(n) {
+function getSubcases(n) {
   let subcases = cases.slice(n * cases.length / 4,
                              ((n + 1) * cases.length) / 4);
-  for (let {producer, consumer, expectedEvents, caught} of subcases) {
-    Debug.setListener(listener);
-    if (caught) {
-      Debug.setBreakOnException();
-    } else {
-      Debug.setBreakOnUncaughtException();
-    }
+  let start = Math.floor(n * cases.length / 4);
+  return subcases.map((c, idx) => ({
+    index: start + idx,
+    expectedEvents: c.expectedEvents,
+    caught: c.caught,
+    producerName: c.producer.name || 'anonymous',
+    consumerName: c.consumer.name || 'anonymous'
+  }));
+}
 
+function runCase(i) {
+  let {producer, consumer} = cases[i];
+  consumer(producer);
+  %PerformMicrotaskCheckpoint();
+}
+`;
+
+contextGroup.addScript(source, 0, 0, 'test.js');
+
+async function runPart(n) {
+  let events = 0;
+  Protocol.Debugger.onPaused(async () => {
+    events++;
+    await Protocol.Debugger.resume();
+  });
+
+  let {result: {result: {value: subcases}}} = await Protocol.Runtime.evaluate(
+      {expression: `getSubcases(${n})`, returnByValue: true});
+
+  for (let subcase of subcases) {
+    await Protocol.Debugger.setPauseOnExceptions(
+        {state: subcase.caught ? 'all' : 'uncaught'});
     events = 0;
-    consumer(producer);
-    %PerformMicrotaskCheckpoint();
-
-    Debug.setListener(null);
-    if (caught) {
-      Debug.clearBreakOnException();
-    } else {
-      Debug.clearBreakOnUncaughtException();
-    }
-    if (expectedEvents != events) {
-      %AbortJS(`producer ${producer} consumer ${consumer} expectedEvents ` +
-               `${expectedEvents} caught ${caught} events ${events}`);
+    await Protocol.Runtime.evaluate({expression: `runCase(${subcase.index})`});
+    await Protocol.Debugger.setPauseOnExceptions({state: 'none'});
+    if (subcase.expectedEvents !== events) {
+      InspectorTest.log(`FAIL at case ${subcase.index}: producer ${
+          subcase.producerName} consumer ${
+          subcase.consumerName} expectedEvents ${
+          subcase.expectedEvents} caught ${subcase.caught} events ${events}`);
     }
   }
+
+  InspectorTest.log(`Part ${n} finished.`);
 }
+
+(async function test() {
+  await Protocol.Debugger.enable();
+  await runPart(3);
+  await Protocol.Debugger.disable();
+  InspectorTest.completeTest();
+})();

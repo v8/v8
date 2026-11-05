@@ -252,6 +252,10 @@
   # Skip tests that fail with GC stress: https://crbug.com/v8/10748
   'cpu-profiler/coverage': [SKIP],
   'cpu-profiler/coverage-block': [SKIP],
+  'debugger/es8/async-debug-caught-exception-cases0': [SKIP],
+  'debugger/es8/async-debug-caught-exception-cases1': [SKIP],
+  'debugger/es8/async-debug-caught-exception-cases2': [SKIP],
+  'debugger/es8/async-debug-caught-exception-cases3': [SKIP],
   'debugger/get-possible-breakpoints': [SKIP],
   'debugger/get-possible-breakpoints-array-literal': [SKIP],
   'debugger/get-possible-breakpoints-main': [SKIP],
