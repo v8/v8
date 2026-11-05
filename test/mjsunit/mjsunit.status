@@ -3374,6 +3374,7 @@
 
   # Tests that require the sampler/profiler, which doesn't work on older kernel
   # versions if hardware sandboxing is active. See https://crbug.com/429173713.
+  'compiler/regress-577269348': [SKIP],
   'regress/regress-381390367': [SKIP],
   'regress-332570754': [SKIP],
   'regress/regress-490446682': [SKIP],
