@@ -4,12 +4,6 @@
 
 #include "src/snapshot/code-serializer.h"
 
-// OpenSSL 3.0+ deprecates the low-level SHA256_Init/Update/Final API, which
-// remains the standard streaming SHA-256 interface in BoringSSL. Suppress the
-// deprecation warning when building against OpenSSL (e.g. in Node.js).
-#define OPENSSL_SUPPRESS_DEPRECATED
-#include <openssl/sha.h>
-
 #include <algorithm>
 #include <memory>
 
@@ -886,21 +880,21 @@ SerializedCodeData::SourceHash SerializedCodeData::GetHeaderSourceHash() const {
 
 namespace {
 
-void HashString(SHA256_CTX* ctx, Isolate* isolate,
+void HashString(LITE_SHA256_CTX* ctx, Isolate* isolate,
                 DirectHandle<String> string) {
   string = String::Flatten(isolate, string);
   DisallowGarbageCollection no_gc;
   uint32_t length = string->length();
-  SHA256_Update(ctx, &length, sizeof(length));
+  SHA256_update(ctx, &length, sizeof(length));
   SharedStringAccessGuardIfNeeded access_guard(isolate);
   String::FlatContent flat = string->GetFlatContent(no_gc, access_guard);
   if (flat.IsOneByte()) {
     base::Vector<const uint8_t> chars = flat.ToOneByteVector();
-    SHA256_Update(ctx, chars.begin(), chars.length());
+    SHA256_update(ctx, chars.begin(), chars.length());
   } else {
     DCHECK(flat.IsTwoByte());
     base::Vector<const base::uc16> chars = flat.ToUC16Vector();
-    SHA256_Update(ctx, chars.begin(), chars.length() * sizeof(base::uc16));
+    SHA256_update(ctx, chars.begin(), chars.length() * sizeof(base::uc16));
   }
 }
 
@@ -910,8 +904,8 @@ SerializedCodeData::SourceHash::SourceHash(
     DirectHandle<String> source, DirectHandle<FixedArray> wrapped_arguments,
     ScriptOriginOptions origin_options, Isolate* isolate) {
   if (v8_flags.code_cache_source_hash_sha256) {
-    SHA256_CTX ctx;
-    SHA256_Init(&ctx);
+    LITE_SHA256_CTX ctx;
+    SHA256_init(&ctx);
 
     // Hash compilation-affecting metadata bits into the SHA-256 context.
     // Only IsModule() in ScriptOriginOptions affects how JS source text is
@@ -919,7 +913,7 @@ SerializedCodeData::SourceHash::SourceHash(
     uint8_t flags = 0;
     if (!wrapped_arguments.is_null()) flags |= 1;
     if (origin_options.IsModule()) flags |= 2;
-    SHA256_Update(&ctx, &flags, sizeof(flags));
+    SHA256_update(&ctx, &flags, sizeof(flags));
 
     // For CompileFunction, wrapped_arguments holds the parameter names (while
     // source only holds the function body). Hash the argument count and each
@@ -927,7 +921,7 @@ SerializedCodeData::SourceHash::SourceHash(
     // cache.
     if (!wrapped_arguments.is_null()) {
       uint32_t argc = wrapped_arguments->ulength().value();
-      SHA256_Update(&ctx, &argc, sizeof(argc));
+      SHA256_update(&ctx, &argc, sizeof(argc));
       for (uint32_t i = 0; i < argc; ++i) {
         DirectHandle<String> arg(Cast<String>(wrapped_arguments->get(i)),
                                  isolate);
@@ -937,7 +931,8 @@ SerializedCodeData::SourceHash::SourceHash(
 
     HashString(&ctx, isolate, source);
 
-    SHA256_Final(data_.data(), &ctx);
+    const uint8_t* digest = SHA256_final(&ctx);
+    std::copy_n(digest, kSizeOfSha256Digest, data_.data());
   } else {
     data_.fill(0);
     using LengthField = base::BitField<uint32_t, 0, 29>;
