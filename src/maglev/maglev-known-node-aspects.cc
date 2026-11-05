@@ -249,6 +249,11 @@ void NodeInfo::TraceSetPossibleMaps(const KnownNodeAspects& known_node_aspects,
   std::cout << std::endl;
 }
 
+// Note: `KnaMap::CanSkipSharedRange` skips shared roots and leaves during
+// `DestructivelyIntersect` based on the survival and side-effect invariants of
+// the merge callbacks below; keep `CanSkipSharedRange` in sync if these
+// callbacks change.
+// LINT.IfChange(KnaMergeSkipShared)
 void KnownNodeAspects::Merge(const KnownNodeAspects& other, Zone* zone) {
   bool side_effects_require_invalidation = false;
   DestructivelyIntersect(
@@ -301,6 +306,7 @@ void KnownNodeAspects::Merge(const KnownNodeAspects& other, Zone* zone) {
       may_have_aliasing_contexts_, other.may_have_aliasing_contexts());
   DestructivelyIntersect(loaded_context_slots_, other.loaded_context_slots_);
 }
+// LINT.ThenChange(maglev-kna-map.h:KnaMergeSkipShared)
 
 // Loop-header variant of Merge. The forward (LHS) predecessor dominates the
 // loop body, so its facts hold throughout the loop: keep them instead of

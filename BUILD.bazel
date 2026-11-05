@@ -171,6 +171,11 @@ v8_flag(
 )
 
 v8_flag(
+    name = "v8_enable_maglev_kna_btree",
+    default = False,
+)
+
+v8_flag(
     name = "v8_enable_undefined_double",
     default = True,
 )
@@ -579,6 +584,7 @@ v8_config(
         "v8_jitless": "V8_JITLESS",
         "v8_enable_vtunejit": "ENABLE_VTUNE_JIT_INTERFACE",
         "v8_enable_undefined_double": "V8_ENABLE_UNDEFINED_DOUBLE",
+        "v8_enable_maglev_kna_btree": "V8_ENABLE_MAGLEV_KNA_BTREE",
         "v8_use_host_cpu_arm_features": "V8_USE_HOST_CPU_ARM_FEATURES",
         "v8_x64_16byte_stack_alignment": "V8_X64_16BYTE_STACK_ALIGNMENT",
         "v8_support_la57": "V8_SUPPORT_LA57",

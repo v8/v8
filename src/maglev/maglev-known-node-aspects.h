@@ -190,6 +190,8 @@ class NodeInfo {
 
     bool has_none() const { return store_ == AlternativeNodes().store_; }
 
+    bool operator==(const AlternativeNodes&) const = default;
+
     void MergeWith(const AlternativeNodes& other) {
       for (size_t i = 0; i < Kind::kNumberOfAlternatives; ++i) {
         if (store_[i] && store_[i] != other.store_[i]) {
@@ -351,6 +353,8 @@ class NodeInfo {
   // dependencies when transitioning.)
   bool any_map_is_unstable() const { return any_map_is_unstable_; }
 
+  bool operator==(const NodeInfo&) const = default;
+
  private:
   NodeType type_ = NodeType::kUnknown;
 
@@ -371,6 +375,7 @@ class KnownNodeAspects {
   struct AvailableExpression {
     NodeBase* node;
     uint32_t effect_epoch;
+    bool operator==(const AvailableExpression&) const = default;
   };
   using AvailableExpressionsMap = KnaMap<uint32_t, AvailableExpression>;
   using TaggedKeyedPropertiesMap =

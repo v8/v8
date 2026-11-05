@@ -492,6 +492,10 @@ declare_args() {
   # Sets -DV8_ENABLE_MAGLEV_GRAPH_PRINTER.
   v8_enable_maglev_graph_printer = !build_with_chromium
 
+  # Use a Copy-on-Write B+Tree map in Maglev KnownNodeAspects.
+  # Sets -DV8_ENABLE_MAGLEV_KNA_BTREE.
+  v8_enable_maglev_kna_btree = false
+
   # Enable slow tracing, e.g., tracing on every instruction or Turbofan node.
   # Sets -DV8_ENABLE_SLOW_TRACING.
   v8_enable_slow_tracing = is_debug
@@ -1698,6 +1702,9 @@ config("features") {
   }
   if (v8_enable_maglev_graph_printer) {
     defines += [ "V8_ENABLE_MAGLEV_GRAPH_PRINTER" ]
+  }
+  if (v8_enable_maglev_kna_btree) {
+    defines += [ "V8_ENABLE_MAGLEV_KNA_BTREE" ]
   }
   if (v8_enable_slow_tracing) {
     defines += [ "V8_ENABLE_SLOW_TRACING" ]
