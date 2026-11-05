@@ -1062,10 +1062,16 @@ Response V8DebuggerAgentImpl::continueToLocation(
   m_skipList.clear();
   v8::HandleScope handleScope(m_isolate);
   v8::Context::Scope contextScope(inspected->context());
-  return m_debugger->continueToLocation(
+  bool wasInstrumentationFinished = m_instrumentationFinished;
+  m_instrumentationFinished = true;
+  Response response = m_debugger->continueToLocation(
       m_session->contextGroupId(), script.get(), std::move(location),
       targetCallFrames.value_or(
           protocol::Debugger::ContinueToLocation::TargetCallFramesEnum::Any));
+  if (!response.IsSuccess()) {
+    m_instrumentationFinished = wasInstrumentationFinished;
+  }
+  return response;
 }
 
 Response V8DebuggerAgentImpl::getStackTrace(
@@ -1615,6 +1621,7 @@ Response V8DebuggerAgentImpl::stepOver(
   m_enterRanges = std::move(enterRanges);
 
   m_session->releaseObjectGroup(kBacktraceObjectGroup);
+  m_instrumentationFinished = true;
   m_debugger->stepOverStatement(m_session->contextGroupId(),
                                 !m_enterRanges.empty());
   return Response::Success();
@@ -1634,6 +1641,7 @@ Response V8DebuggerAgentImpl::stepInto(
   }
 
   m_session->releaseObjectGroup(kBacktraceObjectGroup);
+  m_instrumentationFinished = true;
   m_debugger->stepIntoStatement(m_session->contextGroupId(),
                                 inBreakOnAsyncCall.value_or(false));
   return Response::Success();
@@ -1643,6 +1651,7 @@ Response V8DebuggerAgentImpl::stepOut() {
   if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
   m_skipList.clear();
   m_session->releaseObjectGroup(kBacktraceObjectGroup);
+  m_instrumentationFinished = true;
   m_debugger->stepOutOfFunction(m_session->contextGroupId());
   return Response::Success();
 }

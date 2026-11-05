@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <functional>
 #include <memory>
 #include <span>
 #include <string>
@@ -1844,5 +1845,156 @@ TEST_F(InspectorTest, GetPropertiesTerminationInAccessorPreview) {
     CHECK_EQ(std::string(*log_utf8), std::string("[\"err1\"]"));
   }
 }
+
+namespace {
+
+StringView Utf8View(const std::string& str) {
+  return StringView(reinterpret_cast<const uint8_t*>(str.data()), str.size());
+}
+
+std::string ViewToUtf8(v8::Isolate* isolate, const StringView& view) {
+  v8::HandleScope handle_scope(isolate);
+  v8::Local<v8::String> str;
+  if (view.is8Bit()) {
+    str = v8::String::NewFromOneByte(isolate, view.characters8(),
+                                     v8::NewStringType::kNormal,
+                                     static_cast<int>(view.length()))
+              .ToLocalChecked();
+  } else {
+    str = v8::String::NewFromTwoByte(isolate, view.characters16(),
+                                     v8::NewStringType::kNormal,
+                                     static_cast<int>(view.length()))
+              .ToLocalChecked();
+  }
+  v8::String::Utf8Value utf8(isolate, str);
+  return std::string(*utf8, utf8.length());
+}
+
+class InstrumentationPauseClient : public v8_inspector::V8InspectorClient,
+                                   public V8Inspector::Channel {
+ public:
+  explicit InstrumentationPauseClient(v8::Isolate* isolate)
+      : isolate_(isolate) {}
+
+  void runMessageLoopOnInstrumentationPause(int contextGroupId) override {
+    entered_count_++;
+    if (on_pause_) {
+      auto callback = std::move(on_pause_);
+      callback();
+    }
+  }
+
+  void quitMessageLoopOnPause() override { quit_count_++; }
+
+  void sendResponse(int callId,
+                    std::unique_ptr<StringBuffer> message) override {
+    if (message) {
+      std::string s = ViewToUtf8(isolate_, message->string());
+      last_response_has_error_ = s.find("\"error\"") != std::string::npos;
+    }
+  }
+
+  void sendNotification(std::unique_ptr<StringBuffer> message) override {
+    if (!message) return;
+    std::string s = ViewToUtf8(isolate_, message->string());
+    if (s.find("Debugger.scriptParsed") == std::string::npos) return;
+    const std::string key = "\"scriptId\":\"";
+    size_t pos = s.find(key);
+    if (pos == std::string::npos) return;
+    size_t start = pos + key.size();
+    size_t end = s.find('"', start);
+    if (end != std::string::npos) {
+      last_script_id_ = s.substr(start, end - start);
+    }
+  }
+
+  void flushProtocolNotifications() override {}
+
+  void set_on_pause(std::function<void()> callback) {
+    on_pause_ = std::move(callback);
+  }
+  int entered_count() const { return entered_count_; }
+  int quit_count() const { return quit_count_; }
+  bool last_response_has_error() const { return last_response_has_error_; }
+  const std::string& last_script_id() const { return last_script_id_; }
+
+ private:
+  v8::Isolate* isolate_;
+  std::function<void()> on_pause_;
+  int entered_count_ = 0;
+  int quit_count_ = 0;
+  bool last_response_has_error_ = false;
+  std::string last_script_id_;
+};
+
+}  // namespace
+
+TEST_F(InspectorTest, SteppingAndContinueToLocationExitInstrumentationPause) {
+  v8::Isolate* isolate = v8_isolate();
+  v8::HandleScope handle_scope(isolate);
+  v8::Local<v8::Context> context = v8_context();
+
+  InstrumentationPauseClient client(isolate);
+  std::unique_ptr<V8Inspector> inspector =
+      V8Inspector::create(isolate, &client);
+  std::unique_ptr<V8InspectorSession> session =
+      inspector->connect(1, &client, StringView(), V8Inspector::kFullyTrusted,
+                         V8Inspector::kNotWaitingForDebugger);
+  inspector->contextCreated(V8ContextInfo(context, 1, StringView()));
+
+  session->dispatchProtocolMessage(
+      Utf8View(R"({"id":1,"method":"Runtime.enable"})"));
+  session->dispatchProtocolMessage(
+      Utf8View(R"({"id":2,"method":"Debugger.enable"})"));
+  session->dispatchProtocolMessage(Utf8View(
+      R"({"id":3,"method":"Debugger.setInstrumentationBreakpoint","params":{"instrumentation":"beforeScriptExecution"}})"));
+
+  client.set_on_pause([&]() {
+    session->dispatchProtocolMessage(
+        Utf8View(R"({"id":10,"method":"Debugger.stepInto"})"));
+  });
+  RunJS("function f1() { return 1; } f1();");
+  EXPECT_EQ(1, client.entered_count());
+  EXPECT_EQ(1, client.quit_count());
+  session->dispatchProtocolMessage(
+      Utf8View(R"({"id":11,"method":"Debugger.resume"})"));
+
+  client.set_on_pause([&]() {
+    session->dispatchProtocolMessage(
+        Utf8View(R"({"id":12,"method":"Debugger.stepOver"})"));
+  });
+  RunJS("function f2() { return 2; } f2();");
+  EXPECT_EQ(2, client.entered_count());
+  EXPECT_EQ(2, client.quit_count());
+  session->dispatchProtocolMessage(
+      Utf8View(R"({"id":13,"method":"Debugger.resume"})"));
+
+  client.set_on_pause([&]() {
+    session->dispatchProtocolMessage(
+        Utf8View(R"({"id":14,"method":"Debugger.stepOut"})"));
+  });
+  RunJS("function f3() { return 3; } f3();");
+  EXPECT_EQ(3, client.entered_count());
+  EXPECT_EQ(3, client.quit_count());
+  session->dispatchProtocolMessage(
+      Utf8View(R"({"id":15,"method":"Debugger.resume"})"));
+
+  client.set_on_pause([&]() {
+    session->dispatchProtocolMessage(Utf8View(
+        R"({"id":16,"method":"Debugger.continueToLocation","params":{"location":{"scriptId":"invalid","lineNumber":0,"columnNumber":0}}})"));
+    EXPECT_TRUE(client.last_response_has_error());
+    EXPECT_EQ(3, client.quit_count());
+
+    std::string cmd =
+        R"({"id":17,"method":"Debugger.continueToLocation","params":{"location":{"scriptId":")" +
+        client.last_script_id() + R"(","lineNumber":0,"columnNumber":14}}})";
+    session->dispatchProtocolMessage(Utf8View(cmd));
+    EXPECT_FALSE(client.last_response_has_error());
+  });
+  RunJS("function f4() { return 4; } f4();");
+  EXPECT_EQ(4, client.entered_count());
+  EXPECT_EQ(4, client.quit_count());
+}
+
 }  // namespace internal
 }  // namespace v8
