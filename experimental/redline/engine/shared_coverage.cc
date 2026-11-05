@@ -215,7 +215,9 @@ bool SharedCoverage::ClaimNewCrashEdges(const uint8_t* bitmap) {
 bool SharedCoverage::RecordFlaky(uint32_t edge, int threshold) {
   std::scoped_lock<std::mutex> lock(flaky_mutex_);
   int count = ++flaky_counts_[edge];
-  if (count == threshold) {
+  // found_edges() counts only the counted edges. Thus only a counted edge can
+  // make coverage_fraction() smaller.
+  if (count == threshold && edge <= counted_edges_) {
     suppressed_.fetch_add(1, std::memory_order_relaxed);
   }
   return count >= threshold;

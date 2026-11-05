@@ -384,6 +384,36 @@ void RunCoverageCounterChecks(Checker* checker) {
     crash({{5, 2}, {100, 1}});
     checker->Check("coverage counters: crash edges ignore bucket features",
                    shared_ok && crash_results == "11 00 11", crash_results);
+    // A flaky feature that is not a counted edge (an optimized code feature
+    // or a bucket feature) does not change coverage_fraction(). The packed
+    // bitmap has 3 counted edges: 8, 12 and 15.
+    SharedCoverage flaky;
+    const bool flaky_ok =
+        flaky.Initialize(map->num_edges(), map->bitmap_size(), &error,
+                         map->counted_edges(), map->real_edges());
+    map->ClearBitmap();
+    counters[8] = 1;
+    counters[12] = 255;
+    counters[15] = 128;
+    counters[99] = 9;
+    map->Refresh();
+    const bool claimed_packed = flaky.ClaimNewEdges(map->bitmap()) == packed;
+    const double denominator = static_cast<double>(map->counted_edges() + 1);
+    flaky.RecordFlaky(99, 1);
+    flaky.RecordFlaky(185, 1);
+    const double three_edges = flaky.coverage_fraction();
+    flaky.RecordFlaky(12, 1);
+    const double two_edges = flaky.coverage_fraction();
+    checker->Check(
+        "coverage counters: only flaky counted edges reduce the coverage",
+        flaky_ok && claimed_packed && flaky.found_edges() == 3 &&
+            flaky.suppressed_flaky_edges() == 1 &&
+            three_edges == 3 / denominator && two_edges == 2 / denominator,
+        StringPrintf(
+            "found %u, suppressed %llu, coverage %g then %g edges",
+            flaky.found_edges(),
+            static_cast<unsigned long long>(flaky.suppressed_flaky_edges()),
+            three_edges * denominator, two_edges * denominator));
     map->ClearBitmap();
     counters[5] = 3;
     counters[50] = 1;

@@ -45,7 +45,8 @@ class SharedCoverage {
   uint32_t found_edges() const {
     return found_edges_.load(std::memory_order_relaxed);
   }
-  // found_edges() / (num_edges() + 1), the ratio Fuzzilli reports.
+  // (found_edges() - suppressed_flaky_edges()) / (counted_edges + 1): the
+  // ratio Fuzzilli reports, without the suppressed flaky edges.
   double coverage_fraction() const;
 
   // Claims every edge set in `bitmap` that nobody claimed before and
@@ -73,6 +74,8 @@ class SharedCoverage {
   // should keep it claimed (so that it stops costing determinism re-runs)
   // instead of releasing it.
   bool RecordFlaky(uint32_t edge, int threshold);
+  // The number of counted edges (1..counted_edges) that reached the flaky
+  // threshold. Like found_edges(), it does not include the other features.
   uint64_t suppressed_flaky_edges() const {
     return suppressed_.load(std::memory_order_relaxed);
   }
