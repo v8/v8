@@ -3710,10 +3710,8 @@ void Shell::ResetIsolateStateForReprl(Isolate* isolate) {
   i_isolate->compilation_cache()->Clear();
   i_isolate->set_force_slow_path(i::v8_flags.force_slow_path);
 
-  // Undo %SetAllocationTimeout.
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
-  i::HeapAllocator::SetAllocationGcInterval(i::v8_flags.gc_interval);
-  i_isolate->heap()->allocator()->UpdateAllocationTimeout();
+  i_isolate->heap()->ResetAllocationTimeouts();
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 #ifdef DEBUG
   if (i::v8_flags.inline_new) {

@@ -298,6 +298,8 @@ class Heap final {
   void set_dispatch_table_gc_interval(int interval) {
     dispatch_table_gc_interval_ = interval;
   }
+
+  V8_EXPORT_PRIVATE void ResetAllocationTimeouts();
 #endif
 
   // Emits GC events for DevTools timeline.

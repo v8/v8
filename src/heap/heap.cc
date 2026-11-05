@@ -7532,6 +7532,13 @@ void StrongRootAllocatorBase::deallocate_impl(Address* p, size_t n) noexcept {
 void Heap::set_allocation_timeout(int allocation_timeout) {
   heap_allocator_->SetAllocationTimeout(allocation_timeout);
 }
+
+void Heap::ResetAllocationTimeouts() {
+  HeapAllocator::SetAllocationGcInterval(v8_flags.gc_interval);
+  heap_allocator_->UpdateAllocationTimeout();
+  set_dispatch_table_gc_interval(v8_flags.dispatch_table_gc_interval);
+  dispatch_table_allocations_ = 0;
+}
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
 void Heap::FinishSweepingIfOutOfWork(CompleteSweepingReason reason) {
