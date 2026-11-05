@@ -327,6 +327,7 @@ class Deserializer : public SerializerDeserializer {
 
   base::Vector<const uint8_t> trusted_payload_;
   std::vector<EncodedExternalReference> external_references_;
+  std::vector<JSDispatchHandle> trusted_dispatch_handles_;
   std::vector<IndirectHandle<HeapObject>> untrusted_back_refs_;
   std::vector<std::pair<uint32_t, UnresolvedForwardRef>> trusted_export_refs_;
 

@@ -7,6 +7,7 @@
 
 #include <type_traits>
 
+#include "src/base/discriminated-union.h"
 #include "src/codegen/external-reference-encoder.h"
 #include "src/objects/visitors.h"
 #include "src/snapshot/references.h"
@@ -195,6 +196,7 @@ class SerializerDeserializer : public RootVisitor {
       case kSandboxedRawExternalReference:
       case kInitializeSelfTrustedPointer:
       case kAllocateJSDispatchEntry:
+      case kJSDispatchEntry:
       case kProtectedPointerPrefix:
       case kExternalStringResource:
         return true;
@@ -221,7 +223,6 @@ class SerializerDeserializer : public RootVisitor {
       case kNewContextfulMetaMap:
       case kExtendedMapBitFieldEx:
       case kTrustedPointerPrefix:
-      case kJSDispatchEntry:
       case kTrustedExportRef:
       case kUntrustedRef:
       case kTrustedExternalRef:
@@ -332,20 +333,44 @@ class SerializerDeserializer : public RootVisitor {
   static constexpr int kReadOnlyHeapRefOffsetBits =
       kPageSizeBits - kObjectAlignmentBits;
 
-  // An entry in the table of external references at the start of the trusted
-  // section of a code cache, see kTrustedExternalRef.
-  struct EncodedExternalReference {
-    ExternalReferenceEncoder::Value reference;
-    // kExternalPointerNullTag marks an external string resource, see
-    // kExternalStringResource.
-    // TODO(crbug.com/564863360): Use a proper CppHeapPointer tagging scheme.
-    ExternalPointerTag tag;
-    // Explicit padding, so that code caches are deterministic.
-    uint16_t padding = 0;
+  // The kinds of entries in the table of external references at the start of
+  // the trusted section, see kTrustedExternalRef. The kind says which pointer
+  // table the deserializer adds an entry to.
+  enum class ExternalReferenceKind : uint8_t {
+    kExternalPointer,
+    kCppHeapPointer,
+    kJSDispatch,
   };
-  static_assert(sizeof(EncodedExternalReference) == sizeof(uint64_t));
-  static_assert(
-      std::has_unique_object_representations_v<EncodedExternalReference>);
+  // An EncodedExternalReference should take at most 8 bytes and have no
+  // padding, so each entry is packed into exactly 7 bytes besides the uint8_t
+  // kind.
+  static constexpr size_t kEncodedExternalReferenceSize = 8;
+  static constexpr size_t kEncodedEntrySize =
+      kEncodedExternalReferenceSize - sizeof(ExternalReferenceKind);
+  struct __attribute__((packed)) EncodedExternalPointer {
+    uint32_t index;
+    ExternalPointerTag tag;
+    bool is_api_reference;
+  };
+  struct __attribute__((packed)) EncodedCppHeapPointer {
+    uint32_t index;
+    CppHeapPointerTag tag;
+    bool is_api_reference;
+  };
+  struct __attribute__((packed)) EncodedJSDispatchEntry {
+    uint16_t builtin;
+    uint16_t parameter_count;
+    uint8_t padding[3] = {};
+  };
+  static_assert(sizeof(EncodedExternalPointer) == kEncodedEntrySize);
+  static_assert(sizeof(EncodedCppHeapPointer) == kEncodedEntrySize);
+  static_assert(sizeof(EncodedJSDispatchEntry) == kEncodedEntrySize);
+  using EncodedExternalReference =
+      base::DiscriminatedUnion<ExternalReferenceKind, EncodedExternalPointer,
+                               EncodedCppHeapPointer, EncodedJSDispatchEntry>;
+  static_assert(sizeof(EncodedExternalReference) ==
+                kEncodedExternalReferenceSize);
+  static_assert(std::is_trivially_copyable_v<EncodedExternalReference>);
 };
 
 struct SerializeEmbedderFieldsCallback {

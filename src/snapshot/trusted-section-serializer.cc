@@ -29,8 +29,34 @@ uint32_t TrustedSectionSerializer::Export(Tagged<HeapObject> obj) {
 
 uint32_t TrustedSectionSerializer::AddExternalReference(
     ExternalReferenceEncoder::Value reference, ExternalPointerTag tag) {
-  external_references_.push_back({reference, tag});
+  external_references_.emplace_back(
+      EncodedExternalPointer{.index = reference.index(),
+                             .tag = tag,
+                             .is_api_reference = reference.is_from_api()});
   return base::checked_cast<uint32_t>(external_references_.size() - 1);
+}
+
+uint32_t TrustedSectionSerializer::AddCppHeapPointer(
+    ExternalReferenceEncoder::Value reference, CppHeapPointerTag tag) {
+  external_references_.emplace_back(
+      EncodedCppHeapPointer{.index = reference.index(),
+                            .tag = tag,
+                            .is_api_reference = reference.is_from_api()});
+  return base::checked_cast<uint32_t>(external_references_.size() - 1);
+}
+
+uint32_t TrustedSectionSerializer::AddJSDispatchEntry(JSDispatchHandle handle) {
+  auto [it, inserted] = dispatch_entry_indices_.try_emplace(
+      handle, base::checked_cast<uint32_t>(external_references_.size()));
+  if (inserted) {
+    JSDispatchTable& jdt = isolate()->js_dispatch_table();
+    Tagged<Code> code = jdt.GetCode(handle);
+    SBXCHECK(code->is_builtin());
+    external_references_.emplace_back(EncodedJSDispatchEntry{
+        .builtin = base::checked_cast<uint16_t>(code->builtin_id()),
+        .parameter_count = jdt.GetParameterCount(handle)});
+  }
+  return it->second;
 }
 
 void TrustedSectionSerializer::SerializeExports() {
