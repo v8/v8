@@ -2156,6 +2156,30 @@ TEST_F(DisasmX64Test, DisasmX64CheckOutputAVX10Vsqrtph) {
   compare("vsqrtph ymm3,[rip+0xfffffff6]", ymm3, Operand(&ymm_label));
 }
 
+TEST_F(DisasmX64Test, DisasmX64CheckOutputAVX10Vrndscaleph) {
+  for (RoundingMode mode :
+       {kRoundToNearest, kRoundDown, kRoundUp, kRoundToZero}) {
+    DisassemblerTester tester;
+    CpuFeatureScope fscope(&tester.assm_, AVX10_1,
+                           CpuFeatureScope::kDontCheckSupported);
+    auto compare = [&](const char* operands, auto dst, auto src) {
+      tester.prev_offset = tester.pc_offset();
+      tester.assm_.vrndscaleph(dst, src, mode);
+      std::string actual = tester.InstructionDecode();
+      std::string expected = std::string("vrndscaleph ") + operands + ",0x";
+      expected += "89ab"[mode];
+      CHECK_EQ(expected, actual.substr(kHexOffset));
+    };
+
+    compare("xmm3,xmm1", xmm3, xmm1);
+    compare("ymm3,ymm1", ymm3, ymm1);
+    compare("xmm19,xmm17", xmm19, xmm17);
+    compare("ymm31,ymm29", ymm31, ymm29);
+    compare("xmm3,xmm3", xmm3, xmm3);
+    compare("ymm3,ymm3", ymm3, ymm3);
+  }
+}
+
 TEST_F(DisasmX64Test, DisasmX64CheckOutputAVX10FmaPh) {
   DisassemblerTester t;
   std::string actual;

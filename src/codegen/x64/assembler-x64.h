@@ -2749,6 +2749,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vinstr_evex(0x51, dst, ymm0, src, kNoPrefix, kMap5, kW0, kFull);
   }
 
+  void vrndscaleph(XMMRegister dst, XMMRegister src, RoundingMode mode) {
+    vinstr_evex(0x08, dst, xmm0, src, kNoPrefix, k0F3A, kW0);
+    emit(static_cast<uint8_t>(mode) | 0x8);
+  }
+  void vrndscaleph(YMMRegister dst, YMMRegister src, RoundingMode mode) {
+    vinstr_evex(0x08, dst, ymm0, src, kNoPrefix, k0F3A, kW0);
+    emit(static_cast<uint8_t>(mode) | 0x8);
+  }
+
   // Packed FP16 FMA, without masking, broadcast, or embedded rounding.
   // The destination is also the first multiplicand: (+/- dst * src1) + src2.
   void vfmadd213ph(XMMRegister dst, XMMRegister src1, XMMRegister src2) {

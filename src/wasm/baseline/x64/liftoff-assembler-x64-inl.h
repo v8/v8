@@ -4765,6 +4765,11 @@ bool LiftoffAssembler::emit_f16x8_sqrt(LiftoffRegister dst,
 
 bool LiftoffAssembler::emit_f16x8_ceil(LiftoffRegister dst,
                                        LiftoffRegister src) {
+  if (UseAvx10_1()) {
+    CpuFeatureScope avx10_1_scope(this, AVX10_1);
+    vrndscaleph(dst.fp(), src.fp(), kRoundUp);
+    return true;
+  }
   if (!CpuFeatures::IsSupported(F16C) || !CpuFeatures::IsSupported(AVX)) {
     return false;
   }
@@ -4779,6 +4784,11 @@ bool LiftoffAssembler::emit_f16x8_ceil(LiftoffRegister dst,
 
 bool LiftoffAssembler::emit_f16x8_floor(LiftoffRegister dst,
                                         LiftoffRegister src) {
+  if (UseAvx10_1()) {
+    CpuFeatureScope avx10_1_scope(this, AVX10_1);
+    vrndscaleph(dst.fp(), src.fp(), kRoundDown);
+    return true;
+  }
   if (!CpuFeatures::IsSupported(F16C) || !CpuFeatures::IsSupported(AVX)) {
     return false;
   }
@@ -4793,6 +4803,11 @@ bool LiftoffAssembler::emit_f16x8_floor(LiftoffRegister dst,
 
 bool LiftoffAssembler::emit_f16x8_trunc(LiftoffRegister dst,
                                         LiftoffRegister src) {
+  if (UseAvx10_1()) {
+    CpuFeatureScope avx10_1_scope(this, AVX10_1);
+    vrndscaleph(dst.fp(), src.fp(), kRoundToZero);
+    return true;
+  }
   if (!CpuFeatures::IsSupported(F16C) || !CpuFeatures::IsSupported(AVX)) {
     return false;
   }
@@ -4807,6 +4822,11 @@ bool LiftoffAssembler::emit_f16x8_trunc(LiftoffRegister dst,
 
 bool LiftoffAssembler::emit_f16x8_nearest_int(LiftoffRegister dst,
                                               LiftoffRegister src) {
+  if (UseAvx10_1()) {
+    CpuFeatureScope avx10_1_scope(this, AVX10_1);
+    vrndscaleph(dst.fp(), src.fp(), kRoundToNearest);
+    return true;
+  }
   if (!CpuFeatures::IsSupported(F16C) || !CpuFeatures::IsSupported(AVX)) {
     return false;
   }

@@ -3649,6 +3649,37 @@ TEST_F(AssemblerX64Test, AVX10Vsqrtph) {
   CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
 }
 
+TEST_F(AssemblerX64Test, AVX10Vrndscaleph) {
+  for (RoundingMode mode :
+       {kRoundToNearest, kRoundDown, kRoundUp, kRoundToZero}) {
+    auto buffer = AllocateAssemblerBuffer();
+    Assembler masm(AssemblerOptions{}, buffer->CreateView());
+    CpuFeatureScope fscope(&masm, AVX10_1,
+                           CpuFeatureScope::kDontCheckSupported);
+
+    __ vrndscaleph(xmm3, xmm1, mode);
+    __ vrndscaleph(ymm3, ymm1, mode);
+    __ vrndscaleph(xmm19, xmm17, mode);
+    __ vrndscaleph(ymm31, ymm29, mode);
+    __ vrndscaleph(xmm3, xmm3, mode);
+    __ vrndscaleph(ymm3, ymm3, mode);
+
+    int instruction_length = masm.pc_offset();
+    CodeDesc desc;
+    masm.GetCode(i_isolate(), &desc);
+    uint8_t expected[] = {0x62, 0xf3, 0x7c, 0x08, 0x08, 0xd9, 0x08, 0x62, 0xf3,
+                          0x7c, 0x28, 0x08, 0xd9, 0x08, 0x62, 0xa3, 0x7c, 0x08,
+                          0x08, 0xd9, 0x08, 0x62, 0x03, 0x7c, 0x28, 0x08, 0xfd,
+                          0x08, 0x62, 0xf3, 0x7c, 0x08, 0x08, 0xdb, 0x08, 0x62,
+                          0xf3, 0x7c, 0x28, 0x08, 0xdb, 0x08};
+    for (size_t offset = 6; offset < sizeof(expected); offset += 7) {
+      expected[offset] = static_cast<uint8_t>(mode) | 0x8;
+    }
+    CHECK_EQ(static_cast<int>(sizeof(expected)), instruction_length);
+    CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
+  }
+}
+
 TEST_F(AssemblerX64Test, AVX10FmaPh) {
   for (bool negate : {false, true}) {
     auto buffer = AllocateAssemblerBuffer();

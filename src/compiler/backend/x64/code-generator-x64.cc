@@ -4803,10 +4803,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64F16x8Round: {
-      CpuFeatureScope f16c_scope(masm(), F16C);
-      CpuFeatureScope avx_scope(masm(), AVX);
       RoundingMode const mode =
           static_cast<RoundingMode>(MiscField::decode(instr->opcode()));
+      if (UseAvx10_1()) {
+        CpuFeatureScope avx10_1_scope(masm(), AVX10_1);
+        __ vrndscaleph(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                       mode);
+        break;
+      }
+      CpuFeatureScope f16c_scope(masm(), F16C);
+      CpuFeatureScope avx_scope(masm(), AVX);
       __ vcvtph2ps(kScratchSimd256Reg, i.InputSimd128Register(0));
       __ vroundps(kScratchSimd256Reg, kScratchSimd256Reg, mode);
       __ vcvtps2ph(i.OutputSimd128Register(), kScratchSimd256Reg, 0);

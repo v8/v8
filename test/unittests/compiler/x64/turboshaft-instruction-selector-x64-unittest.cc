@@ -3074,6 +3074,49 @@ TEST_F(TurboshaftInstructionSelectorTest, F16x8DivFallback) {
   }
 }
 
+TEST_F(TurboshaftInstructionSelectorTest, F16x8RoundModes) {
+  for (RoundingMode mode :
+       {kRoundToNearest, kRoundDown, kRoundUp, kRoundToZero}) {
+    StreamBuilder builder(this, MachineType::Simd128(), MachineType::Simd128());
+    V<Simd128> input = builder.Parameter<Simd128>(0);
+    auto round = [&](V<Simd128> value) {
+      switch (mode) {
+        case kRoundToNearest:
+          return builder.F16x8NearestInt(value);
+        case kRoundDown:
+          return builder.F16x8Floor(value);
+        case kRoundUp:
+          return builder.F16x8Ceil(value);
+        case kRoundToZero:
+          return builder.F16x8Trunc(value);
+        default:
+          UNREACHABLE();
+      }
+    };
+    V<Simd128> result = round(input);
+    builder.Return(round(result));
+    Stream stream = builder.Build();
+
+    ASSERT_EQ(2U, stream.size());
+    for (size_t index = 0; index < stream.size(); ++index) {
+      EXPECT_EQ(kX64F16x8Round, stream[index]->arch_opcode());
+      EXPECT_EQ(mode, MiscField::decode(stream[index]->opcode()));
+      ASSERT_EQ(1U, stream[index]->InputCount());
+      EXPECT_EQ(1U, stream[index]->OutputCount());
+      EXPECT_EQ(0U, stream[index]->TempCount());
+      EXPECT_TRUE(UnallocatedOperand::cast(stream[index]->InputAt(0))
+                      ->HasRegisterPolicy());
+      EXPECT_TRUE(
+          UnallocatedOperand::cast(stream[index]->InputAt(0))->IsUsedAtStart());
+      EXPECT_TRUE(UnallocatedOperand::cast(stream[index]->Output())
+                      ->HasRegisterPolicy());
+    }
+    EXPECT_EQ(stream.ToVreg(input), stream.ToVreg(stream[0]->InputAt(0)));
+    EXPECT_EQ(stream.ToVreg(stream[0]->Output()),
+              stream.ToVreg(stream[1]->InputAt(0)));
+  }
+}
+
 TEST_F(TurboshaftInstructionSelectorTest, F16x8SqrtFallback) {
 #ifdef V8_ENABLE_AVX10_1
   FlagScope<bool> disable_avx10(&v8_flags.enable_avx10_1, false);
