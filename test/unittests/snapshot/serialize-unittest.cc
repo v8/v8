@@ -4441,6 +4441,58 @@ TEST_F(UninitializedSerializeTest, SnapshotCreatorExternalReferences) {
   FreeCurrentEmbeddedBlob();
 }
 
+// Internalized strings, including external ones, are in the shared heap
+// snapshot.
+TEST_F(UninitializedSerializeTest, SnapshotCreatorInternalizedExternalString) {
+  DisableEmbeddedBlobRefcounting();
+  static SerializerOneByteResource resource("internalized", 12);
+  static const intptr_t external_references[] = {
+      reinterpret_cast<intptr_t>(&resource), 0};
+  v8::StartupData blob;
+  {
+    SnapshotCreatorParams testing_params(external_references);
+    v8::SnapshotCreator creator(testing_params.create_params);
+    v8::Isolate* isolate = creator.GetIsolate();
+    {
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+      v8::Local<v8::String> string =
+          v8::String::NewExternalOneByte(isolate, &resource).ToLocalChecked();
+      // Using the string as a key internalizes it in place.
+      CHECK(context->Global()->Set(context, string, string).FromJust());
+      CHECK(IsInternalizedString(*Utils::OpenDirectHandle(*string)));
+      CHECK(IsExternalString(*Utils::OpenDirectHandle(*string)));
+      creator.SetDefaultContext(context);
+    }
+    blob =
+        creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
+  }
+
+  {
+    v8::Isolate::CreateParams params;
+    params.snapshot_blob = &blob;
+    params.array_buffer_allocator = array_buffer_allocator();
+    params.external_references = external_references;
+    // Test-appropriate equivalent of v8::Isolate::New.
+    v8::Isolate* isolate = TestSerializer::NewIsolate(params);
+    {
+      v8::Isolate::Scope isolate_scope(isolate);
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+      v8::Local<v8::String> string =
+          CompileRun(isolate, "internalized").As<v8::String>();
+      CHECK(string->IsExternalOneByte());
+      CHECK_EQ(string->GetExternalOneByteStringResource(), &resource);
+    }
+    isolate->Dispose();
+  }
+
+  delete[] blob.data;
+  FreeCurrentEmbeddedBlob();
+}
+
 TEST_F(UninitializedSerializeTest, SnapshotCreatorShortExternalReferences) {
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;

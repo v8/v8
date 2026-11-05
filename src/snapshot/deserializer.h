@@ -54,10 +54,6 @@ class Deserializer : public SerializerDeserializer {
     kTrusted,
     // An untrusted section followed by a trusted section (e.g., code caches).
     kUntrustedWithTrustedSection,
-    // Only an untrusted section (e.g., the shared heap snapshot, which only has
-    // strings). It is read like that of a code cache, so it can't use trusted
-    // bytecodes.
-    kUntrusted,
   };
   static constexpr bool HasUntrustedSection(SnapshotTrustLevel trust_level) {
     return trust_level != SnapshotTrustLevel::kTrusted;
@@ -70,6 +66,7 @@ class Deserializer : public SerializerDeserializer {
                bool can_rehash, SnapshotTrustLevel trust_level);
 
   void DeserializeDeferredObjects();
+  void DeserializeFixedTrustedSection();
   // For code caches. The untrusted section has the root and is read first.
   DirectHandle<HeapObject> DeserializeUntrustedSection();
   void DeserializeTrustedSection();

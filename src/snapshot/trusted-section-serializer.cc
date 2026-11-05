@@ -75,6 +75,7 @@ void TrustedSectionSerializer::SerializeExports() {
 }
 
 void TrustedSectionSerializer::FinishSection() {
+  DCHECK(export_queue_.empty());
   sink_.Put(kSynchronize, "EndOfTrustedSection");
   // The external references are read before the untrusted section, so they
   // precede Payload() in the trusted section, which is padded as a whole.

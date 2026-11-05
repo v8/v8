@@ -152,7 +152,7 @@ AlignedCachedData* CodeSerializer::SerializeSharedFunctionInfo(
     SerializeDeferredObjects();
     trusted_serializer_.SerializeExports();
     trusted_serializer_.FinishSection();
-    FinishSection();
+    FinishUntrustedSection();
   }
 
   SerializedCodeData data(Payload(),
@@ -162,44 +162,13 @@ AlignedCachedData* CodeSerializer::SerializeSharedFunctionInfo(
   return data.GetScriptData();
 }
 
-// The untrusted section can only reach exposed trusted objects, and exports
-// all of them. Which trusted objects a code cache may contain is decided by
-// SERIALIZABLE_TRUSTED_OBJECT_MAP_ROOT_LIST (see Serializer::PutRoot).
-bool CodeSerializer::SerializeTrustedExport(Tagged<HeapObject> obj) {
-  if (!V8_ENABLE_SANDBOX_BOOL || !IsExposedTrustedObject(obj)) return false;
-  if (v8_flags.trace_serializer) {
-    PrintF(" Encoding trusted export reference to: ");
-    ShortPrint(obj);
-    PrintF("\n");
-  }
-  sink_.Put(kTrustedExportRef, "TrustedExportRef");
-  sink_.PutUint30(trusted_serializer_.Export(obj), "TrustedExportIndex");
-  return true;
-}
-
-// The untrusted section must not contain external pointers or their tags, so
-// it refers to them by index into a table in the trusted section.
 bool CodeSerializer::SerializeTrustedExternalReference(
     ExternalReferenceEncoder::Value reference, ExternalPointerTag tag) {
   if (!V8_ENABLE_SANDBOX_BOOL) return false;
   // The tag is read from the external pointer table entry that an in-sandbox
   // object refers to, so it can be the tag of any entry.
   SBXCHECK(base::contains(kSerializableExternalPointerTags, tag));
-  sink_.Put(kTrustedExternalRef, "TrustedExternalRef");
-  sink_.PutUint30(trusted_serializer_.AddExternalReference(reference, tag),
-                  "TrustedExternalRefIndex");
-  return true;
-}
-
-// Untrusted sections refer to external string resources through the trusted
-// section's table.
-bool CodeSerializer::SerializeTrustedExternalStringResource(
-    ExternalReferenceEncoder::Value reference) {
-  sink_.Put(kTrustedExternalRef, "TrustedExternalRef");
-  sink_.PutUint30(trusted_serializer_.AddCppHeapPointer(
-                      reference, kExternalStringResourceTag),
-                  "TrustedExternalRefIndex");
-  return true;
+  return Serializer::SerializeTrustedExternalReference(reference, tag);
 }
 
 void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,

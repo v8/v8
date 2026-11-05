@@ -9,6 +9,7 @@
 #include "src/base/numerics/safe_conversions.h"
 #include "src/common/assert-scope.h"
 #include "src/snapshot/serializer.h"
+#include "src/snapshot/trusted-section-serializer.h"
 
 namespace v8 {
 namespace internal {
@@ -53,9 +54,11 @@ void SerializedData::AllocateWithPayload(
 
 SnapshotData::SnapshotData(const Serializer* serializer) {
   DisallowGarbageCollection no_gc;
-  // The trusted section is empty.
   const std::vector<uint8_t> empty;
-  AllocateWithPayload(kHeaderSize, serializer->Payload(), &empty, &empty);
+  const TrustedSectionSerializer* trusted = serializer->trusted_serializer();
+  AllocateWithPayload(kHeaderSize, serializer->Payload(),
+                      trusted ? trusted->ExternalReferencesPayload() : &empty,
+                      trusted ? trusted->Payload() : &empty);
 }
 
 base::Vector<const uint8_t> SnapshotData::Payload() const {

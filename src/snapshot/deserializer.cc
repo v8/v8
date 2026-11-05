@@ -436,7 +436,7 @@ void Deserializer<IsolateT>::DeserializeDeferredObjects() {
 }
 
 template <typename IsolateT>
-DirectHandle<HeapObject> Deserializer<IsolateT>::DeserializeUntrustedSection() {
+void Deserializer<IsolateT>::DeserializeFixedTrustedSection() {
   // The trusted section starts with the external references that the untrusted
   // section refers to by index.
   SnapshotByteSource table(trusted_payload_);
@@ -449,8 +449,18 @@ DirectHandle<HeapObject> Deserializer<IsolateT>::DeserializeUntrustedSection() {
   trusted_payload_ += entries.size_bytes();
   external_references_.assign(entries.begin(), entries.end());
   trusted_dispatch_handles_.resize(count, kNullJSDispatchHandle);
+}
+
+template <typename IsolateT>
+DirectHandle<HeapObject> Deserializer<IsolateT>::DeserializeUntrustedSection() {
+  DeserializeFixedTrustedSection();
   DirectHandle<HeapObject> result = ReadObject();
   DeserializeDeferredObjects();
+  return result;
+}
+
+template <typename IsolateT>
+void Deserializer<IsolateT>::DeserializeTrustedSection() {
   while (source_.Peek() != kSynchronize) {
     ReadObject();
     DeserializeDeferredObjects();
@@ -461,11 +471,6 @@ DirectHandle<HeapObject> Deserializer<IsolateT>::DeserializeUntrustedSection() {
   DCHECK_EQ(num_unresolved_forward_refs_, 0);
   DCHECK(unresolved_forward_refs_.empty());
 #endif
-  return result;
-}
-
-template <typename IsolateT>
-void Deserializer<IsolateT>::DeserializeTrustedSection() {
   if (v8_flags.trace_deserialization) {
     PrintF("-- Trusted section\n");
   }

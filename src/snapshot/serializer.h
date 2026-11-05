@@ -22,6 +22,8 @@
 namespace v8 {
 namespace internal {
 
+class TrustedSectionSerializer;
+
 class CodeAddressMap : public CodeEventLogger {
  public:
   explicit CodeAddressMap(Isolate* isolate) : CodeEventLogger(isolate) {
@@ -273,19 +275,24 @@ class Serializer : public SerializerDeserializer {
     return external_reference_encoder_.TryEncode(addr);
   }
 
+  virtual TrustedSectionSerializer* trusted_serializer() { return nullptr; }
+  const TrustedSectionSerializer* trusted_serializer() const {
+    return const_cast<Serializer*>(this)->trusted_serializer();
+  }
+
   // Returns true if the sandboxed external reference was serialized as a
   // reference into the trusted section.
   virtual bool SerializeTrustedExternalReference(
-      ExternalReferenceEncoder::Value reference, ExternalPointerTag tag) {
-    return false;
-  }
+      ExternalReferenceEncoder::Value reference, ExternalPointerTag tag);
 
   // Returns true if the resource of an external string was serialized as a
   // reference into the trusted section, see kExternalStringResource.
-  virtual bool SerializeTrustedExternalStringResource(
-      ExternalReferenceEncoder::Value reference) {
-    return false;
-  }
+  bool SerializeTrustedExternalStringResource(
+      ExternalReferenceEncoder::Value reference);
+
+  // Returns true if |obj| was serialized as a reference to an export of the
+  // trusted section.
+  bool SerializeTrustedExport(Tagged<HeapObject> obj);
 
   bool SerializeReadOnlyObjectReference(Tagged<HeapObject> obj,
                                         SnapshotByteSink* sink);
@@ -295,6 +302,8 @@ class Serializer : public SerializerDeserializer {
   // GetInt reads 4 bytes at once, requiring padding at the end.
   // Use padding_offset to specify the space you want to use after padding.
   void Pad(int padding_offset = 0);
+
+  void FinishUntrustedSection();
 
   // We may not need the code address map for logging for every instance
   // of the serializer.  Initialize it on demand.
@@ -357,6 +366,7 @@ class Serializer : public SerializerDeserializer {
   }
 
  private:
+  friend class SnapshotData;
   friend class TrustedSectionSerializer;
 
   struct BackrefLocation {

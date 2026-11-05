@@ -34,6 +34,7 @@
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/serializer-deserializer.h"
 #include "src/snapshot/serializer-inl.h"
+#include "src/snapshot/trusted-section-serializer.h"
 
 namespace v8 {
 namespace internal {
@@ -414,6 +415,48 @@ ExternalReferenceEncoder::Value Serializer::EncodeExternalReference(
   return result.FromJust();
 }
 
+// The untrusted section must not contain external pointers or their tags, so
+// it refers to them by index into a table in the trusted section.
+bool Serializer::SerializeTrustedExternalReference(
+    ExternalReferenceEncoder::Value reference, ExternalPointerTag tag) {
+  TrustedSectionSerializer* trusted = trusted_serializer();
+  if (!V8_ENABLE_SANDBOX_BOOL || trusted == nullptr) return false;
+  sink_.Put(kTrustedExternalRef, "TrustedExternalRef");
+  sink_.PutUint30(trusted->AddExternalReference(reference, tag),
+                  "TrustedExternalRefIndex");
+  return true;
+}
+
+bool Serializer::SerializeTrustedExternalStringResource(
+    ExternalReferenceEncoder::Value reference) {
+  TrustedSectionSerializer* trusted = trusted_serializer();
+  if (!V8_ENABLE_SANDBOX_BOOL || trusted == nullptr) return false;
+  sink_.Put(kTrustedExternalRef, "TrustedExternalRef");
+  sink_.PutUint30(
+      trusted->AddCppHeapPointer(reference, kExternalStringResourceTag),
+      "TrustedExternalRefIndex");
+  return true;
+}
+
+// The untrusted section can only reach exposed trusted objects, and exports
+// all of them. Which trusted objects a code cache may contain is decided by
+// SERIALIZABLE_TRUSTED_OBJECT_MAP_ROOT_LIST (see Serializer::PutRoot).
+bool Serializer::SerializeTrustedExport(Tagged<HeapObject> obj) {
+  TrustedSectionSerializer* trusted = trusted_serializer();
+  if (!V8_ENABLE_SANDBOX_BOOL || trusted == nullptr ||
+      !IsExposedTrustedObject(obj)) {
+    return false;
+  }
+  if (v8_flags.trace_serializer) {
+    PrintF(" Encoding trusted export reference to: ");
+    ShortPrint(obj);
+    PrintF("\n");
+  }
+  sink_.Put(kTrustedExportRef, "TrustedExportRef");
+  sink_.PutUint30(trusted->Export(obj), "TrustedExportIndex");
+  return true;
+}
+
 void Serializer::RegisterObjectIsPending(Tagged<HeapObject> obj) {
   DisallowGarbageCollection no_gc;
   if (IsNotMappedSymbol(obj)) return;
@@ -524,6 +567,12 @@ void Serializer::Pad(int padding_offset) {
   while (!IsAligned(sink_.Position() + padding_offset, kPointerAlignment)) {
     sink_.Put(kNop, "Padding");
   }
+}
+
+void Serializer::FinishUntrustedSection() {
+  sink_.Put(kSynchronize, "EndOfUntrustedSection");
+  OptimizeBackReferences();
+  Pad();
 }
 
 void Serializer::InitializeCodeAddressMap() {
@@ -1255,8 +1304,7 @@ void Serializer::ObjectSerializer::VisitCppHeapPointer(
     DCHECK(reference.is_from_api());
     // Untrusted sections refer to it through the trusted section instead, like
     // for external pointers.
-    if (!V8_ENABLE_SANDBOX_BOOL ||
-        !serializer_->SerializeTrustedExternalStringResource(reference)) {
+    if (!serializer_->SerializeTrustedExternalStringResource(reference)) {
       sink_->Put(kExternalStringResource, "ExternalStringResource");
       sink_->PutUint30(reference.index(), "external string resource index");
     }
