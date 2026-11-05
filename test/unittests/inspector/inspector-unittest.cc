@@ -16,6 +16,7 @@
 #include "include/v8-primitive.h"
 #include "src/heap/heap.h"
 #include "src/inspector/string-util.h"
+#include "src/inspector/v8-debugger.h"
 #include "src/inspector/v8-inspector-impl.h"
 #include "src/inspector/v8-inspector-session-impl.h"
 #include "src/inspector/v8-runtime-agent-impl.h"
@@ -1996,5 +1997,45 @@ TEST_F(InspectorTest, SteppingAndContinueToLocationExitInstrumentationPause) {
   EXPECT_EQ(4, client.quit_count());
 }
 
+TEST_F(InspectorTest, DestroyInspectorBeforeNearHeapLimitInterrupt) {
+  v8::Isolate* isolate = v8_isolate();
+  v8::HandleScope handle_scope(isolate);
+
+  v8_inspector::V8InspectorClient default_client;
+  std::unique_ptr<V8Inspector> inspector =
+      V8Inspector::create(isolate, &default_client);
+  V8ContextInfo context_info(v8_context(), 1, StringView());
+  inspector->contextCreated(context_info);
+
+  NoopChannel channel;
+  std::unique_ptr<V8InspectorSession> session = inspector->connect(
+      1, &channel, StringView(), v8_inspector::V8Inspector::kFullyTrusted,
+      v8_inspector::V8Inspector::kNotWaitingForDebugger);
+  const uint8_t enable_message[] = R"({"id": 1, "method": "Debugger.enable"})";
+  session->dispatchProtocolMessage(
+      StringView(enable_message, sizeof(enable_message) - 1));
+
+  i_isolate()->heap()->CollectAllAvailableGarbage(
+      GarbageCollectionReason::kLastResort);
+
+  session.reset();
+  inspector.reset();
+
+  constexpr size_t kDebuggerSize = sizeof(v8_inspector::V8Debugger);
+  std::vector<std::unique_ptr<uint8_t[]>> allocations;
+  for (int i = 0; i < 8; ++i) {
+    auto buf = std::make_unique<uint8_t[]>(kDebuggerSize);
+    std::memset(buf.get(), 0x01, kDebuggerSize);
+    allocations.push_back(std::move(buf));
+  }
+
+  RunJS("1");
+
+  for (const auto& buf : allocations) {
+    for (size_t i = 0; i < kDebuggerSize; ++i) {
+      CHECK_EQ(buf[i], 0x01);
+    }
+  }
+}
 }  // namespace internal
 }  // namespace v8
