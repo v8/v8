@@ -642,7 +642,7 @@
   },
   'v8_linux64_pku_dbg': {
     'swarming_dimensions' : {
-      'os': 'Ubuntu-22.04',
+      'os': 'Ubuntu-24.04',
       'cpu': 'x86-64-avx2',
       'pool': 'v8.tests',
       'host_class': 'pku',
@@ -656,7 +656,7 @@
   },
   'v8_linux64_pku_rel': {
     'swarming_dimensions' : {
-      'os': 'Ubuntu-22.04',
+      'os': 'Ubuntu-24.04',
       'cpu': 'x86-64-avx2',
       'pool': 'v8.tests',
       'host_class': 'pku',
@@ -1615,7 +1615,7 @@
   },
   'V8 Linux64 - PKU': {
     'swarming_dimensions' : {
-      'os': 'Ubuntu-22.04',
+      'os': 'Ubuntu-24.04',
       'cpu': 'x86-64-avx2',
       'pool': 'v8.tests',
       'host_class': 'pku',
@@ -1629,7 +1629,7 @@
   },
   'V8 Linux64 - PKU - debug': {
     'swarming_dimensions' : {
-      'os': 'Ubuntu-22.04',
+      'os': 'Ubuntu-24.04',
       'cpu': 'x86-64-avx2',
       'pool': 'v8.tests',
       'host_class': 'pku',
