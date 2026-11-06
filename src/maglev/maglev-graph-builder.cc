@@ -10326,9 +10326,11 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
         AddNewNode<MaybeGrowFastElements>(
             {elements_array, receiver, last_index, elements_array_length},
             kind));
-    // If {MaybeGrowFastElements} doesn't deopt, then we're guaranteed that the
-    // new length fits in a Smi.
-    reducer_.RecordTypeNoAbort(new_array_length, NodeType::kSmi);
+    // If {MaybeGrowFastElements} doesn't deopt, then we're guaranteed at
+    // runtime that the new length fits in a Smi. {RecordType} can still abort
+    // if {new_array_length} was reused via CSE with a conflicting type (making
+    // this point unreachable).
+    RETURN_IF_ABORT(reducer_.RecordType(new_array_length, NodeType::kSmi));
     ValueNode* new_array_length_smi;
     GET_VALUE_OR_ABORT(new_array_length_smi,
                        AddNewNode<UnsafeSmiTagInt32>({new_array_length}));
