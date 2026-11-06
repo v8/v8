@@ -4754,22 +4754,33 @@ void AccessorAssembler::GenerateLoadIC_Megamorphic() {
   TVARIABLE(MaybeObject, var_handler);
   Label if_handler(this, &var_handler), miss(this, Label::kDeferred);
 
-  CSA_DCHECK(
-      this,
-      Word32Any(
-          // Either the IC is in regular megamorphic state...
-          TaggedEqual(LoadFeedbackVectorSlot(CAST(vector), slot),
-                      MegamorphicSymbolConstant()),
-          // ... or it's homomorphic ...
-          IsWeakHomomorphicFixedArrayMap(
-              LoadMap(CAST(LoadFeedbackVectorSlot(CAST(vector), slot)))),
-          // ...or it's monomorphic but using a slow handler. Compilers
-          // are free to approximate this by using the generic stub for
-          // everything.
-          TaggedEqual(LoadFeedbackVectorSlot(CAST(vector), slot, kTaggedSize),
-                      SmiConstant(*LoadHandler::LoadSlow(isolate()))),
-          TaggedEqual(LoadFeedbackVectorSlot(CAST(vector), slot, kTaggedSize),
-                      SmiConstant(LoadHandler::LoadGeneric()))));
+  CSA_DCHECK(this,
+             LogicalAny(
+                 // Either the IC is in regular megamorphic state...
+                 TaggedEqual(LoadFeedbackVectorSlot(CAST(vector), slot),
+                             MegamorphicSymbolConstant()),
+                 // ... or it's homomorphic ...
+                 [&] {
+                   TNode<MaybeObject> maybe_homomorphic =
+                       LoadFeedbackVectorSlot(CAST(vector), slot);
+                   return LogicalAnd(IsStrong(maybe_homomorphic), [&] {
+                     return IsWeakHomomorphicFixedArrayMap(
+                         LoadMap(CAST(maybe_homomorphic)));
+                   });
+                 },
+                 // ...or it's monomorphic but using a slow handler. Compilers
+                 // are free to approximate this by using the generic stub for
+                 // everything.
+                 [&] {
+                   return TaggedEqual(
+                       LoadFeedbackVectorSlot(CAST(vector), slot, kTaggedSize),
+                       SmiConstant(*LoadHandler::LoadSlow(isolate())));
+                 },
+                 [&] {
+                   return TaggedEqual(
+                       LoadFeedbackVectorSlot(CAST(vector), slot, kTaggedSize),
+                       SmiConstant(LoadHandler::LoadGeneric()));
+                 }));
 
   LoadICParameters p =
       MakeLoadICParameters(context, receiver, name, slot, vector);

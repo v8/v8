@@ -802,6 +802,51 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return value.value();
   }
 
+  TNode<BoolT> LogicalOr(TNode<BoolT> left, TNode<BoolT> right) {
+    return Word32Or(left, right);
+  }
+
+  TNode<BoolT> LogicalOr(TNode<BoolT> left, const NodeGenerator<BoolT>& right) {
+    return Select<BoolT>(left, [this] { return Int32TrueConstant(); }, right);
+  }
+
+  TNode<BoolT> LogicalAnd(TNode<BoolT> left, TNode<BoolT> right) {
+    return Word32And(left, right);
+  }
+
+  TNode<BoolT> LogicalAnd(TNode<BoolT> left,
+                          const NodeGenerator<BoolT>& right) {
+    return Select<BoolT>(left, right, [this] { return Int32FalseConstant(); });
+  }
+
+  // Variadic version of LogicalOr. Callable arguments are short-circuited.
+  template <typename First, typename Second, typename... Rest>
+  TNode<BoolT> LogicalAny(First&& first, Second&& second, Rest&&... rest) {
+    TNode<BoolT> first_node;
+    if constexpr (std::invocable<First>) {
+      first_node = std::forward<First>(first)();
+    } else {
+      first_node = first;
+    }
+    if constexpr (!std::invocable<Second>) {
+      if constexpr (sizeof...(Rest) == 0) {
+        return LogicalOr(first_node, second);
+      } else {
+        return LogicalAny(LogicalOr(first_node, second),
+                          std::forward<Rest>(rest)...);
+      }
+    } else {
+      return LogicalOr(first_node, [&]() {
+        if constexpr (sizeof...(Rest) == 0) {
+          return std::forward<Second>(second)();
+        } else {
+          return LogicalAny(std::forward<Second>(second)(),
+                            std::forward<Rest>(rest)...);
+        }
+      });
+    }
+  }
+
   template <class A>
   TNode<A> SelectConstant(TNode<BoolT> condition, TNode<A> true_value,
                           TNode<A> false_value) {
