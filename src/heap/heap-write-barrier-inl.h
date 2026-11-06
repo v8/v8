@@ -237,15 +237,20 @@ void WriteBarrier::ForEphemeronHashTable(Tagged<EphemeronHashTable> host,
 }
 
 // static
-void WriteBarrier::ForExternalPointer(Tagged<HeapObject> host,
+template <typename IsolateT>
+void WriteBarrier::ForExternalPointer(IsolateT isolate, Tagged<HeapObject> host,
                                       ExternalPointerSlot slot,
                                       ExternalPointerHandle handle,
                                       WriteBarrierMode mode) {
+#ifdef V8_COMPRESS_POINTERS
   if (mode == SKIP_WRITE_BARRIER) {
     SLOW_DCHECK(HeapLayout::InYoungGeneration(host));
     return;
   }
-  Marking(host, slot, handle);
+  Marking(isolate, host, slot, handle);
+#else
+  UNREACHABLE();
+#endif  // V8_COMPRESS_POINTERS
 }
 
 // static
@@ -447,12 +452,18 @@ void WriteBarrier::ForArrayBufferExtension(IsolateT* isolate,
   MarkingSlow(host, extension);
 }
 
-void WriteBarrier::Marking(Tagged<HeapObject> host, ExternalPointerSlot slot,
+template <typename IsolateT>
+void WriteBarrier::Marking(IsolateT isolate, Tagged<HeapObject> host,
+                           ExternalPointerSlot slot,
                            ExternalPointerHandle handle) {
-  if (!IsMarkingUntrusted(host)) [[likely]] {
+#ifdef V8_COMPRESS_POINTERS
+  if (!IsAnyMarking(IsolateForSandbox(isolate).GetIsolate())) [[likely]] {
     return;
   }
   MarkingSlow(host, slot, handle);
+#else
+  UNREACHABLE();
+#endif  // V8_COMPRESS_POINTERS
 }
 
 void WriteBarrier::Marking(Tagged<HeapObject> host, TrustedPointerSlot slot) {

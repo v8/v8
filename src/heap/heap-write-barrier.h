@@ -101,8 +101,9 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
   static inline void ForArrayBufferExtension(IsolateT* isolate,
                                              Tagged<JSArrayBuffer> host,
                                              ArrayBufferExtension* extension);
+  template <typename IsolateT>
   static inline void ForExternalPointer(
-      Tagged<HeapObject> host, ExternalPointerSlot slot,
+      IsolateT isolate, Tagged<HeapObject> host, ExternalPointerSlot slot,
       ExternalPointerHandle handle,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   static inline void ForTrustedPointer(
@@ -209,7 +210,9 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
                              Tagged<MaybeObject> value);
   static inline void MarkingForRelocInfo(Tagged<InstructionStream> host,
                                          RelocInfo*, Tagged<HeapObject> value);
-  static inline void Marking(Tagged<HeapObject> host, ExternalPointerSlot slot,
+  template <typename IsolateT>
+  static inline void Marking(IsolateT isolate, Tagged<HeapObject> host,
+                             ExternalPointerSlot slot,
                              ExternalPointerHandle handle);
   static inline void Marking(Tagged<HeapObject> host, TrustedPointerSlot slot);
   static inline void Marking(Tagged<TrustedObject> host,

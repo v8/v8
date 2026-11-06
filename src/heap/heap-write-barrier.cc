@@ -153,22 +153,37 @@ void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
   DCHECK_EQ(handle, slot.Relaxed_LoadHandle());
 
   MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
-  IsolateForPointerCompression isolate(marking_barrier->heap()->isolate());
+  if (!marking_barrier) [[unlikely]] {
+    return;
+  }
 
+  Isolate* isolate = marking_barrier->heap()->isolate();
+  if (IsSharedExternalPointerType(slot.tag_range())) {
+    if (marking_barrier->is_not_major() &&
+        !isolate->isolate_data()->is_shared_marking()) {
+      return;
+    }
+  } else if (!marking_barrier->is_activated()) {
+    return;
+  }
+
+  IsolateForPointerCompression isolate_for_compression(isolate);
   ExternalPointerTable& table =
-      isolate.GetExternalPointerTableFor(slot.tag_range());
+      isolate_for_compression.GetExternalPointerTableFor(slot.tag_range());
   ExternalPointerTable::Space* space =
-      isolate.GetExternalPointerTableSpaceFor(slot.tag_range(), host.address());
+      isolate_for_compression.GetExternalPointerTableSpaceFor(slot.tag_range(),
+                                                              host.address());
   DCHECK(!space->is_internal_read_only_space());
 
   table.Mark(space, handle, slot.address(), slot.tag_range());
 
   if (marking_barrier->is_minor() && HeapLayout::InYoungGeneration(host)) {
-    MutablePage* host_page =
-        MutablePage::FromHeapObject(marking_barrier->heap()->isolate(), host);
+    MutablePage* host_page = MutablePage::FromHeapObject(isolate, host);
     RememberedSet<SURVIVOR_TO_EXTERNAL_POINTER>::Insert<AccessMode::ATOMIC>(
         host_page, host_page->Offset(slot.address()));
   }
+#else
+  UNREACHABLE();
 #endif  // V8_COMPRESS_POINTERS
 }
 
