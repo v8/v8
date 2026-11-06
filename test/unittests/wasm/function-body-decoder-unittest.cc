@@ -5993,6 +5993,121 @@ TEST_F(FunctionBodyDecoderTest, ExtendedMemoryAccessImmediate) {
                              2 /* memory index */, 0 /* offset */});
 }
 
+TEST_F(FunctionBodyDecoderTest, MemoryAccessImmediateOffsetLengthsAndBounds) {
+  builder.AddMemory();
+
+  // Direct unit checks across 1-, 2-, 3-, 4-, 5-, and 10-byte offset encodings
+  // for both FullValidationTag and NoValidationTag, including exact-length
+  // buffers with no trailing bytes.
+  auto check_direct = [](base::Vector<const uint8_t> bytes,
+                         uint32_t expected_align, uint64_t expected_offset,
+                         uint32_t expected_len) {
+    Decoder full_decoder(bytes);
+    MemoryAccessImmediate imm_full(&full_decoder, bytes.begin(), 2, false,
+                                   MemoryAccessImmediate::kNonAtomic,
+                                   Decoder::FullValidationTag{});
+    EXPECT_TRUE(full_decoder.ok());
+    EXPECT_EQ(expected_align, imm_full.alignment);
+    EXPECT_EQ(0u, imm_full.mem_index);
+    EXPECT_EQ(AtomicMemoryOrder::kSeqCst, imm_full.memory_order);
+    EXPECT_EQ(expected_offset, imm_full.offset);
+    EXPECT_EQ(expected_len, imm_full.length);
+
+    Decoder no_val_decoder(bytes);
+    MemoryAccessImmediate imm_no_val(&no_val_decoder, bytes.begin(), 2, false,
+                                     MemoryAccessImmediate::kNonAtomic,
+                                     Decoder::NoValidationTag{});
+    EXPECT_EQ(expected_align, imm_no_val.alignment);
+    EXPECT_EQ(0u, imm_no_val.mem_index);
+    EXPECT_EQ(AtomicMemoryOrder::kSeqCst, imm_no_val.memory_order);
+    EXPECT_EQ(expected_offset, imm_no_val.offset);
+    EXPECT_EQ(expected_len, imm_no_val.length);
+  };
+
+  const uint8_t kOff1Min[] = {0x02, U64V_1(0)};
+  const uint8_t kOff1Max[] = {0x02, U64V_1(0x7f)};
+  const uint8_t kOff2Pad[] = {0x02, U64V_2(0)};
+  const uint8_t kOff2Min[] = {0x02, U64V_2(0x80)};
+  const uint8_t kOff2Max[] = {0x02, U64V_2(0x3fff)};
+  const uint8_t kOff3Pad[] = {0x02, U64V_3(42)};
+  const uint8_t kOff3Min[] = {0x02, U64V_3(0x4000)};
+  const uint8_t kOff3Max[] = {0x02, U64V_3(0x1fffff)};
+  const uint8_t kOff4Pad[] = {0x02, U64V_4(42)};
+  const uint8_t kOff4Min[] = {0x02, U64V_4(0x200000)};
+  const uint8_t kOff4Max[] = {0x02, U64V_4(0xfffffff)};
+  const uint8_t kOff5Max[] = {0x02, U64V_5(0xffffffffu)};
+  const uint8_t kOff10[] = {0x02, U64V_10(0x12345678u)};
+
+  check_direct(base::ArrayVector(kOff1Min), 2, 0, 2);
+  check_direct(base::ArrayVector(kOff1Max), 2, 0x7f, 2);
+  check_direct(base::ArrayVector(kOff2Pad), 2, 0, 3);
+  check_direct(base::ArrayVector(kOff2Min), 2, 0x80, 3);
+  check_direct(base::ArrayVector(kOff2Max), 2, 0x3fff, 3);
+  check_direct(base::ArrayVector(kOff3Pad), 2, 42, 4);
+  check_direct(base::ArrayVector(kOff3Min), 2, 0x4000, 4);
+  check_direct(base::ArrayVector(kOff3Max), 2, 0x1fffff, 4);
+  check_direct(base::ArrayVector(kOff4Pad), 2, 42, 5);
+  check_direct(base::ArrayVector(kOff4Min), 2, 0x200000, 5);
+  check_direct(base::ArrayVector(kOff4Max), 2, 0xfffffff, 5);
+  check_direct(base::ArrayVector(kOff5Max), 2, 0xffffffffu, 6);
+  check_direct(base::ArrayVector(kOff10), 2, 0x12345678u, 11);
+
+  // Full function validation across 1..10-byte offsets and multi-byte
+  // alignments.
+  ExpectValidates(sigs.i_v(), {WASM_ZERO, kExprI32LoadMem, 0x02, U64V_1(127)});
+  ExpectValidates(sigs.i_v(), {WASM_ZERO, kExprI32LoadMem, 0x02, U64V_2(128)});
+  ExpectValidates(sigs.i_v(),
+                  {WASM_ZERO, kExprI32LoadMem, 0x02, U64V_2(16383)});
+  ExpectValidates(sigs.i_v(),
+                  {WASM_ZERO, kExprI32LoadMem, 0x02, U64V_3(16384)});
+  ExpectValidates(sigs.i_v(),
+                  {WASM_ZERO, kExprI32LoadMem, 0x02, U64V_4(0x200000)});
+  ExpectValidates(sigs.i_v(),
+                  {WASM_ZERO, kExprI32LoadMem, 0x02, U64V_5(0xffffffffu)});
+  ExpectValidates(sigs.i_v(),
+                  {WASM_ZERO, kExprI32LoadMem, 0x02, U64V_10(4096)});
+  ExpectValidates(sigs.i_v(),
+                  {WASM_ZERO, kExprI32LoadMem, U32V_2(2), U64V_2(256)});
+
+  // Memory32 rejects offsets > kMaxUInt32.
+  ExpectFailure(sigs.i_v(), {WASM_ZERO, kExprI32LoadMem, 0x02,
+                             U64V_5(uint64_t{kMaxUInt32} + 1)});
+
+  // Invalid alignments (> max_alignment, including bit 0x20) must fail across
+  // both inline fast paths (1- and 2-byte offsets) and ConstructSlow (3+
+  // bytes).
+  ExpectFailure(sigs.i_v(), {WASM_ZERO, kExprI32LoadMem, 0x03, U64V_1(0)},
+                kAppendEnd, "invalid alignment");
+  ExpectFailure(sigs.i_v(), {WASM_ZERO, kExprI32LoadMem, 0x03, U64V_2(256)},
+                kAppendEnd, "invalid alignment");
+  ExpectFailure(sigs.i_v(), {WASM_ZERO, kExprI32LoadMem, 0x03, U64V_3(32768)},
+                kAppendEnd, "invalid alignment");
+  ExpectFailure(sigs.i_v(),
+                {WASM_ZERO, kExprI32LoadMem, 0x20, U64V_4(0x200000)},
+                kAppendEnd, "invalid alignment");
+
+  // Acquire-release bit (0x10) on non-atomic load must not take fast path.
+  ExpectFailure(sigs.i_v(), {WASM_ZERO, kExprI32LoadMem, 0x12, 0x00, 0x00},
+                kAppendEnd, "invalid memory ordering");
+
+  // Truncated immediates right at end_ (with kOmitEnd) across fast- and
+  // slow-path byte boundaries.
+  ExpectFailure(sigs.i_v(), {WASM_ZERO, kExprI32LoadMem}, kOmitEnd,
+                "reached end while decoding alignment");
+  ExpectFailure(sigs.i_v(), {WASM_ZERO, kExprI32LoadMem, 0x02}, kOmitEnd,
+                "reached end while decoding offset");
+  ExpectFailure(sigs.i_v(), {WASM_ZERO, kExprI32LoadMem, 0x02, 0x80}, kOmitEnd,
+                "reached end while decoding offset");
+  ExpectFailure(sigs.i_v(), {WASM_ZERO, kExprI32LoadMem, 0x02, 0x80, 0x80},
+                kOmitEnd, "reached end while decoding offset");
+  ExpectFailure(sigs.i_v(),
+                {WASM_ZERO, kExprI32LoadMem, 0x02, 0x80, 0x80, 0x80}, kOmitEnd,
+                "reached end while decoding offset");
+  ExpectFailure(sigs.i_v(),
+                {WASM_ZERO, kExprI32LoadMem, 0x02, 0x80, 0x80, 0x80, 0x80},
+                kOmitEnd, "reached end while decoding offset");
+}
+
 /*******************************************************************************
  * Table64.
  ******************************************************************************/

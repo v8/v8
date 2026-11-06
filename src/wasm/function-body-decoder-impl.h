@@ -1132,15 +1132,24 @@ struct MemoryAccessImmediate {
                                   uint32_t max_alignment,
                                   bool acquire_release_enabled, Kind kind,
                                   ValidationTag = {}) {
-    // Check for the fast path (two single-byte LEBs, mem index 0).
-    const bool two_bytes = !ValidationTag::validate || decoder->end() - pc >= 2;
-    const bool use_fast_path = two_bytes && !(pc[0] & 0xd0) && !(pc[1] & 0x80);
-    if (V8_LIKELY(use_fast_path)) {
+    // Fast path for single-byte alignment (mem index 0, kSeqCst) and a 1- or
+    // 2-byte offset (< 16 KiB). Keep the && terms directly inside V8_LIKELY so
+    // __builtin_expect weights every short-circuit branch.
+    if (V8_LIKELY((!ValidationTag::validate || decoder->end() - pc >= 2) &&
+                  !(pc[0] & 0xd0) && !(pc[1] & 0x80))) {
       alignment = pc[0];
       mem_index = 0;
       memory_order = AtomicMemoryOrder::kSeqCst;
       offset = pc[1];
       length = 2;
+    } else if (V8_LIKELY(
+                   (!ValidationTag::validate || decoder->end() - pc >= 3) &&
+                   !(pc[0] & 0xd0) && !(pc[2] & 0x80))) {
+      alignment = pc[0];
+      mem_index = 0;
+      memory_order = AtomicMemoryOrder::kSeqCst;
+      offset = (pc[1] & 0x7f) | (static_cast<uint32_t>(pc[2]) << 7);
+      length = 3;
     } else {
       ConstructSlow<ValidationTag>(decoder, pc, max_alignment,
                                    acquire_release_enabled, kind);
