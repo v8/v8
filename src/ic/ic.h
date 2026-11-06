@@ -87,6 +87,8 @@ class IC {
   bool is_vector_set() { return vector_set_; }
   inline bool vector_needs_update();
 
+  bool CanUpdateElementIC() const;
+
   // Configure for most states.
   bool ConfigureVectorState(IC::State new_state, DirectHandle<Object> key);
   // Configure the vector for MONOMORPHIC.

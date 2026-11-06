@@ -324,6 +324,12 @@ void IC::UpdateState(DirectHandle<Object> lookup_start_object,
   }
 }
 
+bool IC::CanUpdateElementIC() const {
+  return state() == UNINITIALIZED ||
+         ((state() == MONOMORPHIC || state() == POLYMORPHIC) &&
+          nexus()->GetKeyType() == IcCheckType::kElement);
+}
+
 MaybeDirectHandle<Object> IC::TypeError(MessageTemplate index,
                                         Handle<Object> object,
                                         Handle<Object> key) {
@@ -371,8 +377,12 @@ bool MigrateDeprecated(Isolate* isolate, DirectHandle<Object> object) {
 bool IC::ConfigureVectorState(IC::State new_state, DirectHandle<Object> key) {
   DCHECK_EQ(MEGAMORPHIC, new_state);
   DCHECK_IMPLIES(!is_keyed(), IsName(*key));
-  bool changed = nexus()->ConfigureMegamorphic(
-      IsName(*key) ? IcCheckType::kProperty : IcCheckType::kElement);
+  IcCheckType check_type =
+      IsName(*key) && (!is_keyed() || state() == UNINITIALIZED ||
+                       nexus()->GetKeyType() == IcCheckType::kProperty)
+          ? IcCheckType::kProperty
+          : IcCheckType::kElement;
+  bool changed = nexus()->ConfigureMegamorphic(check_type);
   if (changed) {
     OnFeedbackChanged("Megamorphic");
   }
@@ -1567,6 +1577,8 @@ bool AllowedHandlerChange(KeyedAccessLoadMode old_mode,
 
 void KeyedLoadIC::UpdateLoadElement(DirectHandle<HeapObject> receiver,
                                     const KeyedAccessLoadMode new_load_mode) {
+  if (!CanUpdateElementIC()) return;
+
   Handle<Map> receiver_map(receiver->map(), isolate());
   DCHECK(receiver_map->instance_type() !=
          JS_PRIMITIVE_WRAPPER_TYPE);  // Checked by caller.
@@ -2760,6 +2772,8 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
 void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
                                       KeyedAccessStoreMode store_mode,
                                       Handle<Map> new_receiver_map) {
+  if (!CanUpdateElementIC()) return;
+
   MapsAndHandlers target_maps_and_handlers(isolate());
   nexus()->ExtractMapsAndHandlers(
       &target_maps_and_handlers,
