@@ -1629,12 +1629,24 @@ void SourceTextModule::GatherAsynchronousTransitiveDependencies(
   }
 
   Handle<SourceTextModule> source_text_module = Cast<SourceTextModule>(module);
-  if (source_text_module->status() == kEvaluating ||
-      IsModuleSCCEvaluated(source_text_module)) {
+  // If IsModuleSCCEvaluated(module) is true and either module.[[HasTLA]] is
+  // false or module.[[EvaluationError]] is empty, return result.
+  if (IsModuleSCCEvaluated(source_text_module) &&
+      (!source_text_module->has_toplevel_await() ||
+       source_text_module->status() != kEvaluatedError)) {
     return;
   }
 
-  if (source_text_module->has_toplevel_await()) {
+  // If module.[[Status]] is not linked or module.[[HasTLA]] is true, then
+  // append module to result and return result.
+  //
+  // The search only continues through linked modules. Any other module has
+  // already been visited by InnerModuleEvaluation, and collecting it makes
+  // InnerModuleEvaluation handle it exactly as a non-deferred import: if it
+  // is evaluating it is on the stack, so the importer joins its SCC, and
+  // otherwise the importer depends on its [[CycleRoot]].
+  if (source_text_module->status() != kLinked ||
+      source_text_module->has_toplevel_await()) {
     if (evaluation_set->insert(source_text_module).second) {
       evaluation_list->push_back(source_text_module);
     }
@@ -1693,7 +1705,13 @@ bool SourceTextModule::ReadyForSyncExecution(Isolate* isolate,
       [](DirectHandle<InState<kEvaluating, kEvaluatingAsync>>) {
         return false;
       },
-      [&](DirectHandle<InState<kLinked, kEvaluated>> m) {
+      [](DirectHandle<InState<kEvaluated>> m) {
+        // Its SCC has not finished evaluating, so the cycle root is still
+        // evaluating asynchronously.
+        DCHECK_EQ(m->GetCycleRoot()->status(), kEvaluatingAsync);
+        return false;
+      },
+      [&](DirectHandle<InState<kLinked>> m) {
         if (m->has_toplevel_await()) {
           return false;
         }
