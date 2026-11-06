@@ -360,6 +360,24 @@ v8_flag(
     default = False,
 )
 
+# Mirrors GN: v8_enable_sparkplug = !v8_jitless, and
+# v8_enable_sparkplug_plus = v8_enable_sparkplug && (x64 || arm64).
+selects.config_setting_group(
+    name = "enable_sparkplug_plus_x64",
+    match_all = [
+        ":is_not_v8_jitless",
+        "@v8//bazel/config:v8_target_x64",
+    ],
+)
+
+selects.config_setting_group(
+    name = "enable_sparkplug_plus_arm64",
+    match_all = [
+        ":is_not_v8_jitless",
+        "@v8//bazel/config:v8_target_arm64",
+    ],
+)
+
 v8_int(
     name = "v8_typed_array_max_size_in_heap",
     default = 64,
@@ -602,11 +620,17 @@ v8_config(
         "V8_ADVANCED_BIGINT_ALGORITHMS",
         "V8_ALLOCATION_SITE_TRACKING",
         "V8_CONCURRENT_MARKING",
-        "V8_ENABLE_SPARKPLUG",
         "V8_ENABLE_EXTENSIBLE_RO_SNAPSHOT",
         "V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA",
         "V8_TLS_USED_IN_LIBRARY",
     ] + select({
+        ":is_v8_jitless": [],
+        "//conditions:default": ["V8_ENABLE_SPARKPLUG"],
+    }) + select({
+        ":enable_sparkplug_plus_x64": ["V8_ENABLE_SPARKPLUG_PLUS"],
+        ":enable_sparkplug_plus_arm64": ["V8_ENABLE_SPARKPLUG_PLUS"],
+        "//conditions:default": [],
+    }) + select({
         ":is_not_v8_use_metagen": [
             "V8_USE_METAGEN=0",
         ],
@@ -632,19 +656,13 @@ v8_config(
     }) + select(
         {
             "@v8//bazel/config:v8_target_ia32": ["V8_TARGET_ARCH_IA32"],
-            "@v8//bazel/config:v8_target_x64": [
-                "V8_TARGET_ARCH_X64",
-                "V8_ENABLE_SPARKPLUG_PLUS",
-            ],
+            "@v8//bazel/config:v8_target_x64": ["V8_TARGET_ARCH_X64"],
             "@v8//bazel/config:v8_target_arm": [
                 "V8_TARGET_ARCH_ARM",
                 "CAN_USE_ARMV7_INSTRUCTIONS",
                 "CAN_USE_VFP3_INSTRUCTIONS",
             ],
-            "@v8//bazel/config:v8_target_arm64": [
-                "V8_TARGET_ARCH_ARM64",
-                "V8_ENABLE_SPARKPLUG_PLUS",
-            ],
+            "@v8//bazel/config:v8_target_arm64": ["V8_TARGET_ARCH_ARM64"],
             "@v8//bazel/config:v8_target_s390x": [
                 "V8_TARGET_ARCH_S390X",
             ],
@@ -1537,9 +1555,7 @@ filegroup(
         "src/baseline/baseline.h",
         "src/baseline/baseline-assembler.h",
         "src/baseline/baseline-assembler-inl.h",
-        "src/baseline/baseline-batch-compiler.cc",
         "src/baseline/baseline-batch-compiler.h",
-        "src/baseline/baseline-compiler.cc",
         "src/baseline/baseline-compiler.h",
         "src/baseline/bytecode-offset-iterator.cc",
         "src/baseline/bytecode-offset-iterator.h",
@@ -2838,6 +2854,13 @@ filegroup(
         ":v8_bigint",
         ":v8_heap_base_files",
     ] + select({
+        # Sparkplug is not available in jitless builds (see BUILD.gn).
+        ":is_v8_jitless": [],
+        "//conditions:default": [
+            "src/baseline/baseline-batch-compiler.cc",
+            "src/baseline/baseline-compiler.cc",
+        ],
+    }) + select({
         "@v8//bazel/config:v8_target_ia32": [
             "src/baseline/ia32/baseline-assembler-ia32-inl.h",
             "src/baseline/ia32/baseline-compiler-ia32-inl.h",
