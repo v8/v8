@@ -73,29 +73,6 @@ in_category(
 )
 
 in_category(
-    "Nonlayout",
-    integration_builder(
-        name = "Linux Debug Builder",
-        bucket = "ci",
-        triggered_by = ["v8-trigger"],
-        executable = "recipe:chromium",
-        dimensions = {"host_class": "large_disk", "os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"builder_group": "client.v8.fyi"},
-        notifies = ["v8-infra-cc"],
-    ),
-    integration_builder(
-        name = "Linux ASAN Builder",
-        bucket = "ci",
-        triggered_by = ["v8-trigger"],
-        executable = "recipe:chromium",
-        dimensions = {"host_class": "large_disk", "os": "Ubuntu-22.04", "cpu": "x86-64"},
-        execution_timeout = 3600 * 5,
-        properties = {"builder_group": "client.v8.fyi"},
-        notifies = ["v8-infra-cc"],
-    ),
-)
-
-in_category(
     "GPU",
     integration_builder(
         name = "Win V8 FYI Release (NVIDIA)",
