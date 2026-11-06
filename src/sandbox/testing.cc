@@ -1106,10 +1106,6 @@ void ReportSandboxViolation() {
   PrintToStderr("\n## V8 sandbox violation detected!\n\n");
 }
 
-#ifdef V8_USE_ADDRESS_SANITIZER
-bool g_is_asan_fault_harmless = false;
-#endif
-
 void UninstallCrashFilter() {
   // NOTE: This code MUST be async-signal safe.
   // NO malloc or stdio is allowed here.
@@ -1400,33 +1396,29 @@ bool IsHarmlessMemcpyParamOverlap() {
          sandbox->ReservationContains(dest_last);
 }
 
-bool IsHarmlessASanFault(const char* description, Address faultaddr,
-                         MemoryAccessType access_type) {
+void FilterHarmlessASanFault(const char* description, Address faultaddr,
+                             MemoryAccessType access_type) {
   if (description && strcmp(description, "memcpy-param-overlap") == 0) {
     if (IsHarmlessMemcpyParamOverlap()) {
-      PrintToStderr(
+      FilterCrash(
           "Caught harmless ASan fault (overlapping memcpy safely contained "
-          "in the sandbox).\n");
-      return true;
+          "in the sandbox).");
     }
     // Otherwise, treat it as a sandbox violation.
-    return false;
+    return;
   }
 
   if (faultaddr == kNullAddress) {
-    PrintToStderr(
+    FilterCrash(
         "Caught ASan fault without a fault address. Ignoring it as we cannot "
-        "check if it is a sandbox violation.\n");
-    return true;
+        "check if it is a sandbox violation.");
   }
 
   if (IsCrashInSafeMemoryRegion(faultaddr, access_type)) {
-    PrintToStderr("Caught harmless ASan fault (inside safe region).\n");
-    return true;
+    FilterCrash("Caught harmless ASan fault (inside safe region).");
   }
-
-  return false;
 }
+
 }  // namespace
 
 extern "C" V8_EXPORT_PRIVATE void __asan_on_error() {
@@ -1449,28 +1441,20 @@ extern "C" V8_EXPORT_PRIVATE void __asan_on_error() {
   const MemoryAccessType access_type = __asan_get_report_access_type() == 0
                                            ? MemoryAccessType::kRead
                                            : MemoryAccessType::kWrite;
-  if (IsHarmlessASanFault(description, faultaddr, access_type)) {
-    g_is_asan_fault_harmless = true;
-  } else {
-    ReportSandboxViolation();
-  }
+  FilterHarmlessASanFault(description, faultaddr, access_type);
+
+  // If we get here, we've detected a sandbox violation.
+  ReportSandboxViolation();
 }
 #endif  // V8_USE_ADDRESS_SANITIZER
 
 #ifdef V8_USE_ANY_SANITIZER
 void SanitizerFaultHandler() {
 #ifdef V8_USE_ADDRESS_SANITIZER
-  if (!g_is_sandbox_violation && !g_is_asan_fault_harmless) {
+  if (!g_is_sandbox_violation) {
     PrintToStderr(
         "Warning: ASan death callback triggered before the fault could be "
         "classified. Falling back to treating it as a sandbox violation.\n");
-  }
-
-  if (g_is_asan_fault_harmless && !g_is_sandbox_violation) {
-    PrintToStderr("Exiting process after harmless fault...\n");
-    int status =
-        SandboxTesting::mode() == SandboxTesting::Mode::kForFuzzing ? -1 : 0;
-    _exit(status);
   }
 #endif  // V8_USE_ADDRESS_SANITIZER
 
@@ -1506,11 +1490,10 @@ void InstallCrashFilter() {
   CHECK(success);
 
 #ifdef V8_USE_ANY_SANITIZER
-  // We install a sanitizer death callback. For ASan, this will check the flag
-  // set by __asan_on_error to determine if the fault was harmless.
-  //
-  // The crash handler also resets the signal handler as sanitizer may use
-  // `abort()` via `abort_on_error=1` option to signal problems.
+  // We install a sanitizer death callback to report sandbox violations for
+  // sanitizers that don't go through __asan_on_error(), and to reset the signal
+  // handlers as sanitizers may use `abort()` via `abort_on_error=1` option to
+  // signal problems.
   __sanitizer_set_death_callback(&SanitizerFaultHandler);
 #endif  // V8_USE_ANY_SANITIZER
 }

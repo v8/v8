@@ -123,9 +123,8 @@ TEST_F(SandboxCrashFilterTest, OverlappingMemcpyInsideSandbox) {
         memcpy(dest, src, 10);
       },
       testing::ExitedWithCode(0),
-      testing::AllOf(
-          testing::HasSubstr("AddressSanitizer: memcpy-param-overlap"),
-          testing::HasSubstr("harmless ASan fault")));
+      testing::AllOf(testing::Not(testing::HasSubstr("AddressSanitizer:")),
+                     testing::HasSubstr("harmless ASan fault")));
 }
 
 // Verifies that an overlapping memcpy completely outside the sandbox (e.g. on
@@ -204,7 +203,7 @@ TEST_F(SandboxCrashFilterTest, ASanUseAfterPoisonInSafeRegion) {
         (void)c;
       },
       testing::ExitedWithCode(0),
-      testing::AllOf(testing::HasSubstr("AddressSanitizer: use-after-poison"),
+      testing::AllOf(testing::Not(testing::HasSubstr("AddressSanitizer:")),
                      testing::HasSubstr("harmless ASan fault")));
 }
 
@@ -233,7 +232,7 @@ TEST_F(SandboxCrashFilterTest, ASanUseAfterPoisonInsideSandbox) {
         (void)c;
       },
       testing::ExitedWithCode(0),
-      testing::AllOf(testing::HasSubstr("AddressSanitizer: use-after-poison"),
+      testing::AllOf(testing::Not(testing::HasSubstr("AddressSanitizer:")),
                      testing::HasSubstr("harmless ASan fault")));
 
   allocator->FreePages(dest, size);
