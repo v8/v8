@@ -459,7 +459,6 @@ class MarkCompactCollector final {
   friend class RecordMigratedSlotVisitor;
   friend class RootMarkingVisitor;
   friend class PrecisePagePinningVisitor;
-  friend class StringForwardingTableCleanerBase;
 };
 
 }  // namespace internal

@@ -1074,8 +1074,6 @@ void GCTracer::PrintNVP() const {
           .p("mark.conservative_stack",
              current_scope(Scope::MINOR_MS_MARK_CONSERVATIVE_STACK))
           .p("clear", current_scope(Scope::MINOR_MS_CLEAR))
-          .p("clear.string_forwarding_table",
-             current_scope(Scope::MINOR_MS_CLEAR_STRING_FORWARDING_TABLE))
           .p("clear.string_table",
              current_scope(Scope::MINOR_MS_CLEAR_STRING_TABLE))
           .p("clear.global_handles",
@@ -1122,8 +1120,6 @@ void GCTracer::PrintNVP() const {
           .p("clear", current_scope(Scope::MC_CLEAR))
           .p("clear.external_string_table",
              current_scope(Scope::MC_CLEAR_EXTERNAL_STRING_TABLE))
-          .p("clear.string_forwarding_table",
-             current_scope(Scope::MC_CLEAR_STRING_FORWARDING_TABLE))
           .p("clear.weak_global_handles",
              current_scope(Scope::MC_CLEAR_WEAK_GLOBAL_HANDLES))
           .p("clear.dependent_code",

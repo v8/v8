@@ -90,17 +90,6 @@
   # https://crbug.com/485267831
   'regress/regress-485267831': [SKIP],
 
-
-  # TODO(542447324): --shared-string-table together with
-  # --transition-strings-during-gc-with-stack was never intended to work.
-  # Consider reverting the changes introduced to fix misbehaviour.
-  'regress/regress-526275356': [SKIP],
-  'regress/regress-526275356-2': [SKIP],
-  'regress/regress-537813778': [SKIP],
-  'regress/regress-538529872': [SKIP],
-  'regress/regress-538529872-2': [SKIP],
-  'turboshaft/regress-523436017': [SKIP],
-
   # TODO(572988458): Skip --shared-string-table tests.
   # To be removed soon.
   'shared-memory/regress-crbug-1394741': [SKIP],

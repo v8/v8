@@ -52,7 +52,6 @@
 #include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/objects.h"
-#include "src/objects/string-forwarding-table-inl.h"
 #include "src/objects/visitors.h"
 #include "src/snapshot/shared-heap-serializer.h"
 #include "src/tasks/cancelable-task.h"
@@ -448,41 +447,6 @@ void MinorMarkSweepCollector::CollectGarbage() {
 
 namespace {
 
-class YoungStringForwardingTableCleaner final
-    : public StringForwardingTableCleanerBase {
- public:
-  explicit YoungStringForwardingTableCleaner(Heap* heap)
-      : StringForwardingTableCleanerBase(heap) {}
-
-  // For Minor MS we don't mark forward objects, because they are always
-  // in old generation (and thus considered live).
-  // We only need to delete non-live young objects.
-  void ProcessYoungObjects() {
-    DCHECK(v8_flags.always_use_string_forwarding_table);
-    StringForwardingTable* forwarding_table =
-        isolate_->string_forwarding_table();
-    forwarding_table->IterateElements(
-        [&](StringForwardingTable::Record* record) {
-          ClearNonLiveYoungObjects(record);
-        });
-  }
-
- private:
-  void ClearNonLiveYoungObjects(StringForwardingTable::Record* record) {
-    Tagged<Object> original = record->OriginalStringObject(isolate_);
-    if (!IsHeapObject(original)) {
-      DCHECK_EQ(original, StringForwardingTable::deleted_element());
-      return;
-    }
-    Tagged<String> original_string = Cast<String>(original);
-    if (!HeapLayout::InYoungGeneration(original_string)) return;
-    if (!marking_state_->IsMarked(original_string)) {
-      DisposeExternalResource(record);
-      record->set_original_string(StringForwardingTable::deleted_element());
-    }
-  }
-};
-
 bool IsUnmarkedObjectInYoungGeneration(Heap* heap, FullObjectSlot p) {
   if (v8_flags.sticky_mark_bits) {
     return HeapLayout::InYoungGeneration(*p);
@@ -496,14 +460,6 @@ bool IsUnmarkedObjectInYoungGeneration(Heap* heap, FullObjectSlot p) {
 
 void MinorMarkSweepCollector::ClearNonLiveReferences() {
   TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_CLEAR);
-
-  if (V8_UNLIKELY(v8_flags.always_use_string_forwarding_table)) {
-    TRACE_GC(heap_->tracer(),
-             GCTracer::Scope::MINOR_MS_CLEAR_STRING_FORWARDING_TABLE);
-    // Clear non-live objects in the string fowarding table.
-    YoungStringForwardingTableCleaner forwarding_table_cleaner(heap_);
-    forwarding_table_cleaner.ProcessYoungObjects();
-  }
 
   Isolate* isolate = heap_->isolate();
   if (isolate->global_handles()->HasYoung() ||

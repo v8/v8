@@ -1846,11 +1846,6 @@ void ScavengerCollector::CollectGarbage() {
         HandleSurvivingNewLargeObjects(heap_, surviving_new_large_objects);
   }
 
-  // Update references into new space
-  if (V8_UNLIKELY(v8_flags.always_use_string_forwarding_table)) {
-    isolate->string_forwarding_table()->UpdateAfterYoungEvacuation();
-  }
-
   ScavengerEphemeronProcessor::Process(heap_, &ephemeron_table_list);
 
   DCHECK_IMPLIES(!should_handle_weak_objects_weakly,

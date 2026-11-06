@@ -1188,7 +1188,6 @@ V8_OBJECT class ThinString : public String {
   friend class maglev::MaglevAssembler;
   friend class maglev::CheckedInternalizedString;
   friend class compiler::AccessBuilder;
-  friend class FullStringForwardingTableCleaner;
   friend class SandboxTesting;
   friend class TorqueGeneratedThinStringAsserts;
 

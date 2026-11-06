@@ -1006,7 +1006,6 @@
   F(MINOR_MARK_SWEEPER)                     \
   F(MINOR_MS)                               \
   TOP_MINOR_MS_SCOPES(F)                    \
-  F(MINOR_MS_CLEAR_STRING_FORWARDING_TABLE) \
   F(MINOR_MS_CLEAR_STRING_TABLE)            \
   F(MINOR_MS_CLEAR_WEAK_GLOBAL_HANDLES)     \
   F(MINOR_MS_COMPLETE_SWEEP_ARRAY_BUFFERS)  \
@@ -1063,7 +1062,6 @@
   F(MC_CLEAR_JS_WEAK_REFERENCES)                \
   F(MC_CLEAR_MAPS)                              \
   F(MC_CLEAR_SLOTS_BUFFER)                      \
-  F(MC_CLEAR_STRING_FORWARDING_TABLE)           \
   F(MC_CLEAR_SWEEP_CODE_POINTER_TABLE)          \
   F(MC_CLEAR_SWEEP_EXTERNAL_POINTER_TABLE)      \
   F(MC_CLEAR_SWEEP_JS_DISPATCH_TABLE)           \
