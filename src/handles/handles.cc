@@ -15,6 +15,7 @@
 #include "src/heap/heap-layout-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/roots/roots-inl.h"
+#include "src/sandbox/hardware-support.h"
 #include "src/utils/address-map.h"
 #include "src/utils/identity-map.h"
 
@@ -89,9 +90,6 @@ bool HandleBase::IsDereferenceAllowed() const {
   if (isolate->IsBuiltinTableHandleLocation(location_)) return true;
   if (!AllowHandleDereference::IsAllowed()) return false;
 
-  // Allocations in the shared heap may be dereferenced by multiple threads.
-  if (HeapLayout::InWritableSharedSpace(heap_object)) return true;
-
   // Deref is explicitly allowed from any thread. Used for running internal GC
   // epilogue callbacks in the safepoint after a GC.
   if (AllowHandleUsageOnAllThreads::IsAllowed()) return true;
@@ -103,6 +101,12 @@ bool HandleBase::IsDereferenceAllowed() const {
     StdoutStream{} << "Cannot dereference handle owned by "
                    << "non-running local heap\n";
     return false;
+  }
+
+  // Allocations in the shared heap may be dereferenced by multiple threads.
+  {
+    AllowSandboxAccess sandbox_access("InWritableSharedSpace check");
+    if (HeapLayout::InWritableSharedSpace(heap_object)) return true;
   }
 
   // We are pretty strict with handle dereferences on background threads: A
@@ -132,9 +136,6 @@ bool DirectHandleBase::IsDereferenceAllowed() const {
   Isolate* isolate = Isolate::Current();
   if (!AllowHandleDereference::IsAllowed()) return false;
 
-  // Allocations in the shared heap may be dereferenced by multiple threads.
-  if (HeapLayout::InWritableSharedSpace(heap_object)) return true;
-
   // Deref is explicitly allowed from any thread. Used for running internal GC
   // epilogue callbacks in the safepoint after a GC.
   if (AllowHandleUsageOnAllThreads::IsAllowed()) return true;
@@ -146,6 +147,12 @@ bool DirectHandleBase::IsDereferenceAllowed() const {
     StdoutStream{} << "Cannot dereference handle owned by "
                    << "non-running local heap\n";
     return false;
+  }
+
+  // Allocations in the shared heap may be dereferenced by multiple threads.
+  {
+    AllowSandboxAccess sandbox_access("InWritableSharedSpace check");
+    if (HeapLayout::InWritableSharedSpace(heap_object)) return true;
   }
 
   // We are pretty strict with handle dereferences on background threads: A
