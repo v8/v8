@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "include/cppgc/allocation.h"
-#include "include/cppgc/garbage-collected.h"
 #include "include/v8-embedder-heap.h"
 #include "include/v8-traced-handle.h"
 #include "src/handles/handles.h"
@@ -202,59 +200,6 @@ TEST_F(EmbedderRootsHandlerTest,
       v8_isolate(), ConstructDroppableJSApiObject,
       [](TracedReference<v8::Object>& handle) {}, [this]() { InvokeMinorGC(); },
       SurvivalMode::kDies);
-}
-
-namespace {
-
-class DeadCppGCObject final : public cppgc::GarbageCollected<DeadCppGCObject> {
- public:
-  explicit DeadCppGCObject(v8::TracedReference<v8::Object>* handle)
-      : handle_(handle) {}
-  ~DeadCppGCObject() { handle_->Reset(); }
-  void Trace(cppgc::Visitor*) const {}
-
- private:
-  v8::TracedReference<v8::Object>* handle_;
-};
-
-}  // namespace
-
-using EmbedderRootsHandlerUnifiedHeapTest = UnifiedHeapTest;
-
-TEST_F(EmbedderRootsHandlerUnifiedHeapTest,
-       YoungGC_DroppableResetDuringMutatorSweeping) {
-  if (v8_flags.single_generation || !v8_flags.reclaim_unmodified_wrappers) {
-    GTEST_SKIP();
-  }
-
-  ManualGCScope manual_gc(i_isolate());
-  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      i_isolate()->heap());
-  ClearingEmbedderRootsHandler handler(v8_isolate());
-  TemporaryEmbedderRootsHandleScope roots_handler_scope(v8_isolate(), &handler);
-
-  // Allocate a dead CppGC object and start a major GC with incremental
-  // sweeping so that CppGC sweeping is still in progress after the atomic
-  // pause.
-  v8::TracedReference<v8::Object> handle;
-  cppgc::MakeGarbageCollected<DeadCppGCObject>(allocation_handle(), &handle);
-  CollectGarbageWithoutEmbedderStack(
-      cppgc::Heap::SweepingType::kIncrementalAndConcurrent);
-
-  // Create a live droppable TracedReference pointing to a young unmodified
-  // API wrapper before finishing CppGC sweeping.
-  ConstructDroppableJSApiObject(v8_isolate(), v8_isolate()->GetCurrentContext(),
-                                &handle);
-  ASSERT_TRUE(IsNewObjectInCorrectGeneration(v8_isolate(), handle));
-
-  // Finishing sweeping on the mutator thread invokes ~DeadCppGCObject(), which
-  // resets `handle` while `is_sweeping_on_mutator_thread_` is true.
-  cpp_heap().AsBase().sweeper().FinishIfRunning();
-  EXPECT_TRUE(handle.IsEmpty());
-
-  // A subsequent minor GC must not treat the already-reset node as an active
-  // weak droppable root.
-  InvokeMinorGC();
 }
 
 }  // namespace v8::internal

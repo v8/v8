@@ -180,11 +180,8 @@ void TracedHandles::Destroy(TracedNodeBlock& node_block, TracedNode& node) {
   // reclaimed on the next cycle.
   //
   // This allows v8::TracedReference::Reset() calls from destructors on
-  // objects that may be used from stack and heap. Eagerly clear out the object
-  // here to avoid considering droppable handles as unmodified wrappers in
-  // minor GCs before the next full GC cycle.
+  // objects that may be used from stack and heap.
   if (is_sweeping_on_mutator_thread_) {
-    node.set_raw_object<AccessMode::ATOMIC>(kNullAddress);
     return;
   }
 
