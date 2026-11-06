@@ -46,10 +46,11 @@ description: Reviews a V8 CL, commit, or local diff using targeted parallel suba
      or thread isolation/signal handlers. Skip for purely single-threaded
      main-thread code.
    - `architecture-api`: Select for all non-trivial code or `docs/` changes
-     (especially bug fixes, new features, cross-tier/cross-arch changes,
-     API/header/`docs/` edits, or flag additions) to evaluate minimal fix
-     design, variant completeness, documentation sync, and architectural fit.
-     Skip only for trivial comment, formatting, or test-only edits.
+     (especially bug fixes, refactorings, new features, cross-tier/cross-arch
+     changes, API/header/`docs/` edits, or flag additions) to evaluate
+     maintainability, minimal fix design, variant completeness, documentation
+     sync, and architectural fit. Skip only for trivial comment, formatting, or
+     test-only edits.
    - `performance-containers`: Select when touching hot paths (ICs,
      interpreter/JIT fast paths, frequent compiler passes, GC, Wasm execution,
      hot builtins) or adding/modifying data structures, containers, and loops.
@@ -68,7 +69,8 @@ description: Reviews a V8 CL, commit, or local diff using targeted parallel suba
 
 Call `invoke_subagent` for each selected subagent in parallel in a single turn
 (`TypeName: "self"`, `Model: "inherit"`), passing each subagent only its own
-checklist and the shared subagent instructions below:
+**verbatim** checklist (do not paraphrase or narrow) and the shared subagent
+instructions below:
 
 1. `sandbox-security`:
 
@@ -101,6 +103,10 @@ checklist and the shared subagent instructions below:
      `ArrayBuffer`s (including RAB/GSAB), transition `Map`s, change
      `ElementsKind`, or mutate lengths mid-operation. Ensure hole sentinels
      (`TheHole`, etc.) or uninitialized memory never leak to JS.
+   - **Safe-by-construction APIs**: Keep validation (`SBXCHECK*`, bounds/type
+     checks) and coupled state updates inside `TrustedObject` and trust-boundary
+     helpers rather than relying on callers to pre-validate inputs or finish
+     multi-step initialization.
 
 2. `correctness-gc`:
 
@@ -171,6 +177,11 @@ checklist and the shared subagent instructions below:
      introduce unnecessary abstractions/helpers, when a smaller, more local fix
      at a single choke point or an existing invariant/helper would be cleaner
      and more maintainable long-term.
+   - **Encapsulation & invariant consistency**: Encapsulate coupled state
+     mutations and invariants on the owning class or helper. Flag changes that
+     simplify one surface at the cost of implicit caller preconditions or
+     follow-up steps, partial initialization, weaker encapsulation, or
+     inconsistencies across related operations.
    - **Cross-arch, cross-tier & variant completeness**: Parity across the 4
      supported architectures (`x64`, `arm64`, `ia32`, `arm`; ignore community
      ports like `riscv`, `loong64`, `ppc64`, `s390x`, `mips64` unless targeted
@@ -178,12 +189,12 @@ checklist and the shared subagent instructions below:
      Liftoff), and all affected opcodes/builtins. For bug fixes, perform variant
      analysis to check if the same bug pattern exists in sibling opcodes,
      builtins, reducers, or tiers.
-   - **Optimization preservation & encapsulation**: Fix specific invariant flaws
-     rather than disabling fast paths wholesale; reuse existing helpers/passes
-     and encapsulate state mutations on the owning class; keep headers lean
-     (`.cc` definitions for non-hot methods, `namespace {}` in `.cc` for helpers
-     not using `this`); avoid `#if V8_TARGET_ARCH_...` in shared code; flag
-     edits to generated files (`out/`) or unrelated drive-by refactors.
+   - **Optimization preservation & code hygiene**: Fix specific invariant flaws
+     rather than disabling fast paths wholesale; reuse existing helpers/passes;
+     keep headers lean (`.cc` definitions for non-hot methods, `namespace {}` in
+     `.cc` for helpers not using `this`); avoid `#if V8_TARGET_ARCH_...` in
+     shared code; flag edits to generated files (`out/`) or unrelated drive-by
+     refactors.
    - **API surface, flags & presubmit**: Swallowed errors or defensive
      workarounds instead of `CHECK`/`DCHECK`/`UNREACHABLE()` (never suggest
      defensive fallbacks that mask unexpected states or invariant violations),
