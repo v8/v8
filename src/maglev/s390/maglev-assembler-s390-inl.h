@@ -720,6 +720,7 @@ inline void MaglevAssembler::Move(DoubleRegister dst, Float64 n) {
   MacroAssembler::LoadF64(dst, n, scratch);
 }
 inline void MaglevAssembler::Move(Register dst, Handle<HeapObject> obj) {
+  if (TryLoadRoot(dst, obj)) return;
   MacroAssembler::Move(dst, obj);
 }
 

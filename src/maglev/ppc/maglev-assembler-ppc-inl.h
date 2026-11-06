@@ -732,6 +732,7 @@ inline void MaglevAssembler::Move(DoubleRegister dst, Float64 n) {
       dst, base::Double(base::bit_cast<uint64_t, Float64>(n)));
 }
 inline void MaglevAssembler::Move(Register dst, Handle<HeapObject> obj) {
+  if (TryLoadRoot(dst, obj)) return;
   MacroAssembler::Move(dst, obj);
 }
 

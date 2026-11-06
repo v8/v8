@@ -431,6 +431,27 @@ TEST_F(MaglevAssemblerReadOnlyCompareTest, CompareTaggedAndJumpIfReadOnly) {
   if (ExpectImmediateCompare()) EXPECT_EQ(2 * kInstrSize, bytes);
   FinalizeAndRun(&pass, &fail);
 }
+
+TEST_F(MaglevAssemblerReadOnlyCompareTest, MoveRoot) {
+  // A root is one instruction through the root registers, not a load from
+  // the constant pool.
+  Handle<HeapObject> map = isolate()->factory()->heap_number_map();
+  Handle<HeapObject> string =
+      isolate()->factory()->LookupSingleCharacterStringFromCode('a');
+  Label pass, fail;
+  as.CodeEntry();
+  SetUpRootRegisters();
+  for (Handle<HeapObject> root : {map, string}) {
+    int start = as.pc_offset();
+    as.Move(kReturnRegister0, root);
+    EXPECT_EQ(kInstrSize, as.pc_offset() - start);
+    EXPECT_FALSE(as.InstructionAt(start)->IsLdrLiteral());
+    as.CompareTaggedAndJumpIf(kReturnRegister0, root, kNotEqual, &fail);
+  }
+  RestoreRootRegisters();
+  as.Jump(&pass);
+  FinalizeAndRun(&pass, &fail);
+}
 #endif  // V8_TARGET_ARCH_ARM64
 
 #if V8_TARGET_ARCH_X64

@@ -537,6 +537,9 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   inline void Move(DoubleRegister dst, double n);
   inline void Move(DoubleRegister dst, Float64 n);
   inline void Move(Register dst, Handle<HeapObject> obj);
+  // Loads {obj} with LoadRoot if it is an immortal immovable root, and returns
+  // whether it did.
+  bool TryLoadRoot(Register dst, Handle<HeapObject> obj);
 
   void Move(ExternalReference dst, int32_t imm);
 

@@ -841,6 +841,7 @@ inline void MaglevAssembler::Move(DoubleRegister dst, Float64 n) {
   Fmov(dst, n.get_scalar());
 }
 inline void MaglevAssembler::Move(Register dst, Handle<HeapObject> obj) {
+  if (TryLoadRoot(dst, obj)) return;
   Mov(dst, Operand(obj));
 }
 void MaglevAssembler::MoveTagged(Register dst, Handle<HeapObject> obj) {

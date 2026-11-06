@@ -283,6 +283,16 @@ void MaglevAssembler::ToBoolean(Register value, CheckType check_type,
   }
 }
 
+bool MaglevAssembler::TryLoadRoot(Register dst, Handle<HeapObject> obj) {
+  RootIndex root_index;
+  if (!isolate()->roots_table().IsRootHandle(obj, &root_index) ||
+      !RootsTable::IsImmortalImmovable(root_index)) {
+    return false;
+  }
+  LoadRoot(dst, root_index);
+  return true;
+}
+
 void MaglevAssembler::MaterialiseValueNode(Register dst, ValueNode* value) {
   switch (value->opcode()) {
     case Opcode::kInt32Constant: {
