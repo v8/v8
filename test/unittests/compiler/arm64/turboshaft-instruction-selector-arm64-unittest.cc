@@ -3693,8 +3693,7 @@ TEST_F(TurboshaftInstructionSelectorTest, AddReduce) {
 }
 
 TEST_F(TurboshaftInstructionSelectorTest, I64x2MulSVE2) {
-  if (!CpuFeatures::IsSupported(SVE2) ||
-      CpuFeatures::svevlen() != kSimd128Size) {
+  if (!CpuFeatures::IsSupported(SVE2) || CpuFeatures::vlenb() != kSimd128Size) {
     GTEST_SKIP() << "Requires a 128-bit SVE vector-length";
   }
 

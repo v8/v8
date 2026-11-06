@@ -60,14 +60,6 @@ CpuFeatureSet SimulatorFeaturesFromCommandLine() {
 }
 #endif  // USE_SIMULATOR
 
-#if defined(V8_HOST_ARCH_ARM64) && !defined(USE_SIMULATOR) && defined(__clang__)
-__attribute__((target("sve"))) unsigned ReadSVEVectorLengthInBytes() {
-  // SVE vector length when all byte elements are used.
-  constexpr unsigned sv_all_bytes = 31;
-  return static_cast<unsigned>(__builtin_sve_svcntb_pat(sv_all_bytes));
-}
-#endif
-
 constexpr CpuFeatureSet CpuFeaturesFromCompiler() {
   CpuFeatureSet features;
 #if defined(__ARM_FEATURE_JCVT) && !defined(V8_TARGET_OS_IOS)
@@ -98,6 +90,12 @@ constexpr CpuFeatureSet CpuFeaturesFromCompiler() {
 #endif
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
   features.Add(FP16);
+#endif
+#if defined(__ARM_FEATURE_SME)
+  features.Add(SME);
+#endif
+#if defined(__ARM_FEATURE_SME2)
+  features.Add(SME2);
 #endif
 #if defined(__ARM_FEATURE_SVE)
   features.Add(SVE);
@@ -140,20 +138,6 @@ bool CpuFeatures::SupportsSimd128() {
 #endif  // V8_ENABLE_SIMD128
 }
 
-// TODO(whunt): simulate 256-bit vector registers.
-unsigned CpuFeatures::svevlen() {
-#ifdef USE_SIMULATOR
-  return kSimd128Size;
-#elif defined(V8_HOST_ARCH_ARM64) && defined(__clang__)
-  if (!base::CPU::GetInstance().has_sve()) {
-    return 0;
-  }
-  return ReadSVEVectorLengthInBytes();
-#else
-  return 0;
-#endif
-}
-
 void CpuFeatures::ProbeImpl(bool cross_compile) {
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) {
@@ -170,6 +154,8 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 
 #ifdef USE_SIMULATOR
   supported_ |= SimulatorFeaturesFromCommandLine();
+  // TODO(whunt): Simulate 256-bit scalable vector registers.
+  vlen_ = kQRegSizeInBits;
 #else
   // Probe for additional features at runtime.
   base::CPU cpu;
@@ -201,8 +187,18 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   if (cpu.has_mops()) {
     runtime.Add(MOPS);
   }
+  if (cpu.has_sme()) {
+    runtime.Add(SME);
+    streaming_vlen_ = cpu.streaming_vlen();
+    DCHECK_NE(streaming_vlen_, base::CPU::kUnknownVlen);
+  }
+  if (cpu.has_sme2()) {
+    runtime.Add(SME2);
+  }
   if (cpu.has_sve()) {
     runtime.Add(SVE);
+    vlen_ = cpu.vlen();
+    DCHECK_NE(vlen_, base::CPU::kUnknownVlen);
   }
   if (cpu.has_sve2()) {
     runtime.Add(SVE2);

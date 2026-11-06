@@ -5831,8 +5831,11 @@ void InstructionSelector::VisitI64x2Mul(OpIndex node) {
   OpIndex left = op.left();
   OpIndex right = op.right();
 
-  // Call unpredicated SVE2 mul if supported.
-  if (IsSupported(SVE2) && CpuFeatures::svevlen() == kSimd128Size) {
+  // Call unpredicated SVE2 mul if supported, but keep in mind that the scalable
+  // vector length is unknown when cross-compiling the built-ins.
+  if (IsSupported(SVE2) &&
+      (isolate() == nullptr || !isolate()->IsGeneratingEmbeddedBuiltins()) &&
+      CpuFeatures::vlenb() == kSimd128Size) {
     return VisitRRR(this, kArm64IMul | LaneSizeField::encode(LaneSize::kL64),
                     node);
   }
