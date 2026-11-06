@@ -997,10 +997,21 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
     case CodeKind::BUILTIN:
     case CodeKind::FOR_TESTING:
     case CodeKind::FOR_TESTING_JS: {
-      if (StackFrame::IsTypeMarker(marker)) break;
+      if (StackFrame::IsTypeMarker(marker)) {
+        // An INTERNAL frame can be set up with an associated interpreter or
+        // baseline entry trampoline code object when calling into runtime to
+        // handle tiering or stack checks.
+        DCHECK_IMPLIES(
+            lookup_result.value()->is_interpreter_trampoline_builtin() ||
+                lookup_result.value()->is_baseline_trampoline_builtin(),
+            StackFrame::MarkerToType(marker) == StackFrame::INTERNAL);
+        DCHECK(!lookup_result.value()->is_baseline_leave_frame_builtin());
+        break;
+      }
       return ComputeBuiltinFrameType(lookup_result.value());
     }
     case CodeKind::BASELINE:
+      DCHECK(!StackFrame::IsTypeMarker(marker));
       // Baseline code can be deoptimized by DiscardBaselineCodeVisitor.
       if (lookup_result.value()->marked_for_deoptimization()) {
         return StackFrame::INTERPRETED;
@@ -1017,6 +1028,7 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
       }
       return StackFrame::MAGLEV;
     case CodeKind::TURBOFAN_JS:
+      DCHECK(!StackFrame::IsTypeMarker(marker));
       return StackFrame::TURBOFAN_JS;
 #if V8_ENABLE_WEBASSEMBLY
     case CodeKind::JS_TO_WASM_FUNCTION:
