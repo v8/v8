@@ -8763,41 +8763,43 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
                     KeyedAccessLoadMode::kHandleOOBAndHoles));
             subgraph.set(ret_value, value);
           } else {
-            MaglevSubGraphBuilder::Label double_branch(
-                &subgraph, static_cast<int>(double_maps.size()));
-            MaglevSubGraphBuilder::Label done_loading(&subgraph, 2,
-                                                      {&ret_value});
+            RETURN_IF_ABORT(subgraph.WithFallback(
+                {&ret_value},
+                [&](MaglevSubGraphBuilder::Label* double_branch)
+                    -> ReduceResult {
+                  ValueNode* iterated_object_map;
+                  GET_VALUE_OR_ABORT(iterated_object_map,
+                                     BuildLoadMap(iterated_object));
+                  for (compiler::MapRef map : double_maps) {
+                    RETURN_IF_ABORT(subgraph.GotoIfTrue<BranchIfReferenceEqual>(
+                        double_branch,
+                        {iterated_object_map, GetConstant(map)}));
+                  }
 
-            ValueNode* iterated_object_map;
-            GET_VALUE_OR_ABORT(iterated_object_map,
-                               BuildLoadMap(iterated_object));
-            for (compiler::MapRef map : double_maps) {
-              RETURN_IF_ABORT(subgraph.GotoIfTrue<BranchIfReferenceEqual>(
-                  &double_branch, {iterated_object_map, GetConstant(map)}));
-            }
-
-            // Tagged path (fallthrough)
-            ValueNode* tagged_value;
-            GET_VALUE_OR_ABORT(
-                tagged_value,
-                BuildElementLoadOnJSArrayOrJSObject(
-                    iterated_object, int32_index, base::VectorOf(tagged_maps),
-                    *tagged_kind, KeyedAccessLoadMode::kHandleOOBAndHoles));
-            subgraph.set(ret_value, tagged_value);
-            subgraph.Goto(&done_loading);
-
-            // Double path
-            subgraph.Bind(&double_branch);
-            ValueNode* double_value;
-            GET_VALUE_OR_ABORT(
-                double_value,
-                BuildElementLoadOnJSArrayOrJSObject(
-                    iterated_object, int32_index, base::VectorOf(double_maps),
-                    *double_kind, KeyedAccessLoadMode::kHandleOOBAndHoles));
-            subgraph.set(ret_value, double_value);
-            subgraph.Goto(&done_loading);
-
-            subgraph.Bind(&done_loading);
+                  // Tagged path (fallthrough)
+                  ValueNode* tagged_value;
+                  GET_VALUE_OR_ABORT(
+                      tagged_value,
+                      BuildElementLoadOnJSArrayOrJSObject(
+                          iterated_object, int32_index,
+                          base::VectorOf(tagged_maps), *tagged_kind,
+                          KeyedAccessLoadMode::kHandleOOBAndHoles));
+                  subgraph.set(ret_value, tagged_value);
+                  return ReduceResult::Done();
+                },
+                [&]() -> ReduceResult {
+                  // Double path
+                  ValueNode* double_value;
+                  GET_VALUE_OR_ABORT(
+                      double_value,
+                      BuildElementLoadOnJSArrayOrJSObject(
+                          iterated_object, int32_index,
+                          base::VectorOf(double_maps), *double_kind,
+                          KeyedAccessLoadMode::kHandleOOBAndHoles));
+                  subgraph.set(ret_value, double_value);
+                  return ReduceResult::Done();
+                },
+                static_cast<int>(double_maps.size())));
           }
           if (iteration_kind == IterationKind::kEntries) {
             ValueNode* key_value_array;
@@ -9877,317 +9879,309 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeSort(
   MaglevSubGraphBuilder::Variable var_j(1);
   MaglevSubGraphBuilder::Variable var_copy(2);
 
-  MaglevSubGraphBuilder::Label slow_label(&sub_builder, 1);
-  MaglevSubGraphBuilder::Label join_label(&sub_builder, 2);
-
-  // Branch: length > kMaxInlineSortSize -> slow path.
-  RETURN_IF_ABORT(sub_builder.GotoIfFalse<BranchIfInt32Compare>(
-      &slow_label, {length, GetInt32Constant(kMaxInlineSortSize)},
-      Operation::kLessThanOrEqual));
-
-  // Fast path: inline insertion sort.
-  //
-  // Use a lambda so that RETURN_IF_ABORT inside the fast path returns from the
-  // lambda (not from this function), ensuring the slow path is always emitted
-  // even if an unexpected abort occurs.
-  ReduceResult fast_path_result = [&]() -> ReduceResult {
-    // comparefn is statically known to be a callable function (checked above).
-
-    // Load the elements backing store.
-    ValueNode* elements;
-    GET_VALUE_OR_ABORT(elements, BuildLoadElements(receiver, elements_kind));
-
-    // Allocate a temporary FixedArray of kMaxInlineSortSize elements and
-    // copy the receiver's elements into it.  The sort operates entirely on
-    // this copy: comparefn side effects on the receiver do not affect the
-    // sort result, matching ECMA-262 23.1.3.30 SortIndexedProperties
-    // semantics.  On deopt the temp_array is threaded through the deopt
-    // frame so the spec-correct snapshot is preserved.
-    ValueNode* temp_array;
-    {
-      base::SmallVector<ValueNode*, kMaxInlineSortSize> smis;
-      for (int k = 0; k < kMaxInlineSortSize; k++) {
-        smis.push_back(GetSmiConstant(0));
-      }
-      VirtualObject* temp_vobj =
-          reducer_.CreateFixedArray(base::VectorOf(smis));
-      GET_VALUE_OR_ABORT(temp_array,
-                         reducer_.BuildInlinedAllocation(temp_vobj));
-    }
-
-    // Helper: copy all elements in [0, length) between two FixedArrays.
-    // When `check_undefined` is true the copy deopts on the first Undefined
-    // value, unwinding to the bytecode-level .sort call so the generic
-    // Array.prototype.sort builtin handles the Undefined-compaction step
-    // that the inlined insertion sort omits.  Only PACKED_ELEMENTS receivers
-    // can hold Undefined; PACKED_SMI_ELEMENTS guarantees every value is a
-    // Smi.
-    auto BuildCopyLoop = [&](ValueNode* src, ValueNode* dst,
-                             bool check_undefined) -> ReduceResult {
-      sub_builder.set(var_copy, GetInt32Constant(0));
-      MaglevSubGraphBuilder::Label copy_end(&sub_builder, 1);
-      MaglevSubGraphBuilder::LoopLabel copy_loop =
-          sub_builder.BeginLoop({&var_copy});
-      {
-        ValueNode* k = sub_builder.get(var_copy);
+  RETURN_IF_ABORT(sub_builder.WithFallback(
+      {},
+      [&](MaglevSubGraphBuilder::Label* slow_label) -> ReduceResult {
+        // Branch: length > kMaxInlineSortSize -> slow path.
         RETURN_IF_ABORT(sub_builder.GotoIfFalse<BranchIfInt32Compare>(
-            &copy_end, {k, length}, Operation::kLessThan));
-        ValueNode* val;
-        GET_VALUE_OR_ABORT(val, BuildLoadFixedArrayElement(src, k));
-        if (check_undefined) {
-          RETURN_IF_ABORT(AddNewNode<CheckNotUndefined>({val}));
+            slow_label, {length, GetInt32Constant(kMaxInlineSortSize)},
+            Operation::kLessThanOrEqual));
+
+        // Fast path: inline insertion sort.
+        // comparefn is statically known to be a callable function (checked
+        // above).
+
+        // Load the elements backing store.
+        ValueNode* elements;
+        GET_VALUE_OR_ABORT(elements,
+                           BuildLoadElements(receiver, elements_kind));
+
+        // Allocate a temporary FixedArray of kMaxInlineSortSize elements and
+        // copy the receiver's elements into it.  The sort operates entirely on
+        // this copy: comparefn side effects on the receiver do not affect the
+        // sort result, matching ECMA-262 23.1.3.30 SortIndexedProperties
+        // semantics.  On deopt the temp_array is threaded through the deopt
+        // frame so the spec-correct snapshot is preserved.
+        ValueNode* temp_array;
+        {
+          base::SmallVector<ValueNode*, kMaxInlineSortSize> smis;
+          for (int k = 0; k < kMaxInlineSortSize; k++) {
+            smis.push_back(GetSmiConstant(0));
+          }
+          VirtualObject* temp_vobj =
+              reducer_.CreateFixedArray(base::VectorOf(smis));
+          GET_VALUE_OR_ABORT(temp_array,
+                             reducer_.BuildInlinedAllocation(temp_vobj));
         }
-        RETURN_IF_ABORT(BuildStoreFixedArrayElement(dst, k, val));
-        ValueNode* k_inc;
-        GET_VALUE_OR_ABORT(k_inc,
-                           AddNewNode<Int32Add>({k, GetInt32Constant(1)}));
-        sub_builder.set(var_copy, k_inc);
-      }
-      sub_builder.EndLoop(&copy_loop);
-      return sub_builder.TrimPredecessorsAndBind(&copy_end);
-    };
 
-    // Copy-in: temp_array[k] = elements[k] for k in [0, length).
-    RETURN_IF_ABORT(
-        BuildCopyLoop(elements, temp_array, !IsSmiElementsKind(elements_kind)));
+        // Helper: copy all elements in [0, length) between two FixedArrays.
+        // When `check_undefined` is true the copy deopts on the first Undefined
+        // value, unwinding to the bytecode-level .sort call so the generic
+        // Array.prototype.sort builtin handles the Undefined-compaction step
+        // that the inlined insertion sort omits.  Only PACKED_ELEMENTS
+        // receivers can hold Undefined; PACKED_SMI_ELEMENTS guarantees every
+        // value is a Smi.
+        auto BuildCopyLoop = [&](ValueNode* src, ValueNode* dst,
+                                 bool check_undefined) -> ReduceResult {
+          sub_builder.set(var_copy, GetInt32Constant(0));
+          MaglevSubGraphBuilder::Label copy_end(&sub_builder, 1);
+          MaglevSubGraphBuilder::LoopLabel copy_loop =
+              sub_builder.BeginLoop({&var_copy});
+          {
+            ValueNode* k = sub_builder.get(var_copy);
+            RETURN_IF_ABORT(sub_builder.GotoIfFalse<BranchIfInt32Compare>(
+                &copy_end, {k, length}, Operation::kLessThan));
+            ValueNode* val;
+            GET_VALUE_OR_ABORT(val, BuildLoadFixedArrayElement(src, k));
+            if (check_undefined) {
+              RETURN_IF_ABORT(AddNewNode<CheckNotUndefined>({val}));
+            }
+            RETURN_IF_ABORT(BuildStoreFixedArrayElement(dst, k, val));
+            ValueNode* k_inc;
+            GET_VALUE_OR_ABORT(k_inc,
+                               AddNewNode<Int32Add>({k, GetInt32Constant(1)}));
+            sub_builder.set(var_copy, k_inc);
+          }
+          sub_builder.EndLoop(&copy_loop);
+          return sub_builder.TrimPredecessorsAndBind(&copy_end);
+        };
 
-    // Outer loop: i = 1 .. length-1.
-    sub_builder.set(var_i, GetInt32Constant(1));
+        // Copy-in: temp_array[k] = elements[k] for k in [0, length).
+        RETURN_IF_ABORT(BuildCopyLoop(elements, temp_array,
+                                      !IsSmiElementsKind(elements_kind)));
 
-    // Eager deopts inside the sort continue from the temp_array snapshot via
-    // ArraySortContinueFromSnapshot.  The frame state carries (receiver,
-    // comparefn, temp_array, length) so the continuation reproduces the
-    // spec's _items_ snapshot and writes back originalLength elements,
-    // independent of any cmp side effects on the receiver.
-    EagerDeoptFrameScope eager_deopt_scope(
-        &reducer_, GetContext(),
-        Builtin::kArraySortContinueFromSnapshotEagerDeoptContinuation, target,
-        base::VectorOf<ValueNode*>({receiver, comparefn, temp_array, length}));
+        // Outer loop: i = 1 .. length-1.
+        sub_builder.set(var_i, GetInt32Constant(1));
 
-    MaglevSubGraphBuilder::Label outer_end(&sub_builder, 1);
-    MaglevSubGraphBuilder::LoopLabel outer_loop =
-        sub_builder.BeginLoop({&var_i});
+        // Eager deopts inside the sort continue from the temp_array snapshot
+        // via ArraySortContinueFromSnapshot.  The frame state carries
+        // (receiver, comparefn, temp_array, length) so the continuation
+        // reproduces the spec's _items_ snapshot and writes back originalLength
+        // elements, independent of any cmp side effects on the receiver.
+        EagerDeoptFrameScope eager_deopt_scope(
+            &reducer_, GetContext(),
+            Builtin::kArraySortContinueFromSnapshotEagerDeoptContinuation,
+            target,
+            base::VectorOf<ValueNode*>(
+                {receiver, comparefn, temp_array, length}));
 
-    // After BeginLoop the known map/length info is reset.  Restore it following
-    // the same pattern as TryReduceArrayIteratingBuiltin.
-    if (receiver_maps_were_unstable) {
-      NodeInfo* mutable_info =
-          known_node_aspects().TryGetMutableInfoFor(receiver);
-      DCHECK_NOT_NULL(mutable_info);
-      if (!mutable_info->SetPossibleMaps(
-              receiver_maps_before_loop, receiver_maps_were_unstable,
-              NodeType::kUnknown, broker(), known_node_aspects())) {
-        return reducer_.EmitUnconditionalDeopt(DeoptimizeReason::kWrongValue);
-      }
-      known_node_aspects().MarkSideEffectsRequireInvalidation();
-    } else if (node_info != nullptr) {
-      node_info = known_node_aspects().TryGetInfoFor(receiver);
-      DCHECK_NOT_NULL(node_info);
-    }
-    ValueNode* i_int32 = sub_builder.get(var_i);
+        MaglevSubGraphBuilder::Label outer_end(&sub_builder, 1);
+        MaglevSubGraphBuilder::LoopLabel outer_loop =
+            sub_builder.BeginLoop({&var_i});
 
-    RETURN_IF_ABORT(sub_builder.GotoIfFalse<BranchIfInt32Compare>(
-        &outer_end, {i_int32, length}, Operation::kLessThan));
+        // After BeginLoop the known map/length info is reset.  Restore it
+        // following the same pattern as TryReduceArrayIteratingBuiltin.
+        if (receiver_maps_were_unstable) {
+          NodeInfo* mutable_info =
+              known_node_aspects().TryGetMutableInfoFor(receiver);
+          DCHECK_NOT_NULL(mutable_info);
+          if (!mutable_info->SetPossibleMaps(
+                  receiver_maps_before_loop, receiver_maps_were_unstable,
+                  NodeType::kUnknown, broker(), known_node_aspects())) {
+            return reducer_.EmitUnconditionalDeopt(
+                DeoptimizeReason::kWrongValue);
+          }
+          known_node_aspects().MarkSideEffectsRequireInvalidation();
+        } else if (node_info != nullptr) {
+          node_info = known_node_aspects().TryGetInfoFor(receiver);
+          DCHECK_NOT_NULL(node_info);
+        }
+        ValueNode* i_int32 = sub_builder.get(var_i);
 
-    // Load pivot = temp_array[i].
-    ValueNode* pivot;
-    {
-      LoadType load_type = IsSmiElementsKind(elements_kind)
-                               ? LoadType::kSmi
-                               : LoadType::kUnknown;
-      GET_VALUE_OR_ABORT(
-          pivot, BuildLoadFixedArrayElement(temp_array, i_int32, load_type));
-    }
-
-    // Initialize inner-loop index: j = i - 1.
-    ValueNode* j_init;
-    GET_VALUE_OR_ABORT(j_init,
-                       AddNewNode<Int32Add>({i_int32, GetInt32Constant(-1)}));
-    sub_builder.set(var_j, j_init);
-
-    // Inner loop: j = i-1 down to 0 (or until insertion point found).
-    MaglevSubGraphBuilder::Label inner_end(&sub_builder, 2);
-    MaglevSubGraphBuilder::LoopLabel inner_loop =
-        sub_builder.BeginLoop({&var_j});
-
-    ValueNode* j_int32 = sub_builder.get(var_j);
-
-    RETURN_IF_ABORT(sub_builder.GotoIfFalse<BranchIfInt32Compare>(
-        &inner_end, {j_int32, GetInt32Constant(0)},
-        Operation::kGreaterThanOrEqual));
-
-    // Load elem = temp_array[j].
-    ValueNode* elem;
-    {
-      LoadType load_type = IsSmiElementsKind(elements_kind)
-                               ? LoadType::kSmi
-                               : LoadType::kUnknown;
-      GET_VALUE_OR_ABORT(
-          elem, BuildLoadFixedArrayElement(temp_array, j_int32, load_type));
-    }
-
-    // Call comparefn(pivot, elem).
-    MaybeReduceResult cmp_maybe;
-    {
-      CallArguments cmp_args(ConvertReceiverMode::kNullOrUndefined,
-                             {pivot, elem});
-
-      // Lazy deopt at the cmp call boundary: temp_array is a valid
-      // permutation of the original receiver elements at this point (the
-      // pivot is restored to temp_array[j] after each successful shift in
-      // the inner-loop body below).  The continuation feeds temp_array and
-      // the original length to the generic PowerSort tail.
-      LazyDeoptFrameScope restart_sort(
-          &reducer_, GetContext(),
-          Builtin::kArraySortContinueFromSnapshotLazyDeoptContinuation, target,
-          base::VectorOf<ValueNode*>(
-              {receiver, comparefn, temp_array, length}));
-
-      SaveCallSpeculationScope saved(this);
-      cmp_maybe = ReduceCall(comparefn, cmp_args, saved.value());
-    }
-
-    // Process the comparefn result inside a nested lambda so that any abort
-    // (e.g. unconditional deopt from a non-numeric comparefn return value)
-    // returns from THIS lambda, not from the outer fast-path lambda.  This
-    // ensures EndLoop / TrimPredecessorsAndBind below are always reached.
-    ReduceResult inner_body_result = [&]() -> ReduceResult {
-      if (cmp_maybe.IsDoneWithAbort()) return ReduceResult::DoneWithAbort();
-      ValueNode* cmp_result = cmp_maybe.value();
-
-      // Compare cmp_result < 0.  Use int32 when the result is already
-      // integral (raw int32 or tagged Smi); fall back to float64 otherwise.
-      if (NodeTypeIs(GetType(cmp_result), NodeType::kSmi) ||
-          reducer_.TryGetInt32(cmp_result)) {
         RETURN_IF_ABORT(sub_builder.GotoIfFalse<BranchIfInt32Compare>(
-            &inner_end, {cmp_result, GetInt32Constant(0)},
-            Operation::kLessThan));
-      } else {
-        ValueNode* cmp_f64;
+            &outer_end, {i_int32, length}, Operation::kLessThan));
+
+        // Load pivot = temp_array[i].
+        ValueNode* pivot;
+        {
+          LoadType load_type = IsSmiElementsKind(elements_kind)
+                                   ? LoadType::kSmi
+                                   : LoadType::kUnknown;
+          GET_VALUE_OR_ABORT(pivot, BuildLoadFixedArrayElement(
+                                        temp_array, i_int32, load_type));
+        }
+
+        // Initialize inner-loop index: j = i - 1.
+        ValueNode* j_init;
         GET_VALUE_OR_ABORT(
-            cmp_f64, GetFloat64ForToNumber(cmp_result, NodeType::kNumber));
-        RETURN_IF_ABORT(sub_builder.GotoIfFalse<BranchIfFloat64Compare>(
-            &inner_end, {cmp_f64, GetFloat64Constant(0.0)},
-            Operation::kLessThan));
-      }
+            j_init, AddNewNode<Int32Add>({i_int32, GetInt32Constant(-1)}));
+        sub_builder.set(var_j, j_init);
 
-      // cmp_result < 0: pivot < elem, so shift elem right.
-      // temp_array[j+1] = elem
-      ValueNode* j_plus1;
-      GET_VALUE_OR_ABORT(j_plus1,
-                         AddNewNode<Int32Add>({j_int32, GetInt32Constant(1)}));
-      RETURN_IF_ABORT(BuildStoreFixedArrayElement(temp_array, j_plus1, elem));
+        // Inner loop: j = i-1 down to 0 (or until insertion point found).
+        MaglevSubGraphBuilder::Label inner_end(&sub_builder, 2);
+        MaglevSubGraphBuilder::LoopLabel inner_loop =
+            sub_builder.BeginLoop({&var_j});
 
-      // Store pivot at temp_array[j] to keep temp_array a valid
-      // permutation of the original elements at every cmp call boundary.
-      // The next iteration reads temp_array[j-1], so overwriting [j] is
-      // benign; on inner-loop exit pivot is at temp_array[j_exit + 1].
-      RETURN_IF_ABORT(BuildStoreFixedArrayElement(temp_array, j_int32, pivot));
+        ValueNode* j_int32 = sub_builder.get(var_j);
 
-      // j--
-      ValueNode* j_dec;
-      GET_VALUE_OR_ABORT(j_dec,
-                         AddNewNode<Int32Add>({j_int32, GetInt32Constant(-1)}));
-      sub_builder.set(var_j, j_dec);
-      return ReduceResult::Done();
-    }();
-    // inner_body_result is deliberately unused: an abort sets current_block_
-    // to null, which EndLoop/TrimPredecessorsAndBind handle correctly below.
-    USE(inner_body_result);
+        RETURN_IF_ABORT(sub_builder.GotoIfFalse<BranchIfInt32Compare>(
+            &inner_end, {j_int32, GetInt32Constant(0)},
+            Operation::kGreaterThanOrEqual));
 
-    sub_builder.EndLoop(&inner_loop);
-
-    // Bind inner_end.  TrimPredecessorsAndBind handles the case where the
-    // cmp-result path was never taken (due to abort); inner_end always has at
-    // least one predecessor from the j < 0 check above.
-    RETURN_IF_ABORT(sub_builder.TrimPredecessorsAndBind(&inner_end));
-
-    // i++
-    ValueNode* i_inc;
-    GET_VALUE_OR_ABORT(i_inc,
-                       AddNewNode<Int32Add>({i_int32, GetInt32Constant(1)}));
-    sub_builder.set(var_i, i_inc);
-
-    sub_builder.EndLoop(&outer_loop);
-
-    // Bind outer_end.  Always has at least one predecessor from the i >= length
-    // check above.
-    RETURN_IF_ABORT(sub_builder.TrimPredecessorsAndBind(&outer_end));
-
-    // Guard: comparefn side effects may have changed the receiver's map or
-    // length.  Check once here before the copy-back (the sort loop only
-    // touches the temp array, so in-loop checks are unnecessary).
-    {
-      if (receiver_maps_were_unstable) {
-        bool emit_check_with_migration = std::any_of(
-            receiver_maps_before_loop.begin(), receiver_maps_before_loop.end(),
-            [](compiler::MapRef map) { return map.is_migration_target(); });
-        if (emit_check_with_migration) {
-          RETURN_IF_ABORT(AddNewNode<CheckMapsWithMigration>(
-              {receiver}, receiver_maps_before_loop,
-              CheckType::kOmitHeapObjectCheck));
-        } else {
-          RETURN_IF_ABORT(
-              AddNewNode<CheckMaps>({receiver}, receiver_maps_before_loop,
-                                    CheckType::kOmitHeapObjectCheck));
+        // Load elem = temp_array[j].
+        ValueNode* elem;
+        {
+          LoadType load_type = IsSmiElementsKind(elements_kind)
+                                   ? LoadType::kSmi
+                                   : LoadType::kUnknown;
+          GET_VALUE_OR_ABORT(
+              elem, BuildLoadFixedArrayElement(temp_array, j_int32, load_type));
         }
-      }
 
-      ValueNode* current_length_int32;
-      GET_VALUE_OR_ABORT(current_length_int32,
-                         GetInt32(BuildLoadJSArrayLength(receiver).value()));
-      // Deopt if comparefn side effects changed the array length.
-      RETURN_IF_ABORT(TryBuildCheckInt32Condition(
-          length, current_length_int32, AssertCondition::kEqual,
-          DeoptimizeReason::kArrayLengthChanged));
-    }
+        // Call comparefn(pivot, elem).
+        MaybeReduceResult cmp_maybe;
+        {
+          CallArguments cmp_args(ConvertReceiverMode::kNullOrUndefined,
+                                 {pivot, elem});
 
-    // Re-load the elements pointer: comparefn may have grown/shrunk the
-    // backing store via push/pop, replacing receiver.elements.  The map and
-    // length checks above don't catch a same-length push-then-pop sequence.
-    ValueNode* writable_elements;
-    GET_VALUE_OR_ABORT(writable_elements,
-                       BuildLoadElements(receiver, elements_kind));
-    // Ensure the elements backing store isn't COW before we write into it.
-    // Array literals share a COW FixedArray; writing back without copying it
-    // first would corrupt every other invocation of the literal site.
-    // elements_kind is always PACKED_SMI or PACKED_ELEMENTS here (PACKED_DOUBLE
-    // bailed out above).
-    DCHECK(IsSmiOrObjectElementsKind(elements_kind));
-    GET_VALUE_OR_ABORT(
-        writable_elements,
-        AddNewNode<EnsureWritableFastElements>({writable_elements, receiver}));
+          // Lazy deopt at the cmp call boundary: temp_array is a valid
+          // permutation of the original receiver elements at this point (the
+          // pivot is restored to temp_array[j] after each successful shift in
+          // the inner-loop body below).  The continuation feeds temp_array and
+          // the original length to the generic PowerSort tail.
+          LazyDeoptFrameScope restart_sort(
+              &reducer_, GetContext(),
+              Builtin::kArraySortContinueFromSnapshotLazyDeoptContinuation,
+              target,
+              base::VectorOf<ValueNode*>(
+                  {receiver, comparefn, temp_array, length}));
 
-    // Copy-back: elements[k] = temp_array[k] for k in [0, length).
-    // temp_array was already filtered on copy-in, so no undefined check.
-    RETURN_IF_ABORT(BuildCopyLoop(temp_array, writable_elements,
-                                  /*check_undefined=*/false));
+          SaveCallSpeculationScope saved(this);
+          cmp_maybe = ReduceCall(comparefn, cmp_args, saved.value());
+        }
 
-    return ReduceResult::Done();
-  }();
-  // fast_path_result is either Done or DoneWithAbort.  An abort sets
-  // current_block to null, which GotoOrTrim handles by trimming the join
-  // predecessor count -- no explicit check needed.
-  USE(fast_path_result);
+        // Process the comparefn result inside a nested lambda so that any abort
+        // (e.g. unconditional deopt from a non-numeric comparefn return value)
+        // returns from THIS lambda, not from the outer fast-path lambda.  This
+        // ensures EndLoop / TrimPredecessorsAndBind below are always reached.
+        ReduceResult inner_body_result = [&]() -> ReduceResult {
+          if (cmp_maybe.IsDoneWithAbort()) return ReduceResult::DoneWithAbort();
+          ValueNode* cmp_result = cmp_maybe.value();
 
-  // Jump to join (handles null current_block if fast path aborted).
-  sub_builder.GotoOrTrim(&join_label);
+          // Compare cmp_result < 0.  Use int32 when the result is already
+          // integral (raw int32 or tagged Smi); fall back to float64 otherwise.
+          if (NodeTypeIs(GetType(cmp_result), NodeType::kSmi) ||
+              reducer_.TryGetInt32(cmp_result)) {
+            RETURN_IF_ABORT(sub_builder.GotoIfFalse<BranchIfInt32Compare>(
+                &inner_end, {cmp_result, GetInt32Constant(0)},
+                Operation::kLessThan));
+          } else {
+            ValueNode* cmp_f64;
+            GET_VALUE_OR_ABORT(
+                cmp_f64, GetFloat64ForToNumber(cmp_result, NodeType::kNumber));
+            RETURN_IF_ABORT(sub_builder.GotoIfFalse<BranchIfFloat64Compare>(
+                &inner_end, {cmp_f64, GetFloat64Constant(0.0)},
+                Operation::kLessThan));
+          }
 
-  // Slow path (length > kMaxInlineSortSize): call the unoptimised builtin.
-  // TODO(jgruber): When this reduction moves to MaglevGraphOptimizer, the
-  // slow-path call to Array.prototype.sort will be re-reduced, causing
-  // infinite recursion.  Add a disallow_speculation flag on
-  // CallKnownJSFunction to prevent this.
-  sub_builder.Bind(&slow_label);
-  {
-    ValueNode* sort_fn_node = GetConstant(target);
-    RETURN_IF_ABORT(
-        BuildGenericCall(sort_fn_node, Call::TargetType::kJSFunction, args));
-  }
-  sub_builder.GotoOrTrim(&join_label);
+          // cmp_result < 0: pivot < elem, so shift elem right.
+          // temp_array[j+1] = elem
+          ValueNode* j_plus1;
+          GET_VALUE_OR_ABORT(
+              j_plus1, AddNewNode<Int32Add>({j_int32, GetInt32Constant(1)}));
+          RETURN_IF_ABORT(
+              BuildStoreFixedArrayElement(temp_array, j_plus1, elem));
 
-  // Join fast and slow paths.
-  RETURN_IF_ABORT(sub_builder.TrimPredecessorsAndBind(&join_label));
+          // Store pivot at temp_array[j] to keep temp_array a valid
+          // permutation of the original elements at every cmp call boundary.
+          // The next iteration reads temp_array[j-1], so overwriting [j] is
+          // benign; on inner-loop exit pivot is at temp_array[j_exit + 1].
+          RETURN_IF_ABORT(
+              BuildStoreFixedArrayElement(temp_array, j_int32, pivot));
+
+          // j--
+          ValueNode* j_dec;
+          GET_VALUE_OR_ABORT(
+              j_dec, AddNewNode<Int32Add>({j_int32, GetInt32Constant(-1)}));
+          sub_builder.set(var_j, j_dec);
+          return ReduceResult::Done();
+        }();
+        // inner_body_result is deliberately unused: an abort sets
+        // current_block_ to null, which EndLoop/TrimPredecessorsAndBind handle
+        // correctly below.
+        USE(inner_body_result);
+
+        sub_builder.EndLoop(&inner_loop);
+
+        // Bind inner_end.  TrimPredecessorsAndBind handles the case where the
+        // cmp-result path was never taken (due to abort); inner_end always has
+        // at least one predecessor from the j < 0 check above.
+        RETURN_IF_ABORT(sub_builder.TrimPredecessorsAndBind(&inner_end));
+
+        // i++
+        ValueNode* i_inc;
+        GET_VALUE_OR_ABORT(
+            i_inc, AddNewNode<Int32Add>({i_int32, GetInt32Constant(1)}));
+        sub_builder.set(var_i, i_inc);
+
+        sub_builder.EndLoop(&outer_loop);
+
+        // Bind outer_end.  Always has at least one predecessor from the i >=
+        // length check above.
+        RETURN_IF_ABORT(sub_builder.TrimPredecessorsAndBind(&outer_end));
+
+        // Guard: comparefn side effects may have changed the receiver's map or
+        // length.  Check once here before the copy-back (the sort loop only
+        // touches the temp array, so in-loop checks are unnecessary).
+        {
+          if (receiver_maps_were_unstable) {
+            bool emit_check_with_migration = std::any_of(
+                receiver_maps_before_loop.begin(),
+                receiver_maps_before_loop.end(),
+                [](compiler::MapRef map) { return map.is_migration_target(); });
+            if (emit_check_with_migration) {
+              RETURN_IF_ABORT(AddNewNode<CheckMapsWithMigration>(
+                  {receiver}, receiver_maps_before_loop,
+                  CheckType::kOmitHeapObjectCheck));
+            } else {
+              RETURN_IF_ABORT(
+                  AddNewNode<CheckMaps>({receiver}, receiver_maps_before_loop,
+                                        CheckType::kOmitHeapObjectCheck));
+            }
+          }
+
+          ValueNode* current_length_int32;
+          GET_VALUE_OR_ABORT(
+              current_length_int32,
+              GetInt32(BuildLoadJSArrayLength(receiver).value()));
+          // Deopt if comparefn side effects changed the array length.
+          RETURN_IF_ABORT(TryBuildCheckInt32Condition(
+              length, current_length_int32, AssertCondition::kEqual,
+              DeoptimizeReason::kArrayLengthChanged));
+        }
+
+        // Re-load the elements pointer: comparefn may have grown/shrunk the
+        // backing store via push/pop, replacing receiver.elements.  The map and
+        // length checks above don't catch a same-length push-then-pop sequence.
+        ValueNode* writable_elements;
+        GET_VALUE_OR_ABORT(writable_elements,
+                           BuildLoadElements(receiver, elements_kind));
+        // Ensure the elements backing store isn't COW before we write into it.
+        // Array literals share a COW FixedArray; writing back without copying
+        // it first would corrupt every other invocation of the literal site.
+        // elements_kind is always PACKED_SMI or PACKED_ELEMENTS here
+        // (PACKED_DOUBLE bailed out above).
+        DCHECK(IsSmiOrObjectElementsKind(elements_kind));
+        GET_VALUE_OR_ABORT(writable_elements,
+                           AddNewNode<EnsureWritableFastElements>(
+                               {writable_elements, receiver}));
+
+        // Copy-back: elements[k] = temp_array[k] for k in [0, length).
+        // temp_array was already filtered on copy-in, so no undefined check.
+        return BuildCopyLoop(temp_array, writable_elements,
+                             /*check_undefined=*/false);
+      },
+      [&]() -> ReduceResult {
+        // Slow path (length > kMaxInlineSortSize): call the unoptimised
+        // builtin.
+        // TODO(jgruber): When this reduction moves to MaglevGraphOptimizer, the
+        // slow-path call to Array.prototype.sort will be re-reduced, causing
+        // infinite recursion.  Add a disallow_speculation flag on
+        // CallKnownJSFunction to prevent this.
+        ValueNode* sort_fn_node = GetConstant(target);
+        return BuildGenericCall(sort_fn_node, Call::TargetType::kJSFunction,
+                                args);
+      }));
 
   // Array.prototype.sort returns the sorted array (the receiver).
   return receiver;
@@ -10471,81 +10465,92 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
   MaglevSubGraphBuilder::Variable var_value(0);
   MaglevSubGraphBuilder::Variable var_new_array_length(1);
 
-  std::optional<MaglevSubGraphBuilder::Label> do_return =
-      std::make_optional<MaglevSubGraphBuilder::Label>(
-          &sub_graph, unique_kind_count + 1,
-          std::initializer_list<MaglevSubGraphBuilder::Variable*>{
-              &var_value, &var_new_array_length});
-  MaglevSubGraphBuilder::Label empty_array(&sub_graph, 1);
-
   ValueNode* old_array_length_smi;
   GET_VALUE_OR_ABORT(old_array_length_smi,
                      GetSmiValue(BuildLoadJSArrayLength(receiver)));
 
-  // If the array is empty, skip the pop and return undefined.
-  RETURN_IF_ABORT(sub_graph.GotoIfTrue<BranchIfReferenceEqual>(
-      &empty_array, {old_array_length_smi, GetSmiConstant(0)}));
+  RETURN_IF_ABORT(sub_graph.WithFallback(
+      {&var_value, &var_new_array_length},
+      [&](MaglevSubGraphBuilder::Label* empty_array) -> ReduceResult {
+        // If the array is empty, skip the pop and return undefined.
+        RETURN_IF_ABORT(sub_graph.GotoIfTrue<BranchIfReferenceEqual>(
+            empty_array, {old_array_length_smi, GetSmiConstant(0)}));
 
-  ValueNode* elements_array;
-  GET_VALUE_OR_ABORT(elements_array, BuildLoadElements(receiver));
-  ValueNode* new_array_length_smi;
-  GET_VALUE_OR_ABORT(new_array_length_smi,
-                     AddNewNode<CheckedSmiDecrement>({old_array_length_smi}));
-  ValueNode* new_array_length;
-  GET_VALUE_OR_ABORT(new_array_length,
-                     AddNewNode<UnsafeSmiUntag>({new_array_length_smi}));
-  sub_graph.set(var_new_array_length, new_array_length_smi);
+        ValueNode* elements_array;
+        GET_VALUE_OR_ABORT(elements_array, BuildLoadElements(receiver));
+        ValueNode* new_array_length_smi;
+        GET_VALUE_OR_ABORT(
+            new_array_length_smi,
+            AddNewNode<CheckedSmiDecrement>({old_array_length_smi}));
+        ValueNode* new_array_length;
+        GET_VALUE_OR_ABORT(new_array_length,
+                           AddNewNode<UnsafeSmiUntag>({new_array_length_smi}));
+        sub_graph.set(var_new_array_length, new_array_length_smi);
 
-  auto build_array_pop = [&](ElementsKind kind) {
-    // Handle COW if needed.
-    ValueNode* writable_elements_array;
-    if (IsSmiOrObjectElementsKind(kind)) {
-      GET_VALUE_OR_ABORT(
-          writable_elements_array,
-          AddNewNode<EnsureWritableFastElements>({elements_array, receiver}));
-    } else {
-      writable_elements_array = elements_array;
-    }
+        auto build_array_pop = [&](ElementsKind kind) {
+          // Handle COW if needed.
+          ValueNode* writable_elements_array;
+          if (IsSmiOrObjectElementsKind(kind)) {
+            GET_VALUE_OR_ABORT(writable_elements_array,
+                               AddNewNode<EnsureWritableFastElements>(
+                                   {elements_array, receiver}));
+          } else {
+            writable_elements_array = elements_array;
+          }
 
-    // Store new length.
-    RETURN_IF_ABORT(AddNewNode<StoreTaggedFieldNoWriteBarrier>(
-        {receiver, new_array_length_smi},
-        static_cast<int>(offsetof(JSArray, length_)), StoreTaggedMode::kDefault,
-        broker()->length_string()));
+          // Store new length.
+          RETURN_IF_ABORT(AddNewNode<StoreTaggedFieldNoWriteBarrier>(
+              {receiver, new_array_length_smi},
+              static_cast<int>(offsetof(JSArray, length_)),
+              StoreTaggedMode::kDefault, broker()->length_string()));
 
-    // Load the value and store the hole in it's place.
-    ValueNode* value;
-    if (IsDoubleElementsKind(kind)) {
-      GET_VALUE_OR_ABORT(value, BuildLoadFixedDoubleArrayElement(
-                                    writable_elements_array, new_array_length));
-      RETURN_IF_ABORT(AddNewNode<StoreFixedDoubleArrayHole>(
-          {writable_elements_array, new_array_length}));
-    } else {
-      DCHECK(IsSmiElementsKind(kind) || IsObjectElementsKind(kind));
-      GET_VALUE_OR_ABORT(value, BuildLoadFixedArrayElement(
-                                    writable_elements_array, new_array_length));
-      RETURN_IF_ABORT(BuildStoreFixedArrayElement(
-          writable_elements_array, new_array_length,
-          GetRootConstant(RootIndex::kTheHoleValue)));
-    }
+          // Load the value and store the hole in it's place.
+          ValueNode* value;
+          if (IsDoubleElementsKind(kind)) {
+            GET_VALUE_OR_ABORT(
+                value, BuildLoadFixedDoubleArrayElement(writable_elements_array,
+                                                        new_array_length));
+            RETURN_IF_ABORT(AddNewNode<StoreFixedDoubleArrayHole>(
+                {writable_elements_array, new_array_length}));
+          } else {
+            DCHECK(IsSmiElementsKind(kind) || IsObjectElementsKind(kind));
+            GET_VALUE_OR_ABORT(
+                value, BuildLoadFixedArrayElement(writable_elements_array,
+                                                  new_array_length));
+            RETURN_IF_ABORT(BuildStoreFixedArrayElement(
+                writable_elements_array, new_array_length,
+                GetRootConstant(RootIndex::kTheHoleValue)));
+          }
 
-    if (IsHoleyElementsKind(kind)) {
-      GET_VALUE_OR_ABORT(value, AddNewNode<ConvertHoleToUndefined>({value}));
-    }
-    sub_graph.set(var_value, value);
-    return ReduceResult::Done();
-  };
+          if (IsHoleyElementsKind(kind)) {
+            GET_VALUE_OR_ABORT(value,
+                               AddNewNode<ConvertHoleToUndefined>({value}));
+          }
+          sub_graph.set(var_value, value);
+          return ReduceResult::Done();
+        };
 
-  RETURN_IF_ABORT(BuildJSArrayBuiltinMapSwitchOnElementsKind(
-      receiver, map_kinds, sub_graph, do_return, unique_kind_count,
-      index_to_elements_kind, build_array_pop));
+        std::optional<MaglevSubGraphBuilder::Label> do_return;
+        if (unique_kind_count > 1) {
+          do_return.emplace(
+              &sub_graph, unique_kind_count,
+              std::initializer_list<MaglevSubGraphBuilder::Variable*>{
+                  &var_value, &var_new_array_length});
+        }
+        RETURN_IF_ABORT(BuildJSArrayBuiltinMapSwitchOnElementsKind(
+            receiver, map_kinds, sub_graph, do_return, unique_kind_count,
+            index_to_elements_kind, build_array_pop));
+        if (do_return.has_value()) {
+          RETURN_IF_ABORT(sub_graph.TrimPredecessorsAndBind(&*do_return));
+        }
+        return ReduceResult::Done();
+      },
+      [&]() -> ReduceResult {
+        sub_graph.set(var_new_array_length, GetSmiConstant(0));
+        sub_graph.set(var_value, GetRootConstant(RootIndex::kUndefinedValue));
+        return ReduceResult::Done();
+      }));
 
-  sub_graph.Bind(&empty_array);
-  sub_graph.set(var_new_array_length, GetSmiConstant(0));
-  sub_graph.set(var_value, GetRootConstant(RootIndex::kUndefinedValue));
-  sub_graph.Goto(&*do_return);
-
-  sub_graph.Bind(&*do_return);
   reducer_.RecordKnownProperty(
       receiver, broker()->length_string(), sub_graph.get(var_new_array_length),
       PropertyConstness::kMutable, compiler::AccessMode::kStore);
@@ -16264,113 +16269,111 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorForOfNext(
             MaglevSubGraphBuilder::Variable ret_value(0);
             MaglevSubGraphBuilder::Variable loaded_element(1);
 
-            MaglevSubGraphBuilder::Label done(&subgraph, 2, {&ret_value});
-            MaglevSubGraphBuilder::Label out_of_bounds(&subgraph, 1);
+            RETURN_IF_ABORT(subgraph.WithFallback(
+                {&ret_value},
+                [&](MaglevSubGraphBuilder::Label* out_of_bounds)
+                    -> ReduceResult {
+                  // Branch: index < length. The index is coming from the array
+                  // iterator object, so we can be sure it's not negative.
+                  RETURN_IF_ABORT(subgraph.GotoIfFalse<BranchIfInt32Compare>(
+                      out_of_bounds, {int32_index, int32_length},
+                      Operation::kLessThan));
 
-            // Branch: index < length. The index is coming from the array
-            // iterator object, so we can be sure it's not negative.
-            MaybeReduceResult branch_res =
-                subgraph.GotoIfFalse<BranchIfInt32Compare>(
-                    &out_of_bounds, {int32_index, int32_length},
-                    Operation::kLessThan);
-            DCHECK(branch_res.IsDone());
-            USE(branch_res);
+                  // In-bounds branch:
+                  ValueNode* elem = nullptr;
+                  if (double_maps.empty()) {
+                    // Only tagged maps (already checked via global
+                    // BuildCheckMaps)
+                    GET_VALUE_OR_ABORT(
+                        elem, BuildElementLoadOnJSArrayOrJSObject(
+                                  iterated_object, int32_index,
+                                  base::VectorOf(tagged_maps), *tagged_kind,
+                                  KeyedAccessLoadMode::kHandleHoles));
+                  } else if (tagged_maps.empty()) {
+                    // Only double maps (already checked via global
+                    // BuildCheckMaps)
+                    GET_VALUE_OR_ABORT(
+                        elem, BuildElementLoadOnJSArrayOrJSObject(
+                                  iterated_object, int32_index,
+                                  base::VectorOf(double_maps), *double_kind,
+                                  KeyedAccessLoadMode::kHandleHoles));
+                  } else {
+                    // Both tagged and double maps (already checked via global
+                    // BuildCheckMaps)
+                    ValueNode* iterated_object_map;
+                    GET_VALUE_OR_ABORT(iterated_object_map,
+                                       BuildLoadMap(iterated_object));
 
-            // In-bounds branch:
-            ReduceResult load_result = ReduceResult::DoneWithAbort();
+                    RETURN_IF_ABORT(subgraph.WithFallback(
+                        {&loaded_element},
+                        [&](MaglevSubGraphBuilder::Label* double_branch)
+                            -> ReduceResult {
+                          for (compiler::MapRef map : double_maps) {
+                            RETURN_IF_ABORT(
+                                subgraph.GotoIfTrue<BranchIfReferenceEqual>(
+                                    double_branch,
+                                    {iterated_object_map, GetConstant(map)}));
+                          }
 
-            if (double_maps.empty()) {
-              // Only tagged maps (already checked via global BuildCheckMaps)
-              load_result = BuildElementLoadOnJSArrayOrJSObject(
-                  iterated_object, int32_index, base::VectorOf(tagged_maps),
-                  *tagged_kind, KeyedAccessLoadMode::kHandleHoles);
-            } else if (tagged_maps.empty()) {
-              // Only double maps (already checked via global BuildCheckMaps)
-              load_result = BuildElementLoadOnJSArrayOrJSObject(
-                  iterated_object, int32_index, base::VectorOf(double_maps),
-                  *double_kind, KeyedAccessLoadMode::kHandleHoles);
-            } else {
-              // Both tagged and double maps (already checked via global
-              // BuildCheckMaps)
-              MaglevSubGraphBuilder::Label double_branch(
-                  &subgraph, static_cast<int>(double_maps.size()));
-              MaglevSubGraphBuilder::Label done_loading(&subgraph, 2,
-                                                        {&loaded_element});
+                          // Tagged path (fallthrough)
+                          // Since it didn't match double_maps, and it must be
+                          // one of named_feedback.maps(), it is guaranteed to
+                          // be one of tagged_maps.
+                          // TODO(marja): BuildElementLoadOnJSArrayOrJSObject
+                          // does another bounds check -> refactor that out.
+                          ValueNode* tagged_elem;
+                          GET_VALUE_OR_ABORT(
+                              tagged_elem,
+                              BuildElementLoadOnJSArrayOrJSObject(
+                                  iterated_object, int32_index,
+                                  base::VectorOf(tagged_maps), *tagged_kind,
+                                  KeyedAccessLoadMode::kHandleHoles));
+                          subgraph.set(loaded_element, tagged_elem);
+                          return ReduceResult::Done();
+                        },
+                        [&]() -> ReduceResult {
+                          // Double path
+                          // TODO(marja): BuildElementLoadOnJSArrayOrJSObject
+                          // does another bounds check -> refactor that out.
+                          ValueNode* double_elem;
+                          GET_VALUE_OR_ABORT(
+                              double_elem,
+                              BuildElementLoadOnJSArrayOrJSObject(
+                                  iterated_object, int32_index,
+                                  base::VectorOf(double_maps), *double_kind,
+                                  KeyedAccessLoadMode::kHandleHoles));
+                          subgraph.set(loaded_element, double_elem);
+                          return ReduceResult::Done();
+                        },
+                        static_cast<int>(double_maps.size())));
+                    elem = subgraph.get(loaded_element);
+                  }
 
-              ValueNode* iterated_object_map;
-              GET_VALUE_OR_ABORT(iterated_object_map,
-                                 BuildLoadMap(iterated_object));
+                  subgraph.set(ret_value, elem);
 
-              for (compiler::MapRef map : double_maps) {
-                RETURN_IF_ABORT(subgraph.GotoIfTrue<BranchIfReferenceEqual>(
-                    &double_branch, {iterated_object_map, GetConstant(map)}));
-              }
+                  // Add 1 to index (cannot overflow since the max JSArray
+                  // length is below the Smi limit).
+                  ValueNode* next_index;
+                  GET_VALUE_OR_ABORT(
+                      next_index,
+                      AddNewNode<Int32Add>({int32_index, GetInt32Constant(1)}));
+                  RETURN_IF_ABORT(
+                      reducer_.RecordType(next_index, NodeType::kSmi));
 
-              // Tagged path (fallthrough)
-              // Since it didn't match double_maps, and it must be one of
-              // named_feedback.maps(), it is guaranteed to be one of
-              // tagged_maps.
-
-              // TODO(marja): BuildElementLoadOnJSArrayOrJSObject does another
-              // bounds check -> refactor that out.
-              ReduceResult tagged_load_result =
-                  BuildElementLoadOnJSArrayOrJSObject(
-                      iterated_object, int32_index, base::VectorOf(tagged_maps),
-                      *tagged_kind, KeyedAccessLoadMode::kHandleHoles);
-              if (!tagged_load_result.IsDoneWithAbort()) {
-                subgraph.set(loaded_element, tagged_load_result.value());
-                subgraph.Goto(&done_loading);
-              }
-
-              // Double path
-              subgraph.Bind(&double_branch);
-              // TODO(marja): BuildElementLoadOnJSArrayOrJSObject does another
-              // bounds check -> refactor that out.
-              ReduceResult double_load_result =
-                  BuildElementLoadOnJSArrayOrJSObject(
-                      iterated_object, int32_index, base::VectorOf(double_maps),
-                      *double_kind, KeyedAccessLoadMode::kHandleHoles);
-              if (!double_load_result.IsDoneWithAbort()) {
-                subgraph.set(loaded_element, double_load_result.value());
-                subgraph.Goto(&done_loading);
-              }
-
-              // Get the loaded element
-              ReduceResult bind_res =
-                  subgraph.TrimPredecessorsAndBind(&done_loading);
-              if (!bind_res.IsDoneWithAbort()) {
-                load_result = ReduceResult::Done(subgraph.get(loaded_element));
-              }
-            }
-
-            if (load_result.HasValue()) {
-              subgraph.set(ret_value, load_result.value());
-
-              // Add 1 to index (cannot overflow since the max JSArray length is
-              // below the Smi limit).
-              ValueNode* next_index;
-              ReduceResult add_result =
-                  AddNewNode<Int32Add>({int32_index, GetInt32Constant(1)});
-              CHECK(add_result.IsDone());
-              next_index = add_result.value();
-              RETURN_IF_ABORT(reducer_.RecordType(next_index, NodeType::kSmi));
-
-              // Update [[NextIndex]] (store cannot abort).
-              ReduceResult store_result = BuildStoreTaggedFieldNoWriteBarrier(
-                  iterator, next_index, offsetof(JSArrayIterator, next_index_),
-                  StoreTaggedMode::kDefault);
-              CHECK(store_result.IsDone());
-
-              subgraph.Goto(&done);
-            }
-
-            // Out-of-bounds branch:
-            subgraph.Bind(&out_of_bounds);
-            subgraph.set(ret_value, GetRootConstant(RootIndex::kTheHoleValue));
-
-            subgraph.Goto(&done);
-
-            RETURN_IF_ABORT(subgraph.TrimPredecessorsAndBind(&done));
+                  // Update [[NextIndex]] (store cannot abort).
+                  CHECK(BuildStoreTaggedFieldNoWriteBarrier(
+                            iterator, next_index,
+                            offsetof(JSArrayIterator, next_index_),
+                            StoreTaggedMode::kDefault)
+                            .IsDoneWithoutAbort());
+                  return ReduceResult::Done();
+                },
+                [&]() -> ReduceResult {
+                  // Out-of-bounds branch:
+                  subgraph.set(ret_value,
+                               GetRootConstant(RootIndex::kTheHoleValue));
+                  return ReduceResult::Done();
+                }));
             return subgraph.get(ret_value);
           },
           [&]() -> ReduceResult {
