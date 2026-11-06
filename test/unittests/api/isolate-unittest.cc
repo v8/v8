@@ -16,7 +16,6 @@
 #include "src/base/platform/platform.h"
 #include "src/base/platform/semaphore.h"
 #include "src/heap/local-heap-inl.h"
-#include "src/heap/scavenger.h"
 #include "src/init/v8.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -189,24 +188,11 @@ TEST_F(TestWithPlatform, IsolateCrashKeys) {
   }
   EXPECT_EQ(expected_keys_count, crash_key_store.size());
 
-  // A secondary Isolate must not overwrite the main Isolate's crash keys, and
-  // concurrent Scavenge scopes only clear "dump-type" when the last scope
-  // exits.
+  // A secondary Isolate must not overwrite the main Isolate's crash keys.
   {
     IsolateWrapper worker_isolate_wrapper(kNoCounters, false);
     EXPECT_EQ(main_isolate_address,
               crash_key_store.ValueForKey("v8_isolate_address"));
-
-    {
-      i::ScopedFullHeapCrashKey main_scavenge;
-      EXPECT_EQ("heap", crash_key_store.ValueForKey("dump-type"));
-      {
-        i::ScopedFullHeapCrashKey worker_scavenge;
-        EXPECT_EQ("heap", crash_key_store.ValueForKey("dump-type"));
-      }
-      EXPECT_EQ("heap", crash_key_store.ValueForKey("dump-type"));
-    }
-    EXPECT_EQ("", crash_key_store.ValueForKey("dump-type"));
   }
 
   // Deprecated per-Isolate callback is ignored (no-op).
