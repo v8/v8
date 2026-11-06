@@ -241,11 +241,11 @@ Reduction JSInliner::InlineCall(Node* call, Node* new_target, Node* context,
         graph()->NewNode(common()->EffectPhi(input_count),
                          static_cast<int>(effects.size()), &effects.front());
     ReplaceWithValue(call, value_output, effect_output, control_output);
-    return Changed(value_output);
+    return Replace(value_output);
   } else {
     ReplaceWithValue(call, jsgraph()->Dead(), jsgraph()->Dead(),
                      jsgraph()->Dead());
-    return Changed(call);
+    return Replace(jsgraph()->Dead());
   }
 }
 
