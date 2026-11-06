@@ -31,13 +31,12 @@ wrapping CL descriptions, refer to the **`cl-description`** skill
     `SKIP_GCE_AUTH_FOR_GIT=1 GIT_EDITOR=true git cl upload -T -o wip`
   - **Subsequent Uploads (Default)**: While iterating on a CL, running
     self-reviews, fixing bugs/tests, or addressing review comments, pass
-    `-t "Brief patchset description"` (and omit `-o wip`, `--ready`, and
-    `--commit-description`):
+    `-t "Brief patchset description"` (only pass `-o wip` if explicitly
+    switching a CL back to WIP, and only pass `--commit-description=+` when
+    updating the CL description):
     `SKIP_GCE_AUTH_FOR_GIT=1 GIT_EDITOR=true git cl upload -t "Brief patchset description"`
-    This lets Gerrit preserve the CL's existing WIP or Ready-for-Review state
-    and online description without switching a CL that is already in review back
-    to WIP. Only pass `-o wip` on a subsequent upload if explicitly switching a
-    CL back to WIP.
+    This preserves the CL's existing WIP or Ready-for-Review state and online
+    description on Gerrit.
   - **Ready for Review (Non-WIP + Mandatory Dry-Run)**: **ALWAYS obtain explicit
     user confirmation before setting a CL to ready (non-WIP) or passing
     `--ready`.** Only switch a CL to non-WIP once the user explicitly asks to
@@ -54,8 +53,10 @@ wrapping CL descriptions, refer to the **`cl-description`** skill
 - **Updating Description**: If the changes in a new patchset make the existing
   CL description **out-of-date** or inaccurate, you **MUST** explicitly update
   it in the local git commit message and sync it to Gerrit:
-  - **When uploading code changes**: Pass `--commit-description=+` to
-    `git cl upload` so the patchset and description update together.
+  - **When uploading code changes**: Pass `-t "Brief patchset description"` and
+    `--commit-description=+` (`=+` is required to load the description from
+    `HEAD`) so the patchset and description update together:
+    `SKIP_GCE_AUTH_FOR_GIT=1 GIT_EDITOR=true git cl upload -t "Brief patchset description" --commit-description=+`
   - **When updating description only**: Amend the local git commit message and
     run `git cl description -n +` (as detailed in the `git-cl-helper` skill).
     **⚠️ CRITICAL SAFETY CONSTRAINT**: Before passing `--commit-description=+`
