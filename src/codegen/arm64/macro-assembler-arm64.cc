@@ -3491,12 +3491,26 @@ void MacroAssembler::LoadElementsKindFromMap(Register result, Register map) {
   DecodeField<Map::Bits2::ElementsKindBits>(result);
 }
 
-void MacroAssembler::CompareTaggedRoot(const Register& obj, RootIndex index) {
+void MacroAssembler::CompareTaggedRoot(const Register& obj, RootIndex index,
+                                       ComparisonMode mode) {
   ASM_CODE_COMMENT(this);
+  DCHECK_NE(mode, ComparisonMode::kFullPointer);
   AssertSmiOrHeapObjectInMainCompressionCage(obj);
   UseScratchRegisterScope temps(this);
   if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index)) {
-    CmpTagged(obj, Immediate(ReadOnlyRootPtr(index)));
+    Tagged_t ptr = ReadOnlyRootPtr(index);
+    // When only equality matters, a pointer that would need a movz/movk pair
+    // (wider than 16 bits and not an add/sub immediate) can be compared in two
+    // encodable 12-bit halves instead. This covers the holes after the_hole,
+    // which sit at 0x?fffd because each one ends just below a 64 KiB boundary.
+    if (mode == ComparisonMode::kEqualityOnly && is_uint24(ptr) &&
+        !is_uint16(ptr) && !IsImmAddSub(ptr)) {
+      Register temp = temps.AcquireW();
+      Sub(temp, obj.W(), ptr & ~0xfff);
+      Cmp(temp, ptr & 0xfff);
+      return;
+    }
+    CmpTagged(obj, Immediate(ptr));
     return;
   }
   // Some smi roots contain system pointer size values like stack limits.
@@ -3522,18 +3536,18 @@ void MacroAssembler::CompareRoot(const Register& obj, RootIndex index,
     Cmp(obj, temp);
     return;
   }
-  CompareTaggedRoot(obj, index);
+  CompareTaggedRoot(obj, index, mode);
 }
 
 void MacroAssembler::JumpIfRoot(const Register& obj, RootIndex index,
                                 Label* if_equal) {
-  CompareRoot(obj, index);
+  CompareRoot(obj, index, ComparisonMode::kEqualityOnly);
   B(eq, if_equal);
 }
 
 void MacroAssembler::JumpIfNotRoot(const Register& obj, RootIndex index,
                                    Label* if_not_equal) {
-  CompareRoot(obj, index);
+  CompareRoot(obj, index, ComparisonMode::kEqualityOnly);
   B(ne, if_not_equal);
 }
 

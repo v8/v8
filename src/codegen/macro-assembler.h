@@ -28,6 +28,9 @@ enum class ComparisonMode {
   // This mode can be used when the value to compare may not be located inside
   // the main pointer compression cage.
   kFullPointer,
+  // The caller only tests the result for equality, so the comparison may
+  // leave every flag other than Z undefined.
+  kEqualityOnly,
 };
 
 enum class SetIsolateDataSlots {

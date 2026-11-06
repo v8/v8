@@ -334,8 +334,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   // on-stack receiver as the result.
   __ Bind(&use_receiver);
   __ Peek(x0, 0 * kSystemPointerSize);
-  __ CompareRoot(x0, RootIndex::kTdzHoleValue);
-  __ B(eq, &do_throw);
+  __ JumpIfRoot(x0, RootIndex::kTdzHoleValue, &do_throw);
 
   __ Bind(&leave_and_return);
   // Restore arguments count from the frame.
@@ -1905,8 +1904,7 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   __ Bind(&use_receiver);
   __ Ldr(x0,
          MemOperand(fp, FastConstructFrameConstants::kImplicitReceiverOffset));
-  __ CompareRoot(x0, RootIndex::kTdzHoleValue);
-  __ B(eq, &do_throw);
+  __ JumpIfRoot(x0, RootIndex::kTdzHoleValue, &do_throw);
 
   __ Bind(&leave_and_return);
   // Leave construct frame.

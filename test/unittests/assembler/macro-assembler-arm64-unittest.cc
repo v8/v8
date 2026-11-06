@@ -245,6 +245,56 @@ TEST_F(MacroAssemblerTest, DispatchHandlePoolEntries) {
   EXPECT_EQ(2, marker->ImmUdf());
 }
 
+#if V8_STATIC_ROOTS_BOOL
+TEST_F(MacroAssemblerTest, CompareRootWithWideReadOnlyRoot) {
+  // Every hole ends just below a 64 KiB boundary, so the ones after the_hole
+  // need more than one movz. When only equality matters, CompareRoot compares
+  // them in two halves instead.
+  constexpr Tagged_t kHole = StaticReadOnlyRoot::kPropertyCellHoleValue;
+  static_assert(!is_uint16(kHole) && !Assembler::IsImmAddSub(kHole));
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired{false},
+                      buffer->CreateView());
+  __ set_root_array_available(false);
+  __ set_abort_hard(true);
+
+  {
+    AssemblerBufferWriteScope rw_scope(*buffer);
+
+    __ CodeEntry();
+
+    Label start;
+    __ Bind(&start);
+    __ CompareRoot(x0, RootIndex::kPropertyCellHoleValue,
+                   ComparisonMode::kEqualityOnly);
+    if (!v8_flags.debug_code) {
+      ASSERT_EQ(2 * kInstrSize, __ SizeOfCodeGeneratedSince(&start));
+    }
+    __ Cset(x0, eq);
+    __ Ret();
+
+    CodeDesc desc;
+    masm.GetCode(isolate(), &desc);
+  }
+  // We need an isolate here to execute in the simulator.
+  auto f =
+      GeneratedCode<int64_t, int64_t>::FromBuffer(isolate(), buffer->start());
+
+  // Pass compressed values: CompareRoot only looks at the low 32 bits, and a
+  // zero upper half satisfies its debug-code check.
+  EXPECT_EQ(1, f.Call(kHole));
+  const Tagged_t kOthers[] = {kHole - 1,          kHole + 1,
+                              kHole & 0xfff,      kHole & ~0xfff,
+                              kHole - 0x1000,     kHole + 0x1000,
+                              kHole + 0x10000,    kHole | 0x1000000,
+                              kHole ^ 0x80000000, 0x11};
+  for (Tagged_t other : kOthers) {
+    SCOPED_TRACE(other);
+    EXPECT_EQ(0, f.Call(other));
+  }
+}
+#endif  // V8_STATIC_ROOTS_BOOL
+
 struct MoveObjectAndSlotTestCase {
   const char* comment;
   Register dst_object;

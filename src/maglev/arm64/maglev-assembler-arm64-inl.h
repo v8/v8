@@ -428,13 +428,13 @@ inline void MaglevAssembler::MoveHeapNumber(Register dst, double value) {
 inline Condition MaglevAssembler::IsRootConstant(Input input,
                                                  RootIndex root_index) {
   if (input.operand().IsRegister()) {
-    CompareRoot(ToRegister(input), root_index);
+    CompareRoot(ToRegister(input), root_index, ComparisonMode::kEqualityOnly);
   } else {
     DCHECK(input.operand().IsStackSlot());
     TemporaryRegisterScope temps(this);
     Register scratch = temps.AcquireScratch();
     Ldr(scratch, ToMemOperand(input.operand()));
-    CompareRoot(scratch, root_index);
+    CompareRoot(scratch, root_index, ComparisonMode::kEqualityOnly);
   }
   return eq;
 }
@@ -1536,7 +1536,10 @@ inline void MaglevAssembler::CompareTaggedAndJumpIf(Register r1,
   // never changes. Any other object is loaded from the constant pool.
   RootIndex root_index;
   if (isolate()->roots_table().IsRootHandle(obj, &root_index)) {
-    CompareTaggedRoot(r1, root_index);
+    CompareTaggedRoot(r1, root_index,
+                      cond == kEqual || cond == kNotEqual
+                          ? ComparisonMode::kEqualityOnly
+                          : ComparisonMode::kDefault);
   } else {
     CmpTagged(r1, Operand(obj, COMPRESS_POINTERS_BOOL
                                    ? RelocInfo::COMPRESSED_EMBEDDED_OBJECT

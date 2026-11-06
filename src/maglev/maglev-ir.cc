@@ -8629,9 +8629,8 @@ void BranchIfRootConstant::SetValueLocationConstraints() {
 }
 void BranchIfRootConstant::GenerateCode(MaglevAssembler* masm,
                                         const ProcessingState& state) {
-  __ CompareRoot(ToRegister(ConditionInput()), root_index());
-  __ Branch(ConditionFor(Operation::kEqual), if_true(), if_false(),
-            state.next_block());
+  __ Branch(__ IsRootConstant(ConditionInput(), root_index()), if_true(),
+            if_false(), state.next_block());
 }
 
 void BranchIfToBooleanTrue::SetValueLocationConstraints() {
