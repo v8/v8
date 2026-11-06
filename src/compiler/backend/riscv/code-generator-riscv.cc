@@ -667,12 +667,18 @@ void RecordTrapInfoIfNeeded(Zone* zone, CodeGenerator* codegen,
     __ sync();                                                                 \
   } while (0)
 
+// The base operand is USED_AT_START, so a temporary may be assigned its
+// register. Compute the address before sign-extending the expected value
+// (expect_value must be TempRegister(1) when sign_extend_expected is true).
 #define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(                              \
-    load_linked, store_conditional, expect_value)                              \
+    load_linked, store_conditional, expect_value, sign_extend_expected)        \
   do {                                                                         \
     Label compareExchange;                                                     \
     Label exit;                                                                \
     __ AddWord(i.TempRegister(0), i.InputRegister(0), i.InputOperand(1));      \
+    if (sign_extend_expected) {                                                \
+      __ SignExtendWord(expect_value, i.InputRegister(2));                     \
+    }                                                                          \
     __ sync();                                                                 \
     __ bind(&compareExchange);                                                 \
     __ load_linked(i.OutputRegister(0), MemOperand(i.TempRegister(0), 0),      \
@@ -2656,10 +2662,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       switch (AtomicWidthField::decode(opcode)) {
         case AtomicWidth::kWord32:
 #if V8_TARGET_ARCH_RISCV64
-          __ SignExtendWord(i.TempRegister(1), i.InputRegister(2));
-          ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll, Sc, i.TempRegister(1));
+          // Sign-extending the expected value into TempRegister(1) is done
+          // inside the macro, after the address has been computed, because
+          // the base operand is USED_AT_START and may alias that temporary.
+          ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll, Sc, i.TempRegister(1),
+                                                   true);
 #else
-          ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll, Sc, i.InputRegister(2));
+          ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll, Sc, i.InputRegister(2),
+                                                   false);
 #endif
           break;
 #if V8_TARGET_ARCH_RISCV64
@@ -2730,7 +2740,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvWord64AtomicCompareExchangeUint64:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Lld, Scd, i.InputRegister(2));
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Lld, Scd, i.InputRegister(2),
+                                               false);
       break;
 #define ATOMIC_BINOP_CASE(op, inst32, inst64, amoinst32, amoinst64)           \
   case kAtomic##op##Int8:                                                     \
@@ -2788,7 +2799,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #undef ATOMIC_BINOP_CASE
 #elif V8_TARGET_ARCH_RISCV32
     case kAtomicCompareExchangeWithWriteBarrier: {
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll, Sc, i.InputRegister(2));
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll, Sc, i.InputRegister(2),
+                                               false);
       if (v8_flags.disable_write_barriers) break;
 
       // Emit the write barrier.
