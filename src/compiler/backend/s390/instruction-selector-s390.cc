@@ -3409,7 +3409,8 @@ InstructionSelector::SupportedMachineOperatorFlags() {
       MachineOperatorBuilder::kWord32Popcnt |
       MachineOperatorBuilder::kInt32AbsWithOverflow |
       MachineOperatorBuilder::kInt64AbsWithOverflow |
-      MachineOperatorBuilder::kWord64Popcnt;
+      MachineOperatorBuilder::kWord64Popcnt |
+      MachineOperatorBuilder::kFloat64MinMax;
   if (CpuFeatures::IsSupported(MISC_INSTR_EXT4)) {
     flags |= MachineOperatorBuilder::kWord64Ctz;
   }
