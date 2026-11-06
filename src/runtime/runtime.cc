@@ -311,12 +311,10 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
       return v8_flags.sandbox_testing || v8_flags.sandbox_fuzzing;
 
     case Runtime::kInstallBytecode:
-      // %InstallBytecode allows installing manipulated bytecode that has
-      // only been checked for sandbox safety, not general correctness.
-      // Therefore, it is restricted to sandbox fuzzing with full bytecode
-      // verification enabled, preventing trivial sandbox violation alarms.
-      return (v8_flags.sandbox_testing || v8_flags.sandbox_fuzzing) &&
-             v8_flags.verify_bytecode_full;
+      // %InstallBytecode exposes a threat model more powerful than the sandbox
+      // one, this leads to fuzzers reporting bytecode corruptions that would
+      // never be emitted by the bytecode compiler.
+      return false;
 
     case Runtime::kGetCodeCache:
     case Runtime::kConsumeCodeCache:
