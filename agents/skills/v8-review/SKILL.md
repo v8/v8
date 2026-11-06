@@ -45,11 +45,11 @@ description: Reviews a V8 CL, commit, or local diff using targeted parallel suba
      atomics/locks/mutexes, concurrent map/descriptor/transition/feedback reads,
      or thread isolation/signal handlers. Skip for purely single-threaded
      main-thread code.
-   - `architecture-api`: Select for all non-trivial code changes (especially bug
-     fixes, new features, cross-tier/cross-arch changes, API/header edits, or
-     flag additions) to evaluate minimal fix design, variant completeness, and
-     architectural fit. Skip only for trivial comment, formatting, or test-only
-     edits.
+   - `architecture-api`: Select for all non-trivial code or `docs/` changes
+     (especially bug fixes, new features, cross-tier/cross-arch changes,
+     API/header/`docs/` edits, or flag additions) to evaluate minimal fix
+     design, variant completeness, documentation sync, and architectural fit.
+     Skip only for trivial comment, formatting, or test-only edits.
    - `performance-containers`: Select when touching hot paths (ICs,
      interpreter/JIT fast paths, frequent compiler passes, GC, Wasm execution,
      hot builtins) or adding/modifying data structures, containers, and loops.
@@ -59,9 +59,10 @@ description: Reviews a V8 CL, commit, or local diff using targeted parallel suba
      a bug fix (to verify the mandatory regression test is present and
      effective). Skip for pure refactorings, comments, or build changes that
      neither touch `test/` nor fix a bug.
-   - `style-comments`: Select when adding/modifying C++ (`.cc`, `.h`, `-inl.h`)
-     or Torque (`.tq`) files. Skip for test-only `.js`/`.mjs` diffs or tiny 1–2
-     line changes where the main agent can check style directly in Step 3.
+   - `style-comments`: Select when adding/modifying C++ (`.cc`, `.h`, `-inl.h`),
+     Torque (`.tq`), or Markdown documentation (`docs/*.md`) files. Skip for
+     test-only `.js`/`.mjs` diffs or tiny 1–2 line changes where the main agent
+     can check style directly in Step 3.
 
 ## Step 2: Parallel Subagents
 
@@ -171,7 +172,7 @@ checklist and the shared subagent instructions below:
      at a single choke point or an existing invariant/helper would be cleaner
      and more maintainable long-term.
    - **Cross-arch, cross-tier & variant completeness**: Parity across the 4
-     supported architectures (`x64`, `arm64`, `ia32`, `arm` — ignore community
+     supported architectures (`x64`, `arm64`, `ia32`, `arm`; ignore community
      ports like `riscv`, `loong64`, `ppc64`, `s390x`, `mips64` unless targeted
      by the CL), execution tiers (Ignition, Sparkplug, Maglev, Turboshaft,
      Liftoff), and all affected opcodes/builtins. For bug fixes, perform variant
@@ -190,6 +191,15 @@ checklist and the shared subagent instructions below:
      code, missing flag implications (`DEFINE_IMPLICATION`) under `--fuzzing`,
      production `.cc` code calling `*ForTest*` helpers, new `V8_OBJECT`/`V8_IT_`
      headers missing from `src/objects/all-objects.h`.
+   - **Documentation sync (`docs/`)**: Search `docs/` (`git --no-pager grep` on
+     `docs/`) for classes, methods, enums, bitmasks, pipeline passes,
+     bytecodes/IR nodes, flags, or cross-tier invariants modified by the CL.
+     Flag a `design` (or `bug`) comment anchored on the relevant modified line
+     in `src/` if the CL invalidates or makes incomplete any design document in
+     `docs/` without updating it (excluding `docs/security/triaging.md`, which
+     is maintained manually). When the CL modifies `.md` files in `docs/`,
+     verify every C++ class/method/enum name, bitmask, register, flag, pipeline
+     step, and invariant against `src/` and flag any factual mismatch.
 
 6. `performance-containers`:
 
@@ -239,23 +249,26 @@ checklist and the shared subagent instructions below:
      `foo-inl.h` must `#include "foo.h"` first); `V8_NOEXCEPT` on copy/move
      constructors and assignment operators; `{}` braces on all multi-line `if`
      statements; copyright header on new files.
-   - **Comments & readability**: Documenting class invariants and non-obvious
-     rationale; updating stale adjacent comments contradicted by the diff;
-     identifying pure code moves.
+   - **Comments, `docs/` & readability**: Documenting class invariants and
+     non-obvious rationale; updating stale adjacent comments or `docs/*.md`
+     sections contradicted by the diff; checking modified `docs/*.md` files for
+     broken relative links or Unicode em-dashes (`U+2014`); identifying pure
+     code moves.
 
 Instructions for every subagent:
 
-- Read the patch file from Step 1, then inspect modified files, callers, and
-  callees using `view_file` and `repo_git_grep` (or `git --no-pager grep` via
-  `run_command`; avoid `code_search` as it searches stale/multiple google3 V8
-  snapshots).
+- Read the patch file from Step 1, then inspect modified files, callers,
+  callees, and relevant `docs/` files using `view_file` and `repo_git_grep` (or
+  `git --no-pager grep` via `run_command`; avoid `code_search` as it searches
+  stale/multiple google3 V8 snapshots).
 - NEVER modify any files, mutate git state, or run builds/tests (only read-only
   `git --no-pager grep`/`show`/`log` commands are allowed).
 - Comment ONLY on modified or directly impacted lines (never flag unrelated
   pre-existing issues in untouched code; if the change newly exposes, triggers,
-  or relies on a pre-existing bug, or misses a bug variant in adjacent code,
-  flag it anchored on the relevant modified line; if an issue exists in moved
-  code, note that it is pre-existing).
+  or relies on a pre-existing bug, misses a bug variant in adjacent code, or
+  invalidates existing documentation in `docs/`, flag it anchored on the
+  relevant modified line; if an issue exists in moved code, note that it is
+  pre-existing).
 - Treat each test case (`TEST`, `UNINITIALIZED_TEST`, `TEST_F`, `TEST_P`) in
   `test/cctest/`, `test/unittests/`, and `test/mjsunit/` as running in its own
   isolated OS process (`tools/run-tests.py` runs one test per process/fork);

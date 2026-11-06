@@ -46,6 +46,14 @@ When proposing a fix, ensure the code adheres to V8 standards:
   (for `%OptimizeFunctionOnNextCall` tests targeting Maglev, omit
   `--optimize-on-next-call-optimizes-to-maglev` from `// Flags:` in the test
   file and verify failure under `--variants=stress_maglev`).
+- **Documentation Sync Requirement**: Whenever a CL changes V8 architecture,
+  data structures, object layouts, pipeline passes, bytecodes/IR nodes, flags,
+  or cross-tier invariants (or adds a feature or bug fix that invalidates or
+  expands a concept covered in `docs/`), search `docs/` (`git --no-pager grep`
+  across `docs/` or run the `doc-invalidation-checker` skill) and update the
+  relevant `.md` file(s) in the same CL. Keep `docs/security/triaging.md`
+  unchanged unless explicitly requested by the user, as it is maintained
+  manually.
 
 ## Technical Guardrails & Guidelines
 
@@ -60,10 +68,11 @@ When proposing a fix, ensure the code adheres to V8 standards:
   `namespace {}` in the `.cc` file rather than as private class methods.
 - **Pre-Upload Diff Self-Review**: Inspect `git diff` before uploading to ensure
   minimal diff noise, tight local variable scopes (declaring variables at first
-  use), and clean regression tests.
-- **Cleanup Constraint**: Keep diffs small by changing only the code intended
-  for the task. Propose cleanups to nearby code as a separate patch to keep the
-  current change focused.
+  use), clean regression tests, and synchronized `docs/` updates for any
+  modified invariants, classes, passes, or flags.
+- **Cleanup Constraint**: Keep diffs small by changing only the code and `docs/`
+  documentation intended for the task. Propose cleanups to nearby unrelated code
+  as a separate patch to keep the current change focused.
 - **Supported Architectures**: For most changes and bug fixes, it is fine to
   omit not officially supported architectures and only implement or fix the main
   four: `ia32`, `x64`, `arm`, and `arm64`. Architectures without official Google
