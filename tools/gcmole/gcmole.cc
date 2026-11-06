@@ -27,6 +27,7 @@
 
 // This is clang plugin used by gcmole tool. See README for more details.
 
+#include <algorithm>
 #include <bitset>
 #include <fstream>
 #include <iostream>
@@ -47,6 +48,10 @@
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendPluginRegistry.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/LineIterator.h"
 #include "llvm/Support/raw_ostream.h"
@@ -1105,21 +1110,42 @@ static bool IsSuspectedToCauseGC(clang::MangleContext* ctx,
 
 // Cumulative effects (kCausesGC, kRawDef, kRawUse) accumulate across sequential
 // subexpressions and parent AST nodes to detect unsequenced evaluation-order
-// hazards (e.g. `Foo(*raw_obj_handle, CauseGC())`):
+// hazards (e.g. `Callee(obj->field_, CauseGC())` or `Foo(*raw_obj_handle,
+// CauseGC())`):
 //   - kCausesGC: subexpression may trigger a garbage collection.
-//   - kRawDef: subexpression produces an unrooted on-heap value (e.g.
+//   - kRawDef: subexpression produces or loads an unrooted on-heap value (e.g.
 //     dereferencing a Handle into a `Tagged<HeapObject>`, calling `so->` on a
-//     `Handle<SomeObject>`, or copying a `Tagged<T>` argument by value via
-//     `CXXConstructExpr`).
+//     `Handle<SomeObject>`, copying a `Tagged<T>` argument by value via
+//     `CXXConstructExpr`, or loading an on-heap member by value, conservatively
+//     flagging unsequenced argument evaluations across C++17 call sites).
 //   - kRawUse: subexpression reads a raw variable that is already stale in
 //     `env` (note: `Use()` returns without setting `kRawUse` when
-//     `env.IsAlive(var_name)` is true, so `kRawUse` is only set when the
+//     `env.IsAlive(var_decl)` is true, so `kRawUse` is only set when the
 //     variable was already killed by an earlier GC).
+//
+// Value effects (kOnHeapMemberLValue, kRawMemberAddress) describe the
+// provenance and value category of the current expression's result itself:
+//   - kOnHeapMemberLValue: glvalue referring to an interior field/element of an
+//     on-heap object, e.g.:
+//       `obj->field_`, `obj->values()[i]`, `*(&obj->field_)`,
+//       or a reference `int& ref = obj->field_;`
+//   - kRawMemberAddress: pointer or `Address` pointing inside an on-heap
+//     object, e.g.:
+//       `&obj->field_`, `std::addressof(obj->field_)`, `obj->values()`,
+//       `obj->field_.storage_address()`
+// Value effects are transformed or cleared as the expression is addressed
+// (`&` -> kRawMemberAddress), dereferenced (`*` -> kOnHeapMemberLValue),
+// decayed (`T[N]` -> kRawMemberAddress), or loaded by value (LValueToRValue ->
+// kRawDef without provenance).
 static const int kNoEffect = 0;
 static const int kCausesGC = 1 << 0;
 static const int kRawDef = 1 << 1;
 static const int kRawUse = 1 << 2;
-static const int kAllEffects = kCausesGC | kRawDef | kRawUse;
+static const int kOnHeapMemberLValue = 1 << 3;
+static const int kRawMemberAddress = 1 << 4;
+static const int kValueEffects = kOnHeapMemberLValue | kRawMemberAddress;
+static const int kCumulativeEffects = kCausesGC | kRawDef | kRawUse;
+static const int kAllEffects = kCumulativeEffects | kValueEffects;
 
 class Environment;
 
@@ -1134,15 +1160,41 @@ class ExprEffect {
   bool hasRawUse() const { return (effect_ & kRawUse) != 0; }
   void setRawUse() { effect_ |= kRawUse; }
 
+  bool hasOnHeapMemberLValue() const {
+    return (effect_ & kOnHeapMemberLValue) != 0;
+  }
+  void setOnHeapMemberLValue() { effect_ |= kOnHeapMemberLValue; }
+
+  bool hasRawMemberAddress() const {
+    return (effect_ & kRawMemberAddress) != 0;
+  }
+  void setRawMemberAddress() { effect_ |= kRawMemberAddress; }
+
+  bool hasMemberProvenance() const { return (effect_ & kValueEffects) != 0; }
+
+  ExprEffect WithProvenance(int provenance) const {
+    return ExprEffect((effect_ & kCumulativeEffects) | provenance, env_);
+  }
+
+  // Strips value provenance (`kOnHeapMemberLValue`, `kRawMemberAddress`) when
+  // an expression produces a result that is no longer an on-heap member lvalue
+  // or address, converting any consumed member provenance into `kRawDef` so
+  // enclosing unsequenced expressions still see the heap access.
+  ExprEffect WithoutProvenance() const {
+    return ExprEffect(
+        (effect_ & kCumulativeEffects) | (hasMemberProvenance() ? kRawDef : 0),
+        env_);
+  }
+
   static ExprEffect None() { return ExprEffect(kNoEffect, nullptr); }
   static ExprEffect NoneWithEnv(Environment* env) {
     return ExprEffect(kNoEffect, env);
   }
-  static ExprEffect RawUse() { return ExprEffect(kRawUse, nullptr); }
 
-  static ExprEffect Merge(ExprEffect a, ExprEffect b);
+  static ExprEffect Merge(ExprEffect a, ExprEffect b,
+                          const Environment& base_env);
   static ExprEffect MergeSeq(ExprEffect a, ExprEffect b);
-  ExprEffect Define(const std::string& name);
+  ExprEffect Define(const clang::ValueDecl* var_decl, bool has_raw_member_addr);
 
   Environment* env() const { return env_; }
 
@@ -1159,9 +1211,13 @@ class ExprEffect {
 const std::string BAD_EXPR_MSG(
     "Possible problem with evaluation order with interleaved GCs.");
 const std::string DEAD_VAR_MSG("Possibly stale variable due to GCs.");
+constexpr const clang::ValueDecl* THIS = nullptr;
 
 class Environment {
  public:
+  using VarSet = llvm::SmallPtrSet<const clang::ValueDecl*, 4>;
+  using SymbolTable = std::map<const clang::ValueDecl*, int>;
+
   Environment() = default;
 
   static Environment Unreachable() {
@@ -1181,18 +1237,25 @@ class Environment {
   Environment ApplyEffect(ExprEffect effect) const {
     Environment out(*this);
     if (effect.hasGC()) out.live_.clear();
-    if (effect.env()) out |= *effect.env();
+    if (effect.env()) {
+      out |= *effect.env();
+      out.raw_member_vars_cleared_.clear();
+    }
     return out;
   }
 
-  typedef std::map<std::string, int> SymbolTable;
-
-  bool IsAlive(const std::string& name) const {
-    SymbolTable::iterator code = symbol_table_.find(name);
+  // Checks whether `decl` (or `this` when `decl == nullptr`) is currently live.
+  bool IsAlive(const clang::ValueDecl* decl) const {
+    const clang::ValueDecl* canonical = CanonicalVar(decl);
+    if (canonical == nullptr) return is_live(kThisCode);
+    SymbolTable::const_iterator code = symbol_table_.find(canonical);
     if (code == symbol_table_.end()) return false;
     return is_live(code->second);
   }
 
+  // Compares statement-level environments for loop fixpoint convergence.
+  // `raw_member_vars_cleared_` is omitted because it is only populated in
+  // expression-level delta environments and is cleared by `ApplyEffect`.
   bool Equal(const Environment& env) const {
     if (unreachable_ && env.unreachable_) return true;
     if (unreachable_ != env.unreachable_) return false;
@@ -1200,23 +1263,95 @@ class Environment {
     for (size_t i = 0; i < size; ++i) {
       if (is_live(i) != env.is_live(i)) return false;
     }
-    return true;
+    return raw_member_vars_ == env.raw_member_vars_ &&
+           member_ref_vars_ == env.member_ref_vars_;
   }
 
-  Environment Define(const std::string& name) const {
-    Environment out(*this);
-    out.MDefine(name);
-    return out;
+  void MDefine(const clang::ValueDecl* decl) { set_live(SymbolToCode(decl)); }
+
+  void MDefineThis() { set_live(kThisCode); }
+
+  // Tracks whether `decl` currently holds a raw address into an on-heap
+  // object, updating provenance as the variable is assigned or rebound:
+  //   int* p = &obj->field_;  // SetRawMemberVar(p, true)
+  //   CauseGC();
+  //   *p = 42;                // flagged: `p` is in `raw_member_vars_` and dead
+  //   p = &stack_int;         // SetRawMemberVarInDelta(p, false)
+  //   CauseGC();
+  //   *p = 42;                // safe: `p` was rebound to a non-heap address
+  void SetRawMemberVar(const clang::ValueDecl* decl, bool is_raw_member) {
+    const clang::ValueDecl* canonical = CanonicalVar(decl);
+    if (!canonical) return;
+    if (is_raw_member) {
+      raw_member_vars_.insert(canonical);
+    } else {
+      raw_member_vars_.erase(canonical);
+    }
   }
 
-  void MDefine(const std::string& name) { set_live(SymbolToCode(name)); }
+  // Updates `decl`'s raw-member provenance inside an expression-level delta
+  // environment (`ExprEffect::Define`), recording explicit un-tracking in
+  // `raw_member_vars_cleared_` so `operator|=` / `ApplyEffect` can erase `decl`
+  // from the enclosing statement-level environment (where
+  // `raw_member_vars_cleared_` is always empty).
+  void SetRawMemberVarInDelta(const clang::ValueDecl* decl,
+                              bool is_raw_member) {
+    const clang::ValueDecl* canonical = CanonicalVar(decl);
+    if (!canonical) return;
+    if (is_raw_member) {
+      raw_member_vars_.insert(canonical);
+      raw_member_vars_cleared_.erase(canonical);
+    } else {
+      raw_member_vars_.erase(canonical);
+      raw_member_vars_cleared_.insert(canonical);
+    }
+  }
 
-  static int SymbolToCode(const std::string& name) {
-    SymbolTable::iterator code = symbol_table_.find(name);
+  // Marks all currently tracked raw-member variables as stale in `live_`.
+  void ClearRawMemberVarsLive() {
+    for (const clang::ValueDecl* decl : raw_member_vars_) {
+      int code = SymbolToCode(decl);
+      if (static_cast<size_t>(code) < live_.size()) {
+        live_[code] = false;
+      }
+    }
+  }
+
+  // Tracks whether `decl` is a C++ reference bound to an on-heap member. Unlike
+  // pointers (`raw_member_vars_`), references cannot be rebound after
+  // initialization; an assignment like `ref = 42` writes through to the
+  // underlying heap member rather than redefining `ref`:
+  //   int& ref = obj->field_;
+  //   CauseGC();
+  //   ref = 42;               // flagged: writes to moved `obj->field_`
+  void SetMemberRefVar(const clang::ValueDecl* decl, bool is_member_ref) {
+    const clang::ValueDecl* canonical = CanonicalVar(decl);
+    if (!canonical) return;
+    if (is_member_ref) {
+      member_ref_vars_.insert(canonical);
+    } else {
+      member_ref_vars_.erase(canonical);
+    }
+  }
+
+  bool IsRawMemberVar(const clang::ValueDecl* decl) const {
+    const clang::ValueDecl* canonical = CanonicalVar(decl);
+    return canonical && raw_member_vars_.contains(canonical);
+  }
+
+  bool IsOnHeapMemberRefVar(const clang::ValueDecl* decl) const {
+    const clang::ValueDecl* canonical = CanonicalVar(decl);
+    return canonical && member_ref_vars_.contains(canonical);
+  }
+
+  static int SymbolToCode(const clang::ValueDecl* decl) {
+    const clang::ValueDecl* canonical = CanonicalVar(decl);
+    if (canonical == nullptr) return kThisCode;
+    SymbolTable::iterator code = symbol_table_.find(canonical);
 
     if (code == symbol_table_.end()) {
-      int new_code = symbol_table_.size();
-      symbol_table_.insert(std::make_pair(name, new_code));
+      int new_code = static_cast<int>(symbol_table_.size()) + 1;
+      symbol_table_.insert(std::make_pair(canonical, new_code));
       return new_code;
     }
 
@@ -1232,10 +1367,28 @@ class Environment {
   void Print() const {
     bool comma = false;
     std::cout << "{";
+    if (is_live(kThisCode)) {
+      std::cout << "this";
+      comma = true;
+    }
     for (auto& e : symbol_table_) {
       if (!is_live(e.second)) continue;
       if (comma) std::cout << ", ";
-      std::cout << e.first;
+      std::cout << e.first->getNameAsString();
+      comma = true;
+    }
+    std::cout << "} raw_members={";
+    comma = false;
+    for (const clang::ValueDecl* d : raw_member_vars_) {
+      if (comma) std::cout << ", ";
+      std::cout << d->getNameAsString();
+      comma = true;
+    }
+    std::cout << "} member_refs={";
+    comma = false;
+    for (const clang::ValueDecl* d : member_ref_vars_) {
+      if (comma) std::cout << ", ";
+      std::cout << d->getNameAsString();
       comma = true;
     }
     std::cout << "}" << std::endl;
@@ -1248,6 +1401,13 @@ class Environment {
   }
 
  private:
+  static constexpr int kThisCode = 0;
+
+  static const clang::ValueDecl* CanonicalVar(const clang::ValueDecl* decl) {
+    return decl ? llvm::cast<clang::ValueDecl>(decl->getCanonicalDecl())
+                : nullptr;
+  }
+
   void set_live(size_t pos) {
     if (unreachable_) return;
     if (pos >= live_.size()) live_.resize(pos + 1);
@@ -1259,7 +1419,10 @@ class Environment {
   }
 
   // Applies sequential environment updates produced within an expression (e.g.
-  // `raw_var = GetObj()` or `&raw_var`).
+  // `p = &obj->field_` or `p = &stack_var`). `raw_member_vars_cleared_` records
+  // variables explicitly rebound to non-heap addresses inside the subexpression
+  // so that `ApplyEffect` removes them from the outer environment's
+  // `raw_member_vars_`.
   Environment& operator|=(const Environment& o) {
     if (o.unreachable_) {
       unreachable_ = true;
@@ -1269,18 +1432,86 @@ class Environment {
         if (o.live_[i]) set_live(i);
       }
     }
+    for (const clang::ValueDecl* d : o.raw_member_vars_cleared_) {
+      raw_member_vars_.erase(d);
+      raw_member_vars_cleared_.insert(d);
+    }
+    for (const clang::ValueDecl* d : o.raw_member_vars_) {
+      raw_member_vars_.insert(d);
+      raw_member_vars_cleared_.erase(d);
+    }
+    member_ref_vars_.insert(o.member_ref_vars_.begin(),
+                            o.member_ref_vars_.end());
     return *this;
   }
 
-  // Control-flow join (`IfStmt`, `SwitchStmt`, loop headers/exits, `?:`):
-  // conservatively intersects variable liveness (`live_`) so a variable is
-  // only considered live after the join if it is live on all incoming paths:
-  //   Tagged<HeapObject> obj = GetObj();
-  //   if (cond) CauseGC();  // kills `obj` on the `then` path
-  //   Use(obj);             // flagged: `obj` is not live on all incoming paths
-  Environment& operator&=(const Environment& o) {
-    if (o.unreachable_) return *this;
-    if (unreachable_) return *this = o;
+  bool HasRawMemberOnBranch(const clang::ValueDecl* decl,
+                            const Environment* base_env) const {
+    if (raw_member_vars_.contains(decl)) return true;
+    if (base_env != nullptr && base_env->raw_member_vars_.contains(decl) &&
+        !raw_member_vars_cleared_.contains(decl)) {
+      return true;
+    }
+    return false;
+  }
+
+  bool HasMemberRefOnBranch(const clang::ValueDecl* decl,
+                            const Environment* base_env) const {
+    return member_ref_vars_.contains(decl) ||
+           (base_env != nullptr && base_env->member_ref_vars_.contains(decl));
+  }
+
+  // Returns true if `decl` is live on `*this`, holds a raw member address on
+  // `*this` but not on `other`, and is not a member reference on either branch
+  // (accounting for `base_env` when joining expression deltas), so its liveness
+  // from `*this` can be preserved across the join without masking a stale
+  // variable on `other`.
+  bool CanRescueOneSidedLive(const clang::ValueDecl* decl,
+                             const Environment& other,
+                             const Environment* base_env) const {
+    return !other.HasRawMemberOnBranch(decl, base_env) &&
+           !HasMemberRefOnBranch(decl, base_env) &&
+           !other.HasMemberRefOnBranch(decl, base_env) && IsAlive(decl);
+  }
+
+  // Control-flow join (`IfStmt`, `SwitchStmt`, loop headers/exits, `?:`,
+  // `&&`, `||`): conservatively intersects liveness (`live_`) and unions member
+  // provenance (`raw_member_vars_`, `member_ref_vars_`). When joining two
+  // expression-level delta environments (`base_env != nullptr`), `base_env`
+  // supplies the pre-branch provenance so variables that already held a raw
+  // member address before the branch are not treated as newly initialized on a
+  // single branch.
+  void IntersectWith(const Environment& o,
+                     const Environment* base_env = nullptr) {
+    if (o.unreachable_) return;
+    if (unreachable_) {
+      *this = o;
+      return;
+    }
+
+    // If a variable only holds a raw member address on one incoming path, take
+    // its liveness from the path where it actually holds a member address so a
+    // GC on the other path (where it is still nullptr/unassigned) does not
+    // falsely mark it stale:
+    //   uint8_t* ptr = nullptr;
+    //   if (cond) {
+    //     CauseGC();            // kills `ptr` while it is still nullptr
+    //   } else {
+    //     ptr = obj->chars();   // `ptr` becomes a live raw member address here
+    //   }
+    //   if (ptr) Use(*ptr);     // safe: `ptr` is live on the only path that
+    //                           // gave it a raw member address
+    llvm::SmallVector<const clang::ValueDecl*, 4> one_sided_live;
+    for (const clang::ValueDecl* decl : raw_member_vars_) {
+      if (CanRescueOneSidedLive(decl, o, base_env)) {
+        one_sided_live.push_back(decl);
+      }
+    }
+    for (const clang::ValueDecl* decl : o.raw_member_vars_) {
+      if (o.CanRescueOneSidedLive(decl, *this, base_env)) {
+        one_sided_live.push_back(decl);
+      }
+    }
 
     // Carry over false bits from the tail of o.live_, and reset all bits that
     // are not set in o.live_.
@@ -1289,6 +1520,26 @@ class Environment {
     for (size_t i = 0; i < size; ++i) {
       if (live_[i] && (i >= o.live_.size() || !o.live_[i])) live_[i] = false;
     }
+    for (const clang::ValueDecl* decl : one_sided_live) {
+      MDefine(decl);
+    }
+
+    raw_member_vars_.insert(o.raw_member_vars_.begin(),
+                            o.raw_member_vars_.end());
+    VarSet cleared;
+    for (const clang::ValueDecl* d : raw_member_vars_cleared_) {
+      if (o.raw_member_vars_cleared_.contains(d) &&
+          !raw_member_vars_.contains(d)) {
+        cleared.insert(d);
+      }
+    }
+    raw_member_vars_cleared_ = std::move(cleared);
+    member_ref_vars_.insert(o.member_ref_vars_.begin(),
+                            o.member_ref_vars_.end());
+  }
+
+  Environment& operator&=(const Environment& o) {
+    IntersectWith(o, nullptr);
     return *this;
   }
 
@@ -1296,6 +1547,9 @@ class Environment {
   static std::vector<Environment*> envs_;
 
   std::vector<bool> live_;
+  VarSet raw_member_vars_;
+  VarSet raw_member_vars_cleared_;
+  VarSet member_ref_vars_;
   // unreachable_ == true implies live_.empty(), but still is_live(i) returns
   // true for all i.
   bool unreachable_ = false;
@@ -1310,12 +1564,14 @@ class CallProps {
   CallProps() : env_(nullptr) {}
 
   void SetEffect(int arg, ExprEffect in) {
-    if (in.hasGC()) {
-      gc_.set(arg);
-    }
+    if (arg < 0 || arg >= kMaxNumberOfArguments) return;
+    if (in.hasGC()) gc_.set(arg);
     if (in.hasRawDef()) raw_def_.set(arg);
     if (in.hasRawUse()) raw_use_.set(arg);
+    if (in.hasOnHeapMemberLValue()) on_heap_member_lvalue_.set(arg);
+    if (in.hasRawMemberAddress()) raw_member_addr_.set(arg);
     if (in.env() != nullptr) {
+      env_args_.set(arg);
       if (env_ == nullptr) {
         env_ = in.env();
       } else {
@@ -1324,28 +1580,76 @@ class CallProps {
     }
   }
 
-  ExprEffect ComputeCumulativeEffect(bool result_is_raw) {
+  ExprEffect ComputeCumulativeEffect(bool result_is_raw,
+                                     bool propagate_raw_def = false) {
+    // Kill `raw_member_vars_` defined in a sibling of a GC-causing argument
+    // (e.g. `Callee(p = &obj->field_, CauseGC())`) so `ApplyEffect` does not
+    // resurrect `p` after the expression, while leaving a single sequenced
+    // argument (`Callee((CauseGC(), p = &obj->field_))`) live.
+    if (env_ != nullptr && gc_.any() &&
+        (gc_.count() > 1 || (env_args_ & ~gc_).any())) {
+      env_->ClearRawMemberVarsLive();
+    }
     ExprEffect out = ExprEffect::NoneWithEnv(env_);
     if (gc_.any()) out.setGC();
     if (raw_use_.any()) out.setRawUse();
-    if (result_is_raw) out.setRawDef();
+    // Propagate `kRawDef` upward when any child is an on-heap member lvalue or
+    // raw member address, or when `propagate_raw_def` is set and any child has
+    // `raw_def_` (`Parallel` / binary operators / array subscripts).
+    // `VisitCallExpr` passes `propagate_raw_def = false` to preserve the
+    // historical call boundary (by-value arguments are copied before the
+    // callee body, and nested `Outer(Inner(*handle), CauseGC())` is not flagged
+    // across call boundaries), whereas member addresses/references passed into
+    // a call remain conservatively treated as `kRawDef` in case the callee
+    // forwards or reads through them:
+    //   Outer(p == &obj->field_, CauseGC());   // flagged
+    //   arr[obj->int_field_] = CauseGC();      // flagged
+    if (result_is_raw || (propagate_raw_def && raw_def_.any()) ||
+        on_heap_member_lvalue_.any() || raw_member_addr_.any()) {
+      out.setRawDef();
+    }
     return out;
   }
 
   // Checks whether unsequenced sibling subexpressions (function arguments,
   // binary operator operands, array base + index) are safe to evaluate in any
-  // order. Unsafe when one subexpression can cause GC and another produces an
-  // unrooted on-heap value (`raw_def_`) or reads an already-stale raw variable
-  // (`raw_use_`), e.g.:
+  // order. Unsafe when one subexpression can cause GC and another produces or
+  // accesses an unrooted on-heap value/member (`raw_def_`,
+  // `on_heap_member_lvalue_`, `raw_member_addr_`) or reads an already-stale raw
+  // variable (`raw_use_`), e.g.:
   //   Callee(*obj_handle, CauseGC());  // arg 1 is `raw_def_`, arg 2 is `gc_`
   //   so->Method(*CauseGC());          // receiver `so->` is `raw_def_`,
   //                                    // arg 1 is `gc_`
+  //   obj->field_ = Allocate();        // LHS is `on_heap_member_lvalue_`,
+  //                                    // RHS is `gc_` (conservatively flagged
+  //                                    // even under C++17 `=` sequencing)
+  //   Callee(&obj->field_, CauseGC()); // arg 1 is `raw_member_addr_`,
+  //                                    // arg 2 is `gc_`
+  //   arr[obj->int_field_] = CauseGC(); // LHS has `raw_def_` from loading
+  //                                     // `obj->int_field_`, RHS is `gc_`
+  //   arr[0] = CauseGC();              // `arr` is an already-stale pointer in
+  //                                    // `raw_use_`, RHS is `gc_`
   bool IsSafe() {
     if (!gc_.any()) return true;
-    std::bitset<kMaxNumberOfArguments> raw = (raw_def_ | raw_use_);
+    std::bitset<kMaxNumberOfArguments> raw =
+        (raw_def_ | raw_use_ | on_heap_member_lvalue_ | raw_member_addr_);
     if (!raw.any()) return true;
     bool result = gc_.count() == 1 && !((raw ^ gc_).any());
     return result;
+  }
+
+  bool HasOnHeapMemberAt(int arg) const {
+    return arg >= 0 && arg < kMaxNumberOfArguments &&
+           (on_heap_member_lvalue_.test(arg) || raw_member_addr_.test(arg));
+  }
+  bool HasRawMemberAddress() const { return raw_member_addr_.any(); }
+  bool HasRawMemberAddressAt(int arg) const {
+    return arg >= 0 && arg < kMaxNumberOfArguments &&
+           raw_member_addr_.test(arg);
+  }
+  bool HasOnHeapMemberLValueAt(int arg) const {
+    return arg >= 0 && arg < kMaxNumberOfArguments &&
+           on_heap_member_lvalue_.test(arg);
   }
 
  private:
@@ -1353,6 +1657,9 @@ class CallProps {
   std::bitset<kMaxNumberOfArguments> raw_def_;
   std::bitset<kMaxNumberOfArguments> raw_use_;
   std::bitset<kMaxNumberOfArguments> gc_;
+  std::bitset<kMaxNumberOfArguments> on_heap_member_lvalue_;
+  std::bitset<kMaxNumberOfArguments> raw_member_addr_;
+  std::bitset<kMaxNumberOfArguments> env_args_;
   Environment* env_;
 };
 
@@ -1361,44 +1668,56 @@ std::vector<Environment*> Environment::envs_;
 
 // Combines two alternative branches of an expression (`cond ? a : b` or
 // `a && b` / `a || b`).
-ExprEffect ExprEffect::Merge(ExprEffect a, ExprEffect b) {
+ExprEffect ExprEffect::Merge(ExprEffect a, ExprEffect b,
+                             const Environment& base_env) {
   Environment* a_env = a.env();
   Environment* b_env = b.env();
   Environment* out = nullptr;
-  if (a_env != nullptr && b_env != nullptr) {
-    out = Environment::Allocate(*a_env);
-    *out &= *b_env;
+  if (a_env != nullptr || b_env != nullptr) {
+    out = Environment::Allocate(a_env ? *a_env : Environment());
+    out->IntersectWith(b_env ? *b_env : Environment(), &base_env);
   }
   return ExprEffect(a.effect_ | b.effect_, out);
 }
 
 // Combines two sequentially evaluated subexpressions (`a` followed by `b`, e.g.
-// in a comma operator `(a, b)` or initializer list `{a, b}`). If `b` triggers a
-// GC, any variable definitions from `a` are killed:
-//   Foo{(obj = GetObj()), CauseGC(), obj};  // `obj` defined in `a` is killed
-//                                           // by `CauseGC()`, so the final
-//                                           // `obj` is flagged as stale.
+// in a comma operator `(a, b)` or initializer list `{a, b}`). Only `b`'s value
+// provenance is kept as the result of the sequence, while `a`'s variable
+// provenance updates (`raw_member_vars_` / `raw_member_vars_cleared_`) survive
+// even if `b` triggers a GC and clears `live_`:
+//   Foo{(p = &obj->field_), CauseGC(), *p};  // `p` stays in `raw_member_vars_`
+//                                            // across `CauseGC()`, so `*p` is
+//                                            // flagged as stale.
 ExprEffect ExprEffect::MergeSeq(ExprEffect a, ExprEffect b) {
-  Environment* a_env = b.hasGC() ? nullptr : a.env();
+  Environment* a_env = a.env();
   Environment* b_env = b.env();
-  Environment* out = (b_env == nullptr) ? a_env : b_env;
-  if (a_env != nullptr && b_env != nullptr) {
-    out = Environment::Allocate(*b_env);
-    *out |= *a_env;
+  Environment* out = nullptr;
+  if (a_env != nullptr && b.hasGC()) {
+    out = Environment::Allocate(*a_env);
+    out->live_.clear();
+    if (b_env != nullptr) *out |= *b_env;
+  } else if (a_env != nullptr && b_env != nullptr) {
+    out = Environment::Allocate(*a_env);
+    *out |= *b_env;
+  } else {
+    out = (b_env == nullptr) ? a_env : b_env;
   }
-  return ExprEffect(a.effect_ | b.effect_, out);
+  // WithoutProvenance: `a`'s value is discarded before `b` runs; only `b`'s
+  // value provenance is the result of the sequence, while any member access in
+  // `a` becomes `kRawDef`.
+  return ExprEffect(a.WithoutProvenance().effect_ | b.effect_, out);
 }
 
-ExprEffect ExprEffect::Define(const std::string& name) {
+ExprEffect ExprEffect::Define(const clang::ValueDecl* var_decl,
+                              bool has_raw_member_addr) {
   Environment* e = env();
   if (e == nullptr) {
     e = Environment::Allocate(Environment());
   }
-  e->MDefine(name);
+  e->MDefine(var_decl);
+  e->SetRawMemberVarInDelta(var_decl, has_raw_member_addr);
   return ExprEffect(effect_, e);
 }
-
-static std::string THIS("this");
 
 class FunctionAnalyzer {
  public:
@@ -1465,7 +1784,6 @@ class FunctionAnalyzer {
     VISIT(FloatingLiteral);
     VISIT(GNUNullExpr);
     VISIT(ImaginaryLiteral);
-    VISIT(ImplicitCastExpr);
     VISIT(ImplicitValueInitExpr);
     VISIT(InitListExpr);
     VISIT(IntegerLiteral);
@@ -1585,18 +1903,42 @@ class FunctionAnalyzer {
       state_.scopes[i] = MergeScopes(true_scopes[i], false_scopes[i]);
     }
 
-    return ExprEffect::MergeSeq(cond_effect,
-                                ExprEffect::Merge(true_effect, false_effect));
+    return ExprEffect::MergeSeq(
+        cond_effect, ExprEffect::Merge(true_effect, false_effect, after_cond));
   }
 
   DECL_VISIT_EXPR(ArraySubscriptExpr) {
-    clang::Expr* exprs[2] = {expr->getBase(), expr->getIdx()};
-    return Parallel(expr, 2, exprs, env);
+    CallProps props;
+    props.SetEffect(0, VisitExpr(expr->getBase(), env));
+    props.SetEffect(1, VisitExpr(expr->getIdx(), env));
+    if (!props.IsSafe()) ReportUnsafe(expr, BAD_EXPR_MSG);
+    ExprEffect out =
+        props.ComputeCumulativeEffect(RepresentsRawPointerType(expr->getType()),
+                                      /*propagate_raw_def=*/true);
+    // Subscripting an interior array or pointer yields an on-heap member
+    // lvalue (`&obj->inline_buffer_[i]`, `&obj->values()[i]`). When the base is
+    // a local stack array of raw member addresses (`int* ptrs[2] = {&obj->a_,
+    // nullptr}; int* q = ptrs[0]`), keep `kRawMemberAddress` so
+    // `CK_LValueToRValue` preserves the element's raw member address provenance
+    // (excluding reference variables bound to an on-heap array, whose elements
+    // are on-heap member lvalues).
+    if (props.HasOnHeapMemberAt(0)) {
+      const clang::Expr* raw_base = expr->getBase()->IgnoreParenImpCasts();
+      const auto* base_ref = llvm::dyn_cast<clang::DeclRefExpr>(raw_base);
+      if (base_ref != nullptr && raw_base->getType()->isArrayType() &&
+          env.IsRawMemberVar(base_ref->getDecl()) &&
+          !env.IsOnHeapMemberRefVar(base_ref->getDecl())) {
+        out.setRawMemberAddress();
+      } else {
+        out.setOnHeapMemberLValue();
+      }
+    }
+    return out;
   }
 
-  bool IsRawPointerVar(clang::Expr* expr, std::string* var_name) {
+  bool IsRawPointerVar(clang::Expr* expr, const clang::ValueDecl** var_decl) {
     if (auto* decl_ref = llvm::dyn_cast<clang::DeclRefExpr>(expr)) {
-      *var_name = decl_ref->getDecl()->getNameAsString();
+      *var_decl = decl_ref->getDecl();
       return true;
     }
 
@@ -1617,19 +1959,59 @@ class FunctionAnalyzer {
         ExprEffect lhs_effect = VisitExpr(lhs, env);
         Environment after_lhs = env.ApplyEffect(lhs_effect);
         ExprEffect rhs_effect = VisitExpr(rhs, after_lhs);
+        // WithoutProvenance: logical `&&` and `||` always yield a `bool`
+        // rvalue, not a member address or lvalue.
         return ExprEffect::MergeSeq(
-            lhs_effect, ExprEffect::Merge(ExprEffect::None(), rhs_effect));
+                   lhs_effect,
+                   ExprEffect::Merge(ExprEffect::None(), rhs_effect, after_lhs))
+            .WithoutProvenance();
       }
 
       case clang::BO_Assign: {
-        std::string var_name;
-        // Builtin assignment to a local variable (e.g. `raw_ptr = GetObj()` or
-        // `handle = GetTableHandle()`) refreshes the variable's liveness in the
-        // environment after evaluating the RHS.
-        if (IsRawPointerVar(lhs, &var_name)) {
-          return VisitExpr(rhs, env).Define(var_name);
+        const clang::ValueDecl* var_decl = nullptr;
+        // Builtin assignment to a non-reference local variable rebinds the
+        // variable and updates whether it holds a raw member address:
+        //   p = &obj->field_;   // defines `p` with raw member provenance
+        //   p = &stack_var;     // defines `p` and clears raw member provenance
+        // By contrast, assigning to a reference bound to an on-heap member
+        // (`int& ref = obj->field_; ref = 42;`) writes through to the heap
+        // object and must not redefine `ref` or treat the LHS as safe if `ref`
+        // is already stale.
+        if (IsRawPointerVar(lhs, &var_decl) &&
+            !env.IsOnHeapMemberRefVar(var_decl)) {
+          ExprEffect rhs_effect = VisitExpr(rhs, env);
+          return rhs_effect.Define(var_decl, rhs_effect.hasRawMemberAddress());
         }
         return Parallel(expr, 2, exprs, env);
+      }
+
+      case clang::BO_Add:
+      case clang::BO_Sub:
+      case clang::BO_AddAssign:
+      case clang::BO_SubAssign: {
+        CallProps props;
+        props.SetEffect(0, VisitExpr(lhs, env));
+        props.SetEffect(1, VisitExpr(rhs, env));
+        if (!props.IsSafe()) ReportUnsafe(expr, BAD_EXPR_MSG);
+        ExprEffect out = props.ComputeCumulativeEffect(
+            RepresentsRawPointerType(expr->getType()),
+            /*propagate_raw_def=*/true);
+        // Propagate raw member address provenance across pointer/address offset
+        // arithmetic (`&obj->field_ + offset`, `addr - sizeof(Tagged_t)`,
+        // `p += 1`, leaving `raw_member_vars_` unchanged on `+=`/`-=`), but not
+        // across pointer or address differences (`end_ptr - &obj->field_`,
+        // `addr_a - addr_b`), which yield a scalar distance:
+        bool is_sub = expr->getOpcode() == clang::BO_Sub ||
+                      expr->getOpcode() == clang::BO_SubAssign;
+        bool propagates_raw_member_addr =
+            is_sub ? (props.HasRawMemberAddressAt(0) &&
+                      !props.HasRawMemberAddressAt(1) &&
+                      !rhs->getType()->isPointerType())
+                   : props.HasRawMemberAddress();
+        if (propagates_raw_member_addr) {
+          out.setRawMemberAddress();
+        }
+        return out;
       }
 
       default:
@@ -1648,30 +2030,44 @@ class FunctionAnalyzer {
   // Evaluates brace-enclosed initializer elements (`InitListExpr` or
   // list-initialized `CXXConstructExpr`) in C++11+ strict left-to-right order.
   // An earlier element becomes dangling across a later element's GC if the
-  // earlier element produced a raw on-heap value (`{*handle, CauseGC()}`),
-  // whereas a scalar loaded by value in an earlier element is already copied
-  // before the GC runs.
+  // earlier element produced an on-heap member address/lvalue (`{&obj->a_,
+  // (CauseGC(), &obj->b_)}`) or a raw on-heap value (`{*handle, CauseGC()}`),
+  // whereas a scalar loaded by value in an earlier element (`Foo{obj->int_f_,
+  // CauseGC()}`) is already copied before the GC runs.
   ExprEffect VisitSequencedInitList(clang::Expr* parent,
                                     llvm::ArrayRef<clang::Expr*> inits,
                                     const Environment& env) {
     ExprEffect out = ExprEffect::None();
     Environment out_env = env;
+    bool has_raw_member_addr = false;
+    bool saw_member_provenance = false;
     bool saw_unrooted_value = false;
     bool reported_unsafe = false;
     for (clang::Expr* init : inits) {
       ExprEffect elem = VisitExpr(init, out_env);
-      if (elem.hasGC() && saw_unrooted_value && !reported_unsafe) {
+      if (elem.hasGC() && (saw_unrooted_value || saw_member_provenance) &&
+          !reported_unsafe) {
         ReportUnsafe(parent, BAD_EXPR_MSG);
         reported_unsafe = true;
       }
+      if (elem.hasMemberProvenance()) saw_member_provenance = true;
       if (init != nullptr && RepresentsRawPointerType(init->getType())) {
         saw_unrooted_value = true;
       }
+      if (elem.hasRawMemberAddress()) has_raw_member_addr = true;
       out = ExprEffect::MergeSeq(out, elem);
       out_env = out_env.ApplyEffect(elem);
     }
+    // WithoutProvenance: clear the last element's individual provenance
+    // (`kOnHeapMemberLValue` from an element subexpression does not make the
+    // aggregate itself an on-heap member lvalue) before setting the
+    // aggregate's own provenance.
+    out = out.WithoutProvenance();
     if (RepresentsRawPointerType(parent->getType())) {
       out.setRawDef();
+    }
+    if (llvm::isa<clang::InitListExpr>(parent) && has_raw_member_addr) {
+      out = out.WithProvenance(kRawMemberAddress);
     }
     return out;
   }
@@ -1688,30 +2084,72 @@ class FunctionAnalyzer {
 
   DECL_VISIT_EXPR(CXXDefaultArgExpr) { return VisitExpr(expr->getExpr(), env); }
 
-  DECL_VISIT_EXPR(CXXDeleteExpr) { return VisitExpr(expr->getArgument(), env); }
+  DECL_VISIT_EXPR(CXXDeleteExpr) {
+    // WithoutProvenance: `delete` has `void` type, so its result cannot carry
+    // member provenance.
+    return VisitExpr(expr->getArgument(), env).WithoutProvenance();
+  }
 
-  DECL_VISIT_EXPR(CXXNewExpr) { return VisitExpr(expr->getInitializer(), env); }
+  DECL_VISIT_EXPR(CXXNewExpr) {
+    // WithoutProvenance: `new` returns a newly allocated C++ heap pointer
+    // rather than an interior V8 on-heap member address.
+    return VisitExpr(expr->getInitializer(), env).WithoutProvenance();
+  }
 
   DECL_VISIT_EXPR(ExprWithCleanups) {
     return VisitExpr(expr->getSubExpr(), env);
   }
 
-  DECL_VISIT_EXPR(CXXThrowExpr) { return VisitExpr(expr->getSubExpr(), env); }
-
-  DECL_VISIT_EXPR(ImplicitCastExpr) {
-    return VisitExpr(expr->getSubExpr(), env);
+  DECL_VISIT_EXPR(CXXThrowExpr) {
+    // WithoutProvenance: `throw` has `void` type, so its result cannot carry
+    // member provenance.
+    return VisitExpr(expr->getSubExpr(), env).WithoutProvenance();
   }
 
   DECL_VISIT_EXPR(ConstantExpr) { return VisitExpr(expr->getSubExpr(), env); }
 
   DECL_VISIT_EXPR(InitListExpr) {
+    // In C++11+, brace-enclosed initializer lists evaluate their elements in
+    // strict left-to-right order, and any raw member address in an element
+    // (e.g. `uint8_t* ptrs[2] = {&obj->a_, nullptr}`) makes the initialized
+    // aggregate hold a raw member address.
     return VisitSequencedInitList(
         expr,
         llvm::ArrayRef<clang::Expr*>(expr->getInits(), expr->getNumInits()),
         env);
   }
 
-  DECL_VISIT_EXPR(MemberExpr) { return VisitExpr(expr->getBase(), env); }
+  DECL_VISIT_EXPR(MemberExpr) {
+    ExprEffect out = VisitExpr(expr->getBase(), env);
+    const clang::ValueDecl* member = expr->getMemberDecl();
+    if (llvm::isa<clang::FieldDecl, clang::IndirectFieldDecl>(member)) {
+      const auto* parent_record =
+          llvm::dyn_cast<clang::CXXRecordDecl>(member->getDeclContext());
+      const auto* field_record =
+          member->getType()->getBaseElementTypeUnsafe()->getAsCXXRecordDecl();
+      // Mark field access as an on-heap member lvalue when:
+      //   1. `out.hasOnHeapMemberLValue()` or
+      //      `(expr->isArrow() && out.hasRawMemberAddress())`: accessing a
+      //      subfield of an interior struct/union (`obj->pair_.first`) or
+      //      dereferencing a member pointer (`member_ptr->value_`).
+      //   2. `IsOnHeapMemberRecord(field_record)`: the field itself is an
+      //      on-heap `*Member` wrapper (`TaggedMember<T>`,
+      //      `UnalignedValueMember<T>`, etc.).
+      //   3. `IsOnHeapClassOrMember(parent_record)`: the field belongs to a
+      //      `HeapObject` subclass or `*Member` class
+      //      (`obj->primitive_field_`).
+      if (out.hasOnHeapMemberLValue() ||
+          (expr->isArrow() && out.hasRawMemberAddress()) ||
+          IsOnHeapMemberRecord(field_record) ||
+          IsOnHeapClassOrMember(parent_record)) {
+        return out.WithProvenance(kOnHeapMemberLValue);
+      }
+      return out;
+    }
+    // WithoutProvenance: non-field members (methods, static data members, enum
+    // constants) do not refer to an interior on-heap field of the base object.
+    return out.WithoutProvenance();
+  }
 
   DECL_VISIT_EXPR(OpaqueValueExpr) {
     return VisitExpr(expr->getSourceExpr(), env);
@@ -1730,24 +2168,139 @@ class FunctionAnalyzer {
     //
     //   if (maybe_object->ToObject(&obj)) return maybe_object;
     //
+    // Excluded when `var_decl` is a reference bound to an on-heap member
+    // (`int& ref = obj->field_; Foo(&ref);`), where `&ref` takes the interior
+    // address of `obj->field_` rather than initializing `ref` as an out-param.
+    // For non-reference variables, preserve `env.IsRawMemberVar(var_decl)` so
+    // taking `&p` of an existing `int* p = &obj->field_` keeps `p` in
+    // `raw_member_vars_` (and `ClearRawMemberVarsLive` kills `p` if the call
+    // triggers a GC) while an uninitialized or null-initialized out-param
+    // (`TaggedMember<T>* out = nullptr; Init(&out);`) stays out of
+    // `raw_member_vars_` during a GC-capable out-param call.
     if (expr->getOpcode() == clang::UO_AddrOf) {
-      std::string var_name;
-      if (IsRawPointerVar(expr->getSubExpr(), &var_name)) {
-        return ExprEffect::None().Define(var_name);
+      const clang::ValueDecl* var_decl = nullptr;
+      if (IsRawPointerVar(expr->getSubExpr(), &var_decl) &&
+          !env.IsOnHeapMemberRefVar(var_decl)) {
+        return ExprEffect::None().Define(var_decl,
+                                         env.IsRawMemberVar(var_decl));
       }
     }
-    return VisitExpr(expr->getSubExpr(), env);
+    ExprEffect out = VisitExpr(expr->getSubExpr(), env);
+    switch (expr->getOpcode()) {
+      case clang::UO_AddrOf:
+        // `&obj->field_` turns an on-heap member lvalue into a raw member
+        // address (`kOnHeapMemberLValue` -> `kRawMemberAddress`).
+        return out.WithProvenance(
+            out.hasOnHeapMemberLValue() ? kRawMemberAddress : kNoEffect);
+      case clang::UO_Deref:
+        // `*(&obj->field_)` or `*member_ptr` turns a raw member address back
+        // into an on-heap member lvalue (`kRawMemberAddress` ->
+        // `kOnHeapMemberLValue`).
+        return out.WithProvenance(
+            out.hasRawMemberAddress() ? kOnHeapMemberLValue : kNoEffect);
+      case clang::UO_PreInc:
+      case clang::UO_PreDec:
+      case clang::UO_Plus:
+      case clang::UO_Extension:
+        // In C++, prefix `++obj->field_` / `--obj->field_` returns an lvalue
+        // referring to `obj->field_` (or increments a pointer in place), and
+        // unary `+p` / `__extension__` preserves the operand's provenance.
+        return out;
+      case clang::UO_PostInc:
+      case clang::UO_PostDec:
+        // Postfix `obj->field_++` evaluates to an rvalue copy of the old value
+        // while mutating `obj->field_`: clear lvalue provenance and record
+        // `kRawDef` so `Callee(obj->field_++, CauseGC())` is flagged.
+        if (out.hasOnHeapMemberLValue()) {
+          out = out.WithoutProvenance();
+        }
+        return out;
+      default:
+        // WithoutProvenance: arithmetic, bitwise, and logical unary operators
+        // (`!`, `~`, `-`) compute a scalar or boolean rvalue rather than an
+        // on-heap member address or lvalue.
+        return out.WithoutProvenance();
+    }
   }
 
   DECL_VISIT_EXPR(UnaryExprOrTypeTraitExpr) {
     if (expr->isArgumentType()) {
       return ExprEffect::None();
     }
-
-    return VisitExpr(expr->getArgumentExpr(), env);
+    // WithoutProvenance: `sizeof` and `alignof` evaluate to a `size_t`
+    // constant, not an on-heap member address or lvalue.
+    return VisitExpr(expr->getArgumentExpr(), env).WithoutProvenance();
   }
 
-  DECL_VISIT_EXPR(CastExpr) { return VisitExpr(expr->getSubExpr(), env); }
+  DECL_VISIT_EXPR(CastExpr) {
+    ExprEffect out = VisitExpr(expr->getSubExpr(), env);
+    switch (expr->getCastKind()) {
+      case clang::CK_LValueToRValue:
+      case clang::CK_LValueToRValueBitCast:
+        // Loading an on-heap member by value (e.g. passing `obj->int_field_` by
+        // value to `Callee(obj->int_field_, CauseGC())`) copies the value out
+        // of the heap: the result is no longer an interior address/lvalue, but
+        // the load itself is a raw heap access (`kRawDef`) that must not race
+        // with an unsequenced GC in the same expression.
+        if (out.hasOnHeapMemberLValue()) {
+          out = out.WithoutProvenance();
+        }
+        break;
+      case clang::CK_ArrayToPointerDecay:
+        // Decaying an interior array field or `FLEXIBLE_ARRAY_MEMBER` accessor
+        // to a pointer produces a raw interior address:
+        //   uint8_t* bytes = obj->inline_bytes_;   // T[N] -> T*
+        //   int* values = obj->values();           // T(&)[0] -> T*
+        if (out.hasOnHeapMemberLValue()) {
+          out = out.WithProvenance(kRawMemberAddress);
+        }
+        break;
+      case clang::CK_NoOp:
+      case clang::CK_ConstructorConversion:
+      case clang::CK_UserDefinedConversion:
+      case clang::CK_BitCast:
+      case clang::CK_LValueBitCast:
+      case clang::CK_UncheckedDerivedToBase:
+      case clang::CK_DerivedToBase:
+      case clang::CK_BaseToDerived:
+      case clang::CK_Dynamic:
+      case clang::CK_ToUnion:
+      case clang::CK_PointerToIntegral:
+      case clang::CK_IntegralToPointer:
+      case clang::CK_AddressSpaceConversion:
+        // Preserve provenance across casts that keep the same underlying
+        // address or reference, e.g.:
+        //   reinterpret_cast<uint8_t*>(&obj->field_)
+        //   reinterpret_cast<Address>(&obj->field_)
+        //   static_cast<const int&>(obj->field_)
+        break;
+      case clang::CK_IntegralCast:
+        // Preserve provenance across pointer-width integer casts (e.g.
+        // `static_cast<uintptr_t>(addr)`), but strip it on narrowing casts
+        // (e.g. `static_cast<uint32_t>(addr)`).
+        if (!expr->getType()->isDependentType() &&
+            ctx_->getASTContext().getTypeSize(expr->getType()) <
+                ctx_->getASTContext().getTypeSize(
+                    ctx_->getASTContext().VoidPtrTy)) {
+          out = out.WithoutProvenance();
+        }
+        break;
+      default:
+        // WithoutProvenance: casts that do not preserve an address, reference,
+        // or pointer-width integer (e.g. `CK_PointerToBoolean`, `CK_ToVoid`,
+        // `CK_FloatingCast`) do not yield an on-heap member address or lvalue.
+        out = out.WithoutProvenance();
+        break;
+    }
+    // Any non-null pointer expression of `*Member*` type (including
+    // `reinterpret_cast<TaggedMember<Smi>*>(addr)` and `CK_LValueToRValue`
+    // loads of `*Member*` variables or fields) points to an on-heap member.
+    if (expr->getCastKind() != clang::CK_NullToPointer &&
+        IsPointerToOnHeapMemberType(expr->getType())) {
+      out.setRawMemberAddress();
+    }
+    return out;
+  }
 
   DECL_VISIT_EXPR(DeclRefExpr) { return Use(expr, expr->getDecl(), env); }
 
@@ -1761,7 +2314,8 @@ class FunctionAnalyzer {
     }
     if (!props.IsSafe()) ReportUnsafe(parent, BAD_EXPR_MSG);
     return props.ComputeCumulativeEffect(
-        RepresentsRawPointerType(parent->getType()));
+        RepresentsRawPointerType(parent->getType()),
+        /*propagate_raw_def=*/true);
   }
 
   // Represents a node in the AST {parent} whose children {exprs} are
@@ -1778,24 +2332,39 @@ class FunctionAnalyzer {
     return out;
   }
 
-  // Represents a node in the AST {parent} which uses the variable {var_name},
-  // e.g. this expression or operator&.
-  // Here we observe the type in {var_type} of a previously declared variable
-  // and if it's a raw heap object type, we do the following:
-  // 1. If it got stale due to GC since its declaration, we report it as such.
-  // 2. Mark its raw usage in the ExprEffect returned by this function.
+  // Represents a node in the AST {parent} which uses the variable {var_decl}
+  // (or `this` when `var_decl == nullptr`).
+  // Here we observe the type in {var_type} (or tracked on-heap member
+  // address/reference provenance on {var_decl} in {env}) of a previously
+  // declared variable. If it represents a raw on-heap value or interior member
+  // address/reference, we do the following:
+  // 1. Propagate its member value effect (kRawMemberAddress /
+  //    kOnHeapMemberLValue) in the returned ExprEffect.
+  // 2. If it got stale due to GC since its declaration, report it and mark
+  //    kRawUse.
   ExprEffect Use(const clang::Expr* parent, const clang::QualType& var_type,
-                 const std::string& var_name, clang::FullSourceLoc var_location,
-                 const Environment& env) {
-    if (!g_dead_vars_analysis) return ExprEffect::None();
-    if (!RepresentsRawPointerType(var_type)) return ExprEffect::None();
-    // Raw pointer tracking is enabled for HeapObject subclasses and internal
-    // pointer/handle/member types to catch stale pointers across GC calls.
-    if (env.IsAlive(var_name)) return ExprEffect::None();
-    if (HasActiveGuard()) return ExprEffect::None();
-    if (HasActiveConservativePinning(var_location)) return ExprEffect::None();
+                 const clang::ValueDecl* var_decl,
+                 clang::FullSourceLoc var_location, const Environment& env) {
+    ExprEffect out = ExprEffect::None();
+    bool is_raw_member_addr = env.IsRawMemberVar(var_decl);
+    bool is_on_heap_member_ref = env.IsOnHeapMemberRefVar(var_decl);
+    if (is_raw_member_addr) out.setRawMemberAddress();
+    if (is_on_heap_member_ref) out.setOnHeapMemberLValue();
+
+    if (!g_dead_vars_analysis) return out;
+    if (!RepresentsRawPointerType(var_type) && !is_raw_member_addr &&
+        !is_on_heap_member_ref) {
+      return out;
+    }
+    // Raw pointer tracking is enabled for HeapObject subclasses, internal
+    // pointer/handle/member types, and variables holding interior member
+    // addresses/references to catch stale accesses across GC calls.
+    if (env.IsAlive(var_decl)) return out;
+    if (HasActiveGuard()) return out;
+    if (HasActiveConservativePinning(var_location)) return out;
     ReportUnsafe(parent, DEAD_VAR_MSG);
-    return ExprEffect::RawUse();
+    out.setRawUse();
+    return out;
   }
 
   ExprEffect Use(const clang::Expr* parent, const clang::ValueDecl* var,
@@ -1819,7 +2388,7 @@ class FunctionAnalyzer {
         return ExprEffect::None();
       }
     }
-    return Use(parent, var->getType(), var->getNameAsString(),
+    return Use(parent, var->getType(), var,
                clang::FullSourceLoc(var->getLocation(), sm_), env);
   }
 
@@ -1930,6 +2499,73 @@ class FunctionAnalyzer {
     }
   }
 
+  // Computes the value provenance (`kRawMemberAddress` or
+  // `kOnHeapMemberLValue`) of a `CallExpr`'s return value:
+  //   1. Calls returning a `*Member*` pointer (e.g. `TaggedMember<T>*`).
+  //   2. GLValue calls returning a reference to an on-heap `*Member` or a
+  //      `FLEXIBLE_ARRAY_MEMBER` accessor returning `T(&)[0]`, e.g.:
+  //        `obj->values()` (decays to `T*` or is subscripted as
+  //        `obj->values()[i]`)
+  //   3. Address-extracting, bit-casting, or forwarding helpers on an on-heap
+  //      member:
+  //        `obj->field_.storage_address()`, `std::addressof(obj->field_)`,
+  //        `base::bit_cast<Address>(ptr)`, `std::forward<T>(arg)`,
+  //        `std::move(arg)`
+  //      (TODO(crbug.com/571823300): raw `HeapObject::address()` /
+  //      `Tagged::ptr()` arithmetic, arbitrary `T*`/`Address`-returning methods
+  //      or forwarding wrappers, and `BindingDecl` structured bindings are not
+  //      yet tracked as member provenance.)
+  void ComputeCallProvenance(clang::CallExpr* call,
+                             clang::CXXMemberCallExpr* memcall,
+                             clang::FunctionDecl* callee,
+                             const CallProps& props, ExprEffect* out) {
+    clang::QualType call_type = call->getType();
+    if (!call_type.isNull()) {
+      if (IsPointerToOnHeapMemberType(call_type)) {
+        out->setRawMemberAddress();
+      } else if (call->isGLValue() &&
+                 (IsOnHeapMemberRecord(call_type->getBaseElementTypeUnsafe()
+                                           ->getAsCXXRecordDecl()) ||
+                  // In C++, functions cannot return arrays by value, so a
+                  // GLValue CallExpr has an ArrayType return type only when
+                  // returning a reference to an array (e.g.
+                  // FLEXIBLE_ARRAY_MEMBER accessors returning T(&)[0]).
+                  (memcall != nullptr && call_type->isArrayType() &&
+                   IsOnHeapClassOrMember(memcall->getRecordDecl())))) {
+        out->setOnHeapMemberLValue();
+      }
+    }
+
+    if (callee == nullptr || callee->getIdentifier() == nullptr) return;
+    llvm::StringRef callee_name = callee->getName();
+
+    if (memcall != nullptr && props.HasOnHeapMemberAt(0)) {
+      // Receiver `props.HasOnHeapMemberAt(0)` is already a tracked `*Member`
+      // instance, where these accessors return its interior address.
+      static constexpr llvm::StringLiteral kAddressAccessors[] = {
+          "storage_address",
+          "ptr_location",
+      };
+      if (llvm::is_contained(kAddressAccessors, callee_name)) {
+        out->setRawMemberAddress();
+      }
+    } else if (call->getNumArgs() == 1) {
+      if ((props.HasOnHeapMemberAt(1) && callee_name == "addressof" &&
+           callee->isInStdNamespace()) ||
+          (props.HasRawMemberAddressAt(1) && callee_name == "bit_cast" &&
+           (callee->isInStdNamespace() || InV8Namespace(callee)))) {
+        out->setRawMemberAddress();
+      } else if (callee->isInStdNamespace() &&
+                 (callee_name == "forward" || callee_name == "move")) {
+        if (props.HasRawMemberAddressAt(1)) {
+          out->setRawMemberAddress();
+        } else if (props.HasOnHeapMemberLValueAt(1)) {
+          out->setOnHeapMemberLValue();
+        }
+      }
+    }
+  }
+
   // After visiting the receiver and the arguments of the {call} node, this
   // function might report a GC-unsafe usage (due to the undefined evaluation
   // order of the receiver and the rest of the arguments).
@@ -1943,20 +2579,24 @@ class FunctionAnalyzer {
       props.SetEffect(0, VisitExpr(receiver, env));
     }
 
-    std::string var_name;
+    const clang::ValueDecl* var_decl = nullptr;
     clang::CXXOperatorCallExpr* opcall =
         llvm::dyn_cast_or_null<clang::CXXOperatorCallExpr>(call);
-    // Overloaded `operator=` on a local variable (e.g. `tagged_var = GetObj()`)
-    // refreshes the variable's liveness in the environment after evaluating
-    // the RHS.
+    // Overloaded `operator=` on a non-reference local variable (e.g.
+    // `tagged_var = ...`) redefines the variable and updates its raw-member
+    // provenance. Excluded when `var_decl` is in `member_ref_vars_`, where
+    // `operator=` writes through the reference instead of rebinding it.
     if (opcall != nullptr && opcall->getOperator() == clang::OO_Equal &&
-        IsRawPointerVar(opcall->getArg(0), &var_name)) {
+        IsRawPointerVar(opcall->getArg(0), &var_decl) &&
+        !env.IsOnHeapMemberRefVar(var_decl)) {
       // TODO(gcmole): We are treating all assignment operator calls with
       // the left hand side looking like {raw_pointer_var} as safe independent
       // of the concrete assignment operator implementation. This should be
       // changed to be more narrow only if the assignment operator of the base
       // {Object} or {HeapObject} class was used, which we know to be safe.
-      props.SetEffect(1, VisitExpr(call->getArg(1), env).Define(var_name));
+      ExprEffect rhs_effect = VisitExpr(call->getArg(1), env);
+      props.SetEffect(
+          1, rhs_effect.Define(var_decl, rhs_effect.hasRawMemberAddress()));
     } else {
       VisitArguments<>(call, &props, env);
     }
@@ -1967,9 +2607,21 @@ class FunctionAnalyzer {
         RepresentsRawPointerType(call->getType()));
 
     clang::FunctionDecl* callee = call->getDirectCallee();
+    ComputeCallProvenance(call, memcall, callee, props, &out);
     if (callee == nullptr) return out;
 
-    CheckCallForGCCause(call, memcall, callee, &out);
+    ExprEffect callee_effect = ExprEffect::None();
+    CheckCallForGCCause(call, memcall, callee, &callee_effect);
+    if (callee_effect.hasGC()) {
+      out.setGC();
+      // Kill `raw_member_vars_` defined in arguments of this call (e.g.
+      // `CalleeThatGCs(p = &obj->field_)`), while keeping pre-existing
+      // out-parameter definitions (`MaybeToObject(&obj)`) live.
+      if (out.env() != nullptr) {
+        out.env()->ClearRawMemberVarsLive();
+      }
+    }
+
     return out;
   }
 
@@ -2165,7 +2817,9 @@ class FunctionAnalyzer {
   // Desugared range-for loop (`for (init; decl : range) body`): visits the
   // synthetic `__range`, `__begin`, and `__end` declarations before iterating
   // `cond` (`__begin != __end`), `loop_var` (`decl = *__begin`), `body`, and
-  // `inc` (`++__begin`).
+  // `inc` (`++__begin`). If `range` is an on-heap array/accessor and `body`
+  // triggers a GC, `__begin` is flagged as stale at the `for` header on the
+  // next iteration.
   DECL_VISIT_STMT(CXXForRangeStmt) {
     state_.scopes.push_back(GCScope());
     Environment init_env = VisitStmt(stmt->getInit(), env);
@@ -2324,27 +2978,29 @@ class FunctionAnalyzer {
     return false;
   }
 
-  // Matches wrapper types used to declare fields inside `HeapObjectLayout`
-  // classes:
+  // Matches wrapper types used to declare fields inside `HeapObject` classes
+  // (including derived wrappers such as `SmiBitFieldMember<Group>`):
   //   TaggedMember<T>, ExternalPointerMember<tag>,
   //   TrustedPointerMember<T, tag>, UnalignedValueMember<T>,
   //   JSDispatchHandleMember, CppHeapPointerMember, UnalignedDoubleMember
   bool IsOnHeapMemberRecord(const clang::CXXRecordDecl* record) {
-    if (record == nullptr) return false;
+    if (record == nullptr || !InV8Namespace(record)) return false;
 
     const clang::CXXRecordDecl* canonical = record->getCanonicalDecl();
+    auto cache_it = on_heap_member_cache_.find(canonical);
+    if (cache_it != on_heap_member_cache_.end()) return cache_it->second;
+
+    bool result = false;
     if ((decls_.js_dispatch_handle_member &&
          canonical == decls_.js_dispatch_handle_member) ||
         (decls_.cpp_heap_pointer_member &&
          canonical == decls_.cpp_heap_pointer_member) ||
         (decls_.unaligned_double_member &&
          canonical == decls_.unaligned_double_member)) {
-      return true;
-    }
-
-    auto* specialization =
-        llvm::dyn_cast<clang::ClassTemplateSpecializationDecl>(record);
-    if (specialization) {
+      result = true;
+    } else if (auto* specialization =
+                   llvm::dyn_cast<clang::ClassTemplateSpecializationDecl>(
+                       record)) {
       auto* template_decl =
           specialization->getSpecializedTemplate()->getCanonicalDecl();
       if ((decls_.tagged_member && template_decl == decls_.tagged_member) ||
@@ -2354,19 +3010,58 @@ class FunctionAnalyzer {
            template_decl == decls_.trusted_pointer_member) ||
           (decls_.unaligned_value_member &&
            template_decl == decls_.unaligned_value_member)) {
-        return true;
+        result = true;
       }
+    }
+    if (!result) {
+      if (const clang::CXXRecordDecl* def = GetDefinitionOrNull(record)) {
+        for (const auto& base : def->bases()) {
+          if (IsOnHeapMemberRecord(base.getType()->getAsCXXRecordDecl())) {
+            result = true;
+            break;
+          }
+        }
+      }
+    }
+    on_heap_member_cache_[canonical] = result;
+    return result;
+  }
+
+  bool IsOnHeapClassOrMember(const clang::CXXRecordDecl* record) {
+    if (record == nullptr || !InV8Namespace(record)) return false;
+    const clang::CXXRecordDecl* canonical = record->getCanonicalDecl();
+    auto cache_it = on_heap_class_or_member_cache_.find(canonical);
+    if (cache_it != on_heap_class_or_member_cache_.end()) {
+      return cache_it->second;
+    }
+    bool result = false;
+    if (IsOnHeapMemberRecord(record)) {
+      result = true;
+    } else if (GetDefinitionOrNull(record) != nullptr) {
+      result = IsDerivedFrom(record, decls_.heap_object);
+    }
+    on_heap_class_or_member_cache_[canonical] = result;
+    return result;
+  }
+
+  bool IsPointerToOnHeapMemberType(clang::QualType qtype) {
+    if (qtype.isNull()) return false;
+    if (const auto* ptr_type = qtype->getAs<clang::PointerType>()) {
+      return IsOnHeapMemberRecord(ptr_type->getPointeeType()
+                                      ->getBaseElementTypeUnsafe()
+                                      ->getAsCXXRecordDecl());
     }
     return false;
   }
 
-  bool IsOnHeapClassOrMember(const clang::CXXRecordDecl* record) {
-    if (record == nullptr) return false;
-    if (IsOnHeapMemberRecord(record)) return true;
-    if (!InV8Namespace(record)) return false;
-    const clang::CXXRecordDecl* definition = GetDefinitionOrNull(record);
-    if (!definition) return false;
-    return IsDerivedFrom(record, decls_.heap_object);
+  bool IsReferenceToOnHeapMemberType(clang::QualType qtype) {
+    if (qtype.isNull()) return false;
+    if (const auto* ref_type = qtype->getAs<clang::ReferenceType>()) {
+      return IsOnHeapMemberRecord(ref_type->getPointeeType()
+                                      ->getBaseElementTypeUnsafe()
+                                      ->getAsCXXRecordDecl());
+    }
+    return false;
   }
 
   bool IsRawPointerToOnHeapValue(const clang::CXXRecordDecl* record) {
@@ -2436,20 +3131,55 @@ class FunctionAnalyzer {
   Environment VisitDecl(clang::Decl* decl, Environment& env) {
     if (clang::VarDecl* var = llvm::dyn_cast<clang::VarDecl>(decl)) {
       bool is_param = llvm::isa<clang::ParmVarDecl>(decl);
+      ExprEffect init_effect = ExprEffect::None();
+      Environment out = env;
       // For `ParmVarDecl`, `hasInit()` is true when the parameter has a default
       // argument expression (`void Foo(int x = Expr())`), which is evaluated at
       // the call site (`CXXDefaultArgExpr`) rather than on entry to the
       // function body.
-      Environment out =
-          (!is_param && var->hasInit()) ? VisitStmt(var->getInit(), env) : env;
+      if (!is_param && var->hasInit()) {
+        init_effect = VisitExpr(var->getInit(), env);
+        out = env.ApplyEffect(init_effect);
+      }
 
-      clang::QualType var_type = var->getType();
+      clang::QualType declared_type = var->getType();
+      // Record raw member address provenance (`raw_member_vars_`) when:
+      //   1. The initializer evaluates to an interior heap address:
+      //        int* p = &obj->field_;
+      //        uint8_t* bytes = obj->inline_bytes_;
+      //        Address addr = obj->field_.storage_address();
+      //   2. A parameter has a `*Member*` type (`void Foo(TaggedMember<T>*
+      //   p)`).
+      //      (Local `*Member*` variables without an initializer are already
+      //      tracked as type-raw pointers via `RepresentsRawPointerType` and
+      //      acquire `kRawMemberAddress` when loaded via `CastExpr`, keeping
+      //      uninitialized out-params like `TaggedMember<T>* out; Init(&out);`
+      //      compatible with the `UO_AddrOf` out-parameter heuristic.)
+      bool has_raw_member_addr =
+          init_effect.hasRawMemberAddress() ||
+          (is_param && IsPointerToOnHeapMemberType(declared_type));
+      out.SetRawMemberVar(var, has_raw_member_addr);
+
+      // Record on-heap member reference provenance (`member_ref_vars_`) when:
+      //   1. A C++ reference is bound to an on-heap member lvalue:
+      //        int& ref = obj->field_;
+      //        const TaggedMember<Object>& mref = obj->tagged_field_;
+      //   2. A parameter or variable is declared as a reference to an on-heap
+      //      `*Member` type (`TaggedMember<T>&`):
+      //        void Bar(TaggedMember<Object>& member_ref);
+      bool is_on_heap_member_ref = (declared_type->isReferenceType() &&
+                                    init_effect.hasOnHeapMemberLValue()) ||
+                                   IsReferenceToOnHeapMemberType(declared_type);
+      out.SetMemberRefVar(var, is_on_heap_member_ref);
+
+      clang::QualType var_type = declared_type;
       if (is_param && var_type->isReferenceType()) {
         var_type = var_type->getAs<clang::ReferenceType>()->getPointeeType();
       }
 
-      if (RepresentsRawPointerType(var_type)) {
-        out.MDefine(var->getNameAsString());
+      if (has_raw_member_addr || is_on_heap_member_ref ||
+          RepresentsRawPointerType(var_type)) {
+        out.MDefine(var);
       }
       if (IsGCGuard(var_type)) {
         state_.scopes.back().guard_location =
@@ -2503,7 +3233,7 @@ class FunctionAnalyzer {
 
   void DefineAndVisitParameters(const clang::FunctionDecl* f,
                                 Environment& env) {
-    env.MDefine(THIS);
+    env.MDefineThis();
     clang::FunctionDecl::param_const_iterator end = f->param_end();
     for (clang::FunctionDecl::param_const_iterator p = f->param_begin();
          p != end; ++p) {
@@ -2760,6 +3490,8 @@ class FunctionAnalyzer {
   clang::SourceManager& sm_;
 
   AnalysisState state_;
+  std::map<const clang::CXXRecordDecl*, bool> on_heap_member_cache_;
+  std::map<const clang::CXXRecordDecl*, bool> on_heap_class_or_member_cache_;
 };
 
 class ProblemsFinder : public clang::ASTConsumer,
