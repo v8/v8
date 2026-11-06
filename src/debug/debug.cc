@@ -1907,9 +1907,9 @@ class DiscardBaselineCodeVisitor : public ThreadVisitor {
                         ->instruction_start();
         }
         if (v8_flags.cet_compatible) {
-          Deoptimizer::PatchToJump(*pc_addr, advance);
           frame->LookupCode()->SetMarkedForDeoptimization(
               isolate, LazyDeoptimizeReason::kDebugger);
+          Deoptimizer::PatchToJump(*pc_addr, advance);
         } else {
           PointerAuthentication::ReplacePC(pc_addr, advance, kSystemPointerSize,
                                            it.frame()->iteration_depth());

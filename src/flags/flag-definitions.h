@@ -3809,19 +3809,12 @@ DEFINE_BOOL(freeze_flags_after_init, true,
             "Disallow changes to flag values after initializing V8")
 #endif  // defined(V8_OS_AIX) && defined(COMPONENT_BUILD)
 
-#if V8_ENABLE_CET_SHADOW_STACK
-#define V8_CET_SHADOW_STACK_BOOL true
-#else
-#define V8_CET_SHADOW_STACK_BOOL false
-#endif
-
-#if V8_TARGET_ARCH_X64
-DEFINE_BOOL(cet_compatible, V8_CET_SHADOW_STACK_BOOL,
-            "Generate Intel CET compatible code")
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+DEFINE_BOOL(cet_compatible, true, "Generate Intel CET compatible code")
 #else
 DEFINE_BOOL_READONLY(cet_compatible, false,
-                     "Intel CET is only supported on x64.")
-#endif  // V8_TARGET_ARCH_X64
+                     "Generate Intel CET compatible code")
+#endif  // V8_ENABLE_CET_SHADOW_STACK
 
 // mksnapshot.cc
 DEFINE_STRING(embedded_src, nullptr,
