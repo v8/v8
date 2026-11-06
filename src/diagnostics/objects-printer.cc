@@ -3806,12 +3806,6 @@ void AllocationSite::AllocationSitePrint(std::ostream& os) {
   os << "\n";
 }
 
-void AllocationMemento::AllocationMementoPrint(std::ostream& os) {
-  PrintHeader(os, "AllocationMemento");
-  os << "\n - allocation site: ";
-  GetAllocationSite()->AllocationSitePrint(os);
-}
-
 void ScriptOrModule::ScriptOrModulePrint(std::ostream& os) {
   PrintHeader(os, "ScriptOrModule");
   os << "\n - host_defined_options: " << Brief(host_defined_options());

@@ -173,7 +173,7 @@
   }
   %PrepareFunctionForOptimization(make);
 
-  // Allocate before optimization so `a` has an AllocationMemento.
+  // Allocate before optimization so `a` is tracked in the AllocationSiteCache.
   let a = make();
   make();
   %OptimizeFunctionOnNextCall(make);
@@ -197,7 +197,7 @@
   }
   %PrepareFunctionForOptimization(make);
 
-  // Allocate before optimization so `a` has an AllocationMemento.
+  // Allocate before optimization so `a` is tracked in the AllocationSiteCache.
   let a = make();
   make();
   %OptimizeFunctionOnNextCall(make);

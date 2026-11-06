@@ -123,6 +123,7 @@ class Stack;
 }  // namespace regexp
 
 class AddressToIndexHashMap;
+class AllocationSiteCache;
 class AstStringConstants;
 class Bootstrapper;
 class BuiltinsConstantsTableBuilder;
@@ -1416,6 +1417,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   DescriptorLookupCache* descriptor_lookup_cache() const {
     return descriptor_lookup_cache_;
+  }
+
+  AllocationSiteCache* allocation_site_cache() const {
+    return isolate_data_.allocation_site_cache();
   }
 
   V8_INLINE HandleScopeData* handle_scope_data() {

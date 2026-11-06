@@ -5,6 +5,11 @@
 #ifndef V8_OBJECTS_ALLOCATION_SITE_H_
 #define V8_OBJECTS_ALLOCATION_SITE_H_
 
+#include <cstddef>
+#include <cstring>
+#include <type_traits>
+
+#include "src/base/bits.h"
 #include "src/objects/objects.h"
 #include "src/objects/struct.h"
 
@@ -88,22 +93,65 @@ V8_OBJECT class AllocationSite : public HeapObject {
   TaggedMember<DependentCode> dependent_code_;
 } V8_OBJECT_END;
 
-V8_OBJECT class AllocationMemento : public Struct {
+// Direct-mapped cache of (JSArray address -> AllocationSite address) for
+// elements transition tracking. Cleared on every GC prologue.
+//
+// 256 entries (4 KB on 64-bit, 2 KB on 32-bit):
+// - Size rationale: keeps per-Isolate footprint small and GC-prologue clearing
+//   (`memset`) fast.
+// - Low eviction rate: only CSA/runtime young JSArray allocations with an
+//   active AllocationSite write to the cache, and ElementsKind transitions
+//   typically follow allocation immediately. For batch allocations, only a
+//   single surviving entry needs to hit to permanently generalize the site.
+// - On collision/eviction: direct-mapped slots overwrite unconditionally. A tag
+//   mismatch (`entry.object != object`) on lookup misses the cache, skipping
+//   the speculative AllocationSite update for that instance while the JSArray
+//   transitions its own map normally.
+class V8_EXPORT_PRIVATE AllocationSiteCache {
  public:
-  inline void set_allocation_site(Tagged<AllocationSite> value,
-                                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  struct Entry {
+    Address object = kNullAddress;
+    Address site = kNullAddress;
+  };
+  static_assert(sizeof(Entry) == 2 * kSystemPointerSize);
+  static_assert(std::has_unique_object_representations_v<Entry>);
+  static_assert(offsetof(Entry, object) == 0);
+  static_assert(offsetof(Entry, site) == kSystemPointerSize);
 
-  inline Tagged<AllocationSite> GetAllocationSite() const;
+  static constexpr int kSize = 256;
+  static_assert(base::bits::IsPowerOfTwo(kSize));
+  static constexpr int kMask = kSize - 1;
+  static constexpr int kShift1 = 3;
+  static constexpr int kShift2 = 11;
 
-  DECL_PRINTER(AllocationMemento)
-  DECL_VERIFIER(AllocationMemento)
+  AllocationSiteCache() = default;
+  AllocationSiteCache(const AllocationSiteCache&) = delete;
+  AllocationSiteCache& operator=(const AllocationSiteCache&) = delete;
+
+  // Maps a tagged JSArray address to a slot in [0, 255]:
+  // - `>> 3` drops bits [2:0] (tag bit 0 and sub-8B offset bits [2:1];
+  //   JSArray::kHeaderSize >= 16 even when kObjectAlignmentBits == 2), using
+  //   bits [10:3] to index 8-byte words across a 2 KB window.
+  // - `^ (addr >> 11)` XOR-folds bits [18:11] into [10:3] so 16-byte-strided
+  //   allocations (e.g. 16B empty JSArrays under pointer compression) flip bit
+  //   0 at 2 KB boundaries and populate odd as well as even slots, while
+  //   breaking power-of-two stride aliasing across a 512 KB range.
+  // - `& 0xff` masks to the 256-entry direct-mapped table.
+  static inline size_t ComputeIndex(Tagged<JSArray> object);
+
+  inline void Update(Tagged<JSArray> object, Tagged<AllocationSite> site);
+  inline bool Lookup(Tagged<JSArray> object,
+                     Tagged<AllocationSite>* site_out) const;
+
+  void Clear() { std::memset(entries_, 0, sizeof(entries_)); }
+
+#ifdef VERIFY_HEAP
+  void Verify() const;
+#endif
 
  private:
-  friend class CodeStubAssembler;
-  friend class TorqueGeneratedAllocationMementoAsserts;
-
-  TaggedMember<AllocationSite> allocation_site_;
-} V8_OBJECT_END;
+  Entry entries_[kSize] = {};
+};
 
 }  // namespace internal
 }  // namespace v8

@@ -1097,10 +1097,6 @@ class ObjectPinningVisitorBase : public RootVisitor {
     DCHECK(!HasWeakHeapObjectTag(object));
     DCHECK(!MapWord::IsPacked(object.ptr()));
     DCHECK(!HeapLayout::IsSelfForwarded(object));
-    if (IsAllocationMemento(object)) {
-      // Don't pin allocation mementos since they should not survive a GC.
-      return;
-    }
     if (scavenger_.PromoteIfLargeObject(object)) {
       // Large objects are not moved and thus don't require pinning. Instead,
       // we scavenge large pages eagerly to keep them from being reclaimed (if
@@ -2346,8 +2342,6 @@ SlotCallbackResult Scavenger::ScavengeObject(THeapObjectSlot p,
   }
 
   Tagged<Map> map = first_word.ToMap();
-  // AllocationMementos are unrooted and shouldn't survive a scavenge
-  DCHECK_NE(ReadOnlyRoots(heap()).allocation_memento_map(), map);
   // Call the slow part of scavenge object.
   return EvacuateObject(p, map, object);
 }

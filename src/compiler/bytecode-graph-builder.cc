@@ -2522,11 +2522,11 @@ void BytecodeGraphBuilder::VisitCreateArrayLiteral() {
   int bytecode_flags = bytecode_iterator().GetFlag8Operand(2);
   int literal_flags =
       interpreter::CreateArrayLiteralFlags::FlagsBits::decode(bytecode_flags);
-  // Disable allocation site mementos. Only unoptimized code will collect
+  // Disable allocation site tracking. Only unoptimized code will collect
   // feedback about allocation site. Once the code is optimized we expect the
-  // data to converge. So, we disable allocation site mementos in optimized
+  // data to converge. So, we disable allocation site tracking in optimized
   // code. We can revisit this when we have data to the contrary.
-  literal_flags |= ArrayLiteral::kDisableMementos;
+  literal_flags |= ArrayLiteral::kDisableAllocationSiteTracking;
   uint32_t number_of_elements =
       array_boilerplate_description.constants_elements_length();
   static_assert(JSCreateLiteralArrayNode::FeedbackVectorIndex() == 0);

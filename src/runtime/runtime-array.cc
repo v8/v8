@@ -121,7 +121,7 @@ RUNTIME_FUNCTION(Runtime_NewArray) {
   initial_map = Map::AsElementsKind(isolate, initial_map, to_kind);
 
   // If we don't care to track arrays of to_kind ElementsKind, then
-  // don't emit a memento for them.
+  // don't pass the allocation site for them.
   MaybeDirectHandle<AllocationSite> allocation_site;
   if (AllocationSite::ShouldTrack(to_kind)) {
     allocation_site = site;

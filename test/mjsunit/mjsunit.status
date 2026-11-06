@@ -664,12 +664,14 @@
 ##############################################################################
 ['gc_stress', {
   # Skip tests not suitable for GC stress.
+  'allocation-site-cache': [SKIP],
+  'allocation-site-cache-deopt': [SKIP],
   'allocation-site-info': [SKIP],
   'array-constructor-feedback': [SKIP],
   'array-literal-transitions-no-pretenuring': [SKIP],
   'd8/d8-performance-now': [SKIP],
   'opt-elements-kind': [SKIP],
-  'regress/regress-trap-allocation-memento': [SKIP],
+  'regress/regress-trap-allocation-site-cache': [SKIP],
   'regress/regress-4121': [SKIP],
   # --concurrent-recompilation-delay sleeps before the compile starts, so the
   # test's cell rotation finishes before the broker reads the cell.
@@ -2177,6 +2179,8 @@
 
   # Tests that fail some assertions due to checking internal state sensitive
   # to GC.
+  'allocation-site-cache': [SKIP],
+  'allocation-site-cache-deopt': [SKIP],
   'array-literal-transitions-no-pretenuring': [SKIP],
   'compiler/native-context-specialization-hole-check': [SKIP],
   'compiler/serializer-apply': [SKIP],
@@ -2185,7 +2189,7 @@
   'compiler/serializer-dead-after-return': [SKIP],
   'compiler/serializer-transition-propagation': [SKIP],
   'opt-elements-kind': [SKIP],
-  'regress/regress-trap-allocation-memento': [SKIP],
+  'regress/regress-trap-allocation-site-cache': [SKIP],
   'regress/regress-v8-9267-*': [SKIP],
   'shared-function-tier-up-turbo': [SKIP],
 
@@ -2985,10 +2989,12 @@
 ################################################################################
 ['single_generation', {
   # These tests rely on allocation site tracking which only works in the young generation.
+  'allocation-site-cache': [SKIP],
+  'allocation-site-cache-deopt': [SKIP],
   'array-constructor-feedback': [SKIP],
   'array-literal-transitions-no-pretenuring': [SKIP],
   'wasm/gc-casts-invalid': [SKIP],
-  'regress/regress-trap-allocation-memento': [SKIP],
+  'regress/regress-trap-allocation-site-cache': [SKIP],
   'regress/regress-4121': [SKIP],
   'compiler/native-context-specialization-hole-check': [SKIP],
   'compiler/test-literal-map-migration': [SKIP],

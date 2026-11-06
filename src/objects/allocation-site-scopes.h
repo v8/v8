@@ -14,15 +14,13 @@ namespace v8 {
 namespace internal {
 
 // AllocationSiteContext is the base class for walking and copying a nested
-// boilerplate with AllocationSite and AllocationMemento support.
+// boilerplate with AllocationSite tracking support.
 class AllocationSiteContext {
  public:
   explicit AllocationSiteContext(Isolate* isolate) { isolate_ = isolate; }
 
   DirectHandle<AllocationSite> top() { return top_; }
   DirectHandle<AllocationSite> current() { return current_; }
-
-  bool ShouldCreateMemento(DirectHandle<JSObject> object) { return false; }
 
   Isolate* isolate() { return isolate_; }
 
@@ -39,8 +37,8 @@ class AllocationSiteContext {
   Handle<AllocationSite> current_;
 };
 
-// AllocationSiteUsageContext aids in the creation of AllocationMementos placed
-// behind some/all components of a copied object literal.
+// AllocationSiteUsageContext aids in tracking AllocationSites for components of
+// a copied object literal.
 class AllocationSiteUsageContext : public AllocationSiteContext {
  public:
   AllocationSiteUsageContext(Isolate* isolate, Handle<AllocationSite> site,
@@ -54,9 +52,9 @@ class AllocationSiteUsageContext : public AllocationSiteContext {
   inline void ExitScope(DirectHandle<AllocationSite> scope_site,
                         DirectHandle<JSObject> object);
 
-  inline bool ShouldCreateMemento(DirectHandle<JSObject> object);
+  inline bool ShouldTrackAllocationSite(DirectHandle<JSObject> object);
 
-  static const bool kCopying = true;
+  static constexpr bool kCopying = true;
 
  private:
   Handle<AllocationSite> top_site_;

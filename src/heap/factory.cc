@@ -310,45 +310,6 @@ Tagged<HeapObject> Factory::AllocateRaw(int size, AllocationType allocation,
       size, allocation, AllocationOrigin::kRuntime, alignment, hint);
 }
 
-Tagged<HeapObject> Factory::AllocateRawWithAllocationSite(
-    DirectHandle<Map> map, AllocationType allocation,
-    MaybeDirectHandle<AllocationSite> allocation_site) {
-  DCHECK(!InstanceTypeChecker::IsMap(map->instance_type()));
-  const auto [write_barrier_mode, should_allocate_memento] =
-      allocation == AllocationType::kYoung
-          ? std::pair{SKIP_WRITE_BARRIER, !allocation_site.is_null()}
-          : std::pair{UPDATE_WRITE_BARRIER, false};
-  DCHECK_IMPLIES(should_allocate_memento, V8_ALLOCATION_SITE_TRACKING_BOOL);
-  DCHECK_IMPLIES(should_allocate_memento,
-                 AllocationSite::CanTrack(map->instance_type()));
-  const int instance_size = map->instance_size();
-  const int allocation_size =
-      should_allocate_memento
-          ? instance_size +
-                ALIGN_TO_ALLOCATION_ALIGNMENT(sizeof(AllocationMemento))
-          : instance_size;
-  Tagged<HeapObject> result =
-      allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(allocation_size,
-                                                                allocation);
-  result->set_map_after_allocation(isolate(), *map, write_barrier_mode);
-  if (should_allocate_memento) {
-    const int aligned_size = ALIGN_TO_ALLOCATION_ALIGNMENT(instance_size);
-    Tagged<AllocationMemento> alloc_memento = UncheckedCast<AllocationMemento>(
-        Tagged<Object>(result.ptr() + aligned_size));
-    InitializeAllocationMemento(alloc_memento,
-                                *allocation_site.ToHandleChecked());
-  }
-  return result;
-}
-
-void Factory::InitializeAllocationMemento(
-    Tagged<AllocationMemento> memento, Tagged<AllocationSite> allocation_site) {
-  DCHECK(V8_ALLOCATION_SITE_TRACKING_BOOL);
-  memento->set_map_after_allocation(isolate(), *allocation_memento_map(),
-                                    SKIP_WRITE_BARRIER);
-  memento->set_allocation_site(allocation_site, SKIP_WRITE_BARRIER);
-}
-
 Tagged<HeapObject> Factory::New(DirectHandle<Map> map,
                                 AllocationType allocation) {
   DCHECK(!InstanceTypeChecker::IsMap(map->instance_type()));
@@ -2918,16 +2879,9 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
   DCHECK_IMPLIES(!site.is_null(), AllocationSite::CanTrack(instance_type));
 
   const int object_size = raw_map->instance_size();
-  const int aligned_object_size = ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
-  int adjusted_object_size = aligned_object_size;
-  if (!site.is_null()) {
-    DCHECK(V8_ALLOCATION_SITE_TRACKING_BOOL);
-    adjusted_object_size +=
-        ALIGN_TO_ALLOCATION_ALIGNMENT(sizeof(AllocationMemento));
-  }
   Tagged<HeapObject> raw_clone =
       allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(
-          adjusted_object_size, AllocationType::kYoung);
+          object_size, AllocationType::kYoung);
 
   DCHECK_NEWLY_ALLOCATED_OBJECT_IS_YOUNG(isolate(), raw_clone);
 
@@ -2941,11 +2895,6 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
     const ObjectSlot start(raw_clone.address());
     const ObjectSlot end(raw_clone.address() + object_size);
     WriteBarrier::ForRange(isolate()->heap(), raw_clone, start, end);
-  }
-  if (!site.is_null()) {
-    Tagged<AllocationMemento> alloc_memento = UncheckedCast<AllocationMemento>(
-        Tagged<Object>(raw_clone.ptr() + aligned_object_size));
-    InitializeAllocationMemento(alloc_memento, *site);
   }
 
   SLOW_DCHECK(clone->GetElementsKind() == source->GetElementsKind());
@@ -2988,6 +2937,10 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
     clone->set_raw_properties_or_hash(
         UncheckedCast<JSReceiver::PropertiesOrHash>(*copied_properties),
         kRelaxedStore);
+  }
+  if (!site.is_null()) {
+    DCHECK(AllocationSite::ShouldTrack(clone->GetElementsKind()));
+    isolate()->allocation_site_cache()->Update(Cast<JSArray>(*clone), *site);
   }
   return clone;
 }
@@ -3341,17 +3294,15 @@ Handle<JSObject> Factory::NewExternal(void* value, ExternalPointerTag tag,
 Handle<CppHeapExternalObject> Factory::NewCppHeapExternal(
     AllocationType allocation_type) {
   Tagged<CppHeapExternalObject> external = Cast<CppHeapExternalObject>(
-      AllocateRawWithAllocationSite(cpp_heap_external_map(), allocation_type,
-                                    DirectHandle<AllocationSite>::null()));
+      New(cpp_heap_external_map(), allocation_type));
   CppHeapObjectWrapper(external).InitializeCppHeapWrapper();
   return handle(external, isolate());
 }
 
 Handle<CppGCManagedBase> Factory::NewCppGCManagedBase(
     AllocationType allocation_type) {
-  Tagged<CppGCManagedBase> managed = Cast<CppGCManagedBase>(
-      AllocateRawWithAllocationSite(cpp_gc_managed_base_map(), allocation_type,
-                                    DirectHandle<AllocationSite>::null()));
+  Tagged<CppGCManagedBase> managed =
+      Cast<CppGCManagedBase>(New(cpp_gc_managed_base_map(), allocation_type));
   managed->SetupLazilyInitializedCppHeapPointerField(
       offsetof(CppGCManagedBase, cpp_gc_wrapper_));
   return handle(managed, isolate());
@@ -3597,7 +3548,7 @@ void Factory::InitializeJSObjectBody(Tagged<JSObject> obj, Tagged<Map> map,
 
 Handle<JSObject> Factory::NewJSObjectFromMap(
     DirectHandle<Map> map, AllocationType allocation,
-    MaybeDirectHandle<AllocationSite> allocation_site,
+    MaybeDirectHandle<AllocationSite> maybe_allocation_site,
     NewJSObjectType new_js_object_type) {
   // JSFunctions should be allocated using AllocateFunction to be
   // properly initialized.
@@ -3607,8 +3558,16 @@ Handle<JSObject> Factory::NewJSObjectFromMap(
   // AllocateGlobalObject to be properly initialized.
   DCHECK_NE(map->instance_type(), JS_GLOBAL_OBJECT_TYPE);
 
-  Tagged<JSObject> js_obj = Cast<JSObject>(
-      AllocateRawWithAllocationSite(map, allocation, allocation_site));
+  Tagged<JSObject> js_obj = Cast<JSObject>(New(map, allocation));
+  DirectHandle<AllocationSite> allocation_site;
+  if (allocation == AllocationType::kYoung &&
+      maybe_allocation_site.To(&allocation_site)) {
+    DCHECK(V8_ALLOCATION_SITE_TRACKING_BOOL);
+    DCHECK(AllocationSite::CanTrack(map->instance_type()));
+    DCHECK(AllocationSite::ShouldTrack(map->elements_kind()));
+    isolate()->allocation_site_cache()->Update(Cast<JSArray>(js_obj),
+                                               *allocation_site);
+  }
 
   InitializeJSObjectFromMap(*map, js_obj, {}, new_js_object_type);
 

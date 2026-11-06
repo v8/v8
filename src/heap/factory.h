@@ -678,8 +678,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Returns a deep copy of the JavaScript object.
   // Properties and elements are copied too.
   Handle<JSObject> CopyJSObject(DirectHandle<JSObject> object);
-  // Same as above, but also takes an AllocationSite to be appended in an
-  // AllocationMemento.
+  // Same as above, but also takes an AllocationSite to be recorded in the
+  // AllocationSiteCache.
   Handle<JSObject> CopyJSObjectWithAllocationSite(
       DirectHandle<JSObject> object, DirectHandle<AllocationSite> site);
 
@@ -755,13 +755,14 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<JSFunction> constructor);
 
   // Allocates and initializes a new JavaScript object based on a map.
-  // Passing an allocation site means that a memento will be created that
-  // points to the site.
+  // Passing an allocation site means that the object will be tracked in the
+  // allocation site cache.
   // JS objects are allocated in old space when allocated by the bootstrapper
   // and runtime.
   Handle<JSObject> NewJSObjectFromMap(
       DirectHandle<Map> map, AllocationType allocation = AllocationType::kYoung,
-      MaybeDirectHandle<AllocationSite> allocation_site = kNullMaybeHandle,
+      MaybeDirectHandle<AllocationSite> maybe_allocation_site =
+          kNullMaybeHandle,
       NewJSObjectType = NewJSObjectType::kMaybeEmbedderFieldsAndNoApiWrapper);
   // Like NewJSObjectFromMap, but includes allocating a properties dictionary.);
   Handle<JSObject> NewSlowJSObjectFromMap(
@@ -1432,10 +1433,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       int inobject_properties = 0,
       AllocationType allocation_type = AllocationType::kMap);
 
-  Tagged<HeapObject> AllocateRawWithAllocationSite(
-      DirectHandle<Map> map, AllocationType allocation,
-      MaybeDirectHandle<AllocationSite> allocation_site);
-
   Handle<JSArrayBufferView> NewJSArrayBufferView(
       DirectHandle<Map> map, DirectHandle<FixedArrayBase> elements,
       DirectHandle<JSArrayBuffer> buffer, size_t byte_offset,
@@ -1488,9 +1485,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       ElementsKind elements_kind, uint32_t capacity,
       ArrayStorageAllocationMode mode =
           ArrayStorageAllocationMode::DONT_INITIALIZE_ARRAY_ELEMENTS);
-
-  void InitializeAllocationMemento(Tagged<AllocationMemento> memento,
-                                   Tagged<AllocationSite> allocation_site);
 
   // Initializes a JSObject based on its map.
   void InitializeJSObjectFromMap(

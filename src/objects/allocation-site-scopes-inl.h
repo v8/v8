@@ -39,12 +39,12 @@ void AllocationSiteUsageContext::ExitScope(
   DCHECK(object.is_null() || *object == scope_site->boilerplate());
 }
 
-bool AllocationSiteUsageContext::ShouldCreateMemento(
+bool AllocationSiteUsageContext::ShouldTrackAllocationSite(
     DirectHandle<JSObject> object) {
   if (activated_ && AllocationSite::CanTrack(object->map()->instance_type())) {
     if (AllocationSite::ShouldTrack(object->GetElementsKind())) {
       if (v8_flags.trace_creation_allocation_sites) {
-        PrintF("*** Creating Memento for JSArray %p\n",
+        PrintF("*** Tracking AllocationSite for JSArray %p\n",
                reinterpret_cast<void*>(object->ptr()));
       }
       return true;

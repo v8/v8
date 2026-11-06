@@ -29,6 +29,7 @@
 #include "src/logging/counters.h"
 #include "src/numbers/integer-literal-inl.h"
 #include "src/numbers/math-random.h"
+#include "src/objects/allocation-site.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/cell.h"
 #include "src/objects/descriptor-array.h"
@@ -5536,13 +5537,7 @@ TNode<JSArray> CodeStubAssembler::AllocateJSArray(
   Comment("begin allocation of JSArray passing in elements");
   CSA_SLOW_DCHECK(this, TaggedIsPositiveSmi(length));
 
-  int base_size = array_header_size;
-  if (allocation_site) {
-    DCHECK(V8_ALLOCATION_SITE_TRACKING_BOOL);
-    base_size += ALIGN_TO_ALLOCATION_ALIGNMENT(sizeof(AllocationMemento));
-  }
-
-  TNode<IntPtrT> size = IntPtrConstant(base_size);
+  TNode<IntPtrT> size = IntPtrConstant(array_header_size);
   TNode<JSArray> result =
       AllocateUninitializedJSArray(array_map, length, allocation_site, size);
   StoreObjectFieldNoWriteBarrier(result, offsetof(JSObject, elements_),
@@ -5630,11 +5625,6 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
   BIND(&nonempty);
   {
     int base_size = ALIGN_TO_ALLOCATION_ALIGNMENT(array_header_size);
-    if (allocation_site) {
-      DCHECK(V8_ALLOCATION_SITE_TRACKING_BOOL);
-      base_size += ALIGN_TO_ALLOCATION_ALIGNMENT(sizeof(AllocationMemento));
-    }
-
     const int elements_offset = base_size;
 
     // Compute space for elements
@@ -5645,8 +5635,7 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
     // For very large arrays in which the requested allocation exceeds the
     // maximal size of a regular heap object, we cannot use the allocation
     // folding trick. Instead, we first allocate the elements in large object
-    // space, and then allocate the JSArray (and possibly the allocation
-    // memento) in new space.
+    // space, and then allocate the JSArray in new space.
     Label next(this);
     GotoIf(IsRegularHeapObjectSize(size), &next);
 
@@ -5662,9 +5651,8 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
       FillEntireFixedArrayWithSmiZero(kind, CAST(elements.value()), capacity);
     }
 
-    // The JSArray and possibly allocation memento next. Note that
-    // allocation_flags are *not* passed on here and the resulting JSArray
-    // will always be in new space.
+    // The JSArray next. Note that allocation_flags are *not* passed on here
+    // and the resulting JSArray will always be in new space.
     array = AllocateJSArray(array_map, elements.value(), length,
                             allocation_site, array_header_size);
 
@@ -5743,11 +5731,6 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElementsFolded(
   BIND(&nonempty);
   {
     int base_size = ALIGN_TO_ALLOCATION_ALIGNMENT(array_header_size);
-    if (allocation_site) {
-      DCHECK(V8_ALLOCATION_SITE_TRACKING_BOOL);
-      base_size += ALIGN_TO_ALLOCATION_ALIGNMENT(sizeof(AllocationMemento));
-    }
-
     const int elements_offset = base_size;
 
     // Compute space for elements
@@ -5804,15 +5787,13 @@ TNode<JSArray> CodeStubAssembler::AllocateUninitializedJSArray(
   StoreObjectFieldRoot(array, offsetof(JSArray, properties_or_hash_),
                        RootIndex::kEmptyFixedArray);
 
+  TNode<JSArray> js_array = CAST(array);
   if (allocation_site) {
     DCHECK(V8_ALLOCATION_SITE_TRACKING_BOOL);
-    InitializeAllocationMemento(
-        array,
-        IntPtrConstant(ALIGN_TO_ALLOCATION_ALIGNMENT(JSArray::kHeaderSize)),
-        *allocation_site);
+    RecordAllocationSiteInCache(js_array, *allocation_site);
   }
 
-  return CAST(array);
+  return js_array;
 }
 
 TNode<JSArray> CodeStubAssembler::AllocateJSArray(
@@ -5968,28 +5949,19 @@ TNode<JSArray> CodeStubAssembler::CloneFastJSArray(
   TNode<Map> array_map =
       LoadJSArrayElementsMap(var_elements_kind.value(), native_context);
 
+  TNode<JSArray> result = AllocateJSArray(array_map, var_new_elements.value(),
+                                          CAST(length), std::nullopt);
   if (allocation_site) {
-    TVARIABLE(JSArray, var_result);
-    Label with_memento(this), without_memento(this), done(this);
-    Branch(ElementsKindEqual(var_elements_kind.value(),
+    Label done(this);
+    GotoIf(ElementsKindEqual(var_elements_kind.value(),
                              Int32Constant(TERMINAL_FAST_ELEMENTS_KIND)),
-           &without_memento, &with_memento);
-
-    BIND(&with_memento);
-    var_result = AllocateJSArray(array_map, var_new_elements.value(),
-                                 CAST(length), allocation_site);
-    Goto(&done);
-
-    BIND(&without_memento);
-    var_result = AllocateJSArray(array_map, var_new_elements.value(),
-                                 CAST(length), std::nullopt);
+           &done);
+    RecordAllocationSiteInCache(result, *allocation_site);
     Goto(&done);
 
     BIND(&done);
-    return var_result.value();
   }
-  return AllocateJSArray(array_map, var_new_elements.value(), CAST(length),
-                         std::nullopt);
+  return result;
 }
 
 template <typename TIndex>
@@ -7201,34 +7173,6 @@ TNode<FixedArrayBase> CodeStubAssembler::GrowElementsCapacity(
 template TNode<FixedArrayBase> CodeStubAssembler::GrowElementsCapacity<IntPtrT>(
     TNode<HeapObject>, TNode<FixedArrayBase>, ElementsKind, ElementsKind,
     TNode<IntPtrT>, TNode<IntPtrT>, compiler::CodeAssemblerLabel*);
-
-namespace {
-
-// Helper function for folded memento allocation.
-// Memento objects are designed to be put right after the objects they are
-// tracking on. So memento allocations have to be folded together with previous
-// object allocations.
-TNode<HeapObject> InnerAllocateMemento(CodeStubAssembler* csa,
-                                       TNode<HeapObject> previous,
-                                       TNode<IntPtrT> offset) {
-  return csa->UncheckedCast<HeapObject>(csa->BitcastWordToTagged(
-      csa->IntPtrAdd(csa->BitcastTaggedToWord(previous), offset)));
-}
-
-}  // namespace
-
-void CodeStubAssembler::InitializeAllocationMemento(
-    TNode<HeapObject> base, TNode<IntPtrT> base_allocation_size,
-    TNode<AllocationSite> allocation_site) {
-  DCHECK(V8_ALLOCATION_SITE_TRACKING_BOOL);
-  Comment("[Initialize AllocationMemento");
-  TNode<HeapObject> memento =
-      InnerAllocateMemento(this, base, base_allocation_size);
-  StoreMapNoWriteBarrier(memento, RootIndex::kAllocationMementoMap);
-  StoreObjectFieldNoWriteBarrier(
-      memento, offsetof(AllocationMemento, allocation_site_), allocation_site);
-  Comment("]");
-}
 
 TNode<IntPtrT> CodeStubAssembler::TryTaggedToInt32AsIntPtr(
     TNode<Object> acc, Label* if_not_possible) {
@@ -15099,7 +15043,7 @@ void CodeStubAssembler::TransitionElementsKind(TNode<JSObject> object,
                                                Label* bailout) {
   DCHECK(!IsHoleyElementsKind(from_kind) || IsHoleyElementsKind(to_kind));
   if (AllocationSite::ShouldTrack(from_kind, to_kind)) {
-    TrapAllocationMemento(object, bailout);
+    TrapAllocationSiteInCache(object, bailout);
   }
 
   if (!IsSimpleMapChangeTransition(from_kind, to_kind)) {
@@ -15130,95 +15074,59 @@ void CodeStubAssembler::TransitionElementsKind(TNode<JSObject> object,
   StoreMap(object, map);
 }
 
-void CodeStubAssembler::TrapAllocationMemento(TNode<JSObject> object,
-                                              Label* memento_found) {
-  DCHECK(V8_ALLOCATION_SITE_TRACKING_BOOL);
-  Comment("[ TrapAllocationMemento");
-  Label no_memento_found(this);
-  Label top_check(this), map_check(this);
-
-  TNode<ExternalReference> new_space_top_address =
-      IsolateField(IsolateFieldId::kNewAllocationInfoTop);
-  const int kMementoMapOffset =
-      ALIGN_TO_ALLOCATION_ALIGNMENT(JSArray::kHeaderSize);
-  const int kMementoLastWordOffset =
-      kMementoMapOffset + sizeof(AllocationMemento) - kTaggedSize;
-
-  // Bail out if the object is not in new space.
+// LINT.IfChange(AllocationSiteCache)
+TNode<RawPtrT> CodeStubAssembler::GetAllocationSiteCacheEntry(
+    TNode<HeapObject> object) {
   TNode<IntPtrT> object_word = BitcastTaggedToWord(object);
-  // TODO(v8:11641): Skip TrapAllocationMemento when allocation-site
-  // tracking is disabled.
-  TNode<IntPtrT> object_page_header = MemoryChunkFromAddress(object_word);
-  {
-    TNode<IntPtrT> page_flags = Load<IntPtrT>(
-        object_page_header, IntPtrConstant(MemoryChunk::FlagsOffset()));
-    if constexpr (v8_flags.sticky_mark_bits.value()) {
-#if V8_ENABLE_STICKY_MARK_BITS_BOOL
-      // Pages with only old objects contain no mementos.
-      GotoIfNot(
-          WordEqual(
-              WordAnd(page_flags,
-                      IntPtrConstant(
-                          MemoryChunk::STICKY_MARK_BIT_CONTAINS_ONLY_OLD)),
-              IntPtrConstant(0)),
-          &no_memento_found);
-#endif
-    } else {
-      GotoIf(WordEqual(
-                 WordAnd(page_flags,
-                         IntPtrConstant(MemoryChunk::kIsInYoungGenerationMask)),
-                 IntPtrConstant(0)),
-             &no_memento_found);
-    }
-    // TODO(v8:11799): Support allocation memento for a large object by
-    // allocating additional word for the memento after the large object.
-    GotoIf(WordNotEqual(WordAnd(page_flags,
-                                IntPtrConstant(MemoryChunk::kIsLargePageMask)),
-                        IntPtrConstant(0)),
-           &no_memento_found);
-  }
-
-  TNode<IntPtrT> memento_last_word = IntPtrAdd(
-      object_word, IntPtrConstant(kMementoLastWordOffset - kHeapObjectTag));
-  TNode<IntPtrT> memento_last_word_page_header =
-      MemoryChunkFromAddress(memento_last_word);
-
-  TNode<IntPtrT> new_space_top = Load<IntPtrT>(new_space_top_address);
-  TNode<IntPtrT> new_space_top_page_header =
-      MemoryChunkFromAddress(new_space_top);
-
-  // If the object is in new space, we need to check whether respective
-  // potential memento object is on the same page as the current top.
-  GotoIf(WordEqual(memento_last_word_page_header, new_space_top_page_header),
-         &top_check);
-
-  // The object is on a different page than allocation top. Bail out if the
-  // object sits on the page boundary as no memento can follow and we cannot
-  // touch the memory following it.
-  Branch(WordEqual(object_page_header, memento_last_word_page_header),
-         &map_check, &no_memento_found);
-
-  // If top is on the same page as the current object, we need to check whether
-  // we are below top.
-  BIND(&top_check);
-  {
-    Branch(UintPtrGreaterThanOrEqual(memento_last_word, new_space_top),
-           &no_memento_found, &map_check);
-  }
-
-  // Memento map check.
-  BIND(&map_check);
-  {
-    TNode<AnyTaggedT> maybe_mapword =
-        LoadObjectField(object, kMementoMapOffset);
-    TNode<AnyTaggedT> memento_mapword =
-        LoadRootMapWord(RootIndex::kAllocationMementoMap);
-    Branch(TaggedEqual(maybe_mapword, memento_mapword), memento_found,
-           &no_memento_found);
-  }
-  BIND(&no_memento_found);
-  Comment("] TrapAllocationMemento");
+  TNode<IntPtrT> index = Signed(WordAnd(
+      WordXor(
+          WordShr(object_word, IntPtrConstant(AllocationSiteCache::kShift1)),
+          WordShr(object_word, IntPtrConstant(AllocationSiteCache::kShift2))),
+      IntPtrConstant(AllocationSiteCache::kMask)));
+  static_assert(sizeof(AllocationSiteCache::Entry) == 2 * kSystemPointerSize);
+  TNode<IntPtrT> entry_offset =
+      WordShl(index, IntPtrConstant(kSystemPointerSizeLog2 + 1));
+  TNode<RawPtrT> cache_base =
+      Load<RawPtrT>(IsolateField(IsolateFieldId::kAllocationSiteCache));
+  return RawPtrAdd(cache_base, entry_offset);
 }
+
+void CodeStubAssembler::RecordAllocationSiteInCache(
+    TNode<JSArray> object, TNode<AllocationSite> allocation_site) {
+  DCHECK(V8_ALLOCATION_SITE_TRACKING_BOOL);
+  Comment("[ RecordAllocationSiteInCache");
+  CSA_DCHECK(this, IsAllocationSite(allocation_site));
+  CSA_DCHECK(this, Word32NotEqual(LoadElementsKind(object),
+                                  Int32Constant(TERMINAL_FAST_ELEMENTS_KIND)));
+  TNode<IntPtrT> object_word = BitcastTaggedToWord(object);
+  TNode<RawPtrT> entry = GetAllocationSiteCacheEntry(object);
+  static_assert(offsetof(AllocationSiteCache::Entry, object) == 0);
+  static_assert(offsetof(AllocationSiteCache::Entry, site) ==
+                kSystemPointerSize);
+  StoreNoWriteBarrier(MachineType::PointerRepresentation(), entry, object_word);
+  StoreNoWriteBarrier(
+      MachineType::PointerRepresentation(), entry,
+      IntPtrConstant(offsetof(AllocationSiteCache::Entry, site)),
+      BitcastTaggedToWord(allocation_site));
+  Comment("] RecordAllocationSiteInCache");
+}
+
+void CodeStubAssembler::TrapAllocationSiteInCache(TNode<JSObject> object,
+                                                  Label* site_found) {
+  DCHECK(V8_ALLOCATION_SITE_TRACKING_BOOL);
+  Comment("[ TrapAllocationSiteInCache");
+  Label no_site_found(this);
+
+  TNode<IntPtrT> object_word = BitcastTaggedToWord(object);
+  TNode<RawPtrT> entry = GetAllocationSiteCacheEntry(object);
+  static_assert(offsetof(AllocationSiteCache::Entry, object) == 0);
+  TNode<IntPtrT> cached_object = Load<IntPtrT>(entry);
+  Branch(WordEqual(cached_object, object_word), site_found, &no_site_found);
+
+  BIND(&no_site_found);
+  Comment("] TrapAllocationSiteInCache");
+}
+// LINT.ThenChange(/src/objects/allocation-site-inl.h:AllocationSiteCache)
 
 TNode<IntPtrT> CodeStubAssembler::MemoryChunkFromAddress(
     TNode<IntPtrT> address) {

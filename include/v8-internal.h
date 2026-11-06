@@ -1109,8 +1109,10 @@ class Internals {
       kContinuationPreservedEmbedderDataOffset + kApiSystemPointerSize;
   static const int kCurrentMicrotaskNativeContextOffset =
       kCurrentMicrotaskQueueOffset + kApiSystemPointerSize;
-  static const int kIsolateRootsOffset =
+  static const int kAllocationSiteCacheOffset =
       kCurrentMicrotaskNativeContextOffset + kApiSystemPointerSize;
+  static const int kIsolateRootsOffset =
+      kAllocationSiteCacheOffset + kApiSystemPointerSize;
 
 #if V8_TARGET_ARCH_PPC64
   static constexpr int kFrameCPSlotCount = 1;

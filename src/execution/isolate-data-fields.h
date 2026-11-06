@@ -79,6 +79,7 @@ static constexpr int kFastCCallAlignmentPaddingCount = 1;
   V(CurrentMicrotaskQueue, kSystemPointerSize, current_microtask_queue)        \
   V(CurrentMicrotaskNativeContext, kSystemPointerSize,                         \
     current_microtask_native_context)                                          \
+  V(AllocationSiteCache, kSystemPointerSize, allocation_site_cache)            \
   /* Full tables (arbitrary size, potentially slower access). */               \
   V(RootsTable, RootsTable::kEntriesCount* kSystemPointerSize, roots_table)    \
   V(ExternalReferenceTable, ExternalReferenceTable::kSizeInBytes,              \

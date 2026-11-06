@@ -569,13 +569,13 @@ TNode<JSArray> ConstructorBuiltinsAssembler::CreateEmptyArrayLiteral(
   TNode<IntPtrT> zero_intptr = IntPtrConstant(0);
   TNode<Smi> zero = SmiConstant(0);
   Comment("Allocate JSArray");
-  std::optional<TNode<AllocationSite>> site =
-      V8_ALLOCATION_SITE_TRACKING_BOOL
-          ? std::make_optional(allocation_site.value())
-          : std::nullopt;
-  TNode<JSArray> result = AllocateJSArray(GetInitialFastElementsKind(),
-                                          array_map, zero_intptr, zero, site);
-
+  TNode<JSArray> result = AllocateJSArray(
+      GetInitialFastElementsKind(), array_map, zero_intptr, zero, std::nullopt);
+  if (V8_ALLOCATION_SITE_TRACKING_BOOL) {
+    GotoIf(ElementsKindEqual(kind, Int32Constant(TERMINAL_FAST_ELEMENTS_KIND)),
+           &done);
+    RecordAllocationSiteInCache(result, allocation_site.value());
+  }
   Goto(&done);
   BIND(&done);
 

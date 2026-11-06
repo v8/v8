@@ -294,7 +294,7 @@ void KeyedStoreGenericAssembler::TryRewriteElements(
   ElementsKind holey_from_kind = GetHoleyElementsKind(from_kind);
   ElementsKind holey_to_kind = GetHoleyElementsKind(to_kind);
   if (AllocationSite::ShouldTrack(from_kind, to_kind)) {
-    TrapAllocationMemento(receiver, bailout);
+    TrapAllocationSiteInCache(receiver, bailout);
   }
   Label perform_transition(this), check_holey_map(this);
   TVARIABLE(Map, var_target_map);
@@ -337,7 +337,7 @@ void KeyedStoreGenericAssembler::TryChangeToHoleyMapHelper(
   TNode<Map> packed_map = LoadJSArrayElementsMap(packed_kind, native_context);
   GotoIf(TaggedNotEqual(receiver_map, packed_map), map_mismatch);
   if (AllocationSite::ShouldTrack(packed_kind, holey_kind)) {
-    TrapAllocationMemento(receiver, bailout);
+    TrapAllocationSiteInCache(receiver, bailout);
   }
   TNode<Map> holey_map = CAST(LoadContextElementNoCell(
       native_context, Context::ArrayMapIndex(holey_kind)));

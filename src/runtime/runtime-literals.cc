@@ -80,7 +80,7 @@ template <class ContextObject>
 MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     Handle<JSObject> object) {
   Isolate* isolate = this->isolate();
-  bool copying = ContextObject::kCopying;
+  constexpr bool copying = ContextObject::kCopying;
 
   {
     StackLimitCheck check(isolate);
@@ -97,11 +97,11 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
   }
 
   Handle<JSObject> copy;
-  if (copying) {
+  if constexpr (copying) {
     // JSFunction objects are not allowed to be in normal boilerplates at all.
     DCHECK(!IsJSFunction(*object));
     DirectHandle<AllocationSite> site_to_pass;
-    if (site_context()->ShouldCreateMemento(object)) {
+    if (site_context()->ShouldTrackAllocationSite(object)) {
       site_to_pass = site_context()->current();
     }
     copy = isolate->factory()->CopyJSObjectWithAllocationSite(object,
@@ -301,7 +301,7 @@ class AllocationSiteCreationContext : public AllocationSiteContext {
       }
     }
   }
-  static const bool kCopying = false;
+  static constexpr bool kCopying = false;
 };
 
 MaybeDirectHandle<JSObject> DeepWalk(
@@ -732,12 +732,15 @@ MaybeDirectHandle<JSObject> CreateLiteral(Isolate* isolate,
     vector->SynchronizedSet(literals_slot, *site);
   }
 
-  static_assert(static_cast<int>(ObjectLiteral::kDisableMementos) ==
-                static_cast<int>(ArrayLiteral::kDisableMementos));
-  bool enable_mementos = (flags & ObjectLiteral::kDisableMementos) == 0;
+  static_assert(
+      static_cast<int>(ObjectLiteral::kDisableAllocationSiteTracking) ==
+      static_cast<int>(ArrayLiteral::kDisableAllocationSiteTracking));
+  bool track_allocation_site =
+      (flags & ObjectLiteral::kDisableAllocationSiteTracking) == 0;
 
   // Copy the existing boilerplate.
-  AllocationSiteUsageContext usage_context(isolate, site, enable_mementos);
+  AllocationSiteUsageContext usage_context(isolate, site,
+                                           track_allocation_site);
   usage_context.EnterNewScope();
   MaybeDirectHandle<JSObject> copy = DeepCopy(boilerplate, &usage_context);
   usage_context.ExitScope(site, boilerplate);

@@ -70,7 +70,7 @@
 #include "src/heap/spaces-inl.h"
 #include "src/heap/trusted-range.h"
 #include "src/numbers/hash-seed-inl.h"
-#include "src/objects/allocation-site.h"
+#include "src/objects/allocation-site-inl.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/bytecode-array-inl.h"
 #include "src/objects/call-site-info-inl.h"
@@ -3856,89 +3856,6 @@ TEST_F(TestWithPlatform, ReinitializeStringHashSeed) {
   }
 }
 
-TEST_F(HeapTest, Regress169928) {
-  v8_flags.allow_natives_syntax.Set(true);
-#if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
-  v8_flags.turbofan.Set(false);
-#endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
-
-  // Some flags turn Scavenge collections into Mark-sweep collections
-  // and hence are incompatible with this test case.
-  if (v8_flags.gc_global || v8_flags.stress_compaction ||
-      v8_flags.stress_incremental_marking || v8_flags.single_generation ||
-      v8_flags.minor_ms) {
-    return;
-  }
-
-  // Prepare the environment
-  RunJS(
-      "function fastliteralcase(literal, value) {"
-      "    literal[0] = value;"
-      "    return literal;"
-      "}"
-      "function get_standard_literal() {"
-      "    var literal = [1, 2, 3];"
-      "    return literal;"
-      "}"
-      "obj = fastliteralcase(get_standard_literal(), 1);"
-      "obj = fastliteralcase(get_standard_literal(), 1.5);"
-      "obj = fastliteralcase(get_standard_literal(), 2);");
-
-  // Prepare the heap: pre-allocate strings before page filling to avoid
-  // disturbing heap layout.
-  v8::Local<v8::String> mote_code_string =
-      NewString("fastliteralcase(mote, 2.5);");
-  v8::Local<v8::String> array_name = NewString("mote");
-  EXPECT_TRUE(context()
-                  ->Global()
-                  ->Set(context(), array_name, v8::Int32::New(v8_isolate(), 0))
-                  .FromJust());
-
-  // First make sure we flip spaces
-  InvokeMinorGC();
-
-  // Allocate the object.
-  DirectHandle<FixedArray> array_data =
-      factory()->NewFixedArray(2, AllocationType::kYoung);
-  array_data->set(0, Smi::FromInt(1));
-  array_data->set(1, Smi::FromInt(2));
-
-  FillCurrentPageButNBytes(
-      SemiSpaceNewSpace::From(heap()->new_space()),
-      JSArray::kHeaderSize + sizeof(AllocationMemento) + kTaggedSize);
-
-  DirectHandle<JSArray> array =
-      factory()->NewJSArrayWithElements(array_data, PACKED_SMI_ELEMENTS);
-
-  EXPECT_EQ(Smi::FromInt(2), array->length());
-  EXPECT_TRUE(array->HasSmiOrObjectElements());
-
-  // We need filler the size of AllocationMemento object, plus an extra
-  // fill pointer value.
-  Tagged<HeapObject> obj;
-  AllocationResult allocation =
-      heap()->allocator()->new_space_allocator()->AllocateRaw(
-          SafeHeapObjectSize(sizeof(AllocationMemento) + kTaggedSize),
-          kTaggedAligned, AllocationOrigin::kRuntime, AllocationHint());
-  EXPECT_TRUE(allocation.To(&obj));
-  Address addr_obj = obj.address();
-  heap()->CreateFillerObjectAt(addr_obj,
-                               sizeof(AllocationMemento) + kTaggedSize);
-
-  // Give the array a name, making sure not to allocate strings.
-  v8::Local<v8::Object> array_obj = v8::Utils::ToLocal(array);
-  EXPECT_TRUE(
-      context()->Global()->Set(context(), array_name, array_obj).FromJust());
-
-  // This should crash with a protection violation if running a build with the
-  // bug.
-  AlwaysAllocateScopeForTesting aa_scope(heap());
-  v8::Script::Compile(context(), mote_code_string)
-      .ToLocalChecked()
-      ->Run(context())
-      .ToLocalChecked();
-}
-
 TEST_F(HeapTest, LargeObjectSlotRecording) {
   if (!v8_flags.incremental_marking) return;
   if (!v8_flags.compact) return;
@@ -4183,18 +4100,17 @@ void CheckNumberOfAllocations(HeapTest* test, const char* source,
 }
 }  // namespace
 
-TEST_F(HeapTest, FindAllocationMementoForTrackedArray) {
+TEST_F(HeapTest, AllocationSiteCacheForTrackedArray) {
   if (!V8_ALLOCATION_SITE_TRACKING_BOOL || v8_flags.single_generation) {
     GTEST_SKIP();
   }
   ManualGCScope manual_gc_scope(i_isolate());
   Isolate* isolate = i_isolate();
-  Heap* heap = this->heap();
   HandleScope scope(isolate);
 
-  // Positive case: a young JSArray allocated with a valid AllocationSite has
-  // its trailing AllocationMemento folded immediately behind the JSArray.
   DirectHandle<AllocationSite> site = isolate->factory()->NewAllocationSite();
+  DirectHandle<AllocationSite> other_site =
+      isolate->factory()->NewAllocationSite();
   DirectHandle<Map> array_map(
       isolate->raw_native_context()->GetInitialJSArrayMap(PACKED_SMI_ELEMENTS),
       isolate);
@@ -4202,59 +4118,138 @@ TEST_F(HeapTest, FindAllocationMementoForTrackedArray) {
       Cast<JSArray>(isolate->factory()->NewJSObjectFromMap(
           array_map, AllocationType::kYoung, site));
   tracked_array->set_length(Smi::zero());
-  ASSERT_TRUE(HeapLayout::InYoungGeneration(*tracked_array));
-  Tagged<AllocationMemento> found_memento =
-      heap->FindAllocationMemento(*tracked_array);
-  ASSERT_FALSE(found_memento.is_null());
-  EXPECT_EQ(found_memento->GetAllocationSite(), *site);
+  Tagged<AllocationSite> cached_site;
+  EXPECT_TRUE(
+      isolate->allocation_site_cache()->Lookup(*tracked_array, &cached_site));
+  EXPECT_EQ(cached_site, *site);
 
-  // Negative case in old space: once promoted to old space,
-  // FindAllocationMemento returns null.
+  DirectHandle<JSArray> old_array =
+      Cast<JSArray>(isolate->factory()->NewJSObjectFromMap(
+          array_map, AllocationType::kOld, site));
+  old_array->set_length(Smi::zero());
+  EXPECT_FALSE(
+      isolate->allocation_site_cache()->Lookup(*old_array, &cached_site));
+
+  // Minor GC prologue clears the cache.
+  InvokeMinorGC();
+  EXPECT_FALSE(
+      isolate->allocation_site_cache()->Lookup(*tracked_array, &cached_site));
+
+  // Direct slot collision overwrite: by the pigeonhole principle, at most
+  // AllocationSiteCache::kSize + 1 allocations produce two JSArrays mapping to
+  // the same cache index.
+  DirectHandle<JSArray> seen_by_index[AllocationSiteCache::kSize];
+  DirectHandle<JSArray> first_colliding;
+  DirectHandle<JSArray> second_colliding;
+  for (int i = 0; i <= AllocationSiteCache::kSize; ++i) {
+    DirectHandle<JSArray> candidate =
+        Cast<JSArray>(isolate->factory()->NewJSObjectFromMap(
+            array_map, AllocationType::kYoung));
+    candidate->set_length(Smi::zero());
+    size_t idx = AllocationSiteCache::ComputeIndex(*candidate);
+    if (!seen_by_index[idx].is_null() &&
+        AllocationSiteCache::ComputeIndex(*seen_by_index[idx]) == idx) {
+      first_colliding = seen_by_index[idx];
+      second_colliding = candidate;
+      break;
+    }
+    seen_by_index[idx] = candidate;
+  }
+  ASSERT_FALSE(first_colliding.is_null());
+  ASSERT_FALSE(second_colliding.is_null());
+  EXPECT_EQ(AllocationSiteCache::ComputeIndex(*first_colliding),
+            AllocationSiteCache::ComputeIndex(*second_colliding));
+
+  isolate->allocation_site_cache()->Update(*first_colliding, *site);
+  EXPECT_TRUE(
+      isolate->allocation_site_cache()->Lookup(*first_colliding, &cached_site));
+  EXPECT_EQ(cached_site, *site);
+
+  isolate->allocation_site_cache()->Update(*second_colliding, *other_site);
+  EXPECT_FALSE(
+      isolate->allocation_site_cache()->Lookup(*first_colliding, &cached_site));
+  EXPECT_TRUE(isolate->allocation_site_cache()->Lookup(*second_colliding,
+                                                       &cached_site));
+  EXPECT_EQ(cached_site, *other_site);
+
+  // Major GC prologue also clears the cache.
   InvokeMajorGC();
-  ASSERT_FALSE(HeapLayout::InYoungGeneration(*tracked_array));
-  EXPECT_TRUE(heap->FindAllocationMemento(*tracked_array).is_null());
+  EXPECT_FALSE(isolate->allocation_site_cache()->Lookup(*second_colliding,
+                                                        &cached_site));
 }
 
-TEST_F(HeapTest, PoisonedAllocationMementoAtNewSpaceTop) {
-  if (!V8_ALLOCATION_SITE_TRACKING_BOOL || v8_flags.single_generation ||
-      v8_flags.sticky_mark_bits || !heap()->IsInlineAllocationEnabled()) {
+TEST_F(HeapTest, AllocationSiteCachePopulatedFromCSA) {
+  if (!V8_ALLOCATION_SITE_TRACKING_BOOL || v8_flags.single_generation) {
     GTEST_SKIP();
   }
   ManualGCScope manual_gc_scope(i_isolate());
+  FlagScope<bool> allow_natives(&v8_flags.allow_natives_syntax, true);
   Isolate* isolate = i_isolate();
-  Heap* heap = this->heap();
-  HandleScope scope(isolate);
+  v8::HandleScope scope(v8_isolate());
+  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
+  v8::Context::Scope context_scope(context);
 
-  // Free existing LABs so the next young allocation opens a fresh full-page
-  // LAB.
-  InvokeMajorGC();
+  auto FindAllocationSite = [&](DirectHandle<JSFunction> fn) {
+    CHECK(fn->has_feedback_vector());
+    DirectHandle<FeedbackVector> vector(fn->feedback_vector(), isolate);
+    FeedbackMetadataIterator iter(handle(vector->metadata(), isolate));
+    while (iter.HasNext()) {
+      FeedbackSlot slot = iter.Next();
+      Tagged<MaybeObject> obj = vector->Get(slot);
+      if (Tagged<HeapObject> heap_obj;
+          obj.GetHeapObjectIfStrong(&heap_obj) && IsAllocationSite(heap_obj)) {
+        return direct_handle(Cast<AllocationSite>(heap_obj), isolate);
+      }
+    }
+    return DirectHandle<AllocationSite>();
+  };
 
-  // Negative case at NewSpaceTop(): a young JSArray immediately followed by a
-  // fake AllocationMemento map and poisoned AllocationSite word in unallocated
-  // LAB memory at NewSpaceTop() must return null without dereferencing it.
-  DirectHandle<JSArray> array = isolate->factory()->NewJSArray(
-      PACKED_SMI_ELEMENTS, 0, 0,
-      ArrayStorageAllocationMode::DONT_INITIALIZE_ARRAY_ELEMENTS,
-      AllocationType::kYoung);
-  ASSERT_TRUE(HeapLayout::InYoungGeneration(*array));
+  // `[1, 2, 3]` creates its boilerplate on call 1 and runs CSA
+  // `CreateShallowArrayLiteral` -> `CloneFastJSArray` from call 2 onward.
+  RunJS(context,
+        "function makeEmpty() { return []; }"
+        "function makeShallow() { return [1, 2, 3]; }"
+        "function makeConstructed() { return new Array(); }"
+        "for (const f of [makeEmpty, makeShallow, makeConstructed]) {"
+        "  %EnsureFeedbackVectorForFunction(f);"
+        "  %NeverOptimizeFunction(f);"
+        "  f();"
+        "  f();"
+        "}");
 
-  Address array_end =
-      array->address() + ALIGN_TO_ALLOCATION_ALIGNMENT(array->Size());
-  ASSERT_EQ(heap->NewSpaceTop(), array_end);
-  ASSERT_LE(heap->NewSpaceTop() + sizeof(AllocationMemento),
-            heap->NewSpaceLimit());
+  const char* makers[] = {"makeEmpty", "makeShallow", "makeConstructed"};
+  for (const char* name : makers) {
+    v8::Local<v8::Function> v8_fn = v8::Local<v8::Function>::Cast(
+        context->Global()->Get(context, NewString(name)).ToLocalChecked());
+    DirectHandle<JSFunction> fn =
+        Cast<JSFunction>(v8::Utils::OpenDirectHandle(*v8_fn));
+    DirectHandle<AllocationSite> expected_site = FindAllocationSite(fn);
+    ASSERT_FALSE(expected_site.is_null()) << name;
+    if (std::string_view(name) == "makeShallow") {
+      EXPECT_TRUE(expected_site->PointsToLiteral());
+    }
 
-  Address top = heap->NewSpaceTop();
-  Tagged<AllocationMemento> memento =
-      UncheckedCast<AllocationMemento>(HeapObject::FromAddress(top));
-  memento->set_map_after_allocation(
-      isolate, ReadOnlyRoots(heap).allocation_memento_map(),
-      SKIP_WRITE_BARRIER);
-  // Write a poisoned tagged value into the AllocationMemento::allocation_site_
-  // slot immediately following the map word.
-  *reinterpret_cast<Tagged_t*>(top + kTaggedSize) = kHeapObjectTag;
+    isolate->allocation_site_cache()->Clear();
+    v8::Local<v8::Value> result =
+        v8_fn->Call(context, context->Global(), 0, nullptr).ToLocalChecked();
+    DirectHandle<JSArray> array =
+        Cast<JSArray>(v8::Utils::OpenDirectHandle(*result));
 
-  EXPECT_TRUE(heap->FindAllocationMemento(*array).is_null());
+    Tagged<AllocationSite> cached_site;
+    EXPECT_TRUE(isolate->allocation_site_cache()->Lookup(*array, &cached_site))
+        << name;
+    EXPECT_EQ(cached_site, *expected_site) << name;
+  }
+
+  // Once an empty literal's AllocationSite reaches TERMINAL_FAST_ELEMENTS_KIND
+  // (HOLEY_ELEMENTS), CreateEmptyArrayLiteral skips populating the cache.
+  RunJS(context, "const holeyInit = makeEmpty(); holeyInit[10] = {};");
+  isolate->allocation_site_cache()->Clear();
+  DirectHandle<JSArray> holey_empty = RunJS<JSArray>(context, "makeEmpty()");
+  EXPECT_EQ(holey_empty->GetElementsKind(), HOLEY_ELEMENTS);
+  Tagged<AllocationSite> cached_site;
+  EXPECT_FALSE(
+      isolate->allocation_site_cache()->Lookup(*holey_empty, &cached_site));
 }
 
 TEST_F(HeapTest, EnsureAllocationSiteDependentCodesProcessed) {

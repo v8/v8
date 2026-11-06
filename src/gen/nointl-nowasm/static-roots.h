@@ -191,10 +191,8 @@ struct StaticReadOnlyRoot {
       kPromiseResolveThenableJobTaskMap + 40;
   static constexpr Tagged_t kAccessorPairMap = kAccessCheckInfoMap + 40;
   static constexpr Tagged_t kAliasedArgumentsEntryMap = kAccessorPairMap + 40;
-  static constexpr Tagged_t kAllocationMementoMap =
-      kAliasedArgumentsEntryMap + 40;
   static constexpr Tagged_t kArrayBoilerplateDescriptionMap =
-      kAllocationMementoMap + 40;
+      kAliasedArgumentsEntryMap + 40;
   static constexpr Tagged_t kAsyncGeneratorRequestMap =
       kArrayBoilerplateDescriptionMap + 40;
   static constexpr Tagged_t kBreakPointMap = kAsyncGeneratorRequestMap + 40;
@@ -1060,7 +1058,7 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kLastAllocatedRoot = 0x1a00f5;
 };
 
-static constexpr std::array<Tagged_t, 873> StaticReadOnlyRootsPointerTable = {
+static constexpr std::array<Tagged_t, 872> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kUndefinedValue,
     StaticReadOnlyRoot::kTheHoleValue,
     StaticReadOnlyRoot::kNullValue,
@@ -1883,7 +1881,6 @@ static constexpr std::array<Tagged_t, 873> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kAccessCheckInfoMap,
     StaticReadOnlyRoot::kAccessorPairMap,
     StaticReadOnlyRoot::kAliasedArgumentsEntryMap,
-    StaticReadOnlyRoot::kAllocationMementoMap,
     StaticReadOnlyRoot::kArrayBoilerplateDescriptionMap,
     StaticReadOnlyRoot::kAsyncGeneratorRequestMap,
     StaticReadOnlyRoot::kBreakPointMap,

@@ -2782,11 +2782,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                     TVariable<FixedArrayBase>* var_elements,
                                     TNode<BInt> growth, Label* bailout);
 
-  // Allocation site manipulation
-  void InitializeAllocationMemento(TNode<HeapObject> base,
-                                   TNode<IntPtrT> base_allocation_size,
-                                   TNode<AllocationSite> allocation_site);
-
   TNode<IntPtrT> TryTaggedToInt32AsIntPtr(TNode<Object> value,
                                           Label* if_not_possible);
   TNode<Float64T> TryTaggedToFloat64(TNode<Object> value,
@@ -4073,7 +4068,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                               ElementsKind from_kind, ElementsKind to_kind,
                               Label* bailout);
 
-  void TrapAllocationMemento(TNode<JSObject> object, Label* memento_found);
+  // AllocationSiteCache manipulation.
+  TNode<RawPtrT> GetAllocationSiteCacheEntry(TNode<HeapObject> object);
+  void RecordAllocationSiteInCache(TNode<JSArray> object,
+                                   TNode<AllocationSite> allocation_site);
+  void TrapAllocationSiteInCache(TNode<JSObject> object, Label* site_found);
 
   // Helpers to look up Page metadata for a given address.
   // Equivalent to MemoryChunk::FromAddress().

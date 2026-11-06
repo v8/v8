@@ -16,7 +16,6 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
-class AllocationSiteUsageContext;
 class Factory;
 class JSRegExp;
 

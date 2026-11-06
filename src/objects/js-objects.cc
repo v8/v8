@@ -5753,14 +5753,12 @@ bool JSObject::UpdateAllocationSite(Isolate* isolate,
   DirectHandle<AllocationSite> site;
   {
     DisallowGarbageCollection no_gc;
-
-    Heap* heap = isolate->heap();
-    Tagged<AllocationMemento> memento =
-        heap->FindAllocationMemento(Cast<JSArray>(*object));
-    if (memento.is_null()) return false;
-
-    // Walk through to the Allocation Site
-    site = direct_handle(memento->GetAllocationSite(), heap->isolate());
+    Tagged<AllocationSite> raw_site;
+    if (!isolate->allocation_site_cache()->Lookup(Cast<JSArray>(*object),
+                                                  &raw_site)) {
+      return false;
+    }
+    site = direct_handle(raw_site, isolate);
   }
   return AllocationSite::DigestTransitionFeedback<update_or_check>(
       isolate, site, to_kind);

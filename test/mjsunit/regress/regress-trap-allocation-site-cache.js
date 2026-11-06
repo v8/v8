@@ -30,17 +30,23 @@ function assertKind(expected, obj, name_opt) {
   %EnsureFeedbackVectorForFunction(make2);
   %EnsureFeedbackVectorForFunction(make3);
   %EnsureFeedbackVectorForFunction(foo);
+  %NeverOptimizeFunction(make1);
+  %NeverOptimizeFunction(make2);
+  %NeverOptimizeFunction(make3);
+  %NeverOptimizeFunction(foo);
 
   function run_test(maker_function) {
     var one = maker_function();
     assertKind(elements_kind.fast_smi_only, one);
-    // Use memento to pre-transition allocation site to DOUBLE elements.
+    // Use allocation site tracking to pre-transition allocation site to DOUBLE
+    // elements.
     foo(one, 1.5);
     // Newly created arrays should now have DOUBLE elements right away.
     var two = maker_function();
     assertKind(elements_kind.fast_double, two);
   }
   %EnsureFeedbackVectorForFunction(run_test);
+  %NeverOptimizeFunction(run_test);
 
   // Initialize the KeyedStoreIC in foo; the actual operation will be done
   // in the runtime.
@@ -49,6 +55,6 @@ function assertKind(expected, obj, name_opt) {
   // (double-elements) map again, so this will make it polymorphic.
   // The actual operation will again be done in the runtime.
   run_test(make2);
-  // Finally, check if the initialized IC honors the allocation memento.
+  // Finally, check if the initialized IC honors the AllocationSiteCache.
   run_test(make3);
 })();

@@ -7,7 +7,6 @@ class AccessCheckInfo;
 class AccessorInfo;
 class AccessorPair;
 class AliasedArgumentsEntry;
-class AllocationMemento;
 class AllocationSite;
 class ArrayBoilerplateDescription;
 class ArrayList;

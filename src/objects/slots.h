@@ -127,7 +127,6 @@ class FullObjectSlot : public SlotBase<FullObjectSlot, Address> {
   // Compares memory representation of a value stored in the slot with given
   // raw value.
   inline bool contains_map_value(Address raw_value) const;
-  inline bool Relaxed_ContainsMapValue(Address raw_value) const;
 
   inline Tagged<Object> operator*() const;
   inline Tagged<Object> load() const;

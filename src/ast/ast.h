@@ -1123,7 +1123,7 @@ class AggregateLiteral : public MaterializedLiteral {
   enum Flags {
     kNoFlags = 0,
     kIsShallow = 1,
-    kDisableMementos = 1 << 1,
+    kDisableAllocationSiteTracking = 1 << 1,
     kNeedsInitialAllocationSite = 1 << 2,
   };
 

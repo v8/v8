@@ -542,11 +542,6 @@ class Heap final {
     return dirty_js_finalization_registries_list_tail_;
   }
 
-  // Returns the AllocationMemento following a young JSArray if a valid one is
-  // present, or a null Tagged<AllocationMemento> otherwise.
-  V8_EXPORT_PRIVATE Tagged<AllocationMemento> FindAllocationMemento(
-      Tagged<JSArray> object);
-
   // Number of mark-sweeps.
   int ms_count() const { return ms_count_; }
 

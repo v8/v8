@@ -92,7 +92,6 @@
 #include "src/heap/minor-mark-sweep.h"
 #include "src/heap/mutable-page-inl.h"
 #include "src/heap/new-spaces.h"
-#include "src/heap/normal-page.h"
 #include "src/heap/object-lock.h"
 #include "src/heap/object-stats.h"
 #include "src/heap/paged-spaces-inl.h"
@@ -961,6 +960,12 @@ void Heap::GarbageCollectionPrologue(
 
 void Heap::GarbageCollectionPrologueInSafepoint(GarbageCollector collector) {
   TRACE_GC(tracer(), GCTracer::Scope::HEAP_PROLOGUE_SAFEPOINT);
+#ifdef VERIFY_HEAP
+  if (v8_flags.verify_heap) {
+    isolate_->allocation_site_cache()->Verify();
+  }
+#endif  // VERIFY_HEAP
+  isolate_->allocation_site_cache()->Clear();
   gc_count_ = GCEpoch(gc_count_.value() + 1);
   new_space_allocation_counter_ = NewSpaceAllocationCounter();
   // We provide a fallback for the case when the page pool timeout is disabled.
@@ -2688,62 +2693,6 @@ void Heap::ProcessNativeContexts(WeakObjectRetainer* retainer) {
       VisitWeakList<Context>(this, native_contexts_list(), retainer);
   // Update the head of the list of contexts.
   set_native_contexts_list(head);
-}
-
-Tagged<AllocationMemento> Heap::FindAllocationMemento(Tagged<JSArray> object) {
-  DCHECK(LocalHeap::Current()->is_main_thread());
-  if (!HeapLayout::InYoungGeneration(object) ||
-      HeapLayout::InAnyLargeSpace(object)) {
-    return {};
-  }
-
-  Address object_address = object.address();
-  int object_size = object->map()->instance_size();
-  Address memento_address =
-      object_address + ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
-  Address last_memento_word_address =
-      memento_address + sizeof(AllocationMemento) - kTaggedSize;
-  // NormalPage::OnSamePage and SbxCast<NormalPage> run before reading any
-  // memory past `object`, acting as an out-of-sandbox guard against large pages
-  // even if in-sandbox chunk flags are corrupted.
-  if (!NormalPage::OnSamePage(object_address, last_memento_word_address)) {
-    return {};
-  }
-
-  // SweepingDone() and IsAddressBelowAgeMark() guard against concurrent
-  // sweeping (MinorMS / sticky mark bits) and pinned/quarantined pages
-  // (semi-space) where memory following `object` may be swept or overwritten.
-  MemoryChunk* object_chunk = MemoryChunk::FromAddress(object_address);
-  NormalPage* object_page = SbxCast<NormalPage>(object_chunk->Metadata());
-  if (!object_page->SweepingDone()) {
-    return {};
-  }
-
-  if (!v8_flags.minor_ms &&
-      semi_space_new_space()->IsAddressBelowAgeMark(object_address)) {
-    return {};
-  }
-
-  // If the candidate falls within the current new space LAB, it must lie
-  // entirely below NewSpaceTop(); otherwise it is in unallocated LAB memory
-  // (or straddling NewSpaceTop()). Checking this before reading the candidate
-  // map word also avoids reading uninitialized LAB memory under MSan.
-  Address top = NewSpaceTop();
-  if (memento_address < NewSpaceLimit() &&
-      memento_address +
-              ALIGN_TO_ALLOCATION_ALIGNMENT(sizeof(AllocationMemento)) >
-          top) {
-    DCHECK_EQ(memento_address, top);
-    return {};
-  }
-
-  Tagged<HeapObject> candidate = HeapObject::FromAddress(memento_address);
-  ObjectSlot candidate_map_slot = candidate->map_slot();
-  if (!candidate_map_slot.Relaxed_ContainsMapValue(
-          ReadOnlyRoots(this).allocation_memento_map().ptr())) {
-    return {};
-  }
-  return Cast<AllocationMemento>(candidate);
 }
 
 void Heap::ProcessDirtyJSFinalizationRegistries(WeakObjectRetainer* retainer) {
@@ -5031,8 +4980,7 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
   // We rely on being able to allocate new arrays in paged spaces.
   DCHECK(kMaxRegularHeapObjectSize >=
          (JSArray::kHeaderSize +
-          FixedArray::SizeFor(JSArray::kInitialMaxFastElementArray) +
-          ALIGN_TO_ALLOCATION_ALIGNMENT(sizeof(AllocationMemento))));
+          FixedArray::SizeFor(JSArray::kInitialMaxFastElementArray)));
 
   code_range_size_ = constraints.code_range_size_in_bytes();
 

@@ -3764,10 +3764,17 @@ void AllocationSite::AllocationSiteVerify(Isolate* isolate) {
   CHECK(IsAllocationSite(nested_site()) || nested_site() == Smi::zero());
 }
 
-void AllocationMemento::AllocationMementoVerify(Isolate* isolate) {
-  CHECK(Is<Struct>(this));
-  CHECK(Is<AllocationMemento>(this));
-  CHECK(IsAllocationSite(allocation_site_.load()));
+void AllocationSiteCache::Verify() const {
+  for (int i = 0; i < kSize; ++i) {
+    Address object = entries_[i].object;
+    Address site = entries_[i].site;
+    if (object == kNullAddress) {
+      CHECK_EQ(site, kNullAddress);
+    } else {
+      CHECK(Is<JSArray>(Tagged<MaybeObject>(object)));
+      CHECK(Is<AllocationSite>(Tagged<MaybeObject>(site)));
+    }
+  }
 }
 
 void Script::ScriptVerify(Isolate* isolate) {

@@ -149,7 +149,6 @@ namespace internal {
   V(_, ACCESSOR_PAIR_TYPE, AccessorPair, accessor_pair)                       \
   V(_, ALIASED_ARGUMENTS_ENTRY_TYPE, AliasedArgumentsEntry,                   \
     aliased_arguments_entry)                                                  \
-  V(_, ALLOCATION_MEMENTO_TYPE, AllocationMemento, allocation_memento)        \
   V(_, ARRAY_BOILERPLATE_DESCRIPTION_TYPE, ArrayBoilerplateDescription,       \
     array_boilerplate_description)                                            \
   V(_, ASYNC_GENERATOR_REQUEST_TYPE, AsyncGeneratorRequest,                   \

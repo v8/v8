@@ -11,8 +11,10 @@
 #include "src/common/globals.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/dependent-code-inl.h"
+#include "src/objects/js-array.h"
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/object-conversions-inl.h"
+#include "src/sandbox/check.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -112,16 +114,6 @@ inline bool AllocationSite::CanTrack(InstanceType type) {
   return type == JS_ARRAY_TYPE;
 }
 
-void AllocationMemento::set_allocation_site(Tagged<AllocationSite> value,
-                                            WriteBarrierMode mode) {
-  allocation_site_.store(this, value, mode);
-}
-inline Tagged<AllocationSite> AllocationMemento::GetAllocationSite() const {
-  Tagged<AllocationSite> site = allocation_site_.load();
-  CHECK(IsAllocationSite(site));
-  return site;
-}
-
 template <AllocationSiteUpdateMode update_or_check>
 bool AllocationSite::DigestTransitionFeedback(Isolate* isolate,
                                               DirectHandle<AllocationSite> site,
@@ -180,6 +172,34 @@ bool AllocationSite::DigestTransitionFeedback(Isolate* isolate,
   }
   return result;
 }
+
+// LINT.IfChange(AllocationSiteCache)
+// The JSArray header must be at least as large as the low address bits that
+// the AllocationSiteCache index computation shifts away.
+static_assert(JSArray::kHeaderSize >= (1 << AllocationSiteCache::kShift1));
+
+size_t AllocationSiteCache::ComputeIndex(Tagged<JSArray> object) {
+  Address addr = object.ptr();
+  return ((addr >> kShift1) ^ (addr >> kShift2)) & kMask;
+}
+
+void AllocationSiteCache::Update(Tagged<JSArray> object,
+                                 Tagged<AllocationSite> site) {
+  size_t index = ComputeIndex(object);
+  entries_[index] = {object.ptr(), site.ptr()};
+}
+
+bool AllocationSiteCache::Lookup(Tagged<JSArray> object,
+                                 Tagged<AllocationSite>* site_out) const {
+  size_t index = ComputeIndex(object);
+  const Entry& entry = entries_[index];
+  if (entry.object != object.ptr()) return false;
+  Address site = entry.site;
+  SBXCHECK(HAS_STRONG_HEAP_OBJECT_TAG(site));
+  *site_out = Cast<AllocationSite>(Tagged<Object>(site));
+  return true;
+}
+// LINT.ThenChange(/src/codegen/code-stub-assembler.cc:AllocationSiteCache)
 
 }  // namespace internal
 }  // namespace v8
