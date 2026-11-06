@@ -561,3 +561,35 @@ function growAndShrinkTwice(
       promising_main(), () => assertUnreachable(),
       e => assertEquals('boom from tail-called JS import', e.message));
 })();
+
+(function TestOddStackReturnSlotsAlignment() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  // 2 GP return registers + 1 stack return slot (odd number of return slots).
+  const sig =
+      builder.addType(makeSig([kWasmI32], [kWasmI64, kWasmI64, kWasmI64]));
+
+  const recurse = builder.addFunction('recurse', sig);
+  recurse.addBody([
+    ...addActiveLocals(recurse, 1, 600),
+    kExprLocalGet, 0,
+    kExprI32Eqz,
+    kExprIf, kWasmVoid,
+      kExprI64Const, 10,
+      kExprI64Const, 20,
+      kExprI64Const, 30,
+      kExprReturn,
+    kExprEnd,
+    kExprLocalGet, 0,
+    kExprI32Const, 1,
+    kExprI32Sub,
+    kExprCallFunction, recurse.index,
+  ]);
+
+  builder.addExport('main', recurse.index);
+  const instance = builder.instantiate();
+  const wrapper = WebAssembly.promising(instance.exports.main);
+
+  assertPromiseResult(
+      wrapper(15), res => assertEquals([10n, 20n, 30n], res));
+})();
