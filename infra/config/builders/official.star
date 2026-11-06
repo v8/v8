@@ -6,175 +6,112 @@ load("//lib/builders.star", "v8_builder")
 load("//lib/lib.star", "greedy_batching_of_1", "in_console")
 load("//lib/siso.star", "SISO")
 
+def official_builder(properties = None, **kwargs):
+    properties = dict(properties or {})
+    properties["builder_group"] = "client.v8.official"
+    return v8_builder(
+        bucket = "ci",
+        triggered_by = ["v8-trigger-official"],
+        triggering_policy = greedy_batching_of_1,
+        executable = "recipe:v8/archive",
+        properties = properties,
+        use_siso = SISO.CHROMIUM_TRUSTED,
+        # Official builds are not time-critical. Run them below all other
+        # CI builders, even below the FYI priority of 35.
+        priority = 50,
+        **kwargs
+    )
+
 in_category = in_console("official")
 
 in_category(
     "Linux",
-    v8_builder(
+    official_builder(
         name = "V8 Official Arm32",
-        bucket = "ci",
-        triggered_by = ["v8-trigger-official"],
-        triggering_policy = greedy_batching_of_1,
-        executable = "recipe:v8/archive",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 32, "target_arch": "arm"},
-        use_siso = SISO.CHROMIUM_TRUSTED,
+        properties = {"build_config": "Release", "target_bits": 32, "target_arch": "arm"},
     ),
-    v8_builder(
+    official_builder(
         name = "V8 Official Arm64",
-        bucket = "ci",
-        triggered_by = ["v8-trigger-official"],
-        triggering_policy = greedy_batching_of_1,
-        executable = "recipe:v8/archive",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 64, "target_arch": "arm"},
-        use_siso = SISO.CHROMIUM_TRUSTED,
+        properties = {"build_config": "Release", "target_bits": 64, "target_arch": "arm"},
     ),
-    v8_builder(
+    official_builder(
         name = "V8 Official Android Arm32",
-        bucket = "ci",
-        triggered_by = ["v8-trigger-official"],
-        triggering_policy = greedy_batching_of_1,
-        executable = "recipe:v8/archive",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"builder_group": "client.v8.official", "target_bits": 32, "build_config": "Release", "target_platform": "android", "target_arch": "arm"},
-        use_siso = SISO.CHROMIUM_TRUSTED,
+        properties = {"target_bits": 32, "build_config": "Release", "target_platform": "android", "target_arch": "arm"},
     ),
-    v8_builder(
+    official_builder(
         name = "V8 Official Android Arm64",
-        bucket = "ci",
-        triggered_by = ["v8-trigger-official"],
-        triggering_policy = greedy_batching_of_1,
-        executable = "recipe:v8/archive",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"builder_group": "client.v8.official", "target_bits": 64, "build_config": "Release", "target_platform": "android", "target_arch": "arm"},
-        use_siso = SISO.CHROMIUM_TRUSTED,
+        properties = {"target_bits": 64, "build_config": "Release", "target_platform": "android", "target_arch": "arm"},
     ),
-    v8_builder(
+    official_builder(
         name = "V8 Official Linux32",
-        bucket = "ci",
-        triggered_by = ["v8-trigger-official"],
-        triggering_policy = greedy_batching_of_1,
-        executable = "recipe:v8/archive",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 32},
-        use_siso = SISO.CHROMIUM_TRUSTED,
+        properties = {"build_config": "Release", "target_bits": 32},
     ),
-    v8_builder(
+    official_builder(
         name = "V8 Official Linux32 Debug",
-        bucket = "ci",
-        triggered_by = ["v8-trigger-official"],
-        triggering_policy = greedy_batching_of_1,
-        executable = "recipe:v8/archive",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"build_config": "Debug", "builder_group": "client.v8.official", "target_bits": 32},
-        use_siso = SISO.CHROMIUM_TRUSTED,
+        properties = {"build_config": "Debug", "target_bits": 32},
     ),
-    v8_builder(
+    official_builder(
         name = "V8 Official Linux64",
-        bucket = "ci",
-        triggered_by = ["v8-trigger-official"],
-        triggering_policy = greedy_batching_of_1,
-        executable = "recipe:v8/archive",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 64},
-        use_siso = SISO.CHROMIUM_TRUSTED,
+        properties = {"build_config": "Release", "target_bits": 64},
     ),
-    v8_builder(
+    official_builder(
         name = "V8 Official Linux64 Debug",
-        bucket = "ci",
-        triggered_by = ["v8-trigger-official"],
-        triggering_policy = greedy_batching_of_1,
-        executable = "recipe:v8/archive",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"build_config": "Debug", "builder_group": "client.v8.official", "target_bits": 64},
-        use_siso = SISO.CHROMIUM_TRUSTED,
+        properties = {"build_config": "Debug", "target_bits": 64},
     ),
 )
 
 in_category(
     "Windows",
-    v8_builder(
+    official_builder(
         name = "V8 Official Win32",
-        bucket = "ci",
-        triggered_by = ["v8-trigger-official"],
-        triggering_policy = greedy_batching_of_1,
-        executable = "recipe:v8/archive",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-        properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 32},
-        use_siso = SISO.CHROMIUM_TRUSTED,
+        properties = {"build_config": "Release", "target_bits": 32},
     ),
-    v8_builder(
+    official_builder(
         name = "V8 Official Win32 Debug",
-        bucket = "ci",
-        triggered_by = ["v8-trigger-official"],
-        triggering_policy = greedy_batching_of_1,
-        executable = "recipe:v8/archive",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-        properties = {"build_config": "Debug", "builder_group": "client.v8.official", "target_bits": 32},
-        use_siso = SISO.CHROMIUM_TRUSTED,
+        properties = {"build_config": "Debug", "target_bits": 32},
     ),
-    v8_builder(
+    official_builder(
         name = "V8 Official Win64",
-        bucket = "ci",
-        triggered_by = ["v8-trigger-official"],
-        triggering_policy = greedy_batching_of_1,
-        executable = "recipe:v8/archive",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-        properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 64},
-        use_siso = SISO.CHROMIUM_TRUSTED,
+        properties = {"build_config": "Release", "target_bits": 64},
     ),
-    v8_builder(
+    official_builder(
         name = "V8 Official Win64 Debug",
-        bucket = "ci",
-        triggered_by = ["v8-trigger-official"],
-        triggering_policy = greedy_batching_of_1,
-        executable = "recipe:v8/archive",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-        properties = {"build_config": "Debug", "builder_group": "client.v8.official", "target_bits": 64},
-        use_siso = SISO.CHROMIUM_TRUSTED,
+        properties = {"build_config": "Debug", "target_bits": 64},
     ),
 )
+
 in_category(
     "Mac",
-    v8_builder(
+    official_builder(
         name = "V8 Official Mac64",
-        bucket = "ci",
-        triggered_by = ["v8-trigger-official"],
-        triggering_policy = greedy_batching_of_1,
-        executable = "recipe:v8/archive",
         dimensions = {"os": "Mac", "cpu": "x86-64"},
-        properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 64},
-        use_siso = SISO.CHROMIUM_TRUSTED,
+        properties = {"build_config": "Release", "target_bits": 64},
     ),
-    v8_builder(
+    official_builder(
         name = "V8 Official Mac64 Debug",
-        bucket = "ci",
-        triggered_by = ["v8-trigger-official"],
-        triggering_policy = greedy_batching_of_1,
-        executable = "recipe:v8/archive",
         dimensions = {"os": "Mac", "cpu": "x86-64"},
-        properties = {"build_config": "Debug", "builder_group": "client.v8.official", "target_bits": 64},
-        use_siso = SISO.CHROMIUM_TRUSTED,
+        properties = {"build_config": "Debug", "target_bits": 64},
     ),
-    v8_builder(
+    official_builder(
         name = "V8 Official Mac ARM64",
-        bucket = "ci",
-        triggered_by = ["v8-trigger-official"],
-        triggering_policy = greedy_batching_of_1,
-        executable = "recipe:v8/archive",
         dimensions = {"os": "Mac", "cpu": "x86-64"},
-        properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 64, "target_arch": "arm"},
-        use_siso = SISO.CHROMIUM_TRUSTED,
+        properties = {"build_config": "Release", "target_bits": 64, "target_arch": "arm"},
     ),
-    v8_builder(
+    official_builder(
         name = "V8 Official Mac ARM64 Debug",
-        bucket = "ci",
-        triggered_by = ["v8-trigger-official"],
-        triggering_policy = greedy_batching_of_1,
-        executable = "recipe:v8/archive",
         dimensions = {"os": "Mac", "cpu": "x86-64"},
-        properties = {"build_config": "Debug", "builder_group": "client.v8.official", "target_bits": 64, "target_arch": "arm"},
-        use_siso = SISO.CHROMIUM_TRUSTED,
+        properties = {"build_config": "Debug", "target_bits": 64, "target_arch": "arm"},
     ),
 )
