@@ -8459,6 +8459,13 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceGeneratorPrototypeNext(
   ValueNode* alloc_skipped_constant =
       GetSmiConstant(JSGeneratorObject::kNextAllocSkipped);
 
+  ValueNode* undefined_constant = GetRootConstant(RootIndex::kUndefinedValue);
+  ValueNode* false_constant = GetBooleanConstant(false);
+  ValueNode* true_constant = GetBooleanConstant(true);
+  // Used inside CreateJSIteratorResult.
+  ValueNode* empty_fixed_array_constant =
+      GetRootConstant(RootIndex::kEmptyFixedArray);
+
   // If any of the constants have an empty type, we're in dead code, and the
   // write barrier elision logic inside StoreTaggedFieldNoWriteBarrier will be
   // confused. Bail out now. Ideally, this would be done inside
@@ -8470,6 +8477,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceGeneratorPrototypeNext(
   ABORT_IF_EMPTY_TYPE(next_constant);
   ABORT_IF_EMPTY_TYPE(try_skip_alloc_constant);
   ABORT_IF_EMPTY_TYPE(alloc_skipped_constant);
+  ABORT_IF_EMPTY_TYPE(undefined_constant);
+  ABORT_IF_EMPTY_TYPE(false_constant);
+  ABORT_IF_EMPTY_TYPE(true_constant);
+  ABORT_IF_EMPTY_TYPE(empty_fixed_array_constant);
 
   // The fast path below asks the generator to hand back the bare yielded value
   // rather than allocate a result object, and rebuilds the object here as a
@@ -8509,7 +8520,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceGeneratorPrototypeNext(
         &reducer_, GetContext(),
         Builtin::kGeneratorPrototypeNextLazyDeoptContinuation, target,
         base::VectorOf<ValueNode*>(
-            {GetRootConstant(RootIndex::kUndefinedValue), receiver,
+            {undefined_constant, receiver,
              GetRootConstant(RootIndex::kTheHoleValue)}));
     // Generators can accept an optional value when resumed (e.g.
     // g.next("val")). This value becomes the result of the `yield`
@@ -8549,7 +8560,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceGeneratorPrototypeNext(
     compiler::MapRef map =
         broker()->target_native_context().iterator_result_map(broker());
     VirtualObject* iter_result =
-        reducer_.CreateJSIteratorResult(map, result, GetBooleanConstant(false));
+        reducer_.CreateJSIteratorResult(map, result, false_constant);
     ValueNode* alloc_result;
     GET_VALUE(alloc_result, reducer_.BuildInlinedAllocation(iter_result));
     subgraph.set(ret_value, alloc_result);
@@ -8569,9 +8580,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceGeneratorPrototypeNext(
   {
     compiler::MapRef map =
         broker()->target_native_context().iterator_result_map(broker());
-    VirtualObject* iter_result = reducer_.CreateJSIteratorResult(
-        map, GetRootConstant(RootIndex::kUndefinedValue),
-        GetBooleanConstant(true));
+    VirtualObject* iter_result =
+        reducer_.CreateJSIteratorResult(map, undefined_constant, true_constant);
     ValueNode* alloc_result;
     GET_VALUE(alloc_result, reducer_.BuildInlinedAllocation(iter_result));
     subgraph.set(ret_value, alloc_result);
@@ -8594,7 +8604,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceGeneratorPrototypeNext(
     compiler::MapRef map =
         broker()->target_native_context().iterator_result_map(broker());
     VirtualObject* iter_result =
-        reducer_.CreateJSIteratorResult(map, result, GetBooleanConstant(true));
+        reducer_.CreateJSIteratorResult(map, result, true_constant);
     ValueNode* alloc_result;
     GET_VALUE(alloc_result, reducer_.BuildInlinedAllocation(iter_result));
     subgraph.set(ret_value, alloc_result);
