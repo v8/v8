@@ -184,9 +184,6 @@ void PPCDebugger::Debug() {
   // Unset breakpoint while running in the debugger shell, making it invisible
   // to all commands.
   UndoBreakpoint();
-  // Disable tracing while simulating
-  bool trace = v8_flags.trace_sim;
-  v8_flags.trace_sim.Overwrite(false);
 
   while (!done && !sim_->has_bad_pc()) {
     if (last_pc != sim_->get_pc()) {
@@ -623,8 +620,6 @@ void PPCDebugger::Debug() {
   // Reinstall breakpoint to stop execution and enter the debugger shell when
   // hit.
   RedoBreakpoint();
-  // Restore tracing
-  v8_flags.trace_sim.Overwrite(trace);
 
 #undef COMMAND_SIZE
 #undef ARG_SIZE

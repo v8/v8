@@ -230,11 +230,11 @@ static_assert(kMaxTracepointCode < kMaxStopCode);
 // For example:
 //
 // __ Debug(TRACE_ENABLE | LOG_TRACE);
-// starts tracing: set v8_flags.trace-sim is true.
+// starts tracing: calls Simulator::SetInstructionTracing(true).
 // __ Debug(TRACE_ENABLE | LOG_REGS);
 // PrintAllregs.
 // __ Debug(TRACE_DISABLE | LOG_TRACE);
-// stops tracing: set v8_flags.trace-sim is false.
+// stops tracing: calls Simulator::SetInstructionTracing(false).
 const unsigned kDebuggerTracingDirectivesMask = 0b111 << 3;
 enum DebugParameters : uint32_t {
   NO_PARAM = 1 << 5,
