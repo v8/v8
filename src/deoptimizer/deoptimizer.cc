@@ -178,11 +178,18 @@ class FrameWriter {
     DebugPrintOutputValue(cp, "caller's constant_pool\n");
   }
 
-  void PushTranslatedValue(const TranslatedFrame::iterator& iterator,
-                           const char* debug_hint = "") {
+  Tagged<Object> PushTranslatedValue(const TranslatedFrame::iterator& iterator,
+                                     const char* debug_hint = "") {
     CHECK_GE(top_offset_, kSystemPointerSize);
     top_offset_ -= kSystemPointerSize;
-    WriteTranslatedValueAt(top_offset_, iterator, debug_hint);
+    return WriteTranslatedValueAt(top_offset_, iterator, debug_hint);
+  }
+
+  void PushTranslatedContext(const TranslatedFrame::iterator& iterator) {
+    Tagged<Object> obj = PushTranslatedValue(iterator, "context");
+    // The context slot of a StandardFrame shares its offset with the frame
+    // type marker of a TypedFrame, so it must never contain a Smi marker.
+    SBXCHECK(IsHeapObject(obj));
   }
 
   void PushFeedbackVectorForMaterialization(
@@ -227,9 +234,9 @@ class FrameWriter {
     return output_address;
   }
 
-  void WriteTranslatedValueAt(unsigned offset,
-                              const TranslatedFrame::iterator& iterator,
-                              const char* debug_hint) {
+  Tagged<Object> WriteTranslatedValueAt(
+      unsigned offset, const TranslatedFrame::iterator& iterator,
+      const char* debug_hint) {
     Tagged<Object> obj = iterator->GetRawValue();
     frame_->SetFrameSlot(offset, obj.ptr());
     if (trace_scope_ != nullptr) {
@@ -238,6 +245,7 @@ class FrameWriter {
     }
     deoptimizer_->QueueValueForMaterialization(output_address(offset), obj,
                                                iterator);
+    return obj;
   }
 
   void DebugPrintOutputValue(intptr_t value, const char* debug_hint = "") {
@@ -2174,7 +2182,7 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
     }
   }
   // Read the context from the translations.
-  frame_writer.PushTranslatedValue(context_pos, "context");
+  frame_writer.PushTranslatedContext(context_pos);
 
   // The function was mentioned explicitly in the BEGIN_FRAME.
   frame_writer.PushTranslatedValue(function_iterator, "function");
@@ -3150,6 +3158,7 @@ void Deoptimizer::MaterializeHeapObjects() {
 
   for (auto& materialization : values_to_materialize_) {
     DirectHandle<Object> value = materialization.value_->GetValue();
+    SBXCHECK(IsHeapObject(*value));
 
     if (verbose_tracing_enabled()) {
       PrintF(trace_scope()->file(),
