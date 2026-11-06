@@ -575,6 +575,67 @@ void RunCoverageCounterChecks(Checker* checker) {
   munmap(mapping, CoverageMap::kShmSize);
 }
 
+// Offline: optimized code features with one bit per edge. As with counters,
+// they do not count for the coverage, they weigh in the rarity strategy and
+// they do not admit a program.
+void RunCoverageBitsChecks(Checker* checker) {
+  std::string error;
+  std::unique_ptr<CoverageMap> map = CoverageMap::Create(9996, &error);
+  if (!checker->Check("coverage bits: create a coverage map", map != nullptr,
+                      error)) {
+    return;
+  }
+  int fd = shm_open(map->shm_name().c_str(), O_RDWR, 0);
+  void* mapping = fd < 0 ? MAP_FAILED
+                         : mmap(nullptr, CoverageMap::kShmSize,
+                                PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+  if (fd >= 0) {
+    close(fd);
+  }
+  const bool mapped = mapping != MAP_FAILED;
+  if (!checker->Check("coverage bits: map the shared memory", mapped,
+                      mapped ? "" : strerror(errno))) {
+    return;
+  }
+  // A target with 80 code edges, 10 builtins blocks and 10 optimized code
+  // features (inline-bool-flag) writes this header.
+  cov::Header header = {};
+  header.magic = cov::kMagic;
+  header.version = cov::kVersion;
+  header.header_size = cov::kHeaderSize;
+  header.shm_size = static_cast<uint32_t>(CoverageMap::kShmSize);
+  header.mode = static_cast<uint32_t>(cov::Mode::kInlineBoolFlag);
+  header.bits_per_edge = 1;
+  header.num_edges = 100;
+  header.max_edges = cov::MaxEdges(header.shm_size, 1);
+  header.num_regions = 3;
+  header.regions[0] = {static_cast<uint32_t>(cov::RegionKind::kCode), 1, 80};
+  header.regions[1] = {static_cast<uint32_t>(cov::RegionKind::kBuiltins), 81,
+                       10};
+  header.regions[2] = {static_cast<uint32_t>(cov::RegionKind::kOptimized), 91,
+                       10};
+  memcpy(mapping, &header, sizeof(header));
+  const bool ok = map->FinishInitialization(&error);
+  checker->Check("coverage bits: read the header", ok, error);
+  if (ok) {
+    FeatureWeights::Params params;
+    std::unique_ptr<FeatureWeights> weights =
+        FeatureWeights::Build(*map, params, {});
+    checker->Check(
+        "coverage bits: optimized code features",
+        !map->counters_mode() && map->num_edges() == 100 &&
+            map->counted_edges() == 90 &&
+            map->KindOf(95) == CoverageMap::FeatureKind::kOptimized &&
+            weights->Of(95) == params.optimized &&
+            weights->Of(85) == params.builtins && weights->Of(10) == 1.0 &&
+            weights->InFocus(10) && !weights->InFocus(95),
+        StringPrintf("counted %u, w(95) %g, w(85) %g, admits 95: %d",
+                     map->counted_edges(), weights->Of(95), weights->Of(85),
+                     weights->InFocus(95)));
+  }
+  munmap(mapping, CoverageMap::kShmSize);
+}
+
 int RunSelftest(const Flags& flags) {
   Checker checker;
   std::string error;
@@ -584,6 +645,7 @@ int RunSelftest(const Flags& flags) {
   RunCoverageHeaderChecks(&checker);
   RunD8FlagProfileChecks(&checker);
   RunCoverageCounterChecks(&checker);
+  RunCoverageBitsChecks(&checker);
   RunNodeKindChecks(&checker);
   RunPresetChecks(&checker);
   std::string testdata = flags.GetString("testdata", DefaultTestdataDir());

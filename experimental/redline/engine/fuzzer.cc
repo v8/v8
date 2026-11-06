@@ -1310,7 +1310,7 @@ class Worker {
     *fragile_only = false;
     const FeatureWeights* weights = fuzzer_->feature_weights_.get();
     const CoverageMap& coverage = runner_->coverage();
-    if (!config().minimize_code_edges || !coverage.counters_mode()) {
+    if (!config().minimize_code_edges) {
       return edges;
     }
     std::vector<uint32_t> robust;
@@ -1875,9 +1875,6 @@ bool Fuzzer::Initialize(std::string* error) {
 bool Fuzzer::InitializeFeatureWeights(uint32_t targets_code_edges,
                                       std::string* error) {
   const CoverageMap& coverage = workers_[0]->coverage();
-  if (!coverage.counters_mode()) {
-    return true;
-  }
   uint32_t code_edges = 0;
   for (const CoverageMap::Region& region : coverage.regions()) {
     if (region.kind == CoverageMap::RegionKind::kCode) {
@@ -1887,6 +1884,12 @@ bool Fuzzer::InitializeFeatureWeights(uint32_t targets_code_edges,
       geometry_.optimized_count = region.count;
     }
   }
+  // The weights and the admission rule of the optimized code features apply
+  // in both layouts. Without coverage counters and without optimized code
+  // features, all features keep the weight 1.
+  if (!coverage.counters_mode() && geometry_.optimized_count == 0) {
+    return true;
+  }
   if (targets_code_edges != 0 && targets_code_edges != code_edges) {
     *error = StringPrintf(
         "%s was made for a d8 with %u code edges, but the target has %u. Run "
@@ -1894,7 +1897,7 @@ bool Fuzzer::InitializeFeatureWeights(uint32_t targets_code_edges,
         config_.targets_file.c_str(), targets_code_edges, code_edges);
     return false;
   }
-  geometry_.counters = true;
+  geometry_.counters = coverage.counters_mode();
   geometry_.bucket_first = coverage.bucket_base();
   geometry_.features = coverage.num_edges();
   geometry_.watched = static_cast<uint32_t>(coverage.watched().size());
@@ -1902,10 +1905,11 @@ bool Fuzzer::InitializeFeatureWeights(uint32_t targets_code_edges,
                                            targets_, focus_);
   FeatureWeights::SetActive(feature_weights_.get());
   REDLINE_LOG(kLog,
-              "coverage counters: %u edges (%u code), %u optimized code "
-              "features, %u watched edges, %zu target edges, %u focus edges",
-              coverage.real_edges(), code_edges, geometry_.optimized_count,
-              geometry_.watched, feature_weights_->target_edges().size(),
+              "coverage %s: %u edges (%u code), %u optimized code features, "
+              "%u watched edges, %zu target edges, %u focus edges",
+              geometry_.counters ? "counters" : "bits", coverage.real_edges(),
+              code_edges, geometry_.optimized_count, geometry_.watched,
+              feature_weights_->target_edges().size(),
               feature_weights_->focus_edges());
   return true;
 }
@@ -1988,7 +1992,7 @@ std::vector<std::string> Fuzzer::DrawD8Flags(Random& rng) {
 }
 
 std::string Fuzzer::CoverageStatus() const {
-  if (!geometry_.counters) {
+  if (feature_weights_ == nullptr) {
     return "";
   }
   std::string out;
@@ -2036,16 +2040,16 @@ uint32_t Fuzzer::FocusSeen() const {
 }
 
 void Fuzzer::AddCoverageStats(JsonObject* event) const {
-  if (!geometry_.counters) {
+  if (feature_weights_ == nullptr) {
     return;
   }
-  if (feature_weights_ != nullptr && feature_weights_->has_focus()) {
+  if (feature_weights_->has_focus()) {
     event->Add("focus_found", FocusSeen())
         .Add("focus_total", feature_weights_->focus_edges());
     event->Add("unfocused_programs",
                unfocused_programs_.load(std::memory_order_relaxed));
   }
-  if (feature_weights_ != nullptr) {
+  if (geometry_.counters) {
     uint32_t found = 0;
     for (uint32_t edge : feature_weights_->target_edges()) {
       if (coverage_.IsSeen(edge)) {
@@ -2062,8 +2066,10 @@ void Fuzzer::AddCoverageStats(JsonObject* event) const {
                    geometry_.optimized_first,
                    geometry_.optimized_first + geometry_.optimized_count - 1));
   }
-  event->Add("bucket_found",
-             coverage_.CountSeen(geometry_.bucket_first, geometry_.features));
+  if (geometry_.counters) {
+    event->Add("bucket_found",
+               coverage_.CountSeen(geometry_.bucket_first, geometry_.features));
+  }
 }
 
 void Fuzzer::CollectImports() {
@@ -2422,6 +2428,8 @@ int Fuzzer::Run() {
       event.Add("focus_edges", feature_weights_ != nullptr
                                    ? feature_weights_->focus_edges()
                                    : 0u);
+    } else if (geometry_.optimized_count != 0) {
+      event.Add("optimized_features", geometry_.optimized_count);
     }
     LogEvent(event);
   }

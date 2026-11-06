@@ -181,14 +181,19 @@ bool CoverageMap::FinishInitialization(std::string* error) {
   counters_mode_ = counters;
   real_edges_ = real_edges;
   counted_edges_ = real_edges;
+  // The optimized code features do not count for coverage_fraction(), in
+  // both layouts. d8 puts them after all other edges.
+  for (const Region& region : regions_) {
+    if (region.kind == RegionKind::kOptimized &&
+        region.first + region.count - 1 == real_edges) {
+      counted_edges_ = region.first - 1;
+    }
+  }
   watched_.clear();
   if (counters_mode_) {
     for (const Region& region : regions_) {
       if (region.kind != RegionKind::kOptimized) {
         continue;
-      }
-      if (region.first + region.count - 1 == real_edges) {
-        counted_edges_ = region.first - 1;
       }
       if (watch_.optimized) {
         for (uint32_t i = 0; i < region.count; i++) {

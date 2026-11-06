@@ -170,8 +170,8 @@ class Fuzzer {
     uint32_t watched = 0;
   } geometry_;
   // " | focus x/y | target x/y | opt n | buckets n" for the status line.
-  // Empty without coverage counters. AddCoverageStats() adds the same numbers
-  // to an event.
+  // Empty without coverage counters and without optimized code features.
+  // AddCoverageStats() adds the same numbers to an event.
   std::string CoverageStatus() const;
   void AddCoverageStats(JsonObject* event) const;
   // Number of focus edges that the session reached.

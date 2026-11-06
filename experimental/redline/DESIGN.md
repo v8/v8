@@ -263,12 +263,20 @@ Only successful executions count for coverage, so the corpus holds only programs
 All workers share one map of the edges that the session found (`engine/shared_coverage.h`).
 A worker claims new edges with atomic operations, so two workers never claim the same edge. If no corpus program results, the worker gives the edges back.
 
+**Optimized code features.** The flag `--fuzzilli-enable-optimized-code-coverage` turns them on.
+Maglev and Turbolev then hash each chain of up to 3 graph nodes, a node and its inputs (`Graph::ExtractOptimizedCodeCoverage`).
+d8 sets the feature of each hash in the last region of the bitmap.
+Redline uses these features in the same way with one bit per edge and with counters.
+The `cov` percentage does not count them, and the status line shows them apart (`opt`).
+They weigh in the rarity strategy (`--optimized-weight`, `corpus/feature_weights.h`).
+They do not make a candidate unless `--focus-optimized` is true, and the minimizer does not keep them.
+
 **Coverage counters.** A d8 built with `sanitizer_coverage_flags="inline-8bit-counters,pc-table"` writes one counter per edge instead of one bit (`d8/cov.cc`).
 After each execution, `CoverageMap::Refresh()` builds a derived bitmap.
 It has one bit for each edge that ran, plus eight bucket bits for each watched edge (AFL's hit count buckets).
 A bucket bit is a feature like an edge, so the rest of Redline (accept, reruns, minimizer, corpus) sees one bitmap.
 The watched edges are the targets of change-based fuzzing and the optimized code region.
-The `cov` percentage counts only the code and builtins edges. The status line shows the optimized features (`opt`) and the bucket features (`buckets`) apart.
+The `cov` percentage does not count the bucket features. The status line shows them apart (`buckets`).
 Crash deduplication uses the edges only.
 
 **Change-based fuzzing.** `tools/edge_map.py` maps each edge of a counters build to a source line (the PC table of d8 and `llvm-symbolizer`).
