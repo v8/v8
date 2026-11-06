@@ -12,6 +12,7 @@
 #include <optional>
 #include <queue>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -194,6 +195,11 @@ class SourceGroup {
 
   // Returns true on success, false if an uncaught exception was thrown.
   bool Execute(Isolate* isolate);
+
+  // For --bundle-reprl: reads the script parts of the bundle file of this
+  // group. Returns false and prints an error if the group does not have
+  // exactly one bundle file with only script parts.
+  bool ReadBundleReprlScripts(std::vector<std::string>* scripts);
 
   void StartExecuteInThread();
   void WaitForThread(const i::ParkedScope& parked);
@@ -657,6 +663,7 @@ class ShellOptions {
   DisallowReassignment<size_t> max_serializer_memory = {"max-serializer-memory",
                                                         1 * i::MB};
   DisallowReassignment<bool> bundle = {"bundle", false};
+  DisallowReassignment<bool> bundle_reprl = {"bundle-reprl", false};
 };
 
 class Shell : public i::AllStatic {
@@ -713,10 +720,17 @@ class Shell : public i::AllStatic {
                                      bool should_throw = true);
   static std::unique_ptr<base::OS::MemoryMappedFile> ReadFileData(
       Isolate* isolate, const char* name, bool should_throw = true);
+  // Returns std::nullopt if the file cannot be read.
+  static std::optional<std::string> ReadFileToString(const char* name);
   static Local<String> WasmLoadSourceMapCallback(Isolate* isolate,
                                                  const char* name);
   static MaybeLocal<Context> CreateEvaluationContext(Isolate* isolate);
-  static int RunMain(Isolate* isolate, bool last_run);
+  // With `reprl_script`, runs that script instead of the source group of the
+  // main isolate (--bundle-reprl).
+  static int RunMain(
+      Isolate* isolate, bool last_run,
+      std::optional<std::string_view> reprl_script = std::nullopt);
+  static int RunBundleReprl(Isolate* isolate);
   static int Main(int argc, char* argv[]);
   static void InitializeDefaultCounters(Isolate* isolate);
   static void Exit(int exit_code);
@@ -815,10 +829,9 @@ class Shell : public i::AllStatic {
 
   static void ResetOnProfileEndListener(Isolate* isolate);
 
-#if defined(V8_FUZZILLI) || defined(V8_REDLINE)
-  // Best-effort undo of state leaked by previous REPRL executions.
+  // Best-effort undo of state leaked by previous REPRL executions. Also used by
+  // --bundle-reprl, which is available in all builds.
   static void ResetIsolateStateForReprl(Isolate* isolate);
-#endif  // defined(V8_FUZZILLI) || defined(V8_REDLINE)
 
   static void Print(const v8::FunctionCallbackInfo<v8::Value>& info);
   static void PrintErr(const v8::FunctionCallbackInfo<v8::Value>& info);
@@ -1016,7 +1029,9 @@ class Shell : public i::AllStatic {
   static Counter* GetCounter(const char* name, bool is_histogram);
   static Local<String> Stringify(Isolate* isolate, Local<Value> value);
   static void RunShell(Isolate* isolate);
-  static bool RunMainIsolate(Isolate* isolate, bool keep_context_alive);
+  static bool RunMainIsolate(Isolate* isolate, bool keep_context_alive,
+                             std::optional<std::string_view> reprl_script);
+  static bool ExecuteReprlScript(Isolate* isolate, std::string_view script);
   static bool SetOptions(int argc, char* argv[]);
 
   static void NodeTypeCallback(const v8::FunctionCallbackInfo<v8::Value>& info);
