@@ -1247,14 +1247,17 @@ class CodeGeneratorTester {
     }
   }
 
-  Instruction* CreateTailCall(int stack_slot_delta) {
-    int optional_padding_slot = stack_slot_delta;
+  Instruction* CreateTailCall(int first_unused_stack_slot) {
+    int unpadded_stack_param_slots =
+        first_unused_stack_slot - kReturnAddressStackSlotCount;
     InstructionOperand callee[] = {
         AllocatedOperand(LocationOperand::REGISTER,
                          MachineRepresentation::kTagged,
                          kReturnRegister0.code()),
-        ImmediateOperand(ImmediateOperand::INLINE_INT32, optional_padding_slot),
-        ImmediateOperand(ImmediateOperand::INLINE_INT32, stack_slot_delta)};
+        ImmediateOperand(ImmediateOperand::INLINE_INT32,
+                         unpadded_stack_param_slots),
+        ImmediateOperand(ImmediateOperand::INLINE_INT32,
+                         first_unused_stack_slot)};
     Instruction* tail_call =
         Instruction::New(zone_, kArchTailCallCodeObject, 0, nullptr,
                          arraysize(callee), callee, 0, nullptr);
@@ -1343,9 +1346,9 @@ class CodeGeneratorTester {
     // placed in `kReturnRegister0`.
     sequence->AddInstruction(Instruction::New(zone_, kArchPrepareTailCall));
 
-    // We use either zero or one slots.
     static constexpr int first_unused_stack_slot = kReturnAddressStackSlotCount;
-    int optional_padding_slot = first_unused_stack_slot;
+    int unpadded_stack_param_slots =
+        linkage_.GetIncomingDescriptor()->GetOffsetToFirstUnusedStackSlot() - 1;
     InstructionOperand callee[] = {
         AllocatedOperand(LocationOperand::REGISTER,
                          MachineRepresentation::kTagged,
@@ -1353,7 +1356,8 @@ class CodeGeneratorTester {
         ImmediateOperand(
             ImmediateOperand::INLINE_INT32,
             (kCodeEntrypointTagForTesting >> kCodeEntrypointTagShift)),
-        ImmediateOperand(ImmediateOperand::INLINE_INT32, optional_padding_slot),
+        ImmediateOperand(ImmediateOperand::INLINE_INT32,
+                         unpadded_stack_param_slots),
         ImmediateOperand(ImmediateOperand::INLINE_INT32,
                          first_unused_stack_slot)};
     Instruction* tail_call =

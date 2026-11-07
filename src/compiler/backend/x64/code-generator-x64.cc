@@ -298,6 +298,46 @@ bool HasRegisterInput(Instruction* instr, size_t index) {
   return instr->InputAt(index)->IsRegister();
 }
 
+// Returns the number of padding slots (0 or 1) that must be reserved in
+// addition to {extra_slots} slots that the caller is about to push, so that
+// rsp is correctly aligned at the call. Must be called while assembling the
+// instruction that triggers the call, since it inspects the current
+// {FrameAccessState}:
+//
+//  When V8_X64_16BYTE_STACK_ALIGNMENT_BOOL is true:
+//  - With a frame, the total frame size is even after Frame::AlignFrame, so
+//    rsp is aligned in the body of the function.
+//  - Without a frame, only the return address has been pushed since the
+//    (aligned) call into this code, so rsp is misaligned by 8.
+//  - {sp_delta} counts the slots pushed since then.
+//
+// Always returns 0 when the flag is off.
+int CallAlignmentPaddingSlots(FrameAccessState* state, int extra_slots = 0) {
+  if constexpr (!V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) return 0;
+  int unaligned_slots =
+      (state->has_frame() ? 0 : kReturnAddressStackSlotCount) +
+      state->sp_delta() + extra_slots;
+  return unaligned_slots & 1;
+}
+
+// If {needs_padding} is true, emits code to reserve a stack padding slot on
+// construction and reclaim it on destruction.
+class V8_NODISCARD AlignStackForOutOfLineCallScope {
+ public:
+  AlignStackForOutOfLineCallScope(MacroAssembler* masm, bool needs_padding)
+      : masm_(masm), needs_padding_(needs_padding) {
+    DCHECK_IMPLIES(needs_padding_, V8_X64_16BYTE_STACK_ALIGNMENT_BOOL);
+    if (needs_padding_) masm_->AllocateStackSpace(kSystemPointerSize);
+  }
+  ~AlignStackForOutOfLineCallScope() {
+    if (needs_padding_) masm_->addq(rsp, Immediate(kSystemPointerSize));
+  }
+
+ private:
+  MacroAssembler* const masm_;
+  const bool needs_padding_;
+};
+
 class OutOfLineLoadFloat32NaN final : public OutOfLineCode {
  public:
   OutOfLineLoadFloat32NaN(CodeGenerator* gen, XMMRegister result)
@@ -339,13 +379,25 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
 #endif  // V8_ENABLE_WEBASSEMBLY
         unwinding_info_writer_(unwinding_info_writer),
         isolate_(gen->isolate()),
-        zone_(gen->zone()) {
+        zone_(gen->zone()),
+        stack_space_(kDoubleSize +
+                     CallAlignmentPaddingSlots(gen->frame_access_state(), 1) *
+                         kSystemPointerSize) {
   }
 
   void Generate() final {
-    __ AllocateStackSpace(kDoubleSize);
+    // Stack layout at the call to DoubleToI:
+    //
+    //   [padding]          <- only with 16-byte stack alignment, if needed
+    //   input double       <- rsp (16-byte aligned with the flag on)
+    //   (return address)   <- pushed by the call
+    //
+    // The double has to be at [rsp] (the builtin reads it at a fixed offset
+    // above its return address), so the padding goes above it, at the
+    // highest address, like argument padding elsewhere.
+    __ AllocateStackSpace(stack_space_);
     unwinding_info_writer_->MaybeIncreaseBaseOffsetAt(__ pc_offset(),
-                                                      kDoubleSize);
+                                                      stack_space_);
     __ Movsd(MemOperand(rsp, 0), input_);
 #if V8_ENABLE_WEBASSEMBLY
     if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
@@ -364,9 +416,9 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
       __ CallBuiltin(Builtin::kDoubleToI);
     }
     __ movl(result_, MemOperand(rsp, 0));
-    __ addq(rsp, Immediate(kDoubleSize));
+    __ addq(rsp, Immediate(stack_space_));
     unwinding_info_writer_->MaybeIncreaseBaseOffsetAt(__ pc_offset(),
-                                                      -kDoubleSize);
+                                                      -stack_space_);
   }
 
  private:
@@ -378,6 +430,8 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
   UnwindingInfoWriter* const unwinding_info_writer_;
   Isolate* isolate_;
   Zone* zone_;
+  // Bytes reserved below rsp around the call (input slot + optional padding).
+  const int stack_space_;
 };
 
 class OutOfLineRecordWrite final : public OutOfLineCode {
@@ -398,7 +452,9 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         stub_mode_(stub_mode),
 #endif  // V8_ENABLE_WEBASSEMBLY
         zone_(gen->zone()),
-        trusted_pointer_tag_(trusted_pointer_tag) {
+        trusted_pointer_tag_(trusted_pointer_tag),
+        needs_stack_padding_(
+            CallAlignmentPaddingSlots(gen->frame_access_state()) != 0) {
     DCHECK(!AreAliased(object, scratch0, scratch1));
     DCHECK(!AreAliased(value, scratch0, scratch1));
   }
@@ -451,6 +507,10 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
                                             ? SaveFPRegsMode::kSave
                                             : SaveFPRegsMode::kIgnore;
 
+    // Keep rsp 16-byte aligned at the stub call (16-byte stack alignment
+    // only). Note that {operand_} was already materialized into {scratch1_}
+    // above, so moving rsp here is safe even if it is rsp-relative.
+    AlignStackForOutOfLineCallScope align_stack(masm(), needs_stack_padding_);
     if (mode_ == RecordWriteMode::kValueIsEphemeronKey) {
       __ CallEphemeronKeyBarrier(object_, scratch1_, save_fp_mode);
     } else if (mode_ == RecordWriteMode::kValueIsTrustedPointer) {
@@ -484,6 +544,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 #endif  // V8_ENABLE_WEBASSEMBLY
   Zone* zone_;
   TrustedPointerTag trusted_pointer_tag_;
+  const bool needs_stack_padding_;
 #if V8_ENABLE_STICKY_MARK_BITS_BOOL
   Label stub_call_;
 #endif  // V8_ENABLE_STICKY_MARK_BITS_BOOL
@@ -497,7 +558,9 @@ class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
         object_(object),
         value_(value),
         scratch_(scratch),
-        zone_(gen->zone()) {}
+        zone_(gen->zone()),
+        needs_stack_padding_(
+            CallAlignmentPaddingSlots(gen->frame_access_state()) != 0) {}
 
   void Generate() final {
     if (COMPRESS_POINTERS_BOOL) {
@@ -510,6 +573,7 @@ class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
                                             ? SaveFPRegsMode::kSave
                                             : SaveFPRegsMode::kIgnore;
 
+    AlignStackForOutOfLineCallScope align_stack(masm(), needs_stack_padding_);
     __ CallVerifySkippedWriteBarrierStubSaveRegisters(object_, value_,
                                                       save_fp_mode);
   }
@@ -519,6 +583,7 @@ class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
   Register const value_;
   Register const scratch_;
   Zone* zone_;
+  const bool needs_stack_padding_;
 };
 
 class OutOfLineVerifySkippedTrustedWriteBarrier final : public OutOfLineCode {
@@ -528,13 +593,16 @@ class OutOfLineVerifySkippedTrustedWriteBarrier final : public OutOfLineCode {
       : OutOfLineCode(gen),
         object_(object),
         value_(value),
-        zone_(gen->zone()) {}
+        zone_(gen->zone()),
+        needs_stack_padding_(
+            CallAlignmentPaddingSlots(gen->frame_access_state()) != 0) {}
 
   void Generate() final {
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
                                             ? SaveFPRegsMode::kSave
                                             : SaveFPRegsMode::kIgnore;
 
+    AlignStackForOutOfLineCallScope align_stack(masm(), needs_stack_padding_);
     __ CallVerifySkippedTrustedWriteBarrierStubSaveRegisters(object_, value_,
                                                              save_fp_mode);
   }
@@ -543,6 +611,7 @@ class OutOfLineVerifySkippedTrustedWriteBarrier final : public OutOfLineCode {
   Register const object_;
   Register const value_;
   Zone* zone_;
+  const bool needs_stack_padding_;
 };
 
 template <std::memory_order order>
@@ -747,7 +816,9 @@ class OutOfLineTSANStore : public OutOfLineCode {
 #endif  // V8_ENABLE_WEBASSEMBLY
         size_(size),
         memory_order_(order),
-        zone_(gen->zone()) {
+        zone_(gen->zone()),
+        needs_stack_padding_(
+            CallAlignmentPaddingSlots(gen->frame_access_state()) != 0) {
     DCHECK(!AreAliased(value, scratch0));
   }
 
@@ -757,6 +828,10 @@ class OutOfLineTSANStore : public OutOfLineCode {
                                             : SaveFPRegsMode::kIgnore;
     __ leaq(scratch0_, operand_);
 
+    // Keep rsp 16-byte aligned at the stub call (16-byte stack alignment
+    // only). Note that {operand_} was already materialized into {scratch0_}
+    // above, so moving rsp here is safe even if it is rsp-relative.
+    AlignStackForOutOfLineCallScope align_stack(masm(), needs_stack_padding_);
 #if V8_ENABLE_WEBASSEMBLY
     if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
       // A direct call to a wasm runtime stub defined in this module.
@@ -783,6 +858,7 @@ class OutOfLineTSANStore : public OutOfLineCode {
   int size_;
   const std::memory_order memory_order_;
   Zone* zone_;
+  const bool needs_stack_padding_;
 };
 
 void EmitTSANStoreOOL(Zone* zone, CodeGenerator* codegen, MacroAssembler* masm,
@@ -917,7 +993,9 @@ class OutOfLineTSANRelaxedLoad final : public OutOfLineCode {
         stub_mode_(stub_mode),
 #endif  // V8_ENABLE_WEBASSEMBLY
         size_(size),
-        zone_(gen->zone()) {
+        zone_(gen->zone()),
+        needs_stack_padding_(
+            CallAlignmentPaddingSlots(gen->frame_access_state()) != 0) {
   }
 
   void Generate() final {
@@ -926,6 +1004,10 @@ class OutOfLineTSANRelaxedLoad final : public OutOfLineCode {
                                             : SaveFPRegsMode::kIgnore;
     __ leaq(scratch0_, operand_);
 
+    // Keep rsp 16-byte aligned at the stub call (16-byte stack alignment
+    // only). Note that {operand_} was already materialized into {scratch0_}
+    // above, so moving rsp here is safe even if it is rsp-relative.
+    AlignStackForOutOfLineCallScope align_stack(masm(), needs_stack_padding_);
 #if V8_ENABLE_WEBASSEMBLY
     if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
       // A direct call to a wasm runtime stub defined in this module.
@@ -950,6 +1032,7 @@ class OutOfLineTSANRelaxedLoad final : public OutOfLineCode {
 #endif  // V8_ENABLE_WEBASSEMBLY
   int size_;
   Zone* zone_;
+  const bool needs_stack_padding_;
 };
 
 void EmitTSANRelaxedLoadOOLIfNeeded(
@@ -1595,6 +1678,35 @@ void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
                                              int first_unused_slot_offset) {
   AdjustStackPointerForTailCall(instr, masm(), linkage(), info(),
                                 frame_access_state(), first_unused_slot_offset);
+
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    // For 16-byte stack alignment, stack arguments are padded to an even
+    // number of slots, with the optional padding slot above the last
+    // parameter. Stack adjustment has already sized the argument area
+    // (including padding) above the return address at rsp; now that gap moves
+    // are complete, zero the padding slot so the GC sees a valid Smi instead
+    // of a stale value.
+    //
+    // Tier-up tail calls reuse the caller's incoming arguments and padding
+    // as-is, and the slot above the formal parameters may hold an extra
+    // argument, so leave it untouched.
+    if (!instr->HasCallDescriptorFlag(CallDescriptor::kIsTailCallForTierUp)) {
+      DCHECK_EQ((first_unused_slot_offset - kReturnAddressStackSlotCount) % 2,
+                0);
+      DCHECK(instr->IsTailCall());
+      X64OperandConverter g(this, instr);
+      // InstructionSelector::VisitTailCall appends two trailing immediates:
+      // {unpadded_stack_param_slots} (InputCount() - 2), followed by
+      // {first_unused_slot_offset} (InputCount() - 1).
+      int unpadded_stack_param_slots = g.InputInt32(instr->InputCount() - 2);
+      if (ShouldPadArguments(unpadded_stack_param_slots)) {
+        __ movq(Operand(rsp, (kReturnAddressStackSlotCount +
+                              unpadded_stack_param_slots) *
+                                 kSystemPointerSize),
+                Immediate(0));
+      }
+    }
+  }
 }
 
 // Check that {kJavaScriptCallCodeStartRegister} is correct.
@@ -1987,6 +2099,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // We don't actually want to generate a pile of code for this, so just
         // claim there is a stack frame, without generating one.
         FrameScope scope(masm(), StackFrame::NO_FRAME_TYPE);
+        // 16-byte stack alignment: this instruction is not marked as a call,
+        // so it can appear in frameless code where rsp is misaligned by 8.
+        // Re-align it so that the call does not trip the alignment check in
+        // debug code. The call never returns, so the padding is never
+        // dropped.
+        if (CallAlignmentPaddingSlots(frame_access_state()) != 0) {
+          __ AllocateStackSpace(kSystemPointerSize);
+        }
         __ CallBuiltin(Builtin::kAbortCSADcheck);
       }
       __ int3();
@@ -8530,7 +8650,24 @@ void CodeGenerator::AssembleConstructFrame() {
         __ addq(kScratchRegister, Immediate(static_cast<int32_t>(stack_space)));
         __ cmpq(rsp, kScratchRegister);
       }
-      __ j(above_equal, &done, Label::kNear);
+      // With 16-byte stack alignment, the slow path below may be a few bytes
+      // longer (padding around the calls), so don't rely on a near jump.
+      __ j(above_equal, &done,
+           V8_X64_16BYTE_STACK_ALIGNMENT_BOOL ? Label::kFar : Label::kNear);
+    }
+
+    // rsp is only aligned here if the fixed frame header below rbp
+    // that the prologue pushed above has an even number of slots. That is the
+    // case for wasm frames,  but not for JS-to-wasm wrappers, which use the JS
+    // frame header. Push a padding slot for the calls below in that case.
+    const bool pad_for_stack_check_call =
+        V8_X64_16BYTE_STACK_ALIGNMENT_BOOL &&
+        (frame()->GetFixedSlotCount() -
+         StandardFrameConstants::kFixedSlotCountAboveFp) %
+                2 !=
+            0;
+    if (pad_for_stack_check_call) {
+      __ AllocateStackSpace(kSystemPointerSize);
     }
 
     if (is_js_to_wasm) {
@@ -8573,6 +8710,9 @@ void CodeGenerator::AssembleConstructFrame() {
       RecordSafepointWithoutTaggedSlots();
       __ PopAll(fp_regs_to_save);
       __ PopAll(regs_to_save);
+      if (pad_for_stack_check_call) {
+        __ addq(rsp, Immediate(kSystemPointerSize));
+      }
     } else {
       __ near_call(static_cast<intptr_t>(Builtin::kWasmStackOverflow),
                    RelocInfo::WASM_STUB_CALL);
@@ -8715,7 +8855,10 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     DCHECK(!call_descriptor->CalleeSavedRegisters().has(argc_reg));
     __ cmpq(argc_reg, Immediate(parameter_slots));
     __ j(greater, &mismatch_return, Label::kNear);
-    __ Ret(parameter_slots * kSystemPointerSize, scratch_reg);
+    // With 16-byte stack alignment, also drop the caller's padding slot (like
+    // DropArguments below and like arm64).
+    __ Ret(AddArgumentPaddingSlots(parameter_slots) * kSystemPointerSize,
+           scratch_reg);
     __ bind(&mismatch_return);
     __ DropArguments(argc_reg, scratch_reg);
     // We use a return instead of a jump for better return address prediction.
@@ -8738,8 +8881,16 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     DCHECK(!call_descriptor->CalleeSavedRegisters().has(pop_reg));
     int pop_size = static_cast<int>(parameter_slots * kSystemPointerSize);
     __ PopReturnAddressTo(scratch_reg);
-    __ leaq(rsp, Operand(rsp, pop_reg, times_system_pointer_size,
-                         static_cast<int>(pop_size)));
+    if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+      // Drop RoundUp(pop_reg + parameter_slots, 2) slots, including the
+      // caller's padding slot (like arm64).
+      __ leaq(pop_reg, Operand(pop_reg, parameter_slots + 1));
+      __ andq(pop_reg, Immediate(~1));
+      __ leaq(rsp, Operand(rsp, pop_reg, times_system_pointer_size, 0));
+    } else {
+      __ leaq(rsp, Operand(rsp, pop_reg, times_system_pointer_size,
+                           static_cast<int>(pop_size)));
+    }
     __ PushReturnAddressFrom(scratch_reg);
     __ Ret();
   }

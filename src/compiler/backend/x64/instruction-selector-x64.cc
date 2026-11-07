@@ -3266,6 +3266,39 @@ void InstructionSelector::EmitPrepareArguments(
   } else {
     // Push any stack arguments.
     int effect_level = GetEffectLevel(node);
+
+    // Since the stack header and local/spill slot sections are separately
+    // aligned, the outgoing argument area must consist of an even number of
+    // slots to maintain 16-byte alignment. {arguments} has one entry per
+    // stack slot, so if it has an odd size we push one extra padding slot
+    // first. Like on arm64, the padding thus sits at the highest address,
+    // directly above the last argument:
+    //
+    //   [caller frame / return slots]
+    //   padding (Smi zero)      <- only if arguments->size() is odd
+    //   argument n-1            <- pushed first among the real arguments
+    //   ...
+    //   argument 0              <- rsp (16-byte aligned) at the call
+    //
+    // The callee knows about this slot: CallDescriptor::GetOffsetToReturns()
+    // and GetStackParameterDelta() account for it (Linkage), callees compiled
+    // by TurboFan drop it in CodeGenerator::AssembleReturn, and the wasm
+    // linkage places stack return slots above it. The padding slot is
+    // initialized with Smi zero (rather than just reserved with a stack
+    // pointer decrement) because it lies within the argument area of the
+    // callee and may thus be visited by the GC as a tagged slot.
+    //
+    // kX64Push accounts for the padding in the code generator's sp_delta
+    // bookkeeping like for any other pushed slot, and the call instruction
+    // resets sp_delta afterwards.
+    //
+    // This is a no-op when the flag is off (ShouldPadArguments is false).
+    const int stack_slot_count = static_cast<int>(arguments->size());
+    if (ShouldPadArguments(stack_slot_count)) {
+      Emit(kX64Push, g.NoOutput(), g.UseImmediate(kSystemPointerSize),
+           g.UseImmediate(0));
+    }
+
     int stack_decrement = 0;
     for (PushParameter input : base::Reversed(*arguments)) {
       stack_decrement += kSystemPointerSize;

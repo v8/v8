@@ -2436,13 +2436,14 @@ void InstructionSelector::VisitTailCall(OpIndex node) {
     buffer.instruction_args.push_back(g.TempImmediate(callee->shifted_tag()));
   }
 
-  // Add an immediate operand that represents the offset to the first slot
-  // that is unused with respect to the stack pointer that has been updated
-  // for the tail call instruction. Backends that pad arguments can write the
-  // padding value at this offset from the stack.
-  const int optional_padding_offset =
+  // Add an immediate operand carrying the callee's unpadded stack parameter
+  // slot count. Backends that pad odd stack argument areas use this both to
+  // check whether a padding slot is present and to zero that slot above the
+  // parameters (and above any return address on the stack).
+  const int unpadded_stack_param_slots =
       callee->GetOffsetToFirstUnusedStackSlot() - 1;
-  buffer.instruction_args.push_back(g.TempImmediate(optional_padding_offset));
+  buffer.instruction_args.push_back(
+      g.TempImmediate(unpadded_stack_param_slots));
 
   const int first_unused_slot_offset =
       kReturnAddressStackSlotCount + stack_param_delta;
