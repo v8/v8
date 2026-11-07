@@ -2357,6 +2357,8 @@ void RiscvDebugger::Debug() {
       }
     }
   }
+  // The commands may have set breakpoints, a watch or tracing.
+  sim_->UpdateInstructionChecks();
 
 #undef COMMAND_SIZE
 #undef ARG_SIZE
@@ -9428,26 +9430,9 @@ void Simulator::DecodeVType() {
 }
 #endif
 
-// Executes the current instruction.
-void Simulator::InstructionDecode(Instruction* instr) {
-  if (v8_flags.check_icache) {
-    CheckICache(i_cache(), instr);
-  }
+// Executes the current instruction, without the debugging checks.
+V8_INLINE void Simulator::DecodeInstruction(Instruction* instr) {
   pc_modified_ = false;
-
-  std::array<char, 256> buffer;
-  const bool can_trace = InstructionTracingEnabled() || v8_flags.debug_sim;
-
-  if (can_trace) {
-    base::SNPrintF(trace_buf_, " ");
-    disasm::NameConverter converter;
-    disasm::Disassembler dasm(converter);
-    // Use a reasonably large buffer.
-    dasm.InstructionDecode(buffer, reinterpret_cast<uint8_t*>(instr));
-
-    // PrintF("EXECUTING  0x%08" PRIxPTR "   %-44s\n",
-    //        reinterpret_cast<intptr_t>(instr), buffer.data());
-  }
 #ifdef CAN_USE_RVV_INSTRUCTIONS
   set_vill_ignore(false);
 #endif
@@ -9515,14 +9500,36 @@ void Simulator::InstructionDecode(Instruction* instr) {
       UNSUPPORTED();
   }
 
-  if (can_trace && InstructionTracingEnabled()) {
-    PrintF("  0x%012" PRIxPTR "      %-44s\t%s\n",
-           reinterpret_cast<intptr_t>(instr), buffer.data(), trace_buf_.data());
-  }
-
   if (!pc_modified_) {
     set_register(pc,
                  reinterpret_cast<sreg_t>(instr) + instr->InstructionSize());
+  }
+}
+
+// Executes the current instruction.
+void Simulator::InstructionDecode(Instruction* instr) {
+  if (v8_flags.check_icache) {
+    CheckICache(i_cache(), instr);
+  }
+
+  std::array<char, 256> buffer;
+  const bool can_trace = InstructionTracingEnabled() || v8_flags.debug_sim;
+
+  if (can_trace) {
+    base::SNPrintF(trace_buf_, " ");
+    disasm::NameConverter converter;
+    disasm::Disassembler dasm(converter);
+    // Use a reasonably large buffer.
+    dasm.InstructionDecode(buffer, reinterpret_cast<uint8_t*>(instr));
+
+    // PrintF("EXECUTING  0x%08" PRIxPTR "   %-44s\n",
+    //        reinterpret_cast<intptr_t>(instr), buffer.data());
+  }
+  DecodeInstruction(instr);
+
+  if (can_trace && InstructionTracingEnabled()) {
+    PrintF("  0x%012" PRIxPTR "      %-44s\t%s\n",
+           reinterpret_cast<intptr_t>(instr), buffer.data(), trace_buf_.data());
   }
 
   if (watch_address_ != nullptr) {
@@ -9551,20 +9558,35 @@ void Simulator::InstructionDecode(Instruction* instr) {
   }
 }
 
+void Simulator::UpdateInstructionChecks() {
+  instruction_checks_ = v8_flags.stop_sim_at != 0 || v8_flags.check_icache ||
+                        v8_flags.debug_sim || InstructionTracingEnabled() ||
+                        watch_address_ != nullptr || !breakpoints_.empty();
+}
+
+V8_NOINLINE void Simulator::ExecuteWithChecks(Instruction* instr) {
+  if (icount_ == static_cast<sreg_t>(v8_flags.stop_sim_at)) {
+    RiscvDebugger dbg(this);
+    dbg.Debug();
+  } else {
+    InstructionDecode(instr);
+  }
+  CheckBreakpoints();
+}
+
 void Simulator::Execute() {
+  UpdateInstructionChecks();
   // Get the PC to simulate. Cannot use the accessor here as we need the
   // raw PC value and not the one used as input to arithmetic instructions.
   sreg_t program_counter = get_pc();
   while (program_counter != end_sim_pc) {
     Instruction* instr = reinterpret_cast<Instruction*>(program_counter);
     icount_++;
-    if (icount_ == static_cast<sreg_t>(v8_flags.stop_sim_at)) {
-      RiscvDebugger dbg(this);
-      dbg.Debug();
+    if (V8_UNLIKELY(instruction_checks_)) {
+      ExecuteWithChecks(instr);
     } else {
-      InstructionDecode(instr);
+      DecodeInstruction(instr);
     }
-    CheckBreakpoints();
     program_counter = get_pc();
   }
 }

@@ -674,9 +674,13 @@ class Simulator : public SimulatorBase {
 
   // Manage instruction tracing.
   bool InstructionTracingEnabled() const { return instruction_tracing_; }
-  void SetInstructionTracing(bool enabled) { instruction_tracing_ = enabled; }
+  void SetInstructionTracing(bool enabled) {
+    instruction_tracing_ = enabled;
+    UpdateInstructionChecks();
+  }
   void ToggleInstructionTracing() {
     instruction_tracing_ = !instruction_tracing_;
+    UpdateInstructionChecks();
   }
 
  private:
@@ -1271,6 +1275,10 @@ class Simulator : public SimulatorBase {
 
   // Executes one instruction.
   void InstructionDecode(Instruction* instr);
+  void DecodeInstruction(Instruction* instr);
+  void ExecuteWithChecks(Instruction* instr);
+  // Sets instruction_checks_, which Execute tests before each instruction.
+  void UpdateInstructionChecks();
 
   // ICache.
   static void CheckICache(base::CustomMatcherHashMap* i_cache,
@@ -1350,6 +1358,7 @@ class Simulator : public SimulatorBase {
   // Take a copy of the v8 simulator tracing flag because flags are frozen after
   // start.
   bool instruction_tracing_ = v8_flags.trace_sim;
+  bool instruction_checks_ = true;
   int64_t icount_;
   sreg_t* watch_address_ = nullptr;
   sreg_t watch_value_ = 0;
