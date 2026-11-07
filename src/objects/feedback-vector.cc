@@ -231,7 +231,7 @@ DirectHandle<ClosureFeedbackCellArray> ClosureFeedbackCellArray::New(
 
   // Pre-allocate the cells s.t. we can initialize `result` without further
   // allocation.
-  DirectHandleVector<FeedbackCell> cells(isolate);
+  DirectHandleSmallVector<FeedbackCell, 8> cells(isolate);
   cells.reserve(length);
   for (uint32_t i = 0; i < length; i++) {
     DirectHandle<FeedbackCell> cell = isolate->factory()->NewNoClosuresCell();

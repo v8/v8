@@ -1731,7 +1731,7 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kTooManyArguments));
   }
-  DirectHandleVector<Object> arguments(isolate, argc);
+  DirectHandleSmallVector<Object, kStaticVectorSlots> arguments(isolate, argc);
 
   int cursor = 0;
   for (int j = 0; j < m; j++) {
@@ -2175,7 +2175,9 @@ RUNTIME_FUNCTION(Runtime_RegExpReplaceRT) {
             isolate, NewRangeError(MessageTemplate::kTooManyArguments));
       }
 
-      DirectHandleVector<Object> call_args(isolate, argc);
+      // There will be up to three more call arguments than captures.
+      DirectHandleSmallVector<Object, kStaticVectorSlots + 3> call_args(isolate,
+                                                                        argc);
 
       int cursor = 0;
       for (uint32_t j = 0; j < captures.size(); j++) {

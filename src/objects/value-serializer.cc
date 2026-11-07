@@ -2741,8 +2741,7 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
     DirectHandle<Map> map(object->map(), isolate_);
     DCHECK(!map->is_dictionary_map());
     DCHECK_EQ(0, map->instance_descriptors()->number_of_descriptors());
-    DirectHandleVector<Object> properties(isolate_);
-    properties.reserve(8);
+    DirectHandleSmallVector<Object, 8> properties(isolate_);
 
     while (transitioning) {
       // If there are no more properties, finish.

@@ -2997,7 +2997,7 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
 void KeyedStoreIC::StoreElementPolymorphicHandlers(
     MapsAndHandlers* receiver_maps_and_handlers,
     KeyedAccessStoreMode store_mode) {
-  DirectHandleVector<Map> receiver_maps(isolate());
+  MapHandles receiver_maps(isolate());
   receiver_maps.reserve(receiver_maps_and_handlers->size());
   for (DirectHandle<Map> map : receiver_maps_and_handlers->maps()) {
     receiver_maps.push_back(map);

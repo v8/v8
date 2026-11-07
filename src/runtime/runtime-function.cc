@@ -73,7 +73,7 @@ RUNTIME_FUNCTION(Runtime_Call) {
   int const argc = args.length() - 2;
   DirectHandle<Object> target = args.at(0);
   DirectHandle<Object> receiver = args.at(1);
-  DirectHandleVector<Object> arguments(isolate, argc);
+  DirectHandleSmallVector<Object, 8> arguments(isolate, argc);
   for (int i = 0; i < argc; ++i) {
     arguments[i] = args.at(2 + i);
   }
