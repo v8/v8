@@ -64,10 +64,6 @@ enum CpuFeature {
   CSSC,
   // Standardization of memory operations
   MOPS,
-  // Scalable Matrix Extension
-  SME,
-  // Scalable Matrix Extension version 2
-  SME2,
   // Scalable Vector Extension
   SVE,
   // Scalable Vector Bit Permutes instructions
@@ -175,17 +171,13 @@ class V8_EXPORT_PRIVATE CpuFeatures : public AllStatic {
     return dcache_line_size_;
   }
 
-  static inline unsigned streaming_vlen() {
-    DCHECK_NE(streaming_vlen_, 0);
-    return streaming_vlen_;
-  }
-
   static inline unsigned vlen() {
     DCHECK_NE(vlen_, 0);
     return vlen_;
   }
 
-  static inline unsigned vlenb() { return vlen() / CHAR_BIT; }
+  // Current thread's SVE vector length in bytes, 0 if unavailable.
+  static unsigned svevlen();
 
   static void PrintInformation();
 
@@ -207,10 +199,7 @@ class V8_EXPORT_PRIVATE CpuFeatures : public AllStatic {
   // CpuFeatures::SupportsSimd128().
   static bool supports_simd_128_;
   static bool supports_cetss_;
-  // Length in bits of the scalable vector registers in streaming SVE mode on
-  // Arm64.
-  static unsigned streaming_vlen_;
-  // VLEN is the length in bits of the vector registers on Arm64 and RISC-V.
+  // VLEN is the length in bits of the vector registers on RISC-V.
   static unsigned vlen_;
 };
 
