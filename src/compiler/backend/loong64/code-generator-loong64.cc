@@ -1126,11 +1126,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
       DCHECK(v8_flags.verify_write_barriers);
       Register scratch = i.TempRegister(0);
-      auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
-          this, object, value, scratch);
-      __ MaybeJumpIfReadOnlyOrSmallSmi(value, ool->exit());
-      __ JumpIfNotSmi(value, ool->entry());
-      __ bind(ool->exit());
+      if (CheckSmiField::decode(instr->opcode())) {
+        __ And(scratch, value, kSmiTagMask);
+        __ Check(eq, AbortReason::kTaggedSignedNotSmi, scratch,
+                 Operand(zero_reg));
+      } else {
+        auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
+            this, object, value, scratch);
+        __ MaybeJumpIfReadOnlyOrSmallSmi(value, ool->exit());
+        __ JumpIfNotSmi(value, ool->entry());
+        __ bind(ool->exit());
+      }
 
       MacroAssemblerBase::BlockTrampolinePoolScope block_trampoline_pool(
           masm());
@@ -1188,11 +1194,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register temp = i.TempRegister(0);
 
       DCHECK(v8_flags.verify_write_barriers);
-      auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(this, object,
-                                                                 value, temp);
-      __ MaybeJumpIfReadOnlyOrSmallSmi(value, ool->exit());
-      __ JumpIfNotSmi(value, ool->entry());
-      __ bind(ool->exit());
+      if (CheckSmiField::decode(instr->opcode())) {
+        __ And(temp, value, kSmiTagMask);
+        __ Check(eq, AbortReason::kTaggedSignedNotSmi, temp, Operand(zero_reg));
+      } else {
+        auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(this, object,
+                                                                   value, temp);
+        __ MaybeJumpIfReadOnlyOrSmallSmi(value, ool->exit());
+        __ JumpIfNotSmi(value, ool->entry());
+        __ bind(ool->exit());
+      }
 
       DCHECK(!AreAliased(zero_reg, value, temp));
       __ Add_d(temp, object, offset);
