@@ -1739,15 +1739,29 @@ class RiscvDebugger {
   bool GetValue(const char* desc, sreg_t* value);
 };
 
-#define UNSUPPORTED()                                                  \
-  std::array<char, 256> buffer;                                        \
-  disasm::NameConverter converter;                                     \
-  disasm::Disassembler dasm(converter);                                \
-  dasm.InstructionDecode(buffer, reinterpret_cast<uint8_t*>(&instr_)); \
-  printf("Sim: Unsupported inst. Func:%s Line:%d PC:0x%" REGIx_FORMAT, \
-         __FUNCTION__, __LINE__, get_pc());                            \
-  PrintF(" %-44s\n", buffer.data());                                   \
+namespace {
+
+// Out of line, so that the decoders that end in UNSUPPORTED() don't each set
+// up and check a stack protector for the disassembly buffer on every
+// instruction they simulate.
+[[noreturn]] V8_NOINLINE void UnsupportedInstruction(const char* function,
+                                                     int line, sreg_t pc,
+                                                     uint8_t* instr) {
+  std::array<char, 256> buffer;
+  disasm::NameConverter converter;
+  disasm::Disassembler dasm(converter);
+  dasm.InstructionDecode(buffer, instr);
+  printf("Sim: Unsupported inst. Func:%s Line:%d PC:0x%" REGIx_FORMAT, function,
+         line, pc);
+  PrintF(" %-44s\n", buffer.data());
   base::OS::Abort();
+}
+
+}  // namespace
+
+#define UNSUPPORTED()                                      \
+  UnsupportedInstruction(__FUNCTION__, __LINE__, get_pc(), \
+                         reinterpret_cast<uint8_t*>(&instr_))
 
 sreg_t RiscvDebugger::GetRegisterValue(int regnum) {
   if (regnum == kNumSimuRegisters) {
