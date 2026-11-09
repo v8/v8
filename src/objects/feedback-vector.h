@@ -376,6 +376,10 @@ V8_OBJECT class FeedbackVector : public HeapObject {
 
   inline Tagged<FeedbackCell> parent_feedback_cell() const;
 
+  // In case a function deoptimizes we set invocation_count_before_stable to
+  // this sentinel so PGO inlining heuristics know its feedback was unstable.
+  static constexpr uint8_t kInvocationCountBeforeStableDeoptSentinel = 0xff;
+
   // The [osr_urgency] controls when OSR is attempted, and is incremented as
   // the function becomes hotter. When the current loop depth is less than the
   // osr_urgency, JumpLoop calls into runtime to attempt OSR optimization.
