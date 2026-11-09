@@ -4729,6 +4729,12 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
                               BailoutReason::kDetachedNativeContext);
     return;
   }
+  // Only %ForceFlush can flush the feedback vector while the job is in flight.
+  if (!function->has_feedback_vector()) {
+    AbortMaglevCompilationJob(isolate, function, osr_offset,
+                              BailoutReason::kCancelled);
+    return;
+  }
 
   const CompilationJob::Status status = job->FinalizeJob(isolate);
 

@@ -348,6 +348,12 @@ void OptimizingCompileDispatcher::InstallOptimizedFunctions() {
       Compiler::DisposeTurbofanCompilationJob(isolate_, job.get());
       continue;
     }
+    // Only %ForceFlush can flush the feedback vector while the job is in
+    // flight.
+    if (!function->has_feedback_vector()) {
+      Compiler::DisposeTurbofanCompilationJob(isolate_, job.get());
+      continue;
+    }
 
     Compiler::FinalizeTurbofanCompilationJob(job.get(), isolate_);
   }
