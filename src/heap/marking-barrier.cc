@@ -176,7 +176,7 @@ void SetGenerationPageFlags(Space* space, MarkingMode marking_mode) {
                        std::is_same_v<Space, TrustedLargeObjectSpace> ||
                        std::is_same_v<Space, CodeLargeObjectSpace>) {
     for (auto* p : *space) {
-      DCHECK(p->Chunk()->IsLargePage());
+      DCHECK(p->is_large());
       p->SetOldGenerationPageFlags(marking_mode);
     }
   } else if constexpr (std::is_same_v<Space, NewSpace>) {
@@ -186,7 +186,7 @@ void SetGenerationPageFlags(Space* space, MarkingMode marking_mode) {
   } else {
     static_assert(std::is_same_v<Space, NewLargeObjectSpace>);
     for (auto* p : *space) {
-      DCHECK(p->Chunk()->IsLargePage());
+      DCHECK(p->is_large());
       p->SetYoungGenerationPageFlags(marking_mode);
     }
   }
