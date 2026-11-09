@@ -7142,7 +7142,7 @@ class GraphBuildingNodeProcessor {
     if (V8_UNLIKELY(node == maglev_generator_context_node_)) {
       return __ GetVariable(generator_context_);
     }
-    DCHECK(node_mapping_[node].valid());
+    CHECK(node_mapping_[node].valid());
     return node_mapping_[node];
   }
   Block* Map(const maglev::BasicBlock* block) { return block_mapping_[block]; }
