@@ -424,9 +424,14 @@ class Object : public AllStatic {
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSAny> GetPropertyWithAccessor(
       LookupIterator* it);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSAny> GetPropertyWithAccessor(
+      LookupIterator* it, DirectHandle<AccessorInfo> info);
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetPropertyWithAccessor(
-      LookupIterator* it, DirectHandle<Object> value,
-      Maybe<ShouldThrow> should_throw);
+      LookupIterator* it, DirectHandle<Object> structure,
+      DirectHandle<Object> value, Maybe<ShouldThrow> should_throw);
+  V8_WARN_UNUSED_RESULT static Maybe<bool> SetPropertyWithAccessor(
+      LookupIterator* it, DirectHandle<AccessorInfo> info,
+      DirectHandle<Object> value, Maybe<ShouldThrow> should_throw);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSAny> GetPropertyWithDefinedGetter(
       DirectHandle<JSAny> receiver, DirectHandle<JSReceiver> getter);

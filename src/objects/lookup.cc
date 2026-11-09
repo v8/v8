@@ -896,8 +896,7 @@ Maybe<bool> LookupIterator::TransitionToAccessorProperty(
   }
 
   DirectHandle<AccessorPair> pair;
-  if (state() == ACCESSOR && IsAccessorPair(*GetAccessors())) {
-    pair = Cast<AccessorPair>(GetAccessors());
+  if (state() == ACCESSOR && TryCast<AccessorPair>(GetAccessors(), &pair)) {
     // If the component and attributes are identical, nothing has to be done.
     if (pair->Equals(*getter, *setter)) {
       if (property_details().attributes() == attributes) {
@@ -1549,7 +1548,7 @@ bool LookupIterator::LookupCachedProperty(
   }
 
   DCHECK_EQ(state(), LookupIterator::ACCESSOR);
-  DCHECK(IsAccessorPair(*GetAccessors()));
+  DCHECK(IsAccessorPair(*accessor_pair));
 
   Tagged<Object> getter = accessor_pair->getter();
   std::optional<Tagged<Name>> maybe_name =
