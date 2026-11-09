@@ -1188,6 +1188,11 @@ class Heap final {
 
   v8::CppHeap* cpp_heap() const { return cpp_heap_; }
 
+  // Returns the isolate that the CppHeap which allocated the cppgc object
+  // `object` is attached to, or null once it's detached (e.g. in its final GC
+  // during the isolate's teardown).
+  static Isolate* IsolateForCppHeapFinalizers(const void* object);
+
   std::optional<StackState> overridden_stack_state() const;
 
   // Set stack information from the stack of the current thread.

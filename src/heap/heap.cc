@@ -15,6 +15,7 @@
 #include <unordered_set>
 
 #include "absl/functional/overload.h"
+#include "include/cppgc/internal/base-page-handle.h"
 #include "include/v8-callbacks.h"
 #include "include/v8-cppgc.h"
 #include "include/v8-locker.h"
@@ -6138,6 +6139,13 @@ void Heap::AttachCppHeap(v8::CppHeap* cpp_heap) {
   CHECK_IMPLIES(incremental_marking(), !incremental_marking()->IsMarking());
   CppHeap::From(cpp_heap)->AttachIsolate(isolate());
   cpp_heap_ = cpp_heap;
+}
+
+// static
+Isolate* Heap::IsolateForCppHeapFinalizers(const void* object) {
+  const CppHeap& cpp_heap = static_cast<const CppHeap&>(
+      cppgc::internal::BasePageHandle::FromPayload(object)->heap_handle());
+  return cpp_heap.isolate();
 }
 
 std::optional<StackState> Heap::overridden_stack_state() const {

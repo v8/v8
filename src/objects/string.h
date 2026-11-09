@@ -9,7 +9,6 @@
 #include <memory>
 #include <optional>
 
-#include "include/cppgc/allocation.h"
 #include "include/cppgc/garbage-collected.h"
 #include "include/v8-primitive.h"
 #include "include/v8config.h"
@@ -1287,25 +1286,15 @@ class V8_EXPORT_PRIVATE ExternalStringResourceWrapper final
   void Trace(cppgc::Visitor*) const {}
 
  private:
-  friend class cppgc::MakeGarbageCollectedTrait<ExternalStringResourceWrapper>;
   // For Heap::ExternalStringTable::TearDown().
   friend class Heap;
-
-  ExternalStringResourceWrapper(Isolate* isolate,
-                                std::shared_ptr<bool> isolate_alive_token)
-      : isolate_(isolate),
-        isolate_alive_token_(std::move(isolate_alive_token)) {}
 
   // Unaccounts the resource from the isolate and disposes it, if the wrapper
   // still owns one.
   void DisposeResource();
 
-  Isolate* const isolate_;
   // The owned resource; null until attached and once detached or disposed.
   v8::String::ExternalStringResourceBase* resource_ = nullptr;
-  // False once the isolate is gone; the CppHeap, and so this wrapper, may
-  // outlive it.
-  const std::shared_ptr<bool> isolate_alive_token_;
 };
 
 // TODO(leszeks): Build this out into a full V8 class.

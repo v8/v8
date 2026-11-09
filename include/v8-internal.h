@@ -988,8 +988,7 @@ class Internals {
   // The resource field of an external string references a cppgc object
   // (ExternalStringResourceWrapper) which stores the resource pointer at this
   // offset.
-  static const int kExternalStringResourceWrapperResourceOffset =
-      kApiSystemPointerSize;
+  static const int kExternalStringResourceWrapperResourceOffset = 0;
 
   static const int kOddballKindOffset = 4 * kApiTaggedSize + kApiDoubleSize;
   static const int kJSObjectHeaderSize = 3 * kApiTaggedSize;

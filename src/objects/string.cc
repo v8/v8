@@ -2244,8 +2244,7 @@ ExternalStringResourceWrapper* ExternalStringResourceWrapper::New(
   static_assert(sizeof(resource_) == sizeof(Address));
   DCHECK(AllowGarbageCollection::IsAllowed());
   return cppgc::MakeGarbageCollected<ExternalStringResourceWrapper>(
-      isolate->heap()->cpp_heap()->GetAllocationHandle(), isolate,
-      isolate->cpp_heap_isolate_alive_token());
+      isolate->heap()->cpp_heap()->GetAllocationHandle());
 }
 
 ExternalStringResourceWrapper::~ExternalStringResourceWrapper() {
@@ -2255,11 +2254,12 @@ ExternalStringResourceWrapper::~ExternalStringResourceWrapper() {
 void ExternalStringResourceWrapper::DisposeResource() {
   v8::String::ExternalStringResourceBase* resource = ReleaseResource();
   if (!resource) return;
-  // A wrapper with an undisposed resource should not outlive the isolate.
-  CHECK(*isolate_alive_token_);
+  // Null once the CppHeap is detached, e.g. in its final GC during the
+  // isolate's teardown.
+  Isolate* isolate = Heap::IsolateForCppHeapFinalizers(this);
   // The embedder callbacks must not allocate on the V8 heap.
   DisallowGarbageCollection no_gc;
-  resource->Unaccount(reinterpret_cast<v8::Isolate*>(isolate_));
+  resource->Unaccount(reinterpret_cast<v8::Isolate*>(isolate));
   resource->Dispose();
 }
 

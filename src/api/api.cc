@@ -12703,10 +12703,12 @@ void ExternalMemoryAccounter::Decrease(Isolate* isolate, size_t size) {
     return;
   }
 #ifdef V8_ENABLE_MEMORY_ACCOUNTING_CHECKS
-  DCHECK_EQ(isolate, isolate_);
+  // Isolate should only be null during shutdown.
+  DCHECK(isolate == isolate_ || isolate == nullptr);
   DCHECK_GE(amount_of_external_memory_, size);
   amount_of_external_memory_ -= size;
 #endif
+  if (!isolate) return;
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i_isolate->heap()->UpdateExternalMemory(-static_cast<int64_t>(size));
 }
