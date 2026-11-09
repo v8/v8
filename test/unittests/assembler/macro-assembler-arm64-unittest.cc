@@ -268,7 +268,7 @@ TEST_F(MacroAssemblerTest, CompareRootWithWideReadOnlyRoot) {
     __ CompareRoot(x0, RootIndex::kPropertyCellHoleValue,
                    ComparisonMode::kEqualityOnly);
     if (!v8_flags.debug_code) {
-      ASSERT_EQ(2 * kInstrSize, __ SizeOfCodeGeneratedSince(&start));
+      CHECK_EQ(2 * kInstrSize, __ SizeOfCodeGeneratedSince(&start));
     }
     __ Cset(x0, eq);
     __ Ret();
