@@ -5919,21 +5919,23 @@ MaybeDirectHandle<Object> ArrayConstructInitializeElements(
       }
       break;
     }
-    case HOLEY_DOUBLE_ELEMENTS:
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-    {
+    case HOLEY_DOUBLE_ELEMENTS: {
       auto double_elms = Cast<FixedDoubleArray>(elms);
+      Tagged<Object> the_hole = ReadOnlyRoots(isolate).the_hole_value();
       for (uint32_t entry = 0; entry < number_of_elements; entry++) {
         Tagged<Object> obj = (*args)[static_cast<int>(entry)];
-        if (Is<Undefined>(obj)) {
+        if (obj == the_hole) {
+          double_elms->set_the_hole(entry);
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+        } else if (Is<Undefined>(obj)) {
           double_elms->set_undefined(entry);
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
         } else {
           double_elms->set(entry, Object::NumberValue(obj));
         }
       }
       break;
     }
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
     case PACKED_DOUBLE_ELEMENTS: {
       auto double_elms = Cast<FixedDoubleArray>(elms);
       for (uint32_t entry = 0; entry < number_of_elements; entry++) {
