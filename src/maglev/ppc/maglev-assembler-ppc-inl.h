@@ -1462,8 +1462,10 @@ inline void MaglevAssembler::CompareDoubleAndJumpIfZeroOrNaN(
 
 inline void MaglevAssembler::TestInt32AndJumpIfAnySet(
     Register value, int32_t mask, Label* target, Label::Distance distance) {
-  mov(r0, Operand(mask));
-  AndU32(r0, value, r0, SetRC);
+  MaglevAssembler::TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  mov(scratch, Operand(mask));
+  AndU32(scratch, value, scratch, SetRC);
   bne(target);
 }
 
@@ -1471,9 +1473,10 @@ inline void MaglevAssembler::TestInt32AndJumpIfAnySet(
     MemOperand operand, int32_t mask, Label* target, Label::Distance distance) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
+  Register value = temps.AcquireScratch();
   mov(scratch, Operand(mask));
-  LoadU32(r0, operand);
-  AndU32(r0, scratch, r0, SetRC);
+  LoadU32(value, operand);
+  AndU32(value, scratch, value, SetRC);
   bne(target);
 }
 
@@ -1481,10 +1484,11 @@ inline void MaglevAssembler::TestUint8AndJumpIfAnySet(
     MemOperand operand, uint8_t mask, Label* target, Label::Distance distance) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
+  Register value = temps.AcquireScratch();
 
   mov(scratch, Operand(mask));
-  LoadU32(r0, operand);
-  AndU32(r0, scratch, r0, SetRC);
+  LoadU32(value, operand);
+  AndU32(value, scratch, value, SetRC);
   bne(target);
 }
 
@@ -1492,9 +1496,10 @@ inline void MaglevAssembler::TestInt32AndJumpIfAllClear(
     Register value, int32_t mask, Label* target, Label::Distance distance) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
+  Register result = temps.AcquireScratch();
 
   mov(scratch, Operand(mask));
-  AndU32(r0, value, scratch, SetRC);
+  AndU32(result, value, scratch, SetRC);
   beq(target);
 }
 
@@ -1502,11 +1507,12 @@ inline void MaglevAssembler::TestInt32AndJumpIfAllClear(
     MemOperand operand, int32_t mask, Label* target, Label::Distance distance) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
+  Register value = temps.AcquireScratch();
 
   mov(scratch, Operand(mask));
 
-  LoadU32(r0, operand);
-  AndU32(r0, scratch, r0, SetRC);
+  LoadU32(value, operand);
+  AndU32(value, scratch, value, SetRC);
   beq(target);
 }
 
@@ -1514,11 +1520,12 @@ inline void MaglevAssembler::TestUint8AndJumpIfAllClear(
     MemOperand operand, uint8_t mask, Label* target, Label::Distance distance) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
+  Register value = temps.AcquireScratch();
 
   mov(scratch, Operand(mask));
 
-  LoadU32(r0, operand);
-  AndU32(r0, scratch, r0, SetRC);
+  LoadU32(value, operand);
+  AndU32(value, scratch, value, SetRC);
   beq(target);
 }
 
