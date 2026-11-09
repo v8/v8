@@ -3261,9 +3261,11 @@ compiler::OptionalObjectRef MaglevReducer<BaseT>::TryFoldLoadConstantDataField(
     compiler::JSObjectRef holder,
     compiler::PropertyAccessInfo const& access_info) {
   DCHECK(!access_info.field_representation().IsDouble());
-  return holder.GetOwnFastConstantDataProperty(
+  compiler::OptionalObjectRef constant = holder.GetOwnFastConstantDataProperty(
       broker(), access_info.field_representation(), access_info.field_index(),
       broker()->dependencies());
+  CHECK_IMPLIES(constant.has_value(), !constant->IsAnyHole());
+  return constant;
 }
 
 template <typename BaseT>
