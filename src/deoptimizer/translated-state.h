@@ -92,12 +92,15 @@ class TranslatedValue {
     kDouble,
     kHoleyDouble,
     kSimd128,
-    kCapturedObject,    // Object captured by the escape analysis.
-                        // The number of nested objects can be obtained
-                        // with the DeferredObjectLength() method
-                        // (the values of the nested objects follow
-                        // this value in the depth-first order.)
-    kDuplicatedObject,  // Duplicated object of a deferred object.
+    kCapturedObject,        // Object captured by the escape analysis.
+                            // The number of nested objects can be obtained
+                            // with the DeferredObjectLength() method
+                            // (the values of the nested objects follow
+                            // this value in the depth-first order.)
+    kUniqueCapturedObject,  // Captured object with a single owner that cannot
+                            // be a kDuplicatedObject target or stored in
+                            // MaterializedObjectStore.
+    kDuplicatedObject,      // Duplicated object of a deferred object.
     kCapturedStringConcat
   };
 
@@ -112,6 +115,9 @@ class TranslatedValue {
   TranslatedValue(TranslatedState* container, Kind kind)
       : kind_(kind), container_(container) {}
   Kind kind() const { return kind_; }
+  bool IsCapturedObject() const {
+    return kind() == kCapturedObject || kind() == kUniqueCapturedObject;
+  }
   MaterializationState materialization_state() const {
     return materialization_state_;
   }
@@ -146,6 +152,10 @@ class TranslatedValue {
   void set_initialized_storage(Handle<HeapObject> storage);
   void mark_finished() { materialization_state_ = kFinished; }
   void mark_allocated() { materialization_state_ = kAllocated; }
+  void mark_unique_captured_object() {
+    DCHECK_EQ(kind(), kCapturedObject);
+    kind_ = kUniqueCapturedObject;
+  }
 
   Handle<HeapObject> storage() {
     DCHECK_NE(materialization_state(), kUninitialized);
@@ -166,7 +176,7 @@ class TranslatedValue {
 
   struct MaterializedObjectInfo {
     int id_;
-    int length_;  // Applies only to kCapturedObject kinds.
+    int length_;  // Applies only to IsCapturedObject() kinds.
   };
 
   union {
@@ -184,7 +194,7 @@ class TranslatedValue {
     Float32 float_value_;
     // kind is kDouble or kHoleyDouble
     Float64 double_value_;
-    // kind is kDuplicatedObject or kCapturedObject.
+    // kind is kDuplicatedObject or IsCapturedObject().
     MaterializedObjectInfo materialization_info_;
     // kind is kSimd128.
     Simd128 simd128_value_;

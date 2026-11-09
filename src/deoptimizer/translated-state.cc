@@ -567,12 +567,12 @@ Simd128 TranslatedValue::simd_value() const {
 }
 
 int TranslatedValue::object_length() const {
-  DCHECK_EQ(kind(), kCapturedObject);
+  DCHECK(IsCapturedObject());
   return materialization_info_.length_;
 }
 
 int TranslatedValue::object_index() const {
-  DCHECK(kind() == kCapturedObject || kind() == kDuplicatedObject ||
+  DCHECK(IsCapturedObject() || kind() == kDuplicatedObject ||
          kind() == kCapturedStringConcat);
   return materialization_info_.id_;
 }
@@ -701,8 +701,7 @@ Handle<Object> TranslatedValue::GetValue() {
 
   // Otherwise we have to materialize.
 
-  if (kind() == TranslatedValue::kCapturedObject ||
-      kind() == TranslatedValue::kDuplicatedObject) {
+  if (IsCapturedObject() || kind() == TranslatedValue::kDuplicatedObject) {
     // We need to materialize the object (or possibly even object graphs).
     // To make the object verifier happy, we materialize in two steps.
 
@@ -802,6 +801,7 @@ Float64 TranslatedValue::GetDoubleValue() {
 bool TranslatedValue::IsMaterializedObject() const {
   switch (kind()) {
     case kCapturedObject:
+    case kUniqueCapturedObject:
     case kDuplicatedObject:
     case kCapturedStringConcat:
       return true;
@@ -816,7 +816,7 @@ bool TranslatedValue::IsMaterializableByDebugger() const {
 }
 
 int TranslatedValue::GetChildrenCount() const {
-  if (kind() == kCapturedObject) {
+  if (IsCapturedObject()) {
     return object_length();
   } else if (kind() == kCapturedStringConcat) {
     static constexpr int kLeft = 1, kRight = 1;
@@ -2179,7 +2179,7 @@ void TranslatedState::InitializeCapturedObjectAt(
   // since they have been already finalized in EnsureObjectAllocatedAt and
   // EnsureCapturedObjectAllocatedAt.
   CHECK_EQ(TranslatedValue::kFinished, slot->materialization_state());
-  CHECK_EQ(TranslatedValue::kCapturedObject, slot->kind());
+  CHECK(slot->IsCapturedObject());
 
   // Ensure all fields are initialized.
   int children_init_index = value_index;
@@ -2187,7 +2187,7 @@ void TranslatedState::InitializeCapturedObjectAt(
     // If the field is an object that has not been initialized yet, queue it
     // for initialization (and mark it as such).
     TranslatedValue* child_slot = frame->ValueAt(children_init_index);
-    if (child_slot->kind() == TranslatedValue::kCapturedObject ||
+    if (child_slot->IsCapturedObject() ||
         child_slot->kind() == TranslatedValue::kDuplicatedObject) {
       child_slot = ResolveCapturedObject(child_slot);
       if (child_slot->materialization_state() != TranslatedValue::kFinished) {
@@ -2304,8 +2304,7 @@ void TranslatedState::MaterializeFixedDoubleArray(TranslatedFrame* frame,
       Cast<FixedDoubleArray>(isolate()->factory()->NewFixedDoubleArray(length));
   CHECK_GT(length, 0);
   for (uint32_t i = 0; i < length; i++) {
-    CHECK_NE(TranslatedValue::kCapturedObject,
-             frame->values_[*value_index].kind());
+    CHECK(!frame->values_[*value_index].IsCapturedObject());
     Float64 value = frame->values_[*value_index].GetDoubleValue();
     array->set_raw(i, value);
     (*value_index)++;
@@ -2316,8 +2315,7 @@ void TranslatedState::MaterializeFixedDoubleArray(TranslatedFrame* frame,
 void TranslatedState::MaterializeHeapNumber(TranslatedFrame* frame,
                                             int* value_index,
                                             TranslatedValue* slot) {
-  CHECK_NE(TranslatedValue::kCapturedObject,
-           frame->values_[*value_index].kind());
+  CHECK(!frame->values_[*value_index].IsCapturedObject());
   Float64 value = frame->values_[*value_index].GetDoubleValue();
   if (value.is_nan()) {
     value = Float64::quiet_nan();
@@ -2330,8 +2328,7 @@ void TranslatedState::MaterializeHeapNumber(TranslatedFrame* frame,
 
 void TranslatedState::MaterializeUninitializedHeapNumber(
     TranslatedFrame* frame, int* value_index, TranslatedValue* slot) {
-  CHECK_NE(TranslatedValue::kCapturedObject,
-           frame->values_[*value_index].kind());
+  CHECK(!frame->values_[*value_index].IsCapturedObject());
   DirectHandle<Object> value = frame->values_[*value_index].GetValue();
   Handle<HeapObject> box = isolate()->factory()->NewUninitializedHeapNumber();
   (*value_index)++;
@@ -2352,7 +2349,7 @@ void TranslatedState::SkipSlots(int slots_to_skip, TranslatedFrame* frame,
     (*value_index)++;
     slots_to_skip--;
 
-    if (slot->kind() == TranslatedValue::kCapturedObject ||
+    if (slot->IsCapturedObject() ||
         slot->kind() == TranslatedValue::kCapturedStringConcat) {
       slots_to_skip += slot->GetChildrenCount();
     }
@@ -2370,7 +2367,7 @@ void TranslatedState::EnsureCapturedObjectAllocatedAt(
   value_index++;
 
   CHECK_EQ(TranslatedValue::kAllocated, slot->materialization_state());
-  CHECK_EQ(TranslatedValue::kCapturedObject, slot->kind());
+  CHECK(slot->IsCapturedObject());
 
   // Read the map.
   // The map should never be materialized, so let us check we already have
@@ -2428,6 +2425,8 @@ void TranslatedState::EnsureCapturedObjectAllocatedAt(
           array_length == 0) {
         slot->set_storage(isolate()->factory()->empty_fixed_array());
       } else {
+        DCHECK_IMPLIES(slot->kind() == TranslatedValue::kUniqueCapturedObject,
+                       *map != ReadOnlyRoots(isolate()).fixed_cow_array_map());
         slot->set_storage(AllocateStorageFor(slot));
       }
 
@@ -2482,8 +2481,16 @@ void TranslatedState::EnsureCapturedObjectAllocatedAt(
 
       TranslatedValue* elements_slot = frame->ValueAt(value_index);
       value_index++, remaining_children_count--;
-      if (elements_slot->kind() == TranslatedValue::kCapturedObject ||
-          !IsJSArrayMap(*map)) {
+      if (!IsJSArrayMap(*map)) {
+        // Handle this case with the other remaining children below.
+        value_index--, remaining_children_count++;
+      } else if (elements_slot->kind() == TranslatedValue::kCapturedObject) {
+        // Mark JSArray elements backing stores as unique so they are not stored
+        // in MaterializedObjectStore, as left-trimming requires the owning
+        // JSArray to be the only on-heap reference to its elements store.
+        DCHECK_EQ(elements_slot->materialization_state(),
+                  TranslatedValue::kUninitialized);
+        elements_slot->mark_unique_captured_object();
         // Handle this case with the other remaining children below.
         value_index--, remaining_children_count++;
       } else {
@@ -2530,7 +2537,7 @@ void TranslatedState::EnsureChildrenAllocated(int count, TranslatedFrame* frame,
     // If the field is an object that has not been allocated yet, queue it
     // for initialization (and mark it as such).
     TranslatedValue* child_slot = frame->ValueAt(*value_index);
-    if (child_slot->kind() == TranslatedValue::kCapturedObject ||
+    if (child_slot->IsCapturedObject() ||
         child_slot->kind() == TranslatedValue::kDuplicatedObject) {
       child_slot = ResolveCapturedObject(child_slot);
 
@@ -2818,6 +2825,7 @@ void TranslatedState::InitializeObjectWithTaggedFieldsAt(
 }
 
 TranslatedValue* TranslatedState::ResolveCapturedObject(TranslatedValue* slot) {
+  if (slot->kind() == TranslatedValue::kUniqueCapturedObject) return slot;
   while (slot->kind() == TranslatedValue::kDuplicatedObject) {
     slot = GetValueByObjectIndex(slot->object_index());
   }
@@ -2894,13 +2902,17 @@ void TranslatedState::StoreMaterializedValuesAndDeopt(JavaScriptFrame* frame) {
     CHECK(value_info->IsMaterializedObject());
 
     // Skip duplicate objects (i.e., those that point to some other object id).
-    if (static_cast<uint32_t>(value_info->object_index()) != i) continue;
+    if (static_cast<uint32_t>(value_info->object_index()) != i) {
+      DCHECK_NE(value_info->kind(), TranslatedValue::kUniqueCapturedObject);
+      continue;
+    }
 
     DirectHandle<Object> previous_value(previously_materialized_objects->get(i),
                                         isolate_);
     DirectHandle<Object> value(value_info->GetRawValue(), isolate_);
 
-    if (value.is_identical_to(marker)) {
+    if (value.is_identical_to(marker) ||
+        value_info->kind() == TranslatedValue::kUniqueCapturedObject) {
       DCHECK_EQ(*previous_value, *marker);
     } else {
       if (*previous_value == *marker) {
@@ -2970,7 +2982,7 @@ void TranslatedState::VerifyMaterializedObjects() {
   int length = static_cast<int>(object_positions_.size());
   for (int i = 0; i < length; i++) {
     TranslatedValue* slot = GetValueByObjectIndex(i);
-    if (slot->kind() == TranslatedValue::kCapturedObject ||
+    if (slot->IsCapturedObject() ||
         slot->kind() == TranslatedValue::kCapturedStringConcat) {
       CHECK_EQ(slot, GetValueByObjectIndex(slot->object_index()));
       if (slot->materialization_state() == TranslatedValue::kFinished) {
