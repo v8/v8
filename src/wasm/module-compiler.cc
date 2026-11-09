@@ -98,7 +98,8 @@ class V8_NODISCARD BackgroundCompileScope {
 
 enum CompilationPhase {
   kBlockingLiftoff = 0,
-  kNonblocking = 1,
+  kBlockingTurbofan = 1,
+  kNonblocking = 2,
   kNumPhases = kNonblocking + 1
 };
 
@@ -189,9 +190,11 @@ class CompilationUnitQueues {
   }
 
   void AddUnits(base::Vector<WasmCompilationUnit> blocking_liftoff_units,
+                base::Vector<WasmCompilationUnit> blocking_turbofan_units,
                 base::Vector<WasmCompilationUnit> nonblocking_units,
                 const WasmModule* module) {
-    DCHECK_LT(0, blocking_liftoff_units.size() + nonblocking_units.size());
+    DCHECK_LT(0, blocking_liftoff_units.size() +
+                     blocking_turbofan_units.size() + nonblocking_units.size());
     // Add to the individual queues in a round-robin fashion. No special care is
     // taken to balance them; they will be balanced by work stealing.
     QueueImpl* queue;
@@ -211,6 +214,8 @@ class CompilationUnitQueues {
     for (auto pair :
          {std::make_pair(CompilationPhase::kBlockingLiftoff,
                          blocking_liftoff_units),
+          std::make_pair(CompilationPhase::kBlockingTurbofan,
+                         blocking_turbofan_units),
           std::make_pair(CompilationPhase::kNonblocking, nonblocking_units)}) {
       int phase = pair.first;
       base::Vector<WasmCompilationUnit> units = pair.second;
@@ -530,9 +535,9 @@ class CompilationUnitQueues {
 };
 
 size_t CompilationUnitQueues::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(CompilationUnitQueues, 176);
-  UPDATE_WHEN_CLASS_CHANGES(QueueImpl, 112);
-  UPDATE_WHEN_CLASS_CHANGES(BigUnitsQueue, 88);
+  UPDATE_WHEN_CLASS_CHANGES(CompilationUnitQueues, 216);
+  UPDATE_WHEN_CLASS_CHANGES(QueueImpl, 136);
+  UPDATE_WHEN_CLASS_CHANGES(BigUnitsQueue, 120);
   // Not including sizeof(CompilationUnitQueues) because that's included in
   // sizeof(CompilationStateImpl).
   size_t result = 0;
@@ -541,15 +546,18 @@ size_t CompilationUnitQueues::EstimateCurrentMemoryConsumption() const {
     result += ContentSize(queues_) + queues_.size() * sizeof(QueueImpl);
     for (const auto& q : queues_) {
       base::MutexGuard guard(&q->mutex);
-      result += ContentSize(*q->units);
+      for (const auto& units : q->units) {
+        result += ContentSize(units);
+      }
       result += q->nonblocking_priority_units.size() *
                 sizeof(NonblockingPriorityUnit);
     }
   }
   {
     base::MutexGuard lock(&big_units_queue_.mutex);
-    result += big_units_queue_.units[0].size() * sizeof(BigUnit);
-    result += big_units_queue_.units[1].size() * sizeof(BigUnit);
+    for (const auto& units : big_units_queue_.units) {
+      result += units.size() * sizeof(BigUnit);
+    }
   }
   // For {top_tier_compiled_}.
   result += sizeof(std::atomic<bool>) * num_declared_functions_;
@@ -573,11 +581,8 @@ class CompilationStateImpl {
   CompilationStateImpl(const std::shared_ptr<NativeModule>& native_module,
                        WasmDetectedFeatures detected_features);
   ~CompilationStateImpl() {
-    if (blocking_liftoff_compile_job_->IsValid()) {
-      blocking_liftoff_compile_job_->CancelAndDetach();
-    }
-    if (nonblocking_compile_job_->IsValid()) {
-      nonblocking_compile_job_->CancelAndDetach();
+    for (auto& job : compile_jobs_) {
+      if (job->IsValid()) job->CancelAndDetach();
     }
   }
 
@@ -639,6 +644,7 @@ class CompilationStateImpl {
   // Inserts new functions to compile and kicks off compilation.
   void CommitCompilationUnits(
       base::Vector<WasmCompilationUnit> blocking_liftoff_units,
+      base::Vector<WasmCompilationUnit> blocking_turbofan_units,
       base::Vector<WasmCompilationUnit> nonblocking_units);
   void CommitNonblockingCompilationUnit(WasmCompilationUnit);
   void AddNonblockingPriorityCompilationUnit(WasmCompilationUnit, size_t);
@@ -760,8 +766,7 @@ class CompilationStateImpl {
 
   // The compile job handles, initialized right after construction of
   // {CompilationStateImpl}.
-  std::unique_ptr<JobHandle> blocking_liftoff_compile_job_;
-  std::unique_ptr<JobHandle> nonblocking_compile_job_;
+  std::unique_ptr<JobHandle> compile_jobs_[CompilationPhase::kNumPhases];
 
   // The compilation id to identify trace events linked to this compilation.
   static constexpr int kInvalidCompilationID = -1;
@@ -845,7 +850,7 @@ CompilationStateImpl* BackgroundCompileScope::compilation_state() const {
 }
 
 size_t CompilationStateImpl::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(CompilationStateImpl, 448);
+  UPDATE_WHEN_CLASS_CHANGES(CompilationStateImpl, 544);
   size_t result = sizeof(CompilationStateImpl);
 
   {
@@ -1048,10 +1053,14 @@ class CompilationUnitBuilder {
   explicit CompilationUnitBuilder(NativeModule* native_module)
       : native_module_(native_module) {}
 
-  void AddBlockingLiftoffUnit(int func_index, ExecutionTier tier,
-                              Validation validation) {
-    blocking_liftoff_units_.emplace_back(func_index, tier, kNotForDebugging,
-                                         validation);
+  void AddBlockingLiftoffUnit(int func_index, Validation validation) {
+    blocking_liftoff_units_.emplace_back(func_index, ExecutionTier::kLiftoff,
+                                         kNotForDebugging, validation);
+  }
+
+  void AddBlockingTurbofanUnit(int func_index, Validation validation) {
+    blocking_turbofan_units_.emplace_back(func_index, ExecutionTier::kTurbofan,
+                                          kNotForDebugging, validation);
   }
 
   void AddNonblockingUnit(int func_index, ExecutionTier tier,
@@ -1061,15 +1070,27 @@ class CompilationUnitBuilder {
   }
 
   void Commit() {
-    if (blocking_liftoff_units_.empty() && nonblocking_units_.empty()) return;
+    if (blocking_liftoff_units_.empty() && blocking_turbofan_units_.empty() &&
+        nonblocking_units_.empty()) {
+      return;
+    }
     compilation_state()->CommitCompilationUnits(
         base::VectorOf(blocking_liftoff_units_),
+        base::VectorOf(blocking_turbofan_units_),
         base::VectorOf(nonblocking_units_));
     Clear();
   }
 
+  void CommitBlockingLiftoffUnits() {
+    if (blocking_liftoff_units_.empty()) return;
+    compilation_state()->CommitCompilationUnits(
+        base::VectorOf(blocking_liftoff_units_), {}, {});
+    blocking_liftoff_units_.clear();
+  }
+
   void Clear() {
     blocking_liftoff_units_.clear();
+    blocking_turbofan_units_.clear();
     nonblocking_units_.clear();
   }
 
@@ -1082,6 +1103,7 @@ class CompilationUnitBuilder {
 
   NativeModule* const native_module_;
   std::vector<WasmCompilationUnit> blocking_liftoff_units_;
+  std::vector<WasmCompilationUnit> blocking_turbofan_units_;
   std::vector<WasmCompilationUnit> nonblocking_units_;
 };
 
@@ -3076,7 +3098,7 @@ bool AsyncStreamingProcessor::ProcessSection(SectionCode section_code,
     // We reached a section after the code section, we do not need the
     // compilation_unit_builder_ anymore.
     CommitCompilationUnits();
-    compilation_unit_builder_.reset();
+    DCHECK_NULL(compilation_unit_builder_);
   }
   if (before_code_section_) {
     // Combine section hashes until code section.
@@ -3205,7 +3227,17 @@ bool AsyncStreamingProcessor::ProcessFunctionBody(
 
 void AsyncStreamingProcessor::CommitCompilationUnits() {
   DCHECK(compilation_unit_builder_);
-  compilation_unit_builder_->Commit();
+  if (num_functions_ <
+      static_cast<int>(decoder_.module()->num_declared_functions)) {
+    // Hold back TurboFan units until all function bodies have been received,
+    // as inlining may inspect other functions in the module.
+    compilation_unit_builder_->CommitBlockingLiftoffUnits();
+  } else {
+    DCHECK_EQ(num_functions_,
+              static_cast<int>(decoder_.module()->num_declared_functions));
+    compilation_unit_builder_->Commit();
+    compilation_unit_builder_.reset();
+  }
 }
 
 void AsyncStreamingProcessor::OnFinishedChunk() {
@@ -3441,20 +3473,16 @@ CompilationStateImpl::CompilationStateImpl(
       detected_features_(detected_features) {}
 
 void CompilationStateImpl::InitCompileJob() {
-  DCHECK_NULL(blocking_liftoff_compile_job_);
-  DCHECK_NULL(nonblocking_compile_job_);
-  // Create the job, but don't spawn workers yet. This will happen on
+  // Create the jobs, but don't spawn workers yet. This will happen on
   // {NotifyConcurrencyIncrease}.
-  blocking_liftoff_compile_job_ = V8::GetCurrentPlatform()->CreateJob(
-      TaskPriority::kUserVisible,
-      std::make_unique<BackgroundCompileJob>(native_module_weak_,
-                                             CompilationPhase::kBlockingLiftoff,
-                                             IsolateGroup::current()));
-  nonblocking_compile_job_ = V8::GetCurrentPlatform()->CreateJob(
-      TaskPriority::kUserVisible,
-      std::make_unique<BackgroundCompileJob>(native_module_weak_,
-                                             CompilationPhase::kNonblocking,
-                                             IsolateGroup::current()));
+  for (int phase = 0; phase < CompilationPhase::kNumPhases; ++phase) {
+    DCHECK_NULL(compile_jobs_[phase]);
+    compile_jobs_[phase] = V8::GetCurrentPlatform()->CreateJob(
+        TaskPriority::kUserVisible,
+        std::make_unique<BackgroundCompileJob>(
+            native_module_weak_, static_cast<CompilationPhase>(phase),
+            IsolateGroup::current()));
+  }
 }
 
 void CompilationStateImpl::CancelCompilation(
@@ -3725,8 +3753,12 @@ bool CompilationStateImpl::InitializeCompilationUnitForSingleFunction(
 
   bool created_units = false;
   if (reached_tier < required_blocking_tier) {
-    builder->AddBlockingLiftoffUnit(function_index, required_blocking_tier,
-                                    validation);
+    if (required_blocking_tier == ExecutionTier::kLiftoff) {
+      builder->AddBlockingLiftoffUnit(function_index, validation);
+    } else {
+      DCHECK_EQ(ExecutionTier::kTurbofan, required_blocking_tier);
+      builder->AddBlockingTurbofanUnit(function_index, validation);
+    }
     created_units = true;
   }
   if (reached_tier < required_nonblocking_tier &&
@@ -3838,25 +3870,31 @@ void CompilationStateImpl::AddCallback(
 
 void CompilationStateImpl::CommitCompilationUnits(
     base::Vector<WasmCompilationUnit> blocking_liftoff_units,
+    base::Vector<WasmCompilationUnit> blocking_turbofan_units,
     base::Vector<WasmCompilationUnit> nonblocking_units) {
   base::MutexGuard guard{&mutex_};
-  if (!blocking_liftoff_units.empty() || !nonblocking_units.empty()) {
-    compilation_unit_queues_.AddUnits(blocking_liftoff_units, nonblocking_units,
-                                      native_module_->module());
+  if (!blocking_liftoff_units.empty() || !blocking_turbofan_units.empty() ||
+      !nonblocking_units.empty()) {
+    compilation_unit_queues_.AddUnits(
+        blocking_liftoff_units, blocking_turbofan_units, nonblocking_units,
+        native_module_->module());
   }
-  if (!blocking_liftoff_units.empty()) {
-    DCHECK(blocking_liftoff_compile_job_->IsValid());
-    blocking_liftoff_compile_job_->NotifyConcurrencyIncrease();
-  }
-  if (!nonblocking_units.empty()) {
-    DCHECK(nonblocking_compile_job_->IsValid());
-    nonblocking_compile_job_->NotifyConcurrencyIncrease();
+  for (auto [phase, units] :
+       {std::make_pair(CompilationPhase::kBlockingLiftoff,
+                       blocking_liftoff_units),
+        std::make_pair(CompilationPhase::kBlockingTurbofan,
+                       blocking_turbofan_units),
+        std::make_pair(CompilationPhase::kNonblocking, nonblocking_units)}) {
+    if (!units.empty()) {
+      DCHECK(compile_jobs_[phase]->IsValid());
+      compile_jobs_[phase]->NotifyConcurrencyIncrease();
+    }
   }
 }
 
 void CompilationStateImpl::CommitNonblockingCompilationUnit(
     WasmCompilationUnit unit) {
-  CommitCompilationUnits({}, {&unit, 1});
+  CommitCompilationUnits({}, {}, {&unit, 1});
 }
 
 void CompilationStateImpl::AddNonblockingPriorityCompilationUnit(
@@ -3865,7 +3903,7 @@ void CompilationStateImpl::AddNonblockingPriorityCompilationUnit(
   // We should not have a {CodeSpaceWriteScope} open at this point, as
   // {NotifyConcurrencyIncrease} can spawn new threads which could inherit PKU
   // permissions (which would be a security issue).
-  nonblocking_compile_job_->NotifyConcurrencyIncrease();
+  compile_jobs_[CompilationPhase::kNonblocking]->NotifyConcurrencyIncrease();
 }
 
 CompilationUnitQueues::Queue* CompilationStateImpl::GetQueueForCompileTask(
@@ -4231,8 +4269,11 @@ void CompilationStateImpl::SetError() {
 }
 
 void CompilationStateImpl::WaitForBlockingCompileJob() {
-  if (blocking_liftoff_compile_job_->IsValid()) {
-    blocking_liftoff_compile_job_->Join();
+  for (CompilationPhase phase : {CompilationPhase::kBlockingLiftoff,
+                                 CompilationPhase::kBlockingTurbofan}) {
+    if (compile_jobs_[phase]->IsValid()) {
+      compile_jobs_[phase]->Join();
+    }
   }
 #ifdef DEBUG
   base::EnumSet<CompilationEvent> events{

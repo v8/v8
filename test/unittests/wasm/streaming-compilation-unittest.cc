@@ -2204,6 +2204,71 @@ STREAM_TEST(StreamingErrorCrashKeyReused) {
   CHECK(!reinterpret_cast<i::Isolate*>(isolate)->HasCrashKeyStringCallbacks());
 }
 
+STREAM_TEST(TestCompilationHintsInliningDuringStreaming) {
+  if (i::v8_flags.wasm_jitless) return;
+  EXPERIMENTAL_FLAG_SCOPE(compilation_hints);
+  FLAG_VALUE_SCOPE(liftoff_only, false);
+
+  const uint8_t caller_code[] = {
+      ADD_COUNT(U32V_1(0),                     // locals count
+                kExprLocalGet, 0,              // local.get 0
+                kExprCallFunction, U32V_1(1),  // call 1
+                kExprEnd)                      // end
+  };
+  const uint8_t callee_code[] = {
+      ADD_COUNT(U32V_1(0),                   // locals count
+                kExprLocalGet, 0, kExprEnd)  // local.get 0; end
+  };
+
+  for (bool use_liftoff : {true, false}) {
+    FLAG_VALUE_SCOPE(liftoff, use_liftoff);
+    StreamTester tester(isolate);
+
+    const uint8_t bytes_before_bodies[] = {
+        WASM_MODULE_HEADER,
+        SECTION(Type, ENTRY_COUNT(1), SIG_ENTRY_x_x(kI32Code, kI32Code)),
+        SECTION(Function, ENTRY_COUNT(2), SIG_INDEX(0), SIG_INDEX(0)),
+        // Vary the export name so each iteration has a distinct prefix hash.
+        SECTION(Export, ENTRY_COUNT(1),
+                ADD_COUNT(static_cast<uint8_t>('a' + use_liftoff)),
+                kExternalFunction, FUNC_INDEX(0)),
+        SECTION(Unknown,
+                ADD_COUNT('m', 'e', 't', 'a', 'd', 'a', 't', 'a', '.', 'c', 'o',
+                          'd', 'e', '.', 'c', 'o', 'm', 'p', 'i', 'l', 'a', 't',
+                          'i', 'o', 'n', '_', 'p', 'r', 'i', 'o', 'r', 'i', 't',
+                          'y'),
+                ENTRY_COUNT(1), 0 /* func_index */, 0 /* byte_offset */,
+                ADD_COUNT(0 /* compilation_priority */,
+                          0 /* optimization_priority */)),
+        SECTION(Unknown,
+                ADD_COUNT('m', 'e', 't', 'a', 'd', 'a', 't', 'a', '.', 'c', 'o',
+                          'd', 'e', '.', 'i', 'n', 's', 't', 'r', '_', 'f', 'r',
+                          'e', 'q'),
+                ENTRY_COUNT(2),                                  // 2 functions
+                0 /* func_index */, ENTRY_COUNT(1),              // 1 hint
+                3 /* byte_offset */, ADD_COUNT(64 /* freq */),   // call 1
+                1 /* func_index */, ENTRY_COUNT(1),              // 1 hint
+                1 /* byte_offset */, ADD_COUNT(64 /* freq */)),  // local.get 0
+        kCodeSectionCode,
+        U32V_1(1 + arraysize(caller_code) + arraysize(callee_code)),
+        U32V_1(2),
+    };
+
+    // Receive module header, sections, and caller body, then run compiler
+    // tasks before callee's body has arrived.
+    tester.OnBytesReceived(bytes_before_bodies, arraysize(bytes_before_bodies));
+    tester.OnBytesReceived(caller_code, arraysize(caller_code));
+    tester.RunCompilerTasks();
+    CHECK(tester.IsPromisePending());
+
+    // Now deliver callee's body and finish the stream.
+    tester.OnBytesReceived(callee_code, arraysize(callee_code));
+    tester.FinishStream();
+    tester.RunCompilerTasks();
+    CHECK(tester.IsPromiseFulfilled());
+  }
+}
+
 #undef STREAM_TEST
 
 }  // namespace v8::internal::wasm
