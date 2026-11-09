@@ -599,22 +599,24 @@ class GraphBuildingNodeProcessor {
         assembler_(data, graph, graph, temp_zone),
         maglev_compilation_unit_(maglev_compilation_unit),
         node_mapping_(temp_zone),
-        block_mapping_(temp_zone),
         regs_to_vars_(temp_zone),
         loop_single_edge_predecessors_(temp_zone),
         generator_analyzer_(temp_zone),
         bailout_(bailout) {}
 
   void PreProcessGraph(maglev::Graph* graph) {
+    block_mapping_ =
+        temp_zone_->NewVector<Block*>(graph->max_block_id(), nullptr);
     for (maglev::BasicBlock* block : *graph) {
-      block_mapping_.insert_or_assign(
-          block, block->is_loop() ? __ NewLoopHeader() : __ NewBlock());
+      DCHECK_NULL(block_mapping_[block->id()]);
+      block_mapping_[block->id()] =
+          block->is_loop() ? __ NewLoopHeader() : __ NewBlock();
     }
     // Constants are not in a block in Maglev but are in Turboshaft. We bind the
     // 1st block now, so that Constants can then be emitted.
     const maglev::BasicBlock* first_maglev_block = graph->blocks().front();
     __ SetMaglevInputBlock(first_maglev_block);
-    __ Bind(block_mapping_[first_maglev_block]);
+    __ Bind(Map(first_maglev_block));
 
     // Initializing undefined constant so that we don't need to recreate it too
     // often.
@@ -724,7 +726,7 @@ class GraphBuildingNodeProcessor {
       // Parameters are always in the 1st block.
       DCHECK_EQ(__ output_graph().block_count(), 1);
       DCHECK_EQ(maglev_block->id(), 0);
-      DCHECK_EQ(__ current_block(), block_mapping_[maglev_block]);
+      DCHECK_EQ(__ current_block(), Map(maglev_block));
       // maglev_input_block should have been set by calling SetMaglevInputBlock
       // in PreProcessGraph.
       DCHECK_EQ(__ maglev_input_block(), maglev_block);
@@ -1309,7 +1311,7 @@ class GraphBuildingNodeProcessor {
         DCHECK(catch_block_begin_.valid());
         SetMap(node, catch_block_begin_);
       } else {
-        Variable var = regs_to_vars_[node->owner().index()];
+        Variable var = regs_to_vars_.at(node->owner().index());
         SetMap(node, __ GetVariable(var));
         // {var} won't be used anymore once we've created the mapping from
         // {node} to its value. We thus reset it, in order to avoid Phis being
@@ -6013,7 +6015,7 @@ class GraphBuildingNodeProcessor {
     if (V8_UNLIKELY(node == maglev_generator_context_node_)) {
       return true;
     }
-    return node_mapping_.count(node);
+    return node_mapping_.contains(node);
   }
 
  private:
@@ -7152,10 +7154,15 @@ class GraphBuildingNodeProcessor {
     if (V8_UNLIKELY(node == maglev_generator_context_node_)) {
       return __ GetVariable(generator_context_);
     }
-    CHECK(node_mapping_[node].valid());
-    return node_mapping_[node];
+    auto it = node_mapping_.find(node);
+    CHECK(it != node_mapping_.end() && it->second.valid());
+    return it->second;
   }
-  Block* Map(const maglev::BasicBlock* block) { return block_mapping_[block]; }
+  Block* Map(const maglev::BasicBlock* block) {
+    Block* ts_block = block_mapping_[block->id()];
+    DCHECK_NOT_NULL(ts_block);
+    return ts_block;
+  }
 
   void SetMap(maglev::NodeBase* node, V<Any> idx) {
     if (__ generating_unreachable_operations()) return;
@@ -7194,9 +7201,9 @@ class GraphBuildingNodeProcessor {
   LocalFactory* local_factory_ = local_isolate_->factory();
   AssemblerT assembler_;
   maglev::MaglevCompilationUnit* maglev_compilation_unit_;
-  ZoneUnorderedMap<const maglev::NodeBase*, OpIndex> node_mapping_;
-  ZoneUnorderedMap<const maglev::BasicBlock*, Block*> block_mapping_;
-  ZoneUnorderedMap<int, Variable> regs_to_vars_;
+  ZoneAbslFlatHashMap<const maglev::NodeBase*, OpIndex> node_mapping_;
+  base::Vector<Block*> block_mapping_;
+  ZoneAbslFlatHashMap<int, Variable> regs_to_vars_;
 
   V<HeapObject> undefined_value_;
 
