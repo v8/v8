@@ -1077,7 +1077,6 @@
   F(MC_COMPLETE_SWEEP_ARRAY_BUFFERS)            \
   F(MC_COMPLETE_SWEEPING)                       \
   F(MC_EVACUATE_CANDIDATES)                     \
-  F(MC_EVACUATE_CLEAN_UP)                       \
   F(MC_EVACUATE_COPY)                           \
   F(MC_EVACUATE_COPY_PARALLEL)                  \
   F(MC_EVACUATE_EPILOGUE)                       \

@@ -1066,6 +1066,9 @@ DEFINE_BOOL_READONLY(allocation_site_tracking, V8_ALLOCATION_SITE_TRACKING_BOOL,
 
 // Flags for experimental implementation features.
 DEFINE_BOOL(page_promotion, true, "promote pages based on utilization")
+DEFINE_BOOL(
+    page_promotion_on_evacuation_failure, true,
+    "promote new space pages in-place when evacuation fails in full GCs")
 DEFINE_INT(page_promotion_threshold, 70,
            "min percentage of live bytes on a page to enable fast evacuation "
            "in full GCs")

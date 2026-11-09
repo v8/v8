@@ -1147,7 +1147,6 @@ void GCTracer::PrintNVP() const {
           .p("evacuate.pin_pages", current_scope(Scope::MC_EVACUATE_PIN_PAGES))
           .p("evacuate.candidates",
              current_scope(Scope::MC_EVACUATE_CANDIDATES))
-          .p("evacuate.clean_up", current_scope(Scope::MC_EVACUATE_CLEAN_UP))
           .p("evacuate.copy", current_scope(Scope::MC_EVACUATE_COPY))
           .p("evacuate.prologue", current_scope(Scope::MC_EVACUATE_PROLOGUE))
           .p("evacuate.epilogue", current_scope(Scope::MC_EVACUATE_EPILOGUE))

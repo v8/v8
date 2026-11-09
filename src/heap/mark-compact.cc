@@ -1344,7 +1344,10 @@ class RecordMigratedSlotVisitor
   inline void VisitEphemeron(Tagged<HeapObject> host, int index, ObjectSlot key,
                              ObjectSlot value) override {
     DCHECK(IsEphemeronHashTable(host));
-    DCHECK(!HeapLayout::InYoungGeneration(host));
+    DCHECK_IMPLIES(HeapLayout::InYoungGeneration(host),
+                   MemoryChunk::FromHeapObject(host)
+                       ->Metadata()
+                       ->evacuation_was_aborted());
 
     // Simply record ephemeron keys in OLD_TO_NEW if it points into the young
     // generation instead of recording it in ephemeron_remembered_set here for
@@ -1555,12 +1558,10 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
   }
 
 #if DEBUG
-  void DisableAbortEvacuationAtAddress(MutablePage* page) {
-    abort_evacuation_at_address_ = page->area_end();
-  }
-
   void SetUpAbortEvacuationAtAddress(MutablePage* page) {
-    if (v8_flags.stress_compaction || v8_flags.stress_compaction_random) {
+    if ((v8_flags.stress_compaction || v8_flags.stress_compaction_random) &&
+        (!page->Chunk()->InYoungGeneration() ||
+         v8_flags.page_promotion_on_evacuation_failure)) {
       // Stress aborting of evacuation by aborting ~5% of evacuation candidates
       // when stress testing.
       const double kFraction = 0.05;
@@ -1754,8 +1755,11 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
     Tagged<HeapObject> target_object;
 
     if (!TryEvacuateObject(OLD_SPACE, object, size, &target_object)) {
-      heap_->FatalProcessOutOfMemory(
-          "MarkCompactCollector: young object promotion failed");
+      if (!v8_flags.page_promotion_on_evacuation_failure) {
+        heap_->FatalProcessOutOfMemory(
+            "MarkCompactCollector: young object promotion failed");
+      }
+      return false;
     }
 
     promoted_size_ += size.value();
@@ -1782,41 +1786,6 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
     // TODO(mlippautz): Handle ConsString.
 
     return false;
-  }
-
-  inline AllocationSpace AllocateTargetObject(
-      Tagged<HeapObject> old_object, int size,
-      Tagged<HeapObject>* target_object) {
-    // GCMole suppression: AllocateTargetObject runs inside GC compaction and
-    // cannot trigger re-entrant GC.
-    DisableGCMole no_gcmole;
-    AllocationSpace space_allocated_in = NEW_SPACE;
-    AllocationAlignment alignment =
-        HeapObject::RequiredAlignment(space_allocated_in, old_object->map());
-    AllocationResult allocation = local_allocator_->Allocate(
-        NEW_SPACE, SafeHeapObjectSize(static_cast<uint32_t>(size)), alignment);
-    if (allocation.IsFailure()) {
-      space_allocated_in = OLD_SPACE;
-      alignment =
-          HeapObject::RequiredAlignment(space_allocated_in, old_object->map());
-      allocation = AllocateInOldSpace(size, alignment);
-    }
-    bool ok = allocation.To(target_object);
-    DCHECK(ok);
-    USE(ok);
-    return space_allocated_in;
-  }
-
-  inline AllocationResult AllocateInOldSpace(int size_in_bytes,
-                                             AllocationAlignment alignment) {
-    AllocationResult allocation = local_allocator_->Allocate(
-        OLD_SPACE, SafeHeapObjectSize(static_cast<uint32_t>(size_in_bytes)),
-        alignment);
-    if (allocation.IsFailure()) {
-      heap_->FatalProcessOutOfMemory(
-          "MarkCompactCollector: semi-space copy, fallback in old gen");
-    }
-    return allocation;
   }
 
   intptr_t promoted_size_;
@@ -4392,6 +4361,52 @@ void MarkCompactCollector::EvacuateEpilogue() {
     DCHECK_EQ(0, heap_->new_space()->Size());
   }
 
+  for (NormalPage* p : new_space_evacuation_pages_) {
+    if (p->evacuation_was_aborted()) {
+      // Page evacuation was aborted. Promote the page in-place to old space and
+      // sweep it.
+      DCHECK(v8_flags.page_promotion_on_evacuation_failure);
+      DCHECK(!p->will_be_promoted());
+      DCHECK_EQ(NEW_SPACE, p->owner_identity());
+      EvacuateNewToOldSpacePageVisitor::Move(p);
+      // Move() sets will_be_promoted(), so we will enter the branch below to
+      // clear the flag and add the page to the sweeper.
+      DCHECK(p->will_be_promoted());
+      heap_->old_space()->DecreaseAllocatedBytes(p->allocated_bytes(), p);
+      heap_->IncrementPromotedObjectsSize(p->live_bytes());
+      heap_->IncrementYoungSurvivorsCounter(p->live_bytes());
+    }
+    if (p->will_be_promoted()) {
+      p->set_will_be_promoted(false);
+      DCHECK_EQ(OLD_SPACE, p->owner_identity());
+      sweeper_->AddPage(OLD_SPACE, p);
+    } else if (v8_flags.minor_ms) {
+      // Sweep non-promoted pages to add them back to the free list.
+      DCHECK_EQ(NEW_SPACE, p->owner_identity());
+      DCHECK_EQ(0, p->live_bytes());
+      DCHECK(p->SweepingDone());
+      PagedNewSpace* space = heap_->paged_new_space();
+      if (space->ShouldReleaseEmptyPage()) {
+        ReleasePage(space->paged_space(), p);
+      } else {
+        sweeper_->SweepEmptyNewSpacePage(p);
+      }
+    }
+  }
+  new_space_evacuation_pages_.clear();
+
+  for (LargePage* p : promoted_large_pages_) {
+    DCHECK(p->will_be_promoted());
+    p->set_will_be_promoted(false);
+    Tagged<HeapObject> object = p->GetObject();
+    if (!v8_flags.sticky_mark_bits) {
+      MarkBit::From(heap_->isolate(), object).Clear();
+      p->SetLiveBytes(0);
+    }
+    p->marking_progress_tracker().ResetIfEnabled();
+  }
+  promoted_large_pages_.clear();
+
   // Release evacuation candidates that were successfully processed and re-add
   // aborted pages to the sweeper.
   for (NormalPage* page : old_space_evacuation_pages_) {
@@ -4585,14 +4600,24 @@ bool Evacuator::RawEvacuatePage(MutablePage* page) {
               EvacuationModeName(evacuation_mode), "live_bytes",
               page->live_bytes());
   switch (evacuation_mode) {
-    case kObjectsNewToOld:
+    case kObjectsNewToOld: {
 #if DEBUG
-      new_space_visitor_.DisableAbortEvacuationAtAddress(page);
+      new_space_visitor_.SetUpAbortEvacuationAtAddress(page);
 #endif  // DEBUG
-      LiveObjectVisitor::VisitMarkedObjectsNoFail(SbxCast<NormalPage>(page),
-                                                  &new_space_visitor_);
-      page->ClearLiveness();
+      Tagged<HeapObject> failed_object;
+      if (LiveObjectVisitor::VisitMarkedObjects(
+              SbxCast<NormalPage>(page), &new_space_visitor_, &failed_object)) {
+        page->ClearLiveness();
+      } else {
+        // Aborted compaction page. Actual processing happens on the main
+        // thread for simplicity reasons.
+        heap_->mark_compact_collector()
+            ->ReportAbortedEvacuationCandidateDueToOOM(
+                failed_object.address(), SbxCast<NormalPage>(page));
+        return false;
+      }
       break;
+    }
     case kPageNewToOld:
       if (page->is_large()) {
         auto object = SbxCast<LargePage>(page)->GetObject();
@@ -4884,14 +4909,11 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
 
   PinPreciseRootsIfNeeded();
 
-  // Evacuation of new space pages cannot be aborted, so it needs to run
-  // before old space evacuation.
   bool force_page_promotion =
       heap_->IsGCWithStack() && !v8_flags.compact_with_stack;
   for (NormalPage* page : new_space_evacuation_pages_) {
     intptr_t live_bytes_on_page = page->live_bytes();
     DCHECK_LT(0, live_bytes_on_page);
-    live_bytes += live_bytes_on_page;
     MemoryReductionMode memory_reduction_mode =
         heap_->ShouldReduceMemory() ? MemoryReductionMode::kShouldReduceMemory
                                     : MemoryReductionMode::kNone;
@@ -4903,7 +4925,6 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
       // going to sweep the page and add page->live_byte_count.
       heap_->old_space()->DecreaseAllocatedBytes(page->allocated_bytes(), page);
     }
-    evacuation_items.emplace_back(ParallelWorkItem{}, page);
   }
 
   for (NormalPage* page : aborted_evacuation_candidates_due_to_running_code_) {
@@ -4919,13 +4940,32 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   if (v8_flags.stress_compaction || v8_flags.stress_compaction_random) {
     // Stress aborting of evacuation by aborting ~5% of evacuation candidates
     // when stress testing.
-    const double kFraction = 0.05;
-
-    for (NormalPage* page : old_space_evacuation_pages_) {
+    auto maybe_abort_page = [this](NormalPage* page) {
+      const double kFraction = 0.05;
       if (heap_->isolate()->fuzzer_rng()->NextDouble() < kFraction) {
         ReportAbortedEvacuationCandidateDueToFlags(page);
       }
+    };
+
+    for (NormalPage* page : old_space_evacuation_pages_) {
+      maybe_abort_page(page);
     }
+    if (v8_flags.page_promotion_on_evacuation_failure) {
+      for (NormalPage* page : new_space_evacuation_pages_) {
+        if (!page->will_be_promoted()) {
+          maybe_abort_page(page);
+        }
+      }
+    }
+  }
+
+  for (NormalPage* page : new_space_evacuation_pages_) {
+    if (page->evacuation_was_aborted()) {
+      continue;
+    }
+
+    live_bytes += page->live_bytes();
+    evacuation_items.emplace_back(ParallelWorkItem{}, page);
   }
 
   for (NormalPage* page : old_space_evacuation_pages_) {
@@ -5012,44 +5052,6 @@ void MarkCompactCollector::Evacuate() {
   }
 
   UpdatePointersAfterEvacuation();
-
-  {
-    TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_EVACUATE_CLEAN_UP);
-
-    for (NormalPage* p : new_space_evacuation_pages_) {
-      AllocationSpace owner_identity = p->owner_identity();
-      USE(owner_identity);
-      if (p->will_be_promoted()) {
-        p->set_will_be_promoted(false);
-        DCHECK_EQ(OLD_SPACE, owner_identity);
-        sweeper_->AddPage(OLD_SPACE, p);
-      } else if (v8_flags.minor_ms) {
-        // Sweep non-promoted pages to add them back to the free list.
-        DCHECK_EQ(NEW_SPACE, owner_identity);
-        DCHECK_EQ(0, p->live_bytes());
-        DCHECK(p->SweepingDone());
-        PagedNewSpace* space = heap_->paged_new_space();
-        if (space->ShouldReleaseEmptyPage()) {
-          ReleasePage(space->paged_space(), p);
-        } else {
-          sweeper_->SweepEmptyNewSpacePage(p);
-        }
-      }
-    }
-    new_space_evacuation_pages_.clear();
-
-    for (LargePage* p : promoted_large_pages_) {
-      DCHECK(p->will_be_promoted());
-      p->set_will_be_promoted(false);
-      Tagged<HeapObject> object = p->GetObject();
-      if (!v8_flags.sticky_mark_bits) {
-        MarkBit::From(heap_->isolate(), object).Clear();
-        p->SetLiveBytes(0);
-      }
-      p->marking_progress_tracker().ResetIfEnabled();
-    }
-    promoted_large_pages_.clear();
-  }
 
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_EVACUATE_EPILOGUE);
@@ -5220,9 +5222,13 @@ class RememberedSetUpdatingItem : public UpdatingItem {
     }
 
     // OLD_TO_NEW slots are recorded in dead memory, so they might point to
-    // dead objects.
+    // dead objects. They can also point to live objects on new space pages
+    // where evacuation was aborted.
     DCHECK_IMPLIES(!heap_object->map_word(kRelaxedLoad).IsForwardingAddress(),
-                   !marking_state_->IsMarked(heap_object));
+                   !marking_state_->IsMarked(heap_object) ||
+                       MemoryChunk::FromHeapObject(heap_object)
+                           ->Metadata()
+                           ->evacuation_was_aborted());
     UpdateSlot(cage_base, slot);
   }
 
@@ -5546,6 +5552,12 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
       CollectRememberedSetUpdatingItems(&updating_items,
                                         heap_->shared_trusted_lo_space());
     }
+    for (NormalPage* page : new_space_evacuation_pages_) {
+      if (page->evacuation_was_aborted() && page->ContainsAnySlots()) {
+        updating_items.emplace_back(
+            std::make_unique<RememberedSetUpdatingItem>(heap_, page));
+      }
+    }
 
     // Iterating to space may require a valid body descriptor for e.g.
     // WasmStruct which races with updating a slot in Map. Since to space is
@@ -5807,6 +5819,11 @@ size_t MarkCompactCollector::PostProcessAbortedEvacuationCandidates() {
       // There's no need to fix flags for successful evacuation candidates as
       // such pages will be released momentarily.
       DCHECK(page->SweepingDone());
+    }
+  }
+  for (NormalPage* page : new_space_evacuation_pages_) {
+    if (page->evacuation_was_aborted()) {
+      aborted_pages_verified++;
     }
   }
   CHECK_EQ(aborted_pages_verified, aborted_pages);
