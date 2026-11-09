@@ -162,9 +162,7 @@ def _default_args():
                 "-Wno-return-type",
                 "-Wno-stringop-overflow",
                 "-Wno-deprecated-this-capture",
-                # Use GNU dialect, because GCC doesn't allow using
-                # ##__VA_ARGS__ when in standards-conforming mode.
-                "-std=gnu++2a",
+                "-std=c++20",
             ],
             "@v8//bazel/config:is_windows": [
                 "/std:c++20",

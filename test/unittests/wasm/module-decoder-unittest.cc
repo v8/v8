@@ -60,7 +60,7 @@ namespace module_decoder_unittest {
 #define EMPTY_FUNCTION_SECTION SECTION(Function, ENTRY_COUNT(0))
 #define EMPTY_FUNCTION_BODIES_SECTION SECTION(Code, ENTRY_COUNT(0))
 #define SECTION_NAMES(...) \
-  SECTION(Unknown, ADD_COUNT('n', 'a', 'm', 'e'), ##__VA_ARGS__)
+  SECTION(Unknown, ADD_COUNT('n', 'a', 'm', 'e') __VA_OPT__(, __VA_ARGS__))
 #define EMPTY_NAMES_SECTION SECTION_NAMES()
 #define SECTION_SRC_MAP(...)                                               \
   SECTION(Unknown,                                                         \
