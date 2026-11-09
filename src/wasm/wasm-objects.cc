@@ -1351,8 +1351,7 @@ void ImportedFunctionEntry::SetWasmToWrapper(
     {
       DisallowGarbageCollection no_gc;
       importing_instance_data_->dispatch_table_for_imports()->SetForWrapper(
-          index_, *import_data, {}, sig->index(), -1,
-          WasmDispatchTable::kExistingEntry);
+          index_, *import_data, {}, -1, WasmDispatchTable::kExistingEntry);
     }
     importing_instance_data_->imported_function_indices()->set(index_, -1);
     return;
@@ -1384,7 +1383,6 @@ void ImportedFunctionEntry::SetWasmToWrapper(
       importing_instance_data_->dispatch_table_for_imports();
 
   dispatch_table->SetForWrapper(index_, *import_data, std::move(wrapper_handle),
-                                sig->index(),
 #if V8_ENABLE_DRUMBRAKE
                                 WasmDispatchTable::kInvalidFunctionIndex,
 #endif  // V8_ENABLE_DRUMBRAKE
@@ -1396,7 +1394,6 @@ void ImportedFunctionEntry::SetReexportedJSFunction(
     std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle) {
   DCHECK(!v8_flags.wasm_jitless);
   DCHECK_NOT_NULL(wrapper_handle);
-  const wasm::CanonicalSig* sig = import_data->sig();
 
   TRACE_IFT("Import re-exported callable 0x%" PRIxPTR
             "[%d] = {import_data=0x%" PRIxPTR ", target=%p}\n",
@@ -1410,13 +1407,14 @@ void ImportedFunctionEntry::SetReexportedJSFunction(
     DCHECK(wrapper_handle->code()->kind() == wasm::WasmCode::kWasmToJsWrapper ||
            wrapper_handle->code()->kind() ==
                wasm::WasmCode::kWasmToCapiWrapper);
-    DCHECK_EQ(wrapper_handle->code()->signature_hash(), sig->signature_hash());
+    DCHECK_EQ(wrapper_handle->code()->signature_hash(),
+              import_data->sig()->signature_hash());
   }
 #endif  // DEBUG
 
   DisallowGarbageCollection no_gc;
   importing_instance_data_->dispatch_table_for_imports()->SetForWrapper(
-      index_, import_data, std::move(wrapper_handle), sig->index(),
+      index_, import_data, std::move(wrapper_handle),
 #if V8_ENABLE_DRUMBRAKE
       WasmDispatchTable::kInvalidFunctionIndex,
 #endif  // V8_ENABLE_DRUMBRAKE
@@ -1425,7 +1423,7 @@ void ImportedFunctionEntry::SetReexportedJSFunction(
 
 void ImportedFunctionEntry::SetWasmToWasm(
     Tagged<WasmTrustedInstanceData> target_instance_data,
-    WasmCodePointer call_target, wasm::CanonicalTypeIndex sig_id
+    WasmCodePointer call_target
 #if V8_ENABLE_DRUMBRAKE
     ,
     int exported_function_index
@@ -1440,7 +1438,6 @@ void ImportedFunctionEntry::SetWasmToWasm(
   Tagged<WasmDispatchTableForImports> dispatch_table =
       importing_instance_data_->dispatch_table_for_imports();
   dispatch_table->SetForNonWrapper(index_, target_instance_data, call_target,
-                                   sig_id,
 #if V8_ENABLE_DRUMBRAKE
                                    WasmDispatchTable::kInvalidFunctionIndex,
 #endif  // V8_ENABLE_DRUMBRAKE
@@ -2332,6 +2329,7 @@ void WasmDispatchTableData::Add(
 
 void WasmDispatchTableData::Remove(int index) { wrappers_.erase(index); }
 
+namespace {
 template <typename T>
 concept AnyWasmDispatchTable = std::same_as<WasmDispatchTable, T> ||
                                std::same_as<WasmDispatchTableForImports, T>;
@@ -2347,7 +2345,6 @@ void SetForNonWrapper(Tagged<DispatchTable> dispatch_table, int index,
                       WasmDispatchTable::NewOrExistingEntry new_or_existing) {
   SBXCHECK_BOUNDS(index, dispatch_table->length());
   DCHECK(IsWasmTrustedInstanceData(implicit_arg));
-  DCHECK(sig_id.valid());
   const int offset = dispatch_table->OffsetOf(index);
   if (!v8_flags.wasm_jitless) {
     // When overwriting an existing entry, we must decrement the refcount
@@ -2371,11 +2368,16 @@ void SetForNonWrapper(Tagged<DispatchTable> dispatch_table, int index,
   CONDITIONAL_WRITE_BARRIER(dispatch_table,
                             offset + DispatchTable::kImplicitArgBias,
                             implicit_arg, UPDATE_WRITE_BARRIER);
+  // WasmDispatchTableForImports does not store signatures (no kSigBias).
   if constexpr (requires { DispatchTable::kSigBias; }) {
+    DCHECK(sig_id.valid());
     dispatch_table->template WriteField<uint32_t>(
         offset + DispatchTable::kSigBias, sig_id.index);
+  } else {
+    DCHECK(!sig_id.valid());
   }
 }
+}  // namespace
 
 void WasmDispatchTable::SetForNonWrapper(
     int index, Tagged<WasmTrustedInstanceData> implicit_arg,
@@ -2394,19 +2396,21 @@ void WasmDispatchTable::SetForNonWrapper(
 
 void WasmDispatchTableForImports::SetForNonWrapper(
     int index, Tagged<WasmTrustedInstanceData> implicit_arg,
-    WasmCodePointer call_target, wasm::CanonicalTypeIndex sig_id,
+    WasmCodePointer call_target,
 #if V8_ENABLE_DRUMBRAKE
     uint32_t function_index,
 #endif  // V8_ENABLE_DRUMBRAKE
     WasmDispatchTable::NewOrExistingEntry new_or_existing) {
   return ::v8::internal::SetForNonWrapper<WasmDispatchTableForImports>(
-      this, index, implicit_arg, call_target, sig_id,
+      this, index, implicit_arg, call_target,
+      wasm::CanonicalTypeIndex::Invalid(),
 #if V8_ENABLE_DRUMBRAKE
       function_index,
 #endif
       new_or_existing);
 }
 
+namespace {
 template <AnyWasmDispatchTable DispatchTable>
 void SetForWrapper(Tagged<DispatchTable> dispatch_table, int index,
                    Tagged<WasmImportData> implicit_arg,
@@ -2420,7 +2424,6 @@ void SetForWrapper(Tagged<DispatchTable> dispatch_table, int index,
   SBXCHECK(v8_flags.wasm_jitless || !wrapper_handle->has_code() ||
            !wrapper_handle->code()->is_dying());
   SBXCHECK_BOUNDS(index, dispatch_table->length());
-  DCHECK(sig_id.valid());
   const int offset = dispatch_table->OffsetOf(index);
   dispatch_table->WriteProtectedPointerField(
       offset + DispatchTable::kImplicitArgBias,
@@ -2446,11 +2449,16 @@ void SetForWrapper(Tagged<DispatchTable> dispatch_table, int index,
         offset + DispatchTable::kFunctionIndexBias, function_index);
 #endif  // V8_ENABLE_DRUMBRAKE
   }
+  // WasmDispatchTableForImports does not store signatures (no kSigBias).
   if constexpr (requires { DispatchTable::kSigBias; }) {
+    DCHECK(sig_id.valid());
     dispatch_table->template WriteField<uint32_t>(
         offset + DispatchTable::kSigBias, sig_id.index);
+  } else {
+    DCHECK(!sig_id.valid());
   }
 }
+}  // namespace
 
 void WasmDispatchTable::SetForWrapper(
     int index, Tagged<WasmImportData> implicit_arg,
@@ -2471,19 +2479,20 @@ void WasmDispatchTable::SetForWrapper(
 void WasmDispatchTableForImports::SetForWrapper(
     int index, Tagged<WasmImportData> implicit_arg,
     std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle,
-    wasm::CanonicalTypeIndex sig_id,
 #if V8_ENABLE_DRUMBRAKE
     uint32_t function_index,
 #endif  // V8_ENABLE_DRUMBRAKE
     WasmDispatchTable::NewOrExistingEntry new_or_existing) {
   return ::v8::internal::SetForWrapper<WasmDispatchTableForImports>(
-      this, index, implicit_arg, wrapper_handle, sig_id,
+      this, index, implicit_arg, std::move(wrapper_handle),
+      wasm::CanonicalTypeIndex::Invalid(),
 #if V8_ENABLE_DRUMBRAKE
       function_index,
 #endif  // V8_ENABLE_DRUMBRAKE
       new_or_existing);
 }
 
+namespace {
 template <AnyWasmDispatchTable DispatchTable>
 void DispatchTableClear(Tagged<DispatchTable> dispatch_table, int index,
                         WasmDispatchTable::NewOrExistingEntry new_or_existing) {
@@ -2500,11 +2509,13 @@ void DispatchTableClear(Tagged<DispatchTable> dispatch_table, int index,
   dispatch_table->template WriteField<uint32_t>(
       offset + DispatchTable::kTargetBias,
       wasm::kInvalidWasmCodePointer.value());
+  // WasmDispatchTableForImports does not store signatures (no kSigBias).
   if constexpr (requires { DispatchTable::kSigBias; }) {
     dispatch_table->template WriteField<int>(offset + DispatchTable::kSigBias,
                                              -1);
   }
 }
+}  // namespace
 
 void WasmDispatchTable::Clear(
     int index, WasmDispatchTable::NewOrExistingEntry new_or_existing) {

@@ -107,8 +107,7 @@ class ImportedFunctionEntry {
 
   // Initialize this entry as a Wasm to Wasm call.
   void SetWasmToWasm(Tagged<WasmTrustedInstanceData> target_instance_object,
-                     WasmCodePointer call_target,
-                     wasm::CanonicalTypeIndex sig_id
+                     WasmCodePointer call_target
 #if V8_ENABLE_DRUMBRAKE
                      ,
                      int exported_function_index
@@ -996,8 +995,7 @@ V8_OBJECT class WasmDispatchTable : public ExposedTrustedObject {
 #if V8_ENABLE_DRUMBRAKE
   // - function_index (uint32_t) (located in place of target pointer),
 #endif  // V8_ENABLE_DRUMBRAKE
-  // - sig (canonical type index == uint32_t); unused for imports which check
-  //   the signature statically,
+  // - sig (canonical type index == uint32_t),
   // - implicit_arg (protected pointer, tagged sized).
   static constexpr size_t kTargetBias = 0;
 #if V8_ENABLE_DRUMBRAKE
@@ -1168,7 +1166,7 @@ V8_OBJECT class WasmDispatchTableForImports : public TrustedObject {
   // {implicit_arg} has to be a WasmTrustedInstanceData.
   void V8_EXPORT_PRIVATE
   SetForNonWrapper(int index, Tagged<WasmTrustedInstanceData> implicit_arg,
-                   WasmCodePointer call_target, wasm::CanonicalTypeIndex sig_id,
+                   WasmCodePointer call_target,
 #if V8_ENABLE_DRUMBRAKE
                    uint32_t function_index,
 #endif  // V8_ENABLE_DRUMBRAKE
@@ -1177,7 +1175,6 @@ V8_OBJECT class WasmDispatchTableForImports : public TrustedObject {
   // Set an entry for indirect calls to a WasmToJS wrapper.
   void SetForWrapper(int index, Tagged<WasmImportData> implicit_arg,
                      std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle,
-                     wasm::CanonicalTypeIndex sig_id,
 #if V8_ENABLE_DRUMBRAKE
                      uint32_t function_index,
 #endif  // V8_ENABLE_DRUMBRAKE

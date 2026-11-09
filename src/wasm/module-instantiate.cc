@@ -1782,7 +1782,7 @@ bool InstanceBuilder::ProcessImportedFunction(int import_index,
                instance_data->module()->num_imported_functions);
       WasmCodePointer imported_target =
           instance_data->GetCallTarget(function_data->function_index());
-      imported_entry.SetWasmToWasm(instance_data, imported_target, sig_index
+      imported_entry.SetWasmToWasm(instance_data, imported_target
 #if V8_ENABLE_DRUMBRAKE
                                    ,
                                    function_data->function_index()
