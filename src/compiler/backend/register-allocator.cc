@@ -1683,6 +1683,9 @@ void ConstraintBuilder::MeetConstraintsBefore(int instr_index) {
                                         input_vreg);
           // Spill at every use position for simplicity, this case is very rare.
           data()->AddGapMove(instr_index, Instruction::END, input_copy, *slot);
+          if (second->HasReferenceMap() && code()->IsReference(input_vreg)) {
+            second->reference_map()->RecordReference(*slot);
+          }
           spilled_consts->push_back(range);
         }
       }
