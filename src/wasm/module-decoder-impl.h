@@ -2683,6 +2683,7 @@ class ModuleDecoderImpl : public Decoder {
             type = type.AsExact();
           }
           TYPE_CHECK(type)
+          DCHECK_LE(next_ordered_section_, kCodeSectionCode);
           module->functions[index].declared_for_ref = true;
           if (tracer_) {
             tracer_->InitializerExpression(pc_, pc_ + length + 2, type);
@@ -2723,10 +2724,15 @@ class ModuleDecoderImpl : public Decoder {
     {
       // We need a scope for the decoder because its destructor resets some Zone
       // elements, which has to be done before we reset the Zone afterwards.
+      // Only record `ref.func` declarations before the Code section; in later
+      // sections (Data), background streaming threads already read
+      // `declared_for_ref` concurrently.
+      WasmModule* module_for_declarations =
+          next_ordered_section_ <= kCodeSectionCode ? module : nullptr;
       WasmFullDecoder<Decoder::FullValidationTag, ConstantExpressionInterface,
                       kConstantExpression>
           decoder(&init_expr_zone_, module, enabled_features_, &detected, body,
-                  module);
+                  module_for_declarations);
 
       uint32_t offset = this->pc_offset();
 
