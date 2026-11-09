@@ -505,7 +505,7 @@ ProcessResult ReturnedValueRepresentationSelector::Process(
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }
-  return ProcessResult::kContinue;
+  return ProcessResult::kRevisit;
 }
 
 }  // namespace v8::internal::maglev

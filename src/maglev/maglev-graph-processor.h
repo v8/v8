@@ -620,9 +620,17 @@ class NodeMultiProcessor<Processor, Processors...>
   // Forwards Process calls to each processor in the chain.
   // Forward processors receive (Node* node, const ProcessingState& state),
   // whereas backward processors receive only (Node* node).
-  template <typename Node, typename... Args>
-  ProcessResult Process(Node* node, const Args&... args) {
+  template <typename NodeT, typename... Args>
+  ProcessResult Process(NodeT* node, const Args&... args) {
+    DCHECK(node->template Is<NodeT>());
     auto res = processor_.Process(node, args...);
+    constexpr bool kIsLastProcessor = sizeof...(Processors) == 0;
+    if constexpr (!kIsLastProcessor) {
+      // If there are subsequent processors in the chain, mutating the node in
+      // place and returning kContinue would pass a stale static type to them.
+      DCHECK_IMPLIES(res == ProcessResult::kContinue,
+                     node->template Is<NodeT>());
+    }
     switch (res) {
       [[likely]] case ProcessResult::kContinue:
         return Base::Process(node, args...);
