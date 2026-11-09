@@ -93,3 +93,22 @@
 
   assertEquals(77, readElem(0));
 })();
+
+// In-place Double -> Tagged generalization on a boilerplate map where the
+// boilerplate still holds an UninitializedHeapNumber.
+(function TestBoilerplateDoubleToTaggedInPlaceGeneralization() {
+  function make_lit() {
+    return {value: NaN};
+  }
+  %PrepareFunctionForOptimization(make_lit);
+  assertTrue(Number.isNaN(make_lit().value));
+  assertTrue(Number.isNaN(make_lit().value));
+
+  // Generalize {value} in-place from Double to Tagged while keeping kConst.
+  let other = {value: 'Y'};
+  assertEquals('Y', other.value);
+
+  %OptimizeFunctionOnNextCall(make_lit);
+  let res = make_lit();
+  assertTrue(Number.isNaN(res.value));
+})();

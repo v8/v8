@@ -4398,9 +4398,32 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
       GET_VALUE_OR_ABORT(
           heap_number,
           AddNewNode<LoadTaggedField>(
-              {store_target}, field_index.offset(), NodeType::kHeapNumber,
+              {store_target}, field_index.offset(),
+              IsDefiningStore(access_mode) ? NodeType::kAnyHeapObject
+                                           : NodeType::kHeapNumber,
               PropertyConstness::kMutable, PropertyKey::DoubleField(name),
               IsArrayLength::kNo, compiler::OptionalMapRef{}));
+#ifdef DEBUG
+      if (access_info.IsFastDataConstant()) {
+        // In Maglev, only VisitDefineNamedOwnPropertyInLiteral passes
+        // AccessMode::kStoreInLiteral to TryBuildStoreField, and store_target
+        // is only an InlinedAllocation when the literal was allocated from a
+        // boilerplate via CreateObjectLiteral (!clone_object_spread), where
+        // BytecodeGenerator::VisitObjectLiteral guarantees the boilerplate slot
+        // holds an UninitializedHeapNumber.
+        DCHECK_EQ(access_mode, compiler::AccessMode::kStoreInLiteral);
+        DCHECK_EQ(iterator_.current_bytecode(),
+                  interpreter::Bytecode::kDefineNamedOwnPropertyInLiteral);
+        if (InlinedAllocation* alloc =
+                store_target->TryCast<InlinedAllocation>()) {
+          VirtualObject* vobject = alloc->object();
+          InlinedAllocation* vnumber =
+              vobject->get(field_index.offset())->Cast<InlinedAllocation>();
+          DCHECK(vnumber->object()->map()->equals(
+              broker()->uninitialized_heap_number_map()));
+        }
+      }
+#endif
       RETURN_IF_ABORT(AddNewNode<StoreFloat64>(
           {heap_number, value},
           static_cast<int>(offsetof(HeapNumber, value_))));
@@ -4414,6 +4437,25 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
       return ReduceResult::Done();
     }
   }
+
+#ifdef DEBUG
+  if (!access_info.HasTransitionMap() && access_info.IsFastDataConstant()) {
+    DCHECK_EQ(access_mode, compiler::AccessMode::kStoreInLiteral);
+    DCHECK_EQ(iterator_.current_bytecode(),
+              interpreter::Bytecode::kDefineNamedOwnPropertyInLiteral);
+    if (InlinedAllocation* alloc = store_target->TryCast<InlinedAllocation>()) {
+      VirtualObject* vobject = alloc->object();
+      ValueNode* existing = vobject->get(field_index.offset());
+      DCHECK(
+          (existing->Is<RootConstant>() &&
+           existing->Cast<RootConstant>()->index() ==
+               RootIndex::kUninitializedValue) ||
+          (existing->Is<HeapConstant>() && existing->Cast<HeapConstant>()
+                                               ->object()
+                                               .IsUninitializedHeapNumber()));
+    }
+  }
+#endif
 
   StoreTaggedMode store_mode = access_info.HasTransitionMap()
                                    ? StoreTaggedMode::kTransitioning

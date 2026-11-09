@@ -4295,6 +4295,23 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
           VisitForAccumulatorValue(property->value());
           if (key->IsStringLiteral()) {
             FeedbackSlot slot = feedback_spec()->AddDefineNamedOwnICSlot();
+            // DefineNamedOwnPropertyInLiteral (AccessMode::kStoreInLiteral /
+            // StoreICMode::kDefineNamedOwnInLiteral) may initialize or
+            // overwrite a PropertyConstness::kConst field on the freshly
+            // created, unescaped literal object without invalidating constness:
+            // - For boilerplate literals (!clone_object_spread), compile-time
+            //   values were skipped above and duplicate keys were deduplicated
+            //   by CalculateEmitStore, so the boilerplate slot is guaranteed to
+            //   hold uninitialized_value / UninitializedHeapNumber.
+            // - For object spread literals (clone_object_spread), the literal
+            //   was created by CloneObject (not an inlined boilerplate), and
+            //   since we are before any computed property names and only emit a
+            //   store for the last duplicate key, no prior value of this
+            //   property on the fresh literal can have been observed or cached.
+            DCHECK(!property->is_computed_name());
+            DCHECK(clone_object_spread || !property->IsCompileTimeValue());
+            DCHECK_IMPLIES(property->is_first_instance_of_key(),
+                           property->last_instance_index() == property_index);
             builder()->DefineNamedOwnPropertyInLiteral(
                 literal, key->AsRawPropertyName(), feedback_index(slot));
           } else {

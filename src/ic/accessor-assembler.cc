@@ -2328,14 +2328,18 @@ void AccessorAssembler::CheckHeapObjectTypeMatchesDescriptor(
   GotoIf(TaggedIsSmi(value), bailout);
 
   Label done(this);
-  // Skip field type check in favor of constant value check when storing
-  // to constant field.
-  if (mode != StoreICMode::kDefineNamedOwnInLiteral) {
-    // DefineNamedOwnInLiteral skips the constant value check
-    // when storing, so we need to do this field type check here.
-    GotoIf(Word32Equal(DecodeWord32<StoreHandler::KindBits>(handler_word),
-                       STORE_KIND(kConstField)),
-           &done);
+  switch (mode) {
+    case StoreICMode::kDefault:
+      // Skip field type check in favor of constant value check when storing
+      // to constant field.
+      GotoIf(Word32Equal(DecodeWord32<StoreHandler::KindBits>(handler_word),
+                         STORE_KIND(kConstField)),
+             &done);
+      break;
+    case StoreICMode::kDefineNamedOwn:
+    case StoreICMode::kDefineNamedOwnInLiteral:
+    case StoreICMode::kDefineKeyedOwn:
+      break;
   }
   TNode<IntPtrT> descriptor =
       Signed(DecodeWordFromWord32<StoreHandler::DescriptorBits>(handler_word));
@@ -2468,24 +2472,31 @@ void AccessorAssembler::HandleStoreFieldAndReturn(
 
   // Do constant value check if necessary. In
   // StoreICMode::kDefineNamedOwnInLiteral, we can store to const fields without
-  // invalidating the constness.
+  // invalidating the constness because the freshly created literal object is
+  // not yet observable.
   Label do_store(this);
-  if (mode == StoreICMode::kDefineNamedOwnInLiteral) {
-    Goto(&do_store);
-  } else {
-    GotoIfNot(Word32Equal(DecodeWord32<StoreHandler::KindBits>(handler_word),
-                          STORE_KIND(kConstField)),
-              &do_store);
-    if (store_value_as_double) {
-      CSA_DCHECK(this, IsHeapNumber(property_storage));
-      TNode<Float64T> current_value =
-          LoadObjectField<Float64T>(property_storage, offset);
-      GotoIfNotSameNumberBitPattern(current_value, *double_value, miss);
-      Return(value);
-    } else {
-      TNode<Object> current_value = LoadObjectField(property_storage, offset);
-      GotoIfNot(TaggedEqual(current_value, value), miss);
-      Return(value);
+  switch (mode) {
+    case StoreICMode::kDefineNamedOwnInLiteral:
+      Goto(&do_store);
+      break;
+    case StoreICMode::kDefault:
+    case StoreICMode::kDefineNamedOwn:
+    case StoreICMode::kDefineKeyedOwn: {
+      GotoIfNot(Word32Equal(DecodeWord32<StoreHandler::KindBits>(handler_word),
+                            STORE_KIND(kConstField)),
+                &do_store);
+      if (store_value_as_double) {
+        CSA_DCHECK(this, IsHeapNumber(property_storage));
+        TNode<Float64T> current_value =
+            LoadObjectField<Float64T>(property_storage, offset);
+        GotoIfNotSameNumberBitPattern(current_value, *double_value, miss);
+        Return(value);
+      } else {
+        TNode<Object> current_value = LoadObjectField(property_storage, offset);
+        GotoIfNot(TaggedEqual(current_value, value), miss);
+        Return(value);
+      }
+      break;
     }
   }
 
