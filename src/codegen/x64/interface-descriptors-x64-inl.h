@@ -155,8 +155,10 @@ constexpr Register StoreTransitionDescriptor::MapRegister() { return r11; }
 constexpr Register CallApiGetterDescriptor::NameRegister() {
   return kCArgRegs[0];
 }
+#if !V8_X64_16BYTE_STACK_ALIGNMENT_BOOL
 // static
 constexpr Register CallApiGetterDescriptor::CallbackRegister() { return rbx; }
+#endif  // !V8_X64_16BYTE_STACK_ALIGNMENT_BOOL
 
 // static
 constexpr Register GrowArrayElementsDescriptor::ObjectRegister() { return rax; }

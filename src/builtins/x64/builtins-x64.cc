@@ -157,7 +157,12 @@ void Generate_CallToAdaptShadowStackForDeopt(MacroAssembler* masm,
   Label post_adapt_shadow_stack;
   if (add_jump) __ jmp(&post_adapt_shadow_stack, Label::kNear);
   const auto saved_pc_offset = masm->pc_offset();
-  __ Call(Operand(kRootRegister, IsolateData::BuiltinEntrySlotOffset(
+  // Emit a raw `call(Operand)` without `AssertSpAlignedForCall()` here:
+  // 1. Deoptimizer::kAdaptShadowStackOffsetToSubtract (7 bytes) requires the
+  //    exact byte length of the indirect call instruction.
+  // 2. During CET shadow stack adaptation for deoptimization, a variable number
+  //    of candidate return addresses have been pushed onto the stack.
+  __ call(Operand(kRootRegister, IsolateData::BuiltinEntrySlotOffset(
                                      Builtin::kAdaptShadowStackForDeopt)));
   CHECK_EQ(Deoptimizer::kAdaptShadowStackOffsetToSubtract,
            masm->pc_offset() - saved_pc_offset);
@@ -4541,6 +4546,21 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
         StandardFrameConstants::kFixedFrameSizeAboveFp - kReceiverOnStackSize;
     __ leaq(kArgvRegister,
             Operand(rbp, rax, times_system_pointer_size, offset));
+    if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+      if (v8_flags.debug_code) {
+        // 16-byte stack alignment: verify that the caller pushed the {argc}
+        // stack slots (rax counts all of them, including the receiver)
+        // starting from a 16-byte aligned rsp, with one padding slot above
+        // them when {argc} is odd.
+        __ movl(kScratchRegister, rax);
+        __ andl(kScratchRegister, Immediate(1));
+        __ leaq(kScratchRegister,
+                Operand(kArgvRegister, kScratchRegister,
+                        times_system_pointer_size, kSystemPointerSize));
+        __ testq(kScratchRegister, Immediate(2 * kSystemPointerSize - 1));
+        __ Check(zero, AbortReason::kUnexpectedStackPointer);
+      }
+    }
   }
 
   // rbx: pointer to builtin function  (C callee-saved).
@@ -4580,6 +4600,17 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 #else
     UNREACHABLE();
 #endif  // V8_TARGET_OS_WIN
+  }
+
+  // If ArgvMode::kStack, argc is needed after the call to drop the arguments
+  // (and any padding slot) from the caller's stack, so it must be retained
+  // across the call in a callee-saved register. rax is clobbered by the
+  // result. argv has already been passed to the C function, so its register
+  // can be reused (cf. x22 on arm64).
+  static constexpr Register kArgcRegister = r15;
+  static_assert(kArgcRegister == kArgvRegister);
+  if (argv_mode == ArgvMode::kStack) {
+    __ movq(kArgcRegister, rax);
   }
   __ call(rbx);
 
@@ -4623,10 +4654,10 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 
   __ LeaveExitFrame();
   if (argv_mode == ArgvMode::kStack) {
-    // Drop arguments and the receiver from the caller stack.
-    __ PopReturnAddressTo(rcx);
-    __ leaq(rsp, Operand(kArgvRegister, kReceiverOnStackSize));
-    __ PushReturnAddressFrom(rcx);
+    // Drop arguments and the receiver from the caller stack. With 16-byte
+    // stack alignment, DropArguments() also drops the padding slot the caller
+    // pushed above the arguments when {argc} is odd.
+    __ DropArguments(kArgcRegister, rcx);
   }
   __ EnterSandbox();
   __ AssertFPCRState();
@@ -4983,9 +5014,16 @@ void Builtins::Generate_CallApiAccessorImpl(MacroAssembler* masm,
   // ----------- S t a t e -------------
   //  -- rsi                 : context
   //  -- rdi (rcx on Win)    : name
-  //  -- rbx                 : accessor info / interceptor info
+  // With V8_X64_16BYTE_STACK_ALIGNMENT_BOOL:
   //  -- sp[4]               : value (only for setter case)
   //  -- sp[3]               : should_throw_on_error (only for setter case)
+  //  -- sp[2]               : holder
+  //  -- sp[1]               : accessor info / interceptor info
+  //  -- sp[0]               : return address
+  // Without V8_X64_16BYTE_STACK_ALIGNMENT_BOOL:
+  //  -- rbx                 : accessor info / interceptor info
+  //  -- sp[3]               : value (only for setter case)
+  //  -- sp[2]               : should_throw_on_error (only for setter case)
   //  -- sp[1]               : holder
   //  -- sp[0]               : return address
   // -----------------------------------
@@ -4994,11 +5032,14 @@ void Builtins::Generate_CallApiAccessorImpl(MacroAssembler* masm,
   Register value_arg = no_reg;
   Register property_callback_info_arg = no_reg;
 
+#if V8_X64_16BYTE_STACK_ALIGNMENT_BOOL
+  Register callback = rbx;
+#else
   Register callback = CallApiGetterDescriptor::CallbackRegister();
-  Register scratch = rax;
-
   // All variants pass callback in the same register.
   CHECK_EQ(callback, CallApiSetterDescriptor::CallbackRegister());
+#endif
+  Register scratch = rax;
 
   if (for_setter) {
     // Setter(Local<Name>, Local<Value>, const PropertyCallbackInfo<void>&);
@@ -5034,7 +5075,9 @@ void Builtins::Generate_CallApiAccessorImpl(MacroAssembler* masm,
   static_assert(PCA::ApiArgIndex(PCA::kReturnValueIndex) == 1);
   static_assert(PCA::ApiArgIndex(PCA::kIsolateIndex) == 0);
 
-  // Set up v8::PropertyCallbackInfo's arguments on the stack as follows:
+  // Set up v8::PropertyCallbackInfo's arguments on the stack as follows
+  // (with V8_X64_16BYTE_STACK_ALIGNMENT_BOOL, callback info is already passed
+  // on the stack at sp[1], shifting incoming stack indices up by 1):
   //
   //  Current state            |  Target state
   // --------------------------+--------------------------------------------
@@ -5051,9 +5094,20 @@ void Builtins::Generate_CallApiAccessorImpl(MacroAssembler* masm,
   RootIndex default_value =
       for_setter ? RootIndex::kTrueValue : RootIndex::kUndefinedValue;
 
+  static_assert(
+      !ShouldPadArguments(CallApiGetterDescriptor::GetStackParameterCount()));
+  static_assert(
+      !ShouldPadArguments(CallApiSetterDescriptor::GetStackParameterCount()));
+
   __ PopReturnAddressTo(scratch);
   __ LoadAddress(kScratchRegister, ER::isolate_address());
-  __ Push(callback);           // kCallbackInfoIndex
+#if V8_X64_16BYTE_STACK_ALIGNMENT_BOOL
+  // Callback info was passed on the stack below holder to keep the stack
+  // parameter count even; load it so we can read the C++ function pointer.
+  __ movq(callback, Operand(rsp, 0));  // kCallbackInfoIndex
+#else
+  __ Push(callback);  // kCallbackInfoIndex
+#endif
   __ PushRoot(default_value);  // kReturnValueIndex
   __ Push(kScratchRegister);   // kIsolateIndex
   __ PushReturnAddressFrom(scratch);
