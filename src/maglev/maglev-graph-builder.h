@@ -306,8 +306,19 @@ class MaglevGraphBuilder {
         Base::LabelForTrackingInterpreterFrameState;
     class V8_NODISCARD LoopLabel;
 
+    // Upper bound on the number of branches a BuildLoop body may emit into its
+    // loop exit label; unused predecessors are trimmed when binding.
+    static constexpr int kMaxLoopExitPredecessors = 2;
+
     MaglevSubGraphBuilder(MaglevGraphBuilder* builder, int variable_count);
     LoopLabel BeginLoop(std::initializer_list<Variable*> loop_vars);
+    // Emits a loop with header `loop_vars` and an exit label taking at most
+    // `kMaxLoopExitPredecessors` branches from `body_fn(&loop_end)`. Both the
+    // loop back-edge and `loop_end` are always closed or trimmed even when
+    // `body_fn` aborts.
+    template <typename FBody>
+    V8_NODISCARD ReduceResult
+    BuildLoop(std::initializer_list<Variable*> loop_vars, FBody&& body_fn);
     template <typename ControlNodeT, typename... Args>
     ReduceResult GotoIfTrue(Label* true_target,
                             std::initializer_list<ValueNode*> control_inputs,
