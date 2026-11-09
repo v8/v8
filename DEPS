@@ -114,7 +114,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': 'cf4e6581d2404fdd11b903ca1e7c3e04e679751b',
+  'partition_alloc_version': 'ed4dc364672b67eee2acf2618c72d73cb758ab2e',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -173,7 +173,7 @@ deps = {
     'condition': 'checkout_agents_internal',
   },
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'af992619fc48cb7f698662654d15080a774b5bf1',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '7039393f9666fc39ad374da5e7654182db89ad65',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'a9c58ac990557a29176bbaeef7577b196c38a950',
   'buildtools/linux64': {
@@ -535,7 +535,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '904c607d152006168988b680f5ec6b45fe6a0f3e',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '907b997015a3232fce8fc5d0bcb4d5fde3f21afc',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '1c9b6be005a5f855d1c8dd3c63a11f2ee78f956c',
   'third_party/re2/src':
@@ -549,7 +549,7 @@ deps = {
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + 'd72db9e3040567a7589e00c0ad7ddf25c3b070bc',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '626d840b837492ba8823ab37da4d37552094aaea',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '3a9fe68322e7d74bad07e95f28a73b0319f932ab',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -662,7 +662,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'ec453dc9abac1ddf39ced752e72a7a80dcda1d91',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '2459bbdf7089b8d0e4adb65f3551202f06e21e39',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '583261a1bf9026d3c8b98b40cdaedc610e23d1da',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + '5c77c0c9fdebb2d87378bcea183e4c6937fd8c53',
   'tools/python': {
@@ -674,7 +674,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' + '5e1bfb45c353b2bb36bdf26b006ea8f5566c82d5',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' + '0131ae9d78e42fcc2c1811315e62410ad96d8230',
     'condition': 'not build_with_chromium',
   },
   'third_party/nasm': {
