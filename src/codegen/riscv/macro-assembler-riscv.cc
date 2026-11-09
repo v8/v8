@@ -7602,7 +7602,7 @@ void MacroAssembler::ComputeCodeStartAddress(Register dst) {
   auto pc = -pc_offset();
   auipc(dst, 0);
   if (pc != 0) {
-    SubWord(dst, dst, pc);
+    AddWord(dst, dst, pc);
   }
 }
 

@@ -169,6 +169,17 @@ TEST_F(MacroAssemblerTest, BranchAndLinkLongBackwardJalBoundary) {
   EXPECT_EQ(42, f.Call());
 }
 
+TEST_F(MacroAssemblerTest, ComputeCodeStartAddressAtNonzeroOffset) {
+  auto f = AssembleCode<int()>(isolate(), [](MacroAssembler& masm) {
+    masm.ComputeCodeStartAddress(t0);
+    masm.addi(zero_reg, zero_reg, 0);
+    masm.ComputeCodeStartAddress(t1);
+    masm.SubWord(a0, t1, t0);
+    masm.Ret();
+  });
+  EXPECT_EQ(0, f.Call());
+}
+
 TEST_F(MacroAssemblerTest, LoadConstants) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
