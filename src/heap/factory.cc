@@ -1595,9 +1595,9 @@ DirectHandle<Symbol> Factory::NewPrivateBrandSymbol(DirectHandle<String> name) {
   return direct_handle(symbol, isolate());
 }
 
-Tagged<Context> Factory::NewContextInternal(DirectHandle<Map> map, int size,
-                                            int variadic_part_length,
-                                            AllocationType allocation) {
+Tagged<Context> Factory::NewRawContext(DirectHandle<Map> map, int size,
+                                       int variadic_part_length,
+                                       AllocationType allocation) {
   DCHECK_LE(Context::kTodoHeaderSize, size);
   DCHECK(IsAligned(size, kTaggedSize));
   DCHECK_LE(Context::MIN_CONTEXT_SLOTS, variadic_part_length);
@@ -1611,8 +1611,8 @@ Tagged<Context> Factory::NewContextInternal(DirectHandle<Map> map, int size,
   Tagged<Context> context = Cast<Context>(result);
   context->set_length(variadic_part_length);
   DCHECK_EQ(context->SizeFromMap(*map), size);
-  if (size > Context::kTodoHeaderSize) {
-    ObjectSlot start = context->RawField(Context::kTodoHeaderSize);
+  if (size > Context::kHeaderSize) {
+    ObjectSlot start = context->RawField(Context::kHeaderSize);
     ObjectSlot end = context->RawField(size);
     size_t slot_count = end - start;
     MemsetTagged(start, *undefined_value(), slot_count);
@@ -1656,9 +1656,9 @@ Handle<NativeContext> Factory::NewNativeContext() {
                  context_map, "native context map"));
   }
 
-  Tagged<NativeContext> context = Cast<NativeContext>(NewContextInternal(
-      context_map, NativeContext::kSize, NativeContext::NATIVE_CONTEXT_SLOTS,
-      AllocationType::kOld));
+  Tagged<NativeContext> context = Cast<NativeContext>(
+      NewRawContext(context_map, NativeContext::kSize,
+                    NativeContext::NATIVE_CONTEXT_SLOTS, AllocationType::kOld));
   DisallowGarbageCollection no_gc;
   contextful_meta_map->set_native_context(context);
   context_map->set_native_context(context);
@@ -1681,9 +1681,9 @@ DirectHandle<Context> Factory::NewScriptContext(
   DCHECK(scope_info->is_script_scope());
   int variadic_part_length = scope_info->ContextLength();
   Tagged<Context> context =
-      NewContextInternal(direct_handle(outer->script_context_map(), isolate()),
-                         Context::SizeFor(variadic_part_length),
-                         variadic_part_length, AllocationType::kOld);
+      NewRawContext(direct_handle(outer->script_context_map(), isolate()),
+                    Context::SizeFor(variadic_part_length),
+                    variadic_part_length, AllocationType::kOld);
   DisallowGarbageCollection no_gc;
   context->set_scope_info(*scope_info);
   context->set_previous(*outer);
@@ -1702,7 +1702,7 @@ DirectHandle<Context> Factory::NewModuleContext(
   // TODO(v8:13567): Const tracking let in module contexts.
   DCHECK_EQ(scope_info->scope_type(), MODULE_SCOPE);
   int variadic_part_length = scope_info->ContextLength();
-  Tagged<Context> context = NewContextInternal(
+  Tagged<Context> context = NewRawContext(
       isolate()->module_context_map(), Context::SizeFor(variadic_part_length),
       variadic_part_length, AllocationType::kOld);
   DisallowGarbageCollection no_gc;
@@ -1728,8 +1728,8 @@ DirectHandle<Context> Factory::NewFunctionContext(
   }
   int variadic_part_length = scope_info->ContextLength();
   Tagged<Context> context =
-      NewContextInternal(map, Context::SizeFor(variadic_part_length),
-                         variadic_part_length, AllocationType::kYoung);
+      NewRawContext(map, Context::SizeFor(variadic_part_length),
+                    variadic_part_length, AllocationType::kYoung);
   DisallowGarbageCollection no_gc;
   context->set_scope_info(*scope_info);
   context->set_previous(*outer);
@@ -1754,7 +1754,7 @@ DirectHandle<Context> Factory::NewCatchContext(
   static_assert(Context::MIN_CONTEXT_SLOTS == Context::THROWN_OBJECT_INDEX);
   // TODO(ishell): Take the details from CatchContext class.
   int variadic_part_length = Context::MIN_CONTEXT_SLOTS + 1;
-  Tagged<Context> context = NewContextInternal(
+  Tagged<Context> context = NewRawContext(
       isolate()->catch_context_map(), Context::SizeFor(variadic_part_length),
       variadic_part_length, AllocationType::kYoung);
   DisallowGarbageCollection no_gc;
@@ -1776,9 +1776,9 @@ Handle<Context> Factory::NewDebugEvaluateContext(
   // TODO(ishell): Take the details from DebugEvaluateContextContext class.
   int variadic_part_length = Context::MIN_CONTEXT_EXTENDED_SLOTS + 1;
   Tagged<Context> context =
-      NewContextInternal(isolate()->debug_evaluate_context_map(),
-                         Context::SizeFor(variadic_part_length),
-                         variadic_part_length, AllocationType::kYoung);
+      NewRawContext(isolate()->debug_evaluate_context_map(),
+                    Context::SizeFor(variadic_part_length),
+                    variadic_part_length, AllocationType::kYoung);
   DisallowGarbageCollection no_gc;
   DCHECK_NEWLY_ALLOCATED_OBJECT_IS_YOUNG(isolate(), context);
   context->set_scope_info(*scope_info, SKIP_WRITE_BARRIER);
@@ -1797,7 +1797,7 @@ Handle<Context> Factory::NewWithContext(DirectHandle<Context> previous,
   DCHECK_EQ(scope_info->scope_type(), WITH_SCOPE);
   // TODO(ishell): Take the details from WithContext class.
   int variadic_part_length = Context::MIN_CONTEXT_EXTENDED_SLOTS;
-  Tagged<Context> context = NewContextInternal(
+  Tagged<Context> context = NewRawContext(
       isolate()->with_context_map(), Context::SizeFor(variadic_part_length),
       variadic_part_length, AllocationType::kYoung);
   DisallowGarbageCollection no_gc;
@@ -1813,7 +1813,7 @@ DirectHandle<Context> Factory::NewBlockContext(
   DCHECK_IMPLIES(scope_info->scope_type() != BLOCK_SCOPE,
                  scope_info->scope_type() == CLASS_SCOPE);
   int variadic_part_length = scope_info->ContextLength();
-  Tagged<Context> context = NewContextInternal(
+  Tagged<Context> context = NewRawContext(
       isolate()->block_context_map(), Context::SizeFor(variadic_part_length),
       variadic_part_length, AllocationType::kYoung);
   DisallowGarbageCollection no_gc;
@@ -1826,7 +1826,7 @@ DirectHandle<Context> Factory::NewBlockContext(
 DirectHandle<Context> Factory::NewBuiltinContext(
     DirectHandle<NativeContext> native_context, int variadic_part_length) {
   DCHECK_LE(Context::MIN_CONTEXT_SLOTS, variadic_part_length);
-  Tagged<Context> context = NewContextInternal(
+  Tagged<Context> context = NewRawContext(
       isolate()->function_context_map(), Context::SizeFor(variadic_part_length),
       variadic_part_length, AllocationType::kYoung);
   DisallowGarbageCollection no_gc;
@@ -3603,6 +3603,27 @@ Handle<JSObject> Factory::NewSlowJSObjectFromMap(
 
 Handle<JSObject> Factory::NewSlowJSObjectFromMap(DirectHandle<Map> map) {
   return NewSlowJSObjectFromMap(map, PropertyDictionary::kInitialCapacity);
+}
+
+Handle<JSObject> Factory::NewJSObjectForDeopt(DirectHandle<Map> map,
+                                              AllocationType allocation) {
+  DCHECK(IsJSObjectMap(*map));
+  int instance_size = map->instance_size();
+  DCHECK_GE(instance_size, JSObject::kHeaderSize);
+  DCHECK(IsAligned(instance_size, kTaggedSize));
+  Tagged<HeapObject> result = AllocateRaw(instance_size, allocation);
+  DisallowGarbageCollection no_gc;
+  result->set_map_after_allocation(isolate(), *map);
+  Tagged<JSObject> js_obj = Cast<JSObject>(result);
+  js_obj->set_raw_properties_or_hash(*empty_fixed_array(), SKIP_WRITE_BARRIER);
+  js_obj->RawField(offsetof(JSObject, elements_))
+      .Relaxed_Store(*empty_fixed_array());
+  int tagged_slots = (instance_size - JSObject::kHeaderSize) / kTaggedSize;
+  if (tagged_slots > 0) {
+    MemsetTagged(js_obj->RawField(JSObject::kHeaderSize),
+                 Smi::uninitialized_deserialization_value(), tagged_slots);
+  }
+  return handle(js_obj, isolate());
 }
 
 DirectHandle<JSObject> Factory::NewSlowJSObjectWithPropertiesAndElements(

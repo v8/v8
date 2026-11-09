@@ -133,6 +133,9 @@ LocalHeap::~LocalHeap() {
   }
 
   DCHECK(gc_epilogue_callbacks_.IsEmpty());
+#ifdef VERIFY_HEAP
+  DCHECK(pending_object_verify_scopes_.empty());
+#endif  // VERIFY_HEAP
 }
 
 void LocalHeap::SetUpMainThreadForTesting() {

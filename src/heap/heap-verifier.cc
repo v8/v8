@@ -8,6 +8,7 @@
 
 #include <optional>
 
+#include "absl/container/flat_hash_set.h"
 #include "include/v8-locker.h"
 #include "src/base/logging.h"
 #include "src/codegen/assembler-inl.h"
@@ -333,6 +334,8 @@ class HeapVerification final : public SpaceVerificationVisitor {
   const PtrComprCageBase cage_base_;
   std::optional<AllocationSpace> current_space_identity_;
   std::optional<const BasePage*> current_chunk_;
+  absl::flat_hash_set<Tagged<HeapObject>, Object::Hasher, Object::KeyEqualSafe>
+      pending_verify_objects_;
 };
 
 void HeapVerification::Verify() {
@@ -346,6 +349,26 @@ void HeapVerification::Verify() {
 
   heap()->MakeHeapIterable(CompleteSweepingReason::kTesting);
   heap()->FreeLinearAllocationAreas();
+
+  {
+    AllowHandleUsageOnAllThreads allow_all_handle_derefs;
+    auto collect_pending_verify_objects = [this](LocalHeap* local_heap) {
+      for (PendingObjectVerifyScope* verify_scope :
+           local_heap->pending_object_verify_scopes_) {
+        for (Handle<HeapObject> object : verify_scope->objects_) {
+          pending_verify_objects_.insert(*object);
+        }
+      }
+    };
+    heap()->safepoint()->IterateLocalHeaps(collect_pending_verify_objects);
+    if (isolate()->is_shared_space_isolate()) {
+      isolate()->global_safepoint()->IterateClientIsolates(
+          [&collect_pending_verify_objects](Isolate* client) {
+            client->heap()->safepoint()->IterateLocalHeaps(
+                collect_pending_verify_objects);
+          });
+    }
+  }
 
   // TODO(v8:13257): Currently we don't iterate through the stack conservatively
   // when verifying the heap.
@@ -477,8 +500,14 @@ void HeapVerification::VerifyObject(Tagged<HeapObject> object) {
   // Verify object map.
   VerifyObjectMap(object);
 
-  // The object itself should look OK.
-  Object::ObjectVerify(object, isolate_);
+  // Partially initialized objects registered in PendingObjectVerifyScope
+  // (e.g. during deoptimizer Pass-1 materialization) have valid maps and
+  // outgoing pointers, while ObjectVerify is deferred until the scope exits.
+  if (V8_LIKELY(pending_verify_objects_.empty()) ||
+      !pending_verify_objects_.contains(object)) {
+    // The object itself should look OK.
+    Object::ObjectVerify(object, isolate_);
+  }
 
   // Verify outgoing references.
   VerifyOutgoingPointers(object);
@@ -982,6 +1011,29 @@ void HeapVerifier::VerifySafeMapTransition(Heap* heap,
     CHECK_EQ(new_visitor.code_slot(i), old_visitor.code_slot(i));
   }
 #endif  // V8_EXTERNAL_CODE_SPACE
+}
+
+PendingObjectVerifyScope::PendingObjectVerifyScope() {
+  if (v8_flags.verify_heap) {
+    local_heap_ = LocalHeap::Current();
+    local_heap_->pending_object_verify_scopes_.push_back(this);
+  }
+}
+
+PendingObjectVerifyScope::~PendingObjectVerifyScope() {
+  if (!v8_flags.verify_heap) return;
+  DCHECK_EQ(local_heap_->pending_object_verify_scopes_.back(), this);
+  local_heap_->pending_object_verify_scopes_.pop_back();
+  Isolate* isolate = local_heap_->heap()->isolate();
+  for (Handle<HeapObject> object : objects_) {
+    Object::ObjectVerify(*object, isolate);
+  }
+}
+
+void PendingObjectVerifyScope::Add(Handle<HeapObject> object) {
+  if (v8_flags.verify_heap) {
+    objects_.push_back(object);
+  }
 }
 
 }  // namespace internal

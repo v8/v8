@@ -257,9 +257,12 @@ class FactoryBase {
       DirectHandle<UnionOf<String, Undefined>> source, int script_id,
       ScriptEventType event_type = ScriptEventType::kCreate);
 
+  // Allocates SloppyArgumentsElements with all mapped entries set to the hole
+  // (unmapped). If |context| or |arguments| is empty, the corresponding slot is
+  // filled with undefined and must be initialized by the caller before use.
   DirectHandle<SloppyArgumentsElements> NewSloppyArgumentsElements(
-      uint32_t length, DirectHandle<Context> context,
-      DirectHandle<FixedArray> arguments,
+      uint32_t length, MaybeDirectHandle<Context> context,
+      MaybeDirectHandle<FixedArray> arguments,
       AllocationType allocation = AllocationType::kYoung);
   DirectHandle<ArrayList> NewArrayList(
       uint32_t size, AllocationType allocation = AllocationType::kYoung);

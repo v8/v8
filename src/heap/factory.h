@@ -789,6 +789,20 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<JSPrototype> prototype, DirectHandle<HeapObject> properties,
       DirectHandle<FixedArrayBase> elements);
 
+  // Allocates a new context with the given map and size, sets its length to
+  // |variadic_part_length| and fills all slots after the header with undefined.
+  // The caller is responsible for initializing the context slots (scope info,
+  // previous context, etc.); prefer the New*Context methods where possible.
+  Tagged<Context> NewRawContext(DirectHandle<Map> map, int size,
+                                int variadic_part_length,
+                                AllocationType allocation);
+
+  // Allocates a partially initialized JSObject during deoptimizer Pass-1
+  // materialization. The object is allocated directly with its final Map and
+  // size, with GC-safe placeholder slot values that are overwritten in Pass 2.
+  Handle<JSObject> NewJSObjectForDeopt(DirectHandle<Map> map,
+                                       AllocationType allocation);
+
   // Create a JSArray with a specified length and elements initialized
   // according to the specified mode.
   Handle<JSArray> NewJSArray(
@@ -1440,13 +1454,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Tagged<Symbol> NewSymbolInternal(
       PrivateSymbolKind kind, AllocationType allocation = AllocationType::kOld);
-
-  // Allocates new context with given map, sets length and initializes the
-  // after-header part with uninitialized values and leaves the context header
-  // uninitialized.
-  Tagged<Context> NewContextInternal(DirectHandle<Map> map, int size,
-                                     int variadic_part_length,
-                                     AllocationType allocation);
 
   template <typename T>
   Handle<T> AllocateSmallOrderedHashTable(DirectHandle<Map> map, int capacity,

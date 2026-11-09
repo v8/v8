@@ -9,6 +9,7 @@
 #include <stack>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
 #include "include/v8config.h"
 #include "src/base/small-vector.h"
 #include "src/common/simd128.h"
@@ -28,6 +29,7 @@ namespace v8 {
 namespace internal {
 
 class DeoptimizationLiteral;
+class PendingObjectVerifyScope;
 class RegisterValues;
 class TranslatedState;
 
@@ -548,6 +550,7 @@ class TranslatedState {
   // extra work is needed to not violate assumptions made by left-trimming.  For
   // details, see the code around ReplaceElementsArrayWithCopy.
   enum Purpose { kDeoptimization, kFrameInspection };
+  enum LengthFieldType { kLengthIsSmi, kLengthIsUint32 };
 
   TranslatedFrame CreateNextTranslatedFrame(
       DeoptTranslationIterator* iterator,
@@ -574,34 +577,34 @@ class TranslatedState {
                                           int* value_index,
                                           TranslatedValue* slot);
 
-  void EnsureObjectAllocatedAt(TranslatedValue* slot);
+  void EnsureObjectAllocatedAt(
+      TranslatedValue* slot, PendingObjectVerifyScope* pending_verify_objects);
 
   void SkipSlots(int slots_to_skip, TranslatedFrame* frame, int* value_index);
 
-  Handle<ByteArray> AllocateStorageFor(TranslatedValue* slot);
-  void EnsureJSObjectAllocated(TranslatedValue* slot, DirectHandle<Map> map);
-  void EnsurePropertiesAllocatedAndMarked(TranslatedValue* properties_slot,
-                                          DirectHandle<Map> map);
+  void EnsureJSObjectAllocated(
+      TranslatedValue* slot, DirectHandle<Map> map,
+      PendingObjectVerifyScope* pending_verify_objects);
   void EnsureChildrenAllocated(int count, TranslatedFrame* frame,
                                int* value_index, std::stack<int>* worklist);
-  void EnsureCapturedObjectAllocatedAt(int object_index,
-                                       std::stack<int>* worklist);
+  void EnsureCapturedObjectAllocatedAt(
+      int object_index, std::stack<int>* worklist,
+      PendingObjectVerifyScope* pending_verify_objects);
   Handle<HeapObject> InitializeObjectAt(TranslatedValue* slot);
   void InitializeCapturedObjectAt(int object_index, std::stack<int>* worklist,
                                   const DisallowGarbageCollection& no_gc);
   void InitializeJSObjectAt(TranslatedFrame* frame, int* value_index,
                             TranslatedValue* slot, DirectHandle<Map> map,
                             const DisallowGarbageCollection& no_gc);
-  void InitializeFirstHeaderField(TranslatedFrame* frame, int* value_index,
-                                  TranslatedValue* slot, bool is_fixed_array,
-                                  const DisallowGarbageCollection& no_gc);
+  void InitializePropertyArrayAt(TranslatedFrame* frame, int* value_index,
+                                 TranslatedValue* slot, DirectHandle<Map> map,
+                                 const DisallowGarbageCollection& no_gc);
+  void SkipLengthField(TranslatedFrame* frame, int* value_index,
+                       TranslatedValue* slot, LengthFieldType length_type);
   void InitializeObjectWithTaggedFieldsAt(
       TranslatedFrame* frame, int* value_index, TranslatedValue* slot,
       DirectHandle<Map> map, const DisallowGarbageCollection& no_gc,
       int consumed_slots);
-  void PrepareObjectForLayoutChange(Handle<HeapObject> object_storage,
-                                    int children_count,
-                                    const DisallowGarbageCollection& no_gc);
 
   Handle<HeapObject> ResolveStringConcat(TranslatedValue* slot);
 
@@ -635,6 +638,7 @@ class TranslatedState {
     int value_index_;
   };
   std::vector<ObjectPosition> object_positions_;
+  absl::flat_hash_map<int, Handle<Map>> property_array_maps_;
   Handle<FeedbackVector> feedback_vector_handle_;
   Tagged<FeedbackVector> feedback_vector_;
   FeedbackSlot feedback_slot_;

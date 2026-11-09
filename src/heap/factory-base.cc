@@ -369,8 +369,8 @@ Handle<Script> FactoryBase<Impl>::NewScriptWithId(
 template <typename Impl>
 DirectHandle<SloppyArgumentsElements>
 FactoryBase<Impl>::NewSloppyArgumentsElements(
-    uint32_t length, DirectHandle<Context> context,
-    DirectHandle<FixedArray> arguments, AllocationType allocation) {
+    uint32_t length, MaybeDirectHandle<Context> maybe_context,
+    MaybeDirectHandle<FixedArray> maybe_arguments, AllocationType allocation) {
   Tagged<SloppyArgumentsElements> result =
       Cast<SloppyArgumentsElements>(AllocateRawWithImmortalMap(
           SloppyArgumentsElements::SizeFor(length), allocation,
@@ -384,8 +384,20 @@ FactoryBase<Impl>::NewSloppyArgumentsElements(
 #if TAGGED_SIZE_8_BYTES
   result->clear_optional_padding();
 #endif  // TAGGED_SIZE_8_BYTES
-  result->set_context(*context, write_barrier_mode);
-  result->set_arguments(*arguments, write_barrier_mode);
+  static_assert(offsetof(SloppyArgumentsElements, arguments_) ==
+                offsetof(SloppyArgumentsElements, context_) + kTaggedSize);
+  MemsetTagged(result->RawField(offsetof(SloppyArgumentsElements, context_)),
+               read_only_roots().undefined_value(), 2);
+  DirectHandle<Context> context;
+  if (maybe_context.ToHandle(&context)) {
+    result->set_context(*context, write_barrier_mode);
+  }
+  DirectHandle<FixedArray> arguments;
+  if (maybe_arguments.ToHandle(&arguments)) {
+    result->set_arguments(*arguments, write_barrier_mode);
+  }
+  MemsetTagged(result->RawField(SloppyArgumentsElements::OffsetOfElementAt(0)),
+               read_only_roots().the_hole_value(), length);
   return direct_handle(result, isolate());
 }
 
