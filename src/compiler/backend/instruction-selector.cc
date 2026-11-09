@@ -1811,7 +1811,9 @@ void InstructionSelector::EmitBinarySearchSwitch(
 }
 
 void InstructionSelector::VisitBitcastTaggedToWord(OpIndex node) {
-  EmitIdentity(node);
+  OperandGenerator g(this);
+  Emit(kArchNop, g.DefineSameAsFirst(node),
+       g.Use(this->Get(node).Cast<TaggedBitcastOp>().input()));
 }
 
 void InstructionSelector::VisitBitcastWordToTagged(OpIndex node) {
