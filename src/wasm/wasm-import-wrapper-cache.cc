@@ -92,21 +92,6 @@ std::shared_ptr<WasmWrapperHandle> WasmImportWrapperCache::Get(
                               nullptr);
 }
 
-#ifdef DEBUG
-bool WasmImportWrapperCache::IsCompiledWrapper(WasmCodePointer code_pointer) {
-  base::MutexGuard lock(&mutex_);
-  for (auto& [cache_key, weak_handle] : entry_map_) {
-    std::shared_ptr<WasmWrapperHandle> handle = weak_handle.lock();
-    if (!handle) continue;
-
-    if (handle->code_pointer() == code_pointer) {
-      return handle->has_code();
-    }
-  }
-  UNREACHABLE();
-}
-#endif
-
 bool WasmImportWrapperCache::HasCodeForTesting(ImportCallKind kind,
                                                const CanonicalSig* sig,
                                                int expected_arity,
