@@ -1394,7 +1394,7 @@ inline void MaglevAssembler::CompareByteAndJumpIf(MemOperand left, int8_t right,
                                                   Label* target,
                                                   Label::Distance distance) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
-  Register scratch2 = r0;
+  Register scratch2 = temps.AcquireScratch();
   LoadS8(scratch, left);
   mov(scratch2, Operand(right));
   extsb(scratch2, scratch2);
