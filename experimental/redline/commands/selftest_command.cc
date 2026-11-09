@@ -30,10 +30,12 @@
 #include "experimental/redline/commands/selftest_selection.h"
 #include "experimental/redline/core/program.h"
 #include "experimental/redline/core/random.h"
+#include "experimental/redline/core/tunable.h"
 #include "experimental/redline/corpus/corpus.h"
 #include "experimental/redline/corpus/feature_weights.h"
 #include "experimental/redline/engine/crash.h"
 #include "experimental/redline/engine/d8_flags.h"
+#include "experimental/redline/engine/fuzzer.h"
 #include "experimental/redline/engine/shared_coverage.h"
 #include "experimental/redline/exec/coverage.h"
 #include "experimental/redline/exec/runner.h"
@@ -549,6 +551,62 @@ void RunCoverageCounterChecks(Checker* checker) {
         "d8 flags: CombineD8Flags deduplication and orphan stripping",
         stripped_orphan && has_assert && st_count == 1,
         StringPrintf("size %zu, st_count %td", combined.size(), st_count));
+
+    const bool formula_ok =
+        std::abs(EffectiveTargetGuidedChance(0, 0) - 0.75) < 1e-9 &&
+        std::abs(EffectiveTargetGuidedChance(3, 3) - 0.75) < 1e-9 &&
+        std::abs(EffectiveTargetGuidedChance(4, 0) - 0.75) < 1e-9 &&
+        std::abs(EffectiveTargetGuidedChance(10, 2) - 0.60) < 1e-9 &&
+        std::abs(EffectiveTargetGuidedChance(8, 4) - 0.375) < 1e-9 &&
+        std::abs(EffectiveTargetGuidedChance(10, 8) - 0.15) < 1e-9 &&
+        std::abs(EffectiveTargetGuidedChance(4, 4) - 0.0) < 1e-9 &&
+        std::abs(EffectiveTargetGuidedChance(20, 20) - 0.0) < 1e-9;
+    checker->Check("d8 flags: EffectiveTargetGuidedChance warmup and scaling",
+                   formula_ok, "");
+
+    auto count_sentinel_draws = [](uint64_t completed, uint64_t hit,
+                                   bool populate_pool) {
+      FuzzConfig cfg;
+      cfg.randomize_d8_flags = true;
+      Fuzzer fuzzer(std::move(cfg));
+      fuzzer.SetTargetsForTest({{5, 100.0}});
+      if (populate_pool) {
+        fuzzer.RecordTargetFlags({"--sentinel-pool-flag"}, 100.0);
+      }
+      for (uint64_t i = 0; i < completed; i++) {
+        fuzzer.RecordTargetChild(i < hit);
+      }
+      Random draw_rng(12345);
+      int sentinel_count = 0;
+      for (int i = 0; i < 400; i++) {
+        std::vector<std::string> drawn = fuzzer.DrawD8Flags(draw_rng);
+        if (std::find(drawn.begin(), drawn.end(), "--sentinel-pool-flag") !=
+            drawn.end()) {
+          sentinel_count++;
+        }
+      }
+      return sentinel_count;
+    };
+    TunableRegistry& tunable_reg = TunableRegistry::Instance();
+    std::string tunable_err;
+    const bool set_no_mutate =
+        tunable_reg.Set("flags.target_mutate_chance", 0.0, &tunable_err);
+    const int empty_pool_draws = count_sentinel_draws(10, 0, false);
+    const int warmup_draws = count_sentinel_draws(3, 3, true);
+    const int zero_hit_draws = count_sentinel_draws(20, 0, true);
+    const int low_hit_draws = count_sentinel_draws(20, 2, true);
+    const int high_hit_draws = count_sentinel_draws(20, 18, true);
+    const int all_hit_draws = count_sentinel_draws(20, 20, true);
+    tunable_reg.Reset();
+    checker->Check(
+        "d8 flags: Fuzzer scales target-guided draws by child hit rate",
+        set_no_mutate && empty_pool_draws == 0 && warmup_draws > 240 &&
+            zero_hit_draws > 240 && low_hit_draws > 200 && high_hit_draws > 0 &&
+            high_hit_draws < 80 && low_hit_draws > high_hit_draws + 120 &&
+            all_hit_draws == 0,
+        StringPrintf("empty %d, warmup %d, zero %d, low %d, high %d, all %d",
+                     empty_pool_draws, warmup_draws, zero_hit_draws,
+                     low_hit_draws, high_hit_draws, all_hit_draws));
 
     Minimizer min_check;
     auto min_prog = Program::Parse(

@@ -116,6 +116,20 @@ class Fuzzer {
   // The per-component tables (mutators, reducers, scheduler, generators).
   std::string ComponentTables(bool include_generators) const;
 
+  // Target-guided `d8` flag state for change-based fuzzing.
+  void SetTargetsForTest(std::vector<std::pair<uint32_t, double>> targets) {
+    targets_ = std::move(targets);
+  }
+  void RecordTargetFlags(const std::vector<std::string>& args, double score);
+  void RecordTargetChild(bool hit);
+  std::vector<std::string> DrawD8Flags(Random& rng);
+  uint64_t target_children_completed() const {
+    return target_children_completed_.load(std::memory_order_acquire);
+  }
+  uint64_t target_children_hit() const {
+    return target_children_hit_.load(std::memory_order_acquire);
+  }
+
  private:
   friend class Worker;
 
@@ -182,11 +196,11 @@ class Fuzzer {
     std::vector<std::string> args;
     double score = 0;
   };
-  void RecordTargetFlags(const std::vector<std::string>& args, double score);
-  std::vector<std::string> DrawD8Flags(Random& rng);
   std::mutex target_flags_mutex_;
   std::vector<TargetFlagEntry> target_flags_;
   std::atomic<bool> has_target_flags_{false};
+  std::atomic<uint64_t> target_children_completed_{0};
+  std::atomic<uint64_t> target_children_hit_{0};
   std::unique_ptr<Corpus> corpus_;
   std::unique_ptr<MutatorSet> mutators_;
   std::unique_ptr<GeneratorSet> generators_;

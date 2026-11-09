@@ -115,8 +115,12 @@ class Worker {
     if (config().randomize_d8_flags) {
       // Each new target process gets new random flags (DESIGN.md 5.4).
       target.random_args = [this] {
+        if (!fuzzer_->targets_.empty() && child_execs_ > 0) {
+          fuzzer_->RecordTargetChild(child_target_hits_ > 0);
+        }
         child_target_buckets_.assign(fuzzer_->targets_.size(), 0);
         child_target_hits_ = 0;
+        child_execs_ = 0;
         return fuzzer_->DrawD8Flags(flags_rng_);
       };
     }
@@ -180,6 +184,11 @@ class Worker {
     while (!stopping()) {
       FuzzOne();
     }
+    if (config().randomize_d8_flags && !fuzzer_->targets_.empty() &&
+        child_execs_ > 0) {
+      fuzzer_->RecordTargetChild(child_target_hits_ > 0);
+      child_execs_ = 0;
+    }
     // Let the target go now; the main thread only joins.
     runner_.reset();
   }
@@ -218,6 +227,7 @@ class Worker {
     }
     consecutive_failures_ = 0;
     executions_++;
+    child_execs_++;
     stats().executions++;
     stats().exec_time_us += execution->exec_time_us;
     RememberExecution(source);
@@ -1710,6 +1720,7 @@ class Worker {
   size_t history_bytes_ = 0;
   std::vector<uint8_t> child_target_buckets_;
   uint32_t child_target_hits_ = 0;
+  uint32_t child_execs_ = 0;
 };
 
 // ---------------------------------------------------------------------------
@@ -1961,12 +1972,28 @@ void Fuzzer::RecordTargetFlags(const std::vector<std::string>& args,
   has_target_flags_.store(true, std::memory_order_relaxed);
 }
 
+void Fuzzer::RecordTargetChild(bool hit) {
+  if (hit) {
+    target_children_hit_.fetch_add(1, std::memory_order_relaxed);
+  }
+  target_children_completed_.fetch_add(1, std::memory_order_release);
+}
+
 std::vector<std::string> Fuzzer::DrawD8Flags(Random& rng) {
   D8FlagProfile profile = D8FlagProfile::kMaglev;
   ParseD8FlagProfile(config_.d8_flag_profile, &profile);
   std::vector<std::string> fresh = RandomD8Flags(rng, profile);
-  if (targets_.empty() || !has_target_flags_.load(std::memory_order_relaxed) ||
-      !rng.Chance(TargetGuidedChance())) {
+  if (targets_.empty() || !has_target_flags_.load(std::memory_order_relaxed)) {
+    return fresh;
+  }
+  // When most children reach target edges, `EffectiveTargetGuidedChance` lowers
+  // the guided probability so that new children get fresh random flags.
+  const uint64_t completed =
+      target_children_completed_.load(std::memory_order_acquire);
+  const uint64_t hit = target_children_hit_.load(std::memory_order_relaxed);
+  const double effective_guided_chance =
+      EffectiveTargetGuidedChance(completed, hit);
+  if (!rng.Chance(effective_guided_chance)) {
     return fresh;
   }
   std::vector<std::string> base;
@@ -2059,6 +2086,10 @@ void Fuzzer::AddCoverageStats(JsonObject* event) const {
     event->Add("target_found", found)
         .Add("target_total",
              static_cast<uint64_t>(feature_weights_->target_edges().size()));
+    if (!targets_.empty() && config_.randomize_d8_flags) {
+      event->Add("target_children_completed", target_children_completed())
+          .Add("target_children_hit", target_children_hit());
+    }
   }
   if (geometry_.optimized_count != 0) {
     event->Add("opt_found",

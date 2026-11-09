@@ -5,6 +5,7 @@
 #ifndef V8_EXPERIMENTAL_REDLINE_ENGINE_D8_FLAGS_H_
 #define V8_EXPERIMENTAL_REDLINE_ENGINE_D8_FLAGS_H_
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -42,6 +43,11 @@ std::vector<std::string> CombineD8Flags(const std::vector<std::string>& base,
                                         Random& rng);
 
 double TargetGuidedChance();
+int TargetGuidedWarmup();
+// Multiplies `TargetGuidedChance()` by `(1 - hit_rate)` after
+// `completed_children` reaches `TargetGuidedWarmup()`.
+double EffectiveTargetGuidedChance(uint64_t completed_children,
+                                   uint64_t hit_children);
 double TargetMutateChance();
 int TargetTournament();
 int TargetProbeExecs();

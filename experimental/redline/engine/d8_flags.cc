@@ -112,6 +112,10 @@ REDLINE_TUNABLE(kFlagsTargetGuidedChance, "flags.target_guided_chance", 0.75, 0,
                 1,
                 "change-based fuzzing: probability that a new target process "
                 "picks flags that reached target edges");
+REDLINE_TUNABLE(kFlagsTargetGuidedWarmup, "flags.target_guided_warmup", 4, 0,
+                1000,
+                "change-based fuzzing: completed children before "
+                "flags.target_guided_chance scales with the miss rate");
 REDLINE_TUNABLE(kFlagsTargetMutateChance, "flags.target_mutate_chance", 0.4, 0,
                 1,
                 "probability that target-guided flags are combined with a "
@@ -234,6 +238,23 @@ std::vector<std::string> CombineD8Flags(const std::vector<std::string>& base,
 }
 
 double TargetGuidedChance() { return kFlagsTargetGuidedChance(); }
+int TargetGuidedWarmup() { return kFlagsTargetGuidedWarmup.AsInt(); }
+
+double EffectiveTargetGuidedChance(uint64_t completed_children,
+                                   uint64_t hit_children) {
+  const double base = kFlagsTargetGuidedChance();
+  const uint64_t warmup = static_cast<uint64_t>(
+      std::max<int64_t>(0, kFlagsTargetGuidedWarmup.AsInt()));
+  if (completed_children == 0 || completed_children < warmup) {
+    return base;
+  }
+  const double hit_rate =
+      std::clamp(static_cast<double>(hit_children) /
+                     static_cast<double>(completed_children),
+                 0.0, 1.0);
+  return base * (1.0 - hit_rate);
+}
+
 double TargetMutateChance() { return kFlagsTargetMutateChance(); }
 int TargetTournament() { return kFlagsTargetTournament.AsInt(); }
 int TargetProbeExecs() { return kFlagsTargetProbeExecs.AsInt(); }
