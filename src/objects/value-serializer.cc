@@ -11,6 +11,7 @@
 #include "include/v8-value-serializer.h"
 #include "include/v8-wasm.h"
 #include "src/api/api-inl.h"
+#include "src/base/bounds.h"
 #include "src/base/logging.h"
 #include "src/base/platform/memory.h"
 #include "src/execution/isolate.h"
@@ -1654,12 +1655,13 @@ MaybeDirectHandle<Object> ValueDeserializer::ReadObjectWrapper() {
   return result;
 }
 
-MaybeDirectHandle<Object> ValueDeserializer::ReadObject() {
+MaybeDirectHandle<Object> ValueDeserializer::ReadObject(
+    InternalizeStrings internalize_strings) {
   DisallowJavascriptExecution no_js(isolate_);
   // If we are at the end of the stack, abort. This function may recurse.
   STACK_CHECK(isolate_, MaybeDirectHandle<Object>());
 
-  MaybeDirectHandle<Object> result = ReadObjectInternal();
+  MaybeDirectHandle<Object> result = ReadObjectInternal(internalize_strings);
 
   // ArrayBufferView is special in that it consumes the value before it, even
   // after format version 0.
@@ -1686,7 +1688,8 @@ MaybeDirectHandle<Object> ValueDeserializer::ReadObject() {
   return result;
 }
 
-MaybeDirectHandle<Object> ValueDeserializer::ReadObjectInternal() {
+MaybeDirectHandle<Object> ValueDeserializer::ReadObjectInternal(
+    InternalizeStrings internalize_strings) {
   SerializationTag tag;
   if (!ReadTag().To(&tag)) return MaybeDirectHandle<Object>();
   switch (tag) {
@@ -1695,7 +1698,7 @@ MaybeDirectHandle<Object> ValueDeserializer::ReadObjectInternal() {
       if (ReadVarint<uint32_t>().IsNothing()) {
         return MaybeDirectHandle<Object>();
       }
-      return ReadObject();
+      return ReadObject(internalize_strings);
     case SerializationTag::kUndefined:
       return isolate_->factory()->undefined_value();
     case SerializationTag::kNull:
@@ -1722,11 +1725,11 @@ MaybeDirectHandle<Object> ValueDeserializer::ReadObjectInternal() {
     case SerializationTag::kBigInt:
       return ReadBigInt();
     case SerializationTag::kUtf8String:
-      return ReadUtf8String();
+      return ReadUtf8String(internalize_strings);
     case SerializationTag::kOneByteString:
-      return ReadOneByteString();
+      return ReadOneByteString(internalize_strings);
     case SerializationTag::kTwoByteString:
-      return ReadTwoByteString();
+      return ReadTwoByteString(internalize_strings);
     case SerializationTag::kObjectReference: {
       uint32_t id;
       if (!ReadVarint<uint32_t>().To(&id)) return MaybeDirectHandle<Object>();
@@ -1821,28 +1824,44 @@ MaybeDirectHandle<BigInt> ValueDeserializer::ReadBigInt() {
 }
 
 MaybeDirectHandle<String> ValueDeserializer::ReadUtf8String(
-    AllocationType allocation) {
+    InternalizeStrings internalize) {
   uint32_t utf8_length;
   if (!ReadVarint<uint32_t>().To(&utf8_length)) return {};
   // utf8_length is checked in ReadRawBytes.
   base::Vector<const uint8_t> utf8_bytes;
   if (!ReadRawBytes(utf8_length).To(&utf8_bytes)) return {};
-  return isolate_->factory()->NewStringFromUtf8(
-      utf8_bytes, unibrow::Utf8Variant::kLossyUtf8, allocation);
+  if (internalize && utf8_length <= String::kMaxLength) {
+    if (utf8_length == 0) return isolate_->factory()->empty_string();
+    return isolate_->factory()->InternalizeUtf8String(std::string_view(
+        reinterpret_cast<const char*>(utf8_bytes.begin()), utf8_length));
+  }
+  DirectHandle<String> string;
+  if (!isolate_->factory()
+           ->NewStringFromUtf8(utf8_bytes, unibrow::Utf8Variant::kLossyUtf8)
+           .ToHandle(&string)) {
+    return {};
+  }
+  if (internalize) {
+    return isolate_->factory()->InternalizeString(string);
+  }
+  return string;
 }
 
 MaybeDirectHandle<String> ValueDeserializer::ReadOneByteString(
-    AllocationType allocation) {
+    InternalizeStrings internalize) {
   uint32_t byte_length;
   base::Vector<const uint8_t> bytes;
   if (!ReadVarint<uint32_t>().To(&byte_length)) return {};
   // byte_length is checked in ReadRawBytes.
   if (!ReadRawBytes(byte_length).To(&bytes)) return {};
-  return isolate_->factory()->NewStringFromOneByte(bytes, allocation);
+  if (internalize && base::IsInRange(byte_length, 2u, String::kMaxLength)) {
+    return isolate_->factory()->InternalizeString(bytes);
+  }
+  return isolate_->factory()->NewStringFromOneByte(bytes);
 }
 
 MaybeDirectHandle<String> ValueDeserializer::ReadTwoByteString(
-    AllocationType allocation) {
+    InternalizeStrings internalize) {
   uint32_t byte_length;
   base::Vector<const uint8_t> bytes;
   if (!ReadVarint<uint32_t>().To(&byte_length)) return {};
@@ -1855,17 +1874,29 @@ MaybeDirectHandle<String> ValueDeserializer::ReadTwoByteString(
   // Allocate an uninitialized string so that we can do a raw memcpy into the
   // string on the heap (regardless of alignment).
   if (byte_length == 0) return isolate_->factory()->empty_string();
+  uint32_t char_length = byte_length / sizeof(base::uc16);
+  if (internalize && char_length <= String::kMaxLength &&
+      IsAlignedAddress(bytes.begin(), sizeof(base::uc16))) {
+    base::Vector<const base::uc16> chars(
+        reinterpret_cast<const base::uc16*>(bytes.begin()), char_length);
+    return isolate_->factory()->InternalizeString(chars);
+  }
   DirectHandle<SeqTwoByteString> string;
   if (!isolate_->factory()
-           ->NewRawTwoByteString(byte_length / sizeof(base::uc16), allocation)
+           ->NewRawTwoByteString(char_length)
            .ToHandle(&string)) {
     return MaybeDirectHandle<String>();
   }
 
   // Copy the bytes directly into the new string.
   // Warning: this uses host endianness.
-  DisallowGarbageCollection no_gc;
-  memcpy(string->GetChars(no_gc), bytes.begin(), bytes.size());
+  {
+    DisallowGarbageCollection no_gc;
+    memcpy(string->GetChars(no_gc), bytes.begin(), bytes.size());
+  }
+  if (internalize) {
+    return isolate_->factory()->InternalizeString(string);
+  }
   return string;
 }
 
@@ -2084,17 +2115,6 @@ bool IsValidCollectionKey(Tagged<Object> key) {
   return !IsHeapNumber(key) || Cast<HeapNumber>(key)->value() != 0.0;
 }
 
-DirectHandle<Object> CanonicalizeCollectionKey(Isolate* isolate,
-                                               DirectHandle<Object> key) {
-  if (IsString(*key)) {
-    // Deserialized strings are allocated as fresh SeqStrings, whereas
-    // OrderedHashTable CSA lookups require string keys to be internalized
-    // (compared by pointer equality).
-    return isolate->factory()->InternalizeString(Cast<String>(key));
-  }
-  return key;
-}
-
 }  // namespace
 
 MaybeDirectHandle<JSMap> ValueDeserializer::ReadJSMap() {
@@ -2124,12 +2144,12 @@ MaybeDirectHandle<JSMap> ValueDeserializer::ReadJSMap() {
     HandleScope loop_scope(isolate_);
     DirectHandle<Object> key;
     DirectHandle<Object> value;
-    if (!ReadObject().ToHandle(&key) || !IsValidCollectionKey(*key) ||
-        !ReadObject().ToHandle(&value)) {
+    if (!ReadObject(InternalizeStrings{true}).ToHandle(&key) ||
+        !IsValidCollectionKey(*key) || !ReadObject().ToHandle(&value)) {
       return MaybeDirectHandle<JSMap>();
     }
 
-    key = CanonicalizeCollectionKey(isolate_, key);
+    DCHECK_IMPLIES(IsString(*key), IsInternalizedString(*key));
     Handle<OrderedHashMap> table(Cast<OrderedHashMap>(map->table()), isolate_);
     if (!OrderedHashMap::Add(isolate_, table, key, value).ToHandle(&table)) {
       return MaybeDirectHandle<JSMap>();
@@ -2173,11 +2193,12 @@ MaybeDirectHandle<JSSet> ValueDeserializer::ReadJSSet() {
 
     HandleScope loop_scope(isolate_);
     DirectHandle<Object> key;
-    if (!ReadObject().ToHandle(&key) || !IsValidCollectionKey(*key)) {
+    if (!ReadObject(InternalizeStrings{true}).ToHandle(&key) ||
+        !IsValidCollectionKey(*key)) {
       return MaybeDirectHandle<JSSet>();
     }
 
-    key = CanonicalizeCollectionKey(isolate_, key);
+    DCHECK_IMPLIES(IsString(*key), IsInternalizedString(*key));
     DirectHandle<OrderedHashSet> table(Cast<OrderedHashSet>(set->table()),
                                        isolate_);
     if (!OrderedHashSet::Add(isolate_, table, key).ToHandle(&table)) {
@@ -2782,11 +2803,12 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
       }
       if (!transition_was_found) {
         position_ = start_position;
-        if (!ReadObject().ToHandle(&key) || !IsValidObjectKey(*key, isolate_)) {
+        if (!ReadObject(InternalizeStrings{true}).ToHandle(&key) ||
+            !IsValidObjectKey(*key, isolate_)) {
           return Nothing<uint32_t>();
         }
         if (IsString(*key)) {
-          key = isolate_->factory()->InternalizeString(Cast<String>(key));
+          DCHECK(IsInternalizedString(*key));
           // Don't reuse |transitions| because it could be stale.
           transitioning = TransitionsAccessor(isolate_, *map)
                               .FindTransitionToField(Cast<String>(key))
@@ -2870,7 +2892,8 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
     }
 
     DirectHandle<Object> key;
-    if (!ReadObject().ToHandle(&key) || !IsValidObjectKey(*key, isolate_)) {
+    if (!ReadObject(InternalizeStrings{true}).ToHandle(&key) ||
+        !IsValidObjectKey(*key, isolate_)) {
       return Nothing<uint32_t>();
     }
     DirectHandle<Object> value;

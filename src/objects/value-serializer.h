@@ -11,6 +11,7 @@
 #include "src/base/compiler-specific.h"
 #include "src/base/macros.h"
 #include "src/base/strings.h"
+#include "src/base/strong-alias.h"
 #include "src/base/vector.h"
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
@@ -291,11 +292,18 @@ class ValueDeserializer {
       V8_WARN_UNUSED_RESULT;
   Maybe<base::Vector<const base::uc16>> ReadRawTwoBytes(size_t size)
       V8_WARN_UNUSED_RESULT;
-  MaybeDirectHandle<Object> ReadObject() V8_WARN_UNUSED_RESULT;
+  using InternalizeStrings =
+      base::StrongAlias<struct InternalizeStringsTag, bool>;
+
+  MaybeDirectHandle<Object> ReadObject(
+      InternalizeStrings internalize_strings = InternalizeStrings{
+          false}) V8_WARN_UNUSED_RESULT;
 
   // Like ReadObject, but skips logic for special cases in simulating the
   // "stack machine".
-  MaybeDirectHandle<Object> ReadObjectInternal() V8_WARN_UNUSED_RESULT;
+  MaybeDirectHandle<Object> ReadObjectInternal(
+      InternalizeStrings internalize_strings = InternalizeStrings{
+          false}) V8_WARN_UNUSED_RESULT;
 
   // Reads a string intended to be part of a more complicated object.
   // Before v12, these are UTF-8 strings. After, they can be any encoding
@@ -306,11 +314,14 @@ class ValueDeserializer {
   // The tag is assumed to have already been read.
   MaybeDirectHandle<BigInt> ReadBigInt() V8_WARN_UNUSED_RESULT;
   MaybeDirectHandle<String> ReadUtf8String(
-      AllocationType allocation = AllocationType::kYoung) V8_WARN_UNUSED_RESULT;
+      InternalizeStrings internalize = InternalizeStrings{
+          false}) V8_WARN_UNUSED_RESULT;
   MaybeDirectHandle<String> ReadOneByteString(
-      AllocationType allocation = AllocationType::kYoung) V8_WARN_UNUSED_RESULT;
+      InternalizeStrings internalize = InternalizeStrings{
+          false}) V8_WARN_UNUSED_RESULT;
   MaybeDirectHandle<String> ReadTwoByteString(
-      AllocationType allocation = AllocationType::kYoung) V8_WARN_UNUSED_RESULT;
+      InternalizeStrings internalize = InternalizeStrings{
+          false}) V8_WARN_UNUSED_RESULT;
   MaybeDirectHandle<JSObject> ReadJSObject() V8_WARN_UNUSED_RESULT;
   MaybeDirectHandle<JSArray> ReadSparseJSArray() V8_WARN_UNUSED_RESULT;
   MaybeDirectHandle<JSArray> ReadDenseJSArray() V8_WARN_UNUSED_RESULT;
