@@ -388,6 +388,7 @@ void ArrayBufferSweeper::Append(ArrayBufferExtension* extension) {
 
 void ArrayBufferSweeper::Resize(ArrayBufferExtension* extension,
                                 int64_t delta) {
+  SYNCHRONIZATION_POINT_TEST_ONLY("ArrayBufferSweeper::Resize");
   FinishIfDone();
 
   const ArrayBufferExtension::AccountingState previous_value =
@@ -595,6 +596,7 @@ bool ArrayBufferSweeper::SweepingState::SweepingJob::SweepYoung(
   state_.young_bytes_accounted_ += (freed_bytes + accounted_bytes);
 
   young_.head_ = current;
+  SYNCHRONIZATION_POINT_TEST_ONLY("SweepArrayBufferYoungFinished");
   return !current;
 }
 

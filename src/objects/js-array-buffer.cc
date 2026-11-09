@@ -5,6 +5,7 @@
 #include "src/objects/js-array-buffer.h"
 
 #include "src/api/api-inl.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/execution/protectors-inl.h"
 #include "src/logging/counters.h"
 #include "src/objects/cpp-heap-object-wrapper-inl.h"
@@ -340,12 +341,14 @@ ArrayBufferExtension* JSArrayBuffer::CreateExtension(
   // inaccurate. However, a full GC will sweep both lists and promote all to
   // old, so it doesn't matter which list initially holds the extension in this
   // case.
-  const auto age = HeapLayout::InYoungGeneration(Tagged<JSArrayBuffer>(this))
-                       ? ArrayBufferExtension::Age::kYoung
-                       : ArrayBufferExtension::Age::kOld;
+  const auto age =
+      TrustedHeapLayout::InYoungGeneration(Tagged<JSArrayBuffer>(this))
+          ? ArrayBufferExtension::Age::kYoung
+          : ArrayBufferExtension::Age::kOld;
   ArrayBufferExtension* extension =
       new ArrayBufferExtension(isolate->heap(), std::move(backing_store), age,
                                is_shared(), is_resizable_by_js());
+  SYNCHRONIZATION_POINT_TEST_ONLY("JSArrayBuffer::CreateExtension");
   set_extension(isolate, extension);
   isolate->heap()->AppendArrayBufferExtension(extension);
   return extension;
