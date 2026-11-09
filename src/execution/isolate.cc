@@ -4694,7 +4694,7 @@ Isolate::SwitchStacks<wasm::JumpBuffer::Retired, wasm::JumpBuffer::Inactive>(
 
 void Isolate::RetireWasmStack(wasm::StackMemory* stack) {
   // Clear the owning {WasmStackObject}'s external pointer to prevent a UAF.
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   stack->ClearExternalPointerTableEntry();
 #else
   if (!stack->stack_obj().is_null()) {

@@ -61,11 +61,11 @@ struct JumpBuffer {
 };
 
 class StackMemory
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
     : public ExternalPointerTable::ManagedResource {
 #else
     : public Malloced {
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
  public:
   static std::unique_ptr<StackMemory> New() {
     return std::unique_ptr<StackMemory>(new StackMemory());
