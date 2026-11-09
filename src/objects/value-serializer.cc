@@ -2078,6 +2078,12 @@ MaybeDirectHandle<JSRegExp> ValueDeserializer::ReadJSRegExp() {
 
 namespace {
 
+bool IsValidCollectionKey(Tagged<Object> key) {
+  // Valid ValueSerializer payloads never write -0.0 as a Map/Set key, since
+  // JSMap/JSSet keys are already canonicalized to +0.
+  return !IsHeapNumber(key) || Cast<HeapNumber>(key)->value() != 0.0;
+}
+
 DirectHandle<Object> CanonicalizeCollectionKey(Isolate* isolate,
                                                DirectHandle<Object> key) {
   if (IsString(*key)) {
@@ -2086,7 +2092,6 @@ DirectHandle<Object> CanonicalizeCollectionKey(Isolate* isolate,
     // (compared by pointer equality).
     return isolate->factory()->InternalizeString(Cast<String>(key));
   }
-  CHECK(!IsHeapNumber(*key) || Cast<HeapNumber>(*key)->value() != 0.0);
   return key;
 }
 
@@ -2119,7 +2124,8 @@ MaybeDirectHandle<JSMap> ValueDeserializer::ReadJSMap() {
     HandleScope loop_scope(isolate_);
     DirectHandle<Object> key;
     DirectHandle<Object> value;
-    if (!ReadObject().ToHandle(&key) || !ReadObject().ToHandle(&value)) {
+    if (!ReadObject().ToHandle(&key) || !IsValidCollectionKey(*key) ||
+        !ReadObject().ToHandle(&value)) {
       return MaybeDirectHandle<JSMap>();
     }
 
@@ -2167,7 +2173,9 @@ MaybeDirectHandle<JSSet> ValueDeserializer::ReadJSSet() {
 
     HandleScope loop_scope(isolate_);
     DirectHandle<Object> key;
-    if (!ReadObject().ToHandle(&key)) return MaybeDirectHandle<JSSet>();
+    if (!ReadObject().ToHandle(&key) || !IsValidCollectionKey(*key)) {
+      return MaybeDirectHandle<JSSet>();
+    }
 
     key = CanonicalizeCollectionKey(isolate_, key);
     DirectHandle<OrderedHashSet> table(Cast<OrderedHashSet>(set->table()),
