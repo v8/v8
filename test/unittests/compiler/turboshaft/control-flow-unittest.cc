@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <array>
+
 #include "src/base/vector.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/branch-elimination-reducer.h"
@@ -12,6 +14,7 @@
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/required-optimization-reducer.h"
+#include "src/compiler/turboshaft/select-lowering-reducer.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
 #include "test/unittests/compiler/turboshaft/reducer-test.h"
 
@@ -194,6 +197,70 @@ TEST_F(ControlFlowTest, LoopVar) {
   });
 
   ASSERT_EQ(0u, test.CountOp(Opcode::kPendingLoopPhi));
+}
+
+// Checks that when SelectLowering lowers a Select feeding into a Goto to a
+// shared merge block, BranchElimination folds the intermediate Phi+Goto merge
+// block into the outer merge block.
+TEST_F(ControlFlowTest, SelectLoweringMergeFolding) {
+  constexpr std::array kReps = {RegisterRepresentation::Word32(),
+                                RegisterRepresentation::Word32()};
+  auto test = CreateFromGraph(base::VectorOf(kReps), [](TestInstance& Asm) {
+    V<Word32> c1 = Asm.GetParameter<Word32>(0);
+    V<Word32> c2 = Asm.GetParameter<Word32>(1);
+    Label<Word32> done(&Asm);
+
+    IF (c1) {
+      GOTO(done, 10);
+    } ELSE {
+      GOTO(done,
+           __ Conditional(c2, __ Word32Constant(20), __ Word32Constant(30)));
+    }
+
+    BIND(done, result);
+    // Emit enough operations so that `done` is not itself cloned by Return
+    // tail-duplication (kMaxOpCountForCloning = 13).
+    V<Word32> acc = result;
+    for (int i = 0; i < 50; i++) {
+      acc = __ Word32Add(acc, i);
+    }
+    __ Return(acc);
+  });
+
+  test.Run<SelectLoweringReducer>();
+  ASSERT_EQ(test.CountOp(Opcode::kPhi), 2u);
+
+  test.Run<BranchEliminationReducer>();
+  ASSERT_EQ(test.CountOp(Opcode::kPhi), 1u);
+}
+
+// Checks that when SelectLowering lowers a Select feeding into a Goto to a
+// shared Return merge block, BranchElimination inlines both the intermediate
+// Phi+Goto merge block and the Return block in a single pass.
+TEST_F(ControlFlowTest, SelectLoweringReturnMergeFolding) {
+  constexpr std::array kReps = {RegisterRepresentation::Word32(),
+                                RegisterRepresentation::Word32()};
+  auto test = CreateFromGraph(base::VectorOf(kReps), [](TestInstance& Asm) {
+    V<Word32> c1 = Asm.GetParameter<Word32>(0);
+    V<Word32> c2 = Asm.GetParameter<Word32>(1);
+    Label<Word32> done(&Asm);
+
+    IF (c1) {
+      GOTO(done, 10);
+    } ELSE {
+      GOTO(done,
+           __ Conditional(c2, __ Word32Constant(20), __ Word32Constant(30)));
+    }
+
+    BIND(done, result);
+    __ Return(result);
+  });
+
+  test.Run<SelectLoweringReducer>();
+  ASSERT_EQ(test.CountOp(Opcode::kPhi), 2u);
+
+  test.Run<BranchEliminationReducer>();
+  ASSERT_EQ(test.CountOp(Opcode::kPhi), 0u);
 }
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

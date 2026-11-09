@@ -456,6 +456,17 @@ class BranchEliminationReducer : public Next {
       // inline the destination block in place of the Goto.
       Asm().CloneAndInlineBlock(destination_origin);
       return {};
+    } else if (const GotoOp* goto_op = last_op.template TryCast<GotoOp>()) {
+      if (goto_op->destination->IsMerge() &&
+          goto_op->destination->PredecessorCount() > 1 &&
+          ContainsOnlyPhisAndGoto(destination_origin)) {
+        // The destination block in the old graph is a merge block that only
+        // merges Phis and immediately jumps to another merge block, so we can
+        // inline it into the current block and jump directly to the outer merge
+        // block.
+        Asm().CloneAndInlineBlock(destination_origin);
+        return {};
+      }
     }
 
     goto no_change;
@@ -695,6 +706,15 @@ class BranchEliminationReducer : public Next {
     }
 
     return has_phi;
+  }
+
+  bool ContainsOnlyPhisAndGoto(const Block* block) {
+    for (const Operation& op :
+         base::IterateWithoutLast(__ input_graph().operations(*block))) {
+      if (!op.Is<PhiOp>()) return false;
+    }
+    DCHECK(block->LastOperation(__ input_graph()).template Is<GotoOp>());
+    return true;
   }
 
   std::optional<int> GetExact(OpIndex index) {
