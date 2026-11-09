@@ -5030,7 +5030,7 @@ template <typename BaseT>
 void MaglevReducer<BaseT>::RecordKnownProperty(
     ValueNode* lookup_start_object, PropertyKey key, ValueNode* value,
     PropertyConstness constness, compiler::AccessMode access_mode) {
-  DCHECK(!value->is_conversion());
+  value = value->Unwrap();
   auto& props_for_key =
       known_node_aspects().GetLoadedPropertiesForKey(constness, key);
   if (constness == PropertyConstness::kMutable && IsAnyStore(access_mode)) {
