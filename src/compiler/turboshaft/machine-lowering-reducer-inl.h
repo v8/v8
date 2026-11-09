@@ -2550,7 +2550,9 @@ class MachineLoweringReducer : public Next {
           // therefore safe to cast the EagerFrameState to a LazyFrameState.
           auto lazy_fs = V<LazyFrameState>::Cast(OpIndex(frame_state));
           __ template CallRuntime<runtime::TerminateExecution>(
-              lazy_fs, __ NoContextConstant(), {}, LazyDeoptOnThrow{false});
+              lazy_fs,
+              __ HeapConstant(broker_->target_native_context().object()), {},
+              LazyDeoptOnThrow{false});
           __ Unreachable();
         }
 

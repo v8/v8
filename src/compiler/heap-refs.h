@@ -808,7 +808,7 @@ class ContextCellRef : public HeapObjectRef {
   OptionalObjectRef tagged_value(JSHeapBroker* broker) const;
 };
 
-class ContextRef : public HeapObjectRef {
+class V8_EXPORT_PRIVATE ContextRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(Context, HeapObjectRef)
 
@@ -872,7 +872,7 @@ class ContextRef : public HeapObjectRef {
   V(Map, with_context_map)                       \
   V(ScriptContextTable, script_context_table)
 
-class NativeContextRef : public ContextRef {
+class V8_EXPORT_PRIVATE NativeContextRef : public ContextRef {
  public:
   DEFINE_REF_CONSTRUCTOR(NativeContext, ContextRef)
 

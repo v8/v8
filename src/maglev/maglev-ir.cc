@@ -1748,7 +1748,7 @@ void BigIntBinaryOperation::GenerateCode(MaglevAssembler* masm,
     // Smi 1 (TerminationRequested): the builtin already observed (and cleared)
     // the terminate interrupt, so deopting would let the interpreter recompute
     // to completion and swallow it. Re-raise the termination in this frame.
-    __ Move(kContextRegister, 0);
+    __ Move(kContextRegister, masm->native_context().object());
     __ CallRuntime(Runtime::kTerminateExecution, 0);
     __ DefineLazyDeoptPoint(lazy_deopt_info());
     __ Abort(AbortReason::kUnexpectedReturnFromThrow);
