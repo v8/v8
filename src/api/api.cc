@@ -6397,6 +6397,20 @@ void* v8::Object::SlowGetAlignedPointerFromInternalField(
   return result;
 }
 
+void* v8::Object::SlowGetPointerFromInternalField(v8::Isolate* isolate,
+                                                  int index,
+                                                  CppHeapPointerTag tag) {
+  auto obj = Utils::OpenDirectHandle(this);
+  const char* location = "v8::Object::GetPointerFromInternalField()";
+  if (!InternalFieldOK(obj, index, location)) return nullptr;
+  void* result;
+  Utils::ApiCheck(i::EmbedderDataSlot(i::Cast<i::JSObject>(*obj), index)
+                      .ToAlignedPointer(reinterpret_cast<i::Isolate*>(isolate),
+                                        &result, tag),
+                  location, "Unaligned pointer");
+  return result;
+}
+
 void v8::Object::SetAlignedPointerInInternalField(int index, void* value,
                                                   EmbedderDataTypeTag tag) {
   auto obj = Utils::OpenDirectHandle(this);
@@ -6408,6 +6422,20 @@ void v8::Object::SetAlignedPointerInInternalField(int index, void* value,
                       value, ToExternalPointerTag(tag)),
                   location, "Unaligned pointer");
   DCHECK_EQ(value, GetAlignedPointerFromInternalField(index, tag));
+}
+
+void v8::Object::SetPointerInInternalFieldInternal(int index, void* value,
+                                                   CppHeapPointerTag tag) {
+  auto obj = Utils::OpenDirectHandle(this);
+  const char* location = "v8::Object::SetPointerInInternalField()";
+  if (!InternalFieldOK(obj, index, location)) return;
+  i::Isolate* i_isolate = i::Isolate::Current();
+  bool ok = i::EmbedderDataSlot(i::Cast<i::JSObject>(*obj), index)
+                .store_aligned_pointer(i_isolate, i::Cast<i::JSObject>(*obj),
+                                       value, tag);
+  Utils::ApiCheck(ok, location, "Unaligned pointer");
+  DCHECK_EQ(value, SlowGetPointerFromInternalField(
+                       reinterpret_cast<v8::Isolate*>(i_isolate), index, tag));
 }
 
 // static

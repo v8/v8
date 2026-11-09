@@ -3331,6 +3331,17 @@ THREADED_TEST(GlobalObjectHasRealIndexedProperty) {
   CHECK(global->HasRealIndexedProperty(env.local(), 0).FromJust());
 }
 
+class TestGarbagedCollectedData
+    : public cppgc::GarbageCollected<TestGarbagedCollectedData> {
+ public:
+  void MarkUsed() { ++use_count_; }
+  int use_count() const { return use_count_; }
+  void Trace(cppgc::Visitor*) const {}
+
+ private:
+  int use_count_ = 0;
+};
+
 static void CheckAlignedPointerInInternalField(Local<v8::Object> obj,
                                                void* value) {
   CHECK(HAS_SMI_TAG(reinterpret_cast<i::Address>(value)));
@@ -3339,6 +3350,14 @@ static void CheckAlignedPointerInInternalField(Local<v8::Object> obj,
   CHECK_EQ(value, obj->GetAlignedPointerFromInternalField(0, kTestTypeTagA));
   CHECK_EQ(value, obj->GetAlignedPointerFromInternalField(CcTest::isolate(), 0,
                                                           kTestTypeTagA));
+}
+
+static void CheckCppHeapPointerInInternalField(
+    Local<v8::Object> obj, TestGarbagedCollectedData* value) {
+  obj->SetPointerInInternalField(0, value, i::kTagForTesting);
+  i::heap::InvokeMajorGC(CcTest::heap());
+  CHECK_EQ(value, obj->GetPointerFromInternalField<TestGarbagedCollectedData>(
+                      CcTest::isolate(), 0, i::kTagForTesting));
 }
 
 THREADED_TEST(InternalFieldsAlignedPointers) {
@@ -3373,6 +3392,21 @@ THREADED_TEST(InternalFieldsAlignedPointers) {
   CHECK_EQ(1, Object::InternalFieldCount(persistent));
   CHECK_EQ(huge, Object::GetAlignedPointerFromInternalField(persistent, 0,
                                                             kTestTypeTagA));
+
+  CheckCppHeapPointerInInternalField(obj, nullptr);
+
+  cppgc::Persistent<TestGarbagedCollectedData> cpp_object(
+      cppgc::MakeGarbageCollected<TestGarbagedCollectedData>(
+          isolate->GetCppHeap()->GetAllocationHandle()));
+  CheckCppHeapPointerInInternalField(obj, cpp_object.Get());
+  CHECK_EQ(cpp_object.Get(),
+           Object::GetPointerFromInternalField<TestGarbagedCollectedData>(
+               isolate, persistent, 0, i::kTagForTesting));
+
+  v8::TracedReference<v8::Object> traced(isolate, obj);
+  CHECK_EQ(cpp_object.Get(),
+           Object::GetPointerFromInternalField<TestGarbagedCollectedData>(
+               isolate, traced, 0, i::kTagForTesting));
 }
 
 static void CheckAlignedPointerInEmbedderData(LocalContext* env,
@@ -32748,17 +32782,6 @@ TEST(LocalCasts) {
     v8::MaybeLocal<v8::String>::Cast(no_data);
   }
 }
-
-class TestGarbagedCollectedData
-    : public cppgc::GarbageCollected<TestGarbagedCollectedData> {
- public:
-  void MarkUsed() { ++use_count_; }
-  int use_count() const { return use_count_; }
-  void Trace(cppgc::Visitor*) const {}
-
- private:
-  int use_count_ = 0;
-};
 
 void ReadCppHeapExternalCallback(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
