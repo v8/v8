@@ -2803,11 +2803,27 @@ void Debug::OnException(DirectHandle<Object> exception,
           if (IsMutedAtAnyBreakLocation(shared, break_locations)) {
             return;
           }
+          if (frame->is_optimized()) {
+            Deoptimizer::DeoptimizeFunction(frame->function(),
+                                            LazyDeoptimizeReason::kDebugger,
+                                            frame->LookupCode());
+          }
           break;  // Stop at first debuggable function
         }
 #if V8_ENABLE_WEBASSEMBLY
       } else if (it.frame()->is_wasm()) {
         const WasmFrame* frame = WasmFrame::cast(it.frame());
+        bool is_interpreter_entry = false;
+#if V8_ENABLE_DRUMBRAKE
+        is_interpreter_entry = it.frame()->is_wasm_interpreter_entry();
+#endif  // V8_ENABLE_DRUMBRAKE
+        if (!is_interpreter_entry) {
+          // Optimized Wasm frames cannot be deoptimized on-stack. Do not pause
+          // on top of a non-Liftoff Wasm frame so that JavaScript executed
+          // during the pause cannot invalidate state in the active frame.
+          wasm::WasmCodeRefScope code_ref_scope;
+          if (!frame->wasm_code()->is_liftoff()) return;
+        }
         int top_wasm_position =
             FrameSummary::GetInnermost(frame).AsWasm().SourcePosition();
         if (IsMutedAtWasmLocation(frame->script(), top_wasm_position)) return;
@@ -3182,10 +3198,11 @@ bool Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode,
       }
 #if V8_ENABLE_WEBASSEMBLY
     } else if (!it.done() && it.frame()->is_wasm()) {
+      bool is_interpreter_entry = false;
 #if V8_ENABLE_DRUMBRAKE
-      if (!it.frame()->is_wasm_interpreter_entry())
+      is_interpreter_entry = it.frame()->is_wasm_interpreter_entry();
 #endif  // V8_ENABLE_DRUMBRAKE
-      {
+      if (!is_interpreter_entry) {
         WasmFrame* wasm_frame = WasmFrame::cast(it.frame());
         wasm::WasmCodeRefScope code_ref_scope;
         // Optimized Wasm frames cannot be deoptimized on-stack at loop stack
