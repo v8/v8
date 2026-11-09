@@ -223,6 +223,12 @@ inline ReduceResult MaybeReduceResult::Checked() { return ReduceResult(*this); }
     }                                       \
   } while (false)
 
+#define CHECK_NO_ABORT(result)        \
+  do {                                \
+    MaybeReduceResult res = (result); \
+    CHECK(res.IsDoneWithoutAbort());  \
+  } while (false)
+
 #define RETURN_IF_NOT_DONE_WITHOUT_ABORT(result) \
   do {                                           \
     auto res = (result);                         \
