@@ -269,11 +269,16 @@ TEST_F(CastingTest, SbxCastAndOutsideSandboxCast) {
       OutsideSandboxCast<TrustedByteArray>(null_maybe_direct).is_null());
 
 #ifdef V8_ENABLE_SANDBOX
+#if V8_LOGGING_LEVEL == 0
+  constexpr const char* kExpectedDeathRegex = "";
+#else
+  constexpr const char* kExpectedDeathRegex = "OutsideSandbox";
+#endif
   IndirectHandle<HeapObject> in_sandbox = isolate()->factory()->NewByteArray(4);
   ASSERT_DEATH_IF_SUPPORTED(OutsideSandboxCast<TrustedByteArray>(*in_sandbox),
-                            "OutsideSandbox");
+                            kExpectedDeathRegex);
   ASSERT_DEATH_IF_SUPPORTED(OutsideSandboxCast<TrustedByteArray>(in_sandbox),
-                            "OutsideSandbox");
+                            kExpectedDeathRegex);
 #endif  // V8_ENABLE_SANDBOX
 }
 
