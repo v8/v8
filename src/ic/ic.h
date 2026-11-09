@@ -38,7 +38,12 @@ class IC {
      CallerFrameType caller_frame_type = CallerFrameType::kAny);
   virtual ~IC() = default;
 
-  State state() const { return state_; }
+  State state() const {
+    return (state_ == InlineCacheState::NO_FEEDBACK ||
+            state_ == InlineCacheState::RECOMPUTE_HANDLER)
+               ? state_
+               : nexus_.ic_state();
+  }
 
   // Compute the current IC state based on the target stub, lookup_start_object
   // and name.
@@ -48,7 +53,6 @@ class IC {
   bool RecomputeHandlerForName(DirectHandle<Object> name);
   void MarkRecomputeHandler(DirectHandle<Object> name) {
     DCHECK(RecomputeHandlerForName(name));
-    old_state_ = state_;
     state_ = InlineCacheState::RECOMPUTE_HANDLER;
   }
 
@@ -185,7 +189,7 @@ class IC {
   Isolate* isolate_;
 
   bool vector_set_;
-  State old_state_;  // For saving if we marked as prototype failure.
+  // Initial state (for TraceIC), or NO_FEEDBACK / RECOMPUTE_HANDLER override.
   State state_;
   FeedbackSlotKind kind_;
   Handle<Map> lookup_start_object_map_;

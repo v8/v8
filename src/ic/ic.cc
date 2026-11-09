@@ -131,7 +131,7 @@ void IC::TraceIC(const char* type, DirectHandle<Object> name) {
   if (V8_LIKELY(!TracingFlags::is_ic_stats_enabled())) return;
   State new_state =
       (state() == NO_FEEDBACK) ? NO_FEEDBACK : nexus()->ic_state();
-  TraceIC(type, name, state(), new_state);
+  TraceIC(type, name, state_, new_state);
 }
 
 void IC::TraceIC(const char* type, DirectHandle<Object> name, State old_state,
@@ -212,7 +212,6 @@ IC::IC(Isolate* isolate, Handle<FeedbackVector> vector, FeedbackSlot slot,
       nexus_(isolate, vector, slot) {
   DCHECK_IMPLIES(!vector.is_null(), kind_ == nexus_.kind());
   state_ = (vector.is_null()) ? NO_FEEDBACK : nexus_.ic_state();
-  old_state_ = state_;
   caller_frame_type_ = caller_frame_type;
 }
 
