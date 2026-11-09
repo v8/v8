@@ -7356,8 +7356,7 @@ Reduction JSCallReducer::ReduceGeneratorPrototypeNext(Node* node) {
   // continuation also handles the deopt-on-throw case (close the generator
   // and rethrow); see frame_state setup above.
   Node* lazy_deopt_parameters[] = {
-      jsgraph()->UndefinedConstant(), /* receiver of the JS continuation */
-      receiver,                       /* generator argument */
+      receiver, /* receiver of the JS continuation */
   };
   Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
       jsgraph(), MakeRef(broker(), outer_shared),

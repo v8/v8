@@ -8393,8 +8393,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceGeneratorPrototypeNext(
               &reducer_, GetContext(),
               Builtin::kGeneratorPrototypeNextLazyDeoptContinuation, target,
               base::VectorOf<ValueNode*>(
-                  {undefined_constant, receiver,
-                   GetRootConstant(RootIndex::kTheHoleValue)}));
+                  {receiver, GetRootConstant(RootIndex::kTheHoleValue)}));
           // Generators can accept an optional value when resumed (e.g.
           // g.next("val")). This value becomes the result of the `yield`
           // expression inside the generator.

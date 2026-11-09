@@ -205,7 +205,7 @@ TFJ(FinalizationRegistryConstructor, kDontAdaptArgumentsSentinel) \
 TFJ(FinalizationRegistryRegister, kDontAdaptArgumentsSentinel) \
 TFJ(FunctionPrototypeHasInstance, JSParameterCount(1), kReceiver, kValue) \
 TFJ(FastFunctionPrototypeBind, kDontAdaptArgumentsSentinel) \
-TFJ(GeneratorPrototypeNextLazyDeoptContinuation, JSParameterCount(3), kReceiver, kGenerator, kException, kResult) \
+TFJ(GeneratorPrototypeNextLazyDeoptContinuation, JSParameterCount(2), kReceiver, kException, kResult) \
 TFC(IncBlockCounter, IncBlockCounter) \
 TFC(GetTemplateObject, GetTemplateObject) \
 TFC(ForInNext, ForInNext) \
