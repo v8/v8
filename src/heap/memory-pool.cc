@@ -42,7 +42,7 @@ PooledPage PooledPage::Create(NormalPage* metadata, Epoch epoch) {
   DCHECK_EQ(chunk_reservation.address(), metadata->ChunkAddress());
 
   MemoryChunk* chunk = metadata->Chunk();
-  DCHECK(!chunk->InReadOnlySpace());
+  DCHECK(!metadata->IsReadOnlyPage());
 
   // Destroy the chunk and the metadata object but do not release the underlying
   // memory as that is going to be pooled.
