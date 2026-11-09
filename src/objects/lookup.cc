@@ -603,7 +603,9 @@ void LookupIterator::ReconfigureDataProperty(DirectHandle<Object> value,
         (((property_details_.attributes() & READ_ONLY) == 0 &&
           (attributes & READ_ONLY) != 0) ||
          (property_details_.attributes() & DONT_ENUM) !=
-             (attributes & DONT_ENUM))) {
+             (attributes & DONT_ENUM) ||
+         (V8_DICT_PROPERTY_CONST_TRACKING_BOOL &&
+          property_details_.constness() == PropertyConstness::kConst))) {
       // Invalidate prototype validity cell when a property is reconfigured
       // from writable to read-only as this may invalidate transitioning store
       // IC handlers.
@@ -1174,8 +1176,8 @@ void LookupIterator::WriteDataValue(DirectHandle<Object> value,
   } else if (holder->HasFastProperties()) {
     DCHECK(IsJSObject(*holder));
     if (property_details_.location() == PropertyLocation::kField) {
-      // Check that in case of VariableMode::kConst field the existing value is
-      // equal to |value|.
+      // Check that in case of PropertyConstness::kConst field the existing
+      // value is equal to |value| or uninitialized.
       DCHECK_IMPLIES(!initializing_store && property_details_.constness() ==
                                                  PropertyConstness::kConst,
                      CanStayConst(*value));

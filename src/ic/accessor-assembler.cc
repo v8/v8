@@ -2071,6 +2071,10 @@ void AccessorAssembler::HandleStoreICProtoHandler(
         static_assert(static_cast<int>(PropertyKind::kData) == 0);
         GotoIf(IsSetWord32(details, kTypeAndReadOnlyMask), miss);
 
+        if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
+          GotoIf(IsPropertyDetailsConst(details), miss);
+        }
+
         StoreValueByKeyIndex<PropertyDictionary>(properties, name_index,
                                                  p->value());
         Return(p->value());
