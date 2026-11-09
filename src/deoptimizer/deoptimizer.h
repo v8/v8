@@ -135,7 +135,8 @@ class Deoptimizer : public Malloced {
   ~Deoptimizer();
 
   void MaterializeHeapObjects();
-  void ProcessDeoptReason(DeoptimizeReason reason);
+  void ProcessDeoptReason(DeoptimizeReason reason,
+                          DirectHandle<Code> optimized_code);
 
   static void ComputeOutputFrames(Deoptimizer* deoptimizer);
 

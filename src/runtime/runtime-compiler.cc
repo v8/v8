@@ -609,7 +609,7 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
 
   // Make sure to materialize objects before causing any allocation.
   deoptimizer->MaterializeHeapObjects();
-  deoptimizer->ProcessDeoptReason(deopt_reason);
+  deoptimizer->ProcessDeoptReason(deopt_reason, optimized_code);
   const BytecodeOffset deopt_exit_offset =
       deoptimizer->bytecode_offset_in_outermost_frame();
   delete deoptimizer;
