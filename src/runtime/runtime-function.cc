@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/builtins/accessors.h"
+#include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/roots/roots-inl.h"
 

@@ -21,8 +21,14 @@
 #include "src/base/platform/time.h"
 #include "src/base/thread-id.h"
 #include "src/logging/tracing-flags.h"
-#include "src/tracing/traced-value.h"
 #include "src/tracing/tracing-category-observer.h"
+
+namespace v8::tracing {
+// Forward-declare TracedValue to avoid pulling in src/tracing/traced-value.h
+// (and transitively the Perfetto SDK headers) into every translation unit that
+// includes runtime-call-stats.h.
+class TracedValue;
+}  // namespace v8::tracing
 
 #endif  // V8_RUNTIME_CALL_STATS
 

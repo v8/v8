@@ -8,6 +8,7 @@
 #include "src/debug/debug-coverage.h"
 #include "src/debug/debug-scopes.h"
 #include "src/debug/debug.h"
+#include "src/execution/arguments-inl.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/interpreter/bytecodes.h"
