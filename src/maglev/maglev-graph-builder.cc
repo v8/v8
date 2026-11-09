@@ -8374,129 +8374,137 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceGeneratorPrototypeNext(
   // defeats that as would pay for the protocol and allocate anyway.
   const bool can_skip_allocation = GetCurrentTryCatchBlock().ref == nullptr;
 
-  MaglevSubGraphBuilder::Label generator_already_closed(&subgraph, 1);
-  MaglevSubGraphBuilder::Label generator_finished(&subgraph, 1);
-  MaglevSubGraphBuilder::Label done(&subgraph, can_skip_allocation ? 4 : 3,
-                                    {&ret_value});
+  RETURN_IF_ABORT(subgraph.WithFallback(
+      {&ret_value},
+      [&](MaglevSubGraphBuilder::Label* generator_already_closed)
+          -> ReduceResult {
+        RETURN_IF_ABORT(subgraph.GotoIfTrue<BranchIfReferenceEqual>(
+            generator_already_closed, {continuation, closed_constant}));
 
-  RETURN_IF_ABORT(subgraph.GotoIfTrue<BranchIfReferenceEqual>(
-      &generator_already_closed, {continuation, closed_constant}));
+        // Generator was not closed.
+        ValueNode* continuation_int32;
+        GET_VALUE_OR_ABORT(continuation_int32, BuildSmiUntag(continuation));
 
-  // Generator was not closed.
-  ValueNode* continuation_int32;
-  GET_VALUE_OR_ABORT(continuation_int32, BuildSmiUntag(continuation));
+        // Deopt if we're calling into the generator recursively.
+        RETURN_IF_ABORT(TryBuildCheckInt32Condition(
+            continuation_int32,
+            GetInt32Constant(JSGeneratorObject::kGeneratorExecuting),
+            AssertCondition::kNotEqual, DeoptimizeReason::kWrongValue));
 
-  // Deopt if we're calling into the generator recursively.
-  RETURN_IF_ABORT(TryBuildCheckInt32Condition(
-      continuation_int32,
-      GetInt32Constant(JSGeneratorObject::kGeneratorExecuting),
-      AssertCondition::kNotEqual, DeoptimizeReason::kWrongValue));
+        CHECK(BuildStoreTaggedFieldNoWriteBarrier(
+                  receiver,
+                  can_skip_allocation ? try_skip_alloc_constant : next_constant,
+                  offsetof(JSGeneratorObject, resume_mode_),
+                  StoreTaggedMode::kDefault)
+                  .IsDoneWithoutAbort());
 
-  CHECK(BuildStoreTaggedFieldNoWriteBarrier(
-            receiver,
-            can_skip_allocation ? try_skip_alloc_constant : next_constant,
-            offsetof(JSGeneratorObject, resume_mode_),
-            StoreTaggedMode::kDefault)
-            .IsDoneWithoutAbort());
+        ValueNode* result;
+        {
+          LazyDeoptFrameScope lazy_deopt_scope(
+              &reducer_, GetContext(),
+              Builtin::kGeneratorPrototypeNextLazyDeoptContinuation, target,
+              base::VectorOf<ValueNode*>(
+                  {undefined_constant, receiver,
+                   GetRootConstant(RootIndex::kTheHoleValue)}));
+          // Generators can accept an optional value when resumed (e.g.
+          // g.next("val")). This value becomes the result of the `yield`
+          // expression inside the generator.
+          ValueNode* value = GetValueOrUndefined(args[0]);
+          GET_VALUE_OR_ABORT(result,
+                             BuildCallBuiltinWithTaggedInputs<
+                                 Builtin::kResumeGeneratorTrampoline_WithCatch>(
+                                 {value, receiver}));
+        }
 
-  ValueNode* result;
-  {
-    LazyDeoptFrameScope lazy_deopt_scope(
-        &reducer_, GetContext(),
-        Builtin::kGeneratorPrototypeNextLazyDeoptContinuation, target,
-        base::VectorOf<ValueNode*>(
-            {undefined_constant, receiver,
-             GetRootConstant(RootIndex::kTheHoleValue)}));
-    // Generators can accept an optional value when resumed (e.g.
-    // g.next("val")). This value becomes the result of the `yield`
-    // expression inside the generator.
-    ValueNode* value = GetValueOrUndefined(args[0]);
-    GET_VALUE_OR_ABORT(
-        result,
-        BuildCallBuiltinWithTaggedInputs<
-            Builtin::kResumeGeneratorTrampoline_WithCatch>({value, receiver}));
-  }
+        ValueNode* result_continuation;
+        GET_VALUE(result_continuation,
+                  BuildLoadTaggedField(
+                      receiver, offsetof(JSGeneratorObject, continuation_)));
 
-  ValueNode* result_continuation;
-  GET_VALUE(result_continuation,
-            BuildLoadTaggedField(receiver,
-                                 offsetof(JSGeneratorObject, continuation_)));
+        return subgraph.WithFallback(
+            {&ret_value},
+            [&](MaglevSubGraphBuilder::Label* generator_finished)
+                -> ReduceResult {
+              CHECK(subgraph
+                        .GotoIfTrue<BranchIfReferenceEqual>(
+                            generator_finished,
+                            {result_continuation, executing_constant})
+                        .IsDoneWithoutAbort());
 
-  CHECK(subgraph
-            .GotoIfTrue<BranchIfReferenceEqual>(
-                &generator_finished, {result_continuation, executing_constant})
-            .IsDoneWithoutAbort());
+              if (can_skip_allocation) {
+                return subgraph.WithFallback(
+                    {&ret_value},
+                    [&](MaglevSubGraphBuilder::Label* allocation_not_skipped)
+                        -> ReduceResult {
+                      // Check whether skipping allocating the result object was
+                      // successful.
+                      ValueNode* generator_mode;
+                      GET_VALUE(generator_mode,
+                                BuildLoadTaggedField(
+                                    receiver,
+                                    offsetof(JSGeneratorObject, resume_mode_)));
+                      CHECK(subgraph
+                                .GotoIfFalse<BranchIfReferenceEqual>(
+                                    allocation_not_skipped,
+                                    {generator_mode, alloc_skipped_constant})
+                                .IsDoneWithoutAbort());
 
-  if (can_skip_allocation) {
-    MaglevSubGraphBuilder::Label allocation_not_skipped(&subgraph, 1);
+                      // Was able to avoid allocating the result object.
+                      compiler::MapRef map =
+                          broker()->target_native_context().iterator_result_map(
+                              broker());
+                      VirtualObject* iter_result =
+                          reducer_.CreateJSIteratorResult(map, result,
+                                                          false_constant);
+                      ValueNode* alloc_result;
+                      GET_VALUE(alloc_result,
+                                reducer_.BuildInlinedAllocation(iter_result));
+                      subgraph.set(ret_value, alloc_result);
+                      return ReduceResult::Done();
+                    },
+                    [&]() -> ReduceResult {
+                      subgraph.set(ret_value, result);
+                      return ReduceResult::Done();
+                    });
+              }
+              // The builtin allocated the result object for us.
+              subgraph.set(ret_value, result);
+              return ReduceResult::Done();
+            },
+            [&]() -> ReduceResult {
+              // Continuation being the executing_constant means the generator
+              // has finished.
+              CHECK(BuildStoreTaggedFieldNoWriteBarrier(
+                        receiver, closed_constant,
+                        offsetof(JSGeneratorObject, continuation_),
+                        StoreTaggedMode::kDefault)
+                        .IsDoneWithoutAbort());
 
-    // Check whether skipping allocating the result object was successful.
-    ValueNode* generator_mode;
-    GET_VALUE(generator_mode,
-              BuildLoadTaggedField(receiver,
-                                   offsetof(JSGeneratorObject, resume_mode_)));
-    CHECK(subgraph
-              .GotoIfFalse<BranchIfReferenceEqual>(
-                  &allocation_not_skipped,
-                  {generator_mode, alloc_skipped_constant})
-              .IsDoneWithoutAbort());
-
-    // Was able to avoid allocating the result object.
-    compiler::MapRef map =
-        broker()->target_native_context().iterator_result_map(broker());
-    VirtualObject* iter_result =
-        reducer_.CreateJSIteratorResult(map, result, false_constant);
-    ValueNode* alloc_result;
-    GET_VALUE(alloc_result, reducer_.BuildInlinedAllocation(iter_result));
-    subgraph.set(ret_value, alloc_result);
-    subgraph.Goto(&done);
-
-    subgraph.Bind(&allocation_not_skipped);
-
-    subgraph.set(ret_value, result);
-    subgraph.Goto(&done);
-  } else {
-    // The builtin allocated the result object for us.
-    subgraph.set(ret_value, result);
-    subgraph.Goto(&done);
-  }
-
-  subgraph.Bind(&generator_already_closed);
-  {
-    compiler::MapRef map =
-        broker()->target_native_context().iterator_result_map(broker());
-    VirtualObject* iter_result =
-        reducer_.CreateJSIteratorResult(map, undefined_constant, true_constant);
-    ValueNode* alloc_result;
-    GET_VALUE(alloc_result, reducer_.BuildInlinedAllocation(iter_result));
-    subgraph.set(ret_value, alloc_result);
-    subgraph.Goto(&done);
-  }
-
-  subgraph.Bind(&generator_finished);
-  {
-    // Continuation being the executing_constant means the generator
-    // has finished.
-    CHECK(BuildStoreTaggedFieldNoWriteBarrier(
-              receiver, closed_constant,
-              offsetof(JSGeneratorObject, continuation_),
-              StoreTaggedMode::kDefault)
-              .IsDoneWithoutAbort());
-
-    // When the generator finishes, `result` holds the actual value
-    // returned by the generator function. We use it to construct the
-    // final {value: result, done: true} IteratorResult object.
-    compiler::MapRef map =
-        broker()->target_native_context().iterator_result_map(broker());
-    VirtualObject* iter_result =
-        reducer_.CreateJSIteratorResult(map, result, true_constant);
-    ValueNode* alloc_result;
-    GET_VALUE(alloc_result, reducer_.BuildInlinedAllocation(iter_result));
-    subgraph.set(ret_value, alloc_result);
-    subgraph.Goto(&done);
-  }
-
-  subgraph.Bind(&done);
+              // When the generator finishes, `result` holds the actual value
+              // returned by the generator function. We use it to construct the
+              // final {value: result, done: true} IteratorResult object.
+              compiler::MapRef map =
+                  broker()->target_native_context().iterator_result_map(
+                      broker());
+              VirtualObject* iter_result =
+                  reducer_.CreateJSIteratorResult(map, result, true_constant);
+              ValueNode* alloc_result;
+              GET_VALUE(alloc_result,
+                        reducer_.BuildInlinedAllocation(iter_result));
+              subgraph.set(ret_value, alloc_result);
+              return ReduceResult::Done();
+            });
+      },
+      [&]() -> ReduceResult {
+        compiler::MapRef map =
+            broker()->target_native_context().iterator_result_map(broker());
+        VirtualObject* iter_result = reducer_.CreateJSIteratorResult(
+            map, undefined_constant, true_constant);
+        ValueNode* alloc_result;
+        GET_VALUE(alloc_result, reducer_.BuildInlinedAllocation(iter_result));
+        subgraph.set(ret_value, alloc_result);
+        return ReduceResult::Done();
+      }));
   return subgraph.get(ret_value);
 }
 
@@ -8822,67 +8830,72 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeStartsWith(
   MaglevSubGraphBuilder sub_graph(this, 2);
   MaglevSubGraphBuilder::Variable ret_val(0);
   MaglevSubGraphBuilder::Variable var_i(1);
-  MaglevSubGraphBuilder::Label done(&sub_graph, 2, {&ret_val});
-  MaglevSubGraphBuilder::Label return_false(&sub_graph, 2);
 
-  // receiver_length - clamped_start < search_length
-  ValueNode* remaining;
-  GET_VALUE_OR_ABORT(
-      remaining, AddNewNode<Int32Subtract>({receiver_length, clamped_start}));
-  RETURN_IF_ABORT(sub_graph.GotoIfTrue<BranchIfInt32Compare>(
-      &return_false, {remaining, search_length}, Operation::kLessThan));
+  RETURN_IF_ABORT(sub_graph.WithFallback(
+      {&ret_val},
+      [&](MaglevSubGraphBuilder::Label* return_false) -> ReduceResult {
+        // receiver_length - clamped_start < search_length
+        ValueNode* remaining;
+        GET_VALUE_OR_ABORT(remaining, AddNewNode<Int32Subtract>(
+                                          {receiver_length, clamped_start}));
+        RETURN_IF_ABORT(sub_graph.GotoIfTrue<BranchIfInt32Compare>(
+            return_false, {remaining, search_length}, Operation::kLessThan));
 
-  // i = 0
-  sub_graph.set(var_i, GetInt32Constant(0));
-  MaglevSubGraphBuilder::LoopLabel loop_header = sub_graph.BeginLoop({&var_i});
-  MaglevSubGraphBuilder::Label return_true(&sub_graph, 1);
+        // i = 0
+        sub_graph.set(var_i, GetInt32Constant(0));
+        RETURN_IF_ABORT(sub_graph.BuildLoop(
+            {&var_i},
+            [&](MaglevSubGraphBuilder::Label* return_true) -> ReduceResult {
+              ValueNode* index_int32 = sub_graph.get(var_i);
 
-  ValueNode* index_int32 = sub_graph.get(var_i);
+              // if (i < search_length) continue; else exit loop
+              RETURN_IF_ABORT(sub_graph.GotoIfFalse<BranchIfInt32Compare>(
+                  return_true, {index_int32, search_length},
+                  Operation::kLessThan));
 
-  // if (i < search_length) continue; else exit loop
-  RETURN_IF_ABORT(sub_graph.GotoIfFalse<BranchIfInt32Compare>(
-      &return_true, {index_int32, search_length}, Operation::kLessThan));
+              // pos = clamped_start + i
+              ValueNode* pos;
+              GET_VALUE_OR_ABORT(
+                  pos, AddNewNode<Int32Add>({clamped_start, index_int32}));
 
-  // pos = clamped_start + i
-  ValueNode* pos;
-  GET_VALUE_OR_ABORT(pos, AddNewNode<Int32Add>({clamped_start, index_int32}));
+              // TODO(dmercadier): without static knowledge about maps shapes
+              // (which we probably don't have), BuildGetCharCodeAt generates
+              // fairly expensive code since it needs to handle all string
+              // shapes. It would be more efficient to have a pre-processing
+              // before the loop that computes a single linear buffer for each
+              // string (+ maybe an index, for SlicedString in particular),
+              // that's then accessed directly in the loop (cf
+              // StringPrepareForGetCodeUnit in Turboshaft). Here in particular,
+              // the loop doesn't contain anything that can trigger a GC, so
+              // this should be safe.
+              ValueNode* lhs_ch;
+              GET_VALUE_OR_ABORT(lhs_ch, BuildGetCharCodeAt(receiver, pos));
+              ValueNode* rhs_ch;
+              GET_VALUE_OR_ABORT(
+                  rhs_ch, BuildGetCharCodeAt(search_element, index_int32));
+              ValueNode* is_equal;
+              GET_VALUE_OR_ABORT(is_equal, BuildTaggedEqual(lhs_ch, rhs_ch));
 
-  // TODO(dmercadier): without static knowledge about maps shapes (which we
-  // probably don't have), BuildGetCharCodeAt generates fairly expensive code
-  // since it needs to handle all string shapes. It would be more efficient to
-  // have a pre-processing before the loop that computes a single linear buffer
-  // for each string (+ maybe an index, for SlicedString in particular), that's
-  // then accessed directly in the loop (cf StringPrepareForGetCodeUnit in
-  // Turboshaft). Here in particular, the loop doesn't contain anything that can
-  // trigger a GC, so this should be safe.
-  ValueNode* lhs_ch;
-  GET_VALUE_OR_ABORT(lhs_ch, BuildGetCharCodeAt(receiver, pos));
-  ValueNode* rhs_ch;
-  GET_VALUE_OR_ABORT(rhs_ch, BuildGetCharCodeAt(search_element, index_int32));
-  ValueNode* is_equal;
-  GET_VALUE_OR_ABORT(is_equal, BuildTaggedEqual(lhs_ch, rhs_ch));
+              // If chars are not equal, return false.
+              RETURN_IF_ABORT(sub_graph.GotoIfFalse<BranchIfRootConstant>(
+                  return_false, {is_equal}, RootIndex::kTrueValue));
 
-  // If chars are not equal, return false.
-  RETURN_IF_ABORT(sub_graph.GotoIfFalse<BranchIfRootConstant>(
-      &return_false, {is_equal}, RootIndex::kTrueValue));
+              // i++; goto loop_header
+              ValueNode* next_index_int32;
+              GET_VALUE_OR_ABORT(next_index_int32,
+                                 AddNewNode<Int32Add>({sub_graph.get(var_i),
+                                                       GetInt32Constant(1)}));
+              sub_graph.set(var_i, next_index_int32);
+              return ReduceResult::Done();
+            }));
 
-  // i++; goto loop_header
-  ValueNode* next_index_int32;
-  GET_VALUE_OR_ABORT(
-      next_index_int32,
-      AddNewNode<Int32Add>({sub_graph.get(var_i), GetInt32Constant(1)}));
-  sub_graph.set(var_i, next_index_int32);
-  sub_graph.EndLoop(&loop_header);
-
-  sub_graph.Bind(&return_true);
-  sub_graph.set(ret_val, GetRootConstant(RootIndex::kTrueValue));
-  sub_graph.Goto(&done);
-
-  sub_graph.Bind(&return_false);
-  sub_graph.set(ret_val, GetRootConstant(RootIndex::kFalseValue));
-  sub_graph.Goto(&done);
-
-  sub_graph.Bind(&done);
+        sub_graph.set(ret_val, GetRootConstant(RootIndex::kTrueValue));
+        return ReduceResult::Done();
+      },
+      [&]() -> ReduceResult {
+        sub_graph.set(ret_val, GetRootConstant(RootIndex::kFalseValue));
+        return ReduceResult::Done();
+      }));
   return sub_graph.get(ret_val);
 }
 
@@ -13693,63 +13706,63 @@ ReduceResult MaglevGraphBuilder::VisitArrayDestructure() {
 
   for (uint32_t i = 0; i < count; ++i) {
     ValueNode* index_node = GetSmiConstant(i);
-    subgraph.set(var_element, undefined);
     ValueNode* current_is_done = subgraph.get(var_iterator_is_done);
 
-    Subgraph<MaglevGraphBuilder>::Label iterator_is_done(
-        &subgraph, i == 0 ? 1 : 2, {&var_iterator_is_done, &var_element});
-    Subgraph<MaglevGraphBuilder>::Label next(
-        &subgraph, 2, {&var_iterator_is_done, &var_element});
+    ReduceResult result = subgraph.WithFallback(
+        {&var_iterator_is_done, &var_element},
+        [&](Subgraph<MaglevGraphBuilder>::Label* iterator_is_done)
+            -> ReduceResult {
+          if (i == 0) {
+            // On the first iteration we know the iterator isn't already done.
+            DCHECK_EQ(current_is_done->Cast<RootConstant>()->index(),
+                      RootIndex::kFalseValue);
+          } else {
+            CHECK(subgraph
+                      .GotoIfTrue<BranchIfRootConstant>(iterator_is_done,
+                                                        {current_is_done},
+                                                        RootIndex::kTrueValue)
+                      .IsDoneWithoutAbort());
+          }
 
-    if (i == 0) {
-      // On the first iteration we know the iterator isn't already done.
-      DCHECK_EQ(current_is_done->Cast<RootConstant>()->index(),
-                RootIndex::kFalseValue);
-    } else {
-      CHECK(subgraph
-                .GotoIfTrue<BranchIfRootConstant>(
-                    &iterator_is_done, {current_is_done}, RootIndex::kTrueValue)
-                .IsDoneWithoutAbort());
-    }
-
-    ValueNode* step_result;
-    {
-      LazyDeoptFrameScope lazy_deopt_scope(
-          &reducer_, GetContext(),
-          Builtin::kArrayDestructureLazyDeoptContinuation, {},
-          base::VectorOf<ValueNode*>(
-              {iterator, next_method, index_node, first_reg_node, count_node}));
-      // The lazy deopt continuation will write only from `i` up to count, so
-      // change the lazy deopt result location to only include those registers.
-      // This ensures that the `i` register values already written with
-      // StoreRegister into the DeoptFrame are considered "live" by the
-      // compiler.
-      LazyDeoptResultLocationScope result_location_scope(this, outputs[i],
-                                                         count - i);
-      // This is not allowed to return DoneWithAbort (i.e. unconditionally eager
-      // deopt) without an eager continuation, since we have to populate the
-      // remaining registers if it does. It can, however, lazy deopt, since the
-      // continuation handles populating the interpreter registers.
-      GET_VALUE(step_result,
+          ValueNode* step_result;
+          {
+            LazyDeoptFrameScope lazy_deopt_scope(
+                &reducer_, GetContext(),
+                Builtin::kArrayDestructureLazyDeoptContinuation, {},
+                base::VectorOf<ValueNode*>({iterator, next_method, index_node,
+                                            first_reg_node, count_node}));
+            // The lazy deopt continuation will write only from `i` up to count,
+            // so change the lazy deopt result location to only include those
+            // registers. This ensures that the `i` register values already
+            // written with StoreRegister into the DeoptFrame are considered
+            // "live" by the compiler.
+            LazyDeoptResultLocationScope result_location_scope(this, outputs[i],
+                                                               count - i);
+            // This is not allowed to return DoneWithAbort (i.e. unconditionally
+            // eager deopt) without an eager continuation, since we have to
+            // populate the remaining registers if it does. It can, however,
+            // lazy deopt, since the continuation handles populating the
+            // interpreter registers.
+            GET_VALUE(
+                step_result,
                 BuildCallBuiltinWithTaggedInputs<Builtin::kForOfNext>(
                     {iterator, next_method, undefined, GetSmiConstant(0)}));
-    }
-    CHECK(subgraph
-              .GotoIfTrue<BranchIfRootConstant>(
-                  &iterator_is_done, {step_result}, RootIndex::kTheHoleValue)
-              .IsDoneWithoutAbort());
-    subgraph.set(var_iterator_is_done, false_node);
-    subgraph.set(var_element, step_result);
-    subgraph.Goto(&next);
-
-    subgraph.Bind(&iterator_is_done);
-    {
-      subgraph.set(var_iterator_is_done, true_node);
-      subgraph.set(var_element, undefined);
-      subgraph.Goto(&next);
-    }
-
-    subgraph.Bind(&next);
+          }
+          CHECK(subgraph
+                    .GotoIfTrue<BranchIfRootConstant>(iterator_is_done,
+                                                      {step_result},
+                                                      RootIndex::kTheHoleValue)
+                    .IsDoneWithoutAbort());
+          subgraph.set(var_iterator_is_done, false_node);
+          subgraph.set(var_element, step_result);
+          return ReduceResult::Done();
+        },
+        [&]() -> ReduceResult {
+          subgraph.set(var_iterator_is_done, true_node);
+          subgraph.set(var_element, undefined);
+          return ReduceResult::Done();
+        });
+    CHECK(result.IsDoneWithoutAbort());
     StoreRegister(outputs[i], subgraph.get(var_element));
   }
 
