@@ -4299,8 +4299,9 @@ bool Heap::CanReferenceHeapObject(Tagged<HeapObject> obj) {
   }
   // `heap()` below is not necessarily `this` as the object may be on a shared
   // page.
-  Heap* obj_heap = chunk->Metadata(isolate())->heap();
-  Heap* expected_heap = chunk->InWritableSharedSpace()
+  BasePage* metadata = chunk->Metadata(isolate());
+  Heap* obj_heap = metadata->heap();
+  Heap* expected_heap = metadata->is_writable_shared()
                             ? isolate()->shared_space_isolate()->heap()
                             : this;
   return obj_heap == expected_heap;
