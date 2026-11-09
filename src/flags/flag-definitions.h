@@ -3499,6 +3499,10 @@ DEFINE_BOOL(regexp_masked_dispatch, true,
             "value")
 DEFINE_BOOL(regexp_quick_check, true,
             "generate quickcheck code when optimizing")
+DEFINE_BOOL(regexp_static_frequencies, false,
+            "tune Boyer-Moore lookahead with a static character frequency "
+            "table instead of sampling the first subject string, so that "
+            "compiled code does not depend on the subject")
 DEFINE_BOOL(regexp_interpret_all, false, "interpret all regexp code")
 #ifdef V8_TARGET_BIG_ENDIAN
 #define REGEXP_PEEPHOLE_OPTIMIZATION_BOOL false

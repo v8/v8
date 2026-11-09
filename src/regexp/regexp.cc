@@ -1401,20 +1401,24 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, CompileData* data,
                           RegExp::kMaxOptimizedPatternLength);
   }
 
-  // Sample some characters from the middle of the string.
-  static const int kSampleSize = 128;
-
-  sample_subject = String::Flatten(isolate, sample_subject);
-  uint32_t start, end;
-  if (sample_subject->length() > kSampleSize) {
-    start = (sample_subject->length() - kSampleSize) / 2;
-    end = start + kSampleSize;
+  if (v8_flags.regexp_static_frequencies) {
+    compiler.frequency_collator()->UseStaticFrequencies();
   } else {
-    start = 0;
-    end = sample_subject->length();
-  }
-  for (uint32_t i = start; i < end; i++) {
-    compiler.frequency_collator()->CountCharacter(sample_subject->Get(i));
+    // Sample some characters from the middle of the string.
+    static const int kSampleSize = 128;
+
+    sample_subject = String::Flatten(isolate, sample_subject);
+    uint32_t start, end;
+    if (sample_subject->length() > kSampleSize) {
+      start = (sample_subject->length() - kSampleSize) / 2;
+      end = start + kSampleSize;
+    } else {
+      start = 0;
+      end = sample_subject->length();
+    }
+    for (uint32_t i = start; i < end; i++) {
+      compiler.frequency_collator()->CountCharacter(sample_subject->Get(i));
+    }
   }
 
   data->node = compiler.PreprocessRegExp(data, is_one_byte);
