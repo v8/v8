@@ -895,10 +895,14 @@ void HashString(SHA256_CTX* ctx, Isolate* isolate,
                 DirectHandle<String> string) {
   string = String::Flatten(isolate, string);
   DisallowGarbageCollection no_gc;
-  uint32_t length = string->length();
-  SHA256_Update(ctx, &length, sizeof(length));
   SharedStringAccessGuardIfNeeded access_guard(isolate);
   String::FlatContent flat = string->GetFlatContent(no_gc, access_guard);
+  using LengthField = base::BitField<uint32_t, 0, 31>;
+  static_assert(String::kMaxLength <= LengthField::kMax);
+  using IsOneByteField = LengthField::Next<bool, 1>;
+  uint32_t header = LengthField::encode(string->length()) |
+                    IsOneByteField::encode(flat.IsOneByte());
+  SHA256_Update(ctx, &header, sizeof(header));
   if (flat.IsOneByte()) {
     base::Vector<const uint8_t> chars = flat.ToOneByteVector();
     SHA256_Update(ctx, chars.begin(), chars.length());

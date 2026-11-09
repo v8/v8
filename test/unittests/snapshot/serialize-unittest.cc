@@ -7556,6 +7556,42 @@ TEST_F(SerializeTest, CodeCacheSha256SourceHash) {
     SerializedCodeData::SourceHash hash_wrapped_a_bc(
         one_byte, wrapped_a_bc, default_origin_options, i_isolate);
     CHECK_NE(hash_wrapped_ab_c, hash_wrapped_a_bc);
+
+    // One-byte and two-byte strings of the same character length are
+    // domain-separated across argument/source boundaries (crbug.com/582260175):
+    // - Input 1: two-byte arg of length 2 (bytes: 61 62 02 00) + one-byte
+    //   source of length 0 (length bytes: 00 00 00 00).
+    // - Input 2: one-byte arg of length 2 (bytes: 61 62) + one-byte source of
+    //   length 2 (length bytes: 02 00 00 00, content: 00 00).
+    Handle<SeqTwoByteString> arg_two_byte =
+        i_isolate->factory()->NewRawTwoByteString(2).ToHandleChecked();
+    {
+      DisallowGarbageCollection no_gc;
+      const uint16_t chars[2] = {0x6261, 0x0002};
+      CopyChars(arg_two_byte->GetChars(no_gc), chars, 2);
+    }
+    Handle<FixedArray> wrapped_two_byte =
+        i_isolate->factory()->NewFixedArray(1);
+    wrapped_two_byte->set(0, *arg_two_byte);
+    Handle<String> empty_source = i_isolate->factory()->empty_string();
+
+    Handle<FixedArray> wrapped_one_byte =
+        i_isolate->factory()->NewFixedArray(1);
+    wrapped_one_byte->set(
+        0, *i_isolate->factory()->NewStringFromAsciiChecked("ab"));
+    Handle<SeqOneByteString> zero_bytes_source =
+        i_isolate->factory()->NewRawOneByteString(2).ToHandleChecked();
+    {
+      DisallowGarbageCollection no_gc;
+      const uint8_t chars[2] = {0x00, 0x00};
+      CopyChars(zero_bytes_source->GetChars(no_gc), chars, 2);
+    }
+
+    SerializedCodeData::SourceHash hash_two_byte_arg(
+        empty_source, wrapped_two_byte, default_origin_options, i_isolate);
+    SerializedCodeData::SourceHash hash_one_byte_arg(
+        zero_bytes_source, wrapped_one_byte, default_origin_options, i_isolate);
+    CHECK_NE(hash_two_byte_arg, hash_one_byte_arg);
   }
 
   // 2. End-to-end code cache serialization and rejection on same-length source
