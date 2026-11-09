@@ -80,7 +80,7 @@ out/redline/redline fuzz --d8=out/fuzzbuild/d8 --preset=maglev --jobs=4 --durati
 
 - `--preset=maglev` loads `experimental/redline/presets/maglev.json`.
   This preset adds the d8 flags `--maglev`, `--no-turbofan` and `--jit-fuzzing`, and it gives higher weights to some generators.
-  It also gives each d8 process some random Maglev flags (`randomize_d8_flags`).
+  It also gives each d8 process some random JIT and garbage collection flags (`randomize_d8_flags`).
 - `--jobs=4` starts four workers. Each worker runs its own d8.
 - Without seed files, the session starts from generated programs. `--import=DIR` adds the `.js` files of a directory as seed files.
 - Without `--duration`, the session runs until you press Ctrl-C.

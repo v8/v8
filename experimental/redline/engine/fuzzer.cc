@@ -2110,7 +2110,8 @@ void Fuzzer::RecordTargetChild(bool hit) {
 std::vector<std::string> Fuzzer::DrawD8Flags(Random& rng) {
   D8FlagProfile profile = D8FlagProfile::kMaglev;
   ParseD8FlagProfile(config_.d8_flag_profile, &profile);
-  std::vector<std::string> fresh = RandomD8Flags(rng, profile);
+  const std::vector<std::string>& fixed = config_.target.args;
+  std::vector<std::string> fresh = RandomD8Flags(rng, profile, fixed);
   if (targets_.empty() || !has_target_flags_.load(std::memory_order_relaxed)) {
     return fresh;
   }
@@ -2141,7 +2142,7 @@ std::vector<std::string> Fuzzer::DrawD8Flags(Random& rng) {
     base = target_flags_[best].args;
   }
   if (rng.Chance(TargetMutateChance())) {
-    return CombineD8Flags(base, fresh, rng);
+    return CombineD8Flags(base, fresh, rng, fixed);
   }
   return base;
 }

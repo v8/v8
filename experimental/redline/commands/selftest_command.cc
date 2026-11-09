@@ -15,7 +15,9 @@
 #include <algorithm>
 #include <cerrno>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <initializer_list>
 #include <iterator>
@@ -80,12 +82,19 @@ std::string DefaultTestdataDir() {
 // draw the flags that only Maglev reads, and the Maglev profile must not draw
 // the Turbolev and Turboshaft flags.
 void RunD8FlagProfileChecks(Checker* checker) {
+  // Returns the first flag of 500 draws that starts with one of `prefixes`
+  // and is not in `allowed`.
   auto draws_any = [](D8FlagProfile profile,
-                      std::initializer_list<const char*> prefixes) {
+                      std::initializer_list<const char*> prefixes,
+                      std::initializer_list<const char*> allowed = {}) {
     Random rng(7);
     std::string found;
     for (int i = 0; i < 500 && found.empty(); i++) {
       for (const std::string& flag : RandomD8Flags(rng, profile)) {
+        if (std::any_of(allowed.begin(), allowed.end(),
+                        [&](const char* name) { return flag == name; })) {
+          continue;
+        }
         for (const char* prefix : prefixes) {
           if (flag.rfind(prefix, 0) == 0) {
             found = flag;
@@ -103,21 +112,199 @@ void RunD8FlagProfileChecks(Checker* checker) {
                      parsed == D8FlagProfile::kMaglev &&
                      !ParseD8FlagProfile("turbofan", &parsed),
                  "");
-  std::string maglev_only =
-      draws_any(D8FlagProfile::kTurbolev,
-                {"--maglev-future", "--maglev-non-eager", "--maglev-assert",
-                 "--max-maglev", "--optimize-on-next-call-optimizes-to-maglev",
-                 "--no-maglev-"});
+  // Turbolev builds its graph with the Maglev graph builder, so it also reads
+  // the Maglev assertions and the allowed --no-maglev- flags. Only Turbolev
+  // reads --maglev-range-analysis.
+  std::string maglev_only = draws_any(
+      D8FlagProfile::kTurbolev,
+      {"--maglev-future", "--maglev-non-eager", "--max-maglev",
+       "--optimize-on-next-call-optimizes-to-maglev", "--no-maglev-",
+       "--maglev-as-top-tier", "--maglev-inline-api-calls"},
+      {"--no-maglev-inlining", "--no-maglev-poly-calls",
+       "--no-maglev-escape-analysis", "--no-maglev-optimistic-peeled-loops",
+       "--no-maglev-truncation", "--no-maglev-cse",
+       "--no-maglev-range-analysis"});
   checker->Check("random flags: the turbolev profile draws no Maglev-only flag",
                  maglev_only.empty(), maglev_only);
-  std::string turbolev_only =
-      draws_any(D8FlagProfile::kMaglev,
-                {"--no-turbolev", "--no-turboshaft", "--turboshaft-",
-                 "--verify-turboshaft", "--maglev-range-verification",
-                 "--always-osr-from-maglev", "--no-additive-safe-int-feedback",
-                 "--max-inlined-bytecode-size-small"});
+  const bool turbolev_has_maglev_assert =
+      !draws_any(D8FlagProfile::kTurbolev, {"--maglev-assert"},
+                 {"--maglev-assert-types"})
+           .empty() &&
+      !draws_any(D8FlagProfile::kTurbolev, {"--maglev-assert-types"}).empty();
+  checker->Check("random flags: the turbolev profile draws Maglev assertions",
+                 turbolev_has_maglev_assert, "");
+  std::string turbolev_only = draws_any(
+      D8FlagProfile::kMaglev,
+      {"--no-turbolev", "--no-turboshaft", "--turboshaft-",
+       "--verify-turboshaft", "--maglev-range-verification",
+       "--always-osr-from-maglev", "--no-additive-safe-int-feedback",
+       "--max-inlined-bytecode-size", "--no-maglev-range-analysis",
+       "--no-turbo-", "--turbo-", "--optimize-maglev-optimizes-to-turbofan",
+       "--stress-concurrent-inlining", "--concurrent-recompilation-"});
   checker->Check("random flags: the maglev profile draws no Turbolev flag",
                  turbolev_only.empty(), turbolev_only);
+
+  // The rules of the draw. A draw names each flag at most once. A flag that
+  // needs another flag comes only with that flag. The cumulative inlining
+  // limit is not smaller than the limit for one function.
+  auto name_of = [](const std::string& flag) {
+    return flag.substr(0, flag.find('='));
+  };
+  auto value_of = [](const std::string& flag) -> int64_t {
+    size_t eq = flag.find('=');
+    return eq == std::string::npos
+               ? -1
+               : std::strtoll(flag.c_str() + eq + 1, nullptr, 10);
+  };
+  std::string bad_draw;
+  for (D8FlagProfile profile :
+       {D8FlagProfile::kMaglev, D8FlagProfile::kTurbolev}) {
+    Random rng(11);
+    for (int i = 0; i < 500 && bad_draw.empty(); i++) {
+      std::vector<std::string> flags = RandomD8Flags(rng, profile);
+      std::set<std::string> names;
+      int64_t size = -1;
+      bool chaos = false;
+      for (const std::string& flag : flags) {
+        const std::string name = name_of(flag);
+        if (!names.insert(name).second) {
+          bad_draw = "two " + name;
+        } else if (name == "--max-inlined-bytecode-size") {
+          size = value_of(flag);
+        } else if (name == "--max-inlined-bytecode-size-cumulative" &&
+                   (size < 0 || value_of(flag) < size)) {
+          bad_draw = flag + " without a smaller --max-inlined-bytecode-size";
+        } else if (name == "--scavenger-chaos-mode") {
+          chaos = true;
+        } else if (name == "--scavenger-chaos-mode-threshold" && !chaos) {
+          bad_draw = flag + " without --scavenger-chaos-mode";
+        }
+      }
+      if (bad_draw.empty()) {
+        if (names.count("--verify-bytecode-full") > 0 &&
+            names.count("--verify-bytecode-light") > 0) {
+          bad_draw = "both --verify-bytecode-full and --verify-bytecode-light";
+        } else if (names.count("--no-sparkplug") > 0 &&
+                   names.count("--always-sparkplug") > 0) {
+          bad_draw = "both --no-sparkplug and --always-sparkplug";
+        } else if (names.count("--assert-types") > 0 &&
+                   (names.count("--stress-concurrent-inlining") > 0 ||
+                    names.count("--stress-concurrent-inlining-attach-code") >
+                        0)) {
+          bad_draw = "--assert-types with --stress-concurrent-inlining";
+        }
+      }
+    }
+  }
+  checker->Check(
+      "random flags: a draw names each flag once, with the flags it needs",
+      bad_draw.empty(), bad_draw);
+  // --single-threaded and --assert-types stop the extra jobs of
+  // --stress-concurrent-inlining.
+  TunableRegistry& registry = TunableRegistry::Instance();
+  std::string error;
+  bool set =
+      registry.Set("flags.single_threaded", 1, &error) &&
+      registry.Set("flags.stress_concurrent_inlining", 1, &error) &&
+      registry.Set("flags.stress_concurrent_inlining_attach_code", 1, &error);
+  std::string concurrent = set ? draws_any(D8FlagProfile::kTurbolev,
+                                           {"--stress-concurrent-inlining"})
+                               : error;
+  registry.Reset();
+  checker->Check(
+      "random flags: --single-threaded comes without "
+      "--stress-concurrent-inlining",
+      set && concurrent.empty(), concurrent);
+  bool set_assert =
+      registry.Set("flags.assert_types", 1, &error) &&
+      registry.Set("flags.stress_concurrent_inlining", 1, &error) &&
+      registry.Set("flags.stress_concurrent_inlining_attach_code", 1, &error);
+  std::string assert_concurrent =
+      set_assert ? draws_any(D8FlagProfile::kTurbolev,
+                             {"--stress-concurrent-inlining"})
+                 : error;
+  registry.Reset();
+  checker->Check(
+      "random flags: --assert-types comes without "
+      "--stress-concurrent-inlining",
+      set_assert && assert_concurrent.empty(), assert_concurrent);
+
+  // A fixed --single-threaded or --assert-types also removes the
+  // --stress-concurrent-inlining flags. Without a fixed flag, the same
+  // tunables give these flags in each draw.
+  auto fixed_draws = [](const std::vector<std::string>& fixed) {
+    Random rng(19);
+    int with_concurrent = 0;
+    for (int i = 0; i < 100; i++) {
+      for (const std::string& flag :
+           RandomD8Flags(rng, D8FlagProfile::kTurbolev, fixed)) {
+        if (flag.rfind("--stress-concurrent-inlining", 0) == 0) {
+          with_concurrent++;
+          break;
+        }
+      }
+    }
+    return with_concurrent;
+  };
+  const bool set_concurrent =
+      registry.Set("flags.stress_concurrent_inlining", 1, &error) &&
+      registry.Set("flags.stress_concurrent_inlining_attach_code", 1, &error);
+  const int no_fixed = fixed_draws({});
+  const int fixed_st = fixed_draws({"--single-threaded"});
+  const int fixed_assert = fixed_draws({"--assert-types"});
+  registry.Reset();
+  checker->Check(
+      "random flags: a fixed --single-threaded or --assert-types removes "
+      "--stress-concurrent-inlining",
+      set_concurrent && no_fixed == 100 && fixed_st == 0 && fixed_assert == 0,
+      StringPrintf("no fixed flag %d, --single-threaded %d, --assert-types %d",
+                   no_fixed, fixed_st, fixed_assert));
+
+  // --maglev-as-top-tier turns off Turbofan and Turbolev, and turns on Maglev.
+  // Like Fuzzilli, the Maglev profile draws it only with a fixed
+  // --no-turbofan. A fixed or drawn --turbofan, --turbolev or --no-maglev
+  // removes it.
+  auto top_tier_draws = [](const std::vector<std::string>& fixed) {
+    Random rng(23);
+    int with_top_tier = 0;
+    for (int i = 0; i < 100; i++) {
+      const std::vector<std::string> flags =
+          RandomD8Flags(rng, D8FlagProfile::kMaglev, fixed);
+      if (std::find(flags.begin(), flags.end(), "--maglev-as-top-tier") !=
+          flags.end()) {
+        with_top_tier++;
+      }
+    }
+    return with_top_tier;
+  };
+  auto sanitized_has_top_tier = [](const char* other) {
+    std::vector<std::string> flags = {"--maglev-as-top-tier", other};
+    SanitizeD8Flags(&flags);
+    return std::find(flags.begin(), flags.end(), "--maglev-as-top-tier") !=
+           flags.end();
+  };
+  const bool set_top_tier = registry.Set("flags.maglev_as_top_tier", 1, &error);
+  const int top_no_fixed = top_tier_draws({});
+  const int top_no_turbofan = top_tier_draws({"--no-turbofan"});
+  const int top_turbolev = top_tier_draws({"--no-turbofan", "--turbolev"});
+  const int top_no_maglev = top_tier_draws({"--no-turbofan", "--no-maglev"});
+  const int top_disabled =
+      top_tier_draws({"--no-turbofan", "--disable-optimizing-compilers"});
+  registry.Reset();
+  const bool drawn_removed = !sanitized_has_top_tier("--turbofan") &&
+                             !sanitized_has_top_tier("--turbolev") &&
+                             !sanitized_has_top_tier("--no-maglev") &&
+                             sanitized_has_top_tier("--no-turbofan");
+  checker->Check(
+      "random flags: --maglev-as-top-tier needs --no-turbofan and no clash",
+      set_top_tier && top_no_fixed == 0 && top_no_turbofan == 100 &&
+          top_turbolev == 0 && top_no_maglev == 0 && top_disabled == 0 &&
+          drawn_removed,
+      StringPrintf("no fixed flag %d, --no-turbofan %d, --turbolev %d, "
+                   "--no-maglev %d, --disable-optimizing-compilers %d, "
+                   "drawn %d",
+                   top_no_fixed, top_no_turbofan, top_turbolev, top_no_maglev,
+                   top_disabled, drawn_removed ? 1 : 0));
 }
 
 // Offline: crash signatures. A recursion that overflows the stack must get
@@ -548,26 +735,47 @@ void RunCoverageCounterChecks(Checker* checker) {
                      last_non_target->rare_edges.size()));
 
     std::vector<std::string> base_flags = {
-        "--single-threaded", "--max-maglev-eager-inlined-bytecode-size=0",
-        "--max-maglev-inlined-bytecode-size-small=0"};
-    std::vector<std::string> extra_flags = {"--single-threaded",
-                                            "--maglev-assert"};
+        "--single-threaded",
+        "--max-maglev-eager-inlined-bytecode-size=0",
+        "--max-maglev-inlined-bytecode-size-small=0",
+        "--always-sparkplug",
+        "--verify-bytecode-light",
+        "--stress-concurrent-inlining"};
+    std::vector<std::string> extra_flags = {
+        "--single-threaded", "--maglev-assert", "--no-sparkplug",
+        "--verify-bytecode-full", "--assert-types"};
+    // Keep all base flags, so that only SanitizeD8Flags removes flags.
+    std::string keep_error;
+    const bool set_keep = TunableRegistry::Instance().Set(
+        "flags.target_keep_chance", 1.0, &keep_error);
     std::vector<std::string> combined =
         CombineD8Flags(base_flags, extra_flags, rng);
+    TunableRegistry::Instance().Reset();
     const bool stripped_orphan =
         std::find(combined.begin(), combined.end(),
                   "--max-maglev-eager-inlined-bytecode-size=0") ==
             combined.end() &&
         std::find(combined.begin(), combined.end(),
                   "--max-maglev-inlined-bytecode-size-small=0") ==
+            combined.end() &&
+        std::find(combined.begin(), combined.end(), "--always-sparkplug") ==
+            combined.end() &&
+        std::find(combined.begin(), combined.end(),
+                  "--verify-bytecode-light") == combined.end() &&
+        std::find(combined.begin(), combined.end(),
+                  "--stress-concurrent-inlining") == combined.end();
+    const bool has_assert =
+        std::find(combined.begin(), combined.end(), "--maglev-assert") !=
+            combined.end() &&
+        std::find(combined.begin(), combined.end(), "--no-sparkplug") !=
+            combined.end() &&
+        std::find(combined.begin(), combined.end(), "--verify-bytecode-full") !=
             combined.end();
-    const bool has_assert = std::find(combined.begin(), combined.end(),
-                                      "--maglev-assert") != combined.end();
     const ptrdiff_t st_count =
         std::count(combined.begin(), combined.end(), "--single-threaded");
     checker->Check(
         "d8 flags: CombineD8Flags deduplication and orphan stripping",
-        stripped_orphan && has_assert && st_count == 1,
+        set_keep && stripped_orphan && has_assert && st_count == 1,
         StringPrintf("size %zu, st_count %td", combined.size(), st_count));
 
     const bool formula_ok =
@@ -625,6 +833,58 @@ void RunCoverageCounterChecks(Checker* checker) {
         StringPrintf("empty %d, warmup %d, zero %d, low %d, high %d, all %d",
                      empty_pool_draws, warmup_draws, zero_hit_draws,
                      low_hit_draws, high_hit_draws, all_hit_draws));
+
+    // DrawD8Flags gives the d8 flags of the configuration to the new draws
+    // and to the combined draws. A fixed --single-threaded thus removes
+    // --stress-concurrent-inlining from all draws. A fixed
+    // --maglev-non-eager-inlining keeps the inlining size 0 of the pool
+    // flags in the combined draws. The Turbolev profile does not draw
+    // --maglev-non-eager-inlining.
+    const bool set_combined_st =
+        tunable_reg.Set("flags.stress_concurrent_inlining", 1.0,
+                        &tunable_err) &&
+        tunable_reg.Set("flags.stress_concurrent_inlining_attach_code", 1.0,
+                        &tunable_err) &&
+        tunable_reg.Set("flags.target_mutate_chance", 1.0, &tunable_err) &&
+        tunable_reg.Set("flags.target_keep_chance", 1.0, &tunable_err);
+    FuzzConfig st_cfg;
+    st_cfg.randomize_d8_flags = true;
+    st_cfg.d8_flag_profile = "turbolev";
+    st_cfg.target.args = {"--single-threaded", "--maglev-non-eager-inlining"};
+    Fuzzer st_fuzzer(std::move(st_cfg));
+    st_fuzzer.SetTargetsForTest({{5, 100.0}});
+    st_fuzzer.RecordTargetFlags(
+        {"--sentinel-pool-flag", "--max-maglev-eager-inlined-bytecode-size=0"},
+        100.0);
+    st_fuzzer.RecordTargetChild(false);
+    Random st_rng(4242);
+    int st_sentinel = 0;
+    int st_size_zero = 0;
+    bool st_had_concurrent = false;
+    for (int i = 0; i < 100; i++) {
+      std::vector<std::string> drawn = st_fuzzer.DrawD8Flags(st_rng);
+      if (std::find(drawn.begin(), drawn.end(), "--sentinel-pool-flag") !=
+          drawn.end()) {
+        st_sentinel++;
+        if (std::find(drawn.begin(), drawn.end(),
+                      "--max-maglev-eager-inlined-bytecode-size=0") !=
+            drawn.end()) {
+          st_size_zero++;
+        }
+      }
+      for (const std::string& flag : drawn) {
+        if (flag.rfind("--stress-concurrent-inlining", 0) == 0) {
+          st_had_concurrent = true;
+        }
+      }
+    }
+    tunable_reg.Reset();
+    checker->Check(
+        "d8 flags: Fuzzer draws keep the fixed d8 flags",
+        set_combined_st && st_sentinel > 40 && st_sentinel < 100 &&
+            st_size_zero == st_sentinel && !st_had_concurrent,
+        StringPrintf("sentinel %d, size 0 %d, concurrent %d", st_sentinel,
+                     st_size_zero, st_had_concurrent ? 1 : 0));
 
     Minimizer min_check;
     auto min_prog = Program::Parse(

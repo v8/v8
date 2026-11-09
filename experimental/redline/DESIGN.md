@@ -243,6 +243,7 @@ For each execution, Redline writes the script, sends a command and waits for a s
 - Redline replaces the target after a timeout, after a crash and after `max_execs_before_respawn` executions. This limits the state in one process.
 - With `randomize_d8_flags`, each new target process gets a random set of extra d8 flags, for example `--maglev-assert` or `--maglev-non-eager-inlining` (`engine/d8_flags.h`).
   `d8_flag_profile` selects the flag list: `maglev` (the default) or `turbolev`. The `turbolev` list has Turbolev, Turboshaft and inlining-limit flags.
+  Both lists also have tier-up, deoptimization, CPU feature and garbage collection flags from the V8 profile of Fuzzilli and the fuzz configurations of V8.
   The probabilities are tunables (`flags.*`). The random flags come before the other d8 flags, so that a flag of the configuration wins.
   Accept, Minimize and crash triage keep the flags of the process that ran the program, also in a new process.
   These steps run most executions, so most respawns keep the flags. Thus the worker replaces a process at the end of such a step if its flags ran `max_execs_before_respawn` executions.
