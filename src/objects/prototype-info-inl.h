@@ -133,21 +133,26 @@ Tagged<MaybeObject> PrototypeInfo::ObjectCreateMap(
   return el;
 }
 
-Tagged<MaybeObject> PrototypeInfo::ObjectCreateMap(
-    Tagged<Context> accessing_context, AcquireLoadTag tag) {
+Tagged<MaybeObject> PrototypeInfo::ObjectCreateMap(AcquireLoadTag tag) {
   auto derived = derived_maps(tag);
   if (IsUndefined(derived)) {
     return Tagged<MaybeObject>();
   }
-  // Index 0 is the map for object create
+  // Index 0 is the map for object create. Note: concurrent callers must check
+  // that the returned map belongs to the accessing native context.
   Tagged<WeakArrayList> derived_list = Cast<WeakArrayList>(derived);
   DCHECK_GT(derived_list->length().value(), 0);
   Tagged<MaybeObject> el = derived_list->get(0, kAcquireLoad);
   DCHECK(el.IsWeakOrCleared());
-  DCHECK_IMPLIES(!el.IsCleared(),
-                 Cast<Map>(el.GetHeapObjectAssumeWeak())
-                     ->BelongsToSameNativeContextAs(accessing_context));
   return el;
+}
+
+void PrototypeInfo::ClearObjectCreateMap() {
+  auto derived = derived_maps();
+  if (IsUndefined(derived)) return;
+  Tagged<WeakArrayList> derived_list = Cast<WeakArrayList>(derived);
+  DCHECK_GT(derived_list->length().value(), 0);
+  derived_list->set(0, kClearedWeakValue, kReleaseStore);
 }
 
 // static

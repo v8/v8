@@ -6987,9 +6987,7 @@ Genesis::Genesis(Isolate* isolate,
       global_proxy_template->InternalFieldCount());
 
   DirectHandle<JSGlobalProxy> global_proxy;
-  if (maybe_global_proxy.ToHandle(&global_proxy)) {
-    global_proxy->map()->set_map(isolate, ReadOnlyRoots(isolate).meta_map());
-  } else {
+  if (!maybe_global_proxy.ToHandle(&global_proxy)) {
     global_proxy = factory()->NewUninitializedJSGlobalProxy(proxy_size);
   }
 
@@ -7006,17 +7004,13 @@ Genesis::Genesis(Isolate* isolate,
       ApiNatives::InstantiateRemoteObject(global_object_template)
           .ToHandleChecked();
 
-  // (Re)initialize the global proxy object.
+  // (Re)initialize the global proxy object and configure its hidden prototype
+  // chain on a contextless map.
   DCHECK_EQ(global_proxy_data->embedder_field_count(),
             global_proxy_template->InternalFieldCount());
-  DirectHandle<Map> global_proxy_map = factory()->NewContextlessMap(
-      JS_GLOBAL_PROXY_TYPE, proxy_size, TERMINAL_FAST_ELEMENTS_KIND);
-  global_proxy_map->set_is_access_check_needed(true);
-  global_proxy_map->set_may_have_interesting_properties(true);
-
-  // Configure the hidden prototype chain of the global proxy.
-  JSObject::ForceSetPrototype(isolate, global_proxy, global_object);
-  global_proxy->map()->SetConstructor(*global_constructor);
+  JSGlobalProxy::MigrateToContextlessMap(isolate, global_proxy, global_object,
+                                         global_constructor,
+                                         "GenesisReinitializeGlobal");
 
   global_proxy_ = global_proxy;
 }

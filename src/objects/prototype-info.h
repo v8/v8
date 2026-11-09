@@ -89,8 +89,12 @@ V8_OBJECT class PrototypeInfo : public Struct {
   static inline void SetObjectCreateMap(DirectHandle<PrototypeInfo> info,
                                         DirectHandle<Map> map,
                                         Isolate* isolate);
-  inline Tagged<MaybeObject> ObjectCreateMap(Tagged<Context> accessing_context,
-                                             AcquireLoadTag);
+  inline void ClearObjectCreateMap();
+  // Concurrent reader for background compilation. Because a JSGlobalProxy may
+  // navigate concurrently on the main thread and reuse this PrototypeInfo in a
+  // new native context, the caller must verify that the returned map belongs to
+  // the expected native context.
+  inline Tagged<MaybeObject> ObjectCreateMap(AcquireLoadTag);
   inline Tagged<MaybeObject> ObjectCreateMap(Tagged<Context> accessing_context);
 
   static inline void AddDerivedMap(DirectHandle<PrototypeInfo> info,

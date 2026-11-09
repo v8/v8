@@ -3281,6 +3281,17 @@ void JSObject::UpdatePrototypeUserRegistration(DirectHandle<Map> old_map,
   DCHECK(old_map->is_prototype_map());
   DCHECK(new_map->is_prototype_map());
   bool was_registered = JSObject::UnregisterPrototypeUser(old_map, isolate);
+  if (old_map->map() != new_map->map()) {
+    // Only JSGlobalProxy maps can change their meta_map (upon navigation,
+    // detachment, or remote context reinitialization). Clear the cached
+    // ObjectCreateMap so it is not reused across native contexts.
+    DCHECK(IsJSGlobalProxyMap(*old_map));
+    DCHECK(IsJSGlobalProxyMap(*new_map));
+    if (Tagged<PrototypeInfo> proto_info;
+        old_map->TryGetPrototypeInfo(&proto_info)) {
+      proto_info->ClearObjectCreateMap();
+    }
+  }
   new_map->set_prototype_info(old_map->prototype_info(), kReleaseStore);
   old_map->set_prototype_info(Smi::zero(), kReleaseStore);
   if (v8_flags.trace_prototype_users) {
@@ -3725,6 +3736,25 @@ void JSObject::ForceSetPrototype(Isolate* isolate,
   DirectHandle<Map> new_map = Map::Copy(isolate, old_map, "ForceSetPrototype");
   Map::SetPrototype(isolate, new_map, proto);
   JSObject::MigrateToMap(isolate, object, new_map);
+}
+
+// static
+void JSGlobalProxy::MigrateToContextlessMap(
+    Isolate* isolate, DirectHandle<JSGlobalProxy> global_proxy,
+    DirectHandle<JSPrototype> prototype,
+    DirectHandle<UnionOf<FunctionTemplateInfo, Null>> constructor,
+    const char* reason) {
+  // NOTE: Turbofan's JSNativeContextSpecialization and Maglev depend on
+  // DetachGlobal or navigation causing a map change.
+  DirectHandle<Map> old_map(global_proxy->map(), isolate);
+  DirectHandle<Map> new_map = Map::Copy(isolate, old_map, reason);
+  // Detach the new map from the native context (by using the contextless
+  // meta_map) before migrating so UpdatePrototypeUserRegistration detects the
+  // context change and clears the cached ObjectCreateMap in PrototypeInfo.
+  new_map->set_map(isolate, ReadOnlyRoots(isolate).meta_map());
+  new_map->SetConstructor(*constructor);
+  Map::SetPrototype(isolate, new_map, prototype);
+  JSObject::MigrateToMap(isolate, global_proxy, new_map);
 }
 
 Maybe<InterceptorResult> JSObject::SetPropertyWithInterceptor(

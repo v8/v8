@@ -1245,6 +1245,14 @@ V8_OBJECT class JSGlobalProxy : public JSSpecialObject {
 
   static int SizeWithEmbedderFields(int embedder_field_count);
 
+  // Migrates |global_proxy| to a new contextless map configured with the given
+  // |prototype| and |constructor|.
+  static void MigrateToContextlessMap(
+      Isolate* isolate, DirectHandle<JSGlobalProxy> global_proxy,
+      DirectHandle<JSPrototype> prototype,
+      DirectHandle<UnionOf<FunctionTemplateInfo, Null>> constructor,
+      const char* reason);
+
   // Dispatched behavior.
   DECL_PRINTER(JSGlobalProxy)
   DECL_VERIFIER(JSGlobalProxy)

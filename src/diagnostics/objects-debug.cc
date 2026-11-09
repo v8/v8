@@ -886,6 +886,17 @@ void Map::MapVerify(Isolate* isolate) {
     CHECK(prototype_info() == Smi::zero() ||
           IsPrototypeInfo(prototype_info()) ||
           IsPrototypeSharedClosureInfo(prototype_info()));
+    Tagged<PrototypeInfo> proto_info;
+    if (TryGetPrototypeInfo(&proto_info) &&
+        !IsUndefined(proto_info->derived_maps())) {
+      Tagged<WeakArrayList> derived_list =
+          Cast<WeakArrayList>(proto_info->derived_maps());
+      CHECK_GT(derived_list->length().value(), 0);
+      Tagged<MaybeObject> el = derived_list->Get(0);
+      CHECK(el.IsWeakOrCleared());
+      CHECK_IMPLIES(!el.IsCleared(), Cast<Map>(el.GetHeapObjectAssumeWeak())
+                                         ->BelongsToSameNativeContextAs(this));
+    }
   }
 }
 
