@@ -502,6 +502,17 @@ void DeoptInfo::InitializeInputLocations(Zone* zone, size_t count) {
   input_location_count_ = count;
 }
 
+bool RootConstant::IsAnyHole() const {
+  switch (index_) {
+#define CASE(Type, Value, CamelName) case RootIndex::k##CamelName:
+    HOLE_LIST(CASE)
+#undef CASE
+    return true;
+    default:
+      return false;
+  }
+}
+
 bool RootConstant::ToBoolean(LocalIsolate* local_isolate) const {
 #ifdef DEBUG
   // (Ab)use static locals to call CheckToBooleanOnAllRoots once, on first
@@ -888,6 +899,13 @@ Tribool ValueNode::IsHole(RootIndex hole_index) const {
     }
   }
   return Tribool::kMaybe;
+}
+
+bool ValueNode::IsAnyHoleConstant() const {
+  if (const RootConstant* root = UnwrapIdentities()->TryCast<RootConstant>()) {
+    return root->IsAnyHole();
+  }
+  return false;
 }
 
 ExternalReference Float64Ieee754Unary::ieee_function_ref() const {

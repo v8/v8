@@ -90,6 +90,14 @@ inline bool IsSupported(CpuOperation op) {
   UNREACHABLE();
 }
 
+enum class BranchResult {
+  kDefault,
+  kAlwaysTrue,
+  kAlwaysFalse,
+  // Bailed out before evaluating the condition.
+  kAbort,
+};
+
 class V8_NODISCARD MaybeReduceResult {
  public:
   enum Kind {
@@ -170,6 +178,15 @@ class V8_NODISCARD ReduceResult : public MaybeReduceResult {
  public:
   // NOLINTNEXTLINE
   ReduceResult(Node* node) : MaybeReduceResult(node) {}
+
+  // NOLINTNEXTLINE
+  ReduceResult(BranchResult branch_result)
+      : MaybeReduceResult(branch_result == BranchResult::kAbort
+                              ? kDoneWithAbort
+                              : kDoneWithoutPayload) {
+    DCHECK(branch_result == BranchResult::kDefault ||
+           branch_result == BranchResult::kAbort);
+  }
 
   explicit ReduceResult(const MaybeReduceResult& other)
       : MaybeReduceResult(other.GetPayload()) {
@@ -360,14 +377,6 @@ concept ReducerBaseWithAllocationTracking = requires(BaseT* b) {
 };
 
 enum class UseReprHintRecording { kRecord, kDoNotRecord };
-
-enum class BranchResult {
-  kDefault,
-  kAlwaysTrue,
-  kAlwaysFalse,
-  // Bailed out before evaluating the condition.
-  kAbort,
-};
 
 enum class BranchType { kBranchIfTrue, kBranchIfFalse };
 enum class BranchSpecializationMode { kDefault, kAlwaysBoolean };
@@ -1420,6 +1429,11 @@ class MaglevReducer {
       return value ? BranchResult::kAlwaysTrue : BranchResult::kAlwaysFalse;
     }
 
+    BranchResult BuildAbort(AbortReason reason) const {
+      CHECK(sub_->BuildAbort(reason).IsDoneWithAbort());
+      return this->Abort();
+    }
+
     template <typename ControlNodeT, typename... Args>
     BranchResult Build(std::initializer_list<ValueNode*> inputs,
                        Args&&... args);
@@ -2025,6 +2039,10 @@ class SubgraphBase {
   WithFallback(std::initializer_list<Variable*> vars, FFast&& fast_path_fn,
                FSlow&& fallback_fn,
                int max_fallback_predecessors = kMaxFallbackPredecessors);
+
+  ReduceResult BuildAbort(AbortReason reason) {
+    return reducer_->BuildAbort(reason);
+  }
 
  protected:
   SubgraphBase(MaglevReducer<BaseT>* reducer, MaglevCompilationUnit* dummy_unit)

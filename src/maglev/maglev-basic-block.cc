@@ -38,6 +38,7 @@ void BasicBlock::TruncateAt(Node* node) {
 void BasicBlock::OverwriteControlWithAbort(AbortReason reason) {
   ControlNode* control = reset_control_node();
   RemovePredecessorFollowing(control);
+  control->ClearInputs();
   control->OverwriteWith<Abort>(reason);
   set_deferred(true);
   set_control_node(control);

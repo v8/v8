@@ -103,6 +103,12 @@ class V8_EXPORT_PRIVATE MaglevGraphOptimizer {
     CHECK(result.IsDoneWithAbort());
     return ProcessResult::kTruncateBlock;
   }
+  ProcessResult AbortAndTruncate(
+      AbortReason reason = AbortReason::kUnreachable) {
+    ReduceResult result = reducer_.BuildAbort(reason);
+    CHECK(result.IsDoneWithAbort());
+    return ProcessResult::kTruncateBlock;
+  }
 
   bool HasPendingSplice() const { return reducer_.HasPendingSplice(); }
   auto TakePendingSplice() { return reducer_.TakePendingSplice(); }
@@ -178,6 +184,8 @@ class V8_EXPORT_PRIVATE MaglevGraphOptimizer {
 
   Jump* FoldBranch(BasicBlock* current, BranchControlNode* branch_node,
                    bool if_true);
+  ProcessResult AbortBlock(BasicBlock* block,
+                           AbortReason reason = AbortReason::kUnreachable);
 
   ProcessResult OverwriteWith(Opcode opcode);
 

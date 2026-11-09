@@ -2793,6 +2793,7 @@ class ValueNode : public Node {
   Tribool IsHole(RootIndex hole_index) const;
   Tribool IsTheHole() const { return IsHole(RootIndex::kTheHoleValue); }
   Tribool IsTdzHole() const { return IsHole(RootIndex::kTdzHoleValue); }
+  bool IsAnyHoleConstant() const;
 
   inline void MaybeRecordUseReprHint(UseRepresentationSet repr);
   inline void MaybeRecordUseReprHint(UseRepresentation repr);
@@ -5301,15 +5302,13 @@ class HeapConstant : public FixedInputValueNodeT<0, HeapConstant> {
   using OutputRegister = Register;
 
   explicit HeapConstant(uint64_t bitfield, compiler::HeapObjectRef object)
-      : Base(bitfield), object_(object) {}
+      : Base(bitfield), object_(object) {
+    DCHECK(!object_.IsAnyHole());
+  }
 
   bool ToBoolean(LocalIsolate* local_isolate) const {
     return Object::BooleanValue(*object_.object(), local_isolate);
   }
-
-  bool IsAnyHole() const { return object_.IsAnyHole(); }
-  bool IsTheHole() const { return object_.IsTheHole(); }
-  bool IsTdzHole() const { return object_.IsTdzHole(); }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -5352,6 +5351,7 @@ class RootConstant : public FixedInputValueNodeT<0, RootConstant> {
   }
 
   bool ToBoolean(LocalIsolate* local_isolate) const;
+  bool IsAnyHole() const;
 
   RootIndex index() const { return index_; }
 

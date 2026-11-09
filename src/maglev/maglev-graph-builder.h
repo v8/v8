@@ -1680,6 +1680,10 @@ class MaglevGraphBuilder {
           fallthrough_offset_(builder->iterator_.next_offset()) {}
 
     BranchResult FromBool(bool value) const;
+    BranchResult BuildAbort(AbortReason reason) const {
+      CHECK(builder_->BuildAbort(reason).IsDoneWithAbort());
+      return Abort();
+    }
     template <typename ControlNodeT, typename... Args>
     BranchResult Build(std::initializer_list<ValueNode*> inputs,
                        Args&&... args);

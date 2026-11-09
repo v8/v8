@@ -2488,6 +2488,9 @@ template <typename BaseT>
 template <bool flip>
 MaybeReduceResult MaglevReducer<BaseT>::TryFoldToBoolean(ValueNode* value) {
   if (IsConstantNode(value->opcode())) {
+    if (value->IsAnyHoleConstant()) {
+      return BuildAbort(AbortReason::kUnreachable);
+    }
     return GetBooleanConstant(FromConstantToBool(local_isolate(), value) ^
                               flip);
   }
@@ -2537,10 +2540,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldToBoolean(ValueNode* value) {
           {value}, CheckType::kOmitHeapObjectCheck);
     }
     if constexpr (!flip) {
-      auto not_result = TryFoldLogicalNot(result);
-      if (not_result.HasValue()) {
-        return not_result.value();
-      }
+      RETURN_IF_DONE(TryFoldLogicalNot(result));
       return AddNewNode<LogicalNot>({result});
     }
     return result;
@@ -2559,10 +2559,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldToBoolean(ValueNode* value) {
 
   if (CheckType(value, NodeType::kBoolean)) {
     if constexpr (flip) {
-      auto not_result = TryFoldLogicalNot(value);
-      if (not_result.HasValue()) {
-        return not_result.value();
-      }
+      RETURN_IF_DONE(TryFoldLogicalNot(value));
       return AddNewNode<LogicalNot>({value});
     }
     return value;
@@ -4189,16 +4186,11 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldFloat64CountLeadingZeros(
 
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryFoldLogicalNot(ValueNode* input) {
-  switch (input->opcode()) {
-#define CASE(Name)                                         \
-  case Opcode::k##Name: {                                  \
-    return GetBooleanConstant(                             \
-        !input->Cast<Name>()->ToBoolean(local_isolate())); \
-  }
-    CONSTANT_VALUE_NODE_LIST(CASE)
-#undef CASE
-    default:
-      break;
+  if (IsConstantNode(input->opcode())) {
+    if (input->IsAnyHoleConstant()) {
+      return BuildAbort(AbortReason::kUnreachable);
+    }
+    return GetBooleanConstant(!FromConstantToBool(local_isolate(), input));
   }
 
   if (auto c = TryGetConstantAlternative(input)) {
@@ -4288,6 +4280,9 @@ ReduceResult MaglevReducer<BaseT>::GetConvertReceiver(
     compiler::SharedFunctionInfoRef shared, ValueNode* receiver,
     ConvertReceiverMode mode) {
   DCHECK(!IsTdzHoleConstant(receiver));
+  if (receiver != nullptr && receiver->IsAnyHoleConstant()) {
+    return BuildAbort(AbortReason::kUnreachable);
+  }
   if (shared.native() || shared.language_mode() == LanguageMode::kStrict) {
     if (mode == ConvertReceiverMode::kNullOrUndefined) {
       return GetRootConstant(RootIndex::kUndefinedValue);

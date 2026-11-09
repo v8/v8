@@ -938,6 +938,13 @@ Jump* MaglevGraphOptimizer::FoldBranch(BasicBlock* current,
   return new_control_node;
 }
 
+ProcessResult MaglevGraphOptimizer::AbortBlock(BasicBlock* block,
+                                               AbortReason reason) {
+  block->OverwriteControlWithAbort(reason);
+  reducer_.graph()->set_may_have_unreachable_blocks(true);
+  return ProcessResult::kRevisit;
+}
+
 void MaglevGraphOptimizer::AttachExceptionHandlerInfo(NodeBase* node) {
   DCHECK(node->properties().can_throw());
   DCHECK(current_node()->properties().can_throw());
@@ -1655,9 +1662,13 @@ ProcessResult MaglevGraphOptimizer::VisitCall(Call* node,
   // callees, kNullOrUndefined receivers are replaced by the global proxy;
   // otherwise we emit a runtime ConvertReceiver. Already-known JSReceivers
   // pass through unchanged.
+  if (receiver->IsAnyHoleConstant()) return AbortAndTruncate();
   ConvertReceiverMode receiver_mode = node->receiver_mode();
   ReduceResult converted_receiver_result =
       reducer_.GetConvertReceiver(shared, receiver, receiver_mode);
+  if (converted_receiver_result.IsDoneWithAbort()) {
+    return ProcessResult::kTruncateBlock;
+  }
   if (!converted_receiver_result.IsDoneWithValue()) {
     return ProcessResult::kContinue;
   }
@@ -3761,15 +3772,13 @@ ProcessResult MaglevGraphOptimizer::VisitBranchIfRootConstant(
 
 ProcessResult MaglevGraphOptimizer::VisitBranchIfToBooleanTrue(
     BranchIfToBooleanTrue* node, const ProcessingState& state) {
-  if (IsConstantNode(node->input_node(0)->opcode())) {
-    // Holes shouldn't flow up to here: there should be either a ThrowXXXIfHole
-    // or a CheckNotHole before, which should have been constant-folded into
-    // unconditional deopt/throw if their input is a hole.
-    DCHECK_IMPLIES(node->input_node(0)->Is<HeapConstant>(),
-                   !node->input_node(0)->Cast<HeapConstant>()->IsAnyHole());
+  ValueNode* input = node->input_node(0);
+  if (IsConstantNode(input->opcode())) {
+    if (input->IsAnyHoleConstant()) {
+      return AbortBlock(state.block());
+    }
 
-    bool condition =
-        FromConstantToBool(reducer_.local_isolate(), node->input_node(0));
+    bool condition = FromConstantToBool(reducer_.local_isolate(), input);
     FoldBranch(state.block(), node, condition);
     return ProcessResult::kRevisit;
   }
@@ -4057,9 +4066,7 @@ ProcessResult MaglevGraphOptimizer::VisitJumpLoop(
 ProcessResult MaglevGraphOptimizer::VisitDeadValue(
     DeadValue* node, const ProcessingState& state) {
   // DeadValues are unreachable, so we truncate the block now.
-  auto res = reducer_.BuildAbort(AbortReason::kUnreachable);
-  CHECK(res.IsDoneWithAbort());
-  return ProcessResult::kTruncateBlock;
+  return AbortAndTruncate();
 }
 
 // Nodes never emitted before Graph optimizer.

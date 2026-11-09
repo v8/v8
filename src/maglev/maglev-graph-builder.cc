@@ -15136,6 +15136,9 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfToBooleanTrue(
   bool known_to_boolean_value = false;
   bool direction_is_true = true;
   if (IsConstantNode(node->opcode())) {
+    if (node->IsAnyHoleConstant()) {
+      return builder.BuildAbort(AbortReason::kUnreachable);
+    }
     known_to_boolean_value = true;
     direction_is_true = FromConstantToBool(local_isolate(), node);
   } else {
@@ -15240,13 +15243,11 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfToBooleanTrue(
 
 ReduceResult MaglevGraphBuilder::VisitJumpIfToBooleanTrue() {
   auto branch_builder = CreateBranchBuilder(BranchType::kBranchIfTrue);
-  BuildBranchIfToBooleanTrue(branch_builder, GetAccumulator());
-  return ReduceResult::Done();
+  return BuildBranchIfToBooleanTrue(branch_builder, GetAccumulator());
 }
 ReduceResult MaglevGraphBuilder::VisitJumpIfToBooleanFalse() {
   auto branch_builder = CreateBranchBuilder(BranchType::kBranchIfFalse);
-  BuildBranchIfToBooleanTrue(branch_builder, GetAccumulator());
-  return ReduceResult::Done();
+  return BuildBranchIfToBooleanTrue(branch_builder, GetAccumulator());
 }
 ReduceResult MaglevGraphBuilder::VisitJumpIfTrue() {
   auto branch_builder = CreateBranchBuilder(BranchType::kBranchIfTrue);
