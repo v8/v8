@@ -1573,10 +1573,12 @@ inline void MaglevAssembler::Pop(Register dst) { pop(dst); }
 
 inline void MaglevAssembler::AssertStackSizeCorrect() {
   if (v8_flags.slow_debug_code) {
-    AddS64(r0, sp,
+    TemporaryRegisterScope temps(this);
+    Register scratch = temps.AcquireScratch();
+    AddS64(scratch, sp,
            Operand(code_gen_state()->stack_slots() * kSystemPointerSize +
                    StandardFrameConstants::kFixedFrameSizeFromFp));
-    CmpU64(r0, fp);
+    CmpU64(scratch, fp);
     Assert(eq, AbortReason::kStackAccessBelowStackPointer);
   }
 }
