@@ -252,13 +252,11 @@ uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,
     module_->type_feedback.well_known_imports.Initialize(kMaxFunctions);
   }
   uint32_t index = static_cast<uint32_t>(module_->functions.size());
-  module_->functions.push_back({sig,                 // sig
-                                index,               // func_index
-                                ModuleTypeIndex{0},  // sig_index
-                                {0, 0},              // code
-                                false,               // imported
-                                false,               // exported
-                                false});             // declared
+  module_->functions.push_back(WasmFunction{
+      .sig = sig,
+      .func_index = index,
+      .sig_index = ModuleTypeIndex{0},
+  });
   if (type == kImport) {
     DCHECK_EQ(0, module_->num_declared_functions);
     ++module_->num_imported_functions;

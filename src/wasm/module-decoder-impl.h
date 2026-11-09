@@ -1417,8 +1417,8 @@ class ModuleDecoderImpl : public Decoder {
 
           module_->num_exported_functions++;
           func->exported = true;
-          // Exported functions are considered "declared".
-          func->declared = true;
+          // Exported functions are considered declared for `ref.func`.
+          func->declared_for_ref = true;
           break;
         }
         case kExternalTable: {
@@ -2683,7 +2683,7 @@ class ModuleDecoderImpl : public Decoder {
             type = type.AsExact();
           }
           TYPE_CHECK(type)
-          module->functions[index].declared = true;
+          module->functions[index].declared_for_ref = true;
           if (tracer_) {
             tracer_->InitializerExpression(pc_, pc_ + length + 2, type);
           }
@@ -3144,7 +3144,7 @@ class ModuleDecoderImpl : public Decoder {
              expected.name().c_str(), entry_type.name().c_str());
       return index;
     }
-    func->declared = true;
+    func->declared_for_ref = true;
     return index;
   }
 

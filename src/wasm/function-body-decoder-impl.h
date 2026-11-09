@@ -2432,7 +2432,7 @@ class WasmDecoder : public Decoder {
     }
     V8_ASSUME(imm.index < num_functions);
     if (decoding_mode == kFunctionBody &&
-        !VALIDATE(module_->functions[imm.index].declared)) {
+        !VALIDATE(module_->functions[imm.index].declared_for_ref)) {
       DecodeError(pc, "undeclared reference to function #%u", imm.index);
       return false;
     }

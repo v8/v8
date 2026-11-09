@@ -106,14 +106,14 @@ class TestModuleBuilder {
     GetTypeCanonicalizer()->AddRecursiveSingletonGroup(module());
     return ModuleTypeIndex{static_cast<uint8_t>(mod.types.size() - 1)};
   }
-  uint8_t AddFunction(const FunctionSig* sig, bool declared = true) {
+  uint8_t AddFunction(const FunctionSig* sig, bool declared_for_ref = true) {
     ModuleTypeIndex sig_index = AddSignature(sig);
-    return AddFunctionImpl(sig, sig_index, declared);
+    return AddFunctionImpl(sig, sig_index, declared_for_ref);
   }
-  uint8_t AddFunction(ModuleTypeIndex sig_index, bool declared = true) {
+  uint8_t AddFunction(ModuleTypeIndex sig_index, bool declared_for_ref = true) {
     DCHECK(mod.has_signature(sig_index));
     return AddFunctionImpl(mod.type(sig_index).function_sig, sig_index,
-                           declared);
+                           declared_for_ref);
   }
   uint8_t AddImport(const FunctionSig* sig) {
     uint8_t result = AddFunction(sig);
@@ -213,15 +213,13 @@ class TestModuleBuilder {
 
  private:
   uint8_t AddFunctionImpl(const FunctionSig* sig, ModuleTypeIndex sig_index,
-                          bool declared) {
-    mod.functions.push_back(
-        {sig,                                          // sig
-         static_cast<uint32_t>(mod.functions.size()),  // func_index
-         sig_index,                                    // sig_index
-         {0, 0},                                       // code
-         false,                                        // import
-         false,                                        // export
-         declared});                                   // declared
+                          bool declared_for_ref) {
+    mod.functions.push_back(WasmFunction{
+        .sig = sig,
+        .func_index = static_cast<uint32_t>(mod.functions.size()),
+        .sig_index = sig_index,
+        .declared_for_ref = declared_for_ref,
+    });
     CHECK_LE(mod.functions.size(), kMaxByteSizedLeb128);
     return static_cast<uint8_t>(mod.functions.size() - 1);
   }

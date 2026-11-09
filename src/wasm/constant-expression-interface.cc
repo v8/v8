@@ -134,7 +134,7 @@ void ConstantExpressionInterface::RefFunc(FullDecoder* decoder,
                                           uint32_t function_index,
                                           Value* result) {
   if (isolate_ == nullptr) {
-    outer_module_->functions[function_index].declared = true;
+    outer_module_->functions[function_index].declared_for_ref = true;
     return;
   }
   if (!generate_value()) return;

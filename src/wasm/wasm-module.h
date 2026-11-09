@@ -83,7 +83,9 @@ struct WasmFunction {
   WireBytesRef code = {};            // code of this function.
   bool imported = false;
   bool exported = false;
-  bool declared = false;
+  // Set if this function is referenced outside the Code and Start sections
+  // (`C.refs` in the spec), allowing `ref.func` in function bodies.
+  bool declared_for_ref = false;
   // TODO(jkummerow): Should we merge {sig_index} and {exact} into a
   // {ValueType} field?
   bool exact = false;  // Only meaningful for imported functions.
