@@ -1968,6 +1968,7 @@ class StackFrameIteratorForProfiler : public StackFrameIteratorBase {
   bool IsValidStackAddress(Address addr) const {
     return low_bound_ <= addr && addr <= high_bound_;
   }
+  bool IsValidFramePointer(Address fp) const;
   bool IsValidState(const StackFrame::State& frame) const;
   bool HasValidExitIfEntryFrame(const StackFrame* frame) const;
   bool IsValidExitFrame(Address fp) const;

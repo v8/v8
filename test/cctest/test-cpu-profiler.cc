@@ -62,6 +62,7 @@
 #include "src/profiler/profiler-listener.h"
 #include "src/profiler/symbolizer.h"
 #include "src/sandbox/sandboxable-thread.h"
+#include "src/snapshot/embedded/embedded-data-inl.h"
 #include "src/utils/utils.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
@@ -5309,6 +5310,101 @@ TEST(UnalignedFastCCallFP) {
   // unaligned read.
   while (!it.done()) {
     it.Advance();
+  }
+}
+
+TEST(UnalignedFramePointer) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+
+  constexpr size_t kStackSize = 1024;
+  alignas(Address) std::array<uint8_t, kStackSize> stack{};
+  const Address stack_base = reinterpret_cast<Address>(stack.data());
+  const Address sp = stack_base + 128;
+  const Address fp = stack_base + 512;
+  const Address caller_fp = stack_base + 768;
+  const Address js_entry_sp = stack_base + kStackSize;
+  const Address pc =
+      isolate->builtins()->code(Builtin::kJSEntry)->instruction_start();
+
+  // Case 1: Top-most FP register is unaligned (e.g. interrupted in a signal
+  // handler or frame-pointer-less C++ code).
+  {
+    StackFrameIteratorForProfilerForTesting it(isolate, pc, fp + 1, sp,
+                                               kNullAddress, js_entry_sp);
+    CHECK(it.done());
+  }
+
+  // Case 2: Aligned top frame whose saved caller FP slot is unaligned.
+  {
+    base::Memory<Address>(fp +
+                          CommonFrameConstants::kContextOrFrameTypeOffset) =
+        StackFrame::TypeToMarker(StackFrame::INTERNAL);
+    base::Memory<Address>(fp + CommonFrameConstants::kCallerFPOffset) =
+        caller_fp + 1;
+    base::Memory<Address>(fp + CommonFrameConstants::kCallerPCOffset) = pc;
+
+    StackFrameIteratorForProfilerForTesting it(isolate, pc, fp, sp,
+                                               kNullAddress, js_entry_sp);
+    CHECK(it.done());
+  }
+
+  // Case 3: EntryFrame whose saved ExitFrame FP points to an unaligned SP.
+  {
+    const Address exit_fp = caller_fp;
+    const Address unaligned_exit_sp = exit_fp - 64 + 1;
+    base::Memory<Address>(fp +
+                          CommonFrameConstants::kContextOrFrameTypeOffset) =
+        StackFrame::TypeToMarker(StackFrame::ENTRY);
+    base::Memory<Address>(
+        fp + EntryFrameConstants::kNextFastCallFrameFPOffset) = kNullAddress;
+    base::Memory<Address>(fp + EntryFrameConstants::kNextExitFrameFPOffset) =
+        exit_fp;
+    base::Memory<Address>(exit_fp + ExitFrameConstants::kFrameTypeOffset) =
+        StackFrame::TypeToMarker(StackFrame::EXIT);
+    base::Memory<Address>(exit_fp + ExitFrameConstants::kSPOffset) =
+        unaligned_exit_sp;
+    base::WriteUnalignedValue<Address>(unaligned_exit_sp - kPCOnStackSize, pc);
+
+    StackFrameIteratorForProfilerForTesting it(isolate, pc, fp, sp,
+                                               kNullAddress, js_entry_sp);
+    CHECK(it.done());
+  }
+
+  // Case 4: Unaligned IsolateData::fast_c_call_caller_fp.
+  {
+    const Address unaligned_fp = fp + 1;
+    base::Memory<Address>(
+        isolate->isolate_data()->fast_c_call_caller_pc_address()) = pc;
+    base::Memory<Address>(
+        isolate->isolate_data()->fast_c_call_caller_fp_address()) =
+        unaligned_fp;
+
+    StackFrameIteratorForProfilerForTesting it(isolate, pc, unaligned_fp, sp,
+                                               kNullAddress, js_entry_sp);
+    base::Memory<Address>(
+        isolate->isolate_data()->fast_c_call_caller_fp_address()) =
+        kNullAddress;
+    base::Memory<Address>(
+        isolate->isolate_data()->fast_c_call_caller_pc_address()) =
+        kNullAddress;
+    CHECK(it.done());
+  }
+
+  // Case 5: Frameless bytecode handler PC with unaligned SP (and no LR).
+  {
+    const Address unaligned_sp = sp + 1;
+    const EmbeddedData embedded_data = EmbeddedData::FromBlob(isolate);
+    const Address bytecode_handler_pc =
+        embedded_data.InstructionStartOfBytecodeHandlers();
+    const Address interp_entry_pc =
+        embedded_data.InstructionStartOf(Builtin::kInterpreterEnterAtBytecode);
+    base::WriteUnalignedValue<Address>(unaligned_sp, interp_entry_pc);
+
+    StackFrameIteratorForProfilerForTesting it(isolate, bytecode_handler_pc, fp,
+                                               unaligned_sp, kNullAddress,
+                                               js_entry_sp);
+    CHECK(it.done());
   }
 }
 

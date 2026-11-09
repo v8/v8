@@ -564,7 +564,8 @@ StackFrameIteratorForProfiler::StackFrameIteratorForProfiler(
     // the stack before kFunctionOffset.
     static_assert(StandardFrameConstants::kFunctionOffset <
                   StandardFrameConstants::kContextOffset);
-    if (IsValidStackAddress(state.fp +
+    if (IsValidFramePointer(state.fp) &&
+        IsValidStackAddress(state.fp +
                             StandardFrameConstants::kFunctionOffset)) {
       type = ComputeStackFrameType(&state);
       if (IsValidFrameType(type)) {
@@ -578,7 +579,7 @@ StackFrameIteratorForProfiler::StackFrameIteratorForProfiler(
   } else if (IsValidTop(top)) {
     type = ExitFrame::GetStateForFramePointer(Isolate::c_entry_fp(top), &state);
     top_frame_type_ = type;
-  } else if (IsValidStackAddress(fp)) {
+  } else if (IsValidFramePointer(fp)) {
     DCHECK_NE(fp, kNullAddress);
     state.fp = fp;
     state.sp = sp;
@@ -603,13 +604,15 @@ StackFrameIteratorForProfiler::StackFrameIteratorForProfiler(
       Address* top_location = nullptr;
       if (top_link_register_) {
         top_location = &top_link_register_;
-      } else if (IsValidStackAddress(sp)) {
+      } else if (IsValidStackAddress(sp) && IsAligned(sp, kSystemPointerSize)) {
         MSAN_MEMORY_IS_INITIALIZED(sp, kSystemPointerSize);
         top_location = reinterpret_cast<Address*>(sp);
       }
 
       std::optional<bool> is_interpreter_frame_pc =
-          IsInterpreterFramePc(isolate, *top_location, &state);
+          top_location == nullptr
+              ? std::nullopt
+              : IsInterpreterFramePc(isolate, *top_location, &state);
       // Since we're in a signal handler, the pc lookup might not be possible
       // since the required locks are taken by the same thread.
       if (!is_interpreter_frame_pc.has_value()) {
@@ -689,9 +692,13 @@ void StackFrameIteratorForProfiler::AdvanceOneFrame() {
   }
 }
 
+bool StackFrameIteratorForProfiler::IsValidFramePointer(Address fp) const {
+  return IsAligned(fp, kSystemPointerSize) && IsValidStackAddress(fp);
+}
+
 bool StackFrameIteratorForProfiler::IsValidState(
     const StackFrame::State& state) const {
-  return IsValidStackAddress(state.sp) && IsValidStackAddress(state.fp);
+  return IsValidStackAddress(state.sp) && IsValidFramePointer(state.fp);
 }
 
 bool StackFrameIteratorForProfiler::HasValidExitIfEntryFrame(
@@ -707,8 +714,7 @@ bool StackFrameIteratorForProfiler::HasValidExitIfEntryFrame(
   MSAN_MEMORY_IS_INITIALIZED(next_fast_c_call_fp_address, kSystemPointerSize);
   Address next_fast_c_call_fp = Memory<Address>(next_fast_c_call_fp_address);
   if (next_fast_c_call_fp != kNullAddress) {
-    if (!IsAligned(next_fast_c_call_fp, kSystemPointerSize) ||
-        !IsValidStackAddress(next_fast_c_call_fp)) {
+    if (!IsValidFramePointer(next_fast_c_call_fp)) {
       return false;
     }
     // EntryFrame::GetCallerState will use this FP and won't read the
@@ -730,10 +736,11 @@ bool StackFrameIteratorForProfiler::HasValidExitIfEntryFrame(
 }
 
 bool StackFrameIteratorForProfiler::IsValidExitFrame(Address fp) const {
-  if (!IsAligned(fp, kSystemPointerSize)) return false;
-  if (!IsValidStackAddress(fp)) return false;
+  if (!IsValidFramePointer(fp)) return false;
   Address sp = ExitFrame::ComputeStackPointer(fp);
-  if (!IsValidStackAddress(sp)) return false;
+  if (!IsAligned(sp, kSystemPointerSize) || !IsValidStackAddress(sp)) {
+    return false;
+  }
   StackFrame::State state;
   ExitFrame::FillState(fp, sp, &state);
   MSAN_MEMORY_IS_INITIALIZED(state.pc_address, sizeof(state.pc_address));
@@ -1062,6 +1069,7 @@ StackFrame::Type StackFrameIteratorForProfiler::ComputeStackFrameType(
     return StackFrame::NO_FRAME_TYPE;
   }
 #endif
+  DCHECK(IsAligned(state->fp, kSystemPointerSize));
 
   // We use unauthenticated_pc because it may come from
   // fast_c_call_caller_pc_address, for which authentication does not work.
