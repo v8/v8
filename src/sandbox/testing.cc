@@ -30,6 +30,7 @@
 #include "src/objects/js-array-buffer.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/literal-objects.h"
+#include "src/objects/scope-info.h"
 #include "src/objects/tagged-field-inl.h"
 #include "src/objects/templates.h"
 #include "src/sandbox/sandbox-zero-segment.h"
@@ -1573,7 +1574,12 @@ SandboxTesting::InstanceTypeMap& SandboxTesting::GetInstanceTypeMap() {
     types["FIXED_DOUBLE_ARRAY_TYPE"] = FIXED_DOUBLE_ARRAY_TYPE;
     types["WEAK_HOMOMORPHIC_FIXED_ARRAY_TYPE"] =
         WEAK_HOMOMORPHIC_FIXED_ARRAY_TYPE;
-    types["NATIVE_CONTEXT_TYPE"] = NATIVE_CONTEXT_TYPE;
+    for (std::underlying_type_t<InstanceType> context_type = FIRST_CONTEXT_TYPE;
+         context_type <= LAST_CONTEXT_TYPE; ++context_type) {
+      InstanceType instance_type = static_cast<InstanceType>(context_type);
+      types[ToString(instance_type)] = instance_type;
+    }
+    types["SCOPE_INFO_TYPE"] = SCOPE_INFO_TYPE;
     types["MAP_TYPE"] = MAP_TYPE;
     types["CLASS_BOILERPLATE_TYPE"] = CLASS_BOILERPLATE_TYPE;
 #ifdef V8_ENABLE_WEBASSEMBLY
@@ -1684,8 +1690,19 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
     fields[FIXED_ARRAY_TYPE]["data"] = FixedArray::kHeaderSize;
     fields[WEAK_HOMOMORPHIC_FIXED_ARRAY_TYPE]["length"] =
         offsetof(WeakFixedArray, length_);
+    for (std::underlying_type_t<InstanceType> context_type = FIRST_CONTEXT_TYPE;
+         context_type <= LAST_CONTEXT_TYPE; ++context_type) {
+      InstanceType instance_type = static_cast<InstanceType>(context_type);
+      fields[instance_type]["scope_info"] = Context::kScopeInfoOffset;
+      fields[instance_type]["previous"] = Context::kPreviousOffset;
+    }
     fields[NATIVE_CONTEXT_TYPE]["microtask_queue"] =
         NativeContext::kMicrotaskQueueOffset;
+    fields[SCOPE_INFO_TYPE]["flags"] = offsetof(ScopeInfo, flags_);
+    fields[SCOPE_INFO_TYPE]["parameter_count"] =
+        offsetof(ScopeInfo, parameter_count_);
+    fields[SCOPE_INFO_TYPE]["context_local_count"] =
+        offsetof(ScopeInfo, context_local_count_);
     fields[CLASS_BOILERPLATE_TYPE]["instance_properties_template"] =
         offsetof(ClassBoilerplate, instance_properties_template_);
 #ifdef V8_INTL_SUPPORT
