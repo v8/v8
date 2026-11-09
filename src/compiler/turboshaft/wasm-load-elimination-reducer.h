@@ -140,21 +140,41 @@ class WasmMemoryContentTable
                                     module_->heap_type(type2), module_);
   }
 
-  void Invalidate(int offset, wasm::ModuleTypeIndex type_index) {
-    // This is like LateLoadElimination's {InvalidateAtOffset}, but based
-    // on Wasm types instead of tracked JS maps.
+  void Invalidate(OpIndex base, int offset, wasm::ModuleTypeIndex type_index) {
+    // This is like LateLoadElimination's {Invalidate} and {InvalidateAtOffset},
+    // but based on Wasm types instead of tracked JS maps.
+    base = ResolveBase(base);
+
+    if (non_aliasing_objects_.Get(base)) {
+      // Since {base} is non-aliasing, it's enough to just iterate the values at
+      // this base.
+      auto base_keys = base_keys_.find(base);
+      if (base_keys == base_keys_.end()) return;
+      for (auto it = base_keys->second.with_offsets.begin();
+           it != base_keys->second.with_offsets.end();) {
+        Key key = *it;
+        DCHECK_EQ(key.data().mem.base, base);
+        if (offset == key.data().mem.offset) {
+          it = base_keys->second.with_offsets.RemoveAt(it);
+          Set(key, OpIndex::Invalid());
+        } else {
+          ++it;
+        }
+      }
+      return;
+    }
+
     auto offset_keys = offset_keys_.find(offset);
     if (offset_keys == offset_keys_.end()) return;
     for (auto it = offset_keys->second.begin();
          it != offset_keys->second.end();) {
       Key key = *it;
       DCHECK_EQ(offset, key.data().mem.offset);
-      OpIndex base = key.data().mem.base;
+      OpIndex other_base = key.data().mem.base;
 
-      // If the base is guaranteed non-aliasing, we don't need to clear any
-      // other entries. Any existing entry for this base will be overwritten
-      // by {Insert(set)}.
-      if (non_aliasing_objects_.Get(base)) {
+      // If {other_base} is guaranteed non-aliasing, it cannot alias with
+      // {base}.
+      if (non_aliasing_objects_.Get(other_base)) {
         ++it;
         continue;
       }
@@ -170,12 +190,13 @@ class WasmMemoryContentTable
   }
 
   void Invalidate(const StructSetOp& set) {
-    Invalidate(WasmStruct::FieldOffset(set.type, set.field_index),
+    Invalidate(set.object(), WasmStruct::FieldOffset(set.type, set.field_index),
                set.type_index);
   }
 
   void Invalidate(const StructAtomicRMWOp& rmw_op) {
-    Invalidate(WasmStruct::FieldOffset(rmw_op.type, rmw_op.field_index),
+    Invalidate(rmw_op.object(),
+               WasmStruct::FieldOffset(rmw_op.type, rmw_op.field_index),
                rmw_op.type_index);
   }
 
@@ -358,6 +379,10 @@ class WasmMemoryContentTable
         base = cast->object();
         continue;
       }
+      if (WasmTypeAnnotationOp* annot = op.TryCast<WasmTypeAnnotationOp>()) {
+        base = annot->value();
+        continue;
+      }
       break;  // Terminate if nothing happened.
     }
     return base;
@@ -449,12 +474,13 @@ class V8_EXPORT_PRIVATE WasmLoadEliminationAnalyzer {
   void ProcessArrayGet(OpIndex op_idx, const ArrayGetOp& op);
   void ProcessArraySet(OpIndex op_idx, const ArraySetOp& op);
   void ProcessWasmAllocateArray(OpIndex op_idx, const WasmAllocateArrayOp& op);
+  void ProcessWasmAllocateStruct(OpIndex op_idx,
+                                 const WasmAllocateStructOp& op);
   void ProcessStringAsWtf16(OpIndex op_idx, const StringAsWtf16Op& op);
   void ProcessStringPrepareForGetCodeUnit(
       OpIndex op_idx, const StringPrepareForGetCodeUnitOp& op);
   void ProcessAnyConvertExtern(OpIndex op_idx, const AnyConvertExternOp& op);
   void ProcessAssertNotNull(OpIndex op_idx, const AssertNotNullOp& op);
-  void ProcessAllocate(OpIndex op_idx, const AllocateOp& op);
   void ProcessCall(OpIndex op_idx, const CallOp& op);
   void ProcessPhi(OpIndex op_idx, const PhiOp& op);
   OpIndex MaybeReplacePhi(const PhiOp& phi);
