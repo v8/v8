@@ -1603,6 +1603,26 @@ MaybeDirectHandle<JSPrototype> JSProxy::GetPrototype(
   return handler_proto;
 }
 
+MaybeHandle<JSAny> Object::GetPropertyWithAccessor(
+    LookupIterator* it, DirectHandle<AccessorInfo> info) {
+  Isolate* isolate = it->isolate();
+  DirectHandle<Name> name = it->GetName();
+
+  if (!info->has_getter(isolate)) {
+    return isolate->factory()->undefined_value();
+  }
+
+  PropertyCallbackArguments args(isolate, it->GetHolderForApi());
+  DirectHandle<JSAny> result = args.CallAccessorGetter(isolate, info, name);
+  RETURN_EXCEPTION_IF_EXCEPTION(isolate);
+  Handle<JSAny> reboxed_result(*result, isolate);
+  if (info->replace_on_access()) {
+    RETURN_ON_EXCEPTION(isolate, Accessors::ReplaceAccessorWithDataProperty(
+                                     isolate, args.holder(), name, result));
+  }
+  return reboxed_result;
+}
+
 MaybeHandle<JSAny> Object::GetPropertyWithAccessor(LookupIterator* it) {
   Isolate* isolate = it->isolate();
   DirectHandle<Object> structure = it->GetAccessors();
@@ -1613,22 +1633,7 @@ MaybeHandle<JSAny> Object::GetPropertyWithAccessor(LookupIterator* it) {
 
   // API style callbacks.
   if (IsAccessorInfo(*structure)) {
-    DirectHandle<Name> name = it->GetName();
-    auto info = Cast<AccessorInfo>(structure);
-
-    if (!info->has_getter(isolate)) {
-      return isolate->factory()->undefined_value();
-    }
-
-    PropertyCallbackArguments args(isolate, it->GetHolderForApi());
-    DirectHandle<JSAny> result = args.CallAccessorGetter(isolate, info, name);
-    RETURN_EXCEPTION_IF_EXCEPTION(isolate);
-    Handle<JSAny> reboxed_result(*result, isolate);
-    if (info->replace_on_access()) {
-      RETURN_ON_EXCEPTION(isolate, Accessors::ReplaceAccessorWithDataProperty(
-                                       isolate, args.holder(), name, result));
-    }
-    return reboxed_result;
+    return GetPropertyWithAccessor(it, Cast<AccessorInfo>(structure));
   }
 
   auto accessor_pair = Cast<AccessorPair>(structure);
@@ -1664,10 +1669,37 @@ MaybeHandle<JSAny> Object::GetPropertyWithAccessor(LookupIterator* it) {
 }
 
 Maybe<bool> Object::SetPropertyWithAccessor(LookupIterator* it,
+                                            DirectHandle<AccessorInfo> info,
                                             DirectHandle<Object> value,
                                             Maybe<ShouldThrow> should_throw) {
   Isolate* isolate = it->isolate();
-  DirectHandle<Object> structure = it->GetAccessors();
+  DirectHandle<Name> name = it->GetName();
+
+  if (!info->has_setter(isolate)) {
+    // TODO(verwaest): We should not get here anymore once all AccessorInfos
+    // are marked as special_data_property. They cannot both be writable and
+    // not have a setter.
+    return Just(true);
+  }
+
+  PropertyCallbackArguments args(isolate, it->GetHolderForApi(), should_throw);
+  bool result = args.CallAccessorSetter(isolate, info, name, value);
+  RETURN_VALUE_IF_EXCEPTION(isolate, Nothing<bool>());
+  if (!result) {
+    // Make sure TypeError is thrown if necessary in case the callback
+    // failed to set the property.
+    RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
+                   NewTypeError(MessageTemplate::kStrictCannotSetProperty,
+                                it->GetName(), args.holder()));
+  }
+  return Just(result);
+}
+
+Maybe<bool> Object::SetPropertyWithAccessor(LookupIterator* it,
+                                            DirectHandle<Object> structure,
+                                            DirectHandle<Object> value,
+                                            Maybe<ShouldThrow> should_throw) {
+  Isolate* isolate = it->isolate();
 
   // We should never get here to initialize a const with the hole value since a
   // const declaration would conflict with the setter.
@@ -1675,28 +1707,8 @@ Maybe<bool> Object::SetPropertyWithAccessor(LookupIterator* it,
 
   // API style callbacks.
   if (IsAccessorInfo(*structure)) {
-    DirectHandle<Name> name = it->GetName();
-    auto info = Cast<AccessorInfo>(structure);
-
-    if (!info->has_setter(isolate)) {
-      // TODO(verwaest): We should not get here anymore once all AccessorInfos
-      // are marked as special_data_property. They cannot both be writable and
-      // not have a setter.
-      return Just(true);
-    }
-
-    PropertyCallbackArguments args(isolate, it->GetHolderForApi(),
+    return SetPropertyWithAccessor(it, Cast<AccessorInfo>(structure), value,
                                    should_throw);
-    bool result = args.CallAccessorSetter(isolate, info, name, value);
-    RETURN_VALUE_IF_EXCEPTION(isolate, Nothing<bool>());
-    if (!result) {
-      // Make sure TypeError is thrown if necessary in case the callback
-      // failed to set the property.
-      RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
-                     NewTypeError(MessageTemplate::kStrictCannotSetProperty,
-                                  it->GetName(), args.holder()));
-    }
-    return Just(result);
   }
 
   // Regular accessor.
@@ -2502,7 +2514,7 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
           *found = false;
           return Nothing<bool>();
         }
-        return SetPropertyWithAccessor(it, value, should_throw);
+        return SetPropertyWithAccessor(it, accessors, value, should_throw);
       }
       case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND: {
         // IntegerIndexedElementSet converts value to a Number/BigInt prior to
@@ -2642,15 +2654,17 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it,
         }
         continue;
 
-      case LookupIterator::ACCESSOR:
-        if (IsAccessorInfo(*own_lookup.GetAccessors())) {
+      case LookupIterator::ACCESSOR: {
+        DirectHandle<Object> accessors = own_lookup.GetAccessors();
+        if (IsAccessorInfo(*accessors)) {
           if (own_lookup.IsReadOnly()) {
             return WriteToReadOnlyProperty(&own_lookup, value, should_throw);
           }
-          return Object::SetPropertyWithAccessor(&own_lookup, value,
-                                                 should_throw);
+          return Object::SetPropertyWithAccessor(
+              &own_lookup, Cast<AccessorInfo>(accessors), value, should_throw);
         }
         [[fallthrough]];
+      }
       case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
         return RedefineIncompatibleProperty(isolate, it->GetName(), value,
                                             should_throw);

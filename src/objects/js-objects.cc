@@ -194,7 +194,7 @@ Handle<Object> JSReceiver::GetDataProperty(LookupIterator* it,
         // Special handling for AccessorInfo, which behaves like a data
         // property.
         if (allow_allocation && IsAccessorInfo(*accessors)) {
-          auto info = Cast<AccessorInfo>(*accessors);
+          auto info = Cast<AccessorInfo>(accessors);
           if (info->getter_side_effect_type() ==
               SideEffectType::kHasNoSideEffect) {
             v8::TryCatch try_catch(
@@ -202,7 +202,7 @@ Handle<Object> JSReceiver::GetDataProperty(LookupIterator* it,
             try_catch.SetVerbose(false);
             try_catch.SetCaptureMessage(false);
             Handle<Object> result;
-            if (Object::GetPropertyWithAccessor(it).ToHandle(&result)) {
+            if (Object::GetPropertyWithAccessor(it, info).ToHandle(&result)) {
               return result;
             }
           }
@@ -253,16 +253,19 @@ MaybeHandle<Object> JSReceiver::TryGetDataProperty(LookupIterator* it) {
         // AccessorPairs are never called, not even API functions declared
         // side-effect free, as script can install them on arbitrary objects.
         DirectHandle<Object> accessors = it->GetAccessors();
-        if (!IsAccessorInfo(*accessors) ||
-            Cast<AccessorInfo>(*accessors)->getter_side_effect_type() !=
-                SideEffectType::kHasNoSideEffect) {
+        if (!IsAccessorInfo(*accessors)) return {};
+        DirectHandle<AccessorInfo> info = Cast<AccessorInfo>(accessors);
+        if (info->getter_side_effect_type() !=
+            SideEffectType::kHasNoSideEffect) {
           return {};
         }
         v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(it->isolate()));
         try_catch.SetVerbose(false);
         try_catch.SetCaptureMessage(false);
         Handle<Object> result;
-        if (!Object::GetPropertyWithAccessor(it).ToHandle(&result)) return {};
+        if (!Object::GetPropertyWithAccessor(it, info).ToHandle(&result)) {
+          return {};
+        }
         return result;
       }
       case LookupIterator::DATA:
@@ -2148,13 +2151,19 @@ Maybe<bool> JSReceiver::GetOwnPropertyDescriptor(LookupIterator* it,
   // 3. Let D be a newly created Property Descriptor with no fields.
   DCHECK(desc->is_empty());
   // 4. Let X be O's own property whose key is P.
+  DirectHandle<Object> accessors;
+  if (it->state() == LookupIterator::ACCESSOR) {
+    accessors = it->GetAccessors();
+  }
   // 5. If X is a data property, then
-  bool is_accessor_pair = it->state() == LookupIterator::ACCESSOR &&
-                          IsAccessorPair(*it->GetAccessors());
-  if (!is_accessor_pair) {
+  if (accessors.is_null() || !IsAccessorPair(*accessors)) {
     // 5a. Set D.[[Value]] to the value of X's [[Value]] attribute.
+    MaybeHandle<JSAny> maybe_value =
+        accessors.is_null() ? Cast<JSAny>(Object::GetProperty(it))
+                            : Object::GetPropertyWithAccessor(
+                                  it, Cast<AccessorInfo>(accessors));
     DirectHandle<JSAny> value;
-    if (!Cast<JSAny>(Object::GetProperty(it)).ToHandle(&value)) {
+    if (!maybe_value.ToHandle(&value)) {
       DCHECK(isolate->has_exception());
       return Nothing<bool>();
     }
@@ -2163,15 +2172,15 @@ Maybe<bool> JSReceiver::GetOwnPropertyDescriptor(LookupIterator* it,
     desc->set_writable((attrs & READ_ONLY) == 0);
   } else {
     // 6. Else X is an accessor property, so
-    auto accessors = Cast<AccessorPair>(it->GetAccessors());
+    auto accessor_pair = Cast<AccessorPair>(accessors);
     DirectHandle<NativeContext> holder_realm(
         it->GetHolder<JSReceiver>()->GetCreationContext().value(), isolate);
     // 6a. Set D.[[Get]] to the value of X's [[Get]] attribute.
-    desc->set_get(AccessorPair::GetComponent(isolate, holder_realm, accessors,
-                                             ACCESSOR_GETTER));
+    desc->set_get(AccessorPair::GetComponent(isolate, holder_realm,
+                                             accessor_pair, ACCESSOR_GETTER));
     // 6b. Set D.[[Set]] to the value of X's [[Set]] attribute.
-    desc->set_set(AccessorPair::GetComponent(isolate, holder_realm, accessors,
-                                             ACCESSOR_SETTER));
+    desc->set_set(AccessorPair::GetComponent(isolate, holder_realm,
+                                             accessor_pair, ACCESSOR_SETTER));
   }
 
   // 7. Set D.[[Enumerable]] to the value of X's [[Enumerable]] attribute.
@@ -4055,7 +4064,8 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
                                                    accessors, attributes));
           }
 
-          return Object::SetPropertyWithAccessor(it, value, should_throw);
+          return Object::SetPropertyWithAccessor(
+              it, Cast<AccessorInfo>(accessors), value, should_throw);
         }
 
         it->ReconfigureDataProperty(value, attributes);
