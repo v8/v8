@@ -16,12 +16,21 @@ security vulnerability report.
 - **Technical Skepticism**: Treat all reporter claims (e.g., "OOB write", "RCE",
   "Silent Write") as **hypotheses**, not facts. Your primary job is empirical
   verification.
-- **Mandatory Local Reproduction**: A report MUST NOT be classified as a
-  "Vulnerability" unless it is empirically reproduced locally (e.g.,
-  demonstrating a crash, memory corruption, or a clear security boundary
-  violation). If the provided POC does not reproduce the claimed behavior, do
-  NOT classify it as a vulnerability. Instead, report that it did not reproduce
-  in the final report.
+- **Mandatory Local Reproduction**: Always execute `d8` with
+  `--run-as-sandbox-security-poc` (for sandbox POCs) or `--run-as-security-poc`
+  (for regular POCs) and record its outcome in `Local Reproduction Findings`.
+  Only classify a report as an unqualified `Vulnerability` when that run
+  confirms an actual crash (or a write `"V8 sandbox violation detected"` when
+  `--sandbox-testing` is used) per
+  [reproducing-bugs.md](../../../docs/security/reproducing-bugs.md) on a
+  non-`d8`/extension-only configuration without blocked verification steps (a
+  clean exit `0`, a `"SUCCESS"` print, or a GDB-observed C++ metadata store
+  without a crash-filter violation does NOT count). Whenever any steps/subagents
+  fail due to internal filters and/or `--run-as-[sandbox]-security-poc` does
+  *not* confirm a crash or write sandbox violation, the report **MUST**
+  explicitly state **each** applicable fact, and mark the classification
+  **tentative** (`Tentative Vulnerability`) whenever internal filters blocked
+  verification or a potential vulnerability lacks a confirmed crash/violation.
 - **Scope Limitation**: This skill is strictly for **triaging and impact
   analysis**. It does NOT include implementing a fix or creating a CL. Fixing is
   a separate task that must be explicitly requested by the user after triage is
@@ -72,11 +81,12 @@ security vulnerability report.
   high-level threat models and entry points. Always refer to
   [triaging.md](../../../docs/security/triaging.md) for the definitive rules on
   labeling and classification.
-- **Strict Subagent Delegation**: To maintain a lean context, the Orchestrator
-  **MUST NOT** call Buganizer, Gerrit, or local execution tools directly during
-  Phases 1-4. All technical tasks must be delegated to subagents via
-  `invoke_agent`. The Orchestrator's role is strictly limited to reviewing
-  subagent summaries and coordinating the next step.
+- **Strict Subagent Delegation**: To maintain a lean context, when
+  `invoke_agent` is available, the Orchestrator **MUST NOT** call Buganizer,
+  Gerrit, or local execution tools directly during Phases 1-4; delegate all
+  technical tasks to subagents via `invoke_agent` and limit your role to
+  reviewing subagent summaries and coordinating the next step (if `invoke_agent`
+  is unavailable in a standalone CLI run, execute each phase's steps inline).
 
 ## Strategic Orchestration Guidelines
 
@@ -144,7 +154,8 @@ Buganizer.
   Orchestrator **MUST** attempt retrieval via the `clusterfuzz` skill (using
   `fetch_testcase.py`) for ClusterFuzz links before stopping and asking the user
   to provide them manually. This includes asking for the **exact command line**
-  if a ClusterFuzz report link remains inaccessible.
+  if a ClusterFuzz report link remains inaccessible. Stop and ask the user
+  rather than synthesizing a substitute POC from commits or stack traces.
 - **Mapping**: Include identified experts and the specific Buganizer component
   (e.g., `Blink > JavaScript > Maglev`).
 - **Duplicate Check**: Search Buganizer across both open and closed issues (via
@@ -187,8 +198,20 @@ security boundary.
 - **Investigation Loop**: If the crash stops reproducing with the security flag,
   task **Generalist** to identify why and attempt to "heal" the POC by replacing
   forbidden syntax with standard JS while maintaining the bug trigger.
+- **Flag & Containment Audit**: Even when `--run-as-[sandbox]-security-poc`
+  succeeds, task **Generalist**/**Researcher** to inspect `src/` and test
+  without any extra flags: crashes/violations depending on `src/d8/` or
+  `src/extensions/` shell/test-only flags or mock embedder resources (e.g.,
+  `--use-external-strings`, not reachable via production Chromium/Blink
+  embedders) are **`Bug`** (`Security_Impact-None`; whereas non-experimental V8
+  engine features merely disabled by default remain **`Vulnerability`** with
+  `Security_Impact-None`), and completed `Sandbox` POCs that only hit safe
+  checks (`SBXCHECK`/`CHECK`/`FATAL` or `"Caught harmless ..."`) or perturb
+  in-sandbox state / bounded same-tag pointer-table entries without corrupting
+  or reading raw out-of-sandbox memory are **`Not a Bug (Intended Behavior)`**
+  (not `Bug`).
 - **Conclude**: Review the subagent's conclusion on whether the bug is a
-  security vulnerability or a regular bug.
+  security vulnerability, a regular bug, or intended behavior.
 
 ### 4. Phase: Impact Determination & Minimization (Delegation)
 
@@ -198,13 +221,15 @@ of impact.
 - **Crash/Corruption Priority**: Task **Generalist** to make the POC either
   crash or demonstrate clear memory corruption.
 - **ClusterFuzz Compatibility (Crash Escalation)**: Because ClusterFuzz requires
-  a detectable crash (DCHECK, segfault, SIGILL, or int3), you **MUST**
-  exhaustively pursue a crashing reproducer if the initial POC only proves
-  silent memory corruption, following the guidelines in the `clusterfuzz` skill.
-  Task **Builder** and **Tester** to run the POC against **Debug**, **ASan**,
-  and **UBSan** builds. If no crash occurs naturally, task **Generalist** to
-  modify the POC to force a crash (e.g., by overwriting a Map with a garbage
-  pointer) while maintaining the original bug trigger.
+  a detectable crash (DCHECK, segfault, SIGILL, or int3), pursue a crashing
+  reproducer if the initial POC only proves silent memory corruption, following
+  the guidelines in the `clusterfuzz` skill. Task **Builder** and **Tester** to
+  run the POC against **Debug**, **ASan**, and **UBSan** builds. If no crash
+  occurs naturally, task **Generalist** with at most 1–2 focused attempts to
+  modify the POC to force a crash while maintaining the original bug trigger; if
+  escalation hits internal safety filters or still exits `0` / traps harmlessly
+  under `--run-as-[sandbox]-security-poc`, stop escalating immediately and
+  proceed to Phase 5.
 - **Verification**: Task **Tester** to verify on Standard Release and ASan
   builds.
 - **Minimization**: Task **Generalist** to reduce the POC and flags to the
@@ -231,17 +256,23 @@ Draft a short, precise synthesis based on verified subagent findings.
   the `<id>` from the Orchestrator's `INVOKER_INFO_SESSION_ID` environment
   variable.
 - **Formatting Requirement**: Use a **bulleted list** format for the main points
-  (Status, Classification, Rationale, etc.) and ensure there are **double line
-  breaks** between each list item for optimal rendering in Buganizer. If a list
-  item has sub-bullets (specifically in 'Local Reproduction Findings'), they
-  **MUST** be indented by **at least four spaces** and **MUST NOT** be separated
-  by double line breaks within the same nested list.
+  (Classification, Security Impact, Rationale, etc.) and ensure there are
+  **double line breaks** between each list item for optimal rendering in
+  Buganizer. If a list item has sub-bullets (specifically in 'Local Reproduction
+  Findings'), they **MUST** be indented by **at least four spaces** and **MUST
+  NOT** be separated by double line breaks within the same nested list.
 - **Content**:
-  - **Classification** (1 line): `Vulnerability` / `Bug` /
-    `Not a Bug (Intended Behavior)` / `Failed to Reproduce` (append
+  - **Classification** (1 line): `Vulnerability` / `Tentative Vulnerability` /
+    `Bug` / `Not a Bug (Intended Behavior)` / `Failed to Reproduce` (append
     `(Duplicate of issue <id>)` if a canonical duplicate was identified).
-    **MANDATORY**: Only classify as "Vulnerability" if local reproduction was
-    successful.
+    **MANDATORY**: Only use unqualified `Vulnerability` when
+    `--run-as-[sandbox]-security-poc` confirmed a crash (or a write
+    `"V8 sandbox violation detected"` under `--sandbox-testing`) on a
+    non-`d8`/extension-only configuration without blocked steps; mark as
+    **tentative** (`Tentative Vulnerability`) whenever internal filters blocked
+    verification or a potential vulnerability lacks a confirmed crash/violation;
+    use `Not a Bug (Intended Behavior)` (not `Bug`) for completed `Sandbox` POCs
+    that lack both out-of-sandbox write and out-of-sandbox read.
 
   - **Security Impact** (1 line): Classify as "**None**" (when
     [triaging.md](../../../docs/security/triaging.md) specifies
@@ -260,9 +291,11 @@ Draft a short, precise synthesis based on verified subagent findings.
     `[commit <hash>](https://chromium-review.googlesource.com/c/v8/v8/+/<cl>) ("<title>", V8 <version>)`).
 
   - **Rationale** (2–4 concise sentences max): State the root cause and why it
-    violates (or does not violate) the security threat model. Do not repeat
-    reproduction outputs or register values covered in
-    `Local Reproduction Findings`.
+    violates (or does not violate) the security threat model, explicitly stating
+    **each** applicable fact whenever any steps/subagents failed due to internal
+    filters and/or `--run-as-[sandbox]-security-poc` did *not* confirm a
+    crash/sandbox violation. Do not repeat reproduction outputs or register
+    values covered in `Local Reproduction Findings`.
 
   - **Local Reproduction Findings** (1 concise line per sub-bullet, except
     `GDB Backtrace` if multiple lines help): Follow the mandatory fields in
@@ -271,7 +304,9 @@ Draft a short, precise synthesis based on verified subagent findings.
     - `Status`: `Reproduced` / `Not Reproduced`.
     - `Reproduction`: `d8 <flags> <poc_filename.js>` (filename only, no local
       paths).
-    - `Result`: 1–2 short sentences summarizing the observed crash/output.
+    - `Result`: 1–2 short sentences stating the exact exit code/signal, whether
+      `"V8 sandbox violation detected"` or `"Caught harmless ..."` appeared
+      (when `--sandbox-testing` is used), and the observed crash/output.
     - `Build`: Build variant(s), V8 version (from `include/v8-version.h`), and
       revision number (from `Cr-Commit-Position`), skipping the git hash and
       Gerrit link (omit boilerplate GN args).
@@ -299,7 +334,10 @@ Draft a short, precise synthesis based on verified subagent findings.
 ### 6. Phase: Verification & Self-Correction (Audit)
 
 Task a **Generalist** subagent acting as a "Security Triage Auditor" to review
-the draft.
+the draft (if subagent delegation is unavailable in the current environment, you
+**MUST** read `docs/security/triaging.md` and
+`docs/security/reproducing-bugs.md` in full and perform every audit check below
+yourself before emitting the report).
 
 - **Orchestrator Instruction**: "Read `docs/security/triaging.md` and
   `docs/security/reproducing-bugs.md`, then audit the attached triage draft
@@ -313,12 +351,20 @@ the draft.
   Release builds), the Orchestrator **MUST** return to the relevant previous
   phase (Phase 2, 3, or 4) and re-delegate the work to the appropriate subagent
   before proceeding.
-- **Review**: The auditor must read `docs/security/triaging.md` and verify that:
-  - `Classification` (`Vulnerability` / `Bug` /
+- **Review**: The auditor must read `docs/security/triaging.md` and
+  `docs/security/reproducing-bugs.md` and verify that:
+  - `Classification` (`Vulnerability` / `Tentative Vulnerability` / `Bug` /
     `Not a Bug (Intended Behavior)`), `Security Impact` (`Yes` / `None`),
     `Proposed Severity`, `Proposed Priority`, and proposed hotlists
     (`v8-sandbox`, `v8-unsupported-chrome`, `Security_Impact-*`) strictly match
-    the reproduction results and the rules in `docs/security/triaging.md`.
+    the reproduction results and those docs: verify `Result` states the exact
+    exit code/signal (and sandbox crash-filter output when `--sandbox-testing`
+    is used), reject unqualified `Vulnerability` on exit `0`, sandbox POCs
+    without a write `"V8 sandbox violation detected"` (read-only violations are
+    `Bug`), filter-blocked verification, or `d8`/extension-only flags/resources
+    (`Bug`), reject `Bug` for completed `Sandbox` POCs with no out-of-sandbox
+    read/write (`Not a Bug (Intended Behavior)`), and require **both** filter
+    blocks and unconfirmed crashes to be disclosed whenever each applies.
   - The "Local Reproduction Findings" section contains the exact d8 command, V8
     version and revision number (skipping the git hash and Gerrit link), and the
     observed result.
@@ -384,8 +430,14 @@ Finalize the session by securing artifacts and cleaning up the environment.
   `docs/security/triaging.md` and verify that `Classification`,
   `Security Impact`, `Proposed Severity`, `Proposed Priority`, and proposed
   hotlists strictly match every applicable rule in `docs/security/triaging.md`?
-- [ ] **Boundary Verification**: Was the POC tested with the security filter
-  flag (`--run-as-[sandbox]-security-poc`)?
+- [ ] **Boundary Verification**: Does `Result` record the exact exit code/signal
+  (and sandbox filter output when `--sandbox-testing` is used), are
+  `d8`/extension-only flags/resources and read-only sandbox violations
+  downgraded to `Bug` and completed `Sandbox` POCs without out-of-sandbox
+  read/write marked `Not a Bug (Intended Behavior)`, and whenever steps failed
+  due to internal filters and/or `--run-as-[sandbox]-security-poc` did not
+  confirm a crash/write violation, are **all** applicable limitations disclosed
+  with tentative classification where required?
 - [ ] **Mandatory Data**: Are both the V8 version and revision number (without
   git hash or Gerrit link) included in the Build description?
 - [ ] **Commit vs. Version Linking**: Do commits where the *change* is important
