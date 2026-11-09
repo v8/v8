@@ -495,7 +495,7 @@ class KnownNodeAspects {
   // erasures, merges, or `Clone()` on `KnownNodeAspects`.
   NodeInfo* GetOrCreateInfoFor(compiler::JSHeapBroker* broker,
                                ValueNode* node) {
-    node = UnwrapNode(node);
+    node = GetCanonical(node);
     auto [info_it, inserted] = node_infos_.try_emplace(node);
     NodeInfo* res = &info_it->second;
     if (inserted) {
@@ -1063,58 +1063,40 @@ class KnownNodeAspects {
     return it->second->UnwrapIdentities();
   }
 
-  // Only unwrap conversions that preserve `NodeType` invariants across
-  // representations (e.g. `kSmi` means Smi-tagged for tagged values, but only
-  // Smi-sized for untagged values).
-  // TODO(496266449): Remove once `kTagged` is split into `kSmi` and
-  // `kTaggedPointer` representations.
-  static ValueNode* UnwrapNode(ValueNode* node) {
-    while (true) {
-      if (node->Is<Identity>() || node->Is<ReturnedValue>()) {
-        node = node->input_node(0);
-        continue;
-      }
-      if (!node->is_conversion()) break;
-      switch (node->opcode()) {
-        case Opcode::kCheckedNumberToInt32:
-        case Opcode::kCheckedNumberToFloat64:
-        case Opcode::kUnsafeNumberToFloat64:
-        case Opcode::kCheckedObjectToIndex:
-        case Opcode::kUnsafeInt32ToUint32:
-          return node;
-        // kForceHeapNumber allocates a HeapNumber even for Smi-sized inputs.
-        case Opcode::kInt32ToNumber:
-          if (node->Cast<Int32ToNumber>()->conversion_mode() ==
-              NumberConversionMode::kForceHeapNumber) {
-            return node;
-          }
-          break;
-        case Opcode::kFloat64ToTagged:
-          if (node->Cast<Float64ToTagged>()->conversion_mode() ==
-              NumberConversionMode::kForceHeapNumber) {
-            return node;
-          }
-          break;
-        case Opcode::kHoleyFloat64ToTagged:
-          if (node->Cast<HoleyFloat64ToTagged>()->conversion_mode() ==
-              NumberConversionMode::kForceHeapNumber) {
-            return node;
-          }
-          break;
-        default:
-          break;
-      }
-      node = node->input_node(0);
+  // GetCanonical is used to ensure that nodes in the same conversion chain (eg,
+  // a `NumberToInt32` flowing into a `Int32ToFloat64` for instance) share the
+  // same NodeInfo. To do so, GetCanonical Unwraps identities and conversions.
+  // There is a subteltly though: GetCanonical doesn't Unwrap through Tagged
+  // nodes, because information about one tagged node at the end of a
+  // conversion/identity-chain doesn't necessarily apply to tagged nodes at the
+  // beginning of the chain. For instance, consider:
+  //
+  //   n1: Param
+  //   n2: NumberToInt32(n1)
+  //   n3: CheckedSmiTagInt32(n2)
+  //
+  // Here, n3 has NodeType::kSmi, but propagating to n1 would be wrong, since n1
+  // could be a smi-ranged HeapNumber.
+  // TODO(496266449): Simply use `Unwrap` once `kTagged` is split into
+  // `kTaggedSigned` and `kTaggedPointer` representations.
+  static ValueNode* GetCanonical(ValueNode* node) {
+    node = node->UnwrapIdentitiesAndReturnedValues();
+    if (node->is_tagged()) return node;
+    while (node->is_conversion()) {
+      ValueNode* input =
+          node->input_node(0)->UnwrapIdentitiesAndReturnedValues();
+      if (input->is_tagged()) break;
+      node = input;
     }
     return node;
   }
 
   NodeInfos::iterator FindInfo(ValueNode* node) {
-    node = UnwrapNode(node);
+    node = GetCanonical(node);
     return node_infos_.find(node);
   }
   NodeInfos::const_iterator FindInfo(ValueNode* node) const {
-    node = UnwrapNode(node);
+    node = GetCanonical(node);
     return node_infos_.find(node);
   }
   bool IsValid(NodeInfos::iterator& it) { return it != node_infos_.end(); }

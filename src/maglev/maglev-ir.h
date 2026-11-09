@@ -2800,6 +2800,8 @@ class ValueNode : public Node {
   ValueNode* UnwrapIdentities();
   const ValueNode* UnwrapIdentities() const;
 
+  ValueNode* UnwrapIdentitiesAndReturnedValues();
+
   // Like UnwrapIdentities, but also unwraps phis with a single input (which are
   // not exception phis, resumable loop phis, or former-loop hole phis), since
   // the optimizer replaces those with their input.
@@ -2888,6 +2890,14 @@ inline ValueNode* ValueNode::UnwrapIdentities() {
 inline const ValueNode* ValueNode::UnwrapIdentities() const {
   const ValueNode* node = this;
   while (node->Is<Identity>()) node = node->input(0).node();
+  return node;
+}
+
+inline ValueNode* ValueNode::UnwrapIdentitiesAndReturnedValues() {
+  ValueNode* node = this;
+  while (node->Is<Identity>() || node->Is<ReturnedValue>()) {
+    node = node->input(0).node();
+  }
   return node;
 }
 
