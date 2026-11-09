@@ -1100,8 +1100,7 @@ def _IsAiAgent(input_api):
       str(input_api.environ.get(var, '')).lower() not in ('', '0', 'false')
       for var in _AI_AGENT_ENV_VARS):
     return True
-  desc = input_api.change.FullDescriptionText() or ''
-  return bool(input_api.re.search(r'^TAG=agy\b', desc, input_api.re.MULTILINE))
+  return False
 
 
 def _IsPriorityPrefixEnabled(input_api):

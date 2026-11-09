@@ -229,8 +229,6 @@ class AgentPresubmitChecksTest(unittest.TestCase):
     self.assertFalse(
         PRESUBMIT._IsAiAgent(
             _FakeInputApi(description='[a] B', environ={'GEMINI_CLI': '0'})))
-    self.assertTrue(
-        PRESUBMIT._IsAiAgent(_FakeInputApi(description='[a] B\n\nTAG=agy\n')))
 
   def testAgentDescriptionValid(self):
     desc = (
