@@ -105,7 +105,7 @@ IsolateForPointerCompression::GetExternalPointerTableSpaceFor(
     return isolate_->heap()->read_only_external_pointer_space();
   }
 
-  if (HeapLayout::InYoungGeneration(HeapObject::FromAddress(host))) {
+  if (TrustedHeapLayout::InYoungGeneration(HeapObject::FromAddress(host))) {
     return isolate_->heap()->young_external_pointer_space();
   }
 
