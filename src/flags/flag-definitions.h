@@ -411,7 +411,7 @@ DEFINE_BOOL(icu_timezone_data, true, "get information about timezones from ICU")
 DEFINE_STRING(icu_datetime_compat_lang, "*",
               "limits ICU date time compat changes to the given language")
 DEFINE_BOOL(
-    intl_date_time_pattern_generator_cache_eviction, false,
+    intl_date_time_pattern_generator_cache_eviction, true,
     "enable 9-entry cache eviction in DateTimePatternGeneratorCache")
 DEFINE_BOOL(use_icu4x_normalizer, false, "use ICU4X normalizer")
 #ifdef V8_ENABLE_ECMA402_ICU4X
