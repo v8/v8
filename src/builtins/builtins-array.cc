@@ -306,6 +306,11 @@ V8_WARN_UNUSED_RESULT bool TryFastArrayFill(
   static_assert(FixedArray::kMaxLength == FixedDoubleArray::kMaxLength);
   if (end > FixedArray::kMaxLength) return false;
 
+  // The same side-effects can also have shrunk the length below |end| and made
+  // it read-only. The spec algorithm's Set would then throw at the first index
+  // past the length; leave that to the generic path.
+  if (JSArray::WouldChangeReadOnlyLength(array, end - 1)) return false;
+
   // Need to ensure that the fill value can be contained in the array.
   ElementsKind origin_kind = array->GetElementsKind();
   ElementsKind target_kind = Object::OptimalElementsKind(*value);
