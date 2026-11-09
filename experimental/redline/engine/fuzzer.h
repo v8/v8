@@ -60,6 +60,9 @@ struct FuzzerStats {
   std::atomic<uint64_t> crashes_amplified{0};  // reproduced by the amplify step
   std::atomic<uint64_t> amplify_processes{
       0};  // plain d8 runs of the amplify step
+  // State-dependent crashes whose NAME.bundle.js crashed in a plain d8 run.
+  std::atomic<uint64_t> crashes_bundled{0};
+  std::atomic<uint64_t> bundle_processes{0};  // plain d8 runs of the bundles
   std::atomic<uint64_t> crash_replay_executions{0};  // spent on history replays
   std::atomic<uint64_t> minimizer_tests{0};
   std::atomic<uint64_t> minimizer_time_us{0};

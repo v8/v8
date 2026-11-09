@@ -20,6 +20,7 @@
 #include "experimental/redline/core/environment.h"
 #include "experimental/redline/engine/d8_flags.h"
 #include "experimental/redline/engine/importer.h"
+#include "experimental/redline/exec/process_run.h"
 #include "experimental/redline/exec/runner.h"
 #include "experimental/redline/fast/printer.h"
 #include "experimental/redline/mutators/explore.h"
@@ -195,6 +196,19 @@ class Worker {
 
   // --- execution --------------------------------------------------------
 
+  // The script that the target runs for `source`: the prelude, then the
+  // program.
+  std::string ScriptFor(const std::string& source) const {
+    const std::string& prelude = config().prelude;
+    if (prelude.empty()) {
+      return source;
+    }
+    std::string script;
+    script.reserve(prelude.size() + 1 + source.size());
+    script.append(prelude).append("\n").append(source);
+    return script;
+  }
+
   // Runs `source` behind the prelude without touching per-runner coverage
   // bookkeeping. Returns false on an infrastructure failure.
   bool Execute(const std::string& source, Execution* execution,
@@ -202,16 +216,13 @@ class Worker {
     if (timeout_us == 0) {
       timeout_us = config().target.timeout_us;
     }
-    const std::string& prelude = config().prelude;
     std::string error;
     bool ok;
-    if (prelude.empty()) {
+    if (config().prelude.empty()) {
       ok = runner_->RunWithoutEvaluation(source, timeout_us, execution, &error);
     } else {
-      std::string script;
-      script.reserve(prelude.size() + 1 + source.size());
-      script.append(prelude).append("\n").append(source);
-      ok = runner_->RunWithoutEvaluation(script, timeout_us, execution, &error);
+      ok = runner_->RunWithoutEvaluation(ScriptFor(source), timeout_us,
+                                         execution, &error);
     }
     if (!ok) {
       stats().infrastructure_failures++;
@@ -1249,6 +1260,13 @@ class Worker {
     return execution->crashed();
   }
 
+  // The path of the files of a saved crash, without the extension.
+  std::string CrashBase(int signal, uint64_t hash) const {
+    return StringPrintf("%s/crashes/crash_sig%d_%016llx",
+                        config().out_dir.c_str(), signal,
+                        static_cast<unsigned long long>(hash));
+  }
+
   // The target of this worker as it runs now, with its random flags.
   TargetOptions CurrentTarget() const {
     TargetOptions target = config().target;
@@ -1282,6 +1300,11 @@ class Worker {
     MinimizationResult minimization;
     bool amplify_ran = false;  // the amplify step ran (5.8)
     AmplifyResult amplify;
+    // The one-file reproducer of a state-dependent crash (NAME.bundle.js).
+    std::string bundle_path;  // empty if Redline did not write it
+    std::string bundle_note;  // why there is no bundle, or why the runs stopped
+    int bundle_runs = 0;      // plain d8 runs of the bundle
+    int bundle_hits = 0;      // ... that crashed with the same signature
     bool reproducible() const { return reproduced > 0; }
   };
 
@@ -1303,6 +1326,93 @@ class Worker {
         amplified_program.empty()
             ? ""
             : ("amplified_program: " + amplified_program + "\n").c_str());
+  }
+
+  // The bundle lines of the crash report (read by the uploader).
+  // `bundle_rate` gives the plain d8 runs of NAME.bundle.js that crashed
+  // with the same signature.
+  static std::string BundleReportLines(const CrashInfo& info) {
+    if (!info.state_dependent) {
+      return "bundle: skipped\n";
+    }
+    if (info.bundle_path.empty()) {
+      return "bundle: no\nbundle_note: " + info.bundle_note + "\n";
+    }
+    return StringPrintf("bundle: %s\nbundle_rate: %d/%d\nbundle_note: %s\n",
+                        BaseName(info.bundle_path).c_str(), info.bundle_hits,
+                        info.bundle_runs, info.bundle_note.c_str());
+  }
+
+  // The time that a plain d8 process needs to start and to stop, in addition
+  // to the time of its scripts.
+  static constexpr uint64_t kBundleStartupUs = 10'000'000;
+
+  // Writes BASE.bundle.js for a state-dependent crash: one part for each
+  // program of `history`, then one part for `source`. `d8 --bundle-reprl`
+  // runs each part in the same way as the REPRL loop runs one program. Thus
+  // ClusterFuzz can reproduce the crash from this one file. Then the bundle
+  // runs in up to crash_bundle_runs plain d8 processes, and the runs that
+  // crash with the signature of the crash are counted.
+  void WriteReprlBundle(const std::vector<std::string>& history,
+                        const std::string& source, const std::string& base,
+                        CrashInfo* info) {
+    std::vector<std::string> scripts;
+    scripts.reserve(history.size() + 1);
+    for (const std::string& program : history) {
+      scripts.push_back(ScriptFor(program));
+    }
+    scripts.push_back(ScriptFor(source));
+    const TargetOptions target = CurrentTarget();
+    const std::string path = base + ".bundle.js";
+    std::string signature = info->signature.text;
+    std::replace(signature.begin(), signature.end(), '\n', ' ');
+    const std::string header = StringPrintf(
+        "// redline state-dependent crash: %zu program(s), then the crash "
+        "program\n// signature: %s\n// run: %s --bundle-reprl %s\n",
+        history.size(), signature.c_str(), target.CommandLine().c_str(),
+        BaseName(path).c_str());
+    std::string bundle;
+    if (!MakeReprlBundle(header, scripts, &bundle)) {
+      info->bundle_note = "a program contains the bundle marker";
+      return;
+    }
+    std::string error;
+    if (!WriteStringToFile(path, bundle, &error)) {
+      info->bundle_note = error;
+      return;
+    }
+    info->bundle_path = path;
+    std::vector<std::string> args = target.args;
+    args.push_back("--bundle-reprl");
+    args.push_back(path);
+    const auto env = target.PlainEnvironment();
+    const uint64_t timeout_us =
+        config().target.timeout_us * scripts.size() + kBundleStartupUs;
+    const uint64_t budget_us =
+        static_cast<uint64_t>(config().crash_history_budget_sec * 1e6);
+    const Stopwatch clock;
+    while (info->bundle_runs < config().crash_bundle_runs && !stopping()) {
+      if (clock.ElapsedUs() > budget_us) {
+        info->bundle_note = "time budget used up";
+        break;
+      }
+      const ProcessResult run =
+          RunProcess(target.executable, args, env, timeout_us);
+      if (!run.started) {
+        info->bundle_note = "cannot start d8: " + run.error;
+        break;
+      }
+      info->bundle_runs++;
+      if (!run.timed_out &&
+          CrashSignature::FromOutput(run.signal, run.exit_code,
+                                     run.stderr_text) == info->signature) {
+        info->bundle_hits++;
+      }
+    }
+    stats().bundle_processes += static_cast<uint64_t>(info->bundle_runs);
+    if (info->bundle_hits > 0) {
+      stats().crashes_bundled++;
+    }
   }
 
   // The test budget of a minimization that keeps only fragile features.
@@ -1461,6 +1571,14 @@ class Worker {
           stats().crash_replay_executions.load() - replay_execs_before;
     }
 
+    // 2a. A state-dependent crash also gets a one-file reproducer: a d8
+    //     bundle of the needed history and the crash program. A plain d8
+    //     with --bundle-reprl runs it like the REPRL loop (DESIGN.md 5.8).
+    if (info.state_dependent && !stopping()) {
+      WriteReprlBundle(history, source, CrashBase(execution.signal, hash),
+                       &info);
+    }
+
     // 2b. If it does not reproduce alone: the amplify step searches for a
     //     plain d8 command line (extra flags, --stress-runs) that
     //     reproduces the program alone, reliably (DESIGN.md 5.8). This
@@ -1582,6 +1700,11 @@ class Worker {
     event.Add("amplify", info.amplify_ran
                              ? (info.amplify.amplified ? "yes" : "no")
                              : "skipped");
+    if (info.state_dependent) {
+      event.Add("bundle", info.bundle_path)
+          .Add("bundle_runs", info.bundle_runs)
+          .Add("bundle_hits", info.bundle_hits);
+    }
     if (info.amplify_ran) {
       event.Add("amplified_args", info.amplify.args);
       event.Add("amplified_hits", info.amplify.hits)
@@ -1609,9 +1732,7 @@ class Worker {
                         const Execution& execution, const Lineage& lineage,
                         const CrashInfo& info, bool unique, uint64_t hash,
                         const std::vector<std::string>& history) {
-    std::string base =
-        StringPrintf("%s/crashes/crash_sig%d_%016llx", config().out_dir.c_str(),
-                     execution.signal, static_cast<unsigned long long>(hash));
+    std::string base = CrashBase(execution.signal, hash);
     std::string status;
     if (info.reproducible()) {
       status = StringPrintf("reproducible (%d/%d fresh-target runs crashed)",
@@ -1622,6 +1743,12 @@ class Worker {
           "program(s) in "
           "%s.history/ ran in the same d8 (replay them in order first)",
           info.history_needed, base.substr(base.rfind('/') + 1).c_str());
+      if (!info.bundle_path.empty()) {
+        status += StringPrintf(
+            ", or run %s with d8 --bundle-reprl (%d/%d plain d8 runs crashed)",
+            BaseName(info.bundle_path).c_str(), info.bundle_hits,
+            info.bundle_runs);
+      }
     } else if (info.amplify.amplified) {
       status = StringPrintf(
           "AMPLIFIED: not reproduced in %d fresh-target runs, but %d/%d plain "
@@ -1677,7 +1804,7 @@ class Worker {
         "history_replayed: %s\nstate_dependent: %s\nhistory_needed: %zu of "
         "%zu\n"
         "minimized: %s (%d tests, %zu -> %zu nodes)\nd8_random_args: %s\n"
-        "%s\n--- stderr "
+        "%s%s\n--- stderr "
         "---\n%s\n--- stdout ---\n%s\n"
         "--- fuzzout ---\n%s\n",
         execution.signal, execution.exit_code, info.signature.text.c_str(),
@@ -1689,6 +1816,7 @@ class Worker {
         info.minimization.nodes_before, info.minimization.nodes_after,
         RandomArgsText().c_str(),
         AmplifyReportLines(info, amplified_program).c_str(),
+        BundleReportLines(info).c_str(),
         Truncate(execution.stderr_output, kMaxSavedOutput).c_str(),
         Truncate(execution.stdout_output, kMaxSavedOutput).c_str(),
         Truncate(execution.fuzzout, kMaxSavedOutput).c_str());
@@ -2350,6 +2478,8 @@ void Fuzzer::WriteStatsEvent() {
   event.Add("crashes_state_dependent", stats_.crashes_state_dependent.load());
   event.Add("crashes_amplified", stats_.crashes_amplified.load());
   event.Add("amplify_processes", stats_.amplify_processes.load());
+  event.Add("crashes_bundled", stats_.crashes_bundled.load());
+  event.Add("bundle_processes", stats_.bundle_processes.load());
   event.Add("crash_replay_executions", stats_.crash_replay_executions.load());
   event.Add("imports_total", stats_.imports_total.load());
   event.Add("imports_added", stats_.imports_added.load());

@@ -220,6 +220,11 @@ struct FuzzConfig {
   int crash_history = 100;
   // ... spending at most this long per crash.
   double crash_history_budget_sec = 90;
+  // A state-dependent crash also gets NAME.bundle.js, a d8 bundle of the
+  // needed history and the crash program for `d8 --bundle-reprl`. Redline
+  // runs it in up to this many plain d8 processes, within
+  // crash_history_budget_sec, and writes how many crashed (0: no runs).
+  int crash_bundle_runs = 3;
   // Budget for minimizing crashes (they are rare and worth more tests than
   // corpus programs).
   MinimizerOptions crash_minimizer{/*max_tests=*/1000,

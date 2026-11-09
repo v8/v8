@@ -168,6 +168,24 @@ void RunCrashSignatureChecks(Checker* checker) {
       d.text);
 }
 
+// Offline: the d8 bundle of a state-dependent crash (MakeReprlBundle).
+void RunReprlBundleChecks(Checker* checker) {
+  std::string bundle;
+  bool ok = MakeReprlBundle("// header\n//\n", {"let x = 1;", "let x = 2;\n"},
+                            &bundle);
+  checker->Check("bundle: one script part for each script, in order",
+                 ok && bundle ==
+                           "// header\n//\n"
+                           "// JS_BUNDLE_SCRIPT\nlet x = 1;\n"
+                           "// JS_BUNDLE_SCRIPT\nlet x = 2;\n",
+                 bundle);
+  checker->Check(
+      "bundle: a script with the marker prefix is refused",
+      !MakeReprlBundle("", {"s = '// JS_BUNDLE_MODULE:a.mjs';"}, &bundle), "");
+  checker->Check("bundle: a header line that is not a comment is refused",
+                 !MakeReprlBundle("// a\nvar b;\n", {"1;"}, &bundle), "");
+}
+
 // Offline: the coverage header (experimental/redline/d8/cov.h) on synthetic
 // shared memory.
 void RunCoverageHeaderChecks(Checker* checker) {
@@ -700,6 +718,7 @@ int RunSelftest(const Flags& flags) {
 
   // Offline checks first: they need no target.
   RunCrashSignatureChecks(&checker);
+  RunReprlBundleChecks(&checker);
   RunCoverageHeaderChecks(&checker);
   RunD8FlagProfileChecks(&checker);
   RunCoverageCounterChecks(&checker);

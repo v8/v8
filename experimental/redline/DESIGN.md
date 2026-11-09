@@ -361,10 +361,13 @@ A crash can come from a result, from an imported file or from an instrumented pr
 3. **Reproduction.** Redline runs the program again in a fresh target, up to `crash_reruns` times.
 4. **History replay.** If the crash does not reproduce alone, Redline replays the earlier programs of the same target, and then the crash.
    If the crash then occurs, a binary search finds the smallest number of programs from the end of this history that cause it.
+   Then Redline writes `NAME.bundle.js`, a d8 bundle with one part for each of these programs and one part for the crash program.
+   `d8 --bundle-reprl` runs each part in the same way as the REPRL loop runs one program. Thus ClusterFuzz can run the bundle.
+   Redline runs the bundle in up to `crash_bundle_runs` plain d8 processes and writes how many crashed with the same signature (`bundle_rate`).
 5. **Amplify.** If the crash does not reproduce alone, the amplify step searches for d8 flags that make it reproduce.
    This also applies after a successful replay, because an earlier program can turn on a feature that a d8 flag can also turn on.
 6. **Minimize.** Redline minimizes a crash that reproduces alone, against its signature.
-7. **Save.** Redline writes the program, the report and, if they exist, the original program and the history to `OUT/crashes/`.
+7. **Save.** Redline writes the program, the report and, if they exist, the original program, the history and the bundle to `OUT/crashes/`.
 
 History replay and the amplify step run only for crashes that Redline saves.
 

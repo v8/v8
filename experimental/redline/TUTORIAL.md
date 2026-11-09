@@ -666,6 +666,7 @@ When a worker finds a crash, Redline does these steps:
 
 1. It runs the program again in a new d8, to find out if the crash reproduces.
 2. If the crash does not reproduce alone, Redline runs the earlier programs of the same d8 before it. A crash that needs them is *state-dependent*.
+   For a state-dependent crash, Redline writes these programs and the crash program into one d8 bundle. Then it runs the bundle in plain d8 processes with `--bundle-reprl`.
 3. If the crash still does not reproduce, Redline searches for d8 flags that make it reproduce. This is the amplify step.
 4. Redline minimizes a reproducible crash. The minimized program must give the same crash signature.
 5. Redline saves the files, and adds the signature to `crashes/signatures.txt`.
@@ -684,6 +685,7 @@ The file names contain the signal number and a hash:
 | `crash_sig6_<hash>.orig.js` | The original program, if Redline minimized it. |
 | `crash_sig6_<hash>.txt` | The report: the signature, the reproduction runs, the minimization, and the output of d8. |
 | `crash_sig6_<hash>.history/` | For a state-dependent crash only: the programs to run first, in their order. |
+| `crash_sig6_<hash>.bundle.js` | For a state-dependent crash only: the programs to run first and the crash program, in one file for `d8 --bundle-reprl`. |
 | `signatures.txt` | One line for each crash signature. |
 
 The `.js` file starts with a header:
@@ -759,6 +761,15 @@ out/redline/redline amplify --d8=out/fuzzbuild/d8 --d8-extra-args=--jit-fuzzing 
 `amplify` runs the program in new d8 processes with additional flags, for example `--stress-runs`.
 It prints the flags that reproduce the crash as `amplified_args`.
 For a state-dependent crash, run the files of the `.history/` directory in their order, and then the crash program.
+Or run the bundle in one plain d8 process.
+The d8 must have the `--bundle-reprl` flag:
+
+```shell
+out/fuzzbuild/d8 --expose-gc --allow-natives-syntax --fuzzing --bundle-reprl /tmp/redline-typedarray/crashes/crash_sig6_<hash>.bundle.js
+```
+
+Use the d8 flags of the session. The `run:` line at the top of the bundle gives them.
+The report gives the plain d8 runs of the bundle that crashed with the same signature in `bundle_rate`.
 
 ### 7.9 Fuzz the changes of a CL (change-based fuzzing)
 

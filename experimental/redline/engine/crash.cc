@@ -416,4 +416,40 @@ CrashSignature CrashSignature::FromOutput(int signal, int exit_code,
   return signature;
 }
 
+bool MakeReprlBundle(const std::string& header,
+                     const std::vector<std::string>& scripts,
+                     std::string* bundle) {
+  if (header.find(kBundleMarkerPrefix) != std::string::npos) {
+    return false;
+  }
+  // d8 accepts only white space and comments before the first marker.
+  size_t start = 0;
+  while (start < header.size()) {
+    size_t end = header.find('\n', start);
+    if (end == std::string::npos) {
+      end = header.size();
+    }
+    if (end > start && header.compare(start, 2, "//") != 0) {
+      return false;
+    }
+    start = end + 1;
+  }
+  for (const std::string& script : scripts) {
+    if (script.find(kBundleMarkerPrefix) != std::string::npos) {
+      return false;
+    }
+  }
+  bundle->assign(header);
+  if (!bundle->empty() && bundle->back() != '\n') {
+    bundle->push_back('\n');
+  }
+  for (const std::string& script : scripts) {
+    bundle->append(kBundleScriptMarker).append("\n").append(script);
+    if (script.empty() || script.back() != '\n') {
+      bundle->push_back('\n');
+    }
+  }
+  return true;
+}
+
 }  // namespace redline

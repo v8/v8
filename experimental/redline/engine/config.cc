@@ -732,6 +732,8 @@ bool ApplyJson(const JsonValue& json, FuzzConfig* c, std::string* error,
       static_cast<int>(json.GetInt("crash_history", c->crash_history));
   c->crash_history_budget_sec =
       json.GetNumber("crash_history_budget_sec", c->crash_history_budget_sec);
+  c->crash_bundle_runs =
+      static_cast<int>(json.GetInt("crash_bundle_runs", c->crash_bundle_runs));
   c->target.timeout_us = static_cast<uint64_t>(
       json.GetNumber("timeout_ms",
                      static_cast<double>(c->target.timeout_us) / 1000.0) *
@@ -1042,6 +1044,8 @@ bool FuzzConfig::Load(const Flags& flags, FuzzConfig* c, std::string* error,
       static_cast<int>(flags.GetInt("crash-history", c->crash_history));
   c->crash_history_budget_sec =
       flags.GetDouble("crash-history-budget", c->crash_history_budget_sec);
+  c->crash_bundle_runs =
+      static_cast<int>(flags.GetInt("crash-bundle-runs", c->crash_bundle_runs));
   c->crash_minimizer.max_tests = static_cast<int>(
       flags.GetInt("crash-minimizer-max-tests", c->crash_minimizer.max_tests));
   c->crash_minimizer.max_time_ms = static_cast<uint64_t>(
@@ -1294,6 +1298,7 @@ std::string FuzzConfig::ToJson(Detail detail) const {
   o.Add("minimize_crashes_per_signature", minimize_crashes_per_signature);
   o.Add("crash_history", crash_history);
   o.Add("crash_history_budget_sec", crash_history_budget_sec);
+  o.Add("crash_bundle_runs", crash_bundle_runs);
   o.AddRaw("crash_minimizer", MinimizerOptionsJson(crash_minimizer));
   {
     // The Init strategy as the fields describe it, so that loading the
@@ -1453,7 +1458,7 @@ std::string FuzzConfig::JsonHelp() {
       "    \"crash_reruns\": 3, \"crash_reruns_stop_after\": 2, "
       "\"max_crashes_per_signature\": 5,\n"
       "    \"minimize_crashes_per_signature\": 2, \"crash_history\": 100,\n"
-      "    \"crash_history_budget_sec\": 90,\n"
+      "    \"crash_history_budget_sec\": 90, \"crash_bundle_runs\": 3,\n"
       "    \"crash_minimizer\": {\"max_tests\": 1000, \"max_time_ms\": 120000, "
       "\"max_rounds\": 4,\n"
       "                        \"target_time_ms\": 30000, \"min_tests\": "

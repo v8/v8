@@ -921,6 +921,7 @@ A crash goes to `OUT/crashes/` with the minimized program (`.js`), the original 
 The report has the crash signature and the result of the reproduction runs.
 `redline minimize --oracle=crash FILE` runs the program with the same prelude as a session, and minimizes it again.
 If the crash needs earlier programs, the `.history/` directory of the crash has them.
+The `.bundle.js` file has them and the crash program in one file for `d8 --bundle-reprl`.
 
 ---
 
