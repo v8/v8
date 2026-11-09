@@ -1423,7 +1423,7 @@ inline void MaglevAssembler::CompareTaggedAndJumpIf(Register reg,
                                                     Label* target,
                                                     Label::Distance distance) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
-  Register scratch = r0;
+  Register scratch = temps.AcquireScratch();
   MacroAssembler::Move(scratch, obj,
                        COMPRESS_POINTERS_BOOL
                            ? RelocInfo::COMPRESSED_EMBEDDED_OBJECT
