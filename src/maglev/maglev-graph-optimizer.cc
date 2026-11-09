@@ -1637,12 +1637,12 @@ ProcessResult MaglevGraphOptimizer::VisitCall(Call* node,
   }
 
   compiler::SharedFunctionInfoRef shared = target_function->shared(broker());
-  // Do not reduce calls to functions with break points.
-  if (shared.HasBreakInfo(broker())) return ProcessResult::kContinue;
   if (IsClassConstructor(shared.kind())) {
     // If we have a class constructor, we should raise an exception.
     return ThrowAndTruncate(Throw::kThrowConstructorNonCallableError, target);
   }
+  // Do not reduce calls to functions with break points.
+  if (shared.HasBreakInfo(broker())) return ProcessResult::kContinue;
 
   // Call's varargs slots are [receiver, arg0, arg1, ...]; CallKnownBuiltin
   // pulls receiver into a fixed input slot.

@@ -11284,14 +11284,14 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceCallForConstant(
   }
   compiler::SharedFunctionInfoRef shared = target.shared(broker());
   ValueNode* target_node = GetConstant(target);
+  if (IsClassConstructor(shared.kind())) {
+    // If we have a class constructor, we should raise an exception.
+    return reducer_.EmitThrow(Throw::kThrowConstructorNonCallableError,
+                              target_node);
+  }
+  DCHECK(target.map(broker()).IsCallableJSFunctionMap());
   // Do not reduce calls to functions with break points.
   if (!shared.HasBreakInfo(broker())) {
-    if (IsClassConstructor(shared.kind())) {
-      // If we have a class constructor, we should raise an exception.
-      return reducer_.EmitThrow(Throw::kThrowConstructorNonCallableError,
-                                target_node);
-    }
-    DCHECK(IsCallable(*target.object()));
     RETURN_IF_DONE(TryReduceBuiltin(target, shared, args, feedback_source));
     RETURN_IF_DONE(TryBuildCallKnownJSFunction(
         target, GetRootConstant(RootIndex::kUndefinedValue), args,
@@ -11382,18 +11382,18 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceCallForNewClosure(
     JSDispatchHandle dispatch_handle, compiler::SharedFunctionInfoRef shared,
     compiler::FeedbackCellRef feedback_cell, CallArguments& args,
     const compiler::FeedbackSource& feedback_source) {
-  // Do not reduce calls to functions with break points.
   if (args.mode() != CallArguments::kDefault) {
     // TODO(victorgomes): Maybe inline the spread stub? Or call known function
     // directly if arguments list is an array.
     return {};
   }
+  if (IsClassConstructor(shared.kind())) {
+    // If we have a class constructor, we should raise an exception.
+    return reducer_.EmitThrow(Throw::kThrowConstructorNonCallableError,
+                              target_node);
+  }
+  // Do not reduce calls to functions with break points.
   if (!shared.HasBreakInfo(broker())) {
-    if (IsClassConstructor(shared.kind())) {
-      // If we have a class constructor, we should raise an exception.
-      return reducer_.EmitThrow(Throw::kThrowConstructorNonCallableError,
-                                target_node);
-    }
     RETURN_IF_DONE(TryBuildCallKnownJSFunction(
         target_context, target_node,
         GetRootConstant(RootIndex::kUndefinedValue), dispatch_handle, shared,
