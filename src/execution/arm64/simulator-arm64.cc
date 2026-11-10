@@ -2874,23 +2874,21 @@ void Simulator::CompareAndSwapHelper(const Instruction* instr) {
   // associated with that location, even if the compare subsequently fails.
   local_monitor_.NotifyLoad();
 
-  T data = MemoryRead<T>(address);
+  if (is_release) {
+    GlobalMonitor::SimulatorMutex lock_guard(global_monitor_);
+    local_monitor_.NotifyStore();
+    global_monitor_->NotifyStore_Locked(&global_monitor_processor_);
+    // Approximate store-release by issuing a full barrier before the store.
+    std::atomic_thread_fence(std::memory_order_seq_cst);
+  }
+
+  T data = SimMemory::RelaxedCompareAndSwap(address, comparevalue, newvalue);
   if (is_acquire) {
     // Approximate load-acquire by issuing a full barrier after the load.
     std::atomic_thread_fence(std::memory_order_seq_cst);
   }
 
   if (data == comparevalue) {
-    GlobalMonitor::SimulatorMutex lock_guard(global_monitor_);
-
-    if (is_release) {
-      local_monitor_.NotifyStore();
-      global_monitor_->NotifyStore_Locked(&global_monitor_processor_);
-      // Approximate store-release by issuing a full barrier before the store.
-      std::atomic_thread_fence(std::memory_order_seq_cst);
-    }
-
-    MemoryWrite<T>(address, newvalue);
     LogWrite(address, rt, GetPrintRegisterFormatForSize(element_size));
   }
 
@@ -2985,42 +2983,6 @@ void Simulator::AtomicMemorySimpleHelper(const Instruction* instr) {
 
   T value = reg<T>(rs);
 
-  T data = MemoryRead<T>(address);
-
-  if (is_acquire) {
-    // Approximate load-acquire by issuing a full barrier after the load.
-    std::atomic_thread_fence(std::memory_order_seq_cst);
-  }
-
-  T result = 0;
-  switch (instr->Mask(AtomicMemorySimpleOpMask)) {
-    case LDADDOp:
-      result = data + value;
-      break;
-    case LDCLROp:
-      DCHECK(!std::numeric_limits<T>::is_signed);
-      result = data & ~value;
-      break;
-    case LDEOROp:
-      DCHECK(!std::numeric_limits<T>::is_signed);
-      result = data ^ value;
-      break;
-    case LDSETOp:
-      DCHECK(!std::numeric_limits<T>::is_signed);
-      result = data | value;
-      break;
-
-    // Signed/Unsigned difference is done via the templated type T.
-    case LDSMAXOp:
-    case LDUMAXOp:
-      result = (data > value) ? data : value;
-      break;
-    case LDSMINOp:
-    case LDUMINOp:
-      result = (data > value) ? value : data;
-      break;
-  }
-
   if (is_release) {
     GlobalMonitor::SimulatorMutex lock_guard(global_monitor_);
     local_monitor_.NotifyStore();
@@ -3029,7 +2991,36 @@ void Simulator::AtomicMemorySimpleHelper(const Instruction* instr) {
     std::atomic_thread_fence(std::memory_order_seq_cst);
   }
 
-  MemoryWrite<T>(address, result);
+  T data = SimMemory::RelaxedAtomicUpdate<T>(address, [&](T old) -> T {
+    switch (instr->Mask(AtomicMemorySimpleOpMask)) {
+      case LDADDOp:
+        return old + value;
+      case LDCLROp:
+        DCHECK(!std::numeric_limits<T>::is_signed);
+        return old & ~value;
+      case LDEOROp:
+        DCHECK(!std::numeric_limits<T>::is_signed);
+        return old ^ value;
+      case LDSETOp:
+        DCHECK(!std::numeric_limits<T>::is_signed);
+        return old | value;
+
+      // Signed/Unsigned difference is done via the templated type T.
+      case LDSMAXOp:
+      case LDUMAXOp:
+        return (old > value) ? old : value;
+      case LDSMINOp:
+      case LDUMINOp:
+        return (old > value) ? value : old;
+    }
+    UNREACHABLE();
+  });
+
+  if (is_acquire) {
+    // Approximate load-acquire by issuing a full barrier after the load.
+    std::atomic_thread_fence(std::memory_order_seq_cst);
+  }
+
   set_reg<T>(rt, data);
 
   PrintRegisterFormat format = GetPrintRegisterFormatForSize(element_size);
@@ -3054,11 +3045,7 @@ void Simulator::AtomicMemorySwapHelper(const Instruction* instr) {
 
   local_monitor_.NotifyLoad();
 
-  T data = MemoryRead<T>(address);
-  if (is_acquire) {
-    // Approximate load-acquire by issuing a full barrier after the load.
-    std::atomic_thread_fence(std::memory_order_seq_cst);
-  }
+  T value = reg<T>(rs);
 
   if (is_release) {
     GlobalMonitor::SimulatorMutex lock_guard(global_monitor_);
@@ -3067,7 +3054,13 @@ void Simulator::AtomicMemorySwapHelper(const Instruction* instr) {
     // Approximate store-release by issuing a full barrier before the store.
     std::atomic_thread_fence(std::memory_order_seq_cst);
   }
-  MemoryWrite<T>(address, reg<T>(rs));
+
+  T data =
+      SimMemory::RelaxedAtomicUpdate<T>(address, [value](T) { return value; });
+  if (is_acquire) {
+    // Approximate load-acquire by issuing a full barrier after the load.
+    std::atomic_thread_fence(std::memory_order_seq_cst);
+  }
 
   set_reg<T>(rt, data);
 
