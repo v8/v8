@@ -893,7 +893,8 @@ void FutexEmulation::ResolveAsyncWaiterPromise(FutexWaitListNode* node) {
     return;
   }
 
-  if (!node->async_state_->promise.IsEmpty()) {
+  if (!node->async_state_->promise.IsEmpty() &&
+      !isolate->is_execution_terminating()) {
     DCHECK(!node->async_state_->native_context.IsEmpty());
     Local<v8::Context> native_context =
         node->async_state_->native_context.Get(v8_isolate);
@@ -943,9 +944,7 @@ void FutexEmulation::ResolveAsyncWaiterPromises(Isolate* isolate) {
     DCHECK(node->IsAsync());
     DCHECK_EQ(isolate, node->async_state_->isolate_for_async_waiters);
     DCHECK(!node->waiting_);
-    if (!isolate->is_execution_terminating()) {
-      ResolveAsyncWaiterPromise(node);
-    }
+    ResolveAsyncWaiterPromise(node);
     CleanupAsyncWaiterPromise(node);
     // We've already tried to cancel the timeout task for the node; since we're
     // now in the same thread the timeout task is supposed to run, we know the
