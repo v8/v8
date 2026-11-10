@@ -120,6 +120,7 @@ def _CommonChecks(input_api, output_api):
       'skills/cl-priority-prefix/scripts',
       'skills/clusterfuzz/scripts',
       'skills/doc-invalidation-checker/scripts',
+      'skills/v8-deterministic-security-triage/scripts',
   ):
     tests.extend(
         input_api.canned_checks.GetUnitTestsInDirectory(
