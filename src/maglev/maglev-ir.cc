@@ -526,8 +526,10 @@ bool RootConstant::ToBoolean(LocalIsolate* local_isolate) const {
   return RootToBoolean(index_);
 }
 
-bool FromConstantToBool(LocalIsolate* local_isolate, ValueNode* node) {
+std::optional<bool> FromConstantToBool(LocalIsolate* local_isolate,
+                                       ValueNode* node) {
   DCHECK(IsConstantNode(node->opcode()));
+  if (node->IsAnyHoleConstant()) return {};
   switch (node->opcode()) {
 #define CASE(Name)                                       \
   case Opcode::k##Name: {                                \
@@ -1207,7 +1209,13 @@ bool FromConstantToBool(MaglevAssembler* masm, ValueNode* node) {
   // actually want here, but it's all we have, and it happens to work because
   // really all we're using it for is ReadOnlyRoots. We should change ToBoolean
   // to be able to pass ReadOnlyRoots in directly.
-  return FromConstantToBool(masm->isolate()->AsLocalIsolate(), node);
+  std::optional<bool> result =
+      FromConstantToBool(masm->isolate()->AsLocalIsolate(), node);
+  if (!result.has_value()) {
+    __ Abort(AbortReason::kUnreachable);
+    return false;
+  }
+  return *result;
 }
 
 // ---

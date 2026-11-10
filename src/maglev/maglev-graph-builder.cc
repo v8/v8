@@ -15138,50 +15138,42 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfToBooleanTrue(
   // non-ToBoolean path.
   DCHECK(!node->Is<LogicalNot>());
 
-  bool known_to_boolean_value = false;
-  bool direction_is_true = true;
   if (IsConstantNode(node->opcode())) {
-    if (node->IsAnyHoleConstant()) {
+    std::optional<bool> cst = FromConstantToBool(local_isolate(), node);
+    if (!cst.has_value()) {
       return builder.BuildAbort(AbortReason::kUnreachable);
     }
-    known_to_boolean_value = true;
-    direction_is_true = FromConstantToBool(local_isolate(), node);
-  } else {
-    // TODO(victorgomes): Unify this with TestUndetectable?
-    // JSReceivers are true iff they are not marked as undetectable. Check if
-    // all maps have the same detectability, and if yes, the boolean value is
-    // known.
-    if (const NodeInfo* node_info = known_node_aspects().TryGetInfoFor(node)) {
-      if (node_info->type() == NodeType::kNone) {
-        // `node` is dead, it doesn't matter what we return.
-        // TODO(428667907): Ideally we would BuildAbort here.
-        return builder.AlwaysFalse();
+    return builder.FromBool(*cst);
+  }
+  // TODO(victorgomes): Unify this with TestUndetectable?
+  // JSReceivers are true iff they are not marked as undetectable. Check if
+  // all maps have the same detectability, and if yes, the boolean value is
+  // known.
+  if (const NodeInfo* node_info = known_node_aspects().TryGetInfoFor(node)) {
+    if (node_info->type() == NodeType::kNone) {
+      // `node` is dead, it doesn't matter what we return.
+      // TODO(428667907): Ideally we would BuildAbort here.
+      return builder.AlwaysFalse();
+    }
+    if (NodeTypeIs(node_info->type(), NodeType::kJSReceiver) &&
+        node_info->possible_maps_are_known()) {
+      bool all_detectable = true;
+      bool all_undetectable = true;
+      for (compiler::MapRef map : node_info->possible_maps()) {
+        bool is_undetectable = map.is_undetectable();
+        all_detectable &= !is_undetectable;
+        all_undetectable &= is_undetectable;
       }
-      if (NodeTypeIs(node_info->type(), NodeType::kJSReceiver) &&
-          node_info->possible_maps_are_known()) {
-        bool all_detectable = true;
-        bool all_undetectable = true;
-        for (compiler::MapRef map : node_info->possible_maps()) {
-          bool is_undetectable = map.is_undetectable();
-          all_detectable &= !is_undetectable;
-          all_undetectable &= is_undetectable;
-        }
-        if (all_detectable || all_undetectable) {
-          known_to_boolean_value = true;
-          direction_is_true = all_detectable;
-        }
-      }
-    } else if (auto alloc = node->TryCast<InlinedAllocation>()) {
-      if (alloc->object()->has_static_map()) {
-        if (alloc->object()->map()->IsJSReceiverMap()) {
-          known_to_boolean_value = true;
-          direction_is_true = !alloc->object()->map()->is_undetectable();
-        }
+      if (all_detectable || all_undetectable) {
+        return builder.FromBool(all_detectable);
       }
     }
-  }
-  if (known_to_boolean_value) {
-    return builder.FromBool(direction_is_true);
+  } else if (auto alloc = node->TryCast<InlinedAllocation>()) {
+    if (alloc->object()->has_static_map()) {
+      if (alloc->object()->map()->IsJSReceiverMap()) {
+        return builder.FromBool(!alloc->object()->map()->is_undetectable());
+      }
+    }
   }
 
   switch (node->value_representation()) {

@@ -988,7 +988,8 @@ typedef base::EnumSet<UseRepresentation, int8_t> UseRepresentationSet;
 constexpr Condition ConditionFor(Operation cond);
 constexpr Condition ConditionForNaN();
 
-bool FromConstantToBool(LocalIsolate* local_isolate, ValueNode* node);
+std::optional<bool> FromConstantToBool(LocalIsolate* local_isolate,
+                                       ValueNode* node);
 bool FromConstantToBool(MaglevAssembler* masm, ValueNode* node);
 
 inline std::ostream& operator<<(std::ostream& os,

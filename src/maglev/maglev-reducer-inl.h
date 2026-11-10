@@ -2501,11 +2501,11 @@ template <typename BaseT>
 template <bool flip>
 MaybeReduceResult MaglevReducer<BaseT>::TryFoldToBoolean(ValueNode* value) {
   if (IsConstantNode(value->opcode())) {
-    if (value->IsAnyHoleConstant()) {
+    std::optional<bool> cst = FromConstantToBool(local_isolate(), value);
+    if (!cst.has_value()) {
       return BuildAbort(AbortReason::kUnreachable);
     }
-    return GetBooleanConstant(FromConstantToBool(local_isolate(), value) ^
-                              flip);
+    return GetBooleanConstant(*cst ^ flip);
   }
 
   switch (value->value_representation()) {
@@ -4202,10 +4202,11 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldFloat64CountLeadingZeros(
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryFoldLogicalNot(ValueNode* input) {
   if (IsConstantNode(input->opcode())) {
-    if (input->IsAnyHoleConstant()) {
+    std::optional<bool> cst = FromConstantToBool(local_isolate(), input);
+    if (!cst.has_value()) {
       return BuildAbort(AbortReason::kUnreachable);
     }
-    return GetBooleanConstant(!FromConstantToBool(local_isolate(), input));
+    return GetBooleanConstant(!*cst);
   }
 
   if (auto c = TryGetConstantAlternative(input)) {

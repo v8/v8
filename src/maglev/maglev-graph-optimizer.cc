@@ -3780,12 +3780,13 @@ ProcessResult MaglevGraphOptimizer::VisitBranchIfToBooleanTrue(
     BranchIfToBooleanTrue* node, const ProcessingState& state) {
   ValueNode* input = node->input_node(0);
   if (IsConstantNode(input->opcode())) {
-    if (input->IsAnyHoleConstant()) {
+    std::optional<bool> condition =
+        FromConstantToBool(reducer_.local_isolate(), input);
+    if (!condition.has_value()) {
       return AbortBlock(state.block());
     }
 
-    bool condition = FromConstantToBool(reducer_.local_isolate(), input);
-    FoldBranch(state.block(), node, condition);
+    FoldBranch(state.block(), node, *condition);
     return ProcessResult::kRevisit;
   }
   return ProcessResult::kContinue;
