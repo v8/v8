@@ -30,6 +30,7 @@
 #include "include/v8-profiler.h"
 #include "include/v8-template.h"
 #include "src/api/api.h"
+#include "src/base/platform/platform.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/objects/smi.h"
 #include "src/profiler/tick-sample.h"
@@ -96,9 +97,8 @@ void TraceExtension::InitTraceEnv(TickSample* sample) {
 void TraceExtension::DoTrace(Address fp) {
   RegisterState regs;
   regs.fp = reinterpret_cast<void*>(fp);
-  // sp is only used to define stack high bound
-  regs.sp = reinterpret_cast<void*>(
-      reinterpret_cast<Address>(trace_env.sample) - 10240);
+  // sp is used to define the stack low bound (stack grows downwards).
+  regs.sp = base::Stack::GetCurrentStackPosition();
   trace_env.sample->Init(i::Isolate::Current(), regs,
                          TickSample::kSkipCEntryFrame, true);
 }
