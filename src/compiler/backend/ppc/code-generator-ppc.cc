@@ -3529,7 +3529,8 @@ AllocatedOperand CodeGenerator::Push(InstructionOperand* source) {
 void CodeGenerator::Pop(InstructionOperand* dest, MachineRepresentation rep) {
   int dropped_slots = ElementSizeInPointers(rep);
   PPCOperandConverter g(this, nullptr);
-  if (dest->IsFloatStackSlot() || dest->IsDoubleStackSlot()) {
+  if ((dest->IsFloatStackSlot() || dest->IsDoubleStackSlot()) &&
+      dropped_slots == 1) {
     frame_access_state()->IncreaseSPDelta(-dropped_slots);
     UseScratchRegisterScope temps(masm());
     Register scratch = temps.Acquire();
@@ -3543,6 +3544,7 @@ void CodeGenerator::Pop(InstructionOperand* dest, MachineRepresentation rep) {
     __ addi(sp, sp, Operand(dropped_slots * kSystemPointerSize));
   }
   temp_slots_ -= dropped_slots;
+  DCHECK_GE(temp_slots_, 0);
 }
 
 void CodeGenerator::PopTempStackSlots() {
