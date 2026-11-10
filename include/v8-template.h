@@ -56,8 +56,10 @@ class V8_EXPORT Template : public Data {
    */
   void Set(Local<Name> name, Local<Data> value,
            PropertyAttribute attributes = None);
+  void SetPrivate(Local<Private> name, Local<Data> value);
+  V8_DEPRECATE_SOON("Use the 2-parameter version without PropertyAttribute.")
   void SetPrivate(Local<Private> name, Local<Data> value,
-                  PropertyAttribute attributes = None);
+                  PropertyAttribute attributes);
   V8_INLINE void Set(Isolate* isolate, const char* name, Local<Data> value,
                      PropertyAttribute attributes = None);
 

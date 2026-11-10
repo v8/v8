@@ -303,8 +303,7 @@ TEST_F(AccessorTest, CachedAccessorOnGlobalObjectReconfigureAndDelete) {
   v8::Local<v8::FunctionTemplate> cached_getter =
       v8::FunctionTemplate::NewWithCache(isolate(), UnreachableCallback, priv,
                                          v8::Local<v8::Value>());
-  object_template->SetPrivate(priv, v8::Integer::New(isolate(), 123),
-                              v8::DontDelete);
+  object_template->SetPrivate(priv, v8::Integer::New(isolate(), 123));
   object_template->SetAccessorProperty(NewString("draft"), cached_getter);
   object_template->SetAccessorProperty(NewString("draft2"), cached_getter);
   object_template->SetAccessorProperty(NewString("draft3"), cached_getter);
@@ -397,6 +396,13 @@ TEST_F(AccessorTest, CachedAccessorOnGlobalObjectReconfigureAndDelete) {
     EXPECT_THAT(RunJS(ctx, "loadGlobal3()"), IsInt32(99));
     EXPECT_THAT(RunJS(ctx, "loadProp3(globalThis)"), IsInt32(123));
     EXPECT_THAT(RunJS(ctx, "loadKeep()"), IsInt32(123));
+
+    CHECK(ctx->Global()
+              ->SetPrivate(ctx, priv, v8::Integer::New(isolate(), 456))
+              .FromJust());
+    EXPECT_THAT(RunJS(ctx, "loadKeep()"), IsInt32(456));
+    CHECK(ctx->Global()->DeletePrivate(ctx, priv).FromJust());
+    CHECK(!ctx->Global()->HasPrivate(ctx, priv).FromJust());
   }
 }
 

@@ -1104,6 +1104,10 @@ void Template::Set(v8::Local<Name> name, v8::Local<Data> value,
                                  static_cast<i::PropertyAttributes>(attribute));
 }
 
+void Template::SetPrivate(v8::Local<Private> name, v8::Local<Data> value) {
+  Set(Local<Name>::Cast(name), value, v8::DontEnum);
+}
+
 void Template::SetPrivate(v8::Local<Private> name, v8::Local<Data> value,
                           v8::PropertyAttribute attribute) {
   Set(Local<Name>::Cast(name), value, attribute);
