@@ -4645,6 +4645,7 @@ void CodeGenerator::Pop(InstructionOperand* dest, MachineRepresentation rep) {
     __ Add(sp, sp, Operand(dropped_slots * kSystemPointerSize));
   }
   temp_slots_ -= dropped_slots;
+  DCHECK_GE(temp_slots_, 0);
 }
 
 void CodeGenerator::PopTempStackSlots() {
@@ -4751,7 +4752,8 @@ void CodeGenerator::SetPendingMove(MoveOperands* move) {
     MemOperand src = g.ToMemOperand(&move->source(), masm());
     MemOperand dst = g.ToMemOperand(&move->destination(), masm());
     UseScratchRegisterScope temps(masm());
-    if (move->source().IsSimd128StackSlot()) {
+    if (move->source().IsSimd128StackSlot() &&
+        move->destination().IsSimd128StackSlot()) {
       VRegister temp = temps.AcquireQ();
       move_cycle_.scratch_fp_regs.set(temp);
     } else {
@@ -4829,11 +4831,13 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         __ Str(g.ToRegister(source), dst);
       } else {
         VRegister src = g.ToDoubleRegister(source);
-        if (source->IsFloatRegister() || source->IsDoubleRegister()) {
-          __ Str(src, dst);
-        } else {
-          DCHECK(source->IsSimd128Register());
+        if (source->IsSimd128Register() && destination->IsSimd128StackSlot()) {
           __ Str(src.Q(), dst);
+        } else {
+          DCHECK(source->IsFloatRegister() || source->IsDoubleRegister() ||
+                 destination->IsFloatStackSlot() ||
+                 destination->IsDoubleStackSlot());
+          __ Str(src, dst);
         }
       }
       return;
@@ -4844,11 +4848,11 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         __ Ldr(g.ToRegister(destination), src);
       } else {
         VRegister dst = g.ToDoubleRegister(destination);
-        if (destination->IsFloatRegister() || destination->IsDoubleRegister()) {
-          __ Ldr(dst, src);
-        } else {
-          DCHECK(destination->IsSimd128Register());
+        if (source->IsSimd128StackSlot()) {
           __ Ldr(dst.Q(), src);
+        } else {
+          DCHECK(source->IsFloatStackSlot() || source->IsDoubleStackSlot());
+          __ Ldr(dst, src);
         }
       }
       return;
@@ -4856,7 +4860,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     case MoveType::kStackToStack: {
       MemOperand src = g.ToMemOperand(source, masm());
       MemOperand dst = g.ToMemOperand(destination, masm());
-      if (source->IsSimd128StackSlot()) {
+      if (source->IsSimd128StackSlot() && destination->IsSimd128StackSlot()) {
         UseScratchRegisterScope scope(masm());
         VRegister temp = scope.AcquireQ();
         __ Ldr(temp, src);

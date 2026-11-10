@@ -8955,8 +8955,9 @@ void CodeGenerator::Pop(InstructionOperand* dest, MachineRepresentation rep) {
   if (dest->IsRegister()) {
     frame_access_state()->IncreaseSPDelta(-dropped_slots);
     __ popq(g.ToRegister(dest));
-  } else if (dest->IsStackSlot() || dest->IsFloatStackSlot() ||
-             dest->IsDoubleStackSlot()) {
+  } else if ((dest->IsStackSlot() || dest->IsFloatStackSlot() ||
+              dest->IsDoubleStackSlot()) &&
+             dropped_slots == 1) {
     frame_access_state()->IncreaseSPDelta(-dropped_slots);
     __ popq(g.ToOperand(dest));
   } else {
@@ -8967,6 +8968,7 @@ void CodeGenerator::Pop(InstructionOperand* dest, MachineRepresentation rep) {
     __ addq(rsp, Immediate(dropped_slots * kSystemPointerSize));
   }
   temp_slots_ -= dropped_slots;
+  DCHECK_GE(temp_slots_, 0);
 }
 
 void CodeGenerator::PopTempStackSlots() {
@@ -9170,19 +9172,18 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       } else {
         DCHECK(source->IsFPRegister());
         XMMRegister src = g.ToDoubleRegister(source);
-        MachineRepresentation rep =
+        MachineRepresentation src_rep =
             LocationOperand::cast(source)->representation();
+        MachineRepresentation dst_rep =
+            LocationOperand::cast(destination)->representation();
+        MachineRepresentation rep =
+            ElementSizeInBytes(dst_rep) < ElementSizeInBytes(src_rep) ? dst_rep
+                                                                      : src_rep;
         if (rep == MachineRepresentation::kSimd128) {
           __ Movups(dst, src);
         } else if (rep == MachineRepresentation::kSimd256) {
           CpuFeatureScope avx_scope(masm(), AVX);
-          // Whether the ymm source should be used as a xmm.
-          if (source->IsSimd256Register() &&
-              destination->IsSimd128StackSlot()) {
-            __ vmovups(dst, g.ToSimd128Register(source));
-          } else {
-            __ vmovups(dst, g.ToSimd256Register(source));
-          }
+          __ vmovups(dst, g.ToSimd256Register(source));
         } else {
           __ Movsd(dst, src);
         }
@@ -9233,21 +9234,20 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         // 32-bit on the stack.
         __ movq(dst, kScratchRegister);
       } else {
-        MachineRepresentation rep =
+        MachineRepresentation src_rep =
             LocationOperand::cast(source)->representation();
+        MachineRepresentation dst_rep =
+            LocationOperand::cast(destination)->representation();
+        MachineRepresentation rep =
+            ElementSizeInBytes(dst_rep) < ElementSizeInBytes(src_rep) ? dst_rep
+                                                                      : src_rep;
         if (rep == MachineRepresentation::kSimd128) {
           __ Movups(kScratchDoubleReg, src);
           __ Movups(dst, kScratchDoubleReg);
         } else if (rep == MachineRepresentation::kSimd256) {
           CpuFeatureScope avx_scope(masm(), AVX);
-          if (source->IsSimd256StackSlot() &&
-              destination->IsSimd128StackSlot()) {
-            __ vmovups(kScratchDoubleReg, src);
-            __ vmovups(dst, kScratchDoubleReg);
-          } else {
-            __ vmovups(kScratchSimd256Reg, src);
-            __ vmovups(dst, kScratchSimd256Reg);
-          }
+          __ vmovups(kScratchSimd256Reg, src);
+          __ vmovups(dst, kScratchSimd256Reg);
         } else {
           __ Movsd(kScratchDoubleReg, src);
           __ Movsd(dst, kScratchDoubleReg);
