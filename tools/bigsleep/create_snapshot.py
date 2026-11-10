@@ -254,17 +254,15 @@ def main():
   )
   parser.add_argument(
       "--debug_build_dir",
-      "--build_dir",
-      dest="debug_build_dir",
       required=True,
       type=pathlib.Path,
       help="Path to the V8 debug build directory (packaged under obj/debug/).",
   )
   parser.add_argument(
       "--release_build_dir",
+      required=True,
       type=pathlib.Path,
-      default=None,
-      help=("Optional path to a release-mode V8 build directory"
+      help=("Path to the V8 release build directory"
             " (packaged under obj/release/)."),
   )
   parser.add_argument(
@@ -285,8 +283,7 @@ def main():
 
     # Copy artifacts into per-build subdirectories under obj/
     copy_build_artifacts(args.debug_build_dir, artifact_dir / "debug")
-    if args.release_build_dir:
-      copy_build_artifacts(args.release_build_dir, artifact_dir / "release")
+    copy_build_artifacts(args.release_build_dir, artifact_dir / "release")
 
     # Copy all sources except filtered ones
     copy_v8_sources(args.v8_dir, args.debug_build_dir, source_dir, _DENY_LIST)
