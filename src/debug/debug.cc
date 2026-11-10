@@ -10,6 +10,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/strong-alias.h"
+#include "src/builtins/builtins-definitions.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
@@ -281,6 +282,32 @@ void Debug::RecordScriptContext(DirectHandle<Script> script) {
     script_to_contexts_ = isolate_->global_handles()->Create(*table);
   }
 }
+
+namespace {
+
+bool FrameHasExceptionHandler(JavaScriptFrame* frame) {
+  if (frame->LookupExceptionHandlerInTable(nullptr, nullptr) > 0) return true;
+  FrameSummaries summaries = frame->Summarize();
+  for (const FrameSummary& summary : summaries.frames) {
+    if (!summary.IsJavaScript()) continue;
+    DirectHandle<AbstractCode> code = summary.AsJavaScript().abstract_code();
+    if (code->kind() == CodeKind::BUILTIN) {
+      Builtin builtin_id = code->GetCode()->builtin_id();
+      switch (builtin_id) {
+#define CASE(Name)       \
+  case Builtin::k##Name: \
+    return true;
+        BUILTIN_PROMISE_REJECTION_PREDICTION_LIST(CASE)
+#undef CASE
+        default:
+          break;
+      }
+    }
+  }
+  return false;
+}
+
+}  // namespace
 
 BreakLocation BreakLocation::FromFrame(Handle<DebugInfo> debug_info,
                                        JavaScriptFrame* frame) {
@@ -1524,7 +1551,7 @@ void Debug::PrepareStepOnThrow() {
   while (!it.done()) {
     if (it.is_javascript()) {
       JavaScriptFrame* frame = it.javascript_frame();
-      if (frame->LookupExceptionHandlerInTable(nullptr, nullptr) > 0) break;
+      if (FrameHasExceptionHandler(frame)) break;
     }
     current_frame_count -= it.FrameFunctionCount();
     it.Advance();
@@ -1549,17 +1576,31 @@ void Debug::PrepareStepOnThrow() {
                                       frame->LookupCode());
     }
     FrameSummaries summaries = frame->Summarize();
-    for (size_t i = summaries.size(); i != 0; i--, current_frame_count--) {
+    for (size_t i = summaries.size(); i != 0; i--) {
       const FrameSummary& summary = summaries.frames[i - 1];
+      if (!summary.IsJavaScript()) continue;
+      const int summary_frame_count = current_frame_count--;
       if (!found_handler) {
         // We have yet to find the handler. If the frame inlines multiple
         // functions, we have to check each one for the handler.
         // If it only contains one function, we already found the handler.
         if (summaries.size() > 1) {
-          if (!summary.IsJavaScript()) continue;
           DirectHandle<AbstractCode> code =
               summary.AsJavaScript().abstract_code();
-          if (code->kind() == CodeKind::BUILTIN) continue;
+          if (code->kind() == CodeKind::BUILTIN) {
+            Builtin builtin_id = code->GetCode()->builtin_id();
+            switch (builtin_id) {
+#define CASE(Name)        \
+  case Builtin::k##Name:  \
+    found_handler = true; \
+    break;
+              BUILTIN_PROMISE_REJECTION_PREDICTION_LIST(CASE)
+#undef CASE
+              default:
+                break;
+            }
+            continue;
+          }
           CHECK_EQ(CodeKind::INTERPRETED_FUNCTION, code->kind());
           HandlerTable table(code->GetBytecodeArray());
           int code_offset = summary.code_offset();
@@ -1574,14 +1615,18 @@ void Debug::PrepareStepOnThrow() {
         // We found the handler. If we are stepping next or out, we need to
         // iterate until we found the suitable target frame to break in.
         if ((last_step_action() == StepOver || last_step_action() == StepOut) &&
-            current_frame_count > thread_local_.target_frame_count_) {
+            summary_frame_count > thread_local_.target_frame_count_) {
           continue;
         }
-        if (!summary.IsJavaScript()) continue;
         Handle<SharedFunctionInfo> info(
             summary.AsJavaScript().function()->shared(), isolate_);
         if (!info->IsSubjectToDebugging()) continue;
         if (IsBlackboxed(info)) continue;
+        if (frame->is_optimized()) {
+          Deoptimizer::DeoptimizeFunction(frame->function(),
+                                          LazyDeoptimizeReason::kDebugger,
+                                          frame->LookupCode());
+        }
         FloodWithOneShot(info);
         return;
       }
