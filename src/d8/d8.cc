@@ -3726,6 +3726,7 @@ void Shell::ResetIsolateStateForReprl(Isolate* isolate) {
 #endif  // DEBUG
 
   ResetOnProfileEndListener(isolate);
+  v8::debug::SetDebugDelegate(isolate, nullptr);
 }
 
 void Shell::ProfilerTriggerSample(
