@@ -9,7 +9,12 @@
 #include "include/v8-function.h"
 #include "src/api/api.h"
 #include "src/base/strings.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/api/api-test-utils.h"
+
+namespace v8 {
+namespace api_incumbent_unittest {
+
+using ApiIncumbentTest = ::v8::TestWithIsolate;
 
 using ::v8::Context;
 using ::v8::External;
@@ -228,7 +233,7 @@ v8::LocalVector<Context> SetupCrossContextTest(
 void Run(const char* source) { CHECK(!CompileRun(source).IsEmpty()); }
 
 void IncumbentContextTest_Api(bool with_api_incumbent) {
-  Isolate* isolate = CcTest::isolate();
+  Isolate* isolate = v8::Isolate::GetCurrent();
   HandleScope scope(isolate);
 
   IncumbentTestExpectations expected;
@@ -272,14 +277,16 @@ void IncumbentContextTest_Api(bool with_api_incumbent) {
 
 }  // namespace
 
-THREADED_TEST(IncumbentContextTest_Api) { IncumbentContextTest_Api(false); }
+THREADED_TEST(ApiIncumbentTest, IncumbentContextTest_Api) {
+  IncumbentContextTest_Api(false);
+}
 
-THREADED_TEST(IncumbentContextTest_ApiWithIncumbent) {
+THREADED_TEST(ApiIncumbentTest, IncumbentContextTest_ApiWithIncumbent) {
   IncumbentContextTest_Api(true);
 }
 
-THREADED_TEST(IncumbentContextTest_Basic1) {
-  Isolate* isolate = CcTest::isolate();
+THREADED_TEST(ApiIncumbentTest, IncumbentContextTest_Basic1) {
+  Isolate* isolate = v8::Isolate::GetCurrent();
   HandleScope scope(isolate);
 
   IncumbentTestExpectations expected;
@@ -307,8 +314,8 @@ THREADED_TEST(IncumbentContextTest_Basic1) {
   CHECK_LT(0, expected.call_count);
 }
 
-THREADED_TEST(IncumbentContextTest_Basic2) {
-  Isolate* isolate = CcTest::isolate();
+THREADED_TEST(ApiIncumbentTest, IncumbentContextTest_Basic2) {
+  Isolate* isolate = v8::Isolate::GetCurrent();
   HandleScope scope(isolate);
 
   IncumbentTestExpectations expected;
@@ -338,8 +345,8 @@ THREADED_TEST(IncumbentContextTest_Basic2) {
   CHECK_LT(0, expected.call_count);
 }
 
-THREADED_TEST(IncumbentContextTest_WithBuiltins3) {
-  Isolate* isolate = CcTest::isolate();
+THREADED_TEST(ApiIncumbentTest, IncumbentContextTest_WithBuiltins3) {
+  Isolate* isolate = v8::Isolate::GetCurrent();
   HandleScope scope(isolate);
 
   IncumbentTestExpectations expected;
@@ -369,8 +376,8 @@ THREADED_TEST(IncumbentContextTest_WithBuiltins3) {
   CHECK_LT(0, expected.call_count);
 }
 
-THREADED_TEST(IncumbentContextTest_WithBuiltins4) {
-  Isolate* isolate = CcTest::isolate();
+THREADED_TEST(ApiIncumbentTest, IncumbentContextTest_WithBuiltins4) {
+  Isolate* isolate = v8::Isolate::GetCurrent();
   HandleScope scope(isolate);
 
   IncumbentTestExpectations expected;
@@ -399,3 +406,6 @@ THREADED_TEST(IncumbentContextTest_WithBuiltins4) {
   }
   CHECK_LT(0, expected.call_count);
 }
+
+}  // namespace api_incumbent_unittest
+}  // namespace v8

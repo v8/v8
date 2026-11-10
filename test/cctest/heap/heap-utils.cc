@@ -24,7 +24,6 @@
 #include "src/heap/spaces.h"
 #include "src/objects/free-space-inl.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/heap/heap-tester.h"
 
 namespace v8 {
 namespace internal {
