@@ -147,7 +147,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling agents-internal
   # and whatever else without interference from each other.
-  'agents_internal_revision': 'f85c3dd9f2827b62dc37a70251148a4211b5aa21',
+  'agents_internal_revision': '4fd2920b271aa4f58f5294b2d24e2a21612dd40a',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling agents-public
   # and whatever else without interference from each other.
@@ -173,7 +173,7 @@ deps = {
     'condition': 'checkout_agents_internal',
   },
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '7039393f9666fc39ad374da5e7654182db89ad65',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'c5c4fc99f2d0cb59c4f9a503e3545d95759c762d',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'a9c58ac990557a29176bbaeef7577b196c38a950',
   'buildtools/linux64': {
@@ -264,11 +264,11 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '0e3a00a99df1e70e3b794a2149b419c532de7030',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '41561ed5d95bf57917114f37e1523b33c4e031f1',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/clang/tools/clang-format.git' + '@' + '9f796802e5d633c96dbe97e0b6683d5e62594f9f',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/clang/tools/clang-format.git' + '@' + 'a5bc718d465e842f6e637749a718748284b5ef80',
   'third_party/colorama/src': {
     'url': Var('chromium_url') + '/external/colorama.git' + '@' + '3de9f013df4b470069d03d250224062e8cf15c49',
     'condition': 'checkout_android',
@@ -282,7 +282,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '96a7c1418eedaa6bea333a8941e8a0078681b4d0',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'c4cdaeebba9b9ed92d041997317ffdbd042158ac',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + 'beeeef91cf6fef89a4d4ba5e95d47ca64ccb3a44',
   'third_party/fp16/src':
@@ -535,7 +535,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '907b997015a3232fce8fc5d0bcb4d5fde3f21afc',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'b6533c5df1422eae58d2d3212510d47483d2631c',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '1c9b6be005a5f855d1c8dd3c63a11f2ee78f956c',
   'third_party/re2/src':
@@ -545,11 +545,11 @@ deps = {
       'condition': 'checkout_android',
   },
   'tools/rust':
-    Var('chromium_url') + '/chromium/src/tools/rust' + '@' + '2f1f77a542dae085d82c9af847e4b6ffa90f30a3',
+    Var('chromium_url') + '/chromium/src/tools/rust' + '@' + '890ac9d93c069fd211c3def1dc8375682bf659eb',
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + 'd72db9e3040567a7589e00c0ad7ddf25c3b070bc',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '3a9fe68322e7d74bad07e95f28a73b0319f932ab',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '13f5027d9923ca70ad804c3141a0bcfe4ed455d4',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -674,7 +674,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' + '0131ae9d78e42fcc2c1811315e62410ad96d8230',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' + '98ffd075a2db87093a62ca46f9e6e66e5f2f9f23',
     'condition': 'not build_with_chromium',
   },
   'third_party/nasm': {
