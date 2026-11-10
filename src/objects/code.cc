@@ -47,7 +47,8 @@ void Code::ClearEmbeddedObjectsAndJSDispatchHandles(Heap* heap) {
          !it.done(); it.next()) {
       const auto mode = it.rinfo()->rmode();
       if (RelocInfo::IsEmbeddedObjectMode(mode)) {
-        it.rinfo()->set_target_object(istream, undefined, SKIP_WRITE_BARRIER);
+        it.rinfo()->set_target_object(heap->isolate(), istream, undefined,
+                                      SKIP_WRITE_BARRIER);
       } else {
         it.rinfo()->set_js_dispatch_handle(istream, kNullJSDispatchHandle,
                                            SKIP_WRITE_BARRIER);

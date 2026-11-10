@@ -94,7 +94,9 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
                                            ObjectSlot slot,
                                            Tagged<Object> value,
                                            WriteBarrierMode mode);
-  static inline void ForRelocInfo(Tagged<InstructionStream> host,
+  template <typename IsolateT>
+  static inline void ForRelocInfo(IsolateT* isolate,
+                                  Tagged<InstructionStream> host,
                                   RelocInfo* rinfo, Tagged<HeapObject> value,
                                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   template <typename IsolateT>
@@ -202,13 +204,9 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
   template <typename IsolateT>
   static inline bool IsAnyMarking(IsolateT* isolate);
 
-  static inline bool IsMarkingUntrusted(Tagged<HeapObject> object);
-
-  static inline void Marking(Tagged<HeapObject> host, HeapObjectSlot,
-                             Tagged<HeapObject> value);
-  static inline void Marking(Tagged<HeapObject> host, MaybeObjectSlot,
-                             Tagged<MaybeObject> value);
-  static inline void MarkingForRelocInfo(Tagged<InstructionStream> host,
+  template <typename IsolateT>
+  static inline void MarkingForRelocInfo(IsolateT* isolate,
+                                         Tagged<InstructionStream> host,
                                          RelocInfo*, Tagged<HeapObject> value);
   template <typename IsolateT>
   static inline void Marking(IsolateT isolate, Tagged<HeapObject> host,
@@ -223,6 +221,8 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
   template <RecordYoungSlot kRecordYoung = RecordYoungSlot::kNo>
   V8_NOINLINE V8_PRESERVE_MOST static void MarkingSlow(
       Tagged<HeapObject> host, HeapObjectSlot, Tagged<HeapObject> value);
+  static void MarkingSlowFromCode(Tagged<HeapObject> host, MaybeObjectSlot,
+                                  Tagged<MaybeObject> value);
   V8_NOINLINE V8_PRESERVE_MOST static void MarkingSlow(
       Tagged<InstructionStream> host, RelocInfo*, Tagged<HeapObject> value);
   V8_NOINLINE V8_PRESERVE_MOST static void MarkingSlow(

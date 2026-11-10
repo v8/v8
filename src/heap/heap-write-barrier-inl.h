@@ -44,7 +44,7 @@ void WriteBarrier::CombinedWriteBarrierInternalForStickyMarkbits(
     CombinedGenerationalAndSharedBarrierSlow(host, slot.address(), value);
   }
   // Marking barrier: mark value & record slots when marking is on.
-  if (V8_UNLIKELY(is_marking)) {
+  if (is_marking) [[unlikely]] {
     MarkingSlow(host, HeapObjectSlot(slot), value);
   }
 }
@@ -83,7 +83,7 @@ void WriteBarrier::CombinedWriteBarrierInternal(Tagged<HeapObject> host,
 // static
 inline WriteBarrierMode WriteBarrier::ComputeWriteBarrierModeForObject(
     Tagged<HeapObject> object, const DisallowGarbageCollection& promise) {
-  if (v8_flags.disable_write_barriers) {
+  if (v8_flags.disable_write_barriers) [[unlikely]] {
     return SKIP_WRITE_BARRIER;
   }
   DCHECK(PageFlagsAreConsistent(object));
@@ -105,7 +105,9 @@ inline WriteBarrierModeScope WriteBarrier::GetWriteBarrierModeForObject(
 }
 
 // static
-void WriteBarrier::ForRelocInfo(Tagged<InstructionStream> host,
+template <typename IsolateT>
+void WriteBarrier::ForRelocInfo(IsolateT* isolate,
+                                Tagged<InstructionStream> host,
                                 RelocInfo* rinfo, Tagged<HeapObject> value,
                                 WriteBarrierMode mode) {
   if (IsSkipWriteBarrierMode(mode)) {
@@ -118,7 +120,7 @@ void WriteBarrier::ForRelocInfo(Tagged<InstructionStream> host,
   DCHECK_EQ(mode, UPDATE_WRITE_BARRIER);
   GenerationalForRelocInfo(host, rinfo, value);
   SharedForRelocInfo(host, rinfo, value);
-  MarkingForRelocInfo(host, rinfo, value);
+  MarkingForRelocInfo(isolate, host, rinfo, value);
 }
 
 // static
@@ -382,11 +384,6 @@ bool WriteBarrier::IsAnyMarking(IsolateT* isolate) {
   return isolate->isolate_data()->is_any_marking_active();
 }
 
-// static
-bool WriteBarrier::IsMarkingUntrusted(Tagged<HeapObject> object) {
-  return MemoryChunk::FromHeapObject(object)->IsMarking();
-}
-
 void WriteBarrier::MarkingForTesting(Tagged<HeapObject> host, ObjectSlot slot,
                                      Tagged<Object> value) {
   DCHECK(!HasWeakHeapObjectTag(value));
@@ -394,35 +391,15 @@ void WriteBarrier::MarkingForTesting(Tagged<HeapObject> host, ObjectSlot slot,
     return;
   }
   Tagged<HeapObject> value_heap_object = Cast<HeapObject>(value);
-  Marking(host, HeapObjectSlot(slot), value_heap_object);
+  MarkingSlow(host, HeapObjectSlot(slot), value_heap_object);
 }
 
-void WriteBarrier::Marking(Tagged<HeapObject> host, MaybeObjectSlot slot,
-                           Tagged<MaybeObject> value) {
-  Tagged<HeapObject> value_heap_object;
-  if (!value.GetHeapObject(&value_heap_object)) {
-    return;
-  }
-  // This barrier is called from generated code and from C++ code.
-  // There must be no stores of InstructionStream values from generated code and
-  // all stores of InstructionStream values in C++ must be handled by
-  // CombinedWriteBarrierInternal().
-  DCHECK(!TrustedHeapLayout::InCodeSpace(value_heap_object));
-  Marking(host, HeapObjectSlot(slot), value_heap_object);
-}
-
-void WriteBarrier::Marking(Tagged<HeapObject> host, HeapObjectSlot slot,
-                           Tagged<HeapObject> value) {
-  if (!IsMarkingUntrusted(host)) [[likely]] {
-    return;
-  }
-  MarkingSlow(host, slot, value);
-}
-
-void WriteBarrier::MarkingForRelocInfo(Tagged<InstructionStream> host,
+template <typename IsolateT>
+void WriteBarrier::MarkingForRelocInfo(IsolateT* isolate,
+                                       Tagged<InstructionStream> host,
                                        RelocInfo* reloc_info,
                                        Tagged<HeapObject> value) {
-  if (!IsMarkingUntrusted(host)) [[likely]] {
+  if (!IsAnyMarking(isolate)) [[likely]] {
     return;
   }
   MarkingSlow(host, reloc_info, value);
@@ -477,7 +454,7 @@ void WriteBarrier::Marking(Tagged<HeapObject> host, TrustedPointerSlot slot) {
 void WriteBarrier::Marking(Tagged<TrustedObject> host,
                            ProtectedPointerSlot slot,
                            Tagged<TrustedObject> value) {
-  if (!IsMarkingUntrusted(host)) [[likely]] {
+  if (!IsAnyMarking(Isolate::Current())) [[likely]] {
     return;
   }
   MarkingSlow(host, slot, value);

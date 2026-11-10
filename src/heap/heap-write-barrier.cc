@@ -64,6 +64,19 @@ void WriteBarrier::MarkingSlow(Tagged<HeapObject> host, HeapObjectSlot slot,
 }
 
 // static
+void WriteBarrier::MarkingSlowFromCode(Tagged<HeapObject> host,
+                                       MaybeObjectSlot slot,
+                                       Tagged<MaybeObject> value) {
+  Tagged<HeapObject> value_heap_object = value.GetHeapObject();
+  // This barrier is called from generated code.
+  // There must be no stores of InstructionStream values from generated code and
+  // all stores of InstructionStream values in C++ must be handled by
+  // CombinedWriteBarrierInternal().
+  DCHECK(!TrustedHeapLayout::InCodeSpace(value_heap_object));
+  MarkingSlow(host, HeapObjectSlot(slot), value_heap_object);
+}
+
+// static
 void WriteBarrier::MarkingSlowFromTracedHandle(Tagged<HeapObject> value) {
   MarkingBarrier* marking_barrier = CurrentMarkingBarrier(value);
   marking_barrier->WriteWithoutHost(value);
@@ -109,7 +122,13 @@ void WriteBarrier::GenerationalBarrierForCppHeapPointerSlow(
 void WriteBarrier::MarkingSlow(Tagged<InstructionStream> host,
                                RelocInfo* reloc_info,
                                Tagged<HeapObject> value) {
+  // The inlined fast path only checks `IsAnyMarking()` to stay compact. Filter
+  // out cases where local marking is not active (e.g. shared-only marking on a
+  // worker isolate).
   MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
+  if (!marking_barrier || !marking_barrier->is_activated()) [[unlikely]] {
+    return;
+  }
   marking_barrier->Write(host, reloc_info, value);
 }
 
@@ -205,7 +224,25 @@ void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
 void WriteBarrier::MarkingSlow(Tagged<TrustedObject> host,
                                ProtectedPointerSlot slot,
                                Tagged<TrustedObject> value) {
+  // The inlined fast path only checks `IsAnyMarking()` to stay compact. Filter
+  // out minor marking and cases where major/shared marking does not apply to
+  // `host`.
   MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
+  if (!marking_barrier) [[unlikely]] {
+    return;
+  }
+
+  Isolate* isolate = marking_barrier->heap()->isolate();
+  if (HeapLayout::InWritableSharedSpace(host)) {
+    if (isolate->is_shared_space_isolate()) {
+      if (marking_barrier->is_not_major()) return;
+    } else if (!isolate->isolate_data()->is_shared_marking()) {
+      return;
+    }
+  } else if (marking_barrier->is_not_major()) {
+    return;
+  }
+
   marking_barrier->Write(host, slot, value);
 }
 
@@ -266,7 +303,7 @@ int WriteBarrier::MarkingFromCode(Address raw_host, Address raw_slot) {
   barrier->AssertMarkingIsActivated();
 #endif  // DEBUG
 
-  Marking(host, slot, Tagged<MaybeObject>(value));
+  MarkingSlowFromCode(host, slot, Tagged<MaybeObject>(value));
   // Called by WriteBarrierCodeStubAssembler, which doesn't accept void type
   return 0;
 }
@@ -315,7 +352,7 @@ int WriteBarrier::SharedMarkingFromCode(Address raw_host, Address raw_slot) {
   barrier->AssertSharedMarkingIsActivated();
 #endif  // DEBUG
 
-  Marking(host, slot, Tagged<MaybeObject>(value));
+  MarkingSlowFromCode(host, slot, Tagged<MaybeObject>(value));
 
   // Called by WriteBarrierCodeStubAssembler, which doesn't accept void type
   return 0;

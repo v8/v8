@@ -222,7 +222,7 @@ class ConcurrentRecordRelocSlotThread final : public v8::base::Thread {
                                   code_->constant_pool(), mode_mask);
          !it.done(); it.next()) {
       DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
-      it.rinfo()->set_target_object(istream, value_);
+      it.rinfo()->set_target_object(heap_->isolate(), istream, value_);
     }
   }
 
