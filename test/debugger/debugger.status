@@ -4,8 +4,6 @@
 
 [
 [ALWAYS, {
-  # All tests in the bug directory are expected to fail.
-  'bugs/*': [FAIL],
 
 
 
