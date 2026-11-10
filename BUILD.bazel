@@ -290,7 +290,7 @@ v8_flag(
 
 v8_flag(
     name = "v8_add_descriptor_array_lookup_table",
-    default = False,
+    default = True,
 )
 
 v8_flag(

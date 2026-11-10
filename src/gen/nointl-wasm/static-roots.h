@@ -102,7 +102,7 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kEmptyWeakArrayList = kEmptyWeakFixedArray + 8;
   static constexpr Tagged_t kEmptyEnumCache = kEmptyWeakArrayList + 12;
   static constexpr Tagged_t kEmptyDescriptorArray = kEmptyEnumCache + 12;
-  static constexpr Tagged_t kScopeInfoMap = kEmptyDescriptorArray + 16;
+  static constexpr Tagged_t kScopeInfoMap = kEmptyDescriptorArray + 20;
   static constexpr Tagged_t kModuleInfoMap = kScopeInfoMap + 40;
   static constexpr Tagged_t kClosureFeedbackCellArrayMap = kModuleInfoMap + 40;
   static constexpr Tagged_t kFeedbackVectorMap =
@@ -148,7 +148,7 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kPreparseDataMap = kInterceptorInfoMap + 40;
   static constexpr Tagged_t kSharedFunctionInfoMap = kPreparseDataMap + 40;
   static constexpr Tagged_t kCodeMap = kSharedFunctionInfoMap + 40;
-  static constexpr Tagged_t kHashSeed = kCodeMap + 40;
+  static constexpr Tagged_t kHashSeed = kCodeMap + 44;
   static constexpr Tagged_t kprototype_string = kHashSeed + 36;
   static constexpr Tagged_t kname_string = kprototype_string + 24;
   static constexpr Tagged_t klength_string = kname_string + 16;

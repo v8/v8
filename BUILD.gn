@@ -428,7 +428,7 @@ declare_args() {
   v8_enable_swiss_name_dictionary = false
 
   # Add a lookup_table field to DescriptorArray.
-  v8_add_descriptor_array_lookup_table = false
+  v8_add_descriptor_array_lookup_table = true
 
   # Enable hash lookup table in DescriptorArray instead of binary search.
   v8_enable_descriptor_array_lookup_table = false
