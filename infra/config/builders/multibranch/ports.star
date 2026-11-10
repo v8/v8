@@ -88,14 +88,6 @@ in_category(
 in_category(
     "Arm64",
     multibranch_builder(
-        name = "V8 Arm64 - builder",
-        triggering_policy = parallel_3_greedy_batching_of_1,
-        triggered_by_gitiles = True,
-        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"target_arch": "arm", "target_bits": 64, "builder_group": "client.v8.ports"},
-        barrier = BARRIER.LKGR_TREE_CLOSER,
-    ),
-    multibranch_builder(
         name = "V8 Android Arm64 - builder",
         triggering_policy = parallel_3_greedy_batching_of_1,
         triggered_by_gitiles = True,
@@ -121,15 +113,13 @@ in_category(
         name = "V8 Linux64 - arm64",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8", "target_arch": "arm", "target_bits": 64},
-        barrier = BARRIER.TREE_CLOSER,
-        first_branch_version = "14.9",
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     multibranch_builder_pair(
         name = "V8 Linux64 - arm64 - debug",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8", "target_arch": "arm", "target_bits": 64},
         barrier = BARRIER.TREE_CLOSER,
-        first_branch_version = "14.9",
     ),
     multibranch_builder(
         name = "V8 Linux64 - arm64 - no wasm - debug builder",
