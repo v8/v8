@@ -1010,9 +1010,10 @@ DirectHandle<String> BigInt::NoSideEffectsToString(
   DisallowGarbageCollection no_gc;
   char* characters = reinterpret_cast<char*>(result->GetChars(no_gc));
   bigint::Digits digits = bigint->digits();
-  // Resetting the budget should be enough to make sure the following ToString()
-  // can complete without checking for (termination) interrupt requests.
-  isolate->bigint_processor()->ResetInterruptCheckBudget();
+  // Ignore (termination) interrupt requests so the following ToString() can
+  // always complete.
+  bigint::Processor::IgnoreInterruptsScope ignore_interrupts(
+      isolate->bigint_processor());
   bigint::Status status = isolate->bigint_processor()->ToString(
       characters, &chars_written, digits, 10, bigint->sign());
   DCHECK_EQ(status, bigint::Status::kOk);

@@ -1076,6 +1076,7 @@ class StringToBigIntHelper : public StringToIntHelper {
       sandbox_storage.reset(processor->platform()->Allocate(num_digits));
       digit_storage = sandbox_storage.get();
     }
+    bigint::Processor::IgnoreInterruptsScope ignore_interrupts(processor);
     bigint::RWDigits digits(digit_storage, num_digits);
     bigint::Status status = processor->FromString(digits, &accumulator_);
     DCHECK_EQ(status, bigint::Status::kOk);
@@ -1128,7 +1129,8 @@ MaybeHandle<BigInt> StringToBigInt(Isolate* isolate,
 
 template <typename IsolateT>
 MaybeHandle<BigInt> BigIntLiteral(IsolateT* isolate, const char* string) {
-  isolate->bigint_processor()->ResetInterruptCheckBudget();
+  bigint::Processor::IgnoreInterruptsScope ignore_interrupts(
+      isolate->bigint_processor());
   StringToBigIntHelper<IsolateT> helper(
       isolate, reinterpret_cast<const uint8_t*>(string), strlen(string));
   return helper.GetResult();
