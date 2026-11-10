@@ -1112,7 +1112,7 @@ inline void MaglevAssembler::JumpIfNotSmi(Register src, Label* on_smi,
 void MaglevAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
                                  Label* target, Label::Distance) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
-  Register scratch = r0;
+  Register scratch = temps.AcquireScratch();
   mov(scratch, Operand(byte));
   extsb(scratch, scratch);
   if (is_signed(cc)) {
