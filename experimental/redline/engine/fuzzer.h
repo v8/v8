@@ -132,6 +132,12 @@ class Fuzzer {
   uint64_t target_children_hit() const {
     return target_children_hit_.load(std::memory_order_acquire);
   }
+  // For the selftest: one crash of `signature` through the crash
+  // bookkeeping (RegisterCrash, then RecordCrashOutcome). The minimization
+  // succeeds if the crash gets a minimize slot and `minimization_succeeds`
+  // is true. Returns true if the crash got a minimize slot.
+  bool RecordCrashForTest(uint64_t source_hash, const CrashSignature& signature,
+                          bool minimization_succeeds);
 
  private:
   friend class Worker;
@@ -246,9 +252,11 @@ class Fuzzer {
                               const CrashSignature& signature);
   // True if the amplify step may run for this signature now (reserves it).
   bool ClaimAmplify(const CrashSignature& signature);
-  void RecordCrashOutcome(const CrashSignature& signature, bool saved,
-                          bool minimized, bool reproduced,
-                          const std::string& path);
+  // Records the result of a crash that RegisterCrash decided. Call it once
+  // for each call of RegisterCrash, with the same signature and decision.
+  void RecordCrashOutcome(const CrashSignature& signature,
+                          const CrashDecision& decision, bool minimized,
+                          bool reproduced, const std::string& path);
   // Rewrites DIR/crashes/signatures.txt.
   void WriteSignatureSummary();
   std::mutex crash_mutex_;

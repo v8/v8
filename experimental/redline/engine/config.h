@@ -209,8 +209,9 @@ struct FuzzConfig {
   // that is deterministic enough.
   int crash_reruns_stop_after = 2;
   // Crash files saved per signature; later crashes with the same signature
-  // are only counted. The first `minimize_crashes_per_signature` of them
-  // are minimized (if they reproduce).
+  // are only counted. At most `minimize_crashes_per_signature` crashes of
+  // one signature hold a minimize slot at the same time. A crash gives back
+  // its slot if Redline does not minimize it.
   int max_crashes_per_signature = 5;
   int minimize_crashes_per_signature = 2;
   // For crashes that do not reproduce in a fresh target: up to this many of

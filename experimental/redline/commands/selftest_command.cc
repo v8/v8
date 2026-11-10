@@ -972,6 +972,83 @@ void RunCoverageBitsChecks(Checker* checker) {
   munmap(mapping, CoverageMap::kShmSize);
 }
 
+// The first 5 columns of the row of `signature_text` in signatures.txt
+// (signature, crashes, saved, minimized, reproduced), or "".
+std::string SignatureRow(const std::string& summary,
+                         const std::string& signature_text) {
+  const size_t start = summary.find(signature_text + " |");
+  if (start == std::string::npos) {
+    return "";
+  }
+  size_t end = start;
+  for (int column = 0; column < 5 && end != std::string::npos; column++) {
+    end = summary.find(" | ", end + 1);
+  }
+  return summary.substr(
+      start, end == std::string::npos ? std::string::npos : end - start);
+}
+
+// Offline: the minimize slots of a crash signature. At most
+// `minimize_crashes_per_signature` crashes of one signature hold a minimize
+// slot at the same time. A crash whose minimization fails gives back its
+// slot. A crash without a slot gives back nothing.
+void RunCrashSlotChecks(Checker* checker) {
+  const char* name =
+      "crash slots: only a crash with a minimize slot gives back a slot";
+  char dir_template[] = "/tmp/redline-selftest.XXXXXX";
+  if (mkdtemp(dir_template) == nullptr) {
+    checker->Check(name, false, StringPrintf("mkdtemp: %s", strerror(errno)));
+    return;
+  }
+  const std::string dir = dir_template;
+  const std::string summary_path = dir + "/crashes/signatures.txt";
+  std::string error;
+  std::string all_succeed, first_fails, summary;
+  bool read = false;
+  if (MakeDirectories(dir + "/crashes", &error)) {
+    FuzzConfig config;
+    config.out_dir = dir;
+    config.max_crashes_per_signature = 5;
+    config.minimize_crashes_per_signature = 2;
+    Fuzzer fuzzer(std::move(config));
+    // The crashes that got a minimize slot, of 6 crashes of one signature.
+    // The minimization fails for the crashes in `failures`.
+    auto slots = [&fuzzer](int line, uint64_t first_hash,
+                           const std::set<int>& failures) {
+      const CrashSignature signature = CrashSignature::FromOutput(
+          6, 0,
+          StringPrintf("#\n# Fatal error in a.cc, line %d\n# Check failed: "
+                       "x.\n",
+                       line));
+      std::string crashes;
+      for (int i = 0; i < 6; i++) {
+        if (fuzzer.RecordCrashForTest(first_hash + static_cast<uint64_t>(i),
+                                      signature, failures.count(i) == 0)) {
+          crashes += StringPrintf("%s%d", crashes.empty() ? "" : " ", i);
+        }
+      }
+      return crashes;
+    };
+    all_succeed = slots(1, 100, {});
+    first_fails = slots(2, 200, {0});
+    read = ReadFileToString(summary_path, &summary, &error);
+  }
+  // The columns: signature | crashes | saved | minimized | reproduced.
+  const std::string row1 = SignatureRow(summary, "fatal a.cc:1 x.");
+  const std::string row2 = SignatureRow(summary, "fatal a.cc:2 x.");
+  const bool ok = read && all_succeed == "0 1" && first_fails == "0 1 2" &&
+                  row1 == "fatal a.cc:1 x. | 6 | 5 | 2 | 6" &&
+                  row2 == "fatal a.cc:2 x. | 6 | 5 | 2 | 6";
+  checker->Check(
+      name, ok,
+      StringPrintf("slots \"%s\" and \"%s\", rows \"%s\" and \"%s\"%s%s",
+                   all_succeed.c_str(), first_fails.c_str(), row1.c_str(),
+                   row2.c_str(), error.empty() ? "" : ", ", error.c_str()));
+  std::remove(summary_path.c_str());
+  rmdir((dir + "/crashes").c_str());
+  rmdir(dir.c_str());
+}
+
 int RunSelftest(const Flags& flags) {
   Checker checker;
   std::string error;
@@ -983,6 +1060,7 @@ int RunSelftest(const Flags& flags) {
   RunD8FlagProfileChecks(&checker);
   RunCoverageCounterChecks(&checker);
   RunCoverageBitsChecks(&checker);
+  RunCrashSlotChecks(&checker);
   RunNodeKindChecks(&checker);
   RunPresetChecks(&checker);
   std::string testdata = flags.GetString("testdata", DefaultTestdataDir());

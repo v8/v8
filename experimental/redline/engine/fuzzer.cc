@@ -1666,7 +1666,7 @@ class Worker {
       path = SaveCrash(source, final_source, execution, lineage, info, unique,
                        hash, history);
     }
-    fuzzer_->RecordCrashOutcome(info.signature, decision.save, info.minimized,
+    fuzzer_->RecordCrashOutcome(info.signature, decision, info.minimized,
                                 info.reproducible() || info.state_dependent,
                                 path);
 
@@ -2287,8 +2287,10 @@ Fuzzer::CrashDecision Fuzzer::RegisterCrash(uint64_t source_hash,
       decision.new_source && info.saved < config_.max_crashes_per_signature;
   decision.minimize =
       decision.save && info.minimized < config_.minimize_crashes_per_signature;
-  // Reserve the slots now so that concurrent crashes of the same signature
-  // do not all get saved/minimized; RecordCrashOutcome corrects the counts.
+  // Reserve the slots now, so that concurrent crashes of the same signature
+  // do not all get saved and minimized. RecordCrashOutcome gives back the
+  // minimize slot of a crash that Redline did not minimize. A save slot
+  // stays reserved.
   if (decision.save) {
     info.saved++;
   }
@@ -2298,24 +2300,35 @@ Fuzzer::CrashDecision Fuzzer::RegisterCrash(uint64_t source_hash,
   return decision;
 }
 
-void Fuzzer::RecordCrashOutcome(const CrashSignature& signature, bool saved,
-                                bool minimized, bool reproduced,
-                                const std::string& path) {
+void Fuzzer::RecordCrashOutcome(const CrashSignature& signature,
+                                const CrashDecision& decision, bool minimized,
+                                bool reproduced, const std::string& path) {
   std::scoped_lock<std::mutex> lock(crash_mutex_);
   SignatureInfo& info = crash_signatures_[signature.hash];
-  // RegisterCrash reserved a save slot and a minimize slot; give back the
-  // minimize slot if the minimization did not happen or failed, so the
-  // next crash of this signature gets a chance.
-  if (saved && !minimized && info.minimized > 0) {
+  // RecordCrashOutcome gives back the minimize slot of this crash if
+  // RegisterCrash reserved it and the minimization did not happen or failed.
+  // Then the next crash of this signature can use it. A crash without a slot
+  // gives back nothing.
+  if (decision.minimize && !minimized && info.minimized > 0) {
     info.minimized--;
   }
   if (reproduced) {
     info.reproduced++;
   }
-  if (saved && info.first_path.empty()) {
+  if (decision.save && info.first_path.empty()) {
     info.first_path = path;
   }
   WriteSignatureSummary();
+}
+
+bool Fuzzer::RecordCrashForTest(uint64_t source_hash,
+                                const CrashSignature& signature,
+                                bool minimization_succeeds) {
+  const CrashDecision decision = RegisterCrash(source_hash, signature);
+  RecordCrashOutcome(signature, decision,
+                     decision.minimize && minimization_succeeds,
+                     /*reproduced=*/true, "");
+  return decision.minimize;
 }
 
 // Called with crash_mutex_ held.
