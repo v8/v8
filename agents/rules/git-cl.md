@@ -13,7 +13,9 @@ For general Chromium Gerrit CL workflows, commands (such as creating commits,
 uploading CLs, updating descriptions with `git cl description -n +`, running try
 jobs, polling presubmit status, and commenting), and options, refer to the
 **`git-cl-helper`** skill
-([SKILL.md](/agents/shared/skills/git-cl-helper/SKILL.md)).
+([SKILL.md](/agents/shared/skills/git-cl-helper/SKILL.md)), and for drafting and
+wrapping CL descriptions, refer to the **`cl-description`** skill
+([SKILL.md](/agents/shared/skills/cl-description/SKILL.md)).
 
 ## V8 Upload & Commit Mandates
 
@@ -63,8 +65,6 @@ jobs, polling presubmit status, and commenting), and options, refer to the
     human-authored online edits, rationale, or formatting — as well as the
     `Change-Id:` footer line — into your local commit message while surgically
     updating only the outdated technical statements.
-- **Commit Message Length Limits**: Keep the commit title at most 72 characters
-  (aiming for ~50 characters) and wrap description body lines at 72 characters.
 - Verify `git diff @{upstream}...HEAD` is not empty before uploading.
 
 ## Safeguards & Code Quality

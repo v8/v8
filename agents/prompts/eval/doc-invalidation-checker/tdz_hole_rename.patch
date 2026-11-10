@@ -61,10 +61,10 @@ index 04ac39d138d..7989d6d1b0c 100644
        // It is the hole; removing.
        return RemoveCurrentNode();
 diff --git a/src/maglev/maglev-ir.h b/src/maglev/maglev-ir.h
-index 0626d46993d..be05dc67544 100644
+index 59b6d0d5e66..a7ff2706cb0 100644
 --- a/src/maglev/maglev-ir.h
 +++ b/src/maglev/maglev-ir.h
-@@ -2788,7 +2788,9 @@ class ValueNode : public Node {
+@@ -2796,7 +2796,9 @@ class ValueNode : public Node {
  
    Tribool IsHole(RootIndex hole_index) const;
    Tribool IsTheHole() const { return IsHole(RootIndex::kTheHoleValue); }
@@ -72,6 +72,6 @@ index 0626d46993d..be05dc67544 100644
 +  Tribool CanElideTdzHoleCheck() const {
 +    return IsHole(RootIndex::kTdzHoleValue);
 +  }
+   bool IsAnyHoleConstant() const;
  
    inline void MaybeRecordUseReprHint(UseRepresentationSet repr);
-   inline void MaybeRecordUseReprHint(UseRepresentation repr);

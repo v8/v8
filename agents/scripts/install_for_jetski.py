@@ -40,10 +40,6 @@ def is_skill_enabled(skill_name: str, repo_root: Path) -> bool:
 #
 # Omitted shared skills:
 # - `chromium_memory_tools`: Targets Chromium's `tools/memory/` utilities.
-# - `cl-description`:
-#   TODO(crbug.com/581313789): Fix the upstream `cl-description` skill to match
-#   common Chromium/V8 commit style (`[component] Title`, optional
-#   `Bug:`/`Test:`, safe Gerrit description updates) and re-enable it.
 # - `git-dependent-branches`: Mandates `git new-branch` before every edit/commit,
 #   conflicting with V8's `v8-workflow` worktree isolation.
 # - `jj`: Targets Chromium's `tools/jj/` setup and `jj upload` workflow.
@@ -54,6 +50,8 @@ def is_skill_enabled(skill_name: str, repo_root: Path) -> bool:
 #   the `linux-prompt-evals` trybot.
 # - `utr`: Targets Chromium's `tools/utr/` Universal Test Runner.
 SHARED_SKILLS = (
+    # Drafting and wrapping Chromium/V8 CL descriptions and commit messages.
+    "cl-description",
     # Querying public Gerrit CLs, comments, and checks via `gerrit_client.py`.
     "gerrit-cli",
     # Chromium Gerrit CL workflow with `git cl`.
