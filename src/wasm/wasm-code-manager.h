@@ -379,7 +379,6 @@ class V8_EXPORT_PRIVATE WasmCode final {
 
   // Returns the last source position before {offset}.
   SourcePosition GetSourcePositionBefore(int code_offset);
-  int GetSourceOffsetBefore(int code_offset);
 
   std::tuple<int, bool, SourcePosition> GetInliningPosition(
       int inlining_id) const;

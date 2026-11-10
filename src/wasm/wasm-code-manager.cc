@@ -610,10 +610,6 @@ SourcePosition WasmCode::GetSourcePositionBefore(int code_offset) {
   return position;
 }
 
-int WasmCode::GetSourceOffsetBefore(int code_offset) {
-  return GetSourcePositionBefore(code_offset).ScriptOffset();
-}
-
 std::tuple<int, bool, SourcePosition> WasmCode::GetInliningPosition(
     int inlining_id) const {
   const size_t elem_size = sizeof(int) + sizeof(bool) + sizeof(SourcePosition);
