@@ -12,7 +12,6 @@
 // all-objects.h. Add an inline header here when these consumers need it.
 
 #include "src/objects/allocation-site-inl.h"
-#include "src/objects/allocation-site-scopes-inl.h"
 #include "src/objects/api-callbacks-inl.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/call-site-info-inl.h"

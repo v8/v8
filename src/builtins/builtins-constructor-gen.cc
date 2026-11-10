@@ -518,8 +518,7 @@ TNode<JSRegExp> ConstructorBuiltinsAssembler::CreateRegExpLiteral(
 
 TNode<JSArray> ConstructorBuiltinsAssembler::CreateShallowArrayLiteral(
     TNode<FeedbackVector> feedback_vector, TNode<TaggedIndex> slot,
-    TNode<Context> context, AllocationSiteMode allocation_site_mode,
-    Label* call_runtime) {
+    TNode<Context> context, Label* call_runtime) {
   TNode<Object> maybe_allocation_site =
       CAST(LoadFeedbackVectorSlot(feedback_vector, slot));
   GotoIfNot(HasBoilerplate(maybe_allocation_site), call_runtime);
@@ -527,8 +526,7 @@ TNode<JSArray> ConstructorBuiltinsAssembler::CreateShallowArrayLiteral(
   TNode<AllocationSite> allocation_site = CAST(maybe_allocation_site);
   TNode<JSArray> boilerplate = CAST(LoadBoilerplate(allocation_site));
 
-  if (allocation_site_mode == TRACK_ALLOCATION_SITE &&
-      V8_ALLOCATION_SITE_TRACKING_BOOL) {
+  if constexpr (V8_ALLOCATION_SITE_TRACKING_BOOL) {
     return CloneFastJSArray(context, boilerplate, allocation_site);
   } else {
     return CloneFastJSArray(context, boilerplate);

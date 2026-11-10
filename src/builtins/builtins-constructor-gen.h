@@ -29,8 +29,7 @@ class ConstructorBuiltinsAssembler : public CodeStubAssembler {
 
   TNode<JSArray> CreateShallowArrayLiteral(
       TNode<FeedbackVector> feedback_vector, TNode<TaggedIndex> slot,
-      TNode<Context> context, AllocationSiteMode allocation_site_mode,
-      Label* call_runtime);
+      TNode<Context> context, Label* call_runtime);
 
   TNode<JSArray> CreateEmptyArrayLiteral(TNode<FeedbackVector> feedback_vector,
                                          TNode<TaggedIndex> slot,

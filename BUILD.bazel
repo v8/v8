@@ -2156,8 +2156,6 @@ filegroup(
         "src/objects/all-objects.h",
         "src/objects/allocation-site.h",
         "src/objects/allocation-site-inl.h",
-        "src/objects/allocation-site-scopes.h",
-        "src/objects/allocation-site-scopes-inl.h",
         "src/objects/api-callbacks.h",
         "src/objects/api-callbacks-inl.h",
         "src/objects/arguments.h",

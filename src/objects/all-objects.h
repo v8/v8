@@ -17,7 +17,6 @@
 
 #include "src/ic/handler-configuration.h"
 #include "src/objects/abstract-code.h"
-#include "src/objects/allocation-site-scopes.h"
 #include "src/objects/allocation-site.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/arguments.h"

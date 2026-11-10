@@ -8,7 +8,7 @@
 #include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/handles/maybe-handles.h"
-#include "src/objects/allocation-site-scopes-inl.h"
+#include "src/objects/allocation-site-inl.h"
 #include "src/objects/casting.h"
 #include "src/objects/dictionary-inl.h"
 #include "src/objects/field-type.h"
@@ -245,6 +245,85 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
 
   return copy;
 }
+
+// AllocationSiteContext is the base class for walking and copying a nested
+// boilerplate with AllocationSite tracking support.
+class AllocationSiteContext {
+ public:
+  explicit AllocationSiteContext(Isolate* isolate) { isolate_ = isolate; }
+
+  DirectHandle<AllocationSite> top() { return top_; }
+  DirectHandle<AllocationSite> current() { return current_; }
+
+  Isolate* isolate() { return isolate_; }
+
+ protected:
+  void update_current_site(Tagged<AllocationSite> site) {
+    current_.PatchValue(site);
+  }
+
+  void InitializeTraversal(Handle<AllocationSite> site) {
+    top_ = site;
+    // {current_} is updated in place to not create unnecessary Handles, hence
+    // we initially need a separate handle.
+    current_ = Handle<AllocationSite>::New(*top_, isolate());
+  }
+
+ private:
+  Isolate* isolate_;
+  Handle<AllocationSite> top_;
+  Handle<AllocationSite> current_;
+};
+
+// AllocationSiteUsageContext aids in tracking AllocationSites for components of
+// a copied object literal.
+class AllocationSiteUsageContext : public AllocationSiteContext {
+ public:
+  AllocationSiteUsageContext(Isolate* isolate, Handle<AllocationSite> site,
+                             bool activated)
+      : AllocationSiteContext(isolate),
+        top_site_(site),
+        activated_(activated) {}
+
+  Handle<AllocationSite> EnterNewScope() {
+    if (top().is_null()) {
+      InitializeTraversal(top_site_);
+    } else {
+      // Advance current site
+      Tagged<Object> nested_site = current()->nested_site();
+      // Something is wrong if we advance to the end of the list here.
+      update_current_site(Cast<AllocationSite>(nested_site));
+    }
+    return Handle<AllocationSite>(*current(), isolate());
+  }
+
+  void ExitScope(DirectHandle<AllocationSite> scope_site,
+                 DirectHandle<JSObject> object) {
+    // This assert ensures that we are pointing at the right sub-object in a
+    // recursive walk of a nested literal.
+    DCHECK(object.is_null() || *object == scope_site->boilerplate());
+  }
+
+  bool ShouldTrackAllocationSite(DirectHandle<JSObject> object) {
+    if (activated_ &&
+        AllocationSite::CanTrack(object->map()->instance_type())) {
+      if (AllocationSite::ShouldTrack(object->GetElementsKind())) {
+        if (v8_flags.trace_creation_allocation_sites) {
+          PrintF("*** Tracking AllocationSite for JSArray %p\n",
+                 reinterpret_cast<void*>(object->ptr()));
+        }
+        return true;
+      }
+    }
+    return false;
+  }
+
+  static constexpr bool kCopying = true;
+
+ private:
+  Handle<AllocationSite> top_site_;
+  bool activated_;
+};
 
 // AllocationSiteCreationContext aids in the creation of AllocationSites to
 // accompany object literals.

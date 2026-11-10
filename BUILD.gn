@@ -4825,8 +4825,6 @@ v8_header_set("v8_internal_headers") {
     "src/objects/all-objects-inl.h",
     "src/objects/all-objects.h",
     "src/objects/allocation-site-inl.h",
-    "src/objects/allocation-site-scopes-inl.h",
-    "src/objects/allocation-site-scopes.h",
     "src/objects/allocation-site.h",
     "src/objects/api-callbacks-inl.h",
     "src/objects/api-callbacks.h",
