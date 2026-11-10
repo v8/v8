@@ -133,7 +133,9 @@ void BaselineAssembler::JumpIfNotSmi(Register value, Label* target,
 void BaselineAssembler::TestAndBranch(Register value, int mask, Condition cc,
                                       Label* target, Label::Distance) {
   ASM_CODE_COMMENT(masm_);
-  __ AndU64(r0, value, Operand(mask), SetRC);
+  ScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  __ AndU64(scratch, value, Operand(mask), SetRC);
   __ b(to_condition(cc), target, cr0);
 }
 
