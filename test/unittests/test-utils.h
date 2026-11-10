@@ -53,6 +53,12 @@ static T* GetData(const TCallbackInfo& info) {
   return reinterpret_cast<T*>(v8::External::Cast(*data)->Value(kTestConfigTag));
 }
 
+template <typename T>
+static T* GetData(v8::Local<v8::Data> data) {
+  USE(MakeData);
+  return reinterpret_cast<T*>(v8::External::Cast(*data)->Value(kTestConfigTag));
+}
+
 class ArrayBufferAllocator;
 
 template <typename TMixin>
@@ -435,12 +441,11 @@ class PrintExtension : public v8::Extension {
 // Run a ScriptStreamingTask in a separate thread.
 class StreamerThread : public v8::base::Thread {
  public:
+  // The main thread is parked while joining, so that a GC requested by the
+  // streaming task cannot deadlock with the blocked main thread.
   static void StartThreadForTaskAndJoin(
-      v8::ScriptCompiler::ScriptStreamingTask* task) {
-    StreamerThread thread(task);
-    CHECK(thread.Start());
-    thread.Join();
-  }
+      v8::ScriptCompiler::ScriptStreamingTask* task,
+      i::Isolate* i_isolate = i::Isolate::Current());
 
   explicit StreamerThread(v8::ScriptCompiler::ScriptStreamingTask* task)
       : Thread(Thread::Options()), task_(task) {}

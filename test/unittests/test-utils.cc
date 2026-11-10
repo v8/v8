@@ -4,14 +4,18 @@
 
 #include "test/unittests/test-utils.h"
 
+#include <optional>
+
 #include "include/libplatform/libplatform.h"
 #include "include/v8-initialization.h"
 #include "include/v8-isolate.h"
+#include "include/v8-locker.h"
 #include "src/api/api-inl.h"
 #include "src/base/platform/time.h"
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
 #include "src/heap/cppgc-js/cpp-heap.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "test/unittests/heap/heap-utils.h"
@@ -62,9 +66,14 @@ IsolateWrapper::IsolateWrapper(CountersMode counters_mode,
 IsolateWrapper::~IsolateWrapper() {
   v8::Platform* platform = internal::V8::GetCurrentPlatform();
   CHECK_NOT_NULL(platform);
+  std::optional<v8::Locker> locker;
+  if (i_isolate()->was_locker_ever_used()) {
+    locker.emplace(isolate_);
+  }
   isolate_->Enter();
   while (platform::PumpMessageLoop(platform, isolate())) continue;
   isolate_->Exit();
+  locker.reset();
   isolate_->Dispose();
   if (counter_map_) {
     CHECK_EQ(kCurrentCounterMap, counter_map_.get());
@@ -72,6 +81,15 @@ IsolateWrapper::~IsolateWrapper() {
   } else {
     CHECK_NULL(kCurrentCounterMap);
   }
+}
+
+// static
+void StreamerThread::StartThreadForTaskAndJoin(
+    v8::ScriptCompiler::ScriptStreamingTask* task, i::Isolate* i_isolate) {
+  StreamerThread thread(task);
+  CHECK(thread.Start());
+  i_isolate->main_thread_local_heap()->ExecuteWhileParked(
+      [&thread]() { thread.Join(); });
 }
 
 namespace internal {

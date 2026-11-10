@@ -8,7 +8,14 @@
 #include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/base/strings.h"
-#include "test/cctest/test-api.h"
+#include "test/common/flag-utils.h"
+#include "test/unittests/api/api-test-utils.h"
+
+namespace v8 {
+namespace api_stack_traces_unittest {
+
+using ApiStackTracesTest = ::v8::TestWithIsolate;
+using ApiStackTracesUninitializedTest = ::v8::TestWithPlatform;
 
 using ::v8::Array;
 using ::v8::Context;
@@ -21,19 +28,19 @@ using ::v8::Value;
 static v8::MaybeLocal<Value> PrepareStackTrace42(v8::Local<Context> context,
                                                  v8::Local<Value> error,
                                                  v8::Local<Array> trace) {
-  return v8::Number::New(CcTest::isolate(), 42);
+  return v8::Number::New(v8::Isolate::GetCurrent(), 42);
 }
 
 static v8::MaybeLocal<Value> PrepareStackTraceThrow(v8::Local<Context> context,
                                                     v8::Local<Value> error,
                                                     v8::Local<Array> trace) {
-  v8::Isolate* isolate = CcTest::isolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::Local<String> message = v8_str("42");
   isolate->ThrowException(v8::Exception::Error(message));
   return v8::MaybeLocal<Value>();
 }
 
-THREADED_TEST(IsolatePrepareStackTrace) {
+THREADED_TEST(ApiStackTracesTest, IsolatePrepareStackTrace) {
   LocalContext context;
   v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
@@ -46,7 +53,7 @@ THREADED_TEST(IsolatePrepareStackTrace) {
   CHECK_EQ(v.As<v8::Number>()->Int32Value(context.local()).FromJust(), 42);
 }
 
-THREADED_TEST(IsolatePrepareStackTraceThrow) {
+THREADED_TEST(ApiStackTracesTest, IsolatePrepareStackTraceThrow) {
   LocalContext context;
   v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
@@ -79,7 +86,7 @@ static void ThrowV8Exception(const v8::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().SetUndefined();
 }
 
-THREADED_TEST(ExceptionCreateMessage) {
+THREADED_TEST(ApiStackTracesTest, ExceptionCreateMessage) {
   LocalContext context;
   v8::HandleScope scope(context.isolate());
   v8::Local<String> foo_str = v8_str("foo");
@@ -159,7 +166,7 @@ THREADED_TEST(ExceptionCreateMessage) {
 
 // TODO(szuend): Re-enable as a threaded test once investigated and fixed.
 // THREADED_TEST(StackTrace) {
-TEST(StackTrace) {
+TEST_F(ApiStackTracesTest, StackTrace) {
   LocalContext context;
   v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
@@ -190,13 +197,15 @@ static void checkStackFrame(const char* expected_script_name,
                             int expected_source_position, bool is_eval,
                             bool is_constructor,
                             v8::Local<v8::StackFrame> frame) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::String::Utf8Value func_name(CcTest::isolate(), frame->GetFunctionName());
-  v8::String::Utf8Value script_name(CcTest::isolate(), frame->GetScriptName());
-  v8::String::Utf8Value script_source(CcTest::isolate(),
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  v8::String::Utf8Value func_name(v8::Isolate::GetCurrent(),
+                                  frame->GetFunctionName());
+  v8::String::Utf8Value script_name(v8::Isolate::GetCurrent(),
+                                    frame->GetScriptName());
+  v8::String::Utf8Value script_source(v8::Isolate::GetCurrent(),
                                       frame->GetScriptSource());
   v8::String::Utf8Value script_source_mapping_url(
-      CcTest::isolate(), frame->GetScriptSourceMappingURL());
+      v8::Isolate::GetCurrent(), frame->GetScriptSourceMappingURL());
   if (*script_name == nullptr) {
     // The situation where there is no associated script, like for evals.
     CHECK_NULL(expected_script_name);
@@ -352,8 +361,8 @@ static void AnalyzeStackInNativeCode(
   }
 }
 
-THREADED_TEST(CaptureStackTrace) {
-  v8::Isolate* isolate = CcTest::isolate();
+THREADED_TEST(ApiStackTracesTest, CaptureStackTrace) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::HandleScope scope(isolate);
   v8::Local<v8::String> origin = v8_str("capture-stack-trace-test");
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
@@ -416,12 +425,14 @@ static void StackTraceForUncaughtExceptionListener(
   v8::Local<v8::StackTrace> stack_trace = message->GetStackTrace();
   CHECK_EQ(2, stack_trace->GetFrameCount());
   checkStackFrame("origin", uncaught_exception_source, nullptr, "foo", 2, 3, 19,
-                  false, false, stack_trace->GetFrame(CcTest::isolate(), 0));
+                  false, false,
+                  stack_trace->GetFrame(v8::Isolate::GetCurrent(), 0));
   checkStackFrame("origin", uncaught_exception_source, nullptr, "bar", 5, 3, 50,
-                  false, false, stack_trace->GetFrame(CcTest::isolate(), 1));
+                  false, false,
+                  stack_trace->GetFrame(v8::Isolate::GetCurrent(), 1));
 }
 
-TEST(CaptureStackTraceForUncaughtException) {
+TEST_F(ApiStackTracesTest, CaptureStackTraceForUncaughtException) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -441,7 +452,8 @@ TEST(CaptureStackTraceForUncaughtException) {
   CHECK_EQ(1, report_count);
 }
 
-TEST(CaptureStackTraceForUncaughtExceptionHugeStackTraceLimit) {
+TEST_F(ApiStackTracesTest,
+       CaptureStackTraceForUncaughtExceptionHugeStackTraceLimit) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -482,7 +494,7 @@ const char uncaught_setter_exception_source[] =
 static void StackTraceForUncaughtExceptionAndSettersListener(
     v8::Local<v8::Message> message, v8::Local<Value> value) {
   CHECK(value->IsObject());
-  v8::Isolate* isolate = CcTest::isolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   report_count++;
   v8::Local<v8::StackTrace> stack_trace = message->GetStackTrace();
@@ -498,7 +510,7 @@ static void StackTraceForUncaughtExceptionAndSettersListener(
             .IsNothing());
 }
 
-TEST(CaptureStackTraceForUncaughtExceptionAndSetters) {
+TEST_F(ApiStackTracesTest, CaptureStackTraceForUncaughtExceptionAndSetters) {
   report_count = 0;
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
@@ -547,7 +559,7 @@ const char functions_with_function_name_caller[] = "gen('foo', 3)();";
 static void StackTraceFunctionNameListener(v8::Local<v8::Message> message,
                                            v8::Local<Value>) {
   v8::Local<v8::StackTrace> stack_trace = message->GetStackTrace();
-  v8::Isolate* isolate = CcTest::isolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   CHECK_EQ(5, stack_trace->GetFrameCount());
   checkStackFrame("origin", functions_with_function_name, "local/functional.sc",
                   "foo:0", 4, 7, 86, false, false,
@@ -565,7 +577,7 @@ static void StackTraceFunctionNameListener(v8::Local<v8::Message> message,
                   14, 13, false, false, stack_trace->GetFrame(isolate, 4));
 }
 
-TEST(GetStackTraceContainsFunctionsWithFunctionName) {
+TEST_F(ApiStackTracesTest, GetStackTraceContainsFunctionsWithFunctionName) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -588,14 +600,15 @@ static void RethrowStackTraceHandler(v8::Local<v8::Message> message,
   CHECK_EQ(3, frame_count);
   int line_number[] = {1, 2, 5};
   for (int i = 0; i < frame_count; i++) {
-    CHECK_EQ(line_number[i],
-             stack_trace->GetFrame(CcTest::isolate(), i)->GetLineNumber());
+    CHECK_EQ(
+        line_number[i],
+        stack_trace->GetFrame(v8::Isolate::GetCurrent(), i)->GetLineNumber());
   }
 }
 
 // Test that we only return the stack trace at the site where the exception
 // is first thrown (not where it is rethrown).
-TEST(RethrowStackTrace) {
+TEST_F(ApiStackTracesTest, RethrowStackTrace) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -631,13 +644,14 @@ static void RethrowPrimitiveStackTraceHandler(v8::Local<v8::Message> message,
   CHECK_EQ(2, frame_count);
   int line_number[] = {3, 7};
   for (int i = 0; i < frame_count; i++) {
-    CHECK_EQ(line_number[i],
-             stack_trace->GetFrame(CcTest::isolate(), i)->GetLineNumber());
+    CHECK_EQ(
+        line_number[i],
+        stack_trace->GetFrame(v8::Isolate::GetCurrent(), i)->GetLineNumber());
   }
 }
 
 // Test that we do not recognize identity for primitive exceptions.
-TEST(RethrowPrimitiveStackTrace) {
+TEST_F(ApiStackTracesTest, RethrowPrimitiveStackTrace) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -665,12 +679,13 @@ static void RethrowExistingStackTraceHandler(v8::Local<v8::Message> message,
   v8::Local<v8::StackTrace> stack_trace = message->GetStackTrace();
   CHECK(!stack_trace.IsEmpty());
   CHECK_EQ(1, stack_trace->GetFrameCount());
-  CHECK_EQ(1, stack_trace->GetFrame(CcTest::isolate(), 0)->GetLineNumber());
+  CHECK_EQ(
+      1, stack_trace->GetFrame(v8::Isolate::GetCurrent(), 0)->GetLineNumber());
 }
 
 // Test that the stack trace is captured when the error object is created and
 // not where it is thrown.
-TEST(RethrowExistingStackTrace) {
+TEST_F(ApiStackTracesTest, RethrowExistingStackTrace) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -690,12 +705,13 @@ static void RethrowBogusErrorStackTraceHandler(v8::Local<v8::Message> message,
   v8::Local<v8::StackTrace> stack_trace = message->GetStackTrace();
   CHECK(!stack_trace.IsEmpty());
   CHECK_EQ(1, stack_trace->GetFrameCount());
-  CHECK_EQ(1, stack_trace->GetFrame(CcTest::isolate(), 0)->GetLineNumber());
+  CHECK_EQ(
+      1, stack_trace->GetFrame(v8::Isolate::GetCurrent(), 0)->GetLineNumber());
 }
 
 // Test that the stack trace is captured where the bogus Error object is created
 // and not where it is thrown.
-TEST(RethrowBogusErrorStackTrace) {
+TEST_F(ApiStackTracesTest, RethrowBogusErrorStackTrace) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -725,8 +741,8 @@ void AnalyzeStackOfEvalWithSourceURL(
   }
 }
 
-TEST(SourceURLInStackTrace) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(ApiStackTracesTest, SourceURLInStackTrace) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->Set(
@@ -768,8 +784,8 @@ void AnalyzeScriptIdInStack(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
 }
 
-TEST(ScriptIdInStackTrace) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(ApiStackTracesTest, ScriptIdInStackTrace) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->Set(isolate, "AnalyzeScriptIdInStack",
@@ -781,7 +797,8 @@ TEST(ScriptIdInStackTrace) {
       "  AnalyzeScriptIdInStack();"
       "}\n"
       "foo();\n");
-  v8::Local<v8::Script> script = CompileWithOrigin(scriptSource, "test", false);
+  v8::Local<v8::Script> script =
+      v8::CompileWithOrigin(scriptSource, "test", false);
   script->Run(context.local()).ToLocalChecked();
   for (int i = 0; i < 2; i++) {
     CHECK_NE(scriptIdInStack[i], v8::Message::kNoScriptIdInfo);
@@ -798,13 +815,13 @@ void AnalyzeCurrentScriptIdInStack(
   currentScriptId = v8::StackTrace::CurrentScriptId(info.GetIsolate());
 }
 
-TEST(CurrentScriptId_Id) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(ApiStackTracesTest, CurrentScriptId_Id) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  templ->Set(isolate, "AnalyzeCurrentScriptIdInStack",
-             v8::FunctionTemplate::New(CcTest::isolate(),
-                                       AnalyzeCurrentScriptIdInStack));
+  templ->Set(
+      isolate, "AnalyzeCurrentScriptIdInStack",
+      v8::FunctionTemplate::New(v8_isolate(), AnalyzeCurrentScriptIdInStack));
   LocalContext context(nullptr, templ);
 
   const char* source = R"(
@@ -814,14 +831,14 @@ TEST(CurrentScriptId_Id) {
     foo();
   )";
 
-  v8::Local<v8::Script> script = CompileWithOrigin(source, "test", false);
+  v8::Local<v8::Script> script = v8::CompileWithOrigin(source, "test", false);
   script->Run(context.local()).ToLocalChecked();
 
   CHECK_EQ(currentScriptId, script->ScriptId());
 
   // When nothing is on the stack, we should get the default response.
   CHECK_EQ(v8::Message::kNoScriptIdInfo,
-           v8::StackTrace::CurrentScriptId(CcTest::isolate()));
+           v8::StackTrace::CurrentScriptId(v8_isolate()));
 }
 
 static std::vector<v8::StackTrace::ScriptIdAndContext> expectedFrames;
@@ -853,8 +870,8 @@ void CaptureStackIdsAndContexts(
 
 // Verify that `CurrentScriptIdsAndContexts` will follow an `eval`to the script
 // id that initiated the `eval`.
-TEST(CurrentScriptIdsAndContexts_FollowsEval) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(ApiStackTracesTest, CurrentScriptIdsAndContexts_FollowsEval) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
 
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
@@ -864,7 +881,7 @@ TEST(CurrentScriptIdsAndContexts_FollowsEval) {
 
   const char* source = "function test() { eval('CaptureStack()'); } test();";
   v8::Local<v8::Script> script =
-      CompileWithOrigin(source, "origin_script", false);
+      v8::CompileWithOrigin(source, "origin_script", false);
 
   // 0: The eval function which calls CaptureStack
   // 1: The test() function
@@ -876,8 +893,8 @@ TEST(CurrentScriptIdsAndContexts_FollowsEval) {
 
 // Verify that `CurrentScriptIdsAndContexts` will follow the `new Function`
 // constructor back to the script id that initiated the creation.
-TEST(CurrentScriptIdsAndContexts_FollowsNewFunction) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(ApiStackTracesTest, CurrentScriptIdsAndContexts_FollowsNewFunction) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
 
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
@@ -893,7 +910,7 @@ TEST(CurrentScriptIdsAndContexts_FollowsNewFunction) {
       "test();";
 
   v8::Local<v8::Script> script =
-      CompileWithOrigin(source, "origin_script_new_fn", false);
+      v8::CompileWithOrigin(source, "origin_script_new_fn", false);
 
   // 0: The dynamic function which calls CaptureStack
   // 1: The test() function
@@ -905,8 +922,8 @@ TEST(CurrentScriptIdsAndContexts_FollowsNewFunction) {
 
 // Verify that `CurrentScriptIdsAndContexts` will follow an `eval`to the script
 // id that initiated the `eval`, even through nested evals.
-TEST(CurrentScriptIdsAndContexts_FollowsNestedEval) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(ApiStackTracesTest, CurrentScriptIdsAndContexts_FollowsNestedEval) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
 
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
@@ -921,7 +938,7 @@ TEST(CurrentScriptIdsAndContexts_FollowsNestedEval) {
     test();
   )SCRIPT";
   v8::Local<v8::Script> script =
-      CompileWithOrigin(source, "origin_script", false);
+      v8::CompileWithOrigin(source, "origin_script", false);
 
   // The stack should have 2 eval frames and a test() frame.
   // All should point back to the original script ID.
@@ -935,8 +952,8 @@ TEST(CurrentScriptIdsAndContexts_FollowsNestedEval) {
 }
 
 // Verify that stacks with multiple contexts show up appropriately.
-TEST(CurrentScriptIdsAndContexts_CrossContextScripting) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(ApiStackTracesTest, CurrentScriptIdsAndContexts_CrossContextScripting) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
 
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
@@ -960,7 +977,7 @@ TEST(CurrentScriptIdsAndContexts_CrossContextScripting) {
     v8::Context::Scope context_scope(context_a.local());
     const char* source_a = "function publicMethod() { CaptureStack(); }";
     v8::Local<v8::Script> script_a =
-        CompileWithOrigin(source_a, "script_a", false);
+        v8::CompileWithOrigin(source_a, "script_a", false);
     script_a->Run(context_a.local()).ToLocalChecked();
 
     script_a_id = script_a->GetUnboundScript()->ScriptId();
@@ -985,7 +1002,7 @@ TEST(CurrentScriptIdsAndContexts_CrossContextScripting) {
     const char* source_b =
         "function foo() { publicMethod.call(globalThis); } foo();";
     v8::Local<v8::Script> script_b =
-        CompileWithOrigin(source_b, "script_b", false);
+        v8::CompileWithOrigin(source_b, "script_b", false);
 
     // frame 0: context a: publicMethod()
     // frame 1: context b: foo()
@@ -999,8 +1016,8 @@ TEST(CurrentScriptIdsAndContexts_CrossContextScripting) {
 }
 
 // Ensure that the stack walk honors the provided frame limit.
-TEST(CurrentScriptIdsAndContexts_FrameLimit) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(ApiStackTracesTest, CurrentScriptIdsAndContexts_FrameLimit) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
 
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
@@ -1016,7 +1033,8 @@ TEST(CurrentScriptIdsAndContexts_FrameLimit) {
     a();
   )SCRIPT";
 
-  v8::Local<v8::Script> script = CompileWithOrigin(source, "limit_test", false);
+  v8::Local<v8::Script> script =
+      v8::CompileWithOrigin(source, "limit_test", false);
 
   // Even though the stack is ~5 frames deep (d, c, b, a, global),
   // we specifically requested a limit of 3.
@@ -1025,8 +1043,8 @@ TEST(CurrentScriptIdsAndContexts_FrameLimit) {
   script->Run(context.local()).ToLocalChecked();
 }
 
-TEST(CurrentScriptIdsAndContexts_ZeroLimit) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(ApiStackTracesTest, CurrentScriptIdsAndContexts_ZeroLimit) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->Set(isolate, "CaptureStack",
@@ -1040,8 +1058,8 @@ TEST(CurrentScriptIdsAndContexts_ZeroLimit) {
   CompileRun("CaptureStack(0);");
 }
 
-TEST(CurrentScriptIdsAndContexts_SkipsBuiltins) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(ApiStackTracesTest, CurrentScriptIdsAndContexts_SkipsBuiltins) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
 
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
@@ -1052,7 +1070,7 @@ TEST(CurrentScriptIdsAndContexts_SkipsBuiltins) {
   const char* source =
       "function userFunc() { CaptureStack(); } [1].forEach(userFunc);";
   v8::Local<v8::Script> script =
-      CompileWithOrigin(source, "builtin_test", false);
+      v8::CompileWithOrigin(source, "builtin_test", false);
 
   // The full stack should look like:
   // [userFunc (JS), forEach (Builtin), top-level (JS)]
@@ -1062,8 +1080,8 @@ TEST(CurrentScriptIdsAndContexts_SkipsBuiltins) {
   script->Run(context.local()).ToLocalChecked();
 }
 
-TEST(CurrentScriptIdsAndContexts_BoundFunction) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(ApiStackTracesTest, CurrentScriptIdsAndContexts_BoundFunction) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
 
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
@@ -1078,7 +1096,8 @@ TEST(CurrentScriptIdsAndContexts_BoundFunction) {
     caller();
   )SCRIPT";
 
-  v8::Local<v8::Script> script = CompileWithOrigin(source, "bound_test", false);
+  v8::Local<v8::Script> script =
+      v8::CompileWithOrigin(source, "bound_test", false);
 
   // Should see: target, caller, global script.
   int expected_id = script->GetUnboundScript()->ScriptId();
@@ -1126,8 +1145,8 @@ void CaptureScriptData(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 // Verify that `CurrentScriptData` will follow an `eval`to the script
 // id that initiated the `eval`.
-TEST(CurrentScriptData_FollowsEval) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(ApiStackTracesTest, CurrentScriptData_FollowsEval) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope handle_scope(isolate);
   CapturedFramesScope scope;
 
@@ -1141,7 +1160,7 @@ TEST(CurrentScriptData_FollowsEval) {
       "function main() { test(); } "
       "main();";
   v8::Local<v8::Script> script =
-      CompileWithOrigin(source, "origin_script", false);
+      v8::CompileWithOrigin(source, "origin_script", false);
 
   // 0: The eval function which calls CaptureStack
   // 1: The test() function
@@ -1171,8 +1190,8 @@ TEST(CurrentScriptData_FollowsEval) {
 
 // Verify that `CurrentScriptData` will follow the `new Function`
 // constructor back to the script id that initiated the creation.
-TEST(CurrentScriptData_FollowsNewFunction) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(ApiStackTracesTest, CurrentScriptData_FollowsNewFunction) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope handle_scope(isolate);
   CapturedFramesScope scope;
 
@@ -1190,7 +1209,7 @@ TEST(CurrentScriptData_FollowsNewFunction) {
       "main();";
 
   v8::Local<v8::Script> script =
-      CompileWithOrigin(source, "origin_script_new_fn", false);
+      v8::CompileWithOrigin(source, "origin_script_new_fn", false);
 
   // 0: The dynamic function which calls CaptureStack
   // 1: The test() function
@@ -1220,8 +1239,8 @@ TEST(CurrentScriptData_FollowsNewFunction) {
 
 // Verify that `CurrentScriptData` will follow an `eval`to the script
 // id that initiated the `eval`, even through nested evals.
-TEST(CurrentScriptData_FollowsNestedEval) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(ApiStackTracesTest, CurrentScriptData_FollowsNestedEval) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope handle_scope(isolate);
   CapturedFramesScope scope;
 
@@ -1238,7 +1257,7 @@ TEST(CurrentScriptData_FollowsNestedEval) {
     main();
   )SCRIPT";
   v8::Local<v8::Script> script =
-      CompileWithOrigin(source, "origin_script", false);
+      v8::CompileWithOrigin(source, "origin_script", false);
 
   // The stack should have 2 eval frames and a test() frame.
   // All should point back to the original script ID.
@@ -1270,8 +1289,8 @@ TEST(CurrentScriptData_FollowsNestedEval) {
 }
 
 // Verify that stacks with multiple contexts show up appropriately.
-TEST(CurrentScriptData_CrossContextScripting) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(ApiStackTracesTest, CurrentScriptData_CrossContextScripting) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope handle_scope(isolate);
   CapturedFramesScope scope;
 
@@ -1296,7 +1315,7 @@ TEST(CurrentScriptData_CrossContextScripting) {
     v8::Context::Scope context_scope(context_a.local());
     const char* source_a = "function publicMethod() { CaptureStack(); }";
     v8::Local<v8::Script> script_a =
-        CompileWithOrigin(source_a, "script_a", false);
+        v8::CompileWithOrigin(source_a, "script_a", false);
     script_a->Run(context_a.local()).ToLocalChecked();
 
     script_a_id = script_a->GetUnboundScript()->ScriptId();
@@ -1321,7 +1340,7 @@ TEST(CurrentScriptData_CrossContextScripting) {
     const char* source_b =
         "function foo() { publicMethod.call(globalThis); } foo();";
     v8::Local<v8::Script> script_b =
-        CompileWithOrigin(source_b, "script_b", false);
+        v8::CompileWithOrigin(source_b, "script_b", false);
 
     // frame 0: context a: publicMethod()
     // frame 1: context b: foo()
@@ -1351,8 +1370,8 @@ TEST(CurrentScriptData_CrossContextScripting) {
 }
 
 // Ensure that the stack walk honors the provided frame limit.
-TEST(CurrentScriptData_FrameLimit) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(ApiStackTracesTest, CurrentScriptData_FrameLimit) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope handle_scope(isolate);
   CapturedFramesScope scope;
 
@@ -1369,7 +1388,8 @@ TEST(CurrentScriptData_FrameLimit) {
     a();
   )SCRIPT";
 
-  v8::Local<v8::Script> script = CompileWithOrigin(source, "limit_test", false);
+  v8::Local<v8::Script> script =
+      v8::CompileWithOrigin(source, "limit_test", false);
 
   // Even though the stack is ~5 frames deep (d, c, b, a, global),
   // we specifically requested a limit of 3.
@@ -1400,8 +1420,8 @@ TEST(CurrentScriptData_FrameLimit) {
   CHECK_EQ(capturedFramesScriptData[2].function, b_func);
 }
 
-TEST(CurrentScriptData_ZeroLimit) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(ApiStackTracesTest, CurrentScriptData_ZeroLimit) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope handle_scope(isolate);
   CapturedFramesScope scope;
 
@@ -1417,8 +1437,8 @@ TEST(CurrentScriptData_ZeroLimit) {
   CHECK_EQ(capturedFramesScriptData.size(), 0);
 }
 
-TEST(CurrentScriptData_SkipsBuiltins) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(ApiStackTracesTest, CurrentScriptData_SkipsBuiltins) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope handle_scope(isolate);
   CapturedFramesScope scope;
 
@@ -1432,7 +1452,7 @@ TEST(CurrentScriptData_SkipsBuiltins) {
       "function main() { [1].forEach(userFunc); } "
       "main();";
   v8::Local<v8::Script> script =
-      CompileWithOrigin(source, "builtin_test", false);
+      v8::CompileWithOrigin(source, "builtin_test", false);
 
   // The full stack should look like:
   // [userFunc (JS), forEach (Builtin), main (JS), top-level (JS)]
@@ -1460,8 +1480,8 @@ TEST(CurrentScriptData_SkipsBuiltins) {
   CHECK_EQ(capturedFramesScriptData[1].function, main_func);
 }
 
-TEST(CurrentScriptData_BoundFunction) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(ApiStackTracesTest, CurrentScriptData_BoundFunction) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope handle_scope(isolate);
   CapturedFramesScope scope;
 
@@ -1478,7 +1498,8 @@ TEST(CurrentScriptData_BoundFunction) {
     main();
   )SCRIPT";
 
-  v8::Local<v8::Script> script = CompileWithOrigin(source, "bound_test", false);
+  v8::Local<v8::Script> script =
+      v8::CompileWithOrigin(source, "bound_test", false);
 
   // Should see: target, caller, main, global script.
   int expected_id = script->GetUnboundScript()->ScriptId();
@@ -1510,8 +1531,8 @@ TEST(CurrentScriptData_BoundFunction) {
   CHECK_EQ(capturedFramesScriptData[2].function, main_func);
 }
 
-TEST(CurrentScriptData_RegExp) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(ApiStackTracesTest, CurrentScriptData_RegExp) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope handle_scope(isolate);
   CapturedFramesScope scope;
 
@@ -1525,7 +1546,7 @@ TEST(CurrentScriptData_RegExp) {
       "function main() { 'abc'.replace(/a/, replacer); } "
       "main();";
   v8::Local<v8::Script> script =
-      CompileWithOrigin(source, "regexp_test", false);
+      v8::CompileWithOrigin(source, "regexp_test", false);
 
   int expected_id = script->GetUnboundScript()->ScriptId();
   script->Run(context.local()).ToLocalChecked();
@@ -1552,11 +1573,11 @@ TEST(CurrentScriptData_RegExp) {
   CHECK_EQ(capturedFramesScriptData[1].function, main_func);
 }
 
-TEST(CurrentScriptData_Wasm) {
+TEST_F(ApiStackTracesTest, CurrentScriptData_Wasm) {
   // Exit early if we don't have executable memory.
   if (i::v8_flags.jitless) return;
 
-  v8::Isolate* isolate = CcTest::isolate();
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope handle_scope(isolate);
   CapturedFramesScope scope;
 
@@ -1583,7 +1604,8 @@ TEST(CurrentScriptData_Wasm) {
     main();
   )SCRIPT";
 
-  v8::Local<v8::Script> script = CompileWithOrigin(source, "wasm_test", false);
+  v8::Local<v8::Script> script =
+      v8::CompileWithOrigin(source, "wasm_test", false);
 
   int expected_id = script->GetUnboundScript()->ScriptId();
   script->Run(context.local()).ToLocalChecked();
@@ -1620,7 +1642,7 @@ static std::vector<DynamicScriptCompiledEvent> dynamicScriptCompiledEvents;
 void RecordDynamicScriptCompiled(v8::Local<v8::Context> context,
                                  int script_id) {
   dynamicScriptCompiledEvents.push_back(
-      {v8::Global<v8::Context>(CcTest::isolate(), context), script_id});
+      {v8::Global<v8::Context>(v8::Isolate::GetCurrent(), context), script_id});
 }
 
 struct DynamicScriptCallbackScope {
@@ -1637,8 +1659,9 @@ struct DynamicScriptCallbackScope {
   v8::Isolate* isolate_;
 };
 
-TEST(CurrentScriptData_DynamicScriptCompiledFromEmbedder_Eval) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(ApiStackTracesTest,
+       CurrentScriptData_DynamicScriptCompiledFromEmbedder_Eval) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope handle_scope(isolate);
   CapturedFramesScope captured_frames_scope;
   DynamicScriptCallbackScope callback_scope(isolate);
@@ -1680,8 +1703,10 @@ TEST(CurrentScriptData_DynamicScriptCompiledFromEmbedder_Eval) {
            dynamicScriptCompiledEvents[0].script_id);
 }
 
-TEST(CurrentScriptData_DynamicScriptCompiledFromEmbedder_FunctionConstructor) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(
+    ApiStackTracesTest,
+    CurrentScriptData_DynamicScriptCompiledFromEmbedder_FunctionConstructor) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope handle_scope(isolate);
   CapturedFramesScope captured_frames_scope;
   DynamicScriptCallbackScope callback_scope(isolate);
@@ -1753,13 +1778,13 @@ void AnalyzeStackOfInlineScriptWithSourceURL(
   }
 }
 
-TEST(InlineScriptWithSourceURLInStackTrace) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(ApiStackTracesTest, InlineScriptWithSourceURLInStackTrace) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->Set(isolate, "AnalyzeStackOfInlineScriptWithSourceURL",
              v8::FunctionTemplate::New(
-                 CcTest::isolate(), AnalyzeStackOfInlineScriptWithSourceURL));
+                 v8_isolate(), AnalyzeStackOfInlineScriptWithSourceURL));
   LocalContext context(nullptr, templ);
 
   const char* source =
@@ -1798,13 +1823,13 @@ void AnalyzeStackOfDynamicScriptWithSourceURL(
   }
 }
 
-TEST(DynamicWithSourceURLInStackTrace) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(ApiStackTracesTest, DynamicWithSourceURLInStackTrace) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->Set(isolate, "AnalyzeStackOfDynamicScriptWithSourceURL",
              v8::FunctionTemplate::New(
-                 CcTest::isolate(), AnalyzeStackOfDynamicScriptWithSourceURL));
+                 v8_isolate(), AnalyzeStackOfDynamicScriptWithSourceURL));
   LocalContext context(nullptr, templ);
 
   const char* source =
@@ -1827,7 +1852,7 @@ TEST(DynamicWithSourceURLInStackTrace) {
   CHECK(CompileRunWithOrigin(code.data(), "url", 0, 0)->IsUndefined());
 }
 
-TEST(DynamicWithSourceURLInStackTraceString) {
+TEST_F(ApiStackTracesTest, DynamicWithSourceURLInStackTraceString) {
   LocalContext context;
   v8::HandleScope scope(context.isolate());
 
@@ -1851,11 +1876,11 @@ TEST(DynamicWithSourceURLInStackTraceString) {
   CHECK_NOT_NULL(strstr(*stack, "at foo (source_url:3:5)"));
 }
 
-UNINITIALIZED_TEST(CaptureStackTraceForStackOverflow) {
+TEST_F(ApiStackTracesUninitializedTest, CaptureStackTraceForStackOverflow) {
   // We must set v8_flags.stack_size before initializing the isolate.
-  v8::internal::v8_flags.stack_size.Set(150);
+  i::FlagScope<int> stack_size_scope(&i::v8_flags.stack_size, 150);
   v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  create_params.array_buffer_allocator = DefaultArrayBufferAllocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   isolate->Enter();
   {
@@ -1880,13 +1905,12 @@ void AnalyzeScriptNameInStack(const v8::FunctionCallbackInfo<v8::Value>& info) {
   CHECK(name->StringEquals(v8_str("test.js")));
 }
 
-TEST(CurrentScriptNameOrSourceURL_Name) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(ApiStackTracesTest, CurrentScriptNameOrSourceURL_Name) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  templ->Set(
-      isolate, "AnalyzeScriptNameInStack",
-      v8::FunctionTemplate::New(CcTest::isolate(), AnalyzeScriptNameInStack));
+  templ->Set(isolate, "AnalyzeScriptNameInStack",
+             v8::FunctionTemplate::New(v8_isolate(), AnalyzeScriptNameInStack));
   LocalContext context(nullptr, templ);
 
   const char* source = R"(
@@ -1908,13 +1932,12 @@ void AnalyzeScriptURLInStack(const v8::FunctionCallbackInfo<v8::Value>& info) {
   CHECK(name->StringEquals(v8_str("foo.js")));
 }
 
-TEST(CurrentScriptNameOrSourceURL_SourceURL) {
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(ApiStackTracesTest, CurrentScriptNameOrSourceURL_SourceURL) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  templ->Set(
-      isolate, "AnalyzeScriptURLInStack",
-      v8::FunctionTemplate::New(CcTest::isolate(), AnalyzeScriptURLInStack));
+  templ->Set(isolate, "AnalyzeScriptURLInStack",
+             v8::FunctionTemplate::New(v8_isolate(), AnalyzeScriptURLInStack));
   LocalContext context(nullptr, templ);
 
   const char* source = R"(
@@ -1927,3 +1950,6 @@ TEST(CurrentScriptNameOrSourceURL_SourceURL) {
 
   CHECK(CompileRunWithOrigin(source, "")->IsUndefined());
 }
+
+}  // namespace api_stack_traces_unittest
+}  // namespace v8
