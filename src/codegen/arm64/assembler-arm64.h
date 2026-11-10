@@ -3578,6 +3578,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // if pending unresolved information exists. Its complexity is proportional to
   // the length of the label chain.
   void DeleteUnresolvedBranchInfoForLabelTraverse(Label* label);
+  // Deletes the pending unresolved information for a branch, if its type is
+  // handled by veneers.
+  void DeleteUnresolvedBranchInfoForBranch(Instruction* branch);
 
   void PatchInHeapNumberRequest(Address pc, Handle<HeapNumber> object) override;
 

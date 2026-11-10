@@ -609,6 +609,19 @@ void Assembler::CheckLabelLinkChain(Label const* label) {
 #endif
 }
 
+namespace {
+
+bool LinkChainHasInternalReference(Instruction* link) {
+  while (true) {
+    if (link->IsUnresolvedInternalReference()) return true;
+    Instruction* next_link = link->ImmPCOffsetTarget();
+    if (link == next_link) return false;
+    link = next_link;
+  }
+}
+
+}  // namespace
+
 void Assembler::RemoveBranchFromLabelLinkChain(Instruction* branch,
                                                Label* label,
                                                Instruction* label_veneer) {
@@ -671,38 +684,50 @@ void Assembler::RemoveBranchFromLabelLinkChain(Instruction* branch,
         prev_link->IsTargetInImmPCOffsetRange(next_link)) {
       prev_link->SetImmPCOffsetTarget(zone(), options(), next_link);
     } else if (label_veneer != nullptr) {
-      // Use the veneer for all previous links in the chain.
-      prev_link->SetImmPCOffsetTarget(zone(), options(), prev_link);
+      // Internal references must stay linked until bind(), and branches before
+      // {branch} might not reach them. If an older link is an internal
+      // reference, resolve all branches in the chain to {label_veneer} and
+      // re-thread only the internal references.
+      Instruction* last_kept_link;
+      if (LinkChainHasInternalReference(next_link)) {
+        last_kept_link = nullptr;
+        link = InstructionAt(label->pos());
+      } else {
+        last_kept_link = prev_link;
+        link = next_link;
+      }
 
       bool end_of_chain = false;
-      link = next_link;
       while (!end_of_chain) {
         next_link = link->ImmPCOffsetTarget();
         end_of_chain = (link == next_link);
-        link->SetImmPCOffsetTarget(zone(), options(), label_veneer);
-        // {link} is now resolved; remove it from {unresolved_branches_} so
-        // we won't later try to process it again, which would fail because
-        // by walking the chain of its label's unresolved branch instructions,
-        // we won't find it: {prev_link} is now the end of that chain after
-        // its update above.
-        if (link->IsCondBranchImm() || link->IsCompareBranch()) {
-          static_assert(Instruction::ImmBranchRange(CondBranchType) ==
-                        Instruction::ImmBranchRange(CompareBranchType));
-          int max_reachable_pc = static_cast<int>(InstructionOffset(link)) +
-                                 Instruction::ImmBranchRange(CondBranchType);
-          unresolved_branches_.erase(max_reachable_pc);
-        } else if (link->IsTestBranch()) {
-          // Add 1 to account for branch type tag bit.
-          int max_reachable_pc = static_cast<int>(InstructionOffset(link)) +
-                                 Instruction::ImmBranchRange(TestBranchType) +
-                                 1;
-          unresolved_branches_.erase(max_reachable_pc);
-        } else {
-          // Other branch types and internal references are not handled by
-          // veneers.
+        const int link_offset = static_cast<int>(InstructionOffset(link));
+        if (link->IsUnresolvedInternalReference()) {
+          if (last_kept_link == nullptr) {
+            label->link_to(link_offset);
+            branch_link_chain_back_edge_.erase(link_offset);
+          } else {
+            last_kept_link->SetImmPCOffsetTarget(zone(), options(), link);
+            branch_link_chain_back_edge_.insert_or_assign(
+                link_offset,
+                static_cast<int>(InstructionOffset(last_kept_link)));
+          }
+          last_kept_link = link;
+        } else if (link != branch) {
+          // The branch being removed is skipped here because it was unlinked
+          // above and the caller patches it to the veneer.
+          link->SetImmPCOffsetTarget(zone(), options(), label_veneer);
+          // {link} is now resolved and unlinked; drop it from
+          // {unresolved_branches_} so EmitVeneers won't revisit it.
+          DeleteUnresolvedBranchInfoForBranch(link);
+          branch_link_chain_back_edge_.erase(link_offset);
         }
         link = next_link;
       }
+
+      // Terminate the chain.
+      DCHECK_NOT_NULL(last_kept_link);
+      last_kept_link->SetImmPCOffsetTarget(zone(), options(), last_kept_link);
     } else {
       // The assert below will fire.
       // Some other work could be attempted to fix up the chain, but it would be
@@ -835,6 +860,22 @@ int Assembler::LinkAndGetByteOffsetTo(Label* label) {
   }
 
   return offset;
+}
+
+void Assembler::DeleteUnresolvedBranchInfoForBranch(Instruction* branch) {
+  const int branch_offset = static_cast<int>(InstructionOffset(branch));
+  if (branch->IsCondBranchImm() || branch->IsCompareBranch()) {
+    static_assert(Instruction::ImmBranchRange(CondBranchType) ==
+                  Instruction::ImmBranchRange(CompareBranchType));
+    unresolved_branches_.erase(branch_offset +
+                               Instruction::ImmBranchRange(CondBranchType));
+  } else if (branch->IsTestBranch()) {
+    // Add one to account for branch type tag bit.
+    unresolved_branches_.erase(branch_offset +
+                               Instruction::ImmBranchRange(TestBranchType) + 1);
+  } else {
+    // Other branch types are not handled by veneers.
+  }
 }
 
 void Assembler::DeleteUnresolvedBranchInfoForLabelTraverse(Label* label) {
@@ -5042,6 +5083,7 @@ void Assembler::EmitVeneers(bool force_emit, bool need_protection,
       Label veneer_size_check;
       bind(&veneer_size_check);
 #endif
+      const int key = it->first;
       Label* label = it->second;
       Instruction* veneer = reinterpret_cast<Instruction*>(pc_);
       Instruction* branch = InstructionAt(pc_offset);
@@ -5050,7 +5092,9 @@ void Assembler::EmitVeneers(bool force_emit, bool need_protection,
       b(label);  // This may end up pointing at yet another veneer later on.
       DCHECK_EQ(SizeOfCodeGeneratedSince(&veneer_size_check),
                 static_cast<uint64_t>(kVeneerCodeSize));
-      it = unresolved_branches_.erase(it);
+      // RemoveBranchFromLabelLinkChain may erase from {unresolved_branches_}.
+      unresolved_branches_.erase(key);
+      it = unresolved_branches_.begin();
     }
   }
 
