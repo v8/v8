@@ -13,6 +13,24 @@
 
 #include "src/base/logging.h"
 
+#if defined(V8_ENABLE_FUZZTEST) && defined(__linux__) &&                 \
+    !defined(__ANDROID__) && defined(__arm__) &&                         \
+    !defined(__USING_SJLJ_EXCEPTIONS__) && !defined(__ARM_DWARF_EH__) && \
+    !defined(__SEH__)
+#include <unwind.h>
+
+// On 32-bit ARM Linux (ARM EHABI), Clang's builtin <unwind.h> declares
+// _Unwind_GetIPInfo as an external function, whereas GCC's libgcc_s.so.1 only
+// exports _Unwind_VRS_Get and defines _Unwind_GetIPInfo as a macro in
+// unwind-arm-common.h. Provide a weak definition matching GCC's macro so
+// FuzzTest's sanitizer_interface.cc can link against libgcc_s.
+extern "C" __attribute__((weak)) _Unwind_Word
+_Unwind_GetIPInfo(struct _Unwind_Context* context, int* ip_before_insn) {
+  *ip_before_insn = 0;
+  return _Unwind_GetIP(context);
+}
+#endif
+
 namespace v8::internal {
 
 #ifdef V8_ENABLE_FUZZTEST
