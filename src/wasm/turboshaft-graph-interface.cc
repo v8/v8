@@ -5938,30 +5938,30 @@ class TurboshaftGraphBuildingInterface
   }
 
   void I31GetS(FullDecoder* decoder, const Value& input, Value* result) {
-    V<Object> input_non_null = NullCheck(input);
+    V<Smi> input_non_null = V<Smi>::Cast(NullCheck(input));
     if constexpr (SmiValuesAre31Bits()) {
       result->op = __ Word32ShiftRightArithmeticShiftOutZeros(
-          __ TruncateWordPtrToWord32(__ BitcastTaggedToWordPtr(input_non_null)),
+          __ TruncateWordPtrToWord32(__ BitcastSmiToWordPtr(input_non_null)),
           kSmiTagSize + kSmiShiftSize);
     } else {
       // Topmost bit is already sign-extended.
       result->op = __ TruncateWordPtrToWord32(
           __ WordPtrShiftRightArithmeticShiftOutZeros(
-              __ BitcastTaggedToWordPtr(input_non_null),
+              __ BitcastSmiToWordPtr(input_non_null),
               kSmiTagSize + kSmiShiftSize));
     }
   }
 
   void I31GetU(FullDecoder* decoder, const Value& input, Value* result) {
-    V<Object> input_non_null = NullCheck(input);
+    V<Smi> input_non_null = V<Smi>::Cast(NullCheck(input));
     if constexpr (SmiValuesAre31Bits()) {
       result->op = __ Word32ShiftRightLogical(
-          __ TruncateWordPtrToWord32(__ BitcastTaggedToWordPtr(input_non_null)),
+          __ TruncateWordPtrToWord32(__ BitcastSmiToWordPtr(input_non_null)),
           kSmiTagSize + kSmiShiftSize);
     } else {
       // Topmost bit is sign-extended, remove it.
       result->op = __ TruncateWordPtrToWord32(__ WordPtrShiftRightLogical(
-          __ WordPtrShiftLeft(__ BitcastTaggedToWordPtr(input_non_null), 1),
+          __ WordPtrShiftLeft(__ BitcastSmiToWordPtr(input_non_null), 1),
           kSmiTagSize + kSmiShiftSize + 1));
     }
   }

@@ -1823,25 +1823,15 @@ void InstructionSelector::VisitBitcastWordToTagged(OpIndex node) {
 }
 
 void InstructionSelector::VisitBitcastSmiToWord(OpIndex node) {
-  // TODO(dmercadier): using EmitIdentity here is not ideal, because users of
-  // {node} will then use its input, which may not have the Word32
-  // representation. This might in turn lead to the register allocator wrongly
-  // tracking Tagged values that are in fact just Smis. However, using
-  // Emit(kArchNop) hurts performance because it inserts a gap move which cannot
-  // always be eliminated because the operands may have different sizes (and the
-  // move is then truncating or extending). As a temporary work-around until the
-  // register allocator is fixed, we use Emit(kArchNop) in DEBUG mode to silence
-  // the register allocator verifier.
-  // Loong64/RISCV64 port needs this gap move to sign-extend the Smis in 64-bit
-  // registers.
-#if defined(DEBUG) || defined(V8_TARGET_ARCH_LOONG64) || \
-    defined(V8_TARGET_ARCH_RISCV64)
+  // Note: Using Emit(kArchNop) instead of EmitIdentity here is required even in
+  // release builds: if an in-sandbox value is corrupted to have the HeapObject
+  // tag instead of the Smi tag, EmitIdentity would cause untagged uses of
+  // {node} to share the GC-tracked Tagged/Compressed input virtual register,
+  // which can be relocated in-place by a moving GC while earlier untagged uses
+  // retain the pre-GC bits.
   OperandGenerator g(this);
   Emit(kArchNop, g.DefineSameAsFirst(node),
        g.Use(this->Get(node).Cast<TaggedBitcastOp>().input()));
-#else
-  EmitIdentity(node);
-#endif
 }
 
 // 32 bit targets do not implement the following instructions.
