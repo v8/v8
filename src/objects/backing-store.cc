@@ -616,7 +616,8 @@ BackingStore::ResizeOrGrowResult BackingStore::ResizeInPlace(
 
   size_t new_committed_length = new_committed_pages * page_size;
   DCHECK_LE(new_byte_length, new_committed_length);
-  DCHECK(!is_shared());
+  SBXCHECK(!is_shared());
+  SBXCHECK(is_resizable_by_js());
 
   // Validate the new length against the out-of-sandbox capacity to prevent
   // an in-sandbox corruption from bypassing bounds checks.
@@ -685,7 +686,8 @@ BackingStore::ResizeOrGrowResult BackingStore::GrowInPlace(
 
   size_t new_committed_length = new_committed_pages * page_size;
   DCHECK_LE(new_byte_length, new_committed_length);
-  DCHECK(is_shared());
+  SBXCHECK(is_shared());
+  SBXCHECK(is_resizable_by_js() || is_wasm_memory());
 
   // Validate the new length against the out-of-sandbox capacity to prevent
   // an in-sandbox corruption from bypassing bounds checks.

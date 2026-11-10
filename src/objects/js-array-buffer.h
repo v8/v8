@@ -202,7 +202,8 @@ V8_OBJECT class JSArrayBuffer : public JSAPIObjectWithEmbedderSlots {
   // Allocates an ArrayBufferExtension for this array buffer. This is assumed to
   // be only called during setup as it always creates a new extension.
   V8_EXPORT_PRIVATE ArrayBufferExtension* CreateExtension(
-      Isolate* isolate, std::shared_ptr<BackingStore> backing_store);
+      Isolate* isolate, std::shared_ptr<BackingStore> backing_store,
+      SharedFlag shared, ResizableFlag resizable);
 
   // Dispatched behavior.
   DECL_PRINTER(JSArrayBuffer)
