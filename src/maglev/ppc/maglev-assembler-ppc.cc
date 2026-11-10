@@ -604,9 +604,10 @@ void MaglevAssembler::TryChangeFloat64ToIndex(Register result,
 
 void MaglevAssembler::Move(ExternalReference dst, int32_t imm) {
   TemporaryRegisterScope temps(this);
-  Register scratch = temps.AcquireScratch();
-  Move(r0, imm);
-  StoreU64(r0, ExternalReferenceAsOperand(dst, scratch));
+  Register scratch_imm = temps.AcquireScratch();
+  Register scratch_dst = temps.AcquireScratch();
+  Move(scratch_imm, imm);
+  StoreU64(scratch_imm, ExternalReferenceAsOperand(dst, scratch_dst));
 }
 
 }  // namespace maglev
