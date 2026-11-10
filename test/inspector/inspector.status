@@ -136,6 +136,7 @@
   'regress/regress-572276045': [SKIP],
   'regress/regress-572403047': [SKIP],
   'regress/regress-572834323': [SKIP],
+  'regress/regress-576981470': [SKIP],
   'regress/regress-577352626': [SKIP],
   'regress/regress-580839926': [SKIP],
   'regress/regress-581361633': [SKIP],
@@ -194,6 +195,7 @@
   # Wasm code coverage is not supported yet.
   'regress/regress-521715545': [SKIP],
   'regress/regress-526163463': [SKIP],
+  'regress/regress-576981470': [SKIP],
 }],  # 'arch == s390x or arch == ppc64'
 
 ##############################################################################
@@ -350,6 +352,7 @@
 # Tests requiring Sparkplug.
 ['arch not in (x64, arm64, ia32, arm, mips64el, loong64)', {
   'debugger/regress-crbug-1357554': [SKIP],
+  'regress/regress-crbug-1199681': [SKIP],
 }],
 
 ##############################################################################
@@ -363,6 +366,7 @@
   # Wasm code coverage is not currently supported.
   'regress/regress-521715545': [SKIP],
   'regress/regress-526163463': [SKIP],
+  'regress/regress-576981470': [SKIP],
 }],  # sandbox_hardware_support
 
 ##############################################################################
@@ -372,6 +376,8 @@
   'debugger/regress-prepare-break-while-recompile': [SKIP],
   # https://crbug.com/374722652
   'regress/regress-374013413': [SKIP],
+  # Rely on (blocking) concurrent compilation.
+  'regress/regress-7421': [SKIP],
 }],  # 'verify_predictable'
 
 ##############################################################################
