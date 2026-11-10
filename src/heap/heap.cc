@@ -971,6 +971,7 @@ void Heap::GarbageCollectionPrologueInSafepoint(GarbageCollector collector) {
 #endif  // VERIFY_HEAP
   isolate_->allocation_site_cache()->Clear();
   gc_count_ = GCEpoch(gc_count_.value() + 1);
+  ++stress_compaction_gc_count_;
   new_space_allocation_counter_ = NewSpaceAllocationCounter();
   // We provide a fallback for the case when the page pool timeout is disabled.
   // This is to prevent unbounded growth of the pool for the non-default
@@ -5677,7 +5678,7 @@ Heap::IncrementalMarkingLimitReached() {
 }
 
 bool Heap::ShouldStressCompaction() const {
-  return v8_flags.stress_compaction && (gc_count_.value() & 1) != 0;
+  return v8_flags.stress_compaction && (stress_compaction_gc_count_ & 1) != 0;
 }
 
 void Heap::EnableInlineAllocation() { inline_allocation_enabled_ = true; }

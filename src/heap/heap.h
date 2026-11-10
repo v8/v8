@@ -1435,6 +1435,8 @@ class Heap final {
 
   GCEpoch gc_count() const { return gc_count_; }
 
+  void reset_stress_compaction_gc_count() { stress_compaction_gc_count_ = 0; }
+
   bool is_current_gc_forced() const { return is_current_gc_forced_; }
 
   GarbageCollector current_or_last_garbage_collector() const {
@@ -2229,6 +2231,10 @@ class Heap final {
 
   // How many gc happened.
   GCEpoch gc_count_ = kInitialGCEpoch;
+
+  // How many GCs happened since the last reset, used for --stress-compaction
+  // cadence.
+  uint32_t stress_compaction_gc_count_ = 0;
 
   // The number of Mark-Compact garbage collections that are considered as
   // ineffective. See IsIneffectiveMarkCompact() predicate.

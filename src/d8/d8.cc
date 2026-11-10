@@ -3711,6 +3711,7 @@ void Shell::ResetIsolateStateForReprl(Isolate* isolate) {
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   i_isolate->heap()->ResetAllocationTimeouts();
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
+  i_isolate->heap()->reset_stress_compaction_gc_count();
 #ifdef DEBUG
   if (i::v8_flags.inline_new) {
     i_isolate->heap()->EnableInlineAllocation();
