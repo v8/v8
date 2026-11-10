@@ -578,6 +578,16 @@ void WasmFunctionCompiler::Build(base::Vector<const uint8_t> bytes) {
     result.emplace(unit.ExecuteCompilation(
         &env, native_module->compilation_state()->GetWireBytesStorage().get(),
         native_module->counter_updates(), &unused_detected_features));
+    if (!result->succeeded() &&
+        builder_->execution_tier() == ExecutionTier::kLiftoff &&
+        !v8_flags.liftoff_only) {
+      WasmCompilationUnit turbofan_unit(function_->func_index,
+                                        ExecutionTier::kTurbofan, for_debugging,
+                                        kAlreadyValidated);
+      result.emplace(turbofan_unit.ExecuteCompilation(
+          &env, native_module->compilation_state()->GetWireBytesStorage().get(),
+          native_module->counter_updates(), &unused_detected_features));
+    }
   }
   CHECK(result->succeeded());
   WasmCode* code =

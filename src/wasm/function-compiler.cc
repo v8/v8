@@ -52,7 +52,7 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
     if (ValidateFunctionBody(&validation_zone, env->enabled_features,
                              env->module, detected, func_body)
             .failed()) {
-      return {};
+      return {.bailout_reason = kDecodeError};
     }
   }
 
@@ -104,16 +104,11 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
         }
         result = ExecuteLiftoffCompilation(env, func_body, options);
         if (result.succeeded()) break;
+      } else {
+        result.bailout_reason = kOtherReason;
       }
 
-      // If --liftoff-only, do not fall back to turbofan, even if compilation
-      // failed.
-      if (v8_flags.liftoff_only) break;
-
-      // If Liftoff failed, fall back to TurboFan.
-      // TODO(wasm): We could actually stop or remove the tiering unit for this
-      // function to avoid compiling it twice with TurboFan.
-      [[fallthrough]];
+      return result;
     }
     case ExecutionTier::kTurbofan: {
 #ifdef V8_ENABLE_TURBOFAN
@@ -180,6 +175,15 @@ void WasmCompilationUnit::CompileWasmFunction(NativeModule* native_module,
   WasmCompilationResult result = unit.ExecuteCompilation(
       &env, native_module->compilation_state()->GetWireBytesStorage().get(),
       native_module->counter_updates(), detected);
+  if (!result.succeeded() && tier == ExecutionTier::kLiftoff &&
+      !v8_flags.liftoff_only) {
+    WasmCompilationUnit turbofan_unit(function->func_index,
+                                      ExecutionTier::kTurbofan,
+                                      kNotForDebugging, kAlreadyValidated);
+    result = turbofan_unit.ExecuteCompilation(
+        &env, native_module->compilation_state()->GetWireBytesStorage().get(),
+        native_module->counter_updates(), detected);
+  }
   if (result.succeeded()) {
     WasmCodeRefScope code_ref_scope;
     native_module->PublishCode(native_module->AddCompiledCode(result));

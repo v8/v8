@@ -2220,8 +2220,18 @@ STREAM_TEST(TestCompilationHintsInliningDuringStreaming) {
                 kExprLocalGet, 0, kExprEnd)  // local.get 0; end
   };
 
-  for (bool use_liftoff : {true, false}) {
-    FLAG_VALUE_SCOPE(liftoff, use_liftoff);
+  struct TestConfig {
+    bool use_liftoff;
+    int tier_mask;
+  };
+  const TestConfig configs[] = {
+      {.use_liftoff = true, .tier_mask = 0},
+      {.use_liftoff = true, .tier_mask = 1},
+      {.use_liftoff = false, .tier_mask = 0},
+  };
+  for (size_t i = 0; i < arraysize(configs); ++i) {
+    FLAG_VALUE_SCOPE(liftoff, configs[i].use_liftoff);
+    FLAG_VALUE_SCOPE(wasm_tier_mask_for_testing, configs[i].tier_mask);
     StreamTester tester(isolate);
 
     const uint8_t bytes_before_bodies[] = {
@@ -2230,8 +2240,8 @@ STREAM_TEST(TestCompilationHintsInliningDuringStreaming) {
         SECTION(Function, ENTRY_COUNT(2), SIG_INDEX(0), SIG_INDEX(0)),
         // Vary the export name so each iteration has a distinct prefix hash.
         SECTION(Export, ENTRY_COUNT(1),
-                ADD_COUNT(static_cast<uint8_t>('a' + use_liftoff)),
-                kExternalFunction, FUNC_INDEX(0)),
+                ADD_COUNT(static_cast<uint8_t>('a' + i)), kExternalFunction,
+                FUNC_INDEX(0)),
         SECTION(Unknown,
                 ADD_COUNT('m', 'e', 't', 'a', 'd', 'a', 't', 'a', '.', 'c', 'o',
                           'd', 'e', '.', 'c', 'o', 'm', 'p', 'i', 'l', 'a', 't',

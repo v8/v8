@@ -641,11 +641,16 @@ class CompilationStateImpl {
   // events. The callback object must support being deleted from any thread.
   void AddCallback(std::unique_ptr<CompilationEventCallback> callback);
 
+  using HasAllFunctionBodies =
+      base::StrongAlias<struct HasAllFunctionBodiesTag, bool>;
+
   // Inserts new functions to compile and kicks off compilation.
   void CommitCompilationUnits(
       base::Vector<WasmCompilationUnit> blocking_liftoff_units,
       base::Vector<WasmCompilationUnit> blocking_turbofan_units,
-      base::Vector<WasmCompilationUnit> nonblocking_units);
+      base::Vector<WasmCompilationUnit> nonblocking_units,
+      HasAllFunctionBodies has_all_function_bodies);
+  void CommitBlockingTurbofanUnit(WasmCompilationUnit);
   void CommitNonblockingCompilationUnit(WasmCompilationUnit);
   void AddNonblockingPriorityCompilationUnit(WasmCompilationUnit, size_t);
 
@@ -784,6 +789,10 @@ class CompilationStateImpl {
   // compiling.
   std::shared_ptr<WireBytesStorage> wire_bytes_storage_;
 
+  // True once all function bodies in the code section have been received, so
+  // TurboFan compilation jobs ({kBlockingTurbofan} and {kNonblocking}) can run.
+  bool has_all_function_bodies_ = false;
+
   // End of fields protected by {mutex_}.
   //////////////////////////////////////////////////////////////////////////////
 
@@ -850,7 +859,7 @@ CompilationStateImpl* BackgroundCompileScope::compilation_state() const {
 }
 
 size_t CompilationStateImpl::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(CompilationStateImpl, 544);
+  UPDATE_WHEN_CLASS_CHANGES(CompilationStateImpl, 552);
   size_t result = sizeof(CompilationStateImpl);
 
   {
@@ -1070,21 +1079,19 @@ class CompilationUnitBuilder {
   }
 
   void Commit() {
-    if (blocking_liftoff_units_.empty() && blocking_turbofan_units_.empty() &&
-        nonblocking_units_.empty()) {
-      return;
-    }
     compilation_state()->CommitCompilationUnits(
         base::VectorOf(blocking_liftoff_units_),
         base::VectorOf(blocking_turbofan_units_),
-        base::VectorOf(nonblocking_units_));
+        base::VectorOf(nonblocking_units_),
+        CompilationStateImpl::HasAllFunctionBodies{true});
     Clear();
   }
 
   void CommitBlockingLiftoffUnits() {
     if (blocking_liftoff_units_.empty()) return;
     compilation_state()->CommitCompilationUnits(
-        base::VectorOf(blocking_liftoff_units_), {}, {});
+        base::VectorOf(blocking_liftoff_units_), {}, {},
+        CompilationStateImpl::HasAllFunctionBodies{false});
     blocking_liftoff_units_.clear();
   }
 
@@ -1169,6 +1176,17 @@ void CompileLazy(Isolate* isolate, NativeModule* native_module,
   WasmCompilationResult result = blocking_unit.ExecuteCompilation(
       &env, compilation_state->GetWireBytesStorage().get(),
       native_module->counter_updates(), &detected_features);
+  if (!result.succeeded()) {
+    DCHECK_EQ(ExecutionTier::kLiftoff, tiers.blocking_tier);
+    DCHECK(!v8_flags.liftoff_only);
+    WasmCompilationUnit turbofan_unit{
+        func_index, ExecutionTier::kTurbofan,
+        is_in_debug_state ? kForDebugging : kNotForDebugging,
+        kAlreadyValidated};
+    result = turbofan_unit.ExecuteCompilation(
+        &env, compilation_state->GetWireBytesStorage().get(),
+        native_module->counter_updates(), &detected_features);
+  }
   compilation_state->OnDetectedFeatures(detected_features);
 
   // The module was fully validated before starting its execution, so lazy
@@ -1197,7 +1215,7 @@ void CompileLazy(Isolate* isolate, NativeModule* native_module,
   counters->wasm_lazily_compiled_functions()->Increment();
 
   if (v8_flags.wasm_lazy_compilation &&
-      tiers.blocking_tier < tiers.nonblocking_tier) {
+      result.result_tier < tiers.nonblocking_tier) {
     WasmCompilationUnit nonblocking_unit{func_index, tiers.nonblocking_tier,
                                          kNotForDebugging, kAlreadyValidated};
     compilation_state->CommitNonblockingCompilationUnit(nonblocking_unit);
@@ -1980,10 +1998,12 @@ CompilationExecutionResult ExecuteCompilationUnits(
           &per_function_detected_features);
       global_detected_features.Add(per_function_detected_features);
       bool compilation_succeeded = result.succeeded();
-      ExecutionTier result_tier = result.result_tier;
       // We don't eagerly compile import wrappers any more.
       DCHECK_GE(unit->func_index(), env->module->num_imported_functions);
-      results_to_publish.emplace_back(std::move(result));
+      if (compilation_succeeded) {
+        DCHECK_EQ(result.result_tier, current_tier);
+        results_to_publish.emplace_back(std::move(result));
+      }
 
       bool yield = delegate && delegate->ShouldYield();
 
@@ -1992,31 +2012,52 @@ CompilationExecutionResult ExecuteCompilationUnits(
       if (compile_scope.cancelled()) return kYield;
 
       if (!compilation_succeeded) {
-        compile_scope.compilation_state()->SetError();
-        return kNoMoreUnits;
-      }
-
-      if (!unit->for_debugging() && result_tier != current_tier) {
-        compile_scope.native_module()->AddLiftoffBailout();
+        if (result.bailout_reason == kDecodeError || v8_flags.liftoff_only) {
+          compile_scope.compilation_state()->SetError();
+          return kNoMoreUnits;
+        }
+        DCHECK_EQ(current_tier, ExecutionTier::kLiftoff);
+        DCHECK_NE(result.bailout_reason, kNoReason);
+        if (!unit->for_debugging()) {
+          compile_scope.native_module()->AddLiftoffBailout();
+        }
+        compile_scope.native_module()->counter_updates()->AddAll(
+            std::move(counter_updates));
+        compile_scope.compilation_state()->OnDetectedFeatures(
+            global_detected_features);
+        global_detected_features = {};
+        WasmCompilationUnit turbofan_unit{
+            unit->func_index(), ExecutionTier::kTurbofan, unit->for_debugging(),
+            unit->validation()};
+        if (phase == CompilationPhase::kBlockingLiftoff) {
+          compile_scope.compilation_state()->CommitBlockingTurbofanUnit(
+              turbofan_unit);
+        } else {
+          DCHECK_EQ(phase, CompilationPhase::kNonblocking);
+          compile_scope.compilation_state()->CommitNonblockingCompilationUnit(
+              turbofan_unit);
+        }
       }
 
       // Yield or get next unit.
       if (yield ||
           !(unit = compile_scope.compilation_state()->GetNextCompilationUnit(
                 queue, phase))) {
-        std::vector<UnpublishedWasmCode> unpublished_code =
-            compile_scope.native_module()->AddCompiledCode(
-                base::VectorOf(results_to_publish));
         compile_scope.native_module()->counter_updates()->AddAll(
             std::move(counter_updates));
         DCHECK_EQ(0, counter_updates.NumOutstandingUpdates());
-        results_to_publish.clear();
         // Flush detected features before publishing code, which may trigger
         // {kFinishedBlockingCompilation} and publish detected features.
         compile_scope.compilation_state()->OnDetectedFeatures(
             global_detected_features);
-        compile_scope.compilation_state()->SchedulePublishCompilationResults(
-            std::move(unpublished_code), phase);
+        if (!results_to_publish.empty()) {
+          std::vector<UnpublishedWasmCode> unpublished_code =
+              compile_scope.native_module()->AddCompiledCode(
+                  base::VectorOf(results_to_publish));
+          results_to_publish.clear();
+          compile_scope.compilation_state()->SchedulePublishCompilationResults(
+              std::move(unpublished_code), phase);
+        }
         return yield ? kYield : kNoMoreUnits;
       }
 
@@ -2029,7 +2070,7 @@ CompilationExecutionResult ExecuteCompilationUnits(
       // results to start execution, and do not wait for a batch to fill up.
       bool liftoff_finished = unit->tier() != current_tier &&
                               unit->tier() == ExecutionTier::kTurbofan;
-      if (batch_full || liftoff_finished) {
+      if ((batch_full || liftoff_finished) && !results_to_publish.empty()) {
         std::vector<UnpublishedWasmCode> unpublished_code =
             compile_scope.native_module()->AddCompiledCode(
                 base::VectorOf(results_to_publish));
@@ -3871,30 +3912,47 @@ void CompilationStateImpl::AddCallback(
 void CompilationStateImpl::CommitCompilationUnits(
     base::Vector<WasmCompilationUnit> blocking_liftoff_units,
     base::Vector<WasmCompilationUnit> blocking_turbofan_units,
-    base::Vector<WasmCompilationUnit> nonblocking_units) {
+    base::Vector<WasmCompilationUnit> nonblocking_units,
+    HasAllFunctionBodies has_all_function_bodies) {
   base::MutexGuard guard{&mutex_};
+  bool finished_receiving_bodies =
+      !has_all_function_bodies_ && has_all_function_bodies;
+  if (has_all_function_bodies) {
+    has_all_function_bodies_ = true;
+  }
   if (!blocking_liftoff_units.empty() || !blocking_turbofan_units.empty() ||
       !nonblocking_units.empty()) {
     compilation_unit_queues_.AddUnits(
         blocking_liftoff_units, blocking_turbofan_units, nonblocking_units,
         native_module_->module());
   }
+  if (!blocking_liftoff_units.empty()) {
+    DCHECK(compile_jobs_[CompilationPhase::kBlockingLiftoff]->IsValid());
+    compile_jobs_[CompilationPhase::kBlockingLiftoff]
+        ->NotifyConcurrencyIncrease();
+  }
+  if (!has_all_function_bodies_) return;
   for (auto [phase, units] :
-       {std::make_pair(CompilationPhase::kBlockingLiftoff,
-                       blocking_liftoff_units),
-        std::make_pair(CompilationPhase::kBlockingTurbofan,
+       {std::make_pair(CompilationPhase::kBlockingTurbofan,
                        blocking_turbofan_units),
         std::make_pair(CompilationPhase::kNonblocking, nonblocking_units)}) {
-    if (!units.empty()) {
+    if (!units.empty() ||
+        (finished_receiving_bodies &&
+         compilation_unit_queues_.GetSizeForPhase(phase) > 0)) {
       DCHECK(compile_jobs_[phase]->IsValid());
       compile_jobs_[phase]->NotifyConcurrencyIncrease();
     }
   }
 }
 
+void CompilationStateImpl::CommitBlockingTurbofanUnit(
+    WasmCompilationUnit unit) {
+  CommitCompilationUnits({}, {&unit, 1}, {}, HasAllFunctionBodies{false});
+}
+
 void CompilationStateImpl::CommitNonblockingCompilationUnit(
     WasmCompilationUnit unit) {
-  CommitCompilationUnits({}, {}, {&unit, 1});
+  CommitCompilationUnits({}, {}, {&unit, 1}, HasAllFunctionBodies{true});
 }
 
 void CompilationStateImpl::AddNonblockingPriorityCompilationUnit(
