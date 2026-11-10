@@ -11,6 +11,7 @@
 #include "src/heap/heap-layout-inl.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/slots-inl.h"
+#include "src/utils/utils.h"
 #include "src/wasm/wasm-objects.h"
 
 namespace v8::internal::wasm {
@@ -150,9 +151,18 @@ StackMemory::StackSegment::StackSegment(size_t pages) {
 StackMemory::StackSegment::~StackSegment() {
   PageAllocator* allocator = GetPlatformPageAllocator();
   size_t page_size = allocator->AllocatePageSize();
-  if (!allocator->DecommitPages(limit_ - page_size, size_ + 2 * page_size)) {
-    V8::FatalProcessOutOfMemory(nullptr, "Decommit stack memory");
-  }
+  // Stacks are retired while still running on them, which is why
+  // {StackPool::Add} defers their destruction. They must never be destroyed
+  // while in use.
+#ifdef DEBUG
+  Address current_sp = GetCurrentStackPosition();
+  DCHECK(current_sp < reinterpret_cast<Address>(limit_) ||
+         current_sp >= base());
+#endif
+  // Release the whole reservation, including both guard pages. Only
+  // decommitting the pages would keep the address range (and its page tables)
+  // reserved forever.
+  FreePages(allocator, limit_ - page_size, size_ + 2 * page_size);
 }
 
 void StackMemory::IterateWasmFXRoots(v8::internal::RootVisitor* v) {

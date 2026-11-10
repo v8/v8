@@ -60,7 +60,7 @@ struct JumpBuffer {
   StackState state;
 };
 
-class StackMemory
+class V8_EXPORT_PRIVATE StackMemory
 #ifdef V8_COMPRESS_POINTERS
     : public ExternalPointerTable::ManagedResource {
 #else
@@ -75,6 +75,8 @@ class StackMemory
   // the simulator's stack when running on the simulator.
   static StackMemory* GetCentralStackView(Isolate* isolate);
 
+  StackMemory(const StackMemory&) = delete;
+  StackMemory& operator=(const StackMemory&) = delete;
   ~StackMemory();
   Address limit() const;
   void* jslimit() const;
@@ -341,13 +343,17 @@ constexpr int kStackStateOffset =
 
 // A pool of "finished" stacks, i.e. stacks whose last frame have returned and
 // whose memory can be reused for new suspendable computations.
-class StackPool {
+class V8_EXPORT_PRIVATE StackPool {
  public:
+  StackPool() = default;
+  StackPool(const StackPool&) = delete;
+  StackPool& operator=(const StackPool&) = delete;
+
   // Gets a stack from the free list if one exists, else allocates it.
   std::unique_ptr<StackMemory> GetOrAllocate();
   // Adds a finished stack to the free list.
   void Add(std::unique_ptr<StackMemory> stack);
-  // Decommit the stack memories and empty the freelist.
+  // Free the stack memories and empty the freelist.
   void ReleaseFinishedStacks();
   size_t Size() const;
 
