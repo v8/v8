@@ -26,6 +26,7 @@
 #include "src/objects/ordered-hash-table.h"
 #include "src/objects/property-details.h"
 #include "src/objects/struct-inl.h"
+#include "src/sandbox/check.h"
 
 namespace v8::internal {
 
@@ -865,9 +866,7 @@ Maybe<bool> LookupIterator::TransitionToAccessorProperty(
   // handled via a trap. Adding properties to primitive values is not
   // observable.
   DirectHandle<JSObject> receiver = GetStoreTarget<JSObject>();
-  if (!IsElement() && name()->IsAnyPrivate()) {
-    attributes = static_cast<PropertyAttributes>(attributes | DONT_ENUM);
-  }
+  DCHECK(IsElement() || !name()->IsAnyPrivate());
 
   if (!IsElement(*receiver) && !receiver->map()->is_dictionary_map()) {
     DirectHandle<Map> old_map(receiver->map(), isolate_);
@@ -1321,8 +1320,11 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
         switch (property_details_.kind()) {
           case v8::internal::PropertyKind::kData:
             return DATA;
-          case v8::internal::PropertyKind::kAccessor:
+          case v8::internal::PropertyKind::kAccessor: {
+            bool is_private = !is_element && name_->IsAnyPrivate();
+            SBXCHECK(!is_private);
             return ACCESSOR;
+          }
         }
         UNREACHABLE();
       }
@@ -1388,8 +1390,11 @@ LookupIterator::State LookupIterator::LookupInRegularHolder(
   switch (property_details_.kind()) {
     case v8::internal::PropertyKind::kData:
       return DATA;
-    case v8::internal::PropertyKind::kAccessor:
+    case v8::internal::PropertyKind::kAccessor: {
+      bool is_private = !is_element && name_->IsAnyPrivate();
+      SBXCHECK(!is_private);
       return ACCESSOR;
+    }
   }
 
   UNREACHABLE();
