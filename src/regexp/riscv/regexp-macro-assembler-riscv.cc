@@ -929,8 +929,12 @@ DirectHandle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(
   // (effectively string position -1).
   __ LoadWord(a1, MemOperand(frame_pointer(), kStartIndexOffset));
   __ SubWord(a0, current_input_offset(), Operand(char_size()));
-  __ slli(t1, a1, (mode() == UC16) ? 1 : 0);
-  __ SubWord(a0, a0, t1);
+  if (mode() == UC16) {
+    __ slli(t1, a1, 1);
+    __ SubWord(a0, a0, t1);
+  } else {
+    __ SubWord(a0, a0, a1);
+  }
   // Store this value in a local variable, for use when clearing
   // position registers.
   __ StoreWord(a0, MemOperand(frame_pointer(), kStringStartMinusOneOffset));
