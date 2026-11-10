@@ -1833,6 +1833,9 @@ class MaglevReducer {
   // TODO(marja): When we have C++26, `inputs` can be std::span<ValueNode*>,
   // since std::intializer_list can be converted to std::span.
   template <typename NodeT, typename InputsT>
+  ReduceResult ConvertNodeInputs(
+      InputsT raw_inputs, std::array<ValueNode*, NodeT::kInputCount>& inputs);
+  template <typename NodeT, typename InputsT>
   void SetNodeInputsNoConversion(NodeT* node, InputsT inputs);
   template <typename NodeT>
   NodeT* AttachExtraInfoAndAddToGraph(NodeT* node);

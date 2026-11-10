@@ -15339,6 +15339,11 @@ ReduceResult MaglevGraphBuilder::VisitSwitchOnSmiNoFeedback() {
 
   if (offsets.size() == 0) return ReduceResult::Done();
 
+  // Convert the input before constructing BasicBlockRefs, so bailing out does
+  // not leave dangling refs in jump_targets_.
+  ValueNode* case_value;
+  GET_VALUE_OR_ABORT(case_value, GetInt32(GetAccumulator()));
+
   int case_value_base = (*offsets.begin()).case_value;
   BasicBlockRef* targets = zone()->AllocateArray<BasicBlockRef>(offsets.size());
   for (interpreter::JumpTableTargetOffset offset : offsets) {
@@ -15346,12 +15351,9 @@ ReduceResult MaglevGraphBuilder::VisitSwitchOnSmiNoFeedback() {
     new (ref) BasicBlockRef(&jump_targets_[offset.target_offset]);
   }
 
-  ValueNode* case_value = GetAccumulator();
-
-  BasicBlock* block;
-  GET_BLOCK_OR_ABORT(block, FinishBlock<Switch>({case_value}, case_value_base,
-                                                targets, offsets.size(),
-                                                &jump_targets_[next_offset()]));
+  BasicBlock* block =
+      FinishBlockNoAbort<Switch>({case_value}, case_value_base, targets,
+                                 offsets.size(), &jump_targets_[next_offset()]);
   for (interpreter::JumpTableTargetOffset offset : offsets) {
     MergeIntoFrameState(block, offset.target_offset);
   }
@@ -15739,23 +15741,23 @@ ReduceResult MaglevGraphBuilder::VisitSwitchOnGeneratorState() {
   MoveNodeBetweenRegisters(iterator_.GetRegisterOperand(0),
                            interpreter::Register::virtual_accumulator());
 
-  // Switch on generator state.
+  // Switch on generator state. Convert the input before constructing
+  // BasicBlockRefs, so bailing out does not leave dangling refs in
+  // jump_targets_.
+  ValueNode* case_value;
+  if (state->is_tagged()) {
+    GET_VALUE_OR_ABORT(case_value, AddNewNode<UnsafeSmiUntag>({state}));
+  } else {
+    GET_VALUE_OR_ABORT(case_value, GetInt32(state));
+  }
   int case_value_base = (*offsets.begin()).case_value;
   BasicBlockRef* targets = zone()->AllocateArray<BasicBlockRef>(offsets.size());
   for (interpreter::JumpTableTargetOffset offset : offsets) {
     BasicBlockRef* ref = &targets[offset.case_value - case_value_base];
     new (ref) BasicBlockRef(&jump_targets_[offset.target_offset]);
   }
-  ValueNode* case_value;
-  if (state->is_tagged()) {
-    GET_VALUE_OR_ABORT(case_value, AddNewNode<UnsafeSmiUntag>({state}));
-  } else {
-    case_value = state;
-  }
-  BasicBlock* generator_prologue_block;
-  GET_BLOCK_OR_ABORT(generator_prologue_block,
-                     FinishBlock<Switch>({case_value}, case_value_base, targets,
-                                         offsets.size()));
+  BasicBlock* generator_prologue_block = FinishBlockNoAbort<Switch>(
+      {case_value}, case_value_base, targets, offsets.size());
   for (interpreter::JumpTableTargetOffset offset : offsets) {
     MergeIntoFrameState(generator_prologue_block, offset.target_offset);
   }

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --sandbox-testing --allow-natives-syntax --verify-bytecode-full
+// Flags: --allow-natives-syntax --verify-bytecode-full
 
 function f(x) {
   switch (x) {
