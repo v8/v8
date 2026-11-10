@@ -677,10 +677,14 @@ class DescriptorArray::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
+#ifdef V8_ADD_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+    static_assert(offsetof(DescriptorArray, enum_cache_) + kTaggedSize ==
+                  offsetof(DescriptorArray, lookup_table_));
+    IteratePointers(obj, offsetof(DescriptorArray, enum_cache_),
+                    offsetof(DescriptorArray, lookup_table_) + kTaggedSize, v);
+#else
     IteratePointer(obj, offsetof(DescriptorArray, enum_cache_), v);
-#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
-    IteratePointer(obj, offsetof(DescriptorArray, lookup_table_), v);
-#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+#endif  // V8_ADD_DESCRIPTOR_ARRAY_LOOKUP_TABLE
     const int nof_all_descriptors =
         UncheckedCast<DescriptorArray>(obj)->number_of_all_descriptors();
     for (int i = 0; i < nof_all_descriptors; ++i) {

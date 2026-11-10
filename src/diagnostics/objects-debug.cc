@@ -1266,11 +1266,11 @@ void DescriptorArray::DescriptorArrayEntryTypesVerify(Isolate* isolate) {
   // Header: enum_cache_ is strong.
   Object::VerifyPointer(isolate, enum_cache());
   CHECK(IsEnumCache(enum_cache()));
-#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+#ifdef V8_ADD_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   Object::VerifyPointer(isolate, lookup_table());
   CHECK(Is<DescriptorLookupTable>(lookup_table()) ||
         IsUndefined(lookup_table()));
-#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+#endif  // V8_ADD_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   // Descriptors tail: verify each (key, details, value) triple. Key and
   // details slots are always strong; only the value slot may be weak.
   const int nof = number_of_all_descriptors();

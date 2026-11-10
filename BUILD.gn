@@ -427,6 +427,9 @@ declare_args() {
   # as the backing store for all dictionary mode objects.
   v8_enable_swiss_name_dictionary = false
 
+  # Add a lookup_table field to DescriptorArray.
+  v8_add_descriptor_array_lookup_table = false
+
   # Enable hash lookup table in DescriptorArray instead of binary search.
   v8_enable_descriptor_array_lookup_table = false
 
@@ -1628,6 +1631,13 @@ config("features") {
   }
   if (v8_enable_swiss_name_dictionary) {
     defines += [ "V8_ENABLE_SWISS_NAME_DICTIONARY" ]
+  }
+  assert(!v8_enable_descriptor_array_lookup_table ||
+             v8_add_descriptor_array_lookup_table,
+         "v8_enable_descriptor_array_lookup_table requires " +
+             "v8_add_descriptor_array_lookup_table")
+  if (v8_add_descriptor_array_lookup_table) {
+    defines += [ "V8_ADD_DESCRIPTOR_ARRAY_LOOKUP_TABLE" ]
   }
   if (v8_enable_descriptor_array_lookup_table) {
     defines += [ "V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE" ]

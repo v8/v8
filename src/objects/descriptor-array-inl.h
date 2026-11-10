@@ -103,7 +103,7 @@ void DescriptorArray::set_enum_cache(Tagged<EnumCache> value,
   enum_cache_.store(this, value, mode);
 }
 
-#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+#ifdef V8_ADD_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 Tagged<UnionOf<DescriptorLookupTable, Undefined>>
 DescriptorArray::lookup_table() const {
   return lookup_table_.load();
@@ -114,7 +114,9 @@ void DescriptorArray::set_lookup_table(
     WriteBarrierMode mode) {
   lookup_table_.store(this, value, mode);
 }
+#endif  // V8_ADD_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 void DescriptorArray::InsertIntoLookupTable(Tagged<Name> key, uint32_t hash,
                                             int descriptor_index) {
   DCHECK(!IsUndefined(lookup_table()));

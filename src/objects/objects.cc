@@ -4142,10 +4142,10 @@ void DescriptorArray::Initialize(Tagged<EnumCache> empty_enum_cache,
   set_number_of_all_descriptors(nof_descriptors + slack, kReleaseStore);
   set_number_of_descriptors(nof_descriptors);
   set_enum_cache(empty_enum_cache, SKIP_WRITE_BARRIER);
-#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+#ifdef V8_ADD_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   set_lookup_table(UncheckedCast<Undefined>(undefined_value),
                    SKIP_WRITE_BARRIER);
-#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+#endif  // V8_ADD_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   set_flags(Flags().with_fast_iterable(FastIterableState::kUnknown),
             kRelaxedStore);
   MemsetTagged(GetDescriptorSlot(0), undefined_value,

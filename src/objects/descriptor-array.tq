@@ -33,7 +33,7 @@ extern class DescriptorArray extends HeapObject {
   number_of_descriptors: uint16;
   flags: DescriptorArrayFlags;
   enum_cache: EnumCache;
-  @if(V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE)
+  @if(V8_ADD_DESCRIPTOR_ARRAY_LOOKUP_TABLE)
   lookup_table: DescriptorLookupTable|Undefined;
   entries[number_of_all_descriptors]: DescriptorEntry;
 }

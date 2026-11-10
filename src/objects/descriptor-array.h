@@ -94,7 +94,7 @@ static_assert(kMaxNumberOfDescriptors <=
 //     [64:32 bits]: raw_gc_state (used by GC)
 //     [kEnumCacheOffset]: enum cache
 //     [kLookupTableOffset]: lookup table (behind #ifdef
-//          V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE)
+//          V8_ADD_DESCRIPTOR_ARRAY_LOOKUP_TABLE)
 //   Elements:
 //     [kHeaderSize + 0]: first key (and internalized String)
 //     [kHeaderSize + 1]: first descriptor details (see PropertyDetails)
@@ -160,12 +160,14 @@ V8_OBJECT class DescriptorArray : public HeapObject {
   inline void set_enum_cache(Tagged<EnumCache> value,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+#ifdef V8_ADD_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   inline Tagged<UnionOf<DescriptorLookupTable, Undefined>> lookup_table() const;
   inline void set_lookup_table(
       Tagged<UnionOf<DescriptorLookupTable, Undefined>> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+#endif  // V8_ADD_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   // Allocates and attaches an empty DescriptorLookupTable sized for
   // `number_of_all_descriptors()` if one is not already present.
   template <typename IsolateT>
@@ -406,9 +408,9 @@ V8_OBJECT class DescriptorArray : public HeapObject {
   std::atomic<uint16_t> number_of_descriptors_;
   std::atomic<Flags> flags_;
   TaggedMember<EnumCache> enum_cache_;
-#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+#ifdef V8_ADD_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   TaggedMember<UnionOf<DescriptorLookupTable, Undefined>> lookup_table_;
-#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+#endif  // V8_ADD_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   V8_TQ_TAIL_LENGTH(number_of_all_descriptors);
   FLEXIBLE_ARRAY_MEMBER(Entry, entries, V8_TQ_TYPE(DescriptorEntry));
 } V8_OBJECT_END;
