@@ -869,9 +869,9 @@ void ShrinkPagesToObjectSizes(Heap* heap, OldLargeObjectSpace* space) {
   for (auto it = space->begin(); it != space->end();) {
     LargePage* current = *(it++);
     Tagged<HeapObject> object = current->GetObject();
-    const size_t object_size = static_cast<size_t>(object->Size());
+    const SafeHeapObjectSize object_size = object->SafeSize();
     space->ShrinkPageToObjectSize(current, object, object_size);
-    surviving_object_size += object_size;
+    surviving_object_size += object_size.value();
   }
   space->set_objects_size(surviving_object_size);
 }
@@ -5997,7 +5997,7 @@ void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
       current->SetLiveBytes(0);
     }
     current->marking_progress_tracker().ResetIfEnabled();
-    surviving_object_size += static_cast<size_t>(object->Size());
+    surviving_object_size += object->SafeSize().value();
   }
   space->set_objects_size(surviving_object_size);
 }
