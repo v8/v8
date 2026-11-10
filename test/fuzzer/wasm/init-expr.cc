@@ -127,7 +127,7 @@ void FuzzIt(base::Vector<const uint8_t> data) {
       GetWasmEngine()
           ->SyncInstantiate(i_isolate, &thrower, module_object, {})
           .ToHandleChecked();
-  CHECK_EQ(expression_count, module->num_declared_functions);
+  CHECK_EQ(expression_count, module->num_defined_functions);
 
   for (size_t i = 0; i < expression_count; ++i) {
     char buffer[22];

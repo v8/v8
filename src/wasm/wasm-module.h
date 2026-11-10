@@ -758,7 +758,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   uint32_t num_imported_functions = 0;
   uint32_t num_imported_tables = 0;
   uint32_t num_imported_tags = 0;
-  uint32_t num_declared_functions = 0;  // excluding imported
+  uint32_t num_defined_functions = 0;  // excluding imported
   // This field is updated when decoding the functions. At this point in time
   // with streaming compilation there can already be background threads running
   // turbofan compilations which will read this to decide on inlining budgets.
@@ -971,7 +971,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
                              isorecursive_canonical_type_ids.end());
   }
 
-  base::Vector<const WasmFunction> declared_functions() const {
+  base::Vector<const WasmFunction> defined_functions() const {
     return base::VectorOf(functions) + num_imported_functions;
   }
 
@@ -1105,13 +1105,13 @@ DirectHandle<JSArray> GetCustomSections(Isolate* isolate,
 int GetSourcePosition(const WasmModule*, uint32_t func_index,
                       uint32_t byte_offset);
 
-// Translate function index to the index relative to the first declared (i.e.
+// Translate function index to the index relative to the first defined (i.e.
 // non-imported) function.
-inline int declared_function_index(const WasmModule* module, int func_index) {
+inline int defined_function_index(const WasmModule* module, int func_index) {
   DCHECK_LE(module->num_imported_functions, func_index);
-  int declared_idx = func_index - module->num_imported_functions;
-  DCHECK_GT(module->num_declared_functions, declared_idx);
-  return declared_idx;
+  int defined_idx = func_index - module->num_imported_functions;
+  DCHECK_GT(module->num_defined_functions, defined_idx);
+  return defined_idx;
 }
 
 // Translate from function index to jump table offset.

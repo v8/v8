@@ -688,7 +688,7 @@ class LiftoffAssembler : public MacroAssembler {
   // which can later be patched (via {PatchPrepareStackFrame)} when the size of
   // the frame is known.
   inline int PrepareStackFrame();
-  inline void CallFrameSetupStub(int declared_function_index);
+  inline void CallFrameSetupStub(int defined_function_index);
   inline void PrepareTailCall(int num_callee_stack_params,
                               int stack_param_delta);
   inline void AlignFrameSize();
@@ -702,7 +702,7 @@ class LiftoffAssembler : public MacroAssembler {
   inline static int SlotSizeForType(ValueKind kind);
   inline static bool NeedsAlignment(ValueKind kind);
 
-  inline void CheckTierUp(int declared_func_index, int budget_used,
+  inline void CheckTierUp(int defined_func_index, int budget_used,
                           Label* ool_label, const FreezeCacheState& frozen);
   inline void LoadConstant(LiftoffRegister, WasmValue);
 

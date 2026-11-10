@@ -463,7 +463,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   int NumImportedFunctions() {
     return base::checked_cast<int>(function_imports_.size());
   }
-  int NumDeclaredFunctions() {
+  int NumDefinedFunctions() {
     return base::checked_cast<int>(functions_.size());
   }
 

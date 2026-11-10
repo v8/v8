@@ -81,7 +81,7 @@ class WasmBasicBlockCalculatorTest : public TestWithIsolateAndZone {
                     const std::vector<uint8_t>& code_bytes,
                     const std::vector<WasmCodeRange>& expectations,
                     const std::vector<ValueType> locals = {}) {
-    int func_index = builder_.NumDeclaredFunctions();
+    int func_index = builder_.NumDefinedFunctions();
     WasmFunctionBuilder* func_builder = builder_.AddFunction(sig);
     for (ValueType local_type : locals) {
       func_builder->AddLocal(local_type);

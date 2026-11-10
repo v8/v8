@@ -1087,7 +1087,7 @@ WasmBodyInliningResult WasmInJSInliningReducer<Next>::TryInlineWasmBody(
     return WasmBodyInliningResult::Failed();
   }
   DCHECK_LT(func_idx - module->num_imported_functions,
-            module->num_declared_functions);
+            module->num_defined_functions);
 
   const bool has_current_catch_block = __ current_catch_block();
   if (lazy_deopt_on_throw) {

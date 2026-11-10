@@ -1231,7 +1231,7 @@ class LiftoffCompiler {
                                        DebugSideTableBuilder::kAssumeSpilling));
 
     FREEZE_STATE(tierup_check);
-    __ CheckTierUp(declared_function_index(env_->module, func_index_),
+    __ CheckTierUp(defined_function_index(env_->module, func_index_),
                    budget_used, &ool->label, tierup_check);
 
     __ bind(&ool->continuation);
@@ -1291,10 +1291,10 @@ class LiftoffCompiler {
 
     if (v8_flags.wasm_inlining) {
       CODE_COMMENT("frame setup");
-      int declared_func_index =
+      int defined_func_index =
           func_index_ - env_->module->num_imported_functions;
-      DCHECK_GE(declared_func_index, 0);
-      __ CallFrameSetupStub(declared_func_index);
+      DCHECK_GE(defined_func_index, 0);
+      __ CallFrameSetupStub(defined_func_index);
     } else {
       __ EnterFrame(StackFrame::WASM);
     }
@@ -11632,10 +11632,10 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   WasmFunctionCoverageData* function_coverage_data = nullptr;
   if (V8_UNLIKELY(v8_flags.wasm_code_coverage)) {
     DCHECK_NOT_NULL(env->module_coverage_data);
-    int declared_function_index =
+    int defined_function_index =
         compiler_options.func_index - env->module->num_imported_functions;
     function_coverage_data = env->module_coverage_data->GetFunctionCoverageData(
-        declared_function_index);
+        defined_function_index);
     if (!function_coverage_data) {
       // There can be a race here, if another thread finds that
       // GetFunctionCoverageData() returns nullptr, but in that case we would
@@ -11644,7 +11644,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(
           &zone, {func_body.start, static_cast<size_t>(func_body_size)});
       basic_block_calculator.ComputeBasicBlocks();
       function_coverage_data = env->module_coverage_data->InstallCoverageData(
-          declared_function_index, basic_block_calculator.GetCodeRanges());
+          defined_function_index, basic_block_calculator.GetCodeRanges());
     }
   }
 
@@ -11746,10 +11746,10 @@ std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
   WasmFunctionCoverageData* coverage_data = nullptr;
   if (V8_UNLIKELY(v8_flags.wasm_code_coverage)) {
     DCHECK_NOT_NULL(env.module_coverage_data);
-    int declared_function_index =
+    int defined_function_index =
         code->index() - native_module->module()->num_imported_functions;
     coverage_data = env.module_coverage_data->GetFunctionCoverageData(
-        declared_function_index);
+        defined_function_index);
     DCHECK_NOT_NULL(coverage_data);
   }
   WasmFullDecoder<Decoder::NoValidationTag, LiftoffCompiler> decoder(

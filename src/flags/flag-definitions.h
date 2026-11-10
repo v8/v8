@@ -2150,11 +2150,11 @@ DEFINE_DEVELOPER_FLAG(
 // together with {liftoff} and {no_wasm_tier_up} to force some functions to be
 // compiled with TurboFan or for debug.
 DEFINE_INT(wasm_tier_mask_for_testing, 0,
-           "bitmask of declared(!) function indices to compile with TurboFan "
-           "instead of Liftoff")
+           "bitmask of defined (non-imported) function indices to compile with "
+           "TurboFan instead of Liftoff")
 DEFINE_INT(wasm_debug_mask_for_testing, 0,
-           "bitmask of declared(!) function indices to compile for debugging, "
-           "only applies if the tier is Liftoff")
+           "bitmask of defined (non-imported) function indices to compile for "
+           "debugging, only applies if the tier is Liftoff")
 DEFINE_UNSAFE_FLAG(wasm_pgo_to_file,
                    "experimental: dump Wasm PGO information to a local file")
 DEFINE_NEG_IMPLICATION(wasm_pgo_to_file, single_threaded)

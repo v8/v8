@@ -1683,18 +1683,18 @@ class BodyGen {
       // Map the type index to a function index.
       // TODO(14034): Consider choosing a random function from among those
       // matching the signature (including function subtyping?).
-      uint32_t declared_func_index =
+      uint32_t defined_func_index =
           index.index - static_cast<uint32_t>(arrays_.size() + structs_.size());
-      size_t num_functions = mbuilder->NumDeclaredFunctions();
+      size_t num_functions = mbuilder->NumDefinedFunctions();
       const FunctionSig* sig = mbuilder->GetSignature(index);
       for (size_t i = 0; i < num_functions; ++i) {
-        if (sig == mbuilder->GetFunction(declared_func_index)->signature()) {
+        if (sig == mbuilder->GetFunction(defined_func_index)->signature()) {
           uint32_t absolute_func_index =
-              NumImportedFunctions() + declared_func_index;
+              NumImportedFunctions() + defined_func_index;
           builder_->EmitWithU32V(kExprRefFunc, absolute_func_index);
           return true;
         }
-        declared_func_index = (declared_func_index + 1) % num_functions;
+        defined_func_index = (defined_func_index + 1) % num_functions;
       }
       // We did not find a function matching the requested signature.
       builder_->EmitWithI32V(kExprRefNull, index.index);
@@ -5162,7 +5162,7 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
                                        arrays, recursion_depth);
         } else {
           DCHECK(builder->IsSignature(index));
-          for (int i = 0; i < builder->NumDeclaredFunctions(); ++i) {
+          for (int i = 0; i < builder->NumDefinedFunctions(); ++i) {
             if (builder->GetFunction(i)->sig_index() == index) {
               return WasmInitExpr::RefFuncConst(
                   builder->NumImportedFunctions() + i);
@@ -5209,7 +5209,7 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
         }
         case GenericKind::kFunc: {
           uint32_t index =
-              range.get<uint32_t>() % (builder->NumDeclaredFunctions() +
+              range.get<uint32_t>() % (builder->NumDefinedFunctions() +
                                        builder->NumImportedFunctions());
           return WasmInitExpr::RefFuncConst(index);
         }
@@ -5693,7 +5693,7 @@ void EmitCallAndReturnValues(BodyGen gen_body, WasmFunctionBuilder* f,
       f->EmitWithU32V(kExprCallRef, callee->sig_index());
       break;
     case 2:
-      // Note that this assumes that the declared function index is the same as
+      // Note that this assumes that the defined function index is the same as
       // the index of the function in the table.
       use_table64 ? f->EmitI64Const(callee->func_index())
                   : f->EmitI32Const(callee->func_index());
@@ -5708,7 +5708,7 @@ void EmitCallAndReturnValues(BodyGen gen_body, WasmFunctionBuilder* f,
       f->EmitWithU32V(kExprReturnCallRef, callee->sig_index());
       break;
     case 5:
-      // Note that this assumes that the declared function index is the same as
+      // Note that this assumes that the defined function index is the same as
       // the index of the function in the table.
       use_table64 ? f->EmitI64Const(callee->func_index())
                   : f->EmitI32Const(callee->func_index());
@@ -5894,8 +5894,8 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
 
   // Create inlinee bodies.
   for (int i = 0; i < num_inlinees; ++i) {
-    uint32_t declared_func_index = i + num_call_targets;
-    WasmFunctionBuilder* f = functions[declared_func_index];
+    uint32_t defined_func_index = i + num_call_targets;
+    WasmFunctionBuilder* f = functions[defined_func_index];
     DataRange function_range = range.split();
     BodyGen gen_body(options, f, function_signatures, {}, {}, struct_types,
                      array_types, strings, nullptr, &function_range,
@@ -5908,8 +5908,8 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
                                &function_range);
     } else {
       // All other inlinees call the previous inlinee.
-      uint32_t callee_declared_index = declared_func_index - 1;
-      EmitCallAndReturnValues(gen_body, f, functions[callee_declared_index],
+      uint32_t callee_defined_index = defined_func_index - 1;
+      EmitCallAndReturnValues(gen_body, f, functions[callee_defined_index],
                               table_index, use_table64, &function_range);
     }
     f->Emit(kExprEnd);
@@ -5921,8 +5921,8 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
 
   // Create main function body.
   {
-    uint32_t declared_func_index = num_functions - 1;
-    WasmFunctionBuilder* f = functions[declared_func_index];
+    uint32_t defined_func_index = num_functions - 1;
+    WasmFunctionBuilder* f = functions[defined_func_index];
     DataRange function_range = range.split();
     BodyGen gen_body(options, f, function_signatures, {}, {}, struct_types,
                      array_types, strings, nullptr, &function_range,
@@ -5939,8 +5939,8 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
                                &function_range);
     } else {
       // Otherwise call the "outer-most" inlinee.
-      uint32_t callee_declared_index = declared_func_index - 1;
-      EmitCallAndReturnValues(gen_body, f, functions[callee_declared_index],
+      uint32_t callee_defined_index = defined_func_index - 1;
+      EmitCallAndReturnValues(gen_body, f, functions[callee_defined_index],
                               table_index, use_table64, &function_range);
     }
 

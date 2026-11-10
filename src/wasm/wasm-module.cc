@@ -724,7 +724,7 @@ size_t PrintSignature(base::Vector<char> buffer, const CanonicalSig* sig,
 
 int JumpTableOffset(const WasmModule* module, int func_index) {
   return JumpTableAssembler::JumpSlotIndexToOffset(
-      declared_function_index(module, func_index));
+      defined_function_index(module, func_index));
 }
 
 size_t GetWireBytesHash(base::Vector<const uint8_t> wire_bytes) {

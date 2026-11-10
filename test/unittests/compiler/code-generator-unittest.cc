@@ -2048,7 +2048,7 @@ namespace {
 std::shared_ptr<wasm::NativeModule> AllocateNativeModule(Isolate* isolate,
                                                          size_t code_size) {
   std::shared_ptr<wasm::WasmModule> module(new wasm::WasmModule());
-  module->num_declared_functions = 1;
+  module->num_defined_functions = 1;
   // We have to add the code object to a NativeModule, because the
   // WasmCallDescriptor assumes that code is on the native heap and not
   // within a code object.

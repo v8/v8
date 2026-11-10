@@ -196,7 +196,7 @@ int LiftoffAssembler::PrepareStackFrame() {
   return offset;
 }
 
-void LiftoffAssembler::CallFrameSetupStub(int declared_function_index) {
+void LiftoffAssembler::CallFrameSetupStub(int defined_function_index) {
 // The standard library used by gcc tryjobs does not consider `std::find` to be
 // `constexpr`, so wrap it in a `#ifdef __clang__` block.
 #ifdef __clang__
@@ -207,7 +207,7 @@ void LiftoffAssembler::CallFrameSetupStub(int declared_function_index) {
 #endif
 
   LoadConstant(LiftoffRegister(kLiftoffFrameSetupFunctionReg),
-               WasmValue(declared_function_index));
+               WasmValue(defined_function_index));
   CallBuiltin(Builtin::kWasmLiftoffFrameSetup);
 }
 
@@ -371,7 +371,7 @@ bool LiftoffAssembler::NeedsAlignment(ValueKind kind) {
   return is_reference(kind);
 }
 
-void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
+void LiftoffAssembler::CheckTierUp(int defined_func_index, int budget_used,
                                    Label* ool_label,
                                    const FreezeCacheState& frozen) {
   Register instance_data = cache_state_.cached_instance_data;
@@ -385,7 +385,7 @@ void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
        FieldMemOperand(instance_data,
                        WasmTrustedInstanceData::kTieringBudgetArrayOffset));
 
-  int offset = kInt32Size * declared_func_index;
+  int offset = kInt32Size * defined_func_index;
   subl(Operand{budget_array, offset}, Immediate(budget_used));
   j(negative, ool_label);
 }

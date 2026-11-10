@@ -395,19 +395,19 @@ namespace {
 Tagged<FixedArray> AllocateFeedbackVector(
     Isolate* isolate,
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
-    int declared_func_index) {
+    int defined_func_index) {
   DCHECK(isolate->context().is_null());
   isolate->set_context(trusted_instance_data->native_context());
   const wasm::WasmModule* module =
       trusted_instance_data->native_module()->module();
 
-  int func_index = declared_func_index + module->num_imported_functions;
+  int func_index = defined_func_index + module->num_imported_functions;
   int num_slots = NumFeedbackSlots(module, func_index);
   DirectHandle<FixedArray> vector =
       isolate->factory()->NewFixedArrayWithZeroes(num_slots);
-  DCHECK_EQ(trusted_instance_data->feedback_vectors()->get(declared_func_index),
+  DCHECK_EQ(trusted_instance_data->feedback_vectors()->get(defined_func_index),
             Smi::zero());
-  trusted_instance_data->feedback_vectors()->set(declared_func_index, *vector);
+  trusted_instance_data->feedback_vectors()->set(defined_func_index, *vector);
   isolate->set_context({});
   return *vector;
 }
@@ -420,7 +420,7 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateFeedbackVector) {
   DCHECK(v8_flags.wasm_inlining);
   DirectHandle<WasmTrustedInstanceData> trusted_instance_data(
       TrustedCast<WasmTrustedInstanceData>(args[0]), isolate);
-  int declared_func_index = args.smi_value_at(1);
+  int defined_func_index = args.smi_value_at(1);
   wasm::NativeModule** native_module_stack_slot =
       reinterpret_cast<wasm::NativeModule**>(args.address_of_arg_at(2));
   wasm::NativeModule* native_module = trusted_instance_data->native_module();
@@ -428,7 +428,7 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateFeedbackVector) {
   // triggers a GC and we need the module to scan LiftoffSetupFrame stack frame.
   *native_module_stack_slot = native_module;
   return AllocateFeedbackVector(isolate, trusted_instance_data,
-                                declared_func_index);
+                                defined_func_index);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmLiftoffDeoptFinish) {
@@ -439,7 +439,7 @@ RUNTIME_FUNCTION(Runtime_WasmLiftoffDeoptFinish) {
   size_t i = 0;
 
   // For each liftoff frame, replace the smi in the feedback vector slot holding
-  // the declared function index with the actual feedback vector from the
+  // the defined function index with the actual feedback vector from the
   // WasmTrustedInstanceData. If it doesn't exist yet, it needs to be allocated
   // (which is also the reason why this wasn't done by the deoptimizer already.)
   for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
@@ -452,9 +452,9 @@ RUNTIME_FUNCTION(Runtime_WasmLiftoffDeoptFinish) {
           wasm_frame->fp() - WasmLiftoffFrameConstants::kFeedbackVectorOffset;
       Tagged<Object> feedback_slot_value(Memory<intptr_t>(vector_address));
       CHECK(feedback_slot_value.IsSmi());
-      int declared_func_index = Cast<Smi>(feedback_slot_value).value();
+      int defined_func_index = Cast<Smi>(feedback_slot_value).value();
       Tagged<Object> vector =
-          trusted_instance_data->feedback_vectors()->get(declared_func_index);
+          trusted_instance_data->feedback_vectors()->get(defined_func_index);
       // If the vector doesn't exist, allocate a new feedback vector. This
       // happens if the corresponding function wasn't executed in Liftoff yet
       // for this particular module instantiation.
@@ -463,7 +463,7 @@ RUNTIME_FUNCTION(Runtime_WasmLiftoffDeoptFinish) {
           wasm::WasmCodeRefScope code_ref_scope;
           const int module_func_index =
               trusted_instance_data->native_module()->num_imported_functions() +
-              declared_func_index;
+              defined_func_index;
           const wasm::WasmCode* code =
               trusted_instance_data->native_module()->GetCode(
                   module_func_index);
@@ -474,7 +474,7 @@ RUNTIME_FUNCTION(Runtime_WasmLiftoffDeoptFinish) {
               module_func_index);
         }
         vector = AllocateFeedbackVector(isolate, trusted_instance_data,
-                                        declared_func_index);
+                                        defined_func_index);
       }
       memcpy(reinterpret_cast<void*>(vector_address), &vector,
              sizeof(intptr_t));
@@ -632,7 +632,7 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
       // We call this function when the tiering budget runs out, so reset that
       // budget to appropriately delay the next call.
       int array_index =
-          wasm::declared_function_index(trusted_data->module(), func_index);
+          wasm::defined_function_index(trusted_data->module(), func_index);
       trusted_data->tiering_budget_array()[array_index].store(
           v8_flags.wasm_tiering_budget, std::memory_order_relaxed);
     } else if (V8_UNLIKELY(v8_flags.wasm_generate_compilation_hints ||
@@ -645,7 +645,7 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
       // We call this function when the tiering budget runs out, so reset that
       // budget to appropriately delay the next call.
       int array_index =
-          wasm::declared_function_index(trusted_data->module(), func_index);
+          wasm::defined_function_index(trusted_data->module(), func_index);
       trusted_data->tiering_budget_array()[array_index].store(
           v8_flags.wasm_tiering_budget, std::memory_order_relaxed);
     } else {

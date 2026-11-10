@@ -1398,7 +1398,7 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
   output_frame->SetFrameSlot(frame_type_offset,
                              StackFrame::TypeToMarker(StackFrame::WASM));
   // Fill feedback vector stack slot.
-  // Instead of storing the actual feedback vector, we simply store the declared
+  // Instead of storing the actual feedback vector, we simply store the defined
   // function index of the wasm function. This is done because the feedback
   // vector may not exist yet (in case of multiple instantiations of the same
   // wasm module) and heap allocations during a deoptimization aren't allowed.
@@ -1406,7 +1406,7 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
   // feedback vector object in the runtime function WasmLiftoffDeoptFinish.
   uint32_t feedback_offset =
       base_offset - WasmLiftoffFrameConstants::kFeedbackVectorOffset;
-  uint32_t fct_feedback_index = wasm::declared_function_index(
+  uint32_t fct_feedback_index = wasm::defined_function_index(
       native_module->module(), frame.wasm_function_index());
   output_frame->SetFrameSlot(feedback_offset,
                              Smi::FromInt(fct_feedback_index).ptr());
@@ -1558,14 +1558,14 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
   }
 
   // Reset tiering budget of the function that triggered the deopt.
-  int declared_func_index =
-      wasm::declared_function_index(native_module->module(), code->index());
+  int defined_func_index =
+      wasm::defined_function_index(native_module->module(), code->index());
   {
     // We're running under a DisallowSandboxAccess scope, which also removes
     // write access into the sandbox.
     AllowSandboxAccess sandbox_access_for_write(
         "Writing in-sandbox tiering budget. Not reading any untrusted data.");
-    wasm_trusted_instance->tiering_budget_array()[declared_func_index].store(
+    wasm_trusted_instance->tiering_budget_array()[defined_func_index].store(
         v8_flags.wasm_tiering_budget, std::memory_order_relaxed);
   }
 

@@ -1812,7 +1812,7 @@ DirectHandle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
   }
 
   // {this} can either be:
-  // - a declared function, i.e. {implicit_arg()} is a WasmTrustedInstanceData,
+  // - a defined function, i.e. {implicit_arg()} is a WasmTrustedInstanceData,
   // - or an imported callable, i.e. {implicit_arg()} is a WasmImportData which
   //   refers to the importing instance.
   // It cannot be a C API function as for those, the external function is set at

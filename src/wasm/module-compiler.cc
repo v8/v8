@@ -114,9 +114,9 @@ class CompilationUnitQueues {
   };
 
   explicit CompilationUnitQueues(int num_imported_functions,
-                                 int num_declared_functions)
+                                 int num_defined_functions)
       : num_imported_functions_(num_imported_functions),
-        num_declared_functions_(num_declared_functions) {
+        num_defined_functions_(num_defined_functions) {
     // Add one first queue, to add units to.
     queues_.emplace_back(std::make_unique<QueueImpl>(0));
 
@@ -128,11 +128,11 @@ class CompilationUnitQueues {
 #endif
 
     top_tier_compiled_ =
-        std::make_unique<std::atomic<bool>[]>(num_declared_functions);
+        std::make_unique<std::atomic<bool>[]>(num_defined_functions);
 
 #if !defined(__cpp_lib_atomic_value_initialization) || \
     __cpp_lib_atomic_value_initialization < 201911L
-    for (int i = 0; i < num_declared_functions; i++) {
+    for (int i = 0; i < num_defined_functions; i++) {
       std::atomic_init(&top_tier_compiled_.get()[i], false);
     }
 #endif
@@ -164,7 +164,7 @@ class CompilationUnitQueues {
     // should not happen *too* often. Thus aim for 4-8 publishes per thread, but
     // distribute it such that publishing is likely to happen at different
     // times.
-    int units_per_thread = num_declared_functions_ / num_queues;
+    int units_per_thread = num_defined_functions_ / num_queues;
     int min = std::max(10, units_per_thread / 8);
     int queue_id = 0;
     for (auto& queue : queues_) {
@@ -274,7 +274,7 @@ class CompilationUnitQueues {
   }
 
   void AllowAnotherTopTierJob(uint32_t func_index) {
-    top_tier_compiled_[declared_function_index(func_index)].store(
+    top_tier_compiled_[defined_function_index(func_index)].store(
         false, std::memory_order_relaxed);
   }
 
@@ -425,7 +425,7 @@ class CompilationUnitQueues {
         queue->nonblocking_priority_units.pop();
         num_priority_units_.fetch_sub(1, std::memory_order_relaxed);
 
-        if (!top_tier_compiled_[declared_function_index(unit.func_index())]
+        if (!top_tier_compiled_[defined_function_index(unit.func_index())]
                  .exchange(true, std::memory_order_relaxed)) {
           return unit;
         }
@@ -499,7 +499,7 @@ class CompilationUnitQueues {
         steal_queue->nonblocking_priority_units.pop();
         num_priority_units_.fetch_sub(1, std::memory_order_relaxed);
 
-        if (!top_tier_compiled_[declared_function_index(unit.func_index())]
+        if (!top_tier_compiled_[defined_function_index(unit.func_index())]
                  .exchange(true, std::memory_order_relaxed)) {
           returned_unit = unit;
           break;
@@ -513,9 +513,9 @@ class CompilationUnitQueues {
     return returned_unit;
   }
 
-  int declared_function_index(int func_index) const {
+  int defined_function_index(int func_index) const {
     DCHECK_LE(num_imported_functions_, func_index);
-    DCHECK_LT(func_index, num_imported_functions_ + num_declared_functions_);
+    DCHECK_LT(func_index, num_imported_functions_ + num_defined_functions_);
     return func_index - num_imported_functions_;
   }
 
@@ -524,7 +524,7 @@ class CompilationUnitQueues {
   std::vector<std::unique_ptr<QueueImpl>> queues_;
 
   const int num_imported_functions_;
-  const int num_declared_functions_;
+  const int num_defined_functions_;
 
   BigUnitsQueue big_units_queue_;
 
@@ -560,7 +560,7 @@ size_t CompilationUnitQueues::EstimateCurrentMemoryConsumption() const {
     }
   }
   // For {top_tier_compiled_}.
-  result += sizeof(std::atomic<bool>) * num_declared_functions_;
+  result += sizeof(std::atomic<bool>) * num_defined_functions_;
   return result;
 }
 
@@ -695,7 +695,7 @@ class CompilationStateImpl {
   void AllowAnotherTopTierJobForAllFunctions() {
     const WasmModule* module = native_module_->module();
     uint32_t fn_start = module->num_imported_functions;
-    uint32_t fn_end = fn_start + module->num_declared_functions;
+    uint32_t fn_end = fn_start + module->num_defined_functions;
     base::MutexGuard mutex_guard(&module->type_feedback.mutex);
     std::unordered_map<uint32_t, FunctionTypeFeedback>& feedback_map =
         module->type_feedback.feedback_for_function;
@@ -816,7 +816,7 @@ class CompilationStateImpl {
   // {kFinishedCompilationChunk} event.
   size_t bytes_since_last_chunk_ = 0;
 
-  // One byte per declared function, see bitfields defined below.
+  // One byte per defined function, see bitfields defined below.
   // This vector is initialized once to the right size, updates are *usually*
   // protected by the {callbacks_mutes_}, with exceptions during
   // initialization (see comment in
@@ -871,9 +871,9 @@ size_t CompilationStateImpl::EstimateCurrentMemoryConsumption() const {
   // need to acquire the {callbacks_mutex_}, which can cause deadlocks
   // when that mutex is already held elsewhere and another thread calls
   // into this function. So we rely on heuristics and informed guesses
-  // instead: {compilation_progress_} contains an entry for every declared
+  // instead: {compilation_progress_} contains an entry for every defined
   // function in the module...
-  result += sizeof(uint8_t) * native_module_->module()->num_declared_functions;
+  result += sizeof(uint8_t) * native_module_->module()->num_defined_functions;
   // ...and there are typically no more than a handful of {callbacks_}.
   constexpr size_t kAssumedNumberOfCallbacks = 4;
   constexpr size_t size_of_vector =
@@ -1416,7 +1416,7 @@ void TransitiveTypeFeedbackProcessor::ProcessAll(
 }
 
 void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
-  int which_vector = declared_function_index(module_, func_index);
+  int which_vector = defined_function_index(module_, func_index);
   Tagged<Object> maybe_feedback =
       instance_data_->feedback_vectors()->get(which_vector);
   if (!IsFixedArray(maybe_feedback)) return;
@@ -1582,7 +1582,7 @@ void TriggerTierUp(Isolate* isolate,
   int priority;
   {
     base::MutexGuard mutex_guard(&module->type_feedback.mutex);
-    int array_index = wasm::declared_function_index(module, func_index);
+    int array_index = wasm::defined_function_index(module, func_index);
     trusted_instance_data->tiering_budget_array()[array_index].store(
         v8_flags.wasm_tiering_budget, std::memory_order_relaxed);
     int& stored_priority =
@@ -1630,7 +1630,7 @@ void TierUpAllForTesting(
   WasmCodeRefScope code_ref_scope;
 
   uint32_t start = mod->num_imported_functions;
-  uint32_t end = start + mod->num_declared_functions;
+  uint32_t end = start + mod->num_defined_functions;
   for (uint32_t func_index = start; func_index < end; func_index++) {
     if (!native_module->HasCodeWithTier(func_index, ExecutionTier::kTurbofan)) {
       TierUpNowForTesting(isolate, trusted_instance_data, func_index);
@@ -2395,15 +2395,15 @@ struct ValidateFunctionsStreamingJobData {
     }
   };
 
-  void Initialize(int num_declared_functions) {
+  void Initialize(int num_defined_functions) {
     DCHECK_NULL(units);
-    units = base::UniqueArray<Unit>::NewForOverwrite(num_declared_functions);
+    units = base::UniqueArray<Unit>::NewForOverwrite(num_defined_functions);
     // Initially {next == end}.
     next_available_unit.store(units.begin(), std::memory_order_relaxed);
     end_of_available_units.store(units.begin(), std::memory_order_relaxed);
   }
 
-  void AddUnit(int declared_func_index, base::Vector<const uint8_t> code,
+  void AddUnit(int func_index, base::Vector<const uint8_t> code,
                JobHandle* job_handle) {
     DCHECK_NOT_NULL(units);
     // Write new unit to {*end}, then increment {end}. There is only one thread
@@ -2411,7 +2411,7 @@ struct ValidateFunctionsStreamingJobData {
     Unit* ptr = end_of_available_units.load(std::memory_order_relaxed);
     // Check invariant: {next <= end}.
     DCHECK_LE(next_available_unit.load(std::memory_order_relaxed), ptr);
-    *ptr++ = {declared_func_index, code};
+    *ptr++ = {func_index, code};
     // Use release semantics, so whoever loads this pointer (using acquire
     // semantics) sees all our previous stores.
     end_of_available_units.store(ptr, std::memory_order_release);
@@ -3286,7 +3286,7 @@ bool AsyncStreamingProcessor::ProcessFunctionBody(
 
   if (!compiled) {
     if (!validate_functions_job_handle_) {
-      validate_functions_job_data_.Initialize(module->num_declared_functions);
+      validate_functions_job_data_.Initialize(module->num_defined_functions);
       validate_functions_job_handle_ = V8::GetCurrentPlatform()->CreateJob(
           TaskPriority::kUserVisible,
           std::make_unique<ValidateFunctionsStreamingJob>(
@@ -3305,13 +3305,13 @@ bool AsyncStreamingProcessor::ProcessFunctionBody(
 void AsyncStreamingProcessor::CommitCompilationUnits() {
   DCHECK(compilation_unit_builder_);
   if (num_functions_ <
-      static_cast<int>(decoder_.module()->num_declared_functions)) {
+      static_cast<int>(decoder_.module()->num_defined_functions)) {
     // Hold back TurboFan units until all function bodies have been received,
     // as inlining may inspect other functions in the module.
     compilation_unit_builder_->CommitBlockingLiftoffUnits();
   } else {
     DCHECK_EQ(num_functions_,
-              static_cast<int>(decoder_.module()->num_declared_functions));
+              static_cast<int>(decoder_.module()->num_defined_functions));
     compilation_unit_builder_->Commit();
     compilation_unit_builder_.reset();
   }
@@ -3537,7 +3537,7 @@ CompilationStateImpl::CompilationStateImpl(
     : native_module_(native_module.get()),
       native_module_weak_(native_module),
       compilation_unit_queues_(native_module->num_imported_functions(),
-                               native_module->num_declared_functions()),
+                               native_module->num_defined_functions()),
       detected_features_(detected_features) {}
 
 void CompilationStateImpl::InitCompileJob() {
@@ -3634,7 +3634,7 @@ void CompilationStateImpl::ApplyPgoInfoToInitialProgress(
   const WasmModule* module = native_module_->module();
   for (int func_index : pgo_info->executed_functions()) {
     uint8_t& progress =
-        compilation_progress_[declared_function_index(module, func_index)];
+        compilation_progress_[defined_function_index(module, func_index)];
     ExecutionTier old_blocking_tier =
         RequiredBlockingTierField::decode(progress);
     // If the function is already marked for eager compilation, we are good.
@@ -3652,7 +3652,7 @@ void CompilationStateImpl::ApplyPgoInfoToInitialProgress(
   // TurboFan (in the background, not blocking instantiation).
   for (int func_index : pgo_info->tiered_up_functions()) {
     uint8_t& progress =
-        compilation_progress_[declared_function_index(module, func_index)];
+        compilation_progress_[defined_function_index(module, func_index)];
     ExecutionTier old_blocking_tier =
         RequiredBlockingTierField::decode(progress);
     ExecutionTier old_nonblocking_tier =
@@ -3679,7 +3679,7 @@ void CompilationStateImpl::ApplyPgoInfoLate(ProfileInformation* pgo_info) {
   // Liftoff (in the background).
   for (int func_index : pgo_info->executed_functions()) {
     uint8_t& progress =
-        compilation_progress_[declared_function_index(module, func_index)];
+        compilation_progress_[defined_function_index(module, func_index)];
     ExecutionTier old_blocking_tier =
         RequiredBlockingTierField::decode(progress);
     // If the function is already marked for eager compilation, we are good.
@@ -3704,7 +3704,7 @@ void CompilationStateImpl::ApplyPgoInfoLate(ProfileInformation* pgo_info) {
   // TurboFan in the background.
   for (int func_index : pgo_info->tiered_up_functions()) {
     uint8_t& progress =
-        compilation_progress_[declared_function_index(module, func_index)];
+        compilation_progress_[defined_function_index(module, func_index)];
     ExecutionTier old_blocking_tier =
         RequiredBlockingTierField::decode(progress);
     ExecutionTier old_nonblocking_tier =
@@ -3748,9 +3748,9 @@ void CompilationStateImpl::InitializeCompilationProgress(
         ReachedTierField::encode(ExecutionTier::kNone);
     DCHECK_NULL(compilation_progress_);
     compilation_progress_ = base::UniqueArray<uint8_t>::New(
-        module->num_declared_functions, default_progress);
+        module->num_defined_functions, default_progress);
     if (default_tiers.blocking_tier != ExecutionTier::kNone) {
-      outstanding_blocking_units_ += module->num_declared_functions;
+      outstanding_blocking_units_ += module->num_defined_functions;
     }
 
     if (native_module_->enabled_features().has_compilation_hints()) {
@@ -3758,13 +3758,13 @@ void CompilationStateImpl::InitializeCompilationProgress(
            module->compilation_priorities) {
         // If an imported function has a compilation hint, ignore it.
         if (function_index < module->num_imported_functions) continue;
-        uint32_t declared_function_index =
+        uint32_t defined_function_index =
             function_index - module->num_imported_functions;
         // If a function index is out of bounds, ignore it.
-        if (declared_function_index >= module->num_declared_functions) {
+        if (defined_function_index >= module->num_defined_functions) {
           continue;
         }
-        ApplyCompilationPriorityToInitialProgress(declared_function_index,
+        ApplyCompilationPriorityToInitialProgress(defined_function_index,
                                                   compilation_priority);
       }
     }
@@ -3808,7 +3808,7 @@ bool CompilationStateImpl::InitializeCompilationUnitForSingleFunction(
   // Also, this read here happens exactly once per function, only for the
   // initial compilation, and all accesses to `compilation_progress_` thereafter
   // are synchronized via `callbacks_mutex_`.
-  uint8_t function_progress = compilation_progress_[declared_function_index(
+  uint8_t function_progress = compilation_progress_[defined_function_index(
       native_module_->module(), function_index)];
   ExecutionTier required_blocking_tier =
       CompilationStateImpl::RequiredBlockingTierField::decode(
@@ -3845,9 +3845,9 @@ void CompilationStateImpl::InitializeCompilationUnits(
   {
     base::MutexGuard guard(&callbacks_mutex_);
     const WasmModule* module = native_module_->module();
-    DCHECK_EQ(module->num_declared_functions, compilation_progress_.size());
+    DCHECK_EQ(module->num_defined_functions, compilation_progress_.size());
     int start = module->num_imported_functions;
-    int end = start + module->num_declared_functions;
+    int end = start + module->num_defined_functions;
     for (int func_index = start; func_index < end; ++func_index) {
       InitializeCompilationUnitForSingleFunction(builder.get(), func_index,
                                                  kAlreadyValidated);
@@ -3875,7 +3875,7 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
         RequiredNonblockingTierField::encode(ExecutionTier::kTurbofan) |
         ReachedTierField::encode(ExecutionTier::kTurbofan);
     compilation_progress_ = base::UniqueArray<uint8_t>::New(
-        module->num_declared_functions, kProgressAfterTurbofanDeserialization);
+        module->num_defined_functions, kProgressAfterTurbofanDeserialization);
 
     // Update compilation state for lazy functions.
     constexpr uint8_t kProgressForLazyFunctions =
@@ -3883,7 +3883,7 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
         RequiredNonblockingTierField::encode(ExecutionTier::kNone) |
         ReachedTierField::encode(ExecutionTier::kNone);
     for (auto func_index : lazy_functions) {
-      compilation_progress_[declared_function_index(module, func_index)] =
+      compilation_progress_[defined_function_index(module, func_index)] =
           kProgressForLazyFunctions;
     }
 
@@ -3898,9 +3898,9 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
     for (auto func_index : eager_functions) {
       // Check that {func_index} is not contained in {lazy_functions}.
       DCHECK_EQ(
-          compilation_progress_[declared_function_index(module, func_index)],
+          compilation_progress_[defined_function_index(module, func_index)],
           kProgressAfterTurbofanDeserialization);
-      compilation_progress_[declared_function_index(module, func_index)] =
+      compilation_progress_[defined_function_index(module, func_index)] =
           progress_for_eager_functions;
     }
     DCHECK_NE(ExecutionTier::kNone, default_tiers.blocking_tier);
@@ -4016,7 +4016,7 @@ void CompilationStateImpl::OnFinishedUnits(
 
   if (!v8_flags.wasm_jitless) {
     DCHECK_EQ(compilation_progress_.size(),
-              native_module_->module()->num_declared_functions);
+              native_module_->module()->num_defined_functions);
   }
 
   bool has_nonblocking_code = false;
@@ -4041,9 +4041,8 @@ void CompilationStateImpl::OnFinishedUnits(
       // This view on the compilation progress may differ from the actually
       // compiled code. Any lazily compiled function does not contribute to the
       // compilation progress but may publish code to the code manager.
-      uint8_t& function_progress =
-          compilation_progress_[declared_function_index(
-              native_module_->module(), code->index())];
+      uint8_t& function_progress = compilation_progress_[defined_function_index(
+          native_module_->module(), code->index())];
       ExecutionTier required_blocking_tier =
           RequiredBlockingTierField::decode(function_progress);
       ExecutionTier reached_tier = ReachedTierField::decode(function_progress);
@@ -4371,7 +4370,7 @@ void CompilationStateImpl::WaitForBlockingCompileJob() {
 
 void CompilationStateImpl::TierUpAllFunctions() {
   const WasmModule* module = native_module_->module();
-  uint32_t num_wasm_functions = module->num_declared_functions;
+  uint32_t num_wasm_functions = module->num_defined_functions;
   WasmCodeRefScope code_ref_scope;
   CompilationUnitBuilder builder(native_module_);
   for (uint32_t i = 0; i < num_wasm_functions; ++i) {

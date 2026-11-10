@@ -4084,9 +4084,9 @@ void WasmJspiFrame::GetStateForJumpBuffer(wasm::JumpBuffer* jmpbuf,
   DCHECK_NE(*state->pc_address, kNullAddress);
 }
 
-int WasmLiftoffSetupFrame::GetDeclaredFunctionIndex() const {
+int WasmLiftoffSetupFrame::GetDefinedFunctionIndex() const {
   Tagged<Object> func_index(Memory<Address>(
-      sp() + WasmLiftoffSetupFrameConstants::kDeclaredFunctionIndexOffset));
+      sp() + WasmLiftoffSetupFrameConstants::kDefinedFunctionIndexOffset));
   return Smi::ToInt(func_index);
 }
 
@@ -4125,7 +4125,7 @@ void WasmLiftoffSetupFrame::Iterate(RootVisitor* v) const {
                       wasm_instance_data_slot());
 
   wasm::NativeModule* native_module = GetNativeModule();
-  int func_index = GetDeclaredFunctionIndex() +
+  int func_index = GetDefinedFunctionIndex() +
                    native_module->module()->num_imported_functions;
 
   // Scan the spill slots of the parameter registers. Parameters in WebAssembly

@@ -2960,10 +2960,10 @@ wasm::WasmCompilationResult Pipeline::GenerateWasmCode(
   wasm::WasmFunctionCoverageData* function_coverage_data = nullptr;
   if (V8_UNLIKELY(v8_flags.wasm_code_coverage)) {
     DCHECK_NOT_NULL(env->module_coverage_data);
-    int declared_function_index =
-        wasm::declared_function_index(env->module, compilation_data.func_index);
+    int defined_function_index =
+        wasm::defined_function_index(env->module, compilation_data.func_index);
     function_coverage_data = env->module_coverage_data->GetFunctionCoverageData(
-        declared_function_index);
+        defined_function_index);
     if (!function_coverage_data) {
       // There can be a race here, if another thread finds that
       // GetFunctionCoverageData() returns nullptr, but in that case we would
@@ -2974,7 +2974,7 @@ wasm::WasmCompilationResult Pipeline::GenerateWasmCode(
           &graph_zone, {compilation_data.func_body.start, func_body_size});
       basic_block_calculator.ComputeBasicBlocks();
       function_coverage_data = env->module_coverage_data->InstallCoverageData(
-          declared_function_index, basic_block_calculator.GetCodeRanges());
+          defined_function_index, basic_block_calculator.GetCodeRanges());
     }
   }
 

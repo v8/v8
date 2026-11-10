@@ -125,7 +125,7 @@ Node* ToInt32(RawMachineAssembler* m, MachineType type, Node* a) {
 std::shared_ptr<wasm::NativeModule> AllocateNativeModule(Isolate* isolate,
                                                          size_t code_size) {
   auto module = std::make_shared<wasm::WasmModule>();
-  module->num_declared_functions = 1;
+  module->num_defined_functions = 1;
   // We have to add the code object to a NativeModule, because the
   // WasmCallDescriptor assumes that code is on the native heap and not
   // within a code object.

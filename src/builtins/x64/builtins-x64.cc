@@ -3420,7 +3420,7 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   // For the runtime call, we create the following stack layout:
   //
   // [ reserved slot for NativeModule ]  <-- arg[2]
-  // [  ("declared") function index   ]  <-- arg[1] for runtime func.
+  // [     defined function index     ]  <-- arg[1] for runtime func.
   // [       Wasm instance data       ]  <-- arg[0]
   // [ ...spilled Wasm parameters...  ]
   // [           calling pc           ]

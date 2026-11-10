@@ -1229,7 +1229,7 @@ class ModuleDecoderImpl : public Decoder {
     uint32_t total_function_count =
         module_->num_imported_functions + functions_count;
     module_->functions.resize(total_function_count);
-    module_->num_declared_functions = functions_count;
+    module_->num_defined_functions = functions_count;
 
     for (uint32_t func_index = module_->num_imported_functions;
          func_index < total_function_count; ++func_index) {
@@ -1598,9 +1598,9 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   bool CheckFunctionsCount(uint32_t functions_count, uint32_t error_offset) {
-    if (V8_UNLIKELY(functions_count != module_->num_declared_functions)) {
+    if (V8_UNLIKELY(functions_count != module_->num_defined_functions)) {
       errorf(error_offset, "function body count %u mismatch (%u expected)",
-             functions_count, module_->num_declared_functions);
+             functions_count, module_->num_defined_functions);
       return false;
     }
     return true;
@@ -2219,14 +2219,14 @@ class ModuleDecoderImpl : public Decoder {
     // The declared vs. defined function count is normally checked when
     // decoding the code section, but we have to check it here too in case the
     // code section is absent.
-    if (module_->num_declared_functions != 0) {
+    if (module_->num_defined_functions != 0) {
       DCHECK_LT(module_->num_imported_functions, module_->functions.size());
       // We know that the code section has been decoded if the first
       // non-imported function has its code set.
       if (V8_UNLIKELY(!module_->functions[module_->num_imported_functions]
                            .code.is_set())) {
         errorf(pc(), "function count is %u, but code section is absent",
-               module_->num_declared_functions);
+               module_->num_defined_functions);
         return false;
       }
     }

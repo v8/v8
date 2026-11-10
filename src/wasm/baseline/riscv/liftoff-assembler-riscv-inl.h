@@ -66,7 +66,7 @@ void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
 
 void LiftoffAssembler::AlignFrameSize() {}
 
-void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
+void LiftoffAssembler::CheckTierUp(int defined_func_index, int budget_used,
                                    Label* ool_label,
                                    const FreezeCacheState& frozen) {
   UseScratchRegisterScope temps(this);
@@ -81,7 +81,7 @@ void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
            FieldMemOperand(instance_data,
                            WasmTrustedInstanceData::kTieringBudgetArrayOffset));
 
-  int budget_arr_offset = kInt32Size * declared_func_index;
+  int budget_arr_offset = kInt32Size * defined_func_index;
   // TODO(kasperl@rivosinc.com): We cannot currently use {temps} to acquire a
   // suitable scratch register because {CheckTierUp} is sometimes called from
   // a context that only leaves us with a single available scratch register.
@@ -2477,8 +2477,7 @@ void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
   AddWord(sp, sp, Operand(static_cast<int64_t>(size)));
 }
 
-
-void LiftoffAssembler::CallFrameSetupStub(int declared_function_index) {
+void LiftoffAssembler::CallFrameSetupStub(int defined_function_index) {
 // The standard library used by gcc tryjobs does not consider `std::find` to be
 // `constexpr`, so wrap it in a `#ifdef __clang__` block.
 #ifdef __clang__
@@ -2493,7 +2492,7 @@ void LiftoffAssembler::CallFrameSetupStub(int declared_function_index) {
   // up the frame here.
   EnterFrame(StackFrame::WASM);
   LoadConstant(LiftoffRegister(kLiftoffFrameSetupFunctionReg),
-               WasmValue(declared_function_index));
+               WasmValue(defined_function_index));
   CallBuiltin(Builtin::kWasmLiftoffFrameSetup);
 }
 

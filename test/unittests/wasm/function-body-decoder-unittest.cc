@@ -82,7 +82,7 @@ using MakeSig = FixedSizeSignature<ValueType>;
 // globals, or memories.
 class TestModuleBuilder {
  public:
-  explicit TestModuleBuilder() { mod.num_declared_functions = 1; }
+  explicit TestModuleBuilder() { mod.num_defined_functions = 1; }
   uint8_t AddGlobal(ValueType type, bool mutability = true) {
     // TODO(14616): Extend this to shared globals.
     mod.globals.push_back(

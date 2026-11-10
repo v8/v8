@@ -1008,8 +1008,7 @@ int WasmScript::CodeOffset() const {
 
   // If the module contains at least one function, the code offset must have
   // been initialized, and it cannot be zero.
-  DCHECK_IMPLIES(module->num_declared_functions > 0,
-                 module->code.offset() != 0);
+  DCHECK_IMPLIES(module->num_defined_functions > 0, module->code.offset() != 0);
   return module->code.offset();
 }
 #endif  // V8_ENABLE_WEBASSEMBLY

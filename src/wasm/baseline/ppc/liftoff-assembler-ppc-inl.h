@@ -141,7 +141,7 @@ int LiftoffAssembler::PrepareStackFrame() {
   return offset;
 }
 
-void LiftoffAssembler::CallFrameSetupStub(int declared_function_index) {
+void LiftoffAssembler::CallFrameSetupStub(int defined_function_index) {
 // The standard library used by gcc tryjobs does not consider `std::find` to be
 // `constexpr`, so wrap it in a `#ifdef __clang__` block.
 #ifdef __clang__
@@ -156,7 +156,7 @@ void LiftoffAssembler::CallFrameSetupStub(int declared_function_index) {
   mov(scratch, Operand(StackFrame::TypeToMarker(StackFrame::WASM)));
   PushCommonFrame(scratch);
   LoadConstant(LiftoffRegister(kLiftoffFrameSetupFunctionReg),
-               WasmValue(declared_function_index));
+               WasmValue(defined_function_index));
   CallBuiltin(Builtin::kWasmLiftoffFrameSetup);
 }
 
@@ -320,7 +320,7 @@ bool LiftoffAssembler::NeedsAlignment(ValueKind kind) {
   return (kind == kS128 || is_reference(kind));
 }
 
-void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
+void LiftoffAssembler::CheckTierUp(int defined_func_index, int budget_used,
                                    Label* ool_label,
                                    const FreezeCacheState& frozen) {
   UseScratchRegisterScope temps(this);
@@ -336,7 +336,7 @@ void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
           FieldMemOperand(instance_data,
                           WasmTrustedInstanceData::kTieringBudgetArrayOffset));
 
-  int budget_arr_offset = kInt32Size * declared_func_index;
+  int budget_arr_offset = kInt32Size * defined_func_index;
   // Pick a random register from kLiftoffAssemblerGpCacheRegs.
   // TODO(miladfarca): Use ScratchRegisterScope when available.
   Register budget = r15;
