@@ -525,6 +525,14 @@ TEST_F(FlagDefinitionsTest, UnsafeFlagImpliesTestOnlyUnsafe) {
     CHECK(v8_flags.expose_trigger_failure);
     CHECK(v8_flags.test_only_unsafe);
   }
+  {
+    SaveFlags save_flags;
+    v8_flags.parallel_compile_tasks_for_eager_toplevel.Set(true);
+    FlagList::EnforceFlagImplications();
+    CHECK(v8_flags.parallel_compile_tasks_for_eager_toplevel);
+    CHECK(v8_flags.lazy_compile_dispatcher);
+    CHECK(v8_flags.test_only_unsafe);
+  }
 #if V8_ENABLE_WEBASSEMBLY
   {
     SaveFlags save_flags;
@@ -581,7 +589,9 @@ TEST_F(FlagDefinitionsTest, FuzzingImpliesDisallowUnsafeFlags) {
 #if V8_ENABLE_WEBASSEMBLY
         " --wasm-max-code-space-size-mb=2000"
 #endif
-        " --expose-trigger-failure --stack-size=40";
+        " --expose-trigger-failure --stack-size=40"
+        " --parallel-compile-tasks-for-eager-toplevel"
+        " --parallel-compile-tasks-for-lazy --lazy-compile-dispatcher";
     CHECK_EQ(0, FlagList::SetFlagsFromString(str, strlen(str)));
     FlagList::ResolveContradictionsWhenFuzzing();
     FlagList::EnforceFlagImplications();
@@ -602,6 +612,9 @@ TEST_F(FlagDefinitionsTest, FuzzingImpliesDisallowUnsafeFlags) {
 #endif
     CHECK(!v8_flags.expose_trigger_failure);
     CHECK_EQ(V8_DEFAULT_STACK_SIZE_KB, v8_flags.stack_size);
+    CHECK(!v8_flags.parallel_compile_tasks_for_eager_toplevel);
+    CHECK(!v8_flags.parallel_compile_tasks_for_lazy);
+    CHECK(!v8_flags.lazy_compile_dispatcher);
     CHECK(!v8_flags.test_only_unsafe);
   }
 }

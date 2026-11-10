@@ -4391,6 +4391,10 @@ DISALLOW_UNSAFE_FLAG(vtune_prof_annotate_wasm)
 // Known-broken features/configuration.
 DISALLOW_UNSAFE_FLAG(array_destructure_bytecode)
 DISALLOW_UNSAFE_FLAG(turboshaft_random_rescheduling)
+// https://crbug.com/371061101
+DISALLOW_UNSAFE_FLAG(parallel_compile_tasks_for_eager_toplevel)
+DISALLOW_UNSAFE_FLAG(parallel_compile_tasks_for_lazy)
+DISALLOW_UNSAFE_FLAG(lazy_compile_dispatcher)
 // Disabled-by-default misc. "unsafe" flags that should not be enabled.
 DISALLOW_UNSAFE_FLAG(abort_on_bad_builtin_profile_data)
 DISALLOW_UNSAFE_FLAG(abort_on_uncaught_exception)
