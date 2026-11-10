@@ -297,6 +297,12 @@ class RegisterAllocatorVerifier final : public ZoneObject {
   ZoneMap<RpoNumber, BlockAssessments*> assessments_;
   ZoneMap<RpoNumber, DelayedAssessments*> outstanding_assessments_;
   int spill_slot_delta_;
+  // Reusable scratch state for ValidatePendingAssessment. A block is visited
+  // in the current call iff pending_seen_epoch_[block] ==
+  // pending_current_epoch_.
+  ZoneVector<std::pair<const PendingAssessment*, int>> pending_worklist_;
+  ZoneVector<uint32_t> pending_seen_epoch_;
+  uint32_t pending_current_epoch_ = 0;
   // TODO(chromium:725559): remove after we understand this bug's root cause.
   const char* caller_info_ = nullptr;
 };
