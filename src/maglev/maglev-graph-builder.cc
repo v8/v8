@@ -16930,6 +16930,7 @@ void MaglevGraphBuilder::ProcessMergePointPredecessors(
   }
   BasicBlockRef* old_jump_targets = jump_targets.Reset();
   while (old_jump_targets != nullptr) {
+    SBXCHECK_GE(predecessor_index, 0);
     BasicBlock* predecessor = merge_state.predecessor_at(predecessor_index);
     CHECK(predecessor);
     ControlNode* control = predecessor->control_node();
