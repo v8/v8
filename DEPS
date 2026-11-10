@@ -173,7 +173,7 @@ deps = {
     'condition': 'checkout_agents_internal',
   },
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'c5c4fc99f2d0cb59c4f9a503e3545d95759c762d',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '6351849929668d170f78493d5df0d6c230d94fc2',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'a9c58ac990557a29176bbaeef7577b196c38a950',
   'buildtools/linux64': {
@@ -318,7 +318,7 @@ deps = {
   'third_party/fuzztest/src':
     Var('chromium_url') + '/external/github.com/google/fuzztest.git' + '@' + 'a2d3cb097f07a91dd26768db7d9f0898cd42b0f0',
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '6450691fd7d07ef932582206fbafb1a513927e08',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'adaffb94a924d9011cf9f19f9d4d5ee23e207a7c',
   'third_party/highway/src':
     Var('chromium_url') + '/external/github.com/google/highway.git' + '@' + '2607d3b5b0113992fe84d3848859eae13b3b52c1',
   'third_party/icu':
@@ -662,7 +662,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'ec453dc9abac1ddf39ced752e72a7a80dcda1d91',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '583261a1bf9026d3c8b98b40cdaedc610e23d1da',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'b8732dcf0099299659b1a5d613532e234d1d38ad',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + '5c77c0c9fdebb2d87378bcea183e4c6937fd8c53',
   'tools/python': {
@@ -674,7 +674,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' + '98ffd075a2db87093a62ca46f9e6e66e5f2f9f23',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' + '5fa9e920fe867353a5a0a6eee4005e20aa3df85d',
     'condition': 'not build_with_chromium',
   },
   'third_party/nasm': {
