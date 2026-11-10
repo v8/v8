@@ -6,14 +6,10 @@
 #define V8_UNITTESTS_API_API_TEST_UTILS_H_
 
 #include <cstring>
-#include <memory>
-#include <type_traits>
-#include <vector>
 
 #include "include/libplatform/libplatform.h"
 #include "include/v8-array-buffer.h"
 #include "include/v8-context.h"
-#include "include/v8-function-callback.h"
 #include "include/v8-isolate.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-persistent-handle.h"
@@ -21,145 +17,12 @@
 #include "include/v8-script.h"
 #include "include/v8-unwinder.h"
 #include "src/api/api-inl.h"
-#include "src/base/platform/semaphore.h"
 #include "src/debug/debug-interface.h"
 #include "src/execution/isolate.h"
-#include "src/execution/vm-state.h"
 #include "src/init/v8.h"
-#include "src/sandbox/sandboxable-thread.h"
-#include "test/common/fast-api-test-helpers.h"
 #include "test/unittests/test-utils.h"
 
-// Shared helpers for the API tests in test/unittests/api/ that were migrated
-// from cctest (api-unittest.cc, api-interceptors-unittest.cc, ...).
-//
-// THREADED_TEST bodies are free functions that ApiTestFuzzer also runs on
-// background threads that share a single isolate (see Threading1..8 in
-// api-unittest.cc). There is no test fixture on those threads, so the helpers
-// below use the isolate that is entered on the current thread
-// (v8::Isolate::GetCurrent()). Inside TEST_F bodies, prefer the fixture
-// accessors (v8_isolate(), i_isolate()).
-
 namespace v8 {
-
-// -----------------------------------------------------------------------------
-// Checkers for API callbacks.
-
-template <typename T>
-i::Tagged<i::Object> Get(v8::ReturnValue<T> return_value) {
-  return *v8::Utils::OpenDirectHandle(*return_value.Get());
-}
-
-template <typename T>
-void CheckReturnValueImpl(v8::Isolate* v8_isolate,
-                          v8::ReturnValue<T> return_value,
-                          i::Address callback) {
-  constexpr bool is_int = std::is_same_v<T, v8::Integer>;
-  constexpr bool is_bool =
-      std::is_same_v<T, v8::Boolean> || std::is_same_v<T, void>;
-  constexpr bool is_array = std::is_same_v<T, v8::Array>;
-  constexpr bool is_value = std::is_same_v<T, v8::Value>;
-  static_assert(is_int || is_bool || is_array || is_value);
-
-  CHECK_EQ(v8::Isolate::GetCurrent(), v8_isolate);
-  CHECK_EQ(v8_isolate, return_value.GetIsolate());
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-
-  i::Tagged<i::Object> default_value;
-  if constexpr (is_int) {
-    default_value = i::Smi::zero();
-  } else if constexpr (is_bool) {
-    default_value = i::ReadOnlyRoots(isolate).true_value();
-  } else if constexpr (is_array) {
-    // TODO(ishell): enumerator callback's return value is initialized with
-    // undefined even though it's supposed to return v8::Array.
-    default_value = i::ReadOnlyRoots(isolate).undefined_value();
-  } else if constexpr (is_value) {
-    default_value = i::ReadOnlyRoots(isolate).undefined_value();
-  }
-
-  auto CheckValueMap = [=](v8::ReturnValue<T>& return_value) {
-    i::Tagged<i::Object> obj = Get(return_value);
-    if constexpr (is_int) {
-      return i::IsNumber(obj);
-    } else if constexpr (is_bool) {
-      return i::IsBoolean(obj);
-    } else if constexpr (is_array) {
-      // TODO(ishell): enumerator callback's return value is initialized with
-      // undefined even though it's supposed to return v8::Array.
-      return i::IsUndefined(obj) || i::IsJSObject(obj);
-    } else if constexpr (is_value) {
-      // TODO(ishell): just `return IsJSAny(obj);` when available.
-      // Similar to v8::Data::IsValue().
-      if (i::IsSmi(obj)) return true;
-      i::Tagged<i::HeapObject> heap_object = i::Cast<i::HeapObject>(obj);
-      if (i::IsSymbol(heap_object)) {
-        return !i::Cast<i::Symbol>(heap_object)->is_any_private();
-      }
-      return i::IsPrimitiveHeapObject(heap_object) ||
-             i::IsJSReceiver(heap_object);
-    }
-    UNREACHABLE();
-  };
-
-  // Default state.
-  CHECK_EQ(default_value, Get(return_value));
-  CHECK(CheckValueMap(return_value));
-
-  if constexpr (is_bool || is_value) {
-    return_value.Set(true);
-    CHECK_EQ(Get(return_value), i::ReadOnlyRoots(isolate).true_value());
-    CHECK(CheckValueMap(return_value));
-  }
-
-  if constexpr (is_int || is_value) {
-    return_value.Set(42);
-    CHECK_EQ(Get(return_value), i::Smi::FromInt(42));
-    CHECK(CheckValueMap(return_value));
-
-    return_value.Set(-153);
-    CHECK_EQ(Get(return_value), i::Smi::FromInt(-153));
-    CHECK(CheckValueMap(return_value));
-  }
-
-  if constexpr (is_value) {
-    return_value.SetNull();
-    CHECK_EQ(Get(return_value), i::ReadOnlyRoots(isolate).null_value());
-    CHECK(CheckValueMap(return_value));
-  }
-
-  if constexpr (is_value) {
-    // Reset to default state.
-    return_value.Set(v8::Local<v8::Object>());
-    CHECK_EQ(default_value, Get(return_value));
-    CHECK(CheckValueMap(return_value));
-  }
-
-  // If CPU profiler is active check that when API callback is invoked
-  // VMState is set to EXTERNAL.
-  if (isolate->is_profiling()) {
-    CHECK(v8::IsExternal(isolate->current_vm_state()));
-    CHECK(isolate->external_callback_scope());
-    CHECK_EQ(callback, isolate->external_callback_scope()->callback());
-  }
-}
-
-template <typename TCallbackInfo>
-void CheckReturnValue(const TCallbackInfo& info, i::Address callback) {
-  CheckReturnValueImpl(info.GetIsolate(), info.GetReturnValue(), callback);
-}
-
-template <typename T>
-void CheckInternalFieldsAreZero(v8::Local<T> value) {
-  CHECK_EQ(T::kInternalFieldCount, value->InternalFieldCount());
-  for (int i = 0; i < value->InternalFieldCount(); i++) {
-    v8::Local<v8::Value> field =
-        value->GetInternalField(i).template As<v8::Value>();
-    CHECK_EQ(0,
-             field->Int32Value(v8::Isolate::GetCurrent()->GetCurrentContext())
-                 .FromJust());
-  }
-}
 
 // -----------------------------------------------------------------------------
 // Context and script helpers that work on the isolate entered on the current
@@ -444,120 +307,6 @@ inline v8::ArrayBuffer::Allocator* DefaultArrayBufferAllocator() {
       v8::ArrayBuffer::Allocator::NewDefaultAllocator();
   return allocator;
 }
-
-// -----------------------------------------------------------------------------
-// Threaded tests.
-
-// Switches between all the Api tests using the threading support.
-// In order to get a surprising but repeatable pattern of thread
-// switching it has extra semaphores to control the order in which
-// the tests alternate, not relying solely on the big V8 lock.
-//
-// A test is augmented with calls to ApiTestFuzzer::Fuzz() in its
-// callbacks.  This will have no effect when we are not running the
-// thread fuzzing test.  In the thread fuzzing test it will
-// pseudorandomly select a successor thread and switch execution
-// to that thread, suspending the current test.
-class ApiTestFuzzer : public v8::internal::SandboxableThread {
- public:
-  ~ApiTestFuzzer() override = default;
-
-  void CallTest();
-
-  // The ApiTestFuzzer is also a Thread, so it has a Run method.
-  void Run() override;
-
-  enum PartOfTest {
-    FIRST_PART,
-    SECOND_PART,
-    THIRD_PART,
-    FOURTH_PART,
-    FIFTH_PART,
-    SIXTH_PART,
-    SEVENTH_PART,
-    EIGHTH_PART,
-    LAST_PART = EIGHTH_PART
-  };
-
-  // Starts one fuzzer thread per THREADED_TEST in the given part. All of them
-  // share the isolate that is entered on the calling thread.
-  static void SetUp(PartOfTest part);
-  static void RunAllTests();
-  static void TearDown();
-  // This method switches threads if we are running the Threading test.
-  // Otherwise it does nothing.
-  static void Fuzz();
-
- private:
-  explicit ApiTestFuzzer(int num)
-      : SandboxableThread(Options("ApiTestFuzzer")),
-        test_number_(num),
-        gate_(0),
-        active_(true) {}
-
-  static bool NextThread();
-  void ContextSwitch();
-  static int GetNextFuzzer();
-
-  static v8::Isolate* isolate_;
-  static unsigned linear_congruential_generator;
-  static std::vector<std::unique_ptr<ApiTestFuzzer>> fuzzers_;
-  static bool fuzzing_;
-  static v8::base::Semaphore all_tests_done_;
-  static int tests_being_run_;
-  static int active_tests_;
-  static int current_fuzzer_;
-
-  int test_number_;
-  v8::base::Semaphore gate_;
-  bool active_;
-};
-
-class RegisterThreadedTest {
- public:
-  using TestFunction = void();
-
-  explicit RegisterThreadedTest(TestFunction* callback, const char* name)
-      : callback_(callback), name_(name) {
-    tests_.push_back(this);
-  }
-  static int count() { return static_cast<int>(tests_.size()); }
-  static const RegisterThreadedTest* nth(int i) {
-    DCHECK_LE(0, i);
-    DCHECK_LT(i, count());
-    // Added tests used to be prepended to a linked list and therefore the last
-    // one to be added was at index 0. This ensures that we keep this behavior.
-    return tests_[count() - i - 1];
-  }
-  TestFunction* callback() const { return callback_; }
-  const char* name() const { return name_; }
-
- private:
-  static std::vector<const RegisterThreadedTest*> tests_;
-  TestFunction* callback_;
-  const char* name_;
-};
-
-// In threaded tests, control flow alternates between different threads, each
-// of which runs a single test. All threaded tests share the same isolate and
-// a heap. With conservative stack scanning (CSS), whenever a thread invokes a
-// GC for the common heap, the stacks of all threads are scanned. In this
-// setting, it is not possible to disable CSS without losing correctness.
-// Therefore, tests defined with THREADED_TEST:
-//
-// 1.  must not explicitly disable CSS, using the scope
-//     internal::DisableConservativeStackScanningScopeForTesting, and
-// 2.  cannot rely on the assumption that garbage collection will reclaim all
-//     non-live objects.
-//
-// THREADED_TEST(Fixture, Name) defines the regular test Fixture.Name and also
-// registers its body for the Threading1..8 tests in api-unittest.cc. The body
-// is a free function, so it must not use members of Fixture.
-#define THREADED_TEST(Fixture, Name)                                    \
-  static void Test##Name();                                             \
-  static ::v8::RegisterThreadedTest register_##Name(Test##Name, #Name); \
-  TEST_F(Fixture, Name) { Test##Name(); }                               \
-  static void Test##Name()
 
 }  // namespace v8
 

@@ -12,19 +12,13 @@
 #include "src/api/api-inl.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/execution/execution.h"
-#include "src/heap/local-heap-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 #include "src/runtime/runtime.h"
 #include "src/strings/unicode-inl.h"
+#include "test/cctest/heap/heap-utils.h"
+#include "test/cctest/test-api.h"
 #include "test/common/flag-utils.h"
-#include "test/unittests/api/api-test-utils.h"
-#include "test/unittests/heap/heap-utils.h"
-
-namespace v8 {
-namespace api_interceptors_unittest {
-
-using ApiInterceptorsTest = ::v8::TestWithIsolate;
 
 using ::v8::Boolean;
 using ::v8::Context;
@@ -408,7 +402,7 @@ v8::Intercepted InterceptorHasOwnPropertyGetter(
 v8::Intercepted InterceptorHasOwnPropertyGetterGC(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
-  i::InvokeMajorGC(i::Isolate::Current());
+  i::heap::InvokeMajorGC(CcTest::heap());
   return v8::Intercepted::kNo;
 }
 
@@ -433,7 +427,7 @@ v8::Intercepted QueryCallback(
 
 // Examples that show when the query callback is triggered.
 void TestQueryInterceptor(bool interceptor_is_proto, const bool masking) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
 
   const bool interceptor_is_object = !interceptor_is_proto;
@@ -640,25 +634,25 @@ void TestQueryInterceptor(bool interceptor_is_proto, const bool masking) {
 
 }  // namespace
 
-THREADED_TEST(ApiInterceptorsTest, QueryInterceptor) {
+THREADED_TEST(QueryInterceptor) {
   TestQueryInterceptor(false,  // interceptor_is_prototype
                        true    // masking
   );
 }
 
-THREADED_TEST(ApiInterceptorsTest, QueryInterceptorNonMasking) {
+THREADED_TEST(QueryInterceptorNonMasking) {
   TestQueryInterceptor(false,  // interceptor_is_prototype
                        false   // masking
   );
 }
 
-THREADED_TEST(ApiInterceptorsTest, QueryInterceptorPrototype) {
+THREADED_TEST(QueryInterceptorPrototype) {
   TestQueryInterceptor(true,  // interceptor_is_prototype
                        true   // masking
   );
 }
 
-THREADED_TEST(ApiInterceptorsTest, QueryInterceptorPrototypeNonMasking) {
+THREADED_TEST(QueryInterceptorPrototypeNonMasking) {
   TestQueryInterceptor(true,  // interceptor_is_prototype
                        false  // masking
   );
@@ -693,19 +687,18 @@ v8::Intercepted InterceptingSetterCallback(
 }  // namespace
 
 // Check that get callback is called in defineProperty with accessor descriptor.
-THREADED_TEST(ApiInterceptorsTest, DefinerCallbackAccessorInterceptor) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+THREADED_TEST(DefinerCallbackAccessorInterceptor) {
+  v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::FunctionTemplate> templ =
-      v8::FunctionTemplate::New(v8::Isolate::GetCurrent());
+      v8::FunctionTemplate::New(CcTest::isolate());
   templ->InstanceTemplate()->SetHandler(
       v8::NamedPropertyHandlerConfiguration(GetterCallback, SetterCallback));
   LocalContext env;
   env->Global()
-      ->Set(env.local(), v8_str("obj"),
-            templ->GetFunction(env.local())
-                .ToLocalChecked()
-                ->NewInstance(env.local())
-                .ToLocalChecked())
+      ->Set(env.local(), v8_str("obj"), templ->GetFunction(env.local())
+                                            .ToLocalChecked()
+                                            ->NewInstance(env.local())
+                                            .ToLocalChecked())
       .FromJust();
 
   get_was_called = false;
@@ -719,18 +712,17 @@ THREADED_TEST(ApiInterceptorsTest, DefinerCallbackAccessorInterceptor) {
 }
 
 // Check that set callback is called for function declarations.
-THREADED_TEST(ApiInterceptorsTest,
-              SetterCallbackFunctionDeclarationInterceptor) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+THREADED_TEST(SetterCallbackFunctionDeclarationInterceptor) {
+  v8::HandleScope scope(CcTest::isolate());
   LocalContext env;
   v8::Local<v8::FunctionTemplate> templ =
-      v8::FunctionTemplate::New(v8::Isolate::GetCurrent());
+      v8::FunctionTemplate::New(CcTest::isolate());
 
   v8::Local<ObjectTemplate> object_template = templ->InstanceTemplate();
   object_template->SetHandler(
       v8::NamedPropertyHandlerConfiguration(nullptr, SetterCallback));
   v8::Local<v8::Context> ctx =
-      v8::Context::New(v8::Isolate::GetCurrent(), nullptr, object_template);
+      v8::Context::New(CcTest::isolate(), nullptr, object_template);
 
   set_was_called_counter = 0;
 
@@ -784,17 +776,17 @@ v8::Intercepted PropertyDescriptorCallback(
 }  // namespace
 
 // Check that the descriptor callback is called on the global object.
-THREADED_TEST(ApiInterceptorsTest, DescriptorCallbackOnGlobalObject) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+THREADED_TEST(DescriptorCallbackOnGlobalObject) {
+  v8::HandleScope scope(CcTest::isolate());
   LocalContext env;
   v8::Local<v8::FunctionTemplate> templ =
-      v8::FunctionTemplate::New(v8::Isolate::GetCurrent());
+      v8::FunctionTemplate::New(CcTest::isolate());
 
   v8::Local<ObjectTemplate> object_template = templ->InstanceTemplate();
   object_template->SetHandler(v8::NamedPropertyHandlerConfiguration(
       nullptr, nullptr, PropertyDescriptorCallback, nullptr, nullptr, nullptr));
   v8::Local<v8::Context> ctx =
-      v8::Context::New(v8::Isolate::GetCurrent(), nullptr, object_template);
+      v8::Context::New(CcTest::isolate(), nullptr, object_template);
 
   descriptor_was_called = 0;
 
@@ -821,18 +813,17 @@ v8::Intercepted QueryCallbackSetDontDelete(
 }  // namespace
 
 // Regression for a Node.js test that fails in debug mode.
-THREADED_TEST(ApiInterceptorsTest,
-              InterceptorFunctionRedeclareWithQueryCallback) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+THREADED_TEST(InterceptorFunctionRedeclareWithQueryCallback) {
+  v8::HandleScope scope(CcTest::isolate());
   LocalContext env;
   v8::Local<v8::FunctionTemplate> templ =
-      v8::FunctionTemplate::New(v8::Isolate::GetCurrent());
+      v8::FunctionTemplate::New(CcTest::isolate());
 
   v8::Local<ObjectTemplate> object_template = templ->InstanceTemplate();
   object_template->SetHandler(v8::NamedPropertyHandlerConfiguration(
       nullptr, nullptr, QueryCallbackSetDontDelete));
   v8::Local<v8::Context> ctx =
-      v8::Context::New(v8::Isolate::GetCurrent(), nullptr, object_template);
+      v8::Context::New(CcTest::isolate(), nullptr, object_template);
 
   // Declare and redeclare function.
   v8::Local<v8::String> code = v8_str(
@@ -844,12 +835,11 @@ THREADED_TEST(ApiInterceptorsTest,
 // A lexical declaration must throw when the interceptor reports the property
 // as non-configurable (DontDelete), per HasRestrictedGlobalProperty checks in
 // https://tc39.es/ecma262/#sec-globaldeclarationinstantiation.
-THREADED_TEST(ApiInterceptorsTest,
-              LexicalDeclThrowsForRestrictedGlobalViaInterceptor) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+THREADED_TEST(LexicalDeclThrowsForRestrictedGlobalViaInterceptor) {
+  v8::HandleScope scope(CcTest::isolate());
   LocalContext env;
   v8::Local<v8::FunctionTemplate> templ =
-      v8::FunctionTemplate::New(v8::Isolate::GetCurrent());
+      v8::FunctionTemplate::New(CcTest::isolate());
 
   v8::Local<ObjectTemplate> object_template = templ->InstanceTemplate();
   object_template->SetHandler(v8::NamedPropertyHandlerConfiguration(
@@ -857,9 +847,9 @@ THREADED_TEST(ApiInterceptorsTest,
       v8::Local<v8::Value>(),
       v8::PropertyHandlerFlags::kHasDontDeleteProperty));
   v8::Local<v8::Context> ctx =
-      v8::Context::New(v8::Isolate::GetCurrent(), nullptr, object_template);
+      v8::Context::New(CcTest::isolate(), nullptr, object_template);
 
-  v8::TryCatch try_catch(v8::Isolate::GetCurrent());
+  v8::TryCatch try_catch(CcTest::isolate());
   v8::Local<v8::String> code = v8_str("let x;");
   CHECK(v8::Script::Compile(ctx, code).ToLocalChecked()->Run(ctx).IsEmpty());
   CHECK(try_catch.HasCaught());
@@ -867,20 +857,19 @@ THREADED_TEST(ApiInterceptorsTest,
 
 // Without kHasDontDeleteProperty, the interceptor is not consulted for
 // HasRestrictedGlobalProperty and lexical declarations succeed.
-THREADED_TEST(ApiInterceptorsTest,
-              LexicalDeclSucceedsWithoutRestrictedGlobalFlag) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+THREADED_TEST(LexicalDeclSucceedsWithoutRestrictedGlobalFlag) {
+  v8::HandleScope scope(CcTest::isolate());
   LocalContext env;
   v8::Local<v8::FunctionTemplate> templ =
-      v8::FunctionTemplate::New(v8::Isolate::GetCurrent());
+      v8::FunctionTemplate::New(CcTest::isolate());
 
   v8::Local<ObjectTemplate> object_template = templ->InstanceTemplate();
   object_template->SetHandler(v8::NamedPropertyHandlerConfiguration(
       nullptr, nullptr, QueryCallbackSetDontDelete));
   v8::Local<v8::Context> ctx =
-      v8::Context::New(v8::Isolate::GetCurrent(), nullptr, object_template);
+      v8::Context::New(CcTest::isolate(), nullptr, object_template);
 
-  v8::TryCatch try_catch(v8::Isolate::GetCurrent());
+  v8::TryCatch try_catch(CcTest::isolate());
   v8::Local<v8::String> code = v8_str("let x;");
   CHECK(!v8::Script::Compile(ctx, code).ToLocalChecked()->Run(ctx).IsEmpty());
   CHECK(!try_catch.HasCaught());
@@ -888,36 +877,35 @@ THREADED_TEST(ApiInterceptorsTest,
 
 // Regression test for chromium bug 656648.
 // Do not crash on non-masking, intercepting setter callbacks.
-THREADED_TEST(ApiInterceptorsTest, NonMaskingInterceptor) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+THREADED_TEST(NonMaskingInterceptor) {
+  v8::HandleScope scope(CcTest::isolate());
   LocalContext env;
   v8::Local<v8::FunctionTemplate> templ =
-      v8::FunctionTemplate::New(v8::Isolate::GetCurrent());
+      v8::FunctionTemplate::New(CcTest::isolate());
 
   v8::Local<ObjectTemplate> object_template = templ->InstanceTemplate();
   object_template->SetHandler(v8::NamedPropertyHandlerConfiguration(
       nullptr, InterceptingSetterCallback, nullptr, nullptr, nullptr,
       Local<Value>(), v8::PropertyHandlerFlags::kNonMasking));
   v8::Local<v8::Context> ctx =
-      v8::Context::New(v8::Isolate::GetCurrent(), nullptr, object_template);
+      v8::Context::New(CcTest::isolate(), nullptr, object_template);
 
   v8::Local<v8::String> code = v8_str("function x() {return 43;};");
   v8::Script::Compile(ctx, code).ToLocalChecked()->Run(ctx).ToLocalChecked();
 }
 
 // Check that function re-declarations throw if they are read-only.
-THREADED_TEST(ApiInterceptorsTest,
-              SetterCallbackFunctionDeclarationInterceptorThrow) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+THREADED_TEST(SetterCallbackFunctionDeclarationInterceptorThrow) {
+  v8::HandleScope scope(CcTest::isolate());
   LocalContext env;
   v8::Local<v8::FunctionTemplate> templ =
-      v8::FunctionTemplate::New(v8::Isolate::GetCurrent());
+      v8::FunctionTemplate::New(CcTest::isolate());
 
   v8::Local<ObjectTemplate> object_template = templ->InstanceTemplate();
   object_template->SetHandler(
       v8::NamedPropertyHandlerConfiguration(nullptr, SetterCallback));
   v8::Local<v8::Context> ctx =
-      v8::Context::New(v8::Isolate::GetCurrent(), nullptr, object_template);
+      v8::Context::New(CcTest::isolate(), nullptr, object_template);
 
   set_was_called = false;
 
@@ -936,7 +924,7 @@ THREADED_TEST(ApiInterceptorsTest,
 
   CHECK(set_was_called);
 
-  v8::TryCatch try_catch(v8::Isolate::GetCurrent());
+  v8::TryCatch try_catch(CcTest::isolate());
   set_was_called = false;
 
   // Redeclare function that is read-only.
@@ -946,6 +934,7 @@ THREADED_TEST(ApiInterceptorsTest,
 
   CHECK(!set_was_called);
 }
+
 
 namespace {
 
@@ -972,20 +961,19 @@ v8::Intercepted DefinerCallbackOrder(
 }  // namespace
 
 // Check that getter callback is called before definer callback.
-THREADED_TEST(ApiInterceptorsTest, DefinerCallbackGetAndDefine) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+THREADED_TEST(DefinerCallbackGetAndDefine) {
+  v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::FunctionTemplate> templ =
-      v8::FunctionTemplate::New(v8::Isolate::GetCurrent());
+      v8::FunctionTemplate::New(CcTest::isolate());
   templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
       GetterCallbackOrder, SetterCallback, nullptr, nullptr, nullptr,
       DefinerCallbackOrder));
   LocalContext env;
   env->Global()
-      ->Set(env.local(), v8_str("obj"),
-            templ->GetFunction(env.local())
-                .ToLocalChecked()
-                ->NewInstance(env.local())
-                .ToLocalChecked())
+      ->Set(env.local(), v8_str("obj"), templ->GetFunction(env.local())
+                                            .ToLocalChecked()
+                                            ->NewInstance(env.local())
+                                            .ToLocalChecked())
       .FromJust();
 
   CHECK(!get_was_called_in_order);
@@ -1020,18 +1008,18 @@ v8::Intercepted ReturnUndefinedGetterCallback(
 
 // Check that an interceptor is not invoked during ES6 style definitions inside
 // an object literal.
-THREADED_TEST(ApiInterceptorsTest, InObjectLiteralDefinitionWithInterceptor) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+THREADED_TEST(InObjectLiteralDefinitionWithInterceptor) {
+  v8::HandleScope scope(CcTest::isolate());
   LocalContext env;
 
   // Set up a context in which all global object definitions are intercepted.
   v8::Local<v8::FunctionTemplate> templ =
-      v8::FunctionTemplate::New(v8::Isolate::GetCurrent());
+      v8::FunctionTemplate::New(CcTest::isolate());
   v8::Local<ObjectTemplate> object_template = templ->InstanceTemplate();
   object_template->SetHandler(
       v8::NamedPropertyHandlerConfiguration(ReturnUndefinedGetterCallback));
   v8::Local<v8::Context> ctx =
-      v8::Context::New(v8::Isolate::GetCurrent(), nullptr, object_template);
+      v8::Context::New(CcTest::isolate(), nullptr, object_template);
 
   context_is_done = true;
 
@@ -1040,7 +1028,7 @@ THREADED_TEST(ApiInterceptorsTest, InObjectLiteralDefinitionWithInterceptor) {
   v8::Local<v8::String> code = v8_str("var o = {}; o.x = 5");
   {
     getter_callback_was_called = false;
-    v8::TryCatch try_catch(v8::Isolate::GetCurrent());
+    v8::TryCatch try_catch(CcTest::isolate());
     CHECK(v8::Script::Compile(ctx, code).ToLocalChecked()->Run(ctx).IsEmpty());
     CHECK(try_catch.HasCaught());
     CHECK(getter_callback_was_called);
@@ -1050,7 +1038,7 @@ THREADED_TEST(ApiInterceptorsTest, InObjectLiteralDefinitionWithInterceptor) {
   // because the interceptor is not invoked.
   {
     getter_callback_was_called = false;
-    v8::TryCatch try_catch(v8::Isolate::GetCurrent());
+    v8::TryCatch try_catch(CcTest::isolate());
     code = v8_str("var l = {x: 5};");
     CHECK(v8::Script::Compile(ctx, code)
               .ToLocalChecked()
@@ -1062,7 +1050,7 @@ THREADED_TEST(ApiInterceptorsTest, InObjectLiteralDefinitionWithInterceptor) {
   }
 }
 
-THREADED_TEST(ApiInterceptorsTest, InterceptorHasOwnProperty) {
+THREADED_TEST(InterceptorHasOwnProperty) {
   LocalContext context;
   v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
@@ -1089,7 +1077,8 @@ THREADED_TEST(ApiInterceptorsTest, InterceptorHasOwnProperty) {
   CHECK(!value->BooleanValue(isolate));
 }
 
-THREADED_TEST(ApiInterceptorsTest, InterceptorHasOwnPropertyCausingGC) {
+
+THREADED_TEST(InterceptorHasOwnPropertyCausingGC) {
   LocalContext context;
   v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
@@ -1130,7 +1119,7 @@ void CheckInterceptorIC(v8::NamedPropertyGetterCallback getter,
                         v8::NamedPropertyDefinerCallbackV2 definer,
                         v8::PropertyHandlerFlags flags, const char* source,
                         std::optional<int> expected) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(v8::NamedPropertyHandlerConfiguration(
@@ -1165,7 +1154,7 @@ void CheckInterceptorLoadIC(v8::NamedPropertyGetterCallback getter,
 v8::Intercepted InterceptorLoadICGetter(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   CHECK_EQ(isolate, info.GetIsolate());
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   CHECK(v8_str("data")
@@ -1179,7 +1168,7 @@ v8::Intercepted InterceptorLoadICGetter(
 }  // namespace
 
 // This test should hit the load IC for the interceptor case.
-THREADED_TEST(ApiInterceptorsTest, InterceptorLoadIC) {
+THREADED_TEST(InterceptorLoadIC) {
   CheckInterceptorLoadIC(InterceptorLoadICGetter,
                          "var result = 0;"
                          "for (var i = 0; i < 1000; i++) {"
@@ -1187,6 +1176,7 @@ THREADED_TEST(ApiInterceptorsTest, InterceptorLoadIC) {
                          "}",
                          42);
 }
+
 
 // Below go several tests which verify that JITing for various
 // configurations of interceptor and explicit fields works fine
@@ -1223,7 +1213,7 @@ v8::Intercepted InterceptorLoadXICGetterWithSideEffects(
 
 }  // namespace
 
-THREADED_TEST(ApiInterceptorsTest, InterceptorLoadICWithFieldOnHolder) {
+THREADED_TEST(InterceptorLoadICWithFieldOnHolder) {
   CheckInterceptorLoadIC(InterceptorLoadXICGetter,
                          "var result = 0;"
                          "o.y = 239;"
@@ -1233,7 +1223,8 @@ THREADED_TEST(ApiInterceptorsTest, InterceptorLoadICWithFieldOnHolder) {
                          239);
 }
 
-THREADED_TEST(ApiInterceptorsTest, InterceptorLoadICWithSubstitutedProto) {
+
+THREADED_TEST(InterceptorLoadICWithSubstitutedProto) {
   CheckInterceptorLoadIC(InterceptorLoadXICGetter,
                          "var result = 0;"
                          "o.__proto__ = { 'y': 239 };"
@@ -1243,7 +1234,8 @@ THREADED_TEST(ApiInterceptorsTest, InterceptorLoadICWithSubstitutedProto) {
                          239 + 42);
 }
 
-THREADED_TEST(ApiInterceptorsTest, InterceptorLoadICWithPropertyOnProto) {
+
+THREADED_TEST(InterceptorLoadICWithPropertyOnProto) {
   CheckInterceptorLoadIC(InterceptorLoadXICGetter,
                          "var result = 0;"
                          "o.__proto__.y = 239;"
@@ -1253,7 +1245,8 @@ THREADED_TEST(ApiInterceptorsTest, InterceptorLoadICWithPropertyOnProto) {
                          239 + 42);
 }
 
-THREADED_TEST(ApiInterceptorsTest, InterceptorLoadICUndefined) {
+
+THREADED_TEST(InterceptorLoadICUndefined) {
   CheckInterceptorLoadIC(InterceptorLoadXICGetter,
                          "var result = 0;"
                          "for (var i = 0; i < 1000; i++) {"
@@ -1262,7 +1255,8 @@ THREADED_TEST(ApiInterceptorsTest, InterceptorLoadICUndefined) {
                          239);
 }
 
-THREADED_TEST(ApiInterceptorsTest, InterceptorLoadICWithOverride) {
+
+THREADED_TEST(InterceptorLoadICWithOverride) {
   CheckInterceptorLoadIC(InterceptorLoadXICGetter,
                          "fst = new Object();  fst.__proto__ = o;"
                          "snd = new Object();  snd.__proto__ = fst;"
@@ -1279,9 +1273,10 @@ THREADED_TEST(ApiInterceptorsTest, InterceptorLoadICWithOverride) {
                          239 + 42);
 }
 
+
 // Test the case when we stored field into
 // a stub, but interceptor produced value on its own.
-THREADED_TEST(ApiInterceptorsTest, InterceptorLoadICFieldNotNeeded) {
+THREADED_TEST(InterceptorLoadICFieldNotNeeded) {
   CheckInterceptorLoadIC(
       InterceptorLoadXICGetter,
       "proto = new Object();"
@@ -1299,9 +1294,10 @@ THREADED_TEST(ApiInterceptorsTest, InterceptorLoadICFieldNotNeeded) {
       42 * 1000);
 }
 
+
 // Test the case when we stored field into
 // a stub, but it got invalidated later on.
-THREADED_TEST(ApiInterceptorsTest, InterceptorLoadICInvalidatedField) {
+THREADED_TEST(InterceptorLoadICInvalidatedField) {
   CheckInterceptorLoadIC(
       InterceptorLoadXICGetter,
       "proto1 = new Object();"
@@ -1334,7 +1330,7 @@ v8::Intercepted InterceptorLoadNotHandled(
 
 // Test how post-interceptor lookups are done in the non-cacheable
 // case: the interceptor should not be invoked during this lookup.
-THREADED_TEST(ApiInterceptorsTest, InterceptorLoadICPostInterceptor) {
+THREADED_TEST(InterceptorLoadICPostInterceptor) {
   interceptor_load_not_handled_calls = 0;
   CheckInterceptorLoadIC(InterceptorLoadNotHandled,
                          "receiver = new Object();"
@@ -1355,10 +1351,11 @@ THREADED_TEST(ApiInterceptorsTest, InterceptorLoadICPostInterceptor) {
   CHECK_EQ(1000, interceptor_load_not_handled_calls);
 }
 
+
 // Test the case when we stored field into
 // a stub, but it got invalidated later on due to override on
 // global object which is between interceptor and fields' holders.
-THREADED_TEST(ApiInterceptorsTest, InterceptorLoadICInvalidatedFieldViaGlobal) {
+THREADED_TEST(InterceptorLoadICInvalidatedFieldViaGlobal) {
   CheckInterceptorLoadIC(
       InterceptorLoadXICGetter,
       "o.__proto__ = this;"  // set a global to be a proto of o.
@@ -1386,8 +1383,8 @@ void SetOnHolder(Local<Name> name, Local<Value> value,
 }
 }  // namespace
 
-THREADED_TEST(ApiInterceptorsTest, InterceptorLoadICWithCallbackOnHolder) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(InterceptorLoadICWithCallbackOnHolder) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(
@@ -1419,8 +1416,9 @@ THREADED_TEST(ApiInterceptorsTest, InterceptorLoadICWithCallbackOnHolder) {
   CHECK_EQ(239, value->Int32Value(context.local()).FromJust());
 }
 
-THREADED_TEST(ApiInterceptorsTest, InterceptorLoadICWithCallbackOnProto) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+
+THREADED_TEST(InterceptorLoadICWithCallbackOnProto) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ_o = ObjectTemplate::New(isolate);
   templ_o->SetHandler(
@@ -1459,8 +1457,9 @@ THREADED_TEST(ApiInterceptorsTest, InterceptorLoadICWithCallbackOnProto) {
   CHECK_EQ(239 + 42, value->Int32Value(context.local()).FromJust());
 }
 
-THREADED_TEST(ApiInterceptorsTest, InterceptorLoadICForCallbackWithOverride) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+
+THREADED_TEST(InterceptorLoadICForCallbackWithOverride) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(
@@ -1489,10 +1488,11 @@ THREADED_TEST(ApiInterceptorsTest, InterceptorLoadICForCallbackWithOverride) {
   CHECK_EQ(239 + 42, value->Int32Value(context.local()).FromJust());
 }
 
+
 // Test the case when we stored callback into
 // a stub, but interceptor produced value on its own.
-THREADED_TEST(ApiInterceptorsTest, InterceptorLoadICCallbackNotNeeded) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(InterceptorLoadICCallbackNotNeeded) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ_o = ObjectTemplate::New(isolate);
   templ_o->SetHandler(
@@ -1524,10 +1524,11 @@ THREADED_TEST(ApiInterceptorsTest, InterceptorLoadICCallbackNotNeeded) {
   CHECK_EQ(42 * 7, value->Int32Value(context.local()).FromJust());
 }
 
+
 // Test the case when we stored callback into
 // a stub, but it got invalidated later on.
-THREADED_TEST(ApiInterceptorsTest, InterceptorLoadICInvalidatedCallback) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(InterceptorLoadICInvalidatedCallback) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ_o = ObjectTemplate::New(isolate);
   templ_o->SetHandler(
@@ -1562,12 +1563,12 @@ THREADED_TEST(ApiInterceptorsTest, InterceptorLoadICInvalidatedCallback) {
   CHECK_EQ(42 * 10, value->Int32Value(context.local()).FromJust());
 }
 
+
 // Test the case when we stored callback into
 // a stub, but it got invalidated later on due to override on
 // global object which is between interceptor and callbacks' holders.
-THREADED_TEST(ApiInterceptorsTest,
-              InterceptorLoadICInvalidatedCallbackViaGlobal) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(InterceptorLoadICInvalidatedCallbackViaGlobal) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ_o = ObjectTemplate::New(isolate);
   templ_o->SetHandler(
@@ -1603,7 +1604,7 @@ THREADED_TEST(ApiInterceptorsTest,
 
 // Test load of a non-existing global when a global object has an interceptor.
 void InterceptorLoadGlobalICGlobalWithInterceptor(bool masking) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ_global = v8::ObjectTemplate::New(isolate);
   v8::NamedPropertyHandlerConfiguration config(EmptyInterceptorGetter,
@@ -1619,7 +1620,7 @@ void InterceptorLoadGlobalICGlobalWithInterceptor(bool masking) {
   CHECK(IsJSGlobalProxy(*global_proxy));
   i::DirectHandle<i::JSGlobalObject> global(
       i::Cast<i::JSGlobalObject>(global_proxy->map()->prototype()),
-      i::Isolate::Current());
+      CcTest::i_isolate());
   CHECK(global->map()->has_named_interceptor());
 
   v8::Local<Value> value = CompileRun(
@@ -1667,14 +1668,12 @@ void InterceptorLoadGlobalICGlobalWithInterceptor(bool masking) {
   CHECK(value->BooleanValue(isolate));
 }
 
-THREADED_TEST(ApiInterceptorsTest,
-              InterceptorLoadGlobalICGlobalWithNonMaskingInterceptor) {
+THREADED_TEST(InterceptorLoadGlobalICGlobalWithNonMaskingInterceptor) {
   const bool masking = false;
   InterceptorLoadGlobalICGlobalWithInterceptor(masking);
 }
 
-THREADED_TEST(ApiInterceptorsTest,
-              InterceptorLoadGlobalICGlobalWithMaskingInterceptor) {
+THREADED_TEST(InterceptorLoadGlobalICGlobalWithMaskingInterceptor) {
   const bool masking = true;
   InterceptorLoadGlobalICGlobalWithInterceptor(masking);
 }
@@ -1683,7 +1682,7 @@ THREADED_TEST(ApiInterceptorsTest,
 // object has an interceptor.
 void InterceptorLoadICGlobalWithInterceptor(bool masking) {
   i::v8_flags.allow_natives_syntax.Set(true);
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ_global = v8::ObjectTemplate::New(isolate);
   v8::NamedPropertyHandlerConfiguration config(GenericInterceptorGetter,
@@ -1699,7 +1698,7 @@ void InterceptorLoadICGlobalWithInterceptor(bool masking) {
   CHECK(IsJSGlobalProxy(*global_proxy));
   i::DirectHandle<i::JSGlobalObject> global(
       i::Cast<i::JSGlobalObject>(global_proxy->map()->prototype()),
-      i::Isolate::Current());
+      CcTest::i_isolate());
   CHECK(global->map()->has_named_interceptor());
 
   ExpectInt32(
@@ -1720,14 +1719,12 @@ void InterceptorLoadICGlobalWithInterceptor(bool masking) {
       42);
 }
 
-THREADED_TEST(ApiInterceptorsTest,
-              InterceptorLoadICGlobalWithNonMaskingInterceptor) {
+THREADED_TEST(InterceptorLoadICGlobalWithNonMaskingInterceptor) {
   const bool masking = false;
   InterceptorLoadICGlobalWithInterceptor(masking);
 }
 
-THREADED_TEST(ApiInterceptorsTest,
-              InterceptorLoadICGlobalWithMaskingInterceptor) {
+THREADED_TEST(InterceptorLoadICGlobalWithMaskingInterceptor) {
   const bool masking = true;
   InterceptorLoadICGlobalWithInterceptor(masking);
 }
@@ -1744,7 +1741,7 @@ v8::Intercepted InterceptorLoadICGetter0(
 }
 }  // namespace
 
-THREADED_TEST(ApiInterceptorsTest, InterceptorReturningZero) {
+THREADED_TEST(InterceptorReturningZero) {
   CheckInterceptorLoadIC(InterceptorLoadICGetter0, "o.x == undefined ? 1 : 0",
                          0);
 }
@@ -1754,7 +1751,7 @@ namespace {
 template <typename TKey, v8::internal::PropertyAttributes attribute>
 v8::Intercepted HasICQuery(TKey name,
                            const v8::PropertyCallbackInfo<v8::Integer>& info) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   CHECK_EQ(isolate, info.GetIsolate());
   if (attribute != v8::internal::ABSENT) {
     // Side effects are allowed only when the property is present or throws.
@@ -1770,7 +1767,7 @@ v8::Intercepted HasICQueryToggle(
     TKey name, const v8::PropertyCallbackInfo<v8::Integer>& info) {
   static bool is_absent = false;
   is_absent = !is_absent;
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   CHECK_EQ(isolate, info.GetIsolate());
   if (!is_absent) {
     // Side effects are allowed only when the property is present or throws.
@@ -1788,7 +1785,7 @@ v8::Intercepted HasICQuerySideEffect(
     // Side effects are allowed only when the property is present or throws.
     ApiTestFuzzer::Fuzz();
   }
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   CHECK_EQ(isolate, info.GetIsolate());
   CompileRun("interceptor_query_side_effect()");
   if (attribute != v8::internal::ABSENT) {
@@ -1807,7 +1804,7 @@ v8::Intercepted NamedQueryCallback(
 
 }  // namespace
 
-THREADED_TEST(ApiInterceptorsTest, InterceptorHasIC) {
+THREADED_TEST(InterceptorHasIC) {
   named_query_counter = 0;
   CheckInterceptorIC(nullptr, NamedQueryCallback,
                      "var result = 0;"
@@ -1818,7 +1815,7 @@ THREADED_TEST(ApiInterceptorsTest, InterceptorHasIC) {
   CHECK_EQ(1000, named_query_counter);
 }
 
-THREADED_TEST(ApiInterceptorsTest, InterceptorHasICQueryAbsent) {
+THREADED_TEST(InterceptorHasICQueryAbsent) {
   CheckInterceptorIC(nullptr, HasICQuery<Local<Name>, v8::internal::ABSENT>,
                      "var result = 0;"
                      "for (var i = 0; i < 1000; i++) {"
@@ -1827,7 +1824,7 @@ THREADED_TEST(ApiInterceptorsTest, InterceptorHasICQueryAbsent) {
                      0);
 }
 
-THREADED_TEST(ApiInterceptorsTest, InterceptorHasICQueryNone) {
+THREADED_TEST(InterceptorHasICQueryNone) {
   CheckInterceptorIC(nullptr, HasICQuery<Local<Name>, v8::internal::NONE>,
                      "var result = 0;"
                      "for (var i = 0; i < 1000; i++) {"
@@ -1836,7 +1833,7 @@ THREADED_TEST(ApiInterceptorsTest, InterceptorHasICQueryNone) {
                      1000);
 }
 
-THREADED_TEST(ApiInterceptorsTest, InterceptorHasICGetter) {
+THREADED_TEST(InterceptorHasICGetter) {
   CheckInterceptorIC(InterceptorLoadICGetter, nullptr,
                      "var result = 0;"
                      "for (var i = 0; i < 1000; i++) {"
@@ -1845,7 +1842,7 @@ THREADED_TEST(ApiInterceptorsTest, InterceptorHasICGetter) {
                      1000);
 }
 
-THREADED_TEST(ApiInterceptorsTest, InterceptorHasICQueryGetter) {
+THREADED_TEST(InterceptorHasICQueryGetter) {
   CheckInterceptorIC(InterceptorLoadICGetter,
                      HasICQuery<Local<Name>, v8::internal::ABSENT>,
                      "var result = 0;"
@@ -1855,7 +1852,7 @@ THREADED_TEST(ApiInterceptorsTest, InterceptorHasICQueryGetter) {
                      0);
 }
 
-THREADED_TEST(ApiInterceptorsTest, InterceptorHasICQueryToggle) {
+THREADED_TEST(InterceptorHasICQueryToggle) {
   CheckInterceptorIC(InterceptorLoadICGetter, HasICQueryToggle<Local<Name>>,
                      "var result = 0;"
                      "for (var i = 0; i < 1000; i++) {"
@@ -1864,8 +1861,7 @@ THREADED_TEST(ApiInterceptorsTest, InterceptorHasICQueryToggle) {
                      500);
 }
 
-THREADED_TEST(ApiInterceptorsTest,
-              InterceptorStoreICWithSideEffectfulCallbacks1) {
+THREADED_TEST(InterceptorStoreICWithSideEffectfulCallbacks1) {
   CheckInterceptorIC(EmptyInterceptorGetter,
                      HasICQuerySideEffect<Local<Name>, v8::internal::NONE>,
                      "let r;"
@@ -1884,8 +1880,7 @@ THREADED_TEST(ApiInterceptorsTest,
                      19);
 }
 
-TEST_F(ApiInterceptorsTest,
-       Crash_InterceptorStoreICWithSideEffectfulCallbacks1) {
+TEST(Crash_InterceptorStoreICWithSideEffectfulCallbacks1) {
   CheckInterceptorIC(EmptyInterceptorGetter,
                      HasICQuerySideEffect<Local<Name>, v8::internal::ABSENT>,
                      "let r;"
@@ -1904,8 +1899,7 @@ TEST_F(ApiInterceptorsTest,
                      19);
 }
 
-TEST_F(ApiInterceptorsTest,
-       Crash_InterceptorStoreICWithSideEffectfulCallbacks2) {
+TEST(Crash_InterceptorStoreICWithSideEffectfulCallbacks2) {
   CheckInterceptorIC(InterceptorLoadXICGetterWithSideEffects,
                      nullptr,  // query callback is not provided
                      "let r;"
@@ -1924,8 +1918,7 @@ TEST_F(ApiInterceptorsTest,
                      19);
 }
 
-THREADED_TEST(ApiInterceptorsTest,
-              InterceptorDefineICWithSideEffectfulCallbacks) {
+THREADED_TEST(InterceptorDefineICWithSideEffectfulCallbacks) {
   CheckInterceptorIC(EmptyInterceptorGetter, EmptyInterceptorSetter,
                      EmptyInterceptorQuery,
                      EmptyInterceptorDefinerWithSideEffect,
@@ -1957,8 +1950,7 @@ THREADED_TEST(ApiInterceptorsTest,
                      153);
 }
 
-TEST_F(ApiInterceptorsTest,
-       Crash_InterceptorDefineICWithSideEffectfulCallbacks) {
+TEST(Crash_InterceptorDefineICWithSideEffectfulCallbacks) {
   CheckInterceptorIC(EmptyInterceptorGetter, EmptyInterceptorSetter,
                      EmptyInterceptorQuery,
                      EmptyInterceptorDefinerWithSideEffect,
@@ -2002,8 +1994,8 @@ v8::Intercepted InterceptorStoreICSetter(
 }  // namespace
 
 // This test should hit the store IC for the interceptor case.
-THREADED_TEST(ApiInterceptorsTest, InterceptorStoreIC) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(InterceptorStoreIC) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(v8::NamedPropertyHandlerConfiguration(
@@ -2020,8 +2012,9 @@ THREADED_TEST(ApiInterceptorsTest, InterceptorStoreIC) {
       "}");
 }
 
-THREADED_TEST(ApiInterceptorsTest, InterceptorStoreICWithNoSetter) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+
+THREADED_TEST(InterceptorStoreICWithNoSetter) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(
@@ -2039,8 +2032,7 @@ THREADED_TEST(ApiInterceptorsTest, InterceptorStoreICWithNoSetter) {
   CHECK_EQ(239 + 42, value->Int32Value(context.local()).FromJust());
 }
 
-THREADED_TEST(ApiInterceptorsTest,
-              EmptyInterceptorDoesNotShadowReadOnlyProperty) {
+THREADED_TEST(EmptyInterceptorDoesNotShadowReadOnlyProperty) {
   // Interceptor should not shadow readonly property 'x' on the prototype, and
   // attempt to store to 'x' must throw.
   CheckInterceptorIC(EmptyInterceptorGetter,
@@ -2064,7 +2056,7 @@ THREADED_TEST(ApiInterceptorsTest,
                      20);
 }
 
-THREADED_TEST(ApiInterceptorsTest, InterceptorShadowsReadOnlyProperty) {
+THREADED_TEST(InterceptorShadowsReadOnlyProperty) {
   // Interceptor claims that it has a writable property 'x', so the existence
   // of the readonly property 'x' on the prototype should not cause exceptions.
   CheckInterceptorIC(InterceptorLoadXICGetter,
@@ -2087,8 +2079,8 @@ THREADED_TEST(ApiInterceptorsTest, InterceptorShadowsReadOnlyProperty) {
                      20);
 }
 
-THREADED_TEST(ApiInterceptorsTest, EmptyInterceptorDoesNotShadowAccessors) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(EmptyInterceptorDoesNotShadowAccessors) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<FunctionTemplate> parent = FunctionTemplate::New(isolate);
   Local<FunctionTemplate> child = FunctionTemplate::New(isolate);
@@ -2109,7 +2101,7 @@ THREADED_TEST(ApiInterceptorsTest, EmptyInterceptorDoesNotShadowAccessors) {
   ExpectInt32("child.accessor_age", 10);
 }
 
-THREADED_TEST(ApiInterceptorsTest, EmptyInterceptorVsStoreGlobalICs) {
+THREADED_TEST(EmptyInterceptorVsStoreGlobalICs) {
   // In sloppy mode storing to global must succeed.
   CheckInterceptorIC(EmptyInterceptorGetter,
                      HasICQuery<Local<Name>, v8::internal::ABSENT>,
@@ -2148,7 +2140,7 @@ void CheckGlobalInterceptorIC(v8::NamedPropertyGetterCallback getter,
                               v8::NamedPropertyQueryCallback query,
                               v8::PropertyHandlerFlags flags,
                               const char* source, std::optional<int> expected) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ_global = v8::ObjectTemplate::New(isolate);
   v8::NamedPropertyHandlerConfiguration config(
@@ -2162,7 +2154,7 @@ void CheckGlobalInterceptorIC(v8::NamedPropertyGetterCallback getter,
   CHECK(IsJSGlobalProxy(*global_proxy));
   i::DirectHandle<i::JSGlobalObject> global(
       i::Cast<i::JSGlobalObject>(global_proxy->map()->prototype()),
-      i::Isolate::Current());
+      CcTest::i_isolate());
   CHECK(global->map()->has_named_interceptor());
 
   v8::Local<Value> value = CompileRun(source);
@@ -2263,20 +2255,19 @@ void StoreGlobalICWithGlobalInterceptor(bool masking) {
 }  // namespace
 
 // Checks correctness of global objects with interceptor vs contextual stores.
-THREADED_TEST(ApiInterceptorsTest,
-              StoreGlobalICWithGlobalNonMaskingInterceptor) {
+THREADED_TEST(StoreGlobalICWithGlobalNonMaskingInterceptor) {
   const bool masking = false;
   StoreGlobalICWithGlobalInterceptor(masking);
 }
 
-THREADED_TEST(ApiInterceptorsTest, StoreGlobalICWithGlobalMaskingInterceptor) {
+THREADED_TEST(StoreGlobalICWithGlobalMaskingInterceptor) {
   const bool masking = true;
   StoreGlobalICWithGlobalInterceptor(masking);
 }
 
-THREADED_TEST(ApiInterceptorsTest, LegacyInterceptorDoesNotSeeSymbols) {
+THREADED_TEST(LegacyInterceptorDoesNotSeeSymbols) {
   LocalContext env;
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<FunctionTemplate> parent = FunctionTemplate::New(isolate);
   Local<FunctionTemplate> child = FunctionTemplate::New(isolate);
@@ -2299,9 +2290,10 @@ THREADED_TEST(ApiInterceptorsTest, LegacyInterceptorDoesNotSeeSymbols) {
   ExpectBoolean("child.hasOwnProperty('accessor_age')", true);
 }
 
-THREADED_TEST(ApiInterceptorsTest, GenericInterceptorDoesSeeSymbols) {
+
+THREADED_TEST(GenericInterceptorDoesSeeSymbols) {
   LocalContext env;
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<FunctionTemplate> parent = FunctionTemplate::New(isolate);
   Local<FunctionTemplate> child = FunctionTemplate::New(isolate);
@@ -2334,20 +2326,20 @@ THREADED_TEST(ApiInterceptorsTest, GenericInterceptorDoesSeeSymbols) {
   ExpectInt32("child[anon]", 31337);
 }
 
-THREADED_TEST(ApiInterceptorsTest, NamedPropertyHandlerGetter) {
+
+THREADED_TEST(NamedPropertyHandlerGetter) {
   echo_named_call_count = 0;
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
   templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
       EchoNamedProperty, nullptr, nullptr, nullptr, nullptr, v8_str("data")));
   LocalContext env;
   env->Global()
-      ->Set(env.local(), v8_str("obj"),
-            templ->GetFunction(env.local())
-                .ToLocalChecked()
-                ->NewInstance(env.local())
-                .ToLocalChecked())
+      ->Set(env.local(), v8_str("obj"), templ->GetFunction(env.local())
+                                            .ToLocalChecked()
+                                            ->NewInstance(env.local())
+                                            .ToLocalChecked())
       .FromJust();
   CHECK_EQ(0, echo_named_call_count);
   v8_compile("obj.x")->Run(env.local()).ToLocalChecked();
@@ -2401,22 +2393,21 @@ v8::Intercepted CheckDescriptorInDefineCallback(
 }
 }  // namespace
 
-THREADED_TEST(ApiInterceptorsTest, PropertyDefinerCallback) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+THREADED_TEST(PropertyDefinerCallback) {
+  v8::HandleScope scope(CcTest::isolate());
   LocalContext env;
 
   {  // Intercept defineProperty()
     v8::Local<v8::FunctionTemplate> templ =
-        v8::FunctionTemplate::New(v8::Isolate::GetCurrent());
+        v8::FunctionTemplate::New(CcTest::isolate());
     templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
         nullptr, nullptr, nullptr, nullptr, nullptr,
         NotInterceptingPropertyDefineCallback));
     env->Global()
-        ->Set(env.local(), v8_str("obj"),
-              templ->GetFunction(env.local())
-                  .ToLocalChecked()
-                  ->NewInstance(env.local())
-                  .ToLocalChecked())
+        ->Set(env.local(), v8_str("obj"), templ->GetFunction(env.local())
+                                              .ToLocalChecked()
+                                              ->NewInstance(env.local())
+                                              .ToLocalChecked())
         .FromJust();
     const char* code =
         "obj.x = 17; "
@@ -2431,16 +2422,15 @@ THREADED_TEST(ApiInterceptorsTest, PropertyDefinerCallback) {
 
   {  // Intercept defineProperty() for correct accessor descriptor
     v8::Local<v8::FunctionTemplate> templ =
-        v8::FunctionTemplate::New(v8::Isolate::GetCurrent());
+        v8::FunctionTemplate::New(CcTest::isolate());
     templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
         nullptr, nullptr, nullptr, nullptr, nullptr,
         CheckDescriptorInDefineCallback));
     env->Global()
-        ->Set(env.local(), v8_str("obj"),
-              templ->GetFunction(env.local())
-                  .ToLocalChecked()
-                  ->NewInstance(env.local())
-                  .ToLocalChecked())
+        ->Set(env.local(), v8_str("obj"), templ->GetFunction(env.local())
+                                              .ToLocalChecked()
+                                              ->NewInstance(env.local())
+                                              .ToLocalChecked())
         .FromJust();
     const char* code =
         "obj.x = 17; "
@@ -2459,17 +2449,16 @@ THREADED_TEST(ApiInterceptorsTest, PropertyDefinerCallback) {
 
   {  // Do not intercept defineProperty()
     v8::Local<v8::FunctionTemplate> templ2 =
-        v8::FunctionTemplate::New(v8::Isolate::GetCurrent());
+        v8::FunctionTemplate::New(CcTest::isolate());
     templ2->InstanceTemplate()->SetHandler(
         v8::NamedPropertyHandlerConfiguration(
             nullptr, nullptr, nullptr, nullptr, nullptr,
             InterceptingPropertyDefineCallback));
     env->Global()
-        ->Set(env.local(), v8_str("obj"),
-              templ2->GetFunction(env.local())
-                  .ToLocalChecked()
-                  ->NewInstance(env.local())
-                  .ToLocalChecked())
+        ->Set(env.local(), v8_str("obj"), templ2->GetFunction(env.local())
+                                              .ToLocalChecked()
+                                              ->NewInstance(env.local())
+                                              .ToLocalChecked())
         .FromJust();
 
     const char* code =
@@ -2513,23 +2502,22 @@ v8::Intercepted CheckDescriptorInDefineCallbackIndexed(
 }
 }  // namespace
 
-THREADED_TEST(ApiInterceptorsTest, PropertyDefinerCallbackIndexed) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+THREADED_TEST(PropertyDefinerCallbackIndexed) {
+  v8::HandleScope scope(CcTest::isolate());
   LocalContext env;
 
   {  // Intercept defineProperty()
     v8::Local<v8::FunctionTemplate> templ =
-        v8::FunctionTemplate::New(v8::Isolate::GetCurrent());
+        v8::FunctionTemplate::New(CcTest::isolate());
     templ->InstanceTemplate()->SetHandler(
         v8::IndexedPropertyHandlerConfiguration(
             nullptr, nullptr, nullptr, nullptr, nullptr,
             NotInterceptingPropertyDefineCallbackIndexed));
     env->Global()
-        ->Set(env.local(), v8_str("obj"),
-              templ->GetFunction(env.local())
-                  .ToLocalChecked()
-                  ->NewInstance(env.local())
-                  .ToLocalChecked())
+        ->Set(env.local(), v8_str("obj"), templ->GetFunction(env.local())
+                                              .ToLocalChecked()
+                                              ->NewInstance(env.local())
+                                              .ToLocalChecked())
         .FromJust();
     const char* code =
         "obj[2] = 17; "
@@ -2544,17 +2532,16 @@ THREADED_TEST(ApiInterceptorsTest, PropertyDefinerCallbackIndexed) {
 
   {  // Intercept defineProperty() for correct accessor descriptor
     v8::Local<v8::FunctionTemplate> templ =
-        v8::FunctionTemplate::New(v8::Isolate::GetCurrent());
+        v8::FunctionTemplate::New(CcTest::isolate());
     templ->InstanceTemplate()->SetHandler(
         v8::IndexedPropertyHandlerConfiguration(
             nullptr, nullptr, nullptr, nullptr, nullptr,
             CheckDescriptorInDefineCallbackIndexed));
     env->Global()
-        ->Set(env.local(), v8_str("obj"),
-              templ->GetFunction(env.local())
-                  .ToLocalChecked()
-                  ->NewInstance(env.local())
-                  .ToLocalChecked())
+        ->Set(env.local(), v8_str("obj"), templ->GetFunction(env.local())
+                                              .ToLocalChecked()
+                                              ->NewInstance(env.local())
+                                              .ToLocalChecked())
         .FromJust();
     const char* code =
         "obj[2] = 17; "
@@ -2573,17 +2560,16 @@ THREADED_TEST(ApiInterceptorsTest, PropertyDefinerCallbackIndexed) {
 
   {  // Do not intercept defineProperty()
     v8::Local<v8::FunctionTemplate> templ2 =
-        v8::FunctionTemplate::New(v8::Isolate::GetCurrent());
+        v8::FunctionTemplate::New(CcTest::isolate());
     templ2->InstanceTemplate()->SetHandler(
         v8::IndexedPropertyHandlerConfiguration(
             nullptr, nullptr, nullptr, nullptr, nullptr,
             InterceptingPropertyDefineCallbackIndexed));
     env->Global()
-        ->Set(env.local(), v8_str("obj"),
-              templ2->GetFunction(env.local())
-                  .ToLocalChecked()
-                  ->NewInstance(env.local())
-                  .ToLocalChecked())
+        ->Set(env.local(), v8_str("obj"), templ2->GetFunction(env.local())
+                                              .ToLocalChecked()
+                                              ->NewInstance(env.local())
+                                              .ToLocalChecked())
         .FromJust();
 
     const char* code =
@@ -2599,8 +2585,8 @@ THREADED_TEST(ApiInterceptorsTest, PropertyDefinerCallbackIndexed) {
 }
 
 // Test that freeze() is intercepted.
-THREADED_TEST(ApiInterceptorsTest, PropertyDefinerCallbackForFreeze) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(PropertyDefinerCallbackForFreeze) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   LocalContext env;
   v8::Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
@@ -2608,11 +2594,10 @@ THREADED_TEST(ApiInterceptorsTest, PropertyDefinerCallbackForFreeze) {
       nullptr, nullptr, nullptr, nullptr, nullptr,
       InterceptingPropertyDefineCallback));
   env->Global()
-      ->Set(env.local(), v8_str("obj"),
-            templ->GetFunction(env.local())
-                .ToLocalChecked()
-                ->NewInstance(env.local())
-                .ToLocalChecked())
+      ->Set(env.local(), v8_str("obj"), templ->GetFunction(env.local())
+                                            .ToLocalChecked()
+                                            ->NewInstance(env.local())
+                                            .ToLocalChecked())
       .FromJust();
   const char* code =
       "obj.x = 17; "
@@ -2641,20 +2626,19 @@ v8::Intercepted CheckEnumerablePropertyDefineCallback(
 }
 }  // namespace
 
-THREADED_TEST(ApiInterceptorsTest, PropertyDefinerCallbackEnumerable) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+THREADED_TEST(PropertyDefinerCallbackEnumerable) {
+  v8::HandleScope scope(CcTest::isolate());
   LocalContext env;
   v8::Local<v8::FunctionTemplate> templ =
-      v8::FunctionTemplate::New(v8::Isolate::GetCurrent());
+      v8::FunctionTemplate::New(CcTest::isolate());
   templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
       nullptr, nullptr, nullptr, nullptr, nullptr,
       CheckEnumerablePropertyDefineCallback));
   env->Global()
-      ->Set(env.local(), v8_str("obj"),
-            templ->GetFunction(env.local())
-                .ToLocalChecked()
-                ->NewInstance(env.local())
-                .ToLocalChecked())
+      ->Set(env.local(), v8_str("obj"), templ->GetFunction(env.local())
+                                            .ToLocalChecked()
+                                            ->NewInstance(env.local())
+                                            .ToLocalChecked())
       .FromJust();
   const char* code =
       "obj.x = 17; "
@@ -2682,20 +2666,19 @@ v8::Intercepted CheckConfigurablePropertyDefineCallback(
 }
 }  // namespace
 
-THREADED_TEST(ApiInterceptorsTest, PropertyDefinerCallbackConfigurable) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+THREADED_TEST(PropertyDefinerCallbackConfigurable) {
+  v8::HandleScope scope(CcTest::isolate());
   LocalContext env;
   v8::Local<v8::FunctionTemplate> templ =
-      v8::FunctionTemplate::New(v8::Isolate::GetCurrent());
+      v8::FunctionTemplate::New(CcTest::isolate());
   templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
       nullptr, nullptr, nullptr, nullptr, nullptr,
       CheckConfigurablePropertyDefineCallback));
   env->Global()
-      ->Set(env.local(), v8_str("obj"),
-            templ->GetFunction(env.local())
-                .ToLocalChecked()
-                ->NewInstance(env.local())
-                .ToLocalChecked())
+      ->Set(env.local(), v8_str("obj"), templ->GetFunction(env.local())
+                                            .ToLocalChecked()
+                                            ->NewInstance(env.local())
+                                            .ToLocalChecked())
       .FromJust();
   const char* code =
       "obj.x = 17; "
@@ -2719,20 +2702,19 @@ v8::Intercepted CheckWritablePropertyDefineCallback(
 }
 }  // namespace
 
-THREADED_TEST(ApiInterceptorsTest, PropertyDefinerCallbackWritable) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+THREADED_TEST(PropertyDefinerCallbackWritable) {
+  v8::HandleScope scope(CcTest::isolate());
   LocalContext env;
   v8::Local<v8::FunctionTemplate> templ =
-      v8::FunctionTemplate::New(v8::Isolate::GetCurrent());
+      v8::FunctionTemplate::New(CcTest::isolate());
   templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
       nullptr, nullptr, nullptr, nullptr, nullptr,
       CheckWritablePropertyDefineCallback));
   env->Global()
-      ->Set(env.local(), v8_str("obj"),
-            templ->GetFunction(env.local())
-                .ToLocalChecked()
-                ->NewInstance(env.local())
-                .ToLocalChecked())
+      ->Set(env.local(), v8_str("obj"), templ->GetFunction(env.local())
+                                            .ToLocalChecked()
+                                            ->NewInstance(env.local())
+                                            .ToLocalChecked())
       .FromJust();
   const char* code =
       "obj.x = 17; "
@@ -2756,20 +2738,19 @@ v8::Intercepted CheckGetterPropertyDefineCallback(
 }
 }  // namespace
 
-THREADED_TEST(ApiInterceptorsTest, PropertyDefinerCallbackWithGetter) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+THREADED_TEST(PropertyDefinerCallbackWithGetter) {
+  v8::HandleScope scope(CcTest::isolate());
   LocalContext env;
   v8::Local<v8::FunctionTemplate> templ =
-      v8::FunctionTemplate::New(v8::Isolate::GetCurrent());
+      v8::FunctionTemplate::New(CcTest::isolate());
   templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
       nullptr, nullptr, nullptr, nullptr, nullptr,
       CheckGetterPropertyDefineCallback));
   env->Global()
-      ->Set(env.local(), v8_str("obj"),
-            templ->GetFunction(env.local())
-                .ToLocalChecked()
-                ->NewInstance(env.local())
-                .ToLocalChecked())
+      ->Set(env.local(), v8_str("obj"), templ->GetFunction(env.local())
+                                            .ToLocalChecked()
+                                            ->NewInstance(env.local())
+                                            .ToLocalChecked())
       .FromJust();
   const char* code =
       "obj.x = 17;"
@@ -2793,20 +2774,19 @@ v8::Intercepted CheckSetterPropertyDefineCallback(
 }
 }  // namespace
 
-THREADED_TEST(ApiInterceptorsTest, PropertyDefinerCallbackWithSetter) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+THREADED_TEST(PropertyDefinerCallbackWithSetter) {
+  v8::HandleScope scope(CcTest::isolate());
   LocalContext env;
   v8::Local<v8::FunctionTemplate> templ =
-      v8::FunctionTemplate::New(v8::Isolate::GetCurrent());
+      v8::FunctionTemplate::New(CcTest::isolate());
   templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
       nullptr, nullptr, nullptr, nullptr, nullptr,
       CheckSetterPropertyDefineCallback));
   env->Global()
-      ->Set(env.local(), v8_str("obj"),
-            templ->GetFunction(env.local())
-                .ToLocalChecked()
-                ->NewInstance(env.local())
-                .ToLocalChecked())
+      ->Set(env.local(), v8_str("obj"), templ->GetFunction(env.local())
+                                            .ToLocalChecked()
+                                            ->NewInstance(env.local())
+                                            .ToLocalChecked())
       .FromJust();
   const char* code =
       "Object.defineProperty(obj, 'x', {set: function() {return 42;}});"
@@ -2959,7 +2939,7 @@ void CheckPropertyDefinerCallbackInDefineNamedOwnIC(Local<Context> context,
 
     // Create the object with interceptors.
     v8::Local<v8::FunctionTemplate> templ =
-        v8::FunctionTemplate::New(v8::Isolate::GetCurrent());
+        v8::FunctionTemplate::New(CcTest::isolate());
     templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
         nullptr, nullptr, nullptr, nullptr, nullptr,
         stop ? LogDefinerCallsAndStopCallback
@@ -2986,7 +2966,7 @@ void CheckPropertyDefinerCallbackInDefineNamedOwnIC(Local<Context> context,
   }
 }
 
-THREADED_TEST(ApiInterceptorsTest, PropertyDefinerCallbackInDefineNamedOwnIC) {
+THREADED_TEST(PropertyDefinerCallbackInDefineNamedOwnIC) {
   {
     LocalContext env;
     v8::HandleScope scope(env.isolate());
@@ -3036,12 +3016,11 @@ v8::Intercepted CheckDescriptorInDefineNamedOwnICCallback(
 }
 }  // namespace
 
-THREADED_TEST(ApiInterceptorsTest,
-              PropertyDefinerCallbackDescriptorInDefineNamedOwnIC) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+THREADED_TEST(PropertyDefinerCallbackDescriptorInDefineNamedOwnIC) {
+  v8::HandleScope scope(CcTest::isolate());
   LocalContext env;
   v8::Local<v8::FunctionTemplate> templ =
-      v8::FunctionTemplate::New(v8::Isolate::GetCurrent());
+      v8::FunctionTemplate::New(CcTest::isolate());
   templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
       nullptr, nullptr, nullptr, nullptr, nullptr,
       CheckDescriptorInDefineNamedOwnICCallback));
@@ -3086,22 +3065,21 @@ v8::Intercepted InterceptingPropertyDescriptorCallback(
 }
 }  // namespace
 
-THREADED_TEST(ApiInterceptorsTest, PropertyDescriptorCallback) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
+THREADED_TEST(PropertyDescriptorCallback) {
+  v8::HandleScope scope(CcTest::isolate());
   LocalContext env;
 
   {  // Normal behavior of getOwnPropertyDescriptor() with empty callback.
     v8::Local<v8::FunctionTemplate> templ =
-        v8::FunctionTemplate::New(v8::Isolate::GetCurrent());
+        v8::FunctionTemplate::New(CcTest::isolate());
     templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
         nullptr, nullptr, EmptyPropertyDescriptorCallback, nullptr, nullptr,
         nullptr));
     env->Global()
-        ->Set(env.local(), v8_str("obj"),
-              templ->GetFunction(env.local())
-                  .ToLocalChecked()
-                  ->NewInstance(env.local())
-                  .ToLocalChecked())
+        ->Set(env.local(), v8_str("obj"), templ->GetFunction(env.local())
+                                              .ToLocalChecked()
+                                              ->NewInstance(env.local())
+                                              .ToLocalChecked())
         .FromJust();
     const char* code =
         "obj.x = 17; "
@@ -3116,16 +3094,15 @@ THREADED_TEST(ApiInterceptorsTest, PropertyDescriptorCallback) {
 
   {  // Intercept getOwnPropertyDescriptor().
     v8::Local<v8::FunctionTemplate> templ =
-        v8::FunctionTemplate::New(v8::Isolate::GetCurrent());
+        v8::FunctionTemplate::New(CcTest::isolate());
     templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
         nullptr, nullptr, InterceptingPropertyDescriptorCallback, nullptr,
         nullptr, nullptr));
     env->Global()
-        ->Set(env.local(), v8_str("obj"),
-              templ->GetFunction(env.local())
-                  .ToLocalChecked()
-                  ->NewInstance(env.local())
-                  .ToLocalChecked())
+        ->Set(env.local(), v8_str("obj"), templ->GetFunction(env.local())
+                                              .ToLocalChecked()
+                                              ->NewInstance(env.local())
+                                              .ToLocalChecked())
         .FromJust();
     const char* code =
         "obj.x = 17; "
@@ -3155,19 +3132,18 @@ v8::Intercepted EchoIndexedProperty(
 }
 }  // namespace
 
-THREADED_TEST(ApiInterceptorsTest, IndexedPropertyHandlerGetter) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(IndexedPropertyHandlerGetter) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
   templ->InstanceTemplate()->SetHandler(v8::IndexedPropertyHandlerConfiguration(
       EchoIndexedProperty, nullptr, nullptr, nullptr, nullptr, v8_num(637)));
   LocalContext env;
   env->Global()
-      ->Set(env.local(), v8_str("obj"),
-            templ->GetFunction(env.local())
-                .ToLocalChecked()
-                ->NewInstance(env.local())
-                .ToLocalChecked())
+      ->Set(env.local(), v8_str("obj"), templ->GetFunction(env.local())
+                                            .ToLocalChecked()
+                                            ->NewInstance(env.local())
+                                            .ToLocalChecked())
       .FromJust();
   Local<Script> script = v8_compile("obj[900]");
   CHECK_EQ(900, script->Run(env.local())
@@ -3176,7 +3152,8 @@ THREADED_TEST(ApiInterceptorsTest, IndexedPropertyHandlerGetter) {
                     .FromJust());
 }
 
-THREADED_TEST(ApiInterceptorsTest, PropertyHandlerInPrototype) {
+
+THREADED_TEST(PropertyHandlerInPrototype) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -3232,7 +3209,7 @@ THREADED_TEST(ApiInterceptorsTest, PropertyHandlerInPrototype) {
   CompileRun("for (var p in obj) ;");
 }
 
-TEST_F(ApiInterceptorsTest, PropertyHandlerInPrototypeWithDefine) {
+TEST(PropertyHandlerInPrototypeWithDefine) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -3321,8 +3298,8 @@ v8::Intercepted PrePropertyHandlerQuery(
 }
 }  // namespace
 
-THREADED_TEST(ApiInterceptorsTest, PrePropertyHandler) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(PrePropertyHandler) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::FunctionTemplate> desc = v8::FunctionTemplate::New(isolate);
   desc->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
@@ -3341,10 +3318,10 @@ THREADED_TEST(ApiInterceptorsTest, PrePropertyHandler) {
   CHECK(result_post.IsEmpty());
 }
 
-THREADED_TEST(ApiInterceptorsTest, EmptyInterceptorBreakTransitions) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
-  Local<FunctionTemplate> templ =
-      FunctionTemplate::New(v8::Isolate::GetCurrent());
+
+THREADED_TEST(EmptyInterceptorBreakTransitions) {
+  v8::HandleScope scope(CcTest::isolate());
+  Local<FunctionTemplate> templ = FunctionTemplate::New(CcTest::isolate());
   AddInterceptor(templ, EmptyInterceptorGetter, EmptyInterceptorSetter);
   LocalContext env;
   env->Global()
@@ -3361,8 +3338,9 @@ THREADED_TEST(ApiInterceptorsTest, EmptyInterceptorBreakTransitions) {
       "Object.defineProperty(o2, 'x', {value: 10});");
 }
 
-THREADED_TEST(ApiInterceptorsTest, EmptyInterceptorDoesNotShadowJSAccessors) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+
+THREADED_TEST(EmptyInterceptorDoesNotShadowJSAccessors) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<FunctionTemplate> parent = FunctionTemplate::New(isolate);
   Local<FunctionTemplate> child = FunctionTemplate::New(isolate);
@@ -3386,8 +3364,9 @@ THREADED_TEST(ApiInterceptorsTest, EmptyInterceptorDoesNotShadowJSAccessors) {
   ExpectInt32("child.accessor_age", 10);
 }
 
-THREADED_TEST(ApiInterceptorsTest, EmptyInterceptorDoesNotShadowApiAccessors) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+
+THREADED_TEST(EmptyInterceptorDoesNotShadowApiAccessors) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<FunctionTemplate> parent = FunctionTemplate::New(isolate);
   auto returns_42 = FunctionTemplate::New(isolate, Returns42);
@@ -3415,8 +3394,9 @@ THREADED_TEST(ApiInterceptorsTest, EmptyInterceptorDoesNotShadowApiAccessors) {
       42);
 }
 
-THREADED_TEST(ApiInterceptorsTest, EmptyInterceptorDoesNotAffectJSProperties) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+
+THREADED_TEST(EmptyInterceptorDoesNotAffectJSProperties) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<FunctionTemplate> parent = FunctionTemplate::New(isolate);
   Local<FunctionTemplate> child = FunctionTemplate::New(isolate);
@@ -3439,8 +3419,9 @@ THREADED_TEST(ApiInterceptorsTest, EmptyInterceptorDoesNotAffectJSProperties) {
   ExpectString("parent.name", "Alice");
 }
 
-THREADED_TEST(ApiInterceptorsTest, SwitchFromInterceptorToAccessor) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+
+THREADED_TEST(SwitchFromInterceptorToAccessor) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<FunctionTemplate> templ = FunctionTemplate::New(isolate);
   AddAccessor(isolate, templ, v8_str("age"), SimpleGetterCallback,
@@ -3461,8 +3442,9 @@ THREADED_TEST(ApiInterceptorsTest, SwitchFromInterceptorToAccessor) {
   ExpectInt32("obj.accessor_age", 10000);
 }
 
-THREADED_TEST(ApiInterceptorsTest, SwitchFromAccessorToInterceptor) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+
+THREADED_TEST(SwitchFromAccessorToInterceptor) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<FunctionTemplate> templ = FunctionTemplate::New(isolate);
   AddAccessor(isolate, templ, v8_str("age"), SimpleGetterCallback,
@@ -3483,9 +3465,9 @@ THREADED_TEST(ApiInterceptorsTest, SwitchFromAccessorToInterceptor) {
   ExpectInt32("obj.interceptor_age", 9999);
 }
 
-THREADED_TEST(ApiInterceptorsTest,
-              SwitchFromInterceptorToAccessorWithInheritance) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+
+THREADED_TEST(SwitchFromInterceptorToAccessorWithInheritance) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<FunctionTemplate> parent = FunctionTemplate::New(isolate);
   Local<FunctionTemplate> child = FunctionTemplate::New(isolate);
@@ -3508,9 +3490,9 @@ THREADED_TEST(ApiInterceptorsTest,
   ExpectInt32("child.accessor_age", 10000);
 }
 
-THREADED_TEST(ApiInterceptorsTest,
-              SwitchFromAccessorToInterceptorWithInheritance) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+
+THREADED_TEST(SwitchFromAccessorToInterceptorWithInheritance) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<FunctionTemplate> parent = FunctionTemplate::New(isolate);
   Local<FunctionTemplate> child = FunctionTemplate::New(isolate);
@@ -3533,10 +3515,10 @@ THREADED_TEST(ApiInterceptorsTest,
   ExpectInt32("child.interceptor_age", 9999);
 }
 
-THREADED_TEST(ApiInterceptorsTest, SwitchFromInterceptorToJSAccessor) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
-  Local<FunctionTemplate> templ =
-      FunctionTemplate::New(v8::Isolate::GetCurrent());
+
+THREADED_TEST(SwitchFromInterceptorToJSAccessor) {
+  v8::HandleScope scope(CcTest::isolate());
+  Local<FunctionTemplate> templ = FunctionTemplate::New(CcTest::isolate());
   AddInterceptor(templ, InterceptorGetter, InterceptorSetter);
   LocalContext env;
   env->Global()
@@ -3562,10 +3544,10 @@ THREADED_TEST(ApiInterceptorsTest, SwitchFromInterceptorToJSAccessor) {
   ExpectUndefined("Object.getOwnPropertyDescriptor(obj, 'age').value");
 }
 
-THREADED_TEST(ApiInterceptorsTest, SwitchFromJSAccessorToInterceptor) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
-  Local<FunctionTemplate> templ =
-      FunctionTemplate::New(v8::Isolate::GetCurrent());
+
+THREADED_TEST(SwitchFromJSAccessorToInterceptor) {
+  v8::HandleScope scope(CcTest::isolate());
+  Local<FunctionTemplate> templ = FunctionTemplate::New(CcTest::isolate());
   AddInterceptor(templ, InterceptorGetter, InterceptorSetter);
   LocalContext env;
   env->Global()
@@ -3591,12 +3573,11 @@ THREADED_TEST(ApiInterceptorsTest, SwitchFromJSAccessorToInterceptor) {
   ExpectUndefined("Object.getOwnPropertyDescriptor(obj, 'age').value");
 }
 
-THREADED_TEST(ApiInterceptorsTest, SwitchFromInterceptorToProperty) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
-  Local<FunctionTemplate> parent =
-      FunctionTemplate::New(v8::Isolate::GetCurrent());
-  Local<FunctionTemplate> child =
-      FunctionTemplate::New(v8::Isolate::GetCurrent());
+
+THREADED_TEST(SwitchFromInterceptorToProperty) {
+  v8::HandleScope scope(CcTest::isolate());
+  Local<FunctionTemplate> parent = FunctionTemplate::New(CcTest::isolate());
+  Local<FunctionTemplate> child = FunctionTemplate::New(CcTest::isolate());
   child->Inherit(parent);
   AddInterceptor(child, InterceptorGetter, InterceptorSetter);
   LocalContext env;
@@ -3614,12 +3595,11 @@ THREADED_TEST(ApiInterceptorsTest, SwitchFromInterceptorToProperty) {
   ExpectInt32("child.age", 10000);
 }
 
-THREADED_TEST(ApiInterceptorsTest, SwitchFromPropertyToInterceptor) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
-  Local<FunctionTemplate> parent =
-      FunctionTemplate::New(v8::Isolate::GetCurrent());
-  Local<FunctionTemplate> child =
-      FunctionTemplate::New(v8::Isolate::GetCurrent());
+
+THREADED_TEST(SwitchFromPropertyToInterceptor) {
+  v8::HandleScope scope(CcTest::isolate());
+  Local<FunctionTemplate> parent = FunctionTemplate::New(CcTest::isolate());
+  Local<FunctionTemplate> child = FunctionTemplate::New(CcTest::isolate());
   child->Inherit(parent);
   AddInterceptor(child, InterceptorGetter, InterceptorSetter);
   LocalContext env;
@@ -3646,8 +3626,8 @@ v8::Intercepted InterceptorForHiddenProperties(
 }
 }  // namespace
 
-THREADED_TEST(ApiInterceptorsTest, NoSideEffectPropertyHandler) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(NoSideEffectPropertyHandler) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   LocalContext context;
 
@@ -3713,7 +3693,7 @@ THREADED_TEST(ApiInterceptorsTest, NoSideEffectPropertyHandler) {
       .ToLocalChecked();
 }
 
-THREADED_TEST(ApiInterceptorsTest, HiddenPropertiesWithInterceptors) {
+THREADED_TEST(HiddenPropertiesWithInterceptors) {
   LocalContext context;
   v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
@@ -3751,8 +3731,8 @@ v8::Intercepted XPropertyGetter(
 }
 }  // namespace
 
-THREADED_TEST(ApiInterceptorsTest, NamedInterceptorPropertyRead) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(NamedInterceptorPropertyRead) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(v8::NamedPropertyHandlerConfiguration(XPropertyGetter));
@@ -3768,8 +3748,9 @@ THREADED_TEST(ApiInterceptorsTest, NamedInterceptorPropertyRead) {
   }
 }
 
-THREADED_TEST(ApiInterceptorsTest, NamedInterceptorDictionaryIC) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+
+THREADED_TEST(NamedInterceptorDictionaryIC) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(v8::NamedPropertyHandlerConfiguration(XPropertyGetter));
@@ -3801,9 +3782,9 @@ THREADED_TEST(ApiInterceptorsTest, NamedInterceptorDictionaryIC) {
   CHECK(result->Equals(context.local(), v8_str("x")).FromJust());
 }
 
-THREADED_TEST(ApiInterceptorsTest,
-              NamedInterceptorDictionaryICMultipleContext) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+
+THREADED_TEST(NamedInterceptorDictionaryICMultipleContext) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<Context> context1 = Context::New(isolate);
 
@@ -3862,8 +3843,8 @@ v8::Intercepted SetXOnPrototypeGetter(
 
 // This is a regression test for http://crbug.com/20104. Map
 // transitions should not interfere with post interceptor lookup.
-THREADED_TEST(ApiInterceptorsTest, NamedInterceptorMapTransitionRead) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(NamedInterceptorMapTransitionRead) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<v8::FunctionTemplate> function_template =
       v8::FunctionTemplate::New(isolate);
@@ -3907,8 +3888,8 @@ v8::Intercepted IndexedPropertySetter(
 }
 }  // namespace
 
-THREADED_TEST(ApiInterceptorsTest, IndexedInterceptorWithIndexedAccessor) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(IndexedInterceptorWithIndexedAccessor) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(v8::IndexedPropertyHandlerConfiguration(
@@ -3978,9 +3959,8 @@ void UnboxedDoubleIndexedPropertyEnumerator(
 
 // Make sure that the interceptor code in the runtime properly handles
 // merging property name lists for double-array-backed arrays.
-THREADED_TEST(ApiInterceptorsTest,
-              IndexedInterceptorUnboxedDoubleWithIndexedAccessor) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(IndexedInterceptorUnboxedDoubleWithIndexedAccessor) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(v8::IndexedPropertyHandlerConfiguration(
@@ -4016,9 +3996,8 @@ v8::Intercepted IdentityIndexedPropertyGetter(
 }
 }  // namespace
 
-THREADED_TEST(ApiInterceptorsTest,
-              IndexedInterceptorWithGetOwnPropertyDescriptor) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(IndexedInterceptorWithGetOwnPropertyDescriptor) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(
@@ -4042,8 +4021,9 @@ THREADED_TEST(ApiInterceptorsTest,
   ExpectString(slow_case_code, "1");
 }
 
-THREADED_TEST(ApiInterceptorsTest, IndexedInterceptorWithNoSetter) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+
+THREADED_TEST(IndexedInterceptorWithNoSetter) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(
@@ -4075,8 +4055,9 @@ static bool AccessAlwaysBlocked(Local<v8::Context> accessing_context,
   return false;
 }
 
-THREADED_TEST(ApiInterceptorsTest, IndexedInterceptorWithAccessorCheck) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+
+THREADED_TEST(IndexedInterceptorWithAccessorCheck) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(
@@ -4103,8 +4084,9 @@ THREADED_TEST(ApiInterceptorsTest, IndexedInterceptorWithAccessorCheck) {
   ExpectString(code, "PASSED");
 }
 
-THREADED_TEST(ApiInterceptorsTest, IndexedInterceptorWithDifferentIndices) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+
+THREADED_TEST(IndexedInterceptorWithDifferentIndices) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(
@@ -4127,8 +4109,9 @@ THREADED_TEST(ApiInterceptorsTest, IndexedInterceptorWithDifferentIndices) {
   ExpectString(code, "PASSED");
 }
 
-THREADED_TEST(ApiInterceptorsTest, IndexedInterceptorWithNegativeIndices) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+
+THREADED_TEST(IndexedInterceptorWithNegativeIndices) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(
@@ -4167,8 +4150,9 @@ THREADED_TEST(ApiInterceptorsTest, IndexedInterceptorWithNegativeIndices) {
   ExpectString(code, "PASSED");
 }
 
-THREADED_TEST(ApiInterceptorsTest, IndexedInterceptorWithNotSmiLookup) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+
+THREADED_TEST(IndexedInterceptorWithNotSmiLookup) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(
@@ -4197,8 +4181,9 @@ THREADED_TEST(ApiInterceptorsTest, IndexedInterceptorWithNotSmiLookup) {
   ExpectString(code, "PASSED");
 }
 
-THREADED_TEST(ApiInterceptorsTest, IndexedInterceptorGoingMegamorphic) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+
+THREADED_TEST(IndexedInterceptorGoingMegamorphic) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(
@@ -4228,8 +4213,9 @@ THREADED_TEST(ApiInterceptorsTest, IndexedInterceptorGoingMegamorphic) {
   ExpectString(code, "PASSED");
 }
 
-THREADED_TEST(ApiInterceptorsTest, IndexedInterceptorReceiverTurningSmi) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+
+THREADED_TEST(IndexedInterceptorReceiverTurningSmi) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(
@@ -4259,8 +4245,9 @@ THREADED_TEST(ApiInterceptorsTest, IndexedInterceptorReceiverTurningSmi) {
   ExpectString(code, "PASSED");
 }
 
-THREADED_TEST(ApiInterceptorsTest, IndexedInterceptorOnProto) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+
+THREADED_TEST(IndexedInterceptorOnProto) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(
@@ -4289,7 +4276,7 @@ namespace {
 void CheckIndexedInterceptorHasIC(v8::IndexedPropertyGetterCallback getter,
                                   v8::IndexedPropertyQueryCallback query,
                                   const char* source, int expected) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(v8::IndexedPropertyHandlerConfiguration(
@@ -4313,7 +4300,7 @@ v8::Intercepted IndexedQueryCallback(
 v8::Intercepted IndexHasICQueryAbsent(
     uint32_t index, const v8::PropertyCallbackInfo<v8::Integer>& info) {
   // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   CHECK_EQ(isolate, info.GetIsolate());
   // TODO(ishell): the PropertyAttributes::ABSENT is not exposed in the Api,
   // so it can't be officially returned. We should fix the tests instead.
@@ -4323,7 +4310,7 @@ v8::Intercepted IndexHasICQueryAbsent(
 
 }  // namespace
 
-THREADED_TEST(ApiInterceptorsTest, IndexedInterceptorHasIC) {
+THREADED_TEST(IndexedInterceptorHasIC) {
   indexed_query_counter = 0;
   CheckIndexedInterceptorHasIC(nullptr, IndexedQueryCallback,
                                "var result = 0;"
@@ -4334,7 +4321,7 @@ THREADED_TEST(ApiInterceptorsTest, IndexedInterceptorHasIC) {
   CHECK_EQ(1000, indexed_query_counter);
 }
 
-THREADED_TEST(ApiInterceptorsTest, IndexedInterceptorHasICQueryAbsent) {
+THREADED_TEST(IndexedInterceptorHasICQueryAbsent) {
   CheckIndexedInterceptorHasIC(nullptr,
                                // HasICQuery<uint32_t, v8::internal::ABSENT>,
                                IndexHasICQueryAbsent,
@@ -4345,7 +4332,7 @@ THREADED_TEST(ApiInterceptorsTest, IndexedInterceptorHasICQueryAbsent) {
                                0);
 }
 
-THREADED_TEST(ApiInterceptorsTest, IndexedInterceptorHasICQueryNone) {
+THREADED_TEST(IndexedInterceptorHasICQueryNone) {
   CheckIndexedInterceptorHasIC(nullptr,
                                HasICQuery<uint32_t, v8::internal::NONE>,
                                "var result = 0;"
@@ -4355,7 +4342,7 @@ THREADED_TEST(ApiInterceptorsTest, IndexedInterceptorHasICQueryNone) {
                                1000);
 }
 
-THREADED_TEST(ApiInterceptorsTest, IndexedInterceptorHasICGetter) {
+THREADED_TEST(IndexedInterceptorHasICGetter) {
   CheckIndexedInterceptorHasIC(IdentityIndexedPropertyGetter, nullptr,
                                "var result = 0;"
                                "for (var i = 0; i < 1000; i++) {"
@@ -4364,7 +4351,7 @@ THREADED_TEST(ApiInterceptorsTest, IndexedInterceptorHasICGetter) {
                                1000);
 }
 
-THREADED_TEST(ApiInterceptorsTest, IndexedInterceptorHasICQueryGetter) {
+THREADED_TEST(IndexedInterceptorHasICQueryGetter) {
   CheckIndexedInterceptorHasIC(IdentityIndexedPropertyGetter,
                                HasICQuery<uint32_t, v8::internal::ABSENT>,
                                "var result = 0;"
@@ -4374,7 +4361,7 @@ THREADED_TEST(ApiInterceptorsTest, IndexedInterceptorHasICQueryGetter) {
                                0);
 }
 
-THREADED_TEST(ApiInterceptorsTest, IndexedInterceptorHasICQueryToggle) {
+THREADED_TEST(IndexedInterceptorHasICQueryToggle) {
   CheckIndexedInterceptorHasIC(IdentityIndexedPropertyGetter,
                                HasICQueryToggle<uint32_t>,
                                "var result = 0;"
@@ -4419,8 +4406,8 @@ v8::Intercepted IDeleter(uint32_t index,
 }
 }  // namespace
 
-THREADED_TEST(ApiInterceptorsTest, Deleter) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(Deleter) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetHandler(v8::NamedPropertyHandlerConfiguration(
@@ -4520,6 +4507,7 @@ static void NamedEnum(const v8::PropertyCallbackInfo<v8::Array>& info) {
   info.GetReturnValue().Set(result);
 }
 
+
 static void IndexedEnum(const v8::PropertyCallbackInfo<v8::Array>& info) {
   ApiTestFuzzer::Fuzz();
   v8::Local<v8::Array> result = v8::Array::New(info.GetIsolate(), 2);
@@ -4533,8 +4521,9 @@ static void IndexedEnum(const v8::PropertyCallbackInfo<v8::Array>& info) {
   info.GetReturnValue().Set(result);
 }
 
-THREADED_TEST(ApiInterceptorsTest, Enumerators) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+
+THREADED_TEST(Enumerators) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetHandler(v8::NamedPropertyHandlerConfiguration(GetK, nullptr, nullptr,
@@ -4680,8 +4669,8 @@ v8::Intercepted InterceptorCallICGetter(
 }  // namespace
 
 // This test should hit the call IC for the interceptor case.
-THREADED_TEST(ApiInterceptorsTest, InterceptorCallIC) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(InterceptorCallIC) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(
@@ -4705,10 +4694,11 @@ THREADED_TEST(ApiInterceptorsTest, InterceptorCallIC) {
   call_ic_function_global.Reset();
 }
 
+
 // This test checks that if interceptor doesn't provide
 // a value, we can fetch regular value.
-THREADED_TEST(ApiInterceptorsTest, InterceptorCallICSeesOthers) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(InterceptorCallICSeesOthers) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(v8::NamedPropertyHandlerConfiguration(NoBlockGetterX));
@@ -4742,8 +4732,8 @@ v8::Intercepted InterceptorCallICGetter4(
 // This test checks that if interceptor provides a function,
 // even if we cached shadowed variant, interceptor's function
 // is invoked
-THREADED_TEST(ApiInterceptorsTest, InterceptorCallICCacheableNotNeeded) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(InterceptorCallICCacheableNotNeeded) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(
@@ -4768,10 +4758,11 @@ THREADED_TEST(ApiInterceptorsTest, InterceptorCallICCacheableNotNeeded) {
   call_ic_function4_global.Reset();
 }
 
+
 // Test the case when we stored cacheable lookup into
 // a stub, but it got invalidated later on
-THREADED_TEST(ApiInterceptorsTest, InterceptorCallICInvalidatedCacheable) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(InterceptorCallICInvalidatedCacheable) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(v8::NamedPropertyHandlerConfiguration(NoBlockGetterX));
@@ -4798,10 +4789,11 @@ THREADED_TEST(ApiInterceptorsTest, InterceptorCallICInvalidatedCacheable) {
   CHECK_EQ(41 * 7, value->Int32Value(context.local()).FromJust());
 }
 
+
 // This test checks that if interceptor doesn't provide a function,
 // cached constant function is used
-THREADED_TEST(ApiInterceptorsTest, InterceptorCallICConstantFunctionUsed) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(InterceptorCallICConstantFunctionUsed) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(v8::NamedPropertyHandlerConfiguration(NoBlockGetterX));
@@ -4838,8 +4830,8 @@ v8::Intercepted InterceptorCallICGetter5(
 // This test checks that if interceptor provides a function,
 // even if we cached constant function, interceptor's function
 // is invoked
-THREADED_TEST(ApiInterceptorsTest, InterceptorCallICConstantFunctionNotNeeded) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(InterceptorCallICConstantFunctionNotNeeded) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(
@@ -4882,10 +4874,9 @@ v8::Intercepted InterceptorCallICGetter6(
 
 // Same test as above, except the code is wrapped in a function
 // to test the optimized compiler.
-THREADED_TEST(ApiInterceptorsTest,
-              InterceptorCallICConstantFunctionNotNeededWrapped) {
+THREADED_TEST(InterceptorCallICConstantFunctionNotNeededWrapped) {
   i::v8_flags.allow_natives_syntax.Set(true);
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(
@@ -4921,11 +4912,11 @@ THREADED_TEST(ApiInterceptorsTest,
   call_ic_function6_global.Reset();
 }
 
+
 // Test the case when we stored constant function into
 // a stub, but it got invalidated later on
-THREADED_TEST(ApiInterceptorsTest,
-              InterceptorCallICInvalidatedConstantFunction) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(InterceptorCallICInvalidatedConstantFunction) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(v8::NamedPropertyHandlerConfiguration(NoBlockGetterX));
@@ -4954,12 +4945,12 @@ THREADED_TEST(ApiInterceptorsTest,
   CHECK_EQ(41 * 7, value->Int32Value(context.local()).FromJust());
 }
 
+
 // Test the case when we stored constant function into
 // a stub, but it got invalidated later on due to override on
 // global object which is between interceptor and constant function' holders.
-THREADED_TEST(ApiInterceptorsTest,
-              InterceptorCallICInvalidatedConstantFunctionViaGlobal) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(InterceptorCallICInvalidatedConstantFunctionViaGlobal) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(v8::NamedPropertyHandlerConfiguration(NoBlockGetterX));
@@ -4985,9 +4976,10 @@ THREADED_TEST(ApiInterceptorsTest,
   CHECK_EQ(41 * 7, value->Int32Value(context.local()).FromJust());
 }
 
+
 // Test the case when actual function to call sits on global object.
-THREADED_TEST(ApiInterceptorsTest, InterceptorCallICCachedFromGlobal) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(InterceptorCallICCachedFromGlobal) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ_o = ObjectTemplate::New(isolate);
   templ_o->SetHandler(v8::NamedPropertyHandlerConfiguration(NoBlockGetterX));
@@ -5035,8 +5027,8 @@ v8::Intercepted InterceptorKeyedCallICGetter(
 
 // Test the case when we stored cacheable lookup into
 // a stub, but the function name changed (to another cacheable function).
-THREADED_TEST(ApiInterceptorsTest, InterceptorKeyedCallICKeyChange1) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(InterceptorKeyedCallICKeyChange1) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(v8::NamedPropertyHandlerConfiguration(NoBlockGetterX));
@@ -5063,11 +5055,12 @@ THREADED_TEST(ApiInterceptorsTest, InterceptorKeyedCallICKeyChange1) {
                                 .FromJust());
 }
 
+
 // Test the case when we stored cacheable lookup into
 // a stub, but the function name changed (and the new function is present
 // both before and after the interceptor in the prototype chain).
-THREADED_TEST(ApiInterceptorsTest, InterceptorKeyedCallICKeyChange2) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(InterceptorKeyedCallICKeyChange2) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(
@@ -5103,10 +5096,11 @@ THREADED_TEST(ApiInterceptorsTest, InterceptorKeyedCallICKeyChange2) {
   keyed_call_ic_function_global.Reset();
 }
 
+
 // Same as InterceptorKeyedCallICKeyChange1 only the cacheable function sit
 // on the global object.
-THREADED_TEST(ApiInterceptorsTest, InterceptorKeyedCallICKeyChangeOnGlobal) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(InterceptorKeyedCallICKeyChangeOnGlobal) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(v8::NamedPropertyHandlerConfiguration(NoBlockGetterX));
@@ -5136,9 +5130,10 @@ THREADED_TEST(ApiInterceptorsTest, InterceptorKeyedCallICKeyChangeOnGlobal) {
                                 .FromJust());
 }
 
+
 // Test the case when actual function to call sits on global object.
-THREADED_TEST(ApiInterceptorsTest, InterceptorKeyedCallICFromGlobal) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(InterceptorKeyedCallICFromGlobal) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ_o = ObjectTemplate::New(isolate);
   templ_o->SetHandler(v8::NamedPropertyHandlerConfiguration(NoBlockGetterX));
@@ -5172,9 +5167,10 @@ THREADED_TEST(ApiInterceptorsTest, InterceptorKeyedCallICFromGlobal) {
                     .FromJust());
 }
 
+
 // Test the map transition before the interceptor.
-THREADED_TEST(ApiInterceptorsTest, InterceptorKeyedCallICMapChangeBefore) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(InterceptorKeyedCallICMapChangeBefore) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ_o = ObjectTemplate::New(isolate);
   templ_o->SetHandler(v8::NamedPropertyHandlerConfiguration(NoBlockGetterX));
@@ -5201,9 +5197,10 @@ THREADED_TEST(ApiInterceptorsTest, InterceptorKeyedCallICMapChangeBefore) {
                                 .FromJust());
 }
 
+
 // Test the map transition after the interceptor.
-THREADED_TEST(ApiInterceptorsTest, InterceptorKeyedCallICMapChangeAfter) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(InterceptorKeyedCallICMapChangeAfter) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ_o = ObjectTemplate::New(isolate);
   templ_o->SetHandler(v8::NamedPropertyHandlerConfiguration(NoBlockGetterX));
@@ -5252,8 +5249,8 @@ v8::Intercepted InterceptorICRefErrorGetter(
 // This test should hit load and call ICs for the interceptor case.
 // Once in a while, the interceptor will reply that a property was not
 // found in which case we should get a reference error.
-THREADED_TEST(ApiInterceptorsTest, InterceptorICReferenceErrors) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(InterceptorICReferenceErrors) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(
@@ -5314,9 +5311,9 @@ v8::Intercepted InterceptorICExceptionGetter(
 
 // Test interceptor load/call IC where the interceptor throws an
 // exception once in a while.
-THREADED_TEST(ApiInterceptorsTest, InterceptorICGetterExceptions) {
+THREADED_TEST(InterceptorICGetterExceptions) {
   interceptor_ic_exception_get_count = 0;
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(
@@ -5369,9 +5366,9 @@ v8::Intercepted InterceptorICExceptionSetter(
 
 // Test interceptor store IC where the interceptor throws an exception
 // once in a while.
-THREADED_TEST(ApiInterceptorsTest, InterceptorICSetterExceptions) {
+THREADED_TEST(InterceptorICSetterExceptions) {
   interceptor_ic_exception_set_count = 0;
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(v8::NamedPropertyHandlerConfiguration(
@@ -5388,14 +5385,15 @@ THREADED_TEST(ApiInterceptorsTest, InterceptorICSetterExceptions) {
   CHECK(value->BooleanValue(isolate));
 }
 
+
 // Test that we ignore null interceptors.
-THREADED_TEST(ApiInterceptorsTest, NullNamedInterceptor) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(NullNamedInterceptor) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(v8::NamedPropertyHandlerConfiguration(nullptr));
   LocalContext context;
-  templ->Set(v8::Isolate::GetCurrent(), "x", v8_num(42));
+  templ->Set(CcTest::isolate(), "x", v8_num(42));
   v8::Local<v8::Object> obj =
       templ->NewInstance(context.local()).ToLocalChecked();
   context->Global()->Set(context.local(), v8_str("obj"), obj).FromJust();
@@ -5404,14 +5402,15 @@ THREADED_TEST(ApiInterceptorsTest, NullNamedInterceptor) {
   CHECK_EQ(42, value->Int32Value(context.local()).FromJust());
 }
 
+
 // Test that we ignore null interceptors.
-THREADED_TEST(ApiInterceptorsTest, NullIndexedInterceptor) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(NullIndexedInterceptor) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(v8::IndexedPropertyHandlerConfiguration(nullptr));
   LocalContext context;
-  templ->Set(v8::Isolate::GetCurrent(), "42", v8_num(42));
+  templ->Set(CcTest::isolate(), "42", v8_num(42));
   v8::Local<v8::Object> obj =
       templ->NewInstance(context.local()).ToLocalChecked();
   context->Global()->Set(context.local(), v8_str("obj"), obj).FromJust();
@@ -5420,25 +5419,26 @@ THREADED_TEST(ApiInterceptorsTest, NullIndexedInterceptor) {
   CHECK_EQ(42, value->Int32Value(context.local()).FromJust());
 }
 
-THREADED_TEST(ApiInterceptorsTest, NamedPropertyHandlerGetterAttributes) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+
+THREADED_TEST(NamedPropertyHandlerGetterAttributes) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
   templ->InstanceTemplate()->SetHandler(
       v8::NamedPropertyHandlerConfiguration(InterceptorLoadXICGetter));
   LocalContext env;
   env->Global()
-      ->Set(env.local(), v8_str("obj"),
-            templ->GetFunction(env.local())
-                .ToLocalChecked()
-                ->NewInstance(env.local())
-                .ToLocalChecked())
+      ->Set(env.local(), v8_str("obj"), templ->GetFunction(env.local())
+                                            .ToLocalChecked()
+                                            ->NewInstance(env.local())
+                                            .ToLocalChecked())
       .FromJust();
   ExpectTrue("obj.x === 42");
   ExpectTrue("!obj.propertyIsEnumerable('x')");
 }
 
-THREADED_TEST(ApiInterceptorsTest, Regress256330) {
+
+THREADED_TEST(Regress256330) {
   if (!i::v8_flags.turbofan) return;
   i::v8_flags.allow_natives_syntax.Set(true);
   LocalContext context;
@@ -5462,11 +5462,10 @@ THREADED_TEST(ApiInterceptorsTest, Regress256330) {
   CHECK_EQ(mask, status & mask);
 }
 
-THREADED_TEST(ApiInterceptorsTest, OptimizedInterceptorSetter) {
+THREADED_TEST(OptimizedInterceptorSetter) {
   i::v8_flags.allow_natives_syntax.Set(true);
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
-  Local<FunctionTemplate> templ =
-      FunctionTemplate::New(v8::Isolate::GetCurrent());
+  v8::HandleScope scope(CcTest::isolate());
+  Local<FunctionTemplate> templ = FunctionTemplate::New(CcTest::isolate());
   AddInterceptor(templ, InterceptorGetter, InterceptorSetter);
   LocalContext env;
   env->Global()
@@ -5493,11 +5492,10 @@ THREADED_TEST(ApiInterceptorsTest, OptimizedInterceptorSetter) {
   ExpectInt32("obj.accessor_age", 42);
 }
 
-THREADED_TEST(ApiInterceptorsTest, OptimizedInterceptorGetter) {
+THREADED_TEST(OptimizedInterceptorGetter) {
   i::v8_flags.allow_natives_syntax.Set(true);
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
-  Local<FunctionTemplate> templ =
-      FunctionTemplate::New(v8::Isolate::GetCurrent());
+  v8::HandleScope scope(CcTest::isolate());
+  Local<FunctionTemplate> templ = FunctionTemplate::New(CcTest::isolate());
   AddInterceptor(templ, InterceptorGetter, InterceptorSetter);
   LocalContext env;
   env->Global()
@@ -5521,11 +5519,10 @@ THREADED_TEST(ApiInterceptorsTest, OptimizedInterceptorGetter) {
   ExpectInt32("getAge()", 1);
 }
 
-THREADED_TEST(ApiInterceptorsTest, OptimizedInterceptorFieldRead) {
+THREADED_TEST(OptimizedInterceptorFieldRead) {
   i::v8_flags.allow_natives_syntax.Set(true);
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
-  Local<FunctionTemplate> templ =
-      FunctionTemplate::New(v8::Isolate::GetCurrent());
+  v8::HandleScope scope(CcTest::isolate());
+  Local<FunctionTemplate> templ = FunctionTemplate::New(CcTest::isolate());
   AddInterceptor(templ, InterceptorGetter, InterceptorSetter);
   LocalContext env;
   env->Global()
@@ -5546,11 +5543,10 @@ THREADED_TEST(ApiInterceptorsTest, OptimizedInterceptorFieldRead) {
   ExpectInt32("getAge();", 100);
 }
 
-THREADED_TEST(ApiInterceptorsTest, OptimizedInterceptorFieldWrite) {
+THREADED_TEST(OptimizedInterceptorFieldWrite) {
   i::v8_flags.allow_natives_syntax.Set(true);
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
-  Local<FunctionTemplate> templ =
-      FunctionTemplate::New(v8::Isolate::GetCurrent());
+  v8::HandleScope scope(CcTest::isolate());
+  Local<FunctionTemplate> templ = FunctionTemplate::New(CcTest::isolate());
   AddInterceptor(templ, InterceptorGetter, InterceptorSetter);
   LocalContext env;
   env->Global()
@@ -5571,7 +5567,8 @@ THREADED_TEST(ApiInterceptorsTest, OptimizedInterceptorFieldWrite) {
   ExpectInt32("obj.interceptor_age", 103);
 }
 
-THREADED_TEST(ApiInterceptorsTest, Regress149912) {
+
+THREADED_TEST(Regress149912) {
   LocalContext context;
   v8::HandleScope scope(context.isolate());
   Local<FunctionTemplate> templ = FunctionTemplate::New(context.isolate());
@@ -5583,7 +5580,7 @@ THREADED_TEST(ApiInterceptorsTest, Regress149912) {
   CompileRun("Number.prototype.__proto__ = new Bug; var x = 0; x.foo();");
 }
 
-THREADED_TEST(ApiInterceptorsTest, Regress625155) {
+THREADED_TEST(Regress625155) {
   LocalContext context;
   v8::HandleScope scope(context.isolate());
   Local<FunctionTemplate> templ = FunctionTemplate::New(context.isolate());
@@ -5603,10 +5600,9 @@ THREADED_TEST(ApiInterceptorsTest, Regress625155) {
       "x.boom = 0;");
 }
 
-THREADED_TEST(ApiInterceptorsTest, Regress125988) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
-  Local<FunctionTemplate> intercept =
-      FunctionTemplate::New(v8::Isolate::GetCurrent());
+THREADED_TEST(Regress125988) {
+  v8::HandleScope scope(CcTest::isolate());
+  Local<FunctionTemplate> intercept = FunctionTemplate::New(CcTest::isolate());
   AddInterceptor(intercept, EmptyInterceptorGetter, EmptyInterceptorSetter);
   LocalContext env;
   env->Global()
@@ -5636,9 +5632,8 @@ namespace {
 void IndexedPropertyEnumerator(
     const v8::PropertyCallbackInfo<v8::Array>& info) {
   v8::Local<v8::Array> result = v8::Array::New(info.GetIsolate(), 1);
-  result
-      ->Set(info.GetIsolate()->GetCurrentContext(), 0,
-            v8::Integer::New(info.GetIsolate(), 7))
+  result->Set(info.GetIsolate()->GetCurrentContext(), 0,
+              v8::Integer::New(info.GetIsolate(), 7))
       .FromJust();
   info.GetReturnValue().Set(result);
 }
@@ -5653,8 +5648,8 @@ void NamedPropertyEnumerator(const v8::PropertyCallbackInfo<v8::Array>& info) {
 }
 }  // namespace
 
-THREADED_TEST(ApiInterceptorsTest, GetOwnPropertyNamesWithInterceptor) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(GetOwnPropertyNamesWithInterceptor) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
   v8::Local<v8::ObjectTemplate> obj_template = v8::ObjectTemplate::New(isolate);
 
@@ -5667,9 +5662,8 @@ THREADED_TEST(ApiInterceptorsTest, GetOwnPropertyNamesWithInterceptor) {
 
   LocalContext context;
   v8::Local<v8::Object> global = context->Global();
-  global
-      ->Set(context.local(), v8_str("object"),
-            obj_template->NewInstance(context.local()).ToLocalChecked())
+  global->Set(context.local(), v8_str("object"),
+              obj_template->NewInstance(context.local()).ToLocalChecked())
       .FromJust();
 
   v8::Local<v8::Value> result =
@@ -5720,9 +5714,8 @@ void IndexedPropertyEnumeratorException(
 }
 }  // namespace
 
-THREADED_TEST(ApiInterceptorsTest,
-              GetOwnPropertyNamesWithIndexedInterceptorExceptions_regress4026) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(GetOwnPropertyNamesWithIndexedInterceptorExceptions_regress4026) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
   v8::Local<v8::ObjectTemplate> obj_template = v8::ObjectTemplate::New(isolate);
 
@@ -5734,9 +5727,8 @@ THREADED_TEST(ApiInterceptorsTest,
 
   LocalContext context;
   v8::Local<v8::Object> global = context->Global();
-  global
-      ->Set(context.local(), v8_str("object"),
-            obj_template->NewInstance(context.local()).ToLocalChecked())
+  global->Set(context.local(), v8_str("object"),
+              obj_template->NewInstance(context.local()).ToLocalChecked())
       .FromJust();
   v8::Local<v8::Value> result = CompileRun(
       "var result  = []; "
@@ -5768,9 +5760,8 @@ void NamedPropertyEnumeratorException(
 }
 }  // namespace
 
-THREADED_TEST(ApiInterceptorsTest,
-              GetOwnPropertyNamesWithNamedInterceptorExceptions_regress4026) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(GetOwnPropertyNamesWithNamedInterceptorExceptions_regress4026) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
   v8::Local<v8::ObjectTemplate> obj_template = v8::ObjectTemplate::New(isolate);
 
@@ -5783,9 +5774,8 @@ THREADED_TEST(ApiInterceptorsTest,
 
   LocalContext context;
   v8::Local<v8::Object> global = context->Global();
-  global
-      ->Set(context.local(), v8_str("object"),
-            obj_template->NewInstance(context.local()).ToLocalChecked())
+  global->Set(context.local(), v8_str("object"),
+              obj_template->NewInstance(context.local()).ToLocalChecked())
       .FromJust();
 
   v8::Local<v8::Value> result = CompileRun(
@@ -6254,10 +6244,9 @@ void TestPreprocessExceptionFromInterceptors(
 
 // Can't use THREADED_TEST because this test requires setting an exception
 // preprocessing callback which might be observable in other tests.
-TEST_F(ApiInterceptorsTest,
-       PreprocessExceptionFromInterceptorsWithoutDescriptorCallback) {
+TEST(PreprocessExceptionFromInterceptorsWithoutDescriptorCallback) {
   i::v8_flags.experimental_report_exceptions_from_callbacks.Set(true);
-  v8::Isolate* isolate = v8_isolate();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
 
   v8::Local<v8::FunctionTemplate> ctor = v8::FunctionTemplate::New(isolate);
@@ -6295,10 +6284,9 @@ TEST_F(ApiInterceptorsTest,
 
 // Can't use THREADED_TEST because this test requires setting an exception
 // preprocessing callback which might be observable in other tests.
-TEST_F(ApiInterceptorsTest,
-       PreprocessExceptionFromInterceptorsWithDescriptorCallback) {
+TEST(PreprocessExceptionFromInterceptorsWithDescriptorCallback) {
   i::v8_flags.experimental_report_exceptions_from_callbacks.Set(true);
-  v8::Isolate* isolate = v8_isolate();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
 
   v8::Local<v8::FunctionTemplate> ctor = v8::FunctionTemplate::New(isolate);
@@ -6650,7 +6638,7 @@ class WasmSecondaryStackExceptionThread
 
   void Run() override {
     v8::Isolate::CreateParams create_params;
-    create_params.array_buffer_allocator = DefaultArrayBufferAllocator();
+    create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
     v8::Isolate* isolate = v8::Isolate::New(create_params);
     {
       v8::Isolate::Scope isolate_scope(isolate);
@@ -6667,7 +6655,7 @@ class WasmSecondaryStackExceptionThread
 
 }  // namespace
 
-TEST_F(ApiInterceptorsTest, PreprocessExceptionOnWasmSecondaryStack) {
+TEST(PreprocessExceptionOnWasmSecondaryStack) {
   if (i::v8_flags.jitless || i::v8_flags.wasm_jitless) return;
 
   i::v8_flags.experimental_report_exceptions_from_callbacks.Set(true);
@@ -6687,12 +6675,11 @@ TEST_F(ApiInterceptorsTest, PreprocessExceptionOnWasmSecondaryStack) {
       nullptr, reserve_size, page_size, v8::PageAllocator::kNoAccess);
   WasmSecondaryStackExceptionThread thread(reserved_pages, reserve_size);
   CHECK(thread.Start());
-  i_isolate()->main_thread_local_heap()->ExecuteWhileParked(
-      [&thread]() { thread.Join(); });
+  thread.Join();
 
   // Also test with the JSPI secondary stack mapped below the main thread's
   // central stack.
-  RunPreprocessExceptionOnWasmSecondaryStackTest(v8_isolate(), nullptr, 0);
+  RunPreprocessExceptionOnWasmSecondaryStackTest(CcTest::isolate(), nullptr, 0);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY && !defined(V8_ENABLE_CET_SHADOW_STACK)
 
@@ -6763,7 +6750,7 @@ v8::Intercepted ShouldNamedSetterInterceptor(
 }
 
 void TestNonMaskingInterceptorOwnProperty(bool with_setter) {
-  auto isolate = v8::Isolate::GetCurrent();
+  auto isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
   LocalContext context;
 
@@ -6849,17 +6836,16 @@ void TestNonMaskingInterceptorOwnProperty(bool with_setter) {
 
 }  // namespace
 
-THREADED_TEST(ApiInterceptorsTest, NonMaskingInterceptorWithSetterOwnProperty) {
+THREADED_TEST(NonMaskingInterceptorWithSetterOwnProperty) {
   TestNonMaskingInterceptorOwnProperty(true);
 }
 
-THREADED_TEST(ApiInterceptorsTest,
-              NonMaskingInterceptorWithoutSetterOwnProperty) {
+THREADED_TEST(NonMaskingInterceptorWithoutSetterOwnProperty) {
   TestNonMaskingInterceptorOwnProperty(false);
 }
 
 void TestNonMaskingInterceptorPrototypeProperty(bool with_setter) {
-  auto isolate = v8::Isolate::GetCurrent();
+  auto isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
   LocalContext context;
 
@@ -6915,18 +6901,16 @@ void TestNonMaskingInterceptorPrototypeProperty(bool with_setter) {
   }
 }
 
-THREADED_TEST(ApiInterceptorsTest,
-              NonMaskingInterceptorWithSetterPrototypeProperty) {
+THREADED_TEST(NonMaskingInterceptorWithSetterPrototypeProperty) {
   TestNonMaskingInterceptorPrototypeProperty(true);
 }
 
-THREADED_TEST(ApiInterceptorsTest,
-              NonMaskingInterceptorWithoutSetterPrototypeProperty) {
+THREADED_TEST(NonMaskingInterceptorWithoutSetterPrototypeProperty) {
   TestNonMaskingInterceptorPrototypeProperty(false);
 }
 
-THREADED_TEST(ApiInterceptorsTest, NonMaskingInterceptorPrototypePropertyIC) {
-  auto isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(NonMaskingInterceptorPrototypePropertyIC) {
+  auto isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
   LocalContext context;
 
@@ -6998,7 +6982,7 @@ THREADED_TEST(ApiInterceptorsTest, NonMaskingInterceptorPrototypePropertyIC) {
   ExpectInt32("f(outer)", 4);
 }
 
-THREADED_TEST(ApiInterceptorsTest, NonMaskingInterceptorOwnPropertyTransition) {
+THREADED_TEST(NonMaskingInterceptorOwnPropertyTransition) {
   LocalContext context;
   auto isolate = context.isolate();
   v8::HandleScope handle_scope(isolate);
@@ -7032,7 +7016,7 @@ THREADED_TEST(ApiInterceptorsTest, NonMaskingInterceptorOwnPropertyTransition) {
   ExpectInt32("obj.prop", 139);
 }
 
-THREADED_TEST(ApiInterceptorsTest, NonMaskingIndexedInterceptorOwnProperty) {
+THREADED_TEST(NonMaskingIndexedInterceptorOwnProperty) {
   LocalContext context;
   auto isolate = context.isolate();
   v8::HandleScope handle_scope(isolate);
@@ -7173,11 +7157,11 @@ v8::Intercepted RestrictiveIndexedQuery(
 
 // Regression test for V8 bug 6627.
 // Object.keys() must return enumerable keys only.
-THREADED_TEST(ApiInterceptorsTest, EnumeratorsAndUnenumerableNamedProperties) {
+THREADED_TEST(EnumeratorsAndUnenumerableNamedProperties) {
   // The enumerator interceptor returns a list
   // of items which are filtered according to the
   // properties defined in the query interceptor.
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetHandler(v8::NamedPropertyHandlerConfiguration(
@@ -7225,12 +7209,11 @@ v8::Intercepted QueryInterceptorForFoo(
 
 // Test that calls to the query interceptor are independent of each
 // other.
-THREADED_TEST(ApiInterceptorsTest,
-              EnumeratorsAndUnenumerableNamedPropertiesWithoutSet) {
+THREADED_TEST(EnumeratorsAndUnenumerableNamedPropertiesWithoutSet) {
   // The enumerator interceptor returns a list
   // of items which are filtered according to the
   // properties defined in the query interceptor.
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetHandler(v8::NamedPropertyHandlerConfiguration(
@@ -7251,12 +7234,11 @@ THREADED_TEST(ApiInterceptorsTest,
   ExpectInt32("Object.keys(obj).length", 1);
 }
 
-THREADED_TEST(ApiInterceptorsTest,
-              EnumeratorsAndUnenumerableIndexedProperties) {
+THREADED_TEST(EnumeratorsAndUnenumerableIndexedProperties) {
   // The enumerator interceptor returns a list
   // of items which are filtered according to the
   // properties defined in the query interceptor.
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetHandler(v8::IndexedPropertyHandlerConfiguration(
@@ -7287,8 +7269,8 @@ THREADED_TEST(ApiInterceptorsTest,
   ExpectInt32("Object.values(obj)[0]", 24);
 }
 
-THREADED_TEST(ApiInterceptorsTest, EnumeratorsAndForIn) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(EnumeratorsAndForIn) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetHandler(v8::NamedPropertyHandlerConfiguration(
@@ -7351,8 +7333,9 @@ v8::Intercepted DatabaseSetter(Local<Name> name, Local<Value> value,
 
 }  // namespace
 
-THREADED_TEST(ApiInterceptorsTest, NonMaskingInterceptorGlobalEvalRegression) {
-  auto isolate = v8::Isolate::GetCurrent();
+
+THREADED_TEST(NonMaskingInterceptorGlobalEvalRegression) {
+  auto isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
   LocalContext context;
 
@@ -7445,8 +7428,8 @@ class ArrayLike {
   uint32_t index_of_count_ = 0;
 };
 
-THREADED_TEST(ApiInterceptorsTest, ArrayLikeInterceptor) {
-  auto isolate = v8::Isolate::GetCurrent();
+THREADED_TEST(ArrayLikeInterceptor) {
+  auto isolate = CcTest::isolate();
   i::v8_flags.fast_api_indexof.Set(true);
   v8::HandleScope handle_scope(isolate);
   LocalContext context;
@@ -7514,14 +7497,14 @@ v8::Intercepted Regress42204611_Definer(
 }  // namespace
 
 // Regression test for crbug.com/42204611
-THREADED_TEST(ApiInterceptorsTest, Regress42204611) {
+THREADED_TEST(Regress42204611) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
   std::vector<std::string> calls;
   Local<v8::External> calls_ext =
-      v8::External::New(v8::Isolate::GetCurrent(), &calls, kCallsTag);
+      v8::External::New(CcTest::isolate(), &calls, kCallsTag);
 
   v8::Local<v8::ObjectTemplate> object_template =
       v8::ObjectTemplate::New(isolate);
@@ -7533,7 +7516,7 @@ THREADED_TEST(ApiInterceptorsTest, Regress42204611) {
           static_cast<int>(v8::PropertyHandlerFlags::kHasNoSideEffect))));
 
   v8::Local<v8::Context> ctx =
-      v8::Context::New(v8::Isolate::GetCurrent(), nullptr, object_template);
+      v8::Context::New(CcTest::isolate(), nullptr, object_template);
 
   {
     v8::Context::Scope scope(ctx);
@@ -7568,7 +7551,7 @@ v8::Intercepted ThrowingQueryCallback(
 
 }  // namespace
 
-THREADED_TEST(ApiInterceptorsTest, HasOwnPropertyWithInterceptorThrow) {
+THREADED_TEST(HasOwnPropertyWithInterceptorThrow) {
   LocalContext env;
   auto isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -7651,8 +7634,8 @@ void FillScriptContextTableToCapacity(Local<Context> context) {
 // resurrected the pre-interceptor table, dropping the re-entrant additions, so
 // two contexts ended up at the same index and cached global ICs read/wrote out
 // of bounds.
-TEST_F(ApiInterceptorsTest, ScriptContextTableReentrancy) {
-  v8::Isolate* isolate = v8_isolate();
+TEST(ScriptContextTableReentrancy) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
 
   Local<ObjectTemplate> global_template = ObjectTemplate::New(isolate);
@@ -7705,8 +7688,8 @@ v8::Intercepted ReenterAndDeclareEarlierName(
 // silent duplicate binding added by ScriptContextTable::Add. Compiling
 // `let a; let b;` re-enters on `b` to declare `a`, which must turn the outer
 // `a` into a redeclaration SyntaxError rather than a second binding.
-TEST_F(ApiInterceptorsTest, ScriptContextTableReentrantClash) {
-  v8::Isolate* isolate = v8_isolate();
+TEST(ScriptContextTableReentrantClash) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
 
   bool declared_a = false;
@@ -7745,9 +7728,9 @@ v8::Intercepted DenseSetterMonomorphicBypass(
 
 }  // namespace
 
-TEST_F(ApiInterceptorsTest, RegressKeyedStoreICMonomorphicBypassInterceptor) {
+TEST(RegressKeyedStoreICMonomorphicBypassInterceptor) {
   v8::internal::v8_flags.allow_natives_syntax.Set(true);
-  v8::Isolate* isolate = v8_isolate();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   LocalContext env;
 
@@ -7781,6 +7764,3 @@ TEST_F(ApiInterceptorsTest, RegressKeyedStoreICMonomorphicBypassInterceptor) {
   CHECK(CompileRun("obj[0]")->IsUndefined());
   CHECK(CompileRun("obj[1]")->IsUndefined());
 }
-
-}  // namespace api_interceptors_unittest
-}  // namespace v8
