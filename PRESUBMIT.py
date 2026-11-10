@@ -721,6 +721,8 @@ def _SkipTreeCheck(input_api, output_api):
 
 def _CheckCommitMessageBugEntry(input_api, output_api):
   """Check that bug entries are well-formed in commit message."""
+  if not _HasUpstreamDescription(input_api):
+    return []
   bogus_bug_msg = (
       'Bogus BUG entry: {}. Please specify prefix:number for v8 or chromium '
       '(e.g. chromium:12345) or b/number for buganizer.')
@@ -1082,7 +1084,7 @@ _MAX_COMMIT_LINE_LENGTH = 72
 _PRIORITY_PREFIX_RE = re.compile(r'^\[P([0-4])\]\s*')
 
 _COMMIT_FOOTER_RE = re.compile(
-    r'^(?:[A-Z][A-Za-z0-9]*-[A-Za-z0-9-]+:|(?:Bug|Fixed|Test):|[A-Z][A-Z0-9_]*=)'
+    r'^(?:[A-Z][A-Za-z0-9]*-[A-Za-z0-9-]+:|(?:Bug|Fixed|Test):|[A-Z][A-Z0-9_]*=\S+$)'
 )
 
 _LOCAL_PATH_RE = re.compile(
@@ -1101,6 +1103,18 @@ def _IsAiAgent(input_api):
       for var in _AI_AGENT_ENV_VARS):
     return True
   return False
+
+
+def _HasUpstreamDescription(input_api):
+  """Returns True when FullDescriptionText() is the upstream CL description.
+
+  On initial human uploads (`not input_api.change.issue`), `git cl upload` runs
+  presubmit hooks on the raw local commit log before opening the interactive
+  editor for the user to write the CL description.
+  """
+  return bool(
+      input_api.change.issue or getattr(input_api, 'is_committing', False) or
+      _IsAiAgent(input_api))
 
 
 def _IsPriorityPrefixEnabled(input_api):
@@ -1122,7 +1136,8 @@ def _IsPriorityPrefixEnabled(input_api):
 
 def _CheckPriorityPrefix(input_api, output_api):
   """Requires a [P0]-[P4] title prefix on upload and strips it before commit."""
-  if getattr(input_api, 'no_diffs', False):
+  if getattr(input_api, 'no_diffs',
+             False) or not _HasUpstreamDescription(input_api):
     return []
   desc = input_api.change.FullDescriptionText() or ''
   lines = [
@@ -1169,6 +1184,8 @@ def _CheckPriorityPrefix(input_api, output_api):
 
 def _CheckNoLocalPathsInDescription(input_api, output_api):
   """Rejects local workstation paths in the CL description."""
+  if not _HasUpstreamDescription(input_api):
+    return []
   desc = input_api.change.FullDescriptionText() or ''
   hits = [
       f'  Line {i}: "{m.group(0)}"'
@@ -1187,6 +1204,8 @@ def _CheckNoLocalPathsInDescription(input_api, output_api):
 
 def _CheckDescriptionFooters(input_api, output_api):
   """Checks footer placement and single Change-Id for all CLs."""
+  if not _HasUpstreamDescription(input_api):
+    return []
   desc = input_api.change.FullDescriptionText() or ''
   lines = [
       l.strip()
@@ -1196,7 +1215,7 @@ def _CheckDescriptionFooters(input_api, output_api):
   errors = []
   in_tags = False
   for line in lines[1:]:
-    if line.startswith(('TAG=', 'CONV=')):
+    if input_api.re.match(r'^(?:TAG|CONV)=\S+$', line):
       in_tags = True
     elif in_tags and not _COMMIT_FOOTER_RE.match(line):
       errors.append(
@@ -1273,6 +1292,8 @@ def _CheckAgentDescription(input_api, output_api):
 
 def _CheckRegressionTest(input_api, output_api):
   """Requires a test/ modification when Fixed: is present and src/ is modified."""
+  if not _HasUpstreamDescription(input_api):
+    return []
   desc = input_api.change.FullDescriptionText() or ''
   if not input_api.re.search(r'^Fixed:[ \t]*\S+', desc, input_api.re.MULTILINE):
     return []

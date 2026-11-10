@@ -121,10 +121,11 @@ class _FakeAffectedFile:
 
 class _FakeChange:
 
-  def __init__(self, description='', issue=None, author_email=''):
+  def __init__(self, description='', issue=1, author_email='', bug=None):
     self._description = description
     self.issue = issue
     self.author_email = author_email
+    self.BUG = bug
 
   def FullDescriptionText(self):
     return self._description
@@ -137,13 +138,17 @@ class _FakeInputApi:
       description='',
       files=None,
       environ=None,
-      issue=None,
+      issue=1,
       author_email='',
       is_committing=False,
       dry_run=False,
+      bug=None,
   ):
     self.change = _FakeChange(
-        description=description, issue=issue, author_email=author_email)
+        description=description,
+        issue=issue,
+        author_email=author_email,
+        bug=bug)
     self._files = [_FakeAffectedFile(f) for f in (files or [])]
     self.environ = dict(environ or {})
     self.is_committing = is_committing
@@ -305,6 +310,75 @@ class AgentPresubmitChecksTest(unittest.TestCase):
         PRESUBMIT._CheckDescriptionFooters(
             _FakeInputApi(description=desc_valid_footers), self.output_api), [])
 
+    # Prose lines starting with TAG=agy followed by words are not footers.
+    desc_prose_mention = (
+        '[presubmit] Fix check\n\n'
+        'TAG=agy should not trigger AI agent environment checks in\n'
+        'any commit message.\n\n'
+        'Change-Id: I1111111111111111111111111111111111111111\n')
+    self.assertEqual(
+        PRESUBMIT._CheckDescriptionFooters(
+            _FakeInputApi(description=desc_prose_mention), self.output_api), [])
+
+  def testHumanInitialUploadSkipsDescriptionChecksBeforeInteractiveEditor(self):
+    bad_desc = ('[compiler] Fix bug\n\n'
+                'Tested with /tmp/repro.js\n'
+                'TAG=agy\n\n'
+                'Trailing paragraph.\n'
+                'Fixed: 509339491\n'
+                'Change-Id: I1111111111111111111111111111111111111111\n'
+                'Change-Id: I2222222222222222222222222222222222222222\n')
+    human_initial = _FakeInputApi(
+        description=bad_desc,
+        files=['src/foo.cc'],
+        issue=None,
+        is_committing=False,
+        bug='12345',
+        environ={'V8_PRESUBMIT_PRIORITY_PREFIX': '1'})
+    self.assertFalse(PRESUBMIT._HasUpstreamDescription(human_initial))
+    self.assertEqual(
+        PRESUBMIT._CheckCommitMessageBugEntry(human_initial, self.output_api),
+        [])
+    self.assertEqual(
+        PRESUBMIT._CheckNoLocalPathsInDescription(human_initial,
+                                                  self.output_api), [])
+    self.assertEqual(
+        PRESUBMIT._CheckDescriptionFooters(human_initial, self.output_api), [])
+    self.assertEqual(
+        PRESUBMIT._CheckRegressionTest(human_initial, self.output_api), [])
+    self.assertEqual(
+        PRESUBMIT._CheckPriorityPrefix(human_initial, self.output_api), [])
+
+    # Once an issue exists, on commit, or in an AI agent environment, the
+    # checks run against the upstream description.
+    for kwargs in (
+        {
+            'issue': 12345
+        },
+        {
+            'issue': None,
+            'is_committing': True
+        },
+        {
+            'issue': None,
+            'environ': {
+                'GEMINI_CLI': '1'
+            }
+        },
+    ):
+      api = _FakeInputApi(
+          description=bad_desc, files=['src/foo.cc'], bug='12345', **kwargs)
+      self.assertTrue(PRESUBMIT._HasUpstreamDescription(api))
+      self.assertEqual(
+          len(PRESUBMIT._CheckCommitMessageBugEntry(api, self.output_api)), 1)
+      self.assertEqual(
+          len(PRESUBMIT._CheckNoLocalPathsInDescription(api, self.output_api)),
+          1)
+      self.assertEqual(
+          len(PRESUBMIT._CheckDescriptionFooters(api, self.output_api)), 2)
+      self.assertEqual(
+          len(PRESUBMIT._CheckRegressionTest(api, self.output_api)), 1)
+
   def testAgentDescriptionValidatesBugAndFixedFormat(self):
     desc_bad_bugs = ('[compiler] Fix bug\n\n'
                      'BUG=12345\n'
@@ -441,10 +515,11 @@ class AgentPresubmitChecksTest(unittest.TestCase):
           PRESUBMIT._CheckAgentNoDuplicateCL(
               _FakeInputApi(
                   description=desc,
+                  issue=None,
                   environ={'PRESUBMIT_ALLOW_DUPLICATE_CL': '1'}),
               self.output_api), [])
       errors = PRESUBMIT._CheckAgentNoDuplicateCL(
-          _FakeInputApi(description=desc, files=['src/foo.cc']),
+          _FakeInputApi(description=desc, files=['src/foo.cc'], issue=None),
           self.output_api)
       self.assertEqual(len(errors), 1)
       self.assertIn('same Change-Id', errors[0].message)
