@@ -431,7 +431,7 @@ declare_args() {
   v8_add_descriptor_array_lookup_table = true
 
   # Enable hash lookup table in DescriptorArray instead of binary search.
-  v8_enable_descriptor_array_lookup_table = false
+  v8_enable_descriptor_array_lookup_table = true
 
   # If enabled then macro definitions that are used in externally visible
   # header files are placed in a separate header file v8-gn.h.
