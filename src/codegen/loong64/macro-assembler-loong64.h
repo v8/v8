@@ -962,6 +962,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Vldrepl_h(VRegister vd, const MemOperand& src, int* trap_pc = NULL);
   void Vldrepl_w(VRegister vd, const MemOperand& src, int* trap_pc = NULL);
   void Vldrepl_d(VRegister vd, const MemOperand& src, int* trap_pc = NULL);
+  void Vstelm_b(VRegister vd, const MemOperand& dst, uint8_t laneidx,
+                int* trap_pc = NULL);
+  void Vstelm_h(VRegister vd, const MemOperand& dst, uint8_t laneidx,
+                int* trap_pc = NULL);
+  void Vstelm_w(VRegister vd, const MemOperand& dst, uint8_t laneidx,
+                int* trap_pc = NULL);
+  void Vstelm_d(VRegister vd, const MemOperand& dst, uint8_t laneidx,
+                int* trap_pc = NULL);
   void Vmove(VRegister dst, VRegister src);
   void LoadSplat(LSXSize, VRegister dst, MemOperand src, int* trap_pc = NULL);
   void ExtAddPairwise(LSXDataType type, VRegister dst, VRegister src);
@@ -1512,6 +1520,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Adjusts MemOperand for VLDREPL.[BHWD].
   void AdjustBaseAndOffsetVldrepl(MemOperand* src, LSXSize sz,
                                   UseScratchRegisterScope& temps);
+
+  // Adjusts MemOperand for VSTELM.[BHWD].
+  void AdjustBaseAndOffsetVstelm(MemOperand* dst, LSXSize sz,
+                                 UseScratchRegisterScope& temps);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MacroAssembler);
 };

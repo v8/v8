@@ -1850,6 +1850,82 @@ void MacroAssembler::Vldrepl_d(VRegister vd, const MemOperand& src,
   vldrepl_d(vd, source.base(), source.offset());
 }
 
+void MacroAssembler::AdjustBaseAndOffsetVstelm(MemOperand* dst, LSXSize sz,
+                                               UseScratchRegisterScope& temps) {
+  bool fit = false;
+  if (!dst->hasIndexReg()) {
+    int32_t offset = dst->offset();
+    switch (sz) {
+      case LSX_B:
+        fit = is_int8(offset);
+        break;
+      case LSX_H:
+        fit = offset % 2 == 0 && is_int8(offset / 2);
+        break;
+      case LSX_W:
+        fit = offset % 4 == 0 && is_int8(offset / 4);
+        break;
+      case LSX_D:
+        fit = offset % 8 == 0 && is_int8(offset / 8);
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+  if (fit) return;
+
+  Register scratch = temps.Acquire();
+  if (dst->hasIndexReg()) {
+    Add_d(scratch, dst->base(), dst->index());
+    if (dst->offset() != 0) {
+      Add_d(scratch, scratch, Operand(dst->offset()));
+    }
+  } else {
+    Add_d(scratch, dst->base(), Operand(dst->offset()));
+  }
+  *dst = MemOperand(scratch, 0);
+}
+
+void MacroAssembler::Vstelm_b(VRegister vd, const MemOperand& dst,
+                              uint8_t laneidx, int* trap_pc) {
+  UseScratchRegisterScope temps(this);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  MemOperand source = dst;
+  AdjustBaseAndOffsetVstelm(&source, LSX_B, temps);
+  if (trap_pc != NULL) *trap_pc = pc_offset();
+  vstelm_b(vd, source.base(), source.offset(), laneidx);
+}
+
+void MacroAssembler::Vstelm_h(VRegister vd, const MemOperand& dst,
+                              uint8_t laneidx, int* trap_pc) {
+  UseScratchRegisterScope temps(this);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  MemOperand source = dst;
+  AdjustBaseAndOffsetVstelm(&source, LSX_H, temps);
+  if (trap_pc != NULL) *trap_pc = pc_offset();
+  vstelm_h(vd, source.base(), source.offset(), laneidx);
+}
+
+void MacroAssembler::Vstelm_w(VRegister vd, const MemOperand& dst,
+                              uint8_t laneidx, int* trap_pc) {
+  UseScratchRegisterScope temps(this);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  MemOperand source = dst;
+  AdjustBaseAndOffsetVstelm(&source, LSX_W, temps);
+  if (trap_pc != NULL) *trap_pc = pc_offset();
+  vstelm_w(vd, source.base(), source.offset(), laneidx);
+}
+
+void MacroAssembler::Vstelm_d(VRegister vd, const MemOperand& dst,
+                              uint8_t laneidx, int* trap_pc) {
+  UseScratchRegisterScope temps(this);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  MemOperand source = dst;
+  AdjustBaseAndOffsetVstelm(&source, LSX_D, temps);
+  if (trap_pc != NULL) *trap_pc = pc_offset();
+  vstelm_d(vd, source.base(), source.offset(), laneidx);
+}
+
 void MacroAssembler::LoadSplat(LSXSize sz, VRegister dst, MemOperand src,
                                int* trap_pc) {
   switch (sz) {
@@ -2750,34 +2826,18 @@ void MacroAssembler::LoadLane(LSXSize sz, VRegister dst, uint8_t laneidx,
 
 void MacroAssembler::StoreLane(LSXSize sz, VRegister src, uint8_t laneidx,
                                MemOperand dst, int* trap_pc) {
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
   switch (sz) {
     case LSX_B:
-      vpickve2gr_bu(scratch, src, laneidx);
-      St_b(scratch, dst, trap_pc);
+      Vstelm_b(src, dst, laneidx, trap_pc);
       break;
     case LSX_H:
-      vpickve2gr_hu(scratch, src, laneidx);
-      St_h(scratch, dst, trap_pc);
+      Vstelm_h(src, dst, laneidx, trap_pc);
       break;
     case LSX_W:
-      if (laneidx == 0) {
-        FPURegister src_reg = FPURegister::from_code(src.code());
-        Fst_s(src_reg, dst, trap_pc);
-      } else {
-        vpickve2gr_wu(scratch, src, laneidx);
-        St_w(scratch, dst, trap_pc);
-      }
+      Vstelm_w(src, dst, laneidx, trap_pc);
       break;
     case LSX_D:
-      if (laneidx == 0) {
-        FPURegister src_reg = FPURegister::from_code(src.code());
-        Fst_d(src_reg, dst, trap_pc);
-      } else {
-        vpickve2gr_d(scratch, src, laneidx);
-        St_d(scratch, dst, trap_pc);
-      }
+      Vstelm_d(src, dst, laneidx, trap_pc);
       break;
     default:
       UNREACHABLE();
