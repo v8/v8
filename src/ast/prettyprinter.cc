@@ -61,10 +61,13 @@ DirectHandle<String> CallPrinter::Print(FunctionLiteral* program,
   num_prints_ = 0;
   position_ = position;
   Find(program);
-  return builder_.Finish().ToHandleChecked();
+  DirectHandle<String> result;
+  if (builder_.Finish(kDontThrow).ToHandle(&result)) return result;
+  return isolate_->factory()->empty_string();
 }
 
 void CallPrinter::Find(AstNode* node, bool print) {
+  if (builder_.HasOverflowed()) return;
   if (found_) {
     if (print) {
       int prev_num_prints = num_prints_;
@@ -77,7 +80,9 @@ void CallPrinter::Find(AstNode* node, bool print) {
   }
 }
 
-bool CallPrinter::ShouldPrint() { return found_ && !done_; }
+bool CallPrinter::ShouldPrint() {
+  return found_ && !done_ && !builder_.HasOverflowed();
+}
 
 void CallPrinter::Print(char c) {
   if (!ShouldPrint()) return;
