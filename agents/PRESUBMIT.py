@@ -64,9 +64,54 @@ def _CheckPromptfooEvalAssociation(input_api, output_api):
   return []
 
 
+def _CheckPromptfooEvalPatches(input_api, output_api):
+  """Checks that modified or added eval .patch fixtures apply cleanly."""
+  if getattr(input_api, 'no_diffs', False):
+    return []
+
+  patch_files = [
+      f for f in input_api.AffectedFiles(include_deletes=False)
+      if f.UnixLocalPath().startswith('agents/prompts/eval/') and
+      f.UnixLocalPath().endswith('.patch')
+  ]
+  if not patch_files:
+    return []
+
+  repo_root = input_api.change.RepositoryRoot()
+  errors = []
+  for f in patch_files:
+    cmd = ['git', 'apply', '--check', f.AbsoluteLocalPath()]
+    try:
+      p = input_api.subprocess.Popen(
+          cmd,
+          cwd=repo_root,
+          stdout=input_api.subprocess.PIPE,
+          stderr=input_api.subprocess.PIPE,
+      )
+      stdout, stderr = p.communicate()
+    except OSError as e:
+      errors.append(
+          output_api.PresubmitError(
+              f'Failed to run git apply --check on {f.UnixLocalPath()}: {e}.'))
+      continue
+
+    if p.returncode != 0:
+      long_text = (f'STDOUT:\n{stdout.decode("utf-8", "replace")}\n'
+                   f'STDERR:\n{stderr.decode("utf-8", "replace")}\n')
+      errors.append(
+          output_api.PresubmitError(
+              f'Eval patch {f.UnixLocalPath()} does not apply cleanly to the '
+              f'current checkout (exit code {p.returncode}).',
+              long_text=long_text,
+          ))
+
+  return errors
+
+
 def _CommonChecks(input_api, output_api):
   results = []
   results.extend(_CheckPromptfooTestCases(input_api, output_api))
+  results.extend(_CheckPromptfooEvalPatches(input_api, output_api))
   results.extend(_CheckPromptfooEvalAssociation(input_api, output_api))
 
   tests = []

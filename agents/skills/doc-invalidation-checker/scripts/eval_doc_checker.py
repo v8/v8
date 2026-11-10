@@ -417,6 +417,37 @@ def grade_case(case: EvalCase, worktree_dir: Path) -> dict[str, object]:
   }
 
 
+def check_case(case: EvalCase,
+               repo_root: Path = REPO_ROOT) -> dict[str, object]:
+  """Checks that a case's patches apply cleanly and doc targets exist."""
+  failures: list[str] = []
+  for patch_rel in case.patches:
+    patch_path = (repo_root / patch_rel).resolve()
+    if not patch_path.is_file():
+      failures.append(f"Missing patch `{patch_rel}`.")
+      continue
+    res = _run_git(
+        repo_root,
+        ["apply", "--check", str(patch_path)],
+        check=False,
+    )
+    if res.returncode != 0:
+      detail = (res.stderr or res.stdout).strip()
+      failures.append(
+          f"Patch `{patch_rel}` failed `git apply --check`: {detail}")
+
+  for doc_path in [*case.must_modify, *case.must_not_modify]:
+    if not (repo_root / doc_path).exists():
+      failures.append(f"Missing doc target `{doc_path}`.")
+
+  return {
+      "case_id": case.case_id,
+      "yaml_path": case.yaml_path,
+      "passed": not failures,
+      "failures": failures,
+  }
+
+
 def cleanup_case(
     case_id: str,
     worktree_root: Path,
@@ -468,6 +499,13 @@ def main(argv: list[str] | None = None) -> int:
   list_parser = subparsers.add_parser("list", help="List available eval cases.")
   list_parser.add_argument("--json", action="store_true")
 
+  check_parser = subparsers.add_parser(
+      "check",
+      help="Verify .patch fixtures apply cleanly and doc targets exist.",
+  )
+  check_parser.add_argument("--case", required=True, help="Case ID or `all`.")
+  check_parser.add_argument("--json", action="store_true")
+
   setup_parser = subparsers.add_parser(
       "setup", help="Create isolated worktree(s) and apply .patch fixture(s).")
   setup_parser.add_argument("--case", required=True, help="Case ID or `all`.")
@@ -512,6 +550,21 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
   cases = _resolve_cases(args.case)
+
+  if args.subcommand == "check":
+    results = [check_case(c) for c in cases]
+    all_passed = all(r["passed"] for r in results)
+    if args.json:
+      print(json.dumps(results, indent=2))
+    else:
+      passed_count = sum(1 for r in results if r["passed"])
+      print(f"CHECK SUMMARY: {passed_count}/{len(results)} cases valid.")
+      for res in results:
+        status = "PASS" if res["passed"] else "FAIL"
+        print(f"  [{status}] {res['case_id']} ({res['yaml_path']})")
+        for failure in res["failures"]:
+          print(f"         - {failure}")
+    return 0 if all_passed else 1
 
   if args.subcommand == "setup":
     metas = [

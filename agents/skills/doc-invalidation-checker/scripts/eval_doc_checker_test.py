@@ -25,6 +25,7 @@ class EvalDocCheckerTest(unittest.TestCase):
     self.temp_dir = tempfile.TemporaryDirectory()
     self.root = Path(self.temp_dir.name)
     self.repo_dir = self.root / "repo"
+    self.eval_dir = self.repo_dir / "evals"
     self.worktree_root = self.root / "worktrees"
     self.repo_dir.mkdir(parents=True)
 
@@ -32,11 +33,18 @@ class EvalDocCheckerTest(unittest.TestCase):
     self._git(self.repo_dir, "config", "user.name", "Test User")
     self._git(self.repo_dir, "config", "user.email", "test@example.com")
 
-    # Copy real src/maglev/maglev-compiler.cc so git apply works on both
-    # maglev-max-stack-slots and internal-noop-refactor patches.
-    real_compiler_cc = (REPO_ROOT / "src" / "maglev" /
-                        "maglev-compiler.cc").read_text(encoding="utf-8")
-    self._write("src/maglev/maglev-compiler.cc", real_compiler_cc)
+    # Use self-contained synthetic C++, patch, and doc fixtures so unit tests
+    # are decoupled from live src/ and docs/ edits at HEAD.
+    self._write(
+        "src/maglev/maglev-compiler.cc",
+        ("namespace v8::internal::maglev {\n"
+         "constexpr uint32_t kMaxStackSlots = 4 * KB / kSystemPointerSize;\n"
+         "void Compile() {\n"
+         "  GraphProcessor<TruncationProcessor> truncate(graph);\n"
+         "  truncate.ProcessGraph(graph);\n"
+         "}\n"
+         "}  // namespace v8::internal::maglev\n"),
+    )
     self._write(
         "docs/compiler/maglev/compiler-maglev.md",
         ("Here `constexpr uint32_t kMaxStackSlots = 4 * KB / "
@@ -45,6 +53,89 @@ class EvalDocCheckerTest(unittest.TestCase):
     self._write("docs/security/triaging.md", "# Manual Triaging Guide\n")
     self._git(self.repo_dir, "add", "-A")
     self._git(self.repo_dir, "commit", "-m", "Initial commit")
+
+    self._make_patch(
+        "src/maglev/maglev-compiler.cc",
+        ("namespace v8::internal::maglev {\n"
+         "constexpr uint32_t kMaxStackSlots = 8 * KB / kSystemPointerSize;\n"
+         "void Compile() {\n"
+         "  GraphProcessor<TruncationProcessor> truncate(graph);\n"
+         "  truncate.ProcessGraph(graph);\n"
+         "}\n"
+         "}  // namespace v8::internal::maglev\n"),
+        "evals/positive_case.patch",
+    )
+    self._make_patch(
+        "src/maglev/maglev-compiler.cc",
+        ("namespace v8::internal::maglev {\n"
+         "constexpr uint32_t kMaxStackSlots = 4 * KB / kSystemPointerSize;\n"
+         "void Compile() {\n"
+         "  GraphProcessor<TruncationProcessor> truncation_processor(graph);\n"
+         "  truncation_processor.ProcessGraph(graph);\n"
+         "}\n"
+         "}  // namespace v8::internal::maglev\n"),
+        "evals/noop_case.patch",
+    )
+    self._write("evals/prompt.md", "Run the doc-invalidation-checker skill.\n")
+    self._write(
+        "evals/positive_case.promptfoo.yaml",
+        ("description: Positive synthetic eval case\n"
+         "prompts:\n"
+         "  - 'file://prompt.md'\n"
+         "providers:\n"
+         "  - id: python:gemini_provider.py\n"
+         "    config:\n"
+         "      changes:\n"
+         "        - apply: evals/positive_case.patch\n"
+         "tests:\n"
+         "  - assert:\n"
+         "      - type: python\n"
+         "        value: 'file://check_changes.py:check_files_changed'\n"
+         "        config:\n"
+         "          files:\n"
+         "            - docs/compiler/maglev/compiler-maglev.md\n"
+         "      - type: python\n"
+         "        value: 'file://eval_doc_checker.py:check_files_unchanged'\n"
+         "        config:\n"
+         "          files:\n"
+         "            - docs/security/triaging.md\n"
+         "      - type: python\n"
+         "        value: 'file://check_changes.py:check_file_content'\n"
+         "        config:\n"
+         "          files:\n"
+         "            - path: docs/compiler/maglev/compiler-maglev.md\n"
+         "              present:\n"
+         "                - '8 * KB / kSystemPointerSize'\n"
+         "                - '1024'\n"
+         "              absent:\n"
+         "                - '4 * KB / kSystemPointerSize'\n"
+         "    metadata:\n"
+         "      category: positive-constant-invariant\n"),
+    )
+    self._write(
+        "evals/noop_case.promptfoo.yaml",
+        ("description: Negative synthetic eval case\n"
+         "prompts:\n"
+         "  - 'file://prompt.md'\n"
+         "providers:\n"
+         "  - id: python:gemini_provider.py\n"
+         "    config:\n"
+         "      changes:\n"
+         "        - apply: evals/noop_case.patch\n"
+         "tests:\n"
+         "  - assert:\n"
+         "      - type: python\n"
+         "        value: 'file://eval_doc_checker.py:check_files_unchanged'\n"
+         "        config:\n"
+         "          files:\n"
+         "            - docs/\n"
+         "    metadata:\n"
+         "      category: negative-no-doc-churn\n"),
+    )
+    self._git(self.repo_dir, "add", "-A")
+    self._git(self.repo_dir, "commit", "-m", "Add synthetic eval cases")
+    self.eval_cases = eval_doc_checker.load_eval_cases(
+        self.eval_dir, repo_root=self.repo_dir)
 
   def tearDown(self):
     self.temp_dir.cleanup()
@@ -65,7 +156,13 @@ class EvalDocCheckerTest(unittest.TestCase):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
 
-  def test_all_promptfoo_yaml_and_patches_valid_in_real_v8_checkout(self):
+  def _make_patch(self, rel_path: str, new_content: str, patch_rel: str):
+    self._write(rel_path, new_content)
+    diff = self._git(self.repo_dir, "diff", "--", rel_path)
+    self._git(self.repo_dir, "checkout", "--", rel_path)
+    self._write(patch_rel, diff)
+
+  def test_all_promptfoo_yaml_and_patch_refs_valid(self):
     self.assertEqual(5, len(eval_doc_checker.EVAL_CASES))
     yaml_files = [
         str(REPO_ROOT / case.yaml_path)
@@ -73,24 +170,40 @@ class EvalDocCheckerTest(unittest.TestCase):
     ]
     self.assertEqual(0, lint_promptfoo_testcases.main(["prog", *yaml_files]))
 
+    # Live-checkout `git apply --check` and `docs/` target checks are not run
+    # here because `src/` and `docs/` CLs do not run `agents/PRESUBMIT.py`. Use
+    # `eval_doc_checker.py check` or scoped patch presubmits instead.
     for case_id, case in eval_doc_checker.EVAL_CASES.items():
       with self.subTest(case_id=case_id):
+        self.assertTrue(case.patches, f"Missing patches in {case_id}")
         for patch_rel in case.patches:
           patch_path = REPO_ROOT / patch_rel
           self.assertTrue(patch_path.is_file(), f"Missing patch {patch_rel}")
-          subprocess.run(
-              ["git", "apply", "--check",
-               str(patch_path)],
-              cwd=REPO_ROOT,
-              check=True,
-          )
-        for doc_path in [*case.must_modify, *case.must_not_modify]:
-          target = REPO_ROOT / doc_path
-          self.assertTrue(target.exists(),
-                          f"Missing doc target {doc_path} in {case_id}")
+          patch_text = patch_path.read_text(encoding="utf-8")
+          self.assertIn("diff --git ", patch_text)
+          self.assertIn("@@ ", patch_text)
+
+  def test_check_case_validates_patches_and_doc_targets(self):
+    case = self.eval_cases["positive-case"]
+    ok_res = eval_doc_checker.check_case(case, repo_root=self.repo_dir)
+    self.assertTrue(ok_res["passed"], ok_res["failures"])
+
+    self._write(
+        "src/maglev/maglev-compiler.cc",
+        "namespace v8::internal::maglev {}\n",
+    )
+    stale_res = eval_doc_checker.check_case(case, repo_root=self.repo_dir)
+    self.assertFalse(stale_res["passed"])
+    self.assertIn("git apply --check", "\n".join(stale_res["failures"]))
+
+    self._git(self.repo_dir, "checkout", "--", "src/maglev/maglev-compiler.cc")
+    (self.repo_dir / "docs/compiler/maglev/compiler-maglev.md").unlink()
+    missing_doc_res = eval_doc_checker.check_case(case, repo_root=self.repo_dir)
+    self.assertFalse(missing_doc_res["passed"])
+    self.assertIn("Missing doc target", "\n".join(missing_doc_res["failures"]))
 
   def test_positive_case_fails_before_fix_and_passes_after_fix(self):
-    case = eval_doc_checker.EVAL_CASES["maglev-max-stack-slots"]
+    case = self.eval_cases["positive-case"]
     meta = eval_doc_checker.setup_case(
         case,
         self.worktree_root,
@@ -127,7 +240,7 @@ class EvalDocCheckerTest(unittest.TestCase):
           case.case_id, self.worktree_root, repo_root=self.repo_dir)
 
   def test_guardrail_rejects_modifying_triaging_md_or_em_dashes(self):
-    case = eval_doc_checker.EVAL_CASES["maglev-max-stack-slots"]
+    case = self.eval_cases["positive-case"]
     meta = eval_doc_checker.setup_case(
         case,
         self.worktree_root,
@@ -157,7 +270,7 @@ class EvalDocCheckerTest(unittest.TestCase):
           case.case_id, self.worktree_root, repo_root=self.repo_dir)
 
   def test_negative_noop_case_passes_only_when_no_docs_touched(self):
-    case = eval_doc_checker.EVAL_CASES["internal-noop-refactor"]
+    case = self.eval_cases["noop-case"]
     meta = eval_doc_checker.setup_case(
         case,
         self.worktree_root,

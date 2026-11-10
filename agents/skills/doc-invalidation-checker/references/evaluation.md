@@ -41,17 +41,23 @@ modes (`--diff-kind`):
 
 ## 3. Running an End-to-End Evaluation
 
-1. **Set up isolated worktrees and print prompts**:
+1. **Verify fixtures apply cleanly against `HEAD`** (optional pre-flight):
+
+   ```bash
+   agents/skills/doc-invalidation-checker/scripts/eval_doc_checker.py check --case all
+   ```
+
+2. **Set up isolated worktrees and print prompts**:
 
    ```bash
    agents/skills/doc-invalidation-checker/scripts/eval_doc_checker.py setup --case all --mode explicit
    ```
 
-2. **Spawn one isolated subagent per case**: Call `invoke_subagent`
+3. **Spawn one isolated subagent per case**: Call `invoke_subagent`
    (`TypeName: "self"`, `Workspace: "inherit"`) for each case using the `prompt`
    printed by `setup` (or from `--json` output).
 
-3. **Grade the worktrees**:
+4. **Grade the worktrees**:
 
    ```bash
    agents/skills/doc-invalidation-checker/scripts/eval_doc_checker.py grade --case all
@@ -71,7 +77,7 @@ modes (`--diff-kind`):
    - **Hygiene**: Zero `U+2014` em-dashes, clean `git diff --check`, and valid
      relative markdown links.
 
-4. **Clean up temporary worktrees and branches**:
+5. **Clean up temporary worktrees and branches**:
 
    ```bash
    agents/skills/doc-invalidation-checker/scripts/eval_doc_checker.py cleanup --case all
