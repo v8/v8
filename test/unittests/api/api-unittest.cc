@@ -23630,6 +23630,152 @@ TEST_F(ApiMockPlatformTest, DumpOnJavascriptExecution) {
   CHECK_EQ(1, api_call_count);
 }
 
+namespace {
+class CompileEventDeoptDebugDelegate : public v8::debug::DebugDelegate {
+ public:
+  void ScriptCompiled(v8::Local<v8::debug::Script> script,
+                      bool has_compile_error) override {
+    if (!in_interrupt || ran_in_interrupt) return;
+    ran_in_interrupt = true;
+    CompileRun("obj.x = 100;");
+  }
+
+  v8::Local<v8::Context> context;
+  v8::Local<v8::Function> hot_loop;
+  bool enabled = false;
+  bool interrupt_scheduled = false;
+  bool in_interrupt = false;
+  bool ran_in_interrupt = false;
+};
+
+void ZeroLoopInterruptBudgetForMaglev(v8::Local<v8::Function> fn) {
+  // When tier-up to TurboFan is enabled, Maglev loop back-edges check
+  // FeedbackCell::interrupt_budget_ rather than StackGuard directly; zero the
+  // budget so the first back-edge enters the runtime interrupt handler.
+  i::Cast<i::JSFunction>(*Utils::OpenDirectHandle(*fn))
+      ->raw_feedback_cell()
+      ->set_interrupt_budget(0);
+}
+
+void ScheduleCompileInInterrupt(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  CompileEventDeoptDebugDelegate* data =
+      GetData<CompileEventDeoptDebugDelegate>(info);
+  if (!data->enabled || data->interrupt_scheduled) return;
+  data->interrupt_scheduled = true;
+  ZeroLoopInterruptBudgetForMaglev(data->hot_loop);
+  isolate->RequestInterrupt(
+      [](v8::Isolate* isolate, void* raw_data) {
+        CompileEventDeoptDebugDelegate* d =
+            static_cast<CompileEventDeoptDebugDelegate*>(raw_data);
+        v8::Context::Scope context_scope(d->context);
+        d->in_interrupt = true;
+        v8::Script::Compile(d->context, v8_str("1 + 1")).ToLocalChecked();
+        d->in_interrupt = false;
+      },
+      data);
+}
+
+v8::Intercepted NamedGetterRunningScript(
+    v8::Local<v8::Name> property,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Script::Compile(context, v8_str("var interceptor_ran = true;"))
+      .ToLocalChecked()
+      ->Run(context)
+      .ToLocalChecked();
+  return v8::Intercepted::kNo;
+}
+}  // namespace
+
+TEST_F(ApiTest, DebugCompileEventDeoptsTopmostFrameOnInterrupt) {
+  if (i::v8_flags.jitless || i::v8_flags.disable_optimizing_compilers) return;
+  if (i::v8_flags.optimize_on_next_call_optimizes_to_maglev
+          ? !i::v8_flags.maglev
+          : !i::v8_flags.turbofan) {
+    return;
+  }
+  i::FlagScope<bool> allow_natives(&i::v8_flags.allow_natives_syntax, true);
+  LocalContext context;
+  v8::Isolate* isolate = context.isolate();
+  v8::HandleScope scope(isolate);
+
+  CompileEventDeoptDebugDelegate delegate;
+  delegate.context = context.local();
+  v8::debug::SetDebugDelegate(isolate, &delegate);
+
+  v8::Local<v8::Function> trigger =
+      v8::Function::New(context.local(), ScheduleCompileInInterrupt,
+                        MakeData(isolate, &delegate))
+          .ToLocalChecked();
+  CHECK(context->Global()
+            ->Set(context.local(), v8_str("trigger"), trigger)
+            .FromJust());
+
+  CompileRun(
+      "var obj = { x: 1 };\n"
+      "obj.x = 2;\n"
+      "function hotLoop(o, n, doTrigger) {\n"
+      "  if (doTrigger) {\n"
+      "    trigger();\n"
+      "  }\n"
+      "  var first = o.x;\n"
+      "  var sum = first;\n"
+      "  for (var i = 0; i < n; i++) {\n"
+      "    sum += o.x;\n"
+      "  }\n"
+      "  return sum;\n"
+      "}\n"
+      "%PrepareFunctionForOptimization(hotLoop);\n"
+      "hotLoop(obj, 100, false);\n"
+      "hotLoop(obj, 100, true);\n"
+      "%OptimizeFunctionOnNextCall(hotLoop);\n"
+      "hotLoop(obj, 100, false);\n");
+
+  v8::Local<v8::Function> hot_loop = v8::Local<v8::Function>::Cast(
+      context->Global()
+          ->Get(context.local(), v8_str("hotLoop"))
+          .ToLocalChecked());
+  delegate.hot_loop = hot_loop;
+  i::DirectHandle<i::JSFunction> i_hot_loop =
+      i::Cast<i::JSFunction>(Utils::OpenDirectHandle(*hot_loop));
+  CHECK(i_hot_loop->HasAttachedOptimizedCode(context.i_isolate()));
+
+  delegate.enabled = true;
+  int32_t result = CompileRun("hotLoop(obj, 10, true)")
+                       ->Int32Value(context.local())
+                       .FromJust();
+
+  v8::debug::SetDebugDelegate(isolate, nullptr);
+  CHECK(delegate.ran_in_interrupt);
+  CHECK(!i_hot_loop->HasAttachedOptimizedCode(context.i_isolate()));
+  CHECK_GT(result, 22);
+}
+
+TEST_F(ApiTest, DefineOwnPropertyWithInterceptorAllowsScript) {
+  LocalContext context;
+  v8::Isolate* isolate = context.isolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
+  templ->SetHandler(
+      v8::NamedPropertyHandlerConfiguration(NamedGetterRunningScript));
+  v8::Local<v8::Object> instance =
+      templ->NewInstance(context.local()).ToLocalChecked();
+
+  CHECK(instance
+            ->DefineOwnProperty(context.local(), v8_str("prop"), v8_num(7),
+                                v8::None)
+            .FromJust());
+  CHECK(CompileRun("interceptor_ran")->BooleanValue(isolate));
+  CHECK_EQ(7, instance->Get(context.local(), v8_str("prop"))
+                  .ToLocalChecked()
+                  ->Int32Value(context.local())
+                  .FromJust());
+}
+
 TEST_F(ApiTest, MicrotaskCheckpointDisallowJavascriptExecutionScope) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();

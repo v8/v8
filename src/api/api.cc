@@ -4880,14 +4880,17 @@ Maybe<bool> v8::Object::DefineOwnProperty(v8::Local<v8::Context> context,
   desc.set_value(i::Cast<i::JSAny>(value_obj));
 
   if (i::IsJSObject(*self)) {
-    // If it's not a JSProxy, i::JSReceiver::DefineOwnProperty should never run
-    // a script.
-    EnterV8NoScriptScope<> api_scope{i_isolate, context,
-                                     RCCId::kAPI_Object_DefineOwnProperty};
-    return i::JSReceiver::DefineOwnProperty(i_isolate, self, key_obj, &desc,
-                                            Just(i::kDontThrow));
+    i::DirectHandle<i::JSObject> js_obj = i::Cast<i::JSObject>(self);
+    if (!js_obj->HasNamedInterceptor() && !js_obj->HasIndexedInterceptor()) {
+      // A plain JSObject without interceptors does not run script in
+      // i::JSReceiver::DefineOwnProperty.
+      EnterV8NoScriptScope<> api_scope{i_isolate, context,
+                                       RCCId::kAPI_Object_DefineOwnProperty};
+      return i::JSReceiver::DefineOwnProperty(i_isolate, self, key_obj, &desc,
+                                              Just(i::kDontThrow));
+    }
   }
-  // JSProxy or WasmObject or other non-JSObject.
+  // JSObject with interceptors, JSProxy, WasmObject, or other non-JSObject.
   EnterV8Scope<> api_scope{i_isolate, context,
                            RCCId::kAPI_Object_DefineOwnProperty};
   // Even though we said kDontThrow, there might be accessors that do throw.
@@ -9206,6 +9209,7 @@ std::shared_ptr<i::BackingStore> ToInternal(
 Maybe<bool> v8::ArrayBuffer::Detach(v8::Local<v8::Value> key) {
   auto obj = Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate = i::Isolate::Current();
+  DCHECK(i::AllowJavascriptExecution::IsAllowed(i_isolate));
   Utils::ApiCheck(obj->is_detachable(), "v8::ArrayBuffer::Detach",
                   "Only detachable ArrayBuffers can be detached");
   Local<Context> context =
@@ -9446,7 +9450,11 @@ Local<ArrayBufferBase> v8::ArrayBufferView::GetBuffer() {
         i::Cast<i::JSArrayBuffer>(data_view->buffer()), i_isolate));
   } else {
     DCHECK(IsJSTypedArray(*obj));
-    return Utils::ToLocal(i::Cast<i::JSTypedArray>(*obj)->GetBuffer(i_isolate));
+    i::DirectHandle<i::JSTypedArray> typed_array =
+        i::Cast<i::JSTypedArray>(obj);
+    DCHECK_IMPLIES(typed_array->is_on_heap(),
+                   i::AllowJavascriptExecution::IsAllowed(i_isolate));
+    return Utils::ToLocal(typed_array->GetBuffer(i_isolate));
   }
 }
 
@@ -12022,6 +12030,7 @@ void HeapProfiler::QueryObjects(Local<Context> v8_context,
   i::Isolate* isolate = i::Isolate::Current();
   i::HeapProfiler* profiler = reinterpret_cast<i::HeapProfiler*>(this);
   DCHECK_EQ(isolate, profiler->isolate());
+  DCHECK(i::AllowJavascriptExecution::IsAllowed(isolate));
   EnterV8NoScriptNoExceptionScope api_scope(isolate);
   profiler->QueryObjects(Utils::OpenDirectHandle(*v8_context), predicate,
                          objects);

@@ -524,6 +524,28 @@ void Deoptimizer::DeoptimizeFunction(Tagged<JSFunction> function,
 }
 
 // static
+void Deoptimizer::DeoptimizeTopmostFrame(Isolate* isolate) {
+  DisallowGarbageCollection no_gc;
+  DCHECK(!isolate->heap()->IsInGC());
+  // If the top frame is optimized, deoptimize it. A debugger pause or
+  // interrupt that re-allows JS can modify heap state (like detaching or
+  // moving typed arrays). We must deoptimize the execution stack to
+  // discard any load-eliminated values (like backing store pointers or
+  // array lengths) that could be invalidated. We only need to deoptimize
+  // the topmost frame because any caller frames are at a call site, which
+  // acts as a memory serialization barrier, forcing them to reload all
+  // heap state upon return anyway.
+  JavaScriptStackFrameIterator it(isolate);
+  if (!it.done()) {
+    JavaScriptFrame* frame = it.frame();
+    if (frame->is_optimized()) {
+      DeoptimizeFunction(frame->function(), LazyDeoptimizeReason::kDebugger,
+                         frame->LookupCode());
+    }
+  }
+}
+
+// static
 void Deoptimizer::DeoptimizeAllOptimizedCodeWithFunction(
     Isolate* isolate, DirectHandle<SharedFunctionInfo> function) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kDeoptimizeCode);

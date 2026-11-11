@@ -112,6 +112,11 @@ class Deoptimizer : public Malloced {
                                  LazyDeoptimizeReason reason,
                                  Tagged<Code> code);
 
+  // If the topmost JavaScript frame on the stack is optimized, deoptimize it.
+  // The topmost optimized JS frame (if any) must be at a lazy-deopt safepoint
+  // (e.g. a stack check or JS/runtime call).
+  V8_EXPORT_PRIVATE static void DeoptimizeTopmostFrame(Isolate* isolate);
+
   // Deoptimize all code in the given isolate.
   V8_EXPORT_PRIVATE static void DeoptimizeAll(Isolate* isolate);
 

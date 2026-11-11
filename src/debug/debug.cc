@@ -3160,6 +3160,13 @@ void Debug::ProcessCompileEvent(bool has_compile_error,
   DebugScope debug_scope(this);
   HandleScope scope(isolate_);
   DisableBreak no_recursive_break(this);
+  // Re-allowing JS for the compile-event callback inside a no-JS scope or an
+  // API interrupt (where DisallowJavascriptExecution may be disabled or already
+  // overridden) can run script that invalidates optimized-code assumptions.
+  if (!AllowJavascriptExecution::IsAllowed(isolate_) ||
+      isolate_->is_executing_api_interrupt()) {
+    Deoptimizer::DeoptimizeTopmostFrame(isolate_);
+  }
   AllowJavascriptExecution allow_script(isolate_);
   {
     RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebuggerCallback);
@@ -3229,6 +3236,10 @@ bool Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode,
   StackLimitCheck check(isolate_);
   if (check.HasOverflowed()) return false;
 
+  // A debugger pause can execute arbitrary JS and mutate heap state, so
+  // deoptimize the topmost optimized JS frame to discard load-eliminated state.
+  Deoptimizer::DeoptimizeTopmostFrame(isolate_);
+
   HandleScope scope(isolate_);
   MaybeHandle<FixedArray> break_points;
   {
@@ -3242,19 +3253,6 @@ bool Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode,
     if (frame && IsJSFunction(frame->function())) {
       DirectHandle<JSFunction> function(frame->function(), isolate_);
       DirectHandle<SharedFunctionInfo> shared(function->shared(), isolate_);
-
-      // If the top frame is optimized, deoptimize it. A debugger pause can
-      // execute arbitrary JS (e.g. via evaluation or inspector listeners),
-      // which can modify heap state (like detaching typed arrays). We must
-      // deoptimize the execution stack to discard any load-eliminated values
-      // (like backing store pointers or array lengths) that could be
-      // invalidated. We only need to deoptimize the topmost frame because any
-      // caller frames are at a call site, which acts as a memory serialization
-      // barrier, forcing them to reload all heap state upon return anyway.
-      if (frame->is_optimized()) {
-        Deoptimizer::DeoptimizeFunction(
-            *function, LazyDeoptimizeReason::kDebugger, frame->LookupCode());
-      }
 
       // Don't stop in builtin and blackboxed functions. The exception are OOM
       // breaks: They are a last resort before the process dies and the
