@@ -1704,7 +1704,7 @@ Handle<Map> Map::CopyReplaceDescriptors(
     const InitMapCb& InitMap, MaybeDirectHandle<Name> maybe_name,
     const char* reason, TransitionKindFlag transition_kind) {
 #ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
-  DCHECK(descriptors->VerifyLookupTable());
+  SLOW_DCHECK(descriptors->VerifyLookupTable());
 #else
   DCHECK(descriptors->IsSortedNoDuplicates());
 #endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE

@@ -222,6 +222,40 @@ DirectHandle<JSFunction> CreateCsaTransitionArrayLookup(Isolate* isolate) {
   return result_function;
 }
 
+// Create descriptor array with the created names by appending fields to some
+// map. DescriptorArray marking relies on the fact that it's attached to an
+// owning map.
+Handle<Map> CreateMapWithFields(Isolate* isolate,
+                                const std::vector<Handle<Name>>& names) {
+  Handle<Map> map = Map::Create(isolate, 0);
+
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
+
+  {
+    // Avoid O(N^3) VerifyLookupTable() calls across the intermediate
+    // Map::CopyWithField steps; CheckDescriptorArrayLookups() verifies the
+    // final table below.
+#ifdef ENABLE_SLOW_DCHECKS
+    FlagScope<bool> no_slow_asserts(&v8_flags.enable_slow_asserts, false);
+#endif  // ENABLE_SLOW_DCHECKS
+    for (size_t i = 0; i < names.size(); ++i) {
+      HandleScope scope(isolate);
+      DirectHandle<Map> new_map =
+          Map::CopyWithField(isolate, map, names[i], any_type, NONE,
+                             PropertyConstness::kMutable,
+                             Representation::Tagged(), OMIT_TRANSITION)
+              .ToHandleChecked();
+      map.PatchValue(*new_map);
+    }
+    // Sweep dead intermediate Maps from old space so subsequent --verify-heap
+    // passes (including Isolate teardown) do not re-verify all O(N) dead Maps.
+    isolate->heap()->CollectGarbage(OLD_SPACE,
+                                    GarbageCollectionReason::kTesting);
+  }
+
+  return map;
+}
+
 }  // namespace
 
 using DescriptorArrayTest = TestWithNativeContext;
@@ -250,19 +284,7 @@ TEST_F(DescriptorArrayTest, DescriptorArrayHashCollisionMassive) {
     names.push_back(NewNameWithHash(isolate, "b", hash, second_is_integer));
   }
 
-  // Create descriptor array with the created names by appending fields to some
-  // map. DescriptorArray marking relies on the fact that it's attached to an
-  // owning map.
-  Handle<Map> map = Map::Create(isolate, 0);
-
-  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
-
-  for (size_t i = 0; i < names.size(); ++i) {
-    map = Map::CopyWithField(isolate, map, names[i], any_type, NONE,
-                             PropertyConstness::kMutable,
-                             Representation::Tagged(), OMIT_TRANSITION)
-              .ToHandleChecked();
-  }
+  Handle<Map> map = CreateMapWithFields(isolate, names);
 
   DirectHandle<JSFunction> csa_lookup = CreateCsaDescriptorArrayLookup(isolate);
 
@@ -300,19 +322,7 @@ TEST_F(DescriptorArrayTest, DescriptorArrayHashCollision) {
     names.push_back(NewNameWithHash(isolate, "b", hash, second_is_integer));
   }
 
-  // Create descriptor array with the created names by appending fields to some
-  // map. DescriptorArray marking relies on the fact that it's attached to an
-  // owning map.
-  Handle<Map> map = Map::Create(isolate, 0);
-
-  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
-
-  for (size_t i = 0; i < names.size(); ++i) {
-    map = Map::CopyWithField(isolate, map, names[i], any_type, NONE,
-                             PropertyConstness::kMutable,
-                             Representation::Tagged(), OMIT_TRANSITION)
-              .ToHandleChecked();
-  }
+  Handle<Map> map = CreateMapWithFields(isolate, names);
 
   DirectHandle<JSFunction> csa_lookup = CreateCsaDescriptorArrayLookup(isolate);
 

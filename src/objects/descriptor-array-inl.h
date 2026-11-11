@@ -153,7 +153,7 @@ void DescriptorArray::CopyFromOrRebuildLookupTable(
   } else {
     RebuildLookupTable(new_nof);
   }
-  DCHECK(VerifyLookupTable());
+  SLOW_DCHECK(VerifyLookupTable());
 }
 
 void DescriptorArray::RemoveFromLookupTable(int old_nof, int new_nof) {
