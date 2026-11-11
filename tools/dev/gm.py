@@ -317,16 +317,9 @@ def detect_reclient_cert():
 
 RECLIENT_MODE = detect_reclient()
 
-if platform.system() == "Linux":
-  RECLIENT_CFG_REL = "../../buildtools/reclient_cfgs/linux"
-else:
-  RECLIENT_CFG_REL = "../../buildtools/reclient_cfgs"
-
 BUILD_DISTRIBUTION_LINE = ""
 if RECLIENT_MODE:
   BUILD_DISTRIBUTION_LINE = "\nuse_remoteexec = true"
-  if RECLIENT_MODE == Reclient.CUSTOM:
-    BUILD_DISTRIBUTION_LINE += f"\nreclient_cfg_dir = \"{RECLIENT_CFG_REL}\""
 
 RELEASE_ARGS_TEMPLATE = f"""\
 is_component_build = false
@@ -526,8 +519,7 @@ class RawConfig:
     args_gn = self.path / "args.gn"
     assert args_gn.exists(), f"args.gn does not exist: {args_gn}"
     gn_args = args_gn.read_text()
-    # Remove custom reclient config path (it will be added again as part of
-    # the config line below if needed).
+    # Remove obsolete rbe_cfg_dir and reclient_cfg_dir paths.
     new_gn_args = DEPRECATED_RBE_CFG_RE.sub("", gn_args)
     new_gn_args = RECLIENT_CFG_RE.sub("", new_gn_args)
     new_gn_args = BUILD_DISTRIBUTION_RE.sub(BUILD_DISTRIBUTION_LINE,
