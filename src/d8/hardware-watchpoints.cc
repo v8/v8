@@ -832,6 +832,7 @@ void ResetAllHardwareWatchpoints() {
   TRACE("[d8] resetting all hardware watchpoints.\n");
   for (int i = 0; i < kNumWatchpoints; ++i) watchpoints[i].address = 0;
   g_support.kept_alive.clear();
+  i::SandboxTesting::SetIsWatchedObjectCallback(nullptr);
   CHECK(!g_support.shared->has_changed_watchpoints.exchange(true));
   // Signal the debugger process; this pauses execution until that process
   // continues us.
@@ -840,6 +841,13 @@ void ResetAllHardwareWatchpoints() {
 }
 
 namespace {
+bool IsWatchedObject(i::Tagged<i::HeapObject> object) {
+  for (const auto& handle : g_support.kept_alive) {
+    if (*Utils::OpenPersistent(handle) == object) return true;
+  }
+  return false;
+}
+
 void ThrowTypeError(v8::Isolate* isolate, std::string_view message) {
   isolate->ThrowException(v8::Exception::TypeError(
       v8::String::NewFromUtf8(isolate, message.data(), NewStringType::kNormal,
@@ -969,6 +977,9 @@ void SetHardwareWatchpointCallback(
   g_support.shared->watchpoints[watchpoint_idx].address = watch_addr;
 
   // Keep the object alive, using the original `info[0]` Local handle.
+  if (g_support.kept_alive.empty()) {
+    i::SandboxTesting::SetIsWatchedObjectCallback(&IsWatchedObject);
+  }
   g_support.kept_alive.emplace_back(isolate, info[0]);
 
   uint32_t current_content = *reinterpret_cast<uint32_t*>(watch_addr);

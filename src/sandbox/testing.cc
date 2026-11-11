@@ -996,6 +996,16 @@ void SandboxTesting::UnregisterSafeMemoryRegion(Address start) {
   CHECK_EQ(num_removed, 1);
 }
 
+#ifdef V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
+SandboxTesting::IsWatchedObjectCallback
+    SandboxTesting::is_watched_object_callback_ = nullptr;
+
+void SandboxTesting::SetIsWatchedObjectCallback(
+    IsWatchedObjectCallback callback) {
+  is_watched_object_callback_ = callback;
+}
+#endif  // V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
+
 #endif  // V8_ENABLE_MEMORY_CORRUPTION_API
 
 namespace {

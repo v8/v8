@@ -132,6 +132,7 @@
 #include "src/objects/visitors.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/regexp/regexp.h"
+#include "src/sandbox/testing.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/serializer-deserializer.h"
 #include "src/snapshot/snapshot.h"
@@ -2989,6 +2990,12 @@ bool Heap::CanMoveObjectStart(Tagged<HeapObject> object) {
   if (heap_profiler()->is_sampling_allocations()) {
     return false;
   }
+
+#ifdef V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
+  if (SandboxTesting::IsWatchedObject(object)) {
+    return false;
+  }
+#endif  // V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
 
   if (HeapLayout::InAnyLargeSpace(object)) {
     return false;
