@@ -396,7 +396,9 @@ void RegExpMacroAssemblerPPC::CheckNotBackReference(int start_reg,
     __ CmpS64(current_input_offset(), r6);
     BranchOrBacktrack(le, on_no_match);
   } else {
-    __ add(r0, r4, current_input_offset(), LeaveOE, SetRC);
+    UseScratchRegisterScope temps(masm_.get());
+    Register scratch = temps.Acquire();
+    __ add(scratch, r4, current_input_offset(), LeaveOE, SetRC);
     BranchOrBacktrack(gt, on_no_match, cr0);
   }
 
