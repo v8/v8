@@ -775,10 +775,12 @@ void CodeGenerator::AssembleArchSelect(Instruction* instr,
   size_t output_index = instr->OutputCount() - 1;
   MachineRepresentation output_rep =
       LocationOperand::cast(instr->OutputAt(output_index))->representation();
-  MachineRepresentation input_rep =
-      LocationOperand::cast(instr->InputAt(0))->representation();
-  if (input_rep != MachineRepresentation::kFloat32 &&
-      input_rep != MachineRepresentation::kFloat64) {
+  // The kind of condition is determined by the opcode of the compare that
+  // produced it, not by the shape of the operands: input 0 is an
+  // ImmediateOperand when the selector folded a zero constant into the
+  // comparison, and casting that to LocationOperand is not valid.
+  if (instr->arch_opcode() != kRiscvCmpS &&
+      instr->arch_opcode() != kRiscvCmpD) {
     Condition cc = FlagsConditionToConditionCmp(condition);
     Register left = i.InputRegister(0);
     Operand right = i.InputOperand(1);

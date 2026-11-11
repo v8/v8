@@ -515,7 +515,10 @@ void VisitFloat64Compare(InstructionSelector* selector, OpIndex node,
     VisitCompare(selector, kRiscvCmpD, g.UseRegister(lhs), g.UseImmediate(rhs),
                  cont);
   } else if (selector->MatchZero(lhs)) {
-    VisitCompare(selector, kRiscvCmpD, g.UseImmediate(lhs), g.UseRegister(rhs),
+    // Keep the immediate on the right-hand side so that input 0 of the
+    // emitted compare is always a register, like VisitFloat32Compare.
+    cont->Commute();
+    VisitCompare(selector, kRiscvCmpD, g.UseRegister(rhs), g.UseImmediate(lhs),
                  cont);
   } else {
     VisitCompare(selector, kRiscvCmpD, g.UseRegister(lhs), g.UseRegister(rhs),
