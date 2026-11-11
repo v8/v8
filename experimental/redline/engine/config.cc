@@ -423,13 +423,47 @@ void ReadMinimizerOptions(const JsonValue& object, MinimizerOptions* m) {
   m->min_tests = static_cast<int>(object.GetInt("min_tests", m->min_tests));
 }
 
-std::string MinimizerOptionsJson(const MinimizerOptions& m) {
+// Reads the "reducers" list of `object` into `names`, if the list is there.
+// `key` is the configuration key of the list, for the message.
+bool ReadReducerList(const JsonValue& object, std::string_view key,
+                     std::vector<std::string>* names, std::string* error) {
+  if (!object.is_object() || !object.Has("reducers")) {
+    return true;
+  }
+  const std::string message =
+      "config: " + std::string(key) + " must be a list of reducer names";
+  const JsonValue& list = object.Get("reducers");
+  if (!list.is_array()) {
+    *error = message;
+    return false;
+  }
+  names->clear();
+  for (const JsonValue& name : list.as_array()) {
+    if (!name.is_string()) {
+      *error = message;
+      return false;
+    }
+    names->push_back(name.as_string());
+  }
+  return true;
+}
+
+// The minimizer options and the effective reducer order: the configured
+// `reducers`, or `default_order` if the list is empty.
+std::string MinimizerOptionsJson(
+    const MinimizerOptions& m, const std::vector<std::string>& reducers,
+    const std::vector<std::string_view>& default_order) {
   JsonObject o;
   o.Add("max_tests", m.max_tests);
   o.Add("max_time_ms", static_cast<uint64_t>(m.max_time_ms));
   o.Add("max_rounds", m.max_rounds);
   o.Add("target_time_ms", static_cast<uint64_t>(m.target_time_ms));
   o.Add("min_tests", m.min_tests);
+  std::vector<std::string> order = reducers;
+  if (order.empty()) {
+    order.assign(default_order.begin(), default_order.end());
+  }
+  o.AddArray("reducers", order);
   return o.ToString();
 }
 
@@ -568,24 +602,9 @@ bool ReadStages(const JsonValue& json, FuzzConfig* c, std::string* error) {
             object.GetNumber("probe_timeout_min_ms", c->probe_timeout_min_ms);
         c->verify_attempts = static_cast<int>(
             object.GetInt("verify_attempts", c->verify_attempts));
-        if (object.Has("reducers")) {
-          const JsonValue& list = object.Get("reducers");
-          if (!list.is_array()) {
-            *error =
-                "config: stages.minimize.reducers must be a list of reducer "
-                "names";
-            return false;
-          }
-          c->minimizer_reducers.clear();
-          for (const JsonValue& name : list.as_array()) {
-            if (!name.is_string()) {
-              *error =
-                  "config: stages.minimize.reducers must be a list of reducer "
-                  "names";
-              return false;
-            }
-            c->minimizer_reducers.push_back(name.as_string());
-          }
+        if (!ReadReducerList(object, "stages.minimize.reducers",
+                             &c->minimizer_reducers, error)) {
+          return false;
         }
         break;
       case Stage::kPublish:
@@ -770,6 +789,10 @@ bool ApplyJson(const JsonValue& json, FuzzConfig* c, std::string* error,
   }
   ReadMinimizerOptions(json.Get("minimizer"), &c->minimizer);
   ReadMinimizerOptions(json.Get("crash_minimizer"), &c->crash_minimizer);
+  if (!ReadReducerList(json.Get("crash_minimizer"), "crash_minimizer.reducers",
+                       &c->crash_minimizer_reducers, error)) {
+    return false;
+  }
   const JsonValue& imports = json.Get("imports");
   if (imports.is_array()) {
     c->imports.clear();
@@ -1187,7 +1210,10 @@ bool FuzzConfig::Load(const Flags& flags, FuzzConfig* c, std::string* error,
   c->probe_timeout_extra_ms = std::max(0.0, c->probe_timeout_extra_ms);
   c->probe_timeout_min_ms = std::max(0.0, c->probe_timeout_min_ms);
   c->introspect_timeout_ms = std::max(1.0, c->introspect_timeout_ms);
-  if (!ValidateReducers(c->minimizer_reducers, error)) {
+  if (!ValidateReducers(c->minimizer_reducers, "stages.minimize.reducers",
+                        error) ||
+      !ValidateReducers(c->crash_minimizer_reducers, "crash_minimizer.reducers",
+                        error)) {
     return false;
   }
   return ValidateSelection(c->selection, error);
@@ -1195,16 +1221,15 @@ bool FuzzConfig::Load(const Flags& flags, FuzzConfig* c, std::string* error,
 
 // static
 bool FuzzConfig::ValidateReducers(const std::vector<std::string>& names,
-                                  std::string* error) {
+                                  std::string_view key, std::string* error) {
   std::vector<std::string> known;
   for (const auto& reducer : Minimizer::CreateDefaultReducers()) {
     known.push_back(reducer->name());
   }
   for (const std::string& name : names) {
     if (std::find(known.begin(), known.end(), name) == known.end()) {
-      *error = "config: unknown reducer \"" + name +
-               "\" in stages.minimize.reducers (known: " + JoinNames(known) +
-               ")";
+      *error = "config: unknown reducer \"" + name + "\" in " +
+               std::string(key) + " (known: " + JoinNames(known) + ")";
       return false;
     }
   }
@@ -1299,7 +1324,9 @@ std::string FuzzConfig::ToJson(Detail detail) const {
   o.Add("crash_history", crash_history);
   o.Add("crash_history_budget_sec", crash_history_budget_sec);
   o.Add("crash_bundle_runs", crash_bundle_runs);
-  o.AddRaw("crash_minimizer", MinimizerOptionsJson(crash_minimizer));
+  o.AddRaw("crash_minimizer",
+           MinimizerOptionsJson(crash_minimizer, crash_minimizer_reducers,
+                                Minimizer::CrashOrder()));
   {
     // The Init strategy as the fields describe it, so that loading the
     // output back gives the same configuration.
@@ -1459,10 +1486,13 @@ std::string FuzzConfig::JsonHelp() {
       "\"max_crashes_per_signature\": 5,\n"
       "    \"minimize_crashes_per_signature\": 2, \"crash_history\": 100,\n"
       "    \"crash_history_budget_sec\": 90, \"crash_bundle_runs\": 3,\n"
-      "    \"crash_minimizer\": {\"max_tests\": 1000, \"max_time_ms\": 120000, "
-      "\"max_rounds\": 4,\n"
-      "                        \"target_time_ms\": 30000, \"min_tests\": "
-      "200},\n"
+      "    \"crash_minimizer\": {\"max_tests\": 2000, \"max_time_ms\": 120000, "
+      "\"max_rounds\": 10,\n"
+      "                        \"target_time_ms\": 120000, \"min_tests\": "
+      "200,\n"
+      "                        \"reducers\": [\"dataflow\", \"statements\", "
+      "\"unwrap\", \"lists\",\n"
+      "                                     \"expressions\", \"truncate\"]},\n"
       "    \"import_all\": false, \"initial_programs\": 32, \"save_corpus\": "
       "true,\n"
       "    \"init\": {\"strategy\": \"import\",      // or \"generate\" with "
@@ -1519,7 +1549,11 @@ std::string FuzzConfig::JsonHelp() {
       "(new-edges only).\n"
       "  stages.minimize.reducers lists the reducers in order (also truncate, "
       "dataflow);\n"
-      "  without it the four above run. Unknown names are errors.\n"
+      "  without it the four above run. crash_minimizer.reducers lists the "
+      "reducers of a\n"
+      "  crash that reproduces alone (an empty list gives the order above). "
+      "Unknown\n"
+      "  names are errors.\n"
       "\n"
       "  Shorthands: \"scheduler\": NAME (= selection.seeds.strategy), "
       "\"mutators\" and\n"

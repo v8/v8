@@ -402,13 +402,14 @@ A reducer keeps only what its oracle measures.
 | Oracle | The reduced program must |
 |---|---|
 | `edges` (default) | reach the same stable edges. With `--baseline=FILE`, only the edges that `FILE` does not reach count. |
-| `crash` | crash. Any crash is sufficient. |
+| `crash` | crash with the signature of the first run. With `--any-crash`, any crash is sufficient. |
 | `fail` | throw the same uncaught exception, with the same type and message. |
 | `output` | have the same outcome and print the same output. |
 
 `--reducer=NAME,...` runs only these reducers, in this order.
 Without it, `minimize` runs all reducers.
 A session runs only `statements`, `unwrap`, `lists` and `expressions`, unless the configuration key `stages.minimize.reducers` names other reducers.
+For a crash, a session runs all reducers, `dataflow` first. The configuration key `crash_minimizer.reducers` sets another list.
 
 ### 5.6 Selection strategies
 
@@ -669,6 +670,7 @@ When a worker finds a crash, Redline does these steps:
    For a state-dependent crash, Redline writes these programs and the crash program into one d8 bundle. Then it runs the bundle in plain d8 processes with `--bundle-reprl`.
 3. If the crash still does not reproduce, Redline searches for d8 flags that make it reproduce. This is the amplify step.
 4. Redline minimizes a reproducible crash. The minimized program must give the same crash signature.
+   The minimizer reduces the prelude and the program together, so it also removes the prelude statements that the crash does not need.
 5. Redline saves the files, and adds the signature to `crashes/signatures.txt`.
 
 The log shows one line for each saved crash:
@@ -683,6 +685,7 @@ The file names contain the signal number and a hash:
 |---|---|
 | `crash_sig6_<hash>.js` | The minimized program, or the original program if Redline did not minimize it. |
 | `crash_sig6_<hash>.orig.js` | The original program, if Redline minimized it. |
+| `crash_sig6_<hash>.repro.js` | If the minimizer reduced the prelude and the program together: the prelude statements that the crash needs and the minimized program. d8 runs it without the prelude. |
 | `crash_sig6_<hash>.txt` | The report: the signature, the reproduction runs, the minimization, and the output of d8. |
 | `crash_sig6_<hash>.history/` | For a state-dependent crash only: the programs to run first, in their order. |
 | `crash_sig6_<hash>.bundle.js` | For a state-dependent crash only: the programs to run first and the crash program, in one file for `d8 --bundle-reprl`. |
@@ -720,9 +723,41 @@ Reproduce the crash without Redline, with the d8 command line of the header:
 $(sed -n 's|^// d8 ||p' "$CRASH") "$CRASH"
 ```
 
-The crash files do not contain the prelude, and `exec`, `replay` and d8 do not add it.
+The `.js` and `.orig.js` files do not contain the prelude, and `exec`, `replay` and d8 do not add it.
 If the program calls an mjsunit assertion function, it fails in these commands before it gets to the crash.
 `redline minimize` adds the prelude, so use it for these programs.
+
+The `.repro.js` file has the prelude statements that the crash needs. Its first line is the signature, and its second line is the d8 command that runs it.
+The command has absolute paths, so it works in each directory:
+
+```shell
+$(sed -n 's|^// run: ||p' /tmp/redline-typedarray/crashes/crash_sig6_<hash>.repro.js)
+```
+
+The report gives the result of the minimization:
+
+```text
+minimized: yes (<n> tests, <n> -> <n> nodes)
+min_time_ms: <n>
+min_budget_exhausted: no
+min_stop: fixed_point
+min_tree: prelude and program
+min_prelude_statements: <n> -> <n>
+min_script_nodes: <n> -> <n>
+min_program_verified: yes
+repro: crash_sig6_<hash>.repro.js
+repro_bytes: <n>
+```
+
+- `min_stop` tells why the minimization stopped: `fixed_point` (no reducer found more to remove), `budget` (the tests or the time of `crash_minimizer` ran out) or `rounds` (`crash_minimizer.max_rounds`).
+  `stopped` tells that the session stopped, and `skipped` tells that the minimizer did not run.
+- `min_tree` tells what the minimizer reduced: `prelude and program`, or `program alone` and the reason.
+  For the program alone, there is no `.repro.js` file.
+- The node counts of the `minimized:` line are the counts of the program alone, as in the `.js` file.
+  `min_script_nodes` gives the nodes of the prelude and the program together, and `min_prelude_statements` gives the top-level statements of the prelude, before and after the minimization.
+- `min_program_verified: yes` tells that the minimized program also crashes behind the full prelude. Then the `.js` file has this program.
+  If the value is `no`, the `.js` file has the original program, and the report says `minimized: no`.
+  But `signatures.txt` counts the crash as minimized, because its `.repro.js` file has the minimized script.
 
 Minimize the crash again, for example with all reducers and a larger budget:
 
@@ -734,7 +769,7 @@ out/redline/redline minimize --d8=out/fuzzbuild/d8 --d8-extra-args=--jit-fuzzing
 [<time> I] [minimize] <n> -> <n> nodes (<n>%), <n> tests (<n> accepted, 0 syntax-rejected) in <n> s; property HOLDS on the result
 ```
 
-The `crash` oracle of `minimize` accepts any crash, not only the signature of the session.
+The `crash` oracle of `minimize` keeps the crash signature of the first run. `--any-crash` accepts any crash.
 Run the result with `exec --print-output`, and compare its stderr with the report.
 
 After a change in V8, run all crash files of a session again:

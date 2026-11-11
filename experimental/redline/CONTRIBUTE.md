@@ -611,6 +611,7 @@ class Truncator : public Reducer {
 
 1. Add `reducers.push_back(std::make_unique<YourReducer>());` to `Minimizer::CreateDefaultReducers()`.
 2. Do not add it to `Minimizer::DefaultOrder()` yet. The default order applies to every session. Change it only with A/B evidence.
+   The same rule applies to `Minimizer::CrashOrder()`, the order of the crash minimizer.
 3. Select your reducer in the configuration:
 
 ```json
@@ -618,6 +619,7 @@ class Truncator : public Reducer {
 ```
 
 An unknown name in this list is an error at startup.
+`crash_minimizer.reducers` selects the reducers of the crash minimizer in the same way.
 
 ### 5.4 Try the reducer on captured pairs
 
@@ -918,8 +920,9 @@ The second command writes one event per check and per minimization in `OUT/event
 ### 9.3 A crash
 
 A crash goes to `OUT/crashes/` with the minimized program (`.js`), the original program (`.orig.js`) and a report (`.txt`).
+A minimized crash also gets a reproducer (`.repro.js`): the prelude statements that the crash needs and the program. d8 runs it without the prelude.
 The report has the crash signature and the result of the reproduction runs.
-`redline minimize --oracle=crash FILE` runs the program with the same prelude as a session, and minimizes it again.
+`redline minimize --oracle=crash FILE` runs the program with the same prelude as a session, and minimizes it again. It keeps the crash signature of the first run.
 If the crash needs earlier programs, the `.history/` directory of the crash has them.
 The `.bundle.js` file has them and the crash program in one file for `d8 --bundle-reprl`.
 

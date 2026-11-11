@@ -20,6 +20,7 @@
 #include "experimental/redline/commands/command.h"
 #include "experimental/redline/core/component.h"
 #include "experimental/redline/core/program.h"
+#include "experimental/redline/engine/crash.h"
 #include "experimental/redline/engine/prelude.h"
 #include "experimental/redline/exec/runner.h"
 #include "experimental/redline/exec/target_options.h"
@@ -44,11 +45,14 @@ const char kUsage[] =
     "                      of the baseline programs reach count (this is what\n"
     "                      the fuzzer preserves: the edges new w.r.t. the\n"
     "                      parent)\n"
-    "  --oracle=crash      the program must still crash\n"
+    "  --oracle=crash      the program must still crash with the signature\n"
+    "                      of its first run (see --any-crash)\n"
     "  --oracle=fail       the program must still fail (uncaught exception)\n"
     "  --oracle=output     stdout of the program must stay identical\n"
     "\n"
     "options:\n"
+    "  --any-crash         the crash oracle accepts a crash with any "
+    "signature\n"
     "  --baseline=FILE,... programs whose edges are subtracted (edges oracle)\n"
     "  --reducer=NAME,...  run only these reducers, in this order (see "
     "--list)\n"
@@ -262,10 +266,23 @@ int Run(const Flags& flags) {
                     first.exit_code);
       return kExitFailure;
     }
-    oracle = [&](const std::string& candidate) {
+    // Like the crash minimizer of a session, keep the signature, so that
+    // the reduction cannot move to a different bug. --any-crash accepts
+    // every crash.
+    const bool any_crash = flags.GetBool("any-crash", false);
+    const CrashSignature signature = CrashSignature::FromExecution(first);
+    if (any_crash) {
+      REDLINE_LOG(kLog, "preserving a crash with any signature");
+    } else {
+      REDLINE_LOG(kLog, "preserving the crash signature `%s`",
+                  signature.text.c_str());
+    }
+    oracle = [&, any_crash, signature](const std::string& candidate) {
       Execution execution;
       return execute(candidate, &execution, probe_timeout_us) &&
-             execution.crashed();
+             execution.crashed() &&
+             (any_crash ||
+              CrashSignature::FromExecution(execution) == signature);
     };
   } else if (oracle_name == "fail") {
     if (first.outcome != Outcome::kFailed) {

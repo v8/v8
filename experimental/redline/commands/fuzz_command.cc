@@ -147,7 +147,7 @@ const char kUsage[] =
     "  --crash-bundle-runs=N    plain d8 runs of NAME.bundle.js, the one-file\n"
     "                           reproducer of a state-dependent crash (3)\n"
     "  --crash-minimizer-max-tests=N, --crash-minimizer-max-time-ms=N\n"
-    "                           minimization budget for crashes (1000, "
+    "                           minimization budget for crashes (2000, "
     "120000)\n"
     "  --initial-programs=N     bootstrap from generated programs until the\n"
     "                           corpus has N entries (32)\n"

@@ -45,6 +45,20 @@ struct MinimizerOptions {
   MinimizerOptions ForProgram(uint64_t exec_time_us) const;
 };
 
+// Why a minimization stopped.
+enum class MinimizationStop {
+  kNone,        // the minimizer did not run
+  kFixedPoint,  // a round of all reducers kept no more reductions
+  kBudget,      // the minimizer used up the test budget or the time budget
+  kRounds,      // the minimizer ran max_rounds rounds
+  kStopped,     // the caller stopped the minimization (the minimizer does
+                // not set this value)
+};
+
+// The name of `stop` for reports and events: "skipped", "fixed_point",
+// "budget", "rounds" or "stopped".
+const char* MinimizationStopName(MinimizationStop stop);
+
 struct MinimizationResult {
   int tests = 0;            // oracle calls
   int accepted = 0;         // ... that kept the property (reductions kept)
@@ -53,6 +67,7 @@ struct MinimizationResult {
   size_t nodes_after = 0;
   uint64_t time_us = 0;
   bool budget_exhausted = false;
+  MinimizationStop stop = MinimizationStop::kNone;
 };
 
 class Reducer;
@@ -109,6 +124,9 @@ class Minimizer {
   static std::vector<std::unique_ptr<Reducer>> CreateDefaultReducers();
   // The reducers Minimize() runs when no order is configured, in order.
   static const std::vector<std::string_view>& DefaultOrder();
+  // The reducers of a crash minimization without a configured order
+  // (crash_minimizer.reducers), in order: all reducers, `dataflow` first.
+  static const std::vector<std::string_view>& CrashOrder();
 
   const MinimizerOptions& options() const { return options_; }
   const std::vector<std::unique_ptr<Reducer>>& reducers() const {

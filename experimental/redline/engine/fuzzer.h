@@ -113,6 +113,11 @@ class Fuzzer {
                               const MinimizationOracle& oracle,
                               SyntaxChecker* checker,
                               const MinimizerOptions& options) const;
+  // Minimizes a crash with the reducer order of crash_minimizer.reducers.
+  MinimizationResult MinimizeCrash(fast::Tree* tree,
+                                   const MinimizationOracle& oracle,
+                                   SyntaxChecker* checker,
+                                   const MinimizerOptions& options) const;
 
   // One line summarizing the session so far.
   std::string StatusLine() const;
@@ -217,6 +222,9 @@ class Fuzzer {
   // The configured reducer order (stages.minimize.reducers); empty: the
   // default order.
   std::vector<Reducer*> minimizer_reducers_;
+  // The reducer order of the crash minimizer (crash_minimizer.reducers, or
+  // Minimizer::CrashOrder()).
+  std::vector<Reducer*> crash_reducers_;
   const Environment* env_ = nullptr;
   std::unique_ptr<Environment> discovered_env_;  // owns env_ when introspected
   Mutator* codegen_mutator_ = nullptr;

@@ -343,6 +343,32 @@ The def-use graph only proposes a cut. The oracle decides, because globals, prot
 - Each test has a short timeout from the run time of the program (`probe_timeout_*`), because a reduction can make an endless loop.
   For the same reason, `expressions` replaces a loop condition only with `0`.
 - The result must pass the oracle again in one of `verify_attempts` runs. If it does not, Redline keeps the original program.
+- The crash event and the crash report record the stop reason of a minimization (`min_stop`): `fixed_point`, `budget` or `rounds`.
+  `skipped` tells that the minimizer did not run, and `stopped` tells that the session stopped during the minimization.
+
+**Crashes.** For a crash that reproduces alone, the minimizer reduces one tree of the prelude and the program.
+Redline parses the prelude, a new line and the program into this tree.
+The tree prints to a script that is equivalent to the script of the target, but not always the same text.
+The tests run the printed script without the prelude in front.
+Thus the minimizer also removes the prelude statements that the crash does not need.
+A crash uses all reducers, `dataflow` first: `dataflow`, `statements`, `unwrap`, `lists`, `expressions`, `truncate` (`Minimizer::CrashOrder`).
+`crash_minimizer.reducers` sets another list, and an empty list gives this order. `stages.minimize.reducers` does not apply to crashes.
+With one test, `dataflow` can remove a group of prelude statements that the program does not use.
+
+- Before the minimization, the printed tree must crash with the same signature in one of `verify_attempts` runs.
+- The minimizer reduces the program alone, behind the exact prelude, if one of these conditions is true:
+  - The prelude is empty.
+  - The prelude or the program does not parse.
+  - The prelude continues into the program, for example `var a = f` and `(1);`.
+  - The printed tree does not crash with the same signature.
+
+  Then Redline writes no `NAME.repro.js`. The `min_tree` value of the report and of the crash event gives the reason.
+- The minimized script goes to `NAME.repro.js`, after two comment lines: the signature and the d8 command. The d8 command has absolute paths. d8 runs this file without the prelude.
+- `NAME.js` keeps its meaning: the program alone, without the prelude statements. Redline uses the minimized program for `NAME.js` only if it also crashes with the same signature behind the full prelude (`min_program_verified`).
+- The node counts of `minimized:`, `min_nodes_before` and `min_nodes_after` are the counts of the program alone, as in `NAME.js`.
+  `min_script_nodes` and `min_prelude_statements` give the nodes of the whole tree and its top-level prelude statements.
+  If the last check rejects a result, the count after the minimization is equal to the count before.
+- A crash that has only `NAME.repro.js` keeps its minimize slot. Thus `signatures.txt` counts it as minimized, while its report says `minimized: no`.
 
 ### 5.7 Publish
 
@@ -367,8 +393,8 @@ A crash can come from a result, from an imported file or from an instrumented pr
    Redline runs the bundle in up to `crash_bundle_runs` plain d8 processes and writes how many crashed with the same signature (`bundle_rate`).
 5. **Amplify.** If the crash does not reproduce alone, the amplify step searches for d8 flags that make it reproduce.
    This also applies after a successful replay, because an earlier program can turn on a feature that a d8 flag can also turn on.
-6. **Minimize.** Redline minimizes a crash that reproduces alone, against its signature.
-7. **Save.** Redline writes the program, the report and, if they exist, the original program, the history and the bundle to `OUT/crashes/`.
+6. **Minimize.** Redline minimizes a crash that reproduces alone, against its signature, together with the prelude (5.6).
+7. **Save.** Redline writes the program, the report and, if they exist, the original program, the reproducer (`NAME.repro.js`), the history and the bundle to `OUT/crashes/`.
 
 History replay and the amplify step run only for crashes that Redline saves.
 
@@ -553,6 +579,7 @@ A worker owns its target, its coverage map, its random generator, its isolate fo
 | Group crashes by signature, with a budget per signature. | The work per bug stays bounded. |
 | Replay the history of a crash, and search for amplifying flags. | Some crashes depend on earlier programs or on timing. |
 | Put the prelude in front of each execution, and never store it. | Corpus files stay clean, and imported tests run without `mjsunit.js`. |
+| Minimize a crash together with the prelude. | The reproducer needs no prelude, and it keeps only the prelude statements that the crash needs. |
 | Run all workers in one process, with one corpus and one coverage map. | The workers need no protocol to exchange programs. |
 | Keep the pipeline fixed, and make the decisions pluggable. | The loop stays easy to read, and a decision can change without a change to the loop. |
 | Build the target with `v8_redline=true`, which links a copy of `src/fuzzilli` (`d8/`). | Redline can change its coverage runtime and its builtin without changes to Fuzzilli. |

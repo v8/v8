@@ -1090,9 +1090,11 @@ std::vector<std::unique_ptr<Reducer>> Minimizer::CreateDefaultReducers() {
   reducers.push_back(std::make_unique<Unwrapper>());
   reducers.push_back(std::make_unique<ListTrimmer>());
   reducers.push_back(std::make_unique<ExpressionSimplifier>());
-  // Not in the default order (see DefaultOrder): on crash reproducers they
-  // reach the same result as `statements` with 5-12% more tests. Enable
-  // them with stages.minimize.reducers or `minimize --reducer=`.
+  // Not in the default order (see DefaultOrder). The crash order (see
+  // CrashOrder) runs them. On the tree of the prelude and a crash program,
+  // `dataflow` removes each group of unused prelude statements with one
+  // test. Enable them for corpus programs with stages.minimize.reducers or
+  // `minimize --reducer=`.
   reducers.push_back(std::make_unique<Truncator>());
   reducers.push_back(std::make_unique<DataflowReducer>());
   return reducers;
@@ -1104,6 +1106,16 @@ const std::vector<std::string_view>& Minimizer::DefaultOrder() {
   static const std::vector<std::string_view>* const kOrder =
       new std::vector<std::string_view>{"statements", "unwrap", "lists",
                                         "expressions"};
+  return *kOrder;
+}
+
+// static
+const std::vector<std::string_view>& Minimizer::CrashOrder() {
+  // The process keeps this vector until it exits. Thus no destructor runs at
+  // the exit.
+  static const std::vector<std::string_view>* const kOrder =
+      new std::vector<std::string_view>{"dataflow", "statements",  "unwrap",
+                                        "lists",    "expressions", "truncate"};
   return *kOrder;
 }
 
@@ -1164,6 +1176,8 @@ MinimizationResult Minimizer::MinimizeWith(
   Stopwatch stopwatch;
   MinimizationHelper helper(tree, oracle, checker, options);
   helper.mutable_result()->nodes_before = fast::CountNodes(tree->root());
+  // The loop below ends with a break, except after max_rounds rounds.
+  MinimizationStop stop = MinimizationStop::kRounds;
   int last_changer = -1;
   for (int round = 0; round < options.max_rounds; round++) {
     int accepted = 0;
@@ -1186,7 +1200,14 @@ MinimizationResult Minimizer::MinimizeWith(
         last_changer = static_cast<int>(i);
       }
     }
-    if (fixed_point || accepted == 0 || helper.BudgetExhausted()) {
+    // A reducer stops at the end of the budget. Then the round is not
+    // complete, so it does not show a fixed point.
+    if (helper.BudgetExhausted()) {
+      stop = MinimizationStop::kBudget;
+      break;
+    }
+    if (fixed_point || accepted == 0) {
+      stop = MinimizationStop::kFixedPoint;
       break;
     }
   }
@@ -1196,7 +1217,24 @@ MinimizationResult Minimizer::MinimizeWith(
   result.nodes_after = fast::CountNodes(tree->root());
   result.time_us = stopwatch.ElapsedUs();
   result.budget_exhausted = helper.BudgetExhausted();
+  result.stop = stop;
   return result;
+}
+
+const char* MinimizationStopName(MinimizationStop stop) {
+  switch (stop) {
+    case MinimizationStop::kNone:
+      return "skipped";
+    case MinimizationStop::kFixedPoint:
+      return "fixed_point";
+    case MinimizationStop::kBudget:
+      return "budget";
+    case MinimizationStop::kRounds:
+      return "rounds";
+    case MinimizationStop::kStopped:
+      return "stopped";
+  }
+  return "skipped";
 }
 
 int MinimizerOptions::TestsFor(uint64_t exec_time_us) const {

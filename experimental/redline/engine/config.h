@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -228,11 +229,15 @@ struct FuzzConfig {
   int crash_bundle_runs = 3;
   // Budget for minimizing crashes (they are rare and worth more tests than
   // corpus programs).
-  MinimizerOptions crash_minimizer{/*max_tests=*/1000,
+  MinimizerOptions crash_minimizer{/*max_tests=*/2000,
                                    /*max_time_ms=*/120000,
-                                   /*max_rounds=*/4,
-                                   /*target_time_ms=*/30000,
+                                   /*max_rounds=*/10,
+                                   /*target_time_ms=*/120000,
                                    /*min_tests=*/200};
+  // The reducers of the crash minimizer, in the order they run
+  // (crash_minimizer.reducers). An empty list gives the default order,
+  // Minimizer::CrashOrder().
+  std::vector<std::string> crash_minimizer_reducers;
 
   // Applies --config (a file, or inline JSON starting with '{') then the
   // command line flags. `for_run` is false only for --dump-config: then no
@@ -243,9 +248,10 @@ struct FuzzConfig {
   // parameter or weight name (called by Load).
   static bool ValidateSelection(const SelectionSettings& selection,
                                 std::string* error);
-  // Reports a reducer name in stages.minimize.reducers that does not exist.
+  // Reports a reducer name in a reducer list that does not exist. `key` is
+  // the configuration key of the list, for the message.
   static bool ValidateReducers(const std::vector<std::string>& names,
-                               std::string* error);
+                               std::string_view key, std::string* error);
   // The JSON part of Load() alone (no flags, no prelude, no validation),
   // for the selftest.
   static bool LoadJsonForTest(const JsonValue& json, FuzzConfig* config,

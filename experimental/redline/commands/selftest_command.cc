@@ -8,20 +8,27 @@
 // coverage evaluation and edge determinism). Prints one PASS/FAIL line per
 // check and exits non-zero if any check failed.
 
+#include <dirent.h>
 #include <fcntl.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cerrno>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <functional>
 #include <initializer_list>
 #include <iterator>
+#include <map>
 #include <set>
+#include <thread>
 
 #include "experimental/redline/base/file_util.h"
 #include "experimental/redline/base/flags.h"
@@ -35,12 +42,17 @@
 #include "experimental/redline/core/tunable.h"
 #include "experimental/redline/corpus/corpus.h"
 #include "experimental/redline/corpus/feature_weights.h"
+#include "experimental/redline/engine/config.h"
 #include "experimental/redline/engine/crash.h"
 #include "experimental/redline/engine/d8_flags.h"
 #include "experimental/redline/engine/fuzzer.h"
+#include "experimental/redline/engine/prelude.h"
 #include "experimental/redline/engine/shared_coverage.h"
 #include "experimental/redline/exec/coverage.h"
+#include "experimental/redline/exec/process_run.h"
 #include "experimental/redline/exec/runner.h"
+#include "experimental/redline/fast/parser.h"
+#include "experimental/redline/fast/printer.h"
 #include "experimental/redline/minimizer/minimizer.h"
 
 namespace redline {
@@ -903,12 +915,398 @@ void RunCoverageCounterChecks(Checker* checker) {
         min_check.Find("statements")->stats().invocations;
     checker->Check(
         "minimizer: unreferenced declarations and fixed-point stopping",
-        min_res.accepted == 1 && min_res.tests <= 8 && stmt_invocations == 1,
-        StringPrintf("tests %d, accepted %d, stmt_invocations %llu",
+        min_res.accepted == 1 && min_res.tests <= 8 && stmt_invocations == 1 &&
+            min_res.stop == MinimizationStop::kFixedPoint,
+        StringPrintf("tests %d, accepted %d, stmt_invocations %llu, stop %s",
                      min_res.tests, min_res.accepted,
-                     static_cast<unsigned long long>(stmt_invocations)));
+                     static_cast<unsigned long long>(stmt_invocations),
+                     MinimizationStopName(min_res.stop)));
   }
   munmap(mapping, CoverageMap::kShmSize);
+}
+
+// The oracle of the crash minimizer checks. The script "crashes" if its
+// top-level code calls `crash`, directly or through the top-level helpers
+// `var NAME = function ...`. The calls of other names do nothing.
+bool ReachesCrash(const std::string& script) {
+  std::unique_ptr<fast::Tree> tree =
+      fast::Parser::ParseScript(script, fast::ParseOptions(), nullptr);
+  if (tree == nullptr) {
+    return false;
+  }
+  std::map<std::string, fast::Node*, std::less<>> helpers;
+  std::vector<fast::Node*> work;  // the code that runs
+  for (fast::Statement* statement : tree->root()->body) {
+    auto* declaration = statement->As<fast::VariableDeclaration>();
+    fast::VariableDeclarator* declarator =
+        declaration != nullptr && declaration->declarations.size() == 1
+            ? declaration->declarations[0]
+            : nullptr;
+    const fast::Identifier* name =
+        declarator != nullptr && declarator->target != nullptr
+            ? declarator->target->As<fast::Identifier>()
+            : nullptr;
+    if (name != nullptr && declarator->init != nullptr &&
+        declarator->init->Is<fast::FunctionExpression>()) {
+      helpers[std::string(name->name)] = declarator->init;
+    } else {
+      work.push_back(statement);
+    }
+  }
+  std::set<std::string, std::less<>> called;
+  bool crashed = false;
+  while (!work.empty() && !crashed) {
+    fast::Node* code = work.back();
+    work.pop_back();
+    fast::Walk(code, [&](fast::Node* node) {
+      const auto* call = node->As<fast::CallExpression>();
+      const fast::Identifier* callee =
+          call != nullptr ? call->callee->As<fast::Identifier>() : nullptr;
+      if (callee == nullptr) {
+        return true;
+      }
+      if (callee->name == "crash") {
+        crashed = true;
+      }
+      auto helper = helpers.find(callee->name);
+      if (helper != helpers.end() && called.insert(helper->first).second) {
+        work.push_back(helper->second);
+      }
+      return true;
+    });
+  }
+  return crashed;
+}
+
+// The names of the top-level `var` declarations of `tree`, in order.
+std::string TopLevelVars(const fast::Tree& tree) {
+  std::string names;
+  for (fast::Statement* statement : tree.root()->body) {
+    const auto* declaration = statement->As<fast::VariableDeclaration>();
+    if (declaration == nullptr) {
+      continue;
+    }
+    for (const fast::VariableDeclarator* declarator :
+         declaration->declarations) {
+      const fast::Identifier* name =
+          declarator->target != nullptr
+              ? declarator->target->As<fast::Identifier>()
+              : nullptr;
+      if (name != nullptr) {
+        names += (names.empty() ? "" : " ") + std::string(name->name);
+      }
+    }
+  }
+  return names;
+}
+
+// Offline: the crash minimizer reduces one tree of the prelude and the
+// program, with the crash order of the reducers. The program calls one
+// helper of the prelude, and that helper calls a second helper. The other
+// helpers call each other, but the program does not reach them.
+void RunCrashMinimizerChecks(Checker* checker) {
+  const char* kPrelude =
+      "var h0 = function(a) { return a; };\n"
+      "var h1 = function(a) { return h0(a) + 1; };\n"
+      "var h2 = function(a) { return crash(a); };\n"
+      "var h3 = function(a) { return h2(a); };\n"
+      "var h4 = function(a) { return h1(a) * 2; };\n"
+      "var h5 = function(a) { return h5(a - 1); };\n"
+      "var unused = 7;\n";
+  std::string error;
+  std::unique_ptr<ScriptTree> script =
+      ScriptTree::Parse(kPrelude, "h3(1);\n", &error);
+  if (!checker->Check(
+          "crash minimizer: the prelude and the program parse into one tree",
+          script != nullptr && script->prelude_statements() == 7 &&
+              ReachesCrash(fast::Print(script->tree()->root())),
+          error)) {
+    return;
+  }
+  Minimizer minimizer;
+  std::vector<Reducer*> reducers;
+  for (std::string_view name : Minimizer::CrashOrder()) {
+    reducers.push_back(minimizer.Find(name));
+  }
+  const MinimizationResult result =
+      minimizer.MinimizeWith(reducers, script->tree(), ReachesCrash, nullptr,
+                             FuzzConfig().crash_minimizer);
+  const std::string kept = TopLevelVars(*script->tree());
+  std::string program = script->PrintProgram();
+  std::replace(program.begin(), program.end(), '\n', ' ');
+  checker->Check(
+      "crash minimizer: the program keeps exactly the prelude helpers that it "
+      "reaches",
+      kept == "h2 h3" && script->PreludeStatementsNow() == 2 &&
+          program.find("h3(") != std::string::npos &&
+          program.find("var ") == std::string::npos &&
+          result.stop == MinimizationStop::kFixedPoint,
+      StringPrintf("helpers \"%s\", %zu prelude statements, program \"%s\", "
+                   "stop %s, %d tests",
+                   kept.c_str(), script->PreludeStatementsNow(),
+                   program.c_str(), MinimizationStopName(result.stop),
+                   result.tests));
+  // `var a = h0` and `(1);` parse as one statement: `var a = h0(1);`.
+  std::unique_ptr<ScriptTree> joined =
+      ScriptTree::Parse("var a = h0", "(1);\n", &error);
+  checker->Check(
+      "crash minimizer: no tree for a prelude that continues in the program",
+      joined == nullptr, joined == nullptr ? error : "one tree");
+}
+
+// The value of the line `key: value` of a crash report, or "".
+std::string ReportValue(const std::string& report, const std::string& key) {
+  const std::string prefix = key + ": ";
+  size_t start = 0;
+  while (start < report.size()) {
+    size_t end = report.find('\n', start);
+    if (end == std::string::npos) {
+      end = report.size();
+    }
+    if (report.compare(start, prefix.size(), prefix) == 0) {
+      return report.substr(start + prefix.size(), end - start - prefix.size());
+    }
+    start = end + 1;
+  }
+  return "";
+}
+
+// The time that the session of a crash check can take. The crash minimizer
+// stops after crash_minimizer.max_time_ms.
+constexpr double kCrashSessionSeconds = 300;
+
+// The time that a plain d8 run of a NAME.repro.js file can take.
+constexpr uint64_t kPlainRunUs = 60'000'000;
+
+// Removes `path`. For a directory, also removes all of its contents.
+void RemoveTree(const std::string& path) {
+  struct stat st;
+  if (lstat(path.c_str(), &st) != 0) {
+    return;
+  }
+  if (!S_ISDIR(st.st_mode)) {
+    unlink(path.c_str());
+    return;
+  }
+  std::vector<std::string> names;
+  if (DIR* dir = opendir(path.c_str())) {
+    while (const struct dirent* entry = readdir(dir)) {
+      const std::string entry_name = entry->d_name;
+      if (entry_name != "." && entry_name != "..") {
+        names.push_back(entry_name);
+      }
+    }
+    closedir(dir);
+  }
+  for (const std::string& entry_name : names) {
+    RemoveTree(path + "/" + entry_name);
+  }
+  rmdir(path.c_str());
+}
+
+// The result of a short session that imports one crash program.
+struct CrashSession {
+  std::string dir;     // the files of the session, or "" if there are none
+  bool saved = false;  // the session saved a crash
+  // Why the wait stopped: "crash saved", "session ended", "import did not
+  // crash" or "time limit".
+  std::string stop;
+  double seconds = 0;
+  std::string report;  // the report of the crash with NAME.repro.js, or ""
+  std::string repro;   // its NAME.repro.js, or ""
+  std::string error;   // why the session did not run, or ""
+};
+
+// Runs a short session with the d8 flags of `target` and `session_flags`. The
+// session imports `program`. The wait stops when the session saved a crash,
+// when Run() returns, when the import did not crash or after
+// kCrashSessionSeconds. The caller removes `dir` with RemoveTree().
+CrashSession RunCrashSession(const TargetOptions& target,
+                             const std::vector<std::string>& session_flags,
+                             const std::string& program) {
+  CrashSession session;
+  char dir_template[] = "/tmp/redline-selftest.XXXXXX";
+  if (mkdtemp(dir_template) == nullptr) {
+    session.error = StringPrintf("mkdtemp: %s", strerror(errno));
+    return session;
+  }
+  session.dir = dir_template;
+  const std::string program_path = session.dir + "/crash.js";
+  if (!WriteStringToFile(program_path, program, &session.error)) {
+    return session;
+  }
+  std::string args;
+  for (const std::string& arg : target.args) {
+    args += (args.empty() ? "" : " ") + arg;
+  }
+  std::vector<std::string> all_flags = {
+      "redline",         "fuzz",    "--jobs=1",         "--seed=1",
+      "--no-introspect", "--quiet", "--no-save-corpus", "--no-component-stats"};
+  all_flags.push_back("--d8=" + target.executable);
+  all_flags.push_back("--d8-args=" + args);
+  all_flags.push_back("--import=" + program_path);
+  all_flags.push_back("--out=" + session.dir + "/out");
+  all_flags.insert(all_flags.end(), session_flags.begin(), session_flags.end());
+  std::vector<const char*> argv;
+  for (const std::string& flag : all_flags) {
+    argv.push_back(flag.c_str());
+  }
+  Flags flags = Flags::Parse(static_cast<int>(argv.size()), argv.data(), 2);
+  FuzzConfig config;
+  if (!FuzzConfig::Load(flags, &config, &session.error)) {
+    return session;
+  }
+  // The session logs to stderr. Show only its errors.
+  const LogLevel log_level = GetLogLevel();
+  SetLogLevel(LogLevel::kError);
+  const std::string crashes = session.dir + "/out/crashes";
+  Stopwatch clock;
+  {
+    Fuzzer fuzzer(std::move(config));
+    if (!fuzzer.Initialize(&session.error)) {
+      SetLogLevel(log_level);
+      return session;
+    }
+    std::atomic<bool> ended{false};
+    std::thread thread([&fuzzer, &ended] {
+      fuzzer.Run();
+      ended.store(true);
+    });
+    // The session writes signatures.txt after the files of a crash. The
+    // worker processes a crash of the import before it starts to fuzz. Thus
+    // a fuzz execution without signatures.txt shows that the import did not
+    // crash.
+    while (session.stop.empty()) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(200));
+      // Read the two flags before the file, so that a crash that the
+      // session saves in the meantime counts as saved.
+      const bool session_ended = ended.load();
+      const bool fuzzing = fuzzer.stats().fuzz_executions.load() > 0;
+      session.saved = FileExists(crashes + "/signatures.txt");
+      if (session.saved) {
+        session.stop = "crash saved";
+      } else if (session_ended) {
+        session.stop = "session ended";
+      } else if (fuzzing) {
+        session.stop = "import did not crash";
+      } else if (clock.ElapsedSeconds() >= kCrashSessionSeconds) {
+        session.stop = "time limit";
+      }
+    }
+    fuzzer.RequestStop();
+    thread.join();
+  }
+  SetLogLevel(log_level);
+  session.seconds = clock.ElapsedSeconds();
+  // The report of the imported program. A crash of the fuzzing after the
+  // import gets no NAME.repro.js, because the stop request interrupts it.
+  std::string error;
+  for (const std::string& path : ListFiles(crashes, ".txt")) {
+    std::string text;
+    if (BaseName(path).starts_with("crash_") &&
+        ReadFileToString(path, &text, &error) &&
+        !ReportValue(text, "repro").empty()) {
+      session.report = text;
+    }
+  }
+  const std::string repro_name = ReportValue(session.report, "repro");
+  if (!repro_name.empty() &&
+      !ReadFileToString(crashes + "/" + repro_name, &session.repro, &error)) {
+    session.error = error;
+  }
+  return session;
+}
+
+// Runs the `// run:` line of a NAME.repro.js file in a plain d8 process.
+// Returns the signature of the crash. If there is no crash, returns the
+// reason in parentheses.
+std::string RunReproLine(const std::string& repro,
+                         const TargetOptions& target) {
+  const std::string prefix = "\n// run: ";
+  const size_t start = repro.find(prefix);
+  if (start == std::string::npos) {
+    return "(no run line)";
+  }
+  const size_t end = repro.find('\n', start + 1);
+  const std::string line =
+      repro.substr(start + prefix.size(), end - start - prefix.size());
+  std::vector<std::string> words;
+  size_t position = 0;
+  while (position < line.size()) {
+    const size_t space = std::min(line.find(' ', position), line.size());
+    if (space > position) {
+      words.push_back(line.substr(position, space - position));
+    }
+    position = space + 1;
+  }
+  if (words.empty()) {
+    return "(empty run line)";
+  }
+  const std::vector<std::string> args(words.begin() + 1, words.end());
+  const ProcessResult run =
+      RunProcess(words[0], args, target.PlainEnvironment(), kPlainRunUs);
+  if (!run.started) {
+    return "(cannot start d8: " + run.error + ")";
+  }
+  if (run.timed_out) {
+    return "(timed out)";
+  }
+  if (run.signal == 0 && run.exit_code == 0) {
+    return "(no crash)";
+  }
+  return CrashSignature::FromOutput(run.signal, run.exit_code, run.stderr_text)
+      .text;
+}
+
+// A crash behind the default prelude, in a short session. The crash
+// minimizer reduces the tree of the prelude and the program. NAME.repro.js
+// must keep the 2 prelude helpers that the program reaches, and no other
+// prelude statement. Its `// run:` line must crash a plain d8 process with
+// the signature of the crash.
+void RunCrashReproCheck(Checker* checker, const TargetOptions& target) {
+  const char* name =
+      "crash minimizer: a crash behind the default prelude gives "
+      "NAME.repro.js without the unused helpers";
+  // redline('REDLINE_CRASH', 1) is a CHECK failure (see the crash checks).
+  const CrashSession session = RunCrashSession(
+      target, {}, "assertThrows(() => redline('REDLINE_CRASH', 1));\n");
+  const std::string& repro = session.repro;
+  // Two header lines, then the script.
+  const size_t first_line = repro.find('\n');
+  const size_t second_line = first_line == std::string::npos
+                                 ? first_line
+                                 : repro.find('\n', first_line + 1);
+  const bool header = repro.starts_with("// signature: ") &&
+                      second_line != std::string::npos &&
+                      repro.compare(first_line + 1, 8, "// run: ") == 0;
+  std::unique_ptr<fast::Tree> tree =
+      header ? fast::Parser::ParseScript(repro.substr(second_line + 1),
+                                         fast::ParseOptions(), nullptr)
+             : nullptr;
+  const std::string helpers = tree != nullptr ? TopLevelVars(*tree) : "";
+  const std::string& report = session.report;
+  const std::string signature = ReportValue(report, "signature");
+  const std::string plain = header ? RunReproLine(repro, target) : "";
+  RemoveTree(session.dir);
+  const std::string min_tree = ReportValue(report, "min_tree");
+  const std::string prelude = ReportValue(report, "min_prelude_statements");
+  const std::string stop = ReportValue(report, "min_stop");
+  const bool ok = tree != nullptr && helpers == "__redline_call assertThrows" &&
+                  min_tree == "prelude and program" &&
+                  prelude.ends_with("-> 2") && !stop.empty() &&
+                  stop != "skipped" &&
+                  ReportValue(report, "minimized").starts_with("yes") &&
+                  !signature.empty() && plain == signature;
+  checker->Check(
+      name, ok,
+      StringPrintf("%s, %.0f s, helpers \"%s\", min_tree %s, "
+                   "min_prelude_statements %s, min_stop %s, minimized %s, "
+                   "plain d8 run \"%s\", signature \"%s\"%s%s",
+                   session.stop.c_str(), session.seconds, helpers.c_str(),
+                   min_tree.c_str(), prelude.c_str(), stop.c_str(),
+                   ReportValue(report, "minimized").c_str(), plain.c_str(),
+                   signature.c_str(), session.error.empty() ? "" : ", ",
+                   session.error.c_str()));
 }
 
 // Offline: optimized code features with one bit per edge. As with counters,
@@ -1061,6 +1459,7 @@ int RunSelftest(const Flags& flags) {
   RunCoverageCounterChecks(&checker);
   RunCoverageBitsChecks(&checker);
   RunCrashSlotChecks(&checker);
+  RunCrashMinimizerChecks(&checker);
   RunNodeKindChecks(&checker);
   RunPresetChecks(&checker);
   std::string testdata = flags.GetString("testdata", DefaultTestdataDir());
@@ -1429,6 +1828,11 @@ int RunSelftest(const Flags& flags) {
            : "failed: " + error);
   }
 
+  // The session of this check has a worker 0. The coverage map of worker 0
+  // has the same name as the map of `runner`, so stop `runner` first.
+  runner.reset();
+  RunCrashReproCheck(&checker, target);
+
   printf("selftest: %d passed, %d failed\n", checker.passed(),
          checker.failed());
   return checker.failed() == 0 ? kExitOk : kExitFailure;
@@ -1443,8 +1847,9 @@ const Command kSelftestCommand = {
     "\n"
     "Runs a series of checks against the target: REPRL handshake, outcome\n"
     "classification (success, exception, timeout, crash), output capture,\n"
-    "coverage evaluation, edge determinism and respawning. Prints PASS/FAIL\n"
-    "per check and exits with 1 if any check failed.\n"
+    "coverage evaluation, edge determinism and respawning. A short session\n"
+    "then checks the crash minimizer. Prints PASS/FAIL per check and exits\n"
+    "with 1 if any check failed.\n"
     "\n"
     "Before the target checks it runs the offline selection checks: the\n"
     "default seed, partner, mutator and generator strategies must reproduce\n"
