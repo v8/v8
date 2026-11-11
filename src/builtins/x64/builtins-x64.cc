@@ -361,7 +361,7 @@ void Builtins::Generate_JSBuiltinsConstructStub(MacroAssembler* masm) {
 
 void Builtins::Generate_ConstructedNonConstructable(MacroAssembler* masm) {
   FrameScope scope(masm, StackFrame::INTERNAL);
-  __ Push(rdi);
+  __ PushArgument(rdi);
   __ CallRuntime(Runtime::kThrowConstructedNonConstructable);
 }
 
@@ -1353,7 +1353,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ ret(0);
 
   __ bind(&budget_interrupt);
-  __ Push(Operand(rbp, StandardFrameConstants::kFunctionOffset));
+  // The interpreter frame (fixed header + register file) has an even number
+  // of slots, so with 16-byte stack alignment the single runtime argument
+  // needs a padding slot (PushArgument takes care of that).
+  __ PushArgument(Operand(rbp, StandardFrameConstants::kFunctionOffset));
   __ CallRuntime(Runtime::kBytecodeBudgetInterrupt_Ignition, 1);
 
   // After the call, restore the bytecode array, bytecode offset and accumulator
@@ -1450,6 +1453,12 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
   // Pop return address to allow tail-call after pushing arguments.
   __ PopReturnAddressTo(kScratchRegister);
 
+  // 16-byte stack alignment: we push {rax} slots in total (the arguments and
+  // the receiver, which is either copied from the register file or pushed as
+  // undefined below). If that is odd, push a padding slot first so that it
+  // ends up at the highest address, above the last argument.
+  PushArgumentPaddingForArgc(masm, rax);
+
   // rbx and rdx will be modified.
   GenerateInterpreterPushArgs(masm, rcx, rbx, rdx);
 
@@ -1508,6 +1517,10 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
     // The spread argument should not be pushed.
     __ decl(rax);
   }
+
+  // 16-byte stack alignment: {rax} slots (arguments + receiver slot) are
+  // pushed below; pad them to an even count with a slot above the arguments.
+  PushArgumentPaddingForArgc(masm, rax);
 
   // rcx and r8 will be modified.
   Register argc_without_receiver = r11;
@@ -1630,7 +1643,14 @@ void NewImplicitReceiver(MacroAssembler* masm) {
   __ Push(rax);  // Number of arguments
   __ Push(rdx);  // NewTarget
   __ Push(rdi);  // Target
+  // 16-byte stack alignment: 3 saved registers, pad to 4 for the call.
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    __ PushTaggedStackPadding();
+  }
   __ CallBuiltin(Builtin::kFastNewObject);
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    __ DropStackPadding();
+  }
   // Save result.
   __ movq(implicit_receiver, rax);
   // Restore live registers.
@@ -1681,8 +1701,15 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   __ Push(rsi);
   // Implicit receiver stored in the construct frame.
   __ PushRoot(RootIndex::kTdzHoleValue);
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    // 16-byte stack alignment: the frame holds marker, context and implicit
+    // receiver (3 slots); pad it to 4.
+    __ PushTaggedStackPadding();
+  }
 
-  // Push arguments + implicit receiver.
+  // Push arguments + implicit receiver ({rax} slots in total), padded to an
+  // even number of slots (16-byte stack alignment only).
+  PushArgumentPaddingForArgc(masm, rax);
   Register argc_without_receiver = r11;
   __ leaq(argc_without_receiver, Operand(rax, -kJSArgcReceiverSlots));
   GenerateInterpreterPushArgs(masm, argc_without_receiver, rcx, r12);
@@ -2237,7 +2264,7 @@ static void GenerateCall(MacroAssembler* masm, Register argc, Register target,
     FrameScope scope(masm, StackFrame::INTERNAL);
     if (!error_string_root.has_value()) {
       // Use the simpler error for Generate_Call
-      __ Push(target);
+      __ PushArgument(target);
       __ CallRuntime(Runtime::kThrowCalledNonCallable);
     } else {
       // Use the more specific error for Function.prototype.call/apply
@@ -2253,7 +2280,7 @@ static void GenerateCall(MacroAssembler* masm, Register argc, Register target,
   __ bind(&class_constructor);
   {
     FrameScope frame(masm, StackFrame::INTERNAL);
-    __ Push(target);
+    __ PushArgument(target);
     __ CallRuntime(Runtime::kThrowConstructorNonCallableError);
     __ Trap();
   }
@@ -2707,6 +2734,11 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
 
   StackArgumentsAccessor args(rax);
   __ AssertCallableFunction(rdi);
+  // The extra padding code (16-byte stack alignment) in the ToObject call
+  // below can push some jump targets out of near-jump range.
+  constexpr Label::Distance kConvertJumpDistance =
+      (DEBUG_BOOL || V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) ? Label::kFar
+                                                         : Label::kNear;
 
   __ LoadTaggedField(
       rdx, FieldOperand(rdi, offsetof(JSFunction, shared_function_info_)));
@@ -2740,16 +2772,15 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
     } else {
       Label convert_to_object, convert_receiver;
       __ movq(rcx, args.GetReceiverOperand());
-      __ JumpIfSmi(rcx, &convert_to_object,
-                   DEBUG_BOOL ? Label::kFar : Label::kNear);
+      __ JumpIfSmi(rcx, &convert_to_object, kConvertJumpDistance);
       __ JumpIfJSAnyIsNotPrimitive(rcx, rbx, &done_convert,
-                                   DEBUG_BOOL ? Label::kFar : Label::kNear);
+                                   kConvertJumpDistance);
       if (mode != ConvertReceiverMode::kNotNullOrUndefined) {
         Label convert_global_proxy;
         __ JumpIfRoot(rcx, RootIndex::kUndefinedValue, &convert_global_proxy,
-                      DEBUG_BOOL ? Label::kFar : Label::kNear);
+                      kConvertJumpDistance);
         __ JumpIfNotRoot(rcx, RootIndex::kNullValue, &convert_to_object,
-                         DEBUG_BOOL ? Label::kFar : Label::kNear);
+                         kConvertJumpDistance);
         __ bind(&convert_global_proxy);
         {
           // Patch receiver to global proxy.
@@ -2768,7 +2799,14 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
         __ Push(rdi);
         __ movq(rax, rcx);
         __ Push(rsi);
+        // 16-byte stack alignment: 3 saved registers, pad to 4 for the call.
+        if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+          __ PushTaggedStackPadding();
+        }
         __ CallBuiltin(Builtin::kToObject);
+        if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+          __ DropStackPadding();
+        }
         __ Pop(rsi);
         __ movq(rcx, rax);
         __ Pop(rdi);

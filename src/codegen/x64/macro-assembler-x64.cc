@@ -1469,9 +1469,26 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
     PushDispatchHandle(kJavaScriptCallDispatchHandleRegister, rcx);
 #endif
     // Function is also the parameter to the runtime call.
-    Push(kJavaScriptCallTargetRegister);
+    //
+    // 16-byte stack alignment: the INTERNAL frame header is even (see
+    // EnterFrame), so rsp must be 16-byte aligned *before* the arguments are
+    // pushed. CEntry relies on this: for an odd argc (here: 1) it always
+    // expects a padding slot directly above the arguments and drops it
+    // together with them (it re-derives the padding from the alignment of
+    // that "pre-argument" rsp). So:
+    //  - if we saved an odd number of registers, push an extra padding slot
+    //    *below* the saved registers (dropped manually after the call), and
+    //  - always push the single argument via PushArgument, which adds the
+    //    padding slot above it that CEntry drops.
+    constexpr int kSavedSlots =
+        3 + (V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL ? 1 : 0);
+    constexpr bool kPadSavedSlots =
+        V8_X64_16BYTE_STACK_ALIGNMENT_BOOL && (kSavedSlots % 2 != 0);
+    if constexpr (kPadSavedSlots) PushTaggedStackPadding();
+    PushArgument(kJavaScriptCallTargetRegister);
 
     CallRuntime(function_id, 1);
+    if constexpr (kPadSavedSlots) DropStackPadding();
 
     // Restore target function, new target, actual argument count and dispatch
     // handle.
@@ -4867,9 +4884,25 @@ void MacroAssembler::CallDebugOnFunctionCall(Register fun, Register new_target,
     Push(new_target);
   }
   Push(fun);
+  // 16-byte stack alignment: we are either inside an INTERNAL frame (even
+  // header, see EnterFrame) or inside the caller's frame right before a call
+  // (rsp aligned). Either way the slots pushed here must be even before the
+  // runtime call. We saved 3 or 4 values above and push 2 arguments below, so
+  // pad the saved registers when {new_target} was not saved (and drop that
+  // padding manually after CEntry drops the 2 arguments).
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    if (!new_target.is_valid()) {
+      PushTaggedStackPadding();
+    }
+  }
   Push(fun);
   Push(kScratchRegister);
   CallRuntime(Runtime::kDebugOnFunctionCall);
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    if (!new_target.is_valid()) {
+      DropStackPadding();
+    }
+  }
   Pop(fun);
   if (new_target.is_valid()) {
     Pop(new_target);
