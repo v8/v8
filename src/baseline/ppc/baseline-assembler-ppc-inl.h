@@ -198,8 +198,10 @@ void BaselineAssembler::JumpIfSmi(Condition cc, Register value, Tagged<Smi> smi,
                                   Label* target, Label::Distance) {
   ASM_CODE_COMMENT(masm_);
   __ AssertSmi(value);
-  __ LoadSmiLiteral(r0, smi);
-  JumpIfHelper(masm_, cc, value, r0, target);
+  ScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  __ LoadSmiLiteral(scratch, smi);
+  JumpIfHelper(masm_, cc, value, scratch, target);
 }
 
 void BaselineAssembler::JumpIfSmi(Condition cc, Register lhs, Register rhs,
