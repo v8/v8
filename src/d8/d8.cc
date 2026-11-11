@@ -2587,8 +2587,9 @@ PerIsolateData::RealmScope::~RealmScope() {
   reinterpret_cast<i::Isolate*>(data_->isolate_)
       ->default_microtask_queue()
       ->ClearMicrotasks();
-  // Drop realms to avoid keeping them alive.
+  // Drop realms and the shared value to avoid keeping them alive.
   data_->realms_.clear();
+  data_->realm_shared_.Reset();
 }
 
 PerIsolateData::ExplicitRealmScope::ExplicitRealmScope(PerIsolateData* data,
