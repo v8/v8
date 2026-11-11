@@ -1737,6 +1737,9 @@ void Debug::PrepareStep(StepAction step_action) {
     wasm::NativeModule* native_module = wasm_frame->native_module();
     wasm::DebugInfo* debug_info = native_module->GetDebugInfo();
     if (debug_info->PrepareStep(wasm_frame)) {
+      if (step_action == StepOver) {
+        thread_local_.target_frame_count_ = current_frame_count;
+      }
       UpdateHookOnFunctionCall();
       return;
     }
@@ -1807,16 +1810,20 @@ void Debug::PrepareStep(StepAction step_action) {
         if (frame->is_wasm_interpreter_entry()) continue;
 #endif  // V8_ENABLE_DRUMBRAKE
         if (frames_it.frame()->is_wasm()) {
+          const int wasm_frame_count = current_frame_count;
+          current_frame_count -= frames_it.FrameFunctionCount();
           if (in_current_frame) {
             in_current_frame = false;
             continue;
           }
           // Handle stepping out into Wasm.
           WasmFrame* wasm_frame = WasmFrame::cast(frames_it.frame());
+          if (!wasm_frame->wasm_code()->is_liftoff()) continue;
           wasm::NativeModule* native_module = wasm_frame->native_module();
           wasm::DebugInfo* debug_info = native_module->GetDebugInfo();
           if (debug_info->IsFrameBlackboxed(wasm_frame)) continue;
           debug_info->PrepareStepOutTo(wasm_frame);
+          thread_local_.target_frame_count_ = wasm_frame_count;
           return;
         }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1894,6 +1901,20 @@ void Debug::ClearStepping() {
   // Clear the various stepping setup.
   ClearOneShot();
   ClearMutedLocation();
+
+#if V8_ENABLE_WEBASSEMBLY
+  if (thread_local_.last_step_action_ != StepNone) {
+    StackFrameIterator it(isolate_);
+    for (; !it.done(); it.Advance()) {
+      if (it.frame()->is_wasm()) {
+        WasmFrame::cast(it.frame())
+            ->native_module()
+            ->GetDebugInfo()
+            ->ClearStepping(isolate_);
+      }
+    }
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   thread_local_.last_step_action_ = StepNone;
   thread_local_.last_statement_position_ = kNoSourcePosition;
@@ -3850,19 +3871,31 @@ bool Debug::IsTemporaryObject(DirectHandle<HeapObject> object) const {
 
 void Debug::PrepareRestartFrame(JavaScriptFrame* frame,
                                 int inlined_frame_index) {
+  ClearStepping();
+
   if (frame->is_optimized()) {
     Deoptimizer::DeoptimizeFunction(frame->function(),
                                     LazyDeoptimizeReason::kDebugger,
                                     frame->LookupCode());
   }
 
+  FrameSummary summary = FrameSummary::Get(frame, inlined_frame_index);
+  CHECK(summary.IsJavaScript());
+  Handle<SharedFunctionInfo> shared(summary.AsJavaScript().function()->shared(),
+                                    isolate_);
+
   thread_local_.restart_frame_id_ = frame->id();
   thread_local_.restart_inline_frame_index_ = inlined_frame_index;
 
-  // TODO(crbug.com/1303521): A full "StepInto" is probably not needed. Get the
-  // necessary bits out of PrepareSTep into a separate method or fold them
-  // into Debug::PrepareRestartFrame.
-  PrepareStep(StepInto);
+  thread_local_.last_step_action_ = StepInto;
+  thread_local_.last_statement_position_ = kNoSourcePosition;
+  thread_local_.last_bytecode_offset_ = kFunctionEntryBytecodeOffset;
+  thread_local_.last_frame_count_ = -1;
+  thread_local_.target_frame_count_ = -1;
+  clear_suspended_generator();
+
+  FloodWithOneShot(shared);
+  UpdateHookOnFunctionCall();
 }
 
 }  // namespace internal
