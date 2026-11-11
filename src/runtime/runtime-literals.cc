@@ -156,15 +156,22 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
           if (copying) dict->ValueAtPut(i, *value);
         }
       } else {
+        // Iterate in enumeration order so traversal stays in sync with the
+        // nested AllocationSite list built by DeepWalk if a fast boilerplate is
+        // later normalized to a NameDictionary by JSObject::MigrateInstance.
         DirectHandle<NameDictionary> dict(copy->property_dictionary(), isolate);
-        for (InternalIndex i : dict->IterateEntries()) {
-          Tagged<Object> raw = dict->ValueAt(i);
+        DirectHandle<FixedArray> key_indices =
+            NameDictionary::IterationIndices(isolate, dict);
+        uint32_t key_indices_len = key_indices->ulength().value();
+        for (uint32_t i = 0; i < key_indices_len; i++) {
+          InternalIndex key_index(Smi::ToInt(key_indices->get(i)));
+          Tagged<Object> raw = dict->ValueAt(key_index);
           if (!IsJSObject(raw)) continue;
-          DCHECK(IsName(dict->KeyAt(i)));
+          DCHECK(IsName(dict->KeyAt(key_index)));
           Handle<JSObject> value(Cast<JSObject>(raw), isolate);
           ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
                                      VisitElementOrProperty(copy, value));
-          if (copying) dict->ValueAtPut(i, *value);
+          if (copying) dict->ValueAtPut(key_index, *value);
         }
       }
     }
