@@ -12,7 +12,6 @@
 #include "include/v8-persistent-handle.h"
 #include "include/v8-promise.h"
 #include "include/v8-wasm.h"
-#include "src/api/api-arguments.h"
 #include "src/api/api-inl.h"
 #include "src/api/api-natives.h"
 #include "src/base/logging.h"
@@ -739,34 +738,6 @@ MaybeDirectHandle<Map> GetDerivedMap(Isolate* isolate, BuiltinArguments& args) {
                                    Cast<JSReceiver>(args.new_target()));
 }
 
-// Adapter to invoke the embedder-supplied Wasm module/instance callback (or
-// the deprecated v8::ExtensionCallback, which expects a
-// v8::FunctionCallbackInfo) from a CPP constructor builtin.
-// Returns true if the callback handled the call (by throwing an exception) and
-// the caller should abort, or false if normal execution should proceed.
-// TODO(crbug.com/572830550): Remove deprecated_callback once embedders have
-// migrated to WasmModuleCallback / WasmInstanceCallback.
-bool InvokeWasmEmbedderCallback(Isolate* isolate, WasmModuleCallback callback,
-                                ExtensionCallback deprecated_callback,
-                                BuiltinArguments& args) {
-  DirectHandle<Object> arg0 = args.atOrUndefined(isolate, 1);
-  if (callback != nullptr &&
-      callback(reinterpret_cast<v8::Isolate*>(isolate), Utils::ToLocal(arg0))) {
-    return true;
-  }
-  if (V8_LIKELY(deprecated_callback == nullptr)) {
-    return false;
-  }
-  // Synthesize a minimal FunctionCallbackInfo with argc, isolate, and arg0.
-  using FCA = FunctionCallbackArguments;
-  Address values[FCA::kFirstJSArgumentIndex + 1] = {};
-  values[FCA::kArgcIndex] = 1;
-  values[FCA::kIsolateIndex] = reinterpret_cast<Address>(isolate);
-  values[FCA::kFirstJSArgumentIndex] = (*arg0).ptr();
-  return deprecated_callback(
-      *reinterpret_cast<const v8::FunctionCallbackInfo<v8::Value>*>(values));
-}
-
 }  // namespace
 
 // WebAssembly.compile(bytes, options) -> Promise
@@ -998,10 +969,11 @@ void WebAssemblyValidateImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
 BUILTIN(WebAssemblyModule) {
   WasmJSConstructorScope js_api_scope{isolate, "WebAssembly.Module()"};
   ErrorThrower& thrower = js_api_scope.thrower();
-  if (InvokeWasmEmbedderCallback(isolate, isolate->wasm_module_callback(),
-                                 isolate->deprecated_wasm_module_callback(),
-                                 args)) {
-    return js_api_scope.AssertException();
+  if (WasmModuleCallback callback = isolate->wasm_module_callback()) {
+    if (callback(reinterpret_cast<v8::Isolate*>(isolate),
+                 Utils::ToLocal(args.atOrUndefined(isolate, 1)))) {
+      return js_api_scope.AssertException();
+    }
   }
   RecordCompilationMethod(isolate, kSyncCompilation);
 
@@ -1109,10 +1081,11 @@ BUILTIN(WebAssemblyInstance) {
   isolate->CountUsage(
       v8::Isolate::UseCounterFeature::kWebAssemblyInstantiation);
 
-  if (InvokeWasmEmbedderCallback(isolate, isolate->wasm_instance_callback(),
-                                 isolate->deprecated_wasm_instance_callback(),
-                                 args)) {
-    return js_api_scope.AssertException();
+  if (WasmInstanceCallback callback = isolate->wasm_instance_callback()) {
+    if (callback(reinterpret_cast<v8::Isolate*>(isolate),
+                 Utils::ToLocal(args.atOrUndefined(isolate, 1)))) {
+      return js_api_scope.AssertException();
+    }
   }
 
   if (!CheckConstructCall(args, &thrower, "WebAssembly.Instance")) {

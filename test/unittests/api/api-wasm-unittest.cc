@@ -696,33 +696,36 @@ TEST_F(ApiWasmTest, WasmMemoryObjectGetBuffer) {
   EXPECT_FALSE(shared_buffer->IsArrayBuffer());
   EXPECT_TRUE(shared_buffer->IsSharedArrayBuffer());
   EXPECT_TRUE(shared_buffer->IsShared());
-
-  START_ALLOW_USE_DEPRECATED();
-  EXPECT_TRUE(unshared_memory->Buffer()->IsArrayBuffer());
-  EXPECT_TRUE(shared_memory->Buffer()->IsSharedArrayBuffer());
-  END_ALLOW_USE_DEPRECATED();
 }
 
 TEST_F(ApiWasmTest, OwnedBufferSpanAndMoveSemantics) {
+  using namespace internal::wasm;  // NOLINT(build/namespaces)
   OwnedBuffer empty_buffer;
   EXPECT_TRUE(empty_buffer.empty());
   EXPECT_TRUE(empty_buffer.as_span().empty());
   EXPECT_EQ(nullptr, empty_buffer.as_span().data());
 
-  constexpr uint8_t kPayload[] = {10, 20, 30, 40};
-  std::unique_ptr<uint8_t[]> backing =
-      std::make_unique<uint8_t[]>(sizeof(kPayload));
-  std::copy(std::begin(kPayload), std::end(kPayload), backing.get());
-  const uint8_t* raw_ptr = backing.get();
-
-  START_ALLOW_USE_DEPRECATED()
-  OwnedBuffer owned(std::move(backing), sizeof(kPayload));
-  END_ALLOW_USE_DEPRECATED()
-
-  EXPECT_FALSE(owned.empty());
-  EXPECT_EQ(raw_ptr, owned.as_span().data());
-  EXPECT_EQ(sizeof(kPayload), owned.as_span().size());
-  EXPECT_TRUE(std::ranges::equal(kPayload, owned.as_span()));
+  i::FlagScope<bool> no_liftoff(&i::v8_flags.liftoff, false);
+  i::FlagScope<bool> no_lazy_compilation(&i::v8_flags.wasm_lazy_compilation,
+                                         false);
+  HandleScope scope(isolate());
+  Local<Context> context = Context::New(isolate());
+  Context::Scope context_scope(context);
+  constexpr uint8_t kModuleWithFunctionBytes[] = {
+      WASM_MODULE_HEADER, SECTION(Type, ENTRY_COUNT(1), SIG_ENTRY_v_v),
+      SECTION(Function, ENTRY_COUNT(1), 0),
+      SECTION(Code, ENTRY_COUNT(1), ADD_COUNT(0, WASM_END))};
+  Local<WasmModuleObject> module =
+      WasmModuleObject::Compile(isolate(), kModuleWithFunctionBytes)
+          .ToLocalChecked();
+  OwnedBuffer owned = module->GetCompiledModule().Serialize();
+  ASSERT_FALSE(owned.empty());
+  const uint8_t* raw_ptr = owned.as_span().data();
+  const size_t size = owned.as_span().size();
+  EXPECT_NE(nullptr, raw_ptr);
+  EXPECT_GT(size, 0u);
+  const std::vector<uint8_t> expected_bytes(owned.as_span().begin(),
+                                            owned.as_span().end());
 
   // Move construction transfers ownership and leaves the source empty.
   OwnedBuffer move_constructed(std::move(owned));
@@ -730,7 +733,8 @@ TEST_F(ApiWasmTest, OwnedBufferSpanAndMoveSemantics) {
   EXPECT_TRUE(owned.as_span().empty());
   EXPECT_EQ(nullptr, owned.as_span().data());
   EXPECT_EQ(raw_ptr, move_constructed.as_span().data());
-  EXPECT_EQ(sizeof(kPayload), move_constructed.as_span().size());
+  EXPECT_EQ(size, move_constructed.as_span().size());
+  EXPECT_TRUE(std::ranges::equal(expected_bytes, move_constructed.as_span()));
 
   // Move assignment also leaves the source empty.
   OwnedBuffer move_assigned;
@@ -739,7 +743,8 @@ TEST_F(ApiWasmTest, OwnedBufferSpanAndMoveSemantics) {
   EXPECT_TRUE(move_constructed.as_span().empty());
   EXPECT_EQ(nullptr, move_constructed.as_span().data());
   EXPECT_EQ(raw_ptr, move_assigned.as_span().data());
-  EXPECT_EQ(sizeof(kPayload), move_assigned.as_span().size());
+  EXPECT_EQ(size, move_assigned.as_span().size());
+  EXPECT_TRUE(std::ranges::equal(expected_bytes, move_assigned.as_span()));
 }
 
 }  // namespace v8

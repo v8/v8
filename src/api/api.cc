@@ -8198,15 +8198,8 @@ v8::RegExp::Flags v8::RegExp::GetFlags() const {
   return RegExp::Flags(static_cast<int>(obj->flags()));
 }
 
-MaybeLocal<v8::Object> v8::RegExp::Exec(Local<Context> context,
-                                        Local<v8::String> subject) {
-  Local<Value> result;
-  if (!ExecV2(context, subject).ToLocal(&result)) return {};
-  return result.UnsafeAs<Object>();
-}
-
-MaybeLocal<v8::Value> v8::RegExp::ExecV2(Local<Context> context,
-                                         Local<v8::String> subject) {
+MaybeLocal<v8::Value> v8::RegExp::Exec(Local<Context> context,
+                                       Local<v8::String> subject) {
   PrepareForExecutionScope api_scope{context, RCCId::kAPI_RegExp_Exec};
 
   i::Isolate* i_isolate = api_scope.i_isolate();
@@ -8985,9 +8978,7 @@ OwnedBuffer CompiledWasmModule::Serialize() {
   if (!wasm_serializer.SerializeNativeModule(buffer.as_span())) {
     return {};
   }
-  START_ALLOW_USE_DEPRECATED()
   return {buffer.ReleaseData(), buffer_size};
-  END_ALLOW_USE_DEPRECATED()
 #else
   UNREACHABLE();
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -9000,10 +8991,6 @@ std::span<const uint8_t> CompiledWasmModule::GetWireBytesRef() {
 #else
   UNREACHABLE();
 #endif  // V8_ENABLE_WEBASSEMBLY
-}
-
-Local<ArrayBuffer> v8::WasmMemoryObject::Buffer() {
-  return GetBuffer().UnsafeAs<ArrayBuffer>();
 }
 
 Local<ArrayBufferBase> v8::WasmMemoryObject::GetBuffer() {
@@ -9424,10 +9411,6 @@ std::unique_ptr<BackingStore> v8::ArrayBuffer::NewResizableBackingStore(
   }
   return std::unique_ptr<v8::BackingStore>(
       static_cast<v8::BackingStore*>(backing_store.release()));
-}
-
-Local<ArrayBuffer> v8::ArrayBufferView::Buffer() {
-  return GetBuffer().UnsafeAs<ArrayBuffer>();
 }
 
 Local<ArrayBufferBase> v8::ArrayBufferView::GetBuffer() {
@@ -11018,12 +11001,8 @@ CALLBACK_SETTER(AllowWasmCodeGenerationCallback,
                 AllowWasmCodeGenerationCallback, allow_wasm_code_gen_callback)
 
 CALLBACK_SETTER(WasmModuleCallback, WasmModuleCallback, wasm_module_callback)
-CALLBACK_SETTER(WasmModuleCallback, ExtensionCallback,
-                deprecated_wasm_module_callback)
 CALLBACK_SETTER(WasmInstanceCallback, WasmInstanceCallback,
                 wasm_instance_callback)
-CALLBACK_SETTER(WasmInstanceCallback, ExtensionCallback,
-                deprecated_wasm_instance_callback)
 
 CALLBACK_SETTER(WasmStreamingCallback, WasmStreamingCallback,
                 wasm_streaming_callback)

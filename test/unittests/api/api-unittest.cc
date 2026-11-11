@@ -19510,18 +19510,18 @@ TEST_F(ApiTest, RegExp) {
     v8::Local<v8::RegExp> regexp =
         v8::RegExp::New(context.local(), v8_str("a.c"), {}).ToLocalChecked();
     v8::Local<v8::Value> result0 =
-        regexp->ExecV2(context.local(), v8_str("abc")).ToLocalChecked();
+        regexp->Exec(context.local(), v8_str("abc")).ToLocalChecked();
     CHECK(result0->IsArray());
     v8::Local<v8::Value> result1 =
-        regexp->ExecV2(context.local(), v8_str("abd")).ToLocalChecked();
+        regexp->Exec(context.local(), v8_str("abd")).ToLocalChecked();
     CHECK(result1->IsNull());
 
     START_ALLOW_USE_DEPRECATED();
-    v8::Local<v8::Object> deprecated_result0 =
-        regexp->Exec(context.local(), v8_str("abc")).ToLocalChecked();
+    v8::Local<v8::Value> deprecated_result0 =
+        regexp->ExecV2(context.local(), v8_str("abc")).ToLocalChecked();
     CHECK(deprecated_result0->IsArray());
-    v8::Local<v8::Object> deprecated_result1 =
-        regexp->Exec(context.local(), v8_str("abd")).ToLocalChecked();
+    v8::Local<v8::Value> deprecated_result1 =
+        regexp->ExecV2(context.local(), v8_str("abd")).ToLocalChecked();
     CHECK(deprecated_result1->IsNull());
     END_ALLOW_USE_DEPRECATED();
   }

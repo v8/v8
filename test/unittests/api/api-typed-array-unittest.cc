@@ -386,9 +386,6 @@ void TypedArrayTestHelper(i::ExternalArrayType array_type, int64_t low,
   CHECK(ab->Equals(env.local(), ta->GetBuffer()).FromJust());
   CHECK_EQ((std::is_same_v<ArrayBufferType, v8::SharedArrayBuffer>),
            ta->GetBuffer()->IsShared());
-  START_ALLOW_USE_DEPRECATED();
-  CHECK(ab->Equals(env.local(), ta->Buffer()).FromJust());
-  END_ALLOW_USE_DEPRECATED();
 
   ElementType* data =
       reinterpret_cast<ElementType*>(ab->GetBackingStore()->Data()) + 2;
@@ -466,9 +463,6 @@ THREADED_TEST(ApiTypedArrayTest, DataView) {
   CHECK_EQ(2u, dv->ByteOffset());
   CHECK_EQ(kSize, static_cast<int>(dv->ByteLength()));
   CHECK(ab->Equals(env.local(), dv->GetBuffer()).FromJust());
-  START_ALLOW_USE_DEPRECATED();
-  CHECK(ab->Equals(env.local(), dv->Buffer()).FromJust());
-  END_ALLOW_USE_DEPRECATED();
 
   // TODO(v8:11111): Use API functions for testing these, once they're exposed
   // via the API.
@@ -537,9 +531,6 @@ THREADED_TEST(ApiTypedArrayTest, SharedDataView) {
   CHECK_EQ(2u, dv->ByteOffset());
   CHECK_EQ(kSize, static_cast<int>(dv->ByteLength()));
   CHECK(ab->Equals(env.local(), dv->GetBuffer()).FromJust());
-  START_ALLOW_USE_DEPRECATED();
-  CHECK(ab->Equals(env.local(), dv->Buffer()).FromJust());
-  END_ALLOW_USE_DEPRECATED();
 
   // TODO(v8:11111): Use API functions for testing these, once they're exposed
   // via the API.

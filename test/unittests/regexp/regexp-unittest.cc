@@ -3208,7 +3208,7 @@ class InterruptTest {
     v8::TryCatch try_catch(isolate_);
 
     isolate_->RequestInterrupt(&SignalSemaphore, this);
-    v8::MaybeLocal<v8::Value> result = regexp_handle_.Get(isolate_)->ExecV2(
+    v8::MaybeLocal<v8::Value> result = regexp_handle_.Get(isolate_)->Exec(
         context_.Get(isolate_), subject_string_handle_.Get(isolate_));
     CHECK(result.IsEmpty());
 

@@ -331,7 +331,9 @@ using FailedAccessCheckCallback = void (*)(Local<Object> target,
                                            AccessType type, Local<Value> data);
 
 // --- WebAssembly compilation callbacks ---
-using ExtensionCallback = bool (*)(const FunctionCallbackInfo<Value>&);
+using ExtensionCallback V8_DEPRECATE_SOON(
+    "Use WasmModuleCallback or WasmInstanceCallback instead") =
+    bool (*)(const FunctionCallbackInfo<Value>&);
 using WasmModuleCallback = bool (*)(Isolate* isolate, Local<Value> source);
 using WasmInstanceCallback = bool (*)(Isolate* isolate, Local<Value> source);
 
