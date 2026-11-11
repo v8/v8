@@ -5200,15 +5200,19 @@ class AssemblerOpInterface : public Next {
     return ReduceIfReachableIsNull(input, type);
   }
 
-  V<Object> AssertNotNull(V<Object> object, wasm::ValueType type,
-                          TrapId trap_id) {
+  template <typename T>
+  V<T> AssertNotNull(V<T> object, wasm::ValueType type, TrapId trap_id)
+    requires(is_subtype_v<T, Object>)
+  {
     return ReduceIfReachableAssertNotNull(object, OptionalV<EagerFrameState>{},
                                           type, trap_id);
   }
 
-  V<Object> AssertNotNull(V<Object> object,
-                          OptionalV<EagerFrameState> frame_state,
-                          wasm::ValueType type, TrapId trap_id) {
+  template <typename T>
+  V<T> AssertNotNull(V<T> object, OptionalV<EagerFrameState> frame_state,
+                     wasm::ValueType type, TrapId trap_id)
+    requires(is_subtype_v<T, Object>)
+  {
     return ReduceIfReachableAssertNotNull(object, frame_state, type, trap_id);
   }
 

@@ -2355,8 +2355,8 @@ class TurboshaftGraphBuildingInterface
         constexpr int config = UnicodeConfig::kWtf16Unshared().raw_as_int();
         V<String> result_value = CallBuiltinThroughJumptable<
             BuiltinCallDescriptor::WasmStringNewWtf16Array>(
-            decoder, {V<WasmArray>::Cast(NullCheck(args[0])), args[1].op,
-                      args[2].op, __ SmiConstant(Smi::FromInt(config))});
+            decoder, {NullCheck<WasmArray>(args[0]), args[1].op, args[2].op,
+                      __ SmiConstant(Smi::FromInt(config))});
         result = __ AnnotateWasmType(result_value, kWasmRefExternString);
         break;
       }
@@ -2364,8 +2364,8 @@ class TurboshaftGraphBuildingInterface
         constexpr int config = UnicodeConfig::kWtf16Shared().raw_as_int();
         V<String> result_value = CallBuiltinThroughJumptable<
             BuiltinCallDescriptor::WasmStringNewWtf16Array>(
-            decoder, {V<WasmArray>::Cast(NullCheck(args[0])), args[1].op,
-                      args[2].op, __ SmiConstant(Smi::FromInt(config))});
+            decoder, {NullCheck<WasmArray>(args[0]), args[1].op, args[2].op,
+                      __ SmiConstant(Smi::FromInt(config))});
         result = __ AnnotateWasmType(result_value, kWasmRefSharedExternString);
         break;
       }
@@ -2380,9 +2380,8 @@ class TurboshaftGraphBuildingInterface
         constexpr int config = UnicodeConfig::kLossyUtf8Shared().raw_as_int();
         V<Object> builtin_result = CallBuiltinThroughJumptable<
             BuiltinCallDescriptor::WasmStringNewWtf8Array>(
-            decoder,
-            {args[1].op, args[2].op, V<WasmArray>::Cast(NullCheck(args[0])),
-             __ SmiConstant(Smi::FromInt(config))});
+            decoder, {args[1].op, args[2].op, NullCheck<WasmArray>(args[0]),
+                      __ SmiConstant(Smi::FromInt(config))});
         result =
             __ AnnotateWasmType(builtin_result, kWasmRefSharedExternString);
         break;
@@ -2392,7 +2391,7 @@ class TurboshaftGraphBuildingInterface
         V<String> string = ExternRefToString(args[0]);
         result = StringEncodeWtf8ArrayImpl(
             decoder, unibrow::Utf8Variant::kLossyUtf8, string,
-            V<WasmArray>::Cast(NullCheck(args[1])), args[2].get<Word32>());
+            NullCheck<WasmArray>(args[1]), args[2].get<Word32>());
         break;
       }
       case WKI::kStringToUtf8Array:
@@ -2445,8 +2444,7 @@ class TurboshaftGraphBuildingInterface
         V<String> string = ExternRefToString(args[0]);
         result = CallBuiltinThroughJumptable<
             BuiltinCallDescriptor::WasmStringEncodeWtf16Array>(
-            decoder,
-            {string, V<WasmArray>::Cast(NullCheck(args[1])), args[2].op});
+            decoder, {string, NullCheck<WasmArray>(args[1]), args[2].op});
         break;
       }
 
@@ -5938,7 +5936,7 @@ class TurboshaftGraphBuildingInterface
   }
 
   void I31GetS(FullDecoder* decoder, const Value& input, Value* result) {
-    V<Smi> input_non_null = V<Smi>::Cast(NullCheck(input));
+    V<Smi> input_non_null = NullCheck<Smi>(input);
     if constexpr (SmiValuesAre31Bits()) {
       result->op = __ Word32ShiftRightArithmeticShiftOutZeros(
           __ TruncateWordPtrToWord32(__ BitcastSmiToWordPtr(input_non_null)),
@@ -5953,7 +5951,7 @@ class TurboshaftGraphBuildingInterface
   }
 
   void I31GetU(FullDecoder* decoder, const Value& input, Value* result) {
-    V<Smi> input_non_null = V<Smi>::Cast(NullCheck(input));
+    V<Smi> input_non_null = NullCheck<Smi>(input);
     if constexpr (SmiValuesAre31Bits()) {
       result->op = __ Word32ShiftRightLogical(
           __ TruncateWordPtrToWord32(__ BitcastSmiToWordPtr(input_non_null)),
@@ -6208,9 +6206,8 @@ class TurboshaftGraphBuildingInterface
                            result_type.is_shared());
       call = CallBuiltinThroughJumptable<
           BuiltinCallDescriptor::WasmStringNewWtf8Array>(
-          decoder,
-          {start.op, end.get<Word32>(), V<WasmArray>::Cast(NullCheck(array)),
-           __ SmiConstant(Smi::FromInt(config.raw_as_int()))});
+          decoder, {start.op, end.get<Word32>(), NullCheck<WasmArray>(array),
+                    __ SmiConstant(Smi::FromInt(config.raw_as_int()))});
     }
     DCHECK_IMPLIES(variant == unibrow::Utf8Variant::kUtf8NoTrap,
                    result_type.is_nullable());
@@ -6247,8 +6244,8 @@ class TurboshaftGraphBuildingInterface
     V<String> result_value = CallBuiltinThroughJumptable<
         BuiltinCallDescriptor::WasmStringNewWtf16Array>(
         decoder,
-        {V<WasmArray>::Cast(NullCheck(array)), start.get<Word32>(),
-         end.get<Word32>(), __ SmiConstant(Smi::FromInt(config.raw_as_int()))});
+        {NullCheck<WasmArray>(array), start.get<Word32>(), end.get<Word32>(),
+         __ SmiConstant(Smi::FromInt(config.raw_as_int()))});
     result->op = __ AnnotateWasmType(result_value, result->type);
   }
 
@@ -6263,8 +6260,8 @@ class TurboshaftGraphBuildingInterface
   void StringMeasureWtf8(FullDecoder* decoder,
                          const unibrow::Utf8Variant variant, const Value& str,
                          Value* result) {
-    result->op = StringMeasureWtf8Impl(decoder, variant,
-                                       V<String>::Cast(NullCheck(str)));
+    result->op =
+        StringMeasureWtf8Impl(decoder, variant, NullCheck<String>(str));
   }
 
   OpIndex StringMeasureWtf8Impl(FullDecoder* decoder,
@@ -6284,14 +6281,14 @@ class TurboshaftGraphBuildingInterface
     UNREACHABLE();
   }
 
-  V<Word32> LoadStringLength(V<Object> string) {
+  V<Word32> LoadStringLength(V<String> string) {
     return __ template LoadField<Word32>(
         string, compiler::AccessBuilder::ForStringLength());
   }
 
   void StringMeasureWtf16(FullDecoder* decoder, const Value& str,
                           Value* result) {
-    result->op = LoadStringLength(NullCheck(str));
+    result->op = LoadStringLength(NullCheck<String>(str));
   }
 
   void StringEncodeWtf8(FullDecoder* decoder,
@@ -6304,7 +6301,7 @@ class TurboshaftGraphBuildingInterface
     V<Word32> utf8 = __ Word32Constant(static_cast<int32_t>(variant));
     result->op = CallBuiltinThroughJumptable<
         BuiltinCallDescriptor::WasmStringEncodeWtf8>(
-        decoder, {address, mem_index, utf8, V<String>::Cast(NullCheck(str))});
+        decoder, {address, mem_index, utf8, NullCheck<String>(str)});
   }
 
   void StringEncodeWtf8Array(FullDecoder* decoder,
@@ -6312,8 +6309,8 @@ class TurboshaftGraphBuildingInterface
                              const Value& str, const Value& array,
                              const Value& start, Value* result) {
     result->op = StringEncodeWtf8ArrayImpl(
-        decoder, variant, V<String>::Cast(NullCheck(str)),
-        V<WasmArray>::Cast(NullCheck(array)), start.get<Word32>());
+        decoder, variant, NullCheck<String>(str), NullCheck<WasmArray>(array),
+        start.get<Word32>());
   }
 
   OpIndex StringEncodeWtf8ArrayImpl(FullDecoder* decoder,
@@ -6333,7 +6330,7 @@ class TurboshaftGraphBuildingInterface
     V<Word32> mem_index = __ Word32Constant(static_cast<int32_t>(imm.index));
     result->op = CallBuiltinThroughJumptable<
         BuiltinCallDescriptor::WasmStringEncodeWtf16>(
-        decoder, {V<String>::Cast(NullCheck(str)), address, mem_index});
+        decoder, {NullCheck<String>(str), address, mem_index});
   }
 
   void StringEncodeWtf16Array(FullDecoder* decoder, const Value& str,
@@ -6341,8 +6338,8 @@ class TurboshaftGraphBuildingInterface
                               Value* result) {
     result->op = CallBuiltinThroughJumptable<
         BuiltinCallDescriptor::WasmStringEncodeWtf16Array>(
-        decoder, {V<String>::Cast(NullCheck(str)),
-                  V<WasmArray>::Cast(NullCheck(array)), start.get<Word32>()});
+        decoder, {NullCheck<String>(str), NullCheck<WasmArray>(array),
+                  start.get<Word32>()});
   }
 
   void StringConcat(FullDecoder* decoder, const Value& head, const Value& tail,
@@ -6353,7 +6350,7 @@ class TurboshaftGraphBuildingInterface
     V<String> result_value = CallBuiltinThroughJumptable<
         BuiltinCallDescriptor::WasmStringAdd_NoMapCheck>(
         decoder, native_context,
-        {V<String>::Cast(NullCheck(head)), V<String>::Cast(NullCheck(tail))});
+        {NullCheck<String>(head), NullCheck<String>(tail)});
     result->op = __ AnnotateWasmType(result_value, result->type);
   }
 
@@ -6401,13 +6398,13 @@ class TurboshaftGraphBuildingInterface
                            Value* result) {
     result->op = CallBuiltinThroughJumptable<
         BuiltinCallDescriptor::WasmStringIsUSVSequence>(
-        decoder, {V<String>::Cast(NullCheck(str))});
+        decoder, {NullCheck<String>(str)});
   }
 
   void StringAsWtf8(FullDecoder* decoder, const Value& str, Value* result) {
     V<ByteArray> result_value =
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmStringAsWtf8>(
-            decoder, {V<String>::Cast(NullCheck(str))});
+            decoder, {NullCheck<String>(str)});
     result->op = __ AnnotateWasmType(result_value, result->type);
   }
 
@@ -6416,8 +6413,7 @@ class TurboshaftGraphBuildingInterface
                              Value* result) {
     result->op = CallBuiltinThroughJumptable<
         BuiltinCallDescriptor::WasmStringViewWtf8Advance>(
-        decoder,
-        {V<ByteArray>::Cast(NullCheck(view)), pos.get<Word32>(), bytes.op});
+        decoder, {NullCheck<ByteArray>(view), pos.get<Word32>(), bytes.op});
   }
 
   void StringViewWtf8Encode(FullDecoder* decoder,
@@ -6433,7 +6429,7 @@ class TurboshaftGraphBuildingInterface
     OpIndex result = CallBuiltinThroughJumptable<
         BuiltinCallDescriptor::WasmStringViewWtf8Encode>(
         decoder, {address, pos.get<Word32>(), bytes.op,
-                  V<ByteArray>::Cast(NullCheck(view)), mem_index, utf8});
+                  NullCheck<ByteArray>(view), mem_index, utf8});
     next_pos->op = __ Projection(result, 0, RepresentationFor(next_pos->type));
     bytes_written->op =
         __ Projection(result, 1, RepresentationFor(bytes_written->type));
@@ -6444,13 +6440,12 @@ class TurboshaftGraphBuildingInterface
                            Value* result) {
     V<String> result_value = CallBuiltinThroughJumptable<
         BuiltinCallDescriptor::WasmStringViewWtf8Slice>(
-        decoder,
-        {V<ByteArray>::Cast(NullCheck(view)), start.op, end.get<Word32>()});
+        decoder, {NullCheck<ByteArray>(view), start.op, end.get<Word32>()});
     result->op = __ AnnotateWasmType(result_value, result->type);
   }
 
   void StringAsWtf16(FullDecoder* decoder, const Value& str, Value* result) {
-    result->op = __ StringAsWtf16(V<String>::Cast(NullCheck(str)));
+    result->op = __ StringAsWtf16(NullCheck<String>(str));
   }
 
   V<Word32> GetCodeUnitImpl(FullDecoder* decoder, V<String> string,
@@ -6512,8 +6507,8 @@ class TurboshaftGraphBuildingInterface
 
   void StringViewWtf16GetCodeUnit(FullDecoder* decoder, const Value& view,
                                   const Value& pos, Value* result) {
-    result->op = GetCodeUnitImpl(decoder, V<String>::Cast(NullCheck(view)),
-                                 pos.get<Word32>());
+    result->op =
+        GetCodeUnitImpl(decoder, NullCheck<String>(view), pos.get<Word32>());
   }
 
   V<Word32> StringCodePointAt(FullDecoder* decoder, V<String> string,
@@ -6592,7 +6587,7 @@ class TurboshaftGraphBuildingInterface
                              const MemoryIndexImmediate& imm, const Value& view,
                              const Value& offset, const Value& pos,
                              const Value& codeunits, Value* result) {
-    V<String> string = V<String>::Cast(NullCheck(view));
+    V<String> string = NullCheck<String>(view);
     V<WordPtr> address = MemoryAddressToUintPtrOrOOBTrap(
         imm.memory->address_type, offset.get<Word>());
     V<Smi> mem_index = __ SmiConstant(Smi::FromInt(imm.index));
@@ -6604,7 +6599,7 @@ class TurboshaftGraphBuildingInterface
   void StringViewWtf16Slice(FullDecoder* decoder, const Value& view,
                             const Value& start, const Value& end,
                             Value* result) {
-    V<String> string = V<String>::Cast(NullCheck(view));
+    V<String> string = NullCheck<String>(view);
     V<String> result_value = CallBuiltinThroughJumptable<
         BuiltinCallDescriptor::WasmStringViewWtf16Slice>(
         decoder, {string, start.get<Word32>(), end.get<Word32>()});
@@ -6612,7 +6607,7 @@ class TurboshaftGraphBuildingInterface
   }
 
   void StringAsIter(FullDecoder* decoder, const Value& str, Value* result) {
-    V<String> string = V<String>::Cast(NullCheck(str));
+    V<String> string = NullCheck<String>(str);
     V<WasmStringViewIter> result_value =
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmStringAsIter>(
             decoder, {string});
@@ -6621,14 +6616,14 @@ class TurboshaftGraphBuildingInterface
 
   void StringViewIterNext(FullDecoder* decoder, const Value& view,
                           Value* result) {
-    V<WasmStringViewIter> iter = V<WasmStringViewIter>::Cast(NullCheck(view));
+    V<WasmStringViewIter> iter = NullCheck<WasmStringViewIter>(view);
     result->op = CallBuiltinThroughJumptable<
         BuiltinCallDescriptor::WasmStringViewIterNext>(decoder, {iter});
   }
 
   void StringViewIterAdvance(FullDecoder* decoder, const Value& view,
                              const Value& codepoints, Value* result) {
-    V<WasmStringViewIter> iter = V<WasmStringViewIter>::Cast(NullCheck(view));
+    V<WasmStringViewIter> iter = NullCheck<WasmStringViewIter>(view);
     result->op = CallBuiltinThroughJumptable<
         BuiltinCallDescriptor::WasmStringViewIterAdvance>(
         decoder, {iter, codepoints.op});
@@ -6636,7 +6631,7 @@ class TurboshaftGraphBuildingInterface
 
   void StringViewIterRewind(FullDecoder* decoder, const Value& view,
                             const Value& codepoints, Value* result) {
-    V<WasmStringViewIter> iter = V<WasmStringViewIter>::Cast(NullCheck(view));
+    V<WasmStringViewIter> iter = NullCheck<WasmStringViewIter>(view);
     result->op = CallBuiltinThroughJumptable<
         BuiltinCallDescriptor::WasmStringViewIterRewind>(decoder,
                                                          {iter, codepoints.op});
@@ -6644,7 +6639,7 @@ class TurboshaftGraphBuildingInterface
 
   void StringViewIterSlice(FullDecoder* decoder, const Value& view,
                            const Value& codepoints, Value* result) {
-    V<WasmStringViewIter> iter = V<WasmStringViewIter>::Cast(NullCheck(view));
+    V<WasmStringViewIter> iter = NullCheck<WasmStringViewIter>(view);
     V<String> result_value = CallBuiltinThroughJumptable<
         BuiltinCallDescriptor::WasmStringViewIterSlice>(decoder,
                                                         {iter, codepoints.op});
@@ -6653,8 +6648,8 @@ class TurboshaftGraphBuildingInterface
 
   void StringCompare(FullDecoder* decoder, const Value& lhs, const Value& rhs,
                      Value* result) {
-    V<String> lhs_val = V<String>::Cast(NullCheck(lhs));
-    V<String> rhs_val = V<String>::Cast(NullCheck(rhs));
+    V<String> lhs_val = NullCheck<String>(lhs);
+    V<String> rhs_val = NullCheck<String>(rhs);
     result->op = __ UntagSmi(
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmStringCompare>(
             decoder, {lhs_val, rhs_val}));
@@ -6670,7 +6665,7 @@ class TurboshaftGraphBuildingInterface
   }
 
   void StringHash(FullDecoder* decoder, const Value& string, Value* result) {
-    V<String> string_val = V<String>::Cast(NullCheck(string));
+    V<String> string_val = NullCheck<String>(string);
 
     Label<> runtime_label(&Asm());
     Label<Word32> end_label(&Asm());
@@ -6964,12 +6959,12 @@ class TurboshaftGraphBuildingInterface
   };
 
   // Perform a null check if the input type is nullable.
-  V<Object> NullCheck(const Value& value,
-                      TrapId trap_id = TrapId::kTrapNullDereference) {
-    V<Object> not_null_value = value.get<Object>();
+  template <typename T = Object>
+  V<T> NullCheck(const Value& value,
+                 TrapId trap_id = TrapId::kTrapNullDereference) {
+    V<T> not_null_value = value.get<T>();
     if (value.type.is_nullable()) {
-      not_null_value =
-          __ AssertNotNull(value.get<Object>(), value.type, trap_id);
+      not_null_value = __ AssertNotNull(not_null_value, value.type, trap_id);
     }
     return not_null_value;
   }
@@ -8619,8 +8614,7 @@ class TurboshaftGraphBuildingInterface
                                              ValueType type) {
     if (type.is_nullable() &&
         null_check_strategy_ == compiler::NullCheckStrategy::kExplicit) {
-      func_ref = V<WasmFuncRef>::Cast(
-          __ AssertNotNull(func_ref, type, TrapId::kTrapNullDereference));
+      func_ref = __ AssertNotNull(func_ref, type, TrapId::kTrapNullDereference);
     }
 
     LoadOp::Kind load_kind =
