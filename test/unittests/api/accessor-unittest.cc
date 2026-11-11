@@ -177,9 +177,7 @@ TEST_F(AccessorTest, CachedAccessorOnGlobalObject) {
   v8::Local<v8::Object> obj = ctx->Global();
 
   // Install the private property on the instance.
-  CHECK(obj->SetPrivate(isolate()->GetCurrentContext(), priv,
-                        v8::Undefined(isolate()))
-            .FromJust());
+  CHECK(obj->SetPrivate(ctx, priv, v8::Undefined(isolate())).FromJust());
 
   {
     v8::Context::Scope context_scope(ctx);
@@ -188,7 +186,7 @@ TEST_F(AccessorTest, CachedAccessorOnGlobalObject) {
     EXPECT_THAT(RunJS("draft"), IsUndefined());
 
     // Set hidden property.
-    CHECK(obj->SetPrivate(context(), priv, v8::Integer::New(isolate(), 123))
+    CHECK(obj->SetPrivate(ctx, priv, v8::Integer::New(isolate(), 123))
               .FromJust());
 
     // Test ICs.
@@ -205,7 +203,7 @@ TEST_F(AccessorTest, CachedAccessorOnGlobalObject) {
     EXPECT_THAT(RunJS("f()"), IsInt32(123));
 
     // Reset hidden property.
-    CHECK(obj->SetPrivate(context(), priv, v8::Integer::New(isolate(), 456))
+    CHECK(obj->SetPrivate(ctx, priv, v8::Integer::New(isolate(), 456))
               .FromJust());
 
     // Test TurboFan.
@@ -213,7 +211,7 @@ TEST_F(AccessorTest, CachedAccessorOnGlobalObject) {
 
     EXPECT_THAT(RunJS("f()"), IsInt32(456));
 
-    CHECK(obj->SetPrivate(context(), priv, v8::Integer::New(isolate(), 456))
+    CHECK(obj->SetPrivate(ctx, priv, v8::Integer::New(isolate(), 456))
               .FromJust());
     // Test non-global ICs.
     RunJS(
@@ -230,7 +228,7 @@ TEST_F(AccessorTest, CachedAccessorOnGlobalObject) {
     EXPECT_THAT(RunJS("g()"), IsInt32(456));
 
     // Reset hidden property.
-    CHECK(obj->SetPrivate(context(), priv, v8::Integer::New(isolate(), 789))
+    CHECK(obj->SetPrivate(ctx, priv, v8::Integer::New(isolate(), 789))
               .FromJust());
 
     // Test non-global access in TurboFan.

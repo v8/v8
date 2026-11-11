@@ -1079,12 +1079,17 @@ bool ErrorUtils::HasErrorStackSymbolOwnProperty(Isolate* isolate,
   // TODO(v8:5962): consider adding object->IsWasmExceptionPackage() here
   // once it's guaranteed that WasmExceptionPackage has |error_stack_symbol|
   // property.
-  DirectHandle<Name> name = isolate->factory()->error_stack_symbol();
+
+  // We are not using JSReceiver::HasOwnProperty() here because we don't want
+  // IsErrorObject() predicate to throw exception upon failed access check
+  // when querying the error_stack_symbol.
   if (IsJSError(*object)) {
-    DCHECK(JSReceiver::HasOwnProperty(isolate, object, name).FromMaybe(false));
+    DCHECK(!ErrorUtils::GetErrorStackProperty(isolate, object)
+                .error_stack_symbol_holder.is_null());
     return true;
   }
-  return JSReceiver::HasOwnProperty(isolate, object, name).FromMaybe(false);
+  return !ErrorUtils::GetErrorStackProperty(isolate, object)
+              .error_stack_symbol_holder.is_null();
 }
 
 // static

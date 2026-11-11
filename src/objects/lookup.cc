@@ -1295,7 +1295,7 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
       if (IsAnyWasmObjectMap(map)) return WASM_OBJECT;
 #endif  // V8_ENABLE_WEBASSEMBLY
       if (map->is_access_check_needed()) {
-        if (is_element || !name_->IsPrivateInternal()) return ACCESS_CHECK;
+        return ACCESS_CHECK;
       }
       [[fallthrough]];
     case ACCESS_CHECK:
@@ -1429,7 +1429,7 @@ DirectHandle<InterceptorInfo>
 LookupIterator::GetInterceptorForFailedAccessCheck() const {
   DCHECK_EQ(ACCESS_CHECK, state_);
   // Skip the interceptors for private
-  if (IsAnyPrivateName()) {
+  if (!IsElement() && name_->IsAnyPrivate()) {
     return DirectHandle<InterceptorInfo>();
   }
 
@@ -1480,21 +1480,38 @@ bool LookupIterator::LookupCachedProperty(
       FunctionTemplateInfo::TryGetCachedPropertyName(isolate(), getter);
   if (!maybe_name.has_value()) return false;
 
-  if (IsJSFunction(getter)) {
-    // If the getter was a JSFunction there's no guarantee that the holder
-    // actually has a property with the cached name. In that case look it up to
-    // make sure.
-    LookupIterator it(isolate_, holder_,
-                      direct_handle(maybe_name.value(), isolate_));
+#ifdef DEBUG
+  DirectHandle<JSReceiver> cached_property_holder = holder_;
+#endif
+  // There's no guarantee that the holder actually has a property with the
+  // cached name:
+  //  - in case of JSFunction getter it could be set on an arbitrary object,
+  //  - in case of FunctionTemplateInfo getter the embedder might theoretically
+  //    forget to set the private symbol on the holder.
+  // So, look it up to make sure before modifying this LookupIterator.
+  {
+    LookupIterator it(isolate_, holder_, direct_handle(*maybe_name, isolate_),
+                      LookupIterator::OWN_SKIP_INTERCEPTOR);
+    if (it.state() == ACCESS_CHECK) {
+      // We managed to get to the holder_, so we do have access.
+      DCHECK(it.HasAccess());
+      it.Next();
+    }
     if (it.state() != DATA) return false;
-    name_ = it.name();
-  } else {
-    name_ = direct_handle(maybe_name.value(), isolate_);
+    DCHECK_EQ(*it.GetHolder<JSReceiver>(), *cached_property_holder);
   }
 
   // We have found a cached property! Modify the iterator accordingly.
+  name_ = direct_handle(*maybe_name, isolate_);
   Restart();
+  if (state() == ACCESS_CHECK) {
+    // We are not supposed to get past the cached_property_holder, so we
+    // must still have access.
+    DCHECK(HasAccess());
+    Next();
+  }
   CHECK_EQ(state(), LookupIterator::DATA);
+  DCHECK_EQ(*holder_, *cached_property_holder);
   return true;
 }
 
