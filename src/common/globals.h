@@ -1555,7 +1555,8 @@ constexpr bool IsAnyNewSpace(AllocationSpace space) {
 }
 constexpr bool IsAnyLargeSpace(AllocationSpace space) {
   return space == NEW_LO_SPACE || space == LO_SPACE || space == CODE_LO_SPACE ||
-         space == SHARED_LO_SPACE || space == TRUSTED_LO_SPACE;
+         space == SHARED_LO_SPACE || space == TRUSTED_LO_SPACE ||
+         space == SHARED_TRUSTED_LO_SPACE;
 }
 
 constexpr const char* ToString(AllocationSpace space) {

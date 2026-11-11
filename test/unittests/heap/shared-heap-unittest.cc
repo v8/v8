@@ -120,6 +120,59 @@ TEST_F(SharedHeapTestWithInternals,
   EXPECT_GT(heap()->gc_count(), initial_gc_count);
 }
 
+TEST_F(SharedHeapTest, SweepSharedTrustedLargeObjectSpace) {
+  Isolate* isolate = i_isolate();
+  CHECK(isolate->is_shared_space_isolate());
+  ManualGCScope manual_gc_scope(isolate);
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      isolate->heap());
+  Factory* factory = isolate->factory();
+  OldLargeObjectSpace* shared_trusted_lo_space =
+      isolate->heap()->shared_trusted_lo_space();
+
+  constexpr int kLargeArrayLength =
+      (kMaxRegularHeapObjectSize / kTaggedSize) + 1;
+
+  // 1. Dead large object in shared_trusted_lo_space should be reclaimed on GC.
+  {
+    HandleScope scope(isolate);
+    DirectHandle<TrustedByteArray> dead_array = factory->NewTrustedByteArray(
+        kMaxRegularHeapObjectSize + 1, AllocationType::kSharedTrusted);
+    CHECK_EQ(MemoryChunk::FromHeapObject(*dead_array)
+                 ->Metadata()
+                 ->owner()
+                 ->identity(),
+             SHARED_TRUSTED_LO_SPACE);
+    EXPECT_GT(shared_trusted_lo_space->SizeOfObjects(), 0u);
+  }
+  InvokeMajorGC(isolate);
+  EXPECT_EQ(shared_trusted_lo_space->SizeOfObjects(), 0u);
+
+  // 2. Surviving large object in shared_trusted_lo_space must have its markbit
+  // cleared during sweeping so that subsequent GCs trace newly written slots.
+  HandleScope scope(isolate);
+  DirectHandle<TrustedFixedArray> live_array = factory->NewTrustedFixedArray(
+      kLargeArrayLength, AllocationType::kSharedTrusted);
+  CHECK_EQ(
+      MemoryChunk::FromHeapObject(*live_array)->Metadata()->owner()->identity(),
+      SHARED_TRUSTED_LO_SPACE);
+
+  // First GC: live_array survives.
+  InvokeMajorGC(isolate);
+  EXPECT_FALSE(isolate->heap()->marking_state()->IsMarked(*live_array));
+
+  // Store a reference to a newly allocated shared object without keeping a
+  // separate handle to it, then trigger a second GC.
+  {
+    HandleScope inner_scope(isolate);
+    DirectHandle<FixedArray> child =
+        factory->NewFixedArray(16, AllocationType::kSharedOld);
+    live_array->set(0, *child);
+  }
+  InvokeMajorGC(isolate);
+  EXPECT_TRUE(IsFixedArray(live_array->get(0)));
+}
+
 namespace {
 class SharedTrustedSpaceAllocationThread final : public ParkingThread {
  public:
