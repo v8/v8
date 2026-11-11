@@ -7895,7 +7895,7 @@ class TurboshaftGraphBuildingInterface
       case kExprI64SExtendI16:
         return __ Word64SignExtend16(arg);
       case kExprI64SExtendI32:
-        return __ ChangeInt32ToInt64(__ TruncateWord64ToWord32(arg));
+        return __ Word64SignExtendLower32(arg);
       case kExprRefIsNull:
         return __ IsNull(arg, input_type);
 
@@ -8089,14 +8089,8 @@ class TurboshaftGraphBuildingInterface
         return __ Uint64LessThan(rhs, lhs);
       case kExprI64GeU:
         return __ Uint64LessThanOrEqual(rhs, lhs);
-      case kExprF32CopySign: {
-        V<Word32> lhs_without_sign =
-            __ Word32BitwiseAnd(__ BitcastFloat32ToWord32(lhs), 0x7fffffff);
-        V<Word32> rhs_sign =
-            __ Word32BitwiseAnd(__ BitcastFloat32ToWord32(rhs), 0x80000000);
-        return __ BitcastWord32ToFloat32(
-            __ Word32BitwiseOr(lhs_without_sign, rhs_sign));
-      }
+      case kExprF32CopySign:
+        return __ Float32CopySign(lhs, rhs);
       case kExprF32Add:
         return __ Float32Add(lhs, rhs);
       case kExprF32Sub:
@@ -8121,14 +8115,8 @@ class TurboshaftGraphBuildingInterface
         return __ Float32Min(lhs, rhs);
       case kExprF32Max:
         return __ Float32Max(lhs, rhs);
-      case kExprF64CopySign: {
-        V<Word64> lhs_without_sign = __ Word64BitwiseAnd(
-            __ BitcastFloat64ToWord64(lhs), 0x7fffffffffffffff);
-        V<Word64> rhs_sign = __ Word64BitwiseAnd(__ BitcastFloat64ToWord64(rhs),
-                                                 0x8000000000000000);
-        return __ BitcastWord64ToFloat64(
-            __ Word64BitwiseOr(lhs_without_sign, rhs_sign));
-      }
+      case kExprF64CopySign:
+        return __ Float64CopySign(lhs, rhs);
       case kExprF64Add:
         return __ Float64Add(lhs, rhs);
       case kExprF64Sub:
