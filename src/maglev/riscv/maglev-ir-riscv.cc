@@ -588,10 +588,9 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
   //     rhs = -rhs
   //     deopt if rhs == 0
   //   if lhs < 0 then
-  //     let lhs_abs = -lhs in
-  //     let res = lhs_abs % rhs in
-  //     deopt if res == 0
-  //     -res
+  //     // Different from MachineLoweringReducer, using remw directly.
+  //     let out = lhs % rhs in
+  //     deopt if out == 0
   //   else
   //     let msk = rhs - 1 in
   //     if rhs & msk == 0 then
@@ -629,13 +628,8 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
   Label* deferred_lhs_check = __ MakeDeferredCode(
       [](MaglevAssembler* masm, ZoneLabelRef done, Register lhs, Register rhs,
          Register out, Int32ModulusWithOverflow* node) {
-        MaglevAssembler::TemporaryRegisterScope temps(masm);
-        Register lhs_abs = temps.AcquireScratch();
-        __ negw(lhs_abs, lhs);
-        Register res = lhs_abs;
-        __ remw(res, lhs_abs, rhs);
-        __ negw(out, res);
-        __ MacroAssembler::Branch(*done, ne, res, Operand(zero_reg));
+        __ remw(out, lhs, rhs);
+        __ MacroAssembler::Branch(*done, ne, out, Operand(zero_reg));
         // TODO(victorgomes): This ideally should be kMinusZero, but Maglev
         // only allows one deopt reason per IR.
         __ EmitEagerDeopt(node, deopt_reason);
