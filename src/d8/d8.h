@@ -602,10 +602,6 @@ class ShellOptions {
       "dump-system-memory-stats", false};
   DisallowReassignment<bool> ignore_unhandled_promises = {
       "ignore-unhandled-promises", false};
-  // This flag enables a bare-bones InspectorClient implementation in the shell.
-  // It is only a harness for basic tests in `test/debugger`, and not shipped
-  // in production. `test/inspector` uses the `inspector-test` binary instead.
-  DisallowReassignment<bool> enable_inspector = {"enable-inspector", false};
   int num_isolates = 1;
   DisallowReassignment<v8::ScriptCompiler::CompileOptions, true>
       compile_options = {"cache", v8::ScriptCompiler::kNoCompileOptions};

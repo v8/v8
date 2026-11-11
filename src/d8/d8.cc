@@ -34,7 +34,6 @@
 #include "include/v8-external.h"
 #include "include/v8-function.h"
 #include "include/v8-initialization.h"
-#include "include/v8-inspector.h"
 #include "include/v8-isolate.h"
 #include "include/v8-json.h"
 #include "include/v8-locker.h"
@@ -159,8 +158,6 @@ namespace {
 
 // Set on worker threads to the current Worker instance.
 thread_local Worker* current_worker_ = nullptr;
-
-constexpr v8::EmbedderDataTypeTag kInspectorClientTag = 1;
 
 // Modules declared by all bundles executed in the current run. Worker threads
 // read this map when importing modules, so accesses need to hold
@@ -1083,7 +1080,7 @@ class ModuleEmbedderData {
   std::vector<decltype(module_map)::iterator> inserted_modules;
 };
 
-enum { kModuleEmbedderDataIndex, kInspectorClientIndex };
+enum { kModuleEmbedderDataIndex };
 
 i::CppGCManaged<ModuleEmbedderData>::Ptr InitializeModuleEmbedderData(
     Local<Context> context) {
@@ -3693,10 +3690,6 @@ void Shell::ResetOnProfileEndListener(Isolate* isolate) {
     profiler_end_callback_.erase(isolate);
   }
 
-  // If the inspector is enabled, then the installed console is not the
-  // D8Console.
-  if (options.enable_inspector) return;
-
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   D8Console* console =
       reinterpret_cast<D8Console*>(i_isolate->console_delegate());
@@ -3732,10 +3725,6 @@ void Shell::ResetIsolateStateForReprl(Isolate* isolate) {
 
 void Shell::ProfilerTriggerSample(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  // If the inspector is enabled, then the installed console is not the
-  // D8Console.
-  if (options.enable_inspector) return;
-
   Isolate* isolate = info.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   D8Console* console =
@@ -6036,211 +6025,7 @@ void Shell::RunShell(Isolate* isolate) {
   printf("\n");
 }
 
-class InspectorFrontend final : public v8_inspector::V8Inspector::Channel {
- public:
-  explicit InspectorFrontend(Local<Context> context) {
-    isolate_ = Isolate::GetCurrent();
-    context_.Reset(isolate_, context);
-  }
-  ~InspectorFrontend() override = default;
 
- private:
-  void sendResponse(
-      int callId,
-      std::unique_ptr<v8_inspector::StringBuffer> message) override {
-    Send(message->string());
-  }
-  void sendNotification(
-      std::unique_ptr<v8_inspector::StringBuffer> message) override {
-    Send(message->string());
-  }
-  void flushProtocolNotifications() override {}
-
-  void Send(const v8_inspector::StringView& string) {
-    v8::Isolate::AllowJavascriptExecutionScope allow_script(isolate_);
-    v8::HandleScope handle_scope(isolate_);
-    Local<Context> context = context_.Get(isolate_);
-    v8::Context::Scope context_scope(context);
-    if (string.length() > size_t{v8::String::kMaxLength}) {
-      fprintf(stderr, "Response from inspector exceeds max string length.\n");
-      return;
-    }
-    int length = static_cast<int>(string.length());
-    Local<String> message =
-        (string.is8Bit()
-             ? v8::String::NewFromOneByte(
-                   isolate_,
-                   reinterpret_cast<const uint8_t*>(string.characters8()),
-                   v8::NewStringType::kNormal, length)
-             : v8::String::NewFromTwoByte(
-                   isolate_,
-                   reinterpret_cast<const uint16_t*>(string.characters16()),
-                   v8::NewStringType::kNormal, length))
-            .ToLocalChecked();
-    Local<String> callback_name = v8::String::NewFromUtf8Literal(
-        isolate_, "receive", NewStringType::kInternalized);
-    v8::TryCatch try_catch(isolate_);
-    Local<Value> callback;
-    if (!context->Global()->Get(context, callback_name).ToLocal(&callback)) {
-      return;
-    }
-    if (callback->IsFunction()) {
-      i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate_);
-      i::DirectHandle<i::Object> i_callback =
-          Utils::OpenDirectHandle(*callback);
-      i::DirectHandle<i::Object> i_receiver =
-          i_isolate->factory()->undefined_value();
-      i::DirectHandle<i::Object> i_args[] = {Utils::OpenDirectHandle(*message)};
-      i::MaybeDirectHandle<i::Object> maybe_exception;
-      std::ignore = i::Execution::TryCall(
-          i_isolate, i_callback, i_receiver, base::VectorOf(i_args),
-          i::Execution::MessageHandling::kKeepPending, &maybe_exception);
-#ifdef DEBUG
-      i::DirectHandle<i::Object> i_exception;
-      if (maybe_exception.ToHandle(&i_exception) &&
-          !try_catch.HasTerminated()) {
-        Local<Value> exception = Utils::ToLocal(i_exception);
-        Local<Object> exception_obj = exception.As<Object>();
-        Local<String> key = v8::String::NewFromUtf8Literal(
-            isolate_, "message", NewStringType::kInternalized);
-        Local<String> expected = v8::String::NewFromUtf8Literal(
-            isolate_, "Maximum call stack size exceeded");
-        Local<Value> value = exception_obj->Get(context, key).ToLocalChecked();
-        DCHECK(value->StrictEquals(expected));
-      }
-#endif
-    }
-  }
-
-  Isolate* isolate_;
-  Global<Context> context_;
-};
-
-class InspectorClient : public v8_inspector::V8InspectorClient {
- public:
-  InspectorClient(Isolate* isolate, const Global<Context>& global_context,
-                  bool connect) {
-    if (!connect) return;
-    isolate_ = isolate;
-    Local<Context> context = global_context.Get(isolate);
-    channel_.reset(new InspectorFrontend(context));
-    inspector_ = v8_inspector::V8Inspector::create(isolate_, this);
-    session_ =
-        inspector_->connect(1, channel_.get(), v8_inspector::StringView(),
-                            v8_inspector::V8Inspector::kFullyTrusted,
-                            v8_inspector::V8Inspector::kNotWaitingForDebugger);
-    // TODO(b/570436596): Migrate to V2.
-    START_ALLOW_USE_DEPRECATED()
-    context->SetAlignedPointerInEmbedderData(kInspectorClientIndex, this,
-                                             kInspectorClientTag);
-    END_ALLOW_USE_DEPRECATED()
-    inspector_->contextCreated(v8_inspector::V8ContextInfo(
-        context, kContextGroupId, v8_inspector::StringView()));
-
-    Local<Value> function =
-        FunctionTemplate::New(isolate_, SendInspectorMessage)
-            ->GetFunction(context)
-            .ToLocalChecked();
-    Local<String> function_name = String::NewFromUtf8Literal(
-        isolate_, "send", NewStringType::kInternalized);
-    CHECK(context->Global()->Set(context, function_name, function).FromJust());
-
-    context_.Reset(isolate_, global_context);
-  }
-
-  ~InspectorClient() override {
-    // The InspectorClient is stack-allocated in RunMainIsolate(). Async tasks
-    // (e.g. WebAssembly compilation) may outlive that frame and later invoke
-    // `send()` in the old context. Clear the raw pointer we stashed in the
-    // context's embedder data so those calls fail safely instead of touching
-    // dead stack memory.
-    if (!isolate_) return;
-    HandleScope scope(isolate_);
-    Local<Context> context = context_.Get(isolate_);
-    context->SetAlignedPointerInEmbedderDataV2(kInspectorClientIndex, nullptr,
-                                               kInspectorClientTag);
-  }
-
-  void runMessageLoopOnPause(int contextGroupId) override {
-    v8::Isolate::AllowJavascriptExecutionScope allow_script(isolate_);
-    v8::HandleScope handle_scope(isolate_);
-    v8::TryCatch try_catch(isolate_);
-    Local<String> callback_name = v8::String::NewFromUtf8Literal(
-        isolate_, "handleInspectorMessage", NewStringType::kInternalized);
-    Local<Context> context = context_.Get(isolate_);
-    Local<Value> callback;
-    if (!context->Global()->Get(context, callback_name).ToLocal(&callback)) {
-      return;
-    }
-    if (!callback->IsFunction()) return;
-
-    // Running the message loop below may trigger the execution of a stackless
-    // GC. We need to override the embedder stack state, to force scanning the
-    // stack, if this happens.
-    i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate_)->heap();
-    i::EmbedderStackStateScope stack_scanning_scope(
-        heap, i::EmbedderStackStateOrigin::kExplicitInvocation,
-        v8::StackState::kMayContainHeapPointers);
-
-    try_catch.SetVerbose(true);
-    is_paused = true;
-
-    while (is_paused) {
-      USE(callback.As<Function>()->Call(context, Undefined(isolate_), 0, {}));
-      if (try_catch.HasCaught()) {
-        is_paused = false;
-      }
-    }
-  }
-
-  void quitMessageLoopOnPause() override { is_paused = false; }
-
- private:
-  static v8_inspector::V8InspectorSession* GetSession(Local<Context> context) {
-    InspectorClient* inspector_client = static_cast<InspectorClient*>(
-        context->GetAlignedPointerFromEmbedderData(kInspectorClientIndex,
-                                                   kInspectorClientTag));
-    return inspector_client ? inspector_client->session_.get() : nullptr;
-  }
-
-  Local<Context> ensureDefaultContextInGroup(int group_id) override {
-    DCHECK(isolate_);
-    DCHECK_EQ(kContextGroupId, group_id);
-    return context_.Get(isolate_);
-  }
-
-  static void SendInspectorMessage(
-      const v8::FunctionCallbackInfo<v8::Value>& info) {
-    DCHECK(i::ValidateCallbackInfo(info));
-    Isolate* isolate = info.GetIsolate();
-    v8::HandleScope handle_scope(isolate);
-    Local<Context> context = isolate->GetCurrentContext();
-    info.GetReturnValue().Set(Undefined(isolate));
-    Local<String> message;
-    if (!info[0]->ToString(context).ToLocal(&message)) return;
-    v8_inspector::V8InspectorSession* session =
-        InspectorClient::GetSession(context);
-    if (!session) return;
-    uint32_t length = message->Length();
-    std::unique_ptr<uint16_t[]> buffer(new uint16_t[length]);
-    message->Write(isolate, 0, length, buffer.get());
-    v8_inspector::StringView message_view(buffer.get(), length);
-    {
-      v8::SealHandleScope seal_handle_scope(isolate);
-      session->dispatchProtocolMessage(message_view);
-    }
-    info.GetReturnValue().Set(True(isolate));
-  }
-
-  static const int kContextGroupId = 1;
-
-  std::unique_ptr<v8_inspector::V8Inspector::Channel> channel_;
-  std::unique_ptr<v8_inspector::V8Inspector> inspector_;
-  std::unique_ptr<v8_inspector::V8InspectorSession> session_;
-  bool is_paused = false;
-  Global<Context> context_;
-  Isolate* isolate_ = nullptr;
-};
 
 SourceGroup::~SourceGroup() {
   delete thread_;
@@ -6634,8 +6419,6 @@ void SourceGroup::ExecuteInThread() {
           global_context.Reset(isolate, context);
         }
         PerIsolateData::RealmScope realm_scope(isolate, global_context);
-        InspectorClient inspector_client(isolate, global_context,
-                                         Shell::options.enable_inspector);
         {
           // We cannot use a Context::Scope here, as it keeps a local handle to
           // the context and SourceGroup::Execute may execute a non-nestable
@@ -7389,12 +7172,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (FlagWithArgMatches("--trace-config", &flag_value, argc, argv,
                                   &i)) {
       options.trace_config = flag_value;
-    } else if (FlagMatches("--enable-inspector", &argv[i])) {
-      fprintf(stderr,
-              "Warning: --enable-inspector is deprecated "
-              "(see http://crbug.com/573042262).\n"
-              "Please use inspector tests (test/inspector/) instead.\n");
-      options.enable_inspector = true;
     } else if (FlagWithArgMatches("--lcov", &flag_value, argc, argv, &i)) {
       options.lcov_file = flag_value;
 #ifdef V8_OS_LINUX
@@ -7546,9 +7323,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
   handle_unsafe_d8_flag(options.trace_enabled);
   handle_unsafe_d8_flag(options.trace_config);
   handle_unsafe_d8_flag(options.trace_path);
-  // Inspector security bugs must be shown through the embedder (i.e. Chrome,
-  // or content_shell).
-  handle_unsafe_d8_flag(options.enable_inspector);
   handle_unsafe_d8_flag(options.lcov_file);
   handle_unsafe_d8_flag(options.enable_os_system);
   handle_unsafe_d8_flag(options.snapshot_blob);
@@ -7858,8 +7632,6 @@ bool Shell::RunMainIsolate(v8::Isolate* isolate, bool keep_context_alive,
     }
   }
   PerIsolateData::RealmScope realm_scope(isolate, global_context);
-  InspectorClient inspector_client(isolate, global_context,
-                                   options.enable_inspector);
   bool success = true;
   {
     // We cannot use a Context::Scope here, as it keeps a local handle to the

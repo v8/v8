@@ -153,11 +153,13 @@ These snapshots are fully trusted and outside of the attacker model, see the Chr
 
 ### Bugs reproducing only with `--enable-inspector`
 
+`d8` no longer supports `--enable-inspector` (removed in https://crbug.com/573042262); reports that rely on it are invalid.
+
 Fields: **[component=Platform>DevTools][c-devtools]**, **Type=Bug**, **[Security_Impact-None][hl-impact-none]**
 
 In addition, assignee should be one of the [OWNERS](../../src/inspector/OWNERS).
 
-Rationale: `--enable-inspector` does not accurately represent the production behavior of DevTools.
+Rationale: `--enable-inspector` did not accurately represent the production behavior of DevTools.
 `inspector-test` should be used for valid reproductions.
 For more details see [security documentation](../../src/inspector/SECURITY.md).
 
