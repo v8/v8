@@ -689,6 +689,7 @@ The file names contain the signal number and a hash:
 | `crash_sig6_<hash>.txt` | The report: the signature, the reproduction runs, the minimization, and the output of d8. |
 | `crash_sig6_<hash>.history/` | For a state-dependent crash only: the programs to run first, in their order. |
 | `crash_sig6_<hash>.bundle.js` | For a state-dependent crash only: the programs to run first and the crash program, in one file for `d8 --bundle-reprl`. |
+| `crash_sig6_<hash>.bundle.min.js` | For a state-dependent crash only, if Redline minimized the bundle: the minimized bundle. |
 | `signatures.txt` | One line for each crash signature. |
 
 The `.js` file starts with a header:
@@ -830,6 +831,9 @@ out/fuzzbuild/d8 --expose-gc --allow-natives-syntax --fuzzing --bundle-reprl /tm
 
 Use the d8 flags of the session. The `run:` line at the top of the bundle gives them.
 The report gives the plain d8 runs of the bundle that crashed with the same signature in `bundle_rate`.
+If the bundle crashed, Redline minimizes it: it removes the history parts that the crash does not need, and it reduces each part.
+Redline writes the result to `crash_sig6_<hash>.bundle.min.js`, and the `.bundle.js` file stays the original bundle.
+`bundle_min` names the file, `bundle_min_rate` gives its plain d8 runs that crashed with the signature, and `bundle_min_note` gives the result.
 
 ### 7.9 Fuzz the changes of a CL (change-based fuzzing)
 

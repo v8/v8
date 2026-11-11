@@ -405,6 +405,27 @@ Each process has the time limit of the amplify step (`run_timeout_sec`), not the
   The last check runs at most `verify_attempts` times k processes. A rate check runs the processes of the amplify step. Each process takes at most `run_timeout_sec`.
 - After a stop request, a worker can wait for the plain d8 process that runs, up to its time limit.
 
+**Bundles.** A state-dependent crash has `NAME.bundle.js`: one part for each needed history program, then the crash part (5.8).
+If the bundle crashed in a plain d8 run and the crash has no `NAME.repro.js`, Redline minimizes the bundle.
+A test writes a candidate bundle to a file and runs it with `--bundle-reprl` in k fresh plain d8 processes.
+The test passes if one process crashes with the same signature. k comes from `bundle_rate`, as for an amplified crash.
+
+1. The minimizer removes the history parts that the crash does not need. The crash part stays last.
+2. It reduces the crash part with the crash reducers, and it removes history parts again.
+   A part has the prelude and the program, so `dataflow` also removes the prelude statements that the part does not need.
+   Each part runs in a new context of the same d8 process. Thus the tests decide if a part needs the state of an earlier part.
+   A reduced history part can crash itself. Then the bundle still crashes with the signature.
+3. It reduces each history part, and it removes history parts again.
+
+- `crash_bundle_min_budget_sec` is the time limit of the tests of the steps. 0 turns the minimization off.
+  The last check and the rate check stop only at a stop request.
+- The result must be smaller, and it must pass the test again in one of `verify_attempts` tries.
+- The rate check runs the result in `bundle_runs` plain d8 processes, without an early stop. The result must crash in at least `bundle_hits` of them, as the original bundle did.
+- Then Redline writes the result to `NAME.bundle.min.js`. `NAME.bundle.js` stays the original bundle.
+- The report and the crash event give the file in `bundle_min`, its rate in `bundle_min_rate` and the result in `bundle_min_note`. A minimized bundle keeps the minimize slot, as `NAME.repro.js` does.
+- One bundle minimization can take this time: `crash_bundle_min_budget_sec` and one more test, the last check, and the rate check.
+  The last check runs at most `verify_attempts` times k processes. The rate check runs `bundle_runs` processes. Each process takes at most the timeout of the target for each part, plus 10 s.
+
 ### 5.7 Publish
 
 Publish sets the new edges and the run time of the program.
@@ -429,7 +450,7 @@ A crash can come from a result, from an imported file or from an instrumented pr
 5. **Amplify.** If the crash does not reproduce alone, the amplify step searches for d8 flags that make it reproduce.
    This also applies after a successful replay, because an earlier program can turn on a feature that a d8 flag can also turn on.
 6. **Minimize.** Redline minimizes a crash that reproduces alone, against its signature, together with the prelude (5.6).
-   It also minimizes an amplified crash, with the amplified flags in plain d8 processes (5.6).
+   It also minimizes an amplified crash, with the amplified flags in plain d8 processes, and the bundle of a state-dependent crash (5.6).
 7. **Save.** Redline writes the program, the report and, if they exist, the original program, the reproducer (`NAME.repro.js`), the history and the bundle to `OUT/crashes/`.
 
 History replay and the amplify step run only for crashes that Redline saves.

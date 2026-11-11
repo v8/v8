@@ -126,6 +126,46 @@ FlagMinimization MinimizeFlags(
   return result;
 }
 
+std::vector<std::string> MinimizeBundleParts(
+    std::vector<std::string> parts,
+    const std::function<bool(const std::vector<std::string>& candidate)>&
+        crashes,
+    const std::function<void(std::vector<std::string>* parts, size_t i)>&
+        reduce,
+    const std::function<bool()>& exhausted) {
+  if (parts.empty()) {
+    return parts;
+  }
+  // MinimizeFlags works on each list of strings. The crash part stays last.
+  auto remove_parts = [&] {
+    if (exhausted()) {
+      return;
+    }
+    const std::string last = parts.back();
+    parts.pop_back();
+    const FlagMinimization kept = MinimizeFlags(
+        parts, [](const std::string&) { return false; },
+        [&](const std::vector<std::string>& candidate) {
+          std::vector<std::string> all = candidate;
+          all.push_back(last);
+          return crashes(all);
+        },
+        exhausted);
+    parts = kept.flags;
+    parts.push_back(last);
+  };
+  remove_parts();
+  if (!exhausted()) {
+    reduce(&parts, parts.size() - 1);
+  }
+  remove_parts();
+  for (size_t i = parts.size() - 1; i-- > 0 && !exhausted();) {
+    reduce(&parts, i);
+  }
+  remove_parts();
+  return parts;
+}
+
 bool IsFlag(std::string_view flag, std::string_view name) {
   if (!flag.starts_with("--")) {
     return false;

@@ -1152,6 +1152,33 @@ void RunAmplifiedTestChecks(Checker* checker) {
                  flags);
 }
 
+// Offline: the steps of the bundle minimization (MinimizeBundleParts) with
+// a test that needs the part "needed" and the crash part last. The time limit
+// ends after the first step, so no part gets a reduction.
+void RunBundleStepChecks(Checker* checker) {
+  int tests = 0;
+  int reductions = 0;
+  const std::vector<std::string> kept = MinimizeBundleParts(
+      {"unneeded", "needed", "other", "crash"},
+      [&tests](const std::vector<std::string>& candidate) {
+        tests++;
+        return std::find(candidate.begin(), candidate.end(), "needed") !=
+                   candidate.end() &&
+               candidate.back() == "crash";
+      },
+      [&reductions](std::vector<std::string>*, size_t) { reductions++; },
+      [&tests] { return tests >= 4; });
+  std::string text;
+  for (const std::string& part : kept) {
+    text += (text.empty() ? "" : " ") + part;
+  }
+  checker->Check(
+      "bundles: the steps keep the needed part and the crash part last",
+      text == "needed crash" && reductions == 0,
+      StringPrintf("parts \"%s\", %d tests, %d reductions", text.c_str(), tests,
+                   reductions));
+}
+
 // The value of the line `key: value` of a crash report, or "".
 std::string ReportValue(const std::string& report, const std::string& key) {
   const std::string prefix = key + ": ";
@@ -1222,7 +1249,8 @@ struct CrashSession {
 // removes `dir` with RemoveTree().
 CrashSession RunCrashSession(const TargetOptions& target,
                              const std::vector<std::string>& session_flags,
-                             const std::vector<std::string>& programs) {
+                             const std::vector<std::string>& programs,
+                             const std::string& report_key = "repro") {
   CrashSession session;
   char dir_template[] = "/tmp/redline-selftest.XXXXXX";
   if (mkdtemp(dir_template) == nullptr) {
@@ -1311,18 +1339,29 @@ CrashSession RunCrashSession(const TargetOptions& target,
   }
   SetLogLevel(log_level);
   session.seconds = clock.ElapsedSeconds();
-  // The report of an imported program. A crash of the fuzzing after the
+  // The report of an imported program: the report with the line
+  // `report_key`, or else the first report. A crash of the fuzzing after the
   // imports gets no NAME.repro.js, because the stop request interrupts it.
-  std::string error;
+  std::string error, first;
   for (const std::string& path : ListFiles(crashes, ".txt")) {
     std::string text;
-    if (BaseName(path).starts_with("crash_") &&
-        ReadFileToString(path, &text, &error) &&
-        !ReportValue(text, "repro").empty()) {
+    if (!BaseName(path).starts_with("crash_") ||
+        !ReadFileToString(path, &text, &error)) {
+      continue;
+    }
+    if (first.empty()) {
+      first = text;
+    }
+    if (!ReportValue(text, report_key).empty()) {
       session.report = text;
     }
   }
+  if (session.report.empty()) {
+    session.report = first;
+  }
   const std::string repro_name = ReportValue(session.report, "repro");
+  // The report and NAME.repro.js are also the result of a session with
+  // another `report_key`.
   if (!repro_name.empty() &&
       !ReadFileToString(crashes + "/" + repro_name, &session.repro, &error)) {
     session.error = error;
@@ -1478,6 +1517,29 @@ void RunCrashFlagsCheck(Checker* checker, const TargetOptions& target) {
                    session.error.empty() ? "" : ", ", session.error.c_str()));
 }
 
+// A program that changes one more protector of the isolate in each run. The
+// protectors stay changed in the next runs of the same process, so the 5th
+// run in one process crashes. `type` names its class, so that two programs
+// can have different sources. The first statement is an unused declaration,
+// which the minimizer can remove in its first test.
+std::string ProtectorProgram(const char* type) {
+  return StringPrintf(
+      "var unused = 0;\n"
+      "class %s {}\n"
+      "if (!%%TypedArraySpeciesProtector()) {\n"
+      "  redline('REDLINE_CRASH', 1);\n"
+      "} else if (!%%RegExpSpeciesProtector()) {\n"
+      "  Object.defineProperty(Uint8Array, Symbol.species, {value: %s});\n"
+      "} else if (!%%PromiseSpeciesProtector()) {\n"
+      "  Object.defineProperty(RegExp, Symbol.species, {value: %s});\n"
+      "} else if (!%%ArraySpeciesProtector()) {\n"
+      "  Object.defineProperty(Promise, Symbol.species, {value: %s});\n"
+      "} else {\n"
+      "  Object.defineProperty(Array, Symbol.species, {value: %s});\n"
+      "}\n",
+      type, type, type, type, type);
+}
+
 // An amplified crash, in a short session without the prelude, with
 // harvest_crashes. Each run of the program changes one more protector of the
 // isolate. The protectors stay changed in the next runs of the same process,
@@ -1496,28 +1558,11 @@ void RunCrashAmplifiedCheck(Checker* checker, const TargetOptions& target) {
   // The time limit of 2 s stops the minimization before its end, and the
   // dataflow reducer removes the unused declaration in its first test. Thus
   // the last check must run after the time limit.
-  auto program = [](const char* type) {
-    return StringPrintf(
-        "var unused = 0;\n"
-        "class %s {}\n"
-        "if (!%%TypedArraySpeciesProtector()) {\n"
-        "  redline('REDLINE_CRASH', 1);\n"
-        "} else if (!%%RegExpSpeciesProtector()) {\n"
-        "  Object.defineProperty(Uint8Array, Symbol.species, {value: %s});\n"
-        "} else if (!%%PromiseSpeciesProtector()) {\n"
-        "  Object.defineProperty(RegExp, Symbol.species, {value: %s});\n"
-        "} else if (!%%ArraySpeciesProtector()) {\n"
-        "  Object.defineProperty(Promise, Symbol.species, {value: %s});\n"
-        "} else {\n"
-        "  Object.defineProperty(Array, Symbol.species, {value: %s});\n"
-        "}\n",
-        type, type, type, type, type);
-  };
   const CrashSession session = RunCrashSession(
       target,
       {"--prelude=none",
        R"(--config={"crash_history": 0, "crash_amplified_budget_sec": 2, "harvest_crashes": true})"},
-      {program("C0"), program("C1")});
+      {ProtectorProgram("C0"), ProtectorProgram("C1")});
   const std::string& report = session.report;
   const std::vector<std::string> words = RunLineWords(session.repro);
   const std::string plain =
@@ -1551,6 +1596,74 @@ void RunCrashAmplifiedCheck(Checker* checker, const TargetOptions& target) {
           ReportValue(report, "repro_rate_note").c_str(), plain.c_str(),
           signature.c_str(), session.error.empty() ? "" : ", ",
           session.error.c_str()));
+}
+
+// A state-dependent crash, in a short session without the prelude and
+// without the amplify step. The programs are the programs of
+// RunCrashAmplifiedCheck. The history replay finds the earlier runs, and
+// Redline writes NAME.bundle.js. The minimizer writes NAME.bundle.min.js
+// with fewer parts. It crashes as often as NAME.bundle.js, and it crashes a
+// plain d8 process with the signature.
+void RunCrashBundleCheck(Checker* checker, const TargetOptions& target) {
+  const char* name =
+      "bundles: a state-dependent crash gets a smaller NAME.bundle.min.js";
+  const CrashSession session = RunCrashSession(
+      target,
+      {"--prelude=none",
+       R"(--config={"amplify": {"strategy": "none"}, "crash_bundle_min_budget_sec": 60})"},
+      {ProtectorProgram("C0"), ProtectorProgram("C1")}, "bundle_min");
+  const std::string& report = session.report;
+  const std::string crashes = session.dir + "/out/crashes/";
+  const std::string bundle_name = ReportValue(report, "bundle");
+  const std::string min_name = ReportValue(report, "bundle_min");
+  std::string bundle, min, error;
+  const bool read = !bundle_name.empty() && !min_name.empty() &&
+                    ReadFileToString(crashes + bundle_name, &bundle, &error) &&
+                    ReadFileToString(crashes + min_name, &min, &error);
+  // One plain d8 run of the minimized bundle.
+  std::string plain;
+  if (read) {
+    std::vector<std::string> args = target.args;
+    args.push_back("--bundle-reprl");
+    args.push_back(crashes + min_name);
+    const ProcessResult run = RunProcess(
+        target.executable, args, target.PlainEnvironment(), kPlainRunUs);
+    plain = !run.started || run.timed_out ? "(no run)"
+            : run.signal == 0 && run.exit_code == 0
+                ? "(no crash)"
+                : CrashSignature::FromOutput(run.signal, run.exit_code,
+                                             run.stderr_text)
+                      .text;
+  }
+  RemoveTree(session.dir);
+  auto parts = [](const std::string& text) {
+    size_t count = 0;
+    for (size_t at = text.find(kBundleScriptMarker); at != std::string::npos;
+         at = text.find(kBundleScriptMarker, at + 1)) {
+      count++;
+    }
+    return count;
+  };
+  // The hits of a rate "h/n".
+  auto hits = [](const std::string& rate) {
+    return rate.empty() ? -1 : atoi(rate.c_str());
+  };
+  const std::string signature = ReportValue(report, "signature");
+  const std::string rate = ReportValue(report, "bundle_rate");
+  const std::string min_rate = ReportValue(report, "bundle_min_rate");
+  const bool ok = ReportValue(report, "state_dependent") == "yes" && read &&
+                  parts(min) < parts(bundle) && hits(min_rate) >= hits(rate) &&
+                  hits(rate) > 0 && !signature.empty() && plain == signature;
+  checker->Check(
+      name, ok,
+      StringPrintf("%s, %.0f s, bundle_rate %s, bundle_min_rate %s, "
+                   "bundle_min_note \"%s\", %zu -> %zu parts, plain d8 run "
+                   "\"%s\", signature \"%s\"%s%s",
+                   session.stop.c_str(), session.seconds, rate.c_str(),
+                   min_rate.c_str(),
+                   ReportValue(report, "bundle_min_note").c_str(),
+                   parts(bundle), parts(min), plain.c_str(), signature.c_str(),
+                   error.empty() ? "" : ", ", error.c_str()));
 }
 
 // Offline: optimized code features with one bit per edge. As with counters,
@@ -1706,6 +1819,7 @@ int RunSelftest(const Flags& flags) {
   RunCrashMinimizerChecks(&checker);
   RunFlagMinimizerChecks(&checker);
   RunAmplifiedTestChecks(&checker);
+  RunBundleStepChecks(&checker);
   RunNodeKindChecks(&checker);
   RunPresetChecks(&checker);
   std::string testdata = flags.GetString("testdata", DefaultTestdataDir());
@@ -2080,6 +2194,7 @@ int RunSelftest(const Flags& flags) {
   RunCrashReproCheck(&checker, target);
   RunCrashFlagsCheck(&checker, target);
   RunCrashAmplifiedCheck(&checker, target);
+  RunCrashBundleCheck(&checker, target);
 
   printf("selftest: %d passed, %d failed\n", checker.passed(),
          checker.failed());

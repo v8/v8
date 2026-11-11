@@ -25,6 +25,7 @@
 #include "experimental/redline/engine/prelude.h"
 #include "experimental/redline/exec/process_run.h"
 #include "experimental/redline/exec/runner.h"
+#include "experimental/redline/fast/parser.h"
 #include "experimental/redline/fast/printer.h"
 #include "experimental/redline/mutators/explore.h"
 
@@ -1378,6 +1379,14 @@ class Worker {
     std::string bundle_note;  // why there is no bundle, or why the runs stopped
     int bundle_runs = 0;      // plain d8 runs of the bundle
     int bundle_hits = 0;      // ... that crashed with the same signature
+    // The minimization of the bundle: the result in one line, or why it did
+    // not give a smaller bundle. Empty if it did not run.
+    std::string bundle_min_note;
+    // NAME.bundle.min.js, the minimized bundle (empty if there is none), and
+    // its plain d8 runs and the runs that crashed with the signature.
+    std::string bundle_min_path;
+    int bundle_min_runs = 0;
+    int bundle_min_hits = 0;
     bool reproducible() const { return reproduced > 0; }
   };
 
@@ -1411,9 +1420,21 @@ class Worker {
     if (info.bundle_path.empty()) {
       return "bundle: no\nbundle_note: " + info.bundle_note + "\n";
     }
-    return StringPrintf("bundle: %s\nbundle_rate: %d/%d\nbundle_note: %s\n",
-                        BaseName(info.bundle_path).c_str(), info.bundle_hits,
-                        info.bundle_runs, info.bundle_note.c_str());
+    std::string lines =
+        StringPrintf("bundle: %s\nbundle_rate: %d/%d\nbundle_note: %s\n",
+                     BaseName(info.bundle_path).c_str(), info.bundle_hits,
+                     info.bundle_runs, info.bundle_note.c_str());
+    if (!info.bundle_min_path.empty()) {
+      lines += "bundle_min: " + BaseName(info.bundle_min_path) + "\n";
+    }
+    if (info.bundle_min_runs > 0) {
+      lines += StringPrintf("bundle_min_rate: %d/%d\n", info.bundle_min_hits,
+                            info.bundle_min_runs);
+    }
+    if (!info.bundle_min_note.empty()) {
+      lines += "bundle_min_note: " + info.bundle_min_note + "\n";
+    }
+    return lines;
   }
 
   // The minimization lines of the crash report (read by the uploader).
@@ -1508,6 +1529,19 @@ class Worker {
   // to the time of its scripts (the bundle runs and the flag search).
   static constexpr uint64_t kPlainStartupUs = 10'000'000;
 
+  // The header of NAME.bundle.js at `path`, for a bundle of `programs`
+  // history programs and the crash program.
+  std::string BundleHeader(size_t programs, const std::string& path,
+                           const CrashInfo& info) const {
+    std::string signature = info.signature.text;
+    std::replace(signature.begin(), signature.end(), '\n', ' ');
+    return StringPrintf(
+        "// redline state-dependent crash: %zu program(s), then the crash "
+        "program\n// signature: %s\n// run: %s --bundle-reprl %s\n",
+        programs, signature.c_str(), CurrentTarget().CommandLine().c_str(),
+        BaseName(path).c_str());
+  }
+
   // Writes BASE.bundle.js for a state-dependent crash: one part for each
   // program of `history`, then one part for `source`. `d8 --bundle-reprl`
   // runs each part in the same way as the REPRL loop runs one program. Thus
@@ -1525,15 +1559,9 @@ class Worker {
     scripts.push_back(ScriptFor(source));
     const TargetOptions target = CurrentTarget();
     const std::string path = base + ".bundle.js";
-    std::string signature = info->signature.text;
-    std::replace(signature.begin(), signature.end(), '\n', ' ');
-    const std::string header = StringPrintf(
-        "// redline state-dependent crash: %zu program(s), then the crash "
-        "program\n// signature: %s\n// run: %s --bundle-reprl %s\n",
-        history.size(), signature.c_str(), target.CommandLine().c_str(),
-        BaseName(path).c_str());
     std::string bundle;
-    if (!MakeReprlBundle(header, scripts, &bundle)) {
+    if (!MakeReprlBundle(BundleHeader(history.size(), path, *info), scripts,
+                         &bundle)) {
       info->bundle_note = "a program contains the bundle marker";
       return;
     }
@@ -2097,6 +2125,184 @@ class Worker {
     std::remove(path.c_str());
   }
 
+  // Minimizes NAME.bundle.js of a state-dependent crash (DESIGN.md 5.6). A
+  // test writes a candidate bundle to a file and runs it with --bundle-reprl
+  // in k plain d8 processes. The test passes if one of them crashes with the
+  // signature. k comes from the bundle runs, as for an amplified crash
+  // (AmplifiedRuns). MinimizeBundleParts runs the steps, and the tests stop
+  // at crash_bundle_min_budget_sec. The last check and the rate check stop
+  // only at a stop request. The result goes to NAME.bundle.min.js only if it
+  // crashes in at least bundle_hits of bundle_runs plain d8 runs.
+  // NAME.bundle.js stays the original bundle.
+  void MinimizeBundle(const std::vector<std::string>& history,
+                      const std::string& source, CrashInfo* info) {
+    const uint64_t budget_us =
+        static_cast<uint64_t>(config().crash_bundle_min_budget_sec * 1e6);
+    if (budget_us == 0) {
+      info->bundle_min_note = "not minimized: crash_bundle_min_budget_sec is 0";
+      return;
+    }
+    const Stopwatch clock;
+    // One part for each history program, then the crash part. Each part is
+    // a script: the prelude and the program.
+    std::vector<std::string> parts;
+    for (const std::string& program : history) {
+      parts.push_back(ScriptFor(program));
+    }
+    parts.push_back(ScriptFor(source));
+    const std::vector<std::string> parts_before = parts;
+    std::string bundle_before;
+    if (!MakeReprlBundle(BundleHeader(history.size(), info->bundle_path, *info),
+                         parts, &bundle_before)) {
+      info->bundle_min_note =
+          "not minimized: a part contains the bundle marker";
+      return;
+    }
+    const TargetOptions target = CurrentTarget();
+    const int runs = AmplifiedRuns(info->bundle_hits, info->bundle_runs);
+    // NAME.bundle.min.js, and the temporary file of the tests. The suffix is
+    // not .js, so that `replay` of the crashes directory does not run it.
+    const std::string min_path =
+        info->bundle_path.substr(0, info->bundle_path.size() - 3) + ".min.js";
+    const std::string path = min_path + ".tmp";
+    // The tests of the steps stop at the time limit. The last check and the
+    // rate check stop only at a stop request.
+    bool steps = true;
+    auto exhausted = [&] {
+      return stopping() || (steps && clock.ElapsedUs() > budget_us);
+    };
+    PlainCrashRunner runner(
+        target, info->signature,
+        config().target.timeout_us * parts.size() + kPlainStartupUs);
+    runner.set_stop(exhausted);
+    int tests = 0;
+    std::string write_error;
+    // Writes `candidate` with `header` to `file`. False on an error.
+    auto write = [&](const std::vector<std::string>& candidate,
+                     const std::string& header, const std::string& file) {
+      std::string bundle;
+      write_error.clear();
+      if (!MakeReprlBundle(header, candidate, &bundle)) {
+        write_error = "a part contains the bundle marker";
+        return false;
+      }
+      if (!WriteStringToFile(file, bundle, &write_error)) {
+        std::remove(file.c_str());
+        return false;
+      }
+      return true;
+    };
+    auto crashes = [&](const std::vector<std::string>& candidate) {
+      if (exhausted() || !write(candidate, "", path)) {
+        return false;
+      }
+      tests++;
+      std::vector<std::string> args = target.args;
+      args.push_back("--bundle-reprl");
+      args.push_back(path);
+      return runner.Crashes(args, runs, 1);
+    };
+    // True if the bundle passes the test in one of verify_attempts tries.
+    auto verified = [&](const std::vector<std::string>& candidate) {
+      for (int attempt = 0; attempt < config().verify_attempts && !stopping();
+           attempt++) {
+        if (crashes(candidate)) {
+          return true;
+        }
+      }
+      return false;
+    };
+    // Reduces part `i` with the crash reducers. The part is a script, so the
+    // tests use its printed tree as it is. A reduced history part can crash
+    // itself. Then the bundle still crashes with the signature.
+    auto reduce = [&](std::vector<std::string>* all, size_t i) {
+      std::unique_ptr<fast::Tree> tree =
+          fast::Parser::ParseScript((*all)[i], fast::ParseOptions(), nullptr);
+      if (tree == nullptr) {
+        return;
+      }
+      MinimizationOracle oracle = [&](const std::string& candidate) {
+        std::vector<std::string> changed = *all;
+        changed[i] = candidate;
+        return crashes(changed);
+      };
+      MinimizerOptions options = config().crash_minimizer;
+      options.max_time_ms = std::max<uint64_t>(
+          1, (budget_us - std::min(budget_us, clock.ElapsedUs())) / 1000);
+      const MinimizationResult result =
+          fuzzer_->MinimizeCrash(tree.get(), oracle, probe_checker(), options);
+      if (result.accepted > 0) {
+        (*all)[i] = fast::Print(tree->root());
+      }
+    };
+    std::string note;
+    if (!verified(parts)) {
+      note = stopping() ? "not minimized: the session stopped"
+             : !write_error.empty()
+                 ? "not minimized: cannot write the test file: " + write_error
+                 : "not minimized: the bundle did not crash again";
+    } else {
+      parts = MinimizeBundleParts(parts, crashes, reduce, exhausted);
+      steps = false;
+      std::string bundle_after;
+      MakeReprlBundle(BundleHeader(parts.size() - 1, min_path, *info), parts,
+                      &bundle_after);
+      if (parts == parts_before ||
+          bundle_after.size() >= bundle_before.size()) {
+        note = "not minimized: no smaller bundle crashed";
+      } else if (!verified(parts)) {
+        note = stopping() ? "not minimized: the session stopped"
+                          : "not minimized: the smaller bundle did not crash "
+                            "again";
+      } else if (!write(parts, BundleHeader(parts.size() - 1, min_path, *info),
+                        path)) {
+        note = "not minimized: cannot write the bundle: " + write_error;
+      } else {
+        // The rate check: the original bundle crashed in bundle_hits of
+        // bundle_runs runs, and the minimized bundle must crash as often.
+        std::vector<std::string> args = target.args;
+        args.push_back("--bundle-reprl");
+        args.push_back(path);
+        info->bundle_min_hits = runner.Count(args, info->bundle_runs);
+        info->bundle_min_runs = runner.last_runs();
+        if (info->bundle_min_runs < info->bundle_runs) {
+          note = StringPrintf(
+              "not minimized: the rate check stopped after %d of %d runs",
+              info->bundle_min_runs, info->bundle_runs);
+        } else if (info->bundle_min_hits < info->bundle_hits) {
+          note = StringPrintf(
+              "not minimized: the smaller bundle crashed in %d of %d runs, "
+              "less than NAME.bundle.js",
+              info->bundle_min_hits, info->bundle_min_runs);
+        } else if (std::rename(path.c_str(), min_path.c_str()) != 0) {
+          note = "not minimized: cannot rename the bundle";
+        } else {
+          info->bundle_min_path = min_path;
+          note = StringPrintf("%zu -> %zu parts, %zu -> %zu bytes",
+                              parts_before.size(), parts.size(),
+                              bundle_before.size(), bundle_after.size());
+          if (parts.size() == 1) {
+            note += ", the crash part crashes alone in plain d8";
+          }
+        }
+      }
+    }
+    steps = false;
+    info->bundle_min_note =
+        note + StringPrintf(
+                   ", %d tests, %d processes, %.0f s, 1 of %d plain "
+                   "d8 runs per test%s",
+                   tests, runner.processes(),
+                   static_cast<double>(clock.ElapsedUs()) / 1e6, runs,
+                   !stopping() && clock.ElapsedUs() > budget_us
+                       ? ", budget used up"
+                       : "");
+    stats().minimizer_tests += static_cast<uint64_t>(tests);
+    stats().minimizer_time_us += clock.ElapsedUs();
+    stats().crash_min_processes += static_cast<uint64_t>(runner.processes());
+    std::remove(path.c_str());
+  }
+
   void ProcessCrash(const std::string& source, const Program& program,
                     const Execution& execution, const Lineage& lineage) {
     FlagPin pin(runner_->child());
@@ -2264,6 +2470,12 @@ class Worker {
     if (!info.repro.empty() && !info.reproducible()) {
       CheckAmplifiedRepro(CrashBase(execution.signal, hash), &info);
     }
+    // 3c. A state-dependent crash without NAME.repro.js: minimize its
+    //     bundle, if the bundle crashed in a plain d8 run.
+    if (info.state_dependent && info.repro.empty() && info.bundle_hits > 0 &&
+        config().minimize_crashes && decision.minimize && !stopping()) {
+      MinimizeBundle(history, source, &info);
+    }
 
     // 4. Store.
     std::string path;
@@ -2272,11 +2484,12 @@ class Worker {
       path = SaveCrash(source, final_source, execution, lineage, info, unique,
                        hash, history);
     }
-    // A minimization that gave only NAME.repro.js also used the slot. Then
-    // signatures.txt counts the crash as minimized, while its report says
-    // `minimized: no` (NAME.js has the original program).
+    // A minimization that gave only NAME.repro.js or a minimized bundle also
+    // used the slot. Then signatures.txt counts the crash as minimized, while
+    // its report says `minimized: no` (NAME.js has the original program).
     fuzzer_->RecordCrashOutcome(
-        info.signature, decision, info.minimized || !info.repro.empty(),
+        info.signature, decision,
+        info.minimized || !info.repro.empty() || !info.bundle_min_path.empty(),
         info.reproducible() || info.state_dependent, path);
 
     JsonObject event;
@@ -2349,6 +2562,12 @@ class Worker {
       event.Add("bundle", info.bundle_path)
           .Add("bundle_runs", info.bundle_runs)
           .Add("bundle_hits", info.bundle_hits);
+      if (!info.bundle_min_note.empty()) {
+        event.Add("bundle_min", info.bundle_min_path)
+            .Add("bundle_min_note", info.bundle_min_note);
+        event.Add("bundle_min_rate", StringPrintf("%d/%d", info.bundle_min_hits,
+                                                  info.bundle_min_runs));
+      }
     }
     if (info.amplify_ran) {
       event.Add("amplified_args", info.amplify.args);

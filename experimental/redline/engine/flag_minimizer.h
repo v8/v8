@@ -79,6 +79,20 @@ FlagMinimization MinimizeFlags(
         oracle,
     const std::function<bool()>& exhausted);
 
+// The steps of the minimization of a d8 bundle (DESIGN.md 5.6). `parts` ends
+// with the crash part, which stays last. The steps remove the history parts
+// that `crashes` does not need. Then `reduce(&parts, i)` reduces the crash
+// part, and the steps remove history parts again. Then `reduce` reduces each
+// history part, and the steps remove history parts again. The steps stop
+// when `exhausted` is true. Returns the parts at the end.
+std::vector<std::string> MinimizeBundleParts(
+    std::vector<std::string> parts,
+    const std::function<bool(const std::vector<std::string>& candidate)>&
+        crashes,
+    const std::function<void(std::vector<std::string>* parts, size_t i)>&
+        reduce,
+    const std::function<bool()>& exhausted);
+
 // True if `flag` is the d8 flag `name` (for example "allow-natives-syntax"),
 // also with underscores and with a value.
 bool IsFlag(std::string_view flag, std::string_view name);

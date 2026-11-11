@@ -253,6 +253,10 @@ struct FuzzConfig {
   // flags of the amplify step. 0: Redline does not minimize amplified
   // crashes.
   double crash_amplified_budget_sec = 300;
+  // The time limit of the minimization of NAME.bundle.js (DESIGN.md 5.6).
+  // Each test runs the bundle in fresh plain d8 processes. 0: Redline does
+  // not minimize bundles.
+  double crash_bundle_min_budget_sec = 300;
 
   // Applies --config (a file, or inline JSON starting with '{') then the
   // command line flags. `for_run` is false only for --dump-config: then no
