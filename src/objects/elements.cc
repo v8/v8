@@ -4,6 +4,8 @@
 
 #include "src/objects/elements.h"
 
+#include <cstring>
+
 #include "src/base/atomicops.h"
 #include "src/base/numerics/safe_conversions.h"
 #include "src/common/globals.h"
@@ -3819,6 +3821,23 @@ class TypedElementsAccessor
     return MaybeDirectHandle<Object>(typed_array);
   }
 
+  // Returns the index of the first element in [start_from, length) that is
+  // equal to {value}, or -1 if there is none. Only for buffers that are not
+  // shared, because memchr does not use atomic loads (see GetImpl).
+  static int64_t FindFirstOneByte(ElementType* data_ptr, size_t start_from,
+                                  size_t length, ElementType value) {
+    static_assert(sizeof(ElementType) == 1);
+    // Also keeps {length - start_from} below from wrapping around when the
+    // array shrank during the conversion of fromIndex.
+    if (start_from >= length) return -1;
+    const uint8_t* start = reinterpret_cast<const uint8_t*>(data_ptr);
+    const void* found =
+        memchr(start + start_from, static_cast<unsigned char>(value),
+               length - start_from);
+    if (found == nullptr) return -1;
+    return static_cast<int64_t>(static_cast<const uint8_t*>(found) - start);
+  }
+
   static Maybe<bool> IncludesValueImpl(Isolate* isolate,
                                        DirectHandle<JSObject> receiver,
                                        DirectHandle<Object> value,
@@ -3891,6 +3910,12 @@ class TypedElementsAccessor
       }
     }
 
+    if constexpr (sizeof(ElementType) == 1) {
+      if (!is_shared) {
+        return Just(FindFirstOneByte(data_ptr, start_from, length,
+                                     typed_search_value) != -1);
+      }
+    }
     for (size_t k = start_from; k < length; ++k) {
       ElementType elem_k = AccessorClass::GetImpl(data_ptr + k, is_shared);
       if (elem_k == typed_search_value) return Just(true);
@@ -3961,6 +3986,12 @@ class TypedElementsAccessor
       }
     }
 
+    if constexpr (sizeof(ElementType) == 1) {
+      if (!is_shared) {
+        return Just<int64_t>(
+            FindFirstOneByte(data_ptr, start_from, length, typed_search_value));
+      }
+    }
     for (size_t k = start_from; k < length; ++k) {
       ElementType elem_k = AccessorClass::GetImpl(data_ptr + k, is_shared);
       if (elem_k == typed_search_value) {
