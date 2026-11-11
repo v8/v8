@@ -277,6 +277,23 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
 
   bind(&sliced_string);
   {
+    if (mode == BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt) {
+      Label unwrap_sliced;
+#if V8_STATIC_ROOTS_BOOL
+      CompareInt32AndJumpIf(map, StaticReadOnlyRoot::kSlicedOneByteStringMap,
+                            kEqual, &unwrap_sliced, Label::kNear);
+#else
+      testl(instance_type, Immediate(kOneByteStringTag));
+      j(not_zero, &unwrap_sliced, Label::kNear);
+#endif
+      // Unwrapping a two-byte SlicedString loses its end bound; if {index} is
+      // the last code unit of the slice, fall back to the runtime before
+      // unwrapping.
+      leal(scratch1, Operand(index, 1));
+      cmpl(scratch1, FieldOperand(string, offsetof(String, length_)));
+      j(above_equal, deferred_runtime_call);
+      bind(&unwrap_sliced);
+    }
     Register offset = scratch1;
     LoadAndUntagTaggedSignedField(offset, string,
                                   offsetof(SlicedString, offset_));
