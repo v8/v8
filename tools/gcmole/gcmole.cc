@@ -570,6 +570,54 @@ class CalleesPrinter : public clang::RecursiveASTVisitor<CalleesPrinter> {
     return true;
   }
 
+  // Visits implicit tuple-like `get<I>()` bindings and `DisableGCMole` guards
+  // inside C++17 structured bindings (`auto [a, b] = expr;`), which
+  // `RecursiveASTVisitor` skips when `shouldVisitImplicitCode()` is false.
+  bool TraverseDecompositionDecl(clang::DecompositionDecl* decomp) {
+    if (!clang::RecursiveASTVisitor<CalleesPrinter>::TraverseDecompositionDecl(
+            decomp)) {
+      return false;
+    }
+    for (clang::BindingDecl* binding : decomp->flat_bindings()) {
+      if (clang::VarDecl* holding_var = binding->getHoldingVar()) {
+        if (holding_var->hasInit() && !TraverseStmt(holding_var->getInit())) {
+          return false;
+        }
+      } else if (clang::Expr* binding_expr = binding->getBinding()) {
+        if (!TraverseStmt(binding_expr)) return false;
+      }
+      if (IsGCGuard(binding->getType()) && !gc_scopes_.empty()) {
+        gc_scopes_.back().is_guarded = true;
+      }
+    }
+    return true;
+  }
+
+  // Visits the implicit `begin()`, `end()`, `operator!=`, `operator++`, and
+  // `operator*` expressions of a range-for loop in scope order, which
+  // `RecursiveASTVisitor` skips when `shouldVisitImplicitCode()` is false.
+  bool TraverseCXXForRangeStmt(clang::CXXForRangeStmt* stmt) {
+    if (!TraverseStmt(stmt->getInit())) return false;
+    if (!TraverseDeclStmtInits(stmt->getRangeStmt())) return false;
+    if (!TraverseDeclStmtInits(stmt->getBeginStmt())) return false;
+    if (!TraverseDeclStmtInits(stmt->getEndStmt())) return false;
+    if (!TraverseStmt(stmt->getCond())) return false;
+    if (!TraverseStmt(stmt->getInc())) return false;
+    if (!TraverseDeclStmtInits(stmt->getLoopVarStmt())) return false;
+    if (!TraverseStmt(stmt->getLoopVarStmt())) return false;
+    if (!TraverseStmt(stmt->getBody())) return false;
+    return true;
+  }
+
+  // Visits the semantic form of C++20 rewritten comparisons (e.g. `a != b`
+  // calling `operator==`, including range-for's `__begin != __end`), since
+  // `RecursiveASTVisitor` only visits their syntactic operands when
+  // `shouldVisitImplicitCode()` is false and would miss the operator call.
+  bool TraverseCXXRewrittenBinaryOperator(
+      clang::CXXRewrittenBinaryOperator* expr) {
+    return TraverseStmt(expr->getSemanticForm());
+  }
+
   virtual bool VisitCallExpr(clang::CallExpr* expr) {
     if (IsGuarded()) return true;
 
@@ -669,11 +717,22 @@ class CalleesPrinter : public clang::RecursiveASTVisitor<CalleesPrinter> {
   }
 
  private:
+  bool TraverseDeclStmtInits(clang::DeclStmt* decl_stmt) {
+    if (!decl_stmt) return true;
+    for (clang::Decl* decl : decl_stmt->decls()) {
+      if (auto* var = llvm::dyn_cast<clang::VarDecl>(decl)) {
+        if (var->hasInit() && !TraverseStmt(var->getInit())) return false;
+      }
+    }
+    return true;
+  }
+
   bool IntroducesScope(clang::Stmt* S) {
     switch (S->getStmtClass()) {
       case clang::Stmt::CompoundStmtClass:
       case clang::Stmt::IfStmtClass:
       case clang::Stmt::ForStmtClass:
+      case clang::Stmt::CXXForRangeStmtClass:
       case clang::Stmt::WhileStmtClass:
       case clang::Stmt::SwitchStmtClass:
         return true;
@@ -1751,6 +1810,14 @@ class FunctionAnalyzer {
       if (var_decl->isConstexpr() || !var_decl->isLocalVarDeclOrParm()) {
         return ExprEffect::None();
       }
+    } else if (const auto* binding_decl =
+                   llvm::dyn_cast<clang::BindingDecl>(var)) {
+      const auto* decomp_decl = llvm::dyn_cast_or_null<clang::VarDecl>(
+          binding_decl->getDecomposedDecl());
+      if (!decomp_decl || decomp_decl->isConstexpr() ||
+          !decomp_decl->isLocalVarDeclOrParm()) {
+        return ExprEffect::None();
+      }
     }
     return Use(parent, var->getType(), var->getNameAsString(),
                clang::FullSourceLoc(var->getLocation(), sm_), env);
@@ -2391,6 +2458,31 @@ class FunctionAnalyzer {
       if (IsConservativePinningScope(var_type)) {
         state_.scopes.back().conservative_pinning_scope_location =
             clang::FullSourceLoc(decl->getLocation(), sm_);
+      }
+
+      if (auto* decomp = llvm::dyn_cast<clang::DecompositionDecl>(var)) {
+        for (clang::BindingDecl* binding : decomp->flat_bindings()) {
+          if (clang::VarDecl* holding_var = binding->getHoldingVar()) {
+            if (holding_var->hasInit()) {
+              out = VisitStmt(holding_var->getInit(), out);
+            }
+          } else if (clang::Expr* binding_expr = binding->getBinding()) {
+            out = VisitStmt(binding_expr, out);
+          }
+
+          clang::QualType binding_type = binding->getType();
+          if (RepresentsRawPointerType(binding_type)) {
+            out.MDefine(binding->getNameAsString());
+          }
+          if (IsGCGuard(binding_type)) {
+            state_.scopes.back().guard_location =
+                clang::FullSourceLoc(binding->getLocation(), sm_);
+          }
+          if (IsConservativePinningScope(binding_type)) {
+            state_.scopes.back().conservative_pinning_scope_location =
+                clang::FullSourceLoc(binding->getLocation(), sm_);
+          }
+        }
       }
 
       return out;
