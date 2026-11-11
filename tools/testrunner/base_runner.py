@@ -38,7 +38,6 @@ DEFAULT_OUT_GN = Path('out.gn')
 TEST_MAP = {
     # This needs to stay in sync with group("v8_bot_default") in test/BUILD.gn.
     "bot_default": [
-        "debugger",
         "mjsunit",
         "cctest",
         "wasm-spec-tests",
@@ -56,7 +55,6 @@ TEST_MAP = {
     ],
     # This needs to stay in sync with group("v8_default") in test/BUILD.gn.
     "default": [
-        "debugger",
         "mjsunit",
         "cctest",
         "wasm-spec-tests",
@@ -72,7 +70,6 @@ TEST_MAP = {
     ],
     # This needs to stay in sync with group("v8_d8_default") in test/BUILD.gn.
     "d8_default": [
-        "debugger",
         "mjsunit",
         "webkit",
         "message",
@@ -81,7 +78,6 @@ TEST_MAP = {
     ],
     # This needs to stay in sync with "v8_optimize_for_size" in test/BUILD.gn.
     "optimize_for_size": [
-        "debugger",
         "mjsunit",
         "cctest",
         "inspector",

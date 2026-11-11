@@ -91,7 +91,7 @@ DEFAULT_TARGETS = ["d8"]
 # Tests that run-tests.py would run by default that can be run with
 # BUILD_TARGETS_TESTS.
 DEFAULT_TESTS = [
-    "cctest", "debugger", "filecheck", "intl", "message", "mjsunit", "unittests"
+    "cctest", "filecheck", "intl", "message", "mjsunit", "unittests"
 ]
 # These can be suffixed to any <arch>.<mode> combo, or used standalone,
 # or used as global modifiers (affecting all <arch>.<mode> combos).
@@ -148,7 +148,6 @@ TESTSUITES_TARGETS = {
     "benchmarks": "d8",
     "bigint": "bigint_shell",
     "cctest": "cctest",
-    "debugger": "d8",
     "filecheck": "d8",
     "fuzzer": "v8_fuzzers",
     "inspector": "inspector-test",

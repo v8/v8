@@ -7395,8 +7395,8 @@ class PromiseAllExceptionDelegate : public v8::debug::DebugDelegate {
 static void EmptyPromiseCatchHandler(
     const v8::FunctionCallbackInfo<v8::Value>&) {}
 
-// This is the C++ equivalent of test/debugger/debug/es6/debug-promises/
-// promise-all-uncaught.js.
+// This is the C++ equivalent of
+// test/inspector/debugger/es6/debug-promises/promise-all-uncaught.js.
 TEST_F(DebugTest, PerformPromiseAllUncaughtDebug) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
@@ -7439,8 +7439,8 @@ TEST_F(DebugTest, PerformPromiseAllUncaughtDebug) {
   v8::debug::SetDebugDelegate(isolate, nullptr);
 }
 
-// This is the C++ equivalent of test/debugger/debug/es6/debug-promises/
-// promise-all-caught.js.
+// This is the C++ equivalent of
+// test/inspector/debugger/es6/debug-promises/promise-all-caught.js.
 TEST_F(DebugTest, PerformPromiseAllCaughtDebug) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();

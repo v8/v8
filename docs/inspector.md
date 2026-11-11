@@ -63,7 +63,7 @@ send(msg);
 
 ## Further documentation
 
-A more fleshed-out example of Inspector API usage is available at [`test-api.js`](https://crsrc.org/c/v8/test/debugger/test-api.js), which implements a simple debugging API for use by V8’s test suite.
+Examples of Inspector API usage are available in [`test/inspector`](https://crsrc.org/c/v8/test/inspector/).
 
 V8 also contains an alternative Inspector integration at [`inspector-test.cc`](https://crsrc.org/c/v8/test/inspector/inspector-test.cc).
 
