@@ -56,6 +56,7 @@ class Deoptimizer : public Malloced {
   static DeoptInfo ComputeDeoptInfo(Tagged<Code> code, Address pc);
   DeoptInfo GetDeoptInfo() {
     if (deopt_info_.deopt_id == DeoptInfo::kUninitilizedDeoptId) {
+      DCHECK(!compiled_code_.is_null());
       deopt_info_ = ComputeDeoptInfo(compiled_code_, from_);
     }
     return deopt_info_;
@@ -135,8 +136,7 @@ class Deoptimizer : public Malloced {
   ~Deoptimizer();
 
   void MaterializeHeapObjects();
-  void ProcessDeoptReason(DeoptimizeReason reason,
-                          DirectHandle<Code> optimized_code);
+  void ProcessDeoptReason(DeoptimizeReason reason);
 
   static void ComputeOutputFrames(Deoptimizer* deoptimizer);
 
@@ -283,6 +283,9 @@ class Deoptimizer : public Malloced {
   Isolate* isolate_;
   Tagged<JSFunction> function_;
   Tagged<Code> compiled_code_;
+  // compiled_code_ is not visited by the GC. Once GC is allowed again (see
+  // MaterializeHeapObjects), it is cleared and replaced by this handle.
+  IndirectHandle<Code> compiled_code_handle_;
 #if V8_ENABLE_WEBASSEMBLY
   wasm::WasmCode* compiled_optimized_wasm_code_ = nullptr;
 #endif

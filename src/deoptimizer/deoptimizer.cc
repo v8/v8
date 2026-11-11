@@ -793,10 +793,12 @@ Deoptimizer::Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
 }
 
 DirectHandle<JSFunction> Deoptimizer::function() const {
+  DCHECK(!function_.is_null());
   return DirectHandle<JSFunction>(function_, isolate());
 }
 
 DirectHandle<Code> Deoptimizer::compiled_code() const {
+  if (!compiled_code_handle_.is_null()) return compiled_code_handle_;
   return DirectHandle<Code>(compiled_code_, isolate());
 }
 
@@ -3160,6 +3162,12 @@ void Deoptimizer::DoComputeBuiltinContinuation(
 }
 
 void Deoptimizer::MaterializeHeapObjects() {
+  // Materialization can cause a GC. Clear the raw heap pointers, keeping a
+  // handle to the Code.
+  compiled_code_handle_ = handle(compiled_code_, isolate());
+  compiled_code_ = {};
+  function_ = {};
+
   translated_state_.Prepare(static_cast<Address>(stack_fp_));
   if (v8_flags.deopt_every_n_times > 0) {
     // Doing a GC here will find problems with the deoptimized frames.
@@ -3200,14 +3208,13 @@ void Deoptimizer::MaterializeHeapObjects() {
       static_cast<Address>(stack_fp_));
 }
 
-void Deoptimizer::ProcessDeoptReason(DeoptimizeReason reason,
-                                     DirectHandle<Code> optimized_code) {
+void Deoptimizer::ProcessDeoptReason(DeoptimizeReason reason) {
   bool feedback_updated = translated_state_.DoUpdateFeedback(reason);
   if (verbose_tracing_enabled() && feedback_updated) {
     FILE* file = trace_scope()->file();
     PrintF(file, "Feedback updated from deoptimization at ");
     OFStream outstr(file);
-    GetDeoptInfo().position.Print(outstr, *optimized_code);
+    GetDeoptInfo().position.Print(outstr, *compiled_code());
     PrintF(file, ", %s\n",
            DeoptimizeReasonToString(GetDeoptInfo().deopt_reason));
   }
