@@ -1099,8 +1099,10 @@ RUNTIME_FUNCTION(Runtime_BuildRefTypeBitfield) {
 // builds (to save binary size). Hence also skip the runtime function in
 // official builds.
 #ifdef V8_WASM_RANDOM_FUZZERS
-RUNTIME_FUNCTION(Runtime_WasmGenerateRandomModule) {
-  if (v8_flags.jitless) {
+namespace {
+Tagged<Object> GenerateRandomWasmModule(Isolate* isolate, RuntimeArguments args,
+                                        bool for_revec) {
+  if (v8_flags.jitless || (for_revec && !wasm::CheckHardwareSupportsSimd())) {
     return CrashUnlessFuzzing(isolate);
   }
   HandleScope scope{isolate};
@@ -1141,23 +1143,28 @@ RUNTIME_FUNCTION(Runtime_WasmGenerateRandomModule) {
     }
   }
 
-  // Avoid generating SIMD if the CPU does not support it, or it's disabled via
-  // flags. Otherwise, do not limit the generated expressions and types.
-  constexpr auto kAllOptions =
-      wasm::fuzzing::WasmModuleGenerationOptions::All();
-  constexpr auto kNoSimdOptions = wasm::fuzzing::WasmModuleGenerationOptions{
-      {wasm::fuzzing::WasmModuleGenerationOption::kGenerateWasmGC}};
-  static_assert(
-      (kNoSimdOptions |
-       wasm::fuzzing::WasmModuleGenerationOptions{
-           {wasm::fuzzing::WasmModuleGenerationOption::kGenerateSIMD}}) ==
-      kAllOptions);
-  auto options =
-      wasm::CheckHardwareSupportsSimd() ? kAllOptions : kNoSimdOptions;
+  base::Vector<const uint8_t> module_bytes;
+  if (for_revec) {
+    module_bytes = wasm::fuzzing::GenerateWasmModuleForRevec(
+        &temporary_zone, base::VectorOf(input_bytes));
+  } else {
+    // Avoid generating SIMD if the CPU does not support it, or it's disabled
+    // via flags. Otherwise, do not limit the generated expressions and types.
+    constexpr auto kAllOptions =
+        wasm::fuzzing::WasmModuleGenerationOptions::All();
+    constexpr auto kNoSimdOptions = wasm::fuzzing::WasmModuleGenerationOptions{
+        {wasm::fuzzing::WasmModuleGenerationOption::kGenerateWasmGC}};
+    static_assert(
+        (kNoSimdOptions |
+         wasm::fuzzing::WasmModuleGenerationOptions{
+             {wasm::fuzzing::WasmModuleGenerationOption::kGenerateSIMD}}) ==
+        kAllOptions);
+    auto options =
+        wasm::CheckHardwareSupportsSimd() ? kAllOptions : kNoSimdOptions;
 
-  base::Vector<const uint8_t> module_bytes =
-      wasm::fuzzing::GenerateRandomWasmModule(&temporary_zone, options,
-                                              base::VectorOf(input_bytes));
+    module_bytes = wasm::fuzzing::GenerateRandomWasmModule(
+        &temporary_zone, options, base::VectorOf(input_bytes));
+  }
 
   // Fuzzers can set `--wasm-max-module-size` to small values and then call
   // %WasmGenerateRandomModule() (see https://crbug.com/382816108).
@@ -1178,6 +1185,15 @@ RUNTIME_FUNCTION(Runtime_WasmGenerateRandomModule) {
         thrower.error_msg());
   }
   return *maybe_module_object.ToHandleChecked();
+}
+}  // namespace
+
+RUNTIME_FUNCTION(Runtime_WasmGenerateRandomModule) {
+  return GenerateRandomWasmModule(isolate, args, false);
+}
+
+RUNTIME_FUNCTION(Runtime_WasmGenerateRandomRevecModule) {
+  return GenerateRandomWasmModule(isolate, args, true);
 }
 #endif  // V8_WASM_RANDOM_FUZZERS
 

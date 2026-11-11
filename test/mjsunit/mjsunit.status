@@ -2863,6 +2863,7 @@
   'wasm/deopt/deopt-untagged-parameters-s128': [SKIP],
   'wasm/deopt/deopt-value-types': [SKIP],
   'wasm/exceptions-simd': [SKIP],
+  'wasm/generate-random-module-revec': [SKIP],
   'wasm/growable-stacks': [SKIP],
   'wasm/growable-stacks-simd': [SKIP],
   'wasm/interleaved-loads': [SKIP],
