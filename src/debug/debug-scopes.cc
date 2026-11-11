@@ -25,6 +25,12 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector)
       frame_inspector_(frame_inspector),
       function_(frame_inspector_->GetFunction()),
       script_(frame_inspector_->GetScript()) {
+#if V8_ENABLE_WEBASSEMBLY
+  if (frame_inspector->IsWasm()) {
+    return;
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   if (!IsContext(*frame_inspector->GetContext())) {
     // Optimized frame, context or function cannot be materialized. Give up.
     return;

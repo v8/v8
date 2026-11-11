@@ -307,6 +307,19 @@ bool FrameHasExceptionHandler(JavaScriptFrame* frame) {
   return false;
 }
 
+std::optional<FrameSummary::JavaScriptFrameSummary>
+FindInnermostJavaScriptSummary(JavaScriptFrame* frame) {
+  FrameSummaries summaries = frame->Summarize();
+  for (size_t i = summaries.size(); i != 0; --i) {
+    const FrameSummary& summary = summaries.frames[i - 1];
+    if (summary.IsJavaScript() &&
+        summary.AsJavaScript().abstract_code()->kind() != CodeKind::BUILTIN) {
+      return summary.AsJavaScript();
+    }
+  }
+  return std::nullopt;
+}
+
 }  // namespace
 
 BreakLocation BreakLocation::FromFrame(Handle<DebugInfo> debug_info,
@@ -314,9 +327,10 @@ BreakLocation BreakLocation::FromFrame(Handle<DebugInfo> debug_info,
   if (debug_info->CanBreakAtEntry()) {
     return BreakLocation(Debug::kBreakAtEntryPosition, DEBUG_BREAK_AT_ENTRY);
   }
-  auto summary = FrameSummary::GetInnermost(frame).AsJavaScript();
-  int offset = summary.code_offset();
-  DirectHandle<AbstractCode> abstract_code = summary.abstract_code();
+  auto js_summary = FindInnermostJavaScriptSummary(frame);
+  if (!js_summary.has_value()) return BreakLocation::Invalid();
+  int offset = js_summary->code_offset();
+  DirectHandle<AbstractCode> abstract_code = js_summary->abstract_code();
   BreakIterator it(debug_info);
   it.SkipTo(BreakIndexFromCodeOffset(debug_info, abstract_code, offset));
   if (it.Done()) return BreakLocation::Invalid();
@@ -325,7 +339,8 @@ BreakLocation BreakLocation::FromFrame(Handle<DebugInfo> debug_info,
 
 bool BreakLocation::IsPausedInJsFunctionEntry(JavaScriptFrame* frame) {
   auto summary = FrameSummary::GetInnermost(frame);
-  return summary.code_offset() == kFunctionEntryBytecodeOffset;
+  return summary.IsJavaScript() &&
+         summary.code_offset() == kFunctionEntryBytecodeOffset;
 }
 
 MaybeDirectHandle<FixedArray> Debug::CheckBreakPointsForLocations(
@@ -362,9 +377,10 @@ void BreakLocation::AllAtCurrentStatement(
     Handle<DebugInfo> debug_info, JavaScriptFrame* frame,
     std::vector<BreakLocation>* result_out) {
   DCHECK(!debug_info->CanBreakAtEntry());
-  auto summary = FrameSummary::GetInnermost(frame).AsJavaScript();
-  int offset = summary.code_offset();
-  DirectHandle<AbstractCode> abstract_code = summary.abstract_code();
+  auto js_summary = FindInnermostJavaScriptSummary(frame);
+  if (!js_summary.has_value()) return;
+  int offset = js_summary->code_offset();
+  DirectHandle<AbstractCode> abstract_code = js_summary->abstract_code();
   if (IsCode(*abstract_code)) offset = offset - 1;
   int statement_position;
   {
@@ -1657,49 +1673,66 @@ void Debug::PrepareStep(StepAction step_action) {
   Handle<SharedFunctionInfo> shared;
   int current_frame_count = CurrentFrameCount();
 
+  bool in_current_frame = true;
   if (frame->is_javascript()) {
     JavaScriptFrame* js_frame = JavaScriptFrame::cast(frame);
     DCHECK(IsJSFunction(js_frame->function()));
 
-    // Get the debug info (create it if it does not exist).
-    auto summary = FrameSummary::GetInnermost(frame).AsJavaScript();
-    DirectHandle<JSFunction> function(summary.function());
-    shared = Handle<SharedFunctionInfo>(function->shared(), isolate_);
-    if (!EnsureBreakInfo(shared)) return;
-    PrepareFunctionForDebugExecution(shared);
-
-    // PrepareFunctionForDebugExecution can invalidate Baseline frames
-    js_frame = JavaScriptFrame::cast(frames_it.Reframe());
-
-    Handle<DebugInfo> debug_info(TryGetDebugInfo(*shared).value(), isolate_);
-    location = BreakLocation::FromFrame(debug_info, js_frame);
-
-    // Any step at a return is a step-out, and a step-out at a suspend behaves
-    // like a return.
-    if (location.IsReturn() ||
-        (location.IsSuspend() && step_action == StepOut)) {
-      // On StepOut we'll ignore our further calls to current function in
-      // PrepareStepIn callback.
-      if (last_step_action() == StepOut) {
-        thread_local_.ignore_step_into_function_ = *function;
-      }
+    FrameSummary innermost = FrameSummary::GetInnermost(js_frame);
+    if (!innermost.IsJavaScript() ||
+        innermost.AsJavaScript().abstract_code()->kind() == CodeKind::BUILTIN) {
+      UpdateHookOnFunctionCall();
+      clear_suspended_generator();
       step_action = StepOut;
-      if (!step_over_enters_functions()) {
-        thread_local_.last_step_action_ = StepInto;
+      in_current_frame = false;
+      if (js_frame->is_optimized()) {
+        Deoptimizer::DeoptimizeFunction(js_frame->function(),
+                                        LazyDeoptimizeReason::kDebugger,
+                                        js_frame->LookupCode());
       }
+    } else {
+      auto summary = innermost.AsJavaScript();
+      DirectHandle<JSFunction> function(summary.function());
+      shared = Handle<SharedFunctionInfo>(function->shared(), isolate_);
+      if (!EnsureBreakInfo(shared)) return;
+      PrepareFunctionForDebugExecution(shared);
+
+      // PrepareFunctionForDebugExecution can invalidate Baseline frames
+      js_frame = JavaScriptFrame::cast(frames_it.Reframe());
+
+      Handle<DebugInfo> debug_info(TryGetDebugInfo(*shared).value(), isolate_);
+      location = BreakLocation::FromFrame(debug_info, js_frame);
+
+      // Any step at a return is a step-out, and a step-out at a suspend behaves
+      // like a return.
+      if (location.IsReturn() ||
+          (location.IsSuspend() && step_action == StepOut)) {
+        // On StepOut we'll ignore our further calls to current function in
+        // PrepareStepIn callback.
+        if (last_step_action() == StepOut) {
+          thread_local_.ignore_step_into_function_ = *function;
+        }
+        step_action = StepOut;
+        if (!step_over_enters_functions()) {
+          thread_local_.last_step_action_ = StepInto;
+        }
+      }
+
+      // We need to schedule DebugOnFunction call callback
+      UpdateHookOnFunctionCall();
+
+      // A step-next in blackboxed function is a step-out.
+      if (step_action == StepOver && IsBlackboxed(shared)) {
+        step_action = StepOut;
+      }
+
+      thread_local_.last_statement_position_ =
+          summary.SourceStatementPosition();
+      thread_local_.last_bytecode_offset_ = summary.code_offset();
+      thread_local_.last_frame_count_ = current_frame_count;
+      // No longer perform the current async step.
+      clear_suspended_generator();
     }
-
-    // We need to schedule DebugOnFunction call callback
-    UpdateHookOnFunctionCall();
-
-    // A step-next in blackboxed function is a step-out.
-    if (step_action == StepOver && IsBlackboxed(shared)) step_action = StepOut;
-
-    thread_local_.last_statement_position_ = summary.SourceStatementPosition();
-    thread_local_.last_bytecode_offset_ = summary.code_offset();
-    thread_local_.last_frame_count_ = current_frame_count;
-    // No longer perform the current async step.
-    clear_suspended_generator();
 #if V8_ENABLE_WEBASSEMBLY
   } else if (frame->is_wasm() && step_action != StepOut) {
 #if V8_ENABLE_DRUMBRAKE
@@ -1774,7 +1807,6 @@ void Debug::PrepareStep(StepAction step_action) {
       }
       // Skip the current frame, find the first frame we want to step out to
       // and deoptimize every frame along the way.
-      bool in_current_frame = true;
       for (; !frames_it.done(); frames_it.Advance()) {
 #if V8_ENABLE_WEBASSEMBLY
 #if V8_ENABLE_DRUMBRAKE
@@ -1814,6 +1846,7 @@ void Debug::PrepareStep(StepAction step_action) {
             in_current_frame = false;
             continue;
           }
+          if (!info->IsSubjectToDebugging()) continue;
           if (IsBlackboxed(info)) continue;
           FloodWithOneShot(info);
           thread_local_.target_frame_count_ = current_frame_count;
@@ -2832,29 +2865,49 @@ void Debug::OnException(DirectHandle<Object> exception,
           continue;
         }
 #endif  // V8_ENABLE_WEBASSEMBLY
-        FrameSummary& summary = summaries.frames.back();
-        DirectHandle<SharedFunctionInfo> shared{
-            summary.AsJavaScript().function()->shared(), isolate_};
-        if (shared->IsSubjectToDebugging()) {
-          Handle<DebugInfo> debug_info;
-          std::vector<BreakLocation> break_locations;
-          if (ToHandle(isolate_, TryGetDebugInfo(*shared), &debug_info) &&
-              debug_info->HasBreakInfo()) {
-            // Enter the debugger.
-            DebugScope debug_scope(this);
-            BreakLocation::AllAtCurrentStatement(debug_info, frame,
-                                                 &break_locations);
+        bool found_unsilenced_frame = false;
+        for (size_t i = summaries.size(); i != 0; i--) {
+          const FrameSummary& summary = summaries.frames[i - 1];
+#if V8_ENABLE_WEBASSEMBLY
+          if (summary.IsWasmInlined()) {
+            if (IsMutedAtWasmLocation(*summary.AsWasmInlined().script(),
+                                      summary.SourcePosition())) {
+              return;
+            }
+            found_unsilenced_frame = true;
+            break;
           }
-          if (IsMutedAtAnyBreakLocation(shared, break_locations)) {
-            return;
+#endif  // V8_ENABLE_WEBASSEMBLY
+          if (!summary.IsJavaScript()) continue;
+          if (summary.AsJavaScript().abstract_code()->kind() ==
+              CodeKind::BUILTIN) {
+            continue;
           }
-          if (frame->is_optimized()) {
-            Deoptimizer::DeoptimizeFunction(frame->function(),
-                                            LazyDeoptimizeReason::kDebugger,
-                                            frame->LookupCode());
+          DirectHandle<SharedFunctionInfo> shared{
+              summary.AsJavaScript().function()->shared(), isolate_};
+          if (shared->IsSubjectToDebugging()) {
+            Handle<DebugInfo> debug_info;
+            std::vector<BreakLocation> break_locations;
+            if (ToHandle(isolate_, TryGetDebugInfo(*shared), &debug_info) &&
+                debug_info->HasBreakInfo()) {
+              // Enter the debugger.
+              DebugScope debug_scope(this);
+              BreakLocation::AllAtCurrentStatement(debug_info, frame,
+                                                   &break_locations);
+            }
+            if (IsMutedAtAnyBreakLocation(shared, break_locations)) {
+              return;
+            }
+            if (frame->is_optimized()) {
+              Deoptimizer::DeoptimizeFunction(frame->function(),
+                                              LazyDeoptimizeReason::kDebugger,
+                                              frame->LookupCode());
+            }
+            found_unsilenced_frame = true;
+            break;  // Stop at first debuggable function
           }
-          break;  // Stop at first debuggable function
         }
+        if (found_unsilenced_frame) break;
 #if V8_ENABLE_WEBASSEMBLY
       } else if (it.frame()->is_wasm()) {
         const WasmFrame* frame = WasmFrame::cast(it.frame());

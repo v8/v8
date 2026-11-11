@@ -393,4 +393,10 @@
   'debugger/debug-stepout-scope-part8': [SKIP],
 }],  # 'arch == arm and mode == debug'
 
+##############################################################################
+['arch in (ia32, arm, riscv32)', {
+  # Wasm-into-JS body inlining is not supported on 32-bit platforms.
+  'debugger/wasm-inlined-frame-summary': [SKIP],
+}],  # 'arch in (ia32, arm, riscv32)'
+
 ]

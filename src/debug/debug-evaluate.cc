@@ -108,6 +108,9 @@ MaybeDirectHandle<Object> DebugEvaluate::Local(
 
   CHECK(it.is_javascript());
   JavaScriptFrame* frame = it.javascript_frame();
+  if (!FrameSummary::Get(frame, inlined_jsframe_index).IsJavaScript()) {
+    return {};
+  }
   // This is not a lot different than DebugEvaluate::Global, except that
   // variables accessible by the function we are evaluating from are
   // materialized and included on top of the native context. Changes to
