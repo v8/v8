@@ -203,9 +203,6 @@
           'release_simulate_arm64_asan_fuzzilli_sandbox_testing_undefined_double',
     },
     'client.v8.perf' : {
-      # Arm
-      'V8 Arm - builder - perf': 'official_arm',
-      'V8 Arm - builder - pgo - perf': 'official_arm_pgo',
       # Android Arm
       'V8 Android Arm - builder - perf': 'official_android_arm',
       'v8_android_arm_compile_perf_try': 'official_android_arm',
@@ -227,8 +224,6 @@
     },
     'client.v8.ports': {
       # Arm.
-      'V8 Arm - builder': 'release_arm',
-      'V8 Arm - debug builder': 'debug_arm',
       'V8 Android Arm - builder': 'release_android_arm',
       'V8 Android Arm - verify deterministic - debug': 'debug_android_arm_verify_deterministic',
       'V8 Linux - arm - sim - builder': 'release_simulate_arm_gcmole',
@@ -537,8 +532,6 @@
       'debug_static', 'arm', 'android', 'minimal_symbols', 'v8_verify_deterministic'],
     'debug_android_arm64': [
       'debug_static', 'arm64', 'android', 'minimal_symbols'],
-    'debug_arm': [
-      'debug_bot', 'arm', 'hard_float'],
     'debug_arm64': [
       'debug_bot', 'arm64'],
     'debug_arm64_trybot': [
@@ -552,8 +545,6 @@
       'debug_bot', 'arm64', 'v8_full_debug'],
 
     # Release configs for arm.
-    'release_arm': [
-      'release_bot', 'arm', 'hard_float'],
     'release_arm64': [
       'release_bot', 'arm64'],
     'release_arm64_asan': [
@@ -572,11 +563,6 @@
       'android_strip_outputs'],
 
     # Official configs for arm
-    'official_arm': [
-      'release_bot', 'arm', 'hard_float', 'official', 'disable_chrome_pgo'],
-    'official_arm_pgo': [
-      'release_bot', 'arm', 'hard_float', 'official', 'disable_chrome_pgo',
-      'builtins_optimization'],
     'official_android_arm': [
       'release_bot', 'arm', 'android', 'minimal_symbols',
       'android_strip_outputs', 'official', 'disable_chrome_pgo'],
@@ -948,10 +934,6 @@
 
     'gcmole': {
       'gn_args': 'v8_gcmole=true',
-    },
-
-    'hard_float': {
-      'gn_args': 'arm_float_abi="hard"',
     },
 
     'ios_simulator': {

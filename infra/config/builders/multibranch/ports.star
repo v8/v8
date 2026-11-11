@@ -18,21 +18,6 @@ multibranch_builder_pair = ci_pair_factory(port_builder)
 in_category(
     "Arm",
     multibranch_builder(
-        name = "V8 Arm - builder",
-        triggering_policy = parallel_3_greedy_batching_of_1,
-        triggered_by_gitiles = True,
-        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"builder_group": "client.v8.ports", "target_arch": "arm", "binary_size_tracking": {"category": "linux_arm32", "binary": "d8"}},
-        barrier = BARRIER.LKGR_TREE_CLOSER,
-    ),
-    multibranch_builder(
-        name = "V8 Arm - debug builder",
-        triggered_by_gitiles = True,
-        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"target_arch": "arm", "builder_group": "client.v8.ports"},
-        barrier = BARRIER.LKGR_TREE_CLOSER,
-    ),
-    multibranch_builder(
         name = "V8 Android Arm - builder",
         triggering_policy = parallel_3_greedy_batching_of_1,
         triggered_by_gitiles = True,
