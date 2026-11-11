@@ -11756,10 +11756,11 @@ static void call_as_function(const v8::FunctionCallbackInfo<v8::Value>& args) {
   ApiTestFuzzer::Fuzz();
   if (args.IsConstructCall()) {
     if (args[0]->IsInt32()) {
-      args.GetReturnValue().Set(
-          v8_num(-args[0]
-                      ->Int32Value(args.GetIsolate()->GetCurrentContext())
-                      .FromJust()));
+      args.GetReturnValue().Set(v8::NumberObject::New(
+          args.GetIsolate(),
+          -args[0]
+               ->Int32Value(args.GetIsolate()->GetCurrentContext())
+               .FromJust()));
       return;
     }
   }
@@ -11821,10 +11822,17 @@ THREADED_TEST(ApiTest, CallAsFunction) {
     CHECK(!try_catch.HasCaught());
     CHECK_EQ(17, value->Int32Value(context.local()).FromJust());
 
-    // Check that the call-as-function handler can be called through new.
+    // Check that the call-as-function handler can be called through new when it
+    // returns an object, and throws a TypeError when it returns a non-object.
     value = CompileRun("new obj(43)");
     CHECK(!try_catch.HasCaught());
+    CHECK(value->IsNumberObject());
     CHECK_EQ(-43, value->Int32Value(context.local()).FromJust());
+
+    value = CompileRun("new obj(true)");
+    CHECK(value.IsEmpty());
+    CHECK(try_catch.HasCaught());
+    try_catch.Reset();
 
     // Check that the call-as-function handler can be called through
     // the API.
