@@ -3402,6 +3402,12 @@ JSNativeContextSpecialization::BuildPropertyStore(
         storage = effect = BuildExtendPropertiesBackingStore(
             original_map, storage, effect, control);
 
+        // Start the observable region after reallocating {storage} so that
+        // regions are not nested while still marking the initializing property
+        // store below as inside the transitioning region.
+        effect = graph()->NewNode(
+            common()->BeginRegion(RegionObservability::kObservable), effect);
+
         // Perform the actual store.
         effect = graph()->NewNode(simplified()->StoreField(field_access),
                                   storage, value, effect, control);
@@ -3410,9 +3416,10 @@ JSNativeContextSpecialization::BuildPropertyStore(
         field_access = AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer();
         value = storage;
         storage = receiver;
+      } else {
+        effect = graph()->NewNode(
+            common()->BeginRegion(RegionObservability::kObservable), effect);
       }
-      effect = graph()->NewNode(
-          common()->BeginRegion(RegionObservability::kObservable), effect);
       effect = graph()->NewNode(simplified()->StoreField(field_access), storage,
                                 value, effect, control);
       // We store the map only at the end of the transition to avoid a potential
