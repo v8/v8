@@ -24,21 +24,6 @@ RUNTIME_FUNCTION(Runtime_FunctionGetScriptSource) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_FunctionGetScriptId) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  DirectHandle<JSReceiver> function = args.at<JSReceiver>(0);
-
-  if (IsJSFunction(*function)) {
-    DirectHandle<Object> script(Cast<JSFunction>(function)->shared()->script(),
-                                isolate);
-    if (IsScript(*script)) {
-      return Smi::FromInt(Cast<Script>(script)->id());
-    }
-  }
-  return Smi::FromInt(-1);
-}
-
 RUNTIME_FUNCTION(Runtime_FunctionGetSourceCode) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -58,14 +43,6 @@ RUNTIME_FUNCTION(Runtime_FunctionGetScriptSourcePosition) {
   auto fun = Cast<JSFunction>(args[0]);
   int pos = fun->shared()->StartPosition();
   return Smi::FromInt(pos);
-}
-
-RUNTIME_FUNCTION(Runtime_FunctionIsAPIFunction) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-
-  auto f = Cast<JSFunction>(args[0]);
-  return ReadOnlyRoots(isolate).boolean_value(f->shared()->IsApiFunction());
 }
 
 RUNTIME_FUNCTION(Runtime_Call) {

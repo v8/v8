@@ -172,11 +172,9 @@ constexpr bool CanTriggerGC(T... properties) {
   F(GetGeneratorScopeCount, 1, 1)               \
   F(GetGeneratorScopeDetails, 2, 1)             \
   F(HandleDebuggerStatement, 0, 1)              \
-  F(IsBreakOnException, 1, 1)                   \
   F(IterableForEach, 2, 1)                      \
   F(ProfileCreateSnapshotDataBlob, 0, 1)        \
   F(ScheduleBreak, 0, 1)                        \
-  F(ScriptLocationFromLine2, 4, 1)              \
   F(SetGeneratorScopeVariableValue, 4, 1)       \
   I(IncBlockCounter, 2, 1)
 
@@ -213,10 +211,8 @@ constexpr bool CanTriggerGC(T... properties) {
 #define FOR_EACH_INTRINSIC_FUNCTION(F, I)  \
   F(Call, -1 /* >= 2 */, 1)                \
   F(FunctionGetScriptSource, 1, 1)         \
-  F(FunctionGetScriptId, 1, 1)             \
   F(FunctionGetScriptSourcePosition, 1, 1) \
-  F(FunctionGetSourceCode, 1, 1)           \
-  F(FunctionIsAPIFunction, 1, 1)
+  F(FunctionGetSourceCode, 1, 1)
 
 #define FOR_EACH_INTRINSIC_GENERATOR(F, I) \
   I(AsyncFunctionAwait, 2, 1)              \

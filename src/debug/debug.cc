@@ -1454,14 +1454,6 @@ void Debug::ChangeBreakOnException(ExceptionBreakType type, bool enable) {
   }
 }
 
-bool Debug::IsBreakOnException(ExceptionBreakType type) {
-  if (type == BreakUncaughtException) {
-    return break_on_uncaught_exception_;
-  } else {
-    return break_on_caught_exception_;
-  }
-}
-
 MaybeHandle<FixedArray> Debug::GetHitBreakPoints(
     DirectHandle<DebugInfo> debug_info, int position, bool* has_break_points) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);

@@ -304,7 +304,6 @@ class V8_EXPORT_PRIVATE Debug {
                      int* source_position);
   void ClearBreakPoint(DirectHandle<BreakPoint> break_point);
   void ChangeBreakOnException(ExceptionBreakType type, bool enable);
-  bool IsBreakOnException(ExceptionBreakType type);
 
   void SetTerminateOnResume();
 
