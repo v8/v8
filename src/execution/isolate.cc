@@ -3591,7 +3591,9 @@ Tagged<Object> Isolate::ThrowIllegalOperation() {
 
 void Isolate::PrintCurrentStackTrace(
     std::ostream& out,
-    PrintCurrentStackTraceFilterCallback should_include_frame_callback) {
+    PrintCurrentStackTraceFilterCallback should_include_frame_callback,
+    PrintCurrentStackTraceWithOriginFilterCallback origin_filter_callback) {
+  DCHECK(!should_include_frame_callback || !origin_filter_callback);
   Handle<FixedArray> frames =
       CaptureSimpleStackTrace(this, static_cast<int>(FixedArray::kMaxLength),
                               SKIP_NONE, factory()->undefined_value());
@@ -3599,13 +3601,44 @@ void Isolate::PrintCurrentStackTrace(
 
   uint32_t frame_count =
       frames->ulength().value() / CallSiteInfo::Fields::kCount;
+  DirectHandleVector<Script> frame_scripts(this);
+  if (origin_filter_callback) {
+    frame_scripts.resize(frame_count);
+    DirectHandle<Script> caller_script;
+    // A frame without a script uses its nearest caller's script. Callers come
+    // after their callees in `frames`, so fill this in from the end.
+    for (uint32_t i = frame_count; i > 0; --i) {
+      DirectHandle<CallSiteInfo> frame =
+          CallSiteInfo::ConstructFromRawData(this, frames, i - 1);
+      DirectHandle<Script> script;
+      if (CallSiteInfo::GetScript(this, frame).ToHandle(&script)) {
+        caller_script = script;
+      } else {
+        script = caller_script;
+      }
+      frame_scripts[i - 1] = script;
+    }
+  }
+
   for (uint32_t i = 0; i < frame_count; ++i) {
     DirectHandle<CallSiteInfo> frame =
         CallSiteInfo::ConstructFromRawData(this, frames, i);
 
     bool include_frame = true;
-    if (should_include_frame_callback) {
-      Tagged<Object> raw_script_name = frame->GetScriptNameOrSourceURL();
+    if (should_include_frame_callback || origin_filter_callback) {
+      Tagged<Object> raw_script_name = ReadOnlyRoots(this).null_value();
+      bool is_shared_cross_origin = false;
+      if (origin_filter_callback) {
+        DirectHandle<Script> script = frame_scripts[i];
+        if (!script.is_null()) {
+          raw_script_name = script->GetNameOrSourceURL();
+          is_shared_cross_origin =
+              script->origin_options().IsSharedCrossOrigin();
+        }
+      } else {
+        raw_script_name = frame->GetScriptNameOrSourceURL();
+      }
+
       v8::Local<v8::String> script_name_local;
       v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(this);
 
@@ -3616,8 +3649,14 @@ void Isolate::PrintCurrentStackTrace(
       } else {
         script_name_local = v8::String::Empty(v8_isolate);
       }
-      include_frame =
-          should_include_frame_callback(v8_isolate, script_name_local);
+
+      if (origin_filter_callback) {
+        include_frame = origin_filter_callback(v8_isolate, script_name_local,
+                                               is_shared_cross_origin);
+      } else {
+        include_frame =
+            should_include_frame_callback(v8_isolate, script_name_local);
+      }
     }
 
     if (include_frame) {

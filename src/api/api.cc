@@ -3423,12 +3423,33 @@ MaybeLocal<String> Message::GetSourceLine(Local<Context> context) const {
   return handle_scope.Escape(Utils::ToLocal(self->GetSourceLine()));
 }
 
+void Message::PrintCurrentStackTrace(Isolate* v8_isolate, std::ostream& out) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
+  i_isolate->PrintCurrentStackTrace(out);
+}
+
+void Message::PrintCurrentStackTrace(Isolate* v8_isolate, std::ostream& out,
+                                     std::nullptr_t) {
+  PrintCurrentStackTrace(v8_isolate, out);
+}
+
 void Message::PrintCurrentStackTrace(
     Isolate* v8_isolate, std::ostream& out,
     PrintCurrentStackTraceFilterCallback should_include_frame_callback) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
   i_isolate->PrintCurrentStackTrace(out, should_include_frame_callback);
+}
+
+void Message::PrintCurrentStackTrace(
+    Isolate* v8_isolate, std::ostream& out,
+    PrintCurrentStackTraceWithOriginFilterCallback
+        should_include_frame_callback) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
+  i_isolate->PrintCurrentStackTrace(out, nullptr,
+                                    should_include_frame_callback);
 }
 
 // --- S t a c k T r a c e ---

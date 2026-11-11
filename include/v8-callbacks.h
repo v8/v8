@@ -196,6 +196,12 @@ using InterruptCallback = void (*)(Isolate* isolate, void* data);
 using PrintCurrentStackTraceFilterCallback =
     bool (*)(Isolate* isolate, Local<String> script_name);
 
+// Returns true to print a stack frame, or false to print "<redacted>" instead.
+// See the origin-aware overload of Message::PrintCurrentStackTrace for which
+// script is passed in.
+using PrintCurrentStackTraceWithOriginFilterCallback = bool (*)(
+    Isolate* isolate, Local<String> script_name, bool is_shared_cross_origin);
+
 /**
  * This callback is invoked when the heap size is close to the heap limit and
  * V8 is likely to abort with out-of-memory error.
