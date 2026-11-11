@@ -746,8 +746,12 @@ DirectHandle<HeapObject> RegExpMacroAssemblerPPC::GetCode(
 
     RegList argument_registers = {r3, r4, r5, r6, r7, r8, r9, r10};
     // Also push the frame marker.
-    __ mov(r0, Operand(StackFrame::TypeToMarker(StackFrame::IRREGEXP)));
-    __ push(r0);
+    {
+      UseScratchRegisterScope temps(masm_.get());
+      Register scratch = temps.Acquire();
+      __ mov(scratch, Operand(StackFrame::TypeToMarker(StackFrame::IRREGEXP)));
+      __ push(scratch);
+    }
     __ MultiPush(argument_registers);
 
     static_assert(kSuccessfulCapturesOffset ==
@@ -834,8 +838,10 @@ DirectHandle<HeapObject> RegExpMacroAssemblerPPC::GetCode(
     __ LoadU64(r4, MemOperand(frame_pointer(), kStartIndexOffset));
     __ subi(r3, current_input_offset(), Operand(char_size()));
     if (mode() == UC16) {
-      __ ShiftLeftU64(r0, r4, Operand(1));
-      __ sub(r3, r3, r0);
+      UseScratchRegisterScope temps(masm_.get());
+      Register scratch = temps.Acquire();
+      __ ShiftLeftU64(scratch, r4, Operand(1));
+      __ sub(r3, r3, scratch);
     } else {
       __ sub(r3, r3, r4);
     }
