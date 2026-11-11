@@ -445,7 +445,8 @@ void WriteBarrier::Marking(IsolateT isolate, Tagged<HeapObject> host,
 
 void WriteBarrier::Marking(Tagged<HeapObject> host, TrustedPointerSlot slot) {
   MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
-  if (!marking_barrier || marking_barrier->is_not_major()) [[likely]] {
+  if (!marking_barrier || (marking_barrier->is_not_major() &&
+                           !marking_barrier->is_shared())) [[likely]] {
     return;
   }
   MarkingSlow(host, slot);

@@ -18,6 +18,7 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/canonical-types.h"
+#include "src/wasm/wasm-objects-inl.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 // In multi-cage mode we create one cage per isolate
@@ -1109,6 +1110,122 @@ TEST_F(SharedHeapTest, SharedCanonicalTypesMutexIsSafepointAware) {
   blocker->ParkedJoin(local_isolate);
   watchdog.Join();
 }
+
+#ifdef V8_ENABLE_SANDBOX
+namespace {
+DirectHandle<WasmDispatchTable> NewSharedWasmDispatchTableForTesting(
+    Isolate* isolate) {
+  Heap* heap = isolate->heap();
+  int bytes = WasmDispatchTable::SizeFor(0);
+  Tagged<HeapObject> raw_trusted =
+      heap->allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(
+          bytes, AllocationType::kSharedTrusted, AllocationOrigin::kRuntime);
+  ReadOnlyRoots roots(isolate);
+  raw_trusted->set_map_after_allocation(
+      isolate, roots.wasm_dispatch_table_map(), SKIP_WRITE_BARRIER);
+  Tagged<WasmDispatchTable> dispatch_table =
+      UncheckedCast<WasmDispatchTable>(raw_trusted);
+  dispatch_table->WriteField<int>(WasmDispatchTable::kLengthOffset, 0);
+  dispatch_table->WriteField<int>(WasmDispatchTable::kCapacityOffset, 0);
+  dispatch_table->clear_protected_offheap_data();
+  dispatch_table->set_protected_uses(*isolate->shared_space_isolate()
+                                          ->factory()
+                                          ->empty_protected_weak_fixed_array());
+  dispatch_table->set_table_type(wasm::kWasmFuncRef);
+  dispatch_table->InitAndPublish(isolate);
+  return DirectHandle<WasmDispatchTable>(dispatch_table, isolate);
+}
+
+class SharedUntrustedToSharedTrustedBarrierOnClientThread final
+    : public ParkingThread {
+ public:
+  SharedUntrustedToSharedTrustedBarrierOnClientThread()
+      : ParkingThread(base::Thread::Options(
+            "SharedUntrustedToSharedTrustedBarrierOnClientThread")) {}
+
+  void Run() override {
+    SetupClientIsolateAndRunCallback(
+        [](v8::Isolate* client_isolate, Isolate* i_client_isolate) {
+          HandleScope scope(i_client_isolate);
+          ManualGCScope manual_gc_scope(i_client_isolate);
+          Heap* client_heap = i_client_isolate->heap();
+
+          DirectHandle<WasmDispatchTable> trusted_handle =
+              NewSharedWasmDispatchTableForTesting(i_client_isolate);
+          DirectHandle<FixedArray> shared_host =
+              i_client_isolate->factory()->NewFixedArray(
+                  2, AllocationType::kSharedOld);
+
+          // Start local major incremental marking on the client isolate while
+          // the shared space isolate is not marking.
+          client_heap->StartIncrementalMarking(
+              GCFlag::kNoFlags, GarbageCollectionReason::kTesting);
+
+          // Store the shared trusted pointer into the shared host and invoke
+          // the TrustedPointerSlot write barrier.
+          Address slot_addr = shared_host->RawFieldOfFirstElement().address();
+          TrustedPointerSlot slot(slot_addr,
+                                  kSharedWasmDispatchTableTrustedPointerTag);
+          slot.Release_Store(*trusted_handle);
+          WriteBarrier::ForTrustedPointer(*shared_host, slot, *trusted_handle,
+                                          UPDATE_WRITE_BARRIER);
+          shared_host->set(0, Smi::zero());
+        });
+  }
+};
+}  // namespace
+
+TEST_F(SharedHeapTest, SharedUntrustedToSharedTrustedWriteBarrierOnClient) {
+  i_isolate()->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
+      [](const ParkedScope& parked) {
+        SharedUntrustedToSharedTrustedBarrierOnClientThread thread;
+        CHECK(thread.Start());
+        thread.ParkedJoin(parked);
+      });
+}
+
+TEST_F(SharedHeapTest,
+       SharedUntrustedToSharedTrustedWriteBarrierSharedMarking) {
+  Isolate* isolate = i_isolate();
+  ManualGCScope manual_gc_scope(isolate);
+  HandleScope scope(isolate);
+
+  DirectHandle<WasmDispatchTable> trusted_handle =
+      NewSharedWasmDispatchTableForTesting(isolate);
+  DirectHandle<FixedArray> shared_host =
+      isolate->factory()->NewFixedArray(2, AllocationType::kSharedOld);
+
+  // Start incremental marking (shared GC) on the main isolate.
+  isolate->heap()->StartIncrementalMarking(GCFlag::kNoFlags,
+                                           GarbageCollectionReason::kTesting);
+
+  // Setup client isolate (without local major marking) and run the
+  // TrustedPointerSlot write barrier.
+  SetupClientIsolateAndRunCallback(
+      [raw_host = *shared_host, raw_trusted = *trusted_handle](
+          v8::Isolate* client_isolate, Isolate* i_client_isolate) {
+        HandleScope client_scope(i_client_isolate);
+
+        Address slot_addr = raw_host->RawFieldOfFirstElement().address();
+        TrustedPointerSlot slot(slot_addr,
+                                kSharedWasmDispatchTableTrustedPointerTag);
+        slot.Release_Store(raw_trusted);
+
+        EXPECT_TRUE(
+            i_client_isolate->heap()->marking_state()->IsUnmarked(raw_trusted));
+
+        WriteBarrier::ForTrustedPointer(raw_host, slot, raw_trusted,
+                                        UPDATE_WRITE_BARRIER);
+
+        EXPECT_TRUE(
+            i_client_isolate->heap()->marking_state()->IsMarked(raw_trusted));
+        raw_host->set(0, Smi::zero());
+      });
+
+  InvokeMajorGC(isolate);
+}
+#endif  // V8_ENABLE_SANDBOX
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 template <typename TMixin>

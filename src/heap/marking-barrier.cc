@@ -44,8 +44,8 @@ MarkingBarrier::~MarkingBarrier() { DCHECK(typed_slots_map_.empty()); }
 void MarkingBarrier::Write(Tagged<HeapObject> host, TrustedPointerSlot slot) {
 #ifdef V8_ENABLE_SANDBOX
   DCHECK(IsCurrentMarkingBarrier(host));
-  DCHECK(is_activated_ || shared_heap_worklists_.has_value());
-  DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
+  DCHECK(is_activated_ || is_shared());
+  DCHECK_IMPLIES(is_not_major(), is_shared());
 
   // An indirect pointer slot can only contain a Smi if it is uninitialized (in
   // which case the vaue will be Smi::zero()). However, at this point the slot
@@ -59,7 +59,7 @@ void MarkingBarrier::Write(Tagged<HeapObject> host, TrustedPointerSlot slot) {
   // space. No other edges indirect pointers are currently possible in shared
   // space.
   DCHECK_IMPLIES(
-      HeapLayout::InWritableSharedSpace(host),
+      TrustedHeapLayout::InWritableSharedSpace(host),
       MemoryChunk::FromHeapObject(value)->Metadata()->owner()->identity() ==
           SHARED_TRUSTED_SPACE);
 
@@ -68,16 +68,19 @@ void MarkingBarrier::Write(Tagged<HeapObject> host, TrustedPointerSlot slot) {
   DCHECK(!HeapLayout::InYoungGeneration(value));
 
   if (V8_UNLIKELY(uses_shared_heap_) && !is_shared_space_isolate_) {
-    if (HeapLayout::InWritableSharedSpace(value)) {
+    if (TrustedHeapLayout::InWritableSharedSpace(value)) {
+      if (!is_shared()) return;
       // References to the shared trusted space may only originate from the
       // shared space.
-      CHECK(HeapLayout::InWritableSharedSpace(host));
+      CHECK(TrustedHeapLayout::InWritableSharedSpace(host));
       DCHECK(MemoryChunk::FromHeapObject(value)->Metadata()->is_trusted());
       MarkValueShared(value);
     } else {
+      if (is_not_major()) return;
       MarkValueLocal(value);
     }
   } else {
+    if (is_not_major()) return;
     MarkValueLocal(value);
   }
 
@@ -110,7 +113,7 @@ void MarkingBarrier::Write(Tagged<InstructionStream> host,
                            RelocInfo* reloc_info, Tagged<HeapObject> value) {
   DCHECK(IsCurrentMarkingBarrier(host));
   DCHECK(!HeapLayout::InWritableSharedSpace(host));
-  DCHECK(is_activated_ || shared_heap_worklists_.has_value());
+  DCHECK(is_activated_ || is_shared());
   DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
 
   MarkValue(host, value);
@@ -313,7 +316,7 @@ void MarkingBarrier::Activate(bool is_compacting, MarkingMode marking_mode) {
 }
 
 void MarkingBarrier::ActivateShared() {
-  DCHECK(!shared_heap_worklists_.has_value());
+  DCHECK(!is_shared());
   Isolate* shared_isolate = isolate()->shared_space_isolate();
   shared_heap_worklists_.emplace(
       shared_isolate->heap()->mark_compact_collector()->marking_worklists());
@@ -421,7 +424,7 @@ Isolate* MarkingBarrier::isolate() const { return heap_->isolate(); }
 void MarkingBarrier::AssertMarkingIsActivated() const { DCHECK(is_activated_); }
 
 void MarkingBarrier::AssertSharedMarkingIsActivated() const {
-  DCHECK(shared_heap_worklists_.has_value());
+  DCHECK(is_shared());
 }
 #endif  // DEBUG
 
