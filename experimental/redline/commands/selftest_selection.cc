@@ -922,6 +922,33 @@ void CheckStrategyBlocks(Checker* checker) {
             empty.crash_minimizer_reducers.empty(),
         again_error);
   }
+  {
+    // The keys of the flag search. Values out of range become the nearest
+    // valid values. Values that are not the default load back from the dump.
+    FuzzConfig low, high, again;
+    std::string error = load(
+        R"({"crash_flag_runs": 3, "crash_flag_processes": 2, "crash_flag_budget_sec": 0})",
+        &low);
+    if (error.empty()) {
+      error = load(
+          R"({"crash_flag_runs": 0, "crash_flag_processes": -5, "crash_flag_budget_sec": 20})",
+          &high);
+    }
+    if (error.empty()) {
+      error = load(high.ToJson(), &again);
+    }
+    checker->Check(
+        "crash flags: the keys of the flag search",
+        error.empty() && low.crash_flag_runs == 3 &&
+            low.crash_flag_processes == 3 && low.crash_flag_budget_sec == 0 &&
+            high.crash_flag_runs == 1 && high.crash_flag_processes == 0 &&
+            again.crash_flag_runs == 1 && again.crash_flag_processes == 0 &&
+            again.crash_flag_budget_sec == 20,
+        StringPrintf("%s runs %d/%d, processes %d/%d, budget %g/%g",
+                     error.c_str(), low.crash_flag_runs, high.crash_flag_runs,
+                     low.crash_flag_processes, high.crash_flag_processes,
+                     low.crash_flag_budget_sec, again.crash_flag_budget_sec));
+  }
   struct Case {
     const char* name;
     const char* json;

@@ -238,6 +238,16 @@ struct FuzzConfig {
   // (crash_minimizer.reducers). An empty list gives the default order,
   // Minimizer::CrashOrder().
   std::vector<std::string> crash_minimizer_reducers;
+  // The d8 flags of NAME.repro.js (DESIGN.md 5.6). Redline removes the flags
+  // that the crash does not need. Each candidate list of flags runs in
+  // crash_flag_runs fresh plain d8 processes, and each run must crash with
+  // the signature. The search stops after crash_flag_processes processes or
+  // after crash_flag_budget_sec. 0 for one of them turns the search off.
+  // crash_flag_processes counts the first check with all flags too, and a
+  // value below crash_flag_runs becomes crash_flag_runs.
+  int crash_flag_runs = 2;
+  int crash_flag_processes = 200;
+  double crash_flag_budget_sec = 60;
 
   // Applies --config (a file, or inline JSON starting with '{') then the
   // command line flags. `for_run` is false only for --dump-config: then no

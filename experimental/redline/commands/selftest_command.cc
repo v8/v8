@@ -45,6 +45,7 @@
 #include "experimental/redline/engine/config.h"
 #include "experimental/redline/engine/crash.h"
 #include "experimental/redline/engine/d8_flags.h"
+#include "experimental/redline/engine/flag_minimizer.h"
 #include "experimental/redline/engine/fuzzer.h"
 #include "experimental/redline/engine/prelude.h"
 #include "experimental/redline/engine/shared_coverage.h"
@@ -1054,6 +1055,62 @@ void RunCrashMinimizerChecks(Checker* checker) {
       joined == nullptr, joined == nullptr ? error : "one tree");
 }
 
+// Offline: the search of the d8 flags of NAME.repro.js (MinimizeFlags). The
+// oracle needs 2 flags of 7, and --allow-natives-syntax must stay.
+void RunFlagMinimizerChecks(Checker* checker) {
+  const std::vector<std::string> flags = {
+      "--a", "--b", "--allow_natives_syntax", "--c=1", "--d", "--e", "--f"};
+  int calls = 0;
+  auto oracle = [&calls](const std::vector<std::string>& candidate) {
+    calls++;
+    auto has = [&candidate](const char* flag) {
+      return std::find(candidate.begin(), candidate.end(), flag) !=
+             candidate.end();
+    };
+    return has("--c=1") && has("--f");
+  };
+  auto keep = [](const std::string& flag) {
+    return IsFlag(flag, "allow-natives-syntax");
+  };
+  const FlagMinimization result =
+      MinimizeFlags(flags, keep, oracle, [] { return false; });
+  std::string kept;
+  for (const std::string& flag : result.flags) {
+    kept += (kept.empty() ? "" : " ") + flag;
+  }
+  checker->Check(
+      "crash flags: the search keeps the needed flags and the kept flags",
+      kept == "--allow_natives_syntax --c=1 --f" && result.tests == calls &&
+          !result.budget_exhausted,
+      StringPrintf("kept \"%s\", %d tests", kept.c_str(), result.tests));
+  int tests = 0;
+  const FlagMinimization stopped =
+      MinimizeFlags(flags, keep, oracle, [&tests] { return tests++ >= 2; });
+  checker->Check("crash flags: the search stops at the end of the budget",
+                 stopped.budget_exhausted && stopped.tests == 2,
+                 StringPrintf("%d tests, budget_exhausted %d", stopped.tests,
+                              stopped.budget_exhausted ? 1 : 0));
+  const bool in_function =
+      HasNativeCall("function f() { return %DebugPrint(1); }\nf();");
+  const bool plain = HasNativeCall("print(1);");
+  const bool not_parsing = HasNativeCall("let = ;");
+  checker->Check(
+      "crash flags: % calls need --allow-natives-syntax",
+      in_function && !plain && not_parsing &&
+          IsFlag("--allow_natives_syntax=1", "allow-natives-syntax") &&
+          !IsFlag("--allow-natives-syntax-x", "allow-natives-syntax"),
+      StringPrintf("call in a function %d, no call %d, no parse %d",
+                   in_function ? 1 : 0, plain ? 1 : 0, not_parsing ? 1 : 0));
+  checker->Check(
+      "crash flags: the search keeps the flags for a deterministic run",
+      KeepReproFlag("--single-threaded", false) &&
+          KeepReproFlag("--random-seed=7", false) &&
+          KeepReproFlag("--allow-natives-syntax", true) &&
+          !KeepReproFlag("--allow-natives-syntax", false) &&
+          !KeepReproFlag("--jit-fuzzing", true),
+      "");
+}
+
 // The value of the line `key: value` of a crash report, or "".
 std::string ReportValue(const std::string& report, const std::string& key) {
   const std::string prefix = key + ": ";
@@ -1144,6 +1201,14 @@ CrashSession RunCrashSession(const TargetOptions& target,
       "--no-introspect", "--quiet", "--no-save-corpus", "--no-component-stats"};
   all_flags.push_back("--d8=" + target.executable);
   all_flags.push_back("--d8-args=" + args);
+  // The d8 environment of the selftest, for example LD_PRELOAD.
+  std::string env;
+  for (const auto& [key, value] : target.extra_env) {
+    env += (env.empty() ? "" : ",") + key + "=" + value;
+  }
+  if (!env.empty()) {
+    all_flags.push_back("--d8-env=" + env);
+  }
   all_flags.push_back("--import=" + program_path);
   all_flags.push_back("--out=" + session.dir + "/out");
   all_flags.insert(all_flags.end(), session_flags.begin(), session_flags.end());
@@ -1217,15 +1282,13 @@ CrashSession RunCrashSession(const TargetOptions& target,
   return session;
 }
 
-// Runs the `// run:` line of a NAME.repro.js file in a plain d8 process.
-// Returns the signature of the crash. If there is no crash, returns the
-// reason in parentheses.
-std::string RunReproLine(const std::string& repro,
-                         const TargetOptions& target) {
+// The words of the `// run:` line of a NAME.repro.js file: the d8, its
+// flags and the file. Empty if there is no run line.
+std::vector<std::string> RunLineWords(const std::string& repro) {
   const std::string prefix = "\n// run: ";
   const size_t start = repro.find(prefix);
   if (start == std::string::npos) {
-    return "(no run line)";
+    return {};
   }
   const size_t end = repro.find('\n', start + 1);
   const std::string line =
@@ -1239,8 +1302,17 @@ std::string RunReproLine(const std::string& repro,
     }
     position = space + 1;
   }
+  return words;
+}
+
+// Runs the `// run:` line of a NAME.repro.js file in a plain d8 process.
+// Returns the signature of the crash. If there is no crash, returns the
+// reason in parentheses.
+std::string RunReproLine(const std::string& repro,
+                         const TargetOptions& target) {
+  const std::vector<std::string> words = RunLineWords(repro);
   if (words.empty()) {
-    return "(empty run line)";
+    return "(no run line)";
   }
   const std::vector<std::string> args(words.begin() + 1, words.end());
   const ProcessResult run =
@@ -1307,6 +1379,55 @@ void RunCrashReproCheck(Checker* checker, const TargetOptions& target) {
                    ReportValue(report, "minimized").c_str(), plain.c_str(),
                    signature.c_str(), session.error.empty() ? "" : ", ",
                    session.error.c_str()));
+}
+
+// A crash that needs 1 flag of the session, in a short session with the
+// default prelude. The search of the d8 flags of NAME.repro.js keeps only
+// this flag and the flags that KeepReproFlag keeps. The time budget is
+// large, so only the process limit stops the search. The `// run:` line has
+// these flags, and it crashes a plain d8 process with the signature.
+void RunCrashFlagsCheck(Checker* checker, const TargetOptions& target) {
+  const char* name =
+      "crash flags: a crash that needs 1 flag of the session keeps only this "
+      "flag";
+  // redline('REDLINE_CRASH', 7) crashes only with --hole-fuzzing.
+  const CrashSession session =
+      RunCrashSession(target,
+                      {"--d8-extra-args=--hole-fuzzing",
+                       R"(--config={"crash_flag_budget_sec": 1000})"},
+                      "redline('REDLINE_CRASH', 7);\n");
+  // The flags that the search keeps, in the order of the target.
+  std::vector<std::string> expected;
+  for (const std::string& arg : target.args) {
+    if (KeepReproFlag(arg, /*natives=*/false)) {
+      expected.push_back(arg);
+    }
+  }
+  expected.push_back("--hole-fuzzing");
+  std::string expected_text;
+  for (const std::string& flag : expected) {
+    expected_text += (expected_text.empty() ? "" : " ") + flag;
+  }
+  const std::string flags = ReportValue(session.report, "repro_flags");
+  const std::vector<std::string> words = RunLineWords(session.repro);
+  const std::string plain =
+      words.empty() ? "" : RunReproLine(session.repro, target);
+  RemoveTree(session.dir);
+  const std::string signature = ReportValue(session.report, "signature");
+  const bool ok =
+      flags == expected_text && words.size() == expected.size() + 2 &&
+      std::equal(expected.begin(), expected.end(), words.begin() + 1) &&
+      !signature.empty() && plain == signature;
+  checker->Check(
+      name, ok,
+      StringPrintf("%s, %.0f s, repro_flags \"%s\" (expected \"%s\"), %s, "
+                   "%zu words in the run line, plain d8 run \"%s\", "
+                   "signature \"%s\"%s%s",
+                   session.stop.c_str(), session.seconds, flags.c_str(),
+                   expected_text.c_str(),
+                   ReportValue(session.report, "repro_flags_note").c_str(),
+                   words.size(), plain.c_str(), signature.c_str(),
+                   session.error.empty() ? "" : ", ", session.error.c_str()));
 }
 
 // Offline: optimized code features with one bit per edge. As with counters,
@@ -1460,6 +1581,7 @@ int RunSelftest(const Flags& flags) {
   RunCoverageBitsChecks(&checker);
   RunCrashSlotChecks(&checker);
   RunCrashMinimizerChecks(&checker);
+  RunFlagMinimizerChecks(&checker);
   RunNodeKindChecks(&checker);
   RunPresetChecks(&checker);
   std::string testdata = flags.GetString("testdata", DefaultTestdataDir());
@@ -1832,6 +1954,7 @@ int RunSelftest(const Flags& flags) {
   // has the same name as the map of `runner`, so stop `runner` first.
   runner.reset();
   RunCrashReproCheck(&checker, target);
+  RunCrashFlagsCheck(&checker, target);
 
   printf("selftest: %d passed, %d failed\n", checker.passed(),
          checker.failed());

@@ -747,6 +747,8 @@ min_script_nodes: <n> -> <n>
 min_program_verified: yes
 repro: crash_sig6_<hash>.repro.js
 repro_bytes: <n>
+repro_flags: <the d8 flags of the run line>
+repro_flags_note: <n> -> <n> flags in <n> tests, <n> processes, <n> s
 ```
 
 - `min_stop` tells why the minimization stopped: `fixed_point` (no reducer found more to remove), `budget` (the tests or the time of `crash_minimizer` ran out) or `rounds` (`crash_minimizer.max_rounds`).
@@ -758,6 +760,10 @@ repro_bytes: <n>
 - `min_program_verified: yes` tells that the minimized program also crashes behind the full prelude. Then the `.js` file has this program.
   If the value is `no`, the `.js` file has the original program, and the report says `minimized: no`.
   But `signatures.txt` counts the crash as minimized, because its `.repro.js` file has the minimized script.
+- `repro_flags` gives the d8 flags of the `run:` line: the flags of the target that the crash needs.
+  `--single-threaded` and `--random-seed` stay if the target has them.
+  Redline finds them with fresh plain d8 processes (`crash_flag_runs`, `crash_flag_processes` and `crash_flag_budget_sec` set the search).
+  If the script does not crash in plain d8 processes with all flags, `repro_flags` has all flags, and `repro_flags_note` tells why.
 
 Minimize the crash again, for example with all reducers and a larger budget:
 

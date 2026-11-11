@@ -107,6 +107,8 @@ v8_executable("redline") {
     "engine/crash.h",
     "engine/d8_flags.cc",
     "engine/d8_flags.h",
+    "engine/flag_minimizer.cc",
+    "engine/flag_minimizer.h",
     "engine/fuzzer.cc",
     "engine/fuzzer.h",
     "engine/importer.cc",

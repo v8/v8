@@ -364,6 +364,13 @@ With one test, `dataflow` can remove a group of prelude statements that the prog
 
   Then Redline writes no `NAME.repro.js`. The `min_tree` value of the report and of the crash event gives the reason.
 - The minimized script goes to `NAME.repro.js`, after two comment lines: the signature and the d8 command. The d8 command has absolute paths. d8 runs this file without the prelude.
+- Then Redline removes the d8 flags that `NAME.repro.js` does not need. It removes chunks of halving size from the flags of the target, down to single flags.
+  A list of flags passes if the script crashes with the signature in each of `crash_flag_runs` fresh plain d8 processes.
+  `--allow-natives-syntax` stays if the script calls a runtime function with `%`. A flag that the script needs to parse stays, because the script cannot crash without it.
+  `--single-threaded` and `--random-seed` always stay, because they make a plain d8 run more deterministic.
+  The search stops after `crash_flag_processes` processes or `crash_flag_budget_sec`, and 0 for one of them turns it off.
+  The report gives the result in `repro_flags`, and the d8 command of `NAME.repro.js` uses it.
+  The search does not run if a flag has its value in a separate word.
 - `NAME.js` keeps its meaning: the program alone, without the prelude statements. Redline uses the minimized program for `NAME.js` only if it also crashes with the same signature behind the full prelude (`min_program_verified`).
 - The node counts of `minimized:`, `min_nodes_before` and `min_nodes_after` are the counts of the program alone, as in `NAME.js`.
   `min_script_nodes` and `min_prelude_statements` give the nodes of the whole tree and its top-level prelude statements.

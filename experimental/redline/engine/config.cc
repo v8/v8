@@ -753,6 +753,20 @@ bool ApplyJson(const JsonValue& json, FuzzConfig* c, std::string* error,
       json.GetNumber("crash_history_budget_sec", c->crash_history_budget_sec);
   c->crash_bundle_runs =
       static_cast<int>(json.GetInt("crash_bundle_runs", c->crash_bundle_runs));
+  c->crash_flag_runs =
+      static_cast<int>(json.GetInt("crash_flag_runs", c->crash_flag_runs));
+  c->crash_flag_processes = static_cast<int>(
+      json.GetInt("crash_flag_processes", c->crash_flag_processes));
+  c->crash_flag_budget_sec =
+      json.GetNumber("crash_flag_budget_sec", c->crash_flag_budget_sec);
+  // The first test of the search already runs crash_flag_runs processes.
+  c->crash_flag_runs = std::max(1, c->crash_flag_runs);
+  c->crash_flag_processes = std::max(0, c->crash_flag_processes);
+  if (c->crash_flag_processes > 0) {
+    c->crash_flag_processes =
+        std::max(c->crash_flag_runs, c->crash_flag_processes);
+  }
+  c->crash_flag_budget_sec = std::max(0.0, c->crash_flag_budget_sec);
   c->target.timeout_us = static_cast<uint64_t>(
       json.GetNumber("timeout_ms",
                      static_cast<double>(c->target.timeout_us) / 1000.0) *
@@ -1324,6 +1338,9 @@ std::string FuzzConfig::ToJson(Detail detail) const {
   o.Add("crash_history", crash_history);
   o.Add("crash_history_budget_sec", crash_history_budget_sec);
   o.Add("crash_bundle_runs", crash_bundle_runs);
+  o.Add("crash_flag_runs", crash_flag_runs);
+  o.Add("crash_flag_processes", crash_flag_processes);
+  o.Add("crash_flag_budget_sec", crash_flag_budget_sec);
   o.AddRaw("crash_minimizer",
            MinimizerOptionsJson(crash_minimizer, crash_minimizer_reducers,
                                 Minimizer::CrashOrder()));
@@ -1486,6 +1503,8 @@ std::string FuzzConfig::JsonHelp() {
       "\"max_crashes_per_signature\": 5,\n"
       "    \"minimize_crashes_per_signature\": 2, \"crash_history\": 100,\n"
       "    \"crash_history_budget_sec\": 90, \"crash_bundle_runs\": 3,\n"
+      "    \"crash_flag_runs\": 2, \"crash_flag_processes\": 200, "
+      "\"crash_flag_budget_sec\": 60,\n"
       "    \"crash_minimizer\": {\"max_tests\": 2000, \"max_time_ms\": 120000, "
       "\"max_rounds\": 10,\n"
       "                        \"target_time_ms\": 120000, \"min_tests\": "

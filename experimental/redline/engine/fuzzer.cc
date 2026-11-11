@@ -20,6 +20,7 @@
 #include "experimental/redline/base/v8_runtime.h"
 #include "experimental/redline/core/environment.h"
 #include "experimental/redline/engine/d8_flags.h"
+#include "experimental/redline/engine/flag_minimizer.h"
 #include "experimental/redline/engine/importer.h"
 #include "experimental/redline/engine/prelude.h"
 #include "experimental/redline/exec/process_run.h"
@@ -1353,6 +1354,12 @@ class Worker {
     bool program_verified = false;
     std::string repro_path;  // empty if Redline did not write NAME.repro.js
     size_t repro_bytes = 0;
+    // The d8 flags of NAME.repro.js: all flags of the target, or the flags
+    // that the flag minimization kept. `repro_flags_note` tells which.
+    std::vector<std::string> repro_flags;
+    std::string repro_flags_note;
+    int repro_flag_tests = 0;      // flag lists that the search tried
+    int repro_flag_processes = 0;  // plain d8 processes of the search
     bool amplify_ran = false;  // the amplify step ran (5.8)
     AmplifyResult amplify;
     // The one-file reproducer of a state-dependent crash (NAME.bundle.js).
@@ -1418,33 +1425,52 @@ class Worker {
     }
     if (!info.repro_path.empty()) {
       lines += StringPrintf(
-          "min_program_verified: %s\nrepro: %s\nrepro_bytes: %zu\n",
+          "min_program_verified: %s\nrepro: %s\nrepro_bytes: %zu\n"
+          "repro_flags: %s\nrepro_flags_note: %s\n",
           info.program_verified ? "yes" : "no",
-          BaseName(info.repro_path).c_str(), info.repro_bytes);
+          BaseName(info.repro_path).c_str(), info.repro_bytes,
+          JoinArgs(info.repro_flags).c_str(), info.repro_flags_note.c_str());
     }
     return lines;
+  }
+
+  // `args`, separated by spaces.
+  static std::string JoinArgs(const std::vector<std::string>& args) {
+    std::string text;
+    for (const std::string& arg : args) {
+      text += (text.empty() ? "" : " ") + arg;
+    }
+    return text;
+  }
+
+  // The text of NAME.repro.js at `path`: the two header lines with `flags`
+  // in the d8 command, then the minimized script.
+  std::string ReproText(const CrashInfo& info,
+                        const std::vector<std::string>& flags,
+                        const std::string& path) const {
+    std::string signature = info.signature.text;
+    std::replace(signature.begin(), signature.end(), '\n', ' ');
+    TargetOptions target = CurrentTarget();
+    target.executable = AbsolutePath(target.executable);
+    target.args = flags;
+    return StringPrintf("// signature: %s\n// run: %s %s/%s\n",
+                        signature.c_str(), target.CommandLine().c_str(),
+                        AbsolutePath(config().out_dir + "/crashes").c_str(),
+                        BaseName(path).c_str()) +
+           info.repro;
   }
 
   // Writes BASE.repro.js for a minimized crash: two comment lines (the
   // signature and the d8 command that runs the file), then the minimized
   // script. The script has the prelude statements that the crash needs, so
-  // d8 runs the file without the prelude. The d8 command has absolute paths,
-  // so it works in each directory.
+  // d8 runs the file without the prelude. The d8 command has the flags of
+  // `repro_flags` and absolute paths, so it works in each directory.
   void WriteRepro(const std::string& base, CrashInfo* info) {
     if (info->repro.empty()) {
       return;
     }
     const std::string path = base + ".repro.js";
-    std::string signature = info->signature.text;
-    std::replace(signature.begin(), signature.end(), '\n', ' ');
-    TargetOptions target = CurrentTarget();
-    target.executable = AbsolutePath(target.executable);
-    const std::string text =
-        StringPrintf("// signature: %s\n// run: %s %s/%s\n", signature.c_str(),
-                     target.CommandLine().c_str(),
-                     AbsolutePath(config().out_dir + "/crashes").c_str(),
-                     BaseName(path).c_str()) +
-        info->repro;
+    const std::string text = ReproText(*info, info->repro_flags, path);
     std::string error;
     if (!WriteStringToFile(path, text, &error)) {
       REDLINE_WARN(kLog, "%s", error.c_str());
@@ -1455,8 +1481,8 @@ class Worker {
   }
 
   // The time that a plain d8 process needs to start and to stop, in addition
-  // to the time of its scripts.
-  static constexpr uint64_t kBundleStartupUs = 10'000'000;
+  // to the time of its scripts (the bundle runs and the flag search).
+  static constexpr uint64_t kPlainStartupUs = 10'000'000;
 
   // Writes BASE.bundle.js for a state-dependent crash: one part for each
   // program of `history`, then one part for `source`. `d8 --bundle-reprl`
@@ -1498,7 +1524,7 @@ class Worker {
     args.push_back(path);
     const auto env = target.PlainEnvironment();
     const uint64_t timeout_us =
-        config().target.timeout_us * scripts.size() + kBundleStartupUs;
+        config().target.timeout_us * scripts.size() + kPlainStartupUs;
     const uint64_t budget_us =
         static_cast<uint64_t>(config().crash_history_budget_sec * 1e6);
     const Stopwatch clock;
@@ -1703,6 +1729,9 @@ class Worker {
     info->script_nodes_after = fast::CountNodes(work->root());
     info->prelude_statements_after = script->PreludeStatementsNow();
     info->repro = candidate;
+    // MinimizeReproFlags can remove flags later.
+    info->repro_flags = CurrentTarget().args;
+    info->repro_flags_note = "all flags of the target, no search";
     // NAME.js keeps the program alone, which runs behind the full prelude.
     const std::string reduced = script->PrintProgram();
     info->program_verified = verified(reduced, /*is_script=*/false);
@@ -1712,6 +1741,96 @@ class Worker {
     info->minimization.nodes_after = nodes_after;
     info->minimized = true;
     return reduced;
+  }
+
+  // Removes the d8 flags that NAME.repro.js at BASE.repro.js does not need
+  // (DESIGN.md 5.6). A list of flags passes if the script crashes with the
+  // signature in each of crash_flag_runs fresh plain d8 processes. The test
+  // file has the text of NAME.repro.js, so that the lines of the script are
+  // the same. If the script does not pass with all flags of the target,
+  // NAME.repro.js keeps all flags.
+  void MinimizeReproFlags(const std::string& base, CrashInfo* info) {
+    if (config().crash_flag_processes <= 0 ||
+        config().crash_flag_budget_sec <= 0) {
+      info->repro_flags_note = "all flags of the target, the search is off";
+      return;
+    }
+    const TargetOptions target = CurrentTarget();
+    // The search removes single words. A flag with its value in the next
+    // word would lose its value.
+    for (const std::string& arg : target.args) {
+      if (!arg.starts_with("-")) {
+        info->repro_flags_note =
+            "all flags of the target: a flag has its value in a separate "
+            "word";
+        return;
+      }
+    }
+    // The suffix is not .js, so that `replay` of the crashes directory does
+    // not run this temporary file.
+    const std::string path = base + ".repro.tmp";
+    std::string error;
+    if (!WriteStringToFile(
+            path, ReproText(*info, target.args, base + ".repro.js"), &error)) {
+      std::remove(path.c_str());
+      info->repro_flags_note = "all flags of the target: " + error;
+      return;
+    }
+    const Stopwatch clock;
+    PlainCrashRunner runner(target, info->signature,
+                            config().target.timeout_us + kPlainStartupUs);
+    runner.set_stop([this] { return stopping(); });
+    const int runs = config().crash_flag_runs;
+    auto crashes = [&](const std::vector<std::string>& flags) {
+      std::vector<std::string> args = flags;
+      args.push_back(path);
+      return runner.Crashes(args, runs, runs);
+    };
+    // The check with all flags of the target counts as the first test.
+    if (!crashes(target.args)) {
+      info->repro_flag_tests = 1;
+      info->repro_flags_note =
+          !runner.error().empty()
+              ? "all flags of the target: cannot start d8: " + runner.error()
+          : stopping() ? "all flags of the target, the session stopped"
+                       : StringPrintf(
+                             "all flags of the target: %d of %d plain d8 "
+                             "runs crashed with the signature, %d needed",
+                             runner.last_hits(), runner.last_runs(), runs);
+    } else {
+      // KeepReproFlag keeps --allow-natives-syntax for a % call, and the
+      // flags that make the run more deterministic. Other flags that the
+      // script needs to parse stay too, because the script cannot crash
+      // without them.
+      const bool natives = HasNativeCall(info->repro);
+      const uint64_t budget_us =
+          static_cast<uint64_t>(config().crash_flag_budget_sec * 1e6);
+      const FlagMinimization result = MinimizeFlags(
+          target.args,
+          [natives](const std::string& flag) {
+            return KeepReproFlag(flag, natives);
+          },
+          crashes,
+          [&] {
+            return stopping() || !runner.error().empty() ||
+                   runner.processes() + runs > config().crash_flag_processes ||
+                   clock.ElapsedUs() > budget_us;
+          });
+      info->repro_flags = result.flags;
+      info->repro_flag_tests = result.tests + 1;
+      const char* end = !result.budget_exhausted  ? ""
+                        : stopping()              ? ", the session stopped"
+                        : !runner.error().empty() ? ", cannot start d8"
+                                                  : ", budget used up";
+      info->repro_flags_note =
+          StringPrintf("%zu -> %zu flags in %d tests, %d processes, %.0f s%s",
+                       target.args.size(), result.flags.size(),
+                       info->repro_flag_tests, runner.processes(),
+                       static_cast<double>(clock.ElapsedUs()) / 1e6, end);
+    }
+    info->repro_flag_processes = runner.processes();
+    stats().flag_processes += static_cast<uint64_t>(runner.processes());
+    std::remove(path.c_str());
   }
 
   void ProcessCrash(const std::string& source, const Program& program,
@@ -1867,6 +1986,11 @@ class Worker {
       final_source =
           MinimizeReproducibleCrash(source, program, exec_time_us, &info);
     }
+    // 3a. The d8 flags of NAME.repro.js: remove the flags that the crash
+    //     does not need.
+    if (!info.repro.empty() && !stopping()) {
+      MinimizeReproFlags(CrashBase(execution.signal, hash), &info);
+    }
 
     // 4. Store.
     std::string path;
@@ -1930,6 +2054,10 @@ class Worker {
       event.Add("min_program_verified", info.program_verified);
       event.Add("repro", info.repro_path)
           .Add("repro_bytes", static_cast<uint64_t>(info.repro_bytes));
+      event.Add("repro_flags", JoinArgs(info.repro_flags))
+          .Add("repro_flags_note", info.repro_flags_note);
+      event.Add("repro_flag_tests", info.repro_flag_tests)
+          .Add("repro_flag_processes", info.repro_flag_processes);
     }
     event.Add("amplify", info.amplify_ran
                              ? (info.amplify.amplified ? "yes" : "no")
@@ -2738,6 +2866,7 @@ void Fuzzer::WriteStatsEvent() {
   event.Add("amplify_processes", stats_.amplify_processes.load());
   event.Add("crashes_bundled", stats_.crashes_bundled.load());
   event.Add("bundle_processes", stats_.bundle_processes.load());
+  event.Add("flag_processes", stats_.flag_processes.load());
   event.Add("crash_replay_executions", stats_.crash_replay_executions.load());
   event.Add("imports_total", stats_.imports_total.load());
   event.Add("imports_added", stats_.imports_added.load());
