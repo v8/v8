@@ -125,7 +125,13 @@ class FullMarkingVerifier : public MarkingVerifierBase {
     VerifyMarking(heap_->code_lo_space());
     if (heap_->shared_lo_space()) VerifyMarking(heap_->shared_lo_space());
     VerifyMarking(heap_->trusted_space());
+    if (heap_->shared_trusted_space()) {
+      VerifyMarking(heap_->shared_trusted_space());
+    }
     VerifyMarking(heap_->trusted_lo_space());
+    if (heap_->shared_trusted_lo_space()) {
+      VerifyMarking(heap_->shared_trusted_lo_space());
+    }
   }
 
  protected:
@@ -846,6 +852,9 @@ void MarkCompactCollector::VerifyMarking() {
     heap_->code_space()->VerifyLiveBytes();
     if (heap_->shared_space()) heap_->shared_space()->VerifyLiveBytes();
     heap_->trusted_space()->VerifyLiveBytes();
+    if (heap_->shared_trusted_space()) {
+      heap_->shared_trusted_space()->VerifyLiveBytes();
+    }
     if (v8_flags.minor_ms && heap_->paged_new_space()) {
       heap_->paged_new_space()->paged_space()->VerifyLiveBytes();
     }
@@ -6052,6 +6061,12 @@ void MarkCompactCollector::Sweep() {
                                 GCTracer::Scope::MC_SWEEP_TRUSTED_LO,
                                 ThreadKind::kMain);
     SweepLargeSpace(heap_->trusted_lo_space());
+  }
+  if (heap_->shared_trusted_lo_space()) {
+    GCTracer::Scope sweep_scope(heap_->tracer(),
+                                GCTracer::Scope::MC_SWEEP_SHARED_LO,
+                                ThreadKind::kMain);
+    SweepLargeSpace(heap_->shared_trusted_lo_space());
   }
   if (v8_flags.minor_ms && heap_->new_space()) {
     GCTracer::Scope sweep_scope(heap_->tracer(), GCTracer::Scope::MC_SWEEP_NEW,
