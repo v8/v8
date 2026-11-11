@@ -72,16 +72,6 @@ ExternalizeStringExtension::GetNativeFunctionTemplate(
   }
 }
 
-namespace {
-
-bool HasExternalForwardingIndex(DirectHandle<String> string) {
-  if (!string->IsShared()) return false;
-  uint32_t raw_hash = string->raw_hash_field(kAcquireLoad);
-  return Name::IsExternalForwardingIndex(raw_hash);
-}
-
-}  // namespace
-
 void ExternalizeStringExtension::Externalize(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(ValidateCallbackInfo(info));
@@ -97,14 +87,7 @@ void ExternalizeStringExtension::Externalize(
   if (!string->SupportsExternalization(
           externalize_as_one_byte ? v8::String::Encoding::ONE_BYTE_ENCODING
                                   : v8::String::Encoding::TWO_BYTE_ENCODING)) {
-    // If the string is shared, testing with the combination of
-    // --shared-string-table and --isolate in d8 may result in races to
-    // externalize the same string. If GC is stressed in addition, this test
-    // might fail as the string was already externalized (marked for
-    // externalization by another thread and externalized during GC).
-    if (!StringShape(*string).IsExternal()) {
-      info.GetIsolate()->ThrowError("string does not support externalization.");
-    }
+    info.GetIsolate()->ThrowError("string does not support externalization.");
     return;
   }
   if (externalize_as_one_byte) {
@@ -118,12 +101,7 @@ void ExternalizeStringExtension::Externalize(
     result = Utils::ToLocal(string)->MakeExternal(info.GetIsolate(), resource);
     if (!result) delete resource;
   }
-  // If the string is shared, testing with the combination of
-  // --shared-string-table and --isolate in d8 may result in races to
-  // externalize the same string. Those races manifest as externalization
-  // sometimes failing if another thread won and already forwarded the string to
-  // the external resource. Don't consider those races as failures.
-  if (!result && !HasExternalForwardingIndex(string)) {
+  if (!result) {
     info.GetIsolate()->ThrowError("externalizeString() failed.");
     return;
   }
