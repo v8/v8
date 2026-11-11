@@ -93,7 +93,7 @@ struct RateCount {
   int hits = 0;
 };
 
-// The decision of the rate check of NAME.repro.js of an amplified crash.
+// The decision of the rate check of NAME.repro.js.
 struct RateDecision {
   bool keep = false;       // Redline writes NAME.repro.js
   bool all_flags = false;  // ... with all flags of the test
@@ -101,14 +101,24 @@ struct RateDecision {
   std::string note;        // the result in words
 };
 
-// Decides the rate check (DESIGN.md 5.6). `kept` is the count with the
+// Decides the rate check of an amplified crash (DESIGN.md 5.6). `kept` is
+// the count with the
 // flags that the flag search kept. `all` is the count with all flags of the
 // test, if Redline ran it (only after `kept` was complete and below the
 // bar). NAME.repro.js stays only after a complete count that reaches
 // `min_hits` of `planned` runs. Flags that failed a complete count never
-// stay.
-RateDecision DecideAmplifiedRate(int min_hits, int planned, RateCount kept,
-                                 const RateCount* all);
+// stay. `stop_cause` tells why a count stopped early, for the note.
+RateDecision DecideAmplifiedRate(
+    int min_hits, int planned, RateCount kept, const RateCount* all,
+    const std::string& stop_cause = "the check stopped");
+
+// Decides the rate check of a crash that reproduces alone (DESIGN.md 5.6).
+// `kept`, `all` and `stop_cause` are as for DecideAmplifiedRate. The bar is
+// all `planned` runs. NAME.repro.js always stays. The kept flags stay only
+// after a complete count at the bar. Else `all_flags` is true.
+RateDecision DecideReproducibleRate(int planned, RateCount kept,
+                                    const RateCount* all,
+                                    const std::string& stop_cause);
 
 // Name, parameters and documentation of every strategy, for --help-config.
 struct AmplifyStrategyInfo {

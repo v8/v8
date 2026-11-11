@@ -46,7 +46,8 @@ class PlainCrashRunner {
   // crashed with the signature.
   int last_runs() const { return last_runs_; }
   int last_hits() const { return last_hits_; }
-  // Why a process did not start, or empty.
+  // Why a process of the last call of Crashes() or Count() did not start,
+  // or empty.
   const std::string& error() const { return error_; }
 
  private:

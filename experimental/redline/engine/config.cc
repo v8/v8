@@ -759,21 +759,10 @@ bool ApplyJson(const JsonValue& json, FuzzConfig* c, std::string* error,
       json.GetInt("crash_flag_processes", c->crash_flag_processes));
   c->crash_flag_budget_sec =
       json.GetNumber("crash_flag_budget_sec", c->crash_flag_budget_sec);
-  // The first test of the search already runs crash_flag_runs processes.
-  c->crash_flag_runs = std::max(1, c->crash_flag_runs);
-  c->crash_flag_processes = std::max(0, c->crash_flag_processes);
-  if (c->crash_flag_processes > 0) {
-    c->crash_flag_processes =
-        std::max(c->crash_flag_runs, c->crash_flag_processes);
-  }
-  c->crash_flag_budget_sec = std::max(0.0, c->crash_flag_budget_sec);
   c->crash_amplified_budget_sec = json.GetNumber("crash_amplified_budget_sec",
                                                  c->crash_amplified_budget_sec);
-  c->crash_amplified_budget_sec = std::max(0.0, c->crash_amplified_budget_sec);
   c->crash_bundle_min_budget_sec = json.GetNumber(
       "crash_bundle_min_budget_sec", c->crash_bundle_min_budget_sec);
-  c->crash_bundle_min_budget_sec =
-      std::max(0.0, c->crash_bundle_min_budget_sec);
   c->target.timeout_us = static_cast<uint64_t>(
       json.GetNumber("timeout_ms",
                      static_cast<double>(c->target.timeout_us) / 1000.0) *
@@ -1227,6 +1216,18 @@ bool FuzzConfig::Load(const Flags& flags, FuzzConfig* c, std::string* error,
   if (c->verify_attempts < 1) {
     c->verify_attempts = 1;
   }
+  // The first test of the flag search already runs crash_flag_runs
+  // processes.
+  c->crash_flag_runs = std::max(1, c->crash_flag_runs);
+  c->crash_flag_processes = std::max(0, c->crash_flag_processes);
+  if (c->crash_flag_processes > 0) {
+    c->crash_flag_processes =
+        std::max(c->crash_flag_runs, c->crash_flag_processes);
+  }
+  c->crash_flag_budget_sec = std::max(0.0, c->crash_flag_budget_sec);
+  c->crash_amplified_budget_sec = std::max(0.0, c->crash_amplified_budget_sec);
+  c->crash_bundle_min_budget_sec =
+      std::max(0.0, c->crash_bundle_min_budget_sec);
   c->probe_timeout_factor = std::max(0.0, c->probe_timeout_factor);
   c->probe_timeout_extra_ms = std::max(0.0, c->probe_timeout_extra_ms);
   c->probe_timeout_min_ms = std::max(0.0, c->probe_timeout_min_ms);

@@ -1366,8 +1366,8 @@ class Worker {
     std::string repro_flags_note;
     int repro_flag_tests = 0;      // flag lists that the search tried
     int repro_flag_processes = 0;  // plain d8 processes of the search
-    // The rate check of NAME.repro.js of an amplified crash. The fields are
-    // the plain d8 runs, the runs that crashed with the signature, and the
+    // The rate check of NAME.repro.js (CheckReproRate). The fields are the
+    // plain d8 runs, the runs that crashed with the signature, and the
     // result in words (empty: no check).
     int repro_rate_runs = 0;
     int repro_rate_hits = 0;
@@ -1551,6 +1551,9 @@ class Worker {
   void WriteReprlBundle(const std::vector<std::string>& history,
                         const std::string& source, const std::string& base,
                         CrashInfo* info) {
+    // A NAME.bundle.min.js of an earlier session in the same directory must
+    // not stay next to the new NAME.bundle.js.
+    std::remove((base + ".bundle.min.js").c_str());
     std::vector<std::string> scripts;
     scripts.reserve(history.size() + 1);
     for (const std::string& program : history) {
@@ -1685,11 +1688,13 @@ class Worker {
     };
     // True if the text crashes with the signature in one of
     // verify_attempts runs. The target is not deterministic.
+    bool target_failed = false;
     auto verified = [&](const std::string& text, bool is_script) {
       for (int attempt = 0; attempt < config().verify_attempts && !stopping();
            attempt++) {
         Execution e;
         if (!run(text, is_script, &e, 0)) {
+          target_failed = true;
           return false;
         }
         stats().rerun_executions++;
@@ -1710,9 +1715,14 @@ class Worker {
         info->min_tree = "program alone: " + error;
       } else if (!verified(fast::Print(script->tree()->root()),
                            /*is_script=*/true)) {
-        info->min_tree =
-            "program alone: the printed script of the prelude and the "
-            "program did not crash with the signature";
+        // A stop request or a target that failed also gives false.
+        info->min_tree = stopping() ? "program alone: the session stopped"
+                         : target_failed
+                             ? "program alone: the target did not run the "
+                               "printed script of the prelude and the program"
+                             : "program alone: the printed script of the "
+                               "prelude and the program did not crash with the "
+                               "signature";
         script.reset();
       } else {
         info->min_tree = "prelude and program";
@@ -1835,8 +1845,7 @@ class Worker {
   // that the lines of the script are the same. If the script does not pass
   // with all flags of the test, NAME.repro.js keeps all flags.
   void MinimizeReproFlags(const std::string& base, CrashInfo* info) {
-    if (config().crash_flag_processes <= 0 ||
-        config().crash_flag_budget_sec <= 0) {
+    if (!FlagSearchOn()) {
       info->repro_flags_note = "all flags of the test, the search is off";
       return;
     }
@@ -1923,9 +1932,10 @@ class Worker {
   // program. The program is the program of the amplify step, if the step
   // changed it, or else `source`. A test runs the printed tree in the plain
   // processes of ReproTest(), and passes if one of them crashes with the
-  // signature. The start check, the minimization and the last check share
-  // the time limit crash_amplified_budget_sec. The result goes to
-  // NAME.repro.js only. NAME.js keeps the original program.
+  // signature. Only the tests of the minimizer stop at the time limit
+  // crash_amplified_budget_sec. The start check counts against the limit,
+  // but it does not stop at it. The last check runs after it. The result
+  // goes to NAME.repro.js only. NAME.js keeps the original program.
   void MinimizeAmplifiedCrash(uint64_t hash, const std::string& source,
                               const Program& program, CrashInfo* info) {
     // NAME.js keeps the original program, so the counts of the program do
@@ -2068,22 +2078,48 @@ class Worker {
     std::remove(path.c_str());
   }
 
-  // The rate check of NAME.repro.js of an amplified crash (DESIGN.md 5.6).
-  // A 1-of-k test can accept a script that crashes less often than the
-  // amplified program. Thus Redline runs the text of NAME.repro.js with
-  // repro_flags in as many plain d8 processes as the amplify step planned,
-  // without an early stop. If the count is complete and below the bar, and
-  // the flag search removed flags, Redline also counts all flags of the
-  // test. DecideAmplifiedRate decides with these counts.
-  void CheckAmplifiedRepro(const std::string& base, CrashInfo* info) {
+  // True if crash_flag_processes and crash_flag_budget_sec turn on the
+  // flag search of NAME.repro.js.
+  bool FlagSearchOn() const {
+    return config().crash_flag_processes > 0 &&
+           config().crash_flag_budget_sec > 0;
+  }
+
+  // The processes of the rate check of a crash that reproduces alone. If
+  // the flag search is on and crash_flag_runs is larger, the check uses
+  // crash_flag_runs.
+  static constexpr int kReproRateRuns = 5;
+
+  // The rate check of NAME.repro.js (DESIGN.md 5.6). A test of the
+  // minimizer or of the flag search can accept a script that crashes less
+  // often than the original crash. Thus Redline runs the text of
+  // NAME.repro.js with repro_flags in plain d8 processes, without an early
+  // stop. For an amplified crash, the processes and the bar come from the
+  // amplify step. For a crash that reproduces alone, all processes must
+  // crash: max(kReproRateRuns, crash_flag_runs) processes if the flag search
+  // is on, else kReproRateRuns. If the count is complete and below the bar,
+  // and the flag search removed flags, Redline also counts all flags of the
+  // test. DecideAmplifiedRate or DecideReproducibleRate decides with these
+  // counts.
+  void CheckReproRate(const std::string& base, CrashInfo* info) {
     const PlainTest test = ReproTest(*info);
-    const int planned = std::max(1, info->amplify.planned_processes);
-    const int bar = std::clamp(info->amplify.min_hits, 1, planned);
+    const bool amplified = !info->reproducible();
+    int planned = kReproRateRuns;
+    if (amplified) {
+      planned = std::max(1, info->amplify.planned_processes);
+    } else if (FlagSearchOn()) {
+      planned = std::max(kReproRateRuns, test.runs);
+    }
+    const int bar =
+        amplified ? std::clamp(info->amplify.min_hits, 1, planned) : planned;
     // The suffix is not .js, so that `replay` of the crashes directory does
     // not run this temporary file.
     const std::string path = base + ".rate.tmp";
     PlainCrashRunner runner(CurrentTarget(), info->signature, test.timeout_us);
     runner.set_stop([this] { return stopping(); });
+    // Why a count stopped early: a stop, a test file that Redline cannot
+    // write, or a d8 that did not start.
+    std::string stop_cause = "the check stopped";
     // The count of the script with `flags`. A write error gives no runs.
     auto count = [&](const std::vector<std::string>& flags) {
       RateCount result;
@@ -2091,12 +2127,18 @@ class Worker {
       if (!WriteStringToFile(path, ReproText(*info, flags, base + ".repro.js"),
                              &error)) {
         std::remove(path.c_str());
+        stop_cause = "cannot write the test file: " + error;
         return result;
       }
       std::vector<std::string> args = flags;
       args.push_back(path);
       result.hits = runner.Count(args, planned);
       result.runs = runner.last_runs();
+      if (stopping()) {
+        stop_cause = "the session stopped";
+      } else if (!runner.error().empty()) {
+        stop_cause = "cannot start d8: " + runner.error();
+      }
       return result;
     };
     const RateCount kept = count(info->repro_flags);
@@ -2106,9 +2148,12 @@ class Worker {
     if (count_all) {
       all = count(test.flags);
     }
+    const RateCount* all_count = count_all ? &all : nullptr;
     const RateDecision decision =
-        DecideAmplifiedRate(bar, planned, kept, count_all ? &all : nullptr);
-    if (decision.all_flags) {
+        amplified
+            ? DecideAmplifiedRate(bar, planned, kept, all_count, stop_cause)
+            : DecideReproducibleRate(planned, kept, all_count, stop_cause);
+    if (decision.all_flags && info->repro_flags != test.flags) {
       info->repro_flags = test.flags;
       info->repro_flags_note += ", the rate check restored all flags";
     }
@@ -2130,10 +2175,10 @@ class Worker {
   // in k plain d8 processes. The test passes if one of them crashes with the
   // signature. k comes from the bundle runs, as for an amplified crash
   // (AmplifiedRuns). MinimizeBundleParts runs the steps, and the tests stop
-  // at crash_bundle_min_budget_sec. The last check and the rate check stop
-  // only at a stop request. The result goes to NAME.bundle.min.js only if it
-  // crashes in at least bundle_hits of bundle_runs plain d8 runs.
-  // NAME.bundle.js stays the original bundle.
+  // at crash_bundle_min_budget_sec. The start check, the last check and the
+  // rate check stop only at a stop request. The result goes to
+  // NAME.bundle.min.js only if it crashes in at least bundle_hits of
+  // bundle_runs plain d8 runs. NAME.bundle.js stays the original bundle.
   void MinimizeBundle(const std::vector<std::string>& history,
                       const std::string& source, CrashInfo* info) {
     const uint64_t budget_us =
@@ -2165,9 +2210,10 @@ class Worker {
     const std::string min_path =
         info->bundle_path.substr(0, info->bundle_path.size() - 3) + ".min.js";
     const std::string path = min_path + ".tmp";
-    // The tests of the steps stop at the time limit. The last check and the
-    // rate check stop only at a stop request.
-    bool steps = true;
+    // Only the tests of the steps stop at the time limit. The start check,
+    // the last check and the rate check stop only at a stop request.
+    bool steps = false;
+    bool budget_used_up = false;
     auto exhausted = [&] {
       return stopping() || (steps && clock.ElapsedUs() > budget_us);
     };
@@ -2242,13 +2288,20 @@ class Worker {
                  ? "not minimized: cannot write the test file: " + write_error
                  : "not minimized: the bundle did not crash again";
     } else {
+      steps = true;
       parts = MinimizeBundleParts(parts, crashes, reduce, exhausted);
       steps = false;
+      budget_used_up = !stopping() && clock.ElapsedUs() > budget_us;
       std::string bundle_after;
       MakeReprlBundle(BundleHeader(parts.size() - 1, min_path, *info), parts,
                       &bundle_after);
+      // Compare the parts without the headers, which have other file names
+      // and program counts.
+      std::string parts_after_text, parts_before_text;
+      MakeReprlBundle("", parts, &parts_after_text);
+      MakeReprlBundle("", parts_before, &parts_before_text);
       if (parts == parts_before ||
-          bundle_after.size() >= bundle_before.size()) {
+          parts_after_text.size() >= parts_before_text.size()) {
         note = "not minimized: no smaller bundle crashed";
       } else if (!verified(parts)) {
         note = stopping() ? "not minimized: the session stopped"
@@ -2287,16 +2340,13 @@ class Worker {
         }
       }
     }
-    steps = false;
     info->bundle_min_note =
         note + StringPrintf(
                    ", %d tests, %d processes, %.0f s, 1 of %d plain "
                    "d8 runs per test%s",
                    tests, runner.processes(),
                    static_cast<double>(clock.ElapsedUs()) / 1e6, runs,
-                   !stopping() && clock.ElapsedUs() > budget_us
-                       ? ", budget used up"
-                       : "");
+                   budget_used_up ? ", budget used up" : "");
     stats().minimizer_tests += static_cast<uint64_t>(tests);
     stats().minimizer_time_us += clock.ElapsedUs();
     stats().crash_min_processes += static_cast<uint64_t>(runner.processes());
@@ -2464,11 +2514,12 @@ class Worker {
     if (!info.repro.empty() && !stopping()) {
       MinimizeReproFlags(CrashBase(execution.signal, hash), &info);
     }
-    // 3b. The NAME.repro.js of an amplified crash must crash as often as
-    //     the amplify step requires. After a stop request, the check does
-    //     not run its processes, and Redline writes no NAME.repro.js.
-    if (!info.repro.empty() && !info.reproducible()) {
-      CheckAmplifiedRepro(CrashBase(execution.signal, hash), &info);
+    // 3b. The rate check of NAME.repro.js. After a stop request, the check
+    //     does not run its processes. Then an amplified crash gets no
+    //     NAME.repro.js, and the NAME.repro.js of a crash that reproduces
+    //     alone gets all flags of the target.
+    if (!info.repro.empty()) {
+      CheckReproRate(CrashBase(execution.signal, hash), &info);
     }
     // 3c. A state-dependent crash without NAME.repro.js: minimize its
     //     bundle, if the bundle crashed in a plain d8 run.
@@ -2487,10 +2538,11 @@ class Worker {
     // A minimization that gave only NAME.repro.js or a minimized bundle also
     // used the slot. Then signatures.txt counts the crash as minimized, while
     // its report says `minimized: no` (NAME.js has the original program).
-    fuzzer_->RecordCrashOutcome(
-        info.signature, decision,
-        info.minimized || !info.repro.empty() || !info.bundle_min_path.empty(),
-        info.reproducible() || info.state_dependent, path);
+    fuzzer_->RecordCrashOutcome(info.signature, decision,
+                                info.minimized || !info.repro_path.empty() ||
+                                    !info.bundle_min_path.empty(),
+                                info.reproducible() || info.state_dependent,
+                                path);
 
     JsonObject event;
     event.Add("event", "crash")

@@ -750,6 +750,8 @@ repro: crash_sig6_<hash>.repro.js
 repro_bytes: <n>
 repro_flags: <the d8 flags of the run line>
 repro_flags_note: <n> -> <n> flags in <n> tests, <n> processes, <n> s
+repro_rate: 5/5
+repro_rate_note: the bar is 5 of 5
 ```
 
 - `min_stop` tells why the minimization stopped: `fixed_point` (no reducer found more to remove), `budget` (the tests or the time of `crash_minimizer` ran out) or `rounds` (`crash_minimizer.max_rounds`).
@@ -767,6 +769,9 @@ repro_flags_note: <n> -> <n> flags in <n> tests, <n> processes, <n> s
   Redline finds them with fresh plain d8 processes (`crash_flag_runs`, `crash_flag_processes` and `crash_flag_budget_sec` set the search).
   For an amplified crash, the search uses the test of the amplified crash instead of `crash_flag_runs`.
   If the script does not crash in plain d8 processes with all flags, `repro_flags` has all flags, and `repro_flags_note` tells why.
+- `repro_rate` gives the last count of the rate check: the plain d8 runs that crashed with the signature, in 5 runs. If the search is on and `crash_flag_runs` is larger, the check uses `crash_flag_runs` runs.
+  The flags of the search stay only if all runs crash. Else `repro_flags` has all flags, and `repro_rate_note` tells why.
+  If a count stops early, `repro_rate` gives the runs until the stop.
 
 An amplified crash (`amplified: yes`) can also get a `.repro.js` file.
 Its tests run in plain d8 processes with the flags of the amplify step, and the report gives the test in `min_oracle`:
@@ -778,7 +783,7 @@ repro_rate: 5/5
 repro_rate_note: the bar is 4 of 5
 ```
 
-`repro_rate` gives the plain d8 runs of the `.repro.js` file that crashed with the signature, in as many runs as the amplify step plans.
+For an amplified crash, `repro_rate` counts as many runs as the amplify step plans.
 If it is below the bar of the amplify step, or if the check stops early, Redline writes no `.repro.js` file, and `repro_rate_note` tells why.
 `crash_amplified_budget_sec` limits the tests of the minimizer for an amplified crash. The checks and the flag search run after this time limit.
 

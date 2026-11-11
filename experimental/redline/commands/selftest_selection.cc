@@ -818,6 +818,18 @@ std::string LoadedD8Args(std::initializer_list<std::string> args) {
   return joined;
 }
 
+// Loads the configuration of `redline fuzz --config=JSON` with all steps of
+// FuzzConfig::Load, also the validation. Returns the error, or empty.
+std::string LoadFullConfig(const std::string& json, FuzzConfig* config) {
+  const std::string arg = "--config=" + json;
+  std::vector<const char*> argv = {"redline", "fuzz", arg.c_str()};
+  Flags flags = Flags::Parse(static_cast<int>(argv.size()), argv.data(), 2);
+  std::string error;
+  FuzzConfig::Load(flags, config, &error, /*for_run=*/false);
+  TunableRegistry::Instance().Reset();
+  return error;
+}
+
 // The flag --d8-args replaces the d8_args key of the configuration. The
 // d8_extra_args key of the configuration stays after the flags of --d8-args.
 void CheckD8ArgLayers(Checker* checker) {
@@ -923,14 +935,16 @@ void CheckStrategyBlocks(Checker* checker) {
         again_error);
   }
   {
-    // The keys of the flag search. Values out of range become the nearest
-    // valid values. Values that are not the default load back from the dump.
+    // The keys of the flag search and the time limits of the crash
+    // minimizers. FuzzConfig::Load changes values out of range to the
+    // nearest valid values. Values that are not the default load back from
+    // the dump.
     FuzzConfig low, high, again;
-    std::string error = load(
-        R"({"crash_flag_runs": 3, "crash_flag_processes": 2, "crash_flag_budget_sec": 0})",
+    std::string error = LoadFullConfig(
+        R"({"crash_flag_runs": 3, "crash_flag_processes": 2, "crash_flag_budget_sec": -3})",
         &low);
     if (error.empty()) {
-      error = load(
+      error = LoadFullConfig(
           R"({"crash_flag_runs": 0, "crash_flag_processes": -5, "crash_flag_budget_sec": 20, "crash_amplified_budget_sec": -1, "crash_bundle_min_budget_sec": -1})",
           &high);
     }

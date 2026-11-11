@@ -53,6 +53,7 @@
 #include "experimental/redline/exec/coverage.h"
 #include "experimental/redline/exec/process_run.h"
 #include "experimental/redline/exec/runner.h"
+#include "experimental/redline/fast/ast.h"
 #include "experimental/redline/fast/parser.h"
 #include "experimental/redline/fast/printer.h"
 #include "experimental/redline/minimizer/minimizer.h"
@@ -1091,8 +1092,14 @@ void RunFlagMinimizerChecks(Checker* checker) {
                  stopped.budget_exhausted && stopped.tests == 2,
                  StringPrintf("%d tests, budget_exhausted %d", stopped.tests,
                               stopped.budget_exhausted ? 1 : 0));
+  // HasNativeCall is also true for a script that does not parse. Thus the
+  // script with the call must parse.
+  const char* call_in_function =
+      "function f() { return %DebugPrint(1); }\nf();";
   const bool in_function =
-      HasNativeCall("function f() { return %DebugPrint(1); }\nf();");
+      fast::Parser::ParseScript(call_in_function, fast::ParseOptions(),
+                                nullptr) != nullptr &&
+      HasNativeCall(call_in_function);
   const bool plain = HasNativeCall("print(1);");
   const bool not_parsing = HasNativeCall("let = ;");
   checker->Check(
@@ -1114,7 +1121,8 @@ void RunFlagMinimizerChecks(Checker* checker) {
 
 // Offline: the plain test of an amplified crash. Its processes follow the
 // crash rate of the amplify step. Its flags have the flags of the amplify
-// step instead of --stress-runs and --random-seed.
+// step instead of --stress-runs and --random-seed. Also the decisions of the
+// rate checks of NAME.repro.js, and the cause of a stop in their notes.
 void RunAmplifiedTestChecks(Checker* checker) {
   const std::string runs = StringPrintf(
       "%d %d %d %d %d %d", AmplifiedRuns(5, 5), AmplifiedRuns(4, 5),
@@ -1146,15 +1154,46 @@ void RunAmplifiedTestChecks(Checker* checker) {
           "keep 4/5, keep all 5/5, drop 3/5, drop 3/3, drop 2/2, "
           "drop 2/5",
       decisions);
+  // The rate check of a crash that reproduces alone: the bar is 5 of 5, and
+  // NAME.repro.js always stays.
+  auto decide_alone = [](RateCount kept, const RateCount* all) {
+    const RateDecision d =
+        DecideReproducibleRate(5, kept, all, "the check stopped");
+    return StringPrintf("%s%s %d/%d", d.keep ? "keep" : "drop",
+                        d.all_flags ? " all" : "", d.rate.hits, d.rate.runs);
+  };
+  const std::string alone =
+      decide_alone({5, 5}, nullptr) + ", " + decide_alone({5, 4}, &all_pass) +
+      ", " + decide_alone({5, 4}, &all_fail) + ", " +
+      decide_alone({5, 4}, nullptr) + ", " + decide_alone({2, 2}, nullptr) +
+      ", " + decide_alone({5, 4}, &all_cut);
+  // The note gives the cause of a count that stopped early.
+  const std::string cut_note =
+      DecideAmplifiedRate(4, 5, {0, 0}, nullptr, "cannot start d8: x").note;
+  const std::string alone_note =
+      DecideReproducibleRate(5, {5, 4}, &all_cut, "the session stopped").note;
+  checker->Check(
+      "crash flags: the rate check of a crash that reproduces alone keeps "
+      "the flags of the search only after 5 of 5",
+      alone == "keep 5/5, keep all 5/5, keep all 3/5, keep all 4/5, keep all "
+               "2/2, keep all 2/2" &&
+          cut_note ==
+              "the bar is 4 of 5, not checked after 0 of 5 runs: cannot "
+              "start d8: x, so Redline wrote no NAME.repro.js" &&
+          alone_note ==
+              "the bar is 5 of 5, the kept flags gave 4 of 5, the check of "
+              "all flags stopped after 2 of 5 runs: the session stopped",
+      alone + "; " + cut_note + "; " + alone_note);
   checker->Check("amplified crashes: the flags of a test",
                  flags == "--a --b --c --stress-runs=24" &&
                      KeepReproFlag("--stress-runs=24", false),
                  flags);
 }
 
-// Offline: the steps of the bundle minimization (MinimizeBundleParts) with
-// a test that needs the part "needed" and the crash part last. The time limit
-// ends after the first step, so no part gets a reduction.
+// Offline: the steps of the bundle minimization (MinimizeBundleParts). In
+// the first case, the test needs the part "needed" and the crash part last.
+// The time limit ends after the first step, so no part gets a reduction. The
+// second case has no time limit, and the reductions change the needed parts.
 void RunBundleStepChecks(Checker* checker) {
   int tests = 0;
   int reductions = 0;
@@ -1177,6 +1216,36 @@ void RunBundleStepChecks(Checker* checker) {
       text == "needed crash" && reductions == 0,
       StringPrintf("parts \"%s\", %d tests, %d reductions", text.c_str(), tests,
                    reductions));
+  // Without a time limit. The reduction of the crash part makes the part
+  // "a" unnecessary, and the reduction of "b" gives "b2". The removal after
+  // each step must remove the part that is not necessary.
+  int reduced = 0;
+  const std::vector<std::string> again = MinimizeBundleParts(
+      {"a", "b", "crash"},
+      [](const std::vector<std::string>& candidate) {
+        auto has = [&candidate](const char* part) {
+          return std::find(candidate.begin(), candidate.end(), part) !=
+                 candidate.end();
+        };
+        if (candidate.back() == "crash") {
+          return has("a") && has("b");
+        }
+        return candidate.back() == "crash2" && (has("b") || has("b2"));
+      },
+      [&reduced](std::vector<std::string>* parts, size_t i) {
+        reduced++;
+        std::string& part = (*parts)[i];
+        part = part == "crash" ? "crash2" : part == "b" ? "b2" : part;
+      },
+      [] { return false; });
+  std::string again_text;
+  for (const std::string& part : again) {
+    again_text += (again_text.empty() ? "" : " ") + part;
+  }
+  checker->Check(
+      "bundles: a reduced crash part lets the steps remove a history part",
+      again_text == "b2 crash2" && reduced == 2,
+      StringPrintf("parts \"%s\", %d reductions", again_text.c_str(), reduced));
 }
 
 // The value of the line `key: value` of a crash report, or "".
@@ -1420,8 +1489,9 @@ std::string RunReproLine(const std::string& repro,
 // A crash behind the default prelude, in a short session. The crash
 // minimizer reduces the tree of the prelude and the program. NAME.repro.js
 // must keep the 2 prelude helpers that the program reaches, and no other
-// prelude statement. Its `// run:` line must crash a plain d8 process with
-// the signature of the crash.
+// prelude statement. Its `// run:` line must have absolute paths, and it
+// must crash a plain d8 process with the signature of the crash. The node
+// counts of `minimized:` are the counts of the program alone.
 void RunCrashReproCheck(Checker* checker, const TargetOptions& target) {
   const char* name =
       "crash minimizer: a crash behind the default prelude gives "
@@ -1446,33 +1516,121 @@ void RunCrashReproCheck(Checker* checker, const TargetOptions& target) {
   const std::string& report = session.report;
   const std::string signature = ReportValue(report, "signature");
   const std::string plain = header ? RunReproLine(repro, target) : "";
+  const std::vector<std::string> words = RunLineWords(repro);
+  const bool absolute = words.size() >= 2 && words[0].starts_with("/") &&
+                        words.back().starts_with("/");
+  // The nodes of the program in the file NAME + `suffix` of the crash, or 0.
+  // NAME.orig.js has the program alone before the minimization, and NAME.js
+  // has it after the minimization.
+  const std::string repro_name = ReportValue(report, "repro");
+  auto file_nodes = [&](const char* suffix) -> size_t {
+    const std::string repro_suffix = ".repro.js";
+    std::string text, error;
+    if (!repro_name.ends_with(repro_suffix) ||
+        !ReadFileToString(
+            session.dir + "/out/crashes/" +
+                repro_name.substr(0, repro_name.size() - repro_suffix.size()) +
+                suffix,
+            &text, &error)) {
+      return 0;
+    }
+    std::unique_ptr<fast::Tree> file_tree =
+        fast::Parser::ParseScript(text, fast::ParseOptions(), nullptr);
+    return file_tree != nullptr ? fast::CountNodes(file_tree->root()) : 0;
+  };
+  const size_t orig_nodes = file_nodes(".orig.js");
+  const size_t js_nodes = file_nodes(".js");
   RemoveTree(session.dir);
   const std::string min_tree = ReportValue(report, "min_tree");
   const std::string prelude = ReportValue(report, "min_prelude_statements");
   const std::string stop = ReportValue(report, "min_stop");
+  const std::string minimized = ReportValue(report, "minimized");
+  const std::string script_nodes = ReportValue(report, "min_script_nodes");
+  size_t nodes_before = 0, nodes_after = 0, script_before = 0, script_after = 0;
+  const bool counts =
+      sscanf(minimized.c_str(), "yes (%*d tests, %zu -> %zu nodes)",
+             &nodes_before, &nodes_after) == 2 &&
+      sscanf(script_nodes.c_str(), "%zu -> %zu", &script_before,
+             &script_after) == 2;
   const bool ok = tree != nullptr && helpers == "__redline_call assertThrows" &&
                   min_tree == "prelude and program" &&
                   prelude.ends_with("-> 2") && !stop.empty() &&
-                  stop != "skipped" &&
-                  ReportValue(report, "minimized").starts_with("yes") &&
+                  stop != "skipped" && counts && orig_nodes > 0 &&
+                  nodes_before == orig_nodes && nodes_after == js_nodes &&
+                  script_before > nodes_before && absolute &&
+                  ReportValue(report, "repro_rate") == "5/5" &&
                   !signature.empty() && plain == signature;
   checker->Check(
       name, ok,
       StringPrintf("%s, %.0f s, helpers \"%s\", min_tree %s, "
                    "min_prelude_statements %s, min_stop %s, minimized %s, "
-                   "plain d8 run \"%s\", signature \"%s\"%s%s",
+                   "min_script_nodes %s, NAME.orig.js %zu nodes, NAME.js %zu "
+                   "nodes, run line "
+                   "\"%s ... %s\", repro_rate %s, plain d8 run \"%s\", "
+                   "signature \"%s\"%s%s",
                    session.stop.c_str(), session.seconds, helpers.c_str(),
                    min_tree.c_str(), prelude.c_str(), stop.c_str(),
-                   ReportValue(report, "minimized").c_str(), plain.c_str(),
+                   minimized.c_str(), script_nodes.c_str(), orig_nodes,
+                   js_nodes, words.empty() ? "" : words[0].c_str(),
+                   words.empty() ? "" : words.back().c_str(),
+                   ReportValue(report, "repro_rate").c_str(), plain.c_str(),
                    signature.c_str(), session.error.empty() ? "" : ", ",
                    session.error.c_str()));
+}
+
+// A crash behind a prelude whose text matters: the program reads the text
+// of a prelude function. The printer removes the comment in the function,
+// so the printed tree of the prelude and the program does not crash. Then the
+// minimizer reduces the program alone, behind the exact prelude. Redline writes
+// no NAME.repro.js, and `min_tree` gives the reason.
+void RunCrashFallbackCheck(Checker* checker, const TargetOptions& target) {
+  const char* name =
+      "crash minimizer: a prelude whose text matters gives the program alone "
+      "and no NAME.repro.js";
+  char dir_template[] = "/tmp/redline-selftest-prelude.XXXXXX";
+  std::string error, prelude_dir;
+  if (mkdtemp(dir_template) == nullptr) {
+    error = StringPrintf("mkdtemp: %s", strerror(errno));
+  } else {
+    prelude_dir = dir_template;
+  }
+  const std::string prelude = prelude_dir + "/prelude.js";
+  if (error.empty()) {
+    WriteStringToFile(prelude,
+                      "var f = function() { /*keep*/ return 1; };\n"
+                      "var unused = 2;\n",
+                      &error);
+  }
+  CrashSession session;
+  if (error.empty()) {
+    session = RunCrashSession(target, {"--prelude=" + prelude},
+                              {"if (f.toString().includes(\"/*keep*/\")) "
+                               "redline('REDLINE_CRASH', 1);\n"});
+    error = session.error;
+    RemoveTree(session.dir);
+  }
+  if (!prelude_dir.empty()) {
+    RemoveTree(prelude_dir);
+  }
+  const std::string& report = session.report;
+  const std::string min_tree = ReportValue(report, "min_tree");
+  const bool ok = error.empty() && !ReportValue(report, "signature").empty() &&
+                  min_tree.starts_with("program alone: the printed script") &&
+                  ReportValue(report, "repro").empty() && session.repro.empty();
+  checker->Check(
+      name, ok,
+      StringPrintf("%s, %.0f s, min_tree \"%s\", repro \"%s\"%s%s",
+                   session.stop.c_str(), session.seconds, min_tree.c_str(),
+                   ReportValue(report, "repro").c_str(),
+                   error.empty() ? "" : ", ", error.c_str()));
 }
 
 // A crash that needs 1 flag of the session, in a short session with the
 // default prelude. The search of the d8 flags of NAME.repro.js keeps only
 // this flag and the flags that KeepReproFlag keeps. The time budget is
 // large, so only the process limit stops the search. The `// run:` line has
-// these flags, and it crashes a plain d8 process with the signature.
+// these flags, and it crashes a plain d8 process with the signature. The
+// rate check keeps these flags, and no temporary file stays.
 void RunCrashFlagsCheck(Checker* checker, const TargetOptions& target) {
   const char* name =
       "crash flags: a crash that needs 1 flag of the session keeps only this "
@@ -1499,21 +1657,28 @@ void RunCrashFlagsCheck(Checker* checker, const TargetOptions& target) {
   const std::vector<std::string> words = RunLineWords(session.repro);
   const std::string plain =
       words.empty() ? "" : RunReproLine(session.repro, target);
+  const size_t temporary =
+      ListFiles(session.dir + "/out/crashes", ".tmp").size();
   RemoveTree(session.dir);
   const std::string signature = ReportValue(session.report, "signature");
+  const std::string note = ReportValue(session.report, "repro_flags_note");
+  const std::string rate = ReportValue(session.report, "repro_rate");
   const bool ok =
       flags == expected_text && words.size() == expected.size() + 2 &&
       std::equal(expected.begin(), expected.end(), words.begin() + 1) &&
-      !signature.empty() && plain == signature;
+      note.find(", budget used up") == std::string::npos &&
+      note.find(", the session stopped") == std::string::npos &&
+      rate == "5/5" && temporary == 0 && !signature.empty() &&
+      plain == signature;
   checker->Check(
       name, ok,
       StringPrintf("%s, %.0f s, repro_flags \"%s\" (expected \"%s\"), %s, "
-                   "%zu words in the run line, plain d8 run \"%s\", "
-                   "signature \"%s\"%s%s",
+                   "repro_rate %s (%s), %zu temporary files, %zu words in the "
+                   "run line, plain d8 run \"%s\", signature \"%s\"%s%s",
                    session.stop.c_str(), session.seconds, flags.c_str(),
-                   expected_text.c_str(),
-                   ReportValue(session.report, "repro_flags_note").c_str(),
-                   words.size(), plain.c_str(), signature.c_str(),
+                   expected_text.c_str(), note.c_str(), rate.c_str(),
+                   ReportValue(session.report, "repro_rate_note").c_str(),
+                   temporary, words.size(), plain.c_str(), signature.c_str(),
                    session.error.empty() ? "" : ", ", session.error.c_str()));
 }
 
@@ -1576,7 +1741,7 @@ void RunCrashAmplifiedCheck(Checker* checker, const TargetOptions& target) {
   const bool ok = ReportValue(report, "amplified") == "yes" &&
                   ReportValue(report, "reproducible") == "no" &&
                   ReportValue(report, "min_oracle").starts_with("1 of ") &&
-                  (stop == "budget" || stop == "fixed_point") &&
+                  stop == "budget" &&
                   !ReportValue(report, "repro_rate").empty() && stress_runs &&
                   !signature.empty() && plain == signature;
   checker->Check(
@@ -2192,6 +2357,7 @@ int RunSelftest(const Flags& flags) {
   // has the same name as the map of `runner`, so stop `runner` first.
   runner.reset();
   RunCrashReproCheck(&checker, target);
+  RunCrashFallbackCheck(&checker, target);
   RunCrashFlagsCheck(&checker, target);
   RunCrashAmplifiedCheck(&checker, target);
   RunCrashBundleCheck(&checker, target);

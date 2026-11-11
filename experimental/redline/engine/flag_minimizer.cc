@@ -25,6 +25,7 @@ bool PlainCrashRunner::Crashes(const std::vector<std::string>& args, int runs,
                                int needed) {
   last_runs_ = 0;
   last_hits_ = 0;
+  error_.clear();
   for (int run = 0; run < runs; run++) {
     // Stop when the hits so far decide the result.
     if (last_hits_ >= needed || last_hits_ + (runs - run) < needed ||
@@ -51,6 +52,7 @@ bool PlainCrashRunner::Crashes(const std::vector<std::string>& args, int runs,
 int PlainCrashRunner::Count(const std::vector<std::string>& args, int runs) {
   last_runs_ = 0;
   last_hits_ = 0;
+  error_.clear();
   for (int run = 0; run < runs && !(stop_ && stop_()); run++) {
     const ProcessResult result =
         RunProcess(executable_, args, env_, timeout_us_);

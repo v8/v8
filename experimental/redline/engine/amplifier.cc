@@ -407,14 +407,14 @@ int AmplifiedRuns(int hits, int processes) {
 }
 
 RateDecision DecideAmplifiedRate(int min_hits, int planned, RateCount kept,
-                                 const RateCount* all) {
+                                 const RateCount* all,
+                                 const std::string& stop_cause) {
   RateDecision decision;
   decision.rate = kept;
   decision.note = StringPrintf("the bar is %d of %d", min_hits, planned);
   if (kept.runs < planned) {
-    decision.note +=
-        StringPrintf(", not checked: the check stopped after %d of %d runs",
-                     kept.runs, planned);
+    decision.note += StringPrintf(", not checked after %d of %d runs: %s",
+                                  kept.runs, planned, stop_cause.c_str());
   } else if (kept.hits >= min_hits) {
     decision.keep = true;
     return decision;
@@ -426,9 +426,9 @@ RateDecision DecideAmplifiedRate(int min_hits, int planned, RateCount kept,
     decision.note +=
         StringPrintf(", the kept flags gave %d of %d", kept.hits, planned);
     if (all->runs < planned) {
-      decision.note +=
-          StringPrintf(", the check of all flags stopped after %d of %d runs",
-                       all->runs, planned);
+      decision.note += StringPrintf(
+          ", the check of all flags stopped after %d of %d runs: %s", all->runs,
+          planned, stop_cause.c_str());
     } else if (all->hits >= min_hits) {
       decision.keep = true;
       decision.all_flags = true;
@@ -441,6 +441,38 @@ RateDecision DecideAmplifiedRate(int min_hits, int planned, RateCount kept,
     }
   }
   decision.note += ", so Redline wrote no NAME.repro.js";
+  return decision;
+}
+
+RateDecision DecideReproducibleRate(int planned, RateCount kept,
+                                    const RateCount* all,
+                                    const std::string& stop_cause) {
+  RateDecision decision;
+  decision.keep = true;
+  decision.rate = kept;
+  decision.note = StringPrintf("the bar is %d of %d", planned, planned);
+  if (kept.runs < planned) {
+    decision.all_flags = true;
+    decision.note += StringPrintf(", not checked after %d of %d runs: %s",
+                                  kept.runs, planned, stop_cause.c_str());
+  } else if (kept.hits < planned && all == nullptr) {
+    decision.all_flags = true;
+    decision.note +=
+        StringPrintf(", the script gave %d of %d", kept.hits, planned);
+  } else if (kept.hits < planned) {
+    decision.all_flags = true;
+    decision.rate = *all;
+    decision.note +=
+        StringPrintf(", the kept flags gave %d of %d", kept.hits, planned);
+    if (all->runs < planned) {
+      decision.note += StringPrintf(
+          ", the check of all flags stopped after %d of %d runs: %s", all->runs,
+          planned, stop_cause.c_str());
+    } else {
+      decision.note += StringPrintf(", all flags of the test gave %d of %d",
+                                    all->hits, planned);
+    }
+  }
   return decision;
 }
 

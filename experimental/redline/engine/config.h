@@ -244,7 +244,10 @@ struct FuzzConfig {
   // the signature. The search stops after crash_flag_processes processes or
   // after crash_flag_budget_sec. 0 for one of them turns the search off.
   // crash_flag_processes counts the first check with all flags too, and a
-  // value below crash_flag_runs becomes crash_flag_runs.
+  // value below crash_flag_runs becomes crash_flag_runs. crash_flag_runs
+  // also sets the size of the rate check of a crash that reproduces alone
+  // (DESIGN.md 5.6). This applies if the search is on and the value is
+  // larger than 5.
   int crash_flag_runs = 2;
   int crash_flag_processes = 200;
   double crash_flag_budget_sec = 60;

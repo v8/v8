@@ -371,6 +371,13 @@ With one test, `dataflow` can remove a group of prelude statements that the prog
   The search stops after `crash_flag_processes` processes or `crash_flag_budget_sec`, and 0 for one of them turns it off.
   The report gives the result in `repro_flags`, and the d8 command of `NAME.repro.js` uses it.
   The search does not run if a flag has its value in a separate word.
+- The rate check: the search accepts a list of flags after `crash_flag_runs` crashes, so the result can crash less often than the original crash.
+  Thus Redline then runs `NAME.repro.js` in 5 plain d8 processes without an early stop. If the search is on and `crash_flag_runs` is larger, it uses `crash_flag_runs` processes.
+  The flags of the search stay only if all processes crash with the signature.
+  Else `NAME.repro.js` gets all flags of the target, as without the search.
+  If this count is complete with a miss and the search removed flags, Redline also counts all flags of the target.
+  `NAME.repro.js` always stays. The report and the crash event give the last count in `repro_rate` and `repro_rate_note`.
+  The check runs at most two counts. Each process takes at most the timeout of the target plus 10 s. After a stop request, the check starts no new process.
 - `NAME.js` keeps its meaning: the program alone, without the prelude statements. Redline uses the minimized program for `NAME.js` only if it also crashes with the same signature behind the full prelude (`min_program_verified`).
 - The node counts of `minimized:`, `min_nodes_before` and `min_nodes_after` are the counts of the program alone, as in `NAME.js`.
   `min_script_nodes` and `min_prelude_statements` give the nodes of the whole tree and its top-level prelude statements.
@@ -417,13 +424,14 @@ The test passes if one process crashes with the same signature. k comes from `bu
    A reduced history part can crash itself. Then the bundle still crashes with the signature.
 3. It reduces each history part, and it removes history parts again.
 
+- Before the steps, the bundle must pass the test in one of `verify_attempts` tries.
 - `crash_bundle_min_budget_sec` is the time limit of the tests of the steps. 0 turns the minimization off.
-  The last check and the rate check stop only at a stop request.
+  The start check, the last check and the rate check stop only at a stop request.
 - The result must be smaller, and it must pass the test again in one of `verify_attempts` tries.
 - The rate check runs the result in `bundle_runs` plain d8 processes, without an early stop. The result must crash in at least `bundle_hits` of them, as the original bundle did.
 - Then Redline writes the result to `NAME.bundle.min.js`. `NAME.bundle.js` stays the original bundle.
 - The report and the crash event give the file in `bundle_min`, its rate in `bundle_min_rate` and the result in `bundle_min_note`. A minimized bundle keeps the minimize slot, as `NAME.repro.js` does.
-- One bundle minimization can take this time: `crash_bundle_min_budget_sec` and one more test, the last check, and the rate check.
+- The start check and the steps take at most the longer of the start check and `crash_bundle_min_budget_sec` with one more test. Then the last check and the rate check run.
   The last check runs at most `verify_attempts` times k processes. The rate check runs `bundle_runs` processes. Each process takes at most the timeout of the target for each part, plus 10 s.
 
 ### 5.7 Publish
