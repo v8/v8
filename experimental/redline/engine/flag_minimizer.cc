@@ -48,6 +48,27 @@ bool PlainCrashRunner::Crashes(const std::vector<std::string>& args, int runs,
   return last_hits_ >= needed;
 }
 
+int PlainCrashRunner::Count(const std::vector<std::string>& args, int runs) {
+  last_runs_ = 0;
+  last_hits_ = 0;
+  for (int run = 0; run < runs && !(stop_ && stop_()); run++) {
+    const ProcessResult result =
+        RunProcess(executable_, args, env_, timeout_us_);
+    if (!result.started) {
+      error_ = result.error;
+      break;
+    }
+    processes_++;
+    last_runs_++;
+    if (!result.timed_out &&
+        CrashSignature::FromOutput(result.signal, result.exit_code,
+                                   result.stderr_text) == signature_) {
+      last_hits_++;
+    }
+  }
+  return last_hits_;
+}
+
 FlagMinimization MinimizeFlags(
     const std::vector<std::string>& flags,
     const std::function<bool(const std::string& flag)>& keep,
@@ -142,7 +163,8 @@ bool HasNativeCall(std::string_view script) {
 
 bool KeepReproFlag(std::string_view flag, bool natives) {
   return (natives && IsFlag(flag, "allow-natives-syntax")) ||
-         IsFlag(flag, "single-threaded") || IsFlag(flag, "random-seed");
+         IsFlag(flag, "single-threaded") || IsFlag(flag, "random-seed") ||
+         IsFlag(flag, "stress-runs");
 }
 
 }  // namespace redline

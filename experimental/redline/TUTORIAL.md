@@ -754,6 +754,7 @@ repro_flags_note: <n> -> <n> flags in <n> tests, <n> processes, <n> s
 - `min_stop` tells why the minimization stopped: `fixed_point` (no reducer found more to remove), `budget` (the tests or the time of `crash_minimizer` ran out) or `rounds` (`crash_minimizer.max_rounds`).
   `stopped` tells that the session stopped, and `skipped` tells that the minimizer did not run.
 - `min_tree` tells what the minimizer reduced: `prelude and program`, or `program alone` and the reason.
+  For an amplified crash, it is `prelude and program`, `program, without a prelude`, or `not minimized:` and the reason.
   For the program alone, there is no `.repro.js` file.
 - The node counts of the `minimized:` line are the counts of the program alone, as in the `.js` file.
   `min_script_nodes` gives the nodes of the prelude and the program together, and `min_prelude_statements` gives the top-level statements of the prelude, before and after the minimization.
@@ -761,9 +762,27 @@ repro_flags_note: <n> -> <n> flags in <n> tests, <n> processes, <n> s
   If the value is `no`, the `.js` file has the original program, and the report says `minimized: no`.
   But `signatures.txt` counts the crash as minimized, because its `.repro.js` file has the minimized script.
 - `repro_flags` gives the d8 flags of the `run:` line: the flags of the target that the crash needs.
-  `--single-threaded` and `--random-seed` stay if the target has them.
+  `--single-threaded`, `--random-seed` and `--stress-runs` stay if the target has them.
   Redline finds them with fresh plain d8 processes (`crash_flag_runs`, `crash_flag_processes` and `crash_flag_budget_sec` set the search).
+  For an amplified crash, the search uses the test of the amplified crash instead of `crash_flag_runs`.
   If the script does not crash in plain d8 processes with all flags, `repro_flags` has all flags, and `repro_flags_note` tells why.
+
+An amplified crash (`amplified: yes`) can also get a `.repro.js` file.
+Its tests run in plain d8 processes with the flags of the amplify step, and the report gives the test in `min_oracle`:
+
+```text
+min_oracle: 1 of 2 plain d8 runs with the amplified flags
+repro_flags: --stress-runs=<n>
+repro_rate: 5/5
+repro_rate_note: the bar is 4 of 5
+```
+
+`repro_rate` gives the plain d8 runs of the `.repro.js` file that crashed with the signature, in as many runs as the amplify step plans.
+If it is below the bar of the amplify step, or if the check stops early, Redline writes no `.repro.js` file, and `repro_rate_note` tells why.
+`crash_amplified_budget_sec` limits the tests of the minimizer for an amplified crash. The checks and the flag search run after this time limit.
+
+The `.js` file of an amplified crash keeps the original program, so the report says `minimized: no`.
+The `run:` line of the `.repro.js` file has no `--random-seed`, so d8 uses a new random seed in each run, as in the amplify step.
 
 Minimize the crash again, for example with all reducers and a larger budget:
 

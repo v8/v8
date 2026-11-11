@@ -34,12 +34,16 @@ class PlainCrashRunner {
   // far decide the result, when a process does not start, or when the stop
   // function is true.
   bool Crashes(const std::vector<std::string>& args, int runs, int needed);
+  // Runs `runs` processes with `args`, without an early stop on the hits, and
+  // returns the processes that crashed with the signature. The runs stop
+  // when a process does not start or when the stop function is true.
+  int Count(const std::vector<std::string>& args, int runs);
   // The runner does not start a process when `stop` is true.
   void set_stop(std::function<bool()> stop) { stop_ = std::move(stop); }
   // All processes of this runner.
   int processes() const { return processes_; }
-  // The processes of the last call of Crashes(), and those that crashed
-  // with the signature.
+  // The processes of the last call of Crashes() or Count(), and those that
+  // crashed with the signature.
   int last_runs() const { return last_runs_; }
   int last_hits() const { return last_hits_; }
   // Why a process did not start, or empty.
@@ -86,7 +90,8 @@ bool HasNativeCall(std::string_view script);
 // True for a flag that the flag search of a reproducer keeps. If `natives`
 // is true (the script calls a runtime function with `%`), it keeps
 // --allow-natives-syntax. It always keeps --single-threaded and
-// --random-seed, because they make a plain d8 run more deterministic.
+// --random-seed, because they make a plain d8 run more deterministic. It
+// also keeps --stress-runs, which an amplified crash needs.
 bool KeepReproFlag(std::string_view flag, bool natives);
 
 }  // namespace redline

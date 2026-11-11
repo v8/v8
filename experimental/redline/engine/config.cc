@@ -767,6 +767,9 @@ bool ApplyJson(const JsonValue& json, FuzzConfig* c, std::string* error,
         std::max(c->crash_flag_runs, c->crash_flag_processes);
   }
   c->crash_flag_budget_sec = std::max(0.0, c->crash_flag_budget_sec);
+  c->crash_amplified_budget_sec = json.GetNumber("crash_amplified_budget_sec",
+                                                 c->crash_amplified_budget_sec);
+  c->crash_amplified_budget_sec = std::max(0.0, c->crash_amplified_budget_sec);
   c->target.timeout_us = static_cast<uint64_t>(
       json.GetNumber("timeout_ms",
                      static_cast<double>(c->target.timeout_us) / 1000.0) *
@@ -1341,6 +1344,7 @@ std::string FuzzConfig::ToJson(Detail detail) const {
   o.Add("crash_flag_runs", crash_flag_runs);
   o.Add("crash_flag_processes", crash_flag_processes);
   o.Add("crash_flag_budget_sec", crash_flag_budget_sec);
+  o.Add("crash_amplified_budget_sec", crash_amplified_budget_sec);
   o.AddRaw("crash_minimizer",
            MinimizerOptionsJson(crash_minimizer, crash_minimizer_reducers,
                                 Minimizer::CrashOrder()));
@@ -1505,6 +1509,7 @@ std::string FuzzConfig::JsonHelp() {
       "    \"crash_history_budget_sec\": 90, \"crash_bundle_runs\": 3,\n"
       "    \"crash_flag_runs\": 2, \"crash_flag_processes\": 200, "
       "\"crash_flag_budget_sec\": 60,\n"
+      "    \"crash_amplified_budget_sec\": 300,\n"
       "    \"crash_minimizer\": {\"max_tests\": 2000, \"max_time_ms\": 120000, "
       "\"max_rounds\": 10,\n"
       "                        \"target_time_ms\": 120000, \"min_tests\": "

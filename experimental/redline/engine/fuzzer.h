@@ -65,6 +65,9 @@ struct FuzzerStats {
   std::atomic<uint64_t> bundle_processes{0};  // plain d8 runs of the bundles
   // Plain d8 runs that searched the d8 flags of NAME.repro.js.
   std::atomic<uint64_t> flag_processes{0};
+  // Plain d8 runs of the minimizer and of the rate check for amplified
+  // crashes.
+  std::atomic<uint64_t> crash_min_processes{0};
   std::atomic<uint64_t> crash_replay_executions{0};  // spent on history replays
   std::atomic<uint64_t> minimizer_tests{0};
   std::atomic<uint64_t> minimizer_time_us{0};

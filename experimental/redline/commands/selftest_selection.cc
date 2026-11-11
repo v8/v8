@@ -931,7 +931,7 @@ void CheckStrategyBlocks(Checker* checker) {
         &low);
     if (error.empty()) {
       error = load(
-          R"({"crash_flag_runs": 0, "crash_flag_processes": -5, "crash_flag_budget_sec": 20})",
+          R"({"crash_flag_runs": 0, "crash_flag_processes": -5, "crash_flag_budget_sec": 20, "crash_amplified_budget_sec": -1})",
           &high);
     }
     if (error.empty()) {
@@ -943,11 +943,18 @@ void CheckStrategyBlocks(Checker* checker) {
             low.crash_flag_processes == 3 && low.crash_flag_budget_sec == 0 &&
             high.crash_flag_runs == 1 && high.crash_flag_processes == 0 &&
             again.crash_flag_runs == 1 && again.crash_flag_processes == 0 &&
-            again.crash_flag_budget_sec == 20,
-        StringPrintf("%s runs %d/%d, processes %d/%d, budget %g/%g",
+            again.crash_flag_budget_sec == 20 &&
+            high.crash_amplified_budget_sec == 0 &&
+            again.crash_amplified_budget_sec == 0 &&
+            low.crash_amplified_budget_sec == 300,
+        StringPrintf("%s runs %d/%d, processes %d/%d, budget %g/%g, "
+                     "amplified budget %g/%g/%g",
                      error.c_str(), low.crash_flag_runs, high.crash_flag_runs,
                      low.crash_flag_processes, high.crash_flag_processes,
-                     low.crash_flag_budget_sec, again.crash_flag_budget_sec));
+                     low.crash_flag_budget_sec, again.crash_flag_budget_sec,
+                     low.crash_amplified_budget_sec,
+                     high.crash_amplified_budget_sec,
+                     again.crash_amplified_budget_sec));
   }
   struct Case {
     const char* name;

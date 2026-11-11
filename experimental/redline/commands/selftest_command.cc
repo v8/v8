@@ -42,6 +42,7 @@
 #include "experimental/redline/core/tunable.h"
 #include "experimental/redline/corpus/corpus.h"
 #include "experimental/redline/corpus/feature_weights.h"
+#include "experimental/redline/engine/amplifier.h"
 #include "experimental/redline/engine/config.h"
 #include "experimental/redline/engine/crash.h"
 #include "experimental/redline/engine/d8_flags.h"
@@ -1111,6 +1112,46 @@ void RunFlagMinimizerChecks(Checker* checker) {
       "");
 }
 
+// Offline: the plain test of an amplified crash. Its processes follow the
+// crash rate of the amplify step. Its flags have the flags of the amplify
+// step instead of --stress-runs and --random-seed.
+void RunAmplifiedTestChecks(Checker* checker) {
+  const std::string runs = StringPrintf(
+      "%d %d %d %d %d %d", AmplifiedRuns(5, 5), AmplifiedRuns(4, 5),
+      AmplifiedRuns(1, 2), AmplifiedRuns(1, 5), AmplifiedRuns(0, 5),
+      AmplifiedRuns(3, 0));
+  checker->Check("amplified crashes: the processes of a test follow the rate",
+                 runs == "2 3 5 9 10 10", runs);
+  std::string flags;
+  for (const std::string& flag :
+       AmplifiedFlags({"--a", "--random-seed=5", "--stress_runs=3", "--b"},
+                      "--c --stress-runs=24")) {
+    flags += (flags.empty() ? "" : " ") + flag;
+  }
+  // The rate check: a bar of 4 of 5.
+  auto decide = [](RateCount kept, const RateCount* all) {
+    const RateDecision d = DecideAmplifiedRate(4, 5, kept, all);
+    return StringPrintf("%s%s %d/%d", d.keep ? "keep" : "drop",
+                        d.all_flags ? " all" : "", d.rate.hits, d.rate.runs);
+  };
+  const RateCount all_pass{5, 5}, all_fail{5, 3}, all_cut{2, 2};
+  const std::string decisions =
+      decide({5, 4}, nullptr) + ", " + decide({5, 3}, &all_pass) + ", " +
+      decide({5, 3}, &all_fail) + ", " + decide({3, 3}, nullptr) + ", " +
+      decide({5, 3}, &all_cut) + ", " + decide({5, 2}, nullptr);
+  checker->Check(
+      "amplified crashes: the rate check keeps only a complete count that "
+      "passes",
+      decisions ==
+          "keep 4/5, keep all 5/5, drop 3/5, drop 3/3, drop 2/2, "
+          "drop 2/5",
+      decisions);
+  checker->Check("amplified crashes: the flags of a test",
+                 flags == "--a --b --c --stress-runs=24" &&
+                     KeepReproFlag("--stress-runs=24", false),
+                 flags);
+}
+
 // The value of the line `key: value` of a crash report, or "".
 std::string ReportValue(const std::string& report, const std::string& key) {
   const std::string prefix = key + ": ";
@@ -1161,11 +1202,11 @@ void RemoveTree(const std::string& path) {
   rmdir(path.c_str());
 }
 
-// The result of a short session that imports one crash program.
+// The result of a short session that imports crash programs.
 struct CrashSession {
   std::string dir;     // the files of the session, or "" if there are none
   bool saved = false;  // the session saved a crash
-  // Why the wait stopped: "crash saved", "session ended", "import did not
+  // Why the wait stopped: "crash saved", "session ended", "imports did not
   // crash" or "time limit".
   std::string stop;
   double seconds = 0;
@@ -1175,12 +1216,13 @@ struct CrashSession {
 };
 
 // Runs a short session with the d8 flags of `target` and `session_flags`. The
-// session imports `program`. The wait stops when the session saved a crash,
-// when Run() returns, when the import did not crash or after
-// kCrashSessionSeconds. The caller removes `dir` with RemoveTree().
+// session imports `programs`, in an order that the seed of the session sets.
+// The wait stops when the session saved a crash, when Run() returns, when
+// the imports did not crash or after kCrashSessionSeconds. The caller
+// removes `dir` with RemoveTree().
 CrashSession RunCrashSession(const TargetOptions& target,
                              const std::vector<std::string>& session_flags,
-                             const std::string& program) {
+                             const std::vector<std::string>& programs) {
   CrashSession session;
   char dir_template[] = "/tmp/redline-selftest.XXXXXX";
   if (mkdtemp(dir_template) == nullptr) {
@@ -1188,9 +1230,15 @@ CrashSession RunCrashSession(const TargetOptions& target,
     return session;
   }
   session.dir = dir_template;
-  const std::string program_path = session.dir + "/crash.js";
-  if (!WriteStringToFile(program_path, program, &session.error)) {
+  const std::string import_dir = session.dir + "/import";
+  if (!MakeDirectories(import_dir, &session.error)) {
     return session;
+  }
+  for (size_t i = 0; i < programs.size(); i++) {
+    if (!WriteStringToFile(StringPrintf("%s/%02zu.js", import_dir.c_str(), i),
+                           programs[i], &session.error)) {
+      return session;
+    }
   }
   std::string args;
   for (const std::string& arg : target.args) {
@@ -1209,7 +1257,7 @@ CrashSession RunCrashSession(const TargetOptions& target,
   if (!env.empty()) {
     all_flags.push_back("--d8-env=" + env);
   }
-  all_flags.push_back("--import=" + program_path);
+  all_flags.push_back("--import=" + import_dir);
   all_flags.push_back("--out=" + session.dir + "/out");
   all_flags.insert(all_flags.end(), session_flags.begin(), session_flags.end());
   std::vector<const char*> argv;
@@ -1238,8 +1286,8 @@ CrashSession RunCrashSession(const TargetOptions& target,
       ended.store(true);
     });
     // The session writes signatures.txt after the files of a crash. The
-    // worker processes a crash of the import before it starts to fuzz. Thus
-    // a fuzz execution without signatures.txt shows that the import did not
+    // worker processes a crash of an import before it starts to fuzz. Thus
+    // a fuzz execution without signatures.txt shows that the imports did not
     // crash.
     while (session.stop.empty()) {
       std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -1253,7 +1301,7 @@ CrashSession RunCrashSession(const TargetOptions& target,
       } else if (session_ended) {
         session.stop = "session ended";
       } else if (fuzzing) {
-        session.stop = "import did not crash";
+        session.stop = "imports did not crash";
       } else if (clock.ElapsedSeconds() >= kCrashSessionSeconds) {
         session.stop = "time limit";
       }
@@ -1263,8 +1311,8 @@ CrashSession RunCrashSession(const TargetOptions& target,
   }
   SetLogLevel(log_level);
   session.seconds = clock.ElapsedSeconds();
-  // The report of the imported program. A crash of the fuzzing after the
-  // import gets no NAME.repro.js, because the stop request interrupts it.
+  // The report of an imported program. A crash of the fuzzing after the
+  // imports gets no NAME.repro.js, because the stop request interrupts it.
   std::string error;
   for (const std::string& path : ListFiles(crashes, ".txt")) {
     std::string text;
@@ -1341,7 +1389,7 @@ void RunCrashReproCheck(Checker* checker, const TargetOptions& target) {
       "NAME.repro.js without the unused helpers";
   // redline('REDLINE_CRASH', 1) is a CHECK failure (see the crash checks).
   const CrashSession session = RunCrashSession(
-      target, {}, "assertThrows(() => redline('REDLINE_CRASH', 1));\n");
+      target, {}, {"assertThrows(() => redline('REDLINE_CRASH', 1));\n"});
   const std::string& repro = session.repro;
   // Two header lines, then the script.
   const size_t first_line = repro.find('\n');
@@ -1395,7 +1443,7 @@ void RunCrashFlagsCheck(Checker* checker, const TargetOptions& target) {
       RunCrashSession(target,
                       {"--d8-extra-args=--hole-fuzzing",
                        R"(--config={"crash_flag_budget_sec": 1000})"},
-                      "redline('REDLINE_CRASH', 7);\n");
+                      {"redline('REDLINE_CRASH', 7);\n"});
   // The flags that the search keeps, in the order of the target.
   std::vector<std::string> expected;
   for (const std::string& arg : target.args) {
@@ -1428,6 +1476,81 @@ void RunCrashFlagsCheck(Checker* checker, const TargetOptions& target) {
                    ReportValue(session.report, "repro_flags_note").c_str(),
                    words.size(), plain.c_str(), signature.c_str(),
                    session.error.empty() ? "" : ", ", session.error.c_str()));
+}
+
+// An amplified crash, in a short session without the prelude, with
+// harvest_crashes. Each run of the program changes one more protector of the
+// isolate. The protectors stay changed in the next runs of the same process,
+// and the 5th run crashes. Thus a fresh target with crash_reruns runs does
+// not crash, and the amplify step finds --stress-runs. The minimizer reduces
+// the program with the amplified flags in plain d8 processes. The `// run:`
+// line of NAME.repro.js keeps --stress-runs, and it crashes a plain d8
+// process with the signature.
+void RunCrashAmplifiedCheck(Checker* checker, const TargetOptions& target) {
+  const char* name =
+      "amplified crashes: an amplified crash gets NAME.repro.js with "
+      "--stress-runs";
+  // With min_reruns 5, the 4th determinism rerun of the first program is the
+  // 5th run, and HarvestCrash takes its crash. The second program, with a
+  // different source, makes the test independent of the number of reruns.
+  // The time limit of 2 s stops the minimization before its end, and the
+  // dataflow reducer removes the unused declaration in its first test. Thus
+  // the last check must run after the time limit.
+  auto program = [](const char* type) {
+    return StringPrintf(
+        "var unused = 0;\n"
+        "class %s {}\n"
+        "if (!%%TypedArraySpeciesProtector()) {\n"
+        "  redline('REDLINE_CRASH', 1);\n"
+        "} else if (!%%RegExpSpeciesProtector()) {\n"
+        "  Object.defineProperty(Uint8Array, Symbol.species, {value: %s});\n"
+        "} else if (!%%PromiseSpeciesProtector()) {\n"
+        "  Object.defineProperty(RegExp, Symbol.species, {value: %s});\n"
+        "} else if (!%%ArraySpeciesProtector()) {\n"
+        "  Object.defineProperty(Promise, Symbol.species, {value: %s});\n"
+        "} else {\n"
+        "  Object.defineProperty(Array, Symbol.species, {value: %s});\n"
+        "}\n",
+        type, type, type, type, type);
+  };
+  const CrashSession session = RunCrashSession(
+      target,
+      {"--prelude=none",
+       R"(--config={"crash_history": 0, "crash_amplified_budget_sec": 2, "harvest_crashes": true})"},
+      {program("C0"), program("C1")});
+  const std::string& report = session.report;
+  const std::vector<std::string> words = RunLineWords(session.repro);
+  const std::string plain =
+      words.empty() ? "" : RunReproLine(session.repro, target);
+  RemoveTree(session.dir);
+  const std::string signature = ReportValue(report, "signature");
+  const bool stress_runs = std::any_of(
+      words.begin(), words.end(),
+      [](const std::string& word) { return IsFlag(word, "stress-runs"); });
+  const std::string stop = ReportValue(report, "min_stop");
+  const bool ok = ReportValue(report, "amplified") == "yes" &&
+                  ReportValue(report, "reproducible") == "no" &&
+                  ReportValue(report, "min_oracle").starts_with("1 of ") &&
+                  (stop == "budget" || stop == "fixed_point") &&
+                  !ReportValue(report, "repro_rate").empty() && stress_runs &&
+                  !signature.empty() && plain == signature;
+  checker->Check(
+      name, ok,
+      StringPrintf(
+          "%s, %.0f s, amplified_rate %s, min_oracle \"%s\", min_stop %s, "
+          "min_tree \"%s\", min_script_nodes %s, repro_flags \"%s\", %s, "
+          "repro_rate %s (%s), plain d8 run \"%s\", signature \"%s\"%s%s",
+          session.stop.c_str(), session.seconds,
+          ReportValue(report, "amplified_rate").c_str(),
+          ReportValue(report, "min_oracle").c_str(), stop.c_str(),
+          ReportValue(report, "min_tree").c_str(),
+          ReportValue(report, "min_script_nodes").c_str(),
+          ReportValue(report, "repro_flags").c_str(),
+          ReportValue(report, "repro_flags_note").c_str(),
+          ReportValue(report, "repro_rate").c_str(),
+          ReportValue(report, "repro_rate_note").c_str(), plain.c_str(),
+          signature.c_str(), session.error.empty() ? "" : ", ",
+          session.error.c_str()));
 }
 
 // Offline: optimized code features with one bit per edge. As with counters,
@@ -1582,6 +1705,7 @@ int RunSelftest(const Flags& flags) {
   RunCrashSlotChecks(&checker);
   RunCrashMinimizerChecks(&checker);
   RunFlagMinimizerChecks(&checker);
+  RunAmplifiedTestChecks(&checker);
   RunNodeKindChecks(&checker);
   RunPresetChecks(&checker);
   std::string testdata = flags.GetString("testdata", DefaultTestdataDir());
@@ -1955,6 +2079,7 @@ int RunSelftest(const Flags& flags) {
   runner.reset();
   RunCrashReproCheck(&checker, target);
   RunCrashFlagsCheck(&checker, target);
+  RunCrashAmplifiedCheck(&checker, target);
 
   printf("selftest: %d passed, %d failed\n", checker.passed(),
          checker.failed());
