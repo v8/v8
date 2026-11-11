@@ -234,9 +234,7 @@ void WriteBarrier::MarkingSlow(Tagged<TrustedObject> host,
 
   Isolate* isolate = marking_barrier->heap()->isolate();
   if (HeapLayout::InWritableSharedSpace(host)) {
-    if (isolate->is_shared_space_isolate()) {
-      if (marking_barrier->is_not_major()) return;
-    } else if (!isolate->isolate_data()->is_shared_marking()) {
+    if (!isolate->isolate_data()->is_shared_marking()) {
       return;
     }
   } else if (marking_barrier->is_not_major()) {

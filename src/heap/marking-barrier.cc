@@ -279,6 +279,7 @@ void MarkingBarrier::ActivateAll(Heap* heap, bool is_compacting) {
   });
 
   if (heap->isolate()->is_shared_space_isolate()) {
+    heap->SetIsSharedMarkingFlag(true);
     heap->isolate()->global_safepoint()->IterateClientIsolates(
         [](Isolate* client) {
           // Force the RecordWrite builtin into the incremental marking code
@@ -327,6 +328,7 @@ void MarkingBarrier::DeactivateAll(Heap* heap) {
   });
 
   if (heap->isolate()->is_shared_space_isolate()) {
+    heap->SetIsSharedMarkingFlag(false);
     heap->isolate()->global_safepoint()->IterateClientIsolates(
         [](Isolate* client) {
           client->heap()->SetIsSharedMarkingFlag(false);
