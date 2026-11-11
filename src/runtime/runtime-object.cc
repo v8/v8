@@ -462,7 +462,8 @@ RUNTIME_FUNCTION(Runtime_OptimizeObjectForAddingMultipleProperties) {
   int properties = args.smi_value_at(1);
   // Conservative upper limit to prevent fuzz tests from going OOM.
   if (properties > 100000) return isolate->ThrowIllegalOperation();
-  if (object->HasFastProperties() && !IsJSGlobalProxy(*object)) {
+  if (object->HasFastProperties() && object->map()->is_extensible() &&
+      !IsJSGlobalProxy(*object)) {
     JSObject::NormalizeProperties(isolate, object, KEEP_INOBJECT_PROPERTIES,
                                   properties, "OptimizeForAdding");
   }
