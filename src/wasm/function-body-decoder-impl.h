@@ -2853,7 +2853,7 @@ class WasmDecoder : public Decoder {
       case kAtomicPrefix: {
         uint32_t length;
         std::tie(opcode, length) =
-            decoder->read_prefixed_opcode<ValidationTag>(pc, "atomic_index");
+            decoder->read_prefixed_opcode<ValidationTag>(pc);
         switch (opcode) {
           FOREACH_ATOMIC_OPCODE(DECLARE_OPCODE_CASE) {
             WasmOpcode full_opcode =
@@ -2934,7 +2934,7 @@ class WasmDecoder : public Decoder {
       case kGCPrefix: {
         uint32_t length;
         std::tie(opcode, length) =
-            decoder->read_prefixed_opcode<ValidationTag>(pc, "gc_index");
+            decoder->read_prefixed_opcode<ValidationTag>(pc);
         switch (opcode) {
           case kExprStructNew:
           case kExprStructNewDefault:
@@ -5126,8 +5126,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
   DECODE(Numeric) {
     auto [full_opcode, opcode_length] =
-        this->template read_prefixed_opcode<ValidationTag>(this->pc_,
-                                                           "numeric index");
+        this->template read_prefixed_opcode<ValidationTag>(this->pc_);
     trace_msg->AppendOpcode(full_opcode);
     return DecodeNumericOpcode(full_opcode, opcode_length);
   }
@@ -5143,7 +5142,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     }
     auto [full_opcode, opcode_length] =
         this->template read_prefixed_opcode<ValidationTag>(this->pc_);
-    if (!VALIDATE(this->ok())) return 0;
+    if (!VALIDATE(full_opcode != 0)) return 0;
     trace_msg->AppendOpcode(full_opcode);
     if (WasmOpcodes::IsFP16SimdOpcode(full_opcode)) {
       this->detected_->add_fp16();
@@ -5155,16 +5154,14 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
   DECODE(Atomic) {
     auto [full_opcode, opcode_length] =
-        this->template read_prefixed_opcode<ValidationTag>(this->pc_,
-                                                           "atomic index");
+        this->template read_prefixed_opcode<ValidationTag>(this->pc_);
     trace_msg->AppendOpcode(full_opcode);
     return DecodeAtomicOpcode(full_opcode, opcode_length);
   }
 
   DECODE(GC) {
     auto [full_opcode, opcode_length] =
-        this->template read_prefixed_opcode<ValidationTag>(this->pc_,
-                                                           "gc index");
+        this->template read_prefixed_opcode<ValidationTag>(this->pc_);
     trace_msg->AppendOpcode(full_opcode);
     // If we are validating we could have read an illegal opcode. Handle that
     // separately.

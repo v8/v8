@@ -195,26 +195,38 @@ class Decoder {
   // Returns the read opcode and the number of bytes that make up this opcode,
   // *including* the prefix byte. For most opcodes, it will be 2.
   template <typename ValidationTag>
-  std::pair<WasmOpcode, uint32_t> read_prefixed_opcode(
-      const uint8_t* pc, Name<ValidationTag> name = "prefixed opcode") {
-    // Prefixed opcodes all use LEB128 encoding.
-    auto [index, index_length] =
-        read_u32v<ValidationTag>(pc + 1, "prefixed opcode index");
-    uint32_t length = index_length + 1;  // 1 for prefix byte.
-    // Only support opcodes that go up to 0xFFF (when decoded). Anything
-    // bigger will need more than 2 bytes, and the '<< 12' below will be wrong.
-    if (ValidationTag::validate && V8_UNLIKELY(index > 0xfff)) {
-      errorf(pc, "Invalid prefixed opcode %d", index);
-      // On validation failure we return "unreachable" (opcode 0).
-      static_assert(kExprUnreachable == 0);
-      return {kExprUnreachable, 0};
+  V8_INLINE std::pair<WasmOpcode, uint32_t> read_prefixed_opcode(
+      const uint8_t* pc) {
+    DCHECK_LE(start_, pc);
+    DCHECK_LT(pc, end_);
+    DCHECK(WasmOpcodes::IsPrefixOpcode(static_cast<WasmOpcode>(*pc)));
+    static_assert(kGCPrefix == 0xfb && kNumericPrefix == 0xfc &&
+                  kSimdPrefix == 0xfd && kAtomicPrefix == 0xfe);
+    // Helps callers prove the fast-path result is non-zero (>= 0xfb00).
+    V8_ASSUME(*pc >= kGCPrefix);
+    // Inline fast paths for 1-byte (0..0x7f) and 2-byte (0..0xfff) opcode
+    // indices, keeping multi-byte LEB / validation-error handling out of line.
+    // Valid Wasm function bodies and constant expressions always end with
+    // kExprEnd, so at least 3 bytes (prefix, b1, and kExprEnd or b2) remain at
+    // any valid prefixed opcode.
+    if (V8_LIKELY(!ValidationTag::validate || end_ - pc >= 3)) {
+      DCHECK_LE(2, end_ - pc);
+      uint32_t b1 = pc[1];
+      if (V8_LIKELY(b1 < 0x80)) {
+        return {static_cast<WasmOpcode>((static_cast<uint32_t>(*pc) << 8) | b1),
+                2};
+      }
+      DCHECK_LE(3, end_ - pc);
+      uint32_t b2 = pc[2];
+      if (V8_LIKELY(b2 <= 0x1f)) {
+        uint32_t index = (b1 & 0x7f) | (b2 << 7);
+        int shift = b2 >= 2 ? 12 : 8;
+        return {static_cast<WasmOpcode>((static_cast<uint32_t>(*pc) << shift) |
+                                        index),
+                3};
+      }
     }
-
-    if (index > 0xff) {
-      return {static_cast<WasmOpcode>((*pc) << 12 | index), length};
-    }
-
-    return {static_cast<WasmOpcode>((*pc) << 8 | index), length};
+    return read_prefixed_opcode_slowpath<ValidationTag>(pc);
   }
 
   // Reads a 8-bit unsigned integer (byte) and advances {pc_}.
@@ -492,11 +504,11 @@ class Decoder {
       }
       return {result, 1};
     }
-    // Multi-byte unsigned 32-bit LEBs (indices, counts, prefixed opcodes) and
-    // 33-bit signed LEBs (WasmGC heap/block type indices) are almost always 2
-    // bytes; unsigned 64-bit LEBs (memory offsets) are almost always <= 4
-    // bytes. Try a narrow SWAR load first for those, while sending general
-    // signed constants (i32.const, i64.const) straight to the 8-byte SWAR load.
+    // Multi-byte unsigned 32-bit LEBs (indices, counts) and 33-bit signed LEBs
+    // (WasmGC heap/block type indices) are almost always 2 bytes; unsigned
+    // 64-bit LEBs (memory offsets) are almost always <= 4 bytes. Try a narrow
+    // SWAR load first for those, while sending general signed constants
+    // (i32.const, i64.const) straight to the 8-byte SWAR load.
     using InitialSwarWord = std::conditional_t<
         (!std::is_signed_v<IntType> && sizeof(IntType) == 4) ||
             size_in_bits == 33,
@@ -727,6 +739,35 @@ class Decoder {
       }
     }
     UNREACHABLE();
+  }
+
+  template <typename ValidationTag>
+  V8_NOINLINE V8_PRESERVE_MOST std::pair<WasmOpcode, uint32_t>
+  read_prefixed_opcode_slowpath(const uint8_t* pc) {
+    // Prefixed opcodes all use LEB128 encoding.
+    uint32_t index;
+    uint32_t index_length;
+    std::tie(index, index_length) =
+        read_u32v<ValidationTag>(pc + 1, "prefixed opcode index");
+    // Only support opcodes that go up to 0xFFF (when decoded). Anything
+    // bigger will need more than 2 bytes, and the '<< 12' below will be wrong.
+    if constexpr (ValidationTag::validate) {
+      if (V8_UNLIKELY(index_length == 0 || index > 0xfff)) {
+        if (index_length != 0) {
+          errorf(pc, "Invalid prefixed opcode %u", index);
+        }
+        // On validation failure we return "unreachable" (opcode 0).
+        static_assert(kExprUnreachable == 0);
+        return {kExprUnreachable, 0};
+      }
+    } else {
+      DCHECK_GT(index_length, 0);
+      DCHECK_LE(index, 0xfff);
+    }
+    int shift = index > 0xff ? 12 : 8;
+    return {
+        static_cast<WasmOpcode>((static_cast<uint32_t>(*pc) << shift) | index),
+        index_length + 1};
   }
 };
 

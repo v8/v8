@@ -947,6 +947,170 @@ TEST_F(DecoderTest, ReadLEB_TraceWasmDecoder) {
 }
 #endif  // DEBUG
 
+TEST_F(DecoderTest, ReadPrefixedOpcode) {
+  const uint8_t kPrefixes[] = {kGCPrefix, kNumericPrefix, kSimdPrefix,
+                               kAtomicPrefix};
+  const uint8_t kTrailingBytes[] = {0x00, 0x0b, 0x1f, 0x20, 0x7f, 0x80, 0xff};
+
+  for (uint8_t prefix : kPrefixes) {
+    auto check_valid = [this, prefix](base::Vector<const uint8_t> bytes,
+                                      uint32_t index,
+                                      uint32_t expected_length) {
+      int shift = index > 0xff ? 12 : 8;
+      WasmOpcode expected_opcode = static_cast<WasmOpcode>(
+          (static_cast<uint32_t>(prefix) << shift) | index);
+      std::pair<WasmOpcode, uint32_t> expected = {expected_opcode,
+                                                  expected_length};
+      decoder.Reset(bytes.begin(), bytes.end());
+      EXPECT_EQ(expected,
+                decoder.read_prefixed_opcode<Decoder::FullValidationTag>(
+                    bytes.begin()));
+      EXPECT_TRUE(decoder.ok());
+      EXPECT_EQ(expected,
+                decoder.read_prefixed_opcode<Decoder::NoValidationTag>(
+                    bytes.begin()));
+    };
+
+    // All 128 1-byte opcode indices (0x00..0x7f) in both exact 2-byte buffers
+    // and >= 3-byte buffers (with various next instruction bytes).
+    for (uint32_t index = 0; index <= 0x7f; ++index) {
+      const uint8_t exact_two[] = {prefix, static_cast<uint8_t>(index)};
+      check_valid(base::ArrayVector(exact_two), index, 2u);
+
+      for (uint8_t trailing : kTrailingBytes) {
+        const uint8_t with_trailing[] = {prefix, static_cast<uint8_t>(index),
+                                         trailing};
+        check_valid(base::ArrayVector(with_trailing), index, 2u);
+      }
+    }
+
+    // All 4096 2-byte opcode indices (0x00..0xfff), covering 0x00..0x7f
+    // (zero-padded), 0x80..0xff (shift 8), and 0x100..0xfff (shift 12).
+    for (uint32_t index = 0; index <= 0xfff; ++index) {
+      const uint8_t exact_three[] = {prefix, U32V_2(index)};
+      check_valid(base::ArrayVector(exact_three), index, 3u);
+
+      const uint8_t with_end[] = {prefix, U32V_2(index), kExprEnd};
+      check_valid(base::ArrayVector(with_end), index, 3u);
+    }
+
+    // Valid zero-padded 3-, 4-, and 5-byte LEB128 opcode indices <= 0xfff.
+    for (uint32_t index : {0x00u, 0x7fu, 0xa5u, 0xffu, 0x100u, 0xfffu}) {
+      const uint8_t leb3[] = {prefix, U32V_3(index), kExprEnd};
+      check_valid(base::ArrayVector(leb3), index, 4u);
+
+      const uint8_t leb4[] = {prefix, U32V_4(index), kExprEnd};
+      check_valid(base::ArrayVector(leb4), index, 5u);
+
+      const uint8_t leb5[] = {prefix, U32V_5(index), kExprEnd};
+      check_valid(base::ArrayVector(leb5), index, 6u);
+    }
+  }
+}
+
+TEST_F(DecoderTest, ReadPrefixedOpcode_InvalidAndTruncated) {
+  const std::pair<WasmOpcode, uint32_t> kErrorResult = {kExprUnreachable, 0u};
+
+  // Truncated right after prefix byte (1..5 continuation bytes missing).
+  const uint8_t kTruncatedMax[] = {kSimdPrefix, 0x80, 0x80, 0x80, 0x80};
+  for (size_t len = 1; len <= sizeof(kTruncatedMax); ++len) {
+    decoder.Reset(kTruncatedMax, kTruncatedMax + len);
+    EXPECT_EQ(kErrorResult,
+              decoder.read_prefixed_opcode<Decoder::FullValidationTag>(
+                  kTruncatedMax));
+    EXPECT_FALSE(decoder.ok());
+    EXPECT_EQ(len, decoder.error().offset());
+    EXPECT_NE(std::string::npos,
+              decoder.error().message().find(
+                  "reached end while decoding prefixed opcode index"));
+  }
+
+  // Truncated at pc > start_ (verifies error offset is relative to pc, not
+  // pc_).
+  const uint8_t kTruncatedAtOffset[] = {kExprNop, kExprNop, kSimdPrefix, 0x80};
+  for (size_t len = 1; len <= 2; ++len) {
+    decoder.Reset(kTruncatedAtOffset, kTruncatedAtOffset + 2 + len);
+    EXPECT_EQ(kErrorResult,
+              decoder.read_prefixed_opcode<Decoder::FullValidationTag>(
+                  kTruncatedAtOffset + 2));
+    EXPECT_FALSE(decoder.ok());
+    EXPECT_EQ(2u + len, decoder.error().offset());
+    EXPECT_NE(std::string::npos,
+              decoder.error().message().find(
+                  "reached end while decoding prefixed opcode index"));
+  }
+
+  // Out-of-range indices (> 0xfff) in 2-, 3-, 4-, and 5-byte LEB encodings.
+  const uint8_t kTooLarge2Min[] = {kSimdPrefix, U32V_2(0x1000), kExprEnd};
+  decoder.Reset(kTooLarge2Min, kTooLarge2Min + sizeof(kTooLarge2Min));
+  EXPECT_EQ(
+      kErrorResult,
+      decoder.read_prefixed_opcode<Decoder::FullValidationTag>(kTooLarge2Min));
+  EXPECT_FALSE(decoder.ok());
+  EXPECT_EQ(0u, decoder.error().offset());
+  EXPECT_EQ("Invalid prefixed opcode 4096", decoder.error().message());
+
+  // Out-of-range index at pc > start_ (verifies errorf uses pc, not pc_).
+  const uint8_t kTooLargeAtOffset[] = {kExprNop, kExprNop, kSimdPrefix,
+                                       U32V_2(0x1000), kExprEnd};
+  decoder.Reset(kTooLargeAtOffset,
+                kTooLargeAtOffset + sizeof(kTooLargeAtOffset));
+  EXPECT_EQ(kErrorResult,
+            decoder.read_prefixed_opcode<Decoder::FullValidationTag>(
+                kTooLargeAtOffset + 2));
+  EXPECT_FALSE(decoder.ok());
+  EXPECT_EQ(2u, decoder.error().offset());
+  EXPECT_EQ("Invalid prefixed opcode 4096", decoder.error().message());
+
+  const uint8_t kTooLarge2Max[] = {kSimdPrefix, 0xff, 0x7f, kExprEnd};
+  decoder.Reset(kTooLarge2Max, kTooLarge2Max + sizeof(kTooLarge2Max));
+  EXPECT_EQ(
+      kErrorResult,
+      decoder.read_prefixed_opcode<Decoder::FullValidationTag>(kTooLarge2Max));
+  EXPECT_FALSE(decoder.ok());
+  EXPECT_EQ("Invalid prefixed opcode 16383", decoder.error().message());
+
+  const uint8_t kTooLarge3[] = {kGCPrefix, U32V_3(0x1000), kExprEnd};
+  decoder.Reset(kTooLarge3, kTooLarge3 + sizeof(kTooLarge3));
+  EXPECT_EQ(
+      kErrorResult,
+      decoder.read_prefixed_opcode<Decoder::FullValidationTag>(kTooLarge3));
+  EXPECT_FALSE(decoder.ok());
+  EXPECT_EQ("Invalid prefixed opcode 4096", decoder.error().message());
+
+  const uint8_t kTooLarge5[] = {kSimdPrefix, U32V_5(0xffffffffu), kExprEnd};
+  decoder.Reset(kTooLarge5, kTooLarge5 + sizeof(kTooLarge5));
+  EXPECT_EQ(
+      kErrorResult,
+      decoder.read_prefixed_opcode<Decoder::FullValidationTag>(kTooLarge5));
+  EXPECT_FALSE(decoder.ok());
+  EXPECT_EQ("Invalid prefixed opcode 4294967295", decoder.error().message());
+
+  // Extra bits set in 5th LEB byte.
+  const uint8_t kExtraBits[] = {kSimdPrefix, 0x80, 0x80,    0x80,
+                                0x80,        0x10, kExprEnd};
+  decoder.Reset(kExtraBits, kExtraBits + sizeof(kExtraBits));
+  EXPECT_EQ(
+      kErrorResult,
+      decoder.read_prefixed_opcode<Decoder::FullValidationTag>(kExtraBits));
+  EXPECT_FALSE(decoder.ok());
+  EXPECT_EQ(5u, decoder.error().offset());
+  EXPECT_EQ("extra bits in varint", decoder.error().message());
+
+  // 6-byte LEB length overflow.
+  const uint8_t kLengthOverflow[] = {kSimdPrefix, 0x80, 0x80, 0x80,
+                                     0x80,        0x80, 0x00, kExprEnd};
+  decoder.Reset(kLengthOverflow, kLengthOverflow + sizeof(kLengthOverflow));
+  EXPECT_EQ(kErrorResult,
+            decoder.read_prefixed_opcode<Decoder::FullValidationTag>(
+                kLengthOverflow));
+  EXPECT_FALSE(decoder.ok());
+  EXPECT_EQ(5u, decoder.error().offset());
+  EXPECT_NE(std::string::npos,
+            decoder.error().message().find(
+                "length overflow while decoding prefixed opcode index"));
+}
+
 #undef CHECK_UINT32V_INLINE
 #undef CHECK_INT32V_INLINE
 #undef CHECK_UINT64V_INLINE
