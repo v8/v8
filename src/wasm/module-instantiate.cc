@@ -764,10 +764,14 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
   if (IsCompileTimeImport(preknown_import)) {
     well_known_status_ = preknown_import;
     DCHECK(IsJSFunction(*callable_));
-    DCHECK_EQ(Cast<JSFunction>(*callable_)
-                  ->shared()
-                  ->internal_formal_parameter_count_without_receiver(),
+#ifdef DEBUG
+    Tagged<SharedFunctionInfo> shared = Cast<JSFunction>(*callable_)->shared();
+    DCHECK_EQ(shared->internal_formal_parameter_count_without_receiver(),
               expected_sig->parameter_count());
+    // Tier-up re-resolves without {preknown_import} and must reach the same
+    // kind below.
+    DCHECK(is_strict(shared->language_mode()) || shared->native());
+#endif
     if (preknown_import == WellKnownImport::kConfigureAllPrototypes) {
       // Note: this relies on no other WKI storing the same Smi in the
       // FixedArray. If that ever becomes a problem, we could switch to some
@@ -777,9 +781,15 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
           func_index, Smi::FromInt(static_cast<int>(
                           WellKnownImport::kConfigureAllPrototypes)));
     }
-    return ImportCallKind::kJSFunction;
+    return ImportCallKind::kJSFunctionUndefinedReceiver;
   }
   Isolate* isolate = Isolate::Current();
+  // {isolate->raw_native_context()} is the importing realm (entered by both
+  // instantiation and Runtime_TierUpWasmToJSWrapper).
+  DCHECK(!isolate->context().is_null());
+  DCHECK_IMPLIES(
+      !trusted_instance_data.is_null(),
+      trusted_instance_data->native_context() == isolate->raw_native_context());
   if (IsWasmSuspendingObject(*callable_)) {
     suspend_ = kSuspend;
     callable_ =
@@ -840,7 +850,7 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
   if (well_known_status_ == WellKnownImport::kLinkError) {
     return ImportCallKind::kLinkError;
   }
-  // TODO(jkummerow): It would be nice to return {kJSFunction} here
+  // TODO(jkummerow): It would be nice to return a JSFunction kind here
   // whenever {well_known_status_ != kGeneric}, so that the generic wrapper
   // can be used instead of a compiled wrapper; but that requires adding
   // support for calling bound functions to the generic wrapper first.
@@ -854,7 +864,13 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
       return ImportCallKind::kUseCallBuiltin;
     }
 
-    return ImportCallKind::kJSFunction;
+    if (is_strict(shared->language_mode()) || shared->native()) {
+      return ImportCallKind::kJSFunctionUndefinedReceiver;
+    }
+    if (function->native_context() == isolate->raw_native_context()) {
+      return ImportCallKind::kJSFunctionSameRealmReceiver;
+    }
+    return ImportCallKind::kJSFunctionCrossRealmReceiver;
   }
   // Unknown case. Use the call builtin.
   return ImportCallKind::kUseCallBuiltin;
@@ -1832,7 +1848,9 @@ bool InstanceBuilder::ProcessImportedFunction(int import_index,
 #endif
     }
     case ImportCallKind::kRuntimeTypeError:
-    case ImportCallKind::kJSFunction:
+    case ImportCallKind::kJSFunctionUndefinedReceiver:
+    case ImportCallKind::kJSFunctionSameRealmReceiver:
+    case ImportCallKind::kJSFunctionCrossRealmReceiver:
     case ImportCallKind::kUseCallBuiltin:
     case ImportCallKind::kWasmToCapi:
       // These cases are handled below.
@@ -1846,7 +1864,7 @@ bool InstanceBuilder::ProcessImportedFunction(int import_index,
   }
 
   int expected_arity = static_cast<int>(expected_sig->parameter_count());
-  if (kind == ImportCallKind::kJSFunction) {
+  if (IsJSFunctionKind(kind)) {
     auto function = Cast<JSFunction>(callable);
     Tagged<SharedFunctionInfo> shared = function->shared();
     expected_arity = shared->internal_formal_parameter_count_without_receiver();

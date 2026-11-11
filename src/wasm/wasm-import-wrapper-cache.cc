@@ -46,7 +46,7 @@ WasmWrapperHandle::~WasmWrapperHandle() {
 
 std::optional<Builtin> WasmImportWrapperCache::BuiltinForWrapper(
     const CacheKey& key) {
-  if (key.kind != ImportCallKind::kJSFunction) return {};
+  if (!IsJSFunctionKind(key.kind)) return {};
 
   if (!IsJSCompatibleSignature(key.sig)) {
     return Builtin::kWasmToJsWrapperInvalidSig;
@@ -120,7 +120,9 @@ WasmImportWrapperCache::CompileWrapper(Isolate* isolate,
     case ImportCallKind::kReexportedJSFunction:
     case ImportCallKind::kWasmToJSFastApi:
       UNREACHABLE();
-    case ImportCallKind::kJSFunction:
+    case ImportCallKind::kJSFunctionUndefinedReceiver:
+    case ImportCallKind::kJSFunctionSameRealmReceiver:
+    case ImportCallKind::kJSFunctionCrossRealmReceiver:
     case ImportCallKind::kUseCallBuiltin:
     case ImportCallKind::kRuntimeTypeError:
       result = compiler::CompileWasmImportCallWrapper(

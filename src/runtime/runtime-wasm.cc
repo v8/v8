@@ -600,7 +600,7 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   DCHECK_NE(wasm::ImportCallKind::kWasmToWasm, kind);
   DCHECK_NE(wasm::ImportCallKind::kReexportedJSFunction, kind);
   int expected_arity = static_cast<int>(sig->parameter_count());
-  if (kind == wasm::ImportCallKind::kJSFunction) {
+  if (wasm::IsJSFunctionKind(kind)) {
     expected_arity = Cast<JSFunction>(callable)
                          ->shared()
                          ->internal_formal_parameter_count_without_receiver();

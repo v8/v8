@@ -2751,7 +2751,7 @@ void DecodeI64ExceptionValue(DirectHandle<FixedArray> encoded_values,
 bool UseGenericWasmToJSWrapper(wasm::ImportCallKind kind,
                                const wasm::CanonicalSig* sig,
                                wasm::Suspend suspend) {
-  if (kind != wasm::ImportCallKind::kJSFunction) {
+  if (!wasm::IsJSFunctionKind(kind)) {
     return false;
   }
   DCHECK(wasm::IsJSCompatibleSignature(sig));

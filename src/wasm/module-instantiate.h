@@ -47,17 +47,24 @@ enum class ImportCallKind : uint8_t {
   kWasmToJSFastApi,       // fast Wasm->JS Fast API C call
   kWasmToWasm,            // fast Wasm->Wasm call
   kReexportedJSFunction,  // Wasm->JS call reusing an existing wrapper
-  kJSFunction,            // fast Wasm->JS call
+  // Fast Wasm->JS calls to a JSFunction, specialized on the receiver:
+  kJSFunctionUndefinedReceiver,   // strict or native: undefined
+  kJSFunctionSameRealmReceiver,   // sloppy: importing realm's global proxy
+  kJSFunctionCrossRealmReceiver,  // sloppy: callee realm's global proxy
   // For everything else, there's the call builtin.
   kUseCallBuiltin
 };
+
+constexpr bool IsJSFunctionKind(ImportCallKind kind) {
+  return kind == ImportCallKind::kJSFunctionUndefinedReceiver ||
+         kind == ImportCallKind::kJSFunctionSameRealmReceiver ||
+         kind == ImportCallKind::kJSFunctionCrossRealmReceiver;
+}
 
 enum PrecreateExternal : bool {
   kOnlyInternalFunction = false,
   kPrecreateExternal = true,
 };
-
-constexpr ImportCallKind kDefaultImportCallKind = ImportCallKind::kJSFunction;
 
 // Resolves which import call wrapper is required for the given JS callable.
 // Provides the kind of wrapper needed, the ultimate target callable, and the
@@ -126,7 +133,7 @@ V8_EXPORT_PRIVATE void CreateMapForType(
 struct WrapperCompilationInfo {
   CodeKind code_kind;
   // For wasm-js wrappers only:
-  wasm::ImportCallKind import_kind = kDefaultImportCallKind;
+  wasm::ImportCallKind import_kind = ImportCallKind::kLinkError;
   int expected_arity = 0;
   wasm::Suspend suspend = kNoSuspend;
 };

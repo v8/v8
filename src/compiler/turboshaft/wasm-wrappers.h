@@ -771,35 +771,29 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
         compiler::AccessBuilder::ForJSFunctionSharedFunctionInfo());
   }
 
-  V<Object> BuildReceiverNode(V<JSFunction> callable_node,
+  V<Object> BuildReceiverNode(wasm::ImportCallKind kind,
+                              V<Context> importer_native_context,
                               V<Context> callee_context,
                               V<Undefined> undefined_node) {
-    // Check function strict bit.
-    V<SharedFunctionInfo> shared_function_info =
-        LoadSharedFunctionInfo(callable_node);
-    OpIndex flags = __ Load(shared_function_info, LoadOp::Kind::TaggedBase(),
-                            MemoryRepresentation::Int32(),
-                            offsetof(SharedFunctionInfo, flags_));
-    OpIndex strict_check = __ Word32BitwiseAnd(
-        flags,
-        __ Word32Constant(SharedFunctionInfo::Flags::IsNativeBit::kMask |
-                          SharedFunctionInfo::Flags::IsStrictBit::kMask));
-
-    // Load global receiver if sloppy else use undefined.
-    ScopedVar<Object> strict_d(this, OpIndex::Invalid());
-    IF (strict_check) {
-      strict_d = undefined_node;
-    } ELSE {
-      V<Map> context_map = LoadMap(callee_context);
-      V<NativeContext> callee_native_context =
-          __ template LoadField<NativeContext>(
-              context_map, compiler::AccessBuilder::ForMapNativeContext());
-      strict_d = __ template LoadField<Object>(
-          callee_native_context,
-          compiler::AccessBuilder::ForContextSlotKnownPointer(
-              Context::GLOBAL_PROXY_INDEX));
+    V<Context> callee_native_context;
+    switch (kind) {
+      case wasm::ImportCallKind::kJSFunctionUndefinedReceiver:
+        return undefined_node;
+      case wasm::ImportCallKind::kJSFunctionSameRealmReceiver:
+        callee_native_context = importer_native_context;
+        break;
+      case wasm::ImportCallKind::kJSFunctionCrossRealmReceiver:
+        callee_native_context = __ template LoadField<NativeContext>(
+            LoadMap(callee_context),
+            compiler::AccessBuilder::ForMapNativeContext());
+        break;
+      default:
+        UNREACHABLE();
     }
-    return strict_d;
+    return __ template LoadField<Object>(
+        callee_native_context,
+        compiler::AccessBuilder::ForContextSlotKnownPointer(
+            Context::GLOBAL_PROXY_INDEX));
   }
 
   V<Context> LoadContextFromJSFunction(V<JSFunction> js_function) {

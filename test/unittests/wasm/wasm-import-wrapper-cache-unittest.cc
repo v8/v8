@@ -38,7 +38,7 @@ TEST_F(WasmImportWrapperCacheTest, CacheHit) {
   auto module = NewModule(isolate);
   TestSignatures sigs;
 
-  auto kind = ImportCallKind::kJSFunction;
+  auto kind = ImportCallKind::kJSFunctionUndefinedReceiver;
   auto sig = sigs.i_i();
   CanonicalTypeIndex type_index =
       GetTypeCanonicalizer()->AddRecursiveGroup(sig);
@@ -73,7 +73,7 @@ TEST_F(WasmImportWrapperCacheTest, CacheMissSig) {
   TestSignatures sigs;
   WasmCodeRefScope wasm_code_ref_scope;
 
-  auto kind = ImportCallKind::kJSFunction;
+  auto kind = ImportCallKind::kJSFunctionUndefinedReceiver;
   auto* sig1 = sigs.i_i();
   int expected_arity1 = static_cast<int>(sig1->parameter_count());
   CanonicalTypeIndex type_index1 =
@@ -103,7 +103,7 @@ TEST_F(WasmImportWrapperCacheTest, CacheMissKind) {
   TestSignatures sigs;
   WasmCodeRefScope wasm_code_ref_scope;
 
-  auto kind1 = ImportCallKind::kJSFunction;
+  auto kind1 = ImportCallKind::kJSFunctionUndefinedReceiver;
   auto kind2 = ImportCallKind::kUseCallBuiltin;
   auto sig = sigs.i_i();
   int expected_arity = static_cast<int>(sig->parameter_count());
@@ -128,7 +128,7 @@ TEST_F(WasmImportWrapperCacheTest, CacheHitMissSig) {
   TestSignatures sigs;
   WasmCodeRefScope wasm_code_ref_scope;
 
-  auto kind = ImportCallKind::kJSFunction;
+  auto kind = ImportCallKind::kJSFunctionUndefinedReceiver;
   auto sig1 = sigs.i_i();
   int expected_arity1 = static_cast<int>(sig1->parameter_count());
   CanonicalTypeIndex type_index1 =

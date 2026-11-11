@@ -154,7 +154,7 @@ TestingModuleBuilder::TestingModuleBuilder(
     ImportCallKind kind = resolved.kind();
     DirectHandle<JSReceiver> callable = resolved.callable();
     int expected_arity = static_cast<int>(sig->parameter_count());
-    if (kind == ImportCallKind::kJSFunction) {
+    if (IsJSFunctionKind(kind)) {
       expected_arity = Cast<JSFunction>(callable)
                            ->shared()
                            ->internal_formal_parameter_count_without_receiver();

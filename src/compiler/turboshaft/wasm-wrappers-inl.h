@@ -549,7 +549,9 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmToJSWrapper(
     // =======================================================================
     // === JS Functions ======================================================
     // =======================================================================
-    case wasm::ImportCallKind::kJSFunction: {
+    case wasm::ImportCallKind::kJSFunctionUndefinedReceiver:
+    case wasm::ImportCallKind::kJSFunctionSameRealmReceiver:
+    case wasm::ImportCallKind::kJSFunctionCrossRealmReceiver: {
       auto call_descriptor = compiler::Linkage::GetJSCallDescriptor(
           __ graph_zone(), false, pushed_count + 1,
           JSParameterCount(expected_arity), CallDescriptor::kNoFlags);
@@ -558,9 +560,8 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmToJSWrapper(
           compiler::LazyDeoptOnThrow{false}, __ graph_zone());
 
       V<Context> callee_context = LoadContextFromJSFunction(callable_node);
-      // Determine receiver at runtime.
-      args[0] =
-          BuildReceiverNode(callable_node, callee_context, undefined_node);
+      args[0] = BuildReceiverNode(kind, native_context, callee_context,
+                                  undefined_node);
       DCHECK_EQ(pos, pushed_count + 1);
       args[pos++] = undefined_node;  // new target
       args[pos++] =
