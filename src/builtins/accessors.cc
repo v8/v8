@@ -31,8 +31,7 @@ namespace internal {
 
 DirectHandle<AccessorInfo> Accessors::MakeAccessor(
     Isolate* isolate, DirectHandle<Name> name_for_cpu_profiler,
-    AccessorNameGetterCallback getter,
-    AccessorNameBooleanSetterCallback setter) {
+    AccessorNameGetterCallback getter, AccessorNameSetterCallback setter) {
   Factory* factory = isolate->factory();
   name_for_cpu_profiler = factory->InternalizeName(name_for_cpu_profiler);
   DirectHandle<AccessorInfo> info = factory->NewAccessorInfo();
@@ -209,7 +208,7 @@ void Accessors::ArrayLengthSetter(
   }
 
   if (JSArray::SetLength(isolate, array, length).IsNothing()) {
-    // TODO(victorgomes): AccessorNameBooleanSetterCallback does not handle
+    // TODO(victorgomes): AccessorNameSetterCallback does not handle
     // exceptions.
     FATAL("Fatal JavaScript invalid array length %u", length);
     UNREACHABLE();

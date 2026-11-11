@@ -272,7 +272,7 @@ void AddAccessor(v8::Isolate* isolate, Local<FunctionTemplate> templ,
 
 void AddStringOnlyInterceptor(Local<FunctionTemplate> templ,
                               v8::NamedPropertyGetterCallback getter,
-                              v8::NamedPropertySetterCallbackV2 setter) {
+                              v8::NamedPropertySetterCallback setter) {
   templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
       getter, setter, nullptr, nullptr, nullptr, Local<v8::Value>(),
       v8::PropertyHandlerFlags::kOnlyInterceptStrings));
@@ -280,7 +280,7 @@ void AddStringOnlyInterceptor(Local<FunctionTemplate> templ,
 
 void AddInterceptor(Local<FunctionTemplate> templ,
                     v8::NamedPropertyGetterCallback getter,
-                    v8::NamedPropertySetterCallbackV2 setter) {
+                    v8::NamedPropertySetterCallback setter) {
   templ->InstanceTemplate()->SetHandler(
       v8::NamedPropertyHandlerConfiguration(getter, setter));
 }
@@ -1125,9 +1125,9 @@ THREADED_TEST(ApiInterceptorsTest, InterceptorHasOwnPropertyCausingGC) {
 namespace {
 
 void CheckInterceptorIC(v8::NamedPropertyGetterCallback getter,
-                        v8::NamedPropertySetterCallbackV2 setter,
+                        v8::NamedPropertySetterCallback setter,
                         v8::NamedPropertyQueryCallback query,
-                        v8::NamedPropertyDefinerCallbackV2 definer,
+                        v8::NamedPropertyDefinerCallback definer,
                         v8::PropertyHandlerFlags flags, const char* source,
                         std::optional<int> expected) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
@@ -2144,7 +2144,7 @@ THREADED_TEST(ApiInterceptorsTest, EmptyInterceptorVsStoreGlobalICs) {
 namespace {
 
 void CheckGlobalInterceptorIC(v8::NamedPropertyGetterCallback getter,
-                              v8::NamedPropertySetterCallbackV2 setter,
+                              v8::NamedPropertySetterCallback setter,
                               v8::NamedPropertyQueryCallback query,
                               v8::PropertyHandlerFlags flags,
                               const char* source, std::optional<int> expected) {

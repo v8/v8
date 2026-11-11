@@ -201,9 +201,13 @@ using AccessorNameGetterCallback =
  * See Object::SetNativeDataProperty and
  * ObjectTemplate::SetNativeDataProperty methods.
  */
-using AccessorNameSetterCallbackV2 =
+using AccessorNameSetterCallback =
     void (*)(Local<Name> property, Local<Value> value,
              const PropertyCallbackInfo<Boolean>& info);
+// TODO(https://crbug.com/348660658): deprecate and remove.
+using AccessorNameSetterCallbackV2  //
+    V8_DEPRECATE_SOON("Use AccessorNameSetterCallback instead.") =
+        AccessorNameSetterCallback;
 
 /**
  * Property filter bits. They can be or'ed to build a composite filter.
@@ -423,7 +427,7 @@ class V8_EXPORT Object : public Value {
   V8_WARN_UNUSED_RESULT Maybe<bool> SetNativeDataProperty(
       Local<Context> context, Local<Name> name,
       AccessorNameGetterCallback getter,
-      AccessorNameSetterCallbackV2 setter = nullptr,
+      AccessorNameSetterCallback setter = nullptr,
       Local<Data> data = Local<Data>(), PropertyAttribute attributes = None,
       SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
       SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);

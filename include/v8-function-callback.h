@@ -285,12 +285,9 @@ class PropertyCallbackInfo {
   // ShouldThrowOnError() can return true only for setter/definer/deleter
   // callbacks which match [[Set]]/[[DefineOwnProperty]]/[[Delete]]
   // operations. We detect these operations by return value type - they
-  // all return boolean value, even though setter/deleter callbacks are
-  // still using v8::PropertyCallbackInfo<void>.
-  // TODO(https://crbug.com/348660658): cleanup this, once the callbacks are
-  // migrated to a new return type.
+  // all return boolean value.
   static constexpr bool HasShouldThrowOnError() {
-    return std::is_same_v<T, v8::Boolean> || std::is_same_v<T, void>;
+    return std::is_same_v<T, v8::Boolean>;
   }
 
   // Indicates whether this is a named accessor/interceptor callback call

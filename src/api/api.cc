@@ -1435,12 +1435,10 @@ void FunctionTemplate::SetCallHandler(
 
 namespace {
 
-template <typename Getter, typename Setter>
-i::DirectHandle<i::AccessorInfo> MakeAccessorInfo(i::Isolate* i_isolate,
-                                                  v8::Local<Name> name,
-                                                  Getter getter, Setter setter,
-                                                  v8::Local<Data> data,
-                                                  bool replace_on_access) {
+i::DirectHandle<i::AccessorInfo> MakeAccessorInfo(
+    i::Isolate* i_isolate, v8::Local<Name> name,
+    AccessorNameGetterCallback getter, AccessorNameSetterCallback setter,
+    v8::Local<Data> data, bool replace_on_access) {
   i::DirectHandle<i::AccessorInfo> obj =
       i_isolate->factory()->NewAccessorInfo();
   obj->set_getter(i_isolate, reinterpret_cast<i::Address>(getter));
@@ -1582,10 +1580,11 @@ i::DirectHandle<i::FunctionTemplateInfo> EnsureConstructor(
   return constructor;
 }
 
-template <typename Getter, typename Setter, typename Data, typename Template>
 void TemplateSetAccessor(Template* template_obj, v8::Local<Name> name,
-                         Getter getter, Setter setter, Data data,
-                         PropertyAttribute attribute, bool replace_on_access,
+                         AccessorNameGetterCallback getter,
+                         AccessorNameSetterCallback setter,
+                         v8::Local<Data> data, PropertyAttribute attribute,
+                         bool replace_on_access,
                          SideEffectType getter_side_effect_type,
                          SideEffectType setter_side_effect_type) {
   auto info = Utils::OpenDirectHandle(template_obj);
@@ -1608,7 +1607,7 @@ void TemplateSetAccessor(Template* template_obj, v8::Local<Name> name,
 
 void Template::SetNativeDataProperty(v8::Local<Name> name,
                                      AccessorNameGetterCallback getter,
-                                     AccessorNameSetterCallbackV2 setter,
+                                     AccessorNameSetterCallback setter,
                                      v8::Local<Data> data,
                                      PropertyAttribute attribute,
                                      SideEffectType getter_side_effect_type,
@@ -1623,9 +1622,8 @@ void Template::SetLazyDataProperty(v8::Local<Name> name,
                                    PropertyAttribute attribute,
                                    SideEffectType getter_side_effect_type,
                                    SideEffectType setter_side_effect_type) {
-  TemplateSetAccessor(
-      this, name, getter, static_cast<AccessorNameSetterCallbackV2>(nullptr),
-      data, attribute, true, getter_side_effect_type, setter_side_effect_type);
+  TemplateSetAccessor(this, name, getter, nullptr, data, attribute, true,
+                      getter_side_effect_type, setter_side_effect_type);
 }
 
 void Template::SetIntrinsicDataProperty(Local<Name> name, Intrinsic intrinsic,
@@ -5290,14 +5288,12 @@ Maybe<bool> v8::Object::Has(Local<Context> context, uint32_t index) {
   return i::JSReceiver::HasElement(i_isolate, self, index);
 }
 
-template <typename Getter, typename Setter, typename Data>
-static Maybe<bool> ObjectSetAccessor(Local<Context> context, Object* self,
-                                     Local<Name> name, Getter getter,
-                                     Setter setter, Data data,
-                                     PropertyAttribute attributes,
-                                     bool replace_on_access,
-                                     SideEffectType getter_side_effect_type,
-                                     SideEffectType setter_side_effect_type) {
+static Maybe<bool> ObjectSetAccessor(
+    Local<Context> context, Object* self, Local<Name> name,
+    AccessorNameGetterCallback getter, AccessorNameSetterCallback setter,
+    Local<Data> data, PropertyAttribute attributes, bool replace_on_access,
+    SideEffectType getter_side_effect_type,
+    SideEffectType setter_side_effect_type) {
   auto i_isolate = i::Isolate::Current();
   EnterV8NoScriptScope<> api_scope{i_isolate, context,
                                    RCCId::kAPI_Object_SetAccessor};
@@ -5355,7 +5351,7 @@ void Object::SetAccessorProperty(Local<Name> name, Local<Function> getter,
 
 Maybe<bool> Object::SetNativeDataProperty(
     v8::Local<v8::Context> context, v8::Local<Name> name,
-    AccessorNameGetterCallback getter, AccessorNameSetterCallbackV2 setter,
+    AccessorNameGetterCallback getter, AccessorNameSetterCallback setter,
     v8::Local<Data> data, PropertyAttribute attributes,
     SideEffectType getter_side_effect_type,
     SideEffectType setter_side_effect_type) {
@@ -5369,9 +5365,8 @@ Maybe<bool> Object::SetLazyDataProperty(
     AccessorNameGetterCallback getter, v8::Local<Data> data,
     PropertyAttribute attributes, SideEffectType getter_side_effect_type,
     SideEffectType setter_side_effect_type) {
-  return ObjectSetAccessor(context, this, name, getter,
-                           static_cast<AccessorNameSetterCallbackV2>(nullptr),
-                           data, attributes, true, getter_side_effect_type,
+  return ObjectSetAccessor(context, this, name, getter, nullptr, data,
+                           attributes, true, getter_side_effect_type,
                            setter_side_effect_type);
 }
 
@@ -12386,11 +12381,11 @@ v8::Intercepted InvokeNamedInterceptorSetterCallback(
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   RCS_SCOPE(i_isolate, RuntimeCallCounterId::kNamedSetterCallback);
 
-  v8::NamedPropertySetterCallbackV2 setter;
+  v8::NamedPropertySetterCallback setter;
   {
     DirectHandle<InterceptorInfo> interceptor_info =
         PropertyCallbackArguments::GetInterceptorInfo(info);
-    setter = reinterpret_cast<v8::NamedPropertySetterCallbackV2>(
+    setter = reinterpret_cast<v8::NamedPropertySetterCallback>(
         interceptor_info->named_setter(i_isolate));
 
     if (i_isolate->should_check_side_effects() &&

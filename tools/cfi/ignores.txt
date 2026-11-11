@@ -18,13 +18,8 @@ src:*third_party/libc*/*shared_ptr.h
 # v8/src/intl.cc
 fun:*LocaleConvertCase*
 
-# PropertyCallbackArguments::Call methods cast function pointers
-src:*src/api/api-arguments-inl.h
-
 # v8 callback that casts argument template parameters
 fun:*PendingPhantomCallback*Invoke*
 
 # weak_callback_ is cast from original type.
 fun:*GlobalHandles*PostGarbageCollectionProcessing*
-
-fun:*InvokeAccessorGetterCallback*

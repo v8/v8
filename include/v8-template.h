@@ -103,7 +103,7 @@ class V8_EXPORT Template : public Data {
    */
   void SetNativeDataProperty(
       Local<Name> name, AccessorNameGetterCallback getter,
-      AccessorNameSetterCallbackV2 setter = nullptr,
+      AccessorNameSetterCallback setter = nullptr,
       Local<Data> data = Local<Data>(), PropertyAttribute attribute = None,
       SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
       SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
@@ -213,9 +213,13 @@ using NamedPropertyGetterCallback = Intercepted (*)(
  *
  * See also `ObjectTemplate::SetHandler.`
  */
-using NamedPropertySetterCallbackV2 =
+using NamedPropertySetterCallback =
     Intercepted (*)(Local<Name> property, Local<Value> value,
                     const PropertyCallbackInfo<Boolean>& info);
+// TODO(https://crbug.com/348660658): deprecate and remove.
+using NamedPropertySetterCallbackV2  //
+    V8_DEPRECATE_SOON("Use NamedPropertySetterCallback instead.") =
+        NamedPropertySetterCallback;
 
 /**
  * Intercepts all requests that query the attributes of the property,
@@ -308,9 +312,13 @@ using NamedPropertyEnumeratorCallback =
  *
  * See also `ObjectTemplate::SetHandler`.
  */
-using NamedPropertyDefinerCallbackV2 =
+using NamedPropertyDefinerCallback =
     Intercepted (*)(Local<Name> property, const PropertyDescriptor& desc,
                     const PropertyCallbackInfo<Boolean>& info);
+// TODO(https://crbug.com/348660658): deprecate and remove.
+using NamedPropertyDefinerCallbackV2  //
+    V8_DEPRECATE_SOON("Use NamedPropertyDefinerCallback instead.") =
+        NamedPropertyDefinerCallback;
 
 /**
  * Interceptor for [[GetOwnProperty]] requests on an object.
@@ -723,11 +731,11 @@ struct NamedPropertyHandlerConfiguration {
  public:
   NamedPropertyHandlerConfiguration(
       NamedPropertyGetterCallback getter,          //
-      NamedPropertySetterCallbackV2 setter,        //
+      NamedPropertySetterCallback setter,          //
       NamedPropertyQueryCallback query,            //
       NamedPropertyDeleterCallback deleter,        //
       NamedPropertyEnumeratorCallback enumerator,  //
-      NamedPropertyDefinerCallbackV2 definer,      //
+      NamedPropertyDefinerCallback definer,        //
       NamedPropertyDescriptorCallback descriptor,  //
       Local<Data> data = Local<Data>(),
       PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
@@ -743,7 +751,7 @@ struct NamedPropertyHandlerConfiguration {
 
   explicit NamedPropertyHandlerConfiguration(
       NamedPropertyGetterCallback getter,                    //
-      NamedPropertySetterCallbackV2 setter = nullptr,        //
+      NamedPropertySetterCallback setter = nullptr,          //
       NamedPropertyQueryCallback query = nullptr,            //
       NamedPropertyDeleterCallback deleter = nullptr,        //
       NamedPropertyEnumeratorCallback enumerator = nullptr,  //
@@ -761,11 +769,11 @@ struct NamedPropertyHandlerConfiguration {
 
   NamedPropertyHandlerConfiguration(
       NamedPropertyGetterCallback getter,          //
-      NamedPropertySetterCallbackV2 setter,        //
+      NamedPropertySetterCallback setter,          //
       NamedPropertyDescriptorCallback descriptor,  //
       NamedPropertyDeleterCallback deleter,        //
       NamedPropertyEnumeratorCallback enumerator,  //
-      NamedPropertyDefinerCallbackV2 definer,      //
+      NamedPropertyDefinerCallback definer,        //
       Local<Data> data = Local<Data>(),
       PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
       : getter(getter),
@@ -779,11 +787,11 @@ struct NamedPropertyHandlerConfiguration {
         flags(flags) {}
 
   NamedPropertyGetterCallback getter;
-  NamedPropertySetterCallbackV2 setter;
+  NamedPropertySetterCallback setter;
   NamedPropertyQueryCallback query;
   NamedPropertyDeleterCallback deleter;
   NamedPropertyEnumeratorCallback enumerator;
-  NamedPropertyDefinerCallbackV2 definer;
+  NamedPropertyDefinerCallback definer;
   NamedPropertyDescriptorCallback descriptor;
   Local<Data> data;
   PropertyHandlerFlags flags;
