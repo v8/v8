@@ -4904,6 +4904,16 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
                   -kSystemPointerSize);
     Push(Immediate(StackFrame::TypeToMarker(type)));
   }
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    if (type == StackFrame::INTERNAL) {
+      // 16-byte stack alignment: an INTERNAL frame header consists of just the
+      // frame type marker so we push one extra padding slot here, making static
+      // frame header slots = 2 (even) for every INTERNAL frame. Code inside an
+      // INTERNAL frame then only has to keep the number of slots it pushes
+      // itself (saved registers + outgoing arguments) even.
+      PushTaggedStackPadding();
+    }
+  }
 #if V8_ENABLE_WEBASSEMBLY
   if (type == StackFrame::WASM) Push(kWasmImplicitArgRegister);
 #endif  // V8_ENABLE_WEBASSEMBLY

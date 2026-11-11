@@ -60,10 +60,26 @@ enum class ArgumentsElementType {
   kHandle  // Dereference arguments before pushing.
 };
 
+// Pushes one padding slot if {argc} (the number of stack argument slots about
+// to be pushed, e.g. JS arguments including the receiver) is odd. Must be
+// called *before* the first argument is pushed so the padding lands above the
+// arguments. No-op unless 16-byte stack alignment is enabled.
+void PushArgumentPaddingForArgc(MacroAssembler* masm, Register argc) {
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    ASM_CODE_COMMENT_STRING(masm, "PushArgumentPaddingForArgc");
+    Label no_padding;
+    __ testb(argc, Immediate(1));
+    __ j(zero, &no_padding, Label::kNear);
+    __ PushTaggedStackPadding();
+    __ bind(&no_padding);
+  }
+}
+
 void Generate_PushArguments(MacroAssembler* masm, Register array, Register argc,
                             Register scratch,
                             ArgumentsElementType element_type) {
   DCHECK(!AreAliased(array, argc, scratch, kScratchRegister));
+  PushArgumentPaddingForArgc(masm, argc);
   Register counter = scratch;
   Label loop, entry;
   __ leaq(counter, Operand(argc, -kJSArgcReceiverSlots));
@@ -98,6 +114,12 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     // Preserve the incoming parameters on the stack.
     __ Push(rsi);
     __ Push(rax);
+    if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+      // 16-byte stack alignment: the CONSTRUCT frame marker plus rsi and rax
+      // is 3 slots below rbp; pad to 4 so that rsp is aligned before pushing
+      // the padded arguments and calling the constructor.
+      __ PushTaggedStackPadding();
+    }
 
     // TODO(victorgomes): When the arguments adaptor is completely removed, we
     // should get the formal parameter count and copy the arguments in its
@@ -502,6 +524,35 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
 
   // Invoke: Link this frame into the handler chain.
   __ bind(&invoke);
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    // 16-byte stack alignment: this is the *base case* of the alignment
+    // scheme. The C++ caller guarantees (per the native ABI) that rsp was
+    // 16-byte aligned before it called us, so after the return address and
+    // the `pushq rbp` above, rbp is 16-byte aligned. Below rbp we have pushed
+    // an odd number of slots and PushStackHandler() below adds 2 more slots.
+    // Push one padding slot so that rsp is 16-byte aligned when we call the
+    // entry trampoline. All V8 frames above this one rely on that.
+
+    // Slots pushed below rbp so far: everything down to and including the
+    // c_entry_fp slot (kNextExitFrameFPOffset), plus fast_c_call_fp,
+    // fast_c_call_pc and the outermost/inner JSEntry marker.
+    static constexpr int kSlotsBelowFp =
+        -EntryFrameConstants::kNextExitFrameFPOffset / kSystemPointerSize + 3;
+    static_assert(kSlotsBelowFp % 2 == 1,
+                  "JSEntry expects an odd number of slots below rbp");
+    if (v8_flags.debug_code) {
+      ASM_CODE_COMMENT_STRING(masm, "Check JSEntry frame layout");
+      // rbp must be 16-byte aligned (C++ caller honoured the native ABI).
+      __ testq(rbp, Immediate(2 * kSystemPointerSize - 1));
+      __ Check(zero, AbortReason::kUnexpectedStackPointer);
+      // Exactly kSlotsBelowFp slots have been pushed below rbp.
+      __ movq(kScratchRegister, rbp);
+      __ subq(kScratchRegister, rsp);
+      __ cmpq(kScratchRegister, Immediate(kSlotsBelowFp * kSystemPointerSize));
+      __ Check(equal, AbortReason::kUnexpectedStackPointer);
+    }
+    __ PushTaggedStackPadding();
+  }
   __ PushStackHandler();
 
   // Invoke the function by calling through JS entry trampoline builtin and
@@ -512,7 +563,10 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ PopStackHandler();
 
   __ bind(&exit);
-
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    // Drop the alignment padding pushed before the stack handler.
+    __ DropStackPadding();
+  }
   // Check if the current stack frame is marked as the outermost JS frame.
   __ Pop(rbx);
   __ cmpq(rbx, Immediate(StackFrame::OUTERMOST_JSENTRY_FRAME));
@@ -637,7 +691,13 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 
     // Push the function onto the stack.
     __ Push(rdi);
-
+    if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+      // 16-byte stack alignment: the INTERNAL frame header is 2 slots (see
+      // MacroAssembler::EnterFrame), plus the function makes 3. Pad to 4 so
+      // that rsp is aligned for the calls below (the stack overflow runtime
+      // call and, after pushing the padded arguments, the Call builtin).
+      __ PushTaggedStackPadding();
+    }
 #ifdef V8_TARGET_OS_WIN
     // Load the previous frame pointer to access C arguments on stack
     __ movq(kScratchRegister, Operand(rbp, 0));
@@ -5621,10 +5681,9 @@ void Builtins::Generate_DumpFrame(MacroAssembler* masm) {
   __ leaq(kScratchRegister, Operand(rsp, kSavedRegistersAreaSize));
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    __ pushq(kScratchRegister);
+    __ PushArgument(kScratchRegister);  // Padded (16-byte stack alignment).
     __ Move(rsi, 0);
     __ CallRuntime(Runtime::kPrintDumpedFrame, 1);
-    __ popq(kScratchRegister);
   }
 
   for (int i = kNumberOfRegisters - 1; i >= 0; i--) {
