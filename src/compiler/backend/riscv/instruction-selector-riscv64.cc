@@ -732,7 +732,9 @@ void InstructionSelector::VisitStore(OpIndex node) {
   // TODO(riscv): I guess this could be done in a better way.
   if (write_barrier_kind != kNoWriteBarrier &&
       V8_LIKELY(!v8_flags.disable_write_barriers)) {
-    DCHECK(CanBeTaggedOrCompressedOrTrustedPointer(rep));
+    DCHECK(CanBeTaggedOrCompressedOrTrustedPointer(rep) ||
+           (write_barrier_kind == kSkippedWriteBarrier &&
+            rep == MachineRepresentation::kTaggedSigned));
     InstructionOperand inputs[4];
     InstructionCode code;
     size_t input_count = 0;
@@ -757,6 +759,8 @@ void InstructionSelector::VisitStore(OpIndex node) {
       inputs[input_count++] = g.UseImmediate64(static_cast<int64_t>(tag));
     } else if (write_barrier_kind == kSkippedWriteBarrier) {
       code = kArchStoreSkippedWriteBarrier;
+      code |=
+          CheckSmiField::encode(rep == MachineRepresentation::kTaggedSigned);
     } else {
       RecordWriteMode record_write_mode =
           WriteBarrierKindToRecordWriteMode(write_barrier_kind);
@@ -1968,7 +1972,9 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
 
   if (write_barrier_kind != kNoWriteBarrier &&
       !v8_flags.disable_write_barriers) {
-    DCHECK(CanBeTaggedPointer(rep));
+    DCHECK(CanBeTaggedOrCompressedPointer(rep) ||
+           (write_barrier_kind == kSkippedWriteBarrier &&
+            rep == MachineRepresentation::kTaggedSigned));
     DCHECK_EQ(AtomicWidthSize(width), kTaggedSize);
     AddressingMode addressing_mode;
     InstructionOperand inputs[3];
@@ -1987,6 +1993,8 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
 
     if (write_barrier_kind == kSkippedWriteBarrier) {
       code = kArchAtomicStoreSkippedWriteBarrier;
+      code |=
+          CheckSmiField::encode(rep == MachineRepresentation::kTaggedSigned);
     } else {
       RecordWriteMode record_write_mode =
           WriteBarrierKindToRecordWriteMode(write_barrier_kind);

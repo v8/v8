@@ -1336,11 +1336,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
 
       if (v8_flags.verify_write_barriers) {
-        auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
-            this, object, value, kScratchReg);
-        __ MaybeJumpIfReadOnlyOrSmallSmi(value, ool->exit());
-        __ JumpIfNotSmi(value, ool->entry());
-        __ bind(ool->exit());
+        if (CheckSmiField::decode(instr->opcode())) {
+          __ And(kScratchReg, value, Operand(kSmiTagMask));
+          __ Check(eq, AbortReason::kTaggedSignedNotSmi, kScratchReg,
+                   Operand(zero_reg));
+        } else {
+          auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
+              this, object, value, kScratchReg);
+          __ MaybeJumpIfReadOnlyOrSmallSmi(value, ool->exit());
+          __ JumpIfNotSmi(value, ool->entry());
+          __ bind(ool->exit());
+        }
       }
 
       __ AddWord(kScratchReg, object, offset);
@@ -1383,11 +1389,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register value = i.InputRegister(2);
 
       if (v8_flags.verify_write_barriers) {
-        auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
-            this, object, value, kScratchReg);
-        __ MaybeJumpIfReadOnlyOrSmallSmi(value, ool->exit());
-        __ JumpIfNotSmi(value, ool->entry());
-        __ bind(ool->exit());
+        if (CheckSmiField::decode(instr->opcode())) {
+          __ And(kScratchReg, value, Operand(kSmiTagMask));
+          __ Check(eq, AbortReason::kTaggedSignedNotSmi, kScratchReg,
+                   Operand(zero_reg));
+        } else {
+          auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
+              this, object, value, kScratchReg);
+          __ MaybeJumpIfReadOnlyOrSmallSmi(value, ool->exit());
+          __ JumpIfNotSmi(value, ool->entry());
+          __ bind(ool->exit());
+        }
       }
 
       __ AddWord(kScratchReg, object, offset);
