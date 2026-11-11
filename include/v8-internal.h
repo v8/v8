@@ -1787,9 +1787,9 @@ class ValueHelper final {
   // methods like GetDataFromSnapshotOnce that need access to a handle's
   // internal representation. In particular, if `x` is a `v8::Local<T>`, then
   // `v8::Local<T>::FromRepr(x.repr())` gives exactly the same handle as `x`.
-#ifdef V8_ENABLE_DIRECT_HANDLE
   static constexpr Address kTaggedNullAddress = 1;
 
+#ifdef V8_ENABLE_DIRECT_HANDLE
   using InternalRepresentationType = internal::Address;
   static constexpr InternalRepresentationType kEmpty = kTaggedNullAddress;
 #else
@@ -1879,9 +1879,7 @@ class HandleHelper final {
    */
   template <typename T1, typename T2>
   V8_INLINE static bool EqualHandles(const T1& lhs, const T2& rhs) {
-    if (lhs.IsEmpty()) return rhs.IsEmpty();
-    if (rhs.IsEmpty()) return false;
-    return lhs.ptr() == rhs.ptr();
+    return lhs.ptr_relaxed() == rhs.ptr_relaxed();
   }
 };
 

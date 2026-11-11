@@ -42,7 +42,7 @@ void TracedNode::Release(Address zap_value) {
   // Clear all flags.
   flags_ = 0;
   clear_markbit();
-  set_raw_object(zap_value);
+  set_raw_object<AccessMode::ATOMIC>(zap_value);
   DCHECK(IsMetadataCleared());
 }
 
@@ -594,7 +594,8 @@ class ClearWeaknessProcessor final
         }
         if (node_cleared) {
           // Mark as cleared due to weak semantics.
-          node->set_raw_object(kTracedHandleMinorGCWeakResetZapValue);
+          node->set_raw_object<AccessMode::ATOMIC>(
+              kTracedHandleMinorGCWeakResetZapValue);
           DCHECK(!node->is_in_use());
           DCHECK(!node->is_weak());
         } else {

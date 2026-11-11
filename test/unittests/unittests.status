@@ -69,6 +69,7 @@
   # Slow tests.
   'ApiTest.InternalFieldsSubclassing': [PASS, SLOW],
   'ConcurrentAllocationUninitializedTest.ConcurrentAllocationInLargeSpace': [PASS, SLOW],
+  'EmbedderRootsHandlerTest.YoungGC_ParallelResetRootSharedWrappableAcrossWorlds': [PASS, ['asan or verify_heap', SLOW]],
   'Mutex.SharedMutexThreadsFuzz': [PASS, SLOW],
   'ParsingTest.ObjectRestNegativeTestSlow': [PASS, ['mode == debug', SKIP]],
   'SignalAndMutexTest.SignalsPlusSharedMutexes': [PASS, SLOW],
