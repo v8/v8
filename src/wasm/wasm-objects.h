@@ -1789,8 +1789,6 @@ V8_OBJECT class WasmStruct : public WasmObject {
                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   V8_EXPORT_PRIVATE wasm::WasmValue GetFieldValue(uint32_t field_index);
-  inline void SetTaggedFieldValue(int raw_offset, Tagged<Object> value,
-                                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   DECL_PRINTER(WasmStruct)
   DECL_VERIFIER(WasmStruct)

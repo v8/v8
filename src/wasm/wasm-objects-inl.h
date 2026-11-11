@@ -1304,13 +1304,6 @@ ObjectSlot WasmStruct::RawField(int raw_offset) {
   return ObjectSlot(RawFieldAddress(raw_offset));
 }
 
-void WasmStruct::SetTaggedFieldValue(int raw_offset, Tagged<Object> value,
-                                     WriteBarrierMode mode) {
-  int offset = WasmStruct::kHeaderSize + raw_offset;
-  TaggedField<Object>::store(Tagged<WasmStruct>(this), offset, value);
-  CONDITIONAL_WRITE_BARRIER(Tagged<HeapObject>(this), offset, value, mode);
-}
-
 Tagged<Map> WasmStruct::described_rtt() const {
   Tagged<Map> value =
       TaggedField<Map, kHeaderSize>::load(Tagged<WasmStruct>(this));
