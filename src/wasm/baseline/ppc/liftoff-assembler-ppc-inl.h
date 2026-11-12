@@ -1888,13 +1888,15 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
     }
     case kExprI32UConvertF64:
     case kExprI32UConvertF32: {
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
       mtfsb0(VXCVI);  // clear FPSCR:VXCVI bit
-      ConvertDoubleToUnsignedInt64(src.fp(), r0, kScratchDoubleReg,
+      ConvertDoubleToUnsignedInt64(src.fp(), scratch, kScratchDoubleReg,
                                    kRoundToZero);
       mcrfs(cr0, VXCVI);  // extract FPSCR field containing VXCVI into cr0
       boverflow(trap, cr0);
-      ZeroExtWord32(dst.gp(), r0);
-      CmpU64(dst.gp(), r0);
+      ZeroExtWord32(dst.gp(), scratch);
+      CmpU64(dst.gp(), scratch);
       bne(trap);
       return true;
     }
