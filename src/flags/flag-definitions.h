@@ -670,7 +670,6 @@ DEFINE_DEVELOPER_FLAG(trace_maglev_truncation, "trace maglev truncation pass")
 
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_speculative_hoist_phi_untagging)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_inline_api_calls)
-DEFINE_WEAK_IMPLICATION(maglev_future, maglev_escape_analysis)
 
 DEFINE_BOOL(turbolev_truncated_int32_phis, true,
             "Enable truncated to int32 representation in the phi selector")
