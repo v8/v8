@@ -435,6 +435,22 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     MaglevAssembler::TemporaryRegisterScope temps(this);
     Register offset = temps.AcquireScratch();
 
+    if (mode == BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt) {
+      Label unwrap_sliced;
+      And(offset, instance_type, Operand(kOneByteStringTag));
+      MacroAssembler::Branch(&unwrap_sliced, kNotEqual, offset,
+                             Operand(zero_reg), Label::kNear);
+      // Unwrapping a two-byte SlicedString loses its end bound; if {index} is
+      // the last code unit of the slice, fall back to the runtime before
+      // unwrapping.
+      Register length = temps.AcquireScratch();
+      Lw(length, FieldMemOperand(string, offsetof(String, length_)));
+      Add32(offset, index, Operand(1));
+      MacroAssembler::Branch(deferred_runtime_call, kUnsignedGreaterThanEqual,
+                             offset, Operand(length), Label::kNear);
+      bind(&unwrap_sliced);
+    }
+
     LoadAndUntagTaggedSignedField(offset, string,
                                   offsetof(SlicedString, offset_));
     LoadTaggedField(string, string, offsetof(SlicedString, parent_));
