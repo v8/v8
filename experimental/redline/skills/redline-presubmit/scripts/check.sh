@@ -93,6 +93,10 @@ else
   record "selftests, roundtrip" SKIP "the build failed"
 fi
 
+if [ -d experimental/redline/tools/tests ]; then
+  run "tools/tests" python3 -m unittest discover -s experimental/redline/tools/tests
+fi
+
 TRACES="$(git diff --name-only "$BASE" -- experimental/redline/testdata | wc -l)"
 if [ "$TRACES" = 0 ]; then
   record "golden traces" INFO "unchanged"

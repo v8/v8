@@ -35,6 +35,7 @@
 #include "experimental/redline/base/log.h"
 #include "experimental/redline/base/time_util.h"
 #include "experimental/redline/commands/command.h"
+#include "experimental/redline/commands/flags_command.h"
 #include "experimental/redline/commands/selftest_checker.h"
 #include "experimental/redline/commands/selftest_selection.h"
 #include "experimental/redline/core/environment.h"
@@ -321,6 +322,48 @@ void RunD8FlagProfileChecks(Checker* checker) {
                    "drawn %d",
                    top_no_fixed, top_no_turbofan, top_turbolev, top_no_maglev,
                    top_disabled, drawn_removed ? 1 : 0));
+
+  // `redline flags` draws reproducible flag sets and stops when random `d8`
+  // flags are off.
+  auto run_flags = [](std::initializer_list<const char*> args,
+                      std::vector<std::string>* out, std::string* err) {
+    std::vector<const char*> argv = {"redline", "flags"};
+    argv.insert(argv.end(), args.begin(), args.end());
+    Flags parsed_flags =
+        Flags::Parse(static_cast<int>(argv.size()), argv.data(), 2);
+    return DrawD8FlagLines(parsed_flags, out, err);
+  };
+  std::vector<std::string> maglev_lines, maglev_again, turbolev_lines, bad_out;
+  std::string flags_err, bad_err, disabled_err;
+  const bool maglev_ok = run_flags({"--preset=maglev", "--n=20", "--seed=7"},
+                                   &maglev_lines, &flags_err) &&
+                         run_flags({"--preset=maglev", "--n=20", "--seed=7"},
+                                   &maglev_again, &flags_err);
+  const bool turbolev_ok = run_flags(
+      {"--preset=turbolev", "--n=20", "--seed=7"}, &turbolev_lines, &flags_err);
+  const bool bad_rejected =
+      !run_flags({"--preset=maglev", "--n=0"}, &bad_out, &bad_err);
+  const bool disabled_rejected =
+      !run_flags({"--preset=default"}, &bad_out, &disabled_err) &&
+      disabled_err.find("randomize_d8_flags") != std::string::npos;
+  registry.Reset();
+  const bool saw_top_tier = std::any_of(
+      maglev_lines.begin(), maglev_lines.end(), [](const std::string& line) {
+        return line.find("--maglev-as-top-tier") != std::string::npos;
+      });
+  const bool saw_turbolev_flag = std::any_of(
+      turbolev_lines.begin(), turbolev_lines.end(),
+      [](const std::string& line) {
+        return line.find("--verify-turboshaft") != std::string::npos ||
+               line.find("--stress-concurrent-inlining") != std::string::npos;
+      });
+  checker->Check(
+      "random flags: the flags command draws preset flag sets",
+      maglev_ok && turbolev_ok && bad_rejected && disabled_rejected &&
+          maglev_lines.size() == 20 && turbolev_lines.size() == 20 &&
+          maglev_lines == maglev_again && maglev_lines != turbolev_lines &&
+          saw_top_tier && saw_turbolev_flag,
+      flags_err);
 }
 
 // Offline: crash signatures. A recursion that overflows the stack must get

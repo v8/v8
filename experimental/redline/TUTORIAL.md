@@ -490,6 +490,17 @@ The output lists every key, every weight and every tunable with its value.
 The command needs no target.
 You can edit the output and give it back with `--config`.
 
+Print random d8 flag sets of a preset:
+
+```shell
+out/redline/redline flags --preset=maglev --n=5 --seed=1
+```
+
+Two scripts in `experimental/redline/tools/` check the random d8 flags.
+`tools/d8_flag_sync.py` compares the `flags.*` tunables with the V8 fuzz configurations and with Fuzzilli (`--fuzzilli=PATH`, `--d8=out/fuzzbuild/d8`).
+`tools/d8_flag_effect.py` runs `d8` with `--print-flag-values` on a baseline and on `N` draws of each preset (`--d8=out/fuzzbuild/d8`).
+It reports contradictions, silently changed flags and no-op flags.
+
 ## 7. Fuzz your area
 
 ### 7.1 Select the components and the seed files

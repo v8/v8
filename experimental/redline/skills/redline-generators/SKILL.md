@@ -157,6 +157,11 @@ Rules:
   needs its own selftest check.
 - Measure the slowdown of expensive flags, for example verifiers.
 - Check what an agent says about a flag against `flag-definitions.h`.
+- Run `tools/d8_flag_sync.py` (with `--fuzzilli=PATH` and `--d8=D8`) to compare
+  the `flags.*` tunables with the V8 configurations and Fuzzilli.
+- Run `tools/d8_flag_effect.py` (with `--d8=D8`) to draw flag sets with
+  `redline flags` and check `d8 --print-flag-values` for contradictions, silent
+  changes and no-op flags.
 
 ## 6. Brief another agent
 

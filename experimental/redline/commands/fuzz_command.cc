@@ -10,6 +10,7 @@
 #include <csignal>
 #include <cstdio>
 #include <string>
+#include <vector>
 
 #include "experimental/redline/base/flags.h"
 #include "experimental/redline/base/json.h"

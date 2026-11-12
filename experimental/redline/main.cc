@@ -52,10 +52,10 @@ const Command kHelpCommand = {"help", "Show help for a command",
                               "usage: redline help [command]\n", RunHelp};
 
 const Command* const kCommands[] = {
-    &kFuzzCommand,     &kShellCommand,     &kMutateCommand,   &kAuditCommand,
-    &kMinimizeCommand, &kAmplifyCommand,   &kExecCommand,     &kReplayCommand,
-    &kParseCommand,    &kRoundtripCommand, &kSelftestCommand, &kVersionCommand,
-    &kHelpCommand,
+    &kFuzzCommand,    &kFlagsCommand,    &kShellCommand,     &kMutateCommand,
+    &kAuditCommand,   &kMinimizeCommand, &kAmplifyCommand,   &kExecCommand,
+    &kReplayCommand,  &kParseCommand,    &kRoundtripCommand, &kSelftestCommand,
+    &kVersionCommand, &kHelpCommand,
 };
 
 const Command* FindCommand(const std::string& name) {

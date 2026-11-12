@@ -63,6 +63,8 @@ v8_executable("redline") {
     "commands/amplify_command.cc",
     "commands/command.h",
     "commands/exec_command.cc",
+    "commands/flags_command.cc",
+    "commands/flags_command.h",
     "commands/fuzz_command.cc",
     "commands/minimize_command.cc",
     "commands/mutate_command.cc",
