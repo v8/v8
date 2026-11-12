@@ -2905,6 +2905,14 @@ bool Fuzzer::Initialize(std::string* error) {
     }
     workers_.push_back(std::move(worker));
   }
+  if (!config_.targets_file.empty() && workers_[0]->coverage().is_fuzzilli()) {
+    *error =
+        "--targets is not supported with a Fuzzilli target (v8_fuzzilli=true "
+        "has no coverage counters or PC table); use a d8 built with "
+        "v8_redline=true and "
+        "sanitizer_coverage_flags=\"inline-8bit-counters,pc-table\"";
+    return false;
+  }
 
   if (!InitializeFeatureWeights(targets_code_edges, error)) {
     return false;
@@ -3526,7 +3534,12 @@ int Fuzzer::Run() {
     event.AddRaw("selectors", selectors.ToString());
     event.Add("imports", static_cast<uint64_t>(import_files_.size()));
     event.Add("num_edges", coverage_.num_edges());
-    event.Add("coverage_mode", geometry_.counters ? "counters" : "bits");
+    event.Add("target_kind",
+              TargetKindName(workers_[0]->coverage().target_kind()));
+    event.Add("coverage_mode",
+              workers_[0]->coverage().is_fuzzilli()
+                  ? "fuzzilli"
+                  : (geometry_.counters ? "counters" : "bits"));
     if (geometry_.counters) {
       event.Add("watched_edges", geometry_.watched)
           .Add("optimized_features", geometry_.optimized_count);

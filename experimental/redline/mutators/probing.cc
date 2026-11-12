@@ -32,6 +32,7 @@ constexpr char kProbeRuntime[] = R"js(const __redline_probe = (function() {
   const ProxyConstructor = Proxy;
   const JSONStringify = JSON.stringify;
   const emit = typeof redline === 'function' ? function(s) { redline('REDLINE_PRINT', s); }
+             : typeof fuzzilli === 'function' ? function(s) { fuzzilli('FUZZILLI_PRINT', s); }
                                               : function(s) {};
   const seen = {__proto__: null};
   let reporting = false;

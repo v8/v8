@@ -26,6 +26,7 @@ std::unique_ptr<ScriptRunner> ScriptRunner::Create(const TargetOptions& options,
   watch.edges = options.watch_edges;
   watch.optimized = options.watch_optimized;
   runner->coverage_->SetWatch(std::move(watch));
+  runner->coverage_->SetTargetKind(options.kind);
   runner->child_ = ReprlChild::Create(
       options.ToReprlOptions(runner->coverage_->shm_name()), error);
   if (!runner->child_) {

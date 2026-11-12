@@ -68,6 +68,14 @@ bool TargetOptions::FromFlags(const Flags& flags, TargetOptions* out,
                           out->executable.c_str(), strerror(errno));
     return false;
   }
+  if (flags.Has("target-kind") &&
+      !ParseTargetKind(flags.GetString("target-kind"), &out->kind)) {
+    *error =
+        "--target-kind must be \"auto\", \"redline\" or \"fuzzilli\", "
+        "not \"" +
+        flags.GetString("target-kind") + "\"";
+    return false;
+  }
 
   if (flags.Has("d8-args")) {
     out->args = SplitWhitespace(flags.GetString("d8-args"));

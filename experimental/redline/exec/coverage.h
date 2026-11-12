@@ -8,22 +8,36 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "experimental/redline/d8/cov.h"
 
 namespace redline {
 
+// The coverage and extension interface of the target d8.
+//   kAuto      detect from the shared memory after the REPRL handshake
+//   kRedline   d8 built with v8_redline=true (cov::Header at offset 0)
+//   kFuzzilli  d8 built with v8_fuzzilli=true (uint32_t num_edges at offset 0)
+enum class TargetKind { kAuto, kRedline, kFuzzilli };
+
+bool ParseTargetKind(std::string_view text, TargetKind* out);
+const char* TargetKindName(TargetKind kind);
+
 // The edge coverage shared with one target process, plus the bookkeeping of
 // which features have been seen so far ("virgin bits").
 //
-// The layout is that of experimental/redline/d8/cov.h: a POSIX shared memory
-// object named "shm_id_<pid>_<id>". The target writes a header at startup:
-// the mode, the number of edges, the regions and the build ID. The regions
-// are the code edges, the builtins blocks and the optimized code features.
-// One bit per edge follows (trace-pc-guard and inline-bool-flag), or one
-// byte per edge (inline-8bit-counters, the counters layout). A byte holds the
-// number of times the edge ran.
+// The shared memory is a POSIX object named `shm_id_<pid>_<id>`. It supports
+// two target layouts:
+// - Redline (`experimental/redline/d8/cov.h`, `v8_redline=true`): at offset 0,
+// `d8` writes a `cov::Header` with the mode, the edge count, the regions and
+// the build ID. The regions are the code edges, the builtins blocks and the
+// optimized code features. One bit per edge follows (`trace-pc-guard` and
+// `inline-bool-flag`), or one byte per edge (`inline-8bit-counters`, the
+// counters layout). Each counter byte holds the hit count of the edge.
+// - Fuzzilli (`src/fuzzilli/cov.cc`, `v8_fuzzilli=true`): at offset 0, `d8`
+// writes a 4-byte edge count. One bit per edge follows from offset 4, with one
+// code region (`1..num_edges`) and no build ID.
 //
 // Edge indices start at 1. Index 0 is never reported. The parent must clear
 // the shared memory before each execution and read it afterwards.
@@ -40,6 +54,12 @@ class CoverageMap {
  public:
   // The size of the shared memory. The target maps the size that it gets.
   static constexpr size_t kShmSize = cov::kShmSize;
+  // The shared memory constants of a d8 built with v8_fuzzilli=true
+  // (src/fuzzilli/cov.cc).
+  static constexpr size_t kFuzzilliShmSize = 0x200000;
+  static constexpr uint32_t kFuzzilliHeaderSize = 4;
+  static constexpr uint32_t kFuzzilliMaxEdges =
+      static_cast<uint32_t>((kFuzzilliShmSize - kFuzzilliHeaderSize) * 8);
   // Buckets per watched edge.
   static constexpr uint32_t kBuckets = 8;
 
@@ -75,6 +95,10 @@ class CoverageMap {
 
   // Sets the edges to watch. Call before FinishInitialization().
   void SetWatch(Watch watch) { watch_ = std::move(watch); }
+  // Sets the expected target kind (kAuto detects it from the shared memory).
+  void SetTargetKind(TargetKind kind) { requested_kind_ = kind; }
+  TargetKind target_kind() const { return detected_kind_; }
+  bool is_fuzzilli() const { return detected_kind_ == TargetKind::kFuzzilli; }
 
   // Reads the header written by the target. Must be called after the target
   // has started (i.e. after the REPRL handshake) and before any evaluation.
@@ -88,7 +112,9 @@ class CoverageMap {
   uint32_t num_edges() const { return num_edges_; }
   // Number of instrumented edges reported by the target.
   uint32_t real_edges() const { return real_edges_; }
-  // The header that the target wrote (valid after FinishInitialization()).
+  // In Redline mode, the `cov::Header` that the target wrote. In Fuzzilli
+  // mode, a synthetic `cov::Header` with `num_edges`, `bits_per_edge = 1` and
+  // one `kCode` region (valid after `FinishInitialization()`).
   const cov::Header& header() const { return header_; }
   // The mode of the coverage instrumentation of the target, for example
   // "inline-bool-flag".
@@ -167,8 +193,8 @@ class CoverageMap {
   CoverageMap(int id, std::string shm_name, void* mapping);
 
   // The data (bits or counters) starts after the header.
-  uint8_t* shm_edges() { return shmem_ + cov::kHeaderSize; }
-  const uint8_t* shm_edges() const { return shmem_ + cov::kHeaderSize; }
+  uint8_t* shm_edges() { return shmem_ + data_offset_; }
+  const uint8_t* shm_edges() const { return shmem_ + data_offset_; }
   const uint8_t* shm_counters() const { return shmem_ + cov::kHeaderSize; }
   uint8_t* shm_counters() { return shmem_ + cov::kHeaderSize; }
   // The bitmap that the evaluation methods read.
@@ -176,12 +202,16 @@ class CoverageMap {
     return counters_mode_ ? derived_.data() : shm_edges();
   }
 
+  bool FinishFuzzilliInitialization(uint32_t num_edges, std::string* error);
   uint32_t ScanNewEdges(uint8_t* virgin_bits, uint32_t size_bytes,
                         std::vector<uint32_t>* out);
 
   int id_;
   std::string shm_name_;
   uint8_t* shmem_;
+  TargetKind requested_kind_ = TargetKind::kAuto;
+  TargetKind detected_kind_ = TargetKind::kRedline;
+  uint32_t data_offset_ = cov::kHeaderSize;
   cov::Header header_ = {};
   Watch watch_;
   bool counters_mode_ = false;

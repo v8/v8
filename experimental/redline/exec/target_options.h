@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include "experimental/redline/exec/coverage.h"
 #include "experimental/redline/exec/reprl.h"
 
 namespace redline {
@@ -22,6 +23,7 @@ class Flags;
 // scripts share these flags:
 //
 //   --d8=PATH                 the instrumented d8 (or $REDLINE_D8)
+//   --target-kind=KIND        auto (default), redline or fuzzilli
 //   --d8-args="--a --b"       replaces the default d8 flags
 //   --d8-extra-args="--c"     appended to the (default or given) d8 flags
 //   --d8-env=K=V,K2=V2        extra environment variables for d8
@@ -30,6 +32,7 @@ class Flags;
 //   --capture-output          capture d8 stdout/stderr (default true)
 struct TargetOptions {
   std::string executable;
+  TargetKind kind = TargetKind::kAuto;
   std::vector<std::string> args;
   std::vector<std::pair<std::string, std::string>> extra_env;
   uint64_t timeout_us = static_cast<uint64_t>(1000) * 1000;

@@ -73,6 +73,14 @@ If you do not have remote build execution, remove `use_remoteexec=true` from the
 REPRL (read, eval, print, reset loop) keeps one d8 process alive.
 Redline sends a program, d8 runs it and reports the result, and then d8 waits for the next program.
 
+### 1.1 Use a Fuzzilli d8
+
+Redline also runs a d8 that has `v8_fuzzilli=true` instead of `v8_redline=true`.
+It detects this layout from the shared memory (`--target-kind=auto`, or `--target-kind=fuzzilli`).
+In this mode, all edges count as code edges.
+The shared memory of Fuzzilli has no region table, no coverage counters and no build ID.
+Change-based fuzzing (`--targets`, section 7.9) needs `v8_redline=true`.
+
 ## 2. Build Redline
 
 Redline is a normal V8 executable. It needs no coverage instrumentation.

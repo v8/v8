@@ -32,6 +32,8 @@ const char kGlobalFlagsHelp[] =
     "\n"
     "target flags (commands that run d8):\n"
     "  --d8=PATH                   the instrumented d8 (or $REDLINE_D8)\n"
+    "  --target-kind=auto|redline|fuzzilli  target coverage layout (default "
+    "auto)\n"
     "  --d8-args=\"--a --b\"         replace the default d8 flags\n"
     "  --d8-extra-args=\"--c\"       append to the d8 flags\n"
     "  --d8-env=K=V,K2=V2          extra environment variables for d8\n"

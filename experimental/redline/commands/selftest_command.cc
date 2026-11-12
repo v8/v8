@@ -37,6 +37,7 @@
 #include "experimental/redline/commands/command.h"
 #include "experimental/redline/commands/selftest_checker.h"
 #include "experimental/redline/commands/selftest_selection.h"
+#include "experimental/redline/core/environment.h"
 #include "experimental/redline/core/program.h"
 #include "experimental/redline/core/random.h"
 #include "experimental/redline/core/tunable.h"
@@ -1345,6 +1346,8 @@ CrashSession RunCrashSession(const TargetOptions& target,
       "redline",         "fuzz",    "--jobs=1",         "--seed=1",
       "--no-introspect", "--quiet", "--no-save-corpus", "--no-component-stats"};
   all_flags.push_back("--d8=" + target.executable);
+  all_flags.push_back(std::string("--target-kind=") +
+                      TargetKindName(target.kind));
   all_flags.push_back("--d8-args=" + args);
   // The d8 environment of the selftest, for example LD_PRELOAD.
   std::string env;
@@ -1492,13 +1495,17 @@ std::string RunReproLine(const std::string& repro,
 // prelude statement. Its `// run:` line must have absolute paths, and it
 // must crash a plain d8 process with the signature of the crash. The node
 // counts of `minimized:` are the counts of the program alone.
-void RunCrashReproCheck(Checker* checker, const TargetOptions& target) {
+void RunCrashReproCheck(Checker* checker, const TargetOptions& target,
+                        bool fuzzilli_target) {
   const char* name =
       "crash minimizer: a crash behind the default prelude gives "
       "NAME.repro.js without the unused helpers";
-  // redline('REDLINE_CRASH', 1) is a CHECK failure (see the crash checks).
+  // redline('REDLINE_CRASH', 1) or fuzzilli('FUZZILLI_CRASH', 1) is a CHECK
+  // failure (see the crash checks).
+  const char* crash_call =
+      fuzzilli_target ? "fuzzilli('FUZZILLI_CRASH'" : "redline('REDLINE_CRASH'";
   const CrashSession session = RunCrashSession(
-      target, {}, {"assertThrows(() => redline('REDLINE_CRASH', 1));\n"});
+      target, {}, {StringPrintf("assertThrows(() => %s, 1));\n", crash_call)});
   const std::string& repro = session.repro;
   // Two header lines, then the script.
   const size_t first_line = repro.find('\n');
@@ -1583,7 +1590,8 @@ void RunCrashReproCheck(Checker* checker, const TargetOptions& target) {
 // so the printed tree of the prelude and the program does not crash. Then the
 // minimizer reduces the program alone, behind the exact prelude. Redline writes
 // no NAME.repro.js, and `min_tree` gives the reason.
-void RunCrashFallbackCheck(Checker* checker, const TargetOptions& target) {
+void RunCrashFallbackCheck(Checker* checker, const TargetOptions& target,
+                           bool fuzzilli_target) {
   const char* name =
       "crash minimizer: a prelude whose text matters gives the program alone "
       "and no NAME.repro.js";
@@ -1603,9 +1611,12 @@ void RunCrashFallbackCheck(Checker* checker, const TargetOptions& target) {
   }
   CrashSession session;
   if (error.empty()) {
-    session = RunCrashSession(target, {"--prelude=" + prelude},
-                              {"if (f.toString().includes(\"/*keep*/\")) "
-                               "redline('REDLINE_CRASH', 1);\n"});
+    const char* crash_call = fuzzilli_target ? "fuzzilli('FUZZILLI_CRASH'"
+                                             : "redline('REDLINE_CRASH'";
+    session = RunCrashSession(
+        target, {"--prelude=" + prelude},
+        {StringPrintf("if (f.toString().includes(\"/*keep*/\")) %s, 1);\n",
+                      crash_call)});
     error = session.error;
     RemoveTree(session.dir);
   }
@@ -1631,16 +1642,19 @@ void RunCrashFallbackCheck(Checker* checker, const TargetOptions& target) {
 // large, so only the process limit stops the search. The `// run:` line has
 // these flags, and it crashes a plain d8 process with the signature. The
 // rate check keeps these flags, and no temporary file stays.
-void RunCrashFlagsCheck(Checker* checker, const TargetOptions& target) {
+void RunCrashFlagsCheck(Checker* checker, const TargetOptions& target,
+                        bool fuzzilli_target) {
   const char* name =
       "crash flags: a crash that needs 1 flag of the session keeps only this "
       "flag";
-  // redline('REDLINE_CRASH', 7) crashes only with --hole-fuzzing.
+  // Crash kind 7 crashes only with --hole-fuzzing.
+  const char* crash_call =
+      fuzzilli_target ? "fuzzilli('FUZZILLI_CRASH'" : "redline('REDLINE_CRASH'";
   const CrashSession session =
       RunCrashSession(target,
                       {"--d8-extra-args=--hole-fuzzing",
                        R"(--config={"crash_flag_budget_sec": 1000})"},
-                      {"redline('REDLINE_CRASH', 7);\n"});
+                      {StringPrintf("%s, 7);\n", crash_call)});
   // The flags that the search keeps, in the order of the target.
   std::vector<std::string> expected;
   for (const std::string& arg : target.args) {
@@ -1687,12 +1701,14 @@ void RunCrashFlagsCheck(Checker* checker, const TargetOptions& target) {
 // run in one process crashes. `type` names its class, so that two programs
 // can have different sources. The first statement is an unused declaration,
 // which the minimizer can remove in its first test.
-std::string ProtectorProgram(const char* type) {
+std::string ProtectorProgram(const char* type, bool fuzzilli_target) {
+  const char* crash_call =
+      fuzzilli_target ? "fuzzilli('FUZZILLI_CRASH'" : "redline('REDLINE_CRASH'";
   return StringPrintf(
       "var unused = 0;\n"
       "class %s {}\n"
       "if (!%%TypedArraySpeciesProtector()) {\n"
-      "  redline('REDLINE_CRASH', 1);\n"
+      "  %s, 1);\n"
       "} else if (!%%RegExpSpeciesProtector()) {\n"
       "  Object.defineProperty(Uint8Array, Symbol.species, {value: %s});\n"
       "} else if (!%%PromiseSpeciesProtector()) {\n"
@@ -1702,7 +1718,7 @@ std::string ProtectorProgram(const char* type) {
       "} else {\n"
       "  Object.defineProperty(Array, Symbol.species, {value: %s});\n"
       "}\n",
-      type, type, type, type, type);
+      type, crash_call, type, type, type, type);
 }
 
 // An amplified crash, in a short session without the prelude, with
@@ -1713,7 +1729,8 @@ std::string ProtectorProgram(const char* type) {
 // the program with the amplified flags in plain d8 processes. The `// run:`
 // line of NAME.repro.js keeps --stress-runs, and it crashes a plain d8
 // process with the signature.
-void RunCrashAmplifiedCheck(Checker* checker, const TargetOptions& target) {
+void RunCrashAmplifiedCheck(Checker* checker, const TargetOptions& target,
+                            bool fuzzilli_target) {
   const char* name =
       "amplified crashes: an amplified crash gets NAME.repro.js with "
       "--stress-runs";
@@ -1727,7 +1744,8 @@ void RunCrashAmplifiedCheck(Checker* checker, const TargetOptions& target) {
       target,
       {"--prelude=none",
        R"(--config={"crash_history": 0, "crash_amplified_budget_sec": 2, "harvest_crashes": true})"},
-      {ProtectorProgram("C0"), ProtectorProgram("C1")});
+      {ProtectorProgram("C0", fuzzilli_target),
+       ProtectorProgram("C1", fuzzilli_target)});
   const std::string& report = session.report;
   const std::vector<std::string> words = RunLineWords(session.repro);
   const std::string plain =
@@ -1769,14 +1787,27 @@ void RunCrashAmplifiedCheck(Checker* checker, const TargetOptions& target) {
 // Redline writes NAME.bundle.js. The minimizer writes NAME.bundle.min.js
 // with fewer parts. It crashes as often as NAME.bundle.js, and it crashes a
 // plain d8 process with the signature.
-void RunCrashBundleCheck(Checker* checker, const TargetOptions& target) {
+void RunCrashBundleCheck(Checker* checker, const TargetOptions& target,
+                         bool fuzzilli_target) {
   const char* name =
       "bundles: a state-dependent crash gets a smaller NAME.bundle.min.js";
+  const ProcessResult probe =
+      RunProcess(target.executable, {"--bundle-reprl", "/dev/null"},
+                 target.PlainEnvironment(), kPlainRunUs);
+  if (!probe.started || probe.timed_out || probe.signal != 0 ||
+      probe.exit_code != 0 ||
+      probe.stderr_text.find("unknown flag --bundle-reprl") !=
+          std::string::npos) {
+    checker->Info(name, "skipped (the target d8 has no --bundle-reprl flag)");
+    return;
+  }
   const CrashSession session = RunCrashSession(
       target,
       {"--prelude=none",
        R"(--config={"amplify": {"strategy": "none"}, "crash_bundle_min_budget_sec": 60})"},
-      {ProtectorProgram("C0"), ProtectorProgram("C1")}, "bundle_min");
+      {ProtectorProgram("C0", fuzzilli_target),
+       ProtectorProgram("C1", fuzzilli_target)},
+      "bundle_min");
   const std::string& report = session.report;
   const std::string crashes = session.dir + "/out/crashes/";
   const std::string bundle_name = ReportValue(report, "bundle");
@@ -1969,6 +2000,118 @@ void RunCrashSlotChecks(Checker* checker) {
   rmdir(dir.c_str());
 }
 
+// Offline: the Fuzzilli shared-memory layout (src/fuzzilli/cov.cc). A
+// 4-byte edge count at offset 0 is followed by the edge bitmap at offset 4.
+void RunFuzzilliCoverageChecks(Checker* checker) {
+  std::string error;
+  std::unique_ptr<CoverageMap> map = CoverageMap::Create(9995, &error);
+  if (!checker->Check("fuzzilli coverage: create a coverage map",
+                      map != nullptr, error)) {
+    return;
+  }
+  int fd = shm_open(map->shm_name().c_str(), O_RDWR, 0);
+  void* mapping = fd < 0 ? MAP_FAILED
+                         : mmap(nullptr, CoverageMap::kShmSize,
+                                PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+  if (fd >= 0) {
+    close(fd);
+  }
+  const bool mapped = mapping != MAP_FAILED;
+  if (!checker->Check("fuzzilli coverage: map the shared memory", mapped,
+                      mapped ? "" : strerror(errno))) {
+    return;
+  }
+  uint8_t* shm = static_cast<uint8_t*>(mapping);
+  memset(shm, 0, CoverageMap::kShmSize);
+  const uint32_t num_edges = 120;
+  memcpy(shm, &num_edges, sizeof(num_edges));
+  bool ok = map->FinishInitialization(&error);
+  checker->Check("fuzzilli coverage: detect and read the Fuzzilli layout", ok,
+                 error);
+  if (ok) {
+    checker->Check(
+        "fuzzilli coverage: geometry and single code region",
+        map->is_fuzzilli() && map->target_kind() == TargetKind::kFuzzilli &&
+            map->num_edges() == 120 && map->real_edges() == 120 &&
+            map->counted_edges() == 120 &&
+            strcmp(map->mode_name(), "fuzzilli") == 0 &&
+            map->build_id().empty() && map->regions().size() == 1 &&
+            map->regions()[0].kind == CoverageMap::RegionKind::kCode &&
+            map->regions()[0].first == 1 && map->regions()[0].count == 120,
+        StringPrintf("%u edges, mode %s", map->num_edges(), map->mode_name()));
+    // The bitmap starts at offset 4, right after `num_edges`. Edge 1 and edge
+    // `num_edges` are valid edges, and `CoverageMap` ignores bit `num_edges +
+    // 1`.
+    uint8_t* bits = shm + CoverageMap::kFuzzilliHeaderSize;
+    for (uint32_t bit :
+         {uint32_t{1}, uint32_t{5}, uint32_t{115}, num_edges, num_edges + 1}) {
+      bits[bit / 8] |= static_cast<uint8_t>(1u << (bit % 8));
+    }
+    const std::vector<uint32_t> expected = {1, 5, 115, num_edges};
+    checker->Check(
+        "fuzzilli coverage: bits after the 4-byte edge count",
+        map->CurrentEdges() == expected && map->EvaluateNewEdges() == expected,
+        StringPrintf("%zu edges", map->CurrentEdges().size()));
+    // ClearBitmap clears the bitmap at offset 4 and keeps num_edges at 0..3.
+    map->ClearBitmap();
+    uint32_t kept_edges = 0;
+    memcpy(&kept_edges, shm, sizeof(kept_edges));
+    checker->Check(
+        "fuzzilli coverage: ClearBitmap keeps the edge count at offset 0",
+        map->CurrentEdges().empty() && kept_edges == 120,
+        StringPrintf("num_edges=%u", kept_edges));
+    // A respawned process with a different edge count is an error.
+    const uint32_t other_edges = 121;
+    memcpy(shm, &other_edges, sizeof(other_edges));
+    std::string changed;
+    checker->Check("fuzzilli coverage: a changed edge count is an error",
+                   !map->FinishInitialization(&changed) &&
+                       changed.find("mixing binaries") != std::string::npos,
+                   changed);
+  }
+  // --target-kind=redline rejects the Fuzzilli layout, and --targets is
+  // rejected in Fuzzilli mode.
+  memcpy(shm, &num_edges, sizeof(num_edges));
+  std::unique_ptr<CoverageMap> forced_redline =
+      CoverageMap::Create(9994, &error);
+  if (forced_redline != nullptr) {
+    forced_redline->SetTargetKind(TargetKind::kRedline);
+    int rfd = shm_open(forced_redline->shm_name().c_str(), O_RDWR, 0);
+    if (rfd >= 0) {
+      if (pwrite(rfd, &num_edges, sizeof(num_edges), 0) !=
+          static_cast<ssize_t>(sizeof(num_edges))) {
+        rfd = -1;
+      }
+      close(rfd);
+    }
+    std::string reason;
+    checker->Check(
+        "fuzzilli coverage: --target-kind=redline rejects the Fuzzilli layout",
+        rfd >= 0 && !forced_redline->FinishInitialization(&reason), reason);
+  }
+  std::unique_ptr<CoverageMap> with_targets = CoverageMap::Create(9993, &error);
+  if (with_targets != nullptr) {
+    CoverageMap::Watch watch;
+    watch.edges = {5};
+    with_targets->SetWatch(watch);
+    int tfd = shm_open(with_targets->shm_name().c_str(), O_RDWR, 0);
+    if (tfd >= 0) {
+      if (pwrite(tfd, &num_edges, sizeof(num_edges), 0) !=
+          static_cast<ssize_t>(sizeof(num_edges))) {
+        tfd = -1;
+      }
+      close(tfd);
+    }
+    std::string reason;
+    checker->Check(
+        "fuzzilli coverage: --targets is rejected with a clear message",
+        tfd >= 0 && !with_targets->FinishInitialization(&reason) &&
+            reason.find("--targets") != std::string::npos,
+        reason);
+  }
+  munmap(mapping, CoverageMap::kShmSize);
+}
+
 int RunSelftest(const Flags& flags) {
   Checker checker;
   std::string error;
@@ -1977,6 +2120,7 @@ int RunSelftest(const Flags& flags) {
   RunCrashSignatureChecks(&checker);
   RunReprlBundleChecks(&checker);
   RunCoverageHeaderChecks(&checker);
+  RunFuzzilliCoverageChecks(&checker);
   RunD8FlagProfileChecks(&checker);
   RunCoverageCounterChecks(&checker);
   RunCoverageBitsChecks(&checker);
@@ -2024,22 +2168,30 @@ int RunSelftest(const Flags& flags) {
   }
   checker.Info("instrumented edges",
                StringPrintf("%u", runner->coverage().num_edges()));
+  const bool fuzzilli_target = runner->coverage().is_fuzzilli();
   {
     const CoverageMap& coverage = runner->coverage();
-    const cov::Header& header = coverage.header();
-    std::string regions;
-    for (uint32_t i = 0; i < header.num_regions; i++) {
-      static const char* const kKinds[] = {"?", "code", "builtins",
-                                           "optimized"};
-      const cov::Region& region = header.regions[i];
-      regions +=
-          StringPrintf(" %s %u..%u", kKinds[region.kind <= 3 ? region.kind : 0],
-                       region.first, region.first + region.count - 1);
+    if (fuzzilli_target) {
+      checker.Info("coverage header",
+                   StringPrintf("fuzzilli layout (%u edges, no region table or "
+                                "build id)",
+                                coverage.num_edges()));
+    } else {
+      const cov::Header& header = coverage.header();
+      std::string regions;
+      for (uint32_t i = 0; i < header.num_regions; i++) {
+        static const char* const kKinds[] = {"?", "code", "builtins",
+                                             "optimized"};
+        const cov::Region& region = header.regions[i];
+        regions += StringPrintf(" %s %u..%u",
+                                kKinds[region.kind <= 3 ? region.kind : 0],
+                                region.first, region.first + region.count - 1);
+      }
+      checker.Info("coverage header",
+                   StringPrintf("%s, %u bit(s) per edge,%s, build id %s",
+                                coverage.mode_name(), header.bits_per_edge,
+                                regions.c_str(), coverage.build_id().c_str()));
     }
-    checker.Info("coverage header",
-                 StringPrintf("%s, %u bit(s) per edge,%s, build id %s",
-                              coverage.mode_name(), header.bits_per_edge,
-                              regions.c_str(), coverage.build_id().c_str()));
   }
 
   ScriptRunner::Result result;
@@ -2063,14 +2215,36 @@ int RunSelftest(const Flags& flags) {
   }
 
   // Output channels.
-  if (RunOrFail(&checker, runner.get(), "fuzzout",
-                "redline('REDLINE_PRINT', 'hello fuzzout');", &result)) {
+  {
+    const char* print_script =
+        fuzzilli_target ? "fuzzilli('FUZZILLI_PRINT', 'hello fuzzout');"
+                        : "redline('REDLINE_PRINT', 'hello fuzzout');";
+    const char* print_label = fuzzilli_target
+                                  ? "fuzzilli('FUZZILLI_PRINT') is captured"
+                                  : "redline('REDLINE_PRINT') is captured";
+    if (RunOrFail(&checker, runner.get(), "fuzzout", print_script, &result)) {
+      checker.Check(print_label,
+                    result.execution.succeeded() &&
+                        result.execution.fuzzout.find("hello fuzzout") !=
+                            std::string::npos,
+                    Describe(result.execution) + ", fuzzout=\"" +
+                        result.execution.fuzzout + "\"");
+    }
+  }
+  // Environment introspection over the fuzzout channel.
+  if (RunOrFail(&checker, runner.get(), "introspection",
+                std::string(Environment::IntrospectionScript()), &result)) {
+    std::string env_error;
+    std::unique_ptr<Environment> env =
+        result.execution.succeeded()
+            ? Environment::WithDiscovered(result.execution.fuzzout, &env_error)
+            : nullptr;
     checker.Check(
-        "redline('REDLINE_PRINT') is captured",
-        result.execution.succeeded() &&
-            result.execution.fuzzout.find("hello fuzzout") != std::string::npos,
-        Describe(result.execution) + ", fuzzout=\"" + result.execution.fuzzout +
-            "\"");
+        "environment introspection works on the target",
+        env != nullptr && !env->discovered().empty(),
+        env != nullptr
+            ? StringPrintf("%zu globals", env->discovered().size())
+            : (env_error.empty() ? Describe(result.execution) : env_error));
   }
   if (RunOrFail(&checker, runner.get(), "stdout",
                 "print('hello stdout'); console.log('hello console');",
@@ -2133,9 +2307,11 @@ int RunSelftest(const Flags& flags) {
       {"DEBUG build check", 8, false}, {"sandbox violation", 9, false},
   };
   for (const CrashCase& c : crash_cases) {
-    std::string script = StringPrintf("redline('REDLINE_CRASH', %d)", c.kind);
-    std::string name = StringPrintf("redline('REDLINE_CRASH', %d) [%s]", c.kind,
-                                    c.description);
+    const char* crash_fn = fuzzilli_target ? "fuzzilli('FUZZILLI_CRASH'"
+                                           : "redline('REDLINE_CRASH'";
+    std::string script = StringPrintf("%s, %d)", crash_fn, c.kind);
+    std::string name =
+        StringPrintf("%s, %d) [%s]", crash_fn, c.kind, c.description);
     if (!RunOrFail(&checker, runner.get(), name.c_str(), script, &result)) {
       continue;
     }
@@ -2356,11 +2532,11 @@ int RunSelftest(const Flags& flags) {
   // The session of this check has a worker 0. The coverage map of worker 0
   // has the same name as the map of `runner`, so stop `runner` first.
   runner.reset();
-  RunCrashReproCheck(&checker, target);
-  RunCrashFallbackCheck(&checker, target);
-  RunCrashFlagsCheck(&checker, target);
-  RunCrashAmplifiedCheck(&checker, target);
-  RunCrashBundleCheck(&checker, target);
+  RunCrashReproCheck(&checker, target, fuzzilli_target);
+  RunCrashFallbackCheck(&checker, target, fuzzilli_target);
+  RunCrashFlagsCheck(&checker, target, fuzzilli_target);
+  RunCrashAmplifiedCheck(&checker, target, fuzzilli_target);
+  RunCrashBundleCheck(&checker, target, fuzzilli_target);
 
   printf("selftest: %d passed, %d failed\n", checker.passed(),
          checker.failed());

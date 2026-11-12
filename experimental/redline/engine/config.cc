@@ -772,6 +772,14 @@ bool ApplyJson(const JsonValue& json, FuzzConfig* c, std::string* error,
   if (json.Has("d8")) {
     c->target.executable = json.GetString("d8", "");
   }
+  if (json.Has("target_kind")) {
+    if (!json.Get("target_kind").is_string() ||
+        !ParseTargetKind(json.GetString("target_kind", ""), &c->target.kind)) {
+      *error =
+          "config: target_kind must be \"auto\", \"redline\" or \"fuzzilli\"";
+      return false;
+    }
+  }
   const JsonValue& d8_args = json.Get("d8_args");
   if (d8_args.is_array()) {
     // "d8_args" replaces all the d8 flags of the earlier layers.
@@ -966,6 +974,14 @@ bool FuzzConfig::Load(const Flags& flags, FuzzConfig* c, std::string* error,
       return false;
     }
     c->target.executable = d8;
+    if (flags.Has("target-kind") &&
+        !ParseTargetKind(flags.GetString("target-kind"), &c->target.kind)) {
+      *error =
+          "--target-kind must be \"auto\", \"redline\" or \"fuzzilli\", not "
+          "\"" +
+          flags.GetString("target-kind") + "\"";
+      return false;
+    }
     if (flags.Has("d8-args")) {
       c->target.args = SplitWhitespace(flags.GetString("d8-args"));
       c->target.args.insert(c->target.args.end(), kept_extra_args.begin(),
@@ -1314,6 +1330,7 @@ std::string FuzzConfig::ToJson(Detail detail) const {
   const bool full = detail == Detail::kFull;
   JsonObject o;
   o.Add("d8", target.executable);
+  o.Add("target_kind", TargetKindName(target.kind));
   o.AddArray("d8_args", target.args);
   o.Add("timeout_ms", static_cast<double>(target.timeout_us) / 1000.0);
   o.Add("max_execs_before_respawn", target.max_execs_before_respawn);
@@ -1463,7 +1480,9 @@ std::string FuzzConfig::JsonHelp() {
       "configuration with\n"
       "every default, ready to be edited and passed back):\n"
       "  {\n"
-      "    \"d8\": \"out/fuzzbuild/d8\", \"d8_args\": [\"--expose-gc\", ...],\n"
+      "    \"d8\": \"out/fuzzbuild/d8\", \"target_kind\": \"auto\",  // or "
+      "\"redline\", \"fuzzilli\"\n"
+      "    \"d8_args\": [\"--expose-gc\", ...],\n"
       "    \"d8_extra_args\": [\"--maglev\"],  // appended to d8_args (like "
       "--d8-extra-args)\n"
       "    \"randomize_d8_flags\": false,     // random extra d8 flags for "

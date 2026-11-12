@@ -25,7 +25,7 @@ Run all commands from the root of the V8 checkout.
 
 ### Build the fuzzing d8
 
-The target is a d8 with coverage instrumentation, built with `v8_redline=true`:
+The target is a d8 with coverage instrumentation, built with `v8_redline=true` (or `v8_fuzzilli=true`):
 
 ```shell
 gn gen out/fuzzbuild --args='is_debug=false dcheck_always_on=true v8_enable_debug_code=true v8_static_library=true v8_enable_verify_heap=true v8_redline=true v8_enable_backtrace=true v8_enable_partition_alloc=false v8_enable_builtins_profiling=true sanitizer_coverage_flags="inline-bool-flag" target_cpu="x64" use_remoteexec=true'

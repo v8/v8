@@ -17,6 +17,34 @@
 
 namespace redline {
 
+bool ParseTargetKind(std::string_view text, TargetKind* out) {
+  if (text == "auto") {
+    *out = TargetKind::kAuto;
+    return true;
+  }
+  if (text == "redline") {
+    *out = TargetKind::kRedline;
+    return true;
+  }
+  if (text == "fuzzilli") {
+    *out = TargetKind::kFuzzilli;
+    return true;
+  }
+  return false;
+}
+
+const char* TargetKindName(TargetKind kind) {
+  switch (kind) {
+    case TargetKind::kAuto:
+      return "auto";
+    case TargetKind::kRedline:
+      return "redline";
+    case TargetKind::kFuzzilli:
+      return "fuzzilli";
+  }
+  return "auto";
+}
+
 namespace {
 
 inline bool GetBit(const uint8_t* bits, uint32_t index) {
@@ -151,7 +179,79 @@ std::string CheckHeader(const cov::Header& header) {
 
 }  // namespace
 
+bool CoverageMap::FinishFuzzilliInitialization(uint32_t num_edges,
+                                               std::string* error) {
+  if (num_edges == 0 || num_edges > kFuzzilliMaxEdges) {
+    *error =
+        "The target did not write a valid Fuzzilli edge count; is it built "
+        "with v8_fuzzilli=true and coverage instrumentation "
+        "(sanitizer_coverage_flags)?";
+    return false;
+  }
+  if (!watch_.edges.empty()) {
+    *error =
+        "--targets is not supported with a Fuzzilli target (v8_fuzzilli=true "
+        "has no coverage counters or PC table); use a d8 built with "
+        "v8_redline=true and "
+        "sanitizer_coverage_flags=\"inline-8bit-counters,pc-table\"";
+    return false;
+  }
+  if (real_edges_ != 0) {
+    if (detected_kind_ != TargetKind::kFuzzilli || num_edges != real_edges_) {
+      *error = StringPrintf(
+          "The target changed its coverage header (%u -> %u edges); mixing "
+          "binaries?",
+          real_edges_, num_edges);
+      return false;
+    }
+    return true;
+  }
+  detected_kind_ = TargetKind::kFuzzilli;
+  data_offset_ = kFuzzilliHeaderSize;
+  counters_mode_ = false;
+  real_edges_ = num_edges;
+  counted_edges_ = num_edges;
+  num_edges_ = num_edges;
+  regions_ = {{RegionKind::kCode, 1, num_edges}};
+  watched_.clear();
+  watch_runs_.clear();
+  header_ = {};
+  header_.shm_size = static_cast<uint32_t>(kFuzzilliShmSize);
+  header_.bits_per_edge = 1;
+  header_.num_edges = num_edges;
+  header_.max_edges = kFuzzilliMaxEdges;
+  header_.num_regions = 1;
+  header_.regions[0] = {static_cast<uint32_t>(cov::RegionKind::kCode), 1,
+                        num_edges};
+  auto round_up = [](uint32_t bits_needed) {
+    uint32_t bytes = (bits_needed + 7) / 8;
+    return bytes + 7 - ((bytes - 1) % 8);
+  };
+  bitmap_size_ = round_up(num_edges_ + 1);
+  edge_bitmap_size_ = bitmap_size_;
+  derived_.clear();
+  virgin_bits_.assign(bitmap_size_, 0xff);
+  crash_bits_.assign(bitmap_size_, 0xff);
+  ResetState();
+  return true;
+}
+
 bool CoverageMap::FinishInitialization(std::string* error) {
+  uint32_t first_word = 0;
+  memcpy(&first_word, shmem_, sizeof(first_word));
+  if (requested_kind_ == TargetKind::kFuzzilli) {
+    if (first_word == cov::kMagic) {
+      *error =
+          "The target wrote the coverage header of Redline, but "
+          "--target-kind=fuzzilli was given";
+      return false;
+    }
+    return FinishFuzzilliInitialization(first_word, error);
+  }
+  if (requested_kind_ == TargetKind::kAuto && first_word != cov::kMagic &&
+      first_word > 0 && first_word <= kFuzzilliMaxEdges) {
+    return FinishFuzzilliInitialization(first_word, error);
+  }
   cov::Header header;
   memcpy(&header, shmem_, sizeof(header));
   std::string problem = CheckHeader(header);
@@ -161,7 +261,8 @@ bool CoverageMap::FinishInitialization(std::string* error) {
   }
   if (real_edges_ != 0) {
     // A new process of the same target must write the same header.
-    if (memcmp(&header, &header_, sizeof(header)) != 0) {
+    if (detected_kind_ != TargetKind::kRedline ||
+        memcmp(&header, &header_, sizeof(header)) != 0) {
       *error = StringPrintf(
           "The target changed its coverage header (%u -> %u edges); mixing "
           "binaries?",
@@ -170,6 +271,8 @@ bool CoverageMap::FinishInitialization(std::string* error) {
     }
     return true;
   }
+  detected_kind_ = TargetKind::kRedline;
+  data_offset_ = cov::kHeaderSize;
   header_ = header;
   const uint32_t real_edges = header.num_edges;
   const bool counters = header.bits_per_edge == 8;
@@ -247,6 +350,9 @@ bool CoverageMap::FinishInitialization(std::string* error) {
 }
 
 const char* CoverageMap::mode_name() const {
+  if (detected_kind_ == TargetKind::kFuzzilli) {
+    return "fuzzilli";
+  }
   switch (static_cast<cov::Mode>(header_.mode)) {
     case cov::Mode::kTracePcGuard:
       return "trace-pc-guard";

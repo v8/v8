@@ -43,6 +43,7 @@ const char kExploreRuntime[] = R"js(const __redline_explore = (function() {
   const SymbolIterator = Symbol.iterator;
   const StringCharCodeAt = String.prototype.charCodeAt;
   const emit = typeof redline === 'function' ? function(s) { redline('REDLINE_PRINT', s); }
+             : typeof fuzzilli === 'function' ? function(s) { fuzzilli('FUZZILLI_PRINT', s); }
                                               : function(s) {};
   function push(a, v) { ReflectApply(ArrayPush, a, [v]); }
 
