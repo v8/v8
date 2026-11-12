@@ -1983,11 +1983,22 @@ class ExceptionHandlerInfo {
     pc_offset_ = offset;
   }
 
+#ifdef DEBUG
+  bool codegen_registered() const { return codegen_registered_; }
+  void mark_codegen_registered() {
+    DCHECK(!codegen_registered_);
+    codegen_registered_ = true;
+  }
+#endif
+
  private:
   BasicBlockRef catch_block_;
   Label trampoline_entry_;
   int depth_;
   int pc_offset_;
+#ifdef DEBUG
+  bool codegen_registered_ = false;
+#endif
 };
 
 // Dummy type for the initial raw allocation.

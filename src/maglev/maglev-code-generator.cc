@@ -1764,6 +1764,27 @@ class MaglevFrameTranslationBuilder {
   std::vector<intptr_t> object_ids_;
 };
 
+#ifdef DEBUG
+void VerifyExceptionHandlersRegistered(const Graph* graph) {
+  auto check_node = [](const NodeBase* node) {
+    if (!node->properties().can_throw()) return;
+    const ExceptionHandlerInfo* info = node->exception_handler_info();
+    DCHECK(info->codegen_registered());
+    DCHECK_IMPLIES(info->HasExceptionHandler(),
+                   info->pc_offset() ==
+                       node->lazy_deopt_info()->deopting_call_return_pc());
+  };
+  for (const BasicBlock* block : *graph) {
+    DCHECK(!block->is_dead());
+    for (const Node* node : block->nodes()) {
+      if (node == nullptr) continue;
+      check_node(node);
+    }
+    check_node(block->control_node());
+  }
+}
+#endif
+
 }  // namespace
 
 MaglevCodeGenerator::MaglevCodeGenerator(
@@ -1840,6 +1861,9 @@ bool MaglevCodeGenerator::EmitCode() {
 
   processor.ProcessGraph(graph_);
   EmitDeferredCode();
+#ifdef DEBUG
+  VerifyExceptionHandlersRegistered(graph_);
+#endif
   bool deopts_emitted = EmitDeopts();
   protected_deopt_literals_.Clear();
   deopt_literals_.Clear();
