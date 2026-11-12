@@ -1038,6 +1038,24 @@ Response V8DebuggerAgentImpl::getPossibleBreakpoints(
   return Response::Success();
 }
 
+Response V8DebuggerAgentImpl::getScopeChain(
+    const String16& callFrameId, std::unique_ptr<Array<Scope>>* scopeChain) {
+  if (!enabled()) return Response::ServerError(kDebuggerNotEnabled);
+  if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
+  InjectedScript::CallFrameScope scope(m_session, callFrameId);
+  Response response = scope.initialize();
+  if (!response.IsSuccess()) return response;
+
+  int frameOrdinal = static_cast<int>(scope.frameOrdinal());
+  auto it = v8::debug::StackTraceIterator::Create(m_isolate, frameOrdinal);
+  if (it->Done()) {
+    return Response::ServerError("Could not find call frame with given id");
+  }
+  auto scopeIterator = it->GetScopeIterator();
+  return buildScopes(m_isolate, scopeIterator.get(), scope.injectedScript(),
+                     scopeChain);
+}
+
 Response V8DebuggerAgentImpl::continueToLocation(
     std::unique_ptr<protocol::Debugger::Location> location,
     std::optional<String16> targetCallFrames) {

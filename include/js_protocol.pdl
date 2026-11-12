@@ -246,6 +246,17 @@ domain Debugger
       # List of the possible breakpoint locations.
       array of BreakLocation locations
 
+  # Returns the current scope chain of the given call frame. Unlike the scope chain reported
+  # with the `paused` event, it reflects changes made to variables since then (e.g. via
+  # `evaluateOnCallFrame` or `setVariableValue`).
+  experimental command getScopeChain
+    parameters
+      # Call frame identifier to get the scope chain for.
+      CallFrameId callFrameId
+    returns
+      # Scope chain for the call frame.
+      array of Scope scopeChain
+
   # Returns source for the script with given id.
   command getScriptSource
     parameters
