@@ -2427,12 +2427,13 @@ SIMD_UNOP_WITH_SCRATCH_LIST(EMIT_SIMD_UNOP_WITH_SCRATCH)
   V(i32x4_alltrue, I32x4AllTrue) \
   V(i16x8_alltrue, I16x8AllTrue) \
   V(i8x16_alltrue, I8x16AllTrue)
-#define EMIT_SIMD_ALL_TRUE(name, op)                              \
-  void LiftoffAssembler::emit_##name(LiftoffRegister dst,         \
-                                     LiftoffRegister src) {       \
-    UseScratchRegisterScope temps(this);                          \
-    Register scratch = temps.Acquire();                           \
-    op(dst.gp(), src.simd128(), r0, scratch, kScratchSimd128Reg); \
+#define EMIT_SIMD_ALL_TRUE(name, op)                                    \
+  void LiftoffAssembler::emit_##name(LiftoffRegister dst,               \
+                                     LiftoffRegister src) {             \
+    UseScratchRegisterScope temps(this);                                \
+    Register scratch = temps.Acquire();                                 \
+    Register scratch2 = temps.Acquire();                                \
+    op(dst.gp(), src.simd128(), scratch, scratch2, kScratchSimd128Reg); \
   }
 SIMD_ALL_TRUE_LIST(EMIT_SIMD_ALL_TRUE)
 #undef EMIT_SIMD_ALL_TRUE
