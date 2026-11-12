@@ -170,6 +170,11 @@ class V8_EXPORT_PRIVATE MaglevGraphOptimizer {
   template <ValueRepresentation kRepresentation>
   void RegisterUntaggedAlternative(ValueNode* tagged);
 
+  // Records a Smi-canonicalizing tagging conversion `tagged` as the tagged
+  // alternative of its input, so a later tagging use can reuse it.
+  template <typename NodeT>
+  void RegisterTaggedAlternative(NodeT* tagged);
+
   void PreProcessNode(Node*, const ProcessingState& state);
   void PostProcessNode(Node*);
 
