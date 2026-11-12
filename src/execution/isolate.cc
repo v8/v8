@@ -5352,12 +5352,7 @@ void Isolate::Deinit() {
 
   ClearSerializerData();
 
-  if (OwnsStringTables()) {
-    string_forwarding_table()->TearDown();
-  } else {
-    DCHECK_NULL(string_table_.get());
-    DCHECK_NULL(string_forwarding_table_.get());
-  }
+  DCHECK_IMPLIES(!OwnsStringTables(), string_table_ == nullptr);
 
 #ifdef V8_COMPRESS_POINTERS
   external_pointer_table().TearDownSpace(
@@ -6420,13 +6415,11 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   if (OwnsStringTables()) {
     string_table_ = std::make_unique<StringTable>(this);
-    string_forwarding_table_ = std::make_unique<StringForwardingTable>(this);
   } else {
     // Only refer to shared string table after attaching to the shared isolate.
     DCHECK(has_shared_space());
     DCHECK(!is_shared_space_isolate());
     DCHECK_NOT_NULL(string_table());
-    DCHECK_NOT_NULL(string_forwarding_table());
   }
 
 #ifdef V8_EXTERNAL_CODE_SPACE

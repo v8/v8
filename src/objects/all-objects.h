@@ -103,7 +103,6 @@
 #include "src/objects/slots.h"
 #include "src/objects/sort-state.h"
 #include "src/objects/source-text-module.h"
-#include "src/objects/string-forwarding-table.h"
 #include "src/objects/string-set.h"
 #include "src/objects/string-table.h"
 #include "src/objects/string.h"

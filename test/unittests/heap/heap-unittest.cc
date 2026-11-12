@@ -5661,11 +5661,6 @@ TEST_F(HeapTest, NewSpaceAllocationCounter) {
 }
 
 TEST_F(HeapTest, OldSpaceAllocationCounter) {
-  // Using the string forwarding table can free allocations during sweeping, due
-  // to ThinString trimming, thus failing this test.
-  // The flag (and handling of the forwarding table/ThinString transitions in
-  // young gen) is only temporary so we just skip this test for now.
-  if (v8_flags.always_use_string_forwarding_table) return;
   ManualGCScope manual_gc_scope(i_isolate());
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();

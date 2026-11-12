@@ -306,9 +306,6 @@
   # TODO(v8:12783): Turboshaft instruction selection not ported to these platforms yet.
   'wasm/turboshaft/instruction-selection': [PASS, ['arch in [riscv32]', SKIP]],
 
-  # Disabled since v8_flags.always_use_string_forwarding_table is now READONLY.
-  'string-forwarding-table': [SKIP],
-
   # Requires a large --wasm-max-code-space-size-mb.
   'regress/wasm/regress-538378084': [PASS, ['arch not in (x64, ia32) or no_simd_hardware', SKIP]],
 

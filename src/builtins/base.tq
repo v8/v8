@@ -2263,12 +2263,7 @@ extern operator '[]' macro LoadUint8Ptr(RawPtr<uint8>, intptr): uint8;
 extern operator '[]' macro LoadUint64Ptr(RawPtr<uint64>, intptr): uint64;
 
 extern enum NameHashFieldType extends uint32
-    constexpr 'Name::HashFieldType' {
-  kHash,
-  kIntegerIndex,
-  kForwardingIndex,
-  kEmpty
-}
+    constexpr 'Name::HashFieldType' { kHash, kIntegerIndex, kEmpty }
 
 operator '==' macro HashFieldTypeEquals(
     s1: NameHashFieldType, s2: NameHashFieldType): bool {

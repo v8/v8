@@ -26,7 +26,6 @@
 #include "src/objects/heap-object.h"
 #include "src/objects/js-weak-refs.h"
 #include "src/objects/objects-inl.h"
-#include "src/objects/string-forwarding-table-inl.h"
 #include "test/common/flag-utils.h"
 #include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
@@ -304,11 +303,6 @@ TEST_F(SharedStringsTest, StringShare) {
     TwoByteResource* two_byte_res = resource_factory.CreateTwoByte(two_byte);
     CHECK(String::MakeExternal(i_isolate, one_byte_ext, one_byte_res));
     CHECK(String::MakeExternal(i_isolate, two_byte_ext, two_byte_res));
-    if (v8_flags.always_use_string_forwarding_table) {
-      i_isolate->heap()->CollectGarbageShared(
-          i_isolate->main_thread_local_heap(),
-          GarbageCollectionReason::kTesting);
-    }
     CHECK(IsExternalString(*one_byte_ext));
     CHECK(IsExternalString(*two_byte_ext));
     CHECK(!one_byte_ext->IsShared());
@@ -340,7 +334,7 @@ TEST_F(SharedStringsTest, StringShare) {
     CheckSharedStringIsEqualCopy(shared_two_byte, young_two_byte_seq);
   }
 
-  if (!v8_flags.always_use_string_forwarding_table) {
+  {
     // Thin strings
     Handle<String> one_byte_seq1 =
         factory->NewStringFromAsciiChecked(raw_one_byte);

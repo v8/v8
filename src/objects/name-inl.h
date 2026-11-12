@@ -16,7 +16,6 @@
 #include "src/objects/map.h"
 #include "src/objects/oddball-predicates-inl.h"
 #include "src/objects/primitive-heap-object.h"
-#include "src/objects/string-forwarding-table.h"
 #include "src/objects/string.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -123,67 +122,15 @@ bool Name::IsIntegerIndex(uint32_t raw_hash_field) {
 }
 
 // static
-bool Name::IsForwardingIndex(uint32_t raw_hash_field) {
-  return HashFieldTypeBits::decode(raw_hash_field) ==
-         HashFieldType::kForwardingIndex;
-}
-
-// static
-bool Name::IsInternalizedForwardingIndex(uint32_t raw_hash_field) {
-  return HashFieldTypeBits::decode(raw_hash_field) ==
-             HashFieldType::kForwardingIndex &&
-         IsInternalizedForwardingIndexBit::decode(raw_hash_field);
-}
-
-// static
-bool Name::IsExternalForwardingIndex(uint32_t raw_hash_field) {
-  return HashFieldTypeBits::decode(raw_hash_field) ==
-             HashFieldType::kForwardingIndex &&
-         IsExternalForwardingIndexBit::decode(raw_hash_field);
-}
-
-// static
 uint32_t Name::CreateHashFieldValue(uint32_t hash, HashFieldType type) {
-  DCHECK_NE(type, HashFieldType::kForwardingIndex);
+  DCHECK_NE(type, HashFieldType::kEmpty);
   return HashBits::encode(hash & HashBits::kMax) |
          HashFieldTypeBits::encode(type);
-}
-// static
-uint32_t Name::CreateInternalizedForwardingIndex(uint32_t index) {
-  return ForwardingIndexValueBits::encode(index) |
-         IsExternalForwardingIndexBit::encode(false) |
-         IsInternalizedForwardingIndexBit::encode(true) |
-         HashFieldTypeBits::encode(HashFieldType::kForwardingIndex);
-}
-
-// static
-uint32_t Name::CreateExternalForwardingIndex(uint32_t index) {
-  return ForwardingIndexValueBits::encode(index) |
-         IsExternalForwardingIndexBit::encode(true) |
-         IsInternalizedForwardingIndexBit::encode(false) |
-         HashFieldTypeBits::encode(HashFieldType::kForwardingIndex);
 }
 
 bool Name::HasHashCode() const {
   uint32_t field = raw_hash_field();
   return IsHashFieldComputed(field);
-}
-bool Name::HasForwardingIndex(AcquireLoadTag) const {
-  return IsForwardingIndex(raw_hash_field(kAcquireLoad));
-}
-bool Name::HasInternalizedForwardingIndex(AcquireLoadTag) const {
-  return IsInternalizedForwardingIndex(raw_hash_field(kAcquireLoad));
-}
-bool Name::HasExternalForwardingIndex(AcquireLoadTag) const {
-  return IsExternalForwardingIndex(raw_hash_field(kAcquireLoad));
-}
-
-uint32_t Name::GetRawHashFromForwardingTable(uint32_t raw_hash) const {
-  DCHECK(IsForwardingIndex(raw_hash));
-  // TODO(pthier): Add parameter for isolate so we don't need to calculate it.
-  Isolate* isolate = Isolate::Current();
-  const int index = ForwardingIndexValueBits::decode(raw_hash);
-  return isolate->string_forwarding_table()->GetRawHash(isolate, index);
 }
 
 uint32_t Name::EnsureRawHash() { return EnsureRawHash(nullptr); }
@@ -203,14 +150,6 @@ uint32_t Name::EnsureRawHash(
   if (IsHashFieldComputed(field)) return field;
   // Slow case: compute hash code and set it. Has to be a string.
   return Cast<String>(this)->ComputeAndSetRawHash(access_guard);
-}
-
-uint32_t Name::RawHash() {
-  uint32_t field = raw_hash_field(kAcquireLoad);
-  if (V8_UNLIKELY(IsForwardingIndex(field))) {
-    return GetRawHashFromForwardingTable(field);
-  }
-  return field;
 }
 
 uint32_t Name::EnsureHash() { return HashBits::decode(EnsureRawHash()); }

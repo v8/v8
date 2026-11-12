@@ -712,8 +712,6 @@ TEST_F(IdentityMapTest, ExplicitGC) {
 
 TEST_F(IdentityMapTest, GCShortCutting) {
   if (v8_flags.single_generation) return;
-  // We don't create ThinStrings immediately when using the forwarding table.
-  if (v8_flags.always_use_string_forwarding_table) return;
   v8_flags.shortcut_strings_with_stack.Set(true);
   v8_flags.scavenger_precise_object_pinning.Set(false);
   ManualGCScope manual_gc_scope(isolate());

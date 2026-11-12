@@ -1329,9 +1329,6 @@ DEFINE_BOOL(shared_strings, false, "allow sharing of strings")
 DEFINE_IMPLICATION(shared_strings, shared_heap)
 DEFINE_BOOL_READONLY(shared_string_table, false,
                      "DEPRECATED. internalize strings into shared table")
-DEFINE_BOOL_READONLY(always_use_string_forwarding_table, false,
-                     "use string forwarding table instead of thin strings for "
-                     "all strings (experimental)")
 
 DEFINE_SIZE_T(initial_shared_heap_size, 0,
               "initial size of the shared heap (in Mbytes); "

@@ -158,7 +158,6 @@ class SetupIsolateDelegate;
 class Simulator;
 class SnapshotData;
 class StackFrame;
-class StringForwardingTable;
 class StringTable;
 class StubCache;
 class ThreadManager;
@@ -775,11 +774,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   StringTable* string_table() const {
     return OwnsStringTables() ? string_table_.get()
                               : shared_space_isolate()->string_table_.get();
-  }
-  StringForwardingTable* string_forwarding_table() const {
-    return OwnsStringTables()
-               ? string_forwarding_table_.get()
-               : shared_space_isolate()->string_forwarding_table_.get();
   }
 
   // Access to top context (where the current function object was created).
@@ -2653,9 +2647,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   Heap heap_;
   ReadOnlyHeap* read_only_heap_ = nullptr;
 
-  // These are guaranteed empty when !OwnsStringTables().
+  // Guaranteed empty when !OwnsStringTables().
   std::unique_ptr<StringTable> string_table_;
-  std::unique_ptr<StringForwardingTable> string_forwarding_table_;
 
   const int id_;
   std::atomic<EntryStackItem*> entry_stack_ = nullptr;
