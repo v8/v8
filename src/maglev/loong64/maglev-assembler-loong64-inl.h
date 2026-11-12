@@ -1958,7 +1958,9 @@ inline void MaglevAssembler::MaybeEmitPlaceHolderForDeopt() {
   // Implemented only for x64.
 }
 
-inline void MaglevAssembler::MemoryBarrier(AtomicMemoryOrder order) { dbar(0); }
+inline void MaglevAssembler::MemoryBarrier(AtomicMemoryOrder /*order*/) {
+  dbar(kDbarFull);
+}
 
 }  // namespace maglev
 }  // namespace internal

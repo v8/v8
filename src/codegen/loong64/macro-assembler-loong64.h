@@ -12,6 +12,7 @@
 #include <optional>
 
 #include "src/codegen/assembler.h"
+#include "src/codegen/atomic-memory-order.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/loong64/assembler-loong64.h"
 #include "src/common/globals.h"
@@ -1061,8 +1062,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void StoreTaggedField(Register src, const MemOperand& dst,
                         int* trap_pc = NULL);
 
-  void AtomicStoreTaggedField(Register dst, const MemOperand& src,
+  void AtomicStoreTaggedField(Register src, const MemOperand& dst,
                               int* trap_pc = NULL);
+  // Order-aware variant: seq_cst becomes an ordered atomic swap, acq_rel a
+  // plain store with a leading release barrier.
+  void AtomicStoreTaggedField(Register src, const MemOperand& dst,
+                              AtomicMemoryOrder order, int* trap_pc = NULL);
 
   void DecompressTaggedSigned(Register dst, const MemOperand& src,
                               int* trap_pc = NULL);

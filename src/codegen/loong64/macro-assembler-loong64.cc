@@ -6335,14 +6335,37 @@ void MacroAssembler::StoreTaggedField(Register src, const MemOperand& dst,
 void MacroAssembler::AtomicStoreTaggedField(Register src, const MemOperand& dst,
                                             int* trap_pc) {
   UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  Add_d(scratch, dst.base(), dst.offset());
+  // Use the base register directly when it already holds the address, but not
+  // when it aliases {src}, which is an input of the swap.
+  Register addr = dst.base();
+  if (dst.hasIndexReg() || dst.offset() != 0 || addr == src) {
+    addr = temps.Acquire();
+    if (dst.hasIndexReg()) {
+      Add_d(addr, dst.base(), dst.index());
+    } else {
+      Add_d(addr, dst.base(), dst.offset());
+    }
+  }
   if (trap_pc != NULL) *trap_pc = pc_offset();
   if (COMPRESS_POINTERS_BOOL) {
-    amswap_db_w(zero_reg, src, scratch);
+    amswap_db_w(zero_reg, src, addr);
   } else {
-    amswap_db_d(zero_reg, src, scratch);
+    amswap_db_d(zero_reg, src, addr);
   }
+}
+
+void MacroAssembler::AtomicStoreTaggedField(Register src, const MemOperand& dst,
+                                            AtomicMemoryOrder order,
+                                            int* trap_pc) {
+  if (order == AtomicMemoryOrder::kSeqCst) {
+    AtomicStoreTaggedField(src, dst, trap_pc);
+    return;
+  }
+  DCHECK_EQ(order, AtomicMemoryOrder::kAcqRel);
+  // A release store needs the previous accesses ordered before it, but
+  // nothing after it; this avoids the read-modify-write above.
+  dbar(kDbarStoreRelease);
+  StoreTaggedField(src, dst, trap_pc);
 }
 
 void MacroAssembler::DecompressTaggedSigned(Register dst, const MemOperand& src,
@@ -6395,7 +6418,7 @@ void MacroAssembler::AtomicDecompressTaggedSigned(Register dst,
   BlockTrampolinePoolScope block_trampoline_pool(this);
   ASM_CODE_COMMENT(this);
   Ld_wu(dst, src, trap_pc);
-  dbar(0);
+  dbar(kDbarFull);
   if (v8_flags.slow_debug_code) {
     // Corrupt the top 32 bits. Made up of 16 fixed bits and 16 pc offset bits.
     Add_d(dst, dst, ((kDebugZapValue << 16) | (pc_offset() & 0xffff)) << 32);
@@ -6407,7 +6430,7 @@ void MacroAssembler::AtomicDecompressTagged(Register dst, const MemOperand& src,
   BlockTrampolinePoolScope block_trampoline_pool(this);
   ASM_CODE_COMMENT(this);
   Ld_wu(dst, src, trap_pc);
-  dbar(0);
+  dbar(kDbarFull);
   or_(dst, kPtrComprCageBaseRegister, dst);
 }
 

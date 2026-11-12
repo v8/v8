@@ -490,28 +490,37 @@ LSXSize LaneSizeToLSXSize(LaneSize size) {
 
 }  // namespace
 
+// Atomic loads carry no memory order (Turboshaft has none for loads), so they
+// always use the seq_cst barrier; the store orders are carried in
+// AtomicMemoryOrderField below.
 #define ASSEMBLE_ATOMIC_LOAD_INTEGER(asm_instr)                    \
   do {                                                             \
     __ asm_instr(i.OutputRegister(), i.MemoryOperand(), &trap_pc); \
     RecordTrapInfoIfNeeded(zone(), this, opcode, instr, trap_pc);  \
-    __ dbar(0);                                                    \
+    __ dbar(MacroAssemblerBase::kDbarFull);                        \
   } while (0)
 
-// TODO(LOONG_dev): remove second dbar?
+// A seq_cst store also has to be ordered against later loads, hence the
+// trailing barrier for kSeqCst.
 #define ASSEMBLE_ATOMIC_STORE_INTEGER(asm_instr)                         \
   do {                                                                   \
-    __ dbar(0);                                                          \
+    AtomicMemoryOrder order = AtomicMemoryOrderField::decode(opcode);    \
+    __ dbar(MacroAssemblerBase::kDbarStoreRelease);                      \
     __ asm_instr(i.InputOrZeroRegister(2), i.MemoryOperand(), &trap_pc); \
     RecordTrapInfoIfNeeded(zone(), this, opcode, instr, trap_pc);        \
-    __ dbar(0);                                                          \
+    if (order == AtomicMemoryOrder::kSeqCst) {                           \
+      __ dbar(MacroAssemblerBase::kDbarSucceeding);                      \
+    }                                                                    \
   } while (0)
 
-// TODO(LOONG_dev): remove second dbar?
+// LL and SC already carry memory-barrier semantics, so no barrier is needed
+// before the loop. A CAS can fail without executing the SC, which drops the
+// acquire part, hence the explicit acquire barrier at the end of the CAS loops.
 #define ASSEMBLE_ATOMIC_BINOP_EXT(load_linked, store_conditional, sign_extend, \
                                   size, bin_instr, representation)             \
   do {                                                                         \
     Label binop;                                                               \
-    __ add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
+    __ Add_d(i.TempRegister(0), i.InputRegister(0), i.InputOperand(1));        \
     if (representation == 32) {                                                \
       __ andi(i.TempRegister(3), i.TempRegister(0), 0x3);                      \
     } else {                                                                   \
@@ -521,7 +530,6 @@ LSXSize LaneSizeToLSXSize(LaneSize size) {
     __ Sub_d(i.TempRegister(0), i.TempRegister(0),                             \
              Operand(i.TempRegister(3)));                                      \
     __ slli_w(i.TempRegister(3), i.TempRegister(3), 3);                        \
-    __ dbar(0);                                                                \
     __ bind(&binop);                                                           \
     __ load_linked(i.TempRegister(1), MemOperand(i.TempRegister(0), 0),        \
                    &trap_pc);                                                  \
@@ -534,10 +542,8 @@ LSXSize LaneSizeToLSXSize(LaneSize size) {
                   size);                                                       \
     __ store_conditional(i.TempRegister(1), MemOperand(i.TempRegister(0), 0)); \
     __ BranchShort(&binop, eq, i.TempRegister(1), Operand(zero_reg));          \
-    __ dbar(0);                                                                \
   } while (0)
 
-// TODO(LOONG_dev): remove second dbar?
 #define ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(                                  \
     load_linked, store_conditional, sign_extend, size, representation)         \
   do {                                                                         \
@@ -552,7 +558,6 @@ LSXSize LaneSizeToLSXSize(LaneSize size) {
     __ Sub_d(i.TempRegister(0), i.TempRegister(0),                             \
              Operand(i.TempRegister(1)));                                      \
     __ slli_w(i.TempRegister(1), i.TempRegister(1), 3);                        \
-    __ dbar(0);                                                                \
     __ bind(&exchange);                                                        \
     __ load_linked(i.TempRegister(2), MemOperand(i.TempRegister(0), 0),        \
                    &trap_pc);                                                  \
@@ -563,16 +568,13 @@ LSXSize LaneSizeToLSXSize(LaneSize size) {
                   size);                                                       \
     __ store_conditional(i.TempRegister(2), MemOperand(i.TempRegister(0), 0)); \
     __ BranchShort(&exchange, eq, i.TempRegister(2), Operand(zero_reg));       \
-    __ dbar(0);                                                                \
   } while (0)
 
-// TODO(LOONG_dev): remove second dbar?
 #define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(                              \
     load_linked, store_conditional, expect_value, new_value, result_value)     \
   do {                                                                         \
     Label compareExchange;                                                     \
     Label exit;                                                                \
-    __ dbar(0);                                                                \
     __ bind(&compareExchange);                                                 \
     __ load_linked(result_value, MemOperand(i.TempRegister(0), 0), &trap_pc);  \
     RecordTrapInfoIfNeeded(zone(), this, opcode, instr, trap_pc);              \
@@ -582,10 +584,9 @@ LSXSize LaneSizeToLSXSize(LaneSize size) {
     __ BranchShort(&compareExchange, eq, i.TempRegister(1),                    \
                    Operand(zero_reg));                                         \
     __ bind(&exit);                                                            \
-    __ dbar(0);                                                                \
+    __ dbar(MacroAssemblerBase::kDbarLoadAcquire);                             \
   } while (0)
 
-// TODO(LOONG_dev): remove second dbar?
 #define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(                          \
     load_linked, store_conditional, sign_extend, size, representation)         \
   do {                                                                         \
@@ -601,7 +602,6 @@ LSXSize LaneSizeToLSXSize(LaneSize size) {
     __ Sub_d(i.TempRegister(0), i.TempRegister(0),                             \
              Operand(i.TempRegister(1)));                                      \
     __ slli_w(i.TempRegister(1), i.TempRegister(1), 3);                        \
-    __ dbar(0);                                                                \
     __ bind(&compareExchange);                                                 \
     __ load_linked(i.TempRegister(2), MemOperand(i.TempRegister(0), 0),        \
                    &trap_pc);                                                  \
@@ -618,7 +618,7 @@ LSXSize LaneSizeToLSXSize(LaneSize size) {
     __ BranchShort(&compareExchange, eq, i.TempRegister(2),                    \
                    Operand(zero_reg));                                         \
     __ bind(&exit);                                                            \
-    __ dbar(0);                                                                \
+    __ dbar(MacroAssemblerBase::kDbarLoadAcquire);                             \
   } while (0)
 
 #define ASSEMBLE_IEEE754_BINOP(name)                                        \
@@ -1154,25 +1154,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchAtomicStoreWithWriteBarrier: {
       DCHECK_EQ(AddressingModeField::decode(instr->opcode()), kMode_MRR);
       MacroAssembler::BlockTrampolinePoolScope block_trampoline_pool(masm());
+      AtomicMemoryOrder order = AtomicMemoryOrderField::decode(opcode);
       RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
       // Indirect pointer writes must use a different opcode.
       DCHECK_NE(mode, RecordWriteMode::kValueIsTrustedPointer);
       Register object = i.InputRegister(0);
-      Register offset = i.InputRegister(1);
+      Operand offset = i.InputOperand(1);
       Register value = i.InputOrZeroRegister(2);
-      Register scratch = i.TempRegister(0);
 
       auto ool = zone()->New<OutOfLineRecordWrite>(
-          this, object, Operand(offset), value, mode, DetermineStubCallMode());
-      __ Add_d(scratch, object, offset);
+          this, object, offset, value, mode, DetermineStubCallMode());
 
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-      DCHECK(!AreAliased(zero_reg, value, scratch));
-      if (COMPRESS_POINTERS_BOOL) {
-        __ amswap_db_w(zero_reg, value, scratch);
-      } else {
-        __ amswap_db_d(zero_reg, value, scratch);
-      }
+      __ AtomicStoreTaggedField(value, i.MemoryOperand(), order, &trap_pc);
+
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, trap_pc);
       // Skip the write barrier if the value is a Smi. However, this is only
       // valid if the value isn't an indirect pointer. Otherwise the value will
       // be a pointer table index, which will always look like a Smi (but
@@ -1188,9 +1183,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchAtomicStoreSkippedWriteBarrier: {
       DCHECK_EQ(AddressingModeField::decode(instr->opcode()), kMode_MRR);
       MacroAssembler::BlockTrampolinePoolScope block_trampoline_pool(masm());
+      AtomicMemoryOrder order = AtomicMemoryOrderField::decode(opcode);
       Register object = i.InputRegister(0);
-      Register offset = i.InputRegister(1);
       Register value = i.InputOrZeroRegister(2);
+      MemOperand mem = i.MemoryOperand();
       Register temp = i.TempRegister(0);
 
       DCHECK(v8_flags.verify_write_barriers);
@@ -1205,14 +1201,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ bind(ool->exit());
       }
 
-      DCHECK(!AreAliased(zero_reg, value, temp));
-      __ Add_d(temp, object, offset);
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-      if (COMPRESS_POINTERS_BOOL) {
-        __ amswap_db_w(zero_reg, value, temp);
-      } else {
-        __ amswap_db_d(zero_reg, value, temp);
-      }
+      __ AtomicStoreTaggedField(value, mem, order, &trap_pc);
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, trap_pc);
       break;
     }
     case kArchStoreTrustedWithWriteBarrier: {
@@ -2169,9 +2159,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kLoong64AtomicStoreCompressTagged: {
+      AtomicMemoryOrder order = AtomicMemoryOrderField::decode(opcode);
       size_t index = 0;
       MemOperand mem = i.MemoryOperand(&index);
-      __ AtomicStoreTaggedField(i.InputOrZeroRegister(index), mem);
+      __ AtomicStoreTaggedField(i.InputOrZeroRegister(index), mem, order);
       break;
     }
     case kLoong64Fld_s: {
@@ -2200,7 +2191,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kLoong64Dbar: {
-      __ dbar(0);
+      __ dbar(MacroAssemblerBase::kDbarFull);
       break;
     }
     case kLoong64Push:
@@ -2297,12 +2288,44 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAtomicStoreWord16:
       ASSEMBLE_ATOMIC_STORE_INTEGER(St_h);
       break;
-    case kAtomicStoreWord32:
-      ASSEMBLE_ATOMIC_STORE_INTEGER(St_w);
+    case kAtomicStoreWord32: {
+      Register value = i.InputOrZeroRegister(2);
+      if (AtomicMemoryOrderField::decode(opcode) ==
+          AtomicMemoryOrder::kSeqCst) {
+        // A seq_cst store is a single full-barrier amswap; zero_reg discards
+        // the old value.
+        UseScratchRegisterScope temps(masm());
+        Register addr = temps.Acquire();
+        __ Add_d(addr, i.InputRegister(0), i.InputOperand(1));
+        trap_pc = __ pc_offset();
+        __ amswap_db_w(zero_reg, value, addr);
+      } else {
+        MemOperand mem = i.MemoryOperand();
+        __ dbar(MacroAssemblerBase::kDbarStoreRelease);
+        __ St_w(value, mem, &trap_pc);
+      }
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, trap_pc);
       break;
-    case kLoong64Word64AtomicStoreWord64:
-      ASSEMBLE_ATOMIC_STORE_INTEGER(St_d);
+    }
+    case kLoong64Word64AtomicStoreWord64: {
+      Register value = i.InputOrZeroRegister(2);
+      if (AtomicMemoryOrderField::decode(opcode) ==
+          AtomicMemoryOrder::kSeqCst) {
+        // A seq_cst store is a single full-barrier amswap; zero_reg discards
+        // the old value.
+        UseScratchRegisterScope temps(masm());
+        Register addr = temps.Acquire();
+        __ Add_d(addr, i.InputRegister(0), i.InputOperand(1));
+        trap_pc = __ pc_offset();
+        __ amswap_db_d(zero_reg, value, addr);
+      } else {
+        MemOperand mem = i.MemoryOperand();
+        __ dbar(MacroAssemblerBase::kDbarStoreRelease);
+        __ St_d(value, mem, &trap_pc);
+      }
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, trap_pc);
       break;
+    }
     case kAtomicExchangeInt8:
       DCHECK_EQ(AtomicWidthField::decode(opcode), AtomicWidth::kWord32);
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Ll_w, Sc_w, true, 8, 32);
@@ -2331,37 +2354,42 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           break;
       }
       break;
-    case kAtomicExchangeWord32:
-      switch (AtomicWidthField::decode(opcode)) {
-        case AtomicWidth::kWord32:
-          __ add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
-          RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-          __ amswap_db_w(i.OutputRegister(0), i.InputRegister(2),
-                         i.TempRegister(0));
-          break;
-        case AtomicWidth::kWord64:
-          ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Ll_d, Sc_d, false, 32, 64);
-          break;
+    case kAtomicExchangeWord32: {
+      // i64.atomic.rmw32.* is a 4-byte RMW whose result is an i64, so the old
+      // 32-bit value has to be zero-extended. For i32.atomic.rmw.* the am*.w
+      // result is already sign-extended, which is what a Word32 value must be.
+      const bool rmw32_on_i64 =
+          AtomicWidthField::decode(opcode) == AtomicWidth::kWord64;
+      UseScratchRegisterScope temps(masm());
+      Register temp = temps.Acquire();
+      __ add_d(temp, i.InputRegister(0), i.InputRegister(1));
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ amswap_db_w(i.OutputRegister(0), i.InputRegister(2), temp);
+      if (rmw32_on_i64) {
+        __ Bstrpick_d(i.OutputRegister(0), i.OutputRegister(0), 31, 0);
       }
       break;
-    case kLoong64Word64AtomicExchangeUint64:
-      __ add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
+    }
+    case kLoong64Word64AtomicExchangeUint64: {
+      UseScratchRegisterScope temps(masm());
+      Register temp = temps.Acquire();
+      __ add_d(temp, i.InputRegister(0), i.InputRegister(1));
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-      __ amswap_db_d(i.OutputRegister(0), i.InputRegister(2),
-                     i.TempRegister(0));
+      __ amswap_db_d(i.OutputRegister(0), i.InputRegister(2), temp);
       break;
+    }
     case kAtomicExchangeWithWriteBarrier: {
-      __ add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
+      UseScratchRegisterScope temps(masm());
+      Register temp = temps.Acquire();
+      __ add_d(temp, i.InputRegister(0), i.InputRegister(1));
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       if constexpr (COMPRESS_POINTERS_BOOL) {
-        __ amswap_db_w(i.OutputRegister(), i.InputRegister(2),
-                       i.TempRegister(0));
+        __ amswap_db_w(i.OutputRegister(), i.InputRegister(2), temp);
         __ Bstrpick_d(i.OutputRegister(), i.OutputRegister(), 31, 0);
         __ Or(i.OutputRegister(), i.OutputRegister(),
               kPtrComprCageBaseRegister);
       } else {
-        __ amswap_db_d(i.OutputRegister(), i.InputRegister(2),
-                       i.TempRegister(0));
+        __ amswap_db_d(i.OutputRegister(), i.InputRegister(2), temp);
       }
       if (v8_flags.disable_write_barriers) break;
       // Emit the write barrier.
@@ -2475,7 +2503,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ bind(ool->exit());
       }
       __ bind(&exit);
-      __ dbar(0x14);
+      __ dbar(MacroAssemblerBase::kDbarLoadAcquire);
 
       if constexpr (COMPRESS_POINTERS_BOOL) {
         __ Bstrpick_d(out_value, out_value, 31, 0);
@@ -2483,7 +2511,128 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
+#define ATOMIC_BINOP_CASE(op, inst32, inst64)                          \
+  case kAtomic##op##Int8:                                              \
+    DCHECK_EQ(AtomicWidthField::decode(opcode), AtomicWidth::kWord32); \
+    ASSEMBLE_ATOMIC_BINOP_EXT(Ll_w, Sc_w, true, 8, inst32, 32);        \
+    break;                                                             \
+  case kAtomic##op##Uint8:                                             \
+    switch (AtomicWidthField::decode(opcode)) {                        \
+      case AtomicWidth::kWord32:                                       \
+        ASSEMBLE_ATOMIC_BINOP_EXT(Ll_w, Sc_w, false, 8, inst32, 32);   \
+        break;                                                         \
+      case AtomicWidth::kWord64:                                       \
+        ASSEMBLE_ATOMIC_BINOP_EXT(Ll_d, Sc_d, false, 8, inst64, 64);   \
+        break;                                                         \
+    }                                                                  \
+    break;                                                             \
+  case kAtomic##op##Int16:                                             \
+    DCHECK_EQ(AtomicWidthField::decode(opcode), AtomicWidth::kWord32); \
+    ASSEMBLE_ATOMIC_BINOP_EXT(Ll_w, Sc_w, true, 16, inst32, 32);       \
+    break;                                                             \
+  case kAtomic##op##Uint16:                                            \
+    switch (AtomicWidthField::decode(opcode)) {                        \
+      case AtomicWidth::kWord32:                                       \
+        ASSEMBLE_ATOMIC_BINOP_EXT(Ll_w, Sc_w, false, 16, inst32, 32);  \
+        break;                                                         \
+      case AtomicWidth::kWord64:                                       \
+        ASSEMBLE_ATOMIC_BINOP_EXT(Ll_d, Sc_d, false, 16, inst64, 64);  \
+        break;                                                         \
+    }                                                                  \
+    break;
+      ATOMIC_BINOP_CASE(Add, Add_w, Add_d)
+      ATOMIC_BINOP_CASE(Sub, Sub_w, Sub_d)
+      ATOMIC_BINOP_CASE(And, And, And)
+      ATOMIC_BINOP_CASE(Or, Or, Or)
+      ATOMIC_BINOP_CASE(Xor, Xor, Xor)
 #undef ATOMIC_BINOP_CASE
+    case kAtomicAddWord32: {
+      const bool rmw32_on_i64 =
+          AtomicWidthField::decode(opcode) == AtomicWidth::kWord64;
+      __ Add_d(i.TempRegister(0), i.InputRegister(0), i.InputOperand(1));
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ amadd_db_w(i.OutputRegister(0), i.InputRegister(2), i.TempRegister(0));
+      if (rmw32_on_i64) {
+        __ Bstrpick_d(i.OutputRegister(0), i.OutputRegister(0), 31, 0);
+      }
+      break;
+    }
+    case kAtomicSubWord32: {
+      const bool rmw32_on_i64 =
+          AtomicWidthField::decode(opcode) == AtomicWidth::kWord64;
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      __ Add_d(i.TempRegister(0), i.InputRegister(0), i.InputOperand(1));
+      __ Sub_w(scratch, zero_reg, Operand(i.InputRegister(2)));
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ amadd_db_w(i.OutputRegister(0), scratch, i.TempRegister(0));
+      if (rmw32_on_i64) {
+        __ Bstrpick_d(i.OutputRegister(0), i.OutputRegister(0), 31, 0);
+      }
+      break;
+    }
+    case kAtomicAndWord32: {
+      const bool rmw32_on_i64 =
+          AtomicWidthField::decode(opcode) == AtomicWidth::kWord64;
+      __ Add_d(i.TempRegister(0), i.InputRegister(0), i.InputOperand(1));
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ amand_db_w(i.OutputRegister(0), i.InputRegister(2), i.TempRegister(0));
+      if (rmw32_on_i64) {
+        __ Bstrpick_d(i.OutputRegister(0), i.OutputRegister(0), 31, 0);
+      }
+      break;
+    }
+    case kAtomicOrWord32: {
+      const bool rmw32_on_i64 =
+          AtomicWidthField::decode(opcode) == AtomicWidth::kWord64;
+      __ Add_d(i.TempRegister(0), i.InputRegister(0), i.InputOperand(1));
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ amor_db_w(i.OutputRegister(0), i.InputRegister(2), i.TempRegister(0));
+      if (rmw32_on_i64) {
+        __ Bstrpick_d(i.OutputRegister(0), i.OutputRegister(0), 31, 0);
+      }
+      break;
+    }
+    case kAtomicXorWord32: {
+      const bool rmw32_on_i64 =
+          AtomicWidthField::decode(opcode) == AtomicWidth::kWord64;
+      __ Add_d(i.TempRegister(0), i.InputRegister(0), i.InputOperand(1));
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ amxor_db_w(i.OutputRegister(0), i.InputRegister(2), i.TempRegister(0));
+      if (rmw32_on_i64) {
+        __ Bstrpick_d(i.OutputRegister(0), i.OutputRegister(0), 31, 0);
+      }
+      break;
+    }
+    case kLoong64Word64AtomicAddUint64:
+      __ Add_d(i.TempRegister(0), i.InputRegister(0), i.InputOperand(1));
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ amadd_db_d(i.OutputRegister(0), i.InputRegister(2), i.TempRegister(0));
+      break;
+    case kLoong64Word64AtomicSubUint64: {
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      __ Add_d(i.TempRegister(0), i.InputRegister(0), i.InputOperand(1));
+      __ Sub_d(scratch, zero_reg, Operand(i.InputRegister(2)));
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ amadd_db_d(i.OutputRegister(0), scratch, i.TempRegister(0));
+      break;
+    }
+    case kLoong64Word64AtomicAndUint64:
+      __ Add_d(i.TempRegister(0), i.InputRegister(0), i.InputOperand(1));
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ amand_db_d(i.OutputRegister(0), i.InputRegister(2), i.TempRegister(0));
+      break;
+    case kLoong64Word64AtomicOrUint64:
+      __ Add_d(i.TempRegister(0), i.InputRegister(0), i.InputOperand(1));
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ amor_db_d(i.OutputRegister(0), i.InputRegister(2), i.TempRegister(0));
+      break;
+    case kLoong64Word64AtomicXorUint64:
+      __ Add_d(i.TempRegister(0), i.InputRegister(0), i.InputOperand(1));
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ amxor_db_d(i.OutputRegister(0), i.InputRegister(2), i.TempRegister(0));
+      break;
     /* SIMDS128 */
     case kLoong64S128St: {
       CpuFeatureScope lsx_scope(masm(), LSX);
@@ -4296,33 +4445,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vsrai_d(dst, dst, 32);
       break;
     }
-    case kAtomicAddWord32:
-      switch (AtomicWidthField::decode(opcode)) {
-        case AtomicWidth::kWord32:
-          __ Add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
-          RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-          __ amadd_db_w(i.OutputRegister(0), i.InputRegister(2),
-                        i.TempRegister(0));
-          break;
-        case AtomicWidth::kWord64:
-          ASSEMBLE_ATOMIC_BINOP_EXT(Ll_d, Sc_d, false, 32, Add_d, 64);
-          break;
-      }
-      break;
-    case kAtomicSubWord32:
-      switch (AtomicWidthField::decode(opcode)) {
-        case AtomicWidth::kWord32:
-          __ Add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
-          __ Sub_w(i.TempRegister(1), zero_reg, Operand(i.InputRegister(2)));
-          RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-          __ amadd_db_w(i.OutputRegister(0), i.TempRegister(1),
-                        i.TempRegister(0));
-          break;
-        case AtomicWidth::kWord64:
-          ASSEMBLE_ATOMIC_BINOP_EXT(Ll_d, Sc_d, false, 32, Sub_d, 64);
-          break;
-      }
-      break;
     case kLoong64I64x2SConvertI32x4High: {
       CpuFeatureScope lsx_scope(masm(), LSX);
       Simd128Register dst = i.OutputSimd128Register();
@@ -4339,92 +4461,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  i.InputSimd128Register(0));
       break;
     }
-    case kAtomicAndWord32:
-      switch (AtomicWidthField::decode(opcode)) {
-        case AtomicWidth::kWord32:
-          __ Add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
-          RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-          __ amand_db_w(i.OutputRegister(0), i.InputRegister(2),
-                        i.TempRegister(0));
-          break;
-        case AtomicWidth::kWord64:
-          ASSEMBLE_ATOMIC_BINOP_EXT(Ll_d, Sc_d, false, 32, And, 64);
-          break;
-      }
-      break;
-    case kAtomicOrWord32:
-      switch (AtomicWidthField::decode(opcode)) {
-        case AtomicWidth::kWord32:
-          __ Add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
-          RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-          __ amor_db_w(i.OutputRegister(0), i.InputRegister(2),
-                       i.TempRegister(0));
-          break;
-        case AtomicWidth::kWord64:
-          ASSEMBLE_ATOMIC_BINOP_EXT(Ll_d, Sc_d, false, 32, Or, 64);
-          break;
-      }
-      break;
-    case kAtomicXorWord32:
-      switch (AtomicWidthField::decode(opcode)) {
-        case AtomicWidth::kWord32:
-          __ Add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
-          RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-          __ amxor_db_w(i.OutputRegister(0), i.InputRegister(2),
-                        i.TempRegister(0));
-          break;
-        case AtomicWidth::kWord64:
-          ASSEMBLE_ATOMIC_BINOP_EXT(Ll_d, Sc_d, false, 32, Xor, 64);
-          break;
-      }
-      break;
-#define ATOMIC_BINOP_CASE(op, inst32, inst64)                          \
-  case kAtomic##op##Int8:                                              \
-    DCHECK_EQ(AtomicWidthField::decode(opcode), AtomicWidth::kWord32); \
-    ASSEMBLE_ATOMIC_BINOP_EXT(Ll_w, Sc_w, true, 8, inst32, 32);        \
-    break;                                                             \
-  case kAtomic##op##Uint8:                                             \
-    switch (AtomicWidthField::decode(opcode)) {                        \
-      case AtomicWidth::kWord32:                                       \
-        ASSEMBLE_ATOMIC_BINOP_EXT(Ll_w, Sc_w, false, 8, inst32, 32);   \
-        break;                                                         \
-      case AtomicWidth::kWord64:                                       \
-        ASSEMBLE_ATOMIC_BINOP_EXT(Ll_d, Sc_d, false, 8, inst64, 64);   \
-        break;                                                         \
-    }                                                                  \
-    break;                                                             \
-  case kAtomic##op##Int16:                                             \
-    DCHECK_EQ(AtomicWidthField::decode(opcode), AtomicWidth::kWord32); \
-    ASSEMBLE_ATOMIC_BINOP_EXT(Ll_w, Sc_w, true, 16, inst32, 32);       \
-    break;                                                             \
-  case kAtomic##op##Uint16:                                            \
-    switch (AtomicWidthField::decode(opcode)) {                        \
-      case AtomicWidth::kWord32:                                       \
-        ASSEMBLE_ATOMIC_BINOP_EXT(Ll_w, Sc_w, false, 16, inst32, 32);  \
-        break;                                                         \
-      case AtomicWidth::kWord64:                                       \
-        ASSEMBLE_ATOMIC_BINOP_EXT(Ll_d, Sc_d, false, 16, inst64, 64);  \
-        break;                                                         \
-    }                                                                  \
-    break;
-      ATOMIC_BINOP_CASE(Add, Add_w, Add_d)
-      ATOMIC_BINOP_CASE(Sub, Sub_w, Sub_d)
-      ATOMIC_BINOP_CASE(And, And, And)
-      ATOMIC_BINOP_CASE(Or, Or, Or)
-      ATOMIC_BINOP_CASE(Xor, Xor, Xor)
-#undef ATOMIC_BINOP_CASE
-
-    case kLoong64Word64AtomicSubUint64:
-      __ Add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
-      __ Sub_d(i.TempRegister(1), zero_reg, Operand(i.InputRegister(2)));
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-      __ amadd_db_d(i.OutputRegister(0), i.TempRegister(1), i.TempRegister(0));
-      break;
-    case kLoong64Word64AtomicAddUint64:
-      __ Add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-      __ amadd_db_d(i.OutputRegister(0), i.InputRegister(2), i.TempRegister(0));
-      break;
     case kLoong64I64x2UConvertI32x4High: {
       CpuFeatureScope lsx_scope(masm(), LSX);
       __ vxor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
@@ -4460,22 +4496,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vffint_d_lu(i.OutputSimd128Register(), kSimd128ScratchReg);
       break;
     }
-    case kLoong64Word64AtomicAndUint64:
-      __ Add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-      __ amand_db_d(i.OutputRegister(0), i.InputRegister(2), i.TempRegister(0));
-      break;
-    case kLoong64Word64AtomicOrUint64:
-      __ Add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-      __ amor_db_d(i.OutputRegister(0), i.InputRegister(2), i.TempRegister(0));
-      break;
-    case kLoong64Word64AtomicXorUint64:
-      __ Add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-      __ amxor_db_d(i.OutputRegister(0), i.InputRegister(2), i.TempRegister(0));
-      break;
-    /* SIMD */
     case kLoong64ExtAddPairwise: {
       auto dt = static_cast<LSXDataType>(MiscField::decode(instr->opcode()));
       __ ExtAddPairwise(dt, i.OutputSimd128Register(),

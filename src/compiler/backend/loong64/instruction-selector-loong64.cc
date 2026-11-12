@@ -2539,7 +2539,8 @@ void VisitAtomicLoad(InstructionSelector* selector, OpIndex node,
   OpIndex base = load.base();
   OpIndex index = load.index();
 
-  // The memory order is ignored.
+  // Atomic loads carry no memory order, so they all use the seq_cst barrier
+  // (DBAR 0x10), which also covers acquire.
   LoadRepresentation load_rep = load.loaded_rep();
   InstructionCode code;
   switch (load_rep.representation()) {
@@ -2618,7 +2619,6 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
   OpIndex value = store.value();
   DCHECK_EQ(store.displacement(), 0);
 
-  // The memory order is ignored.
   AtomicStoreParameters store_params = AtomicStoreParametersOf(selector, node);
   WriteBarrierKind write_barrier_kind = store_params.write_barrier_kind();
   MachineRepresentation rep = store_params.representation();
@@ -2628,12 +2628,10 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
     write_barrier_kind = kFullWriteBarrier;
   }
 
-  InstructionOperand inputs[] = {g.UseUniqueRegister(base),
-                                 g.UseUniqueRegister(index),
-                                 g.UseRegisterAtEndOrImmediateZero(value)};
-  InstructionOperand temps[2] = {};
-  size_t temp_count = 0;
   InstructionCode code;
+
+  InstructionOperand temps[1] = {};
+  size_t temp_count = 0;
 
   if (write_barrier_kind != kNoWriteBarrier &&
       !v8_flags.disable_write_barriers) {
@@ -2652,7 +2650,6 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
           WriteBarrierKindToRecordWriteMode(write_barrier_kind);
       code = kArchAtomicStoreWithWriteBarrier;
       code |= RecordWriteModeField::encode(record_write_mode);
-      temps[temp_count++] = g.TempRegister();
     }
   } else {
     switch (rep) {
@@ -2689,13 +2686,19 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
   if (store_params.kind() == MemoryAccessKind::kTrapping) {
     code |= AccessModeField::encode(kMemoryAccessTrapping);
   }
+  code |= AtomicMemoryOrderField::encode(store.memory_order().value());
 
   if (g.CanBeImmediate(index, code)) {
-    inputs[1] = g.UseImmediate(index);
+    InstructionOperand inputs[] = {g.UseUniqueRegister(base),
+                                   g.UseImmediate(index),
+                                   g.UseRegisterAtEndOrImmediateZero(value)};
     selector->Emit(code | AddressingModeField::encode(kMode_MRI) |
                        AtomicWidthField::encode(width),
                    0, nullptr, arraysize(inputs), inputs, temp_count, temps);
   } else {
+    InstructionOperand inputs[] = {g.UseUniqueRegister(base),
+                                   g.UseUniqueRegister(index),
+                                   g.UseRegisterAtEndOrImmediateZero(value)};
     selector->Emit(code | AddressingModeField::encode(kMode_MRR) |
                        AtomicWidthField::encode(width),
                    0, nullptr, arraysize(inputs), inputs, temp_count, temps);
@@ -2728,16 +2731,21 @@ void VisitAtomicExchange(InstructionSelector* selector, OpIndex node,
   InstructionOperand outputs[1];
   outputs[0] = g.DefineAsRegister(node);
   InstructionOperand temps[3];
-  temps[0] = g.TempRegister();
-  temps[1] = g.TempRegister();
-  temps[2] = g.TempRegister();
+  size_t temp_count = 0;
+  if (opcode != kAtomicExchangeWord32 &&
+      opcode != kLoong64Word64AtomicExchangeUint64 &&
+      opcode != kAtomicExchangeWithWriteBarrier) {
+    temps[temp_count++] = g.TempRegister();
+    temps[temp_count++] = g.TempRegister();
+    temps[temp_count++] = g.TempRegister();
+  }
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
   if (access_kind == MemoryAccessKind::kTrapping) {
     code |= AccessModeField::encode(kMemoryAccessTrapping);
   }
   selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
-                 arraysize(temps), temps);
+                 temp_count, temps);
 }
 
 void VisitAtomicCompareExchange(InstructionSelector* selector, OpIndex node,
@@ -2782,25 +2790,26 @@ void VisitAtomicBinop(InstructionSelector* selector, OpIndex node,
   OpIndex index = atomic_op.index();
   OpIndex value = atomic_op.value();
 
-  AddressingMode addressing_mode = kMode_MRI;
   InstructionOperand inputs[3];
   size_t input_count = 0;
   inputs[input_count++] = g.UseRegister(base);
-  inputs[input_count++] = g.UseRegister(index);
+  inputs[input_count++] = g.UseOperand(index, opcode);
   inputs[input_count++] = g.UseUniqueRegister(value);
   InstructionOperand outputs[1];
   outputs[0] = g.DefineAsRegister(node);
   InstructionOperand temps[4];
-  temps[0] = g.TempRegister();
-  temps[1] = g.TempRegister();
-  temps[2] = g.TempRegister();
-  temps[3] = g.TempRegister();
-  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
-                         AtomicWidthField::encode(width);
+  size_t temp_count = 0;
+  temps[temp_count++] = g.TempRegister();
+  if (atomic_op.memory_rep.SizeInBytes() < 4) {
+    temps[temp_count++] = g.TempRegister();
+    temps[temp_count++] = g.TempRegister();
+    temps[temp_count++] = g.TempRegister();
+  }
+  InstructionCode code = opcode | AtomicWidthField::encode(width);
   if (access_kind == MemoryAccessKind::kTrapping) {
     code |= AccessModeField::encode(kMemoryAccessTrapping);
   }
-  selector->Emit(code, 1, outputs, input_count, inputs, 4, temps);
+  selector->Emit(code, 1, outputs, input_count, inputs, temp_count, temps);
 }
 
 }  // namespace
