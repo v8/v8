@@ -22,12 +22,17 @@ def experiment_builder(**kwargs):
         properties["builder_group"] = "client.v8"
     experiments = kwargs.pop("experiments", {})
     experiments["v8.resultdb"] = 100
+
+    # Experimental builders run with a lower priority than the main
+    # CI builders (default 30) to give the main consoles precedence.
+    priority = kwargs.pop("priority", 35)
     return v8_builder(
         bucket = bucket,
         properties = properties,
         experiments = experiments,
         disable_resultdb_exports = True,
         use_siso = SISO.CHROMIUM_TRUSTED,
+        priority = priority,
         **kwargs
     )
 
@@ -170,7 +175,6 @@ in_category(
     experiment_builder_pair(
         name = "V8 Win64 - drumbrake - debug",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-        priority = 35,
         triggered_by = ["v8-trigger"],
         notify_owners = ["choongwoo.han@microsoft.com", "emromero@microsoft.com", "paolosev@microsoft.com"],
     ),
