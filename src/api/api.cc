@@ -8430,7 +8430,7 @@ FastIterateResult FastIterateArray(DirectHandle<JSArray> array,
         sorted.reserve(dict->NumberOfElements());
         for (InternalIndex i : dict->IterateEntries()) {
           Tagged<Object> key = dict->KeyAt(i);
-          if (!dict->IsKey(roots, key)) continue;
+          if (!NumberDictionary::IsKey(roots, key)) continue;
           uint32_t index =
               static_cast<uint32_t>(Object::NumberValue(Cast<Number>(key)));
           sorted.push_back({index, i});

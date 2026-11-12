@@ -956,7 +956,7 @@ MaybeDirectHandle<JSObject> JSLocale::GetWeekInfo(
     }
   }
   if (length != 2) {
-    wi = wi->RightTrimOrEmpty(isolate, wi, length);
+    wi = FixedArray::RightTrimOrEmpty(isolate, wi, length);
   }
   DirectHandle<JSArray> we = factory->NewJSArrayWithElements(wi);
 

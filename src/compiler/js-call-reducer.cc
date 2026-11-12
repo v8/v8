@@ -3223,13 +3223,14 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
     if (arity == 0) {
       // Neither thisArg nor argArray was provided.
       convert_mode = ConvertReceiverMode::kNullOrUndefined;
-      node->ReplaceInput(n.TargetIndex(), n.receiver());
-      node->ReplaceInput(n.ReceiverIndex(), jsgraph()->UndefinedConstant());
+      node->ReplaceInput(JSCallNode::TargetIndex(), n.receiver());
+      node->ReplaceInput(JSCallNode::ReceiverIndex(),
+                         jsgraph()->UndefinedConstant());
     } else {
       DCHECK_EQ(arity, 1);
       // The argArray was not provided, just remove the {target}.
       convert_mode = ConvertReceiverMode::kAny;
-      node->RemoveInput(n.TargetIndex());
+      node->RemoveInput(JSCallNode::TargetIndex());
       --arity;
     }
     // Change {node} to a {JSCall} and try to reduce further.
@@ -3256,10 +3257,10 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
   // to expand this {node} to control-flow.
   if (!NodeProperties::CanBeNullOrUndefined(broker(), arguments_list, effect)) {
     // Massage the value inputs appropriately.
-    node->ReplaceInput(n.TargetIndex(), target);
-    node->ReplaceInput(n.ReceiverIndex(), this_argument);
-    node->ReplaceInput(n.ArgumentIndex(0), arguments_list);
-    while (arity-- > 1) node->RemoveInput(n.ArgumentIndex(1));
+    node->ReplaceInput(JSCallNode::TargetIndex(), target);
+    node->ReplaceInput(JSCallNode::ReceiverIndex(), this_argument);
+    node->ReplaceInput(JSCallNode::ArgumentIndex(0), arguments_list);
+    while (arity-- > 1) node->RemoveInput(JSCallNode::ArgumentIndex(1));
 
     // Morph the {node} to a {JSCallWithArrayLike}.
     NodeProperties::ChangeOp(
@@ -3501,12 +3502,13 @@ Reduction JSCallReducer::ReduceFunctionPrototypeCall(Node* node) {
   if (arity == 0) {
     // The thisArg was not provided, use undefined as receiver.
     convert_mode = ConvertReceiverMode::kNullOrUndefined;
-    node->ReplaceInput(n.TargetIndex(), n.receiver());
-    node->ReplaceInput(n.ReceiverIndex(), jsgraph()->UndefinedConstant());
+    node->ReplaceInput(JSCallNode::TargetIndex(), n.receiver());
+    node->ReplaceInput(JSCallNode::ReceiverIndex(),
+                       jsgraph()->UndefinedConstant());
   } else {
     // Just remove the target, which is the first value input.
     convert_mode = ConvertReceiverMode::kAny;
-    node->RemoveInput(n.TargetIndex());
+    node->RemoveInput(JSCallNode::TargetIndex());
     --arity;
   }
   NodeProperties::ChangeOp(
@@ -3756,7 +3758,7 @@ Reduction JSCallReducer::ReduceObjectPrototypeIsPrototypeOf(Node* node) {
   // and don't explicitly rule out Primitive {value}s, since all of them
   // have null as their prototype, so the prototype chain walk inside the
   // JSHasInPrototypeChain operator immediately aborts and yields false.
-  NodeProperties::ReplaceValueInput(node, value, n.TargetIndex());
+  NodeProperties::ReplaceValueInput(node, value, JSCallNode::TargetIndex());
   for (int i = node->op()->ValueInputCount(); i > 2; i--) {
     node->RemoveInput(2);
   }
@@ -3770,9 +3772,9 @@ Reduction JSCallReducer::ReduceReflectApply(Node* node) {
   CallParameters const& p = n.Parameters();
   int arity = p.arity_without_implicit_args();
   // Massage value inputs appropriately.
-  static_assert(n.ReceiverIndex() > n.TargetIndex());
-  node->RemoveInput(n.ReceiverIndex());
-  node->RemoveInput(n.TargetIndex());
+  static_assert(JSCallNode::ReceiverIndex() > JSCallNode::TargetIndex());
+  node->RemoveInput(JSCallNode::ReceiverIndex());
+  node->RemoveInput(JSCallNode::TargetIndex());
   while (arity < 3) {
     node->InsertInput(graph()->zone(), arity++, jsgraph()->UndefinedConstant());
   }
@@ -3796,9 +3798,9 @@ Reduction JSCallReducer::ReduceReflectConstruct(Node* node) {
   TNode<Object> arg_argument_list = n.ArgumentOrUndefined(1, jsgraph());
   TNode<Object> arg_new_target = n.ArgumentOr(2, arg_target);
 
-  static_assert(n.ReceiverIndex() > n.TargetIndex());
-  node->RemoveInput(n.ReceiverIndex());
-  node->RemoveInput(n.TargetIndex());
+  static_assert(JSCallNode::ReceiverIndex() > JSCallNode::TargetIndex());
+  node->RemoveInput(JSCallNode::ReceiverIndex());
+  node->RemoveInput(JSCallNode::TargetIndex());
 
   // TODO(jgruber): This pattern essentially ensures that we have the correct
   // number of inputs for a given argument count. Wrap it in a helper function.
@@ -4331,7 +4333,8 @@ Reduction JSCallReducer::ReduceWasmMethodWrapper(Node* node,
   }
 
   // Duplicate the receiver into the first argument slot...
-  node->InsertInput(graph()->zone(), n.FirstArgumentIndex(), n.receiver());
+  node->InsertInput(graph()->zone(), JSCallNode::FirstArgumentIndex(),
+                    n.receiver());
   NodeProperties::ChangeOp(
       node, javascript()->Call(
                 JSCallNode::ArityForArgc(n.ArgumentCount() + 1), p.frequency(),
@@ -4346,7 +4349,7 @@ Reduction JSCallReducer::ReduceWasmMethodWrapper(Node* node,
     TRACE_BROKER_MISSING(broker(), "target value for context " << context);
     return NoChange();
   }
-  node->ReplaceInput(n.TargetIndex(),
+  node->ReplaceInput(JSCallNode::TargetIndex(),
                      jsgraph()->ConstantNoHole(target.value(), broker()));
   return Changed(node).FollowedBy(ReduceJSCall(node));
 }
@@ -4420,7 +4423,7 @@ Reduction JSCallReducer::ReduceCallWasmFunction(
   // Remove additional inputs.
   while (actual_arity > expected_arity) {
     int removal_index =
-        static_cast<int>(n.FirstArgumentIndex() + expected_arity);
+        static_cast<int>(JSCallNode::FirstArgumentIndex() + expected_arity);
     DCHECK_LT(removal_index, static_cast<int>(node->InputCount()));
     node->RemoveInput(removal_index);
     actual_arity--;
@@ -4428,7 +4431,7 @@ Reduction JSCallReducer::ReduceCallWasmFunction(
 
   // Add missing inputs.
   while (actual_arity < expected_arity) {
-    int insertion_index = n.ArgumentIndex(n.ArgumentCount());
+    int insertion_index = JSCallNode::ArgumentIndex(n.ArgumentCount());
     node->InsertInput(graph()->zone(), insertion_index,
                       jsgraph()->UndefinedConstant());
     actual_arity++;
@@ -4839,13 +4842,15 @@ JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpreadOfCreateArguments(
       case IrOpcode::kJSCallWithArrayLike: {
         // Ignore uses as argumentsList input to calls with array like.
         JSCallWithArrayLikeNode n(user);
-        if (edge.index() == n.ArgumentIndex(0)) continue;
+        if (edge.index() == JSCallWithArrayLikeNode::ArgumentIndex(0)) continue;
         break;
       }
       case IrOpcode::kJSConstructWithArrayLike: {
         // Ignore uses as argumentsList input to calls with array like.
         JSConstructWithArrayLikeNode n(user);
-        if (edge.index() == n.ArgumentIndex(0)) continue;
+        if (edge.index() == JSConstructWithArrayLikeNode::ArgumentIndex(0)) {
+          continue;
+        }
         break;
       }
       case IrOpcode::kJSCallWithSpread: {
@@ -5294,13 +5299,14 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
 
     // Patch the {node} to use [[BoundTargetFunction]] and [[BoundThis]].
     NodeProperties::ReplaceValueInput(node, bound_target_function,
-                                      n.TargetIndex());
-    NodeProperties::ReplaceValueInput(node, bound_this, n.ReceiverIndex());
+                                      JSCallNode::TargetIndex());
+    NodeProperties::ReplaceValueInput(node, bound_this,
+                                      JSCallNode::ReceiverIndex());
 
     // Insert the [[BoundArguments]] for {node}.
     for (uint32_t i = 0; i < bound_arguments_length; ++i) {
       Node* value = NodeProperties::GetValueInput(target, 2 + i);
-      node->InsertInput(graph()->zone(), n.ArgumentIndex(i), value);
+      node->InsertInput(graph()->zone(), JSCallNode::ArgumentIndex(i), value);
       arity++;
     }
 
@@ -5357,7 +5363,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
         effect, control);
 
     // Specialize the JSCall node to the {target_function}.
-    NodeProperties::ReplaceValueInput(node, target_function, n.TargetIndex());
+    NodeProperties::ReplaceValueInput(node, target_function,
+                                      JSCallNode::TargetIndex());
     NodeProperties::ReplaceEffectInput(node, effect);
 
     // Try to further reduce the JSCall {node}.
@@ -5376,7 +5383,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
                            target, effect, control);
 
       // Specialize the JSCall node to the {target_closure}.
-      NodeProperties::ReplaceValueInput(node, target_closure, n.TargetIndex());
+      NodeProperties::ReplaceValueInput(node, target_closure,
+                                        JSCallNode::TargetIndex());
       NodeProperties::ReplaceEffectInput(node, effect);
 
       // Try to further reduce the JSCall {node}.
@@ -5988,7 +5996,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
       // CreateArray, not JSConstructNode. Coincidentally, the NewTargetIndex
       // also 1 there.
       static_assert(JSConstructNode::NewTargetIndex() == 1);
-      node->ReplaceInput(n.NewTargetIndex(), array_function);
+      node->ReplaceInput(JSConstructNode::NewTargetIndex(), array_function);
       node->RemoveInput(n.FeedbackVectorIndex());
       NodeProperties::ChangeOp(
           node,
@@ -6009,10 +6017,11 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
           effect, control);
 
       // Specialize the JSConstruct node to the {new_target_feedback}.
-      node->ReplaceInput(n.NewTargetIndex(), new_target_feedback);
+      node->ReplaceInput(JSConstructNode::NewTargetIndex(),
+                         new_target_feedback);
       NodeProperties::ReplaceEffectInput(node, effect);
       if (target == new_target) {
-        node->ReplaceInput(n.TargetIndex(), new_target_feedback);
+        node->ReplaceInput(JSConstructNode::TargetIndex(), new_target_feedback);
       }
 
       // Try to further reduce the JSConstruct {node}.
@@ -6061,7 +6070,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
           // NewTargetIndex also 1 there. Also, there's no point in the
           // ReplaceInput call below since it replaces new_target with itself.
           static_assert(JSConstructNode::NewTargetIndex() == 1);
-          node->ReplaceInput(n.NewTargetIndex(), new_target);
+          node->ReplaceInput(JSConstructNode::NewTargetIndex(), new_target);
           node->RemoveInput(n.FeedbackVectorIndex());
           NodeProperties::ChangeOp(
               node,
@@ -6086,7 +6095,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
             // Drop the value inputs.
             node->RemoveInput(n.FeedbackVectorIndex());
             for (int i = n.ArgumentCount() - 1; i >= 0; i--) {
-              node->RemoveInput(n.ArgumentIndex(i));
+              node->RemoveInput(JSConstructNode::ArgumentIndex(i));
             }
             NodeProperties::ChangeOp(node, javascript()->Create());
             return Changed(node);
@@ -6124,18 +6133,19 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
       }
 
       // Patch {node} to use [[BoundTargetFunction]].
-      node->ReplaceInput(n.TargetIndex(), jsgraph()->ConstantNoHole(
-                                              bound_target_function, broker()));
+      node->ReplaceInput(
+          JSConstructNode::TargetIndex(),
+          jsgraph()->ConstantNoHole(bound_target_function, broker()));
 
       // Patch {node} to use [[BoundTargetFunction]]
       // as new.target if {new_target} equals {target}.
       if (target == new_target) {
         node->ReplaceInput(
-            n.NewTargetIndex(),
+            JSConstructNode::NewTargetIndex(),
             jsgraph()->ConstantNoHole(bound_target_function, broker()));
       } else {
         node->ReplaceInput(
-            n.NewTargetIndex(),
+            JSConstructNode::NewTargetIndex(),
             graph()->NewNode(
                 common()->Select(MachineRepresentation::kTagged),
                 graph()->NewNode(simplified()->ReferenceEqual(), target,
@@ -6146,7 +6156,8 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
 
       // Insert the [[BoundArguments]] for {node}.
       for (uint32_t i = 0; i < bound_arguments_length; ++i) {
-        node->InsertInput(graph()->zone(), n.ArgumentIndex(i), args[i]);
+        node->InsertInput(graph()->zone(), JSConstructNode::ArgumentIndex(i),
+                          args[i]);
         arity++;
       }
 
@@ -6171,15 +6182,16 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
         static_cast<int>(CreateBoundFunctionParametersOf(target->op()).arity());
 
     // Patch the {node} to use [[BoundTargetFunction]].
-    node->ReplaceInput(n.TargetIndex(), bound_target_function);
+    node->ReplaceInput(JSConstructNode::TargetIndex(), bound_target_function);
 
     // Patch {node} to use [[BoundTargetFunction]]
     // as new.target if {new_target} equals {target}.
     if (target == new_target) {
-      node->ReplaceInput(n.NewTargetIndex(), bound_target_function);
+      node->ReplaceInput(JSConstructNode::NewTargetIndex(),
+                         bound_target_function);
     } else {
       node->ReplaceInput(
-          n.NewTargetIndex(),
+          JSConstructNode::NewTargetIndex(),
           graph()->NewNode(common()->Select(MachineRepresentation::kTagged),
                            graph()->NewNode(simplified()->ReferenceEqual(),
                                             target, new_target),
@@ -6189,7 +6201,8 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
     // Insert the [[BoundArguments]] for {node}.
     for (uint32_t i = 0; i < bound_arguments_length; ++i) {
       Node* value = NodeProperties::GetValueInput(target, 2 + i);
-      node->InsertInput(graph()->zone(), n.ArgumentIndex(i), value);
+      node->InsertInput(graph()->zone(), JSConstructNode::ArgumentIndex(i),
+                        value);
       arity++;
     }
 
@@ -8033,7 +8046,7 @@ Reduction JSCallReducer::ReduceStringPrototypeLocaleCompareIntl(Node* node) {
   // preserves any IfException edge attached to the JSCall.
   node->RemoveInput(n.FeedbackVectorIndex());
   if (n.ArgumentCount() == 3) {
-    node->RemoveInput(n.ArgumentIndex(2));  // drop options
+    node->RemoveInput(JSCallNode::ArgumentIndex(2));  // drop options
   } else if (n.ArgumentCount() == 1) {
     node->InsertInput(graph()->zone(), n.LastArgumentIndex() + 1,
                       jsgraph()->UndefinedConstant());  // pad locales
@@ -8415,7 +8428,7 @@ Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
   // input with the {on_finally} value.
   Node* target = jsgraph()->ConstantNoHole(
       native_context().promise_then(broker()), broker());
-  NodeProperties::ReplaceValueInput(node, target, n.TargetIndex());
+  NodeProperties::ReplaceValueInput(node, target, JSCallNode::TargetIndex());
   NodeProperties::ReplaceEffectInput(node, effect);
   NodeProperties::ReplaceControlInput(node, control);
   for (; arity > 2; --arity) node->RemoveInput(2);
@@ -9992,8 +10005,8 @@ std::optional<Reduction> JSCallReducer::TryReduceJSCallMathMinMaxWithArrayLike(
             effect, control);
 
         // Specialize the JSCallWithArrayLike node to the {target_function}.
-        NodeProperties::ReplaceValueInput(node, target_function,
-                                          n.TargetIndex());
+        NodeProperties::ReplaceValueInput(
+            node, target_function, JSCallWithArrayLikeNode::TargetIndex());
         NodeProperties::ReplaceEffectInput(node, effect);
         // Try to further reduce the Call MathMin/Max with double array.
         return Changed(node).FollowedBy(

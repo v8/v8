@@ -392,7 +392,7 @@ class JSBinopReduction final {
     Type node_type = NodeProperties::GetType(node_);
     NodeProperties::SetType(node_, Type::Intersect(node_type, type, zone()));
 
-    return lowering_->Changed(node_);
+    return JSTypedLowering::Changed(node_);
   }
 
   Reduction ChangeToSpeculativeOperator(const Operator* op, Type upper_bound) {
@@ -430,7 +430,7 @@ class JSBinopReduction final {
     NodeProperties::SetType(node_,
                             Type::Intersect(node_type, upper_bound, zone()));
 
-    return lowering_->Changed(node_);
+    return JSTypedLowering::Changed(node_);
   }
 
   const Operator* NumberOp() {

@@ -89,12 +89,11 @@ void ExportAsMain(WasmFunctionBuilder* f) {
 TEST_F(RunWasmModuleTest, Run_WasmModule_Return114) {
   {
     static const int32_t kReturnValue = 114;
-    TestSignatures sigs;
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
 
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
-    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
+    WasmFunctionBuilder* f = builder->AddFunction(TestSignatures::i_v());
     ExportAsMain(f);
     uint8_t code[] = {WASM_I32V_2(kReturnValue)};
     EMIT_CODE_WITH_END(f, code);
@@ -107,18 +106,17 @@ TEST_F(RunWasmModuleTest, Run_WasmModule_CallAdd) {
   {
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
-    TestSignatures sigs;
 
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
 
-    WasmFunctionBuilder* f1 = builder->AddFunction(sigs.i_ii());
+    WasmFunctionBuilder* f1 = builder->AddFunction(TestSignatures::i_ii());
     uint16_t param1 = 0;
     uint16_t param2 = 1;
     uint8_t code1[] = {
         WASM_I32_ADD(WASM_LOCAL_GET(param1), WASM_LOCAL_GET(param2))};
     EMIT_CODE_WITH_END(f1, code1);
 
-    WasmFunctionBuilder* f2 = builder->AddFunction(sigs.i_v());
+    WasmFunctionBuilder* f2 = builder->AddFunction(TestSignatures::i_v());
 
     ExportAsMain(f2);
     uint8_t code2[] = {
@@ -134,11 +132,10 @@ TEST_F(RunWasmModuleTest, Run_WasmModule_ReadLoadedDataSegment) {
     static const uint8_t kDataSegmentDest0 = 12;
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
-    TestSignatures sigs;
 
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     builder->AddMemory(16);
-    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
+    WasmFunctionBuilder* f = builder->AddFunction(TestSignatures::i_v());
 
     ExportAsMain(f);
     uint8_t code[] = {
@@ -156,11 +153,10 @@ TEST_F(RunWasmModuleTest, Run_WasmModule_CheckMemoryIsZero) {
     static const int kCheckSize = 16 * 1024;
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
-    TestSignatures sigs;
 
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     builder->AddMemory(16);
-    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
+    WasmFunctionBuilder* f = builder->AddFunction(TestSignatures::i_v());
 
     uint16_t localIndex = f->AddLocal(kWasmI32);
     ExportAsMain(f);
@@ -182,11 +178,10 @@ TEST_F(RunWasmModuleTest, Run_WasmModule_CallMain_recursive) {
   {
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
-    TestSignatures sigs;
 
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     builder->AddMemory(16);
-    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
+    WasmFunctionBuilder* f = builder->AddFunction(TestSignatures::i_v());
 
     uint16_t localIndex = f->AddLocal(kWasmI32);
     ExportAsMain(f);
@@ -208,16 +203,15 @@ TEST_F(RunWasmModuleTest, Run_WasmModule_Global) {
   {
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
-    TestSignatures sigs;
 
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     uint32_t global1 = builder->AddGlobal(kWasmI32, true, WasmInitExpr(0));
     uint32_t global2 = builder->AddGlobal(kWasmI32, true, WasmInitExpr(0));
-    WasmFunctionBuilder* f1 = builder->AddFunction(sigs.i_v());
+    WasmFunctionBuilder* f1 = builder->AddFunction(TestSignatures::i_v());
     uint8_t code1[] = {
         WASM_I32_ADD(WASM_GLOBAL_GET(global1), WASM_GLOBAL_GET(global2))};
     EMIT_CODE_WITH_END(f1, code1);
-    WasmFunctionBuilder* f2 = builder->AddFunction(sigs.i_v());
+    WasmFunctionBuilder* f2 = builder->AddFunction(TestSignatures::i_v());
     ExportAsMain(f2);
     uint8_t code2[] = {WASM_GLOBAL_SET(global1, WASM_I32V_1(56)),
                        WASM_GLOBAL_SET(global2, WASM_I32V_1(41)),
@@ -232,13 +226,12 @@ TEST_F(RunWasmModuleTest, MemorySize) {
   {
     // Initial memory size is 16, see wasm-module-builder.cc
     static const int kExpectedValue = 16;
-    TestSignatures sigs;
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
 
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     builder->AddMemory(16);
-    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
+    WasmFunctionBuilder* f = builder->AddFunction(TestSignatures::i_v());
     ExportAsMain(f);
     uint8_t code[] = {WASM_MEMORY_SIZE};
     EMIT_CODE_WITH_END(f, code);
@@ -251,13 +244,12 @@ TEST_F(RunWasmModuleTest, Run_WasmModule_MemSize_GrowMem) {
   {
     // Initial memory size = 16 + MemoryGrow(10)
     static const int kExpectedValue = 26;
-    TestSignatures sigs;
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
 
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     builder->AddMemory(16);
-    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
+    WasmFunctionBuilder* f = builder->AddFunction(TestSignatures::i_v());
     ExportAsMain(f);
     uint8_t code[] = {WASM_MEMORY_GROW(WASM_I32V_1(10)), WASM_DROP,
                       WASM_MEMORY_SIZE};
@@ -271,13 +263,12 @@ TEST_F(RunWasmModuleTest, MemoryGrowZero) {
   {
     // Initial memory size is 16, see wasm-module-builder.cc
     static const int kExpectedValue = 16;
-    TestSignatures sigs;
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
 
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     builder->AddMemory(16);
-    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
+    WasmFunctionBuilder* f = builder->AddFunction(TestSignatures::i_v());
     ExportAsMain(f);
     uint8_t code[] = {WASM_MEMORY_GROW(WASM_I32V(0))};
     EMIT_CODE_WITH_END(f, code);
@@ -334,14 +325,13 @@ TEST_F(RunWasmModuleTest, TestInterruptLoop) {
     // thread reads {signal_value_} from memory, it registers the
     // InterruptCallback. Upon exeution, the InterruptCallback write into the
     // WebAssemblyMemory to end the loop in the WebAssembly program.
-    TestSignatures sigs;
     Isolate* isolate = WasmExecutionTestBase::InitIsolateOnce();
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
 
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     builder->AddMemory(16);
-    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
+    WasmFunctionBuilder* f = builder->AddFunction(TestSignatures::i_v());
     ExportAsMain(f);
     uint8_t code[] = {
         WASM_LOOP(
@@ -556,10 +546,10 @@ TEST_F(RunWasmModuleTest, Regress577353387) {
 
     AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
-    TestSignatures sigs;
 
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
-    uint32_t setup_idx = builder->AddImport("setup", sigs.v_v(), "env");
+    uint32_t setup_idx =
+        builder->AddImport("setup", TestSignatures::v_v(), "env");
     ValueType char_code_at_types[] = {kWasmI32, kWasmExternRef, kWasmI32};
     FunctionSig char_code_at_sig(1, 2, char_code_at_types);
     uint32_t char_code_at_idx =
@@ -799,12 +789,11 @@ TEST_F(RunWasmModuleTest, Regress577353387) {
 
 TEST_F(RunWasmModuleTest, Run_WasmModule_MemoryGrowInIf) {
   {
-    TestSignatures sigs;
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     builder->AddMemory(16);
-    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
+    WasmFunctionBuilder* f = builder->AddFunction(TestSignatures::i_v());
     ExportAsMain(f);
     uint8_t code[] = {WASM_IF_ELSE_I(
         WASM_I32V(0), WASM_MEMORY_GROW(WASM_I32V(1)), WASM_I32V(12))};
@@ -820,12 +809,11 @@ TEST_F(RunWasmModuleTest, Run_WasmModule_GrowMemOobOffset) {
     // Initial memory size = 16 + MemoryGrow(10)
     static const int index = kPageSize * 17 + 4;
     int value = 0xACED;
-    TestSignatures sigs;
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
 
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
-    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
+    WasmFunctionBuilder* f = builder->AddFunction(TestSignatures::i_v());
     ExportAsMain(f);
     uint8_t code[] = {WASM_MEMORY_GROW(WASM_I32V_1(1)),
                       WASM_STORE_MEM(MachineType::Int32(), WASM_I32V(index),
@@ -842,13 +830,12 @@ TEST_F(RunWasmModuleTest, Run_WasmModule_GrowMemOobFixedIndex) {
     // Initial memory size = 16 + MemoryGrow(10)
     static const int index = kPageSize * 26 + 4;
     int value = 0xACED;
-    TestSignatures sigs;
     Isolate* isolate = WasmExecutionTestBase::InitIsolateOnce();
     Zone zone(isolate->allocator(), ZONE_NAME);
 
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     builder->AddMemory(16);
-    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());
+    WasmFunctionBuilder* f = builder->AddFunction(TestSignatures::i_i());
     ExportAsMain(f);
     uint8_t code[] = {WASM_MEMORY_GROW(WASM_LOCAL_GET(0)), WASM_DROP,
                       WASM_STORE_MEM(MachineType::Int32(), WASM_I32V(index),
@@ -890,14 +877,13 @@ TEST_F(RunWasmModuleTest, Run_WasmModule_GrowMemOobVariableIndex) {
   {
     static const int kPageSize = 0x10000;
     int value = 0xACED;
-    TestSignatures sigs;
     Isolate* isolate = WasmExecutionTestBase::InitIsolateOnce();
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
 
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     builder->AddMemory(16);
-    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());
+    WasmFunctionBuilder* f = builder->AddFunction(TestSignatures::i_i());
     ExportAsMain(f);
     uint8_t code[] = {WASM_MEMORY_GROW(WASM_I32V_1(1)), WASM_DROP,
                       WASM_STORE_MEM(MachineType::Int32(), WASM_LOCAL_GET(0),
@@ -950,14 +936,13 @@ TEST_F(RunWasmModuleTest, Run_WasmModule_Global_init) {
   {
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
-    TestSignatures sigs;
 
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     uint32_t global1 =
         builder->AddGlobal(kWasmI32, false, WasmInitExpr(777777));
     uint32_t global2 =
         builder->AddGlobal(kWasmI32, false, WasmInitExpr(222222));
-    WasmFunctionBuilder* f1 = builder->AddFunction(sigs.i_v());
+    WasmFunctionBuilder* f1 = builder->AddFunction(TestSignatures::i_v());
     uint8_t code[] = {
         WASM_I32_ADD(WASM_GLOBAL_GET(global1), WASM_GLOBAL_GET(global2))};
     EMIT_CODE_WITH_END(f1, code);

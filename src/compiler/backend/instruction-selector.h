@@ -939,7 +939,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
         : node_(node) {
       op128_ = &graph->Get(node).Cast<turboshaft::Simd128ShuffleOp>();
       // Initialize input mapping.
-      for (int i = 0; i < op128_->input_count; ++i) {
+      for (int i = 0; i < turboshaft::Simd128ShuffleOp::input_count; ++i) {
         input_mapping_.push_back(i);
       }
     }

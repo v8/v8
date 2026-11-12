@@ -772,8 +772,9 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildCapiCallWrapper() {
     WasmRethrowExplicitContextDescriptor interface_descriptor;
     auto call_descriptor = compiler::Linkage::GetStubCallDescriptor(
         __ graph_zone(), interface_descriptor,
-        interface_descriptor.GetStackParameterCount(), CallDescriptor::kNoFlags,
-        Operator::kNoProperties, StubCallMode::kCallBuiltinPointer);
+        WasmRethrowExplicitContextDescriptor::GetStackParameterCount(),
+        CallDescriptor::kNoFlags, Operator::kNoProperties,
+        StubCallMode::kCallBuiltinPointer);
     const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
         call_descriptor, compiler::CanThrow{true},
         compiler::LazyDeoptOnThrow{false}, __ graph_zone());

@@ -2581,9 +2581,8 @@ AsyncCompileJob::~AsyncCompileJob() {
   if (isolate_specific_info_.isolate_) {
     DCHECK_EQ(isolate_specific_info_.isolate_->thread_id(),
               base::ThreadId::Current());
-    isolate_specific_info_.isolate_->global_handles()->Destroy(
-        isolate_specific_info_.native_context_.location());
-    isolate_specific_info_.isolate_->global_handles()->Destroy(
+    GlobalHandles::Destroy(isolate_specific_info_.native_context_.location());
+    GlobalHandles::Destroy(
         isolate_specific_info_.incumbent_context_.location());
   }
 }

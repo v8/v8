@@ -2912,10 +2912,10 @@ INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
 TEST_F(TurboshaftInstructionSelectorTest,
        F64x2PromoteLowF32x4WithS128Load64Zero) {
   StreamBuilder m(this, MachineType::Simd128(), MachineType::Int64());
-  V<Simd128> const load = m.Simd128LoadTransform(
-      m.Parameter(0), m.Int64Constant(2),
-      Simd128LoadTransformOp::LoadKind::RawAligned().Trapping(),
-      Simd128LoadTransformOp::TransformKind::k64Zero, 0);
+  V<Simd128> const load =
+      m.Simd128LoadTransform(m.Parameter(0), m.Int64Constant(2),
+                             Simd128LoadTransformOp::LoadKind::Trapping(),
+                             Simd128LoadTransformOp::TransformKind::k64Zero, 0);
   V<Simd128> const promote = m.F64x2PromoteLowF32x4(load);
   m.Return(promote);
   Stream s = m.Build();

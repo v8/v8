@@ -1124,7 +1124,8 @@ ProcessResult MaglevGraphOptimizer::ProcessCheckMaps(NodeT* node,
                 std::is_same_v<NodeT, CheckMapsWithMigrationAndDeopt>) {
     NodeInfo* known_info =
         known_node_aspects().GetOrCreateInfoFor(broker(), object);
-    node->set_check_type(reducer_.GetCheckType(known_info->type()));
+    node->set_check_type(
+        MaglevReducer<MaglevGraphOptimizer>::GetCheckType(known_info->type()));
   }
 
   if (!merger.UpdateKnownNodeAspects(object, known_node_aspects())) {

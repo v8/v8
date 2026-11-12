@@ -3380,7 +3380,7 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
           Representation::Tagged(), true);
       raw_json_map->AppendDescriptor(isolate(), &d);
     }
-    raw_json_map->SetPrototype(isolate(), raw_json_map, factory->null_value());
+    Map::SetPrototype(isolate(), raw_json_map, factory->null_value());
     raw_json_map->SetConstructor(native_context()->object_function());
     native_context()->set_js_raw_json_map(*raw_json_map);
 

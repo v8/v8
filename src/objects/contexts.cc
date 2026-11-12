@@ -55,7 +55,8 @@ Handle<NameToIndexHashTable> AddLocalNamesFromContext(
   ReadOnlyRoots roots(isolate);
   DirectHandle<ScopeInfo> scope_info(script_context->scope_info(), isolate);
   int local_count = scope_info->ContextLocalCount();
-  names_table = names_table->EnsureCapacity(isolate, names_table, local_count);
+  names_table =
+      NameToIndexHashTable::EnsureCapacity(isolate, names_table, local_count);
 
   for (auto it : ScopeInfo::IterateLocalNames(scope_info)) {
     DirectHandle<Name> name(it->name(), isolate);

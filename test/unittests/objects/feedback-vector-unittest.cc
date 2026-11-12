@@ -62,17 +62,17 @@ TEST_F(FeedbackVectorTest, VectorStructure) {
     FeedbackVectorHelper helper(vector);
     CHECK_EQ(8, helper.slot_count());
 
-    int index = vector->GetIndex(helper.slot(0));
+    int index = FeedbackVector::GetIndex(helper.slot(0));
 
-    CHECK_EQ(helper.slot(0), vector->ToSlot(index));
+    CHECK_EQ(helper.slot(0), FeedbackVector::ToSlot(index));
 
-    index = vector->GetIndex(helper.slot(3));
-    CHECK_EQ(helper.slot(3), vector->ToSlot(index));
+    index = FeedbackVector::GetIndex(helper.slot(3));
+    CHECK_EQ(helper.slot(3), FeedbackVector::ToSlot(index));
 
-    index = vector->GetIndex(helper.slot(7));
+    index = FeedbackVector::GetIndex(helper.slot(7));
     CHECK_EQ(3 + 4 * FeedbackMetadata::GetSlotSize(FeedbackSlotKind::kCall),
              index);
-    CHECK_EQ(helper.slot(7), vector->ToSlot(index));
+    CHECK_EQ(helper.slot(7), FeedbackVector::ToSlot(index));
 
     CHECK_EQ(3 + 5 * FeedbackMetadata::GetSlotSize(FeedbackSlotKind::kCall),
              vector->length().value());

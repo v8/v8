@@ -3731,7 +3731,7 @@ void Shell::ProfilerTriggerSample(
   D8Console* console =
       reinterpret_cast<D8Console*>(i_isolate->console_delegate());
   if (console && console->profiler()) {
-    console->profiler()->CollectSample(isolate);
+    v8::CpuProfiler::CollectSample(isolate);
   }
 }
 

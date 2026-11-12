@@ -1014,7 +1014,7 @@ void Parser::ParseREPLProgram(ParseInfo* info, ScopedPtrList<Statement>* body,
   this->scope()->SetLanguageMode(info->language_mode());
   PrepareGeneratorVariables();
 
-  BlockT block = impl()->NullBlock();
+  BlockT block = Parser::NullBlock();
   {
     StatementListT statements(pointer_buffer());
     ParseStatementList(&statements, Token::kEos);

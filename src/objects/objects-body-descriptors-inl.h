@@ -1001,7 +1001,7 @@ class V8_EXPORT_PRIVATE SwissNameDictionary::BodyDescriptor final
     static_assert(MetaTablePointerOffset() + kTaggedSize ==
                   DataTableStartOffset());
     int start_offset = MetaTablePointerOffset();
-    int end_offset = table->DataTableEndOffset(table->Capacity());
+    int end_offset = SwissNameDictionary::DataTableEndOffset(table->Capacity());
     IteratePointers(obj, start_offset, end_offset, v);
   }
 

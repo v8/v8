@@ -769,8 +769,9 @@ void JSInliningHeuristic::CreateOrReuseDispatch(
     if (node->opcode() == IrOpcode::kJSConstruct) {
       // TODO(jgruber, v8:10675): This branch seems unreachable.
       JSConstructNode n(node);
-      if (inputs[n.TargetIndex()] == inputs[n.NewTargetIndex()]) {
-        inputs[n.NewTargetIndex()] = target;
+      if (inputs[JSConstructNode::TargetIndex()] ==
+          inputs[JSConstructNode::NewTargetIndex()]) {
+        inputs[JSConstructNode::NewTargetIndex()] = target;
       }
     }
     inputs[JSCallOrConstructNode::TargetIndex()] = target;

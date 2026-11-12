@@ -160,7 +160,7 @@ class Word64Adapter {
   Reduction ReduceIntNAdd(Node* node) { return r_->ReduceInt64Add(node); }
   Reduction TryMatchWordNRor(Node* node) {
     // TODO(nicohartmann@): Add a MachineOperatorReducer::TryMatchWord64Ror.
-    return r_->NoChange();
+    return MachineOperatorReducer::NoChange();
   }
 
   Node* IntNConstant(int64_t value) { return r_->Int64Constant(value); }

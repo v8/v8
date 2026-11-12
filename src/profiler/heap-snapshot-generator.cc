@@ -1946,8 +1946,8 @@ void V8HeapExplorer::ExtractEphemeronHashTableReferences(
     Tagged<Object> value = table->get(value_index);
     // This stops auto-generating edges for the key and value from the table.
     // All edges are create by CreateEphmeronEdges() below.
-    MarkVisitedField(table->OffsetOfElementAt(key_index));
-    MarkVisitedField(table->OffsetOfElementAt(value_index));
+    MarkVisitedField(EphemeronHashTable::OffsetOfElementAt(key_index));
+    MarkVisitedField(EphemeronHashTable::OffsetOfElementAt(value_index));
     HeapEntry* key_entry = GetEntry(key);
     HeapEntry* value_entry = GetEntry(value);
     HeapEntry* table_entry = GetEntry(table);
@@ -2564,7 +2564,8 @@ void V8HeapExplorer::ExtractFixedArrayReferences(HeapEntry* entry,
   uint32_t array_len = array->ulength().value();
   for (uint32_t i = 0, l = array_len; i < l; ++i) {
     DCHECK(!HasWeakHeapObjectTag(array->get(i)));
-    SetInternalReference(entry, i, array->get(i), array->OffsetOfElementAt(i));
+    SetInternalReference(entry, i, array->get(i),
+                         FixedArray::OffsetOfElementAt(i));
   }
 }
 
@@ -2734,7 +2735,7 @@ void V8HeapExplorer::ExtractPropertyReferences(Tagged<JSObject> js_obj,
         Cast<JSGlobalObject>(js_obj)->global_dictionary(kAcquireLoad);
     ReadOnlyRoots roots(isolate);
     for (InternalIndex i : dictionary->IterateEntries()) {
-      if (!dictionary->IsKey(roots, dictionary->KeyAt(i))) continue;
+      if (!GlobalDictionary::IsKey(roots, dictionary->KeyAt(i))) continue;
       Tagged<PropertyCell> cell = dictionary->CellAt(i);
       Tagged<Name> name = cell->name();
       Tagged<Object> value = cell->value();
@@ -2751,7 +2752,7 @@ void V8HeapExplorer::ExtractPropertyReferences(Tagged<JSObject> js_obj,
     ReadOnlyRoots roots(isolate);
     for (InternalIndex i : dictionary->IterateEntries()) {
       Tagged<Object> k = dictionary->KeyAt(i);
-      if (!dictionary->IsKey(roots, k)) continue;
+      if (!SwissNameDictionary::IsKey(roots, k)) continue;
       Tagged<Object> value = dictionary->ValueAt(i);
       PropertyDetails details = dictionary->DetailsAt(i);
       SetDataOrAccessorPropertyReference(details.kind(), entry, Cast<Name>(k),
@@ -2762,7 +2763,7 @@ void V8HeapExplorer::ExtractPropertyReferences(Tagged<JSObject> js_obj,
     ReadOnlyRoots roots(isolate);
     for (InternalIndex i : dictionary->IterateEntries()) {
       Tagged<Object> k = dictionary->KeyAt(i);
-      if (!dictionary->IsKey(roots, k)) continue;
+      if (!NameDictionary::IsKey(roots, k)) continue;
       Tagged<Object> value = dictionary->ValueAt(i);
       PropertyDetails details = dictionary->DetailsAt(i);
       SetDataOrAccessorPropertyReference(details.kind(), entry, Cast<Name>(k),
@@ -2805,7 +2806,7 @@ void V8HeapExplorer::ExtractElementReferences(Tagged<JSObject> js_obj,
     Tagged<NumberDictionary> dictionary = js_obj->element_dictionary();
     for (InternalIndex i : dictionary->IterateEntries()) {
       Tagged<Object> k = dictionary->KeyAt(i);
-      if (!dictionary->IsKey(roots, k)) continue;
+      if (!NumberDictionary::IsKey(roots, k)) continue;
       uint32_t index =
           static_cast<uint32_t>(Object::NumberValue(Cast<Number>(k)));
       SetElementReference(entry, index, dictionary->ValueAt(i));

@@ -1329,16 +1329,17 @@ class ImplicationProcessor {
   }
 
   // Called from {DEFINE_*_IMPLICATION} in flag-definitions.h, when the
-  // conclusion flag is read-only (note this is the const overload of the
-  // function just above).
-  template <class T>
+  // conclusion flag is read-only.
+  template <class ReadOnlyFlag>
+    requires requires { typename ReadOnlyFlag::is_readonly_flag; }
   bool TriggerImplication(bool premise, const char* premise_name,
-                          const FlagValue<T>* conclusion_value,
-                          const char* conclusion_name, T value,
+                          const ReadOnlyFlag* conclusion_value,
+                          const char* conclusion_name,
+                          typename ReadOnlyFlag::underlying_type value,
                           ImplicationStrength strength) {
     if (!premise) return false;
     Flag* conclusion_flag = FindImplicationFlagByName(conclusion_name);
-    // Because this is the `const FlagValue*` overload:
+    // Because this is the read-only flag overload:
     DCHECK(conclusion_flag->IsReadOnly());
     if (!conclusion_flag->CheckFlagChange(
             strength == kWeakImplication ? Flag::SetBy::kWeakImplication
@@ -1348,7 +1349,10 @@ class ImplicationProcessor {
     }
     // Must equal the default value, otherwise CheckFlagChange should've
     // returned false.
-    DCHECK(FlagValueEquals(value, conclusion_flag->GetDefaultValue<T>()));
+    DCHECK(FlagValueEquals(
+        value,
+        conclusion_flag
+            ->GetDefaultValue<typename ReadOnlyFlag::underlying_type>()));
     return true;
   }
 

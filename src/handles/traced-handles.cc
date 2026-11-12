@@ -139,10 +139,10 @@ void TracedHandles::FreeNode(TracedNode* node, Address zap_value) {
   }
   block.FreeNode(node, zap_value);
   if (block.IsEmpty()) {
-    usable_blocks_.Remove(&block);
-    blocks_.Remove(&block);
+    TracedNodeBlock::UsableList::Remove(&block);
+    TracedNodeBlock::OverallList::Remove(&block);
     if (block.InYoungList()) {
-      young_blocks_.Remove(&block);
+      TracedNodeBlock::YoungList::Remove(&block);
       DCHECK(!block.InYoungList());
       num_young_blocks_--;
     }
@@ -364,7 +364,7 @@ void TracedHandles::ResetDeadNodes(
     }
 
     if (block->InYoungList()) {
-      young_blocks_.Remove(block);
+      TracedNodeBlock::YoungList::Remove(block);
       DCHECK(!block->InYoungList());
       num_young_blocks_--;
     }
@@ -674,12 +674,12 @@ void TracedHandles::ProcessWeakYoungObjects(
       DCHECK(!block->NeedsReprocessing());
       if (usable_blocks_.Contains(block)) {
         DCHECK(block->InUsableList());
-        usable_blocks_.Remove(block);
+        TracedNodeBlock::UsableList::Remove(block);
         DCHECK(!block->InUsableList());
       }
-      blocks_.Remove(block);
+      TracedNodeBlock::OverallList::Remove(block);
       DCHECK(block->InYoungList());
-      young_blocks_.Remove(block);
+      TracedNodeBlock::YoungList::Remove(block);
       DCHECK(!block->InYoungList());
       num_young_blocks_--;
       empty_blocks_.push_back(block);

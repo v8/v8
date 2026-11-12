@@ -321,7 +321,7 @@ int main(int argc, char** argv) {
               i::v8_flags.builtins_effects_src);
         }
         if (i_isolate->builtins_effects_analyzer() != nullptr) {
-          i_isolate->builtins_effects_analyzer()->TearDown(i_isolate);
+          i::BuiltinsEffectsAnalyzer::TearDown(i_isolate);
         }
       }
       isolate->Dispose();

@@ -2644,7 +2644,7 @@ OpIndex GraphBuilder::Process(
         case MemoryAccessKind::kUnaligned:
           UNREACHABLE();
         case MemoryAccessKind::kTrapping:
-          kind = LoadOp::Kind::RawAligned().Atomic().Trapping();
+          kind = LoadOp::Kind::Trapping().Atomic();
           break;
       }
       RegisterRepresentation result_rep =
@@ -2687,7 +2687,7 @@ OpIndex GraphBuilder::Process(
         case MemoryAccessKind::kUnaligned:
           UNREACHABLE();
         case MemoryAccessKind::kTrapping:
-          kind = StoreOp::Kind::RawAligned().Atomic().Trapping();
+          kind = StoreOp::Kind::Trapping().Atomic();
           break;
       }
       __ Store(

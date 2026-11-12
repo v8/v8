@@ -1205,8 +1205,7 @@ WASM_EXEC_TEST(I64WasmRunner) {
 WASM_EXEC_TEST(Call_Int64Sub) {
   WasmRunner<int64_t, int64_t, int64_t> r(execution_tier);
   // Build the target function.
-  TestSignatures sigs;
-  WasmFunctionCompiler& t = r.NewFunction(sigs.l_ll());
+  WasmFunctionCompiler& t = r.NewFunction(TestSignatures::l_ll());
   t.Build({WASM_I64_SUB(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))});
 
   // Build the caller function.
@@ -1523,10 +1522,10 @@ WASM_EXEC_TEST(UnalignedInt64Store) {
 static void CompileCallIndirectMany(TestExecutionTier tier, ValueType param) {
   // Make sure we don't run out of registers when compiling indirect calls
   // with many many parameters.
-  TestSignatures sigs;
   for (uint8_t num_params = 0; num_params < 40; num_params++) {
     WasmRunner<void> r(tier);
-    FunctionSig* sig = sigs.many(r.zone(), kWasmVoid, param, num_params);
+    FunctionSig* sig =
+        TestSignatures::many(r.zone(), kWasmVoid, param, num_params);
 
     r.builder().AddSignature(sig);
     r.builder().AddSignature(sig);

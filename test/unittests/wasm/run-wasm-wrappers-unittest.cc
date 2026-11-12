@@ -115,8 +115,7 @@ TEST_F(RunWasmWrappersTest, WrapperBudget) {
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
 
     // Define the Wasm function.
-    TestSignatures sigs;
-    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_ii());
+    WasmFunctionBuilder* f = builder->AddFunction(TestSignatures::i_ii());
     f->builder()->AddExport("main", f);
     f->EmitCode({WASM_I32_MUL(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)), WASM_END});
 
@@ -163,8 +162,7 @@ TEST_F(RunWasmWrappersTest, WrapperReplacement) {
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
 
     // Define the Wasm function.
-    TestSignatures sigs;
-    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());
+    WasmFunctionBuilder* f = builder->AddFunction(TestSignatures::i_i());
     f->builder()->AddExport("main", f);
     f->EmitCode({WASM_LOCAL_GET(0), WASM_END});
 
@@ -239,16 +237,15 @@ TEST_F(RunWasmWrappersTest, EagerWrapperReplacement) {
     // Define three Wasm functions.
     // Two of these functions (add and mult) will share the same signature,
     // while the other one (id) won't.
-    TestSignatures sigs;
-    WasmFunctionBuilder* add = builder->AddFunction(sigs.i_ii());
+    WasmFunctionBuilder* add = builder->AddFunction(TestSignatures::i_ii());
     add->builder()->AddExport("add", add);
     add->EmitCode(
         {WASM_I32_ADD(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)), WASM_END});
-    WasmFunctionBuilder* mult = builder->AddFunction(sigs.i_ii());
+    WasmFunctionBuilder* mult = builder->AddFunction(TestSignatures::i_ii());
     mult->builder()->AddExport("mult", mult);
     mult->EmitCode(
         {WASM_I32_MUL(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)), WASM_END});
-    WasmFunctionBuilder* id = builder->AddFunction(sigs.i_i());
+    WasmFunctionBuilder* id = builder->AddFunction(TestSignatures::i_i());
     id->builder()->AddExport("id", id);
     id->EmitCode({WASM_LOCAL_GET(0), WASM_END});
 
@@ -346,8 +343,7 @@ TEST_F(RunWasmWrappersTest, WrapperReplacement_IndirectExport) {
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
 
     // Define a Wasm function, but do not add it to the exports.
-    TestSignatures sigs;
-    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());
+    WasmFunctionBuilder* f = builder->AddFunction(TestSignatures::i_i());
     f->EmitCode({WASM_LOCAL_GET(0), WASM_END});
     uint32_t function_index = f->func_index();
 
@@ -414,8 +410,7 @@ TEST_F(RunWasmWrappersTest, JSToWasmWrapperGarbageCollection) {
     WasmModuleBuilder builder{&zone};
 
     // Define an exported Wasm function.
-    TestSignatures sigs;
-    WasmFunctionBuilder* f = builder.AddFunction(sigs.i_v());
+    WasmFunctionBuilder* f = builder.AddFunction(TestSignatures::i_v());
     builder.AddExport("main", f);
     f->EmitCode({WASM_ONE, WASM_END});
 

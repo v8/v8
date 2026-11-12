@@ -96,7 +96,7 @@ void RuntimeTestRunner::Put(InternalIndex entry, DirectHandle<Object> new_value,
 
 void RuntimeTestRunner::Delete(InternalIndex entry) {
   CHECK(entry.is_found());
-  table = table->DeleteEntry(isolate_, table, entry);
+  table = SwissNameDictionary::DeleteEntry(isolate_, table, entry);
 }
 
 void RuntimeTestRunner::CheckCounts(std::optional<uint32_t> capacity,

@@ -1565,7 +1565,7 @@ void CodeAssembler::TailCallJSCode(TNode<Code> code, TNode<Context> context,
                                    TNode<JSDispatchHandleT> dispatch_handle) {
   JSTrampolineDescriptor descriptor;
   auto call_descriptor = Linkage::GetStubCallDescriptor(
-      zone(), descriptor, descriptor.GetStackParameterCount(),
+      zone(), descriptor, JSTrampolineDescriptor::GetStackParameterCount(),
       CallDescriptor::kFixedTargetRegister, Operator::kNoProperties,
       StubCallMode::kCallCodeObject);
 

@@ -4699,7 +4699,7 @@ void Simulator::VisitNEON2RegMisc(Instruction* instr) {
         uadalp(vf_lp, rd, rn);
         break;
       case NEON_RBIT_NOT:
-        vf = nfd.GetVectorFormat(nfd.LogicalFormatMap());
+        vf = nfd.GetVectorFormat(NEONFormatDecoder::LogicalFormatMap());
         switch (instr->FPType()) {
           case 0:
             not_(vf, rd, rn);
@@ -4713,10 +4713,10 @@ void Simulator::VisitNEON2RegMisc(Instruction* instr) {
         break;
     }
   } else {
-    VectorFormat fpf = nfd.GetVectorFormat(instr->Mask(NEON2RegMiscHPFixed) ==
-                                                   NEON2RegMiscHPFixed
-                                               ? nfd.FPHPFormatMap()
-                                               : nfd.FPFormatMap());
+    VectorFormat fpf = nfd.GetVectorFormat(
+        instr->Mask(NEON2RegMiscHPFixed) == NEON2RegMiscHPFixed
+            ? NEONFormatDecoder::FPHPFormatMap()
+            : NEONFormatDecoder::FPFormatMap());
     FPRounding fpcr_rounding = static_cast<FPRounding>(fpcr().RMode());
     bool inexact_exception = false;
 
@@ -4858,7 +4858,8 @@ void Simulator::VisitNEON2RegMisc(Instruction* instr) {
               sqxtun(vf, rd, rn);
               return;
             case NEON_SHLL:
-              vf = nfd.GetVectorFormat(nfd.LongIntegerFormatMap());
+              vf = nfd.GetVectorFormat(
+                  NEONFormatDecoder::LongIntegerFormatMap());
               if (instr->Mask(NEON_Q)) {
                 shll2(vf, rd, rn);
               } else {
@@ -4966,7 +4967,8 @@ void Simulator::VisitNEON3Same(Instruction* instr) {
   SimVRegister& rm = vreg(instr->Rm());
 
   if (instr->Mask(NEON3SameLogicalFMask) == NEON3SameLogicalFixed) {
-    VectorFormat vf = nfd.GetVectorFormat(nfd.LogicalFormatMap());
+    VectorFormat vf =
+        nfd.GetVectorFormat(NEONFormatDecoder::LogicalFormatMap());
     switch (instr->Mask(NEON3SameLogicalMask)) {
       case NEON_AND:
         and_(vf, rd, rn, rm);
@@ -4996,7 +4998,7 @@ void Simulator::VisitNEON3Same(Instruction* instr) {
         UNIMPLEMENTED();
     }
   } else if (instr->Mask(NEON3SameFPFMask) == NEON3SameFPFixed) {
-    VectorFormat vf = nfd.GetVectorFormat(nfd.FPFormatMap());
+    VectorFormat vf = nfd.GetVectorFormat(NEONFormatDecoder::FPFormatMap());
     VisitNEON3SameFP(instr->Mask(NEON3SameFPMask), vf, rd, rn, rm);
   } else {
     VectorFormat vf = nfd.GetVectorFormat();
@@ -5147,7 +5149,7 @@ void Simulator::VisitNEON3SameHP(Instruction* instr) {
   SimVRegister& rd = vreg(instr->Rd());
   SimVRegister& rn = vreg(instr->Rn());
   SimVRegister& rm = vreg(instr->Rm());
-  VectorFormat vf = nfd.GetVectorFormat(nfd.FPHPFormatMap());
+  VectorFormat vf = nfd.GetVectorFormat(NEONFormatDecoder::FPHPFormatMap());
   VisitNEON3SameFP(instr->Mask(NEON3SameFPMask) | NEON3SameHPMask, vf, rd, rn,
                    rm);
 }
@@ -5155,7 +5157,8 @@ void Simulator::VisitNEON3SameHP(Instruction* instr) {
 void Simulator::VisitNEON3Different(Instruction* instr) {
   NEONFormatDecoder nfd(instr);
   VectorFormat vf = nfd.GetVectorFormat();
-  VectorFormat vf_l = nfd.GetVectorFormat(nfd.LongIntegerFormatMap());
+  VectorFormat vf_l =
+      nfd.GetVectorFormat(NEONFormatDecoder::LongIntegerFormatMap());
 
   SimVRegister& rd = vreg(instr->Rd());
   SimVRegister& rn = vreg(instr->Rn());
@@ -5363,7 +5366,7 @@ void Simulator::VisitNEONAcrossLanes(Instruction* instr) {
 
   // The input operand's VectorFormat is passed for these instructions.
   if (instr->Mask(NEONAcrossLanesFPFMask) == NEONAcrossLanesFPFixed) {
-    VectorFormat vf = nfd.GetVectorFormat(nfd.FPFormatMap());
+    VectorFormat vf = nfd.GetVectorFormat(NEONFormatDecoder::FPFormatMap());
 
     switch (instr->Mask(NEONAcrossLanesFPMask)) {
       case NEON_FMAXV:
@@ -5415,7 +5418,8 @@ void Simulator::VisitNEONAcrossLanes(Instruction* instr) {
 void Simulator::VisitNEONByIndexedElement(Instruction* instr) {
   NEONFormatDecoder nfd(instr);
   VectorFormat vf_r = nfd.GetVectorFormat();
-  VectorFormat vf = nfd.GetVectorFormat(nfd.LongIntegerFormatMap());
+  VectorFormat vf =
+      nfd.GetVectorFormat(NEONFormatDecoder::LongIntegerFormatMap());
 
   SimVRegister& rd = vreg(instr->Rd());
   SimVRegister& rn = vreg(instr->Rn());
@@ -5519,7 +5523,7 @@ void Simulator::VisitNEONByIndexedElement(Instruction* instr) {
         index = (index << 1) | instr->NEONL();
       }
 
-      vf = nfd.GetVectorFormat(nfd.FPFormatMap());
+      vf = nfd.GetVectorFormat(NEONFormatDecoder::FPFormatMap());
 
       switch (instr->Mask(NEONByIndexedElementFPMask)) {
         case NEON_FMUL_byelement:
@@ -6151,7 +6155,8 @@ void Simulator::VisitNEONScalar2RegMisc(Instruction* instr) {
         UNIMPLEMENTED();
     }
   } else {
-    VectorFormat fpf = nfd.GetVectorFormat(nfd.FPScalarFormatMap());
+    VectorFormat fpf =
+        nfd.GetVectorFormat(NEONFormatDecoder::FPScalarFormatMap());
     FPRounding fpcr_rounding = static_cast<FPRounding>(fpcr().RMode());
 
     // These instructions all use a one bit size field, except SQXTUN, SQXTN
@@ -6272,7 +6277,7 @@ void Simulator::VisitNEONScalar3Same(Instruction* instr) {
   SimVRegister& rm = vreg(instr->Rm());
 
   if (instr->Mask(NEONScalar3SameFPFMask) == NEONScalar3SameFPFixed) {
-    vf = nfd.GetVectorFormat(nfd.FPScalarFormatMap());
+    vf = nfd.GetVectorFormat(NEONFormatDecoder::FPScalarFormatMap());
     switch (instr->Mask(NEONScalar3SameFPMask)) {
       case NEON_FMULX_scalar:
         fmulx(vf, rd, rn, rm);
@@ -6381,7 +6386,7 @@ void Simulator::VisitNEONScalar3Same(Instruction* instr) {
 void Simulator::VisitNEONScalarByIndexedElement(Instruction* instr) {
   NEONFormatDecoder nfd(instr, NEONFormatDecoder::LongScalarFormatMap());
   VectorFormat vf = nfd.GetVectorFormat();
-  VectorFormat vf_r = nfd.GetVectorFormat(nfd.ScalarFormatMap());
+  VectorFormat vf_r = nfd.GetVectorFormat(NEONFormatDecoder::ScalarFormatMap());
 
   SimVRegister& rd = vreg(instr->Rd());
   SimVRegister& rn = vreg(instr->Rn());
@@ -6413,7 +6418,7 @@ void Simulator::VisitNEONScalarByIndexedElement(Instruction* instr) {
       vf = vf_r;
       break;
     default:
-      vf = nfd.GetVectorFormat(nfd.FPScalarFormatMap());
+      vf = nfd.GetVectorFormat(NEONFormatDecoder::FPScalarFormatMap());
       index = instr->NEONH();
       if ((instr->FPType() & 1) == 0) {
         index = (index << 1) | instr->NEONL();

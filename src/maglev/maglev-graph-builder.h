@@ -664,7 +664,7 @@ class MaglevGraphBuilder {
   }
 
   enum CheckType GetCheckType(NodeType type) {
-    return reducer_.GetCheckType(type);
+    return MaglevReducer<MaglevGraphBuilder>::GetCheckType(type);
   }
 
   ReduceResult BuildAbort(AbortReason reason) {

@@ -1454,9 +1454,12 @@ class LiftoffCompiler {
       WasmGrowableStackGuardDescriptor descriptor;
       DCHECK_EQ(0, descriptor.GetStackParameterCount());
       DCHECK_EQ(3, descriptor.GetRegisterParameterCount());
-      Register param_reg0 = descriptor.GetRegisterParameter(0);
-      Register param_reg1 = descriptor.GetRegisterParameter(1);
-      Register param_reg2 = descriptor.GetRegisterParameter(2);
+      Register param_reg0 =
+          WasmGrowableStackGuardDescriptor::GetRegisterParameter(0);
+      Register param_reg1 =
+          WasmGrowableStackGuardDescriptor::GetRegisterParameter(1);
+      Register param_reg2 =
+          WasmGrowableStackGuardDescriptor::GetRegisterParameter(2);
       __ LoadConstant(LiftoffRegister(param_reg0),
                       WasmValue::ForUintPtr((descriptor_->ParameterSlotCount() +
                                              descriptor_->ReturnSlotCount()) *
@@ -1469,7 +1472,7 @@ class LiftoffCompiler {
       WasmStackGuardDescriptor descriptor;
       DCHECK_EQ(0, descriptor.GetStackParameterCount());
       DCHECK_EQ(1, descriptor.GetRegisterParameterCount());
-      Register param_reg = descriptor.GetRegisterParameter(0);
+      Register param_reg = WasmStackGuardDescriptor::GetRegisterParameter(0);
       __ LoadConstant(LiftoffRegister(param_reg), WasmValue::ForUintPtr(0));
     }
 
@@ -3562,7 +3565,7 @@ class LiftoffCompiler {
       WasmTraceExitDescriptor descriptor;
       DCHECK_EQ(0, descriptor.GetStackParameterCount());
       DCHECK_EQ(1, descriptor.GetRegisterParameterCount());
-      Register param_reg = descriptor.GetRegisterParameter(0);
+      Register param_reg = WasmTraceExitDescriptor::GetRegisterParameter(0);
       if (num_returns == 1) {
         auto& return_slot = __ cache_state() -> stack_state.back();
         if (return_slot.is_const()) {
@@ -4380,7 +4383,7 @@ class LiftoffCompiler {
     WasmTraceGlobalDescriptor descriptor;
     DCHECK_EQ(0, descriptor.GetStackParameterCount());
     DCHECK_EQ(1, descriptor.GetRegisterParameterCount());
-    Register param_reg = descriptor.GetRegisterParameter(0);
+    Register param_reg = WasmTraceGlobalDescriptor::GetRegisterParameter(0);
     if (info.gp() != param_reg) {
       __ Move(param_reg, info.gp(), kIntPtrKind);
     }
@@ -4457,7 +4460,7 @@ class LiftoffCompiler {
     WasmTraceMemoryDescriptor descriptor;
     DCHECK_EQ(0, descriptor.GetStackParameterCount());
     DCHECK_EQ(1, descriptor.GetRegisterParameterCount());
-    Register param_reg = descriptor.GetRegisterParameter(0);
+    Register param_reg = WasmTraceMemoryDescriptor::GetRegisterParameter(0);
     if (info.gp() != param_reg) {
       __ Move(param_reg, info.gp(), kIntPtrKind);
     }
@@ -4878,14 +4881,16 @@ class LiftoffCompiler {
     DCHECK_EQ(machine_type(kI32), descriptor.GetParameterType(0));
     DCHECK_EQ(machine_type(kI32), descriptor.GetParameterType(1));
 
-    Register num_pages_param_reg = descriptor.GetRegisterParameter(1);
+    Register num_pages_param_reg =
+        WasmMemoryGrowDescriptor::GetRegisterParameter(1);
     if (num_pages.gp() != num_pages_param_reg) {
       __ Move(num_pages_param_reg, num_pages.gp(), kI32);
     }
 
     // Load the constant after potentially moving the {num_pages} register to
     // avoid overwriting it.
-    Register mem_index_param_reg = descriptor.GetRegisterParameter(0);
+    Register mem_index_param_reg =
+        WasmMemoryGrowDescriptor::GetRegisterParameter(0);
     __ LoadConstant(LiftoffRegister{mem_index_param_reg}, WasmValue(imm.index));
 
     __ CallBuiltin(Builtin::kWasmMemoryGrow);

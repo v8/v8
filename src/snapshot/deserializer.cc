@@ -900,9 +900,11 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
     // marker does not break when marking EphemeronHashTable, see
     // MarkingVisitorBase::VisitEphemeronHashTable.
     Tagged<EphemeronHashTable> table = Cast<EphemeronHashTable>(raw_obj);
-    MemsetTagged(Cast<HeapObject>(table)->RawField(table->kElementsStartOffset),
+    MemsetTagged(Cast<HeapObject>(table)->RawField(
+                     EphemeronHashTable::kElementsStartOffset),
                  ReadOnlyRoots(isolate()).undefined_value(),
-                 (size_in_bytes - table->kElementsStartOffset) / kTaggedSize);
+                 (size_in_bytes - EphemeronHashTable::kElementsStartOffset) /
+                     kTaggedSize);
   }
 
 #ifdef DEBUG

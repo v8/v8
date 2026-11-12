@@ -81,8 +81,8 @@ class MaglevAssembler::TemporaryRegisterScope
   }
 
   void ResetToDefaultImpl() {
-    scratch_scope_.SetAvailable(masm_->DefaultTmpList());
-    scratch_scope_.SetAvailableFP(masm_->DefaultFPTmpList());
+    scratch_scope_.SetAvailable(MaglevAssembler::DefaultTmpList());
+    scratch_scope_.SetAvailableFP(MaglevAssembler::DefaultFPTmpList());
   }
 
  private:

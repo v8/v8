@@ -54,7 +54,6 @@ bool CheckType<std::nullptr_t>(v8::Local<v8::Value> result) {
   return result->IsNull();
 }
 
-static TestSignatures sigs;
 
 struct ExportedFunction {
   std::string name;
@@ -78,65 +77,66 @@ struct ExportedFunction {
 #define DECLARE_EXPORTED_FUNCTION_WITH_LOCALS(name, sig, locals, code) \
   static ExportedFunction k_##name = {#name, sig, locals, code};
 
-DECLARE_EXPORTED_FUNCTION(nop, sigs.v_v(), WASM_CODE({WASM_NOP}))
+DECLARE_EXPORTED_FUNCTION(nop, TestSignatures::v_v(), WASM_CODE({WASM_NOP}))
 
-DECLARE_EXPORTED_FUNCTION(unreachable, sigs.v_v(),
+DECLARE_EXPORTED_FUNCTION(unreachable, TestSignatures::v_v(),
                           WASM_CODE({WASM_UNREACHABLE}))
 
-DECLARE_EXPORTED_FUNCTION(i32_square, sigs.i_i(),
+DECLARE_EXPORTED_FUNCTION(i32_square, TestSignatures::i_i(),
                           WASM_CODE({WASM_LOCAL_GET(0), WASM_LOCAL_GET(0),
                                      kExprI32Mul}))
 
-DECLARE_EXPORTED_FUNCTION(i64_square, sigs.l_l(),
+DECLARE_EXPORTED_FUNCTION(i64_square, TestSignatures::l_l(),
                           WASM_CODE({WASM_LOCAL_GET(0), WASM_LOCAL_GET(0),
                                      kExprI64Mul}))
 
-DECLARE_EXPORTED_FUNCTION(externref_null_id, sigs.a_a(),
+DECLARE_EXPORTED_FUNCTION(externref_null_id, TestSignatures::a_a(),
                           WASM_CODE({WASM_LOCAL_GET(0)}))
 
-DECLARE_EXPORTED_FUNCTION(f32_square, sigs.f_f(),
+DECLARE_EXPORTED_FUNCTION(f32_square, TestSignatures::f_f(),
                           WASM_CODE({WASM_LOCAL_GET(0), WASM_LOCAL_GET(0),
                                      kExprF32Mul}))
 
-DECLARE_EXPORTED_FUNCTION(f64_square, sigs.d_d(),
+DECLARE_EXPORTED_FUNCTION(f64_square, TestSignatures::d_d(),
                           WASM_CODE({WASM_LOCAL_GET(0), WASM_LOCAL_GET(0),
                                      kExprF64Mul}))
 
-DECLARE_EXPORTED_FUNCTION(void_square, sigs.v_i(),
+DECLARE_EXPORTED_FUNCTION(void_square, TestSignatures::v_i(),
                           WASM_CODE({WASM_LOCAL_GET(0), WASM_LOCAL_GET(0),
                                      kExprI32Mul, kExprDrop}))
 
-DECLARE_EXPORTED_FUNCTION(add, sigs.i_ii(),
+DECLARE_EXPORTED_FUNCTION(add, TestSignatures::i_ii(),
                           WASM_CODE({WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
                                      kExprI32Add}))
 
-DECLARE_EXPORTED_FUNCTION(i64_add, sigs.l_ll(),
+DECLARE_EXPORTED_FUNCTION(i64_add, TestSignatures::l_ll(),
                           WASM_CODE({WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
                                      kExprI64Add}))
 
-DECLARE_EXPORTED_FUNCTION(sum3, sigs.i_iii(),
+DECLARE_EXPORTED_FUNCTION(sum3, TestSignatures::i_iii(),
                           WASM_CODE({WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
                                      WASM_LOCAL_GET(2), kExprI32Add,
                                      kExprI32Add}))
 
-DECLARE_EXPORTED_FUNCTION(no_args, sigs.i_v(), WASM_CODE({WASM_I32V(42)}))
+DECLARE_EXPORTED_FUNCTION(no_args, TestSignatures::i_v(),
+                          WASM_CODE({WASM_I32V(42)}))
 
-DECLARE_EXPORTED_FUNCTION(load_i32, sigs.i_i(),
+DECLARE_EXPORTED_FUNCTION(load_i32, TestSignatures::i_i(),
                           WASM_CODE({WASM_LOAD_MEM(MachineType::Int32(),
                                                    WASM_LOCAL_GET(0))}))
-DECLARE_EXPORTED_FUNCTION(load_i64, sigs.l_l(),
+DECLARE_EXPORTED_FUNCTION(load_i64, TestSignatures::l_l(),
                           WASM_CODE({WASM_I64_SCONVERT_I32(WASM_LOAD_MEM(
                               MachineType::Int32(),
                               WASM_I32_CONVERT_I64(WASM_LOCAL_GET(0))))}))
-DECLARE_EXPORTED_FUNCTION(load_f32, sigs.f_f(),
+DECLARE_EXPORTED_FUNCTION(load_f32, TestSignatures::f_f(),
                           WASM_CODE({WASM_F32_SCONVERT_I32(WASM_LOAD_MEM(
                               MachineType::Int32(),
                               WASM_I32_SCONVERT_F32(WASM_LOCAL_GET(0))))}))
-DECLARE_EXPORTED_FUNCTION(load_f64, sigs.d_d(),
+DECLARE_EXPORTED_FUNCTION(load_f64, TestSignatures::d_d(),
                           WASM_CODE({WASM_F64_SCONVERT_I32(WASM_LOAD_MEM(
                               MachineType::Int32(),
                               WASM_I32_SCONVERT_F64(WASM_LOCAL_GET(0))))}))
-DECLARE_EXPORTED_FUNCTION(store_i32, sigs.v_ii(),
+DECLARE_EXPORTED_FUNCTION(store_i32, TestSignatures::v_ii(),
                           WASM_CODE({WASM_STORE_MEM(MachineType::Int32(),
                                                     WASM_LOCAL_GET(0),
                                                     WASM_LOCAL_GET(1))}))
@@ -178,7 +178,7 @@ DECLARE_EXPORTED_FUNCTION(
 //   return f32 * f32;
 // }
 DECLARE_EXPORTED_FUNCTION_WITH_LOCALS(
-    f32_square_deopt, sigs.f_f(), {kWasmI32},
+    f32_square_deopt, TestSignatures::f_f(), {kWasmI32},
     WASM_CODE(
         {WASM_STORE_MEM(
              MachineType::Int32(), WASM_I32V(1024),
@@ -199,7 +199,7 @@ DECLARE_EXPORTED_FUNCTION_WITH_LOCALS(
 //   return f64 * f64;
 // }
 DECLARE_EXPORTED_FUNCTION_WITH_LOCALS(
-    f64_square_deopt, sigs.d_d(), {kWasmI32},
+    f64_square_deopt, TestSignatures::d_d(), {kWasmI32},
     WASM_CODE(
         {WASM_STORE_MEM(
              MachineType::Int32(), WASM_I32V(1028),
@@ -219,7 +219,7 @@ DECLARE_EXPORTED_FUNCTION_WITH_LOCALS(
 //   return i32 * i32;
 // }
 DECLARE_EXPORTED_FUNCTION_WITH_LOCALS(
-    i32_square_deopt, sigs.i_i(), {kWasmI32},
+    i32_square_deopt, TestSignatures::i_i(), {kWasmI32},
     WASM_CODE(
         {WASM_STORE_MEM(
              MachineType::Int32(), WASM_I32V(1032),
@@ -240,7 +240,7 @@ DECLARE_EXPORTED_FUNCTION_WITH_LOCALS(
 //   return i64 * i64;
 // }
 DECLARE_EXPORTED_FUNCTION_WITH_LOCALS(
-    i64_square_deopt, sigs.l_l(), {kWasmI32},
+    i64_square_deopt, TestSignatures::l_l(), {kWasmI32},
     WASM_CODE(
         {WASM_STORE_MEM(
              MachineType::Int32(), WASM_I32V(1036),
@@ -260,7 +260,7 @@ DECLARE_EXPORTED_FUNCTION_WITH_LOCALS(
 //   }
 // }
 DECLARE_EXPORTED_FUNCTION_WITH_LOCALS(
-    void_square_deopt, sigs.v_i(), {kWasmI32},
+    void_square_deopt, TestSignatures::v_i(), {kWasmI32},
     WASM_CODE(
         {WASM_STORE_MEM(
              MachineType::Int32(), WASM_I32V(1040),
@@ -993,7 +993,7 @@ TEST(TestFastJSWasmCall_LazyDeopt_RefResult) {
 TEST(TestFastJSWasmCall_LazyDeopt_I32Result) {
   v8::HandleScope scope(CcTest::isolate());
   FastJSWasmCallTester tester;
-  tester.DeclareCallback("callback", sigs.v_d(), "env");
+  tester.DeclareCallback("callback", TestSignatures::v_d(), "env");
   tester.AddExportedFunction(k_i32_square_deopt);
   auto args = std::to_array<v8::Local<v8::Value>>({v8_num(42)});
   tester.CallAndCheckWasmFunction<int32_t>("i32_square_deopt", args,
@@ -1003,7 +1003,7 @@ TEST(TestFastJSWasmCall_LazyDeopt_I32Result) {
 TEST(TestFastJSWasmCall_LazyDeopt_I64Result) {
   v8::HandleScope scope(CcTest::isolate());
   FastJSWasmCallTester tester;
-  tester.DeclareCallback("callback", sigs.v_d(), "env");
+  tester.DeclareCallback("callback", TestSignatures::v_d(), "env");
   tester.AddExportedFunction(k_i64_square_deopt);
 
   auto args1 = std::to_array<v8::Local<v8::Value>>({v8_bigint(42)});
@@ -1022,7 +1022,7 @@ TEST(TestFastJSWasmCall_LazyDeopt_I64Result) {
 TEST(TestFastJSWasmCall_LazyDeopt_F32Result) {
   v8::HandleScope scope(CcTest::isolate());
   FastJSWasmCallTester tester;
-  tester.DeclareCallback("callback", sigs.v_d(), "env");
+  tester.DeclareCallback("callback", TestSignatures::v_d(), "env");
   tester.AddExportedFunction(k_f32_square_deopt);
   auto args = std::to_array<v8::Local<v8::Value>>({v8_num(42.0)});
   tester.CallAndCheckWasmFunction<float>("f32_square_deopt", args, 43 * 43 + 1,
@@ -1032,7 +1032,7 @@ TEST(TestFastJSWasmCall_LazyDeopt_F32Result) {
 TEST(TestFastJSWasmCall_LazyDeopt_F64Result) {
   v8::HandleScope scope(CcTest::isolate());
   FastJSWasmCallTester tester;
-  tester.DeclareCallback("callback", sigs.v_d(), "env");
+  tester.DeclareCallback("callback", TestSignatures::v_d(), "env");
   tester.AddExportedFunction(k_f64_square_deopt);
   auto args = std::to_array<v8::Local<v8::Value>>({v8_num(42.0)});
   tester.CallAndCheckWasmFunction<float>("f64_square_deopt", args, 43 * 43 + 1,
@@ -1042,7 +1042,7 @@ TEST(TestFastJSWasmCall_LazyDeopt_F64Result) {
 TEST(TestFastJSWasmCall_LazyDeopt_VoidResult) {
   v8::HandleScope scope(CcTest::isolate());
   FastJSWasmCallTester tester;
-  tester.DeclareCallback("callback", sigs.v_d(), "env");
+  tester.DeclareCallback("callback", TestSignatures::v_d(), "env");
   tester.AddExportedFunction(k_void_square_deopt);
   auto args = std::to_array<v8::Local<v8::Value>>({v8_num(42.0)});
   tester.CallAndCheckWasmFunction("void_square_deopt", args, true);

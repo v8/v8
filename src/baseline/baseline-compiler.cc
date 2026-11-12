@@ -225,7 +225,7 @@ struct ArgumentSettingHelper<Descriptor, ArgIndex, true,
     for (int i = 0; ArgIndex + i < Descriptor::GetRegisterParameterCount();
          ++i) {
       Register target = Descriptor::GetRegisterParameter(ArgIndex + i);
-      masm->Move(target, masm->RegisterFrameOperand(list[i]));
+      masm->Move(target, BaselineAssembler::RegisterFrameOperand(list[i]));
     }
   }
 };

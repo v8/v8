@@ -4981,12 +4981,12 @@ void ConstantPool::Check(Emission force_emit, Jump require_jump,
     // the constant pool.
     int worst_case_size = ComputeSize(Jump::kRequired, Alignment::kRequired);
     assm_->CheckVeneerPool(false, require_jump == Jump::kRequired,
-                           assm_->kVeneerDistanceMargin + worst_case_size +
+                           Assembler::kVeneerDistanceMargin + worst_case_size +
                                static_cast<int>(margin));
 
     // Check that the code buffer is large enough before emitting the constant
     // pool (this includes the gap to the relocation information).
-    int needed_space = worst_case_size + assm_->kGap;
+    int needed_space = worst_case_size + Assembler::kGap;
     while (assm_->buffer_space() <= needed_space) {
       assm_->GrowBuffer();
     }

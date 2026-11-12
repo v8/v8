@@ -482,7 +482,7 @@ OptimizedCompilationJob::CollectRetainedMaps(
   for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
     DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
     Tagged<HeapObject> target_object = it.rinfo()->target_object();
-    if (code->IsWeakObjectInOptimizedCode(target_object)) {
+    if (Code::IsWeakObjectInOptimizedCode(target_object)) {
       if (Tagged<Map> map; TryCast<Map>(target_object, &map)) {
         // Every weak map embedded in optimized code was canonicalized into
         // `canonical_handles` during compilation. Reuse its existing canonical

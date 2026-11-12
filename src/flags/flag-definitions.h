@@ -38,11 +38,22 @@
 #define DISALLOW_UNSAFE_FLAG(flag) DISALLOW_UNSAFE_FLAG_IF(true, flag)
 
 // With FLAG_MODE_DECLARE we declare the fields in the {FlagValues} struct.
-// Read-only flags are static constants instead of fields.
+// Read-only flags are empty non-static structs with [[no_unique_address]] so
+// they occupy no storage and can still be read uniformly via v8_flags.<name>
+// without triggering readability-static-accessed-through-instance.
 #if defined(FLAG_MODE_DECLARE)
 #define FLAG_FULL(ftype, ctype, nam, def, cmt) FlagValue<ctype> nam{def};
-#define FLAG_READONLY(ftype, ctype, nam, def, cmt) \
-  static constexpr FlagValue<ctype> nam{def};
+#define FLAG_READONLY(ftype, ctype, nam, def, cmt)                \
+  struct FlagValue_##nam {                                        \
+    using underlying_type = ctype;                                \
+    using is_readonly_flag = void;                                \
+    /* Implicitly convert to a {ctype}. Not marked {constexpr} so \
+     * we do not get compiler warnings about dead code. */        \
+    operator ctype() const { return def; }                        \
+    constexpr ctype value() const { return def; }                 \
+    FlagValue_##nam& operator=(const FlagValue_##nam&) = delete;  \
+  };                                                              \
+  V8_NO_UNIQUE_ADDRESS FlagValue_##nam nam{};
 
 // We need to define all of our default values so that the Flag structure can
 // access them by pointer.  These are just used internally inside of one .cc,

@@ -1618,7 +1618,7 @@ class DictionaryElementsAccessor
           // deleted and adjust range accordingly.
           for (InternalIndex entry : dict->IterateEntries()) {
             Tagged<Object> index = dict->KeyAt(entry);
-            if (dict->IsKey(roots, index)) {
+            if (NumberDictionary::IsKey(roots, index)) {
               uint32_t number =
                   static_cast<uint32_t>(Object::NumberValue(index));
               if (length <= number && number < old_length) {
@@ -1637,7 +1637,7 @@ class DictionaryElementsAccessor
           int removed_entries = 0;
           for (InternalIndex entry : dict->IterateEntries()) {
             Tagged<Object> index = dict->KeyAt(entry);
-            if (dict->IsKey(roots, index)) {
+            if (NumberDictionary::IsKey(roots, index)) {
               uint32_t number =
                   static_cast<uint32_t>(Object::NumberValue(index));
               if (length <= number && number < old_length) {
@@ -1684,7 +1684,7 @@ class DictionaryElementsAccessor
     ReadOnlyRoots roots = GetReadOnlyRoots();
     for (InternalIndex i : dict->IterateEntries()) {
       Tagged<Object> key = dict->KeyAt(i);
-      if (!dict->IsKey(roots, key)) continue;
+      if (!NumberDictionary::IsKey(roots, key)) continue;
       PropertyDetails details = dict->DetailsAt(i);
       if (details.kind() == PropertyKind::kAccessor) return true;
     }
@@ -1819,7 +1819,9 @@ class DictionaryElementsAccessor
                                      PropertyFilter filter) {
     DisallowGarbageCollection no_gc;
     Tagged<Object> raw_key = dictionary->KeyAt(entry);
-    if (!dictionary->IsKey(ReadOnlyRoots(isolate), raw_key)) return kMaxUInt32;
+    if (!NumberDictionary::IsKey(ReadOnlyRoots(isolate), raw_key)) {
+      return kMaxUInt32;
+    }
     return FilterKey(dictionary, entry, raw_key, filter);
   }
 
@@ -1837,7 +1839,7 @@ class DictionaryElementsAccessor
     for (InternalIndex i : dictionary->IterateEntries()) {
       AllowGarbageCollection allow_gc;
       Tagged<Object> raw_key = dictionary->KeyAt(i);
-      if (!dictionary->IsKey(roots, raw_key)) continue;
+      if (!NumberDictionary::IsKey(roots, raw_key)) continue;
       uint32_t key = FilterKey(dictionary, i, raw_key, filter);
       if (key == kMaxUInt32) {
         // This might allocate, but {raw_key} is not used afterwards.
@@ -1883,7 +1885,7 @@ class DictionaryElementsAccessor
     ReadOnlyRoots roots(isolate);
     for (InternalIndex i : dictionary->IterateEntries()) {
       Tagged<Object> k = dictionary->KeyAt(i);
-      if (!dictionary->IsKey(roots, k)) continue;
+      if (!NumberDictionary::IsKey(roots, k)) continue;
       Tagged<Object> value = dictionary->ValueAt(i);
       DCHECK(!IsTheHole(value));
       DCHECK(!IsAccessorPair(value));

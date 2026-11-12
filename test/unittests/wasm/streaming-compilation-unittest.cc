@@ -396,11 +396,10 @@ constexpr const char* kExportNames[] = {"a", "b", "c"};
 // Create a valid module with 3 functions.
 ZoneBuffer GetValidModuleBytes(Zone* zone) {
   ZoneBuffer buffer(zone);
-  TestSignatures sigs;
   WasmModuleBuilder builder(zone);
   uint8_t i = 0;
   for (const char* export_name : kExportNames) {
-    WasmFunctionBuilder* f = builder.AddFunction(sigs.i_iii());
+    WasmFunctionBuilder* f = builder.AddFunction(TestSignatures::i_iii());
     f->EmitCode({kExprLocalGet, i, kExprEnd});
     CHECK_GE(3, ++i);
     builder.AddExport(export_name, f);
@@ -549,20 +548,19 @@ STREAM_TEST(TestCutAfterOneFunctionCompilerFinishesFirst) {
 // Create a module with an invalid global section.
 ZoneBuffer GetModuleWithInvalidSection(Zone* zone) {
   ZoneBuffer buffer(zone);
-  TestSignatures sigs;
   WasmModuleBuilder builder(zone);
   // Add an invalid global to the module. The decoder will fail there.
   builder.AddGlobal(kWasmVoid, true, WasmInitExpr::GlobalGet(12));
   {
-    WasmFunctionBuilder* f = builder.AddFunction(sigs.i_iii());
+    WasmFunctionBuilder* f = builder.AddFunction(TestSignatures::i_iii());
     f->EmitCode({kExprLocalGet, 0, kExprEnd});
   }
   {
-    WasmFunctionBuilder* f = builder.AddFunction(sigs.i_iii());
+    WasmFunctionBuilder* f = builder.AddFunction(TestSignatures::i_iii());
     f->EmitCode({kExprLocalGet, 1, kExprEnd});
   }
   {
-    WasmFunctionBuilder* f = builder.AddFunction(sigs.i_iii());
+    WasmFunctionBuilder* f = builder.AddFunction(TestSignatures::i_iii());
     f->EmitCode({kExprLocalGet, 2, kExprEnd});
   }
   builder.WriteTo(&buffer);
@@ -1298,11 +1296,10 @@ STREAM_TEST(TestModuleWithDataSection) {
 STREAM_TEST(TestModuleWithImportedFunction) {
   StreamTester tester(isolate);
   ZoneBuffer buffer(tester.zone());
-  TestSignatures sigs;
   WasmModuleBuilder builder(tester.zone());
-  builder.AddImport("Test", sigs.i_iii());
+  builder.AddImport("Test", TestSignatures::i_iii());
   {
-    WasmFunctionBuilder* f = builder.AddFunction(sigs.i_iii());
+    WasmFunctionBuilder* f = builder.AddFunction(TestSignatures::i_iii());
     f->EmitCode({kExprLocalGet, 0, kExprEnd});
   }
   builder.WriteTo(&buffer);
@@ -1330,13 +1327,12 @@ STREAM_TEST(TestIncrementalCaching) {
       });
 
   ZoneBuffer buffer(tester.zone());
-  TestSignatures sigs;
   WasmModuleBuilder builder(tester.zone());
   builder.AddMemory(1);
 
   std::string_view function_names[] = {"f0", "f1", "f2"};
   for (int i = 0; i < 3; ++i) {
-    WasmFunctionBuilder* f = builder.AddFunction(sigs.v_v());
+    WasmFunctionBuilder* f = builder.AddFunction(TestSignatures::v_v());
 
     constexpr int64_t val = 0x123456789abc;
     constexpr int index = 0x1234;
@@ -2046,9 +2042,8 @@ STREAM_TEST(TestProfilingMidStreaming) {
   // Build module with one exported (named) function.
   ZoneBuffer buffer(zone);
   {
-    TestSignatures sigs;
     WasmModuleBuilder builder(zone);
-    WasmFunctionBuilder* f = builder.AddFunction(sigs.v_v());
+    WasmFunctionBuilder* f = builder.AddFunction(TestSignatures::v_v());
     f->EmitCode({kExprEnd});
     builder.AddExport("foo", f);
     builder.WriteTo(&buffer);
@@ -2085,10 +2080,9 @@ STREAM_TEST(TierDownWithError) {
 
   ZoneBuffer buffer(zone);
   {
-    TestSignatures sigs;
     WasmModuleBuilder builder(zone);
     // Type error at i32.add.
-    builder.AddFunction(sigs.v_v())->Emit(kExprI32Add);
+    builder.AddFunction(TestSignatures::v_v())->Emit(kExprI32Add);
     builder.WriteTo(&buffer);
   }
 
@@ -2197,9 +2191,8 @@ STREAM_TEST(StreamingErrorCrashKeyReused) {
                                       : i::v8_flags.wasm_num_compilation_tasks);
     StreamTester tester(isolate);
     ZoneBuffer buffer(tester.zone());
-    TestSignatures sigs;
     WasmModuleBuilder builder(tester.zone());
-    builder.AddFunction(sigs.v_v())->Emit(kExprI32Add);
+    builder.AddFunction(TestSignatures::v_v())->Emit(kExprI32Add);
     builder.WriteTo(&buffer);
     tester.OnBytesReceived(buffer.begin(), buffer.size());
     tester.FinishStream();
@@ -2307,9 +2300,9 @@ STREAM_TEST(FinishStreamInApiInterruptIsDeferred) {
   ZoneBuffer invalid_bytes = GetModuleWithInvalidSection(&zone);
   ZoneBuffer invalid_code_bytes(&zone);
   {
-    TestSignatures sigs;
     WasmModuleBuilder builder(&zone);
-    builder.AddFunction(sigs.v_v())->EmitCode({kExprI32Add, kExprEnd});
+    builder.AddFunction(TestSignatures::v_v())
+        ->EmitCode({kExprI32Add, kExprEnd});
     builder.WriteTo(&invalid_code_bytes);
   }
 

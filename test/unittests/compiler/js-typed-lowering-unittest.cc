@@ -757,7 +757,8 @@ TEST_F(JSTypedLoweringTesterTest, Int32BitwiseShifts) {
     for (size_t j = 0; j < arraysize(types); ++j) {
       Node* p1 = R.Parameter(types[j], 1);
 
-      for (int k = 0; k < R.kNumberOps; k += 2) {
+      for (int k = 0; k < JSBitwiseShiftTypedLoweringTester::kNumberOps;
+           k += 2) {
         Node* add = R.Binop(R.ops[k], p0, p1);
         Node* r = R.reduce(add);
 
@@ -813,7 +814,7 @@ TEST_F(JSTypedLoweringTesterTest, Int32BitwiseBinops) {
     for (size_t j = 0; j < arraysize(types); ++j) {
       Node* p1 = R.Parameter(types[j], 1);
 
-      for (int k = 0; k < R.kNumberOps; k += 2) {
+      for (int k = 0; k < JSBitwiseTypedLoweringTester::kNumberOps; k += 2) {
         Node* add = R.Binop(R.ops[k], p0, p1);
         Node* r = R.reduce(add);
 
@@ -1324,7 +1325,7 @@ TEST_F(JSTypedLoweringTesterTest, RemovePureNumberBinopEffects) {
 
 TEST_F(JSTypedLoweringTesterTest, Int32BinopEffects) {
   JSBitwiseTypedLoweringTester R(i_isolate(), zone());
-  for (int j = 0; j < R.kNumberOps; j += 2) {
+  for (int j = 0; j < JSBitwiseTypedLoweringTester::kNumberOps; j += 2) {
     bool signed_left = R.signedness[j], signed_right = R.signedness[j + 1];
     BinopEffectsTester B(i_isolate(), zone(), R.ops[j], I32Type(signed_left),
                          I32Type(signed_right));
@@ -1338,7 +1339,7 @@ TEST_F(JSTypedLoweringTesterTest, Int32BinopEffects) {
     B.CheckEffectsRemoved();
   }
 
-  for (int j = 0; j < R.kNumberOps; j += 2) {
+  for (int j = 0; j < JSBitwiseTypedLoweringTester::kNumberOps; j += 2) {
     bool signed_left = R.signedness[j], signed_right = R.signedness[j + 1];
     BinopEffectsTester B(i_isolate(), zone(), R.ops[j], Type::Number(),
                          Type::Number());
@@ -1352,7 +1353,7 @@ TEST_F(JSTypedLoweringTesterTest, Int32BinopEffects) {
     B.CheckEffectsRemoved();
   }
 
-  for (int j = 0; j < R.kNumberOps; j += 2) {
+  for (int j = 0; j < JSBitwiseTypedLoweringTester::kNumberOps; j += 2) {
     bool signed_left = R.signedness[j];
     BinopEffectsTester B(i_isolate(), zone(), R.ops[j], Type::Number(),
                          Type::Boolean());
@@ -1365,7 +1366,7 @@ TEST_F(JSTypedLoweringTesterTest, Int32BinopEffects) {
     B.CheckEffectsRemoved();
   }
 
-  for (int j = 0; j < R.kNumberOps; j += 2) {
+  for (int j = 0; j < JSBitwiseTypedLoweringTester::kNumberOps; j += 2) {
     bool signed_right = R.signedness[j + 1];
     BinopEffectsTester B(i_isolate(), zone(), R.ops[j], Type::Boolean(),
                          Type::Number());
@@ -1378,7 +1379,7 @@ TEST_F(JSTypedLoweringTesterTest, Int32BinopEffects) {
     B.CheckEffectsRemoved();
   }
 
-  for (int j = 0; j < R.kNumberOps; j += 2) {
+  for (int j = 0; j < JSBitwiseTypedLoweringTester::kNumberOps; j += 2) {
     BinopEffectsTester B(i_isolate(), zone(), R.ops[j], Type::Boolean(),
                          Type::Boolean());
 
@@ -1395,7 +1396,7 @@ TEST_F(JSTypedLoweringTesterTest, Int32AddNarrowing) {
   {
     JSBitwiseTypedLoweringTester R(i_isolate(), zone());
 
-    for (int o = 0; o < R.kNumberOps; o += 2) {
+    for (int o = 0; o < JSBitwiseTypedLoweringTester::kNumberOps; o += 2) {
       for (size_t i = 0; i < arraysize(kInt32Types); i++) {
         Node* n0 = R.Parameter(kInt32Types[i]);
         for (size_t j = 0; j < arraysize(kInt32Types); j++) {
@@ -1418,7 +1419,7 @@ TEST_F(JSTypedLoweringTesterTest, Int32AddNarrowing) {
   {
     JSBitwiseShiftTypedLoweringTester R(i_isolate(), zone());
 
-    for (int o = 0; o < R.kNumberOps; o += 2) {
+    for (int o = 0; o < JSBitwiseShiftTypedLoweringTester::kNumberOps; o += 2) {
       for (size_t i = 0; i < arraysize(kInt32Types); i++) {
         Node* n0 = R.Parameter(kInt32Types[i]);
         for (size_t j = 0; j < arraysize(kInt32Types); j++) {
@@ -1441,7 +1442,7 @@ TEST_F(JSTypedLoweringTesterTest, Int32AddNarrowing) {
   {
     JSBitwiseTypedLoweringTester R(i_isolate(), zone());
 
-    for (int o = 0; o < R.kNumberOps; o += 2) {
+    for (int o = 0; o < JSBitwiseTypedLoweringTester::kNumberOps; o += 2) {
       Node* n0 = R.Parameter(I32Type(R.signedness[o]));
       Node* n1 = R.Parameter(I32Type(R.signedness[o + 1]));
       Node* one = R.graph.NewNode(R.common.NumberConstant(1));

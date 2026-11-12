@@ -1386,8 +1386,7 @@ void Debug::RecordWasmScriptWithBreakpoints(DirectHandle<Script> script) {
       WeakArrayList::Append(isolate_, wasm_scripts_with_break_points_,
                             MaybeObjectDirectHandle{script});
   if (*new_list != *wasm_scripts_with_break_points_) {
-    isolate_->global_handles()->Destroy(
-        wasm_scripts_with_break_points_.location());
+    GlobalHandles::Destroy(wasm_scripts_with_break_points_.location());
     wasm_scripts_with_break_points_ =
         isolate_->global_handles()->Create(*new_list);
   }

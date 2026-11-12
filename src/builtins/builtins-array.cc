@@ -1069,7 +1069,7 @@ uint32_t EstimateElementCount(Isolate* isolate, DirectHandle<JSArray> array) {
       ReadOnlyRoots roots(isolate);
       for (InternalIndex i : dictionary->IterateEntries()) {
         Tagged<Object> key = dictionary->KeyAt(i);
-        if (dictionary->IsKey(roots, key)) {
+        if (NumberDictionary::IsKey(roots, key)) {
           element_count++;
         }
       }
@@ -1147,7 +1147,7 @@ void CollectElementIndices(Isolate* isolate, DirectHandle<JSObject> object,
       ReadOnlyRoots roots(isolate);
       FOR_WITH_HANDLE_SCOPE(isolate, uint32_t j = 0, j, j < capacity, j++) {
         Tagged<Object> k = dict->KeyAt(InternalIndex(j));
-        if (!dict->IsKey(roots, k)) continue;
+        if (!NumberDictionary::IsKey(roots, k)) continue;
         DCHECK(IsNumber(k));
         uint32_t index = static_cast<uint32_t>(Object::NumberValue(k));
         if (index < range) {

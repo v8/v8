@@ -2567,7 +2567,8 @@ Pipeline::NewBytecodeHandlerCompilationJob(
   auto get_call_descriptor = [](Zone* zone) {
     InterpreterDispatchDescriptor descriptor;
     return Linkage::GetStubCallDescriptor(
-        zone, descriptor, descriptor.GetStackParameterCount(),
+        zone, descriptor,
+        InterpreterDispatchDescriptor::GetStackParameterCount(),
         CallDescriptor::kNoFlags, Operator::kNoProperties);
   };
   return std::make_unique<CodeAssemblerTurboshaftCompilationJob>(
@@ -2588,7 +2589,8 @@ Pipeline::NewBytecodeHandlerCompilationJobTSA(
   auto get_call_descriptor = [](Zone* zone) {
     InterpreterDispatchDescriptor descriptor;
     return Linkage::GetStubCallDescriptor(
-        zone, descriptor, descriptor.GetStackParameterCount(),
+        zone, descriptor,
+        InterpreterDispatchDescriptor::GetStackParameterCount(),
         CallDescriptor::kNoFlags, Operator::kNoProperties);
   };
   return std::make_unique<TurboshaftAssemblerBuiltinCompilationJob>(

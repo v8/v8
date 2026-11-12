@@ -2700,7 +2700,7 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {
   // Print Builtin name for builtin functions
   Builtin builtin = code(isolate)->builtin_id();
   if (Builtins::IsBuiltinId(builtin)) {
-    os << "\n - builtin: " << isolate->builtins()->name(builtin);
+    os << "\n - builtin: " << Builtins::name(builtin);
   }
 
   os << "\n - formal_parameter_count: ";

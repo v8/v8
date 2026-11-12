@@ -657,8 +657,8 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
     NodeProperties::ReplaceValueInput(node, constructor, 0);
     NodeProperties::ReplaceValueInput(node, object, 1);
     NodeProperties::ReplaceEffectInput(node, effect);
-    static_assert(n.FeedbackVectorIndex() == 2);
-    node->RemoveInput(n.FeedbackVectorIndex());
+    static_assert(JSInstanceOfNode::FeedbackVectorIndex() == 2);
+    node->RemoveInput(JSInstanceOfNode::FeedbackVectorIndex());
     NodeProperties::ChangeOp(node, javascript()->OrdinaryHasInstance());
     return Changed(node).FollowedBy(ReduceJSOrdinaryHasInstance(node));
   }

@@ -4345,7 +4345,7 @@ void ImplementationVisitor::GenerateEnumVerifiers(
     NamespaceScope cc_namespaces(cc_contents, {"v8", "internal", ""});
 
     cc_contents << "class EnumVerifier {\n";
-    for (const auto& desc : GlobalContext::Get().ast()->EnumDescriptions()) {
+    for (const auto& desc : GlobalContext::ast()->EnumDescriptions()) {
       std::stringstream alias_checks;
       cc_contents << "  // " << desc.name << " (" << desc.pos << ")\n";
       cc_contents << "  void VerifyEnum_" << desc.name << "("

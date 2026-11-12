@@ -2871,7 +2871,7 @@ class WasmDecoder : public Decoder {
           case kExprAtomicFence: {
             MemoryOrderImmediate memory_order(decoder, pc + length, validate);
             (ios.MemoryOrder(memory_order), ...);
-            return length + memory_order.length;
+            return length + MemoryOrderImmediate::length;
           }
           case kExprPublish:
           case kExprPause:
@@ -2891,10 +2891,10 @@ class WasmDecoder : public Decoder {
           case kExprStructAtomicCompareExchange: {
             MemoryOrderImmediate memory_order(decoder, pc + length, validate);
             (ios.MemoryOrder(memory_order), ...);
-            FieldImmediate field(decoder, pc + length + memory_order.length,
-                                 validate);
+            FieldImmediate field(
+                decoder, pc + length + MemoryOrderImmediate::length, validate);
             (ios.Field(field), ...);
-            return length + memory_order.length + field.length;
+            return length + MemoryOrderImmediate::length + field.length;
           }
           case kExprStructWait: {
             FieldImmediate field(decoder, pc + length, validate);
@@ -2920,9 +2920,9 @@ class WasmDecoder : public Decoder {
             MemoryOrderImmediate memory_order(decoder, pc + length, validate);
             (ios.MemoryOrder(memory_order), ...);
             ArrayIndexImmediate array(
-                decoder, pc + length + memory_order.length, validate);
+                decoder, pc + length + MemoryOrderImmediate::length, validate);
             (ios.TypeIndex(array), ...);
-            return length + memory_order.length + array.length;
+            return length + MemoryOrderImmediate::length + array.length;
           }
           default:
             // This path is only possible if we are validating.
@@ -7281,7 +7281,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           }
         }
         CALL_INTERFACE_IF_OK_AND_REACHABLE(AtomicFence, memory_order);
-        return opcode_length + memory_order.length;
+        return opcode_length + MemoryOrderImmediate::length;
       }
       case kExprPause:
         CHECK_PROTOTYPE_OPCODE(shared);
@@ -7296,9 +7296,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                                           validate);
         if (!VALIDATE(this->ok())) return 0;
         FieldImmediate field(
-            this, this->pc_ + opcode_length + memory_order.length, validate);
-        if (!this->Validate(this->pc_ + opcode_length + memory_order.length,
-                            field)) {
+            this, this->pc_ + opcode_length + MemoryOrderImmediate::length,
+            validate);
+        if (!this->Validate(
+                this->pc_ + opcode_length + MemoryOrderImmediate::length,
+                field)) {
           return 0;
         }
         ValueType field_type =
@@ -7323,7 +7325,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           CALL_INTERFACE_IF_OK_AND_REACHABLE(StructGet, struct_obj, field,
                                              is_signed, value);
         }
-        return opcode_length + memory_order.length + field.length;
+        return opcode_length + MemoryOrderImmediate::length + field.length;
       }
       case kExprStructAtomicGet: {
         CHECK_PROTOTYPE_OPCODE(shared);
@@ -7332,9 +7334,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                                           validate);
         if (!VALIDATE(this->ok())) return 0;
         FieldImmediate field(
-            this, this->pc_ + opcode_length + memory_order.length, validate);
-        if (!this->Validate(this->pc_ + opcode_length + memory_order.length,
-                            field)) {
+            this, this->pc_ + opcode_length + MemoryOrderImmediate::length,
+            validate);
+        if (!this->Validate(
+                this->pc_ + opcode_length + MemoryOrderImmediate::length,
+                field)) {
           return 0;
         }
         ValueType field_type =
@@ -7363,7 +7367,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           CALL_INTERFACE_IF_OK_AND_REACHABLE(StructGet, struct_obj, field, true,
                                              value);
         }
-        return opcode_length + memory_order.length + field.length;
+        return opcode_length + MemoryOrderImmediate::length + field.length;
       }
       case kExprStructAtomicSet: {
         CHECK_PROTOTYPE_OPCODE(shared);
@@ -7372,9 +7376,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                                           validate);
         if (!VALIDATE(this->ok())) return 0;
         FieldImmediate field(
-            this, this->pc_ + opcode_length + memory_order.length, validate);
-        if (!this->Validate(this->pc_ + opcode_length + memory_order.length,
-                            field)) {
+            this, this->pc_ + opcode_length + MemoryOrderImmediate::length,
+            validate);
+        if (!this->Validate(
+                this->pc_ + opcode_length + MemoryOrderImmediate::length,
+                field)) {
           return 0;
         }
         const StructType* struct_type = field.struct_imm.struct_type;
@@ -7407,7 +7413,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           CALL_INTERFACE_IF_OK_AND_REACHABLE(StructSet, struct_obj, field,
                                              field_value);
         }
-        return opcode_length + field.length + memory_order.length;
+        return opcode_length + field.length + MemoryOrderImmediate::length;
       }
       case kExprStructAtomicAdd:
       case kExprStructAtomicSub:
@@ -7421,9 +7427,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                                           validate);
         if (!VALIDATE(this->ok())) return 0;
         FieldImmediate field(
-            this, this->pc_ + opcode_length + memory_order.length, validate);
-        if (!this->Validate(this->pc_ + opcode_length + memory_order.length,
-                            field)) {
+            this, this->pc_ + opcode_length + MemoryOrderImmediate::length,
+            validate);
+        if (!this->Validate(
+                this->pc_ + opcode_length + MemoryOrderImmediate::length,
+                field)) {
           return 0;
         }
         const StructType* struct_type = field.struct_imm.struct_type;
@@ -7452,7 +7460,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StructAtomicRMW, opcode, struct_obj,
                                            field, field_value,
                                            memory_order.order, result);
-        return opcode_length + field.length + memory_order.length;
+        return opcode_length + field.length + MemoryOrderImmediate::length;
       }
       case kExprStructAtomicCompareExchange: {
         CHECK_PROTOTYPE_OPCODE(shared);
@@ -7461,9 +7469,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                                           validate);
         if (!VALIDATE(this->ok())) return 0;
         FieldImmediate field(
-            this, this->pc_ + opcode_length + memory_order.length, validate);
-        if (!this->Validate(this->pc_ + opcode_length + memory_order.length,
-                            field)) {
+            this, this->pc_ + opcode_length + MemoryOrderImmediate::length,
+            validate);
+        if (!this->Validate(
+                this->pc_ + opcode_length + MemoryOrderImmediate::length,
+                field)) {
           return 0;
         }
         const StructType* struct_type = field.struct_imm.struct_type;
@@ -7491,7 +7501,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         CALL_INTERFACE_IF_OK_AND_REACHABLE(
             StructAtomicCompareExchange, opcode, struct_obj, field,
             expected_value, new_value, memory_order.order, result);
-        return opcode_length + field.length + memory_order.length;
+        return opcode_length + field.length + MemoryOrderImmediate::length;
       }
       case kExprStructWait: {
         CHECK_PROTOTYPE_OPCODE(shared);
@@ -7601,9 +7611,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                                           validate);
         if (!VALIDATE(this->ok())) return 0;
         ArrayIndexImmediate imm(
-            this, this->pc_ + memory_order.length + opcode_length, validate);
-        if (!this->Validate(this->pc_ + memory_order.length + opcode_length,
-                            imm)) {
+            this, this->pc_ + MemoryOrderImmediate::length + opcode_length,
+            validate);
+        if (!this->Validate(
+                this->pc_ + MemoryOrderImmediate::length + opcode_length,
+                imm)) {
           return 0;
         }
         ValueType element_type = imm.array_type->element_type();
@@ -7628,7 +7640,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayGet, array_obj, imm, index,
                                              true, value);
         }
-        return opcode_length + memory_order.length + imm.length;
+        return opcode_length + MemoryOrderImmediate::length + imm.length;
       }
       case kExprArrayAtomicGetS:
       case kExprArrayAtomicGetU: {
@@ -7638,9 +7650,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                                           validate);
         if (!VALIDATE(this->ok())) return 0;
         ArrayIndexImmediate imm(
-            this, this->pc_ + memory_order.length + opcode_length, validate);
-        if (!this->Validate(this->pc_ + memory_order.length + opcode_length,
-                            imm)) {
+            this, this->pc_ + MemoryOrderImmediate::length + opcode_length,
+            validate);
+        if (!this->Validate(
+                this->pc_ + MemoryOrderImmediate::length + opcode_length,
+                imm)) {
           return 0;
         }
         ValueType element_type = imm.array_type->element_type();
@@ -7663,7 +7677,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayGet, array_obj, imm, index,
                                              is_signed, value);
         }
-        return opcode_length + memory_order.length + imm.length;
+        return opcode_length + MemoryOrderImmediate::length + imm.length;
       }
       case kExprArrayAtomicSet: {
         CHECK_PROTOTYPE_OPCODE(shared);
@@ -7672,9 +7686,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                                           validate);
         if (!VALIDATE(this->ok())) return 0;
         ArrayIndexImmediate imm(
-            this, this->pc_ + opcode_length + memory_order.length, validate);
-        if (!this->Validate(this->pc_ + opcode_length + memory_order.length,
-                            imm)) {
+            this, this->pc_ + opcode_length + MemoryOrderImmediate::length,
+            validate);
+        if (!this->Validate(
+                this->pc_ + opcode_length + MemoryOrderImmediate::length,
+                imm)) {
           return 0;
         }
         if (!VALIDATE(imm.array_type->mutability())) {
@@ -7704,7 +7720,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           CALL_INTERFACE_IF_OK_AND_REACHABLE(ArraySet, array_obj, imm, index,
                                              value);
         }
-        return opcode_length + memory_order.length + imm.length;
+        return opcode_length + MemoryOrderImmediate::length + imm.length;
       }
       case kExprArrayAtomicAdd:
       case kExprArrayAtomicSub:
@@ -7718,9 +7734,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                                           validate);
         if (!VALIDATE(this->ok())) return 0;
         ArrayIndexImmediate imm(
-            this, this->pc_ + opcode_length + memory_order.length, validate);
-        if (!this->Validate(this->pc_ + opcode_length + memory_order.length,
-                            imm)) {
+            this, this->pc_ + opcode_length + MemoryOrderImmediate::length,
+            validate);
+        if (!this->Validate(
+                this->pc_ + opcode_length + MemoryOrderImmediate::length,
+                imm)) {
           return 0;
         }
         if (!VALIDATE(imm.array_type->mutability())) {
@@ -7744,7 +7762,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayAtomicRMW, opcode, array_obj,
                                            imm, index, value,
                                            memory_order.order, result);
-        return opcode_length + memory_order.length + imm.length;
+        return opcode_length + MemoryOrderImmediate::length + imm.length;
       }
       case kExprArrayAtomicCompareExchange: {
         CHECK_PROTOTYPE_OPCODE(shared);
@@ -7753,9 +7771,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                                           validate);
         if (!VALIDATE(this->ok())) return 0;
         ArrayIndexImmediate imm(
-            this, this->pc_ + opcode_length + memory_order.length, validate);
-        if (!this->Validate(this->pc_ + opcode_length + memory_order.length,
-                            imm)) {
+            this, this->pc_ + opcode_length + MemoryOrderImmediate::length,
+            validate);
+        if (!this->Validate(
+                this->pc_ + opcode_length + MemoryOrderImmediate::length,
+                imm)) {
           return 0;
         }
         if (!VALIDATE(imm.array_type->mutability())) {
@@ -7779,7 +7799,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         CALL_INTERFACE_IF_OK_AND_REACHABLE(
             ArrayAtomicCompareExchange, opcode, array_obj, imm, index,
             expected_value, new_value, memory_order.order, result);
-        return opcode_length + memory_order.length + imm.length;
+        return opcode_length + MemoryOrderImmediate::length + imm.length;
       }
 
       default:

@@ -520,7 +520,6 @@ void ForRangeImpl(Heap* heap, MemoryChunk* source_chunk,
     marking_barrier = WriteBarrier::CurrentMarkingBarrier(object);
   }
 
-  MarkCompactCollector* collector = heap->mark_compact_collector();
   MutablePage* source_page_metadata =
       SbxCast<MutablePage>(source_chunk->Metadata());
 
@@ -565,8 +564,8 @@ void ForRangeImpl(Heap* heap, MemoryChunk* source_chunk,
     if (kModeMask & kDoMarking) {
       marking_barrier->MarkValue(object, value_heap_object);
       if (kModeMask & kDoEvacuationSlotRecording) {
-        collector->RecordSlot(source_chunk, HeapObjectSlot(slot),
-                              value_heap_object);
+        MarkCompactCollector::RecordSlot(source_chunk, HeapObjectSlot(slot),
+                                         value_heap_object);
       }
     }
   }
@@ -658,7 +657,7 @@ void WriteBarrier::VerifyDispatchHandleWriteBarrier(Tagged<HeapObject> host,
     VerifySkipWriteBarrier(host, value, mode);
 
     // Now check the barrier for the handle itself
-    if (jdt.InReadOnlySegment(handle)) {
+    if (JSDispatchTable::InReadOnlySegment(handle)) {
       return;
     }
     if (IsMostRecentYoungAllocation(host->address())) {

@@ -765,9 +765,9 @@ std::string UnitFromSkeleton(const icu::UnicodeString& skeleton) {
   str = skeleton.toUTF8String<std::string>(str);
   static constexpr std::string_view kSearch = "unit/";
   size_t begin = str.find(kSearch);
-  if (begin == str.npos) {
+  if (begin == std::string::npos) {
     // Special case for "percent".
-    if (str.find("percent") != str.npos) {
+    if (str.find("percent") != std::string::npos) {
       return "percent";
     }
     return "";
@@ -779,7 +779,7 @@ std::string UnitFromSkeleton(const icu::UnicodeString& skeleton) {
   // "unit/milliliter-per-acre .### rounding-mode-half-up"
   //       b
   begin += kSearch.size();
-  if (begin == str.npos) {
+  if (begin == std::string::npos) {
     return "";
   }
   // Find the end of the subtype.
@@ -790,7 +790,7 @@ std::string UnitFromSkeleton(const icu::UnicodeString& skeleton) {
   // Ex:
   // "unit/milliliter-per-acre .### rounding-mode-half-up"
   //       b                  e
-  if (end == str.npos) {
+  if (end == std::string::npos) {
     end = str.size();
   }
   return str.substr(begin, end - begin);

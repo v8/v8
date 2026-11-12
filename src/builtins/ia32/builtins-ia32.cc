@@ -3509,10 +3509,14 @@ void SwitchBackAndReturnPromise(MacroAssembler* masm, Register tmp,
   // wrapper.
 
   static const Builtin_FulfillPromise_InterfaceDescriptor desc;
-  static_assert(kReturnRegister0 == desc.GetRegisterParameter(0));
+  static_assert(
+      kReturnRegister0 ==
+      Builtin_FulfillPromise_InterfaceDescriptor::GetRegisterParameter(0));
 
-  Register promise = desc.GetRegisterParameter(0);
-  Register return_value = desc.GetRegisterParameter(1);
+  Register promise =
+      Builtin_FulfillPromise_InterfaceDescriptor::GetRegisterParameter(0);
+  Register return_value =
+      Builtin_FulfillPromise_InterfaceDescriptor::GetRegisterParameter(1);
 
   if (mode == wasm::kPromise) {
     __ mov(return_value, kReturnRegister0);
@@ -3550,8 +3554,10 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
   // The exception becomes the parameter of the RejectPromise builtin, and the
   // promise is the return value of this wrapper.
   static const Builtin_RejectPromise_InterfaceDescriptor desc;
-  constexpr Register promise = desc.GetRegisterParameter(0);
-  constexpr Register reason = desc.GetRegisterParameter(1);
+  constexpr Register promise =
+      Builtin_RejectPromise_InterfaceDescriptor::GetRegisterParameter(0);
+  constexpr Register reason =
+      Builtin_RejectPromise_InterfaceDescriptor::GetRegisterParameter(1);
   DCHECK(kReturnRegister0 == promise);
 
   __ mov(reason, kReturnRegister0);
@@ -3573,7 +3579,8 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
   __ Move(MemOperand(ebp, WasmJspiFrameConstants::kGCScanSlotCountOffset),
           Immediate(1));
   __ Push(promise);
-  Register debug_event = desc.GetRegisterParameter(2);
+  Register debug_event =
+      Builtin_RejectPromise_InterfaceDescriptor::GetRegisterParameter(2);
   __ LoadRoot(debug_event, RootIndex::kTrueValue);
   __ CallBuiltin(Builtin::kRejectPromise);
   __ Pop(promise);

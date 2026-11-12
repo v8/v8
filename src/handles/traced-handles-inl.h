@@ -38,7 +38,7 @@ TracedHandles::AllocateNodeUnchecked() {
   auto* node = block->AllocateNode();
   DCHECK(node->IsMetadataCleared());
   if (V8_UNLIKELY(block->IsFull())) {
-    usable_blocks_.Remove(block);
+    TracedNodeBlock::UsableList::Remove(block);
   }
   used_nodes_++;
   return std::make_pair(block, node);

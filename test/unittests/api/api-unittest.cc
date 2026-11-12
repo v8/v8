@@ -14485,8 +14485,7 @@ TEST_F(ApiTest, WasmSetJitCodeEventHandler) {
   // Add (unreached) endless recursion to prevent fully inling "f". Otherwise we
   // won't have source positions and will miss the
   // {CODE_END_LINE_INFO_RECORDING} event.
-  TestSignatures sigs;
-  auto& f = r.NewFunction(sigs.i_i(), "f");
+  auto& f = r.NewFunction(TestSignatures::i_i(), "f");
   f.Build({WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)),
                    WASM_LOCAL_SET(0, WASM_CALL_FUNCTION(f.function_index(),
                                                         WASM_LOCAL_GET(0)))),

@@ -4767,11 +4767,11 @@ void CodeGenerator::SetPendingMove(MoveOperands* move) {
     // Offset doesn't fit into the immediate field so the assembler will emit
     // two instructions and use a second temp register.
     if ((src.IsImmediateOffset() &&
-         !masm()->IsImmLSScaled(src_offset, src_size_log2) &&
-         !masm()->IsImmLSUnscaled(src_offset)) ||
+         !internal::Assembler::IsImmLSScaled(src_offset, src_size_log2) &&
+         !internal::Assembler::IsImmLSUnscaled(src_offset)) ||
         (dst.IsImmediateOffset() &&
-         !masm()->IsImmLSScaled(dst_offset, dst_size_log2) &&
-         !masm()->IsImmLSUnscaled(dst_offset))) {
+         !internal::Assembler::IsImmLSScaled(dst_offset, dst_size_log2) &&
+         !internal::Assembler::IsImmLSUnscaled(dst_offset))) {
       Register temp = temps.AcquireX();
       move_cycle_.scratch_regs.set(temp);
     }

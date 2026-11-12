@@ -2614,7 +2614,7 @@ void ExistingCodeLogger::LogCodeObject(Tagged<AbstractCode> object) {
       tag = CodeTag::kRegExp;
       break;
     case CodeKind::BYTECODE_HANDLER:
-      description = isolate_->builtins()->name(abstract_code->builtin_id());
+      description = Builtins::name(abstract_code->builtin_id());
       tag = CodeTag::kBytecodeHandler;
       break;
     case CodeKind::BUILTIN:

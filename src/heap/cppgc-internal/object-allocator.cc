@@ -279,7 +279,7 @@ bool ObjectAllocator::TryExpandAndRefillLinearAllocationBuffer(
 
   space.AddPage(new_page);
   ClampAndReplaceLinearAllocationBuffer(space, new_page->PayloadStart(),
-                                        new_page->PayloadSize(), size);
+                                        NormalPage::PayloadSize(), size);
   return true;
 }
 

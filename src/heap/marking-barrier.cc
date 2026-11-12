@@ -123,7 +123,7 @@ void MarkingBarrier::Write(Tagged<InstructionStream> host,
     if (is_main_thread_barrier_) {
       // An optimization to avoid allocating additional typed slots for the
       // main thread.
-      major_collector_->RecordRelocSlot(host, reloc_info, value);
+      MarkCompactCollector::RecordRelocSlot(host, reloc_info, value);
     } else {
       RecordRelocSlot(host, reloc_info, value);
     }

@@ -4802,8 +4802,8 @@ void Isolate::Deinitialize(Isolate* isolate) {
   // the isolate can access it in their destructors without having a
   // direct pointer. We don't use Enter/Exit here to avoid
   // initializing the thread data.
-  PerIsolateThreadData* saved_data = isolate->CurrentPerIsolateThreadData();
-  Isolate* saved_isolate = isolate->TryGetCurrent();
+  PerIsolateThreadData* saved_data = Isolate::CurrentPerIsolateThreadData();
+  Isolate* saved_isolate = Isolate::TryGetCurrent();
   SetIsolateThreadLocals(isolate, nullptr);
   isolate->set_thread_id(base::ThreadId::Current());
   isolate->heap()->SetStackStart();

@@ -165,7 +165,7 @@ void ProfilerEventsProcessor::Enqueue(const CodeEventsContainer& event) {
 void ProfilerEventsProcessor::AddDeoptStack(Address from, int fp_to_sp_delta) {
   TickSampleEventRecord record(last_code_event_id_);
   RegisterState regs;
-  Address fp = isolate_->c_entry_fp(isolate_->thread_local_top());
+  Address fp = Isolate::c_entry_fp(isolate_->thread_local_top());
   regs.sp = reinterpret_cast<void*>(fp - fp_to_sp_delta);
   regs.fp = reinterpret_cast<void*>(fp);
   regs.pc = reinterpret_cast<void*>(from);
