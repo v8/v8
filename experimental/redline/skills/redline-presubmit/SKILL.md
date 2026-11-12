@@ -71,15 +71,16 @@ experimental/redline/skills/redline-presubmit/scripts/ste_check.py
 Advisory findings, for example passive voice, do not make the check fail. Use
 `--verbose` to see them, and fix them if the text stays clear.
 
-The linter is `ste_lint.py` in google3, so you need access to `/google/src`.
-`ste_check.py` runs it with `vpython3` and
+The linter is `ste_lint_main.py` in google3, so you need access to
+`/google/src`. `ste_check.py` runs it with `vpython3` and
 [scripts/ste_lint.vpython.toml](scripts/ste_lint.vpython.toml), which supplies
 absl-py. Set `STE_LINT` to use another copy of the linter. To lint one more
 file, for example a draft of a commit message:
 
 ```shell
-vpython3 -vpython-spec experimental/redline/skills/redline-presubmit/scripts/ste_lint.vpython.toml \
-  /google/src/files/head/depot/google3/learning/gemini/agents/skills/communication/asd_ste100/ste_lint.py FILE
+PYTHONPATH=/google/src/files/head/depot \
+  vpython3 -vpython-spec experimental/redline/skills/redline-presubmit/scripts/ste_lint.vpython.toml \
+  /google/src/files/head/depot/google3/learning/gemini/agents/skills/communication/asd_ste100/ste_lint_main.py FILE
 ```
 
 If you cannot use the linter, apply the main rules yourself: one instruction
