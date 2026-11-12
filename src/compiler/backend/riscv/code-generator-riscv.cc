@@ -5439,9 +5439,18 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   Register input = i.InputRegister(0);
   size_t const case_count = instr->InputCount() - 2;
 
-  __ Branch(GetLabel(i.InputRpo(1)), Ugreater_equal, input,
+  // The switch input is a 32-bit value whose upper 32 bits are not guaranteed
+  // to be sign-extended on riscv64, but both the range check and the jump
+  // table index below are performed on full 64-bit registers. Normalise it
+  // once into kScratchReg, as AssembleArchBinarySearchSwitch does. A dedicated
+  // register is used because GenerateSwitchTable acquires from the scratch
+  // register pool itself.
+  UseScratchRegisterScope temps(masm());
+  Register scratch = temps.Acquire();
+  __ SignExtendWord(scratch, input);
+  __ Branch(GetLabel(i.InputRpo(1)), Ugreater_equal, scratch,
             Operand(case_count));
-  __ GenerateSwitchTable(input, case_count, [&i, this](size_t index) {
+  __ GenerateSwitchTable(scratch, case_count, [&i, this](size_t index) {
     return GetLabel(i.InputRpo(index + 2));
   });
 }
