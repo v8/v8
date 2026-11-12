@@ -943,6 +943,24 @@ class IteratorZipKeyedHelperNextDescriptor : public StaticCallInterfaceDescripto
   DECLARE_DEFAULT_DESCRIPTOR(IteratorZipKeyedHelperNextDescriptor)
 };
 
+class IteratorChunksHelperNextDescriptor : public StaticCallInterfaceDescriptor<IteratorChunksHelperNextDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_RESULT_AND_PARAMETERS(1, kHelper)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(), MachineType::TaggedPointer())
+  DECLARE_DEFAULT_DESCRIPTOR(IteratorChunksHelperNextDescriptor)
+};
+
+class IteratorWindowsHelperNextDescriptor : public StaticCallInterfaceDescriptor<IteratorWindowsHelperNextDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_RESULT_AND_PARAMETERS(1, kHelper)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(), MachineType::TaggedPointer())
+  DECLARE_DEFAULT_DESCRIPTOR(IteratorWindowsHelperNextDescriptor)
+};
+
 class ParseIntDescriptor : public StaticCallInterfaceDescriptor<ParseIntDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()

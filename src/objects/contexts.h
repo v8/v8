@@ -234,6 +234,8 @@ enum ContextLookupFlags {
   V(ITERATOR_CONCAT_HELPER_MAP_INDEX, Map, iterator_concat_helper_map)         \
   V(ITERATOR_ZIP_HELPER_MAP_INDEX, Map, iterator_zip_helper_map)               \
   V(ITERATOR_ZIP_KEYED_HELPER_MAP_INDEX, Map, iterator_zip_keyed_helper_map)   \
+  V(ITERATOR_CHUNKS_HELPER_MAP_INDEX, Map, iterator_chunks_helper_map)         \
+  V(ITERATOR_WINDOWS_HELPER_MAP_INDEX, Map, iterator_windows_helper_map)       \
   V(ITERATOR_FUNCTION_INDEX, JSFunction, iterator_function)                    \
   V(VALID_ITERATOR_WRAPPER_MAP_INDEX, Map, valid_iterator_wrapper_map)         \
   V(ITERATOR_RESULT_MAP_INDEX, Map, iterator_result_map)                       \

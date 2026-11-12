@@ -109,6 +109,21 @@ std::ostream& operator<<(std::ostream& os, JSIteratorZipHelperMode mode) {
   return os << JSIteratorZipHelperModeToString(mode);
 }
 
+const char* JSIteratorWindowsHelperModeToString(
+    JSIteratorWindowsHelperMode mode) {
+  switch (mode) {
+    case JSIteratorWindowsHelperMode::kOnlyFull:
+      return "ONLY_FULL";
+    case JSIteratorWindowsHelperMode::kAllowPartial:
+      return "ALLOW_PARTIAL";
+  }
+  UNREACHABLE();
+}
+
+std::ostream& operator<<(std::ostream& os, JSIteratorWindowsHelperMode mode) {
+  return os << JSIteratorWindowsHelperModeToString(mode);
+}
+
 void Print(Tagged<Object> obj) {
   // Output into debugger's command window if a debugger is attached.
   DbgStdoutStream dbg_os;
@@ -2519,6 +2534,22 @@ void JSIteratorZipHelper::JSIteratorZipHelperPrint(std::ostream& os) {
 void JSIteratorZipKeyedHelper::JSIteratorZipKeyedHelperPrint(std::ostream& os) {
   JSIteratorZipHelperPrintHeader(os, "JSIteratorZipKeyedHelper");
   os << "\n - keys: " << Brief(keys());
+  JSObjectPrintBody(os, this);
+}
+
+void JSIteratorChunksHelper::JSIteratorChunksHelperPrint(std::ostream& os) {
+  JSIteratorHelperSimplePrintHeader(os, "JSIteratorChunksHelper");
+  os << "\n - chunk_size: " << chunk_size();
+  JSObjectPrintBody(os, this);
+}
+
+void JSIteratorWindowsHelper::JSIteratorWindowsHelperPrint(std::ostream& os) {
+  JSIteratorHelperSimplePrintHeader(os, "JSIteratorWindowsHelper");
+  os << "\n - window_size: " << window_size();
+  os << "\n - mode: " << mode();
+  os << "\n - buffer: " << Brief(buffer());
+  os << "\n - element_count: " << element_count();
+  os << "\n - start_index: " << start_index();
   JSObjectPrintBody(os, this);
 }
 

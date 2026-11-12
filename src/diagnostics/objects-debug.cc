@@ -2346,6 +2346,60 @@ void JSIteratorZipKeyedHelper::JSIteratorZipKeyedHelperVerify(
   JSIteratorZipHelperVerify(isolate);
 }
 
+void JSIteratorChunksHelper::JSIteratorChunksHelperVerify(Isolate* isolate) {
+  JSIteratorHelperSimpleVerify(isolate);
+  CHECK_GE(chunk_size().value(), 1);
+}
+
+void JSIteratorWindowsHelper::JSIteratorWindowsHelperVerify(Isolate* isolate) {
+  JSIteratorHelperSimpleVerify(isolate);
+  const int window_size = this->window_size().value();
+  CHECK_GE(window_size, 1);
+  const JSIteratorWindowsHelperMode mode = this->mode();
+  CHECK(mode == JSIteratorWindowsHelperMode::kOnlyFull ||
+        mode == JSIteratorWindowsHelperMode::kAllowPartial);
+  const JSIteratorHelperState state = this->state();
+  const int element_count = this->element_count().value();
+  const uint32_t buffer_length = buffer()->length().value();
+  const int start_index = this->start_index().value();
+  if (window_size == 1 || state == JSIteratorHelperState::kSuspendedStart ||
+      state == JSIteratorHelperState::kCompleted) {
+    // No buffer is used for window_size == 1, before starting, or after
+    // completion.
+    CHECK_EQ(element_count, 0);
+    CHECK_EQ(buffer_length, 0);
+    CHECK_EQ(start_index, 0);
+  } else {
+    if (state == JSIteratorHelperState::kSuspendedYield) {
+      CHECK_EQ(element_count, window_size);
+    } else {
+      CHECK_EQ(state, JSIteratorHelperState::kExecuting);
+      CHECK_GE(element_count, 0);
+      CHECK_LE(element_count, window_size);
+    }
+    CHECK_LE(static_cast<uint32_t>(element_count), buffer_length);
+    CHECK_GE(start_index, 0);
+    if (buffer_length > 0) {
+      CHECK_LT(static_cast<uint32_t>(start_index), buffer_length);
+    } else {
+      CHECK_EQ(start_index, 0);
+    }
+    if (window_size <= 1024) {
+      // The double capacity implementation.
+      CHECK_LE(buffer_length,
+               static_cast<uint32_t>(std::max(2 * window_size - 1, 16)));
+      CHECK_LE(static_cast<uint32_t>(start_index + element_count),
+               buffer_length);
+    } else {
+      // The circular buffer implementation.
+      CHECK_LE(buffer_length, static_cast<uint32_t>(window_size));
+      if (element_count < window_size) {
+        CHECK_EQ(start_index, 0);
+      }
+    }
+  }
+}
+
 void WeakCell::WeakCellVerify(Isolate* isolate) {
   CHECK(Is<WeakCell>(this));
 

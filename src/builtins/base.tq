@@ -531,6 +531,8 @@ extern enum MessageTemplate {
   kPropertyDescObject,
   kMustBePositive,
   kArgumentIsNotUndefinedOrInteger,
+  kMustBeInteger,
+  kIteratorChunkOrWindowSizeRange,
   kIteratorReduceNoInitial,
   kSizeIsNaN,
   kArgumentIsNonObject,
@@ -542,6 +544,7 @@ extern enum MessageTemplate {
   kStrictReadOnlyProperty,
   kInvalidUsingInForInLoop,
   kIllegalInvocation,
+  kInvalidIteratorWindowsMode,
   kInvalidIteratorZipMode,
   kIteratorZipStrictMismatch,
   ...

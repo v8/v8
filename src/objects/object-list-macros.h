@@ -184,6 +184,8 @@ namespace internal {
   V(JSIteratorConcatHelper)                     \
   V(JSIteratorZipHelper)                        \
   V(JSIteratorZipKeyedHelper)                   \
+  V(JSIteratorChunksHelper)                     \
+  V(JSIteratorWindowsHelper)                    \
   V(JSMap)                                      \
   V(JSMapIterator)                              \
   V(JSMessageObject)                            \

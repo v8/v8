@@ -146,6 +146,9 @@ namespace internal {
   T(IteratorReduceNoInitial,                                                   \
     "Reduce of a done iterator with no initial value")                         \
   T(IteratorResultNotAnObject, "Iterator result % is not an object")           \
+  T(InvalidIteratorWindowsMode,                                                \
+    "Iterator.prototype.windows: undersized must be 'only-full' or "           \
+    "'allow-partial'")                                                         \
   T(InvalidIteratorZipMode,                                                    \
     "% mode must be 'shortest', 'longest', or 'strict'")                       \
   T(IteratorZipStrictMismatch,                                                 \
@@ -167,6 +170,7 @@ namespace internal {
   T(ListFormatBadParameters, "Incorrect ListFormat information provided")      \
   T(MapperFunctionNonCallable, "flatMap mapper function is not callable")      \
   T(MethodInvokedOnWrongType, "Method invoked on an object that is not %.")    \
+  T(MustBeInteger, "% must be an integer")                                     \
   T(NoAccess, "no access")                                                     \
   T(NonCallableInInstanceOfCheck,                                              \
     "Right-hand side of 'instanceof' is not callable")                         \
@@ -456,6 +460,7 @@ namespace internal {
   T(MustBePositive, "% must be positive")                                      \
   T(ArgumentIsNotUndefinedOrInteger,                                           \
     "% argument must be undefined or an integer")                              \
+  T(IteratorChunkOrWindowSizeRange, "%: % must be between 1 and 2**32-1")      \
   /* SyntaxError */                                                            \
   T(AmbiguousExport,                                                           \
     "The requested module '%' contains conflicting star exports for name '%'") \

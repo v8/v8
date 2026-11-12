@@ -166,6 +166,8 @@
   JS_FEATURE(js_regexp_buffer_boundaries,                                      \
              "RegExp \\A \\z \\Z buffer boundary assertions")                  \
                                                                                \
+  JS_FEATURE(js_iterator_chunking, "iterator chunking")                        \
+                                                                               \
   /* V8 side owner: leszeks */                                                 \
   INTERNAL_FEATURE(always_specialize_for_script_context,                       \
                    "always specialize for script contexts in optimized code")  \

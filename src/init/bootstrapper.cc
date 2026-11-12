@@ -4676,6 +4676,11 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
     // V(ITERATOR_FUNCTION, zip, Zip, ZIP, 1, kDontAdapt)
     // V(ITERATOR_FUNCTION, zipKeyed, ZipKeyed, ZIP_KEYED, 1, kDontAdapt)
 
+    // TODO(nikolaos, 504663595): Once the --js-iterator-chunking flag is
+    // removed, add the following lines to the above macro:
+    // V(ITERATOR_PROTOTYPE, chunks, Chunks, CHUNKS, 1, kAdapt)
+    // V(ITERATOR_PROTOTYPE, windows, Windows, WINDOWS, 1, kDontAdapt)
+
     ITERATOR_HELPERS(INSTALL_ITERATOR_HELPER)
 
 #undef INSTALL_ITERATOR_HELPER
@@ -4683,9 +4688,12 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
 #undef ITERATOR_FUNCTION
 #undef ITERATOR_HELPERS
 
-    // TODO(nikolaos, 434977727): Once the --js-iterator-sequencing flag is
-    // removed, remove the three lines below.
+    // TODO(nikolaos, 434977727, 465357675, 504663595): Once the
+    // --js-iterator-sequencing, --js-joint-iteration, and
+    // --js-iterator-chunking flags are removed, remove the lines below.
     USE(v8_flags.js_iterator_sequencing);
+    USE(v8_flags.js_joint_iteration);
+    USE(v8_flags.js_iterator_chunking);
     native_context()->set_initial_iterator_helper_prototype(
         *iterator_helper_prototype);
     native_context()->set_initial_iterator_function(*iterator_function);
@@ -5704,6 +5712,42 @@ void Genesis::InitializeGlobal_js_iterator_includes() {
       native_context()->initial_iterator_prototype(), isolate());
   SimpleInstallFunction(isolate(), iterator_prototype, "includes",
                         Builtin::kIteratorPrototypeIncludes, 1, kDontAdapt);
+}
+
+void Genesis::InitializeGlobal_js_iterator_chunking() {
+  if (!v8_flags.js_iterator_chunking) return;
+  DirectHandle<JSObject> iterator_helper_prototype(
+      native_context()->initial_iterator_helper_prototype(), isolate());
+  DirectHandle<JSObject> iterator_prototype(
+      native_context()->initial_iterator_prototype(), isolate());
+  DirectHandle<JSFunction> iterator_function(
+      native_context()->initial_iterator_function(), isolate());
+
+  {
+    DirectHandle<Map> map =
+        isolate_->factory()->NewContextfulMapForCurrentContext(
+            JS_ITERATOR_CHUNKS_HELPER_TYPE, sizeof(JSIteratorChunksHelper),
+            TERMINAL_FAST_ELEMENTS_KIND, 0);
+    Map::SetPrototype(isolate(), map, iterator_helper_prototype);
+    map->SetConstructor(*iterator_function);
+    native_context()->set_iterator_chunks_helper_map(*map);
+    LOG(isolate_, MapDetails(*map));
+    SimpleInstallFunction(isolate(), iterator_prototype, "chunks",
+                          Builtin::kIteratorPrototypeChunks, 1, kAdapt);
+  }
+
+  {
+    DirectHandle<Map> map =
+        isolate_->factory()->NewContextfulMapForCurrentContext(
+            JS_ITERATOR_WINDOWS_HELPER_TYPE, sizeof(JSIteratorWindowsHelper),
+            TERMINAL_FAST_ELEMENTS_KIND, 0);
+    Map::SetPrototype(isolate(), map, iterator_helper_prototype);
+    map->SetConstructor(*iterator_function);
+    native_context()->set_iterator_windows_helper_map(*map);
+    LOG(isolate_, MapDetails(*map));
+    SimpleInstallFunction(isolate(), iterator_prototype, "windows",
+                          Builtin::kIteratorPrototypeWindows, 1, kDontAdapt);
+  }
 }
 
 void Genesis::InitializeGlobal_harmony_shadow_realm() {

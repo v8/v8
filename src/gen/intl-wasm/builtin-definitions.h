@@ -256,6 +256,10 @@ TFC(IteratorZipHelperNext, IteratorZipHelperNext) \
 TFJ(IteratorZipKeyed, kDontAdaptArgumentsSentinel) \
 TFC(IteratorZipKeyedHelperNext, IteratorZipKeyedHelperNext) \
 TFJ(IteratorPrototypeIncludes, kDontAdaptArgumentsSentinel) \
+TFJ(IteratorPrototypeChunks, JSParameterCount(1), kReceiver, kChunkSize) \
+TFC(IteratorChunksHelperNext, IteratorChunksHelperNext) \
+TFJ(IteratorPrototypeWindows, kDontAdaptArgumentsSentinel) \
+TFC(IteratorWindowsHelperNext, IteratorWindowsHelperNext) \
 TFJ(MapGroupBy, JSParameterCount(2), kReceiver, kItems, kCallback) \
 TFJ(MathAbs, JSParameterCount(1), kReceiver, kX) \
 TFJ(MathCeil, JSParameterCount(1), kReceiver, kX) \

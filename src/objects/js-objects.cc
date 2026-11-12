@@ -2820,6 +2820,10 @@ int JSObject::GetHeaderSize(InstanceType type) {
       return sizeof(JSIteratorZipHelper);
     case JS_ITERATOR_ZIP_KEYED_HELPER_TYPE:
       return sizeof(JSIteratorZipKeyedHelper);
+    case JS_ITERATOR_CHUNKS_HELPER_TYPE:
+      return sizeof(JSIteratorChunksHelper);
+    case JS_ITERATOR_WINDOWS_HELPER_TYPE:
+      return sizeof(JSIteratorWindowsHelper);
     case JS_MODULE_NAMESPACE_TYPE:
       return JSModuleNamespace::kHeaderSize;
     case JS_DEFERRED_MODULE_NAMESPACE_TYPE:
