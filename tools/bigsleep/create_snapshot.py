@@ -39,7 +39,6 @@ SEEDS_PATH = pathlib.Path("seeds.json")
 
 # List of directory names (relative to v8_dir) to skip during source copying.
 _DENY_LIST = [
-    "buildtools/reclient",
     "out",
     "third_party/llvm-build",
     "third_party/rust-toolchain",
