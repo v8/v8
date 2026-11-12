@@ -372,6 +372,57 @@ class BranchEliminationReducer : public Next {
       goto no_change;
     }
 
+    // Cloning an M-predecessor merge block duplicates its operations M times,
+    // performs O(M^2) steps in GetPredecessorIndex, and (when redirecting
+    // incoming edges into a downstream merge with K Phis) turns M + K edges
+    // into M * K Phi inputs, inflating zone memory and slowing down downstream
+    // passes (register allocation, instruction selection, and DCE):
+    //
+    //   Before folding M_1..M_3:
+    //
+    //                          B_top
+    //             /              |              \
+    //            v               v               v
+    //           S_1             S_2             S_3
+    //         /  |  \         /  |  \         /  |  \
+    //        v   v   v       v   v   v       v   v   v
+    //       E1  E2  E3      E4  E5  E6      E7  E8  E9
+    //        \   |   /       \   |   /       \   |   /
+    //         v  v  v         v  v  v         v  v  v
+    //           M_1             M_2             M_3
+    //             \              |              /
+    //              \             |             /
+    //               v            v            v
+    //                         B_outer
+    //                [ p_1 = Phi(v1, v2, v3) ]
+    //                [ ...                   ]
+    //                [ p_K = Phi(u1, u2, u3) ]
+    //
+    //   After folding M_1..M_3 into split-edge blocks E1..E9:
+    //
+    //                          B_top
+    //             /              |              \
+    //            v               v               v
+    //           S_1             S_2             S_3
+    //         /  |  \         /  |  \         /  |  \
+    //        v   v   v       v   v   v       v   v   v
+    //       E1  E2  E3      E4  E5  E6      E7  E8  E9
+    //        \   \   \       \   |   /       /   /   /
+    //         \   \   \_______\  |  /_______/   /   /
+    //          \   \___________\ | /___________/   /
+    //           \_______________\|/_______________/
+    //                          v v v
+    //                         B_outer
+    //       [ p_1 = Phi(v1,v1,v1, v2,v2,v2, v3,v3,v3) ]
+    //       [ ...       \___M__/  \___M__/  \___M__/  ]
+    //       [ p_K = Phi(u1,u1,u1, u2,u2,u2, u3,u3,u3) ]
+    //
+    // Only clone small merge blocks and bound the fan-in of downstream merges
+    // in both the input and output graphs.
+    if (destination_origin->PredecessorCount() > kMaxPredecessorsForCloning) {
+      goto no_change;
+    }
+
     if (!__ CanCreateNVariables(destination_origin->OpCountUpperBound())) {
       goto no_change;
     }
@@ -390,6 +441,10 @@ class BranchEliminationReducer : public Next {
     }
 
     if (const BranchOp* branch = last_op.template TryCast<BranchOp>()) {
+      if (DestinationHasTooManyPredecessors(branch->if_true) ||
+          DestinationHasTooManyPredecessors(branch->if_false)) {
+        goto no_change;
+      }
       V<Word32> condition =
           __ template MapToNewGraph<true>(branch->condition());
       if (condition.valid()) {
@@ -457,16 +512,20 @@ class BranchEliminationReducer : public Next {
       Asm().CloneAndInlineBlock(destination_origin);
       return {};
     } else if (const GotoOp* goto_op = last_op.template TryCast<GotoOp>()) {
-      if (goto_op->destination->IsMerge() &&
-          goto_op->destination->PredecessorCount() > 1 &&
-          ContainsOnlyPhisAndGoto(destination_origin)) {
-        // The destination block in the old graph is a merge block that only
-        // merges Phis and immediately jumps to another merge block, so we can
-        // inline it into the current block and jump directly to the outer merge
-        // block.
-        Asm().CloneAndInlineBlock(destination_origin);
-        return {};
+      if (DestinationHasTooManyPredecessors(goto_op->destination)) {
+        goto no_change;
       }
+      if (!goto_op->destination->IsMerge() ||
+          goto_op->destination->PredecessorCount() <= 1 ||
+          !ContainsOnlyPhisAndGoto(destination_origin)) {
+        goto no_change;
+      }
+      // The destination block in the old graph is a merge block that only
+      // merges Phis (or forwards to another merge block) and immediately
+      // jumps to another merge block, so we can inline it into the current
+      // block and jump directly to the outer merge block.
+      Asm().CloneAndInlineBlock(destination_origin);
+      return {};
     }
 
     goto no_change;
@@ -706,6 +765,16 @@ class BranchEliminationReducer : public Next {
     }
 
     return has_phi;
+  }
+
+  static constexpr int kMaxPredecessorsForCloning = 8;
+  static constexpr int kMaxDestinationPredecessorsForCloning = 32;
+
+  bool DestinationHasTooManyPredecessors(const Block* destination) {
+    return destination->PredecessorCount() >
+               kMaxDestinationPredecessorsForCloning ||
+           __ MapToNewGraph(destination)->PredecessorCount() >
+               kMaxDestinationPredecessorsForCloning;
   }
 
   bool ContainsOnlyPhisAndGoto(const Block* block) {

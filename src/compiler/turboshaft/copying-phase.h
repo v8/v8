@@ -150,6 +150,12 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
       }
     }
 
+#ifdef DEBUG
+    for (const Block& block : Asm().output_graph().blocks()) {
+      block.CheckPredecessorCount();
+    }
+#endif
+
     input_graph_.SwapWithCompanion();
   }
 
