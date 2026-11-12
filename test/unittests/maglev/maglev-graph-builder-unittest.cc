@@ -410,6 +410,36 @@ TEST_F(MaglevGraphBuilderTest, ConstructNodesHaveJSReceiverStaticType) {
     CHECK_EQ(0, countNodes<CheckConstructResult>(graph));
   }
 }
+
+TEST_F(MaglevGraphBuilderTest, ConsStringMapCanonicalizesInputs) {
+  FlagScope<bool> allow_natives_syntax(&v8_flags.allow_natives_syntax, true);
+  FlagScope<bool> cons_string_elision(&v8_flags.maglev_cons_string_elision,
+                                      true);
+  HandleScope scope(isolate());
+  Handle<JSFunction> function = RunJS<JSFunction>(R"(
+      function f(s) { return s + "0123456789abc"; }
+      %PrepareFunctionForOptimization(f);
+      f("hello");
+      (f)
+    )");
+  std::unique_ptr<MaglevCompilationInfo> info =
+      MaglevCompilationInfo::New(isolate(), function, BytecodeOffset::None());
+  info->broker()->AttachLocalIsolateForMaglev(info.get(),
+                                              isolate()->AsLocalIsolate());
+  Graph* graph = Graph::New(info.get());
+  compiler::CurrentHeapBrokerScope current_broker(info->broker());
+  MaglevGraphBuilder graph_builder(isolate()->AsLocalIsolate(),
+                                   info->toplevel_compilation_unit(), graph);
+  CHECK(graph_builder.Build());
+  info->broker()->DetachLocalIsolateForMaglev(info.get());
+
+  ConsStringMap* map_node = getUniqueNode<ConsStringMap>(graph);
+  ASSERT_TRUE(map_node->LeftInput().node()->Is<RootConstant>());
+  EXPECT_EQ(RootIndex::kConsOneByteStringMap,
+            map_node->LeftInput().node()->Cast<RootConstant>()->index());
+  EXPECT_FALSE(map_node->RightInput().node()->Is<RootConstant>());
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

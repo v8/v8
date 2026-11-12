@@ -1799,8 +1799,8 @@ ReduceResult MaglevGraphBuilder::BuildNewConsStringMap(ValueNode* left,
   // Sort inputs for CSE. Move constants to the left since the instruction
   // reuses the lhs input.
   if (IsConstantNode(right_map->opcode()) ||
-      (!IsConstantNode(left_map->opcode()) && left > right)) {
-    std::swap(left, right);
+      (!IsConstantNode(left_map->opcode()) && left_map > right_map)) {
+    std::swap(left_map, right_map);
   }
   // TODO(olivf): Evaluate if using maglev controlflow to select the map could
   // be faster here.
