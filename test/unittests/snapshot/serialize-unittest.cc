@@ -4311,15 +4311,12 @@ TEST_F(UninitializedSerializeTest, SnapshotCreatorExternalReferences) {
       v8::HandleScope handle_scope(isolate);
       v8::Local<v8::Context> context = v8::Context::New(isolate);
       my_context_embedder_field_index =
-          context->GetNumberOfEmbedderDataFields();
+          context->GetNumberOfEmbedderDataFields() - 1;
       v8::Context::Scope context_scope(context);
       v8::Local<v8::External> writable_external =
           v8::External::New(isolate, &serialized_static_field, kIntPointerTag);
-      START_ALLOW_USE_DEPRECATED()
-      // TODO(b/570436596): Migrate to V3.
-      context->SetEmbedderDataV2(my_context_embedder_field_index,
+      context->SetEmbedderDataV3(my_context_embedder_field_index,
                                  writable_external);
-      END_ALLOW_USE_DEPRECATED()
       v8::Local<v8::External> external =
           v8::External::New(isolate, &serialized_static_field, kIntPointerTag);
       v8::Local<v8::FunctionTemplate> callback =
@@ -5122,10 +5119,8 @@ void DeserializeContextData(v8::Local<v8::Context> context, int index,
   InternalFieldData* field = new InternalFieldData{0};
   memcpy(field, payload.data, payload.raw_size);
   CHECK_EQ(context_data.data, field->data);
-  START_ALLOW_USE_DEPRECATED()
-  // TODO(b/570436596): Migrate to V2.
-  context->SetAlignedPointerInEmbedderData(index, field, kInternalFieldDataTag);
-  END_ALLOW_USE_DEPRECATED()
+  context->SetAlignedPointerInEmbedderDataV2(index, field,
+                                             kInternalFieldDataTag);
 }
 
 }  // namespace context_data_test

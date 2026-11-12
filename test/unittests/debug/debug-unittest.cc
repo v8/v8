@@ -3609,11 +3609,8 @@ TEST_F(DebugTest, ContextData) {
   // Set and check different data values.
   v8::Local<v8::String> data_1 = v8_str(isolate, "1");
   v8::Local<v8::String> data_2 = v8_str(isolate, "2");
-  START_ALLOW_USE_DEPRECATED()
-  // TODO(b/570436596): Migrate to V3.
-  context_1->SetEmbedderDataV2(0, data_1);
-  context_2->SetEmbedderDataV2(0, data_2);
-  END_ALLOW_USE_DEPRECATED()
+  context_1->SetEmbedderDataV3(0, data_1);
+  context_2->SetEmbedderDataV3(0, data_2);
   CHECK(v8::Local<v8::Value>::Cast(context_1->GetEmbedderDataV2(0))
             ->StrictEquals(data_1));
   CHECK(v8::Local<v8::Value>::Cast(context_2->GetEmbedderDataV2(0))
