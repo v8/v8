@@ -97,7 +97,7 @@ vars = {
   'chromium_jetstream_git': 'https://chromium.googlesource.com/external/github.com/WebKit/JetStream.git',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:74c32399b100531b22184bd6ac38c4b26bc86ca5',
+  'gn_version': 'git_revision:24d41137fac7ea2828590181ebd8284fe7437253',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -114,7 +114,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': '178ddb451035dd672f148c7c9704bd41c6bdb3cd',
+  'partition_alloc_version': '2d63c19ec7b5583a28d72be5e73bfd3e7ef07ec6',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -173,9 +173,9 @@ deps = {
     'condition': 'checkout_agents_internal',
   },
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '43aef655616ba2e290d880d7c3f13cfd28fde2e8',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '7f08fef8615dda7d00d5b24e57e6becff6c67d01',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'd665f41b0ab65f098ee90a06b1678978c2d0028a',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '80d023de0f0aeb89e4a4a8f03e473ca50344d85e',
   'buildtools/linux64': {
     'packages': [
       {
@@ -535,7 +535,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '3c53ccda1eb2aa97c036554bd4d5a0fcbb7c2040',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'e078cbaf051dfe4710a4db0473160f517985e119',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '3813fd5b3029807583e5d2549a40d78fa499c3e8',
   'third_party/re2/src':
@@ -549,7 +549,7 @@ deps = {
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + 'd72db9e3040567a7589e00c0ad7ddf25c3b070bc',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '5228c65ca04c724dc297bb4d12451ddc42946813',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + 'ad9810763dcb5be4e56414aa2a3d546d5a451c9d',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
