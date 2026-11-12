@@ -491,7 +491,6 @@
   'regress/regress-map-invalidation-2': [SKIP],
   'turboshaft/extras-cped': [SKIP],
   # Maglev does not support additive safe ints.
-  'additive-safe-int-feedback': [SKIP],
   'regress-398879933': [SKIP],
   'regress-399698534': [SKIP],
   'regress-414738826': [SKIP],

@@ -164,14 +164,21 @@ class MachineLoweringReducer : public Next {
       }
       case ChangeOrDeoptOp::Kind::kFloat64ToAdditiveSafeInteger: {
         V<Float64> f64_input = V<Float64>::Cast(input);
-        V<Word64> i64 = __ TruncateFloat64ToInt64OverflowToMin(f64_input);
+        V<Word64> i64 = __ TruncateFloat64ToInt64OverflowUndefined(f64_input);
+        // Sign-extend using kAdditiveSafeIntegerFeedbackShift so that
+        // converting back to Float64 and comparing equal to {f64_input} checks
+        // both exact integer truncation and the AdditiveSafeInteger range in a
+        // single branch without materializing a 64-bit constant.
+        V<Word64> sign_extended = __ Word64ShiftRightArithmetic(
+            __ Word64ShiftLeft(i64, kAdditiveSafeIntegerFeedbackShift),
+            kAdditiveSafeIntegerFeedbackShift);
         __ DeoptimizeIfNot(
-            __ Float64Equal(__ ChangeInt64ToFloat64(i64), f64_input),
-            frame_state, DeoptimizeReason::kLostPrecisionOrNaN, feedback);
+            __ Float64Equal(__ ChangeInt64ToFloat64(sign_extended), f64_input),
+            frame_state, DeoptimizeReason::kNotAdditiveSafeInteger, feedback);
 
         if (minus_zero_mode == CheckForMinusZeroMode::kCheckForMinusZero) {
           // Check if {value} is -0.
-          IF (UNLIKELY(__ Word64Equal(i64, 0))) {
+          IF (UNLIKELY(__ Word64Equal(sign_extended, 0))) {
             // In case of 0, we need to check the high bits for the IEEE -0
             // pattern.
             V<Word32> check_negative =
@@ -181,17 +188,7 @@ class MachineLoweringReducer : public Next {
           }
         }
 
-        // Check the value actually fits in AdditiveSafeIntegerFeedback.
-        // (value - kMinAdditiveSafeIntegerFeedback) >> 51 == 0.
-        V<Word32> check_is_zero = __ Word64Equal(
-            __ Word64ShiftRightArithmetic(
-                __ Word64Sub(i64, kMinAdditiveSafeIntegerFeedback),
-                kAdditiveSafeIntegerFeedbackBitLength),
-            0);
-        __ DeoptimizeIfNot(check_is_zero, frame_state,
-                           DeoptimizeReason::kNotAdditiveSafeInteger, feedback);
-
-        return i64;
+        return sign_extended;
       }
       case ChangeOrDeoptOp::Kind::kFloat64ToInt64: {
         V<Float64> f64_input = V<Float64>::Cast(input);
