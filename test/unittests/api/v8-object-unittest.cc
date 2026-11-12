@@ -63,7 +63,7 @@ TEST_F(LapContextTest, CurrentContextInLazyAccessorOnPrototype) {
       [](const FunctionCallbackInfo<Value>& info) {
         ++call_count;
         Local<Context> prototype_context = *reinterpret_cast<Local<Context>*>(
-            info.DataV2().As<External>()->Value(kContextTag));
+            info.Data().As<External>()->Value(kContextTag));
         EXPECT_EQ(prototype_context, info.GetIsolate()->GetCurrentContext());
       },
       External::New(isolate(), &prototype_context, kContextTag), signature);
@@ -130,7 +130,7 @@ TEST_F(LapContextTest, CurrentContextInLazyAccessorOnPlatformObject) {
       [](const FunctionCallbackInfo<Value>& info) {
         ++call_count;
         Local<Context> receiver_context = *reinterpret_cast<Local<Context>*>(
-            info.DataV2().As<External>()->Value(kContextTag));
+            info.Data().As<External>()->Value(kContextTag));
         EXPECT_EQ(receiver_context, info.GetIsolate()->GetCurrentContext());
       },
       External::New(isolate(), &receiver_context, kContextTag), signature);
@@ -181,7 +181,7 @@ TEST_F(LapContextTest, CurrentContextInLazyAccessorOnInterface) {
       [](const FunctionCallbackInfo<Value>& info) {
         ++call_count;
         Local<Context> interface_context = *reinterpret_cast<Local<Context>*>(
-            info.DataV2().As<External>()->Value(kContextTag));
+            info.Data().As<External>()->Value(kContextTag));
         EXPECT_EQ(interface_context, info.GetIsolate()->GetCurrentContext());
       },
       External::New(isolate(), &interface_context, kContextTag),

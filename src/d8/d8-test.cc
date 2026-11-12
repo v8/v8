@@ -2146,7 +2146,7 @@ namespace {
 v8::Intercepted D8InterceptCallback(Local<Name> property,
                                     const PropertyCallbackInfo<Value>& info) {
   Isolate* isolate = info.GetIsolate();
-  Local<Value> data = info.DataV2().As<Value>();
+  Local<Value> data = info.Data().As<Value>();
   if (!data->IsFunction()) {
     isolate->ThrowError("Interceptor callback must be a function");
     return v8::Intercepted::kYes;

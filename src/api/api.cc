@@ -12211,7 +12211,7 @@ const CTypeInfo& CFunctionInfo::ArgumentInfo(unsigned int index) const {
 }
 
 namespace api_internal {
-V8_EXPORT v8::Local<v8::Data> GetFunctionTemplateDataV2(
+V8_EXPORT v8::Local<v8::Data> GetFunctionTemplateData(
     v8::Isolate* isolate, v8::Local<v8::Data> raw_target) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::DirectHandle<i::Object> target = Utils::OpenDirectHandle(*raw_target);
@@ -12228,7 +12228,7 @@ V8_EXPORT v8::Local<v8::Data> GetFunctionTemplateDataV2(
           shared->api_func_data()->callback_data(kAcquireLoad), i_isolate));
     }
   }
-  Utils::ApiCheck(false, "api_internal::GetFunctionTemplateDataV2",
+  Utils::ApiCheck(false, "api_internal::GetFunctionTemplateData",
                   "Target function is not an Api function");
   UNREACHABLE();
 }
@@ -12523,7 +12523,7 @@ bool ValidateFunctionCallbackInfo(const FunctionCallbackInfo<T>& info) {
   CHECK_EQ(i_isolate, Isolate::Current());
   CHECK(!i_isolate->GetIncumbentContext().is_null());
   CHECK(info.This()->IsObject());
-  CHECK(!info.DataV2().IsEmpty());
+  CHECK(!info.Data().IsEmpty());
   CHECK(info.GetReturnValue().Get()->IsValue());
   return true;
 }
@@ -12540,7 +12540,7 @@ bool ValidatePropertyCallbackInfo(const PropertyCallbackInfo<T>& info) {
         *i::PropertyCallbackArguments::GetPropertyName(info);
     CHECK(i::IsName(name));
   }
-  CHECK(info.DataV2()->IsValue());
+  CHECK(info.Data()->IsValue());
   USE(info.ShouldThrowOnError());
   if (!std::is_same_v<T, void>) {
     CHECK(info.GetReturnValue().Get()->IsValue());

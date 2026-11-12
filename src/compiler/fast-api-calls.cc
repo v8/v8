@@ -302,7 +302,7 @@ Node* FastApiCallBuilder::Build(FastApiCallFunction c_function,
 
     Node* data_argument_to_pass = __ AdaptLocalArgument(data_argument);
 
-    constexpr int data_offset = offsetof(v8::FastApiCallbackOptions, data_);
+    constexpr int data_offset = offsetof(v8::FastApiCallbackOptions, data);
     __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                  kNoWriteBarrier),
              stack_slot, data_offset, data_argument_to_pass);

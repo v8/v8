@@ -87,7 +87,7 @@ class FastApiCallLoweringReducer : public Next {
         // data = data_argument
         OpIndex data_argument_to_pass = __ AdaptLocalArgument(data_argument);
         constexpr size_t data_offset =
-            offsetof(v8::FastApiCallbackOptions, data_);
+            offsetof(v8::FastApiCallbackOptions, data);
         __ StoreOffHeap(stack_slot, data_argument_to_pass,
                         MemoryRepresentation::UintPtr(), data_offset);
 

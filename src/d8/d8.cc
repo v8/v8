@@ -1906,7 +1906,7 @@ void Shell::ModuleResolutionSuccessCallback(
   DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate(info.GetIsolate());
   HandleScope handle_scope(isolate);
-  Local<Array> module_resolution_data(info.DataV2().As<Value>().As<Array>());
+  Local<Array> module_resolution_data(info.Data().As<Value>().As<Array>());
   Local<Context> context(isolate->GetCurrentContext());
 
   Local<Promise::Resolver> resolver(
@@ -1931,7 +1931,7 @@ void Shell::ModuleResolutionFailureCallback(
   DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate(info.GetIsolate());
   HandleScope handle_scope(isolate);
-  Local<Array> module_resolution_data(info.DataV2().As<Value>().As<Array>());
+  Local<Array> module_resolution_data(info.Data().As<Value>().As<Array>());
   Local<Context> context(isolate->GetCurrentContext());
 
   Local<Promise::Resolver> resolver(
@@ -6894,8 +6894,8 @@ void Worker::PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& info) {
   std::unique_ptr<SerializationData> data =
       Shell::SerializeValue(isolate, message, transfer);
   if (data) {
-    DCHECK(info.DataV2().As<Value>()->IsExternal());
-    Local<External> this_value = info.DataV2().As<External>();
+    DCHECK(info.Data().As<Value>()->IsExternal());
+    Local<External> this_value = info.Data().As<External>();
     Worker* worker = static_cast<Worker*>(this_value->Value(kWorkerTag));
 
     worker->out_queue_.Enqueue(std::move(data));
@@ -6914,8 +6914,8 @@ void Worker::Close(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   HandleScope handle_scope(isolate);
-  DCHECK(info.DataV2().As<Value>()->IsExternal());
-  Local<External> this_value = info.DataV2().As<External>();
+  DCHECK(info.Data().As<Value>()->IsExternal());
+  Local<External> this_value = info.Data().As<External>();
   Worker* worker = static_cast<Worker*>(this_value->Value(kWorkerTag));
   worker->Terminate();
 }
