@@ -780,7 +780,10 @@ class V8_EXPORT_PRIVATE InstructionSelector final
       return load_->result_rep;
     }
     bool is_trapping() const { return kind().with_trap_handler; }
-    bool is_atomic() const { return kind().is_atomic; }
+    bool is_atomic() const { return kind().is_atomic(); }
+    std::optional<AtomicMemoryOrder> memory_order() const {
+      return kind().memory_order();
+    }
     bool has_shared_base() const { return kind().shared_base; }
 
     turboshaft::OpIndex base() const {
@@ -893,7 +896,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
       return op_->kind.with_trap_handler ? MemoryAccessKind::kTrapping
                                          : MemoryAccessKind::kNormal;
     }
-    bool is_atomic() const { return op_->kind.is_atomic; }
+    bool is_atomic() const { return op_->kind.is_atomic(); }
 
     turboshaft::OpIndex base() const { return op_->base(); }
     turboshaft::OptionalOpIndex index() const { return op_->index(); }

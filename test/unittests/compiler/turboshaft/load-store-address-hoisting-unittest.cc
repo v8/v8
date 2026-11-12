@@ -189,9 +189,10 @@ TEST_F(ReducerTest, SimplifyAtomicStoreTaggedBaseZeroOffset) {
     OpIndex tagged_base = Asm.GetParameter(0);
     OpIndex index = __ BitcastTaggedToWordPtr(Asm.GetParameter(1));
     OpIndex value = __ Word32Constant(42);
-    __ Store(tagged_base, index, value, StoreOp::Kind::TaggedBase().Atomic(),
+    __ Store(tagged_base, index, value,
+             StoreOp::Kind::TaggedBase().Atomic(AtomicMemoryOrder::kSeqCst),
              MemoryRepresentation::Int32(), WriteBarrierKind::kNoWriteBarrier,
-             AtomicMemoryOrder::kSeqCst, 0, 0);
+             0, 0);
     __ Return(tagged_base);
   });
 
@@ -209,9 +210,10 @@ TEST_F(ReducerTest, SimplifyAtomicStoreScaledIndexAndOffset) {
     OpIndex raw_base = __ BitcastTaggedToWordPtr(Asm.GetParameter(0));
     OpIndex index = __ BitcastTaggedToWordPtr(Asm.GetParameter(1));
     OpIndex value = __ Word32Constant(42);
-    __ Store(raw_base, index, value, StoreOp::Kind::RawAligned().Atomic(),
+    __ Store(raw_base, index, value,
+             StoreOp::Kind::RawAligned().Atomic(AtomicMemoryOrder::kSeqCst),
              MemoryRepresentation::Int32(), WriteBarrierKind::kNoWriteBarrier,
-             AtomicMemoryOrder::kSeqCst, 16, 2);
+             16, 2);
     __ Return(Asm.GetParameter(0));
   });
 
@@ -231,10 +233,10 @@ TEST_F(ReducerTest, SimplifyAtomicStoreUnencodableOffset) {
     OpIndex raw_base = __ BitcastTaggedToWordPtr(Asm.GetParameter(0));
     OpIndex index = __ BitcastTaggedToWordPtr(Asm.GetParameter(1));
     OpIndex value = __ Word32Constant(42);
-    __ Store(raw_base, index, value, StoreOp::Kind::RawAligned().Atomic(),
+    __ Store(raw_base, index, value,
+             StoreOp::Kind::RawAligned().Atomic(AtomicMemoryOrder::kSeqCst),
              MemoryRepresentation::Int32(), WriteBarrierKind::kNoWriteBarrier,
-             AtomicMemoryOrder::kSeqCst, std::numeric_limits<int32_t>::min(),
-             0);
+             std::numeric_limits<int32_t>::min(), 0);
     __ Return(Asm.GetParameter(0));
   });
 

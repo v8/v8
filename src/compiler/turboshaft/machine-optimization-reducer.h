@@ -2233,20 +2233,19 @@ class MachineOptimizationReducer : public Next {
 
   V<None> REDUCE(Store)(OpIndex base_idx, OptionalOpIndex index, OpIndex value,
                         StoreOp::Kind kind, MemoryRepresentation stored_rep,
-                        WriteBarrierKind write_barrier,
-                        std::optional<AtomicMemoryOrder> memory_order,
-                        int32_t offset, uint8_t element_scale,
+                        WriteBarrierKind write_barrier, int32_t offset,
+                        uint8_t element_scale,
                         bool maybe_initializing_or_transitioning,
                         TrustedPointerTag maybe_trusted_pointer_tag) {
     LABEL_BLOCK(no_change) {
-      return Next::ReduceStore(
-          base_idx, index, value, kind, stored_rep, write_barrier, memory_order,
-          offset, element_scale, maybe_initializing_or_transitioning,
-          maybe_trusted_pointer_tag);
+      return Next::ReduceStore(base_idx, index, value, kind, stored_rep,
+                               write_barrier, offset, element_scale,
+                               maybe_initializing_or_transitioning,
+                               maybe_trusted_pointer_tag);
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
 #if V8_TARGET_ARCH_32_BIT
-    if (kind.is_atomic && stored_rep.SizeInBytes() == 8) {
+    if (kind.is_atomic() && stored_rep.SizeInBytes() == 8) {
       // AtomicWord32PairOp (as used by Int64Lowering) cannot handle
       // element_scale != 0 currently.
       // TODO(jkummerow): Add support for element_scale in AtomicWord32PairOp.
@@ -2289,15 +2288,15 @@ class MachineOptimizationReducer : public Next {
       index = base.right();
       // We go through the Store stack again, which might merge {index} into
       // {offset}, or just do other optimizations on this Store.
-      __ Store(base_idx, index, value, kind, stored_rep, write_barrier,
-               memory_order, offset, element_scale,
-               maybe_initializing_or_transitioning, maybe_trusted_pointer_tag);
+      __ Store(base_idx, index, value, kind, stored_rep, write_barrier, offset,
+               element_scale, maybe_initializing_or_transitioning,
+               maybe_trusted_pointer_tag);
 
       return V<None>::Invalid();
     }
 
     return Next::ReduceStore(base_idx, index, value, kind, stored_rep,
-                             write_barrier, memory_order, offset, element_scale,
+                             write_barrier, offset, element_scale,
                              maybe_initializing_or_transitioning,
                              maybe_trusted_pointer_tag);
   }
@@ -2312,7 +2311,7 @@ class MachineOptimizationReducer : public Next {
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
 #if V8_TARGET_ARCH_32_BIT
-    if (kind.is_atomic && loaded_rep.SizeInBytes() == 8) {
+    if (kind.is_atomic() && loaded_rep.SizeInBytes() == 8) {
       // AtomicWord32PairOp (as used by Int64Lowering) cannot handle
       // element_scale != 0 currently.
       // TODO(jkummerow): Add support for element_scale in AtomicWord32PairOp.

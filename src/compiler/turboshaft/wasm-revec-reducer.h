@@ -970,7 +970,7 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
       V<Simd256> value = analyzer_.GetReducedInput(pnode);
       DCHECK(value.valid());
       __ Store(base, index, value, store.kind, MemoryRepresentation::Simd256(),
-               store.write_barrier, store.memory_order(), start.offset);
+               store.write_barrier, start.offset);
 
       // Set an arbitrary valid OpIndex here to skip reduce later.
       pnode->SetRevectorizedNode(ig_index);

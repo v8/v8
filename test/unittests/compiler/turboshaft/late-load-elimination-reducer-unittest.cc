@@ -699,10 +699,11 @@ TEST_F(WasmLateLoadEliminationReducerTest, WasmAtomicsNoElimination) {
       1,
       [](auto& Asm) {
         auto MakeLoad = [&Asm]() -> V<Word32> {
-          return __ Load(Asm.GetParameter(0), {},
-                         LoadOp::Kind::TaggedBase().Atomic(),
-                         MemoryRepresentation::Int32(),
-                         RegisterRepresentation::Word32(), 4);
+          return __ Load(
+              Asm.GetParameter(0), {},
+              LoadOp::Kind::TaggedBase().Atomic(AtomicMemoryOrder::kSeqCst),
+              MemoryRepresentation::Int32(), RegisterRepresentation::Word32(),
+              4);
         };
 
         V<Word32> load0 = MakeLoad();
@@ -767,10 +768,10 @@ TEST_F(WasmLateLoadEliminationReducerTest, WasmInterveningAtomicStore) {
             __ Allocate(__ WordPtrConstant(16), AllocationType::kSharedOld,
                         AllocationAlignment::kTaggedAligned));
 
-        __ Store(
-            fresh, {}, __ Word32Constant(1),
-            StoreOp::Kind::TaggedBase().Atomic(), MemoryRepresentation::Int32(),
-            WriteBarrierKind::kNoWriteBarrier, {AtomicMemoryOrder::kSeqCst}, 8);
+        __ Store(fresh, {}, __ Word32Constant(1),
+                 StoreOp::Kind::TaggedBase().Atomic(AtomicMemoryOrder::kSeqCst),
+                 MemoryRepresentation::Int32(),
+                 WriteBarrierKind::kNoWriteBarrier, 8);
 
         V<Word32> C(load1) = MakeLoad();
 
@@ -803,7 +804,8 @@ TEST_F(WasmLateLoadEliminationReducerTest, WasmInterveningAtomicLoad) {
                         AllocationAlignment::kTaggedAligned));
 
         V<Word32> intervening = __ Load(
-            fresh, {}, LoadOp::Kind::TaggedBase().Atomic(),
+            fresh, {},
+            LoadOp::Kind::TaggedBase().Atomic(AtomicMemoryOrder::kSeqCst),
             MemoryRepresentation::Int32(), RegisterRepresentation::Word32(), 8);
 
         V<Word32> C(load1) = MakeLoad();
@@ -1213,10 +1215,11 @@ TEST_F(WasmLoadEliminationReducerTest, WasmStructGetInterveningAtomicStore) {
       [struct_type](auto& Asm) {
         V<Any> get0 = MakeStructGet(Asm, struct_type);
 
-        __ Store(
-            Asm.template GetParameter<WordPtr>(1), {}, __ Word32Constant(1),
-            StoreOp::Kind::RawAligned().Atomic(), MemoryRepresentation::Int32(),
-            WriteBarrierKind::kNoWriteBarrier, {AtomicMemoryOrder::kSeqCst}, 8);
+        __ Store(Asm.template GetParameter<WordPtr>(1), {},
+                 __ Word32Constant(1),
+                 StoreOp::Kind::RawAligned().Atomic(AtomicMemoryOrder::kSeqCst),
+                 MemoryRepresentation::Int32(),
+                 WriteBarrierKind::kNoWriteBarrier, 8);
 
         V<Any> C(get1) = MakeStructGet(Asm, struct_type);
 

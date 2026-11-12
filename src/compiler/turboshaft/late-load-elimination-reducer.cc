@@ -354,7 +354,7 @@ void LateLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
   TRACE("> ProcessLoad(" << op_idx << ")");
 
 #if V8_ENABLE_WEBASSEMBLY
-  if (load.kind.is_atomic && v8_flags.wasm_shared) {
+  if (load.kind.is_atomic() && v8_flags.wasm_shared) {
     // We are not allowed to move a memory access backwards past a seq_cst load.
     // This means that we have to invalidate everything.
     // TODO(manoskouk): Find a way to eliminate atomic-to-atomic and maybe
@@ -372,7 +372,7 @@ void LateLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
     return;
   }
 
-  if (load.kind.is_atomic) {
+  if (load.kind.is_atomic()) {
     // Atomic loads cannot be eliminated away, but potential concurrency
     // invalidates known stored values.
     TRACE(">> Atomic load, invalidating related memory");

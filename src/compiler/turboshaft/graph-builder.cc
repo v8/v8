@@ -2639,12 +2639,12 @@ OpIndex GraphBuilder::Process(
       LoadOp::Kind kind;
       switch (p.kind()) {
         case MemoryAccessKind::kNormal:
-          kind = LoadOp::Kind::RawAligned().Atomic();
+          kind = LoadOp::Kind::RawAligned().Atomic(p.order());
           break;
         case MemoryAccessKind::kUnaligned:
           UNREACHABLE();
         case MemoryAccessKind::kTrapping:
-          kind = LoadOp::Kind::Trapping().Atomic();
+          kind = LoadOp::Kind::Trapping().Atomic(p.order());
           break;
       }
       RegisterRepresentation result_rep =
@@ -2682,18 +2682,18 @@ OpIndex GraphBuilder::Process(
       StoreOp::Kind kind;
       switch (p.kind()) {
         case MemoryAccessKind::kNormal:
-          kind = StoreOp::Kind::RawAligned().Atomic();
+          kind = StoreOp::Kind::RawAligned().Atomic(p.order());
           break;
         case MemoryAccessKind::kUnaligned:
           UNREACHABLE();
         case MemoryAccessKind::kTrapping:
-          kind = StoreOp::Kind::Trapping().Atomic();
+          kind = StoreOp::Kind::Trapping().Atomic(p.order());
           break;
       }
       __ Store(
           base, offset, value, kind,
           MemoryRepresentation::FromMachineRepresentation(p.representation()),
-          p.write_barrier_kind(), p.order(), 0, 0, true);
+          p.write_barrier_kind(), 0, 0, true);
       return OpIndex::Invalid();
     }
 

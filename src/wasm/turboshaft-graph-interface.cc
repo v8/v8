@@ -1560,10 +1560,9 @@ class TurboshaftGraphBuildingInterface
     OpIndex base =
         offset_in_int_range ? mem_start : __ WordPtrAdd(mem_start, imm.offset);
     int32_t offset = offset_in_int_range ? static_cast<int32_t>(imm.offset) : 0;
-    std::optional<AtomicMemoryOrder> memory_order;
-    if (store_kind.is_atomic) memory_order = imm.memory_order;
+    DCHECK(!store_kind.is_atomic());
     __ Store(base, final_index, store_value, store_kind, repr,
-             compiler::kNoWriteBarrier, memory_order, offset);
+             compiler::kNoWriteBarrier, offset);
 
     if (v8_flags.trace_wasm_memory) {
       TraceMemoryOperation(decoder, true, imm.mem_index, repr, final_index,
@@ -1625,11 +1624,13 @@ class TurboshaftGraphBuildingInterface
 
   void CurrentMemoryPages(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                           Value* result) {
-    V<WordPtr> size_wordptr = imm.memory->is_shared
-                                  ? __ Load(MemSizeAddress(imm.index),
-                                            LoadOp::Kind::RawAligned().Atomic(),
-                                            MemoryRepresentation::UintPtr(), 0)
-                                  : MemSize(imm.index);
+    V<WordPtr> size_wordptr =
+        imm.memory->is_shared
+            ? __ Load(
+                  MemSizeAddress(imm.index),
+                  LoadOp::Kind::RawAligned().Atomic(AtomicMemoryOrder::kSeqCst),
+                  MemoryRepresentation::UintPtr(), 0)
+            : MemSize(imm.index);
     V<WordPtr> result_wordptr =
         __ WordPtrShiftRightArithmetic(size_wordptr, kWasmPageSizeLog2);
     // In the 32-bit case, truncation happens implicitly.
@@ -4771,9 +4772,9 @@ class TurboshaftGraphBuildingInterface
 #endif
       __ Store(MemBuffer(imm.mem_index, imm.offset), index, value,
                access_kind == MemoryAccessKind::kTrapping
-                   ? LoadOp::Kind::Trapping().Atomic()
-                   : LoadOp::Kind::RawAligned().Atomic(),
-               info.memory_rep, compiler::kNoWriteBarrier, imm.memory_order);
+                   ? StoreOp::Kind::Trapping().Atomic(imm.memory_order)
+                   : StoreOp::Kind::RawAligned().Atomic(imm.memory_order),
+               info.memory_rep, compiler::kNoWriteBarrier);
       return;
     }
     DCHECK_EQ(info.op_type, kLoad);
@@ -4790,11 +4791,12 @@ class TurboshaftGraphBuildingInterface
       loaded_value_rep = RegisterRepresentation::Word32();
     }
 #endif
-    result->op = __ Load(MemBuffer(imm.mem_index, imm.offset), index,
-                         access_kind == MemoryAccessKind::kTrapping
-                             ? LoadOp::Kind::Trapping().Atomic()
-                             : LoadOp::Kind::RawAligned().Atomic(),
-                         info.memory_rep, loaded_value_rep);
+    result->op =
+        __ Load(MemBuffer(imm.mem_index, imm.offset), index,
+                access_kind == MemoryAccessKind::kTrapping
+                    ? LoadOp::Kind::Trapping().Atomic(imm.memory_order)
+                    : LoadOp::Kind::RawAligned().Atomic(imm.memory_order),
+                info.memory_rep, loaded_value_rep);
 
 #ifdef V8_TARGET_BIG_ENDIAN
     // Reverse the value bytes after load.

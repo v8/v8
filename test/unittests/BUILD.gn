@@ -738,6 +738,7 @@ v8_cluster_source_set("v8_unittests_sources") {
       "compiler/turboshaft/call-runtime-unittest.cc",
       "compiler/turboshaft/control-flow-unittest.cc",
       "compiler/turboshaft/duplication-optimization-reducer-unittest.cc",
+      "compiler/turboshaft/graph-builder-unittest.cc",
       "compiler/turboshaft/instruction-selection-normalization-reducer-unittest.cc",
       "compiler/turboshaft/late-load-elimination-reducer-unittest.cc",
       "compiler/turboshaft/load-store-address-hoisting-unittest.cc",

@@ -360,7 +360,7 @@ class WasmLoweringReducer : public Next {
     if (memory_order.has_value()) {
       // TODO(mliedtke): Support acquire release semantics if specified as the
       // memory order.
-      load_kind = load_kind.Atomic();
+      load_kind = load_kind.Atomic(*memory_order);
     }
     MemoryRepresentation repr =
         RepresentationFor(type->field(field_index), is_signed);
@@ -394,7 +394,7 @@ class WasmLoweringReducer : public Next {
                                    ? StoreOp::Kind::TrapOnNull()
                                    : StoreOp::Kind::TaggedBase();
     if (memory_order.has_value()) {
-      store_kind = store_kind.Atomic();
+      store_kind = store_kind.Atomic(*memory_order);
     }
     MemoryRepresentation repr =
         RepresentationFor(type->field(field_index), true);
@@ -405,8 +405,8 @@ class WasmLoweringReducer : public Next {
     // And apply the same logic to ArraySet.
     DCHECK_IMPLIES(write_barrier == kFullWriteBarrier,
                    type->field(field_index).is_ref());
-    __ Store(object, value, store_kind, repr, write_barrier, memory_order,
-             WasmStruct::FieldOffset(type, field_index), 0,
+    __ Store(object, value, store_kind, repr, write_barrier,
+             WasmStruct::FieldOffset(type, field_index),
              kind == StructSetOp::Kind::kInitialize);
 
     return OpIndex::Invalid();
@@ -464,7 +464,7 @@ class WasmLoweringReducer : public Next {
     bool is_mutable = array_type->mutability();
     LoadOp::Kind load_kind = LoadOp::Kind::TaggedBase();
     if (!is_mutable) load_kind = load_kind.Immutable();
-    if (memory_order.has_value()) load_kind = load_kind.Atomic();
+    if (memory_order.has_value()) load_kind = load_kind.Atomic(*memory_order);
     if (shared_base) load_kind = load_kind.SharedBase();
     return __ Load(array, ArrayIndexToIntPtr(index), load_kind,
                    RepresentationFor(array_type->element_type(), is_signed),
@@ -485,11 +485,11 @@ class WasmLoweringReducer : public Next {
     }
     StoreOp::Kind store_kind = StoreOp::Kind::TaggedBase();
     if (memory_order.has_value()) {
-      store_kind = store_kind.Atomic();
+      store_kind = store_kind.Atomic(*memory_order);
     }
     DCHECK_IMPLIES(write_barrier == kFullWriteBarrier, element_type.is_ref());
     __ Store(array, ArrayIndexToIntPtr(index), value, store_kind,
-             RepresentationFor(element_type, true), write_barrier, memory_order,
+             RepresentationFor(element_type, true), write_barrier,
              WasmArray::HeaderSize(is_shared),
              element_type.value_kind_size_log2(),
              kind == ArraySetOp::Kind::kInitialize);

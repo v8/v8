@@ -362,7 +362,7 @@ void WasmLoadEliminationAnalyzer::ProcessArrayAtomicRMW(
 
 void WasmLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
                                               const LoadOp& op) {
-  if (op.kind.is_atomic && v8_flags.wasm_shared) {
+  if (op.kind.is_atomic() && v8_flags.wasm_shared) {
     // Despite this being unrelated to struct operations, we have to invalidate
     // the state because linear-memory atomic operations could be used to sync
     // among threads.
@@ -372,7 +372,7 @@ void WasmLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
 
 void WasmLoadEliminationAnalyzer::ProcessStore(OpIndex op_idx,
                                                const StoreOp& op) {
-  if (op.kind.is_atomic && v8_flags.wasm_shared) {
+  if (op.kind.is_atomic() && v8_flags.wasm_shared) {
     // Despite this being unrelated to struct operations, we have to invalidate
     // the state because linear-memory atomic operations could be used to sync
     // among threads.

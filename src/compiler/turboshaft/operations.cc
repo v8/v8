@@ -664,6 +664,9 @@ void LoadOp::PrintOptions(std::ostream& os) const {
   if (kind.maybe_unaligned) os << ", unaligned";
   if (kind.with_trap_handler) os << ", trapping";
   if (kind.is_immutable) os << ", immutable";
+  if (kind.is_atomic()) {
+    os << ", atomic with memory order " << *kind.memory_order();
+  }
   os << ", " << loaded_rep;
   os << ", " << result_rep;
   if (element_size_log2 != 0) {
@@ -755,7 +758,9 @@ void StoreOp::PrintOptions(std::ostream& os) const {
   if (kind.with_trap_handler) os << ", trapping";
   os << ", " << stored_rep;
   os << ", " << write_barrier;
-  if (kind.is_atomic) os << ", atomic with memory order " << memory_order_;
+  if (kind.is_atomic()) {
+    os << ", atomic with memory order " << *kind.memory_order();
+  }
   if (element_size_log2 != 0) {
     os << ", element size: 2^" << int{element_size_log2};
   }
@@ -793,7 +798,7 @@ void TaggedBitcastOp::Validate(const Graph& graph) const {
       // Tagged. This is safe for load elimination because we don't
       // load-eliminate atomic loads anyways.
       DCHECK(!graph.Get(input()).Is<LoadOp>() ||
-             graph.Get(input()).Cast<LoadOp>().kind.is_atomic);
+             graph.Get(input()).Cast<LoadOp>().kind.is_atomic());
     }
   }
 }

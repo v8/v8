@@ -3113,6 +3113,12 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
 // not decompress the value.
 struct LoadOp : OperationT<LoadOp> {
   struct __attribute__((packed)) Kind {
+    enum class Atomicity : uint8_t {
+      kNonAtomic,
+      kSeqCst,
+      kAcqRel,
+    };
+
     // The `base` input is a tagged pointer to a HeapObject.
     bool tagged_base : 1;
     // The effective address might be unaligned. This is only set to true if
@@ -3152,10 +3158,36 @@ struct LoadOp : OperationT<LoadOp> {
     bool load_eliminable : 1;
     // The loaded value may not change.
     bool is_immutable : 1;
-    // The load should be atomic.
-    bool is_atomic : 1;
+    // Whether the access is atomic, and if so with what memory order.
+    Atomicity atomicity : 2;
     // The `base` input *may* be a tagged pointer to a shared HeapObject.
     bool shared_base : 1;
+
+    static constexpr Atomicity ToAtomicity(AtomicMemoryOrder memory_order) {
+      switch (memory_order) {
+        case AtomicMemoryOrder::kSeqCst:
+          return Atomicity::kSeqCst;
+        case AtomicMemoryOrder::kAcqRel:
+          return Atomicity::kAcqRel;
+      }
+      UNREACHABLE();
+    }
+
+    constexpr bool is_atomic() const {
+      return atomicity != Atomicity::kNonAtomic;
+    }
+
+    constexpr std::optional<AtomicMemoryOrder> memory_order() const {
+      switch (atomicity) {
+        case Atomicity::kNonAtomic:
+          return std::nullopt;
+        case Atomicity::kSeqCst:
+          return AtomicMemoryOrder::kSeqCst;
+        case Atomicity::kAcqRel:
+          return AtomicMemoryOrder::kAcqRel;
+      }
+      UNREACHABLE();
+    }
 
     static constexpr Kind Aligned(BaseTaggedness base_is_tagged) {
       switch (base_is_tagged) {
@@ -3172,7 +3204,7 @@ struct LoadOp : OperationT<LoadOp> {
               .with_trap_handler = false,
               .load_eliminable = true,
               .is_immutable = false,
-              .is_atomic = false,
+              .atomicity = Atomicity::kNonAtomic,
               .shared_base = false};
     }
     static constexpr Kind RawAligned() {
@@ -3181,7 +3213,7 @@ struct LoadOp : OperationT<LoadOp> {
               .with_trap_handler = false,
               .load_eliminable = true,
               .is_immutable = false,
-              .is_atomic = false,
+              .atomicity = Atomicity::kNonAtomic,
               .shared_base = false};
     }
     static constexpr Kind RawUnaligned() {
@@ -3190,7 +3222,7 @@ struct LoadOp : OperationT<LoadOp> {
               .with_trap_handler = false,
               .load_eliminable = true,
               .is_immutable = false,
-              .is_atomic = false,
+              .atomicity = Atomicity::kNonAtomic,
               .shared_base = false};
     }
     static constexpr Kind Trapping() {
@@ -3199,7 +3231,7 @@ struct LoadOp : OperationT<LoadOp> {
               .with_trap_handler = true,
               .load_eliminable = true,
               .is_immutable = false,
-              .is_atomic = false,
+              .atomicity = Atomicity::kNonAtomic,
               .shared_base = false};
     }
     static constexpr Kind TrapOnNull() {
@@ -3208,7 +3240,7 @@ struct LoadOp : OperationT<LoadOp> {
               .with_trap_handler = true,
               .load_eliminable = true,
               .is_immutable = false,
-              .is_atomic = false,
+              .atomicity = Atomicity::kNonAtomic,
               .shared_base = false};
     }
     static constexpr Kind MaybeUnaligned(MemoryRepresentation rep) {
@@ -3231,9 +3263,10 @@ struct LoadOp : OperationT<LoadOp> {
       return new_kind;
     }
 
-    [[nodiscard]] constexpr Kind Atomic() const {
+    [[nodiscard]] constexpr Kind Atomic(AtomicMemoryOrder memory_order) const {
+      DCHECK(!is_atomic());
       Kind new_kind(*this);
-      new_kind.is_atomic = true;
+      new_kind.atomicity = ToAtomicity(memory_order);
       return new_kind;
     }
 
@@ -3245,11 +3278,16 @@ struct LoadOp : OperationT<LoadOp> {
 
     auto operator<=>(const Kind& other) const = default;
   };
+  static_assert(sizeof(Kind) == 1);
   Kind kind;
   MemoryRepresentation loaded_rep;
   RegisterRepresentation result_rep;
   uint8_t element_size_log2;  // multiply index with 2^element_size_log2
   int32_t offset;             // add offset to scaled index
+
+  std::optional<AtomicMemoryOrder> memory_order() const {
+    return kind.memory_order();
+  }
 
   OpEffects Effects() const {
     // Loads might depend on checks for pointer validity, object layout, bounds
@@ -3262,7 +3300,7 @@ struct LoadOp : OperationT<LoadOp> {
       effects = effects.CanReadMemory();
     }
     if (kind.with_trap_handler) effects = effects.CanLeaveCurrentFunction();
-    if (kind.is_atomic) {
+    if (kind.is_atomic()) {
       // Atomic load should not be reordered with other loads.
       effects = effects.CanWriteMemory();
     }
@@ -3315,7 +3353,7 @@ struct LoadOp : OperationT<LoadOp> {
     DCHECK(loaded_rep.ToRegisterRepresentation() == result_rep ||
            (loaded_rep.IsCompressibleTagged() &&
             result_rep == RegisterRepresentation::Compressed()) ||
-           kind.is_atomic);
+           kind.is_atomic());
     DCHECK_IMPLIES(element_size_log2 > 0, index().valid());
     DCHECK_IMPLIES(kind.maybe_unaligned,
                    !SupportedOperations::IsUnalignedLoadSupported(loaded_rep));
@@ -3343,7 +3381,8 @@ V8_INLINE size_t hash_value(LoadOp::Kind kind) {
   return base::hash_value(
       static_cast<int>(kind.tagged_base) | (kind.maybe_unaligned << 1) |
       (kind.load_eliminable << 2) | (kind.is_immutable << 3) |
-      (kind.with_trap_handler << 4) | (kind.is_atomic << 5));
+      (kind.with_trap_handler << 4) | (static_cast<int>(kind.atomicity) << 5) |
+      (kind.shared_base << 7));
 }
 
 #if V8_ENABLE_SANDBOX
@@ -3365,7 +3404,7 @@ struct LoadTrustedPointerOp : FixedArityOperationT<2, LoadTrustedPointerOp> {
                                 TrustedPointerTagRange tag_range, int offset)
       : Base(base, table), kind(kind), tag_range(tag_range), offset(offset) {
     DCHECK(kind.tagged_base);
-    DCHECK(!kind.is_atomic);
+    DCHECK(!kind.is_atomic());
     DCHECK(!kind.maybe_unaligned);
   }
 
@@ -3733,16 +3772,10 @@ struct StoreOp : OperationT<StoreOp> {
   uint8_t element_size_log2;  // multiply index with 2^element_size_log2
   int32_t offset;             // add offset to scaled index
   bool maybe_initializing_or_transitioning;
-
- private:
-  AtomicMemoryOrder memory_order_;  // use the padding after prev field
-
- public:
   uint16_t trusted_pointer_tag_;
 
   std::optional<AtomicMemoryOrder> memory_order() const {
-    if (kind.is_atomic) return memory_order_;
-    return std::nullopt;
+    return kind.memory_order();
   }
 
   // TODO(saelo): now that we have a pointer tag in these low-level operations,
@@ -3760,7 +3793,7 @@ struct StoreOp : OperationT<StoreOp> {
     if (maybe_initializing_or_transitioning) {
       effects = effects.CanDoRawHeapAccess();
     }
-    if (kind.is_atomic) {
+    if (kind.is_atomic()) {
       // Atomic stores should not be eliminated away, even if the situation
       // seems to allow e.g. store-store elimination. Elimination is avoided by
       // setting the `CanReadMemory` effect.
@@ -3796,8 +3829,8 @@ struct StoreOp : OperationT<StoreOp> {
 
   StoreOp(OpIndex base, OptionalOpIndex index, OpIndex value, Kind kind,
           MemoryRepresentation stored_rep, WriteBarrierKind write_barrier,
-          std::optional<AtomicMemoryOrder> memory_order, int32_t offset,
-          uint8_t element_size_log2, bool maybe_initializing_or_transitioning,
+          int32_t offset, uint8_t element_size_log2,
+          bool maybe_initializing_or_transitioning,
           TrustedPointerTag maybe_trusted_pointer_tag = kTrustedPointerNullTag)
       : Base(2 + index.valid()),
         kind(kind),
@@ -3807,7 +3840,6 @@ struct StoreOp : OperationT<StoreOp> {
         offset(offset),
         maybe_initializing_or_transitioning(
             maybe_initializing_or_transitioning),
-        memory_order_(memory_order.value_or(AtomicMemoryOrder::kSeqCst)),
         trusted_pointer_tag_(static_cast<uint16_t>(maybe_trusted_pointer_tag)) {
     DCHECK_EQ(trusted_pointer_tag(), maybe_trusted_pointer_tag);
     input(0) = base;
@@ -3820,27 +3852,24 @@ struct StoreOp : OperationT<StoreOp> {
   template <typename Fn, typename Mapper>
   V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
     return fn(mapper.Map(base()), mapper.Map(index()), mapper.Map(value()),
-              kind, stored_rep, write_barrier, memory_order(), offset,
-              element_size_log2, maybe_initializing_or_transitioning,
-              trusted_pointer_tag());
+              kind, stored_rep, write_barrier, offset, element_size_log2,
+              maybe_initializing_or_transitioning, trusted_pointer_tag());
   }
 
   void Validate(const Graph& graph) const {
     DCHECK_IMPLIES(element_size_log2 > 0, index().valid());
     DCHECK_IMPLIES(kind.maybe_unaligned,
                    !SupportedOperations::IsUnalignedLoadSupported(stored_rep));
-    DCHECK_EQ(kind.is_atomic, memory_order().has_value());
   }
   static StoreOp& New(
       Graph* graph, OpIndex base, OptionalOpIndex index, OpIndex value,
       Kind kind, MemoryRepresentation stored_rep,
-      WriteBarrierKind write_barrier,
-      std::optional<AtomicMemoryOrder> memory_order, int32_t offset,
-      uint8_t element_size_log2, bool maybe_initializing_or_transitioning,
+      WriteBarrierKind write_barrier, int32_t offset, uint8_t element_size_log2,
+      bool maybe_initializing_or_transitioning,
       TrustedPointerTag maybe_trusted_pointer_tag = kTrustedPointerNullTag) {
     return Base::New(graph, 2 + index.valid(), base, index, value, kind,
-                     stored_rep, write_barrier, memory_order, offset,
-                     element_size_log2, maybe_initializing_or_transitioning,
+                     stored_rep, write_barrier, offset, element_size_log2,
+                     maybe_initializing_or_transitioning,
                      maybe_trusted_pointer_tag);
   }
 
@@ -3850,7 +3879,6 @@ struct StoreOp : OperationT<StoreOp> {
     return std::tuple{kind,
                       stored_rep,
                       write_barrier,
-                      memory_order(),
                       offset,
                       element_size_log2,
                       maybe_initializing_or_transitioning,

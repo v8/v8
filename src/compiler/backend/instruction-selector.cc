@@ -3631,7 +3631,7 @@ void InstructionSelector::VisitNode(OpIndex node) {
       MarkAsRepresentation(loaded_type.representation(), node);
       if (load.kind.maybe_unaligned) {
         DCHECK(!load.kind.with_trap_handler);
-        DCHECK(!load.kind.is_atomic);
+        DCHECK(!load.kind.is_atomic());
         if (loaded_type.representation() == MachineRepresentation::kWord8 ||
             InstructionSelector::AlignmentRequirements()
                 .IsUnalignedLoadSupported(loaded_type.representation())) {
@@ -3639,7 +3639,7 @@ void InstructionSelector::VisitNode(OpIndex node) {
         } else {
           return VisitUnalignedLoad(node);
         }
-      } else if (load.kind.is_atomic) {
+      } else if (load.kind.is_atomic()) {
         if (load.result_rep == Rep::Word32()) {
           return VisitWord32AtomicLoad(node);
         } else if (load.result_rep == Rep::Word64()) {
@@ -3676,7 +3676,7 @@ void InstructionSelector::VisitNode(OpIndex node) {
         } else {
           return VisitUnalignedStore(node);
         }
-      } else if (store.kind.is_atomic) {
+      } else if (store.kind.is_atomic()) {
         if (store.stored_rep.SizeInBytes() == 8) {
           return VisitWord64AtomicStore(node);
         } else {
