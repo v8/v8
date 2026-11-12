@@ -1194,14 +1194,17 @@ void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   __ LeaveFrame(StackFrame::MAGLEV);
 
   // If actual is bigger than formal, then we should use it to free up the stack
-  // arguments.
-  Label corrected_args_count;
-  __ MacroAssembler::Branch(&corrected_args_count, gt, actual_params_size,
-                            Operand(formal_params_size),
-                            Label::Distance::kNear);
-  __ Move(actual_params_size, formal_params_size);
+  // arguments. Both counts include the receiver, so without formal parameters
+  // the actual count is never smaller.
+  if (formal_params_size > 1) {
+    Label corrected_args_count;
+    __ MacroAssembler::Branch(&corrected_args_count, gt, actual_params_size,
+                              Operand(formal_params_size),
+                              Label::Distance::kNear);
+    __ Move(actual_params_size, formal_params_size);
+    __ bind(&corrected_args_count);
+  }
 
-  __ bind(&corrected_args_count);
   // Drop receiver + arguments according to dynamic arguments size.
   __ DropArguments(actual_params_size);
   __ Ret();

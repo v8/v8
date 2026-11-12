@@ -1137,12 +1137,15 @@ void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   __ LeaveFrame(StackFrame::MAGLEV);
 
   // If actual is bigger than formal, then we should use it to free up the stack
-  // arguments.
-  Label drop_dynamic_arg_size;
-  __ CmpS32(actual_params_size, Operand(formal_params_size));
-  __ bgt(&drop_dynamic_arg_size);
-  __ mov(actual_params_size, Operand(formal_params_size));
-  __ bind(&drop_dynamic_arg_size);
+  // arguments. Both counts include the receiver, so without formal parameters
+  // the actual count is never smaller.
+  if (formal_params_size > 1) {
+    Label drop_dynamic_arg_size;
+    __ CmpS32(actual_params_size, Operand(formal_params_size));
+    __ bgt(&drop_dynamic_arg_size);
+    __ mov(actual_params_size, Operand(formal_params_size));
+    __ bind(&drop_dynamic_arg_size);
+  }
 
   // Drop receiver + arguments according to dynamic arguments size.
   __ DropArguments(actual_params_size);
