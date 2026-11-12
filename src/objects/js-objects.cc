@@ -604,6 +604,7 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(
   if (!from->HasFastProperties() && target->HasFastProperties()) {
     InstanceType target_instance_type = target->map()->instance_type();
     if (InstanceTypeChecker::IsJSObject(target_instance_type) &&
+        target->map()->is_extensible() &&
         !InstanceTypeChecker::IsJSGlobalProxy(target_instance_type) &&
         // Exclude remote objects (they don't have local properties anyway).
         !(InstanceTypeChecker::IsJSSpecialApiObject(target_instance_type) &&
@@ -3707,16 +3708,22 @@ void JSObject::MigrateToMap(Isolate* isolate, DirectHandle<JSObject> object,
 
     // Slow-to-slow migration is trivial.
     object->set_map(isolate, *new_map, kReleaseStore);
-  } else if (!new_map->is_dictionary_map()) {
-    MigrateFastToFast(isolate, object, new_map);
+  } else {
+    if (new_map->is_dictionary_map()) {
+      MigrateFastToSlow(isolate, object, new_map,
+                        expected_additional_properties);
+    } else {
+      MigrateFastToFast(isolate, object, new_map);
+    }
     if (old_map->is_prototype_map()) {
       DCHECK(!old_map->is_stable());
-      DCHECK(new_map->is_stable());
+      DCHECK_IMPLIES(!new_map->is_dictionary_map(), new_map->is_stable());
       DCHECK(new_map->owns_descriptors());
       DCHECK(old_map->owns_descriptors());
-      // Transfer ownership to the new map. Keep the descriptor pointer of the
-      // old map intact because the concurrent marker might be iterating the
-      // object with the old map.
+      // Mark the old map as an abandoned prototype map (encoded as
+      // !owns_descriptors()), and transfer descriptor ownership if shared with
+      // new_map. Keep the descriptor array of the old map intact because the
+      // concurrent marker might be iterating the object with the old map.
       old_map->set_owns_descriptors(false);
       DCHECK(old_map->is_abandoned_prototype_map());
       // Ensure that no transition was inserted for prototype migrations.
@@ -3725,8 +3732,6 @@ void JSObject::MigrateToMap(Isolate* isolate, DirectHandle<JSObject> object,
       DCHECK(IsUndefined(new_map->GetBackPointer()));
       DCHECK(object->map() != *old_map);
     }
-  } else {
-    MigrateFastToSlow(isolate, object, new_map, expected_additional_properties);
   }
 
   // Careful: Don't allocate here!

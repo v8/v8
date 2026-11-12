@@ -795,8 +795,11 @@ PropertyAccessInfo AccessorAccessInfoHelper(
   if (holder_instance_type == JS_MODULE_NAMESPACE_TYPE ||
       holder_instance_type == JS_DEFERRED_MODULE_NAMESPACE_TYPE) {
     DCHECK(holder_map.is_prototype_map());
-    DirectHandle<PrototypeInfo> proto_info = broker->CanonicalPersistentHandle(
-        Cast<PrototypeInfo>(holder_map.object()->prototype_info()));
+    Tagged<PrototypeInfo> proto_info;
+    if (!TryCast(holder_map.object()->prototype_info(kAcquireLoad),
+                 &proto_info)) {
+      return PropertyAccessInfo::Invalid(zone);
+    }
     DirectHandle<JSModuleNamespace> module_namespace =
         broker->CanonicalPersistentHandle(
             Cast<JSModuleNamespace>(proto_info->module_namespace()));
