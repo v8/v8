@@ -251,6 +251,7 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
         // debugger pause-on-exception), even when the throwing operation itself
         // does not have `can_write` effects on its non-throwing path.
         memory_.InvalidateMaybeAliasing();
+        WipeAllMaps();
         break;
 
       case Opcode::kRetain:

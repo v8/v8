@@ -22,6 +22,7 @@
 #include "src/flags/flags.h"
 #include "src/objects/string.h"
 #include "test/common/flag-utils.h"
+#include "test/unittests/compiler/js-heap-broker-base.h"
 #include "test/unittests/compiler/turboshaft/reducer-test.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -604,6 +605,55 @@ TEST_F(LateLoadEliminationReducerTest,
   if (!LATE_LOAD_ELIM_VERIFY) {
     ASSERT_TRUE(test.GetCapture("local_load").IsEmpty());
   }
+}
+
+TEST_F(LateLoadEliminationReducerTest, CatchBlockBeginWipesMaps) {
+  JSHeapBrokerTestBase broker_base(isolate(), zone());
+  MapRef map1 = MakeRef(
+      broker_base.broker(),
+      broker_base.CanonicalHandle(isolate()->factory()->heap_number_map()));
+  MapRef map2 = MakeRef(
+      broker_base.broker(),
+      broker_base.CanonicalHandle(isolate()->factory()->fixed_array_map()));
+  ZoneRefSet<Map> maps1(map1);
+  ZoneRefSet<Map> maps2(map2);
+
+  auto test = CreateFromGraph(4, [&](auto& Asm) {
+    V<HeapObject> o1 = V<HeapObject>::Cast(Asm.GetParameter(0));
+    V<HeapObject> o2 = V<HeapObject>::Cast(Asm.GetParameter(1));
+    V<String> s1 = V<String>::Cast(Asm.GetParameter(2));
+    V<String> s2 = V<String>::Cast(Asm.GetParameter(3));
+    constexpr int kFieldOffset = 12;
+
+    __ AssumeMap(o1, maps1);
+
+    Block* catch_block = __ NewBlock();
+    V<String> concat;
+    {
+      CatchScopeImpl<assembler_t> scope(Asm.Asm(), catch_block);
+      concat = __ template CallBuiltin<builtin::StringAdd_NoMapCheck>(
+          Asm.context(), {.left = s1, .right = s2});
+    }
+    __ Return(concat);
+
+    if (__ Bind(catch_block)) {
+      __ CatchBlockBegin();
+      V<Any> load1 = __ Load(o1, LoadOp::Kind::TaggedBase(),
+                             MemoryRepresentation::AnyTagged(), kFieldOffset);
+      __ AssumeMap(o2, maps2);
+      __ Store(o2, __ SmiConstant(Smi::FromInt(42)),
+               StoreOp::Kind::TaggedBase(), MemoryRepresentation::AnyTagged(),
+               WriteBarrierKind::kNoWriteBarrier, kFieldOffset);
+      V<Any> C(load2) =
+          __ Load(o1, LoadOp::Kind::TaggedBase(),
+                  MemoryRepresentation::AnyTagged(), kFieldOffset);
+      __ Return(__ Word32Constant(0), base::VectorOf({load1, load2}));
+    }
+  });
+
+  test.Run<LateLoadEliminationReducer>();
+
+  ASSERT_NE(test.GetCapture("load2").GetFirst<LoadOp>(), nullptr);
 }
 
 #if V8_ENABLE_WEBASSEMBLY
