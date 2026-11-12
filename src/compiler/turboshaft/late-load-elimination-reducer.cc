@@ -302,12 +302,9 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
         break;
     }
     if (op.Effects().can_allocate) {
-      // String maps can be invalidated by the GC. Unfortunately, there is no
-      // way to know if a particular load at offset 0 loads a string map or not.
-      // So, to be safe, we invalidate every load at offset 0 whenever we see an
-      // allocation.
+      // String maps can be invalidated by the GC.
       memory_.InvalidatePotentialLoadedStringMaps();
-      WipeAllMaps();
+      WipeStringMaps();
     }
   }
 
@@ -508,22 +505,41 @@ void LateLoadEliminationAnalyzer::ProcessStore(OpIndex op_idx,
     non_aliasing_objects_.Set(value, false);
   }
 
-  // If we just stored a map, invalidate all object_maps_.
+  // If we just stored a map, invalidate all potentially-aliasing object_maps_.
   if (store.offset == offsetof(HeapObject, map_) && !store.index().valid()) {
-    // TODO(dmercadier): can we only do this for objects that are potentially
-    // aliasing with the `base` (based on their maps and the maps of `base`)?
-    // Also, it might be worth to record a new map if this is actually a map
-    // store.
-    // TODO(dmercadier): do this only if `value` is a Constant with kind
-    // kHeapObject, since all map stores should store a known constant maps.
-    TRACE(">> Wiping all maps\n");
-    WipeAllMaps();
+    OpIndex base = memory_.ResolveBase(store.base());
+    if (non_aliasing_objects_.Get(base)) {
+      if (auto key = object_maps_.TryGetKeyFor(base)) {
+        object_maps_.Set(*key, MapMaskAndOr{});
+      }
+    } else {
+      // TODO(dmercadier): can we only do this for objects that are potentially
+      // aliasing with the `base` (based on their maps and the maps of `base`)?
+      // Also, it might be worth to record a new map if this is actually a map
+      // store.
+      // TODO(dmercadier): do this only if `value` is a Constant with kind
+      // kHeapObject, since all map stores should store a known constant maps.
+      TRACE(">> Wiping all maps\n");
+      WipeAllMaps();
+    }
   }
 }
 
 void LateLoadEliminationAnalyzer::WipeAllMaps() {
   for (auto it : object_maps_) {
     object_maps_.Set(it.second, MapMaskAndOr{});
+  }
+}
+
+void LateLoadEliminationAnalyzer::WipeStringMaps() {
+  // TODO(dmercadier): Avoid visiting all entries in {object_maps_} by turning
+  // it into a ChangeTrackingSnapshotTable that records entries whose maps may
+  // be String maps in a separate set.
+  for (auto it : object_maps_) {
+    MapMaskAndOr maps = object_maps_.Get(it.second);
+    if (!maps.is_empty() && maps.could_be_string()) {
+      object_maps_.Set(it.second, MapMaskAndOr{});
+    }
   }
 }
 

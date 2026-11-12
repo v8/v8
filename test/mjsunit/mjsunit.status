@@ -495,9 +495,6 @@
   'regress-399698534': [SKIP],
   'regress-414738826': [SKIP],
 
-  # TODO(dmercadier,505648716): fix LateLoadElimination's map tracking and re-enable this test.
-  'turbolev/load-elimination-backing-store-alias': [SKIP],
-
   # Turbofan specific synchronization point.
   'sandbox/regress/regress-502997649': [SKIP],
 

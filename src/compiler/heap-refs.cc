@@ -1301,9 +1301,9 @@ int ObjectRef::AsSmi() const {
   return Cast<Smi>(*object()).value();
 }
 
-#define DEF_TESTER(Type, ...)                        \
-  bool MapRef::Is##Type##Map() const {               \
-    return InstanceTypeChecker::Is##Type(*object()); \
+#define DEF_TESTER(Type, ...)                              \
+  bool MapRef::Is##Type##Map() const {                     \
+    return InstanceTypeChecker::Is##Type(instance_type()); \
   }
 INSTANCE_TYPE_CHECKERS(DEF_TESTER)
 #undef DEF_TESTER
@@ -1834,7 +1834,7 @@ HEAP_ACCESSOR_B(Map, bit_field, is_undetectable, Map::Bits1::IsUndetectableBit)
 BIMODAL_ACCESSOR_C(Map, int, instance_size)
 HEAP_ACCESSOR_C(Map, FieldStorageLocation, NextFreeFieldStorageLocation)
 BIMODAL_ACCESSOR_C(Map, int, UnusedPropertyFields)
-HEAP_ACCESSOR_C(Map, InstanceType, instance_type)
+BIMODAL_ACCESSOR_C(Map, InstanceType, instance_type)
 BIMODAL_ACCESSOR_C(Map, bool, is_abandoned_prototype_map)
 
 int ObjectBoilerplateDescriptionRef::boilerplate_properties_count() const {

@@ -147,9 +147,15 @@ namespace v8::internal::compiler::turboshaft {
 // B.or_, it means that all of the maps of A have a bit that none of the maps of
 // B have, ie, A and B are guaranteed to not have a map in common.
 using MapMask = uint64_t;
+constexpr MapMask kStringMapMask = 1;
 struct MapMaskAndOr {
   MapMask or_ = 0;
   MapMask and_ = -1ull;
+
+  bool is_empty() const { return or_ == 0 && and_ == -1ull; }
+  bool could_be_string() const {
+    return is_empty() || (or_ & kStringMapMask) != 0;
+  }
 
   bool operator==(const MapMaskAndOr& other) const {
     return or_ == other.or_ && and_ == other.and_;
@@ -157,19 +163,21 @@ struct MapMaskAndOr {
 
   bool operator!=(const MapMaskAndOr& other) const { return !(*this == other); }
 };
-inline bool is_empty(MapMaskAndOr minmax) {
-  return minmax.or_ == 0 && minmax.and_ == -1ull;
-}
+inline bool is_empty(MapMaskAndOr minmax) { return minmax.is_empty(); }
 inline MapMask ComputeMapHash(MapRef map) {
   // `map.hash_value()` is probably not a good enough hash, since most user maps
   // will have the same upper bits, so we re-hash. We're using xorshift64* (from
   // "An experimental exploration of Marsaglia’s xorshift generators, scrambled"
   // by Vigna in ACM Transactions on Mathematical Software, Volume 42).
+  // Reserve bit 0 to record whether {map} is a String map (which GC can
+  // transition in-place).
   MapMask hash = map.hash_value();
   hash ^= hash >> 12;
   hash ^= hash << 25;
   hash ^= hash >> 27;
-  return hash * 0x2545f4914f6cdd1d;
+  hash = (hash * 0x2545f4914f6cdd1d) & ~kStringMapMask;
+  if (map.IsStringMap()) hash |= kStringMapMask;
+  return hash;
 }
 inline MapMaskAndOr ComputeMinMaxHash(ZoneRefSet<Map> maps) {
   MapMaskAndOr minmax;
@@ -606,12 +614,22 @@ class MemoryContentTable
          it != offset_keys->second.end();) {
       Key key = *it;
       DCHECK_EQ(kMapOffset, key.data().mem.offset);
-      // TODO(dmercadier): check known maps for key.data().mem.base and don't
-      // invalidate if maps cannot be string maps.
+      DCHECK(!key.data().mem.index.valid());
+      if (!object_maps_.Get(key.data().mem.base).could_be_string()) {
+        ++it;
+        continue;
+      }
       it = offset_keys->second.RemoveAt(it);
       TRACE(">>>> InvalidateAtOffset: invalidating " << key.data().mem);
       Set(key, OpIndex::Invalid());
     }
+  }
+
+  OpIndex ResolveBase(OpIndex base) {
+    while (replacements_[base].IsLoadElimination()) {
+      base = replacements_[base].replacement();
+    }
+    return base;
   }
 
  private:
@@ -722,13 +740,6 @@ class MemoryContentTable
     if (is_empty(other_maps)) return true;
 
     return CouldHaveSameMap(base_maps, other_maps);
-  }
-
-  OpIndex ResolveBase(OpIndex base) {
-    while (replacements_[base].IsLoadElimination()) {
-      base = replacements_[base].replacement();
-    }
-    return base;
   }
 
   void AddKeyInBaseOffsetMaps(Key key) {
@@ -850,6 +861,7 @@ class V8_EXPORT_PRIVATE LateLoadEliminationAnalyzer {
   void DcheckWordBinop(OpIndex op_idx, const WordBinopOp& binop);
 
   void WipeAllMaps();
+  void WipeStringMaps();
 
   // BeginBlock initializes the various SnapshotTables for {block}, and returns
   // true if {block} is a loop that should be revisited.
