@@ -95,7 +95,6 @@
 #include "src/objects/promise-inl.h"
 #include "src/objects/property-descriptor-object-inl.h"
 #include "src/objects/sort-state.h"
-#include "src/objects/string-forwarding-table-inl.h"
 #include "src/objects/struct-inl.h"
 #include "src/objects/swiss-name-dictionary-inl.h"
 #include "src/objects/synthetic-module-inl.h"
@@ -1558,12 +1557,6 @@ void String::StringVerify(Isolate* isolate) {
     CHECK(HasHashCode());
     CHECK(!HeapLayout::InYoungGeneration(this));
   }
-  const uint32_t raw_hash = raw_hash_field();
-  if (IsForwardingIndex(raw_hash)) {
-    const int forwarding_index =
-        Name::ForwardingIndexValueBits::decode(raw_hash);
-    CHECK_LT(forwarding_index, isolate->string_forwarding_table()->size());
-  }
 }
 
 void ConsString::ConsStringVerify(Isolate* isolate) {
@@ -1582,7 +1575,6 @@ void ConsString::ConsStringVerify(Isolate* isolate) {
 void ThinString::ThinStringVerify(Isolate* isolate) {
   StringVerify(isolate);
   CHECK(Is<ThinString>(this));
-  CHECK(!HasForwardingIndex(kAcquireLoad));
   CHECK(IsInternalizedString(actual()));
   CHECK(IsSeqString(actual()) || IsExternalString(actual()));
 }
@@ -3977,10 +3969,6 @@ class StringTableVerifier : public RootVisitor {
         CHECK(IsInternalizedString(object));
         CHECK_IMPLIES(v8_flags.shared_string_table,
                       HeapLayout::InAnySharedSpace(object));
-        // Internalized forwarding indices are never allowed in the string
-        // table.
-        uint32_t raw_hash = Cast<Name>(object)->raw_hash_field();
-        CHECK(!Name::IsInternalizedForwardingIndex(raw_hash));
       }
     }
   }

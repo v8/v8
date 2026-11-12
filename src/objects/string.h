@@ -481,11 +481,6 @@ V8_OBJECT class String : public Name {
   V8_EXPORT_PRIVATE std::string ToStdString();
 
   // Externalization.
-  template <typename T>
-  bool MarkForExternalizationDuringGC(Isolate* isolate, T* resource);
-  template <typename T>
-  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  void MakeExternalDuringGC(Isolate* isolate, T* resource);
   V8_EXPORT_PRIVATE static bool MakeExternal(
       Isolate* isolate, DirectHandle<String> string,
       v8::String::ExternalStringResource* resource);
@@ -818,12 +813,10 @@ V8_OBJECT class String : public Name {
   V8_EXPORT_PRIVATE bool SlowAsIntegerIndex(size_t* index);
 
   // Compute and set the hash code.
-  // The value returned is always a computed hash, even if the value stored is
-  // a forwarding index.
   // If `out_one_byte_content` is non-null and the hasher actually scans the
   // content, it is set to whether the content fits in one byte. It is not set
   // on length > kMaxHashCalcLength or when the input forwards through a
-  // thin/forwarding-index. Used by internalization to canonicalize
+  // ThinString. Used by internalization to canonicalize
   // 2-byte-with-1-byte-content without a second scan.
   V8_EXPORT_PRIVATE uint32_t ComputeAndSetRawHash();
   V8_EXPORT_PRIVATE uint32_t

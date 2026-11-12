@@ -922,15 +922,6 @@ V8_EXPORT_PRIVATE HandleType<String> String::SlowFlatten(
         isolate->factory()
             ->NewRawOneByteString(length, allocation)
             .ToHandleChecked();
-    // When the ConsString had a forwarding index, it is possible that it was
-    // transitioned to a ThinString (and eventually shortcutted to
-    // InternalizedString) during GC.
-    if constexpr (v8_flags.always_use_string_forwarding_table.value()) {
-      if (!IsConsString(*cons)) {
-        DCHECK(IsInternalizedString(*cons) || IsThinString(*cons));
-        return String::Flatten(isolate, cons, allocation);
-      }
-    }
     DisallowGarbageCollection no_gc;
     Tagged<ConsString> raw_cons = *cons;
     WriteToFlat2(flat->GetChars(no_gc), raw_cons, 0, length,
@@ -943,15 +934,6 @@ V8_EXPORT_PRIVATE HandleType<String> String::SlowFlatten(
         isolate->factory()
             ->NewRawTwoByteString(length, allocation)
             .ToHandleChecked();
-    // When the ConsString had a forwarding index, it is possible that it was
-    // transitioned to a ThinString (and eventually shortcutted to
-    // InternalizedString) during GC.
-    if constexpr (v8_flags.always_use_string_forwarding_table.value()) {
-      if (!IsConsString(*cons)) {
-        DCHECK(IsInternalizedString(*cons) || IsThinString(*cons));
-        return String::Flatten(isolate, cons, allocation);
-      }
-    }
     DisallowGarbageCollection no_gc;
     Tagged<ConsString> raw_cons = *cons;
     WriteToFlat2(flat->GetChars(no_gc), raw_cons, 0, length,

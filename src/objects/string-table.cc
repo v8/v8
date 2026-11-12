@@ -353,48 +353,15 @@ void SetInternalizedReference(Isolate* isolate, Tagged<String> string,
   DCHECK(!IsThinString(string));
   DCHECK(!IsInternalizedString(string));
   DCHECK(IsInternalizedString(internalized));
-  DCHECK(!internalized->HasInternalizedForwardingIndex(kAcquireLoad));
-  if (string->IsShared() || v8_flags.always_use_string_forwarding_table) {
-    if (!v8_flags.shared_string_table) {
-      // Shared Strings without a shared string table can't transition
-      // to a ThinString. We do nothing here.
-      return;
-    }
-    uint32_t field = string->raw_hash_field(kAcquireLoad);
-    // Don't use the forwarding table for strings that have an integer index.
-    // Using the hash field for the integer index is more beneficial than
-    // using it to store the forwarding index to the internalized string.
-    if (Name::IsIntegerIndex(field)) return;
-    // Check one last time if we already have an internalized forwarding index
-    // to prevent too many copies of the string in the forwarding table.
-    if (Name::IsInternalizedForwardingIndex(field)) return;
-
-    // If we already have an entry for an external resource in the table, update
-    // the entry instead of creating a new one. There is no guarantee that we
-    // will always update existing records instead of creating new ones, but
-    // races should be rare.
-    if (Name::IsForwardingIndex(field)) {
-      const int forwarding_index =
-          Name::ForwardingIndexValueBits::decode(field);
-      isolate->string_forwarding_table()->UpdateForwardString(forwarding_index,
-                                                              internalized);
-      // Update the forwarding index type to include internalized.
-      field = Name::IsInternalizedForwardingIndexBit::update(field, true);
-      string->set_raw_hash_field(field, kReleaseStore);
-    } else {
-      const int forwarding_index =
-          isolate->string_forwarding_table()->AddForwardString(string,
-                                                               internalized);
-      string->set_raw_hash_field(
-          String::CreateInternalizedForwardingIndex(forwarding_index),
-          kReleaseStore);
-    }
-  } else if (!isolate->is_executing_api_interrupt()) {
+  if (string->IsShared()) {
+    // Shared Strings can't transition to a ThinString. We do nothing here.
+    return;
+  }
+  if (!isolate->is_executing_api_interrupt()) {
     // Skip transitioning strings to ThinStrings during API interrupts. MakeThin
     // shrinks SeqStrings in-place and releases ExternalString resources, which
     // would invalidate cached StringPrepareForGetCodeUnit pointers in compiled
     // Wasm loops.
-    DCHECK(!string->HasForwardingIndex(kAcquireLoad));
     string->MakeThin(isolate, internalized);
   }
 }
@@ -428,41 +395,25 @@ DirectHandle<InternalizedString> StringTable::LookupString(
   //
   // For lookup misses, the internalized string map is the same map in RO space
   // regardless of which thread is doing the lookup.
-  //
-  // For lookup hits, we use the StringForwardingTable for shared strings to
-  // delay the transition into a ThinString to the next stop-the-world GC.
   DirectHandle<InternalizedString> result;
   DirectHandle<String> flat_string =
       String::Flatten(isolate, indirect_handle(string, isolate));
   if (!TryCast<InternalizedString>(flat_string, &result)) {
-    uint32_t raw_hash_field = flat_string->raw_hash_field(kAcquireLoad);
-
-    if (String::IsInternalizedForwardingIndex(raw_hash_field)) {
-      const int index =
-          String::ForwardingIndexValueBits::decode(raw_hash_field);
-      result = direct_handle(
-          isolate->string_forwarding_table()->GetForwardString(isolate, index),
-          isolate);
-    } else {
-      // Capture whether the hasher's IsOnly8Bit pass observed all-one-byte
-      // content, so the table key can ask for a canonicalized one-byte
-      // internalized copy without a second scan. If the hash was already
-      // computed or EnsureRawHash did not scan the content, the encoding stays
-      // kUnknown and PrepareForInsertion will inspect the string on a miss.
-      InternalizedStringKey::Encoding encoding =
-          InternalizedStringKey::Encoding::kUnknown;
-      if (!Name::IsHashFieldComputed(raw_hash_field)) {
-        std::optional<bool> one_byte_content;
-        raw_hash_field = flat_string->EnsureRawHash(&one_byte_content);
-        if (one_byte_content.has_value()) {
-          encoding = *one_byte_content
-                         ? InternalizedStringKey::Encoding::kOneByte
-                         : InternalizedStringKey::Encoding::kTwoByte;
-        }
-      }
-      InternalizedStringKey key(flat_string, raw_hash_field, encoding);
-      result = LookupKey(isolate, &key);
+    // Capture whether the hasher's IsOnly8Bit pass observed all-one-byte
+    // content, so the table key can ask for a canonicalized one-byte
+    // internalized copy without a second scan. If the hash was already
+    // computed or EnsureRawHash did not scan the content, the encoding stays
+    // kUnknown and PrepareForInsertion will inspect the string on a miss.
+    std::optional<bool> one_byte_content;
+    uint32_t raw_hash_field = flat_string->EnsureRawHash(&one_byte_content);
+    InternalizedStringKey::Encoding encoding =
+        InternalizedStringKey::Encoding::kUnknown;
+    if (one_byte_content.has_value()) {
+      encoding = *one_byte_content ? InternalizedStringKey::Encoding::kOneByte
+                                   : InternalizedStringKey::Encoding::kTwoByte;
     }
+    InternalizedStringKey key(flat_string, raw_hash_field, encoding);
+    result = LookupKey(isolate, &key);
   }
 
   if (*string != *result && !IsThinString(*string)) {
@@ -477,12 +428,7 @@ bool StringTable::HasString(Isolate* isolate, DirectHandle<String> string) {
       String::Flatten(isolate, indirect_handle(string, isolate));
   if (TryCast<InternalizedString>(flat_string, &result)) return true;
 
-  uint32_t raw_hash_field = flat_string->raw_hash_field(kAcquireLoad);
-  if (String::IsInternalizedForwardingIndex(raw_hash_field)) return true;
-
-  if (!Name::IsHashFieldComputed(raw_hash_field)) {
-    raw_hash_field = flat_string->EnsureRawHash();
-  }
+  uint32_t raw_hash_field = flat_string->EnsureRawHash();
   InternalizedStringKey key(flat_string, raw_hash_field);
   return TryLookupKey(isolate, &key).has_value();
 }
@@ -719,22 +665,6 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(
   DisallowGarbageCollection no_gc;
 
   uint32_t length = string->length();
-  // The source hash is usable if it is not from a sliced string.
-  // For sliced strings we need to recalculate the hash from the given offset
-  // with the correct length.
-  const bool is_source_hash_usable = start == 0 && length == source->length();
-
-  // First check if the string constains a forwarding index.
-  uint32_t raw_hash_field = source->raw_hash_field(kAcquireLoad);
-  if (Name::IsInternalizedForwardingIndex(raw_hash_field) &&
-      is_source_hash_usable) {
-    const int index = Name::ForwardingIndexValueBits::decode(raw_hash_field);
-    Tagged<String> internalized =
-        isolate->string_forwarding_table()->GetForwardString(isolate, index);
-    return internalized.ptr();
-  }
-
-  const HashSeed seed = HashSeed(isolate);
 
   CharBuffer<Char> buffer;
   const Char* chars;
@@ -754,7 +684,14 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(
     chars = source->GetDirectStringChars<Char>(no_gc, access_guard) + start;
   }
 
-  if (!Name::IsHashFieldComputed(raw_hash_field) || !is_source_hash_usable) {
+  const HashSeed seed = HashSeed(isolate);
+
+  // The source hash is usable if it is not from a sliced string.
+  // For sliced strings we need to recalculate the hash from the given offset
+  // with the correct length.
+  const bool is_source_hash_usable = start == 0 && length == source->length();
+  uint32_t raw_hash_field = source->raw_hash_field();
+  if (!is_source_hash_usable || !Name::IsHashFieldComputed(raw_hash_field)) {
     raw_hash_field =
         StringHasher::HashSequentialString<Char>(chars, length, seed);
   }

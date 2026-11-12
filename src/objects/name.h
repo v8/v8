@@ -86,8 +86,6 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
 
  public:
   // Tells whether the hash code has been computed.
-  // Note: Use TryGetHash() whenever you want to use the hash, instead of a
-  // combination of HashHashCode() and hash() for thread-safety.
   inline bool HasHashCode() const;
   // Tells whether the name contains a forwarding index pointing to a row
   // in the string forwarding table.
@@ -110,9 +108,6 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
   inline void set_raw_hash_field(uint32_t hash, ReleaseStoreTag) {
     raw_hash_field_.store(hash, std::memory_order_release);
   }
-
-  // Sets the hash field only if it is empty. Otherwise does nothing.
-  void set_raw_hash_field_if_empty(uint32_t hash);
 
   // Returns a hash value used for the property table (same as Hash()), assumes
   // the hash is already computed.
@@ -292,13 +287,11 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
   // the main thread.
   inline uint32_t EnsureHash();
   inline uint32_t EnsureHash(const SharedStringAccessGuardIfNeeded&);
-  // The value returned is always a computed hash, even if the value stored is
-  // a forwarding index.
   inline uint32_t EnsureRawHash();
   // If `out_one_byte_content` is non-null and the hasher actually scans the
   // content here, it is set to whether the content fits in one byte. Stays
-  // untouched on the early-return paths (hash already computed, hashed via
-  // the forwarding table, length > kMaxHashCalcLength).
+  // untouched on the early-return paths (hash already computed, length >
+  // kMaxHashCalcLength).
   inline uint32_t EnsureRawHash(std::optional<bool>* out_one_byte_content);
   inline uint32_t EnsureRawHash(const SharedStringAccessGuardIfNeeded&);
   inline uint32_t RawHash();
