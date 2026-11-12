@@ -62,7 +62,7 @@ luci.notifier(
         ".* \\(flakes\\)",
     ],
     notify_emails = [
-        "almuthanna@chromium.org",
+        "v8-infra-alerts-cc@google.com",
     ],
 )
 
@@ -71,7 +71,7 @@ luci.notifier(
     on_occurrence = ["FAILURE"],
     notify_emails = [
         "omerkatz@chromium.org",
-        "almuthanna@chromium.org",
+        "v8-infra-alerts-cc@google.com",
     ],
 )
 
@@ -93,7 +93,6 @@ luci.notifier(
         ".* \\(without patch\\)",
     ],
     notify_emails = [
-        "almuthanna@chromium.org",
         "v8-infra-alerts-cc@google.com",
     ],
 )
@@ -191,7 +190,7 @@ v8_notifier(
     name = "test262 impex",
     on_new_status = ["FAILURE"],
     notify_emails = [
-        "liviurau@google.com",
+        "v8-infra-alerts-cc@google.com",
     ],
 )
 
@@ -201,6 +200,5 @@ v8_notifier(
     notify_emails = [
         "v8-infra-alerts-cc@google.com",
         "v8-infra-alerts@google.com",
-        "liviurau@google.com",
     ],
 )
