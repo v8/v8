@@ -143,13 +143,8 @@ RegExpMacroAssemblerPPC::~RegExpMacroAssemblerPPC() {
 
 void RegExpMacroAssemblerPPC::AdvanceCurrentPosition(int by) {
   if (by != 0) {
-    if (is_int16(by * char_size())) {
-      __ addi(current_input_offset(), current_input_offset(),
+    __ AddS64(current_input_offset(), current_input_offset(),
               Operand(by * char_size()));
-    } else {
-      __ mov(r0, Operand(by * char_size()));
-      __ add(current_input_offset(), r0, current_input_offset());
-    }
   }
 }
 
