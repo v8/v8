@@ -1307,7 +1307,11 @@ class Win32MemoryMappedFile final : public OS::MemoryMappedFile {
 
 // static
 OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name,
-                                                 FileMode mode) {
+                                                 FileMode mode,
+                                                 std::optional<void*> hint) {
+  // The mapping address cannot be chosen here: MapViewOfFile does not take a
+  // base address.
+  USE(hint);
   // Open a physical file.
   DWORD access = GENERIC_READ;
   if (mode == FileMode::kReadWrite) {

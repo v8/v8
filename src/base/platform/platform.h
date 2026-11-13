@@ -263,8 +263,17 @@ class V8_BASE_EXPORT OS {
     virtual void* memory() const = 0;
     virtual size_t size() const = 0;
 
+    // |hint| selects the requested mapping address:
+    //   std::nullopt  - use a randomized address (legacy behaviour),
+    //   nullptr       - let the kernel choose the address,
+    //   anything else - use |hint| as the requested address.
+    // Pass nullptr for mappings that must not end up inside the address range
+    // that V8 reserves for the sandbox.
+    // On platforms whose implementation cannot control the mapping address,
+    // the hint is ignored.
     static MemoryMappedFile* open(const char* name,
-                                  FileMode mode = FileMode::kReadWrite);
+                                  FileMode mode = FileMode::kReadWrite,
+                                  std::optional<void*> hint = std::nullopt);
     static MemoryMappedFile* create(const char* name, size_t size,
                                     void* initial);
   };

@@ -870,7 +870,8 @@ class PosixMemoryMappedFile final : public OS::MemoryMappedFile {
 
 // static
 OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name,
-                                                 FileMode mode) {
+                                                 FileMode mode,
+                                                 std::optional<void*> hint) {
   const char* fopen_mode = (mode == FileMode::kReadOnly) ? "r" : "r+";
   struct stat statbuf;
   // Make sure path exists and is not a directory.
@@ -886,8 +887,9 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name,
             prot |= PROT_WRITE;
             flags = MAP_SHARED;
           }
+          void* const mmap_hint = hint ? *hint : OS::GetRandomMmapAddr();
           void* const memory =
-              mmap(OS::GetRandomMmapAddr(), size, prot, flags, fileno(file), 0);
+              mmap(mmap_hint, size, prot, flags, fileno(file), 0);
           if (memory != MAP_FAILED) {
             return new PosixMemoryMappedFile(file, memory, size);
           }
