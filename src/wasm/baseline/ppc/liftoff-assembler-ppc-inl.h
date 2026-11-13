@@ -2764,18 +2764,19 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
   *trapping_load_pc = pc_offset();
   MachineType memtype = type.mem_type();
   if (transform == LoadTransformationKind::kExtend) {
+    Register scratch2 = temps.Acquire();
     if (memtype == MachineType::Int8()) {
       LoadAndExtend8x8SLE(dst.simd128(), src_op);
     } else if (memtype == MachineType::Uint8()) {
-      LoadAndExtend8x8ULE(dst.simd128(), src_op, r0, kScratchSimd128Reg);
+      LoadAndExtend8x8ULE(dst.simd128(), src_op, scratch2, kScratchSimd128Reg);
     } else if (memtype == MachineType::Int16()) {
       LoadAndExtend16x4SLE(dst.simd128(), src_op);
     } else if (memtype == MachineType::Uint16()) {
-      LoadAndExtend16x4ULE(dst.simd128(), src_op, r0, kScratchSimd128Reg);
+      LoadAndExtend16x4ULE(dst.simd128(), src_op, scratch2, kScratchSimd128Reg);
     } else if (memtype == MachineType::Int32()) {
       LoadAndExtend32x2SLE(dst.simd128(), src_op);
     } else if (memtype == MachineType::Uint32()) {
-      LoadAndExtend32x2ULE(dst.simd128(), src_op, r0, kScratchSimd128Reg);
+      LoadAndExtend32x2ULE(dst.simd128(), src_op, scratch2, kScratchSimd128Reg);
     }
   } else if (transform == LoadTransformationKind::kZeroExtend) {
     if (memtype == MachineType::Int32()) {
