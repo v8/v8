@@ -4,7 +4,7 @@
 
 config("jsoncpp_config") {
   include_dirs = [
-    "source/include",
+    "src/include",
     "generated",
   ]
 
@@ -20,17 +20,17 @@ config("jsoncpp_config") {
 source_set("jsoncpp") {
   sources = [
     "generated/version.h",
-    "source/include/json/assertions.h",
-    "source/include/json/config.h",
-    "source/include/json/forwards.h",
-    "source/include/json/json.h",
-    "source/include/json/reader.h",
-    "source/include/json/value.h",
-    "source/include/json/writer.h",
-    "source/src/lib_json/json_reader.cpp",
-    "source/src/lib_json/json_tool.h",
-    "source/src/lib_json/json_value.cpp",
-    "source/src/lib_json/json_writer.cpp",
+    "src/include/json/assertions.h",
+    "src/include/json/config.h",
+    "src/include/json/forwards.h",
+    "src/include/json/json.h",
+    "src/include/json/reader.h",
+    "src/include/json/value.h",
+    "src/include/json/writer.h",
+    "src/src/lib_json/json_reader.cpp",
+    "src/src/lib_json/json_tool.h",
+    "src/src/lib_json/json_value.cpp",
+    "src/src/lib_json/json_writer.cpp",
   ]
 
   public_configs = [ ":jsoncpp_config" ]
@@ -40,7 +40,7 @@ source_set("jsoncpp") {
     "JSON_USE_NULLREF=0",
   ]
 
-  include_dirs = [ "source/src/lib_json" ]
+  include_dirs = [ "src/src/lib_json" ]
 
   if (!is_win || is_clang) {
     cflags_cc = [ "-Wno-implicit-fallthrough" ]

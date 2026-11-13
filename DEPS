@@ -335,7 +335,7 @@ deps = {
   },
   'third_party/jinja2':
     Var('chromium_url') + '/chromium/src/third_party/jinja2.git' + '@' + 'fde3c16799bd5937e4f15aedc9037c89f96236b9',
-  'third_party/jsoncpp/source':
+  'third_party/jsoncpp/src':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '93acc7b155048f1a66c43235cc205519f1e7a6ea',
   'third_party/libc++/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '64f64c14ae2f4653af875bd172462a4c5e6afe18',
