@@ -1142,11 +1142,10 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
 }
 
 StubCache* IC::stub_cache() {
-  // Each IC kind needs its own stub cache: a has-handler and a load-handler
-  // for the same (map, name) pair are not interchangeable.
-  if (IsAnyHas()) {
-    return isolate()->has_stub_cache();
-  } else if (IsAnyLoad()) {
+  // HasICs and each of the store own ICs require its own stub cache.
+  // Until we create them, don't allow accessing the load/store stub caches.
+  DCHECK(!IsAnyHas());
+  if (IsAnyLoad()) {
     return isolate()->load_stub_cache();
   } else if (IsAnyDefineOwn()) {
     return isolate()->define_own_stub_cache();
@@ -1158,15 +1157,17 @@ StubCache* IC::stub_cache() {
 
 void IC::UpdateMegamorphicCache(DirectHandle<Map> map, DirectHandle<Name> name,
                                 const MaybeObjectDirectHandle& handler) {
-  if (!IsAnyHas() && LoadHandler::IsFastProxyHandler(*handler)) {
-    // Special case for FastProxy: if we are seeing the same map again,
-    // this means the inner loadIC or the inner callIC missed. We downgrade
-    // to a normal slow proxy handler and not directly to MEGAMORPHIC.
-    stub_cache()->Set(
-        *name, *map,
-        *MaybeObjectDirectHandle(LoadHandler::LoadProxy(isolate())));
-  } else {
-    stub_cache()->Set(*name, *map, *handler);
+  if (!IsAnyHas()) {
+    if (LoadHandler::IsFastProxyHandler(*handler)) {
+      // Special case for FastProxy: if we are seeing the same map again,
+      // this means the inner loadIC or the inner callIC missed. We downgrade
+      // to a normal slow proxy handler and not directly to MEGAMORPHIC.
+      stub_cache()->Set(
+          *name, *map,
+          *MaybeObjectDirectHandle(LoadHandler::LoadProxy(isolate())));
+    } else {
+      stub_cache()->Set(*name, *map, *handler);
+    }
   }
 }
 

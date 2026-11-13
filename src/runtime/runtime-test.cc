@@ -130,7 +130,6 @@ RUNTIME_FUNCTION(Runtime_ClearMegamorphicStubCache) {
   isolate->load_stub_cache()->Clear();
   isolate->store_stub_cache()->Clear();
   isolate->define_own_stub_cache()->Clear();
-  isolate->has_stub_cache()->Clear();
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
