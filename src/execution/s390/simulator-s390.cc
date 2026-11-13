@@ -526,7 +526,7 @@ void S390Debugger::Debug() {
           if (strcmp(arg1, "info") == 0) {
             if (strcmp(arg2, "all") == 0) {
               PrintF("Stop information:\n");
-              for (uint32_t i = 0; i < sim_->kNumOfWatchedStops; i++) {
+              for (uint32_t i = 0; i < Simulator::kNumOfWatchedStops; i++) {
                 sim_->PrintStopInfo(i);
               }
             } else if (GetValue(arg2, &value)) {
@@ -537,7 +537,7 @@ void S390Debugger::Debug() {
           } else if (strcmp(arg1, "enable") == 0) {
             // Enable all/the specified breakpoint(s).
             if (strcmp(arg2, "all") == 0) {
-              for (uint32_t i = 0; i < sim_->kNumOfWatchedStops; i++) {
+              for (uint32_t i = 0; i < Simulator::kNumOfWatchedStops; i++) {
                 sim_->EnableStop(i);
               }
             } else if (GetValue(arg2, &value)) {
@@ -548,7 +548,7 @@ void S390Debugger::Debug() {
           } else if (strcmp(arg1, "disable") == 0) {
             // Disable all/the specified breakpoint(s).
             if (strcmp(arg2, "all") == 0) {
-              for (uint32_t i = 0; i < sim_->kNumOfWatchedStops; i++) {
+              for (uint32_t i = 0; i < Simulator::kNumOfWatchedStops; i++) {
                 sim_->DisableStop(i);
               }
             } else if (GetValue(arg2, &value)) {
