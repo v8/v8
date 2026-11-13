@@ -114,7 +114,7 @@ void MarkingBarrier::Write(Tagged<InstructionStream> host,
   DCHECK(IsCurrentMarkingBarrier(host));
   DCHECK(!HeapLayout::InWritableSharedSpace(host));
   DCHECK(is_activated_ || is_shared());
-  DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
+  DCHECK(WriteBarrier::IsMarking(isolate(), host));
 
   MarkValue(host, value);
 

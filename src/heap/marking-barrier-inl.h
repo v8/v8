@@ -10,6 +10,7 @@
 
 #include "src/base/logging.h"
 #include "src/heap/heap-layout-inl.h"
+#include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/marking.h"
@@ -22,7 +23,7 @@ void MarkingBarrier::Write(Tagged<HeapObject> host, TSlot slot,
                            Tagged<HeapObject> value) {
   DCHECK(IsCurrentMarkingBarrier(host));
   DCHECK(is_activated_ || shared_heap_worklists_.has_value());
-  DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
+  DCHECK(WriteBarrier::IsMarking(isolate(), host));
 
   MarkValue(host, value);
 

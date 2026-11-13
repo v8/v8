@@ -88,7 +88,14 @@ inline WriteBarrierMode WriteBarrier::ComputeWriteBarrierModeForObject(
   }
   DCHECK(PageFlagsAreConsistent(object));
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
-  if (chunk->IsMarking()) {
+  if constexpr (v8_flags.sticky_mark_bits.value()) {
+    if (!IsLocalMarking(Isolate::Current()) &&
+        HeapLayout::InYoungGeneration(chunk, object)) {
+      return SKIP_WRITE_BARRIER_SCOPE;
+    }
+    return UPDATE_WRITE_BARRIER;
+  }
+  if (chunk->PointersFromHereAreInteresting()) {
     return UPDATE_WRITE_BARRIER;
   }
   if (HeapLayout::InYoungGeneration(chunk, object)) {
