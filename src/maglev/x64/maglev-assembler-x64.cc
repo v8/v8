@@ -341,10 +341,18 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     } else {
       DCHECK_EQ(mode,
                 BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt);
+      DCHECK_NE(string, index);
+      // {result} is written before the trailing-surrogate lookahead, which
+      // still needs {string} and {index}. Preserve whichever one {result}
+      // aliases.
       Register string_backup = string;
+      Register index_backup = index;
       if (result == string) {
         string_backup = scratch2;
         movq(string_backup, string);
+      } else if (result == index) {
+        index_backup = scratch2;
+        movl(index_backup, index);
       }
       movzxwl(result, FieldOperand(string, index, times_2,
                                    OFFSET_OF_DATA_START(SeqTwoByteString)));
@@ -357,13 +365,13 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
 
       Register length = scratch1;
       StringLength(length, string_backup);
-      incl(index);
-      cmpl(index, length);
+      incl(index_backup);
+      cmpl(index_backup, length);
       j(greater_equal, *done);
 
       Register second_code_point = scratch1;
       movzxwl(second_code_point,
-              FieldOperand(string_backup, index, times_2,
+              FieldOperand(string_backup, index_backup, times_2,
                            OFFSET_OF_DATA_START(SeqTwoByteString)));
       movl(scratch2, second_code_point);
       andl(scratch2, Immediate(0xfc00));

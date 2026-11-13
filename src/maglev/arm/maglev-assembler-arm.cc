@@ -415,10 +415,18 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     } else {
       DCHECK_EQ(mode,
                 BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt);
+      DCHECK_NE(string, index);
+      // {result} is written before the trailing-surrogate lookahead, which
+      // still needs {string} and {index}. Preserve whichever one {result}
+      // aliases.
       Register string_backup = string;
+      Register index_backup = index;
       if (result == string) {
         string_backup = scratch2;
         Move(string_backup, string);
+      } else if (result == index) {
+        index_backup = scratch2;
+        Move(index_backup, index);
       }
       ldrh(result, MemOperand(string, scratch));
 
@@ -429,18 +437,18 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
 
       Register length = scratch;
       ldr(length, FieldMemOperand(string_backup, offsetof(String, length_)));
-      add(index, index, Operand(1));
-      cmp(index, length);
+      add(index_backup, index_backup, Operand(1));
+      cmp(index_backup, length);
       b(ge, *done);
 
       Register second_code_point = scratch;
-      lsl(index, index, Operand(1));
-      add(index, index,
+      lsl(index_backup, index_backup, Operand(1));
+      add(index_backup, index_backup,
           Operand(OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag));
-      ldrh(second_code_point, MemOperand(string_backup, index));
+      ldrh(second_code_point, MemOperand(string_backup, index_backup));
 
-      // {index} is not needed at this point.
-      Register scratch2 = index;
+      // {string_backup} and {index_backup} are dead here, so {scratch2} is
+      // free even if it held a backup.
       and_(scratch2, second_code_point, Operand(0xfc00));
       cmp(scratch2, Operand(0xdc00));
       b(ne, *done);

@@ -348,7 +348,8 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   enum class CharCodeMaskMode { kValueIsInRange, kMustApplyMask };
 
   // Warning: Input registers {string} and {index} will be scratched.
-  // {result} is allowed to alias with one the other 3 input registers.
+  // {result} is allowed to alias with either {string} or {index}, but not with
+  // the scratch registers.
   // {result} is an int32.
   void StringCharCodeOrCodePointAt(
       BuiltinStringPrototypeCharCodeOrCodePointAt::Mode mode,
