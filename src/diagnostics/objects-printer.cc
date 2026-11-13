@@ -12,6 +12,7 @@
 #include "src/base/logging.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
+#include "src/common/scoped-modification.h"
 #include "src/diagnostics/disasm.h"
 #include "src/diagnostics/disassembler.h"
 #include "src/execution/frames-inl.h"
@@ -4321,6 +4322,24 @@ void HeapObject::Print(Tagged<Object> obj, std::ostream& os) {
 
 void HeapObject::HeapObjectShortPrint(std::ostream& os) {
   os << AsHex::Address(this->ptr()) << " ";
+
+#ifdef V8_ENABLE_SANDBOX
+  // ShortPrint of various object types (e.g. JSPrimitiveWrapper, Tuple2, Cell,
+  // PropertyCell, ContextCell, etc.) recursively calls ShortPrint on nested
+  // tagged fields. With in-sandbox memory corruption, an attacker can construct
+  // arbitrarily deep chains or cycles of such objects to exhaust the native
+  // stack during diagnostic printing. Limit the recursion depth to prevent
+  // stack overflows.
+  thread_local int recursion_depth = 0;
+  constexpr int kMaxShortPrintRecursionDepth = 4;
+  if (recursion_depth >= kMaxShortPrintRecursionDepth) {
+    os << "<...>";
+    return;
+  }
+  ScopedModification<int> recursion_guard(&recursion_depth,
+                                          recursion_depth + 1);
+#endif  // V8_ENABLE_SANDBOX
+
 #if V8_ENABLE_WEBASSEMBLY
   if (IsWasmNull(Tagged<HeapObject>(this))) {
     os << "WasmNull";
