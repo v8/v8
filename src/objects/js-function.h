@@ -350,10 +350,6 @@ V8_OBJECT class JSFunction : public JSFunctionOrBoundFunctionOrWrappedFunction {
                                      IsCompiledScope* compiled_scope,
                                      bool reset_budget_for_feedback_allocation);
 
-  // Unconditionally clear the type feedback vector, even those that we usually
-  // keep (e.g.: BinaryOp feedback).
-  void ClearAllTypeFeedbackInfoForTesting(Isolate* isolate);
-
   // Resets function to clear compiled data after bytecode has been flushed.
   inline bool NeedsResetDueToFlushedBytecode(Isolate* isolate);
   inline bool NeedsResetDueToFlushedBytecode(Isolate* isolate,

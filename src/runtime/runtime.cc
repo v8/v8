@@ -242,6 +242,7 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
       case Runtime::kIsEfficiencyModeEnabled:
       case Runtime::kBaselineOsr:
       case Runtime::kCompileBaseline:
+      case Runtime::kCopyFunctionWithFreshFeedback:
 #if V8_ENABLE_WEBASSEMBLY && V8_WASM_RANDOM_FUZZERS
       case Runtime::kWasmGenerateRandomModule:
       case Runtime::kWasmGenerateRandomRevecModule:
@@ -278,7 +279,6 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
     case Runtime::kAssertPeeled:
     case Runtime::kTurbofanStaticAssert:
     case Runtime::kAssertEscapeAnalysisElided:
-    case Runtime::kClearFunctionFeedback:
     case Runtime::kStringIsFlat:
     case Runtime::kGetInitializerFunction:
     case Runtime::kArrayBufferDetachForceWasm:

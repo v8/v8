@@ -39,12 +39,6 @@ enum class UpdateFeedbackMode {
   kNoFeedback,
 };
 
-// Which feedback slots to clear in Clear().
-enum class ClearBehavior {
-  kDefault,
-  kClearAll,  // .. also ForIn, CompareOp, BinaryOp.
-};
-
 enum class FeedbackSlotKind : uint8_t {
   // This kind means that the slot points to the middle of other slot
   // which occupies more than one feedback vector element.
@@ -502,15 +496,9 @@ V8_OBJECT class FeedbackVector : public HeapObject {
                                   FeedbackSlot slot, const char* reason);
 #endif
 
-  // Clears the vector slots. Return true if feedback has changed.
-  bool ClearSlots(Isolate* isolate) {
-    return ClearSlots(isolate, ClearBehavior::kDefault);
-  }
-  // As above, but clears *all* slots - even those that we usually keep (e.g.:
-  // BinaryOp feedback).
-  bool ClearAllSlotsForTesting(Isolate* isolate) {
-    return ClearSlots(isolate, ClearBehavior::kClearAll);
-  }
+  // Clears IC and literal slots while preserving arithmetic, binary/unary op,
+  // ForIn, TypeOf, and StringAddAndInternalize slots.
+  V8_EXPORT_PRIVATE void ClearICAndLiteralSlots(Isolate* isolate);
 
   // The object that indicates an uninitialized cache.
   static inline DirectHandle<Symbol> UninitializedSentinel(Isolate* isolate);
@@ -535,8 +523,6 @@ V8_OBJECT class FeedbackVector : public HeapObject {
   static constexpr int OffsetOfElementAt(int index);
 
  private:
-  bool ClearSlots(Isolate* isolate, ClearBehavior behavior);
-
   static void AddToVectorsForProfilingTools(
       Isolate* isolate, DirectHandle<FeedbackVector> vector);
 
@@ -1046,13 +1032,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   template <typename F>
   void IterateMapsWithUnclearedHandler(F) const;
 
-  bool IsCleared() const {
-    InlineCacheState state = ic_state();
-    return !v8_flags.use_ic || state == InlineCacheState::UNINITIALIZED;
-  }
-
-  // Clear() returns true if the state of the underlying vector was changed.
-  bool Clear(ClearBehavior behavior);
+  void Clear();
   void ConfigureUninitialized();
   // ConfigureMegamorphic() returns true if the state of the underlying vector
   // was changed. Extra feedback is cleared if the 0 parameter version is used.

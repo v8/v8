@@ -544,15 +544,15 @@ TEST_F(WeakReferencesTest, Regress7768) {
 
   // Create an optimized code which will contain a weak reference to another
   // function ("f"). The weak reference is the only reference to the function.
-  RunJS(
-      "function myfunc(f) { f(); } "
-      "%PrepareFunctionForOptimization(myfunc); "
-      "(function wrapper() { "
-      "   function f() {}; myfunc(f); myfunc(f); "
-      "   %OptimizeFunctionOnNextCall(myfunc); myfunc(f); "
-      "   %ClearFunctionFeedback(wrapper);"
-      "})(); "
-      "%ClearFunctionFeedback(myfunc);");
+  DirectHandle<JSFunction> myfunc = Cast<JSFunction>(
+      RunJS("function myfunc(f) { f(); } "
+            "%PrepareFunctionForOptimization(myfunc); "
+            "(function wrapper() { "
+            "   function f() {}; myfunc(f); myfunc(f); "
+            "   %OptimizeFunctionOnNextCall(myfunc); myfunc(f); "
+            "})(); "
+            "myfunc;"));
+  myfunc->feedback_vector()->ClearICAndLiteralSlots(i_isolate());
 
   // Do marking steps; this will store the objects pointed by myfunc for later
   // processing.

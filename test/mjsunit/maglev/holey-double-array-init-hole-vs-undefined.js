@@ -80,9 +80,10 @@ function rematerialize(deopt) {
 rematerialize(false);
 %OptimizeMaglevOnNextCall(rematerialize);
 assertEquals([[1.1, , 3.3], [1.1, undefined, 3.3]], rematerialize(true));
-// Forget the return, so that Turbolev compiles it as unseen too.
-%ClearFunctionFeedback(rematerialize);
-%PrepareFunctionForOptimization(rematerialize);
-rematerialize(false);
-%OptimizeFunctionOnNextCall(rematerialize);
-assertEquals([[1.1, , 3.3], [1.1, undefined, 3.3]], rematerialize(true));
+// Use a copy with fresh feedback so that Turbolev compiles the return as
+// unseen too.
+const rematerialize2 = copyFunctionWithFreshFeedback(rematerialize);
+%PrepareFunctionForOptimization(rematerialize2);
+rematerialize2(false);
+%OptimizeFunctionOnNextCall(rematerialize2);
+assertEquals([[1.1, , 3.3], [1.1, undefined, 3.3]], rematerialize2(true));

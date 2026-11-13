@@ -155,7 +155,7 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   InstanceType instance_type = obj->map()->instance_type();
   if (InstanceTypeChecker::IsFeedbackVector(instance_type)) {
     // Clear literal boilerplates and feedback.
-    Cast<FeedbackVector>(obj)->ClearSlots(isolate());
+    Cast<FeedbackVector>(obj)->ClearICAndLiteralSlots(isolate());
   } else if (InstanceTypeChecker::IsJSObject(instance_type)) {
     Handle<JSObject> js_obj = Cast<JSObject>(obj);
     int embedder_fields_count = js_obj->GetEmbedderFieldCount();

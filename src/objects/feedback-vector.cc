@@ -422,12 +422,11 @@ void FeedbackVector::set_osr_tiering_in_progress(bool osr_in_progress) {
   set_flags(flags().with_osr_tiering_in_progress(osr_in_progress));
 }
 
-bool FeedbackVector::ClearSlots(Isolate* isolate, ClearBehavior behavior) {
-  if (!shared_function_info()->HasFeedbackMetadata()) return false;
+void FeedbackVector::ClearICAndLiteralSlots(Isolate* isolate) {
+  if (!shared_function_info()->HasFeedbackMetadata()) return;
   Tagged<MaybeObject> uninitialized_sentinel =
       FeedbackVector::RawUninitializedSentinel(isolate);
 
-  bool feedback_updated = false;
   DisallowGarbageCollection no_gc;
   FeedbackMetadataIterator iter(metadata(), no_gc);
   while (iter.HasNext()) {
@@ -436,10 +435,9 @@ bool FeedbackVector::ClearSlots(Isolate* isolate, ClearBehavior behavior) {
     Tagged<MaybeObject> obj = Get(slot);
     if (obj != uninitialized_sentinel) {
       FeedbackNexus nexus(isolate, this, slot);
-      feedback_updated |= nexus.Clear(behavior);
+      nexus.Clear();
     }
   }
-  return feedback_updated;
 }
 
 #ifdef V8_TRACE_FEEDBACK_UPDATES
@@ -601,28 +599,18 @@ void FeedbackNexus::ConfigureUninitialized() {
   }
 }
 
-bool FeedbackNexus::Clear(ClearBehavior behavior) {
-  bool feedback_updated = false;
-
+void FeedbackNexus::Clear() {
   switch (kind()) {
     case FeedbackSlotKind::kCompareOp:
     case FeedbackSlotKind::kForIn:
     case FeedbackSlotKind::kBinaryOp:
     case FeedbackSlotKind::kTypeOf:
-      if (V8_LIKELY(behavior == ClearBehavior::kDefault)) {
-        // We don't clear these, either.
-      } else if (!IsCleared()) {
-        DCHECK_EQ(behavior, ClearBehavior::kClearAll);
-        SetFeedback(Smi::zero(), SKIP_WRITE_BARRIER);
-        feedback_updated = true;
-      }
+    case FeedbackSlotKind::kStringAddAndInternalize:
+      // We don't clear these.
       break;
 
     case FeedbackSlotKind::kLiteral:
-      if (!IsCleared()) {
-        SetFeedback(Smi::zero(), SKIP_WRITE_BARRIER);
-        feedback_updated = true;
-      }
+      SetFeedback(Smi::zero(), SKIP_WRITE_BARRIER);
       break;
 
     case FeedbackSlotKind::kSetNamedSloppy:
@@ -644,27 +632,14 @@ bool FeedbackNexus::Clear(ClearBehavior behavior) {
     case FeedbackSlotKind::kDefineKeyedOwnPropertyInLiteral:
     case FeedbackSlotKind::kCloneObject:
     case FeedbackSlotKind::kJumpLoop:
-      if (!IsCleared()) {
+      if (!IsUninitialized()) {
         ConfigureUninitialized();
-        feedback_updated = true;
-      }
-      break;
-
-    case FeedbackSlotKind::kStringAddAndInternalize:
-      if (V8_LIKELY(behavior == ClearBehavior::kDefault)) {
-        // We don't clear these, either.
-      } else if (!IsCleared()) {
-        DCHECK_EQ(behavior, ClearBehavior::kClearAll);
-        SetFeedback(Smi::zero(), SKIP_WRITE_BARRIER, UninitializedSentinel(),
-                    SKIP_WRITE_BARRIER);
-        feedback_updated = true;
       }
       break;
 
     case FeedbackSlotKind::kInvalid:
       UNREACHABLE();
   }
-  return feedback_updated;
 }
 
 bool FeedbackNexus::ConfigureMegamorphic() {

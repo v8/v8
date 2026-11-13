@@ -382,7 +382,7 @@ void HeapProfiler::QueryObjects(DirectHandle<Context> context,
            !heap_obj.is_null(); heap_obj = heap_iterator.Next()) {
         if (IsInaccessible(heap_obj)) continue;
         if (IsFeedbackVector(heap_obj)) {
-          Cast<FeedbackVector>(heap_obj)->ClearSlots(isolate());
+          Cast<FeedbackVector>(heap_obj)->ClearICAndLiteralSlots(isolate());
         } else if (IsJSTypedArray(heap_obj) &&
                    Cast<JSTypedArray>(heap_obj)->is_on_heap()) {
           // Cannot call typed_array->GetBuffer() here directly because it may

@@ -551,7 +551,6 @@ constexpr bool CanTriggerGC(T... properties) {
   F(BigIntMaxBits, 0, 1)                                                 \
   F(BlockAt, 2, 1)                                                       \
   F(VerifyGetJSBuiltinState, 1, 1)                                       \
-  F(ClearFunctionFeedback, 1, 1)                                         \
   F(ClearMegamorphicStubCache, 0, 1)                                     \
   F(CompileBaseline, 1, 1)                                               \
   F(CompleteInobjectSlackTracking, 1, 1)                                 \
@@ -561,6 +560,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(ConstructSlicedString, 2, 1)                                         \
   F(ConstructThinString, 1, 1)                                           \
   F(ConsumeCodeCache, 2, 1)                                              \
+  F(CopyFunctionWithFreshFeedback, 1, 1)                                 \
   F(CurrentFrameIsTurbofan, 0, 1)                                        \
   F(DebugPrint, -1, 1, RuntimeCallProperty::kCannotTriggerGC)            \
   F(DebugPrintCppHeapPointerTable, -1, 1)                                \
