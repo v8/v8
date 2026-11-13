@@ -721,9 +721,6 @@ Response V8RuntimeAgentImpl::runIfWaitingForDebugger() {
     m_debuggerBarrier.reset();
     return Response::Success();
   }
-  // TODO(chromium:1352175): the below is provisional until client-side changes
-  // land. The call should come through the barrier only once client properly
-  // communicates whether the session is waiting for debugger.
   m_inspector->client()->runIfWaitingForDebugger(m_session->contextGroupId());
   return Response::Success();
 }
