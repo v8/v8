@@ -804,7 +804,8 @@ repro_rate_note: the bar is 4 of 5
 
 For an amplified crash, `repro_rate` counts as many runs as the amplify step plans.
 If it is below the bar of the amplify step, or if the check stops early, Redline writes no `.repro.js` file, and `repro_rate_note` tells why.
-`crash_amplified_budget_sec` limits the tests of the minimizer for an amplified crash. The checks and the flag search run after this time limit.
+`crash_amplified_budget_sec` limits the tests of the minimizer for an amplified crash. This time limit starts after the start check.
+The last check, the flag search and the rate check run after this time limit.
 
 The `.js` file of an amplified crash keeps the original program, so the report says `minimized: no`.
 The `run:` line of the `.repro.js` file has no `--random-seed`, so d8 uses a new random seed in each run, as in the amplify step.

@@ -404,6 +404,7 @@ For example, k is 2 for a rate of 5/5 and 3 for a rate of 4/5.
 Each process has the time limit of the amplify step (`run_timeout_sec`), not the short timeout of the tests in the target.
 
 - `crash_amplified_budget_sec` is the time limit of the tests of the minimizer. 0 turns the minimization off.
+  The time limit starts after the start check. Thus a slow start check, for example on a loaded machine, does not use up the time of the minimizer.
   The start check and the last check do not stop at this time limit. Thus a minimization that used up its time can still give a result.
 - Before the minimization, the printed tree must pass the test in one of `verify_attempts` tries. The result must pass it again.
 - The result goes to `NAME.repro.js`. `NAME.js` keeps the original program, and the report says `minimized: no`.
@@ -417,8 +418,9 @@ Each process has the time limit of the amplify step (`run_timeout_sec`), not the
   A good script can also miss the bar. For a script with a true crash rate of 0.8, 5 runs give less than 4 crashes with a probability of about 26%.
 - The report and the crash event give the test in `min_oracle`, for example `1 of 2 plain d8 runs with the amplified flags`.
 - `min_tree` is `prelude and program`, `program, without a prelude`, or `not minimized:` and the reason.
-- One amplified crash can take this time: `crash_amplified_budget_sec`, the last check, `crash_flag_budget_sec` and one more test of the flag search, and two rate checks.
-  The last check runs at most `verify_attempts` times k processes. A rate check runs the processes of the amplify step. Each process takes at most `run_timeout_sec`.
+- One amplified crash can take this time: the start check, `crash_amplified_budget_sec` and one more test, and the last check.
+  Then the flag search can take `crash_flag_budget_sec` and one more test, and two rate checks follow.
+  The start check and the last check each run at most `verify_attempts` times k processes. A rate check runs the processes of the amplify step. Each process takes at most `run_timeout_sec`.
 - After a stop request, a worker can wait for the plain d8 process that runs, up to its time limit.
 
 **Bundles.** A state-dependent crash has `NAME.bundle.js`: one part for each needed history program, then the crash part (5.8).
@@ -435,13 +437,13 @@ The test passes if one process crashes with the same signature. k comes from `bu
 
 - Before the steps, the bundle must pass the test in one of `verify_attempts` tries.
 - `crash_bundle_min_budget_sec` is the time limit of the tests of the steps. 0 turns the minimization off.
-  The start check, the last check and the rate check stop only at a stop request.
+  The time limit starts after the start check. The start check, the last check and the rate check stop only at a stop request.
 - The result must be smaller, and it must pass the test again in one of `verify_attempts` tries.
 - The rate check runs the result in `bundle_runs` plain d8 processes, without an early stop. The result must crash in at least `bundle_hits` of them, as the original bundle did.
 - Then Redline writes the result to `NAME.bundle.min.js`. `NAME.bundle.js` stays the original bundle.
 - The report and the crash event give the file in `bundle_min`, its rate in `bundle_min_rate` and the result in `bundle_min_note`. A minimized bundle keeps the minimize slot, as `NAME.repro.js` does.
-- The start check and the steps take at most the longer of the start check and `crash_bundle_min_budget_sec` with one more test. Then the last check and the rate check run.
-  The last check runs at most `verify_attempts` times k processes. The rate check runs `bundle_runs` processes. Each process takes at most the timeout of the target for each part, plus 10 s.
+- One bundle minimization can take this time: the start check, `crash_bundle_min_budget_sec` and one more test, the last check, and the rate check.
+  The start check and the last check each run at most `verify_attempts` times k processes. The rate check runs `bundle_runs` processes. Each process takes at most the timeout of the target for each part, plus 10 s.
 
 ### 5.7 Publish
 

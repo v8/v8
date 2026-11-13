@@ -1742,13 +1742,13 @@ void RunCrashFlagsCheck(Checker* checker, const TargetOptions& target,
 // A program that changes one more protector of the isolate in each run. The
 // protectors stay changed in the next runs of the same process, so the 5th
 // run in one process crashes. `type` names its class, so that two programs
-// can have different sources. The first statement is an unused declaration,
-// which the minimizer can remove in its first test.
+// can have different sources. The last statement is an unused declaration.
+// The dataflow reducer tests the later statements first, so the first test
+// of the minimizer removes this declaration, and the test passes.
 std::string ProtectorProgram(const char* type, bool fuzzilli_target) {
   const char* crash_call =
       fuzzilli_target ? "fuzzilli('FUZZILLI_CRASH'" : "redline('REDLINE_CRASH'";
   return StringPrintf(
-      "var unused = 0;\n"
       "class %s {}\n"
       "if (!%%TypedArraySpeciesProtector()) {\n"
       "  %s, 1);\n"
@@ -1760,7 +1760,8 @@ std::string ProtectorProgram(const char* type, bool fuzzilli_target) {
       "  Object.defineProperty(Promise, Symbol.species, {value: %s});\n"
       "} else {\n"
       "  Object.defineProperty(Array, Symbol.species, {value: %s});\n"
-      "}\n",
+      "}\n"
+      "var unused = 0;\n",
       type, crash_call, type, type, type, type);
 }
 
@@ -1780,9 +1781,11 @@ void RunCrashAmplifiedCheck(Checker* checker, const TargetOptions& target,
   // With min_reruns 5, the 4th determinism rerun of the first program is the
   // 5th run, and HarvestCrash takes its crash. The second program, with a
   // different source, makes the test independent of the number of reruns.
-  // The time limit of 2 s stops the minimization before its end, and the
-  // dataflow reducer removes the unused declaration in its first test. Thus
-  // the last check must run after the time limit.
+  // The time limit of 2 s stops the minimization before its end. The time
+  // limit starts after the start check, and the first test of the minimizer
+  // removes the unused declaration (ProtectorProgram). Thus the minimizer
+  // accepts this test also on a loaded machine, and the last check must run
+  // after the time limit.
   const CrashSession session = RunCrashSession(
       target,
       {"--prelude=none",

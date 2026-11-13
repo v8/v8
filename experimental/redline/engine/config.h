@@ -251,14 +251,15 @@ struct FuzzConfig {
   int crash_flag_runs = 2;
   int crash_flag_processes = 200;
   double crash_flag_budget_sec = 60;
-  // The time limit of the minimization of an amplified crash (DESIGN.md
-  // 5.6). Each test runs the script in fresh plain d8 processes with the
-  // flags of the amplify step. 0: Redline does not minimize amplified
-  // crashes.
+  // The time limit of the tests of the minimizer of an amplified crash
+  // (DESIGN.md 5.6). It starts after the start check. Each test runs the
+  // script in fresh plain d8 processes with the flags of the amplify step.
+  // 0: Redline does not minimize amplified crashes.
   double crash_amplified_budget_sec = 300;
-  // The time limit of the minimization of NAME.bundle.js (DESIGN.md 5.6).
-  // Each test runs the bundle in fresh plain d8 processes. 0: Redline does
-  // not minimize bundles.
+  // The time limit of the steps of the minimization of NAME.bundle.js
+  // (DESIGN.md 5.6). It starts after the start check. Each test runs the
+  // bundle in fresh plain d8 processes. 0: Redline does not minimize
+  // bundles.
   double crash_bundle_min_budget_sec = 300;
 
   // Applies --config (a file, or inline JSON starting with '{') then the

@@ -1932,10 +1932,10 @@ class Worker {
   // program. The program is the program of the amplify step, if the step
   // changed it, or else `source`. A test runs the printed tree in the plain
   // processes of ReproTest(), and passes if one of them crashes with the
-  // signature. Only the tests of the minimizer stop at the time limit
-  // crash_amplified_budget_sec. The start check counts against the limit,
-  // but it does not stop at it. The last check runs after it. The result
-  // goes to NAME.repro.js only. NAME.js keeps the original program.
+  // signature. crash_amplified_budget_sec limits only the tests of the
+  // minimizer. The time limit starts after the start check, and the last
+  // check runs after the time limit. The result goes to NAME.repro.js only.
+  // NAME.js keeps the original program.
   void MinimizeAmplifiedCrash(uint64_t hash, const std::string& source,
                               const Program& program, CrashInfo* info) {
     // NAME.js keeps the original program, so the counts of the program do
@@ -1968,7 +1968,10 @@ class Worker {
       info->min_tree = "not minimized: " + error;
       return;
     }
-    const Stopwatch clock;
+    // The time of the tests of the minimizer. Restart() below starts it
+    // after the start check. Thus a slow start check, for example on a
+    // loaded machine, does not use up the time of the minimizer.
+    Stopwatch tests_clock;
     const PlainTest test = ReproTest(*info);
     info->min_oracle = StringPrintf(
         "1 of %d plain d8 runs with the amplified flags", test.runs);
@@ -1996,7 +1999,7 @@ class Worker {
     };
     // The tests of the minimizer stop at the time limit.
     MinimizationOracle oracle = [&](const std::string& candidate) {
-      return clock.ElapsedUs() <= budget_us && passes(candidate);
+      return tests_clock.ElapsedUs() <= budget_us && passes(candidate);
     };
     // True if the text passes the test in one of verify_attempts tries. The
     // start check and the last check do not stop at the time limit. Thus a
@@ -2037,8 +2040,8 @@ class Worker {
       info->prelude_in_tree = true;
       info->prelude_statements_before = script->prelude_statements();
       MinimizerOptions options = config().crash_minimizer;
-      options.max_time_ms = std::max<uint64_t>(
-          1, (budget_us - std::min(budget_us, clock.ElapsedUs())) / 1000);
+      options.max_time_ms = std::max<uint64_t>(1, budget_us / 1000);
+      tests_clock.Restart();
       info->minimization = fuzzer_->MinimizeCrash(script->tree(), oracle,
                                                   probe_checker(), options);
       if (stopping()) {
@@ -2175,8 +2178,9 @@ class Worker {
   // in k plain d8 processes. The test passes if one of them crashes with the
   // signature. k comes from the bundle runs, as for an amplified crash
   // (AmplifiedRuns). MinimizeBundleParts runs the steps, and the tests stop
-  // at crash_bundle_min_budget_sec. The start check, the last check and the
-  // rate check stop only at a stop request. The result goes to
+  // at crash_bundle_min_budget_sec. The time limit starts after the start
+  // check. The start check, the last check and the rate check stop only at a
+  // stop request. The result goes to
   // NAME.bundle.min.js only if it crashes in at least bundle_hits of
   // bundle_runs plain d8 runs. NAME.bundle.js stays the original bundle.
   void MinimizeBundle(const std::vector<std::string>& history,
@@ -2211,11 +2215,13 @@ class Worker {
         info->bundle_path.substr(0, info->bundle_path.size() - 3) + ".min.js";
     const std::string path = min_path + ".tmp";
     // Only the tests of the steps stop at the time limit. The start check,
-    // the last check and the rate check stop only at a stop request.
+    // the last check and the rate check stop only at a stop request. The time
+    // of the steps starts after the start check (Restart below).
+    Stopwatch steps_clock;
     bool steps = false;
     bool budget_used_up = false;
     auto exhausted = [&] {
-      return stopping() || (steps && clock.ElapsedUs() > budget_us);
+      return stopping() || (steps && steps_clock.ElapsedUs() > budget_us);
     };
     PlainCrashRunner runner(
         target, info->signature,
@@ -2274,7 +2280,7 @@ class Worker {
       };
       MinimizerOptions options = config().crash_minimizer;
       options.max_time_ms = std::max<uint64_t>(
-          1, (budget_us - std::min(budget_us, clock.ElapsedUs())) / 1000);
+          1, (budget_us - std::min(budget_us, steps_clock.ElapsedUs())) / 1000);
       const MinimizationResult result =
           fuzzer_->MinimizeCrash(tree.get(), oracle, probe_checker(), options);
       if (result.accepted > 0) {
@@ -2288,10 +2294,11 @@ class Worker {
                  ? "not minimized: cannot write the test file: " + write_error
                  : "not minimized: the bundle did not crash again";
     } else {
+      steps_clock.Restart();
       steps = true;
       parts = MinimizeBundleParts(parts, crashes, reduce, exhausted);
       steps = false;
-      budget_used_up = !stopping() && clock.ElapsedUs() > budget_us;
+      budget_used_up = !stopping() && steps_clock.ElapsedUs() > budget_us;
       std::string bundle_after;
       MakeReprlBundle(BundleHeader(parts.size() - 1, min_path, *info), parts,
                       &bundle_after);
