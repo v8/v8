@@ -5,7 +5,6 @@
 #ifndef V8_BUILTINS_BUILTINS_H_
 #define V8_BUILTINS_BUILTINS_H_
 
-#include "include/v8-object.h"
 #include "src/base/bounds.h"
 #include "src/base/flags.h"
 #include "src/base/vector.h"
@@ -437,9 +436,7 @@ class Builtins {
       DirectHandle<FunctionTemplateInfo> function,
       DirectHandle<Object> receiver,
       base::Vector<const DirectHandle<Object>> args,
-      DirectHandle<HeapObject> new_target,
-      SideEffectType overrider_side_effect_type =
-          SideEffectType::kHasSideEffect);
+      DirectHandle<HeapObject> new_target);
 
   static void Generate_Adaptor(MacroAssembler* masm, int formal_parameter_count,
                                Address builtin_address);
