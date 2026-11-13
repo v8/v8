@@ -14,7 +14,14 @@
 function TestModule(module) {
   assertInstanceof(module, WebAssembly.Module);
   try {
-    const instance = new WebAssembly.Instance(module);
+    // The module may import functions (e.g. "wasm:js-string" for WasmGC
+    // modules); provide stubs, they are never called here.
+    const imports = {};
+    for (const {module: mod, name, kind} of WebAssembly.Module.imports(module)) {
+      if (kind !== 'function') throw new Error('unexpected import ' + kind);
+      (imports[mod] ??= {})[name] = () => 0;
+    }
+    const instance = new WebAssembly.Instance(module, imports);
     %WasmTierUpFunction(instance.exports.main);
   } catch (e) {
     if (!(e instanceof RangeError) || !e.message.includes('Out of memory')) {
