@@ -2160,6 +2160,7 @@ class RepresentationSelector {
                                         CFunctionInfo::Int64Representation repr,
                                         FeedbackSource const& feedback) {
     uint8_t flags = uint8_t(type.GetFlags());
+    START_ALLOW_USE_DEPRECATED()
     if (flags & uint8_t(CTypeInfo::Flags::kEnforceRangeBit) ||
         flags & uint8_t(CTypeInfo::Flags::kClampBit)) {
       DCHECK(repr != CFunctionInfo::Int64Representation::kBigInt);
@@ -2170,6 +2171,7 @@ class RepresentationSelector {
       // an `int32_t`.
       return UseInfo::CheckedNumberAsFloat64(kIdentifyZeros, feedback);
     }
+    END_ALLOW_USE_DEPRECATED()
     switch (type.GetType()) {
       case CTypeInfo::Type::kVoid:
       case CTypeInfo::Type::kUint8:

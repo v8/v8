@@ -404,10 +404,12 @@ FastApiCallFunction GetFastApiCallTarget(
       for (unsigned int j = 0; j < c_signature->ArgumentCount(); ++j) {
         const uint8_t flags =
             static_cast<uint8_t>(c_signature->ArgumentInfo(j).GetFlags());
+        START_ALLOW_USE_DEPRECATED()
         if (flags & static_cast<uint8_t>(CTypeInfo::Flags::kEnforceRangeBit)) {
           // Bailout
           return {0, nullptr};
         }
+        END_ALLOW_USE_DEPRECATED()
       }
 #endif
       return {overloads[i].address, c_signature};

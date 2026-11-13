@@ -1815,6 +1815,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &add_32bit_int_c_func));
 
+    START_ALLOW_USE_DEPRECATED()
     static CFunction add_all_annotate_c_func = CFunction::Make(
         FastCApiObject::AddAllAnnotateFastCallback<
             v8::CTypeInfo::Flags::kEnforceRangeBit>
@@ -1888,6 +1889,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             isolate, FastCApiObject::EnforceRangeCompareSlowCallback<uint64_t>,
             Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &enforce_range_compare_u64_c_func));
+    END_ALLOW_USE_DEPRECATED()
 
     // Testing clamp annotation.
 
@@ -1953,6 +1955,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
 
     // Testing restricted float annotation.
 
+    START_ALLOW_USE_DEPRECATED()
     static CFunction check_restricted_float32_c_func =
         CFunctionBuilder()
             .Fn(FastCApiObject::CheckRestrictedFloat32FastCallback)
@@ -1976,6 +1979,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             .Patch(FastCApiObject::CheckRestrictedFloat64Patch)
 #endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
             .Build();
+    END_ALLOW_USE_DEPRECATED()
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "check_restricted_float64",
         FunctionTemplate::New(
@@ -2102,6 +2106,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
                               Local<Value>(), signature, 1,
                               ConstructorBehavior::kThrow));
 
+    START_ALLOW_USE_DEPRECATED()
     static CFunction add_all_32bit_int_5args_enforce_range_c_func =
         CFunctionBuilder()
             .Fn(FastCApiObject::AddAll32BitIntFastCallback_5Args)
@@ -2111,6 +2116,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             .Patch(FastCApiObject::AddAll32BitIntFastCallback_5ArgsPatch)
 #endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
             .Build();
+    END_ALLOW_USE_DEPRECATED()
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "add_all_5args_enforce_range",
         FunctionTemplate::New(

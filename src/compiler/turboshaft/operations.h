@@ -7258,10 +7258,12 @@ struct FastApiCallOp : OperationT<FastApiCallOp> {
     const CTypeInfo& arg_type =
         parameters->c_signature()->ArgumentInfo(argument_index);
     uint8_t flags = static_cast<uint8_t>(arg_type.GetFlags());
+    START_ALLOW_USE_DEPRECATED()
     if (flags & (static_cast<uint8_t>(CTypeInfo::Flags::kEnforceRangeBit) |
                  static_cast<uint8_t>(CTypeInfo::Flags::kClampBit))) {
       return MaybeRegisterRepresentation::Float64();
     }
+    END_ALLOW_USE_DEPRECATED()
     switch (arg_type.GetType()) {
       case CTypeInfo::Type::kVoid:
         UNREACHABLE();
