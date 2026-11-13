@@ -1303,6 +1303,7 @@ class MaglevReducer {
   V(MathSign)                                  \
   V(MathSqrt)                                  \
   V(MathTrunc)                                 \
+  V(NumberIsInteger)                           \
   V(ObjectIs)                                  \
   V(ObjectPrototypeIsPrototypeOf)              \
   V(PromisePrototypeCatch)                     \

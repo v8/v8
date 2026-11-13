@@ -4871,6 +4871,113 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceMathTrunc(
 }
 
 template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceNumberIsInteger(
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
+  if (args.count() == 0) {
+    return GetBooleanConstant(false);
+  }
+
+  ValueNode* arg = args[0];
+  ValueRepresentation arg_repr = arg->value_representation();
+  if (arg_repr == ValueRepresentation::kInt32 ||
+      arg_repr == ValueRepresentation::kUint32 ||
+      arg_repr == ValueRepresentation::kIntPtr) {
+    return GetBooleanConstant(true);
+  }
+
+  NodeType arg_type = NodeType::kUnknown;
+  if (arg->is_tagged()) {
+    if (CheckType(arg, NodeType::kSmi, &arg_type)) {
+      return GetBooleanConstant(true);
+    }
+    if (!NodeTypeCanBe(arg_type, NodeType::kNumber)) {
+      return GetBooleanConstant(false);
+    }
+    if (known_node_aspects().TryGetAlternativeFor(arg,
+                                                  UseRepresentation::kInt32)) {
+      return GetBooleanConstant(true);
+    }
+  }
+
+  if (std::optional<Float64> cst =
+          TryGetHoleyFloat64Constant(arg, NodeType::kNumberOrUndefined)) {
+    if (cst->is_nan()) return GetBooleanConstant(false);
+    double value = cst->get_scalar();
+    return GetBooleanConstant(std::isfinite(value) &&
+                              std::trunc(value) == value);
+  }
+
+  if (!IsSupported(CpuOperation::kFloat64Round)) {
+    return {};
+  }
+
+  auto build_float64_is_integer = [&](ValueNode* f64) -> ReduceResult {
+    ValueNode* trunc;
+    GET_VALUE_OR_ABORT(trunc, AddNewNodeNoInputConversion<Float64Round>(
+                                  {f64}, Float64Round::Kind::kTrunc));
+    ValueNode* diff;
+    GET_VALUE_OR_ABORT(
+        diff, AddNewNodeNoInputConversion<Float64Subtract>({f64, trunc}));
+    return AddNewNodeNoInputConversion<Float64Compare>(
+        {diff, GetFloat64Constant(0.0)}, Operation::kEqual);
+  };
+
+  auto build_holey_float64_is_integer = [&](ValueNode* hf64) -> ReduceResult {
+    // HoleyFloat64 can only represent a Number or undefined (never boolean or
+    // null), and Number.isInteger(undefined) is false. Both hole and undefined
+    // NaNs produce NaN through Float64Round/Float64Subtract and evaluate to
+    // false in Float64Compare(kEqual, 0.0) without registering a
+    // float64_alternative in KNA.
+    ValueNode* f64;
+    GET_VALUE_OR_ABORT(
+        f64, AddNewNodeNoInputConversion<UnsafeHoleyFloat64ToFloat64>({hf64}));
+    return build_float64_is_integer(f64);
+  };
+
+  if (arg->is_float64()) {
+    return build_float64_is_integer(arg);
+  }
+  if (arg->is_holey_float64()) {
+    return build_holey_float64_is_integer(arg);
+  }
+  DCHECK(arg->is_tagged());
+
+  if (NodeTypeIs(arg_type, NodeType::kNumber)) {
+    ValueNode* f64;
+    GET_VALUE_OR_ABORT(f64, GetFloat64ForToNumber(arg, NodeType::kNumber));
+    return build_float64_is_integer(f64);
+  }
+  if (ValueNode* alt_hf64 = known_node_aspects().TryGetAlternativeFor(
+          arg, UseRepresentation::kHoleyFloat64)) {
+    return build_holey_float64_is_integer(alt_hf64);
+  }
+
+  return Select(
+      [&](auto& builder) { return builder.template Build<BranchIfSmi>({arg}); },
+      [&]() -> ReduceResult { return GetBooleanConstant(true); },
+      [&]() -> ReduceResult {
+        ValueNode* map;
+        GET_VALUE_OR_ABORT(map,
+                           BuildLoadTaggedField(arg, offsetof(HeapObject, map_),
+                                                NodeType::kAnyHeapObject));
+        return Select(
+            [&](auto& builder) {
+              return builder.template Build<BranchIfRootConstant>(
+                  {map}, RootIndex::kHeapNumberMap);
+            },
+            [&]() -> ReduceResult {
+              ValueNode* f64;
+              GET_VALUE_OR_ABORT(
+                  f64,
+                  AddNewNodeNoInputConversion<LoadFloat64>(
+                      {arg}, static_cast<int>(offsetof(HeapNumber, value_))));
+              return build_float64_is_integer(f64);
+            },
+            [&]() -> ReduceResult { return GetBooleanConstant(false); });
+      });
+}
+
+template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceMathClz32(
     ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   if (args.count() < 1) {
