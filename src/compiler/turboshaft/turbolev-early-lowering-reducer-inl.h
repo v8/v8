@@ -458,6 +458,10 @@ class TurbolevEarlyLoweringReducer : public Next {
         generator, offsetof(JSGeneratorObject, parameters_and_registers_));
     for (int i = 0; static_cast<size_t>(i) < parameters_and_registers.size();
          i++) {
+      if (__ matcher().MatchRootConstant(parameters_and_registers[i],
+                                         RootIndex::kOptimizedOut, isolate_)) {
+        continue;
+      }
       __ Store(array, parameters_and_registers[i], StoreOp::Kind::TaggedBase(),
                MemoryRepresentation::AnyTagged(),
                WriteBarrierKind::kFullWriteBarrier,
@@ -473,8 +477,8 @@ class TurbolevEarlyLoweringReducer : public Next {
              offsetof(JSGeneratorObject, input_or_debug_pos_));
 
     __ Store(generator, context, StoreOp::Kind::TaggedBase(),
-             MemoryRepresentation::AnyTagged(),
-             WriteBarrierKind::kFullWriteBarrier,
+             MemoryRepresentation::TaggedPointer(),
+             WriteBarrierKind::kPointerWriteBarrier,
              offsetof(JSGeneratorObject, context_));
   }
 

@@ -5805,6 +5805,10 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
     // it's not in the register snapshot, but that's ok, and a clobberable value
     // register lets the write barrier emit slightly better code.
     Input ValueInput = parameters_and_registers(i);
+    if (RootConstant* constant = ValueInput.node()->TryCast<RootConstant>();
+        constant && constant->index() == RootIndex::kOptimizedOut) {
+      continue;
+    }
     Register value = __ FromAnyToRegister(
         ValueInput, WriteBarrierDescriptor::SlotAddressRegister());
     // Include the value register in the live set, in case it is used by future
