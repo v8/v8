@@ -45,21 +45,6 @@
 #include <zircon/syscalls/debug.h>
 #include <zircon/types.h>
 
-// TODO(wez): Remove this once the Fuchsia SDK has rolled.
-#if defined(ZX_THREAD_STATE_REGSET0)
-#define ZX_THREAD_STATE_GENERAL_REGS ZX_THREAD_STATE_REGSET0
-zx_status_t zx_thread_read_state(zx_handle_t h, uint32_t k, void* b, size_t l) {
-  uint32_t dummy_out_len = 0;
-  return zx_thread_read_state(h, k, b, static_cast<uint32_t>(l),
-                              &dummy_out_len);
-}
-#if defined(__x86_64__)
-using zx_thread_state_general_regs_t = zx_x86_64_general_regs_t;
-#else
-using zx_thread_state_general_regs_t = zx_arm64_general_regs_t;
-#endif
-#endif  // !defined(ZX_THREAD_STATE_GENERAL_REGS)
-
 #endif
 
 #include <algorithm>
@@ -774,11 +759,6 @@ void Sampler::DoSample() {
 
   zx_handle_close(suspend_token);
 }
-
-// TODO(wez): Remove this once the Fuchsia SDK has rolled.
-#if defined(ZX_THREAD_STATE_REGSET0)
-#undef ZX_THREAD_STATE_GENERAL_REGS
-#endif
 
 #endif  // USE_SIGNALS
 
