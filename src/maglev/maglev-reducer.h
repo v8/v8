@@ -543,7 +543,9 @@ class CallArguments {
         node_view_receiver_(call->ReceiverInput().node()) {}
 
   ValueNode* receiver() const {
-    if (storage_ == Storage::kNodeView) return node_view_receiver_;
+    if (storage_ == Storage::kNodeView) {
+      return node_view_receiver_ ? node_view_receiver_->Unwrap() : nullptr;
+    }
     if (receiver_mode_ == ConvertReceiverMode::kNullOrUndefined) {
       return nullptr;
     }
@@ -562,7 +564,8 @@ class CallArguments {
     if (storage_ == Storage::kNodeView) {
       if (i >= static_cast<size_t>(node_view_args_count_)) return nullptr;
       return node_view_call_->input(node_view_args_start_ + static_cast<int>(i))
-          .node();
+          .node()
+          ->Unwrap();
     }
     i += index_offset();
     if (i >= args_.size()) return nullptr;
