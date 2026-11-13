@@ -2989,7 +2989,10 @@ void LiftoffAssembler::emit_i16x8_uconvert_i8x16_high(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i32x4_uconvert_i16x8_low(LiftoffRegister dst,
                                                      LiftoffRegister src) {
-  I32x4UConvertI16x8Low(dst.simd128(), src.simd128(), r0, kScratchSimd128Reg);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  I32x4UConvertI16x8Low(dst.simd128(), src.simd128(), scratch,
+                        kScratchSimd128Reg);
 }
 
 void LiftoffAssembler::emit_i32x4_uconvert_i16x8_high(LiftoffRegister dst,
