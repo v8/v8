@@ -1019,8 +1019,6 @@ Response V8DebuggerAgentImpl::getPossibleBreakpoints(
   *locations =
       std::make_unique<protocol::Array<protocol::Debugger::BreakLocation>>();
 
-  // TODO(1106269): Return an error instead of capping the number of
-  // breakpoints.
   const size_t numBreakpointsToSend =
       std::min(v8Locations.size(), kMaxNumBreakpoints);
   for (size_t i = 0; i < numBreakpointsToSend; ++i) {
