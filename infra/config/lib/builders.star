@@ -88,6 +88,10 @@ def v8_builder(defaults = None, **kwargs):
     defaults = defaults or bucket_defaults[bucket_name]
     barrier = kwargs.pop("barrier", BARRIER.NONE)
     parent_builder = kwargs.pop("parent_builder", None)
+
+    # The parent builder defaults to the same bucket, but can be overridden
+    # (e.g. for ci.experimental testers triggered by ci builders).
+    parent_bucket = kwargs.pop("parent_bucket", bucket_name)
     if barrier.closes_tree:
         notifies = kwargs.pop("notifies", [])
         if parent_builder:
@@ -97,7 +101,7 @@ def v8_builder(defaults = None, **kwargs):
         notifies.append("infra-failure")
         kwargs["notifies"] = notifies
     if parent_builder:
-        resolve_parent_triggering(kwargs, bucket_name, parent_builder)
+        resolve_parent_triggering(kwargs, parent_bucket, parent_builder)
     kwargs["repo"] = "https://chromium.googlesource.com/v8/v8"
     add_barrier_properties(barrier, kwargs)
     v8_basic_builder(defaults, **kwargs)

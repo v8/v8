@@ -4,6 +4,9 @@
 
 load("//definitions.star", "ACTIVE_BRANCHES")
 
+# Buckets with builders building the main branch.
+MAIN_BRANCH_BUCKETS = ["ci", "ci.experimental"]
+
 def add_branch_headers(ctx):
     """
     This callback adds branch-related links and console groups to the headers
@@ -122,22 +125,24 @@ def aggregate_builder_tester_console(ctx):
     build_bucket = ctx.output["cr-buildbucket.cfg"]
     categories = {}
     for bucket in build_bucket.buckets:
-        if bucket.name == "ci":
+        if bucket.name in MAIN_BRANCH_BUCKETS:
             for builder in bucket.swarming.builders:
                 if builder.properties:
                     properties = json.decode(builder.properties)
                     parent = properties.pop("parent_builder", None)
+                    parent_bucket = properties.pop("parent_bucket", bucket.name)
                     if parent:
+                        parent_id = (parent_bucket, parent)
                         contents = categories.get(parent, [])
                         if contents:
-                            contents.append(builder.name)
+                            contents.append((bucket.name, builder.name))
                         else:
-                            categories[parent] = [parent, builder.name]
+                            categories[parent] = [parent_id, (bucket.name, builder.name)]
     consoles = consoles_map(ctx)
     for category, contents in categories.items():
-        for builder in contents:
+        for bucket_name, builder in contents:
             cbuilder = dict(
-                name = "buildbucket/luci.v8.ci/" + builder,
+                name = "buildbucket/luci.v8.%s/%s" % (bucket_name, builder),
                 category = category,
             )
             consoles["builder-tester"].builders.append(cbuilder)
@@ -245,25 +250,29 @@ def mirror_dev_consoles(ctx):
 
 def ensure_forward_triggering_properties(ctx):
     """
-    This callback collects (and removes) `parent_builder` properties from the
-    builders, then reverse the relationship and set `triggers` property on the
-    corresponding builders.
+    This callback collects (and removes) `parent_builder` and `parent_bucket`
+    properties from the builders, then reverse the relationship and set
+    `triggers` property on the corresponding builders. Parent and child
+    builders may live in different buckets.
     """
     build_bucket = ctx.output["cr-buildbucket.cfg"]
+    triggers = dict()
     for bucket in build_bucket.buckets:
-        triggers = dict()
         for builder in bucket.swarming.builders:
             if builder.properties:
                 properties = json.decode(builder.properties)
                 parent = properties.pop("parent_builder", None)
+                parent_bucket = properties.pop("parent_bucket", bucket.name)
                 if parent:
-                    triggers.setdefault(parent, []).append(builder.name)
+                    parent_id = parent_bucket + "/" + parent
+                    triggers.setdefault(parent_id, []).append(builder.name)
                 builder.properties = json.encode(properties)
+    for bucket in build_bucket.buckets:
         for builder in bucket.swarming.builders:
-            tlist = triggers.get(builder.name, [])
+            tlist = triggers.get(bucket.name + "/" + builder.name, [])
             if tlist:
                 properties = json.decode(builder.properties)
-                properties["triggers"] = tlist
+                properties["triggers"] = sorted(tlist)
                 builder.properties = json.encode(properties)
 
 def extract_property(builder, key, default):
@@ -276,6 +285,10 @@ def extract_property(builder, key, default):
 
 def builder_suffix(builder):
     return builder.name.split("/")[-1]
+
+def console_bucket(builder):
+    # Console builder names have the form buildbucket/luci.<project>.<bucket>/<name>.
+    return builder.name.split("/")[1][len("luci.v8."):]
 
 def builder_suffixes(console):
     return [builder_suffix(builder) for builder in console.builders]
@@ -302,7 +315,7 @@ def hide_wip_builders(ctx):
             if builder_suffix(console_builder) in builder_suffixes(wip_console):
                 continue
             if (builder_suffix(console_builder) in wip_builders and
-                "/luci.v8.ci/" in console_builder.name):
+                console_bucket(console_builder) in MAIN_BRANCH_BUCKETS):
                 wip_console.builders.append(console_builder)
             else:
                 filtered_builders.append(console_builder)

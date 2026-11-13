@@ -161,8 +161,12 @@ def add_barrier_properties(barrier, properties_holder):
 def resolve_parent_triggering(args, bucket_name, parent_builder):
     # By the time the generators are executed the parent_builder property
     # is no longer present on the builder struct, so we add it here in
-    # the properties and it will get removed by a generator
-    args.setdefault("properties", {})["parent_builder"] = parent_builder
+    # the properties and it will get removed by a generator. The bucket of
+    # the parent is recorded as well, as parent and child may live in
+    # different buckets (e.g. ci and ci.experimental).
+    properties = args.setdefault("properties", {})
+    properties["parent_builder"] = parent_builder
+    properties["parent_bucket"] = bucket_name
 
     # Disambiguate the scheduler job names, because they are not
     # nested by bucket, while builders are.

@@ -62,6 +62,7 @@ defaults_triggered = {
 
 bucket_defaults = {
     "ci": defaults_ci,
+    "ci.experimental": defaults_ci,
     "ci-hp": defaults_ci_hp,
     "crossbench.try": defaults_crossbench_try,
     "try": defaults_try,

@@ -201,7 +201,7 @@ pool(
 
 pool(
     name = "pools/ci",
-    bucket_realms = ["ci"] + ["ci." + v for v in ACTIVE_BRANCHES],
+    bucket_realms = ["ci", "ci.experimental"] + ["ci." + v for v in ACTIVE_BRANCHES],
     users = [V8_CI_ACCOUNT, V8_PGO_ACCOUNT],
     groups = LED_GROUPS,
     projects = "emscripten-releases",
@@ -241,7 +241,7 @@ def grantInvocationCreator(realms, users):
 
 grantInvocationCreator(["try", "try.triggered", "crossbench.try"], [V8_TRY_ACCOUNT])
 grantInvocationCreator(["ci-hp"], [V8_PGO_ACCOUNT])
-grantInvocationCreator(["ci"], [V8_CI_ACCOUNT])
+grantInvocationCreator(["ci", "ci.experimental"], [V8_CI_ACCOUNT])
 
 luci.logdog(gs_bucket = "chromium-luci-logdog")
 
@@ -277,6 +277,15 @@ bucket(
     name = "ci",
     acls = waterfall_acls,
     led_config = led_config([V8_CI_ACCOUNT]),
+)
+
+# Experimental CI builders. They share the bots of the main CI pool, but live
+# in a separate bucket to make them distinguishable from the main CI builders
+# in alerts and monitoring queries.
+bucket(
+    name = "ci.experimental",
+    acls = waterfall_acls,
+    led_config = led_config([V8_CI_ACCOUNT], ["luci.v8.ci"]),
 )
 bucket(
     name = "ci-hp",
