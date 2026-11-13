@@ -334,8 +334,6 @@ class V8_EXPORT V8InspectorClient {
   virtual void startRepeatingTimer(double, TimerCallback, void* data) {}
   virtual void cancelTimer(void* data) {}
 
-  // TODO(dgozman): this was added to support service worker shadow page. We
-  // should not connect at all.
   virtual bool canExecuteScripts(int contextGroupId) { return true; }
 
   virtual void maxAsyncCallStackDepthChanged(int depth) {}
