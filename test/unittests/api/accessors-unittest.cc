@@ -157,15 +157,15 @@ constexpr v8::ExternalPointerTypeTag kIntPointerTag = 12;
 static void GetIntValue(Local<Name> property,
                         const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
-  int* value =
-      static_cast<int*>(info.Data().As<v8::External>()->Value(kIntPointerTag));
+  int* value = static_cast<int*>(
+      info.DataV2().As<v8::External>()->Value(kIntPointerTag));
   info.GetReturnValue().Set(v8_num(*value));
 }
 
 static void SetIntValue(Local<Name> property, Local<Value> value,
                         const v8::PropertyCallbackInfo<Boolean>& info) {
-  int* field =
-      static_cast<int*>(info.Data().As<v8::External>()->Value(kIntPointerTag));
+  int* field = static_cast<int*>(
+      info.DataV2().As<v8::External>()->Value(kIntPointerTag));
   *field = value->Int32Value(info.GetIsolate()->GetCurrentContext()).FromJust();
 }
 
@@ -354,19 +354,19 @@ static void CheckAccessorArgsCorrect(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::ValidateCallbackInfo(info);
   CHECK(info.GetIsolate() == v8::Isolate::GetCurrent());
-  CHECK(info.Data()
+  CHECK(info.DataV2()
             .As<v8::Value>()
             ->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("data"))
             .FromJust());
   ApiTestFuzzer::Fuzz();
   CHECK(info.GetIsolate() == v8::Isolate::GetCurrent());
-  CHECK(info.Data()
+  CHECK(info.DataV2()
             .As<v8::Value>()
             ->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("data"))
             .FromJust());
   CHECK(info.GetIsolate() == v8::Isolate::GetCurrent());
   i::InvokeMajorGC(i::Isolate::Current());
-  CHECK(info.Data()
+  CHECK(info.DataV2()
             .As<v8::Value>()
             ->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("data"))
             .FromJust());

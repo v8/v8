@@ -1043,7 +1043,7 @@ void V8RuntimeAgentImpl::bindingCallback(
   int contextGroupId = inspector->contextGroupId(contextId);
 
   String16 name =
-      toProtocolString(isolate, info.Data().As<v8::Value>().As<v8::String>());
+      toProtocolString(isolate, info.DataV2().As<v8::Value>().As<v8::String>());
   String16 payload = toProtocolString(isolate, info[0].As<v8::String>());
 
   inspector->forEachSession(

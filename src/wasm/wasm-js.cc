@@ -823,7 +823,7 @@ void WasmStreamingCallbackForTesting(
   ErrorThrower& thrower = js_api_scope.thrower();
 
   std::shared_ptr<v8::WasmStreaming> streaming =
-      v8::WasmStreaming::Unpack(info.GetIsolate(), info.Data());
+      v8::WasmStreaming::Unpack(info.GetIsolate(), info.DataV2());
 
   // We don't check the buffer length up front, to allow d8 to test that the
   // streaming decoder implementation handles overly large inputs correctly.
@@ -843,8 +843,8 @@ void WasmStreamingStartCallback(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(ValidateCallbackInfo(info));
   Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
-  auto managed =
-      Cast<CppGCManaged<WasmStreaming>>(Utils::OpenDirectHandle(*info.Data()));
+  auto managed = Cast<CppGCManaged<WasmStreaming>>(
+      Utils::OpenDirectHandle(*info.DataV2()));
   if (!managed->get()) return;
   isolate->wasm_streaming_callback()(info);
 }
@@ -853,7 +853,7 @@ void WasmStreamingPromiseFailedCallback(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(ValidateCallbackInfo(info));
   std::shared_ptr<v8::WasmStreaming> streaming =
-      v8::WasmStreaming::Unpack(info.GetIsolate(), info.Data());
+      v8::WasmStreaming::Unpack(info.GetIsolate(), info.DataV2());
   if (!streaming) return;
   streaming->Abort(info[0]);
 }
@@ -1278,7 +1278,7 @@ void WebAssemblyInstantiateImpl(
         v8::Isolate* isolate2 = info.GetIsolate();
         Isolate* i_isolate2 = reinterpret_cast<Isolate*>(isolate2);
         HandleScope scope(i_isolate2);
-        Local<v8::FixedArray> data = info.Data().As<v8::FixedArray>();
+        Local<v8::FixedArray> data = info.DataV2().As<v8::FixedArray>();
         DCHECK_EQ(3, data->Length());
         Local<v8::Context> context = data->Get(0).As<v8::Context>();
         Local<Promise::Resolver> promise_resolver =
@@ -1319,7 +1319,7 @@ void WebAssemblyInstantiateImpl(
       [](const v8::FunctionCallbackInfo<v8::Value>& info) {
         v8::HandleScope scope(info.GetIsolate());
         Local<Promise::Resolver> instantiation_promise_resolver =
-            info.Data().As<v8::Value>().As<Promise::Resolver>();
+            info.DataV2().As<v8::Value>().As<Promise::Resolver>();
 
         instantiation_promise_resolver
             ->Reject(info.GetIsolate()->GetCurrentContext(), info[0])

@@ -450,7 +450,7 @@ struct Regress577353387State {
   static void SetupCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     CHECK(i::ValidateCallbackInfo(info));
     auto* state = reinterpret_cast<Regress577353387State*>(
-        info.Data().As<v8::External>()->Value(
+        info.DataV2().As<v8::External>()->Value(
             v8::kExternalPointerTypeTagDefault));
     info.GetIsolate()->RequestInterrupt(&OnInterrupt, state);
   }

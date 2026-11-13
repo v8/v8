@@ -1605,7 +1605,7 @@ constexpr v8::ExternalPointerTypeTag kTestPtrTag = 16;
 
 static void callback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   CHECK(i::ValidateCallbackInfo(args));
-  void* ptr = v8::External::Cast(*args.Data())->Value(kTestPtrTag);
+  void* ptr = v8::External::Cast(*args.DataV2())->Value(kTestPtrTag);
   CHECK_EQ(expected_ptr, ptr);
   args.GetReturnValue().Set(true);
 }
@@ -2945,7 +2945,7 @@ void SymbolAccessorGetterReturnsDefault(
   v8::Isolate* isolate = info.GetIsolate();
   Local<Symbol> sym = name.As<Symbol>();
   if (sym->Description(isolate)->IsUndefined()) return;
-  info.GetReturnValue().Set(info.Data().As<Value>());
+  info.GetReturnValue().Set(info.DataV2().As<Value>());
 }
 
 static void ThrowingSymbolAccessorGetter(
@@ -7008,7 +7008,7 @@ static void GetXValue(Local<Name> name,
                       const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   ApiTestFuzzer::Fuzz();
-  CHECK(info.Data()
+  CHECK(info.DataV2()
             .As<v8::Value>()
             ->Equals(v8::Isolate::GetCurrent()->GetCurrentContext(),
                      v8_str("donut"))
@@ -7303,7 +7303,7 @@ static void Get239Value(Local<Name> name,
                         const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   ApiTestFuzzer::Fuzz();
-  CHECK(info.Data()
+  CHECK(info.DataV2()
             .As<v8::Value>()
             ->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("donut"))
             .FromJust());
@@ -7346,8 +7346,10 @@ static void SetXValue(Local<Name> name, Local<Value> value,
   CHECK(i::ValidateCallbackInfo(info));
   Local<Context> context = info.GetIsolate()->GetCurrentContext();
   CHECK(value->Equals(context, v8_num(4)).FromJust());
-  CHECK(
-      info.Data().As<v8::Value>()->Equals(context, v8_str("donut")).FromJust());
+  CHECK(info.DataV2()
+            .As<v8::Value>()
+            ->Equals(context, v8_str("donut"))
+            .FromJust());
   CHECK(name->Equals(context, v8_str("x")).FromJust());
   CHECK(xValue.IsEmpty());
   xValue.Reset(info.GetIsolate(), value);
@@ -8111,12 +8113,12 @@ static void CallFun(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.IsConstructCall()) {
     CHECK(args.This()
               ->Set(args.GetIsolate()->GetCurrentContext(), v8_str("data"),
-                    args.Data().As<Value>())
+                    args.DataV2().As<Value>())
               .FromJust());
     args.GetReturnValue().SetNull();
     return;
   }
-  args.GetReturnValue().Set(args.Data().As<Value>());
+  args.GetReturnValue().Set(args.DataV2().As<Value>());
 }
 
 class FunctionExtension : public Extension {
@@ -12160,7 +12162,7 @@ v8::Intercepted InterceptorCallICFastApi(
   // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
   CheckReturnValue(info, FUNCTION_ADDR(InterceptorCallICFastApi));
   int* call_count = reinterpret_cast<int*>(
-      v8::External::Cast(*info.Data())->Value(kIntPointerTag));
+      v8::External::Cast(*info.DataV2())->Value(kIntPointerTag));
   ++(*call_count);
   if ((*call_count) % 20 == 0) {
     i::InvokeMajorGC(i::Isolate::Current());
@@ -12178,7 +12180,7 @@ void FastApiCallback_TrivialSignature(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), info.This())
             .FromJust());
-  CHECK(info.Data()
+  CHECK(info.DataV2()
             .As<Value>()
             ->Equals(isolate->GetCurrentContext(), v8_str("method_data"))
             .FromJust());
@@ -21847,7 +21849,7 @@ class RequestInterruptTestBase {
       const v8::FunctionCallbackInfo<Value>& info) {
     RequestInterruptTestBase* test =
         reinterpret_cast<RequestInterruptTestBase*>(
-            info.Data().As<v8::External>()->Value(kTestPtrTag));
+            info.DataV2().As<v8::External>()->Value(kTestPtrTag));
     info.GetReturnValue().Set(test->ShouldContinue());
   }
 
@@ -21964,7 +21966,7 @@ class RequestInterruptTestWithNativeAccessor
     CHECK(i::ValidateCallbackInfo(info));
     RequestInterruptTestBase* test =
         reinterpret_cast<RequestInterruptTestBase*>(
-            info.Data().As<v8::External>()->Value(kTestPtrTag));
+            info.DataV2().As<v8::External>()->Value(kTestPtrTag));
     info.GetReturnValue().Set(test->ShouldContinue());
   }
 };
@@ -22048,7 +22050,7 @@ class RequestInterruptTestWithMathAbs
 
     RequestInterruptTestBase* test =
         reinterpret_cast<RequestInterruptTestBase*>(
-            info.Data().As<v8::External>()->Value(kTestPtrTag));
+            info.DataV2().As<v8::External>()->Value(kTestPtrTag));
     test->WakeUpInterruptor();
   }
 
@@ -22056,7 +22058,7 @@ class RequestInterruptTestWithMathAbs
       const v8::FunctionCallbackInfo<Value>& info) {
     RequestInterruptTestBase* test =
         reinterpret_cast<RequestInterruptTestBase*>(
-            info.Data().As<v8::External>()->Value(kTestPtrTag));
+            info.DataV2().As<v8::External>()->Value(kTestPtrTag));
     info.GetReturnValue().Set(test->should_continue());
   }
 };
@@ -22130,7 +22132,7 @@ class RequestInterruptTestWithCppIterator
       const v8::FunctionCallbackInfo<v8::Value>& info) {
     RequestInterruptTestWithCppIterator* test =
         reinterpret_cast<RequestInterruptTestWithCppIterator*>(
-            info.Data().As<v8::External>()->Value(kTestPtrTag));
+            info.DataV2().As<v8::External>()->Value(kTestPtrTag));
     v8::Isolate* isolate = info.GetIsolate();
     Local<v8::ObjectTemplate> tmpl = test->iterator_template_.Get(isolate);
     Local<v8::Object> iterator =
@@ -22142,7 +22144,7 @@ class RequestInterruptTestWithCppIterator
       const v8::FunctionCallbackInfo<v8::Value>& info) {
     RequestInterruptTestWithCppIterator* test =
         reinterpret_cast<RequestInterruptTestWithCppIterator*>(
-            info.Data().As<v8::External>()->Value(kTestPtrTag));
+            info.DataV2().As<v8::External>()->Value(kTestPtrTag));
     v8::Isolate* isolate = info.GetIsolate();
     Local<v8::Context> context = isolate->GetCurrentContext();
 
@@ -22254,9 +22256,10 @@ TEST_F(ApiTest, RequestInterruptDisallowsJavascript) {
 static v8::Global<Value> function_new_expected_env_global;
 static void FunctionNewCallback(const v8::FunctionCallbackInfo<Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  CHECK(function_new_expected_env_global.Get(isolate)
-            ->Equals(isolate->GetCurrentContext(), info.Data().As<v8::Value>())
-            .FromJust());
+  CHECK(
+      function_new_expected_env_global.Get(isolate)
+          ->Equals(isolate->GetCurrentContext(), info.DataV2().As<v8::Value>())
+          .FromJust());
   info.GetReturnValue().Set(17);
 }
 
@@ -22496,7 +22499,7 @@ class ApiCallOptimizationChecker {
   static void OptimizationCallback(
       const v8::FunctionCallbackInfo<v8::Value>& info) {
     CHECK(i::ValidateCallbackInfo(info));
-    CHECK_EQ(data, info.Data().As<Value>().As<Object>());
+    CHECK_EQ(data, info.DataV2().As<Value>().As<Object>());
     CHECK_EQ(receiver, info.This());
     if (info.Length() == 1) {
       CHECK(v8_num(1)
@@ -29138,7 +29141,7 @@ struct BasicApiChecker {
   static Ret FastCallback(v8::Local<v8::Object> receiver, Value argument,
                           v8::FastApiCallbackOptions& options) {
     // TODO(mslekova): Refactor the data checking.
-    v8::Local<v8::Data> data = options.data;
+    v8::Local<v8::Data> data = options.DataV2();
     CHECK(data->IsValue());
     v8::Local<v8::Value> value = data.As<v8::Value>();
     CHECK(value->IsNumber());
@@ -32582,7 +32585,7 @@ TEST_F(ApiTest, LocalCasts) {
 
 void ReadCppHeapExternalCallback(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  v8::Local<v8::Data> data = info.Data();
+  v8::Local<v8::Data> data = info.DataV2();
   CHECK(data->IsCppHeapExternal());
   v8::Local<v8::CppHeapExternal>::Cast(data)
       ->Value<TestGarbagedCollectedData>(
@@ -32593,7 +32596,7 @@ void ReadCppHeapExternalCallback(
 
 void ReadCppHeapExternalPropertyCallback(
     v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-  v8::Local<v8::Data> data = info.Data();
+  v8::Local<v8::Data> data = info.DataV2();
   CHECK(data->IsCppHeapExternal());
   v8::Local<v8::CppHeapExternal>::Cast(data)
       ->Value<TestGarbagedCollectedData>(
@@ -32618,7 +32621,7 @@ v8::Intercepted ReadCppHeapExternalIndexedGetterCallback(
 
 void ReadCppHeapExternalFastCallback(v8::Local<v8::Object> receiver,
                                      v8::FastApiCallbackOptions& options) {
-  v8::Local<v8::Data> data = options.data;
+  v8::Local<v8::Data> data = options.DataV2();
   CHECK(data->IsCppHeapExternal());
   v8::Local<v8::CppHeapExternal>::Cast(data)
       ->Value<TestGarbagedCollectedData>(
@@ -32795,7 +32798,7 @@ TEST_F(ApiTest, EmbedderDataAlignedPointersV2_CppHeapPointer) {
   isolate->Dispose();
 }
 
-TEST_F(ApiTest, FunctionTemplateCallbackData_CppHeapExternal) {
+TEST_F(ApiTest, FunctionTemplateCallbackDataV2_CppHeapExternal) {
   v8::Isolate::CreateParams create_params = CreateTestParams();
   create_params.cpp_heap =
       v8::CppHeap::Create(::v8::internal::V8::GetCurrentPlatform(),
@@ -32891,7 +32894,7 @@ TEST_F(ApiTest, FunctionTemplateCallbackData_CppHeapExternal) {
   isolate->Dispose();
 }
 
-TEST_F(ApiTest, PropertyCallbackInfoData_CppHeapExternal) {
+TEST_F(ApiTest, PropertyCallbackInfoDataV2_CppHeapExternal) {
   v8::Isolate::CreateParams create_params = CreateTestParams();
   create_params.cpp_heap =
       v8::CppHeap::Create(::v8::internal::V8::GetCurrentPlatform(),

@@ -1305,15 +1305,15 @@ class JSCallbackChannel : public V8Inspector::Channel {
 };
 
 void DispatchPause(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  static_cast<V8InspectorSession*>(
-      info.Data().As<v8::External>()->Value(v8::kExternalPointerTypeTagDefault))
+  static_cast<V8InspectorSession*>(info.DataV2().As<v8::External>()->Value(
+                                       v8::kExternalPointerTypeTagDefault))
       ->dispatchProtocolMessage(
           toStringView(R"({"id": 2, "method": "Debugger.pause"})"));
 }
 
 void CaptureIsTopScriptOpaque(const v8::FunctionCallbackInfo<v8::Value>& info) {
   auto* inspector =
-      static_cast<V8Inspector*>(info.Data().As<v8::External>()->Value(
+      static_cast<V8Inspector*>(info.DataV2().As<v8::External>()->Value(
           v8::kExternalPointerTypeTagDefault));
   std::unique_ptr<v8_inspector::V8StackTrace> stack_trace =
       inspector->captureStackTrace(/*fullStack=*/false);

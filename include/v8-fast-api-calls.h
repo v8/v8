@@ -446,6 +446,20 @@ class V8_EXPORT CFunction {
   };
 };
 
+namespace internal::compiler {
+namespace fast_api_call {
+class FastApiCallBuilder;
+}  // namespace fast_api_call
+namespace turboshaft {
+template <typename Next>
+class FastApiCallLoweringReducer;
+}  // namespace turboshaft
+}  // namespace internal::compiler
+
+namespace internal::wasm {
+class TurboshaftGraphBuildingInterface;
+}  // namespace internal::wasm
+
 /**
  * A struct which may be passed to a fast call callback, like so:
  * \code
@@ -464,15 +478,20 @@ struct FastApiCallbackOptions {
   v8::Isolate* isolate = nullptr;
 
   /**
-   * The `data` passed to the FunctionTemplate constructor, or `undefined`.
-   */
-  v8::Local<v8::Data> data;
-
-  /**
    * The `data` passed to the FunctionTemplate constructor as `v8::Data`.
    */
-  V8_DEPRECATE_SOON("Use data instead")
-  V8_INLINE v8::Local<v8::Data> DataV2() const { return data; }
+  V8_INLINE v8::Local<v8::Data> DataV2() const { return data_; }
+
+ private:
+  friend class internal::compiler::fast_api_call::FastApiCallBuilder;
+  template <typename Next>
+  friend class internal::compiler::turboshaft::FastApiCallLoweringReducer;
+  friend class internal::wasm::TurboshaftGraphBuildingInterface;
+
+  /**
+   * The `data` passed to the FunctionTemplate constructor, or `undefined`.
+   */
+  v8::Local<v8::Data> data_;
 };
 
 namespace internal {

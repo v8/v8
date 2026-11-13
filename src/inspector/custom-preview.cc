@@ -381,7 +381,7 @@ void bodyCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::Local<v8::Object> bodyConfig =
-      info.Data().As<v8::Value>().As<v8::Object>();
+      info.DataV2().As<v8::Value>().As<v8::Object>();
 
   v8::Local<v8::Value> objectValue;
   if (!bodyConfig->Get(context, toV8String(isolate, "object"))

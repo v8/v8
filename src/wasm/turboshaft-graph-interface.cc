@@ -2142,7 +2142,8 @@ class TurboshaftGraphBuildingInterface
                   offsetof(WasmFastApiCallData, callback_data_));
       V<WordPtr> data_argument_to_pass = __ AdaptLocalArgument(callback_data);
 
-      constexpr size_t data_offset = offsetof(v8::FastApiCallbackOptions, data);
+      constexpr size_t data_offset =
+          offsetof(v8::FastApiCallbackOptions, data_);
       __ StoreOffHeap(options_object, data_argument_to_pass,
                       MemoryRepresentation::UintPtr(), data_offset);
     }

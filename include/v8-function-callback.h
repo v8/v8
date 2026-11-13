@@ -33,7 +33,7 @@ class ConsoleCallArguments;
 }  // namespace debug
 
 namespace api_internal {
-V8_EXPORT v8::Local<v8::Data> GetFunctionTemplateData(
+V8_EXPORT v8::Local<v8::Data> GetFunctionTemplateDataV2(
     v8::Isolate* isolate, v8::Local<v8::Data> raw_target);
 }  // namespace api_internal
 
@@ -139,8 +139,6 @@ class FunctionCallbackInfo {
   /** Indicates whether this is a regular call or a construct call. */
   V8_INLINE bool IsConstructCall() const;
   /** The data argument specified when creating the callback as `v8::Data`. */
-  V8_INLINE Local<v8::Data> Data() const;
-  V8_DEPRECATE_SOON("Use Data() instead")
   V8_INLINE Local<v8::Data> DataV2() const;
   /** The current Isolate. */
   V8_INLINE Isolate* GetIsolate() const;
@@ -238,8 +236,6 @@ class PropertyCallbackInfo {
   /**
    * \return The data set in the callback configuration as `v8::Data`.
    */
-  V8_INLINE Local<v8::Data> Data() const;
-  V8_DEPRECATE_SOON("Use Data() instead")
   V8_INLINE Local<v8::Data> DataV2() const;
 
   /**
@@ -641,14 +637,9 @@ Local<Value> FunctionCallbackInfo<T>::NewTarget() const {
 }
 
 template <typename T>
-Local<v8::Data> FunctionCallbackInfo<T>::Data() const {
-  auto target = Local<v8::Data>::FromSlot(&values_[kTargetIndex]);
-  return api_internal::GetFunctionTemplateData(GetIsolate(), target);
-}
-
-template <typename T>
 Local<v8::Data> FunctionCallbackInfo<T>::DataV2() const {
-  return Data();
+  auto target = Local<v8::Data>::FromSlot(&values_[kTargetIndex]);
+  return api_internal::GetFunctionTemplateDataV2(GetIsolate(), target);
 }
 
 template <typename T>
@@ -683,16 +674,11 @@ Isolate* PropertyCallbackInfo<T>::GetIsolate() const {
 }
 
 template <typename T>
-Local<v8::Data> PropertyCallbackInfo<T>::Data() const {
+Local<v8::Data> PropertyCallbackInfo<T>::DataV2() const {
   internal::Address callback_info = args_[kCallbackInfoIndex];
   internal::Address data =
       I::ReadTaggedPointerField(callback_info, I::kCallbackInfoDataOffset);
   return Local<v8::Data>::New(GetIsolate(), data);
-}
-
-template <typename T>
-Local<v8::Data> PropertyCallbackInfo<T>::DataV2() const {
-  return Data();
 }
 
 template <typename T>

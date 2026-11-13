@@ -1028,7 +1028,7 @@ void V8Console::CommandLineAPIScope::accessorGetterCallback(
     v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
-  Data* data = info.Data().As<v8::CppHeapExternal>()->Value<Data>(
+  Data* data = info.DataV2().As<v8::CppHeapExternal>()->Value<Data>(
       isolate, {Data::kPointerTag, Data::kPointerTag});
   CHECK_NOT_NULL(data);
   v8::Local<v8::Object> commandLineAPI = data->commandLineAPI(isolate);
@@ -1059,7 +1059,7 @@ void V8Console::CommandLineAPIScope::accessorSetterCallback(
     const v8::PropertyCallbackInfo<v8::Boolean>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
-  Data* data = info.Data().As<v8::CppHeapExternal>()->Value<Data>(
+  Data* data = info.DataV2().As<v8::CppHeapExternal>()->Value<Data>(
       isolate, {Data::kPointerTag, Data::kPointerTag});
   CHECK_NOT_NULL(data);
   if (data->commandLineAPI(isolate).IsEmpty()) return;
