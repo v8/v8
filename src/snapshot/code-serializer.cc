@@ -112,15 +112,18 @@ ScriptCompiler::CachedData* CodeSerializer::Serialize(
   // Serialize code object.
   DirectHandle<String> source(Cast<String>(script->source()), isolate);
   DirectHandle<FixedArray> wrapped_arguments;
+  uint32_t context_extension_count = 0;
   if (script->is_wrapped()) {
     wrapped_arguments =
         DirectHandle<FixedArray>(script->wrapped_arguments(), isolate);
+    context_extension_count = info->context_extension_count();
   }
 
   HandleScope scope(isolate);
-  CodeSerializer cs(isolate, SerializedCodeData::SourceHash(
-                                 source, wrapped_arguments,
-                                 script->origin_options(), isolate));
+  CodeSerializer cs(
+      isolate, SerializedCodeData::SourceHash(source, wrapped_arguments,
+                                              script->origin_options(), isolate,
+                                              context_extension_count));
   DisallowGarbageCollection no_gc;
 
 #ifndef DEBUG
@@ -542,7 +545,8 @@ MaybeDirectHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
   const SerializedCodeData scd = SerializedCodeData::FromCachedData(
       isolate, cached_data,
       SerializedCodeData::SourceHash(source, wrapped_arguments,
-                                     script_details.origin_options, isolate),
+                                     script_details.origin_options, isolate,
+                                     script_details.context_extension_count),
       &sanity_check_result);
   if (sanity_check_result != SerializedCodeSanityCheckResult::kSuccess) {
     if (v8_flags.profile_deserialization) {
@@ -821,8 +825,9 @@ SerializedCodeSanityCheckResult SerializedCodeData::SanityCheckJustSource(
   if (!script_details.wrapped_arguments.is_null()) {
     wrapped_arguments = script_details.wrapped_arguments.ToHandleChecked();
   }
-  return SanityCheckJustSource(SourceHash(
-      source, wrapped_arguments, script_details.origin_options, isolate));
+  return SanityCheckJustSource(
+      SourceHash(source, wrapped_arguments, script_details.origin_options,
+                 isolate, script_details.context_extension_count));
 }
 
 SerializedCodeSanityCheckResult SerializedCodeData::SanityCheckJustSource(
@@ -908,7 +913,9 @@ void HashString(SHA256_CTX* ctx, Isolate* isolate,
 
 SerializedCodeData::SourceHash::SourceHash(
     DirectHandle<String> source, DirectHandle<FixedArray> wrapped_arguments,
-    ScriptOriginOptions origin_options, Isolate* isolate) {
+    ScriptOriginOptions origin_options, Isolate* isolate,
+    uint32_t context_extension_count) {
+  DCHECK_IMPLIES(wrapped_arguments.is_null(), context_extension_count == 0);
   if (v8_flags.code_cache_source_hash_sha256) {
     SHA256_CTX ctx;
     SHA256_Init(&ctx);
@@ -922,10 +929,13 @@ SerializedCodeData::SourceHash::SourceHash(
     SHA256_Update(&ctx, &flags, sizeof(flags));
 
     // For CompileFunction, wrapped_arguments holds the parameter names (while
-    // source only holds the function body). Hash the argument count and each
-    // length-prefixed parameter string so parameter changes invalidate the
-    // cache.
+    // source only holds the function body) and context_extension_count holds
+    // the number of outer WITH_SCOPE extensions. Hash the context extension
+    // count, argument count, and each length-prefixed parameter string so
+    // parameter or extension count changes invalidate the cache.
     if (!wrapped_arguments.is_null()) {
+      SHA256_Update(&ctx, &context_extension_count,
+                    sizeof(context_extension_count));
       uint32_t argc = wrapped_arguments->ulength().value();
       SHA256_Update(&ctx, &argc, sizeof(argc));
       for (uint32_t i = 0; i < argc; ++i) {
@@ -952,6 +962,9 @@ SerializedCodeData::SourceHash::SourceHash(
     hash = IsModuleField::update(hash, origin_options.IsModule());
     base::WriteLittleEndianValue<uint32_t>(
         reinterpret_cast<Address>(data_.data()), hash);
+    base::WriteLittleEndianValue<uint32_t>(
+        reinterpret_cast<Address>(data_.data() + kUInt32Size),
+        context_extension_count);
   }
 }
 

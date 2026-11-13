@@ -7257,6 +7257,75 @@ TEST_F(SerializeTest, InvalidCachedCompileFunction) {
   }
 }
 
+TEST_F(SerializeTest, CompileFunctionContextExtensionsCache) {
+  v8::Isolate* isolate = v8_isolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::String> source =
+      v8_str(isolate, "\"use strict\"; return x + eval('x');");
+  v8::Local<v8::Object> ext1 = v8::Object::New(isolate);
+  ext1->Set(context(), v8_str(isolate, "x"), v8_num(isolate, 11)).Check();
+  v8::Local<v8::Object> ext2 = v8::Object::New(isolate);
+  ext2->Set(context(), v8_str(isolate, "x"), v8_num(isolate, 22)).Check();
+  context()
+      ->Global()
+      ->Set(context(), v8_str(isolate, "x"), v8_num(isolate, 99))
+      .Check();
+
+  // 1. Compile with 0 context extensions (populates isolate cache) and produce
+  // code cache.
+  v8::Local<v8::Function> fun_0_ext;
+  ScriptCompiler::CachedData* cache_0_ext;
+  {
+    v8::ScriptCompiler::Source script_source(source);
+    fun_0_ext = v8::ScriptCompiler::CompileFunction(
+                    context(), &script_source, 0, nullptr, 0, nullptr,
+                    v8::ScriptCompiler::kEagerCompile)
+                    .ToLocalChecked();
+    v8::Local<v8::Value> res =
+        fun_0_ext->Call(context(), v8::Undefined(isolate), 0, nullptr)
+            .ToLocalChecked();
+    CHECK_EQ(198, res->Int32Value(context()).FromJust());
+    cache_0_ext = v8::ScriptCompiler::CreateCodeCacheForFunction(fun_0_ext);
+  }
+
+  // 2. Consuming 0-extension code cache with 1 extension must be rejected and
+  // must not hit the 0-extension entry in the isolate compilation cache.
+  v8::Local<v8::Function> fun_1_ext;
+  {
+    v8::ScriptCompiler::Source script_source(source, cache_0_ext);
+    fun_1_ext = v8::ScriptCompiler::CompileFunction(
+                    context(), &script_source, 0, nullptr, 1, &ext1,
+                    v8::ScriptCompiler::kConsumeCodeCache)
+                    .ToLocalChecked();
+    v8::Local<v8::Value> res =
+        fun_1_ext->Call(context(), v8::Undefined(isolate), 0, nullptr)
+            .ToLocalChecked();
+    CHECK_EQ(22, res->Int32Value(context()).FromJust());
+    CHECK(script_source.GetCachedData()->rejected);
+    CHECK_NE(Cast<JSFunction>(Utils::OpenDirectHandle(*fun_0_ext))->shared(),
+             Cast<JSFunction>(Utils::OpenDirectHandle(*fun_1_ext))->shared());
+  }
+
+  // 3. Compiling again with 1 extension (different object) hits the 1-extension
+  // entry in the isolate compilation cache and binds the new extension object.
+  {
+    v8::ScriptCompiler::Source script_source(source);
+    v8::Local<v8::Function> fun_1_ext_cached =
+        v8::ScriptCompiler::CompileFunction(
+            context(), &script_source, 0, nullptr, 1, &ext2,
+            v8::ScriptCompiler::kNoCompileOptions)
+            .ToLocalChecked();
+    CHECK_EQ(
+        Cast<JSFunction>(Utils::OpenDirectHandle(*fun_1_ext))->shared(),
+        Cast<JSFunction>(Utils::OpenDirectHandle(*fun_1_ext_cached))->shared());
+    v8::Local<v8::Value> res =
+        fun_1_ext_cached->Call(context(), v8::Undefined(isolate), 0, nullptr)
+            .ToLocalChecked();
+    CHECK_EQ(44, res->Int32Value(context()).FromJust());
+  }
+}
+
 TEST_F(SerializeTest, CodeCacheSha256SourceHash) {
   v8::Isolate* isolate = v8_isolate();
   i::Isolate* i_isolate = this->i_isolate();
@@ -7388,7 +7457,10 @@ TEST_F(SerializeTest, CodeCacheSha256SourceHash) {
     Handle<FixedArray> wrapped_zero = i_isolate->factory()->NewFixedArray(0);
     SerializedCodeData::SourceHash hash_wrapped_zero(
         one_byte, wrapped_zero, default_origin_options, i_isolate);
+    SerializedCodeData::SourceHash hash_wrapped_zero_ext1(
+        one_byte, wrapped_zero, default_origin_options, i_isolate, 1);
     CHECK_NE(hash_one_byte, hash_wrapped_zero);
+    CHECK_NE(hash_wrapped_zero, hash_wrapped_zero_ext1);
 
     Handle<FixedArray> wrapped_x = i_isolate->factory()->NewFixedArray(1);
     wrapped_x->set(0, *i_isolate->factory()->NewStringFromAsciiChecked("x"));

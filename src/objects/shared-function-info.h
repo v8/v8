@@ -398,6 +398,11 @@ V8_OBJECT class SharedFunctionInfo : public HeapObject {
   inline Tagged<String> Name() const;
   inline void SetName(Tagged<String> name);
 
+  // For wrapped functions (created via ScriptCompiler::CompileFunction),
+  // returns the number of outer WITH_SCOPE context extensions in the outer
+  // ScopeInfo chain.
+  inline uint32_t context_extension_count() const;
+
   // Get the code object which represents the execution of this function.
   V8_EXPORT_PRIVATE Tagged<Code> GetCode(Isolate* isolate) const;
 

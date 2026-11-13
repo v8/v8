@@ -758,6 +758,20 @@ Tagged<ScopeInfo> SharedFunctionInfo::GetOuterScopeInfo() const {
   return Cast<ScopeInfo>(outer_scope_info());
 }
 
+uint32_t SharedFunctionInfo::context_extension_count() const {
+  DCHECK(is_wrapped());
+  if (!HasOuterScopeInfo()) return 0;
+  uint32_t count = 0;
+  Tagged<ScopeInfo> scope_info = GetOuterScopeInfo();
+  while (true) {
+    DCHECK_EQ(scope_info->scope_type(), WITH_SCOPE);
+    count++;
+    if (!scope_info->HasOuterScopeInfo()) break;
+    scope_info = scope_info->OuterScopeInfo();
+  }
+  return count;
+}
+
 Tagged<ScopeInfo> SharedFunctionInfo::TryGetScopeInfoForMerge() const {
   Tagged<Object> maybe_scope_info = name_or_scope_info(kAcquireLoad);
   if (IsScopeInfo(maybe_scope_info)) {

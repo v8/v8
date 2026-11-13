@@ -2767,9 +2767,8 @@ V8_WARN_UNUSED_RESULT MaybeLocal<Function> ScriptCompiler::CompileFunction(
          options == CompileOptions::kEagerCompile ||
          options == CompileOptions::kNoCompileOptions);
 
-  i::DirectHandle<i::Context> context = Utils::OpenDirectHandle(*v8_context);
-
-  DCHECK(IsNativeContext(*context));
+  i::DirectHandle<i::NativeContext> context =
+      Utils::OpenDirectHandle(*v8_context);
 
   i::Handle<i::FixedArray> arguments_list =
       i_isolate->factory()->NewFixedArray(static_cast<int>(arguments_count));
@@ -2779,18 +2778,13 @@ V8_WARN_UNUSED_RESULT MaybeLocal<Function> ScriptCompiler::CompileFunction(
     arguments_list->set(i, *argument);
   }
 
+  i::DirectHandleVector<i::JSReceiver> extensions(i_isolate,
+                                                  context_extension_count);
   for (size_t i = 0; i < context_extension_count; ++i) {
     i::DirectHandle<i::JSReceiver> extension =
         Utils::OpenDirectHandle(*context_extensions[i]);
     if (!IsJSObject(*extension)) return {};
-    context = i_isolate->factory()->NewWithContext(
-        context,
-        i::ScopeInfo::CreateForWithScope(
-            i_isolate,
-            IsNativeContext(*context)
-                ? i::Handle<i::ScopeInfo>::null()
-                : i::Handle<i::ScopeInfo>(context->scope_info(), i_isolate)),
-        extension);
+    extensions[i] = extension;
   }
 
   i::ScriptDetails script_details = GetScriptDetails(
@@ -2798,6 +2792,8 @@ V8_WARN_UNUSED_RESULT MaybeLocal<Function> ScriptCompiler::CompileFunction(
       source->resource_column_offset, source->source_map_url,
       source->host_defined_options, source->resource_options);
   script_details.wrapped_arguments = arguments_list;
+  script_details.context_extension_count =
+      static_cast<uint32_t>(context_extension_count);
 
   std::unique_ptr<i::AlignedCachedData> cached_data;
   if (options & kConsumeCodeCache) {
@@ -2811,7 +2807,8 @@ V8_WARN_UNUSED_RESULT MaybeLocal<Function> ScriptCompiler::CompileFunction(
   bool has_exception =
       !i::Compiler::GetWrappedFunction(
            i_isolate, Utils::OpenHandle(*source->source_string), context,
-           script_details, cached_data.get(), options, no_cache_reason)
+           base::VectorOf(extensions), script_details, cached_data.get(),
+           options, no_cache_reason)
            .ToHandle(&result);
   if (options & kConsumeCodeCache) {
     source->cached_data->rejected = cached_data->rejected();

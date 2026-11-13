@@ -1766,12 +1766,14 @@ BackgroundCompileTask::~BackgroundCompileTask() = default;
 void SetScriptFieldsFromDetails(Isolate* isolate, Tagged<Script> script,
                                 const ScriptDetails& script_details,
                                 DisallowGarbageCollection* no_gc) {
+  // LINT.IfChange(SetScriptFieldsFromDetails)
   Handle<Object> script_name;
   if (script_details.name_obj.ToHandle(&script_name)) {
     script->set_name(*script_name);
     script->set_line_offset(script_details.line_offset);
     script->set_column_offset(script_details.column_offset);
   }
+  // LINT.ThenChange(/src/objects/compilation-cache-table.cc:ScriptCacheKeyMatchesOrigin)
   // The API can provide a source map URL, but a source map URL could also have
   // been inferred by the parser from a magic comment. The API source map URL
   // takes precedence (as long as it is a non-empty string).
@@ -4322,7 +4324,9 @@ Compiler::GetSharedFunctionInfoForScriptWithCompileHints(
 
 // static
 MaybeDirectHandle<JSFunction> Compiler::GetWrappedFunction(
-    Isolate* isolate, Handle<String> source, DirectHandle<Context> context,
+    Isolate* isolate, Handle<String> source,
+    DirectHandle<NativeContext> native_context,
+    base::Vector<const DirectHandle<JSReceiver>> context_extensions,
     const ScriptDetails& script_details, AlignedCachedData* cached_data,
     v8::ScriptCompiler::CompileOptions compile_options,
     v8::ScriptCompiler::NoCacheReason no_cache_reason) {
@@ -4339,6 +4343,7 @@ MaybeDirectHandle<JSFunction> Compiler::GetWrappedFunction(
 
   LanguageMode language_mode = construct_language_mode(v8_flags.use_strict);
   DCHECK(!script_details.wrapped_arguments.is_null());
+  DCHECK_EQ(script_details.context_extension_count, context_extensions.size());
   MaybeDirectHandle<SharedFunctionInfo> maybe_result;
   DirectHandle<SharedFunctionInfo> result;
   Handle<Script> script;
@@ -4405,8 +4410,9 @@ MaybeDirectHandle<JSFunction> Compiler::GetWrappedFunction(
     ParseInfo parse_info(isolate, flags, &compile_state, &reusable_state);
 
     MaybeDirectHandle<ScopeInfo> maybe_outer_scope_info;
-    if (!IsNativeContext(*context)) {
-      maybe_outer_scope_info = direct_handle(context->scope_info(), isolate);
+    for (size_t i = 0; i < context_extensions.size(); ++i) {
+      maybe_outer_scope_info =
+          ScopeInfo::CreateForWithScope(isolate, maybe_outer_scope_info);
     }
     script = NewScript(isolate, &parse_info, source, script_details,
                        NOT_NATIVES_CODE);
@@ -4430,13 +4436,34 @@ MaybeDirectHandle<JSFunction> Compiler::GetWrappedFunction(
 
     is_compiled_scope = result->is_compiled_scope(isolate);
     script = Handle<Script>(Cast<Script>(result->script()), isolate);
-    // Add the result to the isolate cache if there's no context extension.
-    if (maybe_outer_scope_info.is_null()) {
-      compilation_cache->PutScript(source, language_mode, result);
-    }
+    compilation_cache->PutScript(source, language_mode, result);
   }
 
   DCHECK(is_compiled_scope.is_compiled());
+
+  DirectHandle<Context> context = native_context;
+  if (!context_extensions.empty()) {
+    // Wrap the native context in a chain of WithContexts for the provided
+    // context extensions, using the compiled or cached SharedFunctionInfo's
+    // outer ScopeInfo chain (which links from innermost to outermost).
+    DirectHandleVector<ScopeInfo> scope_infos(isolate,
+                                              context_extensions.size());
+    Tagged<HeapObject> current_scope_info = result->GetOuterScopeInfo();
+    for (size_t i = context_extensions.size(); i > 0; --i) {
+      Tagged<ScopeInfo> scope_info = Cast<ScopeInfo>(current_scope_info);
+      DCHECK_EQ(scope_info->scope_type(), WITH_SCOPE);
+      scope_infos[i - 1] = direct_handle(scope_info, isolate);
+      if (i > 1) {
+        current_scope_info = scope_info->OuterScopeInfo();
+      } else {
+        DCHECK(!scope_info->HasOuterScopeInfo());
+      }
+    }
+    for (size_t i = 0; i < context_extensions.size(); ++i) {
+      context = isolate->factory()->NewWithContext(context, scope_infos[i],
+                                                   context_extensions[i]);
+    }
+  }
 
   return Factory::JSFunctionBuilder{isolate, result, context}
       .set_allocation_type(AllocationType::kYoung)

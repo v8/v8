@@ -106,10 +106,13 @@ class SerializedCodeData : public SerializedData {
  public:
   class SourceHash {
    public:
+    // |context_extension_count| is the number of WITH_SCOPE context extensions
+    // passed to ScriptCompiler::CompileFunction (0 for regular scripts).
     V8_EXPORT_PRIVATE SourceHash(DirectHandle<String> source,
                                  DirectHandle<FixedArray> wrapped_arguments,
                                  ScriptOriginOptions origin_options,
-                                 Isolate* isolate);
+                                 Isolate* isolate,
+                                 uint32_t context_extension_count = 0);
 
     static constexpr uint32_t kSize = kSizeOfSha256Digest;
     const uint8_t* data() const { return data_.data(); }
