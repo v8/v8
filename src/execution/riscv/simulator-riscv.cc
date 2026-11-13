@@ -4527,9 +4527,11 @@ void Simulator::AtomicMemoryHelper(sreg_t rs1, T value, OP f,
 
   local_monitor_.NotifyLoad();
 
+  // ReadMem makes the checks any load makes. The read-modify-write itself
+  // is a compare-and-swap loop on the host, so that a store from another
+  // simulator thread cannot land between the read and the write and be
+  // lost.
   T data = ReadMem<T>(address, instr);
-
-  T result = f(data, value);
 
   {
     GlobalMonitor::SimulatorMutex lock_guard(global_monitor_);
@@ -4537,7 +4539,13 @@ void Simulator::AtomicMemoryHelper(sreg_t rs1, T value, OP f,
     global_monitor_->NotifyStore_Locked(&global_monitor_thread_);
   }
 
-  WriteMem<T>(address, result, instr);
+  std::atomic_ref<T> location(*reinterpret_cast<T*>(address));
+  T result = f(data, value);
+  while (!location.compare_exchange_weak(data, result,
+                                         std::memory_order_relaxed)) {
+    result = f(data, value);
+  }
+  TraceMemWr(address, result);
 
   if (instr->AqValue()) {
     // Approximate load-acquire by issuing a full barrier after the AMO. It must
