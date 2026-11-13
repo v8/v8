@@ -4238,10 +4238,13 @@ class MachineLoweringReducer : public Next {
     // Check if {map} is the same as {source_map}.
     IF (UNLIKELY(__ TaggedEqual(map, source_map))) {
       switch (transition.mode()) {
-        case ElementsTransition::kFastTransition:
+        case ElementsTransition::kFastTransition: {
           // In-place migration of {object}, just store the {target_map}.
-          __ StoreField(object, AccessBuilder::ForMap(), target_map);
+          FieldAccess access = AccessBuilder::ForMap();
+          access.maybe_initializing_or_transitioning_store = true;
+          __ StoreField(object, access, target_map);
           break;
+        }
         case ElementsTransition::kSlowTransition:
           // Instance migration, call out to the runtime for {object}.
           __ template CallRuntime<runtime::TransitionElementsKind>(
@@ -4274,7 +4277,9 @@ class MachineLoweringReducer : public Next {
       IF (__ TaggedEqual(map, __ HeapConstant(transition_source.object()))) {
         if (is_simple) {
           // In-place migration of {object}, just store the {target_map}.
-          __ StoreField(object, AccessBuilder::ForMap(), target_map);
+          FieldAccess access = AccessBuilder::ForMap();
+          access.maybe_initializing_or_transitioning_store = true;
+          __ StoreField(object, access, target_map);
         } else {
           // Instance migration, call out to the runtime for {object}.
           __ template CallRuntime<runtime::TransitionElementsKind>(

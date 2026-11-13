@@ -240,7 +240,9 @@ class TurbolevEarlyLoweringReducer : public Next {
           transition_source.elements_kind(), transition_target.elements_kind());
       IF (__ TaggedEqual(map, __ HeapConstant(transition_source.object()))) {
         if (is_simple) {
-          __ StoreField(object, AccessBuilder::ForMap(), target_map);
+          FieldAccess access = AccessBuilder::ForMap();
+          access.maybe_initializing_or_transitioning_store = true;
+          __ StoreField(object, access, target_map);
         } else {
           __ template CallRuntime<runtime::TransitionElementsKind>(
               __ NoContextConstant(), {.object = V<HeapObject>::Cast(object),
@@ -442,8 +444,9 @@ class TurbolevEarlyLoweringReducer : public Next {
         __ FinishInitialization(std::move(new_property_array));
 
     // Replace the old property array in {object}.
-    __ StoreField(object, AccessBuilder::ForJSObjectPropertiesOrHash(),
-                  initialized_new_property_array);
+    FieldAccess access = AccessBuilder::ForJSObjectPropertiesOrHash();
+    access.maybe_initializing_or_transitioning_store = true;
+    __ StoreField(object, access, initialized_new_property_array);
 
     return initialized_new_property_array;
   }
