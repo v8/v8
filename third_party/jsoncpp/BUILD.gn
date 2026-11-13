@@ -3,10 +3,7 @@
 # found in the LICENSE file.
 
 config("jsoncpp_config") {
-  include_dirs = [
-    "src/include",
-    "generated",
-  ]
+  include_dirs = [ "src/include" ]
 
   # TODO(crbug.com/983223): Update JsonCpp BUILD.gn to remove deprecated
   # declaration flag.
@@ -19,13 +16,15 @@ config("jsoncpp_config") {
 
 source_set("jsoncpp") {
   sources = [
-    "generated/version.h",
+    "src/include/json/allocator.h",
     "src/include/json/assertions.h",
     "src/include/json/config.h",
     "src/include/json/forwards.h",
     "src/include/json/json.h",
+    "src/include/json/json_features.h",
     "src/include/json/reader.h",
     "src/include/json/value.h",
+    "src/include/json/version.h",
     "src/include/json/writer.h",
     "src/src/lib_json/json_reader.cpp",
     "src/src/lib_json/json_tool.h",
