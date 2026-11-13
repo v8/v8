@@ -4725,8 +4725,6 @@ namespace {
 struct FastApiReceiver {
   static void FastCallback(v8::Local<v8::Object> receiver_obj, int argument,
                            v8::FastApiCallbackOptions& options) {
-    // TODO(mslekova): The fallback is not used by the test. Replace this
-    // with a CHECK.
     CHECK(IsValidUnwrapObject(*receiver_obj));
     FastApiReceiver* receiver =
         GetInternalField<FastApiReceiver>(*receiver_obj, kFastApiReceiverTag);
