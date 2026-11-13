@@ -19,7 +19,7 @@
 #include "src/handles/handles-inl.h"
 #include "src/handles/maybe-handles-inl.h"
 #include "src/handles/shared-object-conveyor-handles.h"
-#include "src/heap/factory-inl.h"
+#include "src/heap/factory.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/dictionary-inl.h"
 #include "src/objects/heap-number-inl.h"
@@ -2095,22 +2095,6 @@ MaybeDirectHandle<JSRegExp> ValueDeserializer::ReadJSRegExp() {
   return regexp;
 }
 
-namespace {
-
-DirectHandle<Object> CanonicalizeCollectionKey(Isolate* isolate,
-                                               DirectHandle<Object> key) {
-  if (IsString(*key)) {
-    // Deserialized strings are allocated as fresh SeqStrings, whereas
-    // OrderedHashTable CSA lookups require string keys to be internalized
-    // (compared by pointer equality).
-    return isolate->factory()->InternalizeString(Cast<String>(key));
-  }
-  CHECK(!IsHeapNumber(*key) || Cast<HeapNumber>(*key)->value() != 0.0);
-  return key;
-}
-
-}  // namespace
-
 MaybeDirectHandle<JSMap> ValueDeserializer::ReadJSMap() {
   // If we are at the end of the stack, abort. This function may recurse.
   STACK_CHECK(isolate_, MaybeDirectHandle<JSMap>());
@@ -2120,12 +2104,7 @@ MaybeDirectHandle<JSMap> ValueDeserializer::ReadJSMap() {
   DirectHandle<JSMap> map = isolate_->factory()->NewJSMap();
   AddObjectWithID(id, map);
 
-  // We can populate the table directly because:
-  // 1) The resulting object is not observable until deserialization is over, so
-  //    we do not need to deal with live iterators.
-  // 2) We are populating the table from a serialized source JSMap table, so the
-  //    keys are already valid/canonicalized (once strings are internalized) and
-  //    do not contain duplicates.
+  DirectHandle<JSFunction> map_set = isolate_->map_set();
   uint32_t length = 0;
   while (true) {
     SerializationTag tag;
@@ -2135,19 +2114,16 @@ MaybeDirectHandle<JSMap> ValueDeserializer::ReadJSMap() {
       break;
     }
 
-    HandleScope loop_scope(isolate_);
-    DirectHandle<Object> key;
-    DirectHandle<Object> value;
-    if (!ReadObject().ToHandle(&key) || !ReadObject().ToHandle(&value)) {
+    DirectHandle<Object> args[2];
+    if (!ReadObject().ToHandle(&args[0]) || !ReadObject().ToHandle(&args[1])) {
       return MaybeDirectHandle<JSMap>();
     }
 
-    key = CanonicalizeCollectionKey(isolate_, key);
-    Handle<OrderedHashMap> table(Cast<OrderedHashMap>(map->table()), isolate_);
-    if (!OrderedHashMap::Add(isolate_, table, key, value).ToHandle(&table)) {
+    AllowJavascriptExecution allow_js(isolate_);
+    if (Execution::Call(isolate_, map_set, map, base::VectorOf(args))
+            .is_null()) {
       return MaybeDirectHandle<JSMap>();
     }
-    map->set_table(*table);
     length += 2;
   }
 
@@ -2168,13 +2144,7 @@ MaybeDirectHandle<JSSet> ValueDeserializer::ReadJSSet() {
   uint32_t id = next_id_++;
   DirectHandle<JSSet> set = isolate_->factory()->NewJSSet();
   AddObjectWithID(id, set);
-
-  // We can populate the table directly because:
-  // 1) The resulting object is not observable until deserialization is over, so
-  //    we do not need to deal with live iterators.
-  // 2) We are populating the table from a serialized source JSSet table, so the
-  //    keys are already valid/canonicalized (once strings are internalized) and
-  //    do not contain duplicates.
+  DirectHandle<JSFunction> set_add = isolate_->set_add();
   uint32_t length = 0;
   while (true) {
     SerializationTag tag;
@@ -2184,17 +2154,14 @@ MaybeDirectHandle<JSSet> ValueDeserializer::ReadJSSet() {
       break;
     }
 
-    HandleScope loop_scope(isolate_);
-    DirectHandle<Object> key;
-    if (!ReadObject().ToHandle(&key)) return MaybeDirectHandle<JSSet>();
+    DirectHandle<Object> args[1];
+    if (!ReadObject().ToHandle(&args[0])) return MaybeDirectHandle<JSSet>();
 
-    key = CanonicalizeCollectionKey(isolate_, key);
-    DirectHandle<OrderedHashSet> table(Cast<OrderedHashSet>(set->table()),
-                                       isolate_);
-    if (!OrderedHashSet::Add(isolate_, table, key).ToHandle(&table)) {
+    AllowJavascriptExecution allow_js(isolate_);
+    if (Execution::Call(isolate_, set_add, set, base::VectorOf(args))
+            .is_null()) {
       return MaybeDirectHandle<JSSet>();
     }
-    set->set_table(*table);
     length++;
   }
 
