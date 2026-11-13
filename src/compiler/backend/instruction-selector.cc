@@ -435,12 +435,6 @@ OptionalOpIndex InstructionSelector::FindProjection(OpIndex node,
   return OpIndex::Invalid();
 }
 
-void InstructionSelector::UpdateRenames(Instruction* instruction) {
-  for (size_t i = 0; i < instruction->InputCount(); i++) {
-    TryRename(instruction->InputAt(i));
-  }
-}
-
 void InstructionSelector::UpdateRenamesInPhi(PhiInstruction* phi) {
   for (size_t i = 0; i < phi->operands().size(); i++) {
     int vreg = phi->operands()[i];
@@ -464,14 +458,16 @@ int InstructionSelector::GetRename(int virtual_register) {
   return rename;
 }
 
-void InstructionSelector::TryRename(InstructionOperand* op) {
-  if (!op->IsUnallocated()) return;
+bool InstructionSelector::TryRename(InstructionOperand* op) {
+  if (!op->IsUnallocated()) return false;
   UnallocatedOperand* unalloc = UnallocatedOperand::cast(op);
   int vreg = unalloc->virtual_register();
   int rename = GetRename(vreg);
   if (rename != vreg) {
     *unalloc = UnallocatedOperand(*unalloc, rename);
+    return true;
   }
+  return false;
 }
 
 void InstructionSelector::SetRename(OpIndex node, OpIndex rename) {
@@ -590,73 +586,85 @@ void InstructionSelector::MarkAsRepresentation(MachineRepresentation rep,
 
 namespace {
 
+InstructionOperand ConstantOperandForDeopt(Isolate* isolate,
+                                           OperandGenerator* g,
+                                           const Constant& constant,
+                                           MachineType type) {
+  if (!RelocInfo::IsNoInfo(constant.rmode())) return InstructionOperand();
+  MachineRepresentation rep = type.representation();
+  switch (constant.type()) {
+    case Constant::kInt32:
+    case Constant::kInt64: {
+      int64_t value = constant.ToInt64();
+      if (rep == MachineRepresentation::kBit) {
+        return static_cast<uint32_t>(value) <= 1
+                   ? g->UseImmediate(static_cast<int32_t>(value))
+                   : InstructionOperand();
+      }
+      CHECK(rep != MachineRepresentation::kWord8 &&
+            rep != MachineRepresentation::kWord16);
+      if (rep == MachineRepresentation::kWord32) {
+        return g->UseImmediate(static_cast<int32_t>(value));
+      }
+      if (rep == MachineRepresentation::kWord64) {
+        DCHECK(Is64());
+        return g->UseImmediate64(value);
+      }
+      if (rep == MachineRepresentation::kTagged && HAS_SMI_TAG(value)) {
+        if constexpr (Is64()) {
+          return g->UseImmediate64(PointerCompressionIsEnabled()
+                                       ? int64_t{static_cast<uint32_t>(value)}
+                                       : value);
+        } else {
+          return g->UseImmediate(static_cast<int32_t>(value));
+        }
+      }
+      return InstructionOperand();
+    }
+    case Constant::kFloat32:
+      return (rep == MachineRepresentation::kFloat32 ||
+              rep == MachineRepresentation::kTagged)
+                 ? g->UseImmediate(constant)
+                 : InstructionOperand();
+    case Constant::kFloat64:
+      return (rep == MachineRepresentation::kFloat64 ||
+              rep == MachineRepresentation::kTagged)
+                 ? g->UseImmediate(constant)
+                 : InstructionOperand();
+    case Constant::kHeapObject:
+    case Constant::kCompressedHeapObject: {
+      if (constant.type() == Constant::kCompressedHeapObject
+              ? type != MachineType::AnyTagged()
+              : rep != MachineRepresentation::kTagged) {
+        return InstructionOperand();
+      }
+      Handle<HeapObject> object = constant.ToHeapObject();
+      RootIndex root_index;
+      if (isolate->roots_table().IsRootHandle(object, &root_index) &&
+          root_index == RootIndex::kOptimizedOut) {
+        return InstructionOperand();
+      }
+      return g->UseImmediate(constant);
+    }
+    case Constant::kExternalReference:
+    case Constant::kRpoNumber:
+      return InstructionOperand();
+  }
+  UNREACHABLE();
+}
+
 InstructionOperand OperandForDeopt(Isolate* isolate, OperandGenerator* g,
                                    OpIndex input, FrameStateInputKind kind,
-                                   MachineRepresentation rep) {
-  if (rep == MachineRepresentation::kNone) {
+                                   MachineType type) {
+  if (type.representation() == MachineRepresentation::kNone) {
     return g->TempImmediate(FrameStateDescriptor::kImpossibleValue);
   }
 
-  const Operation& op = g->turboshaft_graph()->Get(input);
-  if (const ConstantOp* constant = op.TryCast<ConstantOp>()) {
-    using Kind = ConstantOp::Kind;
-    switch (constant->kind) {
-      case Kind::kWord32:
-      case Kind::kWord64:
-      case Kind::kSmi:
-      case Kind::kFloat32:
-      case Kind::kFloat64:
-        return g->UseImmediate(input);
-      case Kind::kNumber:
-        if (rep == MachineRepresentation::kWord32) {
-          const double d = constant->number().get_scalar();
-          Tagged<Smi> smi = Smi::FromInt(static_cast<int32_t>(d));
-          CHECK_EQ(smi.value(), d);
-          return g->UseImmediate(static_cast<int32_t>(smi.ptr()));
-        }
-        return g->UseImmediate(input);
-      case Kind::kHeapObject:
-      case Kind::kCompressedHeapObject:
-      case Kind::kTrustedHeapObject: {
-        if (!CanBeTaggedOrCompressedPointer(rep)) {
-          // If we have inconsistent static and dynamic types, e.g. if we
-          // smi-check a string, we can get here with a heap object that
-          // says it is a smi. In that case, we return an invalid instruction
-          // operand, which will be interpreted as an optimized-out value.
-
-          // TODO(jarin) Ideally, we should turn the current instruction
-          // into an abort (we should never execute it).
-          return InstructionOperand();
-        }
-
-        Handle<HeapObject> object = constant->handle();
-        RootIndex root_index;
-        if (isolate->roots_table().IsRootHandle(object, &root_index) &&
-            root_index == RootIndex::kOptimizedOut) {
-          // For an optimized-out object we return an invalid instruction
-          // operand, so that we take the fast path for optimized-out values.
-          return InstructionOperand();
-        }
-
-        return g->UseImmediate(input);
-      }
-      default:
-        UNIMPLEMENTED();
+  if (const ConstantOp* constant = g->Get(input).TryCast<ConstantOp>()) {
+    if (constant->kind == ConstantOp::Kind::kTaggedIndex) {
+      UNIMPLEMENTED();
     }
-  } else if (const TaggedBitcastOp* bitcast =
-                 op.TryCast<Opmask::kTaggedBitcastSmi>()) {
-    const Operation& bitcast_input = g->Get(bitcast->input());
-    if (const ConstantOp* cst =
-            bitcast_input.TryCast<Opmask::kWord32Constant>()) {
-      DCHECK(!Is64());
-      return g->UseImmediate(cst->word32());
-    } else if (Is64() && bitcast_input.Is<Opmask::kWord64Constant>()) {
-      if (rep == MachineRepresentation::kWord32) {
-        return g->UseImmediate(bitcast_input.Cast<ConstantOp>().word32());
-      } else {
-        return g->UseImmediate64(bitcast_input.Cast<ConstantOp>().word64());
-      }
-    }
+    return ConstantOperandForDeopt(isolate, g, g->ToConstant(input), type);
   }
 
   switch (kind) {
@@ -670,7 +678,79 @@ InstructionOperand OperandForDeopt(Isolate* isolate, OperandGenerator* g,
   UNREACHABLE();
 }
 
+std::optional<size_t> GetFrameStateInputOffset(const Instruction* instruction) {
+  if (instruction->arch_opcode() == kArchDeoptimize) return 0;
+  if (instruction->flags_mode() == kFlags_deoptimize) {
+    return DeoptFrameStateOffsetField::decode(instruction->opcode());
+  }
+  if (!instruction->IsTailCall() && instruction->IsCallWithDescriptorFlags() &&
+      instruction->HasCallDescriptorFlag(CallDescriptor::kNeedsFrameState)) {
+    // Frame state starts at input 1 (after the callee).
+    return 1;
+  }
+  return std::nullopt;
+}
+
 }  // namespace
+
+void InstructionSelector::UpdateRenames(Instruction* instruction) {
+  bool renamed = false;
+  for (size_t i = 0; i < instruction->InputCount(); i++) {
+    renamed |= TryRename(instruction->InputAt(i));
+  }
+  if (!renamed) return;
+
+  // Operations lowered via EmitIdentity (e.g. single-input phis or zero/sign
+  // extensions) may rename FrameState inputs to constants after OperandForDeopt
+  // has already emitted UnallocatedOperands. Convert those into
+  // ImmediateOperands so the register allocator does not materialize them into
+  // registers.
+  std::optional<size_t> frame_state_offset =
+      GetFrameStateInputOffset(instruction);
+  if (!frame_state_offset.has_value()) return;
+
+  ImmediateOperand* state_id_op =
+      ImmediateOperand::cast(instruction->InputAt(*frame_state_offset));
+  int state_id = sequence()->GetImmediate(state_id_op).ToInt32();
+  FrameStateDescriptor* descriptor =
+      sequence()->GetDeoptimizationEntry(state_id).descriptor();
+  size_t input_index = *frame_state_offset + 1;
+  UpdateDeoptFrameStateConstantInputs(instruction, descriptor, &input_index);
+}
+
+void InstructionSelector::UpdateDeoptFrameStateConstantInputs(
+    Instruction* instruction, FrameStateDescriptor* descriptor,
+    size_t* input_index) {
+  if (descriptor->outer_state() != nullptr) {
+    UpdateDeoptFrameStateConstantInputs(instruction, descriptor->outer_state(),
+                                        input_index);
+  }
+  UpdateDeoptStateValueConstantInputs(
+      instruction, descriptor->GetStateValueDescriptors(), input_index);
+}
+
+void InstructionSelector::UpdateDeoptStateValueConstantInputs(
+    Instruction* instruction, StateValueList* values, size_t* input_index) {
+  OperandGenerator g(this);
+  for (auto [desc, nested] : *values) {
+    if (desc->IsNested()) {
+      UpdateDeoptStateValueConstantInputs(instruction, nested, input_index);
+    } else if (desc->IsPlain()) {
+      InstructionOperand* op = instruction->InputAt((*input_index)++);
+      if (!op->IsUnallocated()) continue;
+      int vreg = UnallocatedOperand::cast(op)->virtual_register();
+      if (!sequence()->IsConstant(vreg)) continue;
+      InstructionOperand imm = ConstantOperandForDeopt(
+          isolate(), &g, sequence()->GetConstant(vreg), desc->type());
+      if (imm.IsInvalid()) {
+        *op = g.TempImmediate(FrameStateDescriptor::kImpossibleValue);
+        *desc = StateValueDescriptor::Plain(MachineType::None());
+      } else {
+        *op = imm;
+      }
+    }
+  }
+}
 
 enum class ObjectType { kRegularObject, kStringConcat };
 
@@ -751,8 +831,8 @@ size_t AddOperandToStateValueDescriptor(
         // TODO(nicohartmann@): Fix this once we have explicit truncations.
         UNIMPLEMENTED();
       }
-      InstructionOperand instr_op = OperandForDeopt(
-          selector->isolate(), g, input, kind, type.representation());
+      InstructionOperand instr_op =
+          OperandForDeopt(selector->isolate(), g, input, kind, type);
       if (instr_op.kind() == InstructionOperand::INVALID) {
         // Invalid operand means the value is impossible or optimized-out.
         values->PushOptimizedOut();

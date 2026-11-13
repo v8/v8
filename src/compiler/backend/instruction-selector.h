@@ -1000,11 +1000,21 @@ class V8_EXPORT_PRIVATE InstructionSelector final
 
   void MarkAsTableSwitchTarget(const turboshaft::Block* block);
 
-  void TryRename(InstructionOperand* op);
+  bool TryRename(InstructionOperand* op);
   int GetRename(int virtual_register);
   void SetRename(turboshaft::OpIndex node, turboshaft::OpIndex rename);
   void UpdateRenames(Instruction* instruction);
   void UpdateRenamesInPhi(PhiInstruction* phi);
+  // Converts constant-renamed FrameState inputs (including outer frames) into
+  // ImmediateOperands.
+  void UpdateDeoptFrameStateConstantInputs(Instruction* instruction,
+                                           FrameStateDescriptor* descriptor,
+                                           size_t* input_index);
+  // Converts constant-renamed inputs in {values} (including nested objects)
+  // into ImmediateOperands.
+  void UpdateDeoptStateValueConstantInputs(Instruction* instruction,
+                                           StateValueList* values,
+                                           size_t* input_index);
 
   // Inform the instruction selection that {node} was just defined.
   void MarkAsDefined(turboshaft::OpIndex node);

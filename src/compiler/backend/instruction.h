@@ -1983,6 +1983,9 @@ class V8_EXPORT_PRIVATE InstructionSequence final
     DCHECK(constants_.find(virtual_register) == constants_.end());
     constants_.emplace(virtual_register, constant);
   }
+  bool IsConstant(int virtual_register) const {
+    return constants_.find(virtual_register) != constants_.end();
+  }
   Constant GetConstant(int virtual_register) const {
     auto it = constants_.find(virtual_register);
     DCHECK(it != constants_.end());

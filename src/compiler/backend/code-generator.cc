@@ -1602,6 +1602,11 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
     CHECK(op->IsImmediate());
     InstructionOperandConverter converter(this, instr);
     Constant constant = converter.ToConstant(op);
+    if (type.representation() == MachineRepresentation::kNone) {
+      DCHECK_EQ(FrameStateDescriptor::kImpossibleValue, constant.ToInt32());
+      translations_.StoreOptimizedOut();
+      return;
+    }
     DeoptimizationLiteral literal;
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -1654,12 +1659,7 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
             literal = DeoptimizationLiteral(isolate()->factory()->true_value());
           }
         } else {
-          DCHECK(type == MachineType::Int32() ||
-                 type == MachineType::Uint32() ||
-                 type.representation() == MachineRepresentation::kWord32 ||
-                 type.representation() == MachineRepresentation::kNone);
-          DCHECK(type.representation() != MachineRepresentation::kNone ||
-                 constant.ToInt32() == FrameStateDescriptor::kImpossibleValue);
+          CHECK_EQ(type.representation(), MachineRepresentation::kWord32);
           if (type == MachineType::Uint32()) {
             literal = DeoptimizationLiteral(
                 static_cast<double>(static_cast<uint32_t>(constant.ToInt32())));
