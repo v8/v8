@@ -524,6 +524,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
 
   void EmitIdentity(turboshaft::OpIndex node);
   void EmitIdentity(turboshaft::OpIndex node, turboshaft::OpIndex input);
+  bool CanEmitIdentityForTaggedBitcast(turboshaft::OpIndex node);
 
   // ===========================================================================
   // ============== Architecture-independent CPU feature methods. ==============

@@ -1810,7 +1810,47 @@ void InstructionSelector::EmitBinarySearchSwitch(
   Emit(kArchBinarySearchSwitch, 0, nullptr, input_count, inputs, 0, nullptr);
 }
 
+bool InstructionSelector::CanEmitIdentityForTaggedBitcast(OpIndex node) {
+  // HeapObject bitcasts are only used for raw pointer access across regions
+  // where GC cannot happen.
+  if (this->Get(node).Cast<TaggedBitcastOp>().kind ==
+      TaggedBitcastOp::Kind::kHeapObject) {
+    return true;
+  }
+  // Because instructions are selected bottom-up within {current_block_}, all
+  // same-block uses of {node} have already been visited. EmitIdentity is safe
+  // if all uses are in {current_block_} (and not Phis) at the same effect
+  // level, ensuring no call or allocation can intervene between {node} and its
+  // uses.
+  const int node_vreg = GetVirtualRegister(node);
+  auto CheckUse = [&](auto& self, OpIndex use) -> bool {
+    if (!InCurrentBlock(use) || Is<PhiOp>(use)) return false;
+    int use_vreg = virtual_registers_[use.id()];
+    if (IsUsed(use) &&
+        (use_vreg == InstructionOperand::kInvalidVirtualRegister ||
+         GetRename(use_vreg) != node_vreg)) {
+      // {use} emitted an instruction consuming {node_vreg}; verify that no
+      // effectful operation (such as a call) lies between {node} and {use}.
+      return GetEffectLevel(use) == current_effect_level_;
+    }
+    // {use} was either covered by a downstream instruction (!IsUsed(use)) or
+    // itself emitted identity (GetRename(use_vreg) == node_vreg), so check its
+    // transitive uses instead.
+    for (OpIndex transitive_use : turboshaft_uses(use)) {
+      if (!self(self, transitive_use)) return false;
+    }
+    return true;
+  };
+  for (OpIndex use : turboshaft_uses(node)) {
+    if (!CheckUse(CheckUse, use)) return false;
+  }
+  return true;
+}
+
 void InstructionSelector::VisitBitcastTaggedToWord(OpIndex node) {
+  if (CanEmitIdentityForTaggedBitcast(node)) {
+    return EmitIdentity(node);
+  }
   OperandGenerator g(this);
   Emit(kArchNop, g.DefineSameAsFirst(node),
        g.Use(this->Get(node).Cast<TaggedBitcastOp>().input()));
@@ -1823,15 +1863,15 @@ void InstructionSelector::VisitBitcastWordToTagged(OpIndex node) {
 }
 
 void InstructionSelector::VisitBitcastSmiToWord(OpIndex node) {
-  // Note: Using Emit(kArchNop) instead of EmitIdentity here is required even in
-  // release builds: if an in-sandbox value is corrupted to have the HeapObject
-  // tag instead of the Smi tag, EmitIdentity would cause untagged uses of
-  // {node} to share the GC-tracked Tagged/Compressed input virtual register,
-  // which can be relocated in-place by a moving GC while earlier untagged uses
-  // retain the pre-GC bits.
+  // Loong64/RISCV64 port needs this gap move to sign-extend the Smis in 64-bit
+  // registers.
+#if defined(V8_TARGET_ARCH_LOONG64) || defined(V8_TARGET_ARCH_RISCV64)
   OperandGenerator g(this);
   Emit(kArchNop, g.DefineSameAsFirst(node),
        g.Use(this->Get(node).Cast<TaggedBitcastOp>().input()));
+#else
+  VisitBitcastTaggedToWord(node);
+#endif
 }
 
 // 32 bit targets do not implement the following instructions.
