@@ -450,8 +450,10 @@ Handle<JSObject> CreateObjectLiteralWithNullProto(
   int number_of_properties =
       object_boilerplate_description->backing_store_size();
 
-  // Ignoring number_of_properties for force dictionary map with
-  // __proto__:null.
+  // Reached for all null-prototype literals unless --fast-null-proto-literals
+  // is set, in which case only literals without boilerplate properties (which
+  // are assumed to be used as dictionaries) and literals with too many
+  // properties for the map cache end up here. See CreateObjectLiteral.
   DirectHandle<Map> map = direct_handle(
       native_context->slow_object_with_null_prototype_map(), isolate);
   Handle<JSObject> boilerplate =
@@ -609,18 +611,29 @@ Handle<JSObject> CreateObjectLiteral(
     int flags, AllocationType allocation) {
   DirectHandle<NativeContext> native_context = isolate->native_context();
   bool has_null_prototype = (flags & ObjectLiteral::kHasNullPrototype) != 0;
+  int length = object_boilerplate_description->boilerplate_properties_count();
+  int number_of_properties =
+      object_boilerplate_description->backing_store_size();
 
-  if (has_null_prototype) {
+  // An empty `{__proto__: null}` literal is most likely going to be used as a
+  // dictionary, so create it in dictionary mode right away. With
+  // --fast-null-proto-literals, literals that declare properties are treated
+  // as records instead: they get a fast map (with a null prototype),
+  // consistent with `{__proto__: null, ...source}` and
+  // `Object.setPrototypeOf({...}, null)`. Literals with too many properties
+  // for the map cache would get a dictionary map anyway, so they also take
+  // the dictionary-mode path (which uses the cached null-prototype map).
+  // Without the flag all null-prototype literals are created in dictionary
+  // mode.
+  if (has_null_prototype &&
+      (length == 0 || number_of_properties >= JSObject::kMapCacheSize ||
+       !v8_flags.fast_null_proto_literals)) {
     return CreateObjectLiteralWithNullProto(
         isolate, object_boilerplate_description, flags, allocation);
   }
   // Fast path using manual elements initialisation and JSDataObjectBuilder.
 
   bool use_fast_elements = (flags & ObjectLiteral::kFastElements) != 0;
-  int number_of_properties =
-      object_boilerplate_description->backing_store_size();
-
-  int length = object_boilerplate_description->boilerplate_properties_count();
 
   // First iterate to count the elements and find the max element index.
   // TODO(leszeks): We could already at parse-time figure out if there are any
@@ -691,15 +704,22 @@ Handle<JSObject> CreateObjectLiteral(
     dict->UpdateMaxNumberKey(max_element_index, Handle<JSObject>::null());
   }
 
-  // Finally, use JSDataObjectBuilder to build the object itself.
-  JSDataObjectBuilder builder(isolate, elements_kind, number_of_properties,
-                              DirectHandle<Map>(),
-                              JSDataObjectBuilder::kNormalHeapNumbers);
+  // Finally, use JSDataObjectBuilder to build the object itself. For a
+  // null-prototype literal the builder transitions the root map to the null
+  // prototype before adding any property, so the boilerplate stays in fast
+  // mode and its map is shared with `Object.setPrototypeOf({...}, null)`.
+  DirectHandle<JSPrototype> prototype;
+  if (has_null_prototype) prototype = isolate->factory()->null_value();
+  JSDataObjectBuilder builder(
+      isolate, elements_kind, number_of_properties, DirectHandle<Map>(),
+      JSDataObjectBuilder::kNormalHeapNumbers, prototype);
 
-  return builder.BuildFromIterator(
+  Handle<JSObject> boilerplate = builder.BuildFromIterator(
       ObjectBoilerplateDescriptionIterator{object_boilerplate_description,
                                            isolate, allocation},
       elements);
+  DCHECK_IMPLIES(has_null_prototype, IsNull(boilerplate->map()->prototype()));
+  return boilerplate;
 }
 
 Handle<JSObject> CreateArrayLiteral(

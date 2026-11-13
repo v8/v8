@@ -3338,6 +3338,12 @@ DEFINE_INT(fast_properties_soft_limit, 12,
            "limits the number of properties that can be added to an object "
            "using keyed store before transitioning to dictionary mode")
 
+// runtime-literals.cc
+DEFINE_BOOL(fast_null_proto_literals, false,
+            "create object literals with __proto__: null and boilerplate "
+            "properties in fast mode instead of dictionary mode")
+DEFINE_WEAK_IMPLICATION(future, fast_null_proto_literals)
+
 DEFINE_BOOL(native_code_counters, DEBUG_BOOL,
             "generate extra code for manipulating stats counters")
 
