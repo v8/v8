@@ -2284,31 +2284,31 @@ template <typename IsolateT>
 void HeapObject::RehashBasedOnMap(IsolateT* isolate) {
   switch (map()->instance_type()) {
     case HASH_TABLE_TYPE:
-      Cast<ObjectHashTable>(this)->Rehash();
+      Cast<ObjectHashTable>(this)->Rehash(isolate);
       break;
     case NAME_DICTIONARY_TYPE:
-      Cast<NameDictionary>(this)->Rehash();
+      Cast<NameDictionary>(this)->Rehash(isolate);
       break;
     case NAME_TO_INDEX_HASH_TABLE_TYPE:
-      Cast<NameToIndexHashTable>(this)->Rehash();
+      Cast<NameToIndexHashTable>(this)->Rehash(isolate);
       break;
     case REGISTERED_SYMBOL_TABLE_TYPE:
-      Cast<RegisteredSymbolTable>(this)->Rehash();
+      Cast<RegisteredSymbolTable>(this)->Rehash(isolate);
       break;
     case SWISS_NAME_DICTIONARY_TYPE:
       Cast<SwissNameDictionary>(this)->Rehash(isolate);
       break;
     case GLOBAL_DICTIONARY_TYPE:
-      Cast<GlobalDictionary>(this)->Rehash();
+      Cast<GlobalDictionary>(this)->Rehash(isolate);
       break;
     case NUMBER_DICTIONARY_TYPE:
-      Cast<NumberDictionary>(this)->Rehash();
+      Cast<NumberDictionary>(this)->Rehash(isolate);
       break;
     case SIMPLE_NAME_DICTIONARY_TYPE:
-      Cast<SimpleNameDictionary>(this)->Rehash();
+      Cast<SimpleNameDictionary>(this)->Rehash(isolate);
       break;
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
-      Cast<SimpleNumberDictionary>(this)->Rehash();
+      Cast<SimpleNumberDictionary>(this)->Rehash(isolate);
       break;
     case DESCRIPTOR_ARRAY_TYPE:
       DCHECK_LE(1, Cast<DescriptorArray>(this)->number_of_descriptors());
@@ -5221,7 +5221,9 @@ Handle<Derived> HashTable<Derived, Shape>::NewInternal(
 }
 
 template <typename Derived, typename Shape>
-void HashTable<Derived, Shape>::Rehash(Tagged<Derived> new_table) {
+template <typename IsolateT>
+void HashTable<Derived, Shape>::Rehash(IsolateT* isolate,
+                                       Tagged<Derived> new_table) {
   DisallowGarbageCollection no_gc;
   WriteBarrierModeScope mode = new_table->GetWriteBarrierMode(no_gc);
 
@@ -5241,7 +5243,7 @@ void HashTable<Derived, Shape>::Rehash(Tagged<Derived> new_table) {
     uint32_t hash = TodoShape::HashForObject(roots, k);
     uint32_t insertion_index =
         EntryToIndex(new_table->FindInsertionEntry(roots, hash));
-    new_table->set_key(insertion_index, get(from_index), *mode);
+    new_table->set_key(isolate, insertion_index, get(from_index), *mode);
     for (int j = 1; j < TodoShape::kEntrySize; j++) {
       new_table->set(insertion_index + j, get(from_index + j), *mode);
     }
@@ -5266,7 +5268,9 @@ InternalIndex HashTable<Derived, Shape>::EntryForProbe(ReadOnlyRoots roots,
 }
 
 template <typename Derived, typename Shape>
-void HashTable<Derived, Shape>::Swap(InternalIndex entry1, InternalIndex entry2,
+template <typename IsolateT>
+void HashTable<Derived, Shape>::Swap(IsolateT* isolate, InternalIndex entry1,
+                                     InternalIndex entry2,
                                      WriteBarrierMode mode) {
   int index1 = EntryToIndex(entry1);
   int index2 = EntryToIndex(entry2);
@@ -5275,18 +5279,19 @@ void HashTable<Derived, Shape>::Swap(InternalIndex entry1, InternalIndex entry2,
   for (int j = 0; j < TodoShape::kEntrySize; j++) {
     temp[j] = get(index1 + j);
   }
-  self->set_key(index1, get(index2), mode);
+  self->set_key(isolate, index1, get(index2), mode);
   for (int j = 1; j < TodoShape::kEntrySize; j++) {
     set(index1 + j, get(index2 + j), mode);
   }
-  self->set_key(index2, temp[0], mode);
+  self->set_key(isolate, index2, temp[0], mode);
   for (int j = 1; j < TodoShape::kEntrySize; j++) {
     set(index2 + j, temp[j], mode);
   }
 }
 
 template <typename Derived, typename Shape>
-void HashTable<Derived, Shape>::Rehash() {
+template <typename IsolateT>
+void HashTable<Derived, Shape>::Rehash(IsolateT* isolate) {
   DisallowGarbageCollection no_gc;
   WriteBarrierModeScope mode = GetWriteBarrierMode(no_gc);
   EarlyReadOnlyRoots roots = ReadOnlyHeap::EarlyGetReadOnlyRoots(this);
@@ -5312,7 +5317,7 @@ void HashTable<Derived, Shape>::Rehash() {
       if (!IsKey(roots, target_key) ||
           EntryForProbe(roots, target_key, probe, target) != target) {
         // Put the current element into the correct position.
-        Swap(current, target, *mode);
+        Swap(isolate, current, target, *mode);
         // The other element will be processed on the next iteration,
         // so don't advance {current} here!
       } else {
@@ -5329,7 +5334,7 @@ void HashTable<Derived, Shape>::Rehash() {
   Derived* self = static_cast<Derived*>(this);
   for (InternalIndex current : InternalIndex::Range(capacity)) {
     if (KeyAt(current) == the_hole) {
-      self->set_key(EntryToIndex(current) + kEntryKeyIndex, undefined,
+      self->set_key(isolate, EntryToIndex(current) + kEntryKeyIndex, undefined,
                     SKIP_WRITE_BARRIER);
     }
   }
@@ -5354,7 +5359,7 @@ HandleType<Derived> HashTable<Derived, Shape>::EnsureCapacity(
       isolate, new_nof,
       use_old_space ? AllocationType::kOld : AllocationType::kYoung);
 
-  table->Rehash(*new_table);
+  table->Rehash(isolate, *new_table);
   return new_table;
 }
 
@@ -5381,7 +5386,7 @@ HashTable<Derived, Shape>::TryEnsureCapacity(IsolateT* isolate,
     return {};
   }
 
-  table->Rehash(*new_table);
+  table->Rehash(isolate, *new_table);
   return new_table;
 }
 
@@ -5444,7 +5449,7 @@ HandleType<Derived> HashTable<Derived, Shape>::Shrink(Isolate* isolate,
       use_old_space ? AllocationType::kOld : AllocationType::kYoung,
       USE_CUSTOM_MINIMUM_CAPACITY);
 
-  table->Rehash(*new_table);
+  table->Rehash(isolate, *new_table);
   return new_table;
 }
 
@@ -5984,7 +5989,7 @@ void RehashObjectHashTableAndGCIfNeeded(Isolate* isolate, HandleType<T> table) {
   // Rehash if more than 33% of the entries are deleted entries.
   // TODO(verwaest): Consider to shrink the fixed array in place.
   if ((table->NumberOfDeletedElements() << 1) > table->NumberOfElements()) {
-    table->Rehash();
+    table->Rehash(isolate);
   }
   // If we're out of luck, we didn't get a GC recently, and so rehashing
   // isn't enough to avoid a crash.
@@ -5996,7 +6001,7 @@ void RehashObjectHashTableAndGCIfNeeded(Isolate* isolate, HandleType<T> table) {
         isolate->heap()->CollectAllGarbage(
             GCFlag::kNoFlags, GarbageCollectionReason::kFullHashtable);
       }
-      table->Rehash();
+      table->Rehash(isolate);
     }
   }
 }
@@ -6023,7 +6028,8 @@ Handle<Derived> ObjectHashTableBase<Derived, Shape>::Put(
 
   // Check whether the hash table should be extended.
   table = Derived::EnsureCapacity(isolate, table);
-  table->AddEntry(table->FindInsertionEntry(isolate, hash), *key, *value);
+  table->AddEntry(isolate, table->FindInsertionEntry(isolate, hash), *key,
+                  *value);
   return table;
 }
 
@@ -6061,11 +6067,12 @@ Handle<Derived> ObjectHashTableBase<Derived, Shape>::Remove(
 }
 
 template <typename Derived, typename Shape>
-void ObjectHashTableBase<Derived, Shape>::AddEntry(InternalIndex entry,
+void ObjectHashTableBase<Derived, Shape>::AddEntry(Isolate* isolate,
+                                                   InternalIndex entry,
                                                    Tagged<Object> key,
                                                    Tagged<Object> value) {
   Derived* self = static_cast<Derived*>(this);
-  self->set_key(Derived::EntryToIndex(entry), key);
+  self->set_key(isolate, Derived::EntryToIndex(entry), key);
   self->set(Derived::EntryToValueIndex(entry), value);
   self->ElementAdded();
 }
@@ -6636,6 +6643,11 @@ bool MapWord::IsMapOrForwarded(Tagged<Map> map) {
 #define EXTERN_DEFINE_HASH_TABLE(DERIVED, SHAPE)                               \
   template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)                     \
       HashTable<DERIVED, SHAPE>;                                               \
+                                                                               \
+  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void                      \
+  HashTable<DERIVED, SHAPE>::Rehash(Isolate*);                                 \
+  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void                      \
+  HashTable<DERIVED, SHAPE>::Rehash(LocalIsolate*);                            \
                                                                                \
   template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) MaybeHandle<DERIVED>      \
   HashTable<DERIVED, SHAPE>::TryNew(Isolate*, uint32_t, AllocationType,        \

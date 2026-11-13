@@ -93,7 +93,9 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
   template <typename T>
   static inline void ForValue(HeapObject* host, MaybeObjectSlot slot,
                               Tagged<T> value, WriteBarrierMode mode);
-  static inline void ForEphemeronHashTable(Tagged<EphemeronHashTable> host,
+  template <typename IsolateT>
+  static inline void ForEphemeronHashTable(IsolateT* isolate,
+                                           Tagged<EphemeronHashTable> host,
                                            ObjectSlot slot,
                                            Tagged<Object> value,
                                            WriteBarrierMode mode);

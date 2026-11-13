@@ -501,7 +501,8 @@ void WriteBarrier::EphemeronKeyWriteBarrierFromCode(Address raw_object,
   Tagged<EphemeronHashTable> table =
       Cast<EphemeronHashTable>(Tagged<Object>(raw_object));
   ObjectSlot key_slot(key_slot_address);
-  ForEphemeronHashTable(table, key_slot, *key_slot, UPDATE_WRITE_BARRIER);
+  ForEphemeronHashTable(isolate, table, key_slot, *key_slot,
+                        UPDATE_WRITE_BARRIER);
 }
 
 namespace {

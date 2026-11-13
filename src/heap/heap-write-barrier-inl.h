@@ -207,8 +207,10 @@ void WriteBarrier::VerifySkipWriteBarrier(Tagged<HeapObject> host,
 }
 #endif  // V8_VERIFY_WRITE_BARRIERS
 
-//   static
-void WriteBarrier::ForEphemeronHashTable(Tagged<EphemeronHashTable> host,
+// static
+template <typename IsolateT>
+void WriteBarrier::ForEphemeronHashTable(IsolateT* isolate,
+                                         Tagged<EphemeronHashTable> host,
                                          ObjectSlot slot, Tagged<Object> value,
                                          WriteBarrierMode mode) {
   if (IsSkipWriteBarrierMode(mode)) {
@@ -227,9 +229,10 @@ void WriteBarrier::ForEphemeronHashTable(Tagged<EphemeronHashTable> host,
   MemoryChunk* value_chunk = MemoryChunk::FromHeapObject(heap_object_value);
   DCHECK(!value_chunk->Metadata()->is_writable_shared());
 
+  DCHECK(!TrustedHeapLayout::InWritableSharedSpace(host));
   const bool pointers_from_here_are_interesting =
       !host_chunk->IsYoungOrSharedChunk();
-  const bool is_marking = host_chunk->IsMarking();
+  const bool is_marking = IsLocalMarking(isolate);
 
   if (is_marking) {
     // Marking barrier: mark value & record slots when marking is on.

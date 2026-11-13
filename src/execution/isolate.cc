@@ -8587,7 +8587,7 @@ void Isolate::LocalsBlockListCacheRehash() {
   if (IsEphemeronHashTable(heap()->locals_block_list_cache())) {
     Tagged<EphemeronHashTable> cache =
         Cast<EphemeronHashTable>(heap()->locals_block_list_cache());
-    cache->Rehash();
+    cache->Rehash(this);
   }
 }
 void Isolate::LocalsBlockListCacheSet(
