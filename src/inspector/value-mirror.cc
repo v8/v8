@@ -612,7 +612,10 @@ class PrimitiveValueMirror final : public ValueMirrorBase {
       std::unique_ptr<RemoteObject>* result) const override {
     std::unique_ptr<protocol::Value> protocolValue;
     v8::Local<v8::Value> value = v8Value(v8::Isolate::GetCurrent());
-    toProtocolValue(context, value, &protocolValue);
+    // In `deep` mode the value is only reported in `deepSerializedValue`.
+    if (wrapOptions.mode != WrapMode::kDeep) {
+      toProtocolValue(context, value, &protocolValue);
+    }
     *result = RemoteObject::create()
                   .setType(m_type)
                   .setValue(std::move(protocolValue))
@@ -683,6 +686,8 @@ class NumberMirror final : public ValueMirrorBase {
                   .setType(RemoteObject::TypeEnum::Number)
                   .setDescription(descriptionValue)
                   .build();
+    // In `deep` mode the value is only reported in `deepSerializedValue`.
+    if (wrapOptions.mode == WrapMode::kDeep) return Response::Success();
     if (unserializable) {
       (*result)->setUnserializableValue(descriptionValue);
     } else {
@@ -741,9 +746,12 @@ class BigIntMirror final : public ValueMirrorBase {
     String16 description = descriptionForBigInt(context, value);
     *result = RemoteObject::create()
                   .setType(RemoteObject::TypeEnum::Bigint)
-                  .setUnserializableValue(description)
                   .setDescription(abbreviateString(description, kMiddle))
                   .build();
+    // In `deep` mode the value is only reported in `deepSerializedValue`.
+    if (wrapOptions.mode != WrapMode::kDeep) {
+      (*result)->setUnserializableValue(description);
+    }
     return Response::Success();
   }
 
