@@ -1578,9 +1578,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   inline int UnboundLabelsCount() { return unbound_labels_count_; }
 
  protected:
-  // Helper function for memory load/store.
-  void AdjustBaseAndOffset(MemOperand* src);
-
   inline static void set_target_internal_reference_encoded_at(Address pc,
                                                               Address target);
 

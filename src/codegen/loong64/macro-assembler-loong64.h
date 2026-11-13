@@ -1522,6 +1522,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Push a fixed frame, consisting of ra, fp.
   void PushCommonFrame(Register marker_reg = no_reg);
 
+  // Adjusts MemoryOperand for memory load/store.
+  void AdjustBaseAndOffset(MemOperand* src, UseScratchRegisterScope& temps);
+
   // Adjusts MemOperand for VLDREPL.[BHWD].
   void AdjustBaseAndOffsetVldrepl(MemOperand* src, LSXSize sz,
                                   UseScratchRegisterScope& temps);

@@ -892,6 +892,17 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
   bind(&done);
 }
 
+void MacroAssembler::AdjustBaseAndOffset(MemOperand* src,
+                                         UseScratchRegisterScope& temps) {
+  if ((!src->hasIndexReg() && is_int12(src->offset())) || src->hasIndexReg()) {
+    return;
+  }
+  Register base = src->base();
+  Register scratch = temps.Acquire();
+  li(scratch, src->offset());
+  *src = MemOperand(base, scratch);
+}
+
 // ---------------------------------------------------------------------------
 // Instruction macros.
 
@@ -1483,8 +1494,9 @@ void MacroAssembler::ByteSwap(Register dest, Register src, int operand_size) {
 }
 
 void MacroAssembler::Ld_b(Register rd, const MemOperand& rj, int* trap_pc) {
+  UseScratchRegisterScope temps(this);
   MemOperand source = rj;
-  AdjustBaseAndOffset(&source);
+  AdjustBaseAndOffset(&source, temps);
   if (trap_pc != NULL) *trap_pc = pc_offset();
   if (source.hasIndexReg()) {
     ldx_b(rd, source.index(), source.base());
@@ -1494,8 +1506,9 @@ void MacroAssembler::Ld_b(Register rd, const MemOperand& rj, int* trap_pc) {
 }
 
 void MacroAssembler::Ld_bu(Register rd, const MemOperand& rj, int* trap_pc) {
+  UseScratchRegisterScope temps(this);
   MemOperand source = rj;
-  AdjustBaseAndOffset(&source);
+  AdjustBaseAndOffset(&source, temps);
   if (trap_pc != NULL) *trap_pc = pc_offset();
   if (source.hasIndexReg()) {
     ldx_bu(rd, source.index(), source.base());
@@ -1505,8 +1518,9 @@ void MacroAssembler::Ld_bu(Register rd, const MemOperand& rj, int* trap_pc) {
 }
 
 void MacroAssembler::St_b(Register rd, const MemOperand& rj, int* trap_pc) {
+  UseScratchRegisterScope temps(this);
   MemOperand source = rj;
-  AdjustBaseAndOffset(&source);
+  AdjustBaseAndOffset(&source, temps);
   if (trap_pc != NULL) *trap_pc = pc_offset();
   if (source.hasIndexReg()) {
     stx_b(rd, source.index(), source.base());
@@ -1516,8 +1530,9 @@ void MacroAssembler::St_b(Register rd, const MemOperand& rj, int* trap_pc) {
 }
 
 void MacroAssembler::Ld_h(Register rd, const MemOperand& rj, int* trap_pc) {
+  UseScratchRegisterScope temps(this);
   MemOperand source = rj;
-  AdjustBaseAndOffset(&source);
+  AdjustBaseAndOffset(&source, temps);
   if (trap_pc != NULL) *trap_pc = pc_offset();
   if (source.hasIndexReg()) {
     ldx_h(rd, source.index(), source.base());
@@ -1527,8 +1542,9 @@ void MacroAssembler::Ld_h(Register rd, const MemOperand& rj, int* trap_pc) {
 }
 
 void MacroAssembler::Ld_hu(Register rd, const MemOperand& rj, int* trap_pc) {
+  UseScratchRegisterScope temps(this);
   MemOperand source = rj;
-  AdjustBaseAndOffset(&source);
+  AdjustBaseAndOffset(&source, temps);
   if (trap_pc != NULL) *trap_pc = pc_offset();
   if (source.hasIndexReg()) {
     ldx_hu(rd, source.index(), source.base());
@@ -1538,8 +1554,9 @@ void MacroAssembler::Ld_hu(Register rd, const MemOperand& rj, int* trap_pc) {
 }
 
 void MacroAssembler::St_h(Register rd, const MemOperand& rj, int* trap_pc) {
+  UseScratchRegisterScope temps(this);
   MemOperand source = rj;
-  AdjustBaseAndOffset(&source);
+  AdjustBaseAndOffset(&source, temps);
   if (trap_pc != NULL) *trap_pc = pc_offset();
   if (source.hasIndexReg()) {
     stx_h(rd, source.index(), source.base());
@@ -1558,7 +1575,8 @@ void MacroAssembler::Ld_w(Register rd, const MemOperand& rj, int* trap_pc) {
     return;
   }
 
-  AdjustBaseAndOffset(&source);
+  UseScratchRegisterScope temps(this);
+  AdjustBaseAndOffset(&source, temps);
   if (trap_pc != NULL) *trap_pc = pc_offset();
   if (source.hasIndexReg()) {
     ldx_w(rd, source.index(), source.base());
@@ -1568,8 +1586,9 @@ void MacroAssembler::Ld_w(Register rd, const MemOperand& rj, int* trap_pc) {
 }
 
 void MacroAssembler::Ld_wu(Register rd, const MemOperand& rj, int* trap_pc) {
+  UseScratchRegisterScope temps(this);
   MemOperand source = rj;
-  AdjustBaseAndOffset(&source);
+  AdjustBaseAndOffset(&source, temps);
 
   if (trap_pc != NULL) *trap_pc = pc_offset();
   if (source.hasIndexReg()) {
@@ -1589,7 +1608,8 @@ void MacroAssembler::St_w(Register rd, const MemOperand& rj, int* trap_pc) {
     return;
   }
 
-  AdjustBaseAndOffset(&source);
+  UseScratchRegisterScope temps(this);
+  AdjustBaseAndOffset(&source, temps);
   if (trap_pc != NULL) *trap_pc = pc_offset();
   if (source.hasIndexReg()) {
     stx_w(rd, source.index(), source.base());
@@ -1608,7 +1628,8 @@ void MacroAssembler::Ld_d(Register rd, const MemOperand& rj, int* trap_pc) {
     return;
   }
 
-  AdjustBaseAndOffset(&source);
+  UseScratchRegisterScope temps(this);
+  AdjustBaseAndOffset(&source, temps);
   if (trap_pc != NULL) *trap_pc = pc_offset();
   if (source.hasIndexReg()) {
     ldx_d(rd, source.index(), source.base());
@@ -1627,7 +1648,8 @@ void MacroAssembler::St_d(Register rd, const MemOperand& rj, int* trap_pc) {
     return;
   }
 
-  AdjustBaseAndOffset(&source);
+  UseScratchRegisterScope temps(this);
+  AdjustBaseAndOffset(&source, temps);
   if (trap_pc != NULL) *trap_pc = pc_offset();
   if (source.hasIndexReg()) {
     stx_d(rd, source.index(), source.base());
@@ -1638,8 +1660,9 @@ void MacroAssembler::St_d(Register rd, const MemOperand& rj, int* trap_pc) {
 
 void MacroAssembler::Fld_s(FPURegister fd, const MemOperand& src,
                            int* trap_pc) {
+  UseScratchRegisterScope temps(this);
   MemOperand tmp = src;
-  AdjustBaseAndOffset(&tmp);
+  AdjustBaseAndOffset(&tmp, temps);
   if (trap_pc != NULL) *trap_pc = pc_offset();
   if (tmp.hasIndexReg()) {
     fldx_s(fd, tmp.index(), tmp.base());
@@ -1650,8 +1673,9 @@ void MacroAssembler::Fld_s(FPURegister fd, const MemOperand& src,
 
 void MacroAssembler::Fst_s(FPURegister fs, const MemOperand& src,
                            int* trap_pc) {
+  UseScratchRegisterScope temps(this);
   MemOperand tmp = src;
-  AdjustBaseAndOffset(&tmp);
+  AdjustBaseAndOffset(&tmp, temps);
   if (trap_pc != NULL) *trap_pc = pc_offset();
   if (tmp.hasIndexReg()) {
     fstx_s(fs, tmp.index(), tmp.base());
@@ -1662,8 +1686,9 @@ void MacroAssembler::Fst_s(FPURegister fs, const MemOperand& src,
 
 void MacroAssembler::Fld_d(FPURegister fd, const MemOperand& src,
                            int* trap_pc) {
+  UseScratchRegisterScope temps(this);
   MemOperand tmp = src;
-  AdjustBaseAndOffset(&tmp);
+  AdjustBaseAndOffset(&tmp, temps);
   if (trap_pc != NULL) *trap_pc = pc_offset();
   if (tmp.hasIndexReg()) {
     fldx_d(fd, tmp.index(), tmp.base());
@@ -1674,8 +1699,9 @@ void MacroAssembler::Fld_d(FPURegister fd, const MemOperand& src,
 
 void MacroAssembler::Fst_d(FPURegister fs, const MemOperand& src,
                            int* trap_pc) {
+  UseScratchRegisterScope temps(this);
   MemOperand tmp = src;
-  AdjustBaseAndOffset(&tmp);
+  AdjustBaseAndOffset(&tmp, temps);
   if (trap_pc != NULL) *trap_pc = pc_offset();
   if (tmp.hasIndexReg()) {
     fstx_d(fs, tmp.index(), tmp.base());
@@ -1749,8 +1775,9 @@ void MacroAssembler::Sc_d(Register rd, const MemOperand& rj, int* trap_pc) {
 }
 
 void MacroAssembler::Vst(VRegister vd, const MemOperand& vj, int* trap_pc) {
+  UseScratchRegisterScope temps(this);
   MemOperand source = vj;
-  AdjustBaseAndOffset(&source);
+  AdjustBaseAndOffset(&source, temps);
   if (trap_pc != NULL) *trap_pc = pc_offset();
   if (source.hasIndexReg()) {
     vstx(vd, source.index(), source.base());
@@ -1760,8 +1787,9 @@ void MacroAssembler::Vst(VRegister vd, const MemOperand& vj, int* trap_pc) {
 }
 
 void MacroAssembler::Vld(VRegister vd, const MemOperand& vj, int* trap_pc) {
+  UseScratchRegisterScope temps(this);
   MemOperand source = vj;
-  AdjustBaseAndOffset(&source);
+  AdjustBaseAndOffset(&source, temps);
   if (trap_pc != NULL) *trap_pc = pc_offset();
   if (source.hasIndexReg()) {
     vldx(vd, source.index(), source.base());
