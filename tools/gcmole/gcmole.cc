@@ -451,9 +451,11 @@ struct KnownDecls {
   clang::CXXRecordDecl* external_pointer_slot = nullptr;
   clang::CXXRecordDecl* cpp_heap_pointer_slot = nullptr;
   clang::CXXRecordDecl* trusted_pointer_slot = nullptr;
+  clang::CXXRecordDecl* embedder_data_slot = nullptr;
   clang::ClassTemplateDecl* tagged_member = nullptr;
   clang::ClassTemplateDecl* unaligned_value_member = nullptr;
   clang::CXXRecordDecl* unaligned_double_member = nullptr;
+  clang::ClassTemplateDecl* slot_base = nullptr;
   clang::CXXRecordDecl* no_gc_mole = nullptr;
   clang::CXXRecordDecl* conservative_pinning_scope = nullptr;
 
@@ -507,6 +509,8 @@ struct KnownDecls {
     decls.trusted_pointer_slot =
         v8_internal.ResolveCanonical<clang::CXXRecordDecl>(
             "TrustedPointerSlot");
+    decls.embedder_data_slot =
+        v8_internal.ResolveCanonical<clang::CXXRecordDecl>("EmbedderDataSlot");
     decls.tagged_member =
         v8_internal.ResolveCanonical<clang::ClassTemplateDecl>("TaggedMember");
     decls.unaligned_value_member =
@@ -515,6 +519,8 @@ struct KnownDecls {
     decls.unaligned_double_member =
         v8_internal.ResolveCanonical<clang::CXXRecordDecl>(
             "UnalignedDoubleMember");
+    decls.slot_base =
+        v8_internal.ResolveCanonical<clang::ClassTemplateDecl>("SlotBase");
     return decls;
   }
 
@@ -1129,10 +1135,11 @@ static bool IsSuspectedToCauseGC(clang::MangleContext* ctx,
 //     on-heap object, e.g.:
 //       `obj->field_`, `obj->values()[i]`, `*(&obj->field_)`,
 //       or a reference `int& ref = obj->field_;`
-//   - kRawMemberAddress: pointer or `Address` pointing inside an on-heap
-//     object, e.g.:
+//   - kRawMemberAddress: pointer, `Address`, or `SlotBase` pointing inside an
+//     on-heap object, e.g.:
 //       `&obj->field_`, `std::addressof(obj->field_)`, `obj->values()`,
-//       `obj->field_.storage_address()`
+//       `obj->field_.storage_address()`, `ObjectSlot(&obj->field_)`,
+//       `obj->RawField(offset)`
 // Value effects are transformed or cleared as the expression is addressed
 // (`&` -> kRawMemberAddress), dereferenced (`*` -> kOnHeapMemberLValue),
 // decayed (`T[N]` -> kRawMemberAddress), or loaded by value (LValueToRValue ->
@@ -1271,7 +1278,7 @@ class Environment {
 
   void MDefineThis() { set_live(kThisCode); }
 
-  // Tracks whether `decl` currently holds a raw address into an on-heap
+  // Tracks whether `decl` currently holds a raw address/slot into an on-heap
   // object, updating provenance as the variable is assigned or rebound:
   //   int* p = &obj->field_;  // SetRawMemberVar(p, true)
   //   CauseGC();
@@ -1317,10 +1324,11 @@ class Environment {
     }
   }
 
-  // Tracks whether `decl` is a C++ reference bound to an on-heap member. Unlike
-  // pointers (`raw_member_vars_`), references cannot be rebound after
-  // initialization; an assignment like `ref = 42` writes through to the
-  // underlying heap member rather than redefining `ref`:
+  // Tracks whether `decl` is a C++ reference or `SlotBase` proxy reference
+  // bound to an on-heap member. Unlike pointers (`raw_member_vars_`),
+  // references cannot be rebound after initialization; an assignment like
+  // `ref = 42` writes through to the underlying heap member rather than
+  // redefining `ref`:
   //   int& ref = obj->field_;
   //   CauseGC();
   //   ref = 42;               // flagged: writes to moved `obj->field_`
@@ -1358,10 +1366,22 @@ class Environment {
     return code->second;
   }
 
+  static void MarkTypeRawVar(const clang::ValueDecl* decl) {
+    if (const clang::ValueDecl* canonical = CanonicalVar(decl)) {
+      type_raw_vars_.insert(canonical);
+    }
+  }
+
+  static bool IsTypeRawVar(const clang::ValueDecl* decl) {
+    const clang::ValueDecl* canonical = CanonicalVar(decl);
+    return canonical && type_raw_vars_.contains(canonical);
+  }
+
   static void ClearSymbolTable() {
     for (Environment* e : envs_) delete e;
     envs_.clear();
     symbol_table_.clear();
+    type_raw_vars_.clear();
   }
 
   void Print() const {
@@ -1462,14 +1482,18 @@ class Environment {
   }
 
   // Returns true if `decl` is live on `*this`, holds a raw member address on
-  // `*this` but not on `other`, and is not a member reference on either branch
-  // (accounting for `base_env` when joining expression deltas), so its liveness
-  // from `*this` can be preserved across the join without masking a stale
-  // variable on `other`.
+  // `*this` but not on `other`, is not unconditionally type-tracked (such as
+  // `ExternalPointerSlot`, `EmbedderDataSlot`, or `TaggedMember<T>*`, which
+  // are stale across GC regardless of provenance), and is not a member
+  // reference on either branch (accounting for `base_env` when joining
+  // expression deltas; `SlotBase` proxy references in both `raw_member_vars_`
+  // and `member_ref_vars_` are also excluded here), so its liveness from
+  // `*this` can be preserved across the join without masking a stale variable
+  // on `other`.
   bool CanRescueOneSidedLive(const clang::ValueDecl* decl,
                              const Environment& other,
                              const Environment* base_env) const {
-    return !other.HasRawMemberOnBranch(decl, base_env) &&
+    return !IsTypeRawVar(decl) && !other.HasRawMemberOnBranch(decl, base_env) &&
            !HasMemberRefOnBranch(decl, base_env) &&
            !other.HasMemberRefOnBranch(decl, base_env) && IsAlive(decl);
   }
@@ -1544,6 +1568,7 @@ class Environment {
   }
 
   static SymbolTable symbol_table_;
+  static VarSet type_raw_vars_;
   static std::vector<Environment*> envs_;
 
   std::vector<bool> live_;
@@ -1642,6 +1667,9 @@ class CallProps {
     return arg >= 0 && arg < kMaxNumberOfArguments &&
            (on_heap_member_lvalue_.test(arg) || raw_member_addr_.test(arg));
   }
+  bool HasOnHeapMember() const {
+    return on_heap_member_lvalue_.any() || raw_member_addr_.any();
+  }
   bool HasRawMemberAddress() const { return raw_member_addr_.any(); }
   bool HasRawMemberAddressAt(int arg) const {
     return arg >= 0 && arg < kMaxNumberOfArguments &&
@@ -1664,6 +1692,7 @@ class CallProps {
 };
 
 Environment::SymbolTable Environment::symbol_table_;
+Environment::VarSet Environment::type_raw_vars_;
 std::vector<Environment*> Environment::envs_;
 
 // Combines two alternative branches of an expression (`cond ? a : b` or
@@ -2066,7 +2095,12 @@ class FunctionAnalyzer {
     if (RepresentsRawPointerType(parent->getType())) {
       out.setRawDef();
     }
-    if (llvm::isa<clang::InitListExpr>(parent) && has_raw_member_addr) {
+    const auto* ctor_expr = llvm::dyn_cast<clang::CXXConstructExpr>(parent);
+    if ((llvm::isa<clang::InitListExpr>(parent) && has_raw_member_addr) ||
+        (IsSlotType(parent->getType()) &&
+         (saw_member_provenance ||
+          (ctor_expr != nullptr &&
+           IsAlwaysOnHeapSlotConstruction(ctor_expr))))) {
       out = out.WithProvenance(kRawMemberAddress);
     }
     return out;
@@ -2079,7 +2113,27 @@ class FunctionAnalyzer {
           llvm::ArrayRef<clang::Expr*>(expr->getArgs(), expr->getNumArgs()),
           env);
     }
-    return VisitArguments<>(expr, env);
+    CallProps props;
+    VisitArguments<>(expr, &props, env);
+    if (!props.IsSafe()) ReportUnsafe(expr, BAD_EXPR_MSG);
+    ExprEffect out = props.ComputeCumulativeEffect(
+        RepresentsRawPointerType(expr->getType()));
+    // Constructing a `SlotBase` subclass from an on-heap member or interior
+    // address (or non-default constructing an always-on-heap slot such as
+    // `EmbedderDataSlot(js_obj, 0)` or `ExternalPointerSlot(addr, tag)`)
+    // produces a slot with raw member address provenance:
+    //   ObjectSlot slot(&obj->field_);
+    //   OffHeapObjectSlot off_heap_slot(&obj->compressed_field_);
+    //   EmbedderDataSlot embedder_slot(js_obj, 0);
+    // Constructing from a stack/handle address does not:
+    //   FullObjectSlot stack_slot(&local_tagged);
+    // TODO(crbug.com/571823300): Also track span/view wrappers constructed from
+    // raw interior pointers (such as `base::Vector<T>(obj->chars(), n)`).
+    if (IsSlotType(expr->getType()) &&
+        (props.HasOnHeapMember() || IsAlwaysOnHeapSlotConstruction(expr))) {
+      out.setRawMemberAddress();
+    }
+    return out;
   }
 
   DECL_VISIT_EXPR(CXXDefaultArgExpr) { return VisitExpr(expr->getExpr(), env); }
@@ -2358,7 +2412,7 @@ class FunctionAnalyzer {
     }
     // Raw pointer tracking is enabled for HeapObject subclasses, internal
     // pointer/handle/member types, and variables holding interior member
-    // addresses/references to catch stale accesses across GC calls.
+    // addresses/references/slots to catch stale accesses across GC calls.
     if (env.IsAlive(var_decl)) return out;
     if (HasActiveGuard()) return out;
     if (HasActiveConservativePinning(var_location)) return out;
@@ -2390,15 +2444,6 @@ class FunctionAnalyzer {
     }
     return Use(parent, var->getType(), var,
                clang::FullSourceLoc(var->getLocation(), sm_), env);
-  }
-
-  template <typename ExprType>
-  ExprEffect VisitArguments(ExprType* call, const Environment& env) {
-    CallProps props;
-    VisitArguments<>(call, &props, env);
-    if (!props.IsSafe()) ReportUnsafe(call, BAD_EXPR_MSG);
-    return props.ComputeCumulativeEffect(
-        RepresentsRawPointerType(call->getType()));
   }
 
   template <typename ExprType>
@@ -2502,27 +2547,50 @@ class FunctionAnalyzer {
   // Computes the value provenance (`kRawMemberAddress` or
   // `kOnHeapMemberLValue`) of a `CallExpr`'s return value:
   //   1. Calls returning a `*Member*` pointer (e.g. `TaggedMember<T>*`).
-  //   2. GLValue calls returning a reference to an on-heap `*Member` or a
+  //   2. Calls returning a `SlotBase` or `SlotBase::Reference` derived from an
+  //      on-heap object or member, e.g.:
+  //        `obj->RawField(offset)`, `obj->map_slot()`, `unaligned_slot[i]`,
+  //        `slot + offset`
+  //      (For `slot = rhs`, only the RHS `props.HasOnHeapMemberAt(2)`
+  //      determines whether the assigned slot still points into the heap; for a
+  //      proxy reference write `slot_ref = value`, the LHS
+  //      `props.HasOnHeapMemberAt(1)` determines whether the returned
+  //      `Reference&` still refers to the heap.)
+  //   3. GLValue calls returning a reference to an on-heap `*Member` or a
   //      `FLEXIBLE_ARRAY_MEMBER` accessor returning `T(&)[0]`, e.g.:
   //        `obj->values()` (decays to `T*` or is subscripted as
   //        `obj->values()[i]`)
-  //   3. Address-extracting, bit-casting, or forwarding helpers on an on-heap
-  //      member:
-  //        `obj->field_.storage_address()`, `std::addressof(obj->field_)`,
-  //        `base::bit_cast<Address>(ptr)`, `std::forward<T>(arg)`,
-  //        `std::move(arg)`
+  //   4. Address-extracting, bit-casting, or forwarding helpers on an on-heap
+  //      member/slot:
+  //        `obj->field_.storage_address()`, `slot.address()`,
+  //        `slot.location()`, `slot.handle_location()`, `slot.ToVoidPtr()`,
+  //        `std::addressof(obj->field_)`, `base::bit_cast<Address>(ptr)`,
+  //        `std::forward<T>(arg)`, `std::move(arg)`
   //      (TODO(crbug.com/571823300): raw `HeapObject::address()` /
   //      `Tagged::ptr()` arithmetic, arbitrary `T*`/`Address`-returning methods
   //      or forwarding wrappers, and `BindingDecl` structured bindings are not
   //      yet tracked as member provenance.)
   void ComputeCallProvenance(clang::CallExpr* call,
                              clang::CXXMemberCallExpr* memcall,
+                             clang::CXXOperatorCallExpr* opcall,
                              clang::FunctionDecl* callee,
                              const CallProps& props, ExprEffect* out) {
     clang::QualType call_type = call->getType();
     if (!call_type.isNull()) {
       if (IsPointerToOnHeapMemberType(call_type)) {
         out->setRawMemberAddress();
+      } else if (IsSlotType(call_type)) {
+        bool is_assign =
+            opcall != nullptr && opcall->getOperator() == clang::OO_Equal;
+        bool from_member = is_assign
+                               ? props.HasOnHeapMemberAt(
+                                     IsSlotReferenceType(call_type) ? 1 : 2)
+                               : props.HasOnHeapMember();
+        if (from_member || (!is_assign && IsAlwaysOnHeapSlotType(call_type)) ||
+            (memcall != nullptr &&
+             IsOnHeapClassOrMember(memcall->getRecordDecl()))) {
+          out->setRawMemberAddress();
+        }
       } else if (call->isGLValue() &&
                  (IsOnHeapMemberRecord(call_type->getBaseElementTypeUnsafe()
                                            ->getAsCXXRecordDecl()) ||
@@ -2540,11 +2608,11 @@ class FunctionAnalyzer {
     llvm::StringRef callee_name = callee->getName();
 
     if (memcall != nullptr && props.HasOnHeapMemberAt(0)) {
-      // Receiver `props.HasOnHeapMemberAt(0)` is already a tracked `*Member`
-      // instance, where these accessors return its interior address.
+      // Receiver `props.HasOnHeapMemberAt(0)` is already a tracked `*Member` or
+      // `SlotBase` instance, where these accessors return its interior address.
       static constexpr llvm::StringLiteral kAddressAccessors[] = {
-          "storage_address",
-          "ptr_location",
+          "storage_address", "address",         "ptr_location",
+          "location",        "handle_location", "ToVoidPtr",
       };
       if (llvm::is_contained(kAddressAccessors, callee_name)) {
         out->setRawMemberAddress();
@@ -2583,20 +2651,26 @@ class FunctionAnalyzer {
     clang::CXXOperatorCallExpr* opcall =
         llvm::dyn_cast_or_null<clang::CXXOperatorCallExpr>(call);
     // Overloaded `operator=` on a non-reference local variable (e.g.
-    // `tagged_var = ...`) redefines the variable and updates its raw-member
-    // provenance. Excluded when `var_decl` is in `member_ref_vars_`, where
-    // `operator=` writes through the reference instead of rebinding it.
+    // `slot = obj->RawField(0)` or `tagged_var = ...`) redefines the variable
+    // and updates its raw-member provenance. Excluded when `var_decl` is in
+    // `member_ref_vars_` or is a `SlotBase` proxy reference
+    // (`UnalignedSlot<T>::Reference`, `AtomicSlot::Reference`), where
+    // `operator=` writes through the underlying slot address instead of
+    // rebinding the variable.
     if (opcall != nullptr && opcall->getOperator() == clang::OO_Equal &&
         IsRawPointerVar(opcall->getArg(0), &var_decl) &&
-        !env.IsOnHeapMemberRefVar(var_decl)) {
+        !env.IsOnHeapMemberRefVar(var_decl) &&
+        !IsSlotReferenceType(var_decl->getType())) {
       // TODO(gcmole): We are treating all assignment operator calls with
       // the left hand side looking like {raw_pointer_var} as safe independent
       // of the concrete assignment operator implementation. This should be
       // changed to be more narrow only if the assignment operator of the base
       // {Object} or {HeapObject} class was used, which we know to be safe.
+      // Index 2 is operator-call arg 1 (the RHS); index 1 (the LHS) is
+      // intentionally not visited for simple assignment.
       ExprEffect rhs_effect = VisitExpr(call->getArg(1), env);
       props.SetEffect(
-          1, rhs_effect.Define(var_decl, rhs_effect.hasRawMemberAddress()));
+          2, rhs_effect.Define(var_decl, rhs_effect.hasRawMemberAddress()));
     } else {
       VisitArguments<>(call, &props, env);
     }
@@ -2607,7 +2681,7 @@ class FunctionAnalyzer {
         RepresentsRawPointerType(call->getType()));
 
     clang::FunctionDecl* callee = call->getDirectCallee();
-    ComputeCallProvenance(call, memcall, callee, props, &out);
+    ComputeCallProvenance(call, memcall, opcall, callee, props, &out);
     if (callee == nullptr) return out;
 
     ExprEffect callee_effect = ExprEffect::None();
@@ -2978,6 +3052,116 @@ class FunctionAnalyzer {
     return false;
   }
 
+  // Matches `SlotBase<Subclass, Data, Alignment>` and any derived slot classes
+  // (`ObjectSlot`, `FullObjectSlot`, `OffHeapObjectSlot`, `MaybeObjectSlot`,
+  // `InstructionStreamSlot`, `UnalignedSlot<T>`, `AtomicSlot`, etc.).
+  bool IsSlotBaseSubclass(const clang::CXXRecordDecl* record) {
+    if (record == nullptr || decls_.slot_base == nullptr) return false;
+    const clang::CXXRecordDecl* canonical = record->getCanonicalDecl();
+    auto cache_it = slot_base_cache_.find(canonical);
+    if (cache_it != slot_base_cache_.end()) return cache_it->second;
+
+    bool result = false;
+    if (const auto* spec =
+            llvm::dyn_cast<clang::ClassTemplateSpecializationDecl>(record)) {
+      if (spec->getSpecializedTemplate()->getCanonicalDecl() ==
+          decls_.slot_base) {
+        result = true;
+      }
+    }
+    if (!result) {
+      if (const clang::CXXRecordDecl* def = GetDefinitionOrNull(record)) {
+        for (const auto& base : def->bases()) {
+          if (IsSlotBaseSubclass(base.getType()->getAsCXXRecordDecl())) {
+            result = true;
+            break;
+          }
+        }
+      }
+    }
+    slot_base_cache_[canonical] = result;
+    return result;
+  }
+
+  // Nested proxy reference classes inside `SlotBase` subclasses (such as
+  // `UnalignedSlot<T>::Reference` and `AtomicSlot::Reference`) store an
+  // interior slot address, and their `operator=` writes through that address
+  // into the heap rather than rebinding the proxy object:
+  //   UnalignedSlot<int> slot(&obj->field_);
+  //   auto ref = slot[0];  // UnalignedSlot<int>::Reference
+  //   CauseGC();
+  //   ref = 42;            // flagged: writes through stale slot address
+  bool IsSlotReferenceRecord(const clang::CXXRecordDecl* record) {
+    if (record == nullptr || decls_.slot_base == nullptr ||
+        record->getIdentifier() == nullptr ||
+        record->getName() != "Reference") {
+      return false;
+    }
+    if (const auto* parent_record =
+            llvm::dyn_cast<clang::CXXRecordDecl>(record->getDeclContext())) {
+      return IsSlotBaseSubclass(parent_record) && !IsSlotBaseSubclass(record);
+    }
+    return false;
+  }
+
+  // `SlotBase` subclasses (`ObjectSlot`, `FullObjectSlot`, `OffHeapObjectSlot`,
+  // etc.) are tracked by provenance (when constructed from or returned by an
+  // on-heap object/member, e.g. `ObjectSlot(&obj->field_)` or
+  // `obj->RawField(offset)`): when pointer compression is disabled,
+  // `ObjectSlot` is a type alias for `FullObjectSlot`, which is also used to
+  // wrap stack/handle addresses (e.g. `FullObjectSlot(&stack_var)`). Note that
+  // `ExternalPointerSlot`, `CppHeapPointerSlot`, `TrustedPointerSlot`, and
+  // `EmbedderDataSlot` are never used to wrap stack handles and remain
+  // unconditionally tracked in `IsRawPointerToOnHeapValue`.
+  bool IsSlotRecord(const clang::CXXRecordDecl* record) {
+    return IsSlotBaseSubclass(record) || IsSlotReferenceRecord(record);
+  }
+
+  bool IsSlotType(clang::QualType qtype) {
+    if (qtype.isNull()) return false;
+    return IsSlotRecord(qtype.getNonReferenceType()
+                            ->getBaseElementTypeUnsafe()
+                            ->getAsCXXRecordDecl());
+  }
+
+  bool IsSlotReferenceType(clang::QualType qtype) {
+    if (qtype.isNull()) return false;
+    return IsSlotReferenceRecord(qtype.getNonReferenceType()
+                                     ->getBaseElementTypeUnsafe()
+                                     ->getAsCXXRecordDecl());
+  }
+
+  // `SlotBase` subclasses that can only ever point into the V8 heap (never
+  // wrapping stack/handle addresses) and are unconditionally tracked in
+  // `IsRawPointerToOnHeapValue`:
+  //   ExternalPointerSlot, CppHeapPointerSlot, TrustedPointerSlot,
+  //   EmbedderDataSlot
+  bool IsAlwaysOnHeapSlotRecord(const clang::CXXRecordDecl* record) {
+    if (record == nullptr) return false;
+    const clang::CXXRecordDecl* canonical = record->getCanonicalDecl();
+    return (decls_.external_pointer_slot &&
+            canonical == decls_.external_pointer_slot) ||
+           (decls_.cpp_heap_pointer_slot &&
+            canonical == decls_.cpp_heap_pointer_slot) ||
+           (decls_.trusted_pointer_slot &&
+            canonical == decls_.trusted_pointer_slot) ||
+           (decls_.embedder_data_slot &&
+            canonical == decls_.embedder_data_slot);
+  }
+
+  bool IsAlwaysOnHeapSlotType(clang::QualType qtype) {
+    if (qtype.isNull()) return false;
+    return IsAlwaysOnHeapSlotRecord(qtype.getNonReferenceType()
+                                        ->getBaseElementTypeUnsafe()
+                                        ->getAsCXXRecordDecl());
+  }
+
+  bool IsAlwaysOnHeapSlotConstruction(const clang::CXXConstructExpr* expr) {
+    return expr->getNumArgs() > 0 &&
+           !expr->getConstructor()->isCopyOrMoveConstructor() &&
+           IsAlwaysOnHeapSlotType(expr->getType());
+  }
+
   // Matches wrapper types used to declare fields inside `HeapObject` classes
   // (including derived wrappers such as `SmiBitFieldMember<Group>`):
   //   TaggedMember<T>, ExternalPointerMember<tag>,
@@ -3066,19 +3250,7 @@ class FunctionAnalyzer {
 
   bool IsRawPointerToOnHeapValue(const clang::CXXRecordDecl* record) {
     if (record == nullptr) return false;
-    if (IsOnHeapClassOrMember(record)) return true;
-
-    const clang::CXXRecordDecl* canonical = record->getCanonicalDecl();
-    if ((decls_.external_pointer_slot &&
-         canonical == decls_.external_pointer_slot) ||
-        (decls_.cpp_heap_pointer_slot &&
-         canonical == decls_.cpp_heap_pointer_slot) ||
-        (decls_.trusted_pointer_slot &&
-         canonical == decls_.trusted_pointer_slot)) {
-      return true;
-    }
-
-    return false;
+    return IsOnHeapClassOrMember(record) || IsAlwaysOnHeapSlotRecord(record);
   }
 
   bool IsOnHeapValue(const clang::CXXRecordDecl* record) {
@@ -3143,13 +3315,22 @@ class FunctionAnalyzer {
       }
 
       clang::QualType declared_type = var->getType();
+      clang::QualType var_type = declared_type;
+      if (is_param && var_type->isReferenceType()) {
+        var_type = var_type->getAs<clang::ReferenceType>()->getPointeeType();
+      }
+
       // Record raw member address provenance (`raw_member_vars_`) when:
-      //   1. The initializer evaluates to an interior heap address:
+      //   1. The initializer evaluates to an interior heap address or slot:
       //        int* p = &obj->field_;
       //        uint8_t* bytes = obj->inline_bytes_;
       //        Address addr = obj->field_.storage_address();
-      //   2. A parameter has a `*Member*` type (`void Foo(TaggedMember<T>*
-      //   p)`).
+      //        ObjectSlot slot(&obj->field_);
+      //        ObjectSlot slot = obj->RawField(offset);
+      //        EmbedderDataSlot slot(js_obj, 0);
+      //   2. A parameter has a `*Member*` pointer type or an always-on-heap
+      //      slot type (`void Foo(TaggedMember<T>* p)`,
+      //      `void Bar(const EmbedderDataSlot& slot)`).
       //      (Local `*Member*` variables without an initializer are already
       //      tracked as type-raw pointers via `RepresentsRawPointerType` and
       //      acquire `kRawMemberAddress` when loaded via `CastExpr`, keeping
@@ -3157,28 +3338,32 @@ class FunctionAnalyzer {
       //      compatible with the `UO_AddrOf` out-parameter heuristic.)
       bool has_raw_member_addr =
           init_effect.hasRawMemberAddress() ||
-          (is_param && IsPointerToOnHeapMemberType(declared_type));
+          (is_param && (IsPointerToOnHeapMemberType(declared_type) ||
+                        IsAlwaysOnHeapSlotType(var_type)));
       out.SetRawMemberVar(var, has_raw_member_addr);
 
       // Record on-heap member reference provenance (`member_ref_vars_`) when:
       //   1. A C++ reference is bound to an on-heap member lvalue:
       //        int& ref = obj->field_;
       //        const TaggedMember<Object>& mref = obj->tagged_field_;
-      //   2. A parameter or variable is declared as a reference to an on-heap
+      //   2. A `SlotBase` proxy reference (`UnalignedSlot<T>::Reference`,
+      //      `AtomicSlot::Reference`) is initialized from an on-heap slot:
+      //        auto ref = unaligned_slot[i];
+      //   3. A parameter or variable is declared as a reference to an on-heap
       //      `*Member` type (`TaggedMember<T>&`):
       //        void Bar(TaggedMember<Object>& member_ref);
-      bool is_on_heap_member_ref = (declared_type->isReferenceType() &&
-                                    init_effect.hasOnHeapMemberLValue()) ||
-                                   IsReferenceToOnHeapMemberType(declared_type);
+      bool is_on_heap_member_ref =
+          (declared_type->isReferenceType() &&
+           init_effect.hasOnHeapMemberLValue()) ||
+          (has_raw_member_addr && IsSlotReferenceType(declared_type)) ||
+          IsReferenceToOnHeapMemberType(declared_type);
       out.SetMemberRefVar(var, is_on_heap_member_ref);
 
-      clang::QualType var_type = declared_type;
-      if (is_param && var_type->isReferenceType()) {
-        var_type = var_type->getAs<clang::ReferenceType>()->getPointeeType();
+      bool is_type_raw = RepresentsRawPointerType(var_type);
+      if (is_type_raw) {
+        Environment::MarkTypeRawVar(var);
       }
-
-      if (has_raw_member_addr || is_on_heap_member_ref ||
-          RepresentsRawPointerType(var_type)) {
+      if (has_raw_member_addr || is_on_heap_member_ref || is_type_raw) {
         out.MDefine(var);
       }
       if (IsGCGuard(var_type)) {
@@ -3202,6 +3387,7 @@ class FunctionAnalyzer {
 
           clang::QualType binding_type = binding->getType();
           if (RepresentsRawPointerType(binding_type)) {
+            Environment::MarkTypeRawVar(binding);
             out.MDefine(binding);
           }
           if (IsGCGuard(binding_type)) {
@@ -3490,6 +3676,7 @@ class FunctionAnalyzer {
   clang::SourceManager& sm_;
 
   AnalysisState state_;
+  std::map<const clang::CXXRecordDecl*, bool> slot_base_cache_;
   std::map<const clang::CXXRecordDecl*, bool> on_heap_member_cache_;
   std::map<const clang::CXXRecordDecl*, bool> on_heap_class_or_member_cache_;
 };
