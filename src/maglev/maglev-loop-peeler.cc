@@ -1062,24 +1062,14 @@ void MaglevLoopPeeler::CloneLoopBodyControl(PeelContext& ctx) {
     ControlNode* cloned_control = nullptr;
 
     if (block == ctx.loop.backedge()) {
-      // Back-edge: original is JumpLoop. Replace with a CheckpointedJump (not a
-      // plain Jump) targeting the original loop header directly at predecessor
-      // slot 0 (the forward pre-header slot). The header's pre-header phi
-      // inputs get rewired below to consume the cloned-backedge values. It must
-      // stay checkpointed: JumpLoop carries a deopt checkpoint that phi
-      // untagging depends on -- MaglevPhiRepresentationSelector hoists loop-phi
-      // untagging onto the forward predecessor and unconditionally casts its
-      // control node to CheckpointedJump. Clone the JumpLoop's checkpoint frame
-      // (remapped to the peeled values) into the new node.
-      JumpLoop* orig = control->Cast<JumpLoop>();
+      // Back-edge: original is JumpLoop. Replace with a plain Jump targeting
+      // the original loop header directly at predecessor slot 0 (the forward
+      // pre-header slot). The header's pre-header phi inputs get rewired below
+      // to consume the cloned-backedge values.
       BasicBlockRef* ref = zone()->New<BasicBlockRef>();
-      CheckpointedJump* jump = NodeBase::New<CheckpointedJump>(zone(), 0, ref);
+      Jump* jump = NodeBase::New<Jump>(zone(), 0, ref);
       ref->Bind(ctx.loop.header());
       jump->set_predecessor_id(0);
-      DeoptFrame* top = CloneDeoptFrame(&orig->eager_deopt_info()->top_frame(),
-                                        ctx.value_map, zone());
-      jump->SetEagerDeoptInfo(zone(), top,
-                              orig->eager_deopt_info()->feedback_to_update());
       cloned_control = jump;
     } else {
       cloned_control = clone_control_and_remap_inputs(control);
