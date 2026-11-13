@@ -173,6 +173,7 @@ function test_wrapper() {
 // The test is called in a wrapper function to eliminate the transition learning
 // feedback of AllocationSites.
 test_wrapper();
+%ClearFunctionFeedback(test_wrapper);
 
 %NeverOptimizeFunction(construct_smis);
 

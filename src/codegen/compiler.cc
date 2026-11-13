@@ -3395,8 +3395,7 @@ MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromEval(
     LanguageMode language_mode, ParseRestriction restriction,
     int parameters_end_pos, int eval_position,
     ParsingWhileDebugging parsing_while_debugging,
-    bool private_name_lookup_skips_outer_class,
-    AllowEvalCache allow_eval_cache) {
+    bool private_name_lookup_skips_outer_class) {
   // The cache lookup key needs to be aware of the separation between the
   // parameters and the body to prevent this valid invocation:
   //   Function("", "function anonymous(\n/**/) {\n}");
@@ -3415,7 +3414,7 @@ MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromEval(
   }
 
   Script::CompilationKind compilation_kind;
-  bool use_eval_cache = bool{allow_eval_cache};
+  bool allow_eval_cache = true;
   if (eval_position == kNoSourcePosition) {
     compilation_kind = restriction == ONLY_SINGLE_FUNCTION_LITERAL
                            ? Script::CompilationKind::kFunctionConstructor
@@ -3431,7 +3430,7 @@ MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromEval(
       eval_position = -summary.code_offset();
     } else {
       eval_position = 0;
-      use_eval_cache = false;
+      allow_eval_cache = false;
     }
   } else {
     compilation_kind = Script::CompilationKind::kDirectEval;
@@ -3439,7 +3438,7 @@ MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromEval(
 
   CompilationCache* compilation_cache = isolate->compilation_cache();
   InfoCellPair eval_result;
-  if (use_eval_cache) {
+  if (allow_eval_cache) {
     eval_result = compilation_cache->LookupEval(
         source, outer_info, context, language_mode, eval_cache_position);
   }
@@ -3510,7 +3509,7 @@ MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromEval(
       return MaybeDirectHandle<JSFunction>();
     }
     if (!parse_info.allow_eval_cache()) {
-      use_eval_cache = false;
+      allow_eval_cache = false;
     }
   }
 
@@ -3526,7 +3525,7 @@ MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromEval(
     // already initializes feedback cell.
     JSFunction::InitializeFeedbackCell(isolate, result, &is_compiled_scope,
                                        true);
-    if (use_eval_cache) {
+    if (allow_eval_cache) {
       // Make sure to cache this result.
       DirectHandle<FeedbackCell> new_feedback_cell(result->raw_feedback_cell(),
                                                    isolate);
@@ -3541,7 +3540,7 @@ MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromEval(
     // already initializes feedback cell.
     JSFunction::InitializeFeedbackCell(isolate, result, &is_compiled_scope,
                                        true);
-    if (use_eval_cache) {
+    if (allow_eval_cache) {
       compilation_cache->PutEval(source, outer_info, result,
                                  eval_cache_position);
     }

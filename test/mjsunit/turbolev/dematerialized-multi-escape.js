@@ -4,7 +4,7 @@
 
 // Flags: --allow-natives-syntax --turbolev --turbofan
 
-function dematerialized_object_template(n) {
+function dematerialized_object(n) {
   let o = { x : 42 };
   if (n < 0) {
     // We won't execute this code when collecting feedback, which means that
@@ -22,8 +22,6 @@ function dematerialized_object_template(n) {
   return n + 2;
 }
 
-let dematerialized_object =
-    copyFunctionWithFreshFeedback(dematerialized_object_template);
 %PrepareFunctionForOptimization(dematerialized_object);
 assertEquals(7, dematerialized_object(5));
 assertEquals(7, dematerialized_object(5));
@@ -33,8 +31,7 @@ assertEquals(7, dematerialized_object(5));
 
 assertEquals({x : 42}, dematerialized_object(-1));
 
-dematerialized_object =
-    copyFunctionWithFreshFeedback(dematerialized_object_template);
+%ClearFunctionFeedback(dematerialized_object);
 %PrepareFunctionForOptimization(dematerialized_object);
 assertEquals(7, dematerialized_object(5));
 assertEquals(7, dematerialized_object(5));

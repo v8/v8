@@ -4,14 +4,14 @@
 
 // Flags: --allow-natives-syntax --maglev
 
-function shrl_template(x, y) {
+function shrl(x, y) {
   return x >>> y;
 }
 
 function shrl_test(lhs, rhs, expected_result) {
-  const shrl = copyFunctionWithFreshFeedback(shrl_template);
   // Warmup.
   %PrepareFunctionForOptimization(shrl);
+  %ClearFunctionFeedback(shrl);
   shrl(1, 1);
   %OptimizeMaglevOnNextCall(shrl);
 
@@ -24,9 +24,9 @@ function shrl_test(lhs, rhs, expected_result) {
 
 
 function shrl_test_expect_deopt(lhs, rhs, expected_result) {
-  const shrl = copyFunctionWithFreshFeedback(shrl_template);
   // Warmup.
   %PrepareFunctionForOptimization(shrl);
+  %ClearFunctionFeedback(shrl);
   shrl(1, 1);
   %OptimizeMaglevOnNextCall(shrl);
 

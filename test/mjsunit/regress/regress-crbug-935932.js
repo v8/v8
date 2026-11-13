@@ -48,16 +48,15 @@ test(check_v4, true);
 
 // Test loading from arrays with different prototypes.
 (function() {
-  function testIn_template(index, array) {
+  function testIn(index, array) {
     return index in array;
   }
+  %PrepareFunctionForOptimization(testIn);
 
   let a = [];
   a.__proto__ = [0,1,2];
   a[1] = 3;
 
-  var testIn = copyFunctionWithFreshFeedback(testIn_template);
-  %PrepareFunctionForOptimization(testIn);
   // First load will set IC to Load handle with allow hole to undefined conversion false.
   assertTrue(testIn(0, a));
   // Second load will hit ICMiss when hole is loaded. Seeing the same map twice, the IC will be set megamorphic.
@@ -66,8 +65,10 @@ test(check_v4, true);
   // Test JIT to ensure proper handling.
   assertTrue(testIn(0, a));
 
-  testIn = copyFunctionWithFreshFeedback(testIn_template);
+  %ClearFunctionFeedback(testIn);
+  %DeoptimizeFunction(testIn);
   %PrepareFunctionForOptimization(testIn);
+
   // First load will set IC to Load handle with allow hole to undefined conversion false.
   assertTrue(testIn(0, a));
   %OptimizeFunctionOnNextCall(testIn);
@@ -75,15 +76,19 @@ test(check_v4, true);
   assertTrue(testIn(0, a));
 
   // Repeat the same testing for access out-of-bounds of the array, but in bounds of its prototype.
-  testIn = copyFunctionWithFreshFeedback(testIn_template);
+  %ClearFunctionFeedback(testIn);
+  %DeoptimizeFunction(testIn);
   %PrepareFunctionForOptimization(testIn);
+
   assertTrue(testIn(2, a));
   assertTrue(testIn(2, a));
   %OptimizeFunctionOnNextCall(testIn);
   assertTrue(testIn(2, a));
 
-  testIn = copyFunctionWithFreshFeedback(testIn_template);
+  %ClearFunctionFeedback(testIn);
+  %DeoptimizeFunction(testIn);
   %PrepareFunctionForOptimization(testIn);
+
   assertTrue(testIn(2, a));
   %OptimizeFunctionOnNextCall(testIn);
   assertTrue(testIn(2, a));

@@ -52,3 +52,5 @@ assertUnoptimized(f1);
 // due to map dependency.
 %FinalizeOptimization();
 assertUnoptimized(f1);
+// Clear type info for stress runs.
+%ClearFunctionFeedback(f1);

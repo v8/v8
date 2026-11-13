@@ -26,3 +26,4 @@ foo();
 assertOptimized(foo);
 foo(10);
 assertUnoptimized(foo);
+%ClearFunctionFeedback(foo);

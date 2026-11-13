@@ -260,11 +260,10 @@ var topFrameIsMaglevved;
 var topFrameIsTurboFanned;
 
 // Returns a fresh copy of `fn` with its own SharedFunctionInfo, BytecodeArray,
-// and FeedbackVector by compiling `fn`'s source in the native context via
-// %CopyFunctionWithFreshFeedback (requires --allow-natives-syntax). `fn` must
-// not access any outer context variables (including top-level `let`/`const`
-// ScriptContext bindings or enclosing function locals); violations trigger a
-// hard CHECK failure (or return undefined under --fuzzing).
+// and FeedbackVector by appending a unique comment to bypass the eval cache.
+// Because this uses indirect eval in sloppy mode, `fn` must only reference
+// parameters and top-level bindings, and must include its own "use strict"
+// directive if strict mode is required.
 var copyFunctionWithFreshFeedback;
 
 // Monkey-patchable all-purpose failure handler.
@@ -1030,18 +1029,9 @@ var prettyPrinted;
     return (opt_status & V8OptimizationStatus.kTopmostFrameIsTurboFanned) !== 0;
   }
 
-  var CopyFunctionWithFreshFeedbackImpl = undefined;
-
+  let copyFunctionCounter = 0;
   copyFunctionWithFreshFeedback = function copyFunctionWithFreshFeedback(fn) {
-    if (CopyFunctionWithFreshFeedbackImpl === undefined) {
-      try {
-        CopyFunctionWithFreshFeedbackImpl = new Function(
-            "fn", "return %CopyFunctionWithFreshFeedback(fn);");
-      } catch (e) {
-        throw new Error("natives syntax not allowed");
-      }
-    }
-    return CopyFunctionWithFreshFeedbackImpl(fn);
+    return (0, eval)(`(${fn.toString()}/* ${copyFunctionCounter++} */)`);
   };
 
   // Custom V8-specific stack trace formatter that is temporarily installed on

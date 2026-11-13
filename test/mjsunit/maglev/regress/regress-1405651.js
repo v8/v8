@@ -4,7 +4,7 @@
 //
 // Flags: --allow-natives-syntax --harmony --maglev
 
-function f_template(x) {
+function f(x) {
   return x[2];
 }
 
@@ -12,7 +12,6 @@ let buff = new ArrayBuffer(1024);
 let arr = new Int32Array(buff);
 arr[2] = 42;
 
-let f = copyFunctionWithFreshFeedback(f_template);
 %PrepareFunctionForOptimization(f);
 assertEquals(42, f(arr));
 
@@ -30,9 +29,10 @@ let buff2 = new ArrayBuffer(1024);
 let arr2 = new Int32Array(buff2);
 arr2[2] = 42;
 
-// Re-optimizing {f} (with fresh feedback), now that the protector for detached
-// array buffer doesn't hold anymore.
-f = copyFunctionWithFreshFeedback(f_template);
+// Re-optimizing {f} (which a fresh feedback), now that the protector for
+// detached array buffer doesn't hold anymore.
+%DeoptimizeFunction(f);
+%ClearFunctionFeedback(f);
 %PrepareFunctionForOptimization(f);
 assertEquals(42, f(arr2));
 %OptimizeMaglevOnNextCall(f);

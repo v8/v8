@@ -251,8 +251,6 @@ test_toarr(toarr2);
     }
 
     %PrepareFunctionForOptimization(outer);
-    %PrepareFunctionForOptimization(middle);
-    %PrepareFunctionForOptimization(inner);
     for (var step = 0; step < 4; step++) {
       if (outerCount == 1) outer(10);
       if (outerCount == 2) outer(10, 11);
@@ -264,12 +262,15 @@ test_toarr(toarr2);
     %DeoptimizeFunction(outer);
     %DeoptimizeFunction(middle);
     %DeoptimizeFunction(inner);
+    %ClearFunctionFeedback(outer);
+    %ClearFunctionFeedback(middle);
+    %ClearFunctionFeedback(inner);
   }
 
   for (var a = 1; a <= 3; a++) {
     for (var b = 1; b <= 3; b++) {
       for (var c = 1; c <= 3; c++) {
-        copyFunctionWithFreshFeedback(test)(a, b, c);
+        test(a,b,c);
       }
     }
   }

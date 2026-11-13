@@ -70,6 +70,8 @@ mem.setUint32(aInst + Sandbox.getFieldOffset(WASM_INSTANCE_OBJECT_TYPE, 'module_
 mem.setUint32(aMod + Sandbox.getFieldOffset(WASM_MODULE_OBJECT_TYPE, 'managed_native_module'), 0, true);
 mem.setUint32(aScript + Sandbox.getFieldOffset(SCRIPT_TYPE, 'wasm_managed_native_module'), 0, true);
 
+%ClearFunctionFeedback(g);
+
 f = null;
 mod = null;
 inst = null;

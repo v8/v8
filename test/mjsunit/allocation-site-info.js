@@ -321,12 +321,6 @@ function instanceof_check2(type) {
   assertTrue(new type(1,2,3) instanceof type);
 }
 
-function instanceof_check3(type) {
-  assertTrue(new type() instanceof type);
-  assertTrue(new type(5) instanceof type);
-  assertTrue(new type(1,2,3) instanceof type);
-}
-
 %PrepareFunctionForOptimization(instanceof_check);
 
 var realmBArray = Realm.eval(realmB, "Array");
@@ -359,18 +353,21 @@ assertOptimized(instanceof_check);
 instanceof_check(realmBArray);
 assertOptimized(instanceof_check);
 
-// Try to optimize a fresh function instanceof_check3 that is monomorphic on
-// first call. Only after optimizing do we introduce realmBArray. This should
-// deopt the method.
-%PrepareFunctionForOptimization(instanceof_check3);
-instanceof_check3(Array);
-instanceof_check3(Array);
-%OptimizeFunctionOnNextCall(instanceof_check3);
-instanceof_check3(Array);
-assertOptimized(instanceof_check3);
+// Try to optimize again, but first clear all type feedback, and allow it
+// to be monomorphic on first call. Only after optimizing do we introduce
+// realmBArray. This should deopt the method.
+  %PrepareFunctionForOptimization(instanceof_check);
+  %DeoptimizeFunction(instanceof_check);
+  %ClearFunctionFeedback(instanceof_check);
+instanceof_check(Array);
+instanceof_check(Array);
+  %PrepareFunctionForOptimization(instanceof_check);
+  %OptimizeFunctionOnNextCall(instanceof_check);
+instanceof_check(Array);
+assertOptimized(instanceof_check);
 
-instanceof_check3(realmBArray);
-assertUnoptimized(instanceof_check3);
+instanceof_check(realmBArray);
+assertUnoptimized(instanceof_check);
 
 // Perform a gc because without it the test below can experience an
 // allocation failure at an inconvenient point. The AllocationSiteCache gets

@@ -85,11 +85,10 @@
 (function() {
   function A() { this.x = 0; }
   A.prototype = {y: 20};
-  function B_template(o) { return o.a.y; }
+  function B(o) { return o.a.y; }
   function C() { this.a = new A(); }
   %EnsureFeedbackVectorForFunction(C);
 
-  var B = copyFunctionWithFreshFeedback(B_template);
   %PrepareFunctionForOptimization(B);
   B(new C());
   B(new C());
@@ -100,10 +99,11 @@
   c.a.y = 10;
   assertUnoptimized(B);
   %DeoptimizeFunction(B);
-  B = copyFunctionWithFreshFeedback(B_template);
-  %PrepareFunctionForOptimization(B);
+  %ClearFunctionFeedback(B);
   assertEquals(10, B(c));
 
+  %DeoptimizeFunction(B);
+  %PrepareFunctionForOptimization(B);
   var c = new C();
   assertEquals(20, B(c));
   %OptimizeFunctionOnNextCall(B);

@@ -159,8 +159,6 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // need to call Factory::NewFunctionFromSharedFunctionInfo before you have a
   // real function with a context.
 
-  using AllowEvalCache = base::StrongAlias<struct AllowEvalCacheTag, bool>;
-
   // Create a (bound) function for a String source within a context for eval.
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSFunction>
   GetFunctionFromEval(Isolate* isolate, DirectHandle<String> source,
@@ -170,8 +168,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
                       int eval_position,
                       ParsingWhileDebugging parsing_while_debugging =
                           ParsingWhileDebugging::kNo,
-                      bool private_name_lookup_skips_outer_class = false,
-                      AllowEvalCache allow_eval_cache = AllowEvalCache{true});
+                      bool private_name_lookup_skips_outer_class = false);
 
   // Create a function that results from wrapping |source| in a function,
   // with |arguments| being a list of parameters for that function.

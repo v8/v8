@@ -16,6 +16,8 @@
 #include "src/heap/heap-inl.h"
 #include "src/ic/ic.h"
 #include "src/init/bootstrapper.h"
+#include "src/interpreter/bytecode-array-iterator.h"
+#include "src/interpreter/bytecodes.h"
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/instance-type-inl.h"
@@ -1576,6 +1578,44 @@ void JSFunction::CalculateInstanceSizeHelper(InstanceType instance_type,
                requested_embedder_fields);
   CHECK_LE(static_cast<unsigned>(*instance_size),
            static_cast<unsigned>(JSObject::kMaxInstanceSize));
+}
+
+void JSFunction::ClearAllTypeFeedbackInfoForTesting(Isolate* isolate) {
+  ResetIfCodeFlushed(isolate);
+  if (has_feedback_vector()) {
+    Tagged<FeedbackVector> vector = feedback_vector();
+    if (vector->ClearAllSlotsForTesting(isolate)) {
+      IC::OnFeedbackChanged(isolate, vector, FeedbackSlot::Invalid(),
+                            "ClearAllTypeFeedbackInfoForTesting");
+    }
+  }
+  // Also zero any embedded-feedback bytes inside the BytecodeArray so tests
+  // that rely on %ClearFunctionFeedback observe a truly reset feedback state.
+  if (shared()->HasBytecodeArray()) {
+    Handle<BytecodeArray> bytecode_array(shared()->GetBytecodeArray(isolate),
+                                         isolate);
+    for (interpreter::BytecodeArrayIterator it(bytecode_array); !it.done();
+         it.Advance()) {
+      if (!interpreter::Bytecodes::IsEmbeddedFeedbackBytecode(
+              it.current_bytecode())) {
+        continue;
+      }
+      int operand_index = interpreter::Bytecodes::IsUnaryOpWithEmbeddedFeedback(
+                              it.current_bytecode())
+                              ? kUnaryEmbeddedFeedbackOperandIndex
+                              : kEmbeddedFeedbackOperandIndex;
+      bytecode_array->set(it.GetEmbeddedFeedbackOffset(operand_index) +
+                              kHeapObjectTag - BytecodeArray::kHeaderSize,
+                          kUninitializedEmbeddedFeedback);
+    }
+  }
+  if (shared()->HasBaselineCode()) {
+    shared()->FlushBaselineCode();
+  }
+  if (ActiveTierIsBaseline(isolate)) {
+    ResetTieringRequests(isolate);
+    UpdateCode(isolate, *BUILTIN_CODE(isolate, InterpreterEntryTrampoline));
+  }
 }
 
 }  // namespace v8::internal

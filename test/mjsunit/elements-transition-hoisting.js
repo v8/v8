@@ -54,6 +54,7 @@ function test_wrapper() {
   testDoubleConversion4(new Array(5));
   testDoubleConversion4(new Array(5));
   assertOptimized(testDoubleConversion4);
+  %ClearFunctionFeedback(testDoubleConversion4);
 
   // Make sure that non-element related map checks that are not preceded by
   // transitions in a loop still get hoisted in a way that doesn't generate a
@@ -80,6 +81,7 @@ function test_wrapper() {
   testExactMapHoisting(new Array(5));
   testExactMapHoisting(new Array(5));
   assertOptimized(testExactMapHoisting);
+  %ClearFunctionFeedback(testExactMapHoisting);
 
   // Make sure that non-element related map checks do NOT get hoisted if they
   // depend on an elements transition before them and it's not possible to hoist
@@ -112,6 +114,7 @@ function test_wrapper() {
   testExactMapHoisting2(new Array(5));
   // Temporarily disabled - see bug 2176.
   // assertOptimized(testExactMapHoisting2);
+  %ClearFunctionFeedback(testExactMapHoisting2);
 
   // Make sure that non-element related map checks do get hoisted if they use
   // the transitioned map for the check and all transitions that they depend
@@ -141,6 +144,7 @@ function test_wrapper() {
   testExactMapHoisting3(new Array(5));
   testExactMapHoisting3(new Array(5));
   assertOptimized(testExactMapHoisting3);
+  %ClearFunctionFeedback(testExactMapHoisting3);
 
   function testDominatingTransitionHoisting1(a) {
     var object = new Object();
@@ -168,6 +172,7 @@ function test_wrapper() {
   // above the access, causing a deopt. We should update the type of access
   // rather than forbid hoisting the transition.
   assertOptimized(testDominatingTransitionHoisting1);
+  %ClearFunctionFeedback(testDominatingTransitionHoisting1);
   */
 
   function testHoistingWithSideEffect(a) {
@@ -189,6 +194,7 @@ function test_wrapper() {
   testHoistingWithSideEffect(new Array(5));
   testHoistingWithSideEffect(new Array(5));
   assertOptimized(testHoistingWithSideEffect);
+  %ClearFunctionFeedback(testHoistingWithSideEffect);
 
   function testStraightLineDupeElinination(a,b,c,d,e,f) {
     var count = 3;
@@ -228,6 +234,10 @@ function test_wrapper() {
   testStraightLineDupeElinination(new Array(5),0,0,0,0,0);
   testStraightLineDupeElinination(new Array(5),0,0,0,0,0);
   assertOptimized(testStraightLineDupeElinination);
+  %ClearFunctionFeedback(testStraightLineDupeElinination);
 }
 
+// The test is called in a test wrapper that has type feedback cleared to
+// prevent the influence of allocation-sites, which learn from transitions.
 test_wrapper();
+%ClearFunctionFeedback(test_wrapper);

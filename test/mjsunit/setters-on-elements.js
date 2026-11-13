@@ -53,12 +53,15 @@ if (standalone) {
   assertOptimized = empty_func;
 
   optimize = empty_func;
+  clearFunctionTypeFeedback = empty_func;
   deoptimizeFunction = empty_func;
   prepareForOptimize = empty_func;
-  copyFunctionWithFreshFeedback = function(f) { return f; };
 } else {
   optimize = function(name) {
     %OptimizeFunctionOnNextCall(name);
+  }
+  clearFunctionTypeFeedback = function(name) {
+    %ClearFunctionFeedback(name);
   }
   deoptimizeFunction = function(name) {
     %DeoptimizeFunction(name);
@@ -68,16 +71,11 @@ if (standalone) {
   }
 }
 
-function create_setter_template(index, store_value) {
-  return function(a) { a[index] = store_value; };
-}
-
 function base_setter_test(create_func, index, store_value) {
   var calls = 0;
 
   // Testcase: setter in prototype chain
-  foo = copyFunctionWithFreshFeedback(create_setter_template)(
-      index, store_value);
+  foo = function(a) { a[index] = store_value; }
   var a = create_func();
   var ap = [];
   ap.__defineSetter__(index, function() { calls++; });
@@ -98,9 +96,9 @@ function base_setter_test(create_func, index, store_value) {
   assertOptimized(foo);
 
   // Testcase: setter added on prototype chain object already in place.
-  foo = copyFunctionWithFreshFeedback(create_setter_template)(
-      index, store_value);
-  prepareForOptimize(foo);
+  clearFunctionTypeFeedback(foo);
+  deoptimizeFunction(foo);
+  clearFunctionTypeFeedback(foo);
   calls = 0;
   a = create_func();
   var apap = [];
@@ -116,9 +114,9 @@ function base_setter_test(create_func, index, store_value) {
   assertEquals(3, calls);
 
   // Testcase: setter "deep" in prototype chain.
-  foo = copyFunctionWithFreshFeedback(create_setter_template)(
-      index, store_value);
-  prepareForOptimize(foo);
+  clearFunctionTypeFeedback(foo);
+  deoptimizeFunction(foo);
+  clearFunctionTypeFeedback(foo);
   calls = 0;
 
   a = create_func();
@@ -140,8 +138,9 @@ function base_setter_test(create_func, index, store_value) {
   assertEquals(3, calls);
 
   // Testcase: setter added after optimization (feedback is monomorphic)
-  foo = copyFunctionWithFreshFeedback(create_setter_template)(
-      index, store_value);
+  clearFunctionTypeFeedback(foo);
+  deoptimizeFunction(foo);
+  clearFunctionTypeFeedback(foo);
   calls = 0;
 
   a = create_func();
@@ -162,12 +161,12 @@ function base_setter_test(create_func, index, store_value) {
 
   // Testcase: adding additional setters to a prototype chain that already has
   // one shouldn't deopt anything. (ie, we aren't changing the map shape).
+  clearFunctionTypeFeedback(foo);
   calls = 0;
 
   a = create_func();
   a.__proto__ = ap2;
-  bar = copyFunctionWithFreshFeedback(create_setter_template)(
-      index + 1, store_value);
+  bar = function(a) { a[index+1] = store_value; }
   prepareForOptimize(bar);
   bar(a);
   bar(a);

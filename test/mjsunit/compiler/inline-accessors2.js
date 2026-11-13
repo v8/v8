@@ -70,19 +70,7 @@ function effect_context_for_getter(obj) {
   return 5678;
 }
 
-function Constr_template() {}
-
-function TryGetter(context, getter, isProto, expected, expectException) {
-  context = copyFunctionWithFreshFeedback(context);
-  getter = copyFunctionWithFreshFeedback(getter);
-  %PrepareFunctionForOptimization(getter);
-  // Construct a fresh holder from a fresh constructor so defining the fresh
-  // `getter` closure keeps `holder` in fast mode instead of normalizing its map
-  // via AccessorsOverwritingAccessors / TransitionToDifferentAccessor.
-  var Constr = copyFunctionWithFreshFeedback(Constr_template);
-  var holder = Object.defineProperty(
-      new Constr(), "getterProperty", { get: getter });
-  obj = isProto ? Object.create(holder) : holder;
+function TryGetter(context, getter, obj, expected, expectException) {
   try {
     TestInlinedGetter(context, obj, expected);
     assertFalse(expectException);
@@ -91,17 +79,15 @@ function TryGetter(context, getter, isProto, expected, expectException) {
     assertEquals(7, exception.stack.split('\n').length);
   }
   %DeoptimizeFunction(context);
+  %ClearFunctionFeedback(context);
+  %ClearFunctionFeedback(getter);
 }
 
-function TestGetterInAllContexts(getter, expected, expectException) {
-  for (var isProto of [false, true]) {
-    TryGetter(value_context_for_getter, getter, isProto, expected,
-              expectException);
-    TryGetter(test_context_for_getter, getter, isProto, expected ? 111 : 222,
-              expectException);
-    TryGetter(effect_context_for_getter, getter, isProto, 5678,
-              expectException);
-  }
+function TestGetterInAllContexts(getter, obj, expected, expectException) {
+  TryGetter(value_context_for_getter, getter, obj, expected, expectException);
+  TryGetter(test_context_for_getter, getter, obj, expected ? 111 : 222,
+            expectException);
+  TryGetter(effect_context_for_getter, getter, obj, 5678, expectException);
 }
 
 // -----------------------------------------------------------------------------
@@ -114,7 +100,11 @@ function getter1() {
   return 1234;
 }
 
-TestGetterInAllContexts(getter1, 1234, false);
+function ConstrG1() { }
+obj = Object.defineProperty(new ConstrG1(), "getterProperty", { get: getter1 });
+TestGetterInAllContexts(getter1, obj, 1234, false);
+obj = Object.create(obj);
+TestGetterInAllContexts(getter1, obj, 1234, false);
 
 // -----------------------------------------------------------------------------
 // Test getter returning false in all contexts.
@@ -126,7 +116,11 @@ function getter2() {
   return false;
 }
 
-TestGetterInAllContexts(getter2, false, false);
+function ConstrG2() { }
+obj = Object.defineProperty(new ConstrG2(), "getterProperty", { get: getter2 });
+TestGetterInAllContexts(getter2, obj, false, false);
+obj = Object.create(obj);
+TestGetterInAllContexts(getter2, obj, false, false);
 
 // -----------------------------------------------------------------------------
 // Test getter without a return in all contexts.
@@ -137,7 +131,11 @@ function getter3() {
   forceDeopt.deopt;
 }
 
-TestGetterInAllContexts(getter3, undefined, false);
+function ConstrG3() { }
+obj = Object.defineProperty(new ConstrG3(), "getterProperty", { get: getter3 });
+TestGetterInAllContexts(getter3, obj, undefined, false);
+obj = Object.create(obj);
+TestGetterInAllContexts(getter3, obj, undefined, false);
 
 // -----------------------------------------------------------------------------
 // Test getter with too many arguments without a return in all contexts.
@@ -149,7 +147,11 @@ function getter4(a) {
   forceDeopt.deopt;
 }
 
-TestGetterInAllContexts(getter4, undefined, false);
+function ConstrG4() { }
+obj = Object.defineProperty(new ConstrG4(), "getterProperty", { get: getter4 });
+TestGetterInAllContexts(getter4, obj, undefined, false);
+obj = Object.create(obj);
+TestGetterInAllContexts(getter4, obj, undefined, false);
 
 // -----------------------------------------------------------------------------
 // Test getter with too many arguments with a return in all contexts.
@@ -162,7 +164,11 @@ function getter5(a) {
   return 9876;
 }
 
-TestGetterInAllContexts(getter5, 9876, false);
+function ConstrG5() { }
+obj = Object.defineProperty(new ConstrG5(), "getterProperty", { get: getter5 });
+TestGetterInAllContexts(getter5, obj, 9876, false);
+obj = Object.create(obj);
+TestGetterInAllContexts(getter5, obj, 9876, false);
 
 // -----------------------------------------------------------------------------
 // Test getter which throws from optimized code.
@@ -175,7 +181,11 @@ function getter6() {
   return 13579;
 }
 
-TestGetterInAllContexts(getter6, 13579, true);
+function ConstrG6() { }
+obj = Object.defineProperty(new ConstrG6(), "getterProperty", { get: getter6 });
+TestGetterInAllContexts(getter6, obj, 13579, true);
+obj = Object.create(obj);
+TestGetterInAllContexts(getter6, obj, 13579, true);
 
 // -----------------------------------------------------------------------------
 // Helpers for testing inlining of setters.
@@ -222,17 +232,7 @@ function effect_context_for_setter(obj, value) {
   return 666;
 }
 
-function TrySetter(context, setter, isProto, expectException, value, expected) {
-  context = copyFunctionWithFreshFeedback(context);
-  setter = copyFunctionWithFreshFeedback(setter);
-  %PrepareFunctionForOptimization(setter);
-  // Construct a fresh holder from a fresh constructor so defining the fresh
-  // `setter` closure keeps `holder` in fast mode instead of normalizing its map
-  // via AccessorsOverwritingAccessors / TransitionToDifferentAccessor.
-  var Constr = copyFunctionWithFreshFeedback(Constr_template);
-  var holder = Object.defineProperty(
-      new Constr(), "setterProperty", { set: setter });
-  obj = isProto ? Object.create(holder) : holder;
+function TrySetter(context, setter, obj, expectException, value, expected) {
   try {
     TestInlinedSetter(context, obj, value, expected);
     assertFalse(expectException);
@@ -241,19 +241,15 @@ function TrySetter(context, setter, isProto, expectException, value, expected) {
     assertEquals(7, exception.stack.split('\n').length);
   }
   %DeoptimizeFunction(context);
+  %ClearFunctionFeedback(context);
+  %ClearFunctionFeedback(setter);
 }
 
-function TestSetterInAllContexts(setter, expectException) {
-  for (var isProto of [false, true]) {
-    TrySetter(value_context_for_setter, setter, isProto, expectException, 111,
-              111);
-    TrySetter(test_context_for_setter, setter, isProto, expectException, true,
-              333);
-    TrySetter(test_context_for_setter, setter, isProto, expectException, false,
-              444);
-    TrySetter(effect_context_for_setter, setter, isProto, expectException, 555,
-              666);
-  }
+function TestSetterInAllContexts(setter, obj, expectException) {
+  TrySetter(value_context_for_setter, setter, obj, expectException, 111, 111);
+  TrySetter(test_context_for_setter, setter, obj, expectException, true, 333);
+  TrySetter(test_context_for_setter, setter, obj, expectException, false, 444);
+  TrySetter(effect_context_for_setter, setter, obj, expectException, 555, 666);
 }
 
 // -----------------------------------------------------------------------------
@@ -266,7 +262,11 @@ function setter1(value) {
   setterValue = value;
 }
 
-TestSetterInAllContexts(setter1, false);
+function ConstrS1() { }
+obj = Object.defineProperty(new ConstrS1(), "setterProperty", { set: setter1 });
+TestSetterInAllContexts(setter1, obj, false);
+obj = Object.create(obj);
+TestSetterInAllContexts(setter1, obj, false);
 
 // -----------------------------------------------------------------------------
 // Test setter returning something different than the RHS in all contexts.
@@ -279,7 +279,11 @@ function setter2(value) {
   return 1000000;
 }
 
-TestSetterInAllContexts(setter2, false);
+function ConstrS2() { }
+obj = Object.defineProperty(new ConstrS2(), "setterProperty", { set: setter2 });
+TestSetterInAllContexts(setter2, obj, false);
+obj = Object.create(obj);
+TestSetterInAllContexts(setter2, obj, false);
 
 // -----------------------------------------------------------------------------
 // Test setter with too few arguments without a return in all contexts.
@@ -291,7 +295,11 @@ function setter3() {
   setterValue = setterArgument;
 }
 
-TestSetterInAllContexts(setter3, false);
+function ConstrS3() { }
+obj = Object.defineProperty(new ConstrS3(), "setterProperty", { set: setter3 });
+TestSetterInAllContexts(setter3, obj, false);
+obj = Object.create(obj);
+TestSetterInAllContexts(setter3, obj, false);
 
 // -----------------------------------------------------------------------------
 // Test setter with too few arguments with a return in all contexts.
@@ -304,7 +312,11 @@ function setter4() {
   return 2000000;
 }
 
-TestSetterInAllContexts(setter4, false);
+function ConstrS4() { }
+obj = Object.defineProperty(new ConstrS4(), "setterProperty", { set: setter4 });
+TestSetterInAllContexts(setter4, obj, false);
+obj = Object.create(obj);
+TestSetterInAllContexts(setter4, obj, false);
 
 // -----------------------------------------------------------------------------
 // Test setter with too many arguments without a return in all contexts.
@@ -317,7 +329,11 @@ function setter5(value, foo) {
   setterValue = value;
 }
 
-TestSetterInAllContexts(setter5, false);
+function ConstrS5() { }
+obj = Object.defineProperty(new ConstrS5(), "setterProperty", { set: setter5 });
+TestSetterInAllContexts(setter5, obj, false);
+obj = Object.create(obj);
+TestSetterInAllContexts(setter5, obj, false);
 
 // -----------------------------------------------------------------------------
 // Test setter with too many arguments with a return in all contexts.
@@ -331,7 +347,11 @@ function setter6(value, foo) {
   return 3000000;
 }
 
-TestSetterInAllContexts(setter6, false);
+function ConstrS6() { }
+obj = Object.defineProperty(new ConstrS6(), "setterProperty", { set: setter6 });
+TestSetterInAllContexts(setter6, obj, false);
+obj = Object.create(obj);
+TestSetterInAllContexts(setter6, obj, false);
 
 // -----------------------------------------------------------------------------
 // Test setter which throws from optimized code.
@@ -343,4 +363,8 @@ function setter7(value) {
   setterValue = value;
 }
 
-TestSetterInAllContexts(setter7, true);
+function ConstrS7() { }
+obj = Object.defineProperty(new ConstrS7(), "setterProperty", { set: setter7 });
+TestSetterInAllContexts(setter7, obj, true);
+obj = Object.create(obj);
+TestSetterInAllContexts(setter7, obj, true);

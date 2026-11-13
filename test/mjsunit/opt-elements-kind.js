@@ -87,6 +87,8 @@ function assertKind(expected, obj, name_opt) {
   assertEquals(expected, getKind(obj), name_opt);
 }
 
+%NeverOptimizeFunction(construct_smis);
+
 // This code exists to eliminate the learning influence of AllocationSites
 // on the following tests.
 var __sequence = 0;
@@ -98,42 +100,30 @@ function make_array() {
   return eval(make_array_string());
 }
 
-function construct_smis_template() {
+%EnsureFeedbackVectorForFunction(construct_smis);
+function construct_smis() {
   var a = make_array();
   a[0] = 0;  // Send the COW array map to the steak house.
   assertKind(elements_kind.fast_smi_only, a);
   return a;
 }
 
-function construct_doubles_template() {
+%NeverOptimizeFunction(construct_doubles);
+%EnsureFeedbackVectorForFunction(construct_doubles);
+function construct_doubles() {
   var a = construct_smis();
   a[0] = 1.5;
   assertKind(elements_kind.fast_double, a);
   return a;
 }
 
-function convert_mixed_template(array, value, kind) {
+%NeverOptimizeFunction(convert_mixed);
+%EnsureFeedbackVectorForFunction(convert_mixed);
+function convert_mixed(array, value, kind) {
   array[1] = value;
   assertKind(kind, array);
   assertEquals(value, array[1]);
 }
-
-var construct_smis;
-var construct_doubles;
-var convert_mixed;
-
-function reset_ic_state() {
-  construct_smis = copyFunctionWithFreshFeedback(construct_smis_template);
-  %NeverOptimizeFunction(construct_smis);
-  %EnsureFeedbackVectorForFunction(construct_smis);
-  construct_doubles = copyFunctionWithFreshFeedback(construct_doubles_template);
-  %NeverOptimizeFunction(construct_doubles);
-  %EnsureFeedbackVectorForFunction(construct_doubles);
-  convert_mixed = copyFunctionWithFreshFeedback(convert_mixed_template);
-  %NeverOptimizeFunction(convert_mixed);
-  %EnsureFeedbackVectorForFunction(convert_mixed);
-}
-reset_ic_state();
 
 %PrepareFunctionForOptimization(test1);
 function test1() {
@@ -157,10 +147,18 @@ function test1() {
     convert_mixed(doubles, 1, elements_kind.fast);
     assertTrue(%HaveSameMap(smis, doubles));
   }
-  reset_ic_state();
+}
+
+function clear_ic_state() {
+  %ClearFunctionFeedback(construct_smis);
+  %ClearFunctionFeedback(construct_doubles);
+  %ClearFunctionFeedback(convert_mixed);
 }
 
 test1();
+clear_ic_state();
 test1();
+clear_ic_state();
 %OptimizeFunctionOnNextCall(test1);
 test1();
+clear_ic_state();

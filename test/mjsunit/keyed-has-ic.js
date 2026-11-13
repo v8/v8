@@ -4,11 +4,9 @@
 
 // Flags: --allow-natives-syntax
 
-function testIn_template(obj, key) {
+function testIn(obj, key) {
   return key in obj;
 }
-
-let testIn = testIn_template;
 
 function expectTrue(obj, key) {
   assertTrue(testIn(obj, key));
@@ -255,7 +253,8 @@ var tests = {
 };
 
 for (test in tests) {
-  testIn = copyFunctionWithFreshFeedback(testIn_template);
+  %DeoptimizeFunction(testIn);
+  %ClearFunctionFeedback(testIn);
   %PrepareFunctionForOptimization(testIn);
   tests[test]();
   %OptimizeFunctionOnNextCall(testIn);

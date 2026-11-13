@@ -49,3 +49,5 @@ assertUnoptimized(f);
 // Optimization failed due to map dependency.
 assertUnoptimized(f);
 assertEquals(2, f(o));
+// Clear type info for stress runs.
+%ClearFunctionFeedback(f);

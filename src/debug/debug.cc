@@ -2187,7 +2187,7 @@ void Debug::InstallDebugBreakTrampoline() {
     for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
          obj = iterator.Next()) {
       if (needs_to_clear_ic && IsFeedbackVector(obj)) {
-        Cast<FeedbackVector>(obj)->ClearICAndLiteralSlots(isolate_);
+        Cast<FeedbackVector>(obj)->ClearSlots(isolate_);
         continue;
       } else if (IsJSFunctionAndNeedsTrampoline(isolate_, obj)) {
         Tagged<JSFunction> fun = Cast<JSFunction>(obj);

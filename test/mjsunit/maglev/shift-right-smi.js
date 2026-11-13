@@ -9,10 +9,11 @@ function gen_sarl_smi(y) {
 }
 
 function sarl_test(lhs, rhs, expected_result) {
-  const sarl = copyFunctionWithFreshFeedback(gen_sarl_smi)(rhs);
+  const sarl = gen_sarl_smi(rhs);
 
   // Warmup.
   %PrepareFunctionForOptimization(sarl);
+  %ClearFunctionFeedback(sarl);
   sarl(1);
   %OptimizeMaglevOnNextCall(sarl);
 
@@ -24,10 +25,11 @@ function sarl_test(lhs, rhs, expected_result) {
 }
 
 function sarl_test_expect_deopt(lhs, rhs, expected_result) {
-  const sarl = copyFunctionWithFreshFeedback(gen_sarl_smi)(rhs);
+  const sarl = gen_sarl_smi(rhs);
 
   // Warmup.
   %PrepareFunctionForOptimization(sarl);
+  %ClearFunctionFeedback(sarl);
   sarl(1);
   %OptimizeMaglevOnNextCall(sarl);
 

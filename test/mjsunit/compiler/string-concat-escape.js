@@ -7,7 +7,7 @@
 function g() {}
 %NeverOptimizeFunction(g);
 
-function foo_template(s1, s2, deopt_n) {
+function foo(s1, s2, deopt_n) {
   let str1 = "> " + s1;
   if (deopt_n == 0) {
     g();
@@ -26,7 +26,6 @@ function foo_template(s1, s2, deopt_n) {
   return s1 + s2;
 }
 
-var foo = copyFunctionWithFreshFeedback(foo_template);
 %PrepareFunctionForOptimization(foo);
 assertEquals("a bc d", foo("a b", "c d", -1));
 
@@ -35,7 +34,7 @@ assertEquals("a bc d", foo("a b", "c d", -1));
 assertEquals("> a b", foo("a b", "c d", 0));
 
 
-foo = copyFunctionWithFreshFeedback(foo_template);
+%ClearFunctionFeedback(foo);
 %PrepareFunctionForOptimization(foo);
 assertEquals("a bc d", foo("a b", "c d", -1));
 
@@ -44,7 +43,7 @@ assertEquals("a bc d", foo("a b", "c d", -1));
 assertEquals("> a b 23", foo("a b", "c d", 1));
 
 
-foo = copyFunctionWithFreshFeedback(foo_template);
+%ClearFunctionFeedback(foo);
 %PrepareFunctionForOptimization(foo);
 assertEquals("a bc d", foo("a b", "c d", -1));
 

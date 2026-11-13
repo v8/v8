@@ -281,6 +281,8 @@ function testOneArrayType(allocator) {
                       expected_array_value(7));
 
   %DeoptimizeFunction(test_various_loads6);
+  %ClearFunctionFeedback(test_various_stores);
+  %ClearFunctionFeedback(test_various_loads7);
 
   // Test stores for non-NaN.
   var large_array = new allocator(large_array_size);
@@ -359,8 +361,8 @@ class ArraySubclass extends Array {
 // Force gc here to start with a clean heap if we repeat this test multiple
 // times.
 gc();
-copyFunctionWithFreshFeedback(testOneArrayType)(Array);
-copyFunctionWithFreshFeedback(testOneArrayType)(ArraySubclass);
+testOneArrayType(Array);
+testOneArrayType(ArraySubclass);
 
 var large_array = new Array(large_array_size);
 force_to_fast_double_array(large_array);
