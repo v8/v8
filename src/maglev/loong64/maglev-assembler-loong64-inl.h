@@ -1313,7 +1313,7 @@ inline void MaglevAssembler::CompareUInt32AndEmitEagerDeoptIf(
     NodeT* node) {
   Label Deopt, Done;
 
-  MacroAssembler::Branch(&Deopt, cond, reg, Operand(imm), Label::kNear);
+  MacroAssembler::Branch(&Deopt, cond, reg, Operand(imm));
   Jump(&Done, Label::kNear);
   bind(&Deopt);
   EmitEagerDeopt(node, reason);

@@ -218,7 +218,7 @@ void MaglevAssembler::Prologue(Graph* graph) {
         St_d(zero_reg, MemOperand(sp, i * 8));
       }
       Sub_d(count, count, Operand(1));
-      MacroAssembler::Branch(&loop, gt, count, Operand(zero_reg), Label::kNear);
+      MacroAssembler::Branch(&loop, gt, count, Operand(zero_reg));
     }
   }
   if (graph->untagged_stack_slots() > 0) {
@@ -435,11 +435,11 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     // TODO(victorgomes): Add fast path for external strings.
     And(representation, instance_type, Operand(kStringRepresentationMask));
     MacroAssembler::Branch(&seq_string, kEqual, representation,
-                           Operand(kSeqStringTag), Label::kNear);
+                           Operand(kSeqStringTag));
     MacroAssembler::Branch(&cons_string, kEqual, representation,
-                           Operand(kConsStringTag), Label::kNear);
+                           Operand(kConsStringTag));
     MacroAssembler::Branch(&sliced_string, kEqual, representation,
-                           Operand(kSlicedStringTag), Label::kNear);
+                           Operand(kSlicedStringTag));
     MacroAssembler::Branch(deferred_runtime_call, kNotEqual, representation,
                            Operand(kThinStringTag));
     // Fallthrough to thin string.
@@ -449,7 +449,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
   // Is a thin string.
   {
     LoadTaggedField(string, string, offsetof(ThinString, actual_));
-    MacroAssembler::Branch(&loop, Label::kNear);
+    MacroAssembler::Branch(&loop);
   }
 
   bind(&sliced_string);
@@ -485,7 +485,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     // so that a (corrupted) negative offset cannot be interpreted as a
     // negative index by the subsequent address computation.
     Bstrpick_d(index, index, 31, 0);
-    MacroAssembler::Branch(&loop, Label::kNear);
+    MacroAssembler::Branch(&loop);
   }
 
   bind(&cons_string);
@@ -499,8 +499,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
                 RootIndex::kempty_string);  // Sets 1 to flag if not equal
     JumpIf(ne, deferred_runtime_call);      // Check the flag to not be equal 0
     LoadTaggedField(string, string, offsetof(ConsString, first_));
-    MacroAssembler::Branch(&loop,
-                           Label::kNear);  // Try again with first string.
+    MacroAssembler::Branch(&loop);  // Try again with first string.
   }
 
   bind(&seq_string);
@@ -518,7 +517,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
 #else
     And(instance_type, instance_type, Operand(kStringEncodingMask));
     MacroAssembler::Branch(&two_byte_string, equal, instance_type,
-                           Operand(kTwoByteStringTag), Label::kNear);
+                           Operand(kTwoByteStringTag));
 #endif
     // The result of one-byte string will be the same for both modes
     // (CharCodeAt/CodePointAt), since it cannot be the first half of a
@@ -549,13 +548,12 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
       Register first_code_point = scratch;
       And(first_code_point, result, Operand(0xfc00));
       MacroAssembler::Branch(*done, kNotEqual, first_code_point,
-                             Operand(0xd800), Label::kNear);
+                             Operand(0xd800));
 
       Register length = scratch;
       Ld_w(length, FieldMemOperand(string_backup, offsetof(String, length_)));
       Add_w(index, index, Operand(1));
-      MacroAssembler::Branch(*done, kGreaterThanEqual, index, Operand(length),
-                             Label::kNear);
+      MacroAssembler::Branch(*done, kGreaterThanEqual, index, Operand(length));
 
       Register second_code_point = scratch;
       Bstrpick_d(index, index, 31, 0);
@@ -567,8 +565,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
       // {index} is not needed at this point.
       Register scratch2 = index;
       And(scratch2, second_code_point, Operand(0xfc00));
-      MacroAssembler::Branch(*done, kNotEqual, scratch2, Operand(0xdc00),
-                             Label::kNear);
+      MacroAssembler::Branch(*done, kNotEqual, scratch2, Operand(0xdc00));
 
       int surrogate_offset = 0x10000 - (0xd800 << 10) - 0xdc00;
       Add_d(second_code_point, second_code_point, Operand(surrogate_offset));
