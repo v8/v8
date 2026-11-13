@@ -10,7 +10,8 @@
 
 #include "include/v8config.h"
 
-#if !defined(V8_HOST_ARCH_PPC64) && !defined(V8_HOST_ARCH_S390X)
+#if !defined(V8_HOST_ARCH_PPC64) && !defined(V8_HOST_ARCH_S390X) && \
+    !defined(V8_HOST_ARCH_LOONG64)
 #define V8_BORINGSSL_SHA256 1
 #else
 #define V8_BORINGSSL_SHA256 0

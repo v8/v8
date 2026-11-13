@@ -7426,7 +7426,8 @@ v8_cluster_source_set("v8_base_without_compiler") {
     "//third_party/highway:libhwy",
   ]
 
-  if (current_cpu != "ppc64" && current_cpu != "s390x") {
+  if (current_cpu != "ppc64" && current_cpu != "s390x" &&
+      current_cpu != "loong64") {
     if (defined(build_with_node) && build_with_node) {
       deps += [ "$node_openssl_path" ]
     } else {
