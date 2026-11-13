@@ -994,15 +994,18 @@ void MacroAssembler::Mul32(Register rd, Register rs, const Operand& rt) {
 }
 
 void MacroAssembler::Mulh32(Register rd, Register rs, const Operand& rt) {
+  // RV64 has no 32x32->high-32 multiply, and a 32-bit producer may leave dirty
+  // upper bits in its result register, so sign-extend both operands first.
+  // rd may alias rs or rt; rs is consumed before rd is written.
+  UseScratchRegisterScope temps(this);
+  Register lhs = temps.Acquire();
+  SignExtendWord(lhs, rs);
   if (rt.is_reg()) {
-    mul(rd, rs, rt.rm());
+    SignExtendWord(rd, rt.rm());
   } else {
-    // li handles the relocation.
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    Li(scratch, rt.immediate());
-    mul(rd, rs, scratch);
+    Li(rd, rt.immediate());  // li sign-extends the 32-bit immediate.
   }
+  mul(rd, lhs, rd);
   SraWord(rd, rd, 32);
 }
 
