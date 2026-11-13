@@ -67,7 +67,13 @@ void WriteBarrier::MarkingSlow(Tagged<HeapObject> host, HeapObjectSlot slot,
 void WriteBarrier::MarkingSlowFromCode(Tagged<HeapObject> host,
                                        MaybeObjectSlot slot,
                                        Tagged<MaybeObject> value) {
-  Tagged<HeapObject> value_heap_object = value.GetHeapObject();
+  // Although generated code filters out Smis before calling the write barrier,
+  // `MarkingFromCode` and `SharedMarkingFromCode` reload `*slot` from memory,
+  // which may have been concurrently overwritten with a Smi on shared objects.
+  Tagged<HeapObject> value_heap_object;
+  if (!value.GetHeapObject(&value_heap_object)) {
+    return;
+  }
   // This barrier is called from generated code.
   // There must be no stores of InstructionStream values from generated code and
   // all stores of InstructionStream values in C++ must be handled by
