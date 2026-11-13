@@ -4223,11 +4223,11 @@ int serialized_static_field = 314;
 
 void SerializedCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
-  if (info.DataV2()->IsValue() && info.DataV2().As<v8::Value>()->IsExternal()) {
-    CHECK_EQ(info.DataV2().As<v8::External>()->Value(kIntPointerTag),
+  if (info.Data()->IsValue() && info.Data().As<v8::Value>()->IsExternal()) {
+    CHECK_EQ(info.Data().As<v8::External>()->Value(kIntPointerTag),
              static_cast<void*>(&serialized_static_field));
     int* value = reinterpret_cast<int*>(
-        info.DataV2().As<v8::External>()->Value(kIntPointerTag));
+        info.Data().As<v8::External>()->Value(kIntPointerTag));
     (*value)++;
   }
   info.GetReturnValue().Set(v8_num(info.GetIsolate(), 42));

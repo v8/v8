@@ -164,7 +164,7 @@ class InjectedScript::ProtocolPromiseHandler {
   static void thenCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     PromiseHandlerTracker::Id handlerId =
         static_cast<PromiseHandlerTracker::Id>(
-            info.DataV2().As<v8::Value>().As<v8::Number>()->Value());
+            info.Data().As<v8::Value>().As<v8::Number>()->Value());
     PromiseHandlerTracker& handlerTracker =
         static_cast<V8InspectorImpl*>(
             v8::debug::GetInspector(info.GetIsolate()))
@@ -185,7 +185,7 @@ class InjectedScript::ProtocolPromiseHandler {
   static void catchCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     PromiseHandlerTracker::Id handlerId =
         static_cast<PromiseHandlerTracker::Id>(
-            info.DataV2().As<v8::Value>().As<v8::Number>()->Value());
+            info.Data().As<v8::Value>().As<v8::Number>()->Value());
     PromiseHandlerTracker& handlerTracker =
         static_cast<V8InspectorImpl*>(
             v8::debug::GetInspector(info.GetIsolate()))

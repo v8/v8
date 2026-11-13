@@ -616,7 +616,7 @@ void ModuleGraphTest::ModuleResolutionSuccessCallback(
   v8::Isolate* isolate = info.GetIsolate();
   HandleScope handle_scope(isolate);
   Local<Context> context = isolate->GetCurrentContext();
-  Local<v8::Array> data = info.DataV2().As<Value>().As<v8::Array>();
+  Local<v8::Array> data = info.Data().As<Value>().As<v8::Array>();
   Local<Value> resolver_val;
   Local<Value> ns_val;
   if (!data->Get(context, 0).ToLocal(&resolver_val) ||
@@ -631,7 +631,7 @@ void ModuleGraphTest::ModuleResolutionFailureCallback(
   v8::Isolate* isolate = info.GetIsolate();
   HandleScope handle_scope(isolate);
   Local<Context> context = isolate->GetCurrentContext();
-  Local<v8::Array> data = info.DataV2().As<Value>().As<v8::Array>();
+  Local<v8::Array> data = info.Data().As<Value>().As<v8::Array>();
   Local<Value> resolver_val;
   if (!data->Get(context, 0).ToLocal(&resolver_val)) {
     return;
@@ -648,7 +648,7 @@ void ModuleGraphTest::DoDynamicImportMicrotask(
 
   HandleScope handle_scope(isolate);
   Local<Context> context = isolate->GetCurrentContext();
-  Local<v8::Array> data = info.DataV2().As<Value>().As<v8::Array>();
+  Local<v8::Array> data = info.Data().As<Value>().As<v8::Array>();
 
   Local<Value> spec_val;
   Local<Value> phase_val;

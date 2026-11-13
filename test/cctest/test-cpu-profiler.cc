@@ -1040,7 +1040,7 @@ class TestApiCallbacks {
 
   template <typename T>
   static TestApiCallbacks* FromInfo(const T& info) {
-    v8::Local<v8::Data> callback_data = info.DataV2();
+    v8::Local<v8::Data> callback_data = info.Data();
     void* data =
         v8::External::Cast(*callback_data)->Value(kTestApiCallbacksTag);
     return reinterpret_cast<TestApiCallbacks*>(data);
