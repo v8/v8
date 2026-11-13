@@ -267,6 +267,11 @@ class MaglevPhiRepresentationSelector {
 
   void EnsurePhiInputsTagged(Phi* phi);
 
+  // Tries to move {phi}'s {input_index}th input, a single-use non-deopting
+  // tagging, from the branching block into the edge-split block so the other
+  // branch skips it.
+  void TrySinkInputTaggingToEdgeSplitBlock(Phi* phi, int input_index);
+
   template <typename NodeT>
   ProcessResult UpdateNodePhiInputForToBoolean(NodeT* node, Phi* phi,
                                                int input_index, bool flip);

@@ -494,8 +494,39 @@ void MaglevPhiRepresentationSelector::EnsurePhiInputsTagged(Phi* phi) {
       // Inputs of Phis that aren't Phi should always be tagged (except for the
       // phis untagged by this class, but {phi} isn't one of them).
       DCHECK(input->is_tagged());
+      TrySinkInputTaggingToEdgeSplitBlock(phi, i);
     }
   }
+}
+
+void MaglevPhiRepresentationSelector::TrySinkInputTaggingToEdgeSplitBlock(
+    Phi* phi, int input_index) {
+  BasicBlock* edge_split = phi->predecessor_at(input_index);
+  if (!edge_split->is_edge_split_block()) return;
+  DCHECK_NE(edge_split, reducer_.current_block());
+
+  ValueNode* tagging = phi->input_node(input_index);
+  // Sink non-deopting tagging conversions and ReturnedValue from non-eager
+  // inlining, leaving deopting conversions like CheckedSmiTag* in place so
+  // sinking cannot skip or reorder an eager deopt check.
+  if ((!tagging->is_conversion() || tagging->properties().can_deopt()) &&
+      !tagging->Is<ReturnedValue>()) {
+    return;
+  }
+  // If the tagging has other uses, it has to stay where it is, since sinking
+  // it makes it not dominate its uses anymore.
+  if (tagging->use_count() != 1) return;
+
+  // Only sink a tagging found near the end of the branching block, so it still
+  // dominates {phi} and never runs more often than before.
+  BasicBlock* branch_block = edge_split->predecessor();
+  if (!branch_block->TryRemoveFromEnd(tagging)) return;
+
+  TRACE_UNTAGGING("  Sinking tagging " << PrintNodeLabel(tagging)
+                                       << " of input " << input_index
+                                       << " to its edge-split block");
+  edge_split->nodes().push_back(tagging);
+  tagging->set_owner(edge_split);
 }
 
 namespace {
