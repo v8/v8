@@ -2042,15 +2042,15 @@ void MacroAssembler::GenerateSwitchTable(Register index, size_t case_count,
                                          int case_value_base,
                                          Register scratch) {
   UseScratchRegisterScope temps(this);
-  Register table = scratch;
-  if (table == no_reg) {
-    table = temps.Acquire();
-  }
   Label fallthrough, jump_table;
   if (case_value_base != 0) {
     SubWord(index, index, Operand(case_value_base));
   }
   Branch(&fallthrough, Condition::Ugreater_equal, index, Operand(case_count));
+  Register table = scratch;
+  if (table == no_reg) {
+    table = temps.Acquire();
+  }
   LoadAddress(table, &jump_table);
   CalcScaledAddress(table, table, index, kSystemPointerSizeLog2);
   LoadWord(table, MemOperand(table, 0));

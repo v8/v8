@@ -1228,9 +1228,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchBinarySearchSwitch:
       AssembleArchBinarySearchSwitch(instr);
       break;
-    case kArchTableSwitch:
+    case kArchTableSwitch: {
+      UseScratchRegisterScope temps(masm());
+      temps.Include(kScratchReg);
       AssembleArchTableSwitch(instr);
       break;
+    }
     case kArchAbortCSADcheck:
       DCHECK(i.InputRegister(0) == a0);
       {
