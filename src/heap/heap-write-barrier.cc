@@ -592,7 +592,7 @@ template <typename TSlot>
 // static
 void WriteBarrier::ForRange(Heap* heap, Tagged<HeapObject> object,
                             TSlot start_slot, TSlot end_slot) {
-  if (v8_flags.disable_write_barriers) {
+  if constexpr (v8_flags.disable_write_barriers.value()) {
     return;
   }
   MemoryChunk* source_chunk = MemoryChunk::FromHeapObject(object);
@@ -603,7 +603,7 @@ void WriteBarrier::ForRange(Heap* heap, Tagged<HeapObject> object,
     mode |= kDoGenerationalOrShared;
   }
 
-  if (source_chunk->IsMarking()) {
+  if (IsMarking(heap->isolate(), object)) {
     mode |= kDoMarking;
     if (!source_chunk->ShouldSkipEvacuationSlotRecording()) {
       mode |= kDoEvacuationSlotRecording;

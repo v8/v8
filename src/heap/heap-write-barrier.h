@@ -142,6 +142,9 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
   static MarkingBarrier* CurrentMarkingBarrier(
       Tagged<HeapObject> verification_candidate);
 
+  template <typename IsolateT>
+  static inline bool IsMarking(IsolateT* isolate, Tagged<HeapObject> object);
+
   // Invoked from traced handles where no host object is available.
   static inline void MarkingFromTracedHandle(Tagged<Object> value);
 

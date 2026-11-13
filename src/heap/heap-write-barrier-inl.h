@@ -384,6 +384,19 @@ bool WriteBarrier::IsAnyMarking(IsolateT* isolate) {
   return isolate->isolate_data()->is_any_marking_active();
 }
 
+// static
+template <typename IsolateT>
+bool WriteBarrier::IsMarking(IsolateT* isolate, Tagged<HeapObject> object) {
+  DCHECK_NOT_NULL(isolate);
+  const IsolateData* isolate_data = isolate->isolate_data();
+  if (!isolate_data->is_any_marking_active()) [[likely]] {
+    return false;
+  }
+  return TrustedHeapLayout::InWritableSharedSpace(object)
+             ? isolate_data->is_shared_marking()
+             : isolate_data->is_local_marking();
+}
+
 void WriteBarrier::MarkingForTesting(Tagged<HeapObject> host, ObjectSlot slot,
                                      Tagged<Object> value) {
   DCHECK(!HasWeakHeapObjectTag(value));
