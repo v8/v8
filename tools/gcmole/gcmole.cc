@@ -3202,7 +3202,7 @@ class FunctionAnalyzer {
 
           clang::QualType binding_type = binding->getType();
           if (RepresentsRawPointerType(binding_type)) {
-            out.MDefine(binding->getNameAsString());
+            out.MDefine(binding);
           }
           if (IsGCGuard(binding_type)) {
             state_.scopes.back().guard_location =
