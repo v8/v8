@@ -36,13 +36,25 @@ const kManyPairs = [
   [2, 3], [4, 5], [6, 7], [8, 9], [1, 3],
 ];
 
-function dotReference(i16, aIndex, bIndex) {
+function i16At(dv, i) {
+  return dv.getInt16(i * 2, true);
+}
+
+function u16At(dv, i) {
+  return dv.getUint16(i * 2, true);
+}
+
+function i32At(dv, i) {
+  return dv.getInt32(i * 4, true);
+}
+
+function dotReference(dv, aIndex, bIndex) {
   const result = [0, 0, 0, 0];
   for (let lane = 0; lane < 4; ++lane) {
     const a = aIndex * 8 + lane * 2;
     const b = bIndex * 8 + lane * 2;
-    result[lane] = (Math.imul(i16[a], i16[b]) +
-                    Math.imul(i16[a + 1], i16[b + 1])) | 0;
+    result[lane] = (Math.imul(i16At(dv, a), i16At(dv, b)) +
+                    Math.imul(i16At(dv, a + 1), i16At(dv, b + 1))) | 0;
   }
   return result;
 }
@@ -51,13 +63,17 @@ function addReference(a, b) {
   return a.map((value, lane) => (value + b[lane]) | 0);
 }
 
-function vectorAt(i32, index) {
-  return Array.from(i32.subarray(index * 4, index * 4 + 4));
+function vectorAt(dv, index) {
+  const result = [0, 0, 0, 0];
+  for (let lane = 0; lane < 4; ++lane) {
+    result[lane] = i32At(dv, index * 4 + lane);
+  }
+  return result;
 }
 
-function checkOutput(i32, expected) {
+function checkOutput(dv, expected) {
   for (let lane = 0; lane < 4; ++lane) {
-    assertEquals(expected[lane], i32[kOutputOffset / 4 + lane]);
+    assertEquals(expected[lane], i32At(dv, kOutputOffset / 4 + lane));
   }
 }
 
@@ -190,60 +206,63 @@ function makePattern(kind) {
 
   const instance = builder.instantiate();
   const { memory, loop, mixed, balanced, many, shared } = instance.exports;
-  const i16 = new Int16Array(memory.buffer);
-  const u16 = new Uint16Array(memory.buffer);
-  const i32 = new Int32Array(memory.buffer);
+  const dv = new DataView(memory.buffer);
 
   for (let kind = 0; kind < 3; ++kind) {
-    i16.set(makePattern(kind));
-
-    let acc = vectorAt(i32, 0);
-    for (let n = 1; n <= kMaxIterations; ++n) {
-      for (const [a, b] of [[1, 2], [3, 4], [5, 6], [7, 8]]) {
-        acc = addReference(acc, dotReference(i16, (n - 1) + a, (n - 1) + b));
-      }
-      loop(n);
-      checkOutput(i32, acc);
+    const pattern = makePattern(kind);
+    for (let i = 0; i < pattern.length; ++i) {
+      dv.setInt16(i * 2, pattern[i], true);
     }
 
-    const sum2 = addReference(dotReference(i16, 1, 2), dotReference(i16, 3, 4));
+    let acc = vectorAt(dv, 0);
+    for (let n = 1; n <= kMaxIterations; ++n) {
+      for (const [a, b] of [[1, 2], [3, 4], [5, 6], [7, 8]]) {
+        acc = addReference(acc, dotReference(dv, (n - 1) + a, (n - 1) + b));
+      }
+      loop(n);
+      checkOutput(dv, acc);
+    }
+
+    const sum2 = addReference(dotReference(dv, 1, 2), dotReference(dv, 3, 4));
     const lowS = [0, 0, 0, 0];
     const highS = [0, 0, 0, 0];
     const lowU = [0, 0, 0, 0];
     const highU = [0, 0, 0, 0];
     for (let lane = 0; lane < 4; ++lane) {
-      lowS[lane] = Math.imul(i16[5 * 8 + lane], i16[6 * 8 + lane]);
-      highS[lane] = Math.imul(i16[7 * 8 + 4 + lane], i16[8 * 8 + 4 + lane]);
-      lowU[lane] = (u16[5 * 8 + lane] * u16[6 * 8 + lane]) | 0;
-      highU[lane] = (u16[7 * 8 + 4 + lane] * u16[8 * 8 + 4 + lane]) | 0;
+      lowS[lane] = Math.imul(i16At(dv, 5 * 8 + lane), i16At(dv, 6 * 8 + lane));
+      highS[lane] =
+          Math.imul(i16At(dv, 7 * 8 + 4 + lane), i16At(dv, 8 * 8 + 4 + lane));
+      lowU[lane] = (u16At(dv, 5 * 8 + lane) * u16At(dv, 6 * 8 + lane)) | 0;
+      highU[lane] =
+          (u16At(dv, 7 * 8 + 4 + lane) * u16At(dv, 8 * 8 + 4 + lane)) | 0;
     }
     mixed();
     checkOutput(
-        i32,
+        dv,
         addReference(
             sum2,
             addReference(addReference(lowS, highS), addReference(lowU, highU))));
 
-    const dots = addReference(dotReference(i16, 1, 2), dotReference(i16, 3, 4));
+    const dots = addReference(dotReference(dv, 1, 2), dotReference(dv, 3, 4));
     const others = addReference(
-        addReference(vectorAt(i32, 5), vectorAt(i32, 6)),
-        addReference(vectorAt(i32, 7), vectorAt(i32, 8)));
+        addReference(vectorAt(dv, 5), vectorAt(dv, 6)),
+        addReference(vectorAt(dv, 7), vectorAt(dv, 8)));
     balanced();
-    checkOutput(i32, addReference(dots, others));
+    checkOutput(dv, addReference(dots, others));
 
-    let manyExpected = vectorAt(i32, 0);
+    let manyExpected = vectorAt(dv, 0);
     for (const [a, b] of kManyPairs) {
-      manyExpected = addReference(manyExpected, dotReference(i16, a, b));
+      manyExpected = addReference(manyExpected, dotReference(dv, a, b));
     }
     many();
-    checkOutput(i32, manyExpected);
+    checkOutput(dv, manyExpected);
 
-    const sharedDot = dotReference(i16, 1, 2);
+    const sharedDot = dotReference(dv, 1, 2);
     const sharedExpected = addReference(
-        addReference(addReference(sharedDot, dotReference(i16, 3, 4)),
-                     dotReference(i16, 5, 6)),
+        addReference(addReference(sharedDot, dotReference(dv, 3, 4)),
+                     dotReference(dv, 5, 6)),
         sharedDot);
     shared();
-    checkOutput(i32, sharedExpected);
+    checkOutput(dv, sharedExpected);
   }
 })();
