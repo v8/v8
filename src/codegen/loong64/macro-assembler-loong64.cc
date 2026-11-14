@@ -2039,10 +2039,9 @@ int MacroAssembler::InstrCountForLi64Bit(int64_t value) {
   } else if ((value & 0xffffffffL) == 0) {
     // 32 LSBs (Least Significant Bits) all set to zero.
     uint8_t tzc = base::bits::CountTrailingZeros32(value >> 32);
-    uint8_t lzc = base::bits::CountLeadingZeros32(value >> 32);
     if (tzc >= 20) {
       return 1;
-    } else if (tzc + lzc > 12) {
+    } else if (is_int20(value >> (tzc + 32))) {
       return 2;
     } else {
       return 3;
@@ -2076,12 +2075,10 @@ void MacroAssembler::li_optimized(Register rd, Operand j, LiFlags mode) {
   } else if ((imm & 0xffffffffL) == 0) {
     // 32 LSBs (Least Significant Bits) all set to zero.
     uint8_t tzc = base::bits::CountTrailingZeros32(imm >> 32);
-    uint8_t lzc = base::bits::CountLeadingZeros32(imm >> 32);
     if (tzc >= 20) {
       lu52i_d(rd, zero_reg, imm >> 52 & kImm12Mask);
-    } else if (tzc + lzc > 12) {
-      int32_t mask = (1 << (32 - tzc)) - 1;
-      lu12i_w(rd, imm >> (tzc + 32) & mask);
+    } else if (is_int20(imm >> (tzc + 32))) {
+      lu12i_w(rd, imm >> (tzc + 32));
       slli_d(rd, rd, tzc + 20);
     } else {
       xor_(rd, rd, rd);
