@@ -286,6 +286,15 @@ class SimInstructionBase : public InstructionBase {
   inline Instruction* instr() const { return instr_; }
   inline int32_t operand() const { return operand_; }
 
+  // These hide the InstructionBase versions: operand_ already has the upper
+  // half cleared for a 16-bit instruction, so a field read needs no test of
+  // the instruction size.
+  inline Instr InstructionBits() const { return operand_; }
+  inline int Bit(int nr) const { return (InstructionBits() >> nr) & 1; }
+  inline int Bits(int hi, int lo) const {
+    return (InstructionBits() >> lo) & ((2U << (hi - lo)) - 1);
+  }
+
  protected:
   SimInstructionBase() : operand_(-1), instr_(nullptr), type_(kUnsupported) {}
   explicit SimInstructionBase(Instruction* instr) {}
@@ -300,14 +309,23 @@ class SimInstructionBase : public InstructionBase {
 
 class SimInstruction : public InstructionGetters<SimInstructionBase> {
  public:
+  // The encoding types of the 32-bit instructions by major opcode bits 6..2.
+  static constexpr auto kBaseOpcodeTypes = [] {
+    std::array<Type, 32> types{};
+    for (Instr i = 0; i < 32; i++) types[i] = BaseOpcodeType((i << 2) | 3);
+    return types;
+  }();
+
   SimInstruction() {}
 
   explicit SimInstruction(Instruction* instr) { *this = instr; }
 
   SimInstruction& operator=(Instruction* instr) {
-    operand_ = *reinterpret_cast<const int32_t*>(instr);
+    operand_ = instr->InstructionBits();
     instr_ = instr;
-    type_ = InstructionBase::InstructionType();
+    type_ = IsShortInstruction()
+                ? InstructionBase::InstructionType()
+                : kBaseOpcodeTypes[(operand_ & kBaseOpcodeMask) >> 2];
     DCHECK(reinterpret_cast<void*>(&operand_) == this);
     return *this;
   }
