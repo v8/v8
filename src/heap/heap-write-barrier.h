@@ -72,11 +72,14 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
   static void EphemeronKeyWriteBarrierFromCode(Address raw_object,
                                                Address key_slot_address,
                                                Isolate* isolate);
-  static int MarkingFromCode(Address raw_host, Address raw_slot);
+  static int MarkingFromCode(Isolate* isolate, Address raw_host,
+                             Address raw_slot);
   static int TrustedPointerMarkingFromCode(Address raw_host, Address raw_slot,
                                            Address raw_tag);
-  static int SharedMarkingFromCode(Address raw_host, Address raw_slot);
-  static int SharedFromCode(Address raw_host, Address raw_slot);
+  static int SharedMarkingFromCode(Isolate* isolate, Address raw_host,
+                                   Address raw_slot);
+  static int SharedFromCode(Isolate* isolate, Address raw_host,
+                            Address raw_slot);
 
   static inline WriteBarrierModeScope GetWriteBarrierModeForObject(
       Tagged<HeapObject> object, const DisallowGarbageCollection& promise);

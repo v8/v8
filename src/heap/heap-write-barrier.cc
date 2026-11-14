@@ -278,7 +278,8 @@ void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
   static_assert(!JSDispatchTable::kSupportsCompaction);
 }
 
-int WriteBarrier::MarkingFromCode(Address raw_host, Address raw_slot) {
+int WriteBarrier::MarkingFromCode(Isolate* isolate, Address raw_host,
+                                  Address raw_slot) {
   Tagged<HeapObject> host = Cast<HeapObject>(Tagged<Object>(raw_host));
   MaybeObjectSlot slot(raw_slot);
   Address value = (*slot).ptr();
@@ -293,15 +294,14 @@ int WriteBarrier::MarkingFromCode(Address raw_host, Address raw_slot) {
 #endif
 
 #if DEBUG
-  // TODO(leszeks): Decide whether we want to read metadata without the Isolate,
-  // or just use the TLS Isolate for the Heap.
-  Heap* heap = MutablePage::FromHeapObject(Isolate::Current(), host)->heap();
+  Heap* heap = MutablePage::FromHeapObject(isolate, host)->heap();
   DCHECK(heap->incremental_marking()->IsMarking());
 
   // We will only reach local objects here while incremental marking in the
   // current isolate is enabled. However, we might still reach objects in the
   // shared space but only from the shared space isolate (= the main isolate).
   MarkingBarrier* barrier = CurrentMarkingBarrier(host);
+  DCHECK_EQ(barrier->heap()->isolate(), isolate);
   DCHECK_IMPLIES(HeapLayout::InWritableSharedSpace(host),
                  barrier->heap()->isolate()->is_shared_space_isolate());
   barrier->AssertMarkingIsActivated();
@@ -333,26 +333,27 @@ int WriteBarrier::TrustedPointerMarkingFromCode(Address raw_host,
   return 0;
 }
 
-int WriteBarrier::SharedMarkingFromCode(Address raw_host, Address raw_slot) {
+int WriteBarrier::SharedMarkingFromCode(Isolate* isolate, Address raw_host,
+                                        Address raw_slot) {
   Tagged<HeapObject> host = Cast<HeapObject>(Tagged<Object>(raw_host));
   MaybeObjectSlot slot(raw_slot);
   Address raw_value = (*slot).ptr();
   Tagged<MaybeObject> value(raw_value);
 
   DCHECK(HeapLayout::InWritableSharedSpace(host));
+  // The shared marking barrier will only be reached from client isolates (=
+  // worker isolates). The shared space isolate treats shared objects as local
+  // objects and uses MarkingFromCode() instead.
+  DCHECK(!isolate->is_shared_space_isolate());
 
 #if DEBUG
-  // TODO(leszeks): Decide whether we want to read metadata without the Isolate,
-  // or just use the TLS Isolate for the Heap.
-  Heap* heap = MutablePage::FromHeapObject(Isolate::Current(), host)->heap();
-  DCHECK(heap->incremental_marking()->IsMajorMarking());
-  Isolate* isolate = heap->isolate();
-  DCHECK(isolate->is_shared_space_isolate());
+  // The host lives in the shared space, so it belongs to the heap of the shared
+  // space isolate and not to the heap of `isolate`.
+  Heap* shared_heap = isolate->shared_space_isolate()->heap();
+  DCHECK(shared_heap->incremental_marking()->IsMajorMarking());
 
-  // The shared marking barrier will only be reached from client isolates (=
-  // worker isolates).
   MarkingBarrier* barrier = CurrentMarkingBarrier(host);
-  DCHECK(!barrier->heap()->isolate()->is_shared_space_isolate());
+  DCHECK_EQ(barrier->heap()->isolate(), isolate);
   barrier->AssertSharedMarkingIsActivated();
 #endif  // DEBUG
 
@@ -362,10 +363,15 @@ int WriteBarrier::SharedMarkingFromCode(Address raw_host, Address raw_slot) {
   return 0;
 }
 
-int WriteBarrier::SharedFromCode(Address raw_host, Address raw_slot) {
+int WriteBarrier::SharedFromCode(Isolate* isolate, Address raw_host,
+                                 Address raw_slot) {
   Tagged<HeapObject> host = Cast<HeapObject>(Tagged<Object>(raw_host));
   DCHECK(!HeapLayout::InWritableSharedSpace(host));
-  SharedHeapBarrierSlow(host, raw_slot);
+  // Same as SharedHeapBarrierSlow(), but looks up the page metadata with the
+  // isolate passed in from generated code instead of Isolate::Current().
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(host);
+  RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(
+      SbxCast<MutablePage>(chunk->Metadata(isolate)), chunk->Offset(raw_slot));
 
   // Called by WriteBarrierCodeStubAssembler, which doesn't accept void type
   return 0;

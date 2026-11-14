@@ -159,6 +159,13 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
                           Int32Constant(0));
   }
 
+  // The address of the current isolate, computed off the root register. Passed
+  // to the C++ barriers such that they do not need to look up the isolate via
+  // TLS.
+  TNode<ExternalReference> IsolateAddress() {
+    return IsolateField(IsolateFieldId::kIsolateAddress);
+  }
+
   TNode<BoolT> IsUnmarked(TNode<IntPtrT> object) {
     TNode<IntPtrT> cell;
     TNode<IntPtrT> mask;
@@ -329,6 +336,8 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
         UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
     CallCFunctionWithCallerSavedRegisters(
         function, MachineTypeOf<Int32T>::value, fp_mode,
+        std::make_pair(MachineTypeOf<ExternalReference>::value,
+                       IsolateAddress()),
         std::make_pair(MachineTypeOf<IntPtrT>::value, object),
         std::make_pair(MachineTypeOf<IntPtrT>::value, slot));
     Goto(next);
@@ -452,6 +461,8 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
           UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
       CallCFunctionWithCallerSavedRegisters(
           function, MachineTypeOf<Int32T>::value, fp_mode,
+          std::make_pair(MachineTypeOf<ExternalReference>::value,
+                         IsolateAddress()),
           std::make_pair(MachineTypeOf<IntPtrT>::value, object),
           std::make_pair(MachineTypeOf<IntPtrT>::value, slot));
       Goto(next);
@@ -472,6 +483,8 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
           UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
       CallCFunctionWithCallerSavedRegisters(
           function, MachineTypeOf<Int32T>::value, fp_mode,
+          std::make_pair(MachineTypeOf<ExternalReference>::value,
+                         IsolateAddress()),
           std::make_pair(MachineTypeOf<IntPtrT>::value, object),
           std::make_pair(MachineTypeOf<IntPtrT>::value, slot));
       Goto(next);
@@ -561,6 +574,8 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
           ExternalReference::write_barrier_shared_marking_from_code_function());
       CallCFunctionWithCallerSavedRegisters(
           function, MachineTypeOf<Int32T>::value, fp_mode,
+          std::make_pair(MachineTypeOf<ExternalReference>::value,
+                         IsolateAddress()),
           std::make_pair(MachineTypeOf<IntPtrT>::value, object),
           std::make_pair(MachineTypeOf<IntPtrT>::value, slot));
 
