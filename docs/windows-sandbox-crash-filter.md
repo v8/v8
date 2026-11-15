@@ -29,6 +29,16 @@ address. It uses `TerminateProcess` to implement the harmless-crash exit path;
 this behavior must be exercised on supported Windows configurations and
 reviewed for exception-handler safety before production use.
 
+## Build and test
+
+The Windows CI workflow configures a full V8 checkout with `depot_tools`,
+builds `d8` and `unittests`, then runs the Windows crash-filter tests:
+
+```bat
+autoninja -C out.gn/x64.release d8 unittests
+out.gn/x64.release\\unittests.exe --gtest_filter=WindowsSandboxCrashFilter*
+```
+
 ## Validation still required
 
 - Build V8 x64 with `v8_enable_sandbox=true`.

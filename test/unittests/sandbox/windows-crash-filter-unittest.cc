@@ -6,7 +6,11 @@
 
 #include <gtest/gtest.h>
 
-#ifdef V8_OS_WIN
+#include "src/sandbox/sandbox.h"
+#include "src/sandbox/testing.h"
+#include "test/unittests/test-utils.h"
+
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_SANDBOX)
 
 namespace v8 {
 namespace internal {
@@ -26,7 +30,8 @@ EXCEPTION_RECORD MakeAccessViolation(ULONG_PTR access_type,
 }
 
 TEST(WindowsSandboxCrashFilterTest, ClassifiesFaultInsideSandbox) {
-  for (ULONG_PTR access_type : {0, 1, 8}) {
+  constexpr ULONG_PTR kAccessTypes[] = {0, 1, 8};
+  for (ULONG_PTR access_type : kAccessTypes) {
     EXCEPTION_RECORD record =
         MakeAccessViolation(access_type, kSandboxStart + 0x1000);
     EXPECT_TRUE(IsHarmlessWindowsSandboxAccessViolation(
@@ -67,8 +72,39 @@ TEST(WindowsSandboxCrashFilterTest, RejectsNonAccessViolationExceptions) {
       &record, kSandboxStart, kSandboxEnd));
 }
 
+
+using WindowsSandboxCrashFilterIntegrationTest = TestWithIsolate;
+
+// Exercise the registered VEH end-to-end in a child process. The sandbox
+// reservation is inaccessible, so reading its base must raise an access
+// violation that the filter classifies as harmless.
+TEST_F(WindowsSandboxCrashFilterIntegrationTest, FiltersSandboxAccessViolation) {
+  Sandbox* sandbox = Sandbox::current();
+  ASSERT_EXIT(
+      {
+        SandboxTesting::Enable(SandboxTesting::Mode::kForTesting);
+        volatile uint8_t value =
+            *reinterpret_cast<volatile uint8_t*>(sandbox->base());
+        (void)value;
+      },
+      testing::ExitedWithCode(0), "");
+}
+
+TEST_F(WindowsSandboxCrashFilterIntegrationTest,
+       FuzzingModeUsesNonZeroExitCode) {
+  Sandbox* sandbox = Sandbox::current();
+  ASSERT_EXIT(
+      {
+        SandboxTesting::Enable(SandboxTesting::Mode::kForFuzzing);
+        volatile uint8_t value =
+            *reinterpret_cast<volatile uint8_t*>(sandbox->base());
+        (void)value;
+      },
+      testing::ExitedWithCode(1), "");
+}
+
 }  // namespace
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_OS_WIN
+#endif  // V8_OS_WIN && V8_ENABLE_SANDBOX
