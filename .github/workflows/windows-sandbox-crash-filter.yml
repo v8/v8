@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   windows-x64:
-    runs-on: windows-2022
+    runs-on: windows-2025
     timeout-minutes: 180
     steps:
       - name: Check out V8 fork
@@ -39,10 +39,32 @@ jobs:
         run: |
           "$env:GITHUB_WORKSPACE\depot_tools" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
+      - name: Install required Windows SDK
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\\Microsoft Visual Studio\\Installer\\vswhere.exe"
+          $vsPath = & $vswhere -latest -products '*' -property installationPath
+          if (-not $vsPath) {
+            throw "Visual Studio installation was not found."
+          }
+          Write-Host "Using Visual Studio at: $vsPath"
+          $sdkPath = "${env:ProgramFiles(x86)}\\Windows Kits\\10\\Include\\10.0.28000.0"
+          if (-not (Test-Path $sdkPath)) {
+            $installer = "${env:ProgramFiles(x86)}\\Microsoft Visual Studio\\Installer\\vs_installer.exe"
+            & $installer modify --installPath $vsPath --add Microsoft.VisualStudio.Component.Windows11SDK.28000 --quiet --norestart --wait
+            if ($LASTEXITCODE -ne 0) {
+              throw "Visual Studio Installer could not install Windows SDK 10.0.28000.0 (exit $LASTEXITCODE)."
+            }
+          }
+          if (-not (Test-Path $sdkPath)) {
+            throw "Windows SDK 10.0.28000.0 is still missing after installation."
+          }
+          Write-Host "Verified Windows SDK 10.0.28000.0."
+
       - name: Sync V8 dependencies
         shell: pwsh
         env:
-          DEPOT_TOOLS_WIN_TOOLCHAIN: "1"
+          DEPOT_TOOLS_WIN_TOOLCHAIN: "0"
         run: |
           gclient config --unmanaged https://github.com/${{ github.repository }}.git
           gclient sync --no-history
@@ -50,7 +72,7 @@ jobs:
       - name: Run V8 hooks
         shell: pwsh
         env:
-          DEPOT_TOOLS_WIN_TOOLCHAIN: "1"
+          DEPOT_TOOLS_WIN_TOOLCHAIN: "0"
         run: |
           gclient runhooks
 
@@ -58,7 +80,7 @@ jobs:
         shell: pwsh
         working-directory: v8-windws
         env:
-          DEPOT_TOOLS_WIN_TOOLCHAIN: "1"
+          DEPOT_TOOLS_WIN_TOOLCHAIN: "0"
         run: |
           @(
             "is_debug = false"
@@ -71,7 +93,7 @@ jobs:
         shell: pwsh
         working-directory: v8-windws
         env:
-          DEPOT_TOOLS_WIN_TOOLCHAIN: "1"
+          DEPOT_TOOLS_WIN_TOOLCHAIN: "0"
         run: |
           autoninja -C out.gn/x64.release d8 unittests
 
