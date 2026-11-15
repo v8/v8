@@ -60,7 +60,12 @@ jobs:
         env:
           DEPOT_TOOLS_WIN_TOOLCHAIN: "0"
         run: |
-          gn gen out.gn/x64.release --args='is_debug=false target_cpu="x64" v8_enable_sandbox=true'
+          @(
+            "is_debug = false"
+            'target_cpu = "x64"'
+            "v8_enable_sandbox = true"
+          ) | Set-Content -Path windows-x64-args.gn -Encoding ascii
+          gn gen out.gn/x64.release --args-file=windows-x64-args.gn
 
       - name: Build d8 and unit tests
         shell: pwsh
