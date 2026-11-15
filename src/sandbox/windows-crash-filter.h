@@ -16,7 +16,7 @@ namespace internal {
 // lies in the sandbox reservation or the platform's reserved zero segment.
 // This helper is deliberately pure so its classification rules can be tested
 // without installing a process-wide exception handler.
-bool IsHarmlessWindowsSandboxAccessViolation(const EXCEPTION_RECORD* record,
+V8_EXPORT_PRIVATE bool IsHarmlessWindowsSandboxAccessViolation(const EXCEPTION_RECORD* record,
                                              Address sandbox_start,
                                              Address sandbox_end);
 

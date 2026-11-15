@@ -1,6 +1,7 @@
 name: Windows x64 sandbox crash filter
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - work/windows-x64-crash-filter

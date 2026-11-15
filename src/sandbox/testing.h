@@ -48,19 +48,18 @@ class SandboxTesting : public AllStatic {
 
   // Enable sandbox testing mode.
   //
-  // This will initialize the sandbox crash filter. On POSIX this is a signal
-  // handler for fatal signals; on Windows it is a vectored exception handler.
-  // It filters out crashes that are not considered "sandbox violations".
+  // This will initialize the sandbox crash filter. The crash filter is a
+  // signal handler for a number of fatal signals (e.g. SIGSEGV and SIGBUS) that
+  // filters out all crashes that are not considered "sandbox violations".
   // Examples of such "safe" crahses (in the context of the sandbox) are memory
   // access violations inside the sandbox address space or access violations
   // that always lead to an immediate crash (for example, an access to a
   // non-canonical address which may be the result of a tag mismatch in one of
   // the sandbox's pointer tables). On the other hand, if the crash represents
-  // a legitimate sandbox violation, normal platform exception processing is
-  // allowed to continue so the underlying failure is reported.
+  // a legitimate sandbox violation, the signal is forwarded to the original
+  // signal handler which will report the crash appropriately.
   //
-  // Currently supported on Linux and Windows. Windows support is limited to
-  // access violations classified by the Windows VEH implementation.
+  // Currently supported on Linux only.
   V8_EXPORT_PRIVATE static void Enable(Mode mode);
 
   // Disable sandbox testing mode.
