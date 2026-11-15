@@ -26,11 +26,9 @@ jobs:
           path: v8
 
       - name: Check out depot_tools
-        uses: actions/checkout@v4
-        with:
-          repository: chromium/tools/depot_tools
-          path: depot_tools
-          fetch-depth: 1
+        shell: pwsh
+        run: |
+          git clone --depth=1 https://chromium.googlesource.com/chromium/tools/depot_tools.git "$env:GITHUB_WORKSPACE\depot_tools"
 
       - name: Add depot_tools to PATH
         shell: pwsh
