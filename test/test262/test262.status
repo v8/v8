@@ -37,17 +37,6 @@
   # https://code.google.com/p/v8/issues/detail?id=4248
   'language/expressions/compound-assignment/S11.13.2_A5.*': [FAIL],
   'language/expressions/compound-assignment/S11.13.2_A6.*': [FAIL],
-  'language/expressions/compound-assignment/S11.13.2_A7.10_T4': [FAIL],
-  'language/expressions/compound-assignment/S11.13.2_A7.11_T4': [FAIL],
-  'language/expressions/compound-assignment/S11.13.2_A7.1_T4': [FAIL],
-  'language/expressions/compound-assignment/S11.13.2_A7.2_T4': [FAIL],
-  'language/expressions/compound-assignment/S11.13.2_A7.3_T4': [FAIL],
-  'language/expressions/compound-assignment/S11.13.2_A7.4_T4': [FAIL],
-  'language/expressions/compound-assignment/S11.13.2_A7.5_T4': [FAIL],
-  'language/expressions/compound-assignment/S11.13.2_A7.6_T4': [FAIL],
-  'language/expressions/compound-assignment/S11.13.2_A7.7_T4': [FAIL],
-  'language/expressions/compound-assignment/S11.13.2_A7.8_T4': [FAIL],
-  'language/expressions/compound-assignment/S11.13.2_A7.9_T4': [FAIL],
   'language/statements/with/unscopables-inc-dec': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4249
@@ -1050,6 +1039,38 @@
   'intl402/Locale/prototype/getTextInfo/script-metadata-unlisted-language-script-is-rtl': [SKIP],
   'intl402/Locale/prototype/getTextInfo/script-subtag-missing': [SKIP],
   'intl402/Locale/prototype/getTextInfo/script-unregistered-or-privateuse': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/DataView/prototype/byteLength/detached-buffer': [SKIP],
+  'built-ins/DataView/prototype/byteLength/resizable-array-buffer-auto': [SKIP],
+  'built-ins/DataView/prototype/byteLength/resizable-array-buffer-fixed': [SKIP],
+  'built-ins/DataView/prototype/byteOffset/detached-buffer': [SKIP],
+  'built-ins/DataView/prototype/byteOffset/resizable-array-buffer-auto': [SKIP],
+  'built-ins/DataView/prototype/byteOffset/resizable-array-buffer-fixed': [SKIP],
+  'built-ins/Iterator/concat/underlying-iterator-not-closed-when-step-throws': [SKIP],
+  'built-ins/Temporal/PlainMonthDay/from/iso-year-used-only-for-overflow': [SKIP],
+  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-add': [SKIP],
+  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-bitand': [SKIP],
+  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-bitor': [SKIP],
+  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-bitxor': [SKIP],
+  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-div': [SKIP],
+  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-exp': [SKIP],
+  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-lshift': [SKIP],
+  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-mod': [SKIP],
+  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-mult': [SKIP],
+  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-rshift': [SKIP],
+  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-srshift': [SKIP],
+  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-sub': [SKIP],
+  'language/expressions/logical-assignment/lgcl-and-assignment-operator-topropertykey-once': [SKIP],
+  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-topropertykey-once': [SKIP],
+  'language/expressions/logical-assignment/lgcl-or-assignment-operator-topropertykey-once': [SKIP],
+  'language/statements/class/elements/arrow-body-arguments-label': [SKIP],
+  'language/statements/class/static-init-arguments-label': [SKIP],
 }],
 # End roll-watcher patch
 ####
