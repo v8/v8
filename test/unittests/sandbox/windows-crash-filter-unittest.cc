@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/sandbox/windows-crash-filter.h"
-
 #include <gtest/gtest.h>
 
 #include "src/sandbox/sandbox.h"
 #include "src/sandbox/testing.h"
+#include "src/sandbox/windows-crash-filter.h"
 #include "test/unittests/test-utils.h"
 
 #if defined(V8_OS_WIN) && defined(V8_ENABLE_SANDBOX)
@@ -78,7 +77,8 @@ using WindowsSandboxCrashFilterIntegrationTest = TestWithIsolate;
 // Exercise the registered VEH end-to-end in a child process. The sandbox
 // reservation is inaccessible, so reading its base must raise an access
 // violation that the filter classifies as harmless.
-TEST_F(WindowsSandboxCrashFilterIntegrationTest, FiltersSandboxAccessViolation) {
+TEST_F(WindowsSandboxCrashFilterIntegrationTest,
+       FiltersSandboxAccessViolation) {
   Sandbox* sandbox = Sandbox::current();
   ASSERT_EXIT(
       {
