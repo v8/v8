@@ -56,8 +56,17 @@ jobs:
             if (-not (Test-Path $installer)) {
               throw "Visual Studio Installer setup.exe was not found: $installer"
             }
-            & $installer modify --installPath $vsPath --add Microsoft.VisualStudio.Component.Windows11SDK.28000 --quiet --norestart --wait
-            $installerExitCode = $LASTEXITCODE
+            $installerArgs = @(
+              'modify'
+              '--installPath'
+              "`"$vsPath`""
+              '--add'
+              'Microsoft.VisualStudio.Component.Windows11SDK.28000'
+              '--quiet'
+              '--norestart'
+            )
+            $installerProcess = Start-Process -FilePath $installer -ArgumentList $installerArgs -Wait -PassThru -NoNewWindow
+            $installerExitCode = $installerProcess.ExitCode
             Write-Host "Visual Studio Installer exit code: $installerExitCode"
             if ($installerExitCode -ne 0) {
               throw "Visual Studio Installer failed to add Windows SDK 10.0.28000.0 (exit $installerExitCode)."
