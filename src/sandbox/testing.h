@@ -50,14 +50,14 @@ class SandboxTesting : public AllStatic {
   //
   // This will initialize the sandbox crash filter. On POSIX this is a signal
   // handler for fatal signals; on Windows it is a vectored exception handler.
-  // filters out all crashes that are not considered "sandbox violations".
+  // It filters out crashes that are not considered "sandbox violations".
   // Examples of such "safe" crahses (in the context of the sandbox) are memory
   // access violations inside the sandbox address space or access violations
   // that always lead to an immediate crash (for example, an access to a
   // non-canonical address which may be the result of a tag mismatch in one of
   // the sandbox's pointer tables). On the other hand, if the crash represents
-  // a legitimate sandbox violation, the signal is forwarded to the original
-  // signal handler which will report the crash appropriately.
+  // a legitimate sandbox violation, normal platform exception processing is
+  // allowed to continue so the underlying failure is reported.
   //
   // Currently supported on Linux and Windows. Windows support is limited to
   // access violations classified by the Windows VEH implementation.

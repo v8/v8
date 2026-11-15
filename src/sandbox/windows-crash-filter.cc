@@ -4,11 +4,8 @@
 
 #include "src/sandbox/windows-crash-filter.h"
 
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_SANDBOX)
-
 #include <windows.h>
 
-#include "src/base/logging.h"
 #include "src/sandbox/sandbox-zero-segment.h"
 
 namespace v8 {
@@ -37,9 +34,9 @@ LONG WINAPI WindowsSandboxCrashFilter(EXCEPTION_POINTERS* exception) {
     return EXCEPTION_CONTINUE_SEARCH;
   }
 
-  // Terminate the current process without attempting V8 cleanup. Keep this
-  // exception callback otherwise minimal: do not log, allocate, take locks,
-  // or call into the V8 runtime.
+  // TerminateProcess is the Windows equivalent of the async-signal-safe _exit
+  // used by the POSIX crash filter. Do not perform logging or cleanup here:
+  // the process is already in an exception-dispatch path.
   const DWORD exit_code =
       static_cast<DWORD>(InterlockedCompareExchange(&g_harmless_exit_code, 0,
                                                     0));
@@ -84,7 +81,7 @@ bool IsHarmlessWindowsSandboxAccessViolation(const EXCEPTION_RECORD* record,
 
 void InstallWindowsCrashFilter(Address sandbox_start, Address sandbox_end,
                                 bool fuzzing_mode) {
-  CHECK(g_registered_handler == nullptr);
+  CHECK_NULL(g_registered_handler);
   CHECK_LT(sandbox_start, sandbox_end);
 
   InterlockedExchangePointer(&g_sandbox_start,
@@ -98,7 +95,7 @@ void InstallWindowsCrashFilter(Address sandbox_start, Address sandbox_end,
   // first opportunity to handle its own access violations.
   g_registered_handler =
       AddVectoredExceptionHandler(FALSE, WindowsSandboxCrashFilter);
-  CHECK(g_registered_handler != nullptr);
+  CHECK_NOT_NULL(g_registered_handler);
 }
 
 void UninstallWindowsCrashFilter() {
@@ -106,7 +103,7 @@ void UninstallWindowsCrashFilter() {
 
   PVOID handler = g_registered_handler;
   g_registered_handler = nullptr;
-  CHECK(RemoveVectoredExceptionHandler(handler) != 0);
+  CHECK_NE(RemoveVectoredExceptionHandler(handler), 0);
 
   InterlockedExchangePointer(&g_sandbox_start, nullptr);
   InterlockedExchangePointer(&g_sandbox_end, nullptr);
@@ -115,5 +112,3 @@ void UninstallWindowsCrashFilter() {
 
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_OS_WIN && V8_ENABLE_SANDBOX

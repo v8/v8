@@ -1,0 +1,76 @@
+name: Windows x64 sandbox crash filter
+
+on:
+  push:
+    branches:
+      - work/windows-x64-crash-filter
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "src/sandbox/**"
+      - "test/unittests/sandbox/**"
+      - "BUILD.gn"
+      - "test/unittests/BUILD.gn"
+      - ".github/workflows/windows-sandbox-crash-filter.yml"
+
+jobs:
+  windows-x64:
+    runs-on: windows-2022
+    timeout-minutes: 180
+    steps:
+      - name: Check out V8 fork
+        uses: actions/checkout@v4
+        with:
+          path: v8
+
+      - name: Check out depot_tools
+        uses: actions/checkout@v4
+        with:
+          repository: chromium/tools/depot_tools
+          path: depot_tools
+          fetch-depth: 1
+
+      - name: Add depot_tools to PATH
+        shell: pwsh
+        run: |
+          "$env:GITHUB_WORKSPACE\depot_tools" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Sync V8 dependencies
+        shell: pwsh
+        working-directory: v8
+        env:
+          DEPOT_TOOLS_WIN_TOOLCHAIN: "0"
+        run: |
+          gclient config --unmanaged https://github.com/${{ github.repository }}.git
+          gclient sync --no-history
+
+      - name: Generate Windows x64 build
+        shell: pwsh
+        working-directory: v8
+        env:
+          DEPOT_TOOLS_WIN_TOOLCHAIN: "0"
+        run: |
+          gn gen out.gn/x64.release --args='is_debug=false target_cpu="x64" v8_enable_sandbox=true'
+
+      - name: Build d8 and unit tests
+        shell: pwsh
+        working-directory: v8
+        env:
+          DEPOT_TOOLS_WIN_TOOLCHAIN: "0"
+        run: |
+          autoninja -C out.gn/x64.release d8 unittests
+
+      - name: Run Windows sandbox crash-filter tests
+        shell: pwsh
+        working-directory: v8
+        run: |
+          .\out.gn\x64.release\unittests.exe --gtest_filter='WindowsSandboxCrashFilter*'
+
+      - name: Upload d8.exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: d8-windows-x64
+          path: v8/out.gn/x64.release/d8.exe
+          if-no-files-found: error
+          retention-days: 7
