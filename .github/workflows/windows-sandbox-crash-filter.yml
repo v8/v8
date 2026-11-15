@@ -42,24 +42,38 @@ jobs:
       - name: Install required Windows SDK
         shell: pwsh
         run: |
-          $vswhere = "${env:ProgramFiles(x86)}\\Microsoft Visual Studio\\Installer\\vswhere.exe"
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\\Installer\\vswhere.exe'
           $vsPath = & $vswhere -latest -products '*' -property installationPath
           if (-not $vsPath) {
             throw "Visual Studio installation was not found."
           }
           Write-Host "Using Visual Studio at: $vsPath"
-          $sdkPath = "${env:ProgramFiles(x86)}\\Windows Kits\\10\\Include\\10.0.28000.0"
+
+          $sdkRoot = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\\10\\Include'
+          $sdkPath = Join-Path $sdkRoot '10.0.28000.0'
           if (-not (Test-Path $sdkPath)) {
-            $installer = "${env:ProgramFiles(x86)}\\Microsoft Visual Studio\\Installer\\vs_installer.exe"
+            $installer = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\\Installer\\setup.exe'
+            if (-not (Test-Path $installer)) {
+              throw "Visual Studio Installer setup.exe was not found: $installer"
+            }
             & $installer modify --installPath $vsPath --add Microsoft.VisualStudio.Component.Windows11SDK.28000 --quiet --norestart --wait
-            if ($LASTEXITCODE -ne 0) {
-              throw "Visual Studio Installer could not install Windows SDK 10.0.28000.0 (exit $LASTEXITCODE)."
+            $installerExitCode = $LASTEXITCODE
+            Write-Host "Visual Studio Installer exit code: $installerExitCode"
+            if ($installerExitCode -ne 0) {
+              throw "Visual Studio Installer failed to add Windows SDK 10.0.28000.0 (exit $installerExitCode)."
             }
           }
+
           if (-not (Test-Path $sdkPath)) {
-            throw "Windows SDK 10.0.28000.0 is still missing after installation."
+            Write-Host "Installed Windows SDK include directories:"
+            if (Test-Path $sdkRoot) {
+              Get-ChildItem $sdkRoot -Directory | ForEach-Object { Write-Host $_.Name }
+            } else {
+              Write-Host "SDK include root not found: $sdkRoot"
+            }
+            throw "Windows SDK 10.0.28000.0 is still missing after Visual Studio Installer completed."
           }
-          Write-Host "Verified Windows SDK 10.0.28000.0."
+          Write-Host "Verified Windows SDK 10.0.28000.0 at $sdkPath."
 
       - name: Sync V8 dependencies
         shell: pwsh
