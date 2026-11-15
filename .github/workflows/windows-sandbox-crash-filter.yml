@@ -42,7 +42,7 @@ jobs:
       - name: Sync V8 dependencies
         shell: pwsh
         env:
-          DEPOT_TOOLS_WIN_TOOLCHAIN: "0"
+          DEPOT_TOOLS_WIN_TOOLCHAIN: "1"
         run: |
           gclient config --unmanaged https://github.com/${{ github.repository }}.git
           gclient sync --no-history
@@ -50,7 +50,7 @@ jobs:
       - name: Run V8 hooks
         shell: pwsh
         env:
-          DEPOT_TOOLS_WIN_TOOLCHAIN: "0"
+          DEPOT_TOOLS_WIN_TOOLCHAIN: "1"
         run: |
           gclient runhooks
 
@@ -58,7 +58,7 @@ jobs:
         shell: pwsh
         working-directory: v8-windws
         env:
-          DEPOT_TOOLS_WIN_TOOLCHAIN: "0"
+          DEPOT_TOOLS_WIN_TOOLCHAIN: "1"
         run: |
           @(
             "is_debug = false"
@@ -71,7 +71,7 @@ jobs:
         shell: pwsh
         working-directory: v8-windws
         env:
-          DEPOT_TOOLS_WIN_TOOLCHAIN: "0"
+          DEPOT_TOOLS_WIN_TOOLCHAIN: "1"
         run: |
           autoninja -C out.gn/x64.release d8 unittests
 
