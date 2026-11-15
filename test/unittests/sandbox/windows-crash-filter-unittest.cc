@@ -6,7 +6,7 @@
 
 #include <gtest/gtest.h>
 
-#ifdef V8_OS_WIN
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_SANDBOX)
 
 namespace v8 {
 namespace internal {
@@ -26,7 +26,8 @@ EXCEPTION_RECORD MakeAccessViolation(ULONG_PTR access_type,
 }
 
 TEST(WindowsSandboxCrashFilterTest, ClassifiesFaultInsideSandbox) {
-  for (ULONG_PTR access_type : {0, 1, 8}) {
+  constexpr ULONG_PTR kAccessTypes[] = {0, 1, 8};
+  for (ULONG_PTR access_type : kAccessTypes) {
     EXCEPTION_RECORD record =
         MakeAccessViolation(access_type, kSandboxStart + 0x1000);
     EXPECT_TRUE(IsHarmlessWindowsSandboxAccessViolation(

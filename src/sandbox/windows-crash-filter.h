@@ -5,9 +5,10 @@
 #ifndef V8_SANDBOX_WINDOWS_CRASH_FILTER_H_
 #define V8_SANDBOX_WINDOWS_CRASH_FILTER_H_
 
-#include <windows.h>
-
 #include "src/common/globals.h"
+
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_SANDBOX)
+#include <windows.h>
 
 namespace v8 {
 namespace internal {
@@ -29,5 +30,6 @@ void UninstallWindowsCrashFilter();
 
 }  // namespace internal
 }  // namespace v8
+#endif  // V8_OS_WIN && V8_ENABLE_SANDBOX
 
 #endif  // V8_SANDBOX_WINDOWS_CRASH_FILTER_H_

@@ -59,7 +59,8 @@ class SandboxTesting : public AllStatic {
   // a legitimate sandbox violation, the signal is forwarded to the original
   // signal handler which will report the crash appropriately.
   //
-  // Currently supported on Linux only.
+  // Currently supported on Linux and Windows. Windows support is limited to
+  // access violations classified by the Windows VEH implementation.
   V8_EXPORT_PRIVATE static void Enable(Mode mode);
 
   // Disable sandbox testing mode.
