@@ -27,7 +27,7 @@ jobs:
       - name: Check out V8 fork
         uses: actions/checkout@v4
         with:
-          path: v8
+          path: v8-windws
 
       - name: Check out depot_tools
         shell: pwsh
@@ -41,7 +41,6 @@ jobs:
 
       - name: Sync V8 dependencies
         shell: pwsh
-        working-directory: v8
         env:
           DEPOT_TOOLS_WIN_TOOLCHAIN: "0"
         run: |
@@ -50,7 +49,6 @@ jobs:
 
       - name: Run V8 hooks
         shell: pwsh
-        working-directory: v8
         env:
           DEPOT_TOOLS_WIN_TOOLCHAIN: "0"
         run: |
@@ -58,7 +56,7 @@ jobs:
 
       - name: Generate Windows x64 build
         shell: pwsh
-        working-directory: v8
+        working-directory: v8-windws
         env:
           DEPOT_TOOLS_WIN_TOOLCHAIN: "0"
         run: |
@@ -66,7 +64,7 @@ jobs:
 
       - name: Build d8 and unit tests
         shell: pwsh
-        working-directory: v8
+        working-directory: v8-windws
         env:
           DEPOT_TOOLS_WIN_TOOLCHAIN: "0"
         run: |
@@ -74,7 +72,7 @@ jobs:
 
       - name: Run Windows sandbox crash-filter tests
         shell: pwsh
-        working-directory: v8
+        working-directory: v8-windws
         run: |
           .\out.gn\x64.release\unittests.exe --gtest_filter='WindowsSandboxCrashFilter*'
 
@@ -82,6 +80,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: d8-windows-x64
-          path: v8/out.gn/x64.release/d8.exe
+          path: v8-windws/out.gn/x64.release/d8.exe
           if-no-files-found: error
           retention-days: 7
