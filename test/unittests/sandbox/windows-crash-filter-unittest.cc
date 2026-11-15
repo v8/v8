@@ -6,7 +6,7 @@
 
 #include <gtest/gtest.h>
 
-#ifdef V8_OS_WIN
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_SANDBOX)
 
 namespace v8 {
 namespace internal {
@@ -57,6 +57,25 @@ TEST(WindowsSandboxCrashFilterTest, RejectsMalformedExceptionRecords) {
   EXCEPTION_RECORD record = MakeAccessViolation(1, kSandboxStart + 0x1000);
   record.NumberParameters = 1;
   EXPECT_FALSE(IsHarmlessWindowsSandboxAccessViolation(
+      &record, kSandboxStart, kSandboxEnd));
+}
+
+TEST(WindowsSandboxCrashFilterTest, ClassifiesDebugTrapExceptions) {
+  EXCEPTION_RECORD breakpoint{};
+  breakpoint.ExceptionCode = EXCEPTION_BREAKPOINT;
+  EXPECT_TRUE(IsHarmlessWindowsSandboxException(
+      &breakpoint, kSandboxStart, kSandboxEnd));
+
+  EXCEPTION_RECORD single_step{};
+  single_step.ExceptionCode = EXCEPTION_SINGLE_STEP;
+  EXPECT_TRUE(IsHarmlessWindowsSandboxException(
+      &single_step, kSandboxStart, kSandboxEnd));
+}
+
+TEST(WindowsSandboxCrashFilterTest, RejectsUnknownExceptionTypes) {
+  EXCEPTION_RECORD record{};
+  record.ExceptionCode = EXCEPTION_ILLEGAL_INSTRUCTION;
+  EXPECT_FALSE(IsHarmlessWindowsSandboxException(
       &record, kSandboxStart, kSandboxEnd));
 }
 

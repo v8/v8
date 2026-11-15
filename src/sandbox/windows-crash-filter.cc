@@ -4,8 +4,11 @@
 
 #include "src/sandbox/windows-crash-filter.h"
 
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_SANDBOX)
+
 #include <windows.h>
 
+#include "src/base/logging.h"
 #include "src/sandbox/sandbox-zero-segment.h"
 
 namespace v8 {
@@ -29,7 +32,7 @@ LONG WINAPI WindowsSandboxCrashFilter(EXCEPTION_POINTERS* exception) {
   const Address sandbox_end = reinterpret_cast<Address>(
       InterlockedCompareExchangePointer(&g_sandbox_end, nullptr, nullptr));
 
-  if (!IsHarmlessWindowsSandboxAccessViolation(
+  if (!IsHarmlessWindowsSandboxException(
           exception->ExceptionRecord, sandbox_start, sandbox_end)) {
     return EXCEPTION_CONTINUE_SEARCH;
   }
@@ -79,6 +82,17 @@ bool IsHarmlessWindowsSandboxAccessViolation(const EXCEPTION_RECORD* record,
   return inside_sandbox || inside_zero_segment;
 }
 
+bool IsHarmlessWindowsSandboxException(
+    const EXCEPTION_RECORD* record, Address sandbox_start, Address sandbox_end) {
+  if (record == nullptr) return false;
+  if (record->ExceptionCode == EXCEPTION_BREAKPOINT ||
+      record->ExceptionCode == EXCEPTION_SINGLE_STEP) {
+    return true;
+  }
+  return IsHarmlessWindowsSandboxAccessViolation(record, sandbox_start,
+                                                  sandbox_end);
+}
+
 void InstallWindowsCrashFilter(Address sandbox_start, Address sandbox_end,
                                 bool fuzzing_mode) {
   CHECK_NULL(g_registered_handler);
@@ -112,3 +126,5 @@ void UninstallWindowsCrashFilter() {
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_OS_WIN && V8_ENABLE_SANDBOX
