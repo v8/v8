@@ -48,8 +48,8 @@ class SandboxTesting : public AllStatic {
 
   // Enable sandbox testing mode.
   //
-  // This will initialize the sandbox crash filter. The crash filter is a
-  // signal handler for a number of fatal signals (e.g. SIGSEGV and SIGBUS) that
+  // This will initialize the sandbox crash filter. On POSIX this is a signal
+  // handler for fatal signals; on Windows it is a vectored exception handler.
   // filters out all crashes that are not considered "sandbox violations".
   // Examples of such "safe" crahses (in the context of the sandbox) are memory
   // access violations inside the sandbox address space or access violations

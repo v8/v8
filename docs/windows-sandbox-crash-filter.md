@@ -25,9 +25,10 @@ malformed exceptions continue normal Windows exception search.
 
 The VEH callback is intentionally small: it does not call `VirtualQuery`,
 allocate memory, take locks, access the V8 heap, or inspect the faulting
-address. It uses `TerminateProcess` to implement the harmless-crash exit path;
-this behavior must be exercised on supported Windows configurations and
-reviewed for exception-handler safety before production use.
+address. It uses `TerminateProcess` to implement the harmless-crash exit path. This
+termination path and its interaction with Windows exception dispatch must be
+exercised on supported Windows configurations and reviewed before production
+use.
 
 ## Validation still required
 

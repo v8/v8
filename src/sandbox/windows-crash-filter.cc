@@ -37,9 +37,9 @@ LONG WINAPI WindowsSandboxCrashFilter(EXCEPTION_POINTERS* exception) {
     return EXCEPTION_CONTINUE_SEARCH;
   }
 
-  // TerminateProcess is the Windows equivalent of the async-signal-safe _exit
-  // used by the POSIX crash filter. Do not perform logging or cleanup here:
-  // the process is already in an exception-dispatch path.
+  // Terminate the current process without attempting V8 cleanup. Keep this
+  // exception callback otherwise minimal: do not log, allocate, take locks,
+  // or call into the V8 runtime.
   const DWORD exit_code =
       static_cast<DWORD>(InterlockedCompareExchange(&g_harmless_exit_code, 0,
                                                     0));
