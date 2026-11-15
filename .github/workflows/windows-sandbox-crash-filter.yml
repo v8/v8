@@ -118,13 +118,13 @@ jobs:
         env:
           DEPOT_TOOLS_WIN_TOOLCHAIN: "0"
         run: |
-          autoninja -C out.gn/x64.release d8 unittests
+          autoninja -C out.gn/x64.release d8 v8_unittests
 
       - name: Run Windows sandbox crash-filter tests
         shell: pwsh
         working-directory: v8-windws
         run: |
-          .\out.gn\x64.release\unittests.exe --gtest_filter='WindowsSandboxCrashFilter*'
+          .\out.gn\x64.release\v8_unittests.exe --gtest_filter='WindowsSandboxCrashFilter*'
 
       - name: Upload d8.exe
         uses: actions/upload-artifact@v4
