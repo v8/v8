@@ -15,6 +15,10 @@ on:
       - "test/unittests/BUILD.gn"
       - ".github/workflows/windows-sandbox-crash-filter.yml"
 
+concurrency:
+  group: windows-x64-crash-filter-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   windows-x64:
     runs-on: windows-2022
