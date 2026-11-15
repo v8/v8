@@ -90,4 +90,4 @@ TEST(WindowsSandboxCrashFilterTest, RejectsNonAccessViolationExceptions) {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_OS_WIN
+#endif  // V8_OS_WIN && V8_ENABLE_SANDBOX
