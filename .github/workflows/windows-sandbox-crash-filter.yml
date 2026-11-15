@@ -42,17 +42,17 @@ jobs:
       - name: Install required Windows SDK
         shell: pwsh
         run: |
-          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\\Installer\\vswhere.exe'
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
           $vsPath = & $vswhere -latest -products '*' -property installationPath
           if (-not $vsPath) {
             throw "Visual Studio installation was not found."
           }
           Write-Host "Using Visual Studio at: $vsPath"
 
-          $sdkRoot = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\\10\\Include'
+          $sdkRoot = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\Include'
           $sdkPath = Join-Path $sdkRoot '10.0.28000.0'
           if (-not (Test-Path $sdkPath)) {
-            $installer = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\\Installer\\setup.exe'
+            $installer = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\setup.exe'
             if (-not (Test-Path $installer)) {
               throw "Visual Studio Installer setup.exe was not found: $installer"
             }
