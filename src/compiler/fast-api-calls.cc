@@ -67,12 +67,14 @@ ElementsKind GetTypedArrayElementsKind(CTypeInfo::Type type) {
 bool CanOptimizeFastSignature(const CFunctionInfo* c_signature) {
   USE(c_signature);
 
-#if defined(V8_OS_MACOS) && defined(V8_TARGET_ARCH_ARM64)
-  // On MacArm64 hardware we don't support passing of arguments on the stack.
+#if defined(V8_OS_DARWIN) && defined(V8_TARGET_ARCH_ARM64)
+  // On Apple arm64 (macOS and iOS) stack arguments are packed at their natural
+  // size, which V8's C linkage (one 8-byte slot per argument) does not model,
+  // so we don't support passing of arguments on the stack.
   if (c_signature->ArgumentCount() > 8) {
     return false;
   }
-#endif  // defined(V8_OS_MACOS) && defined(V8_TARGET_ARCH_ARM64)
+#endif  // defined(V8_OS_DARWIN) && defined(V8_TARGET_ARCH_ARM64)
 
 #ifndef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
   if (c_signature->ReturnInfo().GetType() == CTypeInfo::Type::kFloat32 ||
