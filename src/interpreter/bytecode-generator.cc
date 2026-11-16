@@ -208,7 +208,8 @@ class V8_NODISCARD BytecodeGenerator::ControlScope::DeferredCommands final {
         static_cast<int>(TryFinallyContinuationToken::kRethrowToken) == 0);
     deferred_.push_back(
         {CMD_RETHROW, nullptr,
-         static_cast<int>(TryFinallyContinuationToken::kRethrowToken)});
+         static_cast<int>(TryFinallyContinuationToken::kRethrowToken),
+         kNoSourcePosition});
   }
 
   // One recorded control-flow command.
@@ -216,18 +217,29 @@ class V8_NODISCARD BytecodeGenerator::ControlScope::DeferredCommands final {
     Command command;       // The command type being applied on this path.
     Statement* statement;  // The target statement for the command or {nullptr}.
     int token;             // A token identifying this particular path.
+    int source_position;   // The position of the Return emitted when applying
+                           // the command, or {kNoSourcePosition}.
   };
 
   // Records a control-flow command while entering the finally-block. This also
   // generates a new dispatch token that identifies one particular path. This
   // expects the result to be in the accumulator.
-  void RecordCommand(Command command, Statement* statement) {
+  //
+  // All returns share one token, and so one Return emitted after the
+  // finally-block. It takes the position of the last return recorded with one,
+  // so that it is a break location: without it, stepping out of the function
+  // never pauses in the caller.
+  void RecordCommand(Command command, Statement* statement,
+                     int source_position) {
     int token = GetTokenForCommand(command, statement);
 
     DCHECK_LT(token, deferred_.size());
     DCHECK_EQ(deferred_[token].command, command);
     DCHECK_EQ(deferred_[token].statement, statement);
     DCHECK_EQ(deferred_[token].token, token);
+    if (source_position != kNoSourcePosition) {
+      deferred_[token].source_position = source_position;
+    }
 
     if (CommandUsesAccumulator(command)) {
       builder()->StoreAccumulatorInRegister(result_register_);
@@ -254,7 +266,7 @@ class V8_NODISCARD BytecodeGenerator::ControlScope::DeferredCommands final {
   // expects the exception to be in the accumulator.
   void RecordHandlerReThrowPath() {
     // The accumulator contains the exception object.
-    RecordCommand(CMD_RETHROW, nullptr);
+    RecordCommand(CMD_RETHROW, nullptr, kNoSourcePosition);
   }
 
   // Records the dispatch token to be used to identify the implicit fall-through
@@ -283,7 +295,7 @@ class V8_NODISCARD BytecodeGenerator::ControlScope::DeferredCommands final {
       builder()->LoadAccumulatorWithRegister(result_register_);
     }
     execution_control()->PerformCommand(entry.command, entry.statement,
-                                        kNoSourcePosition);
+                                        entry.source_position);
   }
 
   // Applies all recorded control-flow commands after the finally-block again.
@@ -393,7 +405,7 @@ class V8_NODISCARD BytecodeGenerator::ControlScope::DeferredCommands final {
 
   int GetNewTokenForCommand(Command command, Statement* statement) {
     int token = static_cast<int>(deferred_.size());
-    deferred_.push_back({command, statement, token});
+    deferred_.push_back({command, statement, token, kNoSourcePosition});
     return token;
   }
 
@@ -672,12 +684,9 @@ class BytecodeGenerator::ControlScopeForTryFinally final
       case CMD_ASYNC_RETURN:
       case CMD_RETHROW:
         PopContextToExpectedDepth();
-        // We don't record source_position here since we don't generate return
-        // bytecode right here and will generate it later as part of finally
-        // block. Each return bytecode generated in finally block will get own
-        // return source position from corresponded return statement or we'll
-        // use end of function if no return statement is presented.
-        commands_->RecordCommand(command, statement);
+        // The Return for a return command is emitted after the finally-block,
+        // when the command is applied; record its position for that.
+        commands_->RecordCommand(command, statement, source_position);
         try_finally_builder_->LeaveTry();
         return true;
     }
