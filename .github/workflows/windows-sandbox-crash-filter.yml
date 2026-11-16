@@ -105,18 +105,28 @@ jobs:
         env:
           DEPOT_TOOLS_WIN_TOOLCHAIN: "0"
         run: |
-          @(
-            "is_debug = false"
-            "is_component_build = false"
-            'target_cpu = "x64"'
-            "v8_enable_sandbox = true"
-            "v8_enable_memory_corruption_api = true"
-          ) | Set-Content -Path windows-x64-args.gn -Encoding ascii
-          gn gen out.gn/x64.release --args-file=windows-x64-args.gn
-          Write-Host "Effective GN build arguments:"
-          gn args out.gn/x64.release --list=is_debug
-          gn args out.gn/x64.release --list=is_component_build
-          gn args out.gn/x64.release --list=v8_enable_memory_corruption_api
+          $gnArgs = 'is_debug=false is_component_build=false target_cpu="x64" v8_enable_sandbox=true v8_enable_memory_corruption_api=true'
+          Write-Host "Generating with GN args: $gnArgs"
+          gn gen out.gn/x64.release "--args=$gnArgs"
+          if ($LASTEXITCODE -ne 0) {
+            throw "gn gen failed with exit code $LASTEXITCODE."
+          }
+
+          # Fail the workflow if GN silently ignores or overrides any required setting.
+          $requiredArgs = @(
+            @{ Name = "is_debug"; Expected = "false" }
+            @{ Name = "is_component_build"; Expected = "false" }
+            @{ Name = "target_cpu"; Expected = '"x64"' }
+            @{ Name = "v8_enable_sandbox"; Expected = "true" }
+            @{ Name = "v8_enable_memory_corruption_api"; Expected = "true" }
+          )
+          foreach ($arg in $requiredArgs) {
+            $argOutput = (& gn args out.gn/x64.release "--list=$($arg.Name)" 2>&1 | Out-String)
+            Write-Host $argOutput
+            if ($LASTEXITCODE -ne 0 -or $argOutput -notmatch [regex]::Escape("= $($arg.Expected)")) {
+              throw "GN argument $($arg.Name) did not resolve to expected value $($arg.Expected)."
+            }
+          }
 
       - name: Build d8 and unit tests
         shell: pwsh
