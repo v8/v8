@@ -634,7 +634,6 @@ class TurboshaftGraphBuildingInterface
           return false;
         }
       }
-      primary_indices_ = other_targets_[primary_target()];
       other_targets_.erase(primary_target());
       size_t total_targets = other_targets_.size() + 1;
       if (default_target() != primary_target() &&
@@ -651,8 +650,6 @@ class TurboshaftGraphBuildingInterface
     // other_targets doesn't include the primary target, nor the default if it
     // isn't an in-range target.
     const TargetMap& other_targets() const { return other_targets_; }
-    // All the indices which target the primary target.
-    const CaseVector& primary_indices() const { return primary_indices_; }
 
    private:
     bool TryAddTarget(uint32_t target, uint32_t index) {
@@ -679,7 +676,6 @@ class TurboshaftGraphBuildingInterface
 
     std::optional<uint32_t> default_target_;
     std::optional<uint32_t> primary_target_;
-    CaseVector primary_indices_;
     TargetMap other_targets_;
   };
 
