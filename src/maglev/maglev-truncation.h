@@ -200,6 +200,8 @@ class PropagateTruncationProcessor {
     return ProcessSingleInputSpecialNode(node);
   }
 
+  ProcessResult Process(AssumeType* node) { return ProcessResult::kContinue; }
+
   ProcessResult Process(Dead* node) { return ProcessResult::kContinue; }
 
   // TODO(victorgomes): We can only truncate CheckedHoleyFloat64ToInt32
