@@ -3298,6 +3298,9 @@ bool Compiler::CompileBaseline(Isolate* isolate,
     return false;
   }
 
+  IsBaselineCompiledScope is_baseline_compiled_scope(*shared, isolate);
+  DCHECK(is_baseline_compiled_scope.is_compiled());
+
   // Baseline code needs a feedback vector.
   JSFunction::EnsureFeedbackVector(isolate, function, is_compiled_scope);
 
