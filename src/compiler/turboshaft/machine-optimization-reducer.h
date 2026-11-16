@@ -2670,6 +2670,33 @@ class MachineOptimizationReducer : public Next {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
  private:
+  // Attempts to constant-fold equality between two HeapObject constants.
+  // Returns std::nullopt if the operands are not HeapConstants or if their
+  // runtime pointer equality is not yet fixed (e.g., non-internalized Strings
+  // that may be internalized and shortcutted by GC).
+  std::optional<bool> TryCompareEqualHeapConstants(V<Any> left, V<Any> right) {
+    Handle<HeapObject> o1, o2;
+    if (!matcher_.MatchHeapConstant(left, &o1) ||
+        !matcher_.MatchHeapConstant(right, &o2)) {
+      return std::nullopt;
+    }
+    UnparkedScopeIfNeeded unparked(broker);
+    AllowHandleDereference allow_handle_dereference;
+    DCHECK_IMPLIES(broker, broker->IsCanonicalHandle(o1));
+    DCHECK_IMPLIES(broker, broker->IsCanonicalHandle(o2));
+    if (IsString(*o1) && IsString(*o2)) {
+      // If handles refer to the same object, we can eliminate the check.
+      if (o1.address() == o2.address()) return true;
+      // If both strings are already internalized, they are unique in the string
+      // table and can never become equal. Otherwise, at least one might be
+      // internalized into a ThinString and shortcutted by GC to the other.
+      if (!IsInternalizedString(*o1) || !IsInternalizedString(*o2)) {
+        return std::nullopt;
+      }
+    }
+    return o1.address() == o2.address();
+  }
+
   V<Word32> ReduceCompareEqual(V<Any> left, V<Any> right,
                                RegisterRepresentation rep) {
     if (left == right && !rep.IsFloat()) {
@@ -2694,13 +2721,9 @@ class MachineOptimizationReducer : public Next {
                                      right, WordRepresentation(rep), &k2)) {
               return __ Word32Constant(k1 == k2);
             }
-            if (Handle<HeapObject> o1, o2;
-                matcher_.MatchHeapConstant(left, &o1) &&
-                matcher_.MatchHeapConstant(right, &o2)) {
-              UnparkedScopeIfNeeded unparked(broker);
-              DCHECK_IMPLIES(broker, broker->IsCanonicalHandle(o1));
-              DCHECK_IMPLIES(broker, broker->IsCanonicalHandle(o2));
-              return __ Word32Constant(o1.address() == o2.address());
+            if (std::optional<bool> result =
+                    TryCompareEqualHeapConstants(left, right)) {
+              return __ Word32Constant(*result);
             }
             break;
           }
@@ -2719,23 +2742,9 @@ class MachineOptimizationReducer : public Next {
             break;
           }
           case RegisterRepresentation::Tagged(): {
-            if (Handle<HeapObject> o1, o2;
-                matcher_.MatchHeapConstant(left, &o1) &&
-                matcher_.MatchHeapConstant(right, &o2)) {
-              UnparkedScopeIfNeeded unparked(broker);
-              DCHECK_IMPLIES(broker, broker->IsCanonicalHandle(o1));
-              DCHECK_IMPLIES(broker, broker->IsCanonicalHandle(o2));
-              if (IsString(*o1) && IsString(*o2)) {
-                // If handles refer to the same object, we can eliminate the
-                // check.
-                if (o1.address() == o2.address()) return __ Word32Constant(1);
-                // But if they are different, we cannot eliminate the
-                // comparison, because the objects might be different now, but
-                // if they contain the same content, they might be internalized
-                // to the same object eventually.
-                break;
-              }
-              return __ Word32Constant(o1.address() == o2.address());
+            if (std::optional<bool> result =
+                    TryCompareEqualHeapConstants(left, right)) {
+              return __ Word32Constant(*result);
             }
             if ((TryMatchHeapObject(left) &&
                  matcher_.Is<Opmask::kSmiConstant>(right)) ||
