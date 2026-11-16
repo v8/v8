@@ -268,6 +268,11 @@
   # https://github.com/tc39/test262/pull/3987
   'language/module-code/import-attributes/allow-nlt-before-with': [FAIL],
 
+  # https://crbug.com/517575874: Outdated expectations for \A, \z, \Z in
+  # Unicode mode (valid assertions per proposal-regexp-buffer-boundaries).
+  'built-ins/RegExp/unicode_restricted_identity_escape_alpha': [FAIL],
+  'staging/sm/RegExp/unicode-disallow-extended': [FAIL],
+
   ############################ SKIPPED TESTS #############################
 
   # These tests take a looong time to run.

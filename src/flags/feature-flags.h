@@ -163,9 +163,6 @@
                                                                                \
   JS_FEATURE(js_defer_import_eval, "defer import eval")                        \
                                                                                \
-  JS_FEATURE(js_regexp_buffer_boundaries,                                      \
-             "RegExp \\A \\z \\Z buffer boundary assertions")                  \
-                                                                               \
   JS_FEATURE(js_iterator_chunking, "iterator chunking")                        \
                                                                                \
   /* V8 side owner: leszeks */                                                 \
@@ -222,6 +219,9 @@
   JS_FEATURE(js_iterator_includes, "Iterator.prototype.includes")              \
                                                                                \
   JS_FEATURE(js_import_text, "import text")                                    \
+                                                                               \
+  JS_FEATURE(js_regexp_buffer_boundaries,                                      \
+             "RegExp \\A \\z \\Z buffer boundary assertions")                  \
                                                                                \
   /* Legacy exception handling proposal. */                                    \
   /* https://github.com/WebAssembly/exception-handling */                      \
