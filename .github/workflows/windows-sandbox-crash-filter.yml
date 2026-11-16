@@ -118,6 +118,10 @@ jobs:
           ) | Set-Content -Path $gnArgsFile -Encoding ascii
           Write-Host "Generating with GN args file: $gnArgsFile"
           Get-Content $gnArgsFile | ForEach-Object { Write-Host $_ }
+          $argsFileText = Get-Content $gnArgsFile -Raw
+          if ($argsFileText -notmatch '(?m)^target_cpu = "x64"$') {
+            throw "Generated GN args file does not contain the exact target_cpu string assignment."
+          }
           gn gen out.gn/x64.release "--args-file=$gnArgsFile"
           if ($LASTEXITCODE -ne 0) {
             throw "gn gen failed with exit code $LASTEXITCODE."
