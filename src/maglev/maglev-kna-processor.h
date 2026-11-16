@@ -338,6 +338,12 @@ class RecomputeKnownNodeAspectsProcessor {
   PROCESS_CHECK(Symbol)
 #undef PROCESS_CHECK
 
+  ProcessResult ProcessNode(CheckedInternalizedString* node) {
+    // The node deopts unless its input is an internalized string or a
+    // ThinString (which it unwraps), so the input is only known to be a string.
+    return RecordType(node->input_node(0), NodeType::kString);
+  }
+
   ProcessResult ProcessNode(CheckNumber* node) {
     switch (node->mode()) {
       case Object::Conversion::kToNumber:
