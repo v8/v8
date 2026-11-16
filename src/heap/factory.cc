@@ -3966,7 +3966,7 @@ Handle<JSArrayBuffer> Factory::NewJSArrayBuffer(
       isolate()->native_context()->array_buffer_fun()->initial_map(),
       isolate());
   ResizableFlag resizable_by_js = ResizableFlag{false};
-  if (backing_store->is_resizable_by_js()) {
+  if (backing_store && backing_store->is_resizable_by_js()) {
     resizable_by_js = ResizableFlag{true};
   }
   auto result = Cast<JSArrayBuffer>(
@@ -4100,10 +4100,18 @@ Handle<JSArrayBufferView> Factory::NewJSArrayBufferView(
     DirectHandle<Map> map, DirectHandle<FixedArrayBase> elements,
     DirectHandle<JSArrayBuffer> buffer, size_t byte_offset,
     size_t byte_length) {
-  if (!IsRabGsabTypedArrayElementsKind(map->elements_kind())) {
+  const bool is_on_heap_non_empty =
+      IsByteArray(*elements) && *elements != *empty_byte_array();
+  if (!IsRabGsabTypedArrayElementsKind(map->elements_kind()) &&
+      !is_on_heap_non_empty) {
     CHECK_LE(byte_length, buffer->GetByteLength());
     CHECK_LE(byte_offset, buffer->GetByteLength());
     CHECK_LE(byte_offset + byte_length, buffer->GetByteLength());
+  } else if (is_on_heap_non_empty) {
+    CHECK_EQ(byte_offset, 0u);
+    CHECK_EQ(buffer->GetByteLength(), 0u);
+    CHECK_LE(byte_length,
+             static_cast<size_t>(Cast<ByteArray>(*elements)->length().value()));
   }
 
   Handle<JSArrayBufferView> array_buffer_view =
@@ -4166,6 +4174,52 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(
   raw->set_is_length_tracking(is_length_tracking);
   raw->set_is_backed_by_rab(is_backed_by_rab);
   return typed_array;
+}
+
+MaybeHandle<JSTypedArray> Factory::NewJSTypedArrayWithData(
+    ExternalArrayType type, const uint8_t* data, size_t length) {
+  size_t element_size;
+  ElementsKind elements_kind;
+  JSTypedArray::ForFixedTypedArray(type, &element_size, &elements_kind);
+
+  CHECK_LE(length, JSTypedArray::kMaxByteLength / element_size);
+  size_t byte_length = length * element_size;
+  DCHECK_IMPLIES(byte_length > 0, data != nullptr);
+
+  // Allocate small views on-heap in a ByteArray with an unbacked JSArrayBuffer
+  // to avoid off-heap BackingStore allocation and GC tracking.
+  if (JSTypedArray::kMaxSizeInHeap > 0 &&
+      byte_length <= JSTypedArray::kMaxSizeInHeap) {
+    DirectHandle<Map> map(
+        isolate()->raw_native_context()->TypedArrayElementsKindToCtorMap(
+            elements_kind),
+        isolate());
+    DirectHandle<JSArrayBuffer> buffer =
+        NewJSArrayBuffer(nullptr, AllocationType::kYoung);
+    DirectHandle<ByteArray> elements = NewByteArray(
+        static_cast<uint32_t>(byte_length), AllocationType::kYoung);
+    Handle<JSTypedArray> typed_array = Cast<JSTypedArray>(
+        NewJSArrayBufferView(map, elements, buffer, 0, byte_length));
+    DisallowGarbageCollection no_gc;
+    Tagged<JSTypedArray> raw = *typed_array;
+    raw->SetOnHeapDataPtr(isolate(), *elements, 0);
+    raw->set_length(length);
+    if (byte_length > 0) {
+      memcpy(raw->DataPtr(), data, byte_length);
+    }
+    return typed_array;
+  }
+
+  // Fall back to an uninitialized off-heap BackingStore for larger views.
+  DirectHandle<JSArrayBuffer> buffer;
+  if (!NewJSArrayBufferAndBackingStore(byte_length, InitializedFlag{false})
+           .ToHandle(&buffer)) {
+    return {};
+  }
+  if (byte_length > 0) {
+    memcpy(buffer->backing_store(), data, byte_length);
+  }
+  return NewJSTypedArray(type, buffer, 0, length);
 }
 
 Handle<JSDataViewOrRabGsabDataView> Factory::NewJSDataViewOrRabGsabDataView(

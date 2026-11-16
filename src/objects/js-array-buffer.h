@@ -537,6 +537,8 @@ V8_OBJECT class JSTypedArray : public JSArrayBufferView {
   inline void* DataPtr();
 
   inline void SetOffHeapDataPtr(Isolate* isolate, void* base, Address offset);
+  inline void SetOnHeapDataPtr(Isolate* isolate, Tagged<ByteArray> base,
+                               Address offset);
 
   // Whether the buffer's backing store is on-heap or off-heap.
   inline bool is_on_heap() const;

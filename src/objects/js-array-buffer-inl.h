@@ -503,6 +503,18 @@ void JSTypedArray::SetOffHeapDataPtr(Isolate* isolate, void* base,
   DCHECK_EQ(address, reinterpret_cast<Address>(DataPtr()));
 }
 
+void JSTypedArray::SetOnHeapDataPtr(Isolate* isolate, Tagged<ByteArray> base,
+                                    Address offset) {
+  Address compensated_offset =
+      OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag + offset +
+      ExternalPointerCompensationForOnHeapArray(isolate);
+  set_external_pointer(isolate, compensated_offset);
+  set_base_pointer(base, kReleaseStore);
+  DCHECK_EQ(base.ptr() - kHeapObjectTag + OFFSET_OF_DATA_START(ByteArray) +
+                offset,
+            reinterpret_cast<Address>(DataPtr()));
+}
+
 bool JSTypedArray::is_on_heap() const {
   // Keep synced with `is_on_heap(AcquireLoadTag)`.
   DisallowGarbageCollection no_gc;

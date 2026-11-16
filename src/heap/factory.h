@@ -978,6 +978,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                                        size_t byte_offset, size_t length,
                                        bool is_length_tracking = false);
 
+  MaybeHandle<JSTypedArray> NewJSTypedArrayWithData(ExternalArrayType type,
+                                                    const uint8_t* data,
+                                                    size_t length);
+
   Handle<JSDataViewOrRabGsabDataView> NewJSDataViewOrRabGsabDataView(
       DirectHandle<JSArrayBuffer> buffer, size_t byte_offset,
       size_t byte_length, bool is_length_tracking = false);

@@ -9560,6 +9560,24 @@ static_assert(v8::TypedArray::kMaxByteLength == i::JSTypedArray::kMaxByteLength,
 TYPED_ARRAYS_BASE(TYPED_ARRAY_NEW)
 #undef TYPED_ARRAY_NEW
 
+MaybeLocal<Uint8Array> Uint8Array::MaybeNew(Isolate* v8_isolate,
+                                            std::span<const uint8_t> data) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  ApiRuntimeCallStatsScope rcs_scope(i_isolate, RCCId::kAPI_Uint8Array_New);
+  EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
+  if (data.size() > kMaxLength) {
+    return {};
+  }
+  i::DirectHandle<i::JSTypedArray> obj;
+  if (!i_isolate->factory()
+           ->NewJSTypedArrayWithData(i::kExternalUint8Array, data.data(),
+                                     data.size())
+           .ToHandle(&obj)) {
+    return {};
+  }
+  return Utils::ToLocalUint8Array(obj);
+}
+
 // TODO(v8:11111): Support creating length tracking DataViews via the API.
 Local<DataView> DataView::New(Local<ArrayBufferBase> array_buffer,
                               size_t byte_offset, size_t byte_length) {

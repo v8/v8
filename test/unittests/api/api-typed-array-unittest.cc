@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 #include <array>
+#include <span>
+#include <vector>
 
 #include "src/api/api-inl.h"
 #include "src/base/strings.h"
@@ -782,6 +784,180 @@ TEST_HAS_BUFFER(Float32, 4)
 TEST_HAS_BUFFER(Float64, 8)
 
 #undef TEST_HAS_BUFFER
+
+TEST_F(ApiTypedArrayTest, Uint8Array_MaybeNew_Empty) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope handle_scope(isolate);
+
+  v8::Local<v8::Uint8Array> arr =
+      v8::Uint8Array::MaybeNew(isolate, std::span<const uint8_t>{})
+          .ToLocalChecked();
+  EXPECT_EQ(0u, arr->Length());
+  EXPECT_EQ(0u, arr->ByteLength());
+  EXPECT_EQ(0u, arr->ByteOffset());
+  EXPECT_EQ(i::JSTypedArray::kMaxSizeInHeap == 0, arr->HasBuffer());
+
+  v8::Local<v8::ArrayBufferBase> buffer = arr->GetBuffer();
+  EXPECT_EQ(0u, buffer->ByteLength());
+  EXPECT_TRUE(arr->HasBuffer());
+}
+
+TEST_F(ApiTypedArrayTest, Uint8Array_MaybeNew_OnHeapAndOffHeapSizes) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::Local<v8::Context> context = env.local();
+  v8::HandleScope handle_scope(isolate);
+
+  std::vector<size_t> sizes;
+  if (i::JSTypedArray::kMaxSizeInHeap > 0) {
+    sizes.push_back(1);
+    if (i::JSTypedArray::kMaxSizeInHeap > 16) {
+      sizes.push_back(16);
+    }
+    if (i::JSTypedArray::kMaxSizeInHeap > 2) {
+      sizes.push_back(i::JSTypedArray::kMaxSizeInHeap - 1);
+    }
+    sizes.push_back(i::JSTypedArray::kMaxSizeInHeap);
+  }
+  sizes.push_back(i::JSTypedArray::kMaxSizeInHeap + 1);
+  sizes.push_back(128);
+  sizes.push_back(4096);
+
+  for (size_t size : sizes) {
+    std::vector<uint8_t> input(size);
+    for (size_t i = 0; i < size; ++i) {
+      input[i] = static_cast<uint8_t>((i * 37 + 13) & 0xff);
+    }
+
+    v8::Local<v8::Uint8Array> arr =
+        v8::Uint8Array::MaybeNew(isolate, input).ToLocalChecked();
+    EXPECT_EQ(size, arr->Length());
+    EXPECT_EQ(size, arr->ByteLength());
+    EXPECT_EQ(0u, arr->ByteOffset());
+    EXPECT_EQ(i::JSTypedArray::kMaxSizeInHeap == 0 ||
+                  size > i::JSTypedArray::kMaxSizeInHeap,
+              arr->HasBuffer());
+
+    std::vector<uint8_t> output(size);
+    EXPECT_EQ(size, arr->CopyContents(output.data(), output.size()));
+    EXPECT_EQ(input, output);
+
+    CHECK(context->Global()->Set(context, v8_str("u8"), arr).FromJust());
+    EXPECT_TRUE(CompileRun("u8 instanceof Uint8Array")->BooleanValue(isolate));
+    EXPECT_EQ(static_cast<int32_t>(input[0]),
+              CompileRun("u8[0]")->Int32Value(context).FromJust());
+    EXPECT_EQ(static_cast<int32_t>(input[size - 1]),
+              CompileRun("u8[u8.length - 1]")->Int32Value(context).FromJust());
+
+    // Mutating the source span must not affect the Uint8Array.
+    const uint8_t original_first = input[0];
+    input[0] ^= 0xff;
+    EXPECT_EQ(static_cast<int32_t>(original_first),
+              CompileRun("u8[0]")->Int32Value(context).FromJust());
+
+    // Accessing .buffer materializes an ArrayBuffer aliasing the same bytes.
+    v8::Local<v8::Value> buffer_len = CompileRun("u8.buffer.byteLength");
+    EXPECT_EQ(static_cast<int32_t>(size),
+              buffer_len->Int32Value(context).FromJust());
+    EXPECT_TRUE(arr->HasBuffer());
+    CompileRun("new Uint8Array(u8.buffer)[0] = 0x5a;");
+    EXPECT_EQ(0x5a, CompileRun("u8[0]")->Int32Value(context).FromJust());
+  }
+}
+
+TEST_F(ApiTypedArrayTest, Uint8Array_MaybeNew_SurvivesGC) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::Local<v8::Context> context = env.local();
+  v8::HandleScope handle_scope(isolate);
+
+  std::array<uint8_t, 32> on_heap_input;
+  for (size_t i = 0; i < on_heap_input.size(); ++i) {
+    on_heap_input[i] = static_cast<uint8_t>(i + 1);
+  }
+  std::array<uint8_t, 128> off_heap_input;
+  for (size_t i = 0; i < off_heap_input.size(); ++i) {
+    off_heap_input[i] = static_cast<uint8_t>(255 - i);
+  }
+
+  v8::Local<v8::Uint8Array> on_heap =
+      v8::Uint8Array::MaybeNew(isolate, on_heap_input).ToLocalChecked();
+  v8::Local<v8::Uint8Array> off_heap =
+      v8::Uint8Array::MaybeNew(isolate, off_heap_input).ToLocalChecked();
+
+  CHECK(context->Global()->Set(context, v8_str("on_heap"), on_heap).FromJust());
+  CHECK(
+      context->Global()->Set(context, v8_str("off_heap"), off_heap).FromJust());
+
+  i::InvokeMinorGC(env.i_isolate());
+  i::InvokeMajorGC(env.i_isolate());
+
+  std::array<uint8_t, 32> on_heap_output;
+  EXPECT_EQ(on_heap_input.size(),
+            on_heap->CopyContents(on_heap_output.data(), 32));
+  EXPECT_EQ(on_heap_input, on_heap_output);
+
+  std::array<uint8_t, 128> off_heap_output;
+  EXPECT_EQ(
+      off_heap_input.size(),
+      off_heap->CopyContents(off_heap_output.data(), off_heap_output.size()));
+  EXPECT_EQ(off_heap_input, off_heap_output);
+
+  EXPECT_EQ(
+      32,
+      CompileRun("on_heap.buffer.byteLength")->Int32Value(context).FromJust());
+  EXPECT_EQ(
+      128,
+      CompileRun("off_heap.buffer.byteLength")->Int32Value(context).FromJust());
+}
+
+class RestrictedAllocator final : public v8::ArrayBuffer::Allocator {
+ public:
+  explicit RestrictedAllocator(size_t limit) : limit_(limit) {}
+  ~RestrictedAllocator() override { delete underlying_allocator_; }
+
+  void* Allocate(size_t length) override {
+    return underlying_allocator_->Allocate(length);
+  }
+
+  void* AllocateUninitialized(size_t length) override {
+    return underlying_allocator_->AllocateUninitialized(length);
+  }
+
+  void Free(void* data, size_t length) override {
+    underlying_allocator_->Free(data, length);
+  }
+
+  size_t MaxAllocationSize() const override { return limit_; }
+
+ private:
+  size_t limit_;
+  v8::ArrayBuffer::Allocator* underlying_allocator_ =
+      v8::ArrayBuffer::Allocator::NewDefaultAllocator();
+};
+
+TEST_F(ApiTypedArrayTest, Uint8Array_MaybeNew_AllocationFailure) {
+  constexpr size_t kLimit = i::JSTypedArray::kMaxSizeInHeap + 64;
+  RestrictedAllocator allocator(kLimit);
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = &allocator;
+
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  isolate->Enter();
+  {
+    v8::HandleScope handle_scope(isolate);
+    LocalContext context(isolate);
+
+    std::vector<uint8_t> data(kLimit + 1, 0xab);
+    EXPECT_FALSE(v8::Uint8Array::MaybeNew(
+                     isolate, std::span<const uint8_t>(data).first(kLimit))
+                     .IsEmpty());
+    EXPECT_TRUE(v8::Uint8Array::MaybeNew(isolate, data).IsEmpty());
+  }
+  isolate->Exit();
+  isolate->Dispose();
+}
 
 }  // namespace api_typed_array_unittest
 }  // namespace v8
