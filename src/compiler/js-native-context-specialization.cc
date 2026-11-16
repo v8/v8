@@ -2340,10 +2340,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
         // need to guard against changes to that below).
         if ((IsHoleyOrDictionaryElementsKind(receiver_map.elements_kind()) ||
              StoreModeCanGrow(feedback.keyed_mode().store_mode())) &&
-#if V8_ENABLE_WEBASSEMBLY
-            !(receiver_map.IsAnyWasmObjectMap() &&
-              access_info.is_proxy_on_prototype()) &&
-#endif  // V8_ENABLE_WEBASSEMBLY
+            !access_info.is_proxy_on_prototype() &&
             !receiver_map.PrototypesElementsDoNotHaveAccessorsOrThrow(
                 broker(), &prototype_maps)) {
           return NoChange();
@@ -3607,21 +3604,23 @@ JSNativeContextSpecialization::BuildElementAccess(
   ZoneVector<MapRef> const& receiver_maps =
       access_info.lookup_start_object_maps();
 
+#if V8_ENABLE_WEBASSEMBLY
+  if (access_info.is_proxy_on_prototype()) {
+    DCHECK_EQ(receiver_maps.size(), 1);
+    DCHECK(receiver_maps.front().IsAnyWasmObjectMap());
+    return BuildPrototypeProxyElementAccess(
+        receiver, index, value, effect, control, context, access_info,
+        language_mode, keyed_mode, if_exceptions, frame_state);
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+  DCHECK_NE(elements_kind, NO_ELEMENTS);
   if (IsTypedArrayElementsKind(elements_kind) ||
       IsRabGsabTypedArrayElementsKind(elements_kind)) {
     return BuildElementAccessForTypedArrayOrRabGsabTypedArray(
         receiver, index, value, effect, control, context, elements_kind,
         keyed_mode);
   }
-
-#if V8_ENABLE_WEBASSEMBLY
-  if (receiver_maps.size() == 1 && receiver_maps.front().IsAnyWasmObjectMap() &&
-      access_info.is_proxy_on_prototype()) {
-    return BuildPrototypeProxyElementAccess(
-        receiver, index, value, effect, control, context, access_info,
-        language_mode, keyed_mode, if_exceptions, frame_state);
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Load the elements for the {receiver}.
   Node* elements = effect = graph()->NewNode(
