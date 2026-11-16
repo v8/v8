@@ -178,9 +178,6 @@
   # b/434224293
   'intl402/DateTimeFormat/prototype/formatToParts/compare-to-temporal-lunisolar': [SKIP],
 
-  # https://crbug.com/494306044
-  'built-ins/Temporal/PlainMonthDay/from/iso-year-used-only-for-overflow': [FAIL],
-
   # End Temporal test expectations
 
   # https://github.com/tc39/test262/pull/3988

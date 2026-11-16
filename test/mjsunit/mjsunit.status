@@ -3145,6 +3145,7 @@
   'regress/regress-464961493': [SKIP],
   'regress/regress-temporal-zoneinfo': [SKIP],
   'regress/regress-493269623': [SKIP],
+  'regress/regress-494306044': [SKIP],
   'regress/regress-495503781': [SKIP],
   'regress/regress-572400584': [SKIP],
 
@@ -3569,6 +3570,7 @@
   'regress/regress-463593768': [SKIP],
   'regress/regress-464961493': [SKIP],
   'regress/regress-493269623': [SKIP],
+  'regress/regress-494306044': [SKIP],
   'regress/regress-495503781': [SKIP],
   'regress/regress-572400584': [SKIP],
   'regress/regress-temporal-zoneinfo': [SKIP],
