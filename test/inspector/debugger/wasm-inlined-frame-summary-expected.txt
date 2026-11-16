@@ -8,3 +8,9 @@ Got event after stepOver: paused
 Paused in: run
 EVENT resumed
 Result: caught
+Testing resume without stepping:
+js_fn_resume optimized before call: true
+Paused on exception in: $getFieldNull
+EVENT resumed
+Result: caught
+js_fn_resume deoptimized after resume: true

@@ -53,15 +53,33 @@ function js_fn(x) {
   return getFieldNull(x);
 }
 
+function js_fn_resume(x) {
+  return getFieldNull(x);
+}
+
 %PrepareFunctionForOptimization(js_fn);
+%PrepareFunctionForOptimization(js_fn_resume);
 const s = instance.exports.createStructNull(42);
-for (let i = 0; i < 20; ++i) js_fn(s);
+for (let i = 0; i < 20; ++i) {
+  js_fn(s);
+  js_fn_resume(s);
+}
 %OptimizeFunctionOnNextCall(js_fn);
 js_fn(s);
+%OptimizeFunctionOnNextCall(js_fn_resume);
+js_fn_resume(s);
 
 function run() {
   try {
     js_fn(null);
+  } catch (e) {
+    return 'caught';
+  }
+}
+
+function runResume() {
+  try {
+    js_fn_resume(null);
   } catch (e) {
     return 'caught';
   }
@@ -105,5 +123,29 @@ contextGroup.addScript(source, 0, 0, 'test.js');
   }
   const evalResult = await evalPromise;
   InspectorTest.log(`Result: ${evalResult.result.result.value}`);
+
+  InspectorTest.log('Testing resume without stepping:');
+  const preStatusRes = await Protocol.Runtime.evaluate({
+    expression: '(%GetOptimizationStatus(js_fn_resume) & 8) !== 0',
+    returnByValue: true,
+  });
+  InspectorTest.log(`js_fn_resume optimized before call: ${
+      preStatusRes.result.result.value}`);
+  const evalPromise2 = Protocol.Runtime.evaluate({expression: 'runResume()'});
+  const pauseMsg2 = await Protocol.Debugger.oncePaused();
+  InspectorTest.log(`Paused on exception in: ${
+      pauseMsg2.params.callFrames[0].functionName || 'wasm'}`);
+  await Protocol.Debugger.resume();
+  const evalResult2 = await evalPromise2;
+  InspectorTest.log(`Result: ${evalResult2.result.result.value}`);
+  const optStatusRes = await Protocol.Runtime.evaluate({
+    expression: '(%GetOptimizationStatus(js_fn_resume) & 8) === 0',
+    returnByValue: true,
+  });
+  if (optStatusRes.result.exceptionDetails) {
+    InspectorTest.logObject(optStatusRes.result.exceptionDetails);
+  }
+  InspectorTest.log(`js_fn_resume deoptimized after resume: ${
+      optStatusRes.result.result.value}`);
   InspectorTest.completeTest();
 })();

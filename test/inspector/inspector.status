@@ -335,6 +335,7 @@
   'debugger/debug-optimize': [SKIP],
   'debugger/restart-frame/restart-inlined-frame': [SKIP],
   'debugger/value-unavailable-scopes': [SKIP],
+  'regress/regress-586444654': [SKIP],
 }], # lite_mode or variant in (nooptimization, jitless, assert_types)
 
 ##############################################################################

@@ -2865,10 +2865,17 @@ void Debug::OnException(DirectHandle<Object> exception,
   }
 
   {
+    std::vector<std::pair<Handle<JSFunction>, Handle<Code>>>
+        frames_to_deoptimize;
     StackFrameIterator it(isolate_);
     for (; !it.done(); it.Advance()) {
       if (it.frame()->is_javascript()) {
         JavaScriptFrame* frame = JavaScriptFrame::cast(it.frame());
+        if (frame->is_optimized()) {
+          frames_to_deoptimize.emplace_back(
+              handle(frame->function(), isolate_),
+              handle(frame->LookupCode(), isolate_));
+        }
         FrameSummaries summaries = frame->Summarize();
 #if V8_ENABLE_WEBASSEMBLY
         if (summaries.size() == 0) {
@@ -2910,11 +2917,6 @@ void Debug::OnException(DirectHandle<Object> exception,
             if (IsMutedAtAnyBreakLocation(shared, break_locations)) {
               return;
             }
-            if (frame->is_optimized()) {
-              Deoptimizer::DeoptimizeFunction(frame->function(),
-                                              LazyDeoptimizeReason::kDebugger,
-                                              frame->LookupCode());
-            }
             found_unsilenced_frame = true;
             break;  // Stop at first debuggable function
           }
@@ -2944,6 +2946,14 @@ void Debug::OnException(DirectHandle<Object> exception,
     }
 
     if (it.done()) return;  // Do not trigger an event with an empty stack.
+
+    // Any traversed optimized JS frame (including non-debuggable frames and
+    // frames with inlined Wasm) can still execute on unwind after resuming from
+    // the exception pause, so lazy-deoptimize them before running the delegate.
+    for (const auto& [function, code] : frames_to_deoptimize) {
+      Deoptimizer::DeoptimizeFunction(*function,
+                                      LazyDeoptimizeReason::kDebugger, *code);
+    }
   }
 
   DebugScope debug_scope(this);
