@@ -137,29 +137,62 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
 
 namespace {
 
+bool IsStringRef(wasm::CanonicalValueType type) {
+  // We could use {type == kWasmStringRef} for simplicity, but that would
+  // reject non-nullable types.
+  return type.is_abstract_ref() && !type.is_shared() &&
+         type.generic_kind() == GenericKind::kString;
+}
+
+bool IsExternRef(wasm::CanonicalValueType type) {
+  // We could use {type == kWasmExternRef} for simplicity, but that would
+  // reject non-nullable types.
+  return type.is_abstract_ref() && !type.is_shared() &&
+         type.generic_kind() == GenericKind::kExtern;
+}
+
+bool IsStringOrExternRef(wasm::CanonicalValueType type) {
+  return IsStringRef(type) || IsExternRef(type);
+}
+
 #ifdef V8_ENABLE_TURBOFAN
 bool CompareWithNormalizedCType(const CTypeInfo& info,
                                 CanonicalValueType expected,
                                 CFunctionInfo::Int64Representation int64_rep) {
-  MachineType t = MachineType::TypeForCType(info);
-  // Wasm representation of bool is i32 instead of i1.
-  if (t.semantic() == MachineSemantic::kBool) {
-    return expected == kWasmI32;
+  switch (info.GetType()) {
+    case CTypeInfo::Type::kVoid:
+      return false;
+    case CTypeInfo::Type::kBool:
+      // Wasm representation of bool is i32 instead of i1.
+      return expected == kWasmI32;
+    case CTypeInfo::Type::kInt32:
+    case CTypeInfo::Type::kUint32:
+      return expected == kWasmI32;
+    case CTypeInfo::Type::kInt64:
+    case CTypeInfo::Type::kUint64:
+      if (int64_rep == CFunctionInfo::Int64Representation::kBigInt) {
+        return expected == kWasmI64;
+      }
+      DCHECK_EQ(int64_rep, CFunctionInfo::Int64Representation::kNumber);
+      return expected == kWasmI32 || expected == kWasmF32 ||
+             expected == kWasmF64;
+    case CTypeInfo::Type::kFloat32:
+      return expected == kWasmF32;
+    case CTypeInfo::Type::kFloat64:
+      return expected == kWasmF64;
+    case CTypeInfo::Type::kV8Value:
+      // Only unshared externref is guaranteed to hold a valid JS value (never
+      // WasmNull or internal Wasm objects like WasmFuncRef/WasmCustomMap).
+      return IsExternRef(expected);
+    case CTypeInfo::Type::kUint8:
+    case CTypeInfo::Type::kPointer:
+    case CTypeInfo::Type::kSeqOneByteString:
+    case CTypeInfo::Type::kApiObject:
+    case CTypeInfo::Type::kAny:
+      // Not supported in WebAssembly fast API calls.
+      return false;
   }
-  if (info.GetType() == CTypeInfo::Type::kSeqOneByteString) {
-    // WebAssembly does not support one byte strings in fast API calls as
-    // runtime type checks are not supported so far.
-    return false;
-  }
-
-  if (t == MachineType::Int64() || t == MachineType::Uint64()) {
-    if (int64_rep == CFunctionInfo::Int64Representation::kBigInt) {
-      return expected == kWasmI64;
-    }
-    DCHECK_EQ(int64_rep, CFunctionInfo::Int64Representation::kNumber);
-    return expected == kWasmI32 || expected == kWasmF32 || expected == kWasmF64;
-  }
-  return t.representation() == expected.machine_representation();
+  UNREACHABLE();
 }
 #endif
 
@@ -167,8 +200,23 @@ enum class ReceiverKind { kFirstParamIsReceiver, kAnyReceiver };
 
 #ifdef V8_ENABLE_TURBOFAN
 bool IsFastCallSupportedSignature(const v8::CFunctionInfo* sig) {
-  if (sig->ReturnInfo().GetType() == CTypeInfo::Type::kPointer) {
-    return false;
+  switch (sig->ReturnInfo().GetType()) {
+    case CTypeInfo::Type::kVoid:
+    case CTypeInfo::Type::kBool:
+    case CTypeInfo::Type::kInt32:
+    case CTypeInfo::Type::kUint32:
+    case CTypeInfo::Type::kInt64:
+    case CTypeInfo::Type::kUint64:
+    case CTypeInfo::Type::kFloat32:
+    case CTypeInfo::Type::kFloat64:
+      break;
+    case CTypeInfo::Type::kUint8:
+    case CTypeInfo::Type::kPointer:
+    case CTypeInfo::Type::kV8Value:
+    case CTypeInfo::Type::kSeqOneByteString:
+    case CTypeInfo::Type::kApiObject:
+    case CTypeInfo::Type::kAny:
+      return false;
   }
   for (unsigned int i = 0; i < sig->ArgumentCount(); ++i) {
     // In WebAssembly, we don't support any flags on arguments.
@@ -267,9 +315,9 @@ std::optional<CFunctionWithSignature> FindSupportedWasmFastApiFunction(
             c_func_id, "at least one parameter is needed as the receiver");
         continue;
       }
-      if (!expected_sig->GetParam(0).is_ref()) {
+      if (!IsExternRef(expected_sig->GetParam(0))) {
         log_imported_function_mismatch(c_func_id,
-                                       "the receiver has to be a reference");
+                                       "the receiver has to be an externref");
         continue;
       }
     }
@@ -351,24 +399,6 @@ bool ResolveBoundJSFastApiFunction(const wasm::CanonicalSig* expected_sig,
              isolate, expected_sig, shared, shared->api_func_data(),
              ReceiverKind::kAnyReceiver,
              /*only_first_allowed=*/true) != std::nullopt;
-}
-
-bool IsStringRef(wasm::CanonicalValueType type) {
-  // We could use {type == kWasmStringRef} for simplicity, but that would
-  // reject non-nullable types.
-  return type.is_abstract_ref() && !type.is_shared() &&
-         type.generic_kind() == GenericKind::kString;
-}
-
-bool IsExternRef(wasm::CanonicalValueType type) {
-  // We could use {type == kWasmExternRef} for simplicity, but that would
-  // reject non-nullable types.
-  return type.is_abstract_ref() && !type.is_shared() &&
-         type.generic_kind() == GenericKind::kExtern;
-}
-
-bool IsStringOrExternRef(wasm::CanonicalValueType type) {
-  return IsStringRef(type) || IsExternRef(type);
 }
 
 bool IsDataViewGetterSig(const wasm::CanonicalSig* sig,

@@ -1995,6 +1995,13 @@ class TurboshaftGraphBuildingInterface
                          const Value args[], Value returns[],
                          CheckForException check_for_exception) {
     uint32_t func_index = imm.index;
+    const wasm::FunctionSig* sig = decoder->module_->functions[func_index].sig;
+    size_t param_count = sig->parameter_count();
+    DCHECK_LE(sig->return_count(), 1);
+    DCHECK_GE(param_count, 1);
+    DCHECK(sig->GetParam(0).is_reference_to(GenericKind::kExtern) &&
+           !sig->GetParam(0).is_shared());
+
     V<Object> receiver = args[0].get<Object>();
     // TODO(14616): Fix this.
     V<FixedArray> imports_array = LOAD_IMMUTABLE_INSTANCE_FIELD(
@@ -2027,10 +2034,6 @@ class TurboshaftGraphBuildingInterface
     BIND(if_equal_maps);
     OpIndex receiver_handle = __ AdaptLocalArgument(receiver);
 
-    const wasm::FunctionSig* sig = decoder->module_->functions[func_index].sig;
-    size_t param_count = sig->parameter_count();
-    DCHECK_LE(sig->return_count(), 1);
-
     const MachineSignature* callback_sig =
         env_->fast_api_data[func_index].signature;
     // All normal parameters + the options as additional parameter at the end.
@@ -2057,6 +2060,8 @@ class TurboshaftGraphBuildingInterface
     for (size_t i = 1; i < param_count; ++i) {
       inputs[i] = OpIndex::Invalid();
       if (sig->GetParam(i).is_ref()) {
+        DCHECK(sig->GetParam(i).is_reference_to(GenericKind::kExtern) &&
+               !sig->GetParam(i).is_shared());
         inputs[i] = __ AdaptLocalArgument(args[i].get<Object>());
       } else if (callback_sig->GetParam(i - 1).representation() ==
                  MachineRepresentation::kWord64) {
