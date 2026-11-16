@@ -2563,15 +2563,6 @@ class WasmStringNewWtf16ArrayDescriptor : public StaticCallInterfaceDescriptor<W
   DECLARE_DEFAULT_DESCRIPTOR(WasmStringNewWtf16ArrayDescriptor)
 };
 
-class WasmStringFromDataSegmentDescriptor : public StaticCallInterfaceDescriptor<WasmStringFromDataSegmentDescriptor> {
- public:
-  INTERNAL_DESCRIPTOR()
-  SANDBOXING_MODE(kSandboxed)
-  DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(1, kSegmentLength, kArrayStart, kArrayEnd, kSegmentIndex, kSegmentOffset, kVariant)
-  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(), MachineTypeOf<Uint32T>::value, MachineTypeOf<Uint32T>::value, MachineTypeOf<Uint32T>::value, MachineType::TaggedSigned(), MachineType::TaggedSigned(), MachineType::TaggedSigned())
-  DECLARE_DEFAULT_DESCRIPTOR(WasmStringFromDataSegmentDescriptor)
-};
-
 class WasmStringAsWtf16Descriptor : public StaticCallInterfaceDescriptor<WasmStringAsWtf16Descriptor> {
  public:
   INTERNAL_DESCRIPTOR()

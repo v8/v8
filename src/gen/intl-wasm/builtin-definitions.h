@@ -630,7 +630,6 @@ TFC(WasmStringNewWtf8, WasmStringNewWtf8) \
 TFC(WasmStringNewWtf8Array, WasmStringNewWtf8Array) \
 TFC(WasmStringNewWtf16, WasmStringNewWtf16) \
 TFC(WasmStringNewWtf16Array, WasmStringNewWtf16Array) \
-TFC(WasmStringFromDataSegment, WasmStringFromDataSegment) \
 TFC(WasmStringAsWtf16, WasmStringAsWtf16) \
 TFC(WasmStringConst, WasmStringConst) \
 TFC(WasmStringMeasureUtf8, WasmStringMeasureUtf8) \

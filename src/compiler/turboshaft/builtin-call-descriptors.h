@@ -1560,21 +1560,6 @@ struct BuiltinCallDescriptor {
                                               .CanThrowOrTrap();
   };
 
-  struct WasmStringFromDataSegment
-      : public Descriptor<WasmStringFromDataSegment> {
-    static constexpr auto kFunction = Builtin::kWasmStringFromDataSegment;
-    using arguments_t =
-        std::tuple<V<Word32>, V<Word32>, V<Word32>, V<Smi>, V<Smi>, V<Smi>>;
-    using results_t = std::tuple<V<WasmStringRefNullable>>;
-
-    static constexpr bool kNeedsFrameState = false;
-    static constexpr bool kNeedsContext = false;
-    static constexpr Operator::Properties kProperties = Operator::kNoDeopt;
-    // No "CanReadMemory" because data segments are immutable.
-    static constexpr OpEffects kEffects =
-        base_effects.CanAllocateWithoutIdentity().CanThrowOrTrap();
-  };
-
   struct WasmStringConst : public Descriptor<WasmStringConst> {
     static constexpr auto kFunction = Builtin::kWasmStringConst;
     using arguments_t = std::tuple<V<Word32>>;

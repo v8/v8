@@ -55,11 +55,9 @@ using compiler::Operator;
 using compiler::TrapId;
 using compiler::WriteBarrierKind;
 using TSBlock = compiler::turboshaft::Block;
-using compiler::turboshaft::CallOp;
 using compiler::turboshaft::ConditionWithHint;
 using compiler::turboshaft::ConstantOp;
 using compiler::turboshaft::ConstOrV;
-using compiler::turboshaft::DidntThrowOp;
 using compiler::turboshaft::Float32;
 using compiler::turboshaft::Float64;
 using EagerFrameState = compiler::turboshaft::EagerFrameState;
@@ -70,8 +68,6 @@ using compiler::turboshaft::LoadOp;
 using compiler::turboshaft::LoopLabel;
 using compiler::turboshaft::MemoryRepresentation;
 using compiler::turboshaft::OpEffects;
-using compiler::turboshaft::Operation;
-using compiler::turboshaft::OperationMatcher;
 using compiler::turboshaft::OpIndex;
 using compiler::turboshaft::OptionalOpIndex;
 using compiler::turboshaft::OptionalV;
@@ -91,7 +87,6 @@ using compiler::turboshaft::WasmStackCheckOp;
 using compiler::turboshaft::WasmStringRefNullable;
 using compiler::turboshaft::WasmStructNonNullable;
 using compiler::turboshaft::WasmStructNullable;
-using compiler::turboshaft::WasmTypeAnnotationOp;
 using compiler::turboshaft::WasmTypeCastOp;
 using compiler::turboshaft::Word;
 using compiler::turboshaft::Word64;
@@ -2367,20 +2362,13 @@ class TurboshaftGraphBuildingInterface
         break;
       }
       case WKI::kStringFromUtf8Array:
-        result = StringNewWtf8ArrayImpl(
-            decoder, unibrow::Utf8Variant::kLossyUtf8, args[0], args[1],
-            args[2], kWasmRefExternString);
-        break;
       case WKI::kStringFromUtf8ArrayShared: {
-        // TODO(448741522): If needed, special-case the array being an
-        // array.new_data, like StringNewWtf8ArrayImpl.
-        constexpr int config = UnicodeConfig::kLossyUtf8Shared().raw_as_int();
-        V<Object> builtin_result = CallBuiltinThroughJumptable<
-            BuiltinCallDescriptor::WasmStringNewWtf8Array>(
-            decoder, {args[1].op, args[2].op, NullCheck<WasmArray>(args[0]),
-                      __ SmiConstant(Smi::FromInt(config))});
+        ValueType result_type = imported_op == WKI::kStringFromUtf8ArrayShared
+                                    ? kWasmRefSharedExternString
+                                    : kWasmRefExternString;
         result =
-            __ AnnotateWasmType(builtin_result, kWasmRefSharedExternString);
+            StringNewWtf8ArrayImpl(decoder, unibrow::Utf8Variant::kLossyUtf8,
+                                   args[0], args[1], args[2], result_type);
         break;
       }
       case WKI::kStringIntoUtf8Array:
@@ -6137,76 +6125,18 @@ class TurboshaftGraphBuildingInterface
     result->op = __ AnnotateWasmType(result_value, result->type);
   }
 
-  // TODO(jkummerow): This check would be more elegant if we made
-  // {ArrayNewSegment} a high-level node that's lowered later.
-  // Returns the call on success, nullptr otherwise (like `TryCast`).
-  const CallOp* IsArrayNewSegment(V<Object> array) {
-    DCHECK_IMPLIES(!array.valid(), __ generating_unreachable_operations());
-    if (__ generating_unreachable_operations()) return nullptr;
-    if (const WasmTypeAnnotationOp* annotation =
-            __ output_graph().Get(array).TryCast<WasmTypeAnnotationOp>()) {
-      array = annotation->value();
-    }
-    if (const DidntThrowOp* didnt_throw =
-            __ output_graph().Get(array).TryCast<DidntThrowOp>()) {
-      array = didnt_throw->throwing_operation();
-    }
-    const CallOp* call = __ output_graph().Get(array).TryCast<CallOp>();
-    if (call == nullptr) return nullptr;
-    uint64_t stub_id{};
-    if (!OperationMatcher(__ output_graph())
-             .MatchWasmStubCallConstant(call->callee(), &stub_id)) {
-      return nullptr;
-    }
-    DCHECK_LT(stub_id, static_cast<uint64_t>(Builtin::kFirstBytecodeHandler));
-    if (stub_id == static_cast<uint64_t>(Builtin::kWasmArrayNewSegment)) {
-      return call;
-    }
-    return nullptr;
-  }
-
   V<HeapObject> StringNewWtf8ArrayImpl(FullDecoder* decoder,
                                        const unibrow::Utf8Variant variant,
                                        const Value& array, const Value& start,
                                        const Value& end,
                                        ValueType result_type) {
-    // Special case: shortcut a sequence "array from data segment" + "string
-    // from wtf8 array" to directly create a string from the segment.
-    V<internal::UnionOf<String, WasmNull, Null>> call;
-    const CallOp* array_new = result_type.is_shared().value()
-                                  ? nullptr
-                                  : IsArrayNewSegment(array.get<Object>());
-    if (array_new != nullptr) {
-      // We can only pass 3 untagged parameters to the builtin (on 32-bit
-      // platforms). The segment index is easy to tag: if it validated, it must
-      // be in Smi range.
-      OpIndex segment_index = array_new->input(1);
-      int32_t index_val;
-      OperationMatcher(__ output_graph())
-          .MatchIntegralWord32Constant(segment_index, &index_val);
-      V<Smi> index_smi = __ SmiConstant(Smi::FromInt(index_val));
-      // Arbitrary choice for the second tagged parameter: the segment offset.
-      OpIndex segment_offset = array_new->input(2);
-      __ TrapIfNot(
-          __ Uint32LessThan(segment_offset, __ Word32Constant(Smi::kMaxValue)),
-          OpIndex::Invalid(), TrapId::kTrapDataSegmentOutOfBounds);
-      V<Smi> offset_smi = __ TagSmi(segment_offset);
-      OpIndex segment_length = array_new->input(3);
-      V<Smi> variant_smi =
-          __ SmiConstant(Smi::FromInt(static_cast<int32_t>(variant)));
-      call = CallBuiltinThroughJumptable<
-          BuiltinCallDescriptor::WasmStringFromDataSegment>(
-          decoder, {segment_length, start.op, end.get<Word32>(), index_smi,
-                    offset_smi, variant_smi});
-    } else {
-      // Regular path if the shortcut wasn't taken.
-      UnicodeConfig config(variant, array.type.is_shared(),
-                           result_type.is_shared());
-      call = CallBuiltinThroughJumptable<
-          BuiltinCallDescriptor::WasmStringNewWtf8Array>(
-          decoder, {start.op, end.get<Word32>(), NullCheck<WasmArray>(array),
-                    __ SmiConstant(Smi::FromInt(config.raw_as_int()))});
-    }
+    UnicodeConfig config(variant, array.type.is_shared(),
+                         result_type.is_shared());
+    V<internal::UnionOf<String, WasmNull, Null>> call =
+        CallBuiltinThroughJumptable<
+            BuiltinCallDescriptor::WasmStringNewWtf8Array>(
+            decoder, {start.op, end.get<Word32>(), NullCheck<WasmArray>(array),
+                      __ SmiConstant(Smi::FromInt(config.raw_as_int()))});
     DCHECK_IMPLIES(variant == unibrow::Utf8Variant::kUtf8NoTrap,
                    result_type.is_nullable());
     // The builtin returns a WasmNull for kUtf8NoTrap, so nullable values in

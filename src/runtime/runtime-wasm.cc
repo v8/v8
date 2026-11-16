@@ -2450,45 +2450,6 @@ RUNTIME_FUNCTION(Runtime_WasmStringConst) {
               .ToHandleChecked();
 }
 
-RUNTIME_FUNCTION(Runtime_WasmStringNewSegmentWtf8) {
-  DCHECK_EQ(5, args.length());
-  HandleScope scope(isolate);
-  DirectHandle<WasmTrustedInstanceData> trusted_instance_data(
-      TrustedCast<WasmTrustedInstanceData>(args[0]), isolate);
-  uint32_t segment_index = args.positive_smi_value_at(1);
-  uint32_t offset = args.positive_smi_value_at(2);
-  uint32_t length = args.positive_smi_value_at(3);
-  unibrow::Utf8Variant variant =
-      static_cast<unibrow::Utf8Variant>(args.positive_smi_value_at(4));
-
-  wasm::WireBytesRef segment_source =
-      trusted_instance_data->data_segments()->get(segment_index);
-  if (!base::IsInBounds<uint32_t>(offset, length, segment_source.length())) {
-    return ThrowWasmError(isolate,
-                          MessageTemplate::kWasmTrapDataSegmentOutOfBounds);
-  }
-
-  base::Vector<const uint8_t> source =
-      trusted_instance_data->native_module()->wire_bytes().SubVector(
-          segment_source.offset() + offset,
-          segment_source.offset() + offset + length);
-
-  MaybeDirectHandle<String> result =
-      isolate->factory()->NewStringFromUtf8(source, variant);
-  if (variant == unibrow::Utf8Variant::kUtf8NoTrap) {
-    // If the input was invalid, then the decoder has failed silently, and
-    // the string.new_utf8_array_try instruction should return null.
-    // Only instructions from the stringref proposal can set variant
-    // kUtf8NoTrap, so WasmNull is appropriate here.
-    if (result.is_null() && !isolate->has_exception()) {
-      return *isolate->factory()->wasm_null();
-    }
-    // Fall through in case of a valid result, and in case of a pending
-    // exception because the requested string was too large.
-  }
-  RETURN_RESULT_OR_FAILURE(isolate, result);
-}
-
 namespace {
 // TODO(12868): Consider unifying with api.cc:String::Utf8Length.
 template <typename T>
