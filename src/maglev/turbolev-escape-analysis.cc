@@ -611,6 +611,17 @@ class CandidateAnalyzer {
   template <typename FixedArrayT, typename StoreT>
   ProcessResult ProcessFixedArrayStore(StoreT* node) {
     TRACE("Process " << PRINT_NODE(node));
+    if (data_.ResolveBase(node->ElementsInput().node())
+            ->template Is<ArgumentsElements>()) {
+      // Deoptimization reconstructs an elided rest/arguments object's
+      // ArgumentsElements from the unmutated stack frame. If its backing store
+      // is mutated, the owning allocation cannot be elided.
+      LoadTaggedField* elements_load = node->ElementsInput()
+                                           .node()
+                                           ->UnwrapIdentities()
+                                           ->template Cast<LoadTaggedField>();
+      data_.MarkAsEscapedIfCandidate(elements_load->ValueInput().node());
+    }
     if (Int32Constant* index_node =
             node->IndexInput().node()->template TryCast<Int32Constant>()) {
       int index = index_node->value();
