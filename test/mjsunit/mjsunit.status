@@ -222,6 +222,7 @@
   'regress/regress-crbug-540324230': [PASS, SLOW],
   'regress/wasm/regress-810973': [PASS, SLOW],
   'sandbox/regress/regress-579957317': [PASS, SLOW],
+  'sandbox/regress/regress-585869521': [PASS, SLOW],
   'sealed-array-reduce': [PASS, SLOW],
   'string-replace-gc': [PASS, SLOW],
   'tools/processor': [PASS, SLOW],
