@@ -580,6 +580,7 @@ Handle<JSObject> ScopeIterator::ScopeObject(Mode mode) {
 #ifdef V8_ENABLE_TDZ_HOLE
     DCHECK(!IsTheHole(*value));
 #endif
+    DCHECK(!IsStaleRegister(*value));
     if (IsOptimizedOut(*value)) {
       JSObject::SetAccessor(
           scope, name, isolate_->factory()->value_unavailable_accessor(), NONE)
@@ -957,7 +958,9 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
           CHECK_LT(static_cast<uint32_t>(index),
                    parameters_and_registers->ulength().value());
           value = handle(parameters_and_registers->get(index), isolate_);
-          if (IsLocalInTdz(var, *value)) {
+          if (IsStaleRegister(*value)) {
+            value = isolate_->factory()->optimized_out();
+          } else if (IsLocalInTdz(var, *value)) {
             value = isolate_->factory()->tdz_hole_value();
           }
         } else {
@@ -967,6 +970,9 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
             CHECK_LT(index, frame->ComputeExpressionsCount());
           }
           value = frame_inspector_->GetExpression(index);
+          if (IsStaleRegister(*value)) {
+            value = isolate_->factory()->optimized_out();
+          }
           if (IsOptimizedOut(*value)) {
             // We'll rematerialize this later.
             if (args_alloc == VariableAllocationInfo::STACK &&
@@ -1072,8 +1078,10 @@ void ScopeIterator::VisitLocalScope(const Visitor& visitor, Mode mode,
             CHECK_GE(args_index, 0);
             CHECK_LT(args_index, frame->ComputeExpressionsCount());
           }
-          arguments_optimized_out =
-              IsOptimizedOut(*frame_inspector_->GetExpression(args_index));
+          Tagged<Object> arguments_value =
+              *frame_inspector_->GetExpression(args_index);
+          arguments_optimized_out = IsOptimizedOut(arguments_value) ||
+                                    IsStaleRegister(arguments_value);
         }
 
         if (arguments_optimized_out) {
@@ -1200,6 +1208,9 @@ bool ScopeIterator::SetLocalVariableValue(DirectHandle<String> variable_name,
             //    invariants and is overwritten when the initializer executes.
             //    We intentionally do not care about this edge case and consider
             //    it working as intended.
+            if (IsOptimizedOut(current_val) || IsStaleRegister(current_val)) {
+              return false;
+            }
             if (IsTheHole(current_val) || IsTdzHole(current_val)) {
               return false;
             }
@@ -1213,7 +1224,9 @@ bool ScopeIterator::SetLocalVariableValue(DirectHandle<String> variable_name,
             CHECK_LT(index, frame->ComputeExpressionsCount());
             DirectHandle<Object> current_val =
                 frame_inspector_->GetExpression(index);
-            if (IsOptimizedOut(*current_val)) return false;
+            if (IsOptimizedOut(*current_val) || IsStaleRegister(*current_val)) {
+              return false;
+            }
             // Intentional: As explained above, check only actual hole values
             // for stack registers.
             if (IsTheHole(*current_val) || IsTdzHole(*current_val)) {
