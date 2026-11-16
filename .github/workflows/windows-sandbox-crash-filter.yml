@@ -105,10 +105,11 @@ jobs:
         env:
           DEPOT_TOOLS_WIN_TOOLCHAIN: "0"
         run: |
-          # Passing --args through PowerShell strips the embedded quotes around
-          # target_cpu="x64" before GN parses the expression. Use GN's args-file
-          # option so string-valued arguments reach GN without shell rewriting.
-          $gnArgsFile = Join-Path $PWD "windows-x64-gn-args.gn"
+          # Write GN arguments directly to the output directory. GN reads args.gn
+          # from the build directory, avoiding PowerShell command-line quoting.
+          $outDir = Join-Path $PWD "out.gn/x64.release"
+          New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+          $gnArgsFile = Join-Path $outDir "args.gn"
           @(
             'is_debug = false'
             'is_component_build = false'
@@ -116,18 +117,14 @@ jobs:
             'v8_enable_sandbox = true'
             'v8_enable_memory_corruption_api = true'
           ) | Set-Content -Path $gnArgsFile -Encoding ascii
-          Write-Host "Generating with GN args file: $gnArgsFile"
+          Write-Host "GN args.gn contents:"
           Get-Content $gnArgsFile | ForEach-Object { Write-Host $_ }
-          $argsFileText = Get-Content $gnArgsFile -Raw
-          if ($argsFileText -notmatch '(?m)^target_cpu = "x64"$') {
-            throw "Generated GN args file does not contain the exact target_cpu string assignment."
-          }
-          gn gen out.gn/x64.release "--args-file=$gnArgsFile"
+          gn gen $outDir
           if ($LASTEXITCODE -ne 0) {
             throw "gn gen failed with exit code $LASTEXITCODE."
           }
 
-          # Fail the workflow if GN silently ignores or overrides any required setting.
+          # Fail if GN did not apply the required settings.
           $requiredArgs = @(
             @{ Name = "is_debug"; Expected = "false" }
             @{ Name = "is_component_build"; Expected = "false" }
@@ -136,7 +133,7 @@ jobs:
             @{ Name = "v8_enable_memory_corruption_api"; Expected = "true" }
           )
           foreach ($arg in $requiredArgs) {
-            $argOutput = (& gn args out.gn/x64.release "--list=$($arg.Name)" 2>&1 | Out-String)
+            $argOutput = (& gn args $outDir "--list=$($arg.Name)" 2>&1 | Out-String)
             Write-Host $argOutput
             if ($LASTEXITCODE -ne 0 -or $argOutput -notmatch [regex]::Escape("= $($arg.Expected)")) {
               throw "GN argument $($arg.Name) did not resolve to expected value $($arg.Expected)."
