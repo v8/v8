@@ -110,11 +110,13 @@ jobs:
             "is_component_build = false"
             'target_cpu = "x64"'
             "v8_enable_sandbox = true"
+            "v8_enable_memory_corruption_api = true"
           ) | Set-Content -Path windows-x64-args.gn -Encoding ascii
           gn gen out.gn/x64.release --args-file=windows-x64-args.gn
           Write-Host "Effective GN build arguments:"
           gn args out.gn/x64.release --list=is_debug
           gn args out.gn/x64.release --list=is_component_build
+          gn args out.gn/x64.release --list=v8_enable_memory_corruption_api
 
       - name: Build d8 and unit tests
         shell: pwsh
