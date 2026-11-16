@@ -197,6 +197,11 @@ class BaselineAssembler {
                                     int32_t index);
   inline void LoadFixedArrayElement(TaggedRegister output, TaggedRegister array,
                                     int32_t index);
+
+  // Pushes a single register slot without inserting 16-byte stack alignment
+  // padding. Only for building fixed/local frame layouts (e.g.
+  // PrologueFillFrame) where alignment is managed across the whole frame body.
+  inline void PushUnpadded(Register reg);
 #endif
 
   // Falls through and sets scratch_and_result to 0 on failure, jumps to
