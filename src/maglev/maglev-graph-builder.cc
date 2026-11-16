@@ -7986,6 +7986,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
   DCHECK_EQ(initial_callback.has_value(), process_element_callback.has_value());
 
   if (!CanSpeculateCall()) return {};
+  // Eager deopt continuations cannot be nested, so do not inline array
+  // iterating builtins when an EagerDeoptFrameScope is already active.
+  if (reducer_.current_eager_deopt_scope() != nullptr) return {};
 
   ValueNode* receiver = args.receiver();
   if (!receiver) return {};
@@ -8174,6 +8177,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
           // ```
           ValueNode* value;
           {
+            const EagerDeoptFrameScope& eager_deopt_scope =
+                get_eager_deopt_scope(target, receiver, callback, this_arg,
+                                      index_int32, original_length);
             const LazyDeoptFrameScope& lazy_deopt_scope = get_lazy_deopt_scope(
                 target, receiver, callback, this_arg, index_int32,
                 next_index_int32, original_length);
@@ -9682,6 +9688,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeSort(
   if (V8_UNLIKELY(v8_flags.correctness_fuzzer_suppressions)) return {};
 
   if (!CanSpeculateCall()) return {};
+  if (reducer_.current_eager_deopt_scope() != nullptr) return {};
 
   ValueNode* receiver = args.receiver();
   if (!receiver) return {};
