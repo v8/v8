@@ -943,7 +943,7 @@ class MaglevGraphBuilder {
       base::FunctionRef<ReduceResult(ValueNode*, ValueNode*)>;
   using GetEagerDeoptScopeCallback = base::FunctionRef<EagerDeoptFrameScope(
       compiler::JSFunctionRef, ValueNode*, ValueNode*, ValueNode*, ValueNode*,
-      ValueNode*, ValueNode*)>;
+      ValueNode*)>;
   using GetLazyDeoptScopeCallback = base::FunctionRef<LazyDeoptFrameScope(
       compiler::JSFunctionRef, ValueNode*, ValueNode*, ValueNode*, ValueNode*,
       ValueNode*, ValueNode*)>;

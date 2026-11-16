@@ -7862,13 +7862,13 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
 
   auto get_eager_deopt_scope =
       [this](compiler::JSFunctionRef target, ValueNode* receiver,
-             ValueNode* callback, ValueNode* this_arg, ValueNode* index_int32,
-             ValueNode* next_index_int32, ValueNode* original_length) {
+             ValueNode* callback, ValueNode* this_arg,
+             ValueNode* deopt_index_int32, ValueNode* original_length) {
         return EagerDeoptFrameScope(
             &reducer_, GetContext(),
             Builtin::kArrayForEachLoopEagerDeoptContinuation, target,
             base::VectorOf<ValueNode*>({receiver, callback, this_arg,
-                                        next_index_int32, original_length}));
+                                        deopt_index_int32, original_length}));
       };
 
   MaybeReduceResult builtin_result = TryReduceArrayIteratingBuiltin(
@@ -7952,15 +7952,15 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayMap(
   auto get_eager_deopt_scope = [this, &result_array](
                                    compiler::JSFunctionRef target,
                                    ValueNode* receiver, ValueNode* callback,
-                                   ValueNode* this_arg, ValueNode* index_int32,
-                                   ValueNode* next_index_int32,
+                                   ValueNode* this_arg,
+                                   ValueNode* deopt_index_int32,
                                    ValueNode* original_length) {
     DCHECK_NOT_NULL(result_array);
     return EagerDeoptFrameScope(
         &reducer_, GetContext(), Builtin::kArrayMapLoopEagerDeoptContinuation,
         target,
         base::VectorOf<ValueNode*>({receiver, callback, this_arg, result_array,
-                                    next_index_int32, original_length}));
+                                    deopt_index_int32, original_length}));
   };
 
   MaybeReduceResult builtin_result = TryReduceArrayIteratingBuiltin(
@@ -8123,7 +8123,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
           // Int32Increment that asserts no overflow instead of deopting.
           EagerDeoptFrameScope eager_deopt_scope =
               get_eager_deopt_scope(target, receiver, callback, this_arg,
-                                    index_int32, index_int32, original_length);
+                                    index_int32, original_length);
           GET_VALUE_OR_ABORT(
               next_index_int32,
               AddNewNode<Int32IncrementWithOverflow>({index_int32}));
@@ -8220,9 +8220,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
 
           // Make sure to finish the loop if we eager deopt in the map check
           // or index check.
-          const EagerDeoptFrameScope& eager_deopt_scope = get_eager_deopt_scope(
-              target, receiver, callback, this_arg, index_int32,
-              next_index_int32, original_length);
+          const EagerDeoptFrameScope& eager_deopt_scope =
+              get_eager_deopt_scope(target, receiver, callback, this_arg,
+                                    next_index_int32, original_length);
 
           if (recheck_maps_after_call) {
             // Build the CheckMap manually, since we're doing it with already
