@@ -1013,11 +1013,18 @@ bool isArrayLike(v8::Local<v8::Context> context, v8::Local<v8::Object> object,
              .ToLocal(&lengthDescriptor)) {
       return false;
     }
+    // An accessor descriptor has no own "value". Only read "value" if it is an
+    // own property, otherwise the lookup would walk the prototype chain of the
+    // descriptor object and could invoke a user-defined getter on
+    // Object.prototype.
+    if (!lengthDescriptor->IsObject()) return false;
+    v8::Local<v8::Object> descriptorObject = lengthDescriptor.As<v8::Object>();
+    v8::Local<v8::String> valueKey = toV8String(isolate, "value");
+    if (!descriptorObject->HasOwnProperty(context, valueKey).FromMaybe(false)) {
+      return false;
+    }
     v8::Local<v8::Value> lengthValue;
-    if (!lengthDescriptor->IsObject() ||
-        !lengthDescriptor.As<v8::Object>()
-             ->Get(context, toV8String(isolate, "value"))
-             .ToLocal(&lengthValue) ||
+    if (!descriptorObject->Get(context, valueKey).ToLocal(&lengthValue) ||
         !lengthValue->IsUint32()) {
       return false;
     }
