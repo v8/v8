@@ -137,8 +137,22 @@ jobs:
             throw "d8.exe was not produced."
           }
 
-          # A static V8 build must not leave d8.exe dependent on v8.dll.
-          $dependencies = (& dumpbin /nologo /dependents $d8 | Out-String)
+          # dumpbin is part of the MSVC toolchain but is not guaranteed to be
+          # on the GitHub Actions runner's default PATH. Resolve it from VS.
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          if (-not (Test-Path $vswhere)) {
+            throw "vswhere.exe was not found; cannot locate the MSVC dumpbin tool."
+          }
+          $dumpbinCandidates = @(& $vswhere -latest -products '*' -find 'VC\Tools\MSVC\**\bin\Hostx64\x64\dumpbin.exe')
+          $dumpbin = $dumpbinCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $dumpbin) {
+            throw "MSVC dumpbin.exe was not found under the selected Visual Studio installation."
+          }
+          Write-Host "Using dumpbin: $dumpbin"
+          $dependencies = (& $dumpbin /nologo /dependents $d8 | Out-String)
+          if ($LASTEXITCODE -ne 0) {
+            throw "dumpbin failed with exit code $LASTEXITCODE."
+          }
           Write-Host $dependencies
           if ($dependencies -match 'v8\.dll') {
             throw "d8.exe still imports v8.dll; refusing to publish an incomplete executable."
