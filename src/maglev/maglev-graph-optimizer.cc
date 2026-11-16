@@ -1903,6 +1903,7 @@ ProcessResult MaglevGraphOptimizer::VisitCallKnownBuiltin(
 
 ProcessResult MaglevGraphOptimizer::VisitReturnedValue(
     ReturnedValue* node, const ProcessingState& state) {
+  RegisterTaggedAlternative(node);
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }

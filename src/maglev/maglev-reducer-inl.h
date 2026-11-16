@@ -689,7 +689,7 @@ bool MaglevReducer<BaseT>::CanElideWriteBarrier(ValueNode* object,
   // a Smi when tagged.
   if (ValueNode* tagged_alt = known_node_aspects().TryGetAlternativeFor(
           value, UseRepresentation::kTagged)) {
-    DCHECK(tagged_alt->is_conversion());
+    DCHECK(tagged_alt->is_conversion() || tagged_alt->Is<ReturnedValue>());
     return CheckType(tagged_alt, NodeType::kSmi);
   }
   return false;
