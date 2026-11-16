@@ -7170,31 +7170,26 @@ Reduction JSCallReducer::ReduceArrayIterator(Node* node,
   // array. So don't bother optimizing in that case.
   if (array_kind == ArrayIteratorKind::kTypedArray &&
       !inference.AllOfInstanceTypesAre(InstanceType::JS_TYPED_ARRAY_TYPE)) {
-    return NoChange();
+    return inference.NoChange();
   }
 
   if (array_kind == ArrayIteratorKind::kTypedArray) {
-    DCHECK(!inference.AnyOfInstanceTypesAre(
-        InstanceType::JS_DETACHED_TYPED_ARRAY_TYPE));
+    CallParameters const& p = CallParametersOf(node->op());
+    if (p.speculation_mode() != SpeculationMode::kAllowSpeculation) {
+      return inference.NoChange();
+    }
+
+    // The detach check below relies on the {elements_kinds} of these maps.
+    std::set<ElementsKind> elements_kinds;
+    for (MapRef map : inference.GetMaps()) {
+      elements_kinds.insert(map.elements_kind());
+    }
+    inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
+                                        control, p.feedback());
+
     // Make sure we deopt when the JSArrayBuffer is detached.
     if (!dependencies()->DependOnArrayBufferDetachingProtector()) {
-      CallParameters const& p = CallParametersOf(node->op());
-      if (p.speculation_mode() != SpeculationMode::kAllowSpeculation) {
-        return NoChange();
-      }
-
-      std::set<ElementsKind> elements_kinds;
-      for (MapRef map : inference.GetMaps()) {
-        elements_kinds.insert(map.elements_kind());
-      }
-
-      // The following detach check is built with the given {elements_kinds} in
-      // mind, so we have to install dependency on those.
-      inference.RelyOnMapsPreferStability(
-          dependencies(), jsgraph(), &effect, control,
-          CallParametersOf(node->op()).feedback());
-
-      JSCallReducerAssembler a(this, node);
+      JSCallReducerAssembler a(this, node, effect, control);
       a.CheckIfTypedArrayWasDetachedOrOutOfBounds(
           TNode<JSTypedArray>::UncheckedCast(receiver),
           std::move(elements_kinds), p.feedback());
@@ -8703,7 +8698,7 @@ Reduction JSCallReducer::ReduceArrayBufferViewByteLengthAccessor(
     return inference.NoChange();
   }
 
-  JSCallReducerAssembler a(this, node);
+  JSCallReducerAssembler a(this, node, effect, control);
   TNode<JSTypedArray> typed_array =
       TNode<JSTypedArray>::UncheckedCast(receiver);
   TNode<Number> length = a.ArrayBufferViewByteLength(
