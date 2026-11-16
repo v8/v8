@@ -351,7 +351,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(DefineGetterPropertyUnchecked, 4, 1)                               \
   F(DefineSetterPropertyUnchecked, 4, 1)                               \
   F(DeleteProperty, 3, 1)                                              \
-  F(DisposeDisposableStack, 5, 1)                                      \
+  F(DisposeDisposableStack, 4, 1)                                      \
   I(GeneratorYieldResult, 2, 1)                                        \
   F(GetDerivedMap, 2, 1)                                               \
   F(GetFunctionName, 1, 1)                                             \
@@ -468,10 +468,13 @@ constexpr bool CanTriggerGC(T... properties) {
 #define FOR_EACH_THROWING_INTRINSIC_SCOPES(F, I) \
   F(ThrowConstAssignError, 0, 1)                 \
   F(ThrowUsingAssignError, 0, 1)                 \
-  F(ThrowAwaitUsingAssignError, 0, 1)
+  F(ThrowAwaitUsingAssignError, 0, 1)            \
+  F(ThrowExpectAnObjectWithUsing, 0, 1)          \
+  F(ThrowSuppressedErrorAtDisposal, 1, 1)
 
 #define FOR_EACH_INTRINSIC_SCOPES(F, I)            \
   FOR_EACH_THROWING_INTRINSIC_SCOPES(F, I)         \
+  F(CheckSyncDisposeMethod, 1, 1)                  \
   F(DeclareEvalFunction, 2, 1)                     \
   F(DeclareEvalVar, 1, 1)                          \
   F(DeclareGlobals, 2, 1)                          \
@@ -486,6 +489,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(NewRestParameter, 1, 1)                        \
   F(NewSloppyArguments, 1, 1)                      \
   F(NewStrictArguments, 1, 1)                      \
+  F(NewSuppressedErrorAtDisposal, 2, 1)            \
   F(PushBlockContext, 1, 1)                        \
   F(PushCatchContext, 2, 1)                        \
   F(PushWithContext, 2, 1)                         \

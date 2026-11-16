@@ -180,6 +180,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeArrayBuilder& LoadAsyncIteratorProperty(Register object,
                                                   int feedback_slot);
 
+  // Named load property of the @@dispose symbol.
+  BytecodeArrayBuilder& LoadDisposeProperty(Register object, int feedback_slot);
+
   // Store properties. Flag for NeedsSetFunctionName() should
   // be in the accumulator.
   BytecodeArrayBuilder& DefineKeyedOwnPropertyInLiteral(

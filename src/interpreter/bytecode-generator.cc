@@ -1353,7 +1353,9 @@ class V8_NODISCARD BytecodeGenerator::DisposablesStackScope final {
   explicit DisposablesStackScope(BytecodeGenerator* bytecode_generator)
       : bytecode_generator_(bytecode_generator),
         prev_disposables_stack_(
-            bytecode_generator_->current_disposables_stack_) {
+            bytecode_generator_->current_disposables_stack_),
+        prev_sync_disposables_(bytecode_generator_->current_sync_disposables_) {
+    bytecode_generator_->set_current_sync_disposables(nullptr);
     bytecode_generator_->set_current_disposables_stack(
         bytecode_generator->register_allocator()->NewRegister());
     bytecode_generator->builder()->CallRuntime(
@@ -1364,11 +1366,85 @@ class V8_NODISCARD BytecodeGenerator::DisposablesStackScope final {
 
   ~DisposablesStackScope() {
     bytecode_generator_->set_current_disposables_stack(prev_disposables_stack_);
+    bytecode_generator_->set_current_sync_disposables(prev_sync_disposables_);
   }
 
  private:
   BytecodeGenerator* const bytecode_generator_;
   Register prev_disposables_stack_;
+  SyncDisposablesScope* prev_sync_disposables_;
+};
+
+// Registers for the `using` declarations of a scope without `await using`,
+// which take the place of a disposable stack: the value and the dispose method
+// of each declaration. The method stays undefined until the declaration has
+// run, so disposal skips declarations that did not run.
+class V8_NODISCARD BytecodeGenerator::SyncDisposablesScope final {
+ public:
+  SyncDisposablesScope(BytecodeGenerator* bytecode_generator, Scope* scope)
+      : bytecode_generator_(bytecode_generator),
+        variables_(bytecode_generator->zone()),
+#ifdef DEBUG
+        added_(bytecode_generator->zone()),
+#endif
+        prev_disposables_stack_(bytecode_generator->current_disposables_stack_),
+        prev_sync_disposables_(bytecode_generator->current_sync_disposables_) {
+    DCHECK(!scope->has_await_using_declaration());
+    for (Variable* variable : *scope->locals()) {
+      if (variable->mode() == VariableMode::kUsing) {
+        variables_.push_back(variable);
+      }
+    }
+#ifdef DEBUG
+    added_.resize(count(), false);
+#endif
+    registers_ =
+        bytecode_generator->register_allocator()->NewRegisterList(2 * count());
+    bytecode_generator->builder()->LoadUndefined();
+    for (int i = 0; i < count(); i++) {
+      bytecode_generator->builder()
+          ->StoreAccumulatorInRegister(value(i))
+          .StoreAccumulatorInRegister(method(i));
+    }
+    bytecode_generator->set_current_disposables_stack(Register());
+    bytecode_generator->set_current_sync_disposables(this);
+  }
+
+  ~SyncDisposablesScope() {
+    bytecode_generator_->set_current_disposables_stack(prev_disposables_stack_);
+    bytecode_generator_->set_current_sync_disposables(prev_sync_disposables_);
+  }
+
+  int count() const { return static_cast<int>(variables_.size()); }
+
+  // Returns the index of the registers of `variable`. Each declaration is
+  // added once.
+  int Add(Variable* variable) {
+    auto it = std::find(variables_.begin(), variables_.end(), variable);
+    SBXCHECK(it != variables_.end());
+    int index = static_cast<int>(it - variables_.begin());
+#ifdef DEBUG
+    DCHECK(!added_[index]);
+    added_[index] = true;
+#endif
+    return index;
+  }
+
+  Register value(int index) const { return registers_[2 * index]; }
+  Register method(int index) const { return registers_[2 * index + 1]; }
+
+ private:
+  // Most scopes have only a few `using` declarations.
+  static constexpr size_t kInlineCount = 4;
+
+  BytecodeGenerator* const bytecode_generator_;
+  SmallZoneVector<Variable*, kInlineCount> variables_;
+#ifdef DEBUG
+  SmallZoneVector<bool, kInlineCount> added_;
+#endif
+  RegisterList registers_;
+  Register prev_disposables_stack_;
+  SyncDisposablesScope* prev_sync_disposables_;
 };
 
 namespace {
@@ -1463,6 +1539,7 @@ BytecodeGenerator::BytecodeGenerator(
       execution_result_(nullptr),
       incoming_new_target_or_generator_(),
       current_disposables_stack_(),
+      current_sync_disposables_(nullptr),
       optional_chaining_null_labels_(nullptr),
       dummy_feedback_slot_(feedback_spec(), FeedbackSlotKind::kCompareOp),
       generator_jump_table_(nullptr),
@@ -2048,8 +2125,7 @@ void BytecodeGenerator::GenerateBodyStatementsWithoutImplicitFinalReturn(
   if (closure_scope() != nullptr &&
       (closure_scope()->has_using_declaration() ||
        closure_scope()->has_await_using_declaration())) {
-    BuildDisposeScope([&]() { VisitStatements(body, start); },
-                      closure_scope()->has_await_using_declaration());
+    BuildDisposeScope([&]() { VisitStatements(body, start); }, closure_scope());
   } else {
     VisitStatements(body, start);
   }
@@ -2115,7 +2191,7 @@ void BytecodeGenerator::VisitBlockMaybeDispose(Block* stmt) {
       (stmt->scope()->has_using_declaration() ||
        stmt->scope()->has_await_using_declaration())) {
     BuildDisposeScope([&]() { VisitBlockDeclarationsAndStatements(stmt); },
-                      stmt->scope()->has_await_using_declaration());
+                      stmt->scope());
   } else {
     VisitBlockDeclarationsAndStatements(stmt);
   }
@@ -3060,14 +3136,17 @@ void BytecodeGenerator::BuildTryFinally(
 
 template <typename WrappedFunc>
 void BytecodeGenerator::BuildDisposeScope(WrappedFunc wrapped_func,
-                                          bool has_await_using) {
+                                          Scope* scope) {
+  if (!scope->has_await_using_declaration()) {
+    BuildSyncDisposeScope(wrapped_func, scope);
+    return;
+  }
+
   RegisterAllocationScope allocation_scope(this);
   DisposablesStackScope disposables_stack_scope(this);
-  if (has_await_using) {
-    set_catch_prediction(info()->scope()->is_repl_mode_scope()
-                             ? HandlerTable::UNCAUGHT_ASYNC_AWAIT
-                             : HandlerTable::ASYNC_AWAIT);
-  }
+  set_catch_prediction(info()->scope()->is_repl_mode_scope()
+                           ? HandlerTable::UNCAUGHT_ASYNC_AWAIT
+                           : HandlerTable::ASYNC_AWAIT);
 
   BuildTryFinally(
       // Try block
@@ -3075,72 +3154,169 @@ void BytecodeGenerator::BuildDisposeScope(WrappedFunc wrapped_func,
       // Finally block
       [&](Register body_continuation_token, Register body_continuation_result,
           Register message) {
-        if (has_await_using) {
-          Register result_register = register_allocator()->NewRegister();
-          Register disposable_stack_register =
-              register_allocator()->NewRegister();
-          builder()->MoveRegister(current_disposables_stack(),
-                                  disposable_stack_register);
-          LoopBuilder loop_builder(builder(), nullptr, nullptr,
-                                   feedback_spec());
-          LoopScope loop_scope(this, &loop_builder);
+        Register result_register = register_allocator()->NewRegister();
+        Register disposable_stack_register =
+            register_allocator()->NewRegister();
+        builder()->MoveRegister(current_disposables_stack(),
+                                disposable_stack_register);
+        LoopBuilder loop_builder(builder(), nullptr, nullptr, feedback_spec());
+        LoopScope loop_scope(this, &loop_builder);
 
-          {
-            RegisterAllocationScope allocation_scope(this);
-            RegisterList args = register_allocator()->NewRegisterList(5);
-            builder()
-                ->MoveRegister(disposable_stack_register, args[0])
-                .MoveRegister(body_continuation_token, args[1])
-                .MoveRegister(body_continuation_result, args[2])
-                .MoveRegister(message, args[3])
-                .LoadLiteral(Smi::FromEnum(
-                    DisposableStackResourcesType::kAtLeastOneAsync))
-                .StoreAccumulatorInRegister(args[4]);
-            builder()->CallRuntime(Runtime::kDisposeDisposableStack, args);
-          }
-
+        {
+          RegisterAllocationScope allocation_scope(this);
+          RegisterList args = register_allocator()->NewRegisterList(4);
           builder()
-              ->StoreAccumulatorInRegister(result_register)
-              .LoadTrue()
-              .CompareReference(result_register);
-
-          loop_builder.BreakIfTrue(ToBooleanMode::kConvertToBoolean);
-
-          builder()->LoadAccumulatorWithRegister(result_register);
-          BuildTryCatch(
-              [&]() { BuildAwait(); },
-              [&](Register context) {
-                RegisterList args = register_allocator()->NewRegisterList(3);
-                builder()
-                    ->MoveRegister(current_disposables_stack(), args[0])
-                    .StoreAccumulatorInRegister(args[1])  // exception
-                    .LoadTheHole()
-                    .SetPendingMessage()
-                    .StoreAccumulatorInRegister(args[2])
-                    .CallRuntime(
-                        Runtime::kHandleExceptionsInDisposeDisposableStack,
-                        args);
-
-                builder()->StoreAccumulatorInRegister(
-                    disposable_stack_register);
-              },
-              catch_prediction());
-
-          loop_builder.BindContinueTarget();
-        } else {
-          RegisterList args = register_allocator()->NewRegisterList(5);
-          builder()
-              ->MoveRegister(current_disposables_stack(), args[0])
+              ->MoveRegister(disposable_stack_register, args[0])
               .MoveRegister(body_continuation_token, args[1])
               .MoveRegister(body_continuation_result, args[2])
-              .MoveRegister(message, args[3])
-              .LoadLiteral(
-                  Smi::FromEnum(DisposableStackResourcesType::kAllSync))
-              .StoreAccumulatorInRegister(args[4]);
+              .MoveRegister(message, args[3]);
           builder()->CallRuntime(Runtime::kDisposeDisposableStack, args);
         }
+
+        builder()
+            ->StoreAccumulatorInRegister(result_register)
+            .LoadTrue()
+            .CompareReference(result_register);
+
+        loop_builder.BreakIfTrue(ToBooleanMode::kConvertToBoolean);
+
+        builder()->LoadAccumulatorWithRegister(result_register);
+        BuildTryCatch(
+            [&]() { BuildAwait(); },
+            [&](Register context) {
+              RegisterList args = register_allocator()->NewRegisterList(3);
+              builder()
+                  ->MoveRegister(current_disposables_stack(), args[0])
+                  .StoreAccumulatorInRegister(args[1])  // exception
+                  .LoadTheHole()
+                  .SetPendingMessage()
+                  .StoreAccumulatorInRegister(args[2])
+                  .CallRuntime(
+                      Runtime::kHandleExceptionsInDisposeDisposableStack, args);
+
+              builder()->StoreAccumulatorInRegister(disposable_stack_register);
+            },
+            catch_prediction());
+
+        loop_builder.BindContinueTarget();
       },
       catch_prediction());
+}
+
+template <typename WrappedFunc>
+void BytecodeGenerator::BuildSyncDisposeScope(WrappedFunc wrapped_func,
+                                              Scope* scope) {
+  RegisterAllocationScope allocation_scope(this);
+  SyncDisposablesScope disposables(this, scope);
+
+  BuildTryFinally(
+      // Try block
+      [&]() { wrapped_func(); },
+      // Finally block
+      [&](Register body_continuation_token, Register body_continuation_result,
+          Register message) {
+        BuildSyncDisposeResources(&disposables, body_continuation_token,
+                                  body_continuation_result, message);
+      },
+      catch_prediction());
+}
+
+// DisposeResources(disposableResourceStack, completion) for a scope without
+// `await using`. The resources are in the registers of |disposables|, and
+// outputCompletion is in the continuation registers of the finally block.
+void BytecodeGenerator::BuildSyncDisposeResources(
+    SyncDisposablesScope* disposables, Register body_continuation_token,
+    Register body_continuation_result, Register message) {
+  RegisterAllocationScope register_scope(this);
+  Register suppressed_error_created = register_allocator()->NewRegister();
+  builder()->LoadFalse().StoreAccumulatorInRegister(suppressed_error_created);
+
+  // 1. Let needsAwait be false.
+  // 2. Let hasAwaited be false.
+  // Without `await using` every kind is sync-dispose and needsAwait stays
+  // false, so steps 4.d, 4.e.ii, 4.f and 5 do nothing.
+  // 3. Let outputCompletion be completion.
+  // 4. For each element resource of disposableResourceStack, in reverse List
+  // order, do
+  for (int i = disposables->count() - 1; i >= 0; i--) {
+    //  a. Let value be resource.[[ResourceValue]].
+    //  b. Let kind be resource.[[Kind]].
+    //  c. Let method be resource.[[DisposeMethod]].
+    //  e. If method is not undefined, then
+    // The method register is also undefined if the declaration did not append
+    // a resource.
+    BytecodeLabel no_method;
+    builder()
+        ->LoadAccumulatorWithRegister(disposables->method(i))
+        .JumpIfUndefined(&no_method);
+    BuildTryCatch(
+        //  i. Let result be Completion(Call(method, value)).
+        [&]() {
+          builder()->CallProperty(
+              disposables->method(i), RegisterList(disposables->value(i)),
+              feedback_index(feedback_spec()->AddCallICSlot()));
+        },
+        //  iii. If result is a throw completion, then
+        [&](Register context) {
+          RegisterAllocationScope catch_scope(this);
+          Register error = register_allocator()->NewRegister();
+          Register error_message = register_allocator()->NewRegister();
+          RegisterList args = register_allocator()->NewRegisterList(2);
+          BytecodeLabel not_a_throw_completion, done;
+          builder()
+              ->StoreAccumulatorInRegister(error)
+              .LoadTheHole()
+              .SetPendingMessage()
+              .StoreAccumulatorInRegister(error_message)
+              .LoadLiteral(Smi::FromInt(
+                  static_cast<int>(TryFinallyContinuationToken::kRethrowToken)))
+              .CompareReference(body_continuation_token)
+              .JumpIfFalse(ToBooleanMode::kAlreadyBoolean,
+                           &not_a_throw_completion);
+
+          //   1. If outputCompletion is a throw completion, then
+          //     a. Set result to result.[[Value]].
+          //     b. Let suppressed be outputCompletion.[[Value]].
+          //     c. Let error be a newly created SuppressedError object.
+          //     d. Perform CreateNonEnumerableDataPropertyOrThrow(error,
+          //        "error", result).
+          //     e. Perform CreateNonEnumerableDataPropertyOrThrow(error,
+          //        "suppressed", suppressed).
+          //     f. Set outputCompletion to ThrowCompletion(error).
+          builder()
+              ->MoveRegister(error, args[0])
+              .MoveRegister(body_continuation_result, args[1])
+              .CallRuntime(Runtime::kNewSuppressedErrorAtDisposal, args)
+              .StoreAccumulatorInRegister(body_continuation_result)
+              .LoadTrue()
+              .StoreAccumulatorInRegister(suppressed_error_created)
+              .Jump(&done);
+
+          //   2. Else,
+          //     a. Set outputCompletion to result.
+          builder()
+              ->Bind(&not_a_throw_completion)
+              .MoveRegister(error, body_continuation_result)
+              .MoveRegister(error_message, message)
+              .LoadLiteral(Smi::FromInt(
+                  static_cast<int>(TryFinallyContinuationToken::kRethrowToken)))
+              .StoreAccumulatorInRegister(body_continuation_token)
+              .Bind(&done);
+        },
+        catch_prediction());
+    builder()->Bind(&no_method);
+  }
+
+  // 7. Return ? completion.
+  // A throw completion is rethrown after the finally block, with its message.
+  // A SuppressedError made here is thrown as a new exception instead.
+  BytecodeLabel no_suppressed_error;
+  builder()
+      ->LoadAccumulatorWithRegister(suppressed_error_created)
+      .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &no_suppressed_error)
+      .CallRuntime(Runtime::kThrowSuppressedErrorAtDisposal,
+                   body_continuation_result)
+      .Bind(&no_suppressed_error);
 }
 
 void BytecodeGenerator::VisitIterationBody(IterationStatement* stmt,
@@ -4972,7 +5148,12 @@ void BytecodeGenerator::BuildHoleCheckForVariableAssignment(Variable* variable,
   }
 }
 
-void BytecodeGenerator::AddDisposableValue(VariableMode mode) {
+void BytecodeGenerator::AddDisposableValue(Variable* variable) {
+  VariableMode mode = variable->mode();
+  if (mode == VariableMode::kUsing && current_sync_disposables_ != nullptr) {
+    AddSyncDisposableValue(variable);
+    return;
+  }
   if (mode == VariableMode::kUsing) {
     RegisterList args = register_allocator()->NewRegisterList(2);
     builder()
@@ -4980,12 +5161,68 @@ void BytecodeGenerator::AddDisposableValue(VariableMode mode) {
         .StoreAccumulatorInRegister(args[1])
         .CallRuntime(Runtime::kAddDisposableValue, args);
   } else if (mode == VariableMode::kAwaitUsing) {
+    // A scope with `await using` always gets a disposable stack.
+    DCHECK_NULL(current_sync_disposables_);
     RegisterList args = register_allocator()->NewRegisterList(2);
     builder()
         ->MoveRegister(current_disposables_stack(), args[0])
         .StoreAccumulatorInRegister(args[1])
         .CallRuntime(Runtime::kAddAsyncDisposableValue, args);
   }
+}
+
+// AddDisposableResource(disposableResourceStack, value, sync-dispose) for a
+// `using` declaration in a scope without `await using`. The value is in the
+// accumulator and stays there. The resource is kept in the registers of the
+// declaration instead of disposableResourceStack.
+void BytecodeGenerator::AddSyncDisposableValue(Variable* variable) {
+  SyncDisposablesScope* disposables = current_sync_disposables();
+  int index = disposables->Add(variable);
+  Register value = disposables->value(index);
+
+  RegisterAllocationScope register_scope(this);
+  Register method = register_allocator()->NewRegister();
+  BytecodeLabel is_object, is_callable, done;
+
+  // 1. If method is present, then
+  // The method is only present for DisposableStack.prototype.adopt and defer.
+  // 2. Else if value is either null or undefined, then
+  //   a. If kind is sync-dispose, return unused.
+  // 3. Else,
+  //   a. Set method to ? GetDisposeMethod(value, kind).
+  // GetDisposeMethod:
+  //   1. If value is not an Object, throw a TypeError exception.
+  builder()
+      ->StoreAccumulatorInRegister(value)
+      .JumpIfUndefinedOrNull(&done)
+      .JumpIfJSReceiver(&is_object)
+      .CallRuntime(Runtime::kThrowExpectAnObjectWithUsing);
+
+  //   2. If kind is sync-dispose, return ? GetMethod(value, %Symbol.dispose%).
+  //   b. If method is undefined, throw a TypeError exception.
+  // GetMethod throws if the method is neither callable nor undefined or null,
+  // so only a callable method gets past both steps. A method whose typeof is
+  // "function" is callable; the runtime checks any other method.
+  builder()
+      ->Bind(&is_object)
+      .LoadDisposeProperty(value,
+                           feedback_index(feedback_spec()->AddLoadICSlot()))
+      .StoreAccumulatorInRegister(method)
+      .CompareTypeOf(TestTypeOfFlags::LiteralFlag::kFunction)
+      .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &is_callable)
+      .CallRuntime(Runtime::kCheckSyncDisposeMethod, method);
+
+  //   c. Let resource be the DisposableResource Record { [[ResourceValue]]:
+  //      value, [[Kind]]: kind, [[DisposeMethod]]: method }.
+  // 4. Append resource to disposableResourceStack.
+  // The method register is undefined until here, so disposal skips the
+  // resource if the declaration throws before it is appended.
+  // 5. Return unused.
+  builder()
+      ->Bind(&is_callable)
+      .MoveRegister(method, disposables->method(index))
+      .Bind(&done)
+      .LoadAccumulatorWithRegister(value);
 }
 
 void BytecodeGenerator::BuildVariableAssignment(
@@ -5027,7 +5264,7 @@ void BytecodeGenerator::BuildVariableAssignment(
             // elide subsequent checks.
             RememberHoleCheckInCurrentBlock(variable);
           }
-          AddDisposableValue(mode);
+          AddDisposableValue(variable);
         }
         builder()->StoreAccumulatorInRegister(destination);
       } else if (variable->throw_on_const_assignment(language_mode()) &&
@@ -5079,7 +5316,7 @@ void BytecodeGenerator::BuildVariableAssignment(
             // elide subsequent checks.
             RememberHoleCheckInCurrentBlock(variable);
           }
-          AddDisposableValue(mode);
+          AddDisposableValue(variable);
         }
         builder()->StoreContextSlot(context_reg, variable, depth);
       } else if (variable->throw_on_const_assignment(language_mode())) {
@@ -5133,7 +5370,7 @@ void BytecodeGenerator::BuildVariableAssignment(
           // elide subsequent checks.
           RememberHoleCheckInCurrentBlock(variable);
         }
-        AddDisposableValue(mode);
+        AddDisposableValue(variable);
       }
       builder()->StoreModuleVariable(variable->index(), depth);
       break;

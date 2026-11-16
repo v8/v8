@@ -170,6 +170,8 @@ bool Runtime::IsNonReturning(FunctionId id) {
     case Runtime::kThrowSymbolAsyncIteratorInvalid:
     case Runtime::kThrowTypeError:
     case Runtime::kThrowConstAssignError:
+    case Runtime::kThrowExpectAnObjectWithUsing:
+    case Runtime::kThrowSuppressedErrorAtDisposal:
     case Runtime::kTerminateExecution:
 #if V8_ENABLE_WEBASSEMBLY
     case Runtime::kThrowWasmError:

@@ -45,6 +45,12 @@ RUNTIME_FUNCTION(Runtime_ThrowAwaitUsingAssignError) {
       isolate, NewTypeError(MessageTemplate::kAwaitUsingAssign));
 }
 
+RUNTIME_FUNCTION(Runtime_ThrowExpectAnObjectWithUsing) {
+  HandleScope scope(isolate);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kExpectAnObjectWithUsing));
+}
+
 namespace {
 
 enum class RedeclarationType { kSyntaxError = 0, kTypeError = 1 };
@@ -307,14 +313,13 @@ RUNTIME_FUNCTION(Runtime_AddAsyncDisposableValue) {
 
 RUNTIME_FUNCTION(Runtime_DisposeDisposableStack) {
   HandleScope scope(isolate);
-  DCHECK_EQ(5, args.length());
+  DCHECK_EQ(4, args.length());
 
   DirectHandle<JSDisposableStackBase> disposable_stack =
       args.at<JSDisposableStackBase>(0);
   DirectHandle<Smi> continuation_token = args.at<Smi>(1);
   Handle<Object> continuation_error = args.at<Object>(2);
   Handle<Object> continuation_message = args.at<Object>(3);
-  DirectHandle<Smi> has_await_using = args.at<Smi>(4);
 
   // If state is not kDisposed, then the disposing of the resources has
   // not started yet. So, if the continuation token is kRethrow we need
@@ -327,21 +332,49 @@ RUNTIME_FUNCTION(Runtime_DisposeDisposableStack) {
     disposable_stack->set_error_message(*continuation_message);
   }
 
-  DCHECK_IMPLIES(
-      disposable_stack->state() == DisposableStackState::kDisposed,
-      static_cast<DisposableStackResourcesType>(Smi::ToInt(*has_await_using)) ==
-          DisposableStackResourcesType::kAtLeastOneAsync);
-
   disposable_stack->set_state(DisposableStackState::kDisposed);
 
   DirectHandle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      JSDisposableStackBase::DisposeResources(
-          isolate, disposable_stack,
-          static_cast<DisposableStackResourcesType>(
-              Smi::ToInt(*has_await_using))));
+      JSDisposableStackBase::DisposeResources(isolate, disposable_stack));
   return *result;
+}
+
+// The slow path of a `using` declaration, for a @@dispose `method` whose typeof
+// is not "function": throws unless it is callable. Returns `method`.
+RUNTIME_FUNCTION(Runtime_CheckSyncDisposeMethod) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  DirectHandle<Object> method = args.at(0);
+
+  if (!IsCallable(*method)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kNotCallable,
+                              isolate->factory()->dispose_symbol()));
+  }
+  return *method;
+}
+
+// A dispose method of a `using` declaration threw `error` while the scope was
+// already completing with the throw of `suppressed`.
+RUNTIME_FUNCTION(Runtime_NewSuppressedErrorAtDisposal) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  DirectHandle<Object> error = args.at(0);
+  DirectHandle<Object> suppressed = args.at(1);
+  return *isolate->factory()->NewSuppressedErrorAtDisposal(isolate, error,
+                                                           suppressed);
+}
+
+// Throws a SuppressedError made by NewSuppressedErrorAtDisposal at the end of
+// a scope with `using` declarations. Like DisposeResources, it is not reported
+// to the debugger as a new exception: the debugger has seen the errors in it.
+RUNTIME_FUNCTION(Runtime_ThrowSuppressedErrorAtDisposal) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  SuppressDebug while_processing(isolate->debug());
+  return isolate->Throw(args[0]);
 }
 
 RUNTIME_FUNCTION(Runtime_HandleExceptionsInDisposeDisposableStack) {

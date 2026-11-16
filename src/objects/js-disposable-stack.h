@@ -34,9 +34,6 @@ enum class DisposeMethodCallType { kValueIsReceiver = 0, kValueIsArgument = 1 };
 // https://arai-a.github.io/ecma262-compare/?pr=3000&id=sec-disposableresource-records
 enum class DisposeMethodHint { kSyncDispose = 0, kAsyncDispose = 1 };
 
-// Types of disposable resources in a DisposableStack.
-enum class DisposableStackResourcesType { kAllSync, kAtLeastOneAsync };
-
 using DisposeCallTypeBit =
     base::BitField<DisposeMethodCallType, 0, 1, uint32_t>;
 using DisposeHintBit = DisposeCallTypeBit::Next<DisposeMethodHint, 1>;
@@ -107,8 +104,7 @@ V8_OBJECT class JSDisposableStackBase : public JSObject {
   static MaybeDirectHandle<Object> CheckValueAndGetDisposeMethod(
       Isolate* isolate, DirectHandle<JSAny> value, DisposeMethodHint hint);
   static MaybeDirectHandle<Object> DisposeResources(
-      Isolate* isolate, DirectHandle<JSDisposableStackBase> disposable_stack,
-      DisposableStackResourcesType resources_type);
+      Isolate* isolate, DirectHandle<JSDisposableStackBase> disposable_stack);
   static MaybeDirectHandle<JSReceiver> ResolveAPromiseWithValueAndReturnIt(
       Isolate* isolate, DirectHandle<Object> value);
   static void HandleErrorInDisposal(

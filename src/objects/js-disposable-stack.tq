@@ -8,10 +8,6 @@ extern enum DisposeMethodCallType extends uint31 {
   kValueIsArgument
 }
 extern enum DisposeMethodHint extends uint31 { kSyncDispose, kAsyncDispose }
-extern enum DisposableStackResourcesType extends uint31 {
-  kAllSync,
-  kAtLeastOneAsync
-}
 
 @cppScope('JSDisposableStackBase::Status')
 bitfield struct JSDisposableStackBaseStatus extends uint31 {
