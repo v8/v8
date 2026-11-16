@@ -56,10 +56,16 @@ WriteBarrier::MarkingSlow<RecordYoungSlot::kYes>(Tagged<HeapObject> host,
 template <RecordYoungSlot kRecordYoung>
 void WriteBarrier::MarkingSlow(Tagged<HeapObject> host, HeapObjectSlot slot,
                                Tagged<HeapObject> value) {
+  MarkingSlow<kRecordYoung>(CurrentMarkingBarrier(host), host, slot, value);
+}
+
+template <RecordYoungSlot kRecordYoung>
+void WriteBarrier::MarkingSlow(MarkingBarrier* marking_barrier,
+                               Tagged<HeapObject> host, HeapObjectSlot slot,
+                               Tagged<HeapObject> value) {
   SLOW_DCHECK_IMPLIES(
       kUninterestingPagesCanBeSkipped,
       MemoryChunk::FromHeapObject(host)->PointersFromHereAreInteresting());
-  MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
   marking_barrier->Write<HeapObjectSlot, kRecordYoung>(host, slot, value);
 }
 
@@ -150,12 +156,13 @@ void WriteBarrier::SharedSlow(Tagged<InstructionStream> host,
 }
 
 // static
-void WriteBarrier::SharedHeapBarrierSlow(Tagged<HeapObject> object,
+void WriteBarrier::SharedHeapBarrierSlow(Isolate* isolate,
+                                         Tagged<HeapObject> object,
                                          Address slot) {
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
   DCHECK(!chunk->InWritableSharedSpace());
   RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(
-      SbxCast<MutablePage>(chunk->Metadata()), chunk->Offset(slot));
+      SbxCast<MutablePage>(chunk->Metadata(isolate)), chunk->Offset(slot));
 }
 
 // static
@@ -430,27 +437,35 @@ void WriteBarrier::CombinedGenerationalAndSharedEphemeronBarrierSlow(
   SLOW_DCHECK_IMPLIES(
       kUninterestingPagesCanBeSkipped,
       MemoryChunk::FromHeapObject(table)->PointersFromHereAreInteresting());
+  Isolate* isolate = Isolate::Current();
   if (HeapLayout::InYoungGeneration(value)) {
-    MutablePage* table_chunk =
-        MutablePage::FromHeapObject(Isolate::Current(), table);
+    MutablePage* table_chunk = MutablePage::FromHeapObject(isolate, table);
     table_chunk->heap()->ephemeron_remembered_set()->RecordEphemeronKeyWrite(
         table, slot);
   } else {
     DCHECK(MemoryChunk::FromHeapObject(value)->InWritableSharedSpace());
     DCHECK(!HeapLayout::InWritableSharedSpace(table));
-    SharedHeapBarrierSlow(table, slot);
+    SharedHeapBarrierSlow(isolate, table, slot);
   }
 }
 
 // static
 void WriteBarrier::CombinedGenerationalAndSharedBarrierSlow(
     Tagged<HeapObject> object, Address slot, Tagged<HeapObject> value) {
+  CombinedGenerationalAndSharedBarrierSlow(LocalHeap::Current(), object, slot,
+                                           value);
+}
+
+// static
+void WriteBarrier::CombinedGenerationalAndSharedBarrierSlow(
+    const LocalHeap* local_heap, Tagged<HeapObject> object, Address slot,
+    Tagged<HeapObject> value) {
   if (V8_LIKELY(HeapLayout::InYoungGeneration(value))) {
-    GenerationalBarrierSlow(object, slot, value);
+    GenerationalBarrierSlow(local_heap, object, slot, value);
   } else {
     DCHECK(MemoryChunk::FromHeapObject(value)->InWritableSharedSpace());
     DCHECK(!HeapLayout::InWritableSharedSpace(object));
-    SharedHeapBarrierSlow(object, slot);
+    SharedHeapBarrierSlow(local_heap->heap()->isolate(), object, slot);
   }
 }
 
@@ -462,26 +477,29 @@ void WriteBarrier::CombinedWriteBarrierInternalSlow(Tagged<HeapObject> host,
                                                     MemoryChunk* value_chunk) {
   DCHECK(host_chunk->PointersFromHereAreInteresting() ||
          value_chunk->PointersFromHereAreInteresting());
+  LocalHeap* local_heap = LocalHeap::Current();
   // Generational or shared heap write barrier (old-to-new or
   // old-to-shared).
   const bool pointers_from_here_are_interesting =
       !host_chunk->IsYoungOrSharedChunk();
   if (V8_LIKELY(pointers_from_here_are_interesting &&
                 value_chunk->IsYoungOrSharedChunk())) {
-    CombinedGenerationalAndSharedBarrierSlow(host, slot.address(), value);
+    CombinedGenerationalAndSharedBarrierSlow(local_heap, host, slot.address(),
+                                             value);
   }
 
   // Marking barrier: mark value & record slots when marking is on.
-  if (V8_UNLIKELY(host_chunk->IsMarking())) {
-    MarkingSlow(host, HeapObjectSlot(slot), value);
+  if (V8_UNLIKELY(IsMarking(local_heap->heap()->isolate(), host))) {
+    MarkingSlow(local_heap->marking_barrier(), host, HeapObjectSlot(slot),
+                value);
   }
 }
 
 //  static
-void WriteBarrier::GenerationalBarrierSlow(Tagged<HeapObject> host,
+void WriteBarrier::GenerationalBarrierSlow(const LocalHeap* local_heap,
+                                           Tagged<HeapObject> host,
                                            Address slot,
                                            Tagged<HeapObject> value) {
-  const LocalHeap* local_heap = LocalHeap::Current();
   MemoryChunk* host_chunk = MemoryChunk::FromHeapObject(host);
   MutablePage* host_page =
       SbxCast<MutablePage>(host_chunk->Metadata(local_heap->heap()->isolate()));

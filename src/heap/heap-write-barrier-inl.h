@@ -402,7 +402,7 @@ bool WriteBarrier::IsMarking(IsolateT* isolate, Tagged<HeapObject> object) {
   if (!isolate_data->is_any_marking_active()) [[likely]] {
     return false;
   }
-  return TrustedHeapLayout::InWritableSharedSpace(object)
+  return TrustedHeapLayout::InWritableSharedSpace(isolate, object)
              ? isolate_data->is_shared_marking()
              : isolate_data->is_local_marking();
 }

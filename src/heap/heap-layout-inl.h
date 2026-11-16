@@ -133,6 +133,12 @@ bool TrustedHeapLayout::InWritableSharedSpace(Tagged<HeapObject> object) {
   return BasePage::FromHeapObject(object)->is_writable_shared();
 }
 
+// static
+bool TrustedHeapLayout::InWritableSharedSpace(const Isolate* isolate,
+                                              Tagged<HeapObject> object) {
+  return BasePage::FromHeapObject(isolate, object)->is_writable_shared();
+}
+
 }  // namespace v8::internal
 
 #endif  // V8_HEAP_HEAP_LAYOUT_INL_H_

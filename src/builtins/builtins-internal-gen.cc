@@ -134,6 +134,17 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     return Word32NotEqual(Load<Uint8T>(is_marking_addr), Int32Constant(0));
   }
 
+  TNode<BoolT> IsLocalMarking() {
+    TNode<ExternalReference> is_marking_addr = ExternalConstant(
+        ExternalReference::heap_is_marking_flag_address(this->isolate()));
+    return Word32NotEqual(
+        Word32And(Load<Uint8T>(is_marking_addr),
+                  Int32Constant(static_cast<uint8_t>(
+                      IsolateMarkingFlag::kLocalMajorMarking |
+                      IsolateMarkingFlag::kLocalMinorMarking))),
+        Int32Constant(0));
+  }
+
   TNode<BoolT> IsMinorMarking() {
     TNode<ExternalReference> is_marking_addr = ExternalConstant(
         ExternalReference::heap_is_marking_flag_address(this->isolate()));
@@ -142,6 +153,15 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
                   Int32Constant(static_cast<uint8_t>(
                       IsolateMarkingFlag::kLocalMinorMarking))),
         Int32Constant(0));
+  }
+
+  TNode<BoolT> IsSharedMarking() {
+    TNode<ExternalReference> is_marking_addr = ExternalConstant(
+        ExternalReference::heap_is_marking_flag_address(this->isolate()));
+    return Word32NotEqual(Word32And(Load<Uint8T>(is_marking_addr),
+                                    Int32Constant(static_cast<uint8_t>(
+                                        IsolateMarkingFlag::kSharedMarking))),
+                          Int32Constant(0));
   }
 
   TNode<BoolT> IsSharedSpaceIsolate() {
@@ -533,21 +553,20 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     GotoIf(IsSharedSpaceIsolate(), &local_object_and_value);
 
     // These checks here are now only reached by client isolates (= worker
-    // isolates). Now first check whether incremental marking is activated for
-    // that particular object's space. Incrementally marking might only be
-    // enabled for either local or shared objects on client isolates.
-    GotoIfNot(IsPageFlagSet(object, MemoryChunk::kIncrementalMarking), &next);
-
-    // We now know that incremental marking is enabled for the given object.
-    // Decide whether to run the shared or local incremental marking barrier.
+    // isolates). Decide whether to run the shared or local incremental marking
+    // barrier, and check whether incremental marking is enabled for that
+    // particular object's space. Incremental marking might only be enabled for
+    // either local or shared objects on client isolates.
     InSharedHeap(object, &write_into_shared_object, &write_into_local_object);
 
     BIND(&write_into_shared_object);
+    GotoIfNot(IsSharedMarking(), &next);
 
     // Run the shared incremental marking barrier.
     IncrementalWriteBarrierShared(object, slot, value, fp_mode, &next);
 
     BIND(&write_into_local_object);
+    GotoIfNot(IsLocalMarking(), &next);
 
     // When writing into a local object we can ignore stores of shared object
     // values since for those no slot recording or marking is required.

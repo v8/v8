@@ -86,6 +86,8 @@ class TrustedHeapLayout final : public AllStatic {
 
   // Returns whether `object` is in a writable shared space.
   static V8_INLINE bool InWritableSharedSpace(Tagged<HeapObject> object);
+  static V8_INLINE bool InWritableSharedSpace(const Isolate* isolate,
+                                              Tagged<HeapObject> object);
 
  private:
   V8_EXPORT_PRIVATE static bool InYoungGenerationForStickyMarkbits(
