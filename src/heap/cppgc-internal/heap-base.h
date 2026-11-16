@@ -127,6 +127,10 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle,
   cppgc::Platform* platform() { return platform_.get(); }
   const cppgc::Platform* platform() const { return platform_.get(); }
 
+  // Returns log2 of the commit page size of the platform's page allocator,
+  // i.e. of the size of a system page.
+  size_t commit_page_size_bits() const { return commit_page_size_bits_; }
+
   FatalOutOfMemoryHandler& oom_handler() { return *oom_handler_.get(); }
   const FatalOutOfMemoryHandler& oom_handler() const {
     return *oom_handler_.get();
@@ -326,6 +330,7 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle,
 
   RawHeap raw_heap_;
   std::shared_ptr<cppgc::Platform> platform_;
+  const size_t commit_page_size_bits_;
   std::unique_ptr<FatalOutOfMemoryHandler> oom_handler_;
 
 #if defined(LEAK_SANITIZER)

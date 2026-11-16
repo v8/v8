@@ -256,6 +256,7 @@ void* ObjectAllocator::OutOfLineAllocateImpl(
 
 void ObjectAllocator::ClampAndReplaceLinearAllocationBuffer(
     NormalPageSpace& space, Address start, size_t size, size_t requested_size) {
+  auto& page = *NormalPage::From(BasePage::FromPayload(start));
   if (allocation_sampler_) {
     const size_t sample_interval = RoundUp<kAllocationGranularity>(
         allocation_sampler_->GetSampleInterval());
@@ -264,11 +265,17 @@ void ObjectAllocator::ClampAndReplaceLinearAllocationBuffer(
     if (sample_interval > 0 && size > target_size) {
       // Use only the first `target_size` bytes as the LAB payload and return
       // the remainder to the free list to trigger a sample on the next
-      // interval.
-      AddToFreeList(space, start + target_size, size - target_size);
+      // interval. Only the free list entry at the start of the remainder is
+      // written to, the rest of the remainder may stay discarded.
+      const size_t remainder_size = size - target_size;
+      page.MarkSystemPagesAsResident(
+          start + target_size, std::min(remainder_size, kFreeListEntrySize));
+      AddToFreeList(space, start + target_size, remainder_size);
       size = target_size;
     }
   }
+  // The linear allocation buffer may reuse discarded memory.
+  page.MarkSystemPagesAsResident(start, size);
   ReplaceLinearAllocationBuffer(space, stats_collector_, start, size);
 }
 
@@ -334,13 +341,6 @@ bool ObjectAllocator::TryRefillLinearAllocationBufferFromFreeList(
     NormalPageSpace& space, size_t size) {
   const FreeList::Block entry = space.free_list().Allocate(size);
   if (!entry.address) return false;
-
-  // Assume discarded memory on that page is now zero.
-  auto& page = *NormalPage::From(BasePage::FromPayload(entry.address));
-  if (page.discarded_memory()) {
-    stats_collector_.DecrementDiscardedMemory(page.discarded_memory());
-    page.ResetDiscardedMemory();
-  }
 
   ClampAndReplaceLinearAllocationBuffer(
       space, static_cast<Address>(entry.address), entry.size, size);

@@ -366,10 +366,6 @@ void StatsCollector::DecrementDiscardedMemory(size_t value) {
   USE(old);
 }
 
-void StatsCollector::ResetDiscardedMemory() {
-  discarded_bytes_.store(0, std::memory_order_relaxed);
-}
-
 size_t StatsCollector::discarded_memory_size() const {
   return discarded_bytes_.load(std::memory_order_relaxed);
 }

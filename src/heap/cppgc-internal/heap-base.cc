@@ -9,6 +9,7 @@
 
 #include "include/cppgc/heap-consistency.h"
 #include "include/cppgc/platform.h"
+#include "src/base/bits.h"
 #include "src/base/logging.h"
 #include "src/base/sanitizer/lsan-page-allocator.h"
 #include "src/heap/base/stack.h"
@@ -126,6 +127,8 @@ HeapBase::HeapBase(
     cppgc::AllocationSampler* allocation_sampler)
     : raw_heap_(this, custom_spaces),
       platform_(std::move(platform)),
+      commit_page_size_bits_(v8::base::bits::WhichPowerOfTwo(
+          platform_->GetPageAllocator()->CommitPageSize())),
       oom_handler_(std::make_unique<FatalOutOfMemoryHandler>(this)),
 #if defined(LEAK_SANITIZER)
       lsan_page_allocator_(std::make_unique<v8::base::LsanPageAllocator>(

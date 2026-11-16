@@ -331,7 +331,6 @@ class V8_EXPORT_PRIVATE StatsCollector final {
 
   void IncrementDiscardedMemory(size_t);
   void DecrementDiscardedMemory(size_t);
-  void ResetDiscardedMemory();
   size_t discarded_memory_size() const;
   size_t resident_memory_size() const;
 
