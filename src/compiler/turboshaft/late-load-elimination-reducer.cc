@@ -247,13 +247,10 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
         break;
 
       case Opcode::kCatchBlockBegin:
-        // Throwing an exception can have arbitrary side effects (e.g., via
-        // debugger pause-on-exception), even when the throwing operation itself
-        // does not have `can_write` effects on its non-throwing path.
-        memory_.InvalidateMaybeAliasing();
-        WipeAllMaps();
-        break;
-
+        // Throwing ops handle their own side effects, and Debug::OnException
+        // lazy-deoptimizes optimized JS frames / skips pausing on optimized
+        // Wasm frames. CatchBlockBeginOp has `can_allocate`, so string maps
+        // are still invalidated below.
       case Opcode::kRetain:
       case Opcode::kDidntThrow:
       case Opcode::kCheckException:

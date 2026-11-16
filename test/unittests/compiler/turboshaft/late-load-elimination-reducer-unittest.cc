@@ -4,14 +4,21 @@
 
 #include "src/compiler/turboshaft/late-load-elimination-reducer.h"
 
+#include <cstddef>
+
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/compiler/turboshaft/wasm-load-elimination-reducer.h"
 #endif
 
+#include "src/codegen/interface-descriptors.h"
 #include "src/compiler/access-builder.h"
+#include "src/compiler/globals.h"
+#include "src/compiler/linkage.h"
+#include "src/compiler/operator.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/builtin-call-descriptors.h"
 #include "src/compiler/turboshaft/copying-phase.h"
+#include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/opmasks.h"
@@ -20,6 +27,8 @@
 #include "src/compiler/turboshaft/required-optimization-reducer.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
 #include "src/flags/flags.h"
+#include "src/objects/code.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/string.h"
 #include "test/common/flag-utils.h"
 #include "test/unittests/compiler/js-heap-broker-base.h"
@@ -607,7 +616,8 @@ TEST_F(LateLoadEliminationReducerTest,
   }
 }
 
-TEST_F(LateLoadEliminationReducerTest, CatchBlockBeginWipesMaps) {
+TEST_F(LateLoadEliminationReducerTest,
+       CatchBlockBeginPreservesNonStringMapsAndLoads) {
   JSHeapBrokerTestBase broker_base(isolate(), zone());
   MapRef map1 = MakeRef(
       broker_base.broker(),
@@ -626,6 +636,8 @@ TEST_F(LateLoadEliminationReducerTest, CatchBlockBeginWipesMaps) {
     constexpr int kFieldOffset = 12;
 
     __ AssumeMap(o1, maps1);
+    V<Any> load0 = __ Load(o1, LoadOp::Kind::TaggedBase(),
+                           MemoryRepresentation::AnyTagged(), kFieldOffset);
 
     Block* catch_block = __ NewBlock();
     V<String> concat;
@@ -638,8 +650,9 @@ TEST_F(LateLoadEliminationReducerTest, CatchBlockBeginWipesMaps) {
 
     if (__ Bind(catch_block)) {
       __ CatchBlockBegin();
-      V<Any> load1 = __ Load(o1, LoadOp::Kind::TaggedBase(),
-                             MemoryRepresentation::AnyTagged(), kFieldOffset);
+      V<Any> C(load1) =
+          __ Load(o1, LoadOp::Kind::TaggedBase(),
+                  MemoryRepresentation::AnyTagged(), kFieldOffset);
       __ AssumeMap(o2, maps2);
       __ Store(o2, __ SmiConstant(Smi::FromInt(42)),
                StoreOp::Kind::TaggedBase(), MemoryRepresentation::AnyTagged(),
@@ -647,13 +660,83 @@ TEST_F(LateLoadEliminationReducerTest, CatchBlockBeginWipesMaps) {
       V<Any> C(load2) =
           __ Load(o1, LoadOp::Kind::TaggedBase(),
                   MemoryRepresentation::AnyTagged(), kFieldOffset);
-      __ Return(__ Word32Constant(0), base::VectorOf({load1, load2}));
+      __ Return(__ Word32Constant(0), base::VectorOf({load0, load1, load2}));
     }
   });
 
   test.Run<LateLoadEliminationReducer>();
 
-  ASSERT_NE(test.GetCapture("load2").GetFirst<LoadOp>(), nullptr);
+  if (!LATE_LOAD_ELIM_VERIFY) {
+    ASSERT_TRUE(test.GetCapture("load1").IsEmpty());
+    ASSERT_TRUE(test.GetCapture("load2").IsEmpty());
+  }
+}
+
+TEST_F(LateLoadEliminationReducerTest, CatchBlockBeginInvalidatesStringMaps) {
+  JSHeapBrokerTestBase broker_base(isolate(), zone());
+  MapRef str_map =
+      MakeRef(broker_base.broker(),
+              broker_base.CanonicalHandle(
+                  isolate()->factory()->seq_one_byte_string_map()));
+  MapRef other_map = MakeRef(
+      broker_base.broker(),
+      broker_base.CanonicalHandle(isolate()->factory()->fixed_array_map()));
+  ZoneRefSet<Map> str_maps(str_map);
+  ZoneRefSet<Map> other_maps(other_map);
+
+  const TSCallDescriptor* throw_desc = TSCallDescriptor::Create(
+      Linkage::GetStubCallDescriptor(zone(), VoidDescriptor{}, 0,
+                                     CallDescriptor::kNoFlags,
+                                     Operator::kNoWrite),
+      CanThrow{true}, LazyDeoptOnThrow{false}, zone());
+  auto test = CreateFromGraph(3, [&](auto& Asm) {
+    V<HeapObject> o1 = V<HeapObject>::Cast(Asm.GetParameter(0));
+    V<HeapObject> o2 = V<HeapObject>::Cast(Asm.GetParameter(1));
+    V<Code> callee = V<Code>::Cast(Asm.GetParameter(2));
+    constexpr int kFieldOffset = 12;
+
+    __ AssumeMap(o1, str_maps);
+    V<Map> map0 = __ Load(o1, LoadOp::Kind::TaggedBase(),
+                          MemoryRepresentation::TaggedPointer(),
+                          offsetof(HeapObject, map_));
+    V<Any> load0 = __ Load(o1, LoadOp::Kind::TaggedBase(),
+                           MemoryRepresentation::AnyTagged(), kFieldOffset);
+
+    Block* catch_block = __ NewBlock();
+    OpIndex res;
+    {
+      CatchScopeImpl<assembler_t> scope(Asm.Asm(), catch_block);
+      res = __ Call(callee, OptionalV<LazyFrameState>::Nullopt(),
+                    base::VectorOf<OpIndex>({Asm.context()}), throw_desc,
+                    OpEffects().CanDependOnChecks().CanLeaveCurrentFunction());
+    }
+    __ Return(__ Word32Constant(0),
+              base::VectorOf<OpIndex>({map0, load0, res}));
+
+    if (__ Bind(catch_block)) {
+      __ CatchBlockBegin();
+      V<Map> C(map1) = __ Load(o1, LoadOp::Kind::TaggedBase(),
+                               MemoryRepresentation::TaggedPointer(),
+                               offsetof(HeapObject, map_));
+      __ AssumeMap(o2, other_maps);
+      __ Store(o2, __ SmiConstant(Smi::FromInt(42)),
+               StoreOp::Kind::TaggedBase(), MemoryRepresentation::AnyTagged(),
+               WriteBarrierKind::kNoWriteBarrier, kFieldOffset);
+      V<Any> C(load1) =
+          __ Load(o1, LoadOp::Kind::TaggedBase(),
+                  MemoryRepresentation::AnyTagged(), kFieldOffset);
+      __ Return(__ Word32Constant(0),
+                base::VectorOf<OpIndex>({map0, map1, load0, load1}));
+    }
+  });
+
+  test.Run<LateLoadEliminationReducer>();
+
+  // Exception handling (`CheckExceptionOp` / `CatchBlockBeginOp`) has
+  // `can_allocate`, so both loaded string maps and assumed string maps must be
+  // invalidated even when the throwing call does not declare `CanAllocate()`.
+  ASSERT_NE(test.GetCapturedAs<LoadOp>("map1"), nullptr);
+  ASSERT_NE(test.GetCapturedAs<LoadOp>("load1"), nullptr);
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -668,6 +751,44 @@ class WasmLateLoadEliminationReducerTest
  private:
   const FlagScope<bool> flag_wasm_shared_;
 };
+
+TEST_F(WasmLateLoadEliminationReducerTest, WasmCatchBlockBeginPreservesMemory) {
+  auto test = CreateFromGraph(
+      3,
+      [](auto& Asm) {
+        auto MakeLoad = [&Asm]() -> V<Word32> {
+          return __ Load(Asm.GetParameter(0), {}, LoadOp::Kind::TaggedBase(),
+                         MemoryRepresentation::Int32(),
+                         RegisterRepresentation::Word32(), 4);
+        };
+
+        V<Word32> load0 = MakeLoad();
+
+        Block* catch_block = __ NewBlock();
+        V<String> concat;
+        {
+          CatchScopeImpl<assembler_t> scope(Asm.Asm(), catch_block);
+          concat = __ template CallBuiltin<builtin::StringAdd_NoMapCheck>(
+              Asm.context(), {.left = V<String>::Cast(Asm.GetParameter(1)),
+                              .right = V<String>::Cast(Asm.GetParameter(2))});
+        }
+        __ Return(__ Word32Constant(0),
+                  base::VectorOf<OpIndex>({load0, concat}));
+
+        if (__ Bind(catch_block)) {
+          __ CatchBlockBegin();
+          V<Word32> C(load1) = MakeLoad();
+          __ Return(__ Word32Constant(0), base::VectorOf({load0, load1}));
+        }
+      },
+      /* is_wasm */ true);
+
+  test.Run<LateLoadEliminationReducer>();
+
+  if (!LATE_LOAD_ELIM_VERIFY) {
+    ASSERT_TRUE(test.GetCapture("load1").IsEmpty());
+  }
+}
 
 TEST_F(WasmLateLoadEliminationReducerTest, WasmTriviallyEliminatedLoad) {
   auto test = CreateFromGraph(
@@ -1236,6 +1357,42 @@ TEST_F(WasmLoadEliminationReducerTest, WasmStructGetInterveningAtomicStore) {
   const StructGetOp* get1 = test.GetCapturedAs<StructGetOp>("get1");
   // No load elimination for an intervening atomic Store.
   ASSERT_NE(get1, nullptr);
+}
+
+TEST_F(WasmLoadEliminationReducerTest, WasmCatchBlockBeginPreservesStructGet) {
+  wasm::StructType* struct_type = SetupModule(SharedFlag{false});
+  auto test = CreateFromGraph(
+      1,
+      [struct_type](auto& Asm) {
+        V<Any> get0 = MakeStructGet(Asm, struct_type);
+
+        Block* catch_block = __ NewBlock();
+        V<String> str;
+        {
+          CatchScopeImpl<assembler_t> scope(Asm.Asm(), catch_block);
+          str = __ template WasmCallBuiltinThroughJumptable<
+              deprecated::BuiltinCallDescriptor::WasmIntToString>(
+              {__ Word32Constant(0), __ Word32Constant(10)});
+        }
+        __ Return(__ Word32Constant(0), base::VectorOf<OpIndex>({get0, str}));
+
+        if (__ Bind(catch_block)) {
+          __ CatchBlockBegin();
+          V<Any> C(get1) = MakeStructGet(Asm, struct_type);
+          __ Return(__ Word32Constant(0), base::VectorOf({get0, get1}));
+        }
+      },
+      module_.get(),
+      wasm::FunctionSig::Build(
+          zone(), {wasm::kWasmI32, wasm::kWasmI32},
+          {wasm::ValueType::Ref({0}, SharedFlag{false},
+                                wasm::RefTypeKind::kStruct)}));
+
+  test.Run<WasmLoadEliminationReducer>();
+
+  if (!LATE_LOAD_ELIM_VERIFY) {
+    ASSERT_TRUE(test.GetCapture("get1").IsEmpty());
+  }
 }
 
 #endif  // V8_ENABLE_WEBASSEMBLY

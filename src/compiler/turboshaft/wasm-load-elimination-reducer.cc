@@ -140,13 +140,6 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
           memory_.InvalidateMutableSharedBase();
         }
         break;
-      case Opcode::kCatchBlockBegin:
-        // Throwing an exception can have arbitrary side effects (e.g., via
-        // debugger pause-on-exception), even when the throwing operation itself
-        // does not have `can_write` effects on its non-throwing path.
-        memory_.InvalidateMaybeAliasing();
-        break;
-
       case Opcode::kGlobalSet:
         InvalidateIfAlias(op.Cast<GlobalSetOp>().value());
         break;
@@ -155,6 +148,10 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kMemoryFill:
         // These should never operate on GC objects.
       case Opcode::kAssumeMap:
+      case Opcode::kCatchBlockBegin:
+        // Throwing ops handle their own side effects, and Debug::OnException
+        // skips pausing on optimized Wasm frames (and lazy-deoptimizes
+        // optimized JS frames).
       case Opcode::kRetain:
       case Opcode::kDidntThrow:
       case Opcode::kCheckException:
