@@ -3823,11 +3823,13 @@ void AllocationSite::AllocationSiteVerify(Isolate* isolate) {
 
 void AllocationSiteCache::Verify() const {
   for (int i = 0; i < kSize; ++i) {
-    Address object = entries_[i].object;
-    Address site = entries_[i].site;
-    if (object == kNullAddress) {
-      CHECK_EQ(site, kNullAddress);
+    Tagged_t raw_object = entries_[i].object;
+    Tagged_t raw_site = entries_[i].site;
+    if (raw_object == kNullAddress) {
+      CHECK_EQ(raw_site, kNullAddress);
     } else {
+      Address object = Decompress(raw_object);
+      Address site = Decompress(raw_site);
       CHECK(Is<JSArray>(Tagged<MaybeObject>(object)));
       CHECK(Is<AllocationSite>(Tagged<MaybeObject>(site)));
     }

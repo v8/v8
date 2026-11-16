@@ -96,7 +96,8 @@ V8_OBJECT class AllocationSite : public HeapObject {
 // Direct-mapped cache of (JSArray address -> AllocationSite address) for
 // elements transition tracking. Cleared on every GC prologue.
 //
-// 256 entries (4 KB on 64-bit, 2 KB on 32-bit):
+// 256 entries (2 KB with pointer compression or 32-bit, 4 KB on 64-bit
+// uncompressed):
 // - Size rationale: keeps per-Isolate footprint small and GC-prologue clearing
 //   (`memset`) fast.
 // - Low eviction rate: only CSA/runtime young JSArray allocations with an
@@ -110,13 +111,13 @@ V8_OBJECT class AllocationSite : public HeapObject {
 class V8_EXPORT_PRIVATE AllocationSiteCache {
  public:
   struct Entry {
-    Address object = kNullAddress;
-    Address site = kNullAddress;
+    Tagged_t object = kNullAddress;
+    Tagged_t site = kNullAddress;
   };
-  static_assert(sizeof(Entry) == 2 * kSystemPointerSize);
+  static_assert(sizeof(Entry) == 2 * kTaggedSize);
   static_assert(std::has_unique_object_representations_v<Entry>);
   static_assert(offsetof(Entry, object) == 0);
-  static_assert(offsetof(Entry, site) == kSystemPointerSize);
+  static_assert(offsetof(Entry, site) == kTaggedSize);
 
   static constexpr int kSize = 256;
   static_assert(base::bits::IsPowerOfTwo(kSize));
@@ -127,6 +128,9 @@ class V8_EXPORT_PRIVATE AllocationSiteCache {
   AllocationSiteCache() = default;
   AllocationSiteCache(const AllocationSiteCache&) = delete;
   AllocationSiteCache& operator=(const AllocationSiteCache&) = delete;
+
+  static inline AllocationSiteCache* New();
+  static inline void Delete(AllocationSiteCache* cache);
 
   // Maps a tagged JSArray address to a slot in [0, 255]:
   // - `>> 3` drops bits [2:0] (tag bit 0 and sub-8B offset bits [2:1];
@@ -150,6 +154,9 @@ class V8_EXPORT_PRIVATE AllocationSiteCache {
 #endif
 
  private:
+  static inline Tagged_t Compress(Tagged<HeapObject> object);
+  static inline Address Decompress(Tagged_t raw_value);
+
   Entry entries_[kSize] = {};
 };
 

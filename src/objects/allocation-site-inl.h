@@ -14,7 +14,9 @@
 #include "src/objects/js-array.h"
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/object-conversions-inl.h"
-#include "src/sandbox/check.h"
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+#include "src/sandbox/sandbox-malloc.h"
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -178,25 +180,64 @@ bool AllocationSite::DigestTransitionFeedback(Isolate* isolate,
 // the AllocationSiteCache index computation shifts away.
 static_assert(JSArray::kHeaderSize >= (1 << AllocationSiteCache::kShift1));
 
+AllocationSiteCache* AllocationSiteCache::New() {
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  // AllocationSiteCache is updated directly from sandboxed builtin code
+  // (CodeStubAssembler::RecordAllocationSiteInCache) and only contains
+  // untrusted hints, so allocate it inside the sandbox when hardware sandbox
+  // support is enabled.
+  return new (SandboxAllocArray<uint8_t>(sizeof(AllocationSiteCache)))
+      AllocationSiteCache();
+#else
+  return new AllocationSiteCache();
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+}
+
+void AllocationSiteCache::Delete(AllocationSiteCache* cache) {
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  if (cache != nullptr) {
+    cache->~AllocationSiteCache();
+    SandboxFree(cache);
+  }
+#else
+  delete cache;
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+}
+
+Tagged_t AllocationSiteCache::Compress(Tagged<HeapObject> object) {
+#ifdef V8_COMPRESS_POINTERS
+  return V8HeapCompressionScheme::CompressObject(object.ptr());
+#else
+  return object.ptr();
+#endif
+}
+
+Address AllocationSiteCache::Decompress(Tagged_t raw_value) {
+#ifdef V8_COMPRESS_POINTERS
+  return V8HeapCompressionScheme::DecompressTagged(raw_value);
+#else
+  return raw_value;
+#endif
+}
+
 size_t AllocationSiteCache::ComputeIndex(Tagged<JSArray> object) {
-  Address addr = object.ptr();
+  Tagged_t addr = Compress(object);
   return ((addr >> kShift1) ^ (addr >> kShift2)) & kMask;
 }
 
 void AllocationSiteCache::Update(Tagged<JSArray> object,
                                  Tagged<AllocationSite> site) {
   size_t index = ComputeIndex(object);
-  entries_[index] = {object.ptr(), site.ptr()};
+  entries_[index] = {Compress(object), Compress(site)};
 }
 
 bool AllocationSiteCache::Lookup(Tagged<JSArray> object,
                                  Tagged<AllocationSite>* site_out) const {
   size_t index = ComputeIndex(object);
   const Entry& entry = entries_[index];
-  if (entry.object != object.ptr()) return false;
-  Address site = entry.site;
-  SBXCHECK(HAS_STRONG_HEAP_OBJECT_TAG(site));
-  *site_out = Cast<AllocationSite>(Tagged<Object>(site));
+  if (entry.object != Compress(object)) return false;
+  Address site = Decompress(entry.site);
+  *site_out = CheckedCast<AllocationSite>(Tagged<MaybeObject>(site));
   return true;
 }
 // LINT.ThenChange(/src/codegen/code-stub-assembler.cc:AllocationSiteCache)

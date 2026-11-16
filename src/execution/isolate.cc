@@ -88,7 +88,7 @@
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/abstract-code-inl.h"
-#include "src/objects/allocation-site.h"
+#include "src/objects/allocation-site-inl.h"
 #include "src/objects/backing-store.h"
 #include "src/objects/call-site-info-inl.h"
 #include "src/objects/feedback-vector.h"
@@ -5469,7 +5469,7 @@ Isolate::~Isolate() {
   delete descriptor_lookup_cache_;
   descriptor_lookup_cache_ = nullptr;
 
-  delete isolate_data_.allocation_site_cache();
+  AllocationSiteCache::Delete(isolate_data_.allocation_site_cache());
   isolate_data_.set_allocation_site_cache(nullptr);
 
   delete load_stub_cache_;
@@ -6302,7 +6302,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   compilation_cache_ = new CompilationCache(this);
   descriptor_lookup_cache_ = new DescriptorLookupCache();
-  isolate_data_.set_allocation_site_cache(new AllocationSiteCache());
+  isolate_data_.set_allocation_site_cache(AllocationSiteCache::New());
   global_handles_ = new GlobalHandles(this);
   eternal_handles_ = new EternalHandles();
   bootstrapper_ = new Bootstrapper(this);

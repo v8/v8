@@ -15077,15 +15077,16 @@ void CodeStubAssembler::TransitionElementsKind(TNode<JSObject> object,
 // LINT.IfChange(AllocationSiteCache)
 TNode<RawPtrT> CodeStubAssembler::GetAllocationSiteCacheEntry(
     TNode<HeapObject> object) {
-  TNode<IntPtrT> object_word = BitcastTaggedToWord(object);
-  TNode<IntPtrT> index = Signed(WordAnd(
-      WordXor(
-          WordShr(object_word, IntPtrConstant(AllocationSiteCache::kShift1)),
-          WordShr(object_word, IntPtrConstant(AllocationSiteCache::kShift2))),
-      IntPtrConstant(AllocationSiteCache::kMask)));
-  static_assert(sizeof(AllocationSiteCache::Entry) == 2 * kSystemPointerSize);
-  TNode<IntPtrT> entry_offset =
-      WordShl(index, IntPtrConstant(kSystemPointerSizeLog2 + 1));
+  TNode<Word32T> object_word =
+      TruncateIntPtrToInt32(BitcastTaggedToWord(object));
+  TNode<Word32T> index = Word32And(
+      Word32Xor(
+          Word32Shr(object_word, Int32Constant(AllocationSiteCache::kShift1)),
+          Word32Shr(object_word, Int32Constant(AllocationSiteCache::kShift2))),
+      Int32Constant(AllocationSiteCache::kMask));
+  static_assert(sizeof(AllocationSiteCache::Entry) == 2 * kTaggedSize);
+  TNode<IntPtrT> entry_offset = Signed(
+      ChangeUint32ToWord(Word32Shl(index, Int32Constant(kTaggedSizeLog2 + 1))));
   TNode<RawPtrT> cache_base =
       Load<RawPtrT>(IsolateField(IsolateFieldId::kAllocationSiteCache));
   return RawPtrAdd(cache_base, entry_offset);
@@ -15098,16 +15099,15 @@ void CodeStubAssembler::RecordAllocationSiteInCache(
   CSA_DCHECK(this, IsAllocationSite(allocation_site));
   CSA_DCHECK(this, Word32NotEqual(LoadElementsKind(object),
                                   Int32Constant(TERMINAL_FAST_ELEMENTS_KIND)));
-  TNode<IntPtrT> object_word = BitcastTaggedToWord(object);
   TNode<RawPtrT> entry = GetAllocationSiteCacheEntry(object);
-  static_assert(offsetof(AllocationSiteCache::Entry, object) == 0);
-  static_assert(offsetof(AllocationSiteCache::Entry, site) ==
-                kSystemPointerSize);
-  StoreNoWriteBarrier(MachineType::PointerRepresentation(), entry, object_word);
-  StoreNoWriteBarrier(
-      MachineType::PointerRepresentation(), entry,
+  static_assert(sizeof(AllocationSiteCache::Entry) == 2 * kTaggedSize);
+  UnsafeStoreNoWriteBarrier(
+      MachineRepresentation::kTagged, entry,
+      IntPtrConstant(offsetof(AllocationSiteCache::Entry, object)), object);
+  UnsafeStoreNoWriteBarrier(
+      MachineRepresentation::kTagged, entry,
       IntPtrConstant(offsetof(AllocationSiteCache::Entry, site)),
-      BitcastTaggedToWord(allocation_site));
+      allocation_site);
   Comment("] RecordAllocationSiteInCache");
 }
 
@@ -15117,11 +15117,19 @@ void CodeStubAssembler::TrapAllocationSiteInCache(TNode<JSObject> object,
   Comment("[ TrapAllocationSiteInCache");
   Label no_site_found(this);
 
-  TNode<IntPtrT> object_word = BitcastTaggedToWord(object);
   TNode<RawPtrT> entry = GetAllocationSiteCacheEntry(object);
-  static_assert(offsetof(AllocationSiteCache::Entry, object) == 0);
-  TNode<IntPtrT> cached_object = Load<IntPtrT>(entry);
-  Branch(WordEqual(cached_object, object_word), site_found, &no_site_found);
+  TNode<IntPtrT> object_offset =
+      IntPtrConstant(offsetof(AllocationSiteCache::Entry, object));
+  if (COMPRESS_POINTERS_BOOL) {
+    TNode<Int32T> object_word =
+        TruncateIntPtrToInt32(BitcastTaggedToWord(object));
+    TNode<Int32T> cached_object = Load<Int32T>(entry, object_offset);
+    Branch(Word32Equal(cached_object, object_word), site_found, &no_site_found);
+  } else {
+    TNode<IntPtrT> object_word = BitcastTaggedToWord(object);
+    TNode<IntPtrT> cached_object = Load<IntPtrT>(entry, object_offset);
+    Branch(WordEqual(cached_object, object_word), site_found, &no_site_found);
+  }
 
   BIND(&no_site_found);
   Comment("] TrapAllocationSiteInCache");
