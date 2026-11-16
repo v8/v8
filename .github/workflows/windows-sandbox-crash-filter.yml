@@ -105,9 +105,20 @@ jobs:
         env:
           DEPOT_TOOLS_WIN_TOOLCHAIN: "0"
         run: |
-          $gnArgs = 'is_debug=false is_component_build=false target_cpu="x64" v8_enable_sandbox=true v8_enable_memory_corruption_api=true'
-          Write-Host "Generating with GN args: $gnArgs"
-          gn gen out.gn/x64.release "--args=$gnArgs"
+          # Passing --args through PowerShell strips the embedded quotes around
+          # target_cpu="x64" before GN parses the expression. Use GN's args-file
+          # option so string-valued arguments reach GN without shell rewriting.
+          $gnArgsFile = Join-Path $PWD "windows-x64-gn-args.gn"
+          @(
+            'is_debug = false'
+            'is_component_build = false'
+            'target_cpu = "x64"'
+            'v8_enable_sandbox = true'
+            'v8_enable_memory_corruption_api = true'
+          ) | Set-Content -Path $gnArgsFile -Encoding ascii
+          Write-Host "Generating with GN args file: $gnArgsFile"
+          Get-Content $gnArgsFile | ForEach-Object { Write-Host $_ }
+          gn gen out.gn/x64.release "--args-file=$gnArgsFile"
           if ($LASTEXITCODE -ne 0) {
             throw "gn gen failed with exit code $LASTEXITCODE."
           }
