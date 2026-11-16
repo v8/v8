@@ -473,7 +473,8 @@ std::optional<bool> IsInterpreterFramePc(Isolate* isolate, Address pc,
       return false;
     }
     std::optional<Address> istream_address =
-        ThreadIsolation::TryLookupStartOfJitAllocationAt(pc);
+        ThreadIsolation::TryLookupStartOfJitAllocationAt(
+            pc, ThreadIsolation::JitAllocationType::kInstructionStream);
     if (!istream_address.has_value()) {
       return {};
     }
