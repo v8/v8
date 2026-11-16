@@ -1595,23 +1595,19 @@ V8_WARN_UNUSED_RESULT MaybeDirectHandle<String> RegExpReplace(
       }
     }
 
+    Tagged<UnionOf<ExceptionHole, String>> result;
     if (replace->length() == 0) {
       if (string->IsOneByteRepresentation()) {
-        Tagged<UnionOf<ExceptionHole, String>> result =
-            StringReplaceGlobalRegExpWithEmptyString<SeqOneByteString>(
-                isolate, string, regexp, data, last_match_info);
-        return direct_handle(Cast<String>(result), isolate);
+        result = StringReplaceGlobalRegExpWithEmptyString<SeqOneByteString>(
+            isolate, string, regexp, data, last_match_info);
       } else {
-        Tagged<UnionOf<ExceptionHole, String>> result =
-            StringReplaceGlobalRegExpWithEmptyString<SeqTwoByteString>(
-                isolate, string, regexp, data, last_match_info);
-        return direct_handle(Cast<String>(result), isolate);
+        result = StringReplaceGlobalRegExpWithEmptyString<SeqTwoByteString>(
+            isolate, string, regexp, data, last_match_info);
       }
+    } else {
+      result = StringReplaceGlobalRegExpWithString(
+          isolate, string, regexp, data, replace, last_match_info);
     }
-
-    Tagged<UnionOf<ExceptionHole, String>> result =
-        StringReplaceGlobalRegExpWithString(isolate, string, regexp, data,
-                                            replace, last_match_info);
     if (IsExceptionHole(result)) {
       return MaybeDirectHandle<String>();
     } else {
