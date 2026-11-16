@@ -789,11 +789,13 @@ ForInParameters const& ForInParametersOf(const Operator* op) {
 JSWasmCallParameters::JSWasmCallParameters(
     wasm::NativeModule* native_module, int function_index,
     SharedFunctionInfoRef shared_fct_info, FeedbackSource const& feedback,
+    bool has_break_on_entry,
     IndirectHandle<WasmInternalFunction> internal_function)
     : native_module_(native_module),
       function_index_(function_index),
       shared_fct_info_(shared_fct_info),
       feedback_(feedback),
+      has_break_on_entry_(has_break_on_entry),
       internal_function_(internal_function) {}
 
 JSWasmCallParameters const& JSWasmCallParametersOf(const Operator* op) {
@@ -803,13 +805,15 @@ JSWasmCallParameters const& JSWasmCallParametersOf(const Operator* op) {
 
 std::ostream& operator<<(std::ostream& os, JSWasmCallParameters const& p) {
   return os << p.native_module() << ", " << p.function_index() << ", "
-            << Brief(*p.shared_fct_info().object()) << ", " << p.feedback();
+            << Brief(*p.shared_fct_info().object()) << ", " << p.feedback()
+            << ", " << p.has_break_on_entry();
 }
 
 size_t hash_value(JSWasmCallParameters const& p) {
   return base::hash_combine(p.native_module(), p.function_index(),
                             p.shared_fct_info().object().location(),
-                            FeedbackSource::Hash()(p.feedback()));
+                            FeedbackSource::Hash()(p.feedback()),
+                            p.has_break_on_entry());
 }
 
 bool operator==(JSWasmCallParameters const& lhs,
@@ -818,7 +822,8 @@ bool operator==(JSWasmCallParameters const& lhs,
          lhs.function_index() == rhs.function_index() &&
          lhs.shared_fct_info().object().location() ==
              rhs.shared_fct_info().object().location() &&
-         lhs.feedback() == rhs.feedback();
+         lhs.feedback() == rhs.feedback() &&
+         lhs.has_break_on_entry() == rhs.has_break_on_entry();
 }
 
 int JSWasmCallParameters::arity_without_implicit_args() const {
@@ -1077,9 +1082,11 @@ const Operator* JSOperatorBuilder::CallRuntime(
 #if V8_ENABLE_WEBASSEMBLY
 const Operator* JSOperatorBuilder::CallWasm(
     wasm::NativeModule* native_module, int wasm_function_index,
-    SharedFunctionInfoRef shared_fct_info, FeedbackSource const& feedback) {
+    SharedFunctionInfoRef shared_fct_info, FeedbackSource const& feedback,
+    bool has_break_on_entry) {
   JSWasmCallParameters parameters(native_module, wasm_function_index,
-                                  shared_fct_info, feedback);
+                                  shared_fct_info, feedback,
+                                  has_break_on_entry);
   return zone()->New<Operator1<JSWasmCallParameters>>(
       IrOpcode::kJSWasmCall, Operator::kNoProperties,  // opcode
       "JSWasmCall",                                    // name

@@ -335,6 +335,7 @@
   'debugger/debug-optimize': [SKIP],
   'debugger/restart-frame/restart-inlined-frame': [SKIP],
   'debugger/value-unavailable-scopes': [SKIP],
+  'debugger/wasm-inlined-breakpoints': [SKIP],
   'regress/regress-586444654': [SKIP],
 }], # lite_mode or variant in (nooptimization, jitless, assert_types)
 
@@ -397,6 +398,7 @@
 ##############################################################################
 ['arch in (ia32, arm, riscv32)', {
   # Wasm-into-JS body inlining is not supported on 32-bit platforms.
+  'debugger/wasm-inlined-breakpoints': [SKIP],
   'debugger/wasm-inlined-frame-summary': [SKIP],
 }],  # 'arch in (ia32, arm, riscv32)'
 

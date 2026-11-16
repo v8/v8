@@ -28,6 +28,7 @@
 #include "src/wasm/canonical-types.h"
 #include "src/wasm/names-provider.h"
 #include "src/wasm/string-builder.h"
+#include "src/wasm/wasm-debug.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
@@ -443,6 +444,12 @@ JSInliner::WasmInlineResult JSInliner::TryWasmInlining(
     // work, so that the wasm trap gets forwarded to the corresponding catch
     // block.
     TRACE("- not inlining: wasm inlining into try catch is not supported");
+    return {};
+  }
+  if (wasm_call_params.has_break_on_entry() ||
+      (native_module->HasDebugInfo() &&
+       native_module->GetDebugInfo()->HasBreakpoint(fct_index))) {
+    TRACE("- not inlining: wasm function has breakpoints");
     return {};
   }
 

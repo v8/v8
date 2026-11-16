@@ -28,6 +28,7 @@ struct WasmInlinedFunctionData {
   V<EagerFrameState> js_caller_frame_state;
   Handle<SharedFunctionInfo> shared_fct_info;
   SourcePosition call_pos;
+  bool has_break_on_entry = false;
 };
 
 struct WasmBodyInliningResult {

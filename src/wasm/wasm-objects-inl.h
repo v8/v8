@@ -360,8 +360,12 @@ WTI_PROTECTED_POINTER_ACCESSORS(data_segments,
                                 kProtectedDataSegmentsOffset)
 WTI_TAGGED_ACCESSORS(element_segments, Tagged<FixedArray>,
                      kElementSegmentsOffset)
-PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, break_on_entry, uint8_t,
-                    kBreakOnEntryOffset)
+uint8_t WasmTrustedInstanceData::break_on_entry() const {
+  return RELAXED_READ_UINT8_FIELD(this, kBreakOnEntryOffset);
+}
+void WasmTrustedInstanceData::set_break_on_entry(uint8_t value) {
+  RELAXED_WRITE_UINT8_FIELD(this, kBreakOnEntryOffset, value);
+}
 
 WTI_OPTIONAL_TAGGED_ACCESSORS(instance_object, Tagged<WasmInstanceObject>,
                               kInstanceObjectOffset)

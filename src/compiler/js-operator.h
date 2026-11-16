@@ -936,12 +936,14 @@ class JSWasmCallParameters final {
   explicit JSWasmCallParameters(
       wasm::NativeModule* native_module, int function_index,
       SharedFunctionInfoRef shared_fct_info, FeedbackSource const& feedback,
+      bool has_break_on_entry,
       IndirectHandle<WasmInternalFunction> internal_function = {});
 
   wasm::NativeModule* native_module() const { return native_module_; }
   int function_index() const { return function_index_; }
   SharedFunctionInfoRef shared_fct_info() const { return shared_fct_info_; }
   FeedbackSource const& feedback() const { return feedback_; }
+  bool has_break_on_entry() const { return has_break_on_entry_; }
   IndirectHandle<WasmInternalFunction> internal_function() const {
     return internal_function_;
   }
@@ -953,6 +955,7 @@ class JSWasmCallParameters final {
   int function_index_;
   SharedFunctionInfoRef shared_fct_info_;
   const FeedbackSource feedback_;
+  bool has_break_on_entry_;
   IndirectHandle<WasmInternalFunction> internal_function_;
 };
 
@@ -1107,7 +1110,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CallWasm(wasm::NativeModule* native_module,
                            int wasm_function_index,
                            SharedFunctionInfoRef shared_fct_info,
-                           FeedbackSource const& feedback);
+                           FeedbackSource const& feedback,
+                           bool has_break_on_entry);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   const Operator* ConstructForwardVarargs(size_t arity, uint32_t start_index);

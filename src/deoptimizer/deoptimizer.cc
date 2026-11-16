@@ -545,13 +545,10 @@ void Deoptimizer::DeoptimizeTopmostFrame(Isolate* isolate) {
   }
 }
 
-// static
-void Deoptimizer::DeoptimizeAllOptimizedCodeWithFunction(
-    Isolate* isolate, DirectHandle<SharedFunctionInfo> function) {
-  RCS_SCOPE(isolate, RuntimeCallCounterId::kDeoptimizeCode);
-  TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
-  TRACE_EVENT("v8", "V8.DeoptimizeAllOptimizedCodeWithFunction");
-
+namespace {
+template <typename Predicate>
+void DeoptimizeAllOptimizedCodeSatisfying(Isolate* isolate,
+                                          Predicate&& should_deopt) {
   // Wait for ongoing compilation jobs to complete and finalize them. If we
   // aborted ongoing jobs, we would risk aborting unrelated jobs, and if we're
   // e.g. stepping a lot, this could lead to abort loops.
@@ -567,12 +564,12 @@ void Deoptimizer::DeoptimizeAllOptimizedCodeWithFunction(
 #endif  // V8_ENABLE_MAGLEV
   }
 
-  // Mark all code that inlines this function, then deoptimize.
+  // Mark all matching code for deoptimization, then deoptimize.
   bool any_marked = false;
   {
     DeoptimizableCodeIterator it(isolate);
     for (Tagged<Code> code = it.Next(); !code.is_null(); code = it.Next()) {
-      if (code->Inlines(*function)) {
+      if (should_deopt(code)) {
         code->SetMarkedForDeoptimization(isolate,
                                          LazyDeoptimizeReason::kDebugger);
         any_marked = true;
@@ -580,9 +577,36 @@ void Deoptimizer::DeoptimizeAllOptimizedCodeWithFunction(
     }
   }
   if (any_marked) {
-    DeoptimizeMarkedCode(isolate);
+    Deoptimizer::DeoptimizeMarkedCode(isolate);
   }
 }
+}  // namespace
+
+// static
+void Deoptimizer::DeoptimizeAllOptimizedCodeWithFunction(
+    Isolate* isolate, DirectHandle<SharedFunctionInfo> function) {
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kDeoptimizeCode);
+  TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
+  TRACE_EVENT("v8", "V8.DeoptimizeAllOptimizedCodeWithFunction");
+
+  DeoptimizeAllOptimizedCodeSatisfying(
+      isolate, [&](Tagged<Code> code) { return code->Inlines(*function); });
+}
+
+#if V8_ENABLE_WEBASSEMBLY
+// static
+void Deoptimizer::DeoptimizeAllOptimizedCodeWithWasmFunction(
+    Isolate* isolate, const wasm::NativeModule* native_module, int func_index) {
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kDeoptimizeCode);
+  TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
+  TRACE_EVENT("v8", "V8.DeoptimizeAllOptimizedCodeWithWasmFunction");
+
+  DeoptimizeAllOptimizedCodeSatisfying(
+      isolate, [native_module, func_index](Tagged<Code> code) {
+        return code->InlinesWasmFunction(native_module, func_index);
+      });
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 #define DEOPTIMIZATION_HELPER_BUILTINS(V)                                    \
   V(Builtin::kInterpreterEnterAtBytecode,                                    \

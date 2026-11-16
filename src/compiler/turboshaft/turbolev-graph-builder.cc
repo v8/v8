@@ -1497,9 +1497,11 @@ class GraphBuildingNodeProcessor {
     }
 
     SharedFunctionInfoRef shared = node->shared_function_info();
+    bool has_break_on_entry = instance_handle->break_on_entry() != 0;
     JSWasmCallParameters* wasm_call_params =
         graph_zone()->New<JSWasmCallParameters>(
             native_module, wasm_function_index, shared, feedback,
+            has_break_on_entry,
             broker_->CanonicalPersistentHandle(function_data->internal()));
     __ data() -> set_turbolev_graph_has_inlineable_wasm_calls();
     TRACE_WASM_INLINING("- inlining wrapper");

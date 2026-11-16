@@ -15,6 +15,10 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/objects/code-inl.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-objects-inl.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 #ifdef ENABLE_DISASSEMBLER
 #include "src/diagnostics/disassembler.h"
 #include "src/diagnostics/eh-frame.h"
@@ -163,6 +167,31 @@ bool Code::Inlines(Tagged<SharedFunctionInfo> sfi) {
   }
   return false;
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+bool Code::InlinesWasmFunction(const wasm::NativeModule* native_module,
+                               int func_index) {
+  DCHECK(is_optimized_code());
+  DisallowGarbageCollection no_gc;
+  Tagged<DeoptimizationData> const data = deoptimization_data();
+  if (data->ulength().value() == 0) return false;
+  IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
+  Tagged<DeoptimizationLiteralArray> const literals = data->LiteralArray();
+  int const inlined_count = data->InlinedFunctionCount().value();
+  for (int i = 0; i < inlined_count; ++i) {
+    Tagged<SharedFunctionInfo> sfi = Cast<SharedFunctionInfo>(literals->get(i));
+    if (sfi->HasWasmExportedFunctionData(isolate)) {
+      Tagged<WasmExportedFunctionData> wasm_data =
+          sfi->wasm_exported_function_data();
+      if (wasm_data->instance_data()->native_module() == native_module &&
+          (func_index < 0 || wasm_data->function_index() == func_index)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void Code::SetMarkedForDeoptimization(Isolate* isolate,
                                       LazyDeoptimizeReason reason) {

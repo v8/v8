@@ -25,6 +25,7 @@ namespace v8 {
 namespace internal {
 
 namespace wasm {
+class NativeModule;
 class WasmCode;
 }
 
@@ -129,6 +130,14 @@ class Deoptimizer : public Malloced {
   // directly or inlined).
   static void DeoptimizeAllOptimizedCodeWithFunction(
       Isolate* isolate, DirectHandle<SharedFunctionInfo> function);
+
+#if V8_ENABLE_WEBASSEMBLY
+  // Deoptimizes all optimized code that inlines {func_index} (or any function
+  // if {func_index == -1}) from {native_module}.
+  static void DeoptimizeAllOptimizedCodeWithWasmFunction(
+      Isolate* isolate, const wasm::NativeModule* native_module,
+      int func_index = -1);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Check the given address against a list of allowed addresses, to prevent a
   // potential attacker from using the frame creation process in the

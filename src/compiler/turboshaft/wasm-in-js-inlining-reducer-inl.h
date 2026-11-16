@@ -20,6 +20,7 @@
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/turboshaft-graph-interface-inl.h"
+#include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-opcodes-inl.h"
@@ -119,9 +120,12 @@ class WasmInJSInliningReducer : public Next {
                 js_context, frame_state.value(),
                 descriptor->js_wasm_call_parameters->shared_fct_info());
         inlined_function_data = {
-            native_module, func_idx, wasm_inlined_frame_state,
+            native_module,
+            func_idx,
+            wasm_inlined_frame_state,
             descriptor->js_wasm_call_parameters->shared_fct_info().object(),
-            call_pos};
+            call_pos,
+            descriptor->js_wasm_call_parameters->has_break_on_entry()};
       }
 
       // The JS-to-Wasm wrapper is always inlined at this point, because the
@@ -1097,6 +1101,13 @@ WasmBodyInliningResult WasmInJSInliningReducer<Next>::TryInlineWasmBody(
     // Relax this in the future (but this would be an extension over the old
     // Turbofan inlining, so it's not in the MVP.)
     TRACE("- not inlining: a current catch block is set");
+    return WasmBodyInliningResult::Failed();
+  }
+
+  if (inlined_data.has_break_on_entry ||
+      (native_module->HasDebugInfo() &&
+       native_module->GetDebugInfo()->HasBreakpoint(func_idx))) {
+    TRACE("- not inlining: wasm function has breakpoints");
     return WasmBodyInliningResult::Failed();
   }
 
