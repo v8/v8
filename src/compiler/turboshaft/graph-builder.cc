@@ -316,6 +316,9 @@ std::optional<BailoutReason> GraphBuilder::Run() {
     block_mapping[block->rpo_number()].final_frame_state =
         dominating_frame_state;
 
+    // Regions stay within a single basic block, unless terminated early by
+    // `Unreachable` or `Throw` before `FinishRegion`.
+    inside_region = false;
     std::optional<BailoutReason> bailout = std::nullopt;
     for (Node* node : *block->nodes()) {
       if (V8_UNLIKELY(node->InputCount() >=
@@ -1711,10 +1714,11 @@ OpIndex GraphBuilder::Process(
       Node* value = node->InputAt(2);
       ObjectAccess const& access = ObjectAccessOf(node->op());
       bool initializing_transitioning = inside_region;
+      uint8_t element_size_log2 = 0;
       __ Store(Map(object), Map(offset), Map(value),
                StoreOp::Kind::TaggedBase(),
                MemoryRepresentation::FromMachineType(access.machine_type),
-               access.write_barrier_kind, kHeapObjectTag,
+               access.write_barrier_kind, kHeapObjectTag, element_size_log2,
                initializing_transitioning);
       return OpIndex::Invalid();
     }
