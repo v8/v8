@@ -697,7 +697,7 @@ void LateLoadEliminationAnalyzer::ProcessAllocate(OpIndex op_idx,
 void LateLoadEliminationAnalyzer::ProcessAssumeMap(
     OpIndex op_idx, const AssumeMapOp& assume_map) {
   TRACE("> ProcessAssumeMap(" << op_idx << ")");
-  OpIndex object = assume_map.heap_object();
+  OpIndex object = memory_.ResolveBase(assume_map.heap_object());
   object_maps_.Set(object, CombineMinMax(object_maps_.Get(object),
                                          ComputeMinMaxHash(assume_map.maps)));
 }
