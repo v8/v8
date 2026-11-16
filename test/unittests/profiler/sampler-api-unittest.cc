@@ -14,9 +14,16 @@
 #include "include/v8-unwinder.h"
 #include "src/api/api.h"
 #include "src/flags/flags.h"
-#include "test/cctest/cctest.h"
+#include "test/common/flag-utils.h"
+#include "test/common/simulator-helper.h"
+#include "test/unittests/api/api-test-utils.h"
+#include "test/unittests/test-utils.h"
 
+namespace v8 {
+namespace sampler_api_unittest {
 namespace {
+
+using SamplerApiTest = ::v8::TestWithIsolate;
 
 class Sample {
  public:
@@ -35,7 +42,6 @@ class Sample {
   size_t size_ = kFramesLimit;
 };
 
-
 class SamplingTestHelper {
  public:
   struct CodeEventEntry {
@@ -46,7 +52,7 @@ class SamplingTestHelper {
   using CodeEntries = std::map<const void*, CodeEventEntry>;
 
   explicit SamplingTestHelper(const std::string& test_function)
-      : sample_is_taken_(false), isolate_(CcTest::isolate()) {
+      : sample_is_taken_(false), isolate_(v8::Isolate::GetCurrent()) {
     CHECK(!instance_);
     instance_ = this;
     v8::HandleScope scope(isolate_);
@@ -146,36 +152,34 @@ class SamplingTestHelper {
 
 SamplingTestHelper* SamplingTestHelper::instance_;
 
-}  // namespace
-
 // A JavaScript function which takes stack depth
 // (minimum value 2) as an argument.
 // When at the bottom of the recursion,
 // the JavaScript code calls into C++ test code,
 // waiting for the sampler to take a sample.
-static const char* test_function =
+const char* test_function =
     "function func(depth) {"
     "  if (depth == 2) CollectSample();"
     "  else return func(depth - 1);"
     "}";
 
-TEST(StackDepthIsConsistent) {
+TEST_F(SamplerApiTest, StackDepthIsConsistent) {
   SamplingTestHelper helper(std::string(test_function) + "func(8);");
   CHECK_EQ(8, helper.sample().size());
 }
 
-TEST(StackDepthDoesNotExceedMaxValue) {
+TEST_F(SamplerApiTest, StackDepthDoesNotExceedMaxValue) {
   SamplingTestHelper helper(std::string(test_function) + "func(300);");
   CHECK_EQ(Sample::kFramesLimit, helper.sample().size());
 }
 
-static const char* test_function_call_builtin =
+const char* test_function_call_builtin =
     "function func(depth) {"
     "  if (depth == 2) CollectSample();"
     "  else return [0].forEach(function recurse() { func(depth - 1) });"
     "}";
 
-TEST(BuiltinsInSamples) {
+TEST_F(SamplerApiTest, BuiltinsInSamples) {
   SamplingTestHelper helper(std::string(test_function_call_builtin) +
                             "func(10);");
   Sample& sample = helper.sample();
@@ -203,8 +207,8 @@ TEST(BuiltinsInSamples) {
 // bottom of stack [{anon script}, outer, inner] top of stack
 //                              ^      ^       ^
 // sample.stack indices         2      1       0
-TEST(StackFramesConsistent) {
-  i::v8_flags.allow_natives_syntax.Set(true);
+TEST_F(SamplerApiTest, StackFramesConsistent) {
+  FLAG_SCOPE(allow_natives_syntax);
   const char* test_script =
       "function test_sampler_api_inner() {"
       "  CollectSample();"
@@ -230,3 +234,7 @@ TEST(StackFramesConsistent) {
   CHECK(entry);
   CHECK(std::string::npos != entry->name.find("test_sampler_api_outer"));
 }
+
+}  // namespace
+}  // namespace sampler_api_unittest
+}  // namespace v8

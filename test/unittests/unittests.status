@@ -20,6 +20,23 @@
 
   # BUG(5193). The cpu profiler tests are notoriously flaky.
   'SamplerTest.LibSamplerCollectSample': [SKIP],
+  'CpuProfilerTest.CollectCpuProfile': [SKIP],
+  'CpuProfilerTest.JsNative1JsNative2JsSample': [SKIP],
+  'CpuProfilerTest.JsNativeJsRuntimeJsSample': [SKIP],
+  'CpuProfilerTest.JsNativeJsRuntimeJsSampleMultiple': [SKIP],
+  'CpuProfilerTest.JsNativeJsSample': [SKIP],
+  'CpuProfilerTest.HotDeoptNoFrameEntry': [SKIP],
+  'CpuProfilerTest.SampleWhenFrameIsNotSetup': [SKIP],
+
+  # BUG(7202). The test is flaky.
+  'CpuProfilerTest.NativeFrameStackTrace': [SKIP],
+
+  # BUG(7054)
+  'CpuProfilerTest.StaticCollectSampleAPI': [SKIP],
+
+  # Test that misuse of PopAndReturn does not compile.
+  'CodeStubAssemblerRunTest.PopAndReturnFromJSBuiltinWithStackParameters': [FAIL, ['official_build', CRASH]],
+  'CodeStubAssemblerRunTest.PopAndReturnFromTFCBuiltinWithStackParameters': [FAIL, ['official_build', CRASH]],
 
   # This tests only the type system, no point in running several variants.
   'TypesTest.*': [PASS, NO_VARIANTS],
@@ -69,7 +86,9 @@
   # Slow tests.
   'ApiTest.InternalFieldsSubclassing': [PASS, SLOW],
   'ConcurrentAllocationUninitializedTest.ConcurrentAllocationInLargeSpace': [PASS, SLOW],
+  'CpuProfilerTest.NoProfilingProtectorCPUProfiler': [PASS, SLOW],
   'EmbedderRootsHandlerTest.YoungGC_ParallelResetRootSharedWrappableAcrossWorlds': [PASS, ['asan or verify_heap', SLOW]],
+  'HeapProfilerTest.ManyLocalsInSharedContext': [PASS, SLOW],
   'Mutex.SharedMutexThreadsFuzz': [PASS, SLOW],
   'ParsingTest.ObjectRestNegativeTestSlow': [PASS, ['mode == debug', SKIP]],
   'SignalAndMutexTest.SignalsPlusSharedMutexes': [PASS, SLOW],
@@ -82,6 +101,9 @@
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'ApiTest.NewStringRangeError': [PASS, HEAVY],
   'JumpTableAssemblerTest.JumpTablePatchingStress': [PASS, HEAVY],
+  'LockersTest.LockerUnlocker': [PASS, HEAVY],
+  'LockersTest.LockTwiceAndUnlock': [PASS, HEAVY],
+  'LockersTest.SeparateIsolatesLocksNonexclusive': [PASS, HEAVY],
   'LogAllTest.LogAll': [PASS, SLOW, HEAVY],
   'PtrComprCageTest.SharedPtrComprCageRace': [PASS, HEAVY],
   'StringsTest.StringOOMNewStringFromOneByte': [PASS, HEAVY],
@@ -119,6 +141,7 @@
   'CallsWithArrayLikeOrSpreadTest.ReduceJSCreateClosure': [SKIP],
   'SloppyEqualityTest.SloppyEqualityTest': [SKIP],
   'VerifyTypeTest.TestVerifyType': [SKIP],
+  'JsToWasmTest.*': [SKIP],
    # RunDeoptTest checks frame->is_turbofan().
   'RunDeoptTest.DeoptSimple': [SKIP],
   'RunDeoptTest.DeoptSimpleInExpr': [SKIP],
@@ -130,6 +153,10 @@
   'ApiTest.FastApiCallRecursionWithException': [SKIP],
   'ApiTest.FastApiCallWithThrowInReentrantCode': [SKIP],
   'ApiTest.FastApiCallsString': [SKIP],
+  # Maglev is still missing some optimizations compared to Turbofan, which means
+  # that some old Turbofan tests don't pass when using Maglev as a frontend for
+  # Turboshaft.
+  'CpuProfilerTest.FastApiCPUProfiler': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
@@ -138,6 +165,9 @@
   'PersistentHandlesTest.NewPersistentHandleFailsWhenParkedExplicit': [FAIL],
 
   'ConcurrentAllocationUninitializedTest.ConcurrentAllocationWhileMainThreadParksAndUnparks': [PASS, SLOW],
+
+  # BUG(v8:10996): Flaky on Linux64 - debug
+  'CpuProfilerTest.StartProfilingAfterOsr': [SKIP],
 }],
 
 ##############################################################################
@@ -214,6 +244,8 @@
   'WasmSharedEngineTest.*': [SKIP],
   'WasmStackTest.*': [SKIP],
   'WasmTrapPositionTest.*': [SKIP],
+  'HeapProfilerTest.HeapSnapshotWithWasmInstance': [SKIP],
+  'JsToWasmTest.*': [SKIP],
 }],  # not has_webassembly or variant == jitless
 
 ##############################################################################
@@ -335,7 +367,9 @@
 ['system == windows and asan', {
   # BUG(893437).
   'LanguageServer*': [SKIP],
-  'Torque*': [SKIP],
+  'Torque.*': [SKIP],
+  'TorqueLayoutLoader.*': [SKIP],
+  'TorqueUtils.*': [SKIP],
 
   # Hangs on asan.
   'PageMemoryRegionDeathTest*': [SKIP],
@@ -355,6 +389,9 @@
   'UninitializedSerializeTest.StartupSerializerTwiceRunScript': [SKIP],
   'UninitializedSerializeTest.StaticRootsPredictableSnapshot': [SKIP],
   'UninitializedSerializeTest.StartupSerializerTwice': [SKIP],
+
+  # https://crbug.com/475386940
+  'CpuProfilerTest.NativeMethodMonomorphicIC': [SKIP],
 }],  # 'system == windows and arch == x64 and mode == debug'
 
 ##############################################################################
@@ -404,6 +441,12 @@
   'RunWasmTest.RunWasmLiftoff_Float32Sub_Consts': [SKIP],
   'RunWasmTest.RunWasmLiftoff_Float32Mul_Consts': [SKIP],
   'RunWasmTest.RunWasmLiftoff_Float32Div_Consts': [SKIP],
+
+  # BUG(v8:9869) TSAN considers SIGPROF an asynchronous signal, and will call
+  # into the handler after the stack has drifted from the context on the
+  # signal.
+  'CpuProfilerTest.*': [SKIP],
+  'CpuProfilerUninitializedTest.*': [SKIP],
 }],  # tsan == True
 
 ##############################################################################
@@ -462,6 +505,7 @@
   # %ObserveNode tests rely on TurboFan.
   'CallsWithArrayLikeOrSpreadTest.*': [SKIP],
   'VerifyTypeTest.*': [SKIP],
+  'JsToWasmTest.*': [SKIP],
 }],  # variant == nooptimization
 
 ##############################################################################
@@ -491,7 +535,18 @@
   'RunWasmModuleTest.Run_WasmModule_Return114': [SKIP],
   'RunWasmModuleTest.Run_WasmModule_CallAdd': [SKIP],
   'RunWasmModuleTest.Run_WasmModule_CallMain_recursive': [SKIP],
+
+  # slow in PASE emulator
+  'CpuProfilerTest.Inlining2': [PASS, SLOW],
+  'CpuProfilerTest.CollectCpuProfileCallerLineNumbers': [PASS, SLOW],
 }],  # 'system == aix or (arch == ppc64 and byteorder == big)'
+
+##############################################################################
+['system == zos', {
+  # Currently no profiler support on z/OS:
+  'CpuProfilerTest.*': [SKIP],
+  'CpuProfilerUninitializedTest.*': [SKIP],
+}],  # 'system == zos'
 
 ##############################################################################
 ['arch == ppc64 or arch == s390x', {
@@ -516,6 +571,8 @@
 ['variant == stress_incremental_marking', {
   # BUG(https://crbug.com/v8/12999): Very slow test.
   'ApiTest.InternalFieldsSubclassing': [PASS, ['mode == debug and arch == ia32', SKIP]],
+  'HeapProfilerTest.SamplingHeapProfiler': [SKIP],
+
   # BUG(v8:11820): the test adjusts GC flags, which does not work
   # if GC starts before the test.
   'RuntimeCallStatsTest.GarbageCollection': [SKIP],
@@ -553,6 +610,9 @@
 
   # Skipped for unknown reasons.
   'UninitializedSerializeTest.StaticRootsPredictableSnapshot': ['pointer_compression', SKIP],
+
+  # This test is unstable, sometimes fail when running w/ other tests.
+  'CpuProfilerTest.CrossScriptInliningCallerLineNumbers2': [SKIP],
 }],  # arch == riscv64 or arch == riscv32
 
 ['arch == riscv32', {
@@ -574,6 +634,7 @@
   'StringsUninitializedTest.CheckIntlSegmentIteratorTerminateExecutionInterrupt': [SKIP],
   'StringsTest.Traverse': [SKIP],
   'StringsTest.Utf8ConversionPerf': [SKIP],
+  'HeapProfilerTest.HeapSnapshotJSONSerialization': [SKIP],
 }],
 
 ##############################################################################
@@ -585,6 +646,9 @@
   'LogInterpretedFramesNativeStackTest.LogInterpretedFramesNativeStack': [SKIP],
   'LogInterpretedFramesNativeStackWithSerializationTest.LogInterpretedFramesNativeStackWithSerialization': [SKIP],
   'SerializeTest.CodeSerializerOnePlusOneWithInterpretedFramesNativeStack': [SKIP],
+
+  # TODO(v8:8510): Tests that currently fail with lazy source positions.
+  'CpuProfilerTest.Inlining2': [SKIP],
 }], # lite_mode
 
 ##############################################################################
@@ -598,6 +662,8 @@
 
   # https://crbug.com/v8/7777
   'HeapTest.OptimizeAfterBytecodeFlushingCandidate': [SKIP],
+  'CpuProfilerTest.TickLinesOptimized': [SKIP],
+  'JsToWasmTest.*': [SKIP],
 
   # Crashes on native arm.
   'MacroAssemblerTest.ExtractLane': [PASS, ['arch == arm and not simulator_run', SKIP]],
@@ -652,12 +718,14 @@
   'HeapTest.IncrementalMarkingStepMakesBigProgressWithLargeObjects': [SKIP],
 
   # Tests that generate code at runtime.
+  'AccessorAssemblerTest.*': [SKIP],
   'Assembler*': [SKIP],
   'AtomicLoadStoreCodegenTest.*': [SKIP],
   'BasicBlockProfilerTest.*': [SKIP],
   'BranchCombineTest.*': [SKIP],
   'CallsWithArrayLikeOrSpreadTest.*': [SKIP],
   'CodeAssemblerTest.*': [SKIP],
+  'CodeStubAssemblerRunTest.*': [SKIP],
   'CodeGeneratorTest.*': [SKIP],
   'ConcurrentSharedFunctionInfoTest.*': [SKIP],
   'JSContextSpecializationTest.*': [SKIP],
@@ -667,8 +735,13 @@
   'RunMachOpsSelectLoong64Test.*': [SKIP],
   'RunMachOpsTest.*': [SKIP],
   'RunNativeCallsTest.*': [SKIP],
+  'RunStackCheckTest.*': [SKIP],
+  'RunUnwindingInfoTest.*': [SKIP],
+  'RunVariablesTest.*': [SKIP],
   'SelectCombineTest.*': [SKIP],
   'SyncPrimitivesArmTest*': [SKIP],
+  'SyncPrimitivesArm64Test*': [SKIP],
+  'TorqueCodegenTest.*': [SKIP],
   'TurboshaftBranchCombineTest.*': [SKIP],
   'TurboshaftCompareCombineTest.*': [SKIP],
   'TurboshaftSelectCombineTest.*': [SKIP],
@@ -721,6 +794,8 @@
 
   # Tests generated irregexp code.
   'RegExpTestWithContext.RegExpInterruptReentrantExecution': [SKIP],
+
+  'HeapProfilerTest.WeakReference': [SKIP],
 }], # lite_mode or variant == jitless
 
 ##############################################################################
@@ -764,12 +839,17 @@
   'GlobalHandlesTest.*': [SKIP],
   'GapResolverTest.*': [SKIP],
   'InObjectSlackTrackingTest.*': [SKIP],
+  'PagePromotionTest.*': [SKIP],
   'ParsingTest/*': [SKIP],
   'RunMachOpsTest.*': [SKIP],
   'SerializeTest.*': [SKIP],
   'StringsTest.*': [SKIP],
   'StringsUninitializedTest.*': [SKIP],
   'UninitializedSerializeTest.*': [SKIP],
+  'CpuProfilerTest.*': [SKIP],
+  'CpuProfilerUninitializedTest.*': [SKIP],
+  'HeapProfilerTest.*': [SKIP],
+  'LockersTest.*': [SKIP],
 }],  # variant == no_wasm_traps
 
 ################################################################################
@@ -857,6 +937,12 @@
   'TimeTicks.NowResolution': [PASS,FAIL],
   # Bug: crbug.com/517077061
   'InspectorTest.NoUAFWhenResettingContextGroupDuringArgumentWrapping': [PASS, FAIL],
+
+  # BUG(v8:4642).
+  'LockersTest.LockAndUnlockDifferentIsolates': [PASS, NO_VARIANTS],
+
+  # BUG(v8:10996): Flaky on Win32
+  'CpuProfilerTest.StartProfilingAfterOsr': ['arch == ia32', SKIP],
 }],  # system == windows
 
 ##############################################################################
@@ -881,6 +967,8 @@
   'HeapTest.NewSpaceObjectsInOptimizedCode': [PASS, FAIL],
   'HeapTest.ObjectsInEagerlyDeoptimizedCodeAreWeak': [PASS, FAIL],
   'HeapTest.ObjectsInOptimizedCodeAreWeak': [PASS, FAIL],
+  # BUG(11524): Crashing flakily.
+  'CpuProfilerTest.TracingCpuProfiler': [PASS, FAIL],
 }],  # variant == stress_concurrent_inlining
 
 ['variant == assert_types', {
@@ -931,6 +1019,7 @@
 ['arch == arm64 and simulator_run', {
   # Pass but take too long with the simulator.
   'ApiThreadingTest.Threading*': [SKIP],
+  'CpuProfilerUninitializedTest.MultipleIsolates': [PASS, ['not pointer_compression', SLOW]],
 }],  # 'arch == arm64 and simulator_run'
 
 ['arch == arm and simulator_run', {
@@ -938,16 +1027,24 @@
   'ApiThreadingTest.Threading*': [SKIP],
 }],  # 'arch == arm and simulator_run'
 
-['((arch == riscv64) or (arch == riscv32)) and simulator_run', {
-  # Pass but take too long with the simulator.
-  'ApiThreadingTest.Threading*': [PASS, SLOW],
-}],  # '((arch == riscv64) or (arch == riscv32)) and simulator_run'
+##############################################################################
+['variant == nooptimization and (arch == arm or arch == arm64) and simulator_run', {
+  # Slow tests: https://crbug.com/v8/7783
+  'CpuProfilerUninitializedTest.MultipleIsolates': [SKIP],
+}],  # variant == nooptimization and (arch == arm or arch == arm64) and simulator_run
 
 ['arch == ppc64 and simulator_run', {
   # Pass but take too long with the simulator.
   'ApiThreadingTest.Threading*': [PASS, SLOW],
   'DebugTest.DebugBreakStackTrace': [PASS, SLOW],
 }],  # 'arch == ppc64 and simulator_run'
+
+##############################################################################
+['((arch == riscv64) or (arch == riscv32)) and simulator_run', {
+  # Pass but take too long with the simulator.
+  'ApiThreadingTest.Threading*': [PASS, SLOW],
+  'HeapProfilerTest.ManyLocalsInSharedContext': [PASS, SLOW],
+}],  # '((arch == riscv64) or (arch == riscv32)) and simulator_run'
 
 ##############################################################################
 ['sandbox_hardware_support', {
@@ -976,6 +1073,10 @@
   'LogFunctionEventsTest.LogFunctionEvents': [SKIP],
   'CompilerTest.ProfilerEnabledDuringBackgroundCompile': [SKIP],
   'StreamingCompilationTest.*': [SKIP],
+  'CpuProfilerTest.*': [SKIP],
+  'CpuProfilerUninitializedTest.*': [SKIP],
+  'ProfileGeneratorTest.*': [SKIP],
+  'ProfileGeneratorMockPlatformTest.*': [SKIP],
 
   # Tests that rely on Wasm trap handling, which is similarly not supported on
   # older kernel versions. See again https://crbug.com/429173713.
@@ -999,6 +1100,9 @@
   'UninitializedSerializeTest.StartupSerializerOnceRunScript': [SKIP],
   'UninitializedSerializeTest.StartupSerializerTwice': [SKIP],
   'UninitializedSerializeTest.StartupSerializerTwiceRunScript': [SKIP],
+
+  # https://issues.chromium.org/issues/407932138
+  'CpuProfilerTest.NoProfilingProtectorCPUProfiler': [SKIP],
 }],  # 'full_debug'
 
 ##############################################################################

@@ -39,16 +39,22 @@
 #include "src/profiler/cpu-profiler.h"
 #include "src/profiler/profile-generator-inl.h"
 #include "src/profiler/symbolizer.h"
-#include "test/cctest/cctest.h"
-#include "test/cctest/profiler-extension.h"
+#include "test/unittests/api/api-test-utils.h"
+#include "test/unittests/profiler/profiler-extension.h"
+#include "test/unittests/test-utils.h"
 
 namespace v8 {
 namespace internal {
-namespace test_profile_generator {
+namespace profile_generator_unittest {
 
-TEST(ProfileNodeFindOrAddChild) {
-  CcTest::InitializeVM();
-  ProfileTree tree(CcTest::i_isolate());
+namespace {
+
+using ProfileGeneratorTest =
+    WithProfilerExtensionMixin<WithIsolateScopeMixin<WithIsolateMixin<
+        WithDefaultPlatformMixin<WithSaveFlagsMixin<::testing::Test>>>>>;
+
+TEST_F(ProfileGeneratorTest, ProfileNodeFindOrAddChild) {
+  ProfileTree tree(i_isolate());
   ProfileNode* node = tree.root();
   CodeEntry entry1(i::LogEventListener::CodeTag::kFunction, "aaa");
   ProfileNode* childNode1 = node->FindOrAddChild(&entry1, LineAndColumn{});
@@ -70,9 +76,8 @@ TEST(ProfileNodeFindOrAddChild) {
   CHECK_EQ(childNode3, node->FindOrAddChild(&entry3, LineAndColumn{}));
 }
 
-TEST(ProfileNodeFindOrAddChildWithLineNumber) {
-  CcTest::InitializeVM();
-  ProfileTree tree(CcTest::i_isolate());
+TEST_F(ProfileGeneratorTest, ProfileNodeFindOrAddChildWithLineNumber) {
+  ProfileTree tree(i_isolate());
   ProfileNode* root = tree.root();
   CodeEntry a(i::LogEventListener::CodeTag::kFunction, "a");
   ProfileNode* a_node = root->FindOrAddChild(&a, LineAndColumn{-1});
@@ -90,10 +95,9 @@ TEST(ProfileNodeFindOrAddChildWithLineNumber) {
   CHECK_NE(child1_node, child2_node);
 }
 
-TEST(ProfileNodeFindOrAddChildForSameFunction) {
-  CcTest::InitializeVM();
+TEST_F(ProfileGeneratorTest, ProfileNodeFindOrAddChildForSameFunction) {
   const char* aaa = "aaa";
-  ProfileTree tree(CcTest::i_isolate());
+  ProfileTree tree(i_isolate());
   ProfileNode* node = tree.root();
   CodeEntry entry1(i::LogEventListener::CodeTag::kFunction, aaa);
   ProfileNode* childNode1 = node->FindOrAddChild(&entry1, LineAndColumn{});
@@ -107,13 +111,9 @@ TEST(ProfileNodeFindOrAddChildForSameFunction) {
   CHECK_EQ(childNode1, node->FindOrAddChild(&entry3, LineAndColumn{}));
 }
 
-
-namespace {
-
 class ProfileTreeTestHelper {
  public:
-  explicit ProfileTreeTestHelper(const ProfileTree* tree)
-      : tree_(tree) { }
+  explicit ProfileTreeTestHelper(const ProfileTree* tree) : tree_(tree) {}
 
   ProfileNode* Walk(CodeEntry* entry1, CodeEntry* entry2 = nullptr,
                     CodeEntry* entry3 = nullptr) {
@@ -134,15 +134,11 @@ class ProfileTreeTestHelper {
   const ProfileTree* tree_;
 };
 
-}  // namespace
-
-
-TEST(ProfileTreeAddPathFromEnd) {
-  CcTest::InitializeVM();
+TEST_F(ProfileGeneratorTest, ProfileTreeAddPathFromEnd) {
   CodeEntry entry1(i::LogEventListener::CodeTag::kFunction, "aaa");
   CodeEntry entry2(i::LogEventListener::CodeTag::kFunction, "bbb");
   CodeEntry entry3(i::LogEventListener::CodeTag::kFunction, "ccc");
-  ProfileTree tree(CcTest::i_isolate());
+  ProfileTree tree(i_isolate());
   ProfileTreeTestHelper helper(&tree);
   CHECK(!helper.Walk(&entry1));
   CHECK(!helper.Walk(&entry2));
@@ -197,12 +193,11 @@ TEST(ProfileTreeAddPathFromEnd) {
   CHECK_EQ(1u, node4->self_ticks());
 }
 
-TEST(ProfileTreeAddPathFromEndWithLineNumbers) {
-  CcTest::InitializeVM();
+TEST_F(ProfileGeneratorTest, ProfileTreeAddPathFromEndWithLineNumbers) {
   CodeEntry a(i::LogEventListener::CodeTag::kFunction, "a");
   CodeEntry b(i::LogEventListener::CodeTag::kFunction, "b");
   CodeEntry c(i::LogEventListener::CodeTag::kFunction, "c");
-  ProfileTree tree(CcTest::i_isolate());
+  ProfileTree tree(i_isolate());
   ProfileTreeTestHelper helper(&tree);
 
   ProfileStackTrace path = {{&c, {5}}, {&b, {3}}, {&a, {1}}};
@@ -220,9 +215,8 @@ TEST(ProfileTreeAddPathFromEndWithLineNumbers) {
   CHECK(c_node);
 }
 
-TEST(ProfileTreeCalculateTotalTicks) {
-  CcTest::InitializeVM();
-  ProfileTree empty_tree(CcTest::i_isolate());
+TEST_F(ProfileGeneratorTest, ProfileTreeCalculateTotalTicks) {
+  ProfileTree empty_tree(i_isolate());
   CHECK_EQ(0u, empty_tree.root()->self_ticks());
   empty_tree.root()->IncrementSelfTicks();
   CHECK_EQ(1u, empty_tree.root()->self_ticks());
@@ -231,7 +225,7 @@ TEST(ProfileTreeCalculateTotalTicks) {
   CodeEntry* e1_path[] = {&entry1};
   std::vector<CodeEntry*> e1_path_vec(e1_path, e1_path + arraysize(e1_path));
 
-  ProfileTree single_child_tree(CcTest::i_isolate());
+  ProfileTree single_child_tree(i_isolate());
   single_child_tree.AddPathFromEnd(e1_path_vec);
   single_child_tree.root()->IncrementSelfTicks();
   CHECK_EQ(1u, single_child_tree.root()->self_ticks());
@@ -246,7 +240,7 @@ TEST(ProfileTreeCalculateTotalTicks) {
   std::vector<CodeEntry*> e2_e1_path_vec(e2_e1_path,
                                          e2_e1_path + arraysize(e2_e1_path));
 
-  ProfileTree flat_tree(CcTest::i_isolate());
+  ProfileTree flat_tree(i_isolate());
   ProfileTreeTestHelper flat_helper(&flat_tree);
   flat_tree.AddPathFromEnd(e1_path_vec);
   flat_tree.AddPathFromEnd(e1_path_vec);
@@ -271,7 +265,7 @@ TEST(ProfileTreeCalculateTotalTicks) {
   CodeEntry* e3_path[] = {&entry3};
   std::vector<CodeEntry*> e3_path_vec(e3_path, e3_path + arraysize(e3_path));
 
-  ProfileTree wide_tree(CcTest::i_isolate());
+  ProfileTree wide_tree(i_isolate());
   ProfileTreeTestHelper wide_helper(&wide_tree);
   wide_tree.AddPathFromEnd(e1_path_vec);
   wide_tree.AddPathFromEnd(e1_path_vec);
@@ -309,11 +303,11 @@ TEST(ProfileTreeCalculateTotalTicks) {
   CHECK_EQ(4u, node3->self_ticks());
 }
 
-static inline i::Address ToAddress(int n) { return static_cast<i::Address>(n); }
+inline i::Address ToAddress(int n) { return static_cast<i::Address>(n); }
 
-static inline void* ToPointer(int n) { return reinterpret_cast<void*>(n); }
+inline void* ToPointer(int n) { return reinterpret_cast<void*>(n); }
 
-TEST(CodeMapAddCode) {
+TEST_F(ProfileGeneratorTest, CodeMapAddCode) {
   CodeEntryStorage storage;
   InstructionStreamMap instruction_stream_map(storage);
   CodeEntry* entry1 =
@@ -350,7 +344,7 @@ TEST(CodeMapAddCode) {
   CHECK(!instruction_stream_map.FindEntry(ToAddress(0xFFFFFFFF)));
 }
 
-TEST(CodeMapMoveAndDeleteCode) {
+TEST_F(ProfileGeneratorTest, CodeMapMoveAndDeleteCode) {
   CodeEntryStorage storage;
   InstructionStreamMap instruction_stream_map(storage);
   CodeEntry* entry1 =
@@ -367,7 +361,7 @@ TEST(CodeMapMoveAndDeleteCode) {
   CHECK_EQ(entry1, instruction_stream_map.FindEntry(ToAddress(0x1700)));
 }
 
-TEST(CodeMapClear) {
+TEST_F(ProfileGeneratorTest, CodeMapClear) {
   CodeEntryStorage storage;
   InstructionStreamMap instruction_stream_map(storage);
   CodeEntry* entry1 =
@@ -385,8 +379,6 @@ TEST(CodeMapClear) {
   instruction_stream_map.Clear();
 }
 
-namespace {
-
 class TestSetup {
  public:
   TestSetup() : old_flag_prof_browser_mode_(i::v8_flags.prof_browser_mode) {
@@ -401,9 +393,7 @@ class TestSetup {
   bool old_flag_prof_browser_mode_;
 };
 
-}  // namespace
-
-TEST(SymbolizeTickSample) {
+TEST_F(ProfileGeneratorTest, SymbolizeTickSample) {
   TestSetup test_setup;
   CodeEntryStorage storage;
   InstructionStreamMap instruction_stream_map(storage);
@@ -465,16 +455,16 @@ TEST(SymbolizeTickSample) {
   CHECK_EQ(entry1, stack_trace[2].code_entry);
 }
 
-static void CheckNodeIds(const ProfileNode* node, unsigned* expectedId) {
+void CheckNodeIds(const ProfileNode* node, unsigned* expectedId) {
   CHECK_EQ((*expectedId)++, node->id());
   for (const ProfileNode* child : *node->children()) {
     CheckNodeIds(child, expectedId);
   }
 }
 
-TEST(SampleIds) {
+TEST_F(ProfileGeneratorTest, SampleIds) {
   TestSetup test_setup;
-  i::Isolate* isolate = CcTest::i_isolate();
+  i::Isolate* isolate = i_isolate();
   CpuProfiler profiler(isolate);
   CpuProfilesCollection profiles(isolate);
   profiles.set_cpu_profiler(&profiler);
@@ -549,9 +539,9 @@ TEST(SampleIds) {
   }
 }
 
-TEST(SampleIds_StopProfilingByProfilerId) {
+TEST_F(ProfileGeneratorTest, SampleIds_StopProfilingByProfilerId) {
   TestSetup test_setup;
-  i::Isolate* isolate = CcTest::i_isolate();
+  i::Isolate* isolate = i_isolate();
   CpuProfiler profiler(isolate);
   CpuProfilesCollection profiles(isolate);
   profiles.set_cpu_profiler(&profiler);
@@ -563,9 +553,9 @@ TEST(SampleIds_StopProfilingByProfilerId) {
   CHECK_NE(profile, nullptr);
 }
 
-TEST(CpuProfilesCollectionDuplicateId) {
-  CpuProfilesCollection collection(CcTest::i_isolate());
-  CpuProfiler profiler(CcTest::i_isolate());
+TEST_F(ProfileGeneratorTest, CpuProfilesCollectionDuplicateId) {
+  CpuProfilesCollection collection(i_isolate());
+  CpuProfiler profiler(i_isolate());
   collection.set_cpu_profiler(&profiler);
 
   auto profile_result = collection.StartProfiling();
@@ -576,9 +566,9 @@ TEST(CpuProfilesCollectionDuplicateId) {
   collection.StopProfiling(profile_result.id);
 }
 
-TEST(CpuProfilesCollectionDuplicateTitle) {
-  CpuProfilesCollection collection(CcTest::i_isolate());
-  CpuProfiler profiler(CcTest::i_isolate());
+TEST_F(ProfileGeneratorTest, CpuProfilesCollectionDuplicateTitle) {
+  CpuProfilesCollection collection(i_isolate());
+  CpuProfiler profiler(i_isolate());
   collection.set_cpu_profiler(&profiler);
 
   auto profile_result = collection.StartProfiling("duplicate");
@@ -589,16 +579,19 @@ TEST(CpuProfilesCollectionDuplicateTitle) {
   collection.StopProfiling(profile_result.id);
 }
 
-namespace {
 class DiscardedSamplesDelegateImpl : public v8::DiscardedSamplesDelegate {
  public:
   DiscardedSamplesDelegateImpl() : DiscardedSamplesDelegate() {}
   void Notify() override { CHECK_GT(GetId(), 0); }
 };
 
-class MockPlatform final : public TestPlatform {
+class MockPlatform final : public ::v8::TestPlatform {
  public:
-  MockPlatform() : mock_task_runner_(new MockTaskRunner()) {}
+  explicit MockPlatform(v8::Platform* default_platform)
+      : TestPlatform(default_platform),
+        mock_task_runner_(new MockTaskRunner()) {}
+
+  void TearDownPlatform() override { ClearTasks(); }
 
   std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
       v8::Isolate*, v8::TaskPriority priority) override {
@@ -617,9 +610,21 @@ class MockPlatform final : public TestPlatform {
       posted_count_++;
     }
 
+    void PostNonNestableTaskImpl(std::unique_ptr<Task> task,
+                                 const SourceLocation&) override {
+      non_nestable_tasks_.push_back(std::move(task));
+    }
+
     void PostDelayedTaskImpl(std::unique_ptr<Task> task,
                              double delay_in_seconds,
                              const SourceLocation&) override {
+      task_ = std::move(task);
+      delay_ = delay_in_seconds;
+    }
+
+    void PostNonNestableDelayedTaskImpl(std::unique_ptr<Task> task,
+                                        double delay_in_seconds,
+                                        const SourceLocation&) override {
       task_ = std::move(task);
       delay_ = delay_in_seconds;
     }
@@ -630,7 +635,7 @@ class MockPlatform final : public TestPlatform {
     }
 
     bool IdleTasksEnabled() override { return false; }
-    // The runner supports non-nestable tasks (as that's required by cctests)
+    // The runner supports non-nestable tasks (as required by tests)
     // but they are never executed.
     bool NonNestableTasksEnabled() const override { return true; }
     bool NonNestableDelayedTasksEnabled() const override { return true; }
@@ -638,6 +643,7 @@ class MockPlatform final : public TestPlatform {
     int posted_count() { return posted_count_; }
     void ClearTasks() {
       tasks_.clear();
+      non_nestable_tasks_.clear();
       task_.reset();
     }
 
@@ -646,14 +652,18 @@ class MockPlatform final : public TestPlatform {
     double delay_ = -1;
     std::unique_ptr<Task> task_;
     std::vector<std::unique_ptr<v8::Task>> tasks_;
+    std::vector<std::unique_ptr<v8::Task>> non_nestable_tasks_;
   };
 
   std::shared_ptr<MockTaskRunner> mock_task_runner_;
 };
-}  // namespace
 
-TEST_WITH_PLATFORM(MaxSamplesCallback, MockPlatform) {
-  i::Isolate* isolate = CcTest::i_isolate();
+using ProfileGeneratorMockPlatformTest = WithIsolateScopeMixin<WithIsolateMixin<
+    WithCustomPlatformMixin<::v8::TestWithPlatform, MockPlatform>>>;
+
+TEST_F(ProfileGeneratorMockPlatformTest, MaxSamplesCallback) {
+  MockPlatform& platform = custom_platform();
+  i::Isolate* isolate = i_isolate();
   CpuProfilesCollection profiles(isolate);
   CpuProfiler profiler(isolate);
   profiles.set_cpu_profiler(&profiler);
@@ -710,9 +720,9 @@ TEST_WITH_PLATFORM(MaxSamplesCallback, MockPlatform) {
   platform.ClearTasks();
 }
 
-TEST(NoSamples) {
+TEST_F(ProfileGeneratorTest, NoSamples) {
   TestSetup test_setup;
-  i::Isolate* isolate = CcTest::i_isolate();
+  i::Isolate* isolate = i_isolate();
   CpuProfiler profiler(isolate);
   CpuProfilesCollection profiles(isolate);
   profiles.set_cpu_profiler(&profiler);
@@ -744,25 +754,22 @@ TEST(NoSamples) {
   CHECK_EQ(1, profile->samples_count());
 }
 
-static const ProfileNode* PickChild(const ProfileNode* parent,
-                                    const char* name) {
+const ProfileNode* PickChild(const ProfileNode* parent, const char* name) {
   for (const ProfileNode* child : *parent->children()) {
     if (strcmp(child->entry()->name(), name) == 0) return child;
   }
   return nullptr;
 }
 
-
-TEST(RecordStackTraceAtStartProfiling) {
+TEST_F(ProfileGeneratorTest, RecordStackTraceAtStartProfiling) {
   // This test does not pass with inlining enabled since inlined functions
   // don't appear in the stack trace.
   i::v8_flags.turbo_inlining.Set(false);
 
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
+  v8::HandleScope scope(isolate());
+  v8::Local<v8::Context> env = NewProfilerContext();
   v8::Context::Scope context_scope(env);
-  std::unique_ptr<i::CpuProfiler> iprofiler(
-      new i::CpuProfiler(CcTest::i_isolate()));
+  std::unique_ptr<i::CpuProfiler> iprofiler(new i::CpuProfiler(i_isolate()));
   i::ProfilerExtension::set_profiler(iprofiler.get());
 
   CompileRun(
@@ -800,10 +807,9 @@ TEST(RecordStackTraceAtStartProfiling) {
   }
 }
 
-
-TEST(Issue51919) {
-  CpuProfilesCollection collection(CcTest::i_isolate());
-  CpuProfiler profiler(CcTest::i_isolate());
+TEST_F(ProfileGeneratorTest, Issue51919) {
+  CpuProfilesCollection collection(i_isolate());
+  CpuProfiler profiler(i_isolate());
   collection.set_cpu_profiler(&profiler);
   std::array<std::array<char, 16>,
              CpuProfilesCollection::kMaxSimultaneousProfiles>
@@ -817,27 +823,26 @@ TEST(Issue51919) {
            collection.StartProfiling("maximum").status);
 }
 
-static const v8::CpuProfileNode* PickChild(const v8::CpuProfileNode* parent,
-                                           const char* name) {
+const v8::CpuProfileNode* PickChild(const v8::CpuProfileNode* parent,
+                                    const char* name) {
   for (int i = 0; i < parent->GetChildrenCount(); ++i) {
     const v8::CpuProfileNode* child = parent->GetChild(i);
-    v8::String::Utf8Value function_name(CcTest::isolate(),
+    v8::String::Utf8Value function_name(v8::Isolate::GetCurrent(),
                                         child->GetFunctionName());
     if (strcmp(*function_name, name) == 0) return child;
   }
   return nullptr;
 }
 
-
-TEST(ProfileNodeScriptId) {
+TEST_F(ProfileGeneratorTest, ProfileNodeScriptId) {
   // This test does not pass with inlining enabled since inlined functions
   // don't appear in the stack trace.
   i::v8_flags.turbo_inlining.Set(false);
 
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
+  v8::HandleScope scope(isolate());
+  v8::Local<v8::Context> env = NewProfilerContext();
   v8::Context::Scope context_scope(env);
-  std::unique_ptr<CpuProfiler> iprofiler(new CpuProfiler(CcTest::i_isolate()));
+  std::unique_ptr<CpuProfiler> iprofiler(new CpuProfiler(i_isolate()));
   i::ProfilerExtension::set_profiler(iprofiler.get());
 
   v8::Local<v8::Script> script_a =
@@ -851,8 +856,8 @@ TEST(ProfileNodeScriptId) {
   CHECK_EQ(1, iprofiler->GetProfilesCount());
   const v8::CpuProfile* profile = i::ProfilerExtension::last_profile;
   const v8::CpuProfileNode* current = profile->GetTopDownRoot();
-  reinterpret_cast<ProfileNode*>(
-      const_cast<v8::CpuProfileNode*>(current))->Print(0);
+  reinterpret_cast<ProfileNode*>(const_cast<v8::CpuProfileNode*>(current))
+      ->Print(0);
   // The tree should look like this:
   //  (root)
   //   ""
@@ -873,19 +878,19 @@ TEST(ProfileNodeScriptId) {
   CHECK_EQ(script_a->ScriptId(), current->GetScriptId());
 }
 
-static const char* line_number_test_source_existing_functions =
-"function foo_at_the_first_line() {\n"
-"}\n"
-"foo_at_the_first_line();\n"
-"function lazy_func_at_forth_line() {}\n";
+const char* line_number_test_source_existing_functions =
+    "function foo_at_the_first_line() {\n"
+    "}\n"
+    "foo_at_the_first_line();\n"
+    "function lazy_func_at_forth_line() {}\n";
 
-static const char* line_number_test_source_profile_time_functions =
-"// Empty first line\n"
-"function bar_at_the_second_line() {\n"
-"  foo_at_the_first_line();\n"
-"}\n"
-"bar_at_the_second_line();\n"
-"function lazy_func_at_6th_line() {}";
+const char* line_number_test_source_profile_time_functions =
+    "// Empty first line\n"
+    "function bar_at_the_second_line() {\n"
+    "  foo_at_the_first_line();\n"
+    "}\n"
+    "bar_at_the_second_line();\n"
+    "function lazy_func_at_6th_line() {}";
 
 int GetFunctionLineNumber(CpuProfiler* profiler, LocalContext* env,
                           i::Isolate* isolate, const char* name) {
@@ -900,10 +905,9 @@ int GetFunctionLineNumber(CpuProfiler* profiler, LocalContext* env,
   return func_entry->line_and_column().line;
 }
 
-TEST(LineNumber) {
-  CcTest::InitializeVM();
+TEST_F(ProfileGeneratorTest, LineNumber) {
   LocalContext env;
-  i::Isolate* isolate = CcTest::i_isolate();
+  i::Isolate* isolate = i_isolate();
   TestSetup test_setup;
 
   i::HandleScope scope(isolate);
@@ -930,14 +934,14 @@ TEST(LineNumber) {
   profiler.StopProfiling("LineNumber");
 }
 
-TEST(BailoutReason) {
+TEST_F(ProfileGeneratorTest, BailoutReason) {
 #if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
   i::v8_flags.allow_natives_syntax.Set(true);
   i::v8_flags.turbofan.Set(true);
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
+  v8::HandleScope scope(isolate());
+  v8::Local<v8::Context> env = NewProfilerContext();
   v8::Context::Scope context_scope(env);
-  std::unique_ptr<CpuProfiler> iprofiler(new CpuProfiler(CcTest::i_isolate()));
+  std::unique_ptr<CpuProfiler> iprofiler(new CpuProfiler(i_isolate()));
   i::ProfilerExtension::set_profiler(iprofiler.get());
 
   CHECK_EQ(0, iprofiler->GetProfilesCount());
@@ -961,8 +965,8 @@ TEST(BailoutReason) {
   const v8::CpuProfile* profile = i::ProfilerExtension::last_profile;
   CHECK(profile);
   const v8::CpuProfileNode* current = profile->GetTopDownRoot();
-  reinterpret_cast<ProfileNode*>(
-      const_cast<v8::CpuProfileNode*>(current))->Print(0);
+  reinterpret_cast<ProfileNode*>(const_cast<v8::CpuProfileNode*>(current))
+      ->Print(0);
   // The tree should look like this:
   //  (root)
   //   ""
@@ -977,8 +981,8 @@ TEST(BailoutReason) {
 #endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 }
 
-TEST(NodeSourceTypes) {
-  ProfileTree tree(CcTest::i_isolate());
+TEST_F(ProfileGeneratorTest, NodeSourceTypes) {
+  ProfileTree tree(i_isolate());
   CodeEntry function_entry(LogEventListener::CodeTag::kFunction, "function");
   tree.AddPathFromEnd({&function_entry});
   CodeEntry builtin_entry(LogEventListener::CodeTag::kBuiltin, "builtin");
@@ -1036,7 +1040,7 @@ TEST(NodeSourceTypes) {
   CHECK_EQ(unresolved_node->source_type(), v8::CpuProfileNode::kUnresolved);
 }
 
-TEST(CodeMapRemoveCode) {
+TEST_F(ProfileGeneratorTest, CodeMapRemoveCode) {
   CodeEntryStorage storage;
   InstructionStreamMap instruction_stream_map(storage);
 
@@ -1063,7 +1067,7 @@ TEST(CodeMapRemoveCode) {
   CHECK(!instruction_stream_map.FindEntry(ToAddress(0x1000)));
 }
 
-TEST(CodeMapMoveOverlappingCode) {
+TEST_F(ProfileGeneratorTest, CodeMapMoveOverlappingCode) {
   CodeEntryStorage storage;
   InstructionStreamMap instruction_stream_map(storage);
   CodeEntry* colliding_entry1 =
@@ -1095,6 +1099,7 @@ TEST(CodeMapMoveOverlappingCode) {
   CHECK_EQ(after_entry->instruction_start(), ToAddress(0x1800));
 }
 
-}  // namespace test_profile_generator
+}  // namespace
+}  // namespace profile_generator_unittest
 }  // namespace internal
 }  // namespace v8

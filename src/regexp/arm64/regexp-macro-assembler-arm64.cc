@@ -258,7 +258,7 @@ void RegExpMacroAssemblerARM64::CheckCharacterLT(base::uc16 limit,
 void RegExpMacroAssemblerARM64::CheckCharacters(
     base::Vector<const base::uc16> str, int cp_offset, Label* on_failure,
     bool check_end_of_string) {
-  // This method is only ever called from the cctests.
+  // This method is only ever called from the unittests.
 
   if (check_end_of_string) {
     // Is last character of required match inside string.

@@ -24,7 +24,7 @@ All other flags are passed unchanged to the test runner. They must start with
 All arguments are optional. Most combinations should work, e.g.:
     gm.py ia32.debug x64.release x64.release-my-custom-opts d8
     gm.py android_arm.release.check --progress=verbose
-    gm.py x64 mjsunit/foo cctest/test-bar/*
+    gm.py x64 mjsunit/foo unittests/Bar*
 
 For a less automated experience, pass an existing output directory (which
 must contain an existing args.gn), e.g.:
@@ -54,8 +54,7 @@ if USE_PTY:
 
 
 BUILD_TARGETS_TEST = [
-    "d8", "bigint_shell", "cctest", "inspector-test", "v8_unittests",
-    "wasm_api_tests"
+    "d8", "bigint_shell", "inspector-test", "v8_unittests", "wasm_api_tests"
 ]
 BUILD_TARGETS_ALL = ["all"]
 
@@ -81,18 +80,16 @@ MODES = {
 DEFAULT_MODES = ["release", "debug"]
 # Build targets that can be manually specified.
 TARGETS = [
-    "d8", "cctest", "v8_unittests", "v8_fuzzers", "wasm_api_tests", "wee8",
-    "mkgrokdump", "mksnapshot", "generate-bytecode-expectations",
-    "inspector-test", "bigint_shell", "wami", "gn_args"
+    "d8", "v8_unittests", "v8_fuzzers", "wasm_api_tests", "wee8", "mkgrokdump",
+    "mksnapshot", "generate-bytecode-expectations", "inspector-test",
+    "bigint_shell", "wami", "gn_args"
 ]
 # Build targets that get built when you don't specify any (and specified tests
 # don't imply any other targets).
 DEFAULT_TARGETS = ["d8"]
 # Tests that run-tests.py would run by default that can be run with
 # BUILD_TARGETS_TESTS.
-DEFAULT_TESTS = [
-    "cctest", "filecheck", "intl", "message", "mjsunit", "unittests"
-]
+DEFAULT_TESTS = ["filecheck", "intl", "message", "mjsunit", "unittests"]
 # These can be suffixed to any <arch>.<mode> combo, or used standalone,
 # or used as global modifiers (affecting all <arch>.<mode> combos).
 ACTIONS = {
@@ -147,7 +144,6 @@ HELP = """<arch> can be any of: %(arches)s
 TESTSUITES_TARGETS = {
     "benchmarks": "d8",
     "bigint": "bigint_shell",
-    "cctest": "cctest",
     "filecheck": "d8",
     "fuzzer": "v8_fuzzers",
     "inspector": "inspector-test",
@@ -785,8 +781,8 @@ class ArgumentParser(object):
     if len(argstring) <= len(outdir_prefix):
       return False
     # "out/foo.d8" -> path="out/foo", targets=["d8"]
-    # "out/d8.cctest" -> path="out/d8", targets=["cctest"]
-    # "out/x.y.d8.cctest" -> path="out/x.y", targets=["d8", "cctest"]
+    # "out/d8.v8_unittests" -> path="out/d8", targets=["v8_unittests"]
+    # "out/x.y.d8.v8_unittests" -> path="out/x.y", targets=["d8", "v8_unittests"]
     argstring = argstring.replace(outdir_prefix, "")
     words = argstring.split('.')
     path_end = len(words)

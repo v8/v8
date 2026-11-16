@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CCTEST_DISASM_REGEX_HELPER_H_
-#define V8_CCTEST_DISASM_REGEX_HELPER_H_
+#ifndef V8_UNITTESTS_ASSEMBLER_DISASM_REGEX_HELPER_H_
+#define V8_UNITTESTS_ASSEMBLER_DISASM_REGEX_HELPER_H_
 
 #include <algorithm>
 #include <iostream>
 #include <map>
 #include <regex>  // NOLINT(build/c++11)
+#include <string>
 #include <vector>
 
 #include "src/base/logging.h"
@@ -316,4 +317,4 @@ bool CheckDisassemblyRegexPatterns(
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_CCTEST_DISASM_REGEX_HELPER_H_
+#endif  // V8_UNITTESTS_ASSEMBLER_DISASM_REGEX_HELPER_H_

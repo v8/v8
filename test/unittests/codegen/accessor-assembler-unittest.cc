@@ -2,29 +2,34 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/base/utils/random-number-generator.h"
 #include "src/ic/accessor-assembler.h"
+
+#include <sstream>
+#include <vector>
+
+#include "src/base/utils/random-number-generator.h"
 #include "src/ic/stub-cache.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
-#include "test/cctest/cctest.h"
-#include "test/cctest/compiler/function-tester.h"
 #include "test/common/code-assembler-tester.h"
+#include "test/unittests/compiler/function-tester.h"
+#include "test/unittests/test-utils.h"
 
 namespace v8 {
 namespace internal {
+namespace accessor_assembler_unittest {
 
 #include "src/codegen/define-code-stub-assembler-macros.inc"
 
-using compiler::CodeAssemblerTester;
-using compiler::FunctionTester;
-using compiler::Node;
-
 namespace {
 
-void TestStubCacheOffsetCalculation(StubCache::Table table) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
+using compiler::CodeAssemblerTester;
+using compiler::FunctionTester;
+
+using AccessorAssemblerTest = TestWithNativeContext;
+
+void TestStubCacheOffsetCalculation(Isolate* isolate, StubCache::Table table) {
   const int kNumParams = 2;
   CodeAssemblerTester data(isolate, JSParameterCount(kNumParams));
   AccessorAssembler m(data.state());
@@ -45,7 +50,7 @@ void TestStubCacheOffsetCalculation(StubCache::Table table) {
   }
 
   DirectHandle<Code> code = data.GenerateCode();
-  FunctionTester ft(code, kNumParams);
+  FunctionTester ft(isolate, code, kNumParams);
 
   Factory* factory = isolate->factory();
   Handle<Name> names[] = {
@@ -91,23 +96,18 @@ void TestStubCacheOffsetCalculation(StubCache::Table table) {
   }
 }
 
-}  // namespace
-
-TEST(StubCachePrimaryOffset) {
-  TestStubCacheOffsetCalculation(StubCache::kPrimary);
+TEST_F(AccessorAssemblerTest, StubCachePrimaryOffset) {
+  TestStubCacheOffsetCalculation(i_isolate(), StubCache::kPrimary);
 }
 
-TEST(StubCacheSecondaryOffset) {
-  TestStubCacheOffsetCalculation(StubCache::kSecondary);
+TEST_F(AccessorAssemblerTest, StubCacheSecondaryOffset) {
+  TestStubCacheOffsetCalculation(i_isolate(), StubCache::kSecondary);
 }
-
-namespace {
 
 // Here we create a dummy handler object. With pointer compression, it is
 // important that this lives in the regular cage (not the code cage), as
 // we will store such objects to the StubCache which expects it to be so.
-Handle<DataHandler> CreateDummyHandler() {
-  Isolate* isolate(CcTest::InitIsolateOnce());
+Handle<DataHandler> CreateDummyHandler(Isolate* isolate) {
   Handle<DataHandler> result =
       isolate->factory()->NewLoadHandler(1, AllocationType::kOld);
   result->set_smi_handler(Smi::zero());
@@ -116,17 +116,15 @@ Handle<DataHandler> CreateDummyHandler() {
   return result;
 }
 
-}  // namespace
-
-TEST(BasicStubCache) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
+TEST_F(AccessorAssemblerTest, BasicStubCache) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   StubCache stub_cache(isolate);
   stub_cache.Clear();
 
   DirectHandle<Name> name = isolate->factory()->InternalizeUtf8String("x");
   DirectHandle<Map> map = Map::Create(isolate, 0);
-  DirectHandle<DataHandler> handler = CreateDummyHandler();
+  DirectHandle<DataHandler> handler = CreateDummyHandler(isolate);
 
   // Ensure that GC does not happen because from now on we are going to fill our
   // own stub cache instance with raw values.
@@ -137,9 +135,9 @@ TEST(BasicStubCache) {
   CHECK_EQ((*handler).ptr(), result.ptr());
 }
 
-TEST(TryProbeStubCache) {
+TEST_F(AccessorAssemblerTest, TryProbeStubCache) {
   using Label = CodeStubAssembler::Label;
-  Isolate* isolate(CcTest::InitIsolateOnce());
+  Isolate* isolate = i_isolate();
   const int kNumParams = 3;
   CodeAssemblerTester data(isolate, JSParameterCount(kNumParams));
   AccessorAssembler m(data.state());
@@ -176,7 +174,7 @@ TEST(TryProbeStubCache) {
   }
 
   DirectHandle<Code> code = data.GenerateCode();
-  FunctionTester ft(code, kNumParams);
+  FunctionTester ft(isolate, code, kNumParams);
 
   std::vector<Handle<Name>> names;
   std::vector<Handle<JSObject>> receivers;
@@ -225,7 +223,7 @@ TEST(TryProbeStubCache) {
 
   // Generate some number of handlers.
   for (int i = 0; i < 30; i++) {
-    handlers.push_back(CreateDummyHandler());
+    handlers.push_back(CreateDummyHandler(isolate));
   }
 
   // Ensure that GC does not happen because from now on we are going to fill our
@@ -279,7 +277,10 @@ TEST(TryProbeStubCache) {
   CHECK(queried_existing && queried_non_existing);
 }
 
+}  // namespace
+
 #include "src/codegen/undef-code-stub-assembler-macros.inc"
 
+}  // namespace accessor_assembler_unittest
 }  // namespace internal
 }  // namespace v8

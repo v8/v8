@@ -2,25 +2,32 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "test/cctest/test-disasm-regex-helper.h"
+#include "test/unittests/assembler/disasm-regex-helper.h"
+
+#include <functional>
+#include <sstream>
 
 #include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/diagnostics/disassembler.h"
+#include "src/objects/js-function-inl.h"
 #include "src/objects/objects-inl.h"
-#include "test/cctest/cctest.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
 
 namespace {
 std::string DisassembleFunction(const char* function) {
-  v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
+  v8::Isolate* v8_isolate = v8::Isolate::GetCurrent();
+  v8::Local<v8::Context> context = v8_isolate->GetCurrentContext();
+  v8::Local<v8::String> function_name =
+      v8::String::NewFromUtf8(v8_isolate, function).ToLocalChecked();
   DirectHandle<JSFunction> f = Cast<JSFunction>(
       v8::Utils::OpenDirectHandle(*v8::Local<v8::Function>::Cast(
-          CcTest::global()->Get(context, v8_str(function)).ToLocalChecked())));
+          context->Global()->Get(context, function_name).ToLocalChecked())));
 
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
   Handle<Code> code(f->code(isolate), isolate);
   Address begin = code->instruction_start();
   Address end = code->instruction_end();
@@ -64,7 +71,11 @@ bool CheckDisassemblyRegexPatterns(
   return false;
 }
 
+namespace disasm_regex_helper_unittest {
 namespace {
+
+using DisasmRegexHelperTest = ::testing::Test;
+
 void RegexCheck(
     const std::vector<std::string>& inputs,
     const std::vector<std::string>& patterns,
@@ -109,10 +120,8 @@ void TestSymbolValue(const std::string& sym_name, const std::string& value,
   CHECK_EQ(p.GetSymbolMatchedValue(sym_name).compare(value), 0);
 }
 
-}  // namespace
-
 // clang-format off
-TEST(RegexParserSingleLines) {
+TEST_F(DisasmRegexHelperTest, RegexParserSingleLines) {
   //
   // Simple one-liners for found/not found.
   //
@@ -246,7 +255,7 @@ TEST(RegexParserSingleLines) {
                 });
 }
 
-TEST(RegexParserMultiLines) {
+TEST_F(DisasmRegexHelperTest, RegexParserMultiLines) {
   RegexCheck({ " a b a b c a",
                " a b a b c a" },
              { "a b c",
@@ -288,5 +297,7 @@ TEST(RegexParserMultiLines) {
 }
 // clang-format on
 
+}  // namespace
+}  // namespace disasm_regex_helper_unittest
 }  // namespace internal
 }  // namespace v8

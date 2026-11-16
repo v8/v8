@@ -145,7 +145,7 @@
   # Tests verifying CHECK and ASSERT.
   #
   # With the official_build flag CHECK failures can't be distinguished from
-  # CRASH. See cctest.status for details (v8:13945).
+  # CRASH. See unittests.status for details (v8:13945).
   'verify-check-false': [FAIL, NO_VARIANTS, ['official_build', CRASH]],
   'verify-assert-false': [NO_VARIANTS, ['mode == release and dcheck_always_on == False', PASS], ['mode == debug', FAIL]],
   'compiler/constant-field-hole-crash': [FAIL, NO_VARIANTS, ['official_build', CRASH]],
@@ -2803,7 +2803,6 @@
   # Requires scalar lowering for 64x2 SIMD instructions, which are not
   # implemented yet.
   # Also skip tests on archs that don't support SIMD and lowering doesn't yet work correctly.
-  # Condition copied from cctest.status.
   'regress/wasm/regress-10831': [SKIP],
 }],  # (arch == mips64el or arch == mips64) and not simd_mips
 

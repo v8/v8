@@ -2,15 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/tracing/trace-event.h"
+
 #include <stdlib.h>
 #include <string.h>
 
 #include "include/v8-function.h"
 #include "include/v8-platform.h"
 #include "src/init/v8.h"
-#include "src/tracing/trace-event.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/api/api-test-utils.h"
+#include "test/unittests/test-utils.h"
 
+namespace v8 {
+namespace trace_event_unittest {
 namespace {
 
 struct MockTraceObject {
@@ -34,7 +38,8 @@ struct MockTraceObject {
 
 class MockTracingController : public v8::TracingController {
  public:
-  MockTracingController() = default;
+  explicit MockTracingController(v8::TracingController* default_controller)
+      : default_controller_(default_controller) {}
   MockTracingController(const MockTracingController&) = delete;
   MockTracingController& operator=(const MockTracingController&) = delete;
 
@@ -81,12 +86,28 @@ class MockTracingController : public v8::TracingController {
     return trace_objects_;
   }
 
+  // Trace state observers (e.g. the isolate's TracingCpuProfiler) are
+  // registered with the default controller, because the isolate outlives this
+  // mock platform and unregisters them after the default platform has been
+  // restored.
+  void AddTraceStateObserver(TraceStateObserver* observer) override {
+    default_controller_->AddTraceStateObserver(observer);
+  }
+  void RemoveTraceStateObserver(TraceStateObserver* observer) override {
+    default_controller_->RemoveTraceStateObserver(observer);
+  }
+
  private:
+  v8::TracingController* const default_controller_;
   std::vector<std::unique_ptr<MockTraceObject>> trace_objects_;
 };
 
-class MockTracingPlatform : public TestPlatform {
+class MockTracingPlatform : public ::v8::TestPlatform {
  public:
+  explicit MockTracingPlatform(v8::Platform* default_platform)
+      : TestPlatform(default_platform),
+        tracing_controller_(default_platform->GetTracingController()) {}
+
   v8::TracingController* GetTracingController() override {
     return &tracing_controller_;
   }
@@ -103,16 +124,21 @@ class MockTracingPlatform : public TestPlatform {
   MockTracingController tracing_controller_;
 };
 
-}  // namespace
+class TraceEventTest
+    : public WithIsolateScopeMixin<WithIsolateMixin<
+          WithCustomPlatformMixin<TestWithPlatform, MockTracingPlatform>>> {
+ protected:
+  MockTracingPlatform& platform = custom_platform();
+};
 
-TEST_WITH_PLATFORM(TraceEventDisabledCategory, MockTracingPlatform) {
+TEST_F(TraceEventTest, TraceEventDisabledCategory) {
   // Disabled category, will not add events.
   TRACE_EVENT_BEGIN0("cat", "e1");
   TRACE_EVENT_END0("cat", "e1");
   CHECK_EQ(0, platform.NumberOfTraceObjects());
 }
 
-TEST_WITH_PLATFORM(TraceEventNoArgs, MockTracingPlatform) {
+TEST_F(TraceEventTest, TraceEventNoArgs) {
   // Enabled category will add 2 events.
   TRACE_EVENT_BEGIN0("v8-cat", "e1");
   TRACE_EVENT_END0("v8-cat", "e1");
@@ -127,7 +153,7 @@ TEST_WITH_PLATFORM(TraceEventNoArgs, MockTracingPlatform) {
   CHECK_EQ(0, platform.GetTraceObject(1)->num_args);
 }
 
-TEST_WITH_PLATFORM(TraceEventWithOneArg, MockTracingPlatform) {
+TEST_F(TraceEventTest, TraceEventWithOneArg) {
   TRACE_EVENT_BEGIN1("v8-cat", "e1", "arg1", 42);
   TRACE_EVENT_END1("v8-cat", "e1", "arg1", 42);
   TRACE_EVENT_BEGIN1("v8-cat", "e2", "arg1", "abc");
@@ -141,7 +167,7 @@ TEST_WITH_PLATFORM(TraceEventWithOneArg, MockTracingPlatform) {
   CHECK_EQ(1, platform.GetTraceObject(3)->num_args);
 }
 
-TEST_WITH_PLATFORM(TraceEventWithTwoArgs, MockTracingPlatform) {
+TEST_F(TraceEventTest, TraceEventWithTwoArgs) {
   TRACE_EVENT_BEGIN2("v8-cat", "e1", "arg1", 42, "arg2", "abc");
   TRACE_EVENT_END2("v8-cat", "e1", "arg1", 42, "arg2", "abc");
   TRACE_EVENT_BEGIN2("v8-cat", "e2", "arg1", "abc", "arg2", 43);
@@ -155,24 +181,30 @@ TEST_WITH_PLATFORM(TraceEventWithTwoArgs, MockTracingPlatform) {
   CHECK_EQ(2, platform.GetTraceObject(3)->num_args);
 }
 
-TEST_WITH_PLATFORM(ScopedTraceEvent, MockTracingPlatform) {
-  { TRACE_EVENT0("v8-cat", "e"); }
+TEST_F(TraceEventTest, ScopedTraceEvent) {
+  {
+    TRACE_EVENT0("v8-cat", "e");
+  }
 
   CHECK_EQ(1, platform.NumberOfTraceObjects());
   CHECK_EQ(0, platform.GetTraceObject(0)->num_args);
 
-  { TRACE_EVENT1("v8-cat", "e1", "arg1", "abc"); }
+  {
+    TRACE_EVENT1("v8-cat", "e1", "arg1", "abc");
+  }
 
   CHECK_EQ(2, platform.NumberOfTraceObjects());
   CHECK_EQ(1, platform.GetTraceObject(1)->num_args);
 
-  { TRACE_EVENT2("v8-cat", "e1", "arg1", "abc", "arg2", 42); }
+  {
+    TRACE_EVENT2("v8-cat", "e1", "arg1", "abc", "arg2", 42);
+  }
 
   CHECK_EQ(3, platform.NumberOfTraceObjects());
   CHECK_EQ(2, platform.GetTraceObject(2)->num_args);
 }
 
-TEST_WITH_PLATFORM(TestEventWithFlow, MockTracingPlatform) {
+TEST_F(TraceEventTest, TestEventWithFlow) {
   static uint64_t bind_id = 21;
   {
     TRACE_EVENT_WITH_FLOW0("v8-cat", "f1", bind_id, TRACE_EVENT_FLAG_FLOW_OUT);
@@ -182,7 +214,9 @@ TEST_WITH_PLATFORM(TestEventWithFlow, MockTracingPlatform) {
         "v8-cat", "f2", bind_id,
         TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
   }
-  { TRACE_EVENT_WITH_FLOW0("v8-cat", "f3", bind_id, TRACE_EVENT_FLAG_FLOW_IN); }
+  {
+    TRACE_EVENT_WITH_FLOW0("v8-cat", "f3", bind_id, TRACE_EVENT_FLAG_FLOW_IN);
+  }
 
   CHECK_EQ(3, platform.NumberOfTraceObjects());
   CHECK_EQ(bind_id, platform.GetTraceObject(0)->bind_id);
@@ -194,7 +228,7 @@ TEST_WITH_PLATFORM(TestEventWithFlow, MockTracingPlatform) {
   CHECK_EQ(TRACE_EVENT_FLAG_FLOW_IN, platform.GetTraceObject(2)->flags);
 }
 
-TEST_WITH_PLATFORM(TestEventWithId, MockTracingPlatform) {
+TEST_F(TraceEventTest, TestEventWithId) {
   static uint64_t event_id = 21;
   TRACE_EVENT_ASYNC_BEGIN0("v8-cat", "a1", event_id);
   TRACE_EVENT_ASYNC_END0("v8-cat", "a1", event_id);
@@ -206,7 +240,7 @@ TEST_WITH_PLATFORM(TestEventWithId, MockTracingPlatform) {
   CHECK_EQ(event_id, platform.GetTraceObject(1)->id);
 }
 
-TEST_WITH_PLATFORM(TestEventWithTimestamp, MockTracingPlatform) {
+TEST_F(TraceEventTest, TestEventWithTimestamp) {
   TRACE_EVENT_INSTANT_WITH_TIMESTAMP0("v8-cat", "0arg",
                                       TRACE_EVENT_SCOPE_GLOBAL, 1729);
   TRACE_EVENT_INSTANT_WITH_TIMESTAMP1("v8-cat", "1arg",
@@ -233,10 +267,8 @@ TEST_WITH_PLATFORM(TestEventWithTimestamp, MockTracingPlatform) {
   CHECK_EQ(32832, platform.GetTraceObject(4)->timestamp);
 }
 
-TEST_WITH_PLATFORM(BuiltinsIsTraceCategoryEnabled, MockTracingPlatform) {
-  CcTest::InitializeVM();
-
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(TraceEventTest, BuiltinsIsTraceCategoryEnabled) {
+  v8::Isolate* isolate = this->isolate();
   v8::HandleScope handle_scope(isolate);
   LocalContext env;
 
@@ -280,13 +312,11 @@ TEST_WITH_PLATFORM(BuiltinsIsTraceCategoryEnabled, MockTracingPlatform) {
   }
 }
 
-TEST_WITH_PLATFORM(BuiltinsTrace, MockTracingPlatform) {
-  CcTest::InitializeVM();
-
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(TraceEventTest, BuiltinsTrace) {
+  v8::Isolate* isolate = this->isolate();
   v8::HandleScope handle_scope(isolate);
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
   LocalContext env;
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
 
   v8::Local<v8::Object> binding = env->GetExtrasBindingObject();
   CHECK(!binding.IsEmpty());
@@ -439,3 +469,7 @@ TEST_WITH_PLATFORM(BuiltinsTrace, MockTracingPlatform) {
     CHECK_EQ(0, platform.GetTraceObject(4)->num_args);
   }
 }
+
+}  // namespace
+}  // namespace trace_event_unittest
+}  // namespace v8

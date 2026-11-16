@@ -46,7 +46,6 @@ group("gn_all") {
     # These items don't compile for Android on Mac.
     deps += [
       "benchmarks/cpp:gn_all",
-      "cctest",
       "unittests:generate-bytecode-expectations",
       "unittests:v8_unittests",
     ]
@@ -98,7 +97,6 @@ group("v8_bot_default") {
 
   data_deps = [
     "bigint:bigint_shell",
-    "cctest",
     "filecheck:v8_filecheck",
     "fuzzer:v8_fuzzer",
     "inspector:inspector-test",
@@ -128,7 +126,6 @@ group("v8_default") {
   testonly = true
 
   data_deps = [
-    "cctest",
     "filecheck:v8_filecheck",
     "fuzzer:v8_fuzzer",
     "inspector:inspector-test",
@@ -157,7 +154,6 @@ group("v8_optimize_for_size") {
   testonly = true
 
   data_deps = [
-    "cctest",
     "inspector:inspector-test",
     "intl:v8_intl",
     "mjsunit:v8_mjsunit",

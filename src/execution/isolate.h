@@ -110,10 +110,6 @@ void DefaultWasmAsyncResolvePromiseCallback(
     v8::Local<v8::Promise::Resolver> resolver,
     v8::Local<v8::Value> compilation_result, WasmAsyncSuccess success);
 
-namespace heap {
-class HeapTester;
-}  // namespace heap
-
 namespace maglev {
 class MaglevConcurrentDispatcher;
 }  // namespace maglev
@@ -3041,7 +3037,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   friend class HandleScopeImplementer;
   friend class GlobalSafepoint;
-  friend class heap::HeapTester;
   friend class IsolateForPointerCompression;
   friend class IsolateForSandbox;
   friend class IsolateGroup;

@@ -659,8 +659,8 @@ void WriteBarrier::VerifyDispatchHandleWriteBarrier(Tagged<HeapObject> host,
   if (mode == SKIP_WRITE_BARRIER) {
     // Builtins do not need write barriers, neither do their JSDispatch handles
     // as the handles don't move and are immortal. This additional check is
-    // needed since in some configurations and cctests the builtins Code objects
-    // are not in R/O space.
+    // needed since in some configurations and unittests the builtins Code
+    // objects are not in R/O space.
     if (value->is_builtin()) {
       static_assert(!JSDispatchTable::kSupportsCompaction);
       return;

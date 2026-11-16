@@ -39,7 +39,6 @@ TEST_MAP = {
     # This needs to stay in sync with group("v8_bot_default") in test/BUILD.gn.
     "bot_default": [
         "mjsunit",
-        "cctest",
         "wasm-spec-tests",
         "inspector",
         "webkit",
@@ -56,7 +55,6 @@ TEST_MAP = {
     # This needs to stay in sync with group("v8_default") in test/BUILD.gn.
     "default": [
         "mjsunit",
-        "cctest",
         "wasm-spec-tests",
         "inspector",
         "mkgrokdump",
@@ -79,7 +77,6 @@ TEST_MAP = {
     # This needs to stay in sync with "v8_optimize_for_size" in test/BUILD.gn.
     "optimize_for_size": [
         "mjsunit",
-        "cctest",
         "inspector",
         "webkit",
         "intl",

@@ -416,7 +416,7 @@ class CppLintProcessor(CacheableSourceFileProcessor):
 
   def GetPathsToSearch(self):
     dirs = ['include', 'samples', 'src']
-    test_dirs = ['cctest', 'common', 'fuzzer', 'inspector', 'unittests']
+    test_dirs = ['common', 'fuzzer', 'inspector', 'unittests']
     return dirs + [join('test', dir) for dir in test_dirs]
 
   def GetProcessorWorker(self):
@@ -516,7 +516,7 @@ class ClangFormatProcessor(CacheableSourceFileProcessor):
 
   def GetPathsToSearch(self):
     dirs = ['include', 'samples', 'src']
-    test_dirs = ['cctest', 'common', 'fuzzer', 'inspector', 'unittests']
+    test_dirs = ['common', 'fuzzer', 'inspector', 'unittests']
     return dirs + [join('test', dir) for dir in test_dirs]
 
   def GetProcessorWorker(self):
@@ -815,7 +815,7 @@ class GCMoleProcessor(SourceFileProcessor):
     # TODO(https://crbug.com/v8/12660): These should be directories according
     # to the API, but in order to find the toplevel BUILD.gn, we'd need to walk
     # the entire project.
-    return ['BUILD.gn', 'test/cctest/BUILD.gn']
+    return ['BUILD.gn']
 
   def ProcessFiles(self, files):
     success = True

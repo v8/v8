@@ -9540,7 +9540,7 @@ class TurboshaftGraphBuildingInterface
  private:
   bool should_inline(FullDecoder* decoder, int feedback_slot, int size) {
     if (!v8_flags.wasm_inlining) return false;
-    // When streaming (or running certain cctests which define functions one
+    // When streaming (or running certain unittests which define functions one
     // by one and compile them immediately), we might not have the bodies
     // of callees yet.
     if (size == 0) return false;

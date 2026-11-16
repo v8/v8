@@ -308,6 +308,8 @@ v8_cluster_source_set("v8_unittests_sources") {
     "api/v8-script-unittest.cc",
     "api/v8-string-unittest.cc",
     "api/v8-value-unittest.cc",
+    "assembler/disasm-regex-helper-unittest.cc",
+    "assembler/disasm-regex-helper.h",
     "base/address-region-unittest.cc",
     "base/asan-unittest.cc",
     "base/atomic-utils-unittest.cc",
@@ -376,6 +378,7 @@ v8_cluster_source_set("v8_unittests_sources") {
     "diagnostics/eh-frame-writer-unittest.cc",
     "diagnostics/gdb-jit-unittest.cc",
     "dumpling/dumpling-unittest.cc",
+    "execution/lockers-unittest.cc",
     "execution/microtask-queue-unittest.cc",
     "execution/thread-termination-unittest.cc",
     "execution/threads-unittest.cc",
@@ -542,10 +545,17 @@ v8_cluster_source_set("v8_unittests_sources") {
     "parser/unicode-helpers.cc",
     "parser/unicode-helpers.h",
     "profiler/circular-queue-unittest.cc",
+    "profiler/cpu-profiler-unittest.cc",
+    "profiler/heap-profiler-unittest.cc",
     "profiler/heap-snapshot-scopes-unittest.cc",
     "profiler/heap-snapshot-utils.cc",
     "profiler/heap-snapshot-utils.h",
+    "profiler/jsonstream-helper.h",
     "profiler/output-stream-writer-unittest.cc",
+    "profiler/profile-generator-unittest.cc",
+    "profiler/profiler-extension.cc",
+    "profiler/profiler-extension.h",
+    "profiler/sampler-api-unittest.cc",
     "profiler/strings-storage-unittest.cc",
     "regexp/regexp-unittest.cc",
     "regress/regress-536271629-unittest.cc",
@@ -582,6 +592,7 @@ v8_cluster_source_set("v8_unittests_sources") {
     "torque/ls-server-data-unittest.cc",
     "torque/torque-unittest.cc",
     "torque/torque-utils-unittest.cc",
+    "tracing/trace-event-unittest.cc",
     "tracing/traced-value-unittest.cc",
     "utils/allocation-unittest.cc",
     "utils/bit-vector-unittest.cc",
@@ -610,6 +621,8 @@ v8_cluster_source_set("v8_unittests_sources") {
     "compiler/run-variables-unittest.cc",
     "compiler/linkage-unittest.cc",
     "debug/debug-unittest.cc",
+    "execution/lockers-unittest.cc",  # Clashes with
+                                      # thread-termination-unittest.cc.
     "execution/unwinder-code-pages-unittest.cc",  # Clashes with
                                                   # thread-termination-unittest.cc.
     "heap/cppgc-js/cpp-heap-stack-start-marker-unittest.cc",
@@ -633,6 +646,8 @@ v8_cluster_source_set("v8_unittests_sources") {
 
   if (v8_enable_turbofan) {
     sources += [
+      "codegen/accessor-assembler-unittest.cc",
+      "codegen/code-stub-assembler-run-unittest.cc",
       "codegen/code-stub-assembler-unittest.cc",
       "codegen/code-stub-assembler-unittest.h",
       "compiler/atomic-load-store-codegen-unittest.cc",
@@ -765,6 +780,7 @@ v8_cluster_source_set("v8_unittests_sources") {
       "objects/swiss-name-dictionary-csa-unittest.cc",
       "setup-isolate-for-tests.h",
       "snapshot/serialize-unittest.cc",
+      "torque/torque-codegen-unittest.cc",
     ]
   }
 
@@ -794,6 +810,7 @@ v8_cluster_source_set("v8_unittests_sources") {
       "wasm/fuzzer-steps-unittest.cc",
       "wasm/gc-unittest.cc",
       "wasm/grow-memory-unittest.cc",
+      "wasm/js-to-wasm-unittest.cc",
       "wasm/jump-table-assembler-unittest.cc",
       "wasm/leb-helper-unittest.cc",
       "wasm/liftoff-for-fuzzing-unittest.cc",
@@ -901,7 +918,11 @@ v8_cluster_source_set("v8_unittests_sources") {
     sources += [
       "assembler/assembler-arm64-unittest.cc",
       "assembler/disasm-arm64-unittest.cc",
+      "assembler/fuzz-arm64-unittest.cc",
+      "assembler/javascript-arm64-unittest.cc",
+      "assembler/js-arm64-variables-unittest.cc",
       "assembler/macro-assembler-arm64-unittest.cc",
+      "assembler/sync-primitives-arm64-unittest.cc",
       "assembler/test-utils-arm64.cc",
       "assembler/test-utils-arm64.h",
       "execution/pointer-auth-arm64-unittest.cc",
@@ -1118,6 +1139,9 @@ v8_cluster_source_set("v8_unittests_sources") {
       # TODO(skyostil): Migrate to protozero.
       "//third_party/perfetto/protos/perfetto/trace:lite",
     ]
+
+    # Perfetto doesn't use TraceObject.
+    sources -= [ "tracing/trace-event-unittest.cc" ]
   }
 
   cflags = []
@@ -1140,6 +1164,11 @@ v8_cluster_source_set("v8_unittests_sources") {
     cflags += [ "/wd4309" ]
 
     sources += [ "avoid-windows-h-includes.cc" ]
+
+    if (symbol_level == 2) {
+      sources += [ "diagnostics/v8windbg-unittest.cc" ]
+      deps += [ "../../tools/v8windbg:v8windbg_test" ]
+    }
   }
 
   if (is_win) {

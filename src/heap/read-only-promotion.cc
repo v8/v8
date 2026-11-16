@@ -303,7 +303,7 @@ class Committee final {
     // verbatim, preserving dead objects. As a workaround, exclude this builtin
     // id from RO allocation.
     // TODO(jgruber): A better solution. Remove the liveness assumption (see
-    // test-heap-profiler.cc)? Overwrite dead RO objects with fillers
+    // heap-profiler-unittest.cc)? Overwrite dead RO objects with fillers
     // pre-serialization? Implement a RO GC pass pre-serialization?
     if (o->HasBuiltinId() && o->builtin_id() != Builtin::kIllegal) {
       // Any uncompiled builtin SFI must have a script and have been rejected

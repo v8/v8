@@ -1993,7 +1993,7 @@ class StackFrameIteratorForProfiler : public StackFrameIteratorBase {
   Address top_link_register_;
 };
 
-// We cannot export 'StackFrameIteratorForProfiler' for cctests since the
+// We cannot export 'StackFrameIteratorForProfiler' for unittests since the
 // linker inserted symbol stub may cause a stack overflow
 // (https://crbug.com/1449195).
 // We subclass it and export the subclass instead.

@@ -23,11 +23,11 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdlib.h>
-#include "test/cctest/cctest.h"
 
 #include "src/codegen/arm64/decoder-arm64-inl.h"
 #include "src/codegen/arm64/decoder-arm64.h"
 #include "src/diagnostics/arm64/disasm-arm64.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 #if defined(V8_OS_WIN)
 #define RANDGEN() rand()
@@ -37,11 +37,15 @@
 
 namespace v8 {
 namespace internal {
+namespace fuzz_arm64_unittest {
+namespace {
 
-TEST(FUZZ_decoder) {
+using FuzzArm64Test = ::testing::Test;
+
+TEST_F(FuzzArm64Test, FUZZ_decoder) {
   // Feed noise into the decoder to check that it doesn't crash.
   // 43 million = ~1% of the instruction space.
-  static const int instruction_count = 43 * 1024 * 1024;
+  const int instruction_count = 43 * 1024 * 1024;
 
 #if defined(V8_OS_WIN)
   srand(1);
@@ -60,11 +64,10 @@ TEST(FUZZ_decoder) {
   }
 }
 
-
-TEST(FUZZ_disasm) {
+TEST_F(FuzzArm64Test, FUZZ_disasm) {
   // Feed noise into the disassembler to check that it doesn't crash.
   // 9 million = ~0.2% of the instruction space.
-  static const int instruction_count = 9 * 1024 * 1024;
+  const int instruction_count = 9 * 1024 * 1024;
 
 #if defined(V8_OS_WIN)
   srand(42);
@@ -85,6 +88,8 @@ TEST(FUZZ_disasm) {
   }
 }
 
+}  // namespace
+}  // namespace fuzz_arm64_unittest
 }  // namespace internal
 }  // namespace v8
 

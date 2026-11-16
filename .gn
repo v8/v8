@@ -24,7 +24,6 @@ no_check_targets = [
   "//:cppgc_base",
   "//:v8_internal_headers",
   "//src/inspector:inspector",
-  "//test/cctest:cctest_sources",  # 15 errors
   "//test/unittests:inspector_unittests_sources",  # 2 errors
   "//third_party/icu:*",
 ]

@@ -1864,8 +1864,8 @@ void NativeModule::AddCodeSpaceLocked(base::AddressRegion region) {
 
   if (needs_jump_table) {
     // Allocate additional jump tables just as big as the first one.
-    // This is in particular needed in cctests which add functions to the module
-    // after the jump tables are already created (see
+    // This is in particular needed in unittests which add functions to the
+    // module after the jump tables are already created (see
     // https://crbug.com/v8/14213).
     int jump_table_size =
         is_first_code_space

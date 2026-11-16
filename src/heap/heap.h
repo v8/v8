@@ -89,7 +89,6 @@ using OutOfMemoryCallback = void (*)(void* data);
 namespace internal {
 
 namespace heap {
-class HeapTester;
 class TestMemoryAllocatorScope;
 }  // namespace heap
 
@@ -2538,8 +2537,6 @@ class Heap final {
   // The Isolate constructs us.
   friend class Isolate;
 
-  // Used in cctest and unittests.
-  friend class heap::HeapTester;
   FRIEND_TEST(SpacesTest, InlineAllocationObserverCadence);
   FRIEND_TEST(SpacesTest, AllocationObserver);
   FRIEND_TEST(MinimalStackTest, MinimalStackInTurbofanAllocate);

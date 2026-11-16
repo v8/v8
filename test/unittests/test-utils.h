@@ -22,6 +22,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
+#include "src/base/sanitizer/asan.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/flags/save-flags.h"
 #include "src/handles/handles.h"
@@ -62,6 +63,12 @@ static T* GetData(v8::Local<v8::Data> data) {
 class ArrayBufferAllocator;
 
 template <typename TMixin>
+class WithSaveFlagsMixin : public TMixin {
+ private:
+  i::SaveFlags save_flags_;
+};
+
+template <typename TMixin>
 class WithDefaultPlatformMixin : public TMixin {
  public:
   WithDefaultPlatformMixin() {
@@ -86,6 +93,106 @@ class WithDefaultPlatformMixin : public TMixin {
 
  private:
   std::unique_ptr<v8::Platform> platform_;
+};
+
+// Base v8::Platform wrapper that delegates all methods to an underlying
+// platform by default; install via WithCustomPlatformMixin.
+class TestPlatform : public v8::Platform {
+ public:
+  ~TestPlatform() override = default;
+
+  TestPlatform(const TestPlatform&) = delete;
+  TestPlatform& operator=(const TestPlatform&) = delete;
+
+  virtual void TearDownPlatform() {}
+
+  v8::PageAllocator* GetPageAllocator() override {
+    return default_platform_->GetPageAllocator();
+  }
+  v8::ThreadIsolatedAllocator* GetThreadIsolatedAllocator() override {
+    return default_platform_->GetThreadIsolatedAllocator();
+  }
+  void OnCriticalMemoryPressure() override {
+    default_platform_->OnCriticalMemoryPressure();
+  }
+  int NumberOfWorkerThreads() override {
+    return default_platform_->NumberOfWorkerThreads();
+  }
+  std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
+      v8::Isolate* isolate, v8::TaskPriority priority) override {
+    return default_platform_->GetForegroundTaskRunner(isolate, priority);
+  }
+  void PostTaskOnWorkerThreadImpl(v8::TaskPriority priority,
+                                  std::unique_ptr<v8::Task> task,
+                                  const v8::SourceLocation& location) override {
+    default_platform_->PostTaskOnWorkerThread(priority, std::move(task),
+                                              location);
+  }
+  void PostDelayedTaskOnWorkerThreadImpl(
+      v8::TaskPriority priority, std::unique_ptr<v8::Task> task,
+      double delay_in_seconds, const v8::SourceLocation& location) override {
+    default_platform_->PostDelayedTaskOnWorkerThread(
+        priority, std::move(task), delay_in_seconds, location);
+  }
+  std::unique_ptr<v8::JobHandle> CreateJobImpl(
+      v8::TaskPriority priority, std::unique_ptr<v8::JobTask> job_task,
+      const v8::SourceLocation& location) override {
+    return default_platform_->CreateJob(priority, std::move(job_task),
+                                        location);
+  }
+  double MonotonicallyIncreasingTime() override {
+    return default_platform_->MonotonicallyIncreasingTime();
+  }
+  double CurrentClockTimeMillis() override {
+    return default_platform_->CurrentClockTimeMillis();
+  }
+  bool IdleTasksEnabled(v8::Isolate* isolate) override {
+    return default_platform_->IdleTasksEnabled(isolate);
+  }
+  v8::TracingController* GetTracingController() override {
+    return default_platform_->GetTracingController();
+  }
+
+ protected:
+  explicit TestPlatform(v8::Platform* default_platform)
+      : default_platform_(default_platform) {
+    CHECK_NOT_NULL(default_platform_);
+  }
+
+  v8::Platform* default_platform() const { return default_platform_; }
+
+ private:
+  v8::Platform* default_platform_;
+};
+
+template <typename TMixin, typename TPlatform>
+class WithCustomPlatformMixin : public TMixin {
+ public:
+  WithCustomPlatformMixin() : custom_platform_(TMixin::platform()) {
+    i::V8::SetPlatformForTesting(&custom_platform_);
+  }
+  ~WithCustomPlatformMixin() override {
+    if (i::V8::GetCurrentPlatform() == &custom_platform_) {
+      i::V8::SetPlatformForTesting(TMixin::platform());
+    }
+  }
+  WithCustomPlatformMixin(const WithCustomPlatformMixin&) = delete;
+  WithCustomPlatformMixin& operator=(const WithCustomPlatformMixin&) = delete;
+
+  void TearDown() override {
+    custom_platform_.TearDownPlatform();
+    // Restore the default platform before ~IsolateWrapper() calls
+    // v8::platform::PumpMessageLoop().
+    if (i::V8::GetCurrentPlatform() == &custom_platform_) {
+      i::V8::SetPlatformForTesting(TMixin::platform());
+    }
+    TMixin::TearDown();
+  }
+
+  TPlatform& custom_platform() { return custom_platform_; }
+
+ protected:
+  TPlatform custom_platform_;
 };
 
 template <typename TMixin>
@@ -293,6 +400,18 @@ class WithIsolateScopeMixin : public TMixin {
         .ToLocalChecked();
   }
 
+  Local<Script> CompileWithOrigin(Local<String> source, const char* origin_url,
+                                  bool is_shared_cross_origin) {
+    return CompileWithOrigin(source, NewString(origin_url),
+                             is_shared_cross_origin);
+  }
+
+  Local<Script> CompileWithOrigin(const char* source, const char* origin_url,
+                                  bool is_shared_cross_origin) {
+    return CompileWithOrigin(NewString(source), NewString(origin_url),
+                             is_shared_cross_origin);
+  }
+
   void InvokeMajorGC(i::Isolate* isolate = nullptr) {
     i::Isolate* iso = isolate ? isolate : i_isolate();
     iso->heap()->CollectGarbage(i::OLD_SPACE,
@@ -477,6 +596,10 @@ class StaticOneByteResource : public v8::String::ExternalOneByteStringResource {
 };
 
 namespace internal {
+
+using v8::TestPlatform;
+using v8::WithCustomPlatformMixin;
+using v8::WithSaveFlagsMixin;
 
 // Forward declarations.
 class Factory;
@@ -805,7 +928,7 @@ class CrashKeyStore {
 #elif defined(__PPC64__) || defined(_ARCH_PPC64)
 #define GET_STACK_POINTER_TO(sp_addr) \
   __asm__ __volatile__("std 1, %0" : "=m"(sp_addr))
-#elif V8_TARGET_ARCH_RISCV64
+#elif V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_RISCV32
 #define GET_STACK_POINTER_TO(sp_addr) \
   __asm__ __volatile__("add %0, sp, x0" : "=r"(sp_addr))
 #elif V8_HOST_ARCH_LOONG64
@@ -814,6 +937,14 @@ class CrashKeyStore {
 #else
 #error Host architecture was not detected as supported by v8
 #endif
+
+DISABLE_ASAN inline uintptr_t GetStackPointer() {
+  // MSAN doesn't seem to treat initializing stores in inline assembly as such,
+  // so we initialize this value here.
+  uintptr_t sp_addr = 0;
+  GET_STACK_POINTER_TO(sp_addr);
+  return sp_addr;
+}
 
 #endif  // V8_CC_GNU
 

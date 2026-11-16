@@ -2732,7 +2732,6 @@ if (v8_enable_experimental_tq_to_tsa) {
     action("run_torque_to_tsa" + suffix) {
       visibility = [
         ":*",
-        "test/cctest/:*",
         "tools/debug_helper/:*",
         "tools/gcmole/:*",
       ]
@@ -2803,7 +2802,6 @@ template("run_torque") {
   action("run_torque" + suffix) {
     visibility = [
       ":*",
-      "test/cctest/:*",
       "tools/debug_helper/:*",
       "tools/gcmole/:*",
     ]
@@ -3800,10 +3798,7 @@ v8_source_set("v8_snapshot") {
 }
 
 v8_cluster_source_set("v8_initializers") {
-  visibility = [
-    ":*",
-    "test/cctest:*",
-  ]
+  visibility = [ ":*" ]
 
   allow_circular_includes_from = [ ":torque_generated_initializers" ]
 
@@ -8914,11 +8909,6 @@ group("v8_archive") {
   testonly = true
 
   deps = [ ":d8" ]
-
-  if (!is_win) {
-    # On windows, cctest doesn't link with v8_static_library.
-    deps += [ "test/cctest" ]
-  }
 }
 
 # TODO(dglazkov): Remove the "!build_with_chromium" condition once this clause
@@ -9038,7 +9028,7 @@ if (is_component_build) {
     ]
 
     if (v8_enable_turbofan) {
-      # For cctest/test-serialize.
+      # For serialize-unittest.
       public_deps += [ ":v8_initializers" ]
     }
 
@@ -9113,7 +9103,7 @@ if (is_component_build) {
     ]
 
     if (v8_enable_turbofan) {
-      # For cctest/test-serialize.
+      # For serialize-unittest.
       public_deps += [ ":v8_initializers" ]
     }
 

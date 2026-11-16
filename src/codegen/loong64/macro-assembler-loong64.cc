@@ -3214,7 +3214,7 @@ void MacroAssembler::Move(FPURegister dst, uint64_t src) {
   // Handle special values first.
   if (src == base::bit_cast<uint64_t>(0.0)) {
     // TODO(loong64_dev): fmov_d is better, but kDoubleRegZero is not
-    // initialized in cctest and unittest, so it cannot be used directly.
+    // initialized in unittests, so it cannot be used directly.
     movgr2fr_d(dst, zero_reg);
   } else {
     UseScratchRegisterScope temps(this);

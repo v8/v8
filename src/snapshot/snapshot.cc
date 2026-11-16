@@ -1144,7 +1144,7 @@ StartupData SnapshotCreatorImpl::CreateBlob(
 
   // RO space is usually writable when serializing a snapshot s.t. preceding
   // heap initialization can also extend RO space. There are notable exceptions
-  // though, including --stress-snapshot and serializer cctests.
+  // though, including --stress-snapshot and serializer unittests.
   if (isolate_->heap()->read_only_space()->writable()) {
     // Promote objects from mutable heap spaces to read-only space prior to
     // serialization. Objects can be promoted if a) they are themselves

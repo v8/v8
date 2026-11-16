@@ -28,7 +28,6 @@ if (v8_gcmole) {
       "../../buildtools/third_party/libc++/",
       "../../include/",
       "../../src/",
-      "../../test/cctest/",
       "../../test/common/",
       "../../testing/gtest/include/gtest/gtest_prod.h",
       "../../third_party/abseil-cpp/",

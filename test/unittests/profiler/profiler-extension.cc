@@ -27,11 +27,11 @@
 //
 // Tests of profiles generator and utilities.
 
-#include "test/cctest/profiler-extension.h"
+#include "test/unittests/profiler/profiler-extension.h"
 
+#include "include/v8-primitive.h"
 #include "include/v8-template.h"
 #include "src/api/api.h"
-#include "test/cctest/cctest.h"
 
 namespace v8 {
 namespace internal {
@@ -45,14 +45,17 @@ const char* ProfilerExtension::kSource =
 
 v8::Local<v8::FunctionTemplate> ProfilerExtension::GetNativeFunctionTemplate(
     v8::Isolate* isolate, v8::Local<v8::String> name) {
-  if (name->StrictEquals(v8_str(isolate, "startProfiling"))) {
+  if (name->StrictEquals(
+          v8::String::NewFromUtf8Literal(isolate, "startProfiling"))) {
     return v8::FunctionTemplate::New(isolate,
                                      ProfilerExtension::StartProfiling);
   }
-  if (name->StrictEquals(v8_str(isolate, "stopProfiling"))) {
+  if (name->StrictEquals(
+          v8::String::NewFromUtf8Literal(isolate, "stopProfiling"))) {
     return v8::FunctionTemplate::New(isolate, ProfilerExtension::StopProfiling);
   }
-  if (name->StrictEquals(v8_str(isolate, "collectSample"))) {
+  if (name->StrictEquals(
+          v8::String::NewFromUtf8Literal(isolate, "collectSample"))) {
     return v8::FunctionTemplate::New(isolate, ProfilerExtension::CollectSample);
   }
   UNREACHABLE();

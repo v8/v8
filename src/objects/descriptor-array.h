@@ -321,8 +321,9 @@ V8_OBJECT class DescriptorArray : public HeapObject {
   // Per-entry type check only (key is Name|Undefined, details is Smi|Undefined,
   // value is JSAny|Weak<Map>|AccessorInfo|AccessorPair|ClassPositions|
   // NumberDictionary). This is the hand-rolled equivalent of the old Torque-
-  // generated DescriptorArrayVerify and is what test/cctest/test-verifiers.cc
-  // exercises; the full DescriptorArrayVerify additionally enforces semantic
+  // generated DescriptorArrayVerify and is what
+  // test/unittests/heap/verifiers-unittest.cc exercises; the full
+  // DescriptorArrayVerify additionally enforces semantic
   // invariants (field values are FieldType-shaped, private keys are
   // non-enumerable, etc.) that assume a well-formed descriptor array.
   V8_EXPORT_PRIVATE void DescriptorArrayEntryTypesVerify(Isolate* isolate);

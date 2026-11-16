@@ -30,8 +30,8 @@
 #include "test/common/fast-api-test-helpers.h"
 #include "test/unittests/test-utils.h"
 
-// Shared helpers for the API tests in test/unittests/api/ that were migrated
-// from cctest (api-unittest.cc, api-interceptors-unittest.cc, ...).
+// Shared helpers for the API tests in test/unittests/api/ (api-unittest.cc,
+// api-interceptors-unittest.cc, ...).
 //
 // THREADED_TEST bodies are free functions that ApiTestFuzzer also runs on
 // background threads that share a single isolate (see Threading1..8 in
@@ -228,6 +228,10 @@ inline v8::Local<v8::Integer> v8_int(int32_t x) {
 
 inline v8::Local<v8::Integer> v8_uint(uint32_t x) {
   return v8::Integer::NewFromUnsigned(v8::Isolate::GetCurrent(), x);
+}
+
+inline v8::Local<v8::BigInt> v8_bigint(int64_t x) {
+  return v8::BigInt::New(v8::Isolate::GetCurrent(), x);
 }
 
 inline v8::Local<v8::String> v8_str(const char* x) {

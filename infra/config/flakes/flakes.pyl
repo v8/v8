@@ -33,7 +33,7 @@
       "pool:chromium.tests",
       "os:Mac-14",
     ],
-    "test_name": "cctest/test-concurrent-allocation/ConcurrentAllocationInOldSpace",
+    "test_name": "unittests/ConcurrentAllocationUninitializedTest.ConcurrentAllocationInOldSpace",
     "timeout_sec": 60,
     "total_timeout_sec": 120,
     "variant": "future",

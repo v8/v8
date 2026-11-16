@@ -825,7 +825,7 @@ TEST_F(HeapTest, Regress978156) {
     SafepointScope scope(isolate(), kGlobalSafepointForSharedSpaceIsolate);
     heap->tracer()->StartCycle(
         GarbageCollector::MARK_COMPACTOR, GarbageCollectionReason::kTesting,
-        "collector cctest", GCTracer::MarkingType::kIncremental);
+        "collector unittest", GCTracer::MarkingType::kIncremental);
     marking->Start(GarbageCollector::MARK_COMPACTOR,
                    GarbageCollectionReason::kTesting, "testing");
   }

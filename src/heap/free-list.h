@@ -19,7 +19,6 @@ namespace v8 {
 namespace internal {
 
 namespace heap {
-class HeapTester;
 class TestCodePageAllocatorScope;
 }  // namespace heap
 

@@ -230,9 +230,9 @@ instructions below:
 7. `tests`:
 
    - **Mandatory reproducer & fidelity**: Flag a `bug` if a bug fix omits a
-     regression test. Verify tests (`test/mjsunit/`, `test/unittests/`,
-     `test/cctest/`) exercise the modified path and fail without the fix (watch
-     for early errors in helper closures before target code, or missing
+     regression test. Verify tests (`test/mjsunit/`, `test/unittests/`) exercise
+     the modified path and fail without the fix (watch for early errors in
+     helper closures before target code, or missing
      `%PrepareFunctionForOptimization` + warmup call before
      `%OptimizeFunctionOnNextCall`).
    - **Boundary coverage**: Edge cases (`0`, `-0`, `NaN`, `INT32_MIN`,
@@ -280,11 +280,11 @@ Instructions for every subagent:
   invalidates existing documentation in `docs/`, flag it anchored on the
   relevant modified line; if an issue exists in moved code, note that it is
   pre-existing).
-- Treat each test case (`TEST`, `UNINITIALIZED_TEST`, `TEST_F`, `TEST_P`) in
-  `test/cctest/`, `test/unittests/`, and `test/mjsunit/` as running in its own
-  isolated OS process (`tools/run-tests.py` runs one test per process/fork);
-  only flag static, global, or `v8_flags` state issues in those suites if they
-  cause a bug within a single test execution.
+- Treat each test case (`TEST`, `TEST_F`, `TEST_P`) in `test/unittests/` and
+  `test/mjsunit/` as running in its own isolated OS process
+  (`tools/run-tests.py` runs one test per process/fork); only flag static,
+  global, or `v8_flags` state issues in those suites if they cause a bug within
+  a single test execution.
 - Send ONLY a JSON array (`[]` if clean):
   `[{"file": "src/...", "line": 123, "type": "security|bug|design|question|nit", "comment": "Issue, impact, and suggested fix.", "suggestion": "..."}]`
 

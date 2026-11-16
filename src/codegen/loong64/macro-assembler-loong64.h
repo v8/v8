@@ -93,7 +93,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void InitializeRootRegister() {
     ExternalReference isolate_root = ExternalReference::isolate_root(isolate());
     li(kRootRegister, Operand(isolate_root));
-    // TODO(loong64_dev): Initialize kDoubleRegZero for use by cctest.
+    // TODO(loong64_dev): Initialize kDoubleRegZero for use by unittests.
     movgr2fr_d(kDoubleRegZero, zero_reg);
 #ifdef V8_COMPRESS_POINTERS
     LoadRootRelative(kPtrComprCageBaseRegister,

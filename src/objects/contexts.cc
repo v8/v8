@@ -763,7 +763,7 @@ DirectHandle<Object> Context::ErrorMessageForWasmCodeGeneration() {
 
 #ifdef VERIFY_HEAP
 namespace {
-// TODO(v8:12298): Fix js-context-specialization cctests to set up full
+// TODO(v8:12298): Fix js-context-specialization unittests to set up full
 // native contexts instead of using dummy internalized strings as
 // extensions.
 bool IsContexExtensionTestObject(Tagged<HeapObject> extension) {

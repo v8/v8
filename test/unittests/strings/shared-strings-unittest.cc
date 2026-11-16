@@ -638,7 +638,7 @@ TEST_F(SharedStringsTest,
                                    kGlobalSafepointForSharedSpaceIsolate);
     shared_heap->tracer()->StartCycle(
         GarbageCollector::MARK_COMPACTOR, GarbageCollectionReason::kTesting,
-        "collector cctest", GCTracer::MarkingType::kIncremental);
+        "collector unittest", GCTracer::MarkingType::kIncremental);
     marking->Start(GarbageCollector::MARK_COMPACTOR,
                    i::GarbageCollectionReason::kTesting, "testing");
   }

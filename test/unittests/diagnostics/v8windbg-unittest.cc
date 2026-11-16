@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "test/cctest/cctest.h"
+#include "testing/gtest/include/gtest/gtest.h"
 #include "tools/v8windbg/test/v8windbg-test.h"
 
 namespace v8 {
 namespace internal {
 
-UNINITIALIZED_TEST(V8windbg) { v8windbg_test::RunTests(); }
+TEST(V8windbgTest, V8windbg) { v8windbg_test::RunTests(); }
 
 }  // namespace internal
 }  // namespace v8

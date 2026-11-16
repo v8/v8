@@ -29,93 +29,91 @@
 
 #include <limits.h>
 
-#include "test/cctest/cctest.h"
+#include "test/unittests/api/api-test-utils.h"
 
 namespace v8 {
 namespace internal {
-namespace test_js_arm64_variables {
+namespace js_arm64_variables_unittest {
+namespace {
 
-static void ExpectInt32(Local<v8::Context> context, int32_t expected,
-                        Local<Value> result) {
+using JsArm64VariablesTest = ::v8::TestWithIsolate;
+
+void ExpectInt32(Local<v8::Context> context, int32_t expected,
+                 Local<Value> result) {
   CHECK(result->IsInt32());
   CHECK_EQ(expected, result->Int32Value(context).FromJust());
 }
 
-
 // Global variables.
-TEST(global_variables) {
+TEST_F(JsArm64VariablesTest, global_variables) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   Local<Value> result = CompileRun(
-"var x = 0;"
-"function f0() { return x; }"
-"f0();");
+      "var x = 0;"
+      "function f0() { return x; }"
+      "f0();");
   ExpectInt32(env.local(), 0, result);
 }
 
-
 // Parameters.
-TEST(parameters) {
+TEST_F(JsArm64VariablesTest, parameters) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   Local<Value> result = CompileRun(
-"function f1(x) { return x; }"
-"f1(1);");
+      "function f1(x) { return x; }"
+      "f1(1);");
   ExpectInt32(env.local(), 1, result);
 }
 
-
 // Stack-allocated locals.
-TEST(stack_allocated_locals) {
+TEST_F(JsArm64VariablesTest, stack_allocated_locals) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   Local<Value> result = CompileRun(
-"function f2() { var x = 2; return x; }"
-"f2();");
+      "function f2() { var x = 2; return x; }"
+      "f2();");
   ExpectInt32(env.local(), 2, result);
 }
 
-
 // Context-allocated locals.  Local function forces x into f3's context.
-TEST(context_allocated_locals) {
+TEST_F(JsArm64VariablesTest, context_allocated_locals) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   Local<Value> result = CompileRun(
-"function f3(x) {"
-"  function g() { return x; }"
-"  return x;"
-"}"
-"f3(3);");
+      "function f3(x) {"
+      "  function g() { return x; }"
+      "  return x;"
+      "}"
+      "f3(3);");
   ExpectInt32(env.local(), 3, result);
 }
 
-
 // Local function reads x from an outer context.
-TEST(read_from_outer_context) {
+TEST_F(JsArm64VariablesTest, read_from_outer_context) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   Local<Value> result = CompileRun(
-"function f4(x) {"
-"  function g() { return x; }"
-"  return g();"
-"}"
-"f4(4);");
+      "function f4(x) {"
+      "  function g() { return x; }"
+      "  return g();"
+      "}"
+      "f4(4);");
   ExpectInt32(env.local(), 4, result);
 }
 
-
 // Local function reads x from an outer context.
-TEST(lookup_slots) {
+TEST_F(JsArm64VariablesTest, lookup_slots) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   Local<Value> result = CompileRun(
-"function f5(x) {"
-"  with ({}) return x;"
-"}"
-"f5(5);");
+      "function f5(x) {"
+      "  with ({}) return x;"
+      "}"
+      "f5(5);");
   ExpectInt32(env.local(), 5, result);
 }
 
-}  // namespace test_js_arm64_variables
+}  // namespace
+}  // namespace js_arm64_variables_unittest
 }  // namespace internal
 }  // namespace v8

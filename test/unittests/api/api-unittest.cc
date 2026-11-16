@@ -13766,7 +13766,7 @@ TEST_F(ApiUninitializedTest, SandboxContains) {
 }
 
 // Threading1..8 run THREADED_TESTs on several threads that share the isolate
-// of this fixture via v8::Locker. Like cctest, the main thread enters the
+// of this fixture via v8::Locker. The main thread enters the
 // isolate but does not open a HandleScope: a HandleScope of the main thread
 // would get archived with the state of one of the fuzzer threads.
 class ApiThreadingTest

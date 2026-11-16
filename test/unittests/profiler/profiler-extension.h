@@ -25,13 +25,17 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_TEST_CCTEST_PROFILER_EXTENSION_H_
-#define V8_TEST_CCTEST_PROFILER_EXTENSION_H_
+#ifndef V8_UNITTESTS_PROFILER_PROFILER_EXTENSION_H_
+#define V8_UNITTESTS_PROFILER_PROFILER_EXTENSION_H_
 
 // Tests of profiles generator and utilities.
 
+#include <memory>
+
+#include "include/v8-context.h"
 #include "include/v8-extension.h"
 #include "include/v8-profiler.h"
+#include "src/base/logging.h"
 
 namespace v8 {
 
@@ -44,7 +48,7 @@ class CpuProfiler;
 
 class ProfilerExtension : public v8::Extension {
  public:
-  ProfilerExtension() : v8::Extension("v8/profiler", kSource) { }
+  ProfilerExtension() : v8::Extension("v8/profiler", kSource) {}
 
   v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
       v8::Isolate* isolate, v8::Local<v8::String> name) override;
@@ -56,6 +60,14 @@ class ProfilerExtension : public v8::Extension {
   static v8::CpuProfiler* profiler() { return profiler_; }
   static v8::CpuProfile* last_profile;
 
+  static v8::Local<v8::Context> NewContext(v8::Isolate* isolate) {
+    const char* extension_names[] = {"v8/profiler"};
+    v8::ExtensionConfiguration config(1, extension_names);
+    v8::Local<v8::Context> context = v8::Context::New(isolate, &config);
+    CHECK(!context.IsEmpty());
+    return context;
+  }
+
  private:
   static void StartProfiling(const v8::FunctionCallbackInfo<v8::Value>& info);
   static void StopProfiling(const v8::FunctionCallbackInfo<v8::Value>& info);
@@ -65,8 +77,28 @@ class ProfilerExtension : public v8::Extension {
   static const char* kSource;
 };
 
+template <typename TMixin>
+class WithProfilerExtensionMixin : public TMixin {
+ public:
+  WithProfilerExtensionMixin() {
+    v8::RegisterExtension(std::make_unique<ProfilerExtension>());
+  }
+
+  ~WithProfilerExtensionMixin() override {
+    ProfilerExtension::set_profiler(static_cast<v8::CpuProfiler*>(nullptr));
+    ProfilerExtension::last_profile = nullptr;
+  }
+
+  v8::Local<v8::Context> NewProfilerContext(v8::Isolate* isolate) {
+    return ProfilerExtension::NewContext(isolate);
+  }
+
+  v8::Local<v8::Context> NewProfilerContext() {
+    return ProfilerExtension::NewContext(this->isolate());
+  }
+};
 
 }  // namespace internal
 }  // namespace v8
 
-#endif
+#endif  // V8_UNITTESTS_PROFILER_PROFILER_EXTENSION_H_

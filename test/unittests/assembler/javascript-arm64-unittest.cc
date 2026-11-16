@@ -27,55 +27,52 @@
 
 #include <limits.h>
 
-#include "test/cctest/cctest.h"
+#include "test/unittests/api/api-test-utils.h"
 
 namespace v8 {
 namespace internal {
-namespace test_javascript_arm64 {
+namespace javascript_arm64_unittest {
+namespace {
 
-static void ExpectBoolean(Local<v8::Context> context, bool expected,
-                          Local<Value> result) {
+using JavaScriptArm64Test = ::v8::TestWithIsolate;
+
+void ExpectBoolean(Local<v8::Context> context, bool expected,
+                   Local<Value> result) {
   CHECK(result->IsBoolean());
   CHECK_EQ(expected, result.As<v8::Boolean>()->Value());
 }
 
-static void ExpectInt32(Local<v8::Context> context, int32_t expected,
-                        Local<Value> result) {
+void ExpectInt32(Local<v8::Context> context, int32_t expected,
+                 Local<Value> result) {
   CHECK(result->IsInt32());
   CHECK_EQ(expected, result->Int32Value(context).FromJust());
 }
 
-static void ExpectNumber(Local<v8::Context> context, double expected,
-                         Local<Value> result) {
+void ExpectNumber(Local<v8::Context> context, double expected,
+                  Local<Value> result) {
   CHECK(result->IsNumber());
   CHECK_EQ(expected, result->NumberValue(context).FromJust());
 }
 
-
-static void ExpectUndefined(Local<Value> result) {
-  CHECK(result->IsUndefined());
-}
-
+void ExpectUndefined(Local<Value> result) { CHECK(result->IsUndefined()); }
 
 // Tests are sorted by order of implementation.
 
-TEST(simple_value) {
+TEST_F(JavaScriptArm64Test, simple_value) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   Local<Value> result = CompileRun("0x271828;");
   ExpectInt32(env.local(), 0x271828, result);
 }
 
-
-TEST(global_variable) {
+TEST_F(JavaScriptArm64Test, global_variable) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   Local<Value> result = CompileRun("var my_global_var = 0x123; my_global_var;");
   ExpectInt32(env.local(), 0x123, result);
 }
 
-
-TEST(simple_function_call) {
+TEST_F(JavaScriptArm64Test, simple_function_call) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   Local<Value> result = CompileRun(
@@ -84,8 +81,7 @@ TEST(simple_function_call) {
   ExpectInt32(env.local(), 0x314, result);
 }
 
-
-TEST(binary_op) {
+TEST_F(JavaScriptArm64Test, binary_op) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   Local<Value> result = CompileRun(
@@ -98,9 +94,9 @@ TEST(binary_op) {
   ExpectInt32(env.local(), 0x2468, result);
 }
 
-static void if_comparison_testcontext_helper(Local<v8::Context> context,
-                                             char const* op, char const* lhs,
-                                             char const* rhs, int expect) {
+void if_comparison_testcontext_helper(Local<v8::Context> context,
+                                      char const* op, char const* lhs,
+                                      char const* rhs, int expect) {
   char buffer[256];
   snprintf(buffer, sizeof(buffer),
            "var lhs = %s;"
@@ -112,9 +108,9 @@ static void if_comparison_testcontext_helper(Local<v8::Context> context,
   ExpectInt32(context, expect, result);
 }
 
-static void if_comparison_effectcontext_helper(Local<v8::Context> context,
-                                               char const* op, char const* lhs,
-                                               char const* rhs, int expect) {
+void if_comparison_effectcontext_helper(Local<v8::Context> context,
+                                        char const* op, char const* lhs,
+                                        char const* rhs, int expect) {
   char buffer[256];
   snprintf(buffer, sizeof(buffer),
            "var lhs = %s;"
@@ -127,9 +123,9 @@ static void if_comparison_effectcontext_helper(Local<v8::Context> context,
   ExpectInt32(context, expect, result);
 }
 
-static void if_comparison_helper(Local<v8::Context> context, char const* op,
-                                 int expect_when_lt, int expect_when_eq,
-                                 int expect_when_gt) {
+void if_comparison_helper(Local<v8::Context> context, char const* op,
+                          int expect_when_lt, int expect_when_eq,
+                          int expect_when_gt) {
   // TODO(all): Non-SMI tests.
 
   if_comparison_testcontext_helper(context, op, "1", "3", expect_when_lt);
@@ -141,8 +137,7 @@ static void if_comparison_helper(Local<v8::Context> context, char const* op,
   if_comparison_effectcontext_helper(context, op, "9", "7", expect_when_gt);
 }
 
-
-TEST(if_comparison) {
+TEST_F(JavaScriptArm64Test, if_comparison) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -156,8 +151,7 @@ TEST(if_comparison) {
   if_comparison_helper(env.local(), "!==", 1, 0, 1);
 }
 
-
-TEST(unary_plus) {
+TEST_F(JavaScriptArm64Test, unary_plus) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   Local<Value> result;
@@ -178,8 +172,7 @@ TEST(unary_plus) {
   ExpectInt32(env.local(), 4321, result);
 }
 
-
-TEST(unary_minus) {
+TEST_F(JavaScriptArm64Test, unary_minus) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   Local<Value> result;
@@ -195,8 +188,7 @@ TEST(unary_minus) {
   ExpectNumber(env.local(), -1234.5, result);
 }
 
-
-TEST(unary_void) {
+TEST_F(JavaScriptArm64Test, unary_void) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   Local<Value> result;
@@ -208,8 +200,7 @@ TEST(unary_void) {
   ExpectUndefined(result);
 }
 
-
-TEST(unary_not) {
+TEST_F(JavaScriptArm64Test, unary_not) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   Local<Value> result;
@@ -233,6 +224,7 @@ TEST(unary_not) {
   ExpectInt32(env.local(), 0, result);
 }
 
-}  // namespace test_javascript_arm64
+}  // namespace
+}  // namespace javascript_arm64_unittest
 }  // namespace internal
 }  // namespace v8

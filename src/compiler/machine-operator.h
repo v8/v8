@@ -627,7 +627,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   //
   // Some operators can have the behaviour on overflow change through specifying
   // TruncateKind. The exact semantics are documented in the tests in
-  // test/cctest/compiler/test-run-machops.cc .
+  // test/unittests/compiler/run-machops-unittest.cc .
   const Operator* ChangeFloat32ToFloat64();
   const Operator* ChangeFloat64ToInt32();   // narrowing
   const Operator* ChangeFloat64ToInt64();

@@ -4133,9 +4133,9 @@ TEST_F(InterpreterTest, InterpreterEvalVariableDecl) {
        " return x.name; }",
        factory->NewStringFromStaticChars("test")},
       {"function f() {"
-       "  eval('var x = [{name:\"test\"}, {type:\"cc\"}];');"
+       "  eval('var x = [{name:\"test\"}, {type:\"unit\"}];');"
        "  return x[1].type+x[0].name; }",
-       factory->NewStringFromStaticChars("cctest")},
+       factory->NewStringFromStaticChars("unittest")},
       {"function f() {\n"
        " var x = 3;\n"
        " var get_eval_x;\n"

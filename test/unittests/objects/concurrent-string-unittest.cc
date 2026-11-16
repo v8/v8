@@ -33,8 +33,8 @@ namespace {
   {0x2028, '2', '8', '.', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
 #define TWO_BYTE_ARRAY_LENGTH 13
 
-// Adapted from cctest/test-api.cc, and
-// test/cctest/heap/test-external-string-tracker.cc.
+// Adapted from test/unittests/api/api-unittest.cc and
+// test/unittests/heap/external-string-tracker-unittest.cc.
 class TestOneByteResource : public v8::String::ExternalOneByteStringResource {
  public:
   explicit TestOneByteResource(const char* data)
@@ -51,7 +51,7 @@ class TestOneByteResource : public v8::String::ExternalOneByteStringResource {
   size_t length_;
 };
 
-// Adapted from cctest/test-api.cc.
+// Adapted from test/unittests/api/api-unittest.cc.
 class TestTwoByteResource : public v8::String::ExternalStringResource {
  public:
   explicit TestTwoByteResource(uint16_t* data) : data_(data), length_(0) {
