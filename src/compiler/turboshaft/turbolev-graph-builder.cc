@@ -6026,18 +6026,15 @@ class GraphBuildingNodeProcessor {
     const interpreter::Register result_location =
         interpreter::Register::invalid_value();
     const int result_size = 0;
-    const maglev::VirtualObjectList virtual_objects =
-        eager_deopt_info->top_frame().GetVirtualObjects();
 
     switch (eager_deopt_info->top_frame().type()) {
       case maglev::DeoptFrame::FrameType::kInterpretedFrame:
         return BuildFrameState<EagerFrameState>(
-            eager_deopt_info->top_frame().as_interpreted(), virtual_objects,
-            result_location, result_size);
+            eager_deopt_info->top_frame().as_interpreted(), result_location,
+            result_size);
       case maglev::DeoptFrame::FrameType::kBuiltinContinuationFrame:
         return BuildFrameState<EagerFrameState>(
-            eager_deopt_info->top_frame().as_builtin_continuation(),
-            virtual_objects);
+            eager_deopt_info->top_frame().as_builtin_continuation());
       case maglev::DeoptFrame::FrameType::kInlinedArgumentsFrame:
       case maglev::DeoptFrame::FrameType::kConstructInvokeStubFrame:
         UNIMPLEMENTED();
@@ -6048,21 +6045,18 @@ class GraphBuildingNodeProcessor {
   OptionalV<LazyFrameState> BuildFrameState(
       maglev::LazyDeoptInfo* lazy_deopt_info) {
     deduplicator_.Reset();
-    const maglev::VirtualObjectList virtual_objects =
-        lazy_deopt_info->top_frame().GetVirtualObjects();
     switch (lazy_deopt_info->top_frame().type()) {
       case maglev::DeoptFrame::FrameType::kInterpretedFrame:
         return BuildFrameState<LazyFrameState>(
-            lazy_deopt_info->top_frame().as_interpreted(), virtual_objects,
+            lazy_deopt_info->top_frame().as_interpreted(),
             lazy_deopt_info->result_location(), lazy_deopt_info->result_size());
       case maglev::DeoptFrame::FrameType::kConstructInvokeStubFrame:
         return BuildFrameState<LazyFrameState>(
-            lazy_deopt_info->top_frame().as_construct_stub(), virtual_objects);
+            lazy_deopt_info->top_frame().as_construct_stub());
 
       case maglev::DeoptFrame::FrameType::kBuiltinContinuationFrame:
         return BuildFrameState<LazyFrameState>(
-            lazy_deopt_info->top_frame().as_builtin_continuation(),
-            virtual_objects);
+            lazy_deopt_info->top_frame().as_builtin_continuation());
 
       case maglev::DeoptFrame::FrameType::kInlinedArgumentsFrame:
         UNIMPLEMENTED();
@@ -6071,9 +6065,7 @@ class GraphBuildingNodeProcessor {
   }
 
   template <typename FrameStateType>
-  OptionalV<FrameStateType> BuildParentFrameState(
-      maglev::DeoptFrame& frame,
-      const maglev::VirtualObjectList& virtual_objects) {
+  OptionalV<FrameStateType> BuildParentFrameState(maglev::DeoptFrame& frame) {
     // Only the topmost frame should have a valid result_location and
     // result_size. One reason for this is that, in Maglev, the PokeAt is not an
     // attribute of the DeoptFrame but rather of the LazyDeoptInfo (to which the
@@ -6085,30 +6077,24 @@ class GraphBuildingNodeProcessor {
     switch (frame.type()) {
       case maglev::DeoptFrame::FrameType::kInterpretedFrame:
         return BuildFrameState<FrameStateType>(frame.as_interpreted(),
-                                               virtual_objects, result_location,
-                                               result_size);
+                                               result_location, result_size);
       case maglev::DeoptFrame::FrameType::kConstructInvokeStubFrame:
-        return BuildFrameState<FrameStateType>(frame.as_construct_stub(),
-                                               virtual_objects);
+        return BuildFrameState<FrameStateType>(frame.as_construct_stub());
       case maglev::DeoptFrame::FrameType::kInlinedArgumentsFrame:
-        return BuildFrameState<FrameStateType>(frame.as_inlined_arguments(),
-                                               virtual_objects);
+        return BuildFrameState<FrameStateType>(frame.as_inlined_arguments());
       case maglev::DeoptFrame::FrameType::kBuiltinContinuationFrame:
-        return BuildFrameState<FrameStateType>(frame.as_builtin_continuation(),
-                                               virtual_objects);
+        return BuildFrameState<FrameStateType>(frame.as_builtin_continuation());
     }
     UNREACHABLE();
   }
 
   template <typename FrameStateType>
   OptionalV<FrameStateType> BuildFrameState(
-      maglev::ConstructInvokeStubDeoptFrame& frame,
-      const maglev::VirtualObjectList& virtual_objects) {
+      maglev::ConstructInvokeStubDeoptFrame& frame) {
     FrameStateData::Builder builder;
     if (frame.parent() != nullptr) {
       OptionalV<FrameStateType> parent_frame =
-          BuildParentFrameState<FrameStateType>(*frame.parent(),
-                                                virtual_objects);
+          BuildParentFrameState<FrameStateType>(*frame.parent());
       if (!parent_frame.has_value())
         return OptionalV<FrameStateType>::Nullopt();
       builder.AddParentFrameState(parent_frame.value());
@@ -6124,10 +6110,10 @@ class GraphBuildingNodeProcessor {
     builder.AddInput(MachineType::AnyTagged(), fake_closure_input);
 
     // Parameters
-    AddDeoptInput(builder, virtual_objects, frame.receiver());
+    AddDeoptInput(builder, frame.receiver());
 
     // Context
-    AddDeoptInput(builder, virtual_objects, frame.context());
+    AddDeoptInput(builder, frame.context());
 
     if (builder.Inputs().size() >
         std::numeric_limits<decltype(Operation::input_count)>::max() - 1) {
@@ -6143,24 +6129,22 @@ class GraphBuildingNodeProcessor {
 
   template <typename FrameStateType>
   OptionalV<FrameStateType> BuildFrameState(
-      maglev::InlinedArgumentsDeoptFrame& frame,
-      const maglev::VirtualObjectList& virtual_objects) {
+      maglev::InlinedArgumentsDeoptFrame& frame) {
     FrameStateData::Builder builder;
     if (frame.parent() != nullptr) {
       OptionalV<FrameStateType> parent_frame =
-          BuildParentFrameState<FrameStateType>(*frame.parent(),
-                                                virtual_objects);
+          BuildParentFrameState<FrameStateType>(*frame.parent());
       if (!parent_frame.has_value())
         return OptionalV<FrameStateType>::Nullopt();
       builder.AddParentFrameState(parent_frame.value());
     }
 
     // Closure
-    AddDeoptInput(builder, virtual_objects, frame.closure());
+    AddDeoptInput(builder, frame.closure());
 
     // Parameters
     for (const maglev::ValueNode* arg : frame.arguments()) {
-      AddDeoptInput(builder, virtual_objects, arg);
+      AddDeoptInput(builder, arg);
     }
 
     // Context
@@ -6186,13 +6170,11 @@ class GraphBuildingNodeProcessor {
 
   template <typename FrameStateType>
   OptionalV<FrameStateType> BuildFrameState(
-      maglev::BuiltinContinuationDeoptFrame& frame,
-      const maglev::VirtualObjectList& virtual_objects) {
+      maglev::BuiltinContinuationDeoptFrame& frame) {
     FrameStateData::Builder builder;
     if (frame.parent() != nullptr) {
       OptionalV<FrameStateType> parent_frame =
-          BuildParentFrameState<FrameStateType>(*frame.parent(),
-                                                virtual_objects);
+          BuildParentFrameState<FrameStateType>(*frame.parent());
       if (!parent_frame.has_value())
         return OptionalV<FrameStateType>::Nullopt();
       builder.AddParentFrameState(parent_frame.value());
@@ -6214,7 +6196,7 @@ class GraphBuildingNodeProcessor {
     // parameter.
     static_assert(TranslatedFrame::kReceiverIsFirstParameterInJSFrames);
     for (maglev::ValueNode* param : frame.parameters()) {
-      AddDeoptInput(builder, virtual_objects, param);
+      AddDeoptInput(builder, param);
     }
 
     if (frame.is_javascript()) {
@@ -6243,7 +6225,7 @@ class GraphBuildingNodeProcessor {
     }
 
     // Context
-    AddDeoptInput(builder, virtual_objects, frame.context());
+    AddDeoptInput(builder, frame.context());
 
     if (builder.Inputs().size() >
         std::numeric_limits<decltype(Operation::input_count)>::max() - 1) {
@@ -6260,15 +6242,13 @@ class GraphBuildingNodeProcessor {
   template <typename FrameStateType>
   OptionalV<FrameStateType> BuildFrameState(
       maglev::InterpretedDeoptFrame& frame,
-      const maglev::VirtualObjectList& virtual_objects,
       interpreter::Register result_location, int result_size) {
     DCHECK_EQ(result_size != 0, result_location.is_valid());
     FrameStateData::Builder builder;
 
     if (frame.parent() != nullptr) {
       OptionalV<FrameStateType> parent_frame =
-          BuildParentFrameState<FrameStateType>(*frame.parent(),
-                                                virtual_objects);
+          BuildParentFrameState<FrameStateType>(*frame.parent());
       if (!parent_frame.has_value()) {
         return OptionalV<FrameStateType>::Nullopt();
       }
@@ -6276,17 +6256,16 @@ class GraphBuildingNodeProcessor {
     }
 
     // Closure
-    AddDeoptInput(builder, virtual_objects, frame.closure());
+    AddDeoptInput(builder, frame.closure());
 
     // Parameters
     frame.frame_state()->ForEachParameter(
         frame.unit(), [&](maglev::ValueNode* value, interpreter::Register reg) {
-          AddDeoptInput(builder, virtual_objects, value);
+          AddDeoptInput(builder, value);
         });
 
     // Context
-    AddDeoptInput(builder, virtual_objects,
-                  frame.frame_state()->context(frame.unit()));
+    AddDeoptInput(builder, frame.frame_state()->context(frame.unit()));
 
     // Locals
     // ForEachLocal in Maglev skips over dead registers, but we still need to
@@ -6302,7 +6281,7 @@ class GraphBuildingNodeProcessor {
             builder.AddUnusedRegister();
             local_index++;
           }
-          AddDeoptInput(builder, virtual_objects, value);
+          AddDeoptInput(builder, value);
           local_index++;
         });
     for (; local_index < frame.unit().register_count(); local_index++) {
@@ -6311,8 +6290,7 @@ class GraphBuildingNodeProcessor {
 
     // Accumulator
     if (frame.frame_state()->liveness()->AccumulatorIsLive()) {
-      AddDeoptInput(builder, virtual_objects,
-                    frame.frame_state()->accumulator(frame.unit()));
+      AddDeoptInput(builder, frame.frame_state()->accumulator(frame.unit()));
     } else {
       builder.AddUnusedRegister();
     }
@@ -6335,25 +6313,27 @@ class GraphBuildingNodeProcessor {
   }
 
   void AddDeoptInput(FrameStateData::Builder& builder,
-                     const maglev::VirtualObjectList& virtual_objects,
                      const maglev::ValueNode* node) {
     node = node->UnwrapIdentities();
-    // Maglev FrameStates should contain InlinedAllocations instead of
-    // VirtualObjects.
-    DCHECK(!node->Is<maglev::VirtualObject>());
+    if (const maglev::VirtualObject* vobj =
+            node->TryCast<maglev::VirtualObject>()) {
+      DCHECK(v8_flags.turbolev_escape_analysis);
+      AddVirtualObjectInput(builder, vobj);
+      return;
+    }
     if (const maglev::InlinedAllocation* alloc =
-            node->TryCast<maglev::InlinedAllocation>()) {
-      if (alloc->HasBeenAnalysed() && alloc->HasBeenElided()) {
-        AddVirtualObjectInput(builder, virtual_objects,
-                              virtual_objects.FindAllocatedWith(alloc));
-        return;
-      }
+            node->TryCast<maglev::InlinedAllocation>();
+        alloc && alloc->HasBeenAnalysed() && alloc->HasBeenElided()) {
+      // TurbolevEscapeAnalysis replaces elided allocations with snapshot
+      // VirtualObjects, so this is only reached with Maglev escape analysis.
+      DCHECK(!v8_flags.turbolev_escape_analysis);
+      AddVirtualObjectInput(builder, alloc->object());
+      return;
     }
     builder.AddInput(MachineTypeFor(node->value_representation()), Map(node));
   }
 
   void AddVirtualObjectInput(FrameStateData::Builder& builder,
-                             const maglev::VirtualObjectList& virtual_objects,
                              const maglev::VirtualObject* vobj) {
     Deduplicator::DuplicatedId dup_id =
         vobj->object_type() == maglev::vobj::ObjectType::kHeapNumber
@@ -6391,7 +6371,7 @@ class GraphBuildingNodeProcessor {
             case maglev::vobj::FieldType::kFloat64:
             case maglev::vobj::FieldType::kHoleyFloat64:
             case maglev::vobj::FieldType::kInt32:
-              AddVirtualObjectNestedValue(builder, virtual_objects, value_node);
+              AddVirtualObjectNestedValue(builder, value_node);
               break;
             case maglev::vobj::FieldType::kNone:
               UNREACHABLE();
@@ -6400,10 +6380,8 @@ class GraphBuildingNodeProcessor {
         });
   }
 
-  void AddVirtualObjectNestedValue(
-      FrameStateData::Builder& builder,
-      const maglev::VirtualObjectList& virtual_objects,
-      const maglev::ValueNode* value) {
+  void AddVirtualObjectNestedValue(FrameStateData::Builder& builder,
+                                   const maglev::ValueNode* value) {
     if (maglev::IsConstantNode(value->opcode())) {
       switch (value->opcode()) {
         case maglev::Opcode::kHeapConstant:
@@ -6483,11 +6461,10 @@ class GraphBuildingNodeProcessor {
         builder.AddRestLength();
         break;
       case maglev::Opcode::kVirtualObject:
-        AddVirtualObjectInput(builder, virtual_objects,
-                              value->Cast<maglev::VirtualObject>());
+        AddVirtualObjectInput(builder, value->Cast<maglev::VirtualObject>());
         break;
       default:
-        AddDeoptInput(builder, virtual_objects, value);
+        AddDeoptInput(builder, value);
         break;
     }
   }

@@ -90,43 +90,34 @@ CONVERSION_NODE_LIST(ASSERT_IS_CONV)
 
 }  // namespace
 
-void ValueNode::AddDeoptUse(const VirtualObjectList& virtual_objects) {
+void ValueNode::AddDeoptUse() {
   DCHECK(!Is<VirtualObject>());
   if (InlinedAllocation* alloc = TryCast<InlinedAllocation>()) {
-    VirtualObject* vobject = virtual_objects.FindAllocatedWith(alloc);
-    if (vobject) {
-      vobject->AddDeoptUse(virtual_objects);
-      // Add an escaping use for the allocation.
-      alloc->AddNonEscapingUses(1);
+    // After escape analysis, any remaining InlinedAllocation has escaped and
+    // its VirtualObject is no longer used for deopt.
+    if (!alloc->HasBeenAnalysed()) {
+      alloc->object()->AddDeoptUse();
     }
+    alloc->AddNonEscapingUses(1);
     alloc->add_use();
   } else {
     add_use();
   }
 }
 
-void VirtualObject::AddDeoptUse(const VirtualObjectList& virtual_objects) {
+void VirtualObject::AddDeoptUse() {
+  // Only called on initial VirtualObjects before escape analysis, which are
+  // never mutated after creation and therefore cannot contain cycles.
   ForEachSlot([&](ValueNode* value, vobj::Field desc) -> bool {
     if (InlinedAllocation* nested_allocation =
             value->TryCast<InlinedAllocation>()) {
-      VirtualObject* nested_object =
-          virtual_objects.FindAllocatedWith(nested_allocation);
-      if (nested_object == nullptr) {
-        CHECK(v8_flags.turbolev_non_eager_inlining ||
-              v8_flags.maglev_non_eager_inlining);
-        // The nested object must have been created by a different inlining
-        // and we cannot see it here in the virtual object list.
-        // TODO(victorgomes): Propagate somehow virtual object lists? For
-        // now, we force the allocation to escape.
-        nested_allocation->ForceEscaping();
-      } else {
-        nested_object->AddDeoptUse(virtual_objects);
-      }
+      DCHECK(!nested_allocation->HasBeenAnalysed());
+      nested_allocation->object()->AddDeoptUse();
     } else if (!IsConstantNode(value->opcode()) &&
                value->opcode() != Opcode::kArgumentsElements &&
                value->opcode() != Opcode::kArgumentsLength &&
                value->opcode() != Opcode::kRestLength) {
-      value->AddDeoptUse(virtual_objects);
+      value->AddDeoptUse();
     }
     return true;
   });
@@ -482,15 +473,6 @@ bool CheckToBooleanOnAllRoots(LocalIsolate* local_isolate) {
 #endif
 
 }  // namespace
-
-void VirtualObjectList::Print(std::ostream& os, const char* prefix) const {
-  os << prefix;
-  for (const VirtualObject* vo : *this) {
-    GetCurrentGraphLabeller()->PrintNodeLabel(os, vo, false);
-    os << "; ";
-  }
-  os << std::endl;
-}
 
 void DeoptInfo::InitializeInputLocations(Zone* zone, size_t count) {
   DCHECK_NULL(input_locations_);

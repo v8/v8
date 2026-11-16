@@ -89,11 +89,6 @@ class InterpreterFrameState {
     return std::move(known_node_aspects_);
   }
 
-  const VirtualObjectList& virtual_objects() const {
-    DCHECK_NOT_NULL(known_node_aspects_);
-    return known_node_aspects_->virtual_objects();
-  }
-
  private:
   RegisterFrameArray<ValueNode*> frame_;
   KnownNodeAspects::Ptr known_node_aspects_;
@@ -453,9 +448,6 @@ class MergePointInterpreterFrameState {
     DCHECK_LT(i, predecessors_so_far_);
     predecessors_[i] = val;
   }
-
-  void PrintVirtualObjects(const MaglevCompilationInfo* info,
-                           VirtualObjectList from_ifs);
 
   bool is_loop() const {
     return basic_block_type() == BasicBlockType::kLoopHeader;

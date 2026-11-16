@@ -663,8 +663,7 @@ KnownNodeAspects::KnownNodeAspects(const KnownNodeAspects& other,
       may_have_aliasing_contexts_(
           KnownNodeAspects::ContextSlotLoadsAlias::kNever),
       effect_epoch_(other.effect_epoch_),
-      node_infos_(&pool_->node_infos_pool),
-      virtual_objects_(other.virtual_objects_) {
+      node_infos_(&pool_->node_infos_pool) {
   if (!other.side_effects_require_invalidation_) {
     node_infos_ = other.node_infos_;
 #ifdef DEBUG
@@ -1027,11 +1026,6 @@ void KnownNodeAspects::Print(std::ostream& os) const {
          << ": " << kGreen << PrintNodeLabel(expr.node) << kReset
          << " (epoch: " << expr.effect_epoch << ")\n";
     }
-  }
-
-  if (!virtual_objects_.is_empty()) {
-    os << kBold << "Virtual Objects:" << kReset << "\n";
-    virtual_objects_.Print(os, "  ");
   }
 }
 

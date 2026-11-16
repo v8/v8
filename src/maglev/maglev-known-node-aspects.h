@@ -463,7 +463,6 @@ class KnownNodeAspects {
     side_effects_require_invalidation_ = false;
     may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kNever;
     node_infos_.clear();
-    virtual_objects_ = {};
   }
 
   // Returned `NodeInfo*` pointers (from `TryGetInfoFor`,
@@ -589,9 +588,6 @@ class KnownNodeAspects {
   void MarkSideEffectsRequireInvalidation() {
     side_effects_require_invalidation_ = true;
   }
-
-  VirtualObjectList& virtual_objects() { return virtual_objects_; }
-  const VirtualObjectList& virtual_objects() const { return virtual_objects_; }
 
   // Cached property loads.
 
@@ -1028,7 +1024,6 @@ class KnownNodeAspects {
   ContextSlotLoadsAlias may_have_aliasing_contexts_;
   uint32_t effect_epoch_;
   NodeInfos node_infos_;
-  VirtualObjectList virtual_objects_;
 
   friend struct KNAPool;
   explicit KnownNodeAspects(KNAPool* pool)
@@ -1042,8 +1037,7 @@ class KnownNodeAspects {
         side_effects_require_invalidation_(false),
         may_have_aliasing_contexts_(ContextSlotLoadsAlias::kNever),
         effect_epoch_(0),
-        node_infos_(&pool_->node_infos_pool),
-        virtual_objects_() {}
+        node_infos_(&pool_->node_infos_pool) {}
   // Copy constructor is defaulted but private so that we explicitly call the
   // Clone method.
   KnownNodeAspects(const KnownNodeAspects& other) V8_NOEXCEPT = default;

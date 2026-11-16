@@ -306,16 +306,14 @@ class V8_NODISCARD MaglevGraphBuilder::MaglevSubGraphBuilder::LoopLabel {
   BasicBlock* loop_header_;
 };
 
-class MaglevGraphBuilder::MaglevSubGraphBuilder::
-    BorrowParentKnownNodeAspectsAndVOs {
+class MaglevGraphBuilder::MaglevSubGraphBuilder::BorrowParentKnownNodeAspects {
  public:
-  explicit BorrowParentKnownNodeAspectsAndVOs(
-      MaglevSubGraphBuilder* sub_builder)
+  explicit BorrowParentKnownNodeAspects(MaglevSubGraphBuilder* sub_builder)
       : sub_builder_(sub_builder) {
-    sub_builder_->TakeKnownNodeAspectsAndVOsFromParent();
+    sub_builder_->TakeKnownNodeAspectsFromParent();
   }
-  ~BorrowParentKnownNodeAspectsAndVOs() {
-    sub_builder_->MoveKnownNodeAspectsAndVOsToParent();
+  ~BorrowParentKnownNodeAspects() {
+    sub_builder_->MoveKnownNodeAspectsToParent();
   }
 
  private:
@@ -422,7 +420,7 @@ MaglevGraphBuilder::MaglevSubGraphBuilder::BeginLoop(
           loop_header_liveness, loop_info);
 
   {
-    BorrowParentKnownNodeAspectsAndVOs borrow(this);
+    BorrowParentKnownNodeAspects borrow(this);
     loop_state->Merge(builder_->graph(), builder_->is_tracing(), *dummy_unit_,
                       variable_frame_, loop_predecessor,
                       builder_->GetCurrentScopeInfo());
@@ -431,7 +429,7 @@ MaglevGraphBuilder::MaglevSubGraphBuilder::BeginLoop(
   // Start a new basic block for the loop.
   DCHECK_NULL(variable_frame_.known_node_aspects());
   variable_frame_.CopyFrom(*dummy_unit_, *loop_state);
-  MoveKnownNodeAspectsAndVOsToParent();
+  MoveKnownNodeAspectsToParent();
 
   builder_->ProcessMergePointPredecessors(*loop_state, loop_header_ref);
   builder_->StartNewBlock(nullptr, loop_state, loop_header_ref);
@@ -505,7 +503,7 @@ void MaglevGraphBuilder::MaglevSubGraphBuilder::EndLoop(LoopLabel* loop_label) {
   BasicBlock* block =
       builder_->FinishBlockNoAbort<JumpLoop>({}, loop_label->loop_header_);
   {
-    BorrowParentKnownNodeAspectsAndVOs borrow(this);
+    BorrowParentKnownNodeAspects borrow(this);
     merge_state->MergeLoop(builder_->graph(), builder_->is_tracing(),
                            *dummy_unit_, variable_frame_, block,
                            builder_->GetLatestCheckpointedFrame());
@@ -542,7 +540,7 @@ void MaglevGraphBuilder::MaglevSubGraphBuilder::Bind(Label* label) {
     builder_->SetCurrentScopeInfo(label->merge_state_->context_scope_info());
   }
 
-  MoveKnownNodeAspectsAndVOsToParent();
+  MoveKnownNodeAspectsToParent();
 
   CHECK_EQ(label->variable_merge_state_->predecessors_so_far(),
            label->predecessor_count_);
@@ -618,14 +616,13 @@ ReduceResult MaglevGraphBuilder::Select(
 // to the parent. This is so that the parent graph builder can update its own
 // known node aspects without having to worry about this pseudo frame.
 void MaglevGraphBuilder::MaglevSubGraphBuilder::
-    TakeKnownNodeAspectsAndVOsFromParent() {
+    TakeKnownNodeAspectsFromParent() {
   DCHECK_NULL(variable_frame_.known_node_aspects());
   variable_frame_.set_known_node_aspects(
       builder_->current_interpreter_frame_.TakeKnownNodeAspects());
 }
 
-void MaglevGraphBuilder::MaglevSubGraphBuilder::
-    MoveKnownNodeAspectsAndVOsToParent() {
+void MaglevGraphBuilder::MaglevSubGraphBuilder::MoveKnownNodeAspectsToParent() {
   DCHECK_NOT_NULL(variable_frame_.known_node_aspects());
   builder_->current_interpreter_frame_.set_known_node_aspects(
       variable_frame_.TakeKnownNodeAspects());
@@ -637,7 +634,7 @@ void MaglevGraphBuilder::MaglevSubGraphBuilder::MergeIntoLabel(
     // If there's no merge state, allocate a new one.
     DCHECK_NULL(label->merge_state_);
     {
-      BorrowParentKnownNodeAspectsAndVOs borrow(this);
+      BorrowParentKnownNodeAspects borrow(this);
       label->variable_merge_state_ = MergePointInterpreterFrameState::New(
           *dummy_unit_, variable_frame_, 0, label->predecessor_count_,
           predecessor, label->variable_liveness_,
@@ -656,7 +653,7 @@ void MaglevGraphBuilder::MaglevSubGraphBuilder::MergeIntoLabel(
     CHECK_LT(label->variable_merge_state_->predecessors_so_far(),
              label->predecessor_count_);
     {
-      BorrowParentKnownNodeAspectsAndVOs borrow(this);
+      BorrowParentKnownNodeAspects borrow(this);
       label->variable_merge_state_->Merge(
           builder_->graph(), builder_->is_tracing(), *dummy_unit_,
           variable_frame_, predecessor, builder_->GetCurrentScopeInfo());
@@ -1101,9 +1098,8 @@ DeoptFrame* MaglevGraphBuilder::GetLatestCheckpointedFrame() {
         *compilation_unit_,
         zone()->New<CompactInterpreterFrameState>(
             *compilation_unit_, GetInLiveness(), current_interpreter_frame_),
-        GetClosure(), current_interpreter_frame_.virtual_objects().head(),
-        BytecodeOffset(iterator_.current_offset()), GetCurrentSourcePosition(),
-        GetCallerDeoptFrame());
+        GetClosure(), BytecodeOffset(iterator_.current_offset()),
+        GetCurrentSourcePosition(), GetCallerDeoptFrame());
 
     latest_checkpointed_frame_->as_interpreted().frame_state()->ForEachValue(
         *compilation_unit_,
@@ -1219,9 +1215,8 @@ DeoptFrame* MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
         *compilation_unit_,
         zone()->New<CompactInterpreterFrameState>(*compilation_unit_, liveness,
                                                   current_interpreter_frame_),
-        GetClosure(), current_interpreter_frame_.virtual_objects().head(),
-        BytecodeOffset(iterator_.current_offset()), GetCurrentSourcePosition(),
-        GetCallerDeoptFrame());
+        GetClosure(), BytecodeOffset(iterator_.current_offset()),
+        GetCurrentSourcePosition(), GetCallerDeoptFrame());
     ret->frame_state()->ForEachValue(
         *compilation_unit_, [this](ValueNode* node, interpreter::Register reg) {
           // Receiver and closure values have to be materialized, even if
@@ -1270,9 +1265,8 @@ InterpretedDeoptFrame* MaglevGraphBuilder::GetDeoptFrameForEntryStackCheck() {
           *compilation_unit_,
           GetInLivenessFor(graph_->is_osr() ? bailout_for_entrypoint() : 0),
           current_interpreter_frame_),
-      GetClosure(), current_interpreter_frame_.virtual_objects().head(),
-      BytecodeOffset(bailout_for_entrypoint()), GetCurrentSourcePosition(),
-      nullptr);
+      GetClosure(), BytecodeOffset(bailout_for_entrypoint()),
+      GetCurrentSourcePosition(), nullptr);
 
   entry_stack_check_frame_->frame_state()->ForEachValue(
       *compilation_unit_,
@@ -14054,10 +14048,6 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
   return fast_literal;
 }
 
-void MaglevGraphBuilder::AddDeoptUse(VirtualObject* vobject) {
-  vobject->AddDeoptUse(current_interpreter_frame_.virtual_objects());
-}
-
 ValueNode* MaglevGraphBuilder::BuildInlinedArgumentsElements(int start_index,
                                                              int length) {
   DCHECK(is_inline());
@@ -16772,11 +16762,8 @@ bool MaglevGraphBuilder::ShouldEmitOsrInterruptBudgetChecks(
 
 BasicBlock* MaglevGraphBuilder::CreateEdgeSplitBlock(
     BasicBlockRef& jump_targets, BasicBlock* predecessor) {
-  TRACE(TraceColor::kDarkYellow
-        << "New empty block " << TraceColor::kInfo << TraceNewline{}
-        << "  VOs (IFS): "
-        << TraceVirtualObjects{current_interpreter_frame_.virtual_objects()}
-        << TraceNewline{} << known_node_aspects());
+  TRACE(TraceColor::kDarkYellow << "New empty block " << TraceColor::kInfo
+                                << TraceNewline{} << known_node_aspects());
   DCHECK_NULL(current_block());
   set_current_block(zone()->New<BasicBlock>(nullptr, zone()));
   BasicBlock* result = FinishBlockNoAbort<Jump>({}, &jump_targets);
@@ -17166,9 +17153,7 @@ ReduceResult MaglevGraphBuilder::VisitSingleBytecode() {
     TRACE(TraceColor::kDarkYellow
           << "New block (" << block_type << " @" << merge_state << ") at "
           << compilation_unit()->shared_function_info().object()
-          << TraceColor::kInfo << TraceNewline{} << "  VOs (IFS): "
-          << TraceVirtualObjects{current_interpreter_frame_.virtual_objects()}
-          << TraceNewline{} << known_node_aspects());
+          << TraceColor::kInfo << TraceNewline{} << known_node_aspects());
 
     if (V8_UNLIKELY(merge_state->is_exception_handler())) {
       CHECK_EQ(predecessor_count(offset), 0);
@@ -17642,9 +17627,7 @@ void MaglevGraphBuilder::StartFallthroughBlock(int next_block_offset,
     TRACE(TraceColor::kDarkYellow
           << "New block (single fallthrough) at "
           << *compilation_unit_->shared_function_info().object()
-          << TraceColor::kInfo << TraceNewline{} << "  VOs (IFS): "
-          << TraceVirtualObjects{current_interpreter_frame_.virtual_objects()}
-          << TraceNewline{} << known_node_aspects());
+          << TraceColor::kInfo << TraceNewline{} << known_node_aspects());
     StartNewBlock(next_block_offset, predecessor);
   } else {
     MergeIntoFrameState(predecessor, next_block_offset);
@@ -17663,7 +17646,7 @@ ReduceResult MaglevGraphBuilder::BuildLoadMap(ValueNode* object) {
 
 void MaglevGraphBuilder::AddDeoptUse(ValueNode* node) {
   if (node == nullptr) return;
-  node->AddDeoptUse(current_interpreter_frame().virtual_objects());
+  node->AddDeoptUse();
 }
 
 void MaglevGraphBuilder::AddMaterializedDeoptUse(ValueNode* node) {

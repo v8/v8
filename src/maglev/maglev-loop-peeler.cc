@@ -54,12 +54,10 @@ int LoopHeaderBytecodeOffset(BasicBlock* block) {
 
 // Bumps `node`'s deopt-use counter the same way the graph builder does when
 // it stores a ValueNode into a deopt frame.
-ValueNode* RemapAndAddDeoptUse(const ValueMap& vmap, ValueNode* v,
-                               const VirtualObjectList& virtual_objects) {
+ValueNode* RemapAndAddDeoptUse(const ValueMap& vmap, ValueNode* v) {
   ValueNode* mapped = Remap(vmap, v);
   if (mapped == nullptr) return nullptr;
-  if (mapped->template Is<VirtualObject>()) return mapped;
-  mapped->AddDeoptUse(virtual_objects);
+  mapped->AddDeoptUse();
   return mapped;
 }
 
@@ -71,35 +69,28 @@ ValueNode* RemapAndAddDeoptUse(const ValueMap& vmap, ValueNode* v,
 DeoptFrame* CloneDeoptFrame(DeoptFrame* src, const ValueMap& vmap, Zone* zone) {
   if (src == nullptr) return nullptr;
   DeoptFrame* parent_clone = CloneDeoptFrame(src->parent(), vmap, zone);
-  VirtualObjectList remapped_vos =
-      parent_clone ? parent_clone->GetVirtualObjects() : VirtualObjectList();
   switch (src->type()) {
     case DeoptFrame::FrameType::kInterpretedFrame: {
       auto& f = src->as_interpreted();
       const MaglevCompilationUnit& info = f.unit();
-      VirtualObject* lvo = f.last_virtual_object();
-      if (lvo != nullptr) {
-        lvo = Remap(vmap, lvo)->Cast<VirtualObject>();
-      }
-      VirtualObjectList frame_vos(lvo);
       auto* new_fs = zone->New<CompactInterpreterFrameState>(
           info, f.frame_state()->liveness());
       new_fs->ForEachValue(
           info, [&](ValueNode*& dst, interpreter::Register reg) {
             ValueNode* src_val = f.frame_state()->GetValueOf(reg, info);
-            dst = RemapAndAddDeoptUse(vmap, src_val, frame_vos);
+            dst = RemapAndAddDeoptUse(vmap, src_val);
           });
-      ValueNode* closure = RemapAndAddDeoptUse(vmap, f.closure(), frame_vos);
+      ValueNode* closure = RemapAndAddDeoptUse(vmap, f.closure());
       return zone->New<InterpretedDeoptFrame>(
-          info, new_fs, closure, lvo, f.bytecode_position(),
-          f.source_position(), parent_clone);
+          info, new_fs, closure, f.bytecode_position(), f.source_position(),
+          parent_clone);
     }
     case DeoptFrame::FrameType::kInlinedArgumentsFrame: {
       auto& f = src->as_inlined_arguments();
-      ValueNode* closure = RemapAndAddDeoptUse(vmap, f.closure(), remapped_vos);
+      ValueNode* closure = RemapAndAddDeoptUse(vmap, f.closure());
       ValueNode** args = zone->AllocateArray<ValueNode*>(f.arguments().size());
       for (size_t i = 0; i < f.arguments().size(); ++i) {
-        args[i] = RemapAndAddDeoptUse(vmap, f.arguments()[i], remapped_vos);
+        args[i] = RemapAndAddDeoptUse(vmap, f.arguments()[i]);
       }
       return zone->New<InlinedArgumentsDeoptFrame>(
           f.unit(), f.bytecode_position(), closure,
@@ -109,23 +100,22 @@ DeoptFrame* CloneDeoptFrame(DeoptFrame* src, const ValueMap& vmap, Zone* zone) {
       auto& f = src->as_construct_stub();
       return zone->New<ConstructInvokeStubDeoptFrame>(
           f.unit(), f.source_position(),
-          RemapAndAddDeoptUse(vmap, f.receiver(), remapped_vos),
-          RemapAndAddDeoptUse(vmap, f.context(), remapped_vos), parent_clone);
+          RemapAndAddDeoptUse(vmap, f.receiver()),
+          RemapAndAddDeoptUse(vmap, f.context()), parent_clone);
     }
     case DeoptFrame::FrameType::kBuiltinContinuationFrame: {
       auto& f = src->as_builtin_continuation();
       ValueNode** params =
           zone->AllocateArray<ValueNode*>(f.parameters().size());
       for (size_t i = 0; i < f.parameters().size(); ++i) {
-        params[i] = RemapAndAddDeoptUse(vmap, f.parameters()[i], remapped_vos);
+        params[i] = RemapAndAddDeoptUse(vmap, f.parameters()[i]);
       }
       compiler::OptionalJSFunctionRef js_target;
       if (f.is_javascript()) js_target = f.javascript_target();
       return zone->New<BuiltinContinuationDeoptFrame>(
           f.builtin_id(),
           base::Vector<ValueNode*>(params, f.parameters().size()),
-          RemapAndAddDeoptUse(vmap, f.context(), remapped_vos), js_target,
-          parent_clone);
+          RemapAndAddDeoptUse(vmap, f.context()), js_target, parent_clone);
     }
   }
   UNREACHABLE();

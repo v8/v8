@@ -34,8 +34,7 @@ namespace {
 // need a deopt use each. Without it, reducing the current node can drop their
 // last regular use, letting dead node sweeping remove a node that the frame
 // still references.
-void AddDeoptUseToScopeData(const DeoptFrame::FrameData& data,
-                            const VirtualObjectList& virtual_objects) {
+void AddDeoptUseToScopeData(const DeoptFrame::FrameData& data) {
   switch (data.tag()) {
     case DeoptFrame::FrameType::kInterpretedFrame:
     case DeoptFrame::FrameType::kInlinedArgumentsFrame:
@@ -43,16 +42,16 @@ void AddDeoptUseToScopeData(const DeoptFrame::FrameData& data,
       UNREACHABLE();
     case DeoptFrame::FrameType::kConstructInvokeStubFrame:
       data.get<DeoptFrame::ConstructInvokeStubFrameData>()
-          .receiver->AddDeoptUse(virtual_objects);
-      data.get<DeoptFrame::ConstructInvokeStubFrameData>().context->AddDeoptUse(
-          virtual_objects);
+          .receiver->AddDeoptUse();
+      data.get<DeoptFrame::ConstructInvokeStubFrameData>()
+          .context->AddDeoptUse();
       break;
     case DeoptFrame::FrameType::kBuiltinContinuationFrame:
-      data.get<DeoptFrame::BuiltinContinuationFrameData>().context->AddDeoptUse(
-          virtual_objects);
+      data.get<DeoptFrame::BuiltinContinuationFrameData>()
+          .context->AddDeoptUse();
       for (ValueNode* node :
            data.get<DeoptFrame::BuiltinContinuationFrameData>().parameters) {
-        node->AddDeoptUse(virtual_objects);
+        node->AddDeoptUse();
       }
       break;
   }
@@ -60,11 +59,11 @@ void AddDeoptUseToScopeData(const DeoptFrame::FrameData& data,
 
 DeoptFrame* GetDeoptFrameForLazyDeoptHelper(
     Zone* zone, MaglevReducer<MaglevGraphOptimizer>::LazyDeoptFrameScope* scope,
-    DeoptFrame* parent, const VirtualObjectList& virtual_objects) {
+    DeoptFrame* parent) {
   if (scope == nullptr) return parent;
-  DeoptFrame* new_parent = GetDeoptFrameForLazyDeoptHelper(
-      zone, scope->parent(), parent, virtual_objects);
-  AddDeoptUseToScopeData(scope->data(), virtual_objects);
+  DeoptFrame* new_parent =
+      GetDeoptFrameForLazyDeoptHelper(zone, scope->parent(), parent);
+  AddDeoptUseToScopeData(scope->data());
   return zone->New<DeoptFrame>(scope->data(), new_parent);
 }
 
@@ -77,9 +76,8 @@ MaglevGraphOptimizer::GetDeoptFrameForLazyDeopt(bool can_throw) {
       current_node()->lazy_deopt_info()->GetFrameForCloning();
 
   if (reducer_.current_lazy_deopt_scope() != nullptr) {
-    frame = GetDeoptFrameForLazyDeoptHelper(graph()->zone(),
-                                            reducer_.current_lazy_deopt_scope(),
-                                            frame, frame->GetVirtualObjects());
+    frame = GetDeoptFrameForLazyDeoptHelper(
+        graph()->zone(), reducer_.current_lazy_deopt_scope(), frame);
     result_location = interpreter::Register::virtual_accumulator();
     result_size = 1;
   }
@@ -92,10 +90,9 @@ DeoptFrame* MaglevGraphOptimizer::GetDeoptFrameForEagerDeopt() {
 
   auto* eager_scope = reducer_.current_eager_deopt_scope();
   if (eager_scope != nullptr) {
-    const VirtualObjectList& virtual_objects = frame->GetVirtualObjects();
-    frame = GetDeoptFrameForLazyDeoptHelper(
-        graph()->zone(), eager_scope->parent(), frame, virtual_objects);
-    AddDeoptUseToScopeData(eager_scope->data(), virtual_objects);
+    frame = GetDeoptFrameForLazyDeoptHelper(graph()->zone(),
+                                            eager_scope->parent(), frame);
+    AddDeoptUseToScopeData(eager_scope->data());
     frame = graph()->zone()->New<DeoptFrame>(eager_scope->data(), frame);
   }
   return frame;
@@ -1776,8 +1773,6 @@ ProcessResult MaglevGraphOptimizer::VisitCall(Call* node,
       bytecode_length <
       reducer_.graph()->compilation_info()->flags().max_eager_inlined_bytecode;
   KnownNodeAspects::Ptr call_aspects = known_node_aspects().Clone();
-  call_aspects->virtual_objects() =
-      new_call_node->lazy_deopt_info()->top_frame().GetVirtualObjects();
   MaglevCallSiteInfo* call_site = reducer_.zone()->New<MaglevCallSiteInfo>(
       MaglevCallerDetails{
           base::VectorOf(arguments),

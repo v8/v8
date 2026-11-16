@@ -1044,7 +1044,6 @@ ReduceResult MaglevReducer<BaseT>::BuildInlinedAllocation(
   if (v8_flags.maglev_allocation_folding < 2) {
     ClearCurrentAllocationBlock();
   }
-  known_node_aspects().virtual_objects().Add(vobject);
   return allocation;
 }
 

@@ -226,20 +226,7 @@ bool EscapeAnalysisData::HasEscaped(InlinedAllocation* alloc) {
 
 namespace {
 
-void UpdateVirtualObjects(DeoptFrame* deopt_frame,
-                          VirtualObjectList& virtual_objects) {
-  if (deopt_frame->type() == DeoptFrame::FrameType::kInterpretedFrame) {
-    deopt_frame->as_interpreted().set_last_virtual_object(
-        virtual_objects.head());
-    return;
-  }
-  DCHECK_NOT_NULL(deopt_frame->parent());
-  return UpdateVirtualObjects(deopt_frame->parent(), virtual_objects);
-}
-
-void AddUsesToInputs(
-    VirtualObject* vobj,
-    const std::unordered_map<ValueNode*, VirtualObject*>& vobj_map) {
+void AddUsesToInputs(VirtualObject* vobj) {
   // Because VirtualObjects could be recursive (or mutually recursive), we use
   // {seen} to prevent infinite loop while visiting inputs of VirtualObjects.
 
@@ -248,24 +235,21 @@ void AddUsesToInputs(
   // AddUsesToInputs (eg, make this function a member of EscapeAnalysisData and
   // make {seen} and {worklist} members there as well).
   absl::flat_hash_set<VirtualObject*> seen;
-  std::vector<VirtualObject*> worklist;
+  base::SmallVector<VirtualObject*, 8> worklist;
   worklist.push_back(vobj);
 
   while (!worklist.empty()) {
     VirtualObject* curr = worklist.back();
     worklist.pop_back();
 
-    if (seen.contains(curr)) continue;
-    seen.insert(curr);
+    if (!seen.insert(curr).second) continue;
 
     for (int i = 0; i < curr->slot_count(); i++) {
       ValueNode* input = curr->get_by_index(i);
-      input->add_use();
-      if (InlinedAllocation* alloc = input->TryCast<InlinedAllocation>()) {
-        auto it = vobj_map.find(alloc);
-        if (it != vobj_map.end()) {
-          worklist.push_back(it->second);
-        }
+      if (VirtualObject* nested = input->TryCast<VirtualObject>()) {
+        worklist.push_back(nested);
+      } else {
+        input->add_use();
       }
     }
   }
@@ -275,7 +259,15 @@ ValueNode* GetUpdatedValueAndAddDeoptUse(
     ValueNode* value,
     const std::unordered_map<ValueNode*, VirtualObject*>& vobj_map,
     EscapeAnalysisData& data) {
-  ValueNode* resolved = data.ResolveBase(value);
+  ValueNode* resolved = data.ResolveBase(value)->UnwrapIdentities();
+
+  // If {resolved} is an elided allocation, replace it directly with its
+  // snapshot VirtualObject and add uses to its inputs.
+  auto it = vobj_map.find(resolved);
+  if (it != vobj_map.end()) {
+    AddUsesToInputs(it->second);
+    return it->second;
+  }
 
   // We didn't increment use-count when cloning the DeoptFrame (because the
   // VirtualObjects weren't ready yet), so we need to do it now.
@@ -285,68 +277,9 @@ ValueNode* GetUpdatedValueAndAddDeoptUse(
   // after escape analysis.
   resolved->add_use();
 
-  // If {resolved} is a VirtualObject, we need to add uses to its inputs.
-  auto it = vobj_map.find(resolved);
-  if (it != vobj_map.end()) {
-    AddUsesToInputs(it->second, vobj_map);
-  }
-
   return resolved;
 }
 
-void UpdateInterpretedFrame(
-    InterpretedDeoptFrame& frame,
-    const std::unordered_map<ValueNode*, VirtualObject*>& vobj_map,
-    EscapeAnalysisData& data) {
-  frame.closure() =
-      GetUpdatedValueAndAddDeoptUse(frame.closure(), vobj_map, data);
-
-  frame.frame_state()->ForEachValue(
-      frame.unit(),
-      [&vobj_map, &data](ValueNode*& value, interpreter::Register owner) {
-        value = GetUpdatedValueAndAddDeoptUse(value, vobj_map, data);
-      });
-}
-
-void UpdateInlinedArgumentsFrame(
-    InlinedArgumentsDeoptFrame& frame,
-    const std::unordered_map<ValueNode*, VirtualObject*>& vobj_map,
-    EscapeAnalysisData& data) {
-  frame.closure() =
-      GetUpdatedValueAndAddDeoptUse(frame.closure(), vobj_map, data);
-
-  for (ValueNode*& value : frame.arguments()) {
-    value = GetUpdatedValueAndAddDeoptUse(value, vobj_map, data);
-  }
-}
-
-void UpdateConstructInvokeStubFrame(
-    ConstructInvokeStubDeoptFrame& frame,
-    const std::unordered_map<ValueNode*, VirtualObject*>& vobj_map,
-    EscapeAnalysisData& data) {
-  // Note that while the receiver cannot be elided, it could still be a
-  // LoadTaggedField from an elided base, in which case it still need to be
-  // updated to bypass the load.
-  frame.receiver() =
-      GetUpdatedValueAndAddDeoptUse(frame.receiver(), vobj_map, data);
-  frame.context() =
-      GetUpdatedValueAndAddDeoptUse(frame.context(), vobj_map, data);
-}
-
-void UpdateBuiltinContinuationFrame(
-    BuiltinContinuationDeoptFrame& frame,
-    const std::unordered_map<ValueNode*, VirtualObject*>& vobj_map,
-    EscapeAnalysisData& data) {
-  frame.context() =
-      GetUpdatedValueAndAddDeoptUse(frame.context(), vobj_map, data);
-
-  for (ValueNode*& value : frame.parameters()) {
-    value = GetUpdatedValueAndAddDeoptUse(value, vobj_map, data);
-  }
-}
-
-// TODO(dmercadier): UpdateFrameState could probably reuse
-// DeoptInfoVisitor::VisitSingleFrame.
 void UpdateFrameState(
     DeoptFrame* frame_state,
     const std::unordered_map<ValueNode*, VirtualObject*>& vobj_map,
@@ -354,24 +287,9 @@ void UpdateFrameState(
   if (frame_state->parent() != nullptr) {
     UpdateFrameState(frame_state->parent(), vobj_map, data);
   }
-
-  switch (frame_state->type()) {
-    case DeoptFrame::FrameType::kInterpretedFrame:
-      UpdateInterpretedFrame(frame_state->as_interpreted(), vobj_map, data);
-      return;
-    case DeoptFrame::FrameType::kInlinedArgumentsFrame:
-      UpdateInlinedArgumentsFrame(frame_state->as_inlined_arguments(), vobj_map,
-                                  data);
-      return;
-    case DeoptFrame::FrameType::kConstructInvokeStubFrame:
-      UpdateConstructInvokeStubFrame(frame_state->as_construct_stub(), vobj_map,
-                                     data);
-      return;
-    case DeoptFrame::FrameType::kBuiltinContinuationFrame:
-      UpdateBuiltinContinuationFrame(frame_state->as_builtin_continuation(),
-                                     vobj_map, data);
-      return;
-  }
+  frame_state->ForEachValue([&](ValueNode*& value) {
+    value = GetUpdatedValueAndAddDeoptUse(value, vobj_map, data);
+  });
 }
 
 CompactInterpreterFrameState* CloneCompactInterpreterFrameState(
@@ -396,8 +314,7 @@ InterpretedDeoptFrame* CloneInterpretedFrame(
 
   return zone->New<InterpretedDeoptFrame>(
       input_frame.unit(), frame_state, input_frame.closure(),
-      input_frame.last_virtual_object(), input_frame.bytecode_position(),
-      input_frame.source_position(), parent);
+      input_frame.bytecode_position(), input_frame.source_position(), parent);
 }
 
 InlinedArgumentsDeoptFrame* CloneInlinedArgumentsFrame(
@@ -1556,7 +1473,6 @@ class DeoptFrameUpdater {
     // it has not changed since it was cloned.
     // This is non-trivial because it requires tracking a "version" or "epoch"
     // for virtual object states to detect if any updates occurred between uses.
-    VirtualObjectList virtual_objects;
     std::unordered_map<ValueNode*, VirtualObject*> vobj_map;
 
     // New VirtualObjects are created in 2 steps: the first one allocates the
@@ -1617,6 +1533,9 @@ class DeoptFrameUpdater {
           continue_outer = true;
           break;
         }
+        if (auto it = vobj_map.find(field_value); it != vobj_map.end()) {
+          field_value = it->second;
+        }
 
         TRACE(">>> vobj_id=" << NODE_ID(vobj) << " offset=" << offset
                              << " value=" << NODE_ID(field_value));
@@ -1626,12 +1545,8 @@ class DeoptFrameUpdater {
       if (continue_outer) continue;
 
       vobj->set_allocation(node);
-      // Now that we're sure that {vobj} is alive and we've initialized all of
-      // its field, so we can add it to {virtual_objects}.
-      virtual_objects.Add(vobj);
     }
 
-    UpdateVirtualObjects(frame, virtual_objects);
     UpdateFrameState(frame, vobj_map, data_);
   }
 

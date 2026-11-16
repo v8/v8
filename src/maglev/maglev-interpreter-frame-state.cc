@@ -38,9 +38,6 @@ void InterpreterFrameState::CopyFrom(const MaglevCompilationUnit& unit,
                                      bool preserve_known_node_aspects) {
   const MaglevCompilationInfo* info = unit.info();
   TRACE(TraceColor::kInfo << "Copying frame state from merge @" << &state);
-  if (known_node_aspects_) {
-    state.PrintVirtualObjects(info, virtual_objects());
-  }
   state.frame_state().ForEachValue(
       unit, [&](ValueNode* value, interpreter::Register reg) {
         frame_[reg] = value;
@@ -377,7 +374,6 @@ void MergePointInterpreterFrameState::Merge(
   if (V8_UNLIKELY(is_tracing)) {
     TraceLogger(Tracer(graph->compilation_info()))
         << TraceColor::kInfo << "Merging...";
-    PrintVirtualObjects(graph->compilation_info(), unmerged.virtual_objects());
   }
 
   MergePhis(graph, is_tracing, compilation_unit, unmerged, predecessor,
@@ -506,7 +502,6 @@ void MergePointInterpreterFrameState::MergeThrow(
 
   const MaglevCompilationInfo* info = handler_unit->info();
   TRACE(TraceColor::kInfo << "Merging into exception handler @" << this);
-  PrintVirtualObjects(info, known_node_aspects.virtual_objects());
 
   if (known_node_aspects_ == nullptr) {
     DCHECK_EQ(predecessors_so_far_, 0);
@@ -978,17 +973,6 @@ void MergePointInterpreterFrameState::RemovePredecessorAt(int predecessor_id) {
   }
   predecessor_count_--;
   predecessors_so_far_--;
-}
-
-void MergePointInterpreterFrameState::PrintVirtualObjects(
-    const MaglevCompilationInfo* info, VirtualObjectList from_ifs) {
-  TRACE(TraceColor::kInfo << "  - VOs (IFS): "
-                          << TraceVirtualObjects(from_ifs));
-  if (known_node_aspects_) {
-    TRACE(TraceColor::kInfo
-          << "  - VOs (merge): "
-          << TraceVirtualObjects(known_node_aspects_->virtual_objects()));
-  }
 }
 
 #undef TRACE

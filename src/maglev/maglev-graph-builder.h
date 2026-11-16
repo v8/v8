@@ -335,9 +335,9 @@ class MaglevGraphBuilder {
     void MergeDeadInterpreterFrameState(Label* label, unsigned num);
 
    protected:
-    class BorrowParentKnownNodeAspectsAndVOs;
-    void TakeKnownNodeAspectsAndVOsFromParent();
-    void MoveKnownNodeAspectsAndVOsToParent();
+    class BorrowParentKnownNodeAspects;
+    void TakeKnownNodeAspectsFromParent();
+    void MoveKnownNodeAspectsToParent();
 
     MaglevCompilationUnit* compilation_unit() const {
       return builder_->compilation_unit();
@@ -1537,7 +1537,6 @@ class MaglevGraphBuilder {
 
   void AddDeoptUse(ValueNode* node);
   void AddMaterializedDeoptUse(ValueNode* node);
-  void AddDeoptUse(VirtualObject* alloc);
 
   void AddDeoptUseToScopeData(const DeoptFrame::FrameData& data);
 

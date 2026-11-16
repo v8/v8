@@ -1452,7 +1452,6 @@ class ConstInput {
   int index_;
 };
 
-class VirtualObjectList;
 class InterpretedDeoptFrame;
 class InlinedArgumentsDeoptFrame;
 class ConstructInvokeStubDeoptFrame;
@@ -1470,7 +1469,6 @@ class DeoptFrame {
     const MaglevCompilationUnit& unit;
     CompactInterpreterFrameState* frame_state;
     ValueNode* closure;
-    VirtualObject* last_virtual_object;
     const BytecodeOffset bytecode_position;
     const SourcePosition source_position;
   };
@@ -1525,7 +1523,11 @@ class DeoptFrame {
   inline SourcePosition GetSourcePosition() const;
   inline compiler::SharedFunctionInfoRef GetSharedFunctionInfo() const;
   inline compiler::BytecodeArrayRef GetBytecodeArray() const;
-  inline VirtualObjectList GetVirtualObjects() const;
+
+  template <typename Function>
+  inline void ForEachValue(Function&& f);
+  template <typename Function>
+  inline void ForEachValue(Function&& f) const;
 
  protected:
   DeoptFrame(InterpretedFrameData&& data, DeoptFrame* parent)
@@ -1539,16 +1541,19 @@ class DeoptFrame {
 
   FrameData data_;
   DeoptFrame* const parent_;
+
+ private:
+  template <typename DeoptFrameT, typename Function>
+  static inline void ForEachValueImpl(DeoptFrameT& frame, Function&& f);
 };
 
 class InterpretedDeoptFrame : public DeoptFrame {
  public:
   InterpretedDeoptFrame(const MaglevCompilationUnit& unit,
                         CompactInterpreterFrameState* frame_state,
-                        ValueNode* closure, VirtualObject* last_vo,
-                        BytecodeOffset bytecode_position,
+                        ValueNode* closure, BytecodeOffset bytecode_position,
                         SourcePosition source_position, DeoptFrame* parent)
-      : DeoptFrame(InterpretedFrameData{unit, frame_state, closure, last_vo,
+      : DeoptFrame(InterpretedFrameData{unit, frame_state, closure,
                                         bytecode_position, source_position},
                    parent) {}
 
@@ -1560,12 +1565,6 @@ class InterpretedDeoptFrame : public DeoptFrame {
   ValueNode* closure() const { return data().closure; }
   BytecodeOffset bytecode_position() const { return data().bytecode_position; }
   SourcePosition source_position() const { return data().source_position; }
-  VirtualObject* last_virtual_object() const {
-    return data().last_virtual_object;
-  }
-  void set_last_virtual_object(VirtualObject* last_vobj) {
-    data().last_virtual_object = last_vobj;
-  }
 
   int ComputeReturnOffset(interpreter::Register result_location,
                           int result_size) const;
@@ -2671,7 +2670,9 @@ class ValueNode : public Node {
     DCHECK_EQ(use_count_, 0);
     use_count_ = -1;
   }
-  void AddDeoptUse(const VirtualObjectList& virtual_objects);
+  void AddDeoptUse();
+  inline VirtualObject* TryGetVirtualObject();
+  inline VirtualObject* TryGetDeoptVirtualObject();
 
   // Used by the register allocator. Only available at the backend.
   void SetHint(compiler::InstructionOperand hint);
@@ -2821,10 +2822,8 @@ class ValueNode : public Node {
   // UnwrapIdentitiesAndPhis).
   ValueNode* UnwrapForDeopt();
 
-  ValueNode* UnwrapIdentitiesAndUpdateUseCountForDeopt(
-      const VirtualObjectList& virtual_objects);
-  ValueNode* UnwrapAndUpdateUseCountForDeopt(
-      const VirtualObjectList& virtual_objects);
+  ValueNode* UnwrapIdentitiesAndUpdateUseCountForDeopt();
+  ValueNode* UnwrapAndUpdateUseCountForDeopt();
 
   RegallocValueNodeInfo* regalloc_info() const {
     DCHECK_EQ(state_, kRegallocInfo);
@@ -2918,30 +2917,28 @@ inline ValueNode* ValueNode::Unwrap() {
 
 // Unwraps identities on the current node and, if unwrapping succeeds,
 // decrements its use-count and increments the use-count of the unwrapped node.
-inline ValueNode* ValueNode::UnwrapIdentitiesAndUpdateUseCountForDeopt(
-    const VirtualObjectList& virtual_objects) {
+inline ValueNode* ValueNode::UnwrapIdentitiesAndUpdateUseCountForDeopt() {
   ValueNode* unwrapped = UnwrapIdentities();
   if (unwrapped != this) {
     // TODO(dmercadier): instead of a simple `remove_use` here, we could instead
     // recursively remove uses in VirtualObjects (basically doing the oppositve
     // of AddDeoptUse).
     this->remove_use();
-    unwrapped->AddDeoptUse(virtual_objects);
+    unwrapped->AddDeoptUse();
   }
   return unwrapped;
 }
 
 // Unwraps the current node and, if unwrapping succeeds, decrements its
 // use-count and increments the use-count of the unwrapped node.
-inline ValueNode* ValueNode::UnwrapAndUpdateUseCountForDeopt(
-    const VirtualObjectList& virtual_objects) {
+inline ValueNode* ValueNode::UnwrapAndUpdateUseCountForDeopt() {
   ValueNode* unwrapped = UnwrapForDeopt();
   if (unwrapped != this) {
     // TODO(dmercadier): instead of a simple `remove_use` here, we could instead
     // recursively remove uses in VirtualObjects (basically doing the oppositve
     // of AddDeoptUse).
     this->remove_use();
-    unwrapped->AddDeoptUse(virtual_objects);
+    unwrapped->AddDeoptUse();
   }
   return unwrapped;
 }
@@ -5820,7 +5817,7 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   compiler::OptionalMapRef TryGetMapFromSlot(
       compiler::JSHeapBroker* broker) const;
 
-  void AddDeoptUse(const VirtualObjectList& virtual_objects);
+  void AddDeoptUse();
 
   uint32_t id() const { return id_; }
 
@@ -5912,12 +5909,12 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   // footprint, aka, a location.
   template <typename Function>
   inline void ForEachNestedRuntimeInput(
-      VirtualObjectList virtual_objects, Function&& f,
+      Function&& f,
       ForEachSlotIterationMode mode = ForEachSlotIterationMode::kDefault,
       const VirtualObjectAncestors* ancestors = nullptr);
   template <typename Function>
   inline void ForEachNestedRuntimeInput(
-      VirtualObjectList virtual_objects, Function&& f,
+      Function&& f,
       ForEachSlotIterationMode mode = ForEachSlotIterationMode::kDefault,
       const VirtualObjectAncestors* ancestors = nullptr) const;
 
@@ -5991,9 +5988,6 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   base::Vector<ValueNode*> slots_;
   const vobj::ObjectLayout* object_layout_;
   mutable InlinedAllocation* allocation_ = nullptr;
-
-  VirtualObject* next_ = nullptr;
-  friend VirtualObjectList;
 };
 
 struct VirtualJSReceiverShape : VirtualHeapObjectShape {
@@ -6274,74 +6268,6 @@ using VirtualFixedDoubleArrayShape =
 using VirtualHoleyFixedDoubleArrayShape =
     VirtualFixedDoubleArrayShapeT<vobj::FieldType::kHoleyFloat64>;
 
-class VirtualObjectList {
- public:
-  VirtualObjectList() : head_(nullptr) {}
-
-  explicit VirtualObjectList(VirtualObject* head) : head_(head) {}
-
-  class V8_GSL_POINTER Iterator final {
-   public:
-    explicit Iterator(VirtualObject* entry) : entry_(entry) {}
-
-    Iterator& operator++() {
-      entry_ = entry_->next_;
-      return *this;
-    }
-    bool operator==(const Iterator& other) const {
-      return entry_ == other.entry_;
-    }
-    bool operator!=(const Iterator& other) const {
-      return entry_ != other.entry_;
-    }
-    VirtualObject*& operator*() { return entry_; }
-    VirtualObject* operator->() { return entry_; }
-
-   private:
-    VirtualObject* entry_;
-  };
-
-  void Add(VirtualObject* object) {
-    DCHECK_NOT_NULL(object);
-    DCHECK_NULL(object->next_);
-    object->next_ = head_;
-    head_ = object;
-  }
-
-  bool is_empty() const { return head_ == nullptr; }
-
-  VirtualObject* FindAllocatedWith(const InlinedAllocation* allocation) const {
-    VirtualObject* result = nullptr;
-    for (VirtualObject* vo : *this) {
-      if (vo->allocation() == allocation) {
-        result = vo;
-        break;
-      }
-    }
-    return result;
-  }
-
-  void Print(std::ostream& os, const char* prefix) const;
-
-  VirtualObject* head() const { return head_; }
-
-  Iterator begin() const { return Iterator(head_); }
-  Iterator end() const { return Iterator(nullptr); }
-
- private:
-  VirtualObject* head_;
-};
-
-inline VirtualObjectList DeoptFrame::GetVirtualObjects() const {
-  if (type() == DeoptFrame::FrameType::kInterpretedFrame) {
-    // Recover virtual object list using the last object before the
-    // deopt frame creation.
-    return VirtualObjectList(as_interpreted().last_virtual_object());
-  }
-  DCHECK_NOT_NULL(parent());
-  return parent()->GetVirtualObjects();
-}
-
 enum class EscapeAnalysisResult {
   kUnknown,
   kElided,
@@ -6397,17 +6323,16 @@ class InlinedAllocation : public FixedInputValueNodeT<1, InlinedAllocation> {
     non_escaping_use_count_ = std::max(non_escaping_use_count_ - n, 0);
   }
   void AddNonEscapingUses(int n = 1) {
-    // In Maglev, AddNonEscapingUse is always called before the PostHocPhase,
-    // which is where InlinedAllocations are marked as HasBeenAnalyzed.
-    // In Turbolev, however, InlinedAllocations are marked as HasBeenAnalyzed
+    // In Maglev, AddNonEscapingUses is always called before the PostHocPhase,
+    // which is where InlinedAllocations are marked as HasBeenAnalysed.
+    // In Turbolev, however, InlinedAllocations are marked as HasBeenAnalysed
     // during the TurbolevEscapeAnalysis phase, which isn't the last phase of
     // the pipeline, and subsequent phases can end up calling AddNonEscapingUses
-    // on nodes that have been analyzed. This is safe as long it's only called
-    // on objects that are marked as HasEscaped: for objects marked as
-    // HasBeenElided, adding a non-escaping use basically means that we've added
-    // them as input to a DeoptFrame, but this is only allowed if the
-    // VirtualObjects of this DeoptFrame are in the right state, which is hard
-    // to guarantee.
+    // on nodes that have been analyzed. This is safe as long as it's only
+    // called on objects marked as HasEscaped: under TurbolevEscapeAnalysis,
+    // elided allocations have already been removed from the graph and replaced
+    // by snapshot VirtualObjects in DeoptFrames, so they must never gain new
+    // non-escaping uses.
     DCHECK(!HasBeenAnalysed() || HasEscaped());
     non_escaping_use_count_ += n;
   }
@@ -6469,11 +6394,45 @@ void ValueNode::remove_use() {
   }
 }
 
+// Returns the VirtualObject for an already-elided allocation: either a
+// VirtualObject snapshot inserted by TurbolevEscapeAnalysis, or an
+// InlinedAllocation marked as elided by Maglev's escape analysis.
+inline VirtualObject* ValueNode::TryGetVirtualObject() {
+  ValueNode* unwrapped = UnwrapIdentities();
+  if (VirtualObject* vo = unwrapped->TryCast<VirtualObject>()) {
+    return vo;
+  }
+  if (InlinedAllocation* alloc = unwrapped->TryCast<InlinedAllocation>()) {
+    if (alloc->HasBeenAnalysed() && alloc->HasBeenElided()) {
+      return alloc->object();
+    }
+  }
+  return nullptr;
+}
+
+// Like TryGetVirtualObject, but also returns the VirtualObject of an
+// unanalysed InlinedAllocation. Before escape analysis runs, deopt input
+// visitors must conservatively descend into every InlinedAllocation's
+// VirtualObject in case the allocation is later elided.
+inline VirtualObject* ValueNode::TryGetDeoptVirtualObject() {
+  ValueNode* unwrapped = UnwrapIdentities();
+  if (VirtualObject* vo = unwrapped->TryCast<VirtualObject>()) {
+    return vo;
+  }
+  if (InlinedAllocation* alloc = unwrapped->TryCast<InlinedAllocation>()) {
+    if (!alloc->HasBeenAnalysed() || alloc->HasBeenElided()) {
+      return alloc->object();
+    }
+  }
+  return nullptr;
+}
+
 template <typename Function>
 inline void VirtualObject::ForEachNestedRuntimeInput(
-    VirtualObjectList virtual_objects, Function&& f,
-    ForEachSlotIterationMode mode,
+    Function&& f, ForEachSlotIterationMode mode,
     const VirtualObjectAncestors* ancestors) const {
+  VirtualObjectAncestors root_ancestors{this, nullptr};
+  if (ancestors == nullptr) ancestors = &root_ancestors;
   ForEachSlot(
       [&](ValueNode* value, const vobj::Field& desc) -> bool {
         value = value->UnwrapIdentities();
@@ -6489,19 +6448,14 @@ inline void VirtualObject::ForEachNestedRuntimeInput(
             // No location assigned to these opcodes.
             break;
           case Opcode::kVirtualObject:
-            UNREACHABLE();
           case Opcode::kInlinedAllocation: {
-            InlinedAllocation* alloc = value->Cast<InlinedAllocation>();
-            VirtualObject* inner_vobject =
-                virtual_objects.FindAllocatedWith(alloc);
-            // Check if it has escaped.
-            if (inner_vobject &&
-                (!alloc->HasBeenAnalysed() || alloc->HasBeenElided())) {
-              if (ancestors && ancestors->Contains(inner_vobject)) {
+            if (const VirtualObject* inner_vobject =
+                    value->TryGetDeoptVirtualObject()) {
+              if (ancestors->Contains(inner_vobject)) {
                 break;
               }
               VirtualObjectAncestors next_ancestors{inner_vobject, ancestors};
-              inner_vobject->ForEachNestedRuntimeInput(virtual_objects, f, mode,
+              inner_vobject->ForEachNestedRuntimeInput(f, mode,
                                                        &next_ancestors);
             } else {
               f(value);
@@ -6519,15 +6473,16 @@ inline void VirtualObject::ForEachNestedRuntimeInput(
 
 template <typename Function>
 inline void VirtualObject::ForEachNestedRuntimeInput(
-    VirtualObjectList virtual_objects, Function&& f,
-    ForEachSlotIterationMode mode, const VirtualObjectAncestors* ancestors) {
+    Function&& f, ForEachSlotIterationMode mode,
+    const VirtualObjectAncestors* ancestors) {
+  VirtualObjectAncestors root_ancestors{this, nullptr};
+  if (ancestors == nullptr) ancestors = &root_ancestors;
   ForEachSlot(
       [&](ValueNode*& value, const vobj::Field& desc) -> bool {
         // Subtle: this modifies the location of the caller's `value` in-place.
         // TODO(jgruber): Change the behavior of all related ForEach functions
         // such that they don't do anything besides iteration.
-        value =
-            value->UnwrapIdentitiesAndUpdateUseCountForDeopt(virtual_objects);
+        value = value->UnwrapIdentitiesAndUpdateUseCountForDeopt();
         if (IsConstantNode(value->opcode())) {
           // No location assigned to constants.
           return true;
@@ -6540,19 +6495,14 @@ inline void VirtualObject::ForEachNestedRuntimeInput(
             // No location assigned to these opcodes.
             break;
           case Opcode::kVirtualObject:
-            UNREACHABLE();
           case Opcode::kInlinedAllocation: {
-            InlinedAllocation* alloc = value->Cast<InlinedAllocation>();
-            VirtualObject* inner_vobject =
-                virtual_objects.FindAllocatedWith(alloc);
-            // Check if it has escaped.
-            if (inner_vobject &&
-                (!alloc->HasBeenAnalysed() || alloc->HasBeenElided())) {
-              if (ancestors && ancestors->Contains(inner_vobject)) {
+            if (VirtualObject* inner_vobject =
+                    value->TryGetDeoptVirtualObject()) {
+              if (ancestors->Contains(inner_vobject)) {
                 break;
               }
               VirtualObjectAncestors next_ancestors{inner_vobject, ancestors};
-              inner_vobject->ForEachNestedRuntimeInput(virtual_objects, f, mode,
+              inner_vobject->ForEachNestedRuntimeInput(f, mode,
                                                        &next_ancestors);
             } else {
               f(value);
