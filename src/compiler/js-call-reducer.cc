@@ -1675,6 +1675,20 @@ FrameState SortContinueFromSnapshotLazyFrameState(
       ContinuationFrameStateMode::LAZY);
 }
 
+FrameState SortContinueFromSnapshotAfterCallbackEagerFrameState(
+    const SortFrameStateParams& params, TNode<Object> result) {
+  Node* checkpoint_params[] = {params.receiver, params.comparefn,
+                               params.temp_array, params.original_length,
+                               result};
+  return CreateJavaScriptBuiltinContinuationFrameState(
+      params.jsgraph, params.shared,
+      Builtin::
+          kArraySortContinueFromSnapshotAfterCallbackEagerDeoptContinuation,
+      params.target, params.context, checkpoint_params,
+      arraysize(checkpoint_params), params.outer_frame_state,
+      ContinuationFrameStateMode::EAGER);
+}
+
 // ---- Array.prototype.forEach
 // --------------------------------------------------
 
@@ -1775,11 +1789,11 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeSort(
   //   Call Array.prototype.sort with kDisallowSpeculation to prevent
   //   re-reduction.
   //
-  // On any deopt the ArraySortContinueFromSnapshot{Eager,Lazy}DeoptContinuation
-  // builtins hand temp_array + the original length to the generic PowerSort
-  // tail.  This preserves the spec's snapshot semantics across deopts:
-  // comparefn side effects on the receiver are overwritten by the writeback
-  // and never leak into the final result.
+  // On any deopt the ArraySortContinueFromSnapshot*DeoptContinuation builtins
+  // pass temp_array + the original length to the generic PowerSort tail.
+  // This preserves the spec's snapshot semantics across deopts: comparefn
+  // side effects on the receiver are overwritten by the writeback and never
+  // leak into the final result.
   static constexpr int32_t kMaxInlineSortSize = JSArray::kMaxInlineSortLength;
 
   FrameState outer_frame_state = FrameStateInput();
@@ -1919,10 +1933,15 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeSort(
         // loop is unsafe: the JSCall's effect chain wipes the dominating
         // frame state, and Turboshaft's graph builder DCHECKs that a
         // dominating frame state exists for SpeculativeToNumber.
-        Checkpoint(SortContinueFromSnapshotEagerFrameState(frame_state_params));
+        Checkpoint(SortContinueFromSnapshotAfterCallbackEagerFrameState(
+            frame_state_params, cmp_result));
 
         // Convert comparefn result to a number.
         TNode<Number> cmp_num = SpeculativeToNumber(cmp_result);
+
+        // Restore the plain frame state so that no later deopt in this
+        // iteration converts the result again.
+        Checkpoint(SortContinueFromSnapshotEagerFrameState(frame_state_params));
 
         // If cmp >= 0: insertion point found; exit.
         GotoIfNot(NumberLessThan(cmp_num, ZeroConstant()), &inner_exit);

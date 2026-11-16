@@ -9786,6 +9786,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeSort(
   PossibleMaps receiver_maps_before_loop(*possible_maps);
 
   static constexpr int32_t kMaxInlineSortSize = JSArray::kMaxInlineSortLength;
+  static constexpr Builtin kLazyContinuation =
+      Builtin::kArraySortContinueFromSnapshotLazyDeoptContinuation;
+  static constexpr Builtin kAfterCallbackContinuation = Builtin::
+      kArraySortContinueFromSnapshotAfterCallbackEagerDeoptContinuation;
 
   // Three SubGraph variables: var_i (outer sort index), var_j (inner sort
   // index), var_copy (reused for the copy-in and copy-back loops).  All hold
@@ -9955,10 +9959,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeSort(
                       // below).  The continuation feeds temp_array and the
                       // original length to the generic PowerSort tail.
                       LazyDeoptFrameScope restart_sort(
-                          &reducer_, GetContext(),
-                          Builtin::
-                              kArraySortContinueFromSnapshotLazyDeoptContinuation,
-                          target,
+                          &reducer_, GetContext(), kLazyContinuation, target,
                           base::VectorOf<ValueNode*>(
                               {receiver, comparefn, temp_array, length}));
 
@@ -9979,9 +9980,21 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeSort(
                               Operation::kLessThan));
                     } else {
                       ValueNode* cmp_f64;
-                      GET_VALUE_OR_ABORT(
-                          cmp_f64,
-                          GetFloat64ForToNumber(cmp_result, NodeType::kNumber));
+                      {
+                        // Unlike the loop-wide continuation, this one applies
+                        // ToNumber to cmp_result, which can throw or call
+                        // valueOf.
+                        EagerDeoptFrameScope convert_result_scope(
+                            &reducer_, GetContext(), kAfterCallbackContinuation,
+                            target,
+                            base::VectorOf<ValueNode*>({receiver, comparefn,
+                                                        temp_array, length,
+                                                        cmp_result}),
+                            EagerDeoptFrameScope::kShadowEnclosing);
+                        GET_VALUE_OR_ABORT(
+                            cmp_f64, GetFloat64ForToNumber(cmp_result,
+                                                           NodeType::kNumber));
+                      }
                       RETURN_IF_ABORT(
                           sub_builder.GotoIfFalse<BranchIfFloat64Compare>(
                               inner_end, {cmp_f64, GetFloat64Constant(0.0)},

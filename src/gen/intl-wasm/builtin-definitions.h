@@ -90,6 +90,7 @@ TFJ(ArrayPrototypeUnshift, kDontAdaptArgumentsSentinel) \
 TFC(GenericArrayWith, GenericArrayWith) \
 TFJ(ArrayPrototypeWith, JSParameterCount(2), kReceiver, kIndex, kValue) \
 TFJ(ArraySortContinueFromSnapshotEagerDeoptContinuation, JSParameterCount(3), kReceiver, kComparefn, kTempArray, kOriginalLength) \
+TFJ(ArraySortContinueFromSnapshotAfterCallbackEagerDeoptContinuation, JSParameterCount(4), kReceiver, kComparefn, kTempArray, kOriginalLength, kResult) \
 TFJ(ArraySortContinueFromSnapshotLazyDeoptContinuation, JSParameterCount(4), kReceiver, kComparefn, kTempArray, kOriginalLength, kResult) \
 TFJ(ArrayBufferPrototypeGetByteLength, JSParameterCount(0), kReceiver) \
 TFJ(ArrayBufferPrototypeGetMaxByteLength, JSParameterCount(0), kReceiver) \

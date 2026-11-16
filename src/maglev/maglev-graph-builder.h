@@ -227,6 +227,10 @@ class MaglevGraphBuilder {
   std::tuple<DeoptFrame*, interpreter::Register, int> GetDeoptFrameForLazyDeopt(
       bool can_throw);
 
+  void OnBeginEagerDeoptFrameScope() {
+    // A cached checkpointed frame does not include this scope.
+    latest_checkpointed_frame_ = nullptr;
+  }
   void OnEndDeoptFrameScope() {
     // We might have cached a checkpointed frame which includes this scope;
     // reset it just in case.
