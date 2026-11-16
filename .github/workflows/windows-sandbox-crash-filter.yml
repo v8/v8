@@ -197,6 +197,26 @@ jobs:
             Pop-Location
           }
 
+          # Verify the memory-corruption testing API is actually present in this
+          # sandbox-testing build, not merely that d8 starts successfully.
+          @(
+            "if (typeof Sandbox !== 'object') throw new Error('Sandbox global is missing');"
+            "if (typeof Sandbox.MemoryView !== 'function') throw new Error('Sandbox.MemoryView is missing');"
+            "const view = new DataView(new Sandbox.MemoryView(0, 0x1000));"
+            "print('sandbox-api-ok:', view.byteLength);"
+          ) | Set-Content -Path "$dist/api-smoke.js" -Encoding ascii
+
+          Push-Location $dist
+          try {
+            $apiOutput = (& .\d8.exe --sandbox-testing .\api-smoke.js 2>&1 | Out-String)
+            Write-Host $apiOutput
+            if ($LASTEXITCODE -ne 0 -or $apiOutput -notmatch 'sandbox-api-ok:\s*4096') {
+              throw "Packaged d8 Sandbox.MemoryView API smoke test failed."
+            }
+          } finally {
+            Pop-Location
+          }
+
           Get-ChildItem $dist | Select-Object Name, Length | Format-Table -AutoSize
 
       - name: Upload runnable d8 distribution
