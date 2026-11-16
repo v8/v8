@@ -1909,6 +1909,12 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeSort(
         // Load elem = temp_array[j].
         TNode<Object> elem = LoadElement<Object>(element_access, temp_array, j);
 
+        // Lowering the call can add eager deopts on its inputs, e.g. argument
+        // conversions for an inlined Wasm comparefn.  Earlier comparefn calls
+        // may have had side effects, so these deopts must not resume before
+        // the sort.
+        Checkpoint(SortContinueFromSnapshotEagerFrameState(frame_state_params));
+
         TNode<Object> comparefn_this = UndefinedConstant();
         TNode<Object> cmp_result =
             JSCall2(comparefn, comparefn_this, pivot, elem,
