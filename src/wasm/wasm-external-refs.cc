@@ -792,13 +792,6 @@ inline uint8_t* EffectiveAddress(Tagged<WasmTrustedInstanceData> trusted_data,
   return trusted_data->memory_base(mem_index) + index;
 }
 
-template <typename V>
-V ReadAndIncrementOffset(Address data, size_t* offset) {
-  V result = ReadUnalignedValue<V>(data + *offset);
-  *offset += sizeof(V);
-  return result;
-}
-
 constexpr int32_t kMemOpSuccess = 1;
 constexpr int32_t kOutOfBounds = 0;
 }  // namespace
