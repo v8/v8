@@ -585,9 +585,9 @@ class WasmInJsInliningInterface {
       case wasm::kExprF32Ge:
         return __ Float32LessThanOrEqual(rhs, lhs);
       case wasm::kExprF32Min:
-        return __ Float32Min(rhs, lhs);
+        return __ Float32Min(lhs, rhs);
       case wasm::kExprF32Max:
-        return __ Float32Max(rhs, lhs);
+        return __ Float32Max(lhs, rhs);
       case wasm::kExprF64CopySign:
         return __ Float64CopySign(lhs, rhs);
       case wasm::kExprF64Add:
