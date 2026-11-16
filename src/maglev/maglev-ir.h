@@ -6988,6 +6988,8 @@ class AssertRangeInt32 : public FixedInputNodeT<1, AssertRangeInt32> {
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&) const;
 
+  auto options() const { return std::tuple{range_}; }
+
   Range range() const { return range_; }
 
  private:
@@ -7004,6 +7006,8 @@ class AssertRangeFloat64 : public FixedInputNodeT<1, AssertRangeFloat64> {
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&) const;
+
+  auto options() const { return std::tuple{range_}; }
 
   Range range() const { return range_; }
 
