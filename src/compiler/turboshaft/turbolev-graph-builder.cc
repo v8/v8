@@ -3518,21 +3518,21 @@ class GraphBuildingNodeProcessor {
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ LoadFixedArrayElement(
                      Map(node->ElementsInput()),
-                     __ ChangeInt32ToIntPtr(Map(node->IndexInput()))));
+                     __ ChangeUint32ToUintPtr(Map(node->IndexInput()))));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::LoadFixedDoubleArrayElement* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ LoadFixedDoubleArrayElement(
                      Map(node->ElementsInput()),
-                     __ ChangeInt32ToIntPtr(Map(node->IndexInput()))));
+                     __ ChangeUint32ToUintPtr(Map(node->IndexInput()))));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::LoadHoleyFixedDoubleArrayElement* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ LoadFixedDoubleArrayElement(
                      Map(node->ElementsInput()),
-                     __ ChangeInt32ToIntPtr(Map(node->IndexInput()))));
+                     __ ChangeUint32ToUintPtr(Map(node->IndexInput()))));
     return maglev::ProcessResult::kContinue;
   }
   // Maps a maglev static type to the memory representation of a tagged
@@ -3655,7 +3655,7 @@ class GraphBuildingNodeProcessor {
     MemoryRepresentation mem_repr =
         TaggedMemoryRepresentation(node->ValueInput());
     __ Store(Map(node->ElementsInput()),
-             __ ChangeInt32ToIntPtr(Map(node->IndexInput())),
+             __ ChangeUint32ToUintPtr(Map(node->IndexInput())),
              Map(node->ValueInput()), StoreOp::Kind::TaggedBase(), mem_repr,
              ElidedWriteBarrierKind(node->ValueInput()),
              OFFSET_OF_DATA_START(FixedArray), kTaggedSizeLog2);
@@ -3665,7 +3665,7 @@ class GraphBuildingNodeProcessor {
       maglev::StoreFixedArrayElementWithWriteBarrier* node,
       const maglev::ProcessingState& state) {
     __ StoreFixedArrayElement(Map(node->ElementsInput()),
-                              __ ChangeInt32ToIntPtr(Map(node->IndexInput())),
+                              __ ChangeUint32ToUintPtr(Map(node->IndexInput())),
                               Map(node->ValueInput()),
                               WriteBarrierKind::kFullWriteBarrier);
     return maglev::ProcessResult::kContinue;
@@ -3674,7 +3674,7 @@ class GraphBuildingNodeProcessor {
                                 const maglev::ProcessingState& state) {
     __ StoreFixedDoubleArrayElement(
         Map(node->ElementsInput()),
-        __ ChangeInt32ToIntPtr(Map(node->IndexInput())),
+        __ ChangeUint32ToUintPtr(Map(node->IndexInput())),
         Map(node->ValueInput()));
     return maglev::ProcessResult::kContinue;
   }
@@ -3682,7 +3682,7 @@ class GraphBuildingNodeProcessor {
                                 const maglev::ProcessingState& state) {
     __ StoreFixedDoubleArrayElement(
         Map(node->ElementsInput()),
-        __ ChangeInt32ToIntPtr(Map(node->IndexInput())),
+        __ ChangeUint32ToUintPtr(Map(node->IndexInput())),
         __ Float64Constant(internal::Float64::hole_nan()));
     return maglev::ProcessResult::kContinue;
   }
@@ -3698,7 +3698,7 @@ class GraphBuildingNodeProcessor {
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
     __ StoreFixedDoubleArrayElement(
         Map(node->ElementsInput()),
-        __ ChangeInt32ToIntPtr(Map(node->IndexInput())), value);
+        __ ChangeUint32ToUintPtr(Map(node->IndexInput())), value);
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(
@@ -3806,11 +3806,11 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::CheckTypedArrayBounds* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
-    __ DeoptimizeIfNot(
-        __ UintPtrLessThan(__ ChangeInt32ToIntPtr(Map(node->IndexInput())),
-                           Map(node->LengthInput())),
-        frame_state, DeoptimizeReason::kOutOfBounds,
-        node->eager_deopt_info()->feedback_to_update());
+    V<WordPtr> index = ConvertTypedArrayIndexForBoundsCheck(
+        node->IndexInput(), node->LengthInput());
+    __ DeoptimizeIfNot(__ UintPtrLessThan(index, Map(node->LengthInput())),
+                       frame_state, DeoptimizeReason::kOutOfBounds,
+                       node->eager_deopt_info()->feedback_to_update());
     return maglev::ProcessResult::kContinue;
   }
 
@@ -4414,7 +4414,8 @@ class GraphBuildingNodeProcessor {
   }
   maglev::ProcessResult Process(maglev::BranchIfTypedArrayBounds* node,
                                 const maglev::ProcessingState& state) {
-    V<WordPtr> index = __ ChangeInt32ToIntPtr(Map<Word32>(node->IndexInput()));
+    V<WordPtr> index = ConvertTypedArrayIndexForBoundsCheck(
+        node->IndexInput(), node->LengthInput());
     V<WordPtr> length = Map<WordPtr>(node->LengthInput());
     V<Word32> condition = __ UintPtrLessThan(index, length);
     __ Branch(condition, Map(node->if_true()), Map(node->if_false()));
@@ -6744,6 +6745,19 @@ class GraphBuildingNodeProcessor {
   }
 #endif
 
+  V<WordPtr> ConvertTypedArrayIndexForBoundsCheck(maglev::Input index_input,
+                                                  maglev::Input length_input) {
+    maglev::ValueNode* index_node = index_input.node();
+    const auto* length_cst =
+        length_input.node()->TryCast<maglev::IntPtrConstant>();
+    bool can_zero_extend =
+        index_node->GetStaticRange().min() >= 0 ||
+        (length_cst != nullptr &&
+         base::IsInRange(length_cst->value(), intptr_t{0}, intptr_t{kMaxInt}));
+    return can_zero_extend ? __ ChangeUint32ToUintPtr(Map<Word32>(index_input))
+                           : __ ChangeInt32ToIntPtr(Map<Word32>(index_input));
+  }
+
   std::pair<V<WordPtr>, V<Object>> GetTypedArrayDataAndBasePointers(
       V<JSTypedArray> typed_array) {
     V<WordPtr> data_pointer = __ LoadField<WordPtr>(
@@ -6757,7 +6771,7 @@ class GraphBuildingNodeProcessor {
     auto [data_pointer, base_pointer] =
         GetTypedArrayDataAndBasePointers(typed_array);
     return __ LoadTypedElement(typed_array, base_pointer, data_pointer,
-                               __ ChangeInt32ToIntPtr(index),
+                               __ ChangeUint32ToUintPtr(index),
                                GetArrayTypeFromElementsKind(kind));
   }
 
@@ -6769,7 +6783,7 @@ class GraphBuildingNodeProcessor {
     return __ LoadTypedElement(
         __ HeapConstant(typed_array.object()), __ SmiConstant(Smi::zero()),
         __ WordPtrConstant(reinterpret_cast<uintptr_t>(typed_array.data_ptr())),
-        __ ChangeInt32ToIntPtr(index), GetArrayTypeFromElementsKind(kind));
+        __ ChangeUint32ToUintPtr(index), GetArrayTypeFromElementsKind(kind));
   }
 
   void BuildTypedArrayStore(V<JSTypedArray> typed_array, V<Word32> index,
@@ -6777,7 +6791,7 @@ class GraphBuildingNodeProcessor {
     auto [data_pointer, base_pointer] =
         GetTypedArrayDataAndBasePointers(typed_array);
     __ StoreTypedElement(typed_array, base_pointer, data_pointer,
-                         __ ChangeInt32ToIntPtr(index), value,
+                         __ ChangeUint32ToUintPtr(index), value,
                          GetArrayTypeFromElementsKind(kind));
   }
 
@@ -6790,7 +6804,7 @@ class GraphBuildingNodeProcessor {
     __ StoreTypedElement(
         __ HeapConstant(typed_array.object()), __ SmiConstant(Smi::zero()),
         __ WordPtrConstant(reinterpret_cast<uintptr_t>(typed_array.data_ptr())),
-        __ ChangeInt32ToIntPtr(index), value,
+        __ ChangeUint32ToUintPtr(index), value,
         GetArrayTypeFromElementsKind(kind));
   }
 
