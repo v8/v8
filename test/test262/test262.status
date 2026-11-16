@@ -37,6 +37,21 @@
   # https://code.google.com/p/v8/issues/detail?id=4248
   'language/expressions/compound-assignment/S11.13.2_A5.*': [FAIL],
   'language/expressions/compound-assignment/S11.13.2_A6.*': [FAIL],
+  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-add': [FAIL],
+  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-bitand': [FAIL],
+  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-bitor': [FAIL],
+  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-bitxor': [FAIL],
+  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-div': [FAIL],
+  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-exp': [FAIL],
+  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-lshift': [FAIL],
+  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-mod': [FAIL],
+  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-mult': [FAIL],
+  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-rshift': [FAIL],
+  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-srshift': [FAIL],
+  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-sub': [FAIL],
+  'language/expressions/logical-assignment/lgcl-and-assignment-operator-topropertykey-once': [FAIL],
+  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-topropertykey-once': [FAIL],
+  'language/expressions/logical-assignment/lgcl-or-assignment-operator-topropertykey-once': [FAIL],
   'language/statements/with/unscopables-inc-dec': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4249
@@ -163,6 +178,9 @@
   # b/434224293
   'intl402/DateTimeFormat/prototype/formatToParts/compare-to-temporal-lunisolar': [SKIP],
 
+  # https://crbug.com/494306044
+  'built-ins/Temporal/PlainMonthDay/from/iso-year-used-only-for-overflow': [FAIL],
+
   # End Temporal test expectations
 
   # https://github.com/tc39/test262/pull/3988
@@ -205,6 +223,21 @@
   'language/statements/with/get-binding-value-idref-with-proxy-env': [FAIL],
   'language/statements/with/set-mutable-binding-idref-compound-assign-with-proxy-env': [FAIL],
   'language/statements/with/set-mutable-binding-idref-with-proxy-env': [FAIL],
+
+  # https://crbug.com/581462605
+  'built-ins/DataView/prototype/byteLength/detached-buffer': [FAIL],
+  'built-ins/DataView/prototype/byteLength/resizable-array-buffer-auto': [FAIL],
+  'built-ins/DataView/prototype/byteLength/resizable-array-buffer-fixed': [FAIL],
+  'built-ins/DataView/prototype/byteOffset/detached-buffer': [FAIL],
+  'built-ins/DataView/prototype/byteOffset/resizable-array-buffer-auto': [FAIL],
+  'built-ins/DataView/prototype/byteOffset/resizable-array-buffer-fixed': [FAIL],
+
+  # https://crbug.com/580293064
+  'built-ins/Iterator/concat/underlying-iterator-not-closed-when-step-throws': [FAIL],
+
+  # https://crbug.com/581458354
+  'language/statements/class/elements/arrow-body-arguments-label': [FAIL],
+  'language/statements/class/static-init-arguments-label': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
@@ -1039,38 +1072,6 @@
   'intl402/Locale/prototype/getTextInfo/script-metadata-unlisted-language-script-is-rtl': [SKIP],
   'intl402/Locale/prototype/getTextInfo/script-subtag-missing': [SKIP],
   'intl402/Locale/prototype/getTextInfo/script-unregistered-or-privateuse': [SKIP],
-}],
-# End roll-watcher patch
-####
-
-####
-# Roll-watcher patch
-[ALWAYS, {
-  'built-ins/DataView/prototype/byteLength/detached-buffer': [SKIP],
-  'built-ins/DataView/prototype/byteLength/resizable-array-buffer-auto': [SKIP],
-  'built-ins/DataView/prototype/byteLength/resizable-array-buffer-fixed': [SKIP],
-  'built-ins/DataView/prototype/byteOffset/detached-buffer': [SKIP],
-  'built-ins/DataView/prototype/byteOffset/resizable-array-buffer-auto': [SKIP],
-  'built-ins/DataView/prototype/byteOffset/resizable-array-buffer-fixed': [SKIP],
-  'built-ins/Iterator/concat/underlying-iterator-not-closed-when-step-throws': [SKIP],
-  'built-ins/Temporal/PlainMonthDay/from/iso-year-used-only-for-overflow': [SKIP],
-  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-add': [SKIP],
-  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-bitand': [SKIP],
-  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-bitor': [SKIP],
-  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-bitxor': [SKIP],
-  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-div': [SKIP],
-  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-exp': [SKIP],
-  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-lshift': [SKIP],
-  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-mod': [SKIP],
-  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-mult': [SKIP],
-  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-rshift': [SKIP],
-  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-srshift': [SKIP],
-  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-sub': [SKIP],
-  'language/expressions/logical-assignment/lgcl-and-assignment-operator-topropertykey-once': [SKIP],
-  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-topropertykey-once': [SKIP],
-  'language/expressions/logical-assignment/lgcl-or-assignment-operator-topropertykey-once': [SKIP],
-  'language/statements/class/elements/arrow-body-arguments-label': [SKIP],
-  'language/statements/class/static-init-arguments-label': [SKIP],
 }],
 # End roll-watcher patch
 ####
