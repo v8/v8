@@ -112,6 +112,9 @@ jobs:
             "v8_enable_sandbox = true"
           ) | Set-Content -Path windows-x64-args.gn -Encoding ascii
           gn gen out.gn/x64.release --args-file=windows-x64-args.gn
+          Write-Host "Effective GN build arguments:"
+          gn args out.gn/x64.release --list=is_debug
+          gn args out.gn/x64.release --list=is_component_build
 
       - name: Build d8 and unit tests
         shell: pwsh
@@ -127,7 +130,7 @@ jobs:
         run: |
           .\out.gn\x64.release\v8_unittests.exe --gtest_filter='WindowsSandboxCrashFilter*'
 
-      - name: Smoke-test and package standalone d8
+      - name: Smoke-test and package runnable d8 distribution
         shell: pwsh
         working-directory: v8-windws
         run: |
@@ -154,30 +157,34 @@ jobs:
             throw "dumpbin failed with exit code $LASTEXITCODE."
           }
           Write-Host $dependencies
-          if ($dependencies -match 'v8\.dll') {
-            throw "d8.exe still imports v8.dll; refusing to publish an incomplete executable."
-          }
-
-          & $d8 --version
-          if ($LASTEXITCODE -ne 0) {
-            throw "d8 --version failed with exit code $LASTEXITCODE."
-          }
-
-          "print('d8-smoke-ok:', 6 * 7);" | Set-Content -Path "$outDir/smoke.js" -Encoding ascii
-          $smokeOutput = & $d8 "$outDir/smoke.js" 2>&1 | Out-String
-          Write-Host $smokeOutput
-          if ($LASTEXITCODE -ne 0 -or $smokeOutput -notmatch 'd8-smoke-ok:\s*42') {
-            throw "d8 JavaScript smoke test failed."
-          }
-
+          # V8 may intentionally produce a multi-file distribution. Do not
+          # reject v8.dll: package every runtime DLL emitted by this build and
+          # validate the executable from the packaged directory.
           $dist = "dist/d8-windows-x64"
           New-Item -ItemType Directory -Force -Path $dist | Out-Null
           Copy-Item $d8 $dist
-          # Preserve optional runtime data and any non-V8 DLLs if the selected
-          # V8 configuration emits them beside d8.exe.
           Get-ChildItem $outDir -File | Where-Object {
             $_.Extension -in @(".dll", ".dat") -or $_.Name -eq "snapshot_blob.bin"
           } | Copy-Item -Destination $dist -Force
+
+          "print('d8-smoke-ok:', 6 * 7);" | Set-Content -Path "$dist/smoke.js" -Encoding ascii
+          Push-Location $dist
+          try {
+            $versionOutput = (& .\d8.exe --version 2>&1 | Out-String)
+            Write-Host $versionOutput
+            if ($LASTEXITCODE -ne 0) {
+              throw "Packaged d8 --version failed with exit code $LASTEXITCODE."
+            }
+
+            $smokeOutput = (& .\d8.exe .\smoke.js 2>&1 | Out-String)
+            Write-Host $smokeOutput
+            if ($LASTEXITCODE -ne 0 -or $smokeOutput -notmatch 'd8-smoke-ok:\s*42') {
+              throw "Packaged d8 JavaScript smoke test failed."
+            }
+          } finally {
+            Pop-Location
+          }
+
           Get-ChildItem $dist | Select-Object Name, Length | Format-Table -AutoSize
 
       - name: Upload runnable d8 distribution
