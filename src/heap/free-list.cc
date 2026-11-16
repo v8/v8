@@ -337,13 +337,13 @@ void FreeList::Reset() {
   available_ = 0;
 }
 
-void FreeList::ResetForNonBlackAllocatedPages() {
+void FreeList::ResetForNonBlackAllocatedPages(const Isolate* isolate) {
   DCHECK(v8_flags.black_allocated_pages);
   ResetCache();
-  ForAllFreeListCategories([this](FreeListCategory* category) {
+  ForAllFreeListCategories([this, isolate](FreeListCategory* category) {
     if (!category->is_empty()) {
-      auto* chunk = MemoryChunk::FromHeapObject(category->top());
-      if (chunk->IsBlackAllocated()) {
+      if (BasePage::FromHeapObject(isolate, category->top())
+              ->is_black_allocated()) {
         category->Unlink(this);
         return;
       }

@@ -184,7 +184,7 @@ class V8_EXPORT_PRIVATE FreeList {
   NormalPage* GetPageForSize(size_t size_in_bytes);
 
   void Reset();
-  void ResetForNonBlackAllocatedPages();
+  void ResetForNonBlackAllocatedPages(const Isolate* isolate);
 
   // Return the number of bytes available on the free list.
   size_t Available() {
