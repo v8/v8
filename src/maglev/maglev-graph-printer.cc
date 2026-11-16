@@ -415,9 +415,6 @@ BlockProcessResult MaglevPrintingVisitor::PreProcessBasicBlock(
       if (loop_effects->context_slot_written.size()) {
         os_ << " c" << loop_effects->context_slot_written.size();
       }
-      if (loop_effects->objects_written.size()) {
-        os_ << " o" << loop_effects->objects_written.size();
-      }
       if (loop_effects->keys_cleared.size()) {
         os_ << " k" << loop_effects->keys_cleared.size();
       }

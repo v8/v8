@@ -132,28 +132,24 @@ class IgnoreListCursor {
 
 // Decides whether a cached property fact provably survives a loop whose
 // writes are summarized by `loop_effects`. StartKey must be called with
-// ascending keys, and ObjectInvariant with ascending objects per key.
+// ascending keys.
 class LoopInvariantPropertyFilter {
  public:
   LoopInvariantPropertyFilter(const LoopEffects* loop_effects,
-                              const ZoneSet<ValueNode*>& objects_written,
                               const KnownNodeAspects* aspects)
       : loop_effects_(loop_effects),
         keys_cleared_(loop_effects->keys_cleared),
-        objects_written_(objects_written),
         aspects_(aspects) {}
 
   bool StartKey(PropertyKey key) {
     key_cleared_ = keys_cleared_.Contains(key);
     check_elements_transition_ = loop_effects_->elements_kind_transitioned &&
                                  key == PropertyKey::Elements();
-    objects_written_.Reset();
     return !key_cleared_;
   }
 
   bool ObjectInvariant(ValueNode* obj) {
     if (key_cleared_) return false;
-    if (objects_written_.Contains(obj)) return false;
     if (check_elements_transition_ && !aspects_->TryGetInfoWithFreshMaps(obj)) {
       return false;
     }
@@ -163,7 +159,6 @@ class LoopInvariantPropertyFilter {
  private:
   const LoopEffects* loop_effects_;
   IgnoreListCursor<PropertyKey> keys_cleared_;
-  IgnoreListCursor<ValueNode*> objects_written_;
   const KnownNodeAspects* aspects_;
   bool key_cleared_ = false;
   bool check_elements_transition_ = false;
@@ -355,15 +350,9 @@ void KnownNodeAspects::MergeForLoop(const KnownNodeAspects& backedge,
                            });
     return !lhs.empty();
   };
-  ZoneSet<ValueNode*> objects_written(zone);
-  if (keep_invariant_loads) {
-    for (ValueNode* obj : loop_effects->objects_written) {
-      objects_written.insert(obj->UnwrapIdentities());
-    }
-  }
   std::optional<LoopInvariantPropertyFilter> filter;
   if (keep_invariant_loads) {
-    filter.emplace(loop_effects, objects_written, this);
+    filter.emplace(loop_effects, this);
   }
   auto entry_invariant = [&](ValueNode* obj) {
     return filter.has_value() && filter->ObjectInvariant(obj);
@@ -686,13 +675,11 @@ KnownNodeAspects::KnownNodeAspects(const KnownNodeAspects& other,
   if (optimistic_initial_state && !loop_effects->unstable_aspects_cleared) {
     // IMPORTANT: Whatever we clone here needs to be checked for consistency
     // in when we try to terminate the loop in `IsCompatibleWithLoopHeader`.
-    if (loop_effects->objects_written.empty() &&
-        loop_effects->keys_cleared.empty() &&
+    if (loop_effects->keys_cleared.empty() &&
         !loop_effects->elements_kind_transitioned) {
       loaded_properties_ = other.loaded_properties_;
     } else {
-      LoopInvariantPropertyFilter filter(loop_effects,
-                                         loop_effects->objects_written, this);
+      LoopInvariantPropertyFilter filter(loop_effects, this);
       loaded_properties_ = other.loaded_properties_;
       loaded_properties_.EraseIf(
           [&](const PropertyKey& key, PropertyObjectMap& props_for_key) {
@@ -741,7 +728,6 @@ KnownNodeAspects::KnownNodeAspects(const KnownNodeAspects& other,
 // LINT.IfChange(IsCompatibleWithLoopHeader)
 bool KnownNodeAspects::IsCompatibleWithLoopHeader(
     const KnownNodeAspects& loop_header) const {
-
   // Analysis state can change with loads.
   if (!loop_header.loaded_context_slots_.empty() &&
       loop_header.may_have_aliasing_contexts() !=

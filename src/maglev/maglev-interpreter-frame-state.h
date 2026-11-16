@@ -705,7 +705,6 @@ struct LoopEffects {
         loop_header(loop_header),
 #endif
         context_slot_written(zone),
-        objects_written(zone),
         keys_cleared(zone),
         allocations(zone) {
   }
@@ -713,7 +712,6 @@ struct LoopEffects {
   int loop_header;
 #endif
   ZoneSet<KnownNodeAspects::LoadedContextSlotsKey> context_slot_written;
-  ZoneSet<ValueNode*> objects_written;
   ZoneSet<PropertyKey> keys_cleared;
   ZoneSet<InlinedAllocation*> allocations;
   bool unstable_aspects_cleared = false;
@@ -736,8 +734,6 @@ struct LoopEffects {
     }
     context_slot_written.insert(other->context_slot_written.begin(),
                                 other->context_slot_written.end());
-    objects_written.insert(other->objects_written.begin(),
-                           other->objects_written.end());
     keys_cleared.insert(other->keys_cleared.begin(), other->keys_cleared.end());
     allocations.insert(other->allocations.begin(), other->allocations.end());
   }

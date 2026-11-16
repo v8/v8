@@ -176,7 +176,7 @@ Whenever a node `node` is added to the graph, `KnownNodeAspects::MarkPossibleSid
 
 #### Loop Header Merging & `LoopEffects`
 When entering a loop header, `MaglevGraphBuilder` has not yet visited the loop body, so it cannot know which properties or maps the loop body will mutate before reaching the `JumpLoop` backedge. Maglev handles this with two mechanisms:
-1. **`LoopEffects` Tracking (`BeginLoopEffects` / `EndLoopEffects`)**: While building a loop body, `MaglevGraphBuilder::MarkPossibleSideEffect` records every mutated object (`objects_written`), property key (`keys_cleared`), context slot (`context_slot_written`), or generic side effect (`unstable_aspects_cleared`) into `LoopEffects* loop_effects_`. When cloning `KnownNodeAspects` for a loop header (`CloneForLoopHeader`), only aspects not invalidated by `loop_effects` are preserved across the loop.
+1. **`LoopEffects` Tracking (`BeginLoopEffects` / `EndLoopEffects`)**: While building a loop body, `MaglevGraphBuilder::MarkPossibleSideEffect` and `MaglevReducer::RecordKnownProperty` record every mutated property key (`keys_cleared`), context slot (`context_slot_written`), elements-kind transition (`elements_kind_transitioned`), or generic side effect (`unstable_aspects_cleared`) into `LoopEffects* loop_effects_`. When cloning `KnownNodeAspects` for a loop header (`CloneForLoopHeader`), only aspects not invalidated by `loop_effects` are preserved across the loop.
 2. **Optimistic Loop Peeling (`--maglev-optimistic-peeled-loops`)**: When peeling a loop, Maglev can speculatively compile the loop body assuming `KnownNodeAspects` holds, and at the backedge check `IsCompatibleWithLoopHeader(backedge_aspects)` (`MergeForLoop`).
 
 ---

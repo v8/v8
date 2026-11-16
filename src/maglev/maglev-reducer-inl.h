@@ -5176,6 +5176,8 @@ void MaglevReducer<BaseT>::RecordKnownProperty(
           // Also mark the double-field HeapNumber box key as cleared.
           base_->loop_effects()->keys_cleared.insert(
               PropertyKey::DoubleField(key.name()));
+        } else {
+          DCHECK_NE(key.type(), PropertyKey::kDoubleField);
         }
       }
     }
@@ -5198,19 +5200,6 @@ void MaglevReducer<BaseT>::RecordKnownProperty(
                          << "] = " << PrintNodeLabel(value) << ": "
                          << PrintNode(value));
 
-  if constexpr (ReducerBaseWithLoopEffectTracking<BaseT>) {
-    if (IsAnyStore(access_mode) && constness == PropertyConstness::kMutable &&
-        base_->loop_effects()) {
-      auto updated = props_for_key.emplace(lookup_start_object, value);
-      if (updated.second) {
-        base_->loop_effects()->objects_written.insert(lookup_start_object);
-      } else if (updated.first->second != value) {
-        updated.first->second = value;
-        base_->loop_effects()->objects_written.insert(lookup_start_object);
-      }
-      return;
-    }
-  }
   props_for_key[lookup_start_object] = value;
 }
 
