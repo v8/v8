@@ -2412,6 +2412,25 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
     }
   };
 
+  auto BuildCheckOneOperandForStrictEqual =
+      [&](ValueNode* left, ValueNode* right, NodeType target_type,
+          auto build_check) -> ReduceResult {
+    // For strict equality on reference-equality types (Symbol, JSReceiver,
+    // null, undefined), checking one operand is sufficient because such a
+    // value can only strictly equal another value with the exact same tagged
+    // pointer. If either operand is already known to have `target_type`, emit
+    // zero checks; if `left` cannot have `target_type`, check `right` instead
+    // of emitting an unconditional deopt on `left`.
+    NodeType left_type;
+    if (!CheckType(left, target_type, &left_type) &&
+        !CheckType(right, target_type)) {
+      ValueNode* to_check =
+          NodeTypeCanBe(left_type, target_type) ? left : right;
+      RETURN_IF_ABORT((this->*build_check)(to_check));
+    }
+    return ReduceResult::Done();
+  };
+
   CompareOperationHint hint =
       iterator_.GetEmbeddedOperationHint<CompareOperationFeedback>();
 
@@ -2507,8 +2526,14 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
 
       ValueNode* left = LoadRegister(0);
       ValueNode* right = GetAccumulator();
-      RETURN_IF_ABORT(BuildCheckSymbol(left));
-      RETURN_IF_ABORT(BuildCheckSymbol(right));
+      if (kOperation == Operation::kStrictEqual) {
+        RETURN_IF_ABORT(BuildCheckOneOperandForStrictEqual(
+            left, right, NodeType::kSymbol,
+            &MaglevGraphBuilder::BuildCheckSymbol));
+      } else {
+        RETURN_IF_ABORT(BuildCheckSymbol(left));
+        RETURN_IF_ABORT(BuildCheckSymbol(right));
+      }
       if (TryConstantFoldEqual(left, right)) return ReduceResult::Done();
       return SetAccumulator(BuildTaggedEqual(left, right));
     }
@@ -2615,8 +2640,9 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
 
       ValueNode* left = LoadRegister(0);
       ValueNode* right = GetAccumulator();
-      RETURN_IF_ABORT(BuildCheckJSReceiverOrNullOrUndefined(left));
-      RETURN_IF_ABORT(BuildCheckJSReceiverOrNullOrUndefined(right));
+      RETURN_IF_ABORT(BuildCheckOneOperandForStrictEqual(
+          left, right, NodeType::kJSReceiverOrNullOrUndefined,
+          &MaglevGraphBuilder::BuildCheckJSReceiverOrNullOrUndefined));
       return SetAccumulator(BuildTaggedEqual(left, right));
     }
     case CompareOperationHint::kReceiver: {
@@ -2625,8 +2651,14 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
 
       ValueNode* left = LoadRegister(0);
       ValueNode* right = GetAccumulator();
-      RETURN_IF_ABORT(BuildCheckJSReceiver(left));
-      RETURN_IF_ABORT(BuildCheckJSReceiver(right));
+      if (kOperation == Operation::kStrictEqual) {
+        RETURN_IF_ABORT(BuildCheckOneOperandForStrictEqual(
+            left, right, NodeType::kJSReceiver,
+            &MaglevGraphBuilder::BuildCheckJSReceiver));
+      } else {
+        RETURN_IF_ABORT(BuildCheckJSReceiver(left));
+        RETURN_IF_ABORT(BuildCheckJSReceiver(right));
+      }
       return SetAccumulator(BuildTaggedEqual(left, right));
     }
   }
