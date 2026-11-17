@@ -20,6 +20,7 @@
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/preparse-data.h"
+#include "src/sandbox/check.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -1661,6 +1662,30 @@ Scope* Scope::GetHomeObjectScope() {
   return outer_scope;
 }
 
+void Scope::RecordSuperPropertyUsage(DeclarationScope* receiver_scope) {
+  if (receiver_scope == nullptr) {
+    receiver_scope = GetReceiverScope();
+  } else {
+    DCHECK_EQ(receiver_scope, GetReceiverScope());
+  }
+  // `uses_super_property` can come from untrusted in-sandbox PreparseData when
+  // skipping inner arrow functions in Parser::SkipFunction.
+  SBXCHECK(BindsSuper(receiver_scope->function_kind()));
+  receiver_scope->set_uses_super_property(true);
+  DCHECK_NOT_NULL(receiver_scope->outer_scope());
+  DCHECK_IMPLIES(!receiver_scope->from_scope_info(),
+                 receiver_scope->outer_scope()->is_home_object_scope());
+  receiver_scope->outer_scope()->set_needs_home_object();
+  // Mark enclosing non-deserialized arrow scopes up to `receiver_scope` so
+  // PreparseData records UsesSuperField on skippable arrow boundaries; stop at
+  // `from_scope_info()` scopes since outer compiled scopes are already fixed.
+  for (DeclarationScope* arrow_scope = GetClosureScope();
+       arrow_scope != receiver_scope && !arrow_scope->from_scope_info();
+       arrow_scope = arrow_scope->outer_scope()->GetClosureScope()) {
+    arrow_scope->set_uses_super_property(true);
+  }
+}
+
 DeclarationScope* Scope::GetScriptScope() {
   Scope* scope = this;
   while (!scope->is_script_scope()) {
@@ -1818,15 +1843,14 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
 }
 
 bool Scope::IsSkippableFunctionScope() {
-  // Lazy non-arrow function scopes are skippable. Lazy functions are exactly
-  // those Scopes which have their own PreparseDataBuilder object. This
-  // logic ensures that the scope allocation data is consistent with the
+  // Lazy function scopes (including simple-parameter block-body arrow function
+  // scopes) are skippable iff they have their own PreparseDataBuilder object.
+  // This logic ensures that the scope allocation data is consistent with the
   // skippable function data (both agree on where the lazy function boundaries
   // are).
   if (!is_function_scope()) return false;
   DeclarationScope* declaration_scope = AsDeclarationScope();
-  return !declaration_scope->is_arrow_scope() &&
-         declaration_scope->preparse_data_builder() != nullptr;
+  return declaration_scope->preparse_data_builder() != nullptr;
 }
 
 void Scope::SavePreparseData(Parser* parser) {

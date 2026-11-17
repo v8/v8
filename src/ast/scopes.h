@@ -283,6 +283,10 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // eval call.
   inline void RecordEvalCall();
 
+  // Inform the receiver scope (and any enclosing arrow scopes) that the
+  // corresponding code uses "super".
+  void RecordSuperPropertyUsage(DeclarationScope* receiver_scope = nullptr);
+
   void RecordInnerScopeEvalCall() {
     set_inner_scope_calls_eval(true);
     for (Scope* scope = outer_scope(); scope != nullptr;
@@ -548,6 +552,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   // Determine if we can parse a function literal in this scope lazily without
   // caring about the unresolved variables within.
+  // TODO(victorgomes): Rename to e.g. CanPreparseWithoutVariableResolution()
+  // since nested functions still preparse lazily with variable resolution.
   bool AllowsLazyParsingWithoutUnresolvedVariables(const Scope* outer) const;
 
   // The number of contexts between this and scope; zero if this == scope.
@@ -966,16 +972,6 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   void SwitchScriptScopeToREPLMode();
 
   FunctionKind function_kind() const { return function_kind_; }
-
-  // Inform the scope that the corresponding code uses "super".
-  void RecordSuperPropertyUsage() {
-    DCHECK(IsConciseMethod(function_kind()) ||
-           IsAccessorFunction(function_kind()) ||
-           IsClassConstructor(function_kind()));
-    set_uses_super_property(true);
-    DCHECK_IMPLIES(!from_scope_info(), outer_scope_->is_home_object_scope());
-    outer_scope_->set_needs_home_object();
-  }
 
   bool uses_super_property() const {
     return UsesSuperPropertyField::decode(flags_);
@@ -1520,7 +1516,7 @@ void Scope::RecordEvalCall() {
   DCHECK(!receiver_scope->is_arrow_scope());
   FunctionKind function_kind = receiver_scope->function_kind();
   if (BindsSuper(function_kind)) {
-    receiver_scope->RecordSuperPropertyUsage();
+    RecordSuperPropertyUsage(receiver_scope);
   }
 }
 

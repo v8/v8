@@ -1211,6 +1211,10 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
       scope->set_start_position(start_position);
       ParserFormalParameters formals(scope);
       {
+        // Parse inner functions in arrow parameter initializers lazily; this
+        // scope must end before ParseArrowFunctionLiteral so the outer
+        // PARSE_EAGERLY stops the arrow being compiled from preparsing itself.
+        LazyParsingScope lazy_mode_scope(this);
         ParameterDeclarationParsingScope formals_scope(this);
         // Parsing patterns as variable reference expression creates
         // NewUnresolved references in current scope. Enter arrow function

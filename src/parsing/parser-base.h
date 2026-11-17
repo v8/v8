@@ -2148,6 +2148,7 @@ ParserBase<Impl>::ParsePrimaryExpression() {
   if (Token::IsAnyIdentifier(token)) {
     Consume(token);
 
+    int arrow_beg_pos = beg_pos;
     FunctionKind kind = FunctionKind::kArrowFunction;
 
     if (V8_UNLIKELY(token == Token::kAsync &&
@@ -2174,7 +2175,8 @@ ParserBase<Impl>::ParsePrimaryExpression() {
       next_arrow_function_info_.function_literal_id =
           parsing_scope.function_literal_id();
       next_arrow_function_info_.could_be_immediately_invoked =
-          position_after_last_primary_expression_open_parenthesis_ == beg_pos;
+          position_after_last_primary_expression_open_parenthesis_ ==
+          arrow_beg_pos;
       return result;
     }
 
@@ -3921,6 +3923,8 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
                   !scanner()->HasLineTerminatorBeforeNext())) {
     DCHECK(impl()->IsAsync(impl()->AsIdentifier(result)));
     int pos = position();
+    bool could_be_immediately_invoked =
+        position_after_last_primary_expression_open_parenthesis_ == pos;
     ExpressionListT args(pointer_buffer());
     bool has_spread;
     {
@@ -3934,6 +3938,8 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
         next_arrow_function_info_.scope = maybe_arrow.ValidateAndCreateScope();
         next_arrow_function_info_.function_literal_id =
             maybe_arrow.function_literal_id();
+        next_arrow_function_info_.could_be_immediately_invoked =
+            could_be_immediately_invoked;
         scope_snapshot.Reparent(next_arrow_function_info_.scope);
       } else {
         result = factory()->NewCall(result, args, pos, has_spread);
@@ -4302,7 +4308,7 @@ ParserBase<Impl>::ParseSuperExpression() {
         impl()->ReportMessage(MessageTemplate::kUnexpectedPrivateField);
         return impl()->FailureExpression();
       }
-      scope->RecordSuperPropertyUsage();
+      this->scope()->RecordSuperPropertyUsage(scope);
       UseThis();
       return impl()->NewSuperPropertyReference(pos);
     }
@@ -5113,12 +5119,18 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
   eager_compile_hint =
       impl()->GetEmbedderCompileHint(eager_compile_hint, compile_hint_position);
 
-  bool can_preparse = impl()->parse_lazily() &&
-                      eager_compile_hint == FunctionLiteral::kShouldLazyCompile;
-  // TODO(marja): consider lazy-parsing inner arrow functions too. is_this
-  // handling in Scope::ResolveVariable needs to change.
-  bool is_lazy_top_level_function =
+  // Simple-parameter block-body arrow functions can be preparsed and skipped
+  // via PreparseData even when nested, because their parameters are plain kVar
+  // bindings declared by ArrowHeadParsingScope without a synthetic VarBlock
+  // (unlike non-simple arrow heads, which are parsed before SkipFunction and
+  // PreparseDataBuilder start). Keep in sync with PreParser::PreParseFunction.
+  const bool is_lazy =
+      eager_compile_hint == FunctionLiteral::kShouldLazyCompile;
+  const bool can_preparse = impl()->parse_lazily() && is_lazy;
+  const bool is_lazy_top_level_function =
       can_preparse && impl()->AllowsLazyParsingWithoutUnresolvedVariables();
+  const bool should_preparse = is_lazy_top_level_function ||
+                               (can_preparse && formal_parameters.is_simple);
   bool has_braces = true;
   ProducedPreparseData* produced_preparse_data = nullptr;
   StatementListT body(pointer_buffer());
@@ -5132,7 +5144,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
       // Multiple statement body
       DCHECK_EQ(scope(), formal_parameters.scope);
 
-      if (is_lazy_top_level_function) {
+      if (should_preparse) {
         // FIXME(marja): Arrow function parameters will be parsed even if the
         // body is preparsed; move relevant parts of parameter handling to
         // simulate consistent parameter handling.
@@ -5154,8 +5166,8 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
             FunctionSyntaxKind::kAnonymousExpression, formal_parameters.scope,
             &dummy_num_parameters, &dummy_function_length,
             &produced_preparse_data);
-
-        DCHECK_NULL(produced_preparse_data);
+        DCHECK_IMPLIES(produced_preparse_data != nullptr,
+                       formal_parameters.is_simple);
 
         if (did_preparse_successfully) {
           // Validate parameter names. We can do this only after preparsing the
@@ -5199,17 +5211,23 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         }
       } else {
         Consume(Token::kLeftBrace);
+        typename Impl::SkippableArrowFunctionScope skippable_scope(
+            impl(), formal_parameters.scope,
+            is_lazy && formal_parameters.is_simple);
         FunctionParsingScope body_parsing_scope(impl());
+        typename Impl::LazyParsingScope lazy_parsing_scope(impl());
         ParseFunctionBody(&body, impl()->NullIdentifier(), kNoSourcePosition,
                           formal_parameters, kind,
                           FunctionSyntaxKind::kAnonymousExpression,
                           FunctionBodyType::kBlock);
         expected_property_count = function_state.expected_property_count();
+        skippable_scope.Finish(function_literal_id);
       }
     } else {
       // Single-expression body
       has_braces = false;
       FunctionParsingScope body_parsing_scope(impl());
+      typename Impl::LazyParsingScope lazy_parsing_scope(impl());
       ParseFunctionBody(&body, impl()->NullIdentifier(), kNoSourcePosition,
                         formal_parameters, kind,
                         FunctionSyntaxKind::kAnonymousExpression,
@@ -5247,7 +5265,9 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
     Scope* scope = formal_parameters.scope;
     double ms = timer.Elapsed().InMillisecondsF();
     const char* event_name =
-        is_lazy_top_level_function ? "preparse-no-resolution" : "parse";
+        should_preparse ? (is_lazy_top_level_function ? "preparse-no-resolution"
+                                                      : "preparse-resolution")
+                        : "parse";
     const char* name = "arrow function";
     v8_file_logger_->FunctionEvent(event_name, flags().script_id(), ms,
                                    scope->start_position(),
