@@ -165,6 +165,10 @@
                                                                                \
   JS_FEATURE(js_iterator_chunking, "iterator chunking")                        \
                                                                                \
+  /* https://crbug.com/408032143 */                                            \
+  JS_FEATURE(js_nonextensible_applies_to_private,                              \
+             "non-extensibility includes private fields")                      \
+                                                                               \
   /* V8 side owner: leszeks */                                                 \
   INTERNAL_FEATURE(always_specialize_for_script_context,                       \
                    "always specialize for script contexts in optimized code")  \
