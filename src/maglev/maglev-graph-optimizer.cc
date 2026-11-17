@@ -1125,9 +1125,8 @@ ProcessResult MaglevGraphOptimizer::ProcessCheckMaps(NodeT* node,
         MaglevReducer<MaglevGraphOptimizer>::GetCheckType(known_info->type()));
   }
 
-  if (!merger.UpdateKnownNodeAspects(object, known_node_aspects())) {
-    return DeoptAndTruncate(DeoptimizeReason::kWrongValue);
-  }
+  // The KNA processor records the checked maps once it has processed the
+  // node's side effects.
   return ProcessResult::kContinue;
 }
 

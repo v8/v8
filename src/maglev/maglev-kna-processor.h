@@ -436,6 +436,10 @@ class RecomputeKnownNodeAspectsProcessor {
     return RecordMaps(node->ReceiverInput().node(), node->maps());
   }
 
+  ProcessResult ProcessNode(CheckMapsWithAlreadyLoadedMap* node) {
+    return RecordMaps(node->ReceiverInput().node(), node->maps());
+  }
+
   ProcessResult ProcessNode(StoreMap* node) {
     compiler::MapRef map = node->map();
     ValueNode* object = node->ValueInput().node();
