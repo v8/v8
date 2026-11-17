@@ -125,6 +125,13 @@ enum ContextLookupFlags {
   V(RAB_GSAB_FLOAT32_ARRAY_MAP_INDEX, Map, rab_gsab_float32_array_map)         \
   V(RAB_GSAB_FLOAT64_ARRAY_MAP_INDEX, Map, rab_gsab_float64_array_map)         \
   V(RAB_GSAB_FLOAT16_ARRAY_MAP_INDEX, Map, rab_gsab_float16_array_map)         \
+  /* All primitive constructor functions. These must appear early because */   \
+  /* their index is stored in a uint8_t in Map. */                             \
+  V(BIGINT_FUNCTION_INDEX, JSFunction, bigint_function)                        \
+  V(BOOLEAN_FUNCTION_INDEX, JSFunction, boolean_function)                      \
+  V(NUMBER_FUNCTION_INDEX, JSFunction, number_function)                        \
+  V(STRING_FUNCTION_INDEX, JSFunction, string_function)                        \
+  V(SYMBOL_FUNCTION_INDEX, JSFunction, symbol_function)                        \
   /* Below is alpha-sorted */                                                  \
   V(ABSTRACT_MODULE_SOURCE_FUNCTION_INDEX, JSFunction,                         \
     abstract_module_source_function)                                           \
@@ -144,8 +151,6 @@ enum ContextLookupFlags {
   V(ASYNC_FUNCTION_OBJECT_MAP_INDEX, Map, async_function_object_map)           \
   V(ASYNC_GENERATOR_FUNCTION_FUNCTION_INDEX, JSFunction,                       \
     async_generator_function_function)                                         \
-  V(BIGINT_FUNCTION_INDEX, JSFunction, bigint_function)                        \
-  V(BOOLEAN_FUNCTION_INDEX, JSFunction, boolean_function)                      \
   V(BOUND_FUNCTION_WITH_CONSTRUCTOR_MAP_INDEX, Map,                            \
     bound_function_with_constructor_map)                                       \
   V(BOUND_FUNCTION_WITHOUT_CONSTRUCTOR_MAP_INDEX, Map,                         \
@@ -292,7 +297,6 @@ enum ContextLookupFlags {
   V(MATH_RANDOM_CACHE_INDEX, (UnionOf<Undefined, FixedDoubleArray>),           \
     math_random_cache)                                                         \
   V(NORMALIZED_MAP_CACHE_INDEX, Object, normalized_map_cache)                  \
-  V(NUMBER_FUNCTION_INDEX, JSFunction, number_function)                        \
   V(OBJECT_FUNCTION_INDEX, JSFunction, object_function)                        \
   V(OBJECT_FUNCTION_PROTOTYPE_INDEX, JSObject, object_function_prototype)      \
   V(OBJECT_FUNCTION_PROTOTYPE_MAP_INDEX, Map, object_function_prototype_map)   \
@@ -364,9 +368,7 @@ enum ContextLookupFlags {
   V(ASYNC_GENERATOR_FUNCTION_WITH_NAME_MAP_INDEX, Map,                         \
     async_generator_function_with_name_map)                                    \
   V(CLASS_FUNCTION_MAP_INDEX, Map, class_function_map)                         \
-  V(STRING_FUNCTION_INDEX, JSFunction, string_function)                        \
   V(STRING_FUNCTION_PROTOTYPE_MAP_INDEX, Map, string_function_prototype_map)   \
-  V(SYMBOL_FUNCTION_INDEX, JSFunction, symbol_function)                        \
   V(IS_WASM_JS_INSTALLED_INDEX, Smi, is_wasm_js_installed)                     \
   V(IS_WASM_JSPI_INSTALLED_INDEX, Smi, is_wasm_jspi_installed)                 \
   V(WASM_WEBASSEMBLY_OBJECT_INDEX, JSObject, wasm_webassembly_object)          \
@@ -584,6 +586,13 @@ V8_OBJECT class Context : public HeapObject {
   static const int FIRST_FIXED_TYPED_ARRAY_FUN_INDEX = UINT8_ARRAY_FUN_INDEX;
   static const int FIRST_RAB_GSAB_TYPED_ARRAY_MAP_INDEX =
       RAB_GSAB_UINT8_ARRAY_MAP_INDEX;
+
+  // Primitive constructor function indices are stored in a uint8_t in Map.
+  static_assert(BIGINT_FUNCTION_INDEX <= kMaxUInt8);
+  static_assert(BOOLEAN_FUNCTION_INDEX <= kMaxUInt8);
+  static_assert(NUMBER_FUNCTION_INDEX <= kMaxUInt8);
+  static_assert(STRING_FUNCTION_INDEX <= kMaxUInt8);
+  static_assert(SYMBOL_FUNCTION_INDEX <= kMaxUInt8);
 
   static const int kNoContext = 0;
 

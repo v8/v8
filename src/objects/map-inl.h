@@ -470,7 +470,8 @@ int Map::GetConstructorFunctionIndex() const {
 
 void Map::SetConstructorFunctionIndex(int value) {
   CHECK(IsPrimitiveMap(this));
-  set_inobject_properties_start_or_constructor_function_index(value);
+  set_inobject_properties_start_or_constructor_function_index(
+      base::checked_cast<uint8_t>(value));
 }
 
 int Map::GetInObjectPropertyOffset(int index) const {
