@@ -312,10 +312,10 @@ class CompactionState final {
     DCHECK_EQ(space_, &current_page_->space());
     // Compaction writes to the whole payload of a page that is compacted into:
     // Its start was filled with the moved objects and the unused rest is
-    // overwritten below. All memory that was discarded on the page is thus
+    // overwritten below. All memory that was purged on the page is thus
     // resident again.
-    current_page_->MarkSystemPagesAsResident(current_page_->PayloadStart(),
-                                             NormalPage::PayloadSize());
+    current_page_->RestoreSystemPages(current_page_->PayloadStart(),
+                                      NormalPage::PayloadSize());
     space_->AddPage(current_page_);
     if (used_bytes_in_current_page_ != NormalPage::PayloadSize()) {
       // Put the remainder of the page onto the free list.

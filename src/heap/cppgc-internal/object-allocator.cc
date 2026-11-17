@@ -266,16 +266,16 @@ void ObjectAllocator::ClampAndReplaceLinearAllocationBuffer(
       // Use only the first `target_size` bytes as the LAB payload and return
       // the remainder to the free list to trigger a sample on the next
       // interval. Only the free list entry at the start of the remainder is
-      // written to, the rest of the remainder may stay discarded.
+      // written to, the rest of the remainder may stay purged.
       const size_t remainder_size = size - target_size;
-      page.MarkSystemPagesAsResident(
-          start + target_size, std::min(remainder_size, kFreeListEntrySize));
+      page.RestoreSystemPages(start + target_size,
+                              std::min(remainder_size, kFreeListEntrySize));
       AddToFreeList(space, start + target_size, remainder_size);
       size = target_size;
     }
   }
-  // The linear allocation buffer may reuse discarded memory.
-  page.MarkSystemPagesAsResident(start, size);
+  // The linear allocation buffer may reuse purged memory.
+  page.RestoreSystemPages(start, size);
   ReplaceLinearAllocationBuffer(space, stats_collector_, start, size);
 }
 

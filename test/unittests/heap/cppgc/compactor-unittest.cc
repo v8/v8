@@ -98,17 +98,17 @@ class CompactorTest : public testing::TestWithPlatform {
     heap()->sweeper().FinishIfRunning();
   }
 
-  // Discards the last system page of the payload of `page`, which must be
-  // unused. Returns the size of the discarded memory.
-  size_t DiscardLastSystemPage(NormalPage* page, const void* last_object) {
+  // Purges the last system page of the payload of `page`, which must be
+  // unused. Returns the size of the purged memory.
+  size_t PurgeLastSystemPage(NormalPage* page, const void* last_object) {
     const size_t commit_page_size = size_t{1}
                                     << heap()->commit_page_size_bits();
-    const Address discard_end = reinterpret_cast<Address>(RoundDown(
+    const Address purge_end = reinterpret_cast<Address>(RoundDown(
         reinterpret_cast<uintptr_t>(page->PayloadEnd()), commit_page_size));
-    const Address discard_start = discard_end - commit_page_size;
+    const Address purge_start = purge_end - commit_page_size;
     CHECK_LT(static_cast<ConstAddress>(last_object) + sizeof(CompactableGCed),
-             discard_start);
-    page->DiscardSystemPages(discard_start, commit_page_size);
+             purge_start);
+    page->PurgeSystemPages(purge_start, commit_page_size);
     return commit_page_size;
   }
 
@@ -219,27 +219,27 @@ TEST_F(CompactorTest, CompactAcrossPages) {
   EXPECT_EQ(reference, holder->objects[0]);
 }
 
-TEST_F(CompactorTest, CompactedPageHasNoDiscardedMemory) {
+TEST_F(CompactorTest, CompactedPageHasNoPurgedMemory) {
   static constexpr int kNumObjects = 10;
   Persistent<CompactableHolder<kNumObjects>> holder =
       MakeGarbageCollected<CompactableHolder<kNumObjects>>(
           GetAllocationHandle(), GetAllocationHandle());
   auto* page = NormalPage::From(
       BasePage::FromPayload(holder->objects[kNumObjects - 1].Get()));
-  const size_t discarded_size =
-      DiscardLastSystemPage(page, holder->objects[kNumObjects - 1].Get());
-  EXPECT_EQ(discarded_size, page->discarded_memory());
-  EXPECT_EQ(discarded_size, heap()->stats_collector()->discarded_memory_size());
+  const size_t purged_size =
+      PurgeLastSystemPage(page, holder->objects[kNumObjects - 1].Get());
+  EXPECT_EQ(purged_size, page->purged_memory());
+  EXPECT_EQ(purged_size, heap()->stats_collector()->purged_memory_size());
   StartGC();
   EndGC();
   // The page was compacted into and its remainder was made inaccessible, which
   // wrote to all of its payload.
   EXPECT_EQ(page, BasePage::FromPayload(holder->objects[0].Get()));
-  EXPECT_EQ(0u, page->discarded_memory());
-  EXPECT_EQ(0u, heap()->stats_collector()->discarded_memory_size());
+  EXPECT_EQ(0u, page->purged_memory());
+  EXPECT_EQ(0u, heap()->stats_collector()->purged_memory_size());
 }
 
-TEST_F(CompactorTest, ReleasedPageHasNoDiscardedMemory) {
+TEST_F(CompactorTest, ReleasedPageHasNoPurgedMemory) {
   Persistent<CompactableHolder<1>> holder =
       MakeGarbageCollected<CompactableHolder<1>>(GetAllocationHandle(),
                                                  GetAllocationHandle());
@@ -254,15 +254,15 @@ TEST_F(CompactorTest, ReleasedPageHasNoDiscardedMemory) {
   auto* second_page =
       NormalPage::From(BasePage::FromPayload(holder->objects[0].Get()));
   ASSERT_NE(BasePage::FromPayload(reference), second_page);
-  const size_t discarded_size =
-      DiscardLastSystemPage(second_page, holder->objects[0].Get());
-  EXPECT_EQ(discarded_size, heap()->stats_collector()->discarded_memory_size());
+  const size_t purged_size =
+      PurgeLastSystemPage(second_page, holder->objects[0].Get());
+  EXPECT_EQ(purged_size, heap()->stats_collector()->purged_memory_size());
   StartGC();
   EndGC();
   // The only live object was moved to the first page and the second page was
-  // released, which removes its discarded memory from the heap-wide counter.
+  // released, which removes its purged memory from the heap-wide counter.
   EXPECT_EQ(reference, holder->objects[0]);
-  EXPECT_EQ(0u, heap()->stats_collector()->discarded_memory_size());
+  EXPECT_EQ(0u, heap()->stats_collector()->purged_memory_size());
 }
 
 TEST_F(CompactorTest, InteriorSlotToPreviousObject) {

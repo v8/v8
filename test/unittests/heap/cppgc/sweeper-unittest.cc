@@ -414,19 +414,19 @@ TEST_F(SweeperTest, DiscardingNormalPageMemory) {
   uintptr_t end = RoundDown(reinterpret_cast<uintptr_t>(page->PayloadEnd()),
                             GetPlatform().GetPageAllocator()->CommitPageSize());
   EXPECT_GT(end, start);
-  EXPECT_EQ(page->discarded_memory(), end - start);
-  EXPECT_EQ(Heap::From(GetHeap())->stats_collector()->discarded_memory_size(),
+  EXPECT_EQ(page->purged_memory(), end - start);
+  EXPECT_EQ(Heap::From(GetHeap())->stats_collector()->purged_memory_size(),
             end - start);
 
   // A repeated memory-reducing GC without new allocations keeps the same
-  // discarded memory size.
+  // purged memory size.
   ConservativeMemoryDiscardingGC();
-  EXPECT_EQ(page->discarded_memory(), end - start);
-  EXPECT_EQ(Heap::From(GetHeap())->stats_collector()->discarded_memory_size(),
+  EXPECT_EQ(page->purged_memory(), end - start);
+  EXPECT_EQ(Heap::From(GetHeap())->stats_collector()->purged_memory_size(),
             end - start);
 }
 
-TEST_F(SweeperTest, AllocationOnlyMarksReusedSystemPagesAsResident) {
+TEST_F(SweeperTest, AllocationOnlyRestoresReusedSystemPages) {
   if (!Sweeper::CanDiscardMemory()) return;
 
   const size_t commit_page_size =
@@ -437,7 +437,7 @@ TEST_F(SweeperTest, AllocationOnlyMarksReusedSystemPagesAsResident) {
 
   // Lay out a page as [first][garbage][second][unused], so that a
   // memory-reducing GC leaves two free blocks behind that both contain
-  // discarded system pages.
+  // purged system pages.
   using Object = GCed<256>;
   const auto garbage_additional_bytes =
       static_cast<uint32_t>(2 * commit_page_size);
@@ -455,20 +455,20 @@ TEST_F(SweeperTest, AllocationOnlyMarksReusedSystemPagesAsResident) {
                         GCConfig::MarkingType::kAtomic,
                         GCConfig::SweepingType::kAtomic,
                         GCConfig::FreeMemoryHandling::kReleaseMemory});
-  const size_t discarded_memory_after_gc = page->discarded_memory();
-  EXPECT_GT(discarded_memory_after_gc, 0u);
-  EXPECT_EQ(discarded_memory_after_gc,
-            heap->stats_collector()->discarded_memory_size());
+  const size_t purged_memory_after_gc = page->purged_memory();
+  EXPECT_GT(purged_memory_after_gc, 0u);
+  EXPECT_EQ(purged_memory_after_gc,
+            heap->stats_collector()->purged_memory_size());
 
   // The allocation is served from one of the two free blocks. Only the system
   // pages of that block are in use again.
   Persistent<Object> third =
       MakeGarbageCollected<Object>(GetAllocationHandle());
   ASSERT_EQ(page, BasePage::FromPayload(third.Get()));
-  EXPECT_GT(page->discarded_memory(), 0u);
-  EXPECT_LT(page->discarded_memory(), discarded_memory_after_gc);
-  EXPECT_EQ(page->discarded_memory(),
-            heap->stats_collector()->discarded_memory_size());
+  EXPECT_GT(page->purged_memory(), 0u);
+  EXPECT_LT(page->purged_memory(), purged_memory_after_gc);
+  EXPECT_EQ(page->purged_memory(),
+            heap->stats_collector()->purged_memory_size());
 }
 
 namespace {

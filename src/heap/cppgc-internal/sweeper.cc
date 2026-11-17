@@ -39,8 +39,8 @@ constexpr TaskPriority kBackgroundRegularPriority = TaskPriority::kUserVisible;
 constexpr TaskPriority kForegroundRegularPriority = TaskPriority::kUserBlocking;
 constexpr TaskPriority kForegroundLowPriority = TaskPriority::kUserVisible;
 
-// Returns true if memory discarding is requested and build config allows it.
-constexpr bool ShouldDiscardMemory(
+// Returns true if purging memory is requested and build config allows it.
+constexpr bool ShouldPurgeMemory(
     SweepingConfig::FreeMemoryHandling free_memory_handling) {
   return Sweeper::CanDiscardMemory() &&
          free_memory_handling == FreeMemoryHandling::kReleaseMemory;
@@ -125,9 +125,9 @@ class FreeHandlerBase {
       std::vector<FreeList::Block>& unfinalized_free_list) = 0;
 };
 
-class DiscardingFreeHandler : public FreeHandlerBase {
+class PurgingFreeHandler : public FreeHandlerBase {
  public:
-  DiscardingFreeHandler(FreeList& free_list, NormalPage& page)
+  PurgingFreeHandler(FreeList& free_list, NormalPage& page)
       : free_list_(free_list), page_(page) {}
 
   void Free(FreeList::Block block) {
@@ -139,8 +139,8 @@ class DiscardingFreeHandler : public FreeHandlerBase {
     const uintptr_t aligned_end_unused = RoundDown(
         reinterpret_cast<uintptr_t>(unused_range.second), commit_page_size);
     if (aligned_begin_unused < aligned_end_unused) {
-      page_.DiscardSystemPages(reinterpret_cast<Address>(aligned_begin_unused),
-                               aligned_end_unused - aligned_begin_unused);
+      page_.PurgeSystemPages(reinterpret_cast<Address>(aligned_begin_unused),
+                             aligned_end_unused - aligned_begin_unused);
     }
   }
 
@@ -571,9 +571,9 @@ class SweepFinalizer final {
     if (!page_state->unfinalized_free_list.empty()) {
       NormalPage& normal_page = *NormalPage::From(page);
       std::unique_ptr<FreeHandlerBase> handler;
-      if (ShouldDiscardMemory(free_memory_handling_)) {
-        handler = std::make_unique<DiscardingFreeHandler>(space_freelist,
-                                                          normal_page);
+      if (ShouldPurgeMemory(free_memory_handling_)) {
+        handler =
+            std::make_unique<PurgingFreeHandler>(space_freelist, normal_page);
       } else {
         handler =
             std::make_unique<RegularFreeHandler>(space_freelist, normal_page);
@@ -702,9 +702,8 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
 
   bool VisitNormalPage(NormalPage& page) {
     auto result =
-        ShouldDiscardMemory(free_memory_handling_)
-            ? SweepNormalPage<
-                  InlinedFinalizationBuilder<DiscardingFreeHandler>>(
+        ShouldPurgeMemory(free_memory_handling_)
+            ? SweepNormalPage<InlinedFinalizationBuilder<PurgingFreeHandler>>(
                   &page, sticky_bits_)
             : SweepNormalPage<InlinedFinalizationBuilder<RegularFreeHandler>>(
                   &page, sticky_bits_);
@@ -815,9 +814,8 @@ class ConcurrentSweepTask final : public cppgc::JobTask,
 
   bool VisitNormalPage(NormalPage& page) {
     SweepingState::SweptPageState sweep_result =
-        ShouldDiscardMemory(free_memory_handling_)
-            ? SweepNormalPage<
-                  DeferredFinalizationBuilder<DiscardingFreeHandler>>(
+        ShouldPurgeMemory(free_memory_handling_)
+            ? SweepNormalPage<DeferredFinalizationBuilder<PurgingFreeHandler>>(
                   &page, sticky_bits_)
             : SweepNormalPage<DeferredFinalizationBuilder<RegularFreeHandler>>(
                   &page, sticky_bits_);

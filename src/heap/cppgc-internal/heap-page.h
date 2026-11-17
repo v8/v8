@@ -250,15 +250,16 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
     return object_start_bitmap_;
   }
 
-  // Discards the system pages in [begin, begin + size) and records them as
+  // Purges the system pages in [begin, begin + size) and records them as
   // not resident. The range must be aligned to the commit page size. System
-  // pages that are already discarded are only accounted for once.
-  void DiscardSystemPages(Address begin, size_t size);
-  // Records all system pages that [begin, begin + size) touches as resident
-  // again. Needs to be called when memory that may be discarded is reused.
-  void MarkSystemPagesAsResident(Address begin, size_t size);
-  // Returns the size of the system pages of this page that are discarded.
-  size_t discarded_memory() const;
+  // pages that are already purged are only accounted for once.
+  void PurgeSystemPages(Address begin, size_t size);
+  // Restores all system pages that [begin, begin + size) touches so that they
+  // are recorded as resident again. Needs to be called when memory that may be
+  // purged is reused.
+  void RestoreSystemPages(Address begin, size_t size);
+  // Returns the size of the system pages of this page that are purged.
+  size_t purged_memory() const;
 
  private:
   NormalPage(HeapBase& heap, BaseSpace& space);
@@ -267,8 +268,8 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
   size_t allocated_bytes_at_last_gc_ = 0;
   mutable ObjectStartBitmap object_start_bitmap_;
   // Bitset with one bit per system page of this page. A set bit means that the
-  // system page is resident, i.e. not discarded. All bits are set initially;
-  // discarding a system page clears its bit and reusing it sets the bit again.
+  // system page is resident, i.e. not purged. All bits are set initially;
+  // purging a system page clears its bit and reusing it sets the bit again.
   ::heap::base::ActiveSystemPages resident_system_pages_;
 };
 
