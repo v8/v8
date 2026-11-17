@@ -203,6 +203,9 @@ class Committee final {
     DCHECK_IMPLIES(IsArrayList(o),
                    maybe_host.has_value() &&
                        IsTemplateInfoWithProperties(maybe_host.value()));
+    DCHECK_IMPLIES(
+        IsFunctionTemplateRareData(o),
+        maybe_host.has_value() && IsFunctionTemplateInfo(maybe_host.value()));
     return true;
   }
 
@@ -270,7 +273,9 @@ class Committee final {
     // v8::FunctionTemplate::SealAndPrepareForPromotionToReadOnly(..).
     return o->should_promote_to_read_only() ? kPromote : kReject;
   }
-  DEF_PROMO_CANDIDATE(FunctionTemplateRareData)
+  // The rare data stays mutable unless its v8::FunctionTemplate was explicitly
+  // requested to be promoted to RO space.
+  DEF_MATCH_HOST_CANDIDATE(FunctionTemplateRareData)
 
   static PromoRecommendation GetPromoRecommendationCode(Committee* committee,
                                                         Isolate* isolate,
