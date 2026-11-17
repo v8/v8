@@ -127,6 +127,9 @@ void RunD8FlagProfileChecks(Checker* checker) {
                      parsed == D8FlagProfile::kTurbolev &&
                      ParseD8FlagProfile("maglev", &parsed) &&
                      parsed == D8FlagProfile::kMaglev &&
+                     ParseD8FlagProfile("fuzzilli", &parsed) &&
+                     parsed == D8FlagProfile::kFuzzilli &&
+                     std::string(D8FlagProfileName(parsed)) == "fuzzilli" &&
                      !ParseD8FlagProfile("turbofan", &parsed),
                  "");
   // Turbolev builds its graph with the Maglev graph builder, so it also reads
@@ -216,6 +219,122 @@ void RunD8FlagProfileChecks(Checker* checker) {
   checker->Check(
       "random flags: a draw names each flag once, with the flags it needs",
       bad_draw.empty(), bad_draw);
+
+  // The `fuzzilli` profile mirrors `v8ProcessArgs` without inter-flag
+  // sanitization, and emits both polarities of `chooseBooleanFlag`.
+  std::string bad_fuzzilli;
+  bool saw_pos_bool = false;
+  bool saw_neg_bool = false;
+  Random fz_rng(11);
+  for (int i = 0; i < 500 && bad_fuzzilli.empty(); i++) {
+    std::vector<std::string> flags =
+        RandomD8Flags(fz_rng, D8FlagProfile::kFuzzilli);
+    bool no_tf = false;
+    bool no_ml = false;
+    bool ml_non_eager = false;
+    bool turbolev = false;
+    bool tl_future = false;
+    bool chaos = false;
+    bool proto_seq = false;
+    for (const std::string& flag : flags) {
+      const std::string name = name_of(flag);
+      if (name == "--no-turbofan") {
+        no_tf = true;
+      } else if (name == "--maglev-as-top-tier" && !no_tf) {
+        bad_fuzzilli = flag + " without --no-turbofan";
+      } else if (name == "--no-maglev") {
+        no_ml = true;
+      } else if (name == "--maglev-non-eager-inlining") {
+        if (no_ml) {
+          bad_fuzzilli = flag + " with --no-maglev";
+        }
+        ml_non_eager = true;
+      } else if (name == "--max-maglev-inlined-bytecode-size-small" &&
+                 !ml_non_eager) {
+        bad_fuzzilli = flag + " without --maglev-non-eager-inlining";
+      } else if (name == "--turbolev") {
+        turbolev = true;
+      } else if (name == "--turbolev-future") {
+        if (!turbolev) {
+          bad_fuzzilli = flag + " without --turbolev";
+        }
+        tl_future = true;
+      } else if (name == "--max-inlined-bytecode-size-small" && !tl_future) {
+        bad_fuzzilli = flag + " without --turbolev-future";
+      } else if (name == "--scavenger-chaos-mode") {
+        chaos = true;
+      } else if (name == "--scavenger-chaos-mode-threshold" && !chaos) {
+        bad_fuzzilli = flag + " without --scavenger-chaos-mode";
+      } else if (name == "--proto-assign-seq-lazy-func-opt") {
+        proto_seq = true;
+      } else if (name == "--proto-assign-seq-opt-count" && !proto_seq) {
+        bad_fuzzilli = flag + " without --proto-assign-seq-lazy-func-opt";
+      } else if (name == "--always-sparkplug") {
+        saw_pos_bool = true;
+      } else if (name == "--no-always-sparkplug") {
+        saw_neg_bool = true;
+      }
+    }
+  }
+  checker->Check(
+      "random flags: the fuzzilli profile keeps parent order and both "
+      "boolean polarities",
+      bad_fuzzilli.empty() && saw_pos_bool && saw_neg_bool, bad_fuzzilli);
+
+  // Fixed flags win in `fuzzilli`: sandbox mode suppresses non-sandbox draws,
+  // and `SanitizeFuzzilliFixedClashes` drops flags that clash with fixed args.
+  struct FuzzilliFixedCase {
+    const char* label;
+    std::vector<std::string> fixed;
+    std::vector<std::string> forbidden;
+  };
+  const FuzzilliFixedCase fz_fixed_cases[] = {
+      {"--sandbox-fuzzing",
+       {"--sandbox-fuzzing"},
+       {"--verify-heap", "--stress-lazy", "--maglev-assert-types",
+        "--turbo-verify-allocation", "--turbo-verify", "--assert-types"}},
+      {"--no-maglev",
+       {"--no-maglev"},
+       {"--maglev-non-eager-inlining", "--maglev-future",
+        "--maglev-as-top-tier"}},
+      {"--maglev-as-top-tier", {"--maglev-as-top-tier"}, {"--turbolev-future"}},
+      {"--stress-concurrent-inlining",
+       {"--stress-concurrent-inlining"},
+       {"--assert-types", "--maglev-as-top-tier"}},
+      {"--jitless",
+       {"--jitless"},
+       {"--maglev-as-top-tier", "--maglev-future", "--turbolev-future",
+        "--jit-fuzzing"}},
+      {"--max-lazy", {"--max-lazy"}, {"--jit-fuzzing", "--no-lazy"}},
+      {"--empty-shared-heap",
+       {"--empty-shared-heap"},
+       {"--shared-strings", "--shared-string-table"}},
+      {"--predictable-gc-schedule",
+       {"--predictable-gc-schedule"},
+       {"--stress-compaction",
+        "--stress-scavenger-conservative-object-pinning-random"}},
+  };
+  std::string bad_fz_fixed;
+  for (const FuzzilliFixedCase& c : fz_fixed_cases) {
+    Random rng(19);
+    for (int i = 0; i < 300 && bad_fz_fixed.empty(); i++) {
+      for (const std::string& flag :
+           RandomD8Flags(rng, D8FlagProfile::kFuzzilli, c.fixed)) {
+        const std::string name = name_of(flag);
+        for (const std::string& forbid : c.forbidden) {
+          if (name == forbid) {
+            bad_fz_fixed = std::string(c.label) + " drew " + flag;
+            break;
+          }
+        }
+        if (!bad_fz_fixed.empty()) break;
+      }
+    }
+  }
+  checker->Check(
+      "random flags: the fuzzilli profile respects fixed flags and sandbox "
+      "mode",
+      bad_fz_fixed.empty(), bad_fz_fixed);
   // --single-threaded and --assert-types stop the extra jobs of
   // --stress-concurrent-inlining.
   TunableRegistry& registry = TunableRegistry::Instance();
@@ -333,7 +452,8 @@ void RunD8FlagProfileChecks(Checker* checker) {
         Flags::Parse(static_cast<int>(argv.size()), argv.data(), 2);
     return DrawD8FlagLines(parsed_flags, out, err);
   };
-  std::vector<std::string> maglev_lines, maglev_again, turbolev_lines, bad_out;
+  std::vector<std::string> maglev_lines, maglev_again, turbolev_lines,
+      fuzzilli_lines, bad_out;
   std::string flags_err, bad_err, disabled_err;
   const bool maglev_ok = run_flags({"--preset=maglev", "--n=20", "--seed=7"},
                                    &maglev_lines, &flags_err) &&
@@ -341,6 +461,8 @@ void RunD8FlagProfileChecks(Checker* checker) {
                                    &maglev_again, &flags_err);
   const bool turbolev_ok = run_flags(
       {"--preset=turbolev", "--n=20", "--seed=7"}, &turbolev_lines, &flags_err);
+  const bool fuzzilli_ok = run_flags(
+      {"--preset=fuzzilli", "--n=20", "--seed=7"}, &fuzzilli_lines, &flags_err);
   const bool bad_rejected =
       !run_flags({"--preset=maglev", "--n=0"}, &bad_out, &bad_err);
   const bool disabled_rejected =
@@ -357,12 +479,19 @@ void RunD8FlagProfileChecks(Checker* checker) {
         return line.find("--verify-turboshaft") != std::string::npos ||
                line.find("--stress-concurrent-inlining") != std::string::npos;
       });
+  const bool saw_fuzzilli_tier =
+      std::any_of(fuzzilli_lines.begin(), fuzzilli_lines.end(),
+                  [](const std::string& line) {
+                    return line.find("--turbolev") != std::string::npos;
+                  });
   checker->Check(
       "random flags: the flags command draws preset flag sets",
-      maglev_ok && turbolev_ok && bad_rejected && disabled_rejected &&
-          maglev_lines.size() == 20 && turbolev_lines.size() == 20 &&
+      maglev_ok && turbolev_ok && fuzzilli_ok && bad_rejected &&
+          disabled_rejected && maglev_lines.size() == 20 &&
+          turbolev_lines.size() == 20 && fuzzilli_lines.size() == 20 &&
           maglev_lines == maglev_again && maglev_lines != turbolev_lines &&
-          saw_top_tier && saw_turbolev_flag,
+          fuzzilli_lines != turbolev_lines && saw_top_tier &&
+          saw_turbolev_flag && saw_fuzzilli_tier,
       flags_err);
 }
 

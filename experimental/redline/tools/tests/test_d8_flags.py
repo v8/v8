@@ -286,6 +286,152 @@ class D8FlagSyncTest(unittest.TestCase):
     self.assertEqual(printed_map['stack-size'][0], '984')
     self.assertIs(printed_map['verify-bytecode-light'][0], False)
 
+  def test_fuzzilli_profile_table_matches_source_and_draws(self):
+    v8_root = d8_flag_sync.V8_ROOT
+    d8_flags_cc = os.path.join(v8_root, 'experimental', 'redline', 'engine',
+                               'd8_flags.cc')
+    pinned_swift = os.path.join(TESTDATA_DIR, 'v8_common_profile.swift')
+    with open(d8_flags_cc, encoding='utf-8') as f:
+      cc_text = f.read()
+    table_probs, omitted_wasm = d8_flag_sync.parse_fuzzilli_profile_table(
+        cc_text)
+    self.assertEqual(len(omitted_wasm), 25)
+    self.assertIn('--no-liftoff', omitted_wasm)
+    self.assertIn('--turbolev', table_probs)
+    self.assertEqual(table_probs['--turbolev'], [0.7])
+    self.assertEqual(table_probs['--turbolev-future'], [0.574])
+    self.assertEqual(table_probs['--maglev-assert-stack-size'], [0.045])
+    self.assertEqual(table_probs['--always-sparkplug'], [0.025])
+    self.assertEqual(table_probs['--no-always-sparkplug'], [0.025])
+
+    buf = io.StringIO()
+    with mock.patch('sys.stdout', buf):
+      rc = d8_flag_sync.main([
+          '--profile=fuzzilli',
+          f'--fuzzilli={pinned_swift}',
+          '--strict',
+      ])
+    self.assertEqual(rc, 0)
+    self.assertIn('Flags missing in Redline (0):', buf.getvalue())
+    self.assertIn('Flags with a different probability (0:', buf.getvalue())
+    self.assertIn('Flags drawn only by Redline (0):', buf.getvalue())
+
+    with tempfile.TemporaryDirectory() as tmp:
+      mut_v8 = os.path.join(tmp, 'v8')
+      mut_engine = os.path.join(mut_v8, 'experimental', 'redline', 'engine')
+      os.makedirs(mut_engine)
+      # Change 0.05 to 0.5 in the C++ table (both on --maglev-assert-stack-size
+      # and on the kExotic group) and check that --strict fails.
+      for pattern in (
+          r'(\{\s*FuzzilliCond::kIfMaglev\s*,\s*FuzzilliDrawKind::kFlag\s*,'
+          r'\s*)0\.05(\s*,\s*"--maglev-assert-stack-size")',
+          r'(\{\s*FuzzilliCond::kExotic\s*,\s*FuzzilliDrawKind::kGroup\s*,'
+          r'\s*)0\.05(\s*,)',
+      ):
+        mut_cc, n_subs = d8_flag_sync.re.subn(
+            pattern, r'\g<1>0.5\g<2>', cc_text, count=1)
+        self.assertEqual(n_subs, 1)
+        with open(
+            os.path.join(mut_engine, 'd8_flags.cc'), 'w',
+            encoding='utf-8') as f:
+          f.write(mut_cc)
+        mut_buf = io.StringIO()
+        with mock.patch('sys.stdout', mut_buf):
+          mut_rc = d8_flag_sync.main([
+              '--profile=fuzzilli',
+              f'--v8-root={mut_v8}',
+              f'--fuzzilli={pinned_swift}',
+              '--strict',
+          ])
+        self.assertEqual(mut_rc, 1)
+        self.assertNotIn('Flags with a different probability (0:',
+                         mut_buf.getvalue())
+
+      fake_redline = os.path.join(tmp, 'fake_redline.py')
+      _write_executable(
+          fake_redline, """#!/usr/bin/env python3
+import sys
+for _ in range(100):
+  print('--future --maglev-assert --scavenger-chaos-mode --scavenger-chaos-mode-threshold=50')
+""")
+      diffs = d8_flag_sync.check_draw_frequencies(
+          fake_redline,
+          SAMPLE_FUZZILLI,
+          wasm_only={'--no-wasm-opt'},
+          n=100,
+          seed=1)
+      self.assertTrue(diffs)
+      by_flag = {d['flag']: d for d in diffs}
+      self.assertAlmostEqual(by_flag['--maglev-assert']['observed'], 1.0)
+      self.assertAlmostEqual(by_flag['--maglev-assert']['implied'], 0.1)
+      self.assertGreater(by_flag['--maglev-assert']['sigma'], 4.0)
+      self.assertTrue(by_flag['--maglev-assert']['exceeded'])
+
+      with open(
+          os.path.join(mut_engine, 'd8_flags.cc'), 'w', encoding='utf-8') as f:
+        f.write(cc_text)
+      draw_buf = io.StringIO()
+      with mock.patch('sys.stdout', draw_buf):
+        draw_rc = d8_flag_sync.main([
+            '--profile=fuzzilli',
+            f'--v8-root={mut_v8}',
+            f'--redline={fake_redline}',
+            f'--fuzzilli={pinned_swift}',
+            '--check-draws=100',
+        ])
+      self.assertEqual(draw_rc, 1)
+      self.assertIn('[EXCEEDS TOLERANCE]', draw_buf.getvalue())
+
+      # Unexpected and omitted Wasm flags emitted by the binary must fail the
+      # frequency check, and truncated draw counts must raise an error.
+      extra_redline = os.path.join(tmp, 'extra_redline.py')
+      _write_executable(
+          extra_redline, """#!/usr/bin/env python3
+for _ in range(10):
+  print('--no-wasm-opt --unexpected-extra-flag')
+""")
+      extra_diffs = d8_flag_sync.check_draw_frequencies(
+          extra_redline,
+          SAMPLE_FUZZILLI,
+          wasm_only={'--no-wasm-opt'},
+          n=10,
+          seed=1)
+      extra_by_flag = {d['flag']: d for d in extra_diffs}
+      self.assertTrue(extra_by_flag['--no-wasm-opt']['exceeded'])
+      self.assertTrue(extra_by_flag['--unexpected-extra-flag']['exceeded'])
+      self.assertEqual(extra_by_flag['--unexpected-extra-flag']['implied'], 0.0)
+      with self.assertRaises(RuntimeError):
+        d8_flag_sync.check_draw_frequencies(
+            extra_redline,
+            SAMPLE_FUZZILLI,
+            wasm_only={'--no-wasm-opt'},
+            n=20,
+            seed=1)
+      with self.assertRaises(SystemExit):
+        d8_flag_sync.main([
+            '--profile=tunables',
+            f'--v8-root={mut_v8}',
+            '--check-draws=10',
+        ])
+
+  def test_fuzzilli_profile_table_matches_env_checkout(self):
+    fuzzilli_repo = os.environ.get('REDLINE_FUZZILLI_PATH')
+    if not fuzzilli_repo:
+      self.skipTest(
+          'REDLINE_FUZZILLI_PATH is not set; skipping external Fuzzilli '
+          'checkout sync check')
+    buf = io.StringIO()
+    with mock.patch('sys.stdout', buf):
+      rc = d8_flag_sync.main([
+          '--profile=fuzzilli',
+          f'--fuzzilli={fuzzilli_repo}',
+          '--strict',
+      ])
+    self.assertEqual(rc, 0)
+    self.assertIn('Flags missing in Redline (0):', buf.getvalue())
+    self.assertIn('Flags with a different probability (0:', buf.getvalue())
+    self.assertIn('Flags drawn only by Redline (0):', buf.getvalue())
+
   def test_cli_with_fake_redline_and_fake_d8(self):
     with tempfile.TemporaryDirectory() as tmp:
       v8_root = os.path.join(tmp, 'v8')

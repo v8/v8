@@ -122,7 +122,7 @@ const int calls = 1 + r.SmallCount(kAtomicsOpsMaxCalls.AsInt() - 1);
 Rules:
 
 - Every probability, count and limit in a component is a tunable. Do not write a number in the code.
-- The name starts with the owner: `generators.<Generator>.`, `mutators.<Mutator>.`, `codegen.<helper>.`, `minimizer.<reducer>.` or `flags.` (the random d8 flags).
+- The name starts with the owner: `generators.<Generator>.`, `mutators.<Mutator>.`, `codegen.<helper>.`, `minimizer.<reducer>.` or `flags.` (the random d8 flags of `maglev` and `turbolev`). The `fuzzilli` profile keeps the fixed numbers of Fuzzilli.
 - When you replace a number in existing code, the default is the old number. Then the behavior does not change.
 - `redline fuzz --help-tunables` lists all tunables. The flag `--tunable=NAME=VALUE` and the `tunables` block set them. The flag also works with `mutate` and `audit`.
 
@@ -833,7 +833,7 @@ $ cat experimental/redline/presets/maglev.json
 ```
 
 - `d8_extra_args` is appended to the d8 flags, like `--d8-extra-args`.
-- `randomize_d8_flags` gives each new d8 process random extra flags (DESIGN.md section 5.4). The `flags.*` tunables set their probabilities.
+- `randomize_d8_flags` gives each new d8 process random extra flags (DESIGN.md section 5.4). The `flags.*` tunables set their probabilities in the `maglev` and `turbolev` profiles. The `fuzzilli` profile uses the fixed probabilities of Fuzzilli.
 - `selection` sets the strategies. All presets use the strategies of the latest A/B experiment: `rarity`, `rarity-partner` and `adaptive`.
 - `weights` replaces the base weight of the named generators. The others keep their built-in weight.
 

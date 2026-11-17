@@ -88,9 +88,13 @@ if autoninja -C "$OUT" redline > "$LOGS/build.log" 2>&1; then
     record "selftest --d8" FAIL "no d8 at $D8 (TUTORIAL.md section 1)"
   fi
   run "roundtrip --no-run" "$OUT/redline" roundtrip --dir=test/mjsunit --no-run
+  run "fuzzilli flag sync" python3 experimental/redline/tools/d8_flag_sync.py \
+    --redline="$OUT/redline" --profile=fuzzilli \
+    --fuzzilli=experimental/redline/tools/tests/testdata/v8_common_profile.swift \
+    --check-draws=300000 --strict
 else
   record "build" FAIL "see $LOGS/build.log"
-  record "selftests, roundtrip" SKIP "the build failed"
+  record "selftests, roundtrip, fuzzilli flag sync" SKIP "the build failed"
 fi
 
 if [ -d experimental/redline/tools/tests ]; then

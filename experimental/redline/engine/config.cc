@@ -1181,8 +1181,10 @@ bool FuzzConfig::Load(const Flags& flags, FuzzConfig* c, std::string* error,
   }
   D8FlagProfile flag_profile;
   if (!ParseD8FlagProfile(c->d8_flag_profile, &flag_profile)) {
-    *error = "d8_flag_profile must be \"maglev\" or \"turbolev\", not \"" +
-             c->d8_flag_profile + "\"";
+    *error =
+        "d8_flag_profile must be \"maglev\", \"turbolev\" or \"fuzzilli\", "
+        "not \"" +
+        c->d8_flag_profile + "\"";
     return false;
   }
   // The run seed is drawn only when there is a run; --dump-config shows 0
@@ -1489,7 +1491,7 @@ std::string FuzzConfig::JsonHelp() {
       "each "
       "new d8 (flags.* tunables)\n"
       "    \"d8_flag_profile\": \"maglev\",    // the random flags: "
-      "\"maglev\" or \"turbolev\"\n"
+      "\"maglev\", \"turbolev\" or \"fuzzilli\"\n"
       "    \"timeout_ms\": 1000, \"jobs\": 8, \"seed\": 1, \"out_dir\": "
       "\"redline-out\",\n"
       "    \"imports\": [\"test/mjsunit\"], \"import_root\": \".\", "

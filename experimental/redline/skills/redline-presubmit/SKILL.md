@@ -35,6 +35,8 @@ The script prints one line for each check:
 | `selftest --offline` | All checks pass. |
 | `selftest --d8` | All checks pass against `out/fuzzbuild/d8`. |
 | `roundtrip --no-run` | 0 real failures on `test/mjsunit`. |
+| `fuzzilli flag sync` | `tools/d8_flag_sync.py --profile=fuzzilli --check-draws=300000 --strict` passes against `tools/tests/testdata/v8_common_profile.swift`. |
+| `tools/tests` | All Python unit tests in `tools/tests/` pass. |
 | golden traces | Information only: the number of changed files in `testdata/`. |
 | Markdown links | `tools/dev/markdown_checker.py` accepts the changed Markdown files. |
 | STE language | See step 4. |

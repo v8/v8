@@ -32,10 +32,11 @@ const char kUsage[] =
     "Prints N random d8 flag sets on stdout, one draw per line.\n"
     "\n"
     "options:\n"
-    "  --preset=NAME|FILE       preset configuration (e.g. maglev, turbolev)\n"
+    "  --preset=NAME|FILE       preset configuration (e.g. maglev, turbolev,\n"
+    "                           fuzzilli)\n"
     "  --config=FILE|'{json}'   JSON configuration\n"
     "  --randomize-d8-flags     enable random d8 flags without a preset\n"
-    "  --d8-flag-profile=NAME   maglev (default) or turbolev\n"
+    "  --d8-flag-profile=NAME   maglev (default), turbolev or fuzzilli\n"
     "  --n=N                    number of draws to print (default 10)\n"
     "  --seed=S                 random seed (default 1)\n"
     "  --tunable=NAME=V,...     override tunables\n";

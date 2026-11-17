@@ -116,9 +116,10 @@ Rules for the checks:
 
 ## 5. Random d8 flags
 
-The random flags are in `engine/d8_flags.cc`. Each flag has one `flags.*`
-tunable for its probability. A `maglev` and a `turbolev` profile select the
-flags of each preset family.
+The random flags are in `engine/d8_flags.cc`. In the `maglev` and `turbolev`
+profiles, each flag has one `flags.*` tunable for its probability. The
+`fuzzilli` profile mirrors the V8 profile of Fuzzilli with fixed probabilities
+and value ranges instead of `flags.*` tunables.
 
 The fuzz flag configurations of V8 are in these files:
 

@@ -243,9 +243,10 @@ For each execution, Redline writes the script, sends a command and waits for a s
 
 - Redline replaces the target after a timeout, after a crash and after `max_execs_before_respawn` executions. This limits the state in one process.
 - With `randomize_d8_flags`, each new target process gets a random set of extra d8 flags, for example `--maglev-assert` or `--maglev-non-eager-inlining` (`engine/d8_flags.h`).
-  `d8_flag_profile` selects the flag list: `maglev` (the default) or `turbolev`. The `turbolev` list has Turbolev, Turboshaft and inlining-limit flags.
-  Both lists also have tier-up, deoptimization, CPU feature and garbage collection flags from the V8 profile of Fuzzilli and the fuzz configurations of V8.
-  The probabilities are tunables (`flags.*`). The random flags come before the other d8 flags, so that a flag of the configuration wins.
+  `d8_flag_profile` selects the flag list: `maglev` (the default), `turbolev` or `fuzzilli`. The `turbolev` list has Turbolev, Turboshaft and inlining-limit flags.
+  The `fuzzilli` list draws the non-Wasm flags of the V8 profile of Fuzzilli with the same probabilities, ranges and conditions.
+  The `maglev` and `turbolev` lists also have tier-up, deoptimization, CPU feature and garbage collection flags from the V8 profile of Fuzzilli and the fuzz configurations of V8.
+  In `maglev` and `turbolev`, the probabilities and value ranges are tunables (`flags.*`). The `fuzzilli` list keeps the fixed numbers of Fuzzilli instead of tunables. The random flags come before the other d8 flags, so that a flag of the configuration wins.
   Accept, Minimize and crash triage keep the flags of the process that ran the program, also in a new process.
   These steps run most executions, so most respawns keep the flags. Thus the worker replaces a process at the end of such a step if its flags ran `max_execs_before_respawn` executions.
   The crash report, the `crash` event and the `corpus_add` event record the random flags (`d8_random_args`).
@@ -547,6 +548,7 @@ Each preset selects `rarity`, `rarity-partner` and `adaptive`. Without a preset,
 | `default` | none | none |
 | `maglev` | `--maglev --no-turbofan --jit-fuzzing`, and random Maglev flags | JIT, deoptimization, OSR, elements-kind and shape generators |
 | `turbolev` | `--turbolev --turbolev-future --jit-fuzzing`, and random Turbolev flags | the same generators as `maglev` |
+| `fuzzilli` | random flags from the `fuzzilli` profile (including tier flags) | the same generators as `turbolev` |
 | `runtime` | `--no-turbofan --no-maglev --no-sparkplug` | property, prototype, proxy, freeze and shape generators. The JIT generators are off. |
 | `parser` | none | class, destructuring, arrow, template, label, `using`, `eval` and `with` generators, and `Splice` and `Combine` |
 | `builtins` | none | discovered-API, builtin-call, method-call, string, typed-array, collection and worker generators |

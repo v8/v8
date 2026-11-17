@@ -4,7 +4,7 @@
 # found in the LICENSE file.
 """Checks that d8 accepts Redline's random flag draws without silent changes.
 
-For each preset (`maglev`, `turbolev`), runs one baseline command:
+For each preset (`maglev`, `turbolev`, `fuzzilli`), runs one baseline command:
 
   d8 <preset d8 args> --print-flag-values -e ""
 
@@ -15,6 +15,11 @@ production argument order:
 
 Reports contradictions, flags that `d8` silently changed, boolean flags that
 have no effect on the build, and value flags that drew their baseline default.
+
+In `fuzzilli`, `chooseBooleanFlag` draws both polarities (including the
+polarity that is already the `d8` default) and `d8 --fuzzing` resets some
+drawn pairs. Thus `--strict` fails for `fuzzilli` on a real `d8`. Pass
+`--presets=maglev,turbolev` when using `--strict` as a pass/fail gate.
 """
 
 import argparse
@@ -31,7 +36,7 @@ V8_ROOT = os.path.abspath(
 DEFAULT_REDLINE = os.path.join(V8_ROOT, 'out', 'redline', 'redline')
 DEFAULT_D8 = os.environ.get('REDLINE_D8',
                             os.path.join(V8_ROOT, 'out', 'fuzzbuild', 'd8'))
-DEFAULT_PRESETS = ('maglev', 'turbolev')
+DEFAULT_PRESETS = ('maglev', 'turbolev', 'fuzzilli')
 DEFAULT_TIMEOUT_SEC = 30.0
 D8_SHELL_ONLY_FLAGS = frozenset(('omit-quit', 'expose-fast-api'))
 CONTRADICTION_LINE = re.compile(
@@ -297,7 +302,7 @@ def main(argv=None):
   parser.add_argument(
       '--presets',
       default=','.join(DEFAULT_PRESETS),
-      help='comma-separated preset names (default: maglev,turbolev)')
+      help='comma-separated preset names (default: maglev,turbolev,fuzzilli)')
   parser.add_argument('--n', type=int, default=100)
   parser.add_argument('--seed', type=int, default=1)
   parser.add_argument('--jobs', type=int, default=2)
@@ -310,7 +315,9 @@ def main(argv=None):
       '--strict',
       action='store_true',
       help='exit with status 1 when a contradiction, silent change or no-op '
-      'flag is found')
+      'flag is found (for fuzzilli on a real d8, pass '
+      '--presets=maglev,turbolev because fuzzilli draws explicit default '
+      'polarities and pairs that d8 --fuzzing resets)')
   args = parser.parse_args(argv)
 
   presets = [p.strip() for p in args.presets.split(',') if p.strip()]

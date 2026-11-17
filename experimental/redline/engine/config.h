@@ -149,7 +149,7 @@ struct FuzzConfig {
   // (engine/d8_flags.h). The reruns, the minimization and the crash triage
   // of a program keep the flags of the process that ran it.
   bool randomize_d8_flags = false;
-  // The flag profile of randomize_d8_flags: "maglev" or "turbolev"
+  // The flag profile of randomize_d8_flags: "maglev", "turbolev" or "fuzzilli"
   // (engine/d8_flags.h).
   std::string d8_flag_profile = "maglev";
   // Coverage counters: the minimizer keeps only the new code edges and the
