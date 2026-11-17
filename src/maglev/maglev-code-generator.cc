@@ -1906,7 +1906,8 @@ void MaglevCodeGenerator::EmitDeferredCode() {
       deferred_code->Generate(masm());
       // Deferred code has to end in a jump, a deopt, a trap or an abort.
       DCHECK(!masm()->is_reachable());
-      __ Trap();
+      // Deferred code never falls through, so the trap only catches bugs.
+      if (v8_flags.debug_code) __ Trap();
     }
   }
 }
