@@ -851,6 +851,10 @@ ReduceResult MaglevReducer<BaseT>::ConvertForField(ValueNode* value,
       DCHECK_EQ(value->properties().value_representation(),
                 ValueRepresentation::kInt32);
       return value;
+    case vobj::FieldType::kUint32:
+      DCHECK_EQ(value->properties().value_representation(),
+                ValueRepresentation::kUint32);
+      return value;
 
     case vobj::FieldType::kHoleyFloat64:
       // Only HoleyFloat64Constant may carry hole/undefined NaNs. A dynamic
@@ -929,6 +933,9 @@ ReduceResult MaglevReducer<BaseT>::BuildInitializeStore(
     case vobj::FieldType::kInt32:
       return AddNewNodeNoInputConversion<StoreInt32>({object, value},
                                                      desc.offset);
+    case vobj::FieldType::kUint32:
+      return AddNewNodeNoInputConversion<StoreUint32>({object, value},
+                                                      desc.offset);
     case vobj::FieldType::kFloat64:
       return AddNewNodeNoInputConversion<StoreFloat64>({object, value},
                                                        desc.offset);
@@ -6149,6 +6156,56 @@ VirtualObject* MaglevReducer<BaseT>::CreateJSConstructor(
   if (prediction.inobject_property_count() != 0) {
     ValueNode* undefined = GetRootConstant(RootIndex::kUndefinedValue);
     for (int i = 0; i < prediction.inobject_property_count(); i++) {
+      vobj->set(map.GetInObjectPropertyOffset(i), undefined);
+    }
+  }
+  return vobj;
+}
+
+template <typename BaseT>
+VirtualObject* MaglevReducer<BaseT>::CreateJSFunction(
+    compiler::MapRef map, compiler::SharedFunctionInfoRef shared_function_info,
+    compiler::FeedbackCellRef feedback_cell, ValueNode* context,
+    ValueNode* dispatch_handle,
+    compiler::OptionalContextRef specialization_context,
+    ContextScopeInfo context_scope_info) {
+  DCHECK(!map.IsInobjectSlackTrackingInProgress());
+  DCHECK(!map.is_dictionary_map());
+  const bool has_prototype =
+      InstanceTypeChecker::IsJSFunctionWithPrototype(map.instance_type());
+  const vobj::ObjectLayout* layout =
+      has_prototype ? &VirtualJSFunctionWithPrototypeShape::kObjectLayout
+                    : &VirtualJSFunctionWithoutPrototypeShape::kObjectLayout;
+  const int inobject_properties = map.GetInObjectProperties();
+  const int slot_count = layout->header_fields.length() + inobject_properties;
+
+  VirtualObject* vobj = NodeBase::New<VirtualObject>(
+      zone(), 0, NewObjectId(), zone(), layout, map, slot_count);
+  DCHECK_EQ(vobj->size(), static_cast<size_t>(map.instance_size()));
+  vobj->set_specialization_context_data(
+      zone()->template New<VirtualObject::SpecializationContextData>(
+          specialization_context, context_scope_info));
+
+  vobj->set(offsetof(HeapObject, map_), GetConstant(map));
+  vobj->set(offsetof(JSObject, properties_or_hash_),
+            GetRootConstant(RootIndex::kEmptyFixedArray));
+  vobj->set(offsetof(JSObject, elements_),
+            GetRootConstant(RootIndex::kEmptyFixedArray));
+  vobj->set(offsetof(JSFunction, dispatch_handle_), dispatch_handle);
+#if TAGGED_SIZE_8_BYTES
+  vobj->set(JSFunction::kPaddingOffset, GetInt32Constant(0));
+#endif  // TAGGED_SIZE_8_BYTES
+  vobj->set(offsetof(JSFunction, shared_function_info_),
+            GetConstant(shared_function_info));
+  vobj->set(offsetof(JSFunction, context_), context);
+  vobj->set(offsetof(JSFunction, feedback_cell_), GetConstant(feedback_cell));
+  if (has_prototype) {
+    vobj->set(offsetof(JSFunctionWithPrototype, prototype_or_initial_map_),
+              GetRootConstant(RootIndex::kTheHoleValue));
+  }
+  if (inobject_properties != 0) {
+    ValueNode* undefined = GetRootConstant(RootIndex::kUndefinedValue);
+    for (int i = 0; i < inobject_properties; i++) {
       vobj->set(map.GetInObjectPropertyOffset(i), undefined);
     }
   }

@@ -1044,6 +1044,13 @@ class MaglevReducer {
                                        ValueNode* iterated_object,
                                        IterationKind kind);
   VirtualObject* CreateJSConstructor(compiler::JSFunctionRef constructor);
+  VirtualObject* CreateJSFunction(
+      compiler::MapRef map,
+      compiler::SharedFunctionInfoRef shared_function_info,
+      compiler::FeedbackCellRef feedback_cell, ValueNode* context,
+      ValueNode* dispatch_handle,
+      compiler::OptionalContextRef specialization_context,
+      ContextScopeInfo context_scope_info);
   VirtualObject* CreateFixedArray(base::Vector<ValueNode* const> values);
   // Picks VirtualHoleyFixedDoubleArrayShape iff any value is a HoleyFloat64
   // (i.e. a hole or undefined constant), VirtualFixedDoubleArrayShape

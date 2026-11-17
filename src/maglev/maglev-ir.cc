@@ -3355,6 +3355,18 @@ void LoadInt32::GenerateCode(MaglevAssembler* masm,
   __ LoadInt32(ToRegister(result()), FieldMemOperand(object, offset()));
 }
 
+void LoadUint32::SetValueLocationConstraints() {
+  UseRegister(ValueInput());
+  DefineAsRegister(this);
+}
+void LoadUint32::GenerateCode(MaglevAssembler* masm,
+                              const ProcessingState& state) {
+  Register object = ToRegister(ValueInput());
+  __ AssertNotSmi(object);
+  __ LoadUnsignedField(ToRegister(result()), FieldMemOperand(object, offset()),
+                       4);
+}
+
 void LoadTaggedField::SetValueLocationConstraints() {
   UseRegister(ValueInput());
   DefineAsRegister(this);
@@ -6173,7 +6185,8 @@ std::optional<int32_t> TryGetInt32ConstantForStoring(ValueNode* value) {
 
 }  // namespace
 
-void StoreInt32::SetValueLocationConstraints() {
+template <typename Derived, ValueRepresentation value_input_rep>
+void StoreInt32T<Derived, value_input_rep>::SetValueLocationConstraints() {
   UseRegister(ObjectInput());
   if (TryGetInt32ConstantForStoring(ValueInput().node())) {
     // Stored as an immediate, so no register is needed for the value.
@@ -6182,8 +6195,9 @@ void StoreInt32::SetValueLocationConstraints() {
     UseRegister(ValueInput());
   }
 }
-void StoreInt32::GenerateCode(MaglevAssembler* masm,
-                              const ProcessingState& state) {
+template <typename Derived, ValueRepresentation value_input_rep>
+void StoreInt32T<Derived, value_input_rep>::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
   Register object = ToRegister(ObjectInput());
 
   __ AssertNotSmi(object);
@@ -9400,6 +9414,10 @@ void LoadInt32::PrintParams(std::ostream& os) const {
   os << "(0x" << std::hex << offset() << std::dec << ")";
 }
 
+void LoadUint32::PrintParams(std::ostream& os) const {
+  os << "(0x" << std::hex << offset() << std::dec << ")";
+}
+
 void LoadFixedArrayElement::PrintParams(std::ostream& os) const {
   // TODO(victorgomes): Print compression status only after the result is
   // allocated, since that's when we do decompression marking.
@@ -9421,9 +9439,14 @@ template class StoreFloat64T<StoreFloat64, ValueRepresentation::kFloat64>;
 template class StoreFloat64T<InitializeFixedHoleyDoubleArrayElement,
                              ValueRepresentation::kHoleyFloat64>;
 
-void StoreInt32::PrintParams(std::ostream& os) const {
+template <typename Derived, ValueRepresentation value_input_rep>
+void StoreInt32T<Derived, value_input_rep>::PrintParams(
+    std::ostream& os) const {
   os << "(0x" << std::hex << offset() << std::dec << ")";
 }
+
+template class StoreInt32T<StoreInt32, ValueRepresentation::kInt32>;
+template class StoreInt32T<StoreUint32, ValueRepresentation::kUint32>;
 
 void StoreTaggedFieldNoWriteBarrier::PrintParams(std::ostream& os) const {
   os << "(0x" << std::hex << offset() << std::dec;

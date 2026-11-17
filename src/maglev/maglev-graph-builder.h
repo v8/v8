@@ -1572,6 +1572,9 @@ class MaglevGraphBuilder {
   bool CanAllocateSloppyArgumentElements();
   bool CanAllocateInlinedArgumentElements();
 
+  MaybeReduceResult TryBuildInlinedAllocatedClosure(
+      compiler::SharedFunctionInfoRef shared_function_info,
+      compiler::FeedbackCellRef feedback_cell);
   MaybeReduceResult TryBuildInlinedAllocatedContext(
       compiler::MapRef map, int context_length, compiler::ScopeInfoRef scope,
       ValueNode* extension = nullptr);

@@ -3514,6 +3514,12 @@ class GraphBuildingNodeProcessor {
                          MemoryRepresentation::Int32(), node->offset()));
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::LoadUint32* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ Load(Map(node->ValueInput()), LoadOp::Kind::TaggedBase(),
+                         MemoryRepresentation::Uint32(), node->offset()));
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::LoadFixedArrayElement* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ LoadFixedArrayElement(
@@ -3729,6 +3735,13 @@ class GraphBuildingNodeProcessor {
                                 const maglev::ProcessingState& state) {
     __ Store(Map(node->ObjectInput()), Map(node->ValueInput()),
              StoreOp::Kind::TaggedBase(), MemoryRepresentation::Int32(),
+             WriteBarrierKind::kNoWriteBarrier, node->offset());
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::StoreUint32* node,
+                                const maglev::ProcessingState& state) {
+    __ Store(Map(node->ObjectInput()), Map(node->ValueInput()),
+             StoreOp::Kind::TaggedBase(), MemoryRepresentation::Uint32(),
              WriteBarrierKind::kNoWriteBarrier, node->offset());
     return maglev::ProcessResult::kContinue;
   }
@@ -6352,9 +6365,11 @@ class GraphBuildingNodeProcessor {
 
     int fields = vobj->slot_count();
 #if TAGGED_SIZE_8_BYTES
-    // To keep the deoptimization data in sync with TF (which represents length
-    // and padding in a single Uint64), we skip the padding.
-    if (vobj->object_type() == maglev::vobj::ObjectType::kFixedArray) {
+    // To keep the deoptimization data in sync with TF (which represents
+    // length/dispatch_handle and padding in a single 8-byte slot), we skip the
+    // padding.
+    if (vobj->object_type() == maglev::vobj::ObjectType::kFixedArray ||
+        vobj->object_type() == maglev::vobj::ObjectType::kJSFunction) {
       fields--;
     }
 #endif  // TAGGED_SIZE_8_BYTES
@@ -6363,8 +6378,10 @@ class GraphBuildingNodeProcessor {
     vobj->ForEachSlot(
         [&](maglev::ValueNode* value_node, maglev::vobj::Field desc) -> bool {
 #if TAGGED_SIZE_8_BYTES
-          if (vobj->object_type() == maglev::vobj::ObjectType::kFixedArray &&
-              desc.offset == FixedArrayBase::kPaddingOffset) {
+          if ((vobj->object_type() == maglev::vobj::ObjectType::kFixedArray &&
+               desc.offset == FixedArrayBase::kPaddingOffset) ||
+              (vobj->object_type() == maglev::vobj::ObjectType::kJSFunction &&
+               desc.offset == JSFunction::kPaddingOffset)) {
             return true;
           }
 #endif  // TAGGED_SIZE_8_BYTES
@@ -6374,6 +6391,7 @@ class GraphBuildingNodeProcessor {
             case maglev::vobj::FieldType::kFloat64:
             case maglev::vobj::FieldType::kHoleyFloat64:
             case maglev::vobj::FieldType::kInt32:
+            case maglev::vobj::FieldType::kUint32:
               AddVirtualObjectNestedValue(builder, value_node);
               break;
             case maglev::vobj::FieldType::kNone:

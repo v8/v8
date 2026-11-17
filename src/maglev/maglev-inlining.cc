@@ -199,6 +199,13 @@ namespace {
 bool IsMatchingTarget(compiler::JSHeapBroker* broker, ValueNode* function,
                       compiler::FeedbackCellRef feedback_cell,
                       compiler::SharedFunctionInfoRef shared) {
+  if (InlinedAllocation* alloc = function->TryCast<InlinedAllocation>();
+      alloc != nullptr &&
+      alloc->object()->object_type() == vobj::ObjectType::kJSFunction) {
+    const VirtualObject* vobj = alloc->object();
+    return vobj->feedback_cell(broker).equals(feedback_cell) &&
+           vobj->shared_function_info(broker).equals(shared);
+  }
   if (FastCreateClosure* fast_closure =
           function->TryCast<FastCreateClosure>()) {
     return fast_closure->feedback_cell().equals(feedback_cell) &&

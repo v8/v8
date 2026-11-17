@@ -549,6 +549,7 @@ void PrintVirtualObject(std::ostream& os, const VirtualObject* vobj,
           case maglev::vobj::FieldType::kTagged:
           case maglev::vobj::FieldType::kTrustedPointer:
           case maglev::vobj::FieldType::kInt32:
+          case maglev::vobj::FieldType::kUint32:
           case maglev::vobj::FieldType::kFloat64:
           case maglev::vobj::FieldType::kHoleyFloat64: {
             if (!is_first) os << ",";

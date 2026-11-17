@@ -1265,12 +1265,10 @@ ProcessResult MaglevGraphOptimizer::VisitCheckValueEqualsString(
 ProcessResult MaglevGraphOptimizer::VisitCheckInstanceType(
     CheckInstanceType* node, const ProcessingState& state) {
   ValueNode* input = node->input_node(0);
-  if (input->Is<FastCreateClosure>()) {
-    if (node->first_instance_type() == FIRST_JS_FUNCTION_TYPE &&
-        node->last_instance_type() == LAST_JS_FUNCTION_TYPE) {
-      // Don't need to emit this check, we know it is a closure.
-      return RemoveCurrentNode();
-    }
+  if (node->first_instance_type() == FIRST_JS_FUNCTION_TYPE &&
+      node->last_instance_type() == LAST_JS_FUNCTION_TYPE) {
+    REMOVE_AND_RETURN_IF_DONE(reducer_.EnsureType(
+        input, NodeType::kJSFunction, DeoptimizeReason::kWrongInstanceType));
   }
 
   if (node->first_instance_type() == FIRST_JS_RECEIVER_TYPE &&
@@ -1404,6 +1402,12 @@ ProcessResult MaglevGraphOptimizer::VisitStoreFixedDoubleArrayHole(
 
 ProcessResult MaglevGraphOptimizer::VisitStoreInt32(
     StoreInt32* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitStoreUint32(
+    StoreUint32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
@@ -2101,6 +2105,13 @@ ProcessResult MaglevGraphOptimizer::VisitLoadTaggedField(
     }
   }
   if (node->offset() == offsetof(JSFunction, feedback_cell_)) {
+    // TODO(victorgomes): Fold loads of immutable VirtualObject fields.
+    if (auto* alloc = node->input_node(0)->TryCast<InlinedAllocation>();
+        alloc != nullptr &&
+        alloc->object()->object_type() == vobj::ObjectType::kJSFunction) {
+      return ReplaceWith(
+          alloc->object()->get(offsetof(JSFunction, feedback_cell_)));
+    }
     if (auto input = node->input_node(0)->TryCast<FastCreateClosure>()) {
       return ReplaceWith(reducer_.GetConstant(input->feedback_cell()));
     }
@@ -2109,6 +2120,18 @@ ProcessResult MaglevGraphOptimizer::VisitLoadTaggedField(
     }
   }
   if (node->offset() == offsetof(JSFunction, context_)) {
+    if (auto* alloc = node->input_node(0)->TryCast<InlinedAllocation>();
+        alloc != nullptr &&
+        alloc->object()->object_type() == vobj::ObjectType::kJSFunction) {
+      ValueNode* ctx = alloc->object()->context();
+      if (!ctx->Is<VirtualObject>()) {
+        if (auto* ctx_alloc = ctx->TryCast<InlinedAllocation>();
+            ctx_alloc == nullptr || !ctx_alloc->HasBeenAnalysed() ||
+            !ctx_alloc->HasBeenElided()) {
+          return ReplaceWith(ctx);
+        }
+      }
+    }
     if (auto input = node->input_node(0)->TryCast<FastCreateClosure>()) {
       return ReplaceWith(input->ContextInput().node());
     }
@@ -2141,6 +2164,12 @@ ProcessResult MaglevGraphOptimizer::VisitLoadFloat64(
 
 ProcessResult MaglevGraphOptimizer::VisitLoadInt32(
     LoadInt32* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitLoadUint32(
+    LoadUint32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }

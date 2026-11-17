@@ -320,6 +320,7 @@ class ExceptionHandlerInfo;
   V(LoadContextSlot)                          \
   V(LoadFloat64)                              \
   V(LoadInt32)                                \
+  V(LoadUint32)                               \
   V(LoadTaggedFieldByFieldIndex)              \
   V(LoadFixedArrayElement)                    \
   V(LoadFixedDoubleArrayElement)              \
@@ -476,6 +477,7 @@ class ExceptionHandlerInfo;
   V(StoreFixedHoleyDoubleArrayElement)        \
   V(InitializeFixedHoleyDoubleArrayElement)   \
   V(StoreInt32)                               \
+  V(StoreUint32)                              \
   V(StoreFloat64)                             \
   V(StoreIntTypedArrayElement)                \
   V(StoreDoubleTypedArrayElement)             \
@@ -707,7 +709,7 @@ constexpr bool IsSimpleFieldStore(Opcode opcode) {
          opcode == Opcode::kStoreTaggedFieldNoWriteBarrier ||
          opcode == Opcode::kStoreFloat64 ||
          opcode == Opcode::kInitializeFixedHoleyDoubleArrayElement ||
-         opcode == Opcode::kStoreInt32 ||
+         opcode == Opcode::kStoreInt32 || opcode == Opcode::kStoreUint32 ||
          opcode == Opcode::kUpdateJSArrayLength ||
          opcode == Opcode::kStoreFixedArrayElementWithWriteBarrier ||
          opcode == Opcode::kStoreFixedArrayElementNoWriteBarrier ||
@@ -783,6 +785,7 @@ constexpr bool CanBeStoreToNonEscapedObject(Opcode opcode) {
   switch (opcode) {
     case Opcode::kStoreMap:
     case Opcode::kStoreInt32:
+    case Opcode::kStoreUint32:
     case Opcode::kStoreTrustedPointerFieldWithWriteBarrier:
     case Opcode::kStoreTaggedFieldWithWriteBarrier:
     case Opcode::kStoreTaggedFieldNoWriteBarrier:
@@ -5576,6 +5579,7 @@ enum class ObjectType {
   kHeapNumber,
   // TODO(375937549): only needed for TF compatibility.
   kFixedArray,
+  kJSFunction,
 };
 
 // The type of a VirtualObject field. Extend as needed.
@@ -5585,6 +5589,7 @@ enum class FieldType {
   // Note: may only be used when V8_ENABLE_SANDBOX is set.
   kTrustedPointer,
   kInt32,
+  kUint32,
   kFloat64,
   kHoleyFloat64,
 };
@@ -5601,6 +5606,7 @@ constexpr int FieldSizeOf(FieldType type) {
     case FieldType::kTrustedPointer:
       return kTrustedPointerSize;
     case FieldType::kInt32:
+    case FieldType::kUint32:
       return kInt32Size;
     case FieldType::kFloat64:
     case FieldType::kHoleyFloat64:
@@ -5869,6 +5875,47 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
     allocation_ = allocation;
   }
 
+  // TODO(victorgomes): Unify VirtualObject, FastCreateClosure, and
+  // CreateClosure to use a map in Graph.
+  struct SpecializationContextData : public ZoneObject {
+    SpecializationContextData(
+        compiler::OptionalContextRef specialization_context,
+        ContextScopeInfo context_scope_info)
+        : specialization_context(specialization_context),
+          context_scope_info(context_scope_info) {}
+    const compiler::OptionalContextRef specialization_context;
+    const ContextScopeInfo context_scope_info;
+  };
+
+  void set_specialization_context_data(
+      const SpecializationContextData* specialization_context_data) {
+    DCHECK_EQ(object_type(), vobj::ObjectType::kJSFunction);
+    DCHECK_NULL(specialization_context_data_);
+    specialization_context_data_ = specialization_context_data;
+  }
+  const SpecializationContextData* specialization_context_data() const {
+    return specialization_context_data_;
+  }
+
+  compiler::SharedFunctionInfoRef shared_function_info(
+      compiler::JSHeapBroker* broker) const {
+    DCHECK_EQ(object_type(), vobj::ObjectType::kJSFunction);
+    return get(offsetof(JSFunction, shared_function_info_))
+        ->TryGetConstant(broker)
+        ->AsSharedFunctionInfo();
+  }
+  compiler::FeedbackCellRef feedback_cell(
+      compiler::JSHeapBroker* broker) const {
+    DCHECK_EQ(object_type(), vobj::ObjectType::kJSFunction);
+    return get(offsetof(JSFunction, feedback_cell_))
+        ->TryGetConstant(broker)
+        ->AsFeedbackCell();
+  }
+  ValueNode* context() const {
+    DCHECK_EQ(object_type(), vobj::ObjectType::kJSFunction);
+    return get(offsetof(JSFunction, context_));
+  }
+
   const vobj::ObjectLayout* object_layout() const { return object_layout_; }
 
   enum class ForEachSlotIterationMode {
@@ -5900,10 +5947,13 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
       vobj::Field field = FieldForSlot(i);
 #if TAGGED_SIZE_8_BYTES
       // To keep the deoptimization data in sync with TF (which represents
-      // length and padding in a single Uint64), we skip the padding.
+      // length/dispatch_handle and padding in a single 8-byte slot), we skip
+      // the padding.
       if (mode == ForEachSlotIterationMode::kForDeopt &&
-          object_type() == vobj::ObjectType::kFixedArray &&
-          field.offset == FixedArrayBase::kPaddingOffset) {
+          ((object_type() == vobj::ObjectType::kFixedArray &&
+            field.offset == FixedArrayBase::kPaddingOffset) ||
+           (object_type() == vobj::ObjectType::kJSFunction &&
+            field.offset == JSFunction::kPaddingOffset))) {
         continue;
       }
 #endif  // TAGGED_SIZE_8_BYTES
@@ -6003,6 +6053,7 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   const int id_;
   base::Vector<ValueNode*> slots_;
   const vobj::ObjectLayout* object_layout_;
+  const SpecializationContextData* specialization_context_data_ = nullptr;
   mutable InlinedAllocation* allocation_ = nullptr;
 };
 
@@ -6021,6 +6072,46 @@ struct VirtualJSObjectShape : VirtualJSReceiverShape {
   V(elements, offsetof(JSObject, elements_), vobj::FieldType::kTagged)
   DEF_SHAPE(VirtualJSReceiverShape, FIELD_LIST);
 #undef FIELD_LIST
+};
+
+struct VirtualJSFunctionWithoutPrototypeShape : VirtualJSObjectShape {
+  using T = JSFunction;
+  static constexpr bool kInstancesHaveStaticSize = false;
+  static constexpr vobj::ObjectType kObjectType = vobj::ObjectType::kJSFunction;
+  static constexpr vobj::FieldType kBodyFieldType = vobj::FieldType::kTagged;
+#if TAGGED_SIZE_8_BYTES
+#define OPTIONAL_PADDING(V) \
+  V(optional_padding, T::kPaddingOffset, vobj::FieldType::kInt32)
+#else
+#define OPTIONAL_PADDING(V)
+#endif  // TAGGED_SIZE_8_BYTES
+#define FIELD_LIST(V)                                                         \
+  V(dispatch_handle, offsetof(T, dispatch_handle_), vobj::FieldType::kUint32) \
+  OPTIONAL_PADDING(V)                                                         \
+  V(shared_function_info, offsetof(T, shared_function_info_),                 \
+    vobj::FieldType::kTagged, vobj::FieldConstness::kConstAfterInit)          \
+  V(context, offsetof(T, context_), vobj::FieldType::kTagged,                 \
+    vobj::FieldConstness::kConstAfterInit)                                    \
+  V(feedback_cell, offsetof(T, feedback_cell_), vobj::FieldType::kTagged,     \
+    vobj::FieldConstness::kConstAfterInit)
+  DEF_SHAPE(VirtualJSObjectShape, FIELD_LIST);
+#undef OPTIONAL_PADDING
+#undef FIELD_LIST
+  static_assert(kHeaderSize == JSFunctionWithoutPrototype::kHeaderSize);
+};
+
+struct VirtualJSFunctionWithPrototypeShape
+    : VirtualJSFunctionWithoutPrototypeShape {
+  using T = JSFunctionWithPrototype;
+  static constexpr bool kInstancesHaveStaticSize = false;
+  static constexpr vobj::ObjectType kObjectType = vobj::ObjectType::kJSFunction;
+  static constexpr vobj::FieldType kBodyFieldType = vobj::FieldType::kTagged;
+#define FIELD_LIST(V)                                                 \
+  V(prototype_or_initial_map, offsetof(T, prototype_or_initial_map_), \
+    vobj::FieldType::kTagged)
+  DEF_SHAPE(VirtualJSFunctionWithoutPrototypeShape, FIELD_LIST);
+#undef FIELD_LIST
+  static_assert(kHeaderSize == JSFunctionWithPrototype::kHeaderSize);
 };
 
 struct VirtualJSArrayShape : VirtualJSObjectShape {
@@ -6706,7 +6797,9 @@ class FastCreateClosure : public FixedInputValueNodeT<1, FastCreateClosure> {
         shared_function_info_(shared_function_info),
         feedback_cell_(feedback_cell),
         specialization_context_(specialization_context),
-        context_scope_info_(context_scope_info) {}
+        context_scope_info_(context_scope_info) {
+    DCHECK_NE(feedback_cell.dispatch_handle(), kNullJSDispatchHandle);
+  }
 
   compiler::SharedFunctionInfoRef shared_function_info() const {
     return shared_function_info_;
@@ -6776,7 +6869,9 @@ class CreateClosure : public FixedInputValueNodeT<1, CreateClosure> {
         shared_function_info_(shared_function_info),
         feedback_cell_(feedback_cell),
         specialization_context_(specialization_context),
-        context_scope_info_(context_scope_info) {}
+        context_scope_info_(context_scope_info) {
+    DCHECK_NE(feedback_cell.dispatch_handle(), kNullJSDispatchHandle);
+  }
 
   compiler::SharedFunctionInfoRef shared_function_info() const {
     return shared_function_info_;
@@ -8608,6 +8703,27 @@ class LoadInt32 : public FixedInputValueNodeT<1, LoadInt32> {
   const int offset_;
 };
 
+class LoadUint32 : public FixedInputValueNodeT<1, LoadUint32> {
+ public:
+  explicit LoadUint32(uint64_t bitfield, int offset)
+      : Base(bitfield), offset_(offset) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::CanRead() | OpProperties::Uint32();
+  DECLARE_UNOP(Tagged)
+
+  int offset() const { return offset_; }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const;
+
+  auto options() const { return std::tuple{offset()}; }
+
+ private:
+  const int offset_;
+};
+
 class LoadTaggedFieldByFieldIndex
     : public FixedInputValueNodeT<2, LoadTaggedFieldByFieldIndex> {
  public:
@@ -9164,14 +9280,21 @@ class StoreDoubleDataViewElement
   using ExternalArrayTypeField = NextBitField<ExternalArrayType, 4>;
 };
 
-class StoreInt32 : public FixedInputNodeT<2, StoreInt32> {
+template <typename Derived, ValueRepresentation value_input_rep>
+class StoreInt32T : public FixedInputNodeT<2, Derived> {
+  static_assert(value_input_rep == ValueRepresentation::kInt32 ||
+                value_input_rep == ValueRepresentation::kUint32);
+
  public:
-  explicit StoreInt32(uint64_t bitfield, int offset)
-      : Base(bitfield), offset_(offset) {}
+  using Base = StoreInt32T;
+
+  explicit StoreInt32T(uint64_t bitfield, int offset)
+      : FixedInputNodeT<2, Derived>(bitfield), offset_(offset) {}
 
   static constexpr OpProperties kProperties = OpProperties::CanWrite();
   DECLARE_INPUTS(Object, Value)
-  DECLARE_INPUT_TYPES(Tagged, Int32)
+  static constexpr typename Base::InputRepresentations kInputRepresentations{
+      ValueRepresentation::kTagged, value_input_rep};
 
   int offset() const { return offset_; }
 
@@ -9181,6 +9304,18 @@ class StoreInt32 : public FixedInputNodeT<2, StoreInt32> {
 
  private:
   const int offset_;
+};
+
+class StoreInt32 : public StoreInt32T<StoreInt32, ValueRepresentation::kInt32> {
+ public:
+  explicit StoreInt32(uint64_t bitfield, int offset) : Base(bitfield, offset) {}
+};
+
+class StoreUint32
+    : public StoreInt32T<StoreUint32, ValueRepresentation::kUint32> {
+ public:
+  explicit StoreUint32(uint64_t bitfield, int offset)
+      : Base(bitfield, offset) {}
 };
 
 // Raw 64 bit field store parameterized by input representation. Unlike

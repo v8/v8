@@ -9751,6 +9751,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeSort(
   compiler::OptionalSharedFunctionInfoRef comparefn_shared;
   if (auto maybe_fn = TryGetConstant<JSFunction>(comparefn)) {
     comparefn_shared = maybe_fn->shared(broker());
+  } else if (auto* alloc = comparefn->TryCast<InlinedAllocation>();
+             alloc != nullptr &&
+             alloc->object()->object_type() == vobj::ObjectType::kJSFunction) {
+    comparefn_shared = alloc->object()->shared_function_info(broker());
   } else if (auto* fcc = comparefn->TryCast<FastCreateClosure>()) {
     comparefn_shared = fcc->shared_function_info();
   } else if (auto* cc = comparefn->TryCast<CreateClosure>()) {
@@ -12043,8 +12047,18 @@ ReduceResult MaglevGraphBuilder::ReduceCall(
   // If the implementation here becomes more complex, we could probably
   // deduplicate the code for FastCreateClosure and CreateClosure by using
   // templates or giving them a shared base class.
-  if (FastCreateClosure* fast_create_closure =
-          target_node->TryCast<FastCreateClosure>()) {
+  if (InlinedAllocation* alloc = target_node->TryCast<InlinedAllocation>();
+      alloc != nullptr &&
+      alloc->object()->object_type() == vobj::ObjectType::kJSFunction) {
+    const VirtualObject* vobj = alloc->object();
+    compiler::FeedbackCellRef feedback_cell = vobj->feedback_cell(broker());
+    MaybeReduceResult result = TryReduceCallForNewClosure(
+        alloc, vobj->context(), feedback_cell.dispatch_handle(),
+        vobj->shared_function_info(broker()), feedback_cell, args,
+        feedback_source);
+    RETURN_IF_DONE(result);
+  } else if (FastCreateClosure* fast_create_closure =
+                 target_node->TryCast<FastCreateClosure>()) {
     MaybeReduceResult result = TryReduceCallForNewClosure(
         fast_create_closure, fast_create_closure->ContextInput().node(),
         fast_create_closure->feedback_cell().dispatch_handle(),
@@ -14335,6 +14349,36 @@ ReduceResult MaglevGraphBuilder::VisitGetTemplateObject() {
   return ReduceResult::Done();
 }
 
+MaybeReduceResult MaglevGraphBuilder::TryBuildInlinedAllocatedClosure(
+    compiler::SharedFunctionInfoRef shared_function_info,
+    compiler::FeedbackCellRef feedback_cell) {
+  compiler::MapRef cell_map = feedback_cell.map(broker());
+  DCHECK(cell_map.equals(broker()->no_closures_cell_map()) ||
+         cell_map.equals(broker()->one_closure_cell_map()) ||
+         cell_map.equals(broker()->many_closures_cell_map()));
+  if (!cell_map.equals(broker()->many_closures_cell_map()) ||
+      IsClassConstructor(shared_function_info.kind())) {
+    return {};
+  }
+
+  compiler::MapRef function_map =
+      broker()->target_native_context().GetFunctionMapFromIndex(
+          broker(), shared_function_info.function_map_index());
+  DCHECK(!function_map.IsInobjectSlackTrackingInProgress());
+  DCHECK(!function_map.is_dictionary_map());
+  DCHECK_NE(feedback_cell.dispatch_handle(), kNullJSDispatchHandle);
+
+  ValueNode* dispatch_handle = AddNewNodeNoInputConversion<LoadUint32>(
+      {GetConstant(feedback_cell)},
+      static_cast<int>(offsetof(FeedbackCell, dispatch_handle_)));
+
+  VirtualObject* closure = reducer_.CreateJSFunction(
+      function_map, shared_function_info, feedback_cell, GetContext(),
+      dispatch_handle, compilation_unit_->specialization_context(),
+      GetCurrentScopeInfo());
+  return reducer_.BuildInlinedAllocation(closure);
+}
+
 ReduceResult MaglevGraphBuilder::VisitCreateClosure() {
   compiler::SharedFunctionInfoRef shared_function_info =
       GetRefOperand<SharedFunctionInfo>(0);
@@ -14343,6 +14387,11 @@ ReduceResult MaglevGraphBuilder::VisitCreateClosure() {
   uint32_t flags = GetFlag8Operand(2);
 
   if (interpreter::CreateClosureFlags::FastNewClosureBit::decode(flags)) {
+    MaybeReduceResult inlined =
+        TryBuildInlinedAllocatedClosure(shared_function_info, feedback_cell);
+    if (inlined.IsDone()) {
+      return SetAccumulator(inlined.Checked());
+    }
     return SetAccumulator(AddNewNode<FastCreateClosure>(
         {GetContext()}, shared_function_info, feedback_cell,
         compilation_unit_->specialization_context(), GetCurrentScopeInfo()));

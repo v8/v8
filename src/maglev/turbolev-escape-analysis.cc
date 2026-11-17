@@ -94,13 +94,23 @@ base::SmallVector<compiler::MapRef, 8> EscapeAnalysisData::GetMaps(
 
 ValueNode* EscapeAnalysisData::ResolveBase(ValueNode* node,
                                            int predecessor_index) {
+  auto resolve_load = [&](ValueNode* load, ValueNode* base, int offset) {
+    auto it = loaded_values.find(load);
+    if (it != loaded_values.end()) return it->second;
+    return ResolveLoadBase(base, offset, load, predecessor_index);
+  };
   switch (node->opcode()) {
     case Opcode::kLoadTaggedField: {
       LoadTaggedField* load = node->Cast<LoadTaggedField>();
-      auto it = loaded_values.find(load);
-      if (it != loaded_values.end()) return it->second;
-      return ResolveLoadBase(load->ValueInput().node(), load->offset(), load,
-                             predecessor_index);
+      return resolve_load(load, load->ValueInput().node(), load->offset());
+    }
+    case Opcode::kLoadContextSlotNoCells: {
+      LoadContextSlotNoCells* load = node->Cast<LoadContextSlotNoCells>();
+      return resolve_load(load, load->ValueInput().node(), load->offset());
+    }
+    case Opcode::kLoadContextSlot: {
+      LoadContextSlot* load = node->Cast<LoadContextSlot>();
+      return resolve_load(load, load->ContextInput().node(), load->offset());
     }
 
     case Opcode::kIdentity:
@@ -424,11 +434,13 @@ class AnalyzerPrePass {
   V(StoreMap)                               \
   V(StoreTaggedFieldNoWriteBarrier)         \
   V(StoreTaggedFieldWithWriteBarrier)       \
+  V(StoreContextSlotWithWriteBarrier)       \
   V(StoreFixedArrayElementNoWriteBarrier)   \
   V(StoreFixedArrayElementWithWriteBarrier) \
   V(StoreFixedDoubleArrayElement)           \
   V(InitializeFixedHoleyDoubleArrayElement) \
   V(StoreInt32)                             \
+  V(StoreUint32)                            \
   V(StoreFloat64)                           \
   V(AssertEscapeAnalysisElided)             \
   V(CheckMaps)                              \
@@ -436,6 +448,8 @@ class AnalyzerPrePass {
   V(CheckMapsWithMigrationAndDeopt)         \
   V(AssumeMap)                              \
   V(LoadTaggedField)                        \
+  V(LoadContextSlotNoCells)                 \
+  V(LoadContextSlot)                        \
   V(LoadFloat64)                            \
   V(LoadFixedDoubleArrayElement)            \
   V(LoadFixedArrayElement)                  \
@@ -601,7 +615,42 @@ class CandidateAnalyzer {
     return ProcessResult::kContinue;
   }
 
+  ProcessResult Process(StoreContextSlotWithWriteBarrier* node,
+                        const ProcessingState&) {
+    TRACE("Process " << PRINT_NODE(node));
+    // An elided InlinedAllocation Context is initialized with raw Undefined
+    // slots (never ContextCells), and no external code can allocate a
+    // ContextCell into a non-escaping Context. Thus DetachContextCell (and its
+    // lazy deopt) is unreachable if the Context is elided; if the Context
+    // later escapes, any lazy-frame closures/receivers must also escape.
+    ValueNode* context = node->ContextInput().node();
+    ProcessFieldStore(node, context, node->offset(),
+                      node->NewValueInput().node());
+    if (InlinedAllocation* ctx_alloc =
+            data_.TryGetCandidateInlinedAllocation(context)) {
+      ForEachLazyFrameEscapingValue(
+          node->lazy_deopt_info()->top_frame(), [&](ValueNode* target) {
+            if (InlinedAllocation* target_alloc =
+                    data_.TryGetCandidateInlinedAllocation(target);
+                target_alloc != nullptr && target_alloc != ctx_alloc) {
+              data_.RecordDependentAllocation(ctx_alloc, target_alloc);
+            }
+          });
+    } else {
+      MarkFrameStateReceiverAndFunctionAsEscaping(
+          node->lazy_deopt_info()->top_frame());
+    }
+    return ProcessResult::kContinue;
+  }
+
   ProcessResult Process(StoreInt32* node, const ProcessingState&) {
+    TRACE("Process " << PRINT_NODE(node));
+    ProcessFieldStore(node, node->ObjectInput().node(), node->offset(),
+                      node->ValueInput().node());
+    return ProcessResult::kContinue;
+  }
+
+  ProcessResult Process(StoreUint32* node, const ProcessingState&) {
     TRACE("Process " << PRINT_NODE(node));
     ProcessFieldStore(node, node->ObjectInput().node(), node->offset(),
                       node->ValueInput().node());
@@ -761,12 +810,25 @@ class CandidateAnalyzer {
     return ProcessResult::kContinue;
   }
 
-  ProcessResult Process(LoadTaggedField* node, const ProcessingState&) {
+  ProcessResult ProcessTaggedLoad(ValueNode* node, Input base, int offset) {
     // Shouldn't make its input escape.
-    ValueNode* resolved =
-        data_.ResolveLoadBase(node->ValueInput(), node->offset(), node);
-    data_.loaded_values.insert_or_assign(node, resolved);
+    ValueNode* resolved = data_.ResolveLoadBase(base, offset, node);
+    data_.RecordLoadedValue(node, resolved);
     return ProcessResult::kContinue;
+  }
+
+  ProcessResult Process(LoadTaggedField* node, const ProcessingState&) {
+    return ProcessTaggedLoad(node, node->ValueInput(), node->offset());
+  }
+
+  ProcessResult Process(LoadContextSlotNoCells* node, const ProcessingState&) {
+    return ProcessTaggedLoad(node, node->ValueInput(), node->offset());
+  }
+
+  ProcessResult Process(LoadContextSlot* node, const ProcessingState&) {
+    // An elided InlinedAllocation Context never contains ContextCells, so its
+    // slot holds the raw tagged value directly.
+    return ProcessTaggedLoad(node, node->ContextInput(), node->offset());
   }
 
   ProcessResult Process(LoadFixedArrayElement* node,
@@ -847,15 +909,16 @@ class CandidateAnalyzer {
   }
 
   // TODO(dmercadier): could this use DeoptInfoVisitor::VisitSingleFrame?
-  void MarkFrameStateReceiverAndFunctionAsEscaping(const DeoptFrame& frame) {
+  template <typename Func>
+  void ForEachLazyFrameEscapingValue(const DeoptFrame& frame, Func&& fn) {
     if (frame.parent() != nullptr) {
-      MarkFrameStateReceiverAndFunctionAsEscaping(*frame.parent());
+      ForEachLazyFrameEscapingValue(*frame.parent(), fn);
     }
 
     switch (frame.type()) {
       case DeoptFrame::FrameType::kInterpretedFrame: {
         const InterpretedDeoptFrame& interpreted_frame = frame.as_interpreted();
-        data_.MarkAsEscapedIfCandidate(interpreted_frame.closure());
+        fn(interpreted_frame.closure());
         interpreted_frame.frame_state()->ForEachValue(
             interpreted_frame.unit(),
             [&](ValueNode* node, interpreter::Register reg) {
@@ -865,7 +928,7 @@ class CandidateAnalyzer {
               DCHECK_NE(reg, interpreter::Register::function_closure());
               if (reg == interpreter::Register::receiver() ||
                   reg == interpreter::Register::function_closure()) {
-                data_.MarkAsEscapedIfCandidate(node);
+                fn(node);
               }
             });
         break;
@@ -875,8 +938,7 @@ class CandidateAnalyzer {
         const BuiltinContinuationDeoptFrame& continuation_frame =
             frame.as_builtin_continuation();
         if (!continuation_frame.parameters().empty()) {
-          data_.MarkAsEscapedIfCandidate(
-              continuation_frame.parameters().front());
+          fn(continuation_frame.parameters().front());
         }
         break;
       }
@@ -885,6 +947,11 @@ class CandidateAnalyzer {
       case DeoptFrame::FrameType::kConstructInvokeStubFrame:
         break;
     }
+  }
+
+  void MarkFrameStateReceiverAndFunctionAsEscaping(const DeoptFrame& frame) {
+    ForEachLazyFrameEscapingValue(
+        frame, [&](ValueNode* node) { data_.MarkAsEscapedIfCandidate(node); });
   }
 
  private:
@@ -1640,6 +1707,11 @@ class Elider {
     return RemoveIfElidedBase(node->ObjectInput().node(), node);
   }
 
+  ProcessResult Process(StoreContextSlotWithWriteBarrier* node,
+                        const ProcessingState&) {
+    return RemoveIfElidedBase(node->ContextInput().node(), node);
+  }
+
   ProcessResult Process(StoreFixedArrayElementNoWriteBarrier* node,
                         const ProcessingState&) {
     return RemoveIfElidedBase(node->ElementsInput().node(), node);
@@ -1661,6 +1733,10 @@ class Elider {
   }
 
   ProcessResult Process(StoreInt32* node, const ProcessingState&) {
+    return RemoveIfElidedBase(node->ObjectInput().node(), node);
+  }
+
+  ProcessResult Process(StoreUint32* node, const ProcessingState&) {
     return RemoveIfElidedBase(node->ObjectInput().node(), node);
   }
 
@@ -1794,6 +1870,15 @@ class Elider {
 
   ProcessResult Process(LoadTaggedField* node, const ProcessingState& state) {
     return ProcessLoad(node, node->ValueInput().node(), node->offset());
+  }
+
+  ProcessResult Process(LoadContextSlotNoCells* node,
+                        const ProcessingState& state) {
+    return ProcessLoad(node, node->ValueInput().node(), node->offset());
+  }
+
+  ProcessResult Process(LoadContextSlot* node, const ProcessingState& state) {
+    return ProcessLoad(node, node->ContextInput().node(), node->offset());
   }
 
   ProcessResult Process(LoadFloat64* node, const ProcessingState& state) {
