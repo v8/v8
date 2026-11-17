@@ -190,6 +190,23 @@ void TaggedIndex::TaggedIndexVerify(Tagged<TaggedIndex> obj, Isolate* isolate) {
   CHECK(IsTaggedIndex(obj));
 }
 
+namespace {
+
+template <typename Dictionary>
+void VerifyBaseNameDictionary(Isolate* isolate, Tagged<Dictionary> dictionary) {
+  dictionary->FixedArrayVerify(isolate);
+  ReadOnlyRoots roots(isolate);
+  for (InternalIndex i : dictionary->IterateEntries()) {
+    Tagged<Object> key;
+    if (!dictionary->ToKey(roots, i, &key)) continue;
+    if (Cast<Name>(key)->IsAnyPrivate()) {
+      CHECK(!dictionary->DetailsAt(i).IsEnumerable());
+    }
+  }
+}
+
+}  // namespace
+
 void HeapObject::HeapObjectVerify(Isolate* isolate) {
   // Cast away heapobject-ness so that the IsHeapObject test is non-trivial.
   CHECK(IsHeapObject(Tagged<Object>(this)));
@@ -223,6 +240,12 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       Cast<String>(this)->StringVerify(isolate);
     }
     break;
+    case NAME_DICTIONARY_TYPE:
+      VerifyBaseNameDictionary(isolate, Cast<NameDictionary>(this));
+      break;
+    case GLOBAL_DICTIONARY_TYPE:
+      VerifyBaseNameDictionary(isolate, Cast<GlobalDictionary>(this));
+      break;
     // FixedArray types
     case HASH_TABLE_TYPE:
     case ORDERED_HASH_MAP_TYPE:
@@ -230,8 +253,6 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case ORDERED_NAME_DICTIONARY_TYPE:
     case NAME_TO_INDEX_HASH_TABLE_TYPE:
     case REGISTERED_SYMBOL_TABLE_TYPE:
-    case NAME_DICTIONARY_TYPE:
-    case GLOBAL_DICTIONARY_TYPE:
     case NUMBER_DICTIONARY_TYPE:
     case SIMPLE_NAME_DICTIONARY_TYPE:
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
@@ -2700,6 +2721,9 @@ void SwissNameDictionary::SwissNameDictionaryVerify(Isolate* isolate,
         CHECK(!IsTheHole(value));
         name->NameVerify(isolate);
         Object::ObjectVerify(value, isolate);
+        if (name->IsAnyPrivate()) {
+          CHECK(!DetailsAt(i).IsEnumerable());
+        }
       } else if (IsDeleted(ctrl)) {
         ++seen_deleted;
         CHECK(IsTheHole(key));

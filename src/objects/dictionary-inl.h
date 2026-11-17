@@ -159,6 +159,9 @@ void BaseDictionaryShape<Key>::DetailsAtPut(Tagged<Dictionary> dict,
                                             InternalIndex entry,
                                             PropertyDetails value) {
   static_assert(Dictionary::kEntrySize == 3);
+  DCHECK_IMPLIES(IsName(dict->KeyAt(entry)) &&
+                     Cast<Name>(dict->KeyAt(entry))->IsAnyPrivate(),
+                 !value.IsEnumerable());
   dict->set(Dictionary::EntryToIndex(entry) + Dictionary::kEntryDetailsIndex,
             value.AsSmi());
 }
@@ -320,6 +323,8 @@ void GlobalDictionaryShape::DetailsAtPut(Tagged<Dictionary> dict,
                                          InternalIndex entry,
                                          PropertyDetails value) {
   DCHECK(entry.is_found());
+  DCHECK_IMPLIES(dict->CellAt(entry)->name()->IsAnyPrivate(),
+                 !value.IsEnumerable());
   dict->CellAt(entry)->UpdatePropertyDetailsExceptCellType(value);
 }
 

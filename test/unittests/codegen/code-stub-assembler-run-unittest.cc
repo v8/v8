@@ -993,7 +993,6 @@ void TestNameDictionaryLookup(Isolate* isolate) {
   Handle<Object> expect_not_found(Smi::FromInt(kNotFound), isolate);
 
   Handle<Dictionary> dictionary = Dictionary::New(isolate, 40);
-  PropertyDetails fake_details = PropertyDetails::Empty();
 
   Factory* factory = isolate->factory();
   Handle<Name> keys[] = {
@@ -1009,6 +1008,9 @@ void TestNameDictionaryLookup(Isolate* isolate) {
   };
 
   for (size_t i = 0; i < arraysize(keys); i++) {
+    PropertyAttributes attributes = keys[i]->IsAnyPrivate() ? DONT_ENUM : NONE;
+    PropertyDetails fake_details(PropertyKind::kData, attributes,
+                                 PropertyCellType::kNoCell);
     DirectHandle<Object> value =
         factory->NewPropertyCell(keys[i], fake_details, keys[i]);
     dictionary =

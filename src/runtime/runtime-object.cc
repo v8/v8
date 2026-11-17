@@ -248,8 +248,9 @@ RUNTIME_FUNCTION(Runtime_AddDictionaryProperty) {
 
   DCHECK(IsUniqueName(*name));
 
+  PropertyAttributes attributes = name->IsAnyPrivate() ? DONT_ENUM : NONE;
   PropertyDetails property_details(
-      PropertyKind::kData, NONE,
+      PropertyKind::kData, attributes,
       PropertyDetails::kConstIfDictConstnessTracking);
   if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     DirectHandle<SwissNameDictionary> dictionary(
