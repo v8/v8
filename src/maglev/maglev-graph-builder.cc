@@ -2630,17 +2630,20 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
     case CompareOperationHint::kAny:
       break;
     case CompareOperationHint::kReceiverOrNullOrUndefined: {
-      if (kOperation == Operation::kEqual) {
-        break;
-      }
-      DCHECK_EQ(kOperation, Operation::kStrictEqual);
+      DCHECK(kOperation == Operation::kEqual ||
+             kOperation == Operation::kStrictEqual);
 
       ValueNode* left = LoadRegister(0);
       ValueNode* right = GetAccumulator();
-      RETURN_IF_ABORT(BuildCheckOneOperandForStrictEqual(
-          left, right, NodeType::kJSReceiverOrNullOrUndefined,
-          &MaglevGraphBuilder::BuildCheckJSReceiverOrNullOrUndefined));
-      return SetAccumulator(BuildTaggedEqual(left, right));
+      if (kOperation == Operation::kStrictEqual) {
+        RETURN_IF_ABORT(BuildCheckOneOperandForStrictEqual(
+            left, right, NodeType::kJSReceiverOrNullOrUndefined,
+            &MaglevGraphBuilder::BuildCheckJSReceiverOrNullOrUndefined));
+        return SetAccumulator(BuildTaggedEqual(left, right));
+      }
+      RETURN_IF_ABORT(BuildCheckJSReceiverOrNullOrUndefined(left));
+      RETURN_IF_ABORT(BuildCheckJSReceiverOrNullOrUndefined(right));
+      return SetAccumulator(BuildReceiverOrNullOrUndefinedEqual(left, right));
     }
     case CompareOperationHint::kReceiver: {
       DCHECK(kOperation == Operation::kEqual ||
@@ -3114,15 +3117,6 @@ ReduceResult MaglevGraphBuilder::VisitTestReferenceEqual() {
   ValueNode* lhs = LoadRegister(0);
   ValueNode* rhs = GetAccumulator();
   return SetAccumulator(BuildTaggedEqual(lhs, rhs));
-}
-
-ReduceResult MaglevGraphBuilder::BuildTestUndetectable(ValueNode* value) {
-  RETURN_IF_DONE(reducer_.TryFoldTestUndetectable(value));
-
-  NodeType node_type;
-  CheckType(value, NodeType::kSmi, &node_type);
-  enum CheckType type = GetCheckType(node_type);
-  return AddNewNode<TestUndetectable>({value}, type);
 }
 
 template <typename BranchBuilderT>
@@ -14971,28 +14965,6 @@ void MaglevGraphBuilder::MergeIntoInlinedReturnFrameStateForSuspendGenerator(
                                  current_interpreter_frame_, predecessor,
                                  GetCurrentScopeInfo());
   }
-}
-
-template <typename BranchBuilderT>
-MaglevGraphBuilder::BranchResult
-MaglevGraphBuilder::BuildBranchIfReferenceEqual(BranchBuilderT& builder,
-                                                ValueNode* lhs,
-                                                ValueNode* rhs) {
-  if (RootConstant* root_constant = rhs->TryCast<RootConstant>()) {
-    return builder.template Build<BranchIfRootConstant>({lhs},
-                                                        root_constant->index());
-  }
-  if (RootConstant* root_constant = lhs->TryCast<RootConstant>()) {
-    return builder.template Build<BranchIfRootConstant>({rhs},
-                                                        root_constant->index());
-  }
-  if (InlinedAllocation* alloc_lhs = lhs->TryCast<InlinedAllocation>()) {
-    if (InlinedAllocation* alloc_rhs = rhs->TryCast<InlinedAllocation>()) {
-      return builder.FromBool(alloc_lhs == alloc_rhs);
-    }
-  }
-
-  return builder.template Build<BranchIfReferenceEqual>({lhs, rhs});
 }
 
 void MaglevGraphBuilder::MarkBranchDeadAndJumpIfNeeded(bool is_jump_taken) {

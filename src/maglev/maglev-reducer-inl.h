@@ -2498,10 +2498,9 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldTestUndetectable(
     return GetBooleanConstant(false);
   }
 
-  if (broker()->dependencies()->DependOnNoUndetectableObjectsProtector()) {
-    if (CheckType(value, NodeType::kJSReceiver, &node_type)) {
-      return GetBooleanConstant(false);
-    }
+  if (CheckType(value, NodeType::kJSReceiver, &node_type) &&
+      broker()->dependencies()->DependOnNoUndetectableObjectsProtector()) {
+    return GetBooleanConstant(false);
   }
 
   MapInference<MaglevReducer<BaseT>> inference(
@@ -2522,6 +2521,12 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldTestUndetectable(
   }
 
   return {};
+}
+
+template <typename BaseT>
+ReduceResult MaglevReducer<BaseT>::BuildTestUndetectable(ValueNode* value) {
+  RETURN_IF_DONE(TryFoldTestUndetectable(value));
+  return AddNewNode<TestUndetectable>({value}, GetCheckType(GetType(value)));
 }
 
 template <typename BaseT>
@@ -3062,6 +3067,60 @@ template <typename BaseT>
 ReduceResult MaglevReducer<BaseT>::BuildTaggedEqual(ValueNode* lhs,
                                                     RootIndex rhs_index) {
   return BuildTaggedEqual(lhs, GetRootConstant(rhs_index));
+}
+
+template <typename BaseT>
+ReduceResult MaglevReducer<BaseT>::BuildReceiverOrNullOrUndefinedEqual(
+    ValueNode* lhs, ValueNode* rhs) {
+  DCHECK(CheckType(lhs, NodeType::kJSReceiverOrNullOrUndefined));
+  DCHECK(CheckType(rhs, NodeType::kJSReceiverOrNullOrUndefined));
+  if (lhs == rhs) {
+    return GetBooleanConstant(true);
+  }
+  if (CheckType(lhs, NodeType::kNullOrUndefined)) {
+    if (CheckType(rhs, NodeType::kNullOrUndefined)) {
+      return GetBooleanConstant(true);
+    }
+    return BuildTestUndetectable(rhs);
+  }
+  if (CheckType(rhs, NodeType::kNullOrUndefined)) {
+    return BuildTestUndetectable(lhs);
+  }
+  if (CheckType(lhs, NodeType::kDetectableJSReceiver) ||
+      CheckType(rhs, NodeType::kDetectableJSReceiver)) {
+    return BuildTaggedEqual(lhs, rhs);
+  }
+
+  const bool no_undetectable =
+      broker()->dependencies()->DependOnNoUndetectableObjectsProtector();
+  if (no_undetectable && (CheckType(lhs, NodeType::kJSReceiver) ||
+                          CheckType(rhs, NodeType::kJSReceiver))) {
+    return BuildTaggedEqual(lhs, rhs);
+  }
+
+  return Select(
+      [&](BranchBuilder& builder) {
+        return BuildBranchIfReferenceEqual(builder, lhs, rhs);
+      },
+      [&] { return GetBooleanConstant(true); },
+      [&] {
+        return Select(
+            [&](BranchBuilder& builder) {
+              return BuildBranchIfUndefinedOrNull(builder, lhs);
+            },
+            [&] { return BuildTestUndetectable(rhs); },
+            [&]() -> ReduceResult {
+              if (no_undetectable) {
+                return GetBooleanConstant(false);
+              }
+              return Select(
+                  [&](BranchBuilder& builder) {
+                    return BuildBranchIfUndefinedOrNull(builder, rhs);
+                  },
+                  [&] { return BuildTestUndetectable(lhs); },
+                  [&] { return GetBooleanConstant(false); });
+            });
+      });
 }
 
 template <typename BaseT>
@@ -4526,6 +4585,26 @@ BranchResult MaglevReducer<BaseT>::BuildBranchIfUndefinedOrNull(
     return b.AlwaysFalse();
   }
   return b.template Build<BranchIfUndefinedOrNull>({node});
+}
+
+template <typename BaseT>
+template <typename BranchBuilderT>
+BranchResult MaglevReducer<BaseT>::BuildBranchIfReferenceEqual(
+    BranchBuilderT& b, ValueNode* lhs, ValueNode* rhs) {
+  if (RootConstant* root_constant = rhs->TryCast<RootConstant>()) {
+    return b.template Build<BranchIfRootConstant>({lhs},
+                                                  root_constant->index());
+  }
+  if (RootConstant* root_constant = lhs->TryCast<RootConstant>()) {
+    return b.template Build<BranchIfRootConstant>({rhs},
+                                                  root_constant->index());
+  }
+  if (InlinedAllocation* alloc_lhs = lhs->TryCast<InlinedAllocation>()) {
+    if (InlinedAllocation* alloc_rhs = rhs->TryCast<InlinedAllocation>()) {
+      return b.FromBool(alloc_lhs == alloc_rhs);
+    }
+  }
+  return b.template Build<BranchIfReferenceEqual>({lhs, rhs});
 }
 
 template <typename BaseT>

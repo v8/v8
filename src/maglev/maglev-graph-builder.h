@@ -1255,7 +1255,9 @@ class MaglevGraphBuilder {
   ReduceResult BuildCheckNotHole(ValueNode* node);
 
   ReduceResult BuildLogicalNot(ValueNode* value);
-  ReduceResult BuildTestUndetectable(ValueNode* value);
+  ReduceResult BuildTestUndetectable(ValueNode* value) {
+    return reducer_.BuildTestUndetectable(value);
+  }
   ReduceResult BuildToNumberOrToNumeric(Object::Conversion mode);
 
   bool IsFieldConstant(ValueNode* object, int offset);
@@ -1655,6 +1657,10 @@ class MaglevGraphBuilder {
   ReduceResult BuildTaggedEqual(ValueNode* lhs, RootIndex rhs_index) {
     return reducer_.BuildTaggedEqual(lhs, rhs_index);
   }
+  ReduceResult BuildReceiverOrNullOrUndefinedEqual(ValueNode* lhs,
+                                                   ValueNode* rhs) {
+    return reducer_.BuildReceiverOrNullOrUndefinedEqual(lhs, rhs);
+  }
 
   using BranchResult = ::v8::internal::maglev::BranchResult;
   using BranchType = ::v8::internal::maglev::BranchType;
@@ -1739,7 +1745,9 @@ class MaglevGraphBuilder {
                                           ValueNode* node);
   template <typename BranchBuilderT>
   BranchResult BuildBranchIfReferenceEqual(BranchBuilderT& builder,
-                                           ValueNode* lhs, ValueNode* rhs);
+                                           ValueNode* lhs, ValueNode* rhs) {
+    return reducer_.BuildBranchIfReferenceEqual(builder, lhs, rhs);
+  }
   template <typename BranchBuilderT>
   BranchResult BuildBranchIfInt32Compare(BranchBuilderT& builder, Operation op,
                                          ValueNode* lhs, ValueNode* rhs);

@@ -940,6 +940,9 @@ class MaglevReducer {
 
   ReduceResult BuildTaggedEqual(ValueNode* lhs, ValueNode* rhs);
   ReduceResult BuildTaggedEqual(ValueNode* lhs, RootIndex rhs_index);
+  ReduceResult BuildReceiverOrNullOrUndefinedEqual(ValueNode* lhs,
+                                                   ValueNode* rhs);
+  ReduceResult BuildTestUndetectable(ValueNode* value);
 
   ReduceResult BuildSameValue(ValueNode* lhs, ValueNode* rhs);
   ReduceResult BuildNumberSameValue(ValueNode* lhs, ValueNode* rhs);
@@ -1499,6 +1502,9 @@ class MaglevReducer {
   BranchResult BuildBranchIfFloat64IsUndefinedOrHole(BranchBuilderT& b,
                                                      ValueNode* node);
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
+  template <typename BranchBuilderT>
+  BranchResult BuildBranchIfReferenceEqual(BranchBuilderT& b, ValueNode* lhs,
+                                           ValueNode* rhs);
   template <typename BranchBuilderT>
   BranchResult BuildBranchIfJSReceiver(BranchBuilderT& b, ValueNode* value);
   template <typename BranchBuilderT>
