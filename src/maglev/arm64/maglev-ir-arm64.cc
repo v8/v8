@@ -550,10 +550,6 @@ void Int32ModulusWithOverflow::SetValueLocationConstraints() {
 }
 void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
                                             const ProcessingState& state) {
-  // If AreAliased(lhs, rhs):
-  //   deopt if lhs < 0  // Minus zero.
-  //   0
-  //
   // Using same algorithm as in MachineLoweringReducer:
   //   if rhs <= 0 then
   //     rhs = -rhs
@@ -577,17 +573,8 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
   static constexpr DeoptimizeReason deopt_reason =
       DeoptimizeReason::kDivisionByZero;
 
-  if (lhs == rhs) {
-    // For the modulus algorithm described above, lhs and rhs must not alias
-    // each other.
-    // TODO(victorgomes): This ideally should be kMinusZero, but Maglev only
-    // allows one deopt reason per IR.
-    __ RecordComment("-- Jump to eager deopt");
-    __ Tbnz(lhs, lhs.SizeInBits() - 1, __ GetDeoptLabel(this, deopt_reason));
-    __ Move(ToRegister(result()), 0);
-    return;
-  }
-
+  // For the modulus algorithm described above, lhs and rhs must not alias
+  // each other.
   DCHECK(!AreAliased(lhs, rhs));
 
   ZoneLabelRef done(masm);
