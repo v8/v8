@@ -771,7 +771,6 @@ void Map::MapVerify(Isolate* isolate) {
           // descriptor array.
           if (descriptors != ReadOnlyRoots(isolate).empty_descriptor_array()) {
             CHECK_IMPLIES(owns_descriptors(), !parent->owns_descriptors());
-            CHECK_IMPLIES(parent->owns_descriptors(), !owns_descriptors());
           }
         }
       } else {

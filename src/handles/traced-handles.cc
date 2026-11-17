@@ -172,7 +172,6 @@ TracedHandles::~TracedHandles() {
 
 void TracedHandles::Destroy(TracedNodeBlock& node_block, TracedNode& node) {
   DCHECK_IMPLIES(is_marking_, !is_sweeping_on_mutator_thread_);
-  DCHECK_IMPLIES(is_sweeping_on_mutator_thread_, !is_marking_);
   DCHECK(!is_processing_weakness_);
 
   // If sweeping on the mutator thread is running then the handle destruction

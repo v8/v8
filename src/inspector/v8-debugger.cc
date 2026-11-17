@@ -1204,7 +1204,6 @@ void V8Debugger::asyncParentFor(int stackTraceId,
     }
   }
   DCHECK_IMPLIES(!externalParent->IsInvalid(), !*asyncParent);
-  DCHECK_IMPLIES(*asyncParent, externalParent->IsInvalid());
 }
 
 std::shared_ptr<AsyncStackTrace> V8Debugger::stackTraceFor(

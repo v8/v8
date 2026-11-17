@@ -3948,31 +3948,6 @@ TEST_F(AssemblerX64Test, CpuFeatures_ProbeImpl) {
                 CpuFeatures::IsSupported(SSSE3));
   CHECK_IMPLIES(CpuFeatures::IsSupported(SSSE3),
                 CpuFeatures::IsSupported(SSE3));
-
-  // Check the reverse, if an older extension is not supported, a newer
-  // extension cannot be supported.
-  CHECK_IMPLIES(!CpuFeatures::IsSupported(SSE3),
-                !CpuFeatures::IsSupported(SSSE3));
-  CHECK_IMPLIES(!CpuFeatures::IsSupported(SSSE3),
-                !CpuFeatures::IsSupported(SSE4_1));
-  CHECK_IMPLIES(!CpuFeatures::IsSupported(SSE4_1),
-                !CpuFeatures::IsSupported(SSE4_2));
-  CHECK_IMPLIES(!CpuFeatures::IsSupported(SSE4_2),
-                !CpuFeatures::IsSupported(AVX));
-  CHECK_IMPLIES(!CpuFeatures::IsSupported(AVX),
-                !CpuFeatures::IsSupported(AVX2));
-  CHECK_IMPLIES(!CpuFeatures::IsSupported(AVX),
-                !CpuFeatures::IsSupported(AVX_VNNI));
-  CHECK_IMPLIES(!CpuFeatures::IsSupported(AVX),
-                !CpuFeatures::IsSupported(AVX_VNNI_INT8));
-  CHECK_IMPLIES(!CpuFeatures::IsSupported(AVX),
-                !CpuFeatures::IsSupported(FMA3));
-#ifdef V8_ENABLE_AVX10_1
-  CHECK_IMPLIES(!CpuFeatures::IsSupported(AVX2),
-                !CpuFeatures::IsSupported(AVX10_1));
-  CHECK_IMPLIES(!CpuFeatures::IsSupported(AVX10_1),
-                !CpuFeatures::IsSupported(AVX10_2));
-#endif  // V8_ENABLE_AVX10_1
 }
 
 #ifdef V8_ENABLE_APX_F
