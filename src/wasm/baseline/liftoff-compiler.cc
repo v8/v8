@@ -1368,6 +1368,7 @@ class LiftoffCompiler {
     }
 
     DCHECK_EQ(__ num_locals(), __ cache_state()->stack_height());
+    __ RecordTaggedLocalSlots();
 
     if (V8_UNLIKELY(debug_sidetable_builder_)) {
       debug_sidetable_builder_->SetNumLocals(__ num_locals());
@@ -1565,6 +1566,11 @@ class LiftoffCompiler {
     if (has_returns) {
       __ bind(&return_label_);
       __ cache_state() -> Steal(return_label_state_);
+      // `return_label_state_` was created with `kIgnoreLocals`, so locals are
+      // no longer in `cache_state_` (and were not spilled across the branch).
+      // Drop them so `ReturnImpl` (e.g. `TraceFunctionExit`) does not treat
+      // them as part of `cache_state_` or include them in safepoints.
+      __ DropLocals();
     }
 
     if (has_returns || falls_through_to_implicit_return_) {
@@ -11441,8 +11447,9 @@ class LiftoffCompiler {
   }
 
   void DefineSafepoint(int pc_offset = 0) {
-    auto safepoint = safepoint_table_builder_.DefineSafepoint(&asm_, pc_offset);
-    __ cache_state()->DefineSafepoint(safepoint);
+    SafepointTableBuilder::Safepoint safepoint =
+        safepoint_table_builder_.DefineSafepoint(&asm_, pc_offset);
+    __ DefineSafepoint(safepoint);
   }
 
   void DefineSafepointWithCalleeSavedRegisters(int pc_offset = 0) {

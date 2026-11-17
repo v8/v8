@@ -146,8 +146,6 @@ class LiftoffAssembler : public MacroAssembler {
                                   /*out*/ LiftoffRegList* spills,
                                   SpillLocation spill_location);
 
-    void DefineSafepoint(SafepointTableBuilder::Safepoint& safepoint);
-
     void DefineSafepointWithCalleeSavedRegisters(
         SafepointTableBuilder::Safepoint& safepoint);
 
@@ -364,12 +362,6 @@ class LiftoffAssembler : public MacroAssembler {
     }
 
     bool is_free(LiftoffRegister reg) const { return !is_used(reg); }
-
-    void reset_used_registers() {
-      DCHECK(!frozen);
-      used_registers = {};
-      memset(register_use_count, 0, sizeof(register_use_count));
-    }
 
     LiftoffRegister GetNextSpillReg(LiftoffRegList candidates) {
       DCHECK(!frozen);
@@ -1686,6 +1678,9 @@ class LiftoffAssembler : public MacroAssembler {
 
   uint32_t num_locals() const { return num_locals_; }
   void set_num_locals(uint32_t num_locals);
+  void RecordTaggedLocalSlots();
+  void DropLocals();
+  void DefineSafepoint(SafepointTableBuilder::Safepoint& safepoint);
 
   int GetTotalFrameSlotCountForGC() const;
   V8_EXPORT_PRIVATE int OolSpillCount() const;
@@ -1733,6 +1728,10 @@ class LiftoffAssembler : public MacroAssembler {
   static_assert(sizeof(ValueKind) == 1,
                 "Reconsider this inlining if ValueKind gets bigger");
   CacheState cache_state_;
+  // Precomputed safepoint bitvector for reference-typed locals (indices
+  // [0, num_locals_)). All registers are spilled before {DefineSafepoint}, so
+  // these stack slots are always tagged during the function body.
+  GrowableBitVector tagged_locals_slots_;
   // The maximum spill offset for slots in the value stack.
   int max_used_spill_offset_ = StaticStackFrameSize();
   // The amount of memory needed for register spills in OOL code.
