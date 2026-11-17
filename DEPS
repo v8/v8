@@ -173,7 +173,7 @@ deps = {
     'condition': 'checkout_agents_internal',
   },
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'a6abbbde822d3a848428840a233979497530e3ce',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '20ee89ff41082550123ee78e1f2f042cf8e702fd',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'a0ce846ddb1eb609bd181377c43c419065b0fa47',
   'buildtools/linux64': {
@@ -264,7 +264,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '219a4a4ea8d5e0f36272eb1d39052d32343fb58b',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '3caf17ab2fa1a49a68032c403aed4d9713b0d319',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -274,7 +274,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/cpu_features': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/cpu_features.git' + '@' + '4974e2063946d9dd2a417c27db139fd982ff447a',
+    'url': Var('chromium_url') + '/chromium/src/third_party/cpu_features.git' + '@' + '378c196c1dc411059833778ab6b2ab2801f8c9ab',
     'condition': 'checkout_android',
   },
   'third_party/cpu_features/src': {
@@ -318,7 +318,7 @@ deps = {
   'third_party/fuzztest/src':
     Var('chromium_url') + '/external/github.com/google/fuzztest.git' + '@' + '5f4474e9d9286e9cf40e309979abe19069d8acde',
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'e882c36410197464e3429546e6a7d5e217bde51e',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'a46a6012a133c7c0929fdae55b321c2fe65f3c5f',
   'third_party/highway/src':
     Var('chromium_url') + '/external/github.com/google/highway.git' + '@' + '2607d3b5b0113992fe84d3848859eae13b3b52c1',
   'third_party/icu':
@@ -678,7 +678,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/nasm': {
-    'url': Var('chromium_url') + '/chromium/deps/nasm.git' + '@' + '525a09a813be0f75b646ee93fc2a31c27b87d722',
+    'url': Var('chromium_url') + '/chromium/deps/nasm.git' + '@' + '54b1dcf7995006337c54f6862fd6f77a01e23e4e',
     'condition': 'not build_with_chromium',
   },
   'third_party/fadec/src': {
