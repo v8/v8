@@ -386,7 +386,7 @@ void RegExpMacroAssemblerARM64::CheckNotBackReferenceIgnoreCase(
 
     __ Bind(&loop_check);
     __ Cmp(capture_start_address, capture_end_address);
-    __ B(lt, &loop);
+    __ B(lo, &loop);
     __ B(&success);
 
     __ Bind(&fail);
@@ -521,7 +521,7 @@ void RegExpMacroAssemblerARM64::CheckNotBackReference(int start_reg,
   __ Cmp(w10, w11);
   BranchOrBacktrack(ne, on_no_match);
   __ Cmp(capture_start_address, capture_end_address);
-  __ B(lt, &loop);
+  __ B(lo, &loop);
 
   // Move current character position to position after match.
   __ Sub(current_input_offset().X(), current_position_address, input_end());
