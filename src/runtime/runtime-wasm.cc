@@ -595,21 +595,12 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   wasm::ResolvedWasmImport resolved({}, -1, callable, expected_type, sig,
                                     wasm::WellKnownImport::kUninstantiated);
   wasm::ImportCallKind kind = resolved.kind();
-  callable = resolved.callable();  // Update to ultimate target.
-  DCHECK_NE(wasm::ImportCallKind::kLinkError, kind);
-  DCHECK_NE(wasm::ImportCallKind::kWasmToWasm, kind);
-  DCHECK_NE(wasm::ImportCallKind::kReexportedJSFunction, kind);
-  int expected_arity = static_cast<int>(sig->parameter_count());
-  if (wasm::IsJSFunctionKind(kind)) {
-    expected_arity = Cast<JSFunction>(callable)
-                         ->shared()
-                         ->internal_formal_parameter_count_without_receiver();
-  }
+  SBXCHECK(wasm::IsJSFunctionKind(kind));
 
   // Lookup or compile a wrapper. The returned wrapper handle is not needed
   // because GetCompiled updates the code pointer table entry in-place.
   wasm::WasmImportWrapperCache* cache = wasm::GetWasmImportWrapperCache();
-  cache->GetCompiled(isolate, {kind, sig, expected_arity, suspend});
+  cache->GetCompiled(isolate, {kind, sig, resolved.expected_arity(), suspend});
 
   cache->PublishCounterUpdates(isolate);
 

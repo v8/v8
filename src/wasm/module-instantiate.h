@@ -67,8 +67,8 @@ enum PrecreateExternal : bool {
 };
 
 // Resolves which import call wrapper is required for the given JS callable.
-// Provides the kind of wrapper needed, the ultimate target callable, and the
-// suspender object if applicable. Note that some callables (e.g. a
+// Provides the kind of wrapper needed, the expected arity, the suspend mode,
+// and the ultimate target callable. Note that some callables (e.g. a
 // {WasmExportedFunction}) just wrap another target, which is why the ultimate
 // target is provided as well.
 class ResolvedWasmImport {
@@ -82,6 +82,7 @@ class ResolvedWasmImport {
   ImportCallKind kind() const { return kind_; }
   WellKnownImport well_known_status() const { return well_known_status_; }
   Suspend suspend() const { return suspend_; }
+  int expected_arity() const { return expected_arity_; }
   DirectHandle<JSReceiver> callable() const { return callable_; }
   // Avoid reading function data from the result of `callable()`, because it
   // might have been corrupted in the meantime (in a compromised sandbox).
@@ -102,6 +103,7 @@ class ResolvedWasmImport {
   ImportCallKind kind_;
   WellKnownImport well_known_status_{WellKnownImport::kGeneric};
   Suspend suspend_{kNoSuspend};
+  int expected_arity_;
   DirectHandle<JSReceiver> callable_;
   DirectHandle<WasmFunctionData> trusted_function_data_;
 };

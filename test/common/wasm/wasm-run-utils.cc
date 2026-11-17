@@ -153,15 +153,10 @@ TestingModuleBuilder::TestingModuleBuilder(
                                 WellKnownImport::kUninstantiated);
     ImportCallKind kind = resolved.kind();
     DirectHandle<JSReceiver> callable = resolved.callable();
-    int expected_arity = static_cast<int>(sig->parameter_count());
-    if (IsJSFunctionKind(kind)) {
-      expected_arity = Cast<JSFunction>(callable)
-                           ->shared()
-                           ->internal_formal_parameter_count_without_receiver();
-    }
     std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle =
         GetWasmImportWrapperCache()->GetCompiled(
-            isolate, {kind, sig, expected_arity, kNoSuspend});
+            isolate,
+            {kind, sig, resolved.expected_arity(), resolved.suspend()});
 
     ImportedFunctionEntry(trusted_instance_data_, maybe_import_index)
         .SetWasmToWrapper(isolate_, callable, std::move(wrapper_handle),

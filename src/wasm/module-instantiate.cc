@@ -745,10 +745,14 @@ WellKnownImport CheckForWellKnownImport(
 ResolvedWasmImport::ResolvedWasmImport(
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data, int func_index,
     DirectHandle<JSReceiver> callable, wasm::CanonicalValueType expected_type,
-    const wasm::CanonicalSig* expected_sig, WellKnownImport preknown_import) {
+    const wasm::CanonicalSig* expected_sig, WellKnownImport preknown_import)
+    : expected_arity_(static_cast<int>(expected_sig->parameter_count())) {
   SetCallable(Isolate::Current(), callable);
   kind_ = ComputeKind(trusted_instance_data, func_index, expected_type,
                       expected_sig, preknown_import);
+  DCHECK_IMPLIES(
+      !IsJSFunctionKind(kind_),
+      expected_arity_ == static_cast<int>(expected_sig->parameter_count()));
   // When the import is a WasmSuspendingObject, the inner callable should be a
   // JS callable, which is checked by the constructor. But it can be corrupted
   // later and replaced with a wasm function. This leads to an invalid state
@@ -796,10 +800,10 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
     DCHECK(IsJSFunction(*callable_));
 #ifdef DEBUG
     Tagged<SharedFunctionInfo> shared = Cast<JSFunction>(*callable_)->shared();
+    // Tier-up re-resolves without {preknown_import} and must reach the same
+    // arity and kind below.
     DCHECK_EQ(shared->internal_formal_parameter_count_without_receiver(),
               expected_sig->parameter_count());
-    // Tier-up re-resolves without {preknown_import} and must reach the same
-    // kind below.
     DCHECK(is_strict(shared->language_mode()) || shared->native());
 #endif
     if (preknown_import == WellKnownImport::kConfigureAllPrototypes) {
@@ -893,6 +897,9 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
       // Class constructor will throw anyway.
       return ImportCallKind::kUseCallBuiltin;
     }
+
+    expected_arity_ =
+        shared->internal_formal_parameter_count_without_receiver();
 
     if (is_strict(shared->language_mode()) || shared->native()) {
       return ImportCallKind::kJSFunctionUndefinedReceiver;
@@ -1893,16 +1900,10 @@ bool InstanceBuilder::ProcessImportedFunction(int import_index,
     return true;
   }
 
-  int expected_arity = static_cast<int>(expected_sig->parameter_count());
-  if (IsJSFunctionKind(kind)) {
-    auto function = Cast<JSFunction>(callable);
-    Tagged<SharedFunctionInfo> shared = function->shared();
-    expected_arity = shared->internal_formal_parameter_count_without_receiver();
-  }
-
   WasmImportWrapperCache* cache = GetWasmImportWrapperCache();
   std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle = cache->Get(
-      isolate_, {kind, expected_sig, expected_arity, resolved.suspend()});
+      isolate_,
+      {kind, expected_sig, resolved.expected_arity(), resolved.suspend()});
 
   imported_entry.SetWasmToWrapper(isolate_, callable, std::move(wrapper_handle),
                                   resolved.suspend(), expected_sig);
