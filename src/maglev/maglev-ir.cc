@@ -9661,7 +9661,7 @@ void Throw::PrintParams(std::ostream& os) const {
 }
 
 void BranchIfRootConstant::PrintParams(std::ostream& os) const {
-  os << "(" << RootsTable::name(root_index_) << ")";
+  os << "(" << RootsTable::name(root_index()) << ")";
 }
 
 void BranchIfFloat64Compare::PrintParams(std::ostream& os) const {

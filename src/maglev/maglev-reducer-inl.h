@@ -2509,11 +2509,6 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldTestUndetectable(
     return GetBooleanConstant(false);
   }
 
-  if (CheckType(value, NodeType::kJSReceiver, &node_type) &&
-      broker()->dependencies()->DependOnNoUndetectableObjectsProtector()) {
-    return GetBooleanConstant(false);
-  }
-
   MapInference<MaglevReducer<BaseT>> inference(
       this, value, MapInference<MaglevReducer<BaseT>>::kOnlyFresh);
   if (auto possible_maps = inference.TryGetPossibleMaps()) {
@@ -2529,6 +2524,11 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldTestUndetectable(
     if (all_the_same_value) {
       return GetBooleanConstant(first_is_undetectable);
     }
+  }
+
+  if (CheckType(value, NodeType::kJSReceiver, &node_type) &&
+      broker()->dependencies()->DependOnNoUndetectableObjectsProtector()) {
+    return GetBooleanConstant(false);
   }
 
   return {};

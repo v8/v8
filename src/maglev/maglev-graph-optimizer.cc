@@ -554,11 +554,19 @@ void MaglevGraphOptimizer::PostProcessNode(Phi*) {}
 
 void MaglevGraphOptimizer::PreProcessNode(ControlNode* node,
                                           const ProcessingState& state) {
+  if (reducer_.has_graph_labeller()) {
+    reducer_.SetCurrentProvenance(
+        reducer_.graph_labeller()->GetNodeProvenance(node));
+  }
   reducer_.SetNewNodePosition(BasicBlockPosition::End());
   TRACE(TraceColor::kDarkCyan << "Processing " << PrintNodeLabel(node) << ": "
                               << PrintNode(node));
 }
-void MaglevGraphOptimizer::PostProcessNode(ControlNode*) {}
+void MaglevGraphOptimizer::PostProcessNode(ControlNode*) {
+#ifdef DEBUG
+  reducer_.SetCurrentProvenance(MaglevGraphLabeller::Provenance{});
+#endif  // DEBUG
+}
 
 compiler::JSHeapBroker* MaglevGraphOptimizer::broker() const {
   return reducer_.broker();
@@ -916,6 +924,7 @@ Jump* MaglevGraphOptimizer::FoldBranch(BasicBlock* current,
   }
 
   // Update control node.
+  branch_node->ClearInputs();
   Jump* new_control_node = branch_node->OverwriteWith<Jump>();
   new_control_node->set_target(target);
 
@@ -3806,9 +3815,16 @@ ProcessResult MaglevGraphOptimizer::VisitSwitch(Switch* node,
 
 ProcessResult MaglevGraphOptimizer::VisitBranchIfSmi(
     BranchIfSmi* node, const ProcessingState& state) {
-  ValueNode* input = node->input_node(0);
-  if (input->Is<SmiConstant>()) {
+  NodeType input_type = reducer_.GetType(node->input_node(0));
+  if (IsEmptyNodeType(input_type)) {
+    return AbortBlock(state.block());
+  }
+  if (NodeTypeIs(input_type, NodeType::kSmi)) {
     FoldBranch(state.block(), node, true);
+    return ProcessResult::kRevisit;
+  }
+  if (!NodeTypeCanBe(input_type, NodeType::kSmi)) {
+    FoldBranch(state.block(), node, false);
     return ProcessResult::kRevisit;
   }
   return ProcessResult::kContinue;
@@ -3827,15 +3843,113 @@ ProcessResult MaglevGraphOptimizer::VisitBranchIfRootConstant(
 
 ProcessResult MaglevGraphOptimizer::VisitBranchIfToBooleanTrue(
     BranchIfToBooleanTrue* node, const ProcessingState& state) {
-  ValueNode* input = node->input_node(0);
-  if (IsConstantNode(input->opcode())) {
+  ValueNode* value = node->input_node(0)->Unwrap();
+  if (IsConstantNode(value->opcode())) {
     std::optional<bool> condition =
-        FromConstantToBool(reducer_.local_isolate(), input);
+        FromConstantToBool(reducer_.local_isolate(), value);
     if (!condition.has_value()) {
       return AbortBlock(state.block());
     }
 
     FoldBranch(state.block(), node, *condition);
+    return ProcessResult::kRevisit;
+  }
+
+  switch (value->value_representation()) {
+    case ValueRepresentation::kUint32:
+      value =
+          reducer_.AddNewNodeNoInputConversion<TruncateUint32ToInt32>({value});
+      [[fallthrough]];
+    case ValueRepresentation::kInt32:
+      node->change_input(0, value);
+      node->OverwriteWith<BranchIfInt32ToBooleanTrue>();
+      return ProcessResult::kRevisit;
+    case ValueRepresentation::kIntPtr:
+      node->change_input(0, value);
+      node->OverwriteWith<BranchIfIntPtrToBooleanTrue>();
+      return ProcessResult::kRevisit;
+    case ValueRepresentation::kFloat64:
+      node->change_input(0, value);
+      node->OverwriteWith<BranchIfFloat64ToBooleanTrue>();
+      return ProcessResult::kRevisit;
+    case ValueRepresentation::kHoleyFloat64:
+      node->change_input(0, value);
+      node->OverwriteWith<BranchIfHoleyFloat64ToBooleanTrue>();
+      return ProcessResult::kRevisit;
+    case ValueRepresentation::kTagged:
+      break;
+    case ValueRepresentation::kRawPtr:
+    case ValueRepresentation::kNone:
+      UNREACHABLE();
+  }
+
+  if (const NodeInfo* node_info =
+          reducer_.known_node_aspects().TryGetInfoFor(value)) {
+    if (ValueNode* as_int32 = node_info->alternative().int32()) {
+      value->MaybeRecordUseReprHint(UseRepresentation::kInt32);
+      node->change_input(0, as_int32);
+      node->OverwriteWith<BranchIfInt32ToBooleanTrue>();
+      return ProcessResult::kRevisit;
+    }
+    if (ValueNode* as_float64 = node_info->alternative().float64()) {
+      value->MaybeRecordUseReprHint(UseRepresentation::kFloat64);
+      node->change_input(0, as_float64);
+      node->OverwriteWith<BranchIfFloat64ToBooleanTrue>();
+      return ProcessResult::kRevisit;
+    }
+    if (ValueNode* as_holey_float64 =
+            node_info->alternative().holey_float64()) {
+      value->MaybeRecordUseReprHint(UseRepresentation::kHoleyFloat64);
+      node->change_input(0, as_holey_float64);
+      node->OverwriteWith<BranchIfHoleyFloat64ToBooleanTrue>();
+      return ProcessResult::kRevisit;
+    }
+  }
+
+  NodeType node_type = reducer_.GetType(value);
+  if (IsEmptyNodeType(node_type)) {
+    return AbortBlock(state.block());
+  }
+  if (NodeTypeIs(node_type, NodeType::kSmi)) {
+    value->MaybeRecordUseReprHint(UseRepresentation::kInt32);
+    ValueNode* untagged =
+        reducer_.AddNewNodeNoInputConversion<UnsafeSmiUntag>({value});
+    node->change_input(0, untagged);
+    node->OverwriteWith<BranchIfInt32ToBooleanTrue>();
+    return ProcessResult::kRevisit;
+  }
+  if (NodeTypeIs(node_type, NodeType::kBoolean)) {
+    node->change_input(0, value);
+    node->OverwriteWith<BranchIfRootConstant>()->set_root_index(
+        RootIndex::kTrueValue);
+    return ProcessResult::kRevisit;
+  }
+  if (NodeTypeIs(node_type, NodeType::kString)) {
+    node->change_input(0, value);
+    node->OverwriteWith<BranchIfRootConstant>()->set_root_index(
+        RootIndex::kempty_string);
+    node->SwapTargets();
+    return ProcessResult::kRevisit;
+  }
+  if (NodeTypeIs(node_type, NodeType::kJSReceiver)) {
+    MaybeReduceResult is_undetectable = reducer_.TryFoldTestUndetectable(value);
+    if (is_undetectable.IsDoneWithAbort()) {
+      return ProcessResult::kTruncateBlock;
+    }
+    if (is_undetectable.HasValue()) {
+      std::optional<bool> cst =
+          FromConstantToBool(reducer_.local_isolate(), is_undetectable.value());
+      FoldBranch(state.block(), node, !cst.value());
+      return ProcessResult::kRevisit;
+    }
+    node->change_input(0, value);
+    node->OverwriteWith<BranchIfUndetectable>()->set_check_type(
+        CheckType::kOmitHeapObjectCheck);
+    node->SwapTargets();
+    return ProcessResult::kRevisit;
+  }
+  if (NodeTypeIsNullOrUndefined(node_type)) {
+    FoldBranch(state.block(), node, false);
     return ProcessResult::kRevisit;
   }
   return ProcessResult::kContinue;

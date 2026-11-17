@@ -11590,6 +11590,12 @@ class BranchControlNode : public ConditionalControlNode {
   void set_if_true(BasicBlock* block) { if_true_.set_block_ptr(block); }
   void set_if_false(BasicBlock* block) { if_false_.set_block_ptr(block); }
 
+  void SwapTargets() {
+    BasicBlock* tmp = if_true();
+    set_if_true(if_false());
+    set_if_false(tmp);
+  }
+
  private:
   BasicBlockRef if_true_;
   BasicBlockRef if_false_;
@@ -11884,12 +11890,16 @@ class BranchIfRootConstant
   explicit BranchIfRootConstant(uint64_t bitfield, RootIndex root_index,
                                 BasicBlockRef* if_true_refs,
                                 BasicBlockRef* if_false_refs)
-      : Base(bitfield, if_true_refs, if_false_refs), root_index_(root_index) {}
+      : Base(RootIndexField::update(bitfield, root_index), if_true_refs,
+             if_false_refs) {}
 
   DECLARE_INPUTS(Condition)
   DECLARE_INPUT_TYPES(Tagged)
 
-  RootIndex root_index() { return root_index_; }
+  RootIndex root_index() const { return RootIndexField::decode(bitfield()); }
+  void set_root_index(RootIndex root_index) {
+    set_bitfield(RootIndexField::update(bitfield(), root_index));
+  }
 
 #ifdef V8_COMPRESS_POINTERS
   void MarkTaggedInputsAsDecompressing() {
@@ -11902,7 +11912,9 @@ class BranchIfRootConstant
   void PrintParams(std::ostream&) const;
 
  private:
-  RootIndex root_index_;
+  static constexpr int kRootIndexBitSize =
+      std::bit_width(static_cast<unsigned>(RootIndex::kRootListLength));
+  using RootIndexField = Base::NextBitField<RootIndex, kRootIndexBitSize>;
 };
 
 class BranchIfUndefinedOrNull
@@ -11939,6 +11951,9 @@ class BranchIfUndetectable
   DECLARE_INPUT_TYPES(Tagged)
 
   CheckType check_type() const { return CheckTypeBitField::decode(bitfield()); }
+  void set_check_type(CheckType check_type) {
+    set_bitfield(CheckTypeBitField::update(bitfield(), check_type));
+  }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
