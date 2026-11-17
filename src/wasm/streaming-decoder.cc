@@ -411,14 +411,14 @@ void StreamingDecoder::Finish(
     }
 
     struct CachingInterface : public WasmStreaming::ModuleCachingInterface {
-      StreamingProcessor* const processor;
+      StreamingDecoder* const decoder;
       base::UniqueArray<const uint8_t>& wire_bytes;
       bool did_try_deserialization = false;
       bool did_deserialize = false;
 
-      CachingInterface(StreamingProcessor* proc,
+      CachingInterface(StreamingDecoder* decoder,
                        base::UniqueArray<const uint8_t>& wire_bytes)
-          : processor(proc), wire_bytes(wire_bytes) {}
+          : decoder(decoder), wire_bytes(wire_bytes) {}
 
       // Public API:
       std::span<const uint8_t> GetWireBytes() const override {
@@ -431,22 +431,32 @@ void StreamingDecoder::Finish(
           FATAL("SetCachedCompiledModuleBytes can only be called once");
         }
         did_try_deserialization = true;
+        CHECK_EQ(StreamState::kReceivingBytes, decoder->stream_state_);
+        // Move {processor_} to a local variable and mark the stream as
+        // {kFinished} before calling {Deserialize}. {Deserialize} can
+        // synchronously finish compilation, invoke embedder/JS callbacks (which
+        // may destroy the embedder's {StreamingDecoder} reference), and destroy
+        // the {AsyncCompileJob} (dropping its {StreamingDecoder} reference).
+        decoder->stream_state_ = StreamState::kFinished;
+        std::unique_ptr<StreamingProcessor> processor =
+            std::move(decoder->processor_);
         did_deserialize =
             processor->Deserialize(base::VectorOf(module_bytes), wire_bytes);
+        if (!did_deserialize) {
+          // Deserialization failed; restore {processor_} and {stream_state_}
+          // so {Finish} can fall back to decoding and compiling the wire bytes.
+          CHECK_EQ(StreamState::kFinished, decoder->stream_state_);
+          decoder->processor_ = std::move(processor);
+          decoder->stream_state_ = StreamState::kReceivingBytes;
+        }
         return did_deserialize;
       }
-    } caching_interface{processor_.get(), bytes_copy};
+    } caching_interface{this, bytes_copy};
 
     // Call the embedder.
     caching_callback(caching_interface);
 
-    if (caching_interface.did_deserialize) {
-      DCHECK(stream_state_ == StreamState::kReceivingBytes ||
-             stream_state_ == StreamState::kDiscarded);
-      stream_state_ = StreamState::kFinished;
-      processor_.reset();
-      return;
-    }
+    if (caching_interface.did_deserialize) return;
 
     // If we did not deserialize then `wire_bytes` still holds our owned copy.
     DCHECK_EQ(total_length, bytes_copy.size());

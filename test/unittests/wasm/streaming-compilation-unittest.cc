@@ -2418,6 +2418,38 @@ STREAM_TEST(FinishStreamInApiInterruptIsDeferred) {
   CHECK(no_js_cached_tester.IsPromiseFulfilled());
 }
 
+STREAM_TEST(TestDestroyDuringDeserializationFinish) {
+  FlagScope<bool> no_cache(&v8_flags.wasm_native_module_cache, false);
+  Zone zone(reinterpret_cast<i::Isolate*>(isolate)->allocator(), ZONE_NAME);
+  ZoneBuffer wire_bytes = GetValidModuleBytes(&zone);
+  ZoneBuffer module_bytes =
+      GetValidCompiledModuleBytes(isolate, &zone, wire_bytes);
+
+  auto compilation = std::make_unique<v8::WasmModuleCompilation>();
+  compilation->SetHasCompiledModuleBytes();
+  compilation->OnBytesReceived(wire_bytes.begin(), wire_bytes.size());
+  bool resolved = false;
+  compilation->Finish(
+      isolate,
+      [&](WasmStreaming::ModuleCachingInterface& caching_interface) {
+        CHECK(caching_interface.SetCachedCompiledModuleBytes(
+            base::VectorOf(module_bytes)));
+        // Allocate and fill a buffer of sizeof(StreamingDecoder) after
+        // {FinishCompile} has dropped {AsyncCompileJob::stream_} and
+        // {resolution_callback} has destroyed {compilation}.
+        auto overwrite = std::make_unique<uint8_t[]>(sizeof(StreamingDecoder));
+        std::memset(overwrite.get(), 0xaa, sizeof(StreamingDecoder));
+      },
+      [&](std::variant<Local<v8::WasmModuleObject>, Local<v8::Value>>
+              module_or_error) {
+        CHECK(std::holds_alternative<Local<v8::WasmModuleObject>>(
+            module_or_error));
+        resolved = true;
+        compilation.reset();
+      });
+  CHECK(resolved);
+}
+
 #undef STREAM_TEST
 
 }  // namespace v8::internal::wasm
