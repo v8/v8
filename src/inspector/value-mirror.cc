@@ -658,11 +658,11 @@ class PrimitiveValueMirror final : public ValueMirrorBase {
   Response buildDeepSerializedValue(
       v8::Local<v8::Context> context, int maxDepth,
       v8::Local<v8::Object> additionalParameters,
-      V8SerializationDuplicateTracker& duplicateTracker,
-      std::unique_ptr<protocol::DictionaryValue>* result) const override {
+      std::unique_ptr<protocol::Runtime::DeepSerializedValue>* result)
+      const override {
     return V8DeepSerializer::serializeV8Value(
         v8Value(v8::Isolate::GetCurrent()), context, maxDepth,
-        additionalParameters, duplicateTracker, result);
+        additionalParameters, result);
   }
 
  private:
@@ -725,11 +725,11 @@ class NumberMirror final : public ValueMirrorBase {
   Response buildDeepSerializedValue(
       v8::Local<v8::Context> context, int maxDepth,
       v8::Local<v8::Object> additionalParameters,
-      V8SerializationDuplicateTracker& duplicateTracker,
-      std::unique_ptr<protocol::DictionaryValue>* result) const override {
+      std::unique_ptr<protocol::Runtime::DeepSerializedValue>* result)
+      const override {
     return V8DeepSerializer::serializeV8Value(
         v8Value(v8::Isolate::GetCurrent()), context, maxDepth,
-        additionalParameters, duplicateTracker, result);
+        additionalParameters, result);
   }
 };
 
@@ -788,11 +788,11 @@ class BigIntMirror final : public ValueMirrorBase {
   Response buildDeepSerializedValue(
       v8::Local<v8::Context> context, int maxDepth,
       v8::Local<v8::Object> additionalParameters,
-      V8SerializationDuplicateTracker& duplicateTracker,
-      std::unique_ptr<protocol::DictionaryValue>* result) const override {
+      std::unique_ptr<protocol::Runtime::DeepSerializedValue>* result)
+      const override {
     return V8DeepSerializer::serializeV8Value(
         v8Value(v8::Isolate::GetCurrent()), context, maxDepth,
-        additionalParameters, duplicateTracker, result);
+        additionalParameters, result);
   }
 };
 
@@ -847,11 +847,11 @@ class SymbolMirror final : public ValueMirrorBase {
   Response buildDeepSerializedValue(
       v8::Local<v8::Context> context, int maxDepth,
       v8::Local<v8::Object> additionalParameters,
-      V8SerializationDuplicateTracker& duplicateTracker,
-      std::unique_ptr<protocol::DictionaryValue>* result) const override {
+      std::unique_ptr<protocol::Runtime::DeepSerializedValue>* result)
+      const override {
     return V8DeepSerializer::serializeV8Value(
         v8Value(v8::Isolate::GetCurrent()), context, maxDepth,
-        additionalParameters, duplicateTracker, result);
+        additionalParameters, result);
   }
 };
 
@@ -897,21 +897,12 @@ class LocationMirror final : public ValueMirrorBase {
   Response buildDeepSerializedValue(
       v8::Local<v8::Context> context, int maxDepth,
       v8::Local<v8::Object> additionalParameters,
-      V8SerializationDuplicateTracker& duplicateTracker,
-      std::unique_ptr<protocol::DictionaryValue>* result) const override {
-    bool isKnown;
-    v8::Local<v8::Value> value = v8Value(v8::Isolate::GetCurrent());
-    *result = duplicateTracker.LinkExistingOrCreate(value, &isKnown);
-    // Fail serialization if duplicate tracker Map operations threw.
-    if (!*result) {
-      return Response::ServerError("exception during deep serialization");
-    }
-    if (isKnown) {
-      return Response::Success();
-    }
-
-    (*result)->setString(
-        "type", protocol::Runtime::DeepSerializedValue::TypeEnum::Object);
+      std::unique_ptr<protocol::Runtime::DeepSerializedValue>* result)
+      const override {
+    *result =
+        protocol::Runtime::DeepSerializedValue::create()
+            .setType(protocol::Runtime::DeepSerializedValue::TypeEnum::Object)
+            .build();
     return Response::Success();
   }
 
@@ -996,11 +987,11 @@ class FunctionMirror final : public ValueMirrorBase {
   Response buildDeepSerializedValue(
       v8::Local<v8::Context> context, int maxDepth,
       v8::Local<v8::Object> additionalParameters,
-      V8SerializationDuplicateTracker& duplicateTracker,
-      std::unique_ptr<protocol::DictionaryValue>* result) const override {
+      std::unique_ptr<protocol::Runtime::DeepSerializedValue>* result)
+      const override {
     return V8DeepSerializer::serializeV8Value(
         v8Value(v8::Isolate::GetCurrent()), context, maxDepth,
-        additionalParameters, duplicateTracker, result);
+        additionalParameters, result);
   }
 };
 
@@ -1316,11 +1307,11 @@ class ObjectMirror final : public ValueMirrorBase {
   Response buildDeepSerializedValue(
       v8::Local<v8::Context> context, int maxDepth,
       v8::Local<v8::Object> additionalParameters,
-      V8SerializationDuplicateTracker& duplicateTracker,
-      std::unique_ptr<protocol::DictionaryValue>* result) const override {
+      std::unique_ptr<protocol::Runtime::DeepSerializedValue>* result)
+      const override {
     return V8DeepSerializer::serializeV8Value(
         v8Value(v8::Isolate::GetCurrent()), context, maxDepth,
-        additionalParameters, duplicateTracker, result);
+        additionalParameters, result);
   }
 
  private:

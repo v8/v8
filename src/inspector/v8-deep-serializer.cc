@@ -56,14 +56,30 @@ String16 DescriptionForRegExpFlags(v8::Local<v8::RegExp> value) {
   return resultStringBuilder.toString();
 }
 
+// Serializes `value` nested in the deep serialization tracked by
+// `duplicateTracker`.
+Response SerializeV8Value(v8::Local<v8::Value> value,
+                          v8::Local<v8::Context> context, int maxDepth,
+                          v8::Local<v8::Object> additionalParameters,
+                          V8SerializationDuplicateTracker& duplicateTracker,
+                          std::unique_ptr<protocol::DictionaryValue>* result);
+
+// Functions with a `resultValue` parameter put the type of `value` into
+// `result` and its serialized value, if any, into `resultValue`. `result` stays
+// a dictionary because `duplicateTracker` registers it for objects and symbols,
+// and can later add `weakLocalObjectReference` to it. The root value can then
+// be moved into the protocol object instead of being copied out of a
+// dictionary.
+
 Response SerializeRegexp(v8::Local<v8::RegExp> value,
                          v8::Local<v8::Context> context,
                          V8SerializationDuplicateTracker& duplicateTracker,
-                         protocol::DictionaryValue& result) {
+                         protocol::DictionaryValue& result,
+                         std::unique_ptr<protocol::Value>* resultValue) {
   result.setString("type",
                    protocol::Runtime::DeepSerializedValue::TypeEnum::Regexp);
 
-  std::unique_ptr<protocol::DictionaryValue> resultValue =
+  std::unique_ptr<protocol::DictionaryValue> regexpValue =
       protocol::DictionaryValue::create();
 
   v8::Local<v8::String> source = value->GetSource();
@@ -71,30 +87,28 @@ Response SerializeRegexp(v8::Local<v8::RegExp> value,
     return Response::ServerError("Object is too large to be returned by value");
   }
 
-  resultValue->setValue(protocol::String("pattern"),
+  regexpValue->setValue(protocol::String("pattern"),
                         protocol::StringValue::create(toProtocolString(
                             v8::Isolate::GetCurrent(), source)));
 
   String16 flags = DescriptionForRegExpFlags(value);
   if (!flags.isEmpty()) {
-    resultValue->setValue(protocol::String("flags"),
+    regexpValue->setValue(protocol::String("flags"),
                           protocol::StringValue::create(flags));
   }
 
-  result.setValue("value", std::move(resultValue));
+  *resultValue = std::move(regexpValue);
   return Response::Success();
 }
 
 Response SerializeDate(v8::Local<v8::Date> value,
                        v8::Local<v8::Context> context,
                        V8SerializationDuplicateTracker& duplicateTracker,
-                       protocol::DictionaryValue& result) {
+                       protocol::DictionaryValue& result,
+                       std::unique_ptr<protocol::Value>* resultValue) {
   result.setString("type",
                    protocol::Runtime::DeepSerializedValue::TypeEnum::Date);
-  std::unique_ptr<protocol::Value> dateDescription =
-      DescriptionForDate(context, value.As<v8::Date>());
-
-  result.setValue("value", std::move(dateDescription));
+  *resultValue = DescriptionForDate(context, value);
   return Response::Success();
 }
 
@@ -123,9 +137,9 @@ Response SerializeArrayValue(v8::Local<v8::Array> value,
     }
 
     std::unique_ptr<protocol::DictionaryValue> elementProtocolValue;
-    Response response = V8DeepSerializer::serializeV8Value(
-        elementValue, context, maxDepth - 1, additionalParameters,
-        duplicateTracker, &elementProtocolValue);
+    Response response = SerializeV8Value(elementValue, context, maxDepth - 1,
+                                         additionalParameters, duplicateTracker,
+                                         &elementProtocolValue);
     if (!response.IsSuccess()) return response;
     serializedValue->pushValue(std::move(elementProtocolValue));
   }
@@ -137,7 +151,8 @@ Response SerializeArray(v8::Local<v8::Array> value,
                         v8::Local<v8::Context> context, int maxDepth,
                         v8::Local<v8::Object> additionalParameters,
                         V8SerializationDuplicateTracker& duplicateTracker,
-                        protocol::DictionaryValue& result) {
+                        protocol::DictionaryValue& result,
+                        std::unique_ptr<protocol::Value>* resultValue) {
   result.setString("type",
                    protocol::Runtime::DeepSerializedValue::TypeEnum::Array);
 
@@ -148,7 +163,7 @@ Response SerializeArray(v8::Local<v8::Array> value,
                             duplicateTracker, &serializedValue);
     if (!response.IsSuccess()) return response;
 
-    result.setValue("value", std::move(serializedValue));
+    *resultValue = std::move(serializedValue);
   }
 
   return Response::Success();
@@ -157,7 +172,8 @@ Response SerializeArray(v8::Local<v8::Array> value,
 Response SerializeMap(v8::Local<v8::Map> value, v8::Local<v8::Context> context,
                       int maxDepth, v8::Local<v8::Object> additionalParameters,
                       V8SerializationDuplicateTracker& duplicateTracker,
-                      protocol::DictionaryValue& result) {
+                      protocol::DictionaryValue& result,
+                      std::unique_ptr<protocol::Value>* resultValue) {
   result.setString("type",
                    protocol::Runtime::DeepSerializedValue::TypeEnum::Map);
 
@@ -195,14 +211,14 @@ Response SerializeMap(v8::Local<v8::Map> value, v8::Local<v8::Context> context,
             protocol::StringValue::create(toProtocolString(isolate, keyString));
       } else {
         std::unique_ptr<protocol::DictionaryValue> keyDictionaryProtocolValue;
-        Response response = V8DeepSerializer::serializeV8Value(
+        Response response = SerializeV8Value(
             keyV8Value, context, maxDepth - 1, additionalParameters,
             duplicateTracker, &keyDictionaryProtocolValue);
         if (!response.IsSuccess()) return response;
         keyProtocolValue = std::move(keyDictionaryProtocolValue);
       }
 
-      Response response = V8DeepSerializer::serializeV8Value(
+      Response response = SerializeV8Value(
           propertyV8Value, context, maxDepth - 1, additionalParameters,
           duplicateTracker, &propertyProtocolValue);
       if (!response.IsSuccess()) return response;
@@ -215,7 +231,7 @@ Response SerializeMap(v8::Local<v8::Map> value, v8::Local<v8::Context> context,
 
       serializedValue->pushValue(std::move(keyValueList));
     }
-    result.setValue("value", std::move(serializedValue));
+    *resultValue = std::move(serializedValue);
   }
 
   return Response::Success();
@@ -224,7 +240,8 @@ Response SerializeMap(v8::Local<v8::Map> value, v8::Local<v8::Context> context,
 Response SerializeSet(v8::Local<v8::Set> value, v8::Local<v8::Context> context,
                       int maxDepth, v8::Local<v8::Object> additionalParameters,
                       V8SerializationDuplicateTracker& duplicateTracker,
-                      protocol::DictionaryValue& result) {
+                      protocol::DictionaryValue& result,
+                      std::unique_ptr<protocol::Value>* resultValue) {
   result.setString("type",
                    protocol::Runtime::DeepSerializedValue::TypeEnum::Set);
 
@@ -235,7 +252,7 @@ Response SerializeSet(v8::Local<v8::Set> value, v8::Local<v8::Context> context,
 
                                             duplicateTracker, &serializedValue);
     if (!response.IsSuccess()) return response;
-    result.setValue("value", std::move(serializedValue));
+    *resultValue = std::move(serializedValue);
   }
   return Response::Success();
 }
@@ -299,9 +316,9 @@ Response SerializeObjectValue(v8::Local<v8::Object> value,
       return Response::ServerError("exception during deep serialization");
     }
 
-    Response response = V8DeepSerializer::serializeV8Value(
-        propertyV8Value, context, maxDepth - 1, additionalParameters,
-        duplicateTracker, &propertyProtocolValue);
+    Response response = SerializeV8Value(propertyV8Value, context, maxDepth - 1,
+                                         additionalParameters, duplicateTracker,
+                                         &propertyProtocolValue);
     if (!response.IsSuccess()) return response;
 
     std::unique_ptr<protocol::ListValue> keyValueList =
@@ -320,7 +337,8 @@ Response SerializeObject(v8::Local<v8::Object> value,
                          v8::Local<v8::Context> context, int maxDepth,
                          v8::Local<v8::Object> additionalParameters,
                          V8SerializationDuplicateTracker& duplicateTracker,
-                         protocol::DictionaryValue& result) {
+                         protocol::DictionaryValue& result,
+                         std::unique_ptr<protocol::Value>* resultValue) {
   result.setString("type",
                    protocol::Runtime::DeepSerializedValue::TypeEnum::Object);
 
@@ -330,36 +348,39 @@ Response SerializeObject(v8::Local<v8::Object> value,
         value.As<v8::Object>(), context, maxDepth, additionalParameters,
         duplicateTracker, &serializedValue);
     if (!response.IsSuccess()) return response;
-    result.setValue("value", std::move(serializedValue));
+    *resultValue = std::move(serializedValue);
   }
   return Response::Success();
 }
-}  // namespace
 
-Response V8DeepSerializer::serializeV8Value(
-    v8::Local<v8::Object> value, v8::Local<v8::Context> context, int maxDepth,
-    v8::Local<v8::Object> additionalParameters,
-    V8SerializationDuplicateTracker& duplicateTracker,
-    protocol::DictionaryValue& result) {
+Response SerializeV8Object(v8::Local<v8::Object> value,
+                           v8::Local<v8::Context> context, int maxDepth,
+                           v8::Local<v8::Object> additionalParameters,
+                           V8SerializationDuplicateTracker& duplicateTracker,
+                           protocol::DictionaryValue& result,
+                           std::unique_ptr<protocol::Value>* resultValue) {
   if (value->IsArray()) {
     return SerializeArray(value.As<v8::Array>(), context, maxDepth,
-                          additionalParameters, duplicateTracker, result);
+                          additionalParameters, duplicateTracker, result,
+                          resultValue);
   }
   if (value->IsRegExp()) {
     return SerializeRegexp(value.As<v8::RegExp>(), context, duplicateTracker,
-                           result);
+                           result, resultValue);
   }
   if (value->IsDate()) {
     return SerializeDate(value.As<v8::Date>(), context, duplicateTracker,
-                         result);
+                         result, resultValue);
   }
   if (value->IsMap()) {
     return SerializeMap(value.As<v8::Map>(), context, maxDepth,
-                        additionalParameters, duplicateTracker, result);
+                        additionalParameters, duplicateTracker, result,
+                        resultValue);
   }
   if (value->IsSet()) {
     return SerializeSet(value.As<v8::Set>(), context, maxDepth,
-                        additionalParameters, duplicateTracker, result);
+                        additionalParameters, duplicateTracker, result,
+                        resultValue);
   }
   if (value->IsWeakMap()) {
     result.setString("type",
@@ -409,14 +430,16 @@ Response V8DeepSerializer::serializeV8Value(
 
   // Serialize as an Object.
   return SerializeObject(value.As<v8::Object>(), context, maxDepth,
-                         additionalParameters, duplicateTracker, result);
+                         additionalParameters, duplicateTracker, result,
+                         resultValue);
 }
 
-Response V8DeepSerializer::serializeV8Value(
+Response SerializeTypeAndValue(
     v8::Local<v8::Value> value, v8::Local<v8::Context> context, int maxDepth,
     v8::Local<v8::Object> additionalParameters,
     V8SerializationDuplicateTracker& duplicateTracker,
-    std::unique_ptr<protocol::DictionaryValue>* result) {
+    std::unique_ptr<protocol::DictionaryValue>* result,
+    std::unique_ptr<protocol::Value>* resultValue) {
   if (value->IsUndefined()) {
     *result = protocol::DictionaryValue::create();
     (*result)->setString(
@@ -433,7 +456,8 @@ Response V8DeepSerializer::serializeV8Value(
     *result = protocol::DictionaryValue::create();
     (*result)->setString(
         "type", protocol::Runtime::DeepSerializedValue::TypeEnum::Boolean);
-    (*result)->setBoolean("value", value.As<v8::Boolean>()->Value());
+    *resultValue =
+        protocol::FundamentalValue::create(value.As<v8::Boolean>()->Value());
     return Response::Success();
   }
   if (value->IsNumber()) {
@@ -443,16 +467,14 @@ Response V8DeepSerializer::serializeV8Value(
     v8::Local<v8::Number> number = value.As<v8::Number>();
     double rawValue = number->Value();
     if (std::isnan(rawValue)) {
-      (*result)->setValue("value", protocol::StringValue::create("NaN"));
+      *resultValue = protocol::StringValue::create("NaN");
     } else if (rawValue == 0.0 && std::signbit(rawValue)) {
-      (*result)->setValue("value", protocol::StringValue::create("-0"));
+      *resultValue = protocol::StringValue::create("-0");
     } else if (std::isinf(rawValue)) {
-      (*result)->setValue(
-          "value", protocol::StringValue::create(
-                       std::signbit(rawValue) ? "-Infinity" : "Infinity"));
+      *resultValue = protocol::StringValue::create(
+          std::signbit(rawValue) ? "-Infinity" : "Infinity");
     } else {
-      (*result)->setValue("value",
-                          protocol::FundamentalValue::create(rawValue));
+      *resultValue = protocol::FundamentalValue::create(rawValue);
     }
     return Response::Success();
   }
@@ -467,8 +489,8 @@ Response V8DeepSerializer::serializeV8Value(
     *result = protocol::DictionaryValue::create();
     (*result)->setString(
         "type", protocol::Runtime::DeepSerializedValue::TypeEnum::Bigint);
-    (*result)->setValue("value", protocol::StringValue::create(toProtocolString(
-                                     v8::Isolate::GetCurrent(), stringValue)));
+    *resultValue = protocol::StringValue::create(
+        toProtocolString(v8::Isolate::GetCurrent(), stringValue));
     return Response::Success();
   }
   if (value->IsString()) {
@@ -480,8 +502,8 @@ Response V8DeepSerializer::serializeV8Value(
     *result = protocol::DictionaryValue::create();
     (*result)->setString(
         "type", protocol::Runtime::DeepSerializedValue::TypeEnum::String);
-    (*result)->setString(
-        "value", toProtocolString(v8::Isolate::GetCurrent(), stringValue));
+    *resultValue = protocol::StringValue::create(
+        toProtocolString(v8::Isolate::GetCurrent(), stringValue));
     return Response::Success();
   }
   if (value->IsSymbol()) {
@@ -533,14 +555,14 @@ Response V8DeepSerializer::serializeV8Value(
             toProtocolValue(context, v8Value, kMaxProtocolDepth,
                             duplicateTracker.budget(), &protocolValue);
         if (!response.IsSuccess()) return response;
-        (*result)->setValue("value", std::move(protocolValue));
+        *resultValue = std::move(protocolValue);
       }
       return Response::Success();
     }
 
     // No embedder-implemented serialization. Serialize as V8 Object.
-    return serializeV8Value(object, context, maxDepth, additionalParameters,
-                            duplicateTracker, *(*result));
+    return SerializeV8Object(object, context, maxDepth, additionalParameters,
+                             duplicateTracker, *(*result), resultValue);
   }
 
   // Fallback in case of unexpected type.
@@ -554,6 +576,50 @@ Response V8DeepSerializer::serializeV8Value(
   }
   (*result)->setString(
       "type", protocol::Runtime::DeepSerializedValue::TypeEnum::Object);
+  return Response::Success();
+}
+
+Response SerializeV8Value(v8::Local<v8::Value> value,
+                          v8::Local<v8::Context> context, int maxDepth,
+                          v8::Local<v8::Object> additionalParameters,
+                          V8SerializationDuplicateTracker& duplicateTracker,
+                          std::unique_ptr<protocol::DictionaryValue>* result) {
+  std::unique_ptr<protocol::Value> resultValue;
+  Response response =
+      SerializeTypeAndValue(value, context, maxDepth, additionalParameters,
+                            duplicateTracker, result, &resultValue);
+  if (!response.IsSuccess()) return response;
+  if (resultValue) (*result)->setValue("value", std::move(resultValue));
+  return Response::Success();
+}
+}  // namespace
+
+// static
+Response V8DeepSerializer::serializeV8Value(
+    v8::Local<v8::Value> value, v8::Local<v8::Context> context, int maxDepth,
+    v8::Local<v8::Object> additionalParameters,
+    std::unique_ptr<protocol::Runtime::DeepSerializedValue>* result) {
+  // Declared before `duplicateTracker`, which keeps pointers to the serialized
+  // dictionaries, so that they outlive it.
+  std::unique_ptr<protocol::DictionaryValue> serializedDictionary;
+  std::unique_ptr<protocol::Value> serializedValue;
+  V8SerializationDuplicateTracker duplicateTracker{context};
+  Response response = SerializeTypeAndValue(
+      value, context, maxDepth, additionalParameters, duplicateTracker,
+      &serializedDictionary, &serializedValue);
+  if (!response.IsSuccess()) return response;
+
+  String16 type;
+  serializedDictionary->getString("type", &type);
+  *result =
+      protocol::Runtime::DeepSerializedValue::create().setType(type).build();
+  // Move the value, which can be large, instead of copying it.
+  if (serializedValue) (*result)->setValue(std::move(serializedValue));
+  int weakLocalObjectReference;
+  if (serializedDictionary->getInteger("weakLocalObjectReference",
+                                       &weakLocalObjectReference)) {
+    (*result)->setWeakLocalObjectReference(weakLocalObjectReference);
+  }
   return Response::Success();
 }
 

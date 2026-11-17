@@ -50,7 +50,6 @@
 #include "src/inspector/v8-debugger.h"
 #include "src/inspector/v8-inspector-impl.h"
 #include "src/inspector/v8-inspector-session-impl.h"
-#include "src/inspector/v8-serialization-duplicate-tracker.h"
 #include "src/inspector/v8-stack-trace-impl.h"
 #include "src/inspector/v8-value-utils.h"
 #include "src/inspector/value-mirror.h"
@@ -760,36 +759,12 @@ Response InjectedScript::wrapObjectMirror(
     if (customPreview) (*result)->setCustomPreview(std::move(customPreview));
   }
   if (wrapOptions.mode == WrapMode::kDeep) {
-    V8SerializationDuplicateTracker duplicateTracker{context};
-
-    std::unique_ptr<protocol::DictionaryValue> deepSerializedValueDict;
+    std::unique_ptr<protocol::Runtime::DeepSerializedValue> deepSerializedValue;
     response = mirror.buildDeepSerializedValue(
         context, wrapOptions.serializationOptions.maxDepth,
         wrapOptions.serializationOptions.additionalParameters.Get(
             m_context->isolate()),
-        duplicateTracker, &deepSerializedValueDict);
-    if (!response.IsSuccess()) return response;
-
-    String16 type;
-    deepSerializedValueDict->getString("type", &type);
-
-    std::unique_ptr<protocol::Runtime::DeepSerializedValue>
-        deepSerializedValue = protocol::Runtime::DeepSerializedValue::create()
-                                  .setType(type)
-                                  .build();
-
-    protocol::Value* maybeValue = deepSerializedValueDict->get("value");
-    if (maybeValue != nullptr) {
-      deepSerializedValue->setValue(maybeValue->clone());
-    }
-
-    int weakLocalObjectReference;
-    if (deepSerializedValueDict->getInteger("weakLocalObjectReference",
-                                            &weakLocalObjectReference)) {
-      deepSerializedValue->setWeakLocalObjectReference(
-          weakLocalObjectReference);
-    }
-
+        &deepSerializedValue);
     if (!response.IsSuccess()) return response;
     (*result)->setDeepSerializedValue(std::move(deepSerializedValue));
   }
