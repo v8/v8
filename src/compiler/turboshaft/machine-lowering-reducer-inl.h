@@ -3167,8 +3167,8 @@ class MachineLoweringReducer : public Next {
   //   1. Bail unless both inputs are SeqOneByteString.
   //   2. Pointer-eq receiver/arg -> 0 (after the type guards, so
   //      localeCompare.call(null, null) still throws TypeError).
-  //   3. Byte-equality prefix loop, restricted to ASCII (<128); min length
-  //      capped at Intl::kInlineLocaleCompareMaxMinLength.
+  //   3. ASCII (<128) prefix loop (4 bytes at a time, then byte-by-byte);
+  //      min length capped at Intl::kInlineLocaleCompareMaxMinLength.
   //   4. At first differing byte: lookup L1 collation weight; bail if
   //      either weight is 0 or weights tie; else return sign(left - right).
   //   5. Equal prefix with equal lengths -> 0; with unequal lengths -> bail.
@@ -3251,6 +3251,40 @@ class MachineLoweringReducer : public Next {
     V<WordPtr> min_length_ptr = __ ChangeInt32ToIntPtr(min_length);
     {
       ScopedVar<WordPtr> i(this, 0);
+      static_assert(OFFSET_OF_DATA_START(SeqOneByteString) % sizeof(uint32_t) ==
+                    0);
+      V<WordPtr> chunk_end = __ WordPtrSub(min_length_ptr, 4);
+      WHILE(__ IntPtrLessThanOrEqual(i, chunk_end)) {
+        V<Word32> lw = __ Load(left, i, LoadOp::Kind::TaggedBase(),
+                               MemoryRepresentation::Uint32(),
+                               OFFSET_OF_DATA_START(SeqOneByteString));
+        V<Word32> rw = __ Load(right, i, LoadOp::Kind::TaggedBase(),
+                               MemoryRepresentation::Uint32(),
+                               OFFSET_OF_DATA_START(SeqOneByteString));
+        GOTO_IF_NOT(__ Word32Equal(__ Word32BitwiseAnd(
+                                       __ Word32BitwiseOr(lw, rw), 0x80808080u),
+                                   0),
+                    bailout);
+        IF_NOT (__ Word32Equal(lw, rw)) {
+          V<Word32> diff = __ Word32BitwiseXor(lw, rw);
+#if V8_TARGET_LITTLE_ENDIAN
+          V<Word32> bit =
+              SupportedOperations::word32_ctz()
+                  ? __ Word32CountTrailingZeros(diff)
+                  : __ Word32CountLeadingZeros(__ Word32ReverseBytes(diff));
+          V<Word32> shift = __ Word32BitwiseAnd(bit, ~7);
+#else
+          V<Word32> leading =
+              __ Word32BitwiseAnd(__ Word32CountLeadingZeros(diff), ~7);
+          V<Word32> shift = __ Word32Sub(24, leading);
+#endif
+          GOTO(
+              weight_compare,
+              __ Word32BitwiseAnd(__ Word32ShiftRightLogical(lw, shift), 0xFF),
+              __ Word32BitwiseAnd(__ Word32ShiftRightLogical(rw, shift), 0xFF));
+        }
+        i = __ WordPtrAdd(i, 4);
+      }
       WHILE(__ IntPtrLessThan(i, min_length_ptr)) {
         V<Word32> lc = LoadFromSeqOneByteString(left, i);
         V<Word32> rc = LoadFromSeqOneByteString(right, i);
