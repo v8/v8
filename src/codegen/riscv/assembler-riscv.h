@@ -267,7 +267,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   bool is_near_branch(Label* L);
 
   // Get offset from instr.
-  int BranchOffset(Instr instr);
+  static int BranchOffset(Instr instr);
   static int BranchLongOffset(Instr auipc, Instr jalr);
   static int PatchBranchLongOffset(
       Address pc, Instr auipc, Instr instr_I, int32_t offset,
@@ -409,6 +409,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   // The size of the overhead for a trampoline pool. The overhead covers
   // the jump around the entries.
   static constexpr int kTrampolinePoolOverhead = 1 * kInstrSize;
+
+  // The room a far-jump pool has to leave for a pending short branch to
+  // bind. The branch binds within kMaxBranchOffset bytes of its emission,
+  // and every far jump emitted during that wait adds a slot to the pool,
+  // pulling the deadline closer: at most kMaxBranchOffset / kInstrSize
+  // jumps fit in the wait, each costing kTrampolineSlotsSize.
+  static constexpr int kShortBranchWaitReserve =
+      (kMaxBranchOffset / kInstrSize) * (kInstrSize + kTrampolineSlotsSize);
 
   RegList* GetScratchRegisterList() { return &scratch_register_list_; }
   DoubleRegList* GetScratchDoubleRegisterList() {
@@ -887,6 +895,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   int far_jumps_pending_ = 0;  // emitted since the last pool, still unbound
   int far_jumps_start_ = 0;    // the position of the first of them
 
+  // Conditional branches emitted after the trampoline pool to labels not yet
+  // bound. They reach only kMaxBranchOffset bytes and, unlike a jump, have no
+  // pool slot to fall back on, so EmitFarJumpPool() holds a pool back until
+  // they are bound.
+  int short_branches_pending_ = 0;
+
   int unbound_labels_count_ = 0;
   int trampoline_check_;  // The pc offset of next trampoline pool check.
 
@@ -894,6 +908,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   inline void CheckTrampolinePoolQuick(int margin);
   int32_t GetTrampolineEntry(int32_t pos);
   void RecordFarJump();
+  void RecordShortBranch();
+  void UnrecordShortBranch();
   void UpdateFarJumpCheck();
   void EmitFarJumpPool();
 

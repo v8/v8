@@ -440,6 +440,97 @@ TEST_F(MacroAssemblerTest, far_jump_pool) {
   CHECK_EQ(1, reinterpret_cast<int64_t>(f.Call(1, 0, 0, 0, 0)));
 }
 
+TEST_F(MacroAssemblerTest, far_jump_pool_waits_for_short_branch) {
+  // A far-jump pool must not be inserted between a short branch and the label
+  // it branches to: the branch reaches only kMaxBranchOffset bytes and, unlike
+  // a jump, has no pool slot to fall back on. The pool waits for the branch to
+  // be bound. Sweep back-to-back short-branch blocks across the whole window
+  // where the pool could come due, so it is due inside some block wherever
+  // exactly the deadline falls; a single block could miss it (on main the
+  // pool lands past the block, splitting nothing).
+  Isolate* isolate = i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true});
+
+  // Enough pending jumps that the pool they need is larger than a short
+  // branch reaches, so the pool cannot be placed inside a branch's span.
+  const int kPendingJumps = 600;
+  // Body each branch skips. Well inside a branch's reach on its own, so only
+  // a pool inserted here could put the label out of reach.
+  const int kBodyInstr = 250;
+
+  Label far, body;
+  __ mv(a1, zero_reg);
+  EmitTrampolinePool(masm);
+
+  // Skip the block of pending jumps on the path this test runs; both of its
+  // calls take the branch. The jump to `body` is the first pending jump, so
+  // it sets the start the far-jump check is measured from.
+  int far_start = masm.pc_offset();
+  __ Branch(&body, eq, a0, Operand(a0));
+
+  for (int i = 0; i < kPendingJumps; ++i) {
+    __ Branch(&far);
+    CHECK(Assembler::IsJal(masm.instr_at(masm.pc_offset() - kInstrSize)));
+  }
+  __ bind(&body);
+
+  // The pool is due somewhere within kMaxJumpOffset of the first pending
+  // jump, earlier by its size, the room reserved for a pending short branch
+  // (see Assembler::UpdateFarJumpCheck) and a BlockPoolsScope's kGap. Start
+  // before the last possible point by the whole reserve and sweep past it,
+  // covering the deadline without repeating its formula.
+  int pool_size = Assembler::kTrampolinePoolOverhead +
+                  kPendingJumps * Assembler::kTrampolineSlotsSize;
+  int sweep_start = far_start + Assembler::kMaxJumpOffset - pool_size -
+                    Assembler::kShortBranchWaitReserve -
+                    Assembler::BlockPoolsScope::kGap;
+  int sweep_end = far_start + Assembler::kMaxJumpOffset;
+  while (masm.pc_offset() + 2 * kInstrSize < sweep_start) {
+    __ addi(a2, a2, 1);
+  }
+
+  int blocks = 0;
+  while (masm.pc_offset() < sweep_end) {
+    Label near;
+    __ BranchShort(&near, ne, a0, Operand(zero_reg));
+    // Capture after emission: BranchShort's own BlockPoolsScope may emit the
+    // pool before the branch, which is legal.
+    int branch_pos = masm.pc_offset() - kInstrSize;
+    CHECK(Assembler::IsBranch(masm.instr_at(branch_pos)));
+    for (int i = 0; i < kBodyInstr; ++i) {
+      __ addi(a1, a1, 1);
+    }
+    int near_pos = masm.pc_offset();
+    __ bind(&near);
+
+    // Nothing was inserted in the branch's span: the body is still the
+    // sequence of addis emitted for it, and the branch still points at its
+    // own label. A pool here would be one it cannot jump over.
+    for (int pos = branch_pos + kInstrSize; pos < near_pos; pos += kInstrSize) {
+      CHECK(Assembler::IsAddi(masm.instr_at(pos)));
+    }
+    CHECK_EQ(Assembler::BranchOffset(masm.instr_at(branch_pos)),
+             near_pos - branch_pos);
+    ++blocks;
+  }
+  __ bind(&far);
+
+  __ mv(a0, a1);
+  __ jr(ra);
+
+  CodeDesc desc;
+  masm.GetCode(isolate, &desc);
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
+  // The first call has a0 == 0, so it runs every body the branches skip; the
+  // second one branches over them. Neither runs the block of pending jumps.
+  CHECK_EQ(blocks * kBodyInstr,
+           reinterpret_cast<int64_t>(f.Call(0, 0, 0, 0, 0)));
+  CHECK_EQ(0, reinterpret_cast<int64_t>(f.Call(1, 0, 0, 0, 0)));
+}
+
 TEST_F(MacroAssemblerTest, far_jump_chain) {
   // A jal to a label not bound yet also holds the link to the label's
   // previous use. Where that use is beyond a jal's reach, the branch is

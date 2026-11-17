@@ -4544,9 +4544,7 @@ void MacroAssembler::Branch(int32_t offset) {
 
 void MacroAssembler::Branch(int32_t offset, Condition cond, Register rs,
                             const Operand& rt, Label::Distance distance) {
-  bool is_near = BranchShortCheck(offset, nullptr, cond, rs, rt);
-  DCHECK(is_near);
-  USE(is_near);
+  CHECK(BranchShortCheck(offset, nullptr, cond, rs, rt));
 }
 
 void MacroAssembler::Branch(Label* L) {
@@ -4860,12 +4858,12 @@ bool MacroAssembler::BranchShortCheck(int32_t offset, Label* L, Condition cond,
 
 void MacroAssembler::BranchShort(int32_t offset, Condition cond, Register rs,
                                  const Operand& rt) {
-  BranchShortCheck(offset, nullptr, cond, rs, rt);
+  CHECK(BranchShortCheck(offset, nullptr, cond, rs, rt));
 }
 
 void MacroAssembler::BranchShort(Label* L, Condition cond, Register rs,
                                  const Operand& rt) {
-  BranchShortCheck(0, L, cond, rs, rt);
+  CHECK(BranchShortCheck(0, L, cond, rs, rt));
 }
 
 void MacroAssembler::BranchAndLink(int32_t offset) {
@@ -4874,9 +4872,7 @@ void MacroAssembler::BranchAndLink(int32_t offset) {
 
 void MacroAssembler::BranchAndLink(int32_t offset, Condition cond, Register rs,
                                    const Operand& rt) {
-  bool is_near = BranchAndLinkShortCheck(offset, nullptr, cond, rs, rt);
-  DCHECK(is_near);
-  USE(is_near);
+  CHECK(BranchAndLinkShortCheck(offset, nullptr, cond, rs, rt));
 }
 
 void MacroAssembler::BranchAndLink(Label* L) {

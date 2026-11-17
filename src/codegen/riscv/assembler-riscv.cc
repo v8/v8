@@ -679,6 +679,13 @@ void Assembler::bind_to(Label* L, int pos) {
       target_at_put(fixup_pos, pos, is_internal);
     } else {
       if (IsBranch(instr)) {
+        if (is_trampoline_emitted() && fixup_pos >= trampoline_.end()) {
+          // A BranchShort past the trampoline pool is counted from emission
+          // until here, which kept the far-jump pools off it (see
+          // EmitFarJumpPool). Branches emitted before the pool were not
+          // counted and are still handled by it below.
+          UnrecordShortBranch();
+        }
         if (dist > kMaxBranchOffset) {
           if (trampoline_pos == kInvalidSlotPos) {
             trampoline_pos = GetTrampolineEntry(fixup_pos);
@@ -847,11 +854,15 @@ int32_t Assembler::branch_long_offset(Label* L) {
 }
 
 int32_t Assembler::branch_offset_helper(Label* L, OffsetSize bits) {
+  bool post_trampoline = !L->is_bound() && is_trampoline_emitted();
   // Past the trampoline pool, a jump to a label not yet bound relies on a
   // far-jump pool in case the label is bound beyond its reach.
-  bool far_jump = bits == OffsetSize::kOffset21 && !L->is_bound() &&
-                  is_trampoline_emitted();
+  bool far_jump = bits == OffsetSize::kOffset21 && post_trampoline;
   if (far_jump) RecordFarJump();
+  // A conditional branch past the trampoline pool cannot go through a pool,
+  // so bind_to() has to reach the label directly. Keep the pools off until
+  // then.
+  if (bits == OffsetSize::kOffset13 && post_trampoline) RecordShortBranch();
   int32_t offset = branch_long_offset(L);
   // The jump also holds the link to the label's previous use, which must be
   // in reach; a caller that cannot tell has to use BranchLong.
@@ -1464,17 +1475,31 @@ void Assembler::RecordFarJump() {
   UpdateFarJumpCheck();
 }
 
+void Assembler::RecordShortBranch() {
+  short_branches_pending_++;
+  UpdateFarJumpCheck();
+}
+
+void Assembler::UnrecordShortBranch() {
+  DCHECK_GT(short_branches_pending_, 0);
+  short_branches_pending_--;
+  UpdateFarJumpCheck();
+}
+
 void Assembler::UpdateFarJumpCheck() {
   DCHECK(is_trampoline_emitted());
   DCHECK_GE(far_jumps_pending_, 0);
   // The pool has to end within a jump's reach of the first pending jump,
-  // leaving room for what a scope blocking the pools may still emit.
+  // leaving room for what a scope blocking the pools may still emit, and for
+  // a pending short branch to bind: EmitFarJumpPool() holds the pool back
+  // until then, so the pool may come up to kShortBranchWaitReserve later
+  // than it otherwise would.
   trampoline_check_ = far_jumps_pending_ == 0
                           ? kMaxInt
                           : far_jumps_start_ + kMaxJumpOffset -
                                 kTrampolinePoolOverhead -
                                 far_jumps_pending_ * kTrampolineSlotsSize -
-                                BlockPoolsScope::kGap;
+                                kShortBranchWaitReserve - BlockPoolsScope::kGap;
 }
 
 void Assembler::EmitFarJumpPool() {
@@ -1484,6 +1509,30 @@ void Assembler::EmitFarJumpPool() {
   if (count == 0) {
     trampoline_check_ = kMaxInt;
     return;
+  }
+  // A short branch must not be split from its label, and has no slot to fall
+  // back on. Emitting the pool moves the label further away, so wait for the
+  // branch to be bound. bind_to() re-arms the check when that happens, and
+  // UpdateFarJumpCheck() reserved kShortBranchWaitReserve for the wait.
+  if (short_branches_pending_ > 0) {
+    // Deferring is only safe while the pending jumps can still reach a pool
+    // emitted after the next instruction, even if a BlockPoolsScope opens
+    // there and emits up to kGap more bytes before the pool. They can for as
+    // long as the reserved kShortBranchWaitReserve allows, and a short branch
+    // binds within kMaxBranchOffset bytes of its emission, so this only ends
+    // the wait early if a caller left a label unbound past the branch's own
+    // reach, or overlapped short branches across the deadline.
+    if (pc_offset() + kInstrSize + BlockPoolsScope::kGap +
+            kTrampolinePoolOverhead +
+            far_jumps_pending_ * kTrampolineSlotsSize <=
+        far_jumps_start_ + kMaxJumpOffset) {
+      trampoline_check_ = pc_offset() + kInstrSize;
+      return;
+    }
+    // The wait runs out: the pool has to be emitted here to keep the pending
+    // jumps in reach. A pending branch may still be in reach afterwards, as
+    // the pool is often far smaller than the branch's reach, so emit it and
+    // let bind_to() fail if a label really does end up out of reach.
   }
   // One slot per pending jump, which is at least one per label they jump to,
   // laid out like the trampoline pool's.

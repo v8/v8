@@ -166,6 +166,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   DECLARE_NORELOC_PROTOTYPE(Name, int32_t)
 
   DECLARE_BRANCH_PROTOTYPES(BranchAndLink)
+  // A conditional branch that must reach its label directly, within
+  // kMaxBranchOffset bytes. Bind the label within that reach. Overlapping
+  // chains of such branches across a far-jump pool's deadline make the pool
+  // wait until it no longer can: bind_to() then fails if a label ends up out
+  // of reach (see Assembler::EmitFarJumpPool).
   DECLARE_BRANCH_PROTOTYPES(BranchShort)
 
   void Branch(Label* target);
