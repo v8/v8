@@ -333,16 +333,33 @@ def v8_library(
         )
 
 def _mksnapshot_transition_impl(settings, attr):
-    if settings["@v8//bazel/config:v8_target_cpu"] != "none":
-        return {}
-    if attr.default_target_cpu == "none":
-        fail("No supported CPU matches the snapshot target platform; set v8_target_cpu explicitly")
-    return {"@v8//bazel/config:v8_target_cpu": attr.default_target_cpu}
+    target_cpu = settings["@v8//bazel/config:v8_target_cpu"]
+    if target_cpu == "none":
+        if attr.default_target_cpu == "none":
+            fail("No supported CPU matches the snapshot target platform; set v8_target_cpu explicitly")
+        target_cpu = attr.default_target_cpu
+
+    target_os = settings["@v8//bazel/config:v8_target_os"]
+    if target_os == "none":
+        if attr.default_target_os == "none":
+            fail("No supported OS matches the snapshot target platform; set v8_target_os explicitly")
+        target_os = attr.default_target_os
+
+    return {
+        "@v8//bazel/config:v8_target_cpu": target_cpu,
+        "@v8//bazel/config:v8_target_os": target_os,
+    }
 
 _mksnapshot_transition = transition(
     implementation = _mksnapshot_transition_impl,
-    inputs = ["@v8//bazel/config:v8_target_cpu"],
-    outputs = ["@v8//bazel/config:v8_target_cpu"],
+    inputs = [
+        "@v8//bazel/config:v8_target_cpu",
+        "@v8//bazel/config:v8_target_os",
+    ],
+    outputs = [
+        "@v8//bazel/config:v8_target_cpu",
+        "@v8//bazel/config:v8_target_os",
+    ],
 )
 
 def _mksnapshot(ctx):
@@ -381,6 +398,7 @@ _v8_mksnapshot = rule(
             cfg = "exec",
         ),
         "default_target_cpu": attr.string(mandatory = True),
+        "default_target_os": attr.string(mandatory = True),
         "target_os": attr.string(mandatory = True),
         "prefix": attr.string(mandatory = True),
         "suffix": attr.string(mandatory = True),
@@ -399,6 +417,20 @@ def v8_mksnapshot(name, args, suffix = ""):
         "@v8//bazel/config:is_ppc64le": "ppc64le",
         "//conditions:default": "none",
     })
+    default_target_os = select({
+        "@v8//bazel/config:is_android": "android",
+        "@v8//bazel/config:is_linux": "linux",
+        "@v8//bazel/config:is_macos": "macos",
+        "@v8//bazel/config:is_windows": "windows",
+        "//conditions:default": "none",
+    })
+    # Values passed to mksnapshot --target_os (see ToEmbeddedTargetOs).
+    target_os = select({
+        "@v8//bazel/config:v8_target_android": "android",
+        "@v8//bazel/config:v8_target_macos": "mac",
+        "@v8//bazel/config:v8_target_windows": "win",
+        "//conditions:default": "",
+    })
     _v8_mksnapshot(
         name = "noicu/" + name,
         args = args,
@@ -406,11 +438,8 @@ def v8_mksnapshot(name, args, suffix = ""):
         tool = ":noicu/mksnapshot" + suffix,
         suffix = suffix,
         default_target_cpu = default_target_cpu,
-        target_os = select({
-            "@v8//bazel/config:is_macos": "mac",
-            "@v8//bazel/config:is_windows": "win",
-            "//conditions:default": "",
-        }),
+        default_target_os = default_target_os,
+        target_os = target_os,
     )
     _v8_mksnapshot(
         name = "icu/" + name,
@@ -419,11 +448,8 @@ def v8_mksnapshot(name, args, suffix = ""):
         tool = ":icu/mksnapshot" + suffix,
         suffix = suffix,
         default_target_cpu = default_target_cpu,
-        target_os = select({
-            "@v8//bazel/config:is_macos": "mac",
-            "@v8//bazel/config:is_windows": "win",
-            "//conditions:default": "",
-        }),
+        default_target_os = default_target_os,
+        target_os = target_os,
     )
 
 def _quote(val):

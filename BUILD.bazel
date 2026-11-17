@@ -547,7 +547,7 @@ selects.config_setting_group(
     match_all = [
         ":v8_enable_short_builtin_calls_is_none",
         "@v8//bazel/config:v8_target_arm64",
-        "@v8//bazel/config:is_not_android",
+        "@v8//bazel/config:v8_target_is_not_android",
     ],
 )
 
@@ -677,27 +677,34 @@ v8_config(
             ],
         },
         no_match_error = "Please specify a target cpu supported by v8",
+    ) + select(
+        {
+            "@v8//bazel/config:v8_target_android": [
+                "V8_HAVE_TARGET_OS",
+                "V8_TARGET_OS_ANDROID",
+            ],
+            "@v8//bazel/config:v8_target_linux": [
+                "V8_HAVE_TARGET_OS",
+                "V8_TARGET_OS_LINUX",
+            ],
+            "@v8//bazel/config:v8_target_macos": [
+                "V8_HAVE_TARGET_OS",
+                "V8_TARGET_OS_MACOS",
+            ],
+            "@v8//bazel/config:v8_target_windows": [
+                "V8_HAVE_TARGET_OS",
+                "V8_TARGET_OS_WIN",
+            ],
+        },
+        no_match_error = "Please specify a target os supported by v8",
     ) + select({
-        "@v8//bazel/config:is_android": [
-            "V8_HAVE_TARGET_OS",
-            "V8_TARGET_OS_ANDROID",
-        ],
-        "@v8//bazel/config:is_linux": [
-            "V8_HAVE_TARGET_OS",
-            "V8_TARGET_OS_LINUX",
-        ],
-        "@v8//bazel/config:is_macos": [
-            "V8_HAVE_TARGET_OS",
-            "V8_TARGET_OS_MACOS",
-        ],
         "@v8//bazel/config:is_windows": [
-            "V8_HAVE_TARGET_OS",
-            "V8_TARGET_OS_WIN",
             "UNICODE",
             "_UNICODE",
             "_CRT_RAND_S",
             "_WIN32_WINNT=0x0A00",
         ],
+        "//conditions:default": [],
     }) + select({
         ":is_v8_enable_pointer_compression": [
             "V8_COMPRESS_POINTERS",
