@@ -147,7 +147,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling agents-internal
   # and whatever else without interference from each other.
-  'agents_internal_revision': '35739341a23f92e5a7ba1607943fd1fc85bfddce',
+  'agents_internal_revision': '5bbf8f7c3b5cbc477770c7a63071a2ca4937b35b',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling agents-public
   # and whatever else without interference from each other.
@@ -173,7 +173,7 @@ deps = {
     'condition': 'checkout_agents_internal',
   },
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'ff12f08db1ede2a9cd28332e052992f5399c1b9d',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'a6abbbde822d3a848428840a233979497530e3ce',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'a0ce846ddb1eb609bd181377c43c419065b0fa47',
   'buildtools/linux64': {
@@ -348,7 +348,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '9e44ea2ff4f53a60c2a3d2b6f511d7bab9ab12f0',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '5322e135ddf99db94652b3f1010e349722efe53a',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '7d33739396cb4cfdebcbc02958c8fa133411d69f',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -535,7 +535,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '9e2fb353dc03261b0a5707e99de4d8d7589649a4',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '831d3934ff48880e397db63866b9c951b8aa3f53',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '3813fd5b3029807583e5d2549a40d78fa499c3e8',
   'third_party/re2/src':
@@ -549,7 +549,7 @@ deps = {
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + 'd72db9e3040567a7589e00c0ad7ddf25c3b070bc',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '8d95933dfce9d63810e54b317bec1fbd51b0bebc',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '7661f9bcc77d614626b818bc40bd8398e4a48d9c',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -674,7 +674,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' + '7780c9ec7f2c93e11bbb21a8bcd8eafeb48194fc',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' + '26584e7a10cc0ffa4df14f4eb7f90e5b44b37ffe',
     'condition': 'not build_with_chromium',
   },
   'third_party/nasm': {
