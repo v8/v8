@@ -422,6 +422,7 @@
       {'name': 'v8testing', 'variant': 'default', 'shards': 8},
     ],
   },
+  # Used by v8-internal (Fuzzilli).
   'v8_linux64_fuzzilli_imports_rel': {
     'swarming_dimensions' : {
       'cpu': 'x86-64-avx2',
