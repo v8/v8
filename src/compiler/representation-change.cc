@@ -1404,10 +1404,12 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
       }
     } else if (use_info.type_check() == TypeCheckKind::kSigned64 ||
                use_info.type_check() == TypeCheckKind::kArrayIndex) {
-      if (output_type.Is(cache_->kDoubleRepresentableInt64) ||
-          (output_type.Is(cache_->kDoubleRepresentableInt64OrMinusZero) &&
-           use_info.truncation().IdentifiesZeroAndMinusZero())) {
+      if (output_type.Is(cache_->kDoubleRepresentableInt64)) {
         op = machine()->ChangeFloat64ToInt64();
+      } else if (output_type.Is(cache_->kDoubleRepresentableInt64OrMinusZero) &&
+                 use_info.truncation().IdentifiesZeroAndMinusZero()) {
+        op = machine()->TruncateFloat64ToInt64(
+            TruncateKind::kArchitectureDefault);
       } else {
         op = simplified()->CheckedFloat64ToInt64(
             output_type.Maybe(Type::MinusZero())
@@ -1425,10 +1427,12 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
                 : CheckForMinusZeroMode::kDontCheckForMinusZero,
             use_info.feedback());
       }
-    } else if (output_type.Is(cache_->kDoubleRepresentableInt64) ||
-               (output_type.Is(cache_->kDoubleRepresentableInt64OrMinusZero) &&
-                use_info.truncation().IdentifiesZeroAndMinusZero())) {
+    } else if (output_type.Is(cache_->kDoubleRepresentableInt64)) {
       op = machine()->ChangeFloat64ToInt64();
+    } else if (output_type.Is(cache_->kDoubleRepresentableInt64OrMinusZero) &&
+               use_info.truncation().IdentifiesZeroAndMinusZero()) {
+      op =
+          machine()->TruncateFloat64ToInt64(TruncateKind::kArchitectureDefault);
     } else if (output_type.Is(cache_->kDoubleRepresentableUint64)) {
       op = machine()->ChangeFloat64ToUint64();
     } else {
@@ -1448,10 +1452,12 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
       }
     } else if (use_info.type_check() == TypeCheckKind::kSigned64 ||
                use_info.type_check() == TypeCheckKind::kArrayIndex) {
-      if (output_type.Is(cache_->kDoubleRepresentableInt64) ||
-          (output_type.Is(cache_->kDoubleRepresentableInt64OrMinusZero) &&
-           use_info.truncation().IdentifiesZeroAndMinusZero())) {
+      if (output_type.Is(cache_->kDoubleRepresentableInt64)) {
         op = machine()->ChangeFloat64ToInt64();
+      } else if (output_type.Is(cache_->kDoubleRepresentableInt64OrMinusZero) &&
+                 use_info.truncation().IdentifiesZeroAndMinusZero()) {
+        op = machine()->TruncateFloat64ToInt64(
+            TruncateKind::kArchitectureDefault);
       } else {
         op = simplified()->CheckedFloat64ToInt64(
             output_type.Maybe(Type::MinusZero())
@@ -1469,10 +1475,12 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
                 : CheckForMinusZeroMode::kDontCheckForMinusZero,
             use_info.feedback());
       }
-    } else if (output_type.Is(cache_->kDoubleRepresentableInt64) ||
-               (output_type.Is(cache_->kDoubleRepresentableInt64OrMinusZero) &&
-                use_info.truncation().IdentifiesZeroAndMinusZero())) {
+    } else if (output_type.Is(cache_->kDoubleRepresentableInt64)) {
       op = machine()->ChangeFloat64ToInt64();
+    } else if (output_type.Is(cache_->kDoubleRepresentableInt64OrMinusZero) &&
+               use_info.truncation().IdentifiesZeroAndMinusZero()) {
+      op =
+          machine()->TruncateFloat64ToInt64(TruncateKind::kArchitectureDefault);
     } else if (output_type.Is(cache_->kDoubleRepresentableUint64)) {
       op = machine()->ChangeFloat64ToUint64();
     } else {
@@ -1514,10 +1522,13 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
             use_info.feedback());
       }
     } else if (use_info.type_check() == TypeCheckKind::kSigned64) {
-      if (output_type.Is(cache_->kDoubleRepresentableInt64) ||
-          (output_type.Is(cache_->kDoubleRepresentableInt64OrMinusZero) &&
-           use_info.truncation().IdentifiesZeroAndMinusZero())) {
+      if (output_type.Is(cache_->kDoubleRepresentableInt64)) {
         op = simplified()->ChangeTaggedToInt64();
+      } else if (output_type.Is(cache_->kDoubleRepresentableInt64OrMinusZero) &&
+                 use_info.truncation().IdentifiesZeroAndMinusZero()) {
+        node = InsertChangeTaggedToFloat64(node);
+        op = machine()->TruncateFloat64ToInt64(
+            TruncateKind::kArchitectureDefault);
       } else {
         op = simplified()->CheckedTaggedToInt64(
             output_type.Maybe(Type::MinusZero())
@@ -1533,10 +1544,13 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
           use_info.feedback());
     } else if (use_info.type_check() == TypeCheckKind::kArrayIndex) {
       op = simplified()->CheckedTaggedToArrayIndex(use_info.feedback());
-    } else if (output_type.Is(cache_->kDoubleRepresentableInt64) ||
-               (output_type.Is(cache_->kDoubleRepresentableInt64OrMinusZero) &&
-                use_info.truncation().IdentifiesZeroAndMinusZero())) {
+    } else if (output_type.Is(cache_->kDoubleRepresentableInt64)) {
       op = simplified()->ChangeTaggedToInt64();
+    } else if (output_type.Is(cache_->kDoubleRepresentableInt64OrMinusZero) &&
+               use_info.truncation().IdentifiesZeroAndMinusZero()) {
+      node = InsertChangeTaggedToFloat64(node);
+      op =
+          machine()->TruncateFloat64ToInt64(TruncateKind::kArchitectureDefault);
     } else {
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kWord64);
