@@ -280,7 +280,8 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CheckAndSet(node, InputType(node, 0), InputTruncation(node, 0));
       break;
     }
-    case IrOpcode::kChangeFloat64ToInt64: {
+    case IrOpcode::kChangeFloat64ToInt64:
+    case IrOpcode::kTruncateFloat64ToInt64: {
       Truncation output_trunc =
           JoinTruncation(InputTruncation(node, 0), Truncation::Word64());
       CheckAndSet(node, InputType(node, 0), output_trunc);
@@ -656,7 +657,6 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CASE(ChangeFloat64ToUint32)
       CASE(ChangeFloat64ToUint64)
       CASE(Float64SilenceNaN)
-      CASE(TruncateFloat64ToInt64)
       CASE(TruncateFloat64ToUint32)
       CASE(TruncateFloat32ToInt32)
       CASE(TruncateFloat32ToUint32)
