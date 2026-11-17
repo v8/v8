@@ -516,10 +516,11 @@ Handle<Cell> Module::GetModuleNamespaceCell(Isolate* isolate,
     return handle(Cast<Cell>(maybe_cell), isolate);
   }
   Handle<Cell> cell = isolate->factory()->NewCell();
+  // Background compiler threads read the cell (see ExportsFinalized).
   if (phase == ModuleImportPhase::kEvaluation) {
-    module->set_module_namespace(*cell);
+    module->set_module_namespace(*cell, kReleaseStore);
   } else {
-    module->set_deferred_module_namespace(*cell);
+    module->set_deferred_module_namespace(*cell, kReleaseStore);
   }
   return cell;
 }
@@ -581,7 +582,10 @@ DirectHandle<JSModuleNamespace> Module::GetModuleNamespace(
           ? isolate->factory()->NewJSModuleNamespace()
           : isolate->factory()->NewJSDeferredModuleNamespace();
   ns->set_module(*module);
-  ns_cell->set_value(*ns);
+  // This finalizes the exports (see ExportsFinalized): the star exports were
+  // fetched above, and the release store publishes the table to background
+  // compiler threads.
+  ns_cell->set_value(*ns, kReleaseStore);
 
   // Create the properties in the namespace object. Transition the object
   // to dictionary mode so that property addition is faster.
@@ -617,7 +621,7 @@ DirectHandle<JSModuleNamespace> Module::GetModuleNamespace(
 
   DirectHandle<PrototypeInfo> proto_info =
       Map::GetOrCreatePrototypeInfo(ns, isolate);
-  proto_info->set_module_namespace(*ns);
+  proto_info->set_module_namespace(*ns, kReleaseStore);
   return ns;
 }
 

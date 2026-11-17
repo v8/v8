@@ -794,29 +794,6 @@ PropertyAccessInfo AccessorAccessInfoHelper(
   InstanceType holder_instance_type = holder_map.instance_type();
   if (holder_instance_type == JS_MODULE_NAMESPACE_TYPE ||
       holder_instance_type == JS_DEFERRED_MODULE_NAMESPACE_TYPE) {
-    DCHECK(holder_map.is_prototype_map());
-    Tagged<PrototypeInfo> proto_info;
-    if (!TryCast(holder_map.object()->prototype_info(kAcquireLoad),
-                 &proto_info)) {
-      return PropertyAccessInfo::Invalid(zone);
-    }
-    DirectHandle<JSModuleNamespace> module_namespace =
-        broker->CanonicalPersistentHandle(
-            Cast<JSModuleNamespace>(proto_info->module_namespace()));
-    // A deferred module namespace triggers synchronous evaluation of its
-    // module on the first non-symbol property access. We can only fold the
-    // access into a direct cell load once that module is already evaluated;
-    // before then, the load must go through the slow path that triggers
-    // evaluation. The evaluated state is monotonic (a module never leaves
-    // kEvaluated), so this remains valid for the lifetime of the optimized
-    // code without an extra compilation dependency.
-    if (holder_instance_type == JS_DEFERRED_MODULE_NAMESPACE_TYPE &&
-        module_namespace->module()->status() != Module::kEvaluated) {
-      return PropertyAccessInfo::Invalid(zone);
-    }
-    Handle<Cell> cell = broker->CanonicalPersistentHandle(
-        Cast<Cell>(module_namespace->module()->exports()->Lookup(
-            name.object(), Smi::ToInt(Object::GetHash(*name.object())))));
     if (IsAnyStore(access_mode)) {
       // https://tc39.es/ecma262/#sec-module-namespace-exotic-objects-set-p-v-receiver
       // https://tc39.es/ecma262/#sec-module-namespace-exotic-objects-defineownproperty-p-desc
@@ -825,16 +802,30 @@ PropertyAccessInfo AccessorAccessInfoHelper(
       // JS.
       return PropertyAccessInfo::Invalid(zone);
     }
-    if (IsTdzHole(cell->value(kRelaxedLoad))) {
-      // This module has not been fully initialized yet.
+    OptionalModuleRef module = holder_map.GetNamespaceModule(broker);
+    if (!module.has_value()) return PropertyAccessInfo::Invalid(zone);
+    // Only fold accesses to namespaces of evaluated modules. A deferred
+    // namespace evaluates its module on the first non-symbol property access,
+    // so before then the load must take the slow path. Ordinary namespaces are
+    // restricted the same way for simplicity; they are only reachable before
+    // evaluation completes from within the module graph itself. The evaluated
+    // state is monotonic (a module never leaves kEvaluated), so this remains
+    // valid for the lifetime of the optimized code without an extra
+    // compilation dependency.
+    if (module->status() != Module::kEvaluated) {
       return PropertyAccessInfo::Invalid(zone);
     }
-    OptionalCellRef cell_ref = TryMakeRef(broker, cell);
-    if (!cell_ref.has_value()) {
+    OptionalCellRef cell = module->LookupExportCell(broker, name);
+    if (!cell.has_value()) return PropertyAccessInfo::Invalid(zone);
+    if (IsTdzHole(cell->object()->value(kRelaxedLoad))) {
+      // The export belongs to a module that has not been fully initialized
+      // yet. This can happen even though {module} is evaluated: with
+      // top-level await, a module in a cycle becomes evaluated before the
+      // modules that import it run, and it can re-export their bindings.
       return PropertyAccessInfo::Invalid(zone);
     }
-    return PropertyAccessInfo::ModuleExport(zone, receiver_map,
-                                            cell_ref.value(), holder);
+    return PropertyAccessInfo::ModuleExport(zone, receiver_map, cell.value(),
+                                            holder);
   }
   if (access_mode == AccessMode::kHas) {
     // kHas is not supported for dictionary mode objects.
@@ -1201,6 +1192,34 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
 
     // The property wasn't found on {map}. Look on the prototype if appropriate.
     DCHECK(!index.is_found());
+
+    // Module namespace objects are exotic, so a name absent from {map} must
+    // not be handled as on an ordinary object.
+    InstanceType instance_type = map.instance_type();
+    if (instance_type == JS_MODULE_NAMESPACE_TYPE ||
+        instance_type == JS_DEFERRED_MODULE_NAMESPACE_TYPE) {
+      // https://tc39.es/ecma262/#sec-module-namespace-exotic-objects-set-p-v-receiver
+      // https://tc39.es/ecma262/#sec-module-namespace-exotic-objects-defineownproperty-p-desc
+      // [[Set]] and [[DefineOwnProperty]] always fail, even when reached
+      // through the prototype chain, so never transition on the receiver.
+      if (IsAnyStore(access_mode)) return Invalid();
+
+      // "Loads" and "has" checks of absent names on a deferred namespace
+      // trigger evaluation of its module (or throw if evaluation failed). They
+      // can only be folded once the module is evaluated; that state is
+      // monotonic, so no compilation dependency is needed.
+      //
+      // Namespace objects are optimized as prototypes on creation, so their
+      // map is never shared and its PrototypeInfo points back to the
+      // namespace. This lets us find its module even when the namespace is the
+      // receiver (and there is no {holder} yet).
+      if (instance_type == JS_DEFERRED_MODULE_NAMESPACE_TYPE) {
+        OptionalModuleRef module = map.GetNamespaceModule(broker());
+        if (!module.has_value() || module->status() != Module::kEvaluated) {
+          return Invalid();
+        }
+      }
+    }
 
     // Don't search on the prototype chain for special indices in case of
     // integer indexed exotic objects (see ES6 section 9.4.5).

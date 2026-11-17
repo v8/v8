@@ -177,7 +177,7 @@ V8_OBJECT class Module : public HeapObject {
   static Handle<Cell> GetModuleNamespaceCell(
       Isolate* isolate, Handle<Module> module,
       ModuleImportPhase phase = ModuleImportPhase::kEvaluation);
-  static DirectHandle<JSModuleNamespace> GetModuleNamespace(
+  V8_EXPORT_PRIVATE static DirectHandle<JSModuleNamespace> GetModuleNamespace(
       Isolate* isolate, Handle<Module> module,
       ModuleImportPhase phase = ModuleImportPhase::kEvaluation);
 
@@ -187,16 +187,38 @@ V8_OBJECT class Module : public HeapObject {
   inline void set_hash(int value);
 
   inline Status status() const;
+  // Background compiler threads read the status with relaxed loads, which pair
+  // with the relaxed stores in set_status. They give no ordering: a reader
+  // must only use the status as a monotonic flag, and must check any other
+  // state it depends on (e.g. export cells) itself.
+  inline Status status(RelaxedLoadTag) const;
 
   inline Tagged<UnionOf<Cell, Undefined>> module_namespace() const;
+  inline Tagged<UnionOf<Cell, Undefined>> module_namespace(
+      AcquireLoadTag) const;
   inline void set_module_namespace(
       Tagged<UnionOf<Cell, Undefined>> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void set_module_namespace(
+      Tagged<UnionOf<Cell, Undefined>> value, ReleaseStoreTag,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<UnionOf<Cell, Undefined>> deferred_module_namespace() const;
+  inline Tagged<UnionOf<Cell, Undefined>> deferred_module_namespace(
+      AcquireLoadTag) const;
   inline void set_deferred_module_namespace(
       Tagged<UnionOf<Cell, Undefined>> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void set_deferred_module_namespace(
+      Tagged<UnionOf<Cell, Undefined>> value, ReleaseStoreTag,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  // Variant of ExportsFinalized() for background compiler threads. Once it
+  // returns true, {exports} is final and can be read without synchronizing
+  // with the main thread: GetModuleNamespace fetches the star exports before
+  // it publishes the namespace in the module's namespace cell, with release
+  // stores that the acquire loads here pair with.
+  inline bool ExportsFinalized(AcquireLoadTag) const;
 
   inline Tagged<UnionOf<JSPromise, Undefined>> top_level_capability() const;
 

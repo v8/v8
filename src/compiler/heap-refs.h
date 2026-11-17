@@ -13,6 +13,7 @@
 #include "src/objects/elements-kind.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/instance-type.h"
+#include "src/objects/module.h"
 #include "src/objects/object-list-macros.h"
 #include "src/objects/property-details.h"
 #include "src/objects/shared-function-info.h"
@@ -135,6 +136,8 @@ enum class RefSerializationKind {
   BACKGROUND_SERIALIZED(ScriptContextTable)                                   \
   /* Subtypes of String */                                                    \
   NEVER_SERIALIZED(InternalizedString)                                        \
+  /* Subtypes of Module */                                                    \
+  NEVER_SERIALIZED(SourceTextModule)                                          \
   /* Subtypes of FixedArrayBase */                                            \
   BACKGROUND_SERIALIZED(FixedArray)                                           \
   NEVER_SERIALIZED(FixedDoubleArray)                                          \
@@ -168,8 +171,8 @@ enum class RefSerializationKind {
   BACKGROUND_SERIALIZED(PropertyCell)                                         \
   NEVER_SERIALIZED(RegExpBoilerplateDescription)                              \
   NEVER_SERIALIZED(ScopeInfo)                                                 \
+  NEVER_SERIALIZED(Module)                                                    \
   NEVER_SERIALIZED(SharedFunctionInfo)                                        \
-  NEVER_SERIALIZED(SourceTextModule)                                          \
   NEVER_SERIALIZED(TemplateObjectDescription)                                 \
   NEVER_SERIALIZED(Tuple2)                                                    \
   NEVER_SERIALIZED(WeakHomomorphicFixedArray)                                 \
@@ -1036,6 +1039,16 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
 
   HeapObjectRef prototype(JSHeapBroker* broker) const;
 
+  // For the map of a (deferred) module namespace, returns the namespace's
+  // module, found through the PrototypeInfo back pointer. Returns nullopt if
+  // this map is not a namespace map, or no longer holds the PrototypeInfo
+  // because the namespace migrated to a newer map after private fields were
+  // added to it.
+  // TODO(caiolima): Once --js-nonextensible-applies-to-private ships, we might
+  // be able to assume that namespace maps never migrate. If so, drop the
+  // migrated map case and CHECK that the PrototypeInfo is there instead.
+  OptionalModuleRef GetNamespaceModule(JSHeapBroker* broker) const;
+
   bool PrototypesElementsDoNotHaveAccessorsOrThrow(
       JSHeapBroker* broker, ZoneVector<MapRef>* prototype_maps);
 
@@ -1357,9 +1370,23 @@ class JSPrimitiveWrapperRef : public JSObjectRef {
   IndirectHandle<JSPrimitiveWrapper> object() const;
 };
 
-class SourceTextModuleRef : public HeapObjectRef {
+class V8_EXPORT_PRIVATE ModuleRef : public HeapObjectRef {
  public:
-  DEFINE_REF_CONSTRUCTOR(SourceTextModule, HeapObjectRef)
+  DEFINE_REF_CONSTRUCTOR(Module, HeapObjectRef)
+
+  IndirectHandle<Module> object() const;
+
+  Module::Status status() const;
+
+  // Returns the cell for the export [name], or nullopt if there is no such
+  // export, it is not resolved to a cell, or the module's exports are not
+  // finalized yet (no namespace has been created for it).
+  OptionalCellRef LookupExportCell(JSHeapBroker* broker, NameRef name) const;
+};
+
+class SourceTextModuleRef : public ModuleRef {
+ public:
+  DEFINE_REF_CONSTRUCTOR(SourceTextModule, ModuleRef)
 
   IndirectHandle<SourceTextModule> object() const;
 
@@ -1384,7 +1411,7 @@ class Tuple2Ref : public HeapObjectRef {
   OptionalObjectRef value2(JSHeapBroker* broker) const;
 };
 
-class CellRef : public HeapObjectRef {
+class V8_EXPORT_PRIVATE CellRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(Cell, HeapObjectRef)
 

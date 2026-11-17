@@ -2472,6 +2472,32 @@ OptionalObjectRef JSArrayRef::GetOwnCowElement(JSHeapBroker* broker,
   return TryMakeRef(broker, result.value());
 }
 
+Module::Status ModuleRef::status() const {
+  // A relaxed load is enough: the status only moves forward, so a stale value
+  // only makes the compiler more conservative. Callers check the state they
+  // depend on (e.g. export cells for TDZ holes) themselves.
+  return object()->status(kRelaxedLoad);
+}
+
+OptionalCellRef ModuleRef::LookupExportCell(JSHeapBroker* broker,
+                                            NameRef name) const {
+  // Until the module's first namespace is created, the main thread may still
+  // add the star exports to the table (possibly replacing it). Once the
+  // exports are finalized, the table no longer changes and the acquire load in
+  // ExportsFinalized orders the plain read below after the last write to it.
+  if (!object()->ExportsFinalized(kAcquireLoad)) return {};
+  // Property names reaching the compiler are internalized, so their hash is
+  // already computed.
+  DCHECK(name.IsUniqueName());
+  Tagged<Object> entry =
+      object()->exports()->Lookup(name.object(), name.object()->hash());
+  // Once exports are finalized (and status == kEvaluated), FinishInstantiate
+  // has already replaced every SourceTextModuleInfoEntry in exports() with a
+  // Cell, so entry can only be the_hole or a Cell.
+  if (i::IsTheHole(entry)) return {};
+  return TryMakeRef(broker, Cast<Cell>(entry));
+}
+
 OptionalCellRef SourceTextModuleRef::GetCell(JSHeapBroker* broker,
                                              int cell_index) const {
   return TryMakeRef(broker, object()->GetCell(cell_index));
@@ -2733,6 +2759,33 @@ int SharedFunctionInfoRef::
 int SharedFunctionInfoRef::
     internal_formal_parameter_count_without_receiver_deprecated() const {
   return object()->internal_formal_parameter_count_without_receiver();
+}
+
+OptionalModuleRef MapRef::GetNamespaceModule(JSHeapBroker* broker) const {
+  InstanceType type = instance_type();
+  if (type != JS_MODULE_NAMESPACE_TYPE &&
+      type != JS_DEFERRED_MODULE_NAMESPACE_TYPE) {
+    return {};
+  }
+  // On non-prototype maps the prototype_info field aliases the transitions.
+  if (!is_prototype_map()) return {};
+  Tagged<Object> maybe_proto_info = object()->prototype_info(kAcquireLoad);
+  Tagged<PrototypeInfo> proto_info;
+  // Private fields can still be added to a namespace (see
+  // --js-nonextensible-applies-to-private). When the namespace migrates to a
+  // new map because of that, the PrototypeInfo moves along and the old map's
+  // field is reset to Smi::zero().
+  // TODO(caiolima): Once --js-nonextensible-applies-to-private ships, we might
+  // be able to assume that namespace maps never migrate. If so, replace the
+  // bailout below with a CHECK.
+  if (!TryCast<PrototypeInfo>(maybe_proto_info, &proto_info)) return {};
+  // JSModuleNamespace creation stores the back pointer in the PrototypeInfo
+  // before the namespace is returned, and it is never cleared afterwards.
+  Tagged<JSModuleNamespace> module_namespace =
+      Cast<JSModuleNamespace>(proto_info->module_namespace(kAcquireLoad));
+  // A namespace's module is set at creation, before the namespace is
+  // published, and never changes afterwards.
+  return TryMakeRef(broker, module_namespace->module());
 }
 
 OptionalMapRef JSObjectRef::GetObjectCreateMap(JSHeapBroker* broker) const {
