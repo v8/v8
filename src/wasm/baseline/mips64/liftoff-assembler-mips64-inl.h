@@ -142,9 +142,8 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
 inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueKind kind) {
   switch (kind) {
     case kI32:
-      assm->daddiu(sp, sp, -kSystemPointerSize);
-      assm->sw(reg.gp(), MemOperand(sp, 0));
-      break;
+      // Store the entire (sign-extended) register, clearing any old data in the
+      // upper half, rather than storing only the lower 4 bytes.
     case kI64:
     case kRefNull:
     case kRef:
@@ -1235,6 +1234,12 @@ void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
                                             uint32_t caller_slot_idx,
                                             ValueKind kind) {
   int32_t offset = kSystemPointerSize * (caller_slot_idx + 1);
+  if (kind == kI32) {
+    // Store the full (sign-extended) register, matching liftoff::push, so
+    // that the caller-frame slot is fully initialized.
+    Sd(src.gp(), MemOperand(fp, offset));
+    return;
+  }
   liftoff::Store(this, fp, offset, src, kind);
 }
 
@@ -4407,7 +4412,14 @@ void LiftoffStackSlots::Construct(int param_slots) {
       case LiftoffAssembler::VarState::kStack:
         if (src.kind() != kS128) {
           asm_->AllocateStackSpace(stack_decrement - kSystemPointerSize);
-          asm_->Ld(kScratchReg, liftoff::GetStackSlot(slot.src_offset_));
+          if (src.kind() == kI32) {
+            // Spill() only writes the low 4 bytes of an i32 spill slot, so the
+            // upper 4 bytes are stale. Load with sign extension so that the
+            // pushed 8-byte argument slot holds a canonical i32.
+            asm_->Lw(kScratchReg, liftoff::GetStackSlot(slot.src_offset_));
+          } else {
+            asm_->Ld(kScratchReg, liftoff::GetStackSlot(slot.src_offset_));
+          }
           asm_->push(kScratchReg);
         } else {
           asm_->AllocateStackSpace(stack_decrement - kSimd128Size);

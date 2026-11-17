@@ -1899,7 +1899,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ ld_b(i.OutputSimd128Register(), MemOperand(fp, offset));
         }
       } else {
-        __ Ld(i.OutputRegister(0), MemOperand(fp, offset));
+        LocationOperand* op = LocationOperand::cast(instr->OutputAt(0));
+        if (op->representation() == MachineRepresentation::kWord32) {
+          // Like AssembleMove, use a sign-extending load for 32-bit slots so
+          // that the register keeps the mips64 sign-extension invariant.
+          __ Lw(i.OutputRegister(0), MemOperand(fp, offset));
+        } else {
+          __ Ld(i.OutputRegister(0), MemOperand(fp, offset));
+        }
       }
       break;
     }
@@ -4651,9 +4658,7 @@ namespace {
 bool Is32BitOperand(InstructionOperand* operand) {
   DCHECK(operand->IsStackSlot() || operand->IsRegister());
   MachineRepresentation mr = LocationOperand::cast(operand)->representation();
-  return mr == MachineRepresentation::kWord32 ||
-         mr == MachineRepresentation::kCompressed ||
-         mr == MachineRepresentation::kCompressedPointer;
+  return mr == MachineRepresentation::kWord32;
 }
 
 // When we need only 32 bits, move only 32 bits, otherwise the destination
@@ -4821,7 +4826,14 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
       DCHECK(destination->IsStackSlot());
       MemOperand dst = g.ToMemOperand(destination);
       __ mov(temp, src);
-      __ Ld(src, dst);
+      // Like AssembleMove, never load a 32-bit stack slot into a Word32
+      // register with a 64-bit load: the slot's upper half may be dirty, and
+      // the mips64 backend evaluates Word32 compares at full register width.
+      if (Use32BitMove(source, destination)) {
+        __ Lw(src, dst);
+      } else {
+        __ Ld(src, dst);
+      }
       __ Sd(temp, dst);
     }
   } else if (source->IsStackSlot()) {
