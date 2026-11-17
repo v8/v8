@@ -61,6 +61,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvCmp32:
     case kRiscvCmp32Eq:
     case kRiscvCmpZero32:
+    case kRiscvTst64:
 #elif V8_TARGET_ARCH_RISCV32
     case kRiscvAdd32:
     case kRiscvAddPair:
@@ -235,8 +236,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvS128AndNot:
     case kRiscvS128Const:
     case kRiscvS128Zero:
-    case kRiscvS128Load32Zero:
-    case kRiscvS128Load64Zero:
     case kRiscvS128AllOnes:
     case kRiscvV128AnyTrue:
     case kRiscvI8x16Shuffle:
@@ -304,7 +303,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvXor32:
       return kNoOpcodeFlags;
 #if V8_TARGET_ARCH_RISCV64
-    case kRiscvTst64:
     case kRiscvLd:
     case kRiscvLwu:
     case kRiscvWord64AtomicLoadUint64:
@@ -313,7 +311,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvLoadDecodeSandboxedPointer:
     case kRiscvAtomicLoadDecompressTaggedSigned:
     case kRiscvAtomicLoadDecompressTagged:
-    case kRiscvAtomicStoreCompressTagged:
     case kRiscvLoadDecompressTrapping:
 #elif V8_TARGET_ARCH_RISCV32
     case kRiscvWord32AtomicPairLoad:
@@ -331,6 +328,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvS128LoadSplat:
     case kRiscvS128Load64ExtendU:
     case kRiscvS128Load64ExtendS:
+    case kRiscvS128Load32Zero:
+    case kRiscvS128Load64Zero:
     case kRiscvS128LoadLane:
       return kIsLoadOperation;
 
@@ -345,6 +344,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvWord64AtomicExchangeUint64:
     case kRiscvWord64AtomicCompareExchangeUint64:
     case kRiscvStoreCompressTagged:
+    case kRiscvAtomicStoreCompressTagged:
     case kRiscvStoreEncodeSandboxedPointer:
     case kRiscvStoreTrustedPointer:
 #elif V8_TARGET_ARCH_RISCV32
