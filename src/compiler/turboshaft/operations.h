@@ -5999,6 +5999,7 @@ struct DebugPrintOp : OperationT<DebugPrintOp> {
                                            .CanChangeControlFlow()
                                            .CanDependOnChecks()
                                            .CanReadMemory()
+                                           .CanAllocate()
                                            .RequiredWhenUnused();
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
@@ -7993,9 +7994,11 @@ struct AnyConvertExternOp : FixedArityOperationT<1, AnyConvertExternOp> {
   bool is_nullable;
 
   static constexpr OpEffects effects =
-      SmiValuesAre31Bits()
-          ? OpEffects().CanReadMemory()
-          : OpEffects().CanReadMemory().CanAllocateWithoutIdentity();
+      SmiValuesAre31Bits() ? OpEffects().CanDependOnChecks().CanReadMemory()
+                           : OpEffects()
+                                 .CanDependOnChecks()
+                                 .CanReadMemory()
+                                 .CanAllocateWithoutIdentity();
 
   explicit AnyConvertExternOp(V<Object> object, SharedFlag is_shared,
                               bool is_nullable)
@@ -8026,7 +8029,13 @@ struct ExternConvertAnyOp : FixedArityOperationT<1, ExternConvertAnyOp> {
   // Cares about non-null values actually being non-null. We could eliminate
   // the dependency on "checks" if we marked this as a trapping instruction
   // when necessary.
-  static constexpr OpEffects effects = OpEffects().CanDependOnChecks();
+  // May allocate a JS wrapper when converting a WasmCustomMap; the wrapper is
+  // cached on the map so repeated conversions do not create distinct
+  // identities.
+  static constexpr OpEffects effects = OpEffects()
+                                           .CanDependOnChecks()
+                                           .CanReadMemory()
+                                           .CanAllocateWithoutIdentity();
 
   explicit ExternConvertAnyOp(V<Object> object, bool is_nullable)
       : Base(object), is_nullable(is_nullable) {}
@@ -8681,7 +8690,8 @@ struct StringAsWtf16Op : FixedArityOperationT<1, StringAsWtf16Op> {
       OpEffects()
           // This should not float above a protective null/length check.
           .CanDependOnChecks()
-          .CanReadMemory();
+          .CanReadMemory()
+          .CanAllocateWithoutIdentity();
 
   explicit StringAsWtf16Op(V<String> string) : Base(string) {}
 

@@ -1202,6 +1202,7 @@
   'regress/wasm/regress-577267579': [SKIP],
   'regress/wasm/regress-577305505': [SKIP],
   'regress/wasm/regress-585810594-custom-descriptors': [SKIP],
+  'regress/wasm/regress-586597800': [SKIP],
   'wasm/custom-descriptors*': [SKIP],
   'wasm/exact-types': [SKIP],
   'wasm/gc-casts-branch': [SKIP],
