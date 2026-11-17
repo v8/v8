@@ -95,6 +95,7 @@ vars = {
 
   # Repository URL
   'chromium_jetstream_git': 'https://chromium.googlesource.com/external/github.com/WebKit/JetStream.git',
+  'chromium_speedometer_git': 'https://chromium.googlesource.com/external/github.com/WebKit/Speedometer.git',
 
   # GN CIPD package version.
   'gn_version': 'git_revision:ddc6c4ae595393d43b38e62f2e2baa7661af716f',
@@ -144,6 +145,18 @@ vars = {
   # the commit queue can handle CLs rolling agents-common
   # and whatever else without interference from each other.
   'agents_common_revision': '281f7364f86aef21ac620bc0b770d477de7c76a1',
+  # Three lines of non-changing comments so that
+  # the commit queue can handle CLs rolling speedometer_2.1_revision
+  # and whatever else without interference from each other.
+  'speedometer_2.1_revision': '8bf7946e39e47c875c00767177197aea5727e84a',
+  # Three lines of non-changing comments so that
+  # the commit queue can handle CLs rolling speedometer_3.1_revision
+  # and whatever else without interference from each other.
+  'speedometer_3.1_revision': '1386415be8fef2f6b6bbdbe1828872471c5d802a',
+  # Three lines of non-changing comments so that
+  # the commit queue can handle CLs rolling speedometer_main_revision
+  # and whatever else without interference from each other.
+  'speedometer_main_revision': 'f866d2b077038bc85bea5edb7bff8e05cadef0b2',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling agents-internal
   # and whatever else without interference from each other.
@@ -211,6 +224,18 @@ deps = {
     Var('chromium_url') + '/v8/deps/third_party/benchmarks.git' + '@' + '05d7188267b4560491ff9155c5ee13e207ecd65f',
   'test/benchmarks/JetStream3': {
     'url': Var('chromium_jetstream_git') + '@' + Var('jetstream_3.0-custom_revision'),
+    'condition': 'checkout_benchmarks',
+  },
+  'test/benchmarks/Speedometer2': {
+    'url': Var('chromium_speedometer_git') + '@' + Var('speedometer_2.1_revision'),
+    'condition': 'checkout_benchmarks',
+  },
+  'test/benchmarks/Speedometer3': {
+    'url': Var('chromium_speedometer_git') + '@' + Var('speedometer_3.1_revision'),
+    'condition': 'checkout_benchmarks',
+  },
+  'test/benchmarks/SpeedometerMain': {
+    'url': Var('chromium_speedometer_git') + '@' + Var('speedometer_main_revision'),
     'condition': 'checkout_benchmarks',
   },
   'third_party/v8-perf': {

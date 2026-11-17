@@ -114,6 +114,10 @@
 #include <signal.h>
 #endif  // V8_OS_POSIX
 
+#ifdef V8_ENABLE_EXPERIMENTAL_MOCK_DOM
+#include "experimental/d8/mock-dom/mock-dom.h"  // nogncheck
+#endif  // V8_ENABLE_EXPERIMENTAL_MOCK_DOM
+
 // gn check complains when not using the v8_fuzzilli or v8_redline arg since the
 // public dep. is added conditionally
 #if defined(V8_REDLINE)
@@ -3010,6 +3014,9 @@ MaybeLocal<Context> Shell::CreateRealm(
   if (context.IsEmpty()) return MaybeLocal<Context>();
   DCHECK(!try_catch.HasCaught());
   InitializeModuleEmbedderData(context);
+#ifdef V8_ENABLE_EXPERIMENTAL_MOCK_DOM
+  if (UseMockDOM()) mock_dom::InitializeContext(isolate, context);
+#endif  // V8_ENABLE_EXPERIMENTAL_MOCK_DOM
 
   if (index < 0) {
     index = static_cast<int>(data->realms_.size());
@@ -3971,27 +3978,152 @@ void Shell::ExecuteFile(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
 }
 
+namespace {
+
+// The delay argument of setTimeout() and setInterval(), in seconds.
+double TimerDelayInSeconds(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  if (info.Length() < 2 || !info[1]->IsNumber()) return 0;
+  double delay_ms = info[1].As<v8::Number>()->Value();
+  return delay_ms > 0 ? delay_ms / 1000 : 0;
+}
+
+void PostTimerTask(Isolate* isolate, std::unique_ptr<v8::Task> task,
+                   double delay_in_seconds) {
+  std::shared_ptr<v8::TaskRunner> runner =
+      g_platform->GetForegroundTaskRunner(isolate);
+  if (Shell::options.mock_dom) {
+    runner->PostDelayedTask(std::move(task), delay_in_seconds);
+  } else {
+    // Plain d8 ignores the delay.
+    runner->PostTask(std::move(task));
+  }
+}
+
+// False if |context| is a mock DOM page that has been navigated away from.
+bool ShouldRunTimers(Local<Context> context) {
+#ifdef V8_ENABLE_EXPERIMENTAL_MOCK_DOM
+  if (Shell::options.mock_dom) return mock_dom::ShouldRunTasks(context);
+#endif  // V8_ENABLE_EXPERIMENTAL_MOCK_DOM
+  return true;
+}
+
+void CallTimerCallback(Isolate* isolate, Local<Context> context,
+                       Local<Function> callback, int argc,
+                       Local<Value> argv[]) {
+  Context::Scope context_scope(context);
+#ifdef V8_ENABLE_EXPERIMENTAL_MOCK_DOM
+  if (Shell::options.mock_dom) {
+    // A page's callbacks are called on its window, and their exceptions go to
+    // the page's error handling.
+    TryCatch try_catch(isolate);
+    if (!callback->Call(context, context->Global(), argc, argv).IsEmpty()) {
+      return;
+    }
+    if (!try_catch.HasCaught() || try_catch.HasTerminated()) return;
+    if (!mock_dom::ReportException(isolate, context, try_catch.Exception(),
+                                   try_catch.Message())) {
+      Shell::ReportException(isolate, try_catch);
+    }
+    return;
+  }
+#endif  // V8_ENABLE_EXPERIMENTAL_MOCK_DOM
+  // An exception is reported by d8's message listener.
+  USE(callback->Call(context, Undefined(isolate), argc, argv));
+}
+
 class SetTimeoutTask : public v8::Task {
  public:
-  SetTimeoutTask(v8::Isolate* isolate, v8::Local<v8::Context> context,
+  SetTimeoutTask(v8::Isolate* isolate, int id, v8::Local<v8::Context> context,
                  v8::Local<v8::Function> callback)
       : isolate_(isolate),
+        id_(id),
         context_(isolate, context),
         callback_(isolate, callback) {}
 
   void Run() override {
+    // Not active anymore means it was cleared.
+    if (!PerIsolateData::Get(isolate_)->RemoveTimer(id_)) return;
     HandleScope scope(isolate_);
     Local<Context> context = context_.Get(isolate_);
-    Local<Function> callback = callback_.Get(isolate_);
-    Context::Scope context_scope(context);
-    USE(callback->Call(context, Undefined(isolate_), 0, nullptr));
+    if (!ShouldRunTimers(context)) return;
+    CallTimerCallback(isolate_, context, callback_.Get(isolate_), 0, nullptr);
   }
 
  private:
   v8::Isolate* isolate_;
+  int id_;
   v8::Global<v8::Context> context_;
   v8::Global<v8::Function> callback_;
 };
+
+class SetIntervalTask : public v8::Task {
+ public:
+  SetIntervalTask(v8::Isolate* isolate, int id, double delay_in_seconds,
+                  v8::Local<v8::Context> context,
+                  v8::Local<v8::Function> callback)
+      : isolate_(isolate),
+        id_(id),
+        delay_in_seconds_(delay_in_seconds),
+        context_(isolate, context),
+        callback_(isolate, callback) {}
+
+  void Run() override {
+    PerIsolateData* data = PerIsolateData::Get(isolate_);
+    if (!data->IsTimerActive(id_)) return;
+    HandleScope scope(isolate_);
+    Local<Context> context = context_.Get(isolate_);
+    Local<Function> callback = callback_.Get(isolate_);
+    if (!ShouldRunTimers(context)) {
+      data->RemoveTimer(id_);
+      return;
+    }
+    CallTimerCallback(isolate_, context, callback, 0, nullptr);
+    // The callback may have cleared the interval.
+    if (!data->IsTimerActive(id_)) return;
+    PostTimerTask(isolate_,
+                  std::make_unique<SetIntervalTask>(
+                      isolate_, id_, delay_in_seconds_, context, callback),
+                  delay_in_seconds_);
+  }
+
+ private:
+  v8::Isolate* isolate_;
+  int id_;
+  double delay_in_seconds_;
+  v8::Global<v8::Context> context_;
+  v8::Global<v8::Function> callback_;
+};
+
+class RequestAnimationFrameTask : public v8::Task {
+ public:
+  RequestAnimationFrameTask(v8::Isolate* isolate, int id,
+                            v8::Local<v8::Context> context,
+                            v8::Local<v8::Function> callback)
+      : isolate_(isolate),
+        id_(id),
+        context_(isolate, context),
+        callback_(isolate, callback) {}
+
+  void Run() override {
+    if (!PerIsolateData::Get(isolate_)->RemoveTimer(id_)) return;
+    HandleScope scope(isolate_);
+    Local<Context> context = context_.Get(isolate_);
+    if (!ShouldRunTimers(context)) return;
+    // Frame callbacks receive the frame's timestamp.
+    Local<Value> timestamp =
+        v8::Number::New(isolate_, Shell::MillisecondsSinceStart());
+    CallTimerCallback(isolate_, context, callback_.Get(isolate_), 1,
+                      &timestamp);
+  }
+
+ private:
+  v8::Isolate* isolate_;
+  int id_;
+  v8::Global<v8::Context> context_;
+  v8::Global<v8::Function> callback_;
+};
+
+}  // namespace
 
 void Shell::SetTimeout(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
@@ -4000,8 +4132,96 @@ void Shell::SetTimeout(const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (info.Length() == 0 || !info[0]->IsFunction()) return;
   Local<Function> callback = info[0].As<Function>();
   Local<Context> context = isolate->GetCurrentContext();
-  g_platform->GetForegroundTaskRunner(isolate)->PostTask(
-      std::make_unique<SetTimeoutTask>(isolate, context, callback));
+  int id = PerIsolateData::Get(isolate)->AddTimer();
+  PostTimerTask(
+      isolate, std::make_unique<SetTimeoutTask>(isolate, id, context, callback),
+      TimerDelayInSeconds(info));
+  info.GetReturnValue().Set(id);
+}
+
+void Shell::SetInterval(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
+  Isolate* isolate = info.GetIsolate();
+  info.GetReturnValue().Set(v8::Number::New(isolate, 0));
+  if (info.Length() == 0 || !info[0]->IsFunction()) return;
+  Local<Function> callback = info[0].As<Function>();
+  Local<Context> context = isolate->GetCurrentContext();
+  int id = PerIsolateData::Get(isolate)->AddTimer();
+  double delay_in_seconds = TimerDelayInSeconds(info);
+  PostTimerTask(isolate,
+                std::make_unique<SetIntervalTask>(isolate, id, delay_in_seconds,
+                                                  context, callback),
+                delay_in_seconds);
+  info.GetReturnValue().Set(id);
+}
+
+void Shell::RequestAnimationFrame(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
+  Isolate* isolate = info.GetIsolate();
+  info.GetReturnValue().Set(v8::Number::New(isolate, 0));
+  if (info.Length() == 0 || !info[0]->IsFunction()) return;
+  Local<Function> callback = info[0].As<Function>();
+  Local<Context> context = isolate->GetCurrentContext();
+  int id = PerIsolateData::Get(isolate)->AddTimer();
+  // There are no frames: the callback runs like a timer without delay.
+  PostTimerTask(isolate,
+                std::make_unique<RequestAnimationFrameTask>(isolate, id,
+                                                            context, callback),
+                0);
+  info.GetReturnValue().Set(id);
+}
+
+// Also clearInterval() and cancelAnimationFrame().
+void Shell::ClearTimeout(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
+  Isolate* isolate = info.GetIsolate();
+  if (info.Length() == 0 || !info[0]->IsNumber()) return;
+  PerIsolateData::Get(isolate)->RemoveTimer(
+      info[0]->Int32Value(isolate->GetCurrentContext()).FromMaybe(0));
+}
+
+namespace {
+
+// Mock DOM tasks that have not run yet. Delayed tasks do not keep the
+// message loop going by themselves.
+std::atomic<int> g_pending_mock_dom_tasks{0};
+
+class MockDOMTask : public v8::Task {
+ public:
+  MockDOMTask(Isolate* isolate, std::function<void()> task)
+      : isolate_(isolate), task_(std::move(task)) {
+    ++g_pending_mock_dom_tasks;
+  }
+  ~MockDOMTask() override { --g_pending_mock_dom_tasks; }
+  void Run() override {
+    task_();
+    // Tasks posted by the mock DOM can queue microtasks without entering JS.
+    isolate_->PerformMicrotaskCheckpoint();
+  }
+
+ private:
+  Isolate* isolate_;
+  std::function<void()> task_;
+};
+
+}  // namespace
+
+void Shell::PostMockDOMTask(Isolate* isolate, std::function<void()> task,
+                            double delay_in_seconds) {
+  g_platform->GetForegroundTaskRunner(isolate)->PostDelayedTask(
+      std::make_unique<MockDOMTask>(isolate, std::move(task)),
+      delay_in_seconds);
+}
+
+bool Shell::UseMockDOM() {
+  // Workers get plain d8 globals; the mock DOM lives on the main isolate.
+  return options.mock_dom && Worker::GetCurrentWorker() == nullptr;
+}
+
+bool Shell::HasPendingMockDOMWork(Isolate* isolate) {
+  return g_pending_mock_dom_tasks > 0 ||
+         PerIsolateData::Get(isolate)->HasActiveTimers();
 }
 
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
@@ -4846,10 +5066,18 @@ Local<FunctionTemplate> Shell::CreateNodeTemplates(
 // Note: the result is cached per isolate (see GetOrCreateGlobalTemplate), so
 // it must not depend on the context or on state that changes after startup.
 Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
-  Local<ObjectTemplate> global_template = ObjectTemplate::New(isolate);
-  global_template->Set(Symbol::GetToStringTag(isolate),
-                       String::NewFromUtf8Literal(isolate, "global"));
-  global_template->Set(isolate, "onerror", v8::Null(isolate));
+  Local<ObjectTemplate> global_template;
+#ifdef V8_ENABLE_EXPERIMENTAL_MOCK_DOM
+  // With --experimental-mock-dom the global object is a Window, whose template
+  // comes from the mock DOM.
+  if (UseMockDOM()) global_template = mock_dom::CreateGlobalTemplate(isolate);
+#endif  // V8_ENABLE_EXPERIMENTAL_MOCK_DOM
+  if (global_template.IsEmpty()) {
+    global_template = ObjectTemplate::New(isolate);
+    global_template->Set(Symbol::GetToStringTag(isolate),
+                         String::NewFromUtf8Literal(isolate, "global"));
+    global_template->Set(isolate, "onerror", v8::Null(isolate));
+  }
   Local<FunctionTemplate> version_func_template =
       FunctionTemplate::New(isolate, Version);
   version_func_template->SetAcceptAnyReceiver(false);
@@ -4874,6 +5102,17 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
                        FunctionTemplate::New(isolate, ExecuteFile));
   global_template->Set(isolate, "setTimeout",
                        FunctionTemplate::New(isolate, SetTimeout));
+  global_template->Set(isolate, "setInterval",
+                       FunctionTemplate::New(isolate, SetInterval));
+  global_template->Set(isolate, "clearTimeout",
+                       FunctionTemplate::New(isolate, ClearTimeout));
+  global_template->Set(isolate, "clearInterval",
+                       FunctionTemplate::New(isolate, ClearTimeout));
+  global_template->Set(isolate, "requestAnimationFrame",
+                       FunctionTemplate::New(isolate, RequestAnimationFrame));
+  global_template->Set(isolate, "cancelAnimationFrame",
+                       FunctionTemplate::New(isolate, ClearTimeout));
+
   // Some Emscripten-generated code tries to call 'quit', which in turn would
   // call C's exit(). This would lead to memory leaks, because there is no way
   // we can terminate cleanly then, so we need a way to hide 'quit'.
@@ -5093,6 +5332,12 @@ Local<FunctionTemplate> Shell::GetOrCreateLeafInterfaceTypeTemplate(
 
 Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
   Local<ObjectTemplate> d8_template = ObjectTemplate::New(isolate);
+#ifdef V8_ENABLE_EXPERIMENTAL_MOCK_DOM
+  if (UseMockDOM()) {
+    d8_template->Set(isolate, "mockDom",
+                     mock_dom::CreateTestingTemplate(isolate));
+  }
+#endif  // V8_ENABLE_EXPERIMENTAL_MOCK_DOM
   {
     Local<ObjectTemplate> file_template = ObjectTemplate::New(isolate);
     file_template->Set(isolate, "read",
@@ -5457,6 +5702,10 @@ MaybeLocal<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
   }
 #endif  // V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
 
+#ifdef V8_ENABLE_EXPERIMENTAL_MOCK_DOM
+  if (UseMockDOM()) mock_dom::InitializeContext(isolate, context);
+#endif  // V8_ENABLE_EXPERIMENTAL_MOCK_DOM
+
   return handle_scope.Escape(context);
 }
 
@@ -5683,6 +5932,9 @@ void Shell::OnExit(v8::Isolate* isolate, bool dispose) {
   }
 #endif  // V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
 
+#ifdef V8_ENABLE_EXPERIMENTAL_MOCK_DOM
+  if (UseMockDOM()) mock_dom::Shutdown(isolate);
+#endif  // V8_ENABLE_EXPERIMENTAL_MOCK_DOM
   platform::NotifyIsolateShutdown(g_default_platform, isolate);
 
   if (Worker* worker = Worker::GetCurrentWorker()) {
@@ -7223,6 +7475,15 @@ bool Shell::SetOptions(int argc, char* argv[]) {
 #endif  // V8_OS_POSIX
     } else if (FlagMatches("--enable-os-system", &argv[i])) {
       options.enable_os_system = true;
+    } else if (FlagMatches("--experimental-mock-dom", &argv[i])) {
+#ifdef V8_ENABLE_EXPERIMENTAL_MOCK_DOM
+      options.mock_dom = true;
+#else
+      fprintf(stderr,
+              "--experimental-mock-dom needs a d8 built with the GN arg "
+              "v8_enable_experimental_mock_dom = true.\n");
+      return false;
+#endif  // V8_ENABLE_EXPERIMENTAL_MOCK_DOM
     } else if (FlagMatches("--no-apply-priority", &argv[i])) {
       options.apply_priority = false;
     } else if (FlagWithArgMatches("--thread-pool-size", &flag_value, argc, argv,
@@ -7783,6 +8044,9 @@ bool Shell::CompleteMessageLoop(Isolate* isolate) {
       return platform::MessageLoopBehavior::kWaitForWork;
     }
     if (PerIsolateData::Get(isolate)->HasRunningSubscribedWorkers()) {
+      return platform::MessageLoopBehavior::kWaitForWork;
+    }
+    if (options.mock_dom && Shell::HasPendingMockDOMWork(isolate)) {
       return platform::MessageLoopBehavior::kWaitForWork;
     }
     return platform::MessageLoopBehavior::kDoNotWait;
@@ -8635,6 +8899,13 @@ int Shell::Main(int argc, char* argv[]) {
         result = RunBundleReprl(isolate);
       } else {
         result = RunMain(isolate, /*last_run=*/true);
+#ifdef V8_ENABLE_EXPERIMENTAL_MOCK_DOM
+        if (options.mock_dom && mock_dom::UncaughtErrorCount() > 0) {
+          printf("%d uncaught error(s) in --experimental-mock-dom page code.\n",
+                 mock_dom::UncaughtErrorCount());
+          result = 1;
+        }
+#endif  // V8_ENABLE_EXPERIMENTAL_MOCK_DOM
       }
 
       // Run interactive shell if explicitly requested or if no script has been

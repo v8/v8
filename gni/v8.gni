@@ -197,6 +197,11 @@ declare_args() {
   # Enable runtime call stats.
   v8_enable_runtime_call_stats = false
 
+  # Build d8's experimental mock DOM (d8 --experimental-mock-dom), a prototype
+  # for running DOM workloads such as Speedometer without a browser. See
+  # experimental/d8/mock-dom/mock-dom.h.
+  v8_enable_experimental_mock_dom = false
+
   # Add fuzzilli fuzzer support.
   v8_fuzzilli = false
 

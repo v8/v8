@@ -73,6 +73,9 @@
 /src/inspector/build/closure-compiler.tar.gz
 /test/benchmarks/data
 /test/benchmarks/JetStream3
+/test/benchmarks/Speedometer2
+/test/benchmarks/Speedometer3
+/test/benchmarks/SpeedometerMain
 /test/fuzzer/wasm_corpus/
 /test/fuzzer/wasm_corpus.tar.gz
 !/test/mjsunit/tools/*.log

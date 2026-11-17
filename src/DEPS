@@ -128,6 +128,7 @@ specific_include_rules = {
     "+experimental/redline/d8/cov.h",
   ],
   "d8\\.cc": [
+    "+experimental/d8/mock-dom/mock-dom.h",
     "+experimental/redline/d8/cov.h",
     "+experimental/redline/d8/redline.h",
     "+include/libplatform/libplatform.h",

@@ -6,6 +6,7 @@
 #define V8_D8_D8_H_
 
 #include <atomic>
+#include <functional>
 #include <iterator>
 #include <map>
 #include <memory>
@@ -463,6 +464,17 @@ class PerIsolateData {
       const std::shared_ptr<Worker>& worker) const;
   void UnregisterWorker(const std::shared_ptr<Worker>& worker);
 
+  // Timers (setTimeout, setInterval, requestAnimationFrame) that are scheduled
+  // and have not been cleared, by id.
+  int AddTimer() {
+    active_timers_.insert(++last_timer_id_);
+    return last_timer_id_;
+  }
+  // Returns false if the timer was not active.
+  bool RemoveTimer(int id) { return active_timers_.erase(id) > 0; }
+  bool IsTimerActive(int id) const { return active_timers_.contains(id); }
+  bool HasActiveTimers() const { return !active_timers_.empty(); }
+
  private:
   friend class Shell;
   friend class RealmScope;
@@ -492,6 +504,9 @@ class PerIsolateData {
   std::map<std::shared_ptr<Worker>,
            std::pair<Global<Context>, Global<Function>>>
       worker_message_callbacks_;
+
+  std::set<int> active_timers_;
+  int last_timer_id_ = 0;
 
   PerformanceMarkMap performance_mark_map_;
 
@@ -602,6 +617,7 @@ class ShellOptions {
       "dump-system-memory-stats", false};
   DisallowReassignment<bool> ignore_unhandled_promises = {
       "ignore-unhandled-promises", false};
+  DisallowReassignment<bool> mock_dom = {"experimental-mock-dom", false};
   int num_isolates = 1;
   DisallowReassignment<v8::ScriptCompiler::CompileOptions, true>
       compile_options = {"cache", v8::ScriptCompiler::kNoCompileOptions};
@@ -858,6 +874,21 @@ class Shell : public i::AllStatic {
   static void FreeUnicodeFilenameArgs();
 #endif
   static void SetTimeout(const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void SetInterval(const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void RequestAnimationFrame(
+      const v8::FunctionCallbackInfo<v8::Value>& info);
+  // The clock behind performance.now(), for timestamps handed to callbacks.
+  static double MillisecondsSinceStart() {
+    return (base::TimeTicks::Now() - kInitialTicks).InMillisecondsF();
+  }
+  static void ClearTimeout(const v8::FunctionCallbackInfo<v8::Value>& info);
+  // --experimental-mock-dom support, see
+  // experimental/d8/mock-dom/mock-dom.h.
+  static bool UseMockDOM();
+  static void PostMockDOMTask(Isolate* isolate, std::function<void()> task,
+                              double delay_in_seconds);
+  // Whether timers or mock DOM tasks are still to run.
+  static bool HasPendingMockDOMWork(Isolate* isolate);
   // Returns false if any exception occurred. Otherwise returns true.
   static bool ReadCodeTypeAndArguments(
       const v8::FunctionCallbackInfo<v8::Value>& info, int index,
