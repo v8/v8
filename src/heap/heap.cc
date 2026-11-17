@@ -429,10 +429,16 @@ size_t Heap::OldGenerationCapacity() const {
   size_t total = 0;
   for (PagedSpace* space = spaces.Next(); space != nullptr;
        space = spaces.Next()) {
+    // On client isolate, the shared spaces will be nullptr.
+    DCHECK_IMPLIES(IsAnyWritableSharedSpace(space->identity()),
+                   isolate()->is_shared_space_isolate());
     total += space->Capacity();
   }
   if (shared_lo_space_) {
-    total += shared_lo_space_->SizeOfObjects();
+    DCHECK(isolate()->is_shared_space_isolate());
+    DCHECK_NOT_NULL(shared_trusted_lo_space_);
+    total += shared_lo_space_->SizeOfObjects() +
+             shared_trusted_lo_space_->SizeOfObjects();
   }
   return total + lo_space_->SizeOfObjects() + code_lo_space_->SizeOfObjects() +
          trusted_lo_space_->SizeOfObjects();
@@ -445,10 +451,15 @@ size_t Heap::CommittedOldGenerationMemory() {
   size_t total = 0;
   for (PagedSpace* space = spaces.Next(); space != nullptr;
        space = spaces.Next()) {
+    // On client isolate, the shared spaces will be nullptr.
+    DCHECK_IMPLIES(IsAnyWritableSharedSpace(space->identity()),
+                   isolate()->is_shared_space_isolate());
     total += space->CommittedMemory();
   }
   if (shared_lo_space_) {
-    total += shared_lo_space_->Size();
+    DCHECK(isolate()->is_shared_space_isolate());
+    DCHECK_NOT_NULL(shared_trusted_lo_space_);
+    total += shared_lo_space_->Size() + shared_trusted_lo_space_->Size();
   }
   return total + lo_space_->Size() + code_lo_space_->Size() +
          trusted_lo_space_->Size();
@@ -5110,14 +5121,19 @@ size_t Heap::OldGenerationSizeOfObjects() const {
   total += lo_space()->SizeOfObjects();
   total += code_space()->SizeOfObjects();
   total += code_lo_space()->SizeOfObjects();
-  if (shared_space()) {
-    total += shared_space()->SizeOfObjects();
-  }
-  if (shared_lo_space()) {
-    total += shared_lo_space()->SizeOfObjects();
-  }
   total += trusted_space()->SizeOfObjects();
   total += trusted_lo_space()->SizeOfObjects();
+  // On client isolate, the shared spaces will be nullptr.
+  if (shared_space()) {
+    DCHECK(isolate()->is_shared_space_isolate());
+    DCHECK_NOT_NULL(shared_lo_space());
+    DCHECK_NOT_NULL(shared_trusted_space());
+    DCHECK_NOT_NULL(shared_trusted_lo_space());
+    total += shared_space()->SizeOfObjects();
+    total += shared_lo_space()->SizeOfObjects();
+    total += shared_trusted_space()->SizeOfObjects();
+    total += shared_trusted_lo_space()->SizeOfObjects();
+  }
   return total;
 }
 
