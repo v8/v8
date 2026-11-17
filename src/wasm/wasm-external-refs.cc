@@ -978,17 +978,15 @@ DISABLE_TSAN void array_fill_wrapper(Address raw_array, uint32_t index,
     }
     case kRefNull:
     case kRef: {
-      intptr_t uncompressed_pointer =
-          base::ReadUnalignedValue<intptr_t>(initial_value_addr);
-      if constexpr (kTaggedSize == 4) {
-        int32_t* base = reinterpret_cast<int32_t*>(initial_element_address);
-        base[0] = base[1] = static_cast<int32_t>(uncompressed_pointer);
-      } else {
-        base::WriteUnalignedValue(
-            reinterpret_cast<Address>(initial_element_address),
-            uncompressed_pointer);
+      Tagged<Object> initial_value(
+          base::ReadUnalignedValue<Address>(initial_value_addr));
+      ObjectSlot start = array->ElementSlot(index);
+      Relaxed_MemsetTagged(start, initial_value, length);
+      if (emit_write_barrier) {
+        WriteBarrier::ForRange(Isolate::Current()->heap(), array, start,
+                               start + length);
       }
-      break;
+      return;
     }
     case kS128:
       // S128 can only be filled with zeros.
@@ -1014,14 +1012,7 @@ DISABLE_TSAN void array_fill_wrapper(Address raw_array, uint32_t index,
                 initial_element_address, bytes_to_set - bytes_already_set);
   }
 
-  if (emit_write_barrier) {
-    DCHECK(type.is_ref());
-    Isolate* isolate = Isolate::Current();
-    ObjectSlot start(reinterpret_cast<Address>(initial_element_address));
-    ObjectSlot end(
-        reinterpret_cast<Address>(initial_element_address + bytes_to_set));
-    WriteBarrier::ForRange(isolate->heap(), array, start, end);
-  }
+  DCHECK(!emit_write_barrier);
 }
 
 double flat_string_to_f64(Address string_address) {
