@@ -222,6 +222,7 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kFrameState:
       case Opcode::kDeoptimizeIf:
       case Opcode::kComparison:
+      case Opcode::kCheckMaglevType:
 #ifdef V8_ENABLE_WEBASSEMBLY
       case Opcode::kTrapIf:
       case Opcode::kWasmTrap:
@@ -381,15 +382,20 @@ void LateLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
   // all loads need to be revisited during processing.
   int32_truncated_loads_[op_idx];
 
-  if (OpIndex existing = memory_.Find(load); existing.valid()) {
-    const Operation& replacement = graph_.Get(existing);
+  if (MemorySlotValue existing = memory_.Find(load); existing.value.valid()) {
+    const Operation& replacement = graph_.Get(existing.value);
     DCHECK_EQ(replacement.outputs_rep().size(), 1);
     DCHECK_EQ(load.outputs_rep().size(), 1);
-    TRACE(">> Found potential replacement at offset " << existing);
+    TRACE(">> Found potential replacement at offset " << existing.value);
     if (RepIsCompatible(replacement.outputs_rep()[0], load.outputs_rep()[0],
                         load.loaded_rep)) {
       TRACE(">>> Confirming replacement");
-      replacements_[op_idx] = Replacement::LoadElimination(existing);
+      if (load.kind.is_immutable && !existing.is_immutable) {
+        // Promote a live mutable entry (e.g. from an initializing store) to
+        // immutable in the current snapshot so it survives subsequent calls.
+        memory_.Insert(load, existing.value);
+      }
+      replacements_[op_idx] = Replacement::LoadElimination(existing.value);
       return;
     } else {
       TRACE(">>> Replacement has wrong representation: "
@@ -427,15 +433,18 @@ void LateLoadEliminationAnalyzer::ProcessTrustedLoad(
   // all loads need to be revisited during processing.
   int32_truncated_loads_[op_idx];
 
-  if (OpIndex existing = memory_.Find(load); existing.valid()) {
-    const Operation& replacement = graph_.Get(existing);
+  if (MemorySlotValue existing = memory_.Find(load); existing.value.valid()) {
+    const Operation& replacement = graph_.Get(existing.value);
     USE(replacement);
     // All trusted loads have the same representation and they can't alias with
     // any other loads.
     DCHECK(replacement.Is<LoadTrustedPointerOp>());
     DCHECK_EQ(replacement.outputs_rep(), load.outputs_rep());
-    TRACE(">> Found replacement at offset " << existing);
-    replacements_[op_idx] = Replacement::LoadElimination(existing);
+    TRACE(">> Found replacement at offset " << existing.value);
+    if (load.kind.is_immutable && !existing.is_immutable) {
+      memory_.Insert(load, existing.value);
+    }
+    replacements_[op_idx] = Replacement::LoadElimination(existing.value);
     return;
   }
   // Reset the replacement of {op_idx} to Invalid, in case a previous visit of a
@@ -853,21 +862,31 @@ bool LateLoadEliminationAnalyzer::BeginBlock(const Block* block) {
                                 merge_maps);
 
   // Merging for {memory_} means setting values to Invalid unless all
-  // predecessors have the same value.
+  // predecessors have the same value, and keeping {is_immutable} only when all
+  // predecessors agree that the slot is immutable.
   // TODO(dmercadier): we could insert of Phis during the pass to merge existing
   // information. This is a bit hard, because we are currently in an analyzer
   // rather than a reducer. Still, we could "prepare" the insertion now and then
   // really insert them during the Reduce phase of the CopyingPhase.
-  auto merge_memory = [&](MemoryKey key,
-                          base::Vector<const OpIndex> predecessors) -> OpIndex {
-    if (for_loop_revisit && predecessors[kForwardEdgeOffset].valid() &&
-        predecessors[kBackedgeOffset] != predecessors[kForwardEdgeOffset]) {
+  auto merge_memory =
+      [&](MemoryKey key,
+          base::Vector<const MemorySlotValue> predecessors) -> MemorySlotValue {
+    DCHECK(!predecessors.empty());
+    MemorySlotValue merged = predecessors[0];
+    for (const MemorySlotValue& pred : predecessors.SubVectorFrom(1)) {
+      if (pred.value != merged.value) {
+        merged = MemorySlotValue{};
+        break;
+      }
+      merged.is_immutable &= pred.is_immutable;
+    }
+    if (for_loop_revisit && merged != predecessors[kForwardEdgeOffset]) {
       // {key} had a value in the loop header, but the backedge and the forward
       // edge don't agree on its value, which means that the loop invalidated
       // some memory data, and thus needs to be revisited.
       loop_needs_revisit = true;
     }
-    return base::all_equal(predecessors) ? predecessors[0] : OpIndex::Invalid();
+    return merged;
   };
   memory_.StartNewSnapshot(base::VectorOf(predecessor_memory_snapshots_),
                            merge_memory);

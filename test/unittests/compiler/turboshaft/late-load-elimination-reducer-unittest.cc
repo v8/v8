@@ -739,6 +739,71 @@ TEST_F(LateLoadEliminationReducerTest, CatchBlockBeginInvalidatesStringMaps) {
   ASSERT_NE(test.GetCapturedAs<LoadOp>("load1"), nullptr);
 }
 
+TEST_F(LateLoadEliminationReducerTest,
+       ImmutableSlotTrackingAcrossSnapshotsAndBranches) {
+  auto test = CreateFromGraph(
+      base::VectorOf({RegisterRepresentation::Tagged(),
+                      RegisterRepresentation::Word32(),
+                      RegisterRepresentation::Word32()}),
+      [](auto& Asm) {
+        V<HeapObject> obj = V<HeapObject>::Cast(Asm.GetParameter(0));
+        V<Word32> val = Asm.template GetParameter<Word32>(1);
+        V<Word32> cond = Asm.template GetParameter<Word32>(2);
+
+        constexpr auto kInt32 = MemoryRepresentation::Int32();
+        constexpr auto kMutL = LoadOp::Kind::TaggedBase();
+        constexpr auto kImmL = kMutL.Immutable();
+        auto StoreMut = [&](V<HeapObject> base, int off, V<Word32> v) {
+          __ Store(base, v, StoreOp::Kind::TaggedBase(), kInt32,
+                   WriteBarrierKind::kNoWriteBarrier, off);
+        };
+        auto WritingCall = [&]() {
+          __ template CallBuiltin<builtin::FindOrderedHashMapEntry>(
+              Asm.context(), {.table = obj, .key = obj});
+        };
+
+        StoreMut(obj, 8, val);
+        V<Word32> if_promote, if_after_call, else_after_call;
+        IF (cond) {
+          // Promotes `{val, false}` to `{val, true}`, surviving `WritingCall`.
+          C(if_promote) = __ Load(obj, kImmL, kInt32, 8);
+          WritingCall();
+          C(if_after_call) = __ Load(obj, kMutL, kInt32, 8);
+        } ELSE {
+          // Promotion in `THEN` is rolled back, so `WritingCall` invalidates.
+          WritingCall();
+          C(else_after_call) = __ Load(obj, kMutL, kInt32, 8);
+          StoreMut(obj, 8, val);
+        }
+        V<Word32> phi1 = __ Phi(base::VectorOf({if_promote, val}),
+                                RegisterRepresentation::Word32());
+        V<Word32> phi2 =
+            __ Phi(base::VectorOf({if_after_call, else_after_call}),
+                   RegisterRepresentation::Word32());
+
+        // Merging `{val, true}` with `{val, false}` yields `{val, false}`:
+        // valid before `WritingCall`, invalidated after.
+        V<Word32> C(merged_before_call) = __ Load(obj, kMutL, kInt32, 8);
+        WritingCall();
+        V<Word32> C(merged_after_call) = __ Load(obj, kMutL, kInt32, 8);
+
+        __ Return(__ Word32Constant(0),
+                  base::VectorOf<OpIndex>(
+                      {phi1, phi2, merged_before_call, merged_after_call}));
+      });
+
+  test.Run<LateLoadEliminationReducer>();
+
+  EXPECT_NE(test.GetCapturedAs<LoadOp>("else_after_call"), nullptr);
+  EXPECT_NE(test.GetCapturedAs<LoadOp>("merged_after_call"), nullptr);
+  if (!LATE_LOAD_ELIM_VERIFY) {
+    for (const char* name :
+         {"if_promote", "if_after_call", "merged_before_call"}) {
+      EXPECT_TRUE(test.GetCapture(name).IsEmpty()) << name;
+    }
+  }
+}
+
 #if V8_ENABLE_WEBASSEMBLY
 
 class WasmLateLoadEliminationReducerTest
