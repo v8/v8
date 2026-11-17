@@ -173,9 +173,8 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
         DCHECK(!register_snapshot.live_registers.has(index));
         {
           SaveRegisterStateForCall save_register_state(masm, register_snapshot);
-          __ Push(string);
           __ SmiTag(index);
-          __ Push(index);
+          __ Push(string, index);
           __ Move(kContextRegister, masm->native_context().object());
           // This call does not throw nor can deopt.
           if (mode ==
@@ -314,19 +313,24 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
   bind(&seq_string);
   {
     Label two_byte_string;
+    // With --debug-code, SeqOneByteStringCharCodeAt below contains several
+    // Check()s whose Abort sequences are slightly larger with 16-byte stack
+    // alignment (see MacroAssembler::Abort), so a near jump may not reach.
+    constexpr Label::Distance kTwoByteDistance =
+        V8_X64_16BYTE_STACK_ALIGNMENT_BOOL ? Label::kFar : Label::kNear;
 #if V8_STATIC_ROOTS_BOOL
     if (InstanceTypeChecker::kTwoByteStringMapBit == 0) {
       TestInt32AndJumpIfAllClear(map,
                                  InstanceTypeChecker::kStringMapEncodingMask,
-                                 &two_byte_string, Label::kNear);
+                                 &two_byte_string, kTwoByteDistance);
     } else {
       TestInt32AndJumpIfAnySet(map, InstanceTypeChecker::kStringMapEncodingMask,
-                               &two_byte_string, Label::kNear);
+                               &two_byte_string, kTwoByteDistance);
     }
 #else
     andl(instance_type, Immediate(kStringEncodingMask));
     cmpl(instance_type, Immediate(kTwoByteStringTag));
-    j(equal, &two_byte_string, Label::kNear);
+    j(equal, &two_byte_string, kTwoByteDistance);
 #endif
     // The result of one-byte string will be the same for both modes
     // (CharCodeAt/CodePointAt), since it cannot be the first half of a
@@ -617,9 +621,13 @@ void MaglevAssembler::Prologue(Graph* graph) {
   // Save arguments in frame.
   // TODO(leszeks): Consider eliding this frame if we don't make any calls
   // that could clobber these registers.
-  Push(kContextRegister);
-  Push(kJSFunctionRegister);              // Callee's JS function.
-  Push(kJavaScriptCallArgCountRegister);  // Actual argument count.
+  // These slots are part of the fixed frame header (not outgoing arguments),
+  // so use MacroAssembler::Push: MaglevAssembler::Push would add an argument
+  // padding slot per push under V8_X64_16BYTE_STACK_ALIGNMENT.
+  MacroAssembler::Push(kContextRegister);
+  MacroAssembler::Push(kJSFunctionRegister);  // Callee's JS function.
+  MacroAssembler::Push(
+      kJavaScriptCallArgCountRegister);  // Actual argument count.
 
   // Initialize stack slots.
   if (graph->tagged_stack_slots() > 0) {

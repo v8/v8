@@ -154,16 +154,50 @@ namespace detail {
 template <typename... Args>
 struct PushAllHelper;
 
+template <typename... Args>
+inline void PushAll(MaglevAssembler* masm, Args... args) {
+  PushAllHelper<Args...>::Push(masm, args...);
+}
+
+template <typename... Args>
+inline void PushAllReverse(MaglevAssembler* masm, Args... args) {
+  PushAllHelper<Args...>::PushReverse(masm, args...);
+}
+
 template <>
 struct PushAllHelper<> {
   static void Push(MaglevAssembler* masm) {}
   static void PushReverse(MaglevAssembler* masm) {}
 };
 
+// Note: the helpers below must never call the variadic MaglevAssembler::Push
+// (which may insert an argument padding slot, see MaglevAssembler::Push);
+// they push exactly one slot per value via MacroAssembler::Push or PushAll.
+template <typename... Args>
+struct CountPushHelper;
+
+template <>
+struct CountPushHelper<> {
+  static int Count() { return 0; }
+};
+
+// Counts the number of stack slots pushed for {args...}: ranges contribute one
+// slot per element, every other value (including Input) exactly one slot.
+template <typename Arg, typename... Args>
+struct CountPushHelper<Arg, Args...> {
+  static int Count(Arg arg, Args... args) {
+    int arg_count = 1;
+    if constexpr (is_iterator_range<Arg>::value || std::ranges::range<Arg>) {
+      arg_count = static_cast<int>(std::distance(arg.begin(), arg.end()));
+    }
+    return arg_count + CountPushHelper<Args...>::Count(args...);
+  }
+};
+
 inline void PushInput(MaglevAssembler* masm, ConstInput input) {
   if (input.operand().IsConstant()) {
     input.node()->LoadToRegister(masm, kScratchRegister);
-    masm->Push(kScratchRegister);
+    masm->MacroAssembler::Push(kScratchRegister);
   } else {
     // TODO(leszeks): Consider special casing the value. (Toon: could possibly
     // be done through Input directly?)
@@ -171,10 +205,10 @@ inline void PushInput(MaglevAssembler* masm, ConstInput input) {
         compiler::AllocatedOperand::cast(input.operand());
 
     if (operand.IsRegister()) {
-      masm->Push(operand.GetRegister());
+      masm->MacroAssembler::Push(operand.GetRegister());
     } else {
       DCHECK(operand.IsStackSlot());
-      masm->Push(masm->GetStackSlot(operand));
+      masm->MacroAssembler::Push(masm->GetStackSlot(operand));
     }
   }
 }
@@ -182,17 +216,17 @@ inline void PushInput(MaglevAssembler* masm, ConstInput input) {
 template <std::ranges::range Range, typename... Args>
 inline void PushIterator(MaglevAssembler* masm, Range range, Args... args) {
   for (const auto& value : range) {
-    masm->Push(value);
+    PushAll(masm, value);
   }
-  PushAllHelper<Args...>::Push(masm, args...);
+  PushAll(masm, args...);
 }
 
 template <typename T, typename... Args>
 inline void PushIteratorReverse(MaglevAssembler* masm,
                                 base::iterator_range<T> range, Args... args) {
-  PushAllHelper<Args...>::PushReverse(masm, args...);
+  PushAllReverse(masm, args...);
   for (const auto& item : base::Reversed(range)) {
-    masm->Push(item);
+    PushAllReverse(masm, item);
   }
 }
 
@@ -200,10 +234,10 @@ template <typename... Args>
 struct PushAllHelper<Input, Args...> {
   static void Push(MaglevAssembler* masm, Input arg, Args... args) {
     PushInput(masm, arg);
-    PushAllHelper<Args...>::Push(masm, args...);
+    PushAll(masm, args...);
   }
   static void PushReverse(MaglevAssembler* masm, Input arg, Args... args) {
-    PushAllHelper<Args...>::PushReverse(masm, args...);
+    PushAllReverse(masm, args...);
     PushInput(masm, arg);
   }
 };
@@ -214,7 +248,7 @@ struct PushAllHelper<Arg, Args...> {
       PushIterator(masm, arg, args...);
     } else {
       masm->MacroAssembler::Push(arg);
-      PushAllHelper<Args...>::Push(masm, args...);
+      PushAll(masm, args...);
     }
   }
   static void PushReverse(MaglevAssembler* masm, Arg arg, Args... args) {
@@ -224,22 +258,46 @@ struct PushAllHelper<Arg, Args...> {
       PushIteratorReverse(
           masm, base::make_iterator_range(arg.begin(), arg.end()), args...);
     } else {
-      PushAllHelper<Args...>::PushReverse(masm, args...);
-      masm->Push(arg);
+      PushAllReverse(masm, args...);
+      masm->MacroAssembler::Push(arg);
     }
   }
 };
 
 }  // namespace detail
 
+// With V8_X64_16BYTE_STACK_ALIGNMENT, Push/PushReverse round every group of
+// pushed values up to an even number of slots by pushing one padding slot
+// (Smi zero) BEFORE the first value, so that the padding sits at the HIGHEST
+// address of the group. This is the same convention as arm64 and matches what
+// callees expect for stack arguments (JS calls: padding above the last
+// argument when argc incl. receiver is odd; stubs/builtins/CEntry drop
+// RoundUp(n, 2) slots):
+//
+//        higher addresses
+//   | padding (Smi 0)   |  <- only when the pushed slot count is odd
+//   | first pushed val  |
+//   | ...               |
+//   | last pushed val   |  <- rsp
+//        lower addresses
 template <typename... T>
 void MaglevAssembler::Push(T... vals) {
-  detail::PushAllHelper<T...>::Push(this, vals...);
+  const int push_count = detail::CountPushHelper<T...>::Count(vals...);
+  if (ShouldPadArguments(push_count)) {
+    PushTaggedStackPadding();
+  }
+  detail::PushAll(this, vals...);
 }
 
 template <typename... T>
 void MaglevAssembler::PushReverse(T... vals) {
-  detail::PushAllHelper<T...>::PushReverse(this, vals...);
+  // The padding is still pushed first, i.e. it ends up above the last element
+  // of {vals}.
+  const int push_count = detail::CountPushHelper<T...>::Count(vals...);
+  if (ShouldPadArguments(push_count)) {
+    PushTaggedStackPadding();
+  }
+  detail::PushAllReverse(this, vals...);
 }
 
 inline void MaglevAssembler::BindJumpTarget(Label* label) {
@@ -1542,7 +1600,12 @@ inline void MaglevAssembler::IntPtrToDouble(DoubleRegister result,
   Cvtqsi2sd(result, src);
 }
 
-inline void MaglevAssembler::Pop(Register dst) { MacroAssembler::Pop(dst); }
+inline void MaglevAssembler::Pop(Register dst) {
+  MacroAssembler::Pop(dst);
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    DropStackPadding();
+  }
+}
 
 template <typename NodeT>
 inline void MaglevAssembler::EmitEagerDeoptIfNotEqual(DeoptimizeReason reason,

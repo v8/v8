@@ -1075,9 +1075,10 @@ void HandleInterruptsAndTiering(MaglevAssembler* masm, ZoneLabelRef done,
   if (type == ReduceInterruptBudgetType::kLoop) {
     SaveRegisterStateForCall save_register_state(masm,
                                                  node->register_snapshot());
-    __ Push(MemOperand(rbp, StandardFrameConstants::kFunctionOffset));
-    __ Push(Smi::FromInt(
-        node->Cast<ReduceInterruptBudgetForLoop>()->osr_offset().ToInt()));
+    int osr_offset =
+        node->Cast<ReduceInterruptBudgetForLoop>()->osr_offset().ToInt();
+    __ Push(MemOperand(rbp, StandardFrameConstants::kFunctionOffset),
+            Smi::FromInt(osr_offset));
     __ Move(kContextRegister, masm->native_context().object());
     __ CallRuntime(Runtime::kBytecodeBudgetLoopInterrupt_Maglev, 2);
     save_register_state.DefineSafepointWithLazyDeopt(node->lazy_deopt_info());
@@ -1168,7 +1169,10 @@ void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   __ j(greater, &drop_dynamic_arg_size);
 
   // Drop receiver + arguments according to static formal arguments size.
-  __ Ret(formal_params_size * kSystemPointerSize, kScratchRegister);
+  // With V8_X64_16BYTE_STACK_ALIGNMENT the caller pushed a padding slot above
+  // the arguments when (argc incl. receiver) is odd, so drop that too.
+  __ Ret(AddArgumentPaddingSlots(formal_params_size) * kSystemPointerSize,
+         kScratchRegister);
 
   __ bind(&drop_dynamic_arg_size);
   // Drop receiver + arguments according to dynamic arguments size.
