@@ -2353,10 +2353,11 @@ class FastJsonStringifier {
                                   const DisallowGarbageCollection& no_gc);
 
   using FastIterableState = DescriptorArray::FastIterableState;
-  static constexpr uint32_t kGlobalInterruptBudget = 200000;
+  static constexpr int32_t kGlobalInterruptBudget = 200000;
   static constexpr uint32_t kArrayInterruptLength = 4000;
 
   Isolate* isolate_;
+  int32_t interrupt_budget_ = kGlobalInterruptBudget;
   OutBuffer<Char> buffer_;
   base::SmallVector<ContinuationRecord, 16> stack_;
 
@@ -2806,6 +2807,7 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeJSObject(
   }
   AppendCharacter('{');
   const uint16_t nof_descriptors = map->NumberOfOwnDescriptors();
+  interrupt_budget_ -= nof_descriptors;
   const uint8_t in_object_properties = map->GetInObjectProperties();
   const uint8_t in_object_properties_start =
       map->GetInObjectPropertiesStartInWords();
@@ -3142,7 +3144,7 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeFixedArrayElement(
             ContinuationRecord::ForJSArrayResume<kind, with_interrupt_checks>(
                 elements, i + 1, length));
         if constexpr (!with_interrupt_checks) {
-          if (result == JS_OBJECT) {
+          if (result == JS_OBJECT && V8_LIKELY(--interrupt_budget_ > 0)) {
             DisallowGarbageCollection no_gc;
             FastJsonStringifierResult obj_result =
                 SerializeJSObject(Cast<JSObject>(obj), no_gc);
@@ -3181,6 +3183,7 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeFrom(
 
   initial_jsobject_proto_ = old_stringifier.initial_jsobject_proto_;
   initial_jsarray_proto_ = old_stringifier.initial_jsarray_proto_;
+  interrupt_budget_ = old_stringifier.interrupt_budget_;
   stack_ = old_stringifier.stack_;
   ContinuationRecord cont = stack_.back();
   stack_.pop_back();
@@ -3283,15 +3286,12 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeObject(
   // GCMole doesn't handle kNoGC interrupts correctly.
   DisableGCMole no_gc_mole;
 
-  uint32_t interrupt_budget = kGlobalInterruptBudget;
-
   FastJsonStringifierResult result;
   while (true) {
-    --interrupt_budget;
-    if (V8_UNLIKELY(interrupt_budget == 0)) {
+    if (V8_UNLIKELY(--interrupt_budget_ <= 0)) {
       result = HandleInterruptAndCheckCycle();
       if (V8_UNLIKELY(result != SUCCESS)) return result;
-      interrupt_budget = kGlobalInterruptBudget;
+      interrupt_budget_ = kGlobalInterruptBudget;
     }
     switch (cont.type()) {
       case ContinuationRecord::kObject: {
