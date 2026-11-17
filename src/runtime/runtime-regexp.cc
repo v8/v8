@@ -1543,7 +1543,7 @@ V8_WARN_UNUSED_RESULT MaybeDirectHandle<String> RegExpReplace(
     if (last_index <= static_cast<uint32_t>(string->length())) {
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, match_indices_obj,
-          RegExp::Exec_Single(isolate, regexp, string, last_index,
+          RegExp::Exec_Single(isolate, data, string, last_index,
                               last_match_info));
     }
 
@@ -1660,7 +1660,6 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
   Factory* factory = isolate->factory();
   DirectHandle<RegExpMatchInfo> last_match_info =
       isolate->regexp_last_match_info();
-  DirectHandle<RegExpData> data(regexp->data(isolate), isolate);
 
   const int flags = regexp->flags();
   DCHECK_EQ(flags & JSRegExp::kGlobal, 0);
@@ -1679,12 +1678,14 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
   DirectHandle<Object> match_indices_obj(ReadOnlyRoots(isolate).null_value(),
                                          isolate);
 
+  DirectHandle<RegExpData> data(regexp->data(isolate), isolate);
+
   // A lastIndex exceeding the string length always returns null (signalling
   // failure) in RegExpBuiltinExec, thus we can skip the call.
   if (last_index <= static_cast<uint32_t>(subject->length())) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, match_indices_obj,
-        RegExp::Exec_Single(isolate, regexp, subject, last_index,
+        RegExp::Exec_Single(isolate, data, subject, last_index,
                             last_match_info));
   }
 
@@ -1710,7 +1711,7 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
   // named captures, they are also passed as the last argument.
 
   // The number of captures plus one for the match.
-  const int m = match_indices->number_of_capture_registers() / 2;
+  const int m = data->capture_count() + 1;
 
   bool has_named_captures = false;
   DirectHandle<TrustedFixedArray> capture_map;

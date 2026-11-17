@@ -2788,8 +2788,10 @@ struct RegExpExecData {
 };
 
 i::DirectHandle<i::Object> RegExpExec(const RegExpExecData* d) {
-  return i::RegExp::Exec_Single(d->isolate, d->regexp, d->subject, 0,
-                                d->isolate->regexp_last_match_info())
+  return i::RegExp::Exec_Single(
+             d->isolate,
+             i::direct_handle(d->regexp->data(d->isolate), d->isolate),
+             d->subject, 0, d->isolate->regexp_last_match_info())
       .ToHandleChecked();
 }
 
@@ -2966,8 +2968,9 @@ TEST_F(RegExpTestWithContext, RegExpInterruptStalePrologueBacktrackPointer) {
       v8::Utils::OpenDirectHandle(*NewString("aaac"));
 
   i::DirectHandle<i::Object> result =
-      i::RegExp::Exec_Single(i_iso, regexp, subject, 0,
-                             i_iso->regexp_last_match_info())
+      i::RegExp::Exec_Single(i_iso,
+                             i::direct_handle(regexp->data(i_iso), i_iso),
+                             subject, 0, i_iso->regexp_last_match_info())
           .ToHandleChecked();
   USE(result);
 }

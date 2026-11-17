@@ -554,11 +554,10 @@ std::optional<int> RegExp::Exec(Isolate* isolate,
 
 // static
 MaybeDirectHandle<Object> RegExp::Exec_Single(
-    Isolate* isolate, DirectHandle<JSRegExp> regexp,
+    Isolate* isolate, DirectHandle<RegExpData> data,
     DirectHandle<String> subject, int index,
     DirectHandle<RegExpMatchInfo> last_match_info) {
   regexp::StackScope stack_scope(isolate);
-  DirectHandle<RegExpData> data(regexp->data(isolate), isolate);
   int capture_count = data->capture_count();
   int result_offsets_vector_length =
       JSRegExp::RegistersForCaptureCount(capture_count);
