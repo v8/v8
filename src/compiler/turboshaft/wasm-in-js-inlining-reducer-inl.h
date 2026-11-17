@@ -24,6 +24,7 @@
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-opcodes-inl.h"
+#include "src/wasm/wasm-subtyping.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -705,7 +706,12 @@ class WasmInJsInliningInterface {
   }
 
   void Forward(FullDecoder* decoder, const Value& from, Value* to) {
-    to->op = from.op;
+    if (to->type.is_ref() &&
+        !wasm::IsSubtypeOf(from.type, to->type, decoder->module_)) {
+      to->op = __ AnnotateWasmType(from.get<Object>(), to->type);
+    } else {
+      to->op = from.op;
+    }
   }
 
   void DoReturn(FullDecoder* decoder, uint32_t drop_values) {
@@ -743,7 +749,8 @@ class WasmInJsInliningInterface {
                            Value* result) {
     __ TrapIfNot(__ IsNull(obj.get<Object>(), obj.type), frame_state_,
                  TrapId::kTrapIllegalCast);
-    Forward(decoder, obj, result);
+    result->op = __ AnnotateWasmType(
+        obj.get<Object>(), wasm::ToNullSentinel({obj.type, decoder->module_}));
   }
   void AssertNotNullTypecheck(FullDecoder* decoder, const Value& obj,
                               Value* result) {
@@ -827,7 +834,6 @@ class WasmInJsInliningInterface {
       return Bailout(decoder);
     }
     if (v8_flags.wasm_assume_ref_cast_succeeds) {
-      // TODO(14108): Implement type guards.
       Forward(decoder, object, result);
       return;
     }
@@ -842,7 +848,6 @@ class WasmInJsInliningInterface {
   void RefCastAbstract(FullDecoder* decoder, const Value& object,
                        wasm::HeapType type, Value* result, bool null_succeeds) {
     if (v8_flags.wasm_assume_ref_cast_succeeds) {
-      // TODO(14108): Implement type guards.
       Forward(decoder, object, result);
       return;
     }

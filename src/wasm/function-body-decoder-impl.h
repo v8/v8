@@ -6823,9 +6823,10 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       DCHECK(opcode == kExprBrOnCastFail || opcode == kExprBrOnCastDescEqFail);
       // The branch type is set based on the source type immediate (independent
       // of the actual stack value). If the target type is nullable, the branch
-      // type is non-nullable.
+      // type is non-nullable. Do not call Forward(obj, stack_value(1)) here:
+      // Forward may emit a narrowing type annotation (e.g. non-null when
+      // flags.res_is_null), which is only valid on the failing branch.
       Push(flags.res_is_null ? src_type.AsNonNull() : src_type);
-      CALL_INTERFACE_IF_OK_AND_REACHABLE(Forward, obj, stack_value(1));
 
       if (!VALIDATE(
               (TypeCheckBranch<PushBranchValues::kYes, RewriteStackTypes::kYes>(
@@ -6856,6 +6857,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                        TypeCheckAlwaysSucceeds(obj, target_type.heap_type()))) {
           // The branch can still be taken on null.
           if (obj.type.is_nullable() && !null_succeeds) {
+            CALL_INTERFACE(Forward, obj, stack_value(1));
             CALL_INTERFACE(BrOnNull, obj, branch_depth.depth, true,
                            &result_on_fallthrough);
             c->br_merge()->reached = true;
