@@ -303,6 +303,8 @@ enum class CheckBoundsFlag : uint8_t {
 using CheckBoundsFlags = base::Flags<CheckBoundsFlag>;
 DEFINE_OPERATORS_FOR_FLAGS(CheckBoundsFlags)
 
+std::ostream& operator<<(std::ostream&, CheckBoundsFlags);
+
 class CheckBoundsParameters final {
  public:
   CheckBoundsParameters(const FeedbackSource& feedback, CheckBoundsFlags flags)

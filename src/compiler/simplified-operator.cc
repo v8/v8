@@ -2442,6 +2442,24 @@ size_t hash_value(CheckBoundsParameters const& p) {
   return base::hash_combine(hash_value(p.check_parameters()), p.flags());
 }
 
+std::ostream& operator<<(std::ostream& os, CheckBoundsFlags flags) {
+  if (!flags) return os << "None";
+  constexpr std::pair<CheckBoundsFlag, const char*> kFlagNames[] = {
+      {CheckBoundsFlag::kConvertStringAndMinusZero,
+       "ConvertStringAndMinusZero"},
+      {CheckBoundsFlag::kAbortOnOutOfBounds, "AbortOnOutOfBounds"},
+      {CheckBoundsFlag::kAllow64BitBounds, "Allow64BitBounds"},
+  };
+  const char* separator = "";
+  for (const auto& [flag, name] : kFlagNames) {
+    if (flags & flag) {
+      os << separator << name;
+      separator = " | ";
+    }
+  }
+  return os;
+}
+
 std::ostream& operator<<(std::ostream& os, CheckBoundsParameters const& p) {
   os << p.check_parameters() << ", " << p.flags();
   return os;
