@@ -501,8 +501,7 @@ class IteratingArrayBuiltinReducerAssembler : public JSCallReducerAssembler {
       MapInference* inference, const bool has_stability_dependency,
       ElementsKind kind, SharedFunctionInfoRef shared,
       NativeContextRef native_context, ArrayEverySomeVariant variant);
-  TNode<Object> ReduceArrayPrototypeAt(ZoneVector<MapRef> kinds,
-                                       bool needs_fallback_builtin_call);
+  TNode<Object> ReduceArrayPrototypeAt(ZoneRefSet<Map> const& maps);
   TNode<Object> ReduceArrayPrototypeIndexOfIncludes(
       ElementsKind kind, ArrayIndexOfIncludesVariant variant);
   TNode<Number> ReduceArrayPrototypePush(MapInference* inference);
@@ -1424,24 +1423,16 @@ TNode<Object> JSCallReducerAssembler::ReduceJSCallMathMinMaxWithArrayLike(
 }
 
 TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeAt(
-    ZoneVector<MapRef> maps, bool needs_fallback_builtin_call) {
+    ZoneRefSet<Map> const& maps) {
+  DCHECK_NE(0, maps.size());
   TNode<JSArray> receiver = ReceiverInputAs<JSArray>();
   TNode<Object> index = ArgumentOrZeroIfUndefined(0);
   TNode<Number> index_num = CheckSmi(index);
-  TNode<FixedArrayBase> elements = LoadElements(receiver);
-
-  TNode<Map> receiver_map =
-      TNode<Map>::UncheckedCast(LoadField(AccessBuilder::ForMap(), receiver));
 
   auto out = MakeLabel(MachineRepresentation::kTagged);
 
-  for (MapRef map : maps) {
+  auto emit_at = [&](MapRef map) {
     DCHECK(map.supports_fast_array_iteration(broker()));
-    auto correct_map_label = MakeLabel(), wrong_map_label = MakeLabel();
-    TNode<Boolean> is_map_equal = ReferenceEqual(receiver_map, Constant(map));
-    Branch(is_map_equal, &correct_map_label, &wrong_map_label);
-    Bind(&correct_map_label);
-
     TNode<Number> length = LoadJSArrayLength(receiver, map.elements_kind());
 
     // If index is less than 0, then subtract from length.
@@ -1464,6 +1455,7 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeAt(
     }
 
     // Retrieving element at index.
+    TNode<FixedArrayBase> elements = LoadElements(receiver);
     TNode<Object> element = LoadElement<Object>(
         AccessBuilder::ForFixedArrayElement(map.elements_kind()), elements,
         real_index_num);
@@ -1477,32 +1469,21 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeAt(
       element = ConvertHoleToUndefined(element, map.elements_kind());
     }
     Goto(&out, element);
+  };
 
-    Bind(&wrong_map_label);
+  if (maps.size() > 1) {
+    TNode<Map> receiver_map = LoadMap(receiver);
+    for (size_t i = 0; i < maps.size() - 1; ++i) {
+      MapRef map = maps[i];
+      auto correct_map_label = MakeLabel(), wrong_map_label = MakeLabel();
+      TNode<Boolean> is_map_equal = ReferenceEqual(receiver_map, Constant(map));
+      Branch(is_map_equal, &correct_map_label, &wrong_map_label);
+      Bind(&correct_map_label);
+      emit_at(map);
+      Bind(&wrong_map_label);
+    }
   }
-
-  if (needs_fallback_builtin_call) {
-    JSCallNode n(node_ptr());
-    CallParameters const& p = n.Parameters();
-
-    // We set SpeculationMode to kDisallowSpeculation to avoid infinite
-    // recursion on the node we're creating (since, after all, it's calling
-    // Array.Prototype.at).
-    const Operator* op = javascript()->Call(
-        JSCallNode::ArityForArgc(1), p.frequency(), p.feedback(),
-        ConvertReceiverMode::kNotNullOrUndefined,
-        SpeculationMode::kDisallowSpeculation, CallFeedbackRelation::kTarget);
-    Node* fallback_builtin = node_ptr()->InputAt(0);
-
-    TNode<Object> res = MayThrow(_ {
-      return AddNode<Object>(graph()->NewNode(
-          op, fallback_builtin, receiver, index, n.feedback_vector(),
-          ContextInput(), n.frame_state(), effect(), control()));
-    });
-    Goto(&out, res);
-  } else {
-    Goto(&out, UndefinedConstant());
-  }
+  emit_at(maps[maps.size() - 1]);
 
   Bind(&out);
   return out.PhiAt<Object>(0);
@@ -6588,36 +6569,25 @@ Reduction JSCallReducer::ReduceArrayPrototypeAt(Node* node) {
 
   MapInference inference(broker(), receiver, effect);
   if (!inference.HaveMaps()) return NoChange();
+  ZoneRefSet<Map> const& maps = inference.GetMaps();
 
-  // Collecting maps, and checking if a fallback builtin call will be required
-  // (it is required if at least one map doesn't support fast array iteration).
-  ZoneVector<MapRef> maps(broker()->zone());
-  bool needs_fallback_builtin_call = false;
-  for (MapRef map : inference.GetMaps()) {
-    if (map.supports_fast_array_iteration(broker())) {
-      maps.push_back(map);
-    } else {
-      needs_fallback_builtin_call = true;
+  for (MapRef map : maps) {
+    if (!map.supports_fast_array_iteration(broker())) {
+      return inference.NoChange();
     }
+  }
+
+  if (!dependencies()->DependOnNoElementsProtector()) {
+    return inference.NoChange();
   }
 
   inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
                                       control, p.feedback());
 
-  if (maps.empty()) {
-    // No map in the feedback supports fast iteration. Keeping the builtin call.
-    return NoChange();
-  }
-
-  if (!dependencies()->DependOnNoElementsProtector()) {
-    return NoChange();
-  }
-
   IteratingArrayBuiltinReducerAssembler a(this, node);
   a.InitializeEffectControl(effect, control);
 
-  TNode<Object> subgraph =
-      a.ReduceArrayPrototypeAt(maps, needs_fallback_builtin_call);
+  TNode<Object> subgraph = a.ReduceArrayPrototypeAt(maps);
   return ReplaceWithSubgraph(&a, subgraph);
 }
 
