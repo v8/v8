@@ -17859,7 +17859,7 @@ TNode<Boolean> CodeStubAssembler::StrictEqual(
   //         }
   //       } else if (lhs->IsBigInt()) {
   //         if (rhs->IsBigInt()) {
-  //           return %BigIntEqualToBigInt(lhs, rhs);
+  //           return %BigIntEqual(lhs, rhs);
   //         } else {
   //           return false;
   //         }
@@ -18311,8 +18311,8 @@ void CodeStubAssembler::BranchIfSameValue(TNode<Object> lhs, TNode<Object> rhs,
             BIND(&if_lhsisbigint);
             {
               GotoIfNot(IsBigInt(CAST(rhs)), if_false);
-              const TNode<Object> result = CallRuntime(
-                  Runtime::kBigIntEqualToBigInt, NoContextConstant(), lhs, rhs);
+              const TNode<Object> result = CallBuiltin(
+                  Builtin::kBigIntEqual, NoContextConstant(), lhs, rhs);
               Branch(IsTrue(result), if_true, if_false);
             }
           }

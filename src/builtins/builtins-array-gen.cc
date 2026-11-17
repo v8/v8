@@ -1087,8 +1087,8 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
     TNode<HeapObject> ho_element_k = UncheckedCast<HeapObject>(element_k);
     GotoIf(IsTheHole(ho_element_k), &continue_loop);
     GotoIfNot(IsBigInt(ho_element_k), &continue_loop);
-    TNode<Object> result = CallRuntime(Runtime::kBigIntEqualToBigInt, context,
-                                       search_element, element_k);
+    TNode<Object> result = CallBuiltin(
+        Builtin::kBigIntEqual, NoContextConstant(), search_element, element_k);
     Branch(TaggedEqual(result, TrueConstant()), &return_found, &continue_loop);
 
     BIND(&continue_loop);
