@@ -363,18 +363,36 @@ INSTANTIATE_TEST_SUITE_P(ExperimentalFlagImplication,
 
 TEST(FlagContradictionsTest, ResolvesContradictions) {
 #ifdef V8_ENABLE_MAGLEV
-  int argc = 4;
-  const char* argv[] = {"Test", "--fuzzing", "--stress-maglev", "--jitless"};
-  FlagList::SetFlagsFromCommandLine(&argc, const_cast<char**>(argv), false);
-  CHECK(v8_flags.fuzzing);
-  CHECK(v8_flags.jitless);
-  CHECK(v8_flags.stress_maglev);
-  FlagList::ResolveContradictionsWhenFuzzing();
-  FlagList::EnforceFlagImplications();
-  CHECK(v8_flags.fuzzing);
-  CHECK(!v8_flags.jitless);
-  CHECK(v8_flags.stress_maglev);
+  {
+    SaveFlags save_flags;
+    int argc = 4;
+    const char* argv[] = {"Test", "--fuzzing", "--stress-maglev", "--jitless"};
+    FlagList::SetFlagsFromCommandLine(&argc, const_cast<char**>(argv), false);
+    CHECK(v8_flags.fuzzing);
+    CHECK(v8_flags.jitless);
+    CHECK(v8_flags.stress_maglev);
+    FlagList::ResolveContradictionsWhenFuzzing();
+    FlagList::EnforceFlagImplications();
+    CHECK(v8_flags.fuzzing);
+    CHECK(!v8_flags.jitless);
+    CHECK(v8_flags.stress_maglev);
+  }
 #endif
+  {
+    SaveFlags save_flags;
+    int argc = 4;
+    const char* argv[] = {"Test", "--fuzzing", "--hole-fuzzing",
+                          "--assert-types"};
+    FlagList::SetFlagsFromCommandLine(&argc, const_cast<char**>(argv), false);
+    CHECK(v8_flags.fuzzing);
+    CHECK(v8_flags.hole_fuzzing);
+    CHECK(v8_flags.assert_types);
+    FlagList::ResolveContradictionsWhenFuzzing();
+    FlagList::EnforceFlagImplications();
+    CHECK(v8_flags.fuzzing);
+    CHECK(v8_flags.hole_fuzzing);
+    CHECK(!v8_flags.assert_types);
+  }
 }
 
 TEST(FlagContradictionsTest, ResolvesNegContradictions) {

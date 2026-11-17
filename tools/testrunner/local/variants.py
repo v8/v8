@@ -291,7 +291,9 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--no-regexp-tier-up", "--regexp-interpret-all", "--jitless"
     ],
     "assert_types": [
-        "--concurrent-recompilation", "--stress_concurrent_inlining"
+        "--concurrent-recompilation",
+        "--stress_concurrent_inlining",
+        "--hole-fuzzing",
     ],
     "wasm_assert_types": [
         # 'wasm_assert_types' disables Liftoff, which conflicts with flags that

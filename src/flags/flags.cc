@@ -1495,6 +1495,11 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
   CONTRADICTION(stress_lazy, sandbox_fuzzing);
   CONTRADICTION(stress_lazy, sandbox_testing);
 
+  // --hole-fuzzing intentionally leaks Hole values into JS expressions,
+  // violating TurboFan's Type::NonInternal() invariant checked by
+  // --assert-types.
+  CONTRADICTION(assert_types, hole_fuzzing);
+
   // List of flags that shouldn't be used when --fuzzing or
   // --correctness-fuzzer-suppressions is passed. These flags will be reset
   // to their defaults.
@@ -1545,6 +1550,7 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
     CHECK(!flag1->PointsTo(&v8_flags.correctness_fuzzer_suppressions));
     CHECK(
         !flag1->PointsTo(&v8_flags.correctness_fuzzer_cross_arch_suppressions));
+    CHECK(!flag1->PointsTo(&v8_flags.hole_fuzzing));
     CHECK(!flag1->PointsTo(&v8_flags.sandbox_fuzzing));
     CHECK(!flag1->PointsTo(&v8_flags.sandbox_testing));
     CHECK(!flag1->PointsTo(&v8_flags.run_as_security_poc));
