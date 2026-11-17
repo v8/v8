@@ -3422,6 +3422,7 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   // [ reserved slot for NativeModule ]  <-- arg[2]
   // [     defined function index     ]  <-- arg[1] for runtime func.
   // [       Wasm instance data       ]  <-- arg[0]
+  // [         alignment slot         ]  (if V8_X64_16BYTE_STACK_ALIGNMENT_BOOL)
   // [ ...spilled Wasm parameters...  ]
   // [           calling pc           ]
   // [   WASM_LIFTOFF_SETUP marker    ]
@@ -3432,6 +3433,15 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   __ Push(calling_pc);
   int offset = SaveWasmParams(masm);
 
+  // Frame marker + calling_pc + 6 GP regs + 6 * 2 FP slots = 20 slots (even),
+  // so the 3 runtime arguments below need one padding slot.
+  static_assert((2 + WasmLiftoffSetupFrameConstants::kNumberOfSavedGpParamRegs +
+                 1 +
+                 WasmLiftoffSetupFrameConstants::kNumberOfSavedFpParamRegs *
+                     (kSimd128Size / kSystemPointerSize)) %
+                    2 ==
+                0);
+  if constexpr (ShouldPadArguments(3)) __ PushTaggedStackPadding();
   // Arguments to the runtime function: instance data, func_index.
   __ Push(kWasmImplicitArgRegister);
   __ SmiTag(func_index);
@@ -3523,6 +3533,14 @@ void Generate_WasmDebugBreakOrTrap(MacroAssembler* masm, DebugBreakKind kind) {
       offset -= kSimd128Size;
       __ movdqu(Operand(rsp, offset), reg);
     }
+    // 1 frame marker + 10 GP registers + 16 FP slots = 27 slots (odd); pad to
+    // keep rsp 16-byte aligned for the runtime call below without shifting
+    // FP-relative register offsets in WasmDebugBreakFrameConstants.
+    constexpr int kSavedSlots =
+        1 + WasmDebugBreakFrameConstants::kNumPushedGpRegisters +
+        kFpStackSize / kSystemPointerSize;
+    constexpr bool kPadFrame = ShouldPadArguments(kSavedSlots);
+    if constexpr (kPadFrame) __ PushTaggedStackPadding();
 
     // Load instance data.
     __ movq(kScratchRegister, Operand(rbp, 0));
@@ -3537,11 +3555,12 @@ void Generate_WasmDebugBreakOrTrap(MacroAssembler* masm, DebugBreakKind kind) {
     if (kind == DebugBreakKind::kTrap) {
       // Reason was pushed before the frame.
       // [rbp+0]=saved rbp, [rbp+8]=return address, [rbp+16]=reason.
-      __ pushq(Operand(rbp, 2 * kSystemPointerSize));
+      __ PushArgument(Operand(rbp, 2 * kSystemPointerSize));
       __ CallRuntime(Runtime::kThrowWasmError, 1);
       __ int3();
     } else {
       __ CallRuntime(Runtime::kWasmDebugBreak, 0);
+      if constexpr (kPadFrame) __ DropStackPadding();
 
       // Restore registers.
       for (DoubleRegister reg : WasmDebugBreakFrameConstants::kPushedFpRegs) {
@@ -3574,6 +3593,15 @@ void LoadJumpBuffer(MacroAssembler* masm, Register stack, bool load_pc) {
     __ jmp(MemOperand(stack, wasm::kStackPcOffset));
   }
   // The stack limit is set separately under the ExecutionAccess lock.
+}
+
+// The sp saved in a stack's jump buffer is always 16-byte aligned: SwitchStacks
+// and WasmFXSuspend record rsp right after PrepareCallCFunction aligned it.
+// Code that pads pushes after LoadJumpBuffer(..., false) relies on this.
+void AssertJumpBufferSpAligned(MacroAssembler* masm) {
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    if (v8_flags.debug_code) __ CheckStackAlignment();
+  }
 }
 
 void LoadTargetJumpBuffer(MacroAssembler* masm, Register target_stack) {
@@ -3641,6 +3669,8 @@ void ReloadParentStack(MacroAssembler* masm, Register promise,
                nullptr, no_reg, {promise, return_value, context, parent});
   __ movq(tmp1, MemOperand(parent, wasm::kStackPcOffset));
   LoadJumpBuffer(masm, parent, false);
+  // Callers pad their pushes assuming the restored rsp is 16-byte aligned.
+  AssertJumpBufferSpAligned(masm);
   __ movq(MemOperand(rbp, WasmJspiFrameConstants::kParentReturnAddressOffset),
           tmp1);
 }
@@ -3704,10 +3734,12 @@ void SwitchToAllocatedStack(MacroAssembler* masm, Register wasm_instance,
   // so we could also push 0 directly. In any case we need to push it, because
   // this marks the base of the stack segment for the stack frame iterator.
   __ EnterFrame(StackFrame::WASM_JSPI);
-  int stack_space =
-      WasmJspiFrameConstants::kNumSpillSlots * kSystemPointerSize +
-      JSToWasmWrapperFrameConstants::kWrapperBufferSize;
-  __ AllocateStackSpace(stack_space);
+  constexpr int kStackSlots =
+      WasmJspiFrameConstants::kNumSpillSlots +
+      JSToWasmWrapperFrameConstants::kWrapperBufferSize / kSystemPointerSize;
+  constexpr int kPadding = ArgumentPaddingSlots(
+      TypedFrameConstants::kFixedSlotCountFromFp + kStackSlots);
+  __ AllocateStackSpace((kStackSlots + kPadding) * kSystemPointerSize);
   __ movq(new_wrapper_buffer, rsp);
   // Copy data needed for return handling from old wrapper buffer to new one.
   // kWrapperBufferRefReturnCount will be copied too, because 8 bytes are copied
@@ -3762,9 +3794,16 @@ void SwitchBackAndReturnPromise(MacroAssembler* masm, Register tmp1,
 
   if (mode == wasm::kPromise) {
     __ Move(MemOperand(rbp, WasmJspiFrameConstants::kGCScanSlotCountOffset), 1);
+    // rsp is 16-byte aligned after ReloadParentStack; pad the 1 pushed slot.
+    if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+      __ PushTaggedStackPadding();
+    }
     __ Push(promise);
     __ CallBuiltin(Builtin::kFulfillPromise);
     __ Pop(promise);
+    if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+      __ DropStackPadding();
+    }
   }
 
   __ bind(return_promise);
@@ -3802,10 +3841,17 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
   RestoreParentSuspender(masm, r8);
 
   __ Move(MemOperand(rbp, WasmJspiFrameConstants::kGCScanSlotCountOffset), 1);
+  // rsp is 16-byte aligned after ReloadParentStack; pad the 1 pushed slot.
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    __ PushTaggedStackPadding();
+  }
   __ Push(promise);
   __ LoadRoot(debug_event, RootIndex::kTrueValue);
   __ CallBuiltin(Builtin::kRejectPromise);
   __ Pop(promise);
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    __ DropStackPadding();
+  }
 
   // Run the rest of the wrapper normally (switch to the old stack,
   // deconstruct the frame, ...).
@@ -3825,8 +3871,12 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
       arraysize(wasm::kFpParamRegisters) * kDoubleSize;
   __ EnterFrame(stack_switch ? StackFrame::WASM_JSPI : StackFrame::JS_TO_WASM);
 
-  __ AllocateStackSpace(WasmJspiFrameConstants::kNumSpillSlots *
-                        kSystemPointerSize);
+  constexpr int kSpillAreaPadding =
+      ArgumentPaddingSlots(TypedFrameConstants::kFixedSlotCountFromFp +
+                           WasmJspiFrameConstants::kNumSpillSlots);
+  __ AllocateStackSpace(
+      (WasmJspiFrameConstants::kNumSpillSlots + kSpillAreaPadding) *
+      kSystemPointerSize);
 
   // Load the implicit argument (instance data or import data) from the frame.
   __ movq(kWasmImplicitArgRegister,
@@ -3863,6 +3913,12 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
       MemOperand(
           wrapper_buffer,
           JSToWasmWrapperFrameConstants::kWrapperBufferStackReturnBufferSize));
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    // Round the return buffer slot count up to even to keep rsp 16-byte
+    // aligned.
+    __ addq(result_size, Immediate(1));
+    __ andq(result_size, Immediate(~1));
+  }
   __ shlq(result_size, Immediate(kSystemPointerSizeLog2));
 
   // params_start should not alias with any parameter registers.
@@ -3892,6 +3948,11 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
     __ subq(total_space, params_start);
     __ subq(total_space, Immediate(stack_params_offset));
     __ addq(total_space, result_size);
+    if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+      // Account for the optional 8-byte stack parameter alignment padding.
+      __ addq(total_space, Immediate(2 * kSystemPointerSize - 1));
+      __ andq(total_space, Immediate(-2 * kSystemPointerSize));
+    }
 
     // Compare rsp - total_space with the real stack limit.
     // Note: rsp - total_space will not underflow because rsp is a valid stack
@@ -3924,6 +3985,14 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
   __ leaq(last_stack_param, MemOperand(params_start, stack_params_offset));
 
   Label loop_start;
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    // Pad when there is an odd number of 8-byte stack parameter slots.
+    __ movq(kScratchRegister, params_end);
+    __ subq(kScratchRegister, last_stack_param);
+    __ testq(kScratchRegister, Immediate(kSystemPointerSize));
+    __ j(zero, &loop_start, Label::kNear);
+    __ PushTaggedStackPadding();
+  }
   __ bind(&loop_start);
 
   Label finish_stack_params;
@@ -4048,6 +4117,15 @@ void Builtins::Generate_JSToWasmStressSwitchStacksAsm(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_WasmToJsWrapperAsm(MacroAssembler* masm) {
+  // With V8_X64_16BYTE_STACK_ALIGNMENT_BOOL, the saved FP + GP + signature
+  // slots must be even so rsp stays aligned when tail-calling
+  // WasmToJsWrapperCSA.
+  static_assert(
+      !V8_X64_16BYTE_STACK_ALIGNMENT_BOOL ||
+      (arraysize(wasm::kFpParamRegisters) * (kDoubleSize / kSystemPointerSize) +
+       (arraysize(wasm::kGpParamRegisters) - 1) + 1) %
+              2 ==
+          0);
   // Pop the return address into a scratch register and push it later again. The
   // return address has to be on top of the stack after all registers have been
   // pushed, so that the return instruction can find it.
@@ -4075,6 +4153,7 @@ void Builtins::Generate_WasmTrapHandlerLandingPad(MacroAssembler* masm) {
   // Push MessageTemplate::kNone as trap reason for WasmTrapHandlerThrowTrap;
   // the runtime will determine the actual trap reason from the trapping
   // instruction.
+  if constexpr (ShouldPadArguments(1)) __ PushTaggedStackPadding();
   __ Push(Smi::FromInt(static_cast<int>(MessageTemplate::kNone)));
   __ addq(
       kWasmTrapHandlerFaultAddressRegister,
@@ -4103,8 +4182,12 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
 
   Register suspender = rax;
 
-  __ AllocateStackSpace(WasmJspiFrameConstants::kNumSpillSlots *
-                        kSystemPointerSize);
+  constexpr int kSpillAreaPadding =
+      ArgumentPaddingSlots(TypedFrameConstants::kFixedSlotCountFromFp +
+                           WasmJspiFrameConstants::kNumSpillSlots);
+  __ AllocateStackSpace(
+      (WasmJspiFrameConstants::kNumSpillSlots + kSpillAreaPadding) *
+      kSystemPointerSize);
   // Set a sentinel value for the spill slots visited by the GC.
   ResetWasmJspiFrameStackSlots(masm);
 
@@ -4148,8 +4231,12 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
 
   Register closure = kJSFunctionRegister;  // rdi
 
-  __ AllocateStackSpace(WasmJspiFrameConstants::kNumSpillSlots *
-                        kSystemPointerSize);
+  constexpr int kSpillAreaPadding =
+      ArgumentPaddingSlots(TypedFrameConstants::kFixedSlotCountFromFp +
+                           WasmJspiFrameConstants::kNumSpillSlots);
+  __ AllocateStackSpace(
+      (WasmJspiFrameConstants::kNumSpillSlots + kSpillAreaPadding) *
+      kSystemPointerSize);
   // Set a sentinel value for the spill slots visited by the GC.
   ResetWasmJspiFrameStackSlots(masm);
 
@@ -4270,12 +4357,18 @@ void Builtins::Generate_WasmFXResumeThrow(MacroAssembler* masm) {
                {target_stack, tag, array, trusted_instance_data});
   // Switch to the target stack without restoring the PC.
   LoadJumpBuffer(masm, target_stack, false);
+  AssertJumpBufferSpAligned(masm);
+  if constexpr (ShouldPadArguments(3)) __ PushTaggedStackPadding();
   __ pushq(tag);
   __ pushq(array);
   __ pushq(trusted_instance_data);
   __ jmp(&throw_);
 
   __ bind(&retire_and_throw);
+  if constexpr (ShouldPadArguments(TypedFrameConstants::kFixedSlotCountFromFp +
+                                   3)) {
+    __ PushTaggedStackPadding();
+  }
   __ pushq(tag);
   __ pushq(array);
   __ pushq(trusted_instance_data);
@@ -4401,7 +4494,8 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ endbr64();
   __ Move(kReturnRegister0, WasmFXResumeDescriptor::GetRegisterParameter(1));
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
-  __ ret(WasmFXSuspendDescriptor::GetStackParameterCount() *
+  __ ret(AddArgumentPaddingSlots(
+             WasmFXSuspendDescriptor::GetStackParameterCount()) *
          kSystemPointerSize);
 }
 
@@ -4467,7 +4561,9 @@ void Builtins::Generate_WasmFXSwitch(MacroAssembler* masm) {
   __ endbr64();
   __ Move(kReturnRegister0, WasmFXResumeDescriptor::GetRegisterParameter(1));
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
-  __ ret(WasmFXSwitchDescriptor::GetStackParameterCount() * kSystemPointerSize);
+  __ ret(AddArgumentPaddingSlots(
+             WasmFXSwitchDescriptor::GetStackParameterCount()) *
+         kSystemPointerSize);
 }
 
 void Builtins::Generate_WasmFXReturn(MacroAssembler* masm) {
@@ -4879,7 +4975,7 @@ void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
     FrameScope scope(masm, StackFrame::MANUAL);
     __ EnterFrame(StackFrame::INTERNAL);
     __ SmiTag(gap);
-    __ pushq(gap);
+    __ PushArgument(gap);
     __ CallRuntime(Runtime::kWasmStackGuard);
     __ LeaveFrame(StackFrame::INTERNAL);
     __ ret(0);

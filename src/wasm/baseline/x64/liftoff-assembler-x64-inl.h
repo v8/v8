@@ -414,6 +414,7 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
 }
 
 void LiftoffAssembler::PrepareDebugTrap(MessageTemplate message) {
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) PushTaggedStackPadding();
   Push(Smi::FromInt(static_cast<int>(message)));
 }
 
