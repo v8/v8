@@ -50,6 +50,7 @@
 #include "experimental/redline/engine/d8_flags.h"
 #include "experimental/redline/engine/flag_minimizer.h"
 #include "experimental/redline/engine/fuzzer.h"
+#include "experimental/redline/engine/importer.h"
 #include "experimental/redline/engine/prelude.h"
 #include "experimental/redline/engine/shared_coverage.h"
 #include "experimental/redline/exec/coverage.h"
@@ -2287,6 +2288,136 @@ void RunFuzzilliCoverageChecks(Checker* checker) {
   munmap(mapping, CoverageMap::kShmSize);
 }
 
+// Offline: wildcard expansion in ListFiles and Test262 frontmatter in
+// ImportSource.
+void RunImportChecks(Checker* checker) {
+  char dir_template[] = "/tmp/redline-import.XXXXXX";
+  if (mkdtemp(dir_template) == nullptr) {
+    checker->Check("import: create a temporary directory", false,
+                   strerror(errno));
+    return;
+  }
+  const std::string dir = dir_template;
+  std::string error;
+  const bool dirs_ok =
+      MakeDirectories(dir + "/test/test262/data/harness", &error) &&
+      MakeDirectories(dir + "/test/test262/data/test/harness", &error) &&
+      MakeDirectories(dir + "/test/test262/data/test/sub1/deep", &error) &&
+      MakeDirectories(dir + "/test/test262/data/test/sub2", &error);
+  const bool files_ok =
+      dirs_ok &&
+      WriteStringToFile(dir + "/test/test262/data/harness/helper.js",
+                        "function helperValue() { return 42; }\n", &error) &&
+      WriteStringToFile(dir + "/test/test262/data/test/harness/helper.js",
+                        "throw new Error('wrong harness directory');\n",
+                        &error) &&
+      WriteStringToFile(dir + "/test/test262/data/harness/sta.js",
+                        "throw new Error('sta.js should not be inlined');\n",
+                        &error) &&
+      WriteStringToFile(
+          dir + "/test/test262/data/test/sub1/deep/keep_a.js",
+          "/*---\nincludes: [helper.js, sta.js, assert.js]\n---*/\n"
+          "assert.sameValue(helperValue(), 42);\n",
+          &error) &&
+      WriteStringToFile(
+          dir + "/test/test262/data/test/sub1/deep/dep_FIXTURE.js",
+          "var fixture = 1;\n", &error) &&
+      WriteStringToFile(dir + "/test/test262/data/test/sub2/keep_b.js",
+                        "var b = 2;\n", &error);
+
+  const std::vector<std::string> all_js =
+      ListFiles(dir + "/test/test262/data/test/**/*.js", ".js");
+  const std::vector<std::string> sub1_js =
+      ListFiles(dir + "/test/test262/data/test/sub1/**/keep_*.js", ".js");
+  const std::vector<std::string> sub2_zero_depth =
+      ListFiles(dir + "/test/test262/data/test/sub2/**/keep_*.js", ".js");
+  const std::vector<std::string> non_recursive =
+      ListFiles(dir + "/test/test262/data/test/sub1/*.js", ".js");
+  const std::vector<std::string> prefix_glob =
+      ListFiles(dir + "/test/test262/data/test/sub**/*.js", ".js");
+  const std::vector<std::string> expected_all = {
+      dir + "/test/test262/data/test/harness/helper.js",
+      dir + "/test/test262/data/test/sub1/deep/keep_a.js",
+      dir + "/test/test262/data/test/sub2/keep_b.js",
+  };
+  const std::vector<std::string> expected_sub = {
+      dir + "/test/test262/data/test/sub1/deep/keep_a.js",
+      dir + "/test/test262/data/test/sub2/keep_b.js",
+  };
+  const std::vector<std::string> expected_sub1 = {
+      dir + "/test/test262/data/test/sub1/deep/keep_a.js",
+  };
+  const std::vector<std::string> expected_sub2 = {
+      dir + "/test/test262/data/test/sub2/keep_b.js",
+  };
+  checker->Check(
+      "import: ListFiles expands wildcards and skips *_FIXTURE.js",
+      files_ok && all_js == expected_all && sub1_js == expected_sub1 &&
+          sub2_zero_depth == expected_sub2 && non_recursive.empty() &&
+          prefix_glob == expected_sub,
+      StringPrintf("all=%zu, sub1=%zu, sub2=%zu, non_rec=%zu, prefix=%zu",
+                   all_js.size(), sub1_js.size(), sub2_zero_depth.size(),
+                   non_recursive.size(), prefix_glob.size()));
+
+  ImportOptions options;
+  options.root = dir;
+  ImportInfo info;
+  std::string src;
+  bool read_ok = ReadFileToString(expected_sub1[0], &src, &error);
+  std::unique_ptr<fast::Tree> tree =
+      read_ok ? ImportSource(src, expected_sub1[0], options, &info, &error)
+              : nullptr;
+  std::string printed = tree ? fast::Print(tree->root()) : "";
+  checker->Check(
+      "import: ImportSource inlines Test262 includes and skips prelude files",
+      tree != nullptr && info.inlined.size() == 1 && info.dropped.empty() &&
+          printed.find("helperValue") != std::string::npos &&
+          printed.find("sta.js") == std::string::npos,
+      error);
+
+  ImportInfo prose_info;
+  std::string prose_err;
+  std::unique_ptr<fast::Tree> prose_tree = ImportSource(
+      "/*---\ninfo: |\n  negative: not a YAML key\n  flags: [module]\n"
+      "includes:\n  - helper.js\n  - sta.js\n---*/\nvar ok = helperValue();\n",
+      dir + "/test/test262/data/test/sub2/prose.js", options, &prose_info,
+      &prose_err);
+  std::string prose_printed = prose_tree ? fast::Print(prose_tree->root()) : "";
+  checker->Check(
+      "import: ImportSource ignores indented prose and parses block includes",
+      prose_tree != nullptr && prose_info.inlined.size() == 1 &&
+          prose_printed.find("helperValue") != std::string::npos,
+      prose_err);
+
+  ImportInfo neg_info, mod_info, mod_block_info, gen_info;
+  std::string neg_err, mod_err, mod_block_err, gen_err;
+  std::unique_ptr<fast::Tree> neg_tree = ImportSource(
+      "/*---\nnegative:\n  phase: runtime\n  type: TypeError\n---*/\nx();\n",
+      dir + "/neg.js", options, &neg_info, &neg_err);
+  std::unique_ptr<fast::Tree> mod_tree =
+      ImportSource("/*---\nflags: [module]\n---*/\nvar m = 1;\n",
+                   dir + "/mod.js", options, &mod_info, &mod_err);
+  std::unique_ptr<fast::Tree> mod_block_tree =
+      ImportSource("/*---\nflags:\n  - module\n---*/\nvar m = 1;\n",
+                   dir + "/mod2.js", options, &mod_block_info, &mod_block_err);
+  std::unique_ptr<fast::Tree> gen_tree = ImportSource(
+      "var g = 1;\n", dir + "/RegExp/property-escapes/generated/prop.js",
+      options, &gen_info, &gen_err);
+  checker->Check(
+      "import: ImportSource skips Test262 negative, module and generated files",
+      neg_tree == nullptr && mod_tree == nullptr && mod_block_tree == nullptr &&
+          gen_tree == nullptr,
+      "");
+  fast::ParseError prelude_err;
+  fast::ParseOptions prelude_opts;
+  prelude_opts.allow_natives_syntax = true;
+  std::unique_ptr<fast::Tree> prelude_tree =
+      fast::Parser::ParseScript(DefaultPrelude(), prelude_opts, &prelude_err);
+  checker->Check("import: DefaultPrelude parses cleanly",
+                 prelude_tree != nullptr, prelude_err.ToString());
+  RemoveTree(dir);
+}
+
 int RunSelftest(const Flags& flags) {
   Checker checker;
   std::string error;
@@ -2302,6 +2433,7 @@ int RunSelftest(const Flags& flags) {
   RunCrashSlotChecks(&checker);
   RunCrashMinimizerChecks(&checker);
   RunFlagMinimizerChecks(&checker);
+  RunImportChecks(&checker);
   RunAmplifiedTestChecks(&checker);
   RunBundleStepChecks(&checker);
   RunNodeKindChecks(&checker);
@@ -2375,6 +2507,24 @@ int RunSelftest(const Flags& flags) {
   if (RunOrFail(&checker, runner.get(), "empty script", "", &result)) {
     checker.Check("empty script succeeds", result.execution.succeeded(),
                   Describe(result.execution));
+  }
+  {
+    std::string prelude_script(DefaultPrelude());
+    prelude_script +=
+        "\n(function() { 'use strict';\n"
+        "  if (!isPrimitive(1) || isPrimitive({})) throw 'isPrimitive';\n"
+        "  if (!(Test262Error('x') instanceof Test262Error)) throw 'err';\n"
+        "  if (assert._formatIdentityFreeValue(1) !== '1') throw 'fmt';\n"
+        "  assert._toString(Object.create(null));\n"
+        "  compareArray.format(Object.create(null));\n"
+        "  if ($262.evalScript('1 + 1') !== 2) throw 'evalScript';\n"
+        "  if ($262.createRealm().evalScript('2 + 2') !== 4) throw 'realm';\n"
+        "})();\n";
+    if (RunOrFail(&checker, runner.get(), "default prelude", prelude_script,
+                  &result)) {
+      checker.Check("default prelude Test262 helpers run without throwing",
+                    result.execution.succeeded(), Describe(result.execution));
+    }
   }
   if (RunOrFail(&checker, runner.get(), "uncaught exception",
                 "throw new Error('expected');", &result)) {

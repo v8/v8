@@ -27,12 +27,12 @@ struct ImportInfo {
   std::vector<std::string> dropped;  // load() calls that could not be resolved
 };
 
-// Parses a test file into a FAST tree suitable for the corpus: top-level
-// `load("f")` and `d8.file.execute("f")` statements are replaced by the
-// statements of `f` (so that helpers such as wasm-module-builder.js become
-// part of the program and the result is self-contained); loads that cannot
-// be resolved, and loads of mjsunit.js (whose API the execution prelude
-// provides), are removed. Returns nullptr with `error` on a parse error.
+// Parses a test file into a FAST tree for the corpus. `ImportSource` replaces
+// top-level `load("f")`, `d8.file.execute("f")` and Test262 `includes:` files
+// with the statements of `f`. It removes unresolved loads and loads of
+// `mjsunit.js`, `sta.js` or `assert.js` because the prelude provides their
+// API. Returns `nullptr` with `error` on a parse error or an excluded Test262
+// file.
 std::unique_ptr<fast::Tree> ImportSource(std::string_view source,
                                          const std::string& path,
                                          const ImportOptions& options,

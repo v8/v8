@@ -77,6 +77,51 @@ var prettyPrinted = function(v) { try { return String(v); } catch (e) { return "
 var deepEquals = function(a, b) { return a == b; };
 var promiseTestChain = Promise.resolve();
 var MjsUnitAssertionError = function(m) { this.message = m; };
+var Test262Error = function(m) {
+  if (!(this instanceof Test262Error)) return new Test262Error(m);
+  this.message = m || "";
+};
+Test262Error.prototype.toString = function() { return "Test262Error: " + this.message; };
+Test262Error.thrower = __redline_noop;
+var $ERROR = __redline_noop;
+var $DONE = __redline_noop;
+var $DONOTEVALUATE = __redline_noop;
+var __consolePrintHandle__ = __redline_noop;
+var isNegativeZero = function(v) { return v === 0 && 1 / v === -Infinity; };
+var isPrimitive = function(v) { return !v || (typeof v !== "object" && typeof v !== "function"); };
+var formatIdentityFreeValue = function(v) { return isPrimitive(v) && typeof v !== "symbol" ? prettyPrinted(v) : undefined; };
+var formatSimpleValue = prettyPrinted;
+var compareArray = function(a, b) { return !!(a && b && a.length === b.length); };
+compareArray.isSameValue = Object.is;
+compareArray.format = prettyPrinted;
+var assert = function(c) { return !!c; };
+assert._isSameValue = function(a, b) { return Object.is(a, b); };
+assert.sameValue = function(a, b) { return Object.is(a, b); };
+assert.notSameValue = function(a, b) { return !Object.is(a, b); };
+assert.throws = function(e, f) { return __redline_call(f); };
+assert.compareArray = compareArray;
+assert._formatIdentityFreeValue = formatIdentityFreeValue;
+assert._toString = formatSimpleValue;
+var __redline_realm = function(r, g) {
+  var o = {
+    evalScript: function(s) {
+      var cr = r === undefined && typeof Realm === "object" && Realm.current ? Realm.current() : r;
+      return typeof Realm === "object" && Realm.eval && cr !== undefined ? Realm.eval(cr, s) : __redline_call(s);
+    },
+    createRealm: function() {
+      var nr = typeof Realm === "object" && Realm.createAllowCrossRealmAccess ? Realm.createAllowCrossRealmAccess() : undefined;
+      var ng = nr !== undefined && typeof Realm === "object" && Realm.global ? Realm.global(nr) : (nr !== undefined && Realm.eval ? Realm.eval(nr, "this") : globalThis);
+      return __redline_realm(nr, ng);
+    },
+    detachArrayBuffer: function(b) { try { %ArrayBufferDetach(b); } catch (e) {} },
+    gc: function() { try { gc(); } catch (e) {} },
+    global: g || globalThis,
+    IsHTMLDDA: __redline_noop
+  };
+  try { (g || globalThis).$262 = o; } catch (e) {}
+  return o;
+};
+var $262 = __redline_realm(undefined, globalThis);
 var load = __redline_noop;
 var quit = __redline_noop;
 var testRunner = { quit: __redline_noop };
