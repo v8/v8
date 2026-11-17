@@ -2257,8 +2257,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ JumpIfSmi(value, ool->exit());
       }
 #if V8_ENABLE_STICKY_MARK_BITS_BOOL
-      __ CheckPageFlag(object, scratch0, MemoryChunk::kIncrementalMarking,
-                       not_zero, ool->stub_call());
+      __ JumpIfMarking(ool->stub_call());
       __ CheckMarkBit(object, scratch0, scratch1, carry, ool->entry());
 #else   // !V8_ENABLE_STICKY_MARK_BITS_BOOL
       static_assert(WriteBarrier::kUninterestingPagesCanBeSkipped);
@@ -7628,8 +7627,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           RecordWriteMode::kValueIsAny, DetermineStubCallMode());
       __ JumpIfSmi(written_value, ool->exit());
 #if V8_ENABLE_STICKY_MARK_BITS_BOOL
-      __ CheckPageFlag(object, scratch0, MemoryChunk::kIncrementalMarking,
-                       not_zero, ool->stub_call());
+      __ JumpIfMarking(ool->stub_call());
       __ CheckMarkBit(object, scratch0, scratch1, carry, ool->entry());
 #else   // !V8_ENABLE_STICKY_MARK_BITS_BOOL
       static_assert(WriteBarrier::kUninterestingPagesCanBeSkipped);
@@ -7724,8 +7722,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ j(not_equal, ool->exit());
         __ JumpIfSmi(written_value, ool->exit());
 #if V8_ENABLE_STICKY_MARK_BITS_BOOL
-        __ CheckPageFlag(object, scratch0, MemoryChunk::kIncrementalMarking,
-                         not_zero, ool->stub_call());
+        __ JumpIfMarking(ool->stub_call());
         __ CheckMarkBit(object, scratch0, scratch1, carry, ool->entry());
 #else   // !V8_ENABLE_STICKY_MARK_BITS_BOOL
         static_assert(WriteBarrier::kUninterestingPagesCanBeSkipped);

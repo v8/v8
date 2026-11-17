@@ -26,6 +26,33 @@
 namespace v8::internal {
 
 // static
+template <typename IsolateT>
+bool WriteBarrier::IsLocalMarking(IsolateT* isolate) {
+  DCHECK_NOT_NULL(isolate);
+  return isolate->isolate_data()->is_local_marking();
+}
+
+// static
+template <typename IsolateT>
+bool WriteBarrier::IsAnyMarking(IsolateT* isolate) {
+  DCHECK_NOT_NULL(isolate);
+  return isolate->isolate_data()->is_any_marking_active();
+}
+
+// static
+template <typename IsolateT>
+bool WriteBarrier::IsMarking(IsolateT* isolate, Tagged<HeapObject> object) {
+  DCHECK_NOT_NULL(isolate);
+  const IsolateData* isolate_data = isolate->isolate_data();
+  if (!isolate_data->is_any_marking_active()) [[likely]] {
+    return false;
+  }
+  return TrustedHeapLayout::InWritableSharedSpace(isolate, object)
+             ? isolate_data->is_shared_marking()
+             : isolate_data->is_local_marking();
+}
+
+// static
 void WriteBarrier::CombinedWriteBarrierInternalForStickyMarkbits(
     Tagged<HeapObject> host, HeapObjectSlot slot, Tagged<HeapObject> value,
     WriteBarrierMode mode) {
@@ -33,8 +60,6 @@ void WriteBarrier::CombinedWriteBarrierInternalForStickyMarkbits(
 
   MemoryChunk* host_chunk = MemoryChunk::FromHeapObject(host);
   MemoryChunk* value_chunk = MemoryChunk::FromHeapObject(value);
-
-  const bool is_marking = host_chunk->IsMarking();
 
   // TODO(333906585): Support shared barrier.
   if (!HeapLayout::InYoungGeneration(host_chunk, host) &&
@@ -44,7 +69,7 @@ void WriteBarrier::CombinedWriteBarrierInternalForStickyMarkbits(
     CombinedGenerationalAndSharedBarrierSlow(host, slot.address(), value);
   }
   // Marking barrier: mark value & record slots when marking is on.
-  if (is_marking) [[unlikely]] {
+  if (IsMarking(Isolate::Current(), host)) [[unlikely]] {
     MarkingSlow(host, HeapObjectSlot(slot), value);
   }
 }
@@ -378,33 +403,6 @@ void WriteBarrier::GenerationalForRelocInfo(Tagged<InstructionStream> host,
     return;
   }
   GenerationalBarrierForCodeSlow(host, rinfo, object);
-}
-
-// static
-template <typename IsolateT>
-bool WriteBarrier::IsLocalMarking(IsolateT* isolate) {
-  DCHECK_NOT_NULL(isolate);
-  return isolate->isolate_data()->is_local_marking();
-}
-
-// static
-template <typename IsolateT>
-bool WriteBarrier::IsAnyMarking(IsolateT* isolate) {
-  DCHECK_NOT_NULL(isolate);
-  return isolate->isolate_data()->is_any_marking_active();
-}
-
-// static
-template <typename IsolateT>
-bool WriteBarrier::IsMarking(IsolateT* isolate, Tagged<HeapObject> object) {
-  DCHECK_NOT_NULL(isolate);
-  const IsolateData* isolate_data = isolate->isolate_data();
-  if (!isolate_data->is_any_marking_active()) [[likely]] {
-    return false;
-  }
-  return TrustedHeapLayout::InWritableSharedSpace(isolate, object)
-             ? isolate_data->is_shared_marking()
-             : isolate_data->is_local_marking();
 }
 
 void WriteBarrier::MarkingForTesting(Tagged<HeapObject> host, ObjectSlot slot,
