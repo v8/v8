@@ -314,7 +314,7 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
             if (need_restore_result) {
               __ Move(result, string);
             }
-            __ jmp(*done);
+            __ Jump(*done);
           },
           register_snapshot, done, result, char_code, scratch),
       Ugreater, char_code, Operand(String::kMaxOneByteCharCode));
@@ -363,7 +363,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
           __ SmiUntag(kReturnRegister0);
           __ Move(result, kReturnRegister0);
         }
-        __ jmp(*done);
+        __ Jump(*done);
       },
       mode, register_snapshot, done, result, string, index);
 
@@ -449,7 +449,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
   // Is a thin string.
   {
     LoadTaggedField(string, string, offsetof(ThinString, actual_));
-    MacroAssembler::Branch(&loop);
+    Jump(&loop);
   }
 
   bind(&sliced_string);
@@ -485,7 +485,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     // so that a (corrupted) negative offset cannot be interpreted as a
     // negative index by the subsequent address computation.
     Bstrpick_d(index, index, 31, 0);
-    MacroAssembler::Branch(&loop);
+    Jump(&loop);
   }
 
   bind(&cons_string);
@@ -499,7 +499,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
                 RootIndex::kempty_string);  // Sets 1 to flag if not equal
     JumpIf(ne, deferred_runtime_call);      // Check the flag to not be equal 0
     LoadTaggedField(string, string, offsetof(ConsString, first_));
-    MacroAssembler::Branch(&loop);  // Try again with first string.
+    Jump(&loop);  // Try again with first string.
   }
 
   bind(&seq_string);
@@ -523,7 +523,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     // (CharCodeAt/CodePointAt), since it cannot be the first half of a
     // surrogate pair.
     SeqOneByteStringCharCodeAt(result, string, index);
-    MacroAssembler::Branch(result_fits_one_byte);
+    Jump(result_fits_one_byte);
 
     bind(&two_byte_string);
     // {instance_type} is unused from this point, so we can use as scratch.

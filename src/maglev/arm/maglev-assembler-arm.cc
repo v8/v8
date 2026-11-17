@@ -261,7 +261,7 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
         __ AllocateTwoByteString(register_snapshot, result, 1);
         __ strh(char_code, FieldMemOperand(
                                result, OFFSET_OF_DATA_START(SeqTwoByteString)));
-        __ b(*done);
+        __ Jump(*done);
       },
       register_snapshot, done, result, char_code, scratch);
   if (char_code_fits_one_byte != nullptr) {
@@ -308,7 +308,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
           __ SmiUntag(kReturnRegister0);
           __ Move(result, kReturnRegister0);
         }
-        __ b(*done);
+        __ Jump(*done);
       },
       mode, register_snapshot, done, result, string, index);
 
@@ -351,7 +351,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
   // Is a thin string.
   {
     ldr(string, FieldMemOperand(string, offsetof(ThinString, actual_)));
-    b(&loop);
+    Jump(&loop);
   }
 
   bind(&sliced_string);
@@ -377,7 +377,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
                                   offsetof(SlicedString, offset_));
     LoadTaggedField(string, string, offsetof(SlicedString, parent_));
     add(index, index, offset);
-    b(&loop);
+    Jump(&loop);
   }
 
   bind(&cons_string);
@@ -389,7 +389,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     CompareRoot(second_string, RootIndex::kempty_string);
     b(ne, deferred_runtime_call);
     ldr(string, FieldMemOperand(string, offsetof(ConsString, first_)));
-    b(&loop);  // Try again with first string.
+    Jump(&loop);  // Try again with first string.
   }
 
   bind(&seq_string);
@@ -401,7 +401,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     // (CharCodeAt/CodePointAt), since it cannot be the first half of a
     // surrogate pair.
     SeqOneByteStringCharCodeAt(result, string, index);
-    b(result_fits_one_byte);
+    Jump(result_fits_one_byte);
 
     bind(&two_byte_string);
     // {instance_type} is unused from this point, so we can use as scratch.

@@ -1055,12 +1055,14 @@ inline void MaglevAssembler::Jump(Label* target, Label::Distance) {
   // Any eager deopts should go through JumpIf to enable us to support the
   // `--deopt-every-n-times` stress mode. See EmitEagerDeoptStress.
   DCHECK(!IsDeoptLabel(target));
-  b(target);
+  MacroAssembler::b(target);
+  set_reachable(false);
 }
 
 inline void MaglevAssembler::JumpToDeopt(Label* target) {
   DCHECK(IsDeoptLabel(target));
-  b(target);
+  MacroAssembler::b(target);
+  set_reachable(false);
 }
 
 inline void MaglevAssembler::EmitEagerDeoptStress(Label* target) {

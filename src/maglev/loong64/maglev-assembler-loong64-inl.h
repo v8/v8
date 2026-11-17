@@ -1046,7 +1046,7 @@ inline void MaglevAssembler::ToUint8Clamped(Register result,
   // if value in [0, 255], then round up to the nearest.
   Round_d(scratch, value);
   TruncateDoubleToInt32(result, scratch);
-  jmp(done);
+  Jump(done);
 }
 
 template <typename NodeT>
@@ -1378,7 +1378,7 @@ inline void MaglevAssembler::CompareFloat64AndBranch(
   }
   CompareF64(left, right, cc);
   BranchTrueF(if_true->label());
-  MacroAssembler::Branch(if_false->label());
+  Jump(if_false->label());
 }
 
 inline void MaglevAssembler::PrepareCallCFunction(int num_reg_arguments,
@@ -1399,11 +1399,13 @@ inline void MaglevAssembler::CallSelf() {
 inline void MaglevAssembler::Jump(Label* target, Label::Distance distance) {
   DCHECK(!IsDeoptLabel(target));
   MacroAssembler::Branch(target /*, distance*/);
+  set_reachable(false);
 }
 
 inline void MaglevAssembler::JumpToDeopt(Label* target) {
   DCHECK(IsDeoptLabel(target));
   MacroAssembler::Branch(target);
+  set_reachable(false);
 }
 
 inline void MaglevAssembler::EmitEagerDeoptStress(Label* target) {
@@ -1665,7 +1667,7 @@ inline void MaglevAssembler::Branch(Register r1, const Operand& r2,
     MacroAssembler::Branch(if_false, NegateCondition(cond), r1, r2);
     // Jump to the true block if it's not the next block.
     if (!fallthrough_when_true) {
-      MacroAssembler::Branch(if_true);
+      Jump(if_true);
     }
   }
 }

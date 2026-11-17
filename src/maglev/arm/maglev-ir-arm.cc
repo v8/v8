@@ -312,7 +312,7 @@ void Int32Divide::GenerateCode(MaglevAssembler* masm,
           // Truncated value of anything divided by 0 is 0.
           __ b(ne, &right_is_neg);
           __ Move(out, 0);
-          __ b(*done);
+          __ Jump(*done);
 
           // Return -left if right = -1.
           // This avoids a hardware exception if left = INT32_MIN.
@@ -323,7 +323,7 @@ void Int32Divide::GenerateCode(MaglevAssembler* masm,
           __ cmp(right, Operand(-1));
           __ b(ne, *do_division);
           __ rsb(out, left, Operand(0));
-          __ b(*done);
+          __ Jump(*done);
         },
         do_division, done, left, right, out);
 
@@ -1078,7 +1078,7 @@ void HandleInterruptsAndTiering(MaglevAssembler* masm, ZoneLabelRef done,
     __ CallRuntime(Runtime::kBytecodeBudgetInterrupt_Maglev, 1);
     save_register_state.DefineSafepoint();
   }
-  __ b(*done);
+  __ Jump(*done);
 }
 
 void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,

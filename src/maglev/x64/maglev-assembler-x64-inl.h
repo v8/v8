@@ -244,6 +244,7 @@ void MaglevAssembler::PushReverse(T... vals) {
 
 inline void MaglevAssembler::BindJumpTarget(Label* label) {
   MacroAssembler::BindJumpTarget(label);
+  set_reachable(true);
 }
 
 inline void MaglevAssembler::BindBlock(BasicBlock* block) {
@@ -858,7 +859,7 @@ inline void MaglevAssembler::ToUint8Clamped(Register result,
   // if value in [0, 255], then round up to the nearest.
   Roundsd(kScratchDoubleReg, value, kRoundToNearest);
   TruncateDoubleToInt32(result, kScratchDoubleReg);
-  jmp(done);
+  Jump(done);
 }
 
 template <typename NodeT>
@@ -1080,12 +1081,14 @@ inline void MaglevAssembler::Jump(Label* target, Label::Distance distance) {
   // Any eager deopts should go through JumpIf to enable us to support the
   // `--deopt-every-n-times` stress mode. See EmitEagerDeoptStress.
   DCHECK(!IsDeoptLabel(target));
-  jmp(target, distance);
+  MacroAssembler::jmp(target, distance);
+  set_reachable(false);
 }
 
 inline void MaglevAssembler::JumpToDeopt(Label* target) {
   DCHECK(IsDeoptLabel(target));
-  jmp(target);
+  MacroAssembler::jmp(target);
+  set_reachable(false);
 }
 
 inline void MaglevAssembler::EmitEagerDeoptStress(Label* target) {

@@ -1110,7 +1110,7 @@ void HandleInterruptsAndTiering(MaglevAssembler* masm, ZoneLabelRef done,
     __ CallRuntime(Runtime::kBytecodeBudgetInterrupt_Maglev, 1);
     save_register_state.DefineSafepoint();
   }
-  __ MacroAssembler::Branch(*done);
+  __ Jump(*done);
 }
 
 void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,

@@ -297,7 +297,7 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
         __ Strh(
             char_code.W(),
             FieldMemOperand(result, OFFSET_OF_DATA_START(SeqTwoByteString)));
-        __ B(*done);
+        __ Jump(*done);
       },
       register_snapshot, done, result, char_code, scratch);
   if (char_code_fits_one_byte != nullptr) {
@@ -344,7 +344,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
           __ SmiUntag(kReturnRegister0);
           __ Move(result, kReturnRegister0);
         }
-        __ jmp(*done);
+        __ Jump(*done);
       },
       mode, register_snapshot, done, result, string, index);
 
@@ -425,7 +425,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
   // Is a thin string.
   {
     LoadTaggedField(string, string, offsetof(ThinString, actual_));
-    B(&loop);
+    Jump(&loop);
   }
 
   bind(&sliced_string);
@@ -455,7 +455,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
                                   offsetof(SlicedString, offset_));
     LoadTaggedField(string, string, offsetof(SlicedString, parent_));
     Add(index.W(), index.W(), offset.W());
-    B(&loop);
+    Jump(&loop);
   }
 
   bind(&cons_string);
@@ -468,7 +468,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     CompareRoot(second_string, RootIndex::kempty_string);
     B(deferred_runtime_call, ne);
     LoadTaggedField(string, string, offsetof(ConsString, first_));
-    B(&loop);  // Try again with first string.
+    Jump(&loop);  // Try again with first string.
   }
 
   bind(&seq_string);
@@ -490,7 +490,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     // (CharCodeAt/CodePointAt), since it cannot be the first half of a
     // surrogate pair.
     SeqOneByteStringCharCodeAt(result, string, index);
-    B(result_fits_one_byte);
+    Jump(result_fits_one_byte);
 
     bind(&two_byte_string);
     // {instance_type} is unused from this point, so we can use as scratch.
@@ -632,7 +632,7 @@ void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
         __ Ldr(dst.W(), MemOperand(sp, 0));
         DCHECK_EQ(xzr.SizeInBytes(), src.SizeInBytes());
         __ Drop(2);
-        __ B(*done);
+        __ Jump(*done);
       },
       src, dst, done);
 

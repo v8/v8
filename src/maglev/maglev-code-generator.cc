@@ -1878,6 +1878,8 @@ void MaglevCodeGenerator::EmitDeferredCode() {
       __ RecordComment("-- Deferred block");
       __ bind(&deferred_code->deferred_code_label);
       deferred_code->Generate(masm());
+      // Deferred code has to end in a jump, a deopt, a trap or an abort.
+      DCHECK(!masm()->is_reachable());
       __ Trap();
     }
   }

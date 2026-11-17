@@ -690,7 +690,7 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
                             Operand(zero_reg));
   // {rhs} is power of 2.
   __ and_(out, lhs, msk);
-  __ MacroAssembler::Branch(*done);
+  __ Jump(*done);
 
   __ bind(&rhs_not_power_of_2);
   __ mod_w(out, lhs, rhs);
@@ -931,7 +931,7 @@ void Float64Min::GenerateCode(MaglevAssembler* masm,
 
   Label is_nan, done;
   __ Float64Min(out, left, right, &is_nan);
-  __ MacroAssembler::Branch(&done);
+  __ Jump(&done);
   __ bind(&is_nan);
   __ fadd_d(out, left, right);
   __ bind(&done);
@@ -960,7 +960,7 @@ void Float64Max::GenerateCode(MaglevAssembler* masm,
 
   Label is_nan, done;
   __ Float64Max(out, left, right, &is_nan);
-  __ MacroAssembler::Branch(&done);
+  __ Jump(&done);
   __ bind(&is_nan);
   __ fadd_d(out, left, right);
   __ bind(&done);
@@ -1124,7 +1124,7 @@ void HandleInterruptsAndTiering(MaglevAssembler* masm, ZoneLabelRef done,
     __ CallRuntime(Runtime::kBytecodeBudgetInterrupt_Maglev, 1);
     save_register_state.DefineSafepoint();
   }
-  __ MacroAssembler::Branch(*done);
+  __ Jump(*done);
 }
 
 void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,

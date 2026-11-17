@@ -3163,7 +3163,7 @@ void Int32Compare::GenerateCode(MaglevAssembler* masm,
   // TODO(leszeks): Investigate loading existing materialisations of roots here,
   // if available.
   __ LoadRoot(result, RootIndex::kFalseValue);
-  __ jmp(&end);
+  __ Jump(&end);
   {
     __ bind(&is_true);
     __ LoadRoot(result, RootIndex::kTrueValue);
@@ -3185,7 +3185,7 @@ void Int32ToBoolean::GenerateCode(MaglevAssembler* masm,
   // TODO(leszeks): Investigate loading existing materialisations of roots here,
   // if available.
   __ LoadRoot(result, flip() ? RootIndex::kTrueValue : RootIndex::kFalseValue);
-  __ jmp(&end);
+  __ Jump(&end);
   {
     __ bind(&is_true);
     __ LoadRoot(result,
@@ -3208,7 +3208,7 @@ void IntPtrToBoolean::GenerateCode(MaglevAssembler* masm,
   // TODO(leszeks): Investigate loading existing materialisations of roots here,
   // if available.
   __ LoadRoot(result, flip() ? RootIndex::kTrueValue : RootIndex::kFalseValue);
-  __ jmp(&end);
+  __ Jump(&end);
   {
     __ bind(&is_true);
     __ LoadRoot(result,
@@ -7758,7 +7758,7 @@ void CallKnownApiFunction::GenerateCallApiCallbackOptimizedInline(
   Label done, call_api_callback_builtin_inline;
   __ Call(&call_api_callback_builtin_inline);
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
-  __ jmp(&done);
+  __ Jump(&done);
 
   //
   // Generate a CallApiCallback builtin inline.
@@ -9006,7 +9006,7 @@ void BranchIfJSReceiver::GenerateCode(MaglevAssembler* masm,
   Register value = ToRegister(ConditionInput());
   __ JumpIfSmi(value, if_false()->label());
   __ JumpIfJSAnyIsNotPrimitive(value, if_true()->label());
-  __ jmp(if_false()->label());
+  __ Jump(if_false()->label());
 }
 
 void Switch::SetValueLocationConstraints() {

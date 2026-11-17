@@ -302,7 +302,7 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
             if (need_restore_result) {
               __ Move(result, string);
             }
-            __ jmp(*done);
+            __ Jump(*done);
           },
           register_snapshot, done, result, char_code, scratch),
       Ugreater, char_code, Operand(String::kMaxOneByteCharCode));
@@ -383,7 +383,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
           __ SmiUntag(kReturnRegister0);
           __ Move(result, kReturnRegister0);
         }
-        __ jmp(*done);
+        __ Jump(*done);
       },
       mode, register_snapshot, done, result, string, index);
 
@@ -487,7 +487,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     // (CharCodeAt/CodePointAt), since it cannot be the first half of a
     // surrogate pair.
     SeqOneByteStringCharCodeAt(result, string, index);
-    MacroAssembler::Branch(result_fits_one_byte);
+    Jump(result_fits_one_byte);
 
     bind(&two_byte_string);
     // {instance_type} is unused from this point, so we can use as scratch.

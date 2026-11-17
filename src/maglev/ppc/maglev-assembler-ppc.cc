@@ -260,7 +260,7 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
         __ StoreU16(
             char_code,
             FieldMemOperand(result, OFFSET_OF_DATA_START(SeqTwoByteString)));
-        __ b(*done);
+        __ Jump(*done);
       },
       register_snapshot, done, result, char_code, scratch);
   if (char_code_fits_one_byte != nullptr) {
@@ -307,7 +307,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
           __ SmiUntag(kReturnRegister0);
           __ Move(result, kReturnRegister0);
         }
-        __ b(*done);
+        __ Jump(*done);
       },
       mode, register_snapshot, done, result, string, index);
 
@@ -352,7 +352,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
   {
     LoadTaggedField(string,
                     FieldMemOperand(string, offsetof(ThinString, actual_)));
-    b(&loop);
+    Jump(&loop);
   }
 
   bind(&sliced_string);
@@ -380,7 +380,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
                                   offsetof(SlicedString, offset_));
     LoadTaggedField(string, string, offsetof(SlicedString, parent_));
     AddS32(index, index, offset, SetRC);
-    b(&loop);
+    Jump(&loop);
   }
 
   bind(&cons_string);
@@ -394,7 +394,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     bne(deferred_runtime_call);
     LoadTaggedField(string,
                     FieldMemOperand(string, offsetof(ConsString, first_)));
-    b(&loop);  // Try again with first string.
+    Jump(&loop);  // Try again with first string.
   }
 
   bind(&seq_string);
@@ -407,7 +407,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     // (CharCodeAt/CodePointAt), since it cannot be the first half of a
     // surrogate pair.
     SeqOneByteStringCharCodeAt(result, string, index);
-    b(result_fits_one_byte);
+    Jump(result_fits_one_byte);
 
     bind(&two_byte_string);
     // {instance_type} is unused from this point, so we can use as scratch.

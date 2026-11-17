@@ -308,6 +308,7 @@ void MaglevAssembler::PushReverse(T... vals) {
 
 inline void MaglevAssembler::BindJumpTarget(Label* label) {
   MacroAssembler::BindJumpTarget(label);
+  set_reachable(true);
 }
 
 inline void MaglevAssembler::BindBlock(BasicBlock* block) {
@@ -1104,7 +1105,7 @@ inline void MaglevAssembler::ToUint8Clamped(Register result,
   // fcvt.l.d converts float64 to int64 with round-to-nearest-even (RNE),
   // matching the ECMA-262 §7.1.12 ToUint8Clamp rounding semantics.
   fcvt_l_d(result, value, RNE);
-  MacroAssembler::Branch(done);
+  Jump(done);
 }
 
 template <typename NodeT>
@@ -1546,11 +1547,13 @@ inline void MaglevAssembler::CallSelf() {
 inline void MaglevAssembler::Jump(Label* target, Label::Distance distance) {
   DCHECK(!IsDeoptLabel(target));
   MacroAssembler::Branch(target, distance);
+  set_reachable(false);
 }
 
 inline void MaglevAssembler::JumpToDeopt(Label* target) {
   DCHECK(IsDeoptLabel(target));
   MacroAssembler::Branch(target);
+  set_reachable(false);
 }
 
 inline void MaglevAssembler::EmitEagerDeoptStress(Label* target) {
@@ -1670,7 +1673,7 @@ void MaglevAssembler::JumpIfHoleNan(DoubleRegister value, Register scratch,
          ZoneLabelRef is_hole, ZoneLabelRef is_not_hole) {
         masm->ExtractHighWordFromF64(scratch, value);
         masm->CompareInt32AndJumpIf(scratch, kHoleNanUpper32, kEqual, *is_hole);
-        masm->MacroAssembler::Branch(*is_not_hole);
+        masm->Jump(*is_not_hole);
       },
       value, scratch, is_hole, is_not_hole);
   Register scratch2 = temps.AcquireScratch();

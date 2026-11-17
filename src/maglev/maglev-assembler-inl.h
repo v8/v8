@@ -905,7 +905,7 @@ inline void MaglevAssembler::SmiTagInt32AndJumpIfSuccess(
     JumpIf(cond, success, distance);
   } else {
     SmiTag(dst, src);
-    jmp(success);
+    Jump(success);
   }
 }
 
