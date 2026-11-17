@@ -8,6 +8,7 @@
 #include "include/v8-function.h"
 #include "include/v8-template.h"
 #include "src/api/api-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
 
 // This file exposes a d8.test.fast_c_api object, which adds testing facility
 // for writing mjsunit tests that exercise fast API calls.
@@ -108,7 +109,10 @@ class FastCApiObject {
           "Invalid parameter, destination array is too small.");
       return;
     }
-    uint8_t* memory = reinterpret_cast<uint8_t*>(array->GetBuffer()->Data());
+    i::DisallowGarbageCollection no_gc;
+    i::Tagged<i::JSTypedArray> i_array =
+        i::Cast<i::JSTypedArray>(*Utils::OpenDirectHandle(*array));
+    uint8_t* memory = reinterpret_cast<uint8_t*>(i_array->DataPtr());
     memcpy(memory, source.data, source.length);
   }
 
