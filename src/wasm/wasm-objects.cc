@@ -609,7 +609,7 @@ void WasmTableObject::UpdateDispatchTable(
 
   wasm::WasmImportWrapperCache* cache = wasm::GetWasmImportWrapperCache();
   auto kind = wasm::ImportCallKind::kWasmToCapi;
-  int param_count = static_cast<int>(sig->parameter_count());
+  uint16_t param_count = static_cast<uint16_t>(sig->parameter_count());
 
   std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle =
       cache->GetCompiled(isolate, {kind, sig, param_count, wasm::kNoSuspend});

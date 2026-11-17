@@ -94,7 +94,7 @@ std::shared_ptr<WasmWrapperHandle> WasmImportWrapperCache::Get(
 
 bool WasmImportWrapperCache::HasCodeForTesting(ImportCallKind kind,
                                                const CanonicalSig* sig,
-                                               int expected_arity,
+                                               uint16_t expected_arity,
                                                Suspend suspend) {
   base::MutexGuard lock(&mutex_);
 

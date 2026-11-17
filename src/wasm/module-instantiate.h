@@ -31,7 +31,7 @@ class Zone;
 
 namespace wasm {
 class ErrorThrower;
-enum Suspend : int { kSuspend, kNoSuspend };
+enum Suspend : uint8_t { kSuspend, kNoSuspend };
 // kStressSwitch: switch to a secondary stack, but without the JSPI semantics:
 // do not handle async imports and do not return a Promise. For testing only.
 enum Promise : int { kPromise, kNoPromise, kStressSwitch };
@@ -82,7 +82,7 @@ class ResolvedWasmImport {
   ImportCallKind kind() const { return kind_; }
   WellKnownImport well_known_status() const { return well_known_status_; }
   Suspend suspend() const { return suspend_; }
-  int expected_arity() const { return expected_arity_; }
+  uint16_t expected_arity() const { return expected_arity_; }
   DirectHandle<JSReceiver> callable() const { return callable_; }
   // Avoid reading function data from the result of `callable()`, because it
   // might have been corrupted in the meantime (in a compromised sandbox).
@@ -103,7 +103,7 @@ class ResolvedWasmImport {
   ImportCallKind kind_;
   WellKnownImport well_known_status_{WellKnownImport::kGeneric};
   Suspend suspend_{kNoSuspend};
-  int expected_arity_;
+  uint16_t expected_arity_;
   DirectHandle<JSReceiver> callable_;
   DirectHandle<WasmFunctionData> trusted_function_data_;
 };

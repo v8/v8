@@ -67,7 +67,7 @@ V8_EXPORT_PRIVATE WasmError ValidateAndSetBuiltinImports(
 V8_EXPORT_PRIVATE
 std::shared_ptr<wasm::WasmWrapperHandle> CompileImportWrapperForTest(
     Isolate* isolate, ImportCallKind kind, const CanonicalSig* sig,
-    int expected_arity, Suspend suspend);
+    uint16_t expected_arity, Suspend suspend);
 
 // Triggered by the WasmCompileLazy builtin.
 void CompileLazy(Isolate*, NativeModule*, int func_index);

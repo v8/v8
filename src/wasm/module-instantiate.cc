@@ -746,13 +746,13 @@ ResolvedWasmImport::ResolvedWasmImport(
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data, int func_index,
     DirectHandle<JSReceiver> callable, wasm::CanonicalValueType expected_type,
     const wasm::CanonicalSig* expected_sig, WellKnownImport preknown_import)
-    : expected_arity_(static_cast<int>(expected_sig->parameter_count())) {
+    : expected_arity_(static_cast<uint16_t>(expected_sig->parameter_count())) {
+  static_assert(wasm::kV8MaxWasmFunctionParams <= kMaxUInt16);
   SetCallable(Isolate::Current(), callable);
   kind_ = ComputeKind(trusted_instance_data, func_index, expected_type,
                       expected_sig, preknown_import);
-  DCHECK_IMPLIES(
-      !IsJSFunctionKind(kind_),
-      expected_arity_ == static_cast<int>(expected_sig->parameter_count()));
+  DCHECK_IMPLIES(!IsJSFunctionKind(kind_),
+                 expected_arity_ == expected_sig->parameter_count());
   // When the import is a WasmSuspendingObject, the inner callable should be a
   // JS callable, which is checked by the constructor. But it can be corrupted
   // later and replaced with a wasm function. This leads to an invalid state

@@ -100,7 +100,7 @@ struct WasmElemSegment;
 class WasmWrapperHandle;
 class WasmValue;
 enum class OnResume : int;
-enum Suspend : int;
+enum Suspend : uint8_t;
 enum Promise : int;
 struct CanonicalTypeIndex;
 class CanonicalValueType;
