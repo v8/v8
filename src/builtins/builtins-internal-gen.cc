@@ -1816,6 +1816,9 @@ TF_BUILTIN(CheckMaglevType, CodeStubAssembler) {
 
   GotoIf(Word32Equal(instance_type, Int32Constant(HEAP_NUMBER_TYPE)),
          &is_heap_number);
+  GotoIf(
+      Word32Equal(instance_type, Int32Constant(UNINITIALIZED_HEAP_NUMBER_TYPE)),
+      &is_heap_number);
   GotoIf(Int32LessThan(instance_type, Int32Constant(FIRST_NONSTRING_TYPE)),
          &is_string);
   GotoIf(Word32Equal(instance_type, Int32Constant(SYMBOL_TYPE)), &is_symbol);

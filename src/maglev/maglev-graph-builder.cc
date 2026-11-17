@@ -4457,9 +4457,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
       GET_VALUE_OR_ABORT(
           heap_number,
           AddNewNode<LoadTaggedField>(
-              {store_target}, field_index.offset(),
-              IsDefiningStore(access_mode) ? NodeType::kAnyHeapObject
-                                           : NodeType::kHeapNumber,
+              {store_target}, field_index.offset(), NodeType::kHeapNumber,
               PropertyConstness::kMutable, PropertyKey::DoubleField(name),
               IsArrayLength::kNo, compiler::OptionalMapRef{}));
       RETURN_IF_ABORT(AddNewNode<StoreFloat64>(
