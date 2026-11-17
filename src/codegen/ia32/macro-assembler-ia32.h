@@ -79,6 +79,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void CheckPageFlag(Register object, Register scratch, int mask, Condition cc,
                      Label* condition_met,
                      Label::Distance condition_met_distance = Label::kFar);
+  void JumpIfMarking(Label* is_marking,
+                     Label::Distance condition_met_distance = Label::kFar);
 
   void PreCheckSkippedWriteBarrier(Register object, Register value,
                                    Register scratch, Label* ok);

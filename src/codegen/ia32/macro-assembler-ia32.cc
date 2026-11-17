@@ -2187,6 +2187,14 @@ void MacroAssembler::CheckPageFlag(Register object, Register scratch, int mask,
   j(cc, condition_met, condition_met_distance);
 }
 
+void MacroAssembler::JumpIfMarking(Label* is_marking,
+                                   Label::Distance condition_met_distance) {
+  DCHECK(root_array_available());
+  cmpb(Operand(kRootRegister, IsolateData::is_marking_flag_offset()),
+       Immediate(0));
+  j(not_equal, is_marking, condition_met_distance);
+}
+
 void MacroAssembler::PreCheckSkippedWriteBarrier(Register object,
                                                  Register value,
                                                  Register scratch, Label* ok) {
