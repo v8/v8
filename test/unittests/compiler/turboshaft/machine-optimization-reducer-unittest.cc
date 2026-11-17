@@ -560,4 +560,45 @@ TEST_F(MachineOptimizationReducerTest, SelfComparisonLessThan) {
   }
 }
 
+TEST_F(MachineOptimizationReducerTest, Float64ToInt64ToFloat64Reversibility) {
+  const RegisterRepresentation rep_f64 = RegisterRepresentation::Float64();
+  base::SmallVector<RegisterRepresentation, 1> reps = {rep_f64};
+
+  // ReversibleFloat64ToInt64 excludes -0, so converting back to Float64 folds
+  // to the original input parameter.
+  {
+    auto test = CreateFromGraph(base::VectorOf(reps), [](auto& t) {
+      auto x = t.template GetParameter<Float64>(0);
+      auto i64 = t.Asm().ReversibleFloat64ToInt64(x);
+      auto f64 = t.Asm().ReversibleInt64ToFloat64(i64);
+      t.Asm().Return(f64);
+    });
+
+    test.Run<MachineOptimizationReducer>();
+    const ReturnOp* ret =
+        test.graph().Get(test.graph().LastOperation()).TryCast<ReturnOp>();
+    ASSERT_NE(ret, nullptr);
+    ASSERT_EQ(ret->return_values().size(), 1u);
+    EXPECT_TRUE(test.graph().Get(ret->return_values()[0]).Is<ParameterOp>());
+  }
+
+  // TruncateFloat64ToInt64OverflowUndefined maps -0 to 0, so converting back to
+  // Float64 must not fold to the original input.
+  {
+    auto test = CreateFromGraph(base::VectorOf(reps), [](auto& t) {
+      auto x = t.template GetParameter<Float64>(0);
+      auto i64 = t.Asm().TruncateFloat64ToInt64OverflowUndefined(x);
+      auto f64 = t.Asm().ReversibleInt64ToFloat64(i64);
+      t.Asm().Return(f64);
+    });
+
+    test.Run<MachineOptimizationReducer>();
+    const ReturnOp* ret =
+        test.graph().Get(test.graph().LastOperation()).TryCast<ReturnOp>();
+    ASSERT_NE(ret, nullptr);
+    ASSERT_EQ(ret->return_values().size(), 1u);
+    EXPECT_TRUE(test.graph().Get(ret->return_values()[0]).Is<ChangeOp>());
+  }
+}
+
 }  // namespace v8::internal::compiler::turboshaft
