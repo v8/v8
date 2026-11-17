@@ -2464,13 +2464,9 @@ void PerIsolateData::RemoveUnhandledPromise(Local<Promise> promise) {
   if (ignore_unhandled_promises_) return;
   // Remove handled promises from the list
   DCHECK_EQ(Isolate::GetCurrent(), isolate_);
-  for (auto it = unhandled_promises_.begin(); it != unhandled_promises_.end();
-       ++it) {
-    v8::Local<v8::Promise> unhandled_promise = std::get<0>(*it).Get(isolate_);
-    if (unhandled_promise == promise) {
-      unhandled_promises_.erase(it--);
-    }
-  }
+  std::erase_if(unhandled_promises_, [&](const auto& entry) {
+    return std::get<0>(entry).Get(isolate_) == promise;
+  });
 }
 
 void PerIsolateData::AddUnhandledPromise(Local<Promise> promise,
