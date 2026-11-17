@@ -427,6 +427,7 @@ const AstRawString* Parser::GetBigIntAsSymbol() {
     return ast_value_factory()->GetOneByteString(literal);
   }
   auto [decimal, length] = BigIntLiteralToDecimal(local_isolate_, literal);
+  DCHECK_LE(length, String::kMaxLength);
   return ast_value_factory()->GetOneByteString({decimal.get(), length});
 }
 
@@ -1381,6 +1382,7 @@ FunctionLiteral* Parser::ParseClassForMemberInitialization(
     ResetInfoId(initializer_id - 1);
 
     ParseClassLiteralBody(class_info, class_name, class_token_pos, Token::kEos);
+    if (V8_UNLIKELY(has_error())) return nullptr;
 
     if (IsClassInstanceInitializerFunction(initializer_kind)) {
       DCHECK_EQ(class_info.instance_members_function_id, initializer_id);
@@ -1391,7 +1393,6 @@ FunctionLiteral* Parser::ParseClassForMemberInitialization(
     }
   }
 
-  if (has_error()) return nullptr;
   if (V8_UNLIKELY(flags().private_name_lookup_skips_outer_class())) {
     initializer->scope()->RecordNeedsPrivateNameContextChainRecalc();
   }
@@ -3130,6 +3131,13 @@ bool Parser::SkipFunction(int function_literal_id,
   if (result == PreParser::kPreParseStackOverflow) {
     // Propagate stack overflow.
     set_stack_overflow();
+    // Unwind any preparser_zone_-allocated unresolved private name proxies
+    // appended to an enclosing ClassScope before preparser_zone_ is reset.
+    if (!private_name_scope_iter.Done()) {
+      private_name_scope_iter.GetScope()->ResetUnresolvedPrivateNameTail(
+          unresolved_private_tail);
+    }
+    function_scope->ResetAfterPreparsing(ast_value_factory_, false);
   } else if (pending_error_handler()->has_error_unidentifiable_by_preparser()) {
     // Make sure we don't re-preparse inner functions of the aborted function.
     // The error might be in an inner function.
@@ -3150,6 +3158,13 @@ bool Parser::SkipFunction(int function_literal_id,
   } else if (pending_error_handler()->has_pending_error()) {
     DCHECK(!pending_error_handler()->stack_overflow());
     DCHECK(has_error());
+    // Unwind any preparser_zone_-allocated unresolved private name proxies
+    // appended to an enclosing ClassScope before preparser_zone_ is reset.
+    if (!private_name_scope_iter.Done()) {
+      private_name_scope_iter.GetScope()->ResetUnresolvedPrivateNameTail(
+          unresolved_private_tail);
+    }
+    function_scope->ResetAfterPreparsing(ast_value_factory_, false);
   } else {
     DCHECK(!pending_error_handler()->stack_overflow());
     set_allow_eval_cache(reusable_preparser()->allow_eval_cache());
@@ -3881,6 +3896,8 @@ void Parser::SetFunctionName(Expression* value, const AstRawString* name,
     AstConsString* cons_name = nullptr;
     if (name != nullptr) {
       if (prefix != nullptr) {
+        DCHECK_LE(static_cast<uint64_t>(prefix->length()) + name->length(),
+                  String::kMaxLength);
         cons_name = ast_value_factory()->NewConsString(prefix, name);
       } else {
         cons_name = ast_value_factory()->NewConsString(name);

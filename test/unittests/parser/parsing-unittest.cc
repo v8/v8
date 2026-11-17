@@ -13312,6 +13312,76 @@ TEST_F(ParsingTest, LogicalAssignmentDestructuringErrors) {
   RunParserSyncTest(context_data, error_data, kError);
 }
 
+TEST_F(ParsingTest, SkipFunctionPendingErrorResetsPrivateNameTail) {
+  i::Isolate* isolate = i_isolate();
+  i::HandleScope scope(isolate);
+  // `m(a)` is lazily preparsed inside class C's body before `#x;` is declared.
+  // `this.#x` appends a preparser_zone_-allocated unresolved private name proxy
+  // to C's ClassScope, and `break;` triggers a PreParser pending error.
+  // SkipFunction must unwind C's unresolved private name tail and reset m's
+  // function scope before preparser_zone_ can be reset.
+  const char* src =
+      "class C {"
+      "  m(a) { this.#x; break; }"
+      "  #x;"
+      "}";
+  i::DirectHandle<i::String> source =
+      isolate->factory()->NewStringFromAsciiChecked(src);
+  i::DirectHandle<i::Script> script = isolate->factory()->NewScript(source);
+  i::UnoptimizedCompileState compile_state;
+  i::ReusableUnoptimizedCompileState reusable_state(isolate);
+  i::UnoptimizedCompileFlags flags =
+      i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
+  flags.set_allow_lazy_parsing(true);
+  flags.set_allow_lazy_compile(true);
+  flags.set_is_eager(false);
+  i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
+  ASSERT_FALSE(i::parsing::ParseProgram(
+      &info, script, isolate, i::parsing::ReportStatisticsMode{false}));
+  ASSERT_TRUE(info.pending_error_handler()->has_pending_error());
+  ASSERT_FALSE(info.pending_error_handler()->stack_overflow());
+  ASSERT_NE(info.script_scope()->inner_scope(), nullptr);
+  i::ClassScope* class_scope =
+      info.script_scope()->inner_scope()->AsClassScope();
+  EXPECT_EQ(class_scope->ResolvePrivateNamesPartially(), nullptr);
+  ASSERT_NE(class_scope->inner_scope(), nullptr);
+  EXPECT_EQ(class_scope->inner_scope()->AsDeclarationScope()->num_parameters(),
+            0);
+}
+
+TEST_F(ParsingTest, SkipFunctionStackOverflowResetsPrivateNameTail) {
+  i::Isolate* isolate = i_isolate();
+  i::HandleScope scope(isolate);
+  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
+                                        128 * 1024);
+  std::string src = "class C { m(a) { this.#x; ";
+  src.append(4096, '(');
+  src.append("0");
+  src.append(4096, ')');
+  src.append("; } #x; }");
+  i::DirectHandle<i::String> source =
+      isolate->factory()->NewStringFromAsciiChecked(src.c_str());
+  i::DirectHandle<i::Script> script = isolate->factory()->NewScript(source);
+  i::UnoptimizedCompileState compile_state;
+  i::ReusableUnoptimizedCompileState reusable_state(isolate);
+  i::UnoptimizedCompileFlags flags =
+      i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
+  flags.set_allow_lazy_parsing(true);
+  flags.set_allow_lazy_compile(true);
+  flags.set_is_eager(false);
+  i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
+  ASSERT_FALSE(i::parsing::ParseProgram(
+      &info, script, isolate, i::parsing::ReportStatisticsMode{false}));
+  ASSERT_TRUE(info.pending_error_handler()->stack_overflow());
+  ASSERT_NE(info.script_scope()->inner_scope(), nullptr);
+  i::ClassScope* class_scope =
+      info.script_scope()->inner_scope()->AsClassScope();
+  EXPECT_EQ(class_scope->ResolvePrivateNamesPartially(), nullptr);
+  ASSERT_NE(class_scope->inner_scope(), nullptr);
+  EXPECT_EQ(class_scope->inner_scope()->AsDeclarationScope()->num_parameters(),
+            0);
+}
+
 }  // namespace test_parsing
 }  // namespace internal
 }  // namespace v8

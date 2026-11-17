@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include "include/v8-primitive.h"
 #include "src/ast/ast-source-ranges.h"
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
@@ -2564,6 +2565,25 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseProperty(
 
     case Token::kBigInt: {
       Consume(Token::kBigInt);
+      // Only hexadecimal BigInt literals can expand when converted to decimal
+      // (log10(16) < 5/4, so H hex digits produce <= floor(5*H/4) + 1 chars).
+      // Rejecting hex literals above this rounded-down threshold guarantees
+      // that the decimal property name (even with a 4-char "get " / "set "
+      // prefix) never exceeds String::kMaxLength.
+      constexpr uint32_t kAccessorPrefixLength = 4;
+      constexpr size_t kMaxBigIntHexSymbolLength =
+          2 +
+          static_cast<size_t>((static_cast<uint64_t>(v8::String::kMaxLength -
+                                                     kAccessorPrefixLength) *
+                               4) /
+                              5);
+      base::Vector<const uint8_t> literal = scanner()->BigIntLiteral();
+      if (V8_UNLIKELY(literal.size() > kMaxBigIntHexSymbolLength &&
+                      (literal[1] == 'x' || literal[1] == 'X'))) {
+        ReportMessage(MessageTemplate::kInvalidStringLength);
+        prop_info->kind = ParsePropertyKind::kNotSet;
+        return impl()->FailureExpression();
+      }
       prop_info->name = impl()->GetBigIntAsSymbol();
       is_array_index = impl()->IsArrayIndex(prop_info->name, &index);
       break;
@@ -2686,6 +2706,7 @@ bool ParserBase<Impl>::ParseAccessorPropertyOrAutoAccessors(
     return true;
   }
   *name_expression = ParseProperty(prop_info);
+  if (V8_UNLIKELY(has_error())) return false;
   return VerifyCanHaveAutoAccessorOrThrow(prop_info, *name_expression,
                                           *name_token_position);
 }
@@ -2726,6 +2747,7 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
   } else {
     name_expression = ParseProperty(prop_info);
   }
+  if (V8_UNLIKELY(has_error())) return impl()->NullLiteralProperty();
 
   switch (prop_info->kind) {
     case ParsePropertyKind::kAssign:
@@ -2744,7 +2766,8 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
       DCHECK_IMPLIES(prop_info->is_computed_name, !prop_info->is_private);
 
       if (prop_info->is_computed_name) {
-        if (!has_error() && next_info_id != PeekNextInfoId() &&
+        DCHECK(!has_error());
+        if (next_info_id != PeekNextInfoId() &&
             !(prop_info->is_static ? class_info->has_static_elements()
                                    : class_info->has_instance_members())) {
           DCHECK(prop_info->allow_reindex_scope.has_value());
@@ -2926,6 +2949,7 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ParsePropertyInfo* prop_info,
   ExpressionT name_expression = ParseProperty(prop_info);
 
   DCHECK_IMPLIES(name_token == Token::kPrivateName, has_error());
+  if (V8_UNLIKELY(has_error())) return impl()->NullLiteralProperty();
 
   IdentifierT name = prop_info->name;
   ParseFunctionFlags function_flags = prop_info->function_flags;
@@ -5292,6 +5316,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
   Expect(Token::kLeftBrace);
 
   ParseClassLiteralBody(class_info, name, class_token_pos, Token::kRightBrace);
+  if (V8_UNLIKELY(has_error())) return impl()->FailureExpression();
 
   CheckStrictOctalLiteral(scope()->start_position(), scope()->end_position());
 
