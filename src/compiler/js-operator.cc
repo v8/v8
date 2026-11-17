@@ -1378,7 +1378,7 @@ const Operator* JSOperatorBuilder::HasContextExtension(size_t depth) {
       IrOpcode::kJSHasContextExtension,         // opcode
       Operator::kNoWrite | Operator::kNoThrow,  // flags
       "JSHasContextExtension",                  // name
-      0, 1, 0, 1, 1, 0,                         // counts
+      0, 1, 1, 1, 1, 0,                         // counts
       depth);                                   // parameter
 }
 
@@ -1389,7 +1389,7 @@ const Operator* JSOperatorBuilder::LoadContextNoCell(size_t depth, size_t index,
       IrOpcode::kJSLoadContextNoCell,            // opcode
       Operator::kNoWrite | Operator::kNoThrow,   // flags
       "JSLoadContextNoCell",                     // name
-      0, 1, 0, 1, 1, 0,                          // counts
+      0, 1, 1, 1, 1, 0,                          // counts
       access);                                   // parameter
 }
 
