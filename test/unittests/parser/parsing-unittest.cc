@@ -3555,6 +3555,58 @@ TEST_F(ParsingTest, InnerAssignment) {
   }
 }
 
+TEST_F(ParsingTest, ArrowParameterInitializerPositionIsStable) {
+  i::Isolate* isolate = i_isolate();
+  const char* sources[] = {
+      "(x = 1/**/) => x",         "(x = (1)/**/) => x",
+      "(x = 1/**/, y) => x",      "(x/**/, y = 1) => x",
+      "(x = 1/**/, ) => x",       "({x}/**/) => x",
+      "({x} = o/**/) => x",       "([x] = a/**/) => x",
+      "(...x/**/) => x",          "(...[x]/**/) => x",
+      "async (x = 1/**/) => x",   "async (x = (1)/**/, ) => x",
+      "async ({x} = o/**/) => x", "async ([x] = a/**/) => x",
+      "async (...[x]/**/) => x",
+  };
+  for (const char* source : sources) {
+    SCOPED_TRACE(source);
+    int expected_pos = static_cast<int>(strchr(source, '/') - source);
+    auto check_position = [&](i::ParseInfo& info, i::Scope* scope) {
+      const i::AstRawString* name =
+          info.ast_value_factory()->GetOneByteString("x");
+      i::Variable* x = scope->LookupForTesting(name);
+      ASSERT_NE(nullptr, x);
+      EXPECT_EQ(expected_pos, x->initializer_position());
+    };
+
+    // Full script parse: arrow parameters are parsed via the cover grammar.
+    {
+      i::DirectHandle<i::String> text =
+          isolate->factory()->InternalizeUtf8String(source);
+      i::Handle<i::Script> script = isolate->factory()->NewScript(text);
+      auto flags =
+          i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
+      flags.set_allow_lazy_parsing(false);
+      i::UnoptimizedCompileState state;
+      i::ReusableUnoptimizedCompileState reusable_state(isolate);
+      i::ParseInfo info(isolate, flags, &state, &reusable_state);
+      CHECK_PARSE_PROGRAM(&info, script, isolate);
+      check_position(info, info.literal()->scope()->inner_scope());
+    }
+
+    // Function reparse: arrow parameters are parsed via ParseFormalParameter.
+    v8::Local<v8::Value> value = RunJS(source);
+    auto function = i::Cast<i::JSFunction>(v8::Utils::OpenDirectHandle(*value));
+    i::Handle<i::SharedFunctionInfo> shared(function->shared(), isolate);
+    auto flags =
+        i::UnoptimizedCompileFlags::ForFunctionCompile(isolate, *shared);
+    i::UnoptimizedCompileState state;
+    i::ReusableUnoptimizedCompileState reusable_state(isolate);
+    i::ParseInfo info(isolate, flags, &state, &reusable_state);
+    CHECK_PARSE_FUNCTION(&info, shared, isolate);
+    check_position(info, info.literal()->scope());
+  }
+}
+
 TEST_F(ParsingTest, MaybeAssignedParameters) {
   i::Isolate* isolate = i_isolate();
 

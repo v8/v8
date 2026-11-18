@@ -2170,7 +2170,7 @@ ParserBase<Impl>::ParsePrimaryExpression() {
       ClassifyParameter(name, beg_pos, end_position());
       ExpressionT result =
           impl()->ExpressionFromIdentifier(name, beg_pos, InferName{false});
-      parsing_scope.SetInitializers(0, peek_position());
+      parsing_scope.SetInitializers(0);
       next_arrow_function_info_.scope = parsing_scope.ValidateAndCreateScope();
       next_arrow_function_info_.function_literal_id =
           parsing_scope.function_literal_id();
@@ -2343,8 +2343,7 @@ ParserBase<Impl>::ParseExpressionCoverGrammar() {
 
     ClassifyArrowParameter(&accumulation_scope, expr_pos, expression);
     if (V8_UNLIKELY(expression_scope()->CanBeArrowParameterDeclaration())) {
-      variable_index =
-          expression_scope()->SetInitializers(variable_index, peek_position());
+      variable_index = expression_scope()->SetInitializers(variable_index);
     }
     list.Add(expression);
 
@@ -2401,7 +2400,7 @@ ParserBase<Impl>::ParseArrowParametersWithRest(
   ExpressionT spread =
       factory()->NewSpread(pattern, ellipsis.beg_pos, pattern_pos);
 
-  expression_scope()->SetInitializers(seen_variables, peek_position());
+  expression_scope()->SetInitializers(seen_variables);
 
   // 'x, y, ...z' in CoverParenthesizedExpressionAndArrowParameterList only
   // as the formal parameters of'(x, y, ...z) => foo', and is not itself a
@@ -3226,8 +3225,7 @@ void ParserBase<Impl>::ParseArguments(
               scanner()->peek_location(), MessageTemplate::kParamAfterRest);
         }
       }
-      variable_index =
-          expression_scope()->SetInitializers(variable_index, peek_position());
+      variable_index = expression_scope()->SetInitializers(variable_index);
     } else {
       accumulation_scope.ValidateExpression();
     }
