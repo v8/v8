@@ -2648,7 +2648,6 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
   std::string calendar_stdstr;
   if (maybe_calendar.FromJust()) {
     calendar_stdstr = calendar_str->ToStdString();
-    icu::Locale default_locale;
     if (!Intl::IsWellFormedCalendar(calendar_stdstr)) {
       THROW_NEW_ERROR(isolate,
                       NewRangeError(MessageTemplate::kInvalid,
