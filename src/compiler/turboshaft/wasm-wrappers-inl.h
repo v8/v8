@@ -492,7 +492,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmToJSWrapper(
       OpIndex isolate = __ IsolateField(IsolateFieldId::kIsolateAddress);
       auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Int32())
                      .Params(MachineType::Pointer());
-      OpIndex has_js_frames = this->CallC(
+      OpIndex has_js_frames = __ CallC(
           &sig, ExternalReference::wasm_suspender_has_js_frames(), {isolate});
       IF (has_js_frames) {
         __ WasmCallRuntime(__ phase_zone(), Runtime::kThrowWasmJSPISuspendError,
@@ -766,7 +766,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildCapiCallWrapper() {
       FixedSizeSignature<MachineType>::Returns(MachineType::Pointer())
           .Params(MachineType::AnyTagged(), MachineType::Pointer());
   OpIndex return_value =
-      this->CallC(&host_sig, call_target, {host_data_foreign, values});
+      __ CallC(&host_sig, call_target, {host_data_foreign, values});
 
   IF_NOT (__ WordPtrEqual(return_value, __ IntPtrConstant(0))) {
     WasmRethrowExplicitContextDescriptor interface_descriptor;

@@ -7,6 +7,7 @@
 
 #include "include/v8-fast-api-calls.h"
 #include "src/base/logging.h"
+#include "src/codegen/signature.h"
 #include "src/compiler/fast-api-calls.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/turboshaft/assembler.h"
@@ -437,21 +438,13 @@ class FastApiCallLoweringReducer : public Next {
 #ifdef V8_COMPRESS_POINTERS
     OpIndex isolate_ptr =
         __ ExternalConstant(ExternalReference::isolate_address());
-    MachineSignature::Builder builder(__ graph_zone(), 1, 2);
-    builder.AddReturn(MachineType::Uint32());
-    builder.AddParam(MachineType::Pointer());
-    builder.AddParam(MachineType::Pointer());
-    OpIndex allocate_and_initialize_young_external_pointer_table_entry =
-        __ ExternalConstant(
-            ExternalReference::
-                allocate_and_initialize_young_external_pointer_table_entry());
-    auto call_descriptor =
-        Linkage::GetSimplifiedCDescriptor(__ graph_zone(), builder.Get());
-    OpIndex handle = __ Call(
-        allocate_and_initialize_young_external_pointer_table_entry,
-        {isolate_ptr, pointer},
-        TSCallDescriptor::Create(call_descriptor, CanThrow{false},
-                                 LazyDeoptOnThrow{false}, __ graph_zone()));
+    auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Uint32())
+                   .Params(MachineType::Pointer(), MachineType::Pointer());
+    V<Word32> handle = __ template CallC<Word32>(
+        &sig,
+        ExternalReference::
+            allocate_and_initialize_young_external_pointer_table_entry(),
+        {isolate_ptr, pointer});
     __ InitializeField(
         external, AccessBuilder::ForJSExternalObjectPointerHandle(), handle);
 #else

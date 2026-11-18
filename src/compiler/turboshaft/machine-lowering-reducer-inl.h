@@ -12,6 +12,7 @@
 #include "src/base/strong-alias.h"
 #include "src/codegen/external-reference.h"
 #include "src/codegen/machine-type.h"
+#include "src/codegen/signature.h"
 #include "src/common/globals.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/compilation-dependencies.h"
@@ -1632,21 +1633,13 @@ class MachineLoweringReducer : public Next {
             __ DeoptimizeIfNot(is_string_map, frame_state,
                                DeoptimizeReason::kNotAString, feedback);
 
-            // TODO(nicohartmann@): We might introduce a Turboshaft way for
-            // constructing call descriptors.
-            MachineSignature::Builder builder(__ graph_zone(), 1, 1);
-            builder.AddReturn(MachineType::Int32());
-            builder.AddParam(MachineType::TaggedPointer());
-            auto desc = Linkage::GetSimplifiedCDescriptor(__ graph_zone(),
-                                                          builder.Get());
-            auto ts_desc = TSCallDescriptor::Create(desc, CanThrow{false},
-                                                    LazyDeoptOnThrow{false},
-                                                    __ graph_zone());
-            OpIndex callee = __ ExternalConstant(
-                ExternalReference::string_to_array_index_function());
+            auto sig =
+                FixedSizeSignature<MachineType>::Returns(MachineType::Int32())
+                    .Params(MachineType::TaggedPointer());
             // NOTE: String::ToArrayIndex() currently returns int32_t.
-            V<WordPtr> index = __ ChangeInt32ToIntPtr(
-                V<Word32>::Cast(__ Call(callee, {object}, ts_desc)));
+            V<WordPtr> index = __ ChangeInt32ToIntPtr(__ template CallC<Word32>(
+                &sig, ExternalReference::string_to_array_index_function(),
+                object));
             __ DeoptimizeIf(__ WordPtrEqual(index, -1), frame_state,
                             DeoptimizeReason::kNotAnArrayIndex, feedback);
             GOTO(done, index);
@@ -4123,19 +4116,14 @@ class MachineLoweringReducer : public Next {
           frame_state, DeoptimizeReason::kWrongName, FeedbackSource{});
 
       // Try to find the {value} in the string table.
-      MachineSignature::Builder builder(__ graph_zone(), 1, 2);
-      builder.AddReturn(MachineType::AnyTagged());
-      builder.AddParam(MachineType::Pointer());
-      builder.AddParam(MachineType::AnyTagged());
-      OpIndex try_string_to_index_or_lookup_existing = __ ExternalConstant(
-          ExternalReference::try_string_to_index_or_lookup_existing());
+      auto sig =
+          FixedSizeSignature<MachineType>::Returns(MachineType::AnyTagged())
+              .Params(MachineType::Pointer(), MachineType::AnyTagged());
       OpIndex isolate_ptr =
           __ ExternalConstant(ExternalReference::isolate_address());
-      V<String> value_internalized = V<String>::Cast(__ Call(
-          try_string_to_index_or_lookup_existing, {isolate_ptr, value},
-          TSCallDescriptor::Create(
-              Linkage::GetSimplifiedCDescriptor(__ graph_zone(), builder.Get()),
-              CanThrow{false}, LazyDeoptOnThrow{false}, __ graph_zone())));
+      V<String> value_internalized = __ template CallC<String>(
+          &sig, ExternalReference::try_string_to_index_or_lookup_existing(),
+          {isolate_ptr, value});
 
       // Now see if the results match.
       __ DeoptimizeIfNot(__ TaggedEqual(expected, value_internalized),

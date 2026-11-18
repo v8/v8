@@ -35,6 +35,7 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/js-heap-broker.h"
+#include "src/compiler/linkage.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/turboshaft/access-builder.h"
 #include "src/compiler/turboshaft/builtin-call-descriptors.h"
@@ -3674,6 +3675,44 @@ class AssemblerOpInterface : public Next {
             OpEffects effects = OpEffects().CanCallAnything()) {
     return Call<R>(callee, OptionalV<LazyFrameState>::Nullopt(),
                    base::VectorOf(arguments), descriptor, effects);
+  }
+
+  // Calls a C function with a simplified C descriptor.
+  template <typename R = AnyOrNone>
+  V<R> CallC(const MachineSignature* sig, V<CallTarget> callee,
+             base::Vector<const OpIndex> arguments) {
+    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
+      return V<R>::Invalid();
+    }
+    DCHECK_LE(sig->return_count(), 1);
+    DCHECK_EQ(sig->parameter_count(), arguments.size());
+    Zone* graph_zone = Asm().output_graph().graph_zone();
+    const CallDescriptor* call_descriptor =
+        Linkage::GetSimplifiedCDescriptor(graph_zone, sig);
+    const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
+        call_descriptor, CanThrow{false}, LazyDeoptOnThrow{false}, graph_zone);
+    return Call<R>(callee, OptionalV<LazyFrameState>::Nullopt(), arguments,
+                   ts_call_descriptor);
+  }
+  template <typename R = AnyOrNone>
+  V<R> CallC(const MachineSignature* sig, V<CallTarget> callee,
+             std::initializer_list<OpIndex> arguments) {
+    return CallC<R>(sig, callee, base::VectorOf(arguments));
+  }
+  template <typename R = AnyOrNone>
+  V<R> CallC(const MachineSignature* sig, ExternalReference target,
+             base::Vector<const OpIndex> arguments) {
+    return CallC<R>(sig, ExternalConstant(target), arguments);
+  }
+  template <typename R = AnyOrNone>
+  V<R> CallC(const MachineSignature* sig, ExternalReference target,
+             std::initializer_list<OpIndex> arguments) {
+    return CallC<R>(sig, ExternalConstant(target), base::VectorOf(arguments));
+  }
+  template <typename R = AnyOrNone>
+  V<R> CallC(const MachineSignature* sig, ExternalReference target,
+             OpIndex arg) {
+    return CallC<R>(sig, target, {arg});
   }
 
   template <typename Descriptor>

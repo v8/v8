@@ -150,28 +150,6 @@ WasmGraphBuilderBase<Assembler>::RepresentationFor(ValueTypeBase type) {
 }
 
 template <typename Assembler>
-inline auto WasmGraphBuilderBase<Assembler>::CallC(
-    const MachineSignature* sig, ExternalReference ref,
-    std::initializer_list<OpIndex> args) -> OpIndex {
-  return WasmGraphBuilderBase::CallC(sig, __ ExternalConstant(ref), args);
-}
-
-template <typename Assembler>
-inline auto WasmGraphBuilderBase<Assembler>::CallC(
-    const MachineSignature* sig, OpIndex function,
-    std::initializer_list<OpIndex> args) -> OpIndex {
-  DCHECK_LE(sig->return_count(), 1);
-  DCHECK_EQ(sig->parameter_count(), args.size());
-  const CallDescriptor* call_descriptor =
-      compiler::Linkage::GetSimplifiedCDescriptor(__ graph_zone(), sig);
-  const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
-      call_descriptor, compiler::CanThrow{false},
-      compiler::LazyDeoptOnThrow{false}, __ graph_zone());
-  return __ Call(function, OpIndex::Invalid(), base::VectorOf(args),
-                 ts_call_descriptor);
-}
-
-template <typename Assembler>
 void WasmGraphBuilderBase<Assembler>::BuildSetNewStackLimit(
     V<WordPtr> old_limit, V<WordPtr> new_limit) {
   // Set the new interrupt limit and real limit. Use a compare-and-swap for
@@ -197,7 +175,7 @@ auto WasmGraphBuilderBase<Assembler>::BuildSwitchToTheCentralStack(
   auto sig = FixedSizeSignature<MachineType>::Params(MachineType::Pointer(),
                                                      MachineType::Pointer())
                  .Returns(MachineType::Pointer());
-  OpIndex central_stack_sp = CallC(
+  OpIndex central_stack_sp = __ CallC(
       &sig, ExternalReference::wasm_switch_to_the_central_stack_for_js(),
       {__ IsolateField(IsolateFieldId::kIsolateAddress), __ FramePointer()});
 
@@ -275,8 +253,9 @@ void WasmGraphBuilderBase<Assembler>::BuildSwitchBackFromCentralStack(
 #if defined(V8_ENABLE_SANDBOX_HARDWARE_SUPPORT) || V8_TARGET_OS_WIN
   auto sig = FixedSizeSignature<MachineType>::Params(MachineType::Pointer());
   IF_NOT (LIKELY(__ WordPtrEqual(old_sp, __ IntPtrConstant(0)))) {
-    CallC(&sig, ExternalReference::wasm_switch_from_the_central_stack_for_js(),
-          {__ IsolateField(IsolateFieldId::kIsolateAddress)});
+    __ CallC(&sig,
+             ExternalReference::wasm_switch_from_the_central_stack_for_js(),
+             {__ IsolateField(IsolateFieldId::kIsolateAddress)});
 #else
   IF_NOT (LIKELY(__ WordPtrEqual(old_sp, __ IntPtrConstant(0)))) {
     // Reset is_on_central_stack flag.

@@ -119,17 +119,6 @@ class V8_EXPORT_PRIVATE WasmGraphBuilderBase {
 
   RegisterRepresentation RepresentationFor(ValueTypeBase type);
 
-  // TODO(14108): Annotate C functions as not having side effects where
-  // appropriate.
-  OpIndex CallC(const MachineSignature* sig, ExternalReference ref,
-                std::initializer_list<OpIndex> args);
-  OpIndex CallC(const MachineSignature* sig, OpIndex function,
-                std::initializer_list<OpIndex> args);
-  OpIndex CallC(const MachineSignature* sig, ExternalReference ref,
-                OpIndex arg) {
-    return CallC(sig, ref, {arg});
-  }
-
   void BuildSetNewStackLimit(V<WordPtr> old_limit, V<WordPtr> new_limit);
 
   V<WordPtr> BuildSwitchToTheCentralStack(V<WordPtr> old_limit);

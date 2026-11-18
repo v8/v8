@@ -964,10 +964,10 @@ class TurboshaftGraphBuildingInterface
       MachineSignature sig(0, 1, reps);
       switch (opcode) {
         case kExprI64Add128:
-          CallC(&sig, ExternalReference::wasm_int128_add(), stack_slot);
+          __ CallC(&sig, ExternalReference::wasm_int128_add(), stack_slot);
           break;
         case kExprI64Sub128:
-          CallC(&sig, ExternalReference::wasm_int128_sub(), stack_slot);
+          __ CallC(&sig, ExternalReference::wasm_int128_sub(), stack_slot);
           break;
         default:
           UNREACHABLE();
@@ -2146,12 +2146,6 @@ class TurboshaftGraphBuildingInterface
 
     inputs[param_count] = options_object;
 
-    const CallDescriptor* call_descriptor =
-        compiler::Linkage::GetSimplifiedCDescriptor(__ graph_zone(),
-                                                    builder.Get());
-    const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
-        call_descriptor, compiler::CanThrow{false},
-        compiler::LazyDeoptOnThrow{false}, __ graph_zone());
     OpIndex target_address = __ ExternalConstant(ExternalReference::Create(
         env_->fast_api_data[func_index].target.load(std::memory_order_relaxed),
         ExternalReference::FAST_C_CALL));
@@ -2163,8 +2157,8 @@ class TurboshaftGraphBuildingInterface
              StoreOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
              compiler::kNoWriteBarrier);
     auto [old_sp, old_limit] = BuildSwitchToTheCentralStackIfNeeded();
-    OpIndex ret_val = __ Call(target_address, OpIndex::Invalid(),
-                              base::VectorOf(inputs), ts_call_descriptor);
+    OpIndex ret_val =
+        __ CallC(builder.Get(), target_address, base::VectorOf(inputs));
     BuildSwitchBackFromCentralStack(old_sp, old_limit);
 
 #if DEBUG
@@ -4207,9 +4201,9 @@ class TurboshaftGraphBuildingInterface
         MachineType::Int32(), MachineType::Uint32());
     CanonicalTypeIndex new_csig_index = decoder->module_->canonical_type_id(
         new_imm.cont_type->contfun_typeindex());
-    CallC(&sig, ExternalReference::wasm_cont_bind(),
-          {cont, stack, __ Word32Constant(delta),
-           __ RelocatableWasmCanonicalSignatureId(new_csig_index.index)});
+    __ CallC(&sig, ExternalReference::wasm_cont_bind(),
+             {cont, stack, __ Word32Constant(delta),
+              __ RelocatableWasmCanonicalSignatureId(new_csig_index.index)});
     IterateWasmFXArgBuffer(
         input_sig->parameters(), [&](size_t index, int offset) {
           if (index < delta) {
@@ -4239,8 +4233,8 @@ class TurboshaftGraphBuildingInterface
     // perform the write from an external C call.
     auto csig = FixedSizeSignature<MachineType>::Params(MachineType::Pointer(),
                                                         MachineType::Pointer());
-    CallC(&csig, ExternalReference::wasmfx_set_wasm_code(),
-          {active_stack, wasm_code});
+    __ CallC(&csig, ExternalReference::wasmfx_set_wasm_code(),
+             {active_stack, wasm_code});
 #else
     __ StoreOffHeap(active_stack, wasm_code, MemoryRepresentation::UintPtr(),
                     wasm::StackMemory::wasm_code_offset());
@@ -4573,8 +4567,8 @@ class TurboshaftGraphBuildingInterface
 
     auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Int32())
                    .Params(MachineType::Pointer(), MachineType::Uint32());
-    result->op = CallC(&sig, ExternalReference::wasm_atomic_notify(),
-                       {addr, num_waiters_to_wake});
+    result->op = __ CallC(&sig, ExternalReference::wasm_atomic_notify(),
+                          {addr, num_waiters_to_wake});
   }
 
   void AtomicWait(FullDecoder* decoder, WasmOpcode opcode,
@@ -4847,7 +4841,7 @@ class TurboshaftGraphBuildingInterface
                            MachineType::UintPtr(), MachineType::Uint32(),
                            MachineType::Uint32(), MachineType::Uint32());
     // TODO(14616): Fix sharedness.
-    V<Word32> result = CallC(
+    V<Word32> result = __ CallC<Word32>(
         &sig, ExternalReference::wasm_memory_init(),
         {__ BitcastHeapObjectToWordPtr(instance_cache_.trusted_instance_data()),
          __ Word32Constant(imm.memory.index), dst_uintptr, src.op,
@@ -5010,8 +5004,8 @@ class TurboshaftGraphBuildingInterface
     auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Pointer())
                    .Params(MachineType::Pointer(), MachineType::Pointer(),
                            MachineType::UintPtr());
-    CallC(&sig, ExternalReference::libc_memmove_function(),
-          {dst_base, src_base, size_op});
+    __ CallC(&sig, ExternalReference::libc_memmove_function(),
+             {dst_base, src_base, size_op});
   }
 
   void MemFillBoundsCheck(const WasmMemory* memory, V<WordPtr> offset,
@@ -5126,14 +5120,15 @@ class TurboshaftGraphBuildingInterface
     auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Pointer())
                    .Params(MachineType::Pointer(), MachineType::Int32(),
                            MachineType::UintPtr());
-    CallC(&sig, ExternalReference::libc_memset_function(),
-          {dst_base, __ Word32BitwiseAnd(value.get<Word32>(), 0xFF), size_op});
+    __ CallC(
+        &sig, ExternalReference::libc_memset_function(),
+        {dst_base, __ Word32BitwiseAnd(value.get<Word32>(), 0xFF), size_op});
   }
 
   void DataDrop(FullDecoder* decoder, const IndexImmediate& imm) {
     auto sig = FixedSizeSignature<MachineType>::Params(MachineType::Pointer(),
                                                        MachineType::Uint32());
-    CallC(
+    __ CallC(
         &sig, ExternalReference::wasm_data_drop(),
         {__ BitcastHeapObjectToWordPtr(instance_cache_.trusted_instance_data()),
          __ Word32Constant(imm.index)});
@@ -5566,9 +5561,9 @@ class TurboshaftGraphBuildingInterface
     auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Int32())
                    .Params(MachineType::Pointer(), MachineType::Int32());
     result->op =
-        CallC(&sig, ExternalReference::wasm_waitqueue_notify(),
-              {__ BitcastHeapObjectToWordPtr(waitqueue.get<HeapObject>()),
-               max_waiters.op});
+        __ CallC(&sig, ExternalReference::wasm_waitqueue_notify(),
+                 {__ BitcastHeapObjectToWordPtr(waitqueue.get<HeapObject>()),
+                  max_waiters.op});
   }
 
   void WaitqueueNew(FullDecoder* decoder, Value* result) {
@@ -5810,8 +5805,8 @@ class TurboshaftGraphBuildingInterface
                                 MachineType::Uint32(), MachineType::Uint32()};
         MachineSignature sig(0, 5, arg_types);
 
-        CallC(&sig, ExternalReference::wasm_array_copy(),
-              {dst_array, dst_index.op, src_array, src_index.op, length.op});
+        __ CallC(&sig, ExternalReference::wasm_array_copy(),
+                 {dst_array, dst_index.op, src_array, src_index.op, length.op});
       } ELSE {
         V<Word32> src_end_index = __ Word32Sub(
             __ Word32Add(src_index.get<Word32>(), length.get<Word32>()), 1);
@@ -7222,7 +7217,7 @@ class TurboshaftGraphBuildingInterface
              compiler::WriteBarrierKind::kNoWriteBarrier);
     MachineType reps[]{MachineType::Int32(), MachineType::Pointer()};
     MachineSignature sig(1, 1, reps);
-    V<Word32> overflow = CallC(&sig, ccall_ref, stack_slot);
+    V<Word32> overflow = __ CallC<Word32>(&sig, ccall_ref, stack_slot);
     return {stack_slot, overflow};
   }
 
@@ -7247,7 +7242,7 @@ class TurboshaftGraphBuildingInterface
              compiler::WriteBarrierKind::kNoWriteBarrier);
     MachineType reps[]{MachineType::Pointer()};
     MachineSignature sig(0, 1, reps);
-    CallC(&sig, ccall_ref, stack_slot);
+    __ CallC(&sig, ccall_ref, stack_slot);
     return __ Load(stack_slot, LoadOp::Kind::RawAligned(), int64);
   }
 
@@ -7262,7 +7257,7 @@ class TurboshaftGraphBuildingInterface
              input_representation, compiler::WriteBarrierKind::kNoWriteBarrier);
     MachineType reps[]{MachineType::Pointer()};
     MachineSignature sig(0, 1, reps);
-    CallC(&sig, ccall_ref, stack_slot);
+    __ CallC(&sig, ccall_ref, stack_slot);
     return __ Load(stack_slot, LoadOp::Kind::RawAligned(),
                    result_representation);
   }
@@ -7280,7 +7275,7 @@ class TurboshaftGraphBuildingInterface
 
     MachineType sig_types[] = {MachineType::Int32(), MachineType::Pointer()};
     MachineSignature sig(1, 1, sig_types);
-    OpIndex rc = CallC(&sig, ccall_ref, stack_slot);
+    OpIndex rc = __ CallC(&sig, ccall_ref, stack_slot);
     __ TrapIf(__ Word32Equal(rc, 0), trap_zero);
     __ TrapIf(__ Word32Equal(rc, -1), TrapId::kTrapDivUnrepresentable);
     return __ Load(stack_slot, LoadOp::Kind::RawAligned(), int64_rep);
@@ -7661,7 +7656,7 @@ class TurboshaftGraphBuildingInterface
           auto sig =
               FixedSizeSignature<MachineType>::Returns(MachineType::Uint32())
                   .Params(MachineType::Uint32());
-          return CallC(&sig, ExternalReference::wasm_word32_ctz(), arg);
+          return __ CallC(&sig, ExternalReference::wasm_word32_ctz(), arg);
         }
       case kExprI32Popcnt:
         if (SupportedOperations::word32_popcnt()) {
@@ -7670,7 +7665,7 @@ class TurboshaftGraphBuildingInterface
           auto sig =
               FixedSizeSignature<MachineType>::Returns(MachineType::Uint32())
                   .Params(MachineType::Uint32());
-          return CallC(&sig, ExternalReference::wasm_word32_popcnt(), arg);
+          return __ CallC(&sig, ExternalReference::wasm_word32_popcnt(), arg);
         }
       case kExprF32Floor:
         if (SupportedOperations::float32_round_down()) {
@@ -7757,8 +7752,8 @@ class TurboshaftGraphBuildingInterface
           auto sig =
               FixedSizeSignature<MachineType>::Returns(MachineType::Uint32())
                   .Params(MachineType::Uint64());
-          return __ ChangeUint32ToUint64(
-              CallC(&sig, ExternalReference::wasm_word64_ctz(), arg));
+          return __ ChangeUint32ToUint64(__ CallC<Word32>(
+              &sig, ExternalReference::wasm_word64_ctz(), arg));
         } else {
           // lower_word == 0 ? 32 + CTZ32(upper_word) : CTZ32(lower_word);
           OpIndex upper_word =
@@ -7770,12 +7765,14 @@ class TurboshaftGraphBuildingInterface
           Label<Word32> done(&asm_);
           IF (__ Word32Equal(lower_word, 0)) {
             GOTO(done,
-                 __ Word32Add(CallC(&sig, ExternalReference::wasm_word32_ctz(),
-                                    upper_word),
+                 __ Word32Add(__ CallC<Word32>(
+                                  &sig, ExternalReference::wasm_word32_ctz(),
+                                  upper_word),
                               32));
           } ELSE {
             GOTO(done,
-                 CallC(&sig, ExternalReference::wasm_word32_ctz(), lower_word));
+                 __ CallC<Word32>(&sig, ExternalReference::wasm_word32_ctz(),
+                                  lower_word));
           }
           BIND(done, result);
           return __ ChangeUint32ToUint64(result);
@@ -7789,8 +7786,8 @@ class TurboshaftGraphBuildingInterface
           auto sig =
               FixedSizeSignature<MachineType>::Returns(MachineType::Uint32())
                   .Params(MachineType::Uint64());
-          return __ ChangeUint32ToUint64(
-              CallC(&sig, ExternalReference::wasm_word64_popcnt(), arg));
+          return __ ChangeUint32ToUint64(__ CallC<Word32>(
+              &sig, ExternalReference::wasm_word64_popcnt(), arg));
         } else {
           // Emit two calls to wasm_word32_popcnt.
           OpIndex upper_word =
@@ -7800,9 +7797,10 @@ class TurboshaftGraphBuildingInterface
               FixedSizeSignature<MachineType>::Returns(MachineType::Uint32())
                   .Params(MachineType::Uint32());
           return __ ChangeUint32ToUint64(__ Word32Add(
-              CallC(&sig, ExternalReference::wasm_word32_popcnt(), lower_word),
-              CallC(&sig, ExternalReference::wasm_word32_popcnt(),
-                    upper_word)));
+              __ CallC<Word32>(&sig, ExternalReference::wasm_word32_popcnt(),
+                               lower_word),
+              __ CallC<Word32>(&sig, ExternalReference::wasm_word32_popcnt(),
+                               upper_word)));
         }
       case kExprI64Eqz:
         return __ Word64Equal(arg, 0);
@@ -8782,7 +8780,7 @@ class TurboshaftGraphBuildingInterface
              compiler::WriteBarrierKind::kNoWriteBarrier);
     MachineType reps[]{MachineType::Int32(), MachineType::Pointer()};
     MachineSignature sig(1, 1, reps);
-    return CallC(&sig, ref, stack_slot_param);
+    return __ CallC(&sig, ref, stack_slot_param);
   }
 
   V<Word32> CallCStackSlotToInt32(
@@ -8802,7 +8800,7 @@ class TurboshaftGraphBuildingInterface
     }
     MachineType reps[]{MachineType::Int32(), MachineType::Pointer()};
     MachineSignature sig(1, 1, reps);
-    return CallC(&sig, ref, stack_slot_param);
+    return __ CallC<Word32>(&sig, ref, stack_slot_param);
   }
 
   OpIndex CallCStackSlotToStackSlot(
@@ -8823,7 +8821,7 @@ class TurboshaftGraphBuildingInterface
     }
     MachineType reps[]{MachineType::Pointer()};
     MachineSignature sig(0, 1, reps);
-    CallC(&sig, ref, stack_slot_param);
+    __ CallC(&sig, ref, stack_slot_param);
     return __ Load(stack_slot_param, LoadOp::Kind::RawAligned(), res_type);
   }
 
@@ -9200,9 +9198,9 @@ class TurboshaftGraphBuildingInterface
             MachineType::Uint32(),        MachineType::Pointer()};
         MachineSignature sig(0, 6, arg_types);
         int write_barrier_bool = write_barrier == kFullWriteBarrier ? 1 : 0;
-        CallC(&sig, ExternalReference::wasm_array_fill(),
-              {array, index, length, __ Word32Constant(write_barrier_bool),
-               __ Word32Constant(element_type.raw_bit_field()), stack_slot});
+        __ CallC(&sig, ExternalReference::wasm_array_fill(),
+                 {array, index, length, __ Word32Constant(write_barrier_bool),
+                  __ Word32Constant(element_type.raw_bit_field()), stack_slot});
         GOTO(done);
       }
     }
