@@ -17,6 +17,7 @@
 #include "src/objects/property-details-inl.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
+#include "src/strings/string-hasher-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -280,21 +281,24 @@ int TransitionArray::SearchName(Tagged<Name> name, bool concurrent_search,
   return BinarySearchName(name, out_insertion_index);
 }
 
+int TransitionArray::BinarySearchFirstIndex(uint32_t hash) {
+  int end = number_of_transitions();
+  // Binary search must not be used for small number of transitions since the
+  // transition array is not sorted yet.
+  DCHECK_LT(kMaxElementsForLinearSearch, end);
+  return *std::ranges::lower_bound(std::views::iota(0, end), hash,
+                                   std::less<>(),
+                                   [&](int i) { return GetKey(i)->hash(); });
+}
+
 int TransitionArray::BinarySearchName(Tagged<Name> name,
                                       int* out_insertion_index) {
   int end = number_of_transitions();
-  // Binary search must not be used for small number of descriptors since
-  // the descriptor array is not sorted yet.
-  DCHECK_LT(kMaxElementsForLinearSearch, end);
   uint32_t hash = name->hash();
 
   // Find the first index whose key's hash is greater-than-or-equal-to the
   // search hash.
-  int i = *std::ranges::lower_bound(std::views::iota(0, end), hash,
-                                    std::less<>(), [&](int i) {
-                                      Tagged<Name> entry = GetKey(i);
-                                      return entry->hash();
-                                    });
+  int i = BinarySearchFirstIndex(hash);
 
   // There may have been hash collisions, so search for the name from the first
   // index until the first non-matching hash.
@@ -473,18 +477,28 @@ void TransitionArray::SetNumberOfTransitions(int number_of_transitions) {
                       Smi::FromInt(number_of_transitions));
 }
 
-template <typename Char>
-bool TransitionsAccessor::IsExpectedTransition(
-    Tagged<Name> transition_name, Tagged<Map> transition_target,
-    base::Vector<const Char> key_chars) {
+bool TransitionsAccessor::IsExpectedTransitionTarget(
+    Tagged<Map> transition_target) {
   if (transition_target->NumberOfOwnDescriptors() == 0) return false;
   PropertyDetails details = GetSimpleTargetDetails(transition_target);
   if (details.location() != PropertyLocation::kField) return false;
   DCHECK_EQ(PropertyKind::kData, details.kind());
-  if (details.attributes() != NONE) return false;
-  if (!IsString(transition_name)) return false;
-  if (!Cast<String>(transition_name)->IsEqualTo(key_chars)) return false;
-  return true;
+  return details.attributes() == NONE;
+}
+
+template <typename Char>
+bool TransitionsAccessor::IsExpectedTransitionKey(
+    Tagged<Name> transition_name, base::Vector<const Char> key_chars) {
+  return IsString(transition_name) &&
+         Cast<String>(transition_name)->IsEqualTo(key_chars);
+}
+
+template <typename Char>
+bool TransitionsAccessor::IsExpectedTransition(
+    Tagged<Name> transition_name, Tagged<Map> transition_target,
+    base::Vector<const Char> key_chars) {
+  return IsExpectedTransitionKey(transition_name, key_chars) &&
+         IsExpectedTransitionTarget(transition_target);
 }
 
 template <typename Char>
@@ -510,17 +524,52 @@ std::pair<Handle<String>, Handle<Map>> TransitionsAccessor::ExpectedTransition(
       Tagged<TransitionArray> array =
           Cast<TransitionArray>(raw_transitions_.GetHeapObjectAssumeStrong());
       int entries = array->number_of_transitions();
-      // Do linear search for small entries.
-      const int kMaxEntriesForLinearSearch = 8;
-      if (entries > kMaxEntriesForLinearSearch) {
+      if (entries == 0) {
         return {Handle<String>::null(), Handle<Map>::null()};
       }
-      for (int i = entries - 1; i >= 0; i--) {
+      Tagged<Map> target;
+      auto matches_entry = [&](int i, Tagged<Name> name) {
+        if (!IsExpectedTransitionKey(name, key_chars)) return false;
+        target = array->GetTarget(i);
+        return IsExpectedTransitionTarget(target);
+      };
+
+      // For very small arrays, compare string lengths and characters directly
+      // without computing a string hash.
+      constexpr int kMaxEntriesForDirectLinearSearch = 8;
+      if (entries <= kMaxEntriesForDirectLinearSearch) {
+        for (int i = entries - 1; i >= 0; i--) {
+          Tagged<Name> name = array->GetKey(i);
+          if (matches_entry(i, name)) {
+            return {handle(Cast<String>(name), isolate_),
+                    handle(target, isolate_)};
+          }
+        }
+        return {Handle<String>::null(), Handle<Map>::null()};
+      }
+
+      // TransitionArrays up to kMaxElementsForLinearSearch are unsorted, so
+      // filter linearly by precomputed Name::hash(). Larger arrays are sorted
+      // by Name::hash() (see TransitionArray::SearchName).
+      uint32_t hash = Name::HashBits::decode(StringHasher::HashSequentialString(
+          key_chars.begin(), key_chars.length(), HashSeed(isolate_)));
+      if (entries <= TransitionArray::kMaxElementsForLinearSearch) {
+        for (int i = entries - 1; i >= 0; i--) {
+          Tagged<Name> name = array->GetKey(i);
+          if (name->hash() == hash && matches_entry(i, name)) {
+            return {handle(Cast<String>(name), isolate_),
+                    handle(target, isolate_)};
+          }
+        }
+        return {Handle<String>::null(), Handle<Map>::null()};
+      }
+
+      for (int i = array->BinarySearchFirstIndex(hash); i < entries; ++i) {
         Tagged<Name> name = array->GetKey(i);
-        Tagged<Map> target = array->GetTarget(i);
-        if (IsExpectedTransition(name, target, key_chars)) {
+        if (name->hash() != hash) break;
+        if (matches_entry(i, name)) {
           return {handle(Cast<String>(name), isolate_),
-                  handle(GetTarget(i), isolate_)};
+                  handle(target, isolate_)};
         }
       }
       return {Handle<String>::null(), Handle<Map>::null()};

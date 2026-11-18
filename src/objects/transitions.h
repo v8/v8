@@ -120,11 +120,6 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
                            DisallowGarbageCollection* no_gc);
 
   template <typename Char>
-  inline bool IsExpectedTransition(Tagged<Name> transition_name,
-                                   Tagged<Map> transition_target,
-                                   base::Vector<const Char> key_chars);
-
-  template <typename Char>
   inline std::pair<Handle<String>, Handle<Map>> ExpectedTransition(
       base::Vector<const Char> key_chars);
 
@@ -264,6 +259,14 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
                                                 DirectHandle<Map> map);
   static inline Tagged<Name> GetSimpleTransitionKey(Tagged<Map> transition);
   inline PropertyDetails GetSimpleTargetDetails(Tagged<Map> transition);
+  inline bool IsExpectedTransitionTarget(Tagged<Map> transition_target);
+  template <typename Char>
+  inline bool IsExpectedTransitionKey(Tagged<Name> transition_name,
+                                      base::Vector<const Char> key_chars);
+  template <typename Char>
+  inline bool IsExpectedTransition(Tagged<Name> transition_name,
+                                   Tagged<Map> transition_target,
+                                   base::Vector<const Char> key_chars);
 
   static inline Tagged<Map> GetTargetFromRaw(Tagged<MaybeObject> raw);
 
@@ -441,6 +444,7 @@ V8_OBJECT class TransitionArray : public WeakFixedArray {
                                         PropertyAttributes attributes);
 
   inline int LinearSearchName(Tagged<Name> name, int* out_insertion_index);
+  inline int BinarySearchFirstIndex(uint32_t hash);
   inline int BinarySearchName(Tagged<Name> name, int* out_insertion_index);
 
   // Find all transitions with given name and calls the callback.
