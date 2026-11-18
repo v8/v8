@@ -2085,10 +2085,12 @@ struct MoveCycleState {
   // which should therefore not be used as a temporary location by
   // {MoveToTempLocation}.
   RegList scratch_regs;
+  DoubleRegList scratch_fp_regs;
   // Available scratch registers during the move cycle resolution scope.
   std::optional<UseScratchRegisterScope> temps;
   // Scratch register picked by {MoveToTempLocation}.
   std::optional<Register> scratch_reg;
+  std::optional<DoubleRegister> scratch_fp_reg;
 };
 
 inline MemOperand ExitFrameStackSlotOperand(int offset) {

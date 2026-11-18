@@ -5786,20 +5786,24 @@ void CodeGenerator::MoveToTempLocation(InstructionOperand* source,
   // resolve the move cycle. Re-include them immediately afterwards as they
   // might be needed for the move to the temp location.
   temps.Exclude(move_cycle_.scratch_regs);
-  if (!IsFloatingPoint(rep)) {
-    if (temps.CanAcquire()) {
-      Register scratch = move_cycle_.temps->Acquire();
-      move_cycle_.scratch_reg.emplace(scratch);
+  if (IsFloatingPoint(rep)) {
+    if (!move_cycle_.scratch_fp_regs.has(kScratchDoubleReg)) {
+      move_cycle_.scratch_fp_reg.emplace(kScratchDoubleReg);
     }
+  } else if (temps.CanAcquire()) {
+    Register scratch = move_cycle_.temps->Acquire();
+    move_cycle_.scratch_reg.emplace(scratch);
   }
 
   temps.Include(move_cycle_.scratch_regs);
 
   if (move_cycle_.scratch_reg.has_value()) {
-    // A scratch register is available for this rep.
-    // auto& scratch_reg = *move_cycle_.scratch_reg;
     AllocatedOperand scratch(LocationOperand::REGISTER, rep,
                              move_cycle_.scratch_reg->code());
+    AssembleMove(source, &scratch);
+  } else if (move_cycle_.scratch_fp_reg.has_value()) {
+    AllocatedOperand scratch(LocationOperand::REGISTER, rep,
+                             move_cycle_.scratch_fp_reg->code());
     AssembleMove(source, &scratch);
   } else {
     // The scratch registers are blocked by pending moves. Use the stack
@@ -5811,9 +5815,12 @@ void CodeGenerator::MoveToTempLocation(InstructionOperand* source,
 void CodeGenerator::MoveTempLocationTo(InstructionOperand* dest,
                                        MachineRepresentation rep) {
   if (move_cycle_.scratch_reg.has_value()) {
-    // auto& scratch_reg = *move_cycle_.scratch_reg;
     AllocatedOperand scratch(LocationOperand::REGISTER, rep,
                              move_cycle_.scratch_reg->code());
+    AssembleMove(&scratch, dest);
+  } else if (move_cycle_.scratch_fp_reg.has_value()) {
+    AllocatedOperand scratch(LocationOperand::REGISTER, rep,
+                             move_cycle_.scratch_fp_reg->code());
     AssembleMove(&scratch, dest);
   } else {
     Pop(dest, rep);
@@ -5830,6 +5837,8 @@ void CodeGenerator::SetPendingMove(MoveOperands* move) {
   if (src->IsConstant() && dst->IsFPLocationOperand()) {
     Register temp = temps.Acquire();
     move_cycle_.scratch_regs.set(temp);
+  } else if (src->IsFPStackSlot() && dst->IsFPStackSlot()) {
+    move_cycle_.scratch_fp_regs.set(kScratchDoubleReg);
   } else if (src->IsAnyStackSlot() || dst->IsAnyStackSlot()) {
     RiscvOperandConverter g(this, nullptr);
     bool src_need_scratch = false;
