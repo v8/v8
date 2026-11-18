@@ -4552,6 +4552,7 @@ void CodeGenerator::Pop(InstructionOperand* dest, MachineRepresentation rep) {
     __ Daddu(sp, sp, Operand(dropped_slots * kSystemPointerSize));
   }
   temp_slots_ -= dropped_slots;
+  DCHECK_GE(temp_slots_, 0);
 }
 
 void CodeGenerator::PopTempStackSlots() {
