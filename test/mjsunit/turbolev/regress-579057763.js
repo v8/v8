@@ -65,9 +65,11 @@ for (const { input, expected } of cases) {
 assertOptimized(storeTypedArray);
 assertOptimized(loadTypedArray);
 
-// Out-of-bounds accesses.
+// Out-of-bounds accesses must deopt through the inlined bounds check.
 assertEquals(undefined, loadTypedArray(arr1, 8));
+assertUnoptimized(loadTypedArray);
 storeTypedArray(arr1, 8, 1.5);
+assertUnoptimized(storeTypedArray);
 
 // 2. Constant off-heap Float16Array element load and store.
 const constArr = new Float16Array(new ArrayBuffer(128));
@@ -96,7 +98,9 @@ assertOptimized(storeConstTypedArray);
 assertOptimized(loadConstTypedArray);
 
 assertEquals(undefined, loadConstTypedArray(64));
+assertUnoptimized(loadConstTypedArray);
 storeConstTypedArray(64, 1.5);
+assertUnoptimized(storeConstTypedArray);
 
 // 3. DataView.prototype.getFloat16 and DataView.prototype.setFloat16.
 const view = new DataView(new ArrayBuffer(16));
@@ -174,4 +178,6 @@ assertOptimized(loadDataViewBE);
 assertOptimized(storeDataViewMissingValue);
 
 assertThrows(() => loadDataView(view, 15, true), RangeError);
+assertUnoptimized(loadDataView);
 assertThrows(() => storeDataView(view, 15, 1.5, true), RangeError);
+assertUnoptimized(storeDataView);

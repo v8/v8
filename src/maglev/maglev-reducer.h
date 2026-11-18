@@ -1834,7 +1834,8 @@ class MaglevReducer {
     return graph()->compilation_info()->is_turbolev();
   }
   bool CanInlineFloat16() const {
-    return IsSupported(CpuOperation::kFloat16RawBitsConversion);
+    return is_turbolev() ||
+           IsSupported(CpuOperation::kFloat16RawBitsConversion);
   }
 
   KnownNodeAspects& known_node_aspects() {

@@ -6810,11 +6810,71 @@ class GraphBuildingNodeProcessor {
         GetArrayTypeFromElementsKind(kind));
   }
 
+#ifdef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+  static constexpr bool kSupportsFpParamsInCLinkage = Is64();
+#else
+  static constexpr bool kSupportsFpParamsInCLinkage = false;
+#endif
+
+  V<Float64> ConvertFloat16RawBitsToFloat64(V<Word32> input) {
+    if (SupportedOperations::float16_raw_bits_conversion()) {
+      return __ ChangeFloat16RawBitsToFloat64(input);
+    }
+    Zone* zone = graph_zone();
+    MachineSignature::Builder builder(zone, 1, 1);
+    builder.AddReturn(MachineType::Uint32());
+    builder.AddParam(MachineType::Uint32());
+    CallDescriptor* desc = Linkage::GetSimplifiedCDescriptor(
+        zone, builder.Get(), CallDescriptor::kNoFlags, Operator::kPure);
+    const TSCallDescriptor* ts_desc = TSCallDescriptor::Create(
+        desc, CanThrow{false}, LazyDeoptOnThrow{false}, zone);
+    V<WordPtr> callee = __ ExternalConstant(
+        ExternalReference::ieee754_fp16_raw_bits_to_fp32_raw_bits());
+    V<Word32> float32_raw_bits =
+        __ template Call<Word32>(callee, {input}, ts_desc, OpEffects());
+    return __ ChangeFloat32ToFloat64(
+        __ BitcastWord32ToFloat32(float32_raw_bits));
+  }
+
+  V<Word32> TruncateFloat64ToFloat16RawBits(V<Float64> input) {
+    if (SupportedOperations::float16_raw_bits_conversion()) {
+      return __ TruncateFloat64ToFloat16RawBits(input);
+    }
+    Zone* zone = graph_zone();
+    if constexpr (kSupportsFpParamsInCLinkage) {
+      MachineSignature::Builder builder(zone, 1, 1);
+      builder.AddReturn(MachineType::Uint32());
+      builder.AddParam(MachineType::Float64());
+      CallDescriptor* desc = Linkage::GetSimplifiedCDescriptor(
+          zone, builder.Get(), CallDescriptor::kNoFlags, Operator::kPure);
+      const TSCallDescriptor* ts_desc = TSCallDescriptor::Create(
+          desc, CanThrow{false}, LazyDeoptOnThrow{false}, zone);
+      V<WordPtr> callee = __ ExternalConstant(
+          ExternalReference::ieee754_fp64_to_fp16_raw_bits());
+      return __ template Call<Word32>(callee, {input}, ts_desc, OpEffects());
+    } else {
+      MachineSignature::Builder builder(zone, 1, 2);
+      builder.AddReturn(MachineType::Uint32());
+      builder.AddParam(MachineType::Uint32());
+      builder.AddParam(MachineType::Uint32());
+      CallDescriptor* desc = Linkage::GetSimplifiedCDescriptor(
+          zone, builder.Get(), CallDescriptor::kNoFlags, Operator::kPure);
+      const TSCallDescriptor* ts_desc = TSCallDescriptor::Create(
+          desc, CanThrow{false}, LazyDeoptOnThrow{false}, zone);
+      V<WordPtr> callee = __ ExternalConstant(
+          ExternalReference::
+              ieee754_fp64_raw_bits_to_fp16_raw_bits_for_32bit_arch());
+      V<Word32> hi = __ Float64ExtractHighWord32(input);
+      V<Word32> lo = __ Float64ExtractLowWord32(input);
+      return __ template Call<Word32>(callee, {hi, lo}, ts_desc, OpEffects());
+    }
+  }
+
   V<Float64> ConvertFloatElementToFloat64(V<Untagged> loaded,
                                           ExternalArrayType type) {
     switch (type) {
       case ExternalArrayType::kExternalFloat16Array:
-        return __ ChangeFloat16RawBitsToFloat64(V<Word32>::Cast(loaded));
+        return ConvertFloat16RawBitsToFloat64(V<Word32>::Cast(loaded));
       case ExternalArrayType::kExternalFloat32Array:
         return __ ChangeFloat32ToFloat64(V<Float32>::Cast(loaded));
       case ExternalArrayType::kExternalFloat64Array:
@@ -6833,7 +6893,7 @@ class GraphBuildingNodeProcessor {
                                             ExternalArrayType type) {
     switch (type) {
       case ExternalArrayType::kExternalFloat16Array:
-        return __ TruncateFloat64ToFloat16RawBits(input);
+        return TruncateFloat64ToFloat16RawBits(input);
       case ExternalArrayType::kExternalFloat32Array:
         return __ TruncateFloat64ToFloat32(input);
       case ExternalArrayType::kExternalFloat64Array:

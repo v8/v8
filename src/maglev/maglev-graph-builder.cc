@@ -5132,8 +5132,6 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccessOnTypedArray(
   DCHECK(HasOnlyJSTypedArrayMaps(
       base::VectorOf(access_info.lookup_start_object_maps())));
   ElementsKind elements_kind = access_info.elements_kind();
-  // TODO(victorgomes): Lower Float16 conversions in TurbolevGraphBuilder so
-  // Turbolev does not depend on hardware FP16 support.
   if ((elements_kind == FLOAT16_ELEMENTS && !reducer_.CanInlineFloat16()) ||
       elements_kind == BIGUINT64_ELEMENTS ||
       elements_kind == BIGINT64_ELEMENTS) {
