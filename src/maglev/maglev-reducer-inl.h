@@ -7467,7 +7467,9 @@ inline bool IsSmallFunction(int bytecode_length,
   const bool has_heapnumber_input_output =
       use_repr_hints.contains_any(kHeapNumRepresentations) ||
       std::ranges::any_of(arguments, [](ValueNode* input) {
-        return input->UnwrapIdentities()->is_float64_or_holey_float64();
+        DCHECK(!input->is_conversion() && !input->Is<Identity>() &&
+               !input->Is<ReturnedValue>());
+        return input->is_float64_or_holey_float64();
       });
 
   const int limit =

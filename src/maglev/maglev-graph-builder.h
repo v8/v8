@@ -75,6 +75,21 @@ struct MaglevCallerDetails {
   bool is_small_function;
   float call_frequency;
   InliningTreeDebugInfo* parent_inlining_tree_debug_info;
+
+  void UnwrapArguments() {
+    for (ValueNode*& arg : arguments) {
+      arg = arg->Unwrap();
+    }
+  }
+
+  void CheckArgumentsAreUnwrapped() const {
+#ifdef DEBUG
+    for (ValueNode* arg : arguments) {
+      DCHECK(!arg->is_conversion() && !arg->Is<Identity>() &&
+             !arg->Is<ReturnedValue>());
+    }
+#endif
+  }
 };
 
 struct MaglevCallSiteInfo {

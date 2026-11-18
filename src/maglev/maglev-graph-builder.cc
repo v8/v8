@@ -741,6 +741,7 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
 
   if (is_inline()) {
     DCHECK_NOT_NULL(caller_details);
+    caller_details->CheckArgumentsAreUnwrapped();
     DCHECK_GT(compilation_unit->inlining_depth(), 0);
     // The allocation/initialisation logic here relies on inline_exit_offset
     // being the offset one past the end of the bytecode.
@@ -7729,6 +7730,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
                           /* is_small_function */ false, call_frequency,
                           current_inlining_tree_debug_info_},
       generic_call, feedback_cell, score, bytecode.length());
+  call_site->caller_details.CheckArgumentsAreUnwrapped();
   TRACE_INLINING(TracePush(shared)
                  << "Score: " << std::right << std::setw(6) << std::fixed
                  << std::setprecision(2) << call_site->score << ", Node: n"

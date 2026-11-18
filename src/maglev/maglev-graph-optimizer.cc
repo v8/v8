@@ -1770,9 +1770,9 @@ ProcessResult MaglevGraphOptimizer::VisitCall(Call* node,
   // TODO(victorgomes): Investigate if we can avoid this copy.
   auto arguments =
       reducer_.zone()->AllocateVector<ValueNode*>(node->num_args());
-  arguments[0] = converted_receiver;
+  arguments[0] = converted_receiver->Unwrap();
   for (int i = 1; i < node->num_args(); ++i) {
-    arguments[i] = node->arg(i).node();
+    arguments[i] = node->arg(i).node()->Unwrap();
   }
 
   if (!reducer_.CanInlineCall(current_unit, shared, feedback_cell,
@@ -1813,6 +1813,7 @@ ProcessResult MaglevGraphOptimizer::VisitCall(Call* node,
           is_small_function, call_frequency,
           reducer_.graph()->inlining_tree_debug_info()},
       new_call_node, feedback_cell, score, bytecode_length);
+  call_site->caller_details.CheckArgumentsAreUnwrapped();
 
   reducer_.PushInlineCandidate(call_site);
 
