@@ -4563,16 +4563,12 @@ void MacroAssembler::SwapFloat32(DoubleRegister src, MemOperand dst,
 
 void MacroAssembler::SwapFloat32(MemOperand src, MemOperand dst,
                                  DoubleRegister scratch) {
-  // push d0, to be used as scratch
-  lay(sp, MemOperand(sp, -kDoubleSize));
-  StoreF64(d0, MemOperand(sp));
+  DCHECK(!AreAliased(scratch, kDoubleRegZero));
   LoadF32(scratch, src);
-  LoadF32(d0, dst);
+  LoadF32(kDoubleRegZero, dst);
   StoreF32(scratch, dst);
-  StoreF32(d0, src);
-  // restore d0
-  LoadF64(d0, MemOperand(sp));
-  lay(sp, MemOperand(sp, kDoubleSize));
+  StoreF32(kDoubleRegZero, src);
+  lzdr(kDoubleRegZero);
 }
 
 void MacroAssembler::SwapDouble(DoubleRegister src, DoubleRegister dst,
@@ -4594,16 +4590,12 @@ void MacroAssembler::SwapDouble(DoubleRegister src, MemOperand dst,
 
 void MacroAssembler::SwapDouble(MemOperand src, MemOperand dst,
                                 DoubleRegister scratch) {
-  // push d0, to be used as scratch
-  lay(sp, MemOperand(sp, -kDoubleSize));
-  StoreF64(d0, MemOperand(sp));
+  DCHECK(!AreAliased(scratch, kDoubleRegZero));
   LoadF64(scratch, src);
-  LoadF64(d0, dst);
+  LoadF64(kDoubleRegZero, dst);
   StoreF64(scratch, dst);
-  StoreF64(d0, src);
-  // restore d0
-  LoadF64(d0, MemOperand(sp));
-  lay(sp, MemOperand(sp, kDoubleSize));
+  StoreF64(kDoubleRegZero, src);
+  lzdr(kDoubleRegZero);
 }
 
 void MacroAssembler::SwapSimd128(Simd128Register src, Simd128Register dst,
@@ -4624,16 +4616,13 @@ void MacroAssembler::SwapSimd128(Simd128Register src, MemOperand dst,
 
 void MacroAssembler::SwapSimd128(MemOperand src, MemOperand dst,
                                  Simd128Register scratch) {
-  // push d0, to be used as scratch
-  lay(sp, MemOperand(sp, -kSimd128Size));
-  StoreV128(d0, MemOperand(sp), ip);
+  DCHECK(!AreAliased(scratch, kDoubleRegZero));
   LoadV128(scratch, src, ip);
-  LoadV128(d0, dst, ip);
+  LoadV128(kDoubleRegZero, dst, ip);
   StoreV128(scratch, dst, ip);
-  StoreV128(d0, src, ip);
-  // restore d0
-  LoadV128(d0, MemOperand(sp), ip);
-  lay(sp, MemOperand(sp, kSimd128Size));
+  StoreV128(kDoubleRegZero, src, ip);
+  vx(kDoubleRegZero, kDoubleRegZero, kDoubleRegZero, Condition(0), Condition(0),
+     Condition(0));
 }
 
 void MacroAssembler::ComputeCodeStartAddress(Register dst) {
