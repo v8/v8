@@ -6,7 +6,10 @@
 
 const kPageSize = 1 << 18;
 const kPageMask = ~(kPageSize - 1);
-const kIncrementalMarking = 1 << 5;
+const kPointersToHereAreInteresting = 1 << 1;
+const kPointersFromHereAreInteresting = 1 << 2;
+const kInterestingPointersMask =
+    kPointersToHereAreInteresting | kPointersFromHereAreInteresting;
 const kBufferOffset = Sandbox.getFieldOffset(
     Sandbox.getInstanceTypeIdFor('JS_TYPED_ARRAY_TYPE'), 'byte_offset') - 8;
 const kBackingStoreOffset = Sandbox.getFieldOffset(
@@ -36,21 +39,25 @@ const [page0] = pages;
 // concurrent marking marks the promoted views and their unmaterialized
 // JSArrayBuffers black before their ArrayBufferExtensions are created.
 const ballast = [];
-while (!(mem.getUint32(page0, true) & kIncrementalMarking)) {
+while (!(mem.getUint32(page0, true) & kPointersToHereAreInteresting)) {
   ballast.push(new Array(4000).fill(0));
 }
 for (let i = 0; i < 5e7; i++) {}
 
-// Materialize the ArrayBufferExtensions while kIncrementalMarking is cleared on
-// the host pages so WriteBarrier::ForArrayBufferExtension is bypassed.
+// Materialize the ArrayBufferExtensions while the untrusted barrier flags are
+// cleared on the host pages to verify WriteBarrier::ForArrayBufferExtension
+// does not rely on them.
+const savedFlags = new Map();
 for (const page of pages) {
-  mem.setUint32(page, mem.getUint32(page, true) & ~kIncrementalMarking, true);
+  const flags = mem.getUint32(page, true);
+  savedFlags.set(page, flags);
+  mem.setUint32(page, flags & ~kInterestingPointersMask, true);
 }
 for (let i = kStartIndex; i < views.length; i++) {
   views[i].buffer;
 }
 for (const page of pages) {
-  mem.setUint32(page, mem.getUint32(page, true) | kIncrementalMarking, true);
+  mem.setUint32(page, savedFlags.get(page), true);
 }
 
 // Finalize incremental marking and launch concurrent ArrayBufferSweeper on old_.

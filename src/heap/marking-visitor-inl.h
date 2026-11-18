@@ -81,19 +81,6 @@ void MarkingVisitorBase<ConcreteVisitor>::ProcessStrongHeapObject(
   if (!target_worklist) {
     return;
   }
-  // TODO(chromium:1495151): Remove after diagnosing.
-  if (V8_UNLIKELY(!MemoryChunk::FromHeapObject(heap_object)->IsMarking() &&
-                  IsFreeSpaceOrFiller(heap_object))) {
-    heap_->isolate()->PushParamsAndDie(
-        "marking non-marking free space or filler",
-        reinterpret_cast<void*>(host->map().ptr()),
-        reinterpret_cast<void*>(host->address()),
-        reinterpret_cast<void*>(slot.address()),
-        reinterpret_cast<void*>(
-            BasePage::FromHeapObject(heap_->isolate(), heap_object)
-                ->owner()
-                ->identity()));
-  }
   MarkObject(host, heap_object, target_worklist.value());
   concrete_visitor()->RecordSlot(host, slot, heap_object);
 }

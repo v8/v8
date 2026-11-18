@@ -386,34 +386,14 @@ int WriteBarrier::SharedFromCode(Isolate* isolate, Address raw_host,
 
 // static
 bool WriteBarrier::PageFlagsAreConsistent(Tagged<HeapObject> object) {
-  BasePage* metadata = BasePage::FromHeapObject(Isolate::Current(), object);
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
-
   if (!v8_flags.sticky_mark_bits) {
+    BasePage* metadata = BasePage::FromHeapObject(Isolate::Current(), object);
+    MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
     AllocationSpace identity = metadata->owner()->identity();
 
     // Generation consistency.
     CHECK_EQ(identity == NEW_SPACE || identity == NEW_LO_SPACE,
              chunk->InYoungGeneration());
-  }
-
-  // Marking consistency.
-  if (metadata->IsWritable()) {
-    // RO_SPACE can be shared between heaps, so we can't use RO_SPACE objects to
-    // find a heap. The exception is when the ReadOnlySpace is writeable, during
-    // bootstrapping, so explicitly allow this case.
-    Heap* heap = Heap::FromWritableHeapObject(object);
-    if (chunk->InWritableSharedSpace()) {
-      // The marking bit is not set for chunks in shared spaces during MinorMS
-      // concurrent marking.
-      CHECK_EQ(chunk->IsMarking(),
-               heap->incremental_marking()->IsMajorMarking());
-    } else {
-      CHECK_EQ(chunk->IsMarking(), heap->incremental_marking()->IsMarking());
-    }
-  } else {
-    // Non-writable RO_SPACE must never have marking flag set.
-    CHECK(!chunk->IsMarking());
   }
   return true;
 }

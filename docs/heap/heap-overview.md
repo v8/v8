@@ -44,7 +44,7 @@ Inside Sandbox (256KB-aligned Page Base)          Outside Sandbox (Trusted C++ H
 1. **`MemoryChunk` (`src/heap/memory-chunk.h`, In-Sandbox)**:
    * Located at offset `0` of the aligned page (`MemoryChunk::FromAddress(a)`).
    * Contains **only two fields**:
-     1. `untrusted_main_thread_flags_` (`MainThreadFlags`): Bitflags queried on hot inline paths (such as `POINTERS_FROM_HERE_ARE_INTERESTING`, `POINTERS_TO_HERE_ARE_INTERESTING`, `IN_WRITABLE_SHARED_SPACE`, `FROM_PAGE`, `TO_PAGE`, `INCREMENTAL_MARKING`, `EVACUATION_CANDIDATE`). Code reading these flags must treat them as **untrusted hints**; corrupting them may never violate memory safety outside the sandbox (for example, page executability `IsExecutableField` is stored only in the trusted `BasePage::flags_`).
+     1. `untrusted_main_thread_flags_` (`MainThreadFlags`): Bitflags queried on hot inline paths (such as `POINTERS_FROM_HERE_ARE_INTERESTING`, `POINTERS_TO_HERE_ARE_INTERESTING`, `IN_WRITABLE_SHARED_SPACE`, `FROM_PAGE`, `TO_PAGE`, `EVACUATION_CANDIDATE`). Code reading these flags must treat them as **untrusted hints**; corrupting them may never violate memory safety outside the sandbox (for example, page executability `IsExecutableField` is stored only in the trusted `BasePage::flags_`).
      2. `metadata_index_` (`uint32_t`, under `V8_ENABLE_SANDBOX`) or `metadata_` (`BasePage*`, when the sandbox is disabled).
    * **Validated Metadata Lookup (`MemoryChunk::Metadata()` in `src/heap/memory-chunk-inl.h`)**:
      * Indexes into `IsolateGroup::current()->metadata_pointer_table()[metadata_index_ & kMetadataPointerTableSizeMask]`.

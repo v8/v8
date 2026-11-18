@@ -18,8 +18,10 @@ const kJSTypedArrayType = Sandbox.getInstanceTypeIdFor('JS_TYPED_ARRAY_TYPE');
 const kTypedArrayBufferOffset =
     Sandbox.getFieldOffset(kJSTypedArrayType, 'byte_offset') - 8;
 
-const kIsInYoungGenerationMask = 0x10;
-const kIncrementalMarking = 0x20;
+// TO_PAGE
+const kIsInYoungGenerationMask = 1 << 4;
+// POINTERS_FROM_HERE_ARE_INTERESTING
+const kPointersFromHereAreInteresting = 1 << 2;
 const kBacklogCount = 1000;
 const kBufferLength = 16 * 1024 * 1024;
 
@@ -48,14 +50,14 @@ for (let i = 0; i < emptyViews.length; ++i) {
   write32(page, flags);
 }
 
-// Forge the incremental marking flag on the young-space page so the EPT write
-// barrier marks the new EPT entry while the ArrayBufferExtension itself stays
-// unmarked.
+// Forge the remaining marking-indicator page flag on the young-space page to
+// verify the EPT write barrier does not rely on untrusted page flags to mark
+// the new EPT entry while the ArrayBufferExtension itself stays unmarked.
 const marker = {};
 const originalMarkerAddress = addressOf(marker);
 const page = pageOf(originalMarkerAddress);
 const flags = read32(page);
-write32(page, flags | kIncrementalMarking);
+write32(page, flags | kPointersFromHereAreInteresting);
 let victim = new ArrayBuffer(kBufferLength, {maxByteLength: kBufferLength});
 write32(page, flags);
 

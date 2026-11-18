@@ -428,13 +428,6 @@ TEST_F(SpacesTest, WriteBarriers) {
     MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
     MutablePage* metadata = MutablePage::FromHeapObject(i_isolate(), object);
 
-    // Marking states.
-    EXPECT_FALSE(chunk->IsMarking());
-    metadata->SetFlagNonExecutable(MemoryChunk::INCREMENTAL_MARKING);
-    EXPECT_TRUE(chunk->IsMarking());
-    metadata->ClearFlagNonExecutable(MemoryChunk::INCREMENTAL_MARKING);
-    EXPECT_FALSE(chunk->IsMarking());
-
     // In young generation for TO space.
     EXPECT_FALSE(chunk->InYoungGeneration());
     metadata->SetFlagNonExecutable(MemoryChunk::TO_PAGE);
