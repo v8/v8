@@ -333,10 +333,6 @@ void StackMemory::Reset() {
   contains_only_old_pointers_ = false;
 }
 
-bool StackMemory::IsValidContinuation(Tagged<WasmContinuationObject> cont) {
-  return current_cont_ == cont;
-}
-
 std::unique_ptr<StackMemory> StackPool::GetOrAllocate() {
   while (v8_flags.wasm_stack_pool_capacity_mb >= 0 &&
          size_ >

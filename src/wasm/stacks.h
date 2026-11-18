@@ -104,7 +104,6 @@ class V8_EXPORT_PRIVATE StackMemory
   }
   void set_stack_obj(Tagged<WasmStackObject> stack) { stack_obj_ = stack; }
   Tagged<WasmStackObject> stack_obj() { return stack_obj_; }
-  bool IsValidContinuation(Tagged<WasmContinuationObject> cont);
   JumpBuffer* jmpbuf() { return &jmpbuf_; }
   bool Contains(Address addr) const {
     if (!owned_) {
