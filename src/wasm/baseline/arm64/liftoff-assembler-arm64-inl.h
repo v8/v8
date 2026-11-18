@@ -1819,7 +1819,7 @@ void LiftoffAssembler::emit_i64_rol(LiftoffRegister dst, LiftoffRegister src,
 }
 void LiftoffAssembler::emit_i64_roli(LiftoffRegister dst, LiftoffRegister src,
                                      int32_t amount) {
-  Ror(dst.gp().X(), src.gp().X(), (64 - amount) & 63);
+  Ror(dst.gp().X(), src.gp().X(), (64 - (amount & 63)) & 63);
 }
 
 void LiftoffAssembler::emit_i64_ror(LiftoffRegister dst, LiftoffRegister src,

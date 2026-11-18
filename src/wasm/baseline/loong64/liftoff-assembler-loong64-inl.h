@@ -1899,7 +1899,7 @@ void LiftoffAssembler::emit_i64_rol(LiftoffRegister dst, LiftoffRegister src,
 }
 void LiftoffAssembler::emit_i64_roli(LiftoffRegister dst, LiftoffRegister src,
                                      int32_t amount) {
-  rotri_d(dst.gp(), src.gp(), (64 - amount) & 63);
+  rotri_d(dst.gp(), src.gp(), (64 - (amount & 63)) & 63);
 }
 
 void LiftoffAssembler::emit_u32_to_uintptr(Register dst, Register src) {

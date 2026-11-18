@@ -1796,8 +1796,7 @@ void LiftoffAssembler::emit_i64_rol(LiftoffRegister dst, LiftoffRegister src,
 
 void LiftoffAssembler::emit_i64_roli(LiftoffRegister dst, LiftoffRegister src,
                                      int32_t amount) {
-  int amount_ror = 64 - amount;
-  amount_ror &= 63;
+  int amount_ror = (64 - (amount & 63)) & 63;
   if (amount_ror < 32) {
     drotr(dst.gp(), src.gp(), amount_ror);
   } else {

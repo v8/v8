@@ -1444,6 +1444,39 @@ WASM_EXEC_TEST(I64Rol) {
   }
 }
 
+WASM_EXEC_TEST(I64RolConst) {
+  // Include int32_t::min()..int32_t::min()+64 to exercise Liftoff immediate
+  // i64.rotl lowering without signed integer overflow.
+  constexpr int64_t kAmounts[] = {
+      0,
+      1,
+      31,
+      32,
+      33,
+      63,
+      64,
+      -1,
+      -64,
+      std::numeric_limits<int32_t>::min(),
+      std::numeric_limits<int32_t>::min() + 1,
+      std::numeric_limits<int32_t>::min() + 63,
+      std::numeric_limits<int32_t>::min() + 64,
+      std::numeric_limits<int32_t>::max(),
+      std::numeric_limits<int64_t>::min(),
+      std::numeric_limits<int64_t>::max(),
+  };
+  for (int64_t amount : kAmounts) {
+    WasmRunner<uint64_t, uint64_t> r(execution_tier);
+    r.Build({WASM_I64_ROL(WASM_LOCAL_GET(0), WASM_I64V(amount))});
+
+    FOR_UINT64_INPUTS(i) {
+      uint64_t expected =
+          base::bits::RotateLeft64(i, static_cast<uint64_t>(amount) & 0x3F);
+      CHECK_EQ(expected, r.Call(i));
+    }
+  }
+}
+
 WASM_EXEC_TEST(StoreMem_offset_oob_i64) {
   static const MachineType machineTypes[] = {
       MachineType::Int8(),   MachineType::Uint8(),  MachineType::Int16(),
