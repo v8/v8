@@ -2376,10 +2376,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ vl(i.OutputSimd128Register(), src, 0, E8);
         }
       } else {
-        LocationOperand* op = LocationOperand::cast(instr->OutputAt(0));
-        if (op->representation() == MachineRepresentation::kWord32 ||
-            op->representation() == MachineRepresentation::kCompressed ||
-            op->representation() == MachineRepresentation::kCompressedPointer) {
+        if (Is32BitOperand(instr->OutputAt(0))) {
           // Like AssembleMove, use a sign-extending load for 32-bit slots so
           // that the register keeps the riscv64 sign-extension invariant.
           __ Lw(i.OutputRegister(0), MemOperand(fp, offset));
@@ -5857,13 +5854,6 @@ void CodeGenerator::SetPendingMove(MoveOperands* move) {
 }
 
 namespace {
-bool Is32BitOperand(InstructionOperand* operand) {
-  DCHECK(operand->IsStackSlot() || operand->IsRegister());
-  MachineRepresentation mr = LocationOperand::cast(operand)->representation();
-  return mr == MachineRepresentation::kWord32 ||
-         mr == MachineRepresentation::kCompressed ||
-         mr == MachineRepresentation::kCompressedPointer;
-}
 
 // When we need only 32 bits, move only 32 bits, otherwise the destination
 // register' upper 32 bits may contain dirty data.
