@@ -1359,7 +1359,7 @@ class Sweeper::SweeperImpl final {
           return false;
         }
         if (sweeping_mode != MutatorThreadSweepingMode::kAll) {
-          return false;
+          return true;
         }
       }
       FinalizeSweep();
@@ -1487,30 +1487,30 @@ class Sweeper::SweeperImpl final {
   SweepResult SweepInForegroundTaskImpl(v8::base::TimeDelta max_duration,
                                         StatsCollector::ScopeId scope) {
     // First round of sweeping.
-    bool concurrent_sweep_complete = IsConcurrentSweepingDone();
+    const bool concurrent_sweep_complete = IsConcurrentSweepingDone();
     const auto start = v8::base::TimeTicks::Now();
-    bool main_thread_sweep_complete = PerformSweepOnMutatorThread(
+    const bool main_thread_sweep_complete = PerformSweepOnMutatorThread(
         max_duration, scope,
         concurrent_sweep_complete ? MutatorThreadSweepingMode::kAll
                                   : MutatorThreadSweepingMode::kOnlyFinalizers);
-    if (main_thread_sweep_complete && !concurrent_sweep_complete &&
-        IsConcurrentSweepingDone()) {
-      // Concurrent sweeping finished while processing the first round. Use the
-      // left over time for a second round to avoid scheduling another task.
-      max_duration -= (v8::base::TimeTicks::Now() - start);
-      if (max_duration > v8::base::TimeDelta::FromMilliseconds(0)) {
-        concurrent_sweep_complete = true;
-        main_thread_sweep_complete = PerformSweepOnMutatorThread(
-            max_duration, scope, MutatorThreadSweepingMode::kAll);
-      }
+    if (!main_thread_sweep_complete) {
+      return SweepResult::kInProgress;
     }
-    if (main_thread_sweep_complete) {
-      if (!concurrent_sweep_complete) {
-        return SweepResult::kMainThreadDoneConcurrentInProgress;
-      } else {
-        CHECK(!is_in_progress_);
-        return SweepResult::kFullyDone;
-      }
+    if (concurrent_sweep_complete) {
+      CHECK(!is_in_progress_);
+      return SweepResult::kFullyDone;
+    }
+    if (!IsConcurrentSweepingDone()) {
+      return SweepResult::kMainThreadDoneConcurrentInProgress;
+    }
+    // Concurrent sweeping finished while processing the first round. Use the
+    // left over time for a second round to avoid scheduling another task.
+    max_duration -= (v8::base::TimeTicks::Now() - start);
+    if (max_duration > v8::base::TimeDelta::FromMilliseconds(0) &&
+        PerformSweepOnMutatorThread(max_duration, scope,
+                                    MutatorThreadSweepingMode::kAll)) {
+      CHECK(!is_in_progress_);
+      return SweepResult::kFullyDone;
     }
     return SweepResult::kInProgress;
   }
