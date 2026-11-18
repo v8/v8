@@ -593,3 +593,50 @@ function growAndShrinkTwice(
   assertPromiseResult(
       wrapper(15), res => assertEquals([10n, 20n, 30n], res));
 })();
+
+(function TestGrowSegmentAndCentralStackUnwind() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  const importIdx = builder.addImport('m', 'overflowCentralStack', kSig_v_v);
+
+  const growAndCallImport = builder.addFunction('growAndCallImport', kSig_i_i);
+  growAndCallImport.addBody([
+    ...addActiveLocals(growAndCallImport, 1, 600),
+    kExprLocalGet, 0,
+    kExprI32Eqz,
+    kExprIf, kWasmVoid,
+      kExprCallFunction, importIdx,
+      kExprI32Const, 0,
+      kExprReturn,
+    kExprEnd,
+    kExprLocalGet, 0,
+    kExprI32Const, 1,
+    kExprI32Sub,
+    kExprCallFunction, growAndCallImport.index,
+  ]).exportFunc();
+
+  function overflowCentralStack() {
+    return overflowCentralStack();
+  }
+
+  const instance = builder.instantiate({m: {overflowCentralStack}});
+  const promisingExport =
+      WebAssembly.promising(instance.exports.growAndCallImport);
+
+  // Grow multiple secondary stack segments, switch to the central stack, grow
+  // the central stack to overflow, and unwind across ShrinkTo back to the JSPI
+  // entry frame on the first segment.
+  assertPromiseResult(
+      promisingExport(5),
+      () => assertUnreachable(),
+      e => assertInstanceof(e, RangeError));
+
+  function recurseNearLimit() {
+    try {
+      return recurseNearLimit();
+    } catch (e) {
+      return new Error('probe').stack;
+    }
+  }
+  assertTrue(recurseNearLimit().length > 0);
+})();

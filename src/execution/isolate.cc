@@ -2970,10 +2970,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
           reinterpret_cast<uintptr_t>(iter.wasm_stack()->jslimit());
       stack_guard()->SetStackLimitForStackSwitching(limit);
       iter.wasm_stack()->clear_stack_switch_info();
-#if V8_OS_WIN
-      base::Stack::SetCurrentThreadStackBounds(iter.wasm_stack()->limit(),
-                                               iter.wasm_stack()->base());
-#endif
+      iter.wasm_stack()->SwitchStackBoundsFromCentral();
     }
 #endif
 

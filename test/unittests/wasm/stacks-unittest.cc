@@ -10,7 +10,6 @@
 #include <vector>
 
 #include "src/base/platform/mutex.h"
-#include "src/base/platform/platform.h"
 #include "src/flags/flags.h"
 #include "src/utils/allocation.h"
 #include "test/common/flag-utils.h"
@@ -118,23 +117,16 @@ class ReservationTrackingPageAllocator : public v8::PageAllocator {
   std::vector<Address> freed_;
 };
 
-#if V8_OS_WIN
-// {StackMemory::Grow} installs the new segment as the current thread's stack
-// bounds in the TEB. Restore the real bounds of the test thread afterwards.
+// {StackMemory::Grow} expects the thread's stack bounds to already be switched
+// to {stack} and installs the new segment's bounds in the Windows TEB. Switch
+// to {stack}'s bounds beforehand and restore the central stack bounds after.
 class V8_NODISCARD ThreadStackBoundsScope {
  public:
-  ThreadStackBoundsScope()
-      : stack_base_(base::Stack::GetStackStart().value),
-        stack_limit_(base::Stack::GetCommittedStackLimit().value) {}
-  ~ThreadStackBoundsScope() {
-    base::Stack::SetCurrentThreadStackBounds(stack_limit_, stack_base_);
+  explicit ThreadStackBoundsScope(StackMemory* stack) {
+    stack->SwitchStackBoundsFromCentral();
   }
-
- private:
-  uintptr_t stack_base_;
-  uintptr_t stack_limit_;
+  ~ThreadStackBoundsScope() { StackMemory::RestoreCentralStackBounds(); }
 };
-#endif  // V8_OS_WIN
 
 }  // namespace
 
@@ -175,12 +167,12 @@ TEST_F(WasmStackMemoryReleaseTest, GrownStackDestruction) {
   FlagScope<int> stack_size(&v8_flags.wasm_stack_switching_stack_size, 1);
   std::unique_ptr<StackMemory> stack = StackMemory::New();
   Address first_reservation = ActiveSegmentReservation(*stack);
+  bool grew = false;
   {
-#if V8_OS_WIN
-    ThreadStackBoundsScope thread_stack_bounds;
-#endif
-    ASSERT_TRUE(stack->Grow(stack->base(), KB));
+    ThreadStackBoundsScope thread_stack_bounds(stack.get());
+    grew = stack->Grow(stack->base(), KB);
   }
+  ASSERT_TRUE(grew);
   Address second_reservation = ActiveSegmentReservation(*stack);
   ASSERT_NE(first_reservation, second_reservation);
   ASSERT_TRUE(tracker_.IsLive(first_reservation));
