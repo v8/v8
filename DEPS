@@ -114,7 +114,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': '01906ada20b59e7e9a690a75ae7830f4080b3a78',
+  'partition_alloc_version': '637784d022e9e7c7107540d53b352ddc494dc347',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -173,9 +173,9 @@ deps = {
     'condition': 'checkout_agents_internal',
   },
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'e5270b6d8780c5e3c9e4175bd0ae5b357fa2a5d1',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '0433760574573dfbe36adc9ec9f4308c63e9c85c',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '8ffdd1068ab0ebe98e082845b494b18be5f3ec2f',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'c65dc4e8c262156a4a6f8731952711386d7067f3',
   'buildtools/linux64': {
     'packages': [
       {
@@ -264,7 +264,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '6e8c156cb5743122a3bea59a0665384c52f7e00b',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '6a342b1dcaad6ca32fd67d642fe68600a1e85969',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -338,7 +338,7 @@ deps = {
   'third_party/jsoncpp/src':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '93acc7b155048f1a66c43235cc205519f1e7a6ea',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '2c7b4048084397454ff423895c23c40a86dbf214',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '64f64c14ae2f4653af875bd172462a4c5e6afe18',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '8e42446dd61148a66220123297964bd3856e7cf9',
   'third_party/libpfm4':
@@ -348,7 +348,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '9e44ea2ff4f53a60c2a3d2b6f511d7bab9ab12f0',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '7d33739396cb4cfdebcbc02958c8fa133411d69f',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'ee59b6225e1d6daa2df04a86b4efe22d58e68f42',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -535,7 +535,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'd348e36fa3d9db11b0ef52b9f8127a553832fb6e',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '5b1cdf61a3a1017310b9f84834e33f8dfd627020',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '3813fd5b3029807583e5d2549a40d78fa499c3e8',
   'third_party/re2/src':
@@ -549,7 +549,7 @@ deps = {
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + 'd72db9e3040567a7589e00c0ad7ddf25c3b070bc',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '7661f9bcc77d614626b818bc40bd8398e4a48d9c',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + 'aee3445062d8cf2b53941d0ee7eb14fcab91e5b1',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -670,7 +670,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '728ff0c29db223cb9a4394e8f113c01fdbb52805',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'fd9aa96c94f60aa86933ba121e4f7f009dcdf509',
     'condition': 'not build_with_chromium',
   },
   'third_party/boringssl/src': {
