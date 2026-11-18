@@ -26,7 +26,7 @@ const globalI32 = builder.addGlobal(kWasmI32, true, false);
 const globalEqRef = builder.addGlobal(kWasmEqRef, true, false);
 
 const inputsForType = {
-  [kWasmI32]: [0, 1, -1, 3, 7, -0x80000000, 0x7fffffff],
+  [kWasmI32]: [0, 1, -1, 3, 7, 31, 32, 33, -0x80000000, 0x7fffffff],
   [kWasmI64]: [
     0n, 1n, -1n, -7n, 7n, 63n, 64n, 65n,
     0x80n, 0x8000n, 0x80000000n, 0x100000000n, 0x100000001n,
@@ -261,6 +261,23 @@ addBinaryTestcase('I32Ror', kSig_i_ii);
 // CHECK: Considering Wasm function [{{[0-9]+}}] I32Rol of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
 addBinaryTestcase('I32Rol', kSig_i_ii);
+// CHECK: Considering Wasm function [{{[0-9]+}}] I32RolConst of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addTestcase('I32RolConst', kSig_i_i, null, [
+  kExprLocalGet, 0,
+  ...wasmI32Const(0),
+  kExprI32Rol,
+  kExprLocalGet, 0,
+  ...wasmI32Const(1),
+  kExprI32Add,
+  ...wasmI32Const(32),
+  kExprI32Rol,
+  kExprI32Xor,
+  kExprLocalGet, 0,
+  ...wasmI32Const(37),
+  kExprI32Rol,
+  kExprI32Xor,
+]);
 // CHECK: Considering Wasm function [{{[0-9]+}}] I32Eq of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
 addBinaryTestcase('I32Eq', kSig_i_ii);

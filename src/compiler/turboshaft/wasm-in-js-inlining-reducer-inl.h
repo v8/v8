@@ -485,7 +485,7 @@ class WasmInJsInliningInterface {
           return __ Word32RotateLeft(lhs, __ Word32BitwiseAnd(rhs, 0x1f));
         } else {
           return __ Word32RotateRight(
-              lhs, __ Word32Sub(32, __ Word32BitwiseAnd(rhs, 0x1f)));
+              lhs, __ Word32BitwiseAnd(__ Word32Sub(0, rhs), 0x1f));
         }
       case wasm::kExprI32Eq:
         return __ Word32Equal(lhs, rhs);
@@ -540,7 +540,7 @@ class WasmInJsInliningInterface {
         } else {
           return __ Word64RotateRight(
               lhs, __ Word32BitwiseAnd(
-                       __ Word32Sub(64, __ TruncateWord64ToWord32(rhs)), 0x3f));
+                       __ Word32Sub(0, __ TruncateWord64ToWord32(rhs)), 0x3f));
         }
       case wasm::kExprI64Eq:
         return __ Word64Equal(lhs, rhs);
