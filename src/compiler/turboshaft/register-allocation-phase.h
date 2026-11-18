@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_TURBOSHAFT_REGISTER_ALLOCATION_PHASE_H_
 #define V8_COMPILER_TURBOSHAFT_REGISTER_ALLOCATION_PHASE_H_
 
+#include "src/common/synchronization-point-support.h"
 #ifdef BUILTIN_BLOCK_POSITION
 #include "src/compiler/backend/block-position.h"
 #endif
@@ -220,6 +221,7 @@ struct AssembleCodePhase {
     if (data->broker() != nullptr) {
       code_generator->PrepareCodeOnBackground(data->broker()->local_isolate());
     }
+    SYNCHRONIZATION_POINT_TEST_ONLY("TurboshaftAfterAssembleCode");
   }
 };
 
