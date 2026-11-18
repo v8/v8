@@ -392,7 +392,7 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
         "--stress-concurrent-allocation", "--stress-concurrent-inlining",
         "--wasm-test-streaming"
     ],
-    "dict_property_const_tracking": ["--stress-concurrent-inlining"],
+    "dict_prototypes": ["--stress-concurrent-inlining"],
 }
 
 # Flags that lead to a contradiction when a certain extra-flag is present.

@@ -292,6 +292,16 @@ static_assert(!V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE_BOOL ||
 #define V8_DICT_PROPERTY_CONST_TRACKING_BOOL false
 #endif
 
+// Determine whether dictionary mode prototypes feature (keeping prototypes in
+// dictionary mode and tracking validity cell dependencies) is enabled.
+#ifdef V8_DICT_PROTOTYPES
+#define V8_DICT_PROTOTYPES_BOOL true
+#else
+#define V8_DICT_PROTOTYPES_BOOL false
+#endif
+
+static_assert(!V8_DICT_PROTOTYPES_BOOL || V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
+
 #ifdef V8_EXTERNAL_CODE_SPACE
 #define V8_EXTERNAL_CODE_SPACE_BOOL true
 #else

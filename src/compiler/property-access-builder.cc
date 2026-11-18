@@ -207,7 +207,7 @@ MachineRepresentation PropertyAccessBuilder::ConvertRepresentation(
 
 std::optional<Node*> PropertyAccessBuilder::FoldLoadDictPrototypeConstant(
     PropertyAccessInfo const& access_info) {
-  DCHECK(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
+  DCHECK(V8_DICT_PROTOTYPES_BOOL);
   DCHECK(access_info.IsDictionaryProtoDataConstant());
 
   InternalIndex index = access_info.dictionary_index();

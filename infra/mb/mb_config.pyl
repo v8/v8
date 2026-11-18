@@ -1135,7 +1135,7 @@
     },
 
     'v8_enable_dict_property_const_tracking': {
-      'gn_args': 'v8_dict_property_const_tracking=true',
+      'gn_args': 'v8_dict_property_const_tracking=true v8_dict_prototypes=true',
     },
 
     'v8_disable_metagen': {

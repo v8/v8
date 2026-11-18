@@ -635,6 +635,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(IsConcatSpreadableProtector, 0, 1)                                   \
   F(IsConcurrentRecompilationSupported, 0, 1)                            \
   F(IsDictPropertyConstTrackingEnabled, 0, 1)                            \
+  F(IsDictPrototypesEnabled, 0, 1)                                       \
   F(IsEfficiencyModeEnabled, 0, 1)                                       \
   F(IsInPlaceInternalizableString, 1, 1)                                 \
   F(IsInternalizedString, 1, 1)                                          \

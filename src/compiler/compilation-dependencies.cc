@@ -327,7 +327,7 @@ class ConstantInDictionaryPrototypeChainDependency final
         property_name_{property_name},
         constant_{constant},
         kind_{kind} {
-    DCHECK(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
+    DCHECK(V8_DICT_PROTOTYPES_BOOL);
   }
 
   // Checks that |constant_| is still the value of accessing |property_name_|

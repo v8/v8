@@ -1021,12 +1021,25 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
         BIND(&check_const);
         {
-          if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
+          if constexpr (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
             GotoIfNot(IsPropertyDetailsConst(details), &overwrite);
             TNode<Object> prev_value =
                 LoadValueByKeyIndex(properties, var_name_index.value());
-
-            Branch(TaggedEqual(prev_value, p->value()), &done, slow);
+            GotoIf(TaggedEqual(prev_value, p->value()), &done);
+            if constexpr (V8_DICT_PROTOTYPES_BOOL) {
+              Goto(slow);
+            } else {
+              CheckForAssociatedProtector(name, slow);
+              TNode<Smi> new_details = SmiFromInt32(
+                  Signed(UpdateWord32<PropertyDetails::ConstnessField>(
+                      details, Uint32Constant(static_cast<uint32_t>(
+                                   PropertyConstness::kMutable)))));
+              StoreDetailsByKeyIndex<PropertyDictionary>(
+                  properties, var_name_index.value(), new_details);
+              StoreValueByKeyIndex<PropertyDictionary>(
+                  properties, var_name_index.value(), p->value());
+              Goto(&done);
+            }
           } else {
             Goto(&overwrite);
           }

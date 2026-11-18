@@ -240,6 +240,10 @@ RUNTIME_FUNCTION(Runtime_IsDictPropertyConstTrackingEnabled) {
       V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
 }
 
+RUNTIME_FUNCTION(Runtime_IsDictPrototypesEnabled) {
+  return ReadOnlyRoots(isolate).boolean_value(V8_DICT_PROTOTYPES_BOOL);
+}
+
 RUNTIME_FUNCTION(Runtime_AddDictionaryProperty) {
   HandleScope scope(isolate);
   DirectHandle<JSObject> receiver = args.at<JSObject>(0);
@@ -1782,6 +1786,9 @@ RUNTIME_FUNCTION(Runtime_CheckFastIterableToListPrototype) {
   // Switch prototype to fast mode in order to ensure that constness tracking
   // will invalidate the prototype's validity cell in case of modification.
   JSObject::MakePrototypesFast(prototype, kStartAtReceiver, isolate);
+  if (!V8_DICT_PROTOTYPES_BOOL && !prototype->HasFastProperties()) {
+    return ReadOnlyRoots(isolate).false_value();
+  }
 
   // 1. Check if the prototype has expected [Symbol.iterator] property (kData
   // and kConst).

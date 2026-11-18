@@ -5211,7 +5211,7 @@ static bool PrototypeBenefitsFromNormalization(Tagged<JSObject> object) {
   if (IsJSGlobalProxy(object)) return false;
   // TODO(v8:11248) make bootstrapper create dict mode prototypes, too?
   if (Isolate::Current()->bootstrapper()->IsActive()) return false;
-  if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) return true;
+  if (V8_DICT_PROTOTYPES_BOOL) return true;
   return !object->map()->is_prototype_map() ||
          !object->map()->should_be_fast_prototype_map();
 }
@@ -5234,13 +5234,14 @@ void JSObject::OptimizeAsPrototype(DirectHandle<JSObject> object,
   if (object->map()->is_prototype_map()) {
     if (enable_setup_mode && PrototypeBenefitsFromNormalization(*object)) {
       // This is the only way PrototypeBenefitsFromNormalization can be true:
-      DCHECK(!object->map()->should_be_fast_prototype_map());
+      DCHECK_IMPLIES(!V8_DICT_PROTOTYPES_BOOL,
+                     !object->map()->should_be_fast_prototype_map());
       // First normalize to ensure all JSFunctions are DATA_CONSTANT.
       constexpr bool kUseCache = true;
       JSObject::NormalizeProperties(isolate, object, KEEP_INOBJECT_PROPERTIES,
                                     0, kUseCache, "NormalizeAsPrototype");
     }
-    if (!V8_DICT_PROPERTY_CONST_TRACKING_BOOL &&
+    if (!V8_DICT_PROTOTYPES_BOOL &&
         object->map()->should_be_fast_prototype_map() &&
         !object->HasFastProperties()) {
       JSObject::MigrateSlowToFast(object, 0, "OptimizeAsPrototype");
@@ -5282,7 +5283,7 @@ void JSObject::OptimizeAsPrototype(DirectHandle<JSObject> object,
     }
     JSObject::MigrateToMap(isolate, object, new_map);
 
-    if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL && !object->HasFastProperties()) {
+    if (V8_DICT_PROTOTYPES_BOOL && !object->HasFastProperties()) {
       ReadOnlyRoots roots(isolate);
       DisallowHeapAllocation no_gc;
 
@@ -5312,8 +5313,8 @@ void JSObject::OptimizeAsPrototype(DirectHandle<JSObject> object,
     }
   }
 #ifdef DEBUG
-  bool should_be_dictionary = V8_DICT_PROPERTY_CONST_TRACKING_BOOL &&
-                              enable_setup_mode && !IsJSGlobalProxy(*object) &&
+  bool should_be_dictionary = V8_DICT_PROTOTYPES_BOOL && enable_setup_mode &&
+                              !IsJSGlobalProxy(*object) &&
                               !isolate->bootstrapper()->IsActive();
   DCHECK_IMPLIES(should_be_dictionary, object->map()->is_dictionary_map());
 #endif
@@ -5478,7 +5479,7 @@ void InvalidateOnePrototypeValidityCellInternal(Tagged<Map> map) {
   // whenever the validity cell would be invalidated. However, the actual value
   // of the validity cell is not used. Therefore, we always trigger the de-opt
   // here, even if the cell was already invalid.
-  if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL && map->is_dictionary_map()) {
+  if (V8_DICT_PROTOTYPES_BOOL && map->is_dictionary_map()) {
     // TODO(11527): pass Isolate as an argument.
     Isolate* isolate = Isolate::Current();
     DependentCode::DeoptimizeDependencyGroups(

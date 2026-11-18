@@ -875,6 +875,9 @@ DEFINE_BOOL(
 DEFINE_BOOL_READONLY(dict_property_const_tracking,
                      V8_DICT_PROPERTY_CONST_TRACKING_BOOL,
                      "Use const tracking on dictionary properties")
+DEFINE_BOOL_READONLY(dict_prototypes, V8_DICT_PROTOTYPES_BOOL,
+                     "Keep prototypes in dictionary mode and track prototype "
+                     "validity cell dependencies on dictionary properties")
 
 DEFINE_BOOL(script_context_cells, true,
             "Use context cells in script contexts, ie, const tracking let and "

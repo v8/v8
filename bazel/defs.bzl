@@ -490,6 +490,7 @@ def build_config_content(cpu, icu):
         ("DEBUG_defined", "false"),
         ("debugging_features", "false"),
         ("dict_property_const_tracking", "false"),
+        ("dict_prototypes", "false"),
         ("direct_handle", "false"),
         ("disassembler", "false"),
         ("dumpling", "false"),

@@ -500,9 +500,11 @@ void LookupIterator::PrepareForDataProperty(DirectHandle<Object> value) {
           dict->DetailsAtPut(dictionary_entry(), property_details_);
         }
 
-        Tagged<Map> old_map = holder->map();
-        if (old_map->is_prototype_map()) {
-          JSObject::InvalidatePrototypeChains(old_map);
+        if (V8_DICT_PROTOTYPES_BOOL) {
+          Tagged<Map> old_map = holder->map();
+          if (old_map->is_prototype_map()) {
+            JSObject::InvalidatePrototypeChains(old_map);
+          }
         }
       }
       return;
@@ -553,7 +555,7 @@ void LookupIterator::PrepareForDataProperty(DirectHandle<Object> value) {
       dict->DetailsAtPut(dictionary_entry(), property_details_);
     }
 
-    DCHECK_IMPLIES(new_map->is_prototype_map(),
+    DCHECK_IMPLIES(V8_DICT_PROTOTYPES_BOOL && new_map->is_prototype_map(),
                    !new_map->IsPrototypeValidityCellValid());
   }
 }
@@ -605,7 +607,7 @@ void LookupIterator::ReconfigureDataProperty(DirectHandle<Object> value,
           (attributes & READ_ONLY) != 0) ||
          (property_details_.attributes() & DONT_ENUM) !=
              (attributes & DONT_ENUM) ||
-         (V8_DICT_PROPERTY_CONST_TRACKING_BOOL &&
+         (V8_DICT_PROTOTYPES_BOOL &&
           property_details_.constness() == PropertyConstness::kConst))) {
       // Invalidate prototype validity cell when a property is reconfigured
       // from writable to read-only as this may invalidate transitioning store
@@ -1094,7 +1096,7 @@ bool LookupIterator::DictCanStayConst(Tagged<Object> value) const {
     current_value = dict->ValueAt(dictionary_entry());
   }
 
-  return IsUninitializedHole(current_value);
+  return IsUninitializedHole(current_value) || current_value == value;
 }
 
 InternalIndex LookupIterator::GetFieldDescriptorIndex() const {
@@ -1177,7 +1179,7 @@ void LookupIterator::WriteDataValue(DirectHandle<Object> value,
       // Check that in case of PropertyConstness::kConst field the existing
       // value is equal to |value| or uninitialized.
       DCHECK_IMPLIES(!initializing_store && property_details_.constness() ==
-                                                 PropertyConstness::kConst,
+                                                PropertyConstness::kConst,
                      CanStayConst(*value));
       Cast<JSObject>(*holder)->WriteToField(descriptor_number(),
                                             property_details_, *value);

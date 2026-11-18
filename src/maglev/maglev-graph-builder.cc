@@ -4050,7 +4050,7 @@ bool MaglevGraphBuilder::CanTreatHoleAsUndefined(
 compiler::OptionalObjectRef
 MaglevGraphBuilder::TryFoldLoadDictPrototypeConstant(
     compiler::PropertyAccessInfo const& access_info) {
-  DCHECK(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
+  DCHECK(V8_DICT_PROTOTYPES_BOOL);
   DCHECK(access_info.IsDictionaryProtoDataConstant());
   DCHECK(access_info.holder().has_value());
 

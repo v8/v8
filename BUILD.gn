@@ -437,11 +437,14 @@ declare_args() {
   # header files are placed in a separate header file v8-gn.h.
   v8_generate_external_defines_header = false
 
-  # Experimental feature for tracking constness of properties in non-global
-  # dictionaries. Enabling this also always keeps prototypes in dict mode,
-  # meaning that they are not switched to fast mode.
+  # Track PropertyConstness on non-global dictionary PropertyDetails.
   # Sets -DV8_DICT_PROPERTY_CONST_TRACKING
   v8_dict_property_const_tracking = false
+
+  # Experimental feature for keeping prototypes in dictionary mode and tracking
+  # prototype validity cell / compiler dependencies on dictionary properties.
+  # Sets -DV8_DICT_PROTOTYPES
+  v8_dict_prototypes = false
 
   # Enable map packing & unpacking (sets -DV8_MAP_PACKING).
   v8_enable_map_packing = false
@@ -990,6 +993,9 @@ if (v8_expose_public_symbols == "") {
 assert(
     !build_with_chromium || !v8_enable_partition_alloc,
     "V8 using partition_alloc from Chromium is not implemented at the moment")
+
+assert(!v8_dict_prototypes || v8_dict_property_const_tracking,
+       "v8_dict_prototypes requires v8_dict_property_const_tracking")
 
 v8_random_seed = "314159265"
 v8_toolset_for_shell = "host"
@@ -1657,6 +1663,9 @@ config("features") {
   }
   if (v8_dict_property_const_tracking) {
     defines += [ "V8_DICT_PROPERTY_CONST_TRACKING" ]
+  }
+  if (v8_dict_prototypes) {
+    defines += [ "V8_DICT_PROTOTYPES" ]
   }
   if (v8_enable_javascript_promise_hooks) {
     defines += [ "V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS" ]
@@ -3635,6 +3644,7 @@ action("v8_dump_build_config") {
     "DEBUG_defined=$is_DEBUG_defined",
     "debugging_features=$v8_enable_debugging_features",
     "dict_property_const_tracking=$v8_dict_property_const_tracking",
+    "dict_prototypes=$v8_dict_prototypes",
     "direct_handle=$v8_enable_direct_handle",
     "disassembler=$v8_enable_disassembler",
     "dumpling=$v8_dumpling",

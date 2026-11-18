@@ -55,7 +55,7 @@ bool CanInlinePropertyAccess(MapRef map, AccessMode access_mode) {
   if (map.instance_type() < LAST_PRIMITIVE_HEAP_OBJECT_TYPE) return true;
   if (map.IsJSObjectMap()) {
     if (map.is_dictionary_map()) {
-      if (!V8_DICT_PROPERTY_CONST_TRACKING_BOOL) return false;
+      if (!V8_DICT_PROTOTYPES_BOOL) return false;
       return access_mode == AccessMode::kLoad && map.is_prototype_map();
     }
     return !map.has_named_interceptor() &&
@@ -931,7 +931,7 @@ PropertyAccessInfo AccessInfoFactory::ComputeDictionaryProtoAccessInfo(
     MapRef receiver_map, NameRef name, JSObjectRef holder,
     InternalIndex dictionary_index, AccessMode access_mode,
     PropertyDetails details) const {
-  CHECK(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
+  CHECK(V8_DICT_PROTOTYPES_BOOL);
   DCHECK(holder.map(broker()).is_prototype_map());
   DCHECK_EQ(access_mode, AccessMode::kLoad);
 
@@ -958,7 +958,7 @@ bool AccessInfoFactory::TryLoadPropertyDetails(
     MapRef map, OptionalJSObjectRef maybe_holder, NameRef name,
     InternalIndex* index_out, PropertyDetails* details_out) const {
   if (map.is_dictionary_map()) {
-    DCHECK(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
+    DCHECK(V8_DICT_PROTOTYPES_BOOL);
     DCHECK(map.is_prototype_map());
 
     DisallowGarbageCollection no_gc;
@@ -1045,8 +1045,8 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     OptionalObjectRef handler) const {
   CHECK(name.IsUniqueName());
 
-  // Dictionary property const tracking is unsupported with concurrent inlining.
-  CHECK(!V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
+  // Dictionary mode prototypes are unsupported with concurrent inlining.
+  CHECK(!V8_DICT_PROTOTYPES_BOOL);
 
   JSHeapBroker::MapUpdaterGuardIfNeeded mumd_scope(broker());
 
@@ -1073,7 +1073,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     if (!access_info.IsInvalid()) return access_info;
   }
 
-  // Only relevant if V8_DICT_PROPERTY_CONST_TRACKING enabled.
+  // Only relevant if V8_DICT_PROTOTYPES enabled.
   bool dictionary_prototype_on_chain = false;
   bool fast_mode_prototype_on_chain = false;
 
@@ -1131,7 +1131,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
       }
 
       if (map.is_dictionary_map()) {
-        DCHECK(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
+        DCHECK(V8_DICT_PROTOTYPES_BOOL);
 
         if (fast_mode_prototype_on_chain) {
           // TODO(v8:11248) While the work on dictionary mode prototypes is in
@@ -1148,20 +1148,20 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
       }
 
       if (dictionary_prototype_on_chain) {
-        // If V8_DICT_PROPERTY_CONST_TRACKING_BOOL was disabled, then a
-        // dictionary prototype would have caused a bailout earlier.
-        DCHECK(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
+        // If V8_DICT_PROTOTYPES_BOOL was disabled, then a dictionary prototype
+        // would have caused a bailout earlier.
+        DCHECK(V8_DICT_PROTOTYPES_BOOL);
 
         // TODO(v8:11248) We have a fast mode holder, but there was a dictionary
         // mode prototype earlier on the chain. Note that seeing a fast mode
-        // prototype even though V8_DICT_PROPERTY_CONST_TRACKING is enabled
-        // should only be possible while the implementation of dictionary mode
-        // prototypes is work in progress. Eventually, enabling
-        // V8_DICT_PROPERTY_CONST_TRACKING will guarantee that all prototypes
-        // are always in dictionary mode, making this case unreachable. However,
-        // due to the complications of checking dictionary mode prototypes for
-        // modification, we don't attempt to support dictionary mode prototypes
-        // occuring before a fast mode holder on the chain.
+        // prototype even though V8_DICT_PROTOTYPES is enabled should only be
+        // possible while the implementation of dictionary mode prototypes is
+        // work in progress. Eventually, enabling V8_DICT_PROTOTYPES will
+        // guarantee that all prototypes are always in dictionary mode, making
+        // this case unreachable. However, due to the complications of checking
+        // dictionary mode prototypes for modification, we don't attempt to
+        // support dictionary mode prototypes occurring before a fast mode
+        // holder on the chain.
         return Invalid();
       }
 
@@ -1248,7 +1248,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
       return Invalid();
     }
 
-    if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL && holder.has_value()) {
+    if (V8_DICT_PROTOTYPES_BOOL && holder.has_value()) {
       // At this point, we are past the first loop iteration.
       DCHECK(holder->map(broker()).is_prototype_map());
       DCHECK(!holder->map(broker()).equals(receiver_map));

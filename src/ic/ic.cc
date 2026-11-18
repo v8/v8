@@ -1430,10 +1430,8 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldFromPrototypeDH);
       }
       if (lookup->constness() == PropertyConstness::kConst &&
-          !holder_is_lookup_start_object) {
-        DCHECK_IMPLIES(!V8_DICT_PROPERTY_CONST_TRACKING_BOOL,
-                       !lookup->is_dictionary_holder());
-
+          !holder_is_lookup_start_object &&
+          (V8_DICT_PROTOTYPES_BOOL || !lookup->is_dictionary_holder())) {
         DirectHandle<Object> value = lookup->GetDataValue();
 
         if (IsThinString(*value)) {

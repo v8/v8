@@ -1577,7 +1577,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     if (!p->IsAnyDefineOwn()) {
       BIND(&dictionary_found);
       {
-        Label if_constant(this), done(this);
+        Label done(this);
         TNode<Uint32T> details =
             LoadDetailsByKeyIndex(properties, var_name_index.value());
         // Check that the property is a writable data property (no accessor).
@@ -1587,12 +1587,30 @@ void AccessorAssembler::HandleStoreICHandlerCase(
         static_assert(static_cast<int>(PropertyKind::kData) == 0);
         GotoIf(IsSetWord32(details, kTypeAndReadOnlyMask), miss);
 
-        if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
-          GotoIf(IsPropertyDetailsConst(details), miss);
+        if constexpr (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
+          Label overwrite(this);
+          GotoIfNot(IsPropertyDetailsConst(details), &overwrite);
+          TNode<Object> prev_value =
+              LoadValueByKeyIndex(properties, var_name_index.value());
+          GotoIf(TaggedEqual(prev_value, p->value()), &done);
+          if constexpr (V8_DICT_PROTOTYPES_BOOL) {
+            Goto(miss);
+          } else {
+            TNode<Smi> new_details = SmiFromInt32(
+                Signed(UpdateWord32<PropertyDetails::ConstnessField>(
+                    details, Uint32Constant(static_cast<uint32_t>(
+                                 PropertyConstness::kMutable)))));
+            StoreDetailsByKeyIndex<PropertyDictionary>(
+                properties, var_name_index.value(), new_details);
+            Goto(&overwrite);
+          }
+          BIND(&overwrite);
         }
-
         StoreValueByKeyIndex<PropertyDictionary>(
             properties, var_name_index.value(), p->value());
+        Goto(&done);
+
+        BIND(&done);
         Return(p->value());
       }
     }
@@ -2063,6 +2081,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
       // on_found_on_lookup_start_object
       [=, this](TNode<PropertyDictionary> properties,
                 TNode<IntPtrT> name_index) {
+        Label done(this);
         TNode<Uint32T> details = LoadDetailsByKeyIndex(properties, name_index);
         // Check that the property is a writable data property (no accessor).
         const int kTypeAndReadOnlyMask =
@@ -2071,12 +2090,30 @@ void AccessorAssembler::HandleStoreICProtoHandler(
         static_assert(static_cast<int>(PropertyKind::kData) == 0);
         GotoIf(IsSetWord32(details, kTypeAndReadOnlyMask), miss);
 
-        if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
-          GotoIf(IsPropertyDetailsConst(details), miss);
+        if constexpr (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
+          Label overwrite(this);
+          GotoIfNot(IsPropertyDetailsConst(details), &overwrite);
+          TNode<Object> prev_value =
+              LoadValueByKeyIndex(properties, name_index);
+          GotoIf(TaggedEqual(prev_value, p->value()), &done);
+          if constexpr (V8_DICT_PROTOTYPES_BOOL) {
+            Goto(miss);
+          } else {
+            TNode<Smi> new_details = SmiFromInt32(
+                Signed(UpdateWord32<PropertyDetails::ConstnessField>(
+                    details, Uint32Constant(static_cast<uint32_t>(
+                                 PropertyConstness::kMutable)))));
+            StoreDetailsByKeyIndex<PropertyDictionary>(properties, name_index,
+                                                       new_details);
+            Goto(&overwrite);
+          }
+          BIND(&overwrite);
         }
-
         StoreValueByKeyIndex<PropertyDictionary>(properties, name_index,
                                                  p->value());
+        Goto(&done);
+
+        BIND(&done);
         Return(p->value());
       },
       miss, ic_mode);
