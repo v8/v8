@@ -4509,6 +4509,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Load the parameter count of a JSDispatchTable entry.
   TNode<Uint16T> LoadParameterCountFromJSDispatchTable(
       TNode<JSDispatchHandleT> dispatch_handle);
+  // Load the parameter count of the incoming JS call's dispatch handle.
+  TNode<Uint16T> GetParameterCountFromDispatchHandle();
 
   TNode<UintPtrT> ComputeJSDispatchTableEntryOffset(
       TNode<JSDispatchHandleT> handle);
@@ -4538,25 +4540,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                       TNode<Object> new_target, TNode<Int32T> arg_count,
                       TNode<JSDispatchHandleT> dispatch_handle,
                       TNode<Uint16T> expected_parameter_count);
-
-  // Indicate that this code must support a dynamic parameter count.
-  //
-  // This is used for builtins that must work on functions with different
-  // parameter counts. In that case, the true JS parameter count is only known
-  // at runtime and must be obtained in order to compute the total number of
-  // arguments (which may include padding arguments). The parameter count is
-  // subsequently available through the corresponding CodeAssembler accessors.
-  // The target function object and the dispatch handle need to be passed in
-  // and are used to obtain the actual parameter count of the called function.
-  //
-  // This should generally be invoked directly at the start of the function.
-  //
-  // TODO(saelo): it would be a bit nicer if this would happen automatically in
-  // the function prologue for functions marked as requiring this (e.g. via the
-  // call descriptor). It's not clear if that's worth the effort though for the
-  // handful of builtins that need this.
-  void SetSupportsDynamicParameterCount(
-      TNode<JSFunction> callee, TNode<JSDispatchHandleT> dispatch_handle);
 
   // Figure out the SFI's code object using its data field.
   // If |data_type_out| is provided, the instance type of the function data will
@@ -4792,6 +4775,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 #endif
   }
 
+  void EmitBuiltinProlog(Builtin builtin_id);
   void PerformStackCheck(TNode<Context> context);
 
   void SetPropertyLength(TNode<Context> context, TNode<JSAny> array,

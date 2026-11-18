@@ -837,34 +837,22 @@ macro JSToWasmWrapperHelper(
 }
 
 transitioning javascript builtin JSToWasmWrapper(
-    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction,
-    dispatchHandle: DispatchHandle)(...arguments): JSAny {
-  // This is a generic builtin that can be installed on functions with different
-  // parameter counts, so we need to support that.
-  SetSupportsDynamicParameterCount(target, dispatchHandle);
-
+    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction)(
+    ...arguments): JSAny {
   return JSToWasmWrapperHelper(
       context, receiver, target, arguments, Promise::kNoPromise);
 }
 
 transitioning javascript builtin WasmPromising(
-    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction,
-    dispatchHandle: DispatchHandle)(...arguments): JSAny {
-  // This is a generic builtin that can be installed on functions with different
-  // parameter counts, so we need to support that.
-  SetSupportsDynamicParameterCount(target, dispatchHandle);
-
+    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction)(
+    ...arguments): JSAny {
   return JSToWasmWrapperHelper(
       context, receiver, target, arguments, Promise::kPromise);
 }
 
 transitioning javascript builtin WasmStressSwitch(
-    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction,
-    dispatchHandle: DispatchHandle)(...arguments): JSAny {
-  // This is a generic builtin that can be installed on functions with different
-  // parameter counts, so we need to support that.
-  SetSupportsDynamicParameterCount(target, dispatchHandle);
-
+    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction)(
+    ...arguments): JSAny {
   return JSToWasmWrapperHelper(
       context, receiver, target, arguments, Promise::kStressSwitch);
 }
