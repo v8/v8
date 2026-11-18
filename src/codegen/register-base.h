@@ -103,7 +103,8 @@ inline std::ostream& operator<<(std::ostream& os, RegType reg) {
 #define V8_REG_IN_CLOBBER __attribute__((annotate("v8_reg_in_clobber")))
 #define V8_REG_RDONLY __attribute__((annotate("v8_reg_rdonly")))
 
-// Function-level implicit physical register annotations:
+// Function-level implicit physical register annotations
+// (V8_REG_CLOBBERS_IF takes a parameter comparison such as `low != 0`):
 #define V8_REG_IMPLICIT_IN(...) \
   __attribute__((annotate("v8_reg_implicit_in", __VA_ARGS__)))
 #define V8_REG_IMPLICIT_OUT(...) \
@@ -112,6 +113,8 @@ inline std::ostream& operator<<(std::ostream& os, RegType reg) {
   __attribute__((annotate("v8_reg_implicit_inout", __VA_ARGS__)))
 #define V8_REG_CLOBBERS(...) \
   __attribute__((annotate("v8_reg_clobbers", __VA_ARGS__)))
+#define V8_REG_CLOBBERS_IF(cond, ...) \
+  __attribute__((annotate("v8_reg_clobbers_if", #cond, __VA_ARGS__)))
 #define V8_REG_CLOBBERS_CALLER_SAVED \
   __attribute__((annotate("v8_reg_clobbers_caller_saved")))
 
@@ -142,6 +145,7 @@ inline std::ostream& operator<<(std::ostream& os, RegType reg) {
 #define V8_REG_IMPLICIT_OUT(...)
 #define V8_REG_IMPLICIT_INOUT(...)
 #define V8_REG_CLOBBERS(...)
+#define V8_REG_CLOBBERS_IF(cond, ...)
 #define V8_REG_CLOBBERS_CALLER_SAVED
 #define V8_ASM_BIND
 #define V8_ASM_BRANCH

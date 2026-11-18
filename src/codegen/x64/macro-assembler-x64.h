@@ -1273,10 +1273,10 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // Checks if value is in range [lower_limit, higher_limit] using a single
   // comparison. Flags CF=1 or ZF=1 indicate the value is in the range
   // (condition below_equal).
-  V8_REG_CLOBBERS(kScratchRegister)
+  V8_REG_CLOBBERS_IF(lower_limit != 0, kScratchRegister)
   void CompareRange(V8_REG_IN Register value, unsigned lower_limit,
                     unsigned higher_limit);
-  V8_REG_CLOBBERS(kScratchRegister)
+  V8_REG_CLOBBERS_IF(lower_limit != 0, kScratchRegister)
   void JumpIfIsInRange(V8_REG_IN Register value, unsigned lower_limit,
                        unsigned higher_limit, V8_ASM_BRANCH Label* on_in_range,
                        Label::Distance near_jump = Label::kFar);
@@ -1339,7 +1339,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
 
   // Compare instance type ranges for a map (low and high inclusive)
   // Always use unsigned comparisons: below_equal for a positive result.
-  V8_REG_CLOBBERS(kScratchRegister)
+  V8_REG_CLOBBERS_IF(low != 0, kScratchRegister)
   void CmpInstanceTypeRange(V8_REG_IN Register map,
                             V8_REG_OUT Register instance_type_out,
                             InstanceType low, InstanceType high);

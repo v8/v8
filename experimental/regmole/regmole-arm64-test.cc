@@ -205,6 +205,130 @@ void TestArm64CalleeScratchClobbersPhysIp0Bad(MacroAssembler* masm,
   __ Mov(out, x16);
 }
 
+// -----------------------------------------------------------------------------
+// 7. ARM64 Maglev Register Allocator Contract Tests
+// -----------------------------------------------------------------------------
+
+namespace maglev_test {
+
+struct Input {};
+struct ValueLocation {};
+
+struct TemporaryRegisterScope {
+  explicit TemporaryRegisterScope(MacroAssembler*) {}
+  Register Acquire() { return x0; }
+  Register AcquireScratch() { return x16; }
+};
+
+Register ToRegister(Input);
+Register ToRegister(ValueLocation);
+void UseRegister(Input);
+template <typename T>
+void DefineAsRegister(T*);
+
+struct NodeBase {
+  Input input(int) { return {}; }
+  ValueLocation result() { return {}; }
+};
+
+// x27 (cp) is allocatable in Maglev on ARM64, so modifying it without
+// requesting it as fixed output/temp must warn.
+struct MaglevArm64UnrequestedX27Bad : NodeBase {
+  Input InInput() { return input(0); }
+
+  void SetValueLocationConstraints() {
+    UseRegister(InInput());
+    DefineAsRegister(this);
+  }
+
+  void GenerateCode(MacroAssembler* masm) {
+    // EXPECT-WARNING: Physical register 'x27' is modified/clobbered
+    __ Mov(x27, ToRegister(InInput()));
+    __ Mov(ToRegister(result()), x27);
+  }
+};
+
+// ToRegister() always produces X-sized registers on ARM64, so `!=` between
+// two X-width registers is width-safe.
+struct MaglevArm64WidthSafeXGuardGood : NodeBase {
+  Input InInput() { return input(0); }
+
+  void SetValueLocationConstraints() {
+    UseRegister(InInput());
+    DefineAsRegister(this);
+  }
+
+  void GenerateCode(MacroAssembler* masm) {
+    Register out = ToRegister(result());
+    Register in = ToRegister(InInput());
+    if (out != in) {
+      __ Mov(out, 1);
+      __ Add(out, out, in);
+    }
+  }
+};
+
+// Comparing two `.W()` registers stored in a local `bool` is also width-safe.
+struct MaglevArm64WidthSafeWBoolGuardGood : NodeBase {
+  Input InInput() { return input(0); }
+
+  void SetValueLocationConstraints() {
+    UseRegister(InInput());
+    DefineAsRegister(this);
+  }
+
+  void GenerateCode(MacroAssembler* masm) {
+    Register out = ToRegister(result()).W();
+    Register in = ToRegister(InInput()).W();
+    bool out_alias_input = out == in;
+    if (!out_alias_input) {
+      __ Mov(out, 1);
+      __ Add(out, out, in);
+    }
+  }
+};
+
+// Comparing a `.W()` register against an X-width register via `!=` is
+// size-sensitive (`w0 != x0` is true despite aliasing) and must warn.
+struct MaglevArm64MismatchedWidthGuardBad : NodeBase {
+  Input InInput() { return input(0); }
+
+  void SetValueLocationConstraints() {
+    UseRegister(InInput());
+    DefineAsRegister(this);
+  }
+
+  void GenerateCode(MacroAssembler* masm) {
+    Register out = ToRegister(result());
+    Register in = ToRegister(InInput());
+    if (out.W() != in) {
+      __ Mov(out, 1);
+      // EXPECT-WARNING: under a size-sensitive '!=' guard on ARM64
+      __ Add(out, out, in);
+    }
+  }
+};
+
+// ARM64 provides 2 general scratch registers (`x16`/`x17`); acquiring 2 is OK
+// and acquiring 3 simultaneously exceeds the budget.
+struct MaglevArm64ScratchBudgetBad : NodeBase {
+  Input InInput() { return input(0); }
+
+  void SetValueLocationConstraints() { UseRegister(InInput()); }
+
+  void GenerateCode(MacroAssembler* masm) {
+    TemporaryRegisterScope temps(masm);
+    Register s1 = temps.AcquireScratch();
+    Register s2 = temps.AcquireScratch();
+    // EXPECT-WARNING: requires 3 simultaneous general scratch register(s),
+    // exceeding the architecture scratch budget (2)
+    Register s3 = temps.AcquireScratch();
+    __ Add(s1, s2, s3);
+  }
+};
+
+}  // namespace maglev_test
+
 #undef __
 
 }  // namespace internal

@@ -10,6 +10,7 @@ import re
 import shlex
 import subprocess
 import sys
+import tempfile
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 GCMOLE_CLANG_BIN = REPO_ROOT / "tools/gcmole/gcmole-tools/bin/clang++"
@@ -208,6 +209,33 @@ def main() -> int:
       action="store_true",
       help="Disable use-after-clobber and aliasing checks.",
   )
+  parser.add_argument(
+      "--no-check-maglev",
+      action="store_true",
+      help="Disable Maglev register allocator contract checks.",
+  )
+  parser.add_argument(
+      "--cross-tu",
+      action="store_true",
+      help="Run 2-pass cross-TU summary export/import across input files.",
+  )
+  parser.add_argument(
+      "--no-cross-tu",
+      action="store_true",
+      help="Disable automatic 2-pass cross-TU summary merging for 2+ files.",
+  )
+  parser.add_argument(
+      "--export-summaries",
+      type=Path,
+      default=None,
+      help="Export inferred function summaries and Maglev specs to a file.",
+  )
+  parser.add_argument(
+      "--import-summaries",
+      type=Path,
+      default=None,
+      help="Import inferred function summaries and Maglev specs from a file.",
+  )
   args = parser.parse_args()
 
   base_plugin_args = []
@@ -215,6 +243,8 @@ def main() -> int:
     base_plugin_args.append("--no-verify-annotations")
   if args.no_check_uses:
     base_plugin_args.append("--no-check-uses")
+  if args.no_check_maglev:
+    base_plugin_args.append("--no-check-maglev")
 
   if args.test:
     test_suites = [
@@ -235,18 +265,66 @@ def main() -> int:
         all_ok = False
     return 0 if all_ok else 1
 
+  files_with_arch = [
+      (src, infer_arch_for_file(src, args.arch)) for src in args.files
+  ]
+  arch_counts: dict[str, int] = {}
+  for _src, f_arch in files_with_arch:
+    arch_counts[f_arch] = arch_counts.get(f_arch, 0) + 1
+
   exit_code = 0
-  for src in args.files:
-    file_arch = infer_arch_for_file(src, args.arch)
-    c_args = load_compile_args(args.args_file, file_arch)
-    p_args = [*base_plugin_args, f"--arch={file_arch}"]
-    print(f"=== Analyzing {src} ({file_arch}) ===")
-    res = run_regmole_on_file(args.clang_bin, args.plugin_so, c_args, src,
-                              p_args)
-    if res.stdout.strip():
-      sys.stdout.write(res.stdout)
-    if res.returncode != 0:
-      exit_code = res.returncode
+  with tempfile.TemporaryDirectory(prefix="regmole_cross_tu_") as tmp_dir:
+    tmp_path = Path(tmp_dir)
+    merged_summaries_by_arch: dict[str, Path] = {}
+
+    if not args.import_summaries and not args.no_cross_tu:
+      for f_arch, count in arch_counts.items():
+        if not args.cross_tu and count < 2:
+          continue
+        arch_files = [src for src, a in files_with_arch if a == f_arch]
+        part_paths: list[Path] = []
+        c_args = load_compile_args(args.args_file, f_arch)
+        for idx, src in enumerate(arch_files):
+          part = tmp_path / f"pass1_{f_arch}_{idx}.sum"
+          p_args = [
+              *base_plugin_args,
+              f"--arch={f_arch}",
+              "--no-check-uses",
+              "--no-verify-annotations",
+              f"--export-summaries={part}",
+          ]
+          print(f"=== Pass 1 (summaries) {src} ({f_arch}) ===")
+          res = run_regmole_on_file(args.clang_bin, args.plugin_so, c_args, src,
+                                    p_args)
+          if res.returncode != 0:
+            if res.stdout.strip():
+              sys.stdout.write(res.stdout)
+            exit_code = res.returncode
+          elif part.exists():
+            part_paths.append(part)
+        if part_paths:
+          merged = tmp_path / f"merged_{f_arch}.sum"
+          with merged.open("w", encoding="utf-8") as out_f:
+            for part in part_paths:
+              out_f.write(part.read_text(encoding="utf-8"))
+          merged_summaries_by_arch[f_arch] = merged
+
+    for src, file_arch in files_with_arch:
+      c_args = load_compile_args(args.args_file, file_arch)
+      p_args = [*base_plugin_args, f"--arch={file_arch}"]
+      import_path = args.import_summaries or merged_summaries_by_arch.get(
+          file_arch)
+      if import_path:
+        p_args.append(f"--import-summaries={import_path}")
+      if args.export_summaries:
+        p_args.append(f"--export-summaries={args.export_summaries}")
+      print(f"=== Analyzing {src} ({file_arch}) ===")
+      res = run_regmole_on_file(args.clang_bin, args.plugin_so, c_args, src,
+                                p_args)
+      if res.stdout.strip():
+        sys.stdout.write(res.stdout)
+      if res.returncode != 0:
+        exit_code = res.returncode
   return exit_code
 
 

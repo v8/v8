@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <array>
+#include <optional>
+
 #include "src/baseline/baseline-assembler-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/wasm/baseline/liftoff-register.h"
@@ -444,6 +447,787 @@ void TestBaselineScratchPoolExhaustedBad(baseline::BaselineAssembler* basm) {
   // EXPECT-WARNING: exhausting BaselineAssembler::ScratchRegisterScope pool
   HelperTwoBaselineScratches(basm);
 }
+
+// -----------------------------------------------------------------------------
+// 9. Maglev Register Allocator Contract Tests (Checks 1-6)
+// -----------------------------------------------------------------------------
+
+namespace maglev_test {
+
+enum class ValueRepresentation { kTagged = 0, kInt32 = 1, kFloat64 = 3 };
+enum class Opcode { kInt32Constant = 0, kLoadTaggedField = 1 };
+
+struct ValueNode {
+  Opcode opcode() const { return Opcode::kLoadTaggedField; }
+  template <typename T>
+  bool Is() const {
+    return false;
+  }
+};
+struct Int32Constant : ValueNode {};
+struct RootConstant : ValueNode {};
+
+inline std::optional<int32_t> TryGetInt32Const(const ValueNode* node) {
+  switch (node->opcode()) {
+    case Opcode::kInt32Constant:
+      return 1;
+    default:
+      return std::nullopt;
+  }
+}
+
+struct Input {
+  bool IsRegister() const { return false; }
+  bool IsDoubleRegister() const { return false; }
+  bool IsConstant() const { return false; }
+  ValueNode* node() const { return nullptr; }
+};
+
+struct ValueLocation {
+  bool IsRegister() const { return false; }
+  bool IsDoubleRegister() const { return false; }
+  bool IsConstant() const { return false; }
+};
+
+struct OpProperties {
+  uint32_t bits_ = 0;
+  constexpr OpProperties() = default;
+  explicit constexpr OpProperties(uint32_t b) : bits_(b) {}
+  static constexpr OpProperties Pure() { return OpProperties(0); }
+  static constexpr OpProperties Call() { return OpProperties(1u << 0); }
+  static constexpr OpProperties DeferredCall() {
+    return OpProperties(1u << 14);
+  }
+  constexpr OpProperties operator|(OpProperties o) const {
+    return OpProperties(bits_ | o.bits_);
+  }
+};
+
+struct RegisterSnapshot {
+  RegList live_registers;
+};
+
+struct FakeMaglevAssembler : MacroAssembler {
+  Isolate* isolate() const { return nullptr; }
+  inline Condition CompareInstanceTypeRange(Register map,
+                                            Register instance_type_out,
+                                            InstanceType lower_limit,
+                                            InstanceType higher_limit) {
+    CmpInstanceTypeRange(map, instance_type_out, lower_limit, higher_limit);
+    return kUnsignedLessThanEqual;
+  }
+  template <typename Fn, typename... Args>
+  Label* MakeDeferredCode(Fn&& fn, Args&&... args) {
+    return nullptr;
+  }
+  template <typename Fn, typename... Args>
+  void JumpToDeferredIf(Condition cc, Fn&& fn, Args&&... args) {}
+};
+
+struct SaveRegisterStateForCall {
+  SaveRegisterStateForCall(FakeMaglevAssembler*, RegisterSnapshot) {}
+};
+
+struct ZoneLabelRef {
+  Label label_;
+  explicit ZoneLabelRef(FakeMaglevAssembler*) {}
+  Label* operator*() { return &label_; }
+};
+
+struct TemporaryRegisterScope {
+  explicit TemporaryRegisterScope(FakeMaglevAssembler*) {}
+  Register Acquire() { return rax; }
+  DoubleRegister AcquireDouble() { return xmm0; }
+  Register AcquireScratch() { return kScratchRegister; }
+  DoubleRegister AcquireScratchDouble() { return kScratchDoubleReg; }
+  void Include(Register) {}
+  void Include(RegList) {}
+  void IncludeDouble(DoubleRegister) {}
+  void ResetToDefault() {}
+};
+
+Register ToRegister(Input);
+Register ToRegister(ValueLocation);
+DoubleRegister ToDoubleRegister(Input);
+DoubleRegister ToDoubleRegister(ValueLocation);
+
+void UseRegister(Input);
+void UseAndClobberRegister(Input);
+void UseAny(Input);
+void UseFixed(Input, Register);
+void UseAndClobberFixed(Input, Register);
+template <typename T>
+void DefineAsRegister(T*);
+template <typename T>
+void DefineSameAsFirst(T*);
+template <typename T>
+void DefineAsFixed(T*, Register);
+template <typename T>
+void DefineAsConstant(T*);
+
+struct NodeBase {
+  Input input(int) { return {}; }
+  ValueLocation result() { return {}; }
+  RegisterSnapshot register_snapshot() { return {}; }
+  void set_temporaries_needed(int) {}
+  void set_double_temporaries_needed(int) {}
+  void RequireSpecificTemporary(Register) {}
+};
+
+// Check 1a: UseAny requires IsRegister() guard; else branch knows not-register.
+struct MaglevUseAnyTests : NodeBase {
+  Input ValInput() { return input(0); }
+
+  void SetValueLocationConstraints() {
+    UseAny(ValInput());
+    DefineAsRegister(this);
+  }
+
+  void GenerateCode(FakeMaglevAssembler* masm) {
+    // EXPECT-WARNING: without checking IsRegister()
+    Register unguarded = ToRegister(ValInput());
+    __ cmpq(unguarded, Immediate(0));
+
+    if (ValInput().IsRegister()) {
+      Register ok = ToRegister(ValInput());
+      __ cmpq(ok, Immediate(0));
+      // EXPECT-WARNING: input is known not to be in a register on this branch
+      DoubleRegister wrong_bank = ToDoubleRegister(ValInput());
+      (void)wrong_bank;
+    } else {
+      // EXPECT-WARNING: input is known not to be in a register on this branch
+      Register bad_else = ToRegister(ValInput());
+      __ cmpq(bad_else, Immediate(0));
+    }
+
+    // Non-constant-only UseAny can be a stack slot, so !IsConstant() is not
+    // enough to guarantee a register.
+    if (!ValInput().IsConstant()) {
+      // EXPECT-WARNING: without checking IsRegister()
+      Register maybe_slot = ToRegister(ValInput());
+      __ cmpq(maybe_slot, Immediate(0));
+    }
+  }
+};
+
+// Check 1b: Constant-only UseAny (`std::optional` predicate) guarded by
+// `!IsConstant()` is guaranteed to be a register.
+struct MaglevUseAnyConstantOnlyGood : NodeBase {
+  Input ValInput() { return input(0); }
+
+  void SetValueLocationConstraints() {
+    if (TryGetInt32Const(ValInput().node())) {
+      UseAny(ValInput());
+    } else {
+      UseRegister(ValInput());
+    }
+    DefineAsRegister(this);
+  }
+
+  void GenerateCode(FakeMaglevAssembler* masm) {
+    if (!ValInput().IsConstant()) {
+      Register v = ToRegister(ValInput());
+      __ movq(ToRegister(result()), v);
+    }
+  }
+};
+
+// Check 1c: Unconstrained input and invalid result() Register uses.
+struct MaglevUnconstrainedAndConstResultBad : NodeBase {
+  Input AInput() { return input(0); }
+  Input BInput() { return input(1); }
+
+  void SetValueLocationConstraints() {
+    UseRegister(AInput());
+    DefineAsConstant(this);
+  }
+
+  void GenerateCode(FakeMaglevAssembler* masm) {
+    Register a = ToRegister(AInput());
+    // EXPECT-WARNING: has no location constraint in SetValueLocationConstraints
+    Register b = ToRegister(BInput());
+    // EXPECT-WARNING: defines result as constant (DefineAsConstant)
+    Register res = ToRegister(result());
+    __ movq(res, a);
+    __ addq(res, b);
+  }
+};
+
+struct MaglevMissingResultDefBad : NodeBase {
+  Input AInput() { return input(0); }
+
+  void SetValueLocationConstraints() { UseRegister(AInput()); }
+
+  void GenerateCode(FakeMaglevAssembler* masm) {
+    // EXPECT-WARNING: did not define a register result
+    Register res = ToRegister(result());
+    __ movq(res, ToRegister(AInput()));
+  }
+};
+
+// Check 2: UseFixed vs UseAndClobberFixed, SaveRegisterStateForCall,
+// snapshot.live_registers.clear, and TemporaryRegisterScope::Include.
+struct MaglevReadonlyFixedAndIncludeBad : NodeBase {
+  static constexpr OpProperties kProperties = OpProperties::DeferredCall();
+  Input FixedInInput() { return input(0); }
+  Input SavedInInput() { return input(1); }
+  Input ClearedInInput() { return input(2); }
+
+  void SetValueLocationConstraints() {
+    UseFixed(FixedInInput(), rcx);
+    UseRegister(SavedInInput());
+    UseRegister(ClearedInInput());
+  }
+
+  void GenerateCode(FakeMaglevAssembler* masm) {
+    Register fixed_in = ToRegister(FixedInInput());
+    Register saved_in = ToRegister(SavedInInput());
+    Register cleared_in = ToRegister(ClearedInInput());
+
+    // EXPECT-WARNING: Cannot modify/clobber Maglev input register
+    // 'FixedInInput'
+    __ incq(fixed_in);
+
+    {
+      TemporaryRegisterScope temps(masm);
+      // EXPECT-WARNING: Cannot modify/clobber Maglev input register
+      // 'SavedInInput'
+      temps.Include(saved_in);
+    }
+
+    {
+      RegisterSnapshot snapshot = register_snapshot();
+      snapshot.live_registers.clear(cleared_in);
+      SaveRegisterStateForCall save_state(masm, snapshot);
+      // `saved_in` is preserved by SaveRegisterStateForCall -> OK.
+      __ incq(saved_in);
+      // `cleared_in` was removed from live_registers -> NOT restored!
+      // EXPECT-WARNING: Cannot modify/clobber Maglev input register
+      // 'ClearedInInput'
+      __ incq(cleared_in);
+    }
+  }
+};
+
+struct MaglevUseAndClobberFixedGood : NodeBase {
+  Input FixedInInput() { return input(0); }
+
+  void SetValueLocationConstraints() {
+    UseAndClobberFixed(FixedInInput(), rcx);
+  }
+
+  void GenerateCode(FakeMaglevAssembler* masm) {
+    Register fixed_in = ToRegister(FixedInInput());
+    __ incq(fixed_in);
+  }
+};
+
+// Check 3a: Early-clobber on DefineAsRegister + partial vs full alias guard
+// (modeled on GeneratorRestoreRegister).
+struct MaglevEarlyClobberPartialGuardBad : NodeBase {
+  Input ArrayInput() { return input(0); }
+  Input StaleInput() { return input(1); }
+
+  void SetValueLocationConstraints() {
+    UseRegister(ArrayInput());
+    UseRegister(StaleInput());
+    DefineAsRegister(this);
+    set_temporaries_needed(1);
+  }
+
+  void GenerateCode(FakeMaglevAssembler* masm) {
+    TemporaryRegisterScope temps(masm);
+    Register temp = temps.Acquire();
+    Register array = ToRegister(ArrayInput());
+    Register stale = ToRegister(StaleInput());
+    Register res = ToRegister(result());
+
+    Register value = (array == res ? temp : res);
+    __ movq(value, Operand(array, 8));
+    // `array` was guarded against aliasing `res` -> OK; `stale` was not!
+    // EXPECT-WARNING: Maglev input 'StaleInput' is read
+    __ movq(Operand(array, 8), stale);
+    if (value != res) {
+      __ movq(res, value);
+    }
+  }
+};
+
+struct MaglevEarlyClobberFullGuardGood : NodeBase {
+  Input ArrayInput() { return input(0); }
+  Input StaleInput() { return input(1); }
+
+  void SetValueLocationConstraints() {
+    UseRegister(ArrayInput());
+    UseRegister(StaleInput());
+    DefineAsRegister(this);
+    set_temporaries_needed(1);
+  }
+
+  void GenerateCode(FakeMaglevAssembler* masm) {
+    TemporaryRegisterScope temps(masm);
+    Register temp = temps.Acquire();
+    Register array = ToRegister(ArrayInput());
+    Register stale = ToRegister(StaleInput());
+    Register res = ToRegister(result());
+
+    Register value = (array == res || stale == res) ? temp : res;
+    __ movq(value, Operand(array, 8));
+    __ movq(Operand(array, 8), stale);
+    if (value != res) {
+      __ movq(res, value);
+    }
+  }
+};
+
+// Check 3b: De Morgan conditional distinctness (`if (flag && out == other)`).
+struct MaglevDeMorganGuardGood : NodeBase {
+  bool flag_ = false;
+  Input OtherInput() { return input(0); }
+
+  void SetValueLocationConstraints() {
+    UseRegister(OtherInput());
+    DefineAsRegister(this);
+    set_temporaries_needed(1);
+  }
+
+  void GenerateCode(FakeMaglevAssembler* masm) {
+    TemporaryRegisterScope temps(masm);
+    Register out = ToRegister(result());
+    if (flag_ && out == ToRegister(OtherInput())) {
+      out = temps.Acquire();
+    }
+    __ movq(out, Immediate(1));
+    if (flag_) {
+      __ addq(out, ToRegister(OtherInput()));
+    }
+  }
+};
+
+// Check 3c: DefineAsFixed + RequireSpecificTemporary blocks non-fixed inputs.
+struct MaglevDefineAsFixedSpecificTempGood : NodeBase {
+  Input InInput() { return input(0); }
+
+  void SetValueLocationConstraints() {
+    UseRegister(InInput());
+    DefineAsFixed(this, rax);
+    RequireSpecificTemporary(rax);
+  }
+
+  void GenerateCode(FakeMaglevAssembler* masm) {
+    Register res = ToRegister(result());
+    Register in = ToRegister(InInput());
+    __ movq(res, Immediate(0));
+    __ addq(res, in);
+  }
+};
+
+// Check 3d: DefineSameAsFirst with differing vs matching kInputRepresentations.
+struct MaglevDefineSameAsFirstDiffReprGood : NodeBase {
+  static constexpr int kFirstIndex = 0;
+  static constexpr int kSecondIndex = 1;
+  static constexpr std::array<ValueRepresentation, 2> kInputRepresentations = {
+      ValueRepresentation::kTagged, ValueRepresentation::kInt32};
+
+  Input FirstInput() { return input(kFirstIndex); }
+  Input SecondInput() { return input(kSecondIndex); }
+
+  void SetValueLocationConstraints() {
+    UseRegister(FirstInput());
+    UseRegister(SecondInput());
+    DefineSameAsFirst(this);
+  }
+
+  void GenerateCode(FakeMaglevAssembler* masm) {
+    Register res = ToRegister(result());
+    Register second = ToRegister(SecondInput());
+    __ movq(res, Immediate(0));
+    __ addq(res, second);
+  }
+};
+
+struct MaglevDefineSameAsFirstSameReprBad : NodeBase {
+  static constexpr int kFirstIndex = 0;
+  static constexpr int kSecondIndex = 1;
+  static constexpr std::array<ValueRepresentation, 2> kInputRepresentations = {
+      ValueRepresentation::kInt32, ValueRepresentation::kInt32};
+
+  Input FirstInput() { return input(kFirstIndex); }
+  Input SecondInput() { return input(kSecondIndex); }
+
+  void SetValueLocationConstraints() {
+    UseRegister(FirstInput());
+    UseRegister(SecondInput());
+    DefineSameAsFirst(this);
+  }
+
+  void GenerateCode(FakeMaglevAssembler* masm) {
+    Register res = ToRegister(result());
+    Register second = ToRegister(SecondInput());
+    __ movq(res, Immediate(0));
+    // EXPECT-WARNING: Maglev input 'SecondInput' is read
+    __ addq(res, second);
+  }
+};
+
+// Check 4: TemporaryRegisterScope general/double temp, scratch, Include,
+// nested scope, ResetToDefault, and interprocedural helper budgets.
+void HelperUsesTwoMaglevTemps(FakeMaglevAssembler* masm) {
+  TemporaryRegisterScope temps(masm);
+  Register t1 = temps.Acquire();
+  Register t2 = temps.Acquire();
+  __ movq(t1, t2);
+}
+
+struct MaglevTempBudgetsBad : NodeBase {
+  Input InInput() { return input(0); }
+
+  void SetValueLocationConstraints() {
+    UseRegister(InInput());
+    set_temporaries_needed(1);
+    set_double_temporaries_needed(0);
+  }
+
+  void GenerateCode(FakeMaglevAssembler* masm) {
+    {
+      TemporaryRegisterScope temps(masm);
+      Register t1 = temps.Acquire();
+      // EXPECT-WARNING: requires 2 general temporary register(s), but
+      // SetValueLocationConstraints only reserved 1
+      Register t2 = temps.Acquire();
+      __ movq(t1, t2);
+    }
+    {
+      TemporaryRegisterScope temps(masm);
+      // EXPECT-WARNING: requires 1 double temporary register(s), but
+      // SetValueLocationConstraints only reserved 0
+      DoubleRegister d1 = temps.AcquireDouble();
+      (void)d1;
+    }
+    {
+      TemporaryRegisterScope temps(masm);
+      Register s1 = temps.AcquireScratch();
+      // EXPECT-WARNING: requires 2 simultaneous general scratch register(s),
+      // exceeding the architecture scratch budget (1)
+      Register s2 = temps.AcquireScratch();
+      __ movq(s1, s2);
+    }
+    {
+      TemporaryRegisterScope temps(masm);
+      temps.ResetToDefault();
+      // EXPECT-WARNING: acquires 1 general temporary register(s) after
+      // ResetToDefault() with only 0 explicitly included
+      Register t1 = temps.Acquire();
+      __ movq(t1, Immediate(0));
+    }
+    // EXPECT-WARNING: requires 2 general temporary register(s), but
+    // SetValueLocationConstraints only reserved 1
+    HelperUsesTwoMaglevTemps(masm);
+  }
+};
+
+struct MaglevTempBudgetsIncludeAndNestedGood : NodeBase {
+  Input ClobberedInput() { return input(0); }
+
+  void SetValueLocationConstraints() {
+    UseAndClobberRegister(ClobberedInput());
+    set_temporaries_needed(1);
+  }
+
+  void GenerateCode(FakeMaglevAssembler* masm) {
+    {
+      TemporaryRegisterScope temps(masm);
+      Register t1 = temps.Acquire();
+      __ movq(t1, Immediate(1));
+    }
+    {
+      TemporaryRegisterScope temps(masm);
+      temps.Include(ToRegister(ClobberedInput()));
+      Register t1 = temps.Acquire();
+      Register t2 = temps.Acquire();
+      __ movq(t1, t2);
+    }
+  }
+};
+
+// Check 5: Unrequested vs requested physical allocatable register writes.
+struct MaglevPhysWriteBad : NodeBase {
+  Input InInput() { return input(0); }
+
+  void SetValueLocationConstraints() {
+    UseRegister(InInput());
+    DefineAsRegister(this);
+  }
+
+  void GenerateCode(FakeMaglevAssembler* masm) {
+    // EXPECT-WARNING: Physical register 'rcx' is modified/clobbered
+    __ movq(rcx, ToRegister(InInput()));
+    __ movq(ToRegister(result()), rcx);
+  }
+};
+
+struct MaglevPhysWriteRequestedGood : NodeBase {
+  Input InInput() { return input(0); }
+
+  void SetValueLocationConstraints() {
+    UseRegister(InInput());
+    DefineAsRegister(this);
+    RequireSpecificTemporary(rcx);
+  }
+
+  void GenerateCode(FakeMaglevAssembler* masm) {
+    __ movq(rcx, ToRegister(InInput()));
+    __ movq(ToRegister(result()), rcx);
+  }
+};
+
+// Check 6: Mainline calls, rejoining deferred calls, and diverging deferred
+// callbacks vs OpProperties & SaveRegisterStateForCall.
+struct MaglevMainlineCallMissingPropBad : NodeBase {
+  static constexpr OpProperties kProperties = OpProperties::Pure();
+  Input InInput() { return input(0); }
+
+  void SetValueLocationConstraints() { UseRegister(InInput()); }
+
+  void GenerateCode(FakeMaglevAssembler* masm) {
+    // EXPECT-WARNING: kProperties does not include OpProperties::Call()
+    __ CallRuntime(Runtime::kAbort);
+  }
+};
+
+struct MaglevMainlineCallWithPropGood : NodeBase {
+  static constexpr OpProperties kProperties = OpProperties::Call();
+  Input InInput() { return input(0); }
+
+  void SetValueLocationConstraints() { UseRegister(InInput()); }
+
+  void GenerateCode(FakeMaglevAssembler* masm) {
+    __ CallRuntime(Runtime::kAbort);
+  }
+};
+
+struct MaglevDeferredCallChecksBad : NodeBase {
+  static constexpr OpProperties kProperties = OpProperties::Pure();
+  Input InInput() { return input(0); }
+
+  void SetValueLocationConstraints() { UseRegister(InInput()); }
+
+  void GenerateCode(FakeMaglevAssembler* masm) {
+    ZoneLabelRef done(masm);
+    __ j(zero, __ MakeDeferredCode(
+                   [](FakeMaglevAssembler* masm, ZoneLabelRef done,
+                      MaglevDeferredCallChecksBad* node) {
+                     {
+                       // EXPECT-WARNING: SaveRegisterStateForCall used
+                       SaveRegisterStateForCall save(masm,
+                                                     node->register_snapshot());
+                       // EXPECT-WARNING: requires OpProperties::DeferredCall()
+                       __ CallRuntime(Runtime::kAbort);
+                     }
+                     __ jmp(*done);
+                   },
+                   done, this));
+    __ bind(*done);
+  }
+};
+
+struct MaglevDeferredCallMissingSaveStateBad : NodeBase {
+  static constexpr OpProperties kProperties = OpProperties::DeferredCall();
+  Input InInput() { return input(0); }
+
+  void SetValueLocationConstraints() { UseRegister(InInput()); }
+
+  void GenerateCode(FakeMaglevAssembler* masm) {
+    ZoneLabelRef done(masm);
+    __ j(zero, __ MakeDeferredCode(
+                   [](FakeMaglevAssembler* masm, ZoneLabelRef done) {
+                     // EXPECT-WARNING: clobbers caller-saved registers without
+                     // SaveRegisterStateForCall
+                     __ CallRuntime(Runtime::kAbort);
+                     __ jmp(*done);
+                   },
+                   done));
+    __ bind(*done);
+  }
+};
+
+struct MaglevDeferredCallProperGood : NodeBase {
+  static constexpr OpProperties kProperties = OpProperties::DeferredCall();
+  Input InInput() { return input(0); }
+
+  void SetValueLocationConstraints() { UseRegister(InInput()); }
+
+  void GenerateCode(FakeMaglevAssembler* masm) {
+    ZoneLabelRef done(masm);
+    __ j(zero, __ MakeDeferredCode(
+                   [](FakeMaglevAssembler* masm, ZoneLabelRef done,
+                      MaglevDeferredCallProperGood* node) {
+                     {
+                       SaveRegisterStateForCall save(masm,
+                                                     node->register_snapshot());
+                       __ CallRuntime(Runtime::kAbort);
+                     }
+                     __ jmp(*done);
+                   },
+                   done, this));
+    __ bind(*done);
+  }
+};
+
+struct MaglevDivergingDeferredGood : NodeBase {
+  static constexpr OpProperties kProperties = OpProperties::DeferredCall();
+  Input InInput() { return input(0); }
+
+  void SetValueLocationConstraints() { UseRegister(InInput()); }
+
+  void GenerateCode(FakeMaglevAssembler* masm) {
+    __ JumpToDeferredIf(zero, [](FakeMaglevAssembler* masm) {
+      __ CallRuntime(Runtime::kAbort);
+      __ Abort(AbortReason::kNoReason);
+    });
+  }
+};
+
+struct MaglevDivergingDeferredMissingPropBad : NodeBase {
+  static constexpr OpProperties kProperties = OpProperties::Pure();
+  Input InInput() { return input(0); }
+
+  void SetValueLocationConstraints() { UseRegister(InInput()); }
+
+  void GenerateCode(FakeMaglevAssembler* masm) {
+    __ JumpToDeferredIf(zero, [](FakeMaglevAssembler* masm) {
+      // EXPECT-WARNING: requires OpProperties::DeferredCall()
+      __ CallRuntime(Runtime::kAbort);
+      __ Abort(AbortReason::kNoReason);
+    });
+  }
+};
+
+// V8_REG_CLOBBERS_IF: CompareRange / CompareInstanceTypeRange only clobber
+// kScratchRegister when lower_limit != 0.
+void TestConditionalClobberZeroLowGood(FakeMaglevAssembler* masm,
+                                       Register string) {
+  TemporaryRegisterScope temps(masm);
+  Register scratch = temps.AcquireScratch();
+  __ LoadMap(scratch, string);
+  __ CompareInstanceTypeRange(scratch, scratch, FIRST_STRING_TYPE,
+                              LAST_STRING_TYPE);
+  __ andl(scratch, Immediate(0xff));
+}
+
+void TestConditionalClobberNonZeroLowBad(FakeMaglevAssembler* masm,
+                                         Register obj) {
+  TemporaryRegisterScope temps(masm);
+  Register scratch = temps.AcquireScratch();
+  __ LoadMap(scratch, obj);
+  __ CompareInstanceTypeRange(scratch, scratch, FIRST_JS_RECEIVER_TYPE,
+                              LAST_JS_RECEIVER_TYPE);
+  // EXPECT-WARNING: Use of register 'scratch' after it was clobbered
+  __ andl(scratch, Immediate(0xff));
+}
+
+void TestCompareRangeDirectCondClobber(MacroAssembler* masm, Register val) {
+  __ movq(kScratchRegister, Immediate(7));
+  __ CompareRange(val, 0, 10);
+  __ addq(val, kScratchRegister);
+
+  __ movq(kScratchRegister, Immediate(7));
+  __ CompareRange(val, 1, 10);
+  // EXPECT-WARNING: Use of physical register 'r10' after it was clobbered
+  __ addq(val, kScratchRegister);
+}
+
+// Root-relative ExternalReferenceAsOperand:
+// Outside Maglev, IsolateFieldId is always root-relative, whereas raw
+// ExternalReference::address_of_pending_message(isolate) may use scratch when
+// serializer_enabled() disables root-relative access.
+void TestNonMaglevIsolateFieldIdGood(MacroAssembler* masm, Register val) {
+  Operand op = __ ExternalReferenceAsOperand(
+      ExternalReference::Create(IsolateFieldId::kPendingMessage),
+      kScratchRegister);
+  __ movq(kScratchRegister, op);
+  __ movq(op, val);
+}
+
+void TestNonMaglevRawPendingMessageBad(MacroAssembler* masm, Register val) {
+  Operand op = __ ExternalReferenceAsOperand(
+      ExternalReference::address_of_pending_message(masm->isolate()),
+      kScratchRegister);
+  __ movq(kScratchRegister, op);
+  // EXPECT-WARNING: Use of Operand 'op' after its underlying scratch register
+  __ movq(op, val);
+}
+
+// Inside Maglev, Isolate-embedded ExternalReferences always resolve via
+// [kRootRegister + offset] without using scratch, whereas non-Isolate globals
+// and off-Isolate heap-allocated sub-objects still require scratch.
+struct MaglevIsolateExternalRefGood : NodeBase {
+  Input ValInput() { return input(0); }
+
+  void SetValueLocationConstraints() {
+    UseRegister(ValInput());
+    DefineAsRegister(this);
+  }
+
+  void GenerateCode(FakeMaglevAssembler* masm) {
+    Register in_reg = ToRegister(ValInput());
+    Register out_reg = ToRegister(result());
+    TemporaryRegisterScope temps(masm);
+    Register scratch = temps.AcquireScratch();
+    Operand op = __ ExternalReferenceAsOperand(
+        ExternalReference::address_of_pending_message(masm->isolate()),
+        scratch);
+    __ movq(scratch, op);
+    __ movq(op, in_reg);
+    __ movq(out_reg, scratch);
+  }
+};
+
+struct MaglevGlobalExternalRefBad : NodeBase {
+  Input ValInput() { return input(0); }
+
+  void SetValueLocationConstraints() {
+    UseRegister(ValInput());
+    DefineAsRegister(this);
+  }
+
+  void GenerateCode(FakeMaglevAssembler* masm) {
+    Register in_reg = ToRegister(ValInput());
+    Register out_reg = ToRegister(result());
+    TemporaryRegisterScope temps(masm);
+    Register scratch = temps.AcquireScratch();
+    Operand op = __ ExternalReferenceAsOperand(
+        ExternalReference::address_of_min_int(), scratch);
+    __ movq(scratch, op);
+    // EXPECT-WARNING: Use of Operand 'op' after its underlying scratch register
+    __ movq(op, in_reg);
+    __ movq(out_reg, scratch);
+  }
+};
+
+struct MaglevOffIsolateExternalRefBad : NodeBase {
+  Input ValInput() { return input(0); }
+
+  void SetValueLocationConstraints() {
+    UseRegister(ValInput());
+    DefineAsRegister(this);
+  }
+
+  void GenerateCode(FakeMaglevAssembler* masm) {
+    Register in_reg = ToRegister(ValInput());
+    Register out_reg = ToRegister(result());
+    TemporaryRegisterScope temps(masm);
+    Register scratch = temps.AcquireScratch();
+    Operand op = __ ExternalReferenceAsOperand(
+        ExternalReference::debug_is_active_address(masm->isolate()), scratch);
+    __ movq(scratch, op);
+    // EXPECT-WARNING: Use of Operand 'op' after its underlying scratch register
+    __ movq(op, in_reg);
+    __ movq(out_reg, scratch);
+  }
+};
+
+}  // namespace maglev_test
 
 #undef __
 
