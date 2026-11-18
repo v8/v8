@@ -9151,6 +9151,7 @@ bool v8::ArrayBufferBase::IsShared() const {
 }
 
 bool v8::ArrayBufferBase::IsDetachable() const {
+  if (IsImmutable()) return false;
   return Utils::OpenDirectHandle(this)->is_detachable();
 }
 

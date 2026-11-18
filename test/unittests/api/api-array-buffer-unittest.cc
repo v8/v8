@@ -1320,6 +1320,7 @@ TEST_F(ApiArrayBufferTest, ArrayBuffer_ImmutableBackingStore) {
       v8::ArrayBuffer::New(isolate, shared_backing_store);
 
   CHECK(ab->IsImmutable());
+  CHECK(!ab->IsDetachable());
 }
 
 TEST_F(ApiArrayBufferTest, ArrayBuffer_CopyArrayBufferBytes) {
