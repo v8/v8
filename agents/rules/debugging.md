@@ -30,6 +30,10 @@ that best fits the problem:
   `%PrepareFunctionForOptimization`), keep it unaltered and ask the user to
   provide the correct flags or environment. Create scratch copies for
   minimization or testing if needed.
+- **Scripted Reproducer Minimization**: Use
+  `vpython3 agents/skills/minimize-reproducer/scripts/minimize_dd.py` on a
+  scratch copy when reducing bloated JS reproducers instead of deleting lines or
+  flags manually one by one.
 - **Error Log & Source Triage**: Analyze the reproducing JS script, runtime
   flags, and assertion stack traces early to narrow down the failing subsystem.
 
