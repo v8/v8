@@ -1212,6 +1212,11 @@ class UnoptimizedJSFrame : public JavaScriptFrame {
   // Returns the frame's current bytecode array.
   Tagged<BytecodeArray> GetBytecodeArray() const;
 
+  // Returns the original (non-debug) BytecodeArray associated with this frame's
+  // SharedFunctionInfo after verifying that the frame's current BytecodeArray
+  // is consistent with it.
+  Tagged<BytecodeArray> GetOriginalBytecodeArray() const;
+
   // Access to the interpreter register file for this frame.
   Tagged<Object> ReadInterpreterRegister(int register_index) const;
 
@@ -1253,11 +1258,6 @@ class InterpretedFrame : public UnoptimizedJSFrame {
   // Updates the frame's BytecodeArray with |bytecode_array|. Used by the
   // debugger to swap execution onto a BytecodeArray patched with breakpoints.
   void PatchBytecodeArray(Tagged<BytecodeArray> bytecode_array);
-
-  // Returns the original (non-debug) BytecodeArray associated with this frame's
-  // SharedFunctionInfo after verifying that the frame's current BytecodeArray
-  // is consistent with it.
-  Tagged<BytecodeArray> GetOriginalBytecodeArray() const;
 
   static InterpretedFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_interpreted());
