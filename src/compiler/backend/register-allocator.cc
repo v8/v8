@@ -4308,13 +4308,15 @@ void LinearScanAllocator::AllocateBlockedReg(LiveRange* current) {
     new_end = block_pos[reg].Start();
   }
 
-  // If there is no register available at all, we can only spill this range.
-  // Happens for instance on entry to deferred code where registers might
-  // become blocked yet we aim to reload ranges.
-  if (new_end == current->Start()) {
-    SpillBetween(current, new_end, register_use->pos());
-    return;
-  }
+  // Reaching new_end <= current->Start() means block_pos[reg].Start() clamped
+  // new_end, so even the best register is already blocked at current->Start()
+  // (use_pos[reg] <= block_pos[reg] <= current->Start().End()). Any range with
+  // a gap before register_use->pos() therefore satisfied use_pos[reg] <
+  // register_use->pos() and spilled above, leaving only oversubscription here.
+  CHECK_WITH_MSG(
+      new_end > current->Start(),
+      "Register oversubscription: instruction requires more registers than "
+      "available");
 
   // Split at the new end if we found one.
   if (new_end != current->End()) {
