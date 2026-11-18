@@ -481,20 +481,6 @@ bool IsOneInstrConstant(const InstructionSequence* code,
 }
 #endif  // V8_TARGET_ARCH_ARM64
 
-bool Is64BitsWide(const InstructionOperand& op) {
-  MachineRepresentation rep = LocationOperand::cast(&op)->representation();
-#if V8_COMPRESS_POINTERS
-  // We can't use {ElementSizeInBytes} because it's made for on-heap object
-  // slots and assumes that kTagged == kCompressed, whereas for the purpose
-  // here we specifically need to distinguish those cases.
-  return (rep == MachineRepresentation::kTagged ||
-          rep == MachineRepresentation::kTaggedPointer ||
-          rep == MachineRepresentation::kWord64);
-#else
-  return rep == MachineRepresentation::kWord64;
-#endif
-}
-
 #if V8_TARGET_ARCH_X64
 bool IsSimd256(const InstructionOperand& op) {
   return op.IsAnyLocationOperand() &&
@@ -524,13 +510,9 @@ bool LoadCompare(const MoveOperands* a, const MoveOperands* b) {
   // In particular, replacing an uncompressed pointer with a compressed
   // pointer is disallowed.
   if (a->destination().IsLocationOperand() &&
-      b->destination().IsLocationOperand()) {
-    if (Is64BitsWide(a->destination()) && !Is64BitsWide(b->destination())) {
-      return true;
-    }
-    if (!Is64BitsWide(a->destination()) && Is64BitsWide(b->destination())) {
-      return false;
-    }
+      b->destination().IsLocationOperand() &&
+      Is32BitOperand(a->destination()) != Is32BitOperand(b->destination())) {
+    return !Is32BitOperand(a->destination());
   }
   if (IsSlot(a->destination()) && !IsSlot(b->destination())) return false;
   if (!IsSlot(a->destination()) && IsSlot(b->destination())) return true;
