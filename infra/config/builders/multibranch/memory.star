@@ -13,6 +13,7 @@ in_category(
     "ASAN",
     main_multibranch_builder_pair(
         name = "V8 Linux64 ASAN",
+        release_branches = True,
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
@@ -52,11 +53,13 @@ in_category(
     "TSAN",
     main_multibranch_builder(
         name = "V8 Linux64 TSAN - builder",
+        release_branches = True,
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder(
         name = "V8 Linux64 TSAN",
+        release_branches = True,
         parent_builder = "V8 Linux64 TSAN - builder",
         barrier = BARRIER.LKGR_TREE_CLOSER,
     ),

@@ -123,7 +123,17 @@ def v8_builder(defaults = None, **kwargs):
         )
     return kwargs["name"]
 
-def multibranch_builder(**kwargs):
+def multibranch_builder(release_branches = False, **kwargs):
+    """Defines a builder on main and optionally twins on release branches.
+
+    Args:
+      release_branches: Opt-in switch for also creating twin builders in the
+        release-branch buckets (and consoles). Off by default.
+      **kwargs: Arguments passed through to the builder definition.
+
+    Returns:
+      A list of "<bucket>/<name>" strings for all created builders.
+    """
     added_builders = []
     barrier = kwargs.pop("barrier", BARRIER.TREE_CLOSER)
     for branch in branch_descriptors:
@@ -149,6 +159,8 @@ def multibranch_builder(**kwargs):
                 args["notifies"] = notifies
         else:
             args["disable_resultdb_exports"] = True
+            if not release_branches:
+                continue
             if skip_builder(branch.bucket, first_branch_version):
                 continue
 

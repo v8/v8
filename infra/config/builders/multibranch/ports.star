@@ -19,6 +19,7 @@ in_category(
     "Arm",
     multibranch_builder(
         name = "V8 Android Arm - builder",
+        release_branches = True,
         triggering_policy = parallel_3_greedy_batching_of_1,
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
@@ -27,6 +28,7 @@ in_category(
     ),
     multibranch_builder(
         name = "V8 Android Arm - verify deterministic - debug",
+        release_branches = True,
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports", "target_arch": "arm", "target_platform": "android", "default_targets": ["verify_deterministic_mksnapshot"]},
         always_isolate_targets = ["snapshot_set"],
@@ -35,6 +37,7 @@ in_category(
     ),
     multibranch_builder_pair(
         name = "V8 Linux - arm - sim",
+        release_branches = True,
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports"},
@@ -52,6 +55,7 @@ in_category(
     ),
     multibranch_builder_pair(
         name = "V8 Linux - arm - sim - lite",
+        release_branches = True,
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports"},
@@ -74,6 +78,7 @@ in_category(
     "Arm64",
     multibranch_builder(
         name = "V8 Android Arm64 - builder",
+        release_branches = True,
         triggering_policy = parallel_3_greedy_batching_of_1,
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
@@ -82,12 +87,14 @@ in_category(
     ),
     multibranch_builder(
         name = "V8 Android Arm64 - debug builder",
+        release_branches = True,
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"target_platform": "android", "target_arch": "arm", "builder_group": "client.v8.ports"},
     ),
     multibranch_builder(
         name = "V8 Android Arm64 - P7",
+        release_branches = True,
         parent_builder = "V8 Android Arm64 - builder",
         properties = {"builder_group": "client.v8.ports"},
         barrier = BARRIER.NONE,
@@ -96,18 +103,21 @@ in_category(
     ),
     multibranch_builder_pair(
         name = "V8 Linux64 - arm64",
+        release_branches = True,
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8", "target_arch": "arm", "target_bits": 64},
         barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     multibranch_builder_pair(
         name = "V8 Linux64 - arm64 - debug",
+        release_branches = True,
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8", "target_arch": "arm", "target_bits": 64},
         barrier = BARRIER.TREE_CLOSER,
     ),
     multibranch_builder(
         name = "V8 Linux64 - arm64 - no wasm - debug builder",
+        release_branches = True,
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {
             "builder_group": "client.v8.ports",
@@ -117,6 +127,7 @@ in_category(
     ),
     multibranch_builder(
         name = "V8 Linux64 - arm64 - no pointer compression - builder",
+        release_branches = True,
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {
@@ -129,6 +140,7 @@ in_category(
     ),
     multibranch_builder_pair(
         name = "V8 Linux - arm64 - sim",
+        release_branches = True,
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports"},
@@ -138,6 +150,7 @@ in_category(
     ),
     multibranch_builder_pair(
         name = "V8 Linux - arm64 - sim - debug",
+        release_branches = True,
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports"},
@@ -154,6 +167,7 @@ in_category(
     ),
     multibranch_builder_pair(
         name = "V8 Linux64 - arm64 - sim - no pointer compression",
+        release_branches = True,
         triggered_by_gitiles = True,
         tester_execution_timeout = 19800,
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
@@ -167,6 +181,7 @@ in_category(
     "Mips",
     multibranch_builder_pair(
         name = "V8 Linux - mips64el - sim",
+        release_branches = True,
         triggered_by_gitiles = True,
         tester_execution_timeout = 19800,
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
@@ -180,6 +195,7 @@ in_category(
     "IBM",
     multibranch_builder_pair(
         name = "V8 Linux - ppc64 - sim",
+        release_branches = True,
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         execution_timeout = 19800,
@@ -189,6 +205,7 @@ in_category(
     ),
     multibranch_builder_pair(
         name = "V8 Linux - s390x - sim",
+        release_branches = True,
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         execution_timeout = 19800,
@@ -202,6 +219,7 @@ in_category(
     "RISC-V",
     multibranch_builder_pair(
         name = "V8 Linux - riscv64 - sim",
+        release_branches = True,
         tester_execution_timeout = 19800,
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports"},
@@ -219,6 +237,7 @@ in_category(
     ),
     multibranch_builder_pair(
         name = "V8 Linux - riscv64 - sim - pointer compression",
+        release_branches = True,
         tester_execution_timeout = 19800,
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports"},
@@ -231,6 +250,7 @@ in_category(
     "Loongson",
     multibranch_builder_pair(
         name = "V8 Linux - loong64 - sim",
+        release_branches = True,
         triggered_by_gitiles = True,
         tester_execution_timeout = 19800,
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},

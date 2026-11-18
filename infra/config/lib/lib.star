@@ -294,6 +294,7 @@ def ci_pair_factory(func):
             "experiments",
             "barrier",
             "first_branch_version",
+            "release_branches",
             "notifies",
             "notify_owners",
         ]
