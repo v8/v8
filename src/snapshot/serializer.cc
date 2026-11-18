@@ -1195,7 +1195,11 @@ void Serializer::ObjectSerializer::VisitPointers(Tagged<HeapObject> host,
 
 void Serializer::ObjectSerializer::VisitInstructionStreamPointer(
     Tagged<Code> host, InstructionStreamSlot slot) {
-  DCHECK(!host->has_instruction_stream());
+  // Copies of the interpreter entry trampoline created for profiling have an
+  // on-heap InstructionStream, which is not serialized.
+  CHECK_WITH_MSG(!host->has_instruction_stream(),
+                 "Snapshots cannot contain copies of the interpreter entry "
+                 "trampoline (see --interpreted-frames-native-stack).");
 }
 
 // All of these visitor functions are unreachable since we don't serialize

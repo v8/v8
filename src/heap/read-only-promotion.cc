@@ -280,8 +280,12 @@ class Committee final {
   static PromoRecommendation GetPromoRecommendationCode(Committee* committee,
                                                         Isolate* isolate,
                                                         Tagged<Code> o) {
-    return Builtins::kCodeObjectsAreInROSpace && o->is_builtin() ? kPromote
-                                                                 : kReject;
+    // Only embedded builtins can live in RO space. Copies of the interpreter
+    // entry trampoline have a builtin id but an on-heap InstructionStream.
+    return Builtins::kCodeObjectsAreInROSpace && o->is_builtin() &&
+                   !o->has_instruction_stream()
+               ? kPromote
+               : kReject;
   }
   static PromoRecommendation GetPromoRecommendationCodeWrapper(
       Committee* committee, Isolate* isolate, Tagged<CodeWrapper> o) {

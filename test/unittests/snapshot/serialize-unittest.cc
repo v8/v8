@@ -7781,6 +7781,37 @@ TEST_F(UninitializedSerializeTest, SnapshotCreatorAnonClassWithKeep) {
 }
 
 TEST_F(UninitializedSerializeTest,
+       SnapshotCreatorInterpretedFramesNativeStack) {
+  // Death tests re-run the test in a new process; skip abort() there.
+  i::v8_flags.hard_abort.Set(true);
+  FlagScope<bool> interpreted_frames_native_stack(
+      &i::v8_flags.interpreted_frames_native_stack, true);
+  SnapshotCreatorParams testing_params;
+  v8::SnapshotCreator creator(testing_params.create_params);
+  v8::Isolate* isolate = creator.GetIsolate();
+  // With a code event listener, each compiled function gets its own copy of
+  // the interpreter entry trampoline.
+  isolate->SetJitCodeEventHandler(v8::kJitCodeEventDefault,
+                                  [](const v8::JitCodeEvent*) {});
+  {
+    v8::HandleScope handle_scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    v8::Context::Scope context_scope(context);
+    CompileRun(isolate, "function f() { return 1; } f();");
+    creator.SetDefaultContext(context);
+  }
+#if !defined(DEBUG) && defined(OFFICIAL_BUILD)
+  constexpr const char* kExpectedDeathMessage = "";
+#else
+  constexpr const char* kExpectedDeathMessage =
+      "copies of the interpreter entry trampoline";
+#endif
+  ASSERT_DEATH_IF_SUPPORTED(
+      creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kKeep),
+      kExpectedDeathMessage);
+}
+
+TEST_F(UninitializedSerializeTest,
        SnapshotCreatorDontDeferByteArrayForTypedArray) {
   v8::StartupData blob;
   {
