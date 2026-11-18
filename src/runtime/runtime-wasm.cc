@@ -1515,6 +1515,35 @@ class PrototypesSetup : public wasm::Decoder {
         return ReadOnlyRoots(isolate()).exception();
       }
 
+      uint32_t parent_idx_offset = pc_offset();
+      int32_t parent_idx = consume_i32v("parentidx");
+      if (!ok()) break;
+      if (parent_idx >= 0 && static_cast<uint32_t>(parent_idx) < proto_index) {
+        if (prototype_is_null) {
+          isolate()->Throw(*isolate()->factory()->NewTypeError(
+              MessageTemplate::kCalledOnNullOrUndefined,
+              isolate()->factory()->NewStringFromAsciiChecked(
+                  "Object.setPrototypeOf")));
+          return ReadOnlyRoots(isolate()).exception();
+        }
+        // Previous entries in the prototypes array may have been overwritten
+        // since we last saw them, so we cannot make any assumptions about them.
+        DirectHandle<Object> parent =
+            PrototypeByIndex(static_cast<uint32_t>(parent_idx));
+        if (!JSReceiver::SetPrototype(isolate(), prototype, parent, true,
+                                      ShouldThrow::kThrowOnError)
+                 .FromMaybe(false)) {
+          DCHECK(isolate()->has_exception());
+          return ReadOnlyRoots(isolate()).exception();
+        }
+      } else if (parent_idx == -1) {
+        // No parent requested.
+      } else {
+        errorf(0u, "invalid parentidx %d at data+%u", parent_idx,
+               parent_idx_offset);
+        break;
+      }
+
       uint32_t has_constructor = consume_u32v("constructor");
       if (!ok()) break;
 
@@ -1714,35 +1743,6 @@ class PrototypesSetup : public wasm::Decoder {
       }
 
       if (!ok()) break;
-
-      uint32_t parent_idx_offset = pc_offset();
-      int32_t parent_idx = consume_i32v("parentidx");
-      if (!ok()) break;
-      if (parent_idx >= 0 && static_cast<uint32_t>(parent_idx) < proto_index) {
-        if (prototype_is_null) {
-          isolate()->Throw(*isolate()->factory()->NewTypeError(
-              MessageTemplate::kCalledOnNullOrUndefined,
-              isolate()->factory()->NewStringFromAsciiChecked(
-                  "Object.setPrototypeOf")));
-          return ReadOnlyRoots(isolate()).exception();
-        }
-        // Previous entries in the prototypes array may have been overwritten
-        // since we last saw them, so we cannot make any assumptions about them.
-        DirectHandle<Object> parent =
-            PrototypeByIndex(static_cast<uint32_t>(parent_idx));
-        if (!JSReceiver::SetPrototype(isolate(), prototype, parent, true,
-                                      ShouldThrow::kThrowOnError)
-                 .FromMaybe(false)) {
-          DCHECK(isolate()->has_exception());
-          return ReadOnlyRoots(isolate()).exception();
-        }
-      } else if (parent_idx == -1) {
-        // No parent requested.
-      } else {
-        errorf(0u, "invalid parentidx %d at data+%u", parent_idx,
-               parent_idx_offset);
-        break;
-      }
     }
     if (HasMoreFunctions()) error("unconsumed functions");
     if (HasMorePrototypes()) error("unconsumed prototypes");

@@ -101,9 +101,10 @@ d8.file.execute('test/mjsunit/wasm/prototype-setup-builder.js');
   let $proto = builder.addImportedGlobal('p', 'proto', kWasmExternRef);
   let ctor = builder.addFunction('ctor', kSig_v_v).addBody([]);
 
-  // 1 prototype, has_constructor = 1, name = "C", then truncated data so
-  // `configureAll` throws WebAssembly.RuntimeError after InstallConstructor.
-  let data = [1, 1, 1, 67];
+  // 1 prototype, parentidx = -1, has_constructor = 1, name = "C", then
+  // truncated data so `configureAll` throws WebAssembly.RuntimeError after
+  // InstallConstructor.
+  let data = [1, 0x7f, 1, 1, 67];
   let proto_seg = builder.addPassiveElementSegment(
       [[kExprGlobalGet, $proto]], kWasmExternRef);
   let func_seg = builder.addPassiveElementSegment([ctor.index]);
