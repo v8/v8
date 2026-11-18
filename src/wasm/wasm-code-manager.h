@@ -407,8 +407,6 @@ class V8_EXPORT_PRIVATE WasmCode final {
     return FrameHasFeedbackSlotField::decode(flags_);
   }
 
-  enum FlushICache : bool { kFlushICache = true, kNoFlushICache = false };
-
   size_t EstimateCurrentMemoryConsumption() const;
 
   // Tries to get a reasonable name. Lazily looks up the name section, and falls
