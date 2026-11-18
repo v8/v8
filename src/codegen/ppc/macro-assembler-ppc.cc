@@ -2395,6 +2395,16 @@ void MacroAssembler::CheckPageFlag(
   }
 }
 
+void MacroAssembler::JumpIfMarking(Label* is_marking) {
+  DCHECK(root_array_available());
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  LoadU8(scratch,
+         MemOperand(kRootRegister, IsolateData::is_marking_flag_offset()));
+  CmpU64(scratch, Operand(0));
+  bne(is_marking);
+}
+
 void MacroAssembler::SetRoundingMode(FPRoundingMode RN) { mtfsfi(7, RN); }
 
 void MacroAssembler::ResetRoundingMode() {
