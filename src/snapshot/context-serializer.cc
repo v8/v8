@@ -191,18 +191,16 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
         }
       }
     }
-  } else if (InstanceTypeChecker::IsEmbedderDataArray(instance_type) &&
+  } else if (InstanceTypeChecker::IsNativeContext(instance_type) &&
              !allow_active_isolate_for_testing()) {
-    DCHECK_EQ(*obj, context_->embedder_data());
-    Handle<EmbedderDataArray> embedder_data = Cast<EmbedderDataArray>(obj);
-    int embedder_fields_count = embedder_data->length();
-    if (embedder_data->length() > 0) {
-      DirectHandle<Context> context_handle(context_, isolate());
-      v8::Local<v8::Context> api_obj =
-          v8::Utils::ToLocal(Cast<NativeContext>(context_handle));
+    DCHECK_EQ(*obj, context_);
+    Handle<NativeContext> context = Cast<NativeContext>(obj);
+    int embedder_fields_count = V8_EMBEDDER_DATA_ARRAY_SIZE;
+    if (embedder_fields_count > 0) {
+      v8::Local<v8::Context> api_obj = v8::Utils::ToLocal(context);
       v8::SerializeContextDataCallback user_callback =
           serialize_embedder_fields_.context_callback;
-      SerializeObjectWithEmbedderFields(embedder_data, embedder_fields_count,
+      SerializeObjectWithEmbedderFields(context, embedder_fields_count,
                                         ContextDataSerializeWrapper,
                                         user_callback, api_obj);
       return;

@@ -1671,6 +1671,9 @@ Handle<NativeContext> Factory::NewNativeContext() {
   context->set_is_wasm_jspi_installed(Smi::zero());
   context->set_math_random_index(Smi::zero());
   context->set_serialized_objects(*empty_fixed_array());
+  for (int i = 0; i < V8_EMBEDDER_DATA_ARRAY_SIZE; i++) {
+    EmbedderDataSlot(context, i).Initialize(*undefined_value());
+  }
   context->init_microtask_queue(isolate(), nullptr);
   context->set_retained_maps(*empty_weak_array_list());
   return handle(context, isolate());

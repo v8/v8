@@ -917,6 +917,14 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
           main_thread_isolate(), &pointer));
       CHECK_NULL(pointer);
     }
+  } else if (IsNativeContext(raw_obj)) {
+    Tagged<NativeContext> context = Cast<NativeContext>(raw_obj);
+    for (int i = 0; i < V8_EMBEDDER_DATA_ARRAY_SIZE; ++i) {
+      void* pointer;
+      CHECK(EmbedderDataSlot(context, i)
+                .DeprecatedToAlignedPointer(main_thread_isolate(), &pointer));
+      CHECK_NULL(pointer);
+    }
   } else if (IsEmbedderDataArray(raw_obj)) {
     Tagged<EmbedderDataArray> array = Cast<EmbedderDataArray>(raw_obj);
     EmbedderDataSlot start(array, 0);

@@ -1000,10 +1000,12 @@ class Internals {
       kJSObjectHeaderSize + kApiTaggedSize;
 #endif  // !V8_COMPRESS_POINTERS
   static const int kFixedArrayHeaderSize = 2 * kApiTaggedSize;
-  static const int kEmbedderDataArrayHeaderSize = 2 * kApiTaggedSize;
   static const int kEmbedderDataSlotSize = 2 * kApiTaggedSize;
   static const int kEmbedderDataSlotCppHeapPointerOffset = kApiTaggedSize;
-  static const int kNativeContextEmbedderDataOffset = 6 * kApiTaggedSize;
+  // Context has a FixedArray header (map + length) plus 3 common context slots
+  // (scope_info, previous, extension) before the inlined embedder data slots.
+  static const int kNativeContextEmbedderDataOffset =
+      kFixedArrayHeaderSize + 3 * kApiTaggedSize;
   static const int kStringRepresentationAndEncodingMask = 0x0f;
   static const int kStringEncodingMask = 0x8;
   static const int kExternalTwoByteRepresentationTag = 0x02;

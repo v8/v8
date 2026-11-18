@@ -1141,7 +1141,7 @@ TEST_F(UnifiedHeapSnapshotTest, WrappedContext) {
       *snapshot,
       {kExpectedGCRootsName, kExpectedCppRootsName,
        wrapped->GetHumanReadableName(), "system / NativeContext",
-       "system / EmbedderDataArray", wrapped->GetHumanReadableName()},
+       wrapped->GetHumanReadableName()},
       true));
 
   wrapped->set_detachedness(v8::EmbedderGraph::Node::Detachedness::kDetached);
@@ -1152,7 +1152,7 @@ TEST_F(UnifiedHeapSnapshotTest, WrappedContext) {
       *snapshot,
       {kExpectedGCRootsName, kExpectedCppRootsName,
        wrapped->GetHumanReadableName(), "system / NativeContext",
-       "system / EmbedderDataArray", wrapped->GetHumanReadableName()},
+       wrapped->GetHumanReadableName()},
       true));
   ForEachEntryWithName(
       snapshot, wrapped->GetHumanReadableName(), [](const HeapEntry& entry) {

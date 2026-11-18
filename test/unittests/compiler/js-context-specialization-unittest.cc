@@ -175,7 +175,8 @@ TEST_F(JSContextSpecializationTest, ReduceJSLoadContextNoCell0) {
   Handle<Context> subcontext2 = NewCanonicalContextForTesting(t, subcontext1);
   DirectHandle<Object> expected =
       t.CanonicalHandle(*t.factory()->InternalizeUtf8String("gboy!"));
-  const int slot = 5;
+  // Arbitrarily picked non-embedder-data Object slot in NativeContext.
+  const int slot = Context::ALLOW_CODE_GEN_FROM_STRINGS_INDEX;
   native->SetNoCell(slot, *expected);
 
   Node* const_context =
@@ -520,7 +521,8 @@ TEST_F(JSContextSpecializationTest, ReduceJSStoreContextNoCell0) {
   Handle<Context> subcontext2 = NewCanonicalContextForTesting(t, subcontext1);
   DirectHandle<Object> expected =
       t.CanonicalHandle(*t.factory()->InternalizeUtf8String("gboy!"));
-  const int slot = 5;
+  // Arbitrarily picked non-embedder-data Object slot in NativeContext.
+  const int slot = Context::ALLOW_CODE_GEN_FROM_STRINGS_INDEX;
   native->SetNoCell(slot, *expected);
 
   Node* const_context =

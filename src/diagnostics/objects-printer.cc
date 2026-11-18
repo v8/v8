@@ -721,14 +721,15 @@ void PrintTypedArrayElements(std::ostream& os, const ElementType* data_ptr,
 template <typename T>
 void PrintFixedArrayElements(std::ostream& os, Tagged<T> array,
                              uint32_t capacity,
-                             Tagged<Object> (*get)(Tagged<T>, uint32_t)) {
+                             Tagged<Object> (*get)(Tagged<T>, uint32_t),
+                             uint32_t start_index = 0) {
   // Print in array notation for non-sparse arrays.
-  if (capacity == 0) return;
-  Tagged<Object> previous_value = get(array, 0);
+  if (start_index >= capacity) return;
+  Tagged<Object> previous_value = get(array, start_index);
   Tagged<Object> value;
-  uint32_t previous_index = 0;
+  uint32_t previous_index = start_index;
   uint32_t i;
-  for (i = 1; i <= capacity; i++) {
+  for (i = start_index + 1; i <= capacity; i++) {
     if (i < capacity) value = get(array, i);
     if (previous_value == value && i != capacity) {
       continue;
@@ -1589,11 +1590,33 @@ void Context::PrintContextWithHeader(std::ostream& os, const char* type) {
   }
   os << "\n - length: " << length();
   os << "\n - elements:";
-  PrintFixedArrayElements<Context>(
-      os, this, static_cast<uint32_t>(length()),
-      [](Tagged<Context> xs, uint32_t i) {
-        return Cast<Object>(xs->get(i, kRelaxedLoad));
-      });
+  auto get_element = [](Tagged<Context> xs, uint32_t i) -> Tagged<Object> {
+    return Cast<Object>(xs->get(i, kRelaxedLoad));
+  };
+  if (Is<NativeContext>(this)) {
+    PrintFixedArrayElements<Context>(os, this, FIRST_EMBEDDER_DATA_INDEX,
+                                     get_element);
+    for (int i = 0; i < V8_EMBEDDER_DATA_ARRAY_SIZE; i++) {
+      os << "\n";
+      std::stringstream ss;
+      int slot_index =
+          FIRST_EMBEDDER_DATA_INDEX + i * kEmbedderDataSlotSizeInTaggedSlots;
+      if (kEmbedderDataSlotSizeInTaggedSlots > 1) {
+        ss << slot_index << '-'
+           << (slot_index + kEmbedderDataSlotSizeInTaggedSlots - 1);
+      } else {
+        ss << slot_index;
+      }
+      os << std::setw(12) << ss.str() << ": ";
+      PrintEmbedderData(Isolate::Current(), os,
+                        EmbedderDataSlot(Cast<NativeContext>(this), i));
+    }
+    PrintFixedArrayElements<Context>(os, this, static_cast<uint32_t>(length()),
+                                     get_element, LAST_EMBEDDER_DATA_INDEX + 1);
+  } else {
+    PrintFixedArrayElements<Context>(os, this, static_cast<uint32_t>(length()),
+                                     get_element);
+  }
   os << "\n";
 }
 

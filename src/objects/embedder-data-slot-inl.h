@@ -14,6 +14,7 @@
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/contexts.h"
 #include "src/objects/embedder-data-array.h"
 #include "src/objects/heap-object-field-inl.h"
 #include "src/objects/heap-object-inl.h"
@@ -32,6 +33,11 @@ EmbedderDataSlot::EmbedderDataSlot(Tagged<EmbedderDataArray> array,
                                    int entry_index)
     : SlotBase(FIELD_ADDR(array,
                           EmbedderDataArray::OffsetOfElementAt(entry_index))) {}
+
+EmbedderDataSlot::EmbedderDataSlot(Tagged<NativeContext> context,
+                                   int entry_index)
+    : SlotBase(FIELD_ADDR(
+          context, NativeContext::GetEmbedderFieldOffset(entry_index))) {}
 
 EmbedderDataSlot::EmbedderDataSlot(Tagged<JSObject> object,
                                    int embedder_field_index)
@@ -72,6 +78,23 @@ void EmbedderDataSlot::store_tagged(Tagged<EmbedderDataArray> array,
                          UPDATE_WRITE_BARRIER);
   // See store_raw() for the reasons behind two stores.
   clear_cpp_heap_pointer_field(FIELD_ADDR(array, slot_offset));
+}
+
+// static
+void EmbedderDataSlot::store_tagged(Tagged<NativeContext> context,
+                                    int entry_index, Tagged<Object> value) {
+#ifdef V8_COMPRESS_POINTERS
+  CHECK(IsSmi(value) ||
+        V8HeapCompressionScheme::GetPtrComprCageBaseAddress(value.ptr()) ==
+            V8HeapCompressionScheme::GetPtrComprCageBaseAddress(context.ptr()));
+#endif
+  int slot_offset = NativeContext::GetEmbedderFieldOffset(entry_index);
+  Address tagged_addr = FIELD_ADDR(context, slot_offset + kTaggedPayloadOffset);
+  ObjectSlot(tagged_addr).Relaxed_Store(value);
+  WriteBarrier::ForValue(&*context, MaybeObjectSlot(tagged_addr), value,
+                         UPDATE_WRITE_BARRIER);
+  // See store_raw() for the reasons behind two stores.
+  clear_cpp_heap_pointer_field(FIELD_ADDR(context, slot_offset));
 }
 
 // static
@@ -208,10 +231,12 @@ bool EmbedderDataSlot::store_aligned_pointer(Isolate* isolate,
 // static
 template <typename T>
   requires std::is_same_v<EmbedderDataArray, T> ||
-           std::is_same_v<JSObject, T>
-bool EmbedderDataSlot::store_aligned_pointer(
-    Isolate* isolate, DirectHandle<T> host, int entry_or_embedder_field_index,
-    void* ptr, ExternalPointerTag tag) {
+           std::is_same_v<NativeContext, T> || std::is_same_v<JSObject, T>
+bool EmbedderDataSlot::store_aligned_pointer(Isolate* isolate,
+                                             DirectHandle<T> host,
+                                             int entry_or_embedder_field_index,
+                                             void* ptr,
+                                             ExternalPointerTag tag) {
   EmbedderDataSlotWrapper* wrapper = nullptr;
   if (ptr != nullptr) {
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);

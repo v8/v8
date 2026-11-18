@@ -543,6 +543,19 @@ void VisitObjectWithCppHeapPointerField(
   DCHECK(IsCppHeapPointerWrapperObject(object));
   DCHECK(!HeapLayout::InYoungGeneration(object));
 
+  if (IsNativeContext(object)) {
+    Tagged<NativeContext> context = Cast<NativeContext>(object);
+    for (int i = 0; i < V8_EMBEDDER_DATA_ARRAY_SIZE; ++i) {
+      void* wrappable = nullptr;
+      if (EmbedderDataSlot(context, i)
+              .ToAlignedPointer(isolate, &wrappable, kAnyCppHeapPointer) &&
+          wrappable) {
+        worklist.cpp_marking_state()->MarkAndPush(wrappable);
+      }
+    }
+    return;
+  }
+
   // Wrapper using cpp_heap_wrappable field.
   void* wrappable = CppHeapObjectWrapper::From(object).GetCppHeapWrappable(
       isolate, kAnyCppHeapPointer);

@@ -124,7 +124,7 @@ void ContextDeserializer::DeserializeEmbedderFields(
       callback.callback(v8::Utils::ToLocal(obj), index, {buffer.data(), size},
                         callback.data);
     } else {
-      DCHECK(IsEmbedderDataArray(*heap_object));
+      DCHECK(IsNativeContext(*heap_object));
       v8::DeserializeContextDataCallback callback =
           embedder_fields_deserializer.context_callback;
       DCHECK_NOT_NULL(callback.callback);

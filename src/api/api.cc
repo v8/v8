@@ -964,60 +964,43 @@ static_assert(i::Internals::kEmbedderDataSlotSize == i::kEmbedderDataSlotSize);
 static_assert(i::Internals::kEmbedderDataSlotCppHeapPointerOffset ==
               i::EmbedderDataSlot::kCppHeapPointerOffset);
 
-static i::DirectHandle<i::EmbedderDataArray> EmbedderDataFor(
-    Context* context, int index, const char* location) {
-  auto env = Utils::OpenDirectHandle(context);
+static void CheckEmbedderDataIndex(int index, const char* location) {
   i::Isolate* i_isolate = i::Isolate::Current();
   i::DisallowJavascriptExecutionDebugOnly no_execution(i_isolate);
   i::DisallowExceptionsDebugOnly no_exceptions(i_isolate);
-  Utils::ApiCheck(i::IsNativeContext(*env), location, "Not a native context");
   Utils::ApiCheck(index >= 0, location, "Negative index");
-  // TODO(ishell): remove cast once embedder_data slot has a proper type.
-  i::DirectHandle<i::EmbedderDataArray> data(
-      i::Cast<i::EmbedderDataArray>(env->embedder_data()), i_isolate);
-  Utils::ApiCheck(index < data->length(), location, "Index too large");
-  return data;
+  Utils::ApiCheck(index < V8_EMBEDDER_DATA_ARRAY_SIZE, location,
+                  "Index too large");
 }
 
 uint32_t Context::GetNumberOfEmbedderDataFields() {
-  auto context = Utils::OpenDirectHandle(this);
-  i::DisallowJavascriptExecutionDebugOnly no_execution;
-  i::DisallowExceptionsDebugOnly no_exceptions;
-  Utils::ApiCheck(i::IsNativeContext(*context),
-                  "Context::GetNumberOfEmbedderDataFields",
-                  "Not a native context");
-  // TODO(ishell): remove cast once embedder_data slot has a proper type.
-  return static_cast<uint32_t>(
-      i::Cast<i::EmbedderDataArray>(context->embedder_data())->length());
+  return V8_EMBEDDER_DATA_ARRAY_SIZE;
 }
 
 v8::Local<v8::Value> Context::SlowGetEmbedderData(int index) {
   const char* location = "v8::Context::GetEmbedderData()";
-  i::DirectHandle<i::EmbedderDataArray> data =
-      EmbedderDataFor(this, index, location);
-  if (data.is_null()) return {};
+  CheckEmbedderDataIndex(index, location);
+  i::DirectHandle<i::NativeContext> context = Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate = i::Isolate::Current();
   return Utils::ToLocal(i::direct_handle(
-      i::EmbedderDataSlot(*data, index).load_tagged(), i_isolate));
+      i::EmbedderDataSlot(*context, index).load_tagged(), i_isolate));
 }
 
 v8::Local<v8::Data> Context::SlowGetEmbedderDataV2(int index) {
   const char* location = "v8::Context::GetEmbedderDataV2()";
-  i::DirectHandle<i::EmbedderDataArray> data =
-      EmbedderDataFor(this, index, location);
-  if (data.is_null()) return {};
+  CheckEmbedderDataIndex(index, location);
+  i::DirectHandle<i::NativeContext> context = Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate = i::Isolate::Current();
   return Utils::ToLocal(i::direct_handle(
-      i::EmbedderDataSlot(*data, index).load_tagged(), i_isolate));
+      i::EmbedderDataSlot(*context, index).load_tagged(), i_isolate));
 }
 
 void Context::SetEmbedderDataV3(int index, v8::Local<Data> value) {
   const char* location = "v8::Context::SetEmbedderDataV3()";
-  i::DirectHandle<i::EmbedderDataArray> data =
-      EmbedderDataFor(this, index, location);
-  if (data.is_null()) return;
+  CheckEmbedderDataIndex(index, location);
+  i::DirectHandle<i::NativeContext> context = Utils::OpenDirectHandle(this);
   auto val = Utils::OpenDirectHandle(*value);
-  i::EmbedderDataSlot::store_tagged(*data, index, *val);
+  i::EmbedderDataSlot::store_tagged(*context, index, *val);
   DCHECK_EQ(*Utils::OpenDirectHandle(*value),
             *Utils::OpenDirectHandle(*GetEmbedderDataV2(index)));
 }
@@ -1025,14 +1008,13 @@ void Context::SetEmbedderDataV3(int index, v8::Local<Data> value) {
 void* Context::GetAlignedPointerFromEmbedderData(int index,
                                                  EmbedderDataTypeTag tag) {
   const char* location = "v8::Context::GetAlignedPointerFromEmbedderData()";
+  CheckEmbedderDataIndex(index, location);
   i::Isolate* i_isolate = i::Isolate::Current();
   i::HandleScope handle_scope(i_isolate);
-  i::DirectHandle<i::EmbedderDataArray> data =
-      EmbedderDataFor(this, index, location);
-  if (data.is_null()) return nullptr;
+  i::DirectHandle<i::NativeContext> context = Utils::OpenDirectHandle(this);
   void* result;
   Utils::ApiCheck(
-      i::EmbedderDataSlot(*data, index)
+      i::EmbedderDataSlot(*context, index)
           .ToAlignedPointer(i_isolate, &result, ToExternalPointerTag(tag)),
       location, "Pointer is not aligned");
   return result;
@@ -1041,13 +1023,12 @@ void* Context::GetAlignedPointerFromEmbedderData(int index,
 void* Context::SlowGetAlignedPointerFromEmbedderData(int index,
                                                      CppHeapPointerTag tag) {
   const char* location = "v8::Context::GetAlignedPointerFromEmbedderData()";
+  CheckEmbedderDataIndex(index, location);
   i::Isolate* i_isolate = i::Isolate::Current();
   i::HandleScope handle_scope(i_isolate);
-  i::DirectHandle<i::EmbedderDataArray> data =
-      EmbedderDataFor(this, index, location);
-  if (data.is_null()) return nullptr;
+  i::DirectHandle<i::NativeContext> context = Utils::OpenDirectHandle(this);
   void* result;
-  Utils::ApiCheck(i::EmbedderDataSlot(*data, index)
+  Utils::ApiCheck(i::EmbedderDataSlot(*context, index)
                       .ToAlignedPointer(i_isolate, &result, tag),
                   location, "Pointer is not aligned");
   return result;
@@ -1056,12 +1037,11 @@ void* Context::SlowGetAlignedPointerFromEmbedderData(int index,
 void Context::SetAlignedPointerInEmbedderDataV2(int index, void* value,
                                                 EmbedderDataTypeTag tag) {
   const char* location = "v8::Context::SetAlignedPointerInEmbedderDataV2()";
+  CheckEmbedderDataIndex(index, location);
   i::Isolate* i_isolate = i::Isolate::Current();
-  i::DirectHandle<i::EmbedderDataArray> data =
-      EmbedderDataFor(this, index, location);
-  if (data.is_null()) return;
+  i::DirectHandle<i::NativeContext> context = Utils::OpenDirectHandle(this);
   bool ok = i::EmbedderDataSlot::store_aligned_pointer(
-      i_isolate, data, index, value, ToExternalPointerTag(tag));
+      i_isolate, context, index, value, ToExternalPointerTag(tag));
   Utils::ApiCheck(ok, location, "Pointer is not aligned");
   DCHECK_EQ(value, GetAlignedPointerFromEmbedderData(index, tag));
 }
@@ -1069,12 +1049,11 @@ void Context::SetAlignedPointerInEmbedderDataV2(int index, void* value,
 void Context::SetAlignedPointerInEmbedderDataInternalV2(int index, void* value,
                                                         CppHeapPointerTag tag) {
   const char* location = "v8::Context::SetAlignedPointerInEmbedderDataV2()";
+  CheckEmbedderDataIndex(index, location);
   i::Isolate* i_isolate = i::Isolate::Current();
-  i::DirectHandle<i::EmbedderDataArray> data =
-      EmbedderDataFor(this, index, location);
-  if (data.is_null()) return;
-  bool ok = i::EmbedderDataSlot(*data, index)
-                .store_aligned_pointer(i_isolate, *data, value, tag);
+  i::DirectHandle<i::NativeContext> context = Utils::OpenDirectHandle(this);
+  bool ok = i::EmbedderDataSlot(*context, index)
+                .store_aligned_pointer(i_isolate, *context, value, tag);
   Utils::ApiCheck(ok, location, "Pointer is not aligned");
 }
 
@@ -5573,8 +5552,7 @@ V8_INLINE void* GetAlignedPointerFromEmbedderDataInCreationContextImpl(
     native_context = context->native_context();
   }
 
-  // The code below mostly mimics Context::GetAlignedPointerFromEmbedderData()
-  // but it doesn't try to expand the EmbedderDataArray instance.
+  // The code below mimics Context::GetAlignedPointerFromEmbedderData().
   i::DisallowGarbageCollection no_gc;
 
   // This macro requires a real Isolate while |i_isolate_for_sandbox| might be
@@ -5582,20 +5560,16 @@ V8_INLINE void* GetAlignedPointerFromEmbedderDataInCreationContextImpl(
   i::DisallowJavascriptExecutionDebugOnly no_execution;
   i::DisallowExceptionsDebugOnly no_exceptions;
 
-  // TODO(ishell): remove cast once embedder_data slot has a proper type.
-  i::Tagged<i::EmbedderDataArray> data =
-      i::Cast<i::EmbedderDataArray>(native_context->embedder_data());
-  if (V8_LIKELY(static_cast<unsigned>(index) <
-                static_cast<unsigned>(data->length()))) {
+  if (V8_LIKELY(static_cast<unsigned>(index) < V8_EMBEDDER_DATA_ARRAY_SIZE)) {
     void* result;
-    Utils::ApiCheck(i::EmbedderDataSlot(data, index)
+    Utils::ApiCheck(i::EmbedderDataSlot(native_context, index)
                         .ToAlignedPointer(i_isolate, &result, tag),
                     location, "Pointer is not aligned");
     return result;
   }
   // Bad index, report an API error.
   Utils::ApiCheck(index >= 0, location, "Negative index");
-  Utils::ApiCheck(index < i::kEmbedderDataArrayMaxLength, location,
+  Utils::ApiCheck(index < V8_EMBEDDER_DATA_ARRAY_SIZE, location,
                   "Index too large");
   return nullptr;
 }

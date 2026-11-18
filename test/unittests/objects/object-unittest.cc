@@ -770,7 +770,8 @@ TEST_F(ObjectTest, ConstructorInstanceTypes) {
   DirectHandle<NativeContext> context = i_isolate()->native_context();
 
   DisallowGarbageCollection no_gc;
-  for (int i = 0; i < Context::NATIVE_CONTEXT_SLOTS; i++) {
+  for (int i = Context::LAST_EMBEDDER_DATA_INDEX + 1;
+       i < Context::NATIVE_CONTEXT_SLOTS; i++) {
     Tagged<Object> value = context->GetNoCell(i);
     if (!IsJSFunction(value)) continue;
     InstanceType instance_type =

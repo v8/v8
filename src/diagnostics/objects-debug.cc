@@ -1242,7 +1242,18 @@ void Context::ContextVerify(Isolate* isolate) {
 }
 
 void NativeContext::NativeContextVerify(Isolate* isolate) {
-  ContextVerify(isolate);
+  if (has_extension()) VerifyExtensionSlot(extension());
+  CHECK(Is<NativeContext>(this));
+  CHECK(length_.load().IsSmi());
+  for (int i = 0; i < FIRST_EMBEDDER_DATA_INDEX; i++) {
+    Object::VerifyPointer(isolate, elements()[i].load());
+  }
+  for (int i = 0; i < V8_EMBEDDER_DATA_ARRAY_SIZE; i++) {
+    Object::VerifyPointer(isolate, EmbedderDataSlot(this, i).load_tagged());
+  }
+  for (int i = LAST_EMBEDDER_DATA_INDEX + 1; i < length(); i++) {
+    Object::VerifyPointer(isolate, elements()[i].load());
+  }
   CHECK(retained_maps() == Smi::zero() || IsWeakArrayList(retained_maps()));
   CHECK_EQ(length(), NativeContext::NATIVE_CONTEXT_SLOTS);
   CHECK_EQ(kVariableSizeSentinel, map()->instance_size());

@@ -24,6 +24,7 @@ namespace internal {
 
 class EmbedderDataArray;
 class JSObject;
+class NativeContext;
 class Object;
 
 // A wrapper CppGC object referenced by the CppHeapPointerTable for entries in
@@ -76,6 +77,7 @@ class EmbedderDataSlot
 
   EmbedderDataSlot() : SlotBase(kNullAddress) {}
   V8_INLINE EmbedderDataSlot(Tagged<EmbedderDataArray> array, int entry_index);
+  V8_INLINE EmbedderDataSlot(Tagged<NativeContext> context, int entry_index);
   V8_INLINE EmbedderDataSlot(Tagged<JSObject> object, int embedder_field_index);
 
   // Opaque type used for storing raw embedder data.
@@ -101,6 +103,8 @@ class EmbedderDataSlot
   // which requires separate object and offset values, therefore these static
   // functions also has the target object parameter.
   static V8_INLINE void store_tagged(Tagged<EmbedderDataArray> array,
+                                     int entry_index, Tagged<Object> value);
+  static V8_INLINE void store_tagged(Tagged<NativeContext> context,
                                      int entry_index, Tagged<Object> value);
   static V8_INLINE void store_tagged(Tagged<JSObject> object,
                                      int embedder_field_index,
@@ -135,7 +139,8 @@ class EmbedderDataSlot
       Isolate* isolate, Tagged<HeapObject> host, void* ptr,
       CppHeapPointerTag tag);
   template <typename T>
-    requires std::is_same_v<EmbedderDataArray, T> || std::is_same_v<JSObject, T>
+    requires std::is_same_v<EmbedderDataArray, T> ||
+             std::is_same_v<NativeContext, T> || std::is_same_v<JSObject, T>
   static V8_INLINE V8_WARN_UNUSED_RESULT bool store_aligned_pointer(
       Isolate* isolate, DirectHandle<T> host, int entry_or_embedder_field_index,
       void* ptr, ExternalPointerTag tag);

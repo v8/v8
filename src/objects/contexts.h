@@ -84,10 +84,6 @@ enum ContextLookupFlags {
 
 #define NATIVE_CONTEXT_FIELDS(V)                                               \
   V(GLOBAL_PROXY_INDEX, JSGlobalProxy, global_proxy_object)                    \
-  /* TODO(ishell): Actually we store exactly EmbedderDataArray here but */     \
-  /* it's already UBSan-fiendly and doesn't require a star... So declare */    \
-  /* it as a HeapObject for now. */                                            \
-  V(EMBEDDER_DATA_INDEX, HeapObject, embedder_data)                            \
   V(CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX, HeapObject,                    \
     continuation_preserved_embedder_data)                                      \
   V(GENERATOR_NEXT_INTERNAL, JSFunction, generator_next_internal)              \
@@ -553,7 +549,11 @@ V8_OBJECT class Context : public HeapObject {
     // This slot only exists if ScopeInfo::HasContextExtensionSlot returns true.
     EXTENSION_INDEX,
 
-// These slots are only in native contexts.
+    // These slots are only in native contexts.
+    FIRST_EMBEDDER_DATA_INDEX,
+    LAST_EMBEDDER_DATA_INDEX =
+        FIRST_EMBEDDER_DATA_INDEX +
+        V8_EMBEDDER_DATA_ARRAY_SIZE * kEmbedderDataSlotSizeInTaggedSlots - 1,
 #define NATIVE_CONTEXT_SLOT(index, type, name) index,
     NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_SLOT)
 #undef NATIVE_CONTEXT_SLOT
@@ -846,20 +846,25 @@ V8_OBJECT class NativeContext : public Context {
   DECL_PRINTER(NativeContext)
   DECL_VERIFIER(NativeContext)
 
+  static constexpr int GetEmbedderFieldOffset(int index) {
+    return kEmbedderDataOffset + (kEmbedderDataSlotSize * index);
+  }
+
   // Layout description.
-#define NATIVE_CONTEXT_FIELDS_DEF(V)                                        \
-  /* TODO(ishell): move definition of common context offsets to Context. */ \
-  V(kStartOfNativeContextFieldsOffset,                                      \
-    (FIRST_WEAK_SLOT - MIN_CONTEXT_EXTENDED_SLOTS) * kTaggedSize)           \
-  V(kEndOfStrongFieldsOffset, 0)                                            \
-  V(kStartOfWeakFieldsOffset,                                               \
-    (NATIVE_CONTEXT_SLOTS - FIRST_WEAK_SLOT) * kTaggedSize)                 \
-  V(kEndOfWeakFieldsOffset, 0)                                              \
-  V(kEndOfNativeContextFieldsOffset, 0)                                     \
-  V(kEndOfTaggedFieldsOffset, 0)                                            \
-  /* Raw data. */                                                           \
-  V(kMicrotaskQueueOffset, kMicrotaskQueueSlotSize)                         \
-  /* Total size. */                                                         \
+#define NATIVE_CONTEXT_FIELDS_DEF(V)                                         \
+  /* TODO(ishell): move definition of common context offsets to Context. */  \
+  V(kEmbedderDataOffset, V8_EMBEDDER_DATA_ARRAY_SIZE* kEmbedderDataSlotSize) \
+  V(kStartOfNativeContextFieldsOffset,                                       \
+    (FIRST_WEAK_SLOT - LAST_EMBEDDER_DATA_INDEX - 1) * kTaggedSize)          \
+  V(kEndOfStrongFieldsOffset, 0)                                             \
+  V(kStartOfWeakFieldsOffset,                                                \
+    (NATIVE_CONTEXT_SLOTS - FIRST_WEAK_SLOT) * kTaggedSize)                  \
+  V(kEndOfWeakFieldsOffset, 0)                                               \
+  V(kEndOfNativeContextFieldsOffset, 0)                                      \
+  V(kEndOfTaggedFieldsOffset, 0)                                             \
+  /* Raw data. */                                                            \
+  V(kMicrotaskQueueOffset, kMicrotaskQueueSlotSize)                          \
+  /* Total size. */                                                          \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(Context::kExtendedHeaderSize,
@@ -883,7 +888,9 @@ V8_OBJECT class NativeContext : public Context {
   // TaggedMember<Object> elements_[Context::NATIVE_CONTEXT_SLOTS];
   // CppHeapMember<MicrotaskQueue> microtask_queue_;
 
-  static_assert(OffsetOfElementAt(EMBEDDER_DATA_INDEX) ==
+  static_assert(OffsetOfElementAt(FIRST_EMBEDDER_DATA_INDEX) ==
+                Internals::kNativeContextEmbedderDataOffset);
+  static_assert(kEmbedderDataOffset ==
                 Internals::kNativeContextEmbedderDataOffset);
 } V8_OBJECT_END;
 

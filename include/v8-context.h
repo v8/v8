@@ -470,19 +470,17 @@ Local<Value> Context::GetEmbedderData(int index) {
   using A = internal::Address;
   using I = internal::Internals;
   A ctx = internal::ValueHelper::ValueAsAddress(this);
-  A embedder_data =
-      I::ReadTaggedPointerField(ctx, I::kNativeContextEmbedderDataOffset);
   int value_offset =
-      I::kEmbedderDataArrayHeaderSize + (I::kEmbedderDataSlotSize * index);
+      I::kNativeContextEmbedderDataOffset + (I::kEmbedderDataSlotSize * index);
 #ifdef V8_COMPRESS_POINTERS
   // The tagged payload lives in the low kTaggedSize half of the slot (at
   // kTaggedPayloadOffset == 0). Read it as a 32-bit field so the correct half
   // is picked on both little and big endian targets. A full width read plus
   // truncation would return the CppHeap pointer half on big endian.
-  uint32_t compressed = I::ReadRawField<uint32_t>(embedder_data, value_offset);
-  A value = I::DecompressTaggedField(embedder_data, compressed);
+  uint32_t compressed = I::ReadRawField<uint32_t>(ctx, value_offset);
+  A value = I::DecompressTaggedField(ctx, compressed);
 #else
-  A value = I::ReadRawField<A>(embedder_data, value_offset);
+  A value = I::ReadRawField<A>(ctx, value_offset);
 #endif
 
   auto* isolate = I::GetCurrentIsolate();
@@ -497,19 +495,17 @@ V8_INLINE Local<Data> Context::GetEmbedderDataV2(int index) {
   using A = internal::Address;
   using I = internal::Internals;
   A ctx = internal::ValueHelper::ValueAsAddress(this);
-  A embedder_data =
-      I::ReadTaggedPointerField(ctx, I::kNativeContextEmbedderDataOffset);
   int value_offset =
-      I::kEmbedderDataArrayHeaderSize + (I::kEmbedderDataSlotSize * index);
+      I::kNativeContextEmbedderDataOffset + (I::kEmbedderDataSlotSize * index);
 #ifdef V8_COMPRESS_POINTERS
   // The tagged payload lives in the low kTaggedSize half of the slot (at
   // kTaggedPayloadOffset == 0). Read it as a 32-bit field so the correct half
   // is picked on both little and big endian targets. A full-width read plus
   // truncation would return the CppHeap pointer half on big endian.
-  uint32_t compressed = I::ReadRawField<uint32_t>(embedder_data, value_offset);
-  A value = I::DecompressTaggedField(embedder_data, compressed);
+  uint32_t compressed = I::ReadRawField<uint32_t>(ctx, value_offset);
+  A value = I::DecompressTaggedField(ctx, compressed);
 #else
-  A value = I::ReadRawField<A>(embedder_data, value_offset);
+  A value = I::ReadRawField<A>(ctx, value_offset);
 #endif
 
   auto* isolate = I::GetCurrentIsolate();
@@ -532,13 +528,11 @@ T* Context::GetAlignedPointerFromEmbedderData(Isolate* isolate, int index,
   using A = internal::Address;
   using I = internal::Internals;
   A ctx = internal::ValueHelper::ValueAsAddress(this);
-  A embedder_data =
-      I::ReadTaggedPointerField(ctx, I::kNativeContextEmbedderDataOffset);
-  int value_offset = I::kEmbedderDataArrayHeaderSize +
+  int value_offset = I::kNativeContextEmbedderDataOffset +
                      (I::kEmbedderDataSlotSize * index) +
                      I::kEmbedderDataSlotCppHeapPointerOffset;
-  return internal::ReadCppHeapPointerField<T>(
-      isolate, embedder_data, value_offset, CppHeapPointerTagRange(tag, tag));
+  return internal::ReadCppHeapPointerField<T>(isolate, ctx, value_offset,
+                                              CppHeapPointerTagRange(tag, tag));
 #else
   return static_cast<T*>(SlowGetAlignedPointerFromEmbedderData(index, tag));
 #endif

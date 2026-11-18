@@ -2018,7 +2018,6 @@ void V8HeapExplorer::ExtractContextReferences(HeapEntry* entry,
 
   if (IsNativeContext(context)) {
     TagObject(context->normalized_map_cache(), "(context norm. map cache)");
-    TagObject(context->embedder_data(), "(context data)");
 
     SetInternalReference(entry, "global_object",
                          context->get(Context::EXTENSION_INDEX, kRelaxedLoad),
