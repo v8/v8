@@ -1497,7 +1497,7 @@ class GraphBuildingNodeProcessor {
     }
 
     SharedFunctionInfoRef shared = node->shared_function_info();
-    bool has_break_on_entry = instance_handle->break_on_entry() != 0;
+    bool has_break_on_entry = instance_handle->break_on_entry();
     JSWasmCallParameters* wasm_call_params =
         graph_zone()->New<JSWasmCallParameters>(
             native_module, wasm_function_index, shared, feedback,

@@ -1007,8 +1007,7 @@ bool ExecuteWasmDebugBreaks(
   // Check for instrumentation breakpoints first, but still execute regular
   // breakpoints afterwards.
   bool paused_on_instrumentation = false;
-  DCHECK_EQ(script->break_on_entry(),
-            !!trusted_instance_data->break_on_entry());
+  DCHECK_EQ(script->break_on_entry(), trusted_instance_data->break_on_entry());
   if (script->break_on_entry()) {
     MaybeDirectHandle<FixedArray> maybe_on_entry_breakpoints =
         WasmScript::CheckBreakPoints(isolate, script,

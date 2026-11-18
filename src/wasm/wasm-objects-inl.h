@@ -360,11 +360,11 @@ WTI_PROTECTED_POINTER_ACCESSORS(data_segments,
                                 kProtectedDataSegmentsOffset)
 WTI_TAGGED_ACCESSORS(element_segments, Tagged<FixedArray>,
                      kElementSegmentsOffset)
-uint8_t WasmTrustedInstanceData::break_on_entry() const {
-  return RELAXED_READ_UINT8_FIELD(this, kBreakOnEntryOffset);
+bool WasmTrustedInstanceData::break_on_entry() const {
+  return RELAXED_READ_UINT8_FIELD(this, kBreakOnEntryOffset) != 0;
 }
-void WasmTrustedInstanceData::set_break_on_entry(uint8_t value) {
-  RELAXED_WRITE_UINT8_FIELD(this, kBreakOnEntryOffset, value);
+void WasmTrustedInstanceData::set_break_on_entry(bool value) {
+  RELAXED_WRITE_UINT8_FIELD(this, kBreakOnEntryOffset, value ? 1 : 0);
 }
 
 WTI_OPTIONAL_TAGGED_ACCESSORS(instance_object, Tagged<WasmInstanceObject>,
@@ -850,18 +850,11 @@ void WasmFunctionData::set_js_promise_flags(int value) {
 // WasmExportedFunctionData
 Tagged<WasmTrustedInstanceData> WasmExportedFunctionData::instance_data()
     const {
-  DCHECK(has_instance_data());
   return protected_instance_data_.load();
 }
 void WasmExportedFunctionData::set_instance_data(
     Tagged<WasmTrustedInstanceData> value, WriteBarrierMode mode) {
   protected_instance_data_.store(this, value, mode);
-}
-bool WasmExportedFunctionData::has_instance_data() const {
-  return !protected_instance_data_.load().is_null();
-}
-void WasmExportedFunctionData::clear_instance_data() {
-  protected_instance_data_.store(this, {}, SKIP_WRITE_BARRIER);
 }
 
 Tagged<Code> WasmExportedFunctionData::c_wrapper_code(

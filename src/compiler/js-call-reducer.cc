@@ -4419,9 +4419,9 @@ Reduction JSCallReducer::ReduceCallWasmFunction(
   // module and function index from the SharedFunctionInfoRef. However, for some
   // reason I may dereference the SharedFunctionInfoRef here but not in
   // JSInliningHeuristic later on.
-  const Operator* op = javascript()->CallWasm(
-      native_module, wasm_function_index, shared, p.feedback(),
-      instance_data->break_on_entry() != 0);
+  const Operator* op =
+      javascript()->CallWasm(native_module, wasm_function_index, shared,
+                             p.feedback(), instance_data->break_on_entry());
 
   size_t actual_arity = n.ArgumentCount();
   DCHECK(JSCallNode::kFeedbackVectorIsLastInput);

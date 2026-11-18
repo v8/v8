@@ -646,7 +646,7 @@ V8_OBJECT class V8_EXPORT_PRIVATE WasmTrustedInstanceData
   DECL_PROTECTED_POINTER_ACCESSORS(data_segments,
                                    TrustedPodArray<wasm::WireBytesRef>)
   DECL_ACCESSORS(element_segments, Tagged<FixedArray>)
-  DECL_PRIMITIVE_ACCESSORS(break_on_entry, uint8_t)
+  DECL_BOOLEAN_ACCESSORS(break_on_entry)
 
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic. Depending on the V8 build mode there could be no padding.
@@ -1349,7 +1349,9 @@ inline constexpr int WasmFunctionData::kSize = sizeof(WasmFunctionData);
 // see the {SharedFunctionInfo::HasWasmExportedFunctionData} predicate.
 V8_OBJECT class WasmExportedFunctionData : public WasmFunctionData {
  public:
-  DECL_PROTECTED_POINTER_ACCESSORS(instance_data, WasmTrustedInstanceData)
+  inline Tagged<WasmTrustedInstanceData> instance_data() const;
+  inline void set_instance_data(Tagged<WasmTrustedInstanceData> value,
+                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   DECL_CODE_POINTER_ACCESSORS(c_wrapper_code)
 
   inline int function_index() const;
