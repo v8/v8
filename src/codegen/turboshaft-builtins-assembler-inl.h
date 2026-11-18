@@ -540,6 +540,10 @@ class BuiltinsReducer : public Next {
     // TODO(nicohartmann): CSA tracks some debug information here.
     // Emit stack check.
     if (Builtins::KindOf(builtin_id) == Builtins::TFJ_TSA) {
+      // JS trampolines require loading the dynamic JS parameter count before
+      // the stack check (see CodeStubAssembler::EmitBuiltinProlog) and are not
+      // currently supported in TSA.
+      DCHECK(!Builtins::IsJSTrampoline(builtin_id));
       __ PerformStackCheck(__ JSContextParameter());
     }
   }

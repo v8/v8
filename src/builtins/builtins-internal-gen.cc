@@ -89,8 +89,7 @@ TF_BUILTIN(DebugBreakTrampoline, CodeStubAssembler) {
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
   auto dispatch_handle =
       UncheckedParameter<JSDispatchHandleT>(Descriptor::kJSDispatchHandle);
-  TNode<Uint16T> expected_parameter_count =
-      LoadParameterCountFromJSDispatchTable(dispatch_handle);
+  TNode<Uint16T> expected_parameter_count = DynamicJSParameterCount();
 #else
   auto dispatch_handle = InvalidDispatchHandleConstant();
   TNode<Uint16T> expected_parameter_count = Uint16Constant(0);
