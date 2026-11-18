@@ -2242,6 +2242,25 @@ TNode<Uint16T> CodeStubAssembler::LoadParameterCountFromJSDispatchTable(
   return Load<Uint16T>(table, offset);
 }
 
+TNode<Uint16T> CodeStubAssembler::GetParameterCountFromDispatchHandle() {
+  // TODO(crbug.com/465487205): Until incoming JSDispatchHandles are kept alive
+  // via the stack, the parameter count must be loaded at the very start of the
+  // builtin before any runtime call or stack check can trigger a GC and sweep
+  // an unrooted dispatch table entry.
+  DCHECK(IsAtStart());
+  DCHECK(IsJSFunctionCall());
+  TNode<JSDispatchHandleT> dispatch_handle;
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
+  dispatch_handle = GetJSDispatchHandleParameter();
+#else
+  TNode<JSFunction> function =
+      UncheckedParameter<JSFunction>(kTargetParameterIndex);
+  dispatch_handle = LoadObjectField<JSDispatchHandleT>(
+      function, offsetof(JSFunction, dispatch_handle_));
+#endif
+  return LoadParameterCountFromJSDispatchTable(dispatch_handle);
+}
+
 void CodeStubAssembler::TailCallJSCode(
     TNode<Code> code, TNode<Context> context, TNode<JSFunction> function,
     TNode<Object> new_target, TNode<Int32T> arg_count,
@@ -2342,13 +2361,6 @@ TNode<TrustedObject> CodeStubAssembler::ResolveTrustedPointerHandle(
 }
 
 #endif  // V8_ENABLE_SANDBOX
-
-void CodeStubAssembler::SetSupportsDynamicParameterCount(
-    TNode<JSFunction> callee, TNode<JSDispatchHandleT> dispatch_handle) {
-  TNode<Uint16T> dynamic_parameter_count =
-      LoadParameterCountFromJSDispatchTable(dispatch_handle);
-  SetDynamicJSParameterCount(dynamic_parameter_count);
-}
 
 TNode<JSDispatchHandleT> CodeStubAssembler::InvalidDispatchHandleConstant() {
   return UncheckedCast<JSDispatchHandleT>(
@@ -20662,6 +20674,25 @@ IntegerLiteral CodeStubAssembler::ConstexprIntegerLiteralLeftShift(
 IntegerLiteral CodeStubAssembler::ConstexprIntegerLiteralBitwiseOr(
     const IntegerLiteral& lhs, const IntegerLiteral& rhs) {
   return lhs | rhs;
+}
+
+void CodeStubAssembler::EmitBuiltinProlog(Builtin builtin_id) {
+  if (Builtins::KindOf(builtin_id) == Builtins::TFJ) {
+    if (Builtins::IsJSTrampoline(builtin_id)) {
+      // JS trampolines (such as generic Wasm wrappers and DebugBreakTrampoline)
+      // can be installed on functions with different parameter counts and load
+      // the expected parameter count from the JSDispatchTable entry (used to
+      // clean up the caller's argument slots in PopAndReturn for Wasm wrappers,
+      // or re-verified in TailCallJSCode for DebugBreakTrampoline).
+      // TODO(crbug.com/465487205): Until incoming JSDispatchHandles are kept
+      // alive via the stack, this load must happen before the stack check
+      // below, as Runtime::kStackGuard can trigger a GC that sweeps an unrooted
+      // dispatch table entry if the JSFunction's dispatch_handle field in the
+      // heap was concurrently overwritten.
+      SetDynamicJSParameterCount(GetParameterCountFromDispatchHandle());
+    }
+    PerformStackCheck(GetJSContextParameter());
+  }
 }
 
 void CodeStubAssembler::PerformStackCheck(TNode<Context> context) {

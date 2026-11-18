@@ -520,6 +520,21 @@ TNode<Context> CodeAssembler::GetJSContextParameter() {
       static_cast<int>(call_descriptor->JSParameterCount())));
 }
 
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
+TNode<JSDispatchHandleT> CodeAssembler::GetJSDispatchHandleParameter() {
+  auto call_descriptor = raw_assembler()->call_descriptor();
+  DCHECK(call_descriptor->IsJSFunctionCall());
+  // In JS call descriptors, implicit register parameters (new.target, argc,
+  // dispatch_handle, context) are indexed immediately after the formal JS stack
+  // parameters (0 .. JSParameterCount() - 1).
+  return UncheckedParameter<JSDispatchHandleT>(
+      Linkage::GetJSCallDispatchHandleParamIndex(
+          static_cast<int>(call_descriptor->JSParameterCount())));
+}
+#endif
+
+bool CodeAssembler::IsAtStart() const { return raw_assembler()->IsAtStart(); }
+
 bool CodeAssembler::HasDynamicJSParameterCount() {
   return raw_assembler()->dynamic_js_parameter_count() != nullptr;
 }
@@ -531,14 +546,12 @@ TNode<Uint16T> CodeAssembler::DynamicJSParameterCount() {
 
 void CodeAssembler::SetDynamicJSParameterCount(TNode<Uint16T> parameter_count) {
   DCHECK(!HasDynamicJSParameterCount());
-  // For code to support a dynamic parameter count, it's static parameter count
-  // must currently be zero, i.e. varargs. Otherwise we'd also need to ensure
-  // that the dynamic parameter count is not smaller than the static one.
-  //
-  // TODO(saelo): it would probably be a bit nicer if we could assert here that
-  // IsJSFunctionCall() is true and then use the JSParameterCount() of the
-  // descriptor instead, but that doesn't work because not all users of this
-  // feature are TFJ builtins (some are TFC builtins).
+  DCHECK(IsJSFunctionCall());
+  // For code to support a dynamic parameter count, its static parameter count
+  // must currently be zero (kDontAdaptArgumentsSentinel), i.e. varargs.
+  // Otherwise we'd also need to ensure that the dynamic parameter count is not
+  // smaller than the static one.
+  DCHECK_EQ(raw_assembler()->call_descriptor()->JSParameterCount(), 0);
   DCHECK_EQ(raw_assembler()->call_descriptor()->ParameterSlotCount(), 0);
   raw_assembler()->set_dynamic_js_parameter_count(parameter_count);
 }
