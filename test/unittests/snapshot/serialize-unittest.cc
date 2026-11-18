@@ -1287,6 +1287,28 @@ TEST_F(UninitializedSerializeTest,
 }
 
 TEST_F(UninitializedSerializeTest,
+       CustomSnapshotDataBlobWithEmptyOffHeapTypedArray) {
+  // Empty off-heap backing stores are serialized: those of typed arrays over
+  // empty buffers, and those of resizable buffers of length zero.
+  const char* code =
+      "var x = new Uint8Array(new ArrayBuffer(0));"
+      "var r = new ArrayBuffer(0, {maxByteLength: 16});"
+      "var z = new Uint8Array(r);"
+      "var y = new Uint8Array(new ArrayBuffer(4));"
+      "y[0] = 7;";
+  Int32Expectations expectations = {
+      std::make_tuple("x.length", 0), std::make_tuple("x.buffer.byteLength", 0),
+      std::make_tuple("z.length", 0), std::make_tuple("r.maxByteLength", 16),
+      std::make_tuple("y[0]", 7)};
+  const char* code_to_run_after_restore = "r.resize(8); z[7] = 9;";
+  Int32Expectations after_restore_expectations = {
+      std::make_tuple("z.length", 8), std::make_tuple("z[7]", 9)};
+
+  TypedArrayTestHelper(code, expectations, code_to_run_after_restore,
+                       after_restore_expectations);
+}
+
+TEST_F(UninitializedSerializeTest,
        CustomSnapshotDataBlobWithDeferredOffHeapTypedArray) {
   Int32Expectations expectations = {std::make_tuple("restoredBytes[0]", 12),
                                     std::make_tuple("restoredBytes[4095]", 48)};

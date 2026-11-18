@@ -1511,7 +1511,12 @@ int Deserializer<IsolateT>::ReadOffHeapBackingStore(
   }
   CHECK_NOT_NULL(backing_store);
   SBXCHECK_LE(source_.position() + byte_length, source_.length());
-  source_.CopyRaw(backing_store->buffer_start(), byte_length);
+  // Empty backing stores, such as those of empty typed arrays and of resizable
+  // buffers of length zero, are serialized too. Without the sandbox the buffer
+  // of an empty store is null.
+  if (byte_length > 0) {
+    source_.CopyRaw(backing_store->buffer_start(), byte_length);
+  }
   backing_stores_.push_back(std::move(backing_store));
   return 0;
 }
