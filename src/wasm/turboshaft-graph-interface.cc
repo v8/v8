@@ -2834,14 +2834,7 @@ class TurboshaftGraphBuildingInterface
         // Block for merging results after the inlined code.
         TSBlock* merge = __ NewBlock();
 
-        // Creating the frame state here allows us to share the frame state
-        // between a deopt due to wrong instance and deopt due to wrong target.
-        V<EagerFrameState> frame_state =
-            deopts_enabled() ? CreateFrameState(decoder, imm.sig, &index, args)
-                             : OpIndex::Invalid();
-        // CreateFrameState may have disabled deopts.
         bool use_deopt_slowpath = deopts_enabled();
-        DCHECK_IMPLIES(use_deopt_slowpath, frame_state.valid());
         if (use_deopt_slowpath && GetHasNonInlinableTargets(decoder)) {
           if (v8_flags.trace_wasm_inlining) {
             PrintF(
@@ -2853,19 +2846,54 @@ class TurboshaftGraphBuildingInterface
           }
           use_deopt_slowpath = false;
         }
+        if (use_deopt_slowpath) {
+          // Do not use the deopt slowpath if we decided to not inline (at
+          // least) one call target. Otherwise, this could lead to a deopt loop.
+          for (InliningTree* tree : feedback_cases) {
+            if (!tree || !tree->is_inlined() ||
+                !InlineTargetIsTypeCompatible(
+                    decoder->module_, imm.sig,
+                    decoder->module_->functions[tree->function_index()].sig)) {
+              if (v8_flags.trace_wasm_inlining) {
+                PrintF(
+                    "[function %d%s: Not emitting deopt slow-path for "
+                    "call_indirect #%d as not all feedback targets are "
+                    "inlined]\n",
+                    func_index_, mode_ == kRegular ? "" : " (inlined)",
+                    feedback_slot_);
+              }
+              use_deopt_slowpath = false;
+              break;
+            }
+          }
+        }
+        // Creating the frame state here allows us to share the frame state
+        // between a deopt due to wrong instance and deopt due to wrong target.
+        V<EagerFrameState> frame_state;
+        if (use_deopt_slowpath) {
+          frame_state = CreateFrameState(decoder, imm.sig, &index, args);
+          use_deopt_slowpath = frame_state.valid();
+        }
 
         // Wasm functions are semantically closures over the instance, but
         // when we inline a target in the following, we implicitly assume the
         // inlinee instance is the same as the caller's instance.
-        // Directly jump to the non-inlined slowpath if that's violated.
+        // Directly deopt or jump to the non-inlined slowpath if that's
+        // violated.
         // Note that for `call_ref` this isn't necessary, because the funcref
         // equality check already captures both code and instance equality.
-        constexpr BranchHint kUnlikelyCrossInstanceCall = BranchHint::kTrue;
         // Note that the `implicit_arg` can never be a `WasmImportData`,
         // since we don't inline imported functions right now.
-        __ Branch({__ TaggedEqual(implicit_arg, instance),
-                   kUnlikelyCrossInstanceCall},
-                  case_blocks[0], no_inline_block);
+        if (use_deopt_slowpath) {
+          DeoptIfNot(decoder, __ TaggedEqual(implicit_arg, instance),
+                     frame_state);
+          __ Goto(case_blocks[0]);
+        } else {
+          constexpr BranchHint kUnlikelyCrossInstanceCall = BranchHint::kTrue;
+          __ Branch({__ TaggedEqual(implicit_arg, instance),
+                     kUnlikelyCrossInstanceCall},
+                    case_blocks[0], no_inline_block);
+        }
 
         for (size_t i = 0; i < feedback_cases.size(); i++) {
           __ Bind(case_blocks[i]);
@@ -2873,10 +2901,7 @@ class TurboshaftGraphBuildingInterface
           if (!tree || !tree->is_inlined()) {
             // Fall through to the next case.
             __ Goto(case_blocks[i + 1]);
-            // Do not use the deopt slowpath if we decided to not inline (at
-            // least) one call target.
-            // Otherwise, this could lead to a deopt loop.
-            use_deopt_slowpath = false;
+            DCHECK(!use_deopt_slowpath);
             continue;
           }
           uint32_t inlined_index = tree->function_index();
@@ -2903,10 +2928,7 @@ class TurboshaftGraphBuildingInterface
                       : "");
             }
             __ Goto(case_blocks[i + 1]);
-            // Do not use the deopt slowpath if we decided to not inline (at
-            // least) one call target.
-            // Otherwise, this could lead to a deopt loop.
-            use_deopt_slowpath = false;
+            DCHECK(!use_deopt_slowpath);
             continue;
           }
 
@@ -2951,12 +2973,8 @@ class TurboshaftGraphBuildingInterface
           }
         }
 
-        __ Bind(no_inline_block);
-        if (use_deopt_slowpath) {
-          // We need this unconditional deopt only for the "instance check",
-          // as the last "target check" already uses a `DeoptIfNot` node.
-          Deopt(decoder, frame_state);
-        } else {
+        if (!use_deopt_slowpath) {
+          __ Bind(no_inline_block);
           auto [call_target, call_implicit_arg] =
               BuildIndirectCallTargetAndImplicitArg(decoder, index_wordptr,
                                                     imm);
@@ -7120,13 +7138,6 @@ class TurboshaftGraphBuildingInterface
     __ DeoptimizeIfNot(deopt_condition, frame_state,
                        DeoptimizeReason::kWrongCallTarget,
                        compiler::FeedbackSource());
-  }
-
-  void Deopt(FullDecoder* decoder, V<EagerFrameState> frame_state) {
-    CHECK(deopts_enabled());
-    DCHECK(frame_state.valid());
-    __ Deoptimize(frame_state, DeoptimizeReason::kWrongCallTarget,
-                  compiler::FeedbackSource());
   }
 
   uint32_t GetLiftoffFrameSize(const FullDecoder* decoder) {
