@@ -159,29 +159,15 @@ TEST_F(IsolateTest, SetAddCrashKeyCallback) {
 TEST_F(TestWithPlatform, IsolateCrashKeys) {
   i::CrashKeyStore crash_key_store;
   IsolateWrapper isolate_wrapper(kNoCounters);
-  i::Isolate* i_isolate = isolate_wrapper.i_isolate();
-  i::Heap* heap = i_isolate->heap();
 
-  size_t expected_keys_count = 3;
+  size_t expected_keys_count = 2;
   std::string main_isolate_address =
       crash_key_store.ValueForKey("v8_isolate_address");
   EXPECT_TRUE(main_isolate_address.starts_with("0x"));
   EXPECT_TRUE(crash_key_store.ValueForKey("v8_ro_space_firstpage_address")
                   .starts_with("0x"));
-  EXPECT_TRUE(crash_key_store.ValueForKey("v8_old_space_firstpage_address")
-                  .starts_with("0x"));
-  if (i_isolate->snapshot_available()) {
-    expected_keys_count += 2;
-    EXPECT_TRUE(crash_key_store.HasKey("v8_snapshot_checksum_calculated"));
-    EXPECT_TRUE(crash_key_store.HasKey("v8_snapshot_checksum_expected"));
-  }
 
-  if (heap->code_range_base()) {
-    ++expected_keys_count;
-    EXPECT_TRUE(crash_key_store.ValueForKey("v8_code_range_base_address")
-                    .starts_with("0x"));
-  }
-  if (heap->code_space()->first_page()) {
+  if (isolate_wrapper.i_isolate()->heap()->code_space()->first_page()) {
     ++expected_keys_count;
     EXPECT_TRUE(crash_key_store.ValueForKey("v8_code_space_firstpage_address")
                     .starts_with("0x"));

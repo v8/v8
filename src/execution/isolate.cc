@@ -121,7 +121,6 @@
 #include "src/snapshot/embedded/embedded-file-writer-interface.h"
 #include "src/snapshot/read-only-deserializer.h"
 #include "src/snapshot/shared-heap-deserializer.h"
-#include "src/snapshot/snapshot.h"
 #include "src/snapshot/startup-deserializer.h"
 #include "src/strings/string-builder-inl.h"
 #include "src/strings/string-stream.h"
@@ -6059,27 +6058,10 @@ void Isolate::AddCrashKeysForIsolateAndHeapPointers() {
   SET_CRASH_KEY("v8_isolate_address", reinterpret_cast<uintptr_t>(this));
   SET_CRASH_KEY("v8_ro_space_firstpage_address",
                 heap()->read_only_space()->FirstPageAddress());
-  SET_CRASH_KEY("v8_old_space_firstpage_address",
-                heap()->old_space()->FirstPageAddress());
-
-  if (heap()->code_range_base()) {
-    SET_CRASH_KEY("v8_code_range_base_address", heap()->code_range_base());
-  }
 
   if (heap()->code_space()->first_page()) {
     SET_CRASH_KEY("v8_code_space_firstpage_address",
                   heap()->code_space()->FirstPageAddress());
-  }
-
-  if (snapshot_available()) {
-    // TODO(cbruni): Implement strategy to infrequently collect this.
-    const uint32_t v8_snapshot_checksum_calculated = 0;
-    SET_CRASH_KEY("v8_snapshot_checksum_calculated",
-                  v8_snapshot_checksum_calculated);
-    const uint32_t v8_snapshot_checksum_expected =
-        Snapshot::GetExpectedChecksum(snapshot_blob());
-    SET_CRASH_KEY("v8_snapshot_checksum_expected",
-                  v8_snapshot_checksum_expected);
   }
 #undef SET_CRASH_KEY
 }
