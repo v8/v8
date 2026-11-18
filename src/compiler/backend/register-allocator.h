@@ -330,10 +330,6 @@ class RegisterAllocationData final : public ZoneObject {
 
   TickCounter* tick_counter() { return tick_counter_; }
 
-  ZoneMap<TopLevelLiveRange*, AllocatedOperand*>& slot_for_const_range() {
-    return slot_for_const_range_;
-  }
-
  private:
   Zone* const allocation_zone_;
   Frame* const frame_;
@@ -357,7 +353,6 @@ class RegisterAllocationData final : public ZoneObject {
   RangesWithPreassignedSlots preassigned_slot_ranges_;
   ZoneVector<ZoneVector<LiveRange*>> spill_state_;
   TickCounter* const tick_counter_;
-  ZoneMap<TopLevelLiveRange*, AllocatedOperand*> slot_for_const_range_;
 };
 
 // Representation of the non-empty interval [start,end[.
