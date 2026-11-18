@@ -1,0 +1,51 @@
+lines: 2257
+version: 16.0
+compilation 0 L1..182 sfi=0x9b80101e6b9 tier=Maglev ord=1 name="add"
+  script "workloads/simple.js"
+  phase L4..15 "Bytecode array" [bytecode]: 3 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  phase L15..48 "Maglev graph building" [graph]: 15 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  phase L48..81 "Phi untagging" [graph]: 15 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  phase L81..113 "AnyUseMarking" [graph]: 14 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  phase L113..145 "Dead nodes sweeping" [graph]: 14 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  phase L145..182 "Register allocation" [graph]: 18 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  totals: 12 opcodes, 2 distinct frames
+compilation 1 L183..1118 sfi=0x9b80101e651 tier=Maglev ord=1 name=""
+  script "workloads/simple.js"
+  phase L185..222 "Bytecode array" [bytecode]: 29 rows (2 jump refs, 5 fbv refs, 3 pool refs)
+  phase L222..233 "Inlining 0x09b80101e6b9 <SharedFunctionInfo add> with bytecode" [inlining "add"]: 3 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  phase L233..244 "Inlining 0x09b80101e6b9 <SharedFunctionInfo add> with bytecode" [inlining "add"]: 3 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  phase L244..379 "Maglev graph building" [graph]: 52 nodes, 10 blocks, 22 frame-lines, 2 annotations
+  phase L379..514 "Truncation propagation" [graph]: 52 nodes, 10 blocks, 22 frame-lines, 2 annotations
+  phase L514..640 "Truncation" [graph]: 50 nodes, 10 blocks, 18 frame-lines, 2 annotations
+  phase L640..766 "Phi untagging" [graph]: 50 nodes, 10 blocks, 18 frame-lines, 2 annotations
+  phase L766..880 "AnyUseMarking" [graph]: 38 nodes, 10 blocks, 18 frame-lines, 2 annotations
+  phase L880..994 "Dead nodes sweeping" [graph]: 38 nodes, 10 blocks, 18 frame-lines, 2 annotations
+  phase L994..1118 "Register allocation" [graph]: 45 nodes, 10 blocks, 18 frame-lines, 4 annotations
+  totals: 26 opcodes, 8 distinct frames
+compilation 2 L1119..1293 sfi=0x9b80101e6b9 tier=Maglev ord=2 name="add"
+  script "workloads/simple.js"
+  phase L1121..1132 "Bytecode array" [bytecode]: 3 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  phase L1132..1164 "Maglev graph building" [graph]: 15 nodes, 2 blocks, 3 frame-lines, 0 annotations
+  phase L1164..1196 "Phi untagging" [graph]: 15 nodes, 2 blocks, 3 frame-lines, 0 annotations
+  phase L1196..1227 "AnyUseMarking" [graph]: 14 nodes, 2 blocks, 3 frame-lines, 0 annotations
+  phase L1227..1258 "Dead nodes sweeping" [graph]: 14 nodes, 2 blocks, 3 frame-lines, 0 annotations
+  phase L1258..1293 "Register allocation" [graph]: 17 nodes, 2 blocks, 3 frame-lines, 0 annotations
+  totals: 12 opcodes, 2 distinct frames
+compilation 3 L1294..2256 sfi=0x9b80101e651 tier=Maglev ord=2 name=""
+  script "workloads/simple.js"
+  phase L1296..1333 "Bytecode array" [bytecode]: 29 rows (2 jump refs, 5 fbv refs, 3 pool refs)
+  phase L1333..1344 "Inlining 0x09b80101e6b9 <SharedFunctionInfo add> with bytecode" [inlining "add"]: 3 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  phase L1344..1355 "Inlining 0x09b80101e6b9 <SharedFunctionInfo add> with bytecode" [inlining "add"]: 3 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  phase L1355..1487 "Maglev graph building" [graph]: 53 nodes, 10 blocks, 18 frame-lines, 2 annotations
+  phase L1487..1619 "Truncation propagation" [graph]: 53 nodes, 10 blocks, 18 frame-lines, 2 annotations
+  phase L1619..1751 "Truncation" [graph]: 53 nodes, 10 blocks, 18 frame-lines, 2 annotations
+  phase L1751..1883 "Phi untagging" [graph]: 53 nodes, 10 blocks, 18 frame-lines, 2 annotations
+  phase L1883..2004 "AnyUseMarking" [graph]: 42 nodes, 10 blocks, 18 frame-lines, 2 annotations
+  phase L2004..2125 "Dead nodes sweeping" [graph]: 42 nodes, 10 blocks, 18 frame-lines, 2 annotations
+  phase L2125..2256 "Register allocation" [graph]: 49 nodes, 10 blocks, 18 frame-lines, 4 annotations
+  totals: 27 opcodes, 8 distinct frames
+raw L0..1 "V8 is running with developer-only features enabled. Stability and security will suffer."
+raw L182..183 "0x* <Code MAGLEV>---------------------------------------------------"
+raw L1118..1119 "0x* <Code MAGLEV>---------------------------------------------------"
+raw L1293..1294 "0x* <Code MAGLEV>---------------------------------------------------"
+raw L2256..2257 "0x* <Code MAGLEV>704982704"

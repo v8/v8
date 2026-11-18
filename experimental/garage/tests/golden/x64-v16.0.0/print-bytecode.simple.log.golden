@@ -1,0 +1,9 @@
+lines: 50
+version: unknown
+compilation 0 L1..38 sfi=0x9b80101e609 tier=Ignition ord=1 name=""
+  phase L1..38 "Bytecode array" [bytecode]: 29 rows (2 jump refs, 5 fbv refs, 3 pool refs)
+  totals: 0 opcodes, 0 distinct frames
+compilation 1 L38..50 sfi=0x9b80101e671 tier=Ignition ord=1 name="add"
+  phase L38..50 "Bytecode array" [bytecode]: 3 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  totals: 0 opcodes, 0 distinct frames
+raw L0..1 "V8 is running with developer-only features enabled. Stability and security will suffer."

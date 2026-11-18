@@ -1,0 +1,23 @@
+lines: 102
+version: unknown
+raw L0..102 "V8 is running with developer-only features enabled. Stability and security will suffer."
+event L1 marking name="read" sfi=0x9b80101e6e1 target=Maglev reason="hot and stable"
+event L2 compile-start name="read" sfi=0x9b80101e6e1 target=Maglev osr=false
+event L3 compile-done name="read" sfi=0x9b80101e6e1 target=Maglev osr=false
+event L4 marking name="" sfi=0x9b80101e679 target=Maglev reason="hot and stable"
+event L5 marking name="read" sfi=0x9b80101e6e1 target=Turbofan reason="hot and stable"
+event L6 compile-start name="read" sfi=0x9b80101e6e1 target=Turbofan osr=false
+event L7 compile-done name="read" sfi=0x9b80101e6e1 target=Turbofan osr=false
+event L8 compile-start name="" sfi=0x9b80101e679 target=Maglev osr=true
+event L9 compile-done name="" sfi=0x9b80101e679 target=Maglev osr=true
+event L10 deopt kind=deopt-eager reason="Insufficient type feedback for object literal" name="" sfi=0x9b80101e679 tier=Maglev opt_id=Some(2) offset=Some(70)
+event L41 deopt-end invalidated=false
+event L42 deopt kind=deopt-eager reason="wrong map" name="read" sfi=0x9b80101e6e1 tier=Turbofan opt_id=Some(1) offset=Some(0)
+event L63 deopt-end invalidated=true
+event L64 marking name="read" sfi=0x9b80101e6e1 target=Maglev reason="hot and stable"
+event L65 compile-start name="read" sfi=0x9b80101e6e1 target=Maglev osr=false
+event L66 compile-done name="read" sfi=0x9b80101e6e1 target=Maglev osr=false
+event L67 compile-start name="" sfi=0x9b80101e679 target=Maglev osr=true
+event L68 compile-done name="" sfi=0x9b80101e679 target=Maglev osr=true
+event L69 deopt kind=deopt-eager reason="Insufficient type feedback for generic global access" name="" sfi=0x9b80101e679 tier=Maglev opt_id=Some(4) offset=Some(133)
+event L100 deopt-end invalidated=false

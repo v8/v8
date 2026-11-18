@@ -1,0 +1,48 @@
+lines: 2168
+version: 16.0
+compilation 0 L1..177 sfi=0x9b80101e671 tier=Maglev ord=1 name="add"
+  script "workloads/simple.js"
+  phase L4..15 "Bytecode array" [bytecode]: 3 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  phase L15..47 "Maglev graph building" [graph]: 15 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  phase L47..79 "Phi untagging" [graph]: 15 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  phase L79..110 "AnyUseMarking" [graph]: 14 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  phase L110..141 "Dead nodes sweeping" [graph]: 14 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  phase L141..177 "Register allocation" [graph]: 18 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  totals: 12 opcodes, 2 distinct frames
+compilation 1 L177..1076 sfi=0x9b80101e609 tier=Maglev ord=1 name=""
+  script "workloads/simple.js"
+  phase L180..217 "Bytecode array" [bytecode]: 29 rows (2 jump refs, 5 fbv refs, 3 pool refs)
+  phase L217..228 "Inlining 0x09b80101e671 <SharedFunctionInfo add> with bytecode" [inlining "add"]: 3 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  phase L228..239 "Inlining 0x09b80101e671 <SharedFunctionInfo add> with bytecode" [inlining "add"]: 3 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  phase L239..368 "Maglev graph building" [graph]: 52 nodes, 10 blocks, 22 frame-lines, 2 annotations
+  phase L368..497 "Truncation propagation" [graph]: 52 nodes, 10 blocks, 22 frame-lines, 2 annotations
+  phase L497..618 "Truncation" [graph]: 50 nodes, 10 blocks, 18 frame-lines, 2 annotations
+  phase L618..739 "Phi untagging" [graph]: 50 nodes, 10 blocks, 18 frame-lines, 2 annotations
+  phase L739..848 "AnyUseMarking" [graph]: 38 nodes, 10 blocks, 18 frame-lines, 2 annotations
+  phase L848..957 "Dead nodes sweeping" [graph]: 38 nodes, 10 blocks, 18 frame-lines, 2 annotations
+  phase L957..1076 "Register allocation" [graph]: 45 nodes, 10 blocks, 18 frame-lines, 4 annotations
+  totals: 26 opcodes, 8 distinct frames
+compilation 2 L1076..1246 sfi=0x9b80101e671 tier=Maglev ord=2 name="add"
+  script "workloads/simple.js"
+  phase L1079..1090 "Bytecode array" [bytecode]: 3 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  phase L1090..1121 "Maglev graph building" [graph]: 15 nodes, 2 blocks, 3 frame-lines, 0 annotations
+  phase L1121..1152 "Phi untagging" [graph]: 15 nodes, 2 blocks, 3 frame-lines, 0 annotations
+  phase L1152..1182 "AnyUseMarking" [graph]: 14 nodes, 2 blocks, 3 frame-lines, 0 annotations
+  phase L1182..1212 "Dead nodes sweeping" [graph]: 14 nodes, 2 blocks, 3 frame-lines, 0 annotations
+  phase L1212..1246 "Register allocation" [graph]: 17 nodes, 2 blocks, 3 frame-lines, 0 annotations
+  totals: 12 opcodes, 2 distinct frames
+compilation 3 L1246..2167 sfi=0x9b80101e609 tier=Maglev ord=2 name=""
+  script "workloads/simple.js"
+  phase L1249..1286 "Bytecode array" [bytecode]: 29 rows (2 jump refs, 5 fbv refs, 3 pool refs)
+  phase L1286..1297 "Inlining 0x09b80101e671 <SharedFunctionInfo add> with bytecode" [inlining "add"]: 3 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  phase L1297..1308 "Inlining 0x09b80101e671 <SharedFunctionInfo add> with bytecode" [inlining "add"]: 3 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  phase L1308..1434 "Maglev graph building" [graph]: 53 nodes, 10 blocks, 18 frame-lines, 2 annotations
+  phase L1434..1560 "Truncation propagation" [graph]: 53 nodes, 10 blocks, 18 frame-lines, 2 annotations
+  phase L1560..1686 "Truncation" [graph]: 53 nodes, 10 blocks, 18 frame-lines, 2 annotations
+  phase L1686..1812 "Phi untagging" [graph]: 53 nodes, 10 blocks, 18 frame-lines, 2 annotations
+  phase L1812..1927 "AnyUseMarking" [graph]: 42 nodes, 10 blocks, 18 frame-lines, 2 annotations
+  phase L1927..2042 "Dead nodes sweeping" [graph]: 42 nodes, 10 blocks, 18 frame-lines, 2 annotations
+  phase L2042..2167 "Register allocation" [graph]: 49 nodes, 10 blocks, 18 frame-lines, 4 annotations
+  totals: 27 opcodes, 8 distinct frames
+raw L0..1 "V8 is running with developer-only features enabled. Stability and security will suffer."
+raw L2167..2168 "704982704"

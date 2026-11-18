@@ -1,0 +1,66 @@
+lines: 2388
+version: 16.0
+compilation 0 L1..177 sfi=0x9b80101e671 tier=Maglev ord=1 name="add"
+  script "workloads/simple.js"
+  phase L4..15 "Bytecode array" [bytecode]: 3 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  phase L15..47 "Maglev graph building" [graph]: 15 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  phase L47..79 "Phi untagging" [graph]: 15 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  phase L79..110 "AnyUseMarking" [graph]: 14 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  phase L110..141 "Dead nodes sweeping" [graph]: 14 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  phase L141..177 "Register allocation" [graph]: 18 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  totals: 12 opcodes, 2 distinct frames
+compilation 1 L177..277 sfi=0x0 tier=Turbofan ord=1 name="add"
+  preamble L178..183: 3 JS source lines
+  phase L183..191 "Optimized code" [listing]: 0 disasm (0 labels), 0 annotations
+  phase L191..258 "Instructions" [listing]: 65 disasm (9 labels), 0 annotations
+  phase L258..260 "Inlined functions" [listing]: 0 disasm (0 labels), 0 annotations
+  phase L260..267 "Deoptimization Input Data" [listing]: 0 disasm (0 labels), 0 annotations
+  phase L267..271 "Safepoints" [listing]: 0 disasm (0 labels), 0 annotations
+  phase L271..277 "RelocInfo" [listing]: 0 disasm (0 labels), 0 annotations
+  totals: 0 opcodes, 0 distinct frames
+compilation 2 L277..1176 sfi=0x9b80101e609 tier=Maglev ord=1 name=""
+  script "workloads/simple.js"
+  phase L280..317 "Bytecode array" [bytecode]: 29 rows (2 jump refs, 5 fbv refs, 3 pool refs)
+  phase L317..328 "Inlining 0x09b80101e671 <SharedFunctionInfo add> with bytecode" [inlining "add"]: 3 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  phase L328..339 "Inlining 0x09b80101e671 <SharedFunctionInfo add> with bytecode" [inlining "add"]: 3 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  phase L339..468 "Maglev graph building" [graph]: 52 nodes, 10 blocks, 22 frame-lines, 2 annotations
+  phase L468..597 "Truncation propagation" [graph]: 52 nodes, 10 blocks, 22 frame-lines, 2 annotations
+  phase L597..718 "Truncation" [graph]: 50 nodes, 10 blocks, 18 frame-lines, 2 annotations
+  phase L718..839 "Phi untagging" [graph]: 50 nodes, 10 blocks, 18 frame-lines, 2 annotations
+  phase L839..948 "AnyUseMarking" [graph]: 38 nodes, 10 blocks, 18 frame-lines, 2 annotations
+  phase L948..1057 "Dead nodes sweeping" [graph]: 38 nodes, 10 blocks, 18 frame-lines, 2 annotations
+  phase L1057..1176 "Register allocation" [graph]: 45 nodes, 10 blocks, 18 frame-lines, 4 annotations
+  totals: 26 opcodes, 8 distinct frames
+compilation 3 L1176..1346 sfi=0x9b80101e671 tier=Maglev ord=2 name="add"
+  script "workloads/simple.js"
+  phase L1179..1190 "Bytecode array" [bytecode]: 3 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  phase L1190..1221 "Maglev graph building" [graph]: 15 nodes, 2 blocks, 3 frame-lines, 0 annotations
+  phase L1221..1252 "Phi untagging" [graph]: 15 nodes, 2 blocks, 3 frame-lines, 0 annotations
+  phase L1252..1282 "AnyUseMarking" [graph]: 14 nodes, 2 blocks, 3 frame-lines, 0 annotations
+  phase L1282..1312 "Dead nodes sweeping" [graph]: 14 nodes, 2 blocks, 3 frame-lines, 0 annotations
+  phase L1312..1346 "Register allocation" [graph]: 17 nodes, 2 blocks, 3 frame-lines, 0 annotations
+  totals: 12 opcodes, 2 distinct frames
+compilation 4 L1346..1466 sfi=0x0 tier=Turbofan ord=2 name="add"
+  preamble L1347..1352: 3 JS source lines
+  phase L1352..1360 "Optimized code" [listing]: 0 disasm (0 labels), 0 annotations
+  phase L1360..1448 "Instructions" [listing]: 86 disasm (14 labels), 0 annotations
+  phase L1448..1450 "Inlined functions" [listing]: 0 disasm (0 labels), 0 annotations
+  phase L1450..1456 "Deoptimization Input Data" [listing]: 0 disasm (0 labels), 0 annotations
+  phase L1456..1460 "Safepoints" [listing]: 0 disasm (0 labels), 0 annotations
+  phase L1460..1466 "RelocInfo" [listing]: 0 disasm (0 labels), 0 annotations
+  totals: 0 opcodes, 0 distinct frames
+compilation 5 L1466..2387 sfi=0x9b80101e609 tier=Maglev ord=2 name=""
+  script "workloads/simple.js"
+  phase L1469..1506 "Bytecode array" [bytecode]: 29 rows (2 jump refs, 5 fbv refs, 3 pool refs)
+  phase L1506..1517 "Inlining 0x09b80101e671 <SharedFunctionInfo add> with bytecode" [inlining "add"]: 3 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  phase L1517..1528 "Inlining 0x09b80101e671 <SharedFunctionInfo add> with bytecode" [inlining "add"]: 3 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  phase L1528..1654 "Maglev graph building" [graph]: 53 nodes, 10 blocks, 18 frame-lines, 2 annotations
+  phase L1654..1780 "Truncation propagation" [graph]: 53 nodes, 10 blocks, 18 frame-lines, 2 annotations
+  phase L1780..1906 "Truncation" [graph]: 53 nodes, 10 blocks, 18 frame-lines, 2 annotations
+  phase L1906..2032 "Phi untagging" [graph]: 53 nodes, 10 blocks, 18 frame-lines, 2 annotations
+  phase L2032..2147 "AnyUseMarking" [graph]: 42 nodes, 10 blocks, 18 frame-lines, 2 annotations
+  phase L2147..2262 "Dead nodes sweeping" [graph]: 42 nodes, 10 blocks, 18 frame-lines, 2 annotations
+  phase L2262..2387 "Register allocation" [graph]: 49 nodes, 10 blocks, 18 frame-lines, 4 annotations
+  totals: 27 opcodes, 8 distinct frames
+raw L0..1 "V8 is running with developer-only features enabled. Stability and security will suffer."
+raw L2387..2388 "704982704"

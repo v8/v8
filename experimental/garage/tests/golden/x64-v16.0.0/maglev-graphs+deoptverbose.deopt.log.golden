@@ -1,0 +1,44 @@
+lines: 2175
+version: 16.0
+compilation 0 L1..170 sfi=0x9b80101e671 tier=Maglev ord=1 name="read"
+  script "workloads/deopt-eager.js"
+  phase L4..15 "Bytecode array" [bytecode]: 3 rows (0 jump refs, 1 fbv refs, 1 pool refs)
+  phase L15..46 "Maglev graph building" [graph]: 15 nodes, 2 blocks, 3 frame-lines, 0 annotations
+  phase L46..77 "Phi untagging" [graph]: 15 nodes, 2 blocks, 3 frame-lines, 0 annotations
+  phase L77..107 "AnyUseMarking" [graph]: 14 nodes, 2 blocks, 3 frame-lines, 0 annotations
+  phase L107..137 "Dead nodes sweeping" [graph]: 14 nodes, 2 blocks, 3 frame-lines, 0 annotations
+  phase L137..170 "Register allocation" [graph]: 16 nodes, 2 blocks, 3 frame-lines, 0 annotations
+  totals: 14 opcodes, 2 distinct frames
+compilation 1 L170..1039 sfi=0x9b80101e609 tier=Maglev ord=1 name=""
+  script "workloads/deopt-eager.js"
+  phase L173..243 "Bytecode array" [bytecode]: 62 rows (4 jump refs, 15 fbv refs, 10 pool refs)
+  phase L243..254 "Inlining 0x09b80101e671 <SharedFunctionInfo read> with bytecode" [inlining "read"]: 3 rows (0 jump refs, 1 fbv refs, 1 pool refs)
+  phase L254..265 "Inlining 0x09b80101e671 <SharedFunctionInfo read> with bytecode" [inlining "read"]: 3 rows (0 jump refs, 1 fbv refs, 1 pool refs)
+  phase L265..425 "Maglev graph building" [graph]: 77 nodes, 10 blocks, 20 frame-lines, 2 annotations
+  phase L425..586 "Phi untagging" [graph]: 78 nodes, 10 blocks, 20 frame-lines, 2 annotations
+  phase L586..733 "AnyUseMarking" [graph]: 64 nodes, 10 blocks, 20 frame-lines, 2 annotations
+  phase L733..880 "Dead nodes sweeping" [graph]: 64 nodes, 10 blocks, 20 frame-lines, 2 annotations
+  phase L880..1039 "Register allocation" [graph]: 73 nodes, 10 blocks, 20 frame-lines, 4 annotations
+  totals: 33 opcodes, 18 distinct frames
+compilation 2 L1039..1310 sfi=0x9b80101e671 tier=Maglev ord=2 name="read"
+  script "workloads/deopt-eager.js"
+  phase L1042..1053 "Bytecode array" [bytecode]: 3 rows (0 jump refs, 1 fbv refs, 1 pool refs)
+  phase L1053..1103 "Maglev graph building" [graph]: 23 nodes, 5 blocks, 4 frame-lines, 2 annotations
+  phase L1103..1154 "Phi untagging" [graph]: 24 nodes, 5 blocks, 4 frame-lines, 2 annotations
+  phase L1154..1204 "AnyUseMarking" [graph]: 23 nodes, 5 blocks, 4 frame-lines, 2 annotations
+  phase L1204..1254 "Dead nodes sweeping" [graph]: 23 nodes, 5 blocks, 4 frame-lines, 2 annotations
+  phase L1254..1310 "Register allocation" [graph]: 26 nodes, 5 blocks, 4 frame-lines, 4 annotations
+  totals: 18 opcodes, 4 distinct frames
+compilation 3 L1310..2174 sfi=0x9b80101e609 tier=Maglev ord=2 name=""
+  script "workloads/deopt-eager.js"
+  phase L1313..1383 "Bytecode array" [bytecode]: 62 rows (4 jump refs, 15 fbv refs, 10 pool refs)
+  phase L1383..1394 "Inlining 0x09b80101e671 <SharedFunctionInfo read> with bytecode" [inlining "read"]: 3 rows (0 jump refs, 1 fbv refs, 1 pool refs)
+  phase L1394..1405 "Inlining 0x09b80101e671 <SharedFunctionInfo read> with bytecode" [inlining "read"]: 3 rows (0 jump refs, 1 fbv refs, 1 pool refs)
+  phase L1405..1564 "Maglev graph building" [graph]: 78 nodes, 10 blocks, 20 frame-lines, 2 annotations
+  phase L1564..1724 "Phi untagging" [graph]: 79 nodes, 10 blocks, 20 frame-lines, 2 annotations
+  phase L1724..1870 "AnyUseMarking" [graph]: 65 nodes, 10 blocks, 20 frame-lines, 2 annotations
+  phase L1870..2016 "Dead nodes sweeping" [graph]: 65 nodes, 10 blocks, 20 frame-lines, 2 annotations
+  phase L2016..2174 "Register allocation" [graph]: 74 nodes, 10 blocks, 20 frame-lines, 4 annotations
+  totals: 33 opcodes, 18 distinct frames
+raw L0..1 "V8 is running with developer-only features enabled. Stability and security will suffer."
+raw L2174..2175 "10000100003"

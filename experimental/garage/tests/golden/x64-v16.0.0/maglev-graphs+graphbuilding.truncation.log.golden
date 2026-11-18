@@ -1,0 +1,52 @@
+lines: 4207
+version: 16.0
+compilation 0 L1..374 sfi=0x9b80101e671 tier=Maglev ord=1 name="trunc"
+  script "workloads/truncation.js"
+  phase L4..69 "Bytecode array" [bytecode]: 13 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  phase L69..112 "Maglev graph building" [graph]: 21 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  phase L112..155 "Truncation propagation" [graph]: 21 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  phase L155..198 "Truncation" [graph]: 21 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  phase L198..241 "Phi untagging" [graph]: 21 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  phase L241..283 "AnyUseMarking" [graph]: 20 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  phase L283..325 "Dead nodes sweeping" [graph]: 20 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  phase L325..374 "Register allocation" [graph]: 26 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  totals: 16 opcodes, 2 distinct frames
+compilation 1 L374..2106 sfi=0x9b80101e609 tier=Maglev ord=1 name=""
+  script "workloads/truncation.js"
+  phase L377..501 "Bytecode array" [bytecode]: 36 rows (2 jump refs, 5 fbv refs, 5 pool refs)
+  phase L501..710 "Inlining 0x09b80101e671 <SharedFunctionInfo trunc> with bytecode" [inlining "trunc"]: 13 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  phase L710..949 "Inlining 0x09b80101e671 <SharedFunctionInfo trunc> with bytecode" [inlining "trunc"]: 13 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  phase L949..1118 "Maglev graph building" [graph]: 78 nodes, 10 blocks, 20 frame-lines, 2 annotations
+  phase L1118..1287 "Truncation propagation" [graph]: 78 nodes, 10 blocks, 20 frame-lines, 2 annotations
+  phase L1287..1456 "Truncation" [graph]: 78 nodes, 10 blocks, 20 frame-lines, 2 annotations
+  phase L1456..1625 "Phi untagging" [graph]: 78 nodes, 10 blocks, 20 frame-lines, 2 annotations
+  phase L1625..1779 "AnyUseMarking" [graph]: 63 nodes, 10 blocks, 20 frame-lines, 2 annotations
+  phase L1779..1933 "Dead nodes sweeping" [graph]: 63 nodes, 10 blocks, 20 frame-lines, 2 annotations
+  phase L1933..2106 "Register allocation" [graph]: 79 nodes, 10 blocks, 20 frame-lines, 4 annotations
+  totals: 30 opcodes, 9 distinct frames
+compilation 2 L2106..2487 sfi=0x9b80101e671 tier=Maglev ord=2 name="trunc"
+  script "workloads/truncation.js"
+  phase L2109..2176 "Bytecode array" [bytecode]: 13 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  phase L2176..2220 "Maglev graph building" [graph]: 23 nodes, 2 blocks, 3 frame-lines, 0 annotations
+  phase L2220..2264 "Truncation propagation" [graph]: 23 nodes, 2 blocks, 3 frame-lines, 0 annotations
+  phase L2264..2308 "Truncation" [graph]: 23 nodes, 2 blocks, 3 frame-lines, 0 annotations
+  phase L2308..2352 "Phi untagging" [graph]: 23 nodes, 2 blocks, 3 frame-lines, 0 annotations
+  phase L2352..2395 "AnyUseMarking" [graph]: 22 nodes, 2 blocks, 3 frame-lines, 0 annotations
+  phase L2395..2438 "Dead nodes sweeping" [graph]: 22 nodes, 2 blocks, 3 frame-lines, 0 annotations
+  phase L2438..2487 "Register allocation" [graph]: 27 nodes, 2 blocks, 3 frame-lines, 0 annotations
+  totals: 16 opcodes, 2 distinct frames
+compilation 3 L2487..4206 sfi=0x9b80101e609 tier=Maglev ord=2 name=""
+  script "workloads/truncation.js"
+  phase L2490..2614 "Bytecode array" [bytecode]: 36 rows (2 jump refs, 5 fbv refs, 5 pool refs)
+  phase L2614..2828 "Inlining 0x09b80101e671 <SharedFunctionInfo trunc> with bytecode" [inlining "trunc"]: 13 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  phase L2828..3074 "Inlining 0x09b80101e671 <SharedFunctionInfo trunc> with bytecode" [inlining "trunc"]: 13 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  phase L3074..3241 "Maglev graph building" [graph]: 80 nodes, 10 blocks, 16 frame-lines, 2 annotations
+  phase L3241..3408 "Truncation propagation" [graph]: 80 nodes, 10 blocks, 16 frame-lines, 2 annotations
+  phase L3408..3575 "Truncation" [graph]: 80 nodes, 10 blocks, 16 frame-lines, 2 annotations
+  phase L3575..3742 "Phi untagging" [graph]: 80 nodes, 10 blocks, 16 frame-lines, 2 annotations
+  phase L3742..3891 "AnyUseMarking" [graph]: 62 nodes, 10 blocks, 16 frame-lines, 2 annotations
+  phase L3891..4040 "Dead nodes sweeping" [graph]: 62 nodes, 10 blocks, 16 frame-lines, 2 annotations
+  phase L4040..4206 "Register allocation" [graph]: 76 nodes, 10 blocks, 16 frame-lines, 4 annotations
+  totals: 29 opcodes, 7 distinct frames
+raw L0..1 "V8 is running with developer-only features enabled. Stability and security will suffer."
+raw L4206..4207 "-309698352"

@@ -1,0 +1,28 @@
+lines: 468
+version: 16.0
+compilation 0 L1..51 sfi=0x9b80101e671 tier=Maglev ord=1 name="add"
+  script "workloads/simple.js"
+  phase L4..15 "Bytecode array" [bytecode]: 3 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  phase L15..51 "Register allocation" [graph]: 18 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  totals: 11 opcodes, 2 distinct frames
+compilation 1 L51..232 sfi=0x9b80101e609 tier=Maglev ord=1 name=""
+  script "workloads/simple.js"
+  phase L54..91 "Bytecode array" [bytecode]: 29 rows (2 jump refs, 5 fbv refs, 3 pool refs)
+  phase L91..102 "Inlining 0x09b80101e671 <SharedFunctionInfo add> with bytecode" [inlining "add"]: 3 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  phase L102..113 "Inlining 0x09b80101e671 <SharedFunctionInfo add> with bytecode" [inlining "add"]: 3 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  phase L113..232 "Register allocation" [graph]: 45 nodes, 10 blocks, 18 frame-lines, 4 annotations
+  totals: 21 opcodes, 8 distinct frames
+compilation 2 L232..280 sfi=0x9b80101e671 tier=Maglev ord=2 name="add"
+  script "workloads/simple.js"
+  phase L235..246 "Bytecode array" [bytecode]: 3 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  phase L246..280 "Register allocation" [graph]: 17 nodes, 2 blocks, 3 frame-lines, 0 annotations
+  totals: 11 opcodes, 2 distinct frames
+compilation 3 L280..467 sfi=0x9b80101e609 tier=Maglev ord=2 name=""
+  script "workloads/simple.js"
+  phase L283..320 "Bytecode array" [bytecode]: 29 rows (2 jump refs, 5 fbv refs, 3 pool refs)
+  phase L320..331 "Inlining 0x09b80101e671 <SharedFunctionInfo add> with bytecode" [inlining "add"]: 3 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  phase L331..342 "Inlining 0x09b80101e671 <SharedFunctionInfo add> with bytecode" [inlining "add"]: 3 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  phase L342..467 "Register allocation" [graph]: 49 nodes, 10 blocks, 18 frame-lines, 4 annotations
+  totals: 24 opcodes, 8 distinct frames
+raw L0..1 "V8 is running with developer-only features enabled. Stability and security will suffer."
+raw L467..468 "704982704"

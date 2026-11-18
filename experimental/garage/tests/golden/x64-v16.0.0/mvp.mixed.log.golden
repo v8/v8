@@ -1,0 +1,57 @@
+lines: 4791
+version: 16.0
+compilation 0 L1..607 sfi=0x9b80101e799 tier=Maglev ord=1 name="sum"
+  script "workloads/mixed.js"
+  phase L4..30 "Bytecode array" [bytecode]: 18 rows (2 jump refs, 3 fbv refs, 1 pool refs)
+  phase L30..148 "Maglev graph building" [graph]: 50 nodes, 8 blocks, 16 frame-lines, 4 annotations
+  phase L148..267 "Phi untagging" [graph]: 51 nodes, 8 blocks, 16 frame-lines, 4 annotations
+  phase L267..376 "AnyUseMarking" [graph]: 41 nodes, 8 blocks, 16 frame-lines, 4 annotations
+  phase L376..485 "Dead nodes sweeping" [graph]: 41 nodes, 8 blocks, 16 frame-lines, 4 annotations
+  phase L485..607 "Register allocation" [graph]: 47 nodes, 8 blocks, 16 frame-lines, 10 annotations
+  totals: 28 opcodes, 4 distinct frames
+compilation 1 L607..799 sfi=0x9b80101e7f9 tier=Maglev ord=1 name="flipflop"
+  script "workloads/mixed.js"
+  phase L610..622 "Bytecode array" [bytecode]: 4 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  phase L622..657 "Maglev graph building" [graph]: 15 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  phase L657..692 "Phi untagging" [graph]: 15 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  phase L692..726 "AnyUseMarking" [graph]: 14 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  phase L726..760 "Dead nodes sweeping" [graph]: 14 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  phase L760..799 "Register allocation" [graph]: 18 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  totals: 14 opcodes, 2 distinct frames
+compilation 2 L799..1558 sfi=0x9b80101e7c9 tier=Maglev ord=1 name="scale"
+  script "workloads/mixed.js"
+  phase L802..834 "Bytecode array" [bytecode]: 24 rows (2 jump refs, 7 fbv refs, 3 pool refs)
+  phase L834..982 "Maglev graph building" [graph]: 69 nodes, 11 blocks, 21 frame-lines, 2 annotations
+  phase L982..1130 "Phi untagging" [graph]: 69 nodes, 11 blocks, 21 frame-lines, 2 annotations
+  phase L1130..1268 "AnyUseMarking" [graph]: 60 nodes, 11 blocks, 21 frame-lines, 2 annotations
+  phase L1268..1406 "Dead nodes sweeping" [graph]: 60 nodes, 11 blocks, 21 frame-lines, 2 annotations
+  phase L1406..1558 "Register allocation" [graph]: 69 nodes, 11 blocks, 21 frame-lines, 6 annotations
+  totals: 36 opcodes, 8 distinct frames
+compilation 3 L1559..1746 sfi=0x9b80101e7f9 tier=Maglev ord=2 name="flipflop"
+  script "workloads/mixed.js"
+  phase L1562..1574 "Bytecode array" [bytecode]: 4 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  phase L1574..1608 "Maglev graph building" [graph]: 16 nodes, 2 blocks, 2 frame-lines, 0 annotations
+  phase L1608..1642 "Phi untagging" [graph]: 16 nodes, 2 blocks, 2 frame-lines, 0 annotations
+  phase L1642..1675 "AnyUseMarking" [graph]: 15 nodes, 2 blocks, 2 frame-lines, 0 annotations
+  phase L1675..1708 "Dead nodes sweeping" [graph]: 15 nodes, 2 blocks, 2 frame-lines, 0 annotations
+  phase L1708..1746 "Register allocation" [graph]: 19 nodes, 2 blocks, 2 frame-lines, 0 annotations
+  totals: 14 opcodes, 2 distinct frames
+compilation 4 L1746..4789 sfi=0x9b80101e719 tier=Maglev ord=1 name=""
+  script "workloads/mixed.js"
+  phase L1749..1846 "Bytecode array" [bytecode]: 89 rows (8 jump refs, 16 fbv refs, 8 pool refs)
+  phase L1846..1872 "Inlining 0x09b80101e799 <SharedFunctionInfo sum> with bytecode" [inlining "sum"]: 18 rows (2 jump refs, 3 fbv refs, 1 pool refs)
+  phase L1872..1904 "Inlining 0x09b80101e7c9 <SharedFunctionInfo scale> with bytecode" [inlining "scale"]: 24 rows (2 jump refs, 7 fbv refs, 3 pool refs)
+  phase L1904..1930 "Inlining 0x09b80101e799 <SharedFunctionInfo sum> with bytecode" [inlining "sum"]: 18 rows (2 jump refs, 3 fbv refs, 1 pool refs)
+  phase L1930..1942 "Inlining 0x09b80101e7f9 <SharedFunctionInfo flipflop> with bytecode" [inlining "flipflop"]: 4 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  phase L1942..1954 "Inlining 0x09b80101e7f9 <SharedFunctionInfo flipflop> with bytecode" [inlining "flipflop"]: 4 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  phase L1954..2527 "Maglev graph building" [graph]: 218 nodes, 39 blocks, 110 frame-lines, 18 annotations
+  phase L2527..3103 "Phi untagging" [graph]: 219 nodes, 39 blocks, 112 frame-lines, 18 annotations
+  phase L3103..3643 "AnyUseMarking" [graph]: 184 nodes, 39 blocks, 112 frame-lines, 18 annotations
+  phase L3643..4183 "Dead nodes sweeping" [graph]: 184 nodes, 39 blocks, 112 frame-lines, 18 annotations
+  phase L4183..4789 "Register allocation" [graph]: 213 nodes, 39 blocks, 112 frame-lines, 54 annotations
+  totals: 53 opcodes, 29 distinct frames
+raw L0..1 "V8 is running with developer-only features enabled. Stability and security will suffer."
+raw L1558..1559 "[bailout (kind: deopt-eager, reason: not a Smi): begin. deoptimizing 0x* <JSFunction …"
+raw L4789..4791 "[bailout (kind: deopt-eager, reason: Insufficient type feedback for generic global access): begi…"
+event L1558 deopt kind=deopt-eager reason="not a Smi" name="flipflop" sfi=0x9b80101e7f9 tier=Maglev opt_id=Some(1) offset=Some(2)
+event L4789 deopt kind=deopt-eager reason="Insufficient type feedback for generic global access" name="" sfi=0x9b80101e719 tier=Maglev opt_id=Some(7) offset=Some(181)

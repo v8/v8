@@ -8792,6 +8792,12 @@ group("gn_all") {
     deps += [ "experimental/redline" ]
   }
 
+  # Garage, an experimental terminal UI for viewing and diffing V8 traces,
+  # uses POSIX terminal APIs. Only standalone V8 builds it.
+  if ((is_linux || is_mac) && !build_with_chromium) {
+    deps += [ "experimental/garage" ]
+  }
+
   if (v8_custom_deps != "") {
     # Custom dependency from directory under v8/custom_deps.
     deps += [ v8_custom_deps ]

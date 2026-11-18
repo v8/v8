@@ -1,0 +1,51 @@
+lines: 2586
+version: 16.0
+compilation 0 L1..195 sfi=0x7e740101e6e1 tier=Maglev ord=1 name="read"
+  script "workloads/deopt-eager.js"
+  phase L4..15 "Bytecode array" [bytecode]: 3 rows (0 jump refs, 1 fbv refs, 1 pool refs)
+  phase L15..51 "Maglev graph building" [graph]: 15 nodes, 2 blocks, 3 frame-lines, 0 annotations
+  phase L51..87 "Phi untagging" [graph]: 15 nodes, 2 blocks, 3 frame-lines, 0 annotations
+  phase L87..122 "AnyUseMarking" [graph]: 14 nodes, 2 blocks, 3 frame-lines, 0 annotations
+  phase L122..157 "Dead nodes sweeping" [graph]: 14 nodes, 2 blocks, 3 frame-lines, 0 annotations
+  phase L157..195 "Register allocation" [graph]: 16 nodes, 2 blocks, 3 frame-lines, 0 annotations
+  totals: 14 opcodes, 2 distinct frames
+compilation 1 L195..1199 sfi=0x7e740101e679 tier=Maglev ord=1 name=""
+  script "workloads/deopt-eager.js"
+  phase L198..268 "Bytecode array" [bytecode]: 62 rows (4 jump refs, 15 fbv refs, 10 pool refs)
+  phase L268..279 "Inlining 0x7e740101e6e1 <SharedFunctionInfo read> with bytecode" [inlining "read"]: 3 rows (0 jump refs, 1 fbv refs, 1 pool refs)
+  phase L279..290 "Inlining 0x7e740101e6e1 <SharedFunctionInfo read> with bytecode" [inlining "read"]: 3 rows (0 jump refs, 1 fbv refs, 1 pool refs)
+  phase L290..477 "Maglev graph building" [graph]: 77 nodes, 10 blocks, 20 frame-lines, 2 annotations
+  phase L477..665 "Phi untagging" [graph]: 78 nodes, 10 blocks, 20 frame-lines, 2 annotations
+  phase L665..839 "AnyUseMarking" [graph]: 64 nodes, 10 blocks, 20 frame-lines, 2 annotations
+  phase L839..1013 "Dead nodes sweeping" [graph]: 64 nodes, 10 blocks, 20 frame-lines, 2 annotations
+  phase L1013..1199 "Register allocation" [graph]: 73 nodes, 10 blocks, 20 frame-lines, 4 annotations
+  totals: 33 opcodes, 18 distinct frames
+compilation 2 L1253..1554 sfi=0x7e740101e6e1 tier=Maglev ord=2 name="read"
+  script "workloads/deopt-eager.js"
+  phase L1256..1267 "Bytecode array" [bytecode]: 3 rows (0 jump refs, 1 fbv refs, 1 pool refs)
+  phase L1267..1323 "Maglev graph building" [graph]: 23 nodes, 5 blocks, 4 frame-lines, 2 annotations
+  phase L1323..1380 "Phi untagging" [graph]: 24 nodes, 5 blocks, 4 frame-lines, 2 annotations
+  phase L1380..1436 "AnyUseMarking" [graph]: 23 nodes, 5 blocks, 4 frame-lines, 2 annotations
+  phase L1436..1492 "Dead nodes sweeping" [graph]: 23 nodes, 5 blocks, 4 frame-lines, 2 annotations
+  phase L1492..1554 "Register allocation" [graph]: 26 nodes, 5 blocks, 4 frame-lines, 4 annotations
+  totals: 18 opcodes, 4 distinct frames
+compilation 3 L1554..2553 sfi=0x7e740101e679 tier=Maglev ord=2 name=""
+  script "workloads/deopt-eager.js"
+  phase L1557..1627 "Bytecode array" [bytecode]: 62 rows (4 jump refs, 15 fbv refs, 10 pool refs)
+  phase L1627..1638 "Inlining 0x7e740101e6e1 <SharedFunctionInfo read> with bytecode" [inlining "read"]: 3 rows (0 jump refs, 1 fbv refs, 1 pool refs)
+  phase L1638..1649 "Inlining 0x7e740101e6e1 <SharedFunctionInfo read> with bytecode" [inlining "read"]: 3 rows (0 jump refs, 1 fbv refs, 1 pool refs)
+  phase L1649..1835 "Maglev graph building" [graph]: 78 nodes, 10 blocks, 20 frame-lines, 2 annotations
+  phase L1835..2022 "Phi untagging" [graph]: 79 nodes, 10 blocks, 20 frame-lines, 2 annotations
+  phase L2022..2195 "AnyUseMarking" [graph]: 65 nodes, 10 blocks, 20 frame-lines, 2 annotations
+  phase L2195..2368 "Dead nodes sweeping" [graph]: 65 nodes, 10 blocks, 20 frame-lines, 2 annotations
+  phase L2368..2553 "Register allocation" [graph]: 74 nodes, 10 blocks, 20 frame-lines, 4 annotations
+  totals: 33 opcodes, 18 distinct frames
+raw L0..1 "V8 is running with developer-only features enabled. Stability and security will suffer."
+raw L1199..1253 "[bailout (kind: deopt-eager, reason: Insufficient type feedback for object literal): begin. deop…"
+raw L2553..2586 "[bailout (kind: deopt-eager, reason: Insufficient type feedback for generic global access): begi…"
+event L1199 deopt kind=deopt-eager reason="Insufficient type feedback for object literal" name="" sfi=0x7e740101e679 tier=Maglev opt_id=Some(2) offset=Some(70)
+event L1230 deopt-end invalidated=false
+event L1231 deopt kind=deopt-eager reason="wrong map" name="read" sfi=0x7e740101e6e1 tier=Turbofan opt_id=Some(1) offset=Some(0)
+event L1252 deopt-end invalidated=true
+event L2553 deopt kind=deopt-eager reason="Insufficient type feedback for generic global access" name="" sfi=0x7e740101e679 tier=Maglev opt_id=Some(4) offset=Some(133)
+event L2584 deopt-end invalidated=false

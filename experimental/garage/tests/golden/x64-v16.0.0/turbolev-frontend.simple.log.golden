@@ -1,0 +1,29 @@
+lines: 580
+version: 16.0
+compilation 0 L3..290 sfi=0x9b80101e671 tier=Turbolev ord=1 name="add"
+  script "workloads/simple.js"
+  phase L3..16 "Bytecode before MaglevGraphBuilding" [bytecode]: 3 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  phase L16..47 "Maglev graph building" [graph]: 14 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  phase L47..78 "Non-eager inlining" [graph]: 14 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  phase L78..109 "Non-eager loop peeling" [graph]: 14 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  phase L109..140 "Pre phi untagging" [graph]: 14 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  phase L140..171 "Phi untagging" [graph]: 14 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  phase L171..202 "Range analysis" [graph]: 14 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  phase L202..232 "Post optimizer" [graph]: 14 nodes, 2 blocks, 3 frame-lines, 0 annotations
+  phase L232..261 "AnyUseMarking" [graph]: 13 nodes, 2 blocks, 3 frame-lines, 0 annotations
+  phase L261..290 "Dead nodes sweeping" [graph]: 13 nodes, 2 blocks, 3 frame-lines, 0 annotations
+  totals: 11 opcodes, 2 distinct frames
+compilation 1 L290..580 sfi=0x9b80101e671 tier=Turbolev ord=2 name="add"
+  script "workloads/simple.js"
+  phase L290..303 "Bytecode before MaglevGraphBuilding" [bytecode]: 3 rows (0 jump refs, 0 fbv refs, 0 pool refs)
+  phase L303..334 "Maglev graph building" [graph]: 14 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  phase L334..365 "Non-eager inlining" [graph]: 14 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  phase L365..396 "Non-eager loop peeling" [graph]: 14 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  phase L396..427 "Pre phi untagging" [graph]: 14 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  phase L427..458 "Phi untagging" [graph]: 14 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  phase L458..489 "Range analysis" [graph]: 14 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  phase L489..520 "Post optimizer" [graph]: 14 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  phase L520..550 "AnyUseMarking" [graph]: 13 nodes, 2 blocks, 4 frame-lines, 0 annotations
+  phase L550..580 "Dead nodes sweeping" [graph]: 13 nodes, 2 blocks, 4 frame-lines, 1 annotations
+  totals: 10 opcodes, 2 distinct frames
+raw L0..3 "V8 is running with developer-only features enabled. Stability and security will suffer."

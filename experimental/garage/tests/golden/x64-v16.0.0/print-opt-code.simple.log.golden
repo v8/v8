@@ -1,0 +1,22 @@
+lines: 222
+version: unknown
+compilation 0 L1..101 sfi=0x0 tier=Turbofan ord=1 name="add"
+  preamble L2..7: 3 JS source lines
+  phase L7..15 "Optimized code" [listing]: 0 disasm (0 labels), 0 annotations
+  phase L15..82 "Instructions" [listing]: 65 disasm (9 labels), 0 annotations
+  phase L82..84 "Inlined functions" [listing]: 0 disasm (0 labels), 0 annotations
+  phase L84..91 "Deoptimization Input Data" [listing]: 0 disasm (0 labels), 0 annotations
+  phase L91..95 "Safepoints" [listing]: 0 disasm (0 labels), 0 annotations
+  phase L95..101 "RelocInfo" [listing]: 0 disasm (0 labels), 0 annotations
+  totals: 0 opcodes, 0 distinct frames
+compilation 1 L101..221 sfi=0x0 tier=Turbofan ord=2 name="add"
+  preamble L102..107: 3 JS source lines
+  phase L107..115 "Optimized code" [listing]: 0 disasm (0 labels), 0 annotations
+  phase L115..203 "Instructions" [listing]: 86 disasm (14 labels), 0 annotations
+  phase L203..205 "Inlined functions" [listing]: 0 disasm (0 labels), 0 annotations
+  phase L205..211 "Deoptimization Input Data" [listing]: 0 disasm (0 labels), 0 annotations
+  phase L211..215 "Safepoints" [listing]: 0 disasm (0 labels), 0 annotations
+  phase L215..221 "RelocInfo" [listing]: 0 disasm (0 labels), 0 annotations
+  totals: 0 opcodes, 0 distinct frames
+raw L0..1 "V8 is running with developer-only features enabled. Stability and security will suffer."
+raw L221..222 "704982704"

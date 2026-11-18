@@ -1,0 +1,117 @@
+lines: 116
+version: unknown
+raw L0..116 "V8 is running with developer-only features enabled. Stability and security will suffer."
+event L1 marking name="hotLoop" sfi=0x9b80101e66d target=Maglev reason="hot and stable"
+event L2 osr what="setting osr urgency" name="hotLoop" offset=None
+event L3 osr what="compilation started" name="hotLoop" offset=Some(28)
+event L4 compile-start name="hotLoop" sfi=0x9b80101e66d target=Maglev osr=true
+event L5 compile-done name="hotLoop" sfi=0x9b80101e66d target=Maglev osr=true
+event L6 osr what="available (compilation completed or cache hit)" name="hotLoop" offset=Some(28)
+event L7 osr what="entry" name="hotLoop" offset=Some(28)
+event L8 marking name="hotLoop" sfi=0x9b80101e66d target=Maglev reason="hot and stable"
+event L9 osr what="setting osr urgency" name="hotLoop" offset=None
+event L10 osr what="compilation started" name="hotLoop" offset=Some(28)
+event L11 compile-start name="hotLoop" sfi=0x9b80101e66d target=Maglev osr=true
+event L12 compile-done name="hotLoop" sfi=0x9b80101e66d target=Maglev osr=true
+event L13 osr what="available (compilation completed or cache hit)" name="hotLoop" offset=Some(28)
+event L14 osr what="entry" name="hotLoop" offset=Some(28)
+event L15 osr what="setting osr urgency" name="hotLoop" offset=None
+event L16 osr what="setting osr urgency" name="hotLoop" offset=None
+event L17 osr what="setting osr urgency" name="hotLoop" offset=None
+event L18 osr what="setting osr urgency" name="hotLoop" offset=None
+event L19 osr what="setting osr urgency" name="hotLoop" offset=None
+event L20 osr what="setting osr urgency" name="hotLoop" offset=None
+event L21 osr what="setting osr urgency" name="hotLoop" offset=None
+event L22 osr what="setting osr urgency" name="hotLoop" offset=None
+event L23 osr what="setting osr urgency" name="hotLoop" offset=None
+event L24 osr what="setting osr urgency" name="hotLoop" offset=None
+event L25 osr what="setting osr urgency" name="hotLoop" offset=None
+event L26 osr what="setting osr urgency" name="hotLoop" offset=None
+event L27 osr what="setting osr urgency" name="hotLoop" offset=None
+event L28 osr what="setting osr urgency" name="hotLoop" offset=None
+event L29 osr what="setting osr urgency" name="hotLoop" offset=None
+event L30 osr what="setting osr urgency" name="hotLoop" offset=None
+event L31 osr what="setting osr urgency" name="hotLoop" offset=None
+event L32 osr what="setting osr urgency" name="hotLoop" offset=None
+event L33 osr what="setting osr urgency" name="hotLoop" offset=None
+event L34 osr what="setting osr urgency" name="hotLoop" offset=None
+event L35 osr what="setting osr urgency" name="hotLoop" offset=None
+event L36 osr what="setting osr urgency" name="hotLoop" offset=None
+event L37 osr what="setting osr urgency" name="hotLoop" offset=None
+event L38 osr what="setting osr urgency" name="hotLoop" offset=None
+event L39 osr what="setting osr urgency" name="hotLoop" offset=None
+event L40 osr what="setting osr urgency" name="hotLoop" offset=None
+event L41 osr what="setting osr urgency" name="hotLoop" offset=None
+event L42 osr what="setting osr urgency" name="hotLoop" offset=None
+event L43 osr what="setting osr urgency" name="hotLoop" offset=None
+event L44 osr what="setting osr urgency" name="hotLoop" offset=None
+event L45 osr what="setting osr urgency" name="hotLoop" offset=None
+event L46 osr what="setting osr urgency" name="hotLoop" offset=None
+event L47 osr what="setting osr urgency" name="hotLoop" offset=None
+event L48 osr what="setting osr urgency" name="hotLoop" offset=None
+event L49 osr what="setting osr urgency" name="hotLoop" offset=None
+event L50 osr what="setting osr urgency" name="hotLoop" offset=None
+event L51 osr what="setting osr urgency" name="hotLoop" offset=None
+event L52 osr what="setting osr urgency" name="hotLoop" offset=None
+event L53 osr what="setting osr urgency" name="hotLoop" offset=None
+event L54 osr what="setting osr urgency" name="hotLoop" offset=None
+event L55 osr what="setting osr urgency" name="hotLoop" offset=None
+event L56 osr what="setting osr urgency" name="hotLoop" offset=None
+event L57 osr what="setting osr urgency" name="hotLoop" offset=None
+event L58 osr what="setting osr urgency" name="hotLoop" offset=None
+event L59 osr what="setting osr urgency" name="hotLoop" offset=None
+event L60 osr what="setting osr urgency" name="hotLoop" offset=None
+event L61 osr what="setting osr urgency" name="hotLoop" offset=None
+event L62 osr what="setting osr urgency" name="hotLoop" offset=None
+event L63 osr what="setting osr urgency" name="hotLoop" offset=None
+event L64 osr what="setting osr urgency" name="hotLoop" offset=None
+event L65 osr what="setting osr urgency" name="hotLoop" offset=None
+event L66 osr what="setting osr urgency" name="hotLoop" offset=None
+event L67 osr what="setting osr urgency" name="hotLoop" offset=None
+event L68 osr what="setting osr urgency" name="hotLoop" offset=None
+event L69 osr what="setting osr urgency" name="hotLoop" offset=None
+event L70 osr what="setting osr urgency" name="hotLoop" offset=None
+event L71 osr what="setting osr urgency" name="hotLoop" offset=None
+event L72 osr what="setting osr urgency" name="hotLoop" offset=None
+event L73 osr what="setting osr urgency" name="hotLoop" offset=None
+event L74 osr what="setting osr urgency" name="hotLoop" offset=None
+event L75 osr what="setting osr urgency" name="hotLoop" offset=None
+event L76 osr what="setting osr urgency" name="hotLoop" offset=None
+event L77 osr what="setting osr urgency" name="hotLoop" offset=None
+event L78 osr what="setting osr urgency" name="hotLoop" offset=None
+event L79 osr what="setting osr urgency" name="hotLoop" offset=None
+event L80 osr what="setting osr urgency" name="hotLoop" offset=None
+event L81 osr what="setting osr urgency" name="hotLoop" offset=None
+event L82 osr what="setting osr urgency" name="hotLoop" offset=None
+event L83 osr what="setting osr urgency" name="hotLoop" offset=None
+event L84 osr what="setting osr urgency" name="hotLoop" offset=None
+event L85 osr what="setting osr urgency" name="hotLoop" offset=None
+event L86 osr what="setting osr urgency" name="hotLoop" offset=None
+event L87 osr what="setting osr urgency" name="hotLoop" offset=None
+event L88 osr what="setting osr urgency" name="hotLoop" offset=None
+event L89 osr what="setting osr urgency" name="hotLoop" offset=None
+event L90 osr what="setting osr urgency" name="hotLoop" offset=None
+event L91 osr what="setting osr urgency" name="hotLoop" offset=None
+event L92 osr what="setting osr urgency" name="hotLoop" offset=None
+event L93 osr what="setting osr urgency" name="hotLoop" offset=None
+event L94 osr what="setting osr urgency" name="hotLoop" offset=None
+event L95 osr what="setting osr urgency" name="hotLoop" offset=None
+event L96 osr what="setting osr urgency" name="hotLoop" offset=None
+event L97 osr what="setting osr urgency" name="hotLoop" offset=None
+event L98 osr what="setting osr urgency" name="hotLoop" offset=None
+event L99 osr what="setting osr urgency" name="hotLoop" offset=None
+event L100 osr what="setting osr urgency" name="hotLoop" offset=None
+event L101 osr what="setting osr urgency" name="hotLoop" offset=None
+event L102 osr what="setting osr urgency" name="hotLoop" offset=None
+event L103 osr what="setting osr urgency" name="hotLoop" offset=None
+event L104 osr what="setting osr urgency" name="hotLoop" offset=None
+event L105 osr what="setting osr urgency" name="hotLoop" offset=None
+event L106 osr what="setting osr urgency" name="hotLoop" offset=None
+event L107 osr what="setting osr urgency" name="hotLoop" offset=None
+event L108 osr what="setting osr urgency" name="hotLoop" offset=None
+event L109 osr what="setting osr urgency" name="hotLoop" offset=None
+event L110 osr what="setting osr urgency" name="hotLoop" offset=None
+event L111 osr what="setting osr urgency" name="hotLoop" offset=None
+event L112 osr what="setting osr urgency" name="hotLoop" offset=None
+event L113 osr what="setting osr urgency" name="hotLoop" offset=None
+event L114 osr what="setting osr urgency" name="hotLoop" offset=None

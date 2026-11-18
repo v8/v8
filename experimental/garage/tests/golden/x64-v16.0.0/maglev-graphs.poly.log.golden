@@ -1,0 +1,42 @@
+lines: 1557
+version: 16.0
+compilation 0 L1..145 sfi=0x9b80101e68d tier=Maglev ord=1 name="load"
+  script "workloads/poly.js"
+  phase L4..14 "Bytecode array" [bytecode]: 2 rows (0 jump refs, 1 fbv refs, 1 pool refs)
+  phase L14..40 "Maglev graph building" [graph]: 12 nodes, 2 blocks, 2 frame-lines, 0 annotations
+  phase L40..66 "Phi untagging" [graph]: 12 nodes, 2 blocks, 2 frame-lines, 0 annotations
+  phase L66..91 "AnyUseMarking" [graph]: 11 nodes, 2 blocks, 2 frame-lines, 0 annotations
+  phase L91..116 "Dead nodes sweeping" [graph]: 11 nodes, 2 blocks, 2 frame-lines, 0 annotations
+  phase L116..145 "Register allocation" [graph]: 14 nodes, 2 blocks, 2 frame-lines, 0 annotations
+  totals: 11 opcodes, 2 distinct frames
+compilation 1 L145..439 sfi=0x9b80101e68d tier=Maglev ord=2 name="load"
+  script "workloads/poly.js"
+  phase L148..158 "Bytecode array" [bytecode]: 2 rows (0 jump refs, 1 fbv refs, 1 pool refs)
+  phase L158..213 "Maglev graph building" [graph]: 24 nodes, 6 blocks, 3 frame-lines, 4 annotations
+  phase L213..268 "Phi untagging" [graph]: 24 nodes, 6 blocks, 3 frame-lines, 4 annotations
+  phase L268..322 "AnyUseMarking" [graph]: 23 nodes, 6 blocks, 3 frame-lines, 4 annotations
+  phase L322..376 "Dead nodes sweeping" [graph]: 23 nodes, 6 blocks, 3 frame-lines, 4 annotations
+  phase L376..439 "Register allocation" [graph]: 28 nodes, 6 blocks, 3 frame-lines, 7 annotations
+  totals: 14 opcodes, 2 distinct frames
+compilation 2 L439..584 sfi=0x9b80101e68d tier=Maglev ord=3 name="load"
+  script "workloads/poly.js"
+  phase L442..452 "Bytecode array" [bytecode]: 2 rows (0 jump refs, 1 fbv refs, 1 pool refs)
+  phase L452..478 "Maglev graph building" [graph]: 12 nodes, 2 blocks, 2 frame-lines, 0 annotations
+  phase L478..504 "Phi untagging" [graph]: 12 nodes, 2 blocks, 2 frame-lines, 0 annotations
+  phase L504..529 "AnyUseMarking" [graph]: 11 nodes, 2 blocks, 2 frame-lines, 0 annotations
+  phase L529..554 "Dead nodes sweeping" [graph]: 11 nodes, 2 blocks, 2 frame-lines, 0 annotations
+  phase L554..584 "Register allocation" [graph]: 15 nodes, 2 blocks, 2 frame-lines, 0 annotations
+  totals: 10 opcodes, 2 distinct frames
+compilation 3 L584..1556 sfi=0x9b80101e61d tier=Maglev ord=1 name=""
+  script "workloads/poly.js"
+  phase L587..677 "Bytecode array" [bytecode]: 82 rows (6 jump refs, 16 fbv refs, 7 pool refs)
+  phase L677..687 "Inlining 0x09b80101e68d <SharedFunctionInfo load> with bytecode" [inlining "load"]: 2 rows (0 jump refs, 1 fbv refs, 1 pool refs)
+  phase L687..697 "Inlining 0x09b80101e68d <SharedFunctionInfo load> with bytecode" [inlining "load"]: 2 rows (0 jump refs, 1 fbv refs, 1 pool refs)
+  phase L697..872 "Maglev graph building" [graph]: 79 nodes, 10 blocks, 32 frame-lines, 2 annotations
+  phase L872..1047 "Phi untagging" [graph]: 79 nodes, 10 blocks, 32 frame-lines, 2 annotations
+  phase L1047..1206 "AnyUseMarking" [graph]: 63 nodes, 10 blocks, 32 frame-lines, 2 annotations
+  phase L1206..1365 "Dead nodes sweeping" [graph]: 63 nodes, 10 blocks, 32 frame-lines, 2 annotations
+  phase L1365..1556 "Register allocation" [graph]: 92 nodes, 10 blocks, 32 frame-lines, 4 annotations
+  totals: 33 opcodes, 9 distinct frames
+raw L0..1 "V8 is running with developer-only features enabled. Stability and security will suffer."
+raw L1556..1557 "269999"
