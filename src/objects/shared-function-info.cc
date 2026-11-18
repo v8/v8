@@ -46,6 +46,13 @@ uint32_t SharedFunctionInfo::Hash() {
 SharedFunctionInfo::SharedFunctionInfo(const AllocationWitness& witness,
                                        int unique_id)
     : HeapObject(witness.roots().shared_function_info_map()),
+      // Set the function data to the "illegal" builtin by default. Ideally
+      // we'd use some sort of "uninitialized" marker here, but it's cheaper
+      // to use a valid builtin and avoid having to do uninitialized checks
+      // elsewhere.
+      untrusted_function_data_(Smi::FromEnum(Builtin::kIllegal)),
+      // Set the name to the no-name sentinel, this can be updated later.
+      name_or_scope_info_(kNoSharedNameSentinel),
       // Generally functions won't have feedback, unless they have been created
       // from a FunctionLiteral. Those can just reset this field to keep the
       // SharedFunctionInfo in a consistent state.
@@ -58,7 +65,9 @@ SharedFunctionInfo::SharedFunctionInfo(const AllocationWitness& witness,
 SharedFunctionInfo::SharedFunctionInfo(const AllocationWitness& witness,
                                        Tagged<SharedFunctionInfo> other,
                                        IsolateForSandbox isolate)
-    : HeapObject(witness.roots().shared_function_info_map()) {
+    : HeapObject(witness.roots().shared_function_info_map()),
+      untrusted_function_data_(Smi::FromEnum(Builtin::kIllegal)),
+      name_or_scope_info_(kNoSharedNameSentinel) {
   CopyFrom(other, isolate);
 }
 

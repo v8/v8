@@ -1029,14 +1029,8 @@ V8_OBJECT class SharedFunctionInfo : public HeapObject {
   V8_TQ_CUSTOM_WEAK
   TrustedPointerMember<ExposedTrustedObject, kTrustedDataTrustedPointerRange>
       trusted_function_data_;
-  // Set the function data to the "illegal" builtin by default. Ideally we'd use
-  // some sort of "uninitialized" marker here, but it's cheaper to use a valid
-  // builtin and avoid having to do uninitialized checks elsewhere.
-  TaggedMember<Object> untrusted_function_data_{
-      Smi::FromEnum(Builtin::kIllegal)};
-  // Set the name to the no-name sentinel, this can be updated later.
-  TaggedMember<UnionOf<Smi, String, ScopeInfo>> name_or_scope_info_{
-      kNoSharedNameSentinel};
+  TaggedMember<Object> untrusted_function_data_;
+  TaggedMember<UnionOf<Smi, String, ScopeInfo>> name_or_scope_info_;
   TaggedMember<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>>
       outer_scope_info_or_feedback_metadata_;
   TaggedMember<HeapObject> script_ V8_TQ_TYPE(Script | Undefined);
