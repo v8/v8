@@ -1393,23 +1393,17 @@ void AstPrinter::VisitCompoundAssignment(CompoundAssignment* node) {
 }
 
 void AstPrinter::VisitYield(Yield* node) {
-  std::array<char, 128> buf;
-  base::SNPrintF(buf, "YIELD");
-  IndentedScope indent(this, buf.data(), node->position());
+  IndentedScope indent(this, "YIELD", node->position());
   Visit(node->expression());
 }
 
 void AstPrinter::VisitYieldStar(YieldStar* node) {
-  std::array<char, 128> buf;
-  base::SNPrintF(buf, "YIELD_STAR");
-  IndentedScope indent(this, buf.data(), node->position());
+  IndentedScope indent(this, "YIELD_STAR", node->position());
   Visit(node->expression());
 }
 
 void AstPrinter::VisitAwait(Await* node) {
-  std::array<char, 128> buf;
-  base::SNPrintF(buf, "AWAIT");
-  IndentedScope indent(this, buf.data(), node->position());
+  IndentedScope indent(this, "AWAIT", node->position());
   Visit(node->expression());
 }
 
@@ -1424,9 +1418,7 @@ void AstPrinter::VisitOptionalChain(OptionalChain* node) {
 }
 
 void AstPrinter::VisitProperty(Property* node) {
-  std::array<char, 128> buf;
-  base::SNPrintF(buf, "PROPERTY");
-  IndentedScope indent(this, buf.data(), node->position());
+  IndentedScope indent(this, "PROPERTY", node->position());
 
   Visit(node->obj());
   AssignType type = Property::GetAssignType(node);
@@ -1467,9 +1459,7 @@ void AstPrinter::VisitProperty(Property* node) {
 }
 
 void AstPrinter::VisitCall(Call* node) {
-  std::array<char, 128> buf;
-  base::SNPrintF(buf, "CALL");
-  IndentedScope indent(this, buf.data());
+  IndentedScope indent(this, "CALL");
 
   Visit(node->expression());
   PrintArguments(node->arguments());
