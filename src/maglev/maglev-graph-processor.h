@@ -140,6 +140,21 @@ inline LocalHeap* GetLocalHeapForSafepointPolling(Graph* graph) {
   return graph->broker()->local_isolate_or_isolate()->heap();
 }
 
+namespace detail {
+template <typename Processor, typename... Args>
+ProcessResult DispatchNodeBase(Processor& processor, NodeBase* node,
+                               const Args&... args) {
+  switch (node->opcode()) {
+#define CASE(OPCODE)      \
+  case Opcode::k##OPCODE: \
+    return processor.Process(node->Cast<OPCODE>(), args...);
+    NODE_BASE_LIST(CASE)
+#undef CASE
+  }
+  UNREACHABLE();
+}
+}  // namespace detail
+
 template <typename NodeProcessor>
 class GraphProcessor {
  public:
@@ -344,19 +359,8 @@ class GraphProcessor {
   }
 
   ProcessResult ProcessNodeBase(NodeBase* node, const ProcessingState& state) {
-    switch (node->opcode()) {
-#define CASE(OPCODE)                                        \
-  case Opcode::k##OPCODE:                                   \
-    PreProcess(node->Cast<OPCODE>(), state);                \
-    return node_processor_.Process(node->Cast<OPCODE>(), state);
-
-      NODE_BASE_LIST(CASE)
-#undef CASE
-    }
-    UNREACHABLE();
+    return detail::DispatchNodeBase(node_processor_, node, state);
   }
-
-  void PreProcess(NodeBase* node, const ProcessingState& state) {}
 
   // The NodeProcessor supports the SpliceAndContinue protocol.
   template <typename NP>
@@ -567,14 +571,7 @@ class GraphBackwardProcessor {
 
  private:
   ProcessResult ProcessNodeBase(NodeBase* node) {
-    switch (node->opcode()) {
-#define CASE(OPCODE)      \
-  case Opcode::k##OPCODE: \
-    return node_processor_.Process(node->Cast<OPCODE>());
-      NODE_BASE_LIST(CASE)
-#undef CASE
-    }
-    UNREACHABLE();
+    return detail::DispatchNodeBase(node_processor_, node);
   }
 
   NodeProcessor node_processor_;
@@ -617,19 +614,22 @@ class NodeMultiProcessor<Processor, Processors...>
   explicit NodeMultiProcessor(Args&&... processors)
       : Base(std::forward<Args>(processors)...) {}
 
-  // Forwards Process calls to each processor in the chain.
-  // Forward processors receive (Node* node, const ProcessingState& state),
-  // whereas backward processors receive only (Node* node).
-  template <typename NodeT, typename... Args>
-  ProcessResult Process(NodeT* node, const Args&... args) {
-    DCHECK(node->template Is<NodeT>());
-    auto res = processor_.Process(node, args...);
-    constexpr bool kIsLastProcessor = sizeof...(Processors) == 0;
-    if constexpr (!kIsLastProcessor) {
+  // Dispatches each processor in the chain over `NodeBase*` independently so
+  // `NodeMultiProcessor<Processors...>` does not instantiate a combined
+  // `Process<NodeT>` across `NODE_BASE_LIST` for each multi-processor tuple.
+  // Forward processors receive (NodeBase* node, const ProcessingState& state),
+  // whereas backward processors receive only (NodeBase* node).
+  template <typename... Args>
+  ProcessResult Process(NodeBase* node, const Args&... args) {
+#ifdef DEBUG
+    const Opcode initial_opcode = node->opcode();
+#endif
+    ProcessResult res = detail::DispatchNodeBase(processor_, node, args...);
+    if constexpr (sizeof...(Processors) > 0) {
       // If there are subsequent processors in the chain, mutating the node in
-      // place and returning kContinue would pass a stale static type to them.
+      // place and returning kContinue would pass a stale node to them.
       DCHECK_IMPLIES(res == ProcessResult::kContinue,
-                     node->template Is<NodeT>());
+                     node->opcode() == initial_opcode);
     }
     switch (res) {
       [[likely]] case ProcessResult::kContinue:
