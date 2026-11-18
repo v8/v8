@@ -1956,11 +1956,13 @@ void MacroAssembler::Move(Register dst, Register src) {
 
 void MacroAssembler::MovePair(Register dst0, Register src0, Register dst1,
                               Register src1) {
-  DCHECK_NE(dst0, dst1);
-  if (dst0 != src1) {
+  DCHECK(!AreAliased(dst0, dst1));
+  DCHECK(AreSameSizeAndType(dst0, src0, dst1, src1));
+  DCHECK(dst0.Is64Bits());
+  if (!dst0.Aliases(src1)) {
     Mov(dst0, src0);
     Mov(dst1, src1);
-  } else if (dst1 != src0) {
+  } else if (!dst1.Aliases(src0)) {
     // Swap the order of the moves to resolve the overlap.
     Mov(dst1, src1);
     Mov(dst0, src0);
