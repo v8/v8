@@ -351,48 +351,40 @@ class SetOncePointer {
 #if defined(__SSE3__)
 
 template <typename Char>
-V8_INLINE bool SimdMemEqual(const Char* lhs, const Char* rhs, size_t count,
-                            size_t order) {
+V8_INLINE bool SimdMemEqualLong(const Char* lhs, const Char* rhs,
+                                size_t count) {
   static_assert(sizeof(Char) == 1);
-  DCHECK_GE(order, 5);
+  DCHECK_GT(count, sizeof(__m128i));
 
   static constexpr uint16_t kSIMDMatched16Mask = UINT16_MAX;
   static constexpr uint32_t kSIMDMatched32Mask = UINT32_MAX;
 
-  if (order == 5) {  // count: [17, 32]
-    // Utilize more simd registers for better pipelining.
-    const __m128i lhs128_start =
-        _mm_lddqu_si128(reinterpret_cast<const __m128i*>(lhs));
-    const __m128i lhs128_end = _mm_lddqu_si128(
-        reinterpret_cast<const __m128i*>(lhs + count - sizeof(__m128i)));
-    const __m128i rhs128_start =
-        _mm_lddqu_si128(reinterpret_cast<const __m128i*>(rhs));
-    const __m128i rhs128_end = _mm_lddqu_si128(
-        reinterpret_cast<const __m128i*>(rhs + count - sizeof(__m128i)));
-    const __m128i res_start = _mm_cmpeq_epi8(lhs128_start, rhs128_start);
-    const __m128i res_end = _mm_cmpeq_epi8(lhs128_end, rhs128_end);
-    const uint32_t res =
-        _mm_movemask_epi8(res_start) << 16 | _mm_movemask_epi8(res_end);
-    return res == kSIMDMatched32Mask;
-  }
-
-  // count: [33, ...]
-  const __m128i lhs128_unrolled =
+  // Compare the first and last 16 bytes in parallel. This covers [17, 32] in a
+  // single branch and rejects shared-prefix strings (such as URLs or file
+  // paths) before entering the loop.
+  const __m128i lhs128_start =
       _mm_lddqu_si128(reinterpret_cast<const __m128i*>(lhs));
-  const __m128i rhs128_unrolled =
+  const __m128i lhs128_end = _mm_lddqu_si128(
+      reinterpret_cast<const __m128i*>(lhs + count - sizeof(__m128i)));
+  const __m128i rhs128_start =
       _mm_lddqu_si128(reinterpret_cast<const __m128i*>(rhs));
-  const __m128i res_unrolled = _mm_cmpeq_epi8(lhs128_unrolled, rhs128_unrolled);
-  const uint16_t res_unrolled_mask = _mm_movemask_epi8(res_unrolled);
-  if (res_unrolled_mask != kSIMDMatched16Mask) return false;
+  const __m128i rhs128_end = _mm_lddqu_si128(
+      reinterpret_cast<const __m128i*>(rhs + count - sizeof(__m128i)));
+  const __m128i res_start = _mm_cmpeq_epi8(lhs128_start, rhs128_start);
+  const __m128i res_end = _mm_cmpeq_epi8(lhs128_end, rhs128_end);
+  const uint32_t res =
+      (static_cast<uint32_t>(_mm_movemask_epi8(res_start)) << sizeof(__m128i)) |
+      static_cast<uint32_t>(_mm_movemask_epi8(res_end));
+  if (res != kSIMDMatched32Mask) return false;
 
-  for (size_t i = count % sizeof(__m128i); i < count; i += sizeof(__m128i)) {
+  for (size_t i = sizeof(__m128i); i + sizeof(__m128i) < count;
+       i += sizeof(__m128i)) {
     const __m128i lhs128 =
         _mm_lddqu_si128(reinterpret_cast<const __m128i*>(lhs + i));
     const __m128i rhs128 =
         _mm_lddqu_si128(reinterpret_cast<const __m128i*>(rhs + i));
-    const __m128i res = _mm_cmpeq_epi8(lhs128, rhs128);
-    const uint16_t res_mask = _mm_movemask_epi8(res);
-    if (res_mask != kSIMDMatched16Mask) return false;
+    const __m128i res_chunk = _mm_cmpeq_epi8(lhs128, rhs128);
+    if (_mm_movemask_epi8(res_chunk) != kSIMDMatched16Mask) return false;
   }
   return true;
 }
@@ -402,42 +394,35 @@ V8_INLINE bool SimdMemEqual(const Char* lhs, const Char* rhs, size_t count,
 // We intentionally use misaligned read/writes for NEON intrinsics, disable
 // alignment sanitization explicitly.
 template <typename Char>
-V8_INLINE V8_CLANG_NO_SANITIZE("alignment") bool SimdMemEqual(const Char* lhs,
-                                                              const Char* rhs,
-                                                              size_t count,
-                                                              size_t order) {
+V8_INLINE V8_CLANG_NO_SANITIZE("alignment") bool SimdMemEqualLong(
+    const Char* lhs, const Char* rhs, size_t count) {
   static_assert(sizeof(Char) == 1);
-  DCHECK_GE(order, 5);
+  DCHECK_GT(count, sizeof(uint8x16_t));
 
-  if (order == 5) {  // count: [17, 32]
-    // Utilize more simd registers for better pipelining.
-    const auto lhs0 = vld1q_u8(lhs);
-    const auto lhs1 = vld1q_u8(lhs + count - sizeof(uint8x16_t));
-    const auto rhs0 = vld1q_u8(rhs);
-    const auto rhs1 = vld1q_u8(rhs + count - sizeof(uint8x16_t));
-    const auto xored0 = veorq_u8(lhs0, rhs0);
-    const auto xored1 = veorq_u8(lhs1, rhs1);
-    const auto ored = vorrq_u8(xored0, xored1);
-    return !static_cast<bool>(
-        vgetq_lane_u64(vreinterpretq_u64_u8(vpmaxq_u8(ored, ored)), 0));
-  }
-
-  // count: [33, ...]
-  const auto first_lhs0 = vld1q_u8(lhs);
-  const auto first_rhs0 = vld1q_u8(rhs);
-  const auto first_xored = veorq_u8(first_lhs0, first_rhs0);
-  if (static_cast<bool>(vgetq_lane_u64(
-          vreinterpretq_u64_u8(vpmaxq_u8(first_xored, first_xored)), 0))) {
+  // Compare the first and last 16 bytes in parallel. This covers [17, 32] in a
+  // single branch and rejects shared-prefix strings (such as URLs or file
+  // paths) before entering the loop.
+  const auto lhs0 = vld1q_u8(lhs);
+  const auto lhs1 = vld1q_u8(lhs + count - sizeof(uint8x16_t));
+  const auto rhs0 = vld1q_u8(rhs);
+  const auto rhs1 = vld1q_u8(rhs + count - sizeof(uint8x16_t));
+  const auto xored0 = veorq_u8(lhs0, rhs0);
+  const auto xored1 = veorq_u8(lhs1, rhs1);
+  const auto ored = vorrq_u8(xored0, xored1);
+  if (static_cast<bool>(
+          vgetq_lane_u64(vreinterpretq_u64_u8(vpmaxq_u8(ored, ored)), 0))) {
     return false;
   }
-  for (size_t i = count % sizeof(uint8x16_t); i < count;
+
+  for (size_t i = sizeof(uint8x16_t); i + sizeof(uint8x16_t) < count;
        i += sizeof(uint8x16_t)) {
-    const auto lhs0 = vld1q_u8(lhs + i);
-    const auto rhs0 = vld1q_u8(rhs + i);
-    const auto xored = veorq_u8(lhs0, rhs0);
+    const auto lhs_chunk = vld1q_u8(lhs + i);
+    const auto rhs_chunk = vld1q_u8(rhs + i);
+    const auto xored = veorq_u8(lhs_chunk, rhs_chunk);
     if (static_cast<bool>(
-            vgetq_lane_u64(vreinterpretq_u64_u8(vpmaxq_u8(xored, xored)), 0)))
+            vgetq_lane_u64(vreinterpretq_u64_u8(vpmaxq_u8(xored, xored)), 0))) {
       return false;
+    }
   }
   return true;
 }
@@ -459,27 +444,13 @@ template <typename Char>
 V8_CLANG_NO_SANITIZE("alignment")
 V8_INLINE bool SimdMemEqual(const Char* lhs, const Char* rhs, size_t count) {
   static_assert(sizeof(Char) == 1);
-  if (count == 0) {
-    return true;
+  if (V8_LIKELY(count <= 16)) {
+    if (count >= 8) return OverlappingCompare<uint64_t>(lhs, rhs, count);
+    if (count >= 4) return OverlappingCompare<uint32_t>(lhs, rhs, count);
+    if (count >= 2) return OverlappingCompare<uint16_t>(lhs, rhs, count);
+    return count == 0 || *lhs == *rhs;
   }
-  if (count == 1) {
-    return *lhs == *rhs;
-  }
-  const size_t order =
-      sizeof(count) * CHAR_BIT - base::bits::CountLeadingZeros(count - 1);
-  switch (order) {
-    case 1:  // count: [2, 2]
-      return *reinterpret_cast<const uint16_t*>(lhs) ==
-             *reinterpret_cast<const uint16_t*>(rhs);
-    case 2:  // count: [3, 4]
-      return OverlappingCompare<uint16_t>(lhs, rhs, count);
-    case 3:  // count: [5, 8]
-      return OverlappingCompare<uint32_t>(lhs, rhs, count);
-    case 4:  // count: [9, 16]
-      return OverlappingCompare<uint64_t>(lhs, rhs, count);
-    default:
-      return SimdMemEqual(lhs, rhs, count, order);
-  }
+  return SimdMemEqualLong(lhs, rhs, count);
 }
 
 #if defined(V8_TARGET_LITTLE_ENDIAN)
@@ -582,8 +553,8 @@ V8_INLINE bool CompareOneAndTwoByteChars(const uint8_t* one_byte,
 
 // Compare 8bit/16bit chars to 8bit/16bit chars.
 template <typename lchar, typename rchar>
-inline bool CompareCharsEqualUnsigned(const lchar* lhs, const rchar* rhs,
-                                      size_t chars) {
+V8_INLINE bool CompareCharsEqualUnsigned(const lchar* lhs, const rchar* rhs,
+                                         size_t chars) {
   static_assert(std::is_unsigned_v<lchar>);
   static_assert(std::is_unsigned_v<rchar>);
   if constexpr (sizeof(*lhs) == sizeof(*rhs)) {
@@ -609,8 +580,8 @@ inline bool CompareCharsEqualUnsigned(const lchar* lhs, const rchar* rhs,
 }
 
 template <typename lchar, typename rchar>
-inline bool CompareCharsEqual(const lchar* lhs, const rchar* rhs,
-                              size_t chars) {
+V8_INLINE bool CompareCharsEqual(const lchar* lhs, const rchar* rhs,
+                                 size_t chars) {
   using ulchar = std::make_unsigned_t<lchar>;
   using urchar = std::make_unsigned_t<rchar>;
   return CompareCharsEqualUnsigned(reinterpret_cast<const ulchar*>(lhs),

@@ -4,6 +4,7 @@
 
 #include "src/utils/utils.h"
 
+#include <algorithm>
 #include <climits>
 #include <cstdio>
 #include <cstdlib>
@@ -464,6 +465,65 @@ TEST(UtilsTest, CPlusPlus11Features) {
   for (auto i : vec) {
     CHECK_EQ(j, i);
     j += 11;
+  }
+}
+
+TEST(UtilsTest, CompareCharsEqual) {
+  constexpr size_t kMaxLen = 128;
+  constexpr size_t kMaxAlign = 16;
+  constexpr size_t kGuard = 16;
+  constexpr size_t kBufSize = kGuard + kMaxAlign + kMaxLen + kGuard;
+  std::vector<uint8_t> buf_a(kBufSize);
+  std::vector<uint8_t> buf_b(kBufSize);
+  std::vector<uint16_t> buf_u16_a(kBufSize);
+  std::vector<uint16_t> buf_u16_b(kBufSize);
+
+  for (size_t align_a = 0; align_a < kMaxAlign; align_a += 5) {
+    for (size_t align_b = 0; align_b < kMaxAlign; align_b += 7) {
+      std::fill(buf_a.begin(), buf_a.end(), 0xAA);
+      std::fill(buf_b.begin(), buf_b.end(), 0x55);
+      std::fill(buf_u16_a.begin(), buf_u16_a.end(), 0xAAAA);
+      std::fill(buf_u16_b.begin(), buf_u16_b.end(), 0x5555);
+      uint8_t* a = buf_a.data() + kGuard + align_a;
+      uint8_t* b = buf_b.data() + kGuard + align_b;
+      uint16_t* u16_a = buf_u16_a.data() + kGuard + align_a;
+      uint16_t* u16_b = buf_u16_b.data() + kGuard + align_b;
+      for (size_t len = 0; len <= kMaxLen; ++len) {
+        for (size_t i = 0; i < len; ++i) {
+          uint8_t byte = static_cast<uint8_t>((i * 131 + len * 17) & 0xFF);
+          a[i] = byte;
+          b[i] = byte;
+          u16_a[i] = byte;
+          u16_b[i] = byte;
+        }
+        const char* char_a = reinterpret_cast<const char*>(a);
+        const char* char_b = reinterpret_cast<const char*>(b);
+        CHECK(CompareCharsEqual(a, b, len));
+        CHECK(CompareCharsEqual(char_a, char_b, len));
+        CHECK(CompareCharsEqual(a, u16_b, len));
+        CHECK(CompareCharsEqual(u16_b, a, len));
+        CHECK(CompareCharsEqual(u16_a, u16_b, len));
+
+        for (size_t diff_pos = 0; diff_pos < len; ++diff_pos) {
+          constexpr uint8_t kByteMasks[] = {0x01, 0x80};
+          for (uint8_t mask : kByteMasks) {
+            b[diff_pos] = a[diff_pos] ^ mask;
+            CHECK(!CompareCharsEqual(a, b, len));
+            CHECK(!CompareCharsEqual(char_a, char_b, len));
+          }
+          b[diff_pos] = a[diff_pos];
+
+          constexpr uint16_t kU16Masks[] = {0x0001, 0x0080, 0x0100, 0x8000};
+          for (uint16_t mask : kU16Masks) {
+            u16_b[diff_pos] = static_cast<uint16_t>(a[diff_pos] ^ mask);
+            CHECK(!CompareCharsEqual(a, u16_b, len));
+            CHECK(!CompareCharsEqual(u16_b, a, len));
+            CHECK(!CompareCharsEqual(u16_a, u16_b, len));
+          }
+          u16_b[diff_pos] = a[diff_pos];
+        }
+      }
+    }
   }
 }
 
