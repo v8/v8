@@ -261,8 +261,7 @@ void JSFunction::RequestOptimization(Isolate* isolate, CodeKind target_kind,
          ActiveTierIsBaseline(isolate) || ActiveTierIsMaglev(isolate));
   DCHECK(!ActiveTierIsTurbofan(isolate));
   DCHECK(shared()->HasBytecodeArray());
-  DCHECK(shared()->allows_lazy_compilation() ||
-         !shared()->optimization_disabled(target_kind));
+  DCHECK(!shared()->optimization_disabled(target_kind));
 
   if (IsConcurrent(mode)) {
     if (tiering_in_progress()) {
@@ -718,11 +717,14 @@ void JSFunction::CreateAndAttachFeedbackVector(
       v8_flags.profile_guided_optimization_for_empty_feedback_vector &&
       function->feedback_vector()->length().value() == 0) {
     if (function->shared()->cached_tiering_decision() ==
-        CachedTieringDecision::kEarlyMaglev) {
+            CachedTieringDecision::kEarlyMaglev &&
+        !function->shared()->optimization_disabled(CodeKind::MAGLEV)) {
       function->RequestOptimization(isolate, CodeKind::MAGLEV,
                                     ConcurrencyMode::kConcurrent);
     } else if (function->shared()->cached_tiering_decision() ==
-               CachedTieringDecision::kEarlyTurbofan) {
+                   CachedTieringDecision::kEarlyTurbofan &&
+               !function->shared()->optimization_disabled(
+                   CodeKind::TURBOFAN_JS)) {
       function->RequestOptimization(isolate, CodeKind::TURBOFAN_JS,
                                     ConcurrencyMode::kConcurrent);
     }

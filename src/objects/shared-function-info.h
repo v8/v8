@@ -794,7 +794,8 @@ V8_OBJECT class SharedFunctionInfo : public HeapObject {
 
   // Disable (further) attempted optimization of all functions sharing this
   // shared function info.
-  void DisableOptimization(Isolate* isolate, BailoutReason reason);
+  V8_EXPORT_PRIVATE void DisableOptimization(Isolate* isolate,
+                                             BailoutReason reason);
 
   // This class constructor needs to call out to an instance fields
   // initializer. This flag is set when creating the

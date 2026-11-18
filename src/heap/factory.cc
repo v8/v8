@@ -5290,7 +5290,8 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
           function->set_dispatch_handle(dispatch_handle, mode);
           DCHECK(old_code->kind() == CodeKind::MAGLEV ||
                  old_code->kind() == CodeKind::TURBOFAN_JS);
-          if (!old_code->marked_for_deoptimization()) {
+          if (!old_code->marked_for_deoptimization() &&
+              !sfi_->optimization_disabled(old_code->kind())) {
             function->RequestOptimization(isolate, old_code->kind());
           }
         } else {
