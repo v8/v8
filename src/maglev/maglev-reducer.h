@@ -46,6 +46,7 @@ class SubgraphBase;
 class ReduceResult;
 
 enum class CpuOperation {
+  kFloat16RawBitsConversion,
   kFloat64Round,
   kMathClz32,
 };
@@ -56,6 +57,20 @@ enum class StringAtOOBMode { kElement, kCharAt };
 
 inline bool IsSupported(CpuOperation op) {
   switch (op) {
+    case CpuOperation::kFloat16RawBitsConversion:
+#if defined(V8_TARGET_ARCH_X64)
+      return CpuFeatures::IsSupported(F16C) && CpuFeatures::IsSupported(AVX);
+#elif defined(V8_TARGET_ARCH_ARM64)
+      return true;
+#elif defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_ARM) ||      \
+    defined(V8_TARGET_ARCH_PPC64) || defined(V8_TARGET_ARCH_S390X) ||     \
+    defined(V8_TARGET_ARCH_RISCV64) || defined(V8_TARGET_ARCH_RISCV32) || \
+    defined(V8_TARGET_ARCH_LOONG64) || defined(V8_TARGET_ARCH_MIPS64)
+      return false;
+#else
+#error "V8 does not support this architecture."
+#endif
+
     case CpuOperation::kFloat64Round:
 #if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_IA32)
       return CpuFeatures::IsSupported(SSE4_1) || CpuFeatures::IsSupported(AVX);
@@ -1282,6 +1297,7 @@ class MaglevReducer {
   V(ArrayPrototypeEntries)                     \
   V(ArrayPrototypeKeys)                        \
   V(ArrayPrototypeValues)                      \
+  V(DataViewPrototypeGetFloat16)               \
   V(DataViewPrototypeGetFloat32)               \
   V(DataViewPrototypeGetFloat64)               \
   V(DataViewPrototypeGetInt16)                 \
@@ -1290,6 +1306,7 @@ class MaglevReducer {
   V(DataViewPrototypeGetUint16)                \
   V(DataViewPrototypeGetUint32)                \
   V(DataViewPrototypeGetUint8)                 \
+  V(DataViewPrototypeSetFloat16)               \
   V(DataViewPrototypeSetFloat32)               \
   V(DataViewPrototypeSetFloat64)               \
   V(DataViewPrototypeSetInt16)                 \
@@ -1391,6 +1408,8 @@ class MaglevReducer {
   MaybeReduceResult TryBuildStoreDataView(const CallArguments& args,
                                           ExternalArrayType type,
                                           Function&& getValue);
+  MaybeReduceResult TryBuildStoreDoubleDataView(const CallArguments& args,
+                                                ExternalArrayType type);
   ReduceResult BuildLoadJSDataViewByteLength(ValueNode* js_data_view);
   ReduceResult BuildLoadJSDataViewDataPointer(ValueNode* js_data_view);
   ReduceResult BuildLoadElements(
@@ -1813,6 +1832,9 @@ class MaglevReducer {
   LocalIsolate* local_isolate() const { return broker()->local_isolate(); }
   bool is_turbolev() const {
     return graph()->compilation_info()->is_turbolev();
+  }
+  bool CanInlineFloat16() const {
+    return IsSupported(CpuOperation::kFloat16RawBitsConversion);
   }
 
   KnownNodeAspects& known_node_aspects() {

@@ -951,6 +951,16 @@ inline void MaglevAssembler::StoreInt32(MemOperand dst, Register src) {
   Sw(src, dst);
 }
 
+inline void MaglevAssembler::LoadFloat16(DoubleRegister dst, MemOperand src) {
+  UNREACHABLE();
+}
+inline uint8_t MaglevAssembler::StoreFloat16GeneralTemporaryCount() {
+  return 0;
+}
+inline uint8_t MaglevAssembler::StoreFloat16DoubleTemporaryCount() { return 0; }
+inline void MaglevAssembler::StoreFloat16(MemOperand dst, DoubleRegister src) {
+  UNREACHABLE();
+}
 inline void MaglevAssembler::LoadFloat32(DoubleRegister dst, MemOperand src) {
   LoadFloat(dst, src);
   // Convert Float32 to double(Float64)
@@ -981,6 +991,24 @@ inline void MaglevAssembler::StoreFloat64(MemOperand dst, DoubleRegister src) {
   StoreDouble(src, dst);
 }
 
+inline void MaglevAssembler::LoadUnalignedFloat16(DoubleRegister dst,
+                                                  Register base,
+                                                  Register index) {
+  UNREACHABLE();
+}
+inline void MaglevAssembler::LoadUnalignedFloat16AndReverseByteOrder(
+    DoubleRegister dst, Register base, Register index) {
+  UNREACHABLE();
+}
+inline void MaglevAssembler::StoreUnalignedFloat16(Register base,
+                                                   Register index,
+                                                   DoubleRegister src) {
+  UNREACHABLE();
+}
+inline void MaglevAssembler::ReverseByteOrderAndStoreUnalignedFloat16(
+    Register base, Register index, DoubleRegister src) {
+  UNREACHABLE();
+}
 inline void MaglevAssembler::LoadUnalignedFloat32(DoubleRegister dst,
                                                   Register base,
                                                   Register index) {

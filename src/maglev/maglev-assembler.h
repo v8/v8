@@ -363,6 +363,14 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   inline void LoadUnsignedDataViewElement(Register result,
                                           Register data_pointer, Register index,
                                           int element_size);
+  inline void LoadFloatDataViewElement(DoubleRegister result,
+                                       Register data_pointer, Register index,
+                                       ExternalArrayType type,
+                                       bool reverse_byte_order);
+  inline void StoreFloatDataViewElement(DoubleRegister value,
+                                        Register data_pointer, Register index,
+                                        ExternalArrayType type,
+                                        bool reverse_byte_order);
 
   enum class CharCodeMaskMode { kValueIsInRange, kMustApplyMask };
 
@@ -572,11 +580,25 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   inline void LoadInt32(Register dst, MemOperand src);
   inline void StoreInt32(MemOperand dst, Register src);
 
+  inline void LoadFloat16(DoubleRegister dst, MemOperand src);
+  static inline uint8_t StoreFloat16GeneralTemporaryCount();
+  static inline uint8_t StoreFloat16DoubleTemporaryCount();
+  inline void StoreFloat16(MemOperand dst, DoubleRegister src);
   inline void LoadFloat32(DoubleRegister dst, MemOperand src);
   inline void StoreFloat32(MemOperand dst, DoubleRegister src);
   inline void LoadFloat64(DoubleRegister dst, MemOperand src);
   inline void StoreFloat64(MemOperand dst, DoubleRegister src);
 
+  inline void LoadUnalignedFloat16(DoubleRegister dst, Register base,
+                                   Register index);
+  inline void LoadUnalignedFloat16AndReverseByteOrder(DoubleRegister dst,
+                                                      Register base,
+                                                      Register index);
+  inline void StoreUnalignedFloat16(Register base, Register index,
+                                    DoubleRegister src);
+  inline void ReverseByteOrderAndStoreUnalignedFloat16(Register base,
+                                                       Register index,
+                                                       DoubleRegister src);
   inline void LoadUnalignedFloat32(DoubleRegister dst, Register base,
                                    Register index);
   inline void LoadUnalignedFloat32AndReverseByteOrder(DoubleRegister dst,

@@ -3844,14 +3844,11 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::LoadDoubleTypedArrayElement* node,
                                 const maglev::ProcessingState& state) {
     DCHECK_EQ(node->elements_kind(),
-              any_of(FLOAT32_ELEMENTS, FLOAT64_ELEMENTS));
-    V<Float> value = V<Float>::Cast(BuildTypedArrayLoad(
+              any_of(FLOAT16_ELEMENTS, FLOAT32_ELEMENTS, FLOAT64_ELEMENTS));
+    V<Untagged> loaded = BuildTypedArrayLoad(
         Map<JSTypedArray>(node->ObjectInput()), Map<Word32>(node->IndexInput()),
-        node->elements_kind()));
-    if (node->elements_kind() == FLOAT32_ELEMENTS) {
-      value = __ ChangeFloat32ToFloat64(V<Float32>::Cast(value));
-    }
-    SetMap(node, value);
+        node->elements_kind());
+    SetMap(node, ConvertFloatElementToFloat64(loaded, node->elements_kind()));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(
@@ -3874,14 +3871,11 @@ class GraphBuildingNodeProcessor {
       maglev::LoadDoubleConstantTypedArrayElement* node,
       const maglev::ProcessingState& state) {
     DCHECK_EQ(node->elements_kind(),
-              any_of(FLOAT32_ELEMENTS, FLOAT64_ELEMENTS));
-    V<Float> value = V<Float>::Cast(BuildConstantTypedArrayLoad(
+              any_of(FLOAT16_ELEMENTS, FLOAT32_ELEMENTS, FLOAT64_ELEMENTS));
+    V<Untagged> loaded = BuildConstantTypedArrayLoad(
         node->typed_array(), Map<Word32>(node->IndexInput()),
-        node->elements_kind()));
-    if (node->elements_kind() == FLOAT32_ELEMENTS) {
-      value = __ ChangeFloat32ToFloat64(V<Float32>::Cast(value));
-    }
-    SetMap(node, value);
+        node->elements_kind());
+    SetMap(node, ConvertFloatElementToFloat64(loaded, node->elements_kind()));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -3895,11 +3889,9 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::StoreDoubleTypedArrayElement* node,
                                 const maglev::ProcessingState& state) {
     DCHECK_EQ(node->elements_kind(),
-              any_of(FLOAT32_ELEMENTS, FLOAT64_ELEMENTS));
-    V<Float> value = Map<Float>(node->ValueInput());
-    if (node->elements_kind() == FLOAT32_ELEMENTS) {
-      value = __ TruncateFloat64ToFloat32(Map(node->ValueInput()));
-    }
+              any_of(FLOAT16_ELEMENTS, FLOAT32_ELEMENTS, FLOAT64_ELEMENTS));
+    V<Untagged> value = TruncateFloat64ToFloatElement(
+        Map<Float64>(node->ValueInput()), node->elements_kind());
     BuildTypedArrayStore(Map<JSTypedArray>(node->ObjectInput()),
                          Map<Word32>(node->IndexInput()), value,
                          node->elements_kind());
@@ -3917,11 +3909,9 @@ class GraphBuildingNodeProcessor {
       maglev::StoreDoubleConstantTypedArrayElement* node,
       const maglev::ProcessingState& state) {
     DCHECK_EQ(node->elements_kind(),
-              any_of(FLOAT32_ELEMENTS, FLOAT64_ELEMENTS));
-    V<Float> value = Map<Float>(node->ValueInput());
-    if (node->elements_kind() == FLOAT32_ELEMENTS) {
-      value = __ TruncateFloat64ToFloat32(Map(node->ValueInput()));
-    }
+              any_of(FLOAT16_ELEMENTS, FLOAT32_ELEMENTS, FLOAT64_ELEMENTS));
+    V<Untagged> value = TruncateFloat64ToFloatElement(
+        Map<Float64>(node->ValueInput()), node->elements_kind());
     BuildConstantTypedArrayStore(node->typed_array(),
                                  Map<Word32>(node->IndexInput()), value,
                                  node->elements_kind());
@@ -3998,15 +3988,12 @@ class GraphBuildingNodeProcessor {
     V<Word32> is_little_endian =
         ToBit(node->IsLittleEndianInput(),
               TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kObject);
-    V<Float> value = V<Float>::Cast(__ LoadDataViewElement(
+    V<Untagged> loaded = __ LoadDataViewElement(
         Map(node->ObjectInput()), storage,
         __ ChangeInt32ToIntPtr(Map<Word32>(node->IndexInput())),
-        is_little_endian, node->external_array_type()));
-    if (node->external_array_type() ==
-        ExternalArrayType::kExternalFloat32Array) {
-      value = __ ChangeFloat32ToFloat64(V<Float32>::Cast(value));
-    }
-    SetMap(node, value);
+        is_little_endian, node->external_array_type());
+    SetMap(node,
+           ConvertFloatElementToFloat64(loaded, node->external_array_type()));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -4038,11 +4025,8 @@ class GraphBuildingNodeProcessor {
     V<Word32> is_little_endian =
         ToBit(node->IsLittleEndianInput(),
               TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kObject);
-    OpIndex value = Map<Float64>(node->ValueInput());
-    if (node->external_array_type() ==
-        ExternalArrayType::kExternalFloat32Array) {
-      value = __ TruncateFloat64ToFloat32(value);
-    }
+    V<Untagged> value = TruncateFloat64ToFloatElement(
+        Map<Float64>(node->ValueInput()), node->external_array_type());
     __ StoreDataViewElement(
         Map(node->ObjectInput()), storage,
         __ ChangeInt32ToIntPtr(Map<Word32>(node->IndexInput())), value,
@@ -6824,6 +6808,44 @@ class GraphBuildingNodeProcessor {
         __ WordPtrConstant(reinterpret_cast<uintptr_t>(typed_array.data_ptr())),
         __ ChangeUint32ToUintPtr(index), value,
         GetArrayTypeFromElementsKind(kind));
+  }
+
+  V<Float64> ConvertFloatElementToFloat64(V<Untagged> loaded,
+                                          ExternalArrayType type) {
+    switch (type) {
+      case ExternalArrayType::kExternalFloat16Array:
+        return __ ChangeFloat16RawBitsToFloat64(V<Word32>::Cast(loaded));
+      case ExternalArrayType::kExternalFloat32Array:
+        return __ ChangeFloat32ToFloat64(V<Float32>::Cast(loaded));
+      case ExternalArrayType::kExternalFloat64Array:
+        return V<Float64>::Cast(loaded);
+      default:
+        UNREACHABLE();
+    }
+  }
+  V<Float64> ConvertFloatElementToFloat64(V<Untagged> loaded,
+                                          ElementsKind kind) {
+    return ConvertFloatElementToFloat64(loaded,
+                                        GetArrayTypeFromElementsKind(kind));
+  }
+
+  V<Untagged> TruncateFloat64ToFloatElement(V<Float64> input,
+                                            ExternalArrayType type) {
+    switch (type) {
+      case ExternalArrayType::kExternalFloat16Array:
+        return __ TruncateFloat64ToFloat16RawBits(input);
+      case ExternalArrayType::kExternalFloat32Array:
+        return __ TruncateFloat64ToFloat32(input);
+      case ExternalArrayType::kExternalFloat64Array:
+        return input;
+      default:
+        UNREACHABLE();
+    }
+  }
+  V<Untagged> TruncateFloat64ToFloatElement(V<Float64> input,
+                                            ElementsKind kind) {
+    return TruncateFloat64ToFloatElement(input,
+                                         GetArrayTypeFromElementsKind(kind));
   }
 
   V<Number> Float64ToTagged(V<Float64> input,

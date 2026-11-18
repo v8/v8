@@ -9039,7 +9039,8 @@ class LoadDoubleDataViewElement
  public:
   explicit LoadDoubleDataViewElement(uint64_t bitfield, ExternalArrayType type)
       : Base(bitfield | ExternalArrayTypeField::encode(type)) {
-    DCHECK(type == ExternalArrayType::kExternalFloat32Array ||
+    DCHECK(type == ExternalArrayType::kExternalFloat16Array ||
+           type == ExternalArrayType::kExternalFloat32Array ||
            type == ExternalArrayType::kExternalFloat64Array);
   }
 
@@ -9094,7 +9095,7 @@ LOAD_TYPED_ARRAY(LoadUnsignedIntTypedArrayElement, OpProperties::Uint32(),
                  UINT16_ELEMENTS, UINT32_ELEMENTS)
 
 LOAD_TYPED_ARRAY(LoadDoubleTypedArrayElement, OpProperties::Float64(),
-                 FLOAT32_ELEMENTS, FLOAT64_ELEMENTS)
+                 FLOAT16_ELEMENTS, FLOAT32_ELEMENTS, FLOAT64_ELEMENTS)
 
 #undef LOAD_TYPED_ARRAY
 
@@ -9138,8 +9139,8 @@ LOAD_CONSTANT_TYPED_ARRAY(LoadUnsignedIntConstantTypedArrayElement,
                           UINT16_ELEMENTS, UINT32_ELEMENTS)
 
 LOAD_CONSTANT_TYPED_ARRAY(LoadDoubleConstantTypedArrayElement,
-                          OpProperties::Float64(), FLOAT32_ELEMENTS,
-                          FLOAT64_ELEMENTS)
+                          OpProperties::Float64(), FLOAT16_ELEMENTS,
+                          FLOAT32_ELEMENTS, FLOAT64_ELEMENTS)
 
 #undef LOAD_CONSTANT_TYPED_ARRAY
 
@@ -9171,7 +9172,7 @@ STORE_TYPED_ARRAY(StoreIntTypedArrayElement, OpProperties::CanWrite(), Int32,
                   UINT8_CLAMPED_ELEMENTS, UINT16_ELEMENTS, UINT16_ELEMENTS,
                   UINT32_ELEMENTS)
 STORE_TYPED_ARRAY(StoreDoubleTypedArrayElement, OpProperties::CanWrite(),
-                  Float64, FLOAT32_ELEMENTS, FLOAT64_ELEMENTS)
+                  Float64, FLOAT16_ELEMENTS, FLOAT32_ELEMENTS, FLOAT64_ELEMENTS)
 #undef STORE_TYPED_ARRAY
 
 #define STORE_CONSTANT_TYPED_ARRAY(name, properties, type, ...)             \
@@ -9208,8 +9209,8 @@ STORE_CONSTANT_TYPED_ARRAY(StoreIntConstantTypedArrayElement,
                            UINT8_CLAMPED_ELEMENTS, UINT16_ELEMENTS,
                            UINT16_ELEMENTS, UINT32_ELEMENTS)
 STORE_CONSTANT_TYPED_ARRAY(StoreDoubleConstantTypedArrayElement,
-                           OpProperties::CanWrite(), Float64, FLOAT32_ELEMENTS,
-                           FLOAT64_ELEMENTS)
+                           OpProperties::CanWrite(), Float64, FLOAT16_ELEMENTS,
+                           FLOAT32_ELEMENTS, FLOAT64_ELEMENTS)
 #undef STORE_CONSTANT_TYPED_ARRAY
 
 // StoreInt32DataViewElement handles stores for all integer DataView types
@@ -9259,7 +9260,8 @@ class StoreDoubleDataViewElement
  public:
   explicit StoreDoubleDataViewElement(uint64_t bitfield, ExternalArrayType type)
       : Base(bitfield | ExternalArrayTypeField::encode(type)) {
-    DCHECK(type == ExternalArrayType::kExternalFloat32Array ||
+    DCHECK(type == ExternalArrayType::kExternalFloat16Array ||
+           type == ExternalArrayType::kExternalFloat32Array ||
            type == ExternalArrayType::kExternalFloat64Array);
   }
 

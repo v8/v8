@@ -336,9 +336,11 @@
         {"name": "DataViewTest-DataView-BigEndian"},
         {"name": "DataViewTest-DataView-LittleEndian"},
         {"name": "DataViewTest-DataView-Floats"},
+        {"name": "DataViewTest-DataView-Float16"},
         {"name": "DataViewTest-TypedArray-BigEndian"},
         {"name": "DataViewTest-TypedArray-LittleEndian"},
-        {"name": "DataViewTest-TypedArray-Floats"}
+        {"name": "DataViewTest-TypedArray-Floats"},
+        {"name": "DataViewTest-TypedArray-Float16"}
       ]
     },
     {

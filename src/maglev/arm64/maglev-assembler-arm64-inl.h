@@ -872,6 +872,20 @@ inline void MaglevAssembler::StoreInt32(MemOperand dst, Register src) {
   Str(src.W(), dst);
 }
 
+inline void MaglevAssembler::LoadFloat16(DoubleRegister dst, MemOperand src) {
+  Ldr(dst.H(), src);
+  Fcvt(dst, dst.H());
+}
+inline uint8_t MaglevAssembler::StoreFloat16GeneralTemporaryCount() {
+  return 0;
+}
+inline uint8_t MaglevAssembler::StoreFloat16DoubleTemporaryCount() { return 0; }
+inline void MaglevAssembler::StoreFloat16(MemOperand dst, DoubleRegister src) {
+  TemporaryRegisterScope temps(this);
+  DoubleRegister scratch = temps.AcquireScratchDouble();
+  Fcvt(scratch.H(), src);
+  Str(scratch.H(), dst);
+}
 inline void MaglevAssembler::LoadFloat32(DoubleRegister dst, MemOperand src) {
   Ldr(dst.S(), src);
   Fcvt(dst, dst.S());
@@ -889,6 +903,35 @@ inline void MaglevAssembler::StoreFloat64(MemOperand dst, DoubleRegister src) {
   Str(src, dst);
 }
 
+inline void MaglevAssembler::LoadUnalignedFloat16(DoubleRegister dst,
+                                                  Register base,
+                                                  Register index) {
+  LoadFloat16(dst, MemOperand(base, index));
+}
+inline void MaglevAssembler::LoadUnalignedFloat16AndReverseByteOrder(
+    DoubleRegister dst, Register base, Register index) {
+  TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  Ldrh(scratch.W(), MemOperand(base, index));
+  Rev16(scratch.W(), scratch.W());
+  Fmov(dst.S(), scratch.W());
+  Fcvt(dst, dst.H());
+}
+inline void MaglevAssembler::StoreUnalignedFloat16(Register base,
+                                                   Register index,
+                                                   DoubleRegister src) {
+  StoreFloat16(MemOperand(base, index), src);
+}
+inline void MaglevAssembler::ReverseByteOrderAndStoreUnalignedFloat16(
+    Register base, Register index, DoubleRegister src) {
+  TemporaryRegisterScope temps(this);
+  DoubleRegister scratch_double = temps.AcquireScratchDouble();
+  Fcvt(scratch_double.H(), src);
+  Register scratch = temps.AcquireScratch();
+  Fmov(scratch.W(), scratch_double.S());
+  Rev16(scratch.W(), scratch.W());
+  Strh(scratch.W(), MemOperand(base, index));
+}
 inline void MaglevAssembler::LoadUnalignedFloat32(DoubleRegister dst,
                                                   Register base,
                                                   Register index) {

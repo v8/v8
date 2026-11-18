@@ -5026,6 +5026,7 @@ ReduceResult MaglevGraphBuilder::BuildLoadTypedArrayElement(
     case UINT16_ELEMENTS:
     case UINT32_ELEMENTS:
       BUILD_AND_RETURN_LOAD_TYPED_ARRAY(UnsignedInt);
+    case FLOAT16_ELEMENTS:
     case FLOAT32_ELEMENTS:
     case FLOAT64_ELEMENTS:
       BUILD_AND_RETURN_LOAD_TYPED_ARRAY(Double);
@@ -5052,6 +5053,7 @@ ReduceResult MaglevGraphBuilder::BuildLoadConstantTypedArrayElement(
     case UINT16_ELEMENTS:
     case UINT32_ELEMENTS:
       BUILD_AND_RETURN_LOAD_CONSTANT_TYPED_ARRAY(UnsignedInt);
+    case FLOAT16_ELEMENTS:
     case FLOAT32_ELEMENTS:
     case FLOAT64_ELEMENTS:
       BUILD_AND_RETURN_LOAD_CONSTANT_TYPED_ARRAY(Double);
@@ -5079,6 +5081,7 @@ ReduceResult MaglevGraphBuilder::BuildStoreTypedArrayElement(
       BUILD_STORE_TYPED_ARRAY(Int, value)
       break;
     }
+    case FLOAT16_ELEMENTS:
     case FLOAT32_ELEMENTS:
     case FLOAT64_ELEMENTS: {
       BUILD_STORE_TYPED_ARRAY(Double, value)
@@ -5109,6 +5112,7 @@ ReduceResult MaglevGraphBuilder::BuildStoreConstantTypedArrayElement(
       BUILD_STORE_CONSTANT_TYPED_ARRAY(Int, value)
       break;
     }
+    case FLOAT16_ELEMENTS:
     case FLOAT32_ELEMENTS:
     case FLOAT64_ELEMENTS: {
       BUILD_STORE_CONSTANT_TYPED_ARRAY(Double, value)
@@ -5128,7 +5132,9 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccessOnTypedArray(
   DCHECK(HasOnlyJSTypedArrayMaps(
       base::VectorOf(access_info.lookup_start_object_maps())));
   ElementsKind elements_kind = access_info.elements_kind();
-  if (elements_kind == FLOAT16_ELEMENTS ||
+  // TODO(victorgomes): Lower Float16 conversions in TurbolevGraphBuilder so
+  // Turbolev does not depend on hardware FP16 support.
+  if ((elements_kind == FLOAT16_ELEMENTS && !reducer_.CanInlineFloat16()) ||
       elements_kind == BIGUINT64_ELEMENTS ||
       elements_kind == BIGINT64_ELEMENTS) {
     return {};
@@ -5237,6 +5243,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccessOnTypedArray(
           GET_VALUE_OR_ABORT(value, GetAccumulatorTruncatedInt32ForToNumber(
                                         NodeType::kNumberOrOddball));
           break;
+        case FLOAT16_ELEMENTS:
         case FLOAT32_ELEMENTS:
         case FLOAT64_ELEMENTS:
           GET_VALUE_OR_ABORT(value, GetAccumulatorFloat64ForToNumber(

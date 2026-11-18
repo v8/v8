@@ -5554,6 +5554,16 @@ MaybeReduceResult MaglevReducer<BaseT>::TryBuildStoreDataView(
 }
 
 template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryBuildStoreDoubleDataView(
+    const CallArguments& args, ExternalArrayType type) {
+  return TryBuildStoreDataView<StoreDoubleDataViewElement>(
+      args, type, [&](ValueNode* value) {
+        return GetFloat64ForToNumber(GetValueOrUndefined(value),
+                                     NodeType::kNumberOrOddball);
+      });
+}
+
+template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceDataViewPrototypeGetInt8(
     ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   return TryBuildLoadDataView<LoadInt32DataViewElement>(
@@ -5650,6 +5660,20 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceDataViewPrototypeSetUint32(
       });
 }
 template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceDataViewPrototypeGetFloat16(
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
+  if (!CanInlineFloat16()) return {};
+  return TryBuildLoadDataView<LoadDoubleDataViewElement>(
+      args, ExternalArrayType::kExternalFloat16Array);
+}
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceDataViewPrototypeSetFloat16(
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
+  if (!CanInlineFloat16()) return {};
+  return TryBuildStoreDoubleDataView(args,
+                                     ExternalArrayType::kExternalFloat16Array);
+}
+template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceDataViewPrototypeGetFloat32(
     ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   return TryBuildLoadDataView<LoadDoubleDataViewElement>(
@@ -5658,18 +5682,8 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceDataViewPrototypeGetFloat32(
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceDataViewPrototypeSetFloat32(
     ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
-  return TryBuildStoreDataView<StoreDoubleDataViewElement>(
-      args, ExternalArrayType::kExternalFloat32Array, [&](ValueNode* value) {
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-        // Produce the same bit pattern we would get through computation.
-        auto ud = Float64::FromBits(kUndefinedNanInt64);
-        const double silenced_nan = ud.to_quiet_nan().get_scalar();
-#else
-        const double silenced_nan = std::numeric_limits<double>::quiet_NaN();
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
-        return value ? GetFloat64ForToNumber(value, NodeType::kNumberOrOddball)
-                     : GetFloat64Constant(silenced_nan);
-      });
+  return TryBuildStoreDoubleDataView(args,
+                                     ExternalArrayType::kExternalFloat32Array);
 }
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceDataViewPrototypeGetFloat64(
@@ -5680,18 +5694,8 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceDataViewPrototypeGetFloat64(
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceDataViewPrototypeSetFloat64(
     ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
-  return TryBuildStoreDataView<StoreDoubleDataViewElement>(
-      args, ExternalArrayType::kExternalFloat64Array, [&](ValueNode* value) {
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-        // Produce the same bit pattern we would get through computation.
-        auto ud = Float64::FromBits(kUndefinedNanInt64);
-        const double silenced_nan = ud.to_quiet_nan().get_scalar();
-#else
-        const double silenced_nan = std::numeric_limits<double>::quiet_NaN();
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
-        return value ? GetFloat64ForToNumber(value, NodeType::kNumberOrOddball)
-                     : GetFloat64Constant(silenced_nan);
-      });
+  return TryBuildStoreDoubleDataView(args,
+                                     ExternalArrayType::kExternalFloat64Array);
 }
 
 #define MATH_UNARY_IEEE_BUILTIN_REDUCER(MathName, ExtName, EnumName)       \

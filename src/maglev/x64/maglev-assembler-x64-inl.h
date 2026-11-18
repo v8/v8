@@ -834,6 +834,26 @@ inline void MaglevAssembler::StoreInt32(MemOperand dst, Register src) {
   movl(dst, src);
 }
 
+inline void MaglevAssembler::LoadFloat16(DoubleRegister dst, MemOperand src) {
+  TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  movzxwl(scratch, src);
+  Movq(dst, scratch);
+  Cvtph2pd(dst, dst);
+}
+inline uint8_t MaglevAssembler::StoreFloat16GeneralTemporaryCount() {
+  return 1;
+}
+inline uint8_t MaglevAssembler::StoreFloat16DoubleTemporaryCount() { return 1; }
+inline void MaglevAssembler::StoreFloat16(MemOperand dst, DoubleRegister src) {
+  TemporaryRegisterScope temps(this);
+  temps.AcquireScratch();
+  temps.AcquireScratchDouble();
+  Register tmp = temps.Acquire();
+  DoubleRegister double_scratch = temps.AcquireDouble();
+  Cvtpd2ph(double_scratch, src, tmp);
+  Pextrw(dst, double_scratch, static_cast<uint8_t>(0));
+}
 inline void MaglevAssembler::LoadFloat32(DoubleRegister dst, MemOperand src) {
   Movss(dst, src);
   Cvtss2sd(dst, dst);
@@ -849,6 +869,37 @@ inline void MaglevAssembler::StoreFloat64(MemOperand dst, DoubleRegister src) {
   Movsd(dst, src);
 }
 
+inline void MaglevAssembler::LoadUnalignedFloat16(DoubleRegister dst,
+                                                  Register base,
+                                                  Register index) {
+  LoadFloat16(dst, Operand(base, index, times_1, 0));
+}
+inline void MaglevAssembler::LoadUnalignedFloat16AndReverseByteOrder(
+    DoubleRegister dst, Register base, Register index) {
+  TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  movzxwl(scratch, Operand(base, index, times_1, 0));
+  ReverseByteOrderUnsigned(scratch, 2);
+  Movq(dst, scratch);
+  Cvtph2pd(dst, dst);
+}
+inline void MaglevAssembler::StoreUnalignedFloat16(Register base,
+                                                   Register index,
+                                                   DoubleRegister src) {
+  StoreFloat16(Operand(base, index, times_1, 0), src);
+}
+inline void MaglevAssembler::ReverseByteOrderAndStoreUnalignedFloat16(
+    Register base, Register index, DoubleRegister src) {
+  TemporaryRegisterScope temps(this);
+  temps.AcquireScratch();
+  temps.AcquireScratchDouble();
+  Register tmp = temps.Acquire();
+  DoubleRegister double_scratch = temps.AcquireDouble();
+  Cvtpd2ph(double_scratch, src, tmp);
+  Pextrw(tmp, double_scratch, static_cast<uint8_t>(0));
+  ReverseByteOrderUnsigned(tmp, 2);
+  movw(Operand(base, index, times_1, 0), tmp);
+}
 inline void MaglevAssembler::LoadUnalignedFloat32(DoubleRegister dst,
                                                   Register base,
                                                   Register index) {

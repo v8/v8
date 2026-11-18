@@ -1251,6 +1251,68 @@ inline void MaglevAssembler::AssertElidedWriteBarrier(
 #endif  // V8_VERIFY_WRITE_BARRIERS
 }
 
+inline void MaglevAssembler::LoadFloatDataViewElement(DoubleRegister result,
+                                                      Register data_pointer,
+                                                      Register index,
+                                                      ExternalArrayType type,
+                                                      bool reverse_byte_order) {
+  switch (type) {
+    case ExternalArrayType::kExternalFloat16Array:
+      if (reverse_byte_order) {
+        LoadUnalignedFloat16AndReverseByteOrder(result, data_pointer, index);
+      } else {
+        LoadUnalignedFloat16(result, data_pointer, index);
+      }
+      break;
+    case ExternalArrayType::kExternalFloat32Array:
+      if (reverse_byte_order) {
+        LoadUnalignedFloat32AndReverseByteOrder(result, data_pointer, index);
+      } else {
+        LoadUnalignedFloat32(result, data_pointer, index);
+      }
+      break;
+    case ExternalArrayType::kExternalFloat64Array:
+      if (reverse_byte_order) {
+        LoadUnalignedFloat64AndReverseByteOrder(result, data_pointer, index);
+      } else {
+        LoadUnalignedFloat64(result, data_pointer, index);
+      }
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+inline void MaglevAssembler::StoreFloatDataViewElement(
+    DoubleRegister value, Register data_pointer, Register index,
+    ExternalArrayType type, bool reverse_byte_order) {
+  switch (type) {
+    case ExternalArrayType::kExternalFloat16Array:
+      if (reverse_byte_order) {
+        ReverseByteOrderAndStoreUnalignedFloat16(data_pointer, index, value);
+      } else {
+        StoreUnalignedFloat16(data_pointer, index, value);
+      }
+      break;
+    case ExternalArrayType::kExternalFloat32Array:
+      if (reverse_byte_order) {
+        ReverseByteOrderAndStoreUnalignedFloat32(data_pointer, index, value);
+      } else {
+        StoreUnalignedFloat32(data_pointer, index, value);
+      }
+      break;
+    case ExternalArrayType::kExternalFloat64Array:
+      if (reverse_byte_order) {
+        ReverseByteOrderAndStoreUnalignedFloat64(data_pointer, index, value);
+      } else {
+        StoreUnalignedFloat64(data_pointer, index, value);
+      }
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

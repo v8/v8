@@ -4101,62 +4101,33 @@ void LoadDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
   Register index = ToRegister(IndexInput());
   DoubleRegister result_reg = ToDoubleRegister(result());
 
-  if (external_array_type() == ExternalArrayType::kExternalFloat64Array) {
-    if (IsIsLittleEndianInputConstant()) {
-      if (FromConstantToBool(masm, IsLittleEndianInput().node()) !=
-          V8_TARGET_BIG_ENDIAN_BOOL) {
-        __ LoadUnalignedFloat64(result_reg, data_pointer, index);
-      } else {
-        __ LoadUnalignedFloat64AndReverseByteOrder(result_reg, data_pointer,
-                                                   index);
-      }
-    } else {
-      Label done;
-      ZoneLabelRef keep_byte_order(masm), reverse_byte_order(masm);
-      // TODO(leszeks): We're likely to be calling this on an existing boolean
-      // -- maybe that's a case we should fast-path here and reuse that boolean
-      // value?
-      __ ToBoolean(
-          ToRegister(IsLittleEndianInput()), CheckType::kCheckHeapObject,
-          V8_TARGET_BIG_ENDIAN_BOOL ? reverse_byte_order : keep_byte_order,
-          V8_TARGET_BIG_ENDIAN_BOOL ? keep_byte_order : reverse_byte_order,
-          true);
-      __ bind(*keep_byte_order);
-      __ LoadUnalignedFloat64(result_reg, data_pointer, index);
-      __ Jump(&done);
-      // We should swap the bytes if big endian.
-      __ bind(*reverse_byte_order);
-      __ LoadUnalignedFloat64AndReverseByteOrder(result_reg, data_pointer,
-                                                 index);
-      __ bind(&done);
-    }
+  if (IsIsLittleEndianInputConstant()) {
+    bool reverse_byte_order =
+        FromConstantToBool(masm, IsLittleEndianInput().node()) ==
+        V8_TARGET_BIG_ENDIAN_BOOL;
+    __ LoadFloatDataViewElement(result_reg, data_pointer, index,
+                                external_array_type(), reverse_byte_order);
   } else {
-    DCHECK_EQ(external_array_type(), ExternalArrayType::kExternalFloat32Array);
-    if (IsIsLittleEndianInputConstant()) {
-      if (FromConstantToBool(masm, IsLittleEndianInput().node()) !=
-          V8_TARGET_BIG_ENDIAN_BOOL) {
-        __ LoadUnalignedFloat32(result_reg, data_pointer, index);
-      } else {
-        __ LoadUnalignedFloat32AndReverseByteOrder(result_reg, data_pointer,
-                                                   index);
-      }
-    } else {
-      Label done;
-      ZoneLabelRef keep_byte_order(masm), reverse_byte_order(masm);
-      __ ToBoolean(
-          ToRegister(IsLittleEndianInput()), CheckType::kCheckHeapObject,
-          V8_TARGET_BIG_ENDIAN_BOOL ? reverse_byte_order : keep_byte_order,
-          V8_TARGET_BIG_ENDIAN_BOOL ? keep_byte_order : reverse_byte_order,
-          true);
-      __ bind(*keep_byte_order);
-      __ LoadUnalignedFloat32(result_reg, data_pointer, index);
-      __ Jump(&done);
-      // We should swap the bytes if big endian.
-      __ bind(*reverse_byte_order);
-      __ LoadUnalignedFloat32AndReverseByteOrder(result_reg, data_pointer,
-                                                 index);
-      __ bind(&done);
-    }
+    Label done;
+    ZoneLabelRef keep_byte_order(masm), reverse_byte_order(masm);
+    // TODO(leszeks): We're likely to be calling this on an existing boolean
+    // -- maybe that's a case we should fast-path here and reuse that boolean
+    // value?
+    __ ToBoolean(
+        ToRegister(IsLittleEndianInput()), CheckType::kCheckHeapObject,
+        V8_TARGET_BIG_ENDIAN_BOOL ? reverse_byte_order : keep_byte_order,
+        V8_TARGET_BIG_ENDIAN_BOOL ? keep_byte_order : reverse_byte_order, true);
+    __ bind(*keep_byte_order);
+    __ LoadFloatDataViewElement(result_reg, data_pointer, index,
+                                external_array_type(),
+                                /*reverse_byte_order=*/false);
+    __ Jump(&done);
+    // We should swap the bytes if big endian.
+    __ bind(*reverse_byte_order);
+    __ LoadFloatDataViewElement(result_reg, data_pointer, index,
+                                external_array_type(),
+                                /*reverse_byte_order=*/true);
+    __ bind(&done);
   }
 }
 
@@ -4175,6 +4146,12 @@ void StoreDoubleDataViewElement::SetValueLocationConstraints() {
   } else {
     UseRegister(IsLittleEndianInput());
   }
+  if (external_array_type() == ExternalArrayType::kExternalFloat16Array) {
+    set_temporaries_needed(
+        MaglevAssembler::StoreFloat16GeneralTemporaryCount());
+    set_double_temporaries_needed(
+        MaglevAssembler::StoreFloat16DoubleTemporaryCount());
+  }
 }
 void StoreDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
                                               const ProcessingState& state) {
@@ -4182,58 +4159,33 @@ void StoreDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
   Register index = ToRegister(IndexInput());
   DoubleRegister value = ToDoubleRegister(ValueInput());
 
-  if (external_array_type() == ExternalArrayType::kExternalFloat64Array) {
-    if (IsIsLittleEndianInputConstant()) {
-      if (FromConstantToBool(masm, IsLittleEndianInput().node()) !=
-          V8_TARGET_BIG_ENDIAN_BOOL) {
-        __ StoreUnalignedFloat64(data_pointer, index, value);
-      } else {
-        __ ReverseByteOrderAndStoreUnalignedFloat64(data_pointer, index, value);
-      }
-    } else {
-      Label done;
-      ZoneLabelRef keep_byte_order(masm), reverse_byte_order(masm);
-      // TODO(leszeks): We're likely to be calling this on an existing boolean
-      // -- maybe that's a case we should fast-path here and reuse that boolean
-      // value?
-      __ ToBoolean(
-          ToRegister(IsLittleEndianInput()), CheckType::kCheckHeapObject,
-          V8_TARGET_BIG_ENDIAN_BOOL ? reverse_byte_order : keep_byte_order,
-          V8_TARGET_BIG_ENDIAN_BOOL ? keep_byte_order : reverse_byte_order,
-          true);
-      __ bind(*keep_byte_order);
-      __ StoreUnalignedFloat64(data_pointer, index, value);
-      __ Jump(&done);
-      // We should swap the bytes if big endian.
-      __ bind(*reverse_byte_order);
-      __ ReverseByteOrderAndStoreUnalignedFloat64(data_pointer, index, value);
-      __ bind(&done);
-    }
+  if (IsIsLittleEndianInputConstant()) {
+    bool reverse_byte_order =
+        FromConstantToBool(masm, IsLittleEndianInput().node()) ==
+        V8_TARGET_BIG_ENDIAN_BOOL;
+    __ StoreFloatDataViewElement(value, data_pointer, index,
+                                 external_array_type(), reverse_byte_order);
   } else {
-    DCHECK_EQ(external_array_type(), ExternalArrayType::kExternalFloat32Array);
-    if (IsIsLittleEndianInputConstant()) {
-      if (FromConstantToBool(masm, IsLittleEndianInput().node()) !=
-          V8_TARGET_BIG_ENDIAN_BOOL) {
-        __ StoreUnalignedFloat32(data_pointer, index, value);
-      } else {
-        __ ReverseByteOrderAndStoreUnalignedFloat32(data_pointer, index, value);
-      }
-    } else {
-      Label done;
-      ZoneLabelRef keep_byte_order(masm), reverse_byte_order(masm);
-      __ ToBoolean(
-          ToRegister(IsLittleEndianInput()), CheckType::kCheckHeapObject,
-          V8_TARGET_BIG_ENDIAN_BOOL ? reverse_byte_order : keep_byte_order,
-          V8_TARGET_BIG_ENDIAN_BOOL ? keep_byte_order : reverse_byte_order,
-          true);
-      __ bind(*keep_byte_order);
-      __ StoreUnalignedFloat32(data_pointer, index, value);
-      __ Jump(&done);
-      // We should swap the bytes if big endian.
-      __ bind(*reverse_byte_order);
-      __ ReverseByteOrderAndStoreUnalignedFloat32(data_pointer, index, value);
-      __ bind(&done);
-    }
+    Label done;
+    ZoneLabelRef keep_byte_order(masm), reverse_byte_order(masm);
+    // TODO(leszeks): We're likely to be calling this on an existing boolean
+    // -- maybe that's a case we should fast-path here and reuse that boolean
+    // value?
+    __ ToBoolean(
+        ToRegister(IsLittleEndianInput()), CheckType::kCheckHeapObject,
+        V8_TARGET_BIG_ENDIAN_BOOL ? reverse_byte_order : keep_byte_order,
+        V8_TARGET_BIG_ENDIAN_BOOL ? keep_byte_order : reverse_byte_order, true);
+    __ bind(*keep_byte_order);
+    __ StoreFloatDataViewElement(value, data_pointer, index,
+                                 external_array_type(),
+                                 /*reverse_byte_order=*/false);
+    __ Jump(&done);
+    // We should swap the bytes if big endian.
+    __ bind(*reverse_byte_order);
+    __ StoreFloatDataViewElement(value, data_pointer, index,
+                                 external_array_type(),
+                                 /*reverse_byte_order=*/true);
+    __ bind(&done);
   }
 }
 
@@ -8350,6 +8302,9 @@ void GenerateTypedArrayLoadFromDataPointer(MaglevAssembler* masm,
     DCHECK(IsFloatTypedArrayElementsKind(kind));
 #endif
     switch (kind) {
+      case FLOAT16_ELEMENTS:
+        __ LoadFloat16(result_reg, operand);
+        break;
       case FLOAT32_ELEMENTS:
         __ LoadFloat32(result_reg, operand);
         break;
@@ -8428,6 +8383,9 @@ void GenerateTypedArrayStoreToDataPointer(MaglevAssembler* masm,
     DCHECK(IsFloatTypedArrayElementsKind(kind));
 #endif
     switch (kind) {
+      case FLOAT16_ELEMENTS:
+        __ StoreFloat16(operand, value);
+        break;
       case FLOAT32_ELEMENTS:
         __ StoreFloat32(operand, value);
         break;
@@ -8530,7 +8488,14 @@ DEF_LOAD_CONSTANT_TYPED_ARRAY(LoadDoubleConstantTypedArrayElement,
     UseRegister(ObjectInput());                                          \
     UseRegister(IndexInput());                                           \
     UseRegister(ValueInput());                                           \
-    set_temporaries_needed(1);                                           \
+    set_temporaries_needed(                                              \
+        1 + (elements_kind_ == FLOAT16_ELEMENTS                          \
+                 ? MaglevAssembler::StoreFloat16GeneralTemporaryCount()  \
+                 : 0));                                                  \
+    set_double_temporaries_needed(                                       \
+        elements_kind_ == FLOAT16_ELEMENTS                               \
+            ? MaglevAssembler::StoreFloat16DoubleTemporaryCount()        \
+            : 0);                                                        \
   }                                                                      \
   void Name::GenerateCode(MaglevAssembler* masm,                         \
                           const ProcessingState& state) {                \
@@ -8546,18 +8511,25 @@ DEF_STORE_TYPED_ARRAY(StoreDoubleTypedArrayElement, DoubleRegister,
                       ToDoubleRegister)
 #undef DEF_STORE_TYPED_ARRAY
 
-#define DEF_STORE_CONSTANT_TYPED_ARRAY(Name, ValueReg, ToValueReg)     \
-  void Name::SetValueLocationConstraints() {                           \
-    UseRegister(IndexInput());                                         \
-    UseRegister(ValueInput());                                         \
-    set_temporaries_needed(1);                                         \
-  }                                                                    \
-  void Name::GenerateCode(MaglevAssembler* masm,                       \
-                          const ProcessingState& state) {              \
-    Register index = ToRegister(IndexInput());                         \
-    ValueReg value = ToValueReg(ValueInput());                         \
-    GenerateConstantTypedArrayStore(masm, typed_array(), index, value, \
-                                    elements_kind_);                   \
+#define DEF_STORE_CONSTANT_TYPED_ARRAY(Name, ValueReg, ToValueReg)      \
+  void Name::SetValueLocationConstraints() {                            \
+    UseRegister(IndexInput());                                          \
+    UseRegister(ValueInput());                                          \
+    set_temporaries_needed(                                             \
+        1 + (elements_kind_ == FLOAT16_ELEMENTS                         \
+                 ? MaglevAssembler::StoreFloat16GeneralTemporaryCount() \
+                 : 0));                                                 \
+    set_double_temporaries_needed(                                      \
+        elements_kind_ == FLOAT16_ELEMENTS                              \
+            ? MaglevAssembler::StoreFloat16DoubleTemporaryCount()       \
+            : 0);                                                       \
+  }                                                                     \
+  void Name::GenerateCode(MaglevAssembler* masm,                        \
+                          const ProcessingState& state) {               \
+    Register index = ToRegister(IndexInput());                          \
+    ValueReg value = ToValueReg(ValueInput());                          \
+    GenerateConstantTypedArrayStore(masm, typed_array(), index, value,  \
+                                    elements_kind_);                    \
   }
 
 DEF_STORE_CONSTANT_TYPED_ARRAY(StoreIntConstantTypedArrayElement, Register,
