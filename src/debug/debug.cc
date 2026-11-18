@@ -1438,7 +1438,7 @@ void Debug::FloodWithOneShotIncludingBlackboxed(
 
   Handle<DebugInfo> debug_info(TryGetDebugInfo(*shared).value(), isolate_);
   // Flood the function with break points.
-  DCHECK(debug_info->HasInstrumentedBytecodeArray());
+  SBXCHECK(debug_info->HasInstrumentedBytecodeArray());
   for (BreakIterator it(debug_info); !it.Done(); it.Next()) {
     if (returns_only && !it.GetBreakLocation().IsReturnOrSuspend()) continue;
     it.SetDebugBreak();
@@ -2578,6 +2578,13 @@ Handle<Object> Debug::FindInnermostContainingFunctionInfo(Handle<Script> script,
 // Ensures the debug information is present for shared.
 bool Debug::EnsureBreakInfo(Handle<SharedFunctionInfo> shared) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
+  // Builtins and API functions can only break at entry and are never subject to
+  // debugging. In-sandbox corruption (e.g. of the function's script) can make a
+  // function claim both; such a function cannot be instrumented.
+  if (shared->IsSubjectToDebugging() &&
+      (shared->native() || shared->IsApiFunction())) {
+    return false;
+  }
   // Return if we already have the break info for shared.
   if (shared->HasBreakInfo(isolate_)) {
     DCHECK(shared->is_compiled());
