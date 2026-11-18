@@ -4368,19 +4368,21 @@ void MacroAssembler::CallVerifySkippedTrustedWriteBarrierStub(Register object,
 void MacroAssembler::MoveObjectAndSlot(Register dst_object, Register dst_slot,
                                        Register object, Operand offset) {
   ASM_CODE_COMMENT(this);
-  DCHECK_NE(dst_object, dst_slot);
+  DCHECK(!AreAliased(dst_object, dst_slot));
+  DCHECK(AreSameSizeAndType(dst_object, dst_slot, object));
+  DCHECK(object.Is64Bits());
   // If `offset` is a register, it cannot overlap with `object`.
   DCHECK_IMPLIES(!offset.IsImmediate(), !offset.reg().Aliases(object));
 
   // If the slot register does not overlap with the object register, we can
   // overwrite it.
-  if (dst_slot != object) {
+  if (!dst_slot.Aliases(object)) {
     Add(dst_slot, object, offset);
     Mov(dst_object, object);
     return;
   }
 
-  DCHECK_EQ(dst_slot, object);
+  DCHECK(dst_slot.Aliases(object));
 
   // If the destination object register does not overlap with the offset
   // register, we can overwrite it.
