@@ -4560,22 +4560,14 @@ class LiftoffCompiler {
     DCHECK_EQ(index_val.type.kind(), index_slot.kind());
     bool i64_offset = imm.memory->is_memory64();
     DCHECK_EQ(i64_offset ? kI64 : kI32, index_slot.kind());
+    std::optional<LiftoffRegister> value;
     if (IndexStaticallyInBounds(imm.memory, index_slot, type.size(), &offset)) {
       __ cache_state()->stack_state.pop_back();
       SCOPED_CODE_COMMENT("load from memory (constant offset)");
       LiftoffRegList pinned;
       Register mem = pinned.set(GetMemoryStart(imm.mem_index, pinned));
-      LiftoffRegister value = pinned.set(__ GetUnusedRegister(rc, pinned));
-      __ Load(value, mem, no_reg, offset, type, nullptr, true, i64_offset);
-      if (needs_f16_to_f32_conv) {
-        LiftoffRegister dst = __ GetUnusedRegister(kFpReg, {});
-        auto conv_ref = ExternalReference::wasm_float16_to_float32();
-        GenerateCCallWithStackBuffer(&dst, kVoid, kF32,
-                                     {VarState{kI16, value, 0}}, conv_ref);
-        __ PushRegister(kF32, dst);
-      } else {
-        __ PushRegister(kind, value);
-      }
+      value = pinned.set(__ GetUnusedRegister(rc, pinned));
+      __ Load(*value, mem, no_reg, offset, type, nullptr, true, i64_offset);
     } else {
       LiftoffRegister full_index = __ PopToRegister();
       index =
@@ -4588,29 +4580,38 @@ class LiftoffCompiler {
       // Load the memory start address only now to reduce register pressure
       // (important on ia32).
       Register mem = pinned.set(GetMemoryStart(imm.mem_index, pinned));
-      LiftoffRegister value = pinned.set(__ GetUnusedRegister(rc, pinned));
+      value = pinned.set(__ GetUnusedRegister(rc, pinned));
 
       uint32_t trapping_load_pc = 0;
-      __ Load(value, mem, index, offset, type, &trapping_load_pc, true,
+      __ Load(*value, mem, index, offset, type, &trapping_load_pc, true,
               i64_offset);
       if (imm.memory->bounds_checks == kTrapHandler) {
         RegisterTrappingInstruction(decoder, trapping_load_pc);
       }
-      if (needs_f16_to_f32_conv) {
-        LiftoffRegister dst = __ GetUnusedRegister(kFpReg, {});
-        auto conv_ref = ExternalReference::wasm_float16_to_float32();
-        GenerateCCallWithStackBuffer(&dst, kVoid, kF32,
-                                     {VarState{kI16, value, 0}}, conv_ref);
-        __ PushRegister(kF32, dst);
-      } else {
-        __ PushRegister(kind, value);
-      }
     }
 
-    if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
-      TraceMemoryOperation(false, imm.mem_index,
-                           type.mem_type().representation(), index, offset,
-                           decoder->position());
+    if (needs_f16_to_f32_conv) {
+      if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
+        // Trace before the C conversion call clobbers `index`, pushing `value`
+        // so TraceMemoryOperation's SpillAllRegisters preserves it.
+        __ PushRegister(kind, *value);
+        TraceMemoryOperation(false, imm.mem_index,
+                             type.mem_type().representation(), index, offset,
+                             decoder->position());
+        value = __ PopToRegister();
+      }
+      LiftoffRegister dst = __ GetUnusedRegister(kFpReg, {});
+      auto conv_ref = ExternalReference::wasm_float16_to_float32();
+      GenerateCCallWithStackBuffer(&dst, kVoid, kF32,
+                                   {VarState{kI16, *value, 0}}, conv_ref);
+      __ PushRegister(kF32, dst);
+    } else {
+      __ PushRegister(kind, *value);
+      if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
+        TraceMemoryOperation(false, imm.mem_index,
+                             type.mem_type().representation(), index, offset,
+                             decoder->position());
+      }
     }
   }
 
