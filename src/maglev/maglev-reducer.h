@@ -1231,7 +1231,7 @@ class MaglevReducer {
   }
 
   void RegisterNode(NodeBase* node) {
-    graph_labeller()->RegisterNode(node, &current_provenance_);
+    graph_labeller()->RegisterNode(node, current_provenance_);
   }
 
   bool has_graph_labeller() const { return graph()->has_graph_labeller(); }

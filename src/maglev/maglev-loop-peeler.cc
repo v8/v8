@@ -33,7 +33,7 @@ void RegisterIfLabelled(Graph* graph, NodeBase* node) {
 void RegisterClonedNode(Graph* graph, NodeBase* clone, const NodeBase* src) {
   if (graph->has_graph_labeller()) {
     graph->graph_labeller()->RegisterNode(
-        clone, &graph->graph_labeller()->GetNodeProvenance(src));
+        clone, graph->graph_labeller()->GetNodeProvenance(src));
   }
   // Register the cloned deopt top frame(s) so passes walking the graph's frame
   // sets (e.g. RecomputePhiUseHintsProcessor) see the peeled iteration.
