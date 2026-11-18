@@ -415,14 +415,10 @@ DirectHandle<String> MessageFormatter::Format(
     DCHECK(!args[i].is_null());
     arg_strings[i] = Object::NoSideEffectsToString(isolate, args[i]);
   }
-  v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
-  try_catch.SetVerbose(false);
-  try_catch.SetCaptureMessage(false);
   MaybeHandle<String> maybe_result_string = MessageFormatter::TryFormat(
       isolate, index, base::VectorOf(arg_strings, args.size()));
   Handle<String> result_string;
   if (!maybe_result_string.ToHandle(&result_string)) {
-    DCHECK(isolate->has_exception());
     return isolate->factory()->InternalizeString("<error>");
   }
   // A string that has been obtained from JS code in this way is
@@ -477,7 +473,7 @@ MaybeHandle<String> MessageFormatter::TryFormat(
           args.size() - remaining_args.size(), args.size(), template_string);
   }
 
-  return indirect_handle(builder.Finish(), isolate);
+  return indirect_handle(builder.Finish(kDontThrow), isolate);
 }
 
 MaybeDirectHandle<JSObject> ErrorUtils::Construct(

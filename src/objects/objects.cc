@@ -666,19 +666,11 @@ MaybeDirectHandle<String> Object::NoSideEffectsToMaybeString(
       DirectHandle<Object> ctor = JSReceiver::GetDataProperty(
           isolate, receiver, isolate->factory()->constructor_string());
       if (IsJSFunctionOrBoundFunctionOrWrappedFunction(*ctor)) {
-        auto ClearExceptionIfNeeded = [isolate]() {
-          if (isolate->has_exception() &&
-              isolate->is_catchable_by_javascript(isolate->exception())) {
-            isolate->clear_exception();
-          }
-        };
-
         DirectHandle<String> ctor_name;
         if (DirectHandle<JSBoundFunction> bound_fun;
             TryCast<JSBoundFunction>(ctor, &bound_fun)) {
-          if (!JSBoundFunction::GetName(isolate, bound_fun)
+          if (!JSBoundFunction::GetName(isolate, bound_fun, kDontThrow)
                    .ToHandle(&ctor_name)) {
-            ClearExceptionIfNeeded();
             return {};
           }
         } else if (DirectHandle<JSFunction> js_fun;
@@ -686,9 +678,8 @@ MaybeDirectHandle<String> Object::NoSideEffectsToMaybeString(
           ctor_name = JSFunction::GetName(isolate, js_fun);
         } else if (DirectHandle<JSWrappedFunction> wrapped_fun;
                    TryCast<JSWrappedFunction>(ctor, &wrapped_fun)) {
-          if (!JSWrappedFunction::GetName(isolate, wrapped_fun)
+          if (!JSWrappedFunction::GetName(isolate, wrapped_fun, kDontThrow)
                    .ToHandle(&ctor_name)) {
-            ClearExceptionIfNeeded();
             return {};
           }
         } else {
@@ -698,13 +689,13 @@ MaybeDirectHandle<String> Object::NoSideEffectsToMaybeString(
         if (ctor_name->length() != 0) {
           IncrementalStringBuilder builder(isolate);
           builder.AppendCStringLiteral("#<");
-          builder.AppendString(ctor_name);
+          // This threshold must be sufficiently far below String::kMaxLength
+          // that the {builder}'s result can never exceed that limit.
+          constexpr uint32_t kMaxPrintedStringLength = 1000;
+          builder.AppendStringCapped(ctor_name, kMaxPrintedStringLength);
           builder.AppendCharacter('>');
 
-          DirectHandle<String> result;
-          if (builder.Finish().ToHandle(&result)) return result;
-          ClearExceptionIfNeeded();
-          return {};
+          return builder.Finish().ToHandleChecked();
         }
       }
     }

@@ -419,14 +419,24 @@ Maybe<bool> JSFunctionOrBoundFunctionOrWrappedFunction::CopyNameAndLength(
 
 // static
 MaybeHandle<String> JSBoundFunction::GetName(
-    Isolate* isolate, DirectHandle<JSBoundFunction> function) {
+    Isolate* isolate, DirectHandle<JSBoundFunction> function,
+    ShouldThrow should_throw) {
   Handle<String> prefix = isolate->factory()->bound__string();
   Handle<String> target_name = prefix;
   Factory* factory = isolate->factory();
+  auto TryNewConsString = [&](Handle<String> left,
+                              Handle<String> right) -> MaybeHandle<String> {
+    if (should_throw == kDontThrow &&
+        left->length() + right->length() > String::kMaxLength) {
+      return {};
+    }
+    return factory->NewConsString(left, right);
+  };
   // Concatenate the "bound " up to the last non-bound target.
   while (IsJSBoundFunction(function->bound_target_function())) {
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, target_name,
-                               factory->NewConsString(prefix, target_name));
+    if (!TryNewConsString(prefix, target_name).ToHandle(&target_name)) {
+      return {};
+    }
     function = direct_handle(
         Cast<JSBoundFunction>(function->bound_target_function()), isolate);
   }
@@ -434,15 +444,17 @@ MaybeHandle<String> JSBoundFunction::GetName(
     DirectHandle<JSWrappedFunction> target(
         Cast<JSWrappedFunction>(function->bound_target_function()), isolate);
     Handle<String> name;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, name,
-                               JSWrappedFunction::GetName(isolate, target));
-    return factory->NewConsString(target_name, name);
+    if (!JSWrappedFunction::GetName(isolate, target, should_throw)
+             .ToHandle(&name)) {
+      return {};
+    }
+    return TryNewConsString(target_name, name);
   }
   if (IsJSFunction(function->bound_target_function())) {
     DirectHandle<JSFunction> target(
         Cast<JSFunction>(function->bound_target_function()), isolate);
     Handle<String> name = JSFunction::GetName(isolate, target);
-    return factory->NewConsString(target_name, name);
+    return TryNewConsString(target_name, name);
   }
   // This will omit the proper target name for bound JSProxies.
   return target_name;
@@ -498,16 +510,26 @@ DirectHandle<String> JSBoundFunction::ToString(
 
 // static
 MaybeHandle<String> JSWrappedFunction::GetName(
-    Isolate* isolate, DirectHandle<JSWrappedFunction> function) {
-  STACK_CHECK(isolate, MaybeHandle<String>());
+    Isolate* isolate, DirectHandle<JSWrappedFunction> function,
+    ShouldThrow should_throw) {
+  if (should_throw == kThrowOnError) {
+    STACK_CHECK(isolate, MaybeHandle<String>());
+  } else {
+    StackLimitCheck stack_check(isolate);
+    if (V8_UNLIKELY(stack_check.HasOverflowed())) {
+      return {};
+    }
+  }
   Factory* factory = isolate->factory();
   Handle<String> target_name = factory->empty_string();
   DirectHandle<JSReceiver> target(function->wrapped_target_function(), isolate);
   if (IsJSBoundFunction(*target)) {
     return JSBoundFunction::GetName(
-        isolate, direct_handle(
-                     Cast<JSBoundFunction>(function->wrapped_target_function()),
-                     isolate));
+        isolate,
+        direct_handle(
+            Cast<JSBoundFunction>(function->wrapped_target_function()),
+            isolate),
+        should_throw);
   } else if (IsJSFunction(*target)) {
     return JSFunction::GetName(
         isolate,

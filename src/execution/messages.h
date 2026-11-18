@@ -157,6 +157,8 @@ class MessageFormatter {
  public:
   V8_EXPORT_PRIVATE static const char* TemplateString(MessageTemplate index);
 
+  // Returns an empty handle without setting a pending exception if formatting
+  // overflows String::kMaxLength.
   V8_EXPORT_PRIVATE static MaybeHandle<String> TryFormat(
       Isolate* isolate, MessageTemplate index,
       base::Vector<const DirectHandle<String>> args);

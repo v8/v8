@@ -48,7 +48,8 @@ V8_OBJECT class JSBoundFunction
     : public JSFunctionOrBoundFunctionOrWrappedFunction {
  public:
   static MaybeHandle<String> GetName(Isolate* isolate,
-                                     DirectHandle<JSBoundFunction> function);
+                                     DirectHandle<JSBoundFunction> function,
+                                     ShouldThrow should_throw = kThrowOnError);
   static Maybe<uint32_t> GetLength(Isolate* isolate,
                                    DirectHandle<JSBoundFunction> function);
 
@@ -88,7 +89,8 @@ V8_OBJECT class JSWrappedFunction
     : public JSFunctionOrBoundFunctionOrWrappedFunction {
  public:
   static MaybeHandle<String> GetName(Isolate* isolate,
-                                     DirectHandle<JSWrappedFunction> function);
+                                     DirectHandle<JSWrappedFunction> function,
+                                     ShouldThrow should_throw = kThrowOnError);
   static Maybe<uint32_t> GetLength(Isolate* isolate,
                                    DirectHandle<JSWrappedFunction> function);
   // https://tc39.es/proposal-shadowrealm/#sec-wrappedfunctioncreate

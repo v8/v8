@@ -359,5 +359,77 @@ TEST_F(APIExceptionTest, HugeFunctionNameOverflow) {
   EXPECT_NE(nullptr, strstr(*printed_utf8, "<error>"));
 }
 
+void ThrowAndGetMessageCallback(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::HandleScope scope(isolate);
+  Local<Context> context = isolate->GetCurrentContext();
+  Local<Function> fn = info[0].As<Function>();
+  v8::TryCatch try_catch(isolate);
+  EXPECT_TRUE(fn->Call(context, v8::Undefined(isolate), 0, nullptr).IsEmpty());
+  EXPECT_TRUE(try_catch.HasCaught());
+  Local<String> msg = try_catch.Message()->Get();
+  EXPECT_TRUE(reinterpret_cast<i::Isolate*>(isolate)->has_exception());
+  info.GetReturnValue().Set(msg);
+}
+
+// Regression test for https://crbug.com/586579760: formatting error messages
+// while another exception is pending must not throw InvalidStringLengthError
+// (which would hit DCHECK(IsTerminationException(exception())) in
+// Isolate::Throw) or clear the caller's pending exception.
+TEST_F(APIExceptionTest, NestedTryCatchMessageOverflow) {
+  v8::HandleScope scope(isolate());
+  Local<Context> context = Context::New(isolate());
+  v8::Context::Scope context_scope(context);
+
+  Local<Function> helper =
+      v8::Function::New(context, ThrowAndGetMessageCallback).ToLocalChecked();
+  context->Global()
+      ->Set(context, NewString("throwAndGetMessage"), helper)
+      .FromJust();
+
+  // Build ConsStrings near String::kMaxLength without flattening 512MB.
+  std::string max_str_expr =
+      "'a'.repeat(" + std::to_string(v8::String::kMaxLength) + ")";
+  Local<String> max_str = RunJS(max_str_expr.c_str()).As<String>();
+  context->Global()->Set(context, NewString("maxStr"), max_str).FromJust();
+
+  // 1. MessageFormatter::TryFormat overflow ("Uncaught " + maxStr).
+  {
+    Local<String> msg =
+        RunJS("throwAndGetMessage(() => { throw maxStr; })").As<String>();
+    String::Utf8Value utf8(isolate(), msg);
+    EXPECT_STREQ("<error>", *utf8);
+  }
+
+  // 2. Object::NoSideEffectsToMaybeString with max-length constructor name.
+  {
+    Local<Function> ctor =
+        v8::Function::New(context, ThrowAndGetMessageCallback).ToLocalChecked();
+    ctor->SetName(max_str);
+    context->Global()->Set(context, NewString("hugeCtor"), ctor).FromJust();
+
+    Local<String> msg =
+        RunJS("throwAndGetMessage(() => { throw { constructor: hugeCtor }; })")
+            .As<String>();
+    String::Utf8Value utf8(isolate(), msg);
+    EXPECT_NE(nullptr, strstr(*utf8, "#<aaaa"));
+    EXPECT_NE(nullptr, strstr(*utf8, "<...>>"));
+  }
+
+  // 3. Object::NoSideEffectsToMaybeString with bound function whose
+  // JSBoundFunction::GetName ("bound " + maxStr) overflows String::kMaxLength.
+  {
+    Local<String> msg = RunJS(
+                            "const boundCtor = hugeCtor.bind();"
+                            "throwAndGetMessage(() => {"
+                            "  throw { constructor: boundCtor };"
+                            "})")
+                            .As<String>();
+    String::Utf8Value utf8(isolate(), msg);
+    EXPECT_STREQ("Uncaught [object Object]", *utf8);
+  }
+}
+
 }  // namespace
 }  // namespace v8
