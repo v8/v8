@@ -509,6 +509,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   template <typename ExpressionFunc>
   void BuildOptionalChain(ExpressionFunc expression_func);
+  template <typename ExpressionFunc, typename ElseFunc>
+  void BuildOptionalChain(ExpressionFunc expression_func, ElseFunc else_func);
 
   void BuildGetAndCheckSuperConstructor(Register this_function,
                                         Register new_target,

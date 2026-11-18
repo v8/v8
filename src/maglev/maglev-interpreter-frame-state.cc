@@ -38,6 +38,16 @@ void InterpreterFrameState::CopyFrom(const MaglevCompilationUnit& unit,
                                      bool preserve_known_node_aspects) {
   const MaglevCompilationInfo* info = unit.info();
   TRACE(TraceColor::kInfo << "Copying frame state from merge @" << &state);
+  // Eagerly clear dead registers and the accumulator before populating live
+  // values from the merge state. Skip dummy compilation units used by
+  // SubgraphBase, where labels only merge modified variables and dominating
+  // variables must remain intact in variable_frame_.
+  if (!unit.is_dummy()) {
+    for (int reg = 0; reg < unit.register_count(); ++reg) {
+      frame_[interpreter::Register(reg)] = nullptr;
+    }
+    frame_[interpreter::Register::virtual_accumulator()] = nullptr;
+  }
   state.frame_state().ForEachValue(
       unit, [&](ValueNode* value, interpreter::Register reg) {
         frame_[reg] = value;

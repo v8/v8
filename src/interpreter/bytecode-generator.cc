@@ -7143,12 +7143,18 @@ void BytecodeGenerator::VisitKeyedSuperPropertyLoad(Property* property,
 
 template <typename ExpressionFunc>
 void BytecodeGenerator::BuildOptionalChain(ExpressionFunc expression_func) {
+  BuildOptionalChain(expression_func, [this]() { builder()->LoadUndefined(); });
+}
+
+template <typename ExpressionFunc, typename ElseFunc>
+void BytecodeGenerator::BuildOptionalChain(ExpressionFunc expression_func,
+                                           ElseFunc else_func) {
   BytecodeLabel done;
   OptionalChainNullLabelScope label_scope(this);
   expression_func();
   builder()->Jump(&done);
   label_scope.labels()->Bind(builder());
-  builder()->LoadUndefined();
+  else_func();
   builder()->Bind(&done);
 }
 
@@ -7299,10 +7305,15 @@ void BytecodeGenerator::VisitCall(Call* expr) {
     case Call::PRIVATE_OPTIONAL_CHAIN_CALL: {
       OptionalChain* chain = callee_expr->AsOptionalChain();
       Property* property = chain->expression()->AsProperty();
-      BuildOptionalChain([&]() {
-        VisitAndPushIntoRegisterList(property->obj(), &args);
-        VisitPropertyLoad(args.last_register(), property);
-      });
+      BuildOptionalChain(
+          [&]() {
+            VisitAndPushIntoRegisterList(property->obj(), &args);
+            VisitPropertyLoad(args.last_register(), property);
+          },
+          [&]() {
+            builder()->LoadUndefined().StoreAccumulatorInRegister(
+                args.last_register());
+          });
       builder()->StoreAccumulatorInRegister(callee);
       break;
     }
