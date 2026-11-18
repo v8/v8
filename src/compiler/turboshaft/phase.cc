@@ -112,9 +112,9 @@ void PrintTurboshaftGraphForTurbolizer(std::ofstream& stream,
         const std::vector<std::pair<turboshaft::OpIndex, turboshaft::Type>>&
             refinements = graph.block_type_refinement()[index];
         if (refinements.empty()) return false;
-        stream << "\\n";
+        stream << "\n";
         for (const auto& [op, type] : refinements) {
-          stream << op << " : " << type << "\\n";
+          stream << op << " : " << type << "\n";
         }
         return true;
       });

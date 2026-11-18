@@ -463,7 +463,8 @@ class JSONMaglevGraphWriter {
           << "\\n";
     }
     os_ << "Func: "
-        << frame->GetSharedFunctionInfo().object()->DebugNameCStr().get()
+        << base::JSONEscaped(
+               frame->GetSharedFunctionInfo().object()->DebugNameCStr().get())
         << "\\n";
     os_ << "\"";
 
@@ -664,25 +665,14 @@ void JsonPrintBytecodeSource(std::ostream& os, int source_id,
                              Tagged<FeedbackVector> feedback_vector = {}) {
   os << "\"" << source_id << "\" : {";
   os << "\"sourceId\": " << source_id;
-  os << ", \"functionName\": \"" << function_name << "\"";
+  os << ", \"functionName\": \"" << base::JSONEscaped(function_name) << "\"";
   os << ", \"bytecodeSource\": ";
   bytecode_array->PrintJson(os);
   os << ", \"feedbackVector\": \"";
   if (!feedback_vector.is_null()) {
     std::stringstream stream;
     Print(feedback_vector, stream);
-    std::string s = stream.str();
-    for (char c : s) {
-      if (c == '\n') {
-        os << "\\n";
-      } else if (c == '"') {
-        os << "\\\"";
-      } else if (c == '\\') {
-        os << "\\\\";
-      } else {
-        os << c;
-      }
-    }
+    os << base::JSONEscaped(stream.str());
   }
   os << "\"}";
 }
@@ -725,7 +715,7 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
 
   os << "{ ";
   os << "\"sourceId\": " << source_id;
-  os << ", \"functionName\": \"" << function_name << "\" ";
+  os << ", \"functionName\": \"" << base::JSONEscaped(function_name) << "\" ";
 
   int start = 0;
   int end = 0;
@@ -803,10 +793,7 @@ void FinalizeMaglevLogging(Isolate* isolate, MaglevCompilationInfo* info,
   std::unique_ptr<char[]> debug_name =
       info->toplevel_function()->shared()->DebugNameCStr();
   code->Disassemble(debug_name.get(), disassembly_stream, isolate);
-  std::string disassembly_string(disassembly_stream.str());
-  for (const auto& c : disassembly_string) {
-    json_of << AsEscapedUC16ForJSON(c);
-  }
+  json_of << base::JSONEscaped(disassembly_stream.str());
 #endif
   json_of << "\"}\n],\n";  // Close phases array
 

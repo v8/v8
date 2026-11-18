@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "src/base/logging.h"
+#include "src/base/string-format.h"
 #include "src/base/synchronization-point-support.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/backend/register-allocator-verifier.h"
@@ -557,10 +558,7 @@ class V8_EXPORT_PRIVATE Pipeline {
 #ifdef ENABLE_DISASSEMBLER
       std::stringstream disassembly_stream;
       code->Disassemble(nullptr, disassembly_stream, data_->isolate());
-      std::string disassembly_string(disassembly_stream.str());
-      for (const auto& c : disassembly_string) {
-        json_of << AsEscapedUC16ForJSON(c);
-      }
+      json_of << base::JSONEscaped(disassembly_stream.str());
 #endif  // ENABLE_DISASSEMBLER
       json_of << "\"}\n],\n";
       json_of << "\"nodePositions\":";

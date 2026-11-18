@@ -117,6 +117,9 @@
   'regress/regress-crbug-491062': [PASS, NO_VARIANTS],
   'third_party/regexp-pcre/regexp-pcre': [PASS, NO_VARIANTS],
   'tools/compiler-trace-flags': [PASS, NO_VARIANTS],
+  'tools/compiler-trace-json-escaping': [PASS, NO_VARIANTS],
+  'tools/compiler-trace-json-escaping-maglev': [PASS, NO_VARIANTS],
+  'tools/compiler-trace-json-escaping-wasm': [PASS, NO_VARIANTS],
   'tools/dumpcpp': [PASS, SLOW, NO_VARIANTS, ['mode != release or system not in (linux, macos) or simulator_run or asan', SKIP]],
   'tools/tickprocessor': [PASS, SLOW, NO_VARIANTS, ['mode != release or system not in (linux, macos) or simulator_run or asan', SKIP]],
    # Also skip example file which is not a test.
@@ -848,6 +851,7 @@
 
   # Tests tracing when generating wasm in TurboFan.
   'tools/compiler-trace-flags-wasm': [SKIP],
+  'tools/compiler-trace-json-escaping-wasm': [SKIP],
 
   'compiler/fast-api-calls-wasm': [SKIP],
   'compiler/fast-api-calls-exception': [SKIP],
@@ -1421,6 +1425,8 @@
 
   # These tests check that we can trace the compiler.
   'tools/compiler-trace-flags': [SKIP],
+  'tools/compiler-trace-json-escaping': [SKIP],
+  'tools/compiler-trace-json-escaping-maglev': [SKIP],
 
   # Too slow on arm64 simulator and debug: https://crbug.com/v8/7783
   'md5': [PASS, ['arch == arm64 and mode == debug and simulator_run', SKIP]],
@@ -1892,6 +1898,7 @@
 
   # MIPS64 port doesn't support maglev yet.
   'turbolev/*': [SKIP],
+  'tools/compiler-trace-json-escaping-maglev': [SKIP],
 }],  # 'arch == mips64el or arch == mips64'
 
 ##############################################################################

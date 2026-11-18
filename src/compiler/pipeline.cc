@@ -12,6 +12,7 @@
 #include <sstream>
 
 #include "src/base/macros.h"
+#include "src/base/string-format.h"
 #include "src/base/synchronization-point-support.h"
 #include "src/base/unique-array.h"
 #include "src/builtins/builtins.h"
@@ -445,7 +446,8 @@ TurbofanPipelineStatistics* CreatePipelineStatistics(
   if (info->trace_turbo_json()) {
     TurboJsonFile json_of(info, std::ios_base::trunc);
     std::unique_ptr<char[]> function_name = info->GetDebugName();
-    json_of << "{\"function\":\"" << function_name.get() << "\", \"source\":\"";
+    json_of << "{\"function\":\"" << base::JSONEscaped(function_name.get())
+            << "\", \"source\":\"";
     std::ostringstream disassembly;
     std::vector<uint32_t> source_positions;
     base::Vector<const uint8_t> function_bytes{compilation_data.func_body.start,
@@ -458,9 +460,7 @@ TurbofanPipelineStatistics* CreatePipelineStatistics(
     wasm::DisassembleFunction(
         wasm_module, compilation_data.func_index, function_bytes, module_bytes,
         compilation_data.func_body.offset, disassembly, &source_positions);
-    for (const auto& c : disassembly.str()) {
-      json_of << AsEscapedUC16ForJSON(c);
-    }
+    json_of << base::JSONEscaped(disassembly);
     json_of << "\",\n\"sourceLineToBytecodePosition\" : [";
     bool insert_comma = false;
     for (auto val : source_positions) {
@@ -583,10 +583,7 @@ void TraceSchedule(OptimizedCompilationInfo* info, TFPipelineData* data,
             << ",\"data\":\"";
     std::stringstream schedule_stream;
     schedule_stream << *schedule;
-    std::string schedule_string(schedule_stream.str());
-    for (const auto& c : schedule_string) {
-      json_of << AsEscapedUC16ForJSON(c);
-    }
+    json_of << base::JSONEscaped(schedule_stream.str());
     json_of << "\"},\n";
   }
 
@@ -1648,7 +1645,8 @@ void TraceWrapperCompilation(const char* compiler,
 
   if (info->trace_turbo_json()) {
     TurboJsonFile json_of(info, std::ios_base::trunc);
-    json_of << "{\"function\":\"" << info->GetDebugName().get()
+    json_of << "{\"function\":\""
+            << base::JSONEscaped(info->GetDebugName().get())
             << "\", \"source\":\"\",\n\"phases\":[";
   }
 }
@@ -1665,7 +1663,8 @@ void TraceWrapperCompilation(OptimizedCompilationInfo* info,
 
   if (info->trace_turbo_json()) {
     TurboJsonFile json_of(info, std::ios_base::trunc);
-    json_of << "{\"function\":\"" << info->GetDebugName().get()
+    json_of << "{\"function\":\""
+            << base::JSONEscaped(info->GetDebugName().get())
             << "\", \"source\":\"\",\n\"phases\":[";
   }
 }
@@ -2734,9 +2733,7 @@ void TraceFinishWrapperCompilation(OptimizedCompilationInfo& info,
         nullptr, disassembler_stream, result.code_desc.buffer,
         result.code_desc.buffer + result.code_desc.safepoint_table_offset,
         CodeReference(&result.code_desc));
-    for (auto const c : disassembler_stream.str()) {
-      json_of << AsEscapedUC16ForJSON(c);
-    }
+    json_of << base::JSONEscaped(disassembler_stream.str());
 #endif  // ENABLE_DISASSEMBLER
     json_of << "\"}\n]";
     json_of << "\n}";
@@ -3132,9 +3129,7 @@ wasm::WasmCompilationResult Pipeline::GenerateWasmCode(
         nullptr, disassembler_stream, result.code_desc.buffer,
         result.code_desc.buffer + result.code_desc.safepoint_table_offset,
         CodeReference(&result.code_desc));
-    for (auto const c : disassembler_stream.str()) {
-      json_of << AsEscapedUC16ForJSON(c);
-    }
+    json_of << base::JSONEscaped(disassembler_stream.str());
 #endif  // ENABLE_DISASSEMBLER
     json_of << "\"}\n],\n";
     JsonPrintAllSourceWithPositionsWasm(json_of, module,
@@ -3294,7 +3289,8 @@ auto GenerateCodeForTestingHelper(OptimizedCompilationInfo* info,
 
   if (info->trace_turbo_json()) {
     TurboJsonFile json_of(info, std::ios_base::trunc);
-    json_of << "{\"function\":\"" << info->GetDebugName().get()
+    json_of << "{\"function\":\""
+            << base::JSONEscaped(info->GetDebugName().get())
             << "\", \"source\":\"\",\n\"phases\":[";
   }
   // TODO(rossberg): Should this really be untyped?
@@ -3398,7 +3394,8 @@ MaybeHandle<Code> Pipeline::GenerateTurboshaftCodeForTesting(
   if (info->trace_turbo_json()) {
     {
       TurboJsonFile json_of(info, std::ios_base::trunc);
-      json_of << "{\"function\":\"" << info->GetDebugName().get()
+      json_of << "{\"function\":\""
+              << base::JSONEscaped(info->GetDebugName().get())
               << "\", \"source\":\"\",\n\"phases\":[";
     }
     {
