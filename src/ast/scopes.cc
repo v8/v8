@@ -314,9 +314,6 @@ DeclarationScope::DeclarationScope(Zone* zone, ScopeType scope_type,
   if (is_function_scope() && !scope_info->HasSimpleParameters()) {
     SetHasNonSimpleParameters();
   }
-  if (V8_UNLIKELY(private_name_lookup_skips_outer_class())) {
-    RecordNeedsPrivateNameContextChainRecalc();
-  }
 }
 
 Scope::Scope(Zone* zone, const AstRawString* catch_variable_name,
