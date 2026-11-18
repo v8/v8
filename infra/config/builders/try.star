@@ -304,6 +304,7 @@ try_builder(
     executable = "recipe:v8/verify_flakes",
     execution_timeout = 16200,
     schedule = "with 3h interval",
+    priority = 50,
 )
 
 try_builder(
