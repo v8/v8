@@ -1091,7 +1091,7 @@ void Sweeper::ZeroOrDiscardUnusedMemory(NormalPage* page, Address addr,
 
   std::optional<RwxMemoryWriteScope> scope;
   if (page->is_executable()) {
-    scope.emplace("For zeroing unused memory.");
+    scope.emplace("For discarding and zeroing unused memory.");
   }
   const std::optional<base::AddressRegion> discard_area =
       ComputeDiscardMemoryArea(unused_start, unused_end);
@@ -1107,14 +1107,10 @@ void Sweeper::ZeroOrDiscardUnusedMemory(NormalPage* page, Address addr,
 #endif  // !defined(V8_OS_WIN)
 
   if (kDiscardEmptyPages && discard_area) {
-    {
-      v8::PageAllocator* page_allocator =
-          heap_->memory_allocator()->page_allocator(page->owner_identity());
-      DiscardSealedMemoryScope discard_scope("Discard unused memory");
-      CHECK(page_allocator->DiscardSystemPages(
-          reinterpret_cast<void*>(discard_area->begin()),
-          discard_area->size()));
-    }
+    v8::PageAllocator* page_allocator =
+        heap_->memory_allocator()->page_allocator(page->owner_identity());
+    CHECK(page_allocator->DiscardSystemPages(
+        reinterpret_cast<void*>(discard_area->begin()), discard_area->size()));
 
     if (v8_flags.zero_unused_memory) {
       // Now zero unused memory right before and after the discarded OS pages to

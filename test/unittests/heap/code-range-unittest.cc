@@ -111,4 +111,23 @@ TEST_F(RedZoneTest, SplitAll) {
   }
 }
 
+using CodeRangeTest = TestWithIsolate;
+
+TEST_F(CodeRangeTest, ImmutableCodeRangeRemapAndFree) {
+  if (!i_isolate()->RequiresCodeRange()) return;
+
+  CodeRange code_range;
+  ASSERT_TRUE(code_range.InitReservation(GetPlatformPageAllocator(),
+                                         kMinimumCodeRangeSize,
+                                         /*immutable=*/true));
+  ASSERT_NE(nullptr, i_isolate()->embedded_blob_code());
+  uint8_t* copy = code_range.RemapEmbeddedBuiltins(
+      i_isolate(), i_isolate()->embedded_blob_code(),
+      i_isolate()->embedded_blob_code_size());
+  ASSERT_NE(nullptr, copy);
+  EXPECT_EQ(0, memcmp(copy, i_isolate()->embedded_blob_code(),
+                      i_isolate()->embedded_blob_code_size()));
+  code_range.Free();
+}
+
 }  // namespace v8::internal
