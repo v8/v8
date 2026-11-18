@@ -1051,11 +1051,45 @@ bool BytecodeAnalysis::BytecodeAnalysisImpl::LivenessIsValid() {
   }
 
   // Ensure that the accumulator is not live when jumping out of a loop, or on
-  // the back-edge of a loop.
+  // the back-edge of a loop, and that registers never transition from dead to
+  // live across an exception edge.
+  HandlerTable table(*bytecode_array_);
   for (iterator.GoToStart(); iterator.IsValid() && invalid_offset == -1;
        ++iterator) {
     Bytecode bytecode = iterator.current_bytecode();
     int current_offset = iterator.current_offset();
+
+    if (!interpreter::Bytecodes::IsWithoutExternalSideEffects(bytecode) &&
+        bytecode != Bytecode::kSuspendGenerator &&
+        bytecode != Bytecode::kResumeGenerator) {
+      int handler_index = table.LookupHandlerIndexForRange(current_offset);
+      if (handler_index != HandlerTable::kNoHandlerFound) {
+        uint32_t index = static_cast<uint32_t>(handler_index);
+        const BytecodeLivenessState* in_liveness =
+            liveness_map().GetInLiveness(current_offset);
+        const BytecodeLivenessState* handler_liveness =
+            liveness_map().GetInLiveness(table.GetRangeHandler(index));
+        int context_reg = table.GetRangeData(index);
+        bool valid_handler_liveness = in_liveness->RegisterIsLive(context_reg);
+        for (int reg : *handler_liveness) {
+          if (!in_liveness->RegisterIsLive(reg)) {
+            valid_handler_liveness = false;
+            break;
+          }
+        }
+        if (!valid_handler_liveness) {
+          invalid_liveness.CopyFrom(*in_liveness);
+          bool acc_live = invalid_liveness.AccumulatorIsLive();
+          invalid_liveness.Union(*handler_liveness);
+          invalid_liveness.MarkRegisterLive(context_reg);
+          if (!acc_live) invalid_liveness.MarkAccumulatorDead();
+          invalid_offset = current_offset;
+          which_invalid = 0;
+          break;
+        }
+      }
+    }
+
     int loop_header = res_.GetLoopOffsetFor(current_offset);
 
     // We only care if we're inside a loop.

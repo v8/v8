@@ -15739,9 +15739,16 @@ ReduceResult MaglevGraphBuilder::VisitSwitchOnGeneratorState() {
       generator, new_state, offsetof(JSGeneratorObject, continuation_),
       StoreTaggedMode::kDefault));
 
-  // Guarantee that we have something in the accumulator.
-  MoveNodeBetweenRegisters(iterator_.GetRegisterOperand(0),
-                           interpreter::Register::virtual_accumulator());
+  // Guarantee that we have something in the accumulator and registers for the
+  // resume targets (which will overwrite live registers and the accumulator in
+  // VisitResumeGenerator).
+  ValueNode* optimized_out = GetRootConstant(RootIndex::kOptimizedOut);
+  current_interpreter_frame_.set_accumulator(optimized_out);
+  for (int i = 0; i < register_count(); i++) {
+    if (i != iterator_.GetRegisterOperand(0).index()) {
+      current_interpreter_frame_.set(interpreter::Register(i), optimized_out);
+    }
+  }
 
   // Switch on generator state.
   int case_value_base = (*offsets.begin()).case_value;

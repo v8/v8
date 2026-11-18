@@ -49,6 +49,7 @@ class InterpreterFrameState {
     frame_[interpreter::Register::virtual_accumulator()] = value->Unwrap();
   }
   ValueNode* accumulator() const {
+    DCHECK_NOT_NULL(frame_[interpreter::Register::virtual_accumulator()]);
     DCHECK(
         !frame_[interpreter::Register::virtual_accumulator()]->is_conversion());
     return frame_[interpreter::Register::virtual_accumulator()];
@@ -69,6 +70,7 @@ class InterpreterFrameState {
                        reg == interpreter::Register::function_closure() ||
                        reg == interpreter::Register::virtual_accumulator() ||
                        reg.ToParameterIndex() >= 0);
+    DCHECK_NOT_NULL(frame_[reg]);
     DCHECK(!frame_[reg]->is_conversion());
     return frame_[reg];
   }
