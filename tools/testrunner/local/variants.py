@@ -405,6 +405,11 @@ INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG = {
         "--predictable", "--assert-types", "--turboshaft-assert-types",
         "--single-threaded"
     ],
+    # Conflicts when extra-flags (e.g. --gc-stress) and a test specify
+    # different values.
+    "--concurrent-recompilation-delay=*": [
+        "--concurrent-recompilation-delay=*"
+    ],
     "--parallel-compile-tasks-for-eager-toplevel": ["--predictable"],
     "--parallel-compile-tasks-for-lazy": ["--predictable"],
     "--gc-interval=*": ["--gc-interval=*"],

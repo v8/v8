@@ -3735,6 +3735,13 @@ void Shell::ResetIsolateStateForReprl(Isolate* isolate) {
 #ifdef V8_ENABLE_SPARKPLUG
   i_isolate->baseline_batch_compiler()->FlushForTesting();
 #endif  // V8_ENABLE_SPARKPLUG
+
+  // Discard leftover concurrent TurboFan/Maglev jobs (e.g. started while
+  // reporting unhandled rejections, or left unfinalized).
+  i_isolate->AbortConcurrentOptimization(i::BlockingBehavior::kBlock);
+  // Clear code-install interrupts set by the discarded jobs.
+  i_isolate->stack_guard()->ClearInstallCode();
+  i_isolate->stack_guard()->ClearInstallMaglevCode();
 }
 
 void Shell::ProfilerTriggerSample(
@@ -7110,6 +7117,8 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       // TODO(v8:3351): Invoking weak callbacks does not always collect all
       // available garbage.
       options.send_idle_notification = true;
+    } else if (FlagMatches("--no-invoke-weak-callbacks", &argv[i])) {
+      options.invoke_weak_callbacks = false;
     } else if (FlagMatches("--omit-quit", &argv[i])) {
       options.omit_quit = true;
     } else if (FlagMatches("--no-wait-for-background-tasks", &argv[i])) {
