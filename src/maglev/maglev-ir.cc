@@ -269,6 +269,12 @@ ValueNode* ValueNode::UnwrapIdentitiesAndPhis() {
       this, [](ValueNode* node) { return node->UnwrapIdentities(); });
 }
 
+ValueNode* ValueNode::UnwrapIdentitiesReturnedValuesAndPhisSlow() {
+  return UnwrapSinglePhis(this, [](ValueNode* node) {
+    return node->UnwrapIdentitiesAndReturnedValues();
+  });
+}
+
 ValueNode* ValueNode::UnwrapForDeopt() {
   return UnwrapSinglePhis(this, [](ValueNode* node) { return node->Unwrap(); });
 }

@@ -2830,6 +2830,7 @@ class ValueNode : public Node {
   // those with their input.
   // TODO(dmercadier): Remove this if https://crrev.com/c/7117478 ever lands.
   ValueNode* UnwrapIdentitiesAndPhis();
+  ValueNode* UnwrapIdentitiesReturnedValuesAndPhis();
 
   // Unwrap identities and conversions.
   ValueNode* Unwrap();
@@ -2853,6 +2854,9 @@ class ValueNode : public Node {
  protected:
   explicit ValueNode(uint64_t bitfield) : Node(bitfield), use_count_(0) {}
   int use_count_;
+
+ private:
+  V8_EXPORT_PRIVATE ValueNode* UnwrapIdentitiesReturnedValuesAndPhisSlow();
 };
 
 inline void NodeBase::initialize_input_null(int index) {
@@ -2918,6 +2922,14 @@ inline ValueNode* ValueNode::UnwrapIdentitiesAndReturnedValues() {
   ValueNode* node = this;
   while (node->Is<Identity>() || node->Is<ReturnedValue>()) {
     node = node->input(0).node();
+  }
+  return node;
+}
+
+inline ValueNode* ValueNode::UnwrapIdentitiesReturnedValuesAndPhis() {
+  ValueNode* node = UnwrapIdentitiesAndReturnedValues();
+  if (V8_UNLIKELY(node->Is<Phi>() && node->input_count() == 1)) {
+    return node->UnwrapIdentitiesReturnedValuesAndPhisSlow();
   }
   return node;
 }

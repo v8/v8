@@ -3792,7 +3792,6 @@ ReduceResult MaglevGraphBuilder::BuildCompareMaps(
     base::Vector<const compiler::MapRef> maps, MaglevSubGraphBuilder* sub_graph,
     std::optional<MaglevSubGraphBuilder::Label>& if_not_matched,
     std::optional<int> future_bind_offset) {
-  GetOrCreateInfoFor(object);
   KnownMapsMerger<base::Vector<const compiler::MapRef>> merger(broker(), zone(),
                                                                maps);
   merger.IntersectWithKnownNodeAspects(object, known_node_aspects());
@@ -5873,7 +5872,6 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
         needs_migration = true;
       }
       if (map.IsHeapNumberMap()) {
-        GetOrCreateInfoFor(lookup_start_object);
         base::SmallVector<compiler::MapRef, 1> known_maps = {map};
         KnownMapsMerger<base::SmallVector<compiler::MapRef, 1>> merger(
             broker(), zone(), known_maps);

@@ -1083,14 +1083,23 @@ class KnownNodeAspects {
   // TODO(496266449): Simply use `Unwrap` once `kTagged` is split into
   // `kTaggedSigned` and `kTaggedPointer` representations.
   static ValueNode* GetCanonical(ValueNode* node) {
-    node = node->UnwrapIdentitiesAndReturnedValues();
-    if (node->is_tagged()) return node;
-    while (node->is_conversion()) {
-      ValueNode* input =
-          node->input_node(0)->UnwrapIdentitiesAndReturnedValues();
-      if (input->is_tagged()) break;
-      node = input;
+    node = node->UnwrapIdentitiesReturnedValuesAndPhis();
+    if (!node->is_tagged()) {
+      while (node->is_conversion()) {
+        ValueNode* input =
+            node->input_node(0)->UnwrapIdentitiesReturnedValuesAndPhis();
+        if (input->is_tagged()) break;
+        node = input;
+      }
     }
+    DCHECK(!node->Is<Identity>() && !node->Is<ReturnedValue>());
+    // Only tagging and untagging conversions can be canonical; untagged-to-
+    // untagged conversions are always unwrapped above.
+    DCHECK_IMPLIES(
+        node->is_conversion(),
+        node->is_tagged() != node->input_node(0)
+                                 ->UnwrapIdentitiesReturnedValuesAndPhis()
+                                 ->is_tagged());
     return node;
   }
 

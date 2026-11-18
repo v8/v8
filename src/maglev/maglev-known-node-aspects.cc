@@ -460,16 +460,18 @@ void KnownNodeAspects::UnwrapIdentitiesAndPhisInKeys() {
     return node == nullptr ? nullptr : node->UnwrapIdentitiesAndPhis();
   };
 
-  // node_infos_ is keyed by value node.
+  // node_infos_ is keyed by canonical value node. When two keys normalize to
+  // the same canonical node (e.g. a single-input phi and its input, or a
+  // conversion rewritten in-place to an untagged conversion), both entries
+  // describe the same value, so combine their facts.
   // TODO(victorgomes): MergeForLoop no longer reads backedge node_infos_.
   // Remove this in a follow-up along with an invariant check (e.g. drop
   // node_infos_ and available_expressions_ from the saved backedge KNA and
   // DCHECK it in MergeForLoop).
-  node_infos_.RemapKeys(unwrap, [](NodeInfo& dst, const NodeInfo& src) {
-    // A phi and its single input normalize to the same node; both entries
-    // then describe the same value, so combine their facts.
-    dst.CombineSameValueFrom(src);
-  });
+  node_infos_.RemapKeys(&KnownNodeAspects::GetCanonical,
+                        [](NodeInfo& dst, const NodeInfo& src) {
+                          dst.CombineSameValueFrom(src);
+                        });
 
   // Values are left as-is (the merge already unwraps identities on value
   // comparison, and available_expressions_ is not remapped at all).

@@ -147,7 +147,7 @@ class V8_EXPORT_PRIVATE MaglevGraphOptimizer {
   void UnwrapInputs();
 
   template <typename NodeT>
-  ValueNode* TrySmiTag(Input input);
+  std::optional<ProcessResult> TrySmiTag(ValueNode* input);
 
   ValueNode* GetConstantWithRepresentation(
       ValueNode* node, UseRepresentation repr,
@@ -164,16 +164,6 @@ class V8_EXPORT_PRIVATE MaglevGraphOptimizer {
   bool CanReuseAlternative(ValueNode* node, ValueNode* alt,
                            UseRepresentation repr,
                            std::optional<NodeType> assumed_input_type);
-
-  // Records the untagged input of a tagging conversion as the matching
-  // untagged alternative of `tagged`, so a later untagging use can reuse it.
-  template <ValueRepresentation kRepresentation>
-  void RegisterUntaggedAlternative(ValueNode* tagged);
-
-  // Records a Smi-canonicalizing tagging conversion `tagged` as the tagged
-  // alternative of its input, so a later tagging use can reuse it.
-  template <typename NodeT>
-  void RegisterTaggedAlternative(NodeT* tagged);
 
   void PreProcessNode(Node*, const ProcessingState& state);
   void PostProcessNode(Node*);

@@ -127,20 +127,24 @@ ProcessResult RecomputeKnownNodeAspectsProcessor::ProcessNode(
 
 ProcessResult RecomputeKnownNodeAspectsProcessor::ProcessNode(
     UnsafeNumberOrOddballToFloat64* node) {
-  NodeInfo* info = GetOrCreateInfoFor(node->input_node(0));
-  if (!info->alternative().float64() &&
-      NodeTypeIs(info->type(), NodeType::kNumber)) {
-    info->alternative().set_float64(node);
+  ValueNode* input = node->input_node(0);
+  if (known_node_aspects().CheckType(broker(), input, NodeType::kNumber)) {
+    NodeInfo* info = GetOrCreateInfoFor(input);
+    if (!info->alternative().float64()) {
+      info->alternative().set_float64(node);
+    }
   }
   return ProcessResult::kContinue;
 }
 
 ProcessResult RecomputeKnownNodeAspectsProcessor::ProcessNode(
     UnsafeHoleyFloat64ToFloat64* node) {
-  NodeInfo* info = GetOrCreateInfoFor(node->input_node(0));
-  if (!info->alternative().float64() &&
-      NodeTypeIs(info->type(), NodeType::kNumber)) {
-    info->alternative().set_float64(node);
+  ValueNode* input = node->input_node(0);
+  if (known_node_aspects().CheckType(broker(), input, NodeType::kNumber)) {
+    NodeInfo* info = GetOrCreateInfoFor(input);
+    if (!info->alternative().float64()) {
+      info->alternative().set_float64(node);
+    }
   }
   return ProcessResult::kContinue;
 }

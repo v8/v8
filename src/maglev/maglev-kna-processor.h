@@ -359,22 +359,23 @@ class RecomputeKnownNodeAspectsProcessor {
     return RecordType(node->input_node(0), NodeType::kNumber);
   }
 
-#define SAFE_CONVERSION_LIST(V)                                            \
-  V(CheckedSmiUntag, int32, Smi)                                           \
-  V(CheckedSmiTagInt32, tagged, Smi)                                       \
-  V(CheckedSmiTagUint32, tagged, Smi)                                      \
-  V(CheckedSmiTagIntPtr, tagged, Smi)                                      \
-  V(CheckedSmiTagFloat64, tagged, Smi)                                     \
-  V(TruncateCheckedNumberOrOddballToInt32, truncated_int32_to_number,      \
-    NumberOrOddball)                                                       \
-  V(CheckedUint32ToInt32, int32, Number)                                   \
-  V(CheckedIntPtrToInt32, int32, Number)                                   \
-  V(CheckedFloat64ToInt32, int32, Number)                                  \
-  V(CheckedHoleyFloat64ToInt32, int32, Number)                             \
-  V(CheckedNumberToInt32, int32, Number)                                   \
-  V(CheckedNumberToFloat64, float64, Number)                               \
-  V(CheckedHoleyFloat64ToFloat64, float64, Number)                         \
-  V(ChangeInt32ToFloat64, float64, Number)                                 \
+#define SAFE_CONVERSION_LIST(V)                                       \
+  V(CheckedSmiUntag, int32, Smi)                                      \
+  V(CheckedSmiTagInt32, tagged, Smi)                                  \
+  V(CheckedSmiTagUint32, tagged, Smi)                                 \
+  V(CheckedSmiTagIntPtr, tagged, Smi)                                 \
+  V(CheckedSmiTagFloat64, tagged, Smi)                                \
+  V(CheckedSmiTagHoleyFloat64, tagged, Smi)                           \
+  V(TruncateCheckedNumberOrOddballToInt32, truncated_int32_to_number, \
+    NumberOrOddball)                                                  \
+  V(CheckedUint32ToInt32, int32, Number)                              \
+  V(CheckedIntPtrToInt32, int32, Number)                              \
+  V(CheckedFloat64ToInt32, int32, Number)                             \
+  V(CheckedHoleyFloat64ToInt32, int32, Number)                        \
+  V(CheckedNumberToInt32, int32, Number)                              \
+  V(CheckedNumberToFloat64, float64, Number)                          \
+  V(CheckedHoleyFloat64ToFloat64, float64, Number)                    \
+  V(ChangeInt32ToFloat64, float64, Number)                            \
   V(ChangeInt32ToHoleyFloat64, holey_float64, Number)
 
 #define DECLARE_ProcessNode(Node, Alt, Type) \
@@ -420,6 +421,40 @@ class RecomputeKnownNodeAspectsProcessor {
   // handlers if and only if KNA has statically proven the input is strictly
   // NodeType::kNumber without oddballs.
 #undef PROCESS_UNSAFE_CONV
+
+  // Records a Smi-canonicalizing tagging conversion `tagged` as the tagged
+  // alternative of its input, so a later tagging use can reuse it.
+  template <typename NodeT>
+  void RegisterTaggedAlternative(NodeT* tagged) {
+    if constexpr (requires { tagged->conversion_mode(); }) {
+      // GetTaggedValue only creates Smi-canonicalizing taggings, so a
+      // kForceHeapNumber tagging must not become the tagged alternative.
+      // TODO(b/496266449): This might need revisiting if we encode Sminess in
+      // the representation rather than in the type.
+      if (tagged->conversion_mode() == NumberConversionMode::kForceHeapNumber) {
+        return;
+      }
+    }
+    // Like in GetTaggedValue, an existing tagged alternative is kept, even if
+    // the input later gets a Smi type and an UnsafeSmiTag would be possible.
+    NodeInfo* info = GetOrCreateInfoFor(tagged->input_node(0));
+    if (!info->alternative().tagged()) {
+      info->alternative().set_tagged(tagged);
+    }
+  }
+
+#define PROCESS_TAGGING_CONV(Node)        \
+  ProcessResult ProcessNode(Node* node) { \
+    RegisterTaggedAlternative(node);      \
+    return ProcessResult::kContinue;      \
+  }
+  PROCESS_TAGGING_CONV(Int32ToNumber)
+  PROCESS_TAGGING_CONV(Uint32ToNumber)
+  PROCESS_TAGGING_CONV(IntPtrToNumber)
+  PROCESS_TAGGING_CONV(Float64ToTagged)
+  PROCESS_TAGGING_CONV(HoleyFloat64ToTagged)
+  PROCESS_TAGGING_CONV(ReturnedValue)
+#undef PROCESS_TAGGING_CONV
 
   ProcessResult ProcessNode(CheckMaps* node) {
     // Re-establish map knowledge implied by an emitted check, so that later

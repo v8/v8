@@ -2543,6 +2543,8 @@ ReduceResult MaglevReducer<BaseT>::BuildTestUndetectable(ValueNode* value) {
 template <typename BaseT>
 template <bool flip>
 MaybeReduceResult MaglevReducer<BaseT>::TryFoldToBoolean(ValueNode* value) {
+  value = value->Unwrap();
+
   if (IsConstantNode(value->opcode())) {
     std::optional<bool> cst = FromConstantToBool(local_isolate(), value);
     if (!cst.has_value()) {
@@ -5947,8 +5949,6 @@ ReduceResult MaglevReducer<BaseT>::GetSmiValue(
     value->MaybeRecordUseReprHint(UseRepresentation::kTagged);
   }
 
-  NodeInfo* node_info = GetOrCreateInfoFor(value);
-
   if (!NodeTypeCanBe(GetType(value), NodeType::kSmi)) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kNotASmi);
   }
@@ -5959,6 +5959,7 @@ ReduceResult MaglevReducer<BaseT>::GetSmiValue(
     return BuildCheckSmi(value);
   }
 
+  NodeInfo* node_info = GetOrCreateInfoFor(value);
   auto& alternative = node_info->alternative();
 
   if (ValueNode* alt = alternative.tagged()) {
