@@ -150,6 +150,8 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(WasmAllocateArray)                    \
   V(WasmAllocateStruct)                   \
   V(WasmRefFunc)                          \
+  V(WasmRefI31)                           \
+  V(WasmI31Get)                           \
   V(StringAsWtf16)                        \
   V(StringPrepareForGetCodeUnit)          \
   V(ProcessWasmArgument)
@@ -8680,6 +8682,56 @@ struct WasmRefFuncOp : FixedArityOperationT<1, WasmRefFuncOp> {
   }
 
   auto options() const { return std::tuple{function_index}; }
+};
+
+struct WasmRefI31Op : FixedArityOperationT<1, WasmRefI31Op> {
+  SharedFlag is_shared;
+
+  static constexpr OpEffects effects = OpEffects();
+
+  explicit WasmRefI31Op(V<Word32> input, SharedFlag is_shared)
+      : Base(input), is_shared(is_shared) {}
+
+  V<Word32> input() const { return Base::input<Word32>(0); }
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::Word32()>();
+  }
+
+  auto options() const { return std::tuple{is_shared}; }
+};
+
+// Extracts the signed or unsigned 31-bit integer from a non-null i31ref (Smi).
+// Any Wasm null check must be emitted beforehand (e.g. via AssertNotNullOp).
+struct WasmI31GetOp : FixedArityOperationT<1, WasmI31GetOp> {
+  bool is_signed;
+
+  static constexpr OpEffects effects = OpEffects();
+
+  explicit WasmI31GetOp(V<Smi> input, bool is_signed)
+      : Base(input), is_signed(is_signed) {}
+
+  void PrintOptions(std::ostream& os) const {
+    os << "[" << (is_signed ? "signed" : "unsigned") << "]";
+  }
+
+  V<Smi> input() const { return Base::input<Smi>(0); }
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Word32()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
+  }
+
+  auto options() const { return std::tuple{is_signed}; }
 };
 
 // Casts a JavaScript string to a flattened wtf16 string.

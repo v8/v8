@@ -632,6 +632,48 @@ class WasmLoweringReducer : public Next {
     return result_value;
   }
 
+  V<Smi> REDUCE(WasmRefI31)(V<Word32> input, SharedFlag /*is_shared*/) {
+    V<WordPtr> wordptr;
+    if constexpr (SmiValuesAre31Bits()) {
+      V<Word32> shifted =
+          __ Word32ShiftLeft(input, kSmiTagSize + kSmiShiftSize);
+      wordptr = __ ChangeUint32ToUintPtr(shifted);
+    } else {
+      // Set the topmost bit to sign-extend the second bit. This way,
+      // interpretation in JS (if this value escapes there) will be the same as
+      // i31.get_s.
+      V<WordPtr> input_wordptr = __ ChangeUint32ToUintPtr(input);
+      V<WordPtr> shifted =
+          __ WordPtrShiftLeft(input_wordptr, kSmiShiftSize + kSmiTagSize + 1);
+      wordptr = __ WordPtrShiftRightArithmetic(shifted, 1);
+    }
+    return __ BitcastWordPtrToSmi(wordptr);
+  }
+
+  V<Word32> REDUCE(WasmI31Get)(V<Smi> input, bool is_signed) {
+    V<WordPtr> untagged = __ BitcastSmiToWordPtr(input);
+    if constexpr (SmiValuesAre31Bits()) {
+      V<Word32> truncated = __ TruncateWordPtrToWord32(untagged);
+      if (is_signed) {
+        return __ Word32ShiftRightArithmeticShiftOutZeros(
+            truncated, kSmiTagSize + kSmiShiftSize);
+      }
+      return __ Word32ShiftRightLogical(truncated, kSmiTagSize + kSmiShiftSize);
+    } else {
+      if (is_signed) {
+        // Topmost bit is already sign-extended.
+        V<WordPtr> shifted = __ WordPtrShiftRightArithmeticShiftOutZeros(
+            untagged, kSmiTagSize + kSmiShiftSize);
+        return __ TruncateWordPtrToWord32(shifted);
+      }
+      // Topmost bit is sign-extended, remove it.
+      V<WordPtr> cleared = __ WordPtrShiftLeft(untagged, 1);
+      V<WordPtr> shifted =
+          __ WordPtrShiftRightLogical(cleared, kSmiTagSize + kSmiShiftSize + 1);
+      return __ TruncateWordPtrToWord32(shifted);
+    }
+  }
+
   V<String> REDUCE(StringAsWtf16)(V<String> string) {
     Label<String> done(&Asm());
     V<Word32> instance_type = __ LoadInstanceTypeField(__ LoadMapField(string));

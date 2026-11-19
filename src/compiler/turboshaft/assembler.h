@@ -5464,6 +5464,14 @@ class AssemblerOpInterface : public Next {
     return ReduceIfReachableWasmRefFunc(wasm_instance, function_index);
   }
 
+  V<Smi> WasmRefI31(ConstOrV<Word32> input, SharedFlag is_shared) {
+    return ReduceIfReachableWasmRefI31(resolve(input), is_shared);
+  }
+
+  V<Word32> WasmI31Get(V<Smi> input, bool is_signed) {
+    return ReduceIfReachableWasmI31Get(input, is_signed);
+  }
+
   V<String> StringAsWtf16(V<String> string) {
     return ReduceIfReachableStringAsWtf16(string);
   }

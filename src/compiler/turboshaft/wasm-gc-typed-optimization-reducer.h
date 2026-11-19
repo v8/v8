@@ -93,6 +93,7 @@ class WasmGCTypeAnalyzer {
   void ProcessArrayAtomicRMW(const ArrayAtomicRMWOp& array_atomic_rmw);
   void ProcessGlobalGet(const GlobalGetOp& global_get);
   void ProcessRefFunc(const WasmRefFuncOp& ref_func);
+  void ProcessRefI31(const WasmRefI31Op& ref_i31);
   void ProcessAllocateArray(const WasmAllocateArrayOp& allocate_array);
   void ProcessAllocateStruct(const WasmAllocateStructOp& allocate_struct);
   void ProcessPhi(const PhiOp& phi);
@@ -606,6 +607,22 @@ class WasmGCTypedOptimizationReducer : public Next {
         // any.convert_extern(extern.convert_any(x)) == x.
         return externalize->object();
       }
+    }
+    goto no_change;
+  }
+
+  V<Word32> REDUCE(WasmI31Get)(V<Smi> input, bool is_signed) {
+    LABEL_BLOCK(no_change) { return Next::ReduceWasmI31Get(input, is_signed); }
+    if (ShouldSkipOptimizationStep()) goto no_change;
+
+    // Fold i31.get_{s,u}(ref.i31(x)) to 31-bit sign-/zero-extension of x.
+    if (const WasmRefI31Op* ref_i31 =
+            __ output_graph().Get(input).template TryCast<WasmRefI31Op>()) {
+      if (is_signed) {
+        V<Word32> shifted = __ Word32ShiftLeft(ref_i31->input(), 1);
+        return __ Word32ShiftRightArithmeticShiftOutZeros(shifted, 1);
+      }
+      return __ Word32BitwiseAnd(ref_i31->input(), 0x7fffffff);
     }
     goto no_change;
   }

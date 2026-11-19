@@ -5921,50 +5921,17 @@ class TurboshaftGraphBuildingInterface
   }
 
   void RefI31(FullDecoder* decoder, const Value& input, Value* result) {
-    if constexpr (SmiValuesAre31Bits()) {
-      V<Word32> shifted =
-          __ Word32ShiftLeft(input.get<Word32>(), kSmiTagSize + kSmiShiftSize);
-      result->op = __ ChangeUint32ToUintPtr(shifted);
-    } else {
-      // Set the topmost bit to sign-extend the second bit. This way,
-      // interpretation in JS (if this value escapes there) will be the same as
-      // i31.get_s.
-      V<WordPtr> input_wordptr = __ ChangeUint32ToUintPtr(input.get<Word32>());
-      result->op = __ WordPtrShiftRightArithmetic(
-          __ WordPtrShiftLeft(input_wordptr, kSmiShiftSize + kSmiTagSize + 1),
-          1);
-    }
-    result->op = __ AnnotateWasmType(
-        __ BitcastWordPtrToSmi(result->get<WordPtr>()), result->type);
+    result->op = __ WasmRefI31(input.get<Word32>(), result->type.is_shared());
   }
 
   void I31GetS(FullDecoder* decoder, const Value& input, Value* result) {
     V<Smi> input_non_null = NullCheck<Smi>(input);
-    if constexpr (SmiValuesAre31Bits()) {
-      result->op = __ Word32ShiftRightArithmeticShiftOutZeros(
-          __ TruncateWordPtrToWord32(__ BitcastSmiToWordPtr(input_non_null)),
-          kSmiTagSize + kSmiShiftSize);
-    } else {
-      // Topmost bit is already sign-extended.
-      result->op = __ TruncateWordPtrToWord32(
-          __ WordPtrShiftRightArithmeticShiftOutZeros(
-              __ BitcastSmiToWordPtr(input_non_null),
-              kSmiTagSize + kSmiShiftSize));
-    }
+    result->op = __ WasmI31Get(input_non_null, /*is_signed=*/true);
   }
 
   void I31GetU(FullDecoder* decoder, const Value& input, Value* result) {
     V<Smi> input_non_null = NullCheck<Smi>(input);
-    if constexpr (SmiValuesAre31Bits()) {
-      result->op = __ Word32ShiftRightLogical(
-          __ TruncateWordPtrToWord32(__ BitcastSmiToWordPtr(input_non_null)),
-          kSmiTagSize + kSmiShiftSize);
-    } else {
-      // Topmost bit is sign-extended, remove it.
-      result->op = __ TruncateWordPtrToWord32(__ WordPtrShiftRightLogical(
-          __ WordPtrShiftLeft(__ BitcastSmiToWordPtr(input_non_null), 1),
-          kSmiTagSize + kSmiShiftSize + 1));
-    }
+    result->op = __ WasmI31Get(input_non_null, /*is_signed=*/false);
   }
 
   void RefGetDesc(FullDecoder* decoder, ModuleTypeIndex struct_index,

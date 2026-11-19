@@ -127,3 +127,26 @@ compile('refTestNullOnNullableStruct',
       // HeapTypesUnrelated.
       kExprLocalGet, 0, kGCPrefix, kExprRefTestNull, kNullRefCode,
     ]);
+
+// CHECK-LABEL: Begin compiling method directRefI31GetS using Turboshaft
+// CHECK-NOT: WasmTypeAnnotation(
+// CHECK: Refine type for object #{{[0-9]+}}(WasmRefI31) -> (ref i31)
+// CHECK-LABEL: V8.TFTurboshaftWasmGCOptimize
+// CHECK-NOT: WasmI31Get(
+// CHECK: Shift({{.*}})[ShiftLeft, Word32]
+// CHECK: Shift({{.*}})[ShiftRightArithmeticShiftOutZeros, Word32]
+// CHECK: Return(
+compile('directRefI31GetS', makeSig([kWasmI32], [kWasmI32]), [
+  kExprLocalGet, 0, kGCPrefix, kExprRefI31, kGCPrefix, kExprI31GetS,
+]);
+
+// CHECK-LABEL: Begin compiling method directRefI31GetU using Turboshaft
+// CHECK-NOT: WasmTypeAnnotation(
+// CHECK: Refine type for object #{{[0-9]+}}(WasmRefI31) -> (ref i31)
+// CHECK-LABEL: V8.TFTurboshaftWasmGCOptimize
+// CHECK-NOT: WasmI31Get(
+// CHECK: WordBinop({{.*}})[BitwiseAnd, Word32]
+// CHECK: Return(
+compile('directRefI31GetU', makeSig([kWasmI32], [kWasmI32]), [
+  kExprLocalGet, 0, kGCPrefix, kExprRefI31, kGCPrefix, kExprI31GetU,
+]);

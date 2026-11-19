@@ -214,6 +214,9 @@ void WasmGCTypeAnalyzer::ProcessOperations(const Block& block) {
       case Opcode::kWasmRefFunc:
         ProcessRefFunc(op.Cast<WasmRefFuncOp>());
         break;
+      case Opcode::kWasmRefI31:
+        ProcessRefI31(op.Cast<WasmRefI31Op>());
+        break;
       case Opcode::kWasmAllocateArray:
         ProcessAllocateArray(op.Cast<WasmAllocateArrayOp>());
         break;
@@ -409,6 +412,14 @@ void WasmGCTypeAnalyzer::ProcessRefFunc(const WasmRefFuncOp& ref_func) {
     type = type.AsExact();
   }
   RefineTypeKnowledge(graph_.Index(ref_func), type, ref_func);
+}
+
+void WasmGCTypeAnalyzer::ProcessRefI31(const WasmRefI31Op& ref_i31) {
+  RefineTypeKnowledge(
+      graph_.Index(ref_i31),
+      wasm::ValueType::Generic(wasm::GenericKind::kI31, wasm::kNonNullable,
+                               ref_i31.is_shared),
+      ref_i31);
 }
 
 void WasmGCTypeAnalyzer::ProcessAllocateArray(
