@@ -447,22 +447,24 @@ void V8InspectorImpl::allAsyncTasksCanceled() {
 
 v8::MaybeLocal<v8::Context> V8InspectorImpl::regexContext() {
   if (m_regexContext.IsEmpty()) {
-    m_regexContext.Reset(m_isolate, v8::Context::New(m_isolate));
-    if (m_regexContext.IsEmpty()) {
+    v8::Local<v8::Context> context;
+    if (!v8::debug::CreateBareContext(m_isolate).ToLocal(&context)) {
       DCHECK(m_isolate->IsExecutionTerminating());
       return {};
     }
+    m_regexContext.Reset(m_isolate, context);
   }
   return m_regexContext.Get(m_isolate);
 }
 
 v8::MaybeLocal<v8::Context> V8InspectorImpl::exceptionMetaDataContext() {
   if (m_exceptionMetaDataContext.IsEmpty()) {
-    m_exceptionMetaDataContext.Reset(m_isolate, v8::Context::New(m_isolate));
-    if (m_exceptionMetaDataContext.IsEmpty()) {
+    v8::Local<v8::Context> context;
+    if (!v8::debug::CreateBareContext(m_isolate).ToLocal(&context)) {
       DCHECK(m_isolate->IsExecutionTerminating());
       return {};
     }
+    m_exceptionMetaDataContext.Reset(m_isolate, context);
   }
   return m_exceptionMetaDataContext.Get(m_isolate);
 }

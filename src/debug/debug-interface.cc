@@ -11,7 +11,9 @@
 
 #include "include/v8-exception.h"
 #include "include/v8-function.h"
+#include "include/v8-regexp.h"
 #include "src/api/api-inl.h"
+#include "src/base/atomicops.h"
 #include "src/base/logging.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/compiler.h"
@@ -24,11 +26,16 @@
 #include "src/debug/debug.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/heap/heap.h"
+#include "src/init/bootstrapper.h"
 #include "src/objects/js-generator-inl.h"
+#include "src/objects/js-regexp-inl.h"
 #include "src/objects/script-inl.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/objects/templates-inl.h"
 #include "src/profiler/heap-profiler.h"
+#include "src/regexp/regexp-stack.h"
+#include "src/regexp/regexp.h"
+#include "src/sandbox/check.h"
 #include "src/strings/string-builder-inl.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -1608,6 +1615,65 @@ uint64_t GetIsolateId(v8::Isolate* v8_isolate) {
 void SetIsolateId(v8::Isolate* v8_isolate, uint64_t id) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   isolate->debug()->SetIsolateId(id);
+}
+
+MaybeLocal<Context> CreateBareContext(v8::Isolate* v8_isolate) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  if (isolate->is_execution_terminating()) {
+    return {};
+  }
+  EnterV8NoScriptNoExceptionScope api_scope(isolate);
+  i::HandleScope scope(isolate);
+  i::DirectHandle<i::NativeContext> env =
+      isolate->bootstrapper()->CreateEnvironment(
+          i::MaybeDirectHandle<i::JSGlobalProxy>(),
+          v8::Local<v8::ObjectTemplate>(), nullptr, 0,
+          i::DeserializeEmbedderFieldsCallback(), nullptr);
+  if (env.is_null()) {
+    return {};
+  }
+  return Utils::ToLocal(scope.CloseAndEscape(env));
+}
+
+Maybe<int> ExecRegExp(v8::Isolate* v8_isolate, v8::Local<v8::Context> context,
+                      v8::Local<v8::RegExp> regexp,
+                      v8::Local<v8::String> subject, int* match_length) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  if (isolate->is_execution_terminating()) {
+    return Nothing<int>();
+  }
+  isolate->clear_internal_exception();
+  EnterV8NoScriptScope<> api_scope{isolate, context,
+                                   i::RuntimeCallCounterId::kAPI_RegExp_Exec};
+  i::DirectHandle<i::JSRegExp> i_regexp = Utils::OpenDirectHandle(*regexp);
+  i::DirectHandle<i::String> i_subject = Utils::OpenDirectHandle(*subject);
+  const uint32_t subject_length = i_subject->length();
+  i::regexp::StackScope stack_scope(isolate);
+  i::DirectHandle<i::RegExpData> data(i_regexp->data(isolate), isolate);
+  int capture_count = data->capture_count();
+  int result_offsets_vector_length =
+      i::JSRegExp::RegistersForCaptureCount(capture_count);
+  i::regexp::ResultVectorScope result_vector_scope(
+      isolate, result_offsets_vector_length);
+  std::optional<int> result =
+      i::RegExp::Exec(isolate, data, i_subject, 0, result_vector_scope.value(),
+                      result_offsets_vector_length);
+  if (!result.has_value()) {
+    DCHECK(isolate->has_exception());
+    return Nothing<int>();
+  }
+  if (result.value() == 0) {
+    if (match_length) *match_length = 0;
+    return Just(-1);
+  }
+  int32_t* result_vector = result_vector_scope.value();
+  int32_t start = base::AsAtomic32::Relaxed_Load(&result_vector[0]);
+  int32_t end = base::AsAtomic32::Relaxed_Load(&result_vector[1]);
+  SBXCHECK_GE(start, 0);
+  SBXCHECK_LE(start, end);
+  SBXCHECK_LE(static_cast<uint32_t>(end), subject_length);
+  if (match_length) *match_length = end - start;
+  return Just(start);
 }
 
 std::unique_ptr<PropertyIterator> PropertyIterator::Create(

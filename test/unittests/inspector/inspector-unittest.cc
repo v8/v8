@@ -19,6 +19,7 @@
 #include "src/inspector/v8-debugger.h"
 #include "src/inspector/v8-inspector-impl.h"
 #include "src/inspector/v8-inspector-session-impl.h"
+#include "src/inspector/v8-regex.h"
 #include "src/inspector/v8-runtime-agent-impl.h"
 #include "test/common/flag-utils.h"
 #include "test/unittests/heap/heap-utils.h"
@@ -2036,6 +2037,41 @@ TEST_F(InspectorTest, DestroyInspectorBeforeNearHeapLimitInterrupt) {
       CHECK_EQ(buf[i], 0x01);
     }
   }
+}
+
+TEST_F(InspectorTest, BareContextAndRegexUnderDisallowJavascriptWithExposeGc) {
+  FlagScope<bool> expose_gc_scope(&v8_flags.expose_gc, true);
+  v8::Isolate* isolate = v8_isolate();
+  v8::HandleScope handle_scope(isolate);
+  v8::Local<v8::Context> context = v8_context();
+
+  v8_inspector::V8InspectorClient default_client;
+  std::unique_ptr<V8Inspector> inspector =
+      V8Inspector::create(isolate, &default_client);
+  inspector->contextCreated(V8ContextInfo(context, 1, StringView()));
+
+  v8::Local<v8::Value> error = v8::Exception::Error(NewString("boom"));
+  v8::Local<v8::String> meta_key = NewString("meta");
+  v8::Local<v8::String> meta_value = NewString("details");
+
+  v8::Isolate::DisallowJavascriptExecutionScope no_js(
+      isolate, v8::Isolate::DisallowJavascriptExecutionScope::CRASH_ON_FAILURE);
+
+  auto* inspector_impl =
+      static_cast<v8_inspector::V8InspectorImpl*>(inspector.get());
+  v8_inspector::V8Regex regex(inspector_impl, String16("(test-loop)\\.js$"),
+                              /*caseSensitive=*/true);
+  EXPECT_TRUE(regex.errorMessage().isEmpty());
+
+  int match_length = 0;
+  EXPECT_EQ(10,
+            regex.match(String16("https://a/test-loop.js"), 0, &match_length));
+  EXPECT_EQ(12, match_length);
+  EXPECT_EQ(-1, regex.match(String16("https://a/other.js"), 0, &match_length));
+  EXPECT_EQ(0, match_length);
+
+  EXPECT_TRUE(
+      inspector->associateExceptionData(context, error, meta_key, meta_value));
 }
 }  // namespace internal
 }  // namespace v8

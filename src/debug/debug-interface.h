@@ -20,6 +20,7 @@
 #include "include/v8-isolate.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-promise.h"
+#include "include/v8-regexp.h"
 #include "include/v8-script.h"
 #include "include/v8-util.h"
 #include "src/base/enum-set.h"
@@ -749,6 +750,19 @@ void RecordAsyncStackTaggingCreateTaskCall(v8::Isolate* isolate);
 
 uint64_t GetIsolateId(v8::Isolate* isolate);
 void SetIsolateId(v8::Isolate* isolate, uint64_t id);
+
+// Creates a minimal Context without installing V8 extensions so no JavaScript
+// runs during context creation (safe under DisallowJavascriptExecution).
+V8_EXPORT_PRIVATE MaybeLocal<Context> CreateBareContext(v8::Isolate* isolate);
+
+// Executes a RegExp directly via C++/Irregexp without entering JavaScript.
+// Returns the match start offset, or -1 if no match is found, or Nothing<int>()
+// if an exception (such as stack overflow or termination) occurred.
+V8_EXPORT_PRIVATE Maybe<int> ExecRegExp(v8::Isolate* isolate,
+                                        v8::Local<v8::Context> context,
+                                        v8::Local<v8::RegExp> regexp,
+                                        v8::Local<v8::String> subject,
+                                        int* match_length);
 
 }  // namespace debug
 }  // namespace v8

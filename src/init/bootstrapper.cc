@@ -364,7 +364,8 @@ DirectHandle<NativeContext> Bootstrapper::CreateEnvironment(
                     context_snapshot_index, embedder_fields_deserializer,
                     microtask_queue);
     env = genesis.result();
-    if (env.is_null() || !InstallExtensions(env, extensions)) {
+    if (env.is_null() ||
+        (extensions != nullptr && !InstallExtensions(env, extensions))) {
       return {};
     }
   }
