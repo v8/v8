@@ -2347,6 +2347,10 @@ std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
   return std::make_pair(bytes_processed, objects_processed);
 }
 
+template std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist<
+    MarkCompactCollector::MarkingWorklistProcessingMode::kDefault>(
+    v8::base::TimeDelta max_duration, size_t max_bytes_to_process);
+
 bool MarkCompactCollector::ProcessEphemeron(Tagged<HeapObject> key,
                                             Tagged<HeapObject> value) {
   EphemeronResult result = ApplyEphemeronSemantics(key, value);

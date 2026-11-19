@@ -15408,6 +15408,24 @@ void CodeStubAssembler::BuildFastLoop(
 template V8_EXPORT_PRIVATE void CodeStubAssembler::BuildFastLoop<IntPtrT>(
     const VariableList& vars, TVariable<IntPtrT>& var_index,
     TNode<IntPtrT> start_index, TNode<IntPtrT> end_index,
+    const FastLoopBody<IntPtrT>& body, TNode<IntPtrT> increment,
+    LoopUnrollingMode unrolling_mode, IndexAdvanceMode advance_mode,
+    IndexAdvanceDirection advance_direction);
+template V8_EXPORT_PRIVATE void CodeStubAssembler::BuildFastLoop<UintPtrT>(
+    const VariableList& vars, TVariable<UintPtrT>& var_index,
+    TNode<UintPtrT> start_index, TNode<UintPtrT> end_index,
+    const FastLoopBody<UintPtrT>& body, TNode<UintPtrT> increment,
+    LoopUnrollingMode unrolling_mode, IndexAdvanceMode advance_mode,
+    IndexAdvanceDirection advance_direction);
+template V8_EXPORT_PRIVATE void CodeStubAssembler::BuildFastLoop<RawPtrT>(
+    const VariableList& vars, TVariable<RawPtrT>& var_index,
+    TNode<RawPtrT> start_index, TNode<RawPtrT> end_index,
+    const FastLoopBody<RawPtrT>& body, TNode<RawPtrT> increment,
+    LoopUnrollingMode unrolling_mode, IndexAdvanceMode advance_mode,
+    IndexAdvanceDirection advance_direction);
+template V8_EXPORT_PRIVATE void CodeStubAssembler::BuildFastLoop<IntPtrT>(
+    const VariableList& vars, TVariable<IntPtrT>& var_index,
+    TNode<IntPtrT> start_index, TNode<IntPtrT> end_index,
     const FastLoopBody<IntPtrT>& body, int increment,
     LoopUnrollingMode unrolling_mode, IndexAdvanceMode advance_mode);
 template V8_EXPORT_PRIVATE void CodeStubAssembler::BuildFastLoop<UintPtrT>(
