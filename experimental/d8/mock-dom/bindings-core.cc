@@ -1443,14 +1443,41 @@ void NodeListEnumerator(const PropertyCallbackInfo<Array>& info) {
   info.GetReturnValue().Set(indices);
 }
 
+uint32_t NodeListIndexOf(Local<Value> value, uint32_t start_index,
+                         uint32_t end_index, uint32_t* out_length,
+                         const PropertyCallbackInfo<void>& info) {
+  Isolate* isolate = info.GetIsolate();
+  NodeList* list = static_cast<NodeList*>(static_cast<ScriptWrappable*>(
+      Object::Unwrap<kWrapperTag, Object::Wrappable>(isolate, info.Holder())));
+  return list->IndexOf(To<Node>(isolate, value, Interface::kNode), start_index,
+                       end_index, out_length);
+}
+
+void NodeListIterableToList(const PropertyCallbackInfo<Value>& info) {
+  Isolate* isolate = info.GetIsolate();
+  NodeList* list = static_cast<NodeList*>(static_cast<ScriptWrappable*>(
+      Object::Unwrap<kWrapperTag, Object::Wrappable>(isolate, info.Holder())));
+  uint32_t length = list->length();
+  LocalVector<Value> elements(isolate);
+  elements.reserve(length);
+  for (uint32_t i = 0; i < length; ++i) {
+    elements.push_back(ToV8(isolate, list->item(i)));
+  }
+  info.GetReturnValue().Set(
+      Array::New(isolate, elements.data(), elements.size()));
+}
+
 void InstallCollectionBindings(Isolate* isolate) {
   for (Interface interface : {Interface::kNodeList, Interface::kHTMLCollection,
                               Interface::kHTMLAllCollection}) {
+    bool is_node_list = interface == Interface::kNodeList;
     InterfaceTemplate(isolate, interface)
         ->InstanceTemplate()
         ->SetHandler(IndexedPropertyHandlerConfiguration(
             NodeListIndexedGetter, nullptr, nullptr, nullptr,
-            NodeListEnumerator));
+            NodeListEnumerator, nullptr, nullptr,
+            is_node_list ? NodeListIndexOf : nullptr,
+            is_node_list ? NodeListIterableToList : nullptr));
     DefineAccessor(isolate, interface, "length", [](const CallbackInfo& info) {
       info.GetReturnValue().Set(Receiver<NodeList>(info)->length());
     });
@@ -1467,6 +1494,21 @@ void InstallCollectionBindings(Isolate* isolate) {
         },
         1);
   }
+  // Web IDL value iterator on NodeList, matching Blink: installed through the
+  // template so [Symbol.iterator] stays a constant Array.prototype.values
+  // intrinsic for V8's fast IterableToList path.
+  Local<ObjectTemplate> node_list_proto =
+      InterfaceTemplate(isolate, Interface::kNodeList)->PrototypeTemplate();
+  node_list_proto->SetIntrinsicDataProperty(Symbol::GetIterator(isolate),
+                                            v8::kArrayProto_values, DontEnum);
+  node_list_proto->SetIntrinsicDataProperty(V8Name(isolate, "entries"),
+                                            v8::kArrayProto_entries);
+  node_list_proto->SetIntrinsicDataProperty(V8Name(isolate, "keys"),
+                                            v8::kArrayProto_keys);
+  node_list_proto->SetIntrinsicDataProperty(V8Name(isolate, "values"),
+                                            v8::kArrayProto_values);
+  node_list_proto->SetIntrinsicDataProperty(V8Name(isolate, "forEach"),
+                                            v8::kArrayProto_forEach);
   static constexpr FunctionCallback kNamedItem = [](const CallbackInfo& info) {
     if (!RequireArguments(info, 1)) return;
     AtomicString name;
@@ -2097,16 +2139,17 @@ void InitializeRealmForCore(Isolate* isolate, Local<Context> context) {
   Local<Object> array_prototype = get(get(global, "Array"), "prototype");
   Local<Object> error_prototype = get(get(global, "Error"), "prototype");
 
-  // Web IDL value iterators: NodeList and friends reuse the Array methods.
+  // Web IDL value iterators: collections reuse the Array methods (NodeList
+  // installs them via SetIntrinsicDataProperty on its PrototypeTemplate).
   Local<Value> iterator =
       array_prototype->Get(context, Symbol::GetIterator(isolate))
           .ToLocalChecked();
   static const char* const kIterableMethods[] = {"forEach", "entries", "keys",
                                                  "values"};
   for (Interface interface :
-       {Interface::kNodeList, Interface::kDOMTokenList,
-        Interface::kHTMLCollection, Interface::kNamedNodeMap,
-        Interface::kDOMRectList, Interface::kDOMStringList}) {
+       {Interface::kDOMTokenList, Interface::kHTMLCollection,
+        Interface::kNamedNodeMap, Interface::kDOMRectList,
+        Interface::kDOMStringList}) {
     Local<Object> prototype = get(InterfaceTemplate(isolate, interface)
                                       ->GetFunction(context)
                                       .ToLocalChecked(),

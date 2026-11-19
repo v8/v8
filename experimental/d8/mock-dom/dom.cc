@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <limits>
 
 #include "experimental/d8/mock-dom/css.h"
 #include "experimental/d8/mock-dom/isolate-data.h"
@@ -2175,6 +2176,19 @@ uint32_t NodeList::length() {
 Node* NodeList::item(uint32_t index) {
   Update();
   return index < items_.size() ? items_[index].Get() : nullptr;
+}
+
+uint32_t NodeList::IndexOf(Node* needle, uint32_t start_index,
+                           uint32_t end_index, uint32_t* out_length) {
+  Update();
+  uint32_t length = static_cast<uint32_t>(items_.size());
+  *out_length = length;
+  if (!needle) return std::numeric_limits<uint32_t>::max();
+  uint32_t end = std::min(end_index, length);
+  for (uint32_t i = start_index; i < end; ++i) {
+    if (items_[i].Get() == needle) return i;
+  }
+  return std::numeric_limits<uint32_t>::max();
 }
 
 void SplitOnHtmlSpace(std::string_view text, std::vector<AtomicString>* out) {

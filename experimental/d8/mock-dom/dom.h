@@ -700,6 +700,11 @@ class NodeList final : public ScriptWrappable {
 
   uint32_t length();
   Node* item(uint32_t index);
+  // Searches [start_index, min(end_index, length)) for |needle|, writes the
+  // collection length to *out_length, and returns the matching index or
+  // UINT32_MAX if not found.
+  uint32_t IndexOf(Node* needle, uint32_t start_index, uint32_t end_index,
+                   uint32_t* out_length);
   // For kByClassName lists: the space-separated class names to match.
   void SetClassNames(std::string_view names);
 
