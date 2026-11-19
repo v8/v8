@@ -1049,10 +1049,10 @@ RUNTIME_FUNCTION(Runtime_SetPrototypeProperties) {
   DirectHandle<Object> prototype =
       JSFunction::GetFunctionPrototype(isolate, acc_fun);
 
-  DCHECK_EQ(*prototype,
-            *Runtime::GetObjectProperty(isolate, obj,
-                                        isolate->factory()->prototype_string())
-                 .ToHandleChecked());
+  DCHECK(prototype.is_identical_to(
+      Runtime::GetObjectProperty(isolate, obj,
+                                 isolate->factory()->prototype_string())
+          .ToHandleChecked()));
 
   if (IsNull(*prototype)) {
     RETURN_RESULT_OR_FAILURE(
