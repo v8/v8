@@ -4811,18 +4811,24 @@ void BytecodeGenerator::BuildCreateArrayLiteral(
     // below).
     DCHECK_EQ(current, elements->begin());
     int array_index = 0;
-    for (; current != first_spread_or_end; ++current, array_index++) {
-      Expression* subexpr = *current;
-      DCHECK(!subexpr->IsSpread());
-      // Skip the constants.
-      if (subexpr->IsCompileTimeValue()) continue;
+    if (array_literal_builder->is_simple()) {
+      // Fast path: all elements of simple literals are in the boilerplate.
+      DCHECK_EQ(first_spread_or_end, end);
+      current = end;
+    } else {
+      for (; current != first_spread_or_end; ++current, array_index++) {
+        Expression* subexpr = *current;
+        DCHECK(!subexpr->IsSpread());
+        // Skip the constants.
+        if (subexpr->IsCompileTimeValue()) continue;
 
-      builder()
-          ->LoadLiteral(Smi::FromInt(array_index))
-          .StoreAccumulatorInRegister(index);
-      VisitForAccumulatorValue(subexpr);
-      builder()->StoreInArrayLiteral(array, index,
-                                     feedback_index(element_slot.Get()));
+        builder()
+            ->LoadLiteral(Smi::FromInt(array_index))
+            .StoreAccumulatorInRegister(index);
+        VisitForAccumulatorValue(subexpr);
+        builder()->StoreInArrayLiteral(array, index,
+                                       feedback_index(element_slot.Get()));
+      }
     }
 
     if (current != end) {
