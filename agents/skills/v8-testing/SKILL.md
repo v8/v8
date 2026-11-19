@@ -21,6 +21,10 @@ build output directory and the tests you want to run.
   subprocess with `--gtest_filter=<Suite.Test>`).
 - **mjsunit**: JavaScript-based tests for JavaScript language features and
   builtins. Each `.js` file runs in a fresh `d8` process.
+- **inspector**: JavaScript-based CDP tests under `test/inspector/` executed
+  against `inspector-test` (using `test/inspector/protocol-test.js`). Unlike
+  `d8 --enable-inspector`, `inspector-test` runs the real inspector message loop
+  and `V8Console`.
 
 ## Running Tests
 
@@ -46,10 +50,51 @@ out/x64.optdebug/v8_unittests --gtest_filter=TorqueTest.Scanner
 # For manual d8 execution, you must include it first.
 # You can also run tools/run-tests.py with -v to see the full command line used by the runner.
 out/x64.optdebug/d8 test/mjsunit/mjsunit.js test/mjsunit/my-test.js
+
+# Run inspector tests via run-tests.py or directly with inspector-test
+tools/run-tests.py --progress dots --outdir=out/x64.optdebug 'inspector/*'
+out/x64.optdebug/inspector-test test/inspector/protocol-test.js test/inspector/runtime/evaluate.js
 ```
 
 *Note: Always pass `--progress dots` so that there is minimal progress
 reporting, to avoid cluttering the output.*
+
+## Writing Inspector & JS Tests
+
+- **Wasm `Debugger.scriptParsed` ordering (`test/inspector/`):** When
+  `Debugger.enable` is active, compiling or evaluating a script that
+  instantiates Wasm emits two `Debugger.scriptParsed` events (first the JS
+  wrapper script, second `wasm://...`). Await
+  `Protocol.Debugger.onceScriptParsed(2)` or filter `onScriptParsed` by
+  `msg.params.url.startsWith('wasm://')` rather than calling
+  `onceScriptParsed()` once.
+- **Background tasks & uncaught exceptions (`test/inspector/`):**
+  `WebAssembly.compile(...)` resolves on background compilation threads that
+  `Protocol.Runtime.evaluate({awaitPromise: true})` does not pump; start work
+  without `awaitPromise` and call `await InspectorTest.waitForPendingTasks()`.
+  Because `Protocol.Runtime.evaluate` runs inside an outer C++ `TryCatch` that
+  masks uncaught-exception prediction in `try ... finally`, schedule top-level
+  code via `setTimeout(...)` followed by
+  `await InspectorTest.waitForPendingTasks()` when testing uncaught exceptions.
+- **Module registration order & large fixtures (`test/inspector/`):**
+  `contextGroup.addModule(...)` resolves imports only against modules already
+  registered in `contextGroup`, so register dependency modules before importing
+  modules. To test length or serialization limits cheaply in Debug builds, use
+  sparse dictionary-mode arrays (`const a = []; a[6e6 - 1] = 0;`) or
+  `'a'.repeat(%StringMaxLength() - n)` cons-strings (`--allow-natives-syntax`).
+- **Sandbox/memory-corruption flags in `inspector.status`:** Gate tests using
+  `--expose-memory-corruption-api` or `--sandbox-testing` on
+  `not memory_corruption_api` in `test/inspector/inspector.status`. Never add
+  `--no-verify-heap` to `// Flags:` in `test/inspector/` (Debug builds pass
+  `--verify-heap`, causing `inspector-test` to abort on contradictory flags).
+- **`git cl format` on JS tests (`% Natives` & `// Flags:`):**
+  `git cl format --js` inserts a space after `%` in `--allow-natives-syntax`
+  calls (`% Foo(...)`), which fails `PRESUBMIT.py`
+  (`unexpected spaces in a runtime call`); remove the space before uploading. In
+  addition, `tools/testrunner/objects/testcase.py` matches `//\s+Flags:(.*)`,
+  and `clang-format --js` wraps `// Flags:` lines over 80 columns onto
+  `// --flag` lines that the runner ignores; keep each `// Flags:` line under 80
+  columns and split long flag lists across multiple `// Flags:` lines.
 
 ## Testing Strategy
 

@@ -107,3 +107,33 @@ When proposing a fix, ensure the code adheres to V8 standards:
   instead.
 - **Be careful with forward declarations:** Many types are forward declared; if
   you want to use them, you'll need to find the definition.
+
+## Inspector & Debugger Invariants
+
+- **Side-effect check mode is non-reentrant and per-call:**
+  `Debug::StartSideEffectCheckMode()` asserts
+  `DCHECK_EQ(isolate_->debug_execution_mode(), DebugInfo::kBreakpoints)` and is
+  not re-entrant. `DebugEvaluate::Global`, `DebugEvaluate::Evaluate`, and
+  `v8::debug::CallFunctionOn` enable it only around the single user-code
+  `Execution::Call`. Inspector post-processing that touches JS objects (such as
+  `InjectedScript::wrapEvaluateResult`, `createExceptionDetails`, or
+  `.repl_result` lookup) must run inside an explicit
+  `v8::debug::SideEffectCheckScope` when `throwOnSideEffect` is enabled; never
+  nest `StartSideEffectCheckMode()` or `SideEffectCheckScope` inside an already
+  active side-effect check mode.
+- **Execution termination vs. `v8::TryCatch` and `PrepareForExecutionScope`:**
+  `v8::TryCatch::HasCaught()` returns `true` even on execution termination
+  (while `TryCatch::Exception()` returns `v8::Null()`), and
+  `PrepareForExecutionScope` calls `i_isolate->clear_internal_exception()` on
+  entry. Always check `tryCatch.HasTerminated() || !tryCatch.CanContinue()`
+  before `tryCatch.HasCaught()`, and stop making V8 API calls once
+  `isolate->IsExecutionTerminating()` is true unless explicitly propagating or
+  recovering termination.
+- **Avoid `toStringView("literal")` dangling pointers:**
+  `v8_inspector::toStringView` (`src/inspector/string-util.h`) only provides
+  overloads for `const String16&` and `const char* str[N]` (array of pointers,
+  not a string literal reference). Passing a string literal decays to
+  `const char*`, constructs a temporary `String16`, and returns a `StringView`
+  pointing to freed memory. Use
+  `StringView(reinterpret_cast<const uint8_t*>(lit), sizeof(lit) - 1)` or bind a
+  local `String16` variable that outlives the `StringView` consumer.
