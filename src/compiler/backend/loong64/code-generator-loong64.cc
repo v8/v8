@@ -1078,37 +1078,37 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           AddressingModeField::decode(instr->opcode());
       Register object = i.InputRegister(0);
       Register value = i.InputRegister(2);
-
+      Operand offset(0);
+      MemOperand store_operand(object, no_reg);
       if (addressing_mode == kMode_MRI) {
-        auto ool = zone()->New<OutOfLineRecordWrite>(
-            this, object, Operand(i.InputInt64(1)), value, mode,
-            DetermineStubCallMode());
-        __ StoreTaggedField(value, MemOperand(object, i.InputInt64(1)),
-                            &trap_pc);
-        RecordTrapInfoIfNeeded(zone(), this, opcode, instr, trap_pc);
-        if (mode > RecordWriteMode::kValueIsPointer) {
-          __ JumpIfSmi(value, ool->exit());
-        }
-        __ CheckPageFlag(object,
-                         MemoryChunk::kPointersFromHereAreInterestingMask, ne,
-                         ool->entry());
-        __ bind(ool->exit());
+        offset = Operand(i.InputInt64(1));
+        store_operand = MemOperand(object, i.InputInt64(1));
       } else {
         DCHECK_EQ(addressing_mode, kMode_MRR);
-        auto ool = zone()->New<OutOfLineRecordWrite>(
-            this, object, Operand(i.InputRegister(1)), value, mode,
-            DetermineStubCallMode());
-        __ StoreTaggedField(value, MemOperand(object, i.InputRegister(1)),
-                            &trap_pc);
-        RecordTrapInfoIfNeeded(zone(), this, opcode, instr, trap_pc);
-        if (mode > RecordWriteMode::kValueIsTrustedPointer) {
-          __ JumpIfSmi(value, ool->exit());
-        }
+        offset = Operand(i.InputRegister(1));
+        store_operand = MemOperand(object, i.InputRegister(1));
+      }
+
+      auto ool = zone()->New<OutOfLineRecordWrite>(
+          this, object, offset, value, mode, DetermineStubCallMode());
+      __ StoreTaggedField(value, store_operand, &trap_pc);
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, trap_pc);
+      if (mode > RecordWriteMode::kValueIsTrustedPointer) {
+        __ JumpIfSmi(value, ool->exit());
+      }
+      if (mode == RecordWriteMode::kValueIsMap) {
+        // Maps are never allocated in the young generation, so storing a map
+        // never requires the generational barrier. The barrier is thus only
+        // needed while marking. Checking the marking flag instead of the page
+        // flags of the host object avoids jumping to the out-of-line code for
+        // each map store into an old object.
+        __ JumpIfMarking(ool->entry());
+      } else {
         __ CheckPageFlag(object,
                          MemoryChunk::kPointersFromHereAreInterestingMask, ne,
                          ool->entry());
-        __ bind(ool->exit());
       }
+      __ bind(ool->exit());
       break;
     }
     case kArchStoreSkippedWriteBarrier: {
