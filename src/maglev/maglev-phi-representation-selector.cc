@@ -143,6 +143,14 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
     return ProcessPhiResult::kNone;
   }
 
+  if (node->input_count() == 1) {
+    // Later passes unwrap single-input Phis to their input, so uses/deopt
+    // frames may already bypass this Phi while earlier uses still point to it.
+    // Keep it tagged so its representation cannot diverge from its input's.
+    EnsurePhiInputsTagged(node);
+    return ProcessPhiResult::kNone;
+  }
+
   TRACE_UNTAGGING("Considering for untagging: " << PrintNodeLabel(node));
 
   // {input_mask} represents the ValueRepresentation that {node} could have,
