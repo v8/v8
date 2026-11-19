@@ -261,9 +261,11 @@ V8_OBJECT class Map : public HeapObject {
   // Size in bytes or kVariableSizeSentinel if instances do not have
   // a fixed size.
   DECL_INT_ACCESSORS(instance_size)
+  DECL_RELEASE_ACQUIRE_INT_ACCESSORS(instance_size)
   // Size in words or kVariableSizeSentinel if instances do not have
   // a fixed size.
   DECL_INT_ACCESSORS(instance_size_in_words)
+  DECL_RELEASE_ACQUIRE_INT_ACCESSORS(instance_size_in_words)
 
   // [inobject_properties_start_or_constructor_function_index]:
   // Provides access to the inobject properties start offset in words in case of
@@ -1190,6 +1192,8 @@ V8_OBJECT class Map : public HeapObject {
 
   void ReplaceDescriptors(Isolate* isolate,
                           Tagged<DescriptorArray> new_descriptors);
+
+  V8_INLINE static int InstanceSizeInWordsFromBytes(int size_in_bytes);
 
   // This is the replacement for IsMap() which avoids reading the instance type
   // but compares the object's map against given meta_map, so it can be used

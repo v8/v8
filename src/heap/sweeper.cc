@@ -716,8 +716,8 @@ void Sweeper::LocalSweeper::ParallelIteratePromotedPage(MutablePage* page) {
       DCHECK(!page->is_evacuation_candidate());
       const ZappingMode zapping_mode = ShouldZapDeadObjectsOnPage();
       Address dead_start = page->area_start();
-      for (auto [object, size] :
-           LiveObjectRange(static_cast<NormalPage*>(page))) {
+      for (auto [object, size] : LiveObjectRange<ConcurrencyMode::kConcurrent>(
+               static_cast<NormalPage*>(page))) {
         record_visitor.Process(object);
         if (zapping_mode != ZappingMode::kNone) {
           Address dead_end = object.address();
@@ -840,7 +840,8 @@ void ZapDeadObjectsOnPage(Heap* heap, NormalPage* p) {
   }
   Address dead_start = p->area_start();
   // Iterate over the page using the live objects.
-  for (auto [object, size] : LiveObjectRange(p)) {
+  for (auto [object, size] :
+       LiveObjectRange<ConcurrencyMode::kSynchronous>(p)) {
     Address dead_end = object.address();
     ZapDeadObjectsInRange(heap, dead_start, dead_end, zapping_mode);
     dead_start = dead_end + size.value();
@@ -1256,28 +1257,37 @@ void Sweeper::RawSweep(NormalPage* p,
   // the given live object.
   Address free_start = p->area_start();
 
-  for (auto [object, size] : LiveObjectRange(p)) {
-    SYNCHRONIZATION_POINT_TEST_ONLY(is_main_thread ? "SweeperPerItemMainThread"
-                                                   : "SweeperPerItemBgThread");
-    DCHECK(marking_state_->IsMarked(object));
-    Address free_end = object.address();
-    if (free_end != free_start) {
-      FreeAndProcessFreedMemory(free_start, free_end, p, space,
-                                free_space_treatment_mode,
-                                should_reduce_memory);
-      CleanupRememberedSetEntriesForFreedMemory(
-          free_start, free_end, p, record_free_ranges, &free_ranges_map,
-          sweeping_mode);
-    }
-    live_bytes += size.value();
-    free_start = free_end + size.value();
+  auto sweep_live_objects = [&](auto live_objects) {
+    for (auto [object, size] : live_objects) {
+      SYNCHRONIZATION_POINT_TEST_ONLY(is_main_thread
+                                          ? "SweeperPerItemMainThread"
+                                          : "SweeperPerItemBgThread");
+      DCHECK(marking_state_->IsMarked(object));
+      Address free_end = object.address();
+      if (free_end != free_start) {
+        FreeAndProcessFreedMemory(free_start, free_end, p, space,
+                                  free_space_treatment_mode,
+                                  should_reduce_memory);
+        CleanupRememberedSetEntriesForFreedMemory(
+            free_start, free_end, p, record_free_ranges, &free_ranges_map,
+            sweeping_mode);
+      }
+      live_bytes += size.value();
+      free_start = free_end + size.value();
 
-    if (active_system_pages_after_sweeping) {
-      MemoryChunk* chunk = p->Chunk();
-      active_system_pages_after_sweeping->Add(
-          chunk->Offset(free_end), chunk->Offset(free_start),
-          MemoryAllocator::GetCommitPageSizeBits());
+      if (active_system_pages_after_sweeping) {
+        MemoryChunk* chunk = p->Chunk();
+        active_system_pages_after_sweeping->Add(
+            chunk->Offset(free_end), chunk->Offset(free_start),
+            MemoryAllocator::GetCommitPageSizeBits());
+      }
     }
+  };
+  if ((is_main_thread || sweeping_mode == SweepingMode::kEagerDuringGC) &&
+      !p->is_writable_shared()) {
+    sweep_live_objects(LiveObjectRange<ConcurrencyMode::kSynchronous>(p));
+  } else {
+    sweep_live_objects(LiveObjectRange<ConcurrencyMode::kConcurrent>(p));
   }
 
   // If there is free memory after the last live object also free that.

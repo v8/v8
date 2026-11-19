@@ -396,21 +396,43 @@ int Map::instance_size_in_words() const {
   return instance_size_in_words_.load(std::memory_order_relaxed);
 }
 
+int Map::instance_size_in_words(AcquireLoadTag) const {
+  return instance_size_in_words_.load(std::memory_order_acquire);
+}
+
 void Map::set_instance_size_in_words(int value) {
   instance_size_in_words_.store(static_cast<uint8_t>(value),
                                 std::memory_order_relaxed);
+}
+
+void Map::set_instance_size_in_words(int value, ReleaseStoreTag) {
+  instance_size_in_words_.store(static_cast<uint8_t>(value),
+                                std::memory_order_release);
 }
 
 int Map::instance_size() const {
   return instance_size_in_words() << kTaggedSizeLog2;
 }
 
-void Map::set_instance_size(int size_in_bytes) {
+int Map::instance_size(AcquireLoadTag tag) const {
+  return instance_size_in_words(tag) << kTaggedSizeLog2;
+}
+
+// static
+int Map::InstanceSizeInWordsFromBytes(int size_in_bytes) {
   CHECK(IsAligned(size_in_bytes, kTaggedSize));
   DCHECK_LE(static_cast<unsigned>(size_in_bytes), JSObject::kMaxInstanceSize);
-  int size_in_words = size_in_bytes >>= kTaggedSizeLog2;
+  int size_in_words = size_in_bytes >> kTaggedSizeLog2;
   CHECK_LE(static_cast<unsigned>(size_in_words), kMaxUInt8);
-  set_instance_size_in_words(size_in_words);
+  return size_in_words;
+}
+
+void Map::set_instance_size(int size_in_bytes) {
+  set_instance_size_in_words(InstanceSizeInWordsFromBytes(size_in_bytes));
+}
+
+void Map::set_instance_size(int size_in_bytes, ReleaseStoreTag tag) {
+  set_instance_size_in_words(InstanceSizeInWordsFromBytes(size_in_bytes), tag);
 }
 
 uint8_t Map::inobject_properties_start_or_constructor_function_index() const {

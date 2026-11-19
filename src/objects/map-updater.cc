@@ -477,7 +477,13 @@ void MapUpdater::CompleteInobjectSlackTracking(Isolate* isolate,
       int old_visitor_id = Map::GetVisitorId(map);
       int new_unused = map->UnusedPropertyFields() - slack;
 #endif
-      map->set_instance_size(map->InstanceSizeFromSlack(slack));
+      // Synchronize with the concurrent sweeper (see
+      // `LiveObjectRange::iterator::ReadMapAndSize`): if the sweeper observes
+      // this shrunk `instance_size` via an acquire load, a subsequent reload of
+      // an object's map is guaranteed to see any map migration that happened
+      // before slack tracking completed.
+      DCHECK(IsJSObjectMap(map));
+      map->set_instance_size(map->InstanceSizeFromSlack(slack), kReleaseStore);
       map->set_construction_counter(Map::kNoSlackTracking);
       DCHECK_EQ(old_visitor_id, Map::GetVisitorId(map));
       DCHECK_EQ(new_unused, map->UnusedPropertyFields());

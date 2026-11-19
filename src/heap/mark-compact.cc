@@ -4581,7 +4581,8 @@ bool LiveObjectVisitor::VisitMarkedObjects(NormalPage* page, Visitor* visitor,
                                            Tagged<HeapObject>* failed_object) {
   TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
               "LiveObjectVisitor::VisitMarkedObjects");
-  for (auto [object, size] : LiveObjectRange(page)) {
+  for (auto [object, size] :
+       LiveObjectRange<ConcurrencyMode::kSynchronous>(page)) {
     if (!visitor->Visit(object, size)) {
       *failed_object = object;
       return false;
@@ -4595,7 +4596,8 @@ void LiveObjectVisitor::VisitMarkedObjectsNoFail(NormalPage* page,
                                                  Visitor* visitor) {
   TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
               "LiveObjectVisitor::VisitMarkedObjectsNoFail");
-  for (auto [object, size] : LiveObjectRange(page)) {
+  for (auto [object, size] :
+       LiveObjectRange<ConcurrencyMode::kSynchronous>(page)) {
     const bool success = visitor->Visit(object, size);
     USE(success);
     DCHECK(success);

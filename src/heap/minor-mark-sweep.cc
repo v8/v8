@@ -764,7 +764,8 @@ void MinorMarkSweepCollector::TraceFragmentation() {
   size_t allocatable_bytes = 0;
   for (NormalPage* p : *new_space) {
     Address free_start = p->area_start();
-    for (auto [object, size] : LiveObjectRange(p)) {
+    for (auto [object, size] :
+         LiveObjectRange<ConcurrencyMode::kSynchronous>(p)) {
       Address free_end = object.address();
       if (free_end != free_start) {
         size_t free_bytes = free_end - free_start;

@@ -40,7 +40,8 @@ void MarkingVerifierBase::VerifyMarkingOnPage(const NormalPage* page,
                                               Address start, Address end) {
   Address next_object_must_be_here_or_later = start;
 
-  for (auto [object, size] : LiveObjectRange(page)) {
+  for (auto [object, size] :
+       LiveObjectRange<ConcurrencyMode::kSynchronous>(page)) {
     Address current = object.address();
     if (current < start) continue;
     if (current >= end) break;
