@@ -872,9 +872,7 @@ class V8_EXPORT_PRIVATE LateLoadEliminationAnalyzer {
         block_to_snapshot_mapping_(graph.block_count(), phase_zone),
         predecessor_alias_snapshots_(phase_zone),
         predecessor_maps_snapshots_(phase_zone),
-        predecessor_memory_snapshots_(phase_zone) {
-    USE(data_);
-  }
+        predecessor_memory_snapshots_(phase_zone) {}
 
   void Run();
 
@@ -892,6 +890,7 @@ class V8_EXPORT_PRIVATE LateLoadEliminationAnalyzer {
   void ProcessCall(OpIndex op_idx, const CallOp& op);
   void ProcessAssumeMap(OpIndex op_idx, const AssumeMapOp& op);
   void ProcessChange(OpIndex op_idx, const ChangeOp& change);
+  void ProcessCatchBlockBegin(OpIndex op_idx);
 
   void DcheckWordBinop(OpIndex op_idx, const WordBinopOp& binop);
 

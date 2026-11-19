@@ -740,6 +740,77 @@ TEST_F(LateLoadEliminationReducerTest, CatchBlockBeginInvalidatesStringMaps) {
 }
 
 TEST_F(LateLoadEliminationReducerTest,
+       CatchBlockBeginInvalidatesMemoryInBuiltins) {
+  for (TurboshaftPipelineKind pipeline_kind : {
+           TurboshaftPipelineKind::kCSA,
+           TurboshaftPipelineKind::kTSABuiltin,
+#if V8_ENABLE_WEBASSEMBLY
+           TurboshaftPipelineKind::kJSToWasm,
+#endif
+       }) {
+    auto test = CreateFromGraph(
+        4,
+        [&](auto& Asm) {
+          V<HeapObject> o1 = Asm.template GetParameter<HeapObject>(0);
+          V<String> s1 = Asm.template GetParameter<String>(1);
+          V<String> s2 = Asm.template GetParameter<String>(2);
+          V<String> init_val = Asm.template GetParameter<String>(3);
+          constexpr int kFieldOffset = 12;
+
+          V<Object> load0 =
+              __ Load(o1, LoadOp::Kind::TaggedBase(),
+                      MemoryRepresentation::AnyTagged(), kFieldOffset);
+
+          auto local_alloc = __ template Allocate<ConsString>(
+              __ WordPtrConstant(sizeof(ConsString)), AllocationType::kYoung,
+              AllocationAlignment::kTaggedAligned);
+          __ InitializeField(local_alloc, AccessBuilder::ForConsStringFirst(),
+                             init_val);
+          V<ConsString> local_str =
+              __ FinishInitialization(std::move(local_alloc));
+
+          Block* catch_block = __ NewBlock();
+          V<String> concat;
+          {
+            CatchScopeImpl<assembler_t> scope(Asm.Asm(), catch_block);
+            concat = __ template CallBuiltin<builtin::StringAdd_NoMapCheck>(
+                Asm.context(), {.left = s1, .right = s2});
+          }
+          V<Object> C(load_fast) =
+              __ Load(o1, LoadOp::Kind::TaggedBase(),
+                      MemoryRepresentation::AnyTagged(), kFieldOffset);
+          __ Return(__ Word32Constant(0),
+                    base::VectorOf<OpIndex>({load0, concat, load_fast}));
+
+          if (__ Bind(catch_block)) {
+            __ CatchBlockBegin();
+            V<Object> C(load_catch) =
+                __ Load(o1, LoadOp::Kind::TaggedBase(),
+                        MemoryRepresentation::AnyTagged(), kFieldOffset);
+            V<String> C(local_load_catch) = __ template LoadField<String>(
+                local_str, AccessBuilder::ForConsStringFirst());
+            __ Return(
+                __ Word32Constant(0),
+                base::VectorOf<OpIndex>({load0, load_catch, local_load_catch}));
+          }
+        },
+        pipeline_kind);
+
+    test.Run<LateLoadEliminationReducer>();
+
+    // Builtin and JS-to-Wasm wrapper frames cannot lazy-deoptimize on
+    // `Debug::OnException`, so `CatchBlockBeginOp` must invalidate
+    // maybe-aliasing memory in those pipelines without pessimizing the
+    // non-throwing fast path or non-aliasing allocations.
+    EXPECT_NE(test.GetCapturedAs<LoadOp>("load_catch"), nullptr);
+    if (!LATE_LOAD_ELIM_VERIFY) {
+      EXPECT_TRUE(test.GetCapture("load_fast").IsEmpty());
+      EXPECT_TRUE(test.GetCapture("local_load_catch").IsEmpty());
+    }
+  }
+}
+
+TEST_F(LateLoadEliminationReducerTest,
        ImmutableSlotTrackingAcrossSnapshotsAndBranches) {
   auto test = CreateFromGraph(
       base::VectorOf({RegisterRepresentation::Tagged(),

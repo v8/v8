@@ -248,10 +248,8 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
         break;
 
       case Opcode::kCatchBlockBegin:
-        // Throwing ops handle their own side effects, and Debug::OnException
-        // lazy-deoptimizes optimized JS frames / skips pausing on optimized
-        // Wasm frames. CatchBlockBeginOp has `can_allocate`, so string maps
-        // are still invalidated below.
+        ProcessCatchBlockBegin(op_idx);
+        break;
       case Opcode::kRetain:
       case Opcode::kDidntThrow:
       case Opcode::kCheckException:
@@ -701,6 +699,30 @@ void LateLoadEliminationAnalyzer::ProcessAssumeMap(
   OpIndex object = memory_.ResolveBase(assume_map.heap_object());
   object_maps_.Set(object, CombineMinMax(object_maps_.Get(object),
                                          ComputeMinMaxHash(assume_map.maps)));
+}
+
+void LateLoadEliminationAnalyzer::ProcessCatchBlockBegin(OpIndex op_idx) {
+  TRACE("> ProcessCatchBlockBegin(" << op_idx << ")");
+  switch (data_->pipeline_kind()) {
+    case TurboshaftPipelineKind::kCSA:
+    case TurboshaftPipelineKind::kTSABuiltin:
+    case TurboshaftPipelineKind::kJSToWasm:
+      // Builtin and JS-to-Wasm wrapper frames cannot lazy-deoptimize, so if a
+      // throwing op without `can_write()` (e.g. `StringAdd_NoMapCheck` in TSA)
+      // pauses in `Debug::OnException`, arbitrary JS can mutate heap memory
+      // before unwinding enters the catch block. (`object_maps_` is empty in
+      // builtin/wrapper pipelines; call `WipeAllMaps()` here if that changes.)
+      DCHECK(object_maps_.empty());
+      memory_.InvalidateMaybeAliasing();
+      break;
+    case TurboshaftPipelineKind::kJS:
+    case TurboshaftPipelineKind::kWasm:
+      // For JS/Wasm, throwing ops handle their own side effects, and
+      // Debug::OnException lazy-deoptimizes optimized JS frames / skips
+      // pausing on optimized Wasm frames. CatchBlockBeginOp has `can_allocate`,
+      // so string maps are still invalidated in `ProcessBlock`.
+      break;
+  }
 }
 
 bool IsInt32TruncatedLoadPattern(const Graph& graph, OpIndex change_idx,
