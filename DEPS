@@ -109,7 +109,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:34.20261029.4.1',
+  'fuchsia_version': 'version:34.20261118.7.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
@@ -173,7 +173,7 @@ deps = {
     'condition': 'checkout_agents_internal',
   },
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '0433760574573dfbe36adc9ec9f4308c63e9c85c',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'a2164427409ef421e28a1a91eac5e8c113bf02c4',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'c65dc4e8c262156a4a6f8731952711386d7067f3',
   'buildtools/linux64': {
@@ -282,7 +282,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'fed8b43f48c4f4c2ac0c34aafbf0ec07a4e600cb',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '40487ee6a1fa701d19c97011b1c770a589bcb396',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + 'beeeef91cf6fef89a4d4ba5e95d47ca64ccb3a44',
   'third_party/fp16/src':
@@ -535,7 +535,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '5b1cdf61a3a1017310b9f84834e33f8dfd627020',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'f4982961d5e9d0452c141d3440b43fa123c4f48a',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '3813fd5b3029807583e5d2549a40d78fa499c3e8',
   'third_party/re2/src':
@@ -545,11 +545,11 @@ deps = {
       'condition': 'checkout_android',
   },
   'tools/rust':
-    Var('chromium_url') + '/chromium/src/tools/rust' + '@' + 'a651c85f8b2b70e6b33b529bb293b52709730156',
+    Var('chromium_url') + '/chromium/src/tools/rust' + '@' + '6a137d2ff7dea84a372fd50e148c6fea044ec398',
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + 'd72db9e3040567a7589e00c0ad7ddf25c3b070bc',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + 'aee3445062d8cf2b53941d0ee7eb14fcab91e5b1',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + 'f47c1616e988e8a177f95daeddcfab397899d1f6',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -674,7 +674,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' + 'ebd922adc708a48b0cccfcdf81e854a3fdc1b7b6',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' + 'df73c6a8872152d7ed6a8ed91bc9027b970f6f42',
     'condition': 'not build_with_chromium',
   },
   'third_party/nasm': {
