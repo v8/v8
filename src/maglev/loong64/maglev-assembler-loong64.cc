@@ -538,10 +538,18 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     } else {
       DCHECK_EQ(mode,
                 BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt);
+      DCHECK_NE(string, index);
+      // {result} is written before the trailing-surrogate lookahead, which
+      // still needs {string} and {index}. Preserve whichever one {result}
+      // aliases.
       Register string_backup = string;
+      Register index_backup = index;
       if (result == string) {
         string_backup = scratch2;
         mov(string_backup, string);
+      } else if (result == index) {
+        index_backup = scratch2;
+        mov(index_backup, index);
       }
       Ld_hu(result, MemOperand(string, scratch));
 
@@ -552,18 +560,19 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
 
       Register length = scratch;
       Ld_w(length, FieldMemOperand(string_backup, offsetof(String, length_)));
-      Add_w(index, index, Operand(1));
-      MacroAssembler::Branch(*done, kGreaterThanEqual, index, Operand(length));
+      Add_w(index_backup, index_backup, Operand(1));
+      MacroAssembler::Branch(*done, kGreaterThanEqual, index_backup,
+                             Operand(length));
 
       Register second_code_point = scratch;
-      Bstrpick_d(index, index, 31, 0);
-      slli_d(index, index, 1);
-      Add_d(index, index,
+      Bstrpick_d(index_backup, index_backup, 31, 0);
+      slli_d(index_backup, index_backup, 1);
+      Add_d(index_backup, index_backup,
             Operand(OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag));
-      Ld_hu(second_code_point, MemOperand(string_backup, index));
+      Ld_hu(second_code_point, MemOperand(string_backup, index_backup));
 
-      // {index} is not needed at this point.
-      Register scratch2 = index;
+      // {string_backup} and {index_backup} are dead here, so {scratch2} is
+      // free even if it held a backup.
       And(scratch2, second_code_point, Operand(0xfc00));
       MacroAssembler::Branch(*done, kNotEqual, scratch2, Operand(0xdc00));
 
