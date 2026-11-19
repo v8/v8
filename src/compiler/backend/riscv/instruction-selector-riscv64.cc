@@ -157,12 +157,14 @@ static InstructionCode GetShxaddCode(int64_t shift) {
   UNREACHABLE();
 }
 
-static void EmitInstrToFoldImpl(InstructionSelector* selector,
-                                InstructionCode addr_opcode,
-                                InstructionCode opcode, OpIndex addr_left_node,
-                                OpIndex base, InstructionOperand output,
-                                OpIndex value, InstructionOperand imm,
-                                bool read) {
+// Returns the emitted load/store instruction.
+static Instruction* EmitInstrToFoldImpl(InstructionSelector* selector,
+                                        InstructionCode addr_opcode,
+                                        InstructionCode opcode,
+                                        OpIndex addr_left_node, OpIndex base,
+                                        InstructionOperand output,
+                                        OpIndex value, InstructionOperand imm,
+                                        bool read) {
   RiscvOperandGenerator g(selector);
 
   InstructionOperand addr_reg = g.TempRegister();
@@ -170,41 +172,47 @@ static void EmitInstrToFoldImpl(InstructionSelector* selector,
   selector->Emit(addr_opcode | AddressingModeField::encode(kMode_None),
                  addr_reg, g.UseRegister(addr_left_node), g.UseRegister(base));
   if (read) {
-    selector->Emit(opcode | AddressingModeField::encode(kMode_MRI), output,
-                   addr_reg, imm);
+    return selector->Emit(opcode | AddressingModeField::encode(kMode_MRI),
+                          output, addr_reg, imm);
   } else {
-    selector->Emit(opcode | AddressingModeField::encode(kMode_MRI), output,
-                   g.UseRegisterOrImmediateZero(value), addr_reg, imm);
+    return selector->Emit(opcode | AddressingModeField::encode(kMode_MRI),
+                          output, g.UseRegisterOrImmediateZero(value), addr_reg,
+                          imm);
   }
 }
 
-static void EmitInstrToFold(InstructionSelector* selector,
-                            InstructionCode addr_opcode, InstructionCode opcode,
-                            OpIndex addr_left_node, OpIndex base,
-                            InstructionOperand output, OpIndex value,
-                            int32_t imm, bool read) {
+static Instruction* EmitInstrToFold(InstructionSelector* selector,
+                                    InstructionCode addr_opcode,
+                                    InstructionCode opcode,
+                                    OpIndex addr_left_node, OpIndex base,
+                                    InstructionOperand output, OpIndex value,
+                                    int32_t imm, bool read) {
   RiscvOperandGenerator g(selector);
-  EmitInstrToFoldImpl(selector, addr_opcode, opcode, addr_left_node, base,
-                      output, value, g.TempImmediate(imm), read);
+  return EmitInstrToFoldImpl(selector, addr_opcode, opcode, addr_left_node,
+                             base, output, value, g.TempImmediate(imm), read);
 }
 
-static void EmitInstrToFold(InstructionSelector* selector,
-                            InstructionCode addr_opcode, InstructionCode opcode,
-                            OpIndex addr_left_node, OpIndex base,
-                            InstructionOperand output, OpIndex value,
-                            OpIndex index, bool read) {
+static Instruction* EmitInstrToFold(InstructionSelector* selector,
+                                    InstructionCode addr_opcode,
+                                    InstructionCode opcode,
+                                    OpIndex addr_left_node, OpIndex base,
+                                    InstructionOperand output, OpIndex value,
+                                    OpIndex index, bool read) {
   RiscvOperandGenerator g(selector);
-  EmitInstrToFoldImpl(selector, addr_opcode, opcode, addr_left_node, base,
-                      output, value, g.UseImmediate(index), read);
+  return EmitInstrToFoldImpl(selector, addr_opcode, opcode, addr_left_node,
+                             base, output, value, g.UseImmediate(index), read);
 }
 
 // TODO(zhijin): Refactoring is needed to make the function's implementation
 // match its name. The bailout path in case 2 does not use the shxadd
 // instruction.
-static bool TryFoldLoadStoreImpl(InstructionSelector* selector, OpIndex node,
-                                 InstructionCode opcode, OpIndex base,
-                                 OpIndex index, InstructionOperand output,
-                                 OpIndex value, bool read) {
+// Returns the emitted load/store instruction, or nullptr if nothing was
+// folded.
+static Instruction* TryFoldLoadStoreImpl(InstructionSelector* selector,
+                                         OpIndex node, InstructionCode opcode,
+                                         OpIndex base, OpIndex index,
+                                         InstructionOperand output,
+                                         OpIndex value, bool read) {
   RiscvOperandGenerator g(selector);
 
   const Operation& base_op = selector->Get(base);
@@ -230,18 +238,18 @@ static bool TryFoldLoadStoreImpl(InstructionSelector* selector, OpIndex node,
       const Operation& shift_rhs = selector->Get(shift_op.right());
 
       if (!shift_rhs.Is<Opmask::kWord32Constant>()) {
-        return false;
+        return nullptr;
       }
 
       // The optimization is less beneficial if 'base' has additional uses.
       if (!selector->CanCover(base, bin_right_idx) ||
           !selector->CanCover(node, base)) {
-        return false;
+        return nullptr;
       }
 
       int64_t shift_by = shift_rhs.Cast<ConstantOp>().signed_integral();
       if (!base::IsInRange(shift_by, 1, 3)) {
-        return false;
+        return nullptr;
       }
 
       //
@@ -267,10 +275,9 @@ static bool TryFoldLoadStoreImpl(InstructionSelector* selector, OpIndex node,
       //          output = Load(base', index)
       //              t3 = Load(t1, 8)
       //
-      EmitInstrToFold(selector, GetShxaddCode(shift_by), opcode,
-                      shift_op.left(), bin_left_idx, output, value, index,
-                      read);
-      return true;
+      return EmitInstrToFold(selector, GetShxaddCode(shift_by), opcode,
+                             shift_op.left(), bin_left_idx, output, value,
+                             index, read);
     } else if (!index_is_imm && (bin_rhs_op.Is<Opmask::kWord32Constant>() ||
                                  bin_rhs_op.Is<Opmask::kWord64Constant>())) {
       // *(base + (x + imm)) -> *((x + base) + imm), or
@@ -279,7 +286,7 @@ static bool TryFoldLoadStoreImpl(InstructionSelector* selector, OpIndex node,
       // The range of offset in load instruction is -2048~2047.
       if (!base::IsInRange(constant, -2048, 2047) ||
           !selector->CanCover(node, index)) {
-        return false;
+        return nullptr;
       }
 
       int32_t imm = static_cast<int32_t>(constant);
@@ -314,9 +321,8 @@ static bool TryFoldLoadStoreImpl(InstructionSelector* selector, OpIndex node,
         //          output = Load(base', index')
         //             t3  = Load(t1, 15)
         //
-        EmitInstrToFold(selector, kRiscvAdd64, opcode, bin_left_idx, base,
-                        output, value, imm, read);
-        return true;
+        return EmitInstrToFold(selector, kRiscvAdd64, opcode, bin_left_idx,
+                               base, output, value, imm, read);
       }
 
       const Operation& shift_rhs = selector->Get(bin_lhs_op.input(1));
@@ -351,16 +357,14 @@ static bool TryFoldLoadStoreImpl(InstructionSelector* selector, OpIndex node,
           //         output = Load(base', index')
           //             t3 = Load(t1, 15)
           //
-          EmitInstrToFold(selector, GetShxaddCode(shift_by), opcode,
-                          bin_lhs_op.input(0), base, output, value, imm, read);
-
-          return true;
+          return EmitInstrToFold(selector, GetShxaddCode(shift_by), opcode,
+                                 bin_lhs_op.input(0), base, output, value, imm,
+                                 read);
         }
       }
       // Like case 2.
-      EmitInstrToFold(selector, kRiscvAdd64, opcode, bin_left_idx, base, output,
-                      value, imm, read);
-      return true;
+      return EmitInstrToFold(selector, kRiscvAdd64, opcode, bin_left_idx, base,
+                             output, value, imm, read);
     }
   } else if (!index_is_imm && index_op.Is<Opmask::kWord64ShiftLeft>() &&
              CpuFeatures::IsSupported(ZBA)) {
@@ -370,16 +374,16 @@ static bool TryFoldLoadStoreImpl(InstructionSelector* selector, OpIndex node,
     const Operation& shift_rhs = selector->Get(shift_op.right());
 
     if (!shift_rhs.Is<Opmask::kWord32Constant>()) {
-      return false;
+      return nullptr;
     }
 
     if (!selector->CanCover(node, index)) {
-      return false;
+      return nullptr;
     }
 
     int64_t shift_by = shift_rhs.Cast<ConstantOp>().signed_integral();
     if (!base::IsInRange(shift_by, 1, 3)) {
-      return false;
+      return nullptr;
     }
 
     //
@@ -403,16 +407,16 @@ static bool TryFoldLoadStoreImpl(InstructionSelector* selector, OpIndex node,
     //       output = Load(addr, 0)
     //           t3 = Load(t1, 0)
     //
-    EmitInstrToFold(selector, GetShxaddCode(shift_by), opcode, shift_op.left(),
-                    base, output, value, 0, read);
-    return true;
+    return EmitInstrToFold(selector, GetShxaddCode(shift_by), opcode,
+                           shift_op.left(), base, output, value, 0, read);
   }
-  return false;
+  return nullptr;
 }
 
-static bool TryFoldLoad(InstructionSelector* selector, OpIndex node,
-                        InstructionCode opcode, OpIndex base, OpIndex index,
-                        OpIndex output) {
+// Returns the emitted load instruction, or nullptr if nothing was folded.
+static Instruction* TryFoldLoad(InstructionSelector* selector, OpIndex node,
+                                InstructionCode opcode, OpIndex base,
+                                OpIndex index, OpIndex output) {
   RiscvOperandGenerator g(selector);
   return TryFoldLoadStoreImpl(
       selector, node, opcode, base, index,
@@ -423,11 +427,12 @@ static bool TryFoldStore(InstructionSelector* selector, OpIndex node,
                          InstructionCode opcode, OpIndex base, OpIndex index,
                          InstructionOperand output, OpIndex value) {
   return TryFoldLoadStoreImpl(selector, node, opcode, base, index, output,
-                              value, false);
+                              value, false) != nullptr;
 }
 
-void EmitLoad(InstructionSelector* selector, OpIndex node,
-              InstructionCode opcode, OpIndex output = OpIndex()) {
+// Returns the emitted load instruction.
+Instruction* EmitLoad(InstructionSelector* selector, OpIndex node,
+                      InstructionCode opcode, OpIndex output = OpIndex()) {
   RiscvOperandGenerator g(selector);
 
   const Operation& op = selector->Get(node);
@@ -465,8 +470,7 @@ void EmitLoad(InstructionSelector* selector, OpIndex node,
       if (is_int32(delta)) {
         inputs[0] = g.UseImmediate(static_cast<int32_t>(delta));
         opcode |= AddressingModeField::encode(kMode_Root);
-        selector->Emit(opcode, 1, &output_op, input_count, inputs);
-        return;
+        return selector->Emit(opcode, 1, &output_op, input_count, inputs);
       }
     }
   }
@@ -476,26 +480,26 @@ void EmitLoad(InstructionSelector* selector, OpIndex node,
     input_count = 1;
     inputs[0] = g.UseImmediate64(index_constant);
     opcode |= AddressingModeField::encode(kMode_Root);
-    selector->Emit(opcode, 1, &output_op, input_count, inputs);
-    return;
+    return selector->Emit(opcode, 1, &output_op, input_count, inputs);
   }
 
-  if (TryFoldLoad(selector, node, opcode, base, index, output)) {
-    return;
+  if (Instruction* folded =
+          TryFoldLoad(selector, node, opcode, base, index, output)) {
+    return folded;
   }
 
   if (g.CanBeImmediate(index, opcode)) {
-    selector->Emit(opcode | AddressingModeField::encode(kMode_MRI),
-                   g.DefineAsRegister(output.valid() ? output : node),
-                   g.UseRegister(base), g.UseImmediate(index));
+    return selector->Emit(opcode | AddressingModeField::encode(kMode_MRI),
+                          g.DefineAsRegister(output.valid() ? output : node),
+                          g.UseRegister(base), g.UseImmediate(index));
   } else {
     InstructionOperand addr_reg = g.TempRegister();
     selector->Emit(kRiscvAdd64 | AddressingModeField::encode(kMode_None),
                    addr_reg, g.UseRegister(index), g.UseRegister(base));
     // Emit desired load opcode, using temp addr_reg.
-    selector->Emit(opcode | AddressingModeField::encode(kMode_MRI),
-                   g.DefineAsRegister(output.valid() ? output : node), addr_reg,
-                   g.TempImmediate(0));
+    return selector->Emit(opcode | AddressingModeField::encode(kMode_MRI),
+                          g.DefineAsRegister(output.valid() ? output : node),
+                          addr_reg, g.TempImmediate(0));
   }
 }
 
@@ -1577,15 +1581,49 @@ void InstructionSelector::VisitChangeInt32ToInt64(OpIndex node) {
 }
 
 void InstructionSelector::VisitChangeUint32ToUint64(OpIndex node) {
-  RiscvOperandGenerator g(this);
-  const Operation& op = this->Get(node);
-  DCHECK_EQ(op.input_count, 1);
-  OpIndex value = op.input(0);
-  if (ZeroExtendsWord32ToWord64(value)) {
-    Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
+  const ChangeOp& change_op = this->Get(node).template Cast<ChangeOp>();
+  OpIndex input = change_op.input();
+  const Operation& input_op = this->Get(input);
+  if (input_op.Is<LoadOp>() && CanCover(node, input)) {
+    LoadView load = this->load_view(input);
+    LoadRepresentation load_rep = load.loaded_rep();
+    // An atomic load must keep its own opcode (and fences), so it cannot be
+    // replaced by a plain Lwu. CanCover above already ensures that the load
+    // has no other value users; CanCoverTrappingLoad additionally ensures
+    // that no trapping, control-flow or required_when_unused operation lies
+    // between the load and {node}, so fusing the load cannot reorder traps.
+    if (!load.is_atomic() &&
+        load_rep.representation() == MachineRepresentation::kWord32 &&
+        (!load.is_trapping() || CanCoverTrappingLoad(node, input))) {
+      // Merge the zero-extension into the load: Lwu already zero-extends.
+      // The loaded value is the same regardless of the signedness of the
+      // load representation.
+      InstructionCode opcode = kRiscvLwu;
+      if (load.is_trapping()) {
+        // The load is now emitted for {node}, so {node} becomes the trapping
+        // instruction and the original load can be dropped if unused.
+        opcode |= AccessModeField::encode(kMemoryAccessTrapping);
+        MarkAsTrappingInstruction(node);
+        SetTrappingLoadToRemove(input);
+      }
+      Instruction* load_instr = EmitLoad(this, input, opcode, node);
+      if (load.is_trapping()) {
+        // FinishEmittedInstructions records the source position of {node}
+        // (the ChangeUint32ToUint64) on the last emitted instruction, which
+        // is the fused load. Override it with the position of the original
+        // load, so that an out-of-bounds trap reports the correct Wasm
+        // bytecode offset.
+        UpdateSourcePosition(load_instr, input);
+      }
+      return;
+    }
+  }
+  if (ZeroExtendsWord32ToWord64(input)) {
+    EmitIdentity(node);
     return;
   }
-  Emit(kRiscvZeroExtendWord, g.DefineAsRegister(node), g.UseRegister(value));
+  RiscvOperandGenerator g(this);
+  Emit(kRiscvZeroExtendWord, g.DefineAsRegister(node), g.UseRegister(input));
 }
 
 bool InstructionSelector::ZeroExtendsWord32ToWord64NoPhis(OpIndex node) {
@@ -1603,7 +1641,11 @@ bool InstructionSelector::ZeroExtendsWord32ToWord64NoPhis(OpIndex node) {
           case MachineRepresentation::kWord16:
             return true;
           case MachineRepresentation::kWord32:
-            return !load.is_atomic();
+            // A Word32 vreg is reloaded from its spill slot with a
+            // sign-extending Lw (see CodeGenerator::AssembleMove), so a
+            // zero-extended register image is not preserved across spills.
+            // Always emit an explicit zero-extension.
+            return false;
           default:
             return false;
         }
