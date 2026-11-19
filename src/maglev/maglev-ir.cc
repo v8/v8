@@ -5707,9 +5707,10 @@ void GeneratorRestoreRegister::GenerateCode(MaglevAssembler* masm,
   Register stale = ToRegister(StaleInput());
   Register result_reg = ToRegister(result());
 
-  // The input and the output can alias, if that happens we use a temporary
+  // Either input and the output can alias; if that happens we use a temporary
   // register and a move at the end.
-  Register value = (array == result_reg ? temp : result_reg);
+  Register value =
+      (array == result_reg || stale == result_reg) ? temp : result_reg;
 
   // Loads the current value in the generator register file.
   __ LoadTaggedField(value, array, FixedArray::OffsetOfElementAt(index()));
