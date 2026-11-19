@@ -117,6 +117,13 @@ class LifetimePosition final {
     return LifetimePosition(Start().value_ - kHalfStep);
   }
 
+  // Returns this position if it is already a gap position, or the gap END of
+  // the current instruction otherwise.
+  LifetimePosition RoundDownToGap() const {
+    DCHECK(IsValid());
+    return IsGapPosition() ? *this : FullStart().End();
+  }
+
   // Constructs the lifetime position which does not correspond to any
   // instruction.
   LifetimePosition() : value_(-1) {}
@@ -243,7 +250,6 @@ class RegisterAllocationData final : public ZoneObject {
   const ZoneVector<TopLevelLiveRange*>& live_ranges() const {
     return live_ranges_;
   }
-  ZoneVector<TopLevelLiveRange*>& live_ranges() { return live_ranges_; }
   const ZoneVector<TopLevelLiveRange*>& fixed_live_ranges() const {
     return fixed_live_ranges_;
   }
@@ -253,9 +259,6 @@ class RegisterAllocationData final : public ZoneObject {
   ZoneVector<TopLevelLiveRange*>& fixed_float_live_ranges() {
     return fixed_float_live_ranges_;
   }
-  const ZoneVector<TopLevelLiveRange*>& fixed_float_live_ranges() const {
-    return fixed_float_live_ranges_;
-  }
   ZoneVector<TopLevelLiveRange*>& fixed_double_live_ranges() {
     return fixed_double_live_ranges_;
   }
@@ -263,9 +266,6 @@ class RegisterAllocationData final : public ZoneObject {
     return fixed_double_live_ranges_;
   }
   ZoneVector<TopLevelLiveRange*>& fixed_simd128_live_ranges() {
-    return fixed_simd128_live_ranges_;
-  }
-  const ZoneVector<TopLevelLiveRange*>& fixed_simd128_live_ranges() const {
     return fixed_simd128_live_ranges_;
   }
   ZoneVector<SparseBitVector*>& live_in_sets() { return live_in_sets_; }
@@ -956,7 +956,7 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   // This allows cheap splitting and merging of `LiveRange`s.
   base::Vector<UsePosition*> positions_span_;
 
-  TopLevelLiveRange* top_level_;
+  TopLevelLiveRange* const top_level_;
   // TODO(dlehmann): Remove linked list fully and instead use only the
   // `TopLevelLiveRange::children_` vector. This requires API changes to
   // `SplitAt` and `AttachToNext`, as they need access to a vector iterator.
@@ -1278,7 +1278,6 @@ class LiveRangeBuilder final : public ZoneObject {
   RegisterAllocationData* data() const { return data_; }
   InstructionSequence* code() const { return data()->code(); }
   Zone* allocation_zone() const { return data()->allocation_zone(); }
-  Zone* code_zone() const { return code()->zone(); }
   const RegisterConfiguration* config() const { return data()->config(); }
   ZoneVector<SparseBitVector*>& live_in_sets() const {
     return data()->live_in_sets();

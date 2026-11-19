@@ -463,7 +463,6 @@ LiveRange* LiveRange::SplitAt(LifetimePosition position, Zone* zone) {
   }
 #endif
 
-  result->top_level_ = TopLevel();
   result->next_ = next_;
   next_ = result;
 
@@ -2377,7 +2376,7 @@ void LiveRangeBuilder::BuildLiveRanges() {
         }
         UsePositionType new_type = UsePositionType::kRegisterOrSlot;
         // Can't mark phis as needing a register.
-        if (!pos->pos().IsGapPosition()) {
+        if (pos->pos().IsInstructionPosition()) {
           new_type = UsePositionType::kRequiresRegister;
         }
         pos->set_register_beneficial(new_type);
@@ -2516,12 +2515,12 @@ void BundleBuilder::BuildBundles() {
         out->TryAddRange(out_range);
       }
       TRACE("Processing phi for v%d with %d:%d\n", phi->virtual_register(),
-            out_range->TopLevel()->vreg(), out_range->relative_id());
+            out_range->vreg(), out_range->relative_id());
       bool phi_interferes_with_backedge_input = false;
       for (auto input : phi->operands()) {
         TopLevelLiveRange* input_range = data()->GetLiveRangeFor(input);
-        TRACE("Input value v%d with range %d:%d\n", input,
-              input_range->TopLevel()->vreg(), input_range->relative_id());
+        TRACE("Input value v%d with range %d:%d\n", input, input_range->vreg(),
+              input_range->relative_id());
         LiveRangeBundle* input_bundle = input_range->get_bundle();
         if (input_bundle != nullptr) {
           TRACE("Merge\n");
@@ -2555,7 +2554,7 @@ void BundleBuilder::BuildBundles() {
       // value, because in case that input gets spilled it might introduce
       // a stack-to-stack move at the back-edge.
       if (phi_interferes_with_backedge_input) {
-        out_range->TopLevel()->set_spilling_at_loop_header_not_beneficial();
+        out_range->set_spilling_at_loop_header_not_beneficial();
       }
     }
     TRACE("Done block B%d\n", block_id);
@@ -2627,9 +2626,9 @@ LiveRangeBundle* LiveRangeBundle::TryMerge(LiveRangeBundle* lhs,
 void LiveRangeBundle::MergeSpillRangesAndClear() {
   DCHECK_IMPLIES(ranges_.empty(), intervals_.empty());
   SpillRange* target = nullptr;
-  for (auto range : ranges_) {
-    if (range->TopLevel()->HasSpillRange()) {
-      SpillRange* current = range->TopLevel()->GetSpillRange();
+  for (TopLevelLiveRange* range : ranges_) {
+    if (range->HasSpillRange()) {
+      SpillRange* current = range->GetSpillRange();
       if (target == nullptr) {
         target = current;
       } else if (target != current) {
@@ -2684,8 +2683,8 @@ void RegisterAllocator::SplitAndSpillRangesDefinedByMemoryOperand() {
       continue;
     }
     LifetimePosition start = range->Start();
-    TRACE("Live range %d:%d is defined by a spill operand.\n",
-          range->TopLevel()->vreg(), range->relative_id());
+    TRACE("Live range %d:%d is defined by a spill operand.\n", range->vreg(),
+          range->relative_id());
     LifetimePosition next_pos = start;
     if (next_pos.IsGapPosition()) {
       next_pos = next_pos.NextStart();
@@ -2727,8 +2726,7 @@ LiveRange* RegisterAllocator::SplitRangeAt(LiveRange* range,
          (GetInstructionBlock(code(), pos)->last_instruction_index() !=
           pos.ToInstructionIndex()));
 
-  LiveRange* result = range->SplitAt(pos, allocation_zone());
-  return result;
+  return range->SplitAt(pos, allocation_zone());
 }
 
 LiveRange* RegisterAllocator::SplitBetween(LiveRange* range,
@@ -3049,7 +3047,7 @@ LiveRange* LinearScanAllocator::AssignRegisterOnReload(LiveRange* range,
     // Shift the split position to the last gap position. This is to ensure that
     // if a connecting move is needed, that move coincides with the start of the
     // range that it defines.
-    new_end = new_end.IsGapPosition() ? new_end : new_end.FullStart().End();
+    new_end = new_end.RoundDownToGap();
     DCHECK_GT(new_end, range->Start());
     LiveRange* tail = SplitRangeAt(range, new_end);
     AddToUnhandled(tail);
@@ -4145,8 +4143,7 @@ bool LinearScanAllocator::TryAllocateFreeReg(
     // blocked. Shift the split position to the last gap position. This is to
     // ensure that if a connecting move is needed, that move coincides with the
     // start of the range that it defines. See crbug.com/1182985.
-    LifetimePosition gap_pos =
-        pos.IsGapPosition() ? pos : pos.FullStart().End();
+    LifetimePosition gap_pos = pos.RoundDownToGap();
     if (gap_pos <= current->Start()) return false;
     LiveRange* tail = SplitRangeAt(current, gap_pos);
     AddToUnhandled(tail);
