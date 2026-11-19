@@ -5,6 +5,8 @@
 #ifndef V8_MAGLEV_MAGLEV_ASSEMBLER_H_
 #define V8_MAGLEV_MAGLEV_ASSEMBLER_H_
 
+#include <optional>
+
 #include "src/base/logging.h"
 #include "src/base/strong-alias.h"
 #include "src/codegen/atomic-memory-order.h"
@@ -876,6 +878,18 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
                                     bool fallthrough_when_true, Label* if_false,
                                     Label::Distance false_distance,
                                     bool fallthrough_when_false);
+  // The int32 compares above on the inputs of a node. An Int32Constant or
+  // Uint32Constant input is read as an immediate, with the operands swapped
+  // and the condition commuted when it is the left one; any other input is
+  // read from its register. TryGetInt32Immediate is that constant's value,
+  // for the node's location constraints, which need not give it a register.
+  inline void CompareInt32AndJumpIf(Input left, Input right, Condition cond,
+                                    Label* target,
+                                    Label::Distance distance = Label::kFar);
+  inline void CompareInt32AndBranch(Input left, Input right, Condition cond,
+                                    BasicBlock* if_true, BasicBlock* if_false,
+                                    BasicBlock* next_block);
+  static inline std::optional<int32_t> TryGetInt32Immediate(Input input);
   inline void CompareIntPtrAndBranch(Register r1, int32_t value, Condition cond,
                                      BasicBlock* if_true, BasicBlock* if_false,
                                      BasicBlock* next_block);
@@ -1051,6 +1065,17 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   // Returns the condition code satisfied if tagging is successful. Only use
   // this when SmiValuesAre31Bits(); otherwise use SmiTag(dst, src).
   inline Condition TrySmiTagInt32(Register dst, Register src);
+
+  // The register, immediate and condition of a compare of {left} with
+  // {right} under {cond} once its constant input is read as an immediate, or
+  // nullopt when neither input is one.
+  struct ImmediateCompare {
+    Register reg;
+    int32_t value;
+    Condition cond;
+  };
+  static inline std::optional<ImmediateCompare> TryGetImmediateCompare(
+      Input left, Input right, Condition cond);
 
   MaglevCodeGenState* const code_gen_state_;
   TemporaryRegisterScope* scratch_register_scope_ = nullptr;
@@ -1355,6 +1380,40 @@ constexpr Condition UnsignedConditionFor(Operation operation) {
       return kUnsignedGreaterThan;
     case Operation::kGreaterThanOrEqual:
       return kUnsignedGreaterThanEqual;
+    default:
+      UNREACHABLE();
+  }
+}
+
+// Whether {cond} orders its operands as signed integers. kEqual and kNotEqual
+// hold for either signedness.
+constexpr bool IsSignedCondition(Condition cond) {
+  return cond == kLessThan || cond == kLessThanEqual || cond == kGreaterThan ||
+         cond == kGreaterThanEqual;
+}
+
+// The condition under which the operands of {cond}, swapped, compare the same.
+constexpr Condition CommuteCondition(Condition cond) {
+  switch (cond) {
+    case kEqual:
+    case kNotEqual:
+      return cond;
+    case kLessThan:
+      return kGreaterThan;
+    case kLessThanEqual:
+      return kGreaterThanEqual;
+    case kGreaterThan:
+      return kLessThan;
+    case kGreaterThanEqual:
+      return kLessThanEqual;
+    case kUnsignedLessThan:
+      return kUnsignedGreaterThan;
+    case kUnsignedLessThanEqual:
+      return kUnsignedGreaterThanEqual;
+    case kUnsignedGreaterThan:
+      return kUnsignedLessThan;
+    case kUnsignedGreaterThanEqual:
+      return kUnsignedLessThanEqual;
     default:
       UNREACHABLE();
   }

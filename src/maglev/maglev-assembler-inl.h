@@ -9,6 +9,7 @@
 // Include the non-inl header before the rest of the headers.
 
 #include <algorithm>
+#include <optional>
 #include <type_traits>
 
 #include "src/base/bits.h"
@@ -415,6 +416,66 @@ inline void MaglevAssembler::CompareInt32AndBranch(Register r1, Register r2,
   CompareInt32AndBranch(r1, r2, cond, if_true->label(), Label::kFar,
                         if_true == next_block, if_false->label(), Label::kFar,
                         if_false == next_block);
+}
+
+// static
+inline std::optional<int32_t> MaglevAssembler::TryGetInt32Immediate(
+    Input input) {
+  ValueNode* node = input.node();
+  if (auto* constant = node->TryCast<Int32Constant>()) {
+    return constant->value();
+  }
+  if (auto* constant = node->TryCast<Uint32Constant>()) {
+    // The bits the register would hold: above INT32_MAX they are a negative
+    // immediate, which an unsigned condition reads as the constant's value.
+    return static_cast<int32_t>(constant->value());
+  }
+  return std::nullopt;
+}
+
+// static
+inline std::optional<MaglevAssembler::ImmediateCompare>
+MaglevAssembler::TryGetImmediateCompare(Input left, Input right,
+                                        Condition cond) {
+  // A Uint32Constant is only ordered unsigned, which keeps the value of its
+  // bits above INT32_MAX. An Int32Constant is ordered either way: a bounds
+  // check compares its index unsigned against the length.
+  DCHECK_IMPLIES(
+      left.node()->Is<Uint32Constant>() || right.node()->Is<Uint32Constant>(),
+      !IsSignedCondition(cond));
+  if (auto value = TryGetInt32Immediate(right)) {
+    return ImmediateCompare{ToRegister(left), *value, cond};
+  }
+  if (auto value = TryGetInt32Immediate(left)) {
+    return ImmediateCompare{ToRegister(right), *value, CommuteCondition(cond)};
+  }
+  return std::nullopt;
+}
+
+inline void MaglevAssembler::CompareInt32AndJumpIf(Input left, Input right,
+                                                   Condition cond,
+                                                   Label* target,
+                                                   Label::Distance distance) {
+  if (auto imm = TryGetImmediateCompare(left, right, cond)) {
+    CompareInt32AndJumpIf(imm->reg, imm->value, imm->cond, target, distance);
+  } else {
+    CompareInt32AndJumpIf(ToRegister(left), ToRegister(right), cond, target,
+                          distance);
+  }
+}
+
+inline void MaglevAssembler::CompareInt32AndBranch(Input left, Input right,
+                                                   Condition cond,
+                                                   BasicBlock* if_true,
+                                                   BasicBlock* if_false,
+                                                   BasicBlock* next_block) {
+  if (auto imm = TryGetImmediateCompare(left, right, cond)) {
+    CompareInt32AndBranch(imm->reg, imm->value, imm->cond, if_true, if_false,
+                          next_block);
+  } else {
+    CompareInt32AndBranch(ToRegister(left), ToRegister(right), cond, if_true,
+                          if_false, next_block);
+  }
 }
 
 inline void MaglevAssembler::CompareIntPtrAndBranch(Register r1, int32_t value,

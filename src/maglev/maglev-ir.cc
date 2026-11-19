@@ -3176,13 +3176,29 @@ void GetIterator::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void Int32Compare::SetValueLocationConstraints() {
-  UseRegister(LeftInput());
-  if (RightInput().node()->Is<Int32Constant>()) {
-    UseAny(RightInput());
+namespace {
+
+// The constraints of a compare that reads its inputs through the Input
+// overloads of MaglevAssembler::CompareInt32AndJumpIf and
+// CompareInt32AndBranch: a constant input is read as an immediate and needs
+// no register.
+void UseRegisterOrImmediate(Input left, Input right) {
+  if (MaglevAssembler::TryGetInt32Immediate(right)) {
+    UseRegister(left);
+    UseAny(right);
+  } else if (MaglevAssembler::TryGetInt32Immediate(left)) {
+    UseAny(left);
+    UseRegister(right);
   } else {
-    UseRegister(RightInput());
+    UseRegister(left);
+    UseRegister(right);
   }
+}
+
+}  // namespace
+
+void Int32Compare::SetValueLocationConstraints() {
+  UseRegisterOrImmediate(LeftInput(), RightInput());
   DefineAsRegister(this);
 }
 
@@ -3190,16 +3206,8 @@ void Int32Compare::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {
   Register result = ToRegister(this->result());
   Label is_true, end;
-  if (Int32Constant* constant = RightInput().node()->TryCast<Int32Constant>()) {
-    int32_t right_value = constant->value();
-    __ CompareInt32AndJumpIf(ToRegister(LeftInput()), right_value,
-                             ConditionFor(operation()), &is_true,
-                             Label::Distance::kNear);
-  } else {
-    __ CompareInt32AndJumpIf(ToRegister(LeftInput()), ToRegister(RightInput()),
-                             ConditionFor(operation()), &is_true,
-                             Label::Distance::kNear);
-  }
+  __ CompareInt32AndJumpIf(LeftInput(), RightInput(), ConditionFor(operation()),
+                           &is_true, Label::Distance::kNear);
   // TODO(leszeks): Investigate loading existing materialisations of roots here,
   // if available.
   __ LoadRoot(result, RootIndex::kFalseValue);
@@ -4486,13 +4494,12 @@ void CheckTypedArrayBounds::GenerateCode(MaglevAssembler* masm,
 }
 
 void CheckInt32Condition::SetValueLocationConstraints() {
-  UseRegister(LeftInput());
-  UseRegister(RightInput());
+  UseRegisterOrImmediate(LeftInput(), RightInput());
 }
 void CheckInt32Condition::GenerateCode(MaglevAssembler* masm,
                                        const ProcessingState& state) {
   Label* fail = __ GetDeoptLabel(this, deoptimize_reason());
-  __ CompareInt32AndJumpIf(ToRegister(LeftInput()), ToRegister(RightInput()),
+  __ CompareInt32AndJumpIf(LeftInput(), RightInput(),
                            NegateCondition(ToCondition(condition())), fail);
 }
 
@@ -9008,27 +9015,22 @@ void BranchIfTypedArrayBounds::GenerateCode(MaglevAssembler* masm,
 }
 
 void BranchIfInt32Compare::SetValueLocationConstraints() {
-  UseRegister(LeftInput());
-  UseRegister(RightInput());
+  UseRegisterOrImmediate(LeftInput(), RightInput());
 }
 void BranchIfInt32Compare::GenerateCode(MaglevAssembler* masm,
                                         const ProcessingState& state) {
-  Register left = ToRegister(LeftInput());
-  Register right = ToRegister(RightInput());
-  __ CompareInt32AndBranch(left, right, ConditionFor(operation_), if_true(),
-                           if_false(), state.next_block());
+  __ CompareInt32AndBranch(LeftInput(), RightInput(), ConditionFor(operation_),
+                           if_true(), if_false(), state.next_block());
 }
 
 void BranchIfUint32Compare::SetValueLocationConstraints() {
-  UseRegister(LeftInput());
-  UseRegister(RightInput());
+  UseRegisterOrImmediate(LeftInput(), RightInput());
 }
 void BranchIfUint32Compare::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
-  Register left = ToRegister(LeftInput());
-  Register right = ToRegister(RightInput());
-  __ CompareInt32AndBranch(left, right, UnsignedConditionFor(operation_),
-                           if_true(), if_false(), state.next_block());
+  __ CompareInt32AndBranch(LeftInput(), RightInput(),
+                           UnsignedConditionFor(operation_), if_true(),
+                           if_false(), state.next_block());
 }
 
 void BranchIfUndefinedOrNull::SetValueLocationConstraints() {
