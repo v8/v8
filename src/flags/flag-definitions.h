@@ -2829,6 +2829,8 @@ DEFINE_BOOL(shortcut_strings_with_stack, true,
 DEFINE_BOOL(stress_compaction, false,
             "Stress GC compaction to flush out bugs with moving objects")
 DEFINE_BOOL(resize_large_object, true, "Support resizing of large objects")
+DEFINE_BOOL(shrink_string_table, false,
+            "Shrink off-heap StringTable at Mark-Compact safepoint")
 DEFINE_BOOL(stress_compaction_random, false,
             "Stress GC compaction by selecting random percent of pages as "
             "evacuation candidates. Overrides stress_compaction.")

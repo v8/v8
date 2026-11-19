@@ -3174,7 +3174,11 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   if (isolate->OwnsStringTables()) {
     const int removed =
         string_table_removed_count.load(std::memory_order_relaxed);
-    if (removed > 0) {
+    // With --shrink-string-table, NotifyElementsRemoved() may also shrink the
+    // string table; memory-reducing GCs use a tighter shrink threshold and can
+    // shrink even when `removed == 0`.
+    if (removed > 0 ||
+        (v8_flags.shrink_string_table && heap_->ShouldReduceMemory())) {
       isolate->string_table()->NotifyElementsRemoved(removed);
     }
   }

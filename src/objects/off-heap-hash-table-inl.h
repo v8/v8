@@ -10,6 +10,7 @@
 
 #include <bit>
 
+#include "src/base/platform/memory.h"
 #include "src/objects/compressed-slots-inl.h"
 
 namespace v8 {
@@ -67,6 +68,23 @@ inline bool OffHeapHashTableBase<Derived>::ShouldResizeToAdd(
     *new_capacity = -1;
     return false;
   }
+}
+
+template <typename Derived>
+inline bool OffHeapHashTableBase<Derived>::ShouldShrink(
+    bool reduce_memory, int* new_capacity) const {
+  DCHECK_NOT_NULL(new_capacity);
+  int capacity_after_shrinking =
+      reduce_memory ? ComputeCapacity(number_of_elements_)
+                    : ComputeCapacityWithShrink(capacity_, number_of_elements_);
+  if (capacity_after_shrinking < capacity_) {
+    DCHECK(HasSufficientCapacityToAdd(capacity_after_shrinking,
+                                      number_of_elements_, 0, 0));
+    *new_capacity = capacity_after_shrinking;
+    return true;
+  }
+  *new_capacity = -1;
+  return false;
 }
 
 // static
@@ -212,6 +230,23 @@ void* OffHeapHashTableBase<Derived>::Allocate(int capacity) {
   static_assert(OffsetOfElementsInContainer % kTaggedSize == 0);
 
   return AlignedAllocWithRetry(
+      sizeof(Container) + GetSizeExcludingHeader(capacity),
+      std::max(alignof(Container), alignof(void*)));
+}
+
+// static
+template <typename Derived>
+template <typename Container, size_t OffsetOfElementsInContainer>
+void* OffHeapHashTableBase<Derived>::TryAllocate(int capacity) {
+  // Make sure that the elements_ array is at the end of Container, with no
+  // padding, so that subsequent elements can be accessed as offsets from
+  // elements_.
+  static_assert(OffsetOfElementsInContainer ==
+                sizeof(Container) - sizeof(Tagged_t));
+  // Make sure that elements_ is aligned when Container is aligned.
+  static_assert(OffsetOfElementsInContainer % kTaggedSize == 0);
+
+  return base::AlignedAlloc(
       sizeof(Container) + GetSizeExcludingHeader(capacity),
       std::max(alignof(Container), alignof(void*)));
 }
