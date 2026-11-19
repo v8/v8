@@ -39,11 +39,12 @@ constexpr TaskPriority kBackgroundRegularPriority = TaskPriority::kUserVisible;
 constexpr TaskPriority kForegroundRegularPriority = TaskPriority::kUserBlocking;
 constexpr TaskPriority kForegroundLowPriority = TaskPriority::kUserVisible;
 
-// Returns true if purging memory is requested and build config allows it.
+// Returns true if purging free memory on pages is requested and enabled.
 constexpr bool ShouldPurgeMemory(
-    SweepingConfig::FreeMemoryHandling free_memory_handling) {
-  return Sweeper::CanDiscardMemory() &&
-         free_memory_handling == FreeMemoryHandling::kReleaseMemory;
+    SweepingConfig::FreeMemoryHandling free_memory_handling,
+    PurgeMemoryMode purge_memory_mode) {
+  return free_memory_handling == FreeMemoryHandling::kReleaseMemory &&
+         purge_memory_mode != PurgeMemoryMode::kOff;
 }
 
 class DeadlineChecker final {
@@ -118,14 +119,7 @@ class ObjectStartBitmapVerifier final
   HeapObjectHeader* prev_ = nullptr;
 };
 
-class FreeHandlerBase {
- public:
-  virtual ~FreeHandlerBase() = default;
-  virtual void FreeFreeList(
-      std::vector<FreeList::Block>& unfinalized_free_list) = 0;
-};
-
-class PurgingFreeHandler : public FreeHandlerBase {
+class PurgingFreeHandler {
  public:
   PurgingFreeHandler(FreeList& free_list, NormalPage& page)
       : free_list_(free_list), page_(page) {}
@@ -144,7 +138,7 @@ class PurgingFreeHandler : public FreeHandlerBase {
     }
   }
 
-  void FreeFreeList(std::vector<FreeList::Block>& unfinalized_free_list) final {
+  void FreeFreeList(std::vector<FreeList::Block>& unfinalized_free_list) {
     for (auto entry : unfinalized_free_list) {
       Free(std::move(entry));
     }
@@ -155,14 +149,14 @@ class PurgingFreeHandler : public FreeHandlerBase {
   NormalPage& page_;
 };
 
-class RegularFreeHandler : public FreeHandlerBase {
+class RegularFreeHandler {
  public:
   RegularFreeHandler(FreeList& free_list, NormalPage& page)
       : free_list_(free_list) {}
 
   void Free(FreeList::Block block) { free_list_.Add(std::move(block)); }
 
-  void FreeFreeList(std::vector<FreeList::Block>& unfinalized_free_list) final {
+  void FreeFreeList(std::vector<FreeList::Block>& unfinalized_free_list) {
     for (auto entry : unfinalized_free_list) {
       Free(std::move(entry));
     }
@@ -366,8 +360,8 @@ typename FinalizationBuilder::ResultType SweepNormalPage(
     // Check if this is a free list entry.
     if (header->IsFree<kAtomicAccess>()) {
       SetMemoryInaccessible(header, std::min(kFreeListEntrySize, size));
-      // This prevents memory from being discarded in configurations where
-      // `CheckMemoryIsInaccessibleIsNoop()` is false.
+      // Reading the full free range here is why `CanPurgeMemory()` must be
+      // false whenever `CheckMemoryIsInaccessible()` is not a no-op.
       CheckMemoryIsInaccessible(header, size);
       clear_bit_if_coalesced_entry(begin);
       begin += size;
@@ -570,15 +564,14 @@ class SweepFinalizer final {
     // Merge freelist with finalizers.
     if (!page_state->unfinalized_free_list.empty()) {
       NormalPage& normal_page = *NormalPage::From(page);
-      std::unique_ptr<FreeHandlerBase> handler;
-      if (ShouldPurgeMemory(free_memory_handling_)) {
-        handler =
-            std::make_unique<PurgingFreeHandler>(space_freelist, normal_page);
+      if (ShouldPurgeMemory(free_memory_handling_,
+                            normal_page.heap().purge_memory_mode())) {
+        PurgingFreeHandler(space_freelist, normal_page)
+            .FreeFreeList(page_state->unfinalized_free_list);
       } else {
-        handler =
-            std::make_unique<RegularFreeHandler>(space_freelist, normal_page);
+        RegularFreeHandler(space_freelist, normal_page)
+            .FreeFreeList(page_state->unfinalized_free_list);
       }
-      handler->FreeFreeList(page_state->unfinalized_free_list);
     }
 
     largest_consecutive_block_ = std::max(
@@ -702,7 +695,8 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
 
   bool VisitNormalPage(NormalPage& page) {
     auto result =
-        ShouldPurgeMemory(free_memory_handling_)
+        ShouldPurgeMemory(free_memory_handling_,
+                          page.heap().purge_memory_mode())
             ? SweepNormalPage<InlinedFinalizationBuilder<PurgingFreeHandler>>(
                   &page, sticky_bits_)
             : SweepNormalPage<InlinedFinalizationBuilder<RegularFreeHandler>>(
@@ -814,7 +808,8 @@ class ConcurrentSweepTask final : public cppgc::JobTask,
 
   bool VisitNormalPage(NormalPage& page) {
     SweepingState::SweptPageState sweep_result =
-        ShouldPurgeMemory(free_memory_handling_)
+        ShouldPurgeMemory(free_memory_handling_,
+                          page.heap().purge_memory_mode())
             ? SweepNormalPage<DeferredFinalizationBuilder<PurgingFreeHandler>>(
                   &page, sticky_bits_)
             : SweepNormalPage<DeferredFinalizationBuilder<RegularFreeHandler>>(

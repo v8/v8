@@ -14,6 +14,7 @@
 #include "src/heap/cppgc-internal/heap-page.h"
 #include "src/heap/cppgc-internal/heap-visitor.h"
 #include "src/heap/cppgc-internal/heap.h"
+#include "src/heap/cppgc-internal/memory.h"
 #include "src/heap/cppgc-internal/object-view.h"
 #include "src/heap/cppgc-internal/page-memory.h"
 #include "src/heap/cppgc-internal/stats-collector.h"
@@ -389,7 +390,8 @@ TEST_F(SweeperTest, AllocationDuringFinalizationIsNotSwept) {
 }
 
 TEST_F(SweeperTest, DiscardingNormalPageMemory) {
-  if (!Sweeper::CanDiscardMemory()) return;
+  if (!CanPurgeMemory()) return;
+  Heap::From(GetHeap())->set_purge_memory_mode(PurgeMemoryMode::kDiscard);
 
   // Test ensures that free list payload is discarded and accounted for on page
   // level. The object is held by a Persistent as it needs to stay alive across
@@ -427,7 +429,9 @@ TEST_F(SweeperTest, DiscardingNormalPageMemory) {
 }
 
 TEST_F(SweeperTest, AllocationOnlyRestoresReusedSystemPages) {
-  if (!Sweeper::CanDiscardMemory()) return;
+  if (!CanPurgeMemory()) return;
+  Heap* heap = Heap::From(GetHeap());
+  heap->set_purge_memory_mode(PurgeMemoryMode::kDiscard);
 
   const size_t commit_page_size =
       GetPlatform().GetPageAllocator()->CommitPageSize();
@@ -450,7 +454,6 @@ TEST_F(SweeperTest, AllocationOnlyRestoresReusedSystemPages) {
   auto* page = NormalPage::From(BasePage::FromPayload(first.Get()));
   ASSERT_EQ(page, BasePage::FromPayload(second.Get()));
 
-  Heap* heap = Heap::From(GetHeap());
   heap->CollectGarbage({CollectionType::kMajor, StackState::kNoHeapPointers,
                         GCConfig::MarkingType::kAtomic,
                         GCConfig::SweepingType::kAtomic,
@@ -469,6 +472,18 @@ TEST_F(SweeperTest, AllocationOnlyRestoresReusedSystemPages) {
   EXPECT_LT(page->purged_memory(), purged_memory_after_gc);
   EXPECT_EQ(page->purged_memory(),
             heap->stats_collector()->purged_memory_size());
+}
+
+TEST_F(SweeperTest, PurgeMemoryModeOffDoesNotPurgeNormalPageMemory) {
+  Heap* heap = Heap::From(GetHeap());
+  heap->set_purge_memory_mode(PurgeMemoryMode::kOff);
+
+  Persistent<GCed<1>> holder =
+      MakeGarbageCollected<GCed<1>>(GetAllocationHandle());
+  ConservativeMemoryDiscardingGC();
+  auto* page = NormalPage::From(BasePage::FromPayload(holder.Get()));
+  EXPECT_EQ(0u, page->purged_memory());
+  EXPECT_EQ(0u, heap->stats_collector()->purged_memory_size());
 }
 
 namespace {

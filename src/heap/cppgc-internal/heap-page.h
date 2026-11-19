@@ -250,9 +250,10 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
     return object_start_bitmap_;
   }
 
-  // Purges the system pages in [begin, begin + size) and records them as
-  // not resident. The range must be aligned to the commit page size. System
-  // pages that are already purged are only accounted for once.
+  // Purges the system pages in [begin, begin + size) according to the heap's
+  // PurgeMemoryMode and records them as not resident. The range must be aligned
+  // to the commit page size. System pages that are already purged are only
+  // accounted for once.
   void PurgeSystemPages(Address begin, size_t size);
   // Restores all system pages that [begin, begin + size) touches so that they
   // are recorded as resident again. Needs to be called when memory that may be

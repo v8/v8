@@ -12,6 +12,7 @@
 #include "src/heap/cppgc-internal/heap-object-header.h"
 #include "src/heap/cppgc-internal/heap-page.h"
 #include "src/heap/cppgc-internal/marker.h"
+#include "src/heap/cppgc-internal/memory.h"
 #include "src/heap/cppgc-internal/stats-collector.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -220,6 +221,8 @@ TEST_F(CompactorTest, CompactAcrossPages) {
 }
 
 TEST_F(CompactorTest, CompactedPageHasNoPurgedMemory) {
+  if (!CanPurgeMemory()) return;
+  heap()->set_purge_memory_mode(PurgeMemoryMode::kDiscard);
   static constexpr int kNumObjects = 10;
   Persistent<CompactableHolder<kNumObjects>> holder =
       MakeGarbageCollected<CompactableHolder<kNumObjects>>(
@@ -240,6 +243,8 @@ TEST_F(CompactorTest, CompactedPageHasNoPurgedMemory) {
 }
 
 TEST_F(CompactorTest, ReleasedPageHasNoPurgedMemory) {
+  if (!CanPurgeMemory()) return;
+  heap()->set_purge_memory_mode(PurgeMemoryMode::kDiscard);
   Persistent<CompactableHolder<1>> holder =
       MakeGarbageCollected<CompactableHolder<1>>(GetAllocationHandle(),
                                                  GetAllocationHandle());

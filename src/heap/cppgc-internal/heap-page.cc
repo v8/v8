@@ -248,6 +248,10 @@ void NormalPage::PurgeSystemPages(Address begin, size_t size) {
   USE(commit_page_size);
   DCHECK_LE(PayloadStart(), begin);
   DCHECK_LE(begin + size, PayloadEnd());
+  const PurgeMemoryMode mode = heap().purge_memory_mode();
+  if (mode == PurgeMemoryMode::kOff) {
+    return;
+  }
   const uintptr_t page_start = reinterpret_cast<uintptr_t>(this);
   const uintptr_t start_offset =
       reinterpret_cast<uintptr_t>(begin) - page_start;
@@ -257,7 +261,13 @@ void NormalPage::PurgeSystemPages(Address begin, size_t size) {
   if (removed_pages == 0) {
     return;
   }
-  heap().platform()->GetPageAllocator()->DiscardSystemPages(begin, size);
+  switch (mode) {
+    case PurgeMemoryMode::kOff:
+      UNREACHABLE();
+    case PurgeMemoryMode::kDiscard:
+      heap().platform()->GetPageAllocator()->DiscardSystemPages(begin, size);
+      break;
+  }
   heap().stats_collector()->IncrementPurgedMemory(removed_pages
                                                   << page_size_bits);
 }

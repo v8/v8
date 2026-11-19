@@ -20,6 +20,7 @@
 #include "src/heap/cppgc-internal/heap-statistics-collector.h"
 #include "src/heap/cppgc-internal/heap-visitor.h"
 #include "src/heap/cppgc-internal/marking-verifier.h"
+#include "src/heap/cppgc-internal/memory.h"
 #include "src/heap/cppgc-internal/object-view.h"
 #include "src/heap/cppgc-internal/page-memory.h"
 #include "src/heap/cppgc-internal/platform.h"
@@ -198,6 +199,14 @@ void HeapBase::FilterSampledObjects() {
       return false;
     });
   }
+}
+
+void HeapBase::set_purge_memory_mode(PurgeMemoryMode mode) {
+  CHECK(!sweeper_.IsSweepingInProgress());
+  CHECK_IMPLIES(!CanPurgeMemory(), mode == PurgeMemoryMode::kOff);
+  CHECK_IMPLIES(mode != purge_memory_mode_,
+                stats_collector_->purged_memory_size() == 0);
+  purge_memory_mode_ = mode;
 }
 
 PageAllocator* HeapBase::page_allocator() const {
