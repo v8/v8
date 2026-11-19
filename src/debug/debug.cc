@@ -1232,6 +1232,10 @@ void Debug::ApplyBreakPoints(Handle<DebugInfo> debug_info) {
     debug_info->SetBreakAtEntry();
   } else {
     if (!debug_info->HasInstrumentedBytecodeArray()) return;
+    if (isolate_->debug_execution_mode() == DebugInfo::kSideEffects) {
+      DCHECK_EQ(debug_info->DebugExecutionMode(), DebugInfo::kSideEffects);
+      return;
+    }
     Tagged<FixedArray> break_points = debug_info->break_points();
     uint32_t break_points_len = break_points->ulength().value();
     for (uint32_t i = 0; i < break_points_len; i++) {
@@ -1245,7 +1249,9 @@ void Debug::ApplyBreakPoints(Handle<DebugInfo> debug_info) {
       it.SetDebugBreak();
     }
   }
-  debug_info->SetDebugExecutionMode(DebugInfo::kBreakpoints);
+  if (isolate_->debug_execution_mode() != DebugInfo::kSideEffects) {
+    debug_info->SetDebugExecutionMode(DebugInfo::kBreakpoints);
+  }
 }
 
 void Debug::ClearBreakPoints(Handle<DebugInfo> debug_info) {
@@ -1256,7 +1262,8 @@ void Debug::ClearBreakPoints(Handle<DebugInfo> debug_info) {
     // If we attempt to clear breakpoints but none exist, simply return. This
     // can happen e.g. CoverageInfos exist but no breakpoints are set.
     if (!debug_info->HasInstrumentedBytecodeArray() ||
-        !debug_info->HasBreakInfo()) {
+        !debug_info->HasBreakInfo() ||
+        debug_info->DebugExecutionMode() == DebugInfo::kSideEffects) {
       return;
     }
 
@@ -1432,6 +1439,7 @@ void Debug::FloodWithOneShot(Handle<SharedFunctionInfo> shared,
 void Debug::FloodWithOneShotIncludingBlackboxed(
     Handle<SharedFunctionInfo> shared, bool returns_only) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
+  if (isolate_->debug_execution_mode() == DebugInfo::kSideEffects) return;
   // Make sure the function is compiled and has set up the debug info.
   if (!EnsureBreakInfo(shared)) return;
   PrepareFunctionForDebugExecution(shared);
@@ -1646,6 +1654,7 @@ void Debug::PrepareStep(StepAction step_action) {
   HandleScope scope(isolate_);
 
   DCHECK(in_debug_scope());
+  if (isolate_->debug_execution_mode() == DebugInfo::kSideEffects) return;
 
   // Get the frame where the execution has stopped and skip the debug frame if
   // any. The debug frame will only be present if execution was stopped due to
@@ -2134,6 +2143,11 @@ void Debug::PrepareFunctionForDebugExecution(
   debug_info->set_flags(
       debug_info->flags(kRelaxedLoad).with_prepared_for_debug_execution(true),
       kRelaxedStore);
+
+  if (isolate_->debug_execution_mode() == DebugInfo::kSideEffects &&
+      debug_info->HasInstrumentedBytecodeArray()) {
+    ApplySideEffectChecks(debug_info);
+  }
 }
 
 namespace {
@@ -3502,7 +3516,14 @@ void Debug::UpdateDebugInfosForExecutionMode() {
       DCHECK(debug_info->shared()->HasBytecodeArray());
       if (current_debug_execution_mode == DebugInfo::kBreakpoints) {
         ClearSideEffectChecks(debug_info);
-        ApplyBreakPoints(debug_info);
+        if (!debug_info->HasBreakInfo() &&
+            debug_info->side_effect_state() !=
+                DebugInfo::kRequiresRuntimeChecks) {
+          debug_info->ClearBreakInfo(isolate_);
+          if (debug_info->IsEmpty()) it.DeleteNext();
+        } else {
+          ApplyBreakPoints(debug_info);
+        }
       } else {
         ClearBreakPoints(debug_info);
         ApplySideEffectChecks(debug_info);
@@ -3573,6 +3594,7 @@ void Debug::StopSideEffectCheckMode() {
 
   // Update debug infos to have correct execution mode.
   UpdateDebugInfosForExecutionMode();
+  if (!is_active_) Unload();
 }
 
 void Debug::ApplySideEffectChecks(DirectHandle<DebugInfo> debug_info) {
@@ -3587,6 +3609,7 @@ void Debug::ApplySideEffectChecks(DirectHandle<DebugInfo> debug_info) {
 void Debug::ClearSideEffectChecks(DirectHandle<DebugInfo> debug_info) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   DCHECK(debug_info->HasInstrumentedBytecodeArray());
+  DCHECK_EQ(debug_info->DebugExecutionMode(), DebugInfo::kSideEffects);
   Handle<BytecodeArray> debug_bytecode(debug_info->DebugBytecodeArray(isolate_),
                                        isolate_);
   DirectHandle<BytecodeArray> original(
@@ -3598,6 +3621,7 @@ void Debug::ClearSideEffectChecks(DirectHandle<DebugInfo> debug_info) {
     debug_bytecode->set(it.current_offset(),
                         original->get(it.current_offset()));
   }
+  debug_info->SetDebugExecutionMode(DebugInfo::kBreakpoints);
 }
 
 bool Debug::PerformSideEffectCheck(DirectHandle<JSFunction> function,
@@ -3638,7 +3662,9 @@ bool Debug::PerformSideEffectCheck(DirectHandle<JSFunction> function,
       // execution to perform runtime side effect checks.
       DCHECK(shared->is_compiled());
       PrepareFunctionForDebugExecution(shared);
-      ApplySideEffectChecks(debug_info);
+      if (debug_info->DebugExecutionMode() != DebugInfo::kSideEffects) {
+        ApplySideEffectChecks(debug_info);
+      }
       return true;
     }
     case DebugInfo::kHasNoSideEffect:

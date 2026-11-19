@@ -83,7 +83,7 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
 
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
-  DirectHandle<Object> value = args.at(0);
+  Handle<Object> value = args.at(0);
   HandleScope scope(isolate);
 
   // Return value can be changed by debugger. Last set value will be used as
@@ -139,10 +139,11 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
     // entry trampoline sees the return/suspend bytecode rather than the
     // DebugBreak.
     interpreted_frame->PatchBytecodeArray(bytecode_array);
+    return MakePair(isolate->debug()->return_value(),
+                    Smi::FromInt(static_cast<uint8_t>(bytecode)));
   }
 
-  return MakePair(isolate->debug()->return_value(),
-                  Smi::FromInt(static_cast<uint8_t>(bytecode)));
+  return MakePair(*value, Smi::FromInt(static_cast<uint8_t>(bytecode)));
 }
 
 RUNTIME_FUNCTION(Runtime_DebugBreakAtEntry) {

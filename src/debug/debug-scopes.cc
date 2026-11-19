@@ -857,11 +857,21 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
     // around "this", since the current way is rather hacky when the
     // receiver is context-allocated.
     auto [this_alloc, this_index] = current_scope().receiver_info();
-    Handle<Object> receiver =
-        this_alloc == VariableAllocationInfo::CONTEXT
-            ? handle(context_->GetNoCell(this_index), isolate_)
-        : frame_inspector_ == nullptr ? handle(generator_->receiver(), isolate_)
-                                      : frame_inspector_->GetReceiver();
+    Handle<Object> receiver;
+    if (this_alloc == VariableAllocationInfo::CONTEXT) {
+      if (HasContext()) {
+        CHECK_LT(static_cast<unsigned>(this_index),
+                 static_cast<unsigned>(context_->length()));
+        receiver = indirect_handle(Context::Get(context_, this_index, isolate_),
+                                   isolate_);
+      } else {
+        receiver = isolate_->factory()->optimized_out();
+      }
+    } else {
+      receiver = frame_inspector_ == nullptr
+                     ? handle(generator_->receiver(), isolate_)
+                     : frame_inspector_->GetReceiver();
+    }
     if (visitor(isolate_->factory()->this_string(), receiver, scope_type)) {
       return true;
     }

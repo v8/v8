@@ -36,7 +36,9 @@ void DebugInfo::SetDebugExecutionMode(ExecutionMode value) {
 }
 
 void DebugInfo::ClearBreakInfo(Isolate* isolate) {
-  if (HasInstrumentedBytecodeArray()) {
+  const bool keep_for_side_effect_check =
+      HasInstrumentedBytecodeArray() && DebugExecutionMode() == kSideEffects;
+  if (HasInstrumentedBytecodeArray() && !keep_for_side_effect_check) {
     // If the function is currently running on the stack, we need to update the
     // bytecode pointers on the stack so they point to the original
     // BytecodeArray before releasing that BytecodeArray from this DebugInfo.
@@ -55,11 +57,13 @@ void DebugInfo::ClearBreakInfo(Isolate* isolate) {
 
   Flags new_flags = flags(kRelaxedLoad)
                         .with_has_break_info(false)
-                        .with_prepared_for_debug_execution(false)
                         .with_break_at_entry(false)
                         .with_can_break_at_entry(false)
-                        .with_debug_execution_mode(false)
                         .with_deoptimized_for_break_info(false);
+  if (!keep_for_side_effect_check) {
+    new_flags = new_flags.with_prepared_for_debug_execution(false)
+                    .with_debug_execution_mode(false);
+  }
   set_flags(new_flags, kRelaxedStore);
 }
 

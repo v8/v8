@@ -1499,14 +1499,14 @@ MaybeDirectHandle<Object> Runtime::GetPrivateMember(
     case PrivateMemberType::kPrivateAccessor: {
       // The accessors are collected from the contexts, so there is no need to
       // perform brand checks.
-      auto pair = Cast<AccessorPair>(result.value);
-      if (IsNull(pair->getter())) {
+      DirectHandle<AccessorPair> pair = CheckedCast<AccessorPair>(result.value);
+      Tagged<Object> raw_getter = pair->getter();
+      if (IsNull(raw_getter)) {
         THROW_NEW_ERROR(
             isolate,
             NewError(MessageTemplate::kInvalidPrivateGetterAccess, desc));
       }
-      DCHECK(IsJSFunction(pair->getter()));
-      DirectHandle<JSFunction> getter(Cast<JSFunction>(pair->getter()),
+      DirectHandle<JSFunction> getter(CheckedCast<JSFunction>(raw_getter),
                                       isolate);
       return Execution::Call(isolate, getter, receiver, {});
     }
@@ -1535,15 +1535,15 @@ MaybeDirectHandle<Object> Runtime::SetPrivateMember(
     case PrivateMemberType::kPrivateAccessor: {
       // The accessors are collected from the contexts, so there is no need to
       // perform brand checks.
-      auto pair = Cast<AccessorPair>(result.value);
-      if (IsNull(pair->setter())) {
+      DirectHandle<AccessorPair> pair = CheckedCast<AccessorPair>(result.value);
+      Tagged<Object> raw_setter = pair->setter();
+      if (IsNull(raw_setter)) {
         THROW_NEW_ERROR(
             isolate,
             NewError(MessageTemplate::kInvalidPrivateSetterAccess, desc));
       }
-      DCHECK(IsJSFunction(pair->setter()));
       DirectHandle<Object> args[] = {value};
-      DirectHandle<JSFunction> setter(Cast<JSFunction>(pair->setter()),
+      DirectHandle<JSFunction> setter(CheckedCast<JSFunction>(raw_setter),
                                       isolate);
       return Execution::Call(isolate, setter, receiver, base::VectorOf(args));
     }
@@ -1606,17 +1606,19 @@ RUNTIME_FUNCTION(Runtime_SetPrivateMember) {
 RUNTIME_FUNCTION(Runtime_LoadPrivateSetter) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 1);
-  DirectHandle<AccessorPair> pair = args.at<AccessorPair>(0);
-  DCHECK(IsJSFunction(pair->setter()));
-  return pair->setter();
+  DirectHandle<AccessorPair> pair = CheckedCast<AccessorPair>(args.at(0));
+  Tagged<Object> setter = pair->setter();
+  CHECK(IsJSFunction(setter));
+  return setter;
 }
 
 RUNTIME_FUNCTION(Runtime_LoadPrivateGetter) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 1);
-  DirectHandle<AccessorPair> pair = args.at<AccessorPair>(0);
-  DCHECK(IsJSFunction(pair->getter()));
-  return pair->getter();
+  DirectHandle<AccessorPair> pair = CheckedCast<AccessorPair>(args.at(0));
+  Tagged<Object> getter = pair->getter();
+  CHECK(IsJSFunction(getter));
+  return getter;
 }
 
 RUNTIME_FUNCTION(Runtime_CreatePrivateAccessors) {
