@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_TURBOSHAFT_LATE_LOAD_ELIMINATION_REDUCER_H_
 #define V8_COMPILER_TURBOSHAFT_LATE_LOAD_ELIMINATION_REDUCER_H_
 
+#include <limits>
 #include <optional>
 
 #include "src/base/compiler-specific.h"
@@ -243,22 +244,75 @@ struct MemoryAddress {
 };
 std::ostream& operator<<(std::ostream& os, const MemoryAddress& mem);
 
-struct MemorySlotValue {
-  OpIndex value = OpIndex::Invalid();
-  // Immutability is not a property of the `MemoryAddress`. Instead it's a
-  // property established at some point in the graph (e.g. after a map check).
-  // Any dominated code can then assume it's immutable (even loads that aren't
-  // marked as such). If the immutability property doesn't hold anymore, code
-  // that relies on it would get deoptimized.
-  bool is_immutable = false;
+// Compact 32-bit representation of `{OpIndex value, bool is_immutable}`.
+//
+// Immutability is not a property of the `MemoryAddress`. Instead it's a
+// property established at some point in the graph (e.g. after a map check).
+// Any dominated code can then assume it's immutable (even loads that aren't
+// marked as such). If the immutability property doesn't hold anymore, code
+// that relies on it would get deoptimized.
+class MemorySlotValue {
+ public:
+  constexpr MemorySlotValue() = default;
 
-  bool has_mutable_value() const {
-    DCHECK_IMPLIES(is_immutable, value.valid());
-    return value.valid() && !is_immutable;
+  constexpr MemorySlotValue(OpIndex value, bool is_immutable)
+      : raw_(base::bit_cast<uint32_t>(value) |
+             (is_immutable ? kImmutableBit : 0)) {
+    DCHECK(value.valid());
+    DCHECK_EQ(base::bit_cast<uint32_t>(value) & kImmutableBit, 0);
+    DCHECK_NE(raw_ | kImmutableBit, kInvalid);
   }
 
-  bool operator==(const MemorySlotValue&) const = default;
+  constexpr bool valid() const { return raw_ != kInvalid; }
+
+  constexpr OpIndex value() const {
+    DCHECK(valid());
+    OpIndex result = base::bit_cast<OpIndex>(raw_ & ~kImmutableBit);
+    SLOW_DCHECK(result.CheckInvariants());
+    return result;
+  }
+
+  constexpr bool is_immutable() const {
+    DCHECK(valid());
+    return (raw_ & kImmutableBit) != 0;
+  }
+
+  constexpr bool has_mutable_value() const {
+    return valid() && !is_immutable();
+  }
+
+  // Intersects two slot values: keeps the `OpIndex` only if both agree (and
+  // `is_immutable` only if both are immutable), otherwise returns invalid.
+  constexpr MemorySlotValue Intersect(MemorySlotValue other) const {
+    // Since no valid slot has `raw_ | kImmutableBit == kInvalid`, any
+    // difference outside `kImmutableBit` means mismatched or invalid values.
+    if ((raw_ ^ other.raw_) > kImmutableBit) {
+      return MemorySlotValue{};
+    }
+    return MemorySlotValue(raw_ & other.raw_);
+  }
+
+  constexpr bool operator==(const MemorySlotValue&) const = default;
+
+ private:
+  explicit constexpr MemorySlotValue(uint32_t raw) : raw_(raw) {}
+
+  // Valid `OpIndex` offsets are multiples of `sizeof(OperationStorageSlot)`
+  // (8), so bit 0 (LSB) is always 0 and we encode `is_immutable` there to keep
+  // this class 4 bytes.
+  static constexpr uint32_t kImmutableBit = 1;
+  static constexpr uint32_t kInvalid =
+      base::bit_cast<uint32_t>(OpIndex::Invalid());
+  static_assert(sizeof(OperationStorageSlot) == 8);
+  static_assert(kInvalid == std::numeric_limits<uint32_t>::max());
+
+  uint32_t raw_ = kInvalid;
 };
+static_assert(!MemorySlotValue{}.valid());
+// Keep `MemorySlotValue` 32-bit: it is stored per key in `SnapshotTable` logs
+// and merge buffers, so growing it can significantly increase peak compile
+// memory on large merges.
+static_assert(sizeof(MemorySlotValue) == 4);
 
 struct KeyData {
   using Key = SnapshotTableKey<MemorySlotValue, KeyData>;
@@ -590,9 +644,10 @@ class MemoryContentTable
     std::cout << "MemoryContentTable:\n";
     for (const auto& [mem, key] : all_keys_) {
       MemorySlotValue slot = Get(key);
-      if (slot.value.valid()) {
-        std::cout << "  * " << mem << (slot.is_immutable ? " (immutable)" : "")
-                  << " ==> " << slot.value << "\n";
+      if (slot.valid()) {
+        std::cout << "  * " << mem
+                  << (slot.is_immutable() ? " (immutable)" : "") << " ==> "
+                  << slot.value() << "\n";
       }
     }
   }
@@ -661,8 +716,8 @@ class MemoryContentTable
     if (existing_key != all_keys_.end()) {
       TRACE(">> Reusing existing key");
       // Compatible loads of an already-immutable slot hit in Find() and return
-      // early, though we can't DCHECK(!Get(...).is_immutable || is_immutable)
-      // due to unreachable stores.
+      // early, though we can't DCHECK(!Get(...).valid() ||
+      // !Get(...).is_immutable() || is_immutable) due to unreachable stores.
       Set(existing_key->second, {value, is_immutable});
       return;
     }

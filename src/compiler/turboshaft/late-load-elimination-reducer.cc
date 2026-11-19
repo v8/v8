@@ -382,20 +382,20 @@ void LateLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
   // all loads need to be revisited during processing.
   int32_truncated_loads_[op_idx];
 
-  if (MemorySlotValue existing = memory_.Find(load); existing.value.valid()) {
-    const Operation& replacement = graph_.Get(existing.value);
+  if (MemorySlotValue existing = memory_.Find(load); existing.valid()) {
+    const Operation& replacement = graph_.Get(existing.value());
     DCHECK_EQ(replacement.outputs_rep().size(), 1);
     DCHECK_EQ(load.outputs_rep().size(), 1);
-    TRACE(">> Found potential replacement at offset " << existing.value);
+    TRACE(">> Found potential replacement at offset " << existing.value());
     if (RepIsCompatible(replacement.outputs_rep()[0], load.outputs_rep()[0],
                         load.loaded_rep)) {
       TRACE(">>> Confirming replacement");
-      if (load.kind.is_immutable && !existing.is_immutable) {
+      if (load.kind.is_immutable && !existing.is_immutable()) {
         // Promote a live mutable entry (e.g. from an initializing store) to
         // immutable in the current snapshot so it survives subsequent calls.
-        memory_.Insert(load, existing.value);
+        memory_.Insert(load, existing.value());
       }
-      replacements_[op_idx] = Replacement::LoadElimination(existing.value);
+      replacements_[op_idx] = Replacement::LoadElimination(existing.value());
       return;
     } else {
       TRACE(">>> Replacement has wrong representation: "
@@ -433,18 +433,18 @@ void LateLoadEliminationAnalyzer::ProcessTrustedLoad(
   // all loads need to be revisited during processing.
   int32_truncated_loads_[op_idx];
 
-  if (MemorySlotValue existing = memory_.Find(load); existing.value.valid()) {
-    const Operation& replacement = graph_.Get(existing.value);
+  if (MemorySlotValue existing = memory_.Find(load); existing.valid()) {
+    const Operation& replacement = graph_.Get(existing.value());
     USE(replacement);
     // All trusted loads have the same representation and they can't alias with
     // any other loads.
     DCHECK(replacement.Is<LoadTrustedPointerOp>());
     DCHECK_EQ(replacement.outputs_rep(), load.outputs_rep());
-    TRACE(">> Found replacement at offset " << existing.value);
-    if (load.kind.is_immutable && !existing.is_immutable) {
-      memory_.Insert(load, existing.value);
+    TRACE(">> Found replacement at offset " << existing.value());
+    if (load.kind.is_immutable && !existing.is_immutable()) {
+      memory_.Insert(load, existing.value());
     }
-    replacements_[op_idx] = Replacement::LoadElimination(existing.value);
+    replacements_[op_idx] = Replacement::LoadElimination(existing.value());
     return;
   }
   // Reset the replacement of {op_idx} to Invalid, in case a previous visit of a
@@ -868,12 +868,11 @@ bool LateLoadEliminationAnalyzer::BeginBlock(const Block* block) {
           base::Vector<const MemorySlotValue> predecessors) -> MemorySlotValue {
     DCHECK(!predecessors.empty());
     MemorySlotValue merged = predecessors[0];
-    for (const MemorySlotValue& pred : predecessors.SubVectorFrom(1)) {
-      if (pred.value != merged.value) {
-        merged = MemorySlotValue{};
-        break;
+    if (merged.valid()) {
+      for (MemorySlotValue pred : predecessors.SubVectorFrom(1)) {
+        merged = merged.Intersect(pred);
+        if (!merged.valid()) break;
       }
-      merged.is_immutable &= pred.is_immutable;
     }
     if (for_loop_revisit && merged != predecessors[kForwardEdgeOffset]) {
       // {key} had a value in the loop header, but the backedge and the forward
