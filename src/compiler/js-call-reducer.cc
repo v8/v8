@@ -3715,6 +3715,12 @@ Reduction JSCallReducer::ReduceObjectPrototypeHasOwnProperty(Node* node) {
           }
           // Replace builtin call with several internalized string comparisons.
           CallParameters const& p = call_node.Parameters();
+          if (p.speculation_mode() != SpeculationMode::kAllowSpeculation &&
+              !inference.RelyOnMapsViaStability(dependencies())) {
+            // Without valid feedback / allowed speculation we cannot insert map
+            // checks, so give up if stability dependencies aren't enough.
+            return inference.NoChange();
+          }
           inference.RelyOnMapsPreferStability(dependencies(), jsgraph(),
                                               &effect, control, p.feedback());
 #define __ gasm.
