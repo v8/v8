@@ -56,6 +56,8 @@ V8_OBJECT class PropertyCell : public HeapObject {
                          DirectHandle<Object> new_value);
   // For protectors:
   void InvalidateProtector(Isolate* isolate);
+  // Fuzzing only: marks an invalidated protector cell valid again for REPRL.
+  void ResetProtectorForReprl();
 
   static PropertyCellType InitialType(Isolate* isolate, Tagged<Object> value);
 

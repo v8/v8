@@ -6439,6 +6439,14 @@ void PropertyCell::InvalidateProtector(Isolate* isolate) {
   }
 }
 
+void PropertyCell::ResetProtectorForReprl() {
+  if (value() != Smi::FromInt(Protectors::kProtectorValid)) {
+    DCHECK_EQ(value(), Smi::FromInt(Protectors::kProtectorInvalid));
+    set_value(Smi::FromInt(Protectors::kProtectorValid), kReleaseStore,
+              SKIP_WRITE_BARRIER);
+  }
+}
+
 // static
 bool PropertyCell::CheckDataIsCompatible(PropertyDetails details,
                                          Tagged<Object> value) {

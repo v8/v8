@@ -65,6 +65,7 @@
 #include "src/diagnostics/basic-block-profiler.h"
 #include "src/execution/execution.h"
 #include "src/execution/microtask-queue.h"
+#include "src/execution/protectors.h"
 #include "src/execution/v8threads.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/flags/flags.h"
@@ -3749,6 +3750,8 @@ void Shell::ResetIsolateStateForReprl(Isolate* isolate) {
   // Clear code-install interrupts set by the discarded jobs.
   i_isolate->stack_guard()->ClearInstallCode();
   i_isolate->stack_guard()->ClearInstallMaglevCode();
+
+  i::Protectors::ResetForReprl(i_isolate);
 }
 
 void Shell::ProfilerTriggerSample(
