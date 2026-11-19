@@ -277,6 +277,7 @@ std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder,
       case kNoneCode:
       case kNoExternCode:
       case kExternRefCode:
+        if (is_shared) detected->add_shared();
         return {HeapType::from_code(code, is_shared), length};
       case kNoExnCode:
       case kExnRefCode:
@@ -346,6 +347,7 @@ std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder,
               HeapType::from_code(code, is_shared).name().c_str());
           return {kWasmBottom, 0};
         }
+        detected->add_shared();
         return {HeapType::from_code(code, is_shared), length};
       }
       case kExactCode: {
@@ -467,6 +469,7 @@ std::pair<ValueType, uint32_t> read_value_type(Decoder* decoder,
             HeapType::from_code(code, SharedFlag{false}).name().c_str());
         return {kWasmBottom, 0};
       }
+      detected->add_shared();
       return {ValueType::RefNull(HeapType::from_code(code, SharedFlag{false})),
               1};
     }

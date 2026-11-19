@@ -689,19 +689,11 @@ class WasmInJsInliningInterface {
 
   void GlobalGet(FullDecoder* decoder, Value* result,
                  const wasm::GlobalIndexImmediate& imm) {
-    SharedFlag shared = decoder->module_->globals[imm.index].shared;
-    if (shared) {
-      return Bailout(decoder);
-    }
     result->op = __ GlobalGet(trusted_instance_data_, imm.global);
   }
 
   void GlobalSet(FullDecoder* decoder, const Value& value,
                  const wasm::GlobalIndexImmediate& imm) {
-    SharedFlag shared = decoder->module_->globals[imm.index].shared;
-    if (shared) {
-      return Bailout(decoder);
-    }
     __ GlobalSet(trusted_instance_data_, value.op, imm.global);
   }
 
@@ -829,14 +821,11 @@ class WasmInJsInliningInterface {
   // functionality into Turboshaft `Assembler::Wasm*()` methods or introducing a
   // new, common reducer.
   void RefCast(FullDecoder* decoder, const Value& object, Value* result) {
-    ValueType target = result->type;
-    if (target.is_shared()) {
-      return Bailout(decoder);
-    }
     if (v8_flags.wasm_assume_ref_cast_succeeds) {
       Forward(decoder, object, result);
       return;
     }
+    ValueType target = result->type;
     V<Map> rtt = RttCanon(target.ref_index());
     compiler::WasmTypeCheckConfig config{
         object.type, target,
@@ -1089,6 +1078,11 @@ WasmBodyInliningResult WasmInJSInliningReducer<Next>::TryInlineWasmBody(
   DCHECK_LT(func_idx - module->num_imported_functions,
             module->num_defined_functions);
 
+  if (native_module->compilation_state()->detected_features().has_shared()) {
+    TRACE("- not inlining: module uses experimental 'shared' feature");
+    return WasmBodyInliningResult::Failed();
+  }
+
   const bool has_current_catch_block = __ current_catch_block();
   if (lazy_deopt_on_throw) {
     // Maglev either emits a catch block or uses lazy deopt on throw, but never
@@ -1159,6 +1153,7 @@ WasmBodyInliningResult WasmInJSInliningReducer<Next>::TryInlineWasmBody(
       __ Bind(inlinee_body_and_rest);
       return WasmBodyInliningResult::Failed();
     }
+    DCHECK(!detected.has_shared());
     DCHECK(can_inline_decoder.interface().result().success);
   }
 

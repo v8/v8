@@ -2630,10 +2630,10 @@ void AsyncCompileJob::FinishCompile(
   const WasmModule* module = native_module->module();
   auto compilation_state = Impl(native_module->compilation_state());
 
-  // Update the compilation state with feature detected during module decoding
-  // and (potentially) validation. We will publish all features below, in the
-  // current isolate, so ignore the return value here.
-  USE(compilation_state->UpdateDetectedFeatures(detected_features_));
+  // All paths into {FinishCompile} already populated {compilation_state} with
+  // the features detected during module decoding and validation.
+  DCHECK(
+      compilation_state->detected_features().contains_all(detected_features_));
 
   // If experimental PGO via files is enabled, load profile information now that
   // we have all wire bytes and know that the module is valid.
@@ -3452,6 +3452,12 @@ void AsyncStreamingProcessor::OnFinishedStream(
     }
   } else {
     final_native_module->SetWireBytes(std::move(job_->bytes_copy_));
+    // Publish features detected after {ProcessCodeSectionHeader} (streaming
+    // function validation, post-code sections, {FinishDecoding}, and builtin
+    // imports) before exposing {final_native_module} in {NativeModuleCache} or
+    // serializing it.
+    USE(Impl(final_native_module->compilation_state())
+            ->UpdateDetectedFeatures(job_->detected_features_));
   }
 
   if (v8_flags.wasm_num_compilation_tasks == 0 || v8_flags.wasm_jitless) {

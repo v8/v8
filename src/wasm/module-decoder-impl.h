@@ -2719,7 +2719,6 @@ class ModuleDecoderImpl : public Decoder {
 
     auto sig = FixedSizeSignature<ValueType>::Returns(expected);
     FunctionBody body(&sig, this->pc_offset(), pc_, end_);
-    WasmDetectedFeatures detected;
     ConstantExpression result;
     {
       // We need a scope for the decoder because its destructor resets some Zone
@@ -2731,8 +2730,8 @@ class ModuleDecoderImpl : public Decoder {
           next_ordered_section_ <= kCodeSectionCode ? module : nullptr;
       WasmFullDecoder<Decoder::FullValidationTag, ConstantExpressionInterface,
                       kConstantExpression>
-          decoder(&init_expr_zone_, module, enabled_features_, &detected, body,
-                  module_for_declarations);
+          decoder(&init_expr_zone_, module, enabled_features_,
+                  detected_features_, body, module_for_declarations);
 
       uint32_t offset = this->pc_offset();
 
