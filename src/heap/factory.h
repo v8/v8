@@ -1159,33 +1159,33 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                          JSRegExp::Flags flags,
                          DirectHandle<String> match_pattern);
 
-  // Creates a new FixedArray that holds the data associated with the
-  // irregexp regexp and stores it in the regexp.
-  void SetRegExpIrregexpData(DirectHandle<JSRegExp> regexp,
-                             DirectHandle<String> original_source,
-                             DirectHandle<String> escaped_source,
-                             JSRegExp::Flags flags, int capture_count,
-                             uint32_t backtrack_limit, uint32_t bit_field);
+  // Creates a new IrRegExpData associated with the irregexp regexp and stores
+  // it in the regexp.
+  void SetRegExpIrregexpData(
+      DirectHandle<JSRegExp> regexp, DirectHandle<String> original_source,
+      DirectHandle<String> escaped_source, JSRegExp::Flags flags,
+      int capture_count, uint32_t backtrack_limit, uint32_t bit_field,
+      DirectHandle<TrustedFixedArray> capture_name_map = {});
 
-  // Creates a new FixedArray that holds the data associated with the
-  // experimental regexp and stores it in the regexp.
-  void SetRegExpExperimentalData(DirectHandle<JSRegExp> regexp,
-                                 DirectHandle<String> original_source,
-                                 DirectHandle<String> escaped_source,
-                                 JSRegExp::Flags flags, int capture_count);
+  // Creates a new IrRegExpData associated with the experimental regexp and
+  // stores it in the regexp.
+  void SetRegExpExperimentalData(
+      DirectHandle<JSRegExp> regexp, DirectHandle<String> original_source,
+      DirectHandle<String> escaped_source, JSRegExp::Flags flags,
+      int capture_count, DirectHandle<TrustedFixedArray> capture_name_map = {});
 
   DirectHandle<RegExpData> NewAtomRegExpData(
       DirectHandle<String> original_source, DirectHandle<String> escaped_source,
       JSRegExp::Flags flags, DirectHandle<String> pattern);
-  DirectHandle<RegExpData> NewIrRegExpData(DirectHandle<String> original_source,
-                                           DirectHandle<String> escaped_source,
-                                           JSRegExp::Flags flags,
-                                           int capture_count,
-                                           uint32_t backtrack_limit,
-                                           uint32_t bit_field);
+  DirectHandle<RegExpData> NewIrRegExpData(
+      DirectHandle<String> original_source, DirectHandle<String> escaped_source,
+      JSRegExp::Flags flags, int capture_count, uint32_t backtrack_limit,
+      uint32_t bit_field,
+      DirectHandle<TrustedFixedArray> capture_name_map = {});
   DirectHandle<RegExpData> NewExperimentalRegExpData(
       DirectHandle<String> original_source, DirectHandle<String> escaped_source,
-      JSRegExp::Flags flags, int capture_count);
+      JSRegExp::Flags flags, int capture_count,
+      DirectHandle<TrustedFixedArray> capture_name_map = {});
 
   // Returns the value for a known global constant (a property of the global
   // object which is neither configurable nor writable) like 'undefined'.

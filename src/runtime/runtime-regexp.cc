@@ -1355,7 +1355,11 @@ static Tagged<UnionOf<ExceptionHole, Null, FixedArray>> SearchRegExpMultiple(
 
   // has_capture can only be true for IrRegExp.
   DirectHandle<IrRegExpData> re_data;
-  if (has_capture) re_data = TrustedCast<IrRegExpData>(regexp_data);
+  bool has_named_captures = false;
+  if (has_capture) {
+    re_data = TrustedCast<IrRegExpData>(regexp_data);
+    has_named_captures = re_data->has_capture_name_map();
+  }
 
   static const int kMinLengthToCache = 0x1000;
 
@@ -1379,12 +1383,9 @@ static Tagged<UnionOf<ExceptionHole, Null, FixedArray>> SearchRegExpMultiple(
         }
         DirectHandle<FixedArray> cached_fixed_array(cached_answer_array,
                                                     isolate);
-        // The cache FixedArray is a COW-array and we need to return a copy. A
-        // cache hit implies an earlier run compiled the pattern, so the capture
-        // name map is populated.
+        // The cache FixedArray is a COW-array and we need to return a copy.
         DirectHandle<FixedArray> copied_fixed_array = CopyMatches(
-            isolate, cached_fixed_array,
-            has_capture && re_data->has_capture_name_map(), capture_count);
+            isolate, cached_fixed_array, has_named_captures, capture_count);
         RegExp::SetLastMatchInfo(isolate, last_match_array, subject,
                                  capture_count, raw_last_match);
         return *copied_fixed_array;
@@ -1406,10 +1407,10 @@ static Tagged<UnionOf<ExceptionHole, Null, FixedArray>> SearchRegExpMultiple(
   // Two smis before and after the match, for very long strings.
   static const uint32_t kMaxBuilderEntriesPerRegExpMatch = 5;
 
-  // The capture name map is populated lazily, so this must stay below the
-  // GlobalExecRunner constructor, which is what compiles the pattern.
-  const bool has_named_captures =
-      has_capture && re_data->has_capture_name_map();
+  DirectHandle<TrustedFixedArray> capture_map;
+  if (has_named_captures) {
+    capture_map = direct_handle(re_data->capture_name_map(), isolate);
+  }
 
   while (true) {
     int32_t* current_match = runner.FetchNext();
@@ -1467,8 +1468,6 @@ static Tagged<UnionOf<ExceptionHole, Null, FixedArray>> SearchRegExpMultiple(
         elements->set(cursor++, *subject);
 
         if (has_named_captures) {
-          DirectHandle<TrustedFixedArray> capture_map(
-              re_data->capture_name_map(), isolate);
           DirectHandle<JSObject> groups = ConstructNamedCaptureGroupsObject(
               isolate, capture_map, [=](int ix) { return elements->get(ix); });
           elements->set(cursor++, *groups);
@@ -1512,8 +1511,7 @@ static Tagged<UnionOf<ExceptionHole, Null, FixedArray>> SearchRegExpMultiple(
       DirectHandle<FixedArray> copied_fixed_array = CopyMatches(
           isolate, result_fixed_array, has_named_captures, capture_count);
       regexp::ResultsCache::Enter(
-          isolate, subject,
-          direct_handle(regexp->data(isolate)->wrapper(), isolate),
+          isolate, subject, direct_handle(regexp_data->wrapper(), isolate),
           copied_fixed_array, last_match_cache,
           regexp::ResultsCache::REGEXP_MULTIPLE_INDICES);
     }
