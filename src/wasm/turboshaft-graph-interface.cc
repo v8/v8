@@ -2879,8 +2879,7 @@ class TurboshaftGraphBuildingInterface
         // Note that the `implicit_arg` can never be a `WasmImportData`,
         // since we don't inline imported functions right now.
         if (use_deopt_slowpath) {
-          DeoptIfNot(decoder, __ TaggedEqual(implicit_arg, instance),
-                     frame_state);
+          DeoptIfNot(__ TaggedEqual(implicit_arg, instance), frame_state);
           __ Goto(case_blocks[0]);
         } else {
           constexpr BranchHint kUnlikelyCrossInstanceCall = BranchHint::kTrue;
@@ -2931,8 +2930,7 @@ class TurboshaftGraphBuildingInterface
 
           bool is_last_feedback_case = (i == feedback_cases.size() - 1);
           if (use_deopt_slowpath && is_last_feedback_case) {
-            DeoptIfNot(decoder, __ Word32Equal(target, inlined_target),
-                       frame_state);
+            DeoptIfNot(__ Word32Equal(target, inlined_target), frame_state);
           } else {
             TSBlock* inline_block = __ NewBlock();
             BranchHint hint =
@@ -3214,7 +3212,6 @@ class TurboshaftGraphBuildingInterface
               CreateFrameState(decoder, sig, &func_ref, args);
           if (frame_state.valid()) {
             DeoptIfNot(
-                decoder,
                 __ TaggedEqual(func_ref.get<MaybeObject>(), inlined_func_ref),
                 frame_state);
           } else {
@@ -7126,8 +7123,7 @@ class TurboshaftGraphBuildingInterface
         builder.AllocateFrameStateData(*frame_state_info, zone));
   }
 
-  void DeoptIfNot(FullDecoder* decoder, OpIndex deopt_condition,
-                  V<EagerFrameState> frame_state) {
+  void DeoptIfNot(OpIndex deopt_condition, V<EagerFrameState> frame_state) {
     CHECK(deopts_enabled());
     DCHECK(frame_state.valid());
     __ DeoptimizeIfNot(deopt_condition, frame_state,
