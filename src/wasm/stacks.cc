@@ -54,13 +54,6 @@ class VerifyNoYoungPointersVisitor : public RootVisitor {
 };
 #endif  // DEBUG
 
-#if V8_OS_WIN && !defined(USE_SIMULATOR)
-thread_local uintptr_t central_stack_limit = 0;
-#ifdef DEBUG
-thread_local bool is_teb_on_central_stack = true;
-#endif
-#endif  // V8_OS_WIN && !defined(USE_SIMULATOR)
-
 }  // namespace
 
 // static
@@ -285,11 +278,15 @@ bool StackMemory::Grow(Address parent_frame_fp, size_t min_size) {
            active_segment_->size_, active_segment_->limit_,
            active_segment_->limit_ + active_segment_->size_);
   }
-  SetCurrentThreadStackBounds();
+#if V8_OS_WIN
+  base::Stack::SetCurrentThreadStackBounds(
+      reinterpret_cast<uintptr_t>(active_segment_->limit_),
+      active_segment_->base());
+#endif
   return true;
 }
 
-Address StackMemory::ShrinkSegment() {
+Address StackMemory::Shrink() {
   DCHECK(owned_);
   DCHECK_NE(active_segment_->prev_segment_, nullptr);
   Address parent_frame_fp = active_segment_->parent_frame_fp;
@@ -301,62 +298,25 @@ Address StackMemory::ShrinkSegment() {
            active_segment_->limit_,
            active_segment_->limit_ + active_segment_->size_);
   }
-  return parent_frame_fp;
-}
-
-Address StackMemory::Shrink() {
-  Address parent_frame_fp = ShrinkSegment();
-  SetCurrentThreadStackBounds();
+#if V8_OS_WIN
+  base::Stack::SetCurrentThreadStackBounds(
+      reinterpret_cast<uintptr_t>(active_segment_->limit_),
+      active_segment_->base());
+#endif
   return parent_frame_fp;
 }
 
 void StackMemory::ShrinkTo(Address stack_address) {
-  DCHECK(owned_);
   DCHECK_NOT_NULL(active_segment_);
   while (active_segment_) {
     if (stack_address <= active_segment_->base() &&
         stack_address >= reinterpret_cast<Address>(active_segment_->limit_)) {
       return;
     }
-    ShrinkSegment();
+    Shrink();
   }
   UNREACHABLE();
 }
-
-#if V8_OS_WIN && !defined(USE_SIMULATOR)
-void StackMemory::SwitchStackBoundsFromCentral() {
-  DCHECK(owned_);
-#ifdef DEBUG
-  DCHECK(is_teb_on_central_stack);
-  is_teb_on_central_stack = false;
-#endif
-  // Ensure the OS central stack start is cached before overwriting TEB.
-  uintptr_t stack_start = base::Stack::GetStackStart();
-  uintptr_t limit = base::Stack::GetCommittedStackLimit();
-  DCHECK_GE(limit, base::Stack::GetReservedStackLimit());
-  DCHECK_LE(limit, stack_start);
-  USE(stack_start);
-  central_stack_limit = limit;
-  base::Stack::SetCurrentThreadStackBounds(this->limit(), this->base());
-}
-
-void StackMemory::SetCurrentThreadStackBounds() {
-  DCHECK(owned_);
-  DCHECK(!is_teb_on_central_stack);
-  base::Stack::SetCurrentThreadStackBounds(limit(), base());
-}
-
-// static
-void StackMemory::RestoreCentralStackBounds() {
-#ifdef DEBUG
-  DCHECK(!is_teb_on_central_stack);
-  is_teb_on_central_stack = true;
-#endif
-  DCHECK_NE(central_stack_limit, 0);
-  base::Stack::SetCurrentThreadStackBounds(central_stack_limit,
-                                           base::Stack::GetStackStart());
-}
-#endif  // V8_OS_WIN && !defined(USE_SIMULATOR)
 
 void StackMemory::Reset() {
   active_segment_ = first_segment_;

@@ -149,18 +149,6 @@ class V8_EXPORT_PRIVATE StackMemory
   bool Grow(Address parent_frame_fp, size_t min_size);
   Address Shrink();
   void ShrinkTo(Address stack_address);
-
-  // Manage OS thread stack bounds (e.g. Windows TEB StackBase/StackLimit)
-  // across central and secondary stack switches.
-#if V8_OS_WIN && !defined(USE_SIMULATOR)
-  void SwitchStackBoundsFromCentral();
-  void SetCurrentThreadStackBounds();
-  static void RestoreCentralStackBounds();
-#else
-  void SwitchStackBoundsFromCentral() { DCHECK(owned_); }
-  void SetCurrentThreadStackBounds() { DCHECK(owned_); }
-  static void RestoreCentralStackBounds() {}
-#endif
   bool contains_only_old_pointers() const {
     return contains_only_old_pointers_;
   }
@@ -288,7 +276,6 @@ class V8_EXPORT_PRIVATE StackMemory
   // Overload to represent a view of the libc stack.
   StackMemory(uint8_t* limit, size_t size);
 
-  Address ShrinkSegment();
   void IterateWasmFXRoots(v8::internal::RootVisitor* v);
 
   uint8_t* limit_;
