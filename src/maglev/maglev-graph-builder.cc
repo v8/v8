@@ -1738,7 +1738,10 @@ ReduceResult MaglevGraphBuilder::BuildNewConsStringMap(ValueNode* left,
   // If both are non-two byte maps, then the result is the
   // kConsOneByteStringMap.
   auto GetIsTwoByteAndMap = [&](ValueNode* input) -> Result {
-    if (auto maybe_constant = TryGetConstant<HeapObject>(input)) {
+    // Only use static constant nodes, not KnownNodeAspects `checked_value`
+    // alternatives (`TryGetConstant<HeapObject>`): a string that was checked to
+    // equal a constant has the same contents, but not necessarily the same map.
+    if (auto maybe_constant = input->TryGetConstant(broker())) {
       bool two_byte = maybe_constant->map(broker()).IsTwoByteStringMap();
       return {true, two_byte,
               GetRootConstant(two_byte ? RootIndex::kConsTwoByteStringMap

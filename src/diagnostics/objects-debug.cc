@@ -1595,6 +1595,10 @@ void ConsString::ConsStringVerify(Isolate* isolate) {
   CHECK(Is<ConsString>(this));
   CHECK_GE(length(), ConsString::kMinLength);
   CHECK(length() == first()->length() + second()->length());
+  if (IsOneByteRepresentation()) {
+    CHECK(first()->IsOneByteRepresentation());
+    CHECK(second()->IsOneByteRepresentation());
+  }
   if (IsFlat()) {
     // A flat cons can only be created by String::SlowFlatten.
     // Afterwards, the first part may be externalized or internalized.
