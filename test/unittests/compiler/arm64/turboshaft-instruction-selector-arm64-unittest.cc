@@ -10117,11 +10117,13 @@ TEST_F(TurboshaftInstructionSelectorTest, ExternalReferenceLoad2) {
 namespace {
 // Builds a call with the specified signature and nodes as arguments.
 // Then checks that the correct number of kArm64Poke and kArm64PokePair were
-// generated.
+// generated, counting the kArm64ClaimPoke and kArm64ClaimPokePair variants
+// that claim the stack space with their store. Exactly one of those replaces
+// kArm64Claim unless the claim is too large for a pre-indexed address.
 void TestPokePair(TurboshaftInstructionSelectorTest::StreamBuilder* m,
                   Zone* zone, MachineSignature::Builder* builder,
                   base::Vector<const OpIndex> args, int expected_poke_pair,
-                  int expected_poke) {
+                  int expected_poke, bool expect_claim_with_store = true) {
   auto call_descriptor = TurboshaftInstructionSelectorTest::StreamBuilder::
       MakeSimpleTSCallDescriptor(zone, builder->Get());
 
@@ -10132,18 +10134,36 @@ void TestPokePair(TurboshaftInstructionSelectorTest::StreamBuilder* m,
   auto s = m->Build();
   int num_poke_pair = 0;
   int num_poke = 0;
+  int num_claim = 0;
+  int num_claim_with_store = 0;
   for (size_t i = 0; i < s.size(); ++i) {
-    if (s[i]->arch_opcode() == kArm64PokePair) {
-      num_poke_pair++;
-    }
-
-    if (s[i]->arch_opcode() == kArm64Poke) {
-      num_poke++;
+    switch (s[i]->arch_opcode()) {
+      case kArm64PokePair:
+        num_poke_pair++;
+        break;
+      case kArm64ClaimPokePair:
+        num_poke_pair++;
+        num_claim_with_store++;
+        break;
+      case kArm64Poke:
+        num_poke++;
+        break;
+      case kArm64ClaimPoke:
+        num_poke++;
+        num_claim_with_store++;
+        break;
+      case kArm64Claim:
+        num_claim++;
+        break;
+      default:
+        break;
     }
   }
 
   EXPECT_EQ(expected_poke_pair, num_poke_pair);
   EXPECT_EQ(expected_poke, num_poke);
+  EXPECT_EQ(expect_claim_with_store ? 1 : 0, num_claim_with_store);
+  EXPECT_EQ(expect_claim_with_store ? 0 : 1, num_claim);
 }
 }  // namespace
 
@@ -10161,10 +10181,10 @@ TEST_F(TurboshaftInstructionSelectorTest, PokePairPrepareArgumentsInt32) {
         m.Int32Constant(0),
     };
 
-    const int expected_poke_pair = 1;
-    // Note: The `+ 1` here comes from the padding Poke in
-    // EmitPrepareArguments.
-    const int expected_poke = 1 + 1;
+    // Note: The `+ 1` here comes from the padding slot, which is stored
+    // together with the last parameter.
+    const int expected_poke_pair = 1 + 1;
+    const int expected_poke = 0;
 
     TestPokePair(&m, zone(), &builder, base::VectorOf(nodes, arraysize(nodes)),
                  expected_poke_pair, expected_poke);
@@ -10308,6 +10328,67 @@ TEST_F(TurboshaftInstructionSelectorTest,
     TestPokePair(&m, zone(), &builder, base::VectorOf(nodes, arraysize(nodes)),
                  expected_poke_pair, expected_poke);
   }
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, PokePairPrepareArgumentsPadding) {
+  {
+    // The padding slot pairs with an integer parameter.
+    MachineSignature::Builder builder(zone(), 0, 1);
+    builder.AddParam(MachineType::Int32());
+
+    StreamBuilder m(this, MachineType::AnyTagged());
+    OpIndex nodes[] = {m.Int32Constant(0)};
+
+    const int expected_poke_pair = 1;
+    const int expected_poke = 0;
+
+    TestPokePair(&m, zone(), &builder, base::VectorOf(nodes, arraysize(nodes)),
+                 expected_poke_pair, expected_poke);
+  }
+  {
+    // A floating-point parameter cannot pair with the padding slot.
+    MachineSignature::Builder builder(zone(), 0, 1);
+    builder.AddParam(MachineType::Float64());
+
+    StreamBuilder m(this, MachineType::AnyTagged());
+    OpIndex nodes[] = {m.Float64Constant(0.0)};
+
+    const int expected_poke_pair = 0;
+    const int expected_poke = 1 + 1;
+
+    TestPokePair(&m, zone(), &builder, base::VectorOf(nodes, arraysize(nodes)),
+                 expected_poke_pair, expected_poke);
+  }
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, PokePairPrepareArgumentsLargeClaim) {
+  // A claim beyond the pre-indexed addressing range keeps kArm64Claim. The
+  // call descriptor holds at most 31 parameters of each kind.
+  constexpr int kIntParams = 16;
+  constexpr int kFloatParams = 18;
+  constexpr int kParams = kIntParams + kFloatParams;
+  MachineSignature::Builder builder(zone(), 0, kParams);
+  for (int i = 0; i < kIntParams; i++) {
+    builder.AddParam(MachineType::Int32());
+  }
+  for (int i = 0; i < kFloatParams; i++) {
+    builder.AddParam(MachineType::Float64());
+  }
+
+  StreamBuilder m(this, MachineType::AnyTagged());
+  OpIndex nodes[kParams];
+  for (int i = 0; i < kIntParams; i++) {
+    nodes[i] = m.Int32Constant(i);
+  }
+  for (int i = kIntParams; i < kParams; i++) {
+    nodes[i] = m.Float64Constant(i);
+  }
+
+  const int expected_poke_pair = kParams / 2;
+  const int expected_poke = 0;
+
+  TestPokePair(&m, zone(), &builder, base::VectorOf(nodes, arraysize(nodes)),
+               expected_poke_pair, expected_poke, false);
 }
 
 #if V8_ENABLE_WEBASSEMBLY

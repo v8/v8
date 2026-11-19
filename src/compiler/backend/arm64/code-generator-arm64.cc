@@ -2070,6 +2070,37 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
+    case kArm64ClaimPoke: {
+      // Claim the stack space and store into its lowest slot.
+      int count = i.InputInt32(1);
+      DCHECK_EQ(count % 2, 0);
+      __ AssertSpAligned();
+      MemOperand operand(sp, -count * kSystemPointerSize, PreIndex);
+      if (instr->InputAt(0)->IsSimd128Register()) {
+        __ Str(i.InputSimd128Register(0), operand);
+      } else if (instr->InputAt(0)->IsFPRegister()) {
+        __ Str(i.InputFloat64Register(0), operand);
+      } else {
+        __ Str(i.InputOrZeroRegister64(0), operand);
+      }
+      frame_access_state()->IncreaseSPDelta(count);
+      break;
+    }
+    case kArm64ClaimPokePair: {
+      // Claim the stack space and store into its two lowest slots.
+      int count = i.InputInt32(2);
+      DCHECK_EQ(count % 2, 0);
+      __ AssertSpAligned();
+      MemOperand operand(sp, -count * kSystemPointerSize, PreIndex);
+      if (instr->InputAt(0)->IsFPRegister()) {
+        __ Stp(i.InputFloat64Register(1), i.InputFloat64Register(0), operand);
+      } else {
+        __ Stp(i.InputOrZeroRegister64(1), i.InputOrZeroRegister64(0),
+               operand);
+      }
+      frame_access_state()->IncreaseSPDelta(count);
+      break;
+    }
     case kArm64Poke: {
       Operand operand(i.InputInt32(1) * kSystemPointerSize);
       if (instr->InputAt(0)->IsSimd128Register()) {

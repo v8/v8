@@ -3261,21 +3261,21 @@ void InstructionSelector::EmitPrepareArguments(
 
   // `arguments` includes alignment "holes". This means that slots bigger than
   // kSystemPointerSize, e.g. Simd128, will span across multiple arguments.
-  int claim_count = static_cast<int>(arguments->size());
-  bool needs_padding = claim_count % 2 != 0;
-  int slot = claim_count - 1;
-  claim_count = RoundUp(claim_count, 2);
-  // Bump the stack pointer.
-  if (claim_count > 0) {
-    // TODO(titzer): claim and poke probably take small immediates.
-    // TODO(titzer): it would be better to bump the sp here only
-    //               and emit paired stores with increment for non c frames.
-    Emit(kArm64Claim, g.NoOutput(), g.TempImmediate(claim_count));
+  int slot_count = static_cast<int>(arguments->size());
+  if (slot_count == 0) return;
+  bool needs_padding = slot_count % 2 != 0;
+  int claim_count = RoundUp(slot_count, 2);
 
-    if (needs_padding) {
-      Emit(kArm64Poke, g.NoOutput(), g.UseImmediate(0),
-           g.TempImmediate(claim_count - 1));
-    }
+  // The store to the lowest slot claims the stack space with a pre-indexed
+  // address, `stp x1, x0, [sp, #-16]!`, when the claim fits the addressing
+  // mode and the lowest slot is not a hole. Otherwise bump the stack pointer
+  // separately.
+  bool claim_with_store =
+      (*arguments)[0].node.valid() &&
+      internal::Assembler::IsImmLSUnscaled(-claim_count * kSystemPointerSize);
+  if (!claim_with_store) {
+    // TODO(titzer): claim and poke probably take small immediates.
+    Emit(kArm64Claim, g.NoOutput(), g.TempImmediate(claim_count));
   }
 
   // Zero-valued constants (e.g. Smi zero) can be stored through the zero
@@ -3288,27 +3288,59 @@ void InstructionSelector::EmitPrepareArguments(
     return g.UseRegisterOrImmediateZero(input.node);
   };
 
-  // Poke the arguments into the stack.
-  while (slot >= 0) {
+  // Poke the arguments into the stack, lowest slot first so that the claiming
+  // store comes before the others.
+  int slot = 0;
+  while (slot < slot_count) {
     PushParameter input0 = (*arguments)[slot];
     // Skip holes in the param array. These represent both extra slots for
     // multi-slot values and padding slots for alignment.
     if (!input0.node.valid()) {
-      slot--;
+      slot++;
       continue;
     }
-    PushParameter input1 = slot > 0 ? (*arguments)[slot - 1] : PushParameter();
-    // Emit a poke-pair if consecutive parameters have the same type.
+    PushParameter input1 =
+        slot + 1 < slot_count ? (*arguments)[slot + 1] : PushParameter();
+    // Emit a poke-pair if consecutive parameters have the same type. The
+    // parameter in the higher slot comes first, as for kArm64PokePair.
     // TODO(arm): Support consecutive Simd128 parameters.
     if (input1.node.valid() &&
         input0.location.GetType() == input1.location.GetType()) {
-      Emit(kArm64PokePair, g.NoOutput(), poke_value(input0), poke_value(input1),
-           g.TempImmediate(slot));
-      slot -= 2;
+      if (slot == 0 && claim_with_store) {
+        Emit(kArm64ClaimPokePair, g.NoOutput(), poke_value(input1),
+             poke_value(input0), g.TempImmediate(claim_count));
+      } else {
+        Emit(kArm64PokePair, g.NoOutput(), poke_value(input1),
+             poke_value(input0), g.TempImmediate(slot + 1));
+      }
+      slot += 2;
+    } else if (needs_padding && slot == slot_count - 1 &&
+               !IsFloatingPoint(input0.location.GetType().representation())) {
+      // Store the padding slot together with the last parameter.
+      if (slot == 0 && claim_with_store) {
+        Emit(kArm64ClaimPokePair, g.NoOutput(), g.UseImmediate(0),
+             poke_value(input0), g.TempImmediate(claim_count));
+      } else {
+        Emit(kArm64PokePair, g.NoOutput(), g.UseImmediate(0),
+             poke_value(input0), g.TempImmediate(slot + 1));
+      }
+      needs_padding = false;
+      slot += 2;
     } else {
-      Emit(kArm64Poke, g.NoOutput(), poke_value(input0), g.TempImmediate(slot));
-      slot--;
+      if (slot == 0 && claim_with_store) {
+        Emit(kArm64ClaimPoke, g.NoOutput(), poke_value(input0),
+             g.TempImmediate(claim_count));
+      } else {
+        Emit(kArm64Poke, g.NoOutput(), poke_value(input0),
+             g.TempImmediate(slot));
+      }
+      slot++;
     }
+  }
+
+  if (needs_padding) {
+    Emit(kArm64Poke, g.NoOutput(), g.UseImmediate(0),
+         g.TempImmediate(claim_count - 1));
   }
 }
 
