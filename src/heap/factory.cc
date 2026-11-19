@@ -4640,25 +4640,23 @@ void Factory::SetRegExpAtomData(DirectHandle<JSRegExp> regexp,
   regexp->set_data(*regexp_data);
 }
 
-void Factory::SetRegExpIrregexpData(DirectHandle<JSRegExp> regexp,
-                                    DirectHandle<String> original_source,
-                                    DirectHandle<String> escaped_source,
-                                    JSRegExp::Flags flags, int capture_count,
-                                    uint32_t backtrack_limit,
-                                    uint32_t bit_field) {
+void Factory::SetRegExpIrregexpData(
+    DirectHandle<JSRegExp> regexp, DirectHandle<String> original_source,
+    DirectHandle<String> escaped_source, JSRegExp::Flags flags,
+    int capture_count, uint32_t backtrack_limit, uint32_t bit_field,
+    DirectHandle<TrustedFixedArray> capture_name_map) {
   DirectHandle<RegExpData> regexp_data =
       NewIrRegExpData(original_source, escaped_source, flags, capture_count,
-                      backtrack_limit, bit_field);
+                      backtrack_limit, bit_field, capture_name_map);
   regexp->set_data(*regexp_data);
 }
 
-void Factory::SetRegExpExperimentalData(DirectHandle<JSRegExp> regexp,
-                                        DirectHandle<String> original_source,
-                                        DirectHandle<String> escaped_source,
-                                        JSRegExp::Flags flags,
-                                        int capture_count) {
+void Factory::SetRegExpExperimentalData(
+    DirectHandle<JSRegExp> regexp, DirectHandle<String> original_source,
+    DirectHandle<String> escaped_source, JSRegExp::Flags flags,
+    int capture_count, DirectHandle<TrustedFixedArray> capture_name_map) {
   DirectHandle<RegExpData> regexp_data = NewExperimentalRegExpData(
-      original_source, escaped_source, flags, capture_count);
+      original_source, escaped_source, flags, capture_count, capture_name_map);
   regexp->set_data(*regexp_data);
 }
 
@@ -4687,7 +4685,7 @@ DirectHandle<RegExpData> Factory::NewAtomRegExpData(
 DirectHandle<RegExpData> Factory::NewIrRegExpData(
     DirectHandle<String> original_source, DirectHandle<String> escaped_source,
     JSRegExp::Flags flags, int capture_count, uint32_t backtrack_limit,
-    uint32_t bit_field) {
+    uint32_t bit_field, DirectHandle<TrustedFixedArray> capture_name_map) {
   DirectHandle<RegExpDataWrapper> wrapper = NewRegExpDataWrapper();
   int size = sizeof(IrRegExpData);
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(
@@ -4702,7 +4700,7 @@ DirectHandle<RegExpData> Factory::NewIrRegExpData(
   instance->clear_uc16_code();
   instance->clear_latin1_bytecode();
   instance->clear_uc16_bytecode();
-  instance->clear_capture_name_map();
+  instance->set_capture_name_map(capture_name_map);
   instance->set_max_register_count(JSRegExp::kUninitializedValue);
   instance->set_capture_count(capture_count);
   int ticks_until_tier_up = v8_flags.regexp_tier_up
@@ -4721,7 +4719,8 @@ DirectHandle<RegExpData> Factory::NewIrRegExpData(
 
 DirectHandle<RegExpData> Factory::NewExperimentalRegExpData(
     DirectHandle<String> original_source, DirectHandle<String> escaped_source,
-    JSRegExp::Flags flags, int capture_count) {
+    JSRegExp::Flags flags, int capture_count,
+    DirectHandle<TrustedFixedArray> capture_name_map) {
   DirectHandle<RegExpDataWrapper> wrapper = NewRegExpDataWrapper();
   int size = sizeof(IrRegExpData);
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(
@@ -4743,7 +4742,7 @@ DirectHandle<RegExpData> Factory::NewExperimentalRegExpData(
   instance->clear_uc16_code();
   instance->clear_latin1_bytecode();
   instance->clear_uc16_bytecode();
-  instance->clear_capture_name_map();
+  instance->set_capture_name_map(capture_name_map);
   instance->set_max_register_count(JSRegExp::kUninitializedValue);
   instance->set_capture_count(capture_count);
   instance->set_ticks_until_tier_up(JSRegExp::kUninitializedValue);
