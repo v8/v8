@@ -3680,7 +3680,8 @@ class AssemblerOpInterface : public Next {
   // Calls a C function with a simplified C descriptor.
   template <typename R = AnyOrNone>
   V<R> CallC(const MachineSignature* sig, V<CallTarget> callee,
-             base::Vector<const OpIndex> arguments) {
+             base::Vector<const OpIndex> arguments,
+             OpEffects effects = OpEffects().CanCallAnything()) {
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return V<R>::Invalid();
     }
@@ -3692,27 +3693,31 @@ class AssemblerOpInterface : public Next {
     const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
         call_descriptor, CanThrow{false}, LazyDeoptOnThrow{false}, graph_zone);
     return Call<R>(callee, OptionalV<LazyFrameState>::Nullopt(), arguments,
-                   ts_call_descriptor);
+                   ts_call_descriptor, effects);
   }
   template <typename R = AnyOrNone>
   V<R> CallC(const MachineSignature* sig, V<CallTarget> callee,
-             std::initializer_list<OpIndex> arguments) {
-    return CallC<R>(sig, callee, base::VectorOf(arguments));
+             std::initializer_list<OpIndex> arguments,
+             OpEffects effects = OpEffects().CanCallAnything()) {
+    return CallC<R>(sig, callee, base::VectorOf(arguments), effects);
   }
   template <typename R = AnyOrNone>
   V<R> CallC(const MachineSignature* sig, ExternalReference target,
-             base::Vector<const OpIndex> arguments) {
-    return CallC<R>(sig, ExternalConstant(target), arguments);
+             base::Vector<const OpIndex> arguments,
+             OpEffects effects = OpEffects().CanCallAnything()) {
+    return CallC<R>(sig, ExternalConstant(target), arguments, effects);
   }
   template <typename R = AnyOrNone>
   V<R> CallC(const MachineSignature* sig, ExternalReference target,
-             std::initializer_list<OpIndex> arguments) {
-    return CallC<R>(sig, ExternalConstant(target), base::VectorOf(arguments));
+             std::initializer_list<OpIndex> arguments,
+             OpEffects effects = OpEffects().CanCallAnything()) {
+    return CallC<R>(sig, ExternalConstant(target), base::VectorOf(arguments),
+                    effects);
   }
   template <typename R = AnyOrNone>
-  V<R> CallC(const MachineSignature* sig, ExternalReference target,
-             OpIndex arg) {
-    return CallC<R>(sig, target, {arg});
+  V<R> CallC(const MachineSignature* sig, ExternalReference target, OpIndex arg,
+             OpEffects effects = OpEffects().CanCallAnything()) {
+    return CallC<R>(sig, target, {arg}, effects);
   }
 
   template <typename Descriptor>

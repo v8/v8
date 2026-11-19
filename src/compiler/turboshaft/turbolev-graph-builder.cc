@@ -18,6 +18,7 @@
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/optimized-compilation-info.h"
+#include "src/codegen/signature.h"
 #include "src/common/globals.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/bytecode-analysis.h"
@@ -6820,18 +6821,11 @@ class GraphBuildingNodeProcessor {
     if (SupportedOperations::float16_raw_bits_conversion()) {
       return __ ChangeFloat16RawBitsToFloat64(input);
     }
-    Zone* zone = graph_zone();
-    MachineSignature::Builder builder(zone, 1, 1);
-    builder.AddReturn(MachineType::Uint32());
-    builder.AddParam(MachineType::Uint32());
-    CallDescriptor* desc = Linkage::GetSimplifiedCDescriptor(
-        zone, builder.Get(), CallDescriptor::kNoFlags, Operator::kPure);
-    const TSCallDescriptor* ts_desc = TSCallDescriptor::Create(
-        desc, CanThrow{false}, LazyDeoptOnThrow{false}, zone);
-    V<WordPtr> callee = __ ExternalConstant(
-        ExternalReference::ieee754_fp16_raw_bits_to_fp32_raw_bits());
-    V<Word32> float32_raw_bits =
-        __ template Call<Word32>(callee, {input}, ts_desc, OpEffects());
+    auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Uint32())
+                   .Params(MachineType::Uint32());
+    V<Word32> float32_raw_bits = __ CallC<Word32>(
+        &sig, ExternalReference::ieee754_fp16_raw_bits_to_fp32_raw_bits(),
+        input, OpEffects());
     return __ ChangeFloat32ToFloat64(
         __ BitcastWord32ToFloat32(float32_raw_bits));
   }
@@ -6840,33 +6834,22 @@ class GraphBuildingNodeProcessor {
     if (SupportedOperations::float16_raw_bits_conversion()) {
       return __ TruncateFloat64ToFloat16RawBits(input);
     }
-    Zone* zone = graph_zone();
     if constexpr (kSupportsFpParamsInCLinkage) {
-      MachineSignature::Builder builder(zone, 1, 1);
-      builder.AddReturn(MachineType::Uint32());
-      builder.AddParam(MachineType::Float64());
-      CallDescriptor* desc = Linkage::GetSimplifiedCDescriptor(
-          zone, builder.Get(), CallDescriptor::kNoFlags, Operator::kPure);
-      const TSCallDescriptor* ts_desc = TSCallDescriptor::Create(
-          desc, CanThrow{false}, LazyDeoptOnThrow{false}, zone);
-      V<WordPtr> callee = __ ExternalConstant(
-          ExternalReference::ieee754_fp64_to_fp16_raw_bits());
-      return __ template Call<Word32>(callee, {input}, ts_desc, OpEffects());
+      auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Uint32())
+                     .Params(MachineType::Float64());
+      return __ CallC<Word32>(
+          &sig, ExternalReference::ieee754_fp64_to_fp16_raw_bits(), input,
+          OpEffects());
     } else {
-      MachineSignature::Builder builder(zone, 1, 2);
-      builder.AddReturn(MachineType::Uint32());
-      builder.AddParam(MachineType::Uint32());
-      builder.AddParam(MachineType::Uint32());
-      CallDescriptor* desc = Linkage::GetSimplifiedCDescriptor(
-          zone, builder.Get(), CallDescriptor::kNoFlags, Operator::kPure);
-      const TSCallDescriptor* ts_desc = TSCallDescriptor::Create(
-          desc, CanThrow{false}, LazyDeoptOnThrow{false}, zone);
-      V<WordPtr> callee = __ ExternalConstant(
-          ExternalReference::
-              ieee754_fp64_raw_bits_to_fp16_raw_bits_for_32bit_arch());
+      auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Uint32())
+                     .Params(MachineType::Uint32(), MachineType::Uint32());
       V<Word32> hi = __ Float64ExtractHighWord32(input);
       V<Word32> lo = __ Float64ExtractLowWord32(input);
-      return __ template Call<Word32>(callee, {hi, lo}, ts_desc, OpEffects());
+      return __ CallC<Word32>(
+          &sig,
+          ExternalReference::
+              ieee754_fp64_raw_bits_to_fp16_raw_bits_for_32bit_arch(),
+          {hi, lo}, OpEffects());
     }
   }
 
