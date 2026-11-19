@@ -361,6 +361,26 @@ TEST(StackTest, GetCurrentStackPosition) {
   EXPECT_NE(nullptr, Stack::GetCurrentStackPosition());
 }
 
+#ifdef V8_OS_WIN
+TEST(StackTest, GetCommittedStackLimit) {
+  uintptr_t reserved_limit = Stack::GetReservedStackLimit();
+  uintptr_t committed_limit = Stack::GetCommittedStackLimit();
+  uintptr_t current_pos = Stack::GetCurrentStackPosition();
+  uintptr_t stack_start = Stack::GetStackStart();
+  EXPECT_LE(reserved_limit, committed_limit);
+  EXPECT_LE(committed_limit, current_pos);
+  EXPECT_LE(current_pos, stack_start);
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64)
+  EXPECT_EQ(committed_limit,
+            reinterpret_cast<NT_TIB64*>(NtCurrentTeb())->StackLimit);
+#elif defined(V8_TARGET_ARCH_32_BIT)
+  EXPECT_EQ(committed_limit,
+            reinterpret_cast<uintptr_t>(
+                reinterpret_cast<NT_TIB*>(NtCurrentTeb())->StackLimit));
+#endif
+}
+#endif  // V8_OS_WIN
+
 #if !defined(V8_OS_FUCHSIA)
 TEST(StackTest, StackVariableInBounds) {
   void* dummy;
