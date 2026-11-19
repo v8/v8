@@ -78,38 +78,27 @@ void EmitKytheInlineMetadata(
        << "  \"meta\": [\n";
   for (size_t i = 0; i < rules.size(); ++i) {
     const std::string& rule_path = rules[i].vname_path;
+    const char* edge =
+        rules[i].edge_kind ==
+                GlobalContext::KytheInlineMetadata::EdgeKind::kImputes
+            ? "/kythe/edge/imputes"
+            : "/kythe/edge/ref/call";
     if (i > 0) json << ",\n";
-    if (rules[i].is_call_anchor) {
-      json << "    {\n"
-           << "      \"type\": \"anchor_anchor\",\n"
-           << "      \"target_begin\": " << rules[i].begin << ",\n"
-           << "      \"target_end\": " << rules[i].end << ",\n"
-           << "      \"source_begin\": " << rules[i].source_begin << ",\n"
-           << "      \"source_end\": " << rules[i].source_end << ",\n"
-           << "      \"edge\": \"/kythe/edge/ref/call\",\n"
-           << "      \"source_vname\": {\n"
-           << "        \"signature\": \"\",\n"
-           << "        \"corpus\": \"" << corpus << "\",\n"
-           << "        \"path\": \"" << rule_path << "\",\n"
-           << "        \"language\": \"torque\",\n"
-           << "        \"root\": \"\"\n"
-           << "      }\n"
-           << "    }";
-    } else {
-      json << "    {\n"
-           << "      \"type\": \"anchor_defines\",\n"
-           << "      \"begin\": " << rules[i].begin << ",\n"
-           << "      \"end\": " << rules[i].end << ",\n"
-           << "      \"edge\": \"%/kythe/edge/generates\",\n"
-           << "      \"vname\": {\n"
-           << "        \"signature\": \"" << rules[i].vname_sig << "\",\n"
-           << "        \"corpus\": \"" << corpus << "\",\n"
-           << "        \"path\": \"" << rule_path << "\",\n"
-           << "        \"language\": \"torque\",\n"
-           << "        \"root\": \"\"\n"
-           << "      }\n"
-           << "    }";
-    }
+    json << "    {\n"
+         << "      \"type\": \"anchor_anchor\",\n"
+         << "      \"target_begin\": " << rules[i].begin << ",\n"
+         << "      \"target_end\": " << rules[i].end << ",\n"
+         << "      \"source_begin\": " << rules[i].source_begin << ",\n"
+         << "      \"source_end\": " << rules[i].source_end << ",\n"
+         << "      \"edge\": \"" << edge << "\",\n"
+         << "      \"source_vname\": {\n"
+         << "        \"signature\": \"\",\n"
+         << "        \"corpus\": \"" << corpus << "\",\n"
+         << "        \"path\": \"" << rule_path << "\",\n"
+         << "        \"language\": \"torque\",\n"
+         << "        \"root\": \"\"\n"
+         << "      }\n"
+         << "    }";
   }
   json << "\n  ]\n}\n";
   stream << "\n#ifdef KYTHE_IS_RUNNING\n"
@@ -1960,10 +1949,10 @@ cpp::Function ImplementationVisitor::GenerateMacroFunctionDeclaration(
       /*generated_parameter_names=*/nullptr);
   // Emit `anchor_anchor` (`/kythe/edge/ref/call`) metadata on standalone
   // `*-tq-csa.{h,cc}` macro declarations/definitions rather than
-  // `anchor_defines` (`%/kythe/edge/generates`) because Kythe's `generates`
-  // collapsing currently only merges `defines` and incoming calls, not outgoing
-  // `ref/call` edges where the generated C++ function is the caller
-  // (b/541055917).
+  // `/kythe/edge/imputes` (which lowers to a `generates` cluster) because
+  // Kythe's `generates` collapsing currently only merges `defines` and
+  // incoming calls, not outgoing `ref/call` edges where the generated C++
+  // function is the caller (b/541055917).
   const SourcePosition ident_pos = macro->IdentifierPosition();
   if (GlobalContext::has_kythe_inline_metadata() &&
       output_type_ == OutputType::kCSA && ident_pos.IsValid()) {
@@ -4408,21 +4397,21 @@ void ImplementationVisitor::GenerateExportedMacrosAssembler(
             &assembler, macro->ReadableName(), macro->signature(),
             macro->parameter_names(), false, &generated_parameter_names);
         const SourcePosition ident_pos = macro->IdentifierPosition();
-        if (GlobalContext::has_kythe_inline_metadata() &&
-            ident_pos.source.IsValid()) {
-          std::string vname_sig = macro->ExternalName();
+        if (GlobalContext::has_kythe_inline_metadata() && ident_pos.IsValid()) {
+          size_t src_begin = static_cast<size_t>(ident_pos.start.offset);
+          size_t src_end = static_cast<size_t>(ident_pos.end.offset);
           std::string vname_path = KytheSourceFilePath(ident_pos.source);
           f.SetKytheCallback([&h_contents, &cc_contents, &h_rules, &cc_rules,
-                              vname_sig = std::move(vname_sig),
+                              src_begin, src_end,
                               vname_path = std::move(vname_path)](
                                  std::ostream& stream, size_t begin,
                                  size_t end) {
             if (&stream == &h_contents) {
-              h_rules.push_back(GlobalContext::KytheInlineMetadata::Generates(
-                  begin, end, vname_sig, vname_path));
+              h_rules.push_back(GlobalContext::KytheInlineMetadata::Imputes(
+                  begin, end, src_begin, src_end, vname_path));
             } else if (&stream == &cc_contents) {
-              cc_rules.push_back(GlobalContext::KytheInlineMetadata::Generates(
-                  begin, end, vname_sig, vname_path));
+              cc_rules.push_back(GlobalContext::KytheInlineMetadata::Imputes(
+                  begin, end, src_begin, src_end, vname_path));
             }
           });
         }
