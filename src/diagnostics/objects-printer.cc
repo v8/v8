@@ -1276,18 +1276,6 @@ void RegExpBoilerplateDescription::RegExpBoilerplateDescriptionPrint(
   os << "\n";
 }
 
-void EmbedderDataArray::EmbedderDataArrayPrint(std::ostream& os) {
-  PrintHeader(os, "EmbedderDataArray");
-  os << "\n - length: " << length();
-  EmbedderDataSlot start(this, 0);
-  EmbedderDataSlot end(this, length());
-  for (EmbedderDataSlot slot = start; slot < end; ++slot) {
-    os << "\n    ";
-    PrintEmbedderData(Isolate::Current(), os, slot);
-  }
-  os << "\n";
-}
-
 void FixedArray::FixedArrayPrint(std::ostream& os) {
   PrintFixedArrayWithHeader(os, this, "FixedArray");
 }

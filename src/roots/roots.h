@@ -194,7 +194,6 @@ class RootVisitor;
   IF_WASM(V, Map, wasm_type_info_map, WasmTypeInfoMap)                         \
   V(Map, weak_array_list_map, WeakArrayListMap)                                \
   V(Map, ephemeron_hash_table_map, EphemeronHashTableMap)                      \
-  V(Map, embedder_data_array_map, EmbedderDataArrayMap)                        \
   V(Map, weak_cell_map, WeakCellMap)                                           \
   V(Map, uninitialized_heap_number_map, UninitializedHeapNumberMap)            \
   TRUSTED_OBJECT_MAP_ROOT_LIST(V)                                              \

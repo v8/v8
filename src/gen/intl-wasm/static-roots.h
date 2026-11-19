@@ -279,8 +279,8 @@ struct StaticReadOnlyRoot {
       kSimpleNameDictionaryMap + 40;
   static constexpr Tagged_t kDoubleStringCacheMap =
       kNameToIndexHashTableMap + 40;
-  static constexpr Tagged_t kEmbedderDataArrayMap = kDoubleStringCacheMap + 40;
-  static constexpr Tagged_t kEphemeronHashTableMap = kEmbedderDataArrayMap + 40;
+  static constexpr Tagged_t kEphemeronHashTableMap =
+      kDoubleStringCacheMap + 40;
   static constexpr Tagged_t kScriptContextTableMap =
       kEphemeronHashTableMap + 40;
   static constexpr Tagged_t kSloppyArgumentsElementsMap =
@@ -1239,7 +1239,7 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kLastAllocatedRoot = 0x1b00f5;
 };
 
-static constexpr std::array<Tagged_t, 1032> StaticReadOnlyRootsPointerTable = {
+static constexpr std::array<Tagged_t, 1031> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kUndefinedValue,
     StaticReadOnlyRoot::kTheHoleValue,
     StaticReadOnlyRoot::kNullValue,
@@ -1342,7 +1342,6 @@ static constexpr std::array<Tagged_t, 1032> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kWasmTypeInfoMap,
     StaticReadOnlyRoot::kWeakArrayListMap,
     StaticReadOnlyRoot::kEphemeronHashTableMap,
-    StaticReadOnlyRoot::kEmbedderDataArrayMap,
     StaticReadOnlyRoot::kWeakCellMap,
     StaticReadOnlyRoot::kUninitializedHeapNumberMap,
     StaticReadOnlyRoot::kAtomRegExpDataMap,

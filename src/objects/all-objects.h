@@ -37,7 +37,6 @@
 #include "src/objects/descriptor-array.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/elements.h"
-#include "src/objects/embedder-data-array.h"
 #include "src/objects/embedder-data-slot.h"
 #include "src/objects/feedback-cell.h"
 #include "src/objects/feedback-vector.h"

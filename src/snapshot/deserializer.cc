@@ -925,15 +925,6 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
                 .DeprecatedToAlignedPointer(main_thread_isolate(), &pointer));
       CHECK_NULL(pointer);
     }
-  } else if (IsEmbedderDataArray(raw_obj)) {
-    Tagged<EmbedderDataArray> array = Cast<EmbedderDataArray>(raw_obj);
-    EmbedderDataSlot start(array, 0);
-    EmbedderDataSlot end(array, array->length());
-    for (EmbedderDataSlot slot = start; slot < end; ++slot) {
-      void* pointer;
-      CHECK(slot.DeprecatedToAlignedPointer(main_thread_isolate(), &pointer));
-      CHECK_NULL(pointer);
-    }
   }
 #endif
 

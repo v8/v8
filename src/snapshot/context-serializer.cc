@@ -10,7 +10,7 @@
 #include "src/heap/combined-heap.h"
 #include "src/numbers/math-random.h"
 #include "src/objects/cpp-heap-object-wrapper-inl.h"
-#include "src/objects/embedder-data-array-inl.h"
+#include "src/objects/embedder-data-slot-inl.h"
 #include "src/objects/heap-object-field-inl.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/objects-inl.h"

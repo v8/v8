@@ -127,7 +127,6 @@ namespace internal {
   V(DescriptorArray)                            \
   V(DictionaryTemplateInfo)                     \
   V(DoubleStringCache)                          \
-  V(EmbedderDataArray)                          \
   V(EphemeronHashTable)                         \
   V(ExternalOneByteString)                      \
   V(ExternalString)                             \

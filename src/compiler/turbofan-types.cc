@@ -370,7 +370,6 @@ Type::bitset BitsetType::Lub(MapRefLike map, JSHeapBroker* broker) {
     case FUNCTION_TEMPLATE_INFO_TYPE:
     case FUNCTION_TEMPLATE_RARE_DATA_TYPE:
     case ACCESSOR_PAIR_TYPE:
-    case EMBEDDER_DATA_ARRAY_TYPE:
     case FIXED_ARRAY_TYPE:
     case CLASS_BOILERPLATE_TYPE:
     case PROPERTY_DESCRIPTOR_OBJECT_TYPE:

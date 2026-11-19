@@ -694,15 +694,14 @@ V8_INLINE bool IsJSApiWrapperObject(Tagged<Map> map_object) {
 }
 
 // Covers any HeapObject that can contain a CppHeapPointerSlot (including
-// objects like NativeContext and EmbedderDataArray with inline
-// EmbedderDataSlots), used by write barriers and remembered-set iteration.
+// objects like NativeContext with inline EmbedderDataSlots), used by write
+// barriers and remembered-set iteration.
 // Note that CppHeapObjectWrapper only supports single-pointer wrapper types.
 V8_INLINE constexpr bool IsCppHeapPointerWrapperObject(
     InstanceType instance_type) {
   return IsJSApiWrapperObject(instance_type) ||
          IsCppHeapExternalObject(instance_type) ||
-         IsCppGCManagedBase(instance_type) ||
-         IsEmbedderDataArray(instance_type) || IsNativeContext(instance_type) ||
+         IsCppGCManagedBase(instance_type) || IsNativeContext(instance_type) ||
          IsExternalString(instance_type);
 }
 

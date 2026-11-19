@@ -43,7 +43,6 @@ class DebugScriptScopeInfo;
 class DeoptimizationData;
 class DeoptimizationLiteralArray;
 class DictionaryTemplateInfo;
-class EmbedderDataArray;
 class EnumCache;
 class ErrorStackData;
 class Expression;
@@ -184,9 +183,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<SharedFunctionInfo> shared,
       DirectHandle<ClosureFeedbackCellArray> closure_feedback_cell_array,
       DirectHandle<FeedbackCell> parent_feedback_cell);
-
-  // Allocates a clean embedder data array with given capacity.
-  DirectHandle<EmbedderDataArray> NewEmbedderDataArray(int length);
 
   Handle<TurboshaftWord32RangeType> NewTurboshaftWord32RangeType(
       uint32_t from, uint32_t to, AllocationType allocation);

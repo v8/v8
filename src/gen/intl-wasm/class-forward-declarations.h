@@ -41,7 +41,6 @@ class DebugScriptScopeInfo;
 class DescriptorArray;
 class DictionaryTemplateInfo;
 class DoubleStringCache;
-class EmbedderDataArray;
 class EnumCache;
 class EphemeronHashTable;
 class ErrorStackData;

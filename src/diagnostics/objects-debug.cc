@@ -26,7 +26,6 @@
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/elements.h"
-#include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/embedder-data-slot-inl.h"
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/field-type.h"
@@ -927,17 +926,6 @@ void Map::DictionaryMapVerify(Isolate* isolate) {
            instance_descriptors());
   CHECK_EQ(0, UnusedPropertyFields());
   CHECK_EQ(Map::GetVisitorId(this), visitor_id());
-}
-
-void EmbedderDataArray::EmbedderDataArrayVerify(Isolate* isolate) {
-  CHECK(Is<EmbedderDataArray>(this));
-  CHECK(length_.load().IsSmi());
-  EmbedderDataSlot start(this, 0);
-  EmbedderDataSlot end(this, length());
-  for (EmbedderDataSlot slot = start; slot < end; ++slot) {
-    Tagged<Object> e = slot.load_tagged();
-    Object::VerifyPointer(isolate, e);
-  }
 }
 
 void FixedArrayBase::FixedArrayBaseVerify(Isolate* isolate) {

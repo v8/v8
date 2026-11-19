@@ -44,7 +44,6 @@
 #include "src/heap/young-generation-marking-visitor.h"
 #include "src/init/v8.h"
 #include "src/objects/data-handler-inl.h"
-#include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-array-buffer-inl.h"

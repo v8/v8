@@ -52,7 +52,7 @@
 #include "src/objects/cpp-heap-object-wrapper-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/descriptor-array-inl.h"
-#include "src/objects/embedder-data-array-inl.h"
+#include "src/objects/embedder-data-slot-inl.h"
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/fixed-array-base-inl.h"
 #include "src/objects/fixed-array-inl.h"
@@ -442,24 +442,6 @@ Handle<FeedbackVector> Factory::NewFeedbackVector(
                                              *closure_feedback_cell_array,
                                              *parent_feedback_cell),
                 isolate());
-}
-
-DirectHandle<EmbedderDataArray> Factory::NewEmbedderDataArray(int length) {
-  DCHECK_LE(0, length);
-  int size = EmbedderDataArray::SizeFor(length);
-  Tagged<EmbedderDataArray> array =
-      Cast<EmbedderDataArray>(AllocateRawWithImmortalMap(
-          size, AllocationType::kYoung, *embedder_data_array_map()));
-  DisallowGarbageCollection no_gc;
-  array->set_length(length);
-
-  if (length > 0) {
-    for (int i = 0; i < length; i++) {
-      // TODO(v8): consider initializing embedded data array with Smi::zero().
-      EmbedderDataSlot(array, i).Initialize(*undefined_value());
-    }
-  }
-  return direct_handle(array, isolate());
 }
 
 Handle<TurboshaftWord32RangeType> Factory::NewTurboshaftWord32RangeType(

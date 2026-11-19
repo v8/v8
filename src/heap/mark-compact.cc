@@ -72,7 +72,6 @@
 #include "src/heap/zapping.h"
 #include "src/init/v8.h"
 #include "src/logging/tracing-flags.h"
-#include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/foreign.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-object-field-inl.h"

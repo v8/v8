@@ -42,7 +42,6 @@
 #include "src/heap/zapping.h"
 #include "src/objects/casting-inl.h"
 #include "src/objects/data-handler-inl.h"
-#include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-weak-refs.h"

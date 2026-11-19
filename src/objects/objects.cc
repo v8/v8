@@ -47,7 +47,6 @@
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/elements.h"
-#include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/field-index-inl.h"
 #include "src/objects/field-index.h"
 #include "src/objects/field-type.h"
@@ -2171,10 +2170,6 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
   if (instance_type == DOUBLE_STRING_CACHE_TYPE) {
     return DoubleStringCache::SizeFor(
         UncheckedCast<DoubleStringCache>(this)->capacity());
-  }
-  if (instance_type == EMBEDDER_DATA_ARRAY_TYPE) {
-    return EmbedderDataArray::SizeFor(
-        UncheckedCast<EmbedderDataArray>(this)->length());
   }
   if (instance_type == HOLE_TYPE) {
     return sizeof(Hole);

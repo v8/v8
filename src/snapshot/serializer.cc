@@ -1323,8 +1323,7 @@ void Serializer::ObjectSerializer::VisitCppHeapPointer(
   // wrapper serialization is implemented in
   // `ContextSerializer::SerializeApiWrapperFields()`.
   DCHECK(IsJSApiWrapperObjectMap(object_->map()) || IsNativeContext(*object_) ||
-         IsCppGCManagedBase(*object_) ||
-         IsEmbedderDataArray(*object_));
+         IsCppGCManagedBase(*object_));
   static_assert(kCppHeapPointerSlotSize % kTaggedSize == 0);
   sink_->Put(
       FixedRawDataWithSize::Encode(kCppHeapPointerSlotSize >> kTaggedSizeLog2),

@@ -113,9 +113,6 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case FREE_SPACE_TYPE:
       return kVisitFreeSpace;
 
-    case EMBEDDER_DATA_ARRAY_TYPE:
-      return kVisitEmbedderDataArray;
-
     case NAME_TO_INDEX_HASH_TABLE_TYPE:
     case REGISTERED_SYMBOL_TABLE_TYPE:
     case HASH_TABLE_TYPE:

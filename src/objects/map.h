@@ -68,7 +68,6 @@ enum InstanceType : uint16_t;
   V(DataHandler)                     \
   V(DescriptorArray)                 \
   V(DoubleStringCache)               \
-  V(EmbedderDataArray)               \
   V(EphemeronHashTable)              \
   V(ExternalString)                  \
   V(FeedbackCell)                    \

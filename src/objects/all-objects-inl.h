@@ -26,7 +26,6 @@
 #include "src/objects/descriptor-array-inl.h"
 #include "src/objects/dictionary-inl.h"
 #include "src/objects/elements-inl.h"
-#include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/embedder-data-slot-inl.h"
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/feedback-vector-inl.h"
