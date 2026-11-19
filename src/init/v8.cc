@@ -16,7 +16,6 @@
 #include "src/base/synchronization-point-support.h"
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/interface-descriptors.h"
-#include "src/common/assert-scope.h"
 #include "src/common/code-memory-access.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -25,7 +24,6 @@
 #include "src/execution/simulator.h"
 #include "src/flags/flags.h"
 #include "src/heap/cppgc-js/cpp-heap.h"
-#include "src/heap/local-heap-inl.h"
 #include "src/init/bootstrapper.h"
 #include "src/libsampler/sampler.h"
 #include "src/objects/elements.h"
@@ -176,15 +174,6 @@ base::AbortMode ChooseAbortMode() {
   }
   return base::AbortMode::kDefault;
 }
-void ParkLocalHeapDuringSyncPointWait(void (*callback)(void*), void* data) {
-  LocalHeap* local_heap = LocalHeap::TryGetCurrent();
-  if (local_heap && local_heap->IsRunning()) {
-    DCHECK(AllowSafepoints::IsAllowed());
-    local_heap->ExecuteWhileParked([callback, data]() { callback(data); });
-  } else {
-    callback(data);
-  }
-}
 }  // namespace
 
 void V8::Initialize() {
@@ -192,8 +181,6 @@ void V8::Initialize() {
   CHECK(platform_);
 
   base::SynchronizationPointSupport::Initialize();
-  base::SynchronizationPointSupport::Get()->SetWaitWrapper(
-      ParkLocalHeapDuringSyncPointWait);
 
   // Setting `g_abort_mode` needs to happen before `EnforceFlagImplications` so
   // it can apply to flag contradictions.

@@ -21,18 +21,6 @@
 namespace v8 {
 namespace base {
 
-namespace {
-template <typename Callback>
-void InvokeWithWrapper(SynchronizationPointSupport::WaitWrapper wrapper,
-                       Callback& callback) {
-  if (wrapper) {
-    wrapper([](void* data) { (*static_cast<Callback*>(data))(); }, &callback);
-  } else {
-    callback();
-  }
-}
-}  // namespace
-
 SynchronizationPointSupport* SynchronizationPointSupport::instance_ = nullptr;
 
 void SynchronizationPointSupport::Initialize() {
@@ -43,28 +31,14 @@ void SynchronizationPointSupport::Initialize() {
 
 void SynchronizationPointSupport::RequestBlockAt(
     std::string synchronization_point, TimeDelta timeout) {
+  any_requested_ = true;
   MutexGuard lock(&mutex_);
   std::unique_ptr<SyncPointState>& state =
       states_[std::move(synchronization_point)];
   if (!state) state = std::make_unique<SyncPointState>();
-  if (!state->block_requested) {
-    state->block_requested = true;
-    ++active_requests_;
-    any_requested_.store(true, std::memory_order_release);
-  }
+  state->block_requested = true;
   state->block_requester_thread = ThreadId::Current();
   state->block_timeout = timeout;
-}
-
-void SynchronizationPointSupport::ClearBlockRequestLocked(
-    SyncPointState* state) {
-  DCHECK(state->block_requested);
-  state->block_requested = false;
-  DCHECK_GT(active_requests_, 0);
-  if (--active_requests_ == 0) {
-    any_requested_.store(false, std::memory_order_release);
-  }
-  state->cv.NotifyAll();
 }
 
 bool SynchronizationPointSupport::Resume(
@@ -74,7 +48,8 @@ bool SynchronizationPointSupport::Resume(
   if (it != states_.end()) {
     SyncPointState* state = it->second.get();
     if (state->block_requested) {
-      ClearBlockRequestLocked(state);
+      state->block_requested = false;
+      state->cv.NotifyAll();
       return true;
     }
   }
@@ -84,42 +59,32 @@ bool SynchronizationPointSupport::Resume(
 
 bool SynchronizationPointSupport::WaitUntilBlocked(
     std::string_view synchronization_point, TimeDelta timeout) {
-  // Safe: map elements are never removed, so the pointer is stable.
-  SyncPointState* state;
-  {
-    MutexGuard lock(&mutex_);
-    auto it = states_.find(synchronization_point);
-    if (it == states_.end()) {
+  MutexGuard lock(&mutex_);
+  auto it = states_.find(synchronization_point);
+  if (it == states_.end()) {
+    OS::PrintError("Synchronization point not armed\n");
+    return false;
+  }
+  SyncPointState* state = it->second.get();
+
+  const TimeTicks start = TimeTicks::Now();
+  while (state->blocked_threads == 0) {
+    if (!state->block_requested) {
       OS::PrintError("Synchronization point not armed\n");
       return false;
     }
-    state = it->second.get();
-  }
-
-  bool success = false;
-  auto wait_loop = [this, state, timeout, &success]() {
-    MutexGuard lock(&mutex_);
-    const TimeTicks start = TimeTicks::Now();
-    while (state->blocked_threads == 0) {
-      if (!state->block_requested) {
-        OS::PrintError("Synchronization point not armed\n");
-        return;
-      }
-      const TimeDelta remaining = start + timeout - TimeTicks::Now();
-      if (remaining <= TimeDelta()) {
-        OS::PrintError("Synchronization point wait timed out\n");
-        return;
-      }
-      std::ignore = state->cv.WaitFor(&mutex_, remaining);
+    const TimeDelta remaining = start + timeout - TimeTicks::Now();
+    if (remaining <= TimeDelta()) {
+      OS::PrintError("Synchronization point wait timed out\n");
+      return false;
     }
-    success = true;
-  };
-  InvokeWithWrapper(wait_wrapper_.load(std::memory_order_acquire), wait_loop);
-  return success;
+    std::ignore = state->cv.WaitFor(&mutex_, remaining);
+  }
+  return true;
 }
 
 void SynchronizationPointSupport::BlockIfRequestedSlow(
-    std::string_view synchronization_point, AllowSafepoint allow_safepoint) {
+    std::string_view synchronization_point) {
   // Safe: map elements are never removed, so the pointer is stable.
   SyncPointState* state = nullptr;
   {
@@ -137,41 +102,23 @@ void SynchronizationPointSupport::BlockIfRequestedSlow(
     }
   }
 
-  bool timed_out = false;
-  TimeDelta timeout;
-  auto wait_loop = [this, state, &timed_out, &timeout]() {
-    MutexGuard lock(&mutex_);
-    if (!state->block_requested ||
-        state->block_requester_thread == ThreadId::Current()) {
-      return;
-    }
-    const TimeTicks start = TimeTicks::Now();
-    ++state->blocked_threads;
-    state->cv.NotifyAll();
-    while (state->block_requested) {
-      timeout = state->block_timeout;
-      TimeDelta remaining = start + timeout - TimeTicks::Now();
-      if (remaining <= TimeDelta()) break;
-      std::ignore = state->cv.WaitFor(&mutex_, remaining);
-    }
-    timed_out = state->block_requested;
-    if (timed_out) {
-      ClearBlockRequestLocked(state);
-    }
-    --state->blocked_threads;
-  };
-  if (allow_safepoint.value()) {
-    InvokeWithWrapper(wait_wrapper_.load(std::memory_order_acquire), wait_loop);
-  } else {
-    wait_loop();
+  TimeTicks start = TimeTicks::Now();
+  MutexGuard lock(&mutex_);
+  ++state->blocked_threads;
+  state->cv.NotifyAll();
+  while (state->block_requested) {
+    TimeDelta remaining = start + state->block_timeout - TimeTicks::Now();
+    if (remaining <= TimeDelta()) break;
+    std::ignore = state->cv.WaitFor(&mutex_, remaining);
   }
+  --state->blocked_threads;
 
-  if (timed_out) {
+  if (state->block_requested) {
     OS::PrintError(
         "Warning: Synchronization point '%.*s' timed out after %" PRId64
         " ms. Resuming automatically.\n",
         static_cast<int>(synchronization_point.length()),
-        synchronization_point.data(), timeout.InMilliseconds());
+        synchronization_point.data(), state->block_timeout.InMilliseconds());
   }
 }
 
