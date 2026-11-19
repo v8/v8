@@ -2781,8 +2781,15 @@ OptionalModuleRef MapRef::GetNamespaceModule(JSHeapBroker* broker) const {
   if (!TryCast<PrototypeInfo>(maybe_proto_info, &proto_info)) return {};
   // JSModuleNamespace creation stores the back pointer in the PrototypeInfo
   // before the namespace is returned, and it is never cleared afterwards.
-  Tagged<JSModuleNamespace> module_namespace =
-      Cast<JSModuleNamespace>(proto_info->module_namespace(kAcquireLoad));
+  // However, once the namespace migrated away from this map, a stale map can
+  // later get a fresh PrototypeInfo (e.g. via
+  // Map::GetOrCreatePrototypeChainValidityCell), whose module_namespace is
+  // undefined.
+  Tagged<JSModuleNamespace> module_namespace;
+  if (!TryCast<JSModuleNamespace>(proto_info->module_namespace(kAcquireLoad),
+                                  &module_namespace)) {
+    return {};
+  }
   // A namespace's module is set at creation, before the namespace is
   // published, and never changes afterwards.
   return TryMakeRef(broker, module_namespace->module());
