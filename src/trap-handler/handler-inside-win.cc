@@ -102,7 +102,19 @@ bool TryHandleWasmTrap(EXCEPTION_POINTERS* exception) {
 #ifdef V8_TRAP_HANDLER_VIA_SIMULATOR
   // Only handle signals triggered by the load in {ProbeMemory}.
   if (fault_addr != reinterpret_cast<uintptr_t>(&ProbeMemory)) return false;
+#endif  // V8_TRAP_HANDLER_VIA_SIMULATOR
 
+  // Check whether the fault should be handled based on the accessed address.
+  // A fault caused by an access to an address that cannot belong to a Wasm
+  // memory object (or WasmNull) should not be handled.
+  // For EXCEPTION_ACCESS_VIOLATION, ExceptionInformation[1] holds the virtual
+  // address of the inaccessible data.
+  if (record->NumberParameters < 2) return false;
+  uintptr_t access_addr =
+      static_cast<uintptr_t>(record->ExceptionInformation[1]);
+  if (!IsAccessedMemoryCovered(access_addr)) return false;
+
+#ifdef V8_TRAP_HANDLER_VIA_SIMULATOR
   // The simulated ip will be in the second parameter register (%rdx).
   uintptr_t simulated_ip = exception->ContextRecord->Rdx;
   if (!IsFaultAddressCovered(simulated_ip)) return false;

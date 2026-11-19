@@ -456,6 +456,67 @@ TEST_P(TrapHandlerTest, TestCrashInWasmNoProtectedInstruction) {
   ExecuteExpectCrash(buffer_.get());
 }
 
+TEST_P(TrapHandlerTest, TestCrashInWasmUncoveredMemory) {
+  // Test that if the crash happened at a registered trapping instruction,
+  // but the accessed address is not in a covered memory region (even inside
+  // the V8 sandbox), then the trap handler does not handle it.
+  v8::PageAllocator* page_allocator = GetArrayBufferPageAllocator();
+  size_t page_size = page_allocator->AllocatePageSize();
+  VirtualMemory uncovered_mem(page_allocator, page_size);
+  CHECK(uncovered_mem.IsReserved());
+  Address uncovered_address = uncovered_mem.address();
+
+  MacroAssembler masm(i_isolate(), AssemblerOptions{},
+                      CodeObjectRequired{false}, buffer_->CreateView());
+#if V8_HOST_ARCH_X64
+  __ Move(scratch, uncovered_address, RelocInfo::NO_INFO);
+  uint32_t crash_offset = __ pc_offset();
+  __ testl(MemOperand(scratch, 0), Immediate(1));
+  uint32_t recovery_offset = __ pc_offset();
+#elif V8_HOST_ARCH_ARM64
+  UseScratchRegisterScope temps(&masm);
+  Register scratch = temps.AcquireX();
+  __ Mov(scratch, uncovered_address);
+  uint32_t crash_offset = __ pc_offset();
+  __ Ldr(scratch, MemOperand(scratch));
+  uint32_t recovery_offset = __ pc_offset();
+#elif V8_HOST_ARCH_LOONG64
+  UseScratchRegisterScope temps(&masm);
+  Register scratch = temps.Acquire();
+  __ li(scratch, static_cast<int64_t>(uncovered_address));
+  uint32_t crash_offset = __ pc_offset();
+  __ Ld_d(scratch, MemOperand(scratch, 0));
+  uint32_t recovery_offset = __ pc_offset();
+#elif V8_HOST_ARCH_RISCV64
+  UseScratchRegisterScope temps(&masm);
+  Register scratch = temps.Acquire();
+  __ li(scratch, static_cast<int64_t>(uncovered_address));
+  uint32_t crash_offset = __ pc_offset();
+  __ LoadWord(scratch, MemOperand(scratch, 0));
+  uint32_t recovery_offset = __ pc_offset();
+#else
+#error Unsupported platform
+#endif
+  __ Ret();
+  CodeDesc desc;
+  masm.GetCode(static_cast<LocalIsolate*>(nullptr), &desc);
+
+  trap_handler::TrappingInstructionData protected_instruction{crash_offset};
+  int handler_id = trap_handler::RegisterHandlerData(
+      reinterpret_cast<Address>(desc.buffer), desc.instr_size, 1,
+      &protected_instruction);
+
+  landing_pad =
+      reinterpret_cast<void (*)()>(buffer_->start() + recovery_offset);
+  trap_handler::SetLandingPad(
+      reinterpret_cast<uintptr_t>(&LandingPadTrampoline));
+  size_t recovered_traps_before = trap_handler::GetRecoveredTrapCount();
+  ExecuteExpectCrash(buffer_.get());
+  EXPECT_EQ(recovered_traps_before, trap_handler::GetRecoveredTrapCount());
+  trap_handler::ReleaseHandlerData(handler_id);
+  trap_handler::SetLandingPad(0);
+}
+
 TEST_P(TrapHandlerTest, TestCrashInWasmWrongCrashType) {
   // Test that if the crash reason is not a memory access violation, then the
   // wasm trap handler does not handle it.

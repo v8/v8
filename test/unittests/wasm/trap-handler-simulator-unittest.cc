@@ -123,6 +123,34 @@ TEST_F(SimulatorTrapHandlerTest, ProbeMemoryWithTrapHandled) {
   ReleaseHandlerData(handler_data_index);
 }
 
+TEST_F(SimulatorTrapHandlerTest, ProbeMemoryFailUncoveredMemory) {
+  // Test that we still crash if the PC is registered as a trapping instruction,
+  // but the accessed address is not in a covered memory region (neither out of
+  // sandbox, nor inside the sandbox, nor null).
+  v8::PageAllocator* platform_allocator = GetPlatformPageAllocator();
+  VirtualMemory out_of_sandbox_mem(platform_allocator,
+                                   platform_allocator->AllocatePageSize());
+  CHECK(out_of_sandbox_mem.IsReserved());
+
+  v8::PageAllocator* array_buffer_allocator = GetArrayBufferPageAllocator();
+  VirtualMemory in_sandbox_uncovered_mem(
+      array_buffer_allocator, array_buffer_allocator->AllocatePageSize());
+  CHECK(in_sandbox_uncovered_mem.IsReserved());
+
+  TrappingInstructionData fake_protected_instruction{kFakePc};
+  int handler_data_index =
+      RegisterHandlerData(0, 128, 1, &fake_protected_instruction);
+
+  EXPECT_DEATH_IF_SUPPORTED(ProbeMemory(out_of_sandbox_mem.address(), kFakePc),
+                            "");
+  EXPECT_DEATH_IF_SUPPORTED(
+      ProbeMemory(in_sandbox_uncovered_mem.address(), kFakePc), "");
+  EXPECT_DEATH_IF_SUPPORTED(ProbeMemory(0, kFakePc), "");
+
+  // Reset everything.
+  ReleaseHandlerData(handler_data_index);
+}
+
 class SimulatorTrapHandlerTestWithCodegen : public SimulatorTrapHandlerTest {
  protected:
   void GenerateAndExecuteCode() {

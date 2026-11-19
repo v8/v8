@@ -283,9 +283,17 @@ void UnregisterV8Sandbox(uintptr_t base, size_t size) {
 }
 
 bool RegisterCoveredMemory(uintptr_t base, size_t reserved_size) {
-  TrapHandlerGuard active_guard;
-
   TH_CHECK(base + reserved_size > base);
+
+  // Allocate before acquiring any trap-handler spinlock to avoid deadlocking
+  // with a faulting thread that holds the allocator lock.
+  CoveredMemoryRecord* new_record = reinterpret_cast<CoveredMemoryRecord*>(
+      malloc(sizeof(CoveredMemoryRecord)));
+  if (new_record == nullptr) return false;
+  new_record->base = base;
+  new_record->size = reserved_size;
+
+  TrapHandlerGuard active_guard;
 
   // First validity check: the memory must be within the sandbox (if enabled).
   {
@@ -312,36 +320,32 @@ bool RegisterCoveredMemory(uintptr_t base, size_t reserved_size) {
     TH_CHECK(disjoint);
   }
 
-  // Now allocate and register the new record.
-  CoveredMemoryRecord* new_record = reinterpret_cast<CoveredMemoryRecord*>(
-      malloc(sizeof(CoveredMemoryRecord)));
-  if (new_record == nullptr) return false;
-
-  new_record->base = base;
-  new_record->size = reserved_size;
   new_record->next = gCoveredMemoryRecordsHead;
   gCoveredMemoryRecordsHead = new_record;
   return true;
 }
 
 void UnregisterCoveredMemory(uintptr_t base, size_t reserved_size) {
-  TrapHandlerGuard active_guard;
-  CoveredMemoryRecordsLock lock;
+  CoveredMemoryRecord* current = nullptr;
+  {
+    TrapHandlerGuard active_guard;
+    CoveredMemoryRecordsLock lock;
 
-  CoveredMemoryRecord* current = gCoveredMemoryRecordsHead;
-  CoveredMemoryRecord* previous = nullptr;
-  while (current != nullptr && current->base != base) {
-    previous = current;
-    current = current->next;
-  }
+    current = gCoveredMemoryRecordsHead;
+    CoveredMemoryRecord* previous = nullptr;
+    while (current != nullptr && current->base != base) {
+      previous = current;
+      current = current->next;
+    }
 
-  // The unregistered memory must match an existing record exactly.
-  TH_CHECK(current != nullptr);
-  TH_CHECK(current->size == reserved_size);
-  if (previous) {
-    previous->next = current->next;
-  } else {
-    gCoveredMemoryRecordsHead = current->next;
+    // The unregistered memory must match an existing record exactly.
+    TH_CHECK(current != nullptr);
+    TH_CHECK(current->size == reserved_size);
+    if (previous) {
+      previous->next = current->next;
+    } else {
+      gCoveredMemoryRecordsHead = current->next;
+    }
   }
   free(current);
 }
