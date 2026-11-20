@@ -1599,6 +1599,9 @@ void Builtins::Generate_ConstructForwardAllArgsImpl(
                          kSystemPointerSize));
 
   // Copy the arguments on the stack. r8 is a scratch register.
+  // The forwarded arguments plus the receiver slot are {rax} slots in total,
+  // padded to an even number of slots (16-byte stack alignment only).
+  PushArgumentPaddingForArgc(masm, rax);
   Register argc_without_receiver = r11;
   __ leaq(argc_without_receiver, Operand(rax, -kJSArgcReceiverSlots));
   __ PushArray(rcx, argc_without_receiver, r8);
@@ -2367,24 +2370,85 @@ void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
     __ movq(rdi, args.GetReceiverOperand());
   }
 
-  // 2. Save the return address and drop the callable.
-  __ PopReturnAddressTo(rbx);
-  __ Pop(kScratchRegister);
-
-  // 3. Make sure we have at least one argument.
-  {
-    Label done;
+  Label call;
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    // The {n} stack arguments (including the receiver) are padded to an even
+    // number of slots, with any padding slot above the last argument. Removing
+    // the callable flips the parity of {n}, so the remaining arguments have to
+    // be shifted by one slot to either add or remove the padding slot.
+    Label has_this_arg, odd_argc, shifted;
     __ cmpq(rax, Immediate(JSParameterCount(0)));
-    __ j(greater, &done, Label::kNear);
-    __ PushRoot(RootIndex::kUndefinedValue);
-    __ incq(rax);
-    __ bind(&done);
-  }
+    __ j(greater, &has_this_arg, Label::kNear);
 
-  // 4. Push back the return address one slot down on the stack (overwriting the
-  // original callable), making the original first argument the new receiver.
-  __ PushReturnAddressFrom(rbx);
+    // 2a. No arguments: [callable, padding] becomes [undefined, padding] and
+    // the argument count stays the same.
+    __ LoadRoot(rcx, RootIndex::kUndefinedValue);
+    __ movq(Operand(rsp, kSystemPointerSize), rcx);
+    __ jmp(&call);
+
+    __ bind(&has_this_arg);
+    __ testb(rax, Immediate(1));
+    __ j(not_zero, &odd_argc, Label::kNear);
+
+    // 2b. Even n (no padding slot): n - 1 is odd, so the argument area keeps
+    // its n slots. Move the n - 1 remaining arguments down by one slot
+    // (overwriting the callable) and turn the topmost slot into padding.
+    {
+      Label loop;
+      __ Move(rcx, 1);
+      __ bind(&loop);
+      __ movq(rdx,
+              Operand(rsp, rcx, times_system_pointer_size, kSystemPointerSize));
+      __ movq(Operand(rsp, rcx, times_system_pointer_size, 0), rdx);
+      __ incq(rcx);
+      __ cmpq(rcx, rax);
+      __ j(less, &loop, Label::kNear);
+      __ movq(Operand(rsp, rax, times_system_pointer_size, 0), Immediate(0));
+      __ jmp(&shifted);
+    }
+
+    // 2c. Odd n (one padding slot): n - 1 is even, so the argument area
+    // shrinks by two slots (the callable and the padding). Move the n - 1
+    // remaining arguments up by one slot (the last one overwrites the
+    // padding), then drop two slots below them.
+    __ bind(&odd_argc);
+    {
+      Label loop;
+      __ movq(rcx, rax);
+      __ bind(&loop);
+      __ movq(rdx, Operand(rsp, rcx, times_system_pointer_size, 0));
+      __ movq(Operand(rsp, rcx, times_system_pointer_size, kSystemPointerSize),
+              rdx);
+      __ decq(rcx);
+      __ cmpq(rcx, Immediate(2));
+      __ j(greater_equal, &loop, Label::kNear);
+      __ PopReturnAddressTo(rbx);
+      __ Drop(2);
+      __ PushReturnAddressFrom(rbx);
+    }
+    __ bind(&shifted);
+  } else {
+    // 2. Save the return address and drop the callable.
+    __ PopReturnAddressTo(rbx);
+    __ Pop(kScratchRegister);
+
+    // 3. Make sure we have at least one argument.
+    {
+      Label done;
+      __ cmpq(rax, Immediate(JSParameterCount(0)));
+      __ j(greater, &done, Label::kNear);
+      __ PushRoot(RootIndex::kUndefinedValue);
+      __ incq(rax);
+      __ bind(&done);
+    }
+
+    // 4. Push back the return address one slot down on the stack (overwriting
+    // the original callable), making the original first argument the new
+    // receiver.
+    __ PushReturnAddressFrom(rbx);
+  }
   __ decq(rax);  // One fewer argument (first argument is new receiver).
+  __ bind(&call);
 
   // 5. Call the callable.
   // Since we did not create a frame for Function.prototype.call() yet,
@@ -2512,7 +2576,20 @@ void Generate_AllocateSpaceAndShiftExistingArguments(
   Register new_space = kScratchRegister;
   __ movq(old_rsp, rsp);
 
-  __ leaq(new_space, Operand(count, times_system_pointer_size, 0));
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    // The existing {argc} arguments occupy RoundUp(argc, 2) slots and the
+    // callee will drop RoundUp(argc + count, 2) slots, so only grow the stack
+    // by the difference. If {argc} is odd, the first new argument reuses the
+    // existing padding slot.
+    __ leaq(new_space, Operand(argc_in_out, count, times_1, 1));
+    __ andq(new_space, Immediate(~1));
+    __ leaq(scratch1, Operand(argc_in_out, 1));
+    __ andq(scratch1, Immediate(~1));
+    __ subq(new_space, scratch1);
+    __ shlq(new_space, Immediate(kSystemPointerSizeLog2));
+  } else {
+    __ leaq(new_space, Operand(count, times_system_pointer_size, 0));
+  }
   __ AllocateStackSpace(new_space);
 
   Register copy_count = argc_in_out;
@@ -2539,6 +2616,19 @@ void Generate_AllocateSpaceAndShiftExistingArguments(
   // We are especially constrained here because we are close to reaching the
   // limit for a near jump to the stackoverflow label, so every byte counts.
   __ addl(argc_in_out, count);  // Update total number of arguments.
+
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    // If the new argument count is odd, the slot above the last (new) argument
+    // is the padding slot. It may hold a stale copy of a shifted argument, so
+    // make sure it holds a valid tagged value.
+    Label no_padding;
+    __ testb(argc_in_out, Immediate(1));
+    __ j(zero, &no_padding, Label::kNear);
+    __ movq(Operand(rsp, argc_in_out, times_system_pointer_size,
+                    kSystemPointerSize),
+            Immediate(0));
+    __ bind(&no_padding);
+  }
 }
 
 }  // namespace
@@ -2576,8 +2666,12 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   }
 
   Label stack_overflow;
+  // With 16-byte stack alignment the code in between grows, so the jump may
+  // no longer be near.
   __ StackOverflowCheck(rcx, &stack_overflow,
-                        DEBUG_BOOL ? Label::kFar : Label::kNear);
+                        (DEBUG_BOOL || V8_X64_16BYTE_STACK_ALIGNMENT_BOOL)
+                            ? Label::kFar
+                            : Label::kNear);
 
   // Push additional arguments onto the stack.
   // Move the arguments already in the stack,
@@ -2684,7 +2778,11 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
     // -----------------------------------
 
     // Check for stack overflow.
-    __ StackOverflowCheck(r8, &stack_overflow, Label::kNear);
+    // With 16-byte stack alignment the code in between grows, so the jump may
+    // no longer be near.
+    __ StackOverflowCheck(
+        r8, &stack_overflow,
+        V8_X64_16BYTE_STACK_ALIGNMENT_BOOL ? Label::kFar : Label::kNear);
 
     // Forward the arguments from the caller frame.
     // Move the arguments already in the stack,
@@ -2875,6 +2973,65 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
     // Save Return Address and Receiver into registers.
     __ Pop(r8);
     __ Pop(r10);
+
+    if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+      // 16-byte stack alignment: the bound arguments are inserted between the
+      // receiver and the existing arguments, while the padding slot (if any)
+      // lives above the existing arguments. An even number of bound arguments
+      // keeps the parity of the argument count, so nothing has to change. An
+      // odd number flips it, so the existing arguments (without the receiver,
+      // which is in r10) have to be moved by one slot.
+      Label repad_done, odd_argc;
+      Register existing = r11;  // Existing arguments without the receiver.
+      Register index = r9;
+      Register value = r12;
+      __ testb(rbx, Immediate(1));
+      __ j(zero, &repad_done);
+      __ leaq(existing, Operand(rax, -kJSArgcReceiverSlots));
+      __ testb(rax, Immediate(1));
+      __ j(not_zero, &odd_argc, Label::kNear);
+
+      // Even argc (no padding slot), odd new argc: grow by one slot, move the
+      // existing arguments down by one slot and turn the topmost slot into
+      // padding.
+      {
+        Label loop, check;
+        __ AllocateStackSpace(kSystemPointerSize);
+        __ Move(index, 0);
+        __ jmp(&check, Label::kNear);
+        __ bind(&loop);
+        __ movq(value, Operand(rsp, index, times_system_pointer_size,
+                               kSystemPointerSize));
+        __ movq(Operand(rsp, index, times_system_pointer_size, 0), value);
+        __ incq(index);
+        __ bind(&check);
+        __ cmpq(index, existing);
+        __ j(less, &loop, Label::kNear);
+        __ movq(Operand(rsp, existing, times_system_pointer_size, 0),
+                Immediate(0));
+        __ jmp(&repad_done);
+      }
+
+      // Odd argc (one padding slot), even new argc: move the existing
+      // arguments up by one slot (the last one overwrites the padding) and
+      // shrink by one slot.
+      __ bind(&odd_argc);
+      {
+        Label loop, check;
+        __ movq(index, existing);
+        __ jmp(&check, Label::kNear);
+        __ bind(&loop);
+        __ movq(value, Operand(rsp, index, times_system_pointer_size, 0));
+        __ movq(
+            Operand(rsp, index, times_system_pointer_size, kSystemPointerSize),
+            value);
+        __ bind(&check);
+        __ decq(index);
+        __ j(greater_equal, &loop, Label::kNear);
+        __ DropStackPadding();
+      }
+      __ bind(&repad_done);
+    }
 
     // Push [[BoundArguments]] to the stack.
     {
