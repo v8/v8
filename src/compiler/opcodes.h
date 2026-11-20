@@ -278,6 +278,7 @@
   V(ChangeTaggedToUint32)                     \
   V(ChangeTaggedToFloat64)                    \
   V(ChangeTaggedToTaggedSigned)               \
+  V(ChangeTaggedToTaggedPointer)              \
   V(ChangeSmiOrHoleToFloat64)                 \
   V(ChangeNumberOrHoleToFloat64)              \
   V(ChangeInt31ToTaggedSigned)                \

@@ -510,6 +510,8 @@ Node* RepresentationChanger::GetTaggedPointerRepresentationFor(
       op = simplified()->ChangeFloat64ToTaggedPointer();
     } else if (output_type.Is(Type::SignedBigInt64()) &&
                use_info.type_check() == TypeCheckKind::kBigInt) {
+      // Non-kBigInt uses of kWord64 BigInts are already rematerialized in
+      // GetRepresentationFor.
       op = simplified()->ChangeInt64ToBigInt();
     } else if (output_type.Is(Type::UnsignedBigInt64()) &&
                use_info.type_check() == TypeCheckKind::kBigInt) {
@@ -531,6 +533,13 @@ Node* RepresentationChanger::GetTaggedPointerRepresentationFor(
     if (output_type.Is(Type::Number())) {
       // float64 -> tagged
       op = simplified()->ChangeFloat64ToTaggedPointer();
+    } else if (output_type.Is(Type::NumberOrUndefined())) {
+      // ChangeFloat64OrUndefinedToTagged always produces a HeapNumber or
+      // Undefined, never a Smi.
+      op = simplified()->ChangeFloat64OrUndefinedToTagged(
+          output_type.Maybe(Type::MinusZero())
+              ? CheckForMinusZeroMode::kCheckForMinusZero
+              : CheckForMinusZeroMode::kDontCheckForMinusZero);
     } else {
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kTaggedPointer);
@@ -556,8 +565,13 @@ Node* RepresentationChanger::GetTaggedPointerRepresentationFor(
                !output_type.Maybe(Type::SignedSmall())) {
       DCHECK_NE(output_rep, MachineRepresentation::kTaggedSigned);
       return node;
-    } else {
+    } else if (use_info.type_check() != TypeCheckKind::kNone) {
+      DCHECK_EQ(use_info.type_check(), TypeCheckKind::kHeapObject);
       op = simplified()->CheckedTaggedToTaggedPointer(use_info.feedback());
+    } else {
+      // Known-Smi inputs are folded to HeapNumber allocation by
+      // SimplifiedOptimizationReducer::ReduceConvert.
+      op = simplified()->ChangeTaggedToTaggedPointer();
     }
   } else {
     return TypeError(node, output_rep, output_type,

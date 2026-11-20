@@ -2222,6 +2222,10 @@ class AssemblerOpInterface : public Next {
     return V<Boolean>::Cast(
         Convert(input, ConvertOp::Kind::kObject, ConvertOp::Kind::kBoolean));
   }
+  V<HeapObject> ConvertToHeapObject(V<Object> input) {
+    return V<HeapObject>::Cast(
+        Convert(input, ConvertOp::Kind::kObject, ConvertOp::Kind::kHeapObject));
+  }
   V<String> ConvertNumberToString(V<Number> input) {
     return V<String>::Cast(
         Convert(input, ConvertOp::Kind::kNumber, ConvertOp::Kind::kString));
