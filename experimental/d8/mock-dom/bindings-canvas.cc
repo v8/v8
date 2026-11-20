@@ -223,7 +223,7 @@ void InstallStateBindings(Isolate* isolate) {
     DefineAccessor(
         isolate, kContext, stored.name,
         [](const CallbackInfo& info) {
-          info.GetReturnValue().Set(info.DataV2().As<Value>());
+          info.GetReturnValue().Set(info.Data().As<Value>());
         },
         [](const CallbackInfo& info) {}, V8Name(isolate, stored.initial));
   }

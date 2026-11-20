@@ -862,14 +862,13 @@ const char* const kWindowEventHandlers[] = {
 CALLBACK(WindowEventHandlerGetter) {
   Isolate* isolate = info.GetIsolate();
   info.GetReturnValue().Set(CurrentWindow(info)->GetAttributeListener(
-      isolate, ToAtomicString(isolate, info.DataV2().As<v8::String>())));
+      isolate, ToAtomicString(isolate, info.Data().As<v8::String>())));
 }
 
 CALLBACK(WindowEventHandlerSetter) {
   Isolate* isolate = info.GetIsolate();
   CurrentWindow(info)->SetAttributeListener(
-      isolate, ToAtomicString(isolate, info.DataV2().As<v8::String>()),
-      info[0]);
+      isolate, ToAtomicString(isolate, info.Data().As<v8::String>()), info[0]);
 }
 
 CALLBACK(WindowSelf) { Return(info, CurrentWindow(info)); }

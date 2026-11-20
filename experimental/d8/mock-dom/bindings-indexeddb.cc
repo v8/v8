@@ -1493,12 +1493,12 @@ void DefineEventHandlers(Isolate* isolate, Interface interface,
           info.GetReturnValue().Set(
               Receiver<EventTarget>(info)->GetAttributeListener(
                   isolate,
-                  ToAtomicString(isolate, info.DataV2().As<v8::String>())));
+                  ToAtomicString(isolate, info.Data().As<v8::String>())));
         },
         [](const CallbackInfo& info) {
           Isolate* isolate = info.GetIsolate();
           Receiver<EventTarget>(info)->SetAttributeListener(
-              isolate, ToAtomicString(isolate, info.DataV2().As<v8::String>()),
+              isolate, ToAtomicString(isolate, info.Data().As<v8::String>()),
               Arg(info, 0));
         },
         V8Name(isolate, type));

@@ -56,7 +56,7 @@ void DefineGlobalAccessor(Isolate* isolate, const char* name,
 
 // The small integer a member was registered with as its callback data.
 inline int DataInt(const CallbackInfo& info) {
-  return static_cast<int>(info.DataV2().As<Integer>()->Value());
+  return static_cast<int>(info.Data().As<Integer>()->Value());
 }
 
 // The C++ object behind the receiver. Valid for members defined with a

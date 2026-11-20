@@ -1257,14 +1257,13 @@ const char* const kElementEventHandlers[] = {
 CALLBACK(EventHandlerGetter) {
   Isolate* isolate = info.GetIsolate();
   info.GetReturnValue().Set(Receiver<EventTarget>(info)->GetAttributeListener(
-      isolate, ToAtomicString(isolate, info.DataV2().As<v8::String>())));
+      isolate, ToAtomicString(isolate, info.Data().As<v8::String>())));
 }
 
 CALLBACK(EventHandlerSetter) {
   Isolate* isolate = info.GetIsolate();
   Receiver<EventTarget>(info)->SetAttributeListener(
-      isolate, ToAtomicString(isolate, info.DataV2().As<v8::String>()),
-      info[0]);
+      isolate, ToAtomicString(isolate, info.Data().As<v8::String>()), info[0]);
 }
 
 void InstallEventHandlers(Isolate* isolate, Interface interface) {

@@ -1927,7 +1927,7 @@ void InstallDocumentBindings(Isolate* isolate) {
     DefineAccessor(
         isolate, kDocument, constant.name,
         [](const CallbackInfo& info) {
-          info.GetReturnValue().Set(info.DataV2().As<Value>());
+          info.GetReturnValue().Set(info.Data().As<Value>());
         },
         nullptr, V8Name(isolate, constant.value));
   }
