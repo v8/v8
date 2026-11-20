@@ -531,8 +531,7 @@ class BuiltinsReducer : public Next {
     __ Bind(__ NewBlock());
     // Eagerly emit all parameters such that they are guaranteed to be in the
     // entry block (assembler will cache them).
-    const compiler::CallDescriptor* desc =
-        __ data() -> builtin_call_descriptor();
+    const compiler::CallDescriptor* desc = __ data()->builtin_call_descriptor();
     for (int i = 0; i < static_cast<int>(desc->ParameterCount()); ++i) {
       __ Parameter(i, RegisterRepresentation::FromMachineType(
                           desc->GetParameterType(i)));
@@ -1221,7 +1220,7 @@ class BuiltinsReducer : public Next {
 
  private:
   compiler::turboshaft::OperationMatcher matcher_{__ data()->graph()};
-  Isolate* isolate() { return __ data() -> isolate(); }
+  Isolate* isolate() { return __ data()->isolate(); }
   Factory* factory() { return isolate()->factory(); }
 };
 

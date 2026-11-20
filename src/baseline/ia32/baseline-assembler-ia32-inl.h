@@ -524,7 +524,7 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
     __ Pop(kInterpreterAccumulatorRegister, params_size);
     __ masm()->SmiUntag(params_size);
 
-  __ Bind(&skip_interrupt_label);
+    __ Bind(&skip_interrupt_label);
   }
 
   BaselineAssembler::ScratchRegisterScope scope(&basm);

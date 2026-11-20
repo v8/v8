@@ -735,9 +735,10 @@ class TurboshaftGraphBuildingInterface
       }
     }
     compiler::turboshaft::SwitchOp::Case* cases =
-        __ output_graph().graph_zone()
-            -> AllocateArray<compiler::turboshaft::SwitchOp::Case>(
-                             imm.table_count);
+        __ output_graph()
+            .graph_zone()
+            ->AllocateArray<compiler::turboshaft::SwitchOp::Case>(
+                imm.table_count);
     BranchTableIterator<ValidationTag> new_block_iterator(decoder, imm);
     SmallZoneVector<TSBlock*, 16> intermediate_blocks(decoder->zone_);
     TSBlock* default_case = nullptr;
@@ -834,7 +835,7 @@ class TurboshaftGraphBuildingInterface
             if (!pending_phi) break;
             OpIndex replaced = __ output_graph().Index(op);
             __ output_graph().Replace<compiler::turboshaft::PhiOp>(
-                replaced, base::VectorOf({pending_phi -> first()}),
+                replaced, base::VectorOf({pending_phi->first()}),
                 pending_phi->rep);
           }
         } else {
@@ -845,7 +846,7 @@ class TurboshaftGraphBuildingInterface
                                    block->br_merge());
           __ Goto(block->false_or_loop_or_catch_block);
           auto operations = __ output_graph().operations(
-              *block -> false_or_loop_or_catch_block);
+              *block->false_or_loop_or_catch_block);
           auto to = operations.begin();
           // The VariableReducer can introduce loop phis as well which are at
           // the beginning of the block. We need to skip them.
@@ -870,7 +871,7 @@ class TurboshaftGraphBuildingInterface
             __ output_graph().Replace<compiler::turboshaft::PhiOp>(
                 replaced,
                 base::VectorOf<OpIndex>(
-                    {pending_phi.first(), (*block -> br_merge())[i].op}),
+                    {pending_phi.first(), (*block->br_merge())[i].op}),
                 pending_phi.rep);
           }
         }
@@ -4238,9 +4239,10 @@ class TurboshaftGraphBuildingInterface
 #endif
 
     base::Vector<compiler::turboshaft::EffectHandler> asm_handlers =
-        __ output_graph().graph_zone()
-            -> AllocateVector<compiler::turboshaft::EffectHandler>(
-                             handlers.size());
+        __ output_graph()
+            .graph_zone()
+            ->AllocateVector<compiler::turboshaft::EffectHandler>(
+                handlers.size());
     for (size_t i = 0; i < handlers.size(); ++i) {
       DCHECK_LT(handlers[i].tag.index, decoder->module_->tags.size());
       asm_handlers[i].tag_and_kind.encode(

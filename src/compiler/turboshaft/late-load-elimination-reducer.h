@@ -1146,7 +1146,7 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
  private:
   using RawBaseAssumption = LateLoadEliminationAnalyzer::RawBaseAssumption;
   RawBaseAssumption raw_base_assumption_ =
-      __ data() -> pipeline_kind() == TurboshaftPipelineKind::kCSA
+      __ data()->pipeline_kind() == TurboshaftPipelineKind::kCSA
           ? RawBaseAssumption::kMaybeInnerPointer
           : RawBaseAssumption::kNoInnerPointer;
   LateLoadEliminationAnalyzer analyzer_{__ data(), __ modifiable_input_graph(),

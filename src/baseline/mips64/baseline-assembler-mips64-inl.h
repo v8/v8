@@ -545,7 +545,7 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
     __ masm()->Pop(params_size, kInterpreterAccumulatorRegister);
     __ masm()->SmiUntag(params_size);
 
-  __ Bind(&skip_interrupt_label);
+    __ Bind(&skip_interrupt_label);
   }
 
   BaselineAssembler::ScratchRegisterScope temps(&basm);

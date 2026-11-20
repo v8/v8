@@ -2347,7 +2347,7 @@ class MachineOptimizationReducer : public Next {
           // HeapObject, so unparking the JSHeapBroker here rather than before
           // the optimization pass itself it probably more efficient.
 
-          TurboshaftPipelineKind pkind = __ data() -> pipeline_kind();
+          TurboshaftPipelineKind pkind = __ data()->pipeline_kind();
           USE(pkind);
           DCHECK_IMPLIES(pkind != TurboshaftPipelineKind::kCSA &&
                              pkind != TurboshaftPipelineKind::kTSABuiltin,
@@ -2364,7 +2364,7 @@ class MachineOptimizationReducer : public Next {
         if (offset == offsetof(String, length_) &&
             loaded_rep == MemoryRepresentation::Uint32()) {
           DCHECK_EQ(result_rep, RegisterRepresentation::Word32());
-          TurboshaftPipelineKind pkind = __ data() -> pipeline_kind();
+          TurboshaftPipelineKind pkind = __ data()->pipeline_kind();
           USE(pkind);
           DCHECK_IMPLIES(pkind != TurboshaftPipelineKind::kCSA &&
                              pkind != TurboshaftPipelineKind::kTSABuiltin,
@@ -3328,7 +3328,7 @@ class MachineOptimizationReducer : public Next {
     return base::bits::CountLeadingSignBits(c) - (64 - rep.bit_width());
   }
 
-  JSHeapBroker* broker = __ data() -> broker();
+  JSHeapBroker* broker = __ data()->broker();
   const OperationMatcher& matcher_ = __ matcher();
   // TODO(victorgomes): This also applies to JS. The bit patterns for `the_hole`
   // and `undefined` are signalling NaNs. Optimizing away an arithmetic
@@ -3339,7 +3339,7 @@ class MachineOptimizationReducer : public Next {
   static constexpr bool signalling_nan_possible = true;
 #if V8_ENABLE_WEBASSEMBLY
   // Only wasm needs NaNs to be deterministic.
-  const bool ensure_deterministic_nan = __ data() -> is_wasm();
+  const bool ensure_deterministic_nan = __ data()->is_wasm();
 #else
   static constexpr bool ensure_deterministic_nan = false;
 #endif  // V8_ENABLE_WEBASSEMBLY

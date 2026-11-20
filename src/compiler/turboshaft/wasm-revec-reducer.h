@@ -840,7 +840,7 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
         // Needs to update offset and base to align with node0.
         const Simd128LoadTransformOp& op0 =
             __ input_graph()
-                .Get(pnode -> nodes()[0])
+                .Get(pnode->nodes()[0])
                 .template Cast<Simd128LoadTransformOp>();
         const WordBinopOp& add_op0 =
             __ input_graph().Get(op0.base()).template Cast<WordBinopOp>();
@@ -1028,7 +1028,7 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
                       .template TryCast<PendingLoopPhiOp>()) {
             __ output_graph().template Replace<PhiOp>(
                 pending_index,
-                base::VectorOf({pending_phi -> first(),
+                base::VectorOf({pending_phi->first(),
                                 analyzer_.GetReducedInput(pnode, 1)}),
                 RegisterRepresentation::Simd256());
             return;

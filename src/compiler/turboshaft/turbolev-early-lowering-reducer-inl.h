@@ -529,9 +529,9 @@ class TurbolevEarlyLoweringReducer : public Next {
     }
   }
 
-  Isolate* isolate_ = __ data() -> isolate();
+  Isolate* isolate_ = __ data()->isolate();
   LocalIsolate* local_isolate_ = isolate_->AsLocalIsolate();
-  JSHeapBroker* broker_ = __ data() -> broker();
+  JSHeapBroker* broker_ = __ data()->broker();
   LocalFactory* factory_ = local_isolate_->factory();
 };
 

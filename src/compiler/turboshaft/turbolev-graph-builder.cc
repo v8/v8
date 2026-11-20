@@ -1154,9 +1154,10 @@ class GraphBuildingNodeProcessor {
           pre_loop_generator_blocks_[maglev_loop_header];
 
       compiler::turboshaft::SwitchOp::Case* cases =
-          __ output_graph().graph_zone()
-              -> AllocateArray<compiler::turboshaft::SwitchOp::Case>(
-                               generator_preds.size());
+          __ output_graph()
+              .graph_zone()
+              ->AllocateArray<compiler::turboshaft::SwitchOp::Case>(
+                  generator_preds.size());
 
       for (int i = 0; static_cast<unsigned int>(i) < generator_preds.size();
            i++) {
@@ -1504,7 +1505,7 @@ class GraphBuildingNodeProcessor {
             native_module, wasm_function_index, shared, feedback,
             has_break_on_entry,
             broker_->CanonicalPersistentHandle(function_data->internal()));
-    __ data() -> set_turbolev_graph_has_inlineable_wasm_calls();
+    __ data()->set_turbolev_graph_has_inlineable_wasm_calls();
     TRACE_WASM_INLINING("- inlining wrapper");
     return wasm_call_params;
 #undef TRACE_WASM_INLINING
@@ -2544,7 +2545,7 @@ class GraphBuildingNodeProcessor {
     // Ensure WasmInJSInliningPhase runs to strip ProcessWasmArgumentOp
     // even when the corresponding Call lacks js_wasm_call_parameters
     // (e.g. because speculation was disallowed for that call site).
-    __ data() -> set_turbolev_graph_has_inlineable_wasm_calls();
+    __ data()->set_turbolev_graph_has_inlineable_wasm_calls();
     return maglev::ProcessResult::kContinue;
 #else
     UNREACHABLE();
@@ -4471,9 +4472,10 @@ class GraphBuildingNodeProcessor {
       // bypassed loop headers, where secondary switches will be inserted.
 
       compiler::turboshaft::SwitchOp::Case* cases =
-          __ output_graph().graph_zone()
-              -> AllocateArray<compiler::turboshaft::SwitchOp::Case>(
-                               node->size());
+          __ output_graph()
+              .graph_zone()
+              ->AllocateArray<compiler::turboshaft::SwitchOp::Case>(
+                  node->size());
 
       DCHECK_EQ(0, node->value_base());
 
@@ -4521,9 +4523,9 @@ class GraphBuildingNodeProcessor {
     }
 
     compiler::turboshaft::SwitchOp::Case* cases =
-        __ output_graph().graph_zone()
-            -> AllocateArray<compiler::turboshaft::SwitchOp::Case>(
-                             node->size());
+        __ output_graph()
+            .graph_zone()
+            ->AllocateArray<compiler::turboshaft::SwitchOp::Case>(node->size());
     int case_value_base = node->value_base();
     for (int i = 0; i < node->size(); i++) {
       cases[i] = {i + case_value_base, Map(node->targets()[i].block_ptr()),
@@ -6981,7 +6983,7 @@ class GraphBuildingNodeProcessor {
       __ output_graph().Replace<PhiOp>(
           phi_index,
           base::VectorOf({pending_phi.first(),
-                          Map(maglev_phi -> backedge(), kIndexCanBeInvalid)}),
+                          Map(maglev_phi->backedge(), kIndexCanBeInvalid)}),
           pending_phi.rep);
     }
   }

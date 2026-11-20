@@ -1407,13 +1407,13 @@ class WasmLoweringReducer : public Next {
     return {explicit_null_check, implicit_null_check};
   }
 
-  const wasm::WasmModule* module_ = __ data() -> wasm_module();
+  const wasm::WasmModule* module_ = __ data()->wasm_module();
 
   // Wasm-in-JS inlining runs in the JS pipeline where we cannot use the
   // trap handler. For these cases, `is_wasm()` ensures we use explicit checks.
   const NullCheckStrategy null_check_strategy_ =
       trap_handler::IsTrapHandlerEnabled() && V8_STATIC_ROOTS_BOOL &&
-              __ data() -> is_wasm()
+              __ data()->is_wasm()
           ? NullCheckStrategy::kTrapHandler
           : NullCheckStrategy::kExplicit;
 };

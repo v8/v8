@@ -93,7 +93,7 @@ void BaselineCompiler::PrologueFillFrame() {
 void BaselineCompiler::VerifyFrameSize() {
   ASM_CODE_COMMENT(&masm_);
   __ Move(kScratchRegister, rsp);
-  __ masm() -> addq(
+  __ masm()->addq(
       kScratchRegister,
       Immediate(RoundUp(
           InterpreterFrameConstants::kFixedFrameSizeFromFp +

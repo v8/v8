@@ -5169,7 +5169,7 @@ class AssemblerOpInterface : public Next {
   template <RootIndex index>
   V<root_type_t<index>> LoadRoot() {
     using RootObjectType = root_type_t<index>;
-    Isolate* isolate = __ data() -> isolate();
+    Isolate* isolate = __ data()->isolate();
     if (RootsTable::IsImmortalImmovable(index)) {
       if (isolate != nullptr) {
         Handle<Object> root = isolate->root_handle(index);
@@ -5726,7 +5726,7 @@ class AssemblerOpInterface : public Next {
   }
 
   void CanonicalizeEmbeddedBuiltinsConstantIfNeeded(Handle<HeapObject> object) {
-    Isolate* isolate = __ data() -> isolate();
+    Isolate* isolate = __ data()->isolate();
     if (!isolate) return;
     if (!isolate->IsGeneratingEmbeddedBuiltins()) return;
     CanonicalizeEmbeddedBuiltinsConstantIfNeededImpl(isolate, object);

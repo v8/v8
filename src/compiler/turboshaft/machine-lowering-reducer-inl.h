@@ -5007,9 +5007,9 @@ class MachineLoweringReducer : public Next {
     return *undetectable_objects_protector_;
   }
 
-  Isolate* isolate_ = __ data() -> isolate();
+  Isolate* isolate_ = __ data()->isolate();
   Factory* factory_ = isolate_ ? isolate_->factory() : nullptr;
-  JSHeapBroker* broker_ = __ data() -> broker();
+  JSHeapBroker* broker_ = __ data()->broker();
   std::optional<bool> undetectable_objects_protector_ = {};
 };
 

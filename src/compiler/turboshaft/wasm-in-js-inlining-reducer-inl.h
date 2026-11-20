@@ -1159,7 +1159,7 @@ WasmBodyInliningResult WasmInJSInliningReducer<Next>::TryInlineWasmBody(
 
   // The inlining succeeded, register the inlined Wasm function in the
   // compilation info.
-  int inlining_id = __ data() -> info()->AddInlinedFunction(
+  int inlining_id = __ data()->info()->AddInlinedFunction(
       inlined_data.shared_fct_info, Handle<BytecodeArray>(),
       inlined_data.call_pos);
 
@@ -1172,7 +1172,7 @@ WasmBodyInliningResult WasmInJSInliningReducer<Next>::TryInlineWasmBody(
   emitting_decoder.Decode();
   DCHECK(emitting_decoder.ok());
   DCHECK(emitting_decoder.interface().result().success);
-  __ data() -> set_wasm_in_js_inlined_any_body();
+  __ data()->set_wasm_in_js_inlined_any_body();
   TRACE("- inlining Wasm function");
   return emitting_decoder.interface().result();
 }
@@ -1196,7 +1196,7 @@ WasmInJSInliningReducer<Next>::CreateWasmInlinedIntoJSFrameState(
   constexpr int kLocalCount = 0;
   const FrameStateType frame_type = FrameStateType::kWasmInlinedIntoJS;
   IndirectHandle<BytecodeArray> bytecode_array_handle = {};
-  Zone* zone = __ data() -> compilation_zone();
+  Zone* zone = __ data()->compilation_zone();
 
   const FrameStateFunctionInfo* frame_state_function_info =
       zone->template New<compiler::FrameStateFunctionInfo>(
@@ -1235,7 +1235,7 @@ WasmInJSInliningReducer<Next>::CreateJSWasmCallBuiltinContinuationFrameState(
   const FrameStateType frame_type =
       FrameStateType::kJSToWasmBuiltinContinuation;
   Handle<SharedFunctionInfo> shared = Handle<SharedFunctionInfo>();
-  Zone* zone = __ data() -> compilation_zone();
+  Zone* zone = __ data()->compilation_zone();
 
   const FrameStateFunctionInfo* frame_state_function_info =
       zone->template New<compiler::JSToWasmFrameStateFunctionInfo>(

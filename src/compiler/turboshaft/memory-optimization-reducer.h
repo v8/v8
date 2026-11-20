@@ -191,7 +191,7 @@ class MemoryOptimizationReducer : public Next {
   // CopyingPhase.
 
   void Analyze() {
-    auto* info = __ data() -> info();
+    auto* info = __ data()->info();
 #if V8_ENABLE_WEBASSEMBLY
     bool is_wasm = info->IsWasm() || info->IsWasmBuiltin();
 #else
@@ -475,7 +475,7 @@ class MemoryOptimizationReducer : public Next {
 
  private:
   std::optional<MemoryAnalyzer> analyzer_;
-  Isolate* isolate_ = __ data() -> isolate();
+  Isolate* isolate_ = __ data()->isolate();
   const TSCallDescriptor* allocate_builtin_descriptor_ = nullptr;
 #if V8_ENABLE_WEBASSEMBLY
   const TSCallDescriptor* allocate_wasm_shared_builtin_descriptor_ = nullptr;

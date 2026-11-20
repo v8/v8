@@ -298,10 +298,9 @@ class WasmGCTypedOptimizationReducer : public Next {
         // A cast between unrelated types can only succeed if the argument is
         // null. Otherwise, it always fails.
         V<Word32> non_trapping_condition =
-            type.is_nullable() && to_nullable ? __ IsNull(__ MapToNewGraph(
-                                                              cast_op.object()),
-                                                          type)
-                                              : __ Word32Constant(0);
+            type.is_nullable() && to_nullable
+                ? __ IsNull(__ MapToNewGraph(cast_op.object()), type)
+                : __ Word32Constant(0);
         __ TrapIfNot(non_trapping_condition,
                      __ MapToNewGraph(cast_op.frame_state()),
                      TrapId::kTrapIllegalCast);
@@ -629,7 +628,7 @@ class WasmGCTypedOptimizationReducer : public Next {
 
  private:
   Graph& graph_ = __ modifiable_input_graph();
-  const wasm::WasmModule* module_ = __ data() -> wasm_module();
+  const wasm::WasmModule* module_ = __ data()->wasm_module();
   WasmGCTypeAnalyzer analyzer_{__ data(), graph_, __ phase_zone(),
                                __ data()->wasm_module_sig()};
   OptionalV<WasmTrustedInstanceData> instance_data_;

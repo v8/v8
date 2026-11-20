@@ -669,8 +669,8 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmStackEntryWrapper() {
           func_ref, LoadOp::Kind::TaggedBase().Immutable()));
 
   base::Vector<OpIndex> args =
-      __ phase_zone()
-          -> template AllocateVector<OpIndex>(1 + sig_->parameter_count());
+      __ phase_zone()->template AllocateVector<OpIndex>(
+          1 + sig_->parameter_count());
   args[0] = instance;
   // Unpack continuation params.
   IterateWasmFXArgBuffer(sig_->parameters(), [&](size_t index, int offset) {
@@ -684,7 +684,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmStackEntryWrapper() {
   });
 
   base::Vector<OpIndex> returns =
-      __ phase_zone() -> template AllocateVector<OpIndex>(sig_->return_count());
+      __ phase_zone()->template AllocateVector<OpIndex>(sig_->return_count());
   BuildCallWasmFromWrapper(__ phase_zone(), sig_, target, args, returns, {},
                            compiler::LazyDeoptOnThrow{false});
 
