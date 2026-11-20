@@ -796,6 +796,24 @@ uint64_t InstructionOperand::GetCanonicalizedValue() const {
   return this->value_;
 }
 
+// Returns whether a general-purpose {LocationOperand} (register or stack slot)
+// has a 32-bit representation. Note that {ElementSizeInBytes} cannot be used
+// here because under pointer compression {kTagged*} and {kProtectedPointer}
+// have 4-byte on-heap size but occupy full 64-bit registers and stack slots on
+// 64-bit targets.
+inline bool Is32BitOperand(const InstructionOperand& operand) {
+  DCHECK(operand.IsLocationOperand());
+  MachineRepresentation rep = LocationOperand::cast(operand).representation();
+  if constexpr (kSystemPointerSize == 4) {
+    return rep != MachineRepresentation::kWord64;
+  }
+  return rep == MachineRepresentation::kWord32 || IsAnyCompressed(rep);
+}
+
+inline bool Is32BitOperand(const InstructionOperand* operand) {
+  return Is32BitOperand(*operand);
+}
+
 // Required for maps that don't care about machine type.
 struct CompareOperandModuloType {
   bool operator()(const InstructionOperand& a,

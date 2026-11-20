@@ -2042,6 +2042,196 @@ TEST_F(CodeGeneratorTest, GapMoveCycleMixedRep) {
 }
 #endif
 
+#if V8_TARGET_ARCH_64_BIT
+TEST_F(CodeGeneratorTest, GapMoveCycleMixedGpRep) {
+  enum class CycleKind {
+    kRegToRegWithScratchReg,
+    kRegToRegWithStackTemp,
+    kStackToRegWithScratchReg,
+  };
+
+  auto RunCycleCheck = [this](MachineRepresentation src_rep,
+                              MachineRepresentation dst_rep, CycleKind kind,
+                              uint64_t payload) {
+    HandleScope handles(i_isolate());
+    Isolate* isolate = i_isolate();
+    Zone local_zone(isolate->allocator(), ZONE_NAME);
+    Zone* zone = &local_zone;
+
+    MachineSignature::Builder sig_builder(zone, 1, 0);
+    sig_builder.AddReturn(MachineType::Uint64());
+    CallDescriptor* desc = Linkage::GetSimplifiedCDescriptor(
+        zone, sig_builder.Get(), CallDescriptor::kInitializeRootRegister);
+    Linkage linkage(desc);
+
+    ZoneVector<InstructionBlock*> blocks(zone);
+    InstructionBlock* block = zone->New<InstructionBlock>(
+        zone, RpoNumber::FromInt(0), RpoNumber::Invalid(), RpoNumber::Invalid(),
+        RpoNumber::Invalid(), false, false);
+    block->mark_needs_frame();
+    block->mark_must_construct_frame();
+    blocks.push_back(block);
+
+    InstructionSequence sequence(isolate, zone, &blocks);
+    Frame frame(desc->CalculateFixedFrameSize(CodeKind::FOR_TESTING), zone);
+
+    int s0_index = frame.AllocateSpillSlot(kSystemPointerSize);
+    int s1_index = frame.AllocateSpillSlot(kSystemPointerSize);
+
+    const RegisterConfiguration* config = RegisterConfiguration::Default();
+    int r0_code = -1;
+    int r1_code = -1;
+    for (int i = 0; i < config->num_allocatable_general_registers(); ++i) {
+      int code = config->GetAllocatableGeneralCode(i);
+      if (code == kReturnRegister0.code()) continue;
+      if (r0_code == -1) {
+        r0_code = code;
+      } else {
+        r1_code = code;
+        break;
+      }
+    }
+    CHECK_NE(r0_code, -1);
+    CHECK_NE(r1_code, -1);
+
+    BitVector* allocated_regs =
+        zone->New<BitVector>(config->num_general_registers(), zone);
+    allocated_regs->Add(r0_code);
+    allocated_regs->Add(r1_code);
+    for (Register reg : desc->CalleeSavedRegisters()) {
+      if (config->IsAllocatableGeneralCode(reg.code())) {
+        allocated_regs->Add(reg.code());
+        break;
+      }
+    }
+    frame.SetAllocatedRegisters(allocated_regs);
+    frame.SetAllocatedDoubleRegisters(
+        zone->New<BitVector>(config->num_double_registers(), zone));
+
+    sequence.StartBlock(RpoNumber::FromInt(0));
+
+    auto AddU64Constant = [&](uint64_t val) {
+      int vreg = sequence.NextVirtualRegister();
+      sequence.AddConstant(vreg, Constant(static_cast<int64_t>(val)));
+      return ConstantOperand(vreg);
+    };
+
+    ConstantOperand payload_op = AddU64Constant(payload);
+    ConstantOperand other0_op = AddU64Constant(0x1122334455667788ULL);
+    ConstantOperand other1_op = AddU64Constant(0x99AABBCCDDEEFF00ULL);
+    ConstantOperand other2_op = AddU64Constant(0x2468ACE013579BDFULL);
+
+    AllocatedOperand r0_w64(LocationOperand::REGISTER,
+                            MachineRepresentation::kWord64, r0_code);
+    AllocatedOperand r0_src(LocationOperand::REGISTER, src_rep, r0_code);
+    AllocatedOperand r1_w64(LocationOperand::REGISTER,
+                            MachineRepresentation::kWord64, r1_code);
+    AllocatedOperand r1_dst(LocationOperand::REGISTER, dst_rep, r1_code);
+    AllocatedOperand s0_w64(LocationOperand::STACK_SLOT,
+                            MachineRepresentation::kWord64, s0_index);
+    AllocatedOperand s0_src(LocationOperand::STACK_SLOT, src_rep, s0_index);
+    AllocatedOperand s1_w64(LocationOperand::STACK_SLOT,
+                            MachineRepresentation::kWord64, s1_index);
+
+    Instruction* init_nop = Instruction::New(zone, kArchNop);
+    ParallelMove* init_moves =
+        init_nop->GetOrCreateParallelMove(Instruction::START, zone);
+    if (kind == CycleKind::kStackToRegWithScratchReg) {
+      init_moves->AddMove(payload_op, s0_w64);
+      init_moves->AddMove(other0_op, r0_w64);
+    } else {
+      init_moves->AddMove(payload_op, r0_w64);
+      init_moves->AddMove(other0_op, s0_w64);
+    }
+    init_moves->AddMove(other1_op, r1_w64);
+    init_moves->AddMove(other2_op, s1_w64);
+    sequence.AddInstruction(init_nop);
+
+    Instruction* cycle_nop = Instruction::New(zone, kArchNop);
+    ParallelMove* cycle_moves =
+        cycle_nop->GetOrCreateParallelMove(Instruction::START, zone);
+    // Order each cycle so that the mixed-width move into r1_dst is the direct
+    // blocker of cycle_moves[0] and therefore becomes cycle.back() in
+    // GapResolver::PerformCycle.
+    switch (kind) {
+      case CycleKind::kRegToRegWithScratchReg:
+        cycle_moves->AddMove(r1_w64, r0_w64);
+        cycle_moves->AddMove(r0_src, r1_dst);
+        break;
+      case CycleKind::kRegToRegWithStackTemp:
+        cycle_moves->AddMove(s1_w64, r0_w64);
+        cycle_moves->AddMove(s0_w64, s1_w64);
+        cycle_moves->AddMove(r1_w64, s0_w64);
+        cycle_moves->AddMove(r0_src, r1_dst);
+        break;
+      case CycleKind::kStackToRegWithScratchReg:
+        cycle_moves->AddMove(r1_w64, s0_w64);
+        cycle_moves->AddMove(s0_src, r1_dst);
+        break;
+    }
+    sequence.AddInstruction(cycle_nop);
+
+    InstructionOperand ret_inputs[] = {
+        ImmediateOperand(ImmediateOperand::INLINE_INT32, 0),
+        AllocatedOperand(LocationOperand::REGISTER,
+                         MachineRepresentation::kWord64,
+                         kReturnRegister0.code())};
+    Instruction* ret_instr =
+        Instruction::New(zone, kArchRet, 0, nullptr, arraysize(ret_inputs),
+                         ret_inputs, 0, nullptr);
+    ParallelMove* pre_ret =
+        ret_instr->GetOrCreateParallelMove(Instruction::START, zone);
+    pre_ret->AddMove(r1_w64, AllocatedOperand(LocationOperand::REGISTER,
+                                              MachineRepresentation::kWord64,
+                                              kReturnRegister0.code()));
+
+    sequence.AddInstruction(ret_instr);
+    sequence.EndBlock(RpoNumber::FromInt(0));
+
+    OptimizedCompilationInfo info("gap_cycle_mixed_gp_rep", zone,
+                                  CodeKind::FOR_TESTING);
+    CodeGenerator codegen(zone, &frame, &linkage, &sequence, &info, isolate,
+                          std::optional<OsrHelper>(), kNoSourcePosition,
+                          nullptr, AssemblerOptions::Default(isolate),
+                          Builtin::kNoBuiltinId, 0, 0);
+    codegen.AssembleCode();
+    DirectHandle<Code> code = codegen.FinalizeCode().ToHandleChecked();
+    auto fn = GeneratedCode<uint64_t>::FromCode(isolate, *code);
+    CHECK_EQ(payload, fn.Call());
+  };
+
+  static constexpr uint64_t kFull64Payload = 0x7123456789ABCDEFULL;
+  // Bit 31 set with zero upper 32 bits, to catch accidental sign-extension of
+  // zero-extended 32-bit values moved into 64-bit destinations.
+  static constexpr uint64_t kZeroExtended32Payload = 0x0000000089ABCDEFULL;
+
+  for (CycleKind kind :
+       {CycleKind::kRegToRegWithScratchReg, CycleKind::kRegToRegWithStackTemp,
+        CycleKind::kStackToRegWithScratchReg}) {
+    // 64-bit source to 32-bit destination must preserve upper 32 bits.
+    RunCycleCheck(MachineRepresentation::kWord64,
+                  MachineRepresentation::kWord32, kind, kFull64Payload);
+    RunCycleCheck(MachineRepresentation::kSandboxedPointer,
+                  MachineRepresentation::kWord32, kind, kFull64Payload);
+    RunCycleCheck(MachineRepresentation::kTagged,
+                  MachineRepresentation::kWord32, kind, kFull64Payload);
+    RunCycleCheck(MachineRepresentation::kTaggedSigned,
+                  MachineRepresentation::kWord32, kind, kFull64Payload);
+#ifdef V8_COMPRESS_POINTERS
+    RunCycleCheck(MachineRepresentation::kWord64,
+                  MachineRepresentation::kCompressed, kind, kFull64Payload);
+    RunCycleCheck(MachineRepresentation::kTagged,
+                  MachineRepresentation::kCompressed, kind, kFull64Payload);
+#endif
+    // 32-bit source holding a zero-extended 64-bit value to 64-bit destination.
+    RunCycleCheck(MachineRepresentation::kWord32,
+                  MachineRepresentation::kWord64, kind, kZeroExtended32Payload);
+    RunCycleCheck(MachineRepresentation::kWord32,
+                  MachineRepresentation::kTagged, kind, kZeroExtended32Payload);
+  }
+}
+#endif  // V8_TARGET_ARCH_64_BIT
+
 #if V8_ENABLE_WEBASSEMBLY
 namespace {
 
