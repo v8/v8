@@ -1549,7 +1549,7 @@ bool ArrayBufferFromHex(const base::Vector<T>& input_vector,
 
   size_t index = 0;
   std::optional<uint8_t> result = 0;
-  for (uint32_t i = 0; i < output_length * 2; i += 2) {
+  for (size_t i = 0; i < output_length * 2; i += 2) {
     result = HandleRemainingHexValues(input_vector, i);
     if (result.has_value()) {
       if (is_shared) {
