@@ -1225,6 +1225,10 @@ void MaglevLoopPeeler::RewireLoopConnections(PeelContext& ctx) {
 //     │  pem_phi = Phi(pre_val, loop_phi) ◄┼─ Merges peeled and loop values
 //     │  old_phi = Identity(pem_phi)      ◄┼─── Satisfies all downstream
 //     └────────────────────────────────────┘    uses of old_phi.
+//
+// TODO(victorgomes): Investigate whether we might want to change Maglev (or
+// loop peeling) to use LCSSA, which would avoid downstream uses of loop phis
+// and body values and eliminate this in-place Identity/KNA rewiring.
 void MaglevLoopPeeler::RewireDownstreamPhiRefs(PeelContext& ctx) {
   if (ctx.header_phi_to_pem_phi.empty()) return;
 
@@ -1264,6 +1268,14 @@ void MaglevLoopPeeler::RewireDownstreamPhiRefs(PeelContext& ctx) {
   for (const PhiRewire& r : rewires) {
     RewireNodeInputs(r.loop_phi, replacements);
   }
+
+  // Rewrite references to the old header phis in the loop's saved backedge KNA
+  // before the old phis are overwritten with identities to the PEM phis.
+  ctx.loop.header()
+      ->state()
+      ->AsLoopHeader()
+      ->backedge_known_node_aspects()
+      ->RemapLoopHeaderPhis(replacements);
 
   // Rewrite all references inside the loop body blocks from the old header
   // phis to their loop phis in a single walk. Body blocks are never dead:
