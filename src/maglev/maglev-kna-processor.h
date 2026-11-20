@@ -359,6 +359,10 @@ class RecomputeKnownNodeAspectsProcessor {
     return RecordType(node->input_node(0), NodeType::kNumber);
   }
 
+  ProcessResult ProcessNode(CheckedHoleyFloat64ToUint32* node) {
+    return RecordType(node->input_node(0), NodeType::kNumber);
+  }
+
 #define SAFE_CONVERSION_LIST(V)                                       \
   V(CheckedSmiUntag, int32, Smi)                                      \
   V(CheckedSmiTagInt32, tagged, Smi)                                  \
@@ -371,7 +375,9 @@ class RecomputeKnownNodeAspectsProcessor {
   V(CheckedUint32ToInt32, int32, Number)                              \
   V(CheckedIntPtrToInt32, int32, Number)                              \
   V(CheckedFloat64ToInt32, int32, Number)                             \
+  V(CheckedFloat64ToSmiSizedInt32, int32, Smi)                        \
   V(CheckedHoleyFloat64ToInt32, int32, Number)                        \
+  V(CheckedHoleyFloat64ToSmiSizedInt32, int32, Smi)                   \
   V(CheckedNumberToInt32, int32, Number)                              \
   V(CheckedNumberToFloat64, float64, Number)                          \
   V(CheckedHoleyFloat64ToFloat64, float64, Number)                    \
@@ -656,9 +662,17 @@ class RecomputeKnownNodeAspectsProcessor {
     return RecordType(node->input_node(0), node->asserted_type());
   }
 
-  ProcessResult ProcessNode(CheckInt32IsSmi* node) {
-    return RecordType(node->input_node(0), NodeType::kSmi);
+#define PROCESS_SMI_CHECK(Node)                             \
+  ProcessResult ProcessNode(Node* node) {                   \
+    return RecordType(node->input_node(0), NodeType::kSmi); \
   }
+  PROCESS_SMI_CHECK(CheckedSmiSizedInt32)
+  PROCESS_SMI_CHECK(CheckInt32IsSmi)
+  PROCESS_SMI_CHECK(CheckUint32IsSmi)
+  PROCESS_SMI_CHECK(CheckIntPtrIsSmi)
+  PROCESS_SMI_CHECK(CheckFloat64IsSmi)
+  PROCESS_SMI_CHECK(CheckHoleyFloat64IsSmi)
+#undef PROCESS_SMI_CHECK
 
   ProcessResult ProcessNode(Node* node) { return ProcessResult::kContinue; }
 };
