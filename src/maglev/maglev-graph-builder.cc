@@ -12831,20 +12831,16 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildAndAllocateJSGeneratorObject(
   VirtualObject* register_file =
       reducer_.CreateFixedArray(base::VectorOf(values));
 
-  // Create the JS[Async]GeneratorObject instance.
-  compiler::SlackTrackingPrediction slack_tracking_prediction =
-      broker()->dependencies()->DependOnInitialMapInstanceSizePrediction(
-          function);
-  compiler::MapRef initial_map = function.initial_map(broker());
+  // Create the JS[Async]GeneratorObject instance. Generator initial maps have
+  // no in-object properties and never start slack tracking, so their instance
+  // size is final.
+  compiler::MapRef initial_map =
+      broker()->dependencies()->DependOnInitialMap(function);
+  DCHECK(!initial_map.IsInobjectSlackTrackingInProgress());
+  DCHECK_EQ(0, initial_map.GetInObjectProperties());
   VirtualObject* generator = reducer_.CreateJSGeneratorObject(
-      initial_map, slack_tracking_prediction.instance_size(), GetContext(),
-      closure, receiver, register_file);
-
-  // Handle in-object properties.
-  for (int i = 0; i < slack_tracking_prediction.inobject_property_count();
-       i++) {
-    generator->set(initial_map.GetInObjectPropertyOffset(i), undefined);
-  }
+      initial_map, initial_map.instance_size(), GetContext(), closure, receiver,
+      register_file);
 
   return reducer_.BuildInlinedAllocation(generator);
 }

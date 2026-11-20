@@ -412,22 +412,23 @@ class InObjectSlackTrackingTest : public TestWithNativeContext {
     CHECK(!IsObjectShrinkable(*obj5));
   }
 
-  void TestJSGeneratorObjectBasic() {
-    const char* source =
-        "function* A() {"
-        "  var i = 0;"
-        "  while(true) {"
-        "    yield i++;"
-        "  }"
-        "};"
-        "function CreateGenerator() {"
-        "  var o = A();"
-        "  o.a = 42;"
-        "  o.d = 4.2;"
-        "  o.o = o;"
-        "  return o;"
-        "}";
-    RunJS(source);
+  void TestJSGeneratorObjectBasic(const char* function_keyword,
+                                  InstanceType expected_instance_type) {
+    std::ostringstream os;
+    os << function_keyword << " A() {"
+       << "  var i = 0;"
+       << "  while(true) {"
+       << "    yield i++;"
+       << "  }"
+       << "};"
+       << "function CreateGenerator() {"
+       << "  var o = A();"
+       << "  o.a = 42;"
+       << "  o.d = 4.2;"
+       << "  o.o = o;"
+       << "  return o;"
+       << "}";
+    RunJS(os.str().c_str());
 
     DirectHandle<JSFunction> func = GetGlobal<JSFunction>("A");
 
@@ -440,31 +441,28 @@ class InObjectSlackTrackingTest : public TestWithNativeContext {
 
     CHECK(func->has_initial_map());
     DirectHandle<Map> initial_map(func->initial_map(), i_isolate());
+    CHECK_EQ(expected_instance_type, initial_map->instance_type());
 
-    // One instance created.
-    CHECK_EQ(Map::kSlackTrackingCounterStart - 1,
-             initial_map->construction_counter());
-    CHECK(initial_map->IsInobjectSlackTrackingInProgress());
-
-    // There must be at least some slack.
-    CHECK_LT(5, obj->map()->GetInObjectProperties());
+    // Generator objects don't reserve in-object slack, since generator
+    // functions never add properties to `this`. Expando properties go to the
+    // property array.
+    CHECK(!initial_map->IsInobjectSlackTrackingInProgress());
+    CHECK_EQ(0, initial_map->GetInObjectProperties());
+    CHECK_EQ(0, obj->map()->GetInObjectProperties());
+    CHECK(!IsObjectShrinkable(*obj));
+    CHECK_EQ(3, obj->map()->NumberOfOwnDescriptors());
     CHECK_EQ(Smi::FromInt(42), GetFieldValue(*obj, 0));
     CHECK_EQ(4.2, GetDoubleFieldValue(*obj, 1));
     CHECK_EQ(*obj, GetFieldValue(*obj, 2));
-    CHECK(IsObjectShrinkable(*obj));
 
-    // Create several objects to complete the tracking.
+    // Later instances keep the same layout.
     for (int i = 1; i < Map::kGenerousAllocationCount; i++) {
-      CHECK(initial_map->IsInobjectSlackTrackingInProgress());
       DirectHandle<JSObject> tmp = RunI<JSObject>(new_A_script);
-      CHECK_EQ(initial_map->IsInobjectSlackTrackingInProgress(),
-               IsObjectShrinkable(*tmp));
+      CHECK_EQ(*initial_map, func->initial_map());
+      CHECK_EQ(0, tmp->map()->GetInObjectProperties());
+      CHECK(!IsObjectShrinkable(*tmp));
     }
     CHECK(!initial_map->IsInobjectSlackTrackingInProgress());
-    CHECK(!IsObjectShrinkable(*obj));
-
-    // No slack left.
-    CHECK_EQ(3, obj->map()->GetInObjectProperties());
   }
 
   void TestSubclassBasicNoBaseClassInstances() {
@@ -738,13 +736,23 @@ TEST_F(InObjectSlackTrackingTest, JSObjectComplexNoInlineNew) {
 }
 
 TEST_F(InObjectSlackTrackingTest, JSGeneratorObjectBasic) {
-  TestJSGeneratorObjectBasic();
+  TestJSGeneratorObjectBasic("function*", JS_GENERATOR_OBJECT_TYPE);
 }
 
 TEST_F(InObjectSlackTrackingTest, JSGeneratorObjectBasicNoInlineNew) {
   FlagScope<bool> no_inline_new(&v8_flags.inline_new, false);
   i_isolate()->heap()->DisableInlineAllocation();
-  TestJSGeneratorObjectBasic();
+  TestJSGeneratorObjectBasic("function*", JS_GENERATOR_OBJECT_TYPE);
+}
+
+TEST_F(InObjectSlackTrackingTest, JSAsyncGeneratorObjectBasic) {
+  TestJSGeneratorObjectBasic("async function*", JS_ASYNC_GENERATOR_OBJECT_TYPE);
+}
+
+TEST_F(InObjectSlackTrackingTest, JSAsyncGeneratorObjectBasicNoInlineNew) {
+  FlagScope<bool> no_inline_new(&v8_flags.inline_new, false);
+  i_isolate()->heap()->DisableInlineAllocation();
+  TestJSGeneratorObjectBasic("async function*", JS_ASYNC_GENERATOR_OBJECT_TYPE);
 }
 
 TEST_F(InObjectSlackTrackingTest, SubclassBasicNoBaseClassInstances) {

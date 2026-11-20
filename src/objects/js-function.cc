@@ -971,8 +971,11 @@ void JSFunction::EnsureHasInitialMap(Isolate* isolate,
          IsResumableFunction(function->shared()->kind()));
   if (function->has_initial_map()) return;
 
+  // Generator objects are never constructed through `this`, so don't reserve
+  // in-object property slack for them.
+  const bool is_resumable = IsResumableFunction(function->shared()->kind());
   int expected_nof_properties =
-      CalculateExpectedNofProperties(isolate, function);
+      is_resumable ? 0 : CalculateExpectedNofProperties(isolate, function);
 
   // {CalculateExpectedNofProperties} can have had the side effect of creating
   // the initial map (e.g. it could have triggered an optimized compilation
@@ -982,7 +985,7 @@ void JSFunction::EnsureHasInitialMap(Isolate* isolate,
   // Create a new map with the size and number of in-object properties suggested
   // by the function.
   InstanceType instance_type;
-  if (IsResumableFunction(function->shared()->kind())) {
+  if (is_resumable) {
     instance_type = IsAsyncGeneratorFunction(function->shared()->kind())
                         ? JS_ASYNC_GENERATOR_OBJECT_TYPE
                         : JS_GENERATOR_OBJECT_TYPE;
@@ -1009,7 +1012,11 @@ void JSFunction::EnsureHasInitialMap(Isolate* isolate,
   } else {
     DCHECK(!function->has_non_instance_prototype());
     prototype = isolate->factory()->NewFunctionPrototype(function);
-    Map::SetPrototype(isolate, map, prototype);
+    // A fresh generator prototype has no own properties, so normalizing it
+    // into prototype setup mode would only allocate a dictionary that is
+    // migrated back to fast mode on first use.
+    Map::SetPrototype(isolate, map, prototype,
+                      /*enable_prototype_setup_mode=*/!is_resumable);
   }
   DCHECK(map->has_fast_object_elements());
 

@@ -1448,9 +1448,8 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
                           IntPtrConstant(0), length,
                           RootIndex::kUndefinedValue);
   // TODO(cbruni): support start_offset to avoid double initialization.
-  TNode<JSObject> result =
-      AllocateJSObjectFromMap(map, std::nullopt, std::nullopt,
-                              AllocationFlag::kNone, kWithSlackTracking);
+  // Generator initial maps never start in-object slack tracking.
+  TNode<JSObject> result = AllocateJSObjectFromMap(map);
   StoreObjectFieldNoWriteBarrier(result, offsetof(JSGeneratorObject, function_),
                                  closure);
   StoreObjectFieldNoWriteBarrier(result, offsetof(JSGeneratorObject, context_),
