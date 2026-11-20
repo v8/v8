@@ -2129,6 +2129,8 @@ class SubgraphBase {
   InterpreterFrameState variable_frame_;
 };
 
+bool IsFloat64OrHeapNumberConstant(ValueNode* node);
+
 bool IsSmallFunction(int bytecode_length, base::Vector<ValueNode*> arguments,
                      UseRepresentationSet use_repr_hints,
                      const CompilationFlags& flags);

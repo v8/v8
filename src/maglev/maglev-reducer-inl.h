@@ -7449,6 +7449,19 @@ ReduceResult SubgraphBase<DerivedT, BaseT>::WithFallback(
   return TrimPredecessorsAndBind(&done);
 }
 
+inline bool IsFloat64OrHeapNumberConstant(ValueNode* node) {
+  node = node->Unwrap();
+  if (node->is_float64_or_holey_float64()) return true;
+  if (HeapConstant* c = node->TryCast<HeapConstant>()) {
+    return c->object().IsHeapNumber();
+  }
+  if (RootConstant* c = node->TryCast<RootConstant>()) {
+    return c->index() >= RootIndex::kFirstHeapNumberRoot &&
+           c->index() <= RootIndex::kLastHeapNumberRoot;
+  }
+  return false;
+}
+
 inline bool IsSmallFunction(int bytecode_length,
                             base::Vector<ValueNode*> arguments,
                             UseRepresentationSet use_repr_hints,
@@ -7469,7 +7482,7 @@ inline bool IsSmallFunction(int bytecode_length,
       std::ranges::any_of(arguments, [](ValueNode* input) {
         DCHECK(!input->is_conversion() && !input->Is<Identity>() &&
                !input->Is<ReturnedValue>());
-        return input->is_float64_or_holey_float64();
+        return IsFloat64OrHeapNumberConstant(input);
       });
 
   const int limit =

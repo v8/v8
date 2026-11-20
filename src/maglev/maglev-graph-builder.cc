@@ -7576,7 +7576,7 @@ bool MaglevGraphBuilder::IsFunctionCandidateForEagerInlining(
       args.mode() == CallArguments::kDefault) {
     bool has_float_arg = false;
     for (size_t i = 1; i < args.count_with_receiver(); i++) {
-      if (args[i] && args[i]->is_float64_or_holey_float64()) {
+      if (args[i] && IsFloat64OrHeapNumberConstant(args[i])) {
         has_float_arg = true;
         break;
       }
