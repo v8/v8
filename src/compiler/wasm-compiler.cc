@@ -100,12 +100,15 @@ bool TryWasmInlining(int fct_index, wasm::NativeModule* native_module,
     TRACE("- not inlining: function is imported");
     return false;
   }
-  if (native_module->compilation_state()->detected_features().has_shared()) {
+  if (v8_flags.wasm_shared || native_module->enabled_features().has_shared()) {
     // The Turbofan Wasm code has not been updated to support the experimental
-    // shared-everything feature. It is unlikely that it will become
+    // shared-everything feature. Even if this module does not use shared types
+    // itself, another module in the same isolate can pass a shared Wasm object
+    // via externref/anyref, where abstract casts (e.g. ref.cast array) must
+    // reject shared objects. It is unlikely that it will become
     // non-experimental any time soon while we plan to remove the Turbofan code
     // soon.
-    TRACE("- not inlining: module uses experimental 'shared' feature");
+    TRACE("- not inlining: experimental 'shared' feature is enabled");
     return false;
   }
   base::Vector<const uint8_t> bytes(native_module->wire_bytes().SubVector(

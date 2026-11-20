@@ -53,7 +53,7 @@ for (let i = 0; i < 20; i++) {
 }
 
 // CHECK: Considering Wasm function [0] main of module {{.*}} for inlining
-// CHECK-NEXT: not inlining: module uses experimental 'shared' feature
+// CHECK-NEXT: not inlining: experimental 'shared' feature is enabled
 %OptimizeFunctionOnNextCall(js_func);
 assertTraps(kTrapIllegalCast, js_func);
 
@@ -71,12 +71,13 @@ function js_shared_i31() { return get_shared_i31(); }
 assertEquals(7, js_shared_i31());
 assertEquals(7, js_shared_i31());
 // CHECK: Considering Wasm function [0] get_shared_i31 of module {{.*}} for inlining
-// CHECK-NEXT: not inlining: module uses experimental 'shared' feature
+// CHECK-NEXT: not inlining: experimental 'shared' feature is enabled
 %OptimizeFunctionOnNextCall(js_shared_i31);
 assertEquals(7, js_shared_i31());
 
-// Unshared module still inlines when --wasm-shared is enabled, and traps with
-// kTrapIllegalCast when passed a runtime shared object via externref.
+// Unshared module: legacy TurboFan bails out whenever --wasm-shared is enabled
+// (while Turboshaft in turboshaft-inlining-shared.js still inlines it), and
+// traps with kTrapIllegalCast when passed a runtime shared object via externref.
 const b3 = new WasmModuleBuilder();
 const struct_unshared = b3.addStruct([makeField(kWasmI32, true)]);
 b3.addFunction("make_unshared", makeSig([kWasmI32], [kWasmExternRef]))
@@ -95,7 +96,7 @@ function js_unshared() { return unshared.get_unshared(cast_arg); }
 assertEquals(11, js_unshared());
 assertEquals(11, js_unshared());
 // CHECK: Considering Wasm function [1] get_unshared of module {{.*}} for inlining
-// CHECK-NEXT: inlining Wasm function
+// CHECK-NEXT: not inlining: experimental 'shared' feature is enabled
 %OptimizeFunctionOnNextCall(js_unshared);
 assertEquals(11, js_unshared());
 cast_arg = instance.exports.make_shared();
