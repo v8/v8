@@ -7480,8 +7480,7 @@ class NodeProcessorBase : public GraphBuildingNodeProcessor {
         data_(data),
         maglev_compilation_unit_(maglev_compilation_unit) {}
 
-  template <typename NodeT>
-  maglev::ProcessResult Process(NodeT* node,
+  maglev::ProcessResult Process(maglev::NodeBase* node,
                                 const maglev::ProcessingState& state) {
     TRACE("> " << maglev::PrintNodeLabel(node) << " : "
                << maglev::PrintNode(node));
@@ -7504,8 +7503,8 @@ class NodeProcessorBase : public GraphBuildingNodeProcessor {
     }
 
     OpIndex end_index_before = graph_.EndIndex();
-    maglev::ProcessResult result =
-        GraphBuildingNodeProcessor::Process(node, state);
+    maglev::ProcessResult result = maglev::detail::DispatchNodeBase(
+        static_cast<GraphBuildingNodeProcessor&>(*this), node, state);
     DCHECK_IMPLIES(result == maglev::ProcessResult::kContinue &&
                        !GraphBuildingNodeProcessor::Asm()
                             .generating_unreachable_operations() &&
@@ -7528,24 +7527,6 @@ class NodeProcessorBase : public GraphBuildingNodeProcessor {
   PipelineData* data_;
   maglev::MaglevCompilationUnit* maglev_compilation_unit_;
 };
-
-void PrintBytecode(PipelineData& data,
-                   maglev::MaglevCompilationInfo* compilation_info) {
-  DCHECK(data.info()->trace_turbo_graph() || v8_flags.print_turbolev_frontend);
-  maglev::MaglevCompilationUnit* top_level_unit =
-      compilation_info->toplevel_compilation_unit();
-  CodeTracer* code_tracer = data.GetCodeTracer();
-  CodeTracer::StreamScope tracing_scope(code_tracer);
-  tracing_scope.stream()
-      << "\n----- Bytecode before MaglevGraphBuilding -----\n"
-      << std::endl;
-  tracing_scope.stream() << "Function: "
-                         << Brief(*compilation_info->toplevel_function())
-                         << std::endl;
-  BytecodeArray::Disassemble(top_level_unit->bytecode().object(),
-                             tracing_scope.stream());
-  Print(*top_level_unit->feedback().object(), tracing_scope.stream());
-}
 
 std::optional<BailoutReason> TurbolevGraphBuildingPhase::Run(
     PipelineData* data, Zone* temp_zone, maglev::Graph* maglev_graph) {
