@@ -3087,7 +3087,14 @@ class MachineLoweringReducer : public Next {
           str.object()->GetFlatContent(no_gc, access_guard).ToOneByteVector();
 
       auto load_chunk = [&](uint32_t offset) -> V<Word> {
-        return __ Load(other, LoadOp::Kind::TaggedBase(), mem_rep,
+        LoadOp::Kind load_kind = LoadOp::Kind::TaggedBase();
+        // Load address may be misaligned due to overlapping trailing chunks or
+        // unaligned string header offsets.
+        if (mem_rep != MemoryRepresentation::Uint8() &&
+            !SupportedOperations::IsUnalignedLoadSupported(mem_rep)) {
+          load_kind.maybe_unaligned = true;
+        }
+        return __ Load(other, load_kind, mem_rep,
                        kHeaderSize + static_cast<int32_t>(offset));
       };
       auto expected_chunk = [&](uint32_t offset) -> V<Word> {
