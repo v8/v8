@@ -6983,6 +6983,10 @@ void Worker::ProcessMessages() {
     if (try_catch.HasCaught()) return;
     if (is_running()) {
       MicrotasksScope::PerformCheckpoint(isolate_);
+      // A microtask can also terminate execution (e.g. by handling a
+      // termination interrupt scheduled by the previous task). Do not run
+      // further tasks in that case; they would enter V8 while terminating.
+      if (try_catch.HasCaught()) return;
     }
   }
 }
