@@ -3059,8 +3059,10 @@ std::pair<WasmCode*, SafepointEntry&> WasmCodeManager::LookupCodeAndSafepoint(
   WasmCode* code = entry->code;
   DCHECK_NOT_NULL(code);
   // For trapping instructions we usually do not emit a safepoint because the
-  // frame will be unwound anyway. The exception is debugging code, where the
-  // frame might be inspected if "pause on exception" is set.
+  // frame will be unwound anyway. The exception is inspectable debugging code
+  // (Liftoff), where the frame might be inspected if "pause on exception" is
+  // set. TurboFan fallback code with `for_debugging()` set (when Liftoff bails
+  // out) does not emit safepoints for trapping instructions.
   // For those instructions, we thus need to explicitly return an empty
   // safepoint; using any previously registered safepoint can lead to crashes
   // when we try to visit spill slots that do not hold tagged values at this
@@ -3069,7 +3071,7 @@ std::pair<WasmCode*, SafepointEntry&> WasmCodeManager::LookupCodeAndSafepoint(
   auto expect_safepoint = [code, pc]() {
     const bool is_trapping_instruction = code->IsTrappingInstruction(
         pc - WasmFrameConstants::kTrappingInstructionReturnAddressOffset);
-    return !is_trapping_instruction || code->for_debugging();
+    return !is_trapping_instruction || code->is_inspectable();
   };
   if (!entry->safepoint_entry.is_initialized() && expect_safepoint()) {
     SafepointTable table{code};

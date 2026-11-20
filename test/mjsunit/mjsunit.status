@@ -1242,6 +1242,7 @@
   # --enable-testing-opcode-in-wasm
   'regress/wasm/regress-377971725': [SKIP],
   'regress/wasm/regress-426164352': [SKIP],
+  'regress/wasm/regress-586580682': [SKIP],
 
   # Module serialization tests expect compilation
   'regress/wasm/regress-11024': [SKIP],
