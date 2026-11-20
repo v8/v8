@@ -6761,6 +6761,23 @@ class GraphBuildingNodeProcessor {
                            : __ ChangeInt32ToIntPtr(Map<Word32>(index_input));
   }
 
+  V<WordPtr> ConvertTypedArrayIndex(V<Word32> index) {
+    // Reuse a dominating sign-extension if one already exists, so the bounds
+    // check and element access share the same 64-bit extension and preserve
+    // backend instruction fusion (e.g. sbfx/ldrsw).
+    if constexpr (Is64()) {
+      base::SmallVector<OperationStorageSlot, 32> storage;
+      ChangeOp* sign_ext = CreateOperation<ChangeOp>(
+          storage, index, ChangeOp::Kind::kSignExtend,
+          ChangeOp::Assumption::kNoAssumption, RegisterRepresentation::Word32(),
+          RegisterRepresentation::Word64());
+      if (__ WillGVNOp(*sign_ext)) {
+        return __ ChangeInt32ToIntPtr(index);
+      }
+    }
+    return __ ChangeUint32ToUintPtr(index);
+  }
+
   std::pair<V<WordPtr>, V<Object>> GetTypedArrayDataAndBasePointers(
       V<JSTypedArray> typed_array) {
     V<WordPtr> data_pointer = __ LoadField<WordPtr>(
@@ -6774,7 +6791,7 @@ class GraphBuildingNodeProcessor {
     auto [data_pointer, base_pointer] =
         GetTypedArrayDataAndBasePointers(typed_array);
     return __ LoadTypedElement(typed_array, base_pointer, data_pointer,
-                               __ ChangeUint32ToUintPtr(index),
+                               ConvertTypedArrayIndex(index),
                                GetArrayTypeFromElementsKind(kind));
   }
 
@@ -6786,7 +6803,7 @@ class GraphBuildingNodeProcessor {
     return __ LoadTypedElement(
         __ HeapConstant(typed_array.object()), __ SmiConstant(Smi::zero()),
         __ WordPtrConstant(reinterpret_cast<uintptr_t>(typed_array.data_ptr())),
-        __ ChangeUint32ToUintPtr(index), GetArrayTypeFromElementsKind(kind));
+        ConvertTypedArrayIndex(index), GetArrayTypeFromElementsKind(kind));
   }
 
   void BuildTypedArrayStore(V<JSTypedArray> typed_array, V<Word32> index,
@@ -6794,7 +6811,7 @@ class GraphBuildingNodeProcessor {
     auto [data_pointer, base_pointer] =
         GetTypedArrayDataAndBasePointers(typed_array);
     __ StoreTypedElement(typed_array, base_pointer, data_pointer,
-                         __ ChangeUint32ToUintPtr(index), value,
+                         ConvertTypedArrayIndex(index), value,
                          GetArrayTypeFromElementsKind(kind));
   }
 
@@ -6807,7 +6824,7 @@ class GraphBuildingNodeProcessor {
     __ StoreTypedElement(
         __ HeapConstant(typed_array.object()), __ SmiConstant(Smi::zero()),
         __ WordPtrConstant(reinterpret_cast<uintptr_t>(typed_array.data_ptr())),
-        __ ChangeUint32ToUintPtr(index), value,
+        ConvertTypedArrayIndex(index), value,
         GetArrayTypeFromElementsKind(kind));
   }
 
