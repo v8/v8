@@ -47,6 +47,7 @@ in_category(
     ),
     multibranch_builder_pair(
         name = "V8 Linux - arm - sim - debug",
+        release_branches = True,
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports"},
@@ -233,7 +234,6 @@ in_category(
         properties = {"builder_group": "client.v8.ports"},
         barrier = BARRIER.NONE,
         disable_resultdb_exports = True,
-        first_branch_version = "14.2",
     ),
     multibranch_builder_pair(
         name = "V8 Linux - riscv64 - sim - pointer compression",

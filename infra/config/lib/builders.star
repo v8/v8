@@ -129,13 +129,18 @@ def multibranch_builder(release_branches = False, **kwargs):
     Args:
       release_branches: Opt-in switch for also creating twin builders in the
         release-branch buckets (and consoles). Off by default.
-      **kwargs: Arguments passed through to the builder definition.
+      **kwargs: Arguments passed through to the builder definition. The
+        optional first_branch_version restricts the release-branch twins to
+        branches of at least that version and requires release_branches.
 
     Returns:
       A list of "<bucket>/<name>" strings for all created builders.
     """
     added_builders = []
     barrier = kwargs.pop("barrier", BARRIER.TREE_CLOSER)
+    first_branch_version = kwargs.pop("first_branch_version", None)
+    if first_branch_version and not release_branches:
+        fail("Builder '%s' sets first_branch_version without release_branches = True" % kwargs["name"])
     for branch in branch_descriptors:
         args = dict(kwargs)
         parent_builder = args.pop("parent_builder", None)
@@ -143,7 +148,6 @@ def multibranch_builder(release_branches = False, **kwargs):
             args["triggered_by_gitiles"] = False
             resolve_parent_triggering(args, branch.bucket, parent_builder)
         triggered_by_gitiles = args.pop("triggered_by_gitiles", True)
-        first_branch_version = args.pop("first_branch_version", None)
         if triggered_by_gitiles:
             args.setdefault("triggered_by", []).append(branch.poller_name)
             args["use_siso"] = args.get("use_siso", SISO.CHROMIUM_TRUSTED)
@@ -151,6 +155,14 @@ def multibranch_builder(release_branches = False, **kwargs):
 
         if branch.bucket == "ci":
             if barrier.closes_tree:
+                # Note: This intentionally alters a passed-in notifies list
+                # in place. As args is only a shallow copy of kwargs, the
+                # tree closer added here for main is also inherited by the
+                # release-branch twins created in later iterations. This
+                # way failures on release branches close the tree as well,
+                # which is the only signal we get from those builders.
+                # Builders that don't pass notifies get a fresh list here,
+                # hence their release-branch twins don't close the tree.
                 notifies = args.pop("notifies", [])
                 if parent_builder:
                     notifies.append("v8 tree closer")

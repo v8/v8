@@ -32,4 +32,4 @@ To propagate a new builder addition under main/memory/ports consoles you need to
  - set `release_branches = True` if the builder should also run on release branches
  - if so, specify the `first_branch_version` attribute - typically the current version on main
  - generate the configurations by running `./main.star`
- - backmerging mb_config.pyl and builders.pyl file changes to the respective branches is only required if the `first_branch_version` was not specified to the current main branch
+ - backmerging mb_config.pyl and builders.pyl file changes to the respective branches is only required if `release_branches = True` is set and `first_branch_version` was not specified to the current main branch

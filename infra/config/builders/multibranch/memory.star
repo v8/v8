@@ -23,7 +23,6 @@ in_category(
         properties = {"target_arch": "arm", "target_bits": 64},
         gclient_vars = [GCLIENT_VARS.LINUX_ARM64_SYMBOLIZER],
         barrier = BARRIER.TREE_CLOSER,
-        first_branch_version = "14.9",
     ),
     main_multibranch_builder_pair(
         name = "V8 Mac64 ASAN",
@@ -67,7 +66,6 @@ in_category(
         name = "V8 Linux64 TSAN - debug",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         notifies = ["TSAN debug failures"],
-        first_branch_version = "11.2",
     ),
     main_multibranch_builder(
         name = "V8 Linux64 TSAN - isolates",
