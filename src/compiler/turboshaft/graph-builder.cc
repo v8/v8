@@ -1035,6 +1035,8 @@ OpIndex GraphBuilder::Process(
       return __ Convert(Map(node->InputAt(0)),
                         ConvertOp::Kind::kNumberOrOddball,
                         ConvertOp::Kind::kSmi);
+    case IrOpcode::kChangeTaggedToTaggedPointer:
+      return __ ConvertToHeapObject(Map(node->InputAt(0)));
 
     case IrOpcode::kCheckedTaggedToTaggedSigned: {
       DCHECK(dominating_frame_state.valid());
