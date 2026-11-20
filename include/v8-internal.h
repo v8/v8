@@ -1897,4 +1897,42 @@ void PrintPropertyCallbackInfo(void* property_callback_info);
 }  // namespace internal
 }  // namespace v8
 
+// Customize `std::pointer_traits::to_address` for contiguous `WrappedIterator`s
+// so `std::to_address` (used by `std::span` and contiguous range algorithms)
+// forwards to the underlying iterator instead of calling `operator->()`, which
+// is undefined on past-the-end (`end()`) iterators and traps under hardened
+// bounded-iterator standard library implementations.
+template <std::contiguous_iterator Iterator, typename ElementType>
+struct std::pointer_traits<
+    v8::internal::WrappedIterator<Iterator, ElementType>> {
+  using pointer = v8::internal::WrappedIterator<Iterator, ElementType>;
+  using element_type = std::remove_reference_t<typename pointer::reference>;
+  using difference_type = typename pointer::difference_type;
+
+  static constexpr element_type* to_address(const pointer& it) noexcept {
+    auto* addr = std::to_address(it.base());
+    using raw_element = std::remove_pointer_t<decltype(addr)>;
+    static_assert(sizeof(raw_element) == sizeof(element_type));
+    if constexpr (std::is_same_v<std::remove_cv_t<raw_element>,
+                                 std::remove_cv_t<element_type>>) {
+      return addr;
+    } else {
+      static_assert(std::is_base_of_v<element_type, raw_element>);
+      static_assert(std::is_standard_layout_v<raw_element>);
+      static_assert(!std::is_empty_v<element_type>);
+      // `reinterpret_cast` is disallowed in constant expressions, so fall back
+      // to the implicit upcast (valid for dereferenceable and null pointers).
+      if (std::is_constant_evaluated()) {
+        return addr;
+      }
+      // `addr` may be a past-the-end (`end()`) pointer, where a `Derived*` ->
+      // `Base*` upcast is undefined behavior (`-fsanitize=object-size`). Since
+      // `Derived` is standard-layout and inherits from non-empty `Base`,
+      // `Derived` has no non-static data members of its own, so `Derived` and
+      // its `Base` subobject are pointer-interconvertible.
+      return reinterpret_cast<element_type*>(addr);
+    }
+  }
+};
+
 #endif  // INCLUDE_V8_INTERNAL_H_
