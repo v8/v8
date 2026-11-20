@@ -982,9 +982,9 @@ const Operator* JSOperatorBuilder::DefineKeyedOwnPropertyInLiteral(
   FeedbackParameter parameters(feedback);
   return zone()->New<Operator1<FeedbackParameter>>(  // --
       IrOpcode::kJSDefineKeyedOwnPropertyInLiteral,
-      Operator::kNoThrow,                   // opcode
+      Operator::kNoProperties,              // opcode
       "JSDefineKeyedOwnPropertyInLiteral",  // name
-      kArity, 1, 1, 0, 1, 1,                // counts
+      kArity, 1, 1, 0, 1, 2,                // counts
       parameters);                          // parameter
 }
 

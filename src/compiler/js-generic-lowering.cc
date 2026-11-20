@@ -525,7 +525,6 @@ void JSGenericLowering::LowerJSDefineKeyedOwnPropertyInLiteral(Node* node) {
   FeedbackParameter const& p = n.Parameters();
   static_assert(JSDefineKeyedOwnPropertyInLiteralNode::FeedbackVectorIndex() ==
                 4);
-  RelaxControls(node);
   node->InsertInput(zone(), 5,
                     jsgraph()->TaggedIndexConstant(p.feedback().index()));
   ReplaceWithRuntimeCall(node, Runtime::kDefineKeyedOwnPropertyInLiteral);
