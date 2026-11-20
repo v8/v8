@@ -440,7 +440,13 @@ void StreamingDecoder::Finish(
     // Call the embedder.
     caching_callback(caching_interface);
 
-    if (caching_interface.did_deserialize) return;
+    if (caching_interface.did_deserialize) {
+      DCHECK(stream_state_ == StreamState::kReceivingBytes ||
+             stream_state_ == StreamState::kDiscarded);
+      stream_state_ = StreamState::kFinished;
+      processor_.reset();
+      return;
+    }
 
     // If we did not deserialize then `wire_bytes` still holds our owned copy.
     DCHECK_EQ(total_length, bytes_copy.size());
