@@ -1326,6 +1326,11 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
                     unreachable);
               }
             }
+            if (iv == 0 && std::signbit(fv) &&
+                use_info.minus_zero_check() ==
+                    CheckForMinusZeroMode::kCheckForMinusZero) {
+              break;
+            }
             return InsertTypeOverrideForVerifier(NodeProperties::GetType(node),
                                                  jsgraph()->Int64Constant(iv));
           }
