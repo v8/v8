@@ -42,16 +42,31 @@ _create_option_int = rule(
     },
 )
 
-def v8_flag(name, default = False):
-    _create_option_flag(name = name, build_setting_default = default, scope = "universal")
+def v8_flag(name, default = False, scope = "universal", visibility = None):
+    _create_option_flag(
+        name = name,
+        build_setting_default = default,
+        scope = scope,
+        visibility = visibility,
+    )
     native.config_setting(name = "is_" + name, flag_values = {name: "True"})
     native.config_setting(name = "is_not_" + name, flag_values = {name: "False"})
 
-def v8_string(name, default = ""):
-    _create_option_string(name = name, build_setting_default = default, scope = "universal")
+def v8_string(name, default = "", scope = "universal", visibility = None):
+    _create_option_string(
+        name = name,
+        build_setting_default = default,
+        scope = scope,
+        visibility = visibility,
+    )
 
-def v8_int(name, default = 0):
-    _create_option_int(name = name, build_setting_default = default, scope = "universal")
+def v8_int(name, default = 0, scope = "universal", visibility = None):
+    _create_option_int(
+        name = name,
+        build_setting_default = default,
+        scope = scope,
+        visibility = visibility,
+    )
 
 def _custom_config_impl(ctx):
     defs = []
