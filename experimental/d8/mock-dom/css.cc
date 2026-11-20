@@ -916,23 +916,13 @@ const SheetList& SheetsFor(DocumentStyleData* data, Node* scope,
     }
     sheets.push_back(sheet->Contents(window));
   }
-  const TracedReference<Value>& adopted =
+  AdoptedStyleSheets* adopted =
       scope->IsShadowRoot()
-          ? static_cast<ShadowRoot*>(scope)->adopted_style_sheets
-          : static_cast<Document*>(scope)->adopted_style_sheets;
-  if (!adopted.IsEmpty()) {
-    HandleScope handle_scope(isolate);
-    Local<Value> value = adopted.Get(isolate);
-    if (value->IsArray()) {
-      Local<Array> array = value.As<Array>();
-      Local<Context> context = window->context(isolate);
-      for (uint32_t i = 0; i < array->Length(); ++i) {
-        Local<Value> item;
-        if (!array->Get(context, i).ToLocal(&item)) continue;
-        CSSStyleSheet* sheet =
-            To<CSSStyleSheet>(isolate, item, Interface::kCSSStyleSheet);
-        if (sheet) sheets.push_back(sheet->Contents(window));
-      }
+          ? static_cast<ShadowRoot*>(scope)->adopted_style_sheets.Get()
+          : static_cast<Document*>(scope)->adopted_style_sheets.Get();
+  if (adopted) {
+    for (const Member<CSSStyleSheet>& sheet : adopted->sheets()) {
+      if (sheet) sheets.push_back(sheet->Contents(window));
     }
   }
   return data->scopes.emplace(scope, std::move(sheets)).first->second;
@@ -1288,6 +1278,7 @@ std::optional<double> ComputedStyle::Length(LengthId id,
 namespace {
 
 void DropStyles(DocumentStyleData* data, Node* root) {
+  if (root->IsShadowRoot()) data->scopes.erase(root);
   for (Node* node = root; node; node = node->NextInPreOrder(root)) {
     if (!node->IsElement()) continue;
     data->styles.erase(node);
@@ -1315,6 +1306,21 @@ void InvalidateStyle(Node* root) {
     return;
   }
   if (data->dirty_set.insert(root).second) data->dirty_roots.emplace_back(root);
+}
+
+void InvalidateStyleIfCached(Node* root) {
+  DocumentStyleData* data = StyleDataOf(root);
+  if (!data || data->all_dirty) return;
+  if (data->styles.contains(root) || data->scopes.contains(root)) {
+    InvalidateStyle(root);
+  }
+}
+
+void DropCachedStyle(Node* node) {
+  DocumentStyleData* data = StyleDataOf(node);
+  if (!data) return;
+  data->styles.erase(node);
+  data->scopes.erase(node);
 }
 
 void InvalidateAllStyles(Document* document) {

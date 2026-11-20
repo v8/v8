@@ -35,6 +35,7 @@
 namespace v8 {
 namespace mock_dom {
 
+class AdoptedStyleSheets;
 class CSSStyleDeclaration;
 class CanvasContext;
 class ContainerNode;
@@ -465,7 +466,7 @@ class ShadowRoot final : public DocumentFragment {
   void Trace(Visitor* visitor) const override;
   Element* host() const { return host_.Get(); }
   bool open() const { return open_; }
-  TracedReference<Value> adopted_style_sheets;
+  Member<AdoptedStyleSheets> adopted_style_sheets;
 
  private:
   Member<Element> host_;
@@ -644,7 +645,7 @@ class Document final : public ContainerNode {
   // Caches owned by css.cc and layout.cc, valid for one layout_key().
   std::shared_ptr<void> style_data;
   std::shared_ptr<void> layout_data;
-  TracedReference<Value> adopted_style_sheets;
+  Member<AdoptedStyleSheets> adopted_style_sheets;
 
   AtomicString ready_state = "loading";
   String title;
@@ -878,7 +879,13 @@ void UpgradeElement(Isolate* isolate, Element* element,
 // InvalidateStyle covers |root| and everything below it, including shadow
 // trees.
 void InvalidateStyle(Node* root);
+void InvalidateStyleIfCached(Node* root);
+void DropCachedStyle(Node* node);
 void InvalidateAllStyles(Document* document);
+
+// Adopts |root| and its shadow-including descendants into |document|,
+// dropping any cached styles they still had in their previous document.
+void AdoptSubtree(Node* root, Document* document);
 
 // Splits |text| on HTML whitespace and appends the tokens to |out|.
 void SplitOnHtmlSpace(std::string_view text, std::vector<AtomicString>* out);

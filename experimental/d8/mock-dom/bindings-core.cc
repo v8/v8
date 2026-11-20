@@ -5,6 +5,8 @@
 // Bindings infrastructure plus EventTarget, Event, Node, CharacterData,
 // Document, DocumentFragment and the node collections.
 
+#include <cmath>
+
 #include "experimental/d8/mock-dom/bindings.h"
 #include "experimental/d8/mock-dom/css.h"
 #include "experimental/d8/mock-dom/html.h"
@@ -14,6 +16,7 @@
 #include "include/v8-exception.h"
 #include "include/v8-external.h"
 #include "include/v8-primitive.h"
+#include "include/v8-proxy.h"
 #include "src/api/api-inl.h"
 #include "src/objects/js-objects-inl.h"
 
@@ -1734,10 +1737,411 @@ CALLBACK(DocumentAdoptNode) {
   if (!RequireArguments(info, 1)) return;
   Node* node = ToNodeOrThrow(info, info[0], "parameter 1");
   if (!node) return;
+  if (node->IsDocument()) {
+    ThrowDOMException(isolate, "NotSupportedError",
+                      "The node provided is a document, which may not be "
+                      "adopted.");
+    return;
+  }
+  if (node->IsShadowRoot()) {
+    ThrowDOMException(isolate, "HierarchyRequestError",
+                      "The node provided is a shadow root, which may not be "
+                      "adopted.");
+    return;
+  }
   node->Remove(isolate);
-  Document* document = Receiver<Document>(info);
-  for (Node* n = node; n; n = n->NextInPreOrder(node)) n->AdoptInto(document);
+  AdoptSubtree(node, Receiver<Document>(info));
   info.GetReturnValue().Set(info[0]);
+}
+
+AdoptedStyleSheets* AdoptedOf(Node* scope) {
+  return scope->IsShadowRoot()
+             ? static_cast<ShadowRoot*>(scope)->adopted_style_sheets.Get()
+             : static_cast<Document*>(scope)->adopted_style_sheets.Get();
+}
+
+AdoptedStyleSheets* EnsureAdopted(Isolate* isolate, Node* scope) {
+  AdoptedStyleSheets* adopted = AdoptedOf(scope);
+  if (adopted) return adopted;
+  adopted = MakeGarbageCollected<AdoptedStyleSheets>(isolate, scope);
+  if (scope->IsShadowRoot()) {
+    static_cast<ShadowRoot*>(scope)->adopted_style_sheets = adopted;
+  } else {
+    static_cast<Document*>(scope)->adopted_style_sheets = adopted;
+  }
+  return adopted;
+}
+
+void InvalidateAdoptedStyles(Node* scope) {
+  Document* document =
+      scope->IsDocument() ? static_cast<Document*>(scope) : scope->document();
+  document->InvalidateLayout();
+  InvalidateAllStyles(document);
+}
+
+bool IsLengthProperty(Isolate* isolate, Local<Value> prop) {
+  return prop->IsString() &&
+         prop.As<v8::String>()->StringEquals(V8Name(isolate, "length"));
+}
+
+bool ParseArrayIndex(Isolate* isolate, Local<Value> prop, uint32_t* out) {
+  if (!prop->IsString()) return false;
+  std::string text = ToUtf8(isolate, prop.As<v8::String>());
+  if (text.empty()) return false;
+  if (text.size() > 1 && text[0] == '0') return false;
+  uint64_t value = 0;
+  for (char c : text) {
+    if (c < '0' || c > '9') return false;
+    value = value * 10 + (c - '0');
+    if (value >= 0xFFFFFFFFu) return false;
+  }
+  *out = static_cast<uint32_t>(value);
+  return true;
+}
+
+AdoptedStyleSheets* AdoptedFromTrapData(const CallbackInfo& info) {
+  Node* scope = static_cast<Node*>(static_cast<ScriptWrappable*>(
+      Object::Unwrap<kWrapperTag, Object::Wrappable>(
+          info.GetIsolate(), info.Data().As<Object>())));
+  return AdoptedOf(scope);
+}
+
+bool SetAdoptedElement(Isolate* isolate, AdoptedStyleSheets* adopted,
+                       Local<Array> target, uint32_t index,
+                       Local<Value> value) {
+  auto& sheets = adopted->mutable_sheets();
+  if (index > sheets.size()) {
+    ThrowTypeError(isolate, "Cannot set sparse index on adoptedStyleSheets.");
+    return false;
+  }
+  CSSStyleSheet* sheet =
+      To<CSSStyleSheet>(isolate, value, Interface::kCSSStyleSheet);
+  if (!sheet) {
+    ThrowTypeError(isolate, "Failed to convert value to 'CSSStyleSheet'.");
+    return false;
+  }
+  bool ok = false;
+  if (!target->CreateDataProperty(isolate->GetCurrentContext(), index, value)
+           .To(&ok) ||
+      !ok) {
+    return false;
+  }
+  if (index == sheets.size()) {
+    sheets.push_back(sheet);
+  } else {
+    sheets[index] = sheet;
+  }
+  InvalidateAdoptedStyles(adopted->scope());
+  return true;
+}
+
+bool SetAdoptedLength(Isolate* isolate, AdoptedStyleSheets* adopted,
+                      Local<Array> target, Local<Value> value) {
+  Local<Context> context = isolate->GetCurrentContext();
+  double number = 0;
+  uint32_t new_length = 0;
+  if (!value->NumberValue(context).To(&number) ||
+      !value->Uint32Value(context).To(&new_length)) {
+    return false;
+  }
+  if (!std::isfinite(number) || number != static_cast<double>(new_length)) {
+    isolate->ThrowException(
+        Exception::RangeError(V8Name(isolate, "Invalid array length")));
+    return false;
+  }
+  auto& sheets = adopted->mutable_sheets();
+  if (new_length > sheets.size()) {
+    ThrowTypeError(isolate, "Cannot grow adoptedStyleSheets length directly.");
+    return false;
+  }
+  bool ok = false;
+  if (!target
+           ->Set(context, V8Name(isolate, "length"),
+                 Uint32::NewFromUnsigned(isolate, new_length))
+           .To(&ok) ||
+      !ok) {
+    return false;
+  }
+  if (new_length != sheets.size()) {
+    sheets.resize(new_length);
+    InvalidateAdoptedStyles(adopted->scope());
+  }
+  return true;
+}
+
+CALLBACK(AdoptedSetTrap) {
+  Isolate* isolate = info.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  AdoptedStyleSheets* adopted = AdoptedFromTrapData(info);
+  Local<Array> target = info[0].As<Array>();
+  Local<Value> prop = info[1];
+  Local<Value> value = info[2];
+  if (IsLengthProperty(isolate, prop)) {
+    info.GetReturnValue().Set(
+        SetAdoptedLength(isolate, adopted, target, value));
+    return;
+  }
+  uint32_t index = 0;
+  if (ParseArrayIndex(isolate, prop, &index)) {
+    info.GetReturnValue().Set(
+        SetAdoptedElement(isolate, adopted, target, index, value));
+    return;
+  }
+  bool ok = false;
+  if (target->Set(context, prop, value).To(&ok)) {
+    info.GetReturnValue().Set(ok);
+  }
+}
+
+CALLBACK(AdoptedDefinePropertyTrap) {
+  Isolate* isolate = info.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  AdoptedStyleSheets* adopted = AdoptedFromTrapData(info);
+  Local<Array> target = info[0].As<Array>();
+  Local<Value> prop = info[1];
+  if (!info[2]->IsObject()) {
+    info.GetReturnValue().Set(false);
+    return;
+  }
+  Local<Object> descriptor = info[2].As<Object>();
+  bool has_get = false, has_set = false;
+  if (!descriptor->Has(context, V8Name(isolate, "get")).To(&has_get) ||
+      !descriptor->Has(context, V8Name(isolate, "set")).To(&has_set)) {
+    return;
+  }
+  if (has_get || has_set) {
+    info.GetReturnValue().Set(false);
+    return;
+  }
+  bool has_value = false;
+  if (!descriptor->Has(context, V8Name(isolate, "value")).To(&has_value)) {
+    return;
+  }
+  Local<Value> value = Undefined(isolate);
+  if (has_value && !GetProperty(isolate, descriptor, "value", &value)) return;
+  if (IsLengthProperty(isolate, prop)) {
+    bool has_configurable = false;
+    if (!descriptor->Has(context, V8Name(isolate, "configurable"))
+             .To(&has_configurable)) {
+      return;
+    }
+    if (has_configurable) {
+      Local<Value> configurable;
+      if (!GetProperty(isolate, descriptor, "configurable", &configurable)) {
+        return;
+      }
+      if (configurable->BooleanValue(isolate)) {
+        info.GetReturnValue().Set(false);
+        return;
+      }
+    }
+    bool has_writable = false;
+    if (!descriptor->Has(context, V8Name(isolate, "writable"))
+             .To(&has_writable)) {
+      return;
+    }
+    if (has_writable) {
+      Local<Value> writable;
+      if (!GetProperty(isolate, descriptor, "writable", &writable)) return;
+      if (!writable->BooleanValue(isolate)) {
+        info.GetReturnValue().Set(false);
+        return;
+      }
+    }
+    info.GetReturnValue().Set(
+        has_value ? SetAdoptedLength(isolate, adopted, target, value) : true);
+    return;
+  }
+  uint32_t index = 0;
+  if (ParseArrayIndex(isolate, prop, &index)) {
+    for (const char* attr : {"configurable", "enumerable", "writable"}) {
+      bool has_attr = false;
+      if (!descriptor->Has(context, V8Name(isolate, attr)).To(&has_attr)) {
+        return;
+      }
+      if (!has_attr) continue;
+      Local<Value> attr_val;
+      if (!GetProperty(isolate, descriptor, attr, &attr_val)) return;
+      if (!attr_val->BooleanValue(isolate)) {
+        info.GetReturnValue().Set(false);
+        return;
+      }
+    }
+    if (!has_value) {
+      info.GetReturnValue().Set(false);
+      return;
+    }
+    info.GetReturnValue().Set(
+        SetAdoptedElement(isolate, adopted, target, index, value));
+    return;
+  }
+  if (!prop->IsName()) {
+    info.GetReturnValue().Set(false);
+    return;
+  }
+  bool has_configurable = false;
+  if (!descriptor->Has(context, V8Name(isolate, "configurable"))
+           .To(&has_configurable)) {
+    return;
+  }
+  if (has_configurable) {
+    Local<Value> configurable;
+    if (!GetProperty(isolate, descriptor, "configurable", &configurable)) {
+      return;
+    }
+    if (!configurable->BooleanValue(isolate)) {
+      info.GetReturnValue().Set(false);
+      return;
+    }
+  }
+  bool ok = false;
+  if (target->CreateDataProperty(context, prop.As<Name>(), value).To(&ok)) {
+    info.GetReturnValue().Set(ok);
+  }
+}
+
+CALLBACK(AdoptedDeletePropertyTrap) {
+  Isolate* isolate = info.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  AdoptedStyleSheets* adopted = AdoptedFromTrapData(info);
+  Local<Array> target = info[0].As<Array>();
+  Local<Value> prop = info[1];
+  if (IsLengthProperty(isolate, prop)) {
+    info.GetReturnValue().Set(false);
+    return;
+  }
+  uint32_t index = 0;
+  if (ParseArrayIndex(isolate, prop, &index)) {
+    auto& sheets = adopted->mutable_sheets();
+    if (index < sheets.size()) {
+      bool ok = false;
+      if (!target->Delete(context, index).To(&ok) || !ok) {
+        info.GetReturnValue().Set(false);
+        return;
+      }
+      sheets[index] = nullptr;
+      InvalidateAdoptedStyles(adopted->scope());
+    }
+    info.GetReturnValue().Set(true);
+    return;
+  }
+  bool ok = false;
+  if (target->Delete(context, prop).To(&ok)) {
+    info.GetReturnValue().Set(ok);
+  }
+}
+
+CALLBACK(AdoptedPreventExtensionsTrap) { info.GetReturnValue().Set(false); }
+
+Local<Proxy> EnsureAdoptedProxy(Isolate* isolate, Node* scope) {
+  AdoptedStyleSheets* adopted = EnsureAdopted(isolate, scope);
+  if (!adopted->proxy().IsEmpty()) return adopted->proxy().Get(isolate);
+  Local<Context> context = isolate->GetCurrentContext();
+  const auto& sheets = adopted->sheets();
+  Local<Array> target = Array::New(isolate, static_cast<int>(sheets.size()));
+  for (uint32_t i = 0; i < sheets.size(); ++i) {
+    if (sheets[i]) {
+      USE(target->CreateDataProperty(context, i,
+                                     ToV8(isolate, sheets[i].Get())));
+    }
+  }
+  Local<Value> scope_wrapper = ToV8(isolate, scope);
+  Local<Object> handler = Object::New(isolate);
+  auto add_trap = [&](const char* name, FunctionCallback cb) {
+    Local<Function> fn =
+        Function::New(context, cb, scope_wrapper).ToLocalChecked();
+    USE(handler->CreateDataProperty(context, V8Name(isolate, name), fn));
+  };
+  add_trap("set", AdoptedSetTrap);
+  add_trap("defineProperty", AdoptedDefinePropertyTrap);
+  add_trap("deleteProperty", AdoptedDeletePropertyTrap);
+  add_trap("preventExtensions", AdoptedPreventExtensionsTrap);
+  Local<Proxy> proxy = Proxy::New(context, target, handler).ToLocalChecked();
+  adopted->target().Reset(isolate, target);
+  adopted->proxy().Reset(isolate, proxy);
+  return proxy;
+}
+
+bool CollectAdoptedStyleSheets(Isolate* isolate, Local<Value> value,
+                               LocalVector<Value>* out) {
+  Local<Context> context = isolate->GetCurrentContext();
+  auto append_sheet = [&](Local<Value> item) {
+    if (!To<CSSStyleSheet>(isolate, item, Interface::kCSSStyleSheet)) {
+      ThrowTypeError(isolate,
+                     "Failed to set the 'adoptedStyleSheets' property: "
+                     "Failed to convert value to 'CSSStyleSheet'.");
+      return false;
+    }
+    out->push_back(item);
+    return true;
+  };
+  if (value->IsArray()) {
+    Local<Array> array = value.As<Array>();
+    uint32_t length = array->Length();
+    for (uint32_t i = 0; i < length; ++i) {
+      Local<Value> item;
+      if (!array->Get(context, i).ToLocal(&item)) return false;
+      if (!append_sheet(item)) return false;
+    }
+    return true;
+  }
+  if (!value->IsObject()) {
+    ThrowTypeError(isolate,
+                   "Failed to set the 'adoptedStyleSheets' property: "
+                   "The provided value cannot be converted to a sequence.");
+    return false;
+  }
+  Local<Object> object = value.As<Object>();
+  Local<Value> iterator_fn;
+  if (!object->Get(context, Symbol::GetIterator(isolate))
+           .ToLocal(&iterator_fn)) {
+    return false;
+  }
+  if (!iterator_fn->IsFunction()) {
+    ThrowTypeError(isolate,
+                   "Failed to set the 'adoptedStyleSheets' property: "
+                   "The provided value cannot be converted to a sequence.");
+    return false;
+  }
+  Local<Value> iterator_val;
+  if (!iterator_fn.As<Function>()
+           ->Call(context, object, 0, nullptr)
+           .ToLocal(&iterator_val)) {
+    return false;
+  }
+  if (!iterator_val->IsObject()) {
+    ThrowTypeError(isolate,
+                   "Result of the Symbol.iterator method is not an "
+                   "object.");
+    return false;
+  }
+  Local<Object> iterator = iterator_val.As<Object>();
+  Local<Value> next_fn;
+  if (!GetProperty(isolate, iterator, "next", &next_fn)) return false;
+  if (!next_fn->IsFunction()) {
+    ThrowTypeError(isolate, "Iterator next is not a function.");
+    return false;
+  }
+  while (true) {
+    Local<Value> step_val;
+    if (!next_fn.As<Function>()
+             ->Call(context, iterator, 0, nullptr)
+             .ToLocal(&step_val)) {
+      return false;
+    }
+    if (!step_val->IsObject()) {
+      ThrowTypeError(isolate, "Iterator result is not an object.");
+      return false;
+    }
+    Local<Object> step = step_val.As<Object>();
+    Local<Value> done;
+    if (!GetProperty(isolate, step, "done", &done)) return false;
+    if (done->BooleanValue(isolate)) break;
+    Local<Value> item;
+    if (!GetProperty(isolate, step, "value", &item)) return false;
+    if (!append_sheet(item)) return false;
+  }
+  return true;
 }
 
 CALLBACK(DocumentFragmentConstructor) {
@@ -2061,32 +2465,37 @@ void InstallDocumentBindings(Isolate* isolate) {
         Return(info, focused && root->Contains(focused) ? focused : nullptr);
       });
   for (Interface interface : {kDocument, Interface::kShadowRoot}) {
-    // The array lives on the tree scope, where the cascade reads it.
+    // The sheets live in a C++ vector on the tree scope so the cascade reads
+    // them without calling into JS; JS sees an ObservableArray-like Proxy.
     DefineAccessor(
         isolate, interface, "adoptedStyleSheets",
         [](const CallbackInfo& info) {
-          Isolate* isolate = info.GetIsolate();
-          Node* scope = Receiver<Node>(info);
-          TracedReference<Value>& sheets =
-              scope->IsShadowRoot()
-                  ? static_cast<ShadowRoot*>(scope)->adopted_style_sheets
-                  : static_cast<Document*>(scope)->adopted_style_sheets;
-          if (sheets.IsEmpty()) sheets.Reset(isolate, Array::New(isolate, 0));
-          info.GetReturnValue().Set(sheets.Get(isolate));
+          info.GetReturnValue().Set(
+              EnsureAdoptedProxy(info.GetIsolate(), Receiver<Node>(info)));
         },
         [](const CallbackInfo& info) {
+          Isolate* isolate = info.GetIsolate();
           Node* scope = Receiver<Node>(info);
-          if (scope->IsShadowRoot()) {
-            static_cast<ShadowRoot*>(scope)->adopted_style_sheets.Reset(
-                info.GetIsolate(), info[0]);
-            scope->document()->InvalidateLayout();
-            InvalidateAllStyles(scope->document());
-          } else {
-            Document* document = static_cast<Document*>(scope);
-            document->adopted_style_sheets.Reset(info.GetIsolate(), info[0]);
-            document->InvalidateLayout();
-            InvalidateAllStyles(document);
+          LocalVector<Value> values(isolate);
+          if (!CollectAdoptedStyleSheets(isolate, info[0], &values)) return;
+          AdoptedStyleSheets* adopted = EnsureAdopted(isolate, scope);
+          auto& sheets = adopted->mutable_sheets();
+          sheets.clear();
+          sheets.reserve(values.size());
+          for (Local<Value> value : values) {
+            sheets.push_back(
+                To<CSSStyleSheet>(isolate, value, Interface::kCSSStyleSheet));
           }
+          if (!adopted->target().IsEmpty()) {
+            Local<Context> context = isolate->GetCurrentContext();
+            Local<Array> target = adopted->target().Get(isolate);
+            USE(target->Set(context, V8Name(isolate, "length"),
+                            Uint32::NewFromUnsigned(isolate, 0)));
+            for (uint32_t i = 0; i < values.size(); ++i) {
+              USE(target->CreateDataProperty(context, i, values[i]));
+            }
+          }
+          InvalidateAdoptedStyles(scope);
         });
   }
 }

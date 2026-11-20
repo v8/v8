@@ -27,6 +27,8 @@
 #include "absl/container/flat_hash_map.h"
 #include "experimental/d8/mock-dom/dom.h"
 #include "experimental/d8/mock-dom/selector.h"
+#include "include/v8-container.h"
+#include "include/v8-proxy.h"
 
 namespace v8 {
 namespace mock_dom {
@@ -122,6 +124,36 @@ class CSSStyleSheet final : public ScriptWrappable {
   Member<Element> owner_;
   std::vector<std::string> rule_texts_;
   std::shared_ptr<StyleSheetContents> contents_;
+};
+
+// Backing store for Document.adoptedStyleSheets and
+// ShadowRoot.adoptedStyleSheets. Keeping the sheets in a C++ vector lets the
+// cascade read them without calling back into JS, while a lazily created JS
+// Proxy over a private array keeps in-place mutations such as .push() in sync.
+class AdoptedStyleSheets final
+    : public cppgc::GarbageCollected<AdoptedStyleSheets> {
+ public:
+  explicit AdoptedStyleSheets(Node* scope) : scope_(scope) {}
+  void Trace(Visitor* visitor) const {
+    if (DeferTraceIfConcurrent(visitor, this)) return;
+    visitor->Trace(scope_);
+    visitor->Trace(proxy_);
+    visitor->Trace(target_);
+    for (const auto& sheet : sheets_) visitor->Trace(sheet);
+  }
+
+  Node* scope() const { return scope_.Get(); }
+  const std::vector<Member<CSSStyleSheet>>& sheets() const { return sheets_; }
+  std::vector<Member<CSSStyleSheet>>& mutable_sheets() { return sheets_; }
+  TracedReference<Proxy>& proxy() { return proxy_; }
+  TracedReference<Array>& target() { return target_; }
+
+ private:
+  Member<Node> scope_;
+  MOCK_DOM_TRACED_CONTAINER
+  std::vector<Member<CSSStyleSheet>> sheets_;
+  TracedReference<Proxy> proxy_;
+  TracedReference<Array> target_;
 };
 
 // The sheet owned by a <style> or <link rel=stylesheet> element, kept in

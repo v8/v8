@@ -980,13 +980,15 @@ void NotifyRemoved(Isolate* isolate, Node* root, bool was_in_shadow_tree) {
       });
 }
 
+}  // namespace
+
 void AdoptSubtree(Node* root, Document* document) {
   ForEachShadowIncludingDescendant(root, false, [&](Node* node, bool) {
-    if (!node->IsDocument()) node->AdoptInto(document);
+    if (node->IsDocument()) return;
+    if (node->document() != document) DropCachedStyle(node);
+    node->AdoptInto(document);
   });
 }
-
-}  // namespace
 
 void ContainerNode::InsertInternal(Isolate* isolate, Node* node, Node* child) {
   DCHECK_NULL(node->parent());
@@ -1032,6 +1034,11 @@ void ContainerNode::RemoveInternal(Isolate* isolate, Node* child) {
     if (IsElement() && static_cast<Element*>(this)->HasTag("style")) {
       InvalidateAllStyles(child->document());
     }
+  } else {
+    // |child| may have been disconnected as part of an ancestor removal whose
+    // style eviction is still deferred in dirty_roots; detaching it here would
+    // hide it from DropStyles(ancestor), leaving dangling parent pointers.
+    InvalidateStyleIfCached(child);
   }
   Node* prev = child->prev_.Get();
   Node* next = child->next_.Get();

@@ -137,8 +137,10 @@ IDBKey KeyFromValue(Isolate* isolate, Local<Value> value, int depth = 0) {
     key.binary.assign(data, data + size);
   } else if (value->IsArray() && depth < 32) {
     Local<Array> array = value.As<Array>();
-    key.array.reserve(array->Length());
-    for (uint32_t i = 0; i < array->Length(); ++i) {
+    uint32_t length = array->Length();
+    for (uint32_t i = 0; i < length; ++i) {
+      bool has = false;
+      if (!array->HasOwnProperty(context, i).To(&has) || !has) return IDBKey();
       Local<Value> entry;
       if (!array->Get(context, i).ToLocal(&entry)) return IDBKey();
       IDBKey element = KeyFromValue(isolate, entry, depth + 1);
@@ -176,8 +178,8 @@ Local<Value> KeyToValue(Isolate* isolate, const IDBKey& key) {
       Local<Array> array =
           Array::New(isolate, static_cast<int>(key.array.size()));
       for (size_t i = 0; i < key.array.size(); ++i) {
-        USE(array->Set(context, static_cast<uint32_t>(i),
-                       KeyToValue(isolate, key.array[i])));
+        USE(array->CreateDataProperty(context, static_cast<uint32_t>(i),
+                                      KeyToValue(isolate, key.array[i])));
       }
       return array;
     }
@@ -363,10 +365,13 @@ bool EvaluatePath(Isolate* isolate, Local<Value> value, const std::string& path,
     }
     if (!value->IsObject()) return false;
     Local<Object> object = value.As<Object>();
+    if (object->IsArray() && identifier == "length") {
+      value = Integer::NewFromUnsigned(isolate, object.As<Array>()->Length());
+      continue;
+    }
     Local<v8::String> name = ToV8StringFromUtf8(isolate, identifier);
     bool has = false;
-    if (!object->HasOwnProperty(context, name).To(&has)) return false;
-    if (!has && !(object->IsArray() && identifier == "length")) return false;
+    if (!object->HasOwnProperty(context, name).To(&has) || !has) return false;
     if (!object->Get(context, name).ToLocal(&value)) return false;
   }
   *out = value;
@@ -412,9 +417,11 @@ void InjectKey(Isolate* isolate, Local<Value> value, const std::string& path,
       USE(object->CreateDataProperty(context, name, KeyToValue(isolate, key)));
       return;
     }
+    bool has = false;
+    if (!object->HasOwnProperty(context, name).To(&has)) return;
     Local<Value> next;
-    if (!object->Get(context, name).ToLocal(&next)) return;
-    if (!next->IsObject()) {
+    if (has && !object->Get(context, name).ToLocal(&next)) return;
+    if (!has || !next->IsObject()) {
       next = Object::New(isolate);
       USE(object->CreateDataProperty(context, name, next));
     }
@@ -988,6 +995,7 @@ bool ToKeyRange(Isolate* isolate, Local<Value> value, bool required,
     return true;
   }
   IDBKey key = KeyFromValue(isolate, value);
+  if (isolate->HasPendingException()) return false;
   if (!key.valid()) {
     ThrowDOMException(isolate, "DataError",
                       "The parameter is not a valid key.");
@@ -1046,11 +1054,13 @@ void PutRecord(const CallbackInfo& info, IDBObjectStore* store,
       return;
     }
     key = KeyFromValue(isolate, key_argument);
+    if (isolate->HasPendingException()) return;
     if (!key.valid()) {
       ThrowDOMException(isolate, "DataError",
                         "The parameter is not a valid key.");
       return;
     }
+    if (!CheckActive(isolate, transaction, true)) return;
   } else if (!inline_keys && !data->auto_increment) {
     ThrowDOMException(isolate, "DataError",
                       "The object store uses out-of-line keys and has no key "
@@ -1060,6 +1070,7 @@ void PutRecord(const CallbackInfo& info, IDBObjectStore* store,
 
   Record record;
   if (!Serialize(isolate, value, &record.value)) return;
+  if (!CheckActive(isolate, transaction, true)) return;
   // Keys are read from the stored clone, not from the caller's object, as
   // in a browser. The clone is only materialized if something needs it.
   Local<Value> clone;
