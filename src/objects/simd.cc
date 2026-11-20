@@ -134,18 +134,49 @@ inline int32_t reinterpret_vmaxvq_u64(uint64x2_t v) {
 }
 #endif
 
-#define VECTORIZED_LOOP_Neon(type_load, type_eq, set1, cmp, movemask)        \
-  {                                                                          \
-    constexpr int elems_in_vector = sizeof(type_load) / sizeof(T);           \
-    type_load search_element_vec = set1(search_element);                     \
-                                                                             \
-    for (; index + elems_in_vector <= array_len; index += elems_in_vector) { \
-      type_load vector = *reinterpret_cast<type_load*>(&array[index]);       \
-      type_eq eq = cmp(vector, search_element_vec);                          \
-      if (movemask(eq)) {                                                    \
-        return index + extract_first_nonzero_index_##type_eq(eq);            \
-      }                                                                      \
-    }                                                                        \
+#define VECTORIZED_LOOP_Neon(type_load, type_eq, set1, cmp, combine, movemask) \
+  {                                                                            \
+    constexpr int elems_in_vector = sizeof(type_load) / sizeof(T);             \
+    constexpr int elems_per_iter = 4 * elems_in_vector;                        \
+    type_load search_element_vec = set1(search_element);                       \
+                                                                               \
+    for (; index + elems_per_iter <= array_len; index += elems_per_iter) {     \
+      type_load v0 = *reinterpret_cast<type_load*>(&array[index]);             \
+      type_load v1 =                                                           \
+          *reinterpret_cast<type_load*>(&array[index + elems_in_vector]);      \
+      type_load v2 =                                                           \
+          *reinterpret_cast<type_load*>(&array[index + 2 * elems_in_vector]);  \
+      type_load v3 =                                                           \
+          *reinterpret_cast<type_load*>(&array[index + 3 * elems_in_vector]);  \
+      type_eq eq0 = cmp(v0, search_element_vec);                               \
+      type_eq eq1 = cmp(v1, search_element_vec);                               \
+      type_eq eq2 = cmp(v2, search_element_vec);                               \
+      type_eq eq3 = cmp(v3, search_element_vec);                               \
+      type_eq eq_all = combine(combine(eq0, eq1), combine(eq2, eq3));          \
+      if (V8_UNLIKELY(movemask(eq_all))) {                                     \
+        if (movemask(eq0)) {                                                   \
+          return index + extract_first_nonzero_index_##type_eq(eq0);           \
+        }                                                                      \
+        if (movemask(eq1)) {                                                   \
+          return index + elems_in_vector +                                     \
+                 extract_first_nonzero_index_##type_eq(eq1);                   \
+        }                                                                      \
+        if (movemask(eq2)) {                                                   \
+          return index + 2 * elems_in_vector +                                 \
+                 extract_first_nonzero_index_##type_eq(eq2);                   \
+        }                                                                      \
+        return index + 3 * elems_in_vector +                                   \
+               extract_first_nonzero_index_##type_eq(eq3);                     \
+      }                                                                        \
+    }                                                                          \
+                                                                               \
+    for (; index + elems_in_vector <= array_len; index += elems_in_vector) {   \
+      type_load vector = *reinterpret_cast<type_load*>(&array[index]);         \
+      type_eq eq = cmp(vector, search_element_vec);                            \
+      if (movemask(eq)) {                                                      \
+        return index + extract_first_nonzero_index_##type_eq(eq);              \
+      }                                                                        \
+    }                                                                          \
   }
 
 #define VECTORIZED_LOOP_x86(type_load, type_eq, set1, cmp, movemask, extract) \
@@ -243,14 +274,17 @@ inline uintptr_t fast_search_noavx(T* array, uintptr_t array_len,
   }
 #elif defined(NEON64)
   if constexpr (is_uint32) {
+    // vmaxq_u32 rather than vorrq_u32: both are equivalent on all-0/all-1
+    // lanes, and with vorrq_u32 Clang re-materializes the mask (shl + cmlt)
+    // before the horizontal reduction.
     VECTORIZED_LOOP_Neon(uint32x4_t, uint32x4_t, vdupq_n_u32, vceqq_u32,
-                         vmaxvq_u32)
+                         vmaxq_u32, vmaxvq_u32)
   } else if constexpr (is_uint64) {
     VECTORIZED_LOOP_Neon(uint64x2_t, uint64x2_t, vdupq_n_u64, vceqq_u64,
-                         reinterpret_vmaxvq_u64)
+                         vorrq_u64, reinterpret_vmaxvq_u64)
   } else if constexpr (is_double) {
     VECTORIZED_LOOP_Neon(float64x2_t, uint64x2_t, vdupq_n_f64, vceqq_f64,
-                         reinterpret_vmaxvq_u64)
+                         vorrq_u64, reinterpret_vmaxvq_u64)
   }
 #else
   UNREACHABLE();
