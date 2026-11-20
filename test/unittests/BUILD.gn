@@ -756,6 +756,7 @@ v8_cluster_source_set("v8_unittests_sources") {
       "compiler/turboshaft-codegen-tester.h",
       "compiler/turboshaft-compare-combine-unittest.cc",
       "compiler/turboshaft-select-combine-unittest.cc",
+      "compiler/turboshaft-truncate-float64-unittest.cc",
       "compiler/turboshaft/call-runtime-unittest.cc",
       "compiler/turboshaft/control-flow-unittest.cc",
       "compiler/turboshaft/duplication-optimization-reducer-unittest.cc",

@@ -2184,8 +2184,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (i.OutputCount() > 1) {
         __ mov(i.OutputRegister(1), Operand(1));
       }
-      __ ConvertDoubleToInt32(i.OutputRegister(0), i.InputDoubleRegister(0),
-                              kRoundToNearest);
+      __ ConvertDoubleToInt32(i.OutputRegister(0), i.InputDoubleRegister(0));
       __ b(Condition(0xE), &done, Label::kNear);  // normal case
       if (i.OutputCount() > 1) {
         __ mov(i.OutputRegister(1), Operand::Zero());

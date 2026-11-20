@@ -746,6 +746,7 @@
   'TurboshaftCompareCombineTest.*': [SKIP],
   'TurboshaftSelectCombineTest.*': [SKIP],
   'TurboshaftSimdShiftTest.*': [SKIP],
+  'TurboshaftTruncateFloat64Test.*': [SKIP],
   'VerifyTypeTest.*': [SKIP],
   'CodePagesTest.*': [SKIP],
   'ConcurrentAllocationUninitializedTest.*': [SKIP],
