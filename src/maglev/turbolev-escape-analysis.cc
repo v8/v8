@@ -483,13 +483,12 @@ class AnalyzerPrePass {
     return Process(static_cast<NodeBase*>(node), state);
   }
 
-  template <class NodeT>
-  ProcessResult Process(NodeT* node, const ProcessingState&) {
+  ProcessResult Process(NodeBase* node, const ProcessingState&) {
     // Any operation that isn't whitelisted in NOT_ESCAPING_OPS is assumed to
     // make its inputs escape.
     for (Input input : node->inputs()) {
       if (InlinedAllocation* alloc =
-              input.node()->template TryCast<InlinedAllocation>()) {
+              input.node()->TryCast<InlinedAllocation>()) {
         data_.candidates[alloc] = CandidateStatus::kCannotElide;
         if (!alloc->HasBeenAnalysed()) {
           alloc->SetEscaped();
@@ -887,9 +886,7 @@ class CandidateAnalyzer {
     return ProcessResult::kContinue;
   }
 
-  template <class NodeT>
-    requires std::is_base_of_v<NodeBase, NodeT>
-  ProcessResult Process(NodeT* node, const ProcessingState&) {
+  ProcessResult Process(NodeBase* node, const ProcessingState&) {
     // TODO(dmercadier): consider running proper DCE before escape analysis
     // to not block escape analysis on dead nodes.
 
@@ -898,7 +895,7 @@ class CandidateAnalyzer {
       data_.MarkAsEscapedIfCandidate(input_node);
     }
 
-    if constexpr (NodeT::kProperties.can_lazy_deopt()) {
+    if (node->properties().can_lazy_deopt()) {
       // Because lazy frame states can generate stack trace, we must prevent
       // eliding their "receiver" and "function" fields.
       MarkFrameStateReceiverAndFunctionAsEscaping(
@@ -970,6 +967,24 @@ class CandidateAnalyzer {
   EscapeAnalysisData& data_;
   Tracer tracer_;
 };
+
+namespace {
+// HasSpecificProcess<T, NodeT>() is true iff T has a Process overload for
+// NodeT* that is more specific than the generic Process(NodeBase*) fallback.
+// The probe deletes the fallback, so calling Process(NodeT*) on it is only
+// well-formed when such an overload exists.
+template <typename T>
+struct SpecificProcessProbe : T {
+  using T::Process;
+  void Process(NodeBase*, const ProcessingState&) = delete;
+};
+
+template <typename T, typename NodeT>
+constexpr bool HasSpecificProcess() {
+  return requires(SpecificProcessProbe<T>& probe, NodeT* node,
+                  const ProcessingState& state) { probe.Process(node, state); };
+}
+}  // namespace
 
 class FieldValuesTracker : public CandidateAnalyzer {
  public:
@@ -1346,8 +1361,7 @@ class FieldValuesTracker : public CandidateAnalyzer {
     return CandidateAnalyzer::Process(node, state);
   }
 
-  template <class NodeT>
-  ProcessResult Process(NodeT* node, const ProcessingState& state) {
+  void MaybeRecordSnapshot(NodeBase* node) {
     // We're recording a new snapshot for every node so that the Elider can know
     // the current value of any elided field at any point.
     // TODO(dmercadier): this is recording more snapshots than we strictly need
@@ -1361,13 +1375,21 @@ class FieldValuesTracker : public CandidateAnalyzer {
     //
     // For all other nodes, we shouldn't need a snapshot.
     if (!field_values().IsSealed()) {
-      DCHECK(!field_values().IsSealed());
       Snapshot snapshot = field_values().Seal();
       snapshots().insert_or_assign(node, snapshot);
-
       field_values().StartNewSnapshot(snapshot);
     }
+  }
 
+  template <class NodeT>
+    requires(HasSpecificProcess<CandidateAnalyzer, NodeT>())
+  ProcessResult Process(NodeT* node, const ProcessingState& state) {
+    MaybeRecordSnapshot(node);
+    return CandidateAnalyzer::Process(node, state);
+  }
+
+  ProcessResult Process(NodeBase* node, const ProcessingState& state) {
+    MaybeRecordSnapshot(node);
     return CandidateAnalyzer::Process(node, state);
   }
 
@@ -1491,24 +1513,18 @@ class DeoptFrameUpdater {
   }
   void PostPhiProcessing() {}
 
-  template <class NodeT>
-  ProcessResult Process(NodeT* node, const ProcessingState& state) {
-    DCHECK_IMPLIES(node->properties().has_eager_deopt_info(),
-                   NodeT::kProperties.has_eager_deopt_info());
-    DCHECK_IMPLIES(node->properties().can_lazy_deopt(),
-                   NodeT::kProperties.can_lazy_deopt());
-
+  ProcessResult Process(NodeBase* node, const ProcessingState&) {
     // Updating deopt state.
     // TODO(dmercadier): we currently clone all DeoptInfo without even checking
     // if they have elided object inputs that would warrant cloning them. We
     // should instead first inspect the DeoptInfo to see if it has any input
     // that needs to be updated, and only then clone it.
-    if constexpr (NodeT::kProperties.has_eager_deopt_info()) {
+    if (node->properties().has_eager_deopt_info()) {
       TRACE("> Will UpdateEagerDeoptInfo");
       UpdateEagerDeoptInfo(node);
     }
 
-    if constexpr (NodeT::kProperties.can_lazy_deopt()) {
+    if (node->properties().can_lazy_deopt()) {
       TRACE("> Will UpdateLazyDeoptInfo");
       UpdateLazyDeoptInfo(node);
     }
@@ -1516,9 +1532,8 @@ class DeoptFrameUpdater {
     return ProcessResult::kContinue;
   }
 
-  template <class NodeT>
-  void UpdateEagerDeoptInfo(NodeT* node) {
-    static_assert(NodeT::kProperties.has_eager_deopt_info());
+  void UpdateEagerDeoptInfo(NodeBase* node) {
+    DCHECK(node->properties().has_eager_deopt_info());
     DeoptFrame* new_frame_state =
         DeepClone(node->eager_deopt_info()->top_frame(), zone());
     node->SetEagerDeoptInfo(zone(), new_frame_state,
@@ -1526,9 +1541,8 @@ class DeoptFrameUpdater {
     UpdateDeoptFrame(new_frame_state);
   }
 
-  template <class NodeT>
-  void UpdateLazyDeoptInfo(NodeT* node) {
-    static_assert(NodeT::kProperties.can_lazy_deopt());
+  void UpdateLazyDeoptInfo(NodeBase* node) {
+    DCHECK(node->properties().can_lazy_deopt());
     DeoptFrame* new_frame_state =
         DeepClone(node->lazy_deopt_info()->top_frame(), zone());
 
@@ -1947,8 +1961,7 @@ class Elider {
     return ProcessResult::kContinue;
   }
 
-  template <class NodeT>
-  ProcessResult Process(NodeT* node, const ProcessingState& state) {
+  ProcessResult Process(NodeBase* node, const ProcessingState&) {
     TRACE("Nothing to do for regular node " << PRINT_NODE(node));
 
     // TODO(dmercadier): it would be nice to clear unused nodes, but it's not
@@ -1994,8 +2007,7 @@ class FieldValuesRestorer {
   }
   void PostPhiProcessing() {}
 
-  template <class NodeT>
-  ProcessResult Process(NodeT* node, const ProcessingState& state) {
+  ProcessResult Process(NodeBase* node, const ProcessingState&) {
     if (snapshots().contains(node)) {
       if (!field_values().IsSealed()) field_values().Seal();
       DCHECK(snapshots().contains(node));
@@ -2061,15 +2073,6 @@ namespace {
 // This is where HasSpecificProcess comes in: it checks if the Elider or the
 // CandidateAnalyzer has a specific Process overload, then the other one as
 // well.
-
-template <typename T, typename NodeT>
-constexpr bool HasSpecificProcess() {
-  using Signature = ProcessResult (T::*)(NodeT*, const ProcessingState&);
-  // If T has a specific non-template Process(NodeT*, ...) overload,
-  // the static_cast selects it, resulting in a different address than
-  // the template instantiation.
-  return static_cast<Signature>(&T::Process) != &T::template Process<NodeT>;
-}
 
 // Static assertion check for a single node type.
 // Note that It's not required for correctness that the AnalyzerPrePass has the
