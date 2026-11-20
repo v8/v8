@@ -311,6 +311,11 @@ void KnownNodeAspects::Merge(const KnownNodeAspects& other, Zone* zone) {
 void KnownNodeAspects::MergeForLoop(const KnownNodeAspects& backedge,
                                     Zone* zone, const LoopEffects* loop_effects,
                                     bool loop_has_effects) {
+  // The backedge snapshot drops node infos and expressions. Reading them would
+  // first require remapping their keys in UnwrapIdentitiesAndPhisInKeys and
+  // RemapLoopHeaderPhis.
+  DCHECK(backedge.node_infos_.empty());
+  DCHECK(backedge.available_expressions_.empty());
   if (side_effects_require_invalidation_ &&
       (loop_effects == nullptr || loop_effects->unstable_aspects_cleared ||
        loop_effects->elements_kind_transitioned)) {
@@ -455,26 +460,21 @@ void KnownNodeAspects::RemapPropertyAndContextNodes(RemapFn&& remap) {
   remap_context_slots(loaded_context_slots_);
 }
 
+KnownNodeAspects::Ptr KnownNodeAspects::CloneForLoopBackedge() const {
+  Ptr snapshot = Clone();
+  snapshot->node_infos_.clear();
+  snapshot->available_expressions_.clear();
+  return snapshot;
+}
+
 void KnownNodeAspects::UnwrapIdentitiesAndPhisInKeys() {
   auto unwrap = [](ValueNode* node) -> ValueNode* {
     return node == nullptr ? nullptr : node->UnwrapIdentitiesAndPhis();
   };
 
-  // node_infos_ is keyed by canonical value node. When two keys normalize to
-  // the same canonical node (e.g. a single-input phi and its input, or a
-  // conversion rewritten in-place to an untagged conversion), both entries
-  // describe the same value, so combine their facts.
-  // TODO(victorgomes): MergeForLoop no longer reads backedge node_infos_.
-  // Remove this in a follow-up along with an invariant check (e.g. drop
-  // node_infos_ and available_expressions_ from the saved backedge KNA and
-  // DCHECK it in MergeForLoop).
-  node_infos_.RemapKeys(&KnownNodeAspects::GetCanonical,
-                        [](NodeInfo& dst, const NodeInfo& src) {
-                          dst.CombineSameValueFrom(src);
-                        });
-
-  // Values are left as-is (the merge already unwraps identities on value
-  // comparison, and available_expressions_ is not remapped at all).
+  // The saved backedge KNA only keeps the property and context maps (see
+  // CloneForLoopBackedge), and values are unwrapped on comparison during the
+  // merge.
   RemapPropertyAndContextNodes</*kRemapValues=*/false>(unwrap);
 }
 

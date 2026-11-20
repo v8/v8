@@ -405,7 +405,8 @@ void LoopMergePointInterpreterFrameState::MergeLoop(
   if (!is_resumable_loop() &&
       (graph->compilation_info()->is_turbolev() ||
        graph->compilation_info()->flags().is_non_eager_inlining_enabled)) {
-    backedge_known_node_aspects_ = loop_end_state.known_node_aspects()->Clone();
+    backedge_known_node_aspects_ =
+        loop_end_state.known_node_aspects()->CloneForLoopBackedge();
   }
   backedge_deopt_frame_ = backedge_deopt_frame;
 
@@ -476,7 +477,8 @@ bool LoopMergePointInterpreterFrameState::TryMergeLoop(
   if (!is_resumable_loop() &&
       (graph->compilation_info()->is_turbolev() ||
        graph->compilation_info()->flags().is_non_eager_inlining_enabled)) {
-    backedge_known_node_aspects_ = loop_end_state.known_node_aspects()->Clone();
+    backedge_known_node_aspects_ =
+        loop_end_state.known_node_aspects()->CloneForLoopBackedge();
   }
   backedge_deopt_frame_ = backedge_deopt_frame;
 

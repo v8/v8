@@ -201,14 +201,6 @@ class NodeInfo {
       }
     }
 
-    // Fills in alternatives we don't have from `other`. Only valid when both
-    // alternative sets describe the same underlying value.
-    void FillMissingFrom(const AlternativeNodes& other) {
-      for (size_t i = 0; i < Kind::kNumberOfAlternatives; ++i) {
-        if (store_[i] == nullptr) store_[i] = other.store_[i];
-      }
-    }
-
    private:
     // TODO(leszeks): At least one of these is redundant for every node,
     // consider a more compressed form or even linked list.
@@ -268,15 +260,6 @@ class NodeInfo {
     if (any_map_is_unstable_ && !maps_are_stale_) {
       side_effects_require_invalidation = true;
     }
-  }
-
-  // Combines info from `other`, which (after key-normalization) describes the
-  // same underlying value as `this`. Every fact in either entry is valid, so we
-  // keep the most precise type and the union of conversion alternatives.
-  // TODO(victorgomes): also union possible_maps_ on collision (needs a zone).
-  void CombineSameValueFrom(const NodeInfo& other) {
-    IntersectType(other.type_);
-    alternative_.FillMissingFrom(other.alternative_);
   }
 
   void OnSideEffect() {
@@ -399,6 +382,11 @@ class KnownNodeAspects {
   KnownNodeAspects& operator=(KnownNodeAspects&& other) = delete;
 
   inline Ptr Clone() const;
+
+  // Snapshot of the loop-end aspects saved on a loop header for the
+  // loop-header merge. Only keeps what MergeForLoop reads. node_infos_
+  // and available_expressions_ are dropped.
+  Ptr CloneForLoopBackedge() const;
 
   // Unwraps identities and single-input phis in the node-valued keys of the
   // aspect maps (node_infos_ keys, loaded-property object keys and context-slot
