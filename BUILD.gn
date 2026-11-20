@@ -6308,6 +6308,7 @@ exclude_from_compiler_cluster = [
   "src/compiler/wasm-load-elimination.cc",  # MayAlias.
   "src/compiler/backend/move-optimizer.cc",  # Unqualified Assembler on arm64
                                              # vs. using namespace turboshaft.
+  "src/maglev/maglev-ir.cc",  # Only here if !v8_enable_maglev.
 ]
 
 if (v8_enable_builtins_block_position) {
