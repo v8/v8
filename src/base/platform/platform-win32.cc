@@ -1865,25 +1865,6 @@ std::optional<OS::MemoryRange> OS::GetFirstFreeMemoryRangeWithin(
 }
 
 // static
-Stack::StackSlot Stack::ObtainCurrentThreadStackStart() {
-#if defined(V8_TARGET_ARCH_X64)
-  return reinterpret_cast<void*>(
-      reinterpret_cast<NT_TIB64*>(NtCurrentTeb())->StackBase);
-#elif defined(V8_TARGET_ARCH_32_BIT)
-  return reinterpret_cast<void*>(
-      reinterpret_cast<NT_TIB*>(NtCurrentTeb())->StackBase);
-#elif defined(V8_TARGET_ARCH_ARM64)
-  // Windows 8 and later, see
-  // https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getcurrentthreadstacklimits
-  ULONG_PTR lowLimit, highLimit;
-  ::GetCurrentThreadStackLimits(&lowLimit, &highLimit);
-  return reinterpret_cast<void*>(highLimit);
-#else
-#error Unsupported ObtainCurrentThreadStackStart.
-#endif
-}
-
-// static
 Stack::StackSlot Stack::GetCommittedStackLimit() {
 #if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64)
   return reinterpret_cast<void*>(
@@ -1897,7 +1878,24 @@ Stack::StackSlot Stack::GetCommittedStackLimit() {
 }
 
 // static
-Stack::StackSlot Stack::ObtainCurrentThreadStackReservedLimit() {
+Stack::StackBounds Stack::ObtainCurrentThreadStackBounds() {
+  void* start;
+#if defined(V8_TARGET_ARCH_X64)
+  start = reinterpret_cast<void*>(
+      reinterpret_cast<NT_TIB64*>(NtCurrentTeb())->StackBase);
+#elif defined(V8_TARGET_ARCH_32_BIT)
+  start = reinterpret_cast<void*>(
+      reinterpret_cast<NT_TIB*>(NtCurrentTeb())->StackBase);
+#elif defined(V8_TARGET_ARCH_ARM64)
+  // Windows 8 and later, see
+  // https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getcurrentthreadstacklimits
+  ULONG_PTR lowLimit, highLimit;
+  ::GetCurrentThreadStackLimits(&lowLimit, &highLimit);
+  start = reinterpret_cast<void*>(highLimit);
+#else
+#error Unsupported ObtainCurrentThreadStackBounds.
+#endif
+
   // On Windows, "StackLimit" (see function above) is the limit of the stack
   // pages committed so far and grows dynamically. The absolute limit of the
   // reserved stack memory is called "DeallocationStack". It does not have an
@@ -1911,8 +1909,9 @@ Stack::StackSlot Stack::ObtainCurrentThreadStackReservedLimit() {
 #else
   constexpr unsigned kDeallocationStackOffset = 0xe0c;
 #endif
-  return *reinterpret_cast<void**>(reinterpret_cast<char*>(NtCurrentTeb()) +
-                                   kDeallocationStackOffset);
+  void* reserved_limit = *reinterpret_cast<void**>(
+      reinterpret_cast<char*>(NtCurrentTeb()) + kDeallocationStackOffset);
+  return {start, reserved_limit};
 }
 
 // static

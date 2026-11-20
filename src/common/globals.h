@@ -181,7 +181,15 @@ namespace internal {
 #if V8_TARGET_ARCH_ARM
 // Set stack limit lower for ARM than for other architectures because stack
 // allocating MacroAssembler takes 120K bytes.  See issue crbug.com/405338
+#if V8_OS_ANDROID
+// On 32-bit Android, Bionic's default pthread stack size
+// (PTHREAD_STACK_SIZE_DEFAULT) is 1008 KB (1 MB minus 16 KB for
+// SIGNAL_STACK_SIZE_WITHOUT_GUARD). Leave the same 160 KB margin as on
+// 1 MB stack systems.
+#define V8_DEFAULT_STACK_SIZE_KB 848
+#else
 #define V8_DEFAULT_STACK_SIZE_KB 864
+#endif
 #define V8_STACK_LIMIT_MARGIN_KB 160
 #elif V8_TARGET_ARCH_IA32
 // As of crrev.com/c/2461589, Chrome creates some threads (at least worker

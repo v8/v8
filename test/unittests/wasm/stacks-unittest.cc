@@ -10,6 +10,8 @@
 #include <vector>
 
 #include "src/base/platform/mutex.h"
+#include "src/base/platform/platform.h"
+#include "src/execution/isolate.h"
 #include "src/flags/flags.h"
 #include "src/utils/allocation.h"
 #include "test/common/flag-utils.h"
@@ -231,5 +233,31 @@ TEST_F(WasmStackMemoryReleaseTest, PoolDestruction) {
   EXPECT_EQ(1u, tracker_.FreeCount(reservation1));
   EXPECT_EQ(1u, tracker_.FreeCount(reservation2));
 }
+
+#if !USE_SIMULATOR
+using CentralStackBoundsTest = TestWithIsolate;
+
+TEST_F(CentralStackBoundsTest, IsOnCentralStackUsesReservedLimit) {
+  base::Stack::StackBounds bounds = base::Stack::GetStackBounds();
+  if (bounds.reserved_limit == kNullAddress) {
+    GTEST_SKIP() << "Reserved stack limit unavailable on this thread";
+  }
+  Address stack_start = bounds.start;
+  Address reserved_limit = bounds.reserved_limit;
+
+  // Temporarily set V8's stack_size so that stack_start - (stack_size +
+  // JSStackLimitMargin) falls below the real reserved stack limit.
+  size_t old_stack_size = i_isolate()->stack_size();
+  i_isolate()->SetStackSize(stack_start - reserved_limit);
+
+  EXPECT_FALSE(i_isolate()->IsOnCentralStack(reserved_limit));
+  EXPECT_FALSE(i_isolate()->IsOnCentralStack(reserved_limit - 1));
+  EXPECT_TRUE(i_isolate()->IsOnCentralStack(reserved_limit + 1));
+  EXPECT_TRUE(i_isolate()->IsOnCentralStack(stack_start));
+  EXPECT_FALSE(i_isolate()->IsOnCentralStack(stack_start + 1));
+
+  i_isolate()->SetStackSize(old_stack_size);
+}
+#endif  // !USE_SIMULATOR
 
 }  // namespace v8::internal::wasm

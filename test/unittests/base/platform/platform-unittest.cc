@@ -390,8 +390,55 @@ TEST(StackTest, StackVariableInBounds) {
             Stack::GetRealStackAddressForSlot(&dummy));
   EXPECT_LE(static_cast<void*>(Stack::GetCurrentStackPosition()),
             Stack::GetRealStackAddressForSlot(&dummy));
+  if (void* reserved_limit = Stack::GetReservedStackLimit()) {
+    EXPECT_LE(reserved_limit,
+              static_cast<void*>(Stack::GetCurrentStackPosition()));
+  }
 }
 #endif  // !V8_OS_FUCHSIA
+
+#if defined(V8_OS_WIN) || defined(V8_OS_DARWIN) || defined(V8_OS_LINUX) || \
+    defined(V8_OS_ANDROID)
+namespace {
+class ReservedStackLimitThread : public Thread {
+ public:
+  ReservedStackLimitThread() : Thread(Options("ReservedStackLimitThread")) {}
+
+  void Run() override {
+    void* reserved_limit = Stack::GetReservedStackLimit();
+    ASSERT_NE(nullptr, reserved_limit);
+    void* sp = Stack::GetCurrentStackPosition();
+    void* stack_start = Stack::GetStackStart();
+    EXPECT_LE(reserved_limit, sp);
+    EXPECT_LE(sp, stack_start);
+    Stack::StackBounds bounds = Stack::GetStackBounds();
+    EXPECT_EQ(stack_start, static_cast<void*>(bounds.start));
+    EXPECT_EQ(reserved_limit, static_cast<void*>(bounds.reserved_limit));
+  }
+};
+}  // namespace
+
+TEST(StackTest, GetReservedStackLimit) {
+  // Call GetReservedStackLimit() before GetStackStart() on the main thread to
+  // exercise initializing the cached bounds from this entry point.
+  void* main_reserved_limit = Stack::GetReservedStackLimit();
+#if defined(V8_OS_WIN) || defined(V8_OS_DARWIN)
+  EXPECT_NE(nullptr, main_reserved_limit);
+#endif
+  if (main_reserved_limit) {
+    EXPECT_LE(main_reserved_limit,
+              static_cast<void*>(Stack::GetCurrentStackPosition()));
+    EXPECT_LE(static_cast<void*>(Stack::GetCurrentStackPosition()),
+              static_cast<void*>(Stack::GetStackStart()));
+  }
+
+  // On a spawned worker thread, GetReservedStackLimit() is always available
+  // (even on musl or under `ulimit -s unlimited`).
+  ReservedStackLimitThread thread;
+  ASSERT_TRUE(thread.Start());
+  thread.Join();
+}
+#endif
 
 using SetDataReadOnlyTest = ::testing::Test;
 

@@ -2418,6 +2418,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
 #if V8_ENABLE_WEBASSEMBLY
   bool IsOnCentralStack();
+  bool IsOnCentralStack(Address addr);
   std::vector<std::unique_ptr<wasm::StackMemory>>& wasm_stacks() {
     return wasm_stacks_;
   }
@@ -2438,6 +2439,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void RetireWasmStack(wasm::StackMemory* stack);
 #else
   bool IsOnCentralStack() { return true; }
+  bool IsOnCentralStack(Address addr) { return true; }
 #endif
 
   // Access to the global "locals block list cache". Caches outer-stack
@@ -2624,12 +2626,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
   void AddCrashKeysForIsolateAndHeapPointers();
-
-#if V8_ENABLE_WEBASSEMBLY
-  bool IsOnCentralStack(Address addr);
-#else
-  bool IsOnCentralStack(Address addr) { return true; }
-#endif
 
   // This class contains a collection of data accessible from both C++ runtime
   // and compiled code (including assembly stubs, builtins, interpreter bytecode

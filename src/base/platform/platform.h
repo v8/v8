@@ -714,6 +714,13 @@ class V8_BASE_EXPORT Stack {
     uintptr_t value;
   };
 
+  struct StackBounds {
+    // Highest address of the stack, or nullptr if unavailable.
+    StackSlot start;
+    // Lowest address that the stack can grow to, or nullptr if unavailable.
+    StackSlot reserved_limit;
+  };
+
   // Gets the start of the stack of the current thread.
   static StackSlot GetStackStart();
   // Gets the custom start of the stack of the current thread if set, otherwise
@@ -721,6 +728,8 @@ class V8_BASE_EXPORT Stack {
   static StackSlot GetEffectiveStackStart();
   // Gets the lowest address that the stack can grow to.
   static StackSlot GetReservedStackLimit();
+  // Gets both the stack start and reserved stack limit of the current thread.
+  static StackBounds GetStackBounds();
 
   // On Windows, the TEB's StackLimit changes during execution as the stack
   // grows. Expose a function to get it.
@@ -784,10 +793,8 @@ class V8_BASE_EXPORT Stack {
   }
 
  private:
-  // Return the current thread stack start pointer.
-  static StackSlot ObtainCurrentThreadStackStart();
-  // Lowest address that the stack can grow to.
-  static StackSlot ObtainCurrentThreadStackReservedLimit();
+  static void EnsureThreadStackDataInitialized();
+  static StackBounds ObtainCurrentThreadStackBounds();
 
   friend class heap::base::Stack;
 };
