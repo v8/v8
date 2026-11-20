@@ -308,10 +308,11 @@ struct builtin : CallDescriptorBuilder {
     static constexpr bool kNeedsContext = true;
     static constexpr Operator::Properties kProperties =
         Operator::kNoThrow | Operator::kNoDeopt;
-    // Looking up a string key can internalize it in place into a ThinString.
+    // Looking up a string key can internalize it in place into a ThinString,
+    // which is unobservable if the lookup result is unused.
     static constexpr OpEffects kEffects = base_effects.AssumesConsistentHeap()
                                               .CanReadMemory()
-                                              .CanWriteHeapMemory()
+                                              .CanWriteHeapMemoryIfUsed()
                                               .CanAllocate();
   };
   using FindOrderedHashMapEntry =
@@ -1797,8 +1798,13 @@ struct BuiltinCallDescriptor {
 
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
-    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
-    static constexpr OpEffects kEffects = base_effects.CanReadMemory();
+    static constexpr Operator::Properties kProperties =
+        Operator::kNoDeopt | Operator::kNoThrow;
+    // Computes and caches the hash in Name::raw_hash_field_. The heap write
+    // must be modeled for load elimination and GVN, but is not observable if
+    // the call is unused, so the operation remains eliminatable.
+    static constexpr OpEffects kEffects =
+        base_effects.CanReadMemory().CanWriteHeapMemoryIfUsed();
   };
 
   struct ThrowDataViewDetachedError

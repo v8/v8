@@ -8,6 +8,7 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/compiler/turboshaft/wasm-load-elimination-reducer.h"
+#include "src/wasm/wasm-objects.h"
 #endif
 
 #include "src/codegen/interface-descriptors.h"
@@ -18,6 +19,7 @@
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/builtin-call-descriptors.h"
 #include "src/compiler/turboshaft/copying-phase.h"
+#include "src/compiler/turboshaft/dead-code-elimination-reducer.h"
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
 #include "src/compiler/turboshaft/operations.h"
@@ -25,6 +27,7 @@
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/required-optimization-reducer.h"
+#include "src/compiler/turboshaft/runtime-call-descriptors.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
 #include "src/flags/flags.h"
 #include "src/objects/code.h"
@@ -557,10 +560,12 @@ TEST_F(LateLoadEliminationReducerTest,
     const Operation* map_op = effects_test.GetCapture("map_op").Get();
     EXPECT_TRUE(map_op->Effects().can_write());
     EXPECT_TRUE(map_op->Effects().can_allocate);
+    EXPECT_FALSE(map_op->IsRequiredWhenUnused());
 
     const Operation* set_op = effects_test.GetCapture("set_op").Get();
     EXPECT_TRUE(set_op->Effects().can_write());
     EXPECT_TRUE(set_op->Effects().can_allocate);
+    EXPECT_FALSE(set_op->IsRequiredWhenUnused());
 
     const Operation* int32_op = effects_test.GetCapture("int32_op").Get();
     EXPECT_FALSE(int32_op->Effects().can_write());
@@ -613,6 +618,38 @@ TEST_F(LateLoadEliminationReducerTest,
   // Non-escaping allocations remain eligible for load elimination.
   if (!LATE_LOAD_ELIM_VERIFY) {
     ASSERT_TRUE(test.GetCapture("local_load").IsEmpty());
+  }
+
+  {
+    TestInstance dce_test = CreateFromGraph(
+        base::VectorOf({RegisterRepresentation::Tagged(),
+                        RegisterRepresentation::Tagged(),
+                        RegisterRepresentation::Word32()}),
+        [](TestInstance& Asm) {
+          V<Object> table = Asm.GetParameter<Object>(0);
+          V<Smi> key = Asm.GetParameter<Smi>(1);
+          V<Word32> cond = Asm.GetParameter<Word32>(2);
+          IF (cond) {
+            V<Smi> C(unused_map_op) = __ FindOrderedHashMapEntry(table, key);
+            V<Smi> C(unused_set_op) = __ FindOrderedHashSetEntry(table, key);
+            V<Smi> C(unused_builtin_call) =
+                __ CallBuiltin<builtin::FindOrderedHashMapEntry>(
+                    Asm.context(), {.table = table, .key = key});
+            USE(unused_map_op);
+            USE(unused_set_op);
+            USE(unused_builtin_call);
+          }
+          __ Return(__ Word32Constant(0));
+        });
+
+    dce_test.Run<DeadCodeEliminationReducer>();
+
+    // Unused ordered hash lookups have no observable side effects and are
+    // eliminatable.
+    EXPECT_TRUE(dce_test.GetCapture("unused_map_op").IsEmpty());
+    EXPECT_TRUE(dce_test.GetCapture("unused_set_op").IsEmpty());
+    EXPECT_TRUE(dce_test.GetCapture("unused_builtin_call").IsEmpty());
+    EXPECT_LE(dce_test.graph().block_count(), 2u);
   }
 }
 
@@ -829,8 +866,8 @@ TEST_F(LateLoadEliminationReducerTest,
                    WriteBarrierKind::kNoWriteBarrier, off);
         };
         auto WritingCall = [&]() {
-          __ template CallBuiltin<builtin::FindOrderedHashMapEntry>(
-              Asm.context(), {.table = obj, .key = obj});
+          __ template CallBuiltin<builtin::CopyFastSmiOrObjectElements>(
+              {.object = obj});
         };
 
         StoreMut(obj, 8, val);
@@ -949,6 +986,116 @@ TEST_F(WasmLateLoadEliminationReducerTest, WasmTriviallyEliminatedLoad) {
 
   // Baseline: load elimination occurs.
   ASSERT_TRUE(test.GetCapture("load1").IsEmpty());
+}
+
+TEST_F(WasmLateLoadEliminationReducerTest,
+       WasmStringHashInvalidatesLoadAndIsEliminatable) {
+  {
+    TestInstance test = CreateFromGraph(
+        1,
+        [](TestInstance& Asm) {
+          V<String> str = Asm.GetParameter<String>(0);
+          V<Word32> load0 =
+              __ LoadField<Word32>(str, AccessBuilder::ForNameRawHashField());
+          V<Word32> C(hash_call) = __ WasmCallBuiltinThroughJumptable<
+              deprecated::BuiltinCallDescriptor::WasmStringHash>({str});
+          V<Word32> C(load1) =
+              __ LoadField<Word32>(str, AccessBuilder::ForNameRawHashField());
+          __ Return(__ Word32Constant(0),
+                    base::VectorOf<OpIndex>({load0, hash_call, load1}));
+        },
+        /* is_wasm */ true);
+
+    const Operation* hash_op = test.GetCapture("hash_call").Get();
+    ASSERT_NE(hash_op, nullptr);
+    EXPECT_TRUE(hash_op->Effects().can_write());
+    EXPECT_FALSE(hash_op->IsRequiredWhenUnused());
+
+    test.Run<LateLoadEliminationReducer>();
+
+    // Live WasmStringHash writes Name::raw_hash_field_, so load1 must stay.
+    const LoadOp* load1 = test.GetCapturedAs<LoadOp>("load1");
+    ASSERT_NE(load1, nullptr);
+  }
+
+  {
+    TestInstance dce_test = CreateFromGraph(
+        base::VectorOf({RegisterRepresentation::Tagged(),
+                        RegisterRepresentation::Word32()}),
+        [](TestInstance& Asm) {
+          V<String> str = Asm.GetParameter<String>(0);
+          V<Word32> cond = Asm.GetParameter<Word32>(1);
+          IF (cond) {
+            V<Word32> C(unused_hash) = __ WasmCallBuiltinThroughJumptable<
+                deprecated::BuiltinCallDescriptor::WasmStringHash>({str});
+            USE(unused_hash);
+          }
+          __ Return(__ Word32Constant(0));
+        },
+        /* is_wasm */ true);
+
+    dce_test.Run<DeadCodeEliminationReducer>();
+
+    // Unused WasmStringHash has no observable side effects and is eliminatable.
+    EXPECT_TRUE(dce_test.GetCapture("unused_hash").IsEmpty());
+    EXPECT_LE(dce_test.graph().block_count(), 2u);
+  }
+}
+
+TEST_F(WasmLateLoadEliminationReducerTest,
+       WasmExternConvertAnyInvalidatesLoadAndIsEliminatable) {
+  {
+    TestInstance test = CreateFromGraph(1, [](TestInstance& Asm) {
+      V<Object> obj = Asm.GetParameter<Object>(0);
+      V<Object> load0 = __ Load(obj, LoadOp::Kind::TaggedBase(),
+                                MemoryRepresentation::TaggedPointer(),
+                                offsetof(WasmCustomMap, js_wrapper_));
+      V<JSObject> C(convert_call) =
+          __ CallRuntime<runtime::WasmExternConvertAny>(__ NoContextConstant(),
+                                                        {.object = obj});
+      V<Object> C(load1) = __ Load(obj, LoadOp::Kind::TaggedBase(),
+                                   MemoryRepresentation::TaggedPointer(),
+                                   offsetof(WasmCustomMap, js_wrapper_));
+      __ Return(__ Word32Constant(0),
+                base::VectorOf<OpIndex>({load0, convert_call, load1}));
+    });
+
+    const Operation* convert_op = test.GetCapture("convert_call").Get();
+    ASSERT_NE(convert_op, nullptr);
+    EXPECT_TRUE(convert_op->Effects().can_write());
+    EXPECT_FALSE(convert_op->IsRequiredWhenUnused());
+
+    test.Run<LateLoadEliminationReducer>();
+
+    // Live WasmExternConvertAny writes WasmCustomMap::js_wrapper_, so load1
+    // must stay.
+    const LoadOp* load1 = test.GetCapturedAs<LoadOp>("load1");
+    ASSERT_NE(load1, nullptr);
+  }
+
+  {
+    TestInstance dce_test =
+        CreateFromGraph(base::VectorOf({RegisterRepresentation::Tagged(),
+                                        RegisterRepresentation::Word32()}),
+                        [](TestInstance& Asm) {
+                          V<Object> obj = Asm.GetParameter<Object>(0);
+                          V<Word32> cond = Asm.GetParameter<Word32>(1);
+                          IF (cond) {
+                            V<JSObject> C(unused_convert) =
+                                __ CallRuntime<runtime::WasmExternConvertAny>(
+                                    __ NoContextConstant(), {.object = obj});
+                            USE(unused_convert);
+                          }
+                          __ Return(__ Word32Constant(0));
+                        });
+
+    dce_test.Run<DeadCodeEliminationReducer>();
+
+    // Unused WasmExternConvertAny has no observable side effects and is
+    // eliminatable.
+    EXPECT_TRUE(dce_test.GetCapture("unused_convert").IsEmpty());
+    EXPECT_LE(dce_test.graph().block_count(), 2u);
+  }
 }
 
 TEST_F(WasmLateLoadEliminationReducerTest, WasmAtomicsNoElimination) {
