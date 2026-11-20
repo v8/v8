@@ -1140,11 +1140,16 @@ class JSGlobalProxyData : public JSObjectData {
 HEAP_BROKER_OBJECT_LIST(DEFINE_IS)
 #undef DEFINE_IS
 
-#define DEFINE_AS(Name)                              \
-  Name##Data* ObjectData::As##Name() {               \
-    CHECK(Is##Name());                               \
-    CHECK(kind_ == kBackgroundSerializedHeapObject); \
-    return static_cast<Name##Data*>(this);           \
+#define DEFINE_AS(Name)                                                  \
+  Name##Data* ObjectData::As##Name() {                                   \
+    CHECK_EQ(kind_, kBackgroundSerializedHeapObject);                    \
+    auto* ho_data = static_cast<HeapObjectData*>(this);                  \
+    /* Guard against partially-constructed HeapObjectData during */      \
+    /* corrupted recursive serialization (see crbug.com/379985068). */   \
+    CHECK_NOT_NULL(ho_data->map());                                      \
+    CHECK(InstanceTypeChecker::Is##Name(ho_data->data_instance_type())); \
+    DCHECK(Is##Name());                                                  \
+    return static_cast<Name##Data*>(this);                               \
   }
 HEAP_BROKER_BACKGROUND_SERIALIZED_OBJECT_LIST(DEFINE_AS)
 #undef DEFINE_AS
