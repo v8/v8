@@ -79,6 +79,7 @@ void LookupIterator::Next() {
   DCHECK_NE(JSPROXY, state_);
   DCHECK_NE(TRANSITION, state_);
   DCHECK_NE(NOT_FOUND, state_);
+  DCHECK_NE(STRING_LOOKUP_START_OBJECT, state_);
   DisallowGarbageCollection no_gc;
   has_property_ = false;
 
@@ -89,6 +90,8 @@ void LookupIterator::Next() {
     state_ = IsElement() ? LookupInSpecialHolder<true>(map, holder)
                          : LookupInSpecialHolder<false>(map, holder);
     if (IsFound()) return;
+  } else {
+    state_ = NOT_FOUND;
   }
 
   IsElement() ? NextInternal<true>(map, holder)
@@ -98,6 +101,7 @@ void LookupIterator::Next() {
 template <bool is_element>
 void LookupIterator::NextInternal(Tagged<Map> orig_map,
                                   Tagged<JSReceiver> holder) {
+  CHECK_EQ(NOT_FOUND, state_);
   Tagged<Map> map = orig_map;
   do {
     Tagged<JSReceiver> maybe_holder = NextHolder(map);
