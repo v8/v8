@@ -4266,6 +4266,21 @@ void BytecodeGenerator::VisitConditionalChain(ConditionalChain* expr) {
       builder(), block_coverage_builder_, expr,
       expr->conditional_chain_length());
 
+  TestResultScope* test_result =
+      execution_result()->IsTest() ? execution_result()->AsTest() : nullptr;
+
+  // When only the truthiness of the chain result is needed, test each arm
+  // directly against the outer labels instead of materializing a value.
+  auto visit_arm = [&](Expression* arm, bool is_tail) {
+    if (test_result != nullptr) {
+      VisitForTest(
+          arm, test_result->then_labels(), test_result->else_labels(),
+          is_tail ? test_result->fallthrough() : TestFallthrough::kNone);
+    } else {
+      VisitForAccumulatorValue(arm);
+    }
+  };
+
   HoleCheckElisionMergeScope merge_elider(this);
   {
     bool should_visit_else_expression = true;
@@ -4276,7 +4291,7 @@ void BytecodeGenerator::VisitConditionalChain(ConditionalChain* expr) {
         should_visit_else_expression = false;
         HoleCheckElisionMergeScope::Branch branch(merge_elider);
         conditional_builder.ThenAt(i);
-        VisitForAccumulatorValue(expr->then_expression_at(i));
+        visit_arm(expr->then_expression_at(i), true);
         break;
       } else if (expr->condition_at(i)->ToBooleanIsFalse()) {
         // Generate else block unconditionally by skipping the then block.
@@ -4289,9 +4304,11 @@ void BytecodeGenerator::VisitConditionalChain(ConditionalChain* expr) {
         {
           HoleCheckElisionMergeScope::Branch branch(merge_elider);
           conditional_builder.ThenAt(i);
-          VisitForAccumulatorValue(expr->then_expression_at(i));
+          visit_arm(expr->then_expression_at(i), false);
         }
-        conditional_builder.JumpToEnd();
+        if (test_result == nullptr) {
+          conditional_builder.JumpToEnd();
+        }
         {
           HoleCheckElisionMergeScope::Branch branch(merge_elider);
           conditional_builder.ElseAt(i);
@@ -4300,10 +4317,13 @@ void BytecodeGenerator::VisitConditionalChain(ConditionalChain* expr) {
     }
 
     if (should_visit_else_expression) {
-      VisitForAccumulatorValue(expr->else_expression());
+      visit_arm(expr->else_expression(), true);
     }
   }
   merge_elider.Merge();
+  if (test_result != nullptr) {
+    test_result->SetResultConsumedByTest();
+  }
 }
 
 void BytecodeGenerator::VisitConditional(Conditional* expr) {
@@ -4313,11 +4333,41 @@ void BytecodeGenerator::VisitConditional(Conditional* expr) {
   if (expr->condition()->ToBooleanIsTrue()) {
     // Generate then block unconditionally as always true.
     conditional_builder.Then();
-    VisitForAccumulatorValue(expr->then_expression());
+    if (execution_result()->IsTest()) {
+      VisitInSameTestExecutionScope(expr->then_expression());
+    } else {
+      VisitForAccumulatorValue(expr->then_expression());
+    }
   } else if (expr->condition()->ToBooleanIsFalse()) {
     // Generate else block unconditionally if it exists.
     conditional_builder.Else();
-    VisitForAccumulatorValue(expr->else_expression());
+    if (execution_result()->IsTest()) {
+      VisitInSameTestExecutionScope(expr->else_expression());
+    } else {
+      VisitForAccumulatorValue(expr->else_expression());
+    }
+  } else if (execution_result()->IsTest()) {
+    TestResultScope* test_result = execution_result()->AsTest();
+    VisitForTest(expr->condition(), conditional_builder.then_labels(),
+                 conditional_builder.else_labels(), TestFallthrough::kThen);
+
+    HoleCheckElisionMergeScope merge_elider(this);
+    conditional_builder.Then();
+    {
+      HoleCheckElisionMergeScope::Branch branch_elider(merge_elider);
+      VisitForTest(expr->then_expression(), test_result->then_labels(),
+                   test_result->else_labels(), TestFallthrough::kNone);
+    }
+
+    conditional_builder.Else();
+    {
+      HoleCheckElisionMergeScope::Branch branch_elider(merge_elider);
+      VisitForTest(expr->else_expression(), test_result->then_labels(),
+                   test_result->else_labels(), test_result->fallthrough());
+    }
+
+    merge_elider.Merge();
+    test_result->SetResultConsumedByTest();
   } else {
     VisitForTest(expr->condition(), conditional_builder.then_labels(),
                  conditional_builder.else_labels(), TestFallthrough::kThen);
