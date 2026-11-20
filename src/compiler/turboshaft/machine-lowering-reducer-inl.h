@@ -3249,41 +3249,51 @@ class MachineLoweringReducer : public Next {
         bailout);
 
     V<WordPtr> min_length_ptr = __ ChangeInt32ToIntPtr(min_length);
-    {
+    if (!__ generating_unreachable_operations()) {
       ScopedVar<WordPtr> i(this, 0);
-      static_assert(OFFSET_OF_DATA_START(SeqOneByteString) % sizeof(uint32_t) ==
-                    0);
-      V<WordPtr> chunk_end = __ WordPtrSub(min_length_ptr, 4);
-      WHILE(__ IntPtrLessThanOrEqual(i, chunk_end)) {
-        V<Word32> lw = __ Load(left, i, LoadOp::Kind::TaggedBase(),
-                               MemoryRepresentation::Uint32(),
-                               OFFSET_OF_DATA_START(SeqOneByteString));
-        V<Word32> rw = __ Load(right, i, LoadOp::Kind::TaggedBase(),
-                               MemoryRepresentation::Uint32(),
-                               OFFSET_OF_DATA_START(SeqOneByteString));
-        GOTO_IF_NOT(__ Word32Equal(__ Word32BitwiseAnd(
-                                       __ Word32BitwiseOr(lw, rw), 0x80808080u),
-                                   0),
-                    bailout);
-        IF_NOT (__ Word32Equal(lw, rw)) {
-          V<Word32> diff = __ Word32BitwiseXor(lw, rw);
+      // Skip the 4-byte loop when either operand has a constant length < 4
+      // (folded by MachineOptimizationReducer).
+      auto is_short_const = [&](V<Word32> len) {
+        uint32_t c;
+        return __ matcher().MatchIntegralWord32Constant(len, &c) && c < 4;
+      };
+      if (!is_short_const(left_length) && !is_short_const(right_length)) {
+        static_assert(
+            OFFSET_OF_DATA_START(SeqOneByteString) % sizeof(uint32_t) == 0);
+        V<WordPtr> chunk_end = __ WordPtrSub(min_length_ptr, 4);
+        WHILE(__ IntPtrLessThanOrEqual(i, chunk_end)) {
+          V<Word32> lw = __ Load(left, i, LoadOp::Kind::TaggedBase(),
+                                 MemoryRepresentation::Uint32(),
+                                 OFFSET_OF_DATA_START(SeqOneByteString));
+          V<Word32> rw = __ Load(right, i, LoadOp::Kind::TaggedBase(),
+                                 MemoryRepresentation::Uint32(),
+                                 OFFSET_OF_DATA_START(SeqOneByteString));
+          GOTO_IF_NOT(
+              __ Word32Equal(
+                  __ Word32BitwiseAnd(__ Word32BitwiseOr(lw, rw), 0x80808080u),
+                  0),
+              bailout);
+          IF_NOT (__ Word32Equal(lw, rw)) {
+            V<Word32> diff = __ Word32BitwiseXor(lw, rw);
 #if V8_TARGET_LITTLE_ENDIAN
-          V<Word32> bit =
-              SupportedOperations::word32_ctz()
-                  ? __ Word32CountTrailingZeros(diff)
-                  : __ Word32CountLeadingZeros(__ Word32ReverseBytes(diff));
-          V<Word32> shift = __ Word32BitwiseAnd(bit, ~7);
+            V<Word32> bit =
+                SupportedOperations::word32_ctz()
+                    ? __ Word32CountTrailingZeros(diff)
+                    : __ Word32CountLeadingZeros(__ Word32ReverseBytes(diff));
+            V<Word32> shift = __ Word32BitwiseAnd(bit, ~7);
 #else
-          V<Word32> leading =
-              __ Word32BitwiseAnd(__ Word32CountLeadingZeros(diff), ~7);
-          V<Word32> shift = __ Word32Sub(24, leading);
+            V<Word32> leading =
+                __ Word32BitwiseAnd(__ Word32CountLeadingZeros(diff), ~7);
+            V<Word32> shift = __ Word32Sub(24, leading);
 #endif
-          GOTO(
-              weight_compare,
-              __ Word32BitwiseAnd(__ Word32ShiftRightLogical(lw, shift), 0xFF),
-              __ Word32BitwiseAnd(__ Word32ShiftRightLogical(rw, shift), 0xFF));
+            GOTO(weight_compare,
+                 __ Word32BitwiseAnd(__ Word32ShiftRightLogical(lw, shift),
+                                     0xFF),
+                 __ Word32BitwiseAnd(__ Word32ShiftRightLogical(rw, shift),
+                                     0xFF));
+          }
+          i = __ WordPtrAdd(i, 4);
         }
-        i = __ WordPtrAdd(i, 4);
       }
       WHILE(__ IntPtrLessThan(i, min_length_ptr)) {
         V<Word32> lc = LoadFromSeqOneByteString(left, i);

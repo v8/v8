@@ -174,3 +174,60 @@ for (let c = 0; c < 128; c++) {
                `constTwoByte(${JSON.stringify(arg)})`);
 }
 assertEquals(0, constTwoByte(kTwoByte));
+
+// Short constant operands (lengths 0..4, as receiver and as argument) cover
+// eliding the 4-byte prefix loop when either operand has constant length < 4.
+const shortConstants = [
+  ["", (x) => "".localeCompare(x), (x) => x.localeCompare("")],
+  ["f", (x) => "f".localeCompare(x), (x) => x.localeCompare("f")],
+  ["fo", (x) => "fo".localeCompare(x), (x) => x.localeCompare("fo")],
+  ["f\xff", (x) => "f\xff".localeCompare(x), (x) => x.localeCompare("f\xff")],
+  ["fox", (x) => "fox".localeCompare(x), (x) => x.localeCompare("fox")],
+  ["foxy", (x) => "foxy".localeCompare(x), (x) => x.localeCompare("foxy")],
+];
+const shortInputs = [
+  "", "e", "f", "g", "F", "\xff",
+  "fa", "fo", "fp", "Fo", "f\xff",
+  "foa", "fox", "foy", "foX", "fo\xff",
+  "foxa", "foxy", "foxz", "foxY", "fox\xff", "foxy0",
+  ["f", "o"].join(""), ["f", "\xff"].join(""), ["f", "o", "x"].join(""),
+  ["fo", "xy"].join(""),
+  %ConstructConsString("fox", "yyyyyyyyyy"),
+  %ConstructSlicedString("xfoxyzzzzzzzzzz", 1),
+  "中",
+];
+for (const [cst, cmpLeft, cmpRight] of shortConstants) {
+  %PrepareFunctionForOptimization(cmpLeft);
+  %PrepareFunctionForOptimization(cmpRight);
+  cmpLeft("abc");
+  cmpRight("abc");
+  %OptimizeFunctionOnNextCall(cmpLeft);
+  %OptimizeFunctionOnNextCall(cmpRight);
+  for (const arg of shortInputs) {
+    assertEquals(Math.sign(unopt(cst, arg)), Math.sign(cmpLeft(arg)),
+                 `cmpLeft(${JSON.stringify(cst)}, ${JSON.stringify(arg)})`);
+    assertEquals(Math.sign(unopt(arg, cst)), Math.sign(cmpRight(arg)),
+                 `cmpRight(${JSON.stringify(arg)}, ${JSON.stringify(cst)})`);
+  }
+  assertEquals(Math.sign(unopt(cst, 5)), Math.sign(cmpLeft(5)));
+}
+
+// Same-operand calls fold TaggedEqual so the prefix walk is unreachable during
+// MachineLowering; also cover constant and tagged Smi arguments.
+function cmpSelf(x) { return x.localeCompare(x); }
+function cmpConstSelf() { return "fox".localeCompare("fox"); }
+function cmpConstSmi() { return "5".localeCompare(5); }
+function cmpTaggedSmi(x, n) { return x.localeCompare(n | 0); }
+for (const fn of [cmpSelf, cmpConstSelf, cmpConstSmi, cmpTaggedSmi]) {
+  %PrepareFunctionForOptimization(fn);
+  fn("5", 5);
+  fn("5", 5);
+  %OptimizeFunctionOnNextCall(fn);
+}
+assertEquals(0, cmpSelf("fox"));
+assertEquals(0, cmpSelf("中"));
+assertEquals(0, cmpSelf(%ConstructConsString("fox", "yyyyyyyyyy")));
+assertEquals(0, cmpConstSelf());
+assertEquals(0, cmpConstSmi());
+assertEquals(0, cmpTaggedSmi("5", 5));
+assertEquals(-1, Math.sign(cmpTaggedSmi("4", 5)));
