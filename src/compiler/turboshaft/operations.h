@@ -5309,6 +5309,7 @@ struct ObjectIsNumericValueOp
 struct ConvertOp : FixedArityOperationT<1, ConvertOp> {
   enum class Kind : uint8_t {
     kObject,
+    kHeapObject,
     kBoolean,
     kNumber,
     kNumberOrOddball,
@@ -11368,8 +11369,8 @@ TURBOSHAFT_THROWING_OPERATIONS_LIST(THROWING_OP_LOOKS_VALID)
 // instance, a SmiConstant is always a Smi, and a HeapObject constant is never a
 // Smi.
 enum class IsSmiDecision : uint8_t { kUnknown, kTrue, kFalse };
-IsSmiDecision DecideObjectIsSmi(const Graph& graph, V<Object> idx,
-                                int depth = 0);
+V8_EXPORT_PRIVATE IsSmiDecision DecideObjectIsSmi(const Graph& graph,
+                                                  V<Object> idx, int depth = 0);
 
 }  // namespace v8::internal::compiler::turboshaft
 

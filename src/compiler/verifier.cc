@@ -1487,7 +1487,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       // CheckTypeIs(node, to));
       break;
     }
-    case IrOpcode::kChangeTaggedToTaggedSigned:      // Fall through.
+    case IrOpcode::kChangeTaggedToTaggedSigned:
+    case IrOpcode::kChangeTaggedToTaggedPointer:
       break;
     case IrOpcode::kTruncateTaggedToFloat64PreserveUndefined:
     case IrOpcode::kTruncateTaggedToFloat64: {
