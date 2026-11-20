@@ -1510,9 +1510,9 @@ ReduceResult MaglevReducer<BaseT>::GetTaggedValue(
   }
 
   // Check for the empty type first, so that we don't emit unsafe conversion
-  // nodes below.
-  if (IsEmptyNodeType(node_info->type())) {
-    return EmitUnconditionalDeopt(DeoptimizeReason::kWrongValue);
+  // nodes below. If the type is already empty, we are in unreachable code.
+  if (IsEmptyNodeType(value)) {
+    return BuildAbort(AbortReason::kUnreachable);
   }
 
   switch (representation) {
@@ -1931,9 +1931,9 @@ ReduceResult MaglevReducer<BaseT>::GetFloat64ForToNumber(
   NodeType known_type = GetType(value);
 
   // Check for the empty type first, so that we don't emit unsafe conversion
-  // nodes below.
+  // nodes below. If the type is already empty, we are in unreachable code.
   if (IsEmptyNodeType(known_type)) {
-    return EmitUnconditionalDeopt(DeoptimizeReason::kWrongValue);
+    return BuildAbort(AbortReason::kUnreachable);
   }
 
   auto set_float64_alternative = [&](ValueNode* float64_value) {
@@ -2048,9 +2048,9 @@ ReduceResult MaglevReducer<BaseT>::GetHoleyFloat64ForToNumber(
   }
 
   // Check for the empty type first, so that we don't emit unsafe conversion
-  // nodes below.
+  // nodes below. If the type is already empty, we are in unreachable code.
   if (IsEmptyNodeType(known_type)) {
-    return EmitUnconditionalDeopt(DeoptimizeReason::kWrongValue);
+    return BuildAbort(AbortReason::kUnreachable);
   }
 
   // An oddball is the only input that is not already a number, so it is the
