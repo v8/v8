@@ -714,7 +714,6 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
 RUNTIME_FUNCTION(Runtime_WasmTierUpFunction) {
   SealHandleScope shs(isolate);
   DisallowGarbageCollection no_gc;
-  DCHECK(!v8_flags.wasm_jitless);
 
   if (V8_UNLIKELY(v8_flags.wasm_generate_compilation_hints ||
                   v8_flags.trace_wasm_generate_compilation_hints)) {
@@ -736,14 +735,17 @@ RUNTIME_FUNCTION(Runtime_WasmTierUpFunction) {
       static_cast<uint32_t>(func_index) >= module->functions.size()) {
     return CrashUnlessFuzzing(isolate);
   }
-  wasm::TierUpNowForTesting(isolate, trusted_data, func_index);
+
+  // Ignore tier-up requests when running in JITless mode.
+  if (!v8_flags.wasm_jitless) {
+    wasm::TierUpNowForTesting(isolate, trusted_data, func_index);
+  }
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_WasmTriggerTierUpForTesting) {
   SealHandleScope shs(isolate);
   DisallowGarbageCollection no_gc;
-  DCHECK(!v8_flags.wasm_jitless);
 
   if (V8_UNLIKELY(v8_flags.wasm_generate_compilation_hints ||
                   v8_flags.trace_wasm_generate_compilation_hints)) {
@@ -765,7 +767,10 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUpForTesting) {
       static_cast<uint32_t>(func_index) >= module->functions.size()) {
     return CrashUnlessFuzzing(isolate);
   }
-  wasm::TriggerTierUp(isolate, trusted_data, func_index);
+  // Ignore tier-up requests when running in JITless mode.
+  if (!v8_flags.wasm_jitless) {
+    wasm::TriggerTierUp(isolate, trusted_data, func_index);
+  }
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

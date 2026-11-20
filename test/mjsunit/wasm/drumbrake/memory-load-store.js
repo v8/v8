@@ -2,7 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
+// Flags: --jitless --wasm-jitless --allow-natives-syntax
+// Flags: --drumbrake-register-optimization --drumbrake-super-instructions
+// Flags: --wasm-max-mem-pages=32769
+// Save some memory on Linux; other platforms ignore this flag.
+// Flags: --multi-mapped-mock-allocator
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -236,4 +240,96 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   instance.exports.test_f32_s2s_LoadStore();
   instance.exports.test_i64_s2s_LoadStore();
   instance.exports.test_f64_s2s_LoadStore();
+})();
+
+(function testLoadStoreSuperInstructionIndexWidth() {
+  const builder = new WasmModuleBuilder();
+  builder.addMemory64(1, 1);
+  builder.exportMemoryAs("memory");
+  const instructions = [
+    ["i32", kExprI32LoadMem, kExprI32StoreMem, 4],
+    ["i64", kExprI64LoadMem, kExprI64StoreMem, 8],
+    ["f32", kExprF32LoadMem, kExprF32StoreMem, 4],
+    ["f64", kExprF64LoadMem, kExprF64StoreMem, 8],
+  ];
+  for (const [name, load, store] of instructions) {
+    builder.addFunction(`copy_${name}`, makeSig([kWasmI64], []))
+        .addBody([
+          ...wasmI64Const(16),
+          kExprLocalGet, 0,
+          ...wasmI64Const(0),
+          kExprI64Add,
+          load, 0, 8,
+          store, 0, 8,
+        ])
+        .exportFunc();
+  }
+
+  const instance = builder.instantiate();
+  const buffer = instance.exports.memory.buffer;
+  for (const [name, , , width] of instructions) {
+    const payload = [1, 2, 3, 4, 5, 6, 7, 8].slice(0, width);
+    new Uint8Array(buffer, 8, width).set(payload);
+    const destination = new Uint8Array(buffer, 24, width);
+    const copy = instance.exports[`copy_${name}`];
+    copy(0n);
+    assertEquals(payload, Array.from(destination));
+    for (const index of [
+           0x80000000n, 0x100000000n, 0x100000020n,
+           0x8000000000000020n, -1n]) {
+      destination.fill(0xa5);
+      assertTraps(kTrapMemOutOfBounds, () => copy(index));
+      assertEquals(new Array(width).fill(0xa5), Array.from(destination));
+    }
+  }
+})();
+
+(function testMemory32LoadStoreIndex() {
+  const builder = new WasmModuleBuilder();
+  const pages = 32769;  // One page beyond the signed i32 address range.
+  builder.addMemory(pages, pages);
+  builder.exportMemoryAs("memory");
+  const instructions = [
+    ["i32", kExprI32LoadMem, kExprI32StoreMem, 4],
+    ["i64", kExprI64LoadMem, kExprI64StoreMem, 8],
+    ["f32", kExprF32LoadMem, kExprF32StoreMem, 4],
+    ["f64", kExprF64LoadMem, kExprF64StoreMem, 8],
+  ];
+  for (const [name, load, store] of instructions) {
+    for (const offset of [0, 8]) {
+      builder.addFunction(`copy_${name}_${offset}`, kSig_v_i)
+          .addBody([
+            ...wasmI32Const(16),
+            kExprLocalGet, 0,
+            ...wasmI32Const(0),
+            // Signed shift by zero preserves the index and sign-extends r0.
+            kExprI32ShrS,
+            load, 0, offset,
+            store, 0, 8,
+          ])
+          .exportFunc();
+    }
+  }
+
+  const instance = builder.instantiate();
+  const buffer = instance.exports.memory.buffer;
+  for (const [name, , , width] of instructions) {
+    const payload = [1, 2, 3, 4, 5, 6, 7, 8].slice(0, width);
+    const destination = new Uint8Array(buffer, 24, width);
+    for (const offset of [0, 8]) {
+      const copy = instance.exports[`copy_${name}_${offset}`];
+      for (const index of [
+             0x7ffffff8, 0x80000000, 0x80000008,
+             buffer.byteLength - width - offset]) {
+        new Uint8Array(buffer, index + offset, width).set(payload);
+        destination.fill(0);
+        copy(index);
+        assertEquals(payload, Array.from(destination));
+      }
+      destination.fill(0xa5);
+      assertTraps(kTrapMemOutOfBounds,
+                  () => copy(buffer.byteLength - width - offset + 1));
+      assertEquals(new Array(width).fill(0xa5), Array.from(destination));
+    }
+  }
 })();

@@ -240,7 +240,7 @@
   'wasm/code-space-overflow': [PASS, SLOW, NO_VARIANTS, ['gc_stress == True or (simulator_run and mode == debug)', SKIP]],
   'wasm/max-wasm-functions': [PASS, SLOW, ['mode != release or dcheck_always_on or simulator_run or verify_predictable', SKIP], ['tsan', SKIP]],
   'wasm/test-growable-tail-call-matrix': [PASS, SLOW],
-  'wasm/wasm-interpreter': [PASS, SLOW],
+  'wasm/drumbrake/drumbrake': [PASS, SLOW],
 
   # Very slow on ARM, MIPS, RISCV and LOONG, contains no architecture dependent code.
   'unicode-case-overoptimization0': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mips64el, mips64, riscv64, riscv32, loong64)', SKIP]],
@@ -289,6 +289,7 @@
   'wasm/stringrefs-regressions': [PASS, HEAVY],
   'wasm/table': [PASS, HEAVY],
   'wasm/table-grow': [PASS, HEAVY],
+  'wasm/drumbrake/memory-load-store': [PASS, HEAVY],
 
   # TODO(v8:10915): Fails with --future.
   'weakrefs/stress-finalizationregistry-dirty-enqueue': [SKIP],
@@ -706,7 +707,7 @@
 
   # Too slow for gc stress.
   'regress/regress-904275': [PASS, SLOW, NO_VARIANTS],
-  'wasm/wasm-interpreter': [PASS, NO_VARIANTS],
+  'wasm/drumbrake/drumbrake': [PASS, NO_VARIANTS],
 
   # Too slow for gc stress, BUG(v8:9506): times out.
   'wasm/shared-memory-worker-explicit-gc-stress': [SKIP],
@@ -774,7 +775,7 @@
   'regress/regress-crbug-1406774': [SKIP],
   'regress/wasm/regress-355493919': [SKIP],
   'stackoverflow-underapplication': [SKIP],
-  'wasm/wasm-interpreter': [SKIP],
+  'wasm/drumbrake/drumbrake': [SKIP],
 }],  # 'gc_stress and arch == arm64 and simulator_run'
 
 ##############################################################################
@@ -864,6 +865,7 @@
 ##############################################################################
 ['not has_wasm_interpreter or variant != jitless', {
   # Tests to run only with the Wasm interpreter.
+  'regress/wasm/drumbrake/*': [SKIP],
   'regress/wasm/regress-drumbrake-array-segment-args': [SKIP],
   'regress/wasm/regress-drumbrake-cast-nofunc': [SKIP],
   'regress/wasm/regress-drumbrake-exception-null': [SKIP],
@@ -873,8 +875,7 @@
   'regress/wasm/regress-drumbrake-return-call-subtype': [SKIP],
   'regress/wasm/regress-drumbrake-v128-js-boundary': [SKIP],
   'regress/wasm/regress-interpreter-failed-reentry': [SKIP],
-  'wasm/wasm-interpreter-fuzzer' : [SKIP],
-  'wasm/wasm-interpreter-memory*' : [SKIP],
+  'wasm/drumbrake/*': [SKIP],
 }],  # not has_wasm_interpreter or variant != jitless
 
 ##############################################################################
@@ -890,7 +891,8 @@
   # interpreter.
   'sandbox/regress-522294322': [SKIP],
   # These sandbox regression tests force --wasm-jitless to exercise the
-  # DrumBrake interpreter's InterpreterHandle handling.
+  # DrumBrake interpreter.
+  'sandbox/drumbrake/*': [SKIP],
   'sandbox/regress-527689557-1': [SKIP],
   'sandbox/regress-527689557-2': [SKIP],
   'sandbox/regress-535518222': [SKIP],
@@ -1040,9 +1042,12 @@
   'regress/wasm/regress-864509': [SKIP],
   'regress/wasm/regress-9017': [SKIP],
   'regress/wasm/regress-350779988': [SKIP],
+  'regress/wasm/regress-353582136': [SKIP],
+  'regress/wasm/regress-353913485': [SKIP],
   'regress/wasm/regress-366350772': [SKIP],
   'regress/wasm/regress-397043084': [SKIP],
   'regress/wasm/regress-523591366': [SKIP],
+  'wasm/atomic-add-workers': [SKIP],
   'wasm/deopt/*': [SKIP],
   'wasm/enter-debug-state': [SKIP],
   'wasm/liftoff-trap-handler': [SKIP],
@@ -1208,6 +1213,7 @@
   'wasm/custom-descriptors*': [SKIP],
   'wasm/exact-types': [SKIP],
   'wasm/gc-casts-branch': [SKIP],
+  'wasm/js-to-wasm': [SKIP],
   'wasm/wasm-gc-js-roundtrip': [SKIP],
 
   # --wasm-compact-imports
@@ -1241,16 +1247,20 @@
   'wasm/print-code': [SKIP],
   'wasm/regress-535877252-2': [SKIP], # Compiled-wrapper stack headroom.
 
-  # Other tests that require compilation.
+  # Other tests that require compilation or serializing optimized code.
   'compiler/fast-api-calls-wasm': [SKIP],
   'maglev/regress-498199197': [SKIP],
+  'regress/wasm/regress-361369297': [SKIP],
   'regress/wasm/regress-403308742': [SKIP],
   'regress/wasm/regress-488943662': [SKIP],
   'regress/wasm/regress-505124865': [SKIP], # --wasm-compilation-hints
+  'regress/wasm/regress-511772679': [SKIP],
   'wasm/async-compile': [SKIP],
-  'wasm/compilation-hints/hints-and-deopts': [SKIP],
+  'wasm/compilation-hints/*': [SKIP],
+  'wasm/enter-and-leave-debug-state': [SKIP],
   'wasm/log-code-after-post-message': [SKIP],
   'wasm/multiple-code-spaces': [SKIP],
+  'wasm/recognize-imports': [SKIP],
   'wasm/wasm-code-coverage': [SKIP],
   'wasm/wrapper-compilation': [SKIP],
 
@@ -1268,75 +1278,11 @@
   # TODO(paolosev): Support Wasm to JS calls to JSApiObjects.
   'wasm/ffi': [SKIP],
 
-  # Tests using %WasmTierUpFunction()
-  'regress/wasm/regress-372269618': [SKIP],
-  'regress/wasm/regress-1179065': [SKIP],
-  'regress/wasm/regress-13230': [SKIP],
-  'regress/wasm/regress-13290': [SKIP],
+  # Interpreter subtype checks do not support this ref.test/ref.cast case yet.
   'regress/wasm/regress-13826': [SKIP],
-  'regress/wasm/regress-1403398': [SKIP],
-  'regress/wasm/regress-1511849': [SKIP],
-  'regress/wasm/regress-325372946': [SKIP],
-  'regress/wasm/regress-326091470': [SKIP],
-  'regress/wasm/regress-326904344': [SKIP],
-  'regress/wasm/regress-336507783': [SKIP],
-  'regress/wasm/regress-353582136': [SKIP],
-  'regress/wasm/regress-353913485': [SKIP],
-  'regress/wasm/regress-354324155*': [SKIP],
-  'regress/wasm/regress-360044696': [SKIP],
-  'regress/wasm/regress-360052650': [SKIP],
-  'regress/wasm/regress-361369297': [SKIP],
-  'regress/wasm/regress-361611472': [SKIP],
-  'regress/wasm/regress-368241691': [SKIP],
-  'regress/wasm/regress-373702823': [SKIP],
-  'regress/wasm/regress-383356864': [SKIP],
-  'regress/wasm/regress-391907159': [SKIP],
-  'regress/wasm/regress-456319253': [SKIP],
-  'regress/wasm/regress-484405356': [SKIP],
-  'regress/wasm/regress-490183533': [SKIP],
-  'regress/wasm/regress-493099941': [SKIP],
-  'regress/wasm/regress-509268941': [SKIP],
-  'regress/wasm/regress-509674461': [SKIP],
-  'regress/wasm/regress-511772679': [SKIP],
-  'regress/wasm/regress-518697709': [SKIP],
-  'regress/wasm/regress-524792614': [SKIP],
+
+  # Disables the trap handler required by the interpreter on x64.
   'regress/wasm/regress-535659723': [SKIP],
-  'regress/wasm/regress-538378084': [SKIP],
-  'regress/wasm/regress-540446645': [SKIP],
-  'regress/wasm/regress-543901836': [SKIP],
-  'regress/wasm/regress-561660149': [SKIP],
-  'regress/wasm/regress-574681855': [SKIP],
-  'regress/wasm/regress-576112595': [SKIP],
-  'regress/wasm/regress-578750528': [SKIP],
-  'regress/wasm/regress-crbug-1507751': [SKIP],
-  'regress/wasm/regress-simd-518058891': [SKIP],
-  'regress/wasm/regress-simd-525600038': [SKIP],
-  'regress/wasm/regress-simd-526303929': [SKIP],
-  'regress/wasm/regress-simd-528884838': [SKIP],
-  'regress/wasm/regress-simd-549328680*': [SKIP],
-  'regress/wasm/regress-simd-555760230': [SKIP],
-  'regress/wasm/regress-simd-555806042*': [SKIP],
-  'regress/wasm/regress-simd-557107349': [SKIP],
-  'regress/wasm/regress-simd-570497964': [SKIP],
-  'regress/wasm/regress-simd-573671130': [SKIP],
-  'regress/wasm/regress-simd-573671231': [SKIP],
-  'sandbox/regress/regress-581130652': [SKIP],
-  'wasm/bit-shift-right': [SKIP],
-  'wasm/bounds-check-turbofan': [SKIP],
-  'wasm/enter-and-leave-debug-state': [SKIP],
-  'wasm/inlining-multi-instance': [SKIP],
-  'wasm/inlining-mutable-instance-fields': [SKIP],
-  'wasm/memory-huge-constant-index': [SKIP],
-  'wasm/nan-constant': [SKIP],
-  'wasm/recognize-imports': [SKIP],
-  'wasm/regress-471363817': [SKIP],
-  'wasm/regress-526041421': [SKIP],
-  'wasm/regress-529842414': [SKIP],
-  'wasm/regress-531123009': [SKIP],
-  'wasm/regress-532625494': [SKIP],
-  'wasm/simd-relaxed-lane-select': [SKIP],
-  'wasm/speculative-inlining': [SKIP],
-  'wasm/stringrefs-regressions': [SKIP],
 
   # Tests using %WasmGenerateRandomModule() (require compilation)
   'regress/wasm/regress-369652650': [SKIP],
@@ -2354,7 +2300,7 @@
   'wasm/regress-576453351': [SKIP],
   'wasm/shared-memory-size-atomic': [SKIP],
   'wasm/shared-memory-worker-stress': [SKIP],
-  'wasm/wasm-interpreter': [SKIP],
+  'wasm/drumbrake/drumbrake': [SKIP],
   'regress/regress-1205290': [SKIP],
   'regress/regress-1212404': [SKIP],
   'regress/regress-1221035': [SKIP],
@@ -2446,7 +2392,7 @@
 ##############################################################################
 ['simulator_run and arch == ppc64', {
   # Slow tests
-  'wasm/wasm-interpreter': [PASS, SLOW],
+  'wasm/drumbrake/drumbrake': [PASS, SLOW],
   'regress/regress-499721612': [SKIP],
 }],  # 'simulator_run and arch == ppc64'
 
@@ -2579,7 +2525,7 @@
   'wasm/multiple-code-spaces': [SKIP],
   'wasm/multi-memory': [SKIP],
   'wasm/multi-memory64': [SKIP],
-  'wasm/wasm-interpreter': [SKIP],
+  'wasm/drumbrake/drumbrake': [SKIP],
   'unicode-test': [SKIP],
 }],  # variant in (nooptimization, jitless) and (arch == arm or arch == arm64) and simulator_run
 

@@ -69,12 +69,14 @@ void Signal(const FunctionCallbackInfo<Value>& info) {
   semaphore->Signal();
 }
 
-MaybeLocal<Value> CompileRun(Local<Context> context, Local<String> source) {
+static MaybeLocal<Value> CompileRun(Local<Context> context,
+                                    Local<String> source) {
   Local<Script> script = Script::Compile(context, source).ToLocalChecked();
   return script->Run(context);
 }
 
-MaybeLocal<Value> CompileRun(Local<Context> context, const char* source) {
+static MaybeLocal<Value> CompileRun(Local<Context> context,
+                                    const char* source) {
   return CompileRun(
       context,
       String::NewFromUtf8(Isolate::GetCurrent(), source).ToLocalChecked());

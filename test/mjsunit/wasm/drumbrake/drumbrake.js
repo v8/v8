@@ -3974,3 +3974,113 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     throw new Error("FAIL: cross-instance globals aliasing detected");
   }
 })();
+
+// A statically out-of-bounds atomic access traps with "out of bounds" even if
+// it is also unaligned, as in the JIT tiers.
+(function testAtomicStaticOOBBeforeAlignment() {
+  print(arguments.callee.name);
+  function run(max_pages) {
+    const builder = new WasmModuleBuilder();
+    builder.addMemory(0, max_pages);
+    builder.addFunction('main', kSig_i_v)
+        .addBody([
+          ...wasmI32Const(1),  // Odd address: unaligned for a 2-byte atomic.
+          ...wasmI32Const(0),
+          kAtomicPrefix, kExprI32AtomicAnd16U, 1, 0,
+        ])
+        .exportFunc();
+    return builder.instantiate().exports.main;
+  }
+  assertTraps(kTrapMemOutOfBounds, run(0));  // Statically out of bounds.
+  assertTraps(kTrapUnalignedAccess, run(1));  // Dynamically out of bounds.
+})();
+
+// memory.atomic.notify and memory.atomic.wait32 access 4 bytes, so the last 4
+// bytes of memory are in bounds.
+(function testAtomicNotifyWait32BoundsCheck() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  builder.addMemory(1, 1, true);  // One shared page (64KiB).
+  for (const [suffix, address] of [['last8', 65528], ['last4', 65532]]) {
+    builder.addFunction(`notify_${suffix}`, kSig_i_v)
+        .addBody([
+          ...wasmI32Const(address),
+          ...wasmI32Const(1),  // Count.
+          kAtomicPrefix, kExprAtomicNotify, 2, 0,
+        ])
+        .exportFunc();
+    builder.addFunction(`wait32_${suffix}`, kSig_i_v)
+        .addBody([
+          ...wasmI32Const(address),
+          ...wasmI32Const(1),    // Expected value, the memory holds 0.
+          ...wasmI64Const(-1n),  // No timeout.
+          kAtomicPrefix, kExprI32AtomicWait, 2, 0,
+        ])
+        .exportFunc();
+  }
+  const instance = builder.instantiate();
+  for (const suffix of ['last8', 'last4']) {
+    assertEquals(0, instance.exports[`notify_${suffix}`]());
+    assertEquals(1, instance.exports[`wait32_${suffix}`]());  // "not-equal".
+  }
+})();
+
+// array.copy and array.init_data trap on a null array reference before
+// checking offsets and sizes.
+(function testArrayCopyInitNullBeforeOutOfBounds() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  const $array = builder.addArray(kWasmI8);
+  const $data = builder.addPassiveDataSegment([1, 2, 3, 4]);
+
+  builder.addFunction('copy_null_dst_huge_offset', kSig_v_v)
+      .addBody([
+        kExprRefNull, $array,                     // Destination: null.
+        ...wasmI32Const(0x40000000),              // Not a Smi.
+        kExprI32Const, 1,
+        kGCPrefix, kExprArrayNewDefault, $array,  // Source: length 1.
+        kExprI32Const, 0,
+        kExprI32Const, 1,                         // Size.
+        kGCPrefix, kExprArrayCopy, $array, $array,
+      ])
+      .exportFunc();
+  builder.addFunction('copy_null_src_huge_offset', kSig_v_v)
+      .addBody([
+        kExprI32Const, 1,
+        kGCPrefix, kExprArrayNewDefault, $array,  // Destination: length 1.
+        kExprI32Const, 0,
+        kExprRefNull, $array,                     // Source: null.
+        ...wasmI32Const(0x40000000),              // Not a Smi.
+        kExprI32Const, 1,                         // Size.
+        kGCPrefix, kExprArrayCopy, $array, $array,
+      ])
+      .exportFunc();
+  // Same order as the JIT tiers: destination null, destination bounds, source
+  // null, source bounds.
+  builder.addFunction('copy_dst_oob_src_null', kSig_v_v)
+      .addBody([
+        kExprI32Const, 1,
+        kGCPrefix, kExprArrayNewDefault, $array,  // Destination: length 1.
+        kExprI32Const, 5,                         // Destination index: OOB.
+        kExprRefNull, $array,                     // Source: null.
+        kExprI32Const, 0,
+        kExprI32Const, 1,                         // Size.
+        kGCPrefix, kExprArrayCopy, $array, $array,
+      ])
+     .exportFunc();
+  builder.addFunction('init_data_null_huge_offset', kSig_v_v)
+      .addBody([
+        kExprRefNull, $array,         // Array: null.
+        ...wasmI32Const(0x40000000),  // Not a Smi.
+        kExprI32Const, 0,
+        kExprI32Const, 1,             // Size.
+        kGCPrefix, kExprArrayInitData, $array, $data,
+      ])
+      .exportFunc();
+  const instance = builder.instantiate();
+  assertTraps(kTrapNullDereference, instance.exports.copy_null_dst_huge_offset);
+  assertTraps(kTrapNullDereference, instance.exports.copy_null_src_huge_offset);
+  assertTraps(kTrapArrayOutOfBounds, instance.exports.copy_dst_oob_src_null);
+  assertTraps(kTrapNullDereference,
+              instance.exports.init_data_null_huge_offset);
+})();

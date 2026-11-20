@@ -2378,8 +2378,11 @@ DEFINE_IMPLICATION(wasm_jitless_if_available_for_testing, wasm_jitless)
 DEFINE_BOOL_READONLY(drumbrake_exnref, false,
                      "enable new exception-handling support in the Wasm "
                      "interpreter")
-DEFINE_BOOL(drumbrake_compact_bytecode, false,
-            "Compress the Wasm interpreter bytecode")
+
+// Disabled: pinned read-only so the compact bytecode encoding can never be
+// enabled, even via --drumbrake-compact-bytecode on the command line.
+DEFINE_BOOL_READONLY(drumbrake_compact_bytecode, false,
+                     "Compress the Wasm interpreter bytecode")
 DEFINE_DEVELOPER_FLAG(trace_drumbrake_compact_bytecode,
                       "Traces the Wasm interpreter compact bytecode")
 DEFINE_BOOL(drumbrake_fuzzer_timeout, false,
