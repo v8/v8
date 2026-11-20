@@ -4,6 +4,10 @@
 
 #include "src/sandbox/testing.h"
 
+#if defined(V8_OS_WIN)
+#include "src/sandbox/windows-crash-filter.h"
+#endif  // V8_OS_WIN
+
 #include <atomic>
 #include <cstring>
 #include <vector>
@@ -1526,10 +1530,14 @@ void SandboxTesting::Enable(Mode mode) {
           reinterpret_cast<void*>(Sandbox::current()->base()),
           reinterpret_cast<void*>(Sandbox::current()->end()));
 
-#ifdef V8_OS_LINUX
+#if defined(V8_OS_LINUX)
   InstallCrashFilter();
+#elif defined(V8_OS_WIN)
+  InstallWindowsCrashFilter(Sandbox::current()->base(),
+                            Sandbox::current()->end(),
+                            mode == Mode::kForFuzzing);
 #else
-  FATAL("The sandbox crash filter is currently only available on Linux");
+  FATAL("The sandbox crash filter is not supported on this platform");
 #endif  // V8_OS_LINUX
 }
 
@@ -1537,10 +1545,12 @@ void SandboxTesting::Disable() {
   if (mode_ == Mode::kDisabled) return;
   mode_ = Mode::kDisabled;
 
-#ifdef V8_OS_LINUX
+#if defined(V8_OS_LINUX)
   UninstallCrashFilter();
+#elif defined(V8_OS_WIN)
+  UninstallWindowsCrashFilter();
 #else
-  FATAL("The sandbox crash filter is currently only available on Linux");
+  FATAL("The sandbox crash filter is not supported on this platform");
 #endif  // V8_OS_LINUX
 }
 

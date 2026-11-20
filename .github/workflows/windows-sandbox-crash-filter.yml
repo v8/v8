@@ -1,0 +1,240 @@
+name: Windows x64 sandbox crash filter
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - work/windows-x64-crash-filter
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "src/sandbox/**"
+      - "test/unittests/sandbox/**"
+      - "BUILD.gn"
+      - "test/unittests/BUILD.gn"
+      - ".github/workflows/windows-sandbox-crash-filter.yml"
+
+concurrency:
+  group: windows-x64-crash-filter-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-x64:
+    runs-on: windows-2025
+    timeout-minutes: 180
+    steps:
+      - name: Check out V8 fork
+        uses: actions/checkout@v4
+        with:
+          path: v8-windws
+
+      - name: Check out depot_tools
+        shell: pwsh
+        run: |
+          git clone --depth=1 https://chromium.googlesource.com/chromium/tools/depot_tools.git "$env:GITHUB_WORKSPACE\depot_tools"
+
+      - name: Add depot_tools to PATH
+        shell: pwsh
+        run: |
+          "$env:GITHUB_WORKSPACE\depot_tools" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Install required Windows SDK
+        shell: pwsh
+        run: |
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          $vsPath = & $vswhere -latest -products '*' -property installationPath
+          if (-not $vsPath) {
+            throw "Visual Studio installation was not found."
+          }
+          Write-Host "Using Visual Studio at: $vsPath"
+
+          $sdkRoot = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\Include'
+          $sdkPath = Join-Path $sdkRoot '10.0.28000.0'
+          if (-not (Test-Path $sdkPath)) {
+            $installer = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\setup.exe'
+            if (-not (Test-Path $installer)) {
+              throw "Visual Studio Installer setup.exe was not found: $installer"
+            }
+            $installerArgs = @(
+              'modify'
+              '--installPath'
+              "`"$vsPath`""
+              '--add'
+              'Microsoft.VisualStudio.Component.Windows11SDK.28000'
+              '--quiet'
+              '--norestart'
+            )
+            $installerProcess = Start-Process -FilePath $installer -ArgumentList $installerArgs -Wait -PassThru -NoNewWindow
+            $installerExitCode = $installerProcess.ExitCode
+            Write-Host "Visual Studio Installer exit code: $installerExitCode"
+            if ($installerExitCode -ne 0) {
+              throw "Visual Studio Installer failed to add Windows SDK 10.0.28000.0 (exit $installerExitCode)."
+            }
+          }
+
+          if (-not (Test-Path $sdkPath)) {
+            Write-Host "Installed Windows SDK include directories:"
+            if (Test-Path $sdkRoot) {
+              Get-ChildItem $sdkRoot -Directory | ForEach-Object { Write-Host $_.Name }
+            } else {
+              Write-Host "SDK include root not found: $sdkRoot"
+            }
+            throw "Windows SDK 10.0.28000.0 is still missing after Visual Studio Installer completed."
+          }
+          Write-Host "Verified Windows SDK 10.0.28000.0 at $sdkPath."
+
+      - name: Sync V8 dependencies
+        shell: pwsh
+        env:
+          DEPOT_TOOLS_WIN_TOOLCHAIN: "0"
+        run: |
+          gclient config --unmanaged https://github.com/${{ github.repository }}.git
+          gclient sync --no-history
+
+      - name: Run V8 hooks
+        shell: pwsh
+        env:
+          DEPOT_TOOLS_WIN_TOOLCHAIN: "0"
+        run: |
+          gclient runhooks
+
+      - name: Generate Windows x64 build
+        shell: pwsh
+        working-directory: v8-windws
+        env:
+          DEPOT_TOOLS_WIN_TOOLCHAIN: "0"
+        run: |
+          # Write GN arguments directly to the output directory. GN reads args.gn
+          # from the build directory, avoiding PowerShell command-line quoting.
+          $outDir = Join-Path $PWD "out.gn/x64.release"
+          New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+          $gnArgsFile = Join-Path $outDir "args.gn"
+          @(
+            'is_debug = false'
+            'is_component_build = false'
+            'target_cpu = "x64"'
+            'v8_enable_sandbox = true'
+            'v8_enable_memory_corruption_api = true'
+          ) | Set-Content -Path $gnArgsFile -Encoding ascii
+          Write-Host "GN args.gn contents:"
+          Get-Content $gnArgsFile | ForEach-Object { Write-Host $_ }
+          gn gen $outDir
+          if ($LASTEXITCODE -ne 0) {
+            throw "gn gen failed with exit code $LASTEXITCODE."
+          }
+
+          # Fail if GN did not apply the required settings.
+          $requiredArgs = @(
+            @{ Name = "is_debug"; Expected = "false" }
+            @{ Name = "is_component_build"; Expected = "false" }
+            @{ Name = "target_cpu"; Expected = '"x64"' }
+            @{ Name = "v8_enable_sandbox"; Expected = "true" }
+            @{ Name = "v8_enable_memory_corruption_api"; Expected = "true" }
+          )
+          foreach ($arg in $requiredArgs) {
+            $argOutput = (& gn args $outDir "--list=$($arg.Name)" 2>&1 | Out-String)
+            Write-Host $argOutput
+            if ($LASTEXITCODE -ne 0 -or $argOutput -notmatch [regex]::Escape("= $($arg.Expected)")) {
+              throw "GN argument $($arg.Name) did not resolve to expected value $($arg.Expected)."
+            }
+          }
+
+      - name: Build d8 and unit tests
+        shell: pwsh
+        working-directory: v8-windws
+        env:
+          DEPOT_TOOLS_WIN_TOOLCHAIN: "0"
+        run: |
+          autoninja -C out.gn/x64.release d8 v8_unittests
+
+      - name: Run Windows sandbox crash-filter tests
+        shell: pwsh
+        working-directory: v8-windws
+        run: |
+          .\out.gn\x64.release\v8_unittests.exe --gtest_filter='WindowsSandboxCrashFilter*'
+
+      - name: Smoke-test and package runnable d8 distribution
+        shell: pwsh
+        working-directory: v8-windws
+        run: |
+          $outDir = "out.gn/x64.release"
+          $d8 = Join-Path $outDir "d8.exe"
+          if (-not (Test-Path $d8)) {
+            throw "d8.exe was not produced."
+          }
+
+          # dumpbin is part of the MSVC toolchain but is not guaranteed to be
+          # on the GitHub Actions runner's default PATH. Resolve it from VS.
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          if (-not (Test-Path $vswhere)) {
+            throw "vswhere.exe was not found; cannot locate the MSVC dumpbin tool."
+          }
+          $dumpbinCandidates = @(& $vswhere -latest -products '*' -find 'VC\Tools\MSVC\**\bin\Hostx64\x64\dumpbin.exe')
+          $dumpbin = $dumpbinCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $dumpbin) {
+            throw "MSVC dumpbin.exe was not found under the selected Visual Studio installation."
+          }
+          Write-Host "Using dumpbin: $dumpbin"
+          $dependencies = (& $dumpbin /nologo /dependents $d8 | Out-String)
+          if ($LASTEXITCODE -ne 0) {
+            throw "dumpbin failed with exit code $LASTEXITCODE."
+          }
+          Write-Host $dependencies
+          # V8 may intentionally produce a multi-file distribution. Do not
+          # reject v8.dll: package every runtime DLL emitted by this build and
+          # validate the executable from the packaged directory.
+          $dist = "dist/d8-windows-x64"
+          New-Item -ItemType Directory -Force -Path $dist | Out-Null
+          Copy-Item $d8 $dist
+          Get-ChildItem $outDir -File | Where-Object {
+            $_.Extension -in @(".dll", ".dat") -or $_.Name -eq "snapshot_blob.bin"
+          } | Copy-Item -Destination $dist -Force
+
+          "print('d8-smoke-ok:', 6 * 7);" | Set-Content -Path "$dist/smoke.js" -Encoding ascii
+          Push-Location $dist
+          try {
+            $versionOutput = (& .\d8.exe --version 2>&1 | Out-String)
+            Write-Host $versionOutput
+            if ($LASTEXITCODE -ne 0) {
+              throw "Packaged d8 --version failed with exit code $LASTEXITCODE."
+            }
+
+            $smokeOutput = (& .\d8.exe .\smoke.js 2>&1 | Out-String)
+            Write-Host $smokeOutput
+            if ($LASTEXITCODE -ne 0 -or $smokeOutput -notmatch 'd8-smoke-ok:\s*42') {
+              throw "Packaged d8 JavaScript smoke test failed."
+            }
+          } finally {
+            Pop-Location
+          }
+
+          # Verify the memory-corruption testing API is actually present in this
+          # sandbox-testing build, not merely that d8 starts successfully.
+          @(
+            "if (typeof Sandbox !== 'object') throw new Error('Sandbox global is missing');"
+            "if (typeof Sandbox.MemoryView !== 'function') throw new Error('Sandbox.MemoryView is missing');"
+            "const view = new DataView(new Sandbox.MemoryView(0, 0x1000));"
+            "print('sandbox-api-ok:', view.byteLength);"
+          ) | Set-Content -Path "$dist/api-smoke.js" -Encoding ascii
+
+          Push-Location $dist
+          try {
+            $apiOutput = (& .\d8.exe --sandbox-testing .\api-smoke.js 2>&1 | Out-String)
+            Write-Host $apiOutput
+            if ($LASTEXITCODE -ne 0 -or $apiOutput -notmatch 'sandbox-api-ok:\s*4096') {
+              throw "Packaged d8 Sandbox.MemoryView API smoke test failed."
+            }
+          } finally {
+            Pop-Location
+          }
+
+          Get-ChildItem $dist | Select-Object Name, Length | Format-Table -AutoSize
+
+      - name: Upload runnable d8 distribution
+        uses: actions/upload-artifact@v4
+        with:
+          name: d8-windows-x64
+          path: v8-windws/dist/d8-windows-x64/**
+          if-no-files-found: error
+          retention-days: 7
