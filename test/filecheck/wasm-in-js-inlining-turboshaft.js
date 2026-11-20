@@ -26,7 +26,9 @@ const globalI32 = builder.addGlobal(kWasmI32, true, false);
 const globalEqRef = builder.addGlobal(kWasmEqRef, true, false);
 
 const inputsForType = {
-  [kWasmI32]: [0, 1, -1, 3, 7, 31, 32, 33, -0x80000000, 0x7fffffff],
+  [kWasmI32]: [0, 1, -1, 3, 7, 31, 32, 33, -0x80000000, 0x7fffffff,
+    0x3fffffff, 0x40000000, 0x12345678, -0x40000001,
+  ],
   [kWasmI64]: [
     0n, 1n, -1n, -7n, 7n, 63n, 64n, 65n,
     0x80n, 0x8000n, 0x80000000n, 0x100000000n, 0x100000001n,
@@ -36,13 +38,22 @@ const inputsForType = {
   ],
   [kWasmF32]: [0, -0, 1, -1, 3, 7, Infinity, -Infinity, Number.MIN_VALUE],
   [kWasmF64]: [0, -0, 1, -1, 3, 7, Infinity, -Infinity, Number.MIN_VALUE],
-  [kWasmExternRef]: [null, {}, undefined, 0],
+  [kWasmExternRef]: (wasmExports) => [
+    null, {}, undefined, 0, -1, 0x3fffffff, 0x40000000,
+    -0x40000000, -0x40000001, -0, 1.5,
+    (() => { let x = 5.5; return x + x; })(), 'str', () => {}, Symbol(),
+    wasmExports.createStruct(), wasmExports.createArray(0),
+  ],
 };
 
-function inputsForSignature(wasmSignature) {
+function inputsForSignature(wasmSignature, wasmExports) {
   return wasmSignature.params.reduce(
-      (acc, type) =>
-          acc.flatMap(args => inputsForType[type].map(val => [...args, val])),
+      (acc, type) => {
+        const values = inputsForType[type];
+        const inputs =
+            typeof values === 'function' ? values(wasmExports) : values;
+        return acc.flatMap(args => inputs.map(val => [...args, val]));
+      },
       [[]]);
 }
 
@@ -52,7 +63,7 @@ let tests = [];
 function addTestcase(name, wasmSignature, wasmArguments, wasmBody, jsFunctionBuilder) {
   let inputs;
   if (wasmArguments == null) {
-    inputs = inputsForSignature(wasmSignature);
+    inputs = (wasmExports) => inputsForSignature(wasmSignature, wasmExports);
   } else {
     assertEquals(wasmSignature.params.length, wasmArguments.length);
     inputs = [wasmArguments];
@@ -590,6 +601,69 @@ addTestcase('arrayLenNull', kSig_i_v, [], [
 // Casts and type checks.
 // -----------------------------------------------------------------------------
 
+function addRefTestcase(name, type, opcode) {
+  addTestcase(name, kSig_i_r, null, [
+    kExprLocalGet, 0, kGCPrefix, kExprAnyConvertExtern,
+    kGCPrefix, opcode, type,
+  ]);
+}
+
+// CHECK: Considering Wasm function [{{[0-9]+}}] refI31 of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addTestcase('refI31', makeSig([kWasmI32], [kWasmExternRef]), null, [
+  kExprLocalGet, 0, kGCPrefix, kExprRefI31, kGCPrefix, kExprExternConvertAny,
+]);
+// CHECK: Considering Wasm function [{{[0-9]+}}] i31GetS of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addTestcase('i31GetS', kSig_i_i, null, [
+  kExprLocalGet, 0, kGCPrefix, kExprRefI31, kGCPrefix, kExprI31GetS,
+]);
+// CHECK: Considering Wasm function [{{[0-9]+}}] i31GetU of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addTestcase('i31GetU', kSig_i_i, null, [
+  kExprLocalGet, 0, kGCPrefix, kExprRefI31, kGCPrefix, kExprI31GetU,
+]);
+
+// CHECK: Considering Wasm function [{{[0-9]+}}] i31GetSNull of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addTestcase('i31GetSNull', kSig_i_r, null, [
+  kExprLocalGet, 0, kGCPrefix, kExprAnyConvertExtern,
+  kGCPrefix, kExprRefCastNull, kI31RefCode,
+  kGCPrefix, kExprI31GetS,
+]);
+// CHECK: Considering Wasm function [{{[0-9]+}}] i31GetUNull of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addTestcase('i31GetUNull', kSig_i_r, null, [
+  kExprLocalGet, 0, kGCPrefix, kExprAnyConvertExtern,
+  kGCPrefix, kExprRefCastNull, kI31RefCode,
+  kGCPrefix, kExprI31GetU,
+]);
+
+// CHECK: Considering Wasm function [{{[0-9]+}}] i31GetSStaticNull of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addTestcase('i31GetSStaticNull', kSig_i_v, [], [
+  kExprRefNull, kI31RefCode, kGCPrefix, kExprI31GetS,
+]);
+
+// CHECK: Considering Wasm function [{{[0-9]+}}] refTest of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addRefTestcase('refTest', array, kExprRefTest);
+// CHECK: Considering Wasm function [{{[0-9]+}}] refTestNull of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addRefTestcase('refTestNull', array, kExprRefTestNull);
+// CHECK: Considering Wasm function [{{[0-9]+}}] refTestAbstract of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addRefTestcase('refTestAbstract', kI31RefCode, kExprRefTest);
+// CHECK: Considering Wasm function [{{[0-9]+}}] refTestAbstractNull of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addRefTestcase('refTestAbstractNull', kEqRefCode, kExprRefTestNull);
+
+// CHECK: Considering Wasm function [{{[0-9]+}}] refTestNoExtern of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addTestcase('refTestNoExtern', kSig_i_r, null, [
+  kExprLocalGet, 0, kGCPrefix, kExprRefTestNull, kNullExternRefCode,
+]);
+
 // We statically know that this cast will not succeed (because it's casting an
 // array to a struct), so this is optimized into a null check only.
 // CHECK: Considering Wasm function [{{[0-9]+}}] assertNullTypecheck of module {{.*}} for inlining
@@ -642,6 +716,13 @@ addTestcase('refFuncGlobal', kSig_v_v, [], [
     assertEquals('function', typeof wasmExports.globalFuncRef.value);
   };
 });
+
+// CHECK: Considering Wasm function [{{[0-9]+}}] refTestFunc of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addTestcase('refTestFunc', kSig_i_v, [], [
+  kExprGlobalGet, globalFuncRef.index,
+  kGCPrefix, kExprRefTest, funcVoid.type_index,
+]);
 
 const globalAnyRef = builder.addGlobal(kWasmAnyRef, true, false);
 
@@ -1061,9 +1142,12 @@ addTestcase('multiModule', kSig_v_v, [], [], (wasmExports) => {
 // Compile and instantiate the Wasm module, define the caller JS functions,
 // call with arguments defined above.
 const wasmExports = builder.instantiate({}).exports;
-for (const [ name, { inputs, jsFunctionBuilder } ] of Object.entries(tests)) {
+for (const [ name, test ] of Object.entries(tests)) {
   print(`\nTest: ${name}`);
 
+  const inputs = typeof test.inputs === 'function' ?
+      test.inputs(wasmExports) : test.inputs;
+  const {jsFunctionBuilder} = test;
   const jsFunction = jsFunctionBuilder(wasmExports);
 
   const result = {unoptimized: [], optimized: []};
