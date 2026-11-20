@@ -899,6 +899,15 @@ class MachineLoweringReducer : public Next {
         BIND(done, result);
         return result;
       }
+      case ConvertOp::Kind::kHeapObject: {
+        DCHECK_EQ(from, ConvertOp::Kind::kObject);
+        ScopedVar<HeapObject> result(this, V<HeapObject>::Cast(input));
+        IF (UNLIKELY(__ ObjectIsSmi(input))) {
+          result =
+              __ ConvertInt32ToHeapNumber(__ UntagSmi(V<Smi>::Cast(input)));
+        }
+        return result;
+      }
       default:
         UNREACHABLE();
     }

@@ -157,6 +157,7 @@ UseInfo TruncatingUseInfoFromRepresentation(
     case MachineRepresentation::kTaggedSigned:
       return UseInfo::TaggedSigned();
     case MachineRepresentation::kTaggedPointer:
+      return UseInfo::TaggedPointer();
     case MachineRepresentation::kTagged:
     case MachineRepresentation::kTrustedPointer:
     case MachineRepresentation::kMapWord:
@@ -1650,8 +1651,11 @@ class RepresentationSelector {
     } else if (base_taggedness == kTaggedBase &&
                CanBeTaggedPointer(field_representation)) {
       Type value_type = NodeProperties::GetType(value);
-      if (value_representation == MachineRepresentation::kTaggedSigned) {
-        // Write barriers are only for stores of heap objects.
+      if (field_representation != MachineRepresentation::kTaggedPointer &&
+          value_representation == MachineRepresentation::kTaggedSigned) {
+        // Write barriers are only for stores of heap objects. Stores to
+        // kTaggedPointer fields convert kTaggedSigned inputs into HeapNumbers
+        // during ProcessInput, so they still require a write barrier.
         return kNoWriteBarrier;
       }
       if (field_type.Is(Type::BooleanOrNullOrUndefined()) ||

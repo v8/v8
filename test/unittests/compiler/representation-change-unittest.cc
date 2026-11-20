@@ -827,6 +827,42 @@ TEST_F(RepresentationChangeTest, TypeErrors) {
                    MachineRepresentation::kWord64);
 }
 
+TEST_F(RepresentationChangeTest, ToTaggedPointer) {
+  CheckChange(IrOpcode::kChangeTaggedToTaggedPointer,
+              MachineRepresentation::kTagged, Type::Any(),
+              UseInfo::TaggedPointer());
+  CheckChange(IrOpcode::kChangeTaggedToTaggedPointer,
+              MachineRepresentation::kTaggedSigned, Type::SignedSmall(),
+              UseInfo::TaggedPointer());
+  CheckChange(IrOpcode::kCheckedTaggedToTaggedPointer,
+              MachineRepresentation::kTagged, Type::Any(),
+              UseInfo::CheckedHeapObjectAsTaggedPointer(FeedbackSource()));
+  CheckChange(IrOpcode::kChangeFloat64ToTaggedPointer,
+              MachineRepresentation::kFloat64, Type::Number(),
+              UseInfo::TaggedPointer());
+  CheckChange(IrOpcode::kChangeFloat64OrUndefinedToTagged,
+              MachineRepresentation::kFloat64, Type::NumberOrUndefined(),
+              UseInfo::TaggedPointer());
+  CheckChange(IrOpcode::kChangeInt64ToBigInt, MachineRepresentation::kWord64,
+              Type::SignedBigInt64(), UseInfo::TaggedPointer());
+  CheckChange(IrOpcode::kChangeUint64ToBigInt, MachineRepresentation::kWord64,
+              Type::UnsignedBigInt64(), UseInfo::TaggedPointer());
+
+  {
+    RepresentationChangerTester r(i_isolate(), zone(), 1);
+    r.CheckNop(MachineRepresentation::kTaggedPointer, Type::Any(),
+               MachineRepresentation::kTaggedPointer);
+    r.CheckNop(MachineRepresentation::kTagged, Type::Receiver(),
+               MachineRepresentation::kTaggedPointer);
+    r.CheckNop(MachineRepresentation::kMapWord, Type::OtherInternal(),
+               MachineRepresentation::kTaggedPointer);
+    r.CheckNop(MachineRepresentation::kTagged, Type::Constant(1.5, zone()),
+               MachineRepresentation::kTaggedPointer);
+    r.CheckNop(MachineRepresentation::kTagged, Type::MinusZero(),
+               MachineRepresentation::kTaggedPointer);
+  }
+}
+
 }  // namespace representation_change_unittest
 }  // namespace compiler
 }  // namespace internal

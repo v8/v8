@@ -59,6 +59,7 @@ graph LR
 
 - **`Smi` -> `Double`**: Storing `3.5` into a `Smi` field widens the field's representation to `Double`. Because a `Smi` was stored inline in the slot whereas a `Double` field requires a dedicated `HeapNumber` box, transitioning an existing instance from `Smi` to `Double` requires **instance migration** (`JSObject::MigrateInstance` allocates the `HeapNumber` box and boxes the old `Smi` value into it).
 - **`Double` -> `Tagged`**: Storing a non-number (e.g., `"hello"` or `undefined` when `V8_ENABLE_UNDEFINED_DOUBLE` is not active) into a `Double` field widens it to `Tagged`.
+- **`HeapObject` -> `Tagged`**: A `Representation::HeapObject()` field exclusively holds tagged `HeapObject` pointers (`MachineType::TaggedPointer()`, including immutable `HeapNumber` boxes for Smi-range numbers), allowing JIT compilers to omit Smi checks on loads. Storing a raw `Smi` generalizes the field to `Tagged`, and any compiler store or backing-store copy targeting a `HeapObject` slot must preserve its `TaggedPointer` representation.
 
 ---
 

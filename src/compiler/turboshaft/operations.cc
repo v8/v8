@@ -1386,6 +1386,8 @@ std::ostream& operator<<(std::ostream& os, ConvertOp::Kind kind) {
   switch (kind) {
     case ConvertOp::Kind::kObject:
       return os << "Object";
+    case ConvertOp::Kind::kHeapObject:
+      return os << "HeapObject";
     case ConvertOp::Kind::kBoolean:
       return os << "Boolean";
     case ConvertOp::Kind::kNumber:
@@ -2502,6 +2504,22 @@ IsSmiDecision DecideObjectIsSmi(const Graph& graph, V<Object> idx, int depth) {
     }
     case Opcode::kAllocate:
       return IsSmiDecision::kFalse;
+    case Opcode::kConvert: {
+      switch (op.Cast<ConvertOp>().to) {
+        case ConvertOp::Kind::kHeapObject:
+        case ConvertOp::Kind::kBoolean:
+        case ConvertOp::Kind::kString:
+          return IsSmiDecision::kFalse;
+        case ConvertOp::Kind::kSmi:
+          return IsSmiDecision::kTrue;
+        case ConvertOp::Kind::kObject:
+        case ConvertOp::Kind::kNumber:
+        case ConvertOp::Kind::kNumberOrOddball:
+        case ConvertOp::Kind::kPlainPrimitive:
+          return IsSmiDecision::kUnknown;
+      }
+      UNREACHABLE();
+    }
     case Opcode::kConvertUntaggedToJSPrimitive: {
       using Kind = ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind;
       switch (op.Cast<ConvertUntaggedToJSPrimitiveOp>().kind) {

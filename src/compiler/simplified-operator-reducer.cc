@@ -31,7 +31,11 @@ Decision DecideObjectIsSmi(Node* const input) {
   }
   if (m.IsAllocate()) return Decision::kFalse;
   if (m.IsChangeBitToTagged()) return Decision::kFalse;
+  if (m.IsChangeFloat64OrUndefinedToTagged()) return Decision::kFalse;
+  if (m.IsChangeFloat64ToTaggedPointer()) return Decision::kFalse;
+  if (m.IsChangeTaggedToTaggedPointer()) return Decision::kFalse;
   if (m.IsChangeInt31ToTaggedSigned()) return Decision::kTrue;
+  if (m.IsChangeTaggedToTaggedSigned()) return Decision::kTrue;
   if (m.IsHeapConstant()) return Decision::kFalse;
   return Decision::kUnknown;
 }
@@ -232,6 +236,13 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
           IrOpcode::kConvertTaggedHoleToUndefined) {
         node->ReplaceInput(0, node->InputAt(0)->InputAt(0));
         return Changed(node);
+      }
+      break;
+    }
+    case IrOpcode::kChangeTaggedToTaggedPointer: {
+      Node* const input = node->InputAt(0);
+      if (DecideObjectIsSmi(input) == Decision::kFalse) {
+        return Replace(input);
       }
       break;
     }
