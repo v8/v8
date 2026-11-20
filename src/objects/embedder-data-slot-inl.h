@@ -227,30 +227,6 @@ bool EmbedderDataSlot::store_aligned_pointer(Isolate* isolate,
                                     kEmbedderDataSlotTag);
 }
 
-#ifdef V8_COMPRESS_POINTERS
-void EmbedderDataSlot::store_tagged_without_barrier(Tagged<Object> value) {
-  ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(value);
-  clear_cpp_heap_pointer_field(address());
-}
-
-bool EmbedderDataSlot::store_handle_without_barrier(
-    IsolateForPointerCompression isolate, CppHeapPointerHandle handle) {
-  DCHECK_NE(handle, kNullCppHeapPointerHandle);
-  CppHeapPointerTable& table = isolate.GetCppHeapPointerTable();
-  CppHeapPointerTable::Space* space = isolate.GetCppHeapPointerTableSpace();
-
-  CppHeapPointerHandle new_handle = table.DuplicateEntry(space, handle);
-  if (new_handle == kNullCppHeapPointerHandle) return false;
-
-  CppHeapPointerSlot slot(address() + kCppHeapPointerOffset);
-  DCHECK_EQ(slot.Relaxed_LoadHandle(), kNullCppHeapPointerHandle);
-  slot.Release_StoreHandle(new_handle);
-
-  ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(Smi::zero());
-  return true;
-}
-#endif  // V8_COMPRESS_POINTERS
-
 EmbedderDataSlot::RawData EmbedderDataSlot::load_raw(
     IsolateForPointerCompression isolate,
     const DisallowGarbageCollection& no_gc) const {

@@ -140,13 +140,6 @@ class EmbedderDataSlot
       Isolate* isolate, DirectHandle<T> host, int entry_or_embedder_field_index,
       void* ptr, ExternalPointerTag tag);
 
-#ifdef V8_COMPRESS_POINTERS
-  V8_INLINE void store_tagged_without_barrier(Tagged<Object> value);
-
-  V8_INLINE V8_WARN_UNUSED_RESULT bool store_handle_without_barrier(
-      IsolateForPointerCompression isolate, CppHeapPointerHandle handle);
-#endif  // V8_COMPRESS_POINTERS
-
   V8_INLINE bool MustClearDuringSerialization(
       const DisallowGarbageCollection& no_gc);
 
