@@ -716,11 +716,15 @@ class LiftoffCompiler {
   //   which is added to the PC distance on every tier-up check. This cost is
   //   for loading the tiering budget, subtracting from one entry in the array,
   //   and the conditional branch if the value is negative.
-  // - {kTierUpCostForFunctionEntry} reflects the cost for calling the frame
-  //   setup stub in the function prologue (the time is spent in another code
-  //   object and hence not reflected in the PC distance).
+  // - {kTierUpCostForFunctionEntry} reflects the cost of function entry
+  //   overhead, including calling the frame setup stub (which lives in another
+  //   code object, chases the feedback vector array, and updates the invocation
+  //   count) as well as frame setup/teardown. Charging a realistic entry cost
+  //   ensures frequently-called small functions (common in WasmGC) tier up
+  //   without requiring excessive call counts, while leaving loop backedge
+  //   tiering unaffected.
   static constexpr int kTierUpCostForCheck = 20;
-  static constexpr int kTierUpCostForFunctionEntry = 40;
+  static constexpr int kTierUpCostForFunctionEntry = 1000;
 
   struct ElseState {
     explicit ElseState(Zone* zone) : label(zone), state(zone) {}
