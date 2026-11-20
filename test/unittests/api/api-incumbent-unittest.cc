@@ -5,10 +5,12 @@
 #include <array>
 #include <optional>
 
+#include "include/v8-fast-api-calls.h"
 #include "include/v8-function-callback.h"
 #include "include/v8-function.h"
 #include "src/api/api.h"
 #include "src/base/strings.h"
+#include "test/common/flag-utils.h"
 #include "test/unittests/api/api-test-utils.h"
 
 namespace v8 {
@@ -406,6 +408,159 @@ THREADED_TEST(ApiIncumbentTest, IncumbentContextTest_WithBuiltins4) {
   }
   CHECK_LT(0, expected.call_count);
 }
+
+#if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
+namespace {
+
+struct FastIncumbentTestState {
+  Local<Context> inner_backup_context;
+  int fast_call_count = 0;
+};
+
+void FastIncumbentFastCallback(Local<Object> receiver, Local<Object> arg,
+                               v8::FastApiCallbackOptions& options) {
+  auto* state = GetData<FastIncumbentTestState>(options.data);
+  state->fast_call_count++;
+
+  HandleScope handle_scope(options.isolate);
+  std::optional<Context::BackupIncumbentScope> inner_scope;
+  if (!state->inner_backup_context.IsEmpty()) {
+    inner_scope.emplace(state->inner_backup_context);
+  }
+
+  USE(arg->ToNumber(options.isolate->GetCurrentContext()));
+}
+
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+v8::AnyCType FastIncumbentFastCallbackPatch(v8::AnyCType receiver,
+                                            v8::AnyCType arg,
+                                            v8::AnyCType options) {
+  v8::AnyCType ret;
+  FastIncumbentFastCallback(receiver.object_value, arg.object_value,
+                            *options.options_value);
+  return ret;
+}
+#endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+
+void FastIncumbentSlowCallback(const v8::FunctionCallbackInfo<Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
+  if (info.Length() >= 1 && info[0]->IsObject()) {
+    Isolate* isolate = info.GetIsolate();
+    HandleScope handle_scope(isolate);
+    USE(info[0]->ToNumber(isolate->GetCurrentContext()));
+  }
+}
+
+}  // namespace
+
+TEST_F(ApiIncumbentTest, IncumbentContextTest_FastApiCalls) {
+  if (i::v8_flags.jitless || i::v8_flags.disable_optimizing_compilers) return;
+
+  FLAG_SCOPE(allow_natives_syntax);
+  FLAG_SCOPE(turbofan);
+  FLAG_SCOPE(turbo_fast_api_calls);
+#ifdef V8_ENABLE_MAGLEV
+  FLAG_VALUE_SCOPE(optimize_on_next_call_optimizes_to_maglev, false);
+#endif
+  FLAG_VALUE_SCOPE(maglev_as_top_tier, false);
+  FLAG_VALUE_SCOPE(turbolev, false);
+  FLAG_VALUE_SCOPE(turbolev_future, false);
+  FLAG_VALUE_SCOPE(force_slow_path, false);
+  FLAG_VALUE_SCOPE(deopt_every_n_times, 0);
+
+  Isolate* isolate = v8_isolate();
+  HandleScope scope(isolate);
+
+  IncumbentTestExpectations expected;
+  auto contexts = SetupCrossContextTest(isolate, &expected);
+  ASSERT_EQ(4u, contexts.size());
+
+  Local<Context> context0 = contexts[0];
+  Local<Context> context1 = contexts[1];
+  Local<Context> context2 = contexts[2];
+  Local<Context> context3 = contexts[3];
+
+  FastIncumbentTestState fast_state;
+  Local<External> fast_state_ext = MakeData(isolate, &fast_state);
+
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+  static v8::CFunction fast_c_func = v8::CFunction::Make(
+      FastIncumbentFastCallback, FastIncumbentFastCallbackPatch);
+#else
+  static v8::CFunction fast_c_func =
+      v8::CFunction::Make(FastIncumbentFastCallback);
+#endif
+
+  {
+    Context::Scope context_scope(context3);
+    Local<v8::ObjectTemplate> recv_templ = v8::ObjectTemplate::New(isolate);
+    Local<FunctionTemplate> fn_templ = FunctionTemplate::New(
+        isolate, FastIncumbentSlowCallback, fast_state_ext,
+        Local<v8::Signature>(), 1, v8::ConstructorBehavior::kThrow,
+        v8::SideEffectType::kHasSideEffect, &fast_c_func);
+    recv_templ->Set(isolate, "fast_call", fn_templ);
+    Local<Object> fast_obj = recv_templ->NewInstance(context3).ToLocalChecked();
+    CHECK(context3->Global()
+              ->Set(context3, v8_str("fast_obj"), fast_obj)
+              .FromJust());
+
+    CompileRun(R"JS(
+        function run_fast(arg) {
+          return fast_obj.fast_call(arg);
+        }
+        %PrepareFunctionForOptimization(run_fast);
+        run_fast({ valueOf: () => 1 });
+        run_fast({ valueOf: () => 1 });
+        %OptimizeFunctionOnNextCall(run_fast);
+        run_fast({ valueOf: () => 1 });
+    )JS");
+    ASSERT_GT(fast_state.fast_call_count, 0);
+  }
+
+  // 1) Outer BackupIncumbentScope(context2) older than context3's run_fast
+  //    frame: JSEntry re-entry via arg->ToNumber() must find context3.
+  {
+    Context::Scope context_scope(context0);
+    Context::BackupIncumbentScope outer_incumbent(context2);
+
+    fast_state.fast_call_count = 0;
+    fast_state.inner_backup_context.Clear();
+    expected.function_context = context0;
+    expected.incumbent_context = context3;
+    expected.call_count = 0;
+
+    api_incumbent_unittest::Run(
+        "realm3.run_fast({ valueOf: realm0.f.bind(realm0) })");
+    EXPECT_EQ(1, fast_state.fast_call_count);
+    EXPECT_EQ(1, expected.call_count);
+  }
+
+  // 2) Inner BackupIncumbentScope(context1) entered inside the Fast C API
+  //    callback before arg->ToNumber(): newer on the stack than
+  //    context3.run_fast, so fp() < top_backup_incumbent must be false and
+  //    re-entry must observe context1.
+  {
+    Context::Scope context_scope(context0);
+    Context::BackupIncumbentScope outer_incumbent(context2);
+
+    fast_state.fast_call_count = 0;
+    fast_state.inner_backup_context = context1;
+    expected.function_context = context0;
+    expected.incumbent_context = context1;
+    expected.call_count = 0;
+
+    api_incumbent_unittest::Run(
+        "realm3.run_fast({ valueOf: realm0.f.bind(realm0) })");
+    EXPECT_EQ(1, fast_state.fast_call_count);
+    EXPECT_EQ(1, expected.call_count);
+    fast_state.inner_backup_context.Clear();
+  }
+
+  if (i_isolate()->concurrent_recompilation_enabled()) {
+    i_isolate()->AbortConcurrentOptimization(i::BlockingBehavior::kBlock);
+  }
+}
+#endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 
 }  // namespace api_incumbent_unittest
 }  // namespace v8
