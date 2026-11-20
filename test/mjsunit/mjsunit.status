@@ -2121,6 +2121,7 @@
   'compiler/regress-519664497': [SKIP],
   'sandbox/regress/regress-575053489': [SKIP],
   'turboshaft/regress-539984773': [SKIP],
+  'turboshaft/regress-587014652': [SKIP],
 
   # Exhausts 32-bit virtual address space across concurrent isolates, causing
   # Worker thread creation to fail (https://crbug.com/577898450).
