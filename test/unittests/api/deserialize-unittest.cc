@@ -1358,29 +1358,40 @@ TEST_F(MergeDeserializedCodeTest,
 
   CHECK(task->ShouldMergeWithExistingScript());
 
-  // Request block at sync point before background thread reads outer scope
-  // info.
-  base::SynchronizationPointSupport::Get()->RequestBlockAt(
-      "BeforeGetOuterScopeInfo", base::TimeDelta::FromSeconds(10));
-
-  MergeThread merge_thread(task.get());
-  CHECK(merge_thread.Start());
-
-  // Wait until background merge is paused at the sync point.
-  CHECK(base::SynchronizationPointSupport::Get()->WaitUntilBlocked(
-      "BeforeGetOuterScopeInfo", base::TimeDelta::FromSeconds(10)));
-
-  // While background merge is paused before reading outer scope info, trigger
-  // real lazy compilation of 'f' on the main thread.
   {
-    Local<Value> actual = RunGlobalFunc("f");
-    CHECK_EQ(42, actual->Int32Value(context()).FromJust());
-  }
+    // Finalize any in-progress incremental marking and disable stress-marking
+    // flags before merge_thread starts so a pre-existing GC request cannot
+    // fire while merge_thread is artificially paused unparked inside
+    // DisallowGarbageCollection at BeforeGetOuterScopeInfo.
+    i::ManualGCScope manual_gc_scope(i_isolate);
 
-  // Resume the background merge thread.
-  CHECK(base::SynchronizationPointSupport::Get()->Resume(
-      "BeforeGetOuterScopeInfo"));
-  merge_thread.Join();
+    // Request block at sync point before background thread reads outer scope
+    // info.
+    base::SynchronizationPointSupport::Get()->RequestBlockAt(
+        "BeforeGetOuterScopeInfo", base::TimeDelta::FromSeconds(10));
+
+    MergeThread merge_thread(task.get());
+    CHECK(merge_thread.Start());
+
+    // Wait until background merge is paused at the sync point.
+    CHECK(base::SynchronizationPointSupport::Get()->WaitUntilBlocked(
+        "BeforeGetOuterScopeInfo", base::TimeDelta::FromSeconds(10)));
+
+    // While background merge is paused before reading outer scope info, trigger
+    // real lazy compilation of 'f' on the main thread. Suppress automatic GCs
+    // during this call so it cannot block on Safepoint::Barrier::Arm while
+    // merge_thread is paused unparked.
+    {
+      i::AlwaysAllocateScopeForTesting always_allocate(i_isolate->heap());
+      Local<Value> actual = RunGlobalFunc("f");
+      CHECK_EQ(42, actual->Int32Value(context()).FromJust());
+    }
+
+    // Resume the background merge thread.
+    CHECK(base::SynchronizationPointSupport::Get()->Resume(
+        "BeforeGetOuterScopeInfo"));
+    merge_thread.Join();
+  }
 
   // Complete compilation on the main thread.
   ScriptCompiler::Source source(NewString(kSourceCode),

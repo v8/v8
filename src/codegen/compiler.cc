@@ -13,6 +13,7 @@
 #include "src/base/logging.h"
 #include "src/base/platform/time.h"
 #include "src/base/strong-alias.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/baseline/baseline.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compilation-cache.h"
@@ -2394,6 +2395,35 @@ void BackgroundMergeTask::SetUpOnMainThread(Isolate* isolate,
 }
 
 namespace {
+template <typename VerifyScopeInfoFn>
+void VerifyConstantPoolEntry(Tagged<Object> entry, DirectHandle<Script> script,
+                             const VerifyScopeInfoFn& verify_scope_info) {
+  if (Is<SharedFunctionInfo>(entry)) {
+    Tagged<SharedFunctionInfo> inner_sfi = Cast<SharedFunctionInfo>(entry);
+    int id = inner_sfi->function_literal_id(kRelaxedLoad);
+    CHECK_EQ(MakeWeak(inner_sfi), script->infos()->get(id));
+    CHECK_EQ(inner_sfi->script(), *script);
+  } else if (Is<ScopeInfo>(entry)) {
+    verify_scope_info(Cast<ScopeInfo>(entry));
+  } else if (Is<ObjectBoilerplateDescription>(entry)) {
+    Tagged<ObjectBoilerplateDescription> boilerplate =
+        Cast<ObjectBoilerplateDescription>(entry);
+    for (int idx = 0; idx < boilerplate->boilerplate_properties_count();
+         ++idx) {
+      Tagged<Object> val = boilerplate->value(idx);
+      if (Is<SharedFunctionInfo>(val)) {
+        VerifyConstantPoolEntry(val, script, verify_scope_info);
+      }
+    }
+  } else if (Is<FixedArray>(entry)) {
+    Tagged<FixedArray> nested = Cast<FixedArray>(entry);
+    uint32_t nested_len = nested->ulength().value();
+    for (uint32_t idx = 0; idx < nested_len; ++idx) {
+      VerifyConstantPoolEntry(nested->get(idx), script, verify_scope_info);
+    }
+  }
+}
+
 void VerifyCodeMerge(Isolate* isolate, DirectHandle<Script> script) {
   // Check that:
   //   * There aren't any duplicate scope info. Every scope/context should
@@ -2436,16 +2466,8 @@ void VerifyCodeMerge(Isolate* isolate, DirectHandle<Script> script) {
         uint32_t constant_pool_len = constant_pool->ulength().value();
         for (uint32_t constant_idx = 0; constant_idx < constant_pool_len;
              ++constant_idx) {
-          Tagged<Object> entry = constant_pool->get(constant_idx);
-          if (Is<SharedFunctionInfo>(entry)) {
-            Tagged<SharedFunctionInfo> inner_sfi =
-                Cast<SharedFunctionInfo>(entry);
-            int id = inner_sfi->function_literal_id(kRelaxedLoad);
-            CHECK_EQ(MakeWeak(inner_sfi), script->infos()->get(id));
-            CHECK_EQ(inner_sfi->script(), *script);
-          } else if (Is<ScopeInfo>(entry)) {
-            verify_scope_info(Cast<ScopeInfo>(entry));
-          }
+          VerifyConstantPoolEntry(constant_pool->get(constant_idx), script,
+                                  verify_scope_info);
         }
       }
 
@@ -2480,11 +2502,33 @@ void BackgroundMergeTask::SetUpOnMainThread(
   cached_script_ = persistent_handles_->NewHandle(*cached_script);
 }
 
-static bool force_gc_during_next_merge_for_testing_ = false;
-
-void BackgroundMergeTask::ForceGCDuringNextMergeForTesting() {
-  force_gc_during_next_merge_for_testing_ = true;
-}
+// Verification step markers for BackgroundMergeTask.
+// Synchronized with
+// experimental/merge_concurrency_model_checker/merge_concurrency_model_checker.py.
+#if defined(DEBUG)
+#define MERGE_MODEL_STEP(step_name)                                 \
+  do {                                                              \
+    SYNCHRONIZATION_POINT_TEST_ONLY("BackgroundMerge_" #step_name); \
+    if (v8_flags.verify_code_merge) {                               \
+      PrintF("[MergeModelStep] " #step_name "\n");                  \
+    }                                                               \
+  } while (false)
+#define MERGE_MODEL_STEP_WITH_SAFEPOINT(step_name)  \
+  do {                                              \
+    SYNCHRONIZATION_POINT_WITH_SAFEPOINT_TEST_ONLY( \
+        "BackgroundMerge_" #step_name);             \
+    if (v8_flags.verify_code_merge) {               \
+      PrintF("[MergeModelStep] " #step_name "\n");  \
+    }                                               \
+  } while (false)
+#else
+#define MERGE_MODEL_STEP(step_name) \
+  SYNCHRONIZATION_POINT_TEST_ONLY("BackgroundMerge_" #step_name)
+#define MERGE_MODEL_STEP_WITH_SAFEPOINT(step_name) \
+  SYNCHRONIZATION_POINT_WITH_SAFEPOINT_TEST_ONLY(  \
+      "BackgroundMerge"                            \
+      "_" #step_name)
+#endif
 
 void BackgroundMergeTask::BeginMergeInBackground(
     LocalIsolate* isolate, DirectHandle<Script> new_script) {
@@ -2496,6 +2540,7 @@ void BackgroundMergeTask::BeginMergeInBackground(
   DirectHandle<Script> old_script = cached_script_.ToHandleChecked();
   ConstantPoolPointerForwarder forwarder(local_heap, old_script);
 
+  MERGE_MODEL_STEP_WITH_SAFEPOINT(BG_INIT_TOPLEVEL);
   {
     DisallowGarbageCollection no_gc;
     Tagged<MaybeObject> maybe_old_toplevel_sfi =
@@ -2514,6 +2559,7 @@ void BackgroundMergeTask::BeginMergeInBackground(
   uint32_t new_script_infos_len = new_script->infos()->ulength().value();
   CHECK_EQ(old_script_infos_len, new_script_infos_len);
   for (uint32_t i = 0; i < old_script_infos_len; ++i) {
+    MERGE_MODEL_STEP_WITH_SAFEPOINT(BG_INSPECT_SLOT);
     DisallowGarbageCollection no_gc;
     Tagged<MaybeObject> maybe_new_sfi = new_script->infos()->get(i);
     // Acquire-load: pairs with the release-store in
@@ -2528,6 +2574,7 @@ void BackgroundMergeTask::BeginMergeInBackground(
       Tagged<SharedFunctionInfo> new_sfi =
           Cast<SharedFunctionInfo>(maybe_new_sfi.GetHeapObjectAssumeWeak());
       if (maybe_old_info.IsWeak()) {
+        MERGE_MODEL_STEP(BG_PAIR_SFI);
         forwarder.set_has_shared_function_info_to_forward();
         // The old script and the new script both have SharedFunctionInfos for
         // this function literal.
@@ -2546,6 +2593,7 @@ void BackgroundMergeTask::BeginMergeInBackground(
           // catastrophic.
           old_sfi->set_age(0);
         } else if (new_sfi->HasBytecodeArray()) {
+          MERGE_MODEL_STEP(BG_RECORD_COMPILED_DATA);
           // Also push the old_sfi to make sure it stays alive / isn't replaced.
           new_compiled_data_for_cached_sfis_.push_back(
               {old_sfi_handle, local_heap->NewPersistentHandle(new_sfi)});
@@ -2560,6 +2608,7 @@ void BackgroundMergeTask::BeginMergeInBackground(
           forwarder.AddBytecodeArray(new_sfi->GetBytecodeArray(isolate));
         }
       } else {
+        MERGE_MODEL_STEP(BG_USE_NEW_SFI);
         // The old script didn't have a SharedFunctionInfo for this function
         // literal, so it can use the new SharedFunctionInfo.
         new_sfi->set_script(*old_script, kReleaseStore);
@@ -2570,6 +2619,7 @@ void BackgroundMergeTask::BeginMergeInBackground(
       }
     } else if (maybe_new_sfi.IsWeak() &&
                Is<ScopeInfo>(maybe_new_sfi.GetHeapObjectAssumeWeak())) {
+      MERGE_MODEL_STEP(BG_STANDALONE_SCOPE);
       if (!maybe_old_info.IsWeak()) {
         used_new_scope_infos_.push_back(local_heap->NewPersistentHandle(
             Cast<ScopeInfo>(maybe_new_sfi.GetHeapObjectAssumeWeak())));
@@ -2584,6 +2634,7 @@ void BackgroundMergeTask::BeginMergeInBackground(
           sfis_without_scope_info_.insert(i);
         }
       }
+      MERGE_MODEL_STEP(BG_RECORD_OLD_SCOPE_INFO);
       forwarder.RecordScopeInfos(maybe_old_info);
       // If the old script has a SFI, point to it from the new script to
       // indicate we've already seen it and we'll reuse it if necessary (if
@@ -2592,18 +2643,8 @@ void BackgroundMergeTask::BeginMergeInBackground(
     }
   }
 
-  // Since we are walking the script infos weak list both when figuring out
-  // which SFIs to merge above, and actually merging them below, make sure that
-  // a GC here which clears any dead weak refs or flushes any bytecode doesn't
-  // break anything.
-  if (V8_UNLIKELY(force_gc_during_next_merge_for_testing_)) {
-    // This GC is only synchronous on the main thread at the moment.
-    DCHECK(isolate->is_main_thread());
-    local_heap->AsHeap()->CollectAllAvailableGarbage(
-        GarbageCollectionReason::kTesting);
-  }
-
   if (forwarder.HasAnythingToForward()) {
+    MERGE_MODEL_STEP_WITH_SAFEPOINT(BG_FORWARD_POINTERS);
     for (DirectHandle<SharedFunctionInfo> new_sfi : used_new_sfis_) {
       forwarder.UpdateScopeInfo(*new_sfi);
     }
@@ -2640,6 +2681,7 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
   // script's SFI's outer scope infos need to be used by the new script's outer
   // SFIs.
   uint32_t old_script_infos_len = old_script->infos()->ulength().value();
+  MERGE_MODEL_STEP_WITH_SAFEPOINT(FG_RESCAN_START);
   for (uint32_t i = 0; i < old_script_infos_len; ++i) {
     DisallowGarbageCollection no_gc;
     Tagged<MaybeObject> maybe_old_info = old_script->infos()->get(i);
@@ -2647,6 +2689,7 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
     if (maybe_old_info.IsWeak()) {
       if (maybe_new_info != maybe_old_info &&
           Is<SharedFunctionInfo>(maybe_old_info.GetHeapObjectAssumeWeak())) {
+        MERGE_MODEL_STEP(FG_DETECT_CONCURRENT_SFI);
         forwarder.set_has_shared_function_info_to_forward();
       }
       forwarder.RecordScopeInfos(maybe_old_info);
@@ -2656,6 +2699,7 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
   // If we found anything in the pass before, update the new data that we'll
   // merge in before actually merging it in.
   if (forwarder.HasAnythingToForward()) {
+    MERGE_MODEL_STEP_WITH_SAFEPOINT(FG_FORWARD_POINTERS);
     for (DirectHandle<SharedFunctionInfo> new_sfi : used_new_sfis_) {
       forwarder.UpdateScopeInfo(*new_sfi);
       if (new_sfi->HasBytecodeArray()) {
@@ -2689,6 +2733,7 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
   // This is important because other background merge tasks as well as
   // concurrently running optimizing compile jobs might be looking at what we
   // release here.
+  MERGE_MODEL_STEP_WITH_SAFEPOINT(FG_RELEASE_BACKWARDS_START);
   for (uint32_t index = 0; index < old_script_infos_len; ++index) {
     uint32_t i = old_script_infos_len - 1 - index;
     Tagged<MaybeObject> maybe_old_info = old_script->infos()->get(i);
@@ -2711,6 +2756,7 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
           // cached_sfi to new_sfi, and then copy every field using CopyFrom.
           compiled_data_it->new_sfi->set_script(sfi->script(kAcquireLoad),
                                                 kReleaseStore);
+          MERGE_MODEL_STEP(FG_COPY_FROM);
           sfi->CopyFrom(*compiled_data_it->new_sfi, isolate);
         }
         compiled_data_it++;
@@ -2724,6 +2770,7 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
               Is<ScopeInfo>(maybe_new_info.GetHeapObjectAssumeWeak()),
           !forwarder.HasScopeInfoToUpdate(
               Cast<ScopeInfo>(maybe_new_info.GetHeapObjectAssumeWeak())));
+      MERGE_MODEL_STEP(FG_PUBLISH_NEW_SFI);
       old_script->infos()->set(i, maybe_new_info, kReleaseStore);
     }
   }
@@ -2752,6 +2799,9 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
 
   return handle_scope.CloseAndEscape(result);
 }
+
+#undef MERGE_MODEL_STEP
+#undef MERGE_MODEL_STEP_WITH_SAFEPOINT
 
 MaybeHandle<SharedFunctionInfo> BackgroundCompileTask::FinalizeScript(
     Isolate* isolate, DirectHandle<String> source,
