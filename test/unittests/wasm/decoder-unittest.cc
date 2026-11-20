@@ -667,14 +667,14 @@ TEST_F(DecoderTest, FailOnNullData) {
 }
 
 // Exercises all LEB128 fast-path and fallback boundaries:
-// - exact-sized heap buffers crossing 2-byte, 4-byte, and 8-byte SWAR
-//   thresholds (so ASan catches any out-of-bounds read past {end_});
-// - trailing bytes (0x00, 0x7f, 0x80, 0xff) inside the wider SWAR load right
-//   after the terminating byte;
+// - exact-sized heap buffers crossing the 5-byte fast-path threshold (so ASan
+//   catches any out-of-bounds read past {end_});
+// - trailing bytes (0x00, 0x7f, 0x80, 0xff) after the terminating byte, which
+//   must not affect the result;
 // - minimal and overlong encodings across extrema and bit-boundary widths for
 //   u32v, i32v, i33v, u64v, and i64v under both FullValidationTag and
 //   NoValidationTag.
-TEST_F(DecoderTest, ReadLEB_SwarAndFallbackPaths) {
+TEST_F(DecoderTest, ReadLEB_FastAndFallbackPaths) {
   constexpr uint8_t kPadBytes[] = {0x00, 0x7f, 0x80, 0xff};
   constexpr uint32_t kBufferLimits32[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 16};
   constexpr uint32_t kBufferLimits64[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16};
@@ -684,8 +684,7 @@ TEST_F(DecoderTest, ReadLEB_SwarAndFallbackPaths) {
   constexpr uint64_t kVals[] = {0x0000000000000000ULL, 0xFFFFFFFFFFFFFFFFULL,
                                 0x7FFFFFFFFFFFFFFFULL, 0x8000000000000000ULL,
                                 0xAABBCCDD11223344ULL, 0x55443322EEDDCCBBULL};
-  // Covers bit 1, bit 64, and every 7-bit LEB byte boundary (7*k and 7*k + 1,
-  // including bit 56 at the top of the 8-byte SWAR load).
+  // Covers bit 1, bit 64, and every 7-bit LEB byte boundary (7*k and 7*k + 1).
   constexpr int kBitWidths64[] = {1,  7,  8,  14, 15, 21, 22, 28, 29, 35,
                                   36, 42, 43, 49, 50, 56, 57, 63, 64};
 
@@ -757,7 +756,7 @@ TEST_F(DecoderTest, ReadLEB_SwarAndFallbackPaths) {
   for (uint8_t pad : kPadBytes) {
     for (uint64_t raw_val : kVals) {
       // Test u32v and i32v across 1..5 byte encodings (including overlong) and
-      // buffer limits crossing the 2-byte and 8-byte fast-path thresholds.
+      // buffer limits crossing the 5-byte fast-path threshold.
       for (int bits = 1; bits <= 32; bits++) {
         uint32_t uval = static_cast<uint32_t>(raw_val >> (64 - bits));
         int32_t ival = static_cast<int32_t>(base::bit_cast<int64_t>(raw_val) >>
@@ -782,8 +781,8 @@ TEST_F(DecoderTest, ReadLEB_SwarAndFallbackPaths) {
         }
       }
 
-      // Test u64v and i64v across 1..10 byte encodings (including <= 4 byte
-      // u64v SWAR path, 5..8 byte SWAR path, and 9..10 byte fallback).
+      // Test u64v and i64v across 1..10 byte encodings (including the 2..5 byte
+      // fast path and the 6..10 byte fallback).
       for (int bits : kBitWidths64) {
         uint64_t uval64 = raw_val >> (64 - bits);
         int64_t ival64 = base::bit_cast<int64_t>(raw_val) >> (64 - bits);
@@ -800,9 +799,9 @@ TEST_F(DecoderTest, ReadLEB_SwarAndFallbackPaths) {
 }
 
 // Exhaustively checks all 256 possible final-byte values at maximum LEB length
-// (5th byte for 32/33-bit, 10th byte for 64-bit) across both the < 8-byte
-// fallback path (buf_size == 5) and the >= 8-byte SWAR path (buf_size >= 8),
-// verifying decoded values, NoValidationTag parity, and error messages.
+// (5th byte for 32/33-bit, 10th byte for 64-bit) in exact-sized and larger
+// buffers, verifying decoded values, NoValidationTag parity, and error
+// messages.
 TEST_F(DecoderTest, ReadLEB_ExhaustiveLastByteValidation) {
   constexpr uint8_t kPadBytes[] = {0x00, 0x7f, 0x80, 0xff};
   constexpr size_t kBufferSizes32[] = {5, 8, 16};
@@ -925,8 +924,8 @@ TEST_F(DecoderTest, ReadLEB_ExhaustiveLastByteValidation) {
 #ifdef DEBUG
 TEST_F(DecoderTest, ReadLEB_TraceWasmDecoder) {
   FLAG_SCOPE(trace_wasm_decoder);
-  // Multi-byte valid u32v and i32v in >= 8-byte buffer (bypasses SWAR fast
-  // paths to emit per-byte trace output).
+  // Multi-byte valid u32v and i32v in >= 5-byte buffer (bypasses the fast path
+  // to emit per-byte trace output).
   const uint8_t valid_data[] = {U32V_2(300), U32V_3(-10000), 0, 0, 0, 0, 0};
   decoder.Reset(valid_data, valid_data + sizeof(valid_data));
   EXPECT_EQ(300u, decoder.consume_u32v("u32"));

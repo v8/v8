@@ -15,7 +15,6 @@
 #include <cstdarg>
 #include <memory>
 
-#include "src/base/bits.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/memory.h"
 #include "src/base/strings.h"
@@ -504,24 +503,14 @@ class Decoder {
       }
       return {result, 1};
     }
-    // Multi-byte unsigned 32-bit LEBs (indices, counts) and 33-bit signed LEBs
-    // (WasmGC heap/block type indices) are almost always 2 bytes; unsigned
-    // 64-bit LEBs (memory offsets) are almost always <= 4 bytes. Try a narrow
-    // SWAR load first for those, while sending general signed constants
-    // (i32.const, i64.const) straight to the 8-byte SWAR load.
-    using InitialSwarWord = std::conditional_t<
-        (!std::is_signed_v<IntType> && sizeof(IntType) == 4) ||
-            size_in_bits == 33,
-        uint16_t,
-        std::conditional_t<std::is_signed_v<IntType>, uint64_t, uint32_t>>;
     std::pair<IntType, uint32_t> decoded;
     if (trace && V8_UNLIKELY(v8_flags.trace_wasm_decoder)) {
       decoded =
           read_leb_byte_by_byte<IntType, ValidationTag, trace, size_in_bits>(
               pc, name);
     } else {
-      decoded = read_leb_swar<IntType, ValidationTag, size_in_bits,
-                              InitialSwarWord>(pc, name);
+      decoded =
+          read_leb_fastpath<IntType, ValidationTag, size_in_bits>(pc, name);
     }
     // Single-byte LEBs already returned above, so multi-byte lengths are >= 2
     // on success or 0 on validation failure.
@@ -557,129 +546,79 @@ class Decoder {
     }
   }
 
-  template <size_t size_in_bits, bool is_signed, bool validate,
-            typename SwarWord>
-  static constexpr V8_INLINE bool can_decode_leb_swar(SwarWord word,
-                                                      SwarWord terminators) {
-    constexpr int kMaxLength = (size_in_bits + 6) / 7;
-    if constexpr (int{sizeof(SwarWord)} < kMaxLength) {
-      // Narrow SWAR load (2B for 32/33-bit LEB, or 4B/8B for 64-bit LEB): any
-      // terminator in {word} fits in the target type without overflowing.
-      return terminators != 0;
-    }
-    // If any of bytes 0..3 terminates, no extra-bits check is needed:
-    // substitute 0 (always valid) so both length-overflow (byte 4 bit 7) and
-    // extra-bits validation collapse into a single branchless check.
-    uint8_t last_byte = static_cast<uint32_t>(terminators) != 0
-                            ? 0
-                            : static_cast<uint8_t>(word >> 32);
-    bool valid = is_valid_leb_last_byte<size_in_bits, is_signed>(last_byte);
-    if constexpr (!validate) {
-      DCHECK(valid);
-      return true;
-    }
-    return valid;
-  }
-
-  // Packs the low 7 payload bits of each byte in {word} into a contiguous
-  // integer via pairwise SWAR stages:
-  //   bytes:    [.ddddddd .ccccccc .bbbbbbb .aaaaaaa]
-  //   pairs:    [..dddddd dccccccc ..bbbbbb baaaaaaa]  (14-bit halves)
-  //   gathered: [....dddd dddccccc ccbbbbbb baaaaaaa]  (28 contiguous bits)
-  template <size_t size_in_bits, typename SwarWord>
-  static constexpr V8_INLINE uint64_t gather_leb_bytes(SwarWord word) {
-    uint32_t low = static_cast<uint32_t>(word);
-    uint32_t pairs = (low & 0x007f007fU) | ((low >> 1) & 0x3f803f80U);
-    if constexpr (sizeof(SwarWord) == 2) {
-      return pairs;
-    }
-    uint64_t gathered = (pairs & 0x00003fffU) | ((pairs >> 2) & 0x0fffc000U);
-    if constexpr (sizeof(SwarWord) == 4) {
-      return gathered;
-    } else if constexpr (size_in_bits <= 33) {
-      // Place byte 4's payload (bits 32..38 of {word}) at bits 28..34 via
-      // {word >> 4}. For 32-bit types (u32v/i32v), mask only the 4 used bits
-      // (28..31) so the mask fits in a 32-bit immediate on x64.
-      constexpr uint64_t kByte4Mask =
-          (size_in_bits == 32 ? 0x0fULL : 0x7fULL) << 28;
-      return gathered | ((word >> 4) & kByte4Mask);
-    } else {
-      return gathered |
-             (gather_leb_bytes<size_in_bits>(static_cast<uint32_t>(word >> 32))
-              << 28);
-    }
-  }
-
-  // Multi-byte LEB decoding is split into V8_PRESERVE_MOST functions chained
-  // via V8_MUSTTAIL:
-  // 1. {read_leb_swar}: branchless SWAR decode over a {SwarWord} load
-  //    (starting with {uint16_t} for 2B u32v/i33v or {uint32_t} for <= 4B u64v
-  //    to avoid callee-saved register spills on the common short cases, then
-  //    chaining to {uint64_t} for up to 8 bytes).
-  // 2. {read_leb_byte_by_byte}: cold byte-by-byte loop for < 8-byte buffer
-  //    tails near {end_}, 9..10-byte 64-bit LEBs, --trace-wasm-decoder, and
-  //    error reporting. Isolating {errorf}/{error} here prevents their
-  //    argument-register setup from forcing callee-saved register spills in
-  //    {read_leb_swar}.
+  // Multi-byte LEB decoding uses two out-of-line {V8_PRESERVE_MOST} functions:
+  // 1. {read_leb_fastpath} decodes valid 2..5-byte LEBs when at least 5 bytes
+  //    remain, and tail-calls {read_leb_byte_by_byte} otherwise.
+  // 2. {read_leb_byte_by_byte} handles < 5 remaining bytes, 6..10-byte 64-bit
+  //    LEBs, --trace-wasm-decoder, and errors. {errorf} and {error} stay here
+  //    so their call arguments do not force register saves in
+  //    {read_leb_fastpath}.
   template <typename IntType, typename ValidationTag,
-            size_t size_in_bits = 8 * sizeof(IntType),
-            typename SwarWord = uint64_t>
-  V8_NOINLINE V8_PRESERVE_MOST std::pair<IntType, uint32_t> read_leb_swar(
+            size_t size_in_bits = 8 * sizeof(IntType)>
+  V8_NOINLINE V8_PRESERVE_MOST std::pair<IntType, uint32_t> read_leb_fastpath(
       const uint8_t* pc, Name<ValidationTag> name) {
-    constexpr int kSwarWidth = sizeof(SwarWord);
-    static_assert(kSwarWidth == 2 || kSwarWidth == 4 || kSwarWidth == 8);
     constexpr bool is_signed = std::is_signed_v<IntType>;
+    constexpr int kMaxLength = (size_in_bits + 6) / 7;
+    // The steps below read up to 5 bytes.
+    static_assert(kMaxLength >= 5);
 
-    // In NoValidationTag mode, reaching {read_leb_swar} implies
-    // (pc[0] & 0x80) != 0, so at least 2 bytes are guaranteed in bounds; wider
-    // loads (4 or 8 bytes) must still check {end_ - pc >= kSwarWidth} so a
-    // shorter LEB near {end_} never reads past the buffer.
-    constexpr bool kMustCheckBounds =
-        ValidationTag::validate || kSwarWidth > 2;
-    if (!kMustCheckBounds || V8_LIKELY(end_ - pc >= kSwarWidth)) {
-      DCHECK_LE(kSwarWidth, end_ - pc);
-      SwarWord word = base::ReadLittleEndianValue<SwarWord>(
-          reinterpret_cast<Address>(pc));
-      DCHECK_NE(0, word & 0x80);
-      // Byte 0 is guaranteed to have its continuation bit set, so only check
-      // bytes 1..kSwarWidth-1 for a terminating byte (MSB == 0). For
-      // SwarWord == uint16_t, only bit 15 can be set in {terminators}, so
-      // Clang folds {length} to the constant 2 without emitting {tzcnt}.
-      SwarWord terminators =
-          ~word & static_cast<SwarWord>(0x8080808080808000ULL);
-      if (V8_LIKELY((can_decode_leb_swar<size_in_bits, is_signed,
-                                         ValidationTag::validate>(
-              word, terminators)))) {
-        DCHECK_NE(0, terminators);
-        uint32_t length =
-            (base::bits::CountTrailingZerosNonZero(terminators) >> 3) + 1;
-        if constexpr (!is_signed) {
-          // Zero out trailing bytes past the first terminator before gathering.
-          word &= terminators ^ (terminators - 1);
-        }
-        uint64_t gathered = gather_leb_bytes<size_in_bits>(word);
+    // Check once that 5 bytes are in bounds so the byte reads below need no
+    // individual bounds checks. Validated input needs no check: the reads
+    // below stop at the last byte of the LEB.
+    if (!ValidationTag::validate || V8_LIKELY(end_ - pc >= 5)) {
+      // When a byte's continuation bit (0x80) is set, its int8_t value is
+      // {payload - 0x80}, and the next step's "+ 1" cancels that -0x80. Thus
+      // {result} stays negative while the continuation bit is set. Once that
+      // bit is 0, {result} holds the concatenated 7-bit payloads.
+      int64_t result = static_cast<int8_t>(pc[0]);
+      DCHECK_GT(0, result);
+      // Adds byte {i}. Returns whether it is the last byte of the LEB.
+      auto add_byte = [&](int i) {
+        DCHECK_LT(pc + i, end_);
+        result += int64_t{static_cast<int8_t>(pc[i]) + 1} << (7 * i);
+        return result >= 0;
+      };
+      // Sign-extends {result} from its low {7 * length} bits if needed.
+      auto finish = [&result](int length) -> std::pair<IntType, uint32_t> {
         if constexpr (is_signed) {
-          // For signed LEBs, {word} was gathered unmasked in parallel with
-          // {ctz}; a single 64-bit shift pair both discards trailing bytes
-          // above {7 * length} bits and sign-extends bit (7 * length - 1).
-          uint32_t shift = 64 - 7 * length;
-          return {static_cast<IntType>(
-                      static_cast<int64_t>(gathered << shift) >> shift),
-                  length};
+          const int shift = std::max(0, int{8 * sizeof(IntType)} - 7 * length);
+          return {static_cast<IntType>(result << shift) >> shift,
+                  static_cast<uint32_t>(length)};
+        } else {
+          return {static_cast<IntType>(result), static_cast<uint32_t>(length)};
         }
-        return {static_cast<IntType>(gathered), length};
+      };
+      // Omit {V8_LIKELY} on these branches. Lengths 2 to 4 are all common, and
+      // hints on several branches make Clang save two extra registers on x64.
+      if (add_byte(1)) return finish(2);
+      if (add_byte(2)) return finish(3);
+      if (add_byte(3)) return finish(4);
+      bool is_last = add_byte(4);
+      if constexpr (kMaxLength == 5) {
+        // The 35 decoded bits must fit into {size_in_bits}. Upper bits must be
+        // 0 for unsigned types or match the sign bit for signed types;
+        // otherwise {read_leb_byte_by_byte} reports the error.
+        if constexpr (is_signed) {
+          // Shift bit 34 to the sign bit (64 - 35 = 29), then arithmetic-shift
+          // bits {size_in_bits - 1}..34 of {result} to bit 0.
+          const int64_t sign_bits = (result << 29) >> (28 + size_in_bits);
+          is_last = is_last && (sign_bits == 0 || sign_bits == -1);
+        } else {
+          is_last = is_last && (result >> size_in_bits) == 0;
+        }
+        if constexpr (!ValidationTag::validate) {
+          // Validated input always passes the checks above.
+          DCHECK(is_last);
+          return finish(5);
+        }
       }
+      if (is_last) return finish(5);
     }
-    if constexpr (kSwarWidth < 8) {
-      V8_MUSTTAIL return read_leb_swar<IntType, ValidationTag, size_in_bits,
-                                       uint64_t>(pc, name);
-    } else {
-      V8_MUSTTAIL return read_leb_byte_by_byte<IntType, ValidationTag, kNoTrace,
-                                               size_in_bits>(pc, name);
-    }
+    V8_MUSTTAIL return read_leb_byte_by_byte<IntType, ValidationTag, kNoTrace,
+                                             size_in_bits>(pc, name);
   }
 
-  // Cold fallback for LEBs near {end_} (< 8 bytes left in buffer), 9..10-byte
+  // Cold fallback for LEBs near {end_} (< 5 bytes left in buffer), 6..10-byte
   // 64-bit LEBs, --trace-wasm-decoder, and malformed LEBs (reporting the exact
   // error offset and message).
   template <typename IntType, typename ValidationTag, TraceFlag trace,
