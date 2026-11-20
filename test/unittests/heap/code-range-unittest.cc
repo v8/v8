@@ -114,7 +114,14 @@ TEST_F(RedZoneTest, SplitAll) {
 using CodeRangeTest = TestWithIsolate;
 
 TEST_F(CodeRangeTest, ImmutableCodeRangeRemapAndFree) {
-  if (!i_isolate()->RequiresCodeRange()) return;
+  // In production, RemapEmbeddedBuiltins is only called from
+  // Isolate::MaybeRemapEmbeddedBuiltinsIntoCodeRange, which returns early
+  // unless is_short_builtin_calls_enabled() && RequiresCodeRange(). Gate
+  // this test the same way so it only exercises the function on
+  // configurations where production does.
+  if (!i_isolate()->is_short_builtin_calls_enabled() ||
+      !i_isolate()->RequiresCodeRange())
+    return;
 
   CodeRange code_range;
   ASSERT_TRUE(code_range.InitReservation(GetPlatformPageAllocator(),
