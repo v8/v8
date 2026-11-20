@@ -72,7 +72,6 @@ in_category(
         release_branches = True,
         triggering_policy = parallel_3_greedy_batching_of_1,
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        gclient_vars = [GCLIENT_VARS.JSFUNFUZZ],
         barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder(

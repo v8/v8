@@ -10,7 +10,6 @@ GCLIENT_VARS = struct(
     GCMOLE = {"download_gcmole": "True"},
     INSTRUMENTED_LIBRARIES = {"checkout_instrumented_libraries": "True"},
     ITTAPI = {"checkout_ittapi": "True"},
-    JSFUNFUZZ = {"download_jsfunfuzz": "True"},
     LINUX_ARM64_SYMBOLIZER = {"download_prebuilt_arm64_llvm_symbolizer": "True"},
     NO_BENCHMARKS = {"checkout_benchmarks": "False"},
     V8_HEADER_INCLUDES = {"check_v8_header_includes": "True"},
