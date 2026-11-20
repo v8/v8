@@ -1787,6 +1787,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // cell for locals that may be reassigned, undefined otherwise.
   TNode<Object> GetFunctionContextSlotInitialValue(TNode<ScopeInfo> scope_info,
                                                    TNode<IntPtrT> index);
+  // Returns the function name, or SharedFunctionInfo::kNoSharedNameSentinel if
+  // there is none. Mirrors ScopeInfo::FunctionName.
+  TNode<Object> LoadScopeInfoFunctionName(TNode<ScopeInfo> scope_info);
 
   // Context manipulation:
   void StoreContextElementNoWriteBarrier(TNode<Context> context, int slot_index,
@@ -1831,6 +1834,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Load the initial map of a JSFunctionWithPrototype.
   TNode<Map> LoadJSFunctionInitialMap(TNode<JSFunction> function,
                                       Label* if_bailout);
+
+  // Load the "name" property of a JSFunction. Mirrors JSFunction::GetName.
+  TNode<String> LoadJSFunctionName(TNode<JSFunction> function);
 
   // Load the "prototype" property of a JSFunctionWithPrototype.
   // If |if_non_instance_prototype| label is provided then the non-instance

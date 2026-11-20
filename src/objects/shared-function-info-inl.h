@@ -377,14 +377,9 @@ bool SharedFunctionInfo::HasSharedName() const {
 }
 
 Tagged<String> SharedFunctionInfo::Name() const {
-  if (!HasSharedName()) return GetReadOnlyRoots().empty_string();
   Tagged<Object> value = name_or_scope_info(kAcquireLoad);
-  if (IsScopeInfo(value)) {
-    if (Cast<ScopeInfo>(value)->HasFunctionName()) {
-      return Cast<String>(Cast<ScopeInfo>(value)->FunctionName());
-    }
-    return GetReadOnlyRoots().empty_string();
-  }
+  if (IsScopeInfo(value)) value = Cast<ScopeInfo>(value)->FunctionName();
+  if (value == kNoSharedNameSentinel) return GetReadOnlyRoots().empty_string();
   return Cast<String>(value);
 }
 

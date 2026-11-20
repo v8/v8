@@ -353,6 +353,11 @@ TF_BUILTIN(StoreFastElementIC_NoTransitionHandleCOW, HandlerBuiltinsAssembler) {
   Generate_StoreFastElementIC(KeyedAccessStoreMode::kHandleCOW);
 }
 
+TF_BUILTIN(LoadIC_FunctionName, CodeStubAssembler) {
+  auto receiver = Parameter<JSFunction>(Descriptor::kReceiver);
+  Return(LoadJSFunctionName(receiver));
+}
+
 TF_BUILTIN(LoadIC_FunctionPrototype, CodeStubAssembler) {
   auto receiver = Parameter<JSFunction>(Descriptor::kReceiver);
   auto name = Parameter<Name>(Descriptor::kName);

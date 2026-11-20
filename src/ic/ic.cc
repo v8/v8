@@ -1202,6 +1202,18 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
       return MaybeObjectHandle(
           BUILTIN_CODE(isolate(), LoadIC_FunctionPrototype));
     }
+
+    // Use specialized code for getting the name of functions.
+    if (IsJSFunction(*lookup_start_object) &&
+        *lookup->name() == roots.name_string() &&
+        lookup->state() == LookupIterator::ACCESSOR &&
+        lookup_start_object.is_identical_to(lookup->GetHolder<JSReceiver>()) &&
+        Cast<JSFunction>(*lookup_start_object)->HasFastProperties() &&
+        *lookup->GetAccessors() ==
+            *isolate()->factory()->function_name_accessor()) {
+      TRACE_HANDLER_STATS(isolate(), LoadIC_FunctionNameStub);
+      return MaybeObjectHandle(BUILTIN_CODE(isolate(), LoadIC_FunctionName));
+    }
   }
 
   DirectHandle<Map> map = lookup_start_object_map();

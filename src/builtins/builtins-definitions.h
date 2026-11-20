@@ -499,6 +499,7 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   TFH(KeyedStoreIC_Megamorphic, StoreWithVector)                               \
   TFH(DefineKeyedOwnIC_Megamorphic, StoreNoFeedback)                           \
   TFH(LoadGlobalIC_NoFeedback, LoadGlobalNoFeedback)                           \
+  TFH(LoadIC_FunctionName, LoadWithVector)                                     \
   TFH(LoadIC_FunctionPrototype, LoadWithVector)                                \
   TFH(LoadIC_StringLength, LoadWithVector)                                     \
   TFH(LoadIC_StringWrapperLength, LoadWithVector)                              \

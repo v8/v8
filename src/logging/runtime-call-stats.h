@@ -464,6 +464,7 @@ namespace v8::internal {
   V(KeyedStoreIC_StoreFastElementStub)            \
   V(LoadGlobalIC_LoadScriptContextField)          \
   V(LoadGlobalIC_SlowStub)                        \
+  V(LoadIC_FunctionNameStub)                      \
   V(LoadIC_FunctionPrototypeStub)                 \
   V(LoadIC_HandlerCacheHit_Accessor)              \
   V(LoadIC_LoadAccessorDH)                        \

@@ -3776,9 +3776,7 @@ namespace {
 // ScopeInfo::ContextLocalNamesOffset: the tail starts with a
 // module_variable_count slot for module scopes only.
 TNode<IntPtrT> ScopeInfoContextLocalNamesOffset(CodeStubAssembler* csa,
-                                                TNode<ScopeInfo> scope_info) {
-  TNode<Uint32T> flags =
-      csa->LoadObjectField<Uint32T>(scope_info, offsetof(ScopeInfo, flags_));
+                                                TNode<Uint32T> flags) {
   TNode<BoolT> is_module = csa->Word32Equal(
       csa->DecodeWord32<ScopeInfo::Flags::ScopeTypeBits>(flags),
       csa->Uint32Constant(static_cast<uint32_t>(ScopeType::MODULE_SCOPE)));
@@ -3791,14 +3789,43 @@ TNode<IntPtrT> ScopeInfoContextLocalNamesOffset(CodeStubAssembler* csa,
       [=] { return csa->IntPtrConstant(OFFSET_OF_DATA_START(ScopeInfo)); });
 }
 
+// Mirrors ScopeInfo::ContextLocalInfosOffset: the infos follow either the
+// inlined names or the single hashtable slot.
+TNode<IntPtrT> ScopeInfoContextLocalInfosOffset(CodeStubAssembler* csa,
+                                                TNode<Uint32T> flags,
+                                                TNode<IntPtrT> count) {
+  TNode<IntPtrT> names_slots = csa->Select<IntPtrT>(
+      csa->IntPtrLessThan(
+          count, csa->IntPtrConstant(kScopeInfoMaxInlinedLocalNamesSize)),
+      [=] { return count; }, [=] { return csa->IntPtrConstant(1); });
+  return csa->IntPtrAdd(ScopeInfoContextLocalNamesOffset(csa, flags),
+                        csa->TimesTaggedSize(names_slots));
+}
+
+// Mirrors ScopeInfo::FunctionVariableInfoOffset.
+TNode<IntPtrT> ScopeInfoFunctionVariableInfoOffset(CodeStubAssembler* csa,
+                                                   TNode<Uint32T> flags,
+                                                   TNode<IntPtrT> count) {
+  TNode<IntPtrT> saved_class_variable_offset =
+      csa->IntPtrAdd(ScopeInfoContextLocalInfosOffset(csa, flags, count),
+                     csa->TimesTaggedSize(count));
+  return csa->Select<IntPtrT>(
+      csa->IsSetWord32<ScopeInfo::Flags::HasSavedClassVariableBit>(flags),
+      [=] {
+        return csa->IntPtrAdd(saved_class_variable_offset,
+                              csa->IntPtrConstant(kTaggedSize));
+      },
+      [=] { return saved_class_variable_offset; });
+}
+
 }  // namespace
 
 TNode<IntPtrT> CodeStubAssembler::IndexOfLocalName(TNode<ScopeInfo> scope_info,
                                                    TNode<Name> name,
                                                    Label* not_found) {
   TNode<IntPtrT> count = LoadScopeInfoContextLocalCount(scope_info);
-  TNode<IntPtrT> names_offset =
-      ScopeInfoContextLocalNamesOffset(this, scope_info);
+  TNode<IntPtrT> names_offset = ScopeInfoContextLocalNamesOffset(
+      this, LoadObjectField<Uint32T>(scope_info, offsetof(ScopeInfo, flags_)));
 
   TVARIABLE(IntPtrT, var_result);
   // Exits to |not_found| go through a local label so that no local variables
@@ -3848,15 +3875,9 @@ TNode<Object> CodeStubAssembler::GetFunctionContextSlotInitialValue(
     TNode<ScopeInfo> scope_info, TNode<IntPtrT> index) {
   TNode<IntPtrT> count = LoadScopeInfoContextLocalCount(scope_info);
   CSA_DCHECK(this, IntPtrLessThan(index, count));
-  // Mirrors ScopeInfo::ContextLocalInfosOffset: the infos follow either the
-  // inlined names or the single hashtable slot.
-  TNode<IntPtrT> names_offset =
-      ScopeInfoContextLocalNamesOffset(this, scope_info);
-  TNode<IntPtrT> names_slots = Select<IntPtrT>(
-      IntPtrLessThan(count, IntPtrConstant(kScopeInfoMaxInlinedLocalNamesSize)),
-      [=] { return count; }, [this] { return IntPtrConstant(1); });
-  TNode<IntPtrT> infos_offset =
-      IntPtrAdd(names_offset, TimesTaggedSize(names_slots));
+  TNode<IntPtrT> infos_offset = ScopeInfoContextLocalInfosOffset(
+      this, LoadObjectField<Uint32T>(scope_info, offsetof(ScopeInfo, flags_)),
+      count);
   TNode<Smi> info = CAST(LoadObjectField(
       scope_info, IntPtrAdd(infos_offset, TimesTaggedSize(index))));
   TNode<BoolT> maybe_assigned = Word32NotEqual(
@@ -3866,7 +3887,72 @@ TNode<Object> CodeStubAssembler::GetFunctionContextSlotInitialValue(
       maybe_assigned, [this] { return UndefinedContextCellConstant(); },
       [this] { return UndefinedConstant(); });
 }
+
+TNode<Object> CodeStubAssembler::LoadScopeInfoFunctionName(
+    TNode<ScopeInfo> scope_info) {
+  TNode<Uint32T> flags =
+      LoadObjectField<Uint32T>(scope_info, offsetof(ScopeInfo, flags_));
+  CSA_DCHECK(
+      this,
+      Word32NotEqual(
+          DecodeWord32<ScopeInfo::Flags::FunctionVariableBits>(flags),
+          Uint32Constant(static_cast<uint32_t>(VariableAllocationInfo::NONE))));
+  TNode<IntPtrT> offset = ScopeInfoFunctionVariableInfoOffset(
+      this, flags, LoadScopeInfoContextLocalCount(scope_info));
+  return LoadObjectField(
+      scope_info,
+      IntPtrAdd(offset, IntPtrConstant(offsetof(FunctionVariableInfo, name))));
+}
 // LINT.ThenChange(/src/objects/scope-info-inl.h:ContextLocalOffsets)
+
+TNode<String> CodeStubAssembler::LoadJSFunctionName(
+    TNode<JSFunction> function) {
+  CSA_DCHECK(this, IsJSFunction(function));
+
+  TVARIABLE(String, var_result);
+  Label done(this, &var_result), if_anonymous(this, Label::kDeferred),
+      if_empty(this, Label::kDeferred), if_scope_info(this);
+
+  TNode<SharedFunctionInfo> sfi = LoadObjectField<SharedFunctionInfo>(
+      function, offsetof(JSFunction, shared_function_info_));
+  TNode<Uint32T> sfi_flags =
+      LoadObjectField<Uint32T>(sfi, offsetof(SharedFunctionInfo, flags_));
+  GotoIf(IsSetWord32<SharedFunctionInfo::Flags::NameShouldPrintAsAnonymousBit>(
+             sfi_flags),
+         &if_anonymous);
+
+  TNode<Object> name_or_scope_info =
+      LoadObjectField(sfi, offsetof(SharedFunctionInfo, name_or_scope_info_));
+  static_assert(SharedFunctionInfo::kNoSharedNameSentinel.ptr() ==
+                Smi::zero().ptr());
+  GotoIf(TaggedIsSmi(name_or_scope_info), &if_empty);
+  GotoIfNot(IsString(CAST(name_or_scope_info)), &if_scope_info);
+  var_result = CAST(name_or_scope_info);
+  Goto(&done);
+
+  BIND(&if_scope_info);
+  {
+    TNode<Object> name = LoadScopeInfoFunctionName(CAST(name_or_scope_info));
+    GotoIf(TaggedIsSmi(name), &if_empty);
+    var_result = CAST(name);
+    Goto(&done);
+  }
+
+  BIND(&if_anonymous);
+  {
+    var_result = CAST(LoadRoot(RootIndex::kanonymous_string));
+    Goto(&done);
+  }
+
+  BIND(&if_empty);
+  {
+    var_result = EmptyStringConstant();
+    Goto(&done);
+  }
+
+  BIND(&done);
+  return var_result.value();
+}
 
 void CodeStubAssembler::StoreContextElementNoWriteBarrier(
     TNode<Context> context, int slot_index, TNode<Object> value) {
