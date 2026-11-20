@@ -5461,6 +5461,7 @@ void MaybeGrowFastElements::GenerateCode(MaglevAssembler* masm,
   Register index = ToRegister(IndexInput());
   Register elements_length = ToRegister(ElementsLengthInput());
   DCHECK_EQ(elements, ToRegister(result()));
+  DCHECK_NE(elements, object);
 
   ZoneLabelRef done(masm);
 
