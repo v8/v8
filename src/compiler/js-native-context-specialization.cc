@@ -523,6 +523,21 @@ JSNativeContextSpecialization::ReduceJSFindNonDefaultConstructorOrConstruct(
     if (kind != FunctionKind::kDefaultDerivedConstructor) {
       // The hierarchy walk will end here; this is the last change to bail out
       // before creating new nodes.
+      if (kind == FunctionKind::kDefaultBaseConstructor) {
+        // Creating the instance reads new_target.prototype, which can run user
+        // code unless new_target is a JSFunction with a prototype slot (e.g. if
+        // it's a Proxy or a bound function). Only reduce if new_target is
+        // known to be such a function; otherwise, the generic
+        // FindNonDefaultConstructorOrConstruct call leaves creating the
+        // instance to the regular Construct path. We don't check a non-constant
+        // new_target at runtime.
+        // TODO(marja): Handle non-constant new_targets too.
+        HeapObjectMatcher new_target_matcher(new_target);
+        if (!new_target_matcher.HasResolvedValue() ||
+            !new_target_matcher.Ref(broker()).IsJSFunctionWithPrototype()) {
+          return NoChange();
+        }
+      }
       if (!dependencies()->DependOnArrayIteratorProtector()) {
         return NoChange();
       }

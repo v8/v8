@@ -1749,7 +1749,7 @@ TF_BUILTIN(CreateDataProperty, CodeStubAssembler) {
 
 TF_BUILTIN(FindNonDefaultConstructorOrConstruct, CodeStubAssembler) {
   auto this_function = Parameter<JSFunction>(Descriptor::kThisFunction);
-  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+  auto new_target = Parameter<JSReceiver>(Descriptor::kNewTarget);
   auto context = Parameter<Context>(Descriptor::kContext);
 
   TVARIABLE(Object, constructor);
@@ -1761,6 +1761,13 @@ TF_BUILTIN(FindNonDefaultConstructorOrConstruct, CodeStubAssembler) {
 
   BIND(&found_default_base_ctor);
   {
+    // Creating the instance reads new_target.prototype, which can run user
+    // code unless new_target is a JSFunction with a prototype slot (e.g. if
+    // it's a Proxy or a bound function). In that case, don't create the
+    // instance here; the regular Construct path will do it. Callers such as
+    // Sparkplug rely on this builtin never running user code.
+    GotoIfNot(IsJSFunctionWithPrototype(new_target), &found_something_else);
+
     // Create an object directly, without calling the default base ctor.
     TNode<Object> instance = CallBuiltin(Builtin::kFastNewObject, context,
                                          constructor.value(), new_target);

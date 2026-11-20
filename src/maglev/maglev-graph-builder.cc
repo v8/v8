@@ -7371,6 +7371,25 @@ MaglevGraphBuilder::TryBuildFindNonDefaultConstructorOrConstruct(
     if (kind != FunctionKind::kDefaultDerivedConstructor) {
       // The hierarchy walk will end here; this is the last change to bail out
       // before creating new nodes.
+      compiler::OptionalJSFunctionRef new_target_function;
+      if (kind == FunctionKind::kDefaultBaseConstructor) {
+        // Creating the instance reads new_target.prototype, which can run user
+        // code unless new_target is a JSFunction with a prototype slot (e.g. if
+        // it's a Proxy or a bound function). Only reduce if new_target is
+        // known to be such a function; otherwise, the generic
+        // FindNonDefaultConstructorOrConstruct call leaves creating the
+        // instance to the regular Construct path. We don't check a non-constant
+        // new_target at runtime.
+        // TODO(marja): Handle non-constant new_targets too.
+        compiler::OptionalHeapObjectRef new_target_constant =
+            TryGetConstant<HeapObject>(new_target);
+        if (!new_target_constant ||
+            !new_target_constant->IsJSFunctionWithPrototype()) {
+          return {};
+        }
+        new_target_function = new_target_constant->AsJSFunction();
+      }
+
       if (!broker()->dependencies()->DependOnArrayIteratorProtector()) {
         return {};
       }
@@ -7381,10 +7400,7 @@ MaglevGraphBuilder::TryBuildFindNonDefaultConstructorOrConstruct(
         StoreRegister(result.first, GetBooleanConstant(true));
 
         ValueNode* object;
-        compiler::OptionalJSFunctionRef new_target_function =
-            TryGetConstant<JSFunction>(new_target);
-        if (new_target_function &&
-            HasValidInitialMap(new_target_function.value(), current_function)) {
+        if (HasValidInitialMap(new_target_function.value(), current_function)) {
           GET_VALUE(
               object,
               reducer_.BuildInlinedAllocation(

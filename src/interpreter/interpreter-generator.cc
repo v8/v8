@@ -3230,8 +3230,15 @@ IGNITION_HANDLER(FindNonDefaultConstructorOrConstruct, InterpreterAssembler) {
 
   BIND(&found_default_base_ctor);
   {
-    // Create an object directly, without calling the default base ctor.
     TNode<Object> new_target = LoadRegisterAtOperandIndex(1);
+    // Creating the instance reads new_target.prototype, which can run user
+    // code unless new_target is a JSFunction with a prototype slot (e.g. if
+    // it's a Proxy or a bound function). In that case, don't create the
+    // instance here; the regular Construct path will do it.
+    GotoIfNot(IsJSFunctionWithPrototype(CAST(new_target)),
+              &found_something_else);
+
+    // Create an object directly, without calling the default base ctor.
     TNode<Object> instance = CallBuiltin(Builtin::kFastNewObject, context,
                                          constructor.value(), new_target);
 
