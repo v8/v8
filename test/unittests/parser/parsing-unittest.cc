@@ -506,6 +506,35 @@ class ParsingTest : public TestWithContextAndZone {
   }
 };
 
+TEST_F(ParsingTest, ArrayLiteralScannerRuns) {
+  const char* contexts[][2] = {{"", ";"},
+                               {"function f() {", ";}"},
+                               {"function f() { 'use strict';", ";}"},
+                               {nullptr, nullptr}};
+  const char* valid[] = {"[x,0,null,999999999999999,1]",
+                         "[...x,0,null,1]",
+                         "[,0,null,,1]",
+                         "[x,0,null,1e2,2]",
+                         "[x,0,null,1/*x*/,2]",
+                         "[x,0,null,1_000,2]",
+                         "[x,0,null,1n,2]",
+                         "[x,0,null,1000000000000000,2]",
+                         nullptr};
+  RunParserSyncTest(contexts, valid, kSuccess);
+  const char* invalid[] = {"[x,0,null,y] = []",
+                           "([x,0,null,y]) => 0",
+                           "for ([x,0,null,y] of []) {}",
+                           "[...x,0,null,y] = []",
+                           "([x,null,0,y]) => 0",
+                           "let [x,0,null,y] = []",
+                           "function g([x,0,null,y]) {}",
+                           "try {} catch ([x,0,null,y]) {}",
+                           "[x,0,null,1e+,2]",
+                           "[x,0,null,1foo,2]",
+                           nullptr};
+  RunParserSyncTest(contexts, invalid, kError);
+}
+
 TEST_F(ParsingTest, AutoSemicolonToken) {
   for (int i = 0; i < Token::kNumTokens; i++) {
     Token::Value token = static_cast<Token::Value>(i);

@@ -2464,6 +2464,23 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseArrayLiteral() {
     }
     values.Add(elem);
     if (peek() != Token::kRightBracket) {
+      // Consume runs of integer and null elements in bulk. A run starts and
+      // ends with a comma in peek(). Only the first recorded pattern error is
+      // kept, so one per run suffices.
+      while (true) {
+        base::Vector<const Scanner::ArrayLiteralElement> run =
+            scanner()->ScanArrayLiteralElements();
+        if (run.empty()) break;
+        expression_scope()->RecordPatternError(
+            run[0].location, MessageTemplate::kInvalidDestructuringTarget);
+        for (const Scanner::ArrayLiteralElement& element : run) {
+          int element_pos = element.location.beg_pos;
+          values.Add(element.is_null ? impl()->ExpressionFromLiteral(
+                                           Token::kNullLiteral, element_pos)
+                                     : factory()->NewNumberLiteral(
+                                           element.number, element_pos));
+        }
+      }
       Expect(Token::kComma);
       if (elem->IsFailureExpression()) return elem;
     }
