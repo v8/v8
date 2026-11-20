@@ -5566,14 +5566,6 @@ void CodeGenerator::SetPendingMove(MoveOperands* move) {
 
 namespace {
 
-bool Is32BitOperand(InstructionOperand* operand) {
-  DCHECK(operand->IsStackSlot() || operand->IsRegister());
-  MachineRepresentation mr = LocationOperand::cast(operand)->representation();
-  return mr == MachineRepresentation::kWord32 ||
-         mr == MachineRepresentation::kCompressed ||
-         mr == MachineRepresentation::kCompressedPointer;
-}
-
 // When we need only 32 bits, move only 32 bits, otherwise the destination
 // register' upper 32 bits may contain dirty data.
 bool Use32BitMove(InstructionOperand* source, InstructionOperand* destination) {

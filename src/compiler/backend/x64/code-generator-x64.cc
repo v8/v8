@@ -8832,14 +8832,6 @@ void CodeGenerator::SetPendingMove(MoveOperands* move) {
 
 namespace {
 
-bool Is32BitOperand(InstructionOperand* operand) {
-  DCHECK(operand->IsStackSlot() || operand->IsRegister());
-  MachineRepresentation mr = LocationOperand::cast(operand)->representation();
-  return mr == MachineRepresentation::kWord32 ||
-         mr == MachineRepresentation::kCompressed ||
-         mr == MachineRepresentation::kCompressedPointer;
-}
-
 // When we need only 32 bits, move only 32 bits. Benefits:
 // - Save a byte here and there (depending on the destination
 //   register; "movl eax, ..." is smaller than "movq rax, ...").
