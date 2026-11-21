@@ -185,9 +185,9 @@ deps = {
     'condition': 'checkout_agents_internal',
   },
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'fac4468fd0a757bbb7e5115c119e8aa76c15973f',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '61cb17bb9d95a7ddef8e0f871fa8701fb09b4a2e',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'c65dc4e8c262156a4a6f8731952711386d7067f3',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '09120017bb5dad1bb6c429be4233d020e1b51dbe',
   'buildtools/linux64': {
     'packages': [
       {
@@ -306,7 +306,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'e923de63bfc631d5a09ef5324635d008d50dc0ca',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '1b0972d3d5e5b1e78055147cb3576361e274b9ed',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + 'beeeef91cf6fef89a4d4ba5e95d47ca64ccb3a44',
   'third_party/fp16/src':
@@ -372,7 +372,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '9e44ea2ff4f53a60c2a3d2b6f511d7bab9ab12f0',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'd82434a7978e1ffd8bd8cd67b1ced746544dce6f',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '9ea186e620f61979cf28bae2d35b83e3ffa813b7',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -559,7 +559,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '2ba8d7a54cd6e45bc7438ddb5f9f0367f2901d89',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'aeb44770ffcb6e33bc1c2bb6bec85ced58f7f862',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '3813fd5b3029807583e5d2549a40d78fa499c3e8',
   'third_party/re2/src':
@@ -573,7 +573,7 @@ deps = {
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + 'd72db9e3040567a7589e00c0ad7ddf25c3b070bc',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '789cbc6f5a775407786365920ea63fac6e7e5f33',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '0391aa61658fce3fb88c7a5a557307a65afd1d72',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -698,7 +698,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' + 'ddd732967025c608598b9984a1ada358fa82f6f0',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' + '289645a450721a7210bf9c69d42bf40a0f1ee730',
     'condition': 'not build_with_chromium',
   },
   'third_party/nasm': {
