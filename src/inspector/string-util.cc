@@ -290,9 +290,8 @@ bool ProtocolTypeTraits<String16>::Deserialize(DeserializerState* state,
     return true;
   }
   if (tokenizer->TokenTag() == cbor::CBORTokenTag::STRING16) {
-    const auto str = tokenizer->GetString16WireRep();
-    *value = StringUtil::fromUTF16LE(
-        reinterpret_cast<const uint16_t*>(str.data()), str.size() / 2);
+    const auto str = tokenizer->GetString16View();
+    *value = StringUtil::fromUTF16(str.data(), str.size());
     return true;
   }
   state->RegisterError(Error::BINDINGS_STRING_VALUE_EXPECTED);
