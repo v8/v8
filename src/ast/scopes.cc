@@ -35,15 +35,16 @@ namespace internal {
 //       use. Because a Variable holding a handle with the same location exists
 //       this is ensured.
 
-static_assert(sizeof(VariableMap) == (sizeof(void*) + 2 * sizeof(uint32_t) +
-                                      sizeof(ZoneAllocationPolicy)),
+static_assert(sizeof(VariableMap) ==
+                  (sizeof(void*) + 2 * sizeof(uint32_t) +
+                   sizeof(ZoneAllocationPolicy) + sizeof(uint64_t)),
               "Empty base optimization didn't kick in for VariableMap");
 
 VariableMap::VariableMap(Zone* zone)
     : ZoneHashMap(8, ZoneAllocationPolicy(zone)) {}
 
 VariableMap::VariableMap(const VariableMap& other, Zone* zone)
-    : ZoneHashMap(other, ZoneAllocationPolicy(zone)) {}
+    : ZoneHashMap(other, ZoneAllocationPolicy(zone)), filter_(other.filter_) {}
 
 Variable* VariableMap::Declare(Zone* zone, Scope* scope,
                                const AstRawString* name, VariableMode mode,
@@ -65,6 +66,7 @@ Variable* VariableMap::Declare(Zone* zone, Scope* scope,
         zone->New<Variable>(scope, name, mode, kind, initialization_flag,
                             maybe_assigned_flag, is_static_flag);
     p->value = variable;
+    AddToFilter(name);
   }
   return reinterpret_cast<Variable*>(p->value);
 }
@@ -93,9 +95,11 @@ void VariableMap::Add(Variable* var) {
   DCHECK_NULL(p->value);
   DCHECK_EQ(name, p->key);
   p->value = var;
+  AddToFilter(name);
 }
 
 Variable* VariableMap::Lookup(const AstRawString* name) {
+  if (!MayContain(name)) return nullptr;
   Entry* p = ZoneHashMap::Lookup(const_cast<AstRawString*>(name), name->Hash());
   if (p != nullptr) {
     DCHECK(reinterpret_cast<const AstRawString*>(p->key) == name);

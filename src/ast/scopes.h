@@ -54,11 +54,12 @@ class VariableMap : public ZoneHashMap {
   explicit VariableMap(Zone* zone);
   VariableMap(const VariableMap& other, Zone* zone);
 
-  VariableMap(VariableMap&& other) V8_NOEXCEPT : ZoneHashMap(std::move(other)) {
-  }
+  VariableMap(VariableMap&& other) V8_NOEXCEPT : ZoneHashMap(std::move(other)),
+                                                 filter_(other.filter_) {}
 
   VariableMap& operator=(VariableMap&& other) V8_NOEXCEPT {
     static_cast<ZoneHashMap&>(*this) = std::move(other);
+    filter_ = other.filter_;
     return *this;
   }
 
@@ -74,6 +75,22 @@ class VariableMap : public ZoneHashMap {
   void Add(Variable* var);
 
   Zone* zone() const { return allocator().zone(); }
+
+ private:
+  // Bloom filter over the names in the map, letting lookups of absent names
+  // (frequent when walking the scope chain) skip the probe. Removal does not
+  // clear bits.
+  static uint64_t FilterMask(const AstRawString* name) {
+    uint32_t hash = name->Hash();
+    return (uint64_t{1} << (hash & 63)) | (uint64_t{1} << ((hash >> 6) & 63));
+  }
+  void AddToFilter(const AstRawString* name) { filter_ |= FilterMask(name); }
+  bool MayContain(const AstRawString* name) const {
+    uint64_t mask = FilterMask(name);
+    return (filter_ & mask) == mask;
+  }
+
+  uint64_t filter_ = 0;
 };
 
 // Global invariants after AST construction: Each reference (i.e. identifier)
