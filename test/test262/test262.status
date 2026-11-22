@@ -1072,4 +1072,16 @@
 }],
 # End roll-watcher patch
 ####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/String/prop-desc': [SKIP],
+  'built-ins/TypedArrayConstructors/internals/Set/immutable-buffer-key-is-canonical-non-strict': [SKIP],
+  'built-ins/TypedArrayConstructors/internals/Set/immutable-buffer-key-is-canonical-prototype-chain-non-strict': [SKIP],
+  'built-ins/TypedArrayConstructors/internals/Set/immutable-buffer-key-is-canonical-prototype-chain-strict': [SKIP],
+  'built-ins/TypedArrayConstructors/internals/Set/immutable-buffer-key-is-canonical-strict': [SKIP],
+}],
+# End roll-watcher patch
+####
 ]
