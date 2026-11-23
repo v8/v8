@@ -2215,6 +2215,11 @@ void TranslatedState::InitializeCapturedObjectAt(
       InitializePropertyArrayAt(frame, &value_index, slot, map, no_gc);
       break;
 
+    case NATIVE_CONTEXT_TYPE:
+      // NativeContext is never allocated in JIT code or escape-analyzed, and
+      // stores untagged inline EmbedderDataSlots and microtask_queue_.
+      UNREACHABLE();
+
     case AWAIT_CONTEXT_TYPE:
     case BLOCK_CONTEXT_TYPE:
     case CATCH_CONTEXT_TYPE:
@@ -2222,7 +2227,6 @@ void TranslatedState::InitializeCapturedObjectAt(
     case EVAL_CONTEXT_TYPE:
     case FUNCTION_CONTEXT_TYPE:
     case MODULE_CONTEXT_TYPE:
-    case NATIVE_CONTEXT_TYPE:
     case SCRIPT_CONTEXT_TYPE:
     case WITH_CONTEXT_TYPE: {
       constexpr int kAlreadyInitializedSlots = 2;
@@ -2387,6 +2391,11 @@ void TranslatedState::EnsureCapturedObjectAllocatedAt(
       // There is no need to process the children.
       return MaterializeUninitializedHeapNumber(frame, &value_index, slot);
 
+    case NATIVE_CONTEXT_TYPE:
+      // NativeContext is never allocated in JIT code or escape-analyzed, and
+      // its size and untagged slots differ from regular Context objects.
+      UNREACHABLE();
+
     case AWAIT_CONTEXT_TYPE:
     case BLOCK_CONTEXT_TYPE:
     case CATCH_CONTEXT_TYPE:
@@ -2394,7 +2403,6 @@ void TranslatedState::EnsureCapturedObjectAllocatedAt(
     case EVAL_CONTEXT_TYPE:
     case FUNCTION_CONTEXT_TYPE:
     case MODULE_CONTEXT_TYPE:
-    case NATIVE_CONTEXT_TYPE:
     case SCRIPT_CONTEXT_TYPE:
     case WITH_CONTEXT_TYPE: {
       int context_length = frame->values_[value_index].GetSmiValue();
