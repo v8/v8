@@ -13,6 +13,7 @@
 #include <mutex>
 #include <set>
 #include <string>
+#include <string_view>
 #include <unordered_set>
 #include <vector>
 
@@ -34,6 +35,7 @@
 
 namespace redline {
 
+class CoverageMap;
 class Environment;
 class Worker;
 
@@ -79,6 +81,10 @@ struct FuzzerStats {
   std::atomic<uint64_t> minimizer_nodes_removed{0};
   std::atomic<uint64_t> minimizer_rejected{0};  // result failed verification
   std::atomic<uint64_t> rerun_executions{0};
+  // Crash reruns that timed out (with the timeout of CrashRerunTimeout).
+  std::atomic<uint64_t> crash_rerun_timeouts{0};
+  // Rounds of a mutation chain that ran again after a no-op mutator.
+  std::atomic<uint64_t> noop_retries{0};
   // Extra runs of a published program for Program::hit_edges. Usually 0:
   // the check and the minimization record the edges of their runs.
   std::atomic<uint64_t> hit_edge_executions{0};
@@ -116,6 +122,31 @@ uint64_t MinimizerProbeTimeout(const FuzzConfig& config, uint64_t exec_time_us);
 uint64_t TightenedProbeTimeout(const FuzzConfig& config,
                                uint64_t first_timeout_us,
                                uint64_t accepted_exec_us);
+
+// The timeout of a crash rerun: crash_rerun_timeout_factor times the target
+// timeout. A crash that occurs near the timeout then reproduces.
+uint64_t CrashRerunTimeout(const FuzzConfig& config);
+
+// The number of workers that admit a program for new optimized code
+// features alone (coverage.opt_admit_workers_fraction of `jobs`, rounded
+// up). The other workers only weigh these features.
+int OptimizedAdmitWorkers(double fraction, int jobs);
+
+// The script that makes the target crash on purpose: kind 1 is a failed
+// CHECK, kind 2 a failed DCHECK (the `fuzzilli` or `redline` builtin of d8).
+std::string CrashProbeScript(bool fuzzilli_target, int kind);
+// True if `args` has a d8 flag with which a failed CHECK or DCHECK does not
+// crash: --hole-fuzzing, --sandbox-fuzzing, --sandbox-trap-fuzzing or
+// --sandbox-testing. These modes report only memory corruption, thus the crash
+// probes of Fuzzer::CheckTargetCrashes do not apply.
+bool FiltersCrashProbes(const std::vector<std::string>& args);
+
+// `text` with the line terminators of JavaScript (\n, \r, U+2028, U+2029)
+// written as escape sequences, so that it fits in one `//` comment.
+std::string EscapeCommentLine(std::string_view text);
+// The comment lines at the top of a saved corpus file: the lineage, and the
+// d8 flags of the program after kRedlineFlagsPrefix (engine/importer.h).
+std::string CorpusFileHeader(const Program& program);
 
 // The candidates of the swarm mask draw (core/swarm.h): the weights of the
 // strategies, the core generators and the structural mutators. Returns false
@@ -202,10 +233,14 @@ struct CheckResult {
 //
 // The check runs the candidate min_reruns times. If no edge of `claimed`
 // failed a check before (SharedCoverage::AnyFlaky) and no rerun lost an
-// edge, clean_min_reruns runs are sufficient. A dropped edge goes to
-// SharedCoverage::RecordFlaky, and then back to `shared` if it is below the
-// threshold. The check changes only edges of `claimed`: an edge of the
-// pending commit that a run did not reach stays claimed and is not flaky.
+// edge, clean_min_reruns runs are sufficient. An edge that a successful
+// rerun did not reach goes to SharedCoverage::RecordFlaky, and then back to
+// `shared` if it is below the threshold. The check can also drop the
+// candidate because a rerun did not succeed or because the edges did not
+// settle. Then its other edges go back to `shared` without a flaky count.
+// The check changes only
+// edges of `claimed`: an edge of the pending commit that a run did not reach
+// stays claimed and is not flaky.
 CheckResult RunDeterminismCheck(
     SharedCoverage& shared, const CheckRules& rules,
     std::vector<uint32_t> claimed, bool pending_held,
@@ -391,6 +426,10 @@ class Fuzzer {
   // only). `targets_code_edges` is the code edge count of the targets file.
   bool InitializeFeatureWeights(uint32_t targets_code_edges,
                                 std::string* error);
+  // Makes the target fail a CHECK and a DCHECK on purpose, like the startup
+  // tests of Fuzzilli. Returns false if the CHECK does not crash the target,
+  // or if the DCHECK does not crash it without allow_no_dcheck.
+  bool CheckTargetCrashes(std::string* error);
   bool SaveCorpusProgram(const Program& program);
   // Saves the programs of a stage that matched its capture rule (see
   // engine/stages.h) under out_dir/captures/<stage>/. Returns false once
@@ -421,7 +460,13 @@ class Fuzzer {
   // Change-based fuzzing with a focus: removes the features outside the focus
   // from the new features of a program. They stay claimed, so they do not
   // count again. Returns false if no feature is left (the program is not kept).
-  bool KeepFocused(std::vector<uint32_t>* claimed);
+  // With `admit_optimized` (the coverage map of a worker of
+  // OptimizedAdmitWorkers), the optimized code features also stay.
+  bool KeepFocused(std::vector<uint32_t>* claimed,
+                   const CoverageMap* admit_optimized = nullptr);
+  // The workers with an id below this admit programs for new optimized code
+  // features alone (OptimizedAdmitWorkers).
+  int optimized_admit_workers_ = 0;
   // Programs and features that KeepFocused() removed.
   std::atomic<uint64_t> unfocused_programs_{0};
   std::atomic<uint64_t> unfocused_features_{0};

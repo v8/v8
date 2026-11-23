@@ -72,8 +72,14 @@ class SharedCoverage {
   // Records that `edge` was reached by a program but not reproducibly.
   // Returns true if the edge has now failed `threshold` times: the caller
   // should keep it claimed (so that it stops costing determinism re-runs)
-  // instead of releasing it.
+  // instead of releasing it. It ignores an edge outside 1..num_edges() and
+  // returns false for it.
   bool RecordFlaky(uint32_t edge, int threshold);
+  // Whether `edge` reached the flaky threshold (suppressed).
+  bool IsSuppressed(uint32_t edge) const;
+  // Removes the suppressed edges from `edges`, for example from
+  // Program::hit_edges.
+  void RemoveSuppressed(std::vector<uint32_t>* edges) const;
   // Whether RecordFlaky() recorded one of `edges` before. It reads one bit
   // for each edge and takes no lock. The determinism check uses it to decide
   // if a candidate can stop after fewer reruns.
@@ -93,6 +99,8 @@ class SharedCoverage {
   std::unique_ptr<std::atomic<uint64_t>[]> crash_virgin_;
   // One bit for each edge that RecordFlaky() recorded at least once.
   std::unique_ptr<std::atomic<uint64_t>[]> flaky_bits_;
+  // One bit for each edge that reached the flaky threshold.
+  std::unique_ptr<std::atomic<uint64_t>[]> suppressed_bits_;
   std::atomic<uint32_t> found_edges_{0};
   std::mutex flaky_mutex_;
   std::unordered_map<uint32_t, int> flaky_counts_;

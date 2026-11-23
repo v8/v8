@@ -176,11 +176,18 @@ struct FuzzConfig {
   // is a file of tools/change_targets.py (empty: no targets).
   std::string targets_file;
   bool watch_optimized = true;
+  // The share of the workers that admit a program for new optimized code
+  // features alone (Fuzzer::KeepFocused, OptimizedAdmitWorkers). The other
+  // workers only weigh these features. 0: all workers only weigh them.
+  double opt_admit_workers_fraction = 0.0;
   // Change-based fuzzing: use the focus of the targets file
   // (corpus/feature_weights.h).
   bool focus = true;
   // Report the crashes of minimizer probes and determinism reruns too.
   bool harvest_crashes = true;
+  // At the start, a target that does not crash on a failed DCHECK is an
+  // error (Fuzzer::CheckTargetCrashes). With this field, it is a warning.
+  bool allow_no_dcheck = false;
   // Give each new target process a random set of extra d8 flags
   // (engine/d8_flags.h). The reruns, the minimization and the crash triage
   // of a program keep the flags of the process that ran it.
@@ -264,8 +271,10 @@ struct FuzzConfig {
   // as reproducible if any of them crashes again (with any signature) ...
   int crash_reruns = 3;
   // ... and the re-executions stop early once this many crashed again:
-  // that is deterministic enough.
+  // that is deterministic enough. Each re-execution has this many times the
+  // target timeout (at least 1), like Fuzzilli.
   int crash_reruns_stop_after = 2;
+  double crash_rerun_timeout_factor = 2.0;
   // Crash files saved per signature; later crashes with the same signature
   // are only counted. At most `minimize_crashes_per_signature` crashes of
   // one signature hold a minimize slot at the same time. A crash gives back

@@ -222,13 +222,17 @@ bool ReadCoverageConfig(const JsonValue& coverage, FuzzConfig* c,
   for (const auto& [key, value] : coverage.as_object()) {
     if (key != "targets" && key != "watch_optimized" && key != "focus" &&
         key != "focus_optimized" && key != "drop_unfocused" &&
-        key != "target_boost" && key != "weights") {
+        key != "target_boost" && key != "weights" &&
+        key != "opt_admit_workers_fraction") {
       *error = "config: unknown key \"" + key +
                "\" in \"coverage\" (known: targets, watch_optimized, focus, "
-               "focus_optimized, drop_unfocused, target_boost, weights)";
+               "focus_optimized, drop_unfocused, target_boost, weights, "
+               "opt_admit_workers_fraction)";
       return false;
     }
   }
+  c->opt_admit_workers_fraction = coverage.GetNumber(
+      "opt_admit_workers_fraction", c->opt_admit_workers_fraction);
   c->targets_file = coverage.GetString("targets", c->targets_file);
   c->watch_optimized = coverage.GetBool("watch_optimized", c->watch_optimized);
   c->focus = coverage.GetBool("focus", c->focus);
@@ -772,6 +776,7 @@ bool ApplyJson(const JsonValue& json, FuzzConfig* c, std::string* error,
   c->minimize = json.GetBool("minimize", c->minimize);
   c->minimize_crashes = json.GetBool("minimize_crashes", c->minimize_crashes);
   c->harvest_crashes = json.GetBool("harvest_crashes", c->harvest_crashes);
+  c->allow_no_dcheck = json.GetBool("allow_no_dcheck", c->allow_no_dcheck);
   c->randomize_d8_flags =
       json.GetBool("randomize_d8_flags", c->randomize_d8_flags);
   c->d8_flag_profile = json.GetString("d8_flag_profile", c->d8_flag_profile);
@@ -790,6 +795,8 @@ bool ApplyJson(const JsonValue& json, FuzzConfig* c, std::string* error,
       static_cast<int>(json.GetInt("crash_reruns", c->crash_reruns));
   c->crash_reruns_stop_after = static_cast<int>(
       json.GetInt("crash_reruns_stop_after", c->crash_reruns_stop_after));
+  c->crash_rerun_timeout_factor = json.GetNumber("crash_rerun_timeout_factor",
+                                                 c->crash_rerun_timeout_factor);
   c->max_crashes_per_signature = static_cast<int>(
       json.GetInt("max_crashes_per_signature", c->max_crashes_per_signature));
   c->minimize_crashes_per_signature = static_cast<int>(json.GetInt(
@@ -1088,6 +1095,8 @@ bool FuzzConfig::Load(const Flags& flags, FuzzConfig* c, std::string* error,
   // Coverage counters and change-based fuzzing.
   c->targets_file = flags.GetString("targets", c->targets_file);
   c->watch_optimized = flags.GetBool("watch-optimized", c->watch_optimized);
+  c->opt_admit_workers_fraction = flags.GetDouble(
+      "opt-admit-workers-fraction", c->opt_admit_workers_fraction);
   c->focus = flags.GetBool("focus", c->focus);
   {
     FeatureWeights::Params& w = c->feature_weights;
@@ -1133,6 +1142,7 @@ bool FuzzConfig::Load(const Flags& flags, FuzzConfig* c, std::string* error,
   c->value_prefix = flags.GetBool("value-prefix", c->value_prefix);
   c->minimize = flags.GetBool("minimize", c->minimize);
   c->harvest_crashes = flags.GetBool("harvest-crashes", c->harvest_crashes);
+  c->allow_no_dcheck = flags.GetBool("allow-no-dcheck", c->allow_no_dcheck);
   c->randomize_d8_flags =
       flags.GetBool("randomize-d8-flags", c->randomize_d8_flags);
   c->d8_flag_profile = flags.GetString("d8-flag-profile", c->d8_flag_profile);
@@ -1153,6 +1163,8 @@ bool FuzzConfig::Load(const Flags& flags, FuzzConfig* c, std::string* error,
                    static_cast<int64_t>(c->minimizer.target_time_ms)));
   c->crash_reruns =
       static_cast<int>(flags.GetInt("crash-reruns", c->crash_reruns));
+  c->crash_rerun_timeout_factor = flags.GetDouble(
+      "crash-rerun-timeout-factor", c->crash_rerun_timeout_factor);
   c->max_crashes_per_signature = static_cast<int>(
       flags.GetInt("max-crashes-per-signature", c->max_crashes_per_signature));
   c->minimize_crashes_per_signature = static_cast<int>(flags.GetInt(
@@ -1331,6 +1343,16 @@ bool FuzzConfig::Load(const Flags& flags, FuzzConfig* c, std::string* error,
   if (c->crash_reruns_stop_after < 1) {
     c->crash_reruns_stop_after = 1;
   }
+  if (!std::isfinite(c->crash_rerun_timeout_factor) ||
+      !std::isfinite(c->opt_admit_workers_fraction)) {
+    *error =
+        "crash_rerun_timeout_factor and coverage.opt_admit_workers_fraction "
+        "must be finite numbers";
+    return false;
+  }
+  c->crash_rerun_timeout_factor = std::max(1.0, c->crash_rerun_timeout_factor);
+  c->opt_admit_workers_fraction =
+      std::clamp(c->opt_admit_workers_fraction, 0.0, 1.0);
   if (c->max_crashes_per_signature < 1) {
     c->max_crashes_per_signature = 1;
   }
@@ -1469,6 +1491,7 @@ std::string FuzzConfig::ToJson(Detail detail) const {
   o.Add("component_stats", component_stats);
   o.Add("minimize_crashes", minimize_crashes);
   o.Add("harvest_crashes", harvest_crashes);
+  o.Add("allow_no_dcheck", allow_no_dcheck);
   o.Add("randomize_d8_flags", randomize_d8_flags);
   o.Add("d8_flag_profile", d8_flag_profile);
   o.Add("d8_trials", d8_trials);
@@ -1478,6 +1501,7 @@ std::string FuzzConfig::ToJson(Detail detail) const {
   o.Add("initial_programs", initial_programs);
   o.Add("crash_reruns", crash_reruns);
   o.Add("crash_reruns_stop_after", crash_reruns_stop_after);
+  o.Add("crash_rerun_timeout_factor", crash_rerun_timeout_factor);
   o.Add("max_crashes_per_signature", max_crashes_per_signature);
   o.Add("minimize_crashes_per_signature", minimize_crashes_per_signature);
   o.Add("crash_history", crash_history);
@@ -1521,6 +1545,7 @@ std::string FuzzConfig::ToJson(Detail detail) const {
         .Add("focus_optimized", feature_weights.optimized_in_focus)
         .Add("drop_unfocused", feature_weights.drop_unfocused)
         .Add("target_boost", feature_weights.target_boost);
+    coverage.Add("opt_admit_workers_fraction", opt_admit_workers_fraction);
     JsonObject weights;
     weights.Add("builtins", feature_weights.builtins)
         .Add("optimized", feature_weights.optimized);
@@ -1672,6 +1697,7 @@ std::string FuzzConfig::JsonHelp() {
       "    \"minimize_crashes\": true, \"minimize_imports\": false,\n"
       "    \"crash_reruns\": 3, \"crash_reruns_stop_after\": 2, "
       "\"max_crashes_per_signature\": 5,\n"
+      "    \"crash_rerun_timeout_factor\": 2, \"allow_no_dcheck\": false,\n"
       "    \"minimize_crashes_per_signature\": 2, \"crash_history\": 100,\n"
       "    \"crash_history_budget_sec\": 90, \"crash_bundle_runs\": 3,\n"
       "    \"crash_flag_runs\": 2, \"crash_flag_processes\": 200, "

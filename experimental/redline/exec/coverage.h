@@ -37,7 +37,10 @@ const char* TargetKindName(TargetKind kind);
 // counters layout). Each counter byte holds the hit count of the edge.
 // - Fuzzilli (`src/fuzzilli/cov.cc`, `v8_fuzzilli=true`): at offset 0, `d8`
 // writes a 4-byte edge count. One bit per edge follows from offset 4, with one
-// code region (`1..num_edges`) and no build ID.
+// code region (`1..num_edges`) and no build ID. When a process can run with
+// --fuzzilli-enable-optimized-code-coverage (SetOptimizedCoverage()), a
+// kOptimized region of kFuzzilliNumOptimizedCodeEdges follows the code
+// region.
 //
 // Edge indices start at 1. Index 0 is never reported. The parent must clear
 // the shared memory before each execution and read it afterwards.
@@ -60,6 +63,10 @@ class CoverageMap {
   static constexpr uint32_t kFuzzilliHeaderSize = 4;
   static constexpr uint32_t kFuzzilliMaxEdges =
       static_cast<uint32_t>((kFuzzilliShmSize - kFuzzilliHeaderSize) * 8);
+  // With --fuzzilli-enable-optimized-code-coverage, a d8 built with
+  // v8_fuzzilli=true adds this many optimized code features after its other
+  // edges (kFuzzilliNumOptimizedCodeEdges in src/fuzzilli/cov.h).
+  static constexpr uint32_t kFuzzilliNumOptimizedCodeEdges = 32 * 1024;
   // Buckets per watched edge.
   static constexpr uint32_t kBuckets = 8;
 
@@ -99,6 +106,20 @@ class CoverageMap {
   void SetTargetKind(TargetKind kind) { requested_kind_ = kind; }
   TargetKind target_kind() const { return detected_kind_; }
   bool is_fuzzilli() const { return detected_kind_ == TargetKind::kFuzzilli; }
+
+  // Whether the d8 flags `args` turn on optimized code coverage. The last
+  // --[no-]fuzzilli-enable-optimized-code-coverage flag applies.
+  static bool RequestsOptimizedCoverage(const std::vector<std::string>& args);
+  // Fuzzilli layout only. `requested`: the current target process runs with
+  // optimized code coverage. `possible`: a process of this target can run
+  // with it, for example with random d8 flags. The first initialization then
+  // keeps a kOptimized region after the code edges. Each process reports the
+  // code edges, plus kFuzzilliNumOptimizedCodeEdges if `requested`. Call
+  // before each FinishInitialization().
+  void SetOptimizedCoverage(bool requested, bool possible) {
+    optimized_requested_ = requested;
+    optimized_possible_ = possible;
+  }
 
   // Reads the header written by the target. Must be called after the target
   // has started (i.e. after the REPRL handshake) and before any evaluation.
@@ -215,6 +236,10 @@ class CoverageMap {
   cov::Header header_ = {};
   Watch watch_;
   bool counters_mode_ = false;
+  bool optimized_requested_ = false;
+  bool optimized_possible_ = false;
+  // Fuzzilli layout: the code edges of each target process.
+  uint32_t fuzzilli_code_edges_ = 0;
   uint32_t real_edges_ = 0;
   uint32_t counted_edges_ = 0;
   uint32_t num_edges_ = 0;

@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <bit>
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <deque>
@@ -37,6 +38,8 @@ namespace {
 
 constexpr char kLog[] = "fuzz";
 constexpr size_t kMaxSavedOutput = static_cast<size_t>(64) * 1024;
+// Retries of a round of a mutation chain whose mutator could not apply.
+constexpr int kMaxNoopRetries = 3;
 
 // Keeps the random d8 flags of a target while it lives: a new target
 // process gets the flags of the last one. The reruns, the minimization and
@@ -113,6 +116,33 @@ std::string AbsolutePath(const std::string& path) {
 
 // ---------------------------------------------------------------------------
 // Minimizer probe timeouts and hit edges.
+
+uint64_t CrashRerunTimeout(const FuzzConfig& config) {
+  return static_cast<uint64_t>(config.crash_rerun_timeout_factor *
+                               static_cast<double>(config.target.timeout_us));
+}
+
+int OptimizedAdmitWorkers(double fraction, int jobs) {
+  if (fraction <= 0.0 || jobs <= 0) {
+    return 0;
+  }
+  return std::min(jobs, static_cast<int>(std::ceil(fraction * jobs - 1e-9)));
+}
+
+std::string CrashProbeScript(bool fuzzilli_target, int kind) {
+  return StringPrintf(fuzzilli_target ? "fuzzilli('FUZZILLI_CRASH', %d)"
+                                      : "redline('REDLINE_CRASH', %d)",
+                      kind);
+}
+
+bool FiltersCrashProbes(const std::vector<std::string>& args) {
+  return std::any_of(args.begin(), args.end(), [](const std::string& arg) {
+    std::string name(D8FlagName(arg));
+    std::replace(name.begin(), name.end(), '_', '-');
+    return name == "--hole-fuzzing" || name == "--sandbox-fuzzing" ||
+           name == "--sandbox-trap-fuzzing" || name == "--sandbox-testing";
+  });
+}
 
 uint64_t MinimizerProbeTimeout(const FuzzConfig& config,
                                uint64_t exec_time_us) {
@@ -260,7 +290,9 @@ CheckResult RunDeterminismCheck(
   result.survived = result.deterministic && result.converged &&
                     (!edges.empty() || keep_without_edges);
   if (!result.survived) {
-    drop(edges);
+    // All runs reached these edges. A rerun that timed out or crashed, or a
+    // check that did not converge, does not make them flaky.
+    release.insert(release.end(), edges.begin(), edges.end());
   }
   shared.Release(release);
   return result;
@@ -401,6 +433,25 @@ class Worker {
   }
 
   const CoverageMap& coverage() const { return runner_->coverage(); }
+
+  // The coverage map for KeepFocused if this worker admits programs for new
+  // optimized code features alone (OptimizedAdmitWorkers), else nullptr.
+  const CoverageMap* AdmitOptimized() const {
+    return id_ < fuzzer_->optimized_admit_workers_ ? &runner_->coverage()
+                                                   : nullptr;
+  }
+
+  // Runs CrashProbeScript(kind) in the target (Fuzzer::CheckTargetCrashes).
+  bool ProbeCrash(int kind, bool* crashed, std::string* error) {
+    Execution execution;
+    if (!runner_->RunWithoutEvaluation(
+            CrashProbeScript(runner_->coverage().is_fuzzilli(), kind),
+            config().target.timeout_us, &execution, error)) {
+      return false;
+    }
+    *crashed = execution.crashed();
+    return true;
+  }
 
   void Launch() {
     thread_ = std::thread([this] { Run(); });
@@ -770,6 +821,9 @@ class Worker {
     if (!info.flags.empty()) {
       event.AddArray("flags", info.flags);
     }
+    if (!info.program_flags.empty()) {
+      event.AddArray("program_flags", info.program_flags);
+    }
     if (!info.rejected_flags.empty()) {
       event.AddArray("rejected_flags", info.rejected_flags);
     }
@@ -789,6 +843,14 @@ class Worker {
     }
     if (config().randomize_d8_flags) {
       fuzzer_->RecordImportedFlags(program->flags);
+    }
+    // The flags of a corpus file that Redline saved apply to the program, but
+    // they are not imported flags.
+    for (std::string& flag : info.program_flags) {
+      if (std::find(program->flags.begin(), program->flags.end(), flag) ==
+          program->flags.end()) {
+        program->flags.push_back(std::move(flag));
+      }
     }
     Execution execution;
     if (!Execute(program->source(), &execution)) {
@@ -815,7 +877,7 @@ class Worker {
     }
     std::vector<uint32_t> claimed =
         fuzzer_->coverage_.ClaimNewEdges(runner_->coverage().bitmap());
-    fuzzer_->KeepFocused(&claimed);
+    fuzzer_->KeepFocused(&claimed, AdmitOptimized());
     if (claimed.empty() && !config().import_all) {
       stats().imports_redundant++;
       fuzzer_->LogEvent(event.Add("result", "redundant"));
@@ -994,7 +1056,7 @@ class Worker {
       case Outcome::kSucceeded: {
         std::vector<uint32_t> claimed =
             fuzzer_->coverage_.ClaimNewEdges(runner_->coverage().bitmap());
-        fuzzer_->KeepFocused(&claimed);
+        fuzzer_->KeepFocused(&claimed, AdmitOptimized());
         ProgramPtr added;
         size_t new_edges = claimed.size();
         if (!claimed.empty()) {
@@ -1160,6 +1222,7 @@ class Worker {
       }
     }
 
+    int noop_retries = 0;  // retries of the current round after a no-op
     for (int round = 0; round < config().consecutive_mutations && !stopping();
          round++) {
       if (focus_active &&
@@ -1252,8 +1315,18 @@ class Worker {
         Capture(Stage::kMutate, CaptureTrigger::kNoop, mutator->name(),
                 parent.get(), "", JsonObject());
         LogMutant(*mutator, detail, ancestor->id, "noop", nullptr, 0);
+        // Like Fuzzilli's MutationEngine: a mutator that cannot apply does
+        // not use up the round. The next draw can pick another mutator.
+        if (noop_retries < kMaxNoopRetries) {
+          noop_retries++;
+          stats().noop_retries++;
+          round--;
+        } else {
+          noop_retries = 0;
+        }
         continue;
       }
+      noop_retries = 0;
       if (mutator->runtime_assisted()) {
         bool crashed = false;
         if (!CompleteRuntimeAssisted(*mutator, tree.get(), probes, &detail,
@@ -1378,7 +1451,7 @@ class Worker {
         case Outcome::kSucceeded: {
           std::vector<uint32_t> claimed =
               fuzzer_->coverage_.ClaimNewEdges(runner_->coverage().bitmap());
-          fuzzer_->KeepFocused(&claimed);
+          fuzzer_->KeepFocused(&claimed, AdmitOptimized());
           std::shared_ptr<Program> child =
               Program::FromTree(std::move(tree), lineage, source);
           child->flags = ChildFlags(*parent, partner.get());
@@ -1916,6 +1989,8 @@ class Worker {
       }
       if (hit_edges.runs() >= kHitEdgeRuns) {
         program->hit_edges = hit_edges.Take();
+        // A suppressed flaky edge is not a deterministic edge of the program.
+        shared.RemoveSuppressed(&program->hit_edges);
       }
     }
     ProgramPtr added = fuzzer_->corpus().Add(program);
@@ -2053,6 +2128,7 @@ class Worker {
     int reruns = 0;                // fresh-target re-executions
     int reproduced = 0;            // ... that crashed again
     int same_signature = 0;        // ... with the same signature
+    int rerun_timeouts = 0;        // ... that timed out
     bool replayed = false;         // the history replay was attempted
     bool state_dependent = false;  // crashes only behind (part of) the history
     size_t history_needed = 0;     // shortest history suffix that reproduces it
@@ -3124,15 +3200,21 @@ class Worker {
     // 1. Does it reproduce in a fresh target? The crash killed the target,
     //    so the first re-execution already runs in a new process.
     //    crash_reruns_stop_after crashes are deterministic enough to stop
-    //    early.
+    //    early. The reruns get a longer timeout (CrashRerunTimeout), thus a
+    //    crash near the timeout is not lost.
     uint64_t exec_time_us = execution.exec_time_us;
+    const uint64_t rerun_timeout_us = CrashRerunTimeout(config());
     for (; info.reruns < config().crash_reruns && !stopping(); info.reruns++) {
       Execution again;
-      if (!Execute(source, &again)) {
+      if (!Execute(source, &again, rerun_timeout_us)) {
         break;
       }
       stats().rerun_executions++;
       exec_time_us = std::max(exec_time_us, again.exec_time_us);
+      if (again.timed_out()) {
+        info.rerun_timeouts++;
+        stats().crash_rerun_timeouts++;
+      }
       if (!again.crashed()) {
         continue;
       }
@@ -3294,6 +3376,7 @@ class Worker {
     event.Add("reproducible", info.reproducible()).Add("reruns", info.reruns);
     event.Add("reproduced", info.reproduced)
         .Add("same_signature", info.same_signature);
+    event.Add("rerun_timeouts", info.rerun_timeouts);
     event.Add("child_age", info.child_age).Add("replayed", info.replayed);
     event.Add("state_dependent", info.state_dependent);
     event.Add("history_needed", static_cast<uint64_t>(info.history_needed));
@@ -3718,6 +3801,11 @@ bool Fuzzer::Initialize(std::string* error) {
   if (!InitializeFeatureWeights(targets_code_edges, error)) {
     return false;
   }
+  optimized_admit_workers_ =
+      OptimizedAdmitWorkers(config_.opt_admit_workers_fraction, config_.jobs);
+  if (!CheckTargetCrashes(error)) {
+    return false;
+  }
 
   // Ask the target what it offers beyond the hand-written model.
   if (config_.introspect) {
@@ -3788,17 +3876,58 @@ bool Fuzzer::InitializeFeatureWeights(uint32_t targets_code_edges,
   return true;
 }
 
-bool Fuzzer::KeepFocused(std::vector<uint32_t>* claimed) {
+bool Fuzzer::CheckTargetCrashes(std::string* error) {
+  if (FiltersCrashProbes(config_.target.args)) {
+    REDLINE_LOG(kLog,
+                "crash probes skipped: with a d8 flag of the target, a failed "
+                "CHECK or DCHECK does not crash");
+    return true;
+  }
+  bool check_crashed = false;
+  bool dcheck_crashed = false;
+  if (!workers_[0]->ProbeCrash(1, &check_crashed, error) ||
+      !workers_[0]->ProbeCrash(2, &dcheck_crashed, error)) {
+    *error = "crash probe: " + *error;
+    return false;
+  }
+  if (!check_crashed) {
+    *error = StringPrintf(
+        "the target does not crash on a failed CHECK (%s)",
+        CrashProbeScript(workers_[0]->coverage().is_fuzzilli(), 1).c_str());
+    return false;
+  }
+  if (!dcheck_crashed) {
+    const std::string message = StringPrintf(
+        "the target does not crash on a failed DCHECK (%s): it cannot find "
+        "DCHECK bugs. Use a d8 with DCHECKs (v8_enable_debugging_features "
+        "or dcheck_always_on)",
+        CrashProbeScript(workers_[0]->coverage().is_fuzzilli(), 2).c_str());
+    if (!config_.allow_no_dcheck) {
+      *error = message + ", or pass --allow-no-dcheck";
+      return false;
+    }
+    REDLINE_WARN(kLog, "%s", message.c_str());
+  }
+  return true;
+}
+
+bool Fuzzer::KeepFocused(std::vector<uint32_t>* claimed,
+                         const CoverageMap* admit_optimized) {
   const FeatureWeights* weights = feature_weights_.get();
   if (claimed->empty() || weights == nullptr || !weights->filters_admission()) {
     return !claimed->empty();
   }
+  auto keep = [weights, admit_optimized](uint32_t feature) {
+    return weights->InFocus(feature) ||
+           (admit_optimized != nullptr &&
+            admit_optimized->KindOf(admit_optimized->EdgeOf(feature)) ==
+                CoverageMap::FeatureKind::kOptimized);
+  };
   const size_t before = claimed->size();
-  claimed->erase(std::remove_if(claimed->begin(), claimed->end(),
-                                [weights](uint32_t feature) {
-                                  return !weights->InFocus(feature);
-                                }),
-                 claimed->end());
+  claimed->erase(
+      std::remove_if(claimed->begin(), claimed->end(),
+                     [&keep](uint32_t feature) { return !keep(feature); }),
+      claimed->end());
   unfocused_features_.fetch_add(before - claimed->size(),
                                 std::memory_order_relaxed);
   if (claimed->empty()) {
@@ -4151,20 +4280,56 @@ void Fuzzer::WriteSignatureSummary() {
   }
 }
 
-bool Fuzzer::SaveCorpusProgram(const Program& program) {
+std::string EscapeCommentLine(std::string_view text) {
+  std::string out;
+  out.reserve(text.size());
+  for (size_t i = 0; i < text.size(); i++) {
+    const char c = text[i];
+    if (c == '\n') {
+      out += "\\n";
+    } else if (c == '\r') {
+      out += "\\r";
+    } else if (c == '\xE2' && i + 2 < text.size() && text[i + 1] == '\x80' &&
+               (text[i + 2] == '\xA8' || text[i + 2] == '\xA9')) {
+      // U+2028 and U+2029 (UTF-8 E2 80 A8 and E2 80 A9).
+      out += text[i + 2] == '\xA8' ? "\\u2028" : "\\u2029";
+      i += 2;
+    } else {
+      out += c;
+    }
+  }
+  return out;
+}
+
+std::string CorpusFileHeader(const Program& program) {
   const Lineage& lineage = program.lineage();
-  std::string header = StringPrintf(
+  std::string header = EscapeCommentLine(StringPrintf(
       "// redline corpus #%u | origin %s | parent #%u +%d | generation %d | "
       "%zu new edges | "
-      "%zu nodes | worker %d%s%s\n",
+      "%zu nodes | worker %d%s%s",
       program.id, lineage.origin.c_str(), lineage.parent_id, lineage.chain,
       lineage.generation, program.edges.size(), program.node_count(),
       lineage.worker, lineage.detail.empty() ? "" : " | ",
-      lineage.detail.c_str());
+      lineage.detail.c_str()));
+  header += '\n';
+  if (!program.flags.empty()) {
+    std::string flags = kRedlineFlagsPrefix;
+    for (const std::string& flag : program.flags) {
+      flags += ' ';
+      flags += flag;
+    }
+    header += EscapeCommentLine(flags);
+    header += '\n';
+  }
+  return header;
+}
+
+bool Fuzzer::SaveCorpusProgram(const Program& program) {
   std::string path =
       StringPrintf("%s/corpus/%06u.js", config_.out_dir.c_str(), program.id);
   std::string error;
-  if (!WriteStringToFile(path, header + program.source(), &error)) {
+  if (!WriteStringToFile(path, CorpusFileHeader(program) + program.source(),
+                         &error)) {
     REDLINE_WARN(kLog, "%s", error.c_str());
     return false;
   }
@@ -4353,9 +4518,11 @@ void Fuzzer::WriteStatsEvent() {
   event.Add("minimizer_nodes_removed", stats_.minimizer_nodes_removed.load());
   event.Add("minimizer_rejected", stats_.minimizer_rejected.load());
   event.Add("rerun_executions", stats_.rerun_executions.load());
+  event.Add("crash_rerun_timeouts", stats_.crash_rerun_timeouts.load());
   event.Add("hit_edge_executions", stats_.hit_edge_executions.load());
   event.Add("explore_executions", stats_.explore_executions.load());
   event.Add("explore_applied", stats_.explore_applied.load());
+  event.Add("noop_retries", stats_.noop_retries.load());
   event.Add("explore_timeouts", stats_.explore_timeouts.load());
   uint64_t salvage_ok = stats_.salvage_succeeded.load();
   uint64_t salvage_att = stats_.salvage_attempted.load();

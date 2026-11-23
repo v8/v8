@@ -43,10 +43,12 @@ bool SharedCoverage::Initialize(uint32_t num_edges, uint32_t bitmap_size,
   virgin_ = std::make_unique<std::atomic<uint64_t>[]>(words);
   crash_virgin_ = std::make_unique<std::atomic<uint64_t>[]>(words);
   flaky_bits_ = std::make_unique<std::atomic<uint64_t>[]>(words);
+  suppressed_bits_ = std::make_unique<std::atomic<uint64_t>[]>(words);
   for (uint32_t i = 0; i < words; i++) {
     virgin_[i].store(~uint64_t{0}, std::memory_order_relaxed);
     crash_virgin_[i].store(~uint64_t{0}, std::memory_order_relaxed);
     flaky_bits_[i].store(0, std::memory_order_relaxed);
+    suppressed_bits_[i].store(0, std::memory_order_relaxed);
   }
   // Edge 0 is never reported; bits beyond num_edges never get set.
   virgin_[0].fetch_and(~uint64_t{1}, std::memory_order_relaxed);
@@ -215,18 +217,38 @@ bool SharedCoverage::ClaimNewCrashEdges(const uint8_t* bitmap) {
 }
 
 bool SharedCoverage::RecordFlaky(uint32_t edge, int threshold) {
-  if (edge != 0 && edge <= num_edges_) {
-    flaky_bits_[edge / 64].fetch_or(uint64_t{1} << (edge % 64),
-                                    std::memory_order_relaxed);
+  if (words_ == 0 || edge == 0 || edge > num_edges_) {
+    return false;
   }
+  const uint64_t bit = uint64_t{1} << (edge % 64);
+  flaky_bits_[edge / 64].fetch_or(bit, std::memory_order_relaxed);
   std::scoped_lock<std::mutex> lock(flaky_mutex_);
   int count = ++flaky_counts_[edge];
-  // found_edges() counts only the counted edges. Thus only a counted edge can
-  // make coverage_fraction() smaller.
-  if (count == threshold && edge <= counted_edges_) {
-    suppressed_.fetch_add(1, std::memory_order_relaxed);
+  if (count == threshold) {
+    suppressed_bits_[edge / 64].fetch_or(bit, std::memory_order_relaxed);
+    // found_edges() counts only the counted edges. Thus only a counted edge
+    // can make coverage_fraction() smaller.
+    if (edge <= counted_edges_) {
+      suppressed_.fetch_add(1, std::memory_order_relaxed);
+    }
   }
   return count >= threshold;
+}
+
+bool SharedCoverage::IsSuppressed(uint32_t edge) const {
+  if (words_ == 0 || edge == 0 || edge > num_edges_) {
+    return false;
+  }
+  return (suppressed_bits_[edge / 64].load(std::memory_order_relaxed) >>
+          (edge % 64)) &
+         1;
+}
+
+void SharedCoverage::RemoveSuppressed(std::vector<uint32_t>* edges) const {
+  edges->erase(
+      std::remove_if(edges->begin(), edges->end(),
+                     [this](uint32_t edge) { return IsSuppressed(edge); }),
+      edges->end());
 }
 
 bool SharedCoverage::AnyFlaky(const std::vector<uint32_t>& edges) const {

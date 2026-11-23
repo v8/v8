@@ -191,7 +191,8 @@ One link of the chain works like this:
 1. The mutator strategy picks a mutator. A mutator that needs a partner is eligible only when the corpus has at least two programs.
 2. `ApplyMutation` copies the tree of the parent. The mutator edits the copy through a `Builder` (9.3).
    It makes from one change up to its own maximum, or exactly `stages.mutate.rounds` changes if that value is above 0.
-3. If the mutator finds nothing to do, the link costs no execution. Otherwise, the worker prints the tree and runs the source.
+3. If the mutator finds nothing to do, the link costs no execution. Like Fuzzilli's `MutationEngine`, the worker then picks a mutator again for the same link, at most 3 times (`noop_retries`).
+   Otherwise, the worker prints the tree and runs the source.
 4. After a runtime exception, exception salvage (`engine/salvage.h`) can wrap the throwing statement in `try/catch` and run a copy once (`salvage.*`).
    A salvaged pass or crash replaces the failed mutant.
    If the failed run found no new edges and the throw is directly in the last top-level statement, no wrap can run more code. Then the worker does not run the copy (`salvage_skipped_tail`).
@@ -274,9 +275,13 @@ For each execution, Redline writes the script, sends a command and waits for a s
   It can also start from a random flag set that found more new edges than the mean (`flags.affinity_chance`).
   The importer removes the `// Flags:` flags that the denylist of `tools/clusterfuzz/js_fuzzer/exceptions.js` rejects, and the flags that write logs or traces (`IsAllowedTestFlag`).
   A mutant gets the flags of its parents (`Program::flags`, at most 6). A worker prefers a seed that shares a flag with its process (`flags.seed_affinity_tries`).
-  Redline does not save `Program::flags` with the corpus. Thus a program that Redline reads again from `DIR/corpus` has no flags.
+  Redline saves `Program::flags` in the `// redline-flags:` comment of a corpus file (5.7). A program that Redline reads again from `DIR/corpus` gets these flags back.
   If a process with new random flags stops before its handshake, Redline starts it again without them. `D8FlagBlacklist` then blocks the flag that stopped it for the rest of the session. A pinned process keeps its flags.
 - After an infrastructure failure, Redline tries the execution again once with a fresh target. Ten such failures in a row stop the session.
+- At the start, `redline fuzz` makes the target fail a CHECK and a DCHECK on purpose (`Fuzzer::CheckTargetCrashes`), like the startup tests of Fuzzilli.
+  If the CHECK does not crash the target, the session does not start. If the DCHECK does not crash it, the session also does not start.
+  With `--allow-no-dcheck`, Redline only writes a warning for the DCHECK.
+  With `--hole-fuzzing`, `--sandbox-fuzzing`, `--sandbox-trap-fuzzing` or `--sandbox-testing` in the d8 flags of the target, a failed CHECK or DCHECK does not crash d8. Then Redline does not do these tests (`FiltersCrashProbes`).
 - A session uses a short timeout (`FuzzConfig::Load` in `engine/config.cc`), because a mutant that runs longer is almost always an endless loop.
 - By default, the target decides if a program is valid: an uncaught SyntaxError without a stack frame marks it invalid.
   With `syntax_check`, the V8 parser in the Redline process checks each mutant first.
@@ -295,10 +300,12 @@ A worker claims new edges with atomic operations, so two workers never claim the
 **Fuzzilli targets.** After the REPRL handshake, Redline detects the layout of the shared memory (`--target-kind=auto|redline|fuzzilli`, or `target_kind` in the configuration).
 A d8 built with `v8_fuzzilli=true` writes a 4-byte edge count at offset 0 and one bit per edge from offset 4 (`src/fuzzilli/cov.cc`).
 It writes no region table, no coverage counters and no build ID.
-Thus all edges count as code edges, and `--targets` stops with an error.
-With `--fuzzilli-enable-optimized-code-coverage`, a Fuzzilli target also counts the optimized-code features as code edges.
-They enter the `cov` percentage, get weight 1, and stay in the minimizer property (`engine/fuzzer.cc`).
-A Redline d8 does not count them as code edges.
+Thus all its edges count as code edges, and `--targets` stops with an error.
+With `--fuzzilli-enable-optimized-code-coverage`, the target adds `kFuzzilliNumOptimizedCodeEdges` (32768) optimized code features after the code edges.
+A process can run with this flag if it is a fixed d8 flag, or with random d8 flags.
+Then `CoverageMap` keeps a `kOptimized` region for these features after the code edges.
+Each new process must report the same code edges, plus 32768 if it runs with the flag. Any other edge count stops the session (`exec/coverage.cc`).
+Thus processes with and without the flag share one map, and Redline uses the optimized code features as in a Redline d8.
 
 **Optimized code features.** The flag `--fuzzilli-enable-optimized-code-coverage` turns them on.
 Maglev and Turbolev then hash each chain of up to 3 graph nodes, a node and its inputs (`Graph::ExtractOptimizedCodeCoverage`).
@@ -307,6 +314,8 @@ Redline uses these features in the same way with one bit per edge and with count
 The `cov` percentage does not count them, and the status line shows them apart (`opt`).
 They weigh in the rarity strategy (`--optimized-weight`, `corpus/feature_weights.h`).
 They do not make a candidate unless `--focus-optimized` is true, and the minimizer does not keep them.
+With `coverage.opt_admit_workers_fraction` (`--opt-admit-workers-fraction`) above 0, that share of the workers (rounded up) also keeps a program for new optimized code features alone.
+The other workers only weigh these features. The default is 0, because a corpus that admits them on all workers grows fast.
 
 **Coverage counters.** A d8 built with `sanitizer_coverage_flags="inline-8bit-counters,pc-table"` writes one counter per edge instead of one bit (`d8/cov.cc`).
 After each execution, `CoverageMap::Refresh()` builds a derived bitmap.
@@ -348,9 +357,12 @@ Accept decides if a candidate enters the corpus. It has two parts:
    - An edge that a rerun does not reach leaves the set. Redline gives the edge back, so that a later program can claim it.
    - An edge that fails the check `flaky_threshold` times stays claimed. It costs no more reruns, and it does not count as coverage.
    - If a rerun fails, or if the set does not settle within `max_reruns` runs, Redline drops the candidate.
+     Its remaining edges go back without a flaky count. Only an edge that a successful rerun does not reach is flaky.
+     A rerun that times out or crashes says nothing about the edges.
    - A seed strategy such as `rarity` needs all edges that the program reaches in at least 2 runs (`hit_edges`).
      Redline records the edges of the check runs, or of the last kept probe and of the verification run of a minimized program.
      Thus Publish runs a program again only if Redline recorded fewer than 2 runs.
+     Publish removes the suppressed flaky edges from `hit_edges`.
 
 **The oracle.** When Accept admits a program, it also sets the property that Minimize must keep.
 For `new-edges`, the property is "the program runs without an error and reaches all its new edges that survived the check".
@@ -492,6 +504,9 @@ Publish sets the new edges and the run time of the program.
 If a strategy asks for the full edge set, Publish runs the program two more times and keeps the edges that both runs reach.
 Then it adds the program to the shared corpus, which gives the program its id.
 It writes `OUT/corpus/NNNNNN.js` and a `corpus_add` event.
+The file starts with a `// redline corpus` comment with the lineage, and a `// redline-flags:` comment with `Program::flags` if the program has flags (`CorpusFileHeader`).
+Redline writes the line terminators of the lineage (`\n`, `\r`, U+2028, U+2029) as escape sequences, so that the file stays valid JavaScript.
+The importer reads `// redline-flags:` into `Program::flags` through `SanitizeTestFlags`. These flags are not `// Flags:` flags, so a new session does not use them as imported flags.
 
 ### 5.8 Crash triage
 
@@ -502,6 +517,8 @@ A crash can come from a result, from an imported file or from an instrumented pr
    For a stack overflow, the functions that repeat in the trace name the crash, because the first frames depend on where the stack ran out.
 2. **Budget.** Redline saves at most `max_crashes_per_signature` crashes of one signature, and minimizes at most `minimize_crashes_per_signature` of them.
 3. **Reproduction.** Redline runs the program again in a fresh target, up to `crash_reruns` times.
+   Each rerun has `crash_rerun_timeout_factor` times the target timeout (2 by default, as in Fuzzilli), so that a crash near the timeout is not lost.
+   The `crash` event and the statistics count the reruns that time out (`rerun_timeouts`, `crash_rerun_timeouts`).
 4. **History replay.** If the crash does not reproduce alone, Redline replays the earlier programs of the same target, and then the crash.
    If the crash then occurs, a binary search finds the smallest number of programs from the end of this history that cause it.
    Then Redline writes `NAME.bundle.js`, a d8 bundle with one part for each of these programs and one part for the crash program.

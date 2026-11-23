@@ -12,7 +12,19 @@ namespace redline {
 
 namespace {
 constexpr const char* kLog = "runner";
+
+// Tells `coverage` if the current process of `child` runs with optimized
+// code coverage, and if a process of this target can run with it. The
+// random flags come before the fixed flags.
+void NoteOptimizedCoverage(const TargetOptions& options,
+                           const ReprlChild& child, CoverageMap* coverage) {
+  std::vector<std::string> args = child.random_args();
+  args.insert(args.end(), options.args.begin(), options.args.end());
+  const bool requested = CoverageMap::RequestsOptimizedCoverage(args);
+  coverage->SetOptimizedCoverage(requested,
+                                 requested || options.random_args != nullptr);
 }
+}  // namespace
 
 // static
 std::unique_ptr<ScriptRunner> ScriptRunner::Create(const TargetOptions& options,
@@ -57,6 +69,7 @@ bool ScriptRunner::Initialize(std::string* error) {
         execution.stderr_output.c_str());
     return false;
   }
+  NoteOptimizedCoverage(options_, *child_, coverage_.get());
   if (!coverage_->FinishInitialization(error)) {
     return false;
   }
@@ -88,7 +101,17 @@ void ScriptRunner::Account(const Execution& execution) {
 bool ScriptRunner::ExecuteWithRetry(std::string_view script,
                                     uint64_t timeout_us, Execution* execution,
                                     std::string* error) {
+  const uint64_t spawns_before = child_->total_spawns();
   if (child_->Execute(script, timeout_us, execution, error)) {
+    // A new process (after a crash, a timeout or a respawn) publishes its
+    // edge count again. It must fit the coverage map.
+    if (child_->total_spawns() != spawns_before) {
+      NoteOptimizedCoverage(options_, *child_, coverage_.get());
+      if (!coverage_->FinishInitialization(error)) {
+        child_->Kill();
+        return false;
+      }
+    }
     coverage_->Refresh();
     return true;
   }
@@ -105,6 +128,7 @@ bool ScriptRunner::ExecuteWithRetry(std::string_view script,
   if (child_->Execute(script, timeout_us, execution, error)) {
     // A respawned child publishes its edge count again; make sure it is
     // the same binary.
+    NoteOptimizedCoverage(options_, *child_, coverage_.get());
     if (!coverage_->FinishInitialization(error)) {
       return false;
     }

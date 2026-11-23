@@ -324,11 +324,10 @@ bool IsSkippedTest262Path(std::string_view path) {
   return false;
 }
 
-}  // namespace
-
-std::vector<std::string> ParseFlagsLines(std::string_view source) {
-  // The same lines as FLAGS_PATTERN of the V8 test runner: `//`, white space,
-  // then `Flags:`.
+// The flags of the comment lines of `source` with `keyword` after `//` and
+// white space.
+std::vector<std::string> ParseKeywordLines(std::string_view source,
+                                           std::string_view keyword) {
   std::vector<std::string> flags;
   size_t pos = 0;
   while (pos < source.size()) {
@@ -345,10 +344,10 @@ std::vector<std::string> ParseFlagsLines(std::string_view source) {
     std::string_view rest = line.substr(comment + 2);
     const size_t text = rest.find_first_not_of(" \t");
     if (text == 0 || text == std::string_view::npos ||
-        !rest.substr(text).starts_with("Flags:")) {
+        !rest.substr(text).starts_with(keyword)) {
       continue;
     }
-    rest = rest.substr(text + 6);
+    rest = rest.substr(text + keyword.size());
     size_t i = 0;
     while (i < rest.size()) {
       while (i < rest.size() && isspace(static_cast<unsigned char>(rest[i]))) {
@@ -366,6 +365,19 @@ std::vector<std::string> ParseFlagsLines(std::string_view source) {
   return flags;
 }
 
+}  // namespace
+
+std::vector<std::string> ParseFlagsLines(std::string_view source) {
+  // The same lines as FLAGS_PATTERN of the V8 test runner: `//`, white space,
+  // then `Flags:`.
+  return ParseKeywordLines(source, "Flags:");
+}
+
+std::vector<std::string> ParseRedlineFlagsLines(std::string_view source) {
+  // kRedlineFlagsPrefix without `// `.
+  return ParseKeywordLines(source, "redline-flags:");
+}
+
 std::unique_ptr<fast::Tree> ImportSource(std::string_view source,
                                          const std::string& path,
                                          const ImportOptions& options,
@@ -380,6 +392,8 @@ std::unique_ptr<fast::Tree> ImportSource(std::string_view source,
   }
   info->flags =
       SanitizeTestFlags(ParseFlagsLines(source), &info->rejected_flags);
+  info->program_flags =
+      SanitizeTestFlags(ParseRedlineFlagsLines(source), &info->rejected_flags);
   std::vector<std::string> includes;
   if (!ParseTest262Frontmatter(source, &includes, error)) {
     return nullptr;

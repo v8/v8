@@ -179,6 +179,21 @@ std::string CheckHeader(const cov::Header& header) {
 
 }  // namespace
 
+// static
+bool CoverageMap::RequestsOptimizedCoverage(
+    const std::vector<std::string>& args) {
+  bool requested = false;
+  for (std::string arg : args) {
+    std::replace(arg.begin(), arg.end(), '_', '-');
+    if (arg == "--fuzzilli-enable-optimized-code-coverage") {
+      requested = true;
+    } else if (arg == "--no-fuzzilli-enable-optimized-code-coverage") {
+      requested = false;
+    }
+  }
+  return requested;
+}
+
 bool CoverageMap::FinishFuzzilliInitialization(uint32_t num_edges,
                                                std::string* error) {
   if (num_edges == 0 || num_edges > kFuzzilliMaxEdges) {
@@ -196,33 +211,63 @@ bool CoverageMap::FinishFuzzilliInitialization(uint32_t num_edges,
         "sanitizer_coverage_flags=\"inline-8bit-counters,pc-table\"";
     return false;
   }
+  if (optimized_requested_ && num_edges <= kFuzzilliNumOptimizedCodeEdges) {
+    *error = StringPrintf(
+        "The target runs with --fuzzilli-enable-optimized-code-coverage, but "
+        "reports only %u edges",
+        num_edges);
+    return false;
+  }
+  // d8 puts the optimized code features after all other edges.
+  const uint32_t code_edges = optimized_requested_
+                                  ? num_edges - kFuzzilliNumOptimizedCodeEdges
+                                  : num_edges;
   if (real_edges_ != 0) {
-    if (detected_kind_ != TargetKind::kFuzzilli || num_edges != real_edges_) {
+    // A new process of the same target must report the same code edges. It
+    // can add the optimized code features only if the region exists.
+    const bool has_region = real_edges_ > counted_edges_;
+    if (detected_kind_ != TargetKind::kFuzzilli ||
+        code_edges != fuzzilli_code_edges_ ||
+        (optimized_requested_ && !has_region)) {
       *error = StringPrintf(
-          "The target changed its coverage header (%u -> %u edges); mixing "
+          "The target changed its coverage header (%u -> %u edges%s); mixing "
           "binaries?",
-          real_edges_, num_edges);
+          fuzzilli_code_edges_, num_edges,
+          optimized_requested_ ? " with optimized code coverage" : "");
       return false;
     }
     return true;
   }
+  const bool add_region =
+      (optimized_requested_ || optimized_possible_) &&
+      code_edges <= kFuzzilliMaxEdges - kFuzzilliNumOptimizedCodeEdges;
+  const uint32_t all_edges =
+      add_region ? code_edges + kFuzzilliNumOptimizedCodeEdges : code_edges;
   detected_kind_ = TargetKind::kFuzzilli;
   data_offset_ = kFuzzilliHeaderSize;
   counters_mode_ = false;
-  real_edges_ = num_edges;
-  counted_edges_ = num_edges;
-  num_edges_ = num_edges;
-  regions_ = {{RegionKind::kCode, 1, num_edges}};
+  fuzzilli_code_edges_ = code_edges;
+  real_edges_ = all_edges;
+  // The optimized code features do not count for coverage_fraction().
+  counted_edges_ = code_edges;
+  num_edges_ = all_edges;
+  regions_ = {{RegionKind::kCode, 1, code_edges}};
+  if (add_region) {
+    regions_.push_back({RegionKind::kOptimized, code_edges + 1,
+                        kFuzzilliNumOptimizedCodeEdges});
+  }
   watched_.clear();
   watch_runs_.clear();
   header_ = {};
   header_.shm_size = static_cast<uint32_t>(kFuzzilliShmSize);
   header_.bits_per_edge = 1;
-  header_.num_edges = num_edges;
+  header_.num_edges = all_edges;
   header_.max_edges = kFuzzilliMaxEdges;
-  header_.num_regions = 1;
-  header_.regions[0] = {static_cast<uint32_t>(cov::RegionKind::kCode), 1,
-                        num_edges};
+  header_.num_regions = static_cast<uint32_t>(regions_.size());
+  for (size_t i = 0; i < regions_.size(); i++) {
+    header_.regions[i] = {static_cast<uint32_t>(regions_[i].kind),
+                          regions_[i].first, regions_[i].count};
+  }
   auto round_up = [](uint32_t bits_needed) {
     uint32_t bytes = (bits_needed + 7) / 8;
     return bytes + 7 - ((bytes - 1) % 8);

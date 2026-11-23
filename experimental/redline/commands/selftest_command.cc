@@ -1706,7 +1706,7 @@ void RunCoalesceChecks(Checker* checker) {
             !result.pending_held && result.edges == std::vector<uint32_t>{42} &&
             !shared.AnyFlaky(pending) && shared.IsSeen(40) &&
             shared.IsSeen(41) && shared.AnyFlaky({43}) && !shared.IsSeen(43) &&
-            !failed.survived && !shared.IsSeen(44) && shared.AnyFlaky({44}) &&
+            !failed.survived && !shared.IsSeen(44) && !shared.AnyFlaky({44}) &&
             offered == ChainCommits::Offered::kReplaced &&
             finalized.size() == 2 && finalized[0].candidate.edges == pending,
         StringPrintf("kept %zu edges, pending held %d, %zu commits",
@@ -2174,8 +2174,9 @@ CrashSession RunCrashSession(const TargetOptions& target,
     args += (args.empty() ? "" : " ") + arg;
   }
   std::vector<std::string> all_flags = {
-      "redline",         "fuzz",    "--jobs=1",         "--seed=1",
-      "--no-introspect", "--quiet", "--no-save-corpus", "--no-component-stats"};
+      "redline",          "fuzz",    "--jobs=1",         "--seed=1",
+      "--no-introspect",  "--quiet", "--no-save-corpus", "--no-component-stats",
+      "--allow-no-dcheck"};
   all_flags.push_back("--d8=" + target.executable);
   all_flags.push_back(std::string("--target-kind=") +
                       TargetKindName(target.kind));
@@ -2944,6 +2945,316 @@ void RunFuzzilliCoverageChecks(Checker* checker) {
         reason);
   }
   munmap(mapping, CoverageMap::kShmSize);
+}
+
+// Offline: the optimized code region of the Fuzzilli layout. A process
+// with --fuzzilli-enable-optimized-code-coverage reports
+// CoverageMap::kFuzzilliNumOptimizedCodeEdges more edges.
+void RunFuzzilliOptimizedCoverageChecks(Checker* checker) {
+  constexpr uint32_t kCode = 120;
+  constexpr uint32_t kAll = kCode + CoverageMap::kFuzzilliNumOptimizedCodeEdges;
+  checker->Check(
+      "fuzzilli optcov: the last optimized code coverage flag applies",
+      CoverageMap::RequestsOptimizedCoverage(
+          {"--fuzzilli_enable_optimized_code_coverage"}) &&
+          !CoverageMap::RequestsOptimizedCoverage(
+              {"--fuzzilli-enable-optimized-code-coverage",
+               "--no-fuzzilli-enable-optimized-code-coverage"}) &&
+          !CoverageMap::RequestsOptimizedCoverage({"--maglev"}),
+      "");
+  // Writes `edges` as the edge count of a new process and initializes `map`.
+  auto start = [](CoverageMap* map, uint32_t edges, bool requested,
+                  bool possible, std::string* reason) {
+    int fd = shm_open(map->shm_name().c_str(), O_RDWR, 0);
+    if (fd < 0) {
+      *reason = strerror(errno);
+      return false;
+    }
+    const bool written = pwrite(fd, &edges, sizeof(edges), 0) ==
+                         static_cast<ssize_t>(sizeof(edges));
+    close(fd);
+    map->SetOptimizedCoverage(requested, possible);
+    return written && map->FinishInitialization(reason);
+  };
+  std::string error;
+  std::unique_ptr<CoverageMap> map = CoverageMap::Create(9992, &error);
+  if (!checker->Check("fuzzilli optcov: create a coverage map", map != nullptr,
+                      error)) {
+    return;
+  }
+  // Random d8 flags: the first process runs without the flag, but the map
+  // has the region.
+  const bool ok = start(map.get(), kCode, false, true, &error);
+  const auto& regions = map->regions();
+  checker->Check(
+      "fuzzilli optcov: a kOptimized region follows the code edges",
+      ok && map->num_edges() == kAll && map->real_edges() == kAll &&
+          map->counted_edges() == kCode && regions.size() == 2 &&
+          regions[1].kind == CoverageMap::RegionKind::kOptimized &&
+          regions[1].first == kCode + 1 &&
+          regions[1].count == CoverageMap::kFuzzilliNumOptimizedCodeEdges &&
+          map->KindOf(kCode) == CoverageMap::FeatureKind::kCode &&
+          map->KindOf(kCode + 1) == CoverageMap::FeatureKind::kOptimized,
+      StringPrintf("%u edges, %u counted: %s", map->num_edges(),
+                   map->counted_edges(), error.c_str()));
+  if (!ok) {
+    return;
+  }
+  // One code edge and one optimized code feature: only the code edge counts
+  // for the coverage, like in a process without the flag.
+  int fd = shm_open(map->shm_name().c_str(), O_RDWR, 0);
+  uint8_t bits[64] = {};
+  bits[5 / 8] = 1u << (5 % 8);
+  bits[(kCode + 3) / 8] |= 1u << ((kCode + 3) % 8);
+  const bool written = fd >= 0 && pwrite(fd, bits, sizeof(bits),
+                                         CoverageMap::kFuzzilliHeaderSize) ==
+                                      static_cast<ssize_t>(sizeof(bits));
+  if (fd >= 0) {
+    close(fd);
+  }
+  SharedCoverage shared;
+  const bool shared_ok =
+      shared.Initialize(map->num_edges(), map->bitmap_size(), &error,
+                        map->counted_edges(), map->real_edges());
+  const std::vector<uint32_t> fresh = map->EvaluateNewEdges();
+  const std::vector<uint32_t> claimed = shared.ClaimNewEdges(map->bitmap());
+  const std::vector<uint32_t> expected = {5, kCode + 3};
+  checker->Check(
+      "fuzzilli optcov: optimized code features do not count as coverage",
+      written && shared_ok && fresh == expected && claimed == expected &&
+          map->found_edges() == 1 && shared.found_edges() == 1 &&
+          map->coverage_fraction() == 1.0 / (kCode + 1) &&
+          shared.coverage_fraction() == 1.0 / (kCode + 1),
+      StringPrintf("found %u and %u", map->found_edges(),
+                   shared.found_edges()));
+  // Later processes: with and without the flag. Any other edge count is
+  // another binary.
+  std::string with_flag, without_flag, other, unrequested;
+  const bool respawns = start(map.get(), kAll, true, true, &with_flag) &&
+                        start(map.get(), kCode, false, true, &without_flag);
+  const bool other_rejected = !start(map.get(), kCode + 1, false, true, &other);
+  const bool unrequested_rejected =
+      !start(map.get(), kAll, false, true, &unrequested);
+  checker->Check(
+      "fuzzilli optcov: N and N + 32768 edges are accepted, other counts not",
+      respawns && map->num_edges() == kAll && other_rejected &&
+          other.find("mixing binaries") != std::string::npos &&
+          unrequested_rejected &&
+          unrequested.find("mixing binaries") != std::string::npos,
+      with_flag + without_flag + " | " + other + " | " + unrequested);
+  // Fixed d8 flags without the flag: no region, and a process that reports
+  // the optimized code features is an error.
+  std::unique_ptr<CoverageMap> fixed = CoverageMap::Create(9991, &error);
+  std::string grown, requested;
+  const bool fixed_ok =
+      fixed != nullptr && start(fixed.get(), kCode, false, false, &error);
+  checker->Check("fuzzilli optcov: without optcov the layout stays strict",
+                 fixed_ok && fixed->num_edges() == kCode &&
+                     fixed->regions().size() == 1 &&
+                     !start(fixed.get(), kAll, false, false, &grown) &&
+                     !start(fixed.get(), kAll, true, true, &requested) &&
+                     grown.find("mixing binaries") != std::string::npos &&
+                     requested.find("mixing binaries") != std::string::npos,
+                 error + " | " + grown + " | " + requested);
+  // A fixed flag: the first process already reports the optimized features.
+  std::unique_ptr<CoverageMap> first = CoverageMap::Create(9990, &error);
+  std::string too_few;
+  const bool first_ok =
+      first != nullptr && start(first.get(), kAll, true, true, &error);
+  std::unique_ptr<CoverageMap> small = CoverageMap::Create(9989, &error);
+  checker->Check(
+      "fuzzilli optcov: a first process with the flag sets the code edges",
+      first_ok && first->counted_edges() == kCode &&
+          first->num_edges() == kAll && small != nullptr &&
+          !start(small.get(), 100, true, true, &too_few) &&
+          too_few.find("only 100 edges") != std::string::npos,
+      error + " | " + too_few);
+  checker->Check("fuzzilli optcov: K-of-N admission of optimized code features",
+                 OptimizedAdmitWorkers(0.0, 8) == 0 &&
+                     OptimizedAdmitWorkers(0.25, 1) == 1 &&
+                     OptimizedAdmitWorkers(0.25, 4) == 1 &&
+                     OptimizedAdmitWorkers(0.25, 8) == 2 &&
+                     OptimizedAdmitWorkers(0.3, 10) == 3 &&
+                     OptimizedAdmitWorkers(1.0, 3) == 3,
+                 "");
+}
+
+// Offline: find retention. A determinism rerun that does not succeed does
+// not make edges flaky. Suppressed edges leave Program::hit_edges. Crash
+// reruns get a longer timeout, and saved corpus files parse again.
+void RunRetentionChecks(Checker* checker) {
+  std::string error;
+  CheckRules rules;
+  auto check = [&](SharedCoverage& shared, std::vector<uint32_t> claimed,
+                   std::vector<CheckRun> runs) {
+    size_t next = 0;
+    return RunDeterminismCheck(
+        shared, rules, std::move(claimed), true,
+        [&](const std::vector<uint32_t>& /*edges*/, CheckRun* run) {
+          if (next < runs.size()) {
+            *run = runs[next++];
+          } else {
+            run->succeeded = true;
+          }
+          return true;
+        });
+  };
+  {
+    // A rerun that times out or crashes (succeeded is false) after a clean
+    // rerun: the edges go back, without a flaky count.
+    SharedCoverage shared;
+    const bool ok = shared.Initialize(255, 32, &error);
+    const std::vector<uint8_t> bitmap = EdgeBitmap({50, 51});
+    std::vector<uint32_t> claimed = shared.ClaimNewEdges(bitmap.data());
+    CheckRun clean;
+    clean.succeeded = true;
+    CheckRun timeout;
+    const CheckResult result = check(shared, claimed, {clean, timeout});
+    checker->Check(
+        "retention: a rerun timeout or crash does not mark edges flaky",
+        ok && claimed == std::vector<uint32_t>{50, 51} && !result.survived &&
+            !result.deterministic && result.reruns == 2 &&
+            !shared.AnyFlaky({50, 51}) && !shared.IsSeen(50) &&
+            !shared.IsSeen(51) && shared.found_edges() == 0,
+        StringPrintf("reruns %d, found %u", result.reruns,
+                     shared.found_edges()));
+  }
+  {
+    // A check that does not converge: only the edges that a successful rerun
+    // lost are flaky. The edge that all runs reached is not.
+    SharedCoverage shared;
+    const bool ok = shared.Initialize(255, 32, &error);
+    const std::vector<uint8_t> bitmap = EdgeBitmap({60, 61, 62, 63});
+    std::vector<uint32_t> claimed = shared.ClaimNewEdges(bitmap.data());
+    rules.max_reruns = 3;
+    std::vector<CheckRun> runs(3);
+    for (uint32_t i = 0; i < 3; i++) {
+      runs[i].succeeded = true;
+      runs[i].missing = {60 + i};
+    }
+    const CheckResult result = check(shared, claimed, runs);
+    rules = CheckRules();
+    checker->Check(
+        "retention: no convergence marks only the lost edges flaky",
+        ok && !result.survived && !result.converged && shared.AnyFlaky({60}) &&
+            shared.AnyFlaky({61}) && shared.AnyFlaky({62}) &&
+            !shared.AnyFlaky({63}) && !shared.IsSeen(63),
+        StringPrintf("reruns %d, dropped %zu", result.reruns, result.dropped));
+  }
+  {
+    // A suppressed edge leaves the hit edges. RecordFlaky ignores the edges
+    // outside 1..num_edges.
+    SharedCoverage shared;
+    const bool ok = shared.Initialize(255, 32, &error);
+    const bool first = shared.RecordFlaky(70, 2);
+    const bool second = shared.RecordFlaky(70, 2);
+    const bool outside = shared.RecordFlaky(0, 1) || shared.RecordFlaky(256, 1);
+    std::vector<uint32_t> hit = {69, 70, 71};
+    shared.RemoveSuppressed(&hit);
+    checker->Check(
+        "retention: suppressed flaky edges leave the hit edges",
+        ok && !first && second && !outside && shared.IsSuppressed(70) &&
+            !shared.IsSuppressed(69) && !shared.IsSuppressed(256) &&
+            !shared.AnyFlaky({256}) && shared.suppressed_flaky_edges() == 1 &&
+            hit == std::vector<uint32_t>{69, 71},
+        StringPrintf("suppressed %llu", static_cast<unsigned long long>(
+                                            shared.suppressed_flaky_edges())));
+  }
+  {
+    // The crash rerun timeout: from the configuration, at least 1x.
+    const char* argv[] = {"redline",
+                          "fuzz",
+                          "--timeout-ms=500",
+                          "--crash-rerun-timeout-factor=3",
+                          "--opt-admit-workers-fraction=0.25",
+                          "--allow-no-dcheck"};
+    Flags flags = Flags::Parse(6, argv, 2);
+    FuzzConfig config;
+    bool ok = FuzzConfig::Load(flags, &config, &error, /*for_run=*/false);
+    const std::string dump = config.ToJson(FuzzConfig::Detail::kFull);
+    ok =
+        ok && config.crash_rerun_timeout_factor == 3 &&
+        CrashRerunTimeout(config) == 1500 * 1000 &&
+        config.opt_admit_workers_fraction == 0.25 && config.allow_no_dcheck &&
+        dump.find("\"crash_rerun_timeout_factor\":3") != std::string::npos &&
+        dump.find("\"opt_admit_workers_fraction\":0.25") != std::string::npos &&
+        dump.find("\"allow_no_dcheck\":true") != std::string::npos;
+    const char* low[] = {
+        "redline", "fuzz",
+        R"(--config={"crash_rerun_timeout_factor": 0.5, "coverage": {"opt_admit_workers_fraction": 2}})"};
+    flags = Flags::Parse(3, low, 2);
+    FuzzConfig clamped;
+    const bool low_ok =
+        FuzzConfig::Load(flags, &clamped, &error, /*for_run=*/false);
+    FuzzConfig defaults;
+    checker->Check(
+        "retention: crash rerun timeout factor and optcov admission load and "
+        "dump",
+        ok && low_ok && clamped.crash_rerun_timeout_factor == 1.0 &&
+            clamped.opt_admit_workers_fraction == 1.0 &&
+            defaults.crash_rerun_timeout_factor == 2.0 &&
+            defaults.opt_admit_workers_fraction == 0.0 &&
+            !defaults.allow_no_dcheck,
+        error);
+  }
+  checker->Check(
+      "retention: the startup crash probes use the d8 builtin",
+      CrashProbeScript(true, 2) == "fuzzilli('FUZZILLI_CRASH', 2)" &&
+          CrashProbeScript(false, 1) == "redline('REDLINE_CRASH', 1)",
+      "");
+  checker->Check(
+      "retention: the crash probes stop for the modes that filter crashes",
+      FiltersCrashProbes({"--fuzzing", "--hole-fuzzing"}) &&
+          FiltersCrashProbes({"--hole_fuzzing"}) &&
+          FiltersCrashProbes({"--sandbox-fuzzing"}) &&
+          FiltersCrashProbes({"--sandbox-trap-fuzzing"}) &&
+          FiltersCrashProbes({"--maglev", "--sandbox-testing"}) &&
+          !FiltersCrashProbes({}) &&
+          !FiltersCrashProbes({"--fuzzing", "--maglev"}) &&
+          !FiltersCrashProbes({"--hole-fuzzing-extra"}),
+      "");
+  {
+    // A corpus file header with line terminators in the lineage, and the
+    // flags of the program. The file parses again, the flags come back as
+    // program flags through SanitizeTestFlags, and they are not imported
+    // flags.
+    Lineage lineage;
+    lineage.origin = "import";
+    lineage.detail =
+        "a\nb\rc\xE2\x80\xA8"
+        "d\xE2\x80\xA9"
+        "e";
+    std::shared_ptr<Program> program =
+        Program::Parse("let x = 1;\nx + 1;\n", lineage, &error);
+    std::string header, file;
+    ImportInfo info;
+    std::unique_ptr<fast::Tree> tree;
+    if (program != nullptr) {
+      program->flags = {"--maglev", "--expose-gc",
+                        "--no-lazy-feedback-allocation"};
+      header = CorpusFileHeader(*program);
+      file = header + program->source();
+      tree =
+          ImportSource(file, "/tmp/000001.js", ImportOptions(), &info, &error);
+    }
+    const bool one_line_each =
+        std::count(header.begin(), header.end(), '\n') == 2 &&
+        header.find('\r') == std::string::npos &&
+        header.find("\xE2\x80\xA8") == std::string::npos &&
+        header.find("\xE2\x80\xA9") == std::string::npos &&
+        header.find("a\\nb\\rc\\u2028d\\u2029e") != std::string::npos;
+    checker->Check(
+        "retention: a corpus file header round-trips with its flags",
+        program != nullptr && one_line_each && tree != nullptr &&
+            info.flags.empty() && ParseFlagsLines(file).empty() &&
+            info.program_flags ==
+                std::vector<std::string>{"--maglev",
+                                         "--no-lazy-feedback-allocation"} &&
+            info.rejected_flags == std::vector<std::string>{"--expose-gc"} &&
+            header.find(std::string(kRedlineFlagsPrefix) +
+                        " --maglev --expose-gc") != std::string::npos,
+        header + error);
+  }
 }
 
 // Offline: wildcard expansion in ListFiles and Test262 frontmatter in
@@ -4738,6 +5049,8 @@ int RunSelftest(const Flags& flags) {
   RunReprlBundleChecks(&checker);
   RunCoverageHeaderChecks(&checker);
   RunFuzzilliCoverageChecks(&checker);
+  RunFuzzilliOptimizedCoverageChecks(&checker);
+  RunRetentionChecks(&checker);
   RunD8FlagProfileChecks(&checker);
   RunFuzzilliFlagProfileChecks(&checker);
   RunCoverageCounterChecks(&checker);
