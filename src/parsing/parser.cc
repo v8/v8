@@ -1318,6 +1318,14 @@ FunctionLiteral* Parser::ParseClassForMemberInitialization(
   {
     bool is_anonymous = IsEmptyIdentifier(class_name);
     BlockState block_state(&scope_, original_scope_);
+    // Class bodies are strict. If the class scope didn't need a context it was
+    // elided from the ScopeInfo chain, and `original_scope_` is a deserialized
+    // outer scope that may be sloppy (e.g., a context-less sloppy eval scope).
+    // Only treat it as strict (and update its end position) while reparsing
+    // the class body, and restore its deserialized state afterwards so that
+    // scope analysis sees the outer scope chain as described by its ScopeInfos.
+    const LanguageMode outer_language_mode = original_scope_->language_mode();
+    const int outer_end_position = original_scope_->end_position();
     RaiseLanguageMode(LanguageMode::kStrict);
 
     BlockState object_literal_scope_state(&object_literal_scope_, nullptr);
@@ -1386,6 +1394,8 @@ FunctionLiteral* Parser::ParseClassForMemberInitialization(
     ResetInfoId(initializer_id - 1);
 
     ParseClassLiteralBody(class_info, class_name, class_token_pos, Token::kEos);
+    original_scope_->SetLanguageMode(outer_language_mode);
+    original_scope_->set_end_position(outer_end_position);
     if (V8_UNLIKELY(has_error())) return nullptr;
 
     if (IsClassInstanceInitializerFunction(initializer_kind)) {

@@ -13463,6 +13463,59 @@ TEST_F(ParsingTest, SkipFunctionStackOverflowResetsPrivateNameTail) {
             0);
 }
 
+// Regression test for crbug.com/587212490: reparsing a class member
+// initializer whose class scope and enclosing strict arrow were elided from the
+// ScopeInfo chain happens inside the (synthetic, context-less) sloppy eval
+// scope. Reparsing must not leave that deserialized scope strict.
+TEST_F(ParsingTest, ReparseClassInitializerKeepsOuterEvalScopeSloppy) {
+  i::Isolate* isolate = i_isolate();
+  i::HandleScope handle_scope(isolate);
+
+  RunJS(
+      "function f() {"
+      "  return eval(\"(() => { 'use strict'; return class {"
+      "    a = 1;"
+      "    b = (function() { return this; })();"
+      "  }; })()\");"
+      "}"
+      "var C = f();");
+
+  auto ctor = i::Cast<i::JSFunction>(v8::Utils::OpenDirectHandle(*RunJS("C")));
+  i::DirectHandle<i::Object> initializer =
+      i::JSReceiver::GetProperty(isolate, ctor,
+                                 isolate->factory()->class_fields_symbol())
+          .ToHandleChecked();
+  auto initializer_fn = i::Cast<i::JSFunction>(initializer);
+  i::Handle<i::SharedFunctionInfo> shared(initializer_fn->shared(), isolate);
+  ASSERT_TRUE(i::IsClassInitializerFunction(shared->kind()));
+
+  {
+    auto flags =
+        i::UnoptimizedCompileFlags::ForFunctionCompile(isolate, *shared);
+    i::UnoptimizedCompileState state;
+    i::ReusableUnoptimizedCompileState reusable_state(isolate);
+    i::ParseInfo info(isolate, flags, &state, &reusable_state);
+    CHECK_PARSE_FUNCTION(&info, shared, isolate);
+
+    i::DeclarationScope* initializer_scope = info.literal()->scope();
+    EXPECT_TRUE(is_strict(initializer_scope->language_mode()));
+    i::Scope* eval_scope = initializer_scope->outer_scope();
+    ASSERT_TRUE(eval_scope->is_eval_scope());
+    EXPECT_TRUE(is_sloppy(eval_scope->language_mode()));
+    EXPECT_EQ(eval_scope->start_position(), eval_scope->end_position());
+    EXPECT_FALSE(eval_scope->NeedsContext());
+  }
+
+  // Lazily recompile the initializer.
+  ASSERT_TRUE(shared->CanDiscardCompiled());
+  i::SharedFunctionInfo::DiscardCompiled(isolate, shared);
+  initializer_fn->ResetIfCodeFlushed(isolate);
+  ASSERT_FALSE(shared->is_compiled());
+
+  EXPECT_EQ(1, RunJS("new C().a")->Int32Value(context()).FromJust());
+  EXPECT_TRUE(RunJS("new C().b")->IsUndefined());
+}
+
 }  // namespace test_parsing
 }  // namespace internal
 }  // namespace v8
