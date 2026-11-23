@@ -2944,6 +2944,18 @@ ProcessResult MaglevGraphOptimizer::VisitStringLocaleCompareIntl(
   // MachineLoweringReducer::REDUCE(StringLocaleCompareIntl)).
   return ProcessResult::kContinue;
 }
+
+ProcessResult MaglevGraphOptimizer::VisitStringToLowerCaseIntl(
+    StringToLowerCaseIntl* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitStringToUpperCaseIntl(
+    StringToUpperCaseIntl* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
 #endif  // V8_INTL_SUPPORT
 
 ProcessResult MaglevGraphOptimizer::VisitStringConcat(

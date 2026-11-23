@@ -390,6 +390,8 @@ class ExceptionHandlerInfo;
   V(StringConcat)                             \
   V(StringIndexOf)                            \
   IF_INTL(V, StringLocaleCompareIntl)         \
+  IF_INTL(V, StringToLowerCaseIntl)           \
+  IF_INTL(V, StringToUpperCaseIntl)           \
   V(ConsStringMap)                            \
   V(UnwrapStringWrapper)                      \
   V(ToBoolean)                                \
@@ -10044,6 +10046,44 @@ class StringLocaleCompareIntl
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
+};
+
+class StringToLowerCaseIntl
+    : public FixedInputValueNodeT<1, StringToLowerCaseIntl> {
+ public:
+  explicit StringToLowerCaseIntl(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Call() | OpProperties::CanThrow();
+
+  int MaxCallStackArgs() const { return 0; }
+
+  DECLARE_INPUTS(String)
+  DECLARE_INPUT_TYPES(Tagged)
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+
+  NodeType type() const { return NodeType::kString; }
+};
+
+class StringToUpperCaseIntl
+    : public FixedInputValueNodeT<1, StringToUpperCaseIntl> {
+ public:
+  explicit StringToUpperCaseIntl(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Call() | OpProperties::CanThrow();
+
+  int MaxCallStackArgs() const { return 1; }
+
+  DECLARE_INPUTS(String)
+  DECLARE_INPUT_TYPES(Tagged)
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+
+  NodeType type() const { return NodeType::kString; }
 };
 #endif  // V8_INTL_SUPPORT
 

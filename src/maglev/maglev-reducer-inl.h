@@ -5921,6 +5921,24 @@ MaglevReducer<BaseT>::TryReduceStringPrototypeLocaleCompareIntl(
       {GetConstant(target), GetValueOrUndefined(args.receiver()), args[0],
        locales_node});
 }
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceStringPrototypeToLowerCaseIntl(
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
+  if (!CanSpeculateCall()) return {};
+  ValueNode* receiver = GetValueOrUndefined(args.receiver());
+  RETURN_IF_ABORT(BuildCheckString(receiver));
+  return AddNewNode<StringToLowerCaseIntl>({receiver});
+}
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceStringPrototypeToUpperCaseIntl(
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
+  if (!CanSpeculateCall()) return {};
+  ValueNode* receiver = GetValueOrUndefined(args.receiver());
+  RETURN_IF_ABORT(BuildCheckString(receiver));
+  return AddNewNode<StringToUpperCaseIntl>({receiver});
+}
 #endif  // V8_INTL_SUPPORT
 
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA

@@ -1369,6 +1369,8 @@ class MaglevReducer {
   IEEE_754_UNARY_LIST(V)                       \
   IEEE_754_BINARY_LIST(V)                      \
   IF_INTL(V, StringPrototypeLocaleCompareIntl) \
+  IF_INTL(V, StringPrototypeToLowerCaseIntl)   \
+  IF_INTL(V, StringPrototypeToUpperCaseIntl)   \
   CONTINUATION_PRESERVED_EMBEDDER_DATA_LIST(V)
 
 #define DECLARE_BUILTIN_REDUCER(Name, ...)                          \

@@ -4895,23 +4895,26 @@ class AssemblerOpInterface : public Next {
   }
 
 #ifdef V8_INTL_SUPPORT
-  V<String> StringToCaseIntl(V<String> string, V<LazyFrameState> frame_state,
-                             V<Context> context,
-                             StringToCaseIntlOp::Kind kind) {
+  V<String> StringToCaseIntl(
+      V<String> string, V<LazyFrameState> frame_state, V<Context> context,
+      StringToCaseIntlOp::Kind kind,
+      LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow{false}) {
     return ReduceIfReachableStringToCaseIntl(string, frame_state, context, kind,
-                                             LazyDeoptOnThrow{false});
+                                             lazy_deopt_on_throw);
   }
-  V<String> StringToLowerCaseIntl(V<String> string,
-                                  V<LazyFrameState> frame_state,
-                                  V<Context> context) {
+  V<String> StringToLowerCaseIntl(
+      V<String> string, V<LazyFrameState> frame_state, V<Context> context,
+      LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow{false}) {
     return StringToCaseIntl(string, frame_state, context,
-                            StringToCaseIntlOp::Kind::kLower);
+                            StringToCaseIntlOp::Kind::kLower,
+                            lazy_deopt_on_throw);
   }
-  V<String> StringToUpperCaseIntl(V<String> string,
-                                  V<LazyFrameState> frame_state,
-                                  V<Context> context) {
+  V<String> StringToUpperCaseIntl(
+      V<String> string, V<LazyFrameState> frame_state, V<Context> context,
+      LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow{false}) {
     return StringToCaseIntl(string, frame_state, context,
-                            StringToCaseIntlOp::Kind::kUpper);
+                            StringToCaseIntlOp::Kind::kUpper,
+                            lazy_deopt_on_throw);
   }
   V<Smi> StringLocaleCompareIntl(V<JSFunction> locale_compare_fn,
                                  V<Object> left, V<Object> right,

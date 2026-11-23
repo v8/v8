@@ -6412,6 +6412,31 @@ void StringLocaleCompareIntl::GenerateCode(MaglevAssembler* masm,
       LocaleCompareFnInput(), LeftInput(), RightInput(), LocalesInput());
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
+
+void StringToLowerCaseIntl::SetValueLocationConstraints() {
+  using D = CallInterfaceDescriptorFor<Builtin::kStringToLowerCaseIntl>::type;
+  UseFixed(StringInput(), D::GetRegisterParameter(D::kString));
+  DefineAsFixed(this, kReturnRegister0);
+}
+void StringToLowerCaseIntl::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  __ CallBuiltin<Builtin::kStringToLowerCaseIntl>(
+      masm->native_context().object(),  // context
+      StringInput());
+  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
+}
+
+void StringToUpperCaseIntl::SetValueLocationConstraints() {
+  UseAny(StringInput());
+  DefineAsFixed(this, kReturnRegister0);
+}
+void StringToUpperCaseIntl::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  __ Push(StringInput());
+  __ Move(kContextRegister, masm->native_context().object());
+  __ CallRuntime(Runtime::kStringToUpperCaseIntl, 1);
+  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
+}
 #endif  // V8_INTL_SUPPORT
 
 void StringSubstring::SetValueLocationConstraints() {

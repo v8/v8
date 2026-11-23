@@ -3341,6 +3341,24 @@ class GraphBuildingNodeProcessor {
                      native_context(), ShouldLazyDeoptOnThrow(node)));
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::StringToLowerCaseIntl* node,
+                                const maglev::ProcessingState& state) {
+    ThrowingScope throwing_scope(this, node);
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
+    SetMap(node, __ StringToLowerCaseIntl(Map(node->StringInput()), frame_state,
+                                          native_context(),
+                                          ShouldLazyDeoptOnThrow(node)));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::StringToUpperCaseIntl* node,
+                                const maglev::ProcessingState& state) {
+    ThrowingScope throwing_scope(this, node);
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
+    SetMap(node, __ StringToUpperCaseIntl(Map(node->StringInput()), frame_state,
+                                          native_context(),
+                                          ShouldLazyDeoptOnThrow(node)));
+    return maglev::ProcessResult::kContinue;
+  }
 #endif  // V8_INTL_SUPPORT
   maglev::ProcessResult Process(maglev::StringAt* node,
                                 const maglev::ProcessingState& state) {
