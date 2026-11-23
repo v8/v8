@@ -812,12 +812,14 @@ static Tagged<Object> CreateWasmObject(Isolate* isolate,
       Cast<Map>(instance->trusted_data(isolate)->managed_object_maps()->get(
           type_index.index));
   if (is_struct) {
+    SBXCHECK(module->has_struct(type_index));
     const wasm::StructType* struct_type = module->struct_type(type_index);
     SBXCHECK_EQ(struct_type->field_count(), 1);
     SBXCHECK_EQ(struct_type->field(0), wasm::kWasmI64);
     return *isolate->factory()->NewWasmStruct(struct_type, &value,
                                               direct_handle(map, isolate));
   } else {
+    SBXCHECK(module->has_array(type_index));
     SBXCHECK_EQ(module->array_type(type_index)->element_type(), wasm::kWasmI64);
     return *isolate->factory()->NewWasmArray(
         wasm::kWasmI64, 1, value, direct_handle(map, isolate),
