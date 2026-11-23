@@ -1231,6 +1231,144 @@ void RunCrashMinimizerChecks(Checker* checker) {
       joined == nullptr, joined == nullptr ? error : "one tree");
 }
 
+// Offline: the parts of a commit that save executions. The probe timeout
+// tightens after a kept reduction. The hit edges come from the runs of the
+// check or of the minimization. The default order starts with `dataflow`,
+// and `expressions` uses only a part of the budget.
+void RunCommitCostChecks(Checker* checker) {
+  {
+    FuzzConfig config;
+    config.target.timeout_us = 1000000;
+    const uint64_t first = MinimizerProbeTimeout(config, 100000);
+    const uint64_t tight = TightenedProbeTimeout(config, first, 20000);
+    const uint64_t floor = TightenedProbeTimeout(config, first, 0);
+    const uint64_t capped = TightenedProbeTimeout(config, first, 400000);
+    config.probe_timeout_tighten_factor = 0;
+    const uint64_t off = TightenedProbeTimeout(config, first, 20000);
+    checker->Check(
+        "commit: a kept reduction tightens the probe timeout to 2.5 times its "
+        "run time plus 50 ms, between 50 ms and the first timeout",
+        first == 520000 && tight == 100000 && floor == 50000 &&
+            capped == first && off == first,
+        StringPrintf("first %llu, tight %llu, floor %llu, capped %llu, off "
+                     "%llu us",
+                     static_cast<unsigned long long>(first),
+                     static_cast<unsigned long long>(tight),
+                     static_cast<unsigned long long>(floor),
+                     static_cast<unsigned long long>(capped),
+                     static_cast<unsigned long long>(off)));
+  }
+  {
+    // A program that the minimizer did not change: the edges of all runs of
+    // the check. The probes of a rejected minimization do not apply.
+    HitEdges kept;
+    kept.RecordRun({5, 3, 1, 2});
+    kept.RecordRun({7, 1, 5, 2});
+    kept.RecordProbe({1, 9});
+    // A minimized program: the last kept probe and the verification run.
+    // The runs of the original program do not apply.
+    HitEdges minimized;
+    minimized.RecordRun({1, 2, 3});
+    minimized.RecordRun({1, 2, 3});
+    minimized.RecordProbe({1, 4, 8});
+    minimized.RecordProbe({6, 4, 1});
+    minimized.RecordVerifiedRun({9, 6, 4, 1});
+    // A verification without a probe gives one run. Publish then runs the
+    // program once more.
+    HitEdges alone;
+    alone.RecordRun({1, 2});
+    alone.RecordVerifiedRun({2, 3});
+    checker->Check(
+        "commit: the hit edges come from the check runs, or from the last "
+        "kept probe and the verification of the minimized program",
+        kept.runs() == 2 && kept.edges() == std::vector<uint32_t>{1, 2, 5} &&
+            minimized.runs() == 2 &&
+            minimized.edges() == std::vector<uint32_t>{1, 4, 6} &&
+            alone.runs() == 1 && alone.edges() == std::vector<uint32_t>{2, 3} &&
+            minimized.Take() == std::vector<uint32_t>{1, 4, 6} &&
+            minimized.runs() == 0);
+  }
+  checker->Check(
+      "minimizer: the default order starts with `dataflow`, the crash order "
+      "keeps `expressions`",
+      Minimizer::DefaultOrder() ==
+              std::vector<std::string_view>{"dataflow", "statements", "unwrap",
+                                            "lists", "expressions"} &&
+          std::find(Minimizer::CrashOrder().begin(),
+                    Minimizer::CrashOrder().end(),
+                    "expressions") != Minimizer::CrashOrder().end());
+  // `dataflow` removes the unused declarations with one test, and then each
+  // unused group of top-level statements with one test.
+  {
+    std::string message;
+    std::shared_ptr<Program> program = Program::Parse(
+        "var u0 = 0; var u1 = 1;\n"
+        "var a = 1; var b = a + 1;\nvar c = 2; var d = c * 2;\n"
+        "var keep = 3; print(keep);\n",
+        Lineage(), &message);
+    if (checker->Check("minimizer: the dataflow program parses",
+                       program != nullptr, message)) {
+      std::unique_ptr<fast::Tree> tree = program->CopyTree();
+      Minimizer minimizer;
+      MinimizationOracle oracle = [](const std::string& source) {
+        return source.find("print(keep)") != std::string::npos &&
+               source.find("keep = 3") != std::string::npos;
+      };
+      const MinimizationResult result = minimizer.Minimize(
+          tree.get(), oracle, nullptr, FuzzConfig().minimizer);
+      std::string printed = fast::Print(tree->root());
+      std::replace(printed.begin(), printed.end(), '\n', ' ');
+      const ComponentStats& dataflow = minimizer.Find("dataflow")->stats();
+      checker->Check(
+          "minimizer: the default order runs `dataflow` and keeps its cuts",
+          dataflow.succeeded == 3 && dataflow.executed == 4 &&
+              printed.find("var u") == std::string::npos &&
+              printed.find("var a") == std::string::npos &&
+              printed.find("var c") == std::string::npos &&
+              printed.find("print(keep)") != std::string::npos,
+          StringPrintf("%llu of %llu dataflow cuts kept, %d tests, program "
+                       "\"%s\"",
+                       static_cast<unsigned long long>(dataflow.succeeded),
+                       static_cast<unsigned long long>(dataflow.executed),
+                       result.tests, printed.c_str()));
+    }
+  }
+  // `expressions` uses only its share of the budget. The oracle keeps no
+  // reduction, so the reducer stops at its limit, not at the end of the
+  // slots.
+  {
+    std::string source;
+    for (int i = 0; i < 60; i++) {
+      source += StringPrintf("f(a%d + b%d, c%d * d%d);\n", i, i, i, i);
+    }
+    std::string message;
+    std::shared_ptr<Program> program =
+        Program::Parse(source, Lineage(), &message);
+    auto tests_with = [&](double share) {
+      std::unique_ptr<fast::Tree> tree = program->CopyTree();
+      Minimizer minimizer;
+      MinimizerOptions options;
+      options.max_tests = 200;
+      options.max_rounds = 1;
+      options.target_time_ms = 0;
+      options.expressions_share = share;
+      MinimizationOracle never = [](const std::string&) { return false; };
+      std::vector<Reducer*> reducers = {minimizer.Find("expressions")};
+      return minimizer
+          .MinimizeWith(reducers, tree.get(), never, nullptr, options)
+          .tests;
+    };
+    const int quarter = program != nullptr ? tests_with(0.25) : -1;
+    const int all = program != nullptr ? tests_with(1.0) : -1;
+    const int none = program != nullptr ? tests_with(0.0) : -1;
+    checker->Check(
+        "minimizer: `expressions` uses only its share of the remaining tests",
+        quarter == 50 && all == 200 && none == 0,
+        StringPrintf("%d tests with 0.25, %d with 1, %d with 0 (%s)", quarter,
+                     all, none, message.c_str()));
+  }
+}
+
 // Offline: the search of the d8 flags of NAME.repro.js (MinimizeFlags). The
 // oracle needs 2 flags of 7, and --allow-natives-syntax must stay.
 void RunFlagMinimizerChecks(Checker* checker) {
@@ -2418,6 +2556,75 @@ void RunImportChecks(Checker* checker) {
   RemoveTree(dir);
 }
 
+// Target: a session with --import-all and a seed strategy that wants hit
+// edges. The check of an import uses import_reruns, not the large
+// min_reruns of the session. An edge that the first run of a new target
+// reaches only once can cause more reruns. Publish runs no program again
+// for the hit edges.
+void RunImportAllCheck(Checker* checker, const TargetOptions& target) {
+  const std::vector<std::string> programs = {
+      "var a = [1, 2, 3]; a.push(4); a.sort();\n",
+      "var o = {x: 1}; o.y = 2; Object.keys(o);\n",
+      "var s = 'abc'; s.split('').reverse().join('');\n",
+  };
+  const CrashSession session =
+      RunCrashSession(target,
+                      {"--import-all", "--min-reruns=20", "--scheduler=rarity",
+                       "--stage-log=check"},
+                      programs);
+  std::string events, error = session.error;
+  if (error.empty()) {
+    ReadFileToString(session.dir + "/out/events.jsonl", &events, &error);
+  }
+  int added = 0, import_checks = 0, cheap_checks = 0;
+  std::string reruns;
+  int64_t hit_edge_executions = -1;
+  size_t start = 0;
+  while (start < events.size()) {
+    size_t end = events.find('\n', start);
+    if (end == std::string::npos) {
+      end = events.size();
+    }
+    JsonValue event;
+    std::string parse_error;
+    if (JsonValue::Parse(std::string_view(events).substr(start, end - start),
+                         &event, &parse_error) &&
+        event.is_object()) {
+      const std::string& kind = event.Get("event").as_string();
+      if (kind == "import" && event.Get("result").as_string() == "added") {
+        added++;
+      } else if (kind == "check" &&
+                 event.Get("origin").as_string() == "import") {
+        import_checks++;
+        const int64_t count = event.GetInt("reruns", -1);
+        reruns += StringPrintf("%s%lld", reruns.empty() ? "" : " ",
+                               static_cast<long long>(count));
+        if (count >= 1 && count < 20 && event.GetBool("survived", false)) {
+          cheap_checks++;
+        }
+      } else if (kind == "stats") {
+        hit_edge_executions = event.GetInt("hit_edge_executions", -1);
+      }
+    }
+    start = end + 1;
+  }
+  checker->Check(
+      "import: --import-all uses import_reruns, and Publish runs no program "
+      "again for the hit edges",
+      error.empty() && added == static_cast<int>(programs.size()) &&
+          import_checks == added && cheap_checks == added &&
+          hit_edge_executions == 0,
+      StringPrintf("%d added, %d import checks, %d with fewer than 20 reruns "
+                   "(%s), %lld hit edge runs, stop \"%s\"%s%s",
+                   added, import_checks, cheap_checks, reruns.c_str(),
+                   static_cast<long long>(hit_edge_executions),
+                   session.stop.c_str(), error.empty() ? "" : ": ",
+                   error.c_str()));
+  if (!session.dir.empty()) {
+    RemoveTree(session.dir);
+  }
+}
+
 int RunSelftest(const Flags& flags) {
   Checker checker;
   std::string error;
@@ -2432,6 +2639,7 @@ int RunSelftest(const Flags& flags) {
   RunCoverageBitsChecks(&checker);
   RunCrashSlotChecks(&checker);
   RunCrashMinimizerChecks(&checker);
+  RunCommitCostChecks(&checker);
   RunFlagMinimizerChecks(&checker);
   RunImportChecks(&checker);
   RunAmplifiedTestChecks(&checker);
@@ -2862,6 +3070,7 @@ int RunSelftest(const Flags& flags) {
   RunCrashFlagsCheck(&checker, target, fuzzilli_target);
   RunCrashAmplifiedCheck(&checker, target, fuzzilli_target);
   RunCrashBundleCheck(&checker, target, fuzzilli_target);
+  RunImportAllCheck(&checker, target);
 
   printf("selftest: %d passed, %d failed\n", checker.passed(),
          checker.failed());

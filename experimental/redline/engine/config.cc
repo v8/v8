@@ -421,6 +421,8 @@ void ReadMinimizerOptions(const JsonValue& object, MinimizerOptions* m) {
   m->target_time_ms = static_cast<uint64_t>(
       object.GetInt("target_time_ms", static_cast<int64_t>(m->target_time_ms)));
   m->min_tests = static_cast<int>(object.GetInt("min_tests", m->min_tests));
+  m->expressions_share =
+      object.GetNumber("expressions_share", m->expressions_share);
 }
 
 // Reads the "reducers" list of `object` into `names`, if the list is there.
@@ -459,6 +461,7 @@ std::string MinimizerOptionsJson(
   o.Add("max_rounds", m.max_rounds);
   o.Add("target_time_ms", static_cast<uint64_t>(m.target_time_ms));
   o.Add("min_tests", m.min_tests);
+  o.Add("expressions_share", m.expressions_share);
   std::vector<std::string> order = reducers;
   if (order.empty()) {
     order.assign(default_order.begin(), default_order.end());
@@ -521,12 +524,14 @@ bool ReadStages(const JsonValue& json, FuzzConfig* c, std::string* error) {
       {},                                                         // pick
       {"enabled", "min_values", "extra_values", "from_scratch"},  // prefix
       {"consecutive", "rounds", "scratch_codegen"},               // mutate
-      {"min_reruns", "min_stable_reruns", "max_reruns",
+      {"min_reruns", "min_stable_reruns", "max_reruns", "import_reruns",
        "flaky_threshold"},  // check
       {"enabled", "max_tests", "max_time_ms", "max_rounds", "target_time_ms",
-       "min_tests", "probe_timeout_factor", "probe_timeout_extra_ms",
-       "probe_timeout_min_ms", "verify_attempts", "reducers"},  // minimize
-      {"save_corpus"},                                          // publish
+       "min_tests", "expressions_share", "probe_timeout_factor",
+       "probe_timeout_extra_ms", "probe_timeout_min_ms",
+       "probe_timeout_tighten_factor", "probe_timeout_tighten_extra_ms",
+       "verify_attempts", "reducers"},  // minimize
+      {"save_corpus"},                  // publish
   };
   for (const auto& [stage_name, object] : stages.as_object()) {
     Stage stage;
@@ -588,6 +593,8 @@ bool ReadStages(const JsonValue& json, FuzzConfig* c, std::string* error) {
             object.GetInt("min_stable_reruns", c->min_stable_reruns));
         c->max_reruns =
             static_cast<int>(object.GetInt("max_reruns", c->max_reruns));
+        c->import_reruns =
+            static_cast<int>(object.GetInt("import_reruns", c->import_reruns));
         c->flaky_threshold = static_cast<int>(
             object.GetInt("flaky_threshold", c->flaky_threshold));
         break;
@@ -600,6 +607,11 @@ bool ReadStages(const JsonValue& json, FuzzConfig* c, std::string* error) {
                                                      c->probe_timeout_extra_ms);
         c->probe_timeout_min_ms =
             object.GetNumber("probe_timeout_min_ms", c->probe_timeout_min_ms);
+        c->probe_timeout_tighten_factor = object.GetNumber(
+            "probe_timeout_tighten_factor", c->probe_timeout_tighten_factor);
+        c->probe_timeout_tighten_extra_ms =
+            object.GetNumber("probe_timeout_tighten_extra_ms",
+                             c->probe_timeout_tighten_extra_ms);
         c->verify_attempts = static_cast<int>(
             object.GetInt("verify_attempts", c->verify_attempts));
         if (!ReadReducerList(object, "stages.minimize.reducers",
@@ -649,7 +661,8 @@ std::string StagesJson(const FuzzConfig& c) {
     JsonObject o;
     o.Add("min_reruns", c.min_reruns)
         .Add("min_stable_reruns", c.min_stable_reruns);
-    o.Add("max_reruns", c.max_reruns).Add("flaky_threshold", c.flaky_threshold);
+    o.Add("max_reruns", c.max_reruns).Add("import_reruns", c.import_reruns);
+    o.Add("flaky_threshold", c.flaky_threshold);
     common(Stage::kCheck, &o);
     stages.AddRaw("check", o.ToString());
   }
@@ -660,11 +673,15 @@ std::string StagesJson(const FuzzConfig& c) {
         .Add("max_time_ms", c.minimizer.max_time_ms);
     o.Add("max_rounds", c.minimizer.max_rounds)
         .Add("target_time_ms", c.minimizer.target_time_ms);
-    o.Add("min_tests", c.minimizer.min_tests);
+    o.Add("min_tests", c.minimizer.min_tests)
+        .Add("expressions_share", c.minimizer.expressions_share);
     o.Add("probe_timeout_factor", c.probe_timeout_factor)
         .Add("probe_timeout_extra_ms", c.probe_timeout_extra_ms);
-    o.Add("probe_timeout_min_ms", c.probe_timeout_min_ms)
-        .Add("verify_attempts", c.verify_attempts);
+    o.Add("probe_timeout_min_ms", c.probe_timeout_min_ms);
+    o.Add("probe_timeout_tighten_factor", c.probe_timeout_tighten_factor)
+        .Add("probe_timeout_tighten_extra_ms",
+             c.probe_timeout_tighten_extra_ms);
+    o.Add("verify_attempts", c.verify_attempts);
     {
       // The effective order: without a configured list, the default one.
       std::vector<std::string> reducers = c.minimizer_reducers;
@@ -1061,6 +1078,8 @@ bool FuzzConfig::Load(const Flags& flags, FuzzConfig* c, std::string* error,
   c->min_stable_reruns =
       static_cast<int>(flags.GetInt("min-stable-reruns", c->min_stable_reruns));
   c->max_reruns = static_cast<int>(flags.GetInt("max-reruns", c->max_reruns));
+  c->import_reruns =
+      static_cast<int>(flags.GetInt("import-reruns", c->import_reruns));
   c->flaky_threshold =
       static_cast<int>(flags.GetInt("flaky-threshold", c->flaky_threshold));
   c->value_prefix = flags.GetBool("value-prefix", c->value_prefix);
@@ -1216,6 +1235,8 @@ bool FuzzConfig::Load(const Flags& flags, FuzzConfig* c, std::string* error,
   if (c->max_reruns < c->min_reruns) {
     c->max_reruns = c->min_reruns;
   }
+  c->import_reruns =
+      std::clamp(c->import_reruns, c->min_stable_reruns, c->max_reruns);
   if (c->flaky_threshold < 1) {
     c->flaky_threshold = 1;
   }
@@ -1249,6 +1270,14 @@ bool FuzzConfig::Load(const Flags& flags, FuzzConfig* c, std::string* error,
   c->probe_timeout_factor = std::max(0.0, c->probe_timeout_factor);
   c->probe_timeout_extra_ms = std::max(0.0, c->probe_timeout_extra_ms);
   c->probe_timeout_min_ms = std::max(0.0, c->probe_timeout_min_ms);
+  c->probe_timeout_tighten_factor =
+      std::max(0.0, c->probe_timeout_tighten_factor);
+  c->probe_timeout_tighten_extra_ms =
+      std::max(0.0, c->probe_timeout_tighten_extra_ms);
+  c->minimizer.expressions_share =
+      std::clamp(c->minimizer.expressions_share, 0.0, 1.0);
+  c->crash_minimizer.expressions_share =
+      std::clamp(c->crash_minimizer.expressions_share, 0.0, 1.0);
   c->introspect_timeout_ms = std::max(1.0, c->introspect_timeout_ms);
   if (!ValidateReducers(c->minimizer_reducers, "stages.minimize.reducers",
                         error) ||
@@ -1515,18 +1544,25 @@ std::string FuzzConfig::JsonHelp() {
       "[\"Splice\"], \"max\": 50}},\n"
       "      \"check\":    {\"min_reruns\": 5, \"min_stable_reruns\": 1, "
       "\"max_reruns\": 50,\n"
+      "                   \"import_reruns\": 1,  // reruns of an import "
+      "with import_all\n"
       "                   \"flaky_threshold\": 50, \"capture\": {\"on\": "
       "[\"flaky\"], \"max\": 20}},\n"
       "      \"minimize\": {\"enabled\": true, \"max_tests\": 300, "
       "\"max_time_ms\": 30000,\n"
       "                   \"max_rounds\": 3, \"target_time_ms\": 6000, "
       "\"min_tests\": 40,\n"
+      "                   \"expressions_share\": 0.25,  // of the remaining "
+      "tests\n"
       "                   \"probe_timeout_factor\": 5, "
       "\"probe_timeout_extra_ms\": 20,\n"
-      "                   \"probe_timeout_min_ms\": 50, \"verify_attempts\": "
-      "3,\n"
-      "                   \"reducers\": [\"statements\", \"unwrap\", "
-      "\"lists\", \"expressions\"]},\n"
+      "                   \"probe_timeout_min_ms\": 50, "
+      "\"probe_timeout_tighten_factor\": 2.5,\n"
+      "                   \"probe_timeout_tighten_extra_ms\": 50, "
+      "\"verify_attempts\": 3,\n"
+      "                   \"reducers\": [\"dataflow\", \"statements\", "
+      "\"unwrap\", \"lists\",\n"
+      "                                \"expressions\"]},\n"
       "      \"publish\":  {\"save_corpus\": true}\n"
       "    },\n"
       "    \"minimize_crashes\": true, \"minimize_imports\": false,\n"
@@ -1541,7 +1577,7 @@ std::string FuzzConfig::JsonHelp() {
       "    \"crash_minimizer\": {\"max_tests\": 2000, \"max_time_ms\": 120000, "
       "\"max_rounds\": 10,\n"
       "                        \"target_time_ms\": 120000, \"min_tests\": "
-      "200,\n"
+      "200, \"expressions_share\": 1,\n"
       "                        \"reducers\": [\"dataflow\", \"statements\", "
       "\"unwrap\", \"lists\",\n"
       "                                     \"expressions\", \"truncate\"]},\n"
@@ -1599,9 +1635,9 @@ std::string FuzzConfig::JsonHelp() {
       "--initial-programs set the\n"
       "  same values. \"accept\" names the corpus admission criterion "
       "(new-edges only).\n"
-      "  stages.minimize.reducers lists the reducers in order (also truncate, "
-      "dataflow);\n"
-      "  without it the four above run. crash_minimizer.reducers lists the "
+      "  stages.minimize.reducers lists the reducers in order (also "
+      "truncate);\n"
+      "  without it the five above run. crash_minimizer.reducers lists the "
       "reducers of a\n"
       "  crash that reproduces alone (an empty list gives the order above). "
       "Unknown\n"

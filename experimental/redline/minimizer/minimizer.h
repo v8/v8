@@ -38,6 +38,10 @@ struct MinimizerOptions {
   // min_tests. 0 disables the scaling.
   uint64_t target_time_ms = 6000;
   int min_tests = 40;
+  // The part of the remaining test budget that the `expressions` reducer
+  // can use each time that it starts, from 0 to 1. 1 sets no limit. Most
+  // tests of this reducer do not keep a reduction.
+  double expressions_share = 1.0;
 
   // The test budget for a program that executes in exec_time_us.
   int TestsFor(uint64_t exec_time_us) const;
@@ -85,6 +89,9 @@ class MinimizationHelper {
   // Returns false without testing once the budget is exhausted.
   bool Test();
   bool BudgetExhausted() const;
+  // The tests that remain in the test budget.
+  int TestsLeft() const;
+  const MinimizerOptions& options() const { return options_; }
   void set_reducer(Reducer* reducer) { reducer_ = reducer; }
   const MinimizationResult& result() const { return result_; }
   MinimizationResult* mutable_result() { return &result_; }
@@ -122,7 +129,8 @@ class Minimizer {
 
   // Every reducer (the components), in registration order.
   static std::vector<std::unique_ptr<Reducer>> CreateDefaultReducers();
-  // The reducers Minimize() runs when no order is configured, in order.
+  // The reducers Minimize() runs when no order is configured, in order:
+  // `dataflow` first, `truncate` not.
   static const std::vector<std::string_view>& DefaultOrder();
   // The reducers of a crash minimization without a configured order
   // (crash_minimizer.reducers), in order: all reducers, `dataflow` first.

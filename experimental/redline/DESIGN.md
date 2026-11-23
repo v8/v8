@@ -131,6 +131,7 @@ The `init` block selects one of two strategies:
 
 - `import` loads JavaScript files (`paths`). With `keep: new-coverage`, a file stays only if it runs without an error and reaches new edges.
   With `keep: all`, each file that runs without an error stays. Use `keep: all` to continue a session from its corpus directory.
+  With `keep: all`, the determinism check runs a file only `import_reruns` times again, not `min_reruns` times, because the files passed the check in an earlier session.
 - `generate` imports nothing. Its parameter `programs` sets `initial_programs`.
 
 While the corpus has fewer than `initial_programs` programs, a worker starts a chain from the empty program with a probability of one half.
@@ -321,6 +322,9 @@ Accept decides if a candidate enters the corpus. It has two parts:
    - An edge that a rerun does not reach leaves the set. Redline gives the edge back, so that a later program can claim it.
    - An edge that fails the check `flaky_threshold` times stays claimed. It costs no more reruns, and it does not count as coverage.
    - If a rerun fails, or if the set does not settle within `max_reruns` runs, Redline drops the candidate.
+   - A seed strategy such as `rarity` needs all edges that the program reaches in at least 2 runs (`hit_edges`).
+     Redline records the edges of the check runs, or of the last kept probe and of the verification run of a minimized program.
+     Thus Publish runs a program again only if Redline recorded fewer than 2 runs.
 
 **The oracle.** When Accept admits a program, it also sets the property that Minimize must keep.
 For `new-edges`, the property is "the program runs without an error and reaches all its new edges that survived the check".
@@ -343,7 +347,9 @@ For a crash that reproduces alone, the oracle is "the program crashes with the s
 | `truncate` | all top-level statements after the shortest prefix that keeps the oracle true |
 | `dataflow` | the top-level statements that the rest of the program does not use, from a def-use graph of the scope analysis |
 
-The default order is `statements`, `unwrap`, `lists`, `expressions` (`Minimizer::DefaultOrder`). `stages.minimize.reducers` sets another list.
+The default order is `dataflow`, `statements`, `unwrap`, `lists`, `expressions` (`Minimizer::DefaultOrder`). `stages.minimize.reducers` sets another list.
+Each time that `expressions` starts, it can use only `expressions_share` of the remaining tests of a corpus program, because most of its tests keep no reduction.
+The crash minimizer gives `expressions` all of its tests.
 The def-use graph only proposes a cut. The oracle decides, because globals, prototypes or getters can connect statements that share no binding.
 
 - The minimizer runs its reducers in rounds until a round changes nothing or the budget ends.
@@ -351,6 +357,8 @@ The def-use graph only proposes a cut. The oracle decides, because globals, prot
 - The budget limits the tests, the time and the rounds. It has fewer tests for slow programs (`target_time_ms`).
   Crashes have a larger budget (`crash_minimizer`), because they are rare.
 - Each test has a short timeout from the run time of the program (`probe_timeout_*`), because a reduction can make an endless loop.
+  After each kept reduction, the timeout follows the run time of the probe of that reduction (`probe_timeout_tighten_*`).
+  The timeout does not become longer than the first timeout.
   For the same reason, `expressions` replaces a loop condition only with `0`.
 - The result must pass the oracle again in one of `verify_attempts` runs. If it does not, Redline keeps the original program.
 - The crash event and the crash report record the stop reason of a minimization (`min_stop`): `fixed_point`, `budget` or `rounds`.

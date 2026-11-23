@@ -86,6 +86,11 @@ struct FuzzConfig {
   int min_reruns = 5;
   int min_stable_reruns = 1;
   int max_reruns = 50;
+  // With import_all, an import runs this many times after its first run,
+  // not min_reruns times. The files of a corpus directory passed the check
+  // in an earlier session. Each run must succeed, and min_stable_reruns
+  // and max_reruns apply.
+  int import_reruns = 1;
   // Edges that failed the determinism check this many times are treated as
   // seen forever (they only cost re-runs). They are not counted as found.
   int flaky_threshold = 50;
@@ -114,6 +119,15 @@ struct FuzzConfig {
   double probe_timeout_factor = 5;
   double probe_timeout_extra_ms = 20;
   double probe_timeout_min_ms = 50;
+  // After each kept reduction, the timeout follows the run time of the
+  // probe of that reduction:
+  //   clamp(probe_timeout_tighten_factor * probe_time +
+  //         probe_timeout_tighten_extra_ms, probe_timeout_min_ms, first
+  //         timeout)
+  // A smaller program runs faster, so an endless probe costs less. A factor
+  // of 0 keeps the first timeout.
+  double probe_timeout_tighten_factor = 2.5;
+  double probe_timeout_tighten_extra_ms = 50;
   // A minimized program must still qualify (reach its edges, or crash the
   // same way) in one of this many re-executions; otherwise the unminimized
   // program is kept. More than one because the target's own
@@ -156,7 +170,14 @@ struct FuzzConfig {
   // target features of a program (Worker::MinimizationProperty).
   bool minimize_code_edges = true;
   FeatureWeights::Params feature_weights;
-  MinimizerOptions minimizer;
+  // The `expressions` reducer gets a quarter of the remaining budget of a
+  // corpus program. The crash minimizer gives it all of its budget.
+  MinimizerOptions minimizer{/*max_tests=*/300,
+                             /*max_time_ms=*/30000,
+                             /*max_rounds=*/3,
+                             /*target_time_ms=*/6000,
+                             /*min_tests=*/40,
+                             /*expressions_share=*/0.25};
   // The minimizer's reducers, in the order they run (stages.minimize.reducers).
   // Empty: the default order (Minimizer::DefaultOrder).
   std::vector<std::string> minimizer_reducers;

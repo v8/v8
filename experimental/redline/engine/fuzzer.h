@@ -74,6 +74,9 @@ struct FuzzerStats {
   std::atomic<uint64_t> minimizer_nodes_removed{0};
   std::atomic<uint64_t> minimizer_rejected{0};  // result failed verification
   std::atomic<uint64_t> rerun_executions{0};
+  // Extra runs of a published program for Program::hit_edges. Usually 0:
+  // the check and the minimization record the edges of their runs.
+  std::atomic<uint64_t> hit_edge_executions{0};
   std::atomic<uint64_t> explore_executions{0};  // instrumented runs
   std::atomic<uint64_t> explore_applied{0};     // ... that produced a mutation
   std::atomic<uint64_t> explore_timeouts{0};
@@ -82,6 +85,50 @@ struct FuzzerStats {
   std::atomic<uint64_t> corpus_nodes{0};  // AST nodes of added corpus programs
   std::atomic<uint64_t> mutation_time_us{0};
   std::atomic<uint64_t> infrastructure_failures{0};
+};
+
+// The timeout of a minimizer probe for a program that runs in
+// exec_time_us (FuzzConfig::probe_timeout_*).
+uint64_t MinimizerProbeTimeout(const FuzzConfig& config, uint64_t exec_time_us);
+// The timeout of the next minimizer probe after the minimizer kept a
+// reduction whose probe ran in accepted_exec_us. The result is between
+// probe_timeout_min_ms and first_timeout_us
+// (FuzzConfig::probe_timeout_tighten_*).
+uint64_t TightenedProbeTimeout(const FuzzConfig& config,
+                               uint64_t first_timeout_us,
+                               uint64_t accepted_exec_us);
+
+// Collects Program::hit_edges from the runs that the commit of a program
+// does: the edges that all recorded runs of the published program reached.
+// The edges of the minimized program come from the last kept probe and
+// from the verification run. These two runs replace the runs of the
+// original program. The minimizer removes empty statements after the last
+// probe, thus the verification run of the exact program limits the set.
+class HitEdges {
+ public:
+  // Records a run of the original program: the first run or a rerun.
+  void RecordRun(std::vector<uint32_t> edges);
+  // Records a probe that the minimizer kept. It replaces the earlier probe.
+  void RecordProbe(std::vector<uint32_t> edges);
+  // Records the verification run of the minimized program. Then the last
+  // probe and this run replace all runs of the original program.
+  void RecordVerifiedRun(std::vector<uint32_t> edges);
+  void Clear();
+  // The number of runs that the edges come from.
+  int runs() const { return runs_; }
+  // The sorted edges that all recorded runs reached.
+  const std::vector<uint32_t>& edges() const { return edges_; }
+  std::vector<uint32_t> Take();
+
+ private:
+  // Keeps the edges that `edges` also contains, or takes `edges` if no
+  // run is in the record.
+  void Intersect(std::vector<uint32_t> edges);
+
+  std::vector<uint32_t> edges_;
+  int runs_ = 0;
+  std::vector<uint32_t> probe_;
+  bool has_probe_ = false;
 };
 
 // The coordinator of one fuzzing session: owns the configuration, the

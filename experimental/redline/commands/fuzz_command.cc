@@ -53,6 +53,7 @@ const char kUsage[] =
     "                           .js files; load() calls are inlined)\n"
     "  --import-root=DIR        base directory for load(\"test/...\") paths\n"
     "  --import-all             keep seeds that run fine but add no coverage\n"
+    "  --import-reruns=N        re-runs of each seed with --import-all (1)\n"
     "  --jobs=N                 worker threads, one d8 each (default 1)\n"
     "  --seed=S                 run seed (default: clock); --jobs=1 runs are\n"
     "                           reproducible given a deterministic target\n"

@@ -416,7 +416,7 @@ A reducer keeps only what its oracle measures.
 
 `--reducer=NAME,...` runs only these reducers, in this order.
 Without it, `minimize` runs all reducers.
-A session runs only `statements`, `unwrap`, `lists` and `expressions`, unless the configuration key `stages.minimize.reducers` names other reducers.
+A session runs only `dataflow`, `statements`, `unwrap`, `lists` and `expressions`, unless the configuration key `stages.minimize.reducers` names other reducers.
 For a crash, a session runs all reducers, `dataflow` first. The configuration key `crash_minimizer.reducers` sets another list.
 
 ### 5.6 Selection strategies

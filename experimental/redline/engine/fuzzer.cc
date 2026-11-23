@@ -110,6 +110,81 @@ std::string AbsolutePath(const std::string& path) {
 }  // namespace
 
 // ---------------------------------------------------------------------------
+// Minimizer probe timeouts and hit edges.
+
+uint64_t MinimizerProbeTimeout(const FuzzConfig& config,
+                               uint64_t exec_time_us) {
+  auto probe = static_cast<uint64_t>(config.probe_timeout_factor *
+                                         static_cast<double>(exec_time_us) +
+                                     config.probe_timeout_extra_ms * 1000.0);
+  probe = std::max(probe,
+                   static_cast<uint64_t>(config.probe_timeout_min_ms * 1000.0));
+  return std::min(probe, config.target.timeout_us);
+}
+
+uint64_t TightenedProbeTimeout(const FuzzConfig& config,
+                               uint64_t first_timeout_us,
+                               uint64_t accepted_exec_us) {
+  if (config.probe_timeout_tighten_factor <= 0.0) {
+    return first_timeout_us;
+  }
+  auto probe =
+      static_cast<uint64_t>(config.probe_timeout_tighten_factor *
+                                static_cast<double>(accepted_exec_us) +
+                            config.probe_timeout_tighten_extra_ms * 1000.0);
+  probe = std::max(probe,
+                   static_cast<uint64_t>(config.probe_timeout_min_ms * 1000.0));
+  return std::min(probe, first_timeout_us);
+}
+
+void HitEdges::Intersect(std::vector<uint32_t> edges) {
+  std::sort(edges.begin(), edges.end());
+  edges.erase(std::unique(edges.begin(), edges.end()), edges.end());
+  if (runs_ == 0) {
+    edges_.swap(edges);
+  } else {
+    std::vector<uint32_t> both;
+    std::set_intersection(edges_.begin(), edges_.end(), edges.begin(),
+                          edges.end(), std::back_inserter(both));
+    edges_.swap(both);
+  }
+  runs_++;
+}
+
+void HitEdges::RecordRun(std::vector<uint32_t> edges) {
+  Intersect(std::move(edges));
+}
+
+void HitEdges::RecordProbe(std::vector<uint32_t> edges) {
+  probe_ = std::move(edges);
+  has_probe_ = true;
+}
+
+void HitEdges::RecordVerifiedRun(std::vector<uint32_t> edges) {
+  edges_.clear();
+  runs_ = 0;
+  if (has_probe_) {
+    Intersect(std::move(probe_));
+  }
+  probe_.clear();
+  has_probe_ = false;
+  Intersect(std::move(edges));
+}
+
+void HitEdges::Clear() {
+  edges_.clear();
+  runs_ = 0;
+  probe_.clear();
+  has_probe_ = false;
+}
+
+std::vector<uint32_t> HitEdges::Take() {
+  std::vector<uint32_t> edges = std::move(edges_);
+  Clear();
+  return edges;
+}
+
+// ---------------------------------------------------------------------------
 // Worker: one thread, one target process.
 
 class Worker {
@@ -381,13 +456,7 @@ class Worker {
   // enough for JIT-tier variance, short enough that a probe which runs
   // forever is cheap.
   uint64_t ProbeTimeout(uint64_t exec_time_us) const {
-    const FuzzConfig& c = config();
-    auto probe = static_cast<uint64_t>(c.probe_timeout_factor *
-                                           static_cast<double>(exec_time_us) +
-                                       c.probe_timeout_extra_ms * 1000.0);
-    probe =
-        std::max(probe, static_cast<uint64_t>(c.probe_timeout_min_ms * 1000.0));
-    return std::min(probe, c.target.timeout_us);
+    return MinimizerProbeTimeout(config(), exec_time_us);
   }
 
   // Bookkeeping for a mutant that is not valid JavaScript: per-mutator and
@@ -559,9 +628,12 @@ class Worker {
       fuzzer_->LogEvent(event.Add("result", "redundant"));
       return;
     }
-    ProgramPtr added = Commit(program, std::move(claimed), execution,
-                              config().minimize_imports,
-                              /*mutator=*/nullptr);
+    // With import_all, the imports are usually the corpus of an earlier
+    // session. They passed the check there, so fewer reruns are sufficient.
+    ProgramPtr added = Commit(
+        program, std::move(claimed), execution, config().minimize_imports,
+        /*mutator=*/nullptr,
+        config().import_all ? config().import_reruns : config().min_reruns);
     if (added == nullptr) {
       stats().imports_failed++;
       fuzzer_->LogEvent(event.Add("result", "flaky"));
@@ -802,7 +874,7 @@ class Worker {
             Capture(Stage::kMutate, CaptureTrigger::kInteresting,
                     mutator->name(), parent.get(), source, why);
             added = Commit(child, std::move(claimed), execution,
-                           config().minimize, mutator);
+                           config().minimize, mutator, config().min_reruns);
             if (added != nullptr) {
               // Each generator the mutant used gets the full credit.
               const uint64_t targets = TargetFeatures(added->edges);
@@ -960,12 +1032,13 @@ class Worker {
   }
 
   // Determinism check, minimization and publication of a program that
-  // reached `claimed` new edges. Returns the published program, or nullptr
+  // reached `claimed` new edges. The check runs the program at least
+  // `min_reruns` times again. Returns the published program, or nullptr
   // if the program was dropped (edges released or suppressed as flaky).
   ProgramPtr Commit(std::shared_ptr<Program> program,
                     std::vector<uint32_t> claimed,
                     const Execution& first_execution, bool minimize,
-                    Mutator* mutator) {
+                    Mutator* mutator, int min_reruns) {
     FlagPin pin(runner_->child());
     SharedCoverage& shared = fuzzer_->coverage_;
     const bool claimed_was_empty = claimed.empty();
@@ -994,14 +1067,20 @@ class Worker {
     bool rerun_timeout = false;
     uint64_t exec_time_us = first_execution.exec_time_us;
     uint32_t edges_hit = runner_->coverage().CountCurrentEdges();
+    // The edges of the runs below, for a seed strategy that wants them.
+    // The coverage map still holds the first execution.
+    const bool wants_hit_edges = fuzzer_->corpus().WantsHitEdges();
+    HitEdges hit_edges;
+    if (wants_hit_edges) {
+      hit_edges.RecordRun(runner_->coverage().CurrentEdges());
+    }
     Stopwatch check_time;
     StageStats& check_stage = stage(Stage::kCheck);
     check_stage.invocations++;
     // (A program imported with --import-all may have no new edges at all;
     // it is still re-run so that only reliable programs are published.)
     while (deterministic && (!edges.empty() || claimed_was_empty)) {
-      if (stable >= config().min_stable_reruns &&
-          reruns >= config().min_reruns) {
+      if (stable >= config().min_stable_reruns && reruns >= min_reruns) {
         converged = true;
         break;
       }
@@ -1030,6 +1109,9 @@ class Worker {
         break;
       }
       exec_time_us = std::min(exec_time_us, execution.exec_time_us);
+      if (wants_hit_edges) {
+        hit_edges.RecordRun(runner_->coverage().CurrentEdges());
+      }
       std::vector<uint32_t> missing = runner_->coverage().MissingEdges(edges);
       if (missing.empty()) {
         stable++;
@@ -1101,7 +1183,9 @@ class Worker {
       std::unique_ptr<fast::Tree> work = program->CopyTree();
       // A reduction can turn a terminating loop into an infinite one; such
       // probes must not pay the full target timeout (plus a child respawn).
-      const uint64_t probe_timeout_us = ProbeTimeout(exec_time_us);
+      // Each kept reduction sets the timeout from the run time of its probe.
+      const uint64_t first_probe_timeout_us = ProbeTimeout(exec_time_us);
+      uint64_t probe_timeout_us = first_probe_timeout_us;
       // The property that the minimizer keeps (see MinimizationProperty).
       bool fragile_only = false;
       const std::vector<uint32_t> property =
@@ -1127,8 +1211,17 @@ class Worker {
                        "minimizer probe");
           return false;
         }
-        return execution.succeeded() &&
-               runner_->coverage().AllEdgesSet(property);
+        if (!execution.succeeded() ||
+            !runner_->coverage().AllEdgesSet(property)) {
+          return false;
+        }
+        // The minimizer keeps this reduction.
+        probe_timeout_us = TightenedProbeTimeout(
+            config(), first_probe_timeout_us, execution.exec_time_us);
+        if (wants_hit_edges) {
+          hit_edges.RecordProbe(runner_->coverage().CurrentEdges());
+        }
+        return true;
       };
       MinimizerOptions budget = config().minimizer.ForProgram(exec_time_us);
       if (fragile_only) {
@@ -1164,6 +1257,9 @@ class Worker {
               candidate;  // a copy: `candidate` is reported below if rejected
           exec_time_us = execution.exec_time_us;
           edges_hit = runner_->coverage().CountCurrentEdges();
+          if (wants_hit_edges) {
+            hit_edges.RecordVerifiedRun(runner_->coverage().CurrentEdges());
+          }
           minimized = true;
           break;
         }
@@ -1202,29 +1298,24 @@ class Worker {
     program->edges = edges;
     program->edges_hit = edges_hit;
     program->exec_time_us = exec_time_us;
-    if (fuzzer_->corpus().WantsHitEdges() && !stopping()) {
-      // Every edge the final program reaches in two runs (Fuzzilli's
-      // RarityCorpus does the same two executions).
-      std::vector<uint32_t> hit;
-      for (int run = 0; run < 2; run++) {
+    if (wants_hit_edges) {
+      // Every edge that the final program reaches in all recorded runs, and
+      // in at least two runs (Fuzzilli's RarityCorpus uses two runs). The
+      // check and the minimization usually recorded enough runs. Otherwise
+      // run the program again.
+      while (hit_edges.runs() < kHitEdgeRuns && !stopping()) {
         Execution execution;
         if (!Execute(program->source(), &execution) || !execution.succeeded()) {
-          hit.clear();
+          hit_edges.Clear();
           break;
         }
         stats().rerun_executions++;
-        std::vector<uint32_t> current = runner_->coverage().CurrentEdges();
-        std::sort(current.begin(), current.end());
-        if (run == 0) {
-          hit.swap(current);
-          continue;
-        }
-        std::vector<uint32_t> both;
-        std::set_intersection(hit.begin(), hit.end(), current.begin(),
-                              current.end(), std::back_inserter(both));
-        hit.swap(both);
+        stats().hit_edge_executions++;
+        hit_edges.RecordRun(runner_->coverage().CurrentEdges());
       }
-      program->hit_edges = std::move(hit);
+      if (hit_edges.runs() >= kHitEdgeRuns) {
+        program->hit_edges = hit_edges.Take();
+      }
     }
     ProgramPtr added = fuzzer_->corpus().Add(program);
     stats().corpus_added++;
@@ -1609,6 +1700,8 @@ class Worker {
 
   // The test budget of a minimization that keeps only fragile features.
   static constexpr int kFragileMinimizerTests = 60;
+  // Program::hit_edges needs the edges of at least this many runs.
+  static constexpr int kHitEdgeRuns = 2;
 
   // The features that the minimizer must keep. By default, all new features
   // of the program. With --minimize-code-edges, only the new code edges, the
@@ -3447,6 +3540,7 @@ void Fuzzer::WriteStatsEvent() {
   event.Add("minimizer_nodes_removed", stats_.minimizer_nodes_removed.load());
   event.Add("minimizer_rejected", stats_.minimizer_rejected.load());
   event.Add("rerun_executions", stats_.rerun_executions.load());
+  event.Add("hit_edge_executions", stats_.hit_edge_executions.load());
   event.Add("explore_executions", stats_.explore_executions.load());
   event.Add("explore_applied", stats_.explore_applied.load());
   event.Add("explore_timeouts", stats_.explore_timeouts.load());

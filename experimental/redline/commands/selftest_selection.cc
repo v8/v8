@@ -840,6 +840,89 @@ void CheckD8ArgLayers(Checker* checker) {
   TunableRegistry::Instance().Reset();
 }
 
+// The keys of the check and the minimizer that lower the cost of a commit:
+// import_reruns, expressions_share and probe_timeout_tighten_*. The JSON and
+// the flags set them, the dump gives them, and the loader clamps them.
+void CheckCommitCostConfig(Checker* checker) {
+  {
+    const FuzzConfig defaults;
+    checker->Check(
+        "config: the defaults give 1 import rerun, a quarter of the budget "
+        "to `expressions` and a probe timeout that tightens",
+        defaults.import_reruns == 1 &&
+            defaults.minimizer.expressions_share == 0.25 &&
+            defaults.crash_minimizer.expressions_share == 1.0 &&
+            defaults.probe_timeout_tighten_factor == 2.5 &&
+            defaults.probe_timeout_tighten_extra_ms == 50);
+  }
+  FuzzConfig config;
+  const std::string error = LoadFullConfig(
+      R"({"stages": {"check": {"import_reruns": 3},
+                     "minimize": {"expressions_share": 0.5,
+                                  "probe_timeout_tighten_factor": 3,
+                                  "probe_timeout_tighten_extra_ms": 10}},
+          "crash_minimizer": {"expressions_share": 0.75}})",
+      &config);
+  checker->Check("config: the JSON sets the keys of the commit cost",
+                 error.empty() && config.import_reruns == 3 &&
+                     config.minimizer.expressions_share == 0.5 &&
+                     config.crash_minimizer.expressions_share == 0.75 &&
+                     config.probe_timeout_tighten_factor == 3 &&
+                     config.probe_timeout_tighten_extra_ms == 10,
+                 error);
+  // The dump gives the values, and it loads back to the same configuration.
+  const std::string dump = config.ToJson(FuzzConfig::Detail::kFull);
+  JsonValue json;
+  std::string parse_error;
+  bool ok = JsonValue::Parse(dump, &json, &parse_error);
+  const JsonValue& stages = json.Get("stages");
+  ok = ok && stages.Get("check").GetInt("import_reruns", 0) == 3 &&
+       stages.Get("minimize").GetNumber("expressions_share", 0) == 0.5 &&
+       stages.Get("minimize").GetNumber("probe_timeout_tighten_factor", 0) ==
+           3 &&
+       stages.Get("minimize").GetNumber("probe_timeout_tighten_extra_ms", 0) ==
+           10 &&
+       json.Get("crash_minimizer").GetNumber("expressions_share", 0) == 0.75;
+  FuzzConfig again;
+  ok = ok && FuzzConfig::LoadJsonForTest(json, &again, &parse_error) &&
+       again.ToJson(FuzzConfig::Detail::kFull) == dump;
+  TunableRegistry::Instance().Reset();
+  checker->Check(
+      "config: the dump gives the keys of the commit cost and loads back", ok,
+      parse_error);
+  // The flag, and the clamps of the loader.
+  {
+    const char* argv[] = {"redline", "fuzz", "--import-reruns=2"};
+    Flags flags = Flags::Parse(3, argv, 2);
+    FuzzConfig flagged;
+    std::string flag_error;
+    const bool loaded =
+        FuzzConfig::Load(flags, &flagged, &flag_error, /*for_run=*/false);
+    TunableRegistry::Instance().Reset();
+    checker->Check("config: --import-reruns sets import_reruns",
+                   loaded && flagged.import_reruns == 2, flag_error);
+  }
+  FuzzConfig clamped;
+  const std::string clamp_error = LoadFullConfig(
+      R"({"stages": {"check": {"import_reruns": 500, "max_reruns": 20},
+                     "minimize": {"expressions_share": 7,
+                                  "probe_timeout_tighten_factor": -1}},
+          "crash_minimizer": {"expressions_share": -2}})",
+      &clamped);
+  FuzzConfig low;
+  const std::string low_error =
+      LoadFullConfig(R"({"stages": {"check": {"import_reruns": 0}}})", &low);
+  checker->Check(
+      "config: the loader clamps import_reruns, expressions_share and the "
+      "tighten factor",
+      clamp_error.empty() && low_error.empty() && clamped.import_reruns == 20 &&
+          clamped.minimizer.expressions_share == 1.0 &&
+          clamped.crash_minimizer.expressions_share == 0.0 &&
+          clamped.probe_timeout_tighten_factor == 0.0 &&
+          low.import_reruns == low.min_stable_reruns,
+      clamp_error + low_error);
+}
+
 // The "init" and "accept" blocks, stages.minimize.reducers and
 // crash_minimizer.reducers: the values go to their fields, and the loader
 // reports the mistakes.
@@ -1395,6 +1478,7 @@ void RunSelectionChecks(Checker* checker, const std::string& testdata_dir,
   CheckTunables(checker);
   CheckConfigDump(checker);
   CheckD8ArgLayers(checker);
+  CheckCommitCostConfig(checker);
   CheckAdaptiveWindow(checker);
   CheckAmplifyConfig(checker);
   CheckWrapInTry(checker);
