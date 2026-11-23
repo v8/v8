@@ -80,6 +80,8 @@ struct FuzzerStats {
   std::atomic<uint64_t> explore_executions{0};  // instrumented runs
   std::atomic<uint64_t> explore_applied{0};     // ... that produced a mutation
   std::atomic<uint64_t> explore_timeouts{0};
+  std::atomic<uint64_t> salvage_attempted{0};  // reruns after wrapping a throw
+  std::atomic<uint64_t> salvage_succeeded{0};  // salvage reruns that succeeded
   std::atomic<uint64_t> exec_time_us{0};
   std::atomic<uint64_t> fuzz_nodes{0};    // AST nodes of executed mutants
   std::atomic<uint64_t> corpus_nodes{0};  // AST nodes of added corpus programs

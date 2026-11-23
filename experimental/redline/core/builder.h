@@ -283,6 +283,12 @@ class Builder {
   void EnsureUsedNames();
   // The entry of `name` in binding_info_, derived from the tree if new.
   BindingInfo& InfoEntry(std::string_view name);
+  JsType GuessBindingType(const fast::Binding* binding, int depth);
+  static JsType GuessExpression(Builder* builder,
+                                const fast::Expression* expression, int depth);
+  static JsType GuessFunctionReturnType(Builder* builder,
+                                        const fast::FunctionData* fn,
+                                        int depth);
   Variable ToVariable(fast::Binding* binding);
   static int LeadingDirectives(const std::vector<fast::Statement*>& list);
   fast::Node* AnchorNodeFor(const Slot& slot, int32_t* position);

@@ -837,7 +837,7 @@ class InputMutator final : public Mutator {
       std::vector<Variable> visible = b.VisibleAt(id);
       Binding* binding = scopes.BindingOf(id);
       JsType type =
-          binding != nullptr ? b.GuessType(binding) : JsType::kUnknown;
+          binding != nullptr ? b.GuessType(binding) : Builder::GuessType(id);
       std::vector<const Variable*> options;
       for (const Variable& v : visible) {
         if (v.name == id->name) {

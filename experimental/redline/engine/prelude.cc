@@ -132,6 +132,13 @@ try { if (typeof d8 === "object" && d8.file) d8.file.execute = __redline_noop; }
 
 std::string_view DefaultPrelude() { return kDefaultPrelude; }
 
+int PreludeLineCount(std::string_view prelude) {
+  if (prelude.empty()) {
+    return 0;
+  }
+  return static_cast<int>(std::count(prelude.begin(), prelude.end(), '\n')) + 1;
+}
+
 // static
 std::unique_ptr<ScriptTree> ScriptTree::Parse(std::string_view prelude,
                                               std::string_view program,

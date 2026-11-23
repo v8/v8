@@ -65,7 +65,7 @@ It is C++ code in the V8 tree, so that the V8 team can own and change it. It bui
 | `generators/`, `mutators/` | The generators with their shared expression synthesis (`CodeGen`), and the mutators. |
 | `corpus/` | The shared corpus and the seed and partner strategies. |
 | `minimizer/` | The minimizer and its reducers. |
-| `engine/` | The configuration, the stages, the fuzzer and its workers, the shared coverage, the crash signatures, the amplify step, the importer and the prelude. |
+| `engine/` | The configuration, the stages, the fuzzer and its workers, the shared coverage, the crash signatures, the amplify step, the importer, exception salvage and the prelude. |
 | `presets/`, `testdata/` | The presets, and the golden traces of the offline selftest. |
 
 ### 4.2 The fuzzing loop
@@ -191,6 +191,8 @@ One link of the chain works like this:
 2. `ApplyMutation` copies the tree of the parent. The mutator edits the copy through a `Builder` (9.3).
    It makes from one change up to its own maximum, or exactly `stages.mutate.rounds` changes if that value is above 0.
 3. If the mutator finds nothing to do, the link costs no execution. Otherwise, the worker prints the tree and runs the source.
+4. After a runtime exception, exception salvage (`engine/salvage.h`) can wrap the throwing statement in `try/catch` and run a copy once (`salvage.*`).
+   A salvaged pass or crash replaces the failed mutant.
 
 **Prefix.** The prefix gives the mutators new values to work with. It uses only generators whose code cannot throw,
 because an exception in the prefix would make each result of the chain fail. Minimize removes the values that a new corpus program does not use.

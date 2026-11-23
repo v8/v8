@@ -523,7 +523,7 @@ CrossContextPrivateStore	1	7c195db234d9d9e5	let n = 42; let s = "text"; let a = 
 CrossContextPrivateStore	2	84eea81fae0a2ebd	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 CrossContextPrivateStore	3	5be40c08ebb65916	let n = 42; class Base0 {   constructor(o3) {     return {};   } } cla
 CrossContextPrivateStore	4	08bea5905b2ea78d	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-UsingDecl	0	49c868763bf30098	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+UsingDecl	0	680ea6f4cc0fa520	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 UsingDecl	1	72cbbb0cf6a596fb	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 UsingDecl	2	5d65b3512c78e14a	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 UsingDecl	3	9c3820a4bfc426f1	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
@@ -606,7 +606,7 @@ SpecialValueDecl	4	6408f3a48662efa3	let n = 42; let s = "text"; let a = [1, 2, 3
 Imitation	0	77ead46ed8e6df59	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Imitation	1	12ff4aea954ef375	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Imitation	2	618e3193e520b6be	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-Imitation	3	fd6bcd9d61ee7149	let n = 42; let s = "text"; let w0 = {valueOf() {   Promise.resolve([7
+Imitation	3	bac7d284bbf39833	let n = 42; let s = "text"; let w0 = {valueOf() {   Promise.resolve([7
 Imitation	4	89a1a18f2ffeaf19	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 LiteralFactory	0	c0e3560e8a8ace67	let n = 42; let s = "text"; function mk0(a0) {   let arr0 = Array.from
 LiteralFactory	1	36e2903bc71854d1	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"

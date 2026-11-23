@@ -23,6 +23,7 @@
 #include "experimental/redline/engine/flag_minimizer.h"
 #include "experimental/redline/engine/importer.h"
 #include "experimental/redline/engine/prelude.h"
+#include "experimental/redline/engine/salvage.h"
 #include "experimental/redline/exec/process_run.h"
 #include "experimental/redline/exec/runner.h"
 #include "experimental/redline/fast/parser.h"
@@ -196,7 +197,8 @@ class Worker {
              static_cast<uint64_t>(id) + 1),
         flags_rng_((fuzzer->config().seed * 0x9E3779B97F4A7C15ull +
                     static_cast<uint64_t>(id) + 1) ^
-                   kFlagsSeedSalt) {}
+                   kFlagsSeedSalt),
+        prelude_lines_(PreludeLineCount(fuzzer->config().prelude)) {}
 
   int id() const { return id_; }
 
@@ -825,6 +827,50 @@ class Worker {
         mutate_stage.time_us += stage_time.ElapsedUs();
         continue;
       }
+      mutate_stage.executions++;
+      mutate_stage.exec_time_us += execution.exec_time_us;
+      if (execution.outcome == Outcome::kFailed &&
+          rng_.Chance(SalvageChance())) {
+        // Wrap the throwing statement once and rerun the mutant.
+        const ExceptionLines lines =
+            ExtractExceptionLines(execution, prelude_lines_);
+        if (!lines.empty()) {
+          std::unique_ptr<fast::Tree> salvaged_tree = tree->Copy();
+          if (SalvageException(salvaged_tree.get(), lines,
+                               rng_.Chance(SalvageToplevelChance()))) {
+            std::string salvaged_source = fast::Print(salvaged_tree->root());
+            std::string salvaged_error;
+            const bool syntax_ok =
+                !config().syntax_check ||
+                checker_->Accepts(salvaged_source, &salvaged_error);
+            if (syntax_ok) {
+              stats().salvage_attempted++;
+              Execution salvaged_exec;
+              if (!Execute(salvaged_source, &salvaged_exec)) {
+                if (fuzzer_->failed_.load()) {
+                  mutate_stage.time_us += stage_time.ElapsedUs();
+                  return;
+                }
+              } else {
+                mutate_stage.executions++;
+                mutate_stage.exec_time_us += salvaged_exec.exec_time_us;
+                if (salvaged_exec.outcome == Outcome::kTimedOut) {
+                  mutate_stage.timeouts++;
+                }
+                if (salvaged_exec.succeeded() || salvaged_exec.crashed()) {
+                  if (salvaged_exec.succeeded()) {
+                    stats().salvage_succeeded++;
+                  }
+                  tree = std::move(salvaged_tree);
+                  source = std::move(salvaged_source);
+                  execution = std::move(salvaged_exec);
+                  detail += " [salvaged]";
+                }
+              }
+            }
+          }
+        }
+      }
       Account(mutator->stats(), execution);
       for (Generator* g : used_generators) {
         Account(g->stats(), execution);
@@ -832,8 +878,6 @@ class Worker {
       AccountFuzzExecution(execution);
       ReportToSelector(*mutator, execution);
       stats().fuzz_nodes += fast::CountNodes(tree->root());
-      mutate_stage.executions++;
-      mutate_stage.exec_time_us += execution.exec_time_us;
       mutate_stage.time_us += stage_time.ElapsedUs();
       if (execution.outcome == Outcome::kTimedOut) {
         mutate_stage.timeouts++;
@@ -2855,6 +2899,7 @@ class Worker {
   int id_;
   Random rng_;
   Random flags_rng_;  // random d8 flags (randomize_d8_flags)
+  int prelude_lines_ = 0;
   std::unique_ptr<ScriptRunner> runner_;
   std::unique_ptr<SyntaxChecker> checker_;
   std::thread thread_;
@@ -3481,6 +3526,15 @@ std::string Fuzzer::StatusLine() const {
           ? 0.0
           : static_cast<double>(stats_.corpus_nodes.load()) /
                 static_cast<double>(stats_.corpus_added.load()));
+  uint64_t salvage_ok = stats_.salvage_succeeded.load();
+  uint64_t salvage_att = stats_.salvage_attempted.load();
+  if (salvage_att > 0) {
+    salvage_ok = std::min(salvage_ok, salvage_att);
+    line += StringPrintf(" | salvage %llu/%llu (%.1f%%)",
+                         static_cast<unsigned long long>(salvage_ok),
+                         static_cast<unsigned long long>(salvage_att),
+                         Percent(salvage_ok, salvage_att));
+  }
   return line;
 }
 
@@ -3544,6 +3598,10 @@ void Fuzzer::WriteStatsEvent() {
   event.Add("explore_executions", stats_.explore_executions.load());
   event.Add("explore_applied", stats_.explore_applied.load());
   event.Add("explore_timeouts", stats_.explore_timeouts.load());
+  uint64_t salvage_ok = stats_.salvage_succeeded.load();
+  uint64_t salvage_att = stats_.salvage_attempted.load();
+  event.Add("salvage_attempted", salvage_att);
+  event.Add("salvage_succeeded", std::min(salvage_ok, salvage_att));
   event.Add("exec_time_us", stats_.exec_time_us.load());
   event.Add("fuzz_nodes", stats_.fuzz_nodes.load());
   event.Add("corpus_nodes", stats_.corpus_nodes.load());

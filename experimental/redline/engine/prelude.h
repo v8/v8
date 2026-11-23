@@ -22,6 +22,9 @@ namespace redline {
 // the first assertion.
 std::string_view DefaultPrelude();
 
+// Number of lines that `prelude` + "\n" adds before line 1 of a program.
+int PreludeLineCount(std::string_view prelude);
+
 // The script that the target runs for a program, the prelude, a new line and
 // the program, parsed into one tree. The crash minimizer reduces this tree.
 // Thus it can also remove the prelude statements that a crash does not need

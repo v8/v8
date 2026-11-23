@@ -52,6 +52,7 @@
 #include "experimental/redline/engine/fuzzer.h"
 #include "experimental/redline/engine/importer.h"
 #include "experimental/redline/engine/prelude.h"
+#include "experimental/redline/engine/salvage.h"
 #include "experimental/redline/engine/shared_coverage.h"
 #include "experimental/redline/exec/coverage.h"
 #include "experimental/redline/exec/process_run.h"
@@ -2625,6 +2626,481 @@ void RunImportAllCheck(Checker* checker, const TargetOptions& target) {
   }
 }
 
+// Offline: exception line extraction, AST statement salvage and local type
+// propagation.
+void RunSalvageChecks(Checker* checker) {
+  // 1. ExtractExceptionLines on stdout, stderr, stack traces, prelude offset
+  // and parse-time SyntaxError.
+  {
+    Execution simple;
+    simple.outcome = Outcome::kFailed;
+    simple.stdout_output =
+        "fuzzcode.js:12: TypeError: Cannot read properties of null\n"
+        "null.x;\n"
+        "     ^\n"
+        "TypeError: Cannot read properties of null\n"
+        "    at fuzzcode.js:12:6\n";
+    ExceptionLines l1 = ExtractExceptionLines(simple, 0);
+    checker->Check(
+        "salvage: extracts top-level TypeError line from stdout",
+        l1.innermost == 12 && l1.outermost == 12,
+        StringPrintf("inner=%d outer=%d", l1.innermost, l1.outermost));
+
+    Execution multi;
+    multi.outcome = Outcome::kFailed;
+    multi.stdout_output =
+        "TypeError: earlier printed stack\n"
+        "    at fuzzcode.js:99:1\n"
+        "fuzzcode.js:110: TypeError: boom\n"
+        "  null.x;\n"
+        "       ^\n"
+        "TypeError: boom\n"
+        "    at g (fuzzcode.js:110:8)\n"
+        "    at f (fuzzcode.js:113:3)\n"
+        "    at fuzzcode.js:118:1\n";
+    ExceptionLines l2 = ExtractExceptionLines(multi, 108);
+    checker->Check(
+        "salvage: extracts innermost and outermost lines with prelude offset",
+        l2.innermost == 2 && l2.outermost == 10,
+        StringPrintf("inner=%d outer=%d", l2.innermost, l2.outermost));
+
+    Execution prelude_frame;
+    prelude_frame.outcome = Outcome::kFailed;
+    prelude_frame.stdout_output =
+        "fuzzcode.js:64: TypeError: helper failed\n"
+        "    at isInterpreted (fuzzcode.js:64:30)\n"
+        "    at fuzzcode.js:115:1\n";
+    ExceptionLines l3 = ExtractExceptionLines(prelude_frame, 108);
+    checker->Check(
+        "salvage: skips frames inside the prelude",
+        l3.innermost == 7 && l3.outermost == 7,
+        StringPrintf("inner=%d outer=%d", l3.innermost, l3.outermost));
+
+    Execution stderr_fallback;
+    stderr_fallback.outcome = Outcome::kFailed;
+    stderr_fallback.stderr_output = "fuzzcode.js:9: 42\nthrow 42;\n^\n";
+    ExceptionLines l4 = ExtractExceptionLines(stderr_fallback, 4);
+    checker->Check(
+        "salvage: falls back to stderr and header-only throws",
+        l4.innermost == 5 && l4.outermost == 5,
+        StringPrintf("inner=%d outer=%d", l4.innermost, l4.outermost));
+
+    Execution parse_err;
+    parse_err.outcome = Outcome::kFailed;
+    parse_err.stdout_output =
+        "fuzzcode.js:3: SyntaxError: Unexpected token ';'\n"
+        "let = ;\n"
+        "      ^\n"
+        "SyntaxError: Unexpected token ';'\n";
+    ExceptionLines l5 = ExtractExceptionLines(parse_err, 0);
+    checker->Check(
+        "salvage: skips unrecoverable parse-time SyntaxError", l5.empty(),
+        StringPrintf("inner=%d outer=%d", l5.innermost, l5.outermost));
+
+    Execution runtime_syntax;
+    runtime_syntax.outcome = Outcome::kFailed;
+    runtime_syntax.stdout_output =
+        "fuzzcode.js:4: SyntaxError: Invalid regular expression\n"
+        "new RegExp('[');\n"
+        "^\n"
+        "SyntaxError: Invalid regular expression\n"
+        "    at new RegExp (<anonymous>)\n"
+        "    at fuzzcode.js:4:1\n";
+    ExceptionLines l6 = ExtractExceptionLines(runtime_syntax, 0);
+    checker->Check(
+        "salvage: keeps runtime SyntaxError with stack frames",
+        l6.innermost == 4 && l6.outermost == 4,
+        StringPrintf("inner=%d outer=%d", l6.innermost, l6.outermost));
+
+    Execution crlf;
+    crlf.outcome = Outcome::kFailed;
+    crlf.stdout_output =
+        "fuzzcode.js:12: TypeError: boom\r\n"
+        "null.x;\r\n"
+        "     ^\r\n"
+        "TypeError: boom\r\n"
+        "    at g (fuzzcode.js:12:6)\r\n"
+        "    at fuzzcode.js:15:1\r\n";
+    ExceptionLines l7 = ExtractExceptionLines(crlf, 2);
+    checker->Check(
+        "salvage: handles CRLF line endings in exception output",
+        l7.innermost == 10 && l7.outermost == 13,
+        StringPrintf("inner=%d outer=%d", l7.innermost, l7.outermost));
+
+    Execution succeeded_with_text = simple;
+    succeeded_with_text.outcome = Outcome::kSucceeded;
+    Execution crashed_with_text = simple;
+    crashed_with_text.outcome = Outcome::kCrashed;
+    Execution timed_out_with_text = simple;
+    timed_out_with_text.outcome = Outcome::kTimedOut;
+    checker->Check(
+        "salvage: ignores non-kFailed executions in ExtractExceptionLines",
+        ExtractExceptionLines(succeeded_with_text, 0).empty() &&
+            ExtractExceptionLines(crashed_with_text, 0).empty() &&
+            ExtractExceptionLines(timed_out_with_text, 0).empty(),
+        "");
+
+    checker->Check(
+        "salvage: PreludeLineCount handles empty and trailing newline",
+        PreludeLineCount("") == 0 && PreludeLineCount("var a = 1;") == 1 &&
+            PreludeLineCount("var a = 1;\n") == 2,
+        StringPrintf("empty=%d one=%d trailing=%d", PreludeLineCount(""),
+                     PreludeLineCount("var a = 1;"),
+                     PreludeLineCount("var a = 1;\n")));
+  }
+
+  // 2. NodeSpan line-to-statement lookup (innermost and top-level).
+  {
+    const char* src =
+        "function boom() {\n"
+        "  let x = 1;\n"
+        "  null.y;\n"
+        "}\n"
+        "if (true) {\n"
+        "  boom();\n"
+        "}\n";
+    fast::ParseError err;
+    std::unique_ptr<fast::Tree> tree =
+        fast::Parser::ParseScript(src, fast::ParseOptions(), &err);
+    std::vector<fast::NodeSpan> spans;
+    std::string printed =
+        tree != nullptr
+            ? fast::Print(tree->root(), fast::PrintOptions(), &spans)
+            : "";
+    StatementLocation inner =
+        FindCoveringStatement(tree.get(), printed, spans, 3, false);
+    StatementLocation top =
+        FindCoveringStatement(tree.get(), printed, spans, 6, true);
+    StatementLocation nested_call =
+        FindCoveringStatement(tree.get(), printed, spans, 6, false);
+    const bool ok = inner.valid() &&
+                    inner.statement()->Is<fast::ExpressionStatement>() &&
+                    inner.owner != tree->root() && top.valid() &&
+                    top.statement()->Is<fast::IfStatement>() &&
+                    top.owner == tree->root() && nested_call.valid() &&
+                    nested_call.statement()->Is<fast::ExpressionStatement>() &&
+                    nested_call.owner != tree->root();
+    checker->Check("salvage: NodeSpan maps line to innermost and top-level", ok,
+                   err.message);
+  }
+
+  // 3. Lexical declaration splitting and skipping unsafe statements.
+  {
+    auto parse = [](const char* code) {
+      fast::ParseError err;
+      return fast::Parser::ParseScript(code, fast::ParseOptions(), &err);
+    };
+    std::unique_ptr<fast::Tree> const_tree =
+        parse("const x = null.a;\nlet y = x;\n");
+    const bool split_const = SalvageException(const_tree.get(), {1, 1}, false);
+    const std::string printed_const =
+        const_tree != nullptr ? fast::Print(const_tree->root()) : "";
+    fast::ParseError parse_err;
+    const bool const_parses =
+        fast::Parser::ParseScript(printed_const, fast::ParseOptions(),
+                                  &parse_err) != nullptr;
+    checker->Check(
+        "salvage: splits const declaration into let and guarded assignment",
+        split_const && const_parses &&
+            printed_const.find("let x;\ntry {\n  x = null.a;\n} catch {}") !=
+                std::string::npos,
+        printed_const);
+
+    std::unique_ptr<fast::Tree> multi_tree = parse("let a = 1, b = null.z;\n");
+    const bool split_multi = SalvageException(multi_tree.get(), {1, 1}, false);
+    const std::string printed_multi =
+        multi_tree != nullptr ? fast::Print(multi_tree->root()) : "";
+    checker->Check(
+        "salvage: splits multi-declarator let declaration safely",
+        split_multi &&
+            printed_multi.find(
+                "let a, b;\ntry {\n  a = 1;\n  b = null.z;\n} catch {}") !=
+                std::string::npos,
+        printed_multi);
+
+    std::unique_ptr<fast::Tree> var_tree =
+        parse("var x = null.a;\nlet y = x;\n");
+    const bool wrapped_var =
+        var_tree != nullptr && SalvageException(var_tree.get(), {1, 1}, false);
+    const std::string printed_var =
+        var_tree != nullptr ? fast::Print(var_tree->root()) : "";
+    const bool var_parses =
+        fast::Parser::ParseScript(printed_var, fast::ParseOptions(),
+                                  &parse_err) != nullptr;
+    checker->Check(
+        "salvage: wraps var declaration directly in try/catch",
+        wrapped_var && var_parses &&
+            printed_var.find("try {\n  var x = null.a;\n} catch {}") !=
+                std::string::npos,
+        printed_var);
+
+    std::unique_ptr<fast::Tree> try_tree = parse("try {\n  a();\n} catch {}\n");
+    const bool skipped_try =
+        try_tree != nullptr && !SalvageException(try_tree.get(), {1, 1}, false);
+    std::unique_ptr<fast::Tree> fn_tree = parse("function f() {}\n");
+    const bool skipped_fn =
+        fn_tree != nullptr && !SalvageException(fn_tree.get(), {1, 1}, false);
+    std::unique_ptr<fast::Tree> cls_tree = parse("class C extends null {}\n");
+    const bool skipped_cls =
+        cls_tree != nullptr && !SalvageException(cls_tree.get(), {1, 1}, false);
+    std::unique_ptr<fast::Tree> destruct_tree = parse("const {a} = null;\n");
+    const bool skipped_destruct =
+        destruct_tree != nullptr &&
+        !SalvageException(destruct_tree.get(), {1, 1}, false);
+    checker->Check(
+        "salvage: skips try, function, class and destructuring declarations",
+        skipped_try && skipped_fn && skipped_cls && skipped_destruct, "");
+
+    std::unique_ptr<fast::Tree> using_tree =
+        parse("{\n  using r = null;\n  let y = r;\n}\n");
+    bool skipped_using = false;
+    if (using_tree != nullptr) {
+      std::vector<fast::NodeSpan> using_spans;
+      std::string printed_using =
+          fast::Print(using_tree->root(), fast::PrintOptions(), &using_spans);
+      StatementLocation using_loc = FindCoveringStatement(
+          using_tree.get(), printed_using, using_spans, 2, false);
+      skipped_using = using_loc.valid() &&
+                      using_loc.statement()->Is<fast::VariableDeclaration>() &&
+                      !WrapStatementForSalvage(using_tree.get(), using_loc);
+    }
+    std::unique_ptr<fast::Tree> directive_tree = parse("\"use strict\";\n");
+    const bool skipped_directive =
+        directive_tree != nullptr &&
+        !SalvageException(directive_tree.get(), {1, 1}, false);
+    std::unique_ptr<fast::Tree> nested_label_fn_tree =
+        parse("L1: L2: function f() {}\n");
+    const bool skipped_nested_label_fn =
+        nested_label_fn_tree != nullptr &&
+        !SalvageException(nested_label_fn_tree.get(), {1, 1}, false);
+    std::unique_ptr<fast::Tree> labeled_ret_tree =
+        parse("function f() {\n  L: return null.x;\n}\nf();\n");
+    bool skipped_labeled_ret = false;
+    bool labeled_ret_fell_back = false;
+    std::string printed_labeled_ret;
+    if (labeled_ret_tree != nullptr) {
+      std::vector<fast::NodeSpan> ret_spans;
+      std::string printed_ret = fast::Print(labeled_ret_tree->root(),
+                                            fast::PrintOptions(), &ret_spans);
+      StatementLocation ret_loc = FindCoveringStatement(
+          labeled_ret_tree.get(), printed_ret, ret_spans, 2, false);
+      skipped_labeled_ret =
+          ret_loc.valid() &&
+          ret_loc.statement()->Is<fast::LabeledStatement>() &&
+          !WrapStatementForSalvage(labeled_ret_tree.get(), ret_loc);
+      labeled_ret_fell_back =
+          SalvageException(labeled_ret_tree.get(), {2, 4}, false);
+      printed_labeled_ret = fast::Print(labeled_ret_tree->root());
+    }
+    checker->Check(
+        "salvage: skips using, directives and unsafe labeled statements",
+        skipped_using && skipped_directive && skipped_nested_label_fn &&
+            skipped_labeled_ret && labeled_ret_fell_back &&
+            printed_labeled_ret.find("try {\n  f();\n} catch {}") !=
+                std::string::npos,
+        StringPrintf("using=%d dir=%d lfn=%d lret=%d fb=%d", skipped_using,
+                     skipped_directive, skipped_nested_label_fn,
+                     skipped_labeled_ret, labeled_ret_fell_back));
+
+    std::unique_ptr<fast::Tree> labeled_ok_tree = parse("L: null.x;\n");
+    const bool wrapped_labeled =
+        labeled_ok_tree != nullptr &&
+        SalvageException(labeled_ok_tree.get(), {1, 1}, false);
+    const std::string printed_labeled =
+        labeled_ok_tree != nullptr ? fast::Print(labeled_ok_tree->root()) : "";
+    const bool labeled_parses =
+        fast::Parser::ParseScript(printed_labeled, fast::ParseOptions(),
+                                  &parse_err) != nullptr;
+    checker->Check(
+        "salvage: wraps safe labeled statement outside the label",
+        wrapped_labeled && labeled_parses &&
+            printed_labeled.find("try {\n  L: null.x;\n} catch {}") !=
+                std::string::npos,
+        printed_labeled);
+
+    std::unique_ptr<fast::Tree> fallback_tree =
+        parse("function f() {\n  return null.x;\n}\nf();\n");
+    const bool fell_back = fallback_tree != nullptr &&
+                           SalvageException(fallback_tree.get(), {2, 4}, false);
+    const std::string printed_fb =
+        fallback_tree != nullptr ? fast::Print(fallback_tree->root()) : "";
+    checker->Check(
+        "salvage: falls back from ReturnStatement to outermost call statement",
+        fell_back &&
+            printed_fb.find("try {\n  f();\n} catch {}") != std::string::npos,
+        printed_fb);
+  }
+
+  // 4. Local type propagation in Builder::GuessType.
+  {
+    const char* code =
+        "let ta;\n"
+        "try {\n"
+        "  ta = new Int32Array(4);\n"
+        "} catch {}\n"
+        "let alias = ta;\n"
+        "let len = alias.length;\n"
+        "let sum = len + 1;\n"
+        "let isArr = Array.isArray(alias);\n"
+        "async function af() { return 1; }\n"
+        "let p = af();\n"
+        "function makeArr() { return [1, 2]; }\n"
+        "let arr = makeArr();\n"
+        "const makeStr = () => 'hi';\n"
+        "let str = makeStr();\n"
+        "function recFn() { return recFn(); }\n"
+        "let rec = recFn();\n"
+        "let conflict;\n"
+        "conflict = 1;\n"
+        "conflict = 's';\n"
+        "function fn(n = 5, ...rest) {\n"
+        "  for (let k in alias) {\n"
+        "    return k;\n"
+        "  }\n"
+        "}\n"
+        "let cycA = cycB;\n"
+        "let cycB = cycA;\n";
+    fast::ParseError err;
+    std::unique_ptr<fast::Tree> tree =
+        fast::Parser::ParseScript(code, fast::ParseOptions(), &err);
+    if (tree == nullptr) {
+      checker->Check(
+          "builder: GuessType propagates guarded assignments and local types",
+          false, "parse failed: " + err.ToString());
+    } else {
+      Random rng(1);
+      Builder builder(tree.get(), &rng);
+      auto type_of = [&](std::string_view name) {
+        for (fast::Binding* b : builder.scopes().bindings()) {
+          if (b->name == name) {
+            return builder.GuessType(b);
+          }
+        }
+        return JsType::kUnknown;
+      };
+      const bool ok = type_of("ta") == JsType::kTypedArray &&
+                      type_of("alias") == JsType::kTypedArray &&
+                      type_of("len") == JsType::kNumber &&
+                      type_of("sum") == JsType::kNumber &&
+                      type_of("isArr") == JsType::kBoolean &&
+                      type_of("p") == JsType::kPromise &&
+                      type_of("arr") == JsType::kArray &&
+                      type_of("str") == JsType::kString &&
+                      type_of("rec") == JsType::kUnknown &&
+                      type_of("conflict") == JsType::kUnknown &&
+                      type_of("n") == JsType::kNumber &&
+                      type_of("rest") == JsType::kArray &&
+                      type_of("k") == JsType::kString &&
+                      type_of("cycA") == JsType::kUnknown &&
+                      type_of("cycB") == JsType::kUnknown;
+      checker->Check(
+          "builder: GuessType propagates guarded assignments and local types",
+          ok,
+          StringPrintf("ta=%s alias=%s len=%s sum=%s isArr=%s p=%s arr=%s "
+                       "str=%s rec=%s conflict=%s n=%s rest=%s k=%s",
+                       JsTypeName(type_of("ta")), JsTypeName(type_of("alias")),
+                       JsTypeName(type_of("len")), JsTypeName(type_of("sum")),
+                       JsTypeName(type_of("isArr")), JsTypeName(type_of("p")),
+                       JsTypeName(type_of("arr")), JsTypeName(type_of("str")),
+                       JsTypeName(type_of("rec")),
+                       JsTypeName(type_of("conflict")),
+                       JsTypeName(type_of("n")), JsTypeName(type_of("rest")),
+                       JsTypeName(type_of("k"))));
+    }
+  }
+}
+
+// Online: end-to-end exception salvage against d8 behind DefaultPrelude.
+void RunSalvageTargetCheck(Checker* checker, ScriptRunner* runner) {
+  const std::string prelude(DefaultPrelude());
+  const int prelude_lines = PreludeLineCount(prelude);
+  auto run_behind_prelude = [&](const std::string& src,
+                                ScriptRunner::Result* out) {
+    std::string full = prelude + "\n" + src;
+    return RunOrFail(checker, runner, "salvage target", full, out);
+  };
+
+  // Case 1: throwing const declaration splits and keeps downstream code alive.
+  {
+    const char* src =
+        "const v = null.foo;\n"
+        "print('after:' + typeof v);\n";
+    fast::ParseError err;
+    std::unique_ptr<fast::Tree> tree =
+        fast::Parser::ParseScript(src, fast::ParseOptions(), &err);
+    if (tree == nullptr) {
+      checker->Check(
+          "salvage: recovers throwing const declaration end-to-end on d8",
+          false, "parse failed: " + err.ToString());
+    } else {
+      std::string initial = fast::Print(tree->root());
+      ScriptRunner::Result first, second;
+      if (run_behind_prelude(initial, &first)) {
+        ExceptionLines lines =
+            ExtractExceptionLines(first.execution, prelude_lines);
+        const bool wrapped = SalvageException(tree.get(), lines, false);
+        const std::string salvaged = fast::Print(tree->root());
+        const bool ran_second =
+            wrapped && run_behind_prelude(salvaged, &second);
+        const bool ok = first.execution.outcome == Outcome::kFailed &&
+                        lines.innermost == 1 && lines.outermost == 1 &&
+                        wrapped && ran_second && second.execution.succeeded() &&
+                        second.execution.stdout_output.find(
+                            "after:undefined") != std::string::npos;
+        checker->Check(
+            "salvage: recovers throwing const declaration end-to-end on d8", ok,
+            StringPrintf("first=%s lines=%d/%d second=%s",
+                         OutcomeName(first.execution.outcome), lines.innermost,
+                         lines.outermost,
+                         OutcomeName(second.execution.outcome)));
+      }
+    }
+  }
+
+  // Case 2: nested throw recovers in both innermost and outermost modes.
+  {
+    const char* src =
+        "function boom() {\n"
+        "  null.bar();\n"
+        "}\n"
+        "boom();\n"
+        "print('recovered');\n";
+    for (bool top_level : {false, true}) {
+      const char* check_name =
+          top_level
+              ? "salvage: recovers nested throw via outermost frame on d8"
+              : "salvage: recovers nested throw via innermost frame on d8";
+      fast::ParseError err;
+      std::unique_ptr<fast::Tree> tree =
+          fast::Parser::ParseScript(src, fast::ParseOptions(), &err);
+      if (tree == nullptr) {
+        checker->Check(check_name, false, "parse failed: " + err.ToString());
+        continue;
+      }
+      std::string initial = fast::Print(tree->root());
+      ScriptRunner::Result first, second;
+      if (run_behind_prelude(initial, &first)) {
+        ExceptionLines lines =
+            ExtractExceptionLines(first.execution, prelude_lines);
+        const bool wrapped = SalvageException(tree.get(), lines, top_level);
+        const std::string salvaged = fast::Print(tree->root());
+        const bool ran_second =
+            wrapped && run_behind_prelude(salvaged, &second);
+        const bool ok = first.execution.outcome == Outcome::kFailed &&
+                        lines.innermost == 2 && lines.outermost == 4 &&
+                        wrapped && ran_second && second.execution.succeeded() &&
+                        second.execution.stdout_output.find("recovered") !=
+                            std::string::npos;
+        checker->Check(check_name, ok,
+                       StringPrintf("first=%s lines=%d/%d second=%s",
+                                    OutcomeName(first.execution.outcome),
+                                    lines.innermost, lines.outermost,
+                                    OutcomeName(second.execution.outcome)));
+      }
+    }
+  }
+}
+
 int RunSelftest(const Flags& flags) {
   Checker checker;
   std::string error;
@@ -2642,6 +3118,7 @@ int RunSelftest(const Flags& flags) {
   RunCommitCostChecks(&checker);
   RunFlagMinimizerChecks(&checker);
   RunImportChecks(&checker);
+  RunSalvageChecks(&checker);
   RunAmplifiedTestChecks(&checker);
   RunBundleStepChecks(&checker);
   RunNodeKindChecks(&checker);
@@ -2746,6 +3223,7 @@ int RunSelftest(const Flags& flags) {
                   result.execution.outcome == Outcome::kFailed,
                   Describe(result.execution));
   }
+  RunSalvageTargetCheck(&checker, runner.get());
 
   // Output channels.
   {

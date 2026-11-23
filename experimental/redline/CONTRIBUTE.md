@@ -122,7 +122,7 @@ const int calls = 1 + r.SmallCount(kAtomicsOpsMaxCalls.AsInt() - 1);
 Rules:
 
 - Every probability, count and limit in a component is a tunable. Do not write a number in the code.
-- The name starts with the owner: `generators.<Generator>.`, `mutators.<Mutator>.`, `codegen.<helper>.`, `minimizer.<reducer>.` or `flags.` (the random d8 flags of `maglev` and `turbolev`). The `fuzzilli` profile keeps the fixed numbers of Fuzzilli.
+- The name starts with the owner: `generators.<Generator>.`, `mutators.<Mutator>.`, `codegen.<helper>.`, `minimizer.<reducer>.`, `salvage.` or `flags.` (the random d8 flags of `maglev` and `turbolev`). The `fuzzilli` profile keeps the fixed numbers of Fuzzilli.
 - When you replace a number in existing code, the default is the old number. Then the behavior does not change.
 - `redline fuzz --help-tunables` lists all tunables. The flag `--tunable=NAME=VALUE` and the `tunables` block set them. The flag also works with `mutate` and `audit`.
 

@@ -811,11 +811,151 @@ bool NamespacePath(const Expression* e, std::string_view* ns,
   return true;
 }
 
+// Maximum recursion depth for local type propagation.
+constexpr int kMaxTypeDepth = 4;
+// Maximum references scanned to infer a binding's type from assignments.
+constexpr size_t kMaxAssignmentScans = 8;
+// Maximum top-level statements scanned in a callee body for return types.
+constexpr size_t kMaxReturnScans = 16;
+
+// Type of a known global identifier, or `kUnknown`.
+JsType GuessGlobalType(std::string_view name) {
+  if (name == "undefined") {
+    return JsType::kNullish;
+  }
+  if (name == "NaN" || name == "Infinity") {
+    return JsType::kNumber;
+  }
+  if (name == "Math" || name == "JSON" || name == "Reflect" ||
+      name == "Atomics" || name == "globalThis" || name == "Intl" ||
+      name == "Temporal" || name == "console") {
+    return JsType::kObject;
+  }
+  if (name == "Object" || name == "Array" || name == "Function" ||
+      name == "Map" || name == "Set" || name == "WeakMap" ||
+      name == "WeakSet" || name == "WeakRef" ||
+      name == "FinalizationRegistry" || name == "Promise" || name == "RegExp" ||
+      name == "Date" || name == "Error" || name == "TypeError" ||
+      name == "RangeError" || name == "ReferenceError" ||
+      name == "SyntaxError" || name == "URIError" || name == "EvalError" ||
+      name == "AggregateError" || name == "Symbol" || name == "BigInt" ||
+      name == "Number" || name == "String" || name == "Boolean" ||
+      name == "Proxy" || name == "ArrayBuffer" || name == "SharedArrayBuffer" ||
+      name == "DataView" || name == "DisposableStack" ||
+      name == "AsyncDisposableStack" || name == "Iterator" ||
+      name == "parseInt" || name == "parseFloat" || name == "isNaN" ||
+      name == "isFinite" || (name.size() > 5 && name.ends_with("Array"))) {
+    return JsType::kFunction;
+  }
+  return JsType::kUnknown;
+}
+
+// Common prototype method return types for non-computed calls `obj.method()`.
+JsType GuessMethodReturnType(std::string_view method) {
+  if (method == "keys" || method == "values" || method == "entries" ||
+      method == "matchAll") {
+    // Arrays, typed arrays, maps, sets and strings return iterators.
+    return JsType::kIterator;
+  }
+  if (method == "toString" || method == "toLocaleString" ||
+      method == "toFixed" || method == "toExponential" ||
+      method == "toPrecision" || method == "trim" || method == "trimStart" ||
+      method == "trimEnd" || method == "toLowerCase" ||
+      method == "toUpperCase" || method == "charAt" || method == "padStart" ||
+      method == "padEnd" || method == "repeat" || method == "substring" ||
+      method == "substr" || method == "replace" || method == "replaceAll" ||
+      method == "join" || method == "normalize") {
+    return JsType::kString;
+  }
+  if (method == "includes" || method == "startsWith" || method == "endsWith" ||
+      method == "has" || method == "delete" || method == "test" ||
+      method == "some" || method == "every" || method == "hasOwnProperty" ||
+      method == "isPrototypeOf" || method == "propertyIsEnumerable") {
+    return JsType::kBoolean;
+  }
+  if (method == "indexOf" || method == "lastIndexOf" ||
+      method == "charCodeAt" || method == "codePointAt" ||
+      method == "localeCompare" || method == "search" ||
+      method == "findIndex" || method == "findLastIndex" || method == "push" ||
+      method == "unshift") {
+    return JsType::kNumber;
+  }
+  if (method == "split" || method == "map" || method == "filter" ||
+      method == "flat" || method == "flatMap" || method == "toReversed" ||
+      method == "toSorted" || method == "toSpliced" || method == "toArray") {
+    return JsType::kArray;
+  }
+  if (method == "bind") {
+    return JsType::kFunction;
+  }
+  if (method == "then" || method == "catch" || method == "finally") {
+    return JsType::kPromise;
+  }
+  return JsType::kUnknown;
+}
+
+// Returns the `FunctionData` of `binding`, or nullptr.
+const FunctionData* DeclaredFunction(const Binding* binding) {
+  if (binding == nullptr || binding->declaration == nullptr) {
+    return nullptr;
+  }
+  const Node* decl = binding->declaration;
+  if (auto* declarator = decl->As<VariableDeclarator>()) {
+    if (declarator->target != binding->identifier ||
+        declarator->init == nullptr) {
+      return nullptr;
+    }
+    decl = declarator->init;
+  }
+  return AsFunctionData(decl);
+}
+
 }  // namespace
 
 // static
-JsType Builder::GuessType(const Expression* e) {
-  if (e == nullptr) {
+JsType Builder::GuessFunctionReturnType(Builder* builder,
+                                        const FunctionData* fn, int depth) {
+  if (fn == nullptr || depth > kMaxTypeDepth) {
+    return JsType::kUnknown;
+  }
+  if (fn->is_async && !fn->is_generator) {
+    return JsType::kPromise;
+  }
+  if (fn->is_generator) {
+    return fn->is_async ? JsType::kUnknown : JsType::kIterator;
+  }
+  if (fn->expression_body != nullptr) {
+    return GuessExpression(builder, fn->expression_body, depth + 1);
+  }
+  if (fn->body == nullptr || depth > 2) {
+    return JsType::kUnknown;
+  }
+  JsType inferred = JsType::kUnknown;
+  size_t count = std::min(fn->body->body.size(), kMaxReturnScans);
+  for (size_t i = 0; i < count; i++) {
+    const auto* ret = fn->body->body[i]->As<ReturnStatement>();
+    if (ret == nullptr) {
+      continue;
+    }
+    JsType t = ret->argument != nullptr
+                   ? GuessExpression(builder, ret->argument, depth + 1)
+                   : JsType::kNullish;
+    if (t == JsType::kUnknown) {
+      return JsType::kUnknown;
+    }
+    if (inferred == JsType::kUnknown) {
+      inferred = t;
+    } else if (inferred != t) {
+      return JsType::kUnknown;
+    }
+  }
+  return inferred;
+}
+
+// static
+JsType Builder::GuessExpression(Builder* builder, const Expression* e,
+                                int depth) {
+  if (e == nullptr || depth > kMaxTypeDepth) {
     return JsType::kUnknown;
   }
   switch (e->kind) {
@@ -842,12 +982,23 @@ JsType Builder::GuessType(const Expression* e) {
     case NodeKind::kClassExpression:
       return JsType::kClass;
     case NodeKind::kIdentifier: {
-      std::string_view name = e->Cast<Identifier>()->name;
-      if (name == "undefined") {
-        return JsType::kNullish;
+      const auto* id = e->Cast<Identifier>();
+      if (builder != nullptr) {
+        if (const Binding* binding = builder->scopes().BindingOf(id)) {
+          return builder->GuessBindingType(binding, depth + 1);
+        }
       }
-      if (name == "NaN" || name == "Infinity") {
-        return JsType::kNumber;
+      return GuessGlobalType(id->name);
+    }
+    case NodeKind::kMemberExpression: {
+      const auto* m = e->Cast<MemberExpression>();
+      if (!m->computed) {
+        if (const auto* prop = m->property->As<Identifier>()) {
+          if (prop->name == "length" || prop->name == "byteLength" ||
+              prop->name == "byteOffset") {
+            return JsType::kNumber;
+          }
+        }
       }
       return JsType::kUnknown;
     }
@@ -864,9 +1015,12 @@ JsType Builder::GuessType(const Expression* e) {
         case UnaryOp::kMinus:
         case UnaryOp::kPlus:
         case UnaryOp::kBitNot:
-          return u->op == UnaryOp::kPlus                     ? JsType::kNumber
-                 : GuessType(u->argument) == JsType::kBigInt ? JsType::kBigInt
-                                                             : JsType::kNumber;
+          return u->op == UnaryOp::kPlus
+                     ? JsType::kNumber
+                     : (GuessExpression(builder, u->argument, depth + 1) ==
+                                JsType::kBigInt
+                            ? JsType::kBigInt
+                            : JsType::kNumber);
       }
       return JsType::kUnknown;
     }
@@ -887,7 +1041,8 @@ JsType Builder::GuessType(const Expression* e) {
         case BinaryOp::kInstanceof:
           return JsType::kBoolean;
         case BinaryOp::kAdd: {
-          JsType l = GuessType(b->left), r = GuessType(b->right);
+          JsType l = GuessExpression(builder, b->left, depth + 1);
+          JsType r = GuessExpression(builder, b->right, depth + 1);
           if (l == JsType::kString || r == JsType::kString) {
             return JsType::kString;
           }
@@ -900,26 +1055,31 @@ JsType Builder::GuessType(const Expression* e) {
           return JsType::kUnknown;
         }
         default:
-          return GuessType(b->left) == JsType::kBigInt ? JsType::kBigInt
-                                                       : JsType::kNumber;
+          return GuessExpression(builder, b->left, depth + 1) == JsType::kBigInt
+                     ? JsType::kBigInt
+                     : JsType::kNumber;
       }
     }
     case NodeKind::kLogicalExpression: {
       auto* l = e->Cast<LogicalExpression>();
-      JsType a = GuessType(l->left), b = GuessType(l->right);
+      JsType a = GuessExpression(builder, l->left, depth + 1);
+      JsType b = GuessExpression(builder, l->right, depth + 1);
       return a == b ? a : JsType::kUnknown;
     }
     case NodeKind::kConditionalExpression: {
       auto* c = e->Cast<ConditionalExpression>();
-      JsType a = GuessType(c->consequent), b = GuessType(c->alternate);
+      JsType a = GuessExpression(builder, c->consequent, depth + 1);
+      JsType b = GuessExpression(builder, c->alternate, depth + 1);
       return a == b ? a : JsType::kUnknown;
     }
     case NodeKind::kAssignmentExpression:
-      return GuessType(e->Cast<AssignmentExpression>()->right);
+      return GuessExpression(builder, e->Cast<AssignmentExpression>()->right,
+                             depth + 1);
     case NodeKind::kSequenceExpression: {
       auto* s = e->Cast<SequenceExpression>();
-      return s->expressions.empty() ? JsType::kUnknown
-                                    : GuessType(s->expressions.back());
+      return s->expressions.empty()
+                 ? JsType::kUnknown
+                 : GuessExpression(builder, s->expressions.back(), depth + 1);
     }
     case NodeKind::kAwaitExpression:
       return JsType::kUnknown;
@@ -939,6 +1099,9 @@ JsType Builder::GuessType(const Expression* e) {
       std::string_view name = callee->name;
       if (name == "Array") {
         return JsType::kArray;
+      }
+      if (name == "Function") {
+        return JsType::kFunction;
       }
       if (name == "Map") {
         return JsType::kMap;
@@ -982,16 +1145,13 @@ JsType Builder::GuessType(const Expression* e) {
       if (name == "SharedArrayBuffer") {
         return JsType::kSharedArrayBuffer;
       }
-      if (name == "String") {
-        return JsType::kObject;
-      }
-      if (name == "Number") {
+      if (name == "String" || name == "Number") {
         return JsType::kObject;
       }
       if (name.size() > 5 && name.ends_with("Array")) {
         return JsType::kTypedArray;  // Uint8Array, Float64Array, ...
       }
-      if (name.size() > 5 && name.ends_with("Error")) {
+      if (name == "Error" || (name.size() > 5 && name.ends_with("Error"))) {
         return JsType::kError;
       }
       return JsType::kObject;
@@ -1000,13 +1160,20 @@ JsType Builder::GuessType(const Expression* e) {
       auto* c = e->Cast<CallExpression>();
       if (auto* callee = c->callee->As<Identifier>()) {
         std::string_view name = callee->name;
+        if (builder != nullptr) {
+          if (const Binding* callee_binding =
+                  builder->scopes().BindingOf(callee)) {
+            return GuessFunctionReturnType(
+                builder, DeclaredFunction(callee_binding), depth + 1);
+          }
+        }
         if (name == "String") {
           return JsType::kString;
         }
         if (name == "Number" || name == "parseInt" || name == "parseFloat") {
           return JsType::kNumber;
         }
-        if (name == "Boolean") {
+        if (name == "Boolean" || name == "isNaN" || name == "isFinite") {
           return JsType::kBoolean;
         }
         if (name == "BigInt") {
@@ -1020,6 +1187,15 @@ JsType Builder::GuessType(const Expression* e) {
         }
         if (name == "Object") {
           return JsType::kObject;
+        }
+        if (name == "RegExp") {
+          return JsType::kRegExp;
+        }
+        if (name == "Function") {
+          return JsType::kFunction;
+        }
+        if (name == "Error" || (name.size() > 5 && name.ends_with("Error"))) {
+          return JsType::kError;
         }
         return JsType::kUnknown;
       }
@@ -1048,6 +1224,7 @@ JsType Builder::GuessType(const Expression* e) {
               }
             }
           }
+          return GuessMethodReturnType(property->name);
         }
         if (object == nullptr || property == nullptr || member->computed) {
           return JsType::kUnknown;
@@ -1061,22 +1238,38 @@ JsType Builder::GuessType(const Expression* e) {
         }
         if (o == "Object") {
           if (p == "keys" || p == "values" || p == "entries" ||
-              p == "getOwnPropertyNames") {
+              p == "getOwnPropertyNames" || p == "getOwnPropertySymbols") {
             return JsType::kArray;
+          }
+          if (p == "is" || p == "hasOwn" || p == "isFrozen" ||
+              p == "isSealed" || p == "isExtensible") {
+            return JsType::kBoolean;
           }
           return JsType::kObject;
         }
         if (o == "Array") {
-          return JsType::kArray;
+          return p == "isArray" ? JsType::kBoolean : JsType::kArray;
         }
         if (o == "String") {
           return JsType::kString;
         }
         if (o == "Number") {
+          if (p == "isNaN" || p == "isFinite" || p == "isInteger" ||
+              p == "isSafeInteger") {
+            return JsType::kBoolean;
+          }
           return JsType::kNumber;
         }
-        if (o == "Reflect" && p == "ownKeys") {
-          return JsType::kArray;
+        if (o == "Reflect") {
+          if (p == "ownKeys") {
+            return JsType::kArray;
+          }
+          if (p == "has" || p == "set" || p == "deleteProperty" ||
+              p == "defineProperty" || p == "setPrototypeOf" ||
+              p == "isExtensible" || p == "preventExtensions") {
+            return JsType::kBoolean;
+          }
+          return JsType::kUnknown;
         }
         if (o == "Promise") {
           return JsType::kPromise;
@@ -1084,11 +1277,7 @@ JsType Builder::GuessType(const Expression* e) {
         if (o == "Iterator" && p != "prototype") {
           return JsType::kIterator;  // Iterator.from, concat, zip, zipKeyed
         }
-        if (p == "keys" || p == "values" || p == "entries" || p == "matchAll") {
-          // Arrays, typed arrays, maps, sets and strings return iterators.
-          return JsType::kIterator;
-        }
-        return JsType::kUnknown;
+        return GuessMethodReturnType(p);
       }
       return JsType::kUnknown;
     }
@@ -1097,7 +1286,15 @@ JsType Builder::GuessType(const Expression* e) {
   }
 }
 
-JsType Builder::GuessType(const Binding* binding) {
+// static
+JsType Builder::GuessType(const Expression* e) {
+  return GuessExpression(nullptr, e, 0);
+}
+
+JsType Builder::GuessBindingType(const Binding* binding, int depth) {
+  if (binding == nullptr || depth > kMaxTypeDepth) {
+    return JsType::kUnknown;
+  }
   switch (binding->kind) {
     case BindingKind::kFunction:
     case BindingKind::kFunctionName:
@@ -1109,21 +1306,118 @@ JsType Builder::GuessType(const Binding* binding) {
       return JsType::kError;
     case BindingKind::kImplicit:
       return JsType::kObject;  // arguments
-    case BindingKind::kParameter:
-      return JsType::kUnknown;
+    case BindingKind::kParameter: {
+      if (binding->identifier != nullptr) {
+        Node* id_parent = ParentOf(binding->identifier);
+        if (id_parent != nullptr) {
+          if (id_parent->Is<RestElement>()) {
+            Node* container = ParentOf(id_parent);
+            return container != nullptr && container->Is<ObjectPattern>()
+                       ? JsType::kObject
+                       : JsType::kArray;
+          }
+          if (auto* ap = id_parent->As<AssignmentPattern>();
+              ap != nullptr && ap->left == binding->identifier) {
+            JsType t = GuessExpression(this, ap->right, depth + 1);
+            if (t != JsType::kUnknown) {
+              return t;
+            }
+          }
+        }
+      }
+      break;
+    }
     default:
       break;
   }
-  if (binding->declaration == nullptr) {
+  if (binding->declaration != nullptr) {
+    if (auto* declarator = binding->declaration->As<VariableDeclarator>()) {
+      if (declarator->target == binding->identifier) {
+        if (declarator->init != nullptr) {
+          JsType t = GuessExpression(this, declarator->init, depth + 1);
+          if (t != JsType::kUnknown) {
+            return t;
+          }
+        } else {
+          Node* decl = ParentOf(declarator);
+          Node* loop = decl != nullptr ? ParentOf(decl) : nullptr;
+          if (auto* for_in =
+                  loop != nullptr ? loop->As<ForInStatement>() : nullptr;
+              for_in != nullptr && for_in->left == decl) {
+            return JsType::kString;
+          }
+        }
+      } else if (binding->identifier != nullptr) {
+        Node* id_parent = ParentOf(binding->identifier);
+        if (id_parent != nullptr) {
+          if (id_parent->Is<RestElement>()) {
+            Node* container = ParentOf(id_parent);
+            if (container != nullptr && container->Is<ArrayPattern>()) {
+              return JsType::kArray;
+            }
+            if (container != nullptr && container->Is<ObjectPattern>()) {
+              return JsType::kObject;
+            }
+          } else if (auto* ap = id_parent->As<AssignmentPattern>();
+                     ap != nullptr && ap->left == binding->identifier) {
+            JsType t = GuessExpression(this, ap->right, depth + 1);
+            if (t != JsType::kUnknown) {
+              return t;
+            }
+          }
+        }
+      }
+    }
+  }
+  // Infer from local writes when the declaration gives no type, for example
+  // guarded declarations (`let x` then `try { x = init } catch {}`).
+  if (!binding->assigned) {
     return JsType::kUnknown;
   }
-  if (auto* declarator = binding->declaration->As<VariableDeclarator>()) {
-    if (declarator->target != binding->identifier) {
+  JsType inferred = JsType::kUnknown;
+  size_t checked = 0;
+  for (Identifier* ref : binding->references) {
+    if (++checked > kMaxAssignmentScans) {
+      break;
+    }
+    Node* parent = ParentOf(ref);
+    if (parent == nullptr) {
+      continue;
+    }
+    JsType write_type = JsType::kUnknown;
+    if (auto* assign = parent->As<AssignmentExpression>();
+        assign != nullptr && assign->left == ref) {
+      if (assign->op == AssignOp::kAssign) {
+        write_type = GuessExpression(this, assign->right, depth + 1);
+      } else if (assign->op != AssignOp::kAddAssign &&
+                 assign->op != AssignOp::kOrAssign &&
+                 assign->op != AssignOp::kAndAssign &&
+                 assign->op != AssignOp::kNullishAssign) {
+        write_type =
+            GuessExpression(this, assign->right, depth + 1) == JsType::kBigInt
+                ? JsType::kBigInt
+                : JsType::kNumber;
+      }
+    } else if (auto* upd = parent->As<UpdateExpression>();
+               upd != nullptr && upd->argument == ref) {
+      write_type = JsType::kNumber;
+    } else {
+      continue;
+    }
+    if (write_type == JsType::kUnknown) {
+      continue;
+    }
+    if (inferred == JsType::kUnknown) {
+      inferred = write_type;
+    } else if (inferred != write_type) {
       return JsType::kUnknown;
     }
-    return GuessType(declarator->init);
   }
-  return JsType::kUnknown;
+  return inferred;
+}
+
+JsType Builder::GuessType(const Binding* binding) {
+  return GuessBindingType(binding, 0);
 }
 
 Variable Builder::ToVariable(Binding* binding) {
