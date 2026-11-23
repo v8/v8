@@ -703,5 +703,72 @@ TEST_F(DebugHelperTest, SmallOrderedHashSetGetObjectProperties) {
 #endif
 }
 
+TEST_F(DebugHelperTest, NativeContextGetObjectProperties) {
+  LocalContext context;
+  Isolate* isolate = context.i_isolate();
+  PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
+  HandleScope scope(isolate);
+
+  context.local()->SetAlignedPointerInEmbedderDataV2(
+      1, reinterpret_cast<void*>(0x12345600), v8::kEmbedderDataTypeTagDefault);
+
+  d::HeapAddresses heap_addresses{0, 0, 0, 0, 0, 0, 0};
+  DirectHandle<NativeContext> native_context = isolate->native_context();
+  d::ObjectPropertiesResultPtr props = d::GetObjectProperties(
+      native_context->ptr(), &ReadMemory, heap_addresses);
+  CHECK_EQ(props->type_check_result, d::TypeCheckResult::kUsedMap);
+  CHECK_EQ(props->type, std::string("v8::internal::Context"));
+
+  const d::ObjectProperty& elements = FindProp(*props, "elements");
+  CheckProp(elements, "v8::internal::TaggedMember<v8::internal::Object>",
+            "elements", d::PropertyKind::kArrayOfKnownSize,
+            Context::FIRST_EMBEDDER_DATA_INDEX);
+  CHECK_EQ(elements.address, native_context->ptr() - kHeapObjectTag +
+                                 Context::OffsetOfElementAt(0));
+
+  const d::ObjectProperty& native_context_elements =
+      FindProp(*props, "native_context_elements");
+  CheckProp(
+      native_context_elements,
+      "v8::internal::TaggedMember<v8::internal::Object>",
+      "native_context_elements", d::PropertyKind::kArrayOfKnownSize,
+      Context::NATIVE_CONTEXT_SLOTS - (Context::LAST_EMBEDDER_DATA_INDEX + 1));
+  CHECK_EQ(
+      native_context_elements.address,
+      native_context->ptr() - kHeapObjectTag +
+          Context::OffsetOfElementAt(Context::LAST_EMBEDDER_DATA_INDEX + 1));
+
+  int elements_count = 0;
+  for (size_t i = 0; i < props->num_properties; ++i) {
+    if (std::string("elements") == props->properties[i]->name) {
+      elements_count++;
+    }
+  }
+  CHECK_EQ(elements_count, 1);
+
+  // Non-native contexts should still report a single "elements" array and no
+  // "native_context_elements" property.
+  v8::Local<v8::Value> fn = CompileRun(
+      "(function() { let x = 1; return function() { return x++; }; })()");
+  DirectHandle<JSFunction> js_function =
+      Cast<JSFunction>(v8::Utils::OpenDirectHandle(*fn));
+  DirectHandle<Context> func_context(js_function->context(), isolate);
+  CHECK(func_context->IsFunctionContext());
+
+  d::ObjectPropertiesResultPtr func_props =
+      d::GetObjectProperties(func_context->ptr(), &ReadMemory, heap_addresses);
+  CHECK_EQ(func_props->type_check_result, d::TypeCheckResult::kUsedMap);
+  CHECK_EQ(func_props->type, std::string("v8::internal::Context"));
+
+  const d::ObjectProperty& func_elements = FindProp(*func_props, "elements");
+  CheckProp(func_elements, "v8::internal::TaggedMember<v8::internal::Object>",
+            "elements", d::PropertyKind::kArrayOfKnownSize,
+            func_context->length());
+  for (size_t i = 0; i < func_props->num_properties; ++i) {
+    CHECK_NE(std::string("native_context_elements"),
+             std::string(func_props->properties[i]->name));
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

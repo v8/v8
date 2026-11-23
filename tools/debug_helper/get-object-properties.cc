@@ -11,6 +11,7 @@
 #include "src/execution/frame-constants.h"
 #include "src/execution/frames.h"
 #include "src/execution/isolate-utils.h"
+#include "src/objects/contexts.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/string-inl.h"
 #include "src/roots/roots.h"
@@ -597,6 +598,61 @@ class AddInfoVisitor : public TqObjectVisitor {
           "in-object properties", kObjectAsStoredInHeap,
           object->GetMapAddress() + start_offset.value * i::kTaggedSize,
           num_properties, i::kTaggedSize,
+          std::vector<std::unique_ptr<StructProperty>>(),
+          d::PropertyKind::kArrayOfKnownSize));
+    }
+  }
+
+  void VisitContext(const TqContext* object) override {
+    auto map_ptr = object->GetMapValue(accessor_);
+    if (map_ptr.validity != d::MemoryAccessResult::kOk) {
+      return;
+    }
+    DCHECK(!v8::internal::MapWord::IsPacked(map_ptr.value));
+
+    bool is_native_context = false;
+    auto instance_type = TqMap(map_ptr.value).GetInstanceTypeValue(accessor_);
+    if (instance_type.validity == d::MemoryAccessResult::kOk) {
+      is_native_context = instance_type.value == i::NATIVE_CONTEXT_TYPE;
+    } else {
+      KnownInstanceType known_map_type =
+          FindKnownMapInstanceTypes(map_ptr.value, heap_addresses_);
+      is_native_context =
+          known_map_type.confidence == KnownInstanceType::Confidence::kHigh &&
+          known_map_type.types.size() == 1 &&
+          known_map_type.types[0] == i::NATIVE_CONTEXT_TYPE;
+    }
+    if (!is_native_context) {
+      return;
+    }
+
+    auto length_smi = object->GetLengthValue(accessor_);
+    if (length_smi.validity != d::MemoryAccessResult::kOk) {
+      return;
+    }
+    int32_t length = i::PlatformSmiTagging::SmiToInt(length_smi.value);
+    if (length <= i::Context::LAST_EMBEDDER_DATA_INDEX) {
+      return;
+    }
+
+    // NativeContext stores inline EmbedderDataSlots starting at
+    // FIRST_EMBEDDER_DATA_INDEX, which include untagged CppHeapPointer_t
+    // words. Truncate "elements" to the header slots before them and expose
+    // the trailing tagged slots separately.
+    properties_.push_back(std::make_unique<ObjectProperty>(
+        "elements", kObjectAsStoredInHeap, object->GetElementsAddress(),
+        i::Context::FIRST_EMBEDDER_DATA_INDEX, i::kTaggedSize,
+        std::vector<std::unique_ptr<StructProperty>>(),
+        d::PropertyKind::kArrayOfKnownSize));
+
+    constexpr int kAfterEmbedderIndex =
+        i::Context::LAST_EMBEDDER_DATA_INDEX + 1;
+    int num_tail_elements = length - kAfterEmbedderIndex;
+    if (num_tail_elements > 0) {
+      properties_.push_back(std::make_unique<ObjectProperty>(
+          "native_context_elements", kObjectAsStoredInHeap,
+          object->GetElementsAddress() + kAfterEmbedderIndex * i::kTaggedSize,
+          num_tail_elements, i::kTaggedSize,
           std::vector<std::unique_ptr<StructProperty>>(),
           d::PropertyKind::kArrayOfKnownSize));
     }
