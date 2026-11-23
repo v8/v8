@@ -31,6 +31,7 @@ enum class ArgKind : uint8_t {
   kOptions,   // an options bag: the keys of Environment::Options(`name`)
   kEnum,      // one of the strings of Environment::Enum(`name`)
   kInstance,  // an object of the builtin type `type`
+  kSetLike,   // a Set, Map, or ES2025 set-like record `{size, has, keys}`
 };
 
 // One parameter of a builtin function, method or constructor.
@@ -81,9 +82,12 @@ constexpr ArgSpec Enum(std::string_view list) {
   a.name = list;
   return a;
 }
-constexpr ArgSpec Instance(JsType type) {
-  return Make(ArgKind::kInstance, type);
+constexpr ArgSpec Instance(JsType type, std::string_view name = {}) {
+  ArgSpec a = Make(ArgKind::kInstance, type);
+  a.name = name;
+  return a;
 }
+constexpr ArgSpec SetLike() { return Make(ArgKind::kSetLike, JsType::kObject); }
 constexpr ArgSpec Opt(ArgSpec a) {
   a.optional = true;
   return a;

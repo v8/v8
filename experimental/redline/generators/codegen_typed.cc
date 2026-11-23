@@ -293,6 +293,41 @@ fast::Expression* CodeGen::ArgumentFor(const ArgSpec& spec, int depth) {
       return mk::Object(t, std::move(properties));
     }
     case ArgKind::kEnum: {
+      if (spec.name == "Base64String" &&
+          !r.Chance(kArgumentEnumInvalidChance())) {
+        // Variable-length base64/base64url inputs cover SIMD and tail paths.
+        const bool url = r.Coin();
+        const char* alpha = url ? "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqr"
+                                  "stuvwxyz0123456789-_"
+                                : "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqr"
+                                  "stuvwxyz0123456789+/";
+        int bytes = r.Coin() ? static_cast<int>(r.Range(1, 16))
+                             : static_cast<int>(r.Range(17, 96));
+        std::string out;
+        while (bytes >= 3) {
+          for (int k = 0; k < 4; k++) out += alpha[r.Index(64)];
+          bytes -= 3;
+        }
+        if (bytes == 1) {
+          out += alpha[r.Index(64)];
+          out += alpha[r.Index(4) << 4];
+          if (!url && r.Chance(0.7)) out += "==";
+        } else if (bytes == 2) {
+          out += alpha[r.Index(64)];
+          out += alpha[r.Index(64)];
+          out += alpha[r.Index(16) << 2];
+          if (!url && r.Chance(0.7)) out += '=';
+        }
+        return mk::Str(t, out);
+      }
+      if (spec.name == "HexString" && !r.Chance(kArgumentEnumInvalidChance())) {
+        static const char kHex[] = "0123456789abcdefABCDEF";
+        int chars = 2 * static_cast<int>(r.Range(1, 40));
+        std::string out;
+        out.reserve(static_cast<size_t>(chars));
+        for (int i = 0; i < chars; i++) out += kHex[r.Index(22)];
+        return mk::Str(t, out);
+      }
       const EnumList* list = env().Enum(spec.name);
       if (list == nullptr || list->values.empty() ||
           r.Chance(kArgumentEnumInvalidChance())) {
@@ -300,13 +335,40 @@ fast::Expression* CodeGen::ArgumentFor(const ArgSpec& spec, int depth) {
       }
       return mk::Str(t, r.Pick(list->values));
     }
-    case ArgKind::kInstance:
+    case ArgKind::kSetLike: {
       if (r.Chance(kArgumentReuseChance())) {
+        if (fast::Identifier* id =
+                Variable(r.Coin() ? JsType::kSet : JsType::kMap)) {
+          return id;
+        }
+      }
+      if (r.Index(3) < 2) {
+        if (fast::Expression* e =
+                Instance(r.Coin() ? JsType::kSet : JsType::kMap, depth + 1)) {
+          return e;
+        }
+      }
+      int n = 1 + r.SmallCount(3);
+      std::vector<fast::Expression*> elems;
+      for (int i = 0; i < n; i++)
+        elems.push_back(Value(JsType::kUnknown, depth + 1));
+      fast::Expression* has_fn = mk::Arrow(t, {ctx_.builder.FreshName("k")},
+                                           {mk::Return(t, Boolean())});
+      fast::Expression* keys_fn = mk::Arrow(
+          t, {},
+          {mk::Return(t, mk::CallMethod(t, mk::Array(t, std::move(elems)),
+                                        "values", {}))});
+      return mk::Object(
+          t, {mk::Prop(t, "size", mk::Num(t, static_cast<double>(n))),
+              mk::Prop(t, "has", has_fn), mk::Prop(t, "keys", keys_fn)});
+    }
+    case ArgKind::kInstance:
+      if (r.Chance(kArgumentReuseChance()) && spec.name != "SharedInt32Array") {
         if (fast::Identifier* id = Variable(spec.type)) {
           return id;
         }
       }
-      if (fast::Expression* e = Instance(spec.type, depth + 1)) {
+      if (fast::Expression* e = Instance(spec.type, depth + 1, spec.name)) {
         return e;
       }
       return Value(spec.type, depth);
@@ -314,7 +376,8 @@ fast::Expression* CodeGen::ArgumentFor(const ArgSpec& spec, int depth) {
   return Value(JsType::kUnknown, depth);
 }
 
-fast::Expression* CodeGen::Instance(JsType type, int depth) {
+fast::Expression* CodeGen::Instance(JsType type, int depth,
+                                    std::string_view hint) {
   ExprDepthGuard guard(ctx_);
   if (TooDeep()) {
     return nullptr;
@@ -330,10 +393,16 @@ fast::Expression* CodeGen::Instance(JsType type, int depth) {
                  : mk::CallMethod(t, ArrayLiteral(depth), "values", {});
     }
     case JsType::kTypedArray: {
-      // An integer element type, so that Atomics accepts it.
+      if (hint == "SharedInt32Array") {
+        return mk::New(
+            t, mk::Id(t, "Int32Array"),
+            {mk::New(t, mk::Id(t, "SharedArrayBuffer"), {mk::Num(t, 16)})});
+      }
       std::string_view kind =
-          r.Pick({"Int8Array", "Uint8Array", "Int16Array", "Uint16Array",
-                  "Int32Array", "Uint32Array"});
+          hint == "Int32Array|BigInt64Array"
+              ? r.Pick({"Int32Array", "BigInt64Array"})
+              : r.Pick({"Int8Array", "Uint8Array", "Int16Array", "Uint16Array",
+                        "Int32Array", "Uint32Array"});
       return mk::New(t, mk::Id(t, kind),
                      {mk::Num(t, static_cast<double>(r.Range(
                                      kArgumentTypedArrayMinLength.AsInt(),

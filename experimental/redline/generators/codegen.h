@@ -108,7 +108,8 @@ class CodeGen {
                                               int depth = 1);
   // A new object of a builtin type of the model (`new DataView(buf)`,
   // `Temporal.PlainDate.from(...)`, `[].values()`), or nullptr.
-  fast::Expression* Instance(JsType type, int depth = 1);
+  fast::Expression* Instance(JsType type, int depth = 1,
+                             std::string_view hint = {});
   // `Name`, or `A.B` for a dotted global of the model (`Temporal.PlainDate`).
   fast::Expression* GlobalPath(std::string_view path);
   // A visible variable whose type has methods of its own in the model (not

@@ -37,6 +37,7 @@
 #include "experimental/redline/fast/printer.h"
 #include "experimental/redline/generators/codegen.h"
 #include "experimental/redline/generators/generator.h"
+#include "experimental/redline/generators/values_generators.h"
 #include "experimental/redline/mutators/mutator.h"
 
 namespace redline {
@@ -2444,6 +2445,245 @@ void CheckRarityOverhaul(Checker* checker) {
   }
 }
 
+// Checks empirical pure-ES builtins, trigger natives, and stateful Workers.
+void CheckBuiltinsAndWorkers(Checker* checker) {
+  const Environment& env = Environment::Default();
+  auto has_method = [&](JsType t, std::string_view name) {
+    const BuiltinType* bt = env.ForType(t);
+    return bt != nullptr && std::any_of(bt->methods.begin(), bt->methods.end(),
+                                        [&](const BuiltinFunction& f) {
+                                          return f.name == name;
+                                        });
+  };
+  auto has_static = [&](std::string_view gname, std::string_view mname) {
+    const BuiltinGlobal* g = env.Global(gname);
+    return g != nullptr &&
+           std::any_of(
+               g->static_methods.begin(), g->static_methods.end(),
+               [&](const BuiltinFunction& f) { return f.name == mname; });
+  };
+  bool env_ok =
+      has_method(JsType::kIterator, "windows") &&
+      has_method(JsType::kIterator, "chunks") &&
+      has_method(JsType::kIterator, "join") &&
+      has_method(JsType::kIterator, "includes") &&
+      has_static("Iterator", "zipKeyed") && has_static("Atomics", "notify") &&
+      has_static("Atomics", "pause") && has_static("Atomics", "waitAsync") &&
+      !has_static("Atomics", "wait") &&
+      has_method(JsType::kRegExp, "compile") &&
+      has_static("RegExp", "escape") &&
+      std::find(env.numbers().begin(), env.numbers().end(),
+                -2.220446049250313e-16) != env.numbers().end();
+  for (const char* m :
+       {"find", "findIndex", "findLast", "findLastIndex", "forEach", "filter",
+        "every", "some", "reduce", "reduceRight", "includes", "lastIndexOf",
+        "toReversed", "toSorted", "with", "toString", "toLocaleString"}) {
+    env_ok = env_ok && has_method(JsType::kTypedArray, m);
+  }
+  const BuiltinType* set_t = env.ForType(JsType::kSet);
+  env_ok = env_ok && set_t != nullptr &&
+           std::any_of(set_t->methods.begin(), set_t->methods.end(),
+                       [](const BuiltinFunction& f) {
+                         return f.name == "union" && !f.params.empty() &&
+                                f.params[0].kind == ArgKind::kSetLike;
+                       });
+  for (const char* n :
+       {"_DeoptimizeNow", "SetForceSlowPath", "DisableEagerInlining",
+        "ShareObject", "GetUndetectable", "ArrayBufferSetDetachKey"}) {
+    env_ok = env_ok &&
+             std::any_of(env.natives().begin(), env.natives().end(),
+                         [&](const NativeFunction& f) { return f.name == n; });
+  }
+  checker->Check(
+      "environment: pure-ES builtins, set-like, Atomics, RegExp, natives",
+      env_ok, env_ok ? "" : "missing model entries");
+
+  fast::ParseError perr;
+  std::unique_ptr<fast::Tree> rt = fast::Parser::ParseScript(
+      "%_DeoptimizeNow();\n", fast::ParseOptions(), &perr);
+  checker->Check(
+      "FAST: %_DeoptimizeNow() parses and round-trips",
+      rt != nullptr && fast::Print(rt->root()) == "%_DeoptimizeNow();\n",
+      perr.message);
+
+  std::unique_ptr<GeneratorSet> generators = GeneratorSet::CreateDefault();
+  Random rng(kSeed + 202);
+  auto sample_gen = [&](std::string_view name, int n,
+                        auto setup) -> std::vector<std::string> {
+    std::vector<std::string> out;
+    Generator* g = generators->Find(name);
+    if (g == nullptr) return out;
+    for (int i = 0; i < n; i++) {
+      auto tree = std::make_unique<fast::Tree>();
+      tree->set_root(tree->New<fast::Program>());
+      Builder builder(tree.get(), &rng);
+      GenContext ctx(builder, *generators, env);
+      ctx.out = &tree->root()->body;
+      setup(ctx);
+      if (g->Generate(ctx, ctx.out)) {
+        std::string src = fast::Print(tree->root());
+        if (fast::Parser::ParseScript(src, fast::ParseOptions(), &perr)) {
+          out.push_back(std::move(src));
+        }
+      }
+    }
+    return out;
+  };
+  auto any_has = [](const std::vector<std::string>& v, std::string_view sub) {
+    return std::any_of(v.begin(), v.end(), [&](const std::string& s) {
+      return s.find(sub) != std::string::npos;
+    });
+  };
+
+  auto deopts = sample_gen("Deopt", 60, [](GenContext&) {});
+  const bool deopt_ok = any_has(deopts, "%_DeoptimizeNow()") &&
+                        any_has(deopts, "%DeoptimizeNow()");
+  checker->Check("Deopt: emits %_DeoptimizeNow() and %DeoptimizeNow()",
+                 deopt_ok, deopt_ok ? "" : "missing deopt variant");
+
+  std::string terr;
+  bool set_ok = TunableRegistry::Instance().Set(
+                    "generators.OsrLoop.function_chance", 1.0, &terr) &&
+                TunableRegistry::Instance().Set(
+                    "generators.OsrLoop.caller_depth_chance", 1.0, &terr);
+  auto osr = sample_gen("OsrLoop", 20, [](GenContext&) {});
+  TunableRegistry::Instance().Reset();
+  const bool osr_ok = set_ok && any_has(osr, "%OptimizeOsr(1)");
+  checker->Check("OsrLoop: emits %OptimizeOsr(1)", osr_ok,
+                 osr_ok ? "" : "missing %OptimizeOsr(1)");
+
+  set_ok = TunableRegistry::Instance().Set(
+               "generators.ClassDecl.super_class_chance", 1.0, &terr) &&
+           TunableRegistry::Instance().Set(
+               "generators.ClassDecl.builtin_superclass_chance", 1.0, &terr);
+  auto classes = sample_gen("ClassDecl", 260, [](GenContext&) {});
+  TunableRegistry::Instance().Reset();
+  const bool cls_ok =
+      set_ok && any_has(classes, "extends WeakSet") &&
+      (any_has(classes, "Uint8Array") || any_has(classes, "Int32Array") ||
+       any_has(classes, "Float16Array"));
+  checker->Check("ClassDecl: extends WeakSet and TypedArrays", cls_ok,
+                 cls_ok ? "" : "missing expected superclasses");
+
+  auto proxies = sample_gen("ProxyDecl", 80, [](GenContext& ctx) {
+    ctx.tree()->root()->body.push_back(
+        mk::Let(ctx.tree(), "h", mk::Object(ctx.tree(), {})));
+    ctx.Declare("h", JsType::kObject);
+  });
+  const bool proxy_ok = any_has(proxies, "isExtensible") &&
+                        any_has(proxies, "preventExtensions") &&
+                        any_has(proxies, "setPrototypeOf") &&
+                        any_has(proxies, ", h)");
+  checker->Check("ProxyDecl: covers missing traps and handler reuse", proxy_ok,
+                 proxy_ok ? "" : "missing ProxyDecl trap or handler reuse");
+
+  auto constructs = sample_gen("Construct", 50, [](GenContext&) {});
+  const bool construct_ok = any_has(constructs, "Reflect.construct(");
+  checker->Check("Construct: emits Reflect.construct with newTarget",
+                 construct_ok, construct_ok ? "" : "missing Reflect.construct");
+
+  set_ok = TunableRegistry::Instance().Set(
+      "codegen.object_like.variable_chance", 1.0, &terr);
+  auto withs = sample_gen("With", 120, [](GenContext& ctx) {
+    ctx.tree()->root()->body.push_back(mk::Let(
+        ctx.tree(), "obj",
+        mk::Object(ctx.tree(),
+                   {mk::Prop(ctx.tree(), "fooKey", mk::Num(ctx.tree(), 1))})));
+    ctx.Declare("obj", JsType::kObject);
+    ctx.builder.RecordInfo("obj").keys.push_back(
+        {"fooKey", JsType::kNumber, -1, false});
+  });
+  TunableRegistry::Instance().Reset();
+  const bool with_ok = set_ok && any_has(withs, "fooKey");
+  checker->Check("With: accesses known object keys in with body", with_ok,
+                 with_ok ? "" : "missing known key access");
+
+  auto workers = sample_gen("WorkerSpawn", 20, [](GenContext&) {});
+  auto strict_workers = sample_gen(
+      "WorkerSpawn", 60, [](GenContext& ctx) { ctx.syntax.strict = true; });
+  const bool worker_ok =
+      workers.size() == 20 && strict_workers.size() == 60 &&
+      any_has(workers, "type: \"function\"") &&
+      any_has(workers, "arguments:") && any_has(workers, "SharedArrayBuffer") &&
+      any_has(workers, "Atomics") && any_has(workers, "finally") &&
+      any_has(workers, "postMessage(") && any_has(workers, "postMessage(0)");
+  checker->Check(
+      "WorkerSpawn: stateful function workers use SharedArrayBuffer and "
+      "Atomics",
+      worker_ok, worker_ok ? "" : "invalid WorkerSpawn output");
+
+  bool cg_neg_bigint = false, cg_var_b64 = false, cg_ta_overload = false;
+  for (int i = 0; i < 60; i++) {
+    auto tree = std::make_unique<fast::Tree>();
+    tree->set_root(tree->New<fast::Program>());
+    Builder builder(tree.get(), &rng);
+    GenContext ctx(builder, *generators, env);
+    ctx.Declare("ta0", JsType::kTypedArray);
+    CodeGen cg(ctx);
+    fast::Expression* bi = cg.BigInt();
+    if (bi->Is<fast::UnaryExpression>() &&
+        bi->Cast<fast::UnaryExpression>()->op == fast::UnaryOp::kMinus) {
+      cg_neg_bigint = true;
+    }
+    tree->root()->body.push_back(cg.Stmt(bi));
+    tree->root()->body.push_back(
+        cg.Stmt(cg.ArgumentFor(arg::Enum("Base64String"))));
+    if (fast::Expression* ta = cg.Construct(JsType::kTypedArray)) {
+      tree->root()->body.push_back(cg.Stmt(ta));
+    }
+    std::string src = fast::Print(tree->root());
+    if (fast::Parser::ParseScript(src, fast::ParseOptions(), &perr)) {
+      if (src.find("ta0") != std::string::npos) cg_ta_overload = true;
+      for (size_t pos = 0; (pos = src.find('"', pos)) != std::string::npos;) {
+        size_t end = src.find('"', pos + 1);
+        if (end != std::string::npos && end - pos > 20) cg_var_b64 = true;
+        pos = end == std::string::npos ? end : end + 1;
+      }
+    }
+  }
+  const bool cg_ok = cg_neg_bigint && cg_var_b64 && cg_ta_overload;
+  checker->Check(
+      "CodeGen: negative BigInts, variable Base64, TypedArray overloads", cg_ok,
+      cg_ok ? "" : "missing CodeGen coverage");
+
+  bool depth_safe = true;
+  for (int start_depth : {23, 24}) {
+    for (int i = 0; i < 40 && depth_safe; i++) {
+      auto tree = std::make_unique<fast::Tree>();
+      tree->set_root(tree->New<fast::Program>());
+      Builder builder(tree.get(), &rng);
+      GenContext ctx(builder, *generators, env);
+      ctx.expr_depth = start_depth;
+      CodeGen cg(ctx);
+      fast::Expression* set_like = cg.ArgumentFor(arg::SetLike());
+      if (set_like == nullptr) {
+        depth_safe = false;
+        break;
+      }
+      tree->root()->body.push_back(cg.Stmt(set_like));
+      if (fast::Expression* ta = cg.Construct(JsType::kTypedArray)) {
+        tree->root()->body.push_back(cg.Stmt(ta));
+      }
+      std::vector<fast::Expression*> native_args;
+      if (!NativeArgumentsFor(cg, "ArrayBufferSetDetachKey", &native_args) ||
+          native_args.empty() || native_args[0] == nullptr ||
+          native_args[1] == nullptr) {
+        depth_safe = false;
+        break;
+      }
+      tree->root()->body.push_back(cg.Stmt(native_args[0]));
+      std::string src = fast::Print(tree->root());
+      if (src.empty()) {
+        depth_safe = false;
+      }
+    }
+  }
+  checker->Check(
+      "CodeGen: SetLike, TypedArray and ArrayBufferSetDetachKey stay non-null "
+      "at max expression depth",
+      depth_safe, depth_safe ? "" : "null expression at max_expr_depth");
+}
+
 }  // namespace
 
 void RunSelectionChecks(Checker* checker, const std::string& testdata_dir,
@@ -2504,6 +2744,7 @@ void RunSelectionChecks(Checker* checker, const std::string& testdata_dir,
   CheckFocusChain(checker);
   CheckRarityOverhaul(checker);
   CheckEdgeCases(checker);
+  CheckBuiltinsAndWorkers(checker);
 }
 
 void RunNodeKindChecks(Checker* checker) {

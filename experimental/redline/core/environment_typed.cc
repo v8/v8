@@ -52,6 +52,8 @@ JsType CoarseType(const ArgSpec& spec) {
       return T::kObject;
     case ArgKind::kEnum:
       return T::kString;
+    case ArgKind::kSetLike:
+      return T::kObject;
   }
   return T::kUnknown;
 }
@@ -326,6 +328,9 @@ void Environment::AddTypedModel() {
                        "1970-01-01T00:00:00.000+01:00",
                        "December 17, 1995 03:24:00", "2024-02-30"});
   enums("IteratorZipMode", {"shortest", "longest", "strict"});
+  enums("IteratorWindowsUndersized", {"only-full", "allow-partial"});
+  enums("RegExpFlags", {"", "g", "i", "m", "s", "u", "v", "d", "y", "gi", "gm",
+                        "dg", "im", "sv", "gu", "dgmsuy", "dmv"});
 
   // --- options bags ---------------------------------------------------------
 
@@ -516,6 +521,13 @@ void Environment::AddTypedModel() {
                        {Instance(T::kTypedArray), Range(0, 3), Of(T::kNumber),
                         Of(T::kNumber)}));
     list.push_back(sig("isLockFree", T::kBoolean, {Range(1, 8)}));
+    list.push_back(sig("notify", T::kNumber,
+                       {Instance(T::kTypedArray, "Int32Array|BigInt64Array"),
+                        Range(0, 3), Opt(Length())}));
+    list.push_back(sig("pause", T::kNullish, {Opt(Range(0, 100))}));
+    list.push_back(sig("waitAsync", T::kObject,
+                       {Instance(T::kTypedArray, "SharedInt32Array"),
+                        Range(0, 3), Int(), Opt(Range(0, 5))}));
     declare(ns("Atomics", std::move(list)));
   }
 
@@ -530,13 +542,13 @@ void Environment::AddTypedModel() {
            sig("keys", T::kIterator, {}), sig("values", T::kIterator, {}),
            sig("entries", T::kIterator, {})});
   methods(T::kSet,
-          {sig("union", T::kSet, {Instance(T::kSet)}),
-           sig("intersection", T::kSet, {Instance(T::kSet)}),
-           sig("difference", T::kSet, {Instance(T::kSet)}),
-           sig("symmetricDifference", T::kSet, {Instance(T::kSet)}),
-           sig("isSubsetOf", T::kBoolean, {Instance(T::kSet)}),
-           sig("isSupersetOf", T::kBoolean, {Instance(T::kSet)}),
-           sig("isDisjointFrom", T::kBoolean, {Instance(T::kSet)}),
+          {sig("union", T::kSet, {arg::SetLike()}),
+           sig("intersection", T::kSet, {arg::SetLike()}),
+           sig("difference", T::kSet, {arg::SetLike()}),
+           sig("symmetricDifference", T::kSet, {arg::SetLike()}),
+           sig("isSubsetOf", T::kBoolean, {arg::SetLike()}),
+           sig("isSupersetOf", T::kBoolean, {arg::SetLike()}),
+           sig("isDisjointFrom", T::kBoolean, {arg::SetLike()}),
            sig("forEach", T::kNullish, {Callback(3), Opt(Any())}),
            sig("keys", T::kIterator, {}), sig("values", T::kIterator, {}),
            sig("entries", T::kIterator, {})});
@@ -583,7 +595,12 @@ void Environment::AddTypedModel() {
            sig("forEach", T::kNullish, {Callback(2)}),
            sig("some", T::kBoolean, {Callback(2)}),
            sig("every", T::kBoolean, {Callback(2)}),
-           sig("find", T::kUnknown, {Callback(2)})},
+           sig("find", T::kUnknown, {Callback(2)}),
+           sig("join", T::kString, {Opt(Of(T::kString))}),
+           sig("includes", T::kBoolean, {Any(), Opt(Index())}),
+           sig("chunks", T::kIterator, {Range(1, 16)}),
+           sig("windows", T::kIterator,
+               {Range(1, 16), Opt(arg::Enum("IteratorWindowsUndersized"))})},
           {"done", "value"});
   declare(BuiltinGlobal{
       "Iterator",
@@ -595,7 +612,9 @@ void Environment::AddTypedModel() {
       {sig("from", T::kIterator, {Iterable()}),
        sig("concat", T::kIterator, {Iterable(), Rest(Iterable())}),
        sig("zip", T::kIterator,
-           {Iterable(T::kArray), Opt(arg::Options("IteratorZipOptions"))})},
+           {Iterable(T::kArray), Opt(arg::Options("IteratorZipOptions"))}),
+       sig("zipKeyed", T::kIterator,
+           {Of(T::kObject), Opt(arg::Options("IteratorZipOptions"))})},
       {"prototype"}});
   // Typed arrays, arrays and strings return iterators too.
   methods(T::kArray,
@@ -734,7 +753,7 @@ void Environment::AddTypedModel() {
        {"Uint8Array", "Int8Array", "Uint8ClampedArray", "Int16Array",
         "Uint16Array", "Int32Array", "Uint32Array", "Float16Array",
         "Float32Array", "Float64Array", "BigInt64Array", "BigUint64Array"}) {
-    declare(constructor(name, T::kTypedArray, {Opt(Length())}));
+    declare(constructor(name, T::kTypedArray, {Opt(Instance(T::kTypedArray))}));
   }
 
   // --- Uint8Array base64 and hex (row 7) -------------------------------------
@@ -1143,6 +1162,104 @@ void Environment::AddTypedModel() {
              {arg::Options("WasmGlobalDescriptor"), Opt(Of(T::kNumber))});
   discovered("WebAssembly", "validate", false, T::kBoolean,
              {Instance(T::kTypedArray)});
+
+  // --- Empirical pure-ES builtins and overloads ------------------------------
+
+  methods(T::kDate, {sig("toTemporalInstant", T::kObject, {})});
+  methods(T::kRegExp, {sig("compile", T::kRegExp, {Of(T::kRegExp)})});
+  declare(BuiltinGlobal{
+      "RegExp",
+      T::kClass,
+      true,
+      T::kRegExp,
+      0,
+      2,
+      {sig("escape", T::kString, {Of(T::kString)})},
+      {"$1", "$2", "$3", "$4", "$5", "$6", "$7", "$8", "$9", "$_", "input",
+       "lastMatch", "lastParen", "leftContext"},
+      KeepParams({Opt(Of(T::kString)), Opt(arg::Enum("RegExpFlags"))})});
+  methods(
+      T::kTypedArray,
+      {sig("find", T::kUnknown, {Callback(3), Opt(Any())}),
+       sig("findIndex", T::kNumber, {Callback(3), Opt(Any())}),
+       sig("findLast", T::kUnknown, {Callback(3), Opt(Any())}),
+       sig("findLastIndex", T::kNumber, {Callback(3), Opt(Any())}),
+       sig("forEach", T::kNullish, {Callback(3), Opt(Any())}),
+       sig("filter", T::kTypedArray, {Callback(3), Opt(Any())}),
+       sig("every", T::kBoolean, {Callback(3), Opt(Any())}),
+       sig("some", T::kBoolean, {Callback(3), Opt(Any())}),
+       sig("reduce", T::kUnknown, {Callback(4), Opt(Any())}),
+       sig("reduceRight", T::kUnknown, {Callback(4), Opt(Any())}),
+       sig("includes", T::kBoolean, {Of(T::kNumber), Opt(Index())}),
+       sig("lastIndexOf", T::kNumber, {Of(T::kNumber), Opt(Index())}),
+       sig("toReversed", T::kTypedArray, {}),
+       sig("toSorted", T::kTypedArray, {Opt(Callback(2))}),
+       sig("with", T::kTypedArray, {Index(), Of(T::kNumber)}),
+       sig("toString", T::kString, {}),
+       sig("toLocaleString", T::kString,
+           {Opt(arg::Enum("Locale")), Opt(Of(T::kObject))})},
+      {"BYTES_PER_ELEMENT", "buffer", "byteOffset", "byteLength", "length"});
+  methods(T::kArray,
+          {sig("reduceRight", T::kUnknown, {Callback(4), Opt(Any())}),
+           sig("toSpliced", T::kArray, {Index(), Opt(Length()), Rest(Any())}),
+           sig("toLocaleString", T::kString,
+               {Opt(arg::Enum("Locale")), Opt(Of(T::kObject))})});
+  declare(
+      ns("Array", {sig("fromAsync", T::kPromise,
+                       {Iterable(), Opt(Callback(2)), Opt(Of(T::kObject))})}));
+  declare(
+      ns("Object",
+         {sig("getOwnPropertySymbols", T::kArray, {Of(T::kObject)}),
+          sig("getOwnPropertyDescriptors", T::kObject, {Of(T::kObject)}),
+          sig("defineProperties", T::kObject, {Of(T::kObject), Of(T::kObject)}),
+          sig("isExtensible", T::kBoolean, {Of(T::kObject)}),
+          sig("isSealed", T::kBoolean, {Of(T::kObject)})}));
+  declare(
+      ns("Reflect",
+         {sig("getOwnPropertyDescriptor", T::kObject,
+              {Of(T::kObject), Of(T::kString)}),
+          sig("isExtensible", T::kBoolean, {Of(T::kObject)}),
+          sig("preventExtensions", T::kBoolean, {Of(T::kObject)}),
+          sig("set", T::kBoolean,
+              {Of(T::kObject), Of(T::kString), Any(), Opt(Of(T::kObject))})}));
+  declare(ns("Symbol", {sig("keyFor", T::kUnknown, {Of(T::kSymbol)})},
+             {"matchAll", "search", "asyncDispose"}));
+  {
+    std::vector<BuiltinFunction> list;
+    for (const char* name :
+         {"acos", "acosh", "asin", "asinh", "atan", "atanh", "cbrt", "cosh",
+          "expm1", "fround", "log1p", "log2", "sinh", "tanh"}) {
+      list.push_back(sig(name, T::kNumber, {Of(T::kNumber)}));
+    }
+    list.push_back(sig("atan2", T::kNumber, {Of(T::kNumber), Of(T::kNumber)}));
+    declare(ns("Math", std::move(list), {"E", "LN2", "LN10", "SQRT2"}));
+  }
+  declare(constructor("Error", T::kError, {Opt(Of(T::kString))},
+                      {sig("isError", T::kBoolean, {Any()}),
+                       sig("captureStackTrace", T::kNullish,
+                           {Of(T::kObject), Opt(Of(T::kFunction))})}));
+  if (BuiltinGlobal* err = global("Error")) {
+    err->static_properties.push_back("stackTraceLimit");
+  }
+  for (const char* name :
+       {"SyntaxError", "ReferenceError", "EvalError", "URIError"}) {
+    declare(constructor(name, T::kError, {Opt(Of(T::kString))}));
+  }
+  declare(constructor("AggregateError", T::kError,
+                      {Iterable(), Opt(Of(T::kString))}));
+  declare(constructor("SuppressedError", T::kError,
+                      {Any(), Any(), Opt(Of(T::kString))}));
+  for (const char* name : {"encodeURI", "decodeURI", "unescape"}) {
+    declare(BuiltinGlobal{name,
+                          T::kFunction,
+                          false,
+                          T::kString,
+                          1,
+                          1,
+                          {},
+                          {},
+                          KeepParams({Of(T::kString)})});
+  }
 }  // NOLINT(readability/fn_size)
 
 }  // namespace redline

@@ -933,7 +933,14 @@ Expression* SpecialString(GenContext& ctx, CodeGen& cg) {
 // A Wasm GC object (V8CommonProfile.swift:290-296). It is opaque: loads
 // give undefined, and stores and conversions throw.
 Expression* SpecialObject(GenContext& ctx) {
-  return mk::Native(T(ctx), ctx.rng().Coin() ? "WasmStruct" : "WasmArray", {});
+  switch (ctx.rng().Index(3)) {
+    case 0:
+      return mk::Native(T(ctx), "WasmStruct", {});
+    case 1:
+      return mk::Native(T(ctx), "WasmArray", {});
+    default:
+      return mk::Native(T(ctx), "GetUndetectable", {});
+  }
 }
 
 REDLINE_TUNABLE(kSpecialValueDeclObjectChance,
@@ -1783,6 +1790,29 @@ bool NativeArgumentsFor(CodeGen& cg, std::string_view name,
                             kDispatchTableGcMinInterval.AsInt(),
                             std::max(kDispatchTableGcMinInterval.AsInt(),
                                      kDispatchTableGcMaxInterval.AsInt()))))};
+  } else if (name == "SetForceSlowPath") {
+    *args = {cg.Boolean()};
+  } else if (name == "DisableEagerInlining") {
+    Identifier* fn = cg.Variable(JsType::kFunction);
+    *args = {fn != nullptr ? static_cast<Expression*>(fn)
+                           : cg.Value(JsType::kFunction, 1)};
+  } else if (name == "ShareObject") {
+    *args = {cg.Value(JsType::kUnknown, 1)};
+  } else if (name == "ArrayBufferSetDetachKey") {
+    Expression* buf = VariableOfTypes(ctx, {JsType::kArrayBuffer});
+    if (buf == nullptr) {
+      buf = cg.Instance(JsType::kArrayBuffer, 1);
+    }
+    if (buf == nullptr) {
+      buf = mk::New(t, mk::Id(t, "ArrayBuffer"), {mk::Num(t, 16)});
+    }
+    *args = {buf, cg.Value(JsType::kUnknown, 1)};
+  } else if (name == "OptimizeOsr") {
+    if (ctx.rng().Index(6) == 0) {
+      *args = {mk::Num(t, 1)};
+    } else {
+      args->clear();
+    }
   } else {
     return false;
   }

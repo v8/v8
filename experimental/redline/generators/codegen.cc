@@ -214,21 +214,43 @@ REDLINE_TUNABLE(kLiteralRandomBigintMax, "codegen.literal.random_bigint_max",
 
 fast::Expression* CodeGen::BigInt() {
   Random& r = rng();
-  static const char* const kBig[] = {"0",
-                                     "1",
-                                     "2",
-                                     "255",
-                                     "256",
-                                     "4294967295",
-                                     "9007199254740993",
-                                     "18446744073709551615",
-                                     "18446744073709551616",
-                                     "340282366920938463463374607431768211456"};
+  static const char* const kPosBig[] = {
+      "0",
+      "1",
+      "2",
+      "255",
+      "256",
+      "4294967295",
+      "9007199254740993",
+      "9223372036854775807",
+      "18446744073709551615",
+      "18446744073709551616",
+      "340282366920938463463374607431768211456"};
+  static const char* const kNegBig[] = {"1",
+                                        "2",
+                                        "16",
+                                        "256",
+                                        "65536",
+                                        "2147483648",
+                                        "2147483649",
+                                        "9007199254740992",
+                                        "9223372036854775808"};
   if (r.Chance(kLiteralBigintTableChance())) {
-    return mk::BigInt(tree(), kBig[r.Index(sizeof(kBig) / sizeof(kBig[0]))]);
+    if (r.Coin()) {
+      return mk::BigInt(tree(),
+                        kPosBig[r.Index(sizeof(kPosBig) / sizeof(kPosBig[0]))]);
+    }
+    return mk::Unary(
+        tree(), UnaryOp::kMinus,
+        mk::BigInt(tree(),
+                   kNegBig[r.Index(sizeof(kNegBig) / sizeof(kNegBig[0]))]));
   }
-  return mk::BigInt(
-      tree(), std::to_string(r.Range(0, kLiteralRandomBigintMax.AsInt())));
+  int64_t val = r.Range(0, kLiteralRandomBigintMax.AsInt());
+  fast::Expression* lit = mk::BigInt(tree(), std::to_string(val));
+  if (val > 0 && r.Coin()) {
+    return mk::Unary(tree(), UnaryOp::kMinus, lit);
+  }
+  return lit;
 }
 
 REDLINE_TUNABLE(kRegExpGeneratedChance, "codegen.regexp.generated_chance", 0.75,
@@ -333,8 +355,11 @@ class RegExpPatternBuilder {
         break;
       default:
         if (unicode_) {
-          *out += r_.Pick({"\\p{L}", "\\P{L}", "\\p{Lu}", "\\p{Nd}",
-                           "\\p{Script=Greek}", "\\p{ASCII}"});
+          *out += r_.Pick(
+              {"\\p{L}", "\\P{L}", "\\p{Lu}", "\\p{Nd}", "\\p{Decimal_Number}",
+               "\\P{Decimal_Number}", "\\p{Script=Greek}", "\\P{sc=Greek}",
+               "\\p{Script_Extensions=Greek}", "\\P{scx=Latin}", "\\p{ASCII}",
+               "\\P{Any}", "\\p{Changes_When_NFKC_Casefolded}"});
         } else {
           *out += r_.Pick({"ab", "foo", "\\d\\d", "xyz"});
         }
@@ -344,8 +369,11 @@ class RegExpPatternBuilder {
 
   void Class(std::string* out) {
     if (sets_ && r_.Chance(0.4)) {
-      *out += r_.Pick({"[\\p{L}--[a-z]]", "[[a-z]&&[a-f]]", "[\\q{abc|d}]",
-                       "[\\p{ASCII}--\\p{L}]", "[[0-9][a-c]]"});
+      *out +=
+          r_.Pick({"[\\p{L}--[a-z]]", "[[a-z]&&[a-f]]", "[\\q{abc|d}]",
+                   "[\\p{ASCII}--\\p{L}]", "[[0-9][a-c]]",
+                   "[\\p{Script_Extensions=Latin}--[a-z]]",
+                   "[\\p{Decimal_Number}&&[0-9]]", "[\\P{sc=Greek}&&\\p{L}]"});
       return;
     }
     *out += r_.Pick({"[a-z]", "[^a-z]", "[0-9a-f]", "[\\d]", "[\\s\\S]",
@@ -376,9 +404,15 @@ class RegExpPatternBuilder {
       *out += "\\k<g" +
               std::to_string(1 + r_.Index(static_cast<size_t>(names_))) + ">";
     } else if (groups_ > 0) {
-      // In a group, so that a following digit does not extend the number.
-      *out += "(?:\\" +
-              std::to_string(1 + r_.Index(static_cast<size_t>(groups_))) + ")";
+      std::string id =
+          std::to_string(1 + r_.Index(static_cast<size_t>(groups_)));
+      if (r_.Chance(0.25)) {
+        // Nested backreference inside a negative lookahead.
+        *out += "(?!(?:\\" + id + ")(?:a\\" + id + "))(?:\\" + id + ")";
+      } else {
+        // In a group, so that a following digit does not extend the number.
+        *out += "(?:\\" + id + ")";
+      }
     } else {
       Atom(out);
     }
@@ -403,6 +437,11 @@ class RegExpPatternBuilder {
 
 }  // namespace
 
+REDLINE_TUNABLE(kRegExpAnnexBChance, "codegen.regexp.annex_b_chance", 0.25, 0,
+                1,
+                "probability that a non-unicode RegExp literal uses an Annex B "
+                "pattern");
+
 fast::Expression* CodeGen::RegExp() {
   Random& r = rng();
   if (!r.Chance(kRegExpGeneratedChance())) {
@@ -419,6 +458,13 @@ fast::Expression* CodeGen::RegExp() {
   bool sets = unicode && r.Coin();
   if (unicode) {
     flags += sets ? 'v' : 'u';
+  }
+  if (!unicode && r.Chance(kRegExpAnnexBChance())) {
+    static const char* const kAnnexB[] = {
+        "a\\q", "a{z}",   "{12,3b", "[z-\\d]", "(x)(x)(x)\\4", "(?=a){1,10}a",
+        "\\c!", "[-123]", "\\8",    "\\9",     "\\011",        "[\\w-a]"};
+    return mk::RegExp(
+        tree(), kAnnexB[r.Index(sizeof(kAnnexB) / sizeof(kAnnexB[0]))], flags);
   }
   RegExpPatternBuilder builder(r, unicode, sets);
   return mk::RegExp(tree(), builder.Build(), flags);
@@ -827,9 +873,9 @@ fast::Expression* CodeGen::ObjectLiteral(int depth) {
           literal_key = BigInt();
           break;
       }
-      properties.push_back(mk::Prop(tree(), literal_key,
-                                    Value(JsType::kUnknown, depth + 1),
-                                    /*computed=*/false));
+      properties.push_back(
+          mk::Prop(tree(), literal_key, Value(JsType::kUnknown, depth + 1),
+                   /*computed=*/literal_key->Is<UnaryExpression>()));
       continue;
     }
     if (!IsIdentifierName(name) && !name.starts_with("Symbol.")) {
@@ -1303,11 +1349,21 @@ fast::Expression* CodeGen::Property(fast::Expression* object) {
   }
   // Type-directed property names when we know the type.
   JsType type = Builder::GuessType(object);
+  bool is_visible = false;
   if (object->Is<Identifier>()) {
     for (const redline::Variable& v : ctx_.visible) {
       if (v.name == object->Cast<Identifier>()->name) {
         type = v.type;
+        is_visible = true;
         break;
+      }
+    }
+    if (!is_visible) {
+      if (const BuiltinGlobal* g =
+              env().Global(object->Cast<Identifier>()->name);
+          g != nullptr && !g->static_properties.empty() &&
+          r.Chance(kPropertyTypedNameChance())) {
+        return Property(object, r.Pick(g->static_properties));
       }
     }
   }
@@ -1419,12 +1475,29 @@ std::vector<fast::Expression*> CodeGen::Arguments(int min_args, int max_args) {
   return args;
 }
 
+REDLINE_TUNABLE(kBuiltinCallStaticPropertyChance,
+                "codegen.builtin_call.static_property_chance", 0.08, 0, 1,
+                "probability that BuiltinCall reads a static property such as "
+                "RegExp.lastMatch");
+
 fast::Expression* CodeGen::BuiltinCall() {
   ExprDepthGuard guard(ctx_);
   if (TooDeep()) {
     return Leaf(JsType::kUnknown);
   }
   Random& r = rng();
+  if (r.Chance(kBuiltinCallStaticPropertyChance())) {
+    std::vector<const BuiltinGlobal*> prop_globals;
+    for (const BuiltinGlobal& g : env().globals()) {
+      if (!g.static_properties.empty()) {
+        prop_globals.push_back(&g);
+      }
+    }
+    if (!prop_globals.empty()) {
+      const BuiltinGlobal& g = *r.Pick(prop_globals);
+      return Property(GlobalPath(g.name), r.Pick(g.static_properties));
+    }
+  }
   std::vector<const BuiltinGlobal*> candidates;
   for (const BuiltinGlobal& g : env().globals()) {
     if (!g.static_methods.empty() ||
@@ -1568,16 +1641,50 @@ fast::Expression* CodeGen::Construct(JsType type) {
   const BuiltinGlobal& g = *r.Pick(candidates);
   BuiltinFunction f{g.name, g.min_args, g.max_args, g.instance_type};
   f.params = g.params;
-  // Typed arrays and ArrayBuffers take sizes; promises take executors.
-  if (g.instance_type == JsType::kTypedArray ||
-      g.instance_type == JsType::kArrayBuffer) {
+  // Typed arrays and ArrayBuffers use dedicated overloads. Promises take
+  // executors.
+  if (g.instance_type == JsType::kTypedArray) {
+    switch (r.Index(4)) {
+      case 0:
+        return mk::New(tree(), mk::Id(tree(), g.name), {Integer()});
+      case 1: {
+        fast::Expression* ta = Variable(JsType::kTypedArray);
+        if (ta == nullptr) {
+          ta = Instance(JsType::kTypedArray, 1);
+        }
+        if (ta == nullptr) {
+          ta = mk::New(tree(), mk::Id(tree(), "Uint8Array"),
+                       {mk::Num(tree(), 8)});
+        }
+        return mk::New(tree(), mk::Id(tree(), g.name), {ta});
+      }
+      case 2:
+        return mk::New(tree(), mk::Id(tree(), g.name), {ArrayLiteral(1)});
+      default: {
+        fast::Expression* buf = Variable(JsType::kArrayBuffer);
+        if (buf == nullptr) {
+          buf = mk::New(
+              tree(),
+              mk::Id(tree(), r.Coin() ? "SharedArrayBuffer" : "ArrayBuffer"),
+              {mk::Num(tree(), 64)});
+          if (r.Coin()) {
+            double offset = static_cast<double>(8 * r.Index(3));
+            double len = static_cast<double>(1 + r.SmallCount(3));
+            return mk::New(
+                tree(), mk::Id(tree(), g.name),
+                {buf, mk::Num(tree(), offset), mk::Num(tree(), len)});
+          }
+        }
+        return mk::New(tree(), mk::Id(tree(), g.name), {buf});
+      }
+    }
+  }
+  if (g.instance_type == JsType::kArrayBuffer) {
     if (r.Chance(kConstructTypedArraySizeChance())) {
       return mk::New(tree(), mk::Id(tree(), g.name), {Integer()});
     }
-    if (fast::Identifier* id = Variable(JsType::kArrayBuffer)) {
-      return mk::New(tree(), mk::Id(tree(), g.name), {id});
-    }
-    return mk::New(tree(), mk::Id(tree(), g.name), {ArrayLiteral(1)});
+    return mk::New(tree(), mk::Id(tree(), g.name),
+                   {mk::Num(tree(), r.Pick({0.0, 8.0, 16.0, 32.0, 64.0}))});
   }
   if (g.instance_type == JsType::kPromise) {
     std::vector<std::string_view> params = {ctx_.builder.FreshName("resolve"),
