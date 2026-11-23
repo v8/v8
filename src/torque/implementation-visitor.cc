@@ -101,10 +101,19 @@ void EmitKytheInlineMetadata(
          << "    }";
   }
   json << "\n  ]\n}\n";
+  std::string encoded = Base64Encode(json.str());
+  std::string_view remaining = encoded;
   stream << "\n#ifdef KYTHE_IS_RUNNING\n"
          << "#pragma kythe_inline_metadata \"v8_torque_metadata\"\n"
          << "#endif\n"
-         << "// v8_torque_metadata " << Base64Encode(json.str()) << "\n";
+         << "/* v8_torque_metadata\n";
+  constexpr size_t kMetadataLineLength = 76;
+  while (!remaining.empty()) {
+    size_t chunk_len = std::min(kMetadataLineLength, remaining.size());
+    stream << remaining.substr(0, chunk_len) << "\n";
+    remaining.remove_prefix(chunk_len);
+  }
+  stream << "*/\n";
 }
 }  // namespace
 
