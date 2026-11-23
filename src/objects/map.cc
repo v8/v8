@@ -296,9 +296,8 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     // Objects that may have embedder fields but otherwise are just a regular
     // JSObject.
     case JS_PROMISE_TYPE: {
-      const bool has_raw_data_fields =
-          COMPRESS_POINTERS_BOOL && JSObject::GetEmbedderFieldCount(map) > 0;
-      return has_raw_data_fields ? kVisitJSObject : kVisitJSObjectFast;
+      const bool has_embedder_fields = JSObject::GetEmbedderFieldCount(map) > 0;
+      return has_embedder_fields ? kVisitJSObject : kVisitJSObjectFast;
     }
 
     // Objects that are guaranteed to not have any embedder fields and just
