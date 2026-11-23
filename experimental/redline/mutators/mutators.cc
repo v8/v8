@@ -24,6 +24,7 @@
 #include "experimental/redline/generators/values_generators.h"
 #include "experimental/redline/mutators/explore.h"
 #include "experimental/redline/mutators/fixup.h"
+#include "experimental/redline/mutators/jit_compound.h"
 #include "experimental/redline/mutators/mutator.h"
 #include "experimental/redline/mutators/probing.h"
 
@@ -3350,6 +3351,7 @@ std::unique_ptr<MutatorSet> MutatorSet::CreateDefault() {
                                "NativeCall", "Gc", "ElementsKind",
                                "ShapeChange"},
       true));
+  add(std::make_unique<JitCompoundMutator>());
   std::string error;
   if (!set->SetSelector(
           std::make_unique<WeightedSelector<Mutator>>(

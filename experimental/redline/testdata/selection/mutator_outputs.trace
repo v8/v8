@@ -83,3 +83,8 @@ JitStress	1	84c91ea116da3875	inserted JitOptimize	let n = 42; let s = "text"; le
 JitStress	2	ee94505c4d8d7b68	inserted NativeCall+ShapeChange+NativeCall	let n = 42; let s = "text"; let v0 = %OptimizeMaglevOnNextCall(f); v0.
 JitStress	3	de37e3b4843aa6b1	inserted Gc+ElementsKind+OsrLoop	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 JitStress	4	15219b9214f3801d	inserted Gc+Gc+JitOptimize	let n = 42; let s = "text"; let a = [1, 2, 3]; gc({execution: "async"}
+JitCompound	0	af96671896ae7e00	JitCompound:local_alloc	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+JitCompound	1	bcdbd60078306f97	JitCompound:local_alloc	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+JitCompound	2	b5b51d102ce831b4	JitCompound:inlined_deopt	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+JitCompound	3	8db165e49b91bd14	JitCompound:osr_phi	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+JitCompound	4	ac22579061597b2c	JitCompound:osr_phi	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"

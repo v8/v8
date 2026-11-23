@@ -42,6 +42,7 @@
 #include "experimental/redline/generators/values_generators.h"
 #include "experimental/redline/mutators/explore.h"
 #include "experimental/redline/mutators/fixup.h"
+#include "experimental/redline/mutators/jit_compound.h"
 #include "experimental/redline/mutators/mutator.h"
 #include "experimental/redline/mutators/probing.h"
 
@@ -3952,6 +3953,291 @@ f()`tag`;
   }
 }
 
+// Verifies `JitCompound` preset weights, patterns, strict mode, `natives_`,
+// and `Builder::focus_subtree()` behavior.
+void CheckJitCompound(Checker* checker) {
+  std::unique_ptr<MutatorSet> defaults = MutatorSet::CreateDefault();
+  const Environment& env = Environment::Default();
+  std::unique_ptr<GeneratorSet> generators = GeneratorSet::CreateDefault();
+
+  // Default weight is `0.0`, and `maglev` or `turbolev` set it to `0.5`.
+  Mutator* jc_default = defaults->Find("JitCompound");
+  bool weight_ok = jc_default != nullptr && jc_default->weight() == 0.0 &&
+                   !jc_default->needs_partner() &&
+                   defaults->WeightOf(jc_default) == 0.0;
+  std::string weight_err;
+  auto preset_weight = [&](const std::string& name, double* out) {
+    std::string arg = "--preset=" + name;
+    const char* argv[] = {"redline", "fuzz", arg.c_str()};
+    Flags flags = Flags::Parse(3, argv, 2);
+    FuzzConfig cfg;
+    std::string err;
+    bool loaded = FuzzConfig::Load(flags, &cfg, &err, /*for_run=*/false);
+    TunableRegistry::Instance().Reset();
+    if (!loaded) {
+      weight_err = name + ": " + err;
+      return false;
+    }
+    std::unique_ptr<MutatorSet> mset = MutatorSet::CreateDefault();
+    std::unique_ptr<Selector<Mutator>> sel =
+        SelectorRegistry<Mutator>::Instance().Create(cfg.selection.mutators,
+                                                     &err);
+    if (sel == nullptr || !mset->SetSelector(std::move(sel), &err)) {
+      weight_err = name + ": " + err;
+      return false;
+    }
+    Mutator* m = mset->Find("JitCompound");
+    if (m == nullptr) {
+      weight_err = name + ": missing JitCompound";
+      return false;
+    }
+    *out = mset->WeightOf(m);
+    return true;
+  };
+  double w_maglev = -1.0;
+  double w_turbolev = -1.0;
+  double w_default = -1.0;
+  double w_fuzzilli = -1.0;
+  weight_ok = weight_ok && preset_weight("maglev", &w_maglev) &&
+              preset_weight("turbolev", &w_turbolev) &&
+              preset_weight("default", &w_default) &&
+              preset_weight("fuzzilli", &w_fuzzilli) && w_maglev == 0.5 &&
+              w_turbolev == 0.5 && w_default == 0.0 && w_fuzzilli == 0.0;
+  checker->Check(
+      "JitCompound: default weight is 0.0 and JIT presets set it to 0.5",
+      weight_ok,
+      weight_err.empty()
+          ? StringPrintf("maglev=%g turbolev=%g default=%g fuzzilli=%g",
+                         w_maglev, w_turbolev, w_default, w_fuzzilli)
+          : weight_err);
+
+  const std::vector<const char*> kInputs = {
+      "",
+      "\"use strict\";\nlet x = 1;\nfunction sf(a, b) { return a + b; }\n"
+      "sf(x, 2);\n",
+      "class Box { constructor(v) { this.v = v; } "
+      "bump(d) { return this.v + d; } }\nnew Box(1).bump(2);\n",
+      "function hot(a, b) { return a + b; }\nhot(1, 2);\n",
+      "const add = (x, y) => x + y;\nadd(1, 2);\n",
+      "let acc = 0;\nfor (let i = 0; i < 6; i++) acc += i;\n",
+  };
+  const std::vector<JitCompoundPattern> kPatterns = {
+      JitCompoundPattern::kLocalAllocation,
+      JitCompoundPattern::kPolymorphicWarmup,
+      JitCompoundPattern::kInlinedDeopt,
+      JitCompoundPattern::kOsrLoopTransition,
+  };
+
+  // All four patterns emit valid JS across diverse inputs and strict mode.
+  bool patterns_ok = true;
+  std::string pat_err;
+  std::vector<bool> saw_deopt_variants(4, false);
+  for (JitCompoundPattern pat : kPatterns) {
+    JitCompoundMutator mut(/*natives=*/true);
+    mut.set_forced_pattern(pat);
+    for (size_t in_idx = 0; in_idx < kInputs.size() && patterns_ok; in_idx++) {
+      ProgramPtr prog = ParseOrDie(kInputs[in_idx], "selftest");
+      for (int sample = 0; sample < 8 && patterns_ok; sample++) {
+        Random rng(kSeed + 2000 + in_idx * 100 + static_cast<size_t>(sample));
+        std::string detail;
+        std::unique_ptr<fast::Tree> tree = ApplyMutation(
+            mut, *prog, nullptr, rng, env, *generators, 1, &detail);
+        if (tree == nullptr) {
+          patterns_ok = false;
+          pat_err = StringPrintf("pattern %d no-op on input %zu",
+                                 static_cast<int>(pat), in_idx);
+          break;
+        }
+        const std::string text = fast::Print(tree->root());
+        std::set<const fast::Node*> seen_nodes;
+        fast::Walk(tree->root(), [&](fast::Node* n) {
+          if (!seen_nodes.insert(n).second) {
+            patterns_ok = false;
+            pat_err = StringPrintf("shared AST node in %s", detail.c_str());
+            return false;
+          }
+          return true;
+        });
+        if (!patterns_ok) {
+          break;
+        }
+        fast::ParseError parse_err;
+        if (fast::Parser::ParseScript(text, fast::ParseOptions(), &parse_err) ==
+            nullptr) {
+          patterns_ok = false;
+          pat_err = StringPrintf("parse error (%s): %s\n%s", detail.c_str(),
+                                 parse_err.message.c_str(), text.c_str());
+          break;
+        }
+        if (pat == JitCompoundPattern::kInlinedDeopt) {
+          if (text.find("Object.defineProperty") != std::string::npos) {
+            saw_deopt_variants[0] = true;
+          }
+          if (text.find("Object.setPrototypeOf") != std::string::npos) {
+            saw_deopt_variants[1] = true;
+          }
+          if (text.find("Array.isArray") != std::string::npos) {
+            saw_deopt_variants[2] = true;
+          }
+          if (text.find("%_DeoptimizeNow()") != std::string::npos) {
+            saw_deopt_variants[3] = true;
+          }
+        }
+      }
+    }
+  }
+  if (patterns_ok && !(saw_deopt_variants[0] && saw_deopt_variants[1] &&
+                       saw_deopt_variants[2] && saw_deopt_variants[3])) {
+    patterns_ok = false;
+    pat_err = "missing Pattern C transition variant";
+  }
+  checker->Check(
+      "JitCompound: all four patterns emit valid JS and strict-mode code",
+      patterns_ok, pat_err);
+
+  // Hoisted `FunctionDeclaration` callers above their definition avoid TDZ.
+  {
+    ProgramPtr tdz_prog = ParseOrDie(
+        "print(f(1));\nfunction f(x) { return x + 1; }\n", "selftest");
+    JitCompoundMutator mut(/*natives=*/true);
+    mut.set_forced_pattern(JitCompoundPattern::kInlinedDeopt);
+    Random rng(kSeed + 2500);
+    std::string detail;
+    std::unique_ptr<fast::Tree> tree = ApplyMutation(
+        mut, *tdz_prog, nullptr, rng, env, *generators, 1, &detail);
+    std::string text = tree != nullptr ? fast::Print(tree->root()) : "";
+    fast::ParseError parse_err;
+    const bool tdz_safe =
+        tree != nullptr && text.find("var jc") != std::string::npos &&
+        text.find("let jc0") == std::string::npos &&
+        fast::Parser::ParseScript(text, fast::ParseOptions(), &parse_err) !=
+            nullptr;
+    checker->Check(
+        "JitCompound: Pattern C uses var counter to avoid hoisted caller TDZ",
+        tdz_safe, parse_err.message);
+  }
+
+  // `natives_ = false` emits zero `%` native calls across all patterns.
+  bool no_natives_ok = true;
+  std::string no_nat_err;
+  for (JitCompoundPattern pat : kPatterns) {
+    JitCompoundMutator mut(/*natives=*/false);
+    mut.set_forced_pattern(pat);
+    for (size_t in_idx = 0; in_idx < kInputs.size() && no_natives_ok;
+         in_idx++) {
+      ProgramPtr prog = ParseOrDie(kInputs[in_idx], "selftest");
+      for (int sample = 0; sample < 6 && no_natives_ok; sample++) {
+        Random rng(kSeed + 3000 + in_idx * 100 + static_cast<size_t>(sample));
+        std::string detail;
+        std::unique_ptr<fast::Tree> tree = ApplyMutation(
+            mut, *prog, nullptr, rng, env, *generators, 1, &detail);
+        if (tree == nullptr) {
+          no_natives_ok = false;
+          no_nat_err = "natives_=false returned nullptr";
+          break;
+        }
+        bool has_native_node = false;
+        fast::Walk(tree->root(), [&](fast::Node* n) {
+          if (n->Is<fast::NativeCallExpression>()) {
+            has_native_node = true;
+          }
+          return true;
+        });
+        const std::string text = fast::Print(tree->root());
+        fast::ParseOptions no_nat_opts;
+        no_nat_opts.allow_natives_syntax = false;
+        fast::ParseError parse_err;
+        if (has_native_node || text.find('%') != std::string::npos ||
+            fast::Parser::ParseScript(text, no_nat_opts, &parse_err) ==
+                nullptr) {
+          no_natives_ok = false;
+          no_nat_err = StringPrintf("native leaked for pattern %d: %s\n%s",
+                                    static_cast<int>(pat),
+                                    parse_err.message.c_str(), text.c_str());
+          break;
+        }
+      }
+    }
+  }
+  checker->Check(
+      "JitCompound: natives_=false emits zero natives and parses cleanly",
+      no_natives_ok, no_nat_err);
+
+  // `Builder::SetFocusSubtree` keeps all edits inside the focused subtree.
+  {
+    const char* kTwoFns = R"(let g0 = 1;
+function other(a) { return a + 1; }
+function target(x, y) {
+  let z = x + y;
+  return z;
+}
+other(g0);
+target(g0, 2);
+)";
+    ProgramPtr prog = ParseOrDie(kTwoFns, "selftest");
+    fast::FunctionDeclaration* orig_target = nullptr;
+    std::vector<std::string> orig_outside;
+    for (fast::Statement* s : prog->tree().root()->body) {
+      if (auto* fn = s->As<fast::FunctionDeclaration>();
+          fn != nullptr && fn->name != nullptr && fn->name->name == "target") {
+        orig_target = fn;
+      } else {
+        orig_outside.push_back(fast::Print(s));
+      }
+    }
+    const uint32_t target_body_id = orig_target->body->id;
+    const std::string orig_target_src = fast::Print(orig_target);
+    bool focus_ok = true;
+    std::string focus_err;
+    for (int i = 0; i < 20 && focus_ok; i++) {
+      JitCompoundMutator mut(/*natives=*/true);
+      if (i < 4) {
+        mut.set_forced_pattern(kPatterns[static_cast<size_t>(i)]);
+      }
+      Random rng(kSeed + 4000 + static_cast<uint64_t>(i));
+      std::string detail;
+      std::unique_ptr<fast::Tree> tree =
+          ApplyMutation(mut, *prog, nullptr, rng, env, *generators, 1, &detail,
+                        nullptr, target_body_id);
+      if (tree == nullptr) {
+        focus_ok = false;
+        focus_err = "focused JitCompound returned nullptr";
+        break;
+      }
+      fast::FunctionDeclaration* new_target = nullptr;
+      std::vector<std::string> new_outside;
+      for (fast::Statement* s : tree->root()->body) {
+        if (auto* fn = s->As<fast::FunctionDeclaration>();
+            fn != nullptr && fn->name != nullptr &&
+            fn->name->name == "target") {
+          new_target = fn;
+        } else {
+          new_outside.push_back(fast::Print(s));
+        }
+      }
+      if (new_target == nullptr || fast::Print(new_target) == orig_target_src ||
+          new_outside != orig_outside) {
+        focus_ok = false;
+        focus_err = "focused JitCompound modified code outside target";
+        break;
+      }
+    }
+    // A leaf statement focus with no slot or function returns false cleanly.
+    std::unique_ptr<fast::Tree> leaf_tree = prog->CopyTree();
+    Random leaf_rng(kSeed + 4100);
+    Builder leaf_builder(leaf_tree.get(), &leaf_rng);
+    leaf_builder.SetFocusSubtree(leaf_tree->root()->body[0]);
+    MutationContext leaf_ctx;
+    leaf_ctx.env = &env;
+    leaf_ctx.generators = generators.get();
+    JitCompoundMutator leaf_mut(/*natives=*/true);
+    const bool leaf_noop = !leaf_mut.Mutate(leaf_builder, leaf_ctx);
+    checker->Check(
+        "JitCompound: SetFocusSubtree restricts edits to the target subtree",
+        focus_ok && leaf_noop, focus_err);
+  }
+}
+
 }  // namespace
 
 void RunSelectionChecks(Checker* checker, const std::string& testdata_dir,
@@ -4014,6 +4300,7 @@ void RunSelectionChecks(Checker* checker, const std::string& testdata_dir,
   CheckRuntimeAssisted(checker);
   CheckReceiverJit(checker);
   CheckOperationAndCallParity(checker);
+  CheckJitCompound(checker);
   CheckEdgeCases(checker);
   CheckBuiltinsAndWorkers(checker);
   CheckEnvTyper(checker);
