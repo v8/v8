@@ -19,7 +19,7 @@
 #include "src/handles/handles.h"
 #include "src/heap/factory.h"
 #include "src/heap/read-only-heap.h"
-#include "src/numbers/conversions.h"
+#include "src/numbers/conversions-inl.h"
 #include "src/objects/dictionary-inl.h"
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/lookup-inl.h"
@@ -29,6 +29,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/runtime/runtime-utils.h"
+#include "src/sandbox/check.h"
 #include "src/strings/unicode-inl.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/module-compiler.h"
@@ -671,30 +672,63 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+namespace {
+template <typename T>
+  requires(std::is_same_v<T, int32_t> || std::is_same_v<T, int64_t>)
+Tagged<Object> WasmAtomicWait(
+    Isolate* isolate, Tagged<WasmTrustedInstanceData> trusted_instance_data,
+    uint32_t memory_index, Tagged<Object> offset_obj, T expected_value,
+    int64_t timeout_ns) {
+  const wasm::WasmModule* module = trusted_instance_data->module();
+  DCHECK_LT(memory_index, module->memories.size());
+
+  // Trap if memory is not shared, or wait is not allowed on the isolate.
+  if (!module->memories[memory_index].is_shared ||
+      !isolate->allow_atomics_wait()) {
+    return ThrowWasmError(
+        isolate, MessageTemplate::kAtomicsOperationNotAllowed,
+        {isolate->factory()->NewStringFromAsciiChecked("Atomics.wait")});
+  }
+
+  // `offset_obj` can be a HeapNumber in the sandbox (allocated by
+  // `UintPtr53ToNumber` when the offset exceeds `Smi::kMaxValue`), which may be
+  // concurrently mutated by another thread. Re-validate its conversion to
+  // `size_t` here; `FutexEmulation::WaitWasm{32,64}`
+  // (`FutexWaitList::ToWaitLocation`) validates alignment and bounds against
+  // the trusted `BackingStore`.
+  size_t offset;
+  bool valid_offset = TryNumberToSize(offset_obj, &offset);
+  SBXCHECK(valid_offset);
+
+  std::shared_ptr<BackingStore> backing_store =
+      TrustedCast<TrustedManaged<BackingStore>>(
+          trusted_instance_data->shared_memory_backing_stores()->get(
+              memory_index))
+          ->get();
+
+  if constexpr (std::is_same_v<T, int32_t>) {
+    return FutexEmulation::WaitWasm32(isolate, backing_store.get(), offset,
+                                      expected_value, timeout_ns);
+  } else {
+    return FutexEmulation::WaitWasm64(isolate, backing_store.get(), offset,
+                                      expected_value, timeout_ns);
+  }
+}
+}  // namespace
+
 RUNTIME_FUNCTION(Runtime_WasmI32AtomicWait) {
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
   Tagged<WasmTrustedInstanceData> trusted_instance_data =
       TrustedCast<WasmTrustedInstanceData>(args[0]);
-  int memory_index = args.smi_value_at(1);
-  double offset_double = args.number_value_at(2);
-  uintptr_t offset = static_cast<uintptr_t>(offset_double);
+  uint32_t memory_index = args.positive_smi_value_at(1);
+  Tagged<Object> offset_obj = args[2];
   int32_t expected_value = NumberToInt32(args[3]);
   Tagged<BigInt> timeout_ns = Cast<BigInt>(args[4]);
 
-  CppGCManaged<BackingStore>::Ptr backing_store =
-      trusted_instance_data->memory_object(memory_index)->backing_store();
-  // Should have trapped if address was OOB.
-  DCHECK_LT(offset, backing_store->byte_length());
-
-  // Trap if memory is not shared, or wait is not allowed on the isolate
-  if (!backing_store->is_shared() || !isolate->allow_atomics_wait()) {
-    return ThrowWasmError(
-        isolate, MessageTemplate::kAtomicsOperationNotAllowed,
-        {isolate->factory()->NewStringFromAsciiChecked("Atomics.wait")});
-  }
-  return FutexEmulation::WaitWasm32(isolate, backing_store.raw(), offset,
-                                    expected_value, timeout_ns->AsInt64());
+  return WasmAtomicWait<int32_t>(isolate, trusted_instance_data, memory_index,
+                                 offset_obj, expected_value,
+                                 timeout_ns->AsInt64());
 }
 
 RUNTIME_FUNCTION(Runtime_WasmI64AtomicWait) {
@@ -702,26 +736,14 @@ RUNTIME_FUNCTION(Runtime_WasmI64AtomicWait) {
   DCHECK_EQ(5, args.length());
   Tagged<WasmTrustedInstanceData> trusted_instance_data =
       TrustedCast<WasmTrustedInstanceData>(args[0]);
-  int memory_index = args.smi_value_at(1);
-  double offset_double = args.number_value_at(2);
-  uintptr_t offset = static_cast<uintptr_t>(offset_double);
+  uint32_t memory_index = args.positive_smi_value_at(1);
+  Tagged<Object> offset_obj = args[2];
   Tagged<BigInt> expected_value = Cast<BigInt>(args[3]);
   Tagged<BigInt> timeout_ns = Cast<BigInt>(args[4]);
 
-  CppGCManaged<BackingStore>::Ptr backing_store =
-      trusted_instance_data->memory_object(memory_index)->backing_store();
-  // Should have trapped if address was OOB.
-  DCHECK_LT(offset, backing_store->byte_length());
-
-  // Trap if memory is not shared, or wait is not allowed on the isolate
-  if (!backing_store->is_shared() || !isolate->allow_atomics_wait()) {
-    return ThrowWasmError(
-        isolate, MessageTemplate::kAtomicsOperationNotAllowed,
-        {isolate->factory()->NewStringFromAsciiChecked("Atomics.wait")});
-  }
-  return FutexEmulation::WaitWasm64(isolate, backing_store.raw(), offset,
-                                    expected_value->AsInt64(),
-                                    timeout_ns->AsInt64());
+  return WasmAtomicWait<int64_t>(isolate, trusted_instance_data, memory_index,
+                                 offset_obj, expected_value->AsInt64(),
+                                 timeout_ns->AsInt64());
 }
 
 namespace {
