@@ -156,6 +156,11 @@ class GeneratorSet {
   std::unique_ptr<Selector<Generator>> selector_;
 };
 
+// The generators that the swarm mask of a worker always keeps (core/swarm.h):
+// the values, functions, operations and control flow that most programs
+// need.
+const std::vector<std::string>& SwarmCoreGenerators();
+
 // A generation context for inserting statements at `slot`: syntactic
 // context and visible variables are computed from the builder.
 GenContext MakeGenContext(Builder& builder, const Builder::Slot& slot,

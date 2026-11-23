@@ -445,8 +445,10 @@ class Worker {
     checker_ = std::make_unique<SyntaxChecker>();
     ImportPhase();
     while (!stopping()) {
+      UpdateSwarmMask();
       FuzzOne();
     }
+    SetActiveSwarmMask(nullptr);
     if (config().randomize_d8_flags && !fuzzer_->targets_.empty() &&
         child_execs_ > 0) {
       fuzzer_->RecordTargetChild(child_target_hits_ > 0);
@@ -706,6 +708,7 @@ class Worker {
 
   void AccountFuzzExecution(const Execution& execution) {
     stats().fuzz_executions++;
+    swarm_execs_++;
     switch (execution.outcome) {
       case Outcome::kSucceeded:
         stats().succeeded++;
@@ -3479,6 +3482,36 @@ class Worker {
     return path;
   }
 
+  // Swarm testing (core/swarm.h). At the start of an epoch, this function
+  // draws the mask of this worker. The picks on this thread then use it.
+  // Worker 0 and sessions without selection.swarm use no mask.
+  void UpdateSwarmMask() {
+    if (!config().selection.swarm || id_ == 0) {
+      return;
+    }
+    const SwarmSettings& settings = fuzzer_->swarm_settings_;
+    const uint64_t epoch =
+        swarm_execs_ / static_cast<uint64_t>(settings.epoch_execs);
+    if (ActiveSwarmMask() == &swarm_mask_ && swarm_mask_.epoch == epoch) {
+      return;
+    }
+    swarm_mask_ =
+        DrawSwarmMask(settings, fuzzer_->swarm_generators_,
+                      fuzzer_->swarm_mutators_, config().seed, id_, epoch);
+    SetActiveSwarmMask(&swarm_mask_);
+    stats().swarm_epochs++;
+    const int enabled = swarm_mask_.enabled_mutator;
+    JsonObject event;
+    event.Add("event", "swarm").Add("worker", id_).Add("epoch", epoch);
+    event.Add("kept_generators", swarm_mask_.kept_generators)
+        .Add("enabled_mutator",
+             enabled < 0 ? std::string()
+                         : fuzzer_->mutators()
+                               .candidates()[static_cast<size_t>(enabled)]
+                               ->name());
+    fuzzer_->LogEvent(event);
+  }
+
   // Separates the random flags from the other random decisions: a change
   // of the flags does not change the programs.
   static constexpr uint64_t kFlagsSeedSalt = 0x5DEECE66Dull;
@@ -3496,6 +3529,9 @@ class Worker {
   // The executions of Finalize(). CreditCommit() gives them to the credits
   // of the commit, thus the credit of a mutation step does not count them.
   uint64_t finalized_executions_ = 0;
+  // Swarm testing: the fuzz executions of this worker and its mask.
+  uint64_t swarm_execs_ = 0;
+  SwarmMask swarm_mask_;
   std::deque<std::string> history_;
   size_t history_bytes_ = 0;
   std::vector<uint8_t> child_target_buckets_;
@@ -3609,6 +3645,13 @@ bool Fuzzer::Initialize(std::string* error) {
     return false;
   }
   prefix_mutator_ = mutators_->Find("Prefix");
+  if (config_.selection.swarm) {
+    swarm_settings_ = SwarmSettings::FromTunables();
+    if (!BuildSwarmCandidates(*generators_, *mutators_, &swarm_generators_,
+                              &swarm_mutators_, error)) {
+      return false;
+    }
+  }
   Lineage empty;
   empty.origin = "empty";
   empty_program_ = Program::Parse("", empty, error);
@@ -4237,6 +4280,38 @@ std::string Fuzzer::ComponentTables(bool include_generators) const {
   return out;
 }
 
+bool BuildSwarmCandidates(const GeneratorSet& generators,
+                          const MutatorSet& mutators,
+                          SwarmCandidates* swarm_generators,
+                          SwarmCandidates* swarm_mutators, std::string* error) {
+  auto mark = [error](const std::vector<std::string>& names,
+                      const std::vector<std::string>& candidates,
+                      std::string_view kind, std::vector<bool>* out) {
+    out->assign(candidates.size(), false);
+    for (const std::string& name : names) {
+      auto found = std::find(candidates.begin(), candidates.end(), name);
+      if (found == candidates.end()) {
+        *error = "swarm: unknown " + std::string(kind) + " " + name;
+        return false;
+      }
+      (*out)[static_cast<size_t>(found - candidates.begin())] = true;
+    }
+    return true;
+  };
+  *swarm_generators = SwarmCandidates();
+  for (const Generator* g : generators.candidates()) {
+    swarm_generators->weights.push_back(generators.WeightOf(g));
+  }
+  *swarm_mutators = SwarmCandidates();
+  for (const Mutator* m : mutators.candidates()) {
+    swarm_mutators->weights.push_back(mutators.WeightOf(m));
+  }
+  return mark(SwarmCoreGenerators(), generators.Names(), "generator",
+              &swarm_generators->core) &&
+         mark(SwarmStructuralMutators(), mutators.Names(), "mutator",
+              &swarm_mutators->structural);
+}
+
 void Fuzzer::WriteStatsEvent() {
   JsonObject event;
   event.Add("event", "stats");
@@ -4296,6 +4371,9 @@ void Fuzzer::WriteStatsEvent() {
   event.Add("corpus_nodes", stats_.corpus_nodes.load());
   event.Add("mutation_time_us", stats_.mutation_time_us.load());
   event.Add("infrastructure_failures", stats_.infrastructure_failures.load());
+  if (config_.selection.swarm) {
+    event.Add("swarm_epochs", stats_.swarm_epochs.load());
+  }
   if (config_.randomize_d8_flags) {
     event.Add("flag_draws", flag_draws_.load());
     event.Add("imported_flag_draws", imported_flag_draws_.load())

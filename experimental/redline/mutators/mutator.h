@@ -156,6 +156,10 @@ std::unique_ptr<fast::Tree> ApplyFocusTierUp(const Program& parent,
                                              const GeneratorSet& generators,
                                              std::string* detail);
 
+// The mutators with weight 0 that the swarm mask of a worker can turn on
+// (core/swarm.h). They change the structure of a program.
+const std::vector<std::string>& SwarmStructuralMutators();
+
 // Applies `mutator` `rounds` times to a copy of `parent`'s tree. Returns the
 // mutated tree, or nullptr if no round changed anything. For runtime-assisted
 // mutators `probes` (if given) receives the inserted probes. When

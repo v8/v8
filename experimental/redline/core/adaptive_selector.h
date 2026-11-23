@@ -157,30 +157,14 @@ class AdaptiveSelector final : public Selector<T> {
 
   size_t Pick(const Candidates& candidates, Random& rng,
               const Filter& eligible) override {
-    std::scoped_lock<std::mutex> lock(mutex_);
-    ++picks_since_update_;
-    const bool picks_due =
-        params_.window > 0 &&
-        picks_since_update_ >= static_cast<uint64_t>(params_.window);
-    const bool time_due = params_.window_sec > 0 &&
-                          NowUs() - last_update_us_ >=
-                              static_cast<uint64_t>(params_.window_sec * 1e6);
-    if (picks_due || time_due) {
-      UpdateLocked();
-    }
-    std::vector<double> weights(candidates.size(), 0.0);
-    double total = 0;
-    for (size_t i = 0; i < candidates.size() && i < base_.size(); i++) {
-      if (base_[i] <= 0 || !eligible(*candidates[i])) {
-        continue;
-      }
-      weights[i] = base_[i] * factor_[i];
-      total += weights[i];
-    }
-    if (total <= 0) {
-      return kNoChoice;
-    }
-    return rng.Weighted(weights);
+    return PickImpl(candidates, rng, eligible, nullptr);
+  }
+
+  // The mask multiplies the current weights (base * factor), thus the
+  // workers of a swarm still share what the strategy learns.
+  size_t PickMasked(const Candidates& candidates, Random& rng,
+                    const Filter& eligible, const WeightMask& mask) override {
+    return PickImpl(candidates, rng, eligible, &mask);
   }
 
   double WeightOf(const T& candidate) const override {
@@ -218,6 +202,39 @@ class AdaptiveSelector final : public Selector<T> {
 
  private:
   uint64_t NowUs() const { return clock_ ? clock_() : MonotonicNowUs(); }
+
+  // Pick() without a mask (mask == nullptr) and with a mask.
+  size_t PickImpl(const Candidates& candidates, Random& rng,
+                  const Filter& eligible, const WeightMask* mask) {
+    std::scoped_lock<std::mutex> lock(mutex_);
+    ++picks_since_update_;
+    const bool picks_due =
+        params_.window > 0 &&
+        picks_since_update_ >= static_cast<uint64_t>(params_.window);
+    const bool time_due = params_.window_sec > 0 &&
+                          NowUs() - last_update_us_ >=
+                              static_cast<uint64_t>(params_.window_sec * 1e6);
+    if (picks_due || time_due) {
+      UpdateLocked();
+    }
+    std::vector<double> weights(candidates.size(), 0.0);
+    double total = 0;
+    for (size_t i = 0; i < candidates.size() && i < base_.size(); i++) {
+      double weight = base_[i] > 0 ? base_[i] * factor_[i] : 0.0;
+      if (mask != nullptr) {
+        weight = mask->Apply(i, weight);
+      }
+      if (weight <= 0 || !eligible(*candidates[i])) {
+        continue;
+      }
+      weights[i] = weight;
+      total += weight;
+    }
+    if (total <= 0) {
+      return kNoChoice;
+    }
+    return rng.Weighted(weights);
+  }
 
   bool SetBaseLocked(std::string_view candidate_name, double weight) {
     for (size_t i = 0; i < candidates_.size(); i++) {

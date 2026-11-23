@@ -8,6 +8,7 @@
 #include "experimental/redline/base/log.h"
 #include "experimental/redline/core/adaptive_selector.h"
 #include "experimental/redline/core/ast_builder.h"
+#include "experimental/redline/core/swarm.h"
 #include "experimental/redline/core/tunable.h"
 #include "experimental/redline/core/weighted_selector.h"
 #include "experimental/redline/generators/api_generators.h"
@@ -6149,10 +6150,28 @@ std::vector<std::string> GeneratorSet::Names() const {
 }
 
 Generator* GeneratorSet::Pick(const GenContext& ctx) const {
-  size_t index =
-      selector_->Pick(candidates_, ctx.builder.rng(),
-                      [&](const Generator& g) { return g.Applicable(ctx); });
+  size_t index = PickWithMask<Generator>(
+      *selector_, candidates_, ctx.builder.rng(),
+      [&](const Generator& g) { return g.Applicable(ctx); },
+      ActiveGeneratorMask());
   return index == Selector<Generator>::kNoChoice ? nullptr : candidates_[index];
+}
+
+const std::vector<std::string>& SwarmCoreGenerators() {
+  static const std::vector<std::string>* names = new std::vector<std::string>{
+      // Values.
+      "IntegerDecl", "FloatDecl", "StringDecl", "BooleanDecl", "ArrayDecl",
+      "ObjectDecl", "ComputedDecl",
+      // Functions and classes. The member generators are the only ones at a
+      // member slot.
+      "FunctionDecl", "ArrowDecl", "ClassDecl", "ClassMember", "LiteralMember",
+      // Operations.
+      "BinaryOp", "Compare", "Assignment", "PropertyLoad", "PropertyStore",
+      "ElementLoad", "ElementStore", "MethodCall", "FunctionCall",
+      "BuiltinCall", "Construct",
+      // Control flow.
+      "CountedLoop", "IfElse", "TryCatch", "Return"};
+  return *names;
 }
 
 // --- selection strategies for generators -----------------------------------

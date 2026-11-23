@@ -18,6 +18,7 @@
 
 #include "experimental/redline/base/json.h"
 #include "experimental/redline/core/program.h"
+#include "experimental/redline/core/swarm.h"
 #include "experimental/redline/corpus/corpus.h"
 #include "experimental/redline/corpus/feature_weights.h"
 #include "experimental/redline/corpus/material.h"
@@ -102,6 +103,7 @@ struct FuzzerStats {
   std::atomic<uint64_t> corpus_nodes{0};  // AST nodes of added corpus programs
   std::atomic<uint64_t> mutation_time_us{0};
   std::atomic<uint64_t> infrastructure_failures{0};
+  std::atomic<uint64_t> swarm_epochs{0};  // swarm masks drawn by the workers
 };
 
 // The timeout of a minimizer probe for a program that runs in
@@ -114,6 +116,15 @@ uint64_t MinimizerProbeTimeout(const FuzzConfig& config, uint64_t exec_time_us);
 uint64_t TightenedProbeTimeout(const FuzzConfig& config,
                                uint64_t first_timeout_us,
                                uint64_t accepted_exec_us);
+
+// The candidates of the swarm mask draw (core/swarm.h): the weights of the
+// strategies, the core generators and the structural mutators. Returns false
+// if a name of SwarmCoreGenerators() or SwarmStructuralMutators() does not
+// exist.
+bool BuildSwarmCandidates(const GeneratorSet& generators,
+                          const MutatorSet& mutators,
+                          SwarmCandidates* swarm_generators,
+                          SwarmCandidates* swarm_mutators, std::string* error);
 
 // Collects Program::hit_edges from the runs that the commit of a program
 // does: the edges that all recorded runs of the published program reached.
@@ -475,6 +486,11 @@ class Fuzzer {
   std::unique_ptr<Environment> discovered_env_;  // owns env_ when introspected
   Mutator* codegen_mutator_ = nullptr;
   Mutator* prefix_mutator_ = nullptr;
+  // Swarm testing (selection.swarm, core/swarm.h): the settings and the
+  // candidates of the mask draw. Set in Initialize(), read-only after it.
+  SwarmSettings swarm_settings_;
+  SwarmCandidates swarm_generators_;
+  SwarmCandidates swarm_mutators_;
   ProgramPtr empty_program_;
   JsonlWriter events_;
   uint64_t start_ms_ = 0;

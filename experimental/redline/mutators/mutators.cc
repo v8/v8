@@ -11,6 +11,7 @@
 #include "experimental/redline/base/log.h"
 #include "experimental/redline/core/adaptive_selector.h"
 #include "experimental/redline/core/ast_builder.h"
+#include "experimental/redline/core/swarm.h"
 #include "experimental/redline/core/tunable.h"
 #include "experimental/redline/core/weighted_selector.h"
 #include "experimental/redline/corpus/material.h"
@@ -967,8 +968,9 @@ class InsertMutator final : public Mutator {
       }
       return g.Applicable(gen);
     };
-    size_t index =
-        set.selector().Pick(set.candidates(), gen.builder.rng(), eligible);
+    size_t index = PickWithMask<Generator>(set.selector(), set.candidates(),
+                                           gen.builder.rng(), eligible,
+                                           ActiveGeneratorMask());
     return index == Selector<Generator>::kNoChoice ? nullptr
                                                    : set.candidates()[index];
   }
@@ -2421,11 +2423,19 @@ std::vector<std::string> MutatorSet::Names() const {
 }
 
 Mutator* MutatorSet::Pick(Random& rng, bool has_partner) const {
-  size_t index =
-      selector_->Pick(candidates_, rng, [has_partner](const Mutator& m) {
+  size_t index = PickWithMask<Mutator>(
+      *selector_, candidates_, rng,
+      [has_partner](const Mutator& m) {
         return has_partner || !m.needs_partner();
-      });
+      },
+      ActiveMutatorMask());
   return index == Selector<Mutator>::kNoChoice ? nullptr : candidates_[index];
+}
+
+const std::vector<std::string>& SwarmStructuralMutators() {
+  static const std::vector<std::string>* names =
+      new std::vector<std::string>{"Wrap", "Duplicate", "Reorder", "JitStress"};
+  return *names;
 }
 
 // --- selection strategies for mutators -------------------------------------

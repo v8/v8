@@ -908,6 +908,14 @@ bool ApplyJson(const JsonValue& json, FuzzConfig* c, std::string* error,
                            error)) {
     return false;
   }
+  const JsonValue& swarm = selection.Get("swarm");
+  if (!swarm.is_null()) {
+    if (!swarm.is_bool()) {
+      *error = "config: \"selection.swarm\" must be true or false";
+      return false;
+    }
+    c->selection.swarm = swarm.as_bool();
+  }
   // Legacy shorthands: {"mutators": {"Name": weight}}, same for generators.
   std::vector<std::pair<std::string, double>> pairs;
   if (!ReadLegacyWeights(json, "mutators", &pairs, error) ||
@@ -1076,6 +1084,7 @@ bool FuzzConfig::Load(const Flags& flags, FuzzConfig* c, std::string* error,
   c->jobs = static_cast<int>(flags.GetInt("jobs", c->jobs));
   c->seed = static_cast<uint64_t>(
       flags.GetInt("seed", static_cast<int64_t>(c->seed)));
+  c->selection.swarm = flags.GetBool("swarm", c->selection.swarm);
   // Coverage counters and change-based fuzzing.
   c->targets_file = flags.GetString("targets", c->targets_file);
   c->watch_optimized = flags.GetBool("watch-optimized", c->watch_optimized);
@@ -1555,6 +1564,7 @@ std::string FuzzConfig::ToJson(Detail detail) const {
                    selection.generators,
                    SelectorRegistry<Generator>::Instance().default_name()));
   }
+  sel.Add("swarm", selection.swarm);
   o.AddRaw("selection", sel.ToString());
   o.AddRaw("stages", StagesJson(*this));
   // Compact: only the tunables that were changed (--help-tunables lists
@@ -1691,7 +1701,9 @@ std::string FuzzConfig::JsonHelp() {
       "{\"weights\": {\"Splice\": 4, \"Reorder\": "
       "0}}},\n"
       "      \"generators\": {\"strategy\": \"weighted\", \"params\": "
-      "{\"weights\": {\"JitOptimize\": 10}}}\n"
+      "{\"weights\": {\"JitOptimize\": 10}}},\n"
+      "      \"swarm\": false   // true: a weight mask for each worker "
+      "except 0\n"
       "    }\n"
       "  }\n"
       "\n"

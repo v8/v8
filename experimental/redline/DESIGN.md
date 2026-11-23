@@ -234,6 +234,13 @@ The Builder also knows the keys of a value: the keys of its object literal, the 
 With `reward: edges`, the yield is new edges per target execution spent. These executions include the reruns, the minimizer tests and the crash triage of the results.
 The weight stays between `min_factor` and `max_factor` times the base weight, because the yield of a component changes as the corpus grows.
 
+**Swarm testing.** With `"selection": {"swarm": true}` or `--swarm`, each worker except worker 0 multiplies the mutator and generator weights by its own mask (`core/swarm.h`).
+The mask keeps a random part of the generators (`selection.swarm.keep_prob`) and gives each kept generator a factor between 1 and `selection.swarm.max_boost`.
+The mask always keeps the core generators (`SwarmCoreGenerators()`), so that each worker can make valid programs.
+The mask also gives each mutator a factor between 0.5 and 2. Sometimes it turns on one structural mutator with weight 0, for example `Wrap`.
+A worker draws a new mask from the session seed, its worker number and its epoch after each `selection.swarm.epoch_execs` fuzz executions.
+The mask multiplies the weights of the shared strategy, thus `adaptive` still learns from all workers. Worker 0 uses no mask and keeps all generators.
+
 ### 5.4 Execute
 
 The target is the fuzzing build of d8, which has sanitizer coverage and the REPRL interface. [TUTORIAL.md](TUTORIAL.md) shows how to build it.
@@ -664,7 +671,7 @@ A worker owns its target, its coverage map, its random generator, its isolate fo
 |---|---|
 | corpus, and the seed and partner strategies | a mutex. Programs do not change, so a worker uses a program without the lock. |
 | seen edges and crash edges | atomic operations on 64-bit words |
-| mutator and generator strategies | no state between calls, or a mutex of their own (`adaptive`) |
+| mutator and generator strategies | no state between calls, or a mutex of their own (`adaptive`). The swarm mask of a worker is a thread-local value. |
 | flaky-edge counts, crash bookkeeping, event log | a mutex each |
 | counters | atomic counters |
 

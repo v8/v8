@@ -8,9 +8,12 @@
 #include <climits>
 #include <cmath>
 #include <cstdlib>
+#include <functional>
 #include <limits>
 #include <memory>
+#include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "experimental/redline/base/file_util.h"
@@ -22,10 +25,12 @@
 #include "experimental/redline/core/environment.h"
 #include "experimental/redline/core/program.h"
 #include "experimental/redline/core/random.h"
+#include "experimental/redline/core/swarm.h"
 #include "experimental/redline/core/tunable.h"
 #include "experimental/redline/corpus/corpus.h"
 #include "experimental/redline/engine/amplifier.h"
 #include "experimental/redline/engine/config.h"
+#include "experimental/redline/engine/fuzzer.h"
 #include "experimental/redline/engine/prelude.h"
 #include "experimental/redline/engine/stages.h"
 #include "experimental/redline/fast/parser.h"
@@ -567,6 +572,288 @@ void CheckAdaptiveWindow(Checker* checker) {
       selector.WeightOf(cheap) > selector.WeightOf(costly),
       StringPrintf("Cheap %.2f, Costly %.2f", selector.WeightOf(cheap),
                    selector.WeightOf(costly)));
+}
+
+// The picks of `pick` with a fixed seed, one index for each pick.
+std::vector<size_t> PickSequence(const std::function<size_t(Random&)>& pick) {
+  Random rng(kSeed);
+  std::vector<size_t> picks;
+  for (int i = 0; i < kMutatorPicks; i++) {
+    picks.push_back(pick(rng));
+  }
+  return picks;
+}
+
+// Swarm testing (core/swarm.h): the mask draw, its composition with the
+// strategies, and the configuration.
+void CheckSwarm(Checker* checker) {
+  TunableRegistry::Instance().Reset();
+  std::unique_ptr<MutatorSet> mutators = MutatorSet::CreateDefault();
+  std::unique_ptr<GeneratorSet> generators = GeneratorSet::CreateDefault();
+  // (a) Without a mask, and with a mask of factor 1, the picks do not change.
+  {
+    Selector<Mutator>& selector = mutators->selector();
+    const auto& candidates = mutators->candidates();
+    auto any = [](const Mutator&) { return true; };
+    WeightMask ones;
+    ones.factor.assign(candidates.size(), 1.0);
+    const std::vector<size_t> plain = PickSequence(
+        [&](Random& rng) { return selector.Pick(candidates, rng, any); });
+    const std::vector<size_t> none = PickSequence([&](Random& rng) {
+      return PickWithMask<Mutator>(selector, candidates, rng, any, nullptr);
+    });
+    const std::vector<size_t> masked = PickSequence([&](Random& rng) {
+      return selector.PickMasked(candidates, rng, any, ones);
+    });
+    checker->Check(
+        "swarm: without a mask or with factor 1, weighted picks do not change",
+        plain == none && plain == masked);
+    AdaptiveSelector<FakeComponent> adaptive("component", {}, {});
+    adaptive.SetClockForTesting([] { return uint64_t{0}; });
+    FakeComponent a{"A", 1, {}}, b{"B", 2, {}}, c{"C", 0.5, {}};
+    const AdaptiveSelector<FakeComponent>::Candidates fakes = {&a, &b, &c};
+    std::string error;
+    adaptive.Initialize(fakes, &error);
+    auto all = [](const FakeComponent&) { return true; };
+    WeightMask fake_ones;
+    fake_ones.factor.assign(fakes.size(), 1.0);
+    checker->Check(
+        "swarm: without a mask or with factor 1, adaptive picks do not change",
+        PickSequence([&](Random& rng) {
+          return adaptive.Pick(fakes, rng, all);
+        }) == PickSequence([&](Random& rng) {
+          return adaptive.PickMasked(fakes, rng, all, fake_ones);
+        }));
+  }
+  // (b) The masks of worker 0 and of the other workers.
+  SwarmCandidates gens, muts;
+  std::string candidates_error;
+  checker->Check("swarm: the core generators and the structural mutators exist",
+                 BuildSwarmCandidates(*generators, *mutators, &gens, &muts,
+                                      &candidates_error),
+                 candidates_error);
+  const SwarmSettings settings;
+  const uint64_t seed = kSeed;
+  {
+    const SwarmMask zero = DrawSwarmMask(settings, gens, muts, seed, 0, 7);
+    bool ones = zero.mutators.factor.empty() && zero.mutators.enable.empty();
+    for (double f : zero.generators.factor) {
+      ones = ones && f == 1.0;
+    }
+    checker->Check("swarm: worker 0 gets factor 1 for all generators", ones);
+  }
+  {
+    size_t enabled = 0, removed = 0;
+    bool core_kept = true, boost_in_range = true, min_kept = true;
+    for (int worker = 1; worker <= 32; worker++) {
+      const SwarmMask mask =
+          DrawSwarmMask(settings, gens, muts, seed, worker, 0);
+      min_kept =
+          min_kept && mask.kept_generators >= settings.min_active_generators;
+      for (size_t i = 0; i < gens.weights.size(); i++) {
+        const double f = mask.generators.factor[i];
+        if (gens.core[i]) {
+          core_kept = core_kept && f == 1.0;
+        } else if (gens.weights[i] > 0) {
+          enabled++;
+          removed += f == 0.0 ? 1 : 0;
+          boost_in_range = boost_in_range &&
+                           (f == 0.0 || (f >= 1.0 && f <= settings.max_boost));
+        }
+      }
+    }
+    const double removed_share =
+        static_cast<double>(removed) / static_cast<double>(enabled);
+    checker->Check("swarm: the masks keep the core generators", core_kept);
+    checker->Check("swarm: kept generators get a factor in [1, max_boost]",
+                   boost_in_range);
+    checker->Check("swarm: the masks keep min_active_generators", min_kept);
+    checker->Check(
+        "swarm: the masks remove about 1 - keep_prob of the other generators",
+        std::fabs(removed_share - (1 - settings.keep_prob)) < 0.05,
+        StringPrintf("%.3f removed", removed_share));
+    SwarmSettings few = settings;
+    few.keep_prob = 0.1;
+    few.min_active_generators = 40;
+    const SwarmMask small = DrawSwarmMask(few, gens, muts, seed, 1, 0);
+    checker->Check("swarm: a low keep_prob still keeps min_active_generators",
+                   small.kept_generators >= 40,
+                   StringPrintf("%d kept", small.kept_generators));
+  }
+  // (c) The mask is a function of (seed, worker, epoch).
+  {
+    auto draw = [&](uint64_t s, int worker, uint64_t epoch) {
+      return DrawSwarmMask(settings, gens, muts, s, worker, epoch)
+          .generators.factor;
+    };
+    checker->Check("swarm: the same seed, worker and epoch give the same mask",
+                   draw(seed, 3, 5) == draw(seed, 3, 5));
+    checker->Check("swarm: another epoch, worker or seed gives another mask",
+                   draw(seed, 3, 5) != draw(seed, 3, 6) &&
+                       draw(seed, 3, 5) != draw(seed, 4, 5) &&
+                       draw(seed, 3, 5) != draw(seed + 1, 3, 5));
+    int enabled_mutators = 0;
+    bool structural_only = true;
+    for (int worker = 1; worker <= 64; worker++) {
+      const SwarmMask mask =
+          DrawSwarmMask(settings, gens, muts, seed, worker, 0);
+      if (mask.enabled_mutator >= 0) {
+        const size_t i = static_cast<size_t>(mask.enabled_mutator);
+        enabled_mutators++;
+        structural_only =
+            structural_only && muts.structural[i] && muts.weights[i] <= 0;
+      }
+    }
+    checker->Check(
+        "swarm: some masks turn on one structural mutator with weight 0",
+        enabled_mutators > 0 && enabled_mutators < 64 && structural_only,
+        StringPrintf("%d of 64 masks", enabled_mutators));
+  }
+  // (d) The mask multiplies the weights of the adaptive strategy.
+  {
+    AdaptiveSelector<FakeComponent> adaptive("component", {}, {});
+    adaptive.SetClockForTesting([] { return uint64_t{0}; });
+    FakeComponent a{"A", 1, {}}, b{"B", 1, {}}, c{"C", 1, {}},
+        off{"Off", 0, {}};
+    const AdaptiveSelector<FakeComponent>::Candidates fakes = {&a, &b, &c,
+                                                               &off};
+    std::string error;
+    adaptive.Initialize(fakes, &error);
+    auto all = [](const FakeComponent&) { return true; };
+    WeightMask mask;
+    mask.factor = {0.0, 1.0, 3.0, 1.0};
+    int counts[4] = {0, 0, 0, 0};
+    for (size_t pick : PickSequence([&](Random& rng) {
+           return adaptive.PickMasked(fakes, rng, all, mask);
+         })) {
+      counts[pick]++;
+    }
+    const double ratio = static_cast<double>(counts[2]) / counts[1];
+    checker->Check(
+        "swarm: the mask removes factor 0 and multiplies the adaptive weights",
+        counts[0] == 0 && counts[3] == 0 && ratio > 2.4 && ratio < 3.7,
+        StringPrintf("A %d, B %d, C %d, Off %d", counts[0], counts[1],
+                     counts[2], counts[3]));
+    mask.enable = {0.0, 0.0, 0.0, 1.0};
+    int enabled = 0;
+    for (size_t pick : PickSequence([&](Random& rng) {
+           return adaptive.PickMasked(fakes, rng, all, mask);
+         })) {
+      enabled += pick == 3 ? 1 : 0;
+    }
+    checker->Check("swarm: the mask turns on a candidate with weight 0",
+                   enabled > 0, StringPrintf("%d picks", enabled));
+  }
+  // (f) The pick functions of the mutator and generator sets use the active
+  // mask of the thread.
+  {
+    const Environment& env = Environment::Default();
+    const std::string plain_generators = TraceGeneratorPicks(*generators, env);
+    const std::string plain_mutators = TraceMutatorPicks(*mutators);
+    SwarmMask mask;
+    mask.generators.factor.assign(gens.weights.size(), 0.0);
+    std::set<std::string, std::less<>> removed;
+    for (size_t i = 0; i < gens.weights.size(); i++) {
+      if (gens.core[i]) {
+        mask.generators.factor[i] = 1.0;
+      } else {
+        removed.insert(generators->candidates()[i]->name());
+      }
+    }
+    mask.mutators.factor.assign(muts.weights.size(), 1.0);
+    mask.mutators.enable.assign(muts.weights.size(), 0.0);
+    for (size_t i = 0; i < muts.weights.size(); i++) {
+      if (mutators->candidates()[i]->name() == "Wrap") {
+        mask.mutators.enable[i] = 1.0;
+      }
+    }
+    SetActiveSwarmMask(&mask);
+    const std::string masked_generators =
+        TraceGeneratorPicks(*generators, env) +
+        TraceCodeGen(*mutators, *generators, env);
+    const std::string masked_mutators = TraceMutatorPicks(*mutators);
+    SetActiveSwarmMask(nullptr);
+    // The names in the traces: the words between tabs, spaces, newlines and
+    // '+'.
+    std::string found;
+    size_t start = 0;
+    for (size_t i = 0; i <= masked_generators.size(); i++) {
+      if (i == masked_generators.size() ||
+          std::string_view("\t\n +").find(masked_generators[i]) !=
+              std::string_view::npos) {
+        const std::string word = masked_generators.substr(start, i - start);
+        if (removed.count(word) != 0 && found.empty()) {
+          found = word;
+        }
+        start = i + 1;
+      }
+    }
+    checker->Check(
+        "swarm: GeneratorSet::Pick and CodeGen use only the generators of the "
+        "active mask",
+        found.empty(), found);
+    checker->Check(
+        "swarm: MutatorSet::Pick uses the mutator that the active mask turns "
+        "on",
+        masked_mutators.find("\tWrap\n") != std::string::npos);
+    checker->Check("swarm: without an active mask, the picks do not change",
+                   TraceGeneratorPicks(*generators, env) == plain_generators &&
+                       TraceMutatorPicks(*mutators) == plain_mutators &&
+                       plain_generators != masked_generators.substr(
+                                               0, plain_generators.size()));
+  }
+  // (e) The configuration: JSON, flags and the full dump.
+  {
+    auto load = [](std::initializer_list<const char*> args, FuzzConfig* config,
+                   std::string* error) {
+      std::vector<const char*> argv = {"redline", "fuzz"};
+      argv.insert(argv.end(), args.begin(), args.end());
+      Flags flags = Flags::Parse(static_cast<int>(argv.size()), argv.data(), 2);
+      return FuzzConfig::Load(flags, config, error, /*for_run=*/false);
+    };
+    std::string error;
+    FuzzConfig plain, on, json_on, json_off;
+    bool ok = load({}, &plain, &error) && !plain.selection.swarm &&
+              load({"--swarm"}, &on, &error) && on.selection.swarm &&
+              load({R"(--config={"selection": {"swarm": true}})"}, &json_on,
+                   &error) &&
+              json_on.selection.swarm &&
+              load({R"(--config={"selection": {"swarm": true}})", "--no-swarm"},
+                   &json_off, &error) &&
+              !json_off.selection.swarm;
+    checker->Check(
+        "swarm: selection.swarm is off by default, and the JSON, --swarm and "
+        "--no-swarm set it",
+        ok, error);
+    FuzzConfig bad;
+    ok = !load({R"(--config={"selection": {"swarm": 1}})"}, &bad, &error) &&
+         error.find("selection.swarm") != std::string::npos;
+    checker->Check("swarm: a selection.swarm that is not a boolean is an error",
+                   ok, error);
+    JsonValue dump;
+    FuzzConfig again;
+    error.clear();
+    ok =
+        JsonValue::Parse(on.ToJson(FuzzConfig::Detail::kFull), &dump, &error) &&
+        dump.Get("selection").Get("swarm").is_bool() &&
+        dump.Get("selection").Get("swarm").as_bool() &&
+        dump.Get("tunables").Has("selection.swarm.epoch_execs") &&
+        FuzzConfig::LoadJsonForTest(dump, &again, &error) &&
+        again.selection.swarm;
+    checker->Check(
+        "swarm: the full dump gives selection.swarm and its tunables, and "
+        "loads back",
+        ok, error);
+    const SwarmSettings tuned = SwarmSettings::FromTunables();
+    checker->Check(
+        "swarm: the selection.swarm.* tunables give the default settings",
+        tuned.epoch_execs == settings.epoch_execs &&
+            tuned.keep_prob == settings.keep_prob &&
+            tuned.min_active_generators == settings.min_active_generators &&
+            tuned.max_boost == settings.max_boost &&
+            tuned.mutator_variation == settings.mutator_variation);
+  }
+  TunableRegistry::Instance().Reset();
 }
 
 void CheckAmplifyConfig(Checker* checker) {
@@ -1910,6 +2197,7 @@ void RunSelectionChecks(Checker* checker, const std::string& testdata_dir,
   CheckD8ArgLayers(checker);
   CheckCommitCostConfig(checker);
   CheckAdaptiveWindow(checker);
+  CheckSwarm(checker);
   CheckAmplifyConfig(checker);
   CheckWrapInTry(checker);
   CheckOsrLoopTrigger(checker);

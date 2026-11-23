@@ -223,6 +223,11 @@ struct FuzzConfig {
     SelectionConfig partners;
     SelectionConfig mutators;
     SelectionConfig generators;
+    // Swarm testing (core/swarm.h): each worker except worker 0 multiplies
+    // the mutator and generator weights by its own mask. JSON:
+    // "selection": {"swarm": true}. Flags: --swarm, --no-swarm. The
+    // `selection.swarm.*` tunables set the mask draw.
+    bool swarm = false;
   };
   SelectionSettings selection;
 
