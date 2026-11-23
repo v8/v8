@@ -418,13 +418,17 @@ void ReadMinimizerOptions(const JsonValue& object, MinimizerOptions* m) {
   if (!object.is_object()) {
     return;
   }
-  m->max_tests = static_cast<int>(object.GetInt("max_tests", m->max_tests));
-  m->max_time_ms = static_cast<uint64_t>(
-      object.GetInt("max_time_ms", static_cast<int64_t>(m->max_time_ms)));
-  m->max_rounds = static_cast<int>(object.GetInt("max_rounds", m->max_rounds));
-  m->target_time_ms = static_cast<uint64_t>(
-      object.GetInt("target_time_ms", static_cast<int64_t>(m->target_time_ms)));
-  m->min_tests = static_cast<int>(object.GetInt("min_tests", m->min_tests));
+  m->max_tests = static_cast<int>(
+      std::max<int64_t>(0, object.GetInt("max_tests", m->max_tests)));
+  m->max_time_ms = static_cast<uint64_t>(std::max<int64_t>(
+      0, object.GetInt("max_time_ms", static_cast<int64_t>(m->max_time_ms))));
+  m->max_rounds = static_cast<int>(
+      std::max<int64_t>(0, object.GetInt("max_rounds", m->max_rounds)));
+  m->target_time_ms = static_cast<uint64_t>(std::max<int64_t>(
+      0, object.GetInt("target_time_ms",
+                       static_cast<int64_t>(m->target_time_ms))));
+  m->min_tests = static_cast<int>(
+      std::max<int64_t>(0, object.GetInt("min_tests", m->min_tests)));
   m->expressions_share =
       object.GetNumber("expressions_share", m->expressions_share);
 }
@@ -1154,13 +1158,14 @@ bool FuzzConfig::Load(const Flags& flags, FuzzConfig* c, std::string* error,
   c->import_all = flags.GetBool("import-all", c->import_all);
   c->initial_programs =
       static_cast<int>(flags.GetInt("initial-programs", c->initial_programs));
-  c->minimizer.max_tests = static_cast<int>(
-      flags.GetInt("minimizer-max-tests", c->minimizer.max_tests));
-  c->minimizer.max_time_ms = static_cast<uint64_t>(flags.GetInt(
-      "minimizer-max-time-ms", static_cast<int64_t>(c->minimizer.max_time_ms)));
-  c->minimizer.target_time_ms = static_cast<uint64_t>(
-      flags.GetInt("minimizer-target-time-ms",
-                   static_cast<int64_t>(c->minimizer.target_time_ms)));
+  c->minimizer.max_tests = static_cast<int>(std::max<int64_t>(
+      0, flags.GetInt("minimizer-max-tests", c->minimizer.max_tests)));
+  c->minimizer.max_time_ms = static_cast<uint64_t>(std::max<int64_t>(
+      0, flags.GetInt("minimizer-max-time-ms",
+                      static_cast<int64_t>(c->minimizer.max_time_ms))));
+  c->minimizer.target_time_ms = static_cast<uint64_t>(std::max<int64_t>(
+      0, flags.GetInt("minimizer-target-time-ms",
+                      static_cast<int64_t>(c->minimizer.target_time_ms))));
   c->crash_reruns =
       static_cast<int>(flags.GetInt("crash-reruns", c->crash_reruns));
   c->crash_rerun_timeout_factor = flags.GetDouble(
@@ -1175,11 +1180,12 @@ bool FuzzConfig::Load(const Flags& flags, FuzzConfig* c, std::string* error,
       flags.GetDouble("crash-history-budget", c->crash_history_budget_sec);
   c->crash_bundle_runs =
       static_cast<int>(flags.GetInt("crash-bundle-runs", c->crash_bundle_runs));
-  c->crash_minimizer.max_tests = static_cast<int>(
-      flags.GetInt("crash-minimizer-max-tests", c->crash_minimizer.max_tests));
-  c->crash_minimizer.max_time_ms = static_cast<uint64_t>(
-      flags.GetInt("crash-minimizer-max-time-ms",
-                   static_cast<int64_t>(c->crash_minimizer.max_time_ms)));
+  c->crash_minimizer.max_tests = static_cast<int>(std::max<int64_t>(
+      0,
+      flags.GetInt("crash-minimizer-max-tests", c->crash_minimizer.max_tests)));
+  c->crash_minimizer.max_time_ms = static_cast<uint64_t>(std::max<int64_t>(
+      0, flags.GetInt("crash-minimizer-max-time-ms",
+                      static_cast<int64_t>(c->crash_minimizer.max_time_ms))));
   if (flags.Has("scheduler")) {
     // The flag names a strategy without parameters: it replaces the
     // whole seeds setting, including parameters a config file gave to
@@ -1679,9 +1685,9 @@ std::string FuzzConfig::JsonHelp() {
       "[\"flaky\"], \"max\": 20}},\n"
       "      \"minimize\": {\"enabled\": true, \"max_tests\": 300, "
       "\"max_time_ms\": 30000,\n"
-      "                   \"max_rounds\": 3, \"target_time_ms\": 6000, "
-      "\"min_tests\": 40,\n"
-      "                   \"expressions_share\": 0.25,  // of the remaining "
+      "                   \"max_rounds\": 3, \"target_time_ms\": 1500, "
+      "\"min_tests\": 16,\n"
+      "                   \"expressions_share\": 0.15,  // of the remaining "
       "tests\n"
       "                   \"probe_timeout_factor\": 5, "
       "\"probe_timeout_extra_ms\": 20,\n"
@@ -1706,7 +1712,7 @@ std::string FuzzConfig::JsonHelp() {
       "\"crash_bundle_min_budget_sec\": 300,\n"
       "    \"crash_minimizer\": {\"max_tests\": 2000, \"max_time_ms\": 120000, "
       "\"max_rounds\": 10,\n"
-      "                        \"target_time_ms\": 120000, \"min_tests\": "
+      "                        \"target_time_ms\": 0, \"min_tests\": "
       "200, \"expressions_share\": 1,\n"
       "                        \"reducers\": [\"dataflow\", \"statements\", "
       "\"unwrap\", \"lists\",\n"

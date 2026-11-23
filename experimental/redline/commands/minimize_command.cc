@@ -20,6 +20,8 @@
 #include "experimental/redline/commands/command.h"
 #include "experimental/redline/core/component.h"
 #include "experimental/redline/core/program.h"
+#include "experimental/redline/core/tunable.h"
+#include "experimental/redline/engine/config.h"
 #include "experimental/redline/engine/crash.h"
 #include "experimental/redline/engine/prelude.h"
 #include "experimental/redline/exec/runner.h"
@@ -58,6 +60,11 @@ const char kUsage[] =
     "--list)\n"
     "  --max-tests=N       oracle executions (default 300)\n"
     "  --max-time-ms=N     wall-clock bound (default 30000)\n"
+    "  --target-time-ms=N  adaptive slow-program budget in ms (default 1500,\n"
+    "                      0 for crash oracle or to disable)\n"
+    "  --expressions-share=X  budget share for expressions (default 0.15,\n"
+    "                         1 for crash or standalone expressions)\n"
+    "  --tunable=NAME=V,.  set minimizer tunables\n"
     "  --reruns=N          re-runs to settle the edge set (default 2)\n"
     "  --probe-timeout-ms=N  timeout for the reduced candidates (default:\n"
     "                      5x the program's run time + 20 ms, at least 50 ms;\n"
@@ -98,8 +105,9 @@ int Run(const Flags& flags) {
     return kExitFailure;
   }
 
+  const std::vector<std::string> requested_reducers = flags.GetList("reducer");
   std::vector<Reducer*> reducers;
-  for (const std::string& name : flags.GetList("reducer")) {
+  for (const std::string& name : requested_reducers) {
     Reducer* reducer = minimizer.Find(name);
     if (reducer == nullptr) {
       REDLINE_ERROR(kLog, "unknown reducer '%s' (see --list)", name.c_str());
@@ -112,15 +120,40 @@ int Run(const Flags& flags) {
       reducers.push_back(reducer.get());
     }
   }
-  MinimizerOptions options;
-  options.max_tests =
-      static_cast<int>(flags.GetInt("max-tests", options.max_tests));
-  options.max_time_ms = static_cast<uint64_t>(
-      flags.GetInt("max-time-ms", static_cast<int64_t>(options.max_time_ms)));
-  Minimizer configured(options);
-  // Use the reducers of `minimizer` (which carry the stats) with the
-  // configured budget.
+  if (flags.Has("tunable") && !TunableRegistry::Instance().SetFromList(
+                                  flags.GetString("tunable"), &error)) {
+    REDLINE_ERROR(kLog, "%s", error.c_str());
+    return kExitUsage;
+  }
   std::string oracle_name = flags.GetString("oracle", "edges");
+  MinimizerOptions options;
+  if (oracle_name == "crash") {
+    // Keep crash minimization uncapped by adaptive scaling and early stopping.
+    options.target_time_ms = 0;
+    options.expressions_share = 1.0;
+  } else {
+    options = FuzzConfig().minimizer;
+    if (requested_reducers.size() == 1 &&
+        requested_reducers[0] == "expressions") {
+      // Keep standalone `expressions` runs uncapped unless configured.
+      options.expressions_share = 1.0;
+    }
+  }
+  options.max_tests = static_cast<int>(
+      std::max<int64_t>(0, flags.GetInt("max-tests", options.max_tests)));
+  options.max_time_ms = static_cast<uint64_t>(std::max<int64_t>(
+      0,
+      flags.GetInt("max-time-ms", static_cast<int64_t>(options.max_time_ms))));
+  if (flags.Has("target-time-ms")) {
+    options.target_time_ms = static_cast<uint64_t>(std::max<int64_t>(
+        0, flags.GetInt("target-time-ms",
+                        static_cast<int64_t>(options.target_time_ms))));
+  }
+  if (flags.Has("expressions-share")) {
+    options.expressions_share = std::clamp(
+        flags.GetDouble("expressions-share", options.expressions_share), 0.0,
+        1.0);
+  }
   std::string prelude;
   std::string prelude_flag = flags.GetString("prelude");
   if (prelude_flag.empty()) {
@@ -317,7 +350,8 @@ int Run(const Flags& flags) {
 
   std::unique_ptr<fast::Tree> tree = program->CopyTree();
   MinimizationResult result =
-      configured.MinimizeWith(reducers, tree.get(), oracle, &checker);
+      minimizer.MinimizeWith(reducers, tree.get(), oracle, &checker,
+                             options.ForProgram(first.exec_time_us));
   std::string minimized = fast::Print(tree->root());
 
   // Verify the result once more (a few attempts: the target is not fully

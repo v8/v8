@@ -388,7 +388,7 @@ For a crash that reproduces alone, the oracle is "the program crashes with the s
 
 | Reducer | What it removes or replaces |
 |---|---|
-| `statements` | chunks of statements of halving size from the end of each statement list, down to single statements |
+| `statements` | balanced contiguous blocks on medium or large statement lists, then single statements from the end |
 | `unwrap` | a block, an `if`, a loop, a `try` or an immediately invoked function, replaced by its body |
 | `lists` | call arguments, array elements, object properties, class members, declarators and parameters |
 | `expressions` | an expression, replaced by one of its operands or by a constant |
@@ -396,14 +396,18 @@ For a crash that reproduces alone, the oracle is "the program crashes with the s
 | `dataflow` | the top-level statements that the rest of the program does not use, from a def-use graph of the scope analysis |
 
 The default order is `dataflow`, `statements`, `unwrap`, `lists`, `expressions` (`Minimizer::DefaultOrder`). `stages.minimize.reducers` sets another list.
-Each time that `expressions` starts, it can use only `expressions_share` of the remaining tests of a corpus program, because most of its tests keep no reduction.
-The crash minimizer gives `expressions` all of its tests.
+Each time that `expressions` starts on a corpus program, it uses at most `expressions_share` of the remaining tests.
+It also stops after `minimizer.expressions.max_consecutive_failures` rejected probes in a row.
+The crash minimizer sets `expressions_share` to 1, so it keeps `expressions` uncapped.
 The def-use graph only proposes a cut. The oracle decides, because globals, prototypes or getters can connect statements that share no binding.
 
 - The minimizer runs its reducers in rounds until a round changes nothing or the budget ends.
   A reducer edits the tree and asks the oracle. If the oracle says no, the reducer undoes the edit.
-- The budget limits the tests, the time and the rounds. It has fewer tests for slow programs (`target_time_ms`).
-  Crashes have a larger budget (`crash_minimizer`), because they are rare.
+- The budget limits the tests, the time and the rounds.
+  For corpus programs, the minimizer scales the test cap to `target_time_ms` divided by the measured probe run time, down to `min_tests`.
+  The crash minimizer sets `target_time_ms` to 0 so crashes stay uncapped.
+- On medium and large statement lists, `statements` tries balanced contiguous blocks from the end down to `minimizer.statements.min_chunk_size`.
+  It stops chunking early when `minimizer.statements.max_empty_levels` levels in a row keep no cut, then sweeps single statements.
 - Each test has a short timeout from the run time of the program (`probe_timeout_*`), because a reduction can make an endless loop.
   After each kept reduction, the timeout follows the run time of the probe of that reduction (`probe_timeout_tighten_*`).
   The timeout does not become longer than the first timeout.

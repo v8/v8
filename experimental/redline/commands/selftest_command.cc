@@ -26,6 +26,7 @@
 #include <functional>
 #include <initializer_list>
 #include <iterator>
+#include <limits>
 #include <map>
 #include <memory>
 #include <set>
@@ -1853,9 +1854,10 @@ void RunCommitCostChecks(Checker* checker) {
                        result.tests, printed.c_str()));
     }
   }
-  // `expressions` uses only its share of the budget. The oracle keeps no
-  // reduction, so the reducer stops at its limit, not at the end of the
-  // slots.
+  // `expressions` uses only its share of the budget when early stopping is off,
+  // and stops after `minimizer.expressions.max_consecutive_failures` rejected
+  // probes in a row when `expressions_share` is below 1. Crash minimization
+  // (`expressions_share` == 1) stays uncapped.
   {
     std::string source;
     for (int i = 0; i < 60; i++) {
@@ -1864,7 +1866,7 @@ void RunCommitCostChecks(Checker* checker) {
     std::string message;
     std::shared_ptr<Program> program =
         Program::Parse(source, Lineage(), &message);
-    auto tests_with = [&](double share) {
+    auto tests_with = [&](double share, const MinimizationOracle& oracle) {
       std::unique_ptr<fast::Tree> tree = program->CopyTree();
       Minimizer minimizer;
       MinimizerOptions options;
@@ -1872,20 +1874,329 @@ void RunCommitCostChecks(Checker* checker) {
       options.max_rounds = 1;
       options.target_time_ms = 0;
       options.expressions_share = share;
-      MinimizationOracle never = [](const std::string&) { return false; };
       std::vector<Reducer*> reducers = {minimizer.Find("expressions")};
-      return minimizer
-          .MinimizeWith(reducers, tree.get(), never, nullptr, options)
-          .tests;
+      return minimizer.MinimizeWith(reducers, tree.get(), oracle, nullptr,
+                                    options);
     };
-    const int quarter = program != nullptr ? tests_with(0.25) : -1;
-    const int all = program != nullptr ? tests_with(1.0) : -1;
-    const int none = program != nullptr ? tests_with(0.0) : -1;
+    MinimizationOracle never = [](const std::string&) { return false; };
+    std::string tun_err;
+    TunableRegistry::Instance().Set(
+        "minimizer.expressions.max_consecutive_failures", 0, &tun_err);
+    const int quarter = program != nullptr ? tests_with(0.25, never).tests : -1;
+    const int all = program != nullptr ? tests_with(1.0, never).tests : -1;
+    const int none = program != nullptr ? tests_with(0.0, never).tests : -1;
+    TunableRegistry::Instance().Reset();
     checker->Check(
         "minimizer: `expressions` uses only its share of the remaining tests",
-        quarter == 50 && all == 200 && none == 0,
-        StringPrintf("%d tests with 0.25, %d with 1, %d with 0 (%s)", quarter,
-                     all, none, message.c_str()));
+        tun_err.empty() && quarter == 50 && all == 200 && none == 0,
+        StringPrintf("%d tests with 0.25, %d with 1, %d with 0 (%s%s)", quarter,
+                     all, none, message.c_str(), tun_err.c_str()));
+
+    const int early = program != nullptr ? tests_with(0.25, never).tests : -1;
+    const int crash_full =
+        program != nullptr ? tests_with(1.0, never).tests : -1;
+    // Reset test: accept every 5th probe so consecutive failures stay below 10.
+    int probe_num = 0;
+    MinimizationOracle periodic = [&](const std::string&) {
+      probe_num++;
+      return (probe_num % 5) == 0;
+    };
+    const MinimizationResult reset_res =
+        program != nullptr ? tests_with(0.25, periodic) : MinimizationResult();
+    checker->Check(
+        "minimizer: `expressions` stops early on consecutive failures for "
+        "corpus programs and stays full for crashes",
+        early == 10 && crash_full == 200 && reset_res.tests == 50 &&
+            reset_res.accepted >= 5,
+        StringPrintf("early %d, crash %d, reset %d (%d accepted)", early,
+                     crash_full, reset_res.tests, reset_res.accepted));
+
+    // When `expressions_share` is 1, `expressions` does not freeze a low
+    // initial cap if an accepted cut recovers budget.
+    MinimizationResult share_recover;
+    if (program != nullptr) {
+      std::unique_ptr<fast::Tree> tree = program->CopyTree();
+      Minimizer minimizer;
+      MinimizerOptions options;
+      options.max_tests = 100;
+      options.max_rounds = 1;
+      options.target_time_ms = 1500;
+      options.min_tests = 16;
+      options.expressions_share = 1.0;
+      bool accepted_first = false;
+      std::vector<Reducer*> reducers = {minimizer.Find("expressions")};
+      share_recover = minimizer.MinimizeWith(
+          reducers, tree.get(),
+          [&](const std::string&) {
+            if (!accepted_first) {
+              accepted_first = true;
+              return true;
+            }
+            return false;
+          },
+          nullptr, options.ForProgram(200'000));
+    }
+    checker->Check(
+        "minimizer: `expressions` with share 1 uses recovered budget",
+        share_recover.tests == 100 && share_recover.accepted == 1,
+        StringPrintf("tests %d, accepted %d", share_recover.tests,
+                     share_recover.accepted));
+
+    // Syntax rejections do not count toward `max_consecutive_failures`.
+    // Untagging a tagged template with an invalid escape fails V8 parsing.
+    std::string v8_err;
+    const bool v8_ok = InitializeV8(FuzzConfig().v8_flags, &v8_err);
+    std::string tag_src;
+    for (int i = 0; i < 15; i++) {
+      tag_src += StringPrintf("tag%d`\\unicode`;\n", i);
+    }
+    std::string tag_err;
+    std::shared_ptr<Program> tag_prog =
+        Program::Parse(tag_src, Lineage(), &tag_err);
+    MinimizationResult syntax_res;
+    if (v8_ok && tag_prog != nullptr) {
+      SyntaxChecker syntax;
+      std::unique_ptr<fast::Tree> tree = tag_prog->CopyTree();
+      Minimizer minimizer;
+      MinimizerOptions options;
+      options.max_tests = 200;
+      options.max_rounds = 1;
+      options.target_time_ms = 0;
+      options.expressions_share = 0.5;
+      std::vector<Reducer*> reducers = {minimizer.Find("expressions")};
+      syntax_res =
+          minimizer.MinimizeWith(reducers, tree.get(), never, &syntax, options);
+    }
+    checker->Check(
+        "minimizer: `expressions` ignores syntax rejections in consecutive "
+        "failure counts",
+        v8_ok && tag_prog != nullptr && syntax_res.syntax_rejected >= 10 &&
+            syntax_res.tests == 10,
+        StringPrintf("syntax_rejected %d, tests %d (%s%s)",
+                     syntax_res.syntax_rejected, syntax_res.tests,
+                     v8_err.c_str(), tag_err.c_str()));
+  }
+  // Adaptive slow-program budget (MP-2). Corpus tests scale to execution
+  // duration down to `min_tests`. Budget recovers when kept cuts speed up
+  // execution. Crash minimization stays uncapped.
+  {
+    const FuzzConfig defaults;
+    const MinimizerOptions& corpus_opt = defaults.minimizer;
+    const MinimizerOptions& crash_opt = defaults.crash_minimizer;
+    const int fast_cap = corpus_opt.TestsFor(5'000);     // 5 ms -> 300
+    const int slow25_cap = corpus_opt.TestsFor(25'000);  // 25 ms -> 60
+    const int slow50_cap = corpus_opt.TestsFor(50'000);  // 50 ms -> 30
+    const int floor_cap = corpus_opt.TestsFor(200'000);  // 200 ms -> 16 floor
+    const int crash_cap = crash_opt.TestsFor(200'000);   // uncapped -> 2000
+
+    // Edge cases for `TestsFor`: non-positive caps, huge target time, high or
+    // negative `min_tests`, and zero run time.
+    MinimizerOptions edge;
+    edge.max_tests = 0;
+    edge.target_time_ms = 1500;
+    const int zero_max = edge.TestsFor(50'000);
+    edge.max_tests = -5;
+    const int neg_max = edge.TestsFor(50'000);
+    edge.max_tests = 20;
+    edge.min_tests = 500;
+    const int high_floor = edge.TestsFor(500'000);
+    edge.min_tests = -10;
+    const int neg_floor = edge.TestsFor(1'000'000);
+    edge.min_tests = 4;
+    edge.target_time_ms = std::numeric_limits<uint64_t>::max();
+    const int huge_target = edge.TestsFor(1'000);
+    edge.target_time_ms = 1500;
+    const int zero_time = edge.TestsFor(0);
+    checker->Check(
+        "minimizer: `TestsFor` handles edge caps and large target times",
+        zero_max == 0 && neg_max == 0 && high_floor == 20 && neg_floor == 1 &&
+            huge_target == 20 && zero_time == 20,
+        StringPrintf("zero=%d neg=%d high_floor=%d neg_floor=%d huge=%d "
+                     "zero_time=%d",
+                     zero_max, neg_max, high_floor, neg_floor, huge_target,
+                     zero_time));
+
+    std::string source;
+    for (int i = 0; i < 40; i++) {
+      source += StringPrintf("g%d();\n", i);
+    }
+    std::string message;
+    std::shared_ptr<Program> program =
+        Program::Parse(source, Lineage(), &message);
+    // Slow initial time with no accepted reductions stays capped at 16 tests.
+    MinimizationResult slow_res;
+    // Slow probe 1 followed by fast probe 2 recovers budget at once.
+    MinimizationResult two_step_res;
+    if (program != nullptr) {
+      std::unique_ptr<fast::Tree> slow_tree = program->CopyTree();
+      Minimizer minimizer;
+      std::vector<Reducer*> stmts = {minimizer.Find("statements")};
+      slow_res = minimizer.MinimizeWith(
+          stmts, slow_tree.get(), [](const std::string&) { return false; },
+          nullptr, corpus_opt.ForProgram(200'000));
+
+      std::unique_ptr<fast::Tree> recovery_tree = program->CopyTree();
+      MinimizerOptions rec_opt;
+      rec_opt.max_tests = 50;
+      rec_opt.max_rounds = 1;
+      rec_opt.target_time_ms = 120;
+      rec_opt.min_tests = 4;
+      int call = 0;
+      two_step_res = minimizer.MinimizeWith(
+          stmts, recovery_tree.get(),
+          [&](const std::string&) {
+            call++;
+            if (call == 1) {
+              // Slow accepted cut keeps the cap at the floor of 4 tests.
+              std::this_thread::sleep_for(std::chrono::milliseconds(40));
+              return true;
+            }
+            if (call == 2) {
+              // Fast accepted cut replaces `last_kept_probe_time_us_`.
+              return true;
+            }
+            return false;
+          },
+          nullptr, rec_opt.ForProgram(200'000));
+    }
+    checker->Check(
+        "minimizer: adaptive slow-program budget caps slow corpus programs, "
+        "recovers after a slow cut, and leaves crashes uncapped",
+        fast_cap == 300 && slow25_cap == 60 && slow50_cap == 30 &&
+            floor_cap == 16 && crash_cap == 2000 && slow_res.tests == 16 &&
+            slow_res.budget_exhausted && two_step_res.tests == 14 &&
+            !two_step_res.budget_exhausted,
+        StringPrintf("caps 5ms=%d 25ms=%d 50ms=%d 200ms=%d crash=%d; slow=%d, "
+                     "two_step=%d (exhausted=%d)",
+                     fast_cap, slow25_cap, slow50_cap, floor_cap, crash_cap,
+                     slow_res.tests, two_step_res.tests,
+                     two_step_res.budget_exhausted ? 1 : 0));
+  }
+  // Adaptive delta-debugging chunking on `statements` (MP-4). Sparse large
+  // lists shrink in few probes, and dead nested blocks clear in 1 probe.
+  // Small lists skip chunking, dense lists stop early, and all ASTs stay
+  // valid.
+  {
+    auto parse_ok = [](const std::string& src) {
+      fast::ParseError err;
+      return fast::Parser::ParseScript(src, fast::ParseOptions(), &err) !=
+             nullptr;
+    };
+    bool all_valid = true;
+    auto run_stmts = [&](const std::string& src,
+                         const MinimizationOracle& inner,
+                         std::string* printed_out) {
+      std::string err;
+      std::shared_ptr<Program> prog = Program::Parse(src, Lineage(), &err);
+      std::unique_ptr<fast::Tree> tree = prog->CopyTree();
+      Minimizer minimizer;
+      MinimizerOptions options;
+      options.max_tests = 200;
+      options.max_rounds = 1;
+      options.target_time_ms = 0;
+      std::vector<Reducer*> reducers = {minimizer.Find("statements")};
+      MinimizationResult res = minimizer.MinimizeWith(
+          reducers, tree.get(),
+          [&](const std::string& candidate) {
+            if (!parse_ok(candidate)) {
+              all_valid = false;
+            }
+            return inner(candidate);
+          },
+          nullptr, options);
+      *printed_out = fast::Print(tree->root());
+      return res;
+    };
+
+    // 1. Sparse 32-statement list with only 1 essential statement.
+    std::string sparse_src;
+    for (int i = 0; i < 32; i++) {
+      sparse_src += StringPrintf("h(%d);\n", i);
+    }
+    std::string sparse_out;
+    const MinimizationResult sparse_res = run_stmts(
+        sparse_src,
+        [](const std::string& s) {
+          return s.find("h(0);") != std::string::npos;
+        },
+        &sparse_out);
+
+    // 2. Dense 32-statement irreducible list stops chunking after 2 empty
+    // levels: 2 + 4 + 32 = 38 probes instead of 62.
+    std::string dense_out;
+    const MinimizationResult dense_res = run_stmts(
+        sparse_src, [](const std::string&) { return false; }, &dense_out);
+
+    // 3. Small 4-statement irreducible list skips chunking: 4 probes, not 6.
+    std::string small_src = "h(0);\nh(1);\nh(2);\nh(3);\n";
+    std::string small_out;
+    const MinimizationResult small_res = run_stmts(
+        small_src, [](const std::string&) { return false; }, &small_out);
+
+    // 4. Dead 10-statement nested block clears in 1 probe (plus 1 top-level
+    // probe on the function statement itself).
+    std::string nested_src = "function keep() {\n";
+    for (int i = 0; i < 10; i++) {
+      nested_src += StringPrintf("  h(%d);\n", i);
+    }
+    nested_src += "}\n";
+    std::string nested_out;
+    const MinimizationResult nested_res = run_stmts(
+        nested_src,
+        [](const std::string& s) {
+          return s.find("function keep()") != std::string::npos;
+        },
+        &nested_out);
+
+    // 5. Non-power-of-2 lists (11 and 33 statements) keep balanced blocks and
+    // avoid duplicate remainder probes.
+    std::string odd11_src;
+    for (int i = 0; i < 11; i++) {
+      odd11_src += StringPrintf("h(%d);\n", i);
+    }
+    std::string odd11_out;
+    const MinimizationResult odd11_res = run_stmts(
+        odd11_src,
+        [](const std::string& s) {
+          return s.find("h(5);") != std::string::npos;
+        },
+        &odd11_out);
+
+    std::string odd33_src;
+    for (int i = 0; i < 33; i++) {
+      odd33_src += StringPrintf("h(%d);\n", i);
+    }
+    std::string odd33_sparse_out;
+    const MinimizationResult odd33_sparse_res = run_stmts(
+        odd33_src,
+        [](const std::string& s) {
+          return s.find("h(17);") != std::string::npos;
+        },
+        &odd33_sparse_out);
+    std::string odd33_dense_out;
+    const MinimizationResult odd33_dense_res = run_stmts(
+        odd33_src, [](const std::string&) { return false; }, &odd33_dense_out);
+
+    checker->Check(
+        "minimizer: `statements` uses adaptive block chunking with valid ASTs",
+        all_valid && sparse_res.tests <= 8 &&
+            sparse_out.find("h(0);") != std::string::npos &&
+            sparse_out.find("h(1);") == std::string::npos &&
+            dense_res.tests == 38 && small_res.tests == 4 &&
+            nested_res.tests == 2 &&
+            nested_out.find("h(0)") == std::string::npos &&
+            odd11_res.tests < 11 &&
+            odd11_out.find("h(5);") != std::string::npos &&
+            odd11_out.find("h(4);") == std::string::npos &&
+            odd33_sparse_res.tests <= 12 &&
+            odd33_sparse_out.find("h(17);") != std::string::npos &&
+            odd33_sparse_out.find("h(16);") == std::string::npos &&
+            odd33_dense_res.tests == 39,
+        StringPrintf("valid=%d sparse=%d dense=%d small=%d nested=%d "
+                     "odd11=%d odd33_s=%d odd33_d=%d",
+                     all_valid ? 1 : 0, sparse_res.tests, dense_res.tests,
+                     small_res.tests, nested_res.tests, odd11_res.tests,
+                     odd33_sparse_res.tests, odd33_dense_res.tests));
   }
 }
 

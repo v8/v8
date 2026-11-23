@@ -1141,11 +1141,17 @@ void CheckD8ArgLayers(Checker* checker) {
 void CheckCommitCostConfig(Checker* checker) {
   {
     const FuzzConfig defaults;
+    const MinimizerOptions raw;
     checker->Check(
-        "config: the defaults give 1 import rerun, a quarter of the budget "
-        "to `expressions` and a probe timeout that tightens",
-        defaults.import_reruns == 1 &&
-            defaults.minimizer.expressions_share == 0.25 &&
+        "config: the defaults give 1 import rerun, adaptive slow-program "
+        "minimization, a bounded `expressions` share and a probe timeout that "
+        "tightens",
+        defaults.import_reruns == 1 && raw.target_time_ms == 0 &&
+            raw.expressions_share == 1.0 &&
+            defaults.minimizer.target_time_ms == 1500 &&
+            defaults.minimizer.min_tests == 16 &&
+            defaults.minimizer.expressions_share == 0.15 &&
+            defaults.crash_minimizer.target_time_ms == 0 &&
             defaults.crash_minimizer.expressions_share == 1.0 &&
             defaults.probe_timeout_tighten_factor == 2.5 &&
             defaults.probe_timeout_tighten_extra_ms == 50);
@@ -1200,22 +1206,50 @@ void CheckCommitCostConfig(Checker* checker) {
   FuzzConfig clamped;
   const std::string clamp_error = LoadFullConfig(
       R"({"stages": {"check": {"import_reruns": 500, "max_reruns": 20},
-                     "minimize": {"expressions_share": 7,
+                     "minimize": {"max_tests": -5, "max_time_ms": -10,
+                                  "max_rounds": -2, "target_time_ms": -1,
+                                  "min_tests": -3, "expressions_share": 7,
                                   "probe_timeout_tighten_factor": -1}},
-          "crash_minimizer": {"expressions_share": -2}})",
+          "crash_minimizer": {"target_time_ms": -7,
+                              "expressions_share": -2}})",
       &clamped);
   FuzzConfig low;
   const std::string low_error =
       LoadFullConfig(R"({"stages": {"check": {"import_reruns": 0}}})", &low);
+  FuzzConfig neg_flags;
+  std::string neg_flag_error;
+  {
+    const char* argv[] = {"redline",
+                          "fuzz",
+                          "--minimizer-target-time-ms=-1",
+                          "--minimizer-max-tests=-5",
+                          "--minimizer-max-time-ms=-2",
+                          "--crash-minimizer-max-tests=-3",
+                          "--crash-minimizer-max-time-ms=-4"};
+    Flags flags = Flags::Parse(7, argv, 2);
+    FuzzConfig::Load(flags, &neg_flags, &neg_flag_error, /*for_run=*/false);
+    TunableRegistry::Instance().Reset();
+  }
   checker->Check(
-      "config: the loader clamps import_reruns, expressions_share and the "
-      "tighten factor",
-      clamp_error.empty() && low_error.empty() && clamped.import_reruns == 20 &&
+      "config: the loader clamps import_reruns, minimizer limits, "
+      "expressions_share and the tighten factor",
+      clamp_error.empty() && low_error.empty() && neg_flag_error.empty() &&
+          clamped.import_reruns == 20 && clamped.minimizer.max_tests == 0 &&
+          clamped.minimizer.max_time_ms == 0 &&
+          clamped.minimizer.max_rounds == 0 &&
+          clamped.minimizer.target_time_ms == 0 &&
+          clamped.minimizer.min_tests == 0 &&
           clamped.minimizer.expressions_share == 1.0 &&
+          clamped.crash_minimizer.target_time_ms == 0 &&
           clamped.crash_minimizer.expressions_share == 0.0 &&
           clamped.probe_timeout_tighten_factor == 0.0 &&
+          neg_flags.minimizer.target_time_ms == 0 &&
+          neg_flags.minimizer.max_tests == 0 &&
+          neg_flags.minimizer.max_time_ms == 0 &&
+          neg_flags.crash_minimizer.max_tests == 0 &&
+          neg_flags.crash_minimizer.max_time_ms == 0 &&
           low.import_reruns == low.min_stable_reruns,
-      clamp_error + low_error);
+      clamp_error + low_error + neg_flag_error);
 }
 
 // The "init" and "accept" blocks, stages.minimize.reducers and

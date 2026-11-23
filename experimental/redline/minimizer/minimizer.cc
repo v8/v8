@@ -29,7 +29,18 @@ using fast::Statement;
 using StatementList = std::vector<Statement*>;
 
 // ---------------------------------------------------------------------------
-// MinimizationHelper
+// Adaptive budget tunables and MinimizationHelper
+
+namespace {
+
+REDLINE_TUNABLE(
+    kBudgetMinSamples, "minimizer.budget.min_samples", 4, 1, 32,
+    "probes before average probe duration scales the adaptive test budget");
+REDLINE_TUNABLE(
+    kBudgetTargetScale, "minimizer.budget.target_scale", 1.0, 0.1, 10.0,
+    "multiplier on target_time_ms for adaptive probe budget scaling");
+
+}  // namespace
 
 MinimizationHelper::MinimizationHelper(fast::Tree* tree,
                                        const MinimizationOracle& oracle,
@@ -41,8 +52,35 @@ MinimizationHelper::MinimizationHelper(fast::Tree* tree,
       options_(options),
       start_us_(MonotonicNowUs()) {}
 
+uint64_t MinimizationHelper::EstimatedExecTimeUs() const {
+  const int min_samples = kBudgetMinSamples.AsInt();
+  const uint64_t avg_all_us =
+      result_.tests >= min_samples
+          ? total_probe_time_us_ / static_cast<uint64_t>(result_.tests)
+          : 0;
+  if (kept_probes_ > 0) {
+    // Use the last kept probe time so a cut that removes a slow loop recovers
+    // budget at once. Keep `avg_all_us` as a floor so timeout bursts still
+    // tighten the budget.
+    return std::max(last_kept_probe_time_us_, avg_all_us);
+  }
+  return std::max(options_.initial_exec_time_us, avg_all_us);
+}
+
+int MinimizationHelper::EffectiveMaxTests() const {
+  const int cap = options_.max_tests;
+  if (options_.target_time_ms == 0 || cap <= 0) {
+    return cap;
+  }
+  const uint64_t est_us = EstimatedExecTimeUs();
+  if (est_us == 0) {
+    return cap;
+  }
+  return options_.TestsFor(est_us);
+}
+
 bool MinimizationHelper::BudgetExhausted() const {
-  if (result_.tests >= options_.max_tests) {
+  if (result_.tests >= EffectiveMaxTests()) {
     return true;
   }
   if (options_.max_time_ms != 0 &&
@@ -53,7 +91,7 @@ bool MinimizationHelper::BudgetExhausted() const {
 }
 
 int MinimizationHelper::TestsLeft() const {
-  return std::max(0, options_.max_tests - result_.tests);
+  return std::max(0, EffectiveMaxTests() - result_.tests);
 }
 
 bool MinimizationHelper::Test() {
@@ -75,10 +113,12 @@ bool MinimizationHelper::Test() {
   result_.tests++;
   Stopwatch stopwatch;
   bool ok = oracle_(source);
+  const uint64_t elapsed_us = stopwatch.ElapsedUs();
+  total_probe_time_us_ += elapsed_us;
   if (reducer_ != nullptr) {
     ComponentStats& stats = reducer_->stats();
     stats.executed++;
-    stats.time_us += stopwatch.ElapsedUs();
+    stats.time_us += elapsed_us;
     if (ok) {
       stats.succeeded++;
     } else {
@@ -87,6 +127,8 @@ bool MinimizationHelper::Test() {
   }
   if (ok) {
     result_.accepted++;
+    last_kept_probe_time_us_ = elapsed_us;
+    kept_probes_++;
   }
   return ok;
 }
@@ -181,6 +223,7 @@ int TrimList(std::vector<T*>& list, size_t min_size,
   if (list.size() <= min_size) {
     return 0;
   }
+  bool empty_failed = false;
   size_t chunk = std::max<size_t>(1, list.size() / 2);
   while (!helper.BudgetExhausted()) {
     size_t end = list.size();
@@ -193,8 +236,13 @@ int TrimList(std::vector<T*>& list, size_t min_size,
       if (begin >= end) {
         break;
       }
-      if (TryRemoveRange(list, begin, end, helper)) {
-        accepted++;
+      const bool empties = (begin == 0 && end == list.size());
+      if (!empties || !empty_failed) {
+        if (TryRemoveRange(list, begin, end, helper)) {
+          accepted++;
+        } else if (empties) {
+          empty_failed = true;
+        }
       }
       end = begin;
     }
@@ -202,6 +250,95 @@ int TrimList(std::vector<T*>& list, size_t min_size,
       break;
     }
     chunk = std::max<size_t>(1, chunk / 2);
+  }
+  return accepted;
+}
+
+REDLINE_TUNABLE(kStatementsChunkMinList, "minimizer.statements.chunk_min_list",
+                8, 2, 64,
+                "minimum statements in a list before block chunking runs");
+REDLINE_TUNABLE(
+    kStatementsMinChunkSize, "minimizer.statements.min_chunk_size", 4, 2, 32,
+    "smallest contiguous block size tried before the single-statement sweep");
+REDLINE_TUNABLE(
+    kStatementsMaxEmptyLevels, "minimizer.statements.max_empty_levels", 2, 1, 8,
+    "consecutive chunk levels with zero kept cuts before the single-statement "
+    "sweep");
+
+// Adaptive delta-debugging trimming for statement lists. Medium and large
+// lists try balanced contiguous blocks from the end down to `min_chunk_size`.
+// Chunking stops early when consecutive levels keep nothing. A
+// single-statement sweep then checks the remaining statements.
+int TrimStatements(StatementList& list, bool allow_empty_whole,
+                   MinimizationHelper& helper) {
+  int accepted = 0;
+  if (list.empty() || helper.BudgetExhausted()) {
+    return 0;
+  }
+  const size_t min_list = static_cast<size_t>(kStatementsChunkMinList.AsInt());
+  const size_t min_chunk = static_cast<size_t>(kStatementsMinChunkSize.AsInt());
+  const int max_empty_levels = kStatementsMaxEmptyLevels.AsInt();
+  bool empty_failed = false;
+
+  auto try_remove = [&](size_t begin, size_t end) {
+    if (begin >= end || end > list.size()) {
+      return false;
+    }
+    const bool empties = (begin == 0 && end == list.size());
+    if (empties && empty_failed) {
+      return false;
+    }
+    if (TryRemoveRange(list, begin, end, helper)) {
+      accepted++;
+      return true;
+    }
+    if (empties) {
+      empty_failed = true;
+    }
+    return false;
+  };
+
+  // Clear a dead medium or large nested block in 1 probe.
+  if (allow_empty_whole && list.size() >= min_list &&
+      !helper.BudgetExhausted()) {
+    if (try_remove(0, list.size())) {
+      return accepted;
+    }
+  }
+
+  if (list.size() >= min_list && list.size() >= min_chunk * 2) {
+    size_t chunk = list.size() / 2;
+    int empty_levels = 0;
+    while (!helper.BudgetExhausted() && chunk >= min_chunk &&
+           list.size() >= min_chunk * 2 && empty_levels < max_empty_levels) {
+      const size_t n = list.size();
+      const size_t parts = n / chunk;
+      if (parts < 2) {
+        break;
+      }
+      const int accepted_before = accepted;
+      // Walk balanced blocks from the end so removals do not shift earlier
+      // indices.
+      for (size_t p = parts; p > 0 && !helper.BudgetExhausted(); p--) {
+        const size_t begin = (p - 1) * n / parts;
+        const size_t end = p * n / parts;
+        if (begin == 0 && end == list.size() && !allow_empty_whole) {
+          continue;
+        }
+        try_remove(begin, end);
+      }
+      if (accepted > accepted_before) {
+        empty_levels = 0;
+      } else {
+        empty_levels++;
+      }
+      chunk = std::min(chunk / 2, list.size() / 2);
+    }
+  }
+
+  // Sweep the remaining statements 1 by 1 from the end.
+  for (size_t i = list.size(); i > 0 && !helper.BudgetExhausted(); i--) {
+    try_remove(i - 1, i);
   }
   return accepted;
 }
@@ -454,6 +591,7 @@ class StatementRemover : public Reducer {
 
   int Reduce(MinimizationHelper& helper) override {
     int accepted = PruneUnreferencedDeclarations(helper);
+    StatementList* root_body = StatementListOf(helper.tree()->root());
     std::unordered_set<StatementList*> done;
     while (!helper.BudgetExhausted()) {
       StatementList* list = nullptr;
@@ -468,14 +606,14 @@ class StatementRemover : public Reducer {
         break;
       }
       done.insert(list);
-      accepted += TrimList(*list, 0, helper);
+      accepted += TrimStatements(*list, list != root_body, helper);
     }
     return accepted;
   }
 
  private:
   // Removes top-level VariableDeclaration statements whose bindings have
-  // zero references in one probe before TrimList runs.
+  // zero references in 1 probe before `TrimStatements` runs.
   static int PruneUnreferencedDeclarations(MinimizationHelper& helper) {
     if (helper.BudgetExhausted()) {
       return 0;
@@ -781,6 +919,10 @@ REDLINE_TUNABLE(kExpressionsMaxCallArguments,
                 "minimizer.expressions.max_call_arguments", 2, 0, 8,
                 "leading arguments of a call or `new` that are tried as its "
                 "replacement (the callee always is)");
+REDLINE_TUNABLE(kExpressionsMaxConsecutiveFailures,
+                "minimizer.expressions.max_consecutive_failures", 10, 0, 200,
+                "rejected probes in a row that stop `expressions` early when "
+                "`expressions_share` is below 1 (0 disables)");
 
 // Replaces expressions by one of their operands or by a constant:
 // `a + f(b)` -> `a`, `f(b)` -> `b`, `o.p.q` -> `o.p`, `x ? y : z` -> `y`,
@@ -793,11 +935,21 @@ class ExpressionSimplifier : public Reducer {
 
   int Reduce(MinimizationHelper& helper) override {
     int accepted = 0;
-    // The reducer stops after its part of the remaining budget
-    // (MinimizerOptions::expressions_share).
-    const int last_test = helper.result().tests + Share(helper);
+    // On corpus programs (`expressions_share` < 1), the reducer stops after
+    // its budget share or consecutive rejected probes. When
+    // `expressions_share` is 1, the reducer stays uncapped so budget recovery
+    // still applies.
+    const bool has_share_cap = helper.options().expressions_share < 1.0;
+    const int last_test =
+        has_share_cap ? helper.result().tests + Share(helper) : 0;
+    const int max_consecutive_failures =
+        has_share_cap ? kExpressionsMaxConsecutiveFailures.AsInt() : 0;
+    int consecutive_failures = 0;
     auto exhausted = [&] {
-      return helper.BudgetExhausted() || helper.result().tests >= last_test;
+      return helper.BudgetExhausted() ||
+             (has_share_cap && helper.result().tests >= last_test) ||
+             (max_consecutive_failures > 0 &&
+              consecutive_failures >= max_consecutive_failures);
     };
     // (slot, alternative index) pairs that were already rejected.
     std::unordered_set<uint64_t> failed;
@@ -820,6 +972,9 @@ class ExpressionSimplifier : public Reducer {
             s.loop_test ? std::vector<Expression*>{mk::Num(helper.tree(), 0)}
                         : Alternatives(helper.tree(), current);
         for (size_t alt = 0; alt < alternatives.size(); alt++) {
+          if (exhausted()) {
+            break;
+          }
           // Slots are 8-byte aligned pointers; 4 bits hold the index of
           // any alternative (at most max_call_arguments + 3 of them).
           uint64_t key = reinterpret_cast<uint64_t>(slot) * 16 + alt;
@@ -827,13 +982,18 @@ class ExpressionSimplifier : public Reducer {
             continue;
           }
           *slot = alternatives[alt];
+          const int tests_before = helper.result().tests;
           if (helper.Test()) {
             accepted++;
+            consecutive_failures = 0;
             progress = true;
             break;
           }
           *slot = current;
           failed.insert(key);
+          if (helper.result().tests > tests_before) {
+            consecutive_failures++;
+          }
         }
         if (progress) {
           break;  // the tree changed: recollect the slots
@@ -1294,19 +1454,28 @@ const char* MinimizationStopName(MinimizationStop stop) {
 }
 
 int MinimizerOptions::TestsFor(uint64_t exec_time_us) const {
+  if (max_tests <= 0) {
+    return 0;
+  }
   if (target_time_ms == 0 || exec_time_us == 0) {
     return max_tests;
   }
-  uint64_t affordable = target_time_ms * 1000 / exec_time_us;
-  int tests = affordable > static_cast<uint64_t>(max_tests)
-                  ? max_tests
-                  : static_cast<int>(affordable);
-  return std::max(tests, std::min(min_tests, max_tests));
+  const double scaled_target_us =
+      static_cast<double>(target_time_ms) * 1000.0 * kBudgetTargetScale();
+  const double affordable =
+      scaled_target_us / static_cast<double>(exec_time_us);
+  if (!std::isfinite(affordable) ||
+      affordable >= static_cast<double>(max_tests)) {
+    return max_tests;
+  }
+  const int tests = affordable <= 0.0 ? 0 : static_cast<int>(affordable);
+  const int floor_tests = std::max(0, std::min(min_tests, max_tests));
+  return std::max(tests, floor_tests);
 }
 
 MinimizerOptions MinimizerOptions::ForProgram(uint64_t exec_time_us) const {
   MinimizerOptions scaled = *this;
-  scaled.max_tests = TestsFor(exec_time_us);
+  scaled.initial_exec_time_us = exec_time_us;
   return scaled;
 }
 

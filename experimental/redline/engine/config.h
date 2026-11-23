@@ -205,14 +205,15 @@ struct FuzzConfig {
   // target features of a program (Worker::MinimizationProperty).
   bool minimize_code_edges = true;
   FeatureWeights::Params feature_weights;
-  // The `expressions` reducer gets a quarter of the remaining budget of a
-  // corpus program. The crash minimizer gives it all of its budget.
+  // Corpus minimization uses an adaptive slow-program budget and gives
+  // `expressions` a small share with early stopping. The crash minimizer
+  // stays uncapped.
   MinimizerOptions minimizer{/*max_tests=*/300,
                              /*max_time_ms=*/30000,
                              /*max_rounds=*/3,
-                             /*target_time_ms=*/6000,
-                             /*min_tests=*/40,
-                             /*expressions_share=*/0.25};
+                             /*target_time_ms=*/1500,
+                             /*min_tests=*/16,
+                             /*expressions_share=*/0.15};
   // The minimizer's reducers, in the order they run (stages.minimize.reducers).
   // Empty: the default order (Minimizer::DefaultOrder).
   std::vector<std::string> minimizer_reducers;
@@ -293,13 +294,14 @@ struct FuzzConfig {
   // runs it in up to this many plain d8 processes, within
   // crash_history_budget_sec, and writes how many crashed (0: no runs).
   int crash_bundle_runs = 3;
-  // Budget for minimizing crashes (they are rare and worth more tests than
-  // corpus programs).
+  // Budget for minimizing crashes. `target_time_ms` is 0 and
+  // `expressions_share` is 1, so crash minimization stays uncapped.
   MinimizerOptions crash_minimizer{/*max_tests=*/2000,
                                    /*max_time_ms=*/120000,
                                    /*max_rounds=*/10,
-                                   /*target_time_ms=*/120000,
-                                   /*min_tests=*/200};
+                                   /*target_time_ms=*/0,
+                                   /*min_tests=*/200,
+                                   /*expressions_share=*/1.0};
   // The reducers of the crash minimizer, in the order they run
   // (crash_minimizer.reducers). An empty list gives the default order,
   // Minimizer::CrashOrder().

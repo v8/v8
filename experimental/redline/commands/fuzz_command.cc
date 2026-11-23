@@ -145,7 +145,7 @@ const char kUsage[] =
     "  --minimizer-max-tests=N  oracle executions per minimization (300)\n"
     "  --minimizer-max-time-ms=N  wall-clock bound per minimization (30000)\n"
     "  --minimizer-target-time-ms=N  scale the test budget of slow programs\n"
-    "                           down to about N ms per minimization (6000;\n"
+    "                           down to about N ms per minimization (1500;\n"
     "                           0 = always max-tests)\n"
     "  --crash-reruns=N         fresh-target re-executions to check whether a\n"
     "                           crash reproduces (3)\n"
