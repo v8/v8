@@ -6352,13 +6352,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   isolate_data_.has_lazy_closures_ = v8_flags.proto_assign_seq_lazy_func_opt;
 
-  if (use_shared_space_isolate && !is_shared_space_isolate() &&
-      use_shared_space_isolate->heap()
-          ->incremental_marking()
-          ->IsMajorMarking()) {
-    heap_.SetIsSharedMarkingFlag(true);
-  }
-
   // Set up the object heap.
   DCHECK(!heap_.HasBeenSetUp());
   heap_.SetUp(main_thread_local_heap());
@@ -6413,6 +6406,16 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   PerIsolateThreadData* const current_data = CurrentPerIsolateThreadData();
   DCHECK_EQ(current_data->isolate(), this);
   SetIsolateThreadLocals(this, current_data);
+
+  // The main thread's marking barrier is now set up and installed, so write
+  // barriers may observe shared marking from here on.
+  if (use_shared_space_isolate && !is_shared_space_isolate() &&
+      use_shared_space_isolate->heap()
+          ->incremental_marking()
+          ->IsMajorMarking()) {
+    DCHECK(!isolate_data_.is_shared_marking());
+    heap_.SetIsSharedMarkingFlag(true);
+  }
 
   if (OwnsStringTables()) {
     string_table_ = std::make_unique<StringTable>(this);

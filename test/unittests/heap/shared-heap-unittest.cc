@@ -8,6 +8,7 @@
 #include "src/base/platform/semaphore.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/heap/heap.h"
+#include "src/heap/marking-barrier.h"
 #include "src/heap/parked-scope-inl.h"
 #include "src/objects/bytecode-array.h"
 #include "src/objects/fixed-array.h"
@@ -1227,6 +1228,37 @@ TEST_F(SharedHeapTest,
 #endif  // V8_ENABLE_SANDBOX
 
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+TEST_F(SharedHeapTest, ClientIsolateSharedMarkingFlagDuringSetup) {
+  if (!v8_flags.incremental_marking) return;
+  Isolate* isolate = i_isolate();
+  ManualGCScope manual_gc_scope(isolate);
+  HandleScope scope(isolate);
+
+  isolate->heap()->StartIncrementalMarking(GCFlag::kNoFlags,
+                                           GarbageCollectionReason::kTesting);
+  ASSERT_TRUE(isolate->heap()->incremental_marking()->IsMajorMarking());
+  ASSERT_TRUE(isolate->isolate_data()->is_shared_marking());
+
+  SetupClientIsolateAndRunCallback([](v8::Isolate* client_isolate,
+                                      Isolate* i_client_isolate) {
+    EXPECT_TRUE(i_client_isolate->isolate_data()->is_shared_marking());
+    EXPECT_TRUE(i_client_isolate->main_thread_local_heap()
+                    ->marking_barrier()
+                    ->is_shared());
+    // Constructing a background LocalHeap on the client while shared
+    // marking is active must also observe the shared marking flag and
+    // activate its shared marking barrier.
+    i_client_isolate->main_thread_local_heap()->ExecuteMainThreadWhileParked(
+        [i_client_isolate]() {
+          LocalHeap bg_local_heap(i_client_isolate->heap(),
+                                  ThreadKind::kBackground);
+          EXPECT_TRUE(bg_local_heap.marking_barrier()->is_shared());
+        });
+  });
+
+  InvokeMajorGC(isolate);
+}
 
 template <typename TMixin>
 class WithEmptySharedHeapFlagsMixin : public TMixin {

@@ -192,6 +192,11 @@ void LocalHeap::SetUpSharedMarking() {
             ->incremental_marking()
             ->IsMajorMarking()) {
       marking_barrier_->ActivateShared();
+      // For the main thread, Isolate::Init() sets the isolate-level shared
+      // marking flag right after SetIsolateThreadLocals(). For background
+      // threads, it must already be set.
+      DCHECK_EQ(isolate->isolate_data()->is_shared_marking(),
+                !is_main_thread());
     }
   }
 }

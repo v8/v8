@@ -199,7 +199,9 @@ void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
   }
 
   Isolate* isolate = marking_barrier->heap()->isolate();
-  if (IsSharedExternalPointerType(slot.tag_range())) {
+  const bool is_shared_external_pointer =
+      IsSharedExternalPointerType(slot.tag_range());
+  if (is_shared_external_pointer) {
     if (marking_barrier->is_not_major() &&
         !isolate->isolate_data()->is_shared_marking()) {
       return;
@@ -216,13 +218,21 @@ void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
                                                               host.address());
   DCHECK(!space->is_internal_read_only_space());
 
-  table.Mark(space, handle, slot.address(), slot.tag_range());
-
-  if (marking_barrier->is_minor() && HeapLayout::InYoungGeneration(host)) {
+  if (!is_shared_external_pointer && marking_barrier->is_minor()) {
+    // MinorMS only sweeps young_external_pointer_space, so avoid leaving stale
+    // mark bits in old_external_pointer_space. Rely on `space` (derived from
+    // trusted page metadata) rather than untrusted chunk flags.
+    if (space != isolate->heap()->young_external_pointer_space()) {
+      return;
+    }
+    table.Mark(space, handle, slot.address(), slot.tag_range());
     MutablePage* host_page = MutablePage::FromHeapObject(isolate, host);
     RememberedSet<SURVIVOR_TO_EXTERNAL_POINTER>::Insert<AccessMode::ATOMIC>(
         host_page, host_page->Offset(slot.address()));
+    return;
   }
+
+  table.Mark(space, handle, slot.address(), slot.tag_range());
 #else
   UNREACHABLE();
 #endif  // V8_COMPRESS_POINTERS
