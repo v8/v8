@@ -129,7 +129,7 @@ std::tuple<Node*, Node*> WasmLoadElimination::TruncateAndExtendOrType(
   }
 
   wasm::ValueType unpacked_field_type = field_type.Unpacked();
-  if (node_type.type.is_uninhabited() ||
+  if (node_type.type.is_uninhabited() || unpacked_field_type.is_uninhabited() ||
       TypesUnrelated(node_type.type, unpacked_field_type, node_type.module)) {
     // Uninhabited or unrelated types can occur as a result of unreachable code.
     // Example: Storing a value x of type A in a struct, then casting the struct
@@ -256,9 +256,20 @@ Reduction WasmLoadElimination::ReduceWasmStructGet(Node* node) {
       half_state->LookupField(field_info.field_index, object);
 
   if (!lookup_result.IsEmpty() && !lookup_result.value->IsDead()) {
+    wasm::ValueType field_type = field_info.type->field(field_info.field_index);
+    if (field_type.is_ref()) {
+      // Use the refined Wasm type of {node} rather than the static field type
+      // from {field_info}: WasmTyper may have refined {node} using a subtype
+      // of {field_info.type} with a more specific covariant field type, and
+      // replacing {node} must not widen its type or substitute an unrelated
+      // sibling field type.
+      field_type = NodeProperties::GetType(node).AsWasm().type;
+    } else {
+      DCHECK_EQ(NodeProperties::GetType(node).AsWasm().type,
+                field_type.Unpacked());
+    }
     std::tuple<Node*, Node*> replacement = TruncateAndExtendOrType(
-        lookup_result.value, effect, control,
-        field_info.type->field(field_info.field_index), field_info.is_signed);
+        lookup_result.value, effect, control, field_type, field_info.is_signed);
     if (std::get<0>(replacement) == dead()) {
       // If the value is dead (unreachable), this whole code path is unreachable
       // and we can mark this control flow path as dead.
