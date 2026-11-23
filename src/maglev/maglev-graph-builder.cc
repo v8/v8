@@ -2255,7 +2255,11 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceCompareEqualAgainstConstant() {
   }
   if (!maybe_constant) return {};
 
-  if (CheckType(other, NodeType::kBoolean)) {
+  NodeType other_type;
+  if (CheckType(other, NodeType::kBoolean, &other_type)) {
+    if (IsEmptyNodeType(other_type)) {
+      return reducer_.BuildAbort(AbortReason::kUnreachable);
+    }
     auto CompareOtherWith = [&](bool constant) {
       compiler::OptionalHeapObjectRef const_other =
           TryGetConstant<HeapObject>(other);
@@ -2270,7 +2274,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceCompareEqualAgainstConstant() {
         SetAccumulator(other);
         return ReduceResult::Done();
       } else {
-        return SetAccumulator(AddNewNode<LogicalNot>({other}));
+        return SetAccumulator(BuildLogicalNot(other));
       }
     };
 
@@ -4255,17 +4259,18 @@ ReduceResult MaglevGraphBuilder::BuildLoadField(
 
   // Insert the static field information: the type for every access, and the
   // map identity when the field has a stable map.
-  NodeInfo* known_info = GetOrCreateInfoFor(value);
   if (stable_field_map.has_value()) {
     DCHECK(stable_field_map.value().IsJSReceiverMap());
+    NodeInfo* known_info = GetOrCreateInfoFor(value);
     if (!known_info->SetPossibleMaps(PossibleMaps{stable_field_map.value()},
                                      false, node_type, broker(),
                                      known_node_aspects())) {
-      return reducer_.EmitUnconditionalDeopt(DeoptimizeReason::kWrongValue);
+      return reducer_.BuildAbort(AbortReason::kUnreachable);
     }
     broker()->dependencies()->DependOnStableMap(stable_field_map.value());
-  } else {
-    known_info->IntersectType(node_type);
+  } else if (known_node_aspects().EnsureType(broker(), value, node_type) ==
+             EnsureTypeResult::kContradiction) {
+    return reducer_.BuildAbort(AbortReason::kUnreachable);
   }
   return value;
 }
