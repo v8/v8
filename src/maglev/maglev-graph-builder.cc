@@ -7425,7 +7425,7 @@ MaglevGraphBuilder::TryBuildFindNonDefaultConstructorOrConstruct(
 
         ValueNode* object;
         if (HasValidInitialMap(new_target_function.value(), current_function)) {
-          GET_VALUE(
+          GET_VALUE_OR_ABORT(
               object,
               reducer_.BuildInlinedAllocation(
                   reducer_.CreateJSConstructor(new_target_function.value())));
