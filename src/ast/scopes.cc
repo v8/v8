@@ -339,7 +339,6 @@ void DeclarationScope::SetDefaults() {
   set_has_simple_parameters(true);
   set_force_eager_compilation(false);
   set_has_rest(false);
-  set_has_arguments_parameter(false);
   set_uses_super_property(false);
   set_should_eager_compile(false);
   set_was_lazily_parsed(false);
@@ -1148,7 +1147,6 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
 Variable* DeclarationScope::DeclareParameter(const AstRawString* name,
                                              VariableMode mode,
                                              bool is_optional, bool is_rest,
-                                             AstValueFactory* ast_value_factory,
                                              int position) {
   DCHECK(!already_resolved_);
   DCHECK(is_function_scope() || is_module_scope());
@@ -1168,9 +1166,6 @@ Variable* DeclarationScope::DeclareParameter(const AstRawString* name,
   var->set_initializer_position(position);
   params_.Add(var, zone());
   if (!is_rest) ++num_parameters_;
-  if (name == ast_value_factory->arguments_string()) {
-    set_has_arguments_parameter(true);
-  }
   return var;
 }
 
@@ -2669,12 +2664,11 @@ void DeclarationScope::AllocateParameterLocals() {
   bool has_mapped_arguments = false;
   if (arguments_ != nullptr) {
     DCHECK(!is_arrow_scope());
+    DCHECK(!arguments_->is_parameter());
     MarkMaybeAssignedIfEval(arguments_);
-    if (MustAllocate(arguments_) && !has_arguments_parameter()) {
-      // 'arguments' is used and does not refer to a function
-      // parameter of the same name. If the arguments object
-      // aliases formal parameters, we conservatively allocate
-      // them specially in the loop below.
+    if (MustAllocate(arguments_)) {
+      // 'arguments' is used. If the arguments object aliases formal parameters,
+      // we conservatively allocate them specially in the loop below.
       has_mapped_arguments =
           GetArgumentsType() == CreateArgumentsType::kMappedArguments;
     } else {

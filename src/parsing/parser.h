@@ -901,8 +901,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       scope->DeclareParameter(
           is_simple ? parameter->name() : ast_value_factory()->empty_string(),
           is_simple ? VariableMode::kVar : VariableMode::kTemporary,
-          is_optional, parameter->is_rest(), ast_value_factory(),
-          parameter->position);
+          is_optional, parameter->is_rest(), parameter->position);
     }
   }
 

@@ -129,7 +129,7 @@ FunctionLiteral* Parser::MakeAutoAccessorSetter(VariableProxy* name_proxy,
   function_scope->set_end_position(pos);
   function_scope->DeclareParameter(ast_value_factory()->empty_string(),
                                    VariableMode::kTemporary, false, false,
-                                   ast_value_factory(), kNoSourcePosition);
+                                   kNoSourcePosition);
   {
     FunctionState function_state(&function_state_, &scope_, function_scope);
     body.Add(factory()->NewAutoAccessorSetterBody(name_proxy, pos));

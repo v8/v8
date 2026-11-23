@@ -1121,13 +1121,6 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
     flags_ = HasRestField::update(flags_, value);
   }
 
-  bool has_arguments_parameter() const {
-    return HasArgumentsParameterField::decode(flags_);
-  }
-  void set_has_arguments_parameter(bool value) {
-    flags_ = HasArgumentsParameterField::update(flags_, value);
-  }
-
   void SetScriptScopeInfo(Handle<ScopeInfo> scope_info) {
     DCHECK(is_script_scope());
     DCHECK(scope_info_.is_null());
@@ -1166,8 +1159,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // parameters the rightmost one 'wins'.  However, the implementation
   // expects all parameters to be declared and from left to right.
   Variable* DeclareParameter(const AstRawString* name, VariableMode mode,
-                             bool is_optional, bool is_rest,
-                             AstValueFactory* ast_value_factory, int position);
+                             bool is_optional, bool is_rest, int position);
 
   // Makes sure that num_parameters_ and has_rest is correct for the preparser.
   void RecordParameter(bool is_rest);
@@ -1435,10 +1427,8 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   using ForceEagerCompilationField = HasSimpleParametersField::Next<bool, 1>;
   // This function scope has a rest parameter.
   using HasRestField = ForceEagerCompilationField::Next<bool, 1>;
-  // This scope has a parameter called "arguments".
-  using HasArgumentsParameterField = HasRestField::Next<bool, 1>;
   // This scope uses "super" property ('super.foo').
-  using UsesSuperPropertyField = HasArgumentsParameterField::Next<bool, 1>;
+  using UsesSuperPropertyField = HasRestField::Next<bool, 1>;
   using ShouldEagerCompileField = UsesSuperPropertyField::Next<bool, 1>;
   // Set to true after we have finished lazy parsing the scope.
   using WasLazilyParsedField = ShouldEagerCompileField::Next<bool, 1>;

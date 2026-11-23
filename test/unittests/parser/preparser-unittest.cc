@@ -272,6 +272,31 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
       {"if (true) { const arguments = 5; }", SKIP_STRICT},
       {"const arguments = 5; function f() { arguments; }", SKIP_STRICT},
 
+      // Parameter called "arguments"
+      {"arguments", "", SKIP_STRICT},
+      {"arguments", "arguments;", SKIP_STRICT},
+      {"arguments", "arguments = 5;", SKIP_STRICT},
+      {"arguments", "() => { arguments; };", SKIP_STRICT},
+      {"arguments", "() => { arguments = 5; };", SKIP_STRICT},
+
+      {"arguments = 1", "", SKIP_STRICT},
+      {"arguments = 1", "arguments;", SKIP_STRICT},
+      {"arguments = 1", "arguments = 5;", SKIP_STRICT},
+      {"arguments = 1", "() => { arguments; };", SKIP_STRICT},
+      {"arguments = 1", "() => { arguments = 5; };", SKIP_STRICT},
+
+      {"[arguments]", "", SKIP_STRICT},
+      {"[arguments]", "arguments;", SKIP_STRICT},
+      {"[arguments]", "arguments = 5;", SKIP_STRICT},
+      {"[arguments]", "() => { arguments; };", SKIP_STRICT},
+      {"[arguments]", "() => { arguments = 5; };", SKIP_STRICT},
+
+      {"...arguments", "", SKIP_STRICT},
+      {"...arguments", "arguments;", SKIP_STRICT},
+      {"...arguments", "arguments = 5;", SKIP_STRICT},
+      {"...arguments", "() => { arguments; };", SKIP_STRICT},
+      {"...arguments", "() => { arguments = 5; };", SKIP_STRICT},
+
       // Destructuring declarations.
       {"var [var1, var2] = [1, 2];"},
       {"var [var1, var2, [var3, var4]] = [1, 2, [3, 4]];"},
