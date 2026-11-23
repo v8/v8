@@ -4062,12 +4062,11 @@ bool CanBackgroundCompile(const ScriptDetails& script_details,
 bool CompilationExceptionIsRangeError(Isolate* isolate,
                                       DirectHandle<Object> obj) {
   if (!IsJSError(*obj)) return false;
-  DirectHandle<JSReceiver> js_obj = Cast<JSReceiver>(obj);
-  DirectHandle<JSReceiver> constructor;
-  if (!JSReceiver::GetConstructor(isolate, js_obj).ToHandle(&constructor)) {
-    return false;
-  }
-  return *constructor == *isolate->range_error_function();
+  // Check the map's constructor directly rather than using
+  // JSReceiver::GetConstructor, whose result depends on user-modifiable
+  // properties such as the constructor's "name".
+  return Cast<JSObject>(*obj)->map()->GetConstructor() ==
+         *isolate->range_error_function();
 }
 
 MaybeDirectHandle<SharedFunctionInfo>
