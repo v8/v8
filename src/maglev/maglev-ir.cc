@@ -9651,7 +9651,7 @@ void ReduceInterruptBudgetForLoop::PrintParams(std::ostream& os) const {
   os << "(" << amount() << ", " << osr_offset().ToInt() << ")";
 }
 
-void ReduceInterruptBudgetForReturn::PrintParams(std::ostream& os) const {
+void ReduceInterruptBudgetForEntry::PrintParams(std::ostream& os) const {
   os << "(" << amount() << ")";
 }
 

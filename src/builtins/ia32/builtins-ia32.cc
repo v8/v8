@@ -1914,12 +1914,47 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     __ j(below, &call_stack_guard);
   }
 
+  // Reduce interrupt budget.
+  Label budget_interrupt;
+  {
+    ASM_CODE_COMMENT_STRING(masm, "Update Interrupt Budget");
+    __ movd(scratch, saved_bytecode_array);
+    __ mov(scratch, FieldOperand(scratch, offsetof(BytecodeArray, length_)));
+    __ SmiUntag(scratch);
+    // frame_size is dead after the stack check above.
+    Register feedback_cell = frame_size;
+    __ movd(feedback_cell, saved_feedback_cell);
+    __ sub(
+        FieldOperand(feedback_cell, offsetof(FeedbackCell, interrupt_budget_)),
+        scratch);
+    __ j(less, &budget_interrupt);
+  }
+
   // Push the return address back onto the stack for return.
   __ PushReturnAddressFrom(return_address, scratch);
   // Return to caller pushed pc, without any frame teardown.
   __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
   __ Ret();
 
+  __ bind(&budget_interrupt);
+  {
+    ASM_CODE_COMMENT_STRING(masm, "Budget interrupt call");
+    {
+      // Push the baseline code return address now, as if it had been pushed by
+      // the call to this builtin.
+      __ PushReturnAddressFrom(return_address, scratch);
+      FrameScope manual_frame_scope(masm, StackFrame::INTERNAL);
+      // Save incoming new target or generator
+      __ Push(kJavaScriptCallNewTargetRegister);
+      __ Push(closure);
+      __ CallRuntime(Runtime::kBytecodeBudgetInterrupt_Sparkplug, 1);
+      __ Pop(kJavaScriptCallNewTargetRegister);
+    }
+
+    // Return to caller pushed pc, without any frame teardown.
+    __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
+    __ Ret();
+  }
 
   __ bind(&call_stack_guard);
   {

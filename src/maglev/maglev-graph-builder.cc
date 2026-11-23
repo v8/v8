@@ -15621,13 +15621,6 @@ ReduceResult MaglevGraphBuilder::VisitReThrow() {
 }
 
 ReduceResult MaglevGraphBuilder::VisitReturn() {
-  // See also: InterpreterAssembler::UpdateInterruptBudgetOnReturn.
-  const uint32_t relative_jump_bytecode_offset = iterator_.current_offset();
-  if (ShouldEmitInterruptBudgetChecks() && relative_jump_bytecode_offset > 0) {
-    RETURN_IF_ABORT(AddNewNode<ReduceInterruptBudgetForReturn>(
-        {GetFeedbackCell()}, relative_jump_bytecode_offset));
-  }
-
   if (is_inline()) {
     // All inlined function returns instead jump to one past the end of the
     // bytecode, where we'll later create a final basic block which resumes
@@ -16540,6 +16533,15 @@ bool MaglevGraphBuilder::Build() {
       zone(), GetDeoptFrameForEntryStackCheck(),
       interpreter::Register::invalid_value(), 0, compiler::FeedbackSource());
   reducer_.AddInitializedNodeToGraph(function_entry_stack_check);
+
+  if (!compilation_unit_->is_osr() && ShouldEmitInterruptBudgetChecks()) {
+    DCHECK_GT(bytecode().length(), 0);
+    if (AddNewNode<ReduceInterruptBudgetForEntry>({GetFeedbackCell()},
+                                                  bytecode().length())
+            .IsDoneWithAbort()) {
+      return false;
+    }
+  }
 
   BuildMergeStates();
   InitializeScopeInfo();

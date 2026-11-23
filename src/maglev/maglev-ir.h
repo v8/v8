@@ -498,7 +498,7 @@ class ExceptionHandlerInfo;
   V(StoreTrustedPointerFieldWithWriteBarrier) \
   V(HandleNoHeapWritesInterrupt)              \
   V(ReduceInterruptBudgetForLoop)             \
-  V(ReduceInterruptBudgetForReturn)           \
+  V(ReduceInterruptBudgetForEntry)            \
   V(ThrowReferenceErrorIfTdzHole)             \
   V(ThrowSuperNotCalledIfTdzHole)             \
   V(ThrowSuperAlreadyCalledIfNotTdzHole)      \
@@ -11384,10 +11384,10 @@ class ReduceInterruptBudgetForLoop
   const FeedbackSlot feedback_slot_;
 };
 
-class ReduceInterruptBudgetForReturn
-    : public FixedInputNodeT<1, ReduceInterruptBudgetForReturn> {
+class ReduceInterruptBudgetForEntry
+    : public FixedInputNodeT<1, ReduceInterruptBudgetForEntry> {
  public:
-  explicit ReduceInterruptBudgetForReturn(uint64_t bitfield, int amount)
+  explicit ReduceInterruptBudgetForEntry(uint64_t bitfield, int amount)
       : Base(bitfield), amount_(amount) {
     DCHECK_GT(amount, 0);
   }

@@ -1012,7 +1012,7 @@ void UnsafeFloat64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
 
 namespace {
 
-enum class ReduceInterruptBudgetType { kLoop, kReturn };
+enum class ReduceInterruptBudgetType { kLoop, kEntry };
 
 void HandleInterruptsAndTiering(MaglevAssembler* masm, ZoneLabelRef done,
                                 Node* node, ReduceInterruptBudgetType type,
@@ -1037,7 +1037,7 @@ void HandleInterruptsAndTiering(MaglevAssembler* masm, ZoneLabelRef done,
     __ CallRuntime(Runtime::kBytecodeBudgetLoopInterrupt_Maglev, 2);
     save_register_state.DefineSafepointWithLazyDeopt(node->lazy_deopt_info());
   } else {
-    DCHECK_EQ(type, ReduceInterruptBudgetType::kReturn);
+    DCHECK_EQ(type, ReduceInterruptBudgetType::kEntry);
     SaveRegisterStateForCall save_register_state(masm,
                                                  node->register_snapshot());
     Register function = scratch0;
@@ -1085,15 +1085,15 @@ void ReduceInterruptBudgetForLoop::GenerateCode(MaglevAssembler* masm,
   }
 }
 
-int ReduceInterruptBudgetForReturn::MaxCallStackArgs() const { return 1; }
-void ReduceInterruptBudgetForReturn::SetValueLocationConstraints() {
+int ReduceInterruptBudgetForEntry::MaxCallStackArgs() const { return 1; }
+void ReduceInterruptBudgetForEntry::SetValueLocationConstraints() {
   UseRegister(FeedbackCellInput());
   set_temporaries_needed(1);
 }
-void ReduceInterruptBudgetForReturn::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
+void ReduceInterruptBudgetForEntry::GenerateCode(MaglevAssembler* masm,
+                                                 const ProcessingState& state) {
   GenerateReduceInterruptBudget(masm, this, ToRegister(FeedbackCellInput()),
-                                ReduceInterruptBudgetType::kReturn, amount());
+                                ReduceInterruptBudgetType::kEntry, amount());
 }
 
 // ---

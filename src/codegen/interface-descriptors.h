@@ -2634,13 +2634,11 @@ class BaselineLeaveFrameDescriptor
  public:
   INTERNAL_DESCRIPTOR()
   SANDBOXING_MODE(kSandboxed)
-  DEFINE_PARAMETERS_NO_CONTEXT(kParamsSize, kWeight)
-  DEFINE_PARAMETER_TYPES(MachineType::Int32(),  // kParamsSize
-                         MachineType::Int32())  // kWeight
+  DEFINE_PARAMETERS_NO_CONTEXT(kParamsSize)
+  DEFINE_PARAMETER_TYPES(MachineType::Int32())  // kParamsSize
   DECLARE_DESCRIPTOR(BaselineLeaveFrameDescriptor)
 
   static constexpr inline Register ParamsSizeRegister();
-  static constexpr inline Register WeightRegister();
 
   static constexpr inline auto registers();
 };

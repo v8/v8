@@ -5943,7 +5943,7 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
-  maglev::ProcessResult Process(maglev::ReduceInterruptBudgetForReturn*,
+  maglev::ProcessResult Process(maglev::ReduceInterruptBudgetForEntry*,
                                 const maglev::ProcessingState&) {
     // No need to update the interrupt budget once we reach Turboshaft.
     return maglev::ProcessResult::kContinue;

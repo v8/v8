@@ -1235,10 +1235,48 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     __ B(lo, &call_stack_guard);
   }
 
+  // Reduce interrupt budget.
+  Label budget_interrupt;
+  {
+    ASM_CODE_COMMENT_STRING(masm, "Update Interrupt Budget");
+    UseScratchRegisterScope temps(masm);
+    Register interrupt_budget = temps.AcquireW();
+    Register bytecode_length = temps.AcquireX();
+    Register bytecode_array = descriptor.GetRegisterParameter(
+        BaselineOutOfLinePrologueDescriptor::kInterpreterBytecodeArray);
+    __ Ldr(interrupt_budget,
+           FieldMemOperand(feedback_cell,
+                           offsetof(FeedbackCell, interrupt_budget_)));
+    __ SmiUntagField(
+        bytecode_length,
+        FieldMemOperand(bytecode_array, offsetof(BytecodeArray, length_)));
+    __ Subs(interrupt_budget, interrupt_budget, bytecode_length.W());
+    __ Str(interrupt_budget,
+           FieldMemOperand(feedback_cell,
+                           offsetof(FeedbackCell, interrupt_budget_)));
+    __ B(lt, &budget_interrupt);
+  }
+
   // Do "fast" return to the caller pc in lr.
   __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
   __ Ret();
 
+  __ Bind(&budget_interrupt);
+  {
+    ASM_CODE_COMMENT_STRING(masm, "Budget interrupt call");
+    Register new_target = descriptor.GetRegisterParameter(
+        BaselineOutOfLinePrologueDescriptor::kJavaScriptCallNewTarget);
+
+    FrameScope frame_scope(masm, StackFrame::INTERNAL);
+    __ PushDispatchHandle(kJavaScriptCallDispatchHandleRegister, new_target,
+                          feedback_cell, feedback_vector);
+    __ PushArgument(closure);
+    __ CallRuntime(Runtime::kBytecodeBudgetInterrupt_Sparkplug, 1);
+    __ PopDispatchHandle(kJavaScriptCallDispatchHandleRegister, new_target,
+                         feedback_cell, feedback_vector);
+  }
+  __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
+  __ Ret();
 
   __ bind(&call_stack_guard);
   {

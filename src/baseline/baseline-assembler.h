@@ -250,8 +250,6 @@ class BaselineAssembler {
   // we can compare afterward.
   inline void AddToInterruptBudgetAndJumpIfNotExceeded(
       int32_t weight, V8_ASM_BRANCH Label* skip_interrupt_label);
-  inline void AddToInterruptBudgetAndJumpIfNotExceeded(
-      V8_REG_IN Register weight, V8_ASM_BRANCH Label* skip_interrupt_label);
 
   // By default, the output register may be compressed on 64-bit architectures
   // that support pointer compression.

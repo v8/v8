@@ -2055,12 +2055,52 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     __ j(below, &call_stack_guard);
   }
 
+  // Reduce interrupt budget.
+  Label budget_interrupt;
+  {
+    ASM_CODE_COMMENT_STRING(masm, "Update Interrupt Budget");
+    Register bytecode_array = descriptor.GetRegisterParameter(
+        BaselineOutOfLinePrologueDescriptor::kInterpreterBytecodeArray);
+    __ SmiUntagField(
+        kScratchRegister,
+        FieldOperand(bytecode_array, offsetof(BytecodeArray, length_)));
+    __ subl(
+        FieldOperand(feedback_cell, offsetof(FeedbackCell, interrupt_budget_)),
+        kScratchRegister);
+    __ j(less, &budget_interrupt);
+  }
+
   // Push the return address back onto the stack for return.
   __ PushReturnAddressFrom(return_address);
   // Return to caller pushed pc, without any frame teardown.
   __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
   __ Ret();
 
+  __ bind(&budget_interrupt);
+  {
+    ASM_CODE_COMMENT_STRING(masm, "Budget interrupt call");
+    {
+      // Push the baseline code return address now, as if it had been pushed by
+      // the call to this builtin.
+      __ PushReturnAddressFrom(return_address);
+      FrameScope inner_frame_scope(masm, StackFrame::INTERNAL);
+      // Save incoming new target or generator
+      __ Push(new_target);
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
+      __ PushDispatchHandle(kJavaScriptCallDispatchHandleRegister, rcx);
+#endif
+      __ Push(closure);
+      __ CallRuntime(Runtime::kBytecodeBudgetInterrupt_Sparkplug, 1);
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
+      __ PopDispatchHandle(kJavaScriptCallDispatchHandleRegister, rcx);
+#endif
+      __ Pop(new_target);
+    }
+
+    // Return to caller pushed pc, without any frame teardown.
+    __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
+    __ Ret();
+  }
 
   __ bind(&call_stack_guard);
   {

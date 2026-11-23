@@ -1532,8 +1532,8 @@ ProcessResult MaglevGraphOptimizer::VisitReduceInterruptBudgetForLoop(
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitReduceInterruptBudgetForReturn(
-    ReduceInterruptBudgetForReturn* node, const ProcessingState& state) {
+ProcessResult MaglevGraphOptimizer::VisitReduceInterruptBudgetForEntry(
+    ReduceInterruptBudgetForEntry* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
