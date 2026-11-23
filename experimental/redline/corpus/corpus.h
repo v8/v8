@@ -6,6 +6,7 @@
 #define V8_EXPERIMENTAL_REDLINE_CORPUS_CORPUS_H_
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -43,6 +44,13 @@ class Corpus {
   // Picks a parent for mutation (nullptr if the corpus is empty) and counts
   // the pick on the program.
   ProgramPtr Pick(Random& rng);
+  // Picks up to `tries` seeds with the seed strategy under one lock, and
+  // returns the first seed for which `prefer` is true, or else the first
+  // seed. Only the returned seed counts as picked. Each try costs one pick of
+  // the seed strategy. The strategy counts each try, for example in the age
+  // of a candidate or in the update window of an adaptive strategy.
+  ProgramPtr PickPreferred(Random& rng, int tries,
+                           const std::function<bool(const Program&)>& prefer);
   // Picks a partner for `parent` (nullptr if there is no other program).
   ProgramPtr PickPartner(const Program& parent, Random& rng);
   // Reports the outcome of a mutation of `parent` back to the strategies.

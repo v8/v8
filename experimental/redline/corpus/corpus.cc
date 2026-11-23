@@ -904,14 +904,30 @@ ProgramPtr Corpus::Add(std::shared_ptr<Program> program) {
   return published;
 }
 
-ProgramPtr Corpus::Pick(Random& rng) {
+ProgramPtr Corpus::Pick(Random& rng) { return PickPreferred(rng, 1, nullptr); }
+
+ProgramPtr Corpus::PickPreferred(
+    Random& rng, int tries, const std::function<bool(const Program&)>& prefer) {
   std::scoped_lock<std::mutex> lock(mutex_);
   if (programs_.empty()) {
     return nullptr;
   }
   seed_stats_.stats().invocations++;
-  size_t index =
-      seeds_->Pick(candidates_, rng, [](const Program&) { return true; });
+  size_t index = ProgramSelector::kNoChoice;
+  for (int i = 0; i < std::max(1, tries); i++) {
+    const size_t candidate =
+        seeds_->Pick(candidates_, rng, [](const Program&) { return true; });
+    if (candidate == ProgramSelector::kNoChoice) {
+      break;
+    }
+    if (index == ProgramSelector::kNoChoice) {
+      index = candidate;
+    }
+    if (prefer == nullptr || prefer(*programs_[candidate])) {
+      index = candidate;
+      break;
+    }
+  }
   if (index == ProgramSelector::kNoChoice) {
     return nullptr;
   }

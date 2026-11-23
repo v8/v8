@@ -46,6 +46,9 @@ struct TargetOptions {
   // (ReprlChild::Options::random_args). A fuzzing session sets it when the
   // configuration has randomize_d8_flags.
   std::function<std::vector<std::string>()> random_args;
+  // Gets the result of each start of a target process with random flags
+  // (ReprlChild::Options::spawn_result).
+  std::function<void(const std::vector<std::string>&, bool)> spawn_result;
 
   // The flags Fuzzilli's V8 profile passes to d8 (without the randomized
   // part), so that coverage numbers are comparable.

@@ -3101,6 +3101,314 @@ void RunSalvageTargetCheck(Checker* checker, ScriptRunner* runner) {
   }
 }
 
+// Offline: the `// Flags:` lines of imported tests and the denylist of the
+// js_fuzzer of V8. Also the d8 trials, the flag pools and the flag blacklist.
+// Also the second start of a target process without its random flags.
+void RunTestFlagChecks(Checker* checker) {
+  auto contains = [](const std::vector<std::string>& list, const char* flag) {
+    return std::find(list.begin(), list.end(), flag) != list.end();
+  };
+
+  const std::vector<std::string> lines = ParseFlagsLines(
+      "// Copyright\n// Flags: --turbofan --no-lazy_feedback_allocation\n"
+      "var x = 1;  //   Flags: --maglev\n//Flags: --not-a-flags-line\n");
+  checker->Check(
+      "test flags: ParseFlagsLines reads all `// Flags:` lines",
+      lines == std::vector<std::string>{"--turbofan",
+                                        "--no-lazy_feedback_allocation",
+                                        "--maglev"},
+      StringPrintf("%zu flags", lines.size()));
+
+  ImportOptions options;
+  ImportInfo info;
+  std::string error;
+  std::unique_ptr<fast::Tree> tree = ImportSource(
+      "// Flags: --allow-natives-syntax --expose_gc --turbofan --harmony-foo\n"
+      "// Flags: --js-staging --stack-size=100 --trace-turbo foo.mjs\n"
+      "// Flags: --no-lazy_feedback_allocation --random-seed=4 --verify-heap\n"
+      "// Flags: --experimental-wasm-foo --no-turbofan --print-bytecode\n"
+      "var a = 1;\n",
+      "/tmp/flags.js", options, &info, &error);
+  checker->Check(
+      "test flags: ImportSource keeps the allowed flags of `// Flags:`",
+      tree != nullptr &&
+          info.flags == std::vector<std::string>{"--turbofan", "--js-staging",
+                                                 "--no-lazy-feedback-"
+                                                 "allocation"} &&
+          info.rejected_flags.size() == 10,
+      StringPrintf("%zu flags, %zu rejected", info.flags.size(),
+                   info.rejected_flags.size()));
+
+  const bool denylist_ok =
+      IsAllowedTestFlag("--harmony-shipping") &&
+      !IsAllowedTestFlag("--harmony-temporal") &&
+      IsAllowedTestFlag("--js-shipping") &&
+      !IsAllowedTestFlag("--js-float16") &&
+      !IsAllowedTestFlag("--icu-data-file=x") &&
+      !IsAllowedTestFlag("--sandbox-fuzzing") &&
+      !IsAllowedTestFlag("--no-allow-natives-syntax") &&
+      !IsAllowedTestFlag("--noexpose-gc") && !IsAllowedTestFlag("--") &&
+      !IsAllowedTestFlag("--single-threaded") && !IsAllowedTestFlag("--help") &&
+      !IsAllowedTestFlag("--perf-prof") && !IsAllowedTestFlag("--prof") &&
+      !IsAllowedTestFlag("--log-all") && !IsAllowedTestFlag("--gdbjit") &&
+      !IsAllowedTestFlag("--abort-on-contradictory-flags") &&
+      IsAllowedTestFlag("--maglev") && IsAllowedTestFlag("--no-turbofan") &&
+      IsAllowedTestFlag("--harmony");
+  checker->Check("test flags: the denylist of exceptions.js and Redline",
+                 denylist_ok, "");
+
+  std::vector<std::string> contradictory = {"--jitless", "--maglev",
+                                            "--no-jitless", "--stress-maglev"};
+  SanitizeD8Flags(&contradictory);
+  std::vector<std::string> fixed_wins = {"--jitless", "--turbofan"};
+  SanitizeD8Flags(&fixed_wins, {"--maglev"});
+  checker->Check(
+      "test flags: SanitizeD8Flags removes negations and contradictions",
+      contradictory == std::vector<std::string>{"--jitless"} &&
+          fixed_wins == std::vector<std::string>{"--turbofan"},
+      StringPrintf("%zu, %zu flags", contradictory.size(), fixed_wins.size()));
+
+  const std::vector<std::string> merged = MergeProgramFlags(
+      {"--a", "--b=1", "--c", "--d"}, {"--no-a", "--b=2", "--e", "--f", "--g"});
+  checker->Check(
+      "test flags: MergeProgramFlags keeps 6 flags with unique names",
+      merged == std::vector<std::string>{"--a", "--b=1", "--c", "--d", "--e",
+                                         "--f"} &&
+          SharesD8Flag({"--x=1"}, {"--y", "--x=2"}) &&
+          !SharesD8Flag({"--x"}, {"--no-x"}),
+      StringPrintf("%zu flags", merged.size()));
+
+  std::vector<D8Trial> trials;
+  size_t dropped = 0;
+  std::string trial_err;
+  const bool trials_ok = ParseD8Trials(
+      R"([{"app_args": "--trial-a", "app_name": "d8", "probability": 1,
+           "contradicts": ["--trial-b"]},
+          {"app_args": "--trial-b", "app_name": "d8", "probability": 1,
+           "contradicts": ["--trial-a"]},
+          {"app_args": "--experimental-x", "app_name": "d8", "probability": 1},
+          {"app_args": "--trial-x", "app_name": "chrome", "probability": 1},
+          {"app_args": "--trial-c --trial-d", "app_name": "d8",
+           "probability": 0.5}])",
+      &trials, &trial_err, &dropped);
+  std::vector<D8Trial> bad_trials;
+  std::string bad_err;
+  const bool bad_rejected =
+      !ParseD8Trials("{\"app_args\": 1}", &bad_trials, &bad_err);
+  Random trial_rng(17);
+  int one_of_ab = 0;
+  int cd = 0;
+  int fixed_b_ok = 0;
+  for (int i = 0; i < 200; i++) {
+    std::vector<std::string> drawn;
+    AddD8Trials(trial_rng, trials, {}, &drawn);
+    if (contains(drawn, "--trial-a") != contains(drawn, "--trial-b")) {
+      one_of_ab++;
+    }
+    if (contains(drawn, "--trial-c") && contains(drawn, "--trial-d")) {
+      cd++;
+    }
+    std::vector<std::string> with_fixed;
+    AddD8Trials(trial_rng, trials, {"--trial-b"}, &with_fixed);
+    if (!contains(with_fixed, "--trial-a") &&
+        !contains(with_fixed, "--trial-b")) {
+      fixed_b_ok++;
+    }
+  }
+  checker->Check(
+      "test flags: d8 trials load, filter and honor `contradicts`",
+      trials_ok && trials.size() == 3 && dropped == 1 && bad_rejected &&
+          one_of_ab == 200 && cd > 60 && cd < 140 && fixed_b_ok == 200,
+      StringPrintf("%zu trials, %zu dropped, a xor b %d, c and d %d, fixed %d",
+                   trials.size(), dropped, one_of_ab, cd, fixed_b_ok) +
+          trial_err);
+
+  FlagSetPool pool(2);
+  pool.Record({"--pool-a"}, 1.0);
+  pool.Record({"--pool-b"}, 2.0);
+  pool.Record({"--pool-c"}, 3.0);
+  pool.Record({"--pool-c"}, 0.5);
+  pool.Record({}, 9.0);
+  pool.Record({"--pool-d"}, 0.0);
+  Random pool_rng(3);
+  std::vector<std::string> best;
+  int best_c = 0;
+  int seen_b = 0;
+  for (int i = 0; i < 100; i++) {
+    if (pool.Pick(pool_rng, 32, &best) &&
+        best == std::vector<std::string>{"--pool-c"}) {
+      best_c++;
+    }
+    if (pool.Pick(pool_rng, 1, &best) &&
+        best == std::vector<std::string>{"--pool-b"}) {
+      seen_b++;
+    }
+  }
+  FlagSetPool empty_pool(4);
+  checker->Check(
+      "test flags: FlagSetPool keeps the best sets",
+      pool.size() == 2 && best_c == 100 && seen_b > 20 && seen_b < 80 &&
+          !empty_pool.Pick(pool_rng, 1, &best),
+      StringPrintf("size %zu, best %d, b %d", pool.size(), best_c, seen_b));
+
+  D8FlagBlacklist single;
+  single.RecordSpawn({"--bad-flag=1"}, false);
+  std::vector<std::string> filtered = {"--bad-flag=2", "--ok-flag"};
+  single.Filter(&filtered);
+  D8FlagBlacklist early;
+  early.RecordSpawn({"--x", "--y"}, false);
+  D8FlagBlacklist isolated;
+  D8FlagBlacklist repeated;
+  for (int i = 0; i < 16; i++) {
+    isolated.RecordSpawn({"--good-a", "--good-b"}, true);
+    repeated.RecordSpawn({"--good-a"}, true);
+  }
+  isolated.RecordSpawn({"--good-a", "--new-flag", "--good-b"}, false);
+  repeated.RecordSpawn({"--good-a", "--p", "--q"}, false);
+  const bool repeated_first = repeated.Blocked().empty();
+  repeated.RecordSpawn({"--good-a", "--p", "--r"}, false);
+  D8FlagBlacklist boundary;
+  for (int i = 0; i < 3; i++) {
+    boundary.RecordSpawn({"--good-a"}, true);
+  }
+  boundary.RecordSpawn({"--good-a", "--late"}, false);
+  const bool boundary_first = boundary.Blocked().empty();
+  boundary.RecordSpawn({"--good-a"}, true);
+  boundary.RecordSpawn({"--good-a", "--later"}, false);
+  D8FlagBlacklist no_starts;
+  no_starts.RecordSpawn({"--bad", "--c1"}, false);
+  no_starts.RecordSpawn({"--bad", "--c2"}, false);
+  D8FlagBlacklist tie;
+  for (int i = 0; i < 16; i++) {
+    tie.RecordSpawn({"--good-a"}, true);
+  }
+  tie.RecordSpawn({"--good-a", "--s", "--t"}, false);
+  tie.RecordSpawn({"--good-a", "--s", "--t"}, false);
+  checker->Check(
+      "test flags: D8FlagBlacklist blocks the flags that stop d8",
+      single.IsBlocked("--bad-flag") &&
+          filtered == std::vector<std::string>{"--ok-flag"} &&
+          early.Blocked().empty() &&
+          isolated.Blocked() == std::vector<std::string>{"--new-flag"} &&
+          repeated_first &&
+          repeated.Blocked() == std::vector<std::string>{"--p"} &&
+          repeated.failed_spawns() == 2 && tie.Blocked().empty() &&
+          no_starts.Blocked() == std::vector<std::string>{"--bad"} &&
+          boundary_first &&
+          boundary.Blocked() == std::vector<std::string>{"--later"},
+      "");
+
+  // The flag pools of normal mode and the blacklist in DrawD8Flags.
+  TunableRegistry& tunable_reg = TunableRegistry::Instance();
+  std::string tunable_err;
+  const bool set_ok =
+      tunable_reg.Set("flags.imported_chance", 1.0, &tunable_err) &&
+      tunable_reg.Set("flags.target_keep_chance", 1.0, &tunable_err);
+  FuzzConfig cfg;
+  cfg.randomize_d8_flags = true;
+  Fuzzer fuzzer(std::move(cfg));
+  fuzzer.RecordImportedFlags({"--imported-sentinel", "--blocked-sentinel"});
+  fuzzer.RecordSpawn({"--blocked-sentinel"}, false);
+  fuzzer.RecordProductiveFlags({"--productive-a"}, 10, 1000);
+  const size_t productive_first = fuzzer.productive_flag_sets();
+  fuzzer.RecordProductiveFlags({"--productive-b"}, 100, 1000);
+  fuzzer.RecordProductiveFlags({"--productive-c"}, 0, 1000);
+  Random draw_rng(11);
+  int imported = 0;
+  int blocked = 0;
+  for (int i = 0; i < 50; i++) {
+    const std::vector<std::string> drawn = fuzzer.DrawD8Flags(draw_rng);
+    imported += contains(drawn, "--imported-sentinel") ? 1 : 0;
+    blocked += contains(drawn, "--blocked-sentinel") ? 1 : 0;
+  }
+  tunable_reg.Set("flags.imported_chance", 0.0, &tunable_err);
+  tunable_reg.Set("flags.affinity_chance", 1.0, &tunable_err);
+  int productive = 0;
+  for (int i = 0; i < 50; i++) {
+    productive +=
+        contains(fuzzer.DrawD8Flags(draw_rng), "--productive-b") ? 1 : 0;
+  }
+  tunable_reg.Reset();
+  checker->Check(
+      "test flags: DrawD8Flags uses the imported and productive flag sets",
+      set_ok && imported == 50 && blocked == 0 && productive_first == 0 &&
+          fuzzer.productive_flag_sets() == 1 && productive == 50,
+      StringPrintf("imported %d, blocked %d, productive sets %zu then %zu, "
+                   "productive %d",
+                   imported, blocked, productive_first,
+                   fuzzer.productive_flag_sets(), productive));
+
+  // A fake target: /bin/sh does the REPRL handshake and answers each
+  // execution with the status 0. An unknown option stops /bin/sh before the
+  // handshake. The file `fail_file` also stops it.
+  const std::string fail_file =
+      StringPrintf("/tmp/redline-spawn-fail.%d", static_cast<int>(getpid()));
+  unlink(fail_file.c_str());
+  ReprlChild::Options reprl;
+  reprl.executable = "/bin/sh";
+  reprl.args = {"-c",
+                "[ -e \"$FAIL_FILE\" ] && exit 3; "
+                "printf HELO >&101; head -c 4 <&100 >/dev/null; "
+                "while head -c 12 <&100 >/dev/null; do "
+                "printf '\\000\\000\\000\\000' >&101; done"};
+  reprl.capture_stdout = false;
+  reprl.capture_stderr = false;
+  reprl.env = {{"PATH", "/usr/bin:/bin"}, {"FAIL_FILE", fail_file}};
+  reprl.startup_timeout_us = 10 * 1000 * 1000;
+  std::vector<std::string> next_args = {"--bad-sh-option"};
+  std::vector<std::pair<std::vector<std::string>, bool>> results;
+  reprl.random_args = [&next_args] { return next_args; };
+  reprl.spawn_result = [&results](const std::vector<std::string>& args,
+                                  bool started) {
+    results.emplace_back(args, started);
+  };
+  std::string reprl_err;
+  std::unique_ptr<ReprlChild> child =
+      ReprlChild::Create(std::move(reprl), &reprl_err);
+  Execution execution;
+  const bool first_ok =
+      child != nullptr &&
+      child->Execute("1", 1000 * 1000, &execution, &reprl_err) &&
+      execution.succeeded() && child->random_args().empty();
+  bool second_ok = false;
+  if (first_ok) {
+    next_args = {"-e"};
+    child->Kill();
+    second_ok = child->Execute("1", 1000 * 1000, &execution, &reprl_err) &&
+                execution.succeeded() &&
+                child->random_args() == std::vector<std::string>{"-e"};
+  }
+  checker->Check(
+      "test flags: a target that stops on its random flags starts again "
+      "without them",
+      first_ok && second_ok && results.size() == 2 &&
+          results[0].first == std::vector<std::string>{"--bad-sh-option"} &&
+          !results[0].second && results[1].second,
+      reprl_err);
+
+  // A pinned child keeps its flags when a new start fails. The failure is
+  // not a flag failure.
+  bool pinned_ok = false;
+  if (second_ok) {
+    child->Pin(true);
+    child->Kill();
+    std::string write_err;
+    const bool failed_start =
+        WriteStringToFile(fail_file, "", &write_err) &&
+        !child->Execute("1", 1000 * 1000, &execution, &reprl_err);
+    unlink(fail_file.c_str());
+    pinned_ok = failed_start &&
+                child->random_args() == std::vector<std::string>{"-e"} &&
+                child->Execute("1", 1000 * 1000, &execution, &reprl_err) &&
+                execution.succeeded() &&
+                child->random_args() == std::vector<std::string>{"-e"} &&
+                results.size() == 2;
+  }
+  checker->Check(
+      "test flags: a pinned target keeps its random flags after a failed start",
+      pinned_ok, StringPrintf("%zu spawn results", results.size()));
+}
+
 int RunSelftest(const Flags& flags) {
   Checker checker;
   std::string error;
@@ -3119,6 +3427,7 @@ int RunSelftest(const Flags& flags) {
   RunFlagMinimizerChecks(&checker);
   RunImportChecks(&checker);
   RunSalvageChecks(&checker);
+  RunTestFlagChecks(&checker);
   RunAmplifiedTestChecks(&checker);
   RunBundleStepChecks(&checker);
   RunNodeKindChecks(&checker);

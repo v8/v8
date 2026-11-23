@@ -10,6 +10,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -21,6 +22,7 @@
 #include "experimental/redline/engine/amplifier.h"
 #include "experimental/redline/engine/config.h"
 #include "experimental/redline/engine/crash.h"
+#include "experimental/redline/engine/d8_flags.h"
 #include "experimental/redline/engine/shared_coverage.h"
 #include "experimental/redline/engine/stages.h"
 #include "experimental/redline/generators/generator.h"
@@ -184,6 +186,20 @@ class Fuzzer {
   }
   void RecordTargetFlags(const std::vector<std::string>& args, double score);
   void RecordTargetChild(bool hit);
+  // The flag affinity of normal mode with randomize_d8_flags. An imported
+  // test gives its `// Flags:` set. A target process gives its random flags,
+  // the new edges that the workers found with them and its executions.
+  void RecordImportedFlags(const std::vector<std::string>& flags);
+  void RecordProductiveFlags(const std::vector<std::string>& flags,
+                             uint64_t new_edges, uint64_t executions);
+  // Records a start of a target process with the random flags `args`
+  // (D8FlagBlacklist).
+  void RecordSpawn(const std::vector<std::string>& args, bool started);
+  const D8FlagBlacklist& flag_blacklist() const { return flag_blacklist_; }
+  size_t imported_flag_sets() const { return imported_flags_.size(); }
+  size_t productive_flag_sets() const { return productive_flags_.size(); }
+  // The flags for a new target process: a random draw, the d8 trials, and a
+  // set of the flag pools. DrawD8Flags removes the blocked flags.
   std::vector<std::string> DrawD8Flags(Random& rng);
   uint64_t target_children_completed() const {
     return target_children_completed_.load(std::memory_order_acquire);
@@ -258,17 +274,35 @@ class Fuzzer {
   void AddCoverageStats(JsonObject* event) const;
   // Number of focus edges that the session reached.
   uint32_t FocusSeen() const;
+  // The parts of DrawD8Flags for normal mode and for change-based fuzzing.
+  // `fresh` is the random draw with the d8 trials.
+  std::vector<std::string> DrawNormalModeFlags(Random& rng,
+                                               std::vector<std::string> fresh);
+  std::vector<std::string> DrawTargetFlags(Random& rng,
+                                           std::vector<std::string> fresh);
   // Target-guided d8 flag pool for change-based fuzzing with
   // randomize_d8_flags.
-  struct TargetFlagEntry {
-    std::vector<std::string> args;
-    double score = 0;
-  };
-  std::mutex target_flags_mutex_;
-  std::vector<TargetFlagEntry> target_flags_;
-  std::atomic<bool> has_target_flags_{false};
+  FlagSetPool target_flags_{64};
   std::atomic<uint64_t> target_children_completed_{0};
   std::atomic<uint64_t> target_children_hit_{0};
+  // The flag pools of normal mode with randomize_d8_flags. One pool has the
+  // `// Flags:` sets of the imported tests. The other pool has the random
+  // flag sets that found more new edges than the mean.
+  FlagSetPool imported_flags_{2048};
+  FlagSetPool productive_flags_{64};
+  std::mutex productive_mutex_;
+  double productive_mean_ = 0;  // moving mean of the new edges per process
+  uint64_t productive_processes_ = 0;
+  D8FlagBlacklist flag_blacklist_;
+  // Corpus programs with Program::flags.
+  std::atomic<uint64_t> flagged_programs_{0};
+  // The draws of DrawD8Flags, the draws that started from a pool, and the
+  // flag names drawn in the session.
+  std::atomic<uint64_t> flag_draws_{0};
+  std::atomic<uint64_t> imported_flag_draws_{0};
+  std::atomic<uint64_t> affinity_flag_draws_{0};
+  std::mutex drawn_names_mutex_;
+  std::set<std::string, std::less<>> drawn_names_;
   std::unique_ptr<Corpus> corpus_;
   std::unique_ptr<MutatorSet> mutators_;
   std::unique_ptr<GeneratorSet> generators_;

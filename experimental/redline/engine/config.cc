@@ -746,6 +746,7 @@ bool ApplyJson(const JsonValue& json, FuzzConfig* c, std::string* error,
   c->randomize_d8_flags =
       json.GetBool("randomize_d8_flags", c->randomize_d8_flags);
   c->d8_flag_profile = json.GetString("d8_flag_profile", c->d8_flag_profile);
+  c->d8_trials = json.GetString("d8_trials", c->d8_trials);
   c->minimize_code_edges =
       json.GetBool("minimize_code_edges", c->minimize_code_edges);
   c->minimize_imports = json.GetBool("minimize_imports", c->minimize_imports);
@@ -1088,6 +1089,7 @@ bool FuzzConfig::Load(const Flags& flags, FuzzConfig* c, std::string* error,
   c->randomize_d8_flags =
       flags.GetBool("randomize-d8-flags", c->randomize_d8_flags);
   c->d8_flag_profile = flags.GetString("d8-flag-profile", c->d8_flag_profile);
+  c->d8_trials = flags.GetString("d8-trials", c->d8_trials);
   c->minimize_code_edges =
       flags.GetBool("minimize-code-edges", c->minimize_code_edges);
   c->minimize_crashes = flags.GetBool("minimize-crashes", c->minimize_crashes);
@@ -1205,6 +1207,27 @@ bool FuzzConfig::Load(const Flags& flags, FuzzConfig* c, std::string* error,
         "not \"" +
         c->d8_flag_profile + "\"";
     return false;
+  }
+  c->d8_trial_list.clear();
+  if (!c->d8_trials.empty()) {
+    std::string text;
+    size_t dropped = 0;
+    if (!ReadFileToString(c->d8_trials, &text, error) ||
+        !ParseD8Trials(text, &c->d8_trial_list, error, &dropped)) {
+      *error = "d8_trials " + c->d8_trials + ": " + *error;
+      return false;
+    }
+    if (c->d8_trial_list.empty()) {
+      *error = "d8_trials " + c->d8_trials + ": no d8 trial";
+      return false;
+    }
+    if (!c->randomize_d8_flags) {
+      REDLINE_WARN("config",
+                   "d8_trials has no effect without "
+                   "randomize_d8_flags");
+    }
+    REDLINE_VLOG("config", "d8_trials: %zu trials, %zu dropped",
+                 c->d8_trial_list.size(), dropped);
   }
   // The run seed is drawn only when there is a run; --dump-config shows 0
   // (= from the clock) like the configuration said.
@@ -1383,6 +1406,7 @@ std::string FuzzConfig::ToJson(Detail detail) const {
   o.Add("harvest_crashes", harvest_crashes);
   o.Add("randomize_d8_flags", randomize_d8_flags);
   o.Add("d8_flag_profile", d8_flag_profile);
+  o.Add("d8_trials", d8_trials);
   o.Add("minimize_code_edges", minimize_code_edges);
   o.Add("minimize_imports", minimize_imports);
   o.Add("import_all", import_all);
@@ -1521,6 +1545,9 @@ std::string FuzzConfig::JsonHelp() {
       "new d8 (flags.* tunables)\n"
       "    \"d8_flag_profile\": \"maglev\",    // the random flags: "
       "\"maglev\", \"turbolev\" or \"fuzzilli\"\n"
+      "    \"d8_trials\": \"\",              // a "
+      "clusterfuzz_trials_config.json "
+      "file: more random d8 flags\n"
       "    \"timeout_ms\": 1000, \"jobs\": 8, \"seed\": 1, \"out_dir\": "
       "\"redline-out\",\n"
       "    \"imports\": [\"test/mjsunit\"], \"import_root\": \".\", "

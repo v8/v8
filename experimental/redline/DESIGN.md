@@ -253,6 +253,13 @@ For each execution, Redline writes the script, sends a command and waits for a s
   Accept, Minimize and crash triage keep the flags of the process that ran the program, also in a new process.
   These steps run most executions, so most respawns keep the flags. Thus the worker replaces a process at the end of such a step if its flags ran `max_execs_before_respawn` executions.
   The crash report, the `crash` event and the `corpus_add` event record the random flags (`d8_random_args`).
+  With `d8_trials` (`--d8-trials=PATH`), each draw also adds the d8 trials of a `clusterfuzz_trials_config.json` file of V8, with their probabilities and their `contradicts` lists.
+  In normal mode, a draw can start from the `// Flags:` set of an imported test (`flags.imported_chance`).
+  It can also start from a random flag set that found more new edges than the mean (`flags.affinity_chance`).
+  The importer removes the `// Flags:` flags that the denylist of `tools/clusterfuzz/js_fuzzer/exceptions.js` rejects, and the flags that write logs or traces (`IsAllowedTestFlag`).
+  A mutant gets the flags of its parents (`Program::flags`, at most 6). A worker prefers a seed that shares a flag with its process (`flags.seed_affinity_tries`).
+  Redline does not save `Program::flags` with the corpus. Thus a program that Redline reads again from `DIR/corpus` has no flags.
+  If a process with new random flags stops before its handshake, Redline starts it again without them. `D8FlagBlacklist` then blocks the flag that stopped it for the rest of the session. A pinned process keeps its flags.
 - After an infrastructure failure, Redline tries the execution again once with a fresh target. Ten such failures in a row stop the session.
 - A session uses a short timeout (`FuzzConfig::Load` in `engine/config.cc`), because a mutant that runs longer is almost always an endless loop.
 - By default, the target decides if a program is valid: an uncaught SyntaxError without a stack frame marks it invalid.

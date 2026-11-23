@@ -284,11 +284,45 @@ void ReprlChild::Pin(bool pinned) {
 bool ReprlChild::Spawn(std::string* error) {
   // A new child gets new random flags, unless they are pinned. The first
   // child always gets them.
-  if (options_.random_args && (!pinned_ || total_spawns_ == 0)) {
+  const bool drew = options_.random_args && (!pinned_ || total_spawns_ == 0);
+  if (drew) {
     random_args_ = options_.random_args();
     execs_since_draw_ = 0;
     BuildArgv();
   }
+  bool flag_failure = false;
+  const bool started = SpawnProcess(error, &flag_failure);
+  // Pinned flags already started a child. Thus a failed start with them is
+  // not a flag failure, and the child must keep them.
+  if (!drew || random_args_.empty() || (!started && !flag_failure)) {
+    return started;
+  }
+  if (started) {
+    if (options_.spawn_result) {
+      options_.spawn_result(random_args_, true);
+    }
+    return true;
+  }
+  // A random flag can stop d8 before the handshake. Start the child again
+  // with the fixed flags only, so that the worker does not stop.
+  REDLINE_WARN(kLog, "target did not start with random flags: %s",
+               error->c_str());
+  std::vector<std::string> failed_args = std::move(random_args_);
+  random_args_.clear();
+  execs_since_draw_ = 0;
+  BuildArgv();
+  if (!SpawnProcess(error, &flag_failure)) {
+    return false;
+  }
+  // The fixed flags start d8. Thus the random flags probably stopped it.
+  if (options_.spawn_result) {
+    options_.spawn_result(failed_args, false);
+  }
+  return true;
+}
+
+bool ReprlChild::SpawnProcess(std::string* error, bool* flag_failure) {
+  *flag_failure = false;
   int child_to_parent[2] = {-1, -1};
   int parent_to_child[2] = {-1, -1};
   if (pipe2(child_to_parent, O_CLOEXEC) != 0) {
@@ -399,6 +433,7 @@ bool ReprlChild::Spawn(std::string* error) {
       output = std::string(stderr_channel_->Content());
     }
     Kill();
+    *flag_failure = true;
     *error = StringPrintf(
         "Did not receive HELO from target %s (%s). Is it built with "
         "v8_redline=true or v8_fuzzilli=true? stderr: %s",
@@ -407,6 +442,7 @@ bool ReprlChild::Spawn(std::string* error) {
   }
   if (memcmp(helo, "HELO", 4) != 0) {
     Kill();
+    *flag_failure = true;
     *error = "Received invalid HELO message from target";
     return false;
   }

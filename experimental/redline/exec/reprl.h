@@ -60,6 +60,12 @@ class ReprlChild {
     // Pin(false) kills a child whose flags ran max_execs_before_respawn
     // executions, so that the next child gets new flags.
     std::function<std::vector<std::string>()> random_args;
+    // If set, gets the new random flags of each new child, and true if the
+    // child did the handshake. If a child with new random flags stops before
+    // the handshake, Execute() starts it again once without the random flags.
+    // If that child starts, spawn_result gets the random flags and false. A
+    // pinned child keeps its flags.
+    std::function<void(const std::vector<std::string>&, bool)> spawn_result;
   };
 
   static std::unique_ptr<ReprlChild> Create(Options options,
@@ -102,6 +108,9 @@ class ReprlChild {
   explicit ReprlChild(Options options);
   bool Initialize(std::string* error);
   bool Spawn(std::string* error);
+  // Starts one child with argv_ and does the handshake. Sets `flag_failure`
+  // if the child stopped before or during the handshake.
+  bool SpawnProcess(std::string* error, bool* flag_failure);
   // Builds argv_ from the executable, random_args_ and the options.
   void BuildArgv();
   void OnChildTerminated();

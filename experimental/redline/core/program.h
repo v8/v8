@@ -64,6 +64,12 @@ class Program {
   // A fresh mutable copy of the tree, for mutation.
   std::unique_ptr<fast::Tree> CopyTree() const { return tree_->Copy(); }
 
+  // The d8 flags that the program asks for. An imported test gives its
+  // `// Flags:` set. A mutant gets the merged flags of its parents
+  // (MergeProgramFlags in engine/d8_flags.h). The worker sets them before it
+  // publishes the program.
+  std::vector<std::string> flags;
+
   // --- corpus bookkeeping (written once by the coordinator) ---
   uint32_t id = 0;
   // Deterministic edges this program contributed when it was added.

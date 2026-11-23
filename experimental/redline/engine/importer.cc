@@ -4,10 +4,12 @@
 
 #include "experimental/redline/engine/importer.h"
 
+#include <cctype>
 #include <cstring>
 
 #include "experimental/redline/base/file_util.h"
 #include "experimental/redline/base/log.h"
+#include "experimental/redline/engine/d8_flags.h"
 #include "experimental/redline/fast/ast.h"
 #include "experimental/redline/fast/parser.h"
 
@@ -324,6 +326,46 @@ bool IsSkippedTest262Path(std::string_view path) {
 
 }  // namespace
 
+std::vector<std::string> ParseFlagsLines(std::string_view source) {
+  // The same lines as FLAGS_PATTERN of the V8 test runner: `//`, white space,
+  // then `Flags:`.
+  std::vector<std::string> flags;
+  size_t pos = 0;
+  while (pos < source.size()) {
+    size_t nl = source.find('\n', pos);
+    if (nl == std::string_view::npos) {
+      nl = source.size();
+    }
+    std::string_view line = source.substr(pos, nl - pos);
+    pos = nl + 1;
+    size_t comment = line.find("//");
+    if (comment == std::string_view::npos) {
+      continue;
+    }
+    std::string_view rest = line.substr(comment + 2);
+    const size_t text = rest.find_first_not_of(" \t");
+    if (text == 0 || text == std::string_view::npos ||
+        !rest.substr(text).starts_with("Flags:")) {
+      continue;
+    }
+    rest = rest.substr(text + 6);
+    size_t i = 0;
+    while (i < rest.size()) {
+      while (i < rest.size() && isspace(static_cast<unsigned char>(rest[i]))) {
+        i++;
+      }
+      const size_t start = i;
+      while (i < rest.size() && !isspace(static_cast<unsigned char>(rest[i]))) {
+        i++;
+      }
+      if (i > start) {
+        flags.emplace_back(rest.substr(start, i - start));
+      }
+    }
+  }
+  return flags;
+}
+
 std::unique_ptr<fast::Tree> ImportSource(std::string_view source,
                                          const std::string& path,
                                          const ImportOptions& options,
@@ -336,6 +378,8 @@ std::unique_ptr<fast::Tree> ImportSource(std::string_view source,
     *error = "test262 skipped path";
     return nullptr;
   }
+  info->flags =
+      SanitizeTestFlags(ParseFlagsLines(source), &info->rejected_flags);
   std::vector<std::string> includes;
   if (!ParseTest262Frontmatter(source, &includes, error)) {
     return nullptr;

@@ -25,18 +25,26 @@ struct ImportOptions {
 struct ImportInfo {
   std::vector<std::string> inlined;  // files whose statements were spliced in
   std::vector<std::string> dropped;  // load() calls that could not be resolved
+  // The d8 flags of the `// Flags:` lines of the file, after
+  // SanitizeTestFlags (engine/d8_flags.h), and the flags that it rejected.
+  std::vector<std::string> flags;
+  std::vector<std::string> rejected_flags;
 };
 
 // Parses a test file into a FAST tree for the corpus. `ImportSource` replaces
 // top-level `load("f")`, `d8.file.execute("f")` and Test262 `includes:` files
 // with the statements of `f`. It removes unresolved loads and loads of
 // `mjsunit.js`, `sta.js` or `assert.js` because the prelude provides their
-// API. Returns `nullptr` with `error` on a parse error or an excluded Test262
-// file.
+// API. It reads the d8 flags of the `// Flags:` lines into `info`. Returns
+// `nullptr` with `error` on a parse error or an excluded Test262 file.
 std::unique_ptr<fast::Tree> ImportSource(std::string_view source,
                                          const std::string& path,
                                          const ImportOptions& options,
                                          ImportInfo* info, std::string* error);
+
+// The flags of all `// Flags:` lines of `source`, in their order, without
+// a filter.
+std::vector<std::string> ParseFlagsLines(std::string_view source);
 
 }  // namespace redline
 

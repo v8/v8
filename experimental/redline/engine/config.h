@@ -13,6 +13,7 @@
 
 #include "experimental/redline/core/selection.h"
 #include "experimental/redline/corpus/feature_weights.h"
+#include "experimental/redline/engine/d8_flags.h"
 #include "experimental/redline/engine/stages.h"
 #include "experimental/redline/exec/target_options.h"
 #include "experimental/redline/minimizer/minimizer.h"
@@ -166,6 +167,12 @@ struct FuzzConfig {
   // The flag profile of randomize_d8_flags: "maglev", "turbolev" or "fuzzilli"
   // (engine/d8_flags.h).
   std::string d8_flag_profile = "maglev";
+  // A `clusterfuzz_trials_config.json` file of V8 (empty: none). With
+  // randomize_d8_flags, each new target process also draws the d8 trials of
+  // the file (AddD8Trials in engine/d8_flags.h). Load() reads the file into
+  // `d8_trial_list`.
+  std::string d8_trials;
+  std::vector<D8Trial> d8_trial_list;
   // Coverage counters: the minimizer keeps only the new code edges and the
   // target features of a program (Worker::MinimizationProperty).
   bool minimize_code_edges = true;

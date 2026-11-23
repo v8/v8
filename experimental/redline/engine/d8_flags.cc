@@ -5,12 +5,15 @@
 #include "experimental/redline/engine/d8_flags.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cstdint>
 #include <cstdlib>
 #include <iterator>
+#include <numeric>
 #include <string>
 #include <string_view>
 
+#include "experimental/redline/base/json_parser.h"
 #include "experimental/redline/core/tunable.h"
 
 namespace redline {
@@ -771,10 +774,165 @@ REDLINE_TUNABLE(kFlagsTargetProbeExecs, "flags.target_probe_execs", 64, 0,
                 10000,
                 "change-based fuzzing: executions without a target hit "
                 "before a child respawns");
+REDLINE_TUNABLE(kFlagsImportedChance, "flags.imported_chance", 0.25, 0, 1,
+                "normal mode: chance that a new target process starts from "
+                "the `// Flags:` set of an imported test");
+REDLINE_TUNABLE(kFlagsAffinityChance, "flags.affinity_chance", 0.15, 0, 1,
+                "normal mode: chance that a new target process starts from "
+                "a random flag set that found many new edges");
+REDLINE_TUNABLE(kFlagsSeedAffinityTries, "flags.seed_affinity_tries", 2, 1, 16,
+                "seed candidates that a worker examines to find a program "
+                "that shares a flag with its target process (1: off)");
+
+// D8FlagBlacklist: a failed start blocks its only new flag after this number
+// of started target processes.
+constexpr uint64_t kBlacklistMinStarts = 4;
+constexpr uint32_t kBlacklistRepeatedFailures = 2;
+
+// The flag pairs that CONTRADICTORY_FLAGS of
+// tools/clusterfuzz/js_fuzzer/exceptions.js lists.
+constexpr std::pair<std::string_view, std::string_view> kContradictoryFlags[] =
+    {
+        {"--assert-types", "--stress-concurrent-inlining"},
+        {"--assert-types", "--stress-concurrent-inlining-attach-code"},
+        {"--jitless", "--maglev"},
+        {"--jitless", "--maglev-future"},
+        {"--jitless", "--stress-maglev"},
+        {"--jitless", "--stress-concurrent-inlining"},
+        {"--jitless", "--stress-concurrent-inlining-attach-code"},
+};
+
+// The flag names that a test cannot give. DISALLOWED_FLAGS and
+// DISALLOWED_FLAGS_WITH_DISCOURAGED_FILES of exceptions.js give most of them.
+// The other names write logs or traces, stop d8, change the d8 shell or give
+// false crashes.
+constexpr std::string_view kDeniedTestFlags[] = {
+    // exceptions.js.
+    "--correctness-fuzzer-suppressions",
+    "--expose-trigger-failure",
+    "--sandbox-testing",
+    "--sandbox-fuzzing",
+    "--allow-natives-syntax",
+    "--debug-code",
+    "--disable-abortjs",
+    "--enable-slow-asserts",
+    "--expose-gc",
+    "--fuzzing",
+    "--omit-quit",
+    "--disable-in-process-stack-traces",
+    "--invoke-weak-callbacks",
+    "--verify-heap",
+    "--stack-size",
+    "--check-handle-count",
+    "--expose-debug-as",
+    "--expose-natives-as",
+    "--mock-arraybuffer-allocator",
+    // Redline.
+    "--help",
+    "--abort-on-contradictory-flags",
+    "--single-threaded",
+    "--trace",
+    "--simulate-errors",
+    "--enable-os-system",
+    "--isolate",
+    "--module",
+    "--throws",
+    "--stress-runs",
+    "--expose-memory-corruption-api",
+};
+
+constexpr std::string_view kDeniedTestFlagPrefixes[] = {
+    // exceptions.js.
+    "--experimental-",
+    "--icu-data-file",
+    "--random-seed",
+    // Redline: logs, traces and profiles.
+    "--print-",
+    "--trace-",
+    "--perf-",
+    "--prof",
+    "--log",
+    "--gdbjit",
+    "--heap-snapshot",
+    "--wasm-pgo",
+};
 
 std::string_view FlagPrefix(std::string_view flag) {
   const size_t eq = flag.find('=');
   return eq == std::string_view::npos ? flag : flag.substr(0, eq);
+}
+
+// The flag name of `flag` with `-` for `_`.
+std::string NormalizedName(std::string_view flag) {
+  std::string name(FlagPrefix(flag));
+  std::replace(name.begin(), name.end(), '_', '-');
+  return name;
+}
+
+// `flag` with `-` for `_` in its name. The value stays.
+std::string NormalizedFlag(std::string_view flag) {
+  const std::string_view name = FlagPrefix(flag);
+  return NormalizedName(name) + std::string(flag.substr(name.size()));
+}
+
+// The normalized name of `flag` without `no-`: `--foo` and `--no-foo` have
+// the same key.
+std::string FlagKey(std::string_view flag) {
+  std::string key = NormalizedName(flag);
+  if (key.starts_with("--no-")) {
+    key.erase(2, 3);
+  }
+  return key;
+}
+
+bool IsDeniedTestFlagName(std::string_view name) {
+  if (name.starts_with("--harmony-") && name != "--harmony-shipping") {
+    return true;
+  }
+  if (name.starts_with("--js-") && name != "--js-staging" &&
+      name != "--js-shipping") {
+    return true;
+  }
+  for (std::string_view denied : kDeniedTestFlags) {
+    if (name == denied) {
+      return true;
+    }
+  }
+  for (std::string_view prefix : kDeniedTestFlagPrefixes) {
+    if (name.starts_with(prefix)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+std::vector<std::string> SplitWhitespace(std::string_view text) {
+  std::vector<std::string> words;
+  size_t i = 0;
+  while (i < text.size()) {
+    while (i < text.size() && isspace(static_cast<unsigned char>(text[i]))) {
+      i++;
+    }
+    const size_t start = i;
+    while (i < text.size() && !isspace(static_cast<unsigned char>(text[i]))) {
+      i++;
+    }
+    if (i > start) {
+      words.emplace_back(text.substr(start, i - start));
+    }
+  }
+  return words;
+}
+
+bool HasFlagName(const std::vector<std::string>& flags, std::string_view name) {
+  return std::any_of(flags.begin(), flags.end(), [name](const std::string& f) {
+    return NormalizedName(f) == name;
+  });
+}
+
+bool HasFlagKey(const std::vector<std::string>& flags, std::string_view key) {
+  return std::any_of(flags.begin(), flags.end(),
+                     [key](const std::string& f) { return FlagKey(f) == key; });
 }
 
 int64_t FlagIntValue(const std::string& flag) {
@@ -1024,14 +1182,12 @@ void SanitizeFuzzilliFixedClashes(std::vector<std::string>* flags,
 void SanitizeD8Flags(std::vector<std::string>* flags,
                      const std::vector<std::string>& fixed_args) {
   std::vector<std::string> deduped;
+  std::vector<std::string> keys;
   deduped.reserve(flags->size());
   for (const std::string& flag : *flags) {
-    const std::string_view prefix = FlagPrefix(flag);
-    const bool seen = std::any_of(deduped.begin(), deduped.end(),
-                                  [prefix](const std::string& existing) {
-                                    return FlagPrefix(existing) == prefix;
-                                  });
-    if (!seen) {
+    std::string key = FlagKey(flag);
+    if (std::find(keys.begin(), keys.end(), key) == keys.end()) {
+      keys.push_back(std::move(key));
       deduped.push_back(flag);
     }
   }
@@ -1148,6 +1304,22 @@ void SanitizeD8Flags(std::vector<std::string>* flags,
       flags->erase(cum_it);
     } else if (cum_it < size_it) {
       std::iter_swap(size_it, cum_it);
+    }
+  }
+
+  // The contradictory pairs: the flag of `fixed_args` stays, else the first
+  // flag stays.
+  for (const auto& [a, b] : kContradictoryFlags) {
+    auto it_a = std::find(flags->begin(), flags->end(), a);
+    auto it_b = std::find(flags->begin(), flags->end(), b);
+    const bool in_a = it_a != flags->end();
+    const bool in_b = it_b != flags->end();
+    if (in_a && has_fixed(b)) {
+      flags->erase(it_a);
+    } else if (in_b && has_fixed(a)) {
+      flags->erase(it_b);
+    } else if (in_a && in_b) {
+      flags->erase(it_a < it_b ? it_b : it_a);
     }
   }
 }
@@ -1436,5 +1608,308 @@ double EffectiveTargetGuidedChance(uint64_t completed_children,
 double TargetMutateChance() { return kFlagsTargetMutateChance(); }
 int TargetTournament() { return kFlagsTargetTournament.AsInt(); }
 int TargetProbeExecs() { return kFlagsTargetProbeExecs.AsInt(); }
+
+double ImportedFlagsChance() { return kFlagsImportedChance(); }
+double FlagAffinityChance() { return kFlagsAffinityChance(); }
+int SeedAffinityTries() { return kFlagsSeedAffinityTries.AsInt(); }
+
+std::string_view D8FlagName(std::string_view flag) { return FlagPrefix(flag); }
+
+bool IsAllowedTestFlag(std::string_view flag) {
+  // A bare `--` stops the flag parser of V8.
+  if (flag.size() <= 2 || !flag.starts_with("--") || flag.ends_with(".mjs")) {
+    return false;
+  }
+  const std::string name = NormalizedName(flag);
+  if (IsDeniedTestFlagName(name)) {
+    return false;
+  }
+  // V8 also reads `--no-foo` and `--nofoo` as the negation of `--foo`.
+  if (name.starts_with("--no-")) {
+    return !IsDeniedTestFlagName("--" + name.substr(5));
+  }
+  if (name.starts_with("--no")) {
+    return !IsDeniedTestFlagName("--" + name.substr(4));
+  }
+  return true;
+}
+
+std::vector<std::string> SanitizeTestFlags(const std::vector<std::string>& raw,
+                                           std::vector<std::string>* rejected) {
+  std::vector<std::string> flags;
+  for (const std::string& flag : raw) {
+    if (!IsAllowedTestFlag(flag)) {
+      if (rejected != nullptr) {
+        rejected->push_back(flag);
+      }
+      continue;
+    }
+    flags.push_back(NormalizedFlag(flag));
+  }
+  SanitizeD8Flags(&flags);
+  return flags;
+}
+
+void RemoveFixedD8Flags(std::vector<std::string>* flags,
+                        const std::vector<std::string>& fixed_args) {
+  if (fixed_args.empty()) {
+    return;
+  }
+  flags->erase(std::remove_if(flags->begin(), flags->end(),
+                              [&fixed_args](const std::string& flag) {
+                                return HasFlagKey(fixed_args, FlagKey(flag));
+                              }),
+               flags->end());
+}
+
+std::vector<std::string> MergeProgramFlags(
+    const std::vector<std::string>& first,
+    const std::vector<std::string>& second, size_t max_flags) {
+  std::vector<std::string> merged;
+  for (const std::vector<std::string>* list : {&first, &second}) {
+    for (const std::string& flag : *list) {
+      if (merged.size() >= max_flags) {
+        return merged;
+      }
+      if (!HasFlagKey(merged, FlagKey(flag))) {
+        merged.push_back(flag);
+      }
+    }
+  }
+  return merged;
+}
+
+bool SharesD8Flag(const std::vector<std::string>& a,
+                  const std::vector<std::string>& b) {
+  for (const std::string& x : a) {
+    const std::string_view name = FlagPrefix(x);
+    for (const std::string& y : b) {
+      if (FlagPrefix(y) == name) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+bool ParseD8Trials(std::string_view json, std::vector<D8Trial>* trials,
+                   std::string* error, size_t* dropped) {
+  JsonValue root;
+  if (!JsonValue::Parse(json, &root, error)) {
+    return false;
+  }
+  if (!root.is_array()) {
+    *error = "the trials file is not a JSON list";
+    return false;
+  }
+  for (const JsonValue& entry : root.as_array()) {
+    if (!entry.is_object()) {
+      *error = "a trial is not a JSON object";
+      return false;
+    }
+    if (entry.GetString("app_name", "") != "d8") {
+      continue;
+    }
+    D8Trial trial;
+    trial.probability =
+        std::clamp(entry.GetNumber("probability", 0.0), 0.0, 1.0);
+    const std::vector<std::string> args =
+        SplitWhitespace(entry.GetString("app_args", ""));
+    if (args.empty() || trial.probability <= 0) {
+      continue;
+    }
+    if (!std::all_of(args.begin(), args.end(), [](const std::string& arg) {
+          return IsAllowedTestFlag(arg);
+        })) {
+      if (dropped != nullptr) {
+        (*dropped)++;
+      }
+      continue;
+    }
+    for (const std::string& arg : args) {
+      trial.args.push_back(NormalizedFlag(arg));
+    }
+    for (const JsonValue& flag : entry.Get("contradicts").as_array()) {
+      if (flag.is_string()) {
+        trial.contradicts.push_back(NormalizedName(flag.as_string()));
+      }
+    }
+    trials->push_back(std::move(trial));
+  }
+  return true;
+}
+
+void AddD8Trials(Random& rng, const std::vector<D8Trial>& trials,
+                 const std::vector<std::string>& fixed_args,
+                 std::vector<std::string>* flags) {
+  std::vector<size_t> order(trials.size());
+  std::iota(order.begin(), order.end(), 0);
+  for (size_t i = order.size(); i > 1; i--) {
+    std::swap(order[i - 1], order[rng.Index(i)]);
+  }
+  // The flag names that the drawn trials contradict.
+  std::vector<std::string> blocked;
+  for (size_t index : order) {
+    const D8Trial& trial = trials[index];
+    if (!rng.Chance(trial.probability)) {
+      continue;
+    }
+    const bool contradicts = std::any_of(
+        trial.contradicts.begin(), trial.contradicts.end(),
+        [&](const std::string& name) {
+          return HasFlagName(*flags, name) || HasFlagName(fixed_args, name);
+        });
+    const bool clashes = std::any_of(
+        trial.args.begin(), trial.args.end(), [&](const std::string& arg) {
+          const std::string key = FlagKey(arg);
+          return HasFlagKey(*flags, key) || HasFlagKey(fixed_args, key) ||
+                 std::find(blocked.begin(), blocked.end(),
+                           NormalizedName(arg)) != blocked.end();
+        });
+    if (contradicts || clashes) {
+      continue;
+    }
+    flags->insert(flags->end(), trial.args.begin(), trial.args.end());
+    blocked.insert(blocked.end(), trial.contradicts.begin(),
+                   trial.contradicts.end());
+  }
+  SanitizeD8Flags(flags, fixed_args);
+}
+
+void FlagSetPool::Record(const std::vector<std::string>& flags, double score) {
+  if (flags.empty() || score <= 0) {
+    return;
+  }
+  std::scoped_lock<std::mutex> lock(mutex_);
+  for (Entry& entry : entries_) {
+    if (entry.flags == flags) {
+      entry.score = std::max(entry.score, score);
+      return;
+    }
+  }
+  if (entries_.size() < capacity_) {
+    entries_.push_back(Entry{flags, score});
+    size_.store(entries_.size(), std::memory_order_release);
+    return;
+  }
+  auto worst = std::min_element(
+      entries_.begin(), entries_.end(),
+      [](const Entry& a, const Entry& b) { return a.score < b.score; });
+  if (worst != entries_.end() && score > worst->score) {
+    *worst = Entry{flags, score};
+  }
+}
+
+void FlagSetPool::Decay(double factor) {
+  std::scoped_lock<std::mutex> lock(mutex_);
+  for (Entry& entry : entries_) {
+    entry.score *= factor;
+  }
+}
+
+bool FlagSetPool::Pick(Random& rng, int tournament,
+                       std::vector<std::string>* flags) const {
+  std::scoped_lock<std::mutex> lock(mutex_);
+  if (entries_.empty()) {
+    return false;
+  }
+  size_t best = rng.Index(entries_.size());
+  for (int i = 1; i < tournament; i++) {
+    const size_t candidate = rng.Index(entries_.size());
+    if (entries_[candidate].score > entries_[best].score) {
+      best = candidate;
+    }
+  }
+  *flags = entries_[best].flags;
+  return true;
+}
+
+bool D8FlagBlacklist::RecordSpawn(const std::vector<std::string>& flags,
+                                  bool started) {
+  std::vector<std::string> names;
+  for (const std::string& flag : flags) {
+    std::string name = NormalizedName(flag);
+    if (std::find(names.begin(), names.end(), name) == names.end()) {
+      names.push_back(std::move(name));
+    }
+  }
+  if (names.empty()) {
+    return false;
+  }
+  std::scoped_lock<std::mutex> lock(mutex_);
+  if (started) {
+    total_started_++;
+    for (const std::string& name : names) {
+      counts_[name].started++;
+    }
+    return false;
+  }
+  failed_spawns_.fetch_add(1, std::memory_order_relaxed);
+  std::vector<std::string> never_started;
+  for (const std::string& name : names) {
+    Counts& counts = counts_[name];
+    counts.failed++;
+    if (counts.started == 0) {
+      never_started.push_back(name);
+    }
+  }
+  std::vector<std::string> block;
+  if (names.size() == 1 ||
+      (never_started.size() == 1 && total_started_ >= kBlacklistMinStarts)) {
+    block = never_started;
+  } else {
+    // The flag that is in the most failed starts. A tie blocks no flag,
+    // because a flag that is often drawn with the bad flag can tie.
+    uint32_t most = 0;
+    uint32_t second = 0;
+    const std::string* top = nullptr;
+    for (const std::string& name : never_started) {
+      const uint32_t failed = counts_[name].failed;
+      if (failed > most) {
+        second = most;
+        most = failed;
+        top = &name;
+      } else if (failed > second) {
+        second = failed;
+      }
+    }
+    if (top != nullptr && most >= kBlacklistRepeatedFailures && most > second) {
+      block.push_back(*top);
+    }
+  }
+  bool blocked_new = false;
+  for (std::string& name : block) {
+    blocked_new |= blocked_.insert(std::move(name)).second;
+  }
+  if (!blocked_.empty()) {
+    any_blocked_.store(true, std::memory_order_release);
+  }
+  return blocked_new;
+}
+
+bool D8FlagBlacklist::IsBlocked(std::string_view flag) const {
+  if (!any_blocked_.load(std::memory_order_acquire)) {
+    return false;
+  }
+  std::scoped_lock<std::mutex> lock(mutex_);
+  return blocked_.contains(NormalizedName(flag));
+}
+
+void D8FlagBlacklist::Filter(std::vector<std::string>* flags) const {
+  if (!any_blocked_.load(std::memory_order_acquire)) {
+    return;
+  }
+  std::scoped_lock<std::mutex> lock(mutex_);
+  flags->erase(std::remove_if(flags->begin(), flags->end(),
+                              [this](const std::string& flag) {
+                                return blocked_.contains(NormalizedName(flag));
+                              }),
+               flags->end());
+}
+
+std::vector<std::string> D8FlagBlacklist::Blocked() const {
+  std::scoped_lock<std::mutex> lock(mutex_);
+  return std::vector<std::string>(blocked_.begin(), blocked_.end());
+}
 
 }  // namespace redline

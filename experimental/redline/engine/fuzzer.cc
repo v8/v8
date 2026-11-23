@@ -212,10 +212,20 @@ class Worker {
         if (!fuzzer_->targets_.empty() && child_execs_ > 0) {
           fuzzer_->RecordTargetChild(child_target_hits_ > 0);
         }
+        // The flags of the last target process are still in the runner.
+        if (fuzzer_->targets_.empty() && child_execs_ > 0) {
+          fuzzer_->RecordProductiveFlags(runner_->child().random_args(),
+                                         child_new_edges_, child_execs_);
+        }
         child_target_buckets_.assign(fuzzer_->targets_.size(), 0);
         child_target_hits_ = 0;
         child_execs_ = 0;
+        child_new_edges_ = 0;
         return fuzzer_->DrawD8Flags(flags_rng_);
+      };
+      target.spawn_result = [this](const std::vector<std::string>& args,
+                                   bool started) {
+        fuzzer_->RecordSpawn(args, started);
       };
     }
     runner_ = ScriptRunner::Create(target, id_, error);
@@ -586,18 +596,28 @@ class Worker {
     if (!info.dropped.empty()) {
       event.AddArray("dropped_loads", info.dropped);
     }
+    if (!info.flags.empty()) {
+      event.AddArray("flags", info.flags);
+    }
+    if (!info.rejected_flags.empty()) {
+      event.AddArray("rejected_flags", info.rejected_flags);
+    }
     Lineage lineage;
     lineage.origin = "import";
     lineage.detail = path;
     lineage.worker = id_;
     std::shared_ptr<Program> program =
         Program::FromTree(std::move(tree), lineage);
+    program->flags = std::move(info.flags);
     std::string message;
     if (!checker_->Accepts(program->source(), &message)) {
       stats().imports_failed++;
       fuzzer_->LogEvent(
           event.Add("result", "syntax_error").Add("error", message));
       return;
+    }
+    if (config().randomize_d8_flags) {
+      fuzzer_->RecordImportedFlags(program->flags);
     }
     Execution execution;
     if (!Execute(program->source(), &execution)) {
@@ -667,7 +687,7 @@ class Worker {
     MaybeRespawnForTargets();
     Corpus& corpus = fuzzer_->corpus();
     Stopwatch pick_time;
-    ProgramPtr parent = corpus.Pick(rng_);
+    ProgramPtr parent = PickSeed(corpus);
     bool from_empty = false;
     if (parent == nullptr ||
         (corpus.size() < static_cast<size_t>(config().initial_programs) &&
@@ -716,7 +736,10 @@ class Worker {
       st.time_us += prefix_time.ElapsedUs();
       if (prefixed != nullptr) {
         st.successes++;
-        parent = Program::FromTree(std::move(prefixed), parent->lineage());
+        std::shared_ptr<Program> with_prefix =
+            Program::FromTree(std::move(prefixed), parent->lineage());
+        with_prefix->flags = parent->flags;
+        parent = std::move(with_prefix);
       } else {
         Capture(Stage::kPrefix, CaptureTrigger::kNoop, "Prefix", parent.get(),
                 "", JsonObject());
@@ -908,6 +931,7 @@ class Worker {
           fuzzer_->KeepFocused(&claimed);
           std::shared_ptr<Program> child =
               Program::FromTree(std::move(tree), lineage, source);
+          child->flags = ChildFlags(*parent, partner.get());
           ProgramPtr added;
           size_t new_edges = claimed.size();
           if (!claimed.empty()) {
@@ -920,6 +944,7 @@ class Worker {
             added = Commit(child, std::move(claimed), execution,
                            config().minimize, mutator, config().min_reruns);
             if (added != nullptr) {
+              child_new_edges_ += added->edges.size();
               // Each generator the mutant used gets the full credit.
               const uint64_t targets = TargetFeatures(added->edges);
               for (Generator* g : used_generators) {
@@ -956,6 +981,7 @@ class Worker {
                     OutcomeName(execution.outcome), &execution, 0);
           std::shared_ptr<Program> child =
               Program::FromTree(std::move(tree), lineage, source);
+          child->flags = ChildFlags(*parent, partner.get());
           ProcessCrash(source, *child, execution, lineage);
           return;
         }
@@ -969,6 +995,30 @@ class Worker {
           break;
       }
     }
+  }
+
+  // Picks the seed of a mutation chain. If the target process has random
+  // flags, prefers a program that shares a flag with them. It examines up to
+  // flags.seed_affinity_tries candidates under one lock of the corpus.
+  ProgramPtr PickSeed(Corpus& corpus) {
+    const int tries = SeedAffinityTries();
+    const std::vector<std::string>& active = runner_->child().random_args();
+    if (tries <= 1 || active.empty() ||
+        fuzzer_->flagged_programs_.load(std::memory_order_relaxed) == 0) {
+      return corpus.Pick(rng_);
+    }
+    return corpus.PickPreferred(rng_, tries, [&active](const Program& p) {
+      return SharesD8Flag(p.flags, active);
+    });
+  }
+
+  // The flags of a mutant of `parent` and `partner` (nullptr: no partner).
+  static std::vector<std::string> ChildFlags(const Program& parent,
+                                             const Program* partner) {
+    if (partner == nullptr || partner->flags.empty()) {
+      return MergeProgramFlags(parent.flags, {});
+    }
+    return MergeProgramFlags(parent.flags, partner->flags);
   }
 
   // --- stages: statistics, events and captures ---------------------------
@@ -1282,6 +1332,7 @@ class Worker {
         // an edge that is reached deterministically otherwise.
         std::shared_ptr<Program> candidate =
             Program::FromTree(std::move(work), program->lineage());
+        candidate->flags = program->flags;
         for (int attempt = 0; attempt < config().verify_attempts && !stopping();
              attempt++) {
           Execution execution;
@@ -1362,6 +1413,9 @@ class Worker {
       }
     }
     ProgramPtr added = fuzzer_->corpus().Add(program);
+    if (!added->flags.empty()) {
+      fuzzer_->flagged_programs_.fetch_add(1, std::memory_order_relaxed);
+    }
     stats().corpus_added++;
     stats().corpus_nodes += program->node_count();
     if (mutator != nullptr) {
@@ -2910,6 +2964,9 @@ class Worker {
   std::vector<uint8_t> child_target_buckets_;
   uint32_t child_target_hits_ = 0;
   uint32_t child_execs_ = 0;
+  // New corpus edges that the mutants of this worker found since the last
+  // draw of random flags.
+  uint64_t child_new_edges_ = 0;
 };
 
 // ---------------------------------------------------------------------------
@@ -3154,29 +3211,7 @@ bool Fuzzer::KeepFocused(std::vector<uint32_t>* claimed) {
 
 void Fuzzer::RecordTargetFlags(const std::vector<std::string>& args,
                                double score) {
-  if (score <= 0) {
-    return;
-  }
-  std::scoped_lock<std::mutex> lock(target_flags_mutex_);
-  for (TargetFlagEntry& entry : target_flags_) {
-    if (entry.args == args) {
-      entry.score = std::max(entry.score, score);
-      return;
-    }
-  }
-  if (target_flags_.size() < 64) {
-    target_flags_.push_back(TargetFlagEntry{args, score});
-  } else {
-    auto worst = std::min_element(
-        target_flags_.begin(), target_flags_.end(),
-        [](const TargetFlagEntry& a, const TargetFlagEntry& b) {
-          return a.score < b.score;
-        });
-    if (score > worst->score) {
-      *worst = TargetFlagEntry{args, score};
-    }
-  }
-  has_target_flags_.store(true, std::memory_order_relaxed);
+  target_flags_.Record(args, score);
 }
 
 void Fuzzer::RecordTargetChild(bool hit) {
@@ -3186,12 +3221,89 @@ void Fuzzer::RecordTargetChild(bool hit) {
   target_children_completed_.fetch_add(1, std::memory_order_release);
 }
 
+void Fuzzer::RecordImportedFlags(const std::vector<std::string>& flags) {
+  imported_flags_.Record(flags, 1.0);
+}
+
+void Fuzzer::RecordProductiveFlags(const std::vector<std::string>& flags,
+                                   uint64_t new_edges, uint64_t executions) {
+  if (executions == 0) {
+    return;
+  }
+  // New edges per 1000 executions. A process that a crash stopped early
+  // counts as a process with kMinExecutions executions.
+  constexpr uint64_t kMinExecutions = 100;
+  constexpr double kMeanWeight = 0.1;
+  constexpr double kDecay = 0.99;
+  const double rate = static_cast<double>(new_edges) * 1000.0 /
+                      static_cast<double>(std::max(executions, kMinExecutions));
+  double mean = 0;
+  {
+    std::scoped_lock<std::mutex> lock(productive_mutex_);
+    mean = productive_processes_ == 0 ? rate : productive_mean_;
+    productive_mean_ = mean + kMeanWeight * (rate - mean);
+    productive_processes_++;
+  }
+  // Old sets lose their score, so that the pool follows the session.
+  productive_flags_.Decay(kDecay);
+  if (rate > mean) {
+    productive_flags_.Record(flags, rate / (mean + 1.0));
+  }
+}
+
+void Fuzzer::RecordSpawn(const std::vector<std::string>& args, bool started) {
+  if (flag_blacklist_.RecordSpawn(args, started)) {
+    std::string blocked;
+    for (const std::string& name : flag_blacklist_.Blocked()) {
+      blocked += blocked.empty() ? name : " " + name;
+    }
+    REDLINE_WARN(kLog, "blocked d8 flags for the session: %s", blocked.c_str());
+  }
+}
+
 std::vector<std::string> Fuzzer::DrawD8Flags(Random& rng) {
   D8FlagProfile profile = D8FlagProfile::kMaglev;
   ParseD8FlagProfile(config_.d8_flag_profile, &profile);
   const std::vector<std::string>& fixed = config_.target.args;
   std::vector<std::string> fresh = RandomD8Flags(rng, profile, fixed);
-  if (targets_.empty() || !has_target_flags_.load(std::memory_order_relaxed)) {
+  if (!config_.d8_trial_list.empty()) {
+    AddD8Trials(rng, config_.d8_trial_list, fixed, &fresh);
+  }
+  std::vector<std::string> flags = targets_.empty()
+                                       ? DrawNormalModeFlags(rng, fresh)
+                                       : DrawTargetFlags(rng, fresh);
+  flag_blacklist_.Filter(&flags);
+  RemoveFixedD8Flags(&flags, fixed);
+  flag_draws_.fetch_add(1, std::memory_order_relaxed);
+  {
+    std::scoped_lock<std::mutex> lock(drawn_names_mutex_);
+    for (const std::string& flag : flags) {
+      drawn_names_.emplace(D8FlagName(flag));
+    }
+  }
+  return flags;
+}
+
+std::vector<std::string> Fuzzer::DrawNormalModeFlags(
+    Random& rng, std::vector<std::string> fresh) {
+  const std::vector<std::string>& fixed = config_.target.args;
+  std::vector<std::string> base;
+  if (!imported_flags_.empty() && rng.Chance(ImportedFlagsChance()) &&
+      imported_flags_.Pick(rng, 1, &base)) {
+    imported_flag_draws_.fetch_add(1, std::memory_order_relaxed);
+    return CombineD8Flags(base, fresh, rng, fixed);
+  }
+  if (!productive_flags_.empty() && rng.Chance(FlagAffinityChance()) &&
+      productive_flags_.Pick(rng, TargetTournament(), &base)) {
+    affinity_flag_draws_.fetch_add(1, std::memory_order_relaxed);
+    return CombineD8Flags(base, fresh, rng, fixed);
+  }
+  return fresh;
+}
+
+std::vector<std::string> Fuzzer::DrawTargetFlags(
+    Random& rng, std::vector<std::string> fresh) {
+  if (target_flags_.empty()) {
     return fresh;
   }
   // When most children reach target edges, `EffectiveTargetGuidedChance` lowers
@@ -3205,23 +3317,11 @@ std::vector<std::string> Fuzzer::DrawD8Flags(Random& rng) {
     return fresh;
   }
   std::vector<std::string> base;
-  {
-    std::scoped_lock<std::mutex> lock(target_flags_mutex_);
-    if (target_flags_.empty()) {
-      return fresh;
-    }
-    size_t best = rng.Index(target_flags_.size());
-    const int k = TargetTournament();
-    for (int i = 1; i < k; i++) {
-      size_t candidate = rng.Index(target_flags_.size());
-      if (target_flags_[candidate].score > target_flags_[best].score) {
-        best = candidate;
-      }
-    }
-    base = target_flags_[best].args;
+  if (!target_flags_.Pick(rng, TargetTournament(), &base)) {
+    return fresh;
   }
   if (rng.Chance(TargetMutateChance())) {
-    return CombineD8Flags(base, fresh, rng, fixed);
+    return CombineD8Flags(base, fresh, rng, config_.target.args);
   }
   return base;
 }
@@ -3607,6 +3707,23 @@ void Fuzzer::WriteStatsEvent() {
   event.Add("corpus_nodes", stats_.corpus_nodes.load());
   event.Add("mutation_time_us", stats_.mutation_time_us.load());
   event.Add("infrastructure_failures", stats_.infrastructure_failures.load());
+  if (config_.randomize_d8_flags) {
+    event.Add("flag_draws", flag_draws_.load());
+    event.Add("imported_flag_draws", imported_flag_draws_.load())
+        .Add("affinity_flag_draws", affinity_flag_draws_.load());
+    event
+        .Add("imported_flag_sets",
+             static_cast<uint64_t>(imported_flags_.size()))
+        .Add("productive_flag_sets",
+             static_cast<uint64_t>(productive_flags_.size()));
+    event.Add("flagged_programs", flagged_programs_.load());
+    {
+      std::scoped_lock<std::mutex> lock(drawn_names_mutex_);
+      event.Add("drawn_flag_names", static_cast<uint64_t>(drawn_names_.size()));
+    }
+    event.Add("failed_flag_spawns", flag_blacklist_.failed_spawns());
+    event.AddArray("blocked_flags", flag_blacklist_.Blocked());
+  }
   event.AddRaw("stages", stages_.ToJson());
   LogEvent(event);
 }
