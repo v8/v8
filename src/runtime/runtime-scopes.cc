@@ -364,6 +364,17 @@ RUNTIME_FUNCTION(Runtime_HandleExceptionsInDisposeDisposableStack) {
 
 namespace {
 
+#ifdef DEBUG
+bool HasDebugEvaluateContextInChain(Tagged<Context> current,
+                                    Tagged<Context> limit) {
+  while (current != limit) {
+    if (current->IsDebugEvaluateContext()) return true;
+    current = current->previous();
+  }
+  return false;
+}
+#endif  // DEBUG
+
 Tagged<Object> DeclareEvalHelper(Isolate* isolate, Handle<String> name,
                                  Handle<Object> value) {
   // Declarations are always made in a function, native, eval, or script
@@ -372,18 +383,21 @@ Tagged<Object> DeclareEvalHelper(Isolate* isolate, Handle<String> name,
   // context and not the declaration context.
   Handle<Context> context(isolate->context()->declaration_context(), isolate);
 
-  // For debug-evaluate we always use sloppy eval, in which case context could
-  // also be a module context. As module contexts reuse the extension slot
-  // we need to check for this.
-  const bool is_debug_evaluate_in_module =
-      isolate->context()->IsDebugEvaluateContext() &&
-      context->IsModuleContext();
+  // Regular JS inside a module is always strict, so direct sloppy eval can
+  // only reach a ModuleContext via debug-evaluate. Module contexts cannot be
+  // extended (their extension slot holds the SourceTextModule), so disallow
+  // hoisting var/function declarations into them altogether.
+  if (context->IsModuleContext()) {
+    DCHECK(HasDebugEvaluateContextInChain(isolate->context(), *context));
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewEvalError(MessageTemplate::kVarNotAllowedInEvalScope, name));
+  }
 
   DCHECK(context->IsFunctionContext() || IsNativeContext(*context) ||
          context->IsScriptContext() || context->IsEvalContext() ||
          (context->IsBlockContext() &&
-          context->scope_info()->is_declaration_scope()) ||
-         is_debug_evaluate_in_module);
+          context->scope_info()->is_declaration_scope()));
 
   bool is_var = IsUndefined(*value);
   DCHECK_IMPLIES(!is_var, IsJSFunction(*value));
@@ -421,13 +435,29 @@ Tagged<Object> DeclareEvalHelper(Isolate* isolate, Handle<String> name,
   }
 
   if (attributes != ABSENT) {
+    // For regular sloppy eval, conflicts with lexical bindings (and with the
+    // implicit `arguments` binding in a non-simple parameter scope) are caught
+    // at parse time by DeclarationScope::CheckConflictingVarDeclarations.
+    // During debug-evaluate, deserializing a DebugEvaluateContext creates a
+    // DeclarationScope that stops that check before reaching enclosing
+    // contexts, so we can encounter lexical/read-only bindings here.
+    if (IsLexicalVariableMode(mode) || (attributes & READ_ONLY) != 0 ||
+        (index != Context::kNotFound && context->IsFunctionContext() &&
+         !context->scope_info()->HasSimpleParameters())) {
+      DCHECK(HasDebugEvaluateContextInChain(isolate->context(), *context));
+      return ThrowRedeclarationError(isolate, name,
+                                     RedeclarationType::kSyntaxError);
+    }
     DCHECK_EQ(NONE, attributes);
+    DCHECK_EQ(VariableMode::kVar, mode);
+    DCHECK_EQ(kCreatedInitialized, init_flag);
 
     // Skip var re-declarations.
     if (is_var) return ReadOnlyRoots(isolate).undefined_value();
 
     if (index != Context::kNotFound) {
       DCHECK(holder.is_identical_to(context));
+      DCHECK(!context->IsElementTdzHole(index));
       Context::Set(context, index, value, isolate);
       Tagged<ScopeInfo> scope_info = context->scope_info();
       int var_index = index - scope_info->ContextHeaderLength();
@@ -441,12 +471,12 @@ Tagged<Object> DeclareEvalHelper(Isolate* isolate, Handle<String> name,
     }
 
     object = Cast<JSObject>(holder);
+    DCHECK(IsJSContextExtensionObject(*object));
 
-  } else if (context->has_extension() && !is_debug_evaluate_in_module) {
+  } else if (context->has_extension()) {
     object = direct_handle(context->extension_object(), isolate);
     DCHECK(IsJSContextExtensionObject(*object));
-  } else if (context->scope_info()->HasContextExtensionSlot() &&
-             !is_debug_evaluate_in_module) {
+  } else if (context->scope_info()->HasContextExtensionSlot()) {
     // Sloppy varblock and function contexts might not have an extension object
     // yet. Sloppy eval will never have an extension object, as vars are hoisted
     // out, and lets are known statically.
