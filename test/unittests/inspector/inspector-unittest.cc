@@ -2073,5 +2073,174 @@ TEST_F(InspectorTest, BareContextAndRegexUnderDisallowJavascriptWithExposeGc) {
   EXPECT_TRUE(
       inspector->associateExceptionData(context, error, meta_key, meta_value));
 }
+
+namespace {
+class DisallowJsTestClient : public v8_inspector::V8InspectorClient {
+ public:
+  explicit DisallowJsTestClient(v8::Local<v8::Context> context)
+      : context_(context) {}
+
+  v8::Local<v8::Context> ensureDefaultContextInGroup(
+      int context_group_id) override {
+    ++ensure_default_context_calls_;
+    return context_;
+  }
+
+  int ensure_default_context_calls() const {
+    return ensure_default_context_calls_;
+  }
+
+ private:
+  v8::Local<v8::Context> context_;
+  int ensure_default_context_calls_ = 0;
+};
+}  // namespace
+
+TEST_F(InspectorTest, DispatchProtocolMessageRespectsDisallowJavascript) {
+  v8::Isolate* isolate = v8_isolate();
+  v8::HandleScope handle_scope(isolate);
+  v8::Local<v8::Context> context = v8_context();
+
+  DisallowJsTestClient client(context);
+  std::unique_ptr<V8Inspector> inspector =
+      V8Inspector::create(isolate, &client);
+  inspector->contextCreated(V8ContextInfo(context, 1, StringView()));
+
+  CollectingChannel channel;
+  std::unique_ptr<V8InspectorSession> session = inspector->connect(
+      1, &channel, toStringView("{}"), V8Inspector::kFullyTrusted);
+
+  RunJS(
+      "globalThis.sideEffects = 0;"
+      "globalThis.fn = function(x) { globalThis.sideEffects++; return x; };"
+      "\n//# sourceURL=https://example.com/app.js");
+
+  auto extract_object_id = [](const std::string& response) {
+    const char kKey[] = "\"objectId\":\"";
+    size_t start = response.find(kKey);
+    CHECK_NE(start, std::string::npos);
+    start += strlen(kKey);
+    size_t end = response.find('"', start);
+    CHECK_NE(end, std::string::npos);
+    return response.substr(start, end - start);
+  };
+
+  session->dispatchProtocolMessage(Utf8View(
+      R"({"id":1,"method":"Runtime.evaluate","params":{"expression":"fn","contextId":1}})"));
+  std::string fn_id = extract_object_id(channel.lastResponse().utf8());
+
+  {
+    v8::Isolate::DisallowJavascriptExecutionScope no_js(
+        isolate,
+        v8::Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
+
+    // Runtime.evaluate must not bypass DisallowJavascriptExecutionScope.
+    session->dispatchProtocolMessage(Utf8View(
+        R"({"id":2,"method":"Runtime.evaluate","params":{"expression":"globalThis.sideEffects++","contextId":1}})"));
+    EXPECT_NE(channel.lastResponse().utf8().find("exceptionDetails"),
+              std::string::npos);
+
+    // Runtime.callFunctionOn with unserializableValue exercises
+    // V8InspectorImpl::compileAndRunInternalScript and must also fail without
+    // executing JS or leaving an uncaught pending exception.
+    std::string call_cmd =
+        R"({"id":3,"method":"Runtime.callFunctionOn","params":{"objectId":")" +
+        fn_id +
+        R"(","functionDeclaration":"function(x) { globalThis.sideEffects++; return x; }","arguments":[{"unserializableValue":"-0"}]}})";
+    session->dispatchProtocolMessage(Utf8View(call_cmd));
+    EXPECT_NE(channel.lastResponse().utf8().find("\"error\""),
+              std::string::npos);
+    EXPECT_FALSE(i_isolate()->has_exception());
+  }
+
+  {
+    v8::Isolate::DisallowJavascriptExecutionScope no_js(
+        isolate,
+        v8::Isolate::DisallowJavascriptExecutionScope::CRASH_ON_FAILURE);
+
+    // Interrupt-safe commands (Debugger.enable, Debugger.setBreakpointByUrl,
+    // Runtime.terminateExecution) must succeed without executing JS, even under
+    // CRASH_ON_FAILURE (matching InvokeApiInterruptCallbacks).
+    session->dispatchProtocolMessage(
+        Utf8View(R"({"id":4,"method":"Debugger.enable"})"));
+    EXPECT_EQ(channel.lastResponse().utf8().find("\"error\""),
+              std::string::npos);
+
+    session->dispatchProtocolMessage(Utf8View(
+        R"({"id":5,"method":"Debugger.setBreakpointByUrl","params":{"lineNumber":0,"urlRegex":"(app)\\.js$"}})"));
+    EXPECT_EQ(channel.lastResponse().utf8().find("\"error\""),
+              std::string::npos);
+    EXPECT_NE(channel.lastResponse().utf8().find("\"locations\":[{"),
+              std::string::npos);
+
+    // Runtime.terminateExecution outside any entered context must fall back to
+    // an already-registered context via forEachContext without calling
+    // ensureDefaultContextInGroup.
+    context->Exit();
+    session->dispatchProtocolMessage(
+        Utf8View(R"({"id":6,"method":"Runtime.terminateExecution"})"));
+    context->Enter();
+    EXPECT_EQ(0, client.ensure_default_context_calls());
+    EXPECT_TRUE(i_isolate()->stack_guard()->CheckTerminateExecution());
+  }
+  v8::MicrotasksScope::PerformCheckpoint(isolate);
+  EXPECT_FALSE(i_isolate()->stack_guard()->CheckTerminateExecution());
+  EXPECT_FALSE(isolate->IsExecutionTerminating());
+  EXPECT_NE(channel.lastResponse().utf8().find("\"id\":6"), std::string::npos);
+  EXPECT_EQ(channel.lastResponse().utf8().find("\"error\""), std::string::npos);
+
+  struct TerminateInterruptData {
+    Isolate* i_isolate;
+    V8InspectorSession* session;
+    const char* message;
+  };
+  auto terminate_on_interrupt = [](v8::Isolate* isolate, void* raw_data) {
+    auto* data = static_cast<TerminateInterruptData*>(raw_data);
+    EXPECT_TRUE(isolate->InContext());
+    data->session->dispatchProtocolMessage(Utf8View(data->message));
+    EXPECT_TRUE(data->i_isolate->stack_guard()->CheckTerminateExecution());
+  };
+
+  // Runtime.terminateExecution inside an interrupt with `context` (same group)
+  // entered uses `currentContext` and unwinds JS execution cleanly.
+  v8::Local<v8::Script> loop_script =
+      v8::Script::Compile(context, NewString("while (true) {}"))
+          .ToLocalChecked();
+  TerminateInterruptData same_group_interrupt{
+      i_isolate(), session.get(),
+      R"({"id":7,"method":"Runtime.terminateExecution"})"};
+  isolate->RequestInterrupt(terminate_on_interrupt, &same_group_interrupt);
+  EXPECT_TRUE(loop_script->Run(context).IsEmpty());
+  EXPECT_EQ(0, client.ensure_default_context_calls());
+  EXPECT_FALSE(i_isolate()->stack_guard()->CheckTerminateExecution());
+  EXPECT_FALSE(isolate->IsExecutionTerminating());
+  EXPECT_NE(channel.lastResponse().utf8().find("\"id\":7"), std::string::npos);
+  EXPECT_EQ(channel.lastResponse().utf8().find("\"error\""), std::string::npos);
+
+  // Runtime.terminateExecution inside an interrupt while another context group
+  // is entered on the same Isolate falls back to `currentContext` and unwinds.
+  v8::Local<v8::Context> other_context = v8::Context::New(isolate);
+  inspector->contextCreated(V8ContextInfo(other_context, 2, StringView()));
+  {
+    v8::Context::Scope other_scope(other_context);
+    v8::Local<v8::Script> other_loop_script =
+        v8::Script::Compile(other_context, NewString("while (true) {}"))
+            .ToLocalChecked();
+    TerminateInterruptData cross_group_interrupt{
+        i_isolate(), session.get(),
+        R"({"id":8,"method":"Runtime.terminateExecution"})"};
+    isolate->RequestInterrupt(terminate_on_interrupt, &cross_group_interrupt);
+    EXPECT_TRUE(other_loop_script->Run(other_context).IsEmpty());
+  }
+  EXPECT_EQ(0, client.ensure_default_context_calls());
+  EXPECT_FALSE(i_isolate()->stack_guard()->CheckTerminateExecution());
+  EXPECT_FALSE(isolate->IsExecutionTerminating());
+  EXPECT_NE(channel.lastResponse().utf8().find("\"id\":8"), std::string::npos);
+  EXPECT_EQ(channel.lastResponse().utf8().find("\"error\""), std::string::npos);
+
+  v8::Local<v8::Value> side_effects = RunJS("String(globalThis.sideEffects)");
+  v8::String::Utf8Value side_effects_utf8(isolate, side_effects);
+  EXPECT_EQ("0", std::string(*side_effects_utf8));
+}
 }  // namespace internal
 }  // namespace v8

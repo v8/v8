@@ -955,6 +955,7 @@ Response InjectedScript::resolveCallArgument(
         value = unserializableValue;
       }
     }
+    v8::TryCatch tryCatch(m_context->isolate());
     if (!m_context->inspector()
              ->compileAndRunInternalScript(
                  m_context->context(), toV8String(m_context->isolate(), value))

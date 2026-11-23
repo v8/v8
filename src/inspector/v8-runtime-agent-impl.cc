@@ -959,9 +959,30 @@ void V8RuntimeAgentImpl::terminateExecution(
     return;
   }
   v8::HandleScope handles(m_inspector->isolate());
-  v8::Local<v8::Context> defaultContext =
-      m_inspector->client()->ensureDefaultContextInGroup(
+  v8::Local<v8::Context> defaultContext;
+  if (m_inspector->isolate()->InContext()) {
+    v8::Local<v8::Context> currentContext =
+        m_inspector->isolate()->GetCurrentContext();
+    if (m_inspector->contextGroupId(currentContext) ==
+        m_session->contextGroupId()) {
+      defaultContext = currentContext;
+    }
+  }
+  if (defaultContext.IsEmpty()) {
+    if (v8::debug::IsJavascriptExecutionAllowed(m_inspector->isolate())) {
+      defaultContext = m_inspector->client()->ensureDefaultContextInGroup(
           m_session->contextGroupId());
+    } else if (m_inspector->isolate()->InContext()) {
+      defaultContext = m_inspector->isolate()->GetCurrentContext();
+    } else {
+      m_inspector->forEachContext(m_session->contextGroupId(),
+                                  [&](InspectedContext* context) {
+                                    if (defaultContext.IsEmpty()) {
+                                      defaultContext = context->context();
+                                    }
+                                  });
+    }
+  }
 
   m_inspector->debugger()->terminateExecution(defaultContext,
                                               std::move(callback));

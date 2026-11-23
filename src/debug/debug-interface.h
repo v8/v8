@@ -751,6 +751,9 @@ void RecordAsyncStackTaggingCreateTaskCall(v8::Isolate* isolate);
 uint64_t GetIsolateId(v8::Isolate* isolate);
 void SetIsolateId(v8::Isolate* isolate, uint64_t id);
 
+// Returns whether JavaScript execution is currently allowed on `isolate`.
+V8_EXPORT_PRIVATE bool IsJavascriptExecutionAllowed(v8::Isolate* isolate);
+
 // Creates a minimal Context without installing V8 extensions so no JavaScript
 // runs during context creation (safe under DisallowJavascriptExecution).
 V8_EXPORT_PRIVATE MaybeLocal<Context> CreateBareContext(v8::Isolate* isolate);

@@ -1617,6 +1617,11 @@ void SetIsolateId(v8::Isolate* v8_isolate, uint64_t id) {
   isolate->debug()->SetIsolateId(id);
 }
 
+bool IsJavascriptExecutionAllowed(v8::Isolate* v8_isolate) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  return isolate->is_javascript_execution_allowed();
+}
+
 MaybeLocal<Context> CreateBareContext(v8::Isolate* v8_isolate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   if (isolate->is_execution_terminating()) {
