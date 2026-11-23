@@ -967,33 +967,13 @@ class KnownNodeAspects {
                             ValueNode* node) const {
     // We first check the KnownNodeAspects in order to return the most precise
     // type possible.
-    auto info = TryGetInfoFor(node);
+    const NodeInfo* info = TryGetInfoFor(node);
     if (info == nullptr) {
       // If this node has no NodeInfo (or not known type in its NodeInfo), we
       // fall back to its static type.
       return node->GetStaticType(broker);
     }
-    NodeType actual_type =
-        IntersectType(info->type(), node->GetStaticType(broker));
-    if (node->Is<ReturnedValue>()) {
-      // The returned value might be more precise than the one stored in the
-      // node info.
-      actual_type = IntersectType(
-          actual_type, GetTypeUnchecked(broker, node->input_node(0)));
-    }
-#ifdef DEBUG
-    NodeType static_type = node->GetStaticType(broker);
-    // TODO(428667907): Ideally we should bail out early for the kNone type.
-    if (!NodeTypeIs(actual_type, static_type, NodeTypeIsVariant::kAllowNone)) {
-      // In case we needed a numerical alternative of a smi value, the type
-      // must generalize. In all other cases the node info type should reflect
-      // the actual type.
-      DCHECK(static_type == NodeType::kSmi &&
-             actual_type == NodeType::kNumber &&
-             !TryGetInfoFor(node)->alternative().has_none());
-    }
-#endif  // DEBUG
-    return actual_type;
+    return IntersectType(info->type(), node->GetStaticType(broker));
   }
 
   KNAPool* pool_;

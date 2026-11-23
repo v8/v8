@@ -10368,6 +10368,7 @@ class Phi : public ValueNodeT<Phi> {
 
   bool is_exception_phi() const { return input_count() == 0; }
   bool is_loop_phi() const;
+  bool is_unwrappable_single_input() const;
 
   bool is_backedge_offset(int i) const {
     return is_loop_phi() && i == backedge_index();
@@ -10426,9 +10427,13 @@ class Phi : public ValueNodeT<Phi> {
   void set_type(NodeType type) {
     type_ = type;
   }
+  // Returns the raw stored NodeType (without unwrapping single-input Phis).
   NodeType type() const {
     return type_;
   }
+  // Returns the static NodeType of a tagged Phi, intersecting with its single
+  // input's static type if unwrappable.
+  NodeType type(compiler::JSHeapBroker* broker);
 
   // Check if a phi has cleared the loop.
   bool is_unmerged_loop_phi() const;
