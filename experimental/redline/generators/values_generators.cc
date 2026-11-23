@@ -519,11 +519,24 @@ REDLINE_TUNABLE(kConstructorFunctionDeclVariableChance,
                 "generators.ConstructorFunctionDecl.variable_chance", 0.8, 0, 1,
                 "probability that a stored value is a visible variable or a "
                 "parameter rather than an integer literal");
+REDLINE_TUNABLE(kConstructorFunctionDeclNewTargetChance,
+                "generators.ConstructorFunctionDecl.new_target_chance", 0.35, 0,
+                1, "probability that the constructor adds a new.target guard");
+REDLINE_TUNABLE(kConstructorFunctionDeclThisCtorChance,
+                "generators.ConstructorFunctionDecl.this_ctor_chance", 0.3, 0,
+                1,
+                "probability that the constructor inspects new.target or "
+                "this.constructor");
+REDLINE_TUNABLE(kConstructorFunctionDeclDirectCallChance,
+                "generators.ConstructorFunctionDecl.direct_call_chance", 0.35,
+                0, 1,
+                "probability that a guarded constructor also runs without new");
 
-// `function C(a, b) { this.x = a; this.y = v; }` and 1-4 instances, after
-// Fuzzilli's ObjectConstructorGenerator (CodeGenerators.swift:666). The
-// body only stores values, so the constructor calls cannot throw.
+// `function C(a, b) { this.x = a; this.y = v; }` and 1 to 4 instances, after
+// Fuzzilli's `ObjectConstructorGenerator` (`CodeGenerators.swift:666`). The
+// body stores values and optionally guards `new.target`, so calls stay safe.
 bool GenConstructorFunctionDecl(GenContext& ctx, CodeGen& cg, Statements* out) {
+  const bool outer_cannot_throw = ctx.cannot_throw;
   CannotThrowScope safe(ctx);
   Random& r = ctx.rng();
   Tree* t = T(ctx);
@@ -551,6 +564,28 @@ bool GenConstructorFunctionDecl(GenContext& ctx, CodeGen& cg, Statements* out) {
       1 + r.SmallCount(kConstructorFunctionDeclMaxProperties.AsInt() - 1);
   std::vector<std::string_view> used;
   Statements body;
+  const bool has_guard = r.Chance(kConstructorFunctionDeclNewTargetChance());
+  if (has_guard) {
+    MemberExpression* opt_ctor = mk::Member(t, mk::This(t), "constructor");
+    opt_ctor->optional = true;
+    Expression* fallback = mk::Logical(
+        t, LogicalOp::kOr, mk::Chain(t, opt_ctor), mk::Id(t, "Object"));
+    body.push_back(
+        mk::If(t, mk::Unary(t, UnaryOp::kNot, mk::NewTarget(t)),
+               mk::Block(t, {mk::Return(t, mk::New(t, fallback, {}))})));
+  }
+  if (r.Chance(kConstructorFunctionDeclThisCtorChance())) {
+    if (r.Coin()) {
+      std::string_view nt = ctx.builder.FreshName("nt");
+      body.push_back(mk::Const(t, nt, mk::NewTarget(t)));
+      nested.Declare(nt, JsType::kClass, true);
+    } else {
+      std::string_view tc = ctx.builder.FreshName("tc");
+      body.push_back(
+          mk::Const(t, tc, mk::Member(t, mk::This(t), "constructor")));
+      nested.Declare(tc, JsType::kClass, true);
+    }
+  }
   for (int i = 0; i < count; i++) {
     std::string_view property = ctx.env.property_names()[r.Index(pool)];
     if (std::find(used.begin(), used.end(), property) != used.end() ||
@@ -582,6 +617,15 @@ bool GenConstructorFunctionDecl(GenContext& ctx, CodeGen& cg, Statements* out) {
       args.push_back(cg.Value(JsType::kUnknown, 1));
     }
     Push(out, cg.Declare(mk::New(t, mk::Id(t, name), std::move(args)),
+                         JsType::kObject, "o"));
+  }
+  if (has_guard && !outer_cannot_throw &&
+      r.Chance(kConstructorFunctionDeclDirectCallChance())) {
+    std::vector<Expression*> args;
+    for (int k = 0; k < np; k++) {
+      args.push_back(cg.Value(JsType::kUnknown, 1));
+    }
+    Push(out, cg.Declare(mk::Call(t, mk::Id(t, name), std::move(args)),
                          JsType::kObject, "o"));
   }
   return true;

@@ -305,16 +305,17 @@ void Environment::AddTypedModel() {
                      "Asia/Kolkata", "Australia/Lord_Howe", "Pacific/Apia",
                      "America/Sao_Paulo", "+05:30", "-08:00", "Etc/GMT+12"});
   enums("PlainDateString",
-        {"2024-01-31", "2020-02-29", "1970-01-01", "-000001-12-31",
-         "+275760-09-13", "2024-01-31[u-ca=hebrew]", "2024-01-31T10:20:30",
-         "20240131"});
+        {"2024-01-31", "2020-02-29", "1970-01-01", "0001-01-01", "2000-02-29",
+         "9999-12-31", "-000001-12-31", "+275760-09-13",
+         "2024-01-31[u-ca=hebrew]", "2024-01-31T10:20:30", "20240131"});
   enums("PlainTimeString",
         {"10:20:30", "00:00", "23:59:59.999999999", "T12:00", "12:34:56.789"});
   enums("PlainDateTimeString",
         {"2024-01-31T10:20:30", "1970-01-01T00:00", "2020-02-29T23:59:59.5",
          "2024-03-10T02:30:00[u-ca=japanese]", "2024-01-31"});
   enums("PlainYearMonthString",
-        {"2024-01", "1970-12", "2024-02-29", "+275760-09"});
+        {"2024-01", "1970-12", "0001-01", "-000001-01", "2000-02", "9999-12",
+         "2024-02-29", "+275760-09"});
   enums("PlainMonthDayString", {"01-31", "--02-29", "12-25", "2024-07-04"});
   enums("InstantString", {"1970-01-01T00:00:00Z", "2024-01-31T10:20:30.123Z",
                           "2024-01-31T10:20:30+01:00", "-271821-04-20T00:00Z",
@@ -408,13 +409,13 @@ void Environment::AddTypedModel() {
        {"nanoseconds", Range(0, 1500)}},
       1);
   bag("TemporalDateLike",
-      {{"year", Range(1900, 2100)},
+      {{"year", Range(1900, 2100, "TemporalYear")},
        {"month", Range(1, 12)},
        {"day", Range(1, 28)},
        {"calendar", arg::Enum("Calendar")}},
       3);
   bag("TemporalDateFields",
-      {{"year", Range(1900, 2100)},
+      {{"year", Range(1900, 2100, "TemporalYear")},
        {"month", Range(1, 12)},
        {"day", Range(1, 31)}},
       1);
@@ -426,7 +427,7 @@ void Environment::AddTypedModel() {
        {"nanosecond", Range(0, 999)}},
       1);
   bag("TemporalDateTimeLike",
-      {{"year", Range(1900, 2100)},
+      {{"year", Range(1900, 2100, "TemporalYear")},
        {"month", Range(1, 12)},
        {"day", Range(1, 28)},
        {"hour", Range(0, 23)},
@@ -434,13 +435,14 @@ void Environment::AddTypedModel() {
        {"second", Range(0, 59)}},
       3);
   bag("TemporalYearMonthLike",
-      {{"year", Range(1900, 2100)}, {"month", Range(1, 12)}}, 2);
+      {{"year", Range(1900, 2100, "TemporalYear")}, {"month", Range(1, 12)}},
+      2);
   bag("TemporalYearMonthDurationLike",
       {{"years", Range(0, 3)}, {"months", Range(0, 14)}}, 1);
   bag("TemporalMonthDayLike", {{"month", Range(1, 12)}, {"day", Range(1, 28)}},
       2);
   bag("TemporalZonedLike",
-      {{"year", Range(1900, 2100)},
+      {{"year", Range(1900, 2100, "TemporalYear")},
        {"month", Range(1, 12)},
        {"day", Range(1, 28)},
        {"hour", Range(0, 23)},
@@ -465,7 +467,10 @@ void Environment::AddTypedModel() {
       {{"alphabet", arg::Enum("Base64Alphabet")},
        {"lastChunkHandling", arg::Enum("Base64LastChunk")}});
   bag("BufferOptions", {{"maxByteLength", Range(64, 256)}}, 1);
-  bag("IteratorZipOptions", {{"mode", arg::Enum("IteratorZipMode")}});
+  bag("IteratorZipOptions",
+      {{"mode", arg::Enum("IteratorZipMode")}, {"padding", Iterable()}});
+  bag("IteratorZipKeyedOptions",
+      {{"mode", arg::Enum("IteratorZipMode")}, {"padding", Of(T::kObject)}});
 
   // --- DataView (gap report section (d), row 1)
   // -------------------------------
@@ -619,9 +624,10 @@ void Environment::AddTypedModel() {
            sig("find", T::kUnknown, {Callback(2)}),
            sig("join", T::kString, {Opt(Of(T::kString))}),
            sig("includes", T::kBoolean, {Any(), Opt(Index())}),
-           sig("chunks", T::kIterator, {Range(1, 16)}),
+           sig("chunks", T::kIterator, {Range(1, 16, "ChunkSize")}),
            sig("windows", T::kIterator,
-               {Range(1, 16), Opt(arg::Enum("IteratorWindowsUndersized"))})},
+               {Range(1, 16, "ChunkSize"),
+                Opt(arg::Enum("IteratorWindowsUndersized"))})},
           {"done", "value"});
   declare(BuiltinGlobal{
       "Iterator",
@@ -635,7 +641,7 @@ void Environment::AddTypedModel() {
        sig("zip", T::kIterator,
            {Iterable(T::kArray), Opt(arg::Options("IteratorZipOptions"))}),
        sig("zipKeyed", T::kIterator,
-           {Of(T::kObject), Opt(arg::Options("IteratorZipOptions"))})},
+           {Of(T::kObject), Opt(arg::Options("IteratorZipKeyedOptions"))})},
       {"prototype"}});
   // Typed arrays, arrays and strings return iterators too.
   methods(T::kArray,
@@ -947,8 +953,8 @@ void Environment::AddTypedModel() {
            sig("toLocaleString", T::kString, {Opt(arg::Enum("Locale"))})},
           date_properties);
   declare(constructor("Temporal.PlainDate", T::kTemporalPlainDate,
-                      {Range(1900, 2100), Range(1, 12), Range(1, 28),
-                       Opt(arg::Enum("Calendar"))},
+                      {Range(1900, 2100, "TemporalYear"), Range(1, 12),
+                       Range(1, 28), Opt(arg::Enum("Calendar"))},
                       {sig("from", T::kTemporalPlainDate,
                            {arg::Enum("PlainDateString"),
                             Opt(arg::Options("TemporalOverflowOptions"))}),
@@ -990,17 +996,18 @@ void Environment::AddTypedModel() {
        sig("toJSON", T::kString, {}),
        sig("toLocaleString", T::kString, {Opt(arg::Enum("Locale"))})},
       date_time_properties);
-  declare(constructor(
-      "Temporal.PlainDateTime", T::kTemporalPlainDateTime,
-      {Range(1900, 2100), Range(1, 12), Range(1, 28), Opt(Range(0, 23)),
-       Opt(Range(0, 59)), Opt(Range(0, 59)), Opt(Range(0, 999)),
-       Opt(Range(0, 999)), Opt(Range(0, 999)), Opt(arg::Enum("Calendar"))},
-      {sig("from", T::kTemporalPlainDateTime,
-           {arg::Enum("PlainDateTimeString"),
-            Opt(arg::Options("TemporalOverflowOptions"))}),
-       sig("compare", T::kNumber,
-           {Instance(T::kTemporalPlainDateTime),
-            Instance(T::kTemporalPlainDateTime)})}));
+  declare(
+      constructor("Temporal.PlainDateTime", T::kTemporalPlainDateTime,
+                  {Range(1900, 2100, "TemporalYear"), Range(1, 12),
+                   Range(1, 28), Opt(Range(0, 23)), Opt(Range(0, 59)),
+                   Opt(Range(0, 59)), Opt(Range(0, 999)), Opt(Range(0, 999)),
+                   Opt(Range(0, 999)), Opt(arg::Enum("Calendar"))},
+                  {sig("from", T::kTemporalPlainDateTime,
+                       {arg::Enum("PlainDateTimeString"),
+                        Opt(arg::Options("TemporalOverflowOptions"))}),
+                   sig("compare", T::kNumber,
+                       {Instance(T::kTemporalPlainDateTime),
+                        Instance(T::kTemporalPlainDateTime)})}));
 
   methods(T::kTemporalPlainYearMonth,
           {sig("with", T::kTemporalPlainYearMonth,
@@ -1025,7 +1032,7 @@ void Environment::AddTypedModel() {
           {"calendarId", "era", "eraYear", "year", "month", "monthCode",
            "daysInMonth", "daysInYear", "monthsInYear", "inLeapYear"});
   declare(constructor("Temporal.PlainYearMonth", T::kTemporalPlainYearMonth,
-                      {Range(1900, 2100), Range(1, 12)},
+                      {Range(1900, 2100, "TemporalYear"), Range(1, 12)},
                       {sig("from", T::kTemporalPlainYearMonth,
                            {arg::Enum("PlainYearMonthString"),
                             Opt(arg::Options("TemporalOverflowOptions"))}),

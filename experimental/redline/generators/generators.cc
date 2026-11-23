@@ -1008,6 +1008,10 @@ REDLINE_TUNABLE(kClassDeclStaticBlockChance,
 REDLINE_TUNABLE(kClassDeclStaticBlockMaxStatements,
                 "generators.ClassDecl.static_block_max_statements", 3, 1, 64,
                 "most statements in the static block");
+REDLINE_TUNABLE(kClassDeclMetaInspectChance,
+                "generators.ClassDecl.meta_inspect_chance", 0.3, 0, 1,
+                "probability that the constructor inspects new.target or "
+                "this.constructor");
 
 GEN(ClassDecl) {
   Random& r = ctx.rng();
@@ -1106,6 +1110,46 @@ GEN(ClassDecl) {
         }
       }
       body.push_back(inner.Stmt(mk::Call(t, t->New<Super>(), std::move(args))));
+    }
+    if (r.Chance(kClassDeclMetaInspectChance())) {
+      switch (r.Index(3)) {
+        case 0: {
+          std::string_view nt = ctx.builder.FreshName("nt");
+          body.push_back(mk::Const(t, nt, mk::NewTarget(t)));
+          body.push_back(inner.Stmt(mk::Assign(
+              t, mk::Member(t, mk::This(t), "ctor"), mk::Id(t, nt))));
+          break;
+        }
+        case 1: {
+          std::string_view tc = ctx.builder.FreshName("tc");
+          body.push_back(
+              mk::Const(t, tc, mk::Member(t, mk::This(t), "constructor")));
+          body.push_back(inner.Stmt(mk::Assign(
+              t, mk::Member(t, mk::This(t), "ctor"), mk::Id(t, tc))));
+          break;
+        }
+        default: {
+          if (!names.empty() && params[0]->Is<Identifier>()) {
+            // Bound recursion to depth 1 with an explicit argument check.
+            Expression* cond = mk::Binary(t, BinaryOp::kStrictEq,
+                                          mk::Id(t, names[0]), mk::Num(t, 0));
+            Statement* call = mk::Try(
+                t,
+                {mk::ExprStmt(
+                    t, mk::New(t, mk::Member(t, mk::This(t), "constructor"),
+                               {mk::Num(t, 1)}))},
+                "e", {});
+            body.push_back(mk::If(t, cond, mk::Block(t, {call})));
+          } else {
+            std::string_view tc = ctx.builder.FreshName("tc");
+            body.push_back(
+                mk::Const(t, tc, mk::Member(t, mk::This(t), "constructor")));
+            body.push_back(inner.Stmt(mk::Assign(
+                t, mk::Member(t, mk::This(t), "ctor"), mk::Id(t, tc))));
+          }
+          break;
+        }
+      }
     }
     int fields = 1 + r.SmallCount(kClassDeclConstructorMaxFields.AsInt() - 1);
     for (int i = 0; i < fields; i++) {
@@ -3038,10 +3082,123 @@ GEN(Gc) {
 
 REDLINE_TUNABLE(kPrototypeSetNullChance, "generators.PrototypeSet.null_chance",
                 0.3, 0, 1, "probability that the new prototype is null");
+REDLINE_TUNABLE(kPrototypeSetSpeciesChance,
+                "generators.PrototypeSet.species_chance", 0.3, 0, 1,
+                "probability that PrototypeSet overrides constructor or "
+                "Symbol.species");
+REDLINE_TUNABLE(kPrototypeSetSpeciesTriggerChance,
+                "generators.PrototypeSet.species_trigger_chance", 0.7, 0, 1,
+                "probability that a species override runs an array or typed "
+                "array method");
+
+// Overrides `constructor` or `Symbol.species` on an `Array` or `TypedArray`
+// instance and optionally runs a species-consuming method.
+void EmitSpeciesOverride(GenContext& ctx, CodeGen& cg, Statements* out) {
+  Random& r = ctx.rng();
+  Tree* t = T(ctx);
+  bool is_typed = r.Coin();
+  Identifier* target =
+      cg.Variable(is_typed ? JsType::kTypedArray : JsType::kArray);
+  if (target == nullptr) {
+    is_typed = !is_typed;
+    target = cg.Variable(is_typed ? JsType::kTypedArray : JsType::kArray);
+  }
+  const bool reused = target != nullptr;
+  std::string_view target_name;
+  if (reused) {
+    target_name = target->name;
+  } else {
+    Expression* init =
+        is_typed ? cg.Instance(JsType::kTypedArray) : cg.ArrayLiteral(1);
+    if (init == nullptr) {
+      is_typed = false;
+      init = cg.ArrayLiteral(1);
+    }
+    Statement* decl =
+        cg.Declare(init, is_typed ? JsType::kTypedArray : JsType::kArray,
+                   is_typed ? "ta" : "arr");
+    Push(out, decl);
+    target_name = LastDeclared(ctx);
+  }
+  Expression* ctor = nullptr;
+  switch (r.Index(3)) {
+    case 0:
+      ctor = cg.Variable(r.Coin() ? JsType::kClass : JsType::kFunction);
+      break;
+    case 1:
+      ctor = mk::Id(
+          t, is_typed ? r.Pick({"Int32Array", "Uint8Array", "Float64Array"})
+                      : r.Pick({"Array", "Object", "Uint8Array"}));
+      break;
+    default:
+      ctor = mk::Function(t, "", {}, {mk::Return(t, mk::Array(t, {}))});
+      break;
+  }
+  if (ctor == nullptr) {
+    ctor = mk::Id(t, is_typed ? "Int32Array" : "Array");
+  }
+  auto make_species_obj = [&]() -> Expression* {
+    return mk::Object(
+        t, {mk::Prop(t, mk::Member(t, mk::Id(t, "Symbol"), "species"), ctor,
+                     /*computed=*/true)});
+  };
+  Statement* override_stmt = nullptr;
+  switch (r.Index(3)) {
+    case 0:
+      override_stmt = cg.Stmt(
+          mk::Assign(t, mk::Member(t, mk::Id(t, target_name), "constructor"),
+                     make_species_obj()));
+      break;
+    case 1:
+      override_stmt = cg.Stmt(mk::Assign(
+          t, mk::Member(t, mk::Id(t, target_name), "constructor"), ctor));
+      break;
+    default:
+      override_stmt = cg.Stmt(mk::CallMethod(
+          t, mk::Id(t, "Object"), "defineProperty",
+          {mk::Id(t, target_name), mk::Str(t, "constructor"),
+           mk::Object(t, {mk::Prop(t, "value", make_species_obj()),
+                          mk::Prop(t, "configurable", mk::Bool(t, true)),
+                          mk::Prop(t, "writable", mk::Bool(t, true))})}));
+      break;
+  }
+  if (reused) {
+    Push(out, mk::Try(t, {override_stmt}, "e", {}));
+  } else {
+    Push(out, override_stmt);
+  }
+  if (!r.Chance(kPrototypeSetSpeciesTriggerChance())) {
+    return;
+  }
+  Expression* recv = mk::Id(t, target_name);
+  Expression* call = nullptr;
+  const int choice = static_cast<int>(r.Index(is_typed ? 4 : 5));
+  if (choice == 0) {
+    call = mk::CallMethod(t, recv, "slice", {mk::Num(t, 0)});
+  } else if (choice == 1) {
+    call = is_typed ? mk::CallMethod(t, recv, "subarray", {mk::Num(t, 0)})
+                    : mk::CallMethod(t, recv, "splice",
+                                     {mk::Num(t, 0), mk::Num(t, 1)});
+  } else if (choice == 2) {
+    call = mk::CallMethod(t, recv, "filter",
+                          {mk::ArrowExpr(t, {"x"}, mk::Bool(t, true))});
+  } else if (choice == 3) {
+    call = mk::CallMethod(t, recv, "map",
+                          {mk::ArrowExpr(t, {"x"}, mk::Id(t, "x"))});
+  } else {
+    call = mk::CallMethod(t, recv, "concat", {mk::Array(t, {mk::Num(t, 1)})});
+  }
+  cg.DeclareMaybeGuarded(
+      out, call, is_typed ? JsType::kTypedArray : JsType::kArray, "r", 1.0);
+}
 
 GEN(PrototypeSet) {
   Random& r = ctx.rng();
   Tree* t = T(ctx);
+  if (r.Chance(kPrototypeSetSpeciesChance())) {
+    EmitSpeciesOverride(ctx, cg, out);
+    return true;
+  }
   Expression* object = cg.ObjectLike();
   Expression* proto = r.Chance(kPrototypeSetNullChance())
                           ? static_cast<Expression*>(mk::Null(t))
@@ -3389,6 +3546,11 @@ REDLINE_TUNABLE(kShapeChangeSharedPrefixConsumerChance,
                 1,
                 "probability of a function that loads the last field of each "
                 "sibling and is then optimized");
+REDLINE_TUNABLE(kShapeChangeConstructorOverrideChance,
+                "generators.ShapeChange.constructor_override_chance", 0.15, 0,
+                1,
+                "probability that ShapeChange overrides constructor or "
+                "Symbol.species");
 
 // A value for a field in the representation `rep`: 0 is a small integer, 1
 // a double, 2 a heap object and 3 a string.
@@ -3624,6 +3786,10 @@ GEN(ShapeChange) {
     cg.DeclareMaybeGuarded(out,
                            mk::New(t, mk::Id(t, ctor_name), cg.Arguments(0, 2)),
                            JsType::kObject, "o", 1.0);
+    return true;
+  }
+  if (r.Chance(kShapeChangeConstructorOverrideChance())) {
+    EmitSpeciesOverride(ctx, cg, out);
     return true;
   }
   Identifier* object = cg.Variable(JsType::kObject);
@@ -4226,6 +4392,16 @@ REDLINE_TUNABLE(
 REDLINE_TUNABLE(kConstructorFunctionPrototypeMethodChance,
                 "generators.ConstructorFunction.prototype_method_chance", 0.3,
                 0, 1, "probability of adding a method to C.prototype");
+REDLINE_TUNABLE(kConstructorFunctionPolyGuardChance,
+                "generators.ConstructorFunction.poly_guard_chance", 0.4, 0, 1,
+                "probability that the new.target guard constructs "
+                "this?.constructor or Object");
+REDLINE_TUNABLE(kConstructorFunctionDirectCallChance,
+                "generators.ConstructorFunction.direct_call_chance", 0.25, 0, 1,
+                "probability that the constructor also runs without new");
+REDLINE_TUNABLE(kConstructorFunctionDirectGuardChance,
+                "generators.ConstructorFunction.direct_guard_chance", 0.5, 0, 1,
+                "probability that a direct constructor call runs in try-catch");
 
 // A constructor function in the old style, with `new.target`, `this.x =`
 // initialization, default and rest parameters, then instantiated.
@@ -4242,11 +4418,20 @@ GEN(ConstructorFunction) {
       cg.Parameters(nested, np, "a", &params, &types);
   CodeGen inner(nested);
   Statements body;
-  // if (!new.target) { throw ... } / return new C(...)
-  body.push_back(
-      mk::If(t, mk::Unary(t, UnaryOp::kNot, mk::NewTarget(t)),
-             mk::Block(t, {mk::Return(t, mk::New(t, mk::Id(t, name),
-                                                 {mk::Id(t, params[0])}))})));
+  if (r.Chance(kConstructorFunctionPolyGuardChance())) {
+    MemberExpression* opt_ctor = mk::Member(t, mk::This(t), "constructor");
+    opt_ctor->optional = true;
+    Expression* fallback = mk::Logical(
+        t, LogicalOp::kOr, mk::Chain(t, opt_ctor), mk::Id(t, "Object"));
+    body.push_back(
+        mk::If(t, mk::Unary(t, UnaryOp::kNot, mk::NewTarget(t)),
+               mk::Block(t, {mk::Return(t, mk::New(t, fallback, {}))})));
+  } else {
+    body.push_back(
+        mk::If(t, mk::Unary(t, UnaryOp::kNot, mk::NewTarget(t)),
+               mk::Block(t, {mk::Return(t, mk::New(t, mk::Id(t, name),
+                                                   {mk::Id(t, params[0])}))})));
+  }
   int fields = 1 + r.SmallCount(kConstructorFunctionMaxFields.AsInt() - 1);
   for (int i = 0; i < fields; i++) {
     Expression* value =
@@ -4271,12 +4456,14 @@ GEN(ConstructorFunction) {
   ctx.Declare(name, JsType::kClass);
   ctx.builder.RecordInfo(name).parameters = types;
   if (r.Chance(kConstructorFunctionPrototypeMethodChance())) {
-    // A prototype method that uses this.
+    // A prototype method that uses `this` or `this.constructor`.
     GenContext method_ctx = ctx.Nested(true, false, false, false);
     CodeGen method_cg(method_ctx);
     Statements mbody;
     mbody.push_back(mk::Return(
-        t, mk::Member(t, mk::This(t), ctx.env.property_names()[r.Index(12)])));
+        t, mk::Member(t, mk::This(t),
+                      r.Coin() ? "constructor"
+                               : ctx.env.property_names()[r.Index(12)])));
     Push(out, cg.Stmt(mk::Assign(
                   t,
                   mk::Member(t, mk::Member(t, mk::Id(t, name), "prototype"),
@@ -4287,6 +4474,11 @@ GEN(ConstructorFunction) {
   // and ConstructorCallGenerator, CodeGenerators.swift:666 and :2341).
   Push(out, cg.Declare(mk::New(t, mk::Id(t, name), cg.ArgumentsFor(types)),
                        JsType::kObject, "o"));
+  if (r.Chance(kConstructorFunctionDirectCallChance())) {
+    cg.DeclareMaybeGuarded(
+        out, mk::Call(t, mk::Id(t, name), cg.ArgumentsFor(types)),
+        JsType::kObject, "o", kConstructorFunctionDirectGuardChance());
+  }
   return true;
 }
 
@@ -5043,24 +5235,41 @@ REDLINE_TUNABLE(kTemporalOpsGuardChance, "generators.TemporalOps.guard_chance",
                 0.9, 0, 1,
                 "probability that a call is wrapped in try/catch (values from "
                 "the program can make it throw)");
+REDLINE_TUNABLE(kTemporalOpsEdgeYearChance,
+                "generators.TemporalOps.edge_year_chance", 0.35, 0, 1,
+                "probability that TemporalOps picks a boundary year");
 
 GEN(TemporalOps) {
   Random& r = ctx.rng();
   Tree* t = T(ctx);
 
+  auto pick_year = [&](double fallback) -> double {
+    if (r.Chance(kTemporalOpsEdgeYearChance())) {
+      static constexpr double kEdgeYears[] = {1.0, 1970.0, 2000.0, 9999.0,
+                                              -1.0};
+      return kEdgeYears[r.Index(sizeof(kEdgeYears) / sizeof(kEdgeYears[0]))];
+    }
+    return fallback;
+  };
+
   auto create_temporal = [&](const char* ctor) -> Expression* {
     std::vector<Expression*> args;
     if (std::string_view(ctor) == "PlainDate") {
-      args = {mk::Num(t, 2023), mk::Num(t, static_cast<double>(r.Range(1, 13))),
-              mk::Num(t, static_cast<double>(r.Range(1, 29)))};
+      args = {mk::Num(t, pick_year(2023)),
+              mk::Num(t, static_cast<double>(r.Range(1, 12))),
+              mk::Num(t, static_cast<double>(r.Range(1, 28)))};
+    } else if (std::string_view(ctor) == "PlainYearMonth") {
+      args = {mk::Num(t, pick_year(2023)),
+              mk::Num(t, static_cast<double>(r.Range(1, 12)))};
     } else if (std::string_view(ctor) == "PlainTime") {
-      args = {mk::Num(t, static_cast<double>(r.Range(0, 24))),
-              mk::Num(t, static_cast<double>(r.Range(0, 60))),
-              mk::Num(t, static_cast<double>(r.Range(0, 60)))};
+      args = {mk::Num(t, static_cast<double>(r.Range(0, 23))),
+              mk::Num(t, static_cast<double>(r.Range(0, 59))),
+              mk::Num(t, static_cast<double>(r.Range(0, 59)))};
     } else if (std::string_view(ctor) == "PlainDateTime") {
-      args = {mk::Num(t, 2023), mk::Num(t, static_cast<double>(r.Range(1, 13))),
-              mk::Num(t, static_cast<double>(r.Range(1, 29))),
-              mk::Num(t, static_cast<double>(r.Range(0, 24)))};
+      args = {mk::Num(t, pick_year(2023)),
+              mk::Num(t, static_cast<double>(r.Range(1, 12))),
+              mk::Num(t, static_cast<double>(r.Range(1, 28))),
+              mk::Num(t, static_cast<double>(r.Range(0, 23)))};
     } else if (std::string_view(ctor) == "ZonedDateTime") {
       args = {mk::BigInt(t, "123456789"), mk::Str(t, "UTC")};
     } else if (std::string_view(ctor) == "Instant") {
@@ -5073,23 +5282,27 @@ GEN(TemporalOps) {
                    std::move(args));
   };
 
-  const char* ctors[] = {"PlainDate",     "PlainTime", "PlainDateTime",
-                         "ZonedDateTime", "Instant",   "Duration"};
+  const char* ctors[] = {"PlainDate",     "PlainYearMonth", "PlainTime",
+                         "PlainDateTime", "ZonedDateTime",  "Instant",
+                         "Duration"};
   const char* ctor = ctors[r.Index(sizeof(ctors) / sizeof(ctors[0]))];
 
   Expression* construct = create_temporal(ctor);
   Statement* decl = cg.Declare(construct, JsType::kObject, "temp");
   Push(out, decl);
-  Identifier* a = mk::Id(t, decl->Cast<VariableDeclaration>()
-                                ->declarations[0]
-                                ->target->Cast<Identifier>()
-                                ->name);
+  const std::string_view var = decl->Cast<VariableDeclaration>()
+                                   ->declarations[0]
+                                   ->target->Cast<Identifier>()
+                                   ->name;
 
   int calls = 1 + static_cast<int>(r.Index(
                       static_cast<size_t>(kTemporalOpsMaxCalls.AsInt())));
   for (int i = 0; i < calls; i++) {
-    std::vector<const char*> all_methods = {"add",   "subtract", "with",
-                                            "round", "compare",  "toString"};
+    std::vector<const char*> all_methods = {"add", "subtract", "with",
+                                            "compare", "toString"};
+    if (std::string_view(ctor) != "PlainYearMonth") {
+      all_methods.push_back("round");
+    }
     if (std::string_view(ctor) != "Duration") {
       all_methods.push_back("since");
       all_methods.push_back("until");
@@ -5098,45 +5311,59 @@ GEN(TemporalOps) {
     std::vector<Expression*> args;
 
     if (std::string_view(method) == "compare") {
-      args = {a, create_temporal(ctor)};
+      args = {mk::Id(t, var), create_temporal(ctor)};
       Expression* call =
           mk::CallMethod(t, mk::Member(t, mk::Id(t, "Temporal"), ctor), method,
                          std::move(args));
       cg.DeclareMaybeGuarded(out, call, JsType::kNumber, "r",
                              kTemporalOpsGuardChance());
     } else if (std::string_view(method) == "toString") {
-      if (r.Coin()) {
+      if (r.Coin() && std::string_view(ctor) != "PlainYearMonth") {
         args = {mk::Object(
             t, {mk::Prop(t, "fractionalSecondDigits", mk::Str(t, "auto"))})};
       }
-      Expression* call = mk::CallMethod(t, a, method, std::move(args));
+      Expression* call =
+          mk::CallMethod(t, mk::Id(t, var), method, std::move(args));
       cg.DeclareMaybeGuarded(out, call, JsType::kString, "r",
                              kTemporalOpsGuardChance());
     } else if (std::string_view(method) == "with") {
       if (std::string_view(ctor) == "PlainDate" ||
+          std::string_view(ctor) == "PlainYearMonth" ||
           std::string_view(ctor) == "PlainDateTime" ||
           std::string_view(ctor) == "ZonedDateTime") {
-        args = {mk::Object(t, {mk::Prop(t, "year", mk::Num(t, 2024))})};
+        args = {
+            mk::Object(t, {mk::Prop(t, "year", mk::Num(t, pick_year(2024)))})};
       } else if (std::string_view(ctor) == "PlainTime") {
         args = {mk::Object(t, {mk::Prop(t, "hour", mk::Num(t, 12))})};
       } else if (std::string_view(ctor) == "Duration") {
         args = {mk::Object(t, {mk::Prop(t, "hours", mk::Num(t, 5))})};
       } else {
-        args = {a};
+        args = {mk::Id(t, var)};
       }
-      Expression* call = mk::CallMethod(t, a, method, std::move(args));
+      Expression* call =
+          mk::CallMethod(t, mk::Id(t, var), method, std::move(args));
       cg.DeclareMaybeGuarded(out, call, JsType::kUnknown, "r",
                              kTemporalOpsGuardChance());
     } else if (std::string_view(method) == "add" ||
                std::string_view(method) == "subtract") {
-      args = {create_temporal("Duration")};
-      Expression* call = mk::CallMethod(t, a, method, std::move(args));
+      if (std::string_view(ctor) == "PlainYearMonth") {
+        args = {mk::Object(
+            t, {mk::Prop(t, "years",
+                         mk::Num(t, static_cast<double>(r.Range(0, 3)))),
+                mk::Prop(t, "months",
+                         mk::Num(t, static_cast<double>(r.Range(0, 12))))})};
+      } else {
+        args = {create_temporal("Duration")};
+      }
+      Expression* call =
+          mk::CallMethod(t, mk::Id(t, var), method, std::move(args));
       cg.DeclareMaybeGuarded(out, call, JsType::kUnknown, "r",
                              kTemporalOpsGuardChance());
     } else if (std::string_view(method) == "since" ||
                std::string_view(method) == "until") {
       args = {create_temporal(ctor)};
-      Expression* call = mk::CallMethod(t, a, method, std::move(args));
+      Expression* call =
+          mk::CallMethod(t, mk::Id(t, var), method, std::move(args));
       cg.DeclareMaybeGuarded(out, call, JsType::kUnknown, "r",
                              kTemporalOpsGuardChance());
     } else {
@@ -5148,7 +5375,8 @@ GEN(TemporalOps) {
         args = {
             mk::Object(t, {mk::Prop(t, "smallestUnit", mk::Str(t, "second"))})};
       }
-      Expression* call = mk::CallMethod(t, a, method, std::move(args));
+      Expression* call =
+          mk::CallMethod(t, mk::Id(t, var), method, std::move(args));
       cg.DeclareMaybeGuarded(out, call, JsType::kUnknown, "r",
                              kTemporalOpsGuardChance());
     }
@@ -5158,6 +5386,21 @@ GEN(TemporalOps) {
 
 REDLINE_TUNABLE(kMapSetOpsMaxOps, "generators.MapSetOps.max_ops", 4, 1, 64,
                 "most set/get/has/delete operations on the map or set");
+REDLINE_TUNABLE(kMapSetOpsInitChance, "generators.MapSetOps.init_chance", 0.5,
+                0, 1,
+                "probability that a new Map or Set starts with initial "
+                "elements");
+REDLINE_TUNABLE(kMapSetOpsSetMethodChance,
+                "generators.MapSetOps.set_method_chance", 0.5, 0, 1,
+                "probability that a Set step calls an ES2025 set method");
+REDLINE_TUNABLE(kMapSetOpsGetOrInsertChance,
+                "generators.MapSetOps.get_or_insert_chance", 0.35, 0, 1,
+                "probability that a Map step calls getOrInsert or "
+                "getOrInsertComputed");
+REDLINE_TUNABLE(kMapSetOpsGuardChance, "generators.MapSetOps.guard_chance", 0.8,
+                0, 1,
+                "probability that a callback or set-like call runs in "
+                "try-catch");
 
 GEN(MapSetOps) {
   Random& r = ctx.rng();
@@ -5165,9 +5408,23 @@ GEN(MapSetOps) {
   bool map = r.Coin();
   Identifier* m = cg.Variable(map ? JsType::kMap : JsType::kSet);
   if (m == nullptr) {
-    Statement* decl =
-        cg.Declare(mk::New(t, mk::Id(t, map ? "Map" : "Set"), {}),
-                   map ? JsType::kMap : JsType::kSet, map ? "map" : "set");
+    std::vector<Expression*> init_args;
+    if (r.Chance(kMapSetOpsInitChance())) {
+      int init_n = 1 + r.SmallCount(2);
+      std::vector<Expression*> entries;
+      for (int i = 0; i < init_n; i++) {
+        if (map) {
+          entries.push_back(mk::Array(t, {cg.Value(JsType::kUnknown, 1),
+                                          cg.Value(JsType::kUnknown, 1)}));
+        } else {
+          entries.push_back(cg.Value(JsType::kUnknown, 1));
+        }
+      }
+      init_args.push_back(mk::Array(t, std::move(entries)));
+    }
+    Statement* decl = cg.Declare(
+        mk::New(t, mk::Id(t, map ? "Map" : "Set"), std::move(init_args)),
+        map ? JsType::kMap : JsType::kSet, map ? "map" : "set");
     Push(out, decl);
     m = mk::Id(t, decl->Cast<VariableDeclaration>()
                       ->declarations[0]
@@ -5178,6 +5435,21 @@ GEN(MapSetOps) {
   for (int i = 0; i < n; i++) {
     Identifier* o = mk::Id(t, m->name);
     if (map) {
+      if (r.Chance(kMapSetOpsGetOrInsertChance())) {
+        if (r.Coin()) {
+          Push(out, cg.Declare(mk::CallMethod(t, o, "getOrInsert",
+                                              {cg.Value(JsType::kUnknown, 1),
+                                               cg.Value(JsType::kUnknown, 1)}),
+                               JsType::kUnknown));
+        } else {
+          Expression* call = mk::CallMethod(t, o, "getOrInsertComputed",
+                                            {cg.Value(JsType::kUnknown, 1),
+                                             cg.ArgumentFor(arg::Callback(1))});
+          cg.DeclareMaybeGuarded(out, call, JsType::kUnknown, "v",
+                                 kMapSetOpsGuardChance());
+        }
+        continue;
+      }
       switch (r.Index(4)) {
         case 0:
           Push(out, cg.Stmt(mk::CallMethod(t, o, "set",
@@ -5200,6 +5472,23 @@ GEN(MapSetOps) {
           break;
       }
     } else {
+      if (r.Chance(kMapSetOpsSetMethodChance())) {
+        static constexpr std::string_view kSetMethods[] = {
+            "union",         "intersection",
+            "difference",    "symmetricDifference",
+            "isSubsetOf",    "isSupersetOf",
+            "isDisjointFrom"};
+        const size_t idx =
+            r.Index(sizeof(kSetMethods) / sizeof(kSetMethods[0]));
+        const std::string_view method = kSetMethods[idx];
+        const bool returns_bool = idx >= 4;
+        Expression* call =
+            mk::CallMethod(t, o, method, {cg.ArgumentFor(arg::SetLike())});
+        cg.DeclareMaybeGuarded(
+            out, call, returns_bool ? JsType::kBoolean : JsType::kSet,
+            returns_bool ? "b" : "set", kMapSetOpsGuardChance());
+        continue;
+      }
       switch (r.Index(3)) {
         case 0:
           Push(out, cg.Stmt(mk::CallMethod(t, o, "add",
@@ -6447,8 +6736,8 @@ std::unique_ptr<GeneratorSet> GeneratorSet::CreateDefault() {
       kNoRequirement, GenStringOps);
   add("TypedArrayOps", "typed array element access, detach, views", 1.5,
       kNoRequirement, GenTypedArrayOps);
-  add("MapSetOps", "Map/Set set/get/has/delete", 1, kNoRequirement,
-      GenMapSetOps);
+  add("MapSetOps", "Map/Set basic and ES2025 set/insert operations", 1,
+      kNoRequirement, GenMapSetOps);
   add("IntlOps",
       "Intl services with valid locales and options, locale-aware primitive "
       "methods",

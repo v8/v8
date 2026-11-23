@@ -2171,10 +2171,27 @@ REDLINE_TUNABLE(kIteratorChainZipChance, "generators.IteratorChain.zip_chance",
 REDLINE_TUNABLE(kIteratorChainOptionsChance,
                 "generators.IteratorChain.options_chance", 0.5, 0, 1,
                 "probability that a zip call gets an options object");
+REDLINE_TUNABLE(kIteratorChainZipLongestPaddingChance,
+                "generators.IteratorChain.zip_longest_padding_chance", 0.5, 0,
+                1,
+                "probability that zip options use mode longest with padding");
 REDLINE_TUNABLE(kIteratorChainMaxZipped, "generators.IteratorChain.max_zipped",
                 3, 1, 8, "most iterables that a zip call combines");
 REDLINE_TUNABLE(kIteratorChainMaxCount, "generators.IteratorChain.max_count", 5,
                 0, 1000, "largest count passed to take and drop");
+REDLINE_TUNABLE(kIteratorChainChunkWindowChance,
+                "generators.IteratorChain.chunk_window_chance", 0.35, 0, 1,
+                "probability that a lazy step calls chunks or windows");
+REDLINE_TUNABLE(kIteratorChainManualStepChance,
+                "generators.IteratorChain.manual_step_chance", 0.25, 0, 1,
+                "probability that the chain ends with next and return calls");
+REDLINE_TUNABLE(kIteratorChainForOfDestructChance,
+                "generators.IteratorChain.for_of_destruct_chance", 0.25, 0, 1,
+                "probability that a for-of destructuring loop consumes the "
+                "chain");
+REDLINE_TUNABLE(kIteratorChainMaxNextCalls,
+                "generators.IteratorChain.max_next_calls", 3, 1, 16,
+                "most next calls before return in manual stepping");
 
 // A callback for an iterator helper: an arrow with a generated expression,
 // or a function with a generated body.
@@ -2199,27 +2216,29 @@ Expression* HelperCallback(GenContext& ctx, int params, bool returns_iterable) {
   return mk::Arrow(t, names, std::move(body));
 }
 
-// Fuzzilli's IteratorZipGenerator and IteratorZipKeyedGenerator
-// (CodeGenerators.swift:2199, :2232) and the typed Iterator helpers of
-// JavaScriptEnvironment.swift. The source is Iterator.from of any iterable,
-// or Iterator.zip or Iterator.zipKeyed with options. Lazy helpers follow
-// (map, filter, take, drop and flatMap). A consumer ends the chain (toArray,
-// reduce, some, every, find, forEach or a spread).
+// Builds an iterator chain from `Iterator.from`, `Iterator.zip`, or
+// `Iterator.zipKeyed`. Lazy steps include `map`, `filter`, `flatMap`, `take`,
+// `drop`, `chunks`, and `windows`. The chain ends with a terminal method,
+// manual `next` and `return` calls, or `for..of` destructuring.
 GEN(IteratorChain) {
   Random& r = ctx.rng();
   Tree* t = T(ctx);
   Expression* chain = nullptr;
+  std::vector<std::string_view> zipped_keys;
+  bool yields_arrays = false;
   if (r.Chance(kIteratorChainZipChance())) {
     const int n =
         1 + static_cast<int>(
                 r.Index(static_cast<size_t>(kIteratorChainMaxZipped.AsInt())));
     const bool keyed = r.Coin();
+    yields_arrays = !keyed;
     std::vector<Expression*> iterables;
     std::vector<Node*> props;
     for (int i = 0; i < n; i++) {
       if (keyed) {
-        props.push_back(
-            mk::Prop(t, ctx.builder.FreshName("k"), AnyIterable(cg)));
+        std::string_view key = ctx.builder.FreshName("k");
+        zipped_keys.push_back(key);
+        props.push_back(mk::Prop(t, key, AnyIterable(cg)));
       } else {
         iterables.push_back(AnyIterable(cg));
       }
@@ -2228,11 +2247,34 @@ GEN(IteratorChain) {
         keyed ? static_cast<Expression*>(mk::Object(t, std::move(props)))
               : mk::Array(t, std::move(iterables))};
     if (r.Chance(kIteratorChainOptionsChance())) {
-      std::vector<Node*> options = {mk::Prop(
-          t, "mode", mk::Str(t, r.Pick({"shortest", "longest", "strict"})))};
-      if (r.Coin()) {
-        options.push_back(mk::Prop(
-            t, "padding", keyed ? cg.ObjectLiteral(1) : cg.ArrayLiteral(1)));
+      std::vector<Node*> options;
+      const bool longest_pad =
+          r.Chance(kIteratorChainZipLongestPaddingChance());
+      options.push_back(mk::Prop(
+          t, "mode",
+          mk::Str(t, longest_pad ? "longest"
+                                 : r.Pick({"shortest", "longest", "strict"}))));
+      if (longest_pad || r.Coin()) {
+        Expression* padding = nullptr;
+        if (keyed) {
+          std::vector<Node*> pad_props;
+          for (std::string_view key : zipped_keys) {
+            if (pad_props.empty() || r.Coin()) {
+              pad_props.push_back(
+                  mk::Prop(t, key, cg.Value(JsType::kUnknown, 1)));
+            }
+          }
+          padding = mk::Object(t, std::move(pad_props));
+        } else if (r.Coin()) {
+          std::vector<Expression*> pad_elems;
+          for (int i = 0; i < n; i++) {
+            pad_elems.push_back(cg.Value(JsType::kUnknown, 1));
+          }
+          padding = mk::Array(t, std::move(pad_elems));
+        } else {
+          padding = cg.ArgumentFor(arg::Iterable());
+        }
+        options.push_back(mk::Prop(t, "padding", padding));
       }
       args.push_back(mk::Object(t, std::move(options)));
     }
@@ -2241,12 +2283,30 @@ GEN(IteratorChain) {
   } else {
     chain = mk::CallMethod(t, mk::Id(t, "Iterator"), "from", {AnyIterable(cg)});
   }
-  const int steps = r.SmallCount(kIteratorChainMaxSteps.AsInt());
+  const int max_steps = kIteratorChainMaxSteps.AsInt();
+  const int steps = max_steps > 0 ? (1 + r.SmallCount(max_steps - 1)) : 0;
   for (int i = 0; i < steps; i++) {
+    if (r.Chance(kIteratorChainChunkWindowChance())) {
+      Expression* size = cg.ArgumentFor(arg::Range(1, 16, "ChunkSize"));
+      if (r.Coin()) {
+        chain = mk::CallMethod(t, chain, "chunks", {size});
+      } else {
+        std::vector<Expression*> wargs = {size};
+        if (r.Coin()) {
+          wargs.push_back(mk::Str(t, r.Pick({"only-full", "allow-partial"})));
+        }
+        chain = mk::CallMethod(t, chain, "windows", std::move(wargs));
+      }
+      yields_arrays = true;
+      zipped_keys.clear();
+      continue;
+    }
     switch (r.Index(5)) {
       case 0:
         chain =
             mk::CallMethod(t, chain, "map", {HelperCallback(ctx, 2, false)});
+        yields_arrays = false;
+        zipped_keys.clear();
         break;
       case 1:
         chain =
@@ -2255,6 +2315,8 @@ GEN(IteratorChain) {
       case 2:
         chain = mk::CallMethod(t, chain, "flatMap",
                                {HelperCallback(ctx, 1, /*iterable=*/true)});
+        yields_arrays = false;
+        zipped_keys.clear();
         break;
       default:
         chain = mk::CallMethod(
@@ -2263,6 +2325,72 @@ GEN(IteratorChain) {
                             r.Range(0, kIteratorChainMaxCount.AsInt())))});
         break;
     }
+  }
+  if (r.Chance(kIteratorChainManualStepChance())) {
+    std::string_view it_name = ctx.builder.FreshName("it");
+    Push(out, mk::Let(t, it_name, nullptr));
+    Statements try_body;
+    try_body.push_back(
+        mk::ExprStmt(t, mk::Assign(t, mk::Id(t, it_name), chain)));
+    const int nexts = 1 + r.SmallCount(kIteratorChainMaxNextCalls.AsInt() - 1);
+    for (int i = 0; i < nexts; i++) {
+      try_body.push_back(
+          mk::ExprStmt(t, mk::CallMethod(t, mk::Id(t, it_name), "next", {})));
+    }
+    try_body.push_back(
+        mk::ExprStmt(t, mk::CallMethod(t, mk::Id(t, it_name), "return", {})));
+    Push(out, mk::Try(t, std::move(try_body), "e", {}));
+    ctx.Declare(it_name, JsType::kIterator);
+    return true;
+  }
+  if (r.Chance(kIteratorChainForOfDestructChance())) {
+    Expression* pattern = nullptr;
+    std::string_view first_var;
+    if (yields_arrays || (zipped_keys.empty() && r.Coin())) {
+      auto* arr_pat = t->New<ArrayPattern>();
+      first_var = ctx.builder.FreshName("d");
+      arr_pat->elements.push_back(mk::Id(t, first_var));
+      if (r.Coin()) {
+        arr_pat->elements.push_back(mk::Id(t, ctx.builder.FreshName("d")));
+      }
+      if (r.Coin()) {
+        arr_pat->elements.push_back(
+            mk::Rest(t, mk::Id(t, ctx.builder.FreshName("rest"))));
+      }
+      pattern = arr_pat;
+    } else {
+      auto* obj_pat = t->New<ObjectPattern>();
+      if (!zipped_keys.empty()) {
+        for (std::string_view key : zipped_keys) {
+          std::string_view var = ctx.builder.FreshName("d");
+          if (first_var.empty()) {
+            first_var = var;
+          }
+          obj_pat->properties.push_back(mk::Prop(t, key, mk::Id(t, var)));
+        }
+      } else {
+        first_var = ctx.builder.FreshName("d");
+        std::string_view key = cg.PropertyName();
+        if (!IsIdentifierName(key)) {
+          key = "a";
+        }
+        obj_pat->properties.push_back(mk::Prop(t, key, mk::Id(t, first_var)));
+      }
+      pattern = obj_pat;
+    }
+    VariableDeclaration* decl =
+        mk::Declare(t, VariableKind::kConst, "x", nullptr);
+    decl->declarations[0]->target = pattern;
+    auto* loop = t->New<ForOfStatement>();
+    loop->left = decl;
+    loop->right = chain;
+    Statements loop_body = {mk::ExprStmt(t, mk::Id(t, first_var))};
+    if (r.Coin()) {
+      loop_body.push_back(mk::Break(t));
+    }
+    loop->body = mk::Block(t, std::move(loop_body));
+    Push(out, mk::Try(t, {loop}, "e", {}));
+    return true;
   }
   switch (r.Index(6)) {
     case 0:
@@ -2284,8 +2412,8 @@ GEN(IteratorChain) {
       chain = mk::CallMethod(t, chain, "toArray", {});
       break;
   }
-  // Iterator.zip with mode "strict" throws for iterables of other lengths,
-  // and the callbacks can throw.
+  // `Iterator.zip` with mode `strict` throws on length mismatch, and callbacks
+  // can throw.
   cg.DeclareMaybeGuarded(out, chain, JsType::kArray, "r", 1.0);
   return true;
 }

@@ -123,6 +123,9 @@ REDLINE_TUNABLE(kClassMemberPrivateUseChance,
                 "generators.ClassDecl.private_use_chance", 0.5, 0, 1,
                 "probability that a getter returns, or a method or setter "
                 "stores to, a private field of this when the class has one");
+REDLINE_TUNABLE(kClassMemberMethodThisCtorChance,
+                "generators.ClassDecl.method_this_ctor_chance", 0.2, 0, 1,
+                "probability that a class method reads this.constructor");
 
 namespace {
 
@@ -289,8 +292,16 @@ Node* BuildMember(GenContext& ctx, CodeGen& cg,
       int np = static_cast<int>(r.Range(0, settings.method_max_params));
       std::vector<Expression*> params = cg.Parameters(nested, np);
       CodeGen inner(nested);
-      Statements body = inner.Body(
+      Statements body;
+      std::string_view this_ctor_var;
+      if (r.Chance(kClassMemberMethodThisCtorChance())) {
+        this_ctor_var = ctx.builder.FreshName("tc");
+        body.push_back(mk::Const(t, this_ctor_var,
+                                 mk::Member(t, mk::This(t), "constructor")));
+      }
+      Statements more = inner.Body(
           nested, 1 + r.SmallCount(settings.method_max_statements - 1));
+      body.insert(body.end(), more.begin(), more.end());
       if (r.Chance(settings.method_this_store_chance)) {
         if (Statement* s = ThisStore(ctx, inner, plan, m.is_static,
                                      inner.Value(JsType::kUnknown, 1))) {
@@ -300,9 +311,12 @@ Node* BuildMember(GenContext& ctx, CodeGen& cg,
       if (settings.has_super_class && r.Chance(settings.super_call_chance)) {
         SuperMethodCall(nested, inner, &body);
       }
-      body.push_back(mk::Return(t, r.Coin()
-                                       ? static_cast<Expression*>(mk::This(t))
-                                       : inner.Value(JsType::kUnknown, 1)));
+      Expression* ret_val =
+          !this_ctor_var.empty() && r.Coin()
+              ? static_cast<Expression*>(mk::Id(t, this_ctor_var))
+              : (r.Coin() ? static_cast<Expression*>(mk::This(t))
+                          : inner.Value(JsType::kUnknown, 1));
+      body.push_back(mk::Return(t, ret_val));
       FunctionExpression* fn =
           mk::Function(t, "", {}, std::move(body), nested.syntax.in_async,
                        nested.syntax.in_generator);

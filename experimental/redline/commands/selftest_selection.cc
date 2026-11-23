@@ -4520,6 +4520,196 @@ void CheckWasmModule(Checker* checker) {
                  no_natives_ok, nn_err);
 }
 
+// Checks ES2025 Set/Map methods, Iterator chunking/padding/stepping,
+// polymorphic constructors, species overrides, and Temporal boundary years.
+void CheckEs2025Closures(Checker* checker) {
+  TunableRegistry& reg = TunableRegistry::Instance();
+  reg.Reset();
+
+  const Environment& env = Environment::Default();
+  auto has_param_name = [&](JsType type, std::string_view mname,
+                            std::string_view pname) {
+    const BuiltinType* bt = env.ForType(type);
+    return bt != nullptr &&
+           std::any_of(bt->methods.begin(), bt->methods.end(),
+                       [&](const BuiltinFunction& f) {
+                         return f.name == mname && !f.params.empty() &&
+                                f.params[0].kind == ArgKind::kRange &&
+                                f.params[0].name == pname;
+                       });
+  };
+  auto ctor_has_param_name = [&](std::string_view gname,
+                                 std::string_view pname) {
+    const BuiltinGlobal* g = env.Global(gname);
+    return g != nullptr && !g->params.empty() &&
+           g->params[0].kind == ArgKind::kRange && g->params[0].name == pname;
+  };
+  auto bag_has_key = [&](std::string_view bag_name, std::string_view key,
+                         ArgKind kind) {
+    const OptionsBag* b = env.Options(bag_name);
+    return b != nullptr &&
+           std::any_of(b->keys.begin(), b->keys.end(), [&](const OptionKey& k) {
+             return k.key == key && k.value.kind == kind;
+           });
+  };
+  auto enum_has = [&](std::string_view ename, std::string_view val) {
+    const EnumList* e = env.Enum(ename);
+    return e != nullptr && std::find(e->values.begin(), e->values.end(), val) !=
+                               e->values.end();
+  };
+  const bool model_ok =
+      has_param_name(JsType::kIterator, "chunks", "ChunkSize") &&
+      has_param_name(JsType::kIterator, "windows", "ChunkSize") &&
+      bag_has_key("IteratorZipOptions", "mode", ArgKind::kEnum) &&
+      bag_has_key("IteratorZipOptions", "padding", ArgKind::kIterable) &&
+      bag_has_key("IteratorZipKeyedOptions", "mode", ArgKind::kEnum) &&
+      bag_has_key("IteratorZipKeyedOptions", "padding", ArgKind::kValue) &&
+      ctor_has_param_name("Temporal.PlainDate", "TemporalYear") &&
+      ctor_has_param_name("Temporal.PlainDateTime", "TemporalYear") &&
+      ctor_has_param_name("Temporal.PlainYearMonth", "TemporalYear") &&
+      enum_has("PlainDateString", "0001-01-01") &&
+      enum_has("PlainDateString", "9999-12-31") &&
+      enum_has("PlainYearMonthString", "0001-01") &&
+      enum_has("PlainYearMonthString", "-000001-01");
+  checker->Check(
+      "ES2025 model: chunk sizes, zip padding, and Temporal boundary years",
+      model_ok, model_ok ? "" : "missing typed model entries");
+
+  std::string v8_err;
+  const bool v8_ok = InitializeV8(FuzzConfig().v8_flags, &v8_err);
+  std::unique_ptr<SyntaxChecker> syntax;
+  if (v8_ok) {
+    syntax = std::make_unique<SyntaxChecker>();
+  }
+  std::unique_ptr<GeneratorSet> generators = GeneratorSet::CreateDefault();
+
+  auto sample = [&](std::string_view name, int count, uint64_t seed_off,
+                    bool* all_valid,
+                    std::string* err) -> std::vector<std::string> {
+    std::vector<std::string> out;
+    Generator* g = generators->Find(name);
+    if (g == nullptr || !v8_ok) {
+      *all_valid = false;
+      *err = g == nullptr ? "missing generator" : v8_err;
+      return out;
+    }
+    *all_valid = true;
+    for (int i = 0; i < count; ++i) {
+      auto tree = std::make_unique<fast::Tree>();
+      tree->set_root(tree->New<fast::Program>());
+      Random rng(kSeed + seed_off + static_cast<uint64_t>(i));
+      Builder b(tree.get(), &rng, &env);
+      GenContext ctx(b, *generators, env);
+      // Keep nested bodies non-recursive so tree-uniqueness checks test this
+      // generator rather than unrelated recursive generators.
+      ctx.max_depth = 0;
+      ctx.out = &tree->root()->body;
+      if (!g->Generate(ctx, ctx.out) || ctx.out->empty()) {
+        continue;
+      }
+      std::set<const fast::Node*> seen_nodes;
+      const fast::Node* shared_node = nullptr;
+      fast::Walk(tree->root(), [&](fast::Node* n) {
+        if (!seen_nodes.insert(n).second) {
+          shared_node = n;
+          return false;
+        }
+        return true;
+      });
+      if (shared_node != nullptr) {
+        *all_valid = false;
+        *err = std::string("shared AST node ") + shared_node->kind_name() +
+               " in: " + fast::Print(tree->root()).substr(0, 400);
+        break;
+      }
+      const std::string src = fast::Print(tree->root());
+      std::string perr;
+      if (!syntax->Accepts(src, &perr)) {
+        *all_valid = false;
+        *err = perr;
+        break;
+      }
+      out.push_back(src);
+    }
+    return out;
+  };
+  auto any_has = [](const std::vector<std::string>& v, std::string_view sub) {
+    return std::any_of(v.begin(), v.end(), [&](const std::string& s) {
+      return s.find(sub) != std::string::npos;
+    });
+  };
+
+  bool ok = false;
+  std::string err;
+  auto mapset = sample("MapSetOps", 160, 9500, &ok, &err);
+  bool set_all = true;
+  for (std::string_view m :
+       {".union(", ".intersection(", ".difference(", ".symmetricDifference(",
+        ".isSubsetOf(", ".isSupersetOf(", ".isDisjointFrom(",
+        "keys:", ".getOrInsert(", ".getOrInsertComputed("}) {
+    if (!any_has(mapset, m)) {
+      set_all = false;
+      err = std::string("MapSetOps missing ") + std::string(m);
+      break;
+    }
+  }
+  checker->Check("MapSetOps: emits ES2025 Set methods and Map.getOrInsert*",
+                 ok && set_all, err);
+
+  auto iters = sample("IteratorChain", 220, 9700, &ok, &err);
+  const bool iter_ok =
+      ok && any_has(iters, ".chunks(") && any_has(iters, ".windows(") &&
+      (any_has(iters, "(1025") || any_has(iters, "(4294967295")) &&
+      any_has(iters, "padding:") && any_has(iters, ".next()") &&
+      any_has(iters, ".return()") && any_has(iters, "for (const [") &&
+      any_has(iters, "for (const {");
+  checker->Check(
+      "IteratorChain: emits chunks/windows bounds, zip padding, next/return, "
+      "and destructuring",
+      iter_ok, iter_ok ? "" : (ok ? "missing IteratorChain feature" : err));
+
+  auto cdecl = sample("ConstructorFunctionDecl", 100, 9950, &ok, &err);
+  const bool cdecl_ok = ok && any_has(cdecl, "if (!new.target)") &&
+                        any_has(cdecl, "this?.constructor || Object") &&
+                        any_has(cdecl, "this.constructor");
+  checker->Check(
+      "ConstructorFunctionDecl: emits new.target guard and "
+      "this.constructor",
+      cdecl_ok, cdecl_ok ? "" : (ok ? "missing constructor idiom" : err));
+
+  auto cfn = sample("ConstructorFunction", 80, 10100, &ok, &err);
+  const bool cfn_ok = ok && any_has(cfn, "this?.constructor || Object");
+  checker->Check("ConstructorFunction: emits polymorphic new.target guard",
+                 cfn_ok, cfn_ok ? "" : (ok ? "missing poly guard" : err));
+
+  auto cls = sample("ClassDecl", 100, 10200, &ok, &err);
+  const bool cls_ok =
+      ok && any_has(cls, "new.target") && any_has(cls, "this.constructor");
+  checker->Check("ClassDecl: emits new.target and this.constructor inspection",
+                 cls_ok, cls_ok ? "" : (ok ? "missing class meta" : err));
+
+  auto proto = sample("PrototypeSet", 100, 10350, &ok, &err);
+  const bool proto_ok = ok && any_has(proto, ".constructor =") &&
+                        any_has(proto, "Symbol.species");
+  checker->Check("PrototypeSet: emits constructor and Symbol.species overrides",
+                 proto_ok, proto_ok ? "" : (ok ? "missing species" : err));
+
+  auto shape = sample("ShapeChange", 120, 10500, &ok, &err);
+  const bool shape_ok = ok && any_has(shape, ".constructor =") &&
+                        any_has(shape, "Symbol.species");
+  checker->Check("ShapeChange: emits constructor and Symbol.species overrides",
+                 shape_ok, shape_ok ? "" : (ok ? "missing species" : err));
+
+  auto temp = sample("TemporalOps", 160, 10700, &ok, &err);
+  const bool temp_ok = ok && any_has(temp, "Temporal.PlainYearMonth(") &&
+                       any_has(temp, "((-1),") &&
+                       (any_has(temp, "(1,") || any_has(temp, "(9999,") ||
+                        any_has(temp, "(1970,") || any_has(temp, "(2000,"));
+  checker->Check("TemporalOps: emits PlainYearMonth and boundary years",
+                 temp_ok, temp_ok ? "" : (ok ? "missing Temporal year" : err));
+  reg.Reset();
+}
+
 }  // namespace
 
 void RunSelectionChecks(Checker* checker, const std::string& testdata_dir,
@@ -4587,6 +4777,7 @@ void RunSelectionChecks(Checker* checker, const std::string& testdata_dir,
   CheckBuiltinsAndWorkers(checker);
   CheckEnvTyper(checker);
   CheckWasmModule(checker);
+  CheckEs2025Closures(checker);
 }
 
 void RunNodeKindChecks(Checker* checker) {

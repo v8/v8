@@ -60,10 +60,11 @@ constexpr ArgSpec Of(JsType type) { return Make(ArgKind::kValue, type); }
 constexpr ArgSpec Int() { return Make(ArgKind::kInteger, JsType::kNumber); }
 constexpr ArgSpec Index() { return Make(ArgKind::kIndex, JsType::kNumber); }
 constexpr ArgSpec Length() { return Make(ArgKind::kLength, JsType::kNumber); }
-constexpr ArgSpec Range(int min, int max) {
+constexpr ArgSpec Range(int min, int max, std::string_view name = {}) {
   ArgSpec a = Make(ArgKind::kRange, JsType::kNumber);
   a.min = min;
   a.max = max;
+  a.name = name;
   return a;
 }
 constexpr ArgSpec Iterable(JsType element = JsType::kUnknown) {

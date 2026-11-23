@@ -45,6 +45,13 @@ REDLINE_TUNABLE(kArgumentRangeEdgeChance, "codegen.argument.range_edge_chance",
                 0.01, 0, 1,
                 "probability that a new range argument is one past the end "
                 "of its range");
+REDLINE_TUNABLE(
+    kArgumentChunkBoundaryChance, "codegen.argument.chunk_boundary_chance", 0.3,
+    0, 1, "probability that a chunk or window size uses a boundary value");
+REDLINE_TUNABLE(
+    kArgumentTemporalYearEdgeChance,
+    "codegen.argument.temporal_year_edge_chance", 0.25, 0, 1,
+    "probability that a Temporal year argument uses a boundary year");
 REDLINE_TUNABLE(kArgumentCallbackVariableChance,
                 "codegen.argument.callback_variable_chance", 0.2, 0, 1,
                 "probability that a callback argument is a visible function "
@@ -210,6 +217,20 @@ fast::Expression* CodeGen::ArgumentFor(const ArgSpec& spec, int depth) {
       return small(spec.kind == ArgKind::kIndex ? kArgumentIndexMax.AsInt()
                                                 : kArgumentLengthMax.AsInt());
     case ArgKind::kRange: {
+      if (spec.name == "ChunkSize" &&
+          r.Chance(kArgumentChunkBoundaryChance())) {
+        static constexpr double kChunkBounds[] = {1.0,  2.0,    4.0,
+                                                  16.0, 1025.0, 4294967295.0};
+        return mk::Num(t, kChunkBounds[r.Index(sizeof(kChunkBounds) /
+                                               sizeof(kChunkBounds[0]))]);
+      }
+      if (spec.name == "TemporalYear" &&
+          r.Chance(kArgumentTemporalYearEdgeChance())) {
+        static constexpr double kEdgeYears[] = {1.0, 1970.0, 2000.0, 9999.0,
+                                                -1.0};
+        return mk::Num(
+            t, kEdgeYears[r.Index(sizeof(kEdgeYears) / sizeof(kEdgeYears[0]))]);
+      }
       int64_t value = r.Range(spec.min, spec.max);
       if (r.Chance(kArgumentRangeEdgeChance())) {
         value = r.Coin() ? static_cast<int64_t>(spec.min) - 1
@@ -218,7 +239,7 @@ fast::Expression* CodeGen::ArgumentFor(const ArgSpec& spec, int depth) {
       return mk::Num(t, static_cast<double>(value));
     }
     case ArgKind::kIterable: {
-      if (r.Chance(kArgumentReuseChance())) {
+      if (spec.type != JsType::kArray && r.Chance(kArgumentReuseChance())) {
         if (fast::Identifier* id = Variable(JsType::kArray)) {
           return id;
         }

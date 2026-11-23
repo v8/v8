@@ -1266,9 +1266,10 @@ REDLINE_TUNABLE(kObjectLikeBuiltinChance, "codegen.object_like.builtin_chance",
 fast::Expression* CodeGen::ObjectLike() {
   Random& r = rng();
   static const JsType kObjectTypes[] = {
-      JsType::kObject, JsType::kArray,      JsType::kFunction, JsType::kMap,
-      JsType::kSet,    JsType::kTypedArray, JsType::kClass,    JsType::kRegExp,
-      JsType::kDate,   JsType::kError,      JsType::kPromise,  JsType::kString};
+      JsType::kObject,  JsType::kArray,      JsType::kFunction, JsType::kMap,
+      JsType::kSet,     JsType::kTypedArray, JsType::kClass,    JsType::kRegExp,
+      JsType::kDate,    JsType::kError,      JsType::kPromise,  JsType::kString,
+      JsType::kIterator};
   if (r.Chance(kObjectLikeVariableChance())) {
     JsType type =
         kObjectTypes[r.Index(sizeof(kObjectTypes) / sizeof(kObjectTypes[0]))];
