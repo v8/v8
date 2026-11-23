@@ -7680,8 +7680,6 @@ struct RootConstantOp : FixedArityOperationT<0, RootConstantOp> {
     return {};
   }
 
-  void Validate(const Graph& graph) const {}
-
   auto options() const { return std::tuple{index}; }
 };
 
@@ -7787,10 +7785,6 @@ struct AssertNotNullOp : OperationT<AssertNotNullOp> {
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
-  }
-
-  void Validate(const Graph& graph) const {
-    // TODO(14108): Validate.
   }
 
   auto options() const { return std::tuple{type, trap_id}; }
@@ -8826,10 +8820,6 @@ struct Simd128ConstantOp : FixedArityOperationT<0, Simd128ConstantOp> {
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
     return {};
-  }
-
-  void Validate(const Graph& graph) const {
-    // TODO(14108): Validate.
   }
 
   bool IsZero() const {
@@ -10490,10 +10480,6 @@ struct Simd256ConstantOp : FixedArityOperationT<0, Simd256ConstantOp> {
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
     return {};
-  }
-
-  void Validate(const Graph& graph) const {
-    // TODO(14108): Validate.
   }
 
   bool IsZero() const {

@@ -2045,7 +2045,7 @@ OpIndex GraphBuilder::Process(
 
     case IrOpcode::kLoadRootRegister:
       // Inlined usage of wasm root register operation in JS.
-      return assembler.ReduceLoadRootRegister();
+      return __ LoadRootRegister();
 
     case IrOpcode::kStringCharCodeAt:
       return __ StringCharCodeAt(Map(node->InputAt(0)), Map(node->InputAt(1)));
