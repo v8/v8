@@ -185,7 +185,7 @@ deps = {
     'condition': 'checkout_agents_internal',
   },
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '0fc55fc15b4a55c0380102ca4784c526ba2d4ba7',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'ac2171d75a4fd3cb485f518a184b01239d700091',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '09120017bb5dad1bb6c429be4233d020e1b51dbe',
   'buildtools/linux64': {
@@ -306,7 +306,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '7344fe3c023a587c55b3af9639dce2573c88b153',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '2960e876ad78502c616e27e1a89b9e01ca77ca7e',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + 'beeeef91cf6fef89a4d4ba5e95d47ca64ccb3a44',
   'third_party/fp16/src':
@@ -372,7 +372,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '9e44ea2ff4f53a60c2a3d2b6f511d7bab9ab12f0',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '2524304cb8459aece9974605d52856d901d709e0',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'cd800b497d10e43245ebf5ae3d54b3e55fbfb611',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -559,7 +559,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '06996a03bcf7b3df866eef1fafc74a37d5103152',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '12d0bb67b3a2132ea6f37625789c36650699ea50',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '3813fd5b3029807583e5d2549a40d78fa499c3e8',
   'third_party/re2/src':
@@ -698,7 +698,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' + '289645a450721a7210bf9c69d42bf40a0f1ee730',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' + '4f3ef1e422b7cc6b880c5712feb35126ce294ce0',
     'condition': 'not build_with_chromium',
   },
   'third_party/nasm': {
