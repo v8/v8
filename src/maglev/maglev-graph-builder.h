@@ -1387,6 +1387,9 @@ class MaglevGraphBuilder {
   MaybeReduceResult TryBuildGetKeyedPropertyWithEnumeratedKey(
       ValueNode* object, const compiler::FeedbackSource& feedback_source,
       const compiler::ProcessedFeedback& processed_feedback);
+  const compiler::ProcessedFeedback& GetFeedbackForKeyedPropertyAccess(
+      const compiler::FeedbackSource& feedback_source,
+      compiler::AccessMode access_mode, ValueNode* key);
   ReduceResult BuildGetKeyedProperty(
       ValueNode* object, const compiler::FeedbackSource& feedback_source,
       const compiler::ProcessedFeedback& processed_feedback);
@@ -1426,6 +1429,8 @@ class MaglevGraphBuilder {
       ValueNode* receiver, ValueNode* lookup_start_object,
       compiler::NameRef name, compiler::PropertyAccessInfo const& access_info,
       compiler::AccessMode access_mode);
+  RootConstant* BuildPropertyTest(
+      compiler::PropertyAccessInfo const& access_info);
   MaybeReduceResult TryBuildPropertyAccess(
       ValueNode* receiver, ValueNode* lookup_start_object,
       compiler::NameRef name, compiler::PropertyAccessInfo const& access_info,

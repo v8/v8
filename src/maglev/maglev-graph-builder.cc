@@ -4632,6 +4632,21 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyStore(
   UNREACHABLE();
 }
 
+RootConstant* MaglevGraphBuilder::BuildPropertyTest(
+    compiler::PropertyAccessInfo const& access_info) {
+  // TODO(v8:11457): Support property tests for dictionary mode prototypes.
+  DCHECK(!access_info.HasDictionaryHolder());
+
+  if (access_info.holder().has_value()) {
+    broker()->dependencies()->DependOnStablePrototypeChains(
+        access_info.lookup_start_object_maps(), kStartAtPrototype,
+        access_info.holder().value());
+  }
+
+  return GetRootConstant(access_info.IsNotFound() ? RootIndex::kFalseValue
+                                                  : RootIndex::kTrueValue);
+}
+
 MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyAccess(
     ValueNode* receiver, ValueNode* lookup_start_object, compiler::NameRef name,
     compiler::PropertyAccessInfo const& access_info,
@@ -4648,8 +4663,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyAccess(
       return TryBuildPropertyStore(receiver, lookup_start_object, name,
                                    access_info, access_mode);
     case compiler::AccessMode::kHas:
-      // TODO(victorgomes): BuildPropertyTest.
-      return {};
+      DCHECK_EQ(receiver, lookup_start_object);
+      return BuildPropertyTest(access_info);
   }
   UNREACHABLE();
 }
@@ -4706,11 +4721,12 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
               Builtin::kStoreIC_Megamorphic>(
               {receiver, GetConstant(feedback.name()), GetAccumulator()},
               feedback_source);
+        case compiler::AccessMode::kHas:
+          return BuildCallBuiltinWithTaggedInputs<Builtin::kHasProperty>(
+              {receiver, GetConstant(feedback.name())});
         case compiler::AccessMode::kDefine:
         case compiler::AccessMode::kStoreInLiteral:
           return {};
-        case compiler::AccessMode::kHas:
-          UNREACHABLE();
       }
     }
   } else {
@@ -5896,7 +5912,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
       start_source_position_iterator_state =
           source_position_iterator_.GetState();
   std::optional<ContinuationOffsets> continuation;
-  if (!is_any_store) {
+  if (access_mode == compiler::AccessMode::kLoad) {
     continuation = FindContinuationForPolymorphicPropertyLoad();
   }
 
@@ -5982,15 +5998,9 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
       sub_graph.Bind(&*is_number);
     }
 
-    MaybeReduceResult result;
-    if (is_any_store) {
-      result = TryBuildPropertyStore(receiver, lookup_start_object,
-                                     feedback.name(), access_info, access_mode);
-    } else {
-      result =
-          TryBuildPropertyLoad(receiver, lookup_start_object, feedback.name(),
-                               access_info, feedback_source);
-    }
+    MaybeReduceResult result =
+        TryBuildPropertyAccess(receiver, lookup_start_object, feedback.name(),
+                               access_info, access_mode, feedback_source);
 
     switch (result.kind()) {
       case MaybeReduceResult::kDoneWithPayload:
@@ -6619,6 +6629,30 @@ ReduceResult MaglevGraphBuilder::BuildGetKeyedProperty(
   return SetAccumulator(build_generic_access());
 }
 
+const compiler::ProcessedFeedback&
+MaglevGraphBuilder::GetFeedbackForKeyedPropertyAccess(
+    const compiler::FeedbackSource& feedback_source,
+    compiler::AccessMode access_mode, ValueNode* key) {
+  const compiler::ProcessedFeedback& processed_feedback =
+      broker()->GetFeedbackForPropertyAccess(feedback_source, access_mode,
+                                             std::nullopt);
+  // Megamorphic element feedback can still be used for a named access if the
+  // key is a constant name.
+  if (processed_feedback.kind() !=
+          compiler::ProcessedFeedback::kElementAccess ||
+      !processed_feedback.AsElementAccess().transition_groups().empty()) {
+    return processed_feedback;
+  }
+  auto constant = TryGetConstant<Name>(key);
+  if (!constant.has_value()) return processed_feedback;
+  // IsArrayIndex requires IsUniqueName, i.e. thin strings must be unpacked.
+  compiler::NameRef name = constant.value().UnpackIfThin(broker());
+  if (!name.IsUniqueName() || name.object()->IsArrayIndex()) {
+    return processed_feedback;
+  }
+  return processed_feedback.AsElementAccess().Refine(broker(), name);
+}
+
 ReduceResult MaglevGraphBuilder::VisitGetKeyedProperty() {
   // GetKeyedProperty <object> <slot>
   ValueNode* object = LoadRegister(0);
@@ -6627,26 +6661,11 @@ ReduceResult MaglevGraphBuilder::VisitGetKeyedProperty() {
   FeedbackSlot slot = GetSlotOperand(1);
   compiler::FeedbackSource feedback_source{feedback(), slot};
 
-  const compiler::ProcessedFeedback* processed_feedback =
-      &broker()->GetFeedbackForPropertyAccess(
-          feedback_source, compiler::AccessMode::kLoad, std::nullopt);
-  if (processed_feedback->kind() ==
-          compiler::ProcessedFeedback::kElementAccess &&
-      processed_feedback->AsElementAccess().transition_groups().empty()) {
-    if (auto constant = TryGetConstant<Name>(GetAccumulator())) {
-      // IsArrayIndex requires IsUniqueName, i.e. thin strings must be
-      // unpacked.
-      compiler::NameRef unpacked_name =
-          constant.value().UnpackIfThin(broker());
-      if (unpacked_name.IsUniqueName() &&
-          !unpacked_name.object()->IsArrayIndex()) {
-        processed_feedback = &processed_feedback->AsElementAccess().Refine(
-            broker(), unpacked_name);
-      }
-    }
-  }
+  const compiler::ProcessedFeedback& processed_feedback =
+      GetFeedbackForKeyedPropertyAccess(
+          feedback_source, compiler::AccessMode::kLoad, GetAccumulator());
 
-  return BuildGetKeyedProperty(object, feedback_source, *processed_feedback);
+  return BuildGetKeyedProperty(object, feedback_source, processed_feedback);
 }
 
 ReduceResult MaglevGraphBuilder::VisitGetEnumeratedKeyedProperty() {
@@ -13454,11 +13473,36 @@ ReduceResult MaglevGraphBuilder::VisitTestIn() {
   FeedbackSlot slot = GetSlotOperand(1);
   compiler::FeedbackSource feedback_source{feedback(), slot};
 
-  // TODO(victorgomes): Create fast path using feedback.
-  USE(feedback_source);
+  const compiler::ProcessedFeedback& processed_feedback =
+      GetFeedbackForKeyedPropertyAccess(feedback_source,
+                                        compiler::AccessMode::kHas, name);
 
-  return SetAccumulator(BuildCallBuiltinWithTaggedInputs<Builtin::kKeyedHasIC>(
-      {object, name}, feedback_source));
+  auto build_generic_access = [this, object, name, &feedback_source]() {
+    return BuildCallBuiltinWithTaggedInputs<Builtin::kKeyedHasIC>(
+        {object, name}, feedback_source);
+  };
+
+  switch (processed_feedback.kind()) {
+    case compiler::ProcessedFeedback::kInsufficient:
+      return reducer_.EmitUnconditionalDeopt(
+          DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess);
+
+    case compiler::ProcessedFeedback::kNamedAccess: {
+      RETURN_IF_ABORT(BuildCheckInternalizedStringValueOrByReference(
+          name, processed_feedback.AsNamedAccess().name(),
+          DeoptimizeReason::kKeyedAccessChanged));
+      MaybeReduceResult result = TryBuildNamedAccess(
+          object, object, processed_feedback.AsNamedAccess(), feedback_source,
+          compiler::AccessMode::kHas, build_generic_access);
+      PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
+      break;
+    }
+
+    default:
+      break;
+  }
+
+  return SetAccumulator(build_generic_access());
 }
 
 ReduceResult MaglevGraphBuilder::VisitToName() {

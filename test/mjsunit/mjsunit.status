@@ -41,6 +41,7 @@
   'wasm/wasm-module-builder': [SKIP],
   'sandbox/wasm-jspi': [SKIP],
   'compiler/fast-api-helpers': [SKIP],
+  'maglev/test-in-helpers': [SKIP],
   'typedarray-helpers': [SKIP],
   'huge-typedarrays-helpers': [SKIP],
 
