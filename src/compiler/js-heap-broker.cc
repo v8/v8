@@ -402,7 +402,9 @@ ElementAccessFeedback::ElementAccessFeedback(Zone* zone,
 }
 
 bool ElementAccessFeedback::HasOnlyStringMaps(JSHeapBroker* broker) const {
+  if (transition_groups().empty()) return false;
   for (auto const& group : transition_groups()) {
+    DCHECK(!group.empty());
     for (MapRef map : group) {
       if (!map.IsStringMap()) return false;
     }

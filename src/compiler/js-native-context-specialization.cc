@@ -2314,8 +2314,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     if (reduction.Changed()) return reduction;
   }
 
-  if (!refined_feedback.transition_groups().empty() &&
-      refined_feedback.HasOnlyStringMaps(broker())) {
+  if (refined_feedback.HasOnlyStringMaps(broker())) {
     return ReduceElementAccessOnString(node, index, value,
                                        refined_feedback.keyed_mode());
   }
