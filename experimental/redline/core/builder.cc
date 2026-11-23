@@ -167,9 +167,27 @@ int Builder::LeadingDirectives(const std::vector<Statement*>& list) {
   return n;
 }
 
-template <typename F>
-void Builder::ForEachStatementList(F&& f) {
+Node* Builder::ResolveFocusRoot() {
+  if (focus_root_ == nullptr) {
+    return tree_->root();
+  }
+  Node* found = nullptr;
   Walk(tree_->root(), [&](Node* node) {
+    if (found != nullptr) {
+      return false;
+    }
+    if (node == focus_root_) {
+      found = node;
+      return false;
+    }
+    return true;
+  });
+  return found;
+}
+
+template <typename F>
+void Builder::ForEachStatementList(Node* start, F&& f) {
+  Walk(start, [&](Node* node) {
     switch (node->kind) {
       case NodeKind::kProgram:
         f(&node->Cast<Program>()->body, node);
@@ -192,29 +210,34 @@ void Builder::ForEachStatementList(F&& f) {
 
 std::vector<Builder::Slot> Builder::InsertionSlots() {
   std::vector<Slot> slots;
-  ForEachStatementList([&](std::vector<Statement*>* list, Node* owner) {
-    size_t first = static_cast<size_t>(LeadingDirectives(*list));
-    for (size_t i = first; i <= list->size(); i++) {
-      slots.push_back({list, i, owner});
-    }
-  });
+  ForEachStatementList(
+      ResolveFocusRoot(), [&](std::vector<Statement*>* list, Node* owner) {
+        size_t first = static_cast<size_t>(LeadingDirectives(*list));
+        for (size_t i = first; i <= list->size(); i++) {
+          slots.push_back({list, i, owner});
+        }
+      });
   return slots;
 }
 
 std::vector<Builder::Slot> Builder::StatementSlots() {
   std::vector<Slot> slots;
-  ForEachStatementList([&](std::vector<Statement*>* list, Node* owner) {
-    size_t first = static_cast<size_t>(LeadingDirectives(*list));
-    for (size_t i = first; i < list->size(); i++) {
-      slots.push_back({list, i, owner});
-    }
-  });
+  ForEachStatementList(
+      ResolveFocusRoot(), [&](std::vector<Statement*>* list, Node* owner) {
+        size_t first = static_cast<size_t>(LeadingDirectives(*list));
+        for (size_t i = first; i < list->size(); i++) {
+          slots.push_back({list, i, owner});
+        }
+      });
   return slots;
 }
 
 Builder::Slot Builder::RandomInsertionSlot() {
   std::vector<Slot> slots = InsertionSlots();
   if (slots.empty()) {
+    if (focus_root_ != nullptr) {
+      return Slot{};
+    }
     return Slot{&tree_->root()->body, 0, tree_->root()};
   }
   return rng_->Pick(slots);
@@ -230,17 +253,18 @@ Builder::Slot Builder::RandomStatementSlot() {
 
 Builder::Slot Builder::SlotOf(Statement* statement) {
   Slot result;
-  ForEachStatementList([&](std::vector<Statement*>* list, Node* owner) {
-    if (result.valid()) {
-      return;
-    }
-    for (size_t i = 0; i < list->size(); i++) {
-      if ((*list)[i] == statement) {
-        result = {list, i, owner};
-        return;
-      }
-    }
-  });
+  ForEachStatementList(tree_->root(),
+                       [&](std::vector<Statement*>* list, Node* owner) {
+                         if (result.valid()) {
+                           return;
+                         }
+                         for (size_t i = 0; i < list->size(); i++) {
+                           if ((*list)[i] == statement) {
+                             result = {list, i, owner};
+                             return;
+                           }
+                         }
+                       });
   return result;
 }
 
@@ -327,7 +351,7 @@ Builder::Slot Builder::Blockify(Statement* statement) {
 
 std::vector<Builder::MemberSlot> Builder::MemberSlots() {
   std::vector<MemberSlot> slots;
-  Walk(tree_->root(), [&](Node* node) {
+  Walk(ResolveFocusRoot(), [&](Node* node) {
     size_t size = 0;
     if (auto* body = node->As<ClassBody>()) {
       size = body->members.size();
@@ -361,7 +385,7 @@ void Builder::InsertMember(const MemberSlot& slot, Node* member) {
 
 std::vector<Node*> Builder::Collect(const std::function<bool(Node*)>& pred) {
   std::vector<Node*> result;
-  Walk(tree_->root(), [&](Node* node) {
+  Walk(ResolveFocusRoot(), [&](Node* node) {
     if (pred(node)) {
       result.push_back(node);
     }
@@ -528,8 +552,12 @@ ExpressionRole Builder::RoleOf(Node* node) {
 }
 
 std::vector<Expression*> Builder::ValueExpressions() {
+  Node* start = ResolveFocusRoot();
   std::vector<Expression*> result;
-  Walk(tree_->root(), [&](Node* node) {
+  Walk(start, [&](Node* node) {
+    if (focus_root_ != nullptr && node == start && start->IsFunction()) {
+      return true;
+    }
     if (node->IsExpression() && RoleOf(node) == ExpressionRole::kValue) {
       result.push_back(node->Cast<Expression>());
     }

@@ -524,8 +524,8 @@ bool ReadStages(const JsonValue& json, FuzzConfig* c, std::string* error) {
       {},                                                         // pick
       {"enabled", "min_values", "extra_values", "from_scratch"},  // prefix
       {"consecutive", "rounds", "scratch_codegen", "coalesce",
-       "max_coalesce_merges", "max_coalesce_edges",
-       "max_coalesce_nodes"},  // mutate
+       "max_coalesce_merges", "max_coalesce_edges", "max_coalesce_nodes",
+       "focus_chain"},  // mutate
       {"min_reruns", "min_stable_reruns", "max_reruns", "clean_min_reruns",
        "import_reruns", "flaky_threshold"},  // check
       {"enabled", "max_tests", "max_time_ms", "max_rounds", "target_time_ms",
@@ -594,6 +594,16 @@ bool ReadStages(const JsonValue& json, FuzzConfig* c, std::string* error) {
             object.GetInt("max_coalesce_edges", c->max_coalesce_edges));
         c->max_coalesce_nodes = static_cast<int>(
             object.GetInt("max_coalesce_nodes", c->max_coalesce_nodes));
+        if (object.Has("focus_chain")) {
+          const JsonValue& value = object.Get("focus_chain");
+          if (!value.is_number() || !std::isfinite(value.as_number()) ||
+              value.as_number() < 0.0 || value.as_number() > 1.0) {
+            *error =
+                "config: stages.mutate.focus_chain must be a number in [0, 1]";
+            return false;
+          }
+          c->focus_chain = value.as_number();
+        }
         break;
       case Stage::kCheck:
         c->min_reruns =
@@ -664,7 +674,8 @@ std::string StagesJson(const FuzzConfig& c) {
     JsonObject o;
     o.Add("consecutive", c.consecutive_mutations)
         .Add("rounds", c.mutation_rounds)
-        .Add("scratch_codegen", c.scratch_codegen_links);
+        .Add("scratch_codegen", c.scratch_codegen_links)
+        .Add("focus_chain", c.focus_chain);
     o.Add("coalesce", c.coalesce)
         .Add("max_coalesce_merges", c.max_coalesce_merges);
     o.Add("max_coalesce_edges", c.max_coalesce_edges)
@@ -1281,6 +1292,11 @@ bool FuzzConfig::Load(const Flags& flags, FuzzConfig* c, std::string* error,
   if (c->scratch_codegen_links < 1) {
     c->scratch_codegen_links = 1;
   }
+  if (!std::isfinite(c->focus_chain) || c->focus_chain < 0.0 ||
+      c->focus_chain > 1.0) {
+    *error = "stages.mutate.focus_chain must be in [0, 1]";
+    return false;
+  }
   if (c->min_stable_reruns < 1) {
     c->min_stable_reruns = 1;
   }
@@ -1608,6 +1624,8 @@ std::string FuzzConfig::JsonHelp() {
       "\"off\",\n"
       "                   \"scratch_codegen\": 3,  // CodeGen-only links "
       "from scratch\n"
+      "                   \"focus_chain\": 0,      // focus a chain on one "
+      "function body\n"
       "                   \"coalesce\": true,  // one minimization for "
       "the candidates of a chain\n"
       "                   \"max_coalesce_merges\": 3, "

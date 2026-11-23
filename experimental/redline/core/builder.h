@@ -136,6 +136,13 @@ class Builder {
   // own primitives.
   void Invalidate();
 
+  // Restricts slot and node queries to `focus_root` when non-null.
+  // Pass nullptr to query the full tree.
+  void SetFocusSubtree(const fast::Node* focus_root) {
+    focus_root_ = focus_root;
+  }
+  const fast::Node* focus_subtree() const { return focus_root_; }
+
   // --- statement lists ------------------------------------------------------
 
   // A position in a statement list: `index` may equal list->size() for an
@@ -292,11 +299,13 @@ class Builder {
   Variable ToVariable(fast::Binding* binding);
   static int LeadingDirectives(const std::vector<fast::Statement*>& list);
   fast::Node* AnchorNodeFor(const Slot& slot, int32_t* position);
+  fast::Node* ResolveFocusRoot();
   template <typename F>
-  void ForEachStatementList(F&& f);
+  void ForEachStatementList(fast::Node* start, F&& f);
 
   fast::Tree* tree_;
   Random* rng_;
+  const fast::Node* focus_root_ = nullptr;
   std::unique_ptr<fast::ScopeAnalysis> scopes_;
   // Parent of each node, indexed by Node::id (nullptr for the root and for
   // nodes created after the map was built).

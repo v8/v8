@@ -196,6 +196,11 @@ One link of the chain works like this:
    A salvaged pass or crash replaces the failed mutant.
    If the failed run found no new edges and the throw is directly in the last top-level statement, no wrap can run more code. Then the worker does not run the copy (`salvage_skipped_tail`).
 
+**Focused chains.** With `stages.mutate.focus_chain` above 0, a worker focuses a chain on one function body with that probability.
+It prefers functions that contain a loop, run in a loop, or pass to optimization natives.
+If the function has no optimization call or calling loop yet, the first link adds one before the remaining links edit the body.
+When a mutator finds no candidate in the focused subtree, it falls back to the full tree.
+
 **Prefix.** The prefix gives the mutators new values to work with. It uses only generators whose code cannot throw,
 because an exception in the prefix would make each result of the chain fail. Minimize removes the values that a new corpus program does not use.
 The `Prefix` mutator makes the prefix. Its weight is 0, so that the mutator strategy does not pick it.
@@ -582,6 +587,7 @@ Each preset selects `rarity`, `rarity-partner` and `adaptive`. Without a preset,
 
 The `WasmModule` generator builds WebAssembly modules that are valid by construction.
 Its default weight is 0, so a session without the `wasm` preset generates no WebAssembly modules.
+The `maglev` and `turbolev` presets set `stages.mutate.focus_chain` to 0.3.
 A preset must not raise the weight of a generator that resembles one known bug (section 10 tells why).
 
 ## 9. FAST

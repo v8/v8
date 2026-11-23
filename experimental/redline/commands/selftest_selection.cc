@@ -1427,6 +1427,436 @@ void CheckEdgeCases(Checker* checker) {
   }
 }
 
+// Checks that `OsrLoop` always sets its trigger iteration strictly below the
+// loop bound so the OSR native call can fire.
+void CheckOsrLoopTrigger(Checker* checker) {
+  std::unique_ptr<GeneratorSet> generators = GeneratorSet::CreateDefault();
+  Generator* osr_loop = generators->Find("OsrLoop");
+  const Environment& env = Environment::Default();
+  auto run_samples = [&](int samples, bool require_positive,
+                         std::string* error) -> bool {
+    if (osr_loop == nullptr) {
+      *error = "no generator OsrLoop";
+      return false;
+    }
+    Random rng(kSeed + 101);
+    for (int i = 0; i < samples; i++) {
+      auto tree = std::make_unique<fast::Tree>();
+      tree->set_root(tree->New<fast::Program>());
+      Builder builder(tree.get(), &rng);
+      GenContext ctx(builder, *generators, env);
+      std::vector<fast::Statement*> out;
+      ctx.out = &out;
+      if (!osr_loop->Generate(ctx, &out) || out.empty()) {
+        *error = StringPrintf("sample %d: OsrLoop made no code", i);
+        return false;
+      }
+      fast::ForStatement* loop = nullptr;
+      for (fast::Statement* s : out) {
+        if (auto* fl = s->As<fast::ForStatement>()) {
+          loop = fl;
+          break;
+        }
+        if (auto* fn = s->As<fast::FunctionDeclaration>();
+            fn != nullptr && fn->body != nullptr && !fn->body->body.empty()) {
+          loop = fn->body->body.front()->As<fast::ForStatement>();
+          break;
+        }
+      }
+      if (loop == nullptr || loop->test == nullptr || loop->body == nullptr) {
+        *error = StringPrintf("sample %d: missing OSR for loop", i);
+        return false;
+      }
+      auto* test = loop->test->As<fast::BinaryExpression>();
+      auto* bound_lit =
+          test != nullptr ? test->right->As<fast::NumericLiteral>() : nullptr;
+      auto* body = loop->body->As<fast::BlockStatement>();
+      auto* guard = body != nullptr && !body->body.empty()
+                        ? body->body.front()->As<fast::IfStatement>()
+                        : nullptr;
+      auto* eq = guard != nullptr ? guard->test->As<fast::BinaryExpression>()
+                                  : nullptr;
+      auto* k_lit =
+          eq != nullptr ? eq->right->As<fast::NumericLiteral>() : nullptr;
+      if (bound_lit == nullptr || k_lit == nullptr) {
+        *error = StringPrintf("sample %d: unexpected OSR loop shape", i);
+        return false;
+      }
+      const double bound = bound_lit->value;
+      const double k = k_lit->value;
+      const double min_k = require_positive ? 1.0 : 0.0;
+      if (!(k >= min_k && k < bound)) {
+        *error = StringPrintf("sample %d: trigger %g not in [%g, %g)", i, k,
+                              min_k, bound);
+        return false;
+      }
+    }
+    return true;
+  };
+  TunableRegistry::Instance().Reset();
+  std::string err;
+  bool ok = run_samples(200, /*require_positive=*/true, &err);
+  checker->Check("OsrLoop: trigger iteration is always below loop bound", ok,
+                 err);
+  std::string clamp_err;
+  bool clamp_ok =
+      TunableRegistry::Instance().Set(
+          "generators.OsrLoop.min_trigger_iteration", 20.0, &clamp_err) &&
+      run_samples(40, /*require_positive=*/false, &clamp_err);
+  TunableRegistry::Instance().Reset();
+  checker->Check(
+      "OsrLoop: trigger iteration clamps below bound when min exceeds bound",
+      clamp_ok, clamp_err);
+}
+
+// Checks `Builder::SetFocusSubtree`, `PickFocusTarget`, `ApplyFocusTierUp`,
+// and the `stages.mutate.focus_chain` setting across presets.
+void CheckFocusChain(Checker* checker) {
+  std::unique_ptr<MutatorSet> mutators = MutatorSet::CreateDefault();
+  std::unique_ptr<GeneratorSet> generators = GeneratorSet::CreateDefault();
+  const Environment& env = Environment::Default();
+
+  const char* kTwoFunctions = R"(let g1 = 1 + 2;
+let g2 = {p: 1, q: 2};
+let g3 = [10, 20];
+function other(a, b) {
+  let u = a + b;
+  return u * 2;
+}
+function target(x, y) {
+  let z = x + y;
+  return z + 1;
+}
+let r0 = other(g1, 3);
+let r1 = target(g1, 4);
+)";
+  ProgramPtr program = ParseOrDie(kTwoFunctions, "selftest");
+  auto find_fn = [](fast::Program* root,
+                    std::string_view name) -> fast::FunctionDeclaration* {
+    for (fast::Statement* s : root->body) {
+      if (auto* fn = s->As<fast::FunctionDeclaration>();
+          fn != nullptr && fn->name != nullptr && fn->name->name == name) {
+        return fn;
+      }
+    }
+    return nullptr;
+  };
+  fast::FunctionDeclaration* orig_target =
+      find_fn(program->tree().root(), "target");
+  const uint32_t target_body_id =
+      orig_target != nullptr && orig_target->body != nullptr
+          ? orig_target->body->id
+          : 0;
+  std::vector<std::string> orig_outside;
+  for (fast::Statement* s : program->tree().root()->body) {
+    if (s != orig_target) {
+      orig_outside.push_back(fast::Print(s));
+    }
+  }
+  const std::string orig_target_src =
+      orig_target != nullptr ? fast::Print(orig_target) : "";
+
+  // Focus concentrates edits of `CodeGen`, `Operation`, `Input`, `Expression`,
+  // and `Combine` inside `target`'s body.
+  ProgramPtr partner =
+      ParseOrDie("let p0 = 7;\nlet p1 = p0 + 1;\n", "selftest");
+  bool focus_ok = orig_target != nullptr && orig_target->body != nullptr;
+  std::string focus_err;
+  for (const char* name :
+       {"CodeGen", "Operation", "Input", "Expression", "Combine"}) {
+    Mutator* m = mutators->Find(name);
+    if (m == nullptr) {
+      focus_ok = false;
+      focus_err = std::string("missing mutator ") + name;
+      break;
+    }
+    ProgramPtr use_partner = m->needs_partner() ? partner : nullptr;
+    int mutated = 0;
+    for (int i = 0; i < 25 && focus_ok; i++) {
+      Random rng(kSeed + 500 + static_cast<uint64_t>(i));
+      std::string detail;
+      std::unique_ptr<fast::Tree> tree =
+          ApplyMutation(*m, *program, use_partner, rng, env, *generators,
+                        /*rounds=*/1, &detail, nullptr, target_body_id);
+      if (tree == nullptr) {
+        continue;
+      }
+      mutated++;
+      fast::FunctionDeclaration* new_target = find_fn(tree->root(), "target");
+      if (new_target == nullptr || fast::Print(new_target) == orig_target_src) {
+        focus_ok = false;
+        focus_err = StringPrintf("%s did not change target", name);
+        break;
+      }
+      std::vector<std::string> new_outside;
+      for (fast::Statement* s : tree->root()->body) {
+        if (s != new_target) {
+          new_outside.push_back(fast::Print(s));
+        }
+      }
+      if (new_outside != orig_outside) {
+        focus_ok = false;
+        focus_err = StringPrintf("%s edited code outside target", name);
+        break;
+      }
+    }
+    if (focus_ok && mutated == 0) {
+      focus_ok = false;
+      focus_err = StringPrintf("%s produced 0 mutations", name);
+    }
+  }
+  checker->Check(
+      "focus: SetFocusSubtree keeps CodeGen/Operation/Input/Expression/Combine "
+      "inside target body",
+      focus_ok, focus_err);
+
+  // A detached focus root yields empty queries, and `SlotOf` still searches the
+  // full tree while focused.
+  {
+    std::unique_ptr<fast::Tree> tree = program->CopyTree();
+    std::unique_ptr<fast::Tree> other_tree = program->CopyTree();
+    Random rng(kSeed + 800);
+    Builder builder(tree.get(), &rng);
+    fast::FunctionDeclaration* target_fn = find_fn(tree->root(), "target");
+    fast::FunctionDeclaration* other_fn = find_fn(tree->root(), "other");
+    builder.SetFocusSubtree(target_fn->body);
+    const bool slot_of_outside = builder.SlotOf(other_fn).valid();
+    builder.SetFocusSubtree(other_tree->root());
+    const bool detached_empty =
+        builder.InsertionSlots().empty() && builder.StatementSlots().empty() &&
+        builder.MemberSlots().empty() && builder.ValueExpressions().empty() &&
+        builder.Collect([](fast::Node*) { return true; }).empty() &&
+        !builder.RandomInsertionSlot().valid();
+    checker->Check(
+        "focus: detached focus root returns empty queries and SlotOf stays "
+        "full-tree",
+        slot_of_outside && detached_empty);
+  }
+
+  // `focus_root == nullptr` produces bit-identical output to default runs.
+  bool identical_ok = true;
+  for (const char* name : {"CodeGen", "Operation", "Input", "Expression"}) {
+    Mutator* m = mutators->Find(name);
+    if (m == nullptr) {
+      identical_ok = false;
+      break;
+    }
+    for (int i = 0; i < 10 && identical_ok; i++) {
+      const uint64_t seed = kSeed + 900 + static_cast<uint64_t>(i);
+      Random rng_a(seed);
+      Random rng_b(seed);
+      std::string detail_a, detail_b;
+      std::unique_ptr<fast::Tree> tree_a =
+          ApplyMutation(*m, *program, nullptr, rng_a, env, *generators,
+                        /*rounds=*/1, &detail_a);
+      std::unique_ptr<fast::Tree> tree_b = program->CopyTree();
+      Builder builder_b(tree_b.get(), &rng_b);
+      builder_b.SetFocusSubtree(nullptr);
+      MutationContext ctx_b;
+      ctx_b.env = &env;
+      ctx_b.generators = generators.get();
+      bool applied_b = m->Mutate(builder_b, ctx_b);
+      if ((tree_a != nullptr) != applied_b) {
+        identical_ok = false;
+      } else if (tree_a != nullptr &&
+                 fast::Print(tree_a->root()) != fast::Print(tree_b->root())) {
+        identical_ok = false;
+      }
+    }
+  }
+  checker->Check("focus: nullptr focus root is bit-identical to unfocused",
+                 identical_ok);
+
+  // Empty focused body falls back cleanly to unfiltered candidates.
+  {
+    ProgramPtr empty_fn_prog = ParseOrDie(
+        "let a = 1 + 2;\nfunction empty() {}\nfunction h(x) { return x; }\n"
+        "h(a);\n",
+        "selftest");
+    fast::FunctionDeclaration* empty_fn =
+        find_fn(empty_fn_prog->tree().root(), "empty");
+    const uint32_t empty_body_id =
+        empty_fn != nullptr && empty_fn->body != nullptr ? empty_fn->body->id
+                                                         : 0;
+    Mutator* op_mut = mutators->Find("Operation");
+    Mutator* call_mut = mutators->Find("Call");
+    Random rng(kSeed + 1200);
+    std::string detail;
+    const uint64_t op_inv_before =
+        op_mut != nullptr ? op_mut->stats().invocations.load() : 0;
+    std::unique_ptr<fast::Tree> op_tree =
+        op_mut != nullptr
+            ? ApplyMutation(*op_mut, *empty_fn_prog, nullptr, rng, env,
+                            *generators, 1, &detail, nullptr, empty_body_id)
+            : nullptr;
+    const uint64_t op_inv_after =
+        op_mut != nullptr ? op_mut->stats().invocations.load() : 0;
+    std::unique_ptr<fast::Tree> call_tree =
+        call_mut != nullptr
+            ? ApplyMutation(*call_mut, *empty_fn_prog, nullptr, rng, env,
+                            *generators, 1, &detail, nullptr, empty_body_id)
+            : nullptr;
+    checker->Check(
+        "focus: ApplyMutation falls back without double-counting invocations",
+        op_tree != nullptr && call_tree != nullptr &&
+            op_inv_after == op_inv_before + 1);
+  }
+
+  // `PickFocusTarget` prefers hot functions, ignores concise arrows, and
+  // `ApplyFocusTierUp` adds optimization calls for cold top-level declarations.
+  {
+    ProgramPtr hot_vs_cold = ParseOrDie(
+        "function cold(a) { return a; }\n"
+        "function hot(x) { return x + 1; }\n"
+        "%PrepareFunctionForOptimization(hot);\n"
+        "hot(1);\n"
+        "%OptimizeFunctionOnNextCall(hot);\n"
+        "hot(2);\n",
+        "selftest");
+    bool always_hot = true;
+    Random rng(kSeed + 1300);
+    for (int i = 0; i < 50; i++) {
+      FocusTarget picked;
+      if (!PickFocusTarget(hot_vs_cold->tree(), rng, &picked) ||
+          picked.name != "hot" || !picked.is_hot || !picked.has_tier_up) {
+        always_hot = false;
+        break;
+      }
+    }
+    ProgramPtr concise_only = ParseOrDie(
+        "const arrow = x => x + 1;\n"
+        "for (let i = 0; i < 5; i++) arrow(i);\n",
+        "selftest");
+    FocusTarget none_picked;
+    const bool concise_ignored =
+        !PickFocusTarget(concise_only->tree(), rng, &none_picked);
+
+    ProgramPtr fn_expr_prog = ParseOrDie(
+        "const g = function foo(x) { return x + 1; };\n"
+        "const arrow_blk = (y) => { return y + 2; };\n"
+        "%OptimizeFunctionOnNextCall(g);\n",
+        "selftest");
+    FocusTarget fn_expr_picked;
+    const bool fn_expr_ok =
+        PickFocusTarget(fn_expr_prog->tree(), rng, &fn_expr_picked) &&
+        fn_expr_picked.name == "g" && fn_expr_picked.is_hot &&
+        fn_expr_picked.has_tier_up && !fn_expr_picked.is_top_level_decl;
+
+    ProgramPtr block_arrow_prog =
+        ParseOrDie("const h = (y) => { return y + 2; };\n", "selftest");
+    FocusTarget block_arrow_picked;
+    const bool block_arrow_ok =
+        PickFocusTarget(block_arrow_prog->tree(), rng, &block_arrow_picked) &&
+        block_arrow_picked.name == "h" && !block_arrow_picked.has_tier_up;
+
+    ProgramPtr method_prog = ParseOrDie(
+        "class C { work(x) { return x + 1; } }\n"
+        "let inst = new C();\n"
+        "for (let i = 0; i < 5; i++) inst.work(i);\n",
+        "selftest");
+    FocusTarget method_picked;
+    const bool method_ok =
+        PickFocusTarget(method_prog->tree(), rng, &method_picked) &&
+        method_picked.name == "work" && method_picked.is_hot &&
+        method_picked.has_tier_up && !method_picked.is_top_level_decl;
+
+    ProgramPtr cold_only =
+        ParseOrDie("function cold(x) { return x + 1; }\n", "selftest");
+    FocusTarget cold_picked;
+    std::string tier_detail;
+    bool cold_ok = PickFocusTarget(cold_only->tree(), rng, &cold_picked) &&
+                   cold_picked.name == "cold" && !cold_picked.has_tier_up &&
+                   cold_picked.is_top_level_decl;
+    std::unique_ptr<fast::Tree> tiered =
+        cold_ok ? ApplyFocusTierUp(*cold_only, cold_picked, rng, env,
+                                   *generators, &tier_detail)
+                : nullptr;
+    std::string tiered_src =
+        tiered != nullptr ? fast::Print(tiered->root()) : "";
+    fast::ParseError parse_err;
+    bool tier_ok = tiered != nullptr &&
+                   tiered->FindNode(cold_picked.body_id) != nullptr &&
+                   tiered_src.find("%PrepareFunctionForOptimization(cold)") !=
+                       std::string::npos &&
+                   (tiered_src.find("%OptimizeFunctionOnNextCall(cold)") !=
+                        std::string::npos ||
+                    tiered_src.find("%OptimizeMaglevOnNextCall(cold)") !=
+                        std::string::npos) &&
+                   fast::Parser::ParseScript(tiered_src, fast::ParseOptions(),
+                                             &parse_err) != nullptr;
+    checker->Check(
+        "focus: PickFocusTarget handles all function kinds and tiers up cold "
+        "ones",
+        always_hot && concise_ignored && fn_expr_ok && block_arrow_ok &&
+            method_ok && tier_ok,
+        parse_err.message.empty() ? tier_detail : parse_err.message);
+  }
+
+  // `stages.mutate.focus_chain` config validation, dump round-trip, and preset
+  // values.
+  {
+    FuzzConfig defaults;
+    FuzzConfig cfg;
+    std::string err =
+        LoadFullConfig(R"({"stages": {"mutate": {"focus_chain": 0.3}}})", &cfg);
+    JsonValue dumped;
+    std::string parse_err;
+    bool dump_ok =
+        err.empty() && defaults.focus_chain == 0.0 && cfg.focus_chain == 0.3 &&
+        JsonValue::Parse(cfg.ToJson(FuzzConfig::Detail::kFull), &dumped,
+                         &parse_err) &&
+        dumped.Get("stages").Get("mutate").GetNumber("focus_chain", -1.0) ==
+            0.3;
+    FuzzConfig bad_low, bad_high, bad_type;
+    bool reject_ok =
+        !LoadFullConfig(R"({"stages": {"mutate": {"focus_chain": -0.1}}})",
+                        &bad_low)
+             .empty() &&
+        !LoadFullConfig(R"({"stages": {"mutate": {"focus_chain": 1.5}}})",
+                        &bad_high)
+             .empty() &&
+        !LoadFullConfig(R"({"stages": {"mutate": {"focus_chain": "bad"}}})",
+                        &bad_type)
+             .empty();
+    checker->Check(
+        "focus: stages.mutate.focus_chain loads, dumps, and validates range",
+        dump_ok && reject_ok, err + parse_err);
+
+    auto preset_focus = [](const std::string& name, double* value,
+                           std::string* error) {
+      std::string arg = "--preset=" + name;
+      const char* argv[] = {"redline", "fuzz", arg.c_str()};
+      Flags flags = Flags::Parse(3, argv, 2);
+      FuzzConfig loaded;
+      bool ok = FuzzConfig::Load(flags, &loaded, error, /*for_run=*/false);
+      TunableRegistry::Instance().Reset();
+      if (ok) {
+        *value = loaded.focus_chain;
+      }
+      return ok;
+    };
+    double maglev_fc = -1.0;
+    double turbolev_fc = -1.0;
+    double default_fc = -1.0;
+    double fuzzilli_fc = -1.0;
+    std::string preset_err;
+    bool presets_ok = preset_focus("maglev", &maglev_fc, &preset_err) &&
+                      preset_focus("turbolev", &turbolev_fc, &preset_err) &&
+                      preset_focus("default", &default_fc, &preset_err) &&
+                      preset_focus("fuzzilli", &fuzzilli_fc, &preset_err) &&
+                      maglev_fc == 0.3 && turbolev_fc == 0.3 &&
+                      default_fc == 0.0 && fuzzilli_fc == 0.0;
+    checker->Check(
+        "focus: maglev and turbolev presets set focus_chain to 0.3, default "
+        "and fuzzilli keep 0.0",
+        presets_ok,
+        preset_err.empty()
+            ? StringPrintf("maglev=%g turbolev=%g default=%g fuzzilli=%g",
+                           maglev_fc, turbolev_fc, default_fc, fuzzilli_fc)
+            : preset_err);
+  }
+}
+
 }  // namespace
 
 void RunSelectionChecks(Checker* checker, const std::string& testdata_dir,
@@ -1482,6 +1912,8 @@ void RunSelectionChecks(Checker* checker, const std::string& testdata_dir,
   CheckAdaptiveWindow(checker);
   CheckAmplifyConfig(checker);
   CheckWrapInTry(checker);
+  CheckOsrLoopTrigger(checker);
+  CheckFocusChain(checker);
   CheckEdgeCases(checker);
 }
 

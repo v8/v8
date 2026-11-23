@@ -5,7 +5,9 @@
 #ifndef V8_EXPERIMENTAL_REDLINE_MUTATORS_MUTATOR_H_
 #define V8_EXPERIMENTAL_REDLINE_MUTATORS_MUTATOR_H_
 
+#include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -130,17 +132,41 @@ class MutatorSet {
   std::unique_ptr<Selector<Mutator>> selector_;
 };
 
-// Applies `mutator` to a copy of `parent`'s tree. On success returns the
-// mutated tree; on failure returns nullptr. `rounds` sub-mutations are
-// attempted (at least one must succeed).
+// Target function body for a focused mutation chain.
+struct FocusTarget {
+  uint32_t body_id = 0;
+  std::string name;
+  bool is_hot = false;
+  bool has_tier_up = false;
+  bool is_top_level_decl = false;
+  bool is_generator = false;
+};
+
+// Picks one function with a block body from `tree` and writes it to `out`.
+// Prefers functions that contain a loop, run in a loop, or pass to
+// optimization natives. Returns false if `tree` has no candidate function.
+bool PickFocusTarget(const fast::Tree& tree, Random& rng, FocusTarget* out);
+
+// Inserts warm-up and optimization calls for `target` on a copy of `parent`.
+// Returns nullptr when no tier-up code applies.
+std::unique_ptr<fast::Tree> ApplyFocusTierUp(const Program& parent,
+                                             const FocusTarget& target,
+                                             Random& rng,
+                                             const Environment& env,
+                                             const GeneratorSet& generators,
+                                             std::string* detail);
+
 // Applies `mutator` `rounds` times to a copy of `parent`'s tree. Returns the
 // mutated tree, or nullptr if no round changed anything. For runtime-assisted
-// mutators `probes` (if given) receives the inserted probes.
+// mutators `probes` (if given) receives the inserted probes. When
+// `focus_node_id` holds a node id, the builder restricts queries to that
+// subtree. If no round applies, it falls back to the full tree.
 std::unique_ptr<fast::Tree> ApplyMutation(
     Mutator& mutator, const Program& parent, const ProgramPtr& partner,
     Random& rng, const Environment& env, const GeneratorSet& generators,
     int rounds, std::string* detail,
-    std::vector<ExploreProbe>* probes = nullptr);
+    std::vector<ExploreProbe>* probes = nullptr,
+    std::optional<uint32_t> focus_node_id = std::nullopt);
 
 }  // namespace redline
 

@@ -1071,11 +1071,13 @@ class Worker {
           ancestor = std::move(added);
           chain = 0;
         });
+    const Program* focus_source = nullptr;
 
     if (has_material && rng_.Chance(MaterialFuseChance())) {
       if (!RunFuseRoot(corpus, &parent, &ancestor, &chain)) {
         return;
       }
+      focus_source = parent.get();
     } else {
       Stopwatch pick_time;
       parent = PickSeed(corpus);
@@ -1103,6 +1105,7 @@ class Worker {
       }
       // Track the starting corpus seed for scheduler feedback and lineage.
       ancestor = parent;
+      focus_source = ancestor.get();
 
       // Prepend non-throwing value declarations to seed the mutation chain.
       if ((!from_empty || config().prefix_from_scratch) &&
@@ -1140,10 +1143,30 @@ class Worker {
       }
     }
 
+    FocusTarget focus_target;
+    bool focus_active = false;
+    bool focus_needs_tier_up = false;
+    if (config().focus_chain > 0.0 && scratch_links == 0 &&
+        rng_.Chance(config().focus_chain)) {
+      const Program& seed = focus_source != nullptr ? *focus_source : *parent;
+      if (PickFocusTarget(seed.tree(), rng_, &focus_target) &&
+          parent->tree().FindNode(focus_target.body_id) != nullptr) {
+        focus_active = true;
+        focus_needs_tier_up = !focus_target.has_tier_up;
+        stats().focus_chains++;
+      }
+    }
+
     for (int round = 0; round < config().consecutive_mutations && !stopping();
          round++) {
+      if (focus_active &&
+          parent->tree().FindNode(focus_target.body_id) == nullptr) {
+        focus_active = false;
+        focus_needs_tier_up = false;
+      }
+      const bool do_focus_tier_up = focus_active && focus_needs_tier_up;
       Mutator* mutator =
-          scratch_links > 0
+          (scratch_links > 0 || do_focus_tier_up)
               ? fuzzer_->codegen_mutator_
               : mutators.Pick(rng_, corpus.size() >= 2 || has_material);
       if (mutator == nullptr) {
@@ -1185,9 +1208,26 @@ class Worker {
       BeginGeneratorUsage();
       const uint64_t spent_before = executions_;
       const uint64_t finalized_before = finalized_executions_;
-      std::unique_ptr<fast::Tree> tree =
-          ApplyMutation(*mutator, *parent, partner, rng_, env, generators,
-                        rounds, &detail, &probes);
+      std::unique_ptr<fast::Tree> tree;
+      if (do_focus_tier_up) {
+        focus_needs_tier_up = false;
+        tree = ApplyFocusTierUp(*parent, focus_target, rng_, env, generators,
+                                &detail);
+        if (tree != nullptr) {
+          mutator->stats().invocations++;
+          mutator->stats().produced++;
+        } else {
+          tree =
+              ApplyMutation(*mutator, *parent, partner, rng_, env, generators,
+                            rounds, &detail, &probes, focus_target.body_id);
+        }
+      } else {
+        const std::optional<uint32_t> focus_id =
+            focus_active ? std::optional<uint32_t>(focus_target.body_id)
+                         : std::nullopt;
+        tree = ApplyMutation(*mutator, *parent, partner, rng_, env, generators,
+                             rounds, &detail, &probes, focus_id);
+      }
       // The generators this mutation used share the credit for its result.
       const std::vector<Generator*> used_generators = GeneratorsUsed();
       // Every target execution of this step (the mutant, instrumented
@@ -4250,6 +4290,7 @@ void Fuzzer::WriteStatsEvent() {
   event.Add("clean_checks", stats_.clean_checks.load());
   event.Add("coalesce_merges", stats_.coalesce_merges.load());
   event.Add("coalesce_breaks", stats_.coalesce_breaks.load());
+  event.Add("focus_chains", stats_.focus_chains.load());
   event.Add("exec_time_us", stats_.exec_time_us.load());
   event.Add("fuzz_nodes", stats_.fuzz_nodes.load());
   event.Add("corpus_nodes", stats_.corpus_nodes.load());

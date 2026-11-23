@@ -128,6 +128,9 @@ struct FuzzConfig {
   // program gets several rounds of generated code, like the 10
   // instructions of Fuzzilli's GenerativeEngine.
   int scratch_codegen_links = 3;
+  // Probability that a mutation chain focuses its edits inside one function
+  // body (`stages.mutate.focus_chain`). 0 disables focused chains.
+  double focus_chain = 0.0;
   bool minimize = true;
   // Minimizer probes run with a timeout derived from the execution time of
   // the program being reduced:

@@ -81,12 +81,12 @@ Destructuring	4	7116ad255307c56f	let n = 42; let s = "text"; let a = [1, 2, 3]; 
 FunctionDecl	0	32f0420d292b565c	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 FunctionDecl	1	1459a1376ece6252	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 FunctionDecl	2	97030a2074f6a3dc	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-FunctionDecl	3	41195d75fafbffa3	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+FunctionDecl	3	a620974afb285cb7	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 FunctionDecl	4	14709ffcfe99786c	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 ArrowDecl	0	9352ca7f970f4187	let n = 42; var f0 = function(a0 = (-2.8230217440715775), a1) {   a0.v
 ArrowDecl	1	d2e9a1f300fd3cc6	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 ArrowDecl	2	6271e4a85fa37c43	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ArrowDecl	3	24f9f56ac73451f8	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ArrowDecl	3	0d32fbb7cf24e575	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 ArrowDecl	4	c4aeef4b446eea1d	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 ClassDecl	0	aa7d4d9e3230e7e1	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 ClassDecl	1	302aacf45564c6c0	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
@@ -276,7 +276,7 @@ CountedLoop	4	3139aa422f691cb3	let n = 42; let s = "text"; let a = [1, 2, 3]; le
 WhileLoop	0	23d0f57e2f529b41	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 WhileLoop	1	958e11b1326bc3f3	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 WhileLoop	2	98132d209f2975f4	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-WhileLoop	3	463e084b254becbb	let n = 42; let s = "text"; let a = [1, 2, 3]; let n0 = 0; do {   func
+WhileLoop	3	cdbdd43f1509aa3e	let n = 42; let s = "text"; let a = [1, 2, 3]; let n0 = 0; do {   func
 WhileLoop	4	3805bc53b3903426	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 ForOf	0	ba5b5fc07bc45ba3	for (let e0 of Object.keys(Float32Array)) {   const gsab0 = new Shared
 ForOf	1	0c9fd698abcb4692	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
@@ -338,11 +338,11 @@ Deopt	1	4bc84ef2c7e1ee7b	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = 
 Deopt	2	f26af8207c77e9b3	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Deopt	3	510e90f57e29b741	let n = 42; %DeoptimizeFunction(f); let s = "text"; let a = [1, 2, 3];
 Deopt	4	aeff274f9cb69dbd	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-OsrLoop	0	ec0a123c5e157f0c	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-OsrLoop	1	3e0e0b1888afc5a2	let n = 42; let s = "text"; function f0() {   for (let i0 = 0; i0 < 20
-OsrLoop	2	b52fbff7b8d09888	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-OsrLoop	3	d8746b925f4bfcae	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-OsrLoop	4	241e15cb88f9515b	for (let i0 = 0; i0 < 10; i0++) {   if (i0 === 47) {     %BaselineOsr(
+OsrLoop	0	aba680ad83d46e2e	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+OsrLoop	1	6ec328e0d1a8073d	let n = 42; let s = "text"; function f0() {   for (let i0 = 0; i0 < 5;
+OsrLoop	2	1be9219a46f96b86	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+OsrLoop	3	95cfca65d4d788e0	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+OsrLoop	4	e26552f5ffccf4f5	for (let i0 = 0; i0 < 100; i0++) {   if (i0 === 30) {     %BaselineOsr
 JitTricky	0	f32238e874cdebfd	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 JitTricky	1	5930acc7f0c79810	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 JitTricky	2	00a2f42d59ddeb8e	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"

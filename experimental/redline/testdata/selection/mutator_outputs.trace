@@ -71,5 +71,5 @@ Reorder	4	85e178b5ff98c32c	swapped VariableDeclaration and VariableDeclaration	l
 JitStress	0	59c566773ab4f6c9	inserted JitOptimize+ElementsKind	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 JitStress	1	e0e5e89c583cf811	inserted JitOptimize	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 JitStress	2	a2a84376d550b394	inserted NativeCall+ShapeChange+NativeCall	let n = 42; let s = "text"; let v0 = %OptimizeMaglevOnNextCall(f); v0.
-JitStress	3	43f37a5f3b932710	inserted Gc+ElementsKind+OsrLoop	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+JitStress	3	eeff7157b31d5f59	inserted Gc+ElementsKind+OsrLoop	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 JitStress	4	3df36e315467ee3c	inserted Gc+Gc+JitOptimize	let n = 42; let s = "text"; let a = [1, 2, 3]; gc({execution: "async"}

@@ -95,6 +95,8 @@ struct FuzzerStats {
   // and checked candidates that replaced it (ChainCommits::Offer).
   std::atomic<uint64_t> coalesce_merges{0};
   std::atomic<uint64_t> coalesce_breaks{0};
+  // Mutation chains focused on one function body.
+  std::atomic<uint64_t> focus_chains{0};
   std::atomic<uint64_t> exec_time_us{0};
   std::atomic<uint64_t> fuzz_nodes{0};    // AST nodes of executed mutants
   std::atomic<uint64_t> corpus_nodes{0};  // AST nodes of added corpus programs
