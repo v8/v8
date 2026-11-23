@@ -282,12 +282,23 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeNow) {
 }
 
 RUNTIME_FUNCTION(Runtime_LeakHole) {
-  HandleScope scope(isolate);
+  SealHandleScope shs(isolate);
+  CHECK_UNLESS_FUZZING(args.length() <= 1);
 
-  // TODO(chromium:1445008): once we have multiple different hole values, we
-  // could make this function take a number as argument and return the nth hole
-  // value, or a random hole if the argument is undefined.
-  return ReadOnlyRoots(isolate).the_hole_value();
+  static constexpr RootIndex kHoleRoots[] = {
+#define HOLE_ROOT(Name, name, Root) RootIndex::k##Root,
+      HOLE_LIST(HOLE_ROOT)
+#undef HOLE_ROOT
+  };
+  static_assert(kHoleRoots[0] == RootIndex::kTheHoleValue);
+
+  uint32_t index = 0;
+  if (args.length() == 1 && !IsUndefined(args[0])) {
+    CHECK_UNLESS_FUZZING(Object::ToUint32(args[0], &index));
+    CHECK_UNLESS_FUZZING(index < arraysize(kHoleRoots));
+  }
+
+  return ReadOnlyRoots(isolate).object_at(kHoleRoots[index]);
 }
 
 RUNTIME_FUNCTION(Runtime_RunningInSimulator) {

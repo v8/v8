@@ -696,7 +696,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(WaitForBackgroundOptimization, 0, 1)                                 \
   F(WaitUntilBlocked, 2, 1)                                              \
   I(DeoptimizeNow, 0, 1)                                                 \
-  F(LeakHole, 0, 1)                                                      \
+  F(LeakHole, -1 /* 0 || 1 */, 1)                                        \
   F(GetHoleNaNLower, 0, 1)                                               \
   F(GetHoleNaNUpper, 0, 1)                                               \
   F(GetHoleNaN, 0, 1)                                                    \
