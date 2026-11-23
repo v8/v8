@@ -941,12 +941,15 @@ class GlobalHandlesWeakRootsUpdatingVisitor final : public RootVisitor {
     }
     UpdateHeapObjectReferenceSlot(FullHeapObjectSlot(p), dest);
     // The destination object should be in the "to" space. However, it could
-    // also be a large string if the original object was a shortcut candidate.
+    // also be a large string or a pinned object on a quarantined page if the
+    // original object was a shortcut candidate.
     DCHECK_IMPLIES(
         HeapLayout::InYoungGeneration(dest),
         Heap::InToPage(dest) ||
-            (HeapLayout::InAnyLargeSpace(dest) && Heap::InFromPage(dest) &&
-             dest->map_word(kRelaxedLoad).IsForwardingAddress()));
+            (Heap::InFromPage(dest) && HeapLayout::IsSelfForwarded(dest) &&
+             (HeapLayout::InAnyLargeSpace(dest) ||
+              BasePage::FromHeapObject(Isolate::Current(), dest)
+                  ->is_quarantined())));
   }
 };
 
