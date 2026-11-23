@@ -956,8 +956,8 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildJSFastApiCallWrapper(
   }
 
   const compiler::turboshaft::FastApiCallParameters* params =
-      compiler::turboshaft::FastApiCallParameters::Create(call_function,
-                                                          __ graph_zone());
+      compiler::turboshaft::FastApiCallParameters::Create(
+          call_function, FeedbackSource(), __ graph_zone());
 
   // It doesn't really matter what we put into {out_reps}, because we have the
   // FastApiCallLoweringReducer in the assembler stack, and it lowers the node
@@ -969,8 +969,9 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildJSFastApiCallWrapper(
       return_type, params->c_signature()->GetInt64Representation()));
 
   V<Tuple<Word32, Any>> fast_call_result =
-      __ FastApiCall(OpIndex::Invalid(), api_data_argument, native_context,
-                     base::VectorOf(args), params, base::VectorOf(out_reps));
+      __ FastApiCall(OpIndex::Invalid(), OptionalV<EagerFrameState>::Nullopt(),
+                     api_data_argument, native_context, base::VectorOf(args),
+                     params, base::VectorOf(out_reps));
 
   // Projection<0> indicates parameter conversion errors. For Wasm, we only
   // choose to use Fast API Calls when parameter conversion cannot fail, so

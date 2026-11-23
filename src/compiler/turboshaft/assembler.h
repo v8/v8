@@ -1453,12 +1453,14 @@ class ReducerBase : public Next {
   }
 
   OpIndex REDUCE(FastApiCall)(
-      V<LazyFrameState> frame_state, V<Object> data_argument,
+      V<LazyFrameState> frame_state,
+      OptionalV<EagerFrameState> eager_frame_state, V<Object> data_argument,
       V<Context> context, base::Vector<const OpIndex> arguments,
       const FastApiCallParameters* parameters,
       base::Vector<const RegisterRepresentation> out_reps) {
-    OpIndex raw_call = Next::ReduceFastApiCall(
-        frame_state, data_argument, context, arguments, parameters, out_reps);
+    OpIndex raw_call =
+        Next::ReduceFastApiCall(frame_state, eager_frame_state, data_argument,
+                                context, arguments, parameters, out_reps);
     bool has_catch_block = CatchIfInCatchScope(raw_call);
     return ReduceDidntThrow(raw_call, has_catch_block,
                             &Asm()
@@ -5104,12 +5106,15 @@ class AssemblerOpInterface : public Next {
     return ReduceIfReachableFloat64SameValue(resolve(left), resolve(right));
   }
 
-  OpIndex FastApiCall(V<LazyFrameState> frame_state, V<Object> data_argument,
-                      V<Context> context, base::Vector<const OpIndex> arguments,
+  OpIndex FastApiCall(V<LazyFrameState> frame_state,
+                      OptionalV<EagerFrameState> eager_frame_state,
+                      V<Object> data_argument, V<Context> context,
+                      base::Vector<const OpIndex> arguments,
                       const FastApiCallParameters* parameters,
                       base::Vector<const RegisterRepresentation> out_reps) {
-    return ReduceIfReachableFastApiCall(frame_state, data_argument, context,
-                                        arguments, parameters, out_reps);
+    return ReduceIfReachableFastApiCall(frame_state, eager_frame_state,
+                                        data_argument, context, arguments,
+                                        parameters, out_reps);
   }
 
   V<None> RuntimeAbort(AbortReason reason) {

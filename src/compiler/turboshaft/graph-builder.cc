@@ -2482,8 +2482,15 @@ OpIndex GraphBuilder::Process(
 
       V<Context> context = Map(n.Context());
 
-      const FastApiCallParameters* parameters =
-          FastApiCallParameters::Create(c_function, __ graph_zone());
+      const bool needs_eager_frame_state =
+          fast_api_call::NeedsEagerFrameState(c_function.signature);
+      OptionalV<EagerFrameState> eager_frame_state =
+          needs_eager_frame_state
+              ? OptionalV<EagerFrameState>(dominating_frame_state)
+              : OptionalV<EagerFrameState>::Nullopt();
+
+      const FastApiCallParameters* parameters = FastApiCallParameters::Create(
+          c_function, params.feedback(), __ graph_zone());
 
       // There is one return in addition to the return value of the C function,
       // which indicates if a fast API call actually happened.
@@ -2500,7 +2507,7 @@ OpIndex GraphBuilder::Process(
 
       ThrowingScope throwing_scope(this, block, is_final_control);
       V<Tuple<Word32, Any>> fast_call_result =
-          __ FastApiCall(frame_state, data_argument, context,
+          __ FastApiCall(frame_state, eager_frame_state, data_argument, context,
                          base::VectorOf(arguments), parameters, out_reps);
 
       V<Word32> result_state = __ template Projection<0>(fast_call_result);
@@ -2512,8 +2519,8 @@ OpIndex GraphBuilder::Process(
       IF (UNLIKELY(
               __ Word32Equal(result_state, FastApiCallOp::kFailureValue))) {
         // We need to generate a fallback (both fast and slow call) in case
-        // the generated code might fail, in case e.g. a Smi was passed where
-        // a JSObject was expected and an error must be thrown.
+        // the generated code might fail, e.g. when a number is out of range for
+        // an [EnforceRange] parameter and an error must be thrown.
         // None of this usually holds true for Wasm functions with
         // primitive types only, so we avoid generating an extra branch here.
 

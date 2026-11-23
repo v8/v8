@@ -4634,7 +4634,9 @@ Reduction JSCallReducer::ReduceCallApiFunction(Node* node,
   FastApiCallFunction c_function = fast_api_call::GetFastApiCallTarget(
       broker(), function_template_info, argc);
 
-  if (c_function.address) {
+  if (c_function.address &&
+      (!fast_api_call::NeedsEagerFrameState(c_function.signature) ||
+       p.speculation_mode() == SpeculationMode::kAllowSpeculation)) {
     FastApiCallReducerAssembler a(this, node, function_template_info,
                                   c_function, receiver, shared, target, argc,
                                   effect);

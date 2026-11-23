@@ -28,7 +28,8 @@ class FastApiCallLoweringReducer : public Next {
   TURBOSHAFT_REDUCER_BOILERPLATE(FastApiCallLowering)
 
   OpIndex REDUCE(FastApiCall)(
-      V<LazyFrameState> frame_state, V<Object> data_argument,
+      V<LazyFrameState> frame_state,
+      OptionalV<EagerFrameState> eager_frame_state, V<Object> data_argument,
       V<Context> context, base::Vector<const OpIndex> arguments,
       const FastApiCallParameters* parameters,
       base::Vector<const RegisterRepresentation> out_reps) {
@@ -50,12 +51,19 @@ class FastApiCallLoweringReducer : public Next {
     base::SmallVector<OpIndex, 16> args;
     for (int i = 0; i < c_arg_count; ++i) {
       CTypeInfo type = c_signature->ArgumentInfo(i);
-      args.push_back(AdaptFastCallArgument(arguments[i], type, handle_error));
+      args.push_back(AdaptFastCallArgument(arguments[i], type, handle_error,
+                                           eager_frame_state,
+                                           parameters->feedback));
+      if (__ generating_unreachable_operations()) {
+        // AdaptFastCallArgument unconditionally jumped to {handle_error} or
+        // deopted.
+        break;
+      }
     }
 
     // While adapting the arguments, we might have noticed an inconsistency that
-    // lead to unconditionally jumping to {handle_error}. If this happens, then
-    // we don't emit the call.
+    // led to unconditionally jumping to {handle_error} or deoptimizing. If this
+    // happens, then we don't emit the call.
     if (V8_LIKELY(!__ generating_unreachable_operations())) {
       MachineSignature::Builder builder(
           __ graph_zone(), 1,
@@ -166,7 +174,9 @@ class FastApiCallLoweringReducer : public Next {
   }
 
   OpIndex AdaptFastCallArgument(OpIndex argument, CTypeInfo arg_type,
-                                Label<>& handle_error) {
+                                Label<>& handle_error,
+                                OptionalV<EagerFrameState> eager_frame_state,
+                                FeedbackSource feedback) {
     uint8_t flags = static_cast<uint8_t>(arg_type.GetFlags());
     START_ALLOW_USE_DEPRECATED()
     if (flags & static_cast<uint8_t>(CTypeInfo::Flags::kEnforceRangeBit)) {
@@ -226,8 +236,14 @@ class FastApiCallLoweringReducer : public Next {
         }
           END_ALLOW_USE_DEPRECATED()
         case CTypeInfo::Type::kPointer: {
+          DCHECK(eager_frame_state.valid());
+          DCHECK(feedback.IsValid());
           // Check that the value is a HeapObject.
-          GOTO_IF(__ ObjectIsSmi(argument), handle_error);
+          __ DeoptimizeIf(__ ObjectIsSmi(argument), eager_frame_state.value(),
+                          DeoptimizeReason::kSmi, feedback);
+          if (V8_UNLIKELY(__ generating_unreachable_operations())) {
+            return OpIndex::Invalid();
+          }
           Label<WordPtr> done(this);
 
           // Check if the value is null.
@@ -236,10 +252,10 @@ class FastApiCallLoweringReducer : public Next {
                   done, 0);
 
           // Check that the value is a JSExternalObject.
-          GOTO_IF_NOT(
+          __ DeoptimizeIfNot(
               __ TaggedEqual(__ LoadMapField(argument),
                              __ template LoadRoot<RootIndex::kExternalMap>()),
-              handle_error);
+              eager_frame_state.value(), DeoptimizeReason::kWrongMap, feedback);
 
           GOTO(done, __ template LoadField<WordPtr>(
                          V<HeapObject>::Cast(argument),
@@ -249,8 +265,14 @@ class FastApiCallLoweringReducer : public Next {
           return result;
         }
         case CTypeInfo::Type::kSeqOneByteString: {
+          DCHECK(eager_frame_state.valid());
+          DCHECK(feedback.IsValid());
           // Check that the value is a HeapObject.
-          GOTO_IF(__ ObjectIsSmi(argument), handle_error);
+          __ DeoptimizeIf(__ ObjectIsSmi(argument), eager_frame_state.value(),
+                          DeoptimizeReason::kNotAString, feedback);
+          if (V8_UNLIKELY(__ generating_unreachable_operations())) {
+            return OpIndex::Invalid();
+          }
           V<HeapObject> argument_obj = V<HeapObject>::Cast(argument);
 
           V<Map> map = __ LoadMapField(argument_obj);
@@ -259,8 +281,12 @@ class FastApiCallLoweringReducer : public Next {
           V<Word32> encoding = __ Word32BitwiseAnd(
               instance_type,
               kIsNotStringMask | kStringRepresentationAndEncodingMask);
-          GOTO_IF_NOT(__ Word32Equal(encoding, kSeqOneByteStringTag),
-                      handle_error);
+          __ DeoptimizeIfNot(__ Word32Equal(encoding, kSeqOneByteStringTag),
+                             eager_frame_state.value(),
+                             DeoptimizeReason::kWrongInstanceType, feedback);
+          if (V8_UNLIKELY(__ generating_unreachable_operations())) {
+            return OpIndex::Invalid();
+          }
 
           V<WordPtr> length_in_bytes = __ template LoadField<WordPtr>(
               argument_obj, AccessBuilder::ForStringLength());
