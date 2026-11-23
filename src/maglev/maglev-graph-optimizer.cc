@@ -3692,12 +3692,32 @@ ProcessResult MaglevGraphOptimizer::VisitNewConsString(
 
 ProcessResult MaglevGraphOptimizer::VisitMapPrototypeGet(
     MapPrototypeGet* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  if (ValueNode* int32_key =
+          reducer_.TryGetInt32(node->KeyInput().node()->Unwrap())) {
+    return ReplaceWith<MapPrototypeGetInt32Key>(
+        {node->TableInput().node(), int32_key});
+  }
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitMapPrototypeGetInt32Key(
     MapPrototypeGetInt32Key* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitMapPrototypeHas(
+    MapPrototypeHas* node, const ProcessingState& state) {
+  if (ValueNode* int32_key =
+          reducer_.TryGetInt32(node->KeyInput().node()->Unwrap())) {
+    return ReplaceWith<MapPrototypeHasInt32Key>(
+        {node->TableInput().node(), int32_key});
+  }
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitMapPrototypeHasInt32Key(
+    MapPrototypeHasInt32Key* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }

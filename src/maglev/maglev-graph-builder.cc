@@ -9541,54 +9541,15 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMapPrototypeGet(
     return {};
   }
 
-  if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
-    MAGLEV_FAIL(" to reduce Map.prototype.Get - no receiver");
-  }
-  if (args.count() != 1) {
-    MAGLEV_FAIL(" to reduce Map.prototype.Get - invalid argument count");
-  }
-
-  ValueNode* receiver = GetValueOrUndefined(args.receiver());
-  MapInference inference(this, receiver);
-  auto possible_receiver_maps = inference.TryGetPossibleMaps();
-  // If the map set is not found, then we don't know anything about the map of
-  // the receiver, so bail.
-  if (!possible_receiver_maps) {
-    MAGLEV_FAIL(" to reduce Map.prototype.Get - unknown receiver map");
-  }
-
-  // If the set of possible maps is empty, then there's no possible map for this
-  // receiver, therefore this path is unreachable at runtime. We're unlikely to
-  // ever hit this case, BuildCheckMaps should already unconditionally deopt,
-  // but check it in case another checking operation fails to statically
-  // unconditionally deopt.
-  if (possible_receiver_maps->is_empty()) {
-    // TODO(leszeks): Add an unreachable assert here.
-    return ReduceResult::DoneWithAbort();
-  }
-
-  if (!AllOfInstanceTypesAre(*possible_receiver_maps, JS_MAP_TYPE)) {
-    MAGLEV_FAIL(" to reduce Map.prototype.Get - wrong receiver maps");
-  }
-
-  RETURN_IF_ABORT(inference.InsertMapChecks(zone()));
-
-  ValueNode* key = args[0];
   ValueNode* table;
-  GET_VALUE_OR_ABORT(
-      table, BuildLoadTaggedField(receiver, offsetof(JSCollection, table_),
-                                  NodeType::kAnyHeapObject));
+  GET_VALUE_OR_BAIL(table,
+                    reducer_.TryBuildLoadJSCollectionTable(args, JS_MAP_TYPE));
 
-  ValueNode* entry;
-  auto key_info = known_node_aspects().TryGetInfoFor(key);
-  if (key_info && key_info->alternative().int32()) {
-    GET_VALUE_OR_ABORT(entry, AddNewNode<MapPrototypeGetInt32Key>(
-                                  {table, key_info->alternative().int32()}));
-  } else {
-    GET_VALUE_OR_ABORT(entry, AddNewNode<MapPrototypeGet>({table, key}));
+  ValueNode* key = GetValueOrUndefined(args[0]);
+  if (ValueNode* int32_key = reducer_.TryGetInt32(key)) {
+    return AddNewNode<MapPrototypeGetInt32Key>({table, int32_key});
   }
-
-  return entry;
+  return AddNewNode<MapPrototypeGet>({table, key});
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceWeakMapPrototypeGet(
@@ -9636,42 +9597,11 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceSetPrototypeHas(
     return {};
   }
 
-  ValueNode* receiver = args.receiver();
-  if (!receiver) return {};
-
-  if (args.count() != 1) {
-    MAGLEV_FAIL(" to reduce Set.prototype.has - invalid argument count");
-  }
-
-  MapInference inference(this, receiver);
-  auto possible_receiver_maps = inference.TryGetPossibleMaps();
-  if (!possible_receiver_maps) {
-    MAGLEV_FAIL(" to reduce Set.prototype.has - receiver map is unknown");
-  }
-
-  // If the set of possible maps is empty, then there's no possible map for this
-  // receiver, therefore this path is unreachable at runtime. We're unlikely to
-  // ever hit this case, BuildCheckMaps should already unconditionally deopt,
-  // but check it in case another checking operation fails to statically
-  // unconditionally deopt.
-  if (possible_receiver_maps->is_empty()) {
-    // TODO(leszeks): Add an unreachable assert here.
-    return ReduceResult::DoneWithAbort();
-  }
-
-  if (!AllOfInstanceTypesAre(*possible_receiver_maps, JS_SET_TYPE)) {
-    MAGLEV_FAIL(" to reduce Set.prototype.has - wrong receiver maps");
-  }
-
-  RETURN_IF_ABORT(inference.InsertMapChecks(zone()));
-
-  ValueNode* key = args[0];
   ValueNode* table;
-  GET_VALUE_OR_ABORT(
-      table, BuildLoadTaggedField(receiver, offsetof(JSCollection, table_),
-                                  NodeType::kAnyHeapObject));
+  GET_VALUE_OR_BAIL(table,
+                    reducer_.TryBuildLoadJSCollectionTable(args, JS_SET_TYPE));
 
-  return AddNewNode<SetPrototypeHas>({table, key});
+  return AddNewNode<SetPrototypeHas>({table, GetValueOrUndefined(args[0])});
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeSort(

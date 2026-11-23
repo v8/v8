@@ -289,6 +289,15 @@ inline ReduceResult MaybeReduceResult::Checked() { return ReduceResult(*this); }
     variable = res.value()->Cast<T>();                                 \
   } while (false)
 
+// Like GET_VALUE_OR_ABORT, but also returns if {result} is a Fail.
+#define GET_VALUE_OR_BAIL(variable, result)                            \
+  do {                                                                 \
+    MaybeReduceResult res = (result);                                  \
+    if (!res.IsDoneWithValue()) return res;                            \
+    using T = std::remove_pointer_t<std::decay_t<decltype(variable)>>; \
+    variable = res.value()->Cast<T>();                                 \
+  } while (false)
+
 #define GET_OPTVALUE_OR_ABORT(variable, result)            \
   do {                                                     \
     MaybeReduceResult res = (result);                      \
@@ -1325,6 +1334,7 @@ class MaglevReducer {
   V(DatePrototypeGetTime)                      \
   V(FunctionPrototypeHasInstance)              \
   V(MapPrototypeEntries)                       \
+  V(MapPrototypeHas)                           \
   V(MapPrototypeKeys)                          \
   V(MapPrototypeValues)                        \
   V(MathAbs)                                   \
@@ -1368,6 +1378,8 @@ class MaglevReducer {
   MAGLEV_REDUCER_BUILTIN(DECLARE_BUILTIN_REDUCER)
 #undef DECLARE_BUILTIN_REDUCER
 
+  MaybeReduceResult TryBuildLoadJSCollectionTable(CallArguments& args,
+                                                  InstanceType instance_type);
   MaybeReduceResult TryReduceMapIteratorCreation(CallArguments& args,
                                                  IterationKind iteration_kind);
 

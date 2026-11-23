@@ -214,6 +214,8 @@ class ExceptionHandlerInfo;
   V(NewConsString)                  \
   V(MapPrototypeGet)                \
   V(MapPrototypeGetInt32Key)        \
+  V(MapPrototypeHas)                \
+  V(MapPrototypeHasInt32Key)        \
   V(SetPrototypeHas)                \
   V(WeakMapPrototypeGet)            \
   V(ObjectIsArray)                  \
@@ -8006,11 +8008,49 @@ class MapPrototypeGetInt32Key
  public:
   explicit MapPrototypeGetInt32Key(uint64_t bitfield) : Base(bitfield) {}
 
-  static constexpr OpProperties kProperties = OpProperties::CanAllocate() |
-                                              OpProperties::CanRead() |
-                                              OpProperties::TaggedValue();
+  static constexpr OpProperties kProperties =
+      OpProperties::CanRead() | OpProperties::TaggedValue();
   DECLARE_INPUTS(Table, Key)
   DECLARE_INPUT_TYPES(Tagged, Int32)
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+};
+
+class MapPrototypeHas : public FixedInputValueNodeT<2, MapPrototypeHas> {
+ public:
+  explicit MapPrototypeHas(uint64_t bitfield) : Base(bitfield) {}
+
+  // Looking up a string key can allocate and internalize the key in place.
+  static constexpr OpProperties kProperties =
+      OpProperties::Call() | OpProperties::CanAllocate() |
+      OpProperties::CanRead() | OpProperties::CanWrite() |
+      OpProperties::TaggedValue();
+  DECLARE_INPUTS(Table, Key)
+  DECLARE_INPUT_TYPES(Tagged, Tagged)
+
+  int MaxCallStackArgs() const {
+    // Only implemented in Turbolev.
+    UNREACHABLE();
+  }
+
+  NodeType type() const { return NodeType::kBoolean; }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+};
+
+class MapPrototypeHasInt32Key
+    : public FixedInputValueNodeT<2, MapPrototypeHasInt32Key> {
+ public:
+  explicit MapPrototypeHasInt32Key(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::CanRead() | OpProperties::TaggedValue();
+  DECLARE_INPUTS(Table, Key)
+  DECLARE_INPUT_TYPES(Tagged, Int32)
+
+  NodeType type() const { return NodeType::kBoolean; }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);

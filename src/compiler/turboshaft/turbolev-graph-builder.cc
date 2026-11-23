@@ -2472,6 +2472,40 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::MapPrototypeHas* node,
+                                const maglev::ProcessingState& state) {
+    V<Object> table = Map(node->TableInput());
+    V<Smi> key = Map(node->KeyInput());
+
+    V<Smi> entry = __ FindOrderedHashMapEntry(table, key);
+    ScopedVar<Object, AssemblerT> result(
+        this, __ HeapConstant(local_factory_->true_value()));
+
+    IF (__ TaggedEqual(entry, __ SmiConstant(Smi::FromInt(-1)))) {
+      result = __ HeapConstant(local_factory_->false_value());
+    }
+    SetMap(node, result);
+
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::MapPrototypeHasInt32Key* node,
+                                const maglev::ProcessingState& state) {
+    V<Object> table = Map(node->TableInput());
+    V<Word32> key = Map(node->KeyInput());
+
+    V<WordPtr> entry = __ FindOrderedHashMapEntryForInt32Key(table, key);
+    ScopedVar<Object, AssemblerT> result(
+        this, __ HeapConstant(local_factory_->true_value()));
+
+    IF (__ Word32Equal(__ TruncateWordPtrToWord32(entry), -1)) {
+      result = __ HeapConstant(local_factory_->false_value());
+    }
+    SetMap(node, result);
+
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::SetPrototypeHas* node,
                                 const maglev::ProcessingState& state) {
     V<Object> table = Map(node->TableInput());
