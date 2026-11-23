@@ -96,6 +96,7 @@ Init runs first (5.1). Then each worker runs this loop:
    A result that runs without an error becomes the parent of the next link. After a failure or a timeout, the next link uses the same parent.
 4. A result with new edges goes to Accept. If Accept admits it, Minimize makes a smaller copy, and Publish adds the copy to the corpus.
    The chain continues from the result as it ran, because minimization would remove material that the next mutations can use.
+   With a coalesced commit (5.6), the admitted result can wait, and a later result of the chain can include its edges.
 5. A result that crashes goes to crash triage, and the chain ends.
 6. After N links, the worker picks a new seed.
 
@@ -193,6 +194,7 @@ One link of the chain works like this:
 3. If the mutator finds nothing to do, the link costs no execution. Otherwise, the worker prints the tree and runs the source.
 4. After a runtime exception, exception salvage (`engine/salvage.h`) can wrap the throwing statement in `try/catch` and run a copy once (`salvage.*`).
    A salvaged pass or crash replaces the failed mutant.
+   If the failed run found no new edges and the throw is directly in the last top-level statement, no wrap can run more code. Then the worker does not run the copy (`salvage_skipped_tail`).
 
 **Prefix.** The prefix gives the mutators new values to work with. It uses only generators whose code cannot throw,
 because an exception in the prefix would make each result of the chain fail. Minimize removes the values that a new corpus program does not use.
@@ -328,6 +330,7 @@ Accept decides if a candidate enters the corpus. It has two parts:
 2. **Determinism check** (`stages.check`). The target is not deterministic, because concurrent compilation and garbage collection change the edges of a run.
    Thus Redline runs the candidate again:
    - It runs the candidate at least `min_reruns` times, and until the set of new edges stays the same for `min_stable_reruns` runs.
+   - If no new edge failed a check before (`SharedCoverage::AnyFlaky`) and no rerun loses an edge, `clean_min_reruns` runs are sufficient (`clean_checks`).
    - An edge that a rerun does not reach leaves the set. Redline gives the edge back, so that a later program can claim it.
    - An edge that fails the check `flaky_threshold` times stays claimed. It costs no more reruns, and it does not count as coverage.
    - If a rerun fails, or if the set does not settle within `max_reruns` runs, Redline drops the candidate.
@@ -370,6 +373,12 @@ The def-use graph only proposes a cut. The oracle decides, because globals, prot
   The timeout does not become longer than the first timeout.
   For the same reason, `expressions` replaces a loop condition only with `0`.
 - The result must pass the oracle again in one of `verify_attempts` runs. If it does not, Redline keeps the original program.
+- **Coalesced commit** (`stages.mutate.coalesce`). A chain keeps at most one admitted result pending. A later admitted result replaces it if each run of its check reached all pending edges.
+  Then one minimization keeps the edges of both, and the corpus gets one program. Each result gets credit for its own edges and a part of the minimization executions.
+  The check of the later result never marks or releases a pending edge. If the later result misses a pending edge, or a limit (`max_coalesce_*`) stops the merge, Redline publishes the pending result first.
+  The worker also publishes the pending result before `Combine` adds an other program.
+  It publishes it when the chain ends for any reason: the end of the chain, a crash, a stop request or an error.
+  While a result is pending, the random d8 flags of the target stay the same. A `Fuse` root is never pending.
 - The crash event and the crash report record the stop reason of a minimization (`min_stop`): `fixed_point`, `budget` or `rounds`.
   `skipped` tells that the minimizer did not run, and `stopped` tells that the session stopped during the minimization.
 

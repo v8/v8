@@ -1235,6 +1235,320 @@ void RunCrashMinimizerChecks(Checker* checker) {
       joined == nullptr, joined == nullptr ? error : "one tree");
 }
 
+// A coverage bitmap of 256 bits (4 words) with the bits of `edges` set,
+// for SharedCoverage::ClaimNewEdges.
+std::vector<uint8_t> EdgeBitmap(std::initializer_list<uint32_t> edges) {
+  std::vector<uint8_t> bitmap(32, 0);
+  for (uint32_t edge : edges) {
+    bitmap[edge / 8] =
+        static_cast<uint8_t>(bitmap[edge / 8] | (1u << (edge % 8)));
+  }
+  return bitmap;
+}
+
+// A checked candidate with `edges` for the ChainCommits checks.
+CheckedCandidate CoalesceCandidate(const char* source,
+                                   std::vector<uint32_t> edges) {
+  std::string error;
+  CheckedCandidate candidate;
+  candidate.program = Program::Parse(source, Lineage(), &error);
+  candidate.edges = edges;
+  candidate.credit.edges = std::move(edges);
+  candidate.reruns = 2;
+  return candidate;
+}
+
+// The 1-based line of the first line of `text` that contains `needle`.
+int LineOf(const std::string& text, std::string_view needle) {
+  const size_t at = text.find(needle);
+  if (at == std::string::npos) {
+    return 0;
+  }
+  return 1 + static_cast<int>(std::count(
+                 text.begin(), text.begin() + static_cast<std::ptrdiff_t>(at),
+                 '\n'));
+}
+
+// Offline: the flaky bits of SharedCoverage and the determinism check with
+// fewer reruns for clean candidates. Also the coalesced commit of a chain,
+// and the salvage retry that a throw in the last top-level statement skips.
+void RunCoalesceChecks(Checker* checker) {
+  std::string error;
+  {
+    // AnyFlaky() reads the bits that RecordFlaky() sets, also from many
+    // threads at the same time. Edge 0 and edges after num_edges have no bit.
+    SharedCoverage none;
+    none.RecordFlaky(3, 1);
+    SharedCoverage shared;
+    const bool ok = shared.Initialize(255, 32, &error);
+    const bool before = shared.AnyFlaky({3, 70});
+    shared.RecordFlaky(70, 50);
+    const bool after = shared.AnyFlaky({3, 70});
+    const bool other = shared.AnyFlaky({3, 71, 0, 999});
+    std::vector<std::thread> threads;
+    for (uint32_t t = 0; t < 4; t++) {
+      threads.emplace_back([&shared, t] {
+        for (uint32_t edge = 100 + t; edge <= 255; edge += 4) {
+          shared.RecordFlaky(edge, 50);
+        }
+      });
+    }
+    for (std::thread& thread : threads) {
+      thread.join();
+    }
+    int set = 0;
+    for (uint32_t edge = 100; edge <= 255; edge++) {
+      set += shared.AnyFlaky({edge}) ? 1 : 0;
+    }
+    checker->Check("coalesce: AnyFlaky reads the flaky bits of RecordFlaky",
+                   ok && !none.AnyFlaky({3}) && !before && after && !other &&
+                       !shared.AnyFlaky({}) && set == 156 &&
+                       shared.suppressed_flaky_edges() == 0,
+                   StringPrintf("before %d, after %d, other %d, %d of 156 bits",
+                                before, after, other, set));
+  }
+  CheckRules rules;  // min_reruns 5, clean_min_reruns 2
+  auto check = [&](SharedCoverage& shared, std::vector<uint32_t> claimed,
+                   std::vector<CheckRun> runs, bool first_held) {
+    size_t next = 0;
+    return RunDeterminismCheck(
+        shared, rules, std::move(claimed), first_held,
+        [&](const std::vector<uint32_t>& edges, CheckRun* run) {
+          if (next < runs.size()) {
+            *run = runs[next++];
+          } else {
+            run->succeeded = true;
+          }
+          // Only the edges that are still in the set can be missing.
+          std::vector<uint32_t> missing;
+          std::set_intersection(edges.begin(), edges.end(),
+                                run->missing.begin(), run->missing.end(),
+                                std::back_inserter(missing));
+          run->missing = std::move(missing);
+          return true;
+        });
+  };
+  CheckRun clean_run;
+  clean_run.succeeded = true;
+  {
+    // A clean candidate stops after 2 reruns. A candidate with a flaky edge
+    // from an earlier check, or with an edge that a rerun loses, runs
+    // min_reruns times.
+    SharedCoverage shared;
+    const bool ok = shared.Initialize(255, 32, &error);
+    shared.MarkSeen({10, 11, 12, 13, 20, 21});
+    const CheckResult clean = check(shared, {10, 11}, {}, true);
+    shared.RecordFlaky(12, 50);
+    const CheckResult history = check(shared, {12, 13}, {}, true);
+    CheckRun lose;
+    lose.succeeded = true;
+    lose.missing = {21};
+    const CheckResult dropped = check(shared, {20, 21}, {lose}, true);
+    checker->Check(
+        "coalesce: a clean check converges after clean_min_reruns",
+        ok && clean.survived && clean.clean && clean.reruns == 2 &&
+            history.survived && !history.clean && history.reruns == 5 &&
+            dropped.survived && !dropped.clean && dropped.reruns == 5 &&
+            dropped.edges == std::vector<uint32_t>{20} && !shared.IsSeen(21) &&
+            shared.AnyFlaky({21}) && shared.IsSeen(20),
+        StringPrintf("reruns: clean %d, flaky history %d, dropped edge %d",
+                     clean.reruns, history.reruns, dropped.reruns));
+  }
+  {
+    // The parts of the Finalize executions add up.
+    const std::vector<uint64_t> split = SplitByEdges(10, {3, 1});
+    const std::vector<uint64_t> even = SplitByEdges(5, {0, 0});
+    checker->Check(
+        "coalesce: the Finalize executions are split by the new edges",
+        split == std::vector<uint64_t>{8, 2} &&
+            even == std::vector<uint64_t>{3, 2} && SplitByEdges(7, {}).empty(),
+        StringPrintf("split %llu+%llu, even %llu+%llu",
+                     static_cast<unsigned long long>(split[0]),
+                     static_cast<unsigned long long>(split[1]),
+                     static_cast<unsigned long long>(even[0]),
+                     static_cast<unsigned long long>(even[1])));
+  }
+  {
+    // A candidate that reached the pending edges in all runs merges. A
+    // candidate that missed 1 pending edge, or a merge after the limit,
+    // finalizes the pending commit first.
+    std::vector<PendingCommit> finalized;
+    CoalesceLimits limits;
+    limits.max_merges = 2;
+    ChainCommits commits(limits, [&](PendingCommit commit) {
+      finalized.push_back(std::move(commit));
+    });
+    using Offered = ChainCommits::Offered;
+    const Offered first =
+        commits.Offer(CoalesceCandidate("a = 1;", {1, 2}), true);
+    const Offered merged =
+        commits.Offer(CoalesceCandidate("a = 1; b = 2;", {3}), true);
+    const std::vector<uint32_t> pending = *commits.pending_edges();
+    const size_t before_break = finalized.size();
+    const Offered missed =
+        commits.Offer(CoalesceCandidate("a = 1; c = 3;", {4}), false);
+    const Offered merged_again =
+        commits.Offer(CoalesceCandidate("a = 1; c = 3; d = 4;", {5}), true);
+    const Offered merged_twice =
+        commits.Offer(CoalesceCandidate("a = 1; c = 3; d = 5;", {6}), true);
+    const Offered limited =
+        commits.Offer(CoalesceCandidate("a = 1; e = 6;", {7}), true);
+    commits.Flush();
+    const bool shapes =
+        finalized.size() == 3 &&
+        finalized[0].candidate.edges == std::vector<uint32_t>{1, 2, 3} &&
+        finalized[0].credits.size() == 2 && finalized[0].merges == 1 &&
+        finalized[0].candidate.reruns == 4 &&
+        finalized[0].candidate.program->source().find("b = 2") !=
+            std::string::npos &&
+        finalized[1].candidate.edges == std::vector<uint32_t>{4, 5, 6} &&
+        finalized[1].credits.size() == 3 && finalized[1].merges == 2 &&
+        finalized[1].credits[2].edges == std::vector<uint32_t>{6} &&
+        finalized[2].candidate.edges == std::vector<uint32_t>{7};
+    checker->Check(
+        "coalesce: merge if all runs reach the pending edges, else finalize",
+        first == Offered::kStarted && merged == Offered::kMerged &&
+            pending == std::vector<uint32_t>{1, 2, 3} && before_break == 0 &&
+            missed == Offered::kReplaced && merged_again == Offered::kMerged &&
+            merged_twice == Offered::kMerged && limited == Offered::kReplaced &&
+            shapes && !commits.has_pending(),
+        StringPrintf("%zu commits finalized", finalized.size()));
+  }
+  {
+    // A crash or a stop request in the middle of a chain leaves the scope of
+    // ChainCommits. Its destructor publishes the pending commit, thus no
+    // claimed edge stays without a program.
+    auto chain = [&](bool crash, size_t* finalized, uint32_t* published) {
+      SharedCoverage shared;
+      shared.Initialize(255, 32, &error);
+      *finalized = 0;
+      *published = 0;
+      std::set<uint32_t> edges;
+      {
+        ChainCommits commits(CoalesceLimits(), [&](PendingCommit commit) {
+          (*finalized)++;
+          edges.insert(commit.candidate.edges.begin(),
+                       commit.candidate.edges.end());
+        });
+        const std::vector<std::vector<uint8_t>> runs = {
+            EdgeBitmap({5, 6}), EdgeBitmap({5, 6, 7}),
+            EdgeBitmap({5, 6, 7, 8})};
+        for (size_t round = 0; round < runs.size(); round++) {
+          if (!crash && round == 2) {
+            break;  // a stop request before the 3rd link
+          }
+          std::vector<uint32_t> claimed =
+              shared.ClaimNewEdges(runs[round].data());
+          const CheckResult result =
+              check(shared, std::move(claimed), {}, true);
+          commits.Offer(CoalesceCandidate("a = 1;", result.edges),
+                        result.pending_held);
+          if (crash && round == 1) {
+            break;  // the 2nd link crashes after its check
+          }
+        }
+      }
+      *published = static_cast<uint32_t>(edges.size());
+      return shared.found_edges();
+    };
+    size_t crash_commits = 0;
+    size_t stop_commits = 0;
+    uint32_t crash_published = 0;
+    uint32_t stop_published = 0;
+    const uint32_t crash_found = chain(true, &crash_commits, &crash_published);
+    const uint32_t stop_found = chain(false, &stop_commits, &stop_published);
+    checker->Check(
+        "coalesce: a crash or a stop in a chain publishes the pending commit",
+        crash_commits == 1 && crash_published == 3 && crash_found == 3 &&
+            stop_commits == 1 && stop_published == 3 && stop_found == 3,
+        StringPrintf("crash: %zu commits, %u of %u edges; stop: %zu commits, "
+                     "%u of %u edges",
+                     crash_commits, crash_published, crash_found, stop_commits,
+                     stop_published, stop_found));
+  }
+  {
+    // A flaky candidate after a pending commit: its runs miss pending edge
+    // 41 and its own edge 43. Only edge 43 is flaky and released. The
+    // pending edges stay claimed and are not flaky.
+    SharedCoverage shared;
+    const bool ok = shared.Initialize(255, 32, &error);
+    const std::vector<uint8_t> first = EdgeBitmap({40, 41});
+    const std::vector<uint32_t> pending = shared.ClaimNewEdges(first.data());
+    const std::vector<uint8_t> second = EdgeBitmap({40, 41, 42, 43});
+    std::vector<uint32_t> claimed = shared.ClaimNewEdges(second.data());
+    CheckRun lose;
+    lose.succeeded = true;
+    lose.missing = {43};
+    lose.pending_held = false;
+    const CheckResult result = check(shared, claimed, {lose}, true);
+    // A candidate that fails a rerun is dropped. It still does not touch
+    // the pending edges.
+    const std::vector<uint8_t> third = EdgeBitmap({40, 41, 44});
+    std::vector<uint32_t> failing = shared.ClaimNewEdges(third.data());
+    CheckRun fail;
+    fail.succeeded = false;
+    const CheckResult failed = check(shared, failing, {fail}, false);
+    std::vector<PendingCommit> finalized;
+    ChainCommits::Offered offered;
+    {
+      ChainCommits commits(CoalesceLimits(), [&](PendingCommit commit) {
+        finalized.push_back(std::move(commit));
+      });
+      commits.Offer(CoalesceCandidate("a = 1;", pending), true);
+      offered = commits.Offer(CoalesceCandidate("a = 1; b = 2;", result.edges),
+                              result.pending_held);
+    }
+    checker->Check(
+        "coalesce: a flaky candidate does not mark the pending edges flaky",
+        ok && pending == std::vector<uint32_t>{40, 41} && result.survived &&
+            !result.pending_held && result.edges == std::vector<uint32_t>{42} &&
+            !shared.AnyFlaky(pending) && shared.IsSeen(40) &&
+            shared.IsSeen(41) && shared.AnyFlaky({43}) && !shared.IsSeen(43) &&
+            !failed.survived && !shared.IsSeen(44) && shared.AnyFlaky({44}) &&
+            offered == ChainCommits::Offered::kReplaced &&
+            finalized.size() == 2 && finalized[0].candidate.edges == pending,
+        StringPrintf("kept %zu edges, pending held %d, %zu commits",
+                     result.edges.size(), result.pending_held,
+                     finalized.size()));
+  }
+  {
+    // The worker skips the salvage retry only for a throw directly in the
+    // last top-level statement. A throw in a nested list, in a called
+    // function or in a function that an earlier statement calls can have
+    // code after it.
+    auto last = [](const char* source, std::string_view inner,
+                   std::string_view outer) {
+      fast::ParseError err;
+      std::unique_ptr<fast::Tree> tree =
+          fast::Parser::ParseScript(source, fast::ParseOptions(), &err);
+      if (tree == nullptr) {
+        return false;
+      }
+      const std::string printed = fast::Print(tree->root());
+      ExceptionLines lines;
+      lines.innermost = LineOf(printed, inner);
+      lines.outermost = LineOf(printed, outer);
+      return ThrowsInLastTopLevelStatement(tree.get(), lines);
+    };
+    const bool tail = last("let a = 1;\nnull.x;\n", "null.x", "null.x");
+    const bool head = last("null.x;\nlet a = 1;\n", "null.x", "null.x");
+    const bool nested = last(
+        "let a = 1;\nfor (let i = 0; i < 2; i++) {\n  null.x;\n  a++;\n}\n",
+        "null.x", "null.x");
+    const bool call =
+        last("function f() {\n  null.x;\n  g();\n}\nf();\n", "null.x", "f();");
+    const bool earlier_call = last(
+        "f();\nlet b = 2;\nfunction f() {\n  null.x;\n}\n", "null.x", "f();");
+    checker->Check(
+        "coalesce: the salvage tail skip needs a throw directly in the last "
+        "top-level statement",
+        tail && !head && !nested && !call && !earlier_call &&
+            !ThrowsInLastTopLevelStatement(nullptr, ExceptionLines{1, 1}),
+        StringPrintf("tail %d, head %d, nested %d, call %d, earlier call %d",
+                     tail, head, nested, call, earlier_call));
+  }
+}
+
 // Offline: the parts of a commit that save executions. The probe timeout
 // tightens after a kept reduction. The hit edges come from the runs of the
 // check or of the minimization. The default order starts with `dataflow`,
@@ -3901,6 +4215,7 @@ int RunSelftest(const Flags& flags) {
   RunCrashSlotChecks(&checker);
   RunCrashMinimizerChecks(&checker);
   RunCommitCostChecks(&checker);
+  RunCoalesceChecks(&checker);
   RunFlagMinimizerChecks(&checker);
   RunImportChecks(&checker);
   RunSalvageChecks(&checker);

@@ -76,6 +76,16 @@ struct FuzzConfig {
   // numConsecutiveMutations); the chain continues from the child only if
   // it ran successfully.
   int consecutive_mutations = 5;
+  // Coalesced commit: a mutation chain keeps one checked candidate pending.
+  // A later candidate of the chain can reach all the pending edges in each
+  // of its runs. Then it replaces the pending candidate, and one
+  // minimization keeps the edges of both (Worker::FuzzOne). The limits stop
+  // a merge: the merges into one pending commit, its edges and the nodes of
+  // the new candidate.
+  bool coalesce = true;
+  int max_coalesce_merges = 3;
+  int max_coalesce_edges = 2048;
+  int max_coalesce_nodes = 2000;
   // Sub-mutations per mutator application. 0: drawn uniformly from
   // 1..Mutator::max_simultaneous() (7 for in-place and splice mutators, 3
   // for code generation, 1 for runtime-assisted and whole-program ones),
@@ -90,6 +100,11 @@ struct FuzzConfig {
   int min_reruns = 5;
   int min_stable_reruns = 1;
   int max_reruns = 50;
+  // A candidate stops after clean_min_reruns reruns (not min_reruns) if
+  // none of its new edges failed a determinism check before and no rerun
+  // lost an edge. Otherwise min_reruns apply. The rule also applies to
+  // imports (with min_reruns or import_reruns).
+  int clean_min_reruns = 2;
   // With import_all, an import runs this many times after its first run,
   // not min_reruns times. The files of a corpus directory passed the check
   // in an earlier session. Each run must succeed, and min_stable_reruns
@@ -216,11 +231,14 @@ struct FuzzConfig {
   //     "prefix":   {"enabled": true, "min_values": 10, "extra_values": 5,
   //                  "from_scratch": true},
   //     "mutate":   {"consecutive": 5, "rounds": 0, "scratch_codegen": 3,
+  //                  "coalesce": true, "max_coalesce_merges": 3,
+  //                  "max_coalesce_edges": 2048, "max_coalesce_nodes": 2000,
   //                  "log": "events",
   //                  "capture": {"on": ["timeout"], "mutators": ["Splice"],
   //                  "max": 50}},
   //     "check":    {"min_reruns": 5, "min_stable_reruns": 1, "max_reruns": 50,
-  //     "flaky_threshold": 50}, "minimize": {"enabled": true, "max_tests": 300,
+  //     "clean_min_reruns": 2, "flaky_threshold": 50}, "minimize": {"enabled":
+  //     true, "max_tests": 300,
   //     ..., "probe_timeout_factor": 5,
   //                  "verify_attempts": 3, "capture": {"on": ["rejected"]}},
   //     "publish":  {"save_corpus": true}

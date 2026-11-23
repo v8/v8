@@ -74,6 +74,10 @@ class SharedCoverage {
   // should keep it claimed (so that it stops costing determinism re-runs)
   // instead of releasing it.
   bool RecordFlaky(uint32_t edge, int threshold);
+  // Whether RecordFlaky() recorded one of `edges` before. It reads one bit
+  // for each edge and takes no lock. The determinism check uses it to decide
+  // if a candidate can stop after fewer reruns.
+  bool AnyFlaky(const std::vector<uint32_t>& edges) const;
   // The number of counted edges (1..counted_edges) that reached the flaky
   // threshold. Like found_edges(), it does not include the other features.
   uint64_t suppressed_flaky_edges() const {
@@ -87,6 +91,8 @@ class SharedCoverage {
   uint32_t edge_words_ = 0;
   std::unique_ptr<std::atomic<uint64_t>[]> virgin_;
   std::unique_ptr<std::atomic<uint64_t>[]> crash_virgin_;
+  // One bit for each edge that RecordFlaky() recorded at least once.
+  std::unique_ptr<std::atomic<uint64_t>[]> flaky_bits_;
   std::atomic<uint32_t> found_edges_{0};
   std::mutex flaky_mutex_;
   std::unordered_map<uint32_t, int> flaky_counts_;

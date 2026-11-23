@@ -7,6 +7,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -85,6 +86,15 @@ struct FuzzerStats {
   std::atomic<uint64_t> explore_timeouts{0};
   std::atomic<uint64_t> salvage_attempted{0};  // reruns after wrapping a throw
   std::atomic<uint64_t> salvage_succeeded{0};  // salvage reruns that succeeded
+  // Failed mutants without new edges whose throw was in the last top-level
+  // statement. They got no salvage rerun.
+  std::atomic<uint64_t> salvage_skipped_tail{0};
+  // Checks that converged after clean_min_reruns reruns.
+  std::atomic<uint64_t> clean_checks{0};
+  // Checked candidates that merged into the pending commit of their chain,
+  // and checked candidates that replaced it (ChainCommits::Offer).
+  std::atomic<uint64_t> coalesce_merges{0};
+  std::atomic<uint64_t> coalesce_breaks{0};
   std::atomic<uint64_t> exec_time_us{0};
   std::atomic<uint64_t> fuzz_nodes{0};    // AST nodes of executed mutants
   std::atomic<uint64_t> corpus_nodes{0};  // AST nodes of added corpus programs
@@ -134,6 +144,143 @@ class HitEdges {
   int runs_ = 0;
   std::vector<uint32_t> probe_;
   bool has_probe_ = false;
+};
+
+// --- determinism check ----------------------------------------------------
+
+// The rules of the determinism check (stage check). See FuzzConfig.
+struct CheckRules {
+  int min_reruns = 5;
+  int clean_min_reruns = 2;
+  int min_stable_reruns = 1;
+  int max_reruns = 50;
+  int flaky_threshold = 50;
+  // Keep a program without new edges (import_all).
+  bool keep_without_edges = false;
+};
+
+// One rerun of a candidate, as the determinism check sees it.
+struct CheckRun {
+  bool succeeded = false;
+  // The candidate edges that the run did not reach (sorted).
+  std::vector<uint32_t> missing;
+  // The run reached all edges of the pending commit of the chain.
+  bool pending_held = true;
+};
+
+// The result of RunDeterminismCheck.
+struct CheckResult {
+  std::vector<uint32_t> edges;  // the candidate edges that all runs reached
+  int reruns = 0;
+  size_t dropped = 0;  // edges that a rerun did not reach
+  bool deterministic = true;
+  bool converged = false;
+  bool survived = false;
+  // Converged after clean_min_reruns, because no edge was flaky.
+  bool clean = false;
+  // The first run and all reruns reached all edges of the pending commit.
+  bool pending_held = true;
+};
+
+// Runs the determinism check of the `claimed` edges of a candidate. `rerun`
+// runs the candidate once for the edges that are still in the set. It
+// returns false on an infrastructure failure. `pending_held` tells if the
+// first run reached the edges of the pending commit.
+//
+// The check runs the candidate min_reruns times. If no edge of `claimed`
+// failed a check before (SharedCoverage::AnyFlaky) and no rerun lost an
+// edge, clean_min_reruns runs are sufficient. A dropped edge goes to
+// SharedCoverage::RecordFlaky, and then back to `shared` if it is below the
+// threshold. The check changes only edges of `claimed`: an edge of the
+// pending commit that a run did not reach stays claimed and is not flaky.
+CheckResult RunDeterminismCheck(
+    SharedCoverage& shared, const CheckRules& rules,
+    std::vector<uint32_t> claimed, bool pending_held,
+    const std::function<bool(const std::vector<uint32_t>& edges,
+                             CheckRun* run)>& rerun);
+
+// --- coalesced commit -----------------------------------------------------
+
+// The credit of one candidate in a commit: the component statistics that
+// get its executions and its edges, and the seed that gets the result.
+struct CommitCredit {
+  ComponentStats* stats = nullptr;  // nullptr: no component gets credit
+  std::vector<Generator*> generators;
+  ProgramPtr seed;              // nullptr: no Corpus::OnResult
+  std::vector<uint32_t> edges;  // the new edges of this candidate
+};
+
+// A candidate that passed the determinism check. The fields keep the data
+// of the check runs, because later runs change the coverage map.
+struct CheckedCandidate {
+  std::shared_ptr<Program> program;
+  std::vector<uint32_t> edges;  // the minimization property
+  HitEdges hit_edges;
+  uint32_t edges_hit = 0;
+  uint64_t exec_time_us = 0;
+  int reruns = 0;
+  size_t dropped = 0;
+  bool minimize = true;
+  CommitCredit credit;
+};
+
+// The checked candidates of a mutation chain that wait for one
+// minimization. `candidate` is the last candidate and has the union of the
+// edges. `credits` has one entry for each candidate.
+struct PendingCommit {
+  CheckedCandidate candidate;
+  std::vector<CommitCredit> credits;
+  int merges = 0;
+};
+
+// The limits of a merge (FuzzConfig::max_coalesce_*).
+struct CoalesceLimits {
+  int max_merges = 3;
+  size_t max_edges = 2048;
+  size_t max_nodes = 2000;
+};
+
+// Splits `executions` between candidates in proportion to their new edges
+// `edges`. The parts add up to `executions`. If no candidate has edges, the
+// parts are almost equal.
+std::vector<uint64_t> SplitByEdges(uint64_t executions,
+                                   const std::vector<size_t>& edges);
+
+// Holds the pending commit of one mutation chain. Offer() merges a new
+// checked candidate into it or replaces it. The destructor finalizes the
+// pending commit. Thus each exit of the chain (its end, a crash, a stop
+// request, an infrastructure failure) publishes the claimed edges.
+class ChainCommits {
+ public:
+  using Finalizer = std::function<void(PendingCommit)>;
+  enum class Offered { kStarted, kMerged, kReplaced };
+
+  ChainCommits(CoalesceLimits limits, Finalizer finalize)
+      : limits_(limits), finalize_(std::move(finalize)) {}
+  ~ChainCommits();
+  ChainCommits(const ChainCommits&) = delete;
+  ChainCommits& operator=(const ChainCommits&) = delete;
+
+  bool has_pending() const { return pending_ != nullptr; }
+  // The edges of the pending commit, or nullptr.
+  const std::vector<uint32_t>* pending_edges() const {
+    return pending_ != nullptr ? &pending_->candidate.edges : nullptr;
+  }
+  // Whether `candidate` can merge into the pending commit. There must be a
+  // pending commit, and all runs of the candidate reached its edges
+  // (`pending_held`). The merge must also stay in the limits.
+  bool CanMerge(const CheckedCandidate& candidate, bool pending_held) const;
+  // Takes `candidate`. If CanMerge(), the candidate merges. Otherwise the
+  // pending commit (if any) is finalized first, and the candidate becomes
+  // the pending commit.
+  Offered Offer(CheckedCandidate candidate, bool pending_held);
+  // Finalizes the pending commit, if there is one.
+  void Flush();
+
+ private:
+  CoalesceLimits limits_;
+  Finalizer finalize_;
+  std::unique_ptr<PendingCommit> pending_;
 };
 
 // The coordinator of one fuzzing session: owns the configuration, the

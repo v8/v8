@@ -523,9 +523,11 @@ bool ReadStages(const JsonValue& json, FuzzConfig* c, std::string* error) {
   static constexpr std::initializer_list<std::string_view> kKeys[kNumStages] = {
       {},                                                         // pick
       {"enabled", "min_values", "extra_values", "from_scratch"},  // prefix
-      {"consecutive", "rounds", "scratch_codegen"},               // mutate
-      {"min_reruns", "min_stable_reruns", "max_reruns", "import_reruns",
-       "flaky_threshold"},  // check
+      {"consecutive", "rounds", "scratch_codegen", "coalesce",
+       "max_coalesce_merges", "max_coalesce_edges",
+       "max_coalesce_nodes"},  // mutate
+      {"min_reruns", "min_stable_reruns", "max_reruns", "clean_min_reruns",
+       "import_reruns", "flaky_threshold"},  // check
       {"enabled", "max_tests", "max_time_ms", "max_rounds", "target_time_ms",
        "min_tests", "expressions_share", "probe_timeout_factor",
        "probe_timeout_extra_ms", "probe_timeout_min_ms",
@@ -585,6 +587,13 @@ bool ReadStages(const JsonValue& json, FuzzConfig* c, std::string* error) {
             static_cast<int>(object.GetInt("rounds", c->mutation_rounds));
         c->scratch_codegen_links = static_cast<int>(
             object.GetInt("scratch_codegen", c->scratch_codegen_links));
+        c->coalesce = object.GetBool("coalesce", c->coalesce);
+        c->max_coalesce_merges = static_cast<int>(
+            object.GetInt("max_coalesce_merges", c->max_coalesce_merges));
+        c->max_coalesce_edges = static_cast<int>(
+            object.GetInt("max_coalesce_edges", c->max_coalesce_edges));
+        c->max_coalesce_nodes = static_cast<int>(
+            object.GetInt("max_coalesce_nodes", c->max_coalesce_nodes));
         break;
       case Stage::kCheck:
         c->min_reruns =
@@ -593,6 +602,8 @@ bool ReadStages(const JsonValue& json, FuzzConfig* c, std::string* error) {
             object.GetInt("min_stable_reruns", c->min_stable_reruns));
         c->max_reruns =
             static_cast<int>(object.GetInt("max_reruns", c->max_reruns));
+        c->clean_min_reruns = static_cast<int>(
+            object.GetInt("clean_min_reruns", c->clean_min_reruns));
         c->import_reruns =
             static_cast<int>(object.GetInt("import_reruns", c->import_reruns));
         c->flaky_threshold = static_cast<int>(
@@ -654,6 +665,10 @@ std::string StagesJson(const FuzzConfig& c) {
     o.Add("consecutive", c.consecutive_mutations)
         .Add("rounds", c.mutation_rounds)
         .Add("scratch_codegen", c.scratch_codegen_links);
+    o.Add("coalesce", c.coalesce)
+        .Add("max_coalesce_merges", c.max_coalesce_merges);
+    o.Add("max_coalesce_edges", c.max_coalesce_edges)
+        .Add("max_coalesce_nodes", c.max_coalesce_nodes);
     common(Stage::kMutate, &o);
     stages.AddRaw("mutate", o.ToString());
   }
@@ -662,6 +677,7 @@ std::string StagesJson(const FuzzConfig& c) {
     o.Add("min_reruns", c.min_reruns)
         .Add("min_stable_reruns", c.min_stable_reruns);
     o.Add("max_reruns", c.max_reruns).Add("import_reruns", c.import_reruns);
+    o.Add("clean_min_reruns", c.clean_min_reruns);
     o.Add("flaky_threshold", c.flaky_threshold);
     common(Stage::kCheck, &o);
     stages.AddRaw("check", o.ToString());
@@ -1276,6 +1292,11 @@ bool FuzzConfig::Load(const Flags& flags, FuzzConfig* c, std::string* error,
   }
   c->import_reruns =
       std::clamp(c->import_reruns, c->min_stable_reruns, c->max_reruns);
+  c->clean_min_reruns =
+      std::clamp(c->clean_min_reruns, c->min_stable_reruns, c->min_reruns);
+  c->max_coalesce_merges = std::max(0, c->max_coalesce_merges);
+  c->max_coalesce_edges = std::max(0, c->max_coalesce_edges);
+  c->max_coalesce_nodes = std::max(0, c->max_coalesce_nodes);
   if (c->flaky_threshold < 1) {
     c->flaky_threshold = 1;
   }
@@ -1587,10 +1608,17 @@ std::string FuzzConfig::JsonHelp() {
       "\"off\",\n"
       "                   \"scratch_codegen\": 3,  // CodeGen-only links "
       "from scratch\n"
+      "                   \"coalesce\": true,  // one minimization for "
+      "the candidates of a chain\n"
+      "                   \"max_coalesce_merges\": 3, "
+      "\"max_coalesce_edges\": 2048,\n"
+      "                   \"max_coalesce_nodes\": 2000,\n"
       "                   \"capture\": {\"on\": [\"timeout\"], \"mutators\": "
       "[\"Splice\"], \"max\": 50}},\n"
       "      \"check\":    {\"min_reruns\": 5, \"min_stable_reruns\": 1, "
       "\"max_reruns\": 50,\n"
+      "                   \"clean_min_reruns\": 2,  // reruns if no edge "
+      "was flaky\n"
       "                   \"import_reruns\": 1,  // reruns of an import "
       "with import_all\n"
       "                   \"flaky_threshold\": 50, \"capture\": {\"on\": "

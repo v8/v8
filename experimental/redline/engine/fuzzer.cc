@@ -12,6 +12,7 @@
 #include <deque>
 #include <functional>
 #include <iterator>
+#include <optional>
 #include <thread>
 
 #include "experimental/redline/base/file_util.h"
@@ -183,6 +184,164 @@ std::vector<uint32_t> HitEdges::Take() {
   std::vector<uint32_t> edges = std::move(edges_);
   Clear();
   return edges;
+}
+
+// ---------------------------------------------------------------------------
+// Determinism check and coalesced commit.
+
+CheckResult RunDeterminismCheck(
+    SharedCoverage& shared, const CheckRules& rules,
+    std::vector<uint32_t> claimed, bool pending_held,
+    const std::function<bool(const std::vector<uint32_t>& edges,
+                             CheckRun* run)>& rerun) {
+  CheckResult result;
+  result.pending_held = pending_held;
+  const bool claimed_was_empty = claimed.empty();
+  std::vector<uint32_t>& edges = result.edges;
+  edges = std::move(claimed);
+  // Only edges of the candidate go here, never edges of a pending commit.
+  std::vector<uint32_t> release;
+  auto drop = [&](const std::vector<uint32_t>& dropped) {
+    for (uint32_t edge : dropped) {
+      if (!shared.RecordFlaky(edge, rules.flaky_threshold)) {
+        release.push_back(edge);
+      }
+    }
+  };
+  // An edge that failed a check before, or an edge that a rerun loses, makes
+  // the check run min_reruns times.
+  bool full = shared.AnyFlaky(edges);
+  const int clean_reruns = std::min(rules.min_reruns, rules.clean_min_reruns);
+  int stable = 0;
+  // Fuzzilli's processMaybeInteresting: each kept edge must be in all
+  // reruns. An edge that a rerun does not reach leaves the set. The loop
+  // stops when the set did not change for min_stable_reruns reruns. A
+  // candidate that still loses edges after max_reruns reruns did not
+  // converge and is dropped. A program of --import-all can have no new
+  // edges. It also runs again, so that only reliable programs are published.
+  while (result.deterministic && (!edges.empty() || claimed_was_empty)) {
+    const int required = full ? rules.min_reruns : clean_reruns;
+    if (stable >= rules.min_stable_reruns && result.reruns >= required) {
+      result.converged = true;
+      result.clean = !full && required < rules.min_reruns;
+      break;
+    }
+    if (result.reruns >= rules.max_reruns) {
+      break;
+    }
+    CheckRun run;
+    if (!rerun(edges, &run)) {
+      result.deterministic = false;
+      break;
+    }
+    result.reruns++;
+    if (!run.succeeded) {
+      result.deterministic = false;
+      break;
+    }
+    result.pending_held = result.pending_held && run.pending_held;
+    if (run.missing.empty()) {
+      stable++;
+      continue;
+    }
+    full = true;
+    stable = 0;
+    result.dropped += run.missing.size();
+    drop(run.missing);
+    std::vector<uint32_t> kept;
+    std::set_difference(edges.begin(), edges.end(), run.missing.begin(),
+                        run.missing.end(), std::back_inserter(kept));
+    edges.swap(kept);
+  }
+  // Only --import-all publishes a program without new edges. It must still
+  // run reliably.
+  const bool keep_without_edges =
+      edges.empty() && claimed_was_empty && rules.keep_without_edges;
+  result.survived = result.deterministic && result.converged &&
+                    (!edges.empty() || keep_without_edges);
+  if (!result.survived) {
+    drop(edges);
+  }
+  shared.Release(release);
+  return result;
+}
+
+std::vector<uint64_t> SplitByEdges(uint64_t executions,
+                                   const std::vector<size_t>& edges) {
+  std::vector<uint64_t> parts(edges.size(), 0);
+  if (edges.empty()) {
+    return parts;
+  }
+  uint64_t total = 0;
+  for (size_t count : edges) {
+    total += count;
+  }
+  uint64_t given = 0;
+  for (size_t i = 0; i < edges.size(); i++) {
+    parts[i] =
+        total == 0 ? executions / edges.size() : executions * edges[i] / total;
+    given += parts[i];
+  }
+  // The remainder of the integer division goes to the first candidate.
+  parts[0] += executions - given;
+  return parts;
+}
+
+ChainCommits::~ChainCommits() {
+  Flush();
+  if (pending_ != nullptr) {
+    Fatal("ChainCommits destroyed with pending commit");
+  }
+}
+
+bool ChainCommits::CanMerge(const CheckedCandidate& candidate,
+                            bool pending_held) const {
+  return pending_ != nullptr && pending_held &&
+         pending_->merges < limits_.max_merges &&
+         pending_->candidate.edges.size() + candidate.edges.size() <=
+             limits_.max_edges &&
+         candidate.program->node_count() <= limits_.max_nodes;
+}
+
+ChainCommits::Offered ChainCommits::Offer(CheckedCandidate candidate,
+                                          bool pending_held) {
+  if (pending_ == nullptr) {
+    pending_ = std::make_unique<PendingCommit>();
+    pending_->credits.push_back(std::move(candidate.credit));
+    pending_->candidate = std::move(candidate);
+    return Offered::kStarted;
+  }
+  if (CanMerge(candidate, pending_held)) {
+    std::vector<uint32_t>& pending_edges = pending_->candidate.edges;
+    // The new candidate reached the pending edges in each run. Its
+    // minimization keeps the edges of both.
+    std::vector<uint32_t> both;
+    std::set_union(pending_edges.begin(), pending_edges.end(),
+                   candidate.edges.begin(), candidate.edges.end(),
+                   std::back_inserter(both));
+    const int reruns = pending_->candidate.reruns + candidate.reruns;
+    const size_t dropped = pending_->candidate.dropped + candidate.dropped;
+    pending_->credits.push_back(std::move(candidate.credit));
+    pending_->candidate = std::move(candidate);
+    pending_->candidate.edges = std::move(both);
+    pending_->candidate.reruns = reruns;
+    pending_->candidate.dropped = dropped;
+    pending_->merges++;
+    return Offered::kMerged;
+  }
+  Flush();
+  pending_ = std::make_unique<PendingCommit>();
+  pending_->credits.push_back(std::move(candidate.credit));
+  pending_->candidate = std::move(candidate);
+  return Offered::kReplaced;
+}
+
+void ChainCommits::Flush() {
+  if (pending_ == nullptr) {
+    return;
+  }
+  std::unique_ptr<PendingCommit> pending = std::move(pending_);
+  finalize_(std::move(*pending));
 }
 
 // ---------------------------------------------------------------------------
@@ -660,10 +819,10 @@ class Worker {
     }
     // With import_all, the imports are usually the corpus of an earlier
     // session. They passed the check there, so fewer reruns are sufficient.
-    ProgramPtr added = Commit(
+    ProgramPtr added = CommitNow(
         program, std::move(claimed), execution, config().minimize_imports,
-        /*mutator=*/nullptr,
-        config().import_all ? config().import_reruns : config().min_reruns);
+        config().import_all ? config().import_reruns : config().min_reruns,
+        /*credit_stats=*/nullptr);
     if (added == nullptr) {
       stats().imports_failed++;
       fuzzer_->LogEvent(event.Add("result", "flaky"));
@@ -771,9 +930,13 @@ class Worker {
     mutate_stage.invocations++;
     ComponentStats& fuse_stats = fuzzer_->fuse_component().stats();
     fuse_stats.invocations++;
+    // Finalize() gives its executions to the credit itself.
     const uint64_t spent_before = executions_;
-    const ScopeExit credit_spent(
-        [&] { fuse_stats.spent += executions_ - spent_before; });
+    const uint64_t finalized_before = finalized_executions_;
+    const ScopeExit credit_spent([&] {
+      fuse_stats.spent += (executions_ - spent_before) -
+                          (finalized_executions_ - finalized_before);
+    });
     std::shared_ptr<Program> fused = FusePrograms(donors, std::move(lineage));
     stats().mutation_time_us += mutation_timer.ElapsedUs();
     if (fused == nullptr) {
@@ -836,8 +999,9 @@ class Worker {
           why.Add("new_edges", static_cast<uint64_t>(new_edges));
           Capture(Stage::kMutate, CaptureTrigger::kInteresting, "Fuse",
                   parent.get(), fused->source(), why);
-          added = Commit(fused, std::move(claimed), exec, config().minimize,
-                         nullptr, config().min_reruns, &fuse_stats);
+          // A Fuse root never joins a coalesced commit.
+          added = CommitNow(fused, std::move(claimed), exec, config().minimize,
+                            config().min_reruns, &fuse_stats);
           if (added != nullptr) {
             child_new_edges_ += added->edges.size();
           }
@@ -888,6 +1052,22 @@ class Worker {
     MutatorSet& mutators = fuzzer_->mutators();
     GeneratorSet& generators = fuzzer_->generators();
     int scratch_links = 0;
+    // Coalesced commit (stages.mutate.coalesce): the chain keeps at most one
+    // checked candidate pending. While it waits, the random d8 flags stay
+    // pinned, thus a respawn does not change them before its minimization.
+    // `commits` is destroyed before `chain_pin`. Its destructor finalizes
+    // the pending commit on each exit of the chain.
+    std::optional<FlagPin> chain_pin;
+    ChainCommits commits(
+        CoalesceLimits{config().max_coalesce_merges,
+                       static_cast<size_t>(config().max_coalesce_edges),
+                       static_cast<size_t>(config().max_coalesce_nodes)},
+        [&](PendingCommit commit) {
+          ProgramPtr added = Finalize(std::move(commit));
+          child_new_edges_ += added->edges.size();
+          ancestor = std::move(added);
+          chain = 0;
+        });
 
     if (has_material && rng_.Chance(MaterialFuseChance())) {
       if (!RunFuseRoot(corpus, &parent, &ancestor, &chain)) {
@@ -978,6 +1158,12 @@ class Worker {
           continue;
         }
       }
+      if (mutator->name() == "Combine") {
+        // Combine adds an other whole program. Its edges must not join the
+        // property of the pending commit.
+        commits.Flush();
+        chain_pin.reset();
+      }
       Stopwatch mutation_time;
       Stopwatch
           stage_time;  // the whole mutate stage: mutate, check syntax, execute
@@ -995,6 +1181,7 @@ class Worker {
       }
       BeginGeneratorUsage();
       const uint64_t spent_before = executions_;
+      const uint64_t finalized_before = finalized_executions_;
       std::unique_ptr<fast::Tree> tree =
           ApplyMutation(*mutator, *parent, partner, rng_, env, generators,
                         rounds, &detail, &probes);
@@ -1003,8 +1190,10 @@ class Worker {
       // Every target execution of this step (the mutant, instrumented
       // probe runs, determinism reruns, minimizer runs, crash triage)
       // counts as spent by the mutator and by the generators it used.
+      // Finalize() gives its executions to the credits of its commit.
       const ScopeExit credit_spent([&] {
-        const uint64_t spent = executions_ - spent_before;
+        const uint64_t spent = (executions_ - spent_before) -
+                               (finalized_executions_ - finalized_before);
         mutator->stats().spent += spent;
         for (Generator* g : used_generators) {
           g->stats().spent += spent;
@@ -1063,7 +1252,16 @@ class Worker {
         // Wrap the throwing statement once and rerun the mutant.
         const ExceptionLines lines =
             ExtractExceptionLines(execution, prelude_lines_);
-        if (!lines.empty()) {
+        // A throw directly in the last top-level statement leaves no code
+        // for a wrap to run. Without new edges in the failed run, the
+        // worker does not run the retry.
+        const bool skip_tail =
+            !lines.empty() &&
+            !fuzzer_->coverage_.HasNewEdges(runner_->coverage().bitmap()) &&
+            ThrowsInLastTopLevelStatement(tree.get(), lines);
+        if (skip_tail) {
+          stats().salvage_skipped_tail++;
+        } else if (!lines.empty()) {
           std::unique_ptr<fast::Tree> salvaged_tree = tree->Copy();
           if (SalvageException(salvaged_tree.get(), lines,
                                rng_.Chance(SalvageToplevelChance()))) {
@@ -1138,7 +1336,7 @@ class Worker {
           std::shared_ptr<Program> child =
               Program::FromTree(std::move(tree), lineage, source);
           child->flags = ChildFlags(*parent, partner.get());
-          ProgramPtr added;
+          bool admitted = false;
           size_t new_edges = claimed.size();
           if (!claimed.empty()) {
             stats().candidates++;
@@ -1147,23 +1345,46 @@ class Worker {
             why.Add("new_edges", static_cast<uint64_t>(new_edges));
             Capture(Stage::kMutate, CaptureTrigger::kInteresting,
                     mutator->name(), parent.get(), source, why);
-            added = Commit(child, std::move(claimed), execution,
-                           config().minimize, mutator, config().min_reruns);
-            if (added != nullptr) {
-              child_new_edges_ += added->edges.size();
-              // Each generator the mutant used gets the full credit.
-              const uint64_t targets = TargetFeatures(added->edges);
-              for (Generator* g : used_generators) {
-                g->stats().interesting++;
-                g->stats().new_edges += added->edges.size();
-                g->stats().new_targets += targets;
+            if (!chain_pin.has_value()) {
+              chain_pin.emplace(runner_->child());
+            }
+            bool pending_held = false;
+            std::optional<CheckedCandidate> checked =
+                Check(child, std::move(claimed), execution, config().min_reruns,
+                      commits.pending_edges(), &pending_held);
+            if (checked.has_value()) {
+              admitted = true;
+              // A candidate that cannot merge first publishes the pending
+              // commit. Then its seed is the program that was published.
+              if (commits.has_pending() &&
+                  !commits.CanMerge(*checked, pending_held)) {
+                commits.Flush();
+                stats().coalesce_breaks++;
               }
+              checked->minimize = config().minimize;
+              checked->credit.stats = &mutator->stats();
+              checked->credit.generators = used_generators;
+              if (ancestor->id != 0) {
+                checked->credit.seed = ancestor;
+              }
+              checked->credit.edges = checked->edges;
+              if (commits.Offer(std::move(*checked), pending_held) ==
+                  ChainCommits::Offered::kMerged) {
+                stats().coalesce_merges++;
+              }
+              if (!config().coalesce) {
+                commits.Flush();
+              }
+            }
+            if (!commits.has_pending()) {
+              chain_pin.reset();
             }
           }
           LogMutant(*mutator, detail, ancestor->id,
                     OutcomeName(execution.outcome), &execution, new_edges);
-          if (ancestor->id != 0) {
-            corpus.OnResult(*ancestor, added != nullptr);
+          // Finalize() gives the result of an admitted candidate to its seed.
+          if (!admitted && ancestor->id != 0) {
+            corpus.OnResult(*ancestor, false);
           }
           // The chain continues from the child as it ran, not from its
           // minimized copy. Minimization can remove material that the next
@@ -1171,10 +1392,9 @@ class Worker {
           // minimizes on the side. The lineage of the next links has the id
           // of the published program.
           parent = child;
-          if (added != nullptr) {
-            ancestor = added;
-            chain = 0;
-          } else {
+          // A finalized commit set `ancestor` and `chain`. A pending
+          // candidate is not in the corpus yet.
+          if (!admitted || commits.has_pending()) {
             chain++;
           }
           if (scratch_links > 0) {
@@ -1337,69 +1557,54 @@ class Worker {
     return applied > 0;
   }
 
-  // Determinism check, minimization and publication of a program that
-  // reached `claimed` new edges. The check runs the program at least
-  // `min_reruns` times again. Returns the published program, or nullptr
-  // if the program was dropped (edges released or suppressed as flaky).
-  ProgramPtr Commit(std::shared_ptr<Program> program,
-                    std::vector<uint32_t> claimed,
-                    const Execution& first_execution, bool minimize,
-                    Mutator* mutator, int min_reruns,
-                    ComponentStats* credit_stats = nullptr) {
-    FlagPin pin(runner_->child());
-    SharedCoverage& shared = fuzzer_->coverage_;
-    const bool claimed_was_empty = claimed.empty();
-    std::vector<uint32_t> edges = std::move(claimed);
-    std::vector<uint32_t> release;
-    auto drop = [&](const std::vector<uint32_t>& dropped) {
-      for (uint32_t edge : dropped) {
-        if (!shared.RecordFlaky(edge, config().flaky_threshold)) {
-          release.push_back(edge);
-        }
-      }
-    };
+  // The rules of the determinism check of a program that runs `min_reruns`
+  // times again.
+  CheckRules MakeCheckRules(int min_reruns) const {
+    CheckRules rules;
+    rules.min_reruns = min_reruns;
+    rules.clean_min_reruns = config().clean_min_reruns;
+    rules.min_stable_reruns = config().min_stable_reruns;
+    rules.max_reruns = config().max_reruns;
+    rules.flaky_threshold = config().flaky_threshold;
+    rules.keep_without_edges = config().import_all;
+    return rules;
+  }
 
-    // 1. Determinism (Fuzzilli's processMaybeInteresting): every edge that
-    //    is kept must be reached by all of the re-executions; edges that
-    //    disappear are dropped from the set. There are at least min_reruns
-    //    re-executions, and the loop ends once the set survived
-    //    min_stable_reruns re-runs unchanged. A candidate that still loses
-    //    edges after max_reruns re-executions has not converged and is
-    //    dropped.
-    int stable = 0;
-    int reruns = 0;
-    size_t dropped = 0;
-    bool deterministic = true;
-    bool converged = false;
-    bool rerun_timeout = false;
-    uint64_t exec_time_us = first_execution.exec_time_us;
-    uint32_t edges_hit = runner_->coverage().CountCurrentEdges();
+  // The determinism check of a program that reached `claimed` new edges
+  // (RunDeterminismCheck). The coverage map must still hold the first run.
+  // With `pending_edges`, each run also tests the edges of the pending
+  // commit of the chain. `*pending_held` tells if all runs reached them.
+  // The check does not change the state of these edges. Returns the
+  // candidate, or nothing if the program was dropped (edges released or
+  // suppressed as flaky).
+  std::optional<CheckedCandidate> Check(
+      std::shared_ptr<Program> program, std::vector<uint32_t> claimed,
+      const Execution& first_execution, int min_reruns,
+      const std::vector<uint32_t>* pending_edges = nullptr,
+      bool* pending_held = nullptr) {
+    FlagPin pin(runner_->child());
+    const CoverageMap& coverage = runner_->coverage();
+    auto holds_pending = [&] {
+      return pending_edges == nullptr || coverage.AllEdgesSet(*pending_edges);
+    };
+    CheckedCandidate candidate;
+    candidate.exec_time_us = first_execution.exec_time_us;
+    candidate.edges_hit = coverage.CountCurrentEdges();
     // The edges of the runs below, for a seed strategy that wants them.
-    // The coverage map still holds the first execution.
     const bool wants_hit_edges = fuzzer_->corpus().WantsHitEdges();
-    HitEdges hit_edges;
     if (wants_hit_edges) {
-      hit_edges.RecordRun(runner_->coverage().CurrentEdges());
+      candidate.hit_edges.RecordRun(coverage.CurrentEdges());
     }
+    const bool first_held = holds_pending();
+    bool rerun_timeout = false;
     Stopwatch check_time;
     StageStats& check_stage = stage(Stage::kCheck);
     check_stage.invocations++;
-    // (A program imported with --import-all may have no new edges at all;
-    // it is still re-run so that only reliable programs are published.)
-    while (deterministic && (!edges.empty() || claimed_was_empty)) {
-      if (stable >= config().min_stable_reruns && reruns >= min_reruns) {
-        converged = true;
-        break;
-      }
-      if (reruns >= config().max_reruns) {
-        break;
-      }
+    auto rerun = [&](const std::vector<uint32_t>& edges, CheckRun* run) {
       Execution execution;
       if (!Execute(program->source(), &execution)) {
-        deterministic = false;
-        break;
+        return false;
       }
-      reruns++;
       stats().rerun_executions++;
       check_stage.executions++;
       check_stage.exec_time_us += execution.exec_time_us;
@@ -1411,73 +1616,115 @@ class Worker {
         HarvestCrash(program->source(), execution, program->lineage(),
                      "determinism rerun");
       }
-      if (!execution.succeeded()) {
-        deterministic = false;
-        break;
+      run->succeeded = execution.succeeded();
+      if (!run->succeeded) {
+        return true;
       }
-      exec_time_us = std::min(exec_time_us, execution.exec_time_us);
+      candidate.exec_time_us =
+          std::min(candidate.exec_time_us, execution.exec_time_us);
       if (wants_hit_edges) {
-        hit_edges.RecordRun(runner_->coverage().CurrentEdges());
+        candidate.hit_edges.RecordRun(coverage.CurrentEdges());
       }
-      std::vector<uint32_t> missing = runner_->coverage().MissingEdges(edges);
-      if (missing.empty()) {
-        stable++;
-        continue;
-      }
-      stable = 0;
-      dropped += missing.size();
-      drop(missing);
-      std::vector<uint32_t> kept;
-      std::set_difference(edges.begin(), edges.end(), missing.begin(),
-                          missing.end(), std::back_inserter(kept));
-      edges.swap(kept);
+      run->missing = coverage.MissingEdges(edges);
+      run->pending_held = holds_pending();
+      return true;
+    };
+    CheckResult result =
+        RunDeterminismCheck(fuzzer_->coverage_, MakeCheckRules(min_reruns),
+                            std::move(claimed), first_held, rerun);
+    if (pending_held != nullptr) {
+      *pending_held = result.pending_held;
     }
-    // A program without new edges is only published for --import-all; it
-    // still had to run reliably.
-    const bool keep_without_edges =
-        edges.empty() && claimed_was_empty && config().import_all;
-    const bool survived =
-        deterministic && converged && (!edges.empty() || keep_without_edges);
     check_stage.time_us += check_time.ElapsedUs();
-    if (survived) {
+    if (result.survived) {
       check_stage.successes++;
+    }
+    if (result.clean) {
+      stats().clean_checks++;
     }
     if (config().stage(Stage::kCheck).events) {
       JsonObject event;
       event.Add("event", "check")
           .Add("worker", id_)
           .Add("origin", program->lineage().origin);
-      event.Add("reruns", reruns)
-          .Add("dropped_edges", static_cast<uint64_t>(dropped));
-      event.Add("kept_edges", static_cast<uint64_t>(edges.size()))
-          .Add("survived", survived);
-      event.Add("deterministic_outcome", deterministic)
-          .Add("converged", converged);
+      event.Add("reruns", result.reruns)
+          .Add("dropped_edges", static_cast<uint64_t>(result.dropped));
+      event.Add("kept_edges", static_cast<uint64_t>(result.edges.size()))
+          .Add("survived", result.survived);
+      event.Add("deterministic_outcome", result.deterministic)
+          .Add("converged", result.converged);
+      event.Add("clean", result.clean);
+      if (pending_edges != nullptr) {
+        event.Add("pending_held", result.pending_held);
+      }
       fuzzer_->LogEvent(event);
     }
-    if (!survived || rerun_timeout) {
+    if (!result.survived || rerun_timeout) {
       JsonObject why;
-      why.Add("reruns", reruns)
-          .Add("dropped_edges", static_cast<uint64_t>(dropped));
-      why.Add("deterministic_outcome", deterministic)
-          .Add("converged", converged);
+      why.Add("reruns", result.reruns)
+          .Add("dropped_edges", static_cast<uint64_t>(result.dropped));
+      why.Add("deterministic_outcome", result.deterministic)
+          .Add("converged", result.converged);
       Capture(Stage::kCheck,
               rerun_timeout ? CaptureTrigger::kTimeout : CaptureTrigger::kFlaky,
               program->lineage().origin, nullptr, program->source(), why);
     }
-    if (!survived) {
-      drop(edges);
-      shared.Release(release);
+    if (!result.survived) {
       stats().flaky++;
       JsonObject event;
       event.Add("event", "flaky").Add("origin", program->lineage().origin);
-      event.Add("deterministic_outcome", deterministic).Add("worker", id_);
-      event.Add("reruns", reruns)
-          .Add("dropped_edges", static_cast<uint64_t>(dropped));
+      event.Add("deterministic_outcome", result.deterministic)
+          .Add("worker", id_);
+      event.Add("reruns", result.reruns)
+          .Add("dropped_edges", static_cast<uint64_t>(result.dropped));
       fuzzer_->LogEvent(event);
+      return std::nullopt;
+    }
+    candidate.program = std::move(program);
+    candidate.edges = std::move(result.edges);
+    candidate.reruns = result.reruns;
+    candidate.dropped = result.dropped;
+    return candidate;
+  }
+
+  // Check() and Finalize() of one program without a chain (imports and Fuse
+  // roots). Returns the published program, or nullptr if the check dropped
+  // the program.
+  ProgramPtr CommitNow(std::shared_ptr<Program> program,
+                       std::vector<uint32_t> claimed,
+                       const Execution& first_execution, bool minimize,
+                       int min_reruns, ComponentStats* credit_stats) {
+    FlagPin pin(runner_->child());
+    std::optional<CheckedCandidate> checked = Check(
+        std::move(program), std::move(claimed), first_execution, min_reruns);
+    if (!checked.has_value()) {
       return nullptr;
     }
-    shared.Release(release);
+    checked->minimize = minimize;
+    checked->credit.stats = credit_stats;
+    checked->credit.edges = checked->edges;
+    PendingCommit commit;
+    commit.credits.push_back(std::move(checked->credit));
+    commit.candidate = std::move(*checked);
+    return Finalize(std::move(commit));
+  }
+
+  // Minimizes and publishes a checked commit. It always publishes, also
+  // when a stop request skips the minimization. The executions of this
+  // function go to the credits of the commit, in proportion to their new
+  // edges. Returns the published program.
+  ProgramPtr Finalize(PendingCommit commit) {
+    FlagPin pin(runner_->child());
+    const uint64_t executions_before = executions_;
+    SharedCoverage& shared = fuzzer_->coverage_;
+    CheckedCandidate& checked = commit.candidate;
+    std::shared_ptr<Program> program = std::move(checked.program);
+    const std::vector<uint32_t>& edges = checked.edges;
+    HitEdges& hit_edges = checked.hit_edges;
+    uint64_t exec_time_us = checked.exec_time_us;
+    uint32_t edges_hit = checked.edges_hit;
+    const bool minimize = checked.minimize;
+    const bool wants_hit_edges = fuzzer_->corpus().WantsHitEdges();
 
     // 2. Minimization against the surviving edges.
     MinimizationResult minimization;
@@ -1631,15 +1878,7 @@ class Worker {
     }
     stats().corpus_added++;
     stats().corpus_nodes += program->node_count();
-    ComponentStats* credit =
-        credit_stats != nullptr
-            ? credit_stats
-            : (mutator != nullptr ? &mutator->stats() : nullptr);
-    if (credit != nullptr) {
-      credit->interesting++;
-      credit->new_edges += added->edges.size();
-      credit->new_targets += TargetFeatures(added->edges);
-    }
+    CreditCommit(commit.credits, executions_ - executions_before);
     if (config().save_corpus) {
       fuzzer_->SaveCorpusProgram(*added);
     }
@@ -1655,8 +1894,9 @@ class Worker {
         .Add("chain", added->lineage().chain);
     event.Add("generation", added->lineage().generation);
     event.Add("nodes", static_cast<uint64_t>(added->node_count()));
-    event.Add("reruns", reruns)
-        .Add("dropped_edges", static_cast<uint64_t>(dropped));
+    event.Add("reruns", checked.reruns)
+        .Add("dropped_edges", static_cast<uint64_t>(checked.dropped));
+    event.Add("coalesced", commit.merges);
     event.Add("exec_time_ms", static_cast<double>(exec_time_us) / 1000.0);
     event.Add("worker", id_);
     if (config().randomize_d8_flags) {
@@ -1674,6 +1914,40 @@ class Worker {
     event.Add("coverage", shared.coverage_fraction());
     fuzzer_->LogEvent(event);
     return added;
+  }
+
+  // Gives the result of a published commit to its credits. Each credit gets
+  // a part of `executions` (the executions of Finalize) in proportion to its
+  // new edges. It also gets its new edges, and its seed gets a success.
+  void CreditCommit(const std::vector<CommitCredit>& credits,
+                    uint64_t executions) {
+    finalized_executions_ += executions;
+    std::vector<size_t> edge_counts;
+    edge_counts.reserve(credits.size());
+    for (const CommitCredit& credit : credits) {
+      edge_counts.push_back(credit.edges.size());
+    }
+    const std::vector<uint64_t> parts = SplitByEdges(executions, edge_counts);
+    for (size_t i = 0; i < credits.size(); i++) {
+      const CommitCredit& credit = credits[i];
+      const uint64_t targets = TargetFeatures(credit.edges);
+      auto give = [&](ComponentStats& stats) {
+        stats.spent += parts[i];
+        stats.interesting++;
+        stats.new_edges += credit.edges.size();
+        stats.new_targets += targets;
+      };
+      if (credit.stats != nullptr) {
+        give(*credit.stats);
+      }
+      // Each generator that the candidate used gets the full credit.
+      for (Generator* g : credit.generators) {
+        give(g->stats());
+      }
+      if (credit.seed != nullptr) {
+        fuzzer_->corpus().OnResult(*credit.seed, true);
+      }
+    }
   }
 
   // --- crashes ----------------------------------------------------------
@@ -3176,6 +3450,9 @@ class Worker {
   std::thread thread_;
   int consecutive_failures_ = 0;
   uint64_t executions_ = 0;  // target executions of this worker
+  // The executions of Finalize(). CreditCommit() gives them to the credits
+  // of the commit, thus the credit of a mutation step does not count them.
+  uint64_t finalized_executions_ = 0;
   std::deque<std::string> history_;
   size_t history_bytes_ = 0;
   std::vector<uint8_t> child_target_buckets_;
@@ -3944,6 +4221,10 @@ void Fuzzer::WriteStatsEvent() {
   uint64_t salvage_att = stats_.salvage_attempted.load();
   event.Add("salvage_attempted", salvage_att);
   event.Add("salvage_succeeded", std::min(salvage_ok, salvage_att));
+  event.Add("salvage_skipped_tail", stats_.salvage_skipped_tail.load());
+  event.Add("clean_checks", stats_.clean_checks.load());
+  event.Add("coalesce_merges", stats_.coalesce_merges.load());
+  event.Add("coalesce_breaks", stats_.coalesce_breaks.load());
   event.Add("exec_time_us", stats_.exec_time_us.load());
   event.Add("fuzz_nodes", stats_.fuzz_nodes.load());
   event.Add("corpus_nodes", stats_.corpus_nodes.load());

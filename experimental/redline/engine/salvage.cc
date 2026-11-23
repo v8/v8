@@ -286,4 +286,28 @@ bool SalvageException(Tree* tree, const ExceptionLines& lines,
          try_wrap(lines.outermost, /*top_level=*/true, false);
 }
 
+bool ThrowsInLastTopLevelStatement(Tree* tree, const ExceptionLines& lines) {
+  if (tree == nullptr || tree->root() == nullptr || lines.empty()) {
+    return false;
+  }
+  std::vector<NodeSpan> spans;
+  std::string source = fast::Print(tree->root(), fast::PrintOptions(), &spans);
+  // The smallest statement that covers the throw site must be the last
+  // top-level statement. A throw in a nested list or in a function body can
+  // have statements after it.
+  const StatementLocation inner = FindCoveringStatement(
+      tree, source, spans, lines.innermost, /*top_level=*/false);
+  if (!inner.valid() || inner.owner != tree->root() ||
+      inner.index + 1 != inner.list->size()) {
+    return false;
+  }
+  if (lines.outermost <= 0 || lines.outermost == lines.innermost) {
+    return true;
+  }
+  // The outermost frame (a call) must be in the same statement.
+  const StatementLocation outer = FindCoveringStatement(
+      tree, source, spans, lines.outermost, /*top_level=*/true);
+  return outer.valid() && outer.statement() == inner.statement();
+}
+
 }  // namespace redline

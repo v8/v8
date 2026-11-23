@@ -50,6 +50,14 @@ bool WrapStatementForSalvage(fast::Tree* tree, const StatementLocation& loc);
 bool SalvageException(fast::Tree* tree, const ExceptionLines& lines,
                       bool prefer_top_level);
 
+// Whether the throw site and the outermost program frame of `lines` are
+// directly in the last statement of `Program::body` of `tree`, not in a
+// nested statement list. Then no wrap of SalvageException() can run code
+// that the failed run did not run. If the failed run also found no new
+// edges, the worker does not run a salvage retry (Worker::FuzzOne).
+bool ThrowsInLastTopLevelStatement(fast::Tree* tree,
+                                   const ExceptionLines& lines);
+
 // Configured probabilities from the `salvage.*` tunables.
 double SalvageChance();
 double SalvageToplevelChance();
