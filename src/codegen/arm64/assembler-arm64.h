@@ -10,7 +10,6 @@
 #include <memory>
 #include <optional>
 
-#include "absl/container/flat_hash_map.h"
 #include "src/codegen/arm64/constants-arm64.h"
 #include "src/codegen/arm64/instructions-arm64.h"
 #include "src/codegen/arm64/register-arm64.h"
@@ -189,6 +188,50 @@ class AssemblerZone {
 
 // -----------------------------------------------------------------------------
 // Assembler.
+
+// The link chain of an unbound label is singly linked from newer to older
+// links through the code. This maps a link to the next newer link in its
+// chain, for the chains of tracked labels only. Links are identified by their
+// pc offset.
+//
+// The owner starts tracking a label when it first has to unlink a link other
+// than the newest, and keeps the map in sync with the chain until the label is
+// bound.
+class NewerLinkMap final {
+ public:
+  explicit NewerLinkMap(Zone* zone) : newer_link_(zone), labels_(zone) {}
+
+  bool Tracks(Label* label) const {
+    return V8_UNLIKELY(!labels_.empty()) && labels_.contains(label);
+  }
+  // Returns false if {label} is tracked already. Otherwise, the caller must
+  // Set the newer link of each link in the chain of {label}.
+  bool StartTracking(Label* label) { return labels_.insert(label).second; }
+  // Returns whether {label} was tracked. The caller must Erase the links in
+  // the chain of {label}.
+  bool StopTracking(Label* label) {
+    return V8_UNLIKELY(!labels_.empty()) && labels_.erase(label) != 0;
+  }
+
+  void Set(int link, int newer_link) {
+    DCHECK_LT(link, newer_link);
+    newer_link_.insert_or_assign(link, newer_link);
+  }
+  void Erase(int link) {
+    if (newer_link_.empty()) return;
+    newer_link_.erase(link);
+  }
+  int Get(int link) const { return newer_link_.at(link); }
+
+  void Clear() {
+    newer_link_.clear();
+    labels_.clear();
+  }
+
+ private:
+  ZoneAbslFlatHashMap<int, int> newer_link_;
+  ZoneAbslFlatHashSet<Label*> labels_;
+};
 
 // Tracks forward branches to unbound labels that may need a veneer: TB[N]Z,
 // and B.cond/BC.cond/CB[N]Z which share a range.
@@ -3611,7 +3654,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // If available, a veneer for this label can be used for other branches in the
   // chain if the link chain cannot be fixed up without this branch.
   void RemoveBranchFromLabelLinkChain(Instruction* branch, Label* label,
-                                      Instruction* label_veneer = nullptr);
+                                      Instruction* label_veneer);
+
+  // Returns the next newer link after {link} in the link chain of {label}.
+  Instruction* NewerLink(Label* label, Instruction* link);
 
  private:
   static uint32_t FPToImm8(double imm);
@@ -3815,10 +3861,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // resolved when their label is bound or when a veneer is emitted for them.
   UnresolvedBranches unresolved_branches_;
 
-  // Back edge offsets for the link chain - the forward edge is stored in the
-  // generated code. This is used to accelerate removing branches from the
-  // link chain when emitting veneers.
-  absl::flat_hash_map<int, int> branch_link_chain_back_edge_;
+  NewerLinkMap newer_links_;
 
   // We generate a veneer for a branch if we reach within this distance of the
   // limit of the range.

@@ -470,6 +470,7 @@ Assembler::Assembler(const MaybeAssemblerZone& zone,
     : AssemblerBase(options, std::move(buffer)),
       zone_(zone),
       unresolved_branches_(zone_.get()),
+      newer_links_(zone_.get()),
       constpool_(this) {
   Reset();
 
@@ -487,6 +488,7 @@ Assembler::~Assembler() {
 
 void Assembler::ClearUnresolvedBranches() {
   unresolved_branches_.Clear();
+  newer_links_.Clear();
   next_veneer_pool_check_ = kMaxInt;
 }
 
@@ -626,6 +628,22 @@ bool LinkChainHasInternalReference(Instruction* link) {
 
 }  // namespace
 
+Instruction* Assembler::NewerLink(Label* label, Instruction* link) {
+  DCHECK(label->is_linked());
+  if (newer_links_.StartTracking(label)) {
+    int newer = label->pos();
+    while (true) {
+      const int older =
+          newer + static_cast<int>(InstructionAt(newer)->ImmPCOffset());
+      if (older == newer) break;
+      newer_links_.Set(older, newer);
+      newer = older;
+    }
+  }
+  return InstructionAt(
+      newer_links_.Get(static_cast<int>(InstructionOffset(link))));
+}
+
 void Assembler::RemoveBranchFromLabelLinkChain(Instruction* branch,
                                                Label* label,
                                                Instruction* label_veneer) {
@@ -633,16 +651,16 @@ void Assembler::RemoveBranchFromLabelLinkChain(Instruction* branch,
 
   CheckLabelLinkChain(label);
 
+  const auto offset_of = [this](Instruction* instr) {
+    return static_cast<int>(InstructionOffset(instr));
+  };
+
   Instruction* link = InstructionAt(label->pos());
   Instruction* prev_link = link;
   Instruction* next_link;
 
   if (link != branch) {
-    int i = static_cast<int>(InstructionOffset(branch));
-    // Currently, we don't support adr instructions sharing labels with
-    // branches in the link chain.
-    DCHECK(branch_link_chain_back_edge_.contains(i));
-    prev_link = InstructionAt(branch_link_chain_back_edge_.at(i));
+    prev_link = NewerLink(label, branch);
     link = branch;
   }
 
@@ -659,34 +677,26 @@ void Assembler::RemoveBranchFromLabelLinkChain(Instruction* branch,
       label->Unuse();
     } else {
       // Label -> this branch -> 1+ branches -> start
-      label->link_to(static_cast<int>(InstructionOffset(next_link)));
-      branch_link_chain_back_edge_.erase(
-          static_cast<int>(InstructionOffset(next_link)));
+      label->link_to(offset_of(next_link));
+      newer_links_.Erase(offset_of(next_link));
     }
   } else if (branch == next_link) {
     // The branch is the last (but not also the first) instruction in the chain.
     //
     // Label -> 1+ branches -> this branch -> start
     prev_link->SetImmPCOffsetTarget(zone(), options(), prev_link);
-    branch_link_chain_back_edge_.erase(
-        static_cast<int>(InstructionOffset(branch)));
+    newer_links_.Erase(offset_of(branch));
   } else {
     // The branch is in the middle of the chain.
     //
     // Label -> 1+ branches -> this branch -> 1+ branches -> start
-    int n = static_cast<int>(InstructionOffset(next_link));
-    if (branch_link_chain_back_edge_.contains(n)) {
-      // Update back edge such that the branch after this branch points to the
-      // branch before it.
-      branch_link_chain_back_edge_[n] =
-          static_cast<int>(InstructionOffset(prev_link));
-      branch_link_chain_back_edge_.erase(
-          static_cast<int>(InstructionOffset(branch)));
-    }
-
+    newer_links_.Erase(offset_of(branch));
+    // Currently, we don't support adr instructions sharing labels with
+    // branches in the link chain.
     if (prev_link->IsUnresolvedInternalReference() ||
         prev_link->IsTargetInImmPCOffsetRange(next_link)) {
       prev_link->SetImmPCOffsetTarget(zone(), options(), next_link);
+      newer_links_.Set(offset_of(next_link), offset_of(prev_link));
     } else if (label_veneer != nullptr) {
       // Internal references must stay linked until bind(), and branches before
       // {branch} might not reach them. If an older link is an internal
@@ -705,16 +715,14 @@ void Assembler::RemoveBranchFromLabelLinkChain(Instruction* branch,
       while (!end_of_chain) {
         next_link = link->ImmPCOffsetTarget();
         end_of_chain = (link == next_link);
-        const int link_offset = static_cast<int>(InstructionOffset(link));
+        const int link_offset = offset_of(link);
         if (link->IsUnresolvedInternalReference()) {
           if (last_kept_link == nullptr) {
             label->link_to(link_offset);
-            branch_link_chain_back_edge_.erase(link_offset);
+            newer_links_.Erase(link_offset);
           } else {
             last_kept_link->SetImmPCOffsetTarget(zone(), options(), link);
-            branch_link_chain_back_edge_.insert_or_assign(
-                link_offset,
-                static_cast<int>(InstructionOffset(last_kept_link)));
+            newer_links_.Set(link_offset, offset_of(last_kept_link));
           }
           last_kept_link = link;
         } else if (link != branch) {
@@ -722,7 +730,7 @@ void Assembler::RemoveBranchFromLabelLinkChain(Instruction* branch,
           // above and the caller patches it to the veneer.
           link->SetImmPCOffsetTarget(zone(), options(), label_veneer);
           unresolved_branches_.Resolve(link_offset);
-          branch_link_chain_back_edge_.erase(link_offset);
+          newer_links_.Erase(link_offset);
         }
         link = next_link;
       }
@@ -765,6 +773,8 @@ void Assembler::bind(Label* label) {
   DCHECK(!label->is_near_linked());
   DCHECK(!label->is_bound());
 
+  const bool has_newer_links = newer_links_.StopTracking(label);
+
   // If the label is linked, the link chain looks something like this:
   //
   // |--I----I-------I-------L
@@ -800,11 +810,8 @@ void Assembler::bind(Label* label) {
       link->SetImmPCOffsetTarget(zone(), options(),
                                  reinterpret_cast<Instruction*>(pc_));
       unresolved_branches_.Resolve(linkoffset);
-
-      // Discard back edge data for this link.
-      branch_link_chain_back_edge_.erase(
-          static_cast<int>(InstructionOffset(link)));
     }
+    if (has_newer_links) newer_links_.Erase(prevlinkoffset);
 
     // Link the label to the previous link in the chain.
     if (linkoffset - prevlinkoffset == kStartOfLabelLinkChain) {
@@ -847,6 +854,9 @@ int Assembler::LinkAndGetByteOffsetTo(Label* label) {
       // instruction from the start of the buffer.
       offset = label->pos() - pc_offset();
       DCHECK_NE(offset, kStartOfLabelLinkChain);
+      if (newer_links_.Tracks(label)) {
+        newer_links_.Set(label->pos(), pc_offset());
+      }
       // Note that the offset here needs to be PC-relative only so that the
       // first instruction in a buffer can link to an unbound label. Otherwise,
       // the offset would be 0 for this case, and 0 is reserved for
