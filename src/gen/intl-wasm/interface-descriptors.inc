@@ -1357,6 +1357,15 @@ class RegExpPrototypeExecSlowDescriptor : public StaticCallInterfaceDescriptor<R
   DECLARE_DEFAULT_DESCRIPTOR(RegExpPrototypeExecSlowDescriptor)
 };
 
+class RegExpPrototypeExecFastDescriptor : public StaticCallInterfaceDescriptor<RegExpPrototypeExecFastDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_RESULT_AND_PARAMETERS(1, kRegexp, kString)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(), MachineType::TaggedPointer(), MachineType::TaggedPointer())
+  DECLARE_DEFAULT_DESCRIPTOR(RegExpPrototypeExecFastDescriptor)
+};
+
 class RegExpMatchFastDescriptor : public StaticCallInterfaceDescriptor<RegExpMatchFastDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()

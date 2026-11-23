@@ -6815,19 +6815,59 @@ bool MaglevReducer<BaseT>::CanElideResolvePromiseThenLookup(ValueNode* value) {
 }
 
 template <typename BaseT>
-MaybeReduceResult MaglevReducer<BaseT>::TryReduceRegExpPrototypeTest(
-    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
+bool MaglevReducer<BaseT>::IsOriginalRegExpPrototypeMethod(
+    compiler::MapRef regexp_initial_map, compiler::NameRef name,
+    compiler::JSFunctionRef original) {
+  compiler::PropertyAccessInfo access_info = broker()->GetPropertyAccessInfo(
+      regexp_initial_map, name, compiler::AccessMode::kLoad);
+  if (access_info.IsInvalid() || !access_info.IsFastDataConstant()) {
+    return false;
+  }
+  compiler::OptionalJSObjectRef holder = access_info.holder();
+  if (!holder.has_value()) return false;
+  if (access_info.field_representation().IsDouble()) return false;
+  compiler::OptionalObjectRef value =
+      TryFoldLoadConstantDataField(holder.value(), access_info);
+  if (!value.has_value() || !value->equals(original)) return false;
+  // This includes the dependency on the field staying constant.
+  access_info.RecordDependencies(broker()->dependencies());
+  broker()->dependencies()->DependOnStablePrototypeChains(
+      access_info.lookup_start_object_maps(), kStartAtPrototype,
+      holder.value());
+  return true;
+}
+
+template <typename BaseT>
+ReduceResult MaglevReducer<BaseT>::BuildCheckRegExpLastIndex(
+    ValueNode* regexp) {
+  ValueNode* last_index;
+  GET_VALUE_OR_ABORT(last_index,
+                     BuildLoadTaggedField(regexp, JSRegExp::kLastIndexOffset));
+  RETURN_IF_ABORT(BuildCheckSmi(last_index));
+  ValueNode* last_index_int32;
+  GET_VALUE_OR_ABORT(last_index_int32, GetInt32(last_index));
+  RETURN_IF_ABORT(TryBuildCheckInt32Condition(
+      last_index_int32, GetInt32Constant(0), AssertCondition::kGreaterThanEqual,
+      DeoptimizeReason::kNotASmi));
+  return last_index_int32;
+}
+
+template <typename BaseT>
+template <typename CallBuiltin>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceFastRegExpPrototypeMethod(
+    CallArguments& args, std::string_view method_name,
+    compiler::OptionalJSFunctionRef original_exec, CallBuiltin&& call_builtin) {
   if (!CanSpeculateCall()) return {};
   if (v8_flags.force_slow_path) return {};
 
   if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
-    TRACE(TraceColor::kRed
-          << "! Failed to reduce RegExp.prototype.test - no receiver");
+    TRACE(TraceColor::kRed << "! Failed to reduce " << method_name
+                           << " - no receiver");
     return {};
   }
   if (args.count() < 1) {
-    TRACE(TraceColor::kRed << "! Failed to reduce RegExp.prototype.test - "
-                              "no search argument");
+    TRACE(TraceColor::kRed << "! Failed to reduce " << method_name
+                           << " - no string argument");
     return {};
   }
 
@@ -6839,75 +6879,153 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceRegExpPrototypeTest(
   MapInference<MaglevReducer<BaseT>> inference(this, receiver);
   auto possible_receiver_maps = inference.TryGetPossibleMaps();
   if (!possible_receiver_maps) {
-    TRACE(TraceColor::kRed << "! Failed to reduce RegExp.prototype.test - "
-                              "unknown receiver map");
+    TRACE(TraceColor::kRed << "! Failed to reduce " << method_name
+                           << " - unknown receiver map");
     return {};
   }
   if (possible_receiver_maps->is_empty()) {
     return ReduceResult::DoneWithAbort();
   }
+  // Together with the lastIndex check, this is IsFastRegExpNoPrototype. The
+  // builtins read the flags off the regexp, so the prototype only matters to
+  // a method that looks up exec.
   if (possible_receiver_maps->size() != 1 ||
       !possible_receiver_maps->at(0).equals(regexp_initial_map)) {
-    TRACE(TraceColor::kRed << "! Failed to reduce RegExp.prototype.test - "
-                              "not the initial RegExp map");
+    TRACE(TraceColor::kRed << "! Failed to reduce " << method_name
+                           << " - not the initial RegExp map");
     return {};
   }
 
-  compiler::PropertyAccessInfo exec_access_info =
-      broker()->GetPropertyAccessInfo(regexp_initial_map,
-                                      broker()->exec_string(),
-                                      compiler::AccessMode::kLoad);
-  if (exec_access_info.IsInvalid()) {
-    TRACE(TraceColor::kRed << "! Failed to reduce RegExp.prototype.test - "
-                              "no exec access info");
+  if (original_exec.has_value() &&
+      !IsOriginalRegExpPrototypeMethod(
+          regexp_initial_map, broker()->exec_string(), original_exec.value())) {
+    TRACE(TraceColor::kRed << "! Failed to reduce " << method_name
+                           << " - exec was replaced");
     return {};
   }
-  if (!exec_access_info.IsFastDataConstant()) {
-    TRACE(TraceColor::kRed << "! Failed to reduce RegExp.prototype.test - "
-                              "exec is not a constant");
-    return {};
-  }
-  compiler::OptionalJSObjectRef holder = exec_access_info.holder();
-  if (!holder.has_value()) {
-    TRACE(TraceColor::kRed << "! Failed to reduce RegExp.prototype.test - "
-                              "exec is not on the prototype");
-    return {};
-  }
-  if (exec_access_info.field_representation().IsDouble()) {
-    TRACE(TraceColor::kRed << "! Failed to reduce RegExp.prototype.test - "
-                              "exec has double representation");
-    return {};
-  }
-  compiler::OptionalObjectRef exec =
-      TryFoldLoadConstantDataField(holder.value(), exec_access_info);
-  if (!exec.has_value() ||
-      !exec->equals(native_context.regexp_exec_function(broker()))) {
-    TRACE(TraceColor::kRed << "! Failed to reduce RegExp.prototype.test - "
-                              "exec was replaced");
-    return {};
-  }
-  broker()->dependencies()->DependOnStablePrototypeChains(
-      exec_access_info.lookup_start_object_maps(), kStartAtPrototype,
-      holder.value());
 
   RETURN_IF_ABORT(inference.InsertMapChecks(zone()));
 
-  ValueNode* search_string = args[0];
-  RETURN_IF_ABORT(BuildCheckString(search_string));
+  ValueNode* string = args[0];
+  RETURN_IF_ABORT(BuildCheckString(string));
+  RETURN_IF_ABORT(BuildCheckRegExpLastIndex(receiver));
 
-  ValueNode* last_index;
-  GET_VALUE_OR_ABORT(
-      last_index, BuildLoadTaggedField(receiver, JSRegExp::kLastIndexOffset));
-  // RegExpPrototypeTestFast requires lastIndex to be a positive Smi.
-  RETURN_IF_ABORT(BuildCheckSmi(last_index));
-  ValueNode* last_index_int32;
-  GET_VALUE_OR_ABORT(last_index_int32, GetInt32(last_index));
-  RETURN_IF_ABORT(TryBuildCheckInt32Condition(
-      last_index_int32, GetInt32Constant(0), AssertCondition::kGreaterThanEqual,
-      DeoptimizeReason::kNotASmi));
+  return call_builtin(GetConstant(native_context), receiver, string);
+}
 
-  return BuildCallBuiltin<Builtin::kRegExpPrototypeTestFast>(
-      GetConstant(native_context), {receiver, search_string});
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceRegExpPrototypeTest(
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
+  return TryReduceFastRegExpPrototypeMethod(
+      args, "RegExp.prototype.test",
+      broker()->target_native_context().regexp_exec_function(broker()),
+      [&](ValueNode* native_context, ValueNode* regexp, ValueNode* string) {
+        return BuildCallBuiltin<Builtin::kRegExpPrototypeTestFast>(
+            native_context, {regexp, string});
+      });
+}
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceRegExpPrototypeExec(
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
+  return TryReduceFastRegExpPrototypeMethod(
+      args, "RegExp.prototype.exec", {},
+      [&](ValueNode* native_context, ValueNode* regexp, ValueNode* string) {
+        return BuildCallBuiltin<Builtin::kRegExpPrototypeExecFast>(
+            native_context, {regexp, string});
+      });
+}
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceStringPrototypeMatch(
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
+  // Ports the fast path of StringPrototypeMatch: a String receiver and a
+  // regexp that passes BranchIfFastRegExpForMatch go to RegExpMatchFast.
+  if (!CanSpeculateCall()) return {};
+  if (v8_flags.force_slow_path) return {};
+
+  if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
+    TRACE(TraceColor::kRed
+          << "! Failed to reduce String.prototype.match - no receiver");
+    return {};
+  }
+  if (args.count() < 1) {
+    TRACE(TraceColor::kRed << "! Failed to reduce String.prototype.match - "
+                              "no regexp argument");
+    return {};
+  }
+
+  compiler::NativeContextRef native_context = broker()->target_native_context();
+  compiler::MapRef regexp_initial_map =
+      native_context.regexp_function(broker()).initial_map(broker());
+
+  ValueNode* regexp = args[0];
+  MapInference<MaglevReducer<BaseT>> inference(this, regexp);
+  if (auto possible_regexp_maps = inference.TryGetPossibleMaps()) {
+    if (possible_regexp_maps->is_empty()) {
+      return ReduceResult::DoneWithAbort();
+    }
+    if (possible_regexp_maps->size() != 1 ||
+        !possible_regexp_maps->at(0).equals(regexp_initial_map)) {
+      TRACE(TraceColor::kRed << "! Failed to reduce String.prototype.match - "
+                                "not the initial RegExp map");
+      return {};
+    }
+  } else {
+    // Arguments have no map feedback, and MapInference only knows the map of
+    // a constant if it is stable. Speculate on a plain regexp, unless that is
+    // known to be wrong.
+    compiler::OptionalHeapObjectRef constant =
+        TryGetConstant<HeapObject>(regexp);
+    const bool maybe_plain_regexp =
+        constant.has_value()
+            ? !constant->IsAnyHole() &&
+                  constant->map(broker()).equals(regexp_initial_map)
+            : IsInstanceOfNodeType(regexp_initial_map, GetType(regexp),
+                                   broker());
+    if (!maybe_plain_regexp) {
+      TRACE(TraceColor::kRed << "! Failed to reduce String.prototype.match - "
+                                "not a plain RegExp");
+      return {};
+    }
+  }
+
+  // RegExpMatchFast reads the flags off the regexp rather than through the
+  // accessors on RegExp.prototype, so the prototype has to be untouched
+  // beyond the two methods that are checked by value.
+  compiler::MapRef regexp_prototype_map =
+      native_context.regexp_prototype_map(broker());
+  if (!regexp_prototype_map.is_stable() ||
+      !regexp_initial_map.prototype(broker()).map(broker()).equals(
+          regexp_prototype_map) ||
+      !IsOriginalRegExpPrototypeMethod(
+          regexp_initial_map, broker()->exec_string(),
+          native_context.regexp_exec_function(broker())) ||
+      !IsOriginalRegExpPrototypeMethod(
+          regexp_initial_map, broker()->match_symbol(),
+          native_context.regexp_match_function(broker()))) {
+    TRACE(TraceColor::kRed << "! Failed to reduce String.prototype.match - "
+                              "RegExp.prototype was modified");
+    return {};
+  }
+  // The prototype can change concurrently, and the dependencies above are on
+  // whatever map it has by the time they are recorded. Depend on the map that
+  // was compared.
+  broker()->dependencies()->DependOnStableMap(regexp_prototype_map);
+  if (!broker()->dependencies()->DependOnRegExpSpeciesProtector()) {
+    TRACE(TraceColor::kRed << "! Failed to reduce String.prototype.match - "
+                              "RegExp species protector is invalid");
+    return {};
+  }
+
+  RETURN_IF_ABORT(BuildCheckMaps(regexp, base::VectorOf({regexp_initial_map})));
+
+  ValueNode* receiver = args.receiver();
+  RETURN_IF_ABORT(BuildCheckString(receiver));
+  RETURN_IF_ABORT(BuildCheckRegExpLastIndex(regexp));
+
+  return BuildCallBuiltin<Builtin::kRegExpMatchFast>(
+      GetConstant(native_context), {regexp, receiver});
 }
 
 template <typename BaseT>

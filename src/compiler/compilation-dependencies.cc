@@ -1365,6 +1365,11 @@ bool CompilationDependencies::DependOnArraySpeciesProtector() {
       broker_, broker_->isolate()->factory()->array_species_protector()));
 }
 
+bool CompilationDependencies::DependOnRegExpSpeciesProtector() {
+  return DependOnProtector(MakeRef(
+      broker_, broker_->isolate()->factory()->regexp_species_protector()));
+}
+
 bool CompilationDependencies::DependOnNoElementsProtector() {
   return DependOnProtector(
       MakeRef(broker_, broker_->isolate()->factory()->no_elements_protector()));

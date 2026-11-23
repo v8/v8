@@ -108,6 +108,7 @@ class V8_EXPORT CompilationDependencies : public ZoneObject {
   bool DependOnPromiseHookProtector();
   bool DependOnPromiseSpeciesProtector();
   bool DependOnPromiseThenProtector();
+  bool DependOnRegExpSpeciesProtector();
   bool DependOnMegaDOMProtector();
   bool DependOnNoProfilingProtector();
   bool DependOnNoUndetectableObjectsProtector();

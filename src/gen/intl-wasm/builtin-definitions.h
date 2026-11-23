@@ -397,6 +397,7 @@ TFJ(ReflectDeleteProperty, JSParameterCount(2), kReceiver, kObject, kKey) \
 TFJ(ReflectHas, JSParameterCount(2), kReceiver, kObject, kKey) \
 TFJ(ReflectGetOwnPropertyDescriptor, JSParameterCount(2), kReceiver, kTarget, kPropertyKey) \
 TFC(RegExpPrototypeExecSlow, RegExpPrototypeExecSlow) \
+TFC(RegExpPrototypeExecFast, RegExpPrototypeExecFast) \
 TFJ(RegExpPrototypeExec, JSParameterCount(1), kReceiver, kString) \
 TFJ(RegExpPrototypeMatchAll, JSParameterCount(1), kReceiver, kString) \
 TFJ(RegExpStringIteratorPrototypeNext, JSParameterCount(0), kReceiver) \

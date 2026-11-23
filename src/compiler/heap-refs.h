@@ -839,6 +839,7 @@ class V8_EXPORT_PRIVATE ContextRef : public HeapObjectRef {
   V(JSFunction, promise_then)                    \
   V(JSFunction, regexp_exec_function)            \
   V(JSFunction, regexp_function)                 \
+  V(JSFunction, regexp_match_function)           \
   V(JSFunction, string_function)                 \
   V(JSFunction, symbol_function)                 \
   V(JSGlobalObject, global_object)               \
@@ -867,6 +868,7 @@ class V8_EXPORT_PRIVATE ContextRef : public HeapObjectRef {
   V(Map, map_key_value_iterator_map)             \
   V(Map, map_value_iterator_map)                 \
   V(Map, meta_map)                               \
+  V(Map, regexp_prototype_map)                   \
   V(Map, set_key_value_iterator_map)             \
   V(Map, set_value_iterator_map)                 \
   V(Map, sloppy_arguments_map)                   \

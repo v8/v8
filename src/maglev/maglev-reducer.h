@@ -1355,6 +1355,7 @@ class MaglevReducer {
   V(PromisePrototypeCatch)                     \
   V(PromisePrototypeThen)                      \
   V(PromiseResolveTrampoline)                  \
+  V(RegExpPrototypeExec)                       \
   V(RegExpPrototypeTest)                       \
   V(ReturnReceiver)                            \
   V(StringFromCharCode)                        \
@@ -1367,6 +1368,7 @@ class MaglevReducer {
   V(StringPrototypeIndexOf)                    \
   V(StringPrototypeIncludes)                   \
   V(StringPrototypeIterator)                   \
+  V(StringPrototypeMatch)                      \
   IEEE_754_UNARY_LIST(V)                       \
   IEEE_754_BINARY_LIST(V)                      \
   IF_INTL(V, StringPrototypeLocaleCompareIntl) \
@@ -1380,6 +1382,24 @@ class MaglevReducer {
                                     CallArguments& args);
   MAGLEV_REDUCER_BUILTIN(DECLARE_BUILTIN_REDUCER)
 #undef DECLARE_BUILTIN_REDUCER
+
+  // Whether {name} on instances of {regexp_initial_map} is still {original}
+  // from RegExp.prototype. Records the dependencies that keep it that way.
+  bool IsOriginalRegExpPrototypeMethod(compiler::MapRef regexp_initial_map,
+                                       compiler::NameRef name,
+                                       compiler::JSFunctionRef original);
+  // Deopts unless {regexp}.lastIndex is a non-negative Smi, which the fast
+  // regexp builtins require, and returns it as an Int32.
+  ReduceResult BuildCheckRegExpLastIndex(ValueNode* regexp);
+  // Reduces a call to a RegExp.prototype method on a receiver with the initial
+  // RegExp map to a fast builtin. {call_builtin} emits that call, given the
+  // native context, the regexp and the string argument. Pass {original_exec}
+  // for a method that looks up exec, which then must be unmodified.
+  template <typename CallBuiltin>
+  MaybeReduceResult TryReduceFastRegExpPrototypeMethod(
+      CallArguments& args, std::string_view method_name,
+      compiler::OptionalJSFunctionRef original_exec,
+      CallBuiltin&& call_builtin);
 
   MaybeReduceResult TryBuildLoadJSCollectionTable(CallArguments& args,
                                                   InstanceType instance_type);
