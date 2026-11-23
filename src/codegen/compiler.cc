@@ -3108,7 +3108,10 @@ bool Compiler::CollectSourcePositions(
   // statistics since we've already parsed the code before.
   if (!parsing::ParseAny(&parse_info, shared_info, isolate,
                          parsing::ReportStatisticsMode{false})) {
-    // Parsing failed probably as a result of stack exhaustion.
+    // Parsing failed only as a result of stack exhaustion (aside from
+    // sandbox testing/fuzzing).
+    DCHECK_IMPLIES(!v8_flags.sandbox_testing && !v8_flags.sandbox_fuzzing,
+                   parse_info.pending_error_handler()->stack_overflow());
     bytecode->SetSourcePositionsFailedToCollect();
     return FailAndClearException(isolate);
   }
@@ -3543,6 +3546,9 @@ MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromEval(
         v8_flags.lazy_eval);
     flags.set_is_eval(true);
     flags.set_parsing_while_debugging(parsing_while_debugging);
+    if (parsing_while_debugging == ParsingWhileDebugging::kYes) {
+      flags.set_collect_source_positions(true);
+    }
     flags.set_private_name_lookup_skips_outer_class(
         private_name_lookup_skips_outer_class);
     DCHECK(!flags.is_module());
