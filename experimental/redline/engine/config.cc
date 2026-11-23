@@ -717,6 +717,8 @@ bool ApplyJson(const JsonValue& json, FuzzConfig* c, std::string* error,
       static_cast<uint64_t>(json.GetInt("seed", static_cast<int64_t>(c->seed)));
   c->out_dir = json.GetString("out_dir", c->out_dir);
   c->import_root = json.GetString("import_root", c->import_root);
+  c->material_max =
+      static_cast<int>(json.GetInt("material_max", c->material_max));
   c->duration_sec = json.GetNumber("duration_sec", c->duration_sec);
   c->max_execs = static_cast<uint64_t>(
       json.GetInt("max_execs", static_cast<int64_t>(c->max_execs)));
@@ -835,6 +837,15 @@ bool ApplyJson(const JsonValue& json, FuzzConfig* c, std::string* error,
     for (const JsonValue& path : imports.as_array()) {
       if (path.is_string()) {
         c->imports.push_back(path.as_string());
+      }
+    }
+  }
+  const JsonValue& material_paths = json.Get("material_paths");
+  if (material_paths.is_array()) {
+    c->material_paths.clear();
+    for (const JsonValue& path : material_paths.as_array()) {
+      if (path.is_string()) {
+        c->material_paths.push_back(path.as_string());
       }
     }
   }
@@ -1132,6 +1143,11 @@ bool FuzzConfig::Load(const Flags& flags, FuzzConfig* c, std::string* error,
   for (const std::string& path : flags.GetList("import")) {
     c->imports.push_back(path);
   }
+  for (const std::string& path : flags.GetList("material")) {
+    c->material_paths.push_back(path);
+  }
+  c->material_max =
+      static_cast<int>(flags.GetInt("material-max", c->material_max));
   std::vector<std::pair<std::string, double>> pairs;
   if (!ParseWeightList(flags.GetList("mutator-weights"), &pairs, error)) {
     return false;
@@ -1302,6 +1318,7 @@ bool FuzzConfig::Load(const Flags& flags, FuzzConfig* c, std::string* error,
   c->crash_minimizer.expressions_share =
       std::clamp(c->crash_minimizer.expressions_share, 0.0, 1.0);
   c->introspect_timeout_ms = std::max(1.0, c->introspect_timeout_ms);
+  c->material_max = std::max(0, c->material_max);
   if (!ValidateReducers(c->minimizer_reducers, "stages.minimize.reducers",
                         error) ||
       !ValidateReducers(c->crash_minimizer_reducers, "crash_minimizer.reducers",
@@ -1394,6 +1411,8 @@ std::string FuzzConfig::ToJson(Detail detail) const {
   o.Add("out_dir", out_dir);
   o.AddArray("imports", imports);
   o.Add("import_root", import_root);
+  o.AddArray("material_paths", material_paths);
+  o.Add("material_max", material_max);
   o.Add("duration_sec", duration_sec);
   o.Add("max_execs", static_cast<uint64_t>(max_execs));
   o.Add("stats_interval_sec", stats_interval_sec);
@@ -1552,6 +1571,7 @@ std::string FuzzConfig::JsonHelp() {
       "\"redline-out\",\n"
       "    \"imports\": [\"test/mjsunit\"], \"import_root\": \".\", "
       "\"prelude\": \"default\",\n"
+      "    \"material_paths\": [], \"material_max\": 20000,\n"
       "    \"duration_sec\": 0, \"max_execs\": 0, \"stats_interval_sec\": 30,\n"
       "    \"introspect\": true, \"introspect_timeout_ms\": 20000,\n"
       "    \"syntax_check\": false,           // parse mutants in-process "

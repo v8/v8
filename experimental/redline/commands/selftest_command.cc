@@ -27,6 +27,7 @@
 #include <initializer_list>
 #include <iterator>
 #include <map>
+#include <memory>
 #include <set>
 #include <thread>
 
@@ -34,6 +35,7 @@
 #include "experimental/redline/base/flags.h"
 #include "experimental/redline/base/log.h"
 #include "experimental/redline/base/time_util.h"
+#include "experimental/redline/base/v8_runtime.h"
 #include "experimental/redline/commands/command.h"
 #include "experimental/redline/commands/flags_command.h"
 #include "experimental/redline/commands/selftest_checker.h"
@@ -44,6 +46,7 @@
 #include "experimental/redline/core/tunable.h"
 #include "experimental/redline/corpus/corpus.h"
 #include "experimental/redline/corpus/feature_weights.h"
+#include "experimental/redline/corpus/material.h"
 #include "experimental/redline/engine/amplifier.h"
 #include "experimental/redline/engine/config.h"
 #include "experimental/redline/engine/crash.h"
@@ -3409,6 +3412,420 @@ void RunTestFlagChecks(Checker* checker) {
       pinned_ok, StringPrintf("%zu spawn results", results.size()));
 }
 
+void RunMaterialChecks(Checker* checker) {
+  std::string v8_err;
+  // V8 initializes only once per process. Use the default fuzz flags so that
+  // later checks that need `--allow-natives-syntax` still work.
+  const bool v8_ok = InitializeV8(FuzzConfig().v8_flags, &v8_err);
+  checker->Check("material: initialize V8 syntax checker", v8_ok, v8_err);
+  std::unique_ptr<SyntaxChecker> syntax;
+  if (v8_ok) {
+    syntax = std::make_unique<SyntaxChecker>();
+  }
+  auto v8_accepts = [&](const std::string& source, std::string* message) {
+    return syntax != nullptr && syntax->Accepts(source, message);
+  };
+
+  // 1. Repeatable `--material` flags and JSON config roundtrip.
+  {
+    const char* argv[] = {"redline", "fuzz", "--material=/tmp/m1",
+                          "--material=/tmp/m2,/tmp/m3", "--material-max=42"};
+    Flags flags = Flags::Parse(5, argv, 2);
+    FuzzConfig config;
+    std::string error;
+    const bool loaded =
+        FuzzConfig::Load(flags, &config, &error, /*for_run=*/false);
+    const std::vector<std::string> expected_paths = {"/tmp/m1", "/tmp/m2",
+                                                     "/tmp/m3"};
+    JsonValue json;
+    FuzzConfig reloaded;
+    const bool dumped_ok = loaded &&
+                           JsonValue::Parse(config.ToJson(), &json, &error) &&
+                           FuzzConfig::LoadJsonForTest(json, &reloaded, &error);
+    checker->Check(
+        "material: repeatable --material flags and config keys roundtrip",
+        dumped_ok && config.material_paths == expected_paths &&
+            config.material_max == 42 &&
+            reloaded.material_paths == expected_paths &&
+            reloaded.material_max == 42,
+        error);
+    TunableRegistry::Instance().Reset();
+  }
+
+  // Repeated flags: the last value wins for scalar getters, `ToString` keeps
+  // all values.
+  {
+    const char* argv[] = {"redline",  "fuzz", "--name=a",
+                          "--name=b", "--on", "--no-on"};
+    Flags flags = Flags::Parse(6, argv, 2);
+    const std::string rendered = flags.ToString();
+    checker->Check(
+        "material: repeated flags keep the last value and render all values",
+        flags.GetString("name") == "b" && !flags.GetBool("on", true) &&
+            rendered == "--name=a --name=b --on=true --on=false",
+        rendered);
+  }
+
+  // 2. Loading, ClusterFuzz filters, `128` KB cap, and deterministic reservoir.
+  char dir_template[] = "/tmp/redline-material.XXXXXX";
+  if (mkdtemp(dir_template) == nullptr) {
+    checker->Check("material: create a temporary directory", false,
+                   strerror(errno));
+    return;
+  }
+  const std::string dir = dir_template;
+  std::string err;
+  const bool dirs_ok =
+      MakeDirectories(dir + "/bank/sqlite", &err) &&
+      MakeDirectories(dir + "/bank/embenchen", &err) &&
+      MakeDirectories(dir + "/bank/poppler", &err) &&
+      MakeDirectories(dir + "/bank/test262/safe", &err) &&
+      MakeDirectories(dir + "/bank/test262/early-errors", &err) &&
+      MakeDirectories(dir + "/bank/v8/test/inspector", &err) &&
+      MakeDirectories(dir + "/bank/v8/test/mjsunit/tools", &err) &&
+      MakeDirectories(dir + "/bank/v8/test/mjsunit/d8/cwd", &err) &&
+      MakeDirectories(dir + "/bank/v8/test/message", &err) &&
+      MakeDirectories(dir + "/bank/mozilla/data/e4x", &err) &&
+      MakeDirectories(dir + "/bank/root/test", &err) &&
+      MakeDirectories(dir + "/reservoir", &err);
+
+  const std::string ok_prefix = "var ok = 1;\n";
+  const std::string big_prefix = "var big = 1;\n";
+  const std::string pad_ok(MaterialBank::kMaxFileBytes - 1 - ok_prefix.size(),
+                           ' ');
+  const std::string pad_big(MaterialBank::kMaxFileBytes - big_prefix.size(),
+                            ' ');
+  bool files_ok = dirs_ok;
+  auto write_file = [&](const std::string& rel, const std::string& body) {
+    files_ok = files_ok && WriteStringToFile(dir + rel, body, &err);
+  };
+  // 5 kept files (including a safe `test262` file outside skipped directories).
+  write_file("/bank/keep.js", "var mat_keep = 1;\n");
+  write_file("/bank/size_ok.js", ok_prefix + pad_ok);
+  write_file("/bank/root/test/helper.js",
+             "function helperFromRoot() { return 7; }\n");
+  write_file("/bank/load_user.js",
+             "load(\"test/helper.js\");\nhelperFromRoot();\n");
+  write_file("/bank/good_flags.js",
+             "// Flags: --harmony-shipping --js-staging "
+             "--allow-natives-syntax\nvar flagged = 1;\n");
+  write_file("/bank/test262/safe/a.js", "var t262_safe = 1;\n");
+  // 27 skipped entries (names, directories, size cap, flags, module, empty).
+  write_file("/bank/d8-os.js", "var s = 1;\n");
+  write_file("/bank/unicode-test.js", "var s = 1;\n");
+  write_file("/bank/modules_a.js", "var s = 1;\n");
+  write_file("/bank/regexp-property-a.js", "var s = 1;\n");
+  write_file("/bank/foozzie-a.js", "var s = 1;\n");
+  write_file("/bank/numops-fuzz-part1.js", "var s = 1;\n");
+  write_file("/bank/d8-finalization-registry-quit.js", "var s = 1;\n");
+  write_file("/bank/regress-444805.js", "var s = 1;\n");
+  write_file("/bank/sqlite/a.js", "var s = 1;\n");
+  write_file("/bank/embenchen/a.js", "var s = 1;\n");
+  write_file("/bank/poppler/a.js", "var s = 1;\n");
+  write_file("/bank/test262/early-errors/b.js", "var t262_early = 1;\n");
+  write_file("/bank/v8/test/inspector/a.js", "var s = 1;\n");
+  write_file("/bank/v8/test/mjsunit/tools/a.js", "var s = 1;\n");
+  write_file("/bank/v8/test/mjsunit/d8/cwd/a.js", "var s = 1;\n");
+  write_file("/bank/v8/test/message/a.js", "var s = 1;\n");
+  write_file("/bank/mozilla/data/e4x/a.js", "var s = 1;\n");
+  write_file("/bank/too_big.js", "var big = 1;\n" + pad_big);
+  write_file("/bank/flag_sandbox.js",
+             "// Flags: --sandbox-testing\nvar s = 1;\n");
+  write_file("/bank/flag_fuzzing.js",
+             "// Flags: --sandbox-fuzzing\nvar s = 1;\n");
+  write_file("/bank/flag_trigger.js",
+             "// Flags: --expose-trigger-failure\nvar s = 1;\n");
+  write_file("/bank/flag_harmony.js",
+             "// Flags: --harmony-weak-refs\nvar s = 1;\n");
+  write_file("/bank/flag_js.js", "// Flags: --js-decorators\nvar s = 1;\n");
+  write_file("/bank/module_header.js", "// MODULE\nvar s = 1;\n");
+  write_file("/bank/flag_mjs.js", "// Flags: foo.mjs\nvar s = 1;\n");
+  write_file("/bank/flag_module.js", "// Flags: --module\nvar s = 1;\n");
+  write_file("/bank/empty_body.js", "// Only a comment.\n");
+  // 1 parse error.
+  write_file("/bank/syntax_error.js", "function ( {}\n");
+
+  MaterialBank bank;
+  MaterialBank::Options opts;
+  opts.paths = {dir + "/bank/keep.js",
+                dir + "/bank/size_ok.js",
+                dir + "/bank/load_user.js",
+                dir + "/bank/good_flags.js",
+                dir + "/bank/d8-os.js",
+                dir + "/bank/unicode-test.js",
+                dir + "/bank/modules_a.js",
+                dir + "/bank/regexp-property-a.js",
+                dir + "/bank/foozzie-a.js",
+                dir + "/bank/numops-fuzz-part1.js",
+                dir + "/bank/d8-finalization-registry-quit.js",
+                dir + "/bank/regress-444805.js",
+                dir + "/bank/sqlite",
+                dir + "/bank/embenchen",
+                dir + "/bank/poppler",
+                dir + "/bank/test262",
+                dir + "/bank/v8/test/inspector",
+                dir + "/bank/v8/test/mjsunit/tools",
+                dir + "/bank/v8/test/mjsunit/d8/cwd",
+                dir + "/bank/v8/test/message",
+                dir + "/bank/mozilla/data/e4x",
+                dir + "/bank/too_big.js",
+                dir + "/bank/flag_sandbox.js",
+                dir + "/bank/flag_fuzzing.js",
+                dir + "/bank/flag_trigger.js",
+                dir + "/bank/flag_harmony.js",
+                dir + "/bank/flag_js.js",
+                dir + "/bank/module_header.js",
+                dir + "/bank/flag_mjs.js",
+                dir + "/bank/flag_module.js",
+                dir + "/bank/empty_body.js",
+                dir + "/bank/syntax_error.js"};
+  opts.import_root = dir + "/bank/root";
+  opts.max_programs = 100;
+  opts.seed = 42;
+  const MaterialBank::LoadStats stats = bank.Load(opts);
+  bool inlined_helper = false;
+  bool loaded_safe_t262 = false;
+  bool loaded_early_t262 = false;
+  for (const ProgramPtr& p : bank.programs()) {
+    if (p->source().find("helperFromRoot") != std::string::npos &&
+        p->source().find("return 7") != std::string::npos) {
+      inlined_helper = true;
+    }
+    if (p->source().find("t262_safe") != std::string::npos) {
+      loaded_safe_t262 = true;
+    }
+    if (p->source().find("t262_early") != std::string::npos) {
+      loaded_early_t262 = true;
+    }
+  }
+  Random pick_rng(7);
+  ProgramPtr picked = bank.Pick(pick_rng);
+  checker->Check(
+      "material: MaterialBank applies filters, size cap, flags, and inlining",
+      files_ok && stats.scanned == 33 && stats.loaded == 5 &&
+          stats.skipped == 27 && stats.errors == 1 && bank.size() == 5 &&
+          inlined_helper && loaded_safe_t262 && !loaded_early_t262 &&
+          picked != nullptr,
+      StringPrintf("scanned=%zu loaded=%zu skipped=%zu errors=%zu",
+                   stats.scanned, stats.loaded, stats.skipped, stats.errors));
+
+  // Deterministic reservoir sampling cap.
+  for (int i = 0; i < 10; i++) {
+    write_file(StringPrintf("/reservoir/f%02d.js", i),
+               StringPrintf("let item_%d = %d;\n", i, i));
+  }
+  MaterialBank res_a, res_b, res_c;
+  MaterialBank::Options res_opts;
+  res_opts.paths = {dir + "/reservoir"};
+  res_opts.max_programs = 4;
+  res_opts.seed = 1337;
+  res_a.Load(res_opts);
+  res_b.Load(res_opts);
+  res_opts.seed = 9999;
+  res_c.Load(res_opts);
+  bool match_ab = res_a.size() == 4 && res_b.size() == 4;
+  if (match_ab) {
+    for (size_t i = 0; i < 4; i++) {
+      if (res_a.programs()[i]->source() != res_b.programs()[i]->source()) {
+        match_ab = false;
+      }
+    }
+  }
+  bool diff_ac = res_c.size() == 4;
+  if (diff_ac) {
+    bool same = true;
+    for (size_t i = 0; i < 4; i++) {
+      if (res_a.programs()[i]->source() != res_c.programs()[i]->source()) {
+        same = false;
+      }
+    }
+    diff_ac = !same;
+  }
+  checker->Check("material: reservoir sampling caps and is deterministic",
+                 match_ab && diff_ac, "");
+
+  // 3. IIFE unwrapping of safe and unsafe IIFEs.
+  {
+    std::string safe_src =
+        "outerRef();\n"
+        "(function() { function innerFn() { return 1; } let x = innerFn(); "
+        "function outerRef() {} })();\n"
+        "(() => { const x = 2; })();\n";
+    fast::ParseError perr;
+    std::unique_ptr<fast::Tree> safe_tree =
+        fast::Parser::ParseScript(safe_src, fast::ParseOptions(), &perr);
+    const bool unwrapped =
+        safe_tree != nullptr && UnwrapTopLevelIIFEs(safe_tree.get());
+    bool no_top_call = safe_tree != nullptr;
+    if (safe_tree != nullptr) {
+      for (const fast::Statement* s : safe_tree->root()->body) {
+        if (auto* es = s->As<fast::ExpressionStatement>()) {
+          if (es->expression != nullptr &&
+              es->expression->Is<fast::CallExpression>() &&
+              es->expression->Cast<fast::CallExpression>()->callee != nullptr &&
+              (es->expression->Cast<fast::CallExpression>()
+                   ->callee->Is<fast::FunctionExpression>() ||
+               es->expression->Cast<fast::CallExpression>()
+                   ->callee->Is<fast::ArrowFunctionExpression>())) {
+            no_top_call = false;
+          }
+        }
+      }
+    }
+    const std::string printed =
+        safe_tree != nullptr ? fast::Print(safe_tree->root()) : "";
+    std::string v8_msg;
+    const bool v8_valid = safe_tree != nullptr && v8_accepts(printed, &v8_msg);
+    const bool fast_valid =
+        fast::Parser::ParseScript(printed, fast::ParseOptions(), &perr) !=
+        nullptr;
+    checker->Check("material: UnwrapTopLevelIIFEs unwraps safe IIFEs cleanly",
+                   unwrapped && no_top_call && v8_valid && fast_valid,
+                   v8_valid ? perr.ToString() : v8_msg);
+
+    const char* unsafe_cases[] = {
+        "(function() { return 1; })();",
+        "(function() { arguments[0]; })();",
+        "(function() { this.x = 1; })();",
+        "(() => { this.x = 1; })();",
+        "(function(a) { let x = a; })(1);",
+        "(async function() { let x = 1; })();",
+        "(function*() { yield 1; })();",
+        "(function self() { self; })();",
+        "(function() { \"use strict\"; let z = 1; })();",
+        "(function() { using u = null; })();",
+        "(function() { class C { [new.target] = 1; } })();",
+    };
+    bool all_kept = true;
+    std::string failed_case;
+    for (const char* src : unsafe_cases) {
+      fast::ParseError uerr;
+      std::unique_ptr<fast::Tree> utree =
+          fast::Parser::ParseScript(src, fast::ParseOptions(), &uerr);
+      if (utree == nullptr || UnwrapTopLevelIIFEs(utree.get())) {
+        all_kept = false;
+        failed_case = src;
+        break;
+      }
+    }
+    checker->Check(
+        "material: UnwrapTopLevelIIFEs keeps return, arguments, this, param, "
+        "using and computed new.target IIFEs intact",
+        all_kept, failed_case);
+  }
+
+  // 4. `FusePrograms` merges 2 or 3 colliding donors safely.
+  {
+    std::string parse_err;
+    ProgramPtr d1 = Program::Parse(
+        "(function() { function helper(v) { return v + 1; } "
+        "let x = helper(10); const k = 1; class Box { v() { return x; } } "
+        "throw new Error(\"boom\"); })();\n",
+        Lineage{}, &parse_err);
+    ProgramPtr d2 = Program::Parse(
+        "function helper(z) { return z * 2; }\n"
+        "let x = helper(5);\nconst k = 2;\nclass Box {}\n"
+        "const {a, b: c} = {a: 3, b: 4};\n"
+        "var ok_var = x + k + a + c;\n",
+        Lineage{}, &parse_err);
+    ProgramPtr d3 = Program::Parse(
+        "(() => { let x = 99; const k = 3; function helper() { return x; } "
+        "helper(); })();\n",
+        Lineage{}, &parse_err);
+
+    checker->Check("material: FusePrograms returns nullptr on empty donors",
+                   FusePrograms({}, "") == nullptr, "");
+
+    ProgramPtr fused2 = FusePrograms({d1, d2}, "2 donors");
+    ProgramPtr fused3 = FusePrograms({d1, d2, d3}, "3 donors");
+    bool has_top_fn = false;
+    bool has_top_class = false;
+    bool has_top_let = false;
+    bool has_try = false;
+    if (fused3 != nullptr) {
+      for (const fast::Statement* s : fused3->tree().root()->body) {
+        if (s->Is<fast::FunctionDeclaration>()) {
+          has_top_fn = true;
+        } else if (s->Is<fast::ClassDeclaration>()) {
+          has_top_class = true;
+        } else if (s->Is<fast::VariableDeclaration>() &&
+                   s->Cast<fast::VariableDeclaration>()->declaration_kind ==
+                       fast::VariableKind::kLet) {
+          has_top_let = true;
+        } else if (s->Is<fast::TryStatement>()) {
+          has_try = true;
+        }
+      }
+    }
+    fast::ParseError reerr2, reerr3;
+    std::string v8_msg2, v8_msg3;
+    const bool ok2 =
+        fused2 != nullptr && fused2->lineage().origin == "Fuse" &&
+        fast::Parser::ParseScript(fused2->source(), fast::ParseOptions(),
+                                  &reerr2) != nullptr &&
+        v8_accepts(fused2->source(), &v8_msg2);
+    const bool ok3 =
+        fused3 != nullptr && fused3->lineage().origin == "Fuse" &&
+        fused3->lineage().detail == "3 donors" && has_top_fn && has_top_class &&
+        has_top_let && has_try &&
+        fast::Parser::ParseScript(fused3->source(), fast::ParseOptions(),
+                                  &reerr3) != nullptr &&
+        v8_accepts(fused3->source(), &v8_msg3);
+    checker->Check(
+        "material: FusePrograms merges 2 and 3 donors with valid syntax",
+        ok2 && ok3,
+        !ok2 ? (v8_msg2.empty() ? reerr2.ToString() : v8_msg2)
+             : (v8_msg3.empty() ? reerr3.ToString() : v8_msg3));
+  }
+
+  // 5. `FusePrograms` keeps `using` in a block and runs class definitions that
+  // can throw inside `try {} catch {}`.
+  {
+    std::string parse_err;
+    ProgramPtr using_donor =
+        Program::Parse("(function() { using u = null; let w = 1; })();\n",
+                       Lineage{}, &parse_err);
+    ProgramPtr class_donor = Program::Parse(
+        "class Base {}\n"
+        "class Derived extends Base { static s = missing(); }\n"
+        "class Keyed { [Symbol.iterator]() {} }\n"
+        "class Plain { m() { return Plain; } }\n"
+        "new Derived();\n",
+        Lineage{}, &parse_err);
+    ProgramPtr empty_donor = Program::Parse(";\n", Lineage{}, &parse_err);
+    ProgramPtr fused = FusePrograms({using_donor, class_donor}, "isolation");
+    std::vector<std::string_view> top_classes;
+    bool has_top_using = false;
+    if (fused != nullptr) {
+      for (const fast::Statement* s : fused->tree().root()->body) {
+        if (auto* cls = s->As<fast::ClassDeclaration>()) {
+          top_classes.push_back(cls->name->name);
+        } else if (auto* vd = s->As<fast::VariableDeclaration>()) {
+          has_top_using =
+              has_top_using ||
+              vd->declaration_kind == fast::VariableKind::kUsing ||
+              vd->declaration_kind == fast::VariableKind::kAwaitUsing;
+        }
+      }
+    }
+    std::string v8_msg;
+    const bool valid = fused != nullptr && v8_accepts(fused->source(), &v8_msg);
+    const std::vector<std::string_view> expected_classes = {"Base", "Plain"};
+    const bool ok = valid && !has_top_using &&
+                    top_classes == expected_classes &&
+                    FusePrograms({empty_donor}, "empty") == nullptr;
+    std::string detail;
+    if (!ok) {
+      detail = fused != nullptr ? fused->source() + v8_msg : parse_err;
+    }
+    checker->Check(
+        "material: FusePrograms isolates using and throwing class definitions",
+        ok, detail);
+  }
+
+  RemoveTree(dir);
+}
+
 int RunSelftest(const Flags& flags) {
   Checker checker;
   std::string error;
@@ -3428,6 +3845,7 @@ int RunSelftest(const Flags& flags) {
   RunImportChecks(&checker);
   RunSalvageChecks(&checker);
   RunTestFlagChecks(&checker);
+  RunMaterialChecks(&checker);
   RunAmplifiedTestChecks(&checker);
   RunBundleStepChecks(&checker);
   RunNodeKindChecks(&checker);

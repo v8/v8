@@ -24,6 +24,9 @@ bool MakeDirectories(const std::string& path, std::string* error);
 
 bool IsDirectory(const std::string& path);
 bool FileExists(const std::string& path);
+// Stores the byte size of regular file `path` in `size`. Returns false on
+// error.
+bool FileSize(const std::string& path, size_t* size);
 
 // Lists regular files below `directory` (recursively, following symlinks)
 // whose names end with `suffix`, sorted by path. If `directory` is a matching

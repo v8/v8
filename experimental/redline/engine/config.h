@@ -55,8 +55,11 @@ struct FuzzConfig {
   std::string out_dir = "redline-out";
   std::vector<std::string> imports;  // .js files or directories
   std::string import_root;  // base for load("...") paths (default: cwd)
-  double duration_sec = 0;  // 0: until interrupted
-  uint64_t max_execs = 0;   // 0: unlimited
+  std::vector<std::string>
+      material_paths;        // unexecuted donor directories or files
+  int material_max = 20000;  // maximum programs in `MaterialBank`
+  double duration_sec = 0;   // 0: until interrupted
+  uint64_t max_execs = 0;    // 0: unlimited
   double stats_interval_sec = 30;
   bool component_stats = true;  // per-mutator/generator tables with the stats
   bool save_corpus = true;

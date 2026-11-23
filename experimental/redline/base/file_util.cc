@@ -104,6 +104,15 @@ bool FileExists(const std::string& path) {
   return stat(path.c_str(), &st) == 0;
 }
 
+bool FileSize(const std::string& path, size_t* size) {
+  struct stat st{};
+  if (stat(path.c_str(), &st) != 0 || !S_ISREG(st.st_mode) || st.st_size < 0) {
+    return false;
+  }
+  *size = static_cast<size_t>(st.st_size);
+  return true;
+}
+
 namespace {
 
 bool EndsWith(const std::string& text, const std::string& suffix) {

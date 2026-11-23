@@ -19,6 +19,7 @@
 #include "experimental/redline/core/program.h"
 #include "experimental/redline/corpus/corpus.h"
 #include "experimental/redline/corpus/feature_weights.h"
+#include "experimental/redline/corpus/material.h"
 #include "experimental/redline/engine/amplifier.h"
 #include "experimental/redline/engine/config.h"
 #include "experimental/redline/engine/crash.h"
@@ -160,6 +161,8 @@ class Fuzzer {
   const FuzzConfig& config() const { return config_; }
   const FuzzerStats& stats() const { return stats_; }
   Corpus& corpus() { return *corpus_; }
+  const MaterialBank& material() const { return *material_; }
+  Component& fuse_component() { return fuse_component_; }
   SharedCoverage& coverage() { return coverage_; }
   MutatorSet& mutators() { return *mutators_; }
   GeneratorSet& generators() { return *generators_; }
@@ -304,6 +307,9 @@ class Fuzzer {
   std::mutex drawn_names_mutex_;
   std::set<std::string, std::less<>> drawn_names_;
   std::unique_ptr<Corpus> corpus_;
+  std::unique_ptr<MaterialBank> material_;
+  MaterialBank::LoadStats material_stats_;
+  Component fuse_component_{"Fuse"};
   std::unique_ptr<MutatorSet> mutators_;
   std::unique_ptr<GeneratorSet> generators_;
   std::unique_ptr<Minimizer> minimizer_;

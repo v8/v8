@@ -475,24 +475,32 @@ class Worker {
   // global counters, the verbose event, the capture and the mutant event.
   // Without the in-process syntax check the verdict comes from the target
   // (Execution::IsParseError()).
-  void CountInvalid(Mutator& mutator, const std::string& detail,
-                    uint32_t ancestor_id, const Program* parent,
-                    const std::string& source, const std::string& message) {
-    mutator.stats().invalid++;
+  void CountInvalid(ComponentStats& comp_stats, std::string_view origin,
+                    const std::string& detail, uint32_t ancestor_id,
+                    const Program* parent, const std::string& source,
+                    const std::string& message) {
+    comp_stats.invalid++;
     stats().invalid++;
     if (GetLogLevel() == LogLevel::kVerbose) {
       JsonObject event;
       event.Add("event", "invalid")
-          .Add("mutator", mutator.name())
+          .Add("mutator", origin)
           .Add("detail", detail);
       event.Add("error", message).Add("parent", ancestor_id).Add("worker", id_);
       fuzzer_->LogEvent(event);
     }
     JsonObject why;
     why.Add("error", message);
-    Capture(Stage::kMutate, CaptureTrigger::kInvalid, mutator.name(), parent,
-            source, why);
-    LogMutant(mutator, detail, ancestor_id, "invalid", nullptr, 0);
+    Capture(Stage::kMutate, CaptureTrigger::kInvalid, origin, parent, source,
+            why);
+    LogMutant(origin, detail, ancestor_id, "invalid", nullptr, 0);
+  }
+
+  void CountInvalid(Mutator& mutator, const std::string& detail,
+                    uint32_t ancestor_id, const Program* parent,
+                    const std::string& source, const std::string& message) {
+    CountInvalid(mutator.stats(), mutator.name(), detail, ancestor_id, parent,
+                 source, message);
   }
 
   // Feedback for the mutator strategy (core/selection.h). "interesting"
@@ -681,24 +689,22 @@ class Worker {
     return out;
   }
 
-  // --- fuzzing ----------------------------------------------------------
-
-  void FuzzOne() {
-    MaybeRespawnForTargets();
-    Corpus& corpus = fuzzer_->corpus();
-    Stopwatch pick_time;
-    ProgramPtr parent = PickSeed(corpus);
-    bool from_empty = false;
-    if (parent == nullptr ||
+  // Builds and executes a `Fuse` root merging 2 or 3 donors. Returns true when
+  // execution succeeded so the chain can continue from `*parent_out`.
+  bool RunFuseRoot(Corpus& corpus, ProgramPtr* parent_out,
+                   ProgramPtr* ancestor_out, int* chain_out) {
+    Stopwatch pick_timer;
+    ProgramPtr seed = PickSeed(corpus);
+    bool from_empty =
+        seed == nullptr ||
         (corpus.size() < static_cast<size_t>(config().initial_programs) &&
-         rng_.Coin())) {
-      parent = fuzzer_->empty_program_;
-      from_empty = true;
-    }
+         rng_.Coin());
+    ProgramPtr parent = from_empty ? fuzzer_->empty_program_ : seed;
+    const uint32_t ancestor_id = parent->id;
     {
       StageStats& st = stage(Stage::kPick);
       st.invocations++;
-      st.time_us += pick_time.ElapsedUs();
+      st.time_us += pick_timer.ElapsedUs();
       if (!from_empty) {
         st.successes++;
       }
@@ -710,64 +716,264 @@ class Worker {
         fuzzer_->LogEvent(event);
       }
     }
-    // The corpus program the chain of consecutive mutations started from
-    // (the scheduler's feedback and the lineage refer to it), and the
-    // number of mutations applied since.
-    ProgramPtr ancestor = parent;
+
+    const size_t donor_count = rng_.Coin() ? 2u : 3u;
+    std::vector<ProgramPtr> donors;
+    donors.reserve(donor_count);
+    if (!from_empty) {
+      donors.push_back(seed);
+    }
+    const MaterialBank& bank = fuzzer_->material();
+    const size_t need_material = donor_count - (from_empty ? 0u : 1u);
+    while (donors.size() < donor_count) {
+      ProgramPtr picked;
+      for (int attempt = 0; attempt < 4; attempt++) {
+        ProgramPtr cand = bank.Pick(rng_);
+        if (cand == nullptr) {
+          break;
+        }
+        bool seen = std::any_of(donors.begin(), donors.end(),
+                                [&](const ProgramPtr& existing) {
+                                  return existing.get() == cand.get();
+                                });
+        if (!seen || bank.size() < need_material) {
+          picked = std::move(cand);
+          break;
+        }
+      }
+      if (picked == nullptr) {
+        picked = bank.Pick(rng_);
+      }
+      if (picked == nullptr) {
+        break;
+      }
+      donors.push_back(std::move(picked));
+    }
+    if (donors.empty()) {
+      return false;
+    }
+
+    const size_t mat_count = donors.size() - (from_empty ? 0u : 1u);
+    std::string detail =
+        StringPrintf("%zu donors (%zu material)", donors.size(), mat_count);
+    Lineage lineage;
+    lineage.origin = "Fuse";
+    lineage.detail = detail;
+    lineage.parent_hash = parent->hash();
+    lineage.parent_id = ancestor_id;
+    lineage.chain = ancestor_id != 0 ? 1 : 0;
+    lineage.generation = parent->lineage().generation + 1;
+    lineage.worker = id_;
+
+    Stopwatch mutation_timer;
+    Stopwatch stage_timer;
+    StageStats& mutate_stage = stage(Stage::kMutate);
+    mutate_stage.invocations++;
+    ComponentStats& fuse_stats = fuzzer_->fuse_component().stats();
+    fuse_stats.invocations++;
+    const uint64_t spent_before = executions_;
+    const ScopeExit credit_spent(
+        [&] { fuse_stats.spent += executions_ - spent_before; });
+    std::shared_ptr<Program> fused = FusePrograms(donors, std::move(lineage));
+    stats().mutation_time_us += mutation_timer.ElapsedUs();
+    if (fused == nullptr) {
+      stats().noop++;
+      mutate_stage.time_us += stage_timer.ElapsedUs();
+      Capture(Stage::kMutate, CaptureTrigger::kNoop, "Fuse", parent.get(), "",
+              JsonObject());
+      LogMutant("Fuse", detail, ancestor_id, "noop", nullptr, 0);
+      return false;
+    }
+    fuse_stats.produced++;
+
+    std::string message;
+    if (config().syntax_check &&
+        !checker_->Accepts(fused->source(), &message)) {
+      CountInvalid(fuse_stats, "Fuse", detail, ancestor_id, parent.get(),
+                   fused->source(), message);
+      mutate_stage.time_us += stage_timer.ElapsedUs();
+      return false;
+    }
+    Execution exec;
+    if (!Execute(fused->source(), &exec)) {
+      return false;
+    }
+    if (!config().syntax_check && exec.IsParseError()) {
+      CountInvalid(fuse_stats, "Fuse", detail, ancestor_id, parent.get(),
+                   fused->source(), exec.ExceptionSignature());
+      mutate_stage.time_us += stage_timer.ElapsedUs();
+      return false;
+    }
+    Account(fuse_stats, exec);
+    AccountFuzzExecution(exec);
+    stats().fuzz_nodes += fused->node_count();
+    mutate_stage.executions++;
+    mutate_stage.exec_time_us += exec.exec_time_us;
+    mutate_stage.time_us += stage_timer.ElapsedUs();
+    if (exec.outcome == Outcome::kTimedOut) {
+      mutate_stage.timeouts++;
+      Capture(Stage::kMutate, CaptureTrigger::kTimeout, "Fuse", parent.get(),
+              fused->source(), JsonObject());
+    } else if (exec.outcome == Outcome::kFailed) {
+      Capture(Stage::kMutate, CaptureTrigger::kFailed, "Fuse", parent.get(),
+              fused->source(), JsonObject());
+    } else if (exec.outcome == Outcome::kCrashed) {
+      Capture(Stage::kMutate, CaptureTrigger::kCrash, "Fuse", parent.get(),
+              fused->source(), JsonObject());
+    }
+
+    switch (exec.outcome) {
+      case Outcome::kSucceeded: {
+        std::vector<uint32_t> claimed =
+            fuzzer_->coverage_.ClaimNewEdges(runner_->coverage().bitmap());
+        fuzzer_->KeepFocused(&claimed);
+        ProgramPtr added;
+        size_t new_edges = claimed.size();
+        if (!claimed.empty()) {
+          stats().candidates++;
+          mutate_stage.successes++;
+          JsonObject why;
+          why.Add("new_edges", static_cast<uint64_t>(new_edges));
+          Capture(Stage::kMutate, CaptureTrigger::kInteresting, "Fuse",
+                  parent.get(), fused->source(), why);
+          added = Commit(fused, std::move(claimed), exec, config().minimize,
+                         nullptr, config().min_reruns, &fuse_stats);
+          if (added != nullptr) {
+            child_new_edges_ += added->edges.size();
+          }
+        }
+        LogMutant("Fuse", detail, ancestor_id, OutcomeName(exec.outcome), &exec,
+                  new_edges);
+        if (ancestor_id != 0) {
+          corpus.OnResult(*parent, added != nullptr);
+        }
+        *parent_out = fused;
+        if (added != nullptr) {
+          *ancestor_out = added;
+          *chain_out = 0;
+        } else {
+          *ancestor_out = std::move(parent);
+          *chain_out = ancestor_id != 0 ? 1 : 0;
+        }
+        return true;
+      }
+      case Outcome::kCrashed: {
+        LogMutant("Fuse", detail, ancestor_id, OutcomeName(exec.outcome), &exec,
+                  0);
+        ProcessCrash(fused->source(), *fused, exec, fused->lineage());
+        return false;
+      }
+      case Outcome::kFailed:
+      case Outcome::kTimedOut:
+        LogMutant("Fuse", detail, ancestor_id, OutcomeName(exec.outcome), &exec,
+                  0);
+        if (ancestor_id != 0) {
+          corpus.OnResult(*parent, false);
+        }
+        return false;
+    }
+    return false;
+  }
+
+  // --- fuzzing ----------------------------------------------------------
+
+  void FuzzOne() {
+    MaybeRespawnForTargets();
+    Corpus& corpus = fuzzer_->corpus();
+    const bool has_material = !fuzzer_->material().empty();
+    ProgramPtr parent;
+    ProgramPtr ancestor;
     int chain = 0;
     const Environment& env = *fuzzer_->env_;
     MutatorSet& mutators = fuzzer_->mutators();
     GeneratorSet& generators = fuzzer_->generators();
+    int scratch_links = 0;
 
-    // Fresh values at the top of the parent give every mutation of the chain
-    // something new to work with (Fuzzilli's buildPrefix()). The prefix is
-    // not a mutation of its own: it is only executed as part of the first
-    // child, and the minimizer drops whatever ends up unused. The empty
-    // program gets a prefix too, unless `prefix_from_scratch` is false.
-    if ((!from_empty || config().prefix_from_scratch) &&
-        config().value_prefix && fuzzer_->prefix_mutator_ != nullptr) {
-      Stopwatch prefix_time;
-      std::string detail;
-      std::unique_ptr<fast::Tree> prefixed =
-          ApplyMutation(*fuzzer_->prefix_mutator_, *parent, nullptr, rng_, env,
-                        generators, 1, &detail);
-      StageStats& st = stage(Stage::kPrefix);
-      st.invocations++;
-      st.time_us += prefix_time.ElapsedUs();
-      if (prefixed != nullptr) {
-        st.successes++;
-        std::shared_ptr<Program> with_prefix =
-            Program::FromTree(std::move(prefixed), parent->lineage());
-        with_prefix->flags = parent->flags;
-        parent = std::move(with_prefix);
-      } else {
-        Capture(Stage::kPrefix, CaptureTrigger::kNoop, "Prefix", parent.get(),
-                "", JsonObject());
+    if (has_material && rng_.Chance(MaterialFuseChance())) {
+      if (!RunFuseRoot(corpus, &parent, &ancestor, &chain)) {
+        return;
       }
-      if (config().stage(Stage::kPrefix).events) {
-        JsonObject event;
-        event.Add("event", "prefix")
-            .Add("worker", id_)
-            .Add("program", ancestor->id);
-        event.Add("applied", prefixed != nullptr).Add("detail", detail);
-        fuzzer_->LogEvent(event);
+    } else {
+      Stopwatch pick_time;
+      parent = PickSeed(corpus);
+      bool from_empty = false;
+      if (parent == nullptr ||
+          (corpus.size() < static_cast<size_t>(config().initial_programs) &&
+           rng_.Coin())) {
+        parent = fuzzer_->empty_program_;
+        from_empty = true;
+      }
+      {
+        StageStats& st = stage(Stage::kPick);
+        st.invocations++;
+        st.time_us += pick_time.ElapsedUs();
+        if (!from_empty) {
+          st.successes++;
+        }
+        if (config().stage(Stage::kPick).events) {
+          JsonObject event;
+          event.Add("event", "pick")
+              .Add("worker", id_)
+              .Add("program", from_empty ? 0u : parent->id);
+          fuzzer_->LogEvent(event);
+        }
+      }
+      // Track the starting corpus seed for scheduler feedback and lineage.
+      ancestor = parent;
+
+      // Prepend non-throwing value declarations to seed the mutation chain.
+      if ((!from_empty || config().prefix_from_scratch) &&
+          config().value_prefix && fuzzer_->prefix_mutator_ != nullptr) {
+        Stopwatch prefix_time;
+        std::string detail;
+        std::unique_ptr<fast::Tree> prefixed =
+            ApplyMutation(*fuzzer_->prefix_mutator_, *parent, nullptr, rng_,
+                          env, generators, 1, &detail);
+        StageStats& st = stage(Stage::kPrefix);
+        st.invocations++;
+        st.time_us += prefix_time.ElapsedUs();
+        if (prefixed != nullptr) {
+          st.successes++;
+          std::shared_ptr<Program> with_prefix =
+              Program::FromTree(std::move(prefixed), parent->lineage());
+          with_prefix->flags = parent->flags;
+          parent = std::move(with_prefix);
+        } else {
+          Capture(Stage::kPrefix, CaptureTrigger::kNoop, "Prefix", parent.get(),
+                  "", JsonObject());
+        }
+        if (config().stage(Stage::kPrefix).events) {
+          JsonObject event;
+          event.Add("event", "prefix")
+              .Add("worker", id_)
+              .Add("program", ancestor->id);
+          event.Add("applied", prefixed != nullptr).Add("detail", detail);
+          fuzzer_->LogEvent(event);
+        }
+      }
+
+      if (from_empty) {
+        scratch_links = config().scratch_codegen_links;
       }
     }
 
-    // A chain from the empty program uses only CodeGen for its first
-    // `scratch_codegen_links` links that run without an error.
-    int scratch_links = from_empty ? config().scratch_codegen_links : 0;
     for (int round = 0; round < config().consecutive_mutations && !stopping();
          round++) {
-      Mutator* mutator = scratch_links > 0
-                             ? fuzzer_->codegen_mutator_
-                             : mutators.Pick(rng_, corpus.size() >= 2);
+      Mutator* mutator =
+          scratch_links > 0
+              ? fuzzer_->codegen_mutator_
+              : mutators.Pick(rng_, corpus.size() >= 2 || has_material);
       if (mutator == nullptr) {
         return;
       }
       ProgramPtr partner;
       if (mutator->needs_partner()) {
-        partner = corpus.PickPartner(*parent, rng_);
+        if (has_material &&
+            (corpus.size() < 2 || rng_.Chance(MaterialPartnerChance()))) {
+          partner = fuzzer_->material().Pick(rng_);
+        } else {
+          partner = corpus.PickPartner(*parent, rng_);
+        }
         if (partner == nullptr) {
           continue;
         }
@@ -1027,7 +1233,7 @@ class Worker {
 
   // One "mutant" event per executed (or dropped) mutation result when the
   // mutate stage logs events.
-  void LogMutant(const Mutator& mutator, const std::string& detail,
+  void LogMutant(std::string_view origin, const std::string& detail,
                  uint32_t parent_id, const char* outcome,
                  const Execution* execution, size_t new_edges) {
     if (!config().stage(Stage::kMutate).events) {
@@ -1036,7 +1242,7 @@ class Worker {
     JsonObject event;
     event.Add("event", "mutant")
         .Add("worker", id_)
-        .Add("origin", mutator.name())
+        .Add("origin", origin)
         .Add("detail", detail);
     event.Add("parent", parent_id).Add("outcome", outcome);
     if (execution != nullptr) {
@@ -1045,6 +1251,12 @@ class Worker {
     }
     event.Add("new_edges", static_cast<uint64_t>(new_edges));
     fuzzer_->LogEvent(event);
+  }
+
+  void LogMutant(const Mutator& mutator, const std::string& detail,
+                 uint32_t parent_id, const char* outcome,
+                 const Execution* execution, size_t new_edges) {
+    LogMutant(mutator.name(), detail, parent_id, outcome, execution, new_edges);
   }
 
   // Saves `parent` (if any) and `child` (if not empty) under
@@ -1132,7 +1344,8 @@ class Worker {
   ProgramPtr Commit(std::shared_ptr<Program> program,
                     std::vector<uint32_t> claimed,
                     const Execution& first_execution, bool minimize,
-                    Mutator* mutator, int min_reruns) {
+                    Mutator* mutator, int min_reruns,
+                    ComponentStats* credit_stats = nullptr) {
     FlagPin pin(runner_->child());
     SharedCoverage& shared = fuzzer_->coverage_;
     const bool claimed_was_empty = claimed.empty();
@@ -1418,10 +1631,14 @@ class Worker {
     }
     stats().corpus_added++;
     stats().corpus_nodes += program->node_count();
-    if (mutator != nullptr) {
-      mutator->stats().interesting++;
-      mutator->stats().new_edges += added->edges.size();
-      mutator->stats().new_targets += TargetFeatures(added->edges);
+    ComponentStats* credit =
+        credit_stats != nullptr
+            ? credit_stats
+            : (mutator != nullptr ? &mutator->stats() : nullptr);
+    if (credit != nullptr) {
+      credit->interesting++;
+      credit->new_edges += added->edges.size();
+      credit->new_targets += TargetFeatures(added->edges);
     }
     if (config().save_corpus) {
       fuzzer_->SaveCorpusProgram(*added);
@@ -3080,6 +3297,20 @@ bool Fuzzer::Initialize(std::string* error) {
   }
 
   CollectImports();
+  material_ = std::make_unique<MaterialBank>();
+  if (!config_.material_paths.empty()) {
+    MaterialBank::Options material_opts;
+    material_opts.paths = config_.material_paths;
+    material_opts.import_root = config_.import_root;
+    material_opts.max_programs =
+        static_cast<size_t>(std::max(0, config_.material_max));
+    material_opts.seed = config_.seed;
+    material_stats_ = material_->Load(material_opts);
+    REDLINE_LOG(kLog,
+                "material: %zu loaded, %zu skipped, %zu error(s) in %.1f ms",
+                material_stats_.loaded, material_stats_.skipped,
+                material_stats_.errors, material_stats_.elapsed_ms);
+  }
 
   // Coverage counters and change-based fuzzing: the targets become watched
   // edges.
@@ -3647,6 +3878,10 @@ std::string Fuzzer::ComponentTables(bool include_generators) const {
   }
   out += stages_.Format(enabled);
   out += FormatStatsTable("seeds", {&corpus_->seed_stats()});
+  if (material_ != nullptr &&
+      (!material_->empty() || fuse_component_.stats().invocations.load() > 0)) {
+    out += FormatStatsTable("material", {&fuse_component_});
+  }
   if (include_generators) {
     out += FormatStatsTable("generators", generators_->Components());
   }
@@ -3725,6 +3960,22 @@ void Fuzzer::WriteStatsEvent() {
     event.AddArray("blocked_flags", flag_blacklist_.Blocked());
   }
   event.AddRaw("stages", stages_.ToJson());
+  if (material_ != nullptr && !material_->empty()) {
+    ComponentStats::Snapshot fs = fuse_component_.stats().snapshot();
+    JsonObject fuse;
+    fuse.Add("invocations", fs.invocations)
+        .Add("produced", fs.produced)
+        .Add("invalid", fs.invalid)
+        .Add("executed", fs.executed)
+        .Add("succeeded", fs.succeeded)
+        .Add("failed", fs.failed)
+        .Add("timed_out", fs.timed_out)
+        .Add("crashed", fs.crashed)
+        .Add("interesting", fs.interesting)
+        .Add("new_edges", fs.new_edges)
+        .Add("spent", fs.spent);
+    event.AddRaw("fuse", fuse.ToString());
+  }
   LogEvent(event);
 }
 
@@ -3830,6 +4081,16 @@ int Fuzzer::Run() {
     } else if (geometry_.optimized_count != 0) {
       event.Add("optimized_features", geometry_.optimized_count);
     }
+    LogEvent(event);
+  }
+  if (!config_.material_paths.empty()) {
+    JsonObject event;
+    event.Add("event", "material_loaded")
+        .Add("scanned", static_cast<uint64_t>(material_stats_.scanned))
+        .Add("loaded", static_cast<uint64_t>(material_stats_.loaded))
+        .Add("skipped", static_cast<uint64_t>(material_stats_.skipped))
+        .Add("errors", static_cast<uint64_t>(material_stats_.errors))
+        .Add("elapsed_ms", material_stats_.elapsed_ms);
     LogEvent(event);
   }
   REDLINE_LOG(
