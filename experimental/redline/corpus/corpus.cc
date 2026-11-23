@@ -5,13 +5,15 @@
 #include "experimental/redline/corpus/corpus.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
-#include <queue>
+#include <deque>
 #include <unordered_map>
 
 #include "experimental/redline/base/log.h"
 #include "experimental/redline/base/time_util.h"
 #include "experimental/redline/corpus/feature_weights.h"
+#include "experimental/redline/fast/ast_visit.h"
 
 namespace redline {
 
@@ -200,42 +202,57 @@ class UniformPartners final : public ProgramSelector {
   int tries_;
 };
 
+// Returns true if `tree` contains a loop statement or a V8 native call.
+bool HasJitActivity(const fast::Tree& tree) {
+  if (tree.root() == nullptr) {
+    return false;
+  }
+  std::vector<fast::Node*> stack;
+  stack.push_back(tree.root());
+  while (!stack.empty()) {
+    fast::Node* node = stack.back();
+    stack.pop_back();
+    if (node == nullptr) {
+      continue;
+    }
+    switch (node->kind) {
+      case fast::NodeKind::kForStatement:
+      case fast::NodeKind::kWhileStatement:
+      case fast::NodeKind::kDoWhileStatement:
+      case fast::NodeKind::kForInStatement:
+      case fast::NodeKind::kForOfStatement:
+      case fast::NodeKind::kNativeCallExpression:
+        return true;
+      default:
+        break;
+    }
+    fast::ForEachChildSlot(node, [&](fast::Node** slot) {
+      if (*slot != nullptr) {
+        stack.push_back(*slot);
+      }
+    });
+  }
+  return false;
+}
+
 // --- rarity -----------------------------------------------------------------
 //
-// Fuzzilli's RarityCorpus (Sources/Fuzzilli/Corpus/RarityCorpus.swift), on
-// Redline's shared corpus (so it is also the --sharedCorpus variant):
+// Fuzzilli's RarityCorpus (`RarityCorpusState.swift`), adapted for Redline's
+// shared corpus:
 //
 //   energy(p) = rarity(p) / ((age(p) + 1)^age_exponent *
 //                            (1 + ln(size(p))^size_exponent) *
 //                            (1 + (exec_time_ms(p) /
 //                            time_unit_ms)^time_exponent))
-//   rarity(p) = sum over the tracked edges e of p with count(e) <
-//   rare_edge_limit
-//               (or IsTarget(e)) of w(e) / count(e)^rarity_exponent
+//   rarity(p) = sum over tracked edges `e` of `p` with `count(e) <
+//   rare_edge_limit` (or `IsTarget(e)`) of `w(e) / count(e)^rarity_exponent`
 //
-// count(e) is the number of corpus programs that reach e deterministically.
-// Non-target features saturate at rare_edge_limit. Target features saturate
-// at UINT16_MAX and stay active in rarity(p). A program tracks at most
-// max_tracked_edges of its features. Target features come first, followed by
-// the highest weighted rarity. The seed pick takes the program with the
-// highest energy and ages it by 1. The partner pick is a tournament of
-// partner_pool programs with non-zero energy and ages the winner by
-// partner_age_increment. Energies only decrease as counts and ages grow, so a
-// lazy max-heap is exact. A popped entry whose energy dropped is re-inserted
-// with its current value.
-//
-// Change-based fuzzing: a share target_pick of the seed and partner picks
-// takes a program that reaches a target feature. Each target feature keeps its
-// target_favored cheapest programs (size times execution time, the "top
-// rated" entries of AFL). The pick takes the rarest of target_tournament
-// random reached target features, and its least used favored program. It
-// skips the common target features: those that more than
-// target_common_share of the imported seeds reach. They run in most
-// compilations and do not tell the programs apart. If only common target
-// features were reached, the pick is a normal one.
-// Thus the picks go to the rare parts of the change, and the picked programs
-// stay small. A tournament on energy prefers the large programs that reach
-// many targets, and the corpus then grows big and slow.
+// `active_heap_` is an indexed binary max-heap over unleased seeds with
+// positive energy. Reverse edge trackers (`edge_trackers_`) update affected
+// seeds in O(log N) when edge counts grow and evict zero-energy seeds from
+// `active_heap_`. Leased seeds move to `leased_active_` while checked out so
+// workers prefer distinct frontier seeds and fall back cleanly when workers
+// hold leases on all active seeds.
 class RarityState {
  public:
   struct Params {
@@ -247,18 +264,24 @@ class RarityState {
     double size_unit = 4.0;
     int partner_pool = 3;
     double partner_age_increment = 0.2;
-    // Change-based fuzzing (corpus/feature_weights.h): the probability that a
+    // Change-based fuzzing (`corpus/feature_weights.h`): the probability that a
     // seed or partner pick takes a program that reaches a target.
     double target_pick = 0.5;
     int target_tournament = 4;
     // Change-based fuzzing: the number of cheapest programs that each target
-    // feature keeps for the target picks (0: a tournament on energy instead).
+    // feature keeps for the target picks (0 uses a tournament on energy).
     int target_favored = 4;
     // Change-based fuzzing: a target feature that more than this share of the
-    // imported seeds reach is common, and the target picks skip it (0: off).
+    // imported seeds reach is common, and the target picks skip it (0 is off).
     double target_common_share = 0.25;
     double time_exponent = 0.5;
     double time_unit_ms = 10.0;
+    // Maximum resident AST trees in memory (0 disables eviction).
+    int max_memory_trees = 0;
+    // Energy factor for seeds with loops or native calls (1 disables).
+    double jit_seed_boost = 1.0;
+    // Exponent of the `OnOutcome` fertility multiplier (0 disables).
+    double fertility_weight = 0.0;
   };
 
   static std::vector<ParamSpec> Specs() {
@@ -296,6 +319,12 @@ class RarityState {
          "execution-time penalty exponent (0 disables)"},
         {"time_unit_ms", ParamSpec::Type::kNumber, "10",
          "execution time (ms) at which the time penalty doubles"},
+        {"max_memory_trees", ParamSpec::Type::kNumber, "0",
+         "maximum resident AST trees in memory (0 disables eviction)"},
+        {"jit_seed_boost", ParamSpec::Type::kNumber, "1",
+         "energy factor for seeds with loops or native calls (1 disables)"},
+        {"fertility_weight", ParamSpec::Type::kNumber, "0",
+         "exponent of the outcome fertility factor (0 disables)"},
     };
   }
 
@@ -322,6 +351,11 @@ class RarityState {
         params.GetNumber("target_common_share", p.target_common_share);
     p.time_exponent = params.GetNumber("time_exponent", p.time_exponent);
     p.time_unit_ms = params.GetNumber("time_unit_ms", p.time_unit_ms);
+    p.max_memory_trees =
+        static_cast<int>(params.GetInt("max_memory_trees", p.max_memory_trees));
+    p.jit_seed_boost = params.GetNumber("jit_seed_boost", p.jit_seed_boost);
+    p.fertility_weight =
+        params.GetNumber("fertility_weight", p.fertility_weight);
     return p;
   }
 
@@ -345,17 +379,35 @@ class RarityState {
           "time_unit_ms > 0";
       return false;
     }
-    for (double x : {p.age_exponent, p.size_exponent, p.rarity_exponent,
-                     p.partner_age_increment, p.time_exponent}) {
+    if (p.max_memory_trees < 0) {
+      *error = "max_memory_trees must be >= 0";
+      return false;
+    }
+    if (!std::isfinite(p.jit_seed_boost) || p.jit_seed_boost <= 0.0) {
+      *error = "jit_seed_boost must be finite and > 0";
+      return false;
+    }
+    for (double x :
+         {p.age_exponent, p.size_exponent, p.rarity_exponent,
+          p.partner_age_increment, p.time_exponent, p.fertility_weight}) {
       if (!std::isfinite(x) || x < 0.0) {
-        *error = "exponents and partner_age_increment must be finite and >= 0";
+        *error =
+            "exponents, partner_age_increment and fertility_weight must be "
+            "finite and >= 0";
         return false;
       }
     }
     return true;
   }
 
-  explicit RarityState(const Params& params) : params_(params) {}
+  explicit RarityState(const Params& params) : params_(params) {
+    rarity_weights_.resize(static_cast<size_t>(params_.rare_edge_limit));
+    for (int c = 0; c < params_.rare_edge_limit; c++) {
+      rarity_weights_[static_cast<size_t>(c)] =
+          1.0 / std::pow(static_cast<double>(std::max(1, c)),
+                         params_.rarity_exponent);
+    }
+  }
 
   const Params& params() const { return params_; }
 
@@ -375,13 +427,15 @@ class RarityState {
         .Add("target_common_share", params_.target_common_share);
     o.Add("time_exponent", params_.time_exponent)
         .Add("time_unit_ms", params_.time_unit_ms);
+    o.Add("max_memory_trees", params_.max_memory_trees)
+        .Add("jit_seed_boost", params_.jit_seed_boost)
+        .Add("fertility_weight", params_.fertility_weight);
     return o;
   }
 
   void OnAdded(const Candidates& candidates, size_t index) {
     const Program& program = *candidates[index];
-    // Without the full edge set (e.g. imports that were not re-run), fall
-    // back to the program's new edges.
+    // Without the full edge set, fall back to the new edges of the program.
     std::vector<uint32_t> edges =
         program.hit_edges.empty() ? program.edges : program.hit_edges;
     for (uint32_t edge : program.edges) {
@@ -394,20 +448,21 @@ class RarityState {
       counts_.resize(static_cast<size_t>(edges.back()) + 4096, 0);
     }
     const FeatureWeights* weights = FeatureWeights::Active();
+    affected_stamp_++;
+    std::vector<size_t> affected;
     std::vector<uint32_t> rare;
     for (uint32_t edge : edges) {
+      IncrementEdge(edge, weights, &affected);
       const bool is_target = weights != nullptr && weights->IsTarget(edge);
-      const uint16_t cap = is_target ? UINT16_MAX : limit;
-      uint16_t& count = counts_[edge];
-      if (count < cap) {
-        count++;
-      }
-      if (is_target || count < limit) {
+      if (is_target || counts_[edge] < limit) {
         rare.push_back(edge);
       }
     }
-    // Keep target features first so max_tracked_edges never drops them, then
-    // sort by highest weighted rarity (rarest first when all weights are 1).
+    for (size_t seed_idx : affected) {
+      RefreshEnergy(seed_idx);
+    }
+    // Keep target features first so `max_tracked_edges` never drops them, then
+    // sort by highest weighted rarity.
     std::stable_sort(rare.begin(), rare.end(), [&](uint32_t a, uint32_t b) {
       const bool ta = weights != nullptr && weights->IsTarget(a);
       const bool tb = weights != nullptr && weights->IsTarget(b);
@@ -420,7 +475,27 @@ class RarityState {
       rare.resize(static_cast<size_t>(params_.max_tracked_edges));
     }
     program.rare_edges = std::move(rare);
-    heap_.push({Energy(program), index});
+    if (seeds_.size() <= index) {
+      seeds_.resize(index + 1);
+    }
+    SeedInfo& info = seeds_[index];
+    info.program = &program;
+    info.base_penalty = ComputeBasePenalty(program);
+    info.has_jit_activity =
+        params_.jit_seed_boost != 1.0 && HasJitActivity(program.tree());
+    for (uint32_t edge : program.rare_edges) {
+      const bool is_target = weights != nullptr && weights->IsTarget(edge);
+      if ((!is_target && counts_[edge] < limit) ||
+          (is_target && counts_[edge] <= kMaxTrackedTargetCount)) {
+        edge_trackers_[edge].push_back(index);
+      }
+    }
+    info.energy = ComputeEnergy(index);
+    if (info.energy > 0.0) {
+      HeapInsert(index);
+    } else {
+      EnqueueCold(index);
+    }
     if (weights != nullptr) {
       const bool imported = program.lineage().origin == "import";
       if (imported) {
@@ -442,6 +517,26 @@ class RarityState {
     }
   }
 
+  // Records a mutation outcome for parent fertility tracking and refreshes its
+  // energy when `fertility_weight` is active.
+  void OnOutcome(const Program& program, bool interesting) {
+    if (program.id == 0) {
+      return;
+    }
+    const size_t index = static_cast<size_t>(program.id - 1);
+    if (index >= seeds_.size() || seeds_[index].program != &program) {
+      return;
+    }
+    SeedInfo& info = seeds_[index];
+    info.outcome_trials++;
+    if (interesting) {
+      info.outcome_hits++;
+    }
+    if (params_.fertility_weight > 0.0) {
+      RefreshEnergy(index);
+    }
+  }
+
   // The cost of a program for the favored lists: its size times its
   // execution time, like the "top rated" entries of AFL.
   double Cost(const Program& program) const {
@@ -450,7 +545,7 @@ class RarityState {
            (1.0 + ms / params_.time_unit_ms);
   }
 
-  // Keeps the target_favored cheapest programs that reach `edge`, cheapest
+  // Keeps the `target_favored` cheapest programs that reach `edge`, cheapest
   // first.
   void AddFavored(const Candidates& candidates, uint32_t edge, size_t index) {
     if (params_.target_favored <= 0) {
@@ -474,10 +569,8 @@ class RarityState {
     }
   }
 
-  // True if more than target_common_share of the imported seeds reach the
-  // target feature `edge`. Such a feature runs in most compilations, so it
-  // does not tell the programs apart. The seeds are a sample that the
-  // target picks did not bias.
+  // True if more than `target_common_share` of the imported seeds reach the
+  // target feature `edge`.
   bool CommonTarget(uint32_t edge) const {
     if (imports_ == 0 || params_.target_common_share <= 0.0) {
       return false;
@@ -488,12 +581,11 @@ class RarityState {
                params_.target_common_share * static_cast<double>(imports_);
   }
 
-  // A favored program of a reached target feature, other than `anchor`
-  // (kNoChoice if none). The feature is the rarest of target_tournament
-  // random reached target features that are not common (CommonTarget). The
-  // program is the least used one of the feature.
-  size_t PickFavored(const Candidates& candidates, Random& rng,
-                     size_t anchor) const {
+  // Returns a favored program of a rare reached target feature, other than
+  // `anchor` (`kNoChoice` if none). When `prefer_unleased` is true, prefers an
+  // unleased program and falls back to the least aged favored program.
+  size_t PickFavored(const Candidates& candidates, Random& rng, size_t anchor,
+                     bool prefer_unleased) const {
     const FeatureWeights* weights = FeatureWeights::Active();
     uint32_t best = 0;
     double best_score = -1.0;
@@ -517,75 +609,361 @@ class RarityState {
       return ProgramSelector::kNoChoice;
     }
     size_t pick = ProgramSelector::kNoChoice;
+    size_t unleased_pick = ProgramSelector::kNoChoice;
     for (size_t index : favored_.at(best)) {
-      if (index != anchor && (pick == ProgramSelector::kNoChoice ||
-                              candidates[index]->age < candidates[pick]->age)) {
+      if (index == anchor) {
+        continue;
+      }
+      if (pick == ProgramSelector::kNoChoice ||
+          candidates[index]->age < candidates[pick]->age) {
         pick = index;
       }
-    }
-    return pick;
-  }
-
-  // Change-based fuzzing: with probability target_pick, a program that reaches
-  // a target (kNoChoice otherwise). With target_favored, a favored program of a
-  // rare reached target feature (PickFavored). Otherwise the best of
-  // target_tournament random programs that reach a target.
-  size_t PickTarget(const Candidates& candidates, Random& rng) {
-    if (target_programs_.empty() || !rng.Chance(params_.target_pick)) {
-      return ProgramSelector::kNoChoice;
-    }
-    if (params_.target_favored > 0) {
-      const size_t index =
-          PickFavored(candidates, rng, ProgramSelector::kNoChoice);
-      if (index != ProgramSelector::kNoChoice) {
-        candidates[index]->age += 1.0;
-      }
-      return index;
-    }
-    size_t best = target_programs_[rng.Index(target_programs_.size())];
-    double best_energy = Energy(*candidates[best]);
-    for (int i = 1; i < params_.target_tournament; i++) {
-      const size_t candidate =
-          target_programs_[rng.Index(target_programs_.size())];
-      const double energy = Energy(*candidates[candidate]);
-      if (energy > best_energy) {
-        best = candidate;
-        best_energy = energy;
+      if (prefer_unleased && seeds_[index].lease_count == 0 &&
+          (unleased_pick == ProgramSelector::kNoChoice ||
+           candidates[index]->age < candidates[unleased_pick]->age)) {
+        unleased_pick = index;
       }
     }
-    candidates[best]->age += 1.0;
-    return best;
+    return unleased_pick != ProgramSelector::kNoChoice ? unleased_pick : pick;
   }
 
   size_t target_programs() const { return target_programs_.size(); }
+  size_t active_size() const {
+    return active_heap_.size() + leased_active_.size();
+  }
+  size_t leased_size() const { return leased_distinct_; }
 
-  // Fuzzilli's RarityCorpus counts the edges of a reproducible crash as
-  // seen once more, which lowers the energy of the programs leading there.
+  // Counts the edges of a reproducible crash as seen once more and updates
+  // every seed tracking those edges.
   void RecordCrashEdges(const std::vector<uint32_t>& edges) {
-    const uint16_t limit = static_cast<uint16_t>(params_.rare_edge_limit);
     const FeatureWeights* weights = FeatureWeights::Active();
+    affected_stamp_++;
+    std::vector<size_t> affected;
     for (uint32_t edge : edges) {
       if (edge >= counts_.size()) {
         counts_.resize(static_cast<size_t>(edge) + 4096, 0);
       }
-      const bool is_target = weights != nullptr && weights->IsTarget(edge);
-      const uint16_t cap = is_target ? UINT16_MAX : limit;
-      if (counts_[edge] < cap) {
-        counts_[edge]++;
-      }
+      IncrementEdge(edge, weights, &affected);
+    }
+    for (size_t seed_idx : affected) {
+      RefreshEnergy(seed_idx);
     }
   }
 
   // The contribution of one feature to the rarity of a program: its weight
-  // (corpus/feature_weights.h) divided by count^rarity_exponent.
+  // (`corpus/feature_weights.h`) divided by `count^rarity_exponent`.
   double Score(uint32_t edge, const FeatureWeights* weights) const {
     const double w = weights != nullptr ? weights->Of(edge) : 1.0;
-    return w /
-           std::pow(static_cast<double>(std::max<uint16_t>(1, counts_[edge])),
-                    params_.rarity_exponent);
+    const uint16_t count = counts_[edge];
+    if (count < rarity_weights_.size()) {
+      return w * rarity_weights_[count];
+    }
+    return w / std::pow(static_cast<double>(std::max<uint16_t>(1, count)),
+                        params_.rarity_exponent);
   }
 
-  double Energy(const Program& program) const {
+  // Inspects up to `tries` candidates without changing `active_heap_` or `age`.
+  // Commits `age` (and optional lease checkout) only on the chosen seed.
+  size_t PickPreferred(const Candidates& candidates, Random& rng, int tries,
+                       const std::function<bool(const Program&)>& prefer,
+                       bool acquire_lease) {
+    if (candidates.empty()) {
+      return ProgramSelector::kNoChoice;
+    }
+    SyncTop();
+    size_t chosen = ProgramSelector::kNoChoice;
+    if (!target_programs_.empty() && rng.Chance(params_.target_pick)) {
+      const int limit = std::max(1, tries);
+      for (int i = 0; i < limit; i++) {
+        const size_t candidate = PeekTargetCandidate(candidates, rng);
+        if (candidate == ProgramSelector::kNoChoice) {
+          break;
+        }
+        if (chosen == ProgramSelector::kNoChoice) {
+          chosen = candidate;
+        }
+        if (prefer == nullptr || prefer(*candidates[candidate])) {
+          chosen = candidate;
+          break;
+        }
+      }
+    }
+    if (chosen == ProgramSelector::kNoChoice) {
+      chosen = PeekActiveHeap(candidates, tries, prefer);
+    }
+    if (chosen == ProgramSelector::kNoChoice) {
+      chosen = PeekLeasedActive(candidates, tries, prefer);
+    }
+    if (chosen == ProgramSelector::kNoChoice) {
+      chosen = PeekUniformFallback(candidates, rng, tries, prefer);
+    }
+    if (chosen == ProgramSelector::kNoChoice) {
+      return ProgramSelector::kNoChoice;
+    }
+    CommitPick(candidates, chosen, acquire_lease);
+    return chosen;
+  }
+
+  // Releases one active lease on `index`. Re-inserts the seed into
+  // `active_heap_` when its last lease ends and its energy stays positive.
+  void ReleaseLease(size_t index) {
+    if (index >= seeds_.size()) {
+      return;
+    }
+    SeedInfo& info = seeds_[index];
+    if (info.lease_count == 0) {
+      Fatal("RarityState::ReleaseLease: lease underflow for index %zu", index);
+    }
+    info.lease_count--;
+    if (info.lease_count > 0) {
+      return;
+    }
+    leased_distinct_--;
+    if (info.leased_pos >= 0) {
+      LeasedRemove(index);
+    }
+    RefreshEnergy(index);
+  }
+
+  // Samples partners uniformly from active (`energy > 0`) seeds in O(1),
+  // falling back to the full corpus only when no other active seed exists.
+  size_t PickPartner(const Candidates& candidates, size_t anchor, Random& rng) {
+    const size_t n = candidates.size();
+    if (n < 2) {
+      return ProgramSelector::kNoChoice;
+    }
+    const bool has_other_target =
+        target_programs_.size() > 1 ||
+        (target_programs_.size() == 1 && target_programs_[0] != anchor);
+    bool use_targets = has_other_target && rng.Chance(params_.target_pick);
+    if (use_targets && params_.target_favored > 0) {
+      const size_t index =
+          PickFavored(candidates, rng, anchor, /*prefer_unleased=*/false);
+      if (index != ProgramSelector::kNoChoice) {
+        candidates[index]->age += params_.partner_age_increment;
+        RefreshEnergy(index);
+        return index;
+      }
+      // No rare target feature: fall through to a normal active partner pick.
+      use_targets = false;
+    }
+    size_t best = ProgramSelector::kNoChoice;
+    double best_energy = 0.0;
+    if (use_targets) {
+      for (int i = 0, attempts = 0;
+           i < params_.partner_pool && attempts < 4 * params_.partner_pool;
+           attempts++) {
+        const size_t candidate =
+            target_programs_[rng.Index(target_programs_.size())];
+        if (candidate == anchor) {
+          continue;
+        }
+        const double energy = seeds_[candidate].energy;
+        if (energy <= 0.0) {
+          continue;
+        }
+        i++;
+        if (best == ProgramSelector::kNoChoice || energy > best_energy) {
+          best = candidate;
+          best_energy = energy;
+        }
+      }
+    } else {
+      const size_t active_count = active_heap_.size() + leased_active_.size();
+      size_t anchor_slot = active_count;
+      if (anchor < seeds_.size()) {
+        if (seeds_[anchor].heap_pos >= 0) {
+          anchor_slot = static_cast<size_t>(seeds_[anchor].heap_pos);
+        } else if (seeds_[anchor].leased_pos >= 0) {
+          anchor_slot = active_heap_.size() +
+                        static_cast<size_t>(seeds_[anchor].leased_pos);
+        }
+      }
+      const size_t eligible =
+          active_count - (anchor_slot < active_count ? 1 : 0);
+      if (eligible > 0) {
+        const int draws =
+            std::min<int>(params_.partner_pool,
+                          static_cast<int>(std::min<size_t>(eligible, 1024)));
+        for (int i = 0; i < draws; i++) {
+          size_t slot = rng.Index(eligible);
+          if (slot >= anchor_slot) {
+            slot++;
+          }
+          const size_t candidate =
+              slot < active_heap_.size()
+                  ? active_heap_[slot]
+                  : leased_active_[slot - active_heap_.size()];
+          const double energy = seeds_[candidate].energy;
+          if (best == ProgramSelector::kNoChoice || energy > best_energy) {
+            best = candidate;
+            best_energy = energy;
+          }
+        }
+      }
+    }
+    if (best == ProgramSelector::kNoChoice) {
+      if (anchor < n) {
+        size_t slot = rng.Index(n - 1);
+        if (slot >= anchor) {
+          slot++;
+        }
+        return slot;
+      }
+      return rng.Index(n);
+    }
+    candidates[best]->age += params_.partner_age_increment;
+    RefreshEnergy(best);
+    return best;
+  }
+
+  size_t ColdQueueSize() const { return cold_queue_.size(); }
+
+  bool PopCold(size_t* out) {
+    if (cold_queue_.empty()) {
+      return false;
+    }
+    const size_t idx = cold_queue_.front();
+    cold_queue_.pop_front();
+    seeds_[idx].in_cold_queue = false;
+    *out = idx;
+    return true;
+  }
+
+  void RequeueCold(size_t index) {
+    if (index < seeds_.size()) {
+      EnqueueCold(index);
+    }
+  }
+
+  bool IsLeased(size_t index) const {
+    return index < seeds_.size() && seeds_[index].lease_count > 0;
+  }
+
+  bool IsZeroEnergy(size_t index) const {
+    return index < seeds_.size() && seeds_[index].energy <= 0.0;
+  }
+
+  // Verifies heap order, index tables, lease states and reverse edge trackers.
+  bool CheckInvariants(std::string* error) const {
+    size_t in_heap = 0, in_leased = 0, leased_n = 0;
+    const uint16_t limit = static_cast<uint16_t>(params_.rare_edge_limit);
+    const FeatureWeights* weights = FeatureWeights::Active();
+    for (size_t i = 0; i < seeds_.size(); i++) {
+      const SeedInfo& s = seeds_[i];
+      if (s.program == nullptr) {
+        *error = StringPrintf("seed %zu null program", i);
+        return false;
+      }
+      if (!has_high_count_targets_) {
+        const double expected = ComputeEnergy(i);
+        if (std::fabs(s.energy - expected) >
+            1e-9 * std::max({1.0, expected, s.energy})) {
+          *error =
+              StringPrintf("seed %zu energy %g != %g", i, s.energy, expected);
+          return false;
+        }
+      }
+      const bool ok_heap =
+          s.heap_pos == kNotIndexed ||
+          (s.heap_pos >= 0 &&
+           static_cast<size_t>(s.heap_pos) < active_heap_.size() &&
+           active_heap_[static_cast<size_t>(s.heap_pos)] == i);
+      const bool ok_leased =
+          s.leased_pos == kNotIndexed ||
+          (s.leased_pos >= 0 &&
+           static_cast<size_t>(s.leased_pos) < leased_active_.size() &&
+           leased_active_[static_cast<size_t>(s.leased_pos)] == i);
+      const bool want_heap = s.lease_count == 0 && s.energy > 0.0;
+      const bool want_leased = s.lease_count > 0 && s.energy > 0.0;
+      if (!ok_heap || !ok_leased || (s.heap_pos != kNotIndexed) != want_heap ||
+          (s.leased_pos != kNotIndexed) != want_leased) {
+        *error = StringPrintf("seed %zu bad index state", i);
+        return false;
+      }
+      in_heap += want_heap ? 1 : 0;
+      in_leased += want_leased ? 1 : 0;
+      leased_n += s.lease_count > 0 ? 1 : 0;
+      for (uint32_t edge : s.program->rare_edges) {
+        if ((weights == nullptr || !weights->IsTarget(edge)) &&
+            counts_[edge] < limit) {
+          auto it = edge_trackers_.find(edge);
+          if (it == edge_trackers_.end() ||
+              std::find(it->second.begin(), it->second.end(), i) ==
+                  it->second.end()) {
+            *error = StringPrintf("missing tracker edge %u seed %zu", edge, i);
+            return false;
+          }
+        }
+      }
+    }
+    if (in_heap != active_heap_.size() || in_leased != leased_active_.size() ||
+        leased_n != leased_distinct_) {
+      *error = "active/leased size mismatch";
+      return false;
+    }
+    for (size_t pos = 1; pos < active_heap_.size(); pos++) {
+      if (Better(active_heap_[pos], active_heap_[(pos - 1) / 2])) {
+        *error = StringPrintf("heap order violated at %zu", pos);
+        return false;
+      }
+    }
+    for (const auto& [edge, list] : edge_trackers_) {
+      if ((weights == nullptr || !weights->IsTarget(edge)) &&
+          counts_[edge] >= limit) {
+        *error = StringPrintf("saturated edge %u in edge_trackers_", edge);
+        return false;
+      }
+    }
+    return true;
+  }
+
+ private:
+  static constexpr int32_t kNotIndexed = -1;
+  // Cap reverse tracking per target edge to keep `OnAdded` O(1) on large
+  // change-based corpora. Target edges never reach energy 0.
+  static constexpr uint16_t kMaxTrackedTargetCount = 64;
+
+  struct SeedInfo {
+    const Program* program = nullptr;
+    double energy = 0.0;
+    double base_penalty = 1.0;
+    int32_t heap_pos = kNotIndexed;
+    uint32_t lease_count = 0;
+    int32_t leased_pos = kNotIndexed;
+    uint64_t affected_stamp = 0;
+    uint32_t outcome_trials = 0;
+    uint32_t outcome_hits = 0;
+    bool has_jit_activity = false;
+    bool in_cold_queue = false;
+  };
+
+  bool Better(size_t a, size_t b) const {
+    const double ea = seeds_[a].energy;
+    const double eb = seeds_[b].energy;
+    if (ea != eb) {
+      return ea > eb;
+    }
+    return a < b;
+  }
+
+  double ComputeBasePenalty(const Program& program) const {
+    const double size = std::max(
+        1.0, static_cast<double>(program.node_count()) / params_.size_unit);
+    const double ln_size = std::log(size);
+    const double size_pen = 1.0 + std::pow(ln_size, params_.size_exponent);
+    double time_pen = 1.0;
+    if (program.exec_time_us > 0 && params_.time_exponent > 0.0) {
+      const double time_units = static_cast<double>(program.exec_time_us) /
+                                (params_.time_unit_ms * 1000.0);
+      time_pen += std::pow(time_units, params_.time_exponent);
+    }
+    return size_pen * time_pen;
+  }
+
+  double ComputeEnergy(size_t index) const {
+    const SeedInfo& info = seeds_[index];
+    const Program& program = *info.program;
     double rarity = 0.0;
     const FeatureWeights* weights = FeatureWeights::Active();
     const uint16_t limit = static_cast<uint16_t>(params_.rare_edge_limit);
@@ -598,109 +976,343 @@ class RarityState {
     if (rarity == 0.0) {
       return 0.0;
     }
-    double size = std::max(
-        1.0, static_cast<double>(program.node_count()) / params_.size_unit);
-    double ln_size = std::log(size);
-    double size_pen = 1.0 + std::pow(ln_size, params_.size_exponent);
-    double time_pen = 1.0;
-    if (program.exec_time_us > 0 && params_.time_exponent > 0.0) {
-      double time_units = static_cast<double>(program.exec_time_us) /
-                          (params_.time_unit_ms * 1000.0);
-      time_pen += std::pow(time_units, params_.time_exponent);
+    double energy =
+        rarity /
+        (std::pow(program.age + 1.0, params_.age_exponent) * info.base_penalty);
+    if (params_.jit_seed_boost != 1.0 && info.has_jit_activity) {
+      energy *= params_.jit_seed_boost;
     }
-    return rarity / (std::pow(program.age + 1.0, params_.age_exponent) *
-                     size_pen * time_pen);
+    if (params_.fertility_weight > 0.0) {
+      // Laplace-smoothed fertility ratio normalized to 1.0 at (0 hits, 0
+      // trials) with a 1/20 prior and clamped to [0.5, 2.0].
+      const double ratio = 20.0 *
+                           (1.0 + static_cast<double>(info.outcome_hits)) /
+                           (20.0 + static_cast<double>(info.outcome_trials));
+      const double clamped = std::clamp(ratio, 0.5, 2.0);
+      energy *= params_.fertility_weight == 1.0
+                    ? clamped
+                    : std::pow(clamped, params_.fertility_weight);
+    }
+    return energy;
   }
 
-  // The seed pick: highest current energy (kNoChoice if every program's
-  // energy is 0; the caller then picks uniformly).
-  size_t PickSeed(const Candidates& candidates) {
-    while (!heap_.empty()) {
-      Entry top = heap_.top();
-      heap_.pop();
-      double current = Energy(*candidates[top.index]);
-      if (current <= 0.0) {
-        continue;  // never schedulable again: drop it from the heap
-      }
-      if (current < top.energy * (1.0 - 1e-9)) {
-        heap_.push({current, top.index});
-        continue;
-      }
-      const Program& program = *candidates[top.index];
-      program.age += 1.0;
-      heap_.push({Energy(program), top.index});
-      return top.index;
+  void IncrementEdge(uint32_t edge, const FeatureWeights* weights,
+                     std::vector<size_t>* affected) {
+    const uint16_t limit = static_cast<uint16_t>(params_.rare_edge_limit);
+    const bool is_target = weights != nullptr && weights->IsTarget(edge);
+    const uint16_t cap = is_target ? UINT16_MAX : limit;
+    uint16_t& count = counts_[edge];
+    if (count >= cap) {
+      return;
     }
-    return ProgramSelector::kNoChoice;
+    count++;
+    auto it = edge_trackers_.find(edge);
+    if (it == edge_trackers_.end()) {
+      return;
+    }
+    for (size_t seed_idx : it->second) {
+      if (seeds_[seed_idx].affected_stamp != affected_stamp_) {
+        seeds_[seed_idx].affected_stamp = affected_stamp_;
+        affected->push_back(seed_idx);
+      }
+    }
+    if ((!is_target && count >= limit) ||
+        (is_target && count > kMaxTrackedTargetCount)) {
+      edge_trackers_.erase(it);
+      if (is_target) {
+        has_high_count_targets_ = true;
+      }
+    }
   }
 
-  // The partner pick: the best of `partner_pool` random programs with
-  // energy (uniform among all if none has energy left).
-  size_t PickPartner(const Candidates& candidates, size_t anchor, Random& rng) {
-    size_t n = candidates.size();
-    if (n < 2) {
-      return ProgramSelector::kNoChoice;
+  void EnqueueCold(size_t index) {
+    SeedInfo& info = seeds_[index];
+    if (info.in_cold_queue) {
+      return;
     }
-    const bool has_other_target =
-        target_programs_.size() > 1 ||
-        (target_programs_.size() == 1 && target_programs_[0] != anchor);
-    bool use_targets = has_other_target && rng.Chance(params_.target_pick);
-    if (use_targets && params_.target_favored > 0) {
-      const size_t index = PickFavored(candidates, rng, anchor);
-      if (index != ProgramSelector::kNoChoice) {
-        candidates[index]->age += params_.partner_age_increment;
-        return index;
+    info.in_cold_queue = true;
+    cold_queue_.push_back(index);
+  }
+
+  void HeapSwap(size_t pos_a, size_t pos_b) {
+    std::swap(active_heap_[pos_a], active_heap_[pos_b]);
+    seeds_[active_heap_[pos_a]].heap_pos = static_cast<int32_t>(pos_a);
+    seeds_[active_heap_[pos_b]].heap_pos = static_cast<int32_t>(pos_b);
+  }
+
+  void HeapSiftUp(size_t pos) {
+    while (pos > 0) {
+      const size_t parent = (pos - 1) / 2;
+      if (!Better(active_heap_[pos], active_heap_[parent])) {
+        break;
       }
-      // No rare target feature: a normal partner pick.
-      use_targets = false;
+      HeapSwap(pos, parent);
+      pos = parent;
+    }
+  }
+
+  void HeapSiftDown(size_t pos) {
+    const size_t n = active_heap_.size();
+    while (true) {
+      const size_t left = 2 * pos + 1;
+      if (left >= n) {
+        break;
+      }
+      size_t best = left;
+      const size_t right = left + 1;
+      if (right < n && Better(active_heap_[right], active_heap_[left])) {
+        best = right;
+      }
+      if (!Better(active_heap_[best], active_heap_[pos])) {
+        break;
+      }
+      HeapSwap(pos, best);
+      pos = best;
+    }
+  }
+
+  void HeapInsert(size_t index) {
+    const size_t pos = active_heap_.size();
+    seeds_[index].heap_pos = static_cast<int32_t>(pos);
+    active_heap_.push_back(index);
+    HeapSiftUp(pos);
+  }
+
+  void HeapUpdate(size_t index) {
+    const size_t pos = static_cast<size_t>(seeds_[index].heap_pos);
+    if (pos > 0 && Better(active_heap_[pos], active_heap_[(pos - 1) / 2])) {
+      HeapSiftUp(pos);
+    } else {
+      HeapSiftDown(pos);
+    }
+  }
+
+  void HeapRemove(size_t index) {
+    const size_t pos = static_cast<size_t>(seeds_[index].heap_pos);
+    const size_t last = active_heap_.back();
+    active_heap_.pop_back();
+    seeds_[index].heap_pos = kNotIndexed;
+    if (pos < active_heap_.size()) {
+      active_heap_[pos] = last;
+      seeds_[last].heap_pos = static_cast<int32_t>(pos);
+      HeapUpdate(last);
+    }
+  }
+
+  void LeasedInsert(size_t index) {
+    seeds_[index].leased_pos = static_cast<int32_t>(leased_active_.size());
+    leased_active_.push_back(index);
+  }
+
+  void LeasedRemove(size_t index) {
+    const size_t pos = static_cast<size_t>(seeds_[index].leased_pos);
+    const size_t last = leased_active_.back();
+    leased_active_.pop_back();
+    seeds_[index].leased_pos = kNotIndexed;
+    if (pos < leased_active_.size()) {
+      leased_active_[pos] = last;
+      seeds_[last].leased_pos = static_cast<int32_t>(pos);
+    }
+  }
+
+  void RefreshEnergy(size_t index) {
+    SeedInfo& info = seeds_[index];
+    const double energy = ComputeEnergy(index);
+    info.energy = energy;
+    if (info.lease_count > 0) {
+      if (energy > 0.0) {
+        if (info.leased_pos == kNotIndexed) {
+          LeasedInsert(index);
+        }
+      } else if (info.leased_pos != kNotIndexed) {
+        LeasedRemove(index);
+      }
+      return;
+    }
+    if (energy > 0.0) {
+      if (info.heap_pos != kNotIndexed) {
+        HeapUpdate(index);
+      } else {
+        HeapInsert(index);
+      }
+    } else {
+      if (info.heap_pos != kNotIndexed) {
+        HeapRemove(index);
+      }
+      EnqueueCold(index);
+    }
+  }
+
+  void SyncTop() {
+    if (!has_high_count_targets_) {
+      return;
+    }
+    while (!active_heap_.empty()) {
+      const size_t top = active_heap_[0];
+      const double current = ComputeEnergy(top);
+      if (std::fabs(current - seeds_[top].energy) <=
+          seeds_[top].energy * 1e-9) {
+        break;
+      }
+      RefreshEnergy(top);
+    }
+  }
+
+  size_t PeekTargetCandidate(const Candidates& candidates, Random& rng) const {
+    if (params_.target_favored > 0) {
+      return PickFavored(candidates, rng, ProgramSelector::kNoChoice,
+                         /*prefer_unleased=*/true);
     }
     size_t best = ProgramSelector::kNoChoice;
-    double best_energy = 0.0;
-    for (int i = 0, attempts = 0;
-         i < params_.partner_pool && attempts < 4 * params_.partner_pool;
-         attempts++) {
-      size_t candidate =
-          use_targets ? target_programs_[rng.Index(target_programs_.size())]
-                      : rng.Index(n);
-      if (candidate == anchor) {
-        continue;
-      }
-      double energy = Energy(*candidates[candidate]);
-      if (energy <= 0.0) {
-        continue;
-      }
-      i++;
+    double best_energy = -1.0;
+    size_t best_unleased = ProgramSelector::kNoChoice;
+    double best_unleased_energy = -1.0;
+    for (int i = 0; i < params_.target_tournament; i++) {
+      const size_t candidate =
+          target_programs_[rng.Index(target_programs_.size())];
+      const double energy = seeds_[candidate].energy;
       if (best == ProgramSelector::kNoChoice || energy > best_energy) {
         best = candidate;
         best_energy = energy;
       }
+      if (seeds_[candidate].lease_count == 0 &&
+          (best_unleased == ProgramSelector::kNoChoice ||
+           energy > best_unleased_energy)) {
+        best_unleased = candidate;
+        best_unleased_energy = energy;
+      }
     }
-    if (best == ProgramSelector::kNoChoice) {
-      for (int attempt = 0; attempt < 4 && best == ProgramSelector::kNoChoice;
-           attempt++) {
-        size_t candidate = rng.Index(n);
-        if (candidate != anchor) {
-          best = candidate;
+    return best_unleased != ProgramSelector::kNoChoice ? best_unleased : best;
+  }
+
+  // Inspects the top `tries` entries of `active_heap_` in descending energy
+  // order without mutating the heap or any seed state.
+  size_t PeekActiveHeap(
+      const Candidates& candidates, int tries,
+      const std::function<bool(const Program&)>& prefer) const {
+    if (active_heap_.empty()) {
+      return ProgramSelector::kNoChoice;
+    }
+    const int limit = std::max(1, tries);
+    if (limit == 1 || prefer == nullptr) {
+      return active_heap_[0];
+    }
+    std::vector<size_t> frontier;
+    frontier.reserve(static_cast<size_t>(limit) + 2);
+    frontier.push_back(0);
+    size_t fallback = ProgramSelector::kNoChoice;
+    for (int i = 0; i < limit && !frontier.empty(); i++) {
+      size_t best_fi = 0;
+      for (size_t fi = 1; fi < frontier.size(); fi++) {
+        if (Better(active_heap_[frontier[fi]],
+                   active_heap_[frontier[best_fi]])) {
+          best_fi = fi;
+        }
+      }
+      const size_t pos = frontier[best_fi];
+      frontier[best_fi] = frontier.back();
+      frontier.pop_back();
+      const size_t idx = active_heap_[pos];
+      if (fallback == ProgramSelector::kNoChoice) {
+        fallback = idx;
+      }
+      if (prefer(*candidates[idx])) {
+        return idx;
+      }
+      const size_t left = 2 * pos + 1;
+      if (left < active_heap_.size()) {
+        frontier.push_back(left);
+      }
+      const size_t right = left + 1;
+      if (right < active_heap_.size()) {
+        frontier.push_back(right);
+      }
+    }
+    return fallback;
+  }
+
+  // Fallback when all active seeds are currently leased: inspects the top
+  // `tries` entries of `leased_active_` without mutating state.
+  size_t PeekLeasedActive(
+      const Candidates& candidates, int tries,
+      const std::function<bool(const Program&)>& prefer) const {
+    if (leased_active_.empty()) {
+      return ProgramSelector::kNoChoice;
+    }
+    const int limit = std::max(1, tries);
+    if (limit == 1 || prefer == nullptr) {
+      size_t best = leased_active_[0];
+      for (size_t i = 1; i < leased_active_.size(); i++) {
+        if (Better(leased_active_[i], best)) {
+          best = leased_active_[i];
         }
       }
       return best;
     }
-    candidates[best]->age += params_.partner_age_increment;
-    return best;
+    std::vector<size_t> ranked = leased_active_;
+    const size_t k = std::min(ranked.size(), static_cast<size_t>(limit));
+    std::partial_sort(ranked.begin(),
+                      ranked.begin() + static_cast<ptrdiff_t>(k), ranked.end(),
+                      [this](size_t a, size_t b) { return Better(a, b); });
+    for (size_t i = 0; i < k; i++) {
+      if (prefer(*candidates[ranked[i]])) {
+        return ranked[i];
+      }
+    }
+    return ranked[0];
   }
 
- private:
-  struct Entry {
-    double energy;
-    size_t index;
-    bool operator<(const Entry& other) const {
-      return energy != other.energy ? energy < other.energy
-                                    : index > other.index;
+  size_t PeekUniformFallback(
+      const Candidates& candidates, Random& rng, int tries,
+      const std::function<bool(const Program&)>& prefer) const {
+    const size_t n = candidates.size();
+    if (n == 0) {
+      return ProgramSelector::kNoChoice;
     }
-  };
+    const int limit = std::max(1, tries);
+    size_t fallback = ProgramSelector::kNoChoice;
+    for (int i = 0; i < limit; i++) {
+      const size_t candidate = rng.Index(n);
+      if (fallback == ProgramSelector::kNoChoice) {
+        fallback = candidate;
+      }
+      if (prefer == nullptr || prefer(*candidates[candidate])) {
+        return candidate;
+      }
+    }
+    return fallback;
+  }
+
+  void CommitPick(const Candidates& candidates, size_t chosen,
+                  bool acquire_lease) {
+    candidates[chosen]->age += 1.0;
+    if (acquire_lease) {
+      SeedInfo& info = seeds_[chosen];
+      if (info.lease_count == 0) {
+        leased_distinct_++;
+        if (info.heap_pos != kNotIndexed) {
+          HeapRemove(chosen);
+        }
+      }
+      info.lease_count++;
+      if (info.energy > 0.0 && info.leased_pos == kNotIndexed) {
+        LeasedInsert(chosen);
+      }
+    }
+    RefreshEnergy(chosen);
+  }
+
   Params params_;
+  std::vector<double> rarity_weights_;
   std::vector<uint16_t> counts_;
-  std::priority_queue<Entry> heap_;
+  std::vector<SeedInfo> seeds_;
+  std::vector<size_t> active_heap_;
+  std::vector<size_t> leased_active_;
+  size_t leased_distinct_ = 0;
+  std::unordered_map<uint32_t, std::vector<size_t>> edge_trackers_;
+  uint64_t affected_stamp_ = 0;
+  bool has_high_count_targets_ = false;
+  std::deque<size_t> cold_queue_;
   std::vector<size_t> target_programs_;
   // Change-based fuzzing: the favored programs of each reached target feature,
   // and the reached target features in the order of their first program.
@@ -723,13 +1335,14 @@ class RaritySeeds final : public ProgramSelector {
   void OnCrashEdges(const std::vector<uint32_t>& edges) override {
     state_->RecordCrashEdges(edges);
   }
+  void OnOutcome(const Program& picked,
+                 const SelectionOutcome& outcome) override {
+    state_->OnOutcome(picked, outcome.interesting);
+  }
   size_t Pick(const Candidates& candidates, Random& rng,
               const Filter& /*eligible*/) override {
-    size_t index = state_->PickTarget(candidates, rng);
-    if (index == kNoChoice) {
-      index = state_->PickSeed(candidates);
-    }
-    return index != kNoChoice ? index : rng.Index(candidates.size());
+    return state_->PickPreferred(candidates, rng, /*tries=*/1, nullptr,
+                                 /*acquire_lease=*/false);
   }
   size_t PickRelated(const Candidates& candidates, size_t anchor, Random& rng,
                      const Filter& /*eligible*/) override {
@@ -787,6 +1400,15 @@ class RarityPartners final : public ProgramSelector {
   std::shared_ptr<RarityState> own_;
   std::shared_ptr<RarityState> shared_;
 };
+
+// Returns the `RarityState` owned by `selector`, or nullptr for other
+// strategies. No RTTI in V8 builds: the strategy name identifies the class.
+RarityState* RarityStateOf(ProgramSelector* selector) {
+  if (selector != nullptr && selector->name() == "rarity") {
+    return static_cast<RaritySeeds*>(selector)->state().get();
+  }
+  return nullptr;
+}
 
 }  // namespace
 
@@ -865,6 +1487,43 @@ void RegisterBuiltinSelectors<const Program>(
 }
 
 // ---------------------------------------------------------------------------
+// SeedLease
+
+SeedLease::SeedLease(Corpus* corpus, ProgramPtr program, size_t index)
+    : corpus_(corpus), program_(std::move(program)), index_(index) {}
+
+SeedLease::~SeedLease() { Release(); }
+
+SeedLease::SeedLease(SeedLease&& other) noexcept
+    : corpus_(other.corpus_),
+      program_(std::move(other.program_)),
+      index_(other.index_) {
+  other.corpus_ = nullptr;
+  other.index_ = ProgramSelector::kNoChoice;
+}
+
+SeedLease& SeedLease::operator=(SeedLease&& other) noexcept {
+  if (this != &other) {
+    Release();
+    corpus_ = other.corpus_;
+    program_ = std::move(other.program_);
+    index_ = other.index_;
+    other.corpus_ = nullptr;
+    other.index_ = ProgramSelector::kNoChoice;
+  }
+  return *this;
+}
+
+void SeedLease::Release() {
+  if (corpus_ != nullptr && index_ != ProgramSelector::kNoChoice) {
+    corpus_->ReleaseLease(index_);
+  }
+  corpus_ = nullptr;
+  index_ = ProgramSelector::kNoChoice;
+  program_.reset();
+}
+
+// ---------------------------------------------------------------------------
 // Corpus
 
 Corpus::Corpus(std::unique_ptr<ProgramSelector> seeds,
@@ -883,6 +1542,7 @@ void Corpus::RecordCrashEdges(const std::vector<uint32_t>& edges) {
   std::scoped_lock<std::mutex> lock(mutex_);
   seeds_->OnCrashEdges(edges);
   partners_->OnCrashEdges(edges);
+  EvictExcessTreesLocked();
 }
 
 Corpus::~Corpus() = default;
@@ -898,43 +1558,128 @@ ProgramPtr Corpus::Add(std::shared_ptr<Program> program) {
   ProgramPtr published = std::move(program);
   programs_.push_back(published);
   candidates_.push_back(published.get());
+  tree_evicted_.push_back(0);
+  resident_trees_++;
   seeds_->OnAdded(candidates_, candidates_.size() - 1);
   partners_->OnAdded(candidates_, candidates_.size() - 1);
   std::vector<uint32_t>().swap(published->hit_edges);
+  EvictExcessTreesLocked();
   return published;
 }
 
-ProgramPtr Corpus::Pick(Random& rng) { return PickPreferred(rng, 1, nullptr); }
+ProgramPtr Corpus::Pick(Random& rng) {
+  return LeasePreferredInternal(rng, 1, nullptr, /*acquire_lease=*/false)
+      .program();
+}
 
 ProgramPtr Corpus::PickPreferred(
     Random& rng, int tries, const std::function<bool(const Program&)>& prefer) {
+  return LeasePreferredInternal(rng, tries, prefer, /*acquire_lease=*/false)
+      .program();
+}
+
+SeedLease Corpus::Lease(Random& rng) {
+  return LeasePreferredInternal(rng, 1, nullptr, /*acquire_lease=*/true);
+}
+
+SeedLease Corpus::LeasePreferred(
+    Random& rng, int tries, const std::function<bool(const Program&)>& prefer) {
+  return LeasePreferredInternal(rng, tries, prefer, /*acquire_lease=*/true);
+}
+
+SeedLease Corpus::LeasePreferredInternal(
+    Random& rng, int tries, const std::function<bool(const Program&)>& prefer,
+    bool acquire_lease) {
   std::scoped_lock<std::mutex> lock(mutex_);
   if (programs_.empty()) {
-    return nullptr;
+    return {};
   }
   seed_stats_.stats().invocations++;
   size_t index = ProgramSelector::kNoChoice;
-  for (int i = 0; i < std::max(1, tries); i++) {
-    const size_t candidate =
-        seeds_->Pick(candidates_, rng, [](const Program&) { return true; });
-    if (candidate == ProgramSelector::kNoChoice) {
-      break;
-    }
-    if (index == ProgramSelector::kNoChoice) {
-      index = candidate;
-    }
-    if (prefer == nullptr || prefer(*programs_[candidate])) {
-      index = candidate;
-      break;
+  RarityState* rarity = RarityStateOf(seeds_.get());
+  if (rarity != nullptr) {
+    index =
+        rarity->PickPreferred(candidates_, rng, tries, prefer, acquire_lease);
+  } else {
+    for (int i = 0; i < std::max(1, tries); i++) {
+      const size_t candidate =
+          seeds_->Pick(candidates_, rng, [](const Program&) { return true; });
+      if (candidate == ProgramSelector::kNoChoice) {
+        break;
+      }
+      if (index == ProgramSelector::kNoChoice) {
+        index = candidate;
+      }
+      if (prefer == nullptr || prefer(*programs_[candidate])) {
+        index = candidate;
+        break;
+      }
     }
   }
   if (index == ProgramSelector::kNoChoice) {
-    return nullptr;
+    return {};
   }
+  NoteTreeAccessedLocked(index);
   const ProgramPtr& picked = programs_[index];
   picked->picks.fetch_add(1, std::memory_order_relaxed);
   seed_stats_.stats().produced++;
-  return picked;
+  if (acquire_lease && rarity != nullptr) {
+    return SeedLease(this, picked, index);
+  }
+  return SeedLease(nullptr, picked, ProgramSelector::kNoChoice);
+}
+
+void Corpus::ReleaseLease(size_t index) {
+  std::scoped_lock<std::mutex> lock(mutex_);
+  if (RarityState* rarity = RarityStateOf(seeds_.get())) {
+    rarity->ReleaseLease(index);
+  }
+  EvictExcessTreesLocked();
+}
+
+void Corpus::NoteTreeAccessedLocked(size_t index) const {
+  if (index >= tree_evicted_.size() || tree_evicted_[index] == 0) {
+    return;
+  }
+  tree_evicted_[index] = 0;
+  resident_trees_++;
+  if (RarityState* rarity = RarityStateOf(seeds_.get())) {
+    if (rarity->IsZeroEnergy(index)) {
+      rarity->RequeueCold(index);
+    }
+  }
+}
+
+void Corpus::EvictExcessTreesLocked() {
+  RarityState* rarity = RarityStateOf(seeds_.get());
+  if (rarity == nullptr || rarity->params().max_memory_trees <= 0) {
+    return;
+  }
+  const size_t cap = static_cast<size_t>(rarity->params().max_memory_trees);
+  const size_t budget = rarity->ColdQueueSize();
+  for (size_t tried = 0; tried < budget && resident_trees_ > cap; tried++) {
+    size_t idx = ProgramSelector::kNoChoice;
+    if (!rarity->PopCold(&idx)) {
+      break;
+    }
+    if (idx >= programs_.size() || tree_evicted_[idx] != 0) {
+      continue;
+    }
+    if (rarity->IsLeased(idx) || programs_[idx].use_count() != 1) {
+      rarity->RequeueCold(idx);
+      continue;
+    }
+    // Synchronize with the last external `shared_ptr` release before dropping
+    // the tree.
+    std::atomic_thread_fence(std::memory_order_acquire);
+    if (programs_[idx]->has_tree()) {
+      programs_[idx]->ReleaseTree();
+    }
+    tree_evicted_[idx] = 1;
+    if (resident_trees_ > 0) {
+      resident_trees_--;
+    }
+  }
 }
 
 ProgramPtr Corpus::PickPartner(const Program& parent, Random& rng) {
@@ -949,7 +1694,11 @@ ProgramPtr Corpus::PickPartner(const Program& parent, Random& rng) {
   }
   size_t index = partners_->PickRelated(candidates_, anchor, rng,
                                         [](const Program&) { return true; });
-  return index == ProgramSelector::kNoChoice ? nullptr : programs_[index];
+  if (index == ProgramSelector::kNoChoice) {
+    return nullptr;
+  }
+  NoteTreeAccessedLocked(index);
+  return programs_[index];
 }
 
 void Corpus::OnResult(const Program& parent, bool interesting) {
@@ -969,16 +1718,55 @@ size_t Corpus::size() const {
   return programs_.size();
 }
 
+size_t Corpus::active_size() const {
+  std::scoped_lock<std::mutex> lock(mutex_);
+  if (const RarityState* rarity = RarityStateOf(seeds_.get())) {
+    return rarity->active_size();
+  }
+  return programs_.size();
+}
+
+size_t Corpus::leased_size() const {
+  std::scoped_lock<std::mutex> lock(mutex_);
+  if (const RarityState* rarity = RarityStateOf(seeds_.get())) {
+    return rarity->leased_size();
+  }
+  return 0;
+}
+
+size_t Corpus::resident_trees() const {
+  std::scoped_lock<std::mutex> lock(mutex_);
+  size_t count = 0;
+  for (const ProgramPtr& program : programs_) {
+    if (program->has_tree()) {
+      count++;
+    }
+  }
+  return count;
+}
+
+bool Corpus::CheckInvariantsForTest(std::string* error) const {
+  std::scoped_lock<std::mutex> lock(mutex_);
+  if (const RarityState* rarity = RarityStateOf(seeds_.get())) {
+    return rarity->CheckInvariants(error);
+  }
+  return true;
+}
+
 ProgramPtr Corpus::Get(uint32_t id) const {
   std::scoped_lock<std::mutex> lock(mutex_);
   if (id == 0 || id > programs_.size()) {
     return nullptr;
   }
+  NoteTreeAccessedLocked(static_cast<size_t>(id - 1));
   return programs_[id - 1];
 }
 
 std::vector<ProgramPtr> Corpus::Snapshot() const {
   std::scoped_lock<std::mutex> lock(mutex_);
+  for (size_t i = 0; i < programs_.size(); i++) {
+    NoteTreeAccessedLocked(i);
+  }
   return programs_;
 }
 

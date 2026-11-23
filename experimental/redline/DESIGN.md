@@ -170,6 +170,11 @@ rarity(p) = sum over the tracked edges e of p with count(e) < rare_edge_limit (o
 - `count(e)` is the number of corpus programs that reach edge `e`. Target features stay active past `rare_edge_limit`. The age grows with each pick.
 - A new corpus program records its rarest features from its full edge set (5.7), or from its new edges if the set is missing. Target features come first so the per-program cap does not drop them.
 - The edges of a reproducible crash count as one more program. This lowers the energy of the programs that lead to a known crash.
+- An indexed max-heap tracks active seeds with positive energy, and reverse edge trackers update affected seeds when edge counts grow. Seeds whose energy reaches 0 leave the active heap while their corpus entries and lineage stay intact.
+- `PickPreferred` inspects candidates without changing heap order, `age`, or `picks`, and updates only the returned seed.
+- `rarity-partner` draws uniformly from active seeds in constant time and falls back to the full corpus only when no other active seed exists.
+- Each worker holds a `SeedLease` during a mutation chain so concurrent workers prefer unleased frontier seeds. When workers hold leases on all active seeds, the picker falls back to the best leased seed.
+- `OnOutcome` tracks parent fertility. Optional parameters `max_memory_trees`, `jit_seed_boost`, and `fertility_weight` ship off by default (`0`, `1`, and `0`).
 
 ### 5.3 Mutate
 

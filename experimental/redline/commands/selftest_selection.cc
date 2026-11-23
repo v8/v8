@@ -2144,6 +2144,306 @@ let r1 = target(g1, 4);
   }
 }
 
+// Verifies `RarityState` correctness: non-aging `PickPreferred`, indexed active
+// heap and zero-energy eviction, O(1) active-set `PickPartner`, RAII
+// `SeedLease`, `OnOutcome` fertility and default-off optional knobs.
+void CheckRarityOverhaul(Checker* checker) {
+  auto make_corpus = [](const std::string& params_json) {
+    JsonValue params;
+    std::string err;
+    if (!params_json.empty()) {
+      JsonValue::Parse(params_json, &params, &err);
+    }
+    auto& reg = SelectorRegistry<const Program>::Instance();
+    auto seeds = reg.Create(SelectionConfig{"rarity", params}, &err);
+    auto partners = reg.Create(SelectionConfig{"rarity-partner", params}, &err);
+    return std::make_unique<Corpus>(std::move(seeds), std::move(partners));
+  };
+  auto make_prog = [](const std::string& src, std::vector<uint32_t> edges,
+                      std::vector<std::string> flags = {}) {
+    std::shared_ptr<Program> p = ParseOrDie(src, "selftest");
+    p->edges = std::move(edges);
+    p->flags = std::move(flags);
+    return p;
+  };
+  Random rng(20261122);
+  std::string inv_err;
+
+  // 1. `PickPreferred` inspects without aging rejected frontier seeds.
+  {
+    auto corpus = make_corpus("");
+    ProgramPtr s0 =
+        corpus->Add(make_prog("let a = 1;", {1, 2, 3}, {"--flag-a"}));
+    ProgramPtr s1 = corpus->Add(make_prog("let b = 2;", {4, 5}, {"--flag-b"}));
+    ProgramPtr s2 = corpus->Add(make_prog("let c = 3;", {6}, {"--flag-c"}));
+    ProgramPtr picked = corpus->PickPreferred(rng, 2, [](const Program& p) {
+      return !p.flags.empty() && p.flags[0] == "--flag-b";
+    });
+    const bool match_ok = picked == s1 && s0->age == 0.0 &&
+                          s0->picks.load() == 0 && s1->age == 1.0 &&
+                          s1->picks.load() == 1 && s2->age == 0.0;
+    ProgramPtr next = corpus->Pick(rng);
+    const bool top_preserved =
+        next == s0 && s0->age == 1.0 && s0->picks.load() == 1;
+    // When all inspected candidates fail the predicate, only the fallback
+    // candidate ages.
+    auto corpus2 = make_corpus("");
+    ProgramPtr t0 = corpus2->Add(make_prog("let a = 1;", {1, 2, 3}));
+    ProgramPtr t1 = corpus2->Add(make_prog("let b = 2;", {4, 5}));
+    ProgramPtr fallback =
+        corpus2->PickPreferred(rng, 2, [](const Program&) { return false; });
+    const bool fallback_ok = fallback == t0 && t0->age == 1.0 &&
+                             t0->picks.load() == 1 && t1->age == 0.0 &&
+                             t1->picks.load() == 0;
+    checker->Check(
+        "rarity: PickPreferred does not age or demote rejected frontier seeds",
+        match_ok && top_preserved && fallback_ok &&
+            corpus->CheckInvariantsForTest(&inv_err) &&
+            corpus2->CheckInvariantsForTest(&inv_err),
+        inv_err);
+  }
+
+  // 2. Indexed active max-heap updates order and evicts zero-energy seeds.
+  {
+    auto corpus = make_corpus(R"({"rare_edge_limit": 3})");
+    ProgramPtr s_unique = corpus->Add(make_prog("let a = 1;", {10}));
+    ProgramPtr s_shared = corpus->Add(make_prog("let b = 2;", {20, 21}));
+    // Adding a second seed on {20, 21} reduces `s_shared` energy below
+    // `s_unique` (2 / 2^3 = 0.25 < 1.0).
+    corpus->Add(make_prog("let c = 3;", {20, 21}));
+    ProgramPtr top_after_drop = corpus->Pick(rng);
+    // A third seed on {20, 21} saturates both edges (count 3 == limit 3),
+    // evicting all three {20, 21} seeds from the active heap.
+    corpus->Add(make_prog("let d = 4;", {20, 21}));
+    const bool evicted_ok = corpus->active_size() == 1 && corpus->size() == 4 &&
+                            corpus->Get(s_shared->id) == s_shared &&
+                            corpus->Pick(rng) == s_unique;
+    // Crash edges can also saturate the last active seed cleanly.
+    corpus->RecordCrashEdges({10, 10});
+    const bool crash_sat_ok =
+        corpus->active_size() == 0 && corpus->Pick(rng) != nullptr;
+    checker->Check(
+        "rarity: indexed heap reorders on updates and evicts zero-energy seeds",
+        top_after_drop == s_unique && evicted_ok && crash_sat_ok &&
+            corpus->CheckInvariantsForTest(&inv_err),
+        inv_err);
+  }
+
+  // 3. O(1) active-set `PickPartner` avoids dead seeds and falls back when
+  // empty.
+  {
+    auto corpus = make_corpus(R"({"rare_edge_limit": 2})");
+    ProgramPtr dead_anchor;
+    for (int i = 0; i < 60; i++) {
+      dead_anchor =
+          corpus->Add(make_prog(StringPrintf("let d%d = %d;", i, i), {50}));
+    }
+    ProgramPtr a0 = corpus->Add(make_prog("let x = 1;", {100}));
+    ProgramPtr a1 = corpus->Add(make_prog("let y = 2;", {101}));
+    bool only_active = corpus->active_size() == 2;
+    for (int i = 0; i < 50; i++) {
+      ProgramPtr p = corpus->PickPartner(*dead_anchor, rng);
+      if (p != a0 && p != a1) {
+        only_active = false;
+      }
+    }
+    // Excludes anchor and includes leased active seeds in the active pool.
+    SeedLease lease_a1 = corpus->Lease(rng);
+    SeedLease lease_a0 = corpus->Lease(rng);
+    bool leased_partner_ok = true;
+    for (int i = 0; i < 20; i++) {
+      if (corpus->PickPartner(*a0, rng) != a1) {
+        leased_partner_ok = false;
+      }
+    }
+    lease_a0.Release();
+    lease_a1.Release();
+    // Empty active set falls back to the full corpus and still excludes anchor.
+    corpus->RecordCrashEdges({100, 101});
+    bool fallback_ok = corpus->active_size() == 0;
+    for (int i = 0; i < 20; i++) {
+      ProgramPtr p = corpus->PickPartner(*a0, rng);
+      if (p == nullptr || p == a0) {
+        fallback_ok = false;
+      }
+    }
+    checker->Check(
+        "rarity: PickPartner draws only active seeds and falls back when empty",
+        only_active && leased_partner_ok && fallback_ok &&
+            corpus->CheckInvariantsForTest(&inv_err),
+        inv_err);
+  }
+
+  // 4. RAII `SeedLease` distributes distinct top seeds, falls back when workers
+  // lease all active seeds, and restores seeds on destruction.
+  {
+    auto corpus = make_corpus("");
+    ProgramPtr s0 = corpus->Add(make_prog("let a = 1;", {1, 2, 3}, {"--a"}));
+    ProgramPtr s1 = corpus->Add(make_prog("let b = 2;", {4, 5}, {"--b"}));
+    ProgramPtr s2 = corpus->Add(make_prog("let c = 3;", {6}, {"--c"}));
+    bool lease_ok = false;
+    {
+      SeedLease l0 = corpus->Lease(rng);
+      SeedLease l1 = corpus->Lease(rng);
+      SeedLease l2 = corpus->Lease(rng);
+      const bool distinct = l0.program() == s0 && l1.program() == s1 &&
+                            l2.program() == s2 && corpus->leased_size() == 3;
+      // Fourth concurrent lease falls back to the highest-energy leased seed,
+      // and `LeasePreferred` inspects leased seeds without aging rejected ones.
+      const double s0_age_before = s0->age;
+      SeedLease l3 = corpus->LeasePreferred(rng, 2, [](const Program& p) {
+        return !p.flags.empty() && p.flags[0] == "--b";
+      });
+      const bool fallback = l3.program() == s1 && s0->age == s0_age_before &&
+                            corpus->leased_size() == 3;
+      // Releasing `l1` while `l3` still leases `s1` keeps `s1` leased.
+      l1.Release();
+      const bool refcount_ok = !l1 && corpus->leased_size() == 3 &&
+                               corpus->CheckInvariantsForTest(&inv_err);
+      // Releasing `l0` returns `s0` to `active_heap_` immediately.
+      l0.Release();
+      const bool released_one = corpus->leased_size() == 2;
+      SeedLease l4 = corpus->Lease(rng);
+      lease_ok = distinct && fallback && refcount_ok && released_one &&
+                 l4.program() == s0 && corpus->CheckInvariantsForTest(&inv_err);
+    }
+    // Non-rarity strategies also support `SeedLease` cleanly.
+    std::string uerr;
+    auto& reg = SelectorRegistry<const Program>::Instance();
+    Corpus uniform_corpus(
+        reg.Create(SelectionConfig{"uniform", JsonValue()}, &uerr),
+        reg.Create(SelectionConfig{"uniform-partner", JsonValue()}, &uerr));
+    uniform_corpus.Add(make_prog("let u = 1;", {1}));
+    SeedLease ulease = uniform_corpus.Lease(rng);
+    const bool uniform_lease_ok = static_cast<bool>(ulease);
+    ulease.Release();
+    checker->Check(
+        "rarity: SeedLease spreads concurrent workers, falls back and releases "
+        "via RAII",
+        lease_ok && uniform_lease_ok && !ulease && corpus->leased_size() == 0 &&
+            corpus->CheckInvariantsForTest(&inv_err),
+        inv_err);
+  }
+
+  // 5. `OnOutcome` fertility, `jit_seed_boost` and `max_memory_trees` ship
+  // default-off and activate cleanly when configured.
+  {
+    auto def = make_corpus("");
+    JsonValue def_params;
+    std::string perr;
+    JsonValue::Parse(def->seeds().Params().ToString(), &def_params, &perr);
+    const bool defaults_off =
+        def_params.GetInt("max_memory_trees", -1) == 0 &&
+        def_params.GetNumber("jit_seed_boost", 0.0) == 1.0 &&
+        def_params.GetNumber("fertility_weight", -1.0) == 0.0;
+    // Fertility boost active when `fertility_weight > 0`.
+    auto fert = make_corpus(R"({"fertility_weight": 1.0})");
+    ProgramPtr f0 = fert->Add(make_prog("let a = 1;", {1}));
+    ProgramPtr f1 = fert->Add(make_prog("let b = 2;", {2}));
+    for (int i = 0; i < 10; i++) {
+      fert->OnResult(*f0, false);
+    }
+    fert->OnResult(*f1, true);
+    fert->OnResult(*f1, true);
+    const bool fert_ok =
+        fert->Pick(rng) == f1 && fert->CheckInvariantsForTest(&inv_err);
+    // JIT boost active when `jit_seed_boost > 1`.
+    auto jit = make_corpus(R"({"jit_seed_boost": 4.0})");
+    jit->Add(make_prog("let a = 1;", {1}));
+    ProgramPtr hot = jit->Add(make_prog("for (let i = 0; i < 5; i++) {}", {2}));
+    const bool jit_ok =
+        jit->Pick(rng) == hot && jit->CheckInvariantsForTest(&inv_err);
+    // Tree eviction drops cold AST trees while preserving `Get()` and reparsing
+    // transparently on `CopyTree()`.
+    auto mem = make_corpus(R"({"rare_edge_limit": 2, "max_memory_trees": 2})");
+    uint32_t cold_id = 0;
+    std::string cold_src;
+    for (int i = 0; i < 4; i++) {
+      auto p = make_prog(StringPrintf("let m%d = %d;", i, i), {70});
+      if (i == 0) {
+        cold_src = p->source();
+      }
+      uint32_t id = mem->Add(std::move(p))->id;
+      if (i == 0) {
+        cold_id = id;
+      }
+    }
+    mem->Add(make_prog("let live = 1;", {71}));
+    const bool evicted = mem->resident_trees() <= 2 && mem->size() == 5;
+    ProgramPtr cold_prog = mem->Get(cold_id);
+    const bool was_dropped = cold_prog != nullptr && !cold_prog->has_tree();
+    std::unique_ptr<fast::Tree> reparsed =
+        cold_prog != nullptr ? cold_prog->CopyTree() : nullptr;
+    const bool reparsed_ok = was_dropped && cold_prog->has_tree() &&
+                             cold_prog->source() == cold_src &&
+                             reparsed != nullptr &&
+                             fast::Print(reparsed->root()) == cold_src;
+    checker->Check(
+        "rarity: fertility, jit_seed_boost and max_memory_trees default off "
+        "and work when enabled",
+        defaults_off && fert_ok && jit_ok && evicted && reparsed_ok &&
+            mem->CheckInvariantsForTest(&inv_err),
+        inv_err);
+  }
+
+  // 6. Randomized invariant stress over adds, leases, partners, outcomes and
+  // crash edges.
+  {
+    auto corpus =
+        make_corpus(R"({"rare_edge_limit": 4, "fertility_weight": 0.5})");
+    std::vector<SeedLease> leases;
+    bool ok = true;
+    for (int step = 0; step < 200 && ok; step++) {
+      const size_t action = rng.Index(6);
+      if (corpus->size() < 3 || action == 0) {
+        std::vector<uint32_t> edges;
+        const size_t k = 1 + rng.Index(4);
+        for (size_t j = 0; j < k; j++) {
+          edges.push_back(static_cast<uint32_t>(1 + rng.Index(20)));
+        }
+        corpus->Add(make_prog(
+            StringPrintf("let v%d = %d;", step, step), std::move(edges),
+            (step % 3 == 0) ? std::vector<std::string>{"--tag"}
+                            : std::vector<std::string>{}));
+      } else if (action == 1) {
+        if (leases.size() < 6) {
+          leases.push_back(corpus->LeasePreferred(
+              rng, 3, [](const Program& p) { return !p.flags.empty(); }));
+        } else {
+          const size_t drop = rng.Index(leases.size());
+          leases.erase(leases.begin() + static_cast<ptrdiff_t>(drop));
+        }
+      } else if (action == 2) {
+        if (!leases.empty()) {
+          const size_t drop = rng.Index(leases.size());
+          leases.erase(leases.begin() + static_cast<ptrdiff_t>(drop));
+        }
+      } else if (action == 3) {
+        ProgramPtr p = corpus->PickPreferred(
+            rng, 2, [](const Program& prog) { return !prog.flags.empty(); });
+        if (p != nullptr) {
+          corpus->PickPartner(*p, rng);
+          corpus->OnResult(*p, rng.Index(4) == 0);
+        }
+      } else if (action == 4) {
+        corpus->RecordCrashEdges({static_cast<uint32_t>(1 + rng.Index(20))});
+      } else {
+        ProgramPtr p = corpus->Pick(rng);
+        if (p != nullptr) {
+          corpus->OnResult(*p, rng.Index(5) == 0);
+        }
+      }
+      ok = corpus->CheckInvariantsForTest(&inv_err);
+    }
+    leases.clear();
+    ok = ok && corpus->leased_size() == 0 &&
+         corpus->CheckInvariantsForTest(&inv_err);
+    checker->Check(
+        "rarity: randomized heap, lease, partner and fertility invariants hold",
+        ok, inv_err);
+  }
+}
+
 }  // namespace
 
 void RunSelectionChecks(Checker* checker, const std::string& testdata_dir,
@@ -2202,6 +2502,7 @@ void RunSelectionChecks(Checker* checker, const std::string& testdata_dir,
   CheckWrapInTry(checker);
   CheckOsrLoopTrigger(checker);
   CheckFocusChain(checker);
+  CheckRarityOverhaul(checker);
   CheckEdgeCases(checker);
 }
 

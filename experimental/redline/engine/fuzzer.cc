@@ -916,14 +916,18 @@ class Worker {
 
   // Builds and executes a `Fuse` root merging 2 or 3 donors. Returns true when
   // execution succeeded so the chain can continue from `*parent_out`.
-  bool RunFuseRoot(Corpus& corpus, ProgramPtr* parent_out,
+  bool RunFuseRoot(Corpus& corpus, SeedLease* lease_out, ProgramPtr* parent_out,
                    ProgramPtr* ancestor_out, int* chain_out) {
     Stopwatch pick_timer;
-    ProgramPtr seed = PickSeed(corpus);
+    *lease_out = PickSeed(corpus);
+    ProgramPtr seed = lease_out->program();
     bool from_empty =
         seed == nullptr ||
         (corpus.size() < static_cast<size_t>(config().initial_programs) &&
          rng_.Coin());
+    if (from_empty) {
+      lease_out->Release();
+    }
     ProgramPtr parent = from_empty ? fuzzer_->empty_program_ : seed;
     const uint32_t ancestor_id = parent->id;
     {
@@ -1113,6 +1117,7 @@ class Worker {
     MaybeRespawnForTargets();
     Corpus& corpus = fuzzer_->corpus();
     const bool has_material = !fuzzer_->material().empty();
+    SeedLease seed_lease;
     ProgramPtr parent;
     ProgramPtr ancestor;
     int chain = 0;
@@ -1139,17 +1144,19 @@ class Worker {
     const Program* focus_source = nullptr;
 
     if (has_material && rng_.Chance(MaterialFuseChance())) {
-      if (!RunFuseRoot(corpus, &parent, &ancestor, &chain)) {
+      if (!RunFuseRoot(corpus, &seed_lease, &parent, &ancestor, &chain)) {
         return;
       }
       focus_source = parent.get();
     } else {
       Stopwatch pick_time;
-      parent = PickSeed(corpus);
+      seed_lease = PickSeed(corpus);
+      parent = seed_lease.program();
       bool from_empty = false;
       if (parent == nullptr ||
           (corpus.size() < static_cast<size_t>(config().initial_programs) &&
            rng_.Coin())) {
+        seed_lease.Release();
         parent = fuzzer_->empty_program_;
         from_empty = true;
       }
@@ -1542,17 +1549,18 @@ class Worker {
     }
   }
 
-  // Picks the seed of a mutation chain. If the target process has random
-  // flags, prefers a program that shares a flag with them. It examines up to
-  // flags.seed_affinity_tries candidates under one lock of the corpus.
-  ProgramPtr PickSeed(Corpus& corpus) {
+  // Leases the seed of a mutation chain. If the target process has random
+  // flags, prefers a program that shares a flag with them. Inspects up to
+  // `flags.seed_affinity_tries` candidates under one lock without aging
+  // rejected seeds.
+  SeedLease PickSeed(Corpus& corpus) {
     const int tries = SeedAffinityTries();
     const std::vector<std::string>& active = runner_->child().random_args();
     if (tries <= 1 || active.empty() ||
         fuzzer_->flagged_programs_.load(std::memory_order_relaxed) == 0) {
-      return corpus.Pick(rng_);
+      return corpus.Lease(rng_);
     }
-    return corpus.PickPreferred(rng_, tries, [&active](const Program& p) {
+    return corpus.LeasePreferred(rng_, tries, [&active](const Program& p) {
       return SharesD8Flag(p.flags, active);
     });
   }
