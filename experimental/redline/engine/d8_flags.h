@@ -24,26 +24,36 @@ namespace redline {
 // graph builder, the CPU feature flags and the garbage collection stress
 // flags. kMaglev adds Maglev features and inlining limits.
 // kTurbolev adds the Turbolev, Turboshaft and backend features, the inlining
-// limits of Turbolev, the concurrent recompilation flags and the
-// --stress-concurrent-inlining flags. kFuzzilli draws the non-Wasm flags of
-// the V8 profile of Fuzzilli with the same probabilities, ranges and
-// conditions.
-enum class D8FlagProfile { kMaglev, kTurbolev, kFuzzilli };
+// limits of Turbolev, the concurrent recompilation flags, the
+// --stress-concurrent-inlining flags and the Turbofan verifiers. kRuntime
+// draws only the common flags that do not act on a JIT tier: inline caches,
+// lazy parsing, bytecode, shared strings and garbage collection. kFuzzilli
+// draws the non-Wasm flags of the V8 profile of Fuzzilli with the same
+// probabilities, ranges and conditions. kFuzzilliWasm also draws the Wasm
+// flags of that profile.
+enum class D8FlagProfile {
+  kMaglev,
+  kTurbolev,
+  kFuzzilli,
+  kFuzzilliWasm,
+  kRuntime
+};
 
-// Parses "maglev", "turbolev" or "fuzzilli". Returns false for another name.
+// Parses "maglev", "turbolev", "fuzzilli", "fuzzilli-wasm" or "runtime".
+// Returns false for another name.
 bool ParseD8FlagProfile(const std::string& name, D8FlagProfile* profile);
 const char* D8FlagProfileName(D8FlagProfile profile);
 
 // A random set of d8 flags for one target process, like the random part of
 // the V8 profile of Fuzzilli. The flags change how V8 compiles and checks
 // code: compiler features, inlining limits, assertions, tier-up, feedback
-// allocation and garbage collection. In kMaglev and kTurbolev, each flag has
-// a tunable (flags.*) for its probability and tunables for its value range.
-// kFuzzilli keeps the fixed probabilities and value ranges of Fuzzilli instead
-// of flags.* tunables. A session with randomize_d8_flags draws a new set for
-// each new target process. The flags come before `fixed_args`, so that a flag
-// of the configuration wins. `RandomD8Flags` drops flags that clash with
-// `fixed_args`.
+// allocation and garbage collection. In kMaglev, kTurbolev and kRuntime, each
+// flag has a tunable (flags.*) for its probability and tunables for its value
+// range. kFuzzilli and kFuzzilliWasm keep the fixed probabilities and value
+// ranges of Fuzzilli instead of flags.* tunables. A session with
+// randomize_d8_flags draws a new set for each new target process. The flags
+// come before `fixed_args`, so that a flag of the configuration wins.
+// `RandomD8Flags` drops flags that clash with `fixed_args`.
 std::vector<std::string> RandomD8Flags(
     Random& rng, D8FlagProfile profile = D8FlagProfile::kMaglev,
     const std::vector<std::string>& fixed_args = {});

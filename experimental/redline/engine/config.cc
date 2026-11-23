@@ -1255,8 +1255,8 @@ bool FuzzConfig::Load(const Flags& flags, FuzzConfig* c, std::string* error,
   D8FlagProfile flag_profile;
   if (!ParseD8FlagProfile(c->d8_flag_profile, &flag_profile)) {
     *error =
-        "d8_flag_profile must be \"maglev\", \"turbolev\" or \"fuzzilli\", "
-        "not \"" +
+        "d8_flag_profile must be \"maglev\", \"turbolev\", \"runtime\", "
+        "\"fuzzilli\" or \"fuzzilli-wasm\", not \"" +
         c->d8_flag_profile + "\"";
     return false;
   }
@@ -1610,7 +1610,8 @@ std::string FuzzConfig::JsonHelp() {
       "each "
       "new d8 (flags.* tunables)\n"
       "    \"d8_flag_profile\": \"maglev\",    // the random flags: "
-      "\"maglev\", \"turbolev\" or \"fuzzilli\"\n"
+      "\"maglev\", \"turbolev\", \"runtime\", \"fuzzilli\" or "
+      "\"fuzzilli-wasm\"\n"
       "    \"d8_trials\": \"\",              // a "
       "clusterfuzz_trials_config.json "
       "file: more random d8 flags\n"

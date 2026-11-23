@@ -13,12 +13,12 @@
 // limitations under the License.
 
 // Pinned copy of `v8ProcessArgs` from Fuzzilli
-// `Sources/Fuzzilli/Profiles/V8CommonProfile.swift` at commit `ebd2138c`.
+// `Sources/Fuzzilli/Profiles/V8CommonProfile.swift` at commit `7eb96565`.
 
 // Configure V8 invocation arguments. `forSandbox` is used by the V8SandboxProfile. As the sandbox
 // fuzzer does not crash on regular assertions, most validation flags do not make sense in that
 // configuraiton.
-public func v8ProcessArgs(randomize: Bool, forSandbox: Bool) -> [String] {
+public func v8ProcessArgs(config: ProcessArgsConfig, forSandbox: Bool) -> [String] {
     var args = [
         "--expose-gc",
         "--expose-externalize-string",
@@ -39,7 +39,12 @@ public func v8ProcessArgs(randomize: Bool, forSandbox: Bool) -> [String] {
         args.append("--disable-in-process-stack-traces")
     }
 
-    guard randomize else { return args }
+    guard config.randomize else { return args }
+
+    func chooseBooleanFlagRandomly(_ flag: String) {
+        assert(!flag.starts(with: "--"))
+        args.append(probability(0.5) ? "--\(flag)" : "--no-\(flag)")
+    }
 
     // Prioritize fuzzing "future" logic as it is more likely to have bugs but keep some basic
     // coverage for the shipping non-future logic.
@@ -66,7 +71,7 @@ public func v8ProcessArgs(randomize: Bool, forSandbox: Bool) -> [String] {
         args.append("--no-flush-bytecode")
     }
 
-    if probability(0.1) {
+    if !args.contains("--maglev-as-top-tier") && probability(0.1) {
         args.append("--no-maglev")
     }
 
@@ -148,14 +153,12 @@ public func v8ProcessArgs(randomize: Bool, forSandbox: Bool) -> [String] {
 
     // Enable the shared heap.
     if probability(0.25) {
-        // Either use the shared-string-table (needed for JS shared structs) or only allow
-        // shared strings (needed for shared Wasm objects).
-        args.append(Bool.random() ? "--shared-string-table" : "--shared-strings")
+        args.append("--shared-strings")
     }
 
     if !args.contains("--no-maglev") {
-        if probability(0.5) {
-            args.append("--maglev-untagged-phis")
+        if probability(0.1) {
+            args.append("--no-maglev-untagged-phis")
         }
         if probability(0.1) {
             args.append("--no-maglev-loop-peeling")
@@ -171,13 +174,19 @@ public func v8ProcessArgs(randomize: Bool, forSandbox: Bool) -> [String] {
         }
         if probability(0.2) {
             args.append("--maglev-non-eager-inlining")
+            if probability(0.35) {
+                args.append("--max-maglev-eager-inlined-bytecode-size=0")
+            }
             if probability(0.4) {  // TODO: @tacet decrease this probability to max 0.2
                 args.append("--max-maglev-inlined-bytecode-size-small=0")
             }
         }
+        if !args.contains("--no-turbofan") && probability(0.1) {
+            args.append("--always-osr-from-maglev")
+        }
     }
 
-    if probability(0.7) {
+    if !args.contains("--no-turbofan") && probability(0.7) {
         args.append("--turbolev")
         if probability(0.82) {
             args.append("--turbolev-future")
@@ -188,10 +197,44 @@ public func v8ProcessArgs(randomize: Bool, forSandbox: Bool) -> [String] {
         if probability(0.1) {
             args.append("--maglev-disable-builtin-reducers")
         }
+        if probability(0.1) {
+            args.append("--no-turbolev-untagged-phis")
+        }
+        if probability(0.1) {
+            args.append("--no-turbolev-truncated-int32-phis")
+        }
+        if probability(0.1) {
+            args.append("--no-turbolev-non-eager-inlining")
+        }
+        if probability(0.1) {
+            args.append("--no-turbolev-non-eager-loop-peeling")
+        }
+        if probability(0.1) {
+            args.append("--no-turbolev-eager-loop-peeling-osr")
+        }
+        if probability(0.1) {
+            let maxInlinedSize = Int.random(in: 0...920)
+            args.append("--max-inlined-bytecode-size=\(maxInlinedSize)")
+            args.append(
+                "--max-inlined-bytecode-size-cumulative=\(maxInlinedSize + Int.random(in: 0...920))"
+            )
+        }
+        if !args.contains("--max-inlined-bytecode-size-small=0") && probability(0.1) {
+            args.append("--max-inlined-bytecode-size-small=\(Int.random(in: 0...54))")
+        }
+        if probability(0.1) {
+            args.append(
+                "--max-inlined-bytecode-size-small-with-heapnum-in-out=\(Int.random(in: 0...150))")
+        }
     }
 
-    if probability(0.1) {
-        args.append("--harmony-struct")
+    // Optimized code coverage is only produced by Maglev and Turbolev (not by TurboFan).
+    let maglevEnabled = !args.contains("--no-maglev")
+    let turbolevEnabled = args.contains("--turbolev")
+    if !forSandbox && (maglevEnabled || turbolevEnabled)
+        && probability(config.isWasmEnabled ? 0.1 : 0.2)
+    {
+        args.append("--fuzzilli-enable-optimized-code-coverage")
     }
 
     if probability(0.1) {
@@ -239,6 +282,10 @@ public func v8ProcessArgs(randomize: Bool, forSandbox: Bool) -> [String] {
         args.append("--stress-wasm-stack-switching")
     }
 
+    if config.enableCustomDescriptors {
+        chooseBooleanFlagRandomly("wasm-merged-descriptors")
+    }
+
     if probability(0.5) {
         args.append("--proto-assign-seq-lazy-func-opt")
         if probability(0.5) {
@@ -279,6 +326,12 @@ public func v8ProcessArgs(randomize: Bool, forSandbox: Bool) -> [String] {
             // TODO(tacet): update the Turbolev conditions to !args.contains("--no-turbolev") after Turbolev trial
             args.append("--maglev-assert-types")
         }
+        if args.contains("--turbolev") && probability(0.2) {
+            args.append("--maglev-range-verification")
+        }
+        if probability(0.2) {
+            args.append("--verify-turboshaft")
+        }
         if probability(0.2) {
             args.append("--turboshaft-verify-load-elimination")
         }
@@ -310,9 +363,28 @@ public func v8ProcessArgs(randomize: Bool, forSandbox: Bool) -> [String] {
     }
     if probability(0.1) {
         args.append("--stress-ic")
+    } else if probability(0.1) {
+        args.append("--no-use-ic")
+    }
+    if probability(0.1) {
+        args.append("--invocation-count-for-feedback-allocation=\(Int.random(in: 0...8))")
+    }
+    if probability(0.1) {
+        args.append("--no-additive-safe-int-feedback")
     }
     if probability(0.1) {
         args.append("--optimize-on-next-call-optimizes-to-maglev")
+    }
+    if !args.contains("--no-turbofan") && probability(0.2) {
+        args.append("--optimize-maglev-optimizes-to-turbofan")
+    }
+    if !args.contains("--no-turbofan") && !args.contains("--assert-types") {
+        if probability(0.25) {
+            args.append("--stress-concurrent-inlining")
+            if probability(0.2) {
+                args.append("--stress-concurrent-inlining-attach-code")
+            }
+        }
     }
 
     //
@@ -358,75 +430,66 @@ public func v8ProcessArgs(randomize: Bool, forSandbox: Bool) -> [String] {
     // More exotic configuration changes.
     //
     if probability(0.05) {
-        func chooseBooleanFlag(_ flag: String) {
-            assert(!flag.starts(with: "--"))
-            args.append(probability(0.5) ? "--\(flag)" : "--no-\(flag)")
-        }
-
         if probability(0.5) { args.append("--stress-gc-during-compilation") }
         if probability(0.5) { args.append("--lazy-new-space-shrinking") }
         if probability(0.5) { args.append("--stress-wasm-memory-moving") }
         if probability(0.5) { args.append("--stress-background-compile") }
-        if probability(0.5) { args.append("--parallel-compile-tasks-for-lazy") }
-        if probability(0.5) { args.append("--parallel-compile-tasks-for-eager-toplevel") }
 
-        chooseBooleanFlag("always-sparkplug")
-        chooseBooleanFlag("always-osr")
-        chooseBooleanFlag("concurrent-osr")
-        chooseBooleanFlag("force-slow-path")
-        chooseBooleanFlag("lazy")
-        chooseBooleanFlag("lazy-eval")
+        chooseBooleanFlagRandomly("always-sparkplug")
+        chooseBooleanFlagRandomly("always-osr")
+        chooseBooleanFlagRandomly("concurrent-osr")
+        chooseBooleanFlagRandomly("force-slow-path")
+        chooseBooleanFlagRandomly("lazy")
+        chooseBooleanFlagRandomly("lazy-eval")
 
         // Maglev related flags
-        chooseBooleanFlag("maglev-inline-api-calls")
-        chooseBooleanFlag("maglev-inlining")
-        chooseBooleanFlag("maglev-optimistic-peeled-loops")
-        chooseBooleanFlag("maglev-pretenure-store-values")
-        chooseBooleanFlag("maglev-poly-calls")
-        chooseBooleanFlag("maglev-truncation")
-        chooseBooleanFlag("maglev-cse")
-        chooseBooleanFlag("maglev-range-analysis")
-        chooseBooleanFlag("maglev-escape-analysis")
-        chooseBooleanFlag("maglev-licm")
+        chooseBooleanFlagRandomly("maglev-inline-api-calls")
+        chooseBooleanFlagRandomly("maglev-inlining")
+        chooseBooleanFlagRandomly("maglev-optimistic-peeled-loops")
+        chooseBooleanFlagRandomly("maglev-poly-calls")
+        chooseBooleanFlagRandomly("maglev-truncation")
+        chooseBooleanFlagRandomly("maglev-cse")
+        chooseBooleanFlagRandomly("maglev-range-analysis")
+        chooseBooleanFlagRandomly("maglev-escape-analysis")
 
         // Compiler related flags
-        chooseBooleanFlag("turbo-move-optimization")
-        chooseBooleanFlag("turbo-jt")  // jump threading
-        chooseBooleanFlag("turbo-loop-peeling")
-        chooseBooleanFlag("turbo-loop-variable")
-        chooseBooleanFlag("turbo-loop-rotation")
-        chooseBooleanFlag("turbo-cf-optimization")
-        chooseBooleanFlag("turbo-escape")
-        chooseBooleanFlag("turbo-allocation-folding")
-        chooseBooleanFlag("turbo-instruction-scheduling")
-        chooseBooleanFlag("turbo-stress-instruction-scheduling")
-        chooseBooleanFlag("turbo-store-elimination")
-        chooseBooleanFlag("turbo-rewrite-far-jumps")
-        chooseBooleanFlag("turbo-optimize-apply")
-        chooseBooleanFlag("turbo-load-elimination")
-        chooseBooleanFlag("turbo-inlining")
-        chooseBooleanFlag("turbo-splitting")
+        chooseBooleanFlagRandomly("turbo-move-optimization")
+        chooseBooleanFlagRandomly("turbo-jt")  // jump threading
+        chooseBooleanFlagRandomly("turbo-loop-peeling")
+        chooseBooleanFlagRandomly("turbo-loop-variable")
+        chooseBooleanFlagRandomly("turbo-loop-rotation")
+        chooseBooleanFlagRandomly("turbo-cf-optimization")
+        chooseBooleanFlagRandomly("turbo-escape")
+        chooseBooleanFlagRandomly("turbo-allocation-folding")
+        chooseBooleanFlagRandomly("turbo-instruction-scheduling")
+        chooseBooleanFlagRandomly("turbo-stress-instruction-scheduling")
+        chooseBooleanFlagRandomly("turbo-store-elimination")
+        chooseBooleanFlagRandomly("turbo-rewrite-far-jumps")
+        chooseBooleanFlagRandomly("turbo-optimize-apply")
+        chooseBooleanFlagRandomly("turbo-load-elimination")
+        chooseBooleanFlagRandomly("turbo-inlining")
         args.append(
             chooseUniform(from: [
                 "--no-enable-sse3", "--no-enable-ssse3", "--no-enable-sse4-1", "--no-enable-sse4-2",
-                "--no-enable-avx", "--no-enable-avx2",
+                "--no-enable-avx", "--no-enable-avx2", "--no-enable-sahf", "--no-enable-fma3",
+                "--no-enable-bmi1", "--no-enable-bmi2", "--no-enable-lzcnt", "--no-enable-popcnt",
             ]))
 
-        chooseBooleanFlag("turboshaft-loop-unrolling")
-        chooseBooleanFlag("turboshaft-load-elimination")
-        chooseBooleanFlag("turboshaft-string-concat-escape-analysis")
+        chooseBooleanFlagRandomly("turboshaft-loop-unrolling")
+        chooseBooleanFlagRandomly("turboshaft-load-elimination")
+        chooseBooleanFlagRandomly("turboshaft-string-concat-escape-analysis")
 
         // Wasm related flags
-        chooseBooleanFlag("wasm-loop-peeling")
-        chooseBooleanFlag("turboshaft-wasm-load-elimination")
-        chooseBooleanFlag("wasm-loop-unrolling")
-        chooseBooleanFlag("wasm-inlining")
-        chooseBooleanFlag("wasm-opt")
-        chooseBooleanFlag("wasm-deopt")
-        chooseBooleanFlag("wasm-enforce-bounds-checks")
-        chooseBooleanFlag("wasm-math-intrinsics")
-        chooseBooleanFlag("wasm-bulkmem-inlining")
-        chooseBooleanFlag("wasm-lazy-compilation")
+        chooseBooleanFlagRandomly("wasm-loop-peeling")
+        chooseBooleanFlagRandomly("turboshaft-wasm-load-elimination")
+        chooseBooleanFlagRandomly("wasm-loop-unrolling")
+        chooseBooleanFlagRandomly("wasm-inlining")
+        chooseBooleanFlagRandomly("wasm-opt")
+        chooseBooleanFlagRandomly("wasm-deopt")
+        chooseBooleanFlagRandomly("wasm-enforce-bounds-checks")
+        chooseBooleanFlagRandomly("wasm-math-intrinsics")
+        chooseBooleanFlagRandomly("wasm-bulkmem-inlining")
+        chooseBooleanFlagRandomly("wasm-lazy-compilation")
     }
 
     return args

@@ -36,7 +36,8 @@ const char kUsage[] =
     "                           fuzzilli)\n"
     "  --config=FILE|'{json}'   JSON configuration\n"
     "  --randomize-d8-flags     enable random d8 flags without a preset\n"
-    "  --d8-flag-profile=NAME   maglev (default), turbolev or fuzzilli\n"
+    "  --d8-flag-profile=NAME   maglev (default), turbolev, runtime,\n"
+    "                           fuzzilli or fuzzilli-wasm\n"
     "  --n=N                    number of draws to print (default 10)\n"
     "  --seed=S                 random seed (default 1)\n"
     "  --tunable=NAME=V,...     override tunables\n";

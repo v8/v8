@@ -5,8 +5,8 @@
 """Compares the random d8 flags of Redline with V8 and Fuzzilli sources.
 
 Reads the flag names and probabilities from `redline fuzz --help-tunables` (or
-from `kFuzzilliFlagTable` in `engine/d8_flags.cc` when `--profile=fuzzilli` is
-given) and compares them with
+from `kFuzzilliFlagTable` in `engine/d8_flags.cc` when `--profile=fuzzilli` or
+`--profile=fuzzilli-wasm` is given) and compares them with
 `tools/clusterfuzz/trials/clusterfuzz_trials_config.json`,
 `tools/clusterfuzz/foozzie/v8_fuzz_flags.json`, and (when `--fuzzilli=PATH` is
 given) `Sources/Fuzzilli/Profiles/V8CommonProfile.swift`.
@@ -29,8 +29,12 @@ Known limits of static `flag-definitions.h` parsing:
   - Compound C++ expressions in `DEFINE_*IMPLICATION` and arbitrary statements
     in `DEFINE_GENERIC_IMPLICATION` are not parsed.
 
+With `--check-d8=D8`, runs `D8 --help` once and reports each flag name of
+`kFuzzilliFlagTable` and of `RandomD8Flags` that the `d8` binary does not have.
+
 Exits with status 0 by default, or 1 when `--strict` is set and a difference
-exists (or when `--check-draws` finds a frequency difference above tolerance).
+exists (or when `--check-draws` finds a frequency difference above tolerance,
+or when `--check-d8` finds an unknown flag name).
 """
 
 import argparse
@@ -85,8 +89,22 @@ DUMMY_FLAG_PARAMS = frozenset(
     ('nam', 'name', 'alias', 'cond', 'whenflag', 'thenflag'))
 TABLE_ENTRY = re.compile(
     r'\{\s*FuzzilliCond::(k\w+)\s*,\s*FuzzilliDrawKind::(k\w+)\s*,\s*'
-    r'([0-9.e+-]+)\s*,\s*"((?:--[a-z0-9-]+=?\d*)?)"\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*\}'
-)
+    r'([0-9.e+-]+)\s*,\s*"((?:--[a-z0-9-]+=?\d*)?)"\s*,\s*(-?\d+)\s*,\s*(-?\d+)'
+    r'(?:\s*,\s*(true|false))?\s*\}')
+BOOL_HELPER_CALL = re.compile(
+    r'chooseBooleanFlag(?:Randomly)?\("([a-z0-9-]+)"\)')
+SWIFT_CONTAINS = re.compile(r'args\.contains\("(--[a-z0-9_-]+)(?:=[^"]*)?"\)')
+# The values of the `config.*` fields of `v8ProcessArgs` for the non-Wasm
+# comparison. Wasm-only fields stay false.
+SWIFT_CONFIG = {
+    'randomize': True,
+    'isWasmEnabled': False,
+    'enableCustomDescriptors': False
+}
+# The conditions of kFuzzilliFlagTable that draw a flag only if an earlier row
+# did not draw the same flag name. The two draws exclude each other.
+EXCLUSIVE_CONDS = frozenset(('kIfTurbolevNoSmallZero',))
+D8_HELP_FLAG = re.compile(r'^\s+(--[a-z0-9_-]+)\b', re.MULTILINE)
 PROB_TOLERANCE = 1e-4
 DEFAULT_MAX_SIGMA = 4.0
 PRESET_PARENT_FLAGS = frozenset(
@@ -329,55 +347,74 @@ def read_redline_flags(redline_bin):
   return parse_redline_tunables(proc.stdout)
 
 
-def parse_fuzzilli_profile_table(text):
-  """Returns `(table_probs, wasm_only_set)` from `engine/d8_flags.cc`.
+def parse_fuzzilli_profile_table(text, include_wasm=False):
+  """Returns `(table_probs, omitted_set)` from `engine/d8_flags.cc`.
 
   Computes the unconditional marginal probability of every flag in
   `kFuzzilliFlagTable` directly from the table rows (`kGroup`, parent flags,
   `kBoolFlag`, coin choices and `kCpuUniform` count), without separate
-  probability literals in Python.
+  probability literals in Python. Without `include_wasm`, skips the Wasm rows
+  and puts their flags into `omitted_set`. `omitted_set` also has the flags of
+  the "Deferred flags" comment.
   """
-  wasm_only = set()
-  comment_match = re.search(
-      r'// Omitted Wasm-only flags[^\n]*\n((?://[^\n]*\n)+)', text)
+  omitted = set()
+  comment_match = re.search(r'// Deferred flags[^\n]*\n((?://[^\n]*\n)+)', text)
   if comment_match:
     for flag in re.findall(r'--[a-z0-9-]+', comment_match.group(1)):
-      wasm_only.add(normalize_flag(flag))
+      omitted.add(normalize_flag(flag))
 
   rows = []
   for match in TABLE_ENTRY.finditer(text):
-    cond, kind, prob_text, raw_flag, _, _ = match.groups()
-    rows.append((cond, kind, float(prob_text), raw_flag))
+    cond, kind, prob_text, raw_flag, _, _, wasm = match.groups()
+    rows.append((cond, kind, float(prob_text), raw_flag, wasm == 'true'))
 
-  cpu_count = sum(1 for _, kind, _, _ in rows if kind == 'kCpuUniform')
+  cpu_count = sum(1 for row in rows if row[1] == 'kCpuUniform')
   group_probs = {}
   probs = {}
   prev_eff = 0.0
+
+  def p(flag):
+    return probs.get(flag, 0.0)
 
   def cond_prob(cond):
     if cond in ('kTop', 'kIfNotSandbox'):
       return 1.0
     if cond == 'kIfNoTurbofan':
-      return probs.get('--no-turbofan', 0.0)
+      return p('--no-turbofan')
     if cond == 'kElseNoTurbofan':
-      return (1.0 - probs.get('--no-turbofan', 0.0)) * group_probs.get(
-          cond, 0.0)
+      return (1.0 - p('--no-turbofan')) * group_probs.get(cond, 0.0)
+    if cond == 'kIfNotMaglevTopTier':
+      return 1.0 - p('--maglev-as-top-tier')
+    if cond == 'kIfTurbofan':
+      return 1.0 - p('--no-turbofan')
     if cond == 'kIfMaglev':
-      return 1.0 - probs.get('--no-maglev', 0.0)
+      return 1.0 - p('--no-maglev')
     if cond == 'kIfMaglevNonEager':
-      return probs.get('--maglev-non-eager-inlining', 0.0)
-    if cond == 'kIfTurbolev':
-      return probs.get('--turbolev', 0.0)
+      return p('--maglev-non-eager-inlining')
+    if cond == 'kIfMaglevTurbofan':
+      return (1.0 - p('--no-maglev')) * (1.0 - p('--no-turbofan'))
+    if cond in ('kIfTurbolev', 'kIfTurbolevNotSandbox'):
+      return p('--turbolev')
     if cond == 'kIfTurbolevFuture':
-      return probs.get('--turbolev-future', 0.0)
+      return p('--turbolev-future')
+    if cond == 'kIfTurbolevNoSmallZero':
+      return p('--turbolev') - p('--max-inlined-bytecode-size-small')
+    if cond == 'kIfTurbofanNoAssertTypes':
+      return (1.0 - p('--no-turbofan')) * (1.0 - p('--assert-types'))
     if cond == 'kIfProtoAssignSeq':
-      return probs.get('--proto-assign-seq-lazy-func-opt', 0.0)
+      return p('--proto-assign-seq-lazy-func-opt')
     if cond == 'kIfMaglevOrTurbolev':
-      return 1.0 - probs.get('--no-maglev',
-                             0.0) * (1.0 - probs.get('--turbolev', 0.0))
+      return 1.0 - p('--no-maglev') * (1.0 - p('--turbolev'))
+    if cond == 'kIfNoLiftoff':
+      return p('--no-liftoff')
     return group_probs.get(cond, 1.0)
 
-  for cond, kind, prob, raw_flag in rows:
+  for cond, kind, prob, raw_flag, wasm in rows:
+    if wasm and not include_wasm:
+      if raw_flag:
+        omitted.add(normalize_flag(raw_flag))
+      prev_eff = 0.0
+      continue
     if kind == 'kGroup':
       group_probs[cond] = prob
       prev_eff = 0.0
@@ -388,25 +425,63 @@ def parse_fuzzilli_profile_table(text):
       pos_eff = mult * prob
       neg_eff = mult * (1.0 - prob)
       neg_flag = _flip_polarity(flag)
-      probs[flag] = _combine_indep(probs.get(flag, 0.0), pos_eff)
-      probs[neg_flag] = _combine_indep(probs.get(neg_flag, 0.0), neg_eff)
+      probs[flag] = _combine_indep(p(flag), pos_eff)
+      probs[neg_flag] = _combine_indep(p(neg_flag), neg_eff)
       prev_eff = 0.0
       continue
     if kind in ('kCoinFirst', 'kCoinSecond', 'kRangeCoinFirst',
                 'kRangeCoinSecond'):
       eff = mult * prob * 0.5
       prev_eff = 0.0
-    elif kind == 'kRangeWithPrev':
+    elif kind in ('kRangeWithPrev', 'kRangeCumulative', 'kFlagWithPrev'):
       eff = prev_eff * prob
+    elif kind == 'kFlagElse':
+      eff = (mult - prev_eff) * prob
+      prev_eff = eff
     elif kind == 'kCpuUniform':
       eff = mult * prob / cpu_count if cpu_count > 0 else 0.0
       prev_eff = 0.0
     else:
       eff = mult * prob
       prev_eff = eff
-    probs[flag] = _combine_indep(probs.get(flag, 0.0), eff)
+    if cond in EXCLUSIVE_CONDS:
+      probs[flag] = p(flag) + eff
+    else:
+      probs[flag] = _combine_indep(p(flag), eff)
 
-  return {flag: [round(p, 6)] for flag, p in probs.items()}, wasm_only
+  return {flag: [round(v, 6)] for flag, v in probs.items()}, omitted
+
+
+def read_table_flag_names(text):
+  """Returns the flag names of `kFuzzilliFlagTable` and `RandomD8Flags`."""
+  names = set()
+  for match in TABLE_ENTRY.finditer(text):
+    if match.group(4):
+      names.add(normalize_flag(match.group(4)))
+  func = re.search(r'\nstd::vector<std::string> RandomD8Flags\(', text)
+  if func:
+    body_start = text.index('{', func.end())
+    body = text[body_start:_find_matching(text, body_start, '{', '}')]
+    for flag in re.findall(r'"(--[a-z0-9_-]+)', body):
+      names.add(normalize_flag(flag))
+  return names
+
+
+def parse_d8_help_names(help_text):
+  """Returns the flag names (`--foo`) that `d8 --help` prints."""
+  return {normalize_flag(m.group(1)) for m in D8_HELP_FLAG.finditer(help_text)}
+
+
+def unknown_d8_flags(names, help_names):
+  """Returns the sorted names of `names` that `help_names` does not have."""
+  unknown = []
+  for name in sorted(names):
+    if name in help_names:
+      continue
+    if name.startswith('--no-') and '--' + name[5:] in help_names:
+      continue
+    unknown.append(name)
+  return unknown
 
 
 def parse_trials(text):
@@ -447,42 +522,113 @@ def _find_matching(text, start, open_char, close_char):
   return i
 
 
-def _eval_swift_contains(cond, probs):
-  """Evaluates `args.contains(...)` conditions in `V8CommonProfile.swift`."""
-  or_match = re.search(
-      r'!\s*args\.contains\("(--[a-z0-9_-]+)"\)\s*\|\|\s*'
-      r'args\.contains\("(--[a-z0-9_-]+)"\)', cond)
-  if or_match:
-    f1 = normalize_flag(or_match.group(1))
-    f2 = normalize_flag(or_match.group(2))
-    return 1.0 - probs.get(f1, 0.0) * (1.0 - probs.get(f2, 0.0))
-  not_match = re.search(r'!\s*args\.contains\("(--[a-z0-9_-]+)"\)', cond)
-  if not_match:
-    f1 = normalize_flag(not_match.group(1))
-    return 1.0 - probs.get(f1, 0.0)
-  has_match = re.search(r'args\.contains\("(--[a-z0-9_-]+)"\)', cond)
-  if has_match:
-    f1 = normalize_flag(has_match.group(1))
-    return probs.get(f1, 0.0)
-  return 1.0
+def _split_top_level(expr, sep):
+  """Splits `expr` at each `sep` that is not inside parentheses."""
+  parts = []
+  depth = 0
+  start = 0
+  i = 0
+  while i < len(expr):
+    if expr[i] == '(':
+      depth += 1
+    elif expr[i] == ')':
+      depth -= 1
+    elif depth == 0 and expr.startswith(sep, i):
+      parts.append(expr[start:i].strip())
+      i += len(sep)
+      start = i
+      continue
+    i += 1
+  parts.append(expr[start:].strip())
+  return parts
+
+
+def _strip_parens(term):
+  term = term.strip()
+  while term.startswith('(') and _find_matching(term, 0, '(', ')') == len(term):
+    term = term[1:-1].strip()
+  return term
+
+
+def _eval_probability_arg(arg, config):
+  """Evaluates the argument of `probability(...)`, also `c ? a : b`."""
+  match = re.fullmatch(
+      r'\s*(!?)config\.(\w+)\s*\?\s*([0-9.]+)\s*:\s*([0-9.]+)\s*', arg)
+  if match:
+    on = bool(config.get(match.group(2))) != bool(match.group(1))
+    return float(match.group(3) if on else match.group(4))
+  return float(arg)
+
+
+def _eval_swift_cond(cond, contains_prob, config):
+  """Returns `(probability, negated_flags)` of a Swift `if` condition.
+
+  Evaluates `&&`, `||`, `!`, `probability(...)`, `args.contains(...)`,
+  `config.*` and `forSandbox` (false). `contains_prob(flag)` gives the
+  probability of `args.contains(flag)`, or None to treat the term as true.
+  Other names are true. `negated_flags` are the flags of the
+  `!args.contains(...)` terms of the top-level `&&` chain.
+  """
+
+  def term_prob(term):
+    term = _strip_parens(term)
+    alternatives = _split_top_level(term, '||')
+    if len(alternatives) > 1:
+      none = 1.0
+      for alternative in alternatives:
+        none *= 1.0 - term_prob(alternative)
+      return 1.0 - none
+    negated = term.startswith('!')
+    body = _strip_parens(term[1:]) if negated else term
+    prob_match = re.fullmatch(r'probability\((.*)\)', body, re.DOTALL)
+    contains_match = SWIFT_CONTAINS.fullmatch(body)
+    config_match = re.fullmatch(r'config\.(\w+)', body)
+    if prob_match:
+      value = _eval_probability_arg(prob_match.group(1), config)
+    elif contains_match:
+      value = contains_prob(normalize_flag(contains_match.group(1)))
+      if value is None:
+        return 1.0
+    elif config_match:
+      value = 1.0 if config.get(config_match.group(1)) else 0.0
+    elif body == 'forSandbox':
+      value = 0.0
+    else:
+      return 1.0
+    return 1.0 - value if negated else value
+
+  prob = 1.0
+  negated_flags = set()
+  for term in _split_top_level(cond, '&&'):
+    prob *= term_prob(term)
+    match = re.fullmatch(r'!\s*' + SWIFT_CONTAINS.pattern, term.strip())
+    if match:
+      negated_flags.add(normalize_flag(match.group(1)))
+  return prob, negated_flags
 
 
 def parse_fuzzilli(text,
                    bool_defaults=None,
                    redline_flags=None,
-                   unconditional=False):
+                   unconditional=False,
+                   config=None):
   """Returns `{flag: probability}` from `V8CommonProfile.swift`.
 
   When `unconditional` is True (used for `--profile=fuzzilli` and
-  `--check-draws`), computes the exact unconditional marginal probability of
-  each flag across all `if` / `else if` branches, `args.contains(...)`
-  guards, and `chooseBooleanFlag` polarities (`--X` and `--no-X`).
+  `--check-draws`), computes the unconditional marginal probability of each
+  flag across all `if` / `else if` branches, `args.contains(...)` guards, and
+  `chooseBooleanFlag` / `chooseBooleanFlagRandomly` polarities (`--X` and
+  `--no-X`). Inside a block, `args.contains(F)` of a flag F that only that
+  block adds uses the probability of F in the block. A guard
+  `!args.contains(F)` makes a new draw of F exclude the old draws of F, so
+  the probabilities add.
 
   When `unconditional` is False (used for `--profile=tunables`), uses the
   conditional probability inside preset parent blocks and emits the
   non-default polarity of `chooseBooleanFlag` according to `bool_defaults`.
   """
   redline_flags = set(redline_flags or ())
+  config = SWIFT_CONFIG if config is None else config
   func_match = re.search(
       r'public\s+func\s+v8ProcessArgs\([^)]*\)\s*->\s*\[String\]\s*\{', text)
   if not func_match:
@@ -490,20 +636,34 @@ def parse_fuzzilli(text,
   body_start = func_match.end() - 1
   body_end = _find_matching(text, body_start, '{', '}')
   body = text[body_start + 1:body_end - 1]
-  guard_match = re.search(r'guard\s+randomize\s+else\s*\{[^}]*\}', body)
+  guard_match = re.search(r'guard\s+(?:config\.)?randomize\s+else\s*\{[^}]*\}',
+                          body)
   if guard_match:
     body = body[guard_match.end():]
   body = '\n'.join(re.sub(r'//.*', '', line) for line in body.splitlines())
 
   result = {}
+  # The flags that each enclosing block adds, innermost last.
+  frames = [result]
 
-  def add_prob(flag, eff):
-    if unconditional:
-      result[flag] = _combine_indep(result.get(flag, 0.0), eff)
-    else:
+  def add_prob(flag, eff, exclusive):
+    if not unconditional:
       result[flag] = round(result.get(flag, 0.0) + eff, 6)
+      return
+    for frame in frames:
+      old = frame.get(flag, 0.0)
+      frame[flag] = old + eff if exclusive else _combine_indep(old, eff)
 
-  def walk(block, mult):
+  def walk(block, mult, exclusive):
+    frame = frames[-1]
+
+    def contains_prob(flag):
+      if not unconditional:
+        return None
+      if frame is not result and flag in frame:
+        return min(1.0, frame[flag] / mult)
+      return result.get(flag, 0.0)
+
     i = 0
     n = len(block)
     parent_conditioned = False
@@ -521,15 +681,12 @@ def parse_fuzzilli(text,
       if_match = re.match(r'(else\s+)?if\s+([^{]+)\{', block[i:])
       if if_match:
         is_else = bool(if_match.group(1))
-        cond = if_match.group(2)
         brace = i + if_match.end() - 1
         end = _find_matching(block, brace, '{', '}')
         inner = block[brace + 1:end - 1]
-        prob_match = re.search(r'probability\(([0-9.]+)\)', cond)
-        prob = float(prob_match.group(1)) if prob_match else 1.0
+        branch_prob, negated = _eval_swift_cond(
+            if_match.group(2), contains_prob, config)
         if unconditional:
-          contains_prob = _eval_swift_contains(cond, result)
-          branch_prob = contains_prob * prob
           if is_else:
             eff_branch = (1.0 - last_if_prob) * branch_prob
             last_if_prob += eff_branch
@@ -538,8 +695,12 @@ def parse_fuzzilli(text,
             last_if_prob = branch_prob
           child_mult = mult * eff_branch
         else:
-          child_mult = prob if parent_conditioned else mult * prob
-        walk(inner, child_mult)
+          child_mult = (
+              branch_prob if parent_conditioned else mult * branch_prob)
+        if child_mult > 0.0:
+          frames.append({})
+          walk(inner, child_mult, exclusive | negated)
+          frames.pop()
         i = end
         continue
       append_match = re.match(r'args\.append\(', block[i:])
@@ -557,26 +718,26 @@ def parse_fuzzilli(text,
                      '?' in expr)
         divisor = len(raw_flags) if (is_choice and raw_flags) else 1
         for flag in raw_flags:
-          add_prob(flag, mult / divisor)
+          add_prob(flag, mult / divisor, flag in exclusive)
         i = end
         continue
-      bool_match = re.match(r'chooseBooleanFlag\("([a-z0-9-]+)"\)', block[i:])
+      bool_match = BOOL_HELPER_CALL.match(block[i:])
       if bool_match:
         name = bool_match.group(1)
         neg = '--no-' + name
         pos = '--' + name
         if unconditional or bool_defaults is None:
-          add_prob(pos, mult * 0.5)
-          add_prob(neg, mult * 0.5)
+          add_prob(pos, mult * 0.5, False)
+          add_prob(neg, mult * 0.5, False)
         else:
           flag = neg if bool_defaults.get(name) is True else pos
-          add_prob(flag, mult * 0.5)
+          add_prob(flag, mult * 0.5, False)
         i += bool_match.end()
         continue
       newline = block.find('\n', i)
       i = newline + 1 if newline != -1 else n
 
-  walk(body, 1.0)
+  walk(body, 1.0, frozenset())
   if unconditional:
     return {flag: round(p, 6) for flag, p in result.items()}
   return result
@@ -584,17 +745,18 @@ def parse_fuzzilli(text,
 
 def check_draw_frequencies(redline_bin,
                            swift_text,
-                           wasm_only=None,
+                           omitted=None,
                            n=100000,
                            seed=1,
-                           max_sigma=DEFAULT_MAX_SIGMA):
+                           max_sigma=DEFAULT_MAX_SIGMA,
+                           preset='fuzzilli'):
   """Draws `n` sets from `redline flags` and compares frequencies with Swift."""
-  wasm_all = _expand_wasm_polarities(wasm_only or ())
+  omitted_all = _expand_wasm_polarities(omitted or ())
   implied = parse_fuzzilli(swift_text, unconditional=True)
   proc = subprocess.run([
       redline_bin,
       'flags',
-      '--preset=fuzzilli',
+      f'--preset={preset}',
       f'--n={n}',
       f'--seed={seed}',
   ],
@@ -611,7 +773,7 @@ def check_draw_frequencies(redline_bin,
       counts[flag] += 1
 
   expected = {
-      flag: prob for flag, prob in implied.items() if flag not in wasm_all
+      flag: prob for flag, prob in implied.items() if flag not in omitted_all
   }
   diffs = []
   for flag in sorted(set(expected) | set(counts)):
@@ -751,7 +913,7 @@ def format_report(report, freq_diffs=None, max_sigma=DEFAULT_MAX_SIGMA):
 
   lines = []
   if omitted_wasm:
-    lines.append(f'Documented Wasm-only flags omitted ({len(omitted_wasm)}): '
+    lines.append(f'Flags omitted from the profile ({len(omitted_wasm)}): '
                  f'{", ".join(omitted_wasm)}\n')
   lines.append(f'Flags missing in Redline ({len(missing)}):')
   for item in missing:
@@ -815,9 +977,10 @@ def main(argv=None):
   parser.add_argument('--v8-root', default=V8_ROOT)
   parser.add_argument(
       '--profile',
-      choices=('tunables', 'fuzzilli'),
+      choices=('tunables', 'fuzzilli', 'fuzzilli-wasm'),
       default='tunables',
-      help='compare tunables (default) or the fuzzilli profile table')
+      help='compare tunables (default) or the fuzzilli profile table, '
+      'without or with its Wasm rows')
   parser.add_argument(
       '--d8',
       help='optional d8 binary to check which missing flags are already on')
@@ -843,6 +1006,10 @@ def main(argv=None):
       help='tolerance in standard deviations for --check-draws (default: 4.0)')
   parser.add_argument('--seed', type=int, default=1)
   parser.add_argument(
+      '--check-d8',
+      help='d8 binary: report flag names of d8_flags.cc that `d8 --help` '
+      'does not print')
+  parser.add_argument(
       '--strict',
       action='store_true',
       help='exit with status 1 when any difference is found')
@@ -863,18 +1030,36 @@ def main(argv=None):
 
   if args.check_draws < 0:
     sys.exit('--check-draws must be non-negative')
-  if args.check_draws > 0 and args.profile != 'fuzzilli':
-    sys.exit('--check-draws requires --profile=fuzzilli')
+  fuzzilli_profile = args.profile in ('fuzzilli', 'fuzzilli-wasm')
+  if args.check_draws > 0 and not fuzzilli_profile:
+    sys.exit('--check-draws requires --profile=fuzzilli or fuzzilli-wasm')
+
+  d8_flags_cc = os.path.join(args.v8_root, 'experimental', 'redline', 'engine',
+                             'd8_flags.cc')
+  unknown_names = []
+  if args.check_d8:
+    with open(d8_flags_cc, encoding='utf-8') as f:
+      table_names = read_table_flag_names(f.read())
+    proc = subprocess.run([args.check_d8, '--help'],
+                          capture_output=True,
+                          text=True,
+                          check=False)
+    unknown_names = unknown_d8_flags(table_names,
+                                     parse_d8_help_names(proc.stdout))
+    print(f'Flag names that {args.check_d8} does not have '
+          f'({len(unknown_names)} of {len(table_names)}):')
+    for name in unknown_names:
+      print(f'  {name}')
+    print()
 
   omitted_wasm = set()
   freq_diffs = None
-  if args.profile == 'fuzzilli':
+  if fuzzilli_profile:
     if not args.fuzzilli:
-      sys.exit('--profile=fuzzilli requires --fuzzilli=PATH')
-    d8_flags_cc = os.path.join(args.v8_root, 'experimental', 'redline',
-                               'engine', 'd8_flags.cc')
+      sys.exit(f'--profile={args.profile} requires --fuzzilli=PATH')
     with open(d8_flags_cc, encoding='utf-8') as f:
-      redline, omitted_wasm = parse_fuzzilli_profile_table(f.read())
+      redline, omitted_wasm = parse_fuzzilli_profile_table(
+          f.read(), include_wasm=args.profile == 'fuzzilli-wasm')
     fuzzilli_file = resolve_fuzzilli_path(args.fuzzilli)
     with open(fuzzilli_file, encoding='utf-8') as f:
       swift_text = f.read()
@@ -885,10 +1070,11 @@ def main(argv=None):
       freq_diffs = check_draw_frequencies(
           args.redline,
           swift_text,
-          wasm_only=omitted_wasm,
+          omitted=omitted_wasm,
           n=args.check_draws,
           seed=args.seed,
-          max_sigma=args.max_sigma)
+          max_sigma=args.max_sigma,
+          preset='wasm' if args.profile == 'fuzzilli-wasm' else 'fuzzilli')
   else:
     trials_path = args.trials or os.path.join(args.v8_root, 'tools',
                                               'clusterfuzz', 'trials',
@@ -928,6 +1114,7 @@ def main(argv=None):
       freq_diffs and any(d.get('exceeded') for d in freq_diffs))
   has_diff = bool(report['missing'] or report['different_probability'] or
                   report['redline_only'])
+  has_diff = has_diff or bool(unknown_names)
   return 1 if (has_freq_error or (args.strict and has_diff)) else 0
 
 

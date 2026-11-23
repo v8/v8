@@ -60,6 +60,7 @@
 #include "experimental/redline/exec/coverage.h"
 #include "experimental/redline/exec/process_run.h"
 #include "experimental/redline/exec/runner.h"
+#include "experimental/redline/exec/target_options.h"
 #include "experimental/redline/fast/ast.h"
 #include "experimental/redline/fast/parser.h"
 #include "experimental/redline/fast/printer.h"
@@ -101,6 +102,175 @@ std::string DefaultTestdataDir() {
   return RedlineDataDir("testdata");
 }
 
+// Offline: the `fuzzilli` and `fuzzilli-wasm` profiles of the random d8
+// flags.
+void RunFuzzilliFlagProfileChecks(Checker* checker) {
+  auto name_of = [](const std::string& flag) {
+    return flag.substr(0, flag.find('='));
+  };
+  auto value_of = [](const std::string& flag) -> int64_t {
+    size_t eq = flag.find('=');
+    return eq == std::string::npos
+               ? -1
+               : std::strtoll(flag.c_str() + eq + 1, nullptr, 10);
+  };
+  // The `fuzzilli` profiles mirror `v8ProcessArgs` without inter-flag
+  // sanitization, and emit both polarities of `chooseBooleanFlagRandomly`.
+  // Only `fuzzilli-wasm` draws the Wasm flags.
+  auto is_wasm_flag = [](const std::string& name) {
+    for (const char* prefix :
+         {"--wasm-", "--no-wasm-", "--stress-wasm-", "--no-liftoff",
+          "--turboshaft-wasm-", "--no-turboshaft-wasm-"}) {
+      if (name.rfind(prefix, 0) == 0) return true;
+    }
+    return false;
+  };
+  std::string bad_fuzzilli;
+  bool saw_pos_bool = false;
+  bool saw_neg_bool = false;
+  bool saw_wasm = false;
+  for (D8FlagProfile profile :
+       {D8FlagProfile::kFuzzilli, D8FlagProfile::kFuzzilliWasm}) {
+    const bool with_wasm = profile == D8FlagProfile::kFuzzilliWasm;
+    Random fz_rng(11);
+    for (int i = 0; i < 500 && bad_fuzzilli.empty(); i++) {
+      std::set<std::string> seen;
+      int64_t size = -1;
+      auto has = [&](const char* name) { return seen.count(name) > 0; };
+      for (const std::string& flag : RandomD8Flags(fz_rng, profile)) {
+        const std::string name = name_of(flag);
+        const int64_t value = value_of(flag);
+        std::string why;
+        if (name == "--maglev-as-top-tier" && !has("--no-turbofan")) {
+          why = "without --no-turbofan";
+        } else if (name == "--no-maglev" && has("--maglev-as-top-tier")) {
+          why = "with --maglev-as-top-tier";
+        } else if ((name == "--turbolev" ||
+                    name == "--always-osr-from-maglev" ||
+                    name == "--optimize-maglev-optimizes-to-turbofan" ||
+                    name == "--stress-concurrent-inlining") &&
+                   has("--no-turbofan")) {
+          why = "with --no-turbofan";
+        } else if ((name == "--maglev-non-eager-inlining" ||
+                    name == "--always-osr-from-maglev") &&
+                   has("--no-maglev")) {
+          why = "with --no-maglev";
+        } else if (name == "--max-maglev-inlined-bytecode-size-small" &&
+                   !has("--maglev-non-eager-inlining")) {
+          why = "without --maglev-non-eager-inlining";
+        } else if (name == "--turbolev-future" && !has("--turbolev")) {
+          why = "without --turbolev";
+        } else if (name == "--max-inlined-bytecode-size-small" &&
+                   (value == 0
+                        ? !has("--turbolev-future")
+                        : !has("--turbolev") ||
+                              has("--max-inlined-bytecode-size-small"))) {
+          why = "without its parent flag";
+        } else if (name == "--max-inlined-bytecode-size") {
+          size = value;
+        } else if (name == "--max-inlined-bytecode-size-cumulative" &&
+                   (size < 0 || value < size)) {
+          why = "without a smaller --max-inlined-bytecode-size";
+        } else if (name == "--scavenger-chaos-mode-threshold" &&
+                   !has("--scavenger-chaos-mode")) {
+          why = "without --scavenger-chaos-mode";
+        } else if (name == "--proto-assign-seq-opt-count" &&
+                   !has("--proto-assign-seq-lazy-func-opt")) {
+          why = "without --proto-assign-seq-lazy-func-opt";
+        } else if (name == "--no-use-ic" && has("--stress-ic")) {
+          why = "with --stress-ic";
+        } else if (name == "--stress-concurrent-inlining" &&
+                   has("--assert-types")) {
+          why = "with --assert-types";
+        } else if (name == "--stress-concurrent-inlining-attach-code" &&
+                   !has("--stress-concurrent-inlining")) {
+          why = "without --stress-concurrent-inlining";
+        } else if (name == "--wasm-assert-types" && !has("--no-liftoff")) {
+          why = "without --no-liftoff";
+        } else if (name == "--wasm-sync-tier-up" && has("--no-liftoff")) {
+          why = "with --no-liftoff";
+        } else if (name == "--stress-wasm-code-gc" && !has("--wasm-code-gc")) {
+          why = "without --wasm-code-gc";
+        } else if (is_wasm_flag(name) && !with_wasm) {
+          why = "in the non-Wasm profile";
+        } else if (name == "--fuzzilli-enable-optimized-code-coverage" ||
+                   name == "--harmony-struct" || name == "--maglev-licm" ||
+                   name == "--maglev-pretenure-store-values" ||
+                   name == "--turbo-splitting" ||
+                   name == "--shared-string-table" ||
+                   name == "--maglev-untagged-phis") {
+          why = "is not in the table";
+        }
+        if (!why.empty()) {
+          bad_fuzzilli =
+              std::string(D8FlagProfileName(profile)) + ": " + flag + " " + why;
+          break;
+        }
+        seen.insert(name);
+        saw_pos_bool |= name == "--always-sparkplug";
+        saw_neg_bool |= name == "--no-always-sparkplug";
+        saw_wasm |= with_wasm && is_wasm_flag(name);
+      }
+    }
+  }
+  checker->Check(
+      "random flags: the fuzzilli profiles keep the conditions of Fuzzilli, "
+      "both boolean polarities and the Wasm gate",
+      bad_fuzzilli.empty() && saw_pos_bool && saw_neg_bool && saw_wasm,
+      bad_fuzzilli);
+
+  // The marginal frequencies of the `fuzzilli` profiles are the
+  // probabilities of `v8ProcessArgs` (tools/d8_flag_sync.py computes them).
+  struct Marginal {
+    D8FlagProfile profile;
+    const char* name;
+    double expected;
+  };
+  const Marginal marginals[] = {
+      {D8FlagProfile::kFuzzilli, "--turbolev", 0.63},
+      {D8FlagProfile::kFuzzilli, "--no-maglev", 0.095},
+      {D8FlagProfile::kFuzzilli, "--no-use-ic", 0.09},
+      {D8FlagProfile::kFuzzilli, "--stress-concurrent-inlining", 0.2025},
+      {D8FlagProfile::kFuzzilli, "--max-inlined-bytecode-size-small", 0.202482},
+      {D8FlagProfile::kFuzzilli, "--maglev-range-verification", 0.126},
+      {D8FlagProfile::kFuzzilliWasm, "--no-liftoff", 0.5},
+      {D8FlagProfile::kFuzzilliWasm, "--wasm-sync-tier-up", 0.1},
+  };
+  constexpr int kMarginalDraws = 20000;
+  std::map<std::string, int> fz_counts;
+  std::map<std::string, int> wasm_counts;
+  Random marginal_rng(29);
+  for (int i = 0; i < kMarginalDraws; i++) {
+    for (D8FlagProfile profile :
+         {D8FlagProfile::kFuzzilli, D8FlagProfile::kFuzzilliWasm}) {
+      std::set<std::string> names;
+      for (const std::string& flag : RandomD8Flags(marginal_rng, profile)) {
+        names.insert(name_of(flag));
+      }
+      for (const std::string& name : names) {
+        (profile == D8FlagProfile::kFuzzilli ? fz_counts : wasm_counts)[name]++;
+      }
+    }
+  }
+  std::string bad_marginal;
+  for (const Marginal& m : marginals) {
+    const int count =
+        (m.profile == D8FlagProfile::kFuzzilli ? fz_counts
+                                               : wasm_counts)[m.name];
+    const double observed = static_cast<double>(count) / kMarginalDraws;
+    const double sigma =
+        std::sqrt(m.expected * (1 - m.expected) / kMarginalDraws);
+    if (std::fabs(observed - m.expected) > 5 * sigma) {
+      bad_marginal += StringPrintf(" %s=%.4f (expected %.4f)", m.name, observed,
+                                   m.expected);
+    }
+  }
+  checker->Check(
+      "random flags: the fuzzilli profiles draw the marginal probabilities "
+      "of Fuzzilli",
+      bad_marginal.empty(), bad_marginal);
+}
+
 // Offline: the profiles of the random d8 flags. The Turbolev profile must not
 // draw the flags that only Maglev reads, and the Maglev profile must not draw
 // the Turbolev and Turboshaft flags.
@@ -128,16 +298,23 @@ void RunD8FlagProfileChecks(Checker* checker) {
     return found;
   };
   D8FlagProfile parsed = D8FlagProfile::kMaglev;
-  checker->Check("random flags: the profile names parse",
-                 ParseD8FlagProfile("turbolev", &parsed) &&
-                     parsed == D8FlagProfile::kTurbolev &&
-                     ParseD8FlagProfile("maglev", &parsed) &&
-                     parsed == D8FlagProfile::kMaglev &&
-                     ParseD8FlagProfile("fuzzilli", &parsed) &&
-                     parsed == D8FlagProfile::kFuzzilli &&
-                     std::string(D8FlagProfileName(parsed)) == "fuzzilli" &&
-                     !ParseD8FlagProfile("turbofan", &parsed),
-                 "");
+  checker->Check(
+      "random flags: the profile names parse",
+      ParseD8FlagProfile("turbolev", &parsed) &&
+          parsed == D8FlagProfile::kTurbolev &&
+          ParseD8FlagProfile("maglev", &parsed) &&
+          parsed == D8FlagProfile::kMaglev &&
+          ParseD8FlagProfile("fuzzilli", &parsed) &&
+          parsed == D8FlagProfile::kFuzzilli &&
+          std::string(D8FlagProfileName(parsed)) == "fuzzilli" &&
+          ParseD8FlagProfile("fuzzilli-wasm", &parsed) &&
+          parsed == D8FlagProfile::kFuzzilliWasm &&
+          std::string(D8FlagProfileName(parsed)) == "fuzzilli-wasm" &&
+          ParseD8FlagProfile("runtime", &parsed) &&
+          parsed == D8FlagProfile::kRuntime &&
+          std::string(D8FlagProfileName(parsed)) == "runtime" &&
+          !ParseD8FlagProfile("turbofan", &parsed),
+      "");
   // Turbolev builds its graph with the Maglev graph builder, so it also reads
   // the Maglev assertions and the allowed --no-maglev- flags. Only Turbolev
   // reads --maglev-range-analysis.
@@ -169,6 +346,48 @@ void RunD8FlagProfileChecks(Checker* checker) {
        "--stress-concurrent-inlining", "--concurrent-recompilation-"});
   checker->Check("random flags: the maglev profile draws no Turbolev flag",
                  turbolev_only.empty(), turbolev_only);
+  // The verifiers and stress flags of the V8 profile of Fuzzilli.
+  std::string missing_new;
+  for (const char* flag :
+       {"--turbo-verify", "--turbo-verify-allocation", "--efficiency-mode",
+        "--battery-saver-mode", "--no-short-builtin-calls",
+        "--maglev-assert-stack-size", "--stress-background-compile",
+        "--lazy-new-space-shrinking"}) {
+    if (draws_any(D8FlagProfile::kTurbolev, {flag}).empty()) {
+      missing_new += std::string(" turbolev:") + flag;
+    }
+    if (strncmp(flag, "--turbo-", 8) == 0) continue;
+    if (draws_any(D8FlagProfile::kMaglev, {flag}).empty()) {
+      missing_new += std::string(" maglev:") + flag;
+    }
+  }
+  checker->Check(
+      "random flags: the maglev and turbolev profiles draw the Fuzzilli "
+      "verifier and stress flags",
+      missing_new.empty(), missing_new);
+  // The runtime profile draws no JIT flag and no flag of the base d8 flags.
+  std::string runtime_jit = draws_any(
+      D8FlagProfile::kRuntime,
+      {"--maglev", "--no-maglev", "--turbo", "--no-turbo", "--max-",
+       "--optimize-", "--assert-types", "--jit-fuzzing", "--always-",
+       "--sparkplug", "--no-sparkplug", "--deopt-every", "--no-enable-",
+       "--stress-concurrent", "--verify-turboshaft", "--concurrent-",
+       "--stress-gc-during-compilation", "--no-baseline-batch-compilation",
+       "--disable-loop-stack-checks"});
+  for (const std::string& base : TargetOptions::DefaultArgs()) {
+    std::string found = draws_any(D8FlagProfile::kRuntime, {base.c_str()});
+    if (!found.empty() && runtime_jit.empty()) runtime_jit = found;
+  }
+  const bool runtime_draws =
+      !draws_any(D8FlagProfile::kRuntime, {"--stress-ic"}).empty() &&
+      !draws_any(D8FlagProfile::kRuntime, {"--no-use-ic"}).empty() &&
+      !draws_any(D8FlagProfile::kRuntime, {"--stress-lazy"}).empty() &&
+      !draws_any(D8FlagProfile::kRuntime, {"--stress-compaction"}).empty() &&
+      !draws_any(D8FlagProfile::kRuntime, {"--efficiency-mode"}).empty();
+  checker->Check(
+      "random flags: the runtime profile draws runtime flags and no JIT or "
+      "base flag",
+      runtime_jit.empty() && runtime_draws, runtime_jit);
 
   // The rules of the draw. A draw names each flag at most once. A flag that
   // needs another flag comes only with that flag. The cumulative inlining
@@ -226,67 +445,6 @@ void RunD8FlagProfileChecks(Checker* checker) {
       "random flags: a draw names each flag once, with the flags it needs",
       bad_draw.empty(), bad_draw);
 
-  // The `fuzzilli` profile mirrors `v8ProcessArgs` without inter-flag
-  // sanitization, and emits both polarities of `chooseBooleanFlag`.
-  std::string bad_fuzzilli;
-  bool saw_pos_bool = false;
-  bool saw_neg_bool = false;
-  Random fz_rng(11);
-  for (int i = 0; i < 500 && bad_fuzzilli.empty(); i++) {
-    std::vector<std::string> flags =
-        RandomD8Flags(fz_rng, D8FlagProfile::kFuzzilli);
-    bool no_tf = false;
-    bool no_ml = false;
-    bool ml_non_eager = false;
-    bool turbolev = false;
-    bool tl_future = false;
-    bool chaos = false;
-    bool proto_seq = false;
-    for (const std::string& flag : flags) {
-      const std::string name = name_of(flag);
-      if (name == "--no-turbofan") {
-        no_tf = true;
-      } else if (name == "--maglev-as-top-tier" && !no_tf) {
-        bad_fuzzilli = flag + " without --no-turbofan";
-      } else if (name == "--no-maglev") {
-        no_ml = true;
-      } else if (name == "--maglev-non-eager-inlining") {
-        if (no_ml) {
-          bad_fuzzilli = flag + " with --no-maglev";
-        }
-        ml_non_eager = true;
-      } else if (name == "--max-maglev-inlined-bytecode-size-small" &&
-                 !ml_non_eager) {
-        bad_fuzzilli = flag + " without --maglev-non-eager-inlining";
-      } else if (name == "--turbolev") {
-        turbolev = true;
-      } else if (name == "--turbolev-future") {
-        if (!turbolev) {
-          bad_fuzzilli = flag + " without --turbolev";
-        }
-        tl_future = true;
-      } else if (name == "--max-inlined-bytecode-size-small" && !tl_future) {
-        bad_fuzzilli = flag + " without --turbolev-future";
-      } else if (name == "--scavenger-chaos-mode") {
-        chaos = true;
-      } else if (name == "--scavenger-chaos-mode-threshold" && !chaos) {
-        bad_fuzzilli = flag + " without --scavenger-chaos-mode";
-      } else if (name == "--proto-assign-seq-lazy-func-opt") {
-        proto_seq = true;
-      } else if (name == "--proto-assign-seq-opt-count" && !proto_seq) {
-        bad_fuzzilli = flag + " without --proto-assign-seq-lazy-func-opt";
-      } else if (name == "--always-sparkplug") {
-        saw_pos_bool = true;
-      } else if (name == "--no-always-sparkplug") {
-        saw_neg_bool = true;
-      }
-    }
-  }
-  checker->Check(
-      "random flags: the fuzzilli profile keeps parent order and both "
-      "boolean polarities",
-      bad_fuzzilli.empty() && saw_pos_bool && saw_neg_bool, bad_fuzzilli);
-
   // Fixed flags win in `fuzzilli`: sandbox mode suppresses non-sandbox draws,
   // and `SanitizeFuzzilliFixedClashes` drops flags that clash with fixed args.
   struct FuzzilliFixedCase {
@@ -303,14 +461,34 @@ void RunD8FlagProfileChecks(Checker* checker) {
        {"--no-maglev"},
        {"--maglev-non-eager-inlining", "--maglev-future",
         "--maglev-as-top-tier"}},
-      {"--maglev-as-top-tier", {"--maglev-as-top-tier"}, {"--turbolev-future"}},
+      {"--maglev-as-top-tier",
+       {"--maglev-as-top-tier"},
+       {"--turbolev-future", "--no-maglev", "--stress-concurrent-inlining",
+        "--stress-concurrent-inlining-attach-code"}},
+      {"--no-turbofan",
+       {"--no-turbofan"},
+       {"--turbolev", "--always-osr-from-maglev",
+        "--optimize-maglev-optimizes-to-turbofan",
+        "--stress-concurrent-inlining"}},
+      {"--assert-types", {"--assert-types"}, {"--stress-concurrent-inlining"}},
+      {"--single-threaded",
+       {"--single-threaded"},
+       {"--stress-concurrent-inlining",
+        "--stress-concurrent-inlining-attach-code"}},
       {"--stress-concurrent-inlining",
        {"--stress-concurrent-inlining"},
        {"--assert-types", "--maglev-as-top-tier"}},
       {"--jitless",
        {"--jitless"},
        {"--maglev-as-top-tier", "--maglev-future", "--turbolev-future",
-        "--jit-fuzzing"}},
+        "--jit-fuzzing", "--verify-turboshaft", "--always-osr-from-maglev",
+        "--optimize-maglev-optimizes-to-turbofan",
+        "--stress-concurrent-inlining",
+        "--stress-concurrent-inlining-attach-code"}},
+      {"--disable-optimizing-compilers",
+       {"--disable-optimizing-compilers"},
+       {"--verify-turboshaft", "--always-osr-from-maglev",
+        "--stress-concurrent-inlining"}},
       {"--max-lazy", {"--max-lazy"}, {"--jit-fuzzing", "--no-lazy"}},
       {"--empty-shared-heap",
        {"--empty-shared-heap"},
@@ -459,7 +637,7 @@ void RunD8FlagProfileChecks(Checker* checker) {
     return DrawD8FlagLines(parsed_flags, out, err);
   };
   std::vector<std::string> maglev_lines, maglev_again, turbolev_lines,
-      fuzzilli_lines, bad_out;
+      fuzzilli_lines, wasm_lines, runtime_lines, builtins_lines, bad_out;
   std::string flags_err, bad_err, disabled_err;
   const bool maglev_ok = run_flags({"--preset=maglev", "--n=20", "--seed=7"},
                                    &maglev_lines, &flags_err) &&
@@ -469,6 +647,13 @@ void RunD8FlagProfileChecks(Checker* checker) {
       {"--preset=turbolev", "--n=20", "--seed=7"}, &turbolev_lines, &flags_err);
   const bool fuzzilli_ok = run_flags(
       {"--preset=fuzzilli", "--n=20", "--seed=7"}, &fuzzilli_lines, &flags_err);
+  const bool subsystem_ok =
+      run_flags({"--preset=wasm", "--n=20", "--seed=7"}, &wasm_lines,
+                &flags_err) &&
+      run_flags({"--preset=runtime", "--n=20", "--seed=7"}, &runtime_lines,
+                &flags_err) &&
+      run_flags({"--preset=builtins", "--n=20", "--seed=7"}, &builtins_lines,
+                &flags_err);
   const bool bad_rejected =
       !run_flags({"--preset=maglev", "--n=0"}, &bad_out, &bad_err);
   const bool disabled_rejected =
@@ -490,6 +675,22 @@ void RunD8FlagProfileChecks(Checker* checker) {
                   [](const std::string& line) {
                     return line.find("--turbolev") != std::string::npos;
                   });
+  auto any_line_has = [](const std::vector<std::string>& lines,
+                         const char* text) {
+    return std::any_of(lines.begin(), lines.end(), [&](const std::string& l) {
+      return l.find(text) != std::string::npos;
+    });
+  };
+  checker->Check(
+      "random flags: the wasm, runtime and builtins presets draw their "
+      "profiles",
+      subsystem_ok && wasm_lines.size() == 20 && runtime_lines.size() == 20 &&
+          builtins_lines.size() == 20 && any_line_has(wasm_lines, "--wasm-") &&
+          any_line_has(wasm_lines, "--turbolev") &&
+          !any_line_has(runtime_lines, "--maglev") &&
+          !any_line_has(builtins_lines, "--turbo") &&
+          any_line_has(builtins_lines, "--stress-lazy"),
+      flags_err);
   checker->Check(
       "random flags: the flags command draws preset flag sets",
       maglev_ok && turbolev_ok && fuzzilli_ok && bad_rejected &&
@@ -4538,6 +4739,7 @@ int RunSelftest(const Flags& flags) {
   RunCoverageHeaderChecks(&checker);
   RunFuzzilliCoverageChecks(&checker);
   RunD8FlagProfileChecks(&checker);
+  RunFuzzilliFlagProfileChecks(&checker);
   RunCoverageCounterChecks(&checker);
   RunCoverageBitsChecks(&checker);
   RunCrashSlotChecks(&checker);

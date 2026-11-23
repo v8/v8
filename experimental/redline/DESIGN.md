@@ -260,10 +260,12 @@ For each execution, Redline writes the script, sends a command and waits for a s
 
 - Redline replaces the target after a timeout, after a crash and after `max_execs_before_respawn` executions. This limits the state in one process.
 - With `randomize_d8_flags`, each new target process gets a random set of extra d8 flags, for example `--maglev-assert` or `--maglev-non-eager-inlining` (`engine/d8_flags.h`).
-  `d8_flag_profile` selects the flag list: `maglev` (the default), `turbolev` or `fuzzilli`. The `turbolev` list has Turbolev, Turboshaft and inlining-limit flags.
-  The `fuzzilli` list draws the non-Wasm flags of the V8 profile of Fuzzilli with the same probabilities, ranges and conditions.
+  `d8_flag_profile` selects the flag list: `maglev` (the default), `turbolev`, `runtime`, `fuzzilli` or `fuzzilli-wasm`. The `turbolev` list has Turbolev, Turboshaft, Turbofan verifier and inlining-limit flags.
+  The `fuzzilli` list draws the non-Wasm flags of the V8 profile of Fuzzilli with the same probabilities, ranges and conditions. The `fuzzilli-wasm` list also draws the Wasm flags of that profile.
   The `maglev` and `turbolev` lists also have tier-up, deoptimization, CPU feature and garbage collection flags from the V8 profile of Fuzzilli and the fuzz configurations of V8.
-  In `maglev` and `turbolev`, the probabilities and value ranges are tunables (`flags.*`). The `fuzzilli` list keeps the fixed numbers of Fuzzilli instead of tunables. The random flags come before the other d8 flags, so that a flag of the configuration wins.
+  The `runtime` list has only the flags of these lists that do not act on a JIT tier. Examples are inline cache, lazy parsing, bytecode and garbage collection flags. It has no flag of the base d8 flags.
+  In `maglev`, `turbolev` and `runtime`, the probabilities and value ranges are tunables (`flags.*`). The `fuzzilli` lists keep the fixed numbers of Fuzzilli instead of tunables.
+  `tools/d8_flag_sync.py --profile=fuzzilli --fuzzilli=PATH --strict` compares the table of the `fuzzilli` lists with a Fuzzilli checkout. `--check-d8=D8` finds the flag names that a d8 binary does not have. The random flags come before the other d8 flags, so that a flag of the configuration wins.
   Accept, Minimize and crash triage keep the flags of the process that ran the program, also in a new process.
   These steps run most executions, so most respawns keep the flags. Thus the worker replaces a process at the end of such a step if its flags ran `max_execs_before_respawn` executions.
   The crash report, the `crash` event and the `corpus_add` event record the random flags (`d8_random_args`).
@@ -587,10 +589,10 @@ Each preset selects `rarity`, `rarity-partner` and `adaptive`. Without a preset,
 | `maglev` | `--maglev --no-turbofan --jit-fuzzing`, and random Maglev flags | JIT, deoptimization, OSR, elements-kind and shape generators |
 | `turbolev` | `--turbolev --turbolev-future --jit-fuzzing`, and random Turbolev flags | the same generators as `maglev` |
 | `fuzzilli` | random flags from the `fuzzilli` profile (including tier flags) | the same generators as `turbolev` |
-| `runtime` | `--no-turbofan --no-maglev --no-sparkplug` | property, prototype, proxy, freeze and shape generators. The JIT generators are off. |
+| `runtime` | `--no-turbofan --no-maglev --no-sparkplug`, and random flags from the `runtime` profile | property, prototype, proxy, freeze and shape generators. The JIT generators are off. |
 | `parser` | none | class, destructuring, arrow, template, label, `using`, `eval` and `with` generators, and `Splice` and `Combine` |
-| `builtins` | none | discovered-API, builtin-call, method-call, string, typed-array, collection and worker generators |
-| `wasm` | none | `WasmModule`, and JIT, OSR and typed-array generators |
+| `builtins` | random flags from the `runtime` profile | discovered-API, builtin-call, method-call, string, typed-array, collection and worker generators |
+| `wasm` | random flags from the `fuzzilli-wasm` profile | `WasmModule`, and JIT, OSR and typed-array generators |
 
 The `WasmModule` generator builds WebAssembly modules that are valid by construction.
 Its default weight is 0, so a session without the `wasm` preset generates no WebAssembly modules.

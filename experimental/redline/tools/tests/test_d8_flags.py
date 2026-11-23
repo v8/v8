@@ -89,6 +89,65 @@ public func v8ProcessArgs(randomize: Bool, forSandbox: Bool) -> [String] {
 }
 """
 
+# The syntax of `v8ProcessArgs` at Fuzzilli commit `7eb96565`.
+SAMPLE_FUZZILLI_V2 = """\
+public func v8ProcessArgs(config: ProcessArgsConfig, forSandbox: Bool) -> [String] {
+    var args = ["--expose-gc"]
+    guard config.randomize else { return args }
+    func chooseBooleanFlagRandomly(_ flag: String) {
+        args.append(probability(0.5) ? "--\\(flag)" : "--no-\\(flag)")
+    }
+    if probability(0.1) {
+        args.append("--no-turbofan")
+    }
+    if !args.contains("--no-turbofan") && probability(0.7) {
+        args.append("--turbolev")
+        if probability(0.3) {
+            args.append("--size-small=0")
+        }
+        if !args.contains("--size-small=0") && probability(0.1) {
+            args.append("--size-small=\\(Int.random(in: 0...54))")
+        }
+    }
+    if forSandbox {
+        args.append("--sandbox-only")
+    }
+    if config.enableCustomDescriptors {
+        chooseBooleanFlagRandomly("wasm-merged-descriptors")
+    }
+    if probability(0.1) {
+        args.append("--stress-ic")
+    } else if probability(0.1) {
+        args.append("--no-use-ic")
+    }
+    if !forSandbox {
+        if probability(0.1) {
+            args.append("--assert-types")
+        }
+        if args.contains("--turbolev") && probability(0.2) {
+            args.append("--range-verification")
+        }
+    }
+    if !args.contains("--no-turbofan") && !args.contains("--assert-types") {
+        if probability(0.25) {
+            args.append("--concurrent")
+            if probability(0.2) {
+                args.append("--attach")
+            }
+        }
+    }
+    if !forSandbox && (maglevEnabled || turbolevEnabled)
+        && probability(config.isWasmEnabled ? 0.1 : 0.2)
+    {
+        args.append("--optcov")
+    }
+    if probability(0.05) {
+        chooseBooleanFlagRandomly("always-osr")
+    }
+    return args
+}
+"""
+
 
 def _read_sample_flag_defs():
   path = os.path.join(TESTDATA_DIR, 'flag_definitions_sample.h')
@@ -232,6 +291,81 @@ class D8FlagSyncTest(unittest.TestCase):
     self.assertIn(
         '[implied by --always-osr-from-maglev -> --osr-from-maglev=4]', text)
 
+  def test_parse_fuzzilli_current_syntax(self):
+    probs = d8_flag_sync.parse_fuzzilli(SAMPLE_FUZZILLI_V2, unconditional=True)
+    self.assertEqual(
+        probs, {
+            '--no-turbofan': 0.1,
+            '--turbolev': 0.63,
+            '--size-small': 0.2331,
+            '--stress-ic': 0.1,
+            '--no-use-ic': 0.09,
+            '--assert-types': 0.1,
+            '--concurrent': 0.2025,
+            '--attach': 0.0405,
+            '--range-verification': 0.126,
+            '--optcov': 0.2,
+            '--always-osr': 0.025,
+            '--no-always-osr': 0.025,
+        })
+    wasm_config = dict(d8_flag_sync.SWIFT_CONFIG, isWasmEnabled=True)
+    wasm_probs = d8_flag_sync.parse_fuzzilli(
+        SAMPLE_FUZZILLI_V2, unconditional=True, config=wasm_config)
+    self.assertEqual(wasm_probs['--optcov'], 0.1)
+    descriptors_config = dict(
+        d8_flag_sync.SWIFT_CONFIG, enableCustomDescriptors=True)
+    descriptors_probs = d8_flag_sync.parse_fuzzilli(
+        SAMPLE_FUZZILLI_V2, unconditional=True, config=descriptors_config)
+    self.assertEqual(descriptors_probs['--wasm-merged-descriptors'], 0.5)
+    tunables = d8_flag_sync.parse_fuzzilli(SAMPLE_FUZZILLI_V2, {}, set())
+    self.assertNotIn('--sandbox-only', tunables)
+    self.assertNotIn('--wasm-merged-descriptors', tunables)
+
+  def test_check_d8_flag_names(self):
+    help_text = ('Options:\n  --future (desc)\n  --maglev-cse (desc)\n'
+                 '  --stack_size (desc)\n')
+    help_names = d8_flag_sync.parse_d8_help_names(help_text)
+    self.assertEqual(help_names, {'--future', '--maglev-cse', '--stack-size'})
+    self.assertEqual(
+        d8_flag_sync.unknown_d8_flags(
+            {'--future', '--no-maglev-cse', '--stack-size', '--maglev-licm'},
+            help_names), ['--maglev-licm'])
+    cc_text = ('constexpr FuzzilliFlagEntry kFuzzilliFlagTable[] = {\n'
+               '    {FuzzilliCond::kTop, FuzzilliDrawKind::kFlag, 0.8, '
+               '"--future", 0, 0},\n'
+               '    {FuzzilliCond::kTop, FuzzilliDrawKind::kFlag, 0.5, '
+               '"--no-liftoff", 0, 0,\n     true},\n};\n'
+               '\nstd::vector<std::string> RandomD8Flags(\n    Random& rng) {\n'
+               '  maybe(kFlagsA, "--maglev-licm");\n  if (x) {\n'
+               '    add_value("--stack-size", 1, 2);\n  }\n}\n'
+               'void Other() { Use("--outside"); }\n')
+    self.assertEqual(
+        d8_flag_sync.read_table_flag_names(cc_text),
+        {'--future', '--no-liftoff', '--maglev-licm', '--stack-size'})
+    with tempfile.TemporaryDirectory() as tmp:
+      engine = os.path.join(tmp, 'experimental', 'redline', 'engine')
+      os.makedirs(engine)
+      with open(
+          os.path.join(engine, 'd8_flags.cc'), 'w', encoding='utf-8') as f:
+        f.write(cc_text)
+      fake_d8 = os.path.join(tmp, 'fake_d8.py')
+      _write_executable(fake_d8,
+                        f'#!/usr/bin/env python3\nprint({help_text!r})\n')
+      fuzzilli_path = os.path.join(tmp, 'V8CommonProfile.swift')
+      with open(fuzzilli_path, 'w', encoding='utf-8') as f:
+        f.write(SAMPLE_FUZZILLI)
+      buf = io.StringIO()
+      with mock.patch('sys.stdout', buf):
+        rc = d8_flag_sync.main([
+            '--profile=fuzzilli',
+            f'--v8-root={tmp}',
+            f'--fuzzilli={fuzzilli_path}',
+            f'--check-d8={fake_d8}',
+        ])
+      self.assertEqual(rc, 0)
+      self.assertIn('does not have (2 of 4):\n  --maglev-licm\n  --no-liftoff',
+                    buf.getvalue())
+
   def test_real_in_tree_files_and_sample_testdata(self):
     v8_root = d8_flag_sync.V8_ROOT
     trials_path = os.path.join(v8_root, 'tools', 'clusterfuzz', 'trials',
@@ -295,14 +429,35 @@ class D8FlagSyncTest(unittest.TestCase):
       cc_text = f.read()
     table_probs, omitted_wasm = d8_flag_sync.parse_fuzzilli_profile_table(
         cc_text)
-    self.assertEqual(len(omitted_wasm), 25)
+    # 25 Wasm flags and 1 deferred flag.
+    self.assertEqual(len(omitted_wasm), 26)
     self.assertIn('--no-liftoff', omitted_wasm)
+    self.assertIn('--fuzzilli-enable-optimized-code-coverage', omitted_wasm)
+    self.assertNotIn('--no-liftoff', table_probs)
     self.assertIn('--turbolev', table_probs)
-    self.assertEqual(table_probs['--turbolev'], [0.7])
-    self.assertEqual(table_probs['--turbolev-future'], [0.574])
-    self.assertEqual(table_probs['--maglev-assert-stack-size'], [0.045])
+    self.assertEqual(table_probs['--turbolev'], [0.63])
+    self.assertEqual(table_probs['--turbolev-future'], [0.5166])
+    self.assertEqual(table_probs['--no-maglev'], [0.095])
+    self.assertEqual(table_probs['--maglev-assert-stack-size'], [0.04525])
+    self.assertEqual(table_probs['--max-inlined-bytecode-size-small'],
+                     [0.202482])
+    self.assertEqual(table_probs['--no-use-ic'], [0.09])
+    self.assertEqual(table_probs['--stress-concurrent-inlining-attach-code'],
+                     [0.0405])
     self.assertEqual(table_probs['--always-sparkplug'], [0.025])
     self.assertEqual(table_probs['--no-always-sparkplug'], [0.025])
+    wasm_probs, wasm_omitted = d8_flag_sync.parse_fuzzilli_profile_table(
+        cc_text, include_wasm=True)
+    self.assertEqual(wasm_omitted,
+                     {'--fuzzilli-enable-optimized-code-coverage'})
+    self.assertEqual(wasm_probs['--wasm-sync-tier-up'], [0.1])
+    self.assertEqual(wasm_probs['--wasm-assert-types'], [0.15])
+    self.assertEqual(wasm_probs['--stress-wasm-code-gc'], [0.05])
+    # The C++ table draws no flag that V8 or Fuzzilli removed.
+    for removed in ('--harmony-struct', '--maglev-licm',
+                    '--maglev-pretenure-store-values', '--turbo-splitting',
+                    '--shared-string-table', '--maglev-untagged-phis'):
+      self.assertNotIn(removed, wasm_probs)
 
     buf = io.StringIO()
     with mock.patch('sys.stdout', buf):
@@ -315,21 +470,37 @@ class D8FlagSyncTest(unittest.TestCase):
     self.assertIn('Flags missing in Redline (0):', buf.getvalue())
     self.assertIn('Flags with a different probability (0:', buf.getvalue())
     self.assertIn('Flags drawn only by Redline (0):', buf.getvalue())
+    wasm_buf = io.StringIO()
+    with mock.patch('sys.stdout', wasm_buf):
+      rc = d8_flag_sync.main([
+          '--profile=fuzzilli-wasm',
+          f'--fuzzilli={pinned_swift}',
+          '--strict',
+      ])
+    self.assertEqual(rc, 0, wasm_buf.getvalue())
+    self.assertIn('Flags missing in Redline (0):', wasm_buf.getvalue())
+    self.assertIn('Flags with a different probability (0:', wasm_buf.getvalue())
 
     with tempfile.TemporaryDirectory() as tmp:
       mut_v8 = os.path.join(tmp, 'v8')
       mut_engine = os.path.join(mut_v8, 'experimental', 'redline', 'engine')
       os.makedirs(mut_engine)
       # Change 0.05 to 0.5 in the C++ table (both on --maglev-assert-stack-size
-      # and on the kExotic group) and check that --strict fails.
-      for pattern in (
-          r'(\{\s*FuzzilliCond::kIfMaglev\s*,\s*FuzzilliDrawKind::kFlag\s*,'
-          r'\s*)0\.05(\s*,\s*"--maglev-assert-stack-size")',
-          r'(\{\s*FuzzilliCond::kExotic\s*,\s*FuzzilliDrawKind::kGroup\s*,'
-          r'\s*)0\.05(\s*,)',
+      # and on the kExotic group), draw --turbolev without the --no-turbofan
+      # guard, and draw --no-use-ic without the --stress-ic else branch. Check
+      # that --strict fails.
+      for pattern, replacement in (
+          (r'(\{\s*FuzzilliCond::kIfMaglev\s*,\s*FuzzilliDrawKind::kFlag\s*,'
+           r'\s*)0\.05(\s*,\s*"--maglev-assert-stack-size")', r'\g<1>0.5\g<2>'),
+          (r'(\{\s*FuzzilliCond::kExotic\s*,\s*FuzzilliDrawKind::kGroup\s*,'
+           r'\s*)0\.05(\s*,)', r'\g<1>0.5\g<2>'),
+          (r'FuzzilliCond::kIfTurbofan(\s*,\s*FuzzilliDrawKind::kFlag\s*,\s*0\.7)',
+           r'FuzzilliCond::kTop\g<1>'),
+          (r'FuzzilliDrawKind::kFlagElse(\s*,\s*0\.1\s*,\s*"--no-use-ic")',
+           r'FuzzilliDrawKind::kFlag\g<1>'),
       ):
         mut_cc, n_subs = d8_flag_sync.re.subn(
-            pattern, r'\g<1>0.5\g<2>', cc_text, count=1)
+            pattern, replacement, cc_text, count=1)
         self.assertEqual(n_subs, 1)
         with open(
             os.path.join(mut_engine, 'd8_flags.cc'), 'w',
@@ -357,7 +528,7 @@ for _ in range(100):
       diffs = d8_flag_sync.check_draw_frequencies(
           fake_redline,
           SAMPLE_FUZZILLI,
-          wasm_only={'--no-wasm-opt'},
+          omitted={'--no-wasm-opt'},
           n=100,
           seed=1)
       self.assertTrue(diffs)
@@ -393,7 +564,7 @@ for _ in range(10):
       extra_diffs = d8_flag_sync.check_draw_frequencies(
           extra_redline,
           SAMPLE_FUZZILLI,
-          wasm_only={'--no-wasm-opt'},
+          omitted={'--no-wasm-opt'},
           n=10,
           seed=1)
       extra_by_flag = {d['flag']: d for d in extra_diffs}
@@ -404,7 +575,7 @@ for _ in range(10):
         d8_flag_sync.check_draw_frequencies(
             extra_redline,
             SAMPLE_FUZZILLI,
-            wasm_only={'--no-wasm-opt'},
+            omitted={'--no-wasm-opt'},
             n=20,
             seed=1)
       with self.assertRaises(SystemExit):
