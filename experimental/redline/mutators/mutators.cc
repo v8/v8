@@ -499,7 +499,7 @@ class OperationMutator final : public Mutator {
         std::string_view old = m->property->Cast<Identifier>()->name;
         std::string_view name = old;
         // Type-directed names when the object is a known variable.
-        JsType type = Builder::GuessType(m->object);
+        JsType type = b.GuessExpressionType(m->object);
         const BuiltinType* bt = ctx.env->ForType(type);
         for (int i = 0;
              i < kOperationPropertyNameAttempts.AsInt() && name == old; i++) {
@@ -657,7 +657,7 @@ class InputMutator final : public Mutator {
       std::vector<Variable> visible = b.VisibleAt(id);
       Binding* binding = scopes.BindingOf(id);
       JsType type =
-          binding != nullptr ? b.GuessType(binding) : Builder::GuessType(id);
+          binding != nullptr ? b.GuessType(binding) : b.GuessExpressionType(id);
       std::vector<const Variable*> options;
       for (const Variable& v : visible) {
         if (v.name == id->name) {
@@ -1131,7 +1131,7 @@ class ExpressionMutator final : public Mutator {
                       parent->Cast<BinaryExpression>()->left == e;
       GenContext gen = ContextForNode(b, e, ctx);
       CodeGen cg(gen);
-      JsType type = Builder::GuessType(e);
+      JsType type = b.GuessExpressionType(e);
       Expression* replacement = nullptr;
       std::string how;
       switch (r.Index(10)) {
@@ -1908,7 +1908,7 @@ class SpliceMutator final : public Mutator {
       cache->donor_tree = ctx.partner->CopyTree();
       cache->donor_rng = std::make_unique<Random>(r.Fork());
       cache->donor = std::make_unique<Builder>(cache->donor_tree.get(),
-                                               cache->donor_rng.get());
+                                               cache->donor_rng.get(), ctx.env);
       cache->candidates = cache->donor->Collect([&](Node* n) {
         if (!n->IsStatement()) {
           return false;
@@ -2240,7 +2240,7 @@ class CombineMutator final : public Mutator {
         return false;
       }
     }
-    Builder donor(donor_tree.get(), &donor_rng);
+    Builder donor(donor_tree.get(), &donor_rng, ctx.env);
     fast::Program* donor_root = donor.root();
     if (donor_root->body.empty()) {
       return false;
@@ -2698,7 +2698,7 @@ std::unique_ptr<fast::Tree> ApplyFocusTierUp(const redline::Program& parent,
     return nullptr;
   }
   std::unique_ptr<Tree> tree = parent.CopyTree();
-  Builder builder(tree.get(), &rng);
+  Builder builder(tree.get(), &rng, &env);
   Tree* t = builder.tree();
   // Append warm-up and optimization calls for a top-level function declaration.
   if (target.is_top_level_decl && !target.name.empty()) {
@@ -2798,7 +2798,7 @@ std::unique_ptr<fast::Tree> ApplyMutation(
     int rounds, std::string* detail, std::vector<ExploreProbe>* probes,
     std::optional<uint32_t> focus_node_id) {
   std::unique_ptr<Tree> tree = parent.CopyTree();
-  Builder builder(tree.get(), &rng);
+  Builder builder(tree.get(), &rng, &env);
   Node* focus_node =
       focus_node_id.has_value() ? tree->FindNode(*focus_node_id) : nullptr;
   if (focus_node != nullptr) {

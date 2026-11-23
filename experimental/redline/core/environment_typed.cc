@@ -172,6 +172,27 @@ void Environment::AddTypedModel() {
       }
     }
   };
+  // Adds property types to a type, or replaces types with the same name.
+  auto prop_types = [&type_of](JsType type, std::vector<PropertyInfo> list) {
+    BuiltinType& t = type_of(type);
+    for (const PropertyInfo& p : list) {
+      bool replaced = false;
+      for (PropertyInfo& old : t.property_types) {
+        if (old.name == p.name) {
+          old.type = p.type;
+          replaced = true;
+          break;
+        }
+      }
+      if (!replaced) {
+        t.property_types.push_back(p);
+      }
+      if (std::find(t.properties.begin(), t.properties.end(), p.name) ==
+          t.properties.end()) {
+        t.properties.push_back(p.name);
+      }
+    }
+  };
   auto global = [this](std::string_view name) -> BuiltinGlobal* {
     for (BuiltinGlobal& g : globals_) {
       if (g.name == name) {
@@ -1260,6 +1281,122 @@ void Environment::AddTypedModel() {
                           {},
                           KeepParams({Of(T::kString)})});
   }
+
+  // --- Property types for environment-backed type inference -----------------
+
+  prop_types(T::kArray, {{"length", T::kNumber}});
+  prop_types(T::kString, {{"length", T::kNumber}, {"0", T::kString}});
+  prop_types(T::kFunction, {{"length", T::kNumber},
+                            {"name", T::kString},
+                            {"prototype", T::kObject}});
+  prop_types(T::kClass, {{"length", T::kNumber},
+                         {"name", T::kString},
+                         {"prototype", T::kObject}});
+  prop_types(T::kRegExp, {{"lastIndex", T::kNumber},
+                          {"source", T::kString},
+                          {"flags", T::kString},
+                          {"global", T::kBoolean},
+                          {"sticky", T::kBoolean},
+                          {"dotAll", T::kBoolean},
+                          {"hasIndices", T::kBoolean},
+                          {"ignoreCase", T::kBoolean},
+                          {"multiline", T::kBoolean},
+                          {"unicode", T::kBoolean},
+                          {"unicodeSets", T::kBoolean}});
+  prop_types(T::kMap, {{"size", T::kNumber}});
+  prop_types(T::kSet, {{"size", T::kNumber}});
+  prop_types(T::kTypedArray, {{"length", T::kNumber},
+                              {"byteLength", T::kNumber},
+                              {"byteOffset", T::kNumber},
+                              {"BYTES_PER_ELEMENT", T::kNumber},
+                              {"buffer", T::kArrayBuffer}});
+  prop_types(T::kArrayBuffer, {{"byteLength", T::kNumber},
+                               {"maxByteLength", T::kNumber},
+                               {"resizable", T::kBoolean},
+                               {"detached", T::kBoolean},
+                               {"growable", T::kBoolean}});
+  prop_types(T::kSharedArrayBuffer, {{"byteLength", T::kNumber},
+                                     {"maxByteLength", T::kNumber},
+                                     {"growable", T::kBoolean}});
+  prop_types(T::kDataView, {{"buffer", T::kArrayBuffer},
+                            {"byteLength", T::kNumber},
+                            {"byteOffset", T::kNumber}});
+  prop_types(
+      T::kError,
+      {{"message", T::kString}, {"name", T::kString}, {"stack", T::kString}});
+  prop_types(T::kSymbol, {{"description", T::kString}});
+  prop_types(T::kIterator, {{"done", T::kBoolean}});
+  prop_types(T::kDisposableStack, {{"disposed", T::kBoolean}});
+  prop_types(T::kAsyncDisposableStack, {{"disposed", T::kBoolean}});
+  prop_types(T::kTemporalDuration, {{"years", T::kNumber},
+                                    {"months", T::kNumber},
+                                    {"weeks", T::kNumber},
+                                    {"days", T::kNumber},
+                                    {"hours", T::kNumber},
+                                    {"minutes", T::kNumber},
+                                    {"seconds", T::kNumber},
+                                    {"milliseconds", T::kNumber},
+                                    {"microseconds", T::kNumber},
+                                    {"nanoseconds", T::kNumber},
+                                    {"sign", T::kNumber},
+                                    {"blank", T::kBoolean}});
+  prop_types(T::kTemporalInstant, {{"epochMilliseconds", T::kNumber},
+                                   {"epochNanoseconds", T::kBigInt}});
+  prop_types(T::kTemporalPlainTime, {{"hour", T::kNumber},
+                                     {"minute", T::kNumber},
+                                     {"second", T::kNumber},
+                                     {"millisecond", T::kNumber},
+                                     {"microsecond", T::kNumber},
+                                     {"nanosecond", T::kNumber}});
+  const std::vector<PropertyInfo> date_prop_types = {
+      {"calendarId", T::kString},   {"era", T::kString},
+      {"eraYear", T::kNumber},      {"year", T::kNumber},
+      {"month", T::kNumber},        {"monthCode", T::kString},
+      {"day", T::kNumber},          {"dayOfWeek", T::kNumber},
+      {"dayOfYear", T::kNumber},    {"weekOfYear", T::kNumber},
+      {"yearOfWeek", T::kNumber},   {"daysInWeek", T::kNumber},
+      {"daysInMonth", T::kNumber},  {"daysInYear", T::kNumber},
+      {"monthsInYear", T::kNumber}, {"inLeapYear", T::kBoolean},
+  };
+  prop_types(T::kTemporalPlainDate, date_prop_types);
+  std::vector<PropertyInfo> date_time_prop_types = date_prop_types;
+  for (const char* p : {"hour", "minute", "second", "millisecond",
+                        "microsecond", "nanosecond"}) {
+    date_time_prop_types.push_back({p, T::kNumber});
+  }
+  prop_types(T::kTemporalPlainDateTime, date_time_prop_types);
+  prop_types(T::kTemporalPlainYearMonth, {{"calendarId", T::kString},
+                                          {"era", T::kString},
+                                          {"eraYear", T::kNumber},
+                                          {"year", T::kNumber},
+                                          {"month", T::kNumber},
+                                          {"monthCode", T::kString},
+                                          {"daysInMonth", T::kNumber},
+                                          {"daysInYear", T::kNumber},
+                                          {"monthsInYear", T::kNumber},
+                                          {"inLeapYear", T::kBoolean}});
+  prop_types(T::kTemporalPlainMonthDay, {{"calendarId", T::kString},
+                                         {"monthCode", T::kString},
+                                         {"day", T::kNumber}});
+  std::vector<PropertyInfo> zoned_prop_types = date_time_prop_types;
+  zoned_prop_types.push_back({"timeZoneId", T::kString});
+  zoned_prop_types.push_back({"epochMilliseconds", T::kNumber});
+  zoned_prop_types.push_back({"epochNanoseconds", T::kBigInt});
+  zoned_prop_types.push_back({"offsetNanoseconds", T::kNumber});
+  zoned_prop_types.push_back({"offset", T::kString});
+  zoned_prop_types.push_back({"hoursInDay", T::kNumber});
+  prop_types(T::kTemporalZonedDateTime, std::move(zoned_prop_types));
+  prop_types(T::kIntlLocale, {{"baseName", T::kString},
+                              {"calendar", T::kString},
+                              {"caseFirst", T::kString},
+                              {"collation", T::kString},
+                              {"hourCycle", T::kString},
+                              {"language", T::kString},
+                              {"numberingSystem", T::kString},
+                              {"numeric", T::kBoolean},
+                              {"region", T::kString},
+                              {"script", T::kString},
+                              {"variants", T::kString}});
 }  // NOLINT(readability/fn_size)
 
 }  // namespace redline

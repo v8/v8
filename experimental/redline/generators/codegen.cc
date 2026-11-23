@@ -727,7 +727,7 @@ fast::Expression* CodeGen::Expression(int depth) {
       return BuiltinCall();
     case 4: {
       fast::Expression* object = ObjectLike();
-      return MethodCall(object, Builder::GuessType(object));
+      return MethodCall(object, ctx_.builder.GuessExpressionType(object));
     }
     case 5:
       return Property(ObjectLike());
@@ -1348,7 +1348,7 @@ fast::Expression* CodeGen::Property(fast::Expression* object) {
     return mk::Index(tree(), object, Key());
   }
   // Type-directed property names when we know the type.
-  JsType type = Builder::GuessType(object);
+  JsType type = ctx_.builder.GuessExpressionType(object);
   bool is_visible = false;
   if (object->Is<Identifier>()) {
     for (const redline::Variable& v : ctx_.visible) {

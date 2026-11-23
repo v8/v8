@@ -653,9 +653,9 @@ void RecordDeclaredKeys(GenContext& ctx, std::string_view name,
   Tree* t = ctx.tree();
   std::vector<KnownKey> keys;
   if (const auto* object = init->As<ObjectExpression>()) {
-    AddObjectLiteralKeys(t, object, &keys);
+    AddObjectLiteralKeys(t, object, &keys, &ctx.env);
   } else if (const auto* cls = init->As<ClassExpression>()) {
-    AddClassKeys(t, cls->body, &keys);
+    AddClassKeys(t, cls->body, &keys, &ctx.env);
   } else if (const auto* construct = init->As<NewExpression>()) {
     std::string_view callee = VariableName(construct->callee);
     if (!callee.empty()) {
@@ -682,7 +682,7 @@ void RecordClassKeys(GenContext& ctx, std::string_view name,
     return;
   }
   std::vector<KnownKey> keys;
-  AddClassKeys(ctx.tree(), cls->body, &keys);
+  AddClassKeys(ctx.tree(), cls->body, &keys, &ctx.env);
   // The members of a known superclass, unless the class replaces them.
   std::string_view super_name = VariableName(cls->super_class);
   if (!super_name.empty()) {
@@ -711,7 +711,8 @@ void RecordStore(GenContext& ctx, const Expression* target,
   if (object.empty() || key.empty()) {
     return;
   }
-  RecordKeys(ctx, object, {{key, Builder::GuessType(value), -1, false}});
+  RecordKeys(ctx, object,
+             {{key, ctx.builder.GuessExpressionType(value), -1, false}});
 }
 
 std::optional<KnownKey> RandomKnownKey(GenContext& ctx,

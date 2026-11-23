@@ -680,24 +680,180 @@ Environment::Environment() {
               {".", "s"},   {"a*?", "y"},     {"\\p{L}", "v"},
               {"(?:)", "d"}};
   AddTypedModel();
+  BuildLookupTables();
 }  // NOLINT(readability/fn_size)
 
-const BuiltinType* Environment::ForType(JsType type) const {
-  for (const BuiltinType& t : types_) {
-    if (t.type == type) {
-      return &t;
+void Environment::BuildLookupTables() {
+  for (size_t i = 0; i < types_.size(); ++i) {
+    type_index_[types_[i].type] = i;
+    for (const BuiltinFunction& m : types_[i].methods) {
+      method_return_types_[{types_[i].type, m.name}] = m.result;
+    }
+    for (const PropertyInfo& p : types_[i].property_types) {
+      property_types_[{types_[i].type, p.name}] = p.type;
     }
   }
-  return nullptr;
+  for (size_t i = 0; i < globals_.size(); ++i) {
+    const BuiltinGlobal& g = globals_[i];
+    global_index_[g.name] = i;
+    const size_t dot = g.name.rfind('.');
+    if (g.constructible) {
+      if (dot == std::string_view::npos) {
+        global_ctor_types_[g.name] = g.instance_type;
+      } else {
+        namespace_ctor_types_[{g.name.substr(0, dot), g.name.substr(dot + 1)}] =
+            g.instance_type;
+      }
+    }
+    if (dot == std::string_view::npos) {
+      if (g.type == JsType::kFunction ||
+          (g.type == JsType::kClass && !g.constructible &&
+           g.name != "Iterator") ||
+          g.name == "Array" || g.name == "Object" || g.name == "Function" ||
+          g.name == "RegExp" || g.name == "Error" || g.name == "TypeError" ||
+          g.name == "RangeError" || g.name == "SyntaxError" ||
+          g.name == "ReferenceError" || g.name == "EvalError" ||
+          g.name == "URIError" || g.name == "AggregateError") {
+        global_call_types_[g.name] = g.instance_type;
+      } else if (g.name == "Date") {
+        global_call_types_[g.name] = JsType::kString;
+      }
+    }
+    for (const BuiltinFunction& f : g.static_methods) {
+      namespace_call_types_[{g.name, f.name}] = f.result;
+    }
+  }
+  // Keep `Promise.reject` typed even though generators skip it.
+  namespace_call_types_.try_emplace({"Promise", "reject"}, JsType::kPromise);
+
+  for (const DiscoveredSignatureEntry& e : discovered_signatures_) {
+    if (e.prototype) {
+      if (const BuiltinGlobal* g = Global(e.path)) {
+        method_return_types_.try_emplace({g->instance_type, e.member},
+                                         e.function.result);
+      }
+      continue;
+    }
+    if (e.member.empty()) {
+      // Skip known globals so constructor-only entries stay out of
+      // `global_call_types_`.
+      if (e.path.find('.') == std::string_view::npos &&
+          e.function.result != JsType::kUnknown &&
+          global_index_.find(e.path) == global_index_.end()) {
+        global_call_types_.try_emplace(e.path, e.function.result);
+      }
+      continue;
+    }
+    namespace_call_types_.try_emplace({e.path, e.member}, e.function.result);
+  }
+
+  for (const char* prop : {"PI", "E", "LN2", "LN10", "SQRT2"}) {
+    namespace_property_types_[{"Math", prop}] = JsType::kNumber;
+  }
+  for (const char* prop :
+       {"MAX_SAFE_INTEGER", "MIN_SAFE_INTEGER", "MAX_VALUE", "MIN_VALUE",
+        "EPSILON", "NaN", "POSITIVE_INFINITY", "NEGATIVE_INFINITY"}) {
+    namespace_property_types_[{"Number", prop}] = JsType::kNumber;
+  }
+  for (const char* prop :
+       {"iterator", "asyncIterator", "hasInstance", "toPrimitive",
+        "toStringTag", "species", "isConcatSpreadable", "match", "matchAll",
+        "replace", "search", "split", "unscopables", "dispose",
+        "asyncDispose"}) {
+    namespace_property_types_[{"Symbol", prop}] = JsType::kSymbol;
+  }
+  for (const char* prop :
+       {"$1", "$2", "$3", "$4", "$5", "$6", "$7", "$8", "$9", "$_", "input",
+        "lastMatch", "lastParen", "leftContext"}) {
+    namespace_property_types_[{"RegExp", prop}] = JsType::kString;
+  }
+  namespace_property_types_[{"Error", "stackTraceLimit"}] = JsType::kNumber;
+  for (const char* ta :
+       {"Uint8Array", "Int8Array", "Uint8ClampedArray", "Int16Array",
+        "Uint16Array", "Int32Array", "Uint32Array", "Float16Array",
+        "Float32Array", "Float64Array", "BigInt64Array", "BigUint64Array"}) {
+    namespace_property_types_[{ta, "BYTES_PER_ELEMENT"}] = JsType::kNumber;
+  }
+}
+
+const BuiltinType* Environment::ForType(JsType type) const {
+  auto it = type_index_.find(type);
+  return it != type_index_.end() ? &types_[it->second] : nullptr;
 }
 
 const BuiltinGlobal* Environment::Global(std::string_view name) const {
-  for (const BuiltinGlobal& g : globals_) {
-    if (g.name == name) {
-      return &g;
+  auto it = global_index_.find(name);
+  return it != global_index_.end() ? &globals_[it->second] : nullptr;
+}
+
+JsType Environment::LookupGlobalCtorType(std::string_view name) const {
+  if (name.empty()) {
+    return JsType::kUnknown;
+  }
+  auto it = global_ctor_types_.find(name);
+  return it != global_ctor_types_.end() ? it->second : JsType::kUnknown;
+}
+
+JsType Environment::LookupNamespaceCtorType(std::string_view ns,
+                                            std::string_view name) const {
+  if (ns.empty() || name.empty()) {
+    return JsType::kUnknown;
+  }
+  auto it = namespace_ctor_types_.find({ns, name});
+  return it != namespace_ctor_types_.end() ? it->second : JsType::kUnknown;
+}
+
+JsType Environment::LookupGlobalCallReturnType(std::string_view name) const {
+  if (name.empty()) {
+    return JsType::kUnknown;
+  }
+  auto it = global_call_types_.find(name);
+  return it != global_call_types_.end() ? it->second : JsType::kUnknown;
+}
+
+JsType Environment::LookupNamespaceCallReturnType(std::string_view ns,
+                                                  std::string_view name) const {
+  if (ns.empty() || name.empty()) {
+    return JsType::kUnknown;
+  }
+  auto it = namespace_call_types_.find({ns, name});
+  return it != namespace_call_types_.end() ? it->second : JsType::kUnknown;
+}
+
+JsType Environment::LookupMethodReturnType(JsType recv,
+                                           std::string_view method_name) const {
+  if (recv == JsType::kUnknown || method_name.empty()) {
+    return JsType::kUnknown;
+  }
+  auto it = method_return_types_.find({recv, method_name});
+  if (it != method_return_types_.end()) {
+    return it->second;
+  }
+  if (recv != JsType::kNullish && recv != JsType::kObject) {
+    auto obj_it = method_return_types_.find({JsType::kObject, method_name});
+    if (obj_it != method_return_types_.end()) {
+      return obj_it->second;
     }
   }
-  return nullptr;
+  return JsType::kUnknown;
+}
+
+JsType Environment::LookupPropertyType(JsType recv,
+                                       std::string_view prop_name) const {
+  if (recv == JsType::kUnknown || prop_name.empty()) {
+    return JsType::kUnknown;
+  }
+  auto it = property_types_.find({recv, prop_name});
+  return it != property_types_.end() ? it->second : JsType::kUnknown;
+}
+
+JsType Environment::LookupNamespacePropertyType(
+    std::string_view ns, std::string_view prop_name) const {
+  if (ns.empty() || prop_name.empty()) {
+    return JsType::kUnknown;
+  }
+  auto it = namespace_property_types_.find({ns, prop_name});
+  return it != namespace_property_types_.end() ? it->second : JsType::kUnknown;
 }
 
 std::vector<const BuiltinGlobal*> Environment::ConstructorsOf(

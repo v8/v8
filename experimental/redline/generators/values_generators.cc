@@ -489,7 +489,7 @@ bool GenBuiltinInstanceDecl(GenContext& ctx, CodeGen& cg, Statements* out) {
       break;
   }
   if (type == JsType::kUnknown) {
-    type = Builder::GuessType(value);
+    type = ctx.builder.GuessExpressionType(value);
   }
   Push(out, cg.Declare(value, type, "o"));
   return true;
@@ -853,7 +853,7 @@ bool GenResizableBufferDecl(GenContext& ctx, CodeGen& cg, Statements* out) {
   Tree* t = T(ctx);
   const BufferPlan plan = RandomBufferPlan(ctx);
   Expression* buffer = NewResizableBuffer(t, plan);
-  Push(out, cg.Declare(buffer, Builder::GuessType(buffer),
+  Push(out, cg.Declare(buffer, ctx.builder.GuessExpressionType(buffer),
                        plan.shared ? "gsab" : "rab"));
   std::string_view name = LastDeclared(ctx);
   Expression* view =
@@ -1342,7 +1342,7 @@ bool GenResizableBuffer(GenContext& ctx, CodeGen& cg, Statements* out) {
   } else {
     const BufferPlan plan = RandomBufferPlan(ctx);
     Expression* init = NewResizableBuffer(t, plan);
-    Push(out, cg.Declare(init, Builder::GuessType(init),
+    Push(out, cg.Declare(init, ctx.builder.GuessExpressionType(init),
                          plan.shared ? "gsab" : "rab"));
     buffer.name = LastDeclared(ctx);
     buffer.shared = plan.shared;
@@ -1365,7 +1365,7 @@ bool GenResizableBuffer(GenContext& ctx, CodeGen& cg, Statements* out) {
       init = mk::New(t, mk::Id(t, view.kind ? view.kind->name : "DataView"),
                      {mk::Id(t, buffer.name)});
     }
-    Push(out, cg.Declare(init, Builder::GuessType(init),
+    Push(out, cg.Declare(init, ctx.builder.GuessExpressionType(init),
                          view.kind != nullptr ? "ta" : "dv"));
     view.name = LastDeclared(ctx);
     views.push_back(view);

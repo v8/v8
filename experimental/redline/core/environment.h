@@ -10,8 +10,10 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
 #include "experimental/redline/core/builder.h"
 
 namespace redline {
@@ -112,11 +114,19 @@ struct BuiltinFunction {
   std::span<const ArgSpec> params = {};
 };
 
+// One property of a builtin type, with its coarse type guess.
+struct PropertyInfo {
+  std::string_view name;
+  JsType type = JsType::kUnknown;
+};
+
 // Methods and properties available on values of a given coarse type.
 struct BuiltinType {
   JsType type = JsType::kUnknown;
   std::vector<BuiltinFunction> methods;
   std::vector<std::string_view> properties;
+  // Typed property guesses for environment-backed type inference.
+  std::vector<PropertyInfo> property_types = {};
   // The properties that a store changes: data properties, not the getters
   // of the prototype. Empty if the model does not know them.
   std::vector<std::string_view> writable = {};
@@ -224,6 +234,18 @@ class Environment {
 
   const BuiltinType* ForType(JsType type) const;
   const BuiltinGlobal* Global(std::string_view name) const;
+  // O(1) type-inference lookups built once at `Environment` construction.
+  JsType LookupGlobalCtorType(std::string_view name) const;
+  JsType LookupNamespaceCtorType(std::string_view ns,
+                                 std::string_view name) const;
+  JsType LookupGlobalCallReturnType(std::string_view name) const;
+  JsType LookupNamespaceCallReturnType(std::string_view ns,
+                                       std::string_view name) const;
+  JsType LookupMethodReturnType(JsType recv,
+                                std::string_view method_name) const;
+  JsType LookupPropertyType(JsType recv, std::string_view prop_name) const;
+  JsType LookupNamespacePropertyType(std::string_view ns,
+                                     std::string_view prop_name) const;
   // Globals whose instance_type is `type` and that are constructible.
   std::vector<const BuiltinGlobal*> ConstructorsOf(JsType type) const;
   // Number of discovered members (statics + methods + getters), for logs.
@@ -257,6 +279,8 @@ class Environment {
   // Adds the typed part of the model (environment_typed.cc): parameter
   // lists, enums, options bags and the types that the coarse tables lack.
   void AddTypedModel();
+  // Builds O(1) index tables after all model tables finalize.
+  void BuildLookupTables();
   // Keeps a parameter list alive as long as the environment.
   std::span<const ArgSpec> KeepParams(std::vector<ArgSpec> params);
 
@@ -275,6 +299,20 @@ class Environment {
   std::vector<EnumList> enums_;
   std::vector<OptionsBag> options_;
   std::vector<DiscoveredSignatureEntry> discovered_signatures_;
+  absl::flat_hash_map<JsType, size_t> type_index_;
+  absl::flat_hash_map<std::string_view, size_t> global_index_;
+  absl::flat_hash_map<std::string_view, JsType> global_ctor_types_;
+  absl::flat_hash_map<std::pair<std::string_view, std::string_view>, JsType>
+      namespace_ctor_types_;
+  absl::flat_hash_map<std::string_view, JsType> global_call_types_;
+  absl::flat_hash_map<std::pair<std::string_view, std::string_view>, JsType>
+      namespace_call_types_;
+  absl::flat_hash_map<std::pair<JsType, std::string_view>, JsType>
+      method_return_types_;
+  absl::flat_hash_map<std::pair<JsType, std::string_view>, JsType>
+      property_types_;
+  absl::flat_hash_map<std::pair<std::string_view, std::string_view>, JsType>
+      namespace_property_types_;
 };
 
 }  // namespace redline

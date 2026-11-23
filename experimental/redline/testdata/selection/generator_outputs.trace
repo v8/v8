@@ -423,7 +423,7 @@ ProxyDecl	1	92641ea6db58dfb6	let n = 42; let s = "text"; let a = [1, 2, 3]; let 
 ProxyDecl	2	e65747821d23cecf	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 ProxyDecl	3	efd319a355b37a7b	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 ProxyDecl	4	273dc9c4733b9e00	let n = 42; let s = "text"; let proxy0 = new Proxy(s, {getPrototypeOf(
-With	0	9faed95fffc3df98	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+With	0	7db8734c8224a072	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 With	1	9682cbc2763acc2e	let n = 42; with (f) {   let t0 = n + n;   let t1 = -0 - t0;   let t2
 With	2	43833c6ef5497524	let n = 42; let s = "text"; let a = [1, 2, 3]; with ([, , , , n, 16777
 With	3	c34e6bb658460f30	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"

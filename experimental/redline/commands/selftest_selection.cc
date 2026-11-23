@@ -116,7 +116,7 @@ std::string TraceGeneratorPicks(const GeneratorSet& generators,
   std::string trace;
   for (int i = 0; i < kGeneratorPicks; i++) {
     std::unique_ptr<fast::Tree> tree = program->CopyTree();
-    Builder builder(tree.get(), &rng);
+    Builder builder(tree.get(), &rng, &env);
     Builder::Slot slot = builder.RandomInsertionSlot();
     if (!slot.valid()) {
       trace += StringPrintf("%d\t(no slot)\n", i);
@@ -221,7 +221,7 @@ std::unique_ptr<fast::Tree> GenerateSample(Generator* g, int i,
   Random rng(kSeed + static_cast<uint64_t>(i) * 7919 +
              Program::HashSource(g->name()));
   std::unique_ptr<fast::Tree> tree = program.CopyTree();
-  Builder builder(tree.get(), &rng);
+  Builder builder(tree.get(), &rng, &env);
   for (int attempt = 0; attempt < 10; attempt++) {
     Builder::Slot slot = builder.RandomInsertionSlot();
     if (!slot.valid()) {
@@ -1657,7 +1657,7 @@ void CheckEdgeCases(Checker* checker) {
     for (int i = 0; i < 300 && depth_ok; i++) {
       auto tree = std::make_unique<fast::Tree>();
       tree->set_root(tree->New<fast::Program>());
-      Builder builder(tree.get(), &rng);
+      Builder builder(tree.get(), &rng, &env);
       GenContext ctx(builder, *generators, env);
       CodeGen cg(ctx);
       fast::Expression* e1 = cg.Expression(0);
@@ -1735,7 +1735,7 @@ void CheckOsrLoopTrigger(Checker* checker) {
     for (int i = 0; i < samples; i++) {
       auto tree = std::make_unique<fast::Tree>();
       tree->set_root(tree->New<fast::Program>());
-      Builder builder(tree.get(), &rng);
+      Builder builder(tree.get(), &rng, &env);
       GenContext ctx(builder, *generators, env);
       std::vector<fast::Statement*> out;
       ctx.out = &out;
@@ -1942,7 +1942,7 @@ let r1 = target(g1, 4);
           ApplyMutation(*m, *program, nullptr, rng_a, env, *generators,
                         /*rounds=*/1, &detail_a);
       std::unique_ptr<fast::Tree> tree_b = program->CopyTree();
-      Builder builder_b(tree_b.get(), &rng_b);
+      Builder builder_b(tree_b.get(), &rng_b, &env);
       builder_b.SetFocusSubtree(nullptr);
       MutationContext ctx_b;
       ctx_b.env = &env;
@@ -2520,7 +2520,7 @@ void CheckBuiltinsAndWorkers(Checker* checker) {
     for (int i = 0; i < n; i++) {
       auto tree = std::make_unique<fast::Tree>();
       tree->set_root(tree->New<fast::Program>());
-      Builder builder(tree.get(), &rng);
+      Builder builder(tree.get(), &rng, &env);
       GenContext ctx(builder, *generators, env);
       ctx.out = &tree->root()->body;
       setup(ctx);
@@ -2655,7 +2655,7 @@ void CheckBuiltinsAndWorkers(Checker* checker) {
     for (int i = 0; i < 40 && depth_safe; i++) {
       auto tree = std::make_unique<fast::Tree>();
       tree->set_root(tree->New<fast::Program>());
-      Builder builder(tree.get(), &rng);
+      Builder builder(tree.get(), &rng, &env);
       GenContext ctx(builder, *generators, env);
       ctx.expr_depth = start_depth;
       CodeGen cg(ctx);
@@ -2824,7 +2824,7 @@ let y = b[0] + a.x;
                                 &err));
         std::unique_ptr<fast::Tree> tree = program->CopyTree();
         Random rng(kSeed + 900 + static_cast<uint64_t>(seed));
-        Builder b(tree.get(), &rng);
+        Builder b(tree.get(), &rng, &env);
         MutationContext ctx;
         ctx.env = &env;
         ctx.generators = generators.get();
@@ -2919,7 +2919,7 @@ let y = b[0] + a.x;
         "let arr = [1, 2];\nlet y = arr[0] + arr.length;\n", "selftest");
     std::unique_ptr<fast::Tree> tree = small->CopyTree();
     Random rng(kSeed + 970);
-    Builder b(tree.get(), &rng);
+    Builder b(tree.get(), &rng, &env);
     MutationContext ctx;
     ctx.env = &env;
     ctx.generators = generators.get();
@@ -2952,7 +2952,7 @@ let y = b[0] + a.x;
       ProgramPtr small = ParseOrDie("let o = {k: 1};\n", "selftest");
       std::unique_ptr<fast::Tree> tree = small->CopyTree();
       Random rng(kSeed + 980);
-      Builder b(tree.get(), &rng);
+      Builder b(tree.get(), &rng, &env);
       MutationContext ctx;
       ctx.env = &env;
       ctx.generators = generators.get();
@@ -3011,7 +3011,7 @@ new Worker(function() { try { v++; } catch {} }, {type: 'function'});
       ok = reg.Set("mutators.Fixup.max_guards", 64, &err);
       std::unique_ptr<fast::Tree> tree = guards->CopyTree();
       Random rng(kSeed + 990 + static_cast<uint64_t>(seed));
-      Builder b(tree.get(), &rng);
+      Builder b(tree.get(), &rng, &env);
       MutationContext ctx;
       ctx.env = &env;
       ctx.generators = generators.get();
@@ -3192,7 +3192,7 @@ let o = {k(v) { return v; }, get og() { return 4; }};
     for (int i = 0; ok && i < 150; i++) {
       std::unique_ptr<fast::Tree> tree = program->CopyTree();
       Random rng(kSeed + 1100 + static_cast<uint64_t>(i));
-      Builder b(tree.get(), &rng);
+      Builder b(tree.get(), &rng, &env);
       Builder::Slot slot{&tree->root()->body, tree->root()->body.size(),
                          tree->root()};
       GenContext ctx = MakeGenContext(b, slot, *generators, env);
@@ -3228,6 +3228,374 @@ let o = {k(v) { return v; }, get og() { return 4; }};
       "JIT generators: methods, getters, setters and constructors are "
       "compiled and called with their receiver",
       ok, err);
+}
+
+// Verifies environment-backed type lookups and `Builder` type inference.
+void CheckEnvTyper(Checker* checker) {
+  const Environment& env = Environment::Default();
+
+  // 1. Direct O(1) lookup helpers on `Environment`.
+  {
+    std::string lookup_err;
+    bool lookups_ok = true;
+    auto check_eq = [&](const char* label, JsType got, JsType want) {
+      if (got != want) {
+        lookups_ok = false;
+        if (!lookup_err.empty()) lookup_err += ", ";
+        lookup_err += std::string(label) + "=" + JsTypeName(got) + " (want " +
+                      JsTypeName(want) + ")";
+      }
+    };
+    check_eq("ctor Float16Array", env.LookupGlobalCtorType("Float16Array"),
+             JsType::kTypedArray);
+    check_eq("ctor WeakSet", env.LookupGlobalCtorType("WeakSet"),
+             JsType::kWeakSet);
+    check_eq("ctor WeakMap", env.LookupGlobalCtorType("WeakMap"),
+             JsType::kWeakMap);
+    check_eq("ctor Set", env.LookupGlobalCtorType("Set"), JsType::kSet);
+    check_eq("ctor Map", env.LookupGlobalCtorType("Map"), JsType::kMap);
+    check_eq("ctor RegExp", env.LookupGlobalCtorType("RegExp"),
+             JsType::kRegExp);
+    check_eq("ctor Promise", env.LookupGlobalCtorType("Promise"),
+             JsType::kPromise);
+    check_eq("ctor ArrayBuffer", env.LookupGlobalCtorType("ArrayBuffer"),
+             JsType::kArrayBuffer);
+    check_eq("ctor DataView", env.LookupGlobalCtorType("DataView"),
+             JsType::kDataView);
+    check_eq("ctor SuppressedError",
+             env.LookupGlobalCtorType("SuppressedError"), JsType::kError);
+    check_eq("ctor String", env.LookupGlobalCtorType("String"),
+             JsType::kUnknown);
+    check_eq("ctor empty", env.LookupGlobalCtorType(""), JsType::kUnknown);
+    check_eq("ns ctor Intl.Locale",
+             env.LookupNamespaceCtorType("Intl", "Locale"),
+             JsType::kIntlLocale);
+    check_eq("ns ctor Temporal.PlainDate",
+             env.LookupNamespaceCtorType("Temporal", "PlainDate"),
+             JsType::kTemporalPlainDate);
+    check_eq("ns ctor Temporal.ZonedDateTime",
+             env.LookupNamespaceCtorType("Temporal", "ZonedDateTime"),
+             JsType::kTemporalZonedDateTime);
+    check_eq("ns ctor Temporal.Now",
+             env.LookupNamespaceCtorType("Temporal", "Now"), JsType::kUnknown);
+    check_eq("ns ctor Intl.DateTimeFormat",
+             env.LookupNamespaceCtorType("Intl", "DateTimeFormat"),
+             JsType::kUnknown);
+    check_eq("call String", env.LookupGlobalCallReturnType("String"),
+             JsType::kString);
+    check_eq("call Number", env.LookupGlobalCallReturnType("Number"),
+             JsType::kNumber);
+    check_eq("call Date", env.LookupGlobalCallReturnType("Date"),
+             JsType::kString);
+    check_eq("call parseInt", env.LookupGlobalCallReturnType("parseInt"),
+             JsType::kNumber);
+    check_eq("call encodeURI", env.LookupGlobalCallReturnType("encodeURI"),
+             JsType::kString);
+    check_eq("call gc", env.LookupGlobalCallReturnType("gc"), JsType::kNullish);
+    check_eq("call Map", env.LookupGlobalCallReturnType("Map"),
+             JsType::kUnknown);
+    check_eq("call SuppressedError",
+             env.LookupGlobalCallReturnType("SuppressedError"),
+             JsType::kUnknown);
+    check_eq("ns call Object.keys",
+             env.LookupNamespaceCallReturnType("Object", "keys"),
+             JsType::kArray);
+    check_eq("ns call Array.from",
+             env.LookupNamespaceCallReturnType("Array", "from"),
+             JsType::kArray);
+    check_eq("ns call Array.fromAsync",
+             env.LookupNamespaceCallReturnType("Array", "fromAsync"),
+             JsType::kPromise);
+    check_eq("ns call Iterator.zip",
+             env.LookupNamespaceCallReturnType("Iterator", "zip"),
+             JsType::kIterator);
+    check_eq("ns call Reflect.get",
+             env.LookupNamespaceCallReturnType("Reflect", "get"),
+             JsType::kUnknown);
+    check_eq("ns call Reflect.ownKeys",
+             env.LookupNamespaceCallReturnType("Reflect", "ownKeys"),
+             JsType::kArray);
+    check_eq("ns call Promise.resolve",
+             env.LookupNamespaceCallReturnType("Promise", "resolve"),
+             JsType::kPromise);
+    check_eq("ns call Promise.reject",
+             env.LookupNamespaceCallReturnType("Promise", "reject"),
+             JsType::kPromise);
+    check_eq("ns call JSON.parse",
+             env.LookupNamespaceCallReturnType("JSON", "parse"),
+             JsType::kUnknown);
+    check_eq("ns call JSON.stringify",
+             env.LookupNamespaceCallReturnType("JSON", "stringify"),
+             JsType::kString);
+    check_eq("ns call Uint8Array.fromBase64",
+             env.LookupNamespaceCallReturnType("Uint8Array", "fromBase64"),
+             JsType::kTypedArray);
+    check_eq("ns call Temporal.Now.instant",
+             env.LookupNamespaceCallReturnType("Temporal.Now", "instant"),
+             JsType::kTemporalInstant);
+    check_eq("ns call Temporal.PlainDate.compare",
+             env.LookupNamespaceCallReturnType("Temporal.PlainDate", "compare"),
+             JsType::kNumber);
+    check_eq("ns call WebAssembly.validate",
+             env.LookupNamespaceCallReturnType("WebAssembly", "validate"),
+             JsType::kBoolean);
+    check_eq("method Array.values",
+             env.LookupMethodReturnType(JsType::kArray, "values"),
+             JsType::kIterator);
+    check_eq("method TypedArray.subarray",
+             env.LookupMethodReturnType(JsType::kTypedArray, "subarray"),
+             JsType::kTypedArray);
+    check_eq("method TypedArray.map",
+             env.LookupMethodReturnType(JsType::kTypedArray, "map"),
+             JsType::kTypedArray);
+    check_eq("method Iterator.map",
+             env.LookupMethodReturnType(JsType::kIterator, "map"),
+             JsType::kIterator);
+    check_eq("method Iterator.toArray",
+             env.LookupMethodReturnType(JsType::kIterator, "toArray"),
+             JsType::kArray);
+    check_eq("method String.match",
+             env.LookupMethodReturnType(JsType::kString, "match"),
+             JsType::kUnknown);
+    check_eq("method String.split",
+             env.LookupMethodReturnType(JsType::kString, "split"),
+             JsType::kArray);
+    check_eq("method Date.getTime",
+             env.LookupMethodReturnType(JsType::kDate, "getTime"),
+             JsType::kNumber);
+    check_eq("method TemporalPlainDate.until",
+             env.LookupMethodReturnType(JsType::kTemporalPlainDate, "until"),
+             JsType::kTemporalDuration);
+    check_eq("method Map.toString",
+             env.LookupMethodReturnType(JsType::kMap, "toString"),
+             JsType::kString);
+    check_eq("method Unknown.values",
+             env.LookupMethodReturnType(JsType::kUnknown, "values"),
+             JsType::kUnknown);
+    check_eq("prop TypedArray.buffer",
+             env.LookupPropertyType(JsType::kTypedArray, "buffer"),
+             JsType::kArrayBuffer);
+    check_eq("prop Array.length",
+             env.LookupPropertyType(JsType::kArray, "length"), JsType::kNumber);
+    check_eq("prop Map.size", env.LookupPropertyType(JsType::kMap, "size"),
+             JsType::kNumber);
+    check_eq("prop RegExp.flags",
+             env.LookupPropertyType(JsType::kRegExp, "flags"), JsType::kString);
+    check_eq("prop RegExp.global",
+             env.LookupPropertyType(JsType::kRegExp, "global"),
+             JsType::kBoolean);
+    check_eq("prop TemporalZonedDateTime.epochNanoseconds",
+             env.LookupPropertyType(JsType::kTemporalZonedDateTime,
+                                    "epochNanoseconds"),
+             JsType::kBigInt);
+    check_eq("prop IntlLocale.numeric",
+             env.LookupPropertyType(JsType::kIntlLocale, "numeric"),
+             JsType::kBoolean);
+    check_eq("ns prop Math.PI", env.LookupNamespacePropertyType("Math", "PI"),
+             JsType::kNumber);
+    check_eq("ns prop RegExp.lastMatch",
+             env.LookupNamespacePropertyType("RegExp", "lastMatch"),
+             JsType::kString);
+    check_eq("ns prop Symbol.iterator",
+             env.LookupNamespacePropertyType("Symbol", "iterator"),
+             JsType::kSymbol);
+    checker->Check("env-typer: Environment O(1) lookup helpers", lookups_ok,
+                   lookup_err);
+  }
+
+  // 2. Typed inference across re-parse and `env == nullptr` compatibility.
+  {
+    const char* kCode = R"(
+let ta = new Float16Array(8);
+let taSub = ta.subarray(1);
+let taMap = ta.map(x => x);
+let u8b64 = Uint8Array.fromBase64("AA==");
+let ab = ta.buffer;
+let abSlice = ab.slice(0, 4);
+let abRes = ab.resizable;
+let arr = [1, 2, 3];
+let arrLen = arr.length;
+let it = arr.values();
+let it2 = it.map(x => x).take(2);
+let itArr = it2.toArray();
+let itZip = Iterator.zip([arr]);
+let ws = new WeakSet();
+let ws2 = ws.add({});
+let st = new Set([1]);
+let st2 = st.union(st);
+let mp = new Map();
+let mp2 = mp.set(1, 2);
+let mpSize = mp.size;
+let re = new RegExp("a");
+let reFlags = re.flags;
+let reComp = re.compile(/b/);
+let pr = Promise.resolve(1);
+let pr2 = pr.then(() => 2);
+let prRej = Promise.reject(1);
+let loc = new Intl.Locale("en");
+let locLang = loc.language;
+let locNum = loc.numeric;
+let pd = Temporal.PlainDate.from("2024-01-31");
+let dur = pd.until(pd);
+let inst = Temporal.Now.instant();
+let zdt = new Temporal.ZonedDateTime(0n, "UTC");
+let zdtNs = zdt.epochNanoseconds;
+let str = "abc";
+let matchArr = str.match(/a/);
+let splitArr = str.split("b");
+let keysArr = Object.keys({});
+let err = new SuppressedError(1, 2, "e");
+let errMsg = err.message;
+let pi = Math.PI;
+let lastM = RegExp.lastMatch;
+let dateStr = Date();
+let optAb = ta?.buffer;
+function f() {
+  class Float16Array {}
+  let shadowedCtor = new Float16Array();
+  let Object = { keys() { return 1; } };
+  let shadowedCall = Object.keys();
+}
+)";
+    ProgramPtr program = ParseOrDie(kCode, "selftest");
+    std::unique_ptr<fast::Tree> tree = program->CopyTree();
+    Random rng(kSeed + 1200);
+    Builder builder(tree.get(), &rng, &env);
+    auto type_of = [](Builder& b, std::string_view name) {
+      for (const fast::Binding* binding : b.scopes().bindings()) {
+        if (binding->name == name) {
+          return b.GuessType(binding);
+        }
+      }
+      return JsType::kUnknown;
+    };
+    std::string detail;
+    auto expect = [&](std::string_view name, JsType want) {
+      JsType got = type_of(builder, name);
+      if (got != want) {
+        if (!detail.empty()) detail += ", ";
+        detail += std::string(name) + "=" + JsTypeName(got) + " (want " +
+                  JsTypeName(want) + ")";
+        return false;
+      }
+      return true;
+    };
+    bool ok =
+        expect("ta", JsType::kTypedArray) &&
+        expect("taSub", JsType::kTypedArray) &&
+        expect("taMap", JsType::kTypedArray) &&
+        expect("u8b64", JsType::kTypedArray) &&
+        expect("ab", JsType::kArrayBuffer) &&
+        expect("abSlice", JsType::kArrayBuffer) &&
+        expect("abRes", JsType::kBoolean) && expect("arr", JsType::kArray) &&
+        expect("arrLen", JsType::kNumber) && expect("it", JsType::kIterator) &&
+        expect("it2", JsType::kIterator) && expect("itArr", JsType::kArray) &&
+        expect("itZip", JsType::kIterator) && expect("ws", JsType::kWeakSet) &&
+        expect("ws2", JsType::kWeakSet) && expect("st", JsType::kSet) &&
+        expect("st2", JsType::kSet) && expect("mp", JsType::kMap) &&
+        expect("mp2", JsType::kMap) && expect("mpSize", JsType::kNumber) &&
+        expect("re", JsType::kRegExp) && expect("reFlags", JsType::kString) &&
+        expect("reComp", JsType::kRegExp) && expect("pr", JsType::kPromise) &&
+        expect("pr2", JsType::kPromise) && expect("prRej", JsType::kPromise) &&
+        expect("loc", JsType::kIntlLocale) &&
+        expect("locLang", JsType::kString) &&
+        expect("locNum", JsType::kBoolean) &&
+        expect("pd", JsType::kTemporalPlainDate) &&
+        expect("dur", JsType::kTemporalDuration) &&
+        expect("inst", JsType::kTemporalInstant) &&
+        expect("zdt", JsType::kTemporalZonedDateTime) &&
+        expect("zdtNs", JsType::kBigInt) && expect("str", JsType::kString) &&
+        expect("matchArr", JsType::kUnknown) &&
+        expect("splitArr", JsType::kArray) &&
+        expect("keysArr", JsType::kArray) && expect("err", JsType::kError) &&
+        expect("errMsg", JsType::kString) && expect("pi", JsType::kNumber) &&
+        expect("lastM", JsType::kString) &&
+        expect("dateStr", JsType::kString) &&
+        expect("optAb", JsType::kArrayBuffer) &&
+        expect("shadowedCtor", JsType::kObject) &&
+        expect("shadowedCall", JsType::kUnknown);
+
+    // Check `VisibleAtSlot` preserves typed receivers at the end of the file.
+    Builder::Slot end_slot{&tree->root()->body, tree->root()->body.size(),
+                           tree->root()};
+    std::vector<Variable> visible = builder.VisibleAtSlot(end_slot);
+    auto visible_is = [&](std::string_view name, JsType want) {
+      for (const Variable& v : visible) {
+        if (v.name == name) {
+          return v.type == want;
+        }
+      }
+      return false;
+    };
+    ok = ok && visible_is("taSub", JsType::kTypedArray) &&
+         visible_is("it2", JsType::kIterator) &&
+         visible_is("ab", JsType::kArrayBuffer) &&
+         visible_is("loc", JsType::kIntlLocale) &&
+         visible_is("ws2", JsType::kWeakSet);
+
+    // Without an `Environment`, `Builder` stays backward-compatible and safe.
+    Builder no_env_builder(tree.get(), &rng);
+    const bool no_env_ok =
+        type_of(no_env_builder, "ta") == JsType::kTypedArray &&
+        type_of(no_env_builder, "arrLen") == JsType::kNumber &&
+        type_of(no_env_builder, "ab") == JsType::kUnknown &&
+        type_of(no_env_builder, "taSub") == JsType::kUnknown;
+    no_env_builder.SetEnvironment(&env);
+    const bool set_env_ok =
+        type_of(no_env_builder, "ab") == JsType::kArrayBuffer &&
+        type_of(no_env_builder, "taSub") == JsType::kTypedArray;
+    checker->Check(
+        "env-typer: re-parse preserves typed receivers and env==nullptr stays "
+        "safe",
+        ok && no_env_ok && set_env_ok, detail);
+  }
+
+  // 3. Partial/null AST nodes and deep AST chains stay safe and bounded.
+  {
+    auto tree = std::make_unique<fast::Tree>();
+    tree->set_root(tree->New<fast::Program>());
+    Random rng(kSeed + 1201);
+    Builder builder(tree.get(), &rng, &env);
+
+    auto* empty_new = tree->New<fast::NewExpression>();
+    auto* empty_call = tree->New<fast::CallExpression>();
+    auto* empty_member = tree->New<fast::MemberExpression>();
+    auto* call_on_null = tree->New<fast::CallExpression>();
+    call_on_null->callee = empty_member;
+    auto* empty_unary = tree->New<fast::UnaryExpression>();
+    auto* empty_binary = tree->New<fast::BinaryExpression>();
+    auto* empty_chain = tree->New<fast::ChainExpression>();
+    auto* empty_seq = tree->New<fast::SequenceExpression>();
+    const bool null_safe =
+        builder.GuessExpressionType(nullptr) == JsType::kUnknown &&
+        builder.GuessExpressionType(empty_new) == JsType::kObject &&
+        builder.GuessExpressionType(empty_call) == JsType::kUnknown &&
+        builder.GuessExpressionType(empty_member) == JsType::kUnknown &&
+        builder.GuessExpressionType(call_on_null) == JsType::kUnknown &&
+        builder.GuessExpressionType(empty_unary) == JsType::kNumber &&
+        builder.GuessExpressionType(empty_binary) == JsType::kUnknown &&
+        builder.GuessExpressionType(empty_chain) == JsType::kUnknown &&
+        builder.GuessExpressionType(empty_seq) == JsType::kUnknown &&
+        Builder::GuessType(empty_call, &env) == JsType::kUnknown;
+
+    // 2000-deep chained AST must terminate safely without stack overflow.
+    fast::Expression* deep = tree->New<fast::Identifier>();
+    deep->Cast<fast::Identifier>()->name = "ta";
+    for (int i = 0; i < 2000; ++i) {
+      auto* m = tree->New<fast::MemberExpression>();
+      m->object = deep;
+      auto* prop = tree->New<fast::Identifier>();
+      prop->name = "buffer";
+      m->property = prop;
+      deep = m;
+    }
+    const bool deep_ok =
+        builder.GuessExpressionType(deep) == JsType::kUnknown &&
+        Builder::GuessType(deep, &env) == JsType::kUnknown;
+
+    checker->Check("env-typer: null AST nodes and deep expressions stay safe",
+                   null_safe && deep_ok);
+  }
 }
 
 }  // namespace
@@ -3293,6 +3661,7 @@ void RunSelectionChecks(Checker* checker, const std::string& testdata_dir,
   CheckReceiverJit(checker);
   CheckEdgeCases(checker);
   CheckBuiltinsAndWorkers(checker);
+  CheckEnvTyper(checker);
 }
 
 void RunNodeKindChecks(Checker* checker) {

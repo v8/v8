@@ -725,7 +725,7 @@ class Shell {
     }
     Random rng(seed);
     std::unique_ptr<fast::Tree> tree = current_->CopyTree();
-    Builder builder(tree.get(), &rng);
+    Builder builder(tree.get(), &rng, &env_);
     std::vector<fast::Statement*> out;
     Builder::Slot slot;
     bool generated = false;

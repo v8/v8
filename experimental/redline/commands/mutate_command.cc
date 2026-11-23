@@ -536,7 +536,7 @@ int RunBench(const Flags& flags, bool audit) {
           Random rng(options.seed + static_cast<uint64_t>(i) * 7919 +
                      Program::HashSource(g->name()) + input * 104729);
           std::unique_ptr<fast::Tree> tree = parent->CopyTree();
-          Builder builder(tree.get(), &rng);
+          Builder builder(tree.get(), &rng, &env);
           Stopwatch sw;
           std::vector<fast::Statement*> out;
           Builder::Slot slot;

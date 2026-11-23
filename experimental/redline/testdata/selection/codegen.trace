@@ -495,506 +495,506 @@
 494	inserted IntegerDecl+Recursion
 495	inserted HomomorphicFeedback+ElementStore+ArrayDecl
 496	inserted ClassDecl+LazyDeopt
-497	inserted Return+ElementStore
-498	inserted Return+ElementLoad+LabeledLoops
-499	inserted member ClassMember
-500	inserted member LiteralMember
-501	inserted TypedArrayDecl+HomomorphicFeedback+ElementsKind
-502	inserted IntlOps
-503	inserted WorkerSpawn
-504	inserted OsrLoop+MethodCall
-505	inserted Gc+NullishDecl
-506	inserted SuperAccess+DynamicFunctionTransition
-507	inserted SymbolHook+IfElse
-508	inserted ElementLoad+With
-509	inserted member LiteralMember
-510	inserted member ClassMember
-511	inserted BuiltinInstanceDecl+ComputedDecl+PropertyDelete
-512	inserted SymbolHook
-513	inserted Closure+FunctionDecl
-514	noop
-515	inserted FunctionDecl+UnboundMethodCall+DestructuringAssign
-516	noop
-517	inserted member LiteralMember
-518	inserted ObjectDecl+Deopt+BinaryOp
-519	inserted UnboundMethodCall
-520	inserted HotLoop+FunctionCall+ObjectDecl
-521	inserted ObjectDecl
-522	inserted SpreadCall+TryCatch
-523	inserted member ClassMember
-524	inserted ObjectDecl+ArrowDecl
-525	noop
-526	inserted member ClassMember
-527	inserted StringOps+ObjectDecl+BinaryOp
-528	inserted JsonRoundTrip
-529	inserted ArrowDecl+ArrowStore+JitOptimize
-530	inserted MethodCall+ObjectFlow
-531	inserted IfElse
-532	inserted Deopt+ConstructDecl+BinaryOp
-533	inserted member ClassMember
-534	inserted StringOps+JitBaseline+ObjectDecl
-535	inserted ClassDecl
-536	inserted ObjectDecl
-537	inserted member ClassMember
-538	inserted ElementsKind+IntegerDecl+ArrayDecl
-539	inserted Deopt
-540	inserted CountedLoop+DisposableStackOps
-541	inserted member LiteralMember
-542	inserted WrapperChain+JitTricky+Iife
-543	inserted FunctionCall+ArrayDecl+PropertyStore
-544	inserted PropertyStore
-545	inserted MapTransitionFocus
-546	noop
-547	inserted UnboundMethodCall
-548	inserted member ClassMember
-549	inserted Imitation+ComplexForLoop
-550	noop
-551	inserted WorkerSpawn+ClassDecl
-552	inserted WorkerSpawn
-553	inserted ShapeChange+Update
-554	inserted member ClassMember
-555	inserted member ClassMember
-556	inserted PrototypeMethodCall+Return
-557	inserted NativeCall
+497	inserted member LiteralMember
+498	inserted UnboundMethodCall
+499	inserted IfElse
+500	inserted IfElse+PropertyStore
+501	inserted BuiltinCall
+502	inserted CountedLoop
+503	inserted MethodCall+ForOf
+504	inserted member LiteralMember
+505	inserted RegExpDecl
+506	inserted Assignment
+507	inserted member ClassMember
+508	noop
+509	inserted FunctionCall
+510	inserted ElementStore
+511	inserted StringDecl+Closure+FrozenArrayOps
+512	inserted BinaryOp+LabeledLoops+UsingDecl
+513	inserted BuiltinCall+ArrowDecl+FloatDecl
+514	inserted ArrowStore
+515	inserted ArrayDecl+MethodCall
+516	inserted member LiteralMember
+517	inserted ProxyDecl+CrossContextPrivateStore+FunctionCall
+518	inserted IteratorChain+PrototypeMethodCall+ReturnOverride
+519	inserted GcNative+Closure
+520	inserted ForIn+ArrowDecl+WhileLoop
+521	inserted PropertyStore+FloatDecl+FunctionCall
+522	inserted ManyProperties+BinaryOp+UnaryOp
+523	inserted Assignment+ConstructorFunction+HotLoop
+524	inserted member ClassMember
+525	inserted ClassDecl
+526	inserted JitBaseline+TypedArrayOps
+527	inserted TryCatch
+528	inserted Iteration
+529	inserted Switch+ShapeChange
+530	inserted TryCatch
+531	inserted ArrowStore
+532	inserted UnboundMethodCall
+533	inserted AsyncIife
+534	inserted Update+ArrowDecl
+535	inserted TypedArrayDecl+IntegerDecl+JitOptimize
+536	noop
+537	inserted TemplateDecl
+538	inserted Iteration+UnaryOp+JitOptimize
+539	inserted ResizableBuffer
+540	inserted JitOptimize
+541	inserted ResizableBuffer
+542	inserted NativeCall+EvalCode
+543	inserted TypeCheck+TryCatch+StringDecl
+544	inserted member LiteralMember
+545	inserted member LiteralMember
+546	inserted AsyncIife
+547	inserted AsyncIife+ArrayDecl
+548	inserted WhileLoop
+549	inserted JitTricky+TryFinally+ConstructDecl
+550	inserted member ClassMember
+551	inserted PropertyLoad+JitOptimize
+552	inserted IfElse+ReturnOverride+FunctionDecl
+553	inserted CountedLoop+UninitializedDecl+ComputedDecl
+554	inserted FunctionCall+ElementStore+ElementLoad
+555	inserted FloatDecl+PromiseOps
+556	inserted UnboundMethodCall+TypedArrayDecl+ObjectFlow
+557	inserted Destructuring
 558	inserted member LiteralMember
-559	inserted RegExpDecl+ForOf
-560	inserted member LiteralMember
-561	inserted Closure
-562	inserted PropertyLoad+FunctionDecl+ObjectDecl
-563	noop
-564	inserted HotLoop+ClassDecl+TemplateDecl
-565	inserted Construct+CountedLoop
-566	inserted BooleanDecl
-567	inserted ClassDecl+ElementsKind
-568	inserted member ClassMember
+559	inserted member LiteralMember
+560	inserted SpecialValueDecl+ElementsKind+ArrowDecl
+561	inserted TypedArrayOps+PrototypeMethodCall+LabeledLoops
+562	inserted SpecialValueDecl
+563	inserted FunctionCall
+564	inserted NativeCall
+565	inserted FrozenArrayOps
+566	inserted PrototypeSet+TemplateDecl
+567	inserted StringDecl
+568	inserted member LiteralMember
 569	inserted member LiteralMember
-570	noop
-571	inserted DefineProperty+Destructuring+WorkerSpawn
-572	inserted member LiteralMember
-573	inserted member LiteralMember
-574	inserted LiteralFactory
-575	inserted ForIn
-576	noop
-577	inserted member ClassMember
-578	inserted ArrowStore+FunctionDecl
-579	inserted ArrayDecl+ReturnOverride
-580	inserted StringOps+FunctionCall
-581	inserted JitOptimize+BooleanDecl+PrototypeMethodCall
-582	inserted ElementsKind+NativeCall+HotLoop
-583	inserted Construct+ElementLoad
-584	inserted ObjectDecl+StringOps
-585	inserted FunctionCall
-586	inserted member ClassMember
-587	inserted StringDecl+HotLoop+HomomorphicFeedback
-588	inserted HotLoop+ManyProperties
-589	inserted WhileLoop+CountedLoop+BooleanDecl
-590	inserted WorkerSpawn+TryFinally+TypedArrayOps
-591	inserted PropertyStore+Update+BigIntDecl
-592	inserted PropertyStore+StringOps+PropertyLoad
-593	inserted member ClassMember
-594	inserted IterableDecl+HostObjectDecl+MethodCall
-595	inserted IteratorChain
-596	inserted SpreadCall+ConstructorFunction
-597	inserted NativeCall+SymbolHook+ConstructorFunctionDecl
-598	inserted MethodCall+StringDecl+ConstructDecl
-599	inserted IfElse
-600	inserted BinaryOp+ProxyDecl
-601	inserted ValueOfOverride
-602	inserted PropertyStore
-603	inserted member LiteralMember
-604	inserted member ClassMember
-605	inserted UnboundMethodCall+Construct
-606	inserted member ClassMember
-607	inserted BigIntDecl
-608	inserted ForOfUsing
-609	inserted ConstructorFunctionDecl+FunctionCall
-610	inserted Imitation+ElementStore+ComputedDecl
+570	inserted VerifyType+ForOfPattern
+571	inserted member ClassMember
+572	inserted MethodCall+ManyProperties+ConstructDecl
+573	inserted DisposableStackOps+ComplexForLoop+Update
+574	inserted ForOfPattern
+575	inserted PromiseOps
+576	inserted PropertyLoad+HotLoop
+577	inserted member LiteralMember
+578	inserted member LiteralMember
+579	inserted ArrowDecl
+580	inserted member LiteralMember
+581	inserted ForOfPattern+IfElse
+582	inserted member LiteralMember
+583	inserted member ClassMember
+584	noop
+585	inserted ForOfUsing+SuperAccess+BinaryOp
+586	inserted ShapeChange
+587	inserted ClassDecl+SerializerRoundTrip+TryCatch
+588	inserted member ClassMember
+589	inserted IntegerDecl+UsingDecl+TemporalOps
+590	inserted TypedArrayOps+Compare+ConstructDecl
+591	inserted member LiteralMember
+592	inserted DefineProperty
+593	inserted Update+PrototypeSet+Update
+594	inserted member LiteralMember
+595	inserted ComputedDecl
+596	inserted member LiteralMember
+597	inserted member LiteralMember
+598	inserted MethodCall+ElementStore
+599	inserted Gc+TemplateDecl
+600	inserted Imitation+PropertyStore
+601	noop
+602	inserted ForOfUsing+SuperAccess+ReturnOverride
+603	inserted PropertyStore+IfElse
+604	inserted DisposableDecl
+605	inserted member ClassMember
+606	inserted PropertyStore
+607	inserted SymbolDecl
+608	inserted JitOptimize
+609	inserted PropertyDelete+StringDecl
+610	inserted TypeCheck
 611	inserted member LiteralMember
-612	inserted FunctionDecl
-613	inserted BuiltinCall+ComplexForLoop+BinaryOp
-614	inserted BinaryOp+Update
-615	inserted UninitializedDecl
-616	inserted member LiteralMember
-617	inserted ForOfPattern
-618	inserted member LiteralMember
-619	inserted member ClassMember
-620	inserted member LiteralMember
-621	inserted ClassDecl+Construct+PropertyStore
-622	inserted member LiteralMember
-623	inserted FrozenArrayOps+SpecialValueDecl
-624	inserted FrozenArrayOps+FunctionDecl+TypeCheck
-625	inserted IfElse
-626	inserted PromiseThen
-627	inserted OsrLoop+TryFinally
-628	inserted Deopt+Switch+SuperAccess
-629	inserted member LiteralMember
-630	inserted member ClassMember
-631	inserted IteratorChain+IteratorChain
-632	inserted ConstructorFunctionDecl
-633	inserted ArrowStore
-634	inserted SymbolHook+ArrowDecl+TypedArrayOps
-635	inserted member ClassMember
-636	inserted PropertyStore+Imitation+RegExpDecl
-637	inserted SymbolHook+TemplateDecl+Construct
-638	inserted CountedLoop+BuiltinCall
-639	inserted member LiteralMember
-640	inserted MethodCall
-641	inserted member ClassMember
-642	inserted PropertyLoad+JitOptimize+FunctionDecl
-643	inserted DisposableDecl+ForOf
-644	inserted SpecialValueDecl
-645	inserted IteratorChain+FunctionDecl
-646	inserted JitBaseline
-647	inserted FunctionCall+ArrowStore+FunctionDecl
-648	inserted member ClassMember
-649	inserted LabeledLoops
-650	inserted Assignment+DisposableDecl+Gc
-651	inserted Assignment
-652	inserted RawThrow+BinaryOp
-653	inserted member ClassMember
-654	inserted PropertyLoad+Throw+ConstructorFunction
-655	inserted member LiteralMember
+612	inserted member LiteralMember
+613	inserted FloatDecl+ElementStore
+614	inserted SuperAccess+ArrayDecl
+615	inserted ElementStore
+616	inserted FloatDecl
+617	inserted member LiteralMember
+618	inserted LazyDeopt
+619	inserted BuiltinOverwrite
+620	inserted BuiltinInstanceDecl+ConstructorFunctionDecl+TypedArrayOps
+621	inserted GeneratorIterate+FunctionCall
+622	inserted ForOfUsing
+623	inserted ConstructorFunction+Assignment
+624	inserted FreezeSeal+CountedLoop+CountedLoop
+625	inserted MethodCall
+626	inserted JitBaseline
+627	inserted PropertyStore+PropertyStore+ElementsKind
+628	inserted MethodCall+BuiltinCall+ObjectDecl
+629	inserted member ClassMember
+630	inserted member LiteralMember
+631	inserted HotLoop
+632	inserted LiteralFactory
+633	inserted HotLoop
+634	inserted ManyProperties
+635	inserted member LiteralMember
+636	inserted MethodCall+UnaryOp+ObjectDecl
+637	inserted member LiteralMember
+638	inserted Assignment+Return+FunctionCall
+639	inserted Update+LabeledLoops
+640	inserted ForOf
+641	inserted IteratorChain+PrototypeSet
+642	inserted Recursion
+643	inserted TemplateDecl+ClassDecl+SpecialValueDecl
+644	inserted Recursion+BigIntDecl+DefineProperty
+645	inserted member LiteralMember
+646	inserted member ClassMember
+647	inserted TypedArrayDecl+SymbolHook+FloatDecl
+648	inserted ResizableBuffer
+649	inserted BinaryOp+Assignment+Return
+650	inserted Compare
+651	inserted ElementLoad
+652	inserted member LiteralMember
+653	inserted Switch
+654	inserted HostObjectDecl+FunctionCall
+655	inserted ForOfPattern+OsrLoop
 656	inserted member LiteralMember
-657	inserted Destructuring+BuiltinInstanceDecl+RawThrow
-658	inserted ArrowStore
-659	inserted BuiltinCall+ForOf
-660	inserted DynamicFunctionTransition+ConstructorFunction
-661	inserted ConstructorFunction+Gc
-662	inserted JitOptimize
-663	inserted CountedLoop+ConstructorFunctionDecl
-664	inserted BuiltinInstanceDecl+BuiltinCall+ValueOfOverride
-665	inserted BuiltinCall+Iife+IntegerDecl
-666	inserted FrozenArrayOps
-667	inserted FunctionDecl+ClassDecl
-668	inserted member ClassMember
-669	inserted Assignment+HostObjectDecl+NativeCall
-670	inserted TypeCheck+ResizableBuffer
-671	inserted MethodCall
-672	inserted BinaryOp
-673	inserted DestructuringAssign+FunctionCall+PropertyStore
-674	inserted ArrowDecl+SuperAccess+ArrayDecl
-675	inserted Iteration+ElementLoad+ManyProperties
-676	inserted ResizableBuffer+Eval+FunctionCall
-677	inserted BinaryOp
-678	inserted MethodCall+ThisUse
-679	inserted FunctionCall+ManyProperties+BinaryOp
-680	inserted FunctionCall
+657	inserted ThisUse
+658	inserted UnaryOp
+659	inserted IntegerDecl
+660	inserted ElementsKind+UsingDecl+IteratorChain
+661	inserted member LiteralMember
+662	inserted member ClassMember
+663	inserted CrossContextPrivateStore
+664	inserted StringDecl+FloatDecl+ObjectDecl
+665	inserted ArrayDecl+FunctionDecl+ConstructDecl
+666	inserted BinaryOp+Update
+667	inserted UninitializedDecl
+668	inserted member LiteralMember
+669	inserted ForOfPattern
+670	inserted member LiteralMember
+671	inserted member ClassMember
+672	inserted member LiteralMember
+673	inserted ClassDecl+Construct+PropertyStore
+674	inserted member LiteralMember
+675	inserted FrozenArrayOps+SpecialValueDecl
+676	inserted FrozenArrayOps+FunctionDecl+TypeCheck
+677	inserted IfElse
+678	inserted PromiseThen
+679	inserted OsrLoop+TryFinally
+680	inserted Deopt+Switch+SuperAccess
 681	inserted member LiteralMember
-682	inserted BinaryOp
-683	inserted PropertyLoad+Assignment+HomomorphicFeedback
-684	inserted FloatDecl+Destructuring
-685	noop
-686	inserted FunctionCall+BuiltinInstanceDecl
-687	inserted BigIntDecl
-688	inserted member ClassMember
-689	inserted ThisUse+LabeledLoops+ArrowDecl
-690	inserted member ClassMember
-691	inserted NumberChain+BuiltinCall
-692	inserted FunctionDecl+SymbolHook+ShapeChange
-693	inserted ArrowDecl
-694	inserted FunctionDecl+JitOptimize+TypedArrayDecl
-695	inserted JitOptimize+NativeCall+BuiltinInstanceDecl
-696	inserted BooleanDecl+FunctionDecl
-697	inserted FunctionCall
-698	inserted member LiteralMember
-699	inserted member ClassMember
-700	inserted FunctionDecl
-701	inserted member LiteralMember
-702	inserted PropertyStore+PromiseOps+BinaryOp
-703	inserted ResizableBuffer+StringDecl+NativeCall
-704	inserted SpecialValueDecl
-705	inserted CountedLoop
-706	inserted ResizableBuffer+ManyProperties+JitOptimize
-707	inserted Imitation+WhileLoop+TypedArrayOps
-708	inserted Construct
-709	inserted member LiteralMember
-710	inserted TemporalOps
-711	inserted member LiteralMember
-712	inserted BuiltinInstanceDecl+TemporalOps+CountedLoop
-713	inserted ObjectFlow
-714	inserted ConstructorFunction+SpreadCall
-715	inserted NativeCall
-716	inserted member LiteralMember
-717	inserted ForOfUsing+Compare
-718	inserted member ClassMember
-719	inserted SpreadCall
-720	inserted PromiseThen+WhileLoop+Assignment
-721	noop
-722	inserted MethodCall
-723	inserted ComputedDecl+Recursion+TypedArrayOps
-724	inserted ThisUse+GcNative
-725	inserted BinaryOp
-726	inserted IfElse+LiteralFactory+MethodCall
-727	inserted ConstructorFunctionDecl+IfElse+FunctionCall
-728	inserted ResizableBufferDecl+ForOfUsing+PropertyStore
-729	inserted member LiteralMember
-730	inserted member LiteralMember
-731	inserted FloatDecl
-732	inserted ArrowStore+ObjectDecl+BigIntDecl
-733	inserted ArrowDecl
-734	inserted DynamicFunctionTransition+FloatDecl+HostObjectDecl
-735	inserted ObjectFlow+StringDecl
-736	inserted PropertyLoad
-737	inserted member ClassMember
-738	inserted UnboundMethodCall
-739	inserted StringDecl+ForOfUsing+PrototypeSet
-740	inserted MethodCall+LiteralFactory
-741	inserted member LiteralMember
+682	inserted member ClassMember
+683	inserted IteratorChain+IteratorChain
+684	inserted ConstructorFunctionDecl
+685	inserted ArrowStore
+686	inserted SymbolHook+ArrowDecl+TypedArrayOps
+687	inserted member ClassMember
+688	inserted PropertyStore+Imitation+RegExpDecl
+689	inserted SymbolHook+TemplateDecl+Construct
+690	inserted CountedLoop+BuiltinCall
+691	inserted member LiteralMember
+692	inserted MethodCall
+693	inserted member ClassMember
+694	inserted PropertyLoad+JitOptimize+FunctionDecl
+695	inserted DisposableDecl+ForOf
+696	inserted SpecialValueDecl
+697	inserted IteratorChain+FunctionDecl
+698	inserted JitBaseline
+699	inserted FunctionCall+ArrowStore+FunctionDecl
+700	inserted member ClassMember
+701	inserted LabeledLoops
+702	inserted Assignment+DisposableDecl+Gc
+703	inserted Assignment
+704	inserted RawThrow+BinaryOp
+705	inserted member ClassMember
+706	inserted PropertyLoad+Throw+ConstructorFunction
+707	inserted member LiteralMember
+708	inserted member LiteralMember
+709	inserted Destructuring+BuiltinInstanceDecl+RawThrow
+710	inserted ArrowStore
+711	inserted BuiltinCall+ForOf
+712	inserted DynamicFunctionTransition+ConstructorFunction
+713	inserted ConstructorFunction+Gc
+714	inserted JitOptimize
+715	inserted CountedLoop+ConstructorFunctionDecl
+716	inserted BuiltinInstanceDecl+BuiltinCall+ValueOfOverride
+717	inserted BuiltinCall+Iife+IntegerDecl
+718	inserted FrozenArrayOps
+719	inserted FunctionDecl+ClassDecl
+720	inserted member ClassMember
+721	inserted Assignment+HostObjectDecl+NativeCall
+722	inserted TypeCheck+ResizableBuffer
+723	inserted MethodCall
+724	inserted BinaryOp
+725	inserted DestructuringAssign+FunctionCall+PropertyStore
+726	inserted ArrowDecl+SuperAccess+ArrayDecl
+727	inserted Iteration+ElementLoad+ManyProperties
+728	inserted ResizableBuffer+Eval+FunctionCall
+729	inserted BinaryOp
+730	inserted MethodCall+ThisUse
+731	inserted FunctionCall+ManyProperties+BinaryOp
+732	inserted FunctionCall
+733	inserted member LiteralMember
+734	inserted BinaryOp
+735	inserted PropertyLoad+Assignment+HomomorphicFeedback
+736	inserted FloatDecl+Destructuring
+737	noop
+738	inserted FunctionCall+BuiltinInstanceDecl
+739	inserted BigIntDecl
+740	inserted member ClassMember
+741	inserted ThisUse+LabeledLoops+ArrowDecl
 742	inserted member ClassMember
-743	inserted TryCatch+NewTargetExpr+ResizableBufferDecl
-744	inserted IntegerDecl+FunctionDecl+ElementLoad
-745	noop
-746	inserted Closure+MethodCall+IfElse
-747	inserted Imitation+NewTargetExpr+ForOf
-748	inserted ConstructorFunction+DisposableDecl+IterableDecl
-749	inserted PromiseOps+ForOf+JitTricky
-750	inserted FunctionDecl
-751	inserted UsingDecl
-752	inserted StringOps+BinaryOp+JitBaseline
-753	inserted ArrowDecl
-754	inserted JitOptimize
-755	inserted StringDecl
-756	inserted member ClassMember
-757	inserted StringDecl+IntegerDecl
-758	inserted CountedLoop+ComplexForLoop
-759	inserted FreezeSeal
-760	inserted member LiteralMember
-761	inserted StringDecl+MethodCall+AsyncDisposableDecl
-762	inserted PrototypeSet
-763	inserted FunctionCall
-764	inserted BinaryOp+PromiseOps
-765	inserted member ClassMember
-766	inserted BigIntDecl+AsyncIife
-767	inserted StringOps+MethodCall
-768	inserted BuiltinCall
-769	inserted FunctionCall+SpreadCall
-770	inserted member LiteralMember
-771	inserted SpecialValueDecl
-772	inserted HotLoop
-773	inserted member ClassMember
-774	inserted member ClassMember
-775	inserted Recursion
-776	inserted PrototypeSet
-777	inserted ClassDecl+BuiltinInstanceDecl
-778	inserted TryFinally+BinaryOp+IfElse
-779	inserted SerializerRoundTrip+Update
-780	inserted IfElse+ConstructorFunction
-781	inserted JitTricky
-782	inserted IteratorChain+Deopt
-783	inserted ValueOfOverride+TemplateDecl+ResizableBuffer
-784	inserted ClassDecl+Update+SymbolDecl
-785	inserted Assignment+Assignment+Gc
-786	inserted DynamicFunctionTransition
-787	inserted PromiseOps
-788	inserted WhileLoop
-789	inserted ShapeChange+UsingDecl
-790	inserted MethodCall+ComputedDecl
-791	inserted ComputedDecl
-792	inserted Assignment
-793	inserted ElementsKind
-794	inserted ComputedDecl+GcNative
-795	inserted IteratorChain
-796	inserted PropertyDelete+ArrowDecl+Eval
-797	inserted member LiteralMember
-798	inserted member LiteralMember
-799	inserted IteratorChain+PromiseOps+HotLoop
-800	inserted JsonRoundTrip+IntlOps
-801	inserted ConstructorFunction
-802	inserted FunctionCall
-803	inserted RawThrow+Compare
-804	inserted ElementsKind+ObjectDecl
-805	inserted member ClassMember
-806	inserted Compare+BinaryOp+LabeledLoops
-807	inserted ResizableBufferDecl
-808	inserted member LiteralMember
-809	inserted ResizableBufferDecl
-810	inserted ArrowStore
-811	inserted BinaryOp+ComputedDecl
-812	inserted VerifyType
-813	inserted Recursion+CountedLoop+ResizableBufferDecl
-814	inserted TypeCheck+AsyncIife
-815	inserted LazyDeopt
-816	inserted DynamicFunctionTransition
-817	inserted ProxyDecl+SharedNameDecl
-818	inserted ArrayDecl+PrototypeMethodCall
-819	inserted ClassDecl+NumberChain+GeneratorIterate
-820	inserted member LiteralMember
-821	inserted BuiltinInstanceDecl+ArrowDecl+IntegerDecl
-822	inserted ArrayDecl+PropertyStore
-823	inserted DefineProperty+ElementsKind+UsingDecl
-824	inserted SuperAccess
-825	inserted member ClassMember
-826	inserted member ClassMember
-827	noop
-828	inserted MethodCall+ConstructDecl+IfElse
-829	inserted FreezeSeal
-830	inserted member ClassMember
-831	inserted ReturnOverride+TypedArrayOps+IteratorChain
-832	inserted TemplateDecl
-833	inserted SpecialValueDecl
-834	inserted ProtoAssignSeq+TryCatch
-835	inserted StringDecl
-836	inserted member LiteralMember
-837	inserted member ClassMember
-838	inserted PropertyStore+SymbolHook
-839	inserted ForOfPattern
-840	inserted Switch+Assignment
-841	inserted FunctionCall
-842	inserted NumberChain+IfElse
-843	inserted DefineProperty
-844	inserted member LiteralMember
-845	inserted member ClassMember
-846	inserted FunctionDecl
-847	inserted UnboundMethodCall
-848	inserted BigIntDecl
-849	inserted IntegerDecl+IntegerDecl+Iife
-850	inserted Assignment
-851	inserted BuiltinCall+PromiseOps
-852	inserted SharedNameDecl+DynamicFunctionTransition
-853	inserted BinaryOp+StringDecl
-854	inserted ResizableBufferDecl+FunctionDecl
-855	inserted member LiteralMember
-856	inserted Imitation
-857	inserted BooleanDecl+PromiseOps
-858	inserted SerializerRoundTrip
-859	inserted NativeCall
-860	inserted Update
-861	inserted BuiltinInstanceDecl+TypedArrayDecl+StringOps
-862	inserted FunctionDecl
-863	inserted BinaryOp+Iife
-864	inserted SpecialValueDecl
-865	noop
-866	inserted member LiteralMember
-867	inserted member LiteralMember
-868	inserted PromiseOps+PrototypeSet
-869	inserted member LiteralMember
-870	inserted JitOptimize
-871	inserted ArrowStore+UnboundMethodCall+ComplexForLoop
-872	inserted FunctionDecl+ForOf
-873	inserted member LiteralMember
-874	inserted IntegerDecl+FrozenArrayOps+Update
-875	inserted FunctionDecl
-876	inserted Update+IfElse+PropertyLoad
-877	inserted member ClassMember
-878	inserted Deopt
-879	inserted CountedLoop+Iteration+GeneratorIterate
-880	inserted BinaryOp+IteratorChain
-881	inserted SpreadCall
-882	inserted CrossContextPrivateStore
-883	inserted ElementsKind+ResizableBufferDecl+ConstructorFunction
-884	inserted ForIn
-885	inserted GcNative
-886	inserted PropertyLoad
-887	inserted member LiteralMember
-888	inserted ConstructorFunctionDecl+DisposableDecl+PromiseOps
-889	inserted Throw+MethodCall+ForOf
-890	inserted StringDecl
-891	inserted member ClassMember
-892	inserted RawThrow+ArrayDecl
-893	inserted JitOptimize+BinaryOp+JitTricky
-894	inserted ObjectDecl
-895	inserted IntegerDecl
-896	inserted DisposableDecl
-897	inserted member LiteralMember
-898	inserted PropertyDelete+LabeledLoops+ForOfPattern
-899	noop
-900	inserted Iteration+PropertyStore
-901	inserted MethodCall
-902	inserted WorkerSpawn
-903	inserted member LiteralMember
-904	inserted TryCatch
-905	inserted member ClassMember
-906	inserted OsrLoop+ElementLoad+ForOf
-907	inserted member LiteralMember
-908	inserted ComputedDecl
+743	inserted NumberChain+BuiltinCall
+744	inserted FunctionDecl+SymbolHook+ShapeChange
+745	inserted ArrowDecl
+746	inserted FunctionDecl+JitOptimize+TypedArrayDecl
+747	inserted JitOptimize+NativeCall+BuiltinInstanceDecl
+748	inserted BooleanDecl+FunctionDecl
+749	inserted FunctionCall
+750	inserted member LiteralMember
+751	inserted member ClassMember
+752	inserted FunctionDecl
+753	inserted member LiteralMember
+754	inserted PropertyStore+PromiseOps+BinaryOp
+755	inserted ResizableBuffer+StringDecl+NativeCall
+756	inserted SpecialValueDecl
+757	inserted CountedLoop
+758	inserted ResizableBuffer+ManyProperties+JitOptimize
+759	inserted Imitation+WhileLoop+TypedArrayOps
+760	inserted Construct
+761	inserted member LiteralMember
+762	inserted TemporalOps
+763	inserted member LiteralMember
+764	inserted BuiltinInstanceDecl+TemporalOps+CountedLoop
+765	inserted ObjectFlow
+766	inserted ConstructorFunction+SpreadCall
+767	inserted NativeCall
+768	inserted member LiteralMember
+769	inserted ForOfUsing+Compare
+770	inserted member ClassMember
+771	inserted SpreadCall
+772	inserted PromiseThen+WhileLoop+Assignment
+773	noop
+774	inserted MethodCall
+775	inserted ComputedDecl+Recursion+TypedArrayOps
+776	inserted ThisUse+GcNative
+777	inserted BinaryOp
+778	inserted IfElse+LiteralFactory+MethodCall
+779	inserted ConstructorFunctionDecl+IfElse+FunctionCall
+780	inserted ResizableBufferDecl+ForOfUsing+PropertyStore
+781	inserted member LiteralMember
+782	inserted member LiteralMember
+783	inserted FloatDecl
+784	inserted ArrowStore+ObjectDecl+BigIntDecl
+785	inserted ArrowDecl
+786	inserted DynamicFunctionTransition+FloatDecl+HostObjectDecl
+787	inserted ObjectFlow+StringDecl
+788	inserted PropertyLoad
+789	inserted member ClassMember
+790	inserted UnboundMethodCall
+791	inserted StringDecl+ForOfUsing+PrototypeSet
+792	inserted MethodCall+LiteralFactory
+793	inserted member LiteralMember
+794	inserted member ClassMember
+795	inserted TryCatch+NewTargetExpr+ResizableBufferDecl
+796	inserted IntegerDecl+FunctionDecl+ElementLoad
+797	noop
+798	inserted Closure+MethodCall+IfElse
+799	inserted ClassDecl+FunctionDecl
+800	inserted FunctionCall
+801	inserted ObjectDecl
+802	inserted FunctionDecl+PromiseOps+Update
+803	inserted SpecialValueDecl+ValueOfOverride
+804	inserted CountedLoop+RawThrow
+805	inserted Recursion
+806	inserted SpecialValueDecl
+807	inserted BuiltinReassign+StringDecl
+808	inserted member ClassMember
+809	inserted ObjectDecl+MethodCall+PropertyLoad
+810	inserted VerifyType+LabeledLoops+WhileLoop
+811	inserted member ClassMember
+812	inserted Construct+BuiltinCall+BuiltinInstanceDecl
+813	inserted member ClassMember
+814	inserted ForOf+PromiseThen+FloatDecl
+815	inserted member ClassMember
+816	inserted PrototypeMethodCall+UsingDecl
+817	inserted FunctionDecl+BuiltinOverwrite+SharedNameDecl
+818	inserted StringDecl+RawThrow+TemporalOps
+819	inserted UnboundMethodCall+ObjectFlow
+820	inserted SymbolHook+PromiseOps+SerializerRoundTrip
+821	inserted FunctionCall
+822	inserted TypeCheck
+823	inserted member ClassMember
+824	inserted FunctionDecl+EvalCode+ConstructorFunctionDecl
+825	inserted CrossContextPrivateStore
+826	inserted NumberChain+TryCatch
+827	inserted Eval+ElementStore+CrossContextPrivateStore
+828	inserted TemporalOps+LiteralFactory+FunctionCall
+829	inserted DestructuringAssign+Iteration+MethodCall
+830	inserted Destructuring
+831	inserted BinaryOp
+832	inserted ComputedDecl
+833	inserted member ClassMember
+834	inserted ForOfUsing+IteratorChain+Update
+835	inserted member LiteralMember
+836	inserted member ClassMember
+837	inserted AsyncDisposableDecl
+838	inserted member ClassMember
+839	inserted PropertyStore
+840	inserted ElementStore+Destructuring
+841	noop
+842	inserted member ClassMember
+843	inserted NativeCall+PropertyStore+WhileLoop
+844	inserted member ClassMember
+845	inserted Assignment+JitOptimize
+846	inserted TypedArrayDecl+PropertyStore+ShapeChange
+847	inserted member ClassMember
+848	inserted BuiltinOverwrite+IntegerDecl
+849	inserted member LiteralMember
+850	inserted AsyncIife+FunctionDecl+BinaryOp
+851	inserted JitOptimize+Assignment+ForOf
+852	inserted ComputedDecl
+853	inserted UnaryOp+ObjectDecl
+854	inserted MethodCall
+855	inserted ConstructorFunction+ReturnOverride
+856	inserted PropertyStore+ElementStore+FunctionCall
+857	inserted RegExpDecl+JitBaseline
+858	inserted IfElse
+859	inserted SpecialValueDecl+ObjectDecl+ArrowDecl
+860	inserted ArrayDecl
+861	inserted ResizableBuffer+Closure
+862	inserted member LiteralMember
+863	inserted SpecialValueDecl
+864	inserted ThisUse+ForIn+BuiltinOverwrite
+865	inserted BuiltinInstanceDecl+ArrowDecl+IntegerDecl
+866	inserted ArrayDecl+PropertyStore
+867	inserted DefineProperty+ElementsKind+UsingDecl
+868	inserted SuperAccess
+869	inserted member ClassMember
+870	inserted member ClassMember
+871	noop
+872	inserted MethodCall+ConstructDecl+IfElse
+873	inserted FreezeSeal
+874	inserted member ClassMember
+875	inserted ReturnOverride+TypedArrayOps+IteratorChain
+876	inserted TemplateDecl
+877	inserted SpecialValueDecl
+878	inserted ProtoAssignSeq+TryCatch
+879	inserted StringDecl
+880	inserted member LiteralMember
+881	inserted member ClassMember
+882	inserted PropertyStore+SymbolHook
+883	inserted ForOfPattern
+884	inserted Switch+Assignment
+885	inserted FunctionCall
+886	inserted NumberChain+IfElse
+887	inserted DefineProperty
+888	inserted member LiteralMember
+889	inserted member ClassMember
+890	inserted FunctionDecl
+891	inserted UnboundMethodCall
+892	inserted BigIntDecl
+893	inserted IntegerDecl+IntegerDecl+Iife
+894	inserted Assignment
+895	inserted BuiltinCall+PromiseOps
+896	inserted SharedNameDecl+DynamicFunctionTransition
+897	inserted BinaryOp+StringDecl
+898	inserted ResizableBufferDecl+FunctionDecl
+899	inserted member LiteralMember
+900	inserted Imitation
+901	inserted BooleanDecl+PromiseOps
+902	inserted SerializerRoundTrip
+903	inserted NativeCall
+904	inserted Update
+905	inserted BuiltinInstanceDecl+TypedArrayDecl+StringOps
+906	inserted FunctionDecl
+907	inserted BinaryOp+Iife
+908	inserted SpecialValueDecl
 909	noop
-910	inserted RawThrow+NewTargetExpr
-911	inserted IntegerDecl
-912	inserted JitOptimize
-913	inserted Imitation+JitOptimize+TypedArrayOps
-914	inserted member LiteralMember
-915	inserted JitOptimize+ConstructorFunction
-916	inserted member ClassMember
-917	inserted Iteration+MapSetOps
-918	inserted RegExpDecl+WorkerSpawn
-919	inserted Assignment+ValueOfOverride
-920	inserted Update
-921	inserted ObjectDecl+ArrowDecl
-922	inserted ConstructDecl+PropertyStore+BuiltinCall
-923	inserted Switch+LabeledLoops
-924	inserted member ClassMember
-925	inserted TypeCheck+Update
-926	inserted TryCatch+JitOptimize+CountedLoop
-927	inserted PromiseThen
-928	inserted member ClassMember
-929	inserted GeneratorIterate+PropertyStore+ObjectDecl
-930	inserted OsrLoop
-931	inserted ArrowDecl+UnaryOp+Iife
-932	inserted member ClassMember
-933	inserted CountedLoop
-934	inserted MethodCall+Destructuring
-935	inserted member LiteralMember
-936	inserted Iteration
-937	inserted ElementsKind
-938	inserted LabeledLoops
-939	noop
-940	inserted IteratorChain
-941	inserted VerifyType
-942	noop
-943	inserted FloatDecl
-944	inserted BuiltinInstanceDecl+Assignment
-945	inserted member LiteralMember
-946	inserted member LiteralMember
-947	inserted BreakContinue+IntegerDecl+Destructuring
-948	inserted ConstructDecl+FunctionCall+GcNative
+910	inserted member LiteralMember
+911	inserted member LiteralMember
+912	inserted PromiseOps+PrototypeSet
+913	inserted member LiteralMember
+914	inserted JitOptimize
+915	inserted ArrowStore+UnboundMethodCall+ComplexForLoop
+916	inserted FunctionDecl+ForOf
+917	inserted member LiteralMember
+918	inserted IntegerDecl+FrozenArrayOps+Update
+919	inserted FunctionDecl
+920	inserted Update+IfElse+PropertyLoad
+921	inserted member ClassMember
+922	inserted Deopt
+923	inserted CountedLoop+Iteration+GeneratorIterate
+924	inserted BinaryOp+IteratorChain
+925	inserted SpreadCall
+926	inserted CrossContextPrivateStore
+927	inserted ElementsKind+ResizableBufferDecl+ConstructorFunction
+928	inserted ForIn
+929	inserted GcNative
+930	inserted PropertyLoad
+931	inserted member LiteralMember
+932	inserted ConstructorFunctionDecl+DisposableDecl+PromiseOps
+933	inserted Throw+MethodCall+ForOf
+934	inserted StringDecl
+935	inserted member ClassMember
+936	inserted RawThrow+ArrayDecl
+937	inserted JitOptimize+BinaryOp+JitTricky
+938	inserted ObjectDecl
+939	inserted IntegerDecl
+940	inserted DisposableDecl
+941	inserted member LiteralMember
+942	inserted PropertyDelete+LabeledLoops+ForOfPattern
+943	noop
+944	inserted Iteration+PropertyStore
+945	inserted MethodCall
+946	inserted WorkerSpawn
+947	inserted member LiteralMember
+948	inserted TryCatch
 949	inserted member ClassMember
-950	inserted DefineProperty
-951	inserted ElementStore+MapTransitionFocus
-952	inserted WorkerSpawn+IfElse+ConstructDecl
-953	inserted JitOptimize
-954	inserted member ClassMember
-955	inserted CountedLoop+ElementStore+BinaryOp
-956	inserted JitTricky+LabeledLoops
-957	inserted member ClassMember
-958	inserted member ClassMember
-959	inserted Assignment+Update+CountedLoop
-960	inserted StringDecl
-961	inserted ConstructDecl
-962	inserted WhileLoop+LiteralFactory
-963	inserted StringDecl+BuiltinCall+FunctionCall
-964	inserted TryFinally
-965	inserted DefineProperty+PrototypeMethodCall+ComputedDecl
-966	inserted MapTransitionFocus+FunctionDecl+Update
-967	inserted ShapeChange+BuiltinInstanceDecl+BinaryOp
-968	inserted ValueOfOverride
-969	inserted member ClassMember
-970	inserted member ClassMember
-971	noop
-972	inserted IfElse+ProxyDecl
-973	inserted LabeledLoops
-974	inserted ElementsKind
-975	inserted FastApiCall
-976	inserted BigIntDecl+ThisUse
-977	inserted Imitation
-978	inserted AsyncIife
-979	inserted ValueOfOverride+ArrowDecl
-980	inserted BuiltinInstanceDecl+DisposableStackOps+TypedArrayOps
-981	inserted member ClassMember
-982	inserted ShapeChange
-983	inserted IteratorChain
-984	inserted member ClassMember
-985	inserted member LiteralMember
-986	inserted member ClassMember
-987	inserted ThisUse
-988	inserted RegExpDecl
-989	inserted ResizableBufferDecl+Construct+Compare
-990	inserted ReturnOverride+Iife
-991	inserted CountedLoop
-992	inserted RegExpDecl+TryFinally+IfElse
-993	inserted BinaryOp+BuiltinInstanceDecl+ElementStore
-994	noop
-995	inserted PropertyStore+StringDecl
-996	inserted ClassDecl+ArrayDecl
-997	inserted TypeCheck
-998	inserted PropertyDelete+BuiltinInstanceDecl+SymbolDecl
-999	inserted StringDecl+BooleanDecl+ArrowDecl
+950	inserted OsrLoop+ElementLoad+ForOf
+951	inserted member LiteralMember
+952	inserted ComputedDecl
+953	noop
+954	inserted RawThrow+NewTargetExpr
+955	inserted IntegerDecl
+956	inserted JitOptimize
+957	inserted Imitation+JitOptimize+TypedArrayOps
+958	inserted member LiteralMember
+959	inserted JitOptimize+ConstructorFunction
+960	inserted member ClassMember
+961	inserted Iteration+MapSetOps
+962	inserted RegExpDecl+WorkerSpawn
+963	inserted Assignment+ValueOfOverride
+964	inserted Update
+965	inserted ObjectDecl+ArrowDecl
+966	inserted ConstructDecl+PropertyStore+BuiltinCall
+967	inserted Switch+LabeledLoops
+968	inserted member ClassMember
+969	inserted TypeCheck+Update
+970	inserted TryCatch+JitOptimize+CountedLoop
+971	inserted PromiseThen
+972	inserted member ClassMember
+973	inserted GeneratorIterate+PropertyStore+ObjectDecl
+974	inserted OsrLoop
+975	inserted ArrowDecl+UnaryOp+Iife
+976	inserted member ClassMember
+977	inserted CountedLoop
+978	inserted MethodCall+Destructuring
+979	inserted member LiteralMember
+980	inserted Iteration
+981	inserted ElementsKind
+982	inserted LabeledLoops
+983	noop
+984	inserted IteratorChain
+985	inserted VerifyType
+986	noop
+987	inserted FloatDecl
+988	inserted BuiltinInstanceDecl+Assignment
+989	inserted member LiteralMember
+990	inserted member LiteralMember
+991	inserted BreakContinue+IntegerDecl+Destructuring
+992	inserted ConstructDecl+FunctionCall+GcNative
+993	inserted member ClassMember
+994	inserted DefineProperty
+995	inserted ElementStore+MapTransitionFocus
+996	inserted WorkerSpawn+IfElse+ConstructDecl
+997	inserted JitOptimize
+998	inserted member ClassMember
+999	inserted CountedLoop+ElementStore+BinaryOp

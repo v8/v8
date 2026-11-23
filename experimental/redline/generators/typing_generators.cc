@@ -75,7 +75,7 @@ JsType ArgumentType(const GenContext& ctx, const Expression* argument) {
       }
     }
   }
-  return Builder::GuessType(argument);
+  return ctx.builder.GuessExpressionType(argument);
 }
 
 Expression* JitTarget::Call(Tree* t, std::vector<Expression*> args) const {

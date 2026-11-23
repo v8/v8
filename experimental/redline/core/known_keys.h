@@ -16,6 +16,8 @@
 // record the keys of the values that they declare.
 namespace redline {
 
+class Environment;
+
 // The name of a property key that is not computed or that is a literal: an
 // identifier, a string or an integer. Empty for other keys, for example
 // private names. Interns the name in `tree`.
@@ -27,11 +29,13 @@ void AddKnownKey(std::vector<KnownKey>* keys, const KnownKey& key);
 // Adds the keys of an object literal.
 void AddObjectLiteralKeys(fast::Tree* tree,
                           const fast::ObjectExpression* object,
-                          std::vector<KnownKey>* keys);
+                          std::vector<KnownKey>* keys,
+                          const Environment* env = nullptr);
 // Adds the public keys of a class: static keys, and the keys of its
 // instances (on_instance), with the `this.x = v` stores of its constructor.
 void AddClassKeys(fast::Tree* tree, const fast::ClassBody* body,
-                  std::vector<KnownKey>* keys);
+                  std::vector<KnownKey>* keys,
+                  const Environment* env = nullptr);
 // Adds to `keys` the keys of the instances of a class. These are the keys
 // of `class_keys` that are on_instance. The copies are not on_instance.
 void AddInstanceKeys(const std::vector<KnownKey>& class_keys,

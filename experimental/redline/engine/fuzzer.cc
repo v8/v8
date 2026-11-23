@@ -1672,7 +1672,7 @@ class Worker {
       return false;
     }
     Stopwatch mutation_time;
-    Builder builder(tree, &rng_);
+    Builder builder(tree, &rng_, fuzzer_->env_);
     MutationContext ctx;
     ctx.env = fuzzer_->env_;
     ctx.generators = &fuzzer_->generators();

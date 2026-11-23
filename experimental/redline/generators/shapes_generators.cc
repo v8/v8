@@ -245,7 +245,7 @@ GEN(Imitation) {
   } else {
     // Missing data is normal: imitate a new value.
     Expression* value = cg.Value();
-    Push(out, cg.Declare(value, Builder::GuessType(value)));
+    Push(out, cg.Declare(value, ctx.builder.GuessExpressionType(value)));
     orig = LastDeclared(ctx);
   }
   const JsType type = TypeOf(ctx, orig);

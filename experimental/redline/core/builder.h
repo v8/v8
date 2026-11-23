@@ -21,6 +21,8 @@
 
 namespace redline {
 
+class Environment;
+
 // Coarse value types used to pick plausible operands and methods. This is
 // not a type system; it is a guess derived from declarations.
 enum class JsType : uint8_t {
@@ -120,7 +122,7 @@ struct PrivateName {
 // lazily after structural edits (Invalidate()).
 class Builder {
  public:
-  Builder(fast::Tree* tree, Random* rng);
+  Builder(fast::Tree* tree, Random* rng, const Environment* env = nullptr);
   ~Builder();
   Builder(const Builder&) = delete;
   Builder& operator=(const Builder&) = delete;
@@ -128,6 +130,8 @@ class Builder {
   fast::Tree* tree() { return tree_; }
   Random& rng() { return *rng_; }
   fast::Program* root() { return tree_->root(); }
+  void SetEnvironment(const Environment* env) { env_ = env; }
+  const Environment* env() const { return env_; }
 
   // Scope analysis and parent map, (re)computed on demand.
   fast::ScopeAnalysis& scopes();
@@ -251,7 +255,9 @@ class Builder {
   static std::vector<Variable> OfType(const std::vector<Variable>& candidates,
                                       JsType type);
   JsType GuessType(const fast::Binding* binding);
-  static JsType GuessType(const fast::Expression* expression);
+  JsType GuessExpressionType(const fast::Expression* expression);
+  static JsType GuessType(const fast::Expression* expression,
+                          const Environment* env = nullptr);
 
   // Bindings that are declared (only) inside `nodes` and referenced outside
   // them: removing the nodes, or moving them into a block, would turn those
@@ -291,9 +297,10 @@ class Builder {
   // The entry of `name` in binding_info_, derived from the tree if new.
   BindingInfo& InfoEntry(std::string_view name);
   JsType GuessBindingType(const fast::Binding* binding, int depth);
-  static JsType GuessExpression(Builder* builder,
+  static JsType GuessExpression(Builder* builder, const Environment* env,
                                 const fast::Expression* expression, int depth);
   static JsType GuessFunctionReturnType(Builder* builder,
+                                        const Environment* env,
                                         const fast::FunctionData* fn,
                                         int depth);
   Variable ToVariable(fast::Binding* binding);
@@ -305,6 +312,7 @@ class Builder {
 
   fast::Tree* tree_;
   Random* rng_;
+  const Environment* env_ = nullptr;
   const fast::Node* focus_root_ = nullptr;
   std::unique_ptr<fast::ScopeAnalysis> scopes_;
   // Parent of each node, indexed by Node::id (nullptr for the root and for

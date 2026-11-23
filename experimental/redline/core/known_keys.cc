@@ -39,7 +39,7 @@ int Arity(const FunctionData* fn) {
 // Adds the keys of the `this.<name> = value` statements at the top level of
 // the body of `fn`.
 void AddThisStores(Tree* tree, const FunctionData* fn, bool on_instance,
-                   std::vector<KnownKey>* keys) {
+                   std::vector<KnownKey>* keys, const Environment* env) {
   if (fn == nullptr || fn->body == nullptr) {
     return;
   }
@@ -58,8 +58,8 @@ void AddThisStores(Tree* tree, const FunctionData* fn, bool on_instance,
     }
     std::string_view name = KeyName(tree, member->property, member->computed);
     if (!name.empty()) {
-      AddKnownKey(keys,
-                  {name, Builder::GuessType(assign->right), -1, on_instance});
+      AddKnownKey(keys, {name, Builder::GuessType(assign->right, env), -1,
+                         on_instance});
     }
   }
 }
@@ -92,7 +92,7 @@ void AddClassChainKeys(Builder& builder, const ClassData* cls,
   for (int depth = 0;
        cls != nullptr && depth <= kKnownKeysMaxClassDepth.AsInt(); depth++) {
     std::vector<KnownKey> own;
-    AddClassKeys(builder.tree(), cls->body, &own);
+    AddClassKeys(builder.tree(), cls->body, &own, builder.env());
     for (const KnownKey& key : own) {
       bool shadowed = false;
       for (const KnownKey& known : *keys) {
@@ -148,7 +148,7 @@ void AddKnownKey(std::vector<KnownKey>* keys, const KnownKey& key) {
 }
 
 void AddObjectLiteralKeys(Tree* tree, const ObjectExpression* object,
-                          std::vector<KnownKey>* keys) {
+                          std::vector<KnownKey>* keys, const Environment* env) {
   for (const Node* node : object->properties) {
     const auto* property = node->As<Property>();
     if (property == nullptr) {
@@ -166,23 +166,24 @@ void AddObjectLiteralKeys(Tree* tree, const ObjectExpression* object,
     } else if (property->property_kind != PropertyKind::kInit) {
       AddKnownKey(keys, {name, JsType::kUnknown, -1, false});
     } else {
-      AddKnownKey(keys, {name, Builder::GuessType(property->value), -1, false});
+      AddKnownKey(keys,
+                  {name, Builder::GuessType(property->value, env), -1, false});
     }
   }
 }
 
 void AddClassKeys(Tree* tree, const ClassBody* body,
-                  std::vector<KnownKey>* keys) {
+                  std::vector<KnownKey>* keys, const Environment* env) {
   for (const Node* member : body->members) {
     if (const auto* field = member->As<PropertyDefinition>()) {
       std::string_view name = KeyName(tree, field->key, field->computed);
       if (!name.empty()) {
         // A field without an initializer holds undefined.
-        AddKnownKey(keys,
-                    {name,
-                     field->value != nullptr ? Builder::GuessType(field->value)
-                                             : JsType::kNullish,
-                     -1, !field->is_static});
+        AddKnownKey(keys, {name,
+                           field->value != nullptr
+                               ? Builder::GuessType(field->value, env)
+                               : JsType::kNullish,
+                           -1, !field->is_static});
       }
       continue;
     }
@@ -191,7 +192,7 @@ void AddClassKeys(Tree* tree, const ClassBody* body,
       continue;  // a static block
     }
     if (method->method_kind == MethodKind::kConstructor) {
-      AddThisStores(tree, method->value, true, keys);
+      AddThisStores(tree, method->value, true, keys, env);
       continue;
     }
     std::string_view name = KeyName(tree, method->key, method->computed);
@@ -231,7 +232,7 @@ void DeriveKnownKeys(Builder& builder, const Binding* binding,
             : nullptr;
     if (init != nullptr) {
       if (const auto* object = init->As<ObjectExpression>()) {
-        AddObjectLiteralKeys(tree, object, keys);
+        AddObjectLiteralKeys(tree, object, keys, builder.env());
       } else if (const auto* construct = init->As<NewExpression>()) {
         const auto* callee = construct->callee->As<Identifier>();
         const Binding* target =
@@ -244,7 +245,7 @@ void DeriveKnownKeys(Builder& builder, const Binding* binding,
           } else if (target->declaration != nullptr) {
             // A constructor function: its `this.x = v` stores.
             AddThisStores(tree, target->declaration->As<FunctionDeclaration>(),
-                          false, keys);
+                          false, keys, builder.env());
           }
         }
       }
@@ -268,7 +269,7 @@ void DeriveKnownKeys(Builder& builder, const Binding* binding,
     if (!name.empty()) {
       AddKnownKey(keys, {name,
                          assign->op == AssignOp::kAssign
-                             ? Builder::GuessType(assign->right)
+                             ? builder.GuessExpressionType(assign->right)
                              : JsType::kUnknown,
                          -1, false});
     }

@@ -454,7 +454,7 @@ GEN(TypedArrayDecl) {
 
 GEN(ComputedDecl) {
   Expression* v = cg.Expression(0);
-  Push(out, cg.Declare(v, Builder::GuessType(v)));
+  Push(out, cg.Declare(v, ctx.builder.GuessExpressionType(v)));
   return true;
 }
 
@@ -973,7 +973,7 @@ GEN(Iife) {
 
 GEN(BinaryOp) {
   Expression* v = cg.BinaryOperation(0);
-  Push(out, cg.Declare(v, Builder::GuessType(v)));
+  Push(out, cg.Declare(v, ctx.builder.GuessExpressionType(v)));
   return true;
 }
 
@@ -990,7 +990,7 @@ GEN(UnaryOp) {
     Push(out, cg.Stmt(v));
     return true;
   }
-  Push(out, cg.Declare(v, Builder::GuessType(v)));
+  Push(out, cg.Declare(v, ctx.builder.GuessExpressionType(v)));
   return true;
 }
 
@@ -1086,7 +1086,7 @@ GEN(PropertyStore) {
   Expression* target = nullptr;
   if (r.Chance(kPropertyStoreWritableChance())) {
     // Most properties of a builtin type are getters of its prototype.
-    JsType type = Builder::GuessType(object);
+    JsType type = ctx.builder.GuessExpressionType(object);
     if (auto* id = object->As<Identifier>()) {
       for (const Variable& v : ctx.visible) {
         if (v.name == id->name) {
@@ -1211,24 +1211,15 @@ REDLINE_TUNABLE(kMethodCallTypedReceiverChance,
 // The result type of `object.name(...)` in the model, or kUnknown.
 JsType MethodResultType(GenContext& ctx, Expression* object,
                         std::string_view name) {
-  auto* id = object->As<Identifier>();
-  if (id == nullptr) {
-    return JsType::kUnknown;
-  }
-  for (const Variable& v : ctx.visible) {
-    if (v.name != id->name) {
-      continue;
-    }
-    if (const BuiltinType* bt = ctx.env.ForType(v.type)) {
-      for (const BuiltinFunction& m : bt->methods) {
-        if (m.name == name) {
-          return m.result;
-        }
+  if (auto* id = object->As<Identifier>()) {
+    for (const Variable& v : ctx.visible) {
+      if (v.name == id->name) {
+        return ctx.env.LookupMethodReturnType(v.type, name);
       }
     }
-    break;
   }
-  return JsType::kUnknown;
+  return ctx.env.LookupMethodReturnType(ctx.builder.GuessExpressionType(object),
+                                        name);
 }
 
 // CodeGenerators.swift:2262 (MethodCallGenerator).
@@ -1242,7 +1233,8 @@ GEN(MethodCall) {
   if (object == nullptr) {
     object = cg.ObjectLike();
   }
-  Expression* call = cg.MethodCall(object, Builder::GuessType(object));
+  Expression* call =
+      cg.MethodCall(object, ctx.builder.GuessExpressionType(object));
   auto* callee = call->Cast<CallExpression>()->callee->As<MemberExpression>();
   JsType result = JsType::kUnknown;
   if (callee != nullptr && !callee->computed) {
@@ -1337,7 +1329,7 @@ GEN(BuiltinCall) {
   Random& r = ctx.rng();
   Expression* call = cg.BuiltinCall();
   if (r.Chance(kBuiltinCallDeclareChance())) {
-    Push(out, cg.Declare(call, Builder::GuessType(call)));
+    Push(out, cg.Declare(call, ctx.builder.GuessExpressionType(call)));
   } else {
     Push(out, cg.Stmt(call));
   }
@@ -1395,7 +1387,7 @@ GEN(Construct) {
   if (v == nullptr) {
     return false;
   }
-  Push(out, cg.Declare(v, Builder::GuessType(v), "o"));
+  Push(out, cg.Declare(v, ctx.builder.GuessExpressionType(v), "o"));
   return true;
 }
 
@@ -1432,7 +1424,7 @@ GEN(TypeCheck) {
       break;
     }
   }
-  Push(out, cg.Declare(v, Builder::GuessType(v), "b"));
+  Push(out, cg.Declare(v, ctx.builder.GuessExpressionType(v), "b"));
   return true;
 }
 
@@ -1458,7 +1450,7 @@ GEN(SpreadCall) {
   Random& r = ctx.rng();
   if (r.Chance(kSpreadCallMethodChance())) {
     Expression* object = cg.ObjectLike();
-    auto* call = cg.MethodCall(object, Builder::GuessType(object))
+    auto* call = cg.MethodCall(object, ctx.builder.GuessExpressionType(object))
                      ->Cast<CallExpression>();
     if (call->arguments.empty() ||
         !call->arguments.back()->Is<SpreadElement>()) {
@@ -3203,7 +3195,7 @@ void SharedPrefixFamily(GenContext& ctx, CodeGen& cg, Statements* out) {
   for (int i = 0; i < 2; i++) {
     Expression* value = cg.Value(JsType::kUnknown, 1);
     if (!value->Is<Identifier>() && !value->Is<NumericLiteral>()) {
-      Push(out, cg.Declare(value, Builder::GuessType(value)));
+      Push(out, cg.Declare(value, ctx.builder.GuessExpressionType(value)));
       value = mk::Id(t, LastDeclared(ctx));
     }
     prefix_values.push_back(value);
