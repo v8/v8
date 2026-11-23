@@ -2344,8 +2344,10 @@ template void HeapObject::RehashBasedOnMap(LocalIsolate* isolate);
 
 bool HeapObject::CheckRequiredAlignment() const {
   const InSharedSpace in_shared_space{HeapLayout::InWritableSharedSpace(this)};
+  const InTrustedSpace in_trusted_space{
+      TrustedHeapLayout::InTrustedSpace(this)};
   AllocationAlignment alignment =
-      HeapObject::RequiredAlignment(in_shared_space, map());
+      HeapObject::RequiredAlignment(in_shared_space, in_trusted_space, map());
   CHECK_EQ(0, MainAllocator::GetFillToAlign(address(), alignment));
   return true;
 }

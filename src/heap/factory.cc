@@ -1975,7 +1975,7 @@ DirectHandle<WasmTrustedInstanceData> Factory::NewWasmTrustedInstanceData() {
   Tagged<WasmTrustedInstanceData> result =
       TrustedCast<WasmTrustedInstanceData>(AllocateRawWithImmortalMap(
           WasmTrustedInstanceData::kSize, AllocationType::kTrusted,
-          read_only_roots().wasm_trusted_instance_data_map()));
+          read_only_roots().wasm_trusted_instance_data_map(), kDoubleAligned));
   DisallowGarbageCollection no_gc;
   // Published after fields are initialized on the caller side.
   result->InitDontPublish(isolate());

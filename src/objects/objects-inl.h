@@ -903,12 +903,14 @@ WriteBarrierModeScope HeapObject::GetWriteBarrierMode(
 // static
 AllocationAlignment HeapObject::RequiredAlignment(AllocationSpace space,
                                                   Tagged<Map> map) {
-  return RequiredAlignment(InSharedSpace{IsAnyWritableSharedSpace(space)}, map);
+  return RequiredAlignment(InSharedSpace{IsAnyWritableSharedSpace(space)},
+                           InTrustedSpace{IsAnyTrustedSpace(space)}, map);
 }
 
 // static
-AllocationAlignment HeapObject::RequiredAlignment(InSharedSpace in_shared_space,
-                                                  Tagged<Map> map) {
+AllocationAlignment HeapObject::RequiredAlignment(
+    InSharedSpace in_shared_space, InTrustedSpace in_trusted_space,
+    Tagged<Map> map) {
   // TODO(v8:4153): We should think about requiring double alignment
   // in general for ByteArray, since they are used as backing store for typed
   // arrays now.
@@ -936,6 +938,11 @@ AllocationAlignment HeapObject::RequiredAlignment(InSharedSpace in_shared_space,
         instance_type == WASM_CUSTOM_MAP_TYPE) {
       // The map of a shared wasm object needs to be in the shared space.
       DCHECK(HeapLayout::InWritableSharedSpace(map));
+      return kDoubleAligned;
+    }
+  }
+  if (in_trusted_space) [[unlikely]] {
+    if (map->instance_type() == WASM_TRUSTED_INSTANCE_DATA_TYPE) {
       return kDoubleAligned;
     }
   }

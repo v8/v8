@@ -883,9 +883,11 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
 
   const InSharedSpace in_shared_space =
       InSharedSpace{IsSharedAllocationType(allocation)};
-  Tagged<HeapObject> raw_obj =
-      Allocate(allocation, size_in_bytes,
-               HeapObject::RequiredAlignment(in_shared_space, *map));
+  const InTrustedSpace in_trusted_space =
+      InTrustedSpace{space == SnapshotSpace::kTrusted};
+  Tagged<HeapObject> raw_obj = Allocate(
+      allocation, size_in_bytes,
+      HeapObject::RequiredAlignment(in_shared_space, in_trusted_space, *map));
   raw_obj->set_map_after_allocation(isolate_, *map);
   MemsetTagged(raw_obj->RawField(kTaggedSize),
                Smi::uninitialized_deserialization_value(), size_in_tagged - 1);

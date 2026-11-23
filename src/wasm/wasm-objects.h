@@ -710,14 +710,11 @@ V8_OBJECT class V8_EXPORT_PRIVATE WasmTrustedInstanceData
 
   DEFINE_FIELD_OFFSET_CONSTANTS(sizeof(ExposedTrustedObject), FIELD_LIST)
   static_assert(IsAligned(kHeaderSize, kTaggedSize));
-  // TODO(ishell, v8:8875): When pointer compression is enabled 8-byte size
-  // fields (external pointers, doubles and BigInt data) are only kTaggedSize
-  // aligned so checking for alignments of fields bigger than kTaggedSize
-  // doesn't make sense until v8:8875 is fixed.
-#define ASSERT_FIELD_ALIGNED(offset, size)                                 \
-  static_assert(size == 0 || IsAligned(offset, size) ||                    \
-                (COMPRESS_POINTERS_BOOL && (size == kSystemPointerSize) && \
-                 IsAligned(offset, kTaggedSize)));
+  // System-pointer-sized fields must remain aligned to kSystemPointerSize
+  // relative to the object start so kDoubleAligned allocation keeps them from
+  // straddling a cache-line boundary.
+#define ASSERT_FIELD_ALIGNED(offset, size) \
+  static_assert(size == 0 || IsAligned(offset, size));
   FIELD_LIST(ASSERT_FIELD_ALIGNED)
 #undef ASSERT_FIELD_ALIGNED
 #undef FIELD_LIST

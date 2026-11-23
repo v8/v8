@@ -121,7 +121,7 @@ Raw 64-bit native code pointers are **never** stored in Wasm tables or heap obje
 ### 3. Split Instance Architecture: `WasmInstanceObject` vs `WasmTrustedInstanceData`
 To prevent an attacker who corrupts the in-sandbox JS heap from hijacking linear memory pointers, global buffers, or dispatch tables:
 - **`WasmInstanceObject` (Untrusted, in-sandbox `JSObject`)**: Exposed to JavaScript as `WebAssembly.Instance`. Contains only `module_object_`, `exports_object_`, and a `TrustedPointerMember<WasmTrustedInstanceData> trusted_data_`.
-- **`WasmTrustedInstanceData` (Trusted, in `TrustedSpace`)**: Inherits from `ExposedTrustedObject` (`src/wasm/wasm-objects.h`). Holds all security-critical raw pointers and protected pointers:
+- **`WasmTrustedInstanceData` (Trusted, in `TrustedSpace`)**: Inherits from `ExposedTrustedObject` (`src/wasm/wasm-objects.h`), allocated and preserved across GC compaction with `kDoubleAligned` (8-byte) alignment so hot pointer-sized fields do not straddle a cache-line boundary. Holds all security-critical raw pointers and protected pointers:
   - `memory0_start_` (`uint8_t*`) and `memory0_size_or_address_` (plus `memory_bases_and_sizes_` in `TrustedFixedAddressArray` for multi-memory).
   - `jump_table_start_` (`Address`) and `tiering_budget_array_` (`std::atomic<uint32_t>*`).
   - `dispatch_table0_` (`WasmDispatchTable`), `dispatch_tables_` (`ProtectedFixedArray`), and `dispatch_table_for_imports_` (`WasmDispatchTableForImports`), all allocated in `TrustedSpace` and linked via `ProtectedPointer`s (`ProtectedTaggedMember`).

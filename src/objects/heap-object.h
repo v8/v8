@@ -58,6 +58,7 @@ struct ObjectTraits {
 };
 
 using InSharedSpace = base::StrongAlias<struct InSharedSpaceTag, bool>;
+using InTrustedSpace = base::StrongAlias<struct InTrustedSpaceTag, bool>;
 
 class V8_NODISCARD AllocationWitness {
  public:
@@ -348,7 +349,8 @@ V8_OBJECT class HeapObject {
 #endif
 
   static inline AllocationAlignment RequiredAlignment(
-      InSharedSpace in_shared_space, Tagged<Map> map);
+      InSharedSpace in_shared_space, InTrustedSpace in_trusted_space,
+      Tagged<Map> map);
   static inline AllocationAlignment RequiredAlignment(
       AllocationSpace allocation_space, Tagged<Map> map);
   bool CheckRequiredAlignment() const;
