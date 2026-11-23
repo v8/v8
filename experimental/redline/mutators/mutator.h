@@ -81,6 +81,8 @@ class Mutator : public Component {
     (void)extra_count;
     return false;
   }
+  // Enables or disables V8 `%` native calls for mutators that emit them.
+  virtual void SetNatives(bool natives) { (void)natives; }
 
  private:
   std::string_view description_;

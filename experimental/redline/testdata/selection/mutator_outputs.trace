@@ -88,3 +88,8 @@ JitCompound	1	bcdbd60078306f97	JitCompound:local_alloc	let n = 42; let s = "text
 JitCompound	2	b5b51d102ce831b4	JitCompound:inlined_deopt	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 JitCompound	3	8db165e49b91bd14	JitCompound:osr_phi	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 JitCompound	4	ac22579061597b2c	JitCompound:osr_phi	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+CallSiteStress	0	cdd041f92f00d033	call-site alloc timeout (2432)	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+CallSiteStress	1	6ef844511bf6ec54	call-site tier-up (TurboFan)	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+CallSiteStress	2	bf58161ebec27895	call-site re-entrant accessor	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+CallSiteStress	3	cb226d23cf544bf7	call-site alloc timeout (1484)	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+CallSiteStress	4	6d3a11356248bf3a	call-site %DeoptimizeFunction	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"

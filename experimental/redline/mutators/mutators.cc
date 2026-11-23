@@ -3285,6 +3285,1264 @@ class CombineMutator final : public Mutator {
   }
 };
 
+// --- CallSiteStress mutator ------------------------------------------------
+
+REDLINE_TUNABLE(
+    kCallSiteStressMaxAttempts, "mutators.CallSiteStress.max_attempts", 8, 1,
+    32, "candidate call sites that CallSiteStress tries before giving up");
+REDLINE_TUNABLE(kCallSiteStressMaxLoopDepth,
+                "mutators.CallSiteStress.max_loop_depth", 2, 0, 8,
+                "maximum enclosing loop depth for a CallSiteStress site");
+REDLINE_TUNABLE(kCallSiteStressMaxLoopBound,
+                "mutators.CallSiteStress.max_loop_bound", 200, 1, 10000,
+                "largest constant loop bound that CallSiteStress enters");
+REDLINE_TUNABLE(kCallSiteStressTierUpWeight,
+                "mutators.CallSiteStress.tier_up_weight", 3.0, 0.0, 100.0,
+                "weight of the JIT tier-up call stress pattern");
+REDLINE_TUNABLE(kCallSiteStressAllocTimeoutWeight,
+                "mutators.CallSiteStress.alloc_timeout_weight", 2.0, 0.0, 100.0,
+                "weight of the post-optimize allocation timeout GC pattern");
+REDLINE_TUNABLE(kCallSiteStressDeoptRetierWeight,
+                "mutators.CallSiteStress.deopt_retier_weight", 2.0, 0.0, 100.0,
+                "weight of the deoptimize or baseline re-tier pattern");
+REDLINE_TUNABLE(kCallSiteStressStackLimitWeight,
+                "mutators.CallSiteStress.stack_limit_weight", 1.5, 0.0, 100.0,
+                "weight of the near-stack-limit call wrapper pattern");
+REDLINE_TUNABLE(kCallSiteStressReentrantWeight,
+                "mutators.CallSiteStress.reentrant_weight", 1.5, 0.0, 100.0,
+                "weight of the re-entrant accessor or shape change pattern");
+REDLINE_TUNABLE(kCallSiteStressWarmupCalls,
+                "mutators.CallSiteStress.warmup_calls", 2, 1, 8,
+                "warm-up calls before optimization in CallSiteStress");
+REDLINE_TUNABLE(kCallSiteStressMaglevChance,
+                "mutators.CallSiteStress.maglev_chance", 0.35, 0.0, 1.0,
+                "probability that tier-up chooses %OptimizeMaglevOnNextCall");
+REDLINE_TUNABLE(
+    kCallSiteStressAllocTimeoutMax, "mutators.CallSiteStress.alloc_timeout_max",
+    3000, 1, 10000,
+    "maximum allocation count before allocation timeout triggers GC");
+REDLINE_TUNABLE(kCallSiteStressCompileBaselineChance,
+                "mutators.CallSiteStress.compile_baseline_chance", 0.4, 0.0,
+                1.0, "probability that deopt re-tier chooses %CompileBaseline");
+REDLINE_TUNABLE(kCallSiteStressStackDepth,
+                "mutators.CallSiteStress.stack_depth", 16384, 256, 65536,
+                "recursion depth cap of the near-stack-limit helper");
+REDLINE_TUNABLE(kCallSiteStressStackMaxCalls,
+                "mutators.CallSiteStress.stack_max_calls", 4, 1, 32,
+                "maximum stack-limit probe executions per script run");
+REDLINE_TUNABLE(kCallSiteStressStackMaxRetries,
+                "mutators.CallSiteStress.stack_max_retries", 512, 0, 4096,
+                "maximum RangeError retry frames in the stack-limit helper");
+REDLINE_TUNABLE(kCallSiteStressReentrantDepth,
+                "mutators.CallSiteStress.reentrant_depth", 2, 1, 4,
+                "entry count budget for a generated re-entrant accessor");
+REDLINE_TUNABLE(
+    kCallSiteStressAccessorChance, "mutators.CallSiteStress.accessor_chance",
+    0.6, 0.0, 1.0,
+    "probability of installing an accessor instead of changing shape");
+REDLINE_TUNABLE(kCallSiteStressGcChance, "mutators.CallSiteStress.gc_chance",
+                0.25, 0.0, 1.0,
+                "probability of inserting gc() during re-entrant perturbation");
+
+constexpr std::string_view kNearStackHelperName = "__redline_near_stack";
+
+bool IsHarnessGlobal(std::string_view name) {
+  return name == "eval" || name == "quit" || name == "load" ||
+         name == "readline" || name == "print" || name == "printErr" ||
+         name == "gc" || name == "d8" || name == "Realm" || name == "os" ||
+         name == "setTimeout" || name == "version" || name == "performance" ||
+         name == "Worker" || name == "read" || name == "readbuffer" ||
+         name == "writeFile" || name == "isNeverOptimizeLite" ||
+         name == "isInterpreted" || name == "isOptimized" ||
+         name == "isMaglevved" || name == "isTurboFanned" || name == "inIon" ||
+         name == "inBaseline" || name.starts_with("assert");
+}
+
+// Walks a simple member chain and sets `root` to the base `Identifier`.
+bool AnalyzeReceiverChain(const Expression* expr, const Identifier** root) {
+  *root = nullptr;
+  while (expr != nullptr) {
+    if (auto* id = expr->As<Identifier>()) {
+      if (id->name == "eval") {
+        return false;
+      }
+      *root = id;
+      return true;
+    }
+    if (expr->Is<ThisExpression>()) {
+      return true;
+    }
+    if (auto* mem = expr->As<MemberExpression>()) {
+      if (mem->computed || mem->optional || !mem->property->Is<Identifier>()) {
+        return false;
+      }
+      expr = mem->object;
+      continue;
+    }
+    return false;
+  }
+  return false;
+}
+
+// Gives the property next to the base of a chain that
+// `AnalyzeReceiverChain` accepts.
+std::string_view FirstChainProperty(const MemberExpression* mem) {
+  while (auto* inner = mem->object->As<MemberExpression>()) {
+    mem = inner;
+  }
+  return mem->property->Cast<Identifier>()->name;
+}
+
+bool IsSimpleCallee(Builder& b, const Expression* callee) {
+  if (auto* id = callee->As<Identifier>()) {
+    if (id->name == "eval" || id->name.starts_with(kNearStackHelperName)) {
+      return false;
+    }
+    if (b.scopes().BindingOf(id) == nullptr && IsHarnessGlobal(id->name)) {
+      return false;
+    }
+    return true;
+  }
+  if (auto* mem = callee->As<MemberExpression>()) {
+    const Identifier* root = nullptr;
+    if (mem->computed || mem->optional || !mem->property->Is<Identifier>() ||
+        !AnalyzeReceiverChain(mem->object, &root)) {
+      return false;
+    }
+    const bool unbound_root =
+        root != nullptr && b.scopes().BindingOf(root) == nullptr;
+    if (unbound_root && IsHarnessGlobal(root->name)) {
+      return false;
+    }
+    // `globalThis.quit()` and `this.print()` can reach shell globals too.
+    if ((root == nullptr || (unbound_root && root->name == "globalThis")) &&
+        IsHarnessGlobal(FirstChainProperty(mem))) {
+      return false;
+    }
+    return true;
+  }
+  return false;
+}
+
+bool IsTrueCondition(const Expression* expr) {
+  if (expr == nullptr) {
+    return false;
+  }
+  if (auto* lit = expr->As<BooleanLiteral>()) {
+    return lit->value;
+  }
+  if (auto* num = expr->As<NumericLiteral>()) {
+    return num->value != 0.0 && !std::isnan(num->value);
+  }
+  if (auto* str = expr->As<StringLiteral>()) {
+    return !str->value.empty();
+  }
+  return false;
+}
+
+bool NumericBound(const Expression* expr, double* out) {
+  if (expr == nullptr) {
+    return false;
+  }
+  if (auto* num = expr->As<NumericLiteral>()) {
+    if (std::isfinite(num->value)) {
+      *out = num->value;
+      return true;
+    }
+    return false;
+  }
+  if (auto* un = expr->As<UnaryExpression>()) {
+    double inner = 0.0;
+    if (!NumericBound(un->argument, &inner)) {
+      return false;
+    }
+    if (un->op == UnaryOp::kMinus) {
+      *out = -inner;
+      return true;
+    }
+    if (un->op == UnaryOp::kPlus) {
+      *out = inner;
+      return true;
+    }
+  }
+  return false;
+}
+
+bool IsComparisonOp(BinaryOp op) {
+  return op == BinaryOp::kLessThan || op == BinaryOp::kLessThanEq ||
+         op == BinaryOp::kGreaterThan || op == BinaryOp::kGreaterThanEq ||
+         op == BinaryOp::kNotEq || op == BinaryOp::kStrictNotEq;
+}
+
+bool ExtractForInitValue(const Node* init, std::string_view var, double* out) {
+  if (init == nullptr) {
+    return false;
+  }
+  if (auto* decl = init->As<VariableDeclaration>()) {
+    for (const VariableDeclarator* d : decl->declarations) {
+      if (auto* id = d->target->As<Identifier>()) {
+        if (id->name == var && NumericBound(d->init, out)) {
+          return true;
+        }
+      }
+    }
+  } else if (auto* assign = init->As<AssignmentExpression>()) {
+    if (auto* id = assign->left->As<Identifier>()) {
+      if (id->name == var && NumericBound(assign->right, out)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+bool IsHugeOrInfiniteLoop(const Node* node, double max_bound) {
+  if (auto* fs = node->As<ForStatement>()) {
+    if (fs->test == nullptr || IsTrueCondition(fs->test)) {
+      return true;
+    }
+    auto* bin = fs->test->As<BinaryExpression>();
+    if (bin == nullptr || !IsComparisonOp(bin->op)) {
+      return false;
+    }
+    double bound = 0.0;
+    const Identifier* var = nullptr;
+    if (auto* l = bin->left->As<Identifier>()) {
+      if (NumericBound(bin->right, &bound)) {
+        var = l;
+      }
+    } else if (auto* r = bin->right->As<Identifier>()) {
+      if (NumericBound(bin->left, &bound)) {
+        var = r;
+      }
+    }
+    if (var == nullptr) {
+      return false;
+    }
+    double init_val = 0.0;
+    if (ExtractForInitValue(fs->init, var->name, &init_val)) {
+      return std::abs(bound - init_val) > max_bound;
+    }
+    return std::abs(bound) > max_bound;
+  }
+  if (auto* ws = node->As<WhileStatement>()) {
+    return IsTrueCondition(ws->test);
+  }
+  if (auto* dws = node->As<DoWhileStatement>()) {
+    return IsTrueCondition(dws->test);
+  }
+  return false;
+}
+
+bool IsLoopNode(const Node* node) {
+  return node->Is<ForStatement>() || node->Is<ForInStatement>() ||
+         node->Is<ForOfStatement>() || node->Is<WhileStatement>() ||
+         node->Is<DoWhileStatement>();
+}
+
+std::string_view EnclosingFunctionName(Builder& b, const Node* fn) {
+  if (auto* fd = fn->As<FunctionDeclaration>()) {
+    return fd->name != nullptr ? fd->name->name : std::string_view{};
+  }
+  if (auto* fe = fn->As<FunctionExpression>()) {
+    if (fe->name != nullptr) {
+      return fe->name->name;
+    }
+  }
+  const Node* parent = b.ParentOf(const_cast<Node*>(fn));
+  if (parent == nullptr) {
+    return {};
+  }
+  if (auto* decl = parent->As<VariableDeclarator>()) {
+    if (auto* id = decl->target->As<Identifier>()) {
+      return id->name;
+    }
+  }
+  if (auto* assign = parent->As<AssignmentExpression>()) {
+    if (assign->right == fn) {
+      if (auto* id = assign->left->As<Identifier>()) {
+        return id->name;
+      }
+    }
+  }
+  return {};
+}
+
+bool IsInsideNearStackHelper(Builder& b, Node* node) {
+  Node* cur = b.ParentOf(node);
+  while (cur != nullptr) {
+    if (cur->IsFunction() &&
+        EnclosingFunctionName(b, cur).starts_with(kNearStackHelperName)) {
+      return true;
+    }
+    cur = b.ParentOf(cur);
+  }
+  return false;
+}
+
+std::string_view PropertyKeyName(const Expression* key, bool computed) {
+  if (computed || key == nullptr) {
+    return {};
+  }
+  if (auto* id = key->As<Identifier>()) {
+    return id->name;
+  }
+  if (auto* str = key->As<StringLiteral>()) {
+    return str->value;
+  }
+  return {};
+}
+
+std::string_view EnclosingMethodName(Builder& b, const Node* fn) {
+  const Node* parent = b.ParentOf(const_cast<Node*>(fn));
+  if (parent == nullptr) {
+    return {};
+  }
+  if (auto* md = parent->As<MethodDefinition>()) {
+    if (md->value == fn) {
+      return PropertyKeyName(md->key, md->computed);
+    }
+  } else if (auto* prop = parent->As<Property>()) {
+    if (prop->value == fn) {
+      return PropertyKeyName(prop->key, prop->computed);
+    }
+  } else if (auto* assign = parent->As<AssignmentExpression>()) {
+    if (assign->right == fn) {
+      if (auto* mem = assign->left->As<MemberExpression>()) {
+        if (!mem->computed) {
+          return PropertyKeyName(mem->property, false);
+        }
+      }
+    }
+  }
+  return {};
+}
+
+bool MatchesEnclosingNamedReceiver(Builder& b, const Node* fn,
+                                   std::string_view receiver_name) {
+  Node* owner = b.ParentOf(const_cast<Node*>(fn));
+  if (owner == nullptr) {
+    return false;
+  }
+  if (auto* md = owner->As<MethodDefinition>()) {
+    if (!md->is_static) {
+      return false;
+    }
+    Node* body = b.ParentOf(md);
+    Node* cls = body != nullptr ? b.ParentOf(body) : nullptr;
+    const ClassData* data = cls != nullptr ? AsClassData(cls) : nullptr;
+    return data != nullptr && data->name != nullptr &&
+           data->name->name == receiver_name;
+  }
+  if (auto* prop = owner->As<Property>()) {
+    Node* obj = b.ParentOf(prop);
+    Node* obj_parent = obj != nullptr ? b.ParentOf(obj) : nullptr;
+    if (auto* decl = obj_parent != nullptr
+                         ? obj_parent->As<VariableDeclarator>()
+                         : nullptr) {
+      auto* id = decl->target->As<Identifier>();
+      return id != nullptr && id->name == receiver_name;
+    }
+    if (auto* assign = obj_parent != nullptr
+                           ? obj_parent->As<AssignmentExpression>()
+                           : nullptr) {
+      auto* id = assign->left->As<Identifier>();
+      return assign->right == obj && id != nullptr && id->name == receiver_name;
+    }
+    return false;
+  }
+  if (auto* assign = owner->As<AssignmentExpression>()) {
+    if (assign->right == fn) {
+      if (auto* mem = assign->left->As<MemberExpression>()) {
+        auto* id = mem->object->As<Identifier>();
+        return id != nullptr && id->name == receiver_name;
+      }
+    }
+  }
+  return false;
+}
+
+bool IsSelfRecursiveCall(Builder& b, CallExpression* call) {
+  if (auto* id = call->callee->As<Identifier>()) {
+    Node* cur = b.ParentOf(call);
+    while (cur != nullptr) {
+      if (cur->IsFunction() && EnclosingFunctionName(b, cur) == id->name) {
+        return true;
+      }
+      cur = b.ParentOf(cur);
+    }
+    return false;
+  }
+  auto* mem = call->callee->As<MemberExpression>();
+  if (mem == nullptr || mem->computed || mem->optional) {
+    return false;
+  }
+  auto* prop = mem->property->As<Identifier>();
+  if (prop == nullptr) {
+    return false;
+  }
+  if (mem->object->Is<ThisExpression>()) {
+    Node* cur = b.ParentOf(call);
+    while (cur != nullptr) {
+      if (cur->IsClass() || cur->Is<PropertyDefinition>() ||
+          cur->Is<StaticBlock>()) {
+        return false;
+      }
+      if (cur->IsFunction()) {
+        if (EnclosingMethodName(b, cur) == prop->name) {
+          return true;
+        }
+        // Non-arrow functions bind `this`.
+        if (!AsFunctionData(cur)->is_arrow) {
+          return false;
+        }
+      }
+      cur = b.ParentOf(cur);
+    }
+    return false;
+  }
+  if (auto* recv = mem->object->As<Identifier>()) {
+    Node* cur = b.ParentOf(call);
+    while (cur != nullptr) {
+      if (cur->IsFunction() && EnclosingMethodName(b, cur) == prop->name &&
+          MatchesEnclosingNamedReceiver(b, cur, recv->name)) {
+        return true;
+      }
+      cur = b.ParentOf(cur);
+    }
+  }
+  return false;
+}
+
+bool IsSingleStatementControlBody(Builder& b, Statement* stmt) {
+  Node* parent = b.ParentOf(stmt);
+  if (parent == nullptr) {
+    return false;
+  }
+  if (auto* fs = parent->As<ForStatement>()) {
+    return fs->body == stmt;
+  }
+  if (auto* fis = parent->As<ForInStatement>()) {
+    return fis->body == stmt;
+  }
+  if (auto* fos = parent->As<ForOfStatement>()) {
+    return fos->body == stmt;
+  }
+  return parent->Is<IfStatement>() || parent->Is<WhileStatement>() ||
+         parent->Is<DoWhileStatement>() || parent->Is<LabeledStatement>() ||
+         parent->Is<WithStatement>();
+}
+
+bool IsInsideTryOrConditional(Builder& b, Node* node) {
+  Node* prev = node;
+  Node* cur = b.ParentOf(node);
+  while (cur != nullptr) {
+    if (cur->IsFunction() || cur->IsClass()) {
+      return false;
+    }
+    if (cur->Is<TryStatement>() || cur->Is<IfStatement>() ||
+        cur->Is<SwitchStatement>() || cur->Is<ChainExpression>()) {
+      return true;
+    }
+    if (auto* logical = cur->As<LogicalExpression>()) {
+      if (logical->right == prev) {
+        return true;
+      }
+    } else if (auto* cond = cur->As<ConditionalExpression>()) {
+      if (cond->test != prev) {
+        return true;
+      }
+    } else if (auto* assign = cur->As<AssignmentExpression>()) {
+      if (assign->right == prev && (assign->op == AssignOp::kOrAssign ||
+                                    assign->op == AssignOp::kAndAssign ||
+                                    assign->op == AssignOp::kNullishAssign)) {
+        return true;
+      }
+    } else if (auto* pattern = cur->As<AssignmentPattern>()) {
+      // A destructuring default runs only for an undefined value.
+      if (pattern->right == prev) {
+        return true;
+      }
+    }
+    prev = cur;
+    cur = b.ParentOf(cur);
+  }
+  return false;
+}
+
+bool CanRunInSyncArrow(Node* node) {
+  Requirements req = AnalyzeRequirements(node);
+  return !req.needs_function && !req.needs_async && !req.needs_generator &&
+         !req.needs_break && !req.needs_continue && !req.has_external_label;
+}
+
+bool IsObjectCandidateType(JsType type) {
+  switch (type) {
+    case JsType::kNumber:
+    case JsType::kString:
+    case JsType::kBoolean:
+    case JsType::kBigInt:
+    case JsType::kSymbol:
+    case JsType::kNullish:
+      return false;
+    default:
+      return true;
+  }
+}
+
+bool IsReservedPropertyKey(std::string_view key) {
+  return key.empty() || key == "__proto__" || key == "constructor" ||
+         key == "prototype" || key == "length";
+}
+
+struct CallSite {
+  CallExpression* call = nullptr;
+  Statement* stmt = nullptr;
+  bool known_function_binding = false;
+  bool in_function = false;
+  int loop_depth = 0;
+  double score = 1.0;
+};
+
+Builder::Slot ObtainStmtSlot(Builder& b, Statement* stmt) {
+  Builder::Slot slot = b.SlotOf(stmt);
+  if (slot.valid()) {
+    return slot;
+  }
+  return b.Blockify(stmt);
+}
+
+// Returns true when `node` lies inside `b.focus_subtree()`.
+bool IsInsideFocus(Builder& b, const Node* node) {
+  const Node* focus = b.focus_subtree();
+  if (focus == nullptr) {
+    return true;
+  }
+  const Node* cur = node;
+  while (cur != nullptr) {
+    if (cur == focus) {
+      return true;
+    }
+    cur = b.ParentOf(const_cast<Node*>(cur));
+  }
+  return false;
+}
+
+// Returns true when `node` sits inside a callback passed to `Worker(...)`.
+bool IsInsideWorkerCallback(Builder& b, Node* node) {
+  Node* cur = node;
+  while (cur != nullptr) {
+    if (cur->IsFunction()) {
+      Node* parent = b.ParentOf(cur);
+      Expression* callee = nullptr;
+      if (parent != nullptr) {
+        if (auto* call = parent->As<CallExpression>()) {
+          callee = call->callee;
+        } else if (auto* nw = parent->As<NewExpression>()) {
+          callee = nw->callee;
+        }
+      }
+      if (auto* id = callee != nullptr ? callee->As<Identifier>() : nullptr;
+          id != nullptr && id->name == "Worker") {
+        return true;
+      }
+    }
+    cur = b.ParentOf(cur);
+  }
+  return false;
+}
+
+Expression* CloneCallee(Tree* t, const CallExpression* call) {
+  return static_cast<Expression*>(t->Clone(call->callee));
+}
+
+Statement* CloneCallStmt(Tree* t, const CallExpression* call) {
+  return mk::ExprStmt(t, static_cast<CallExpression*>(t->Clone(call)));
+}
+
+bool ShouldGuardCallPrefix(Builder& b, const CallSite& site) {
+  return !site.known_function_binding || IsInsideTryOrConditional(b, site.call);
+}
+
+std::vector<Statement*> BuildTierUpPrefix(Builder& b, const CallSite& site,
+                                          bool guard, bool* used_maglev) {
+  Tree* t = b.tree();
+  Random& r = b.rng();
+  *used_maglev = r.Chance(kCallSiteStressMaglevChance());
+  std::string_view opt_name =
+      *used_maglev ? "OptimizeMaglevOnNextCall" : "OptimizeFunctionOnNextCall";
+  int warmup = kCallSiteStressWarmupCalls.AsInt();
+  // Each warm-up clone runs the call again. In a function, calls that reach
+  // each other through mutation can multiply the calls exponentially.
+  if (site.loop_depth > 0 || site.in_function) {
+    warmup = std::min(warmup, 1);
+  }
+  std::vector<Statement*> warmup_stmts;
+  warmup_stmts.reserve(static_cast<size_t>(warmup));
+  for (int i = 0; i < warmup; i++) {
+    warmup_stmts.push_back(CloneCallStmt(t, site.call));
+  }
+  std::vector<Statement*> prefix;
+  prefix.push_back(
+      mk::ExprStmt(t, mk::Native(t, "PrepareFunctionForOptimization",
+                                 {CloneCallee(t, site.call)})));
+  if (guard) {
+    // Isolates warm-up throws so the optimize native still runs.
+    prefix.push_back(mk::Try(t, std::move(warmup_stmts), b.FreshName("e"), {}));
+  } else {
+    for (Statement* ws : warmup_stmts) {
+      prefix.push_back(ws);
+    }
+  }
+  prefix.push_back(
+      mk::ExprStmt(t, mk::Native(t, opt_name, {CloneCallee(t, site.call)})));
+  if (!guard) {
+    return prefix;
+  }
+  return {mk::Try(t, std::move(prefix), b.FreshName("e"), {})};
+}
+
+std::vector<Statement*> BuildDeoptRetierPrefix(Builder& b, const CallSite& site,
+                                               bool guard,
+                                               bool* used_baseline) {
+  Tree* t = b.tree();
+  Random& r = b.rng();
+  *used_baseline = r.Chance(kCallSiteStressCompileBaselineChance());
+  std::vector<Statement*> prefix;
+  if (*used_baseline) {
+    prefix.push_back(mk::ExprStmt(
+        t, mk::Native(t, "CompileBaseline", {CloneCallee(t, site.call)})));
+  } else {
+    prefix.push_back(CloneCallStmt(t, site.call));
+    prefix.push_back(mk::ExprStmt(
+        t, mk::Native(t, "DeoptimizeFunction", {CloneCallee(t, site.call)})));
+  }
+  if (!guard) {
+    return prefix;
+  }
+  return {mk::Try(t, std::move(prefix), b.FreshName("e"), {})};
+}
+
+bool CanWrapInFinallyBlock(Builder& b, Statement* stmt) {
+  if (b.EscapingBindings({stmt}, /*block_scoped_only=*/true).empty()) {
+    return true;
+  }
+  auto* decl = stmt->As<VariableDeclaration>();
+  return decl != nullptr && decl->declarations.size() == 1 &&
+         decl->declarations[0]->target->Is<Identifier>();
+}
+
+TryStatement* BuildAllocTimeoutTry(Builder& b, Statement* inner_stmt,
+                                   int64_t countdown, bool allow_inline) {
+  Tree* t = b.tree();
+  Statement* set_timeout =
+      mk::ExprStmt(t, mk::Native(t, "SetAllocationTimeout",
+                                 {mk::Unary(t, UnaryOp::kMinus, mk::Num(t, 1)),
+                                  mk::Num(t, static_cast<double>(countdown)),
+                                  mk::Bool(t, allow_inline)}));
+  std::vector<Statement*> finalizer = {
+      mk::ExprStmt(t, mk::Native(t, "SetAllocationTimeout",
+                                 {mk::Unary(t, UnaryOp::kMinus, mk::Num(t, 1)),
+                                  mk::Unary(t, UnaryOp::kMinus, mk::Num(t, 1)),
+                                  mk::Bool(t, true)}))};
+  TryStatement* try_stmt = t->New<TryStatement>();
+  try_stmt->block = mk::Block(t, {set_timeout, inner_stmt});
+  try_stmt->handler = nullptr;
+  try_stmt->finalizer = mk::Block(t, std::move(finalizer));
+  return try_stmt;
+}
+
+bool HasTopLevelNearStackHelper(Builder& b) {
+  for (Statement* top : b.root()->body) {
+    if (auto* fn = top->As<FunctionDeclaration>()) {
+      if (fn->name != nullptr && fn->name->name == kNearStackHelperName &&
+          fn->params.size() == 2) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+std::string_view ChooseNearStackHelperName(Builder& b, bool* already_exists) {
+  if (HasTopLevelNearStackHelper(b)) {
+    *already_exists = true;
+    return kNearStackHelperName;
+  }
+  *already_exists = false;
+  return !b.scopes().all_names().count(kNearStackHelperName)
+             ? kNearStackHelperName
+             : b.FreshName(kNearStackHelperName);
+}
+
+void InsertNearStackHelper(Builder& b, std::string_view helper_name) {
+  Tree* t = b.tree();
+  double max_calls = std::max(1, kCallSiteStressStackMaxCalls.AsInt());
+  double max_retries = std::max(0, kCallSiteStressStackMaxRetries.AsInt());
+
+  // Builds a bounded recursive probe near the JS stack limit.
+  Statement* c_decl =
+      mk::Let(t, "c",
+              mk::Binary(t, BinaryOp::kAdd,
+                         mk::Logical(t, LogicalOp::kOr,
+                                     mk::Member(t, mk::Id(t, helper_name), "c"),
+                                     mk::Num(t, 0)),
+                         mk::Num(t, 1)));
+  Statement* c_store =
+      mk::ExprStmt(t, mk::Assign(t, mk::Member(t, mk::Id(t, helper_name), "c"),
+                                 mk::Id(t, "c")));
+  Statement* call_cap =
+      mk::If(t,
+             mk::Binary(t, BinaryOp::kGreaterThan, mk::Id(t, "c"),
+                        mk::Num(t, max_calls)),
+             mk::Return(t, mk::Call(t, mk::Id(t, "f"), {})));
+  Statement* retries_decl = mk::Let(t, "r", mk::Num(t, 0));
+
+  Statement* depth_stop = mk::If(
+      t,
+      mk::Binary(t, BinaryOp::kLessThanEq,
+                 mk::Update(t, UpdateOp::kDecrement, false, mk::Id(t, "d")),
+                 mk::Num(t, 0)),
+      mk::Return(t, mk::Call(t, mk::Id(t, "f"), {})));
+  Statement* non_range_rethrow =
+      mk::If(t,
+             mk::Unary(t, UnaryOp::kNot,
+                       mk::Binary(t, BinaryOp::kInstanceof, mk::Id(t, "e"),
+                                  mk::Id(t, "RangeError"))),
+             mk::Throw(t, mk::Id(t, "e")));
+  Statement* step_decl = mk::Let(
+      t, "k", mk::Update(t, UpdateOp::kIncrement, false, mk::Id(t, "r")));
+  // Limits retry attempts to powers of two after unwinding stack frames.
+  Statement* retry_guard = mk::If(
+      t,
+      mk::Logical(
+          t, LogicalOp::kOr,
+          mk::Binary(t, BinaryOp::kGreaterThan, mk::Id(t, "k"),
+                     mk::Num(t, max_retries)),
+          mk::Binary(t, BinaryOp::kStrictNotEq,
+                     mk::Binary(t, BinaryOp::kBitAnd, mk::Id(t, "k"),
+                                mk::Binary(t, BinaryOp::kSub, mk::Id(t, "k"),
+                                           mk::Num(t, 1))),
+                     mk::Num(t, 0))),
+      mk::Throw(t, mk::Id(t, "e")));
+  Statement* try_recurse =
+      mk::Try(t, {mk::Return(t, mk::Call(t, mk::Id(t, "t"), {}))}, "e",
+              {non_range_rethrow, step_decl, retry_guard,
+               mk::Return(t, mk::Call(t, mk::Id(t, "f"), {}))});
+  Statement* t_decl = mk::FunctionDecl(t, "t", {}, {depth_stop, try_recurse});
+  Statement* ret_t = mk::Return(t, mk::Call(t, mk::Id(t, "t"), {}));
+
+  FunctionDeclaration* helper = mk::FunctionDecl(
+      t, helper_name, {"f", "d"},
+      {c_decl, c_store, call_cap, retries_decl, t_decl, ret_t});
+  size_t pos = 0;
+  std::vector<Statement*>& body = b.root()->body;
+  while (pos < body.size() && IsDirective(body[pos])) {
+    pos++;
+  }
+  b.Insert(Builder::Slot{&body, pos, b.root()}, helper);
+}
+
+struct ObjectTarget {
+  const Expression* expr = nullptr;
+  std::string_view var_name;
+};
+
+std::vector<ObjectTarget> CollectObjectTargets(
+    Builder& b, CallExpression* call, std::string_view* forbidden_key) {
+  std::vector<ObjectTarget> targets;
+  absl::flat_hash_set<std::string_view> seen_names;
+  *forbidden_key = {};
+  if (auto* mem = call->callee->As<MemberExpression>()) {
+    *forbidden_key = mem->property->Cast<Identifier>()->name;
+    if (!mem->object->Is<ThisExpression>()) {
+      targets.push_back(ObjectTarget{mem->object, {}});
+      if (auto* id = mem->object->As<Identifier>()) {
+        seen_names.insert(id->name);
+      }
+    }
+  }
+  for (Expression* arg : call->arguments) {
+    if (arg->Is<SpreadElement>()) {
+      continue;
+    }
+    if (auto* id = arg->As<Identifier>()) {
+      if (id->name == "undefined" || id->name == "eval" ||
+          id->name == "arguments") {
+        continue;
+      }
+      const Binding* binding = b.scopes().BindingOf(id);
+      JsType ty = binding != nullptr ? b.GuessType(binding) : JsType::kUnknown;
+      if (binding != nullptr && IsObjectCandidateType(ty) &&
+          seen_names.insert(id->name).second) {
+        targets.push_back(ObjectTarget{id, {}});
+      }
+    } else if (auto* mem = arg->As<MemberExpression>()) {
+      const Identifier* root = nullptr;
+      if (!mem->computed && !mem->optional && mem->property->Is<Identifier>() &&
+          AnalyzeReceiverChain(mem->object, &root)) {
+        const bool unbound_root =
+            root != nullptr && b.scopes().BindingOf(root) == nullptr;
+        if (unbound_root && IsHarnessGlobal(root->name)) {
+          continue;
+        }
+        if ((root == nullptr || (unbound_root && root->name == "globalThis")) &&
+            IsHarnessGlobal(FirstChainProperty(mem))) {
+          continue;
+        }
+        targets.push_back(ObjectTarget{mem, {}});
+      }
+    }
+  }
+  if (!targets.empty()) {
+    return targets;
+  }
+  for (const Variable& var : b.VisibleAt(call)) {
+    if (var.binding == nullptr || var.binding->kind == BindingKind::kImplicit ||
+        var.name == "arguments" || IsHarnessGlobal(var.name) ||
+        !IsObjectCandidateType(var.type) || var.type == JsType::kUnknown) {
+      continue;
+    }
+    if (seen_names.insert(var.name).second) {
+      targets.push_back(ObjectTarget{nullptr, var.name});
+    }
+  }
+  return targets;
+}
+
+std::string_view PickTargetPropertyKey(Builder& b, const ObjectTarget& target,
+                                       std::string_view forbidden_key,
+                                       bool prefer_existing) {
+  Random& r = b.rng();
+  if (prefer_existing) {
+    std::string_view target_name;
+    if (target.expr != nullptr) {
+      if (auto* id = target.expr->As<Identifier>()) {
+        target_name = id->name;
+      }
+    } else {
+      target_name = target.var_name;
+    }
+    if (!target_name.empty()) {
+      const BindingInfo* info = b.InfoOf(target_name);
+      if (info != nullptr && !info->keys.empty()) {
+        std::vector<std::string_view> keys;
+        for (const KnownKey& k : info->keys) {
+          if (!IsReservedPropertyKey(k.name) && k.name != forbidden_key) {
+            keys.push_back(k.name);
+          }
+        }
+        if (!keys.empty()) {
+          return keys[r.Index(keys.size())];
+        }
+      }
+    }
+  }
+  static constexpr std::string_view kFallbackKeys[] = {"x", "y", "value", "p"};
+  for (int i = 0; i < 4; i++) {
+    std::string_view cand = kFallbackKeys[r.Index(4)];
+    if (cand != forbidden_key) {
+      return cand;
+    }
+  }
+  return b.FreshName("p");
+}
+
+Statement* OptionalGcStatement(Builder& b) {
+  if (!b.rng().Chance(kCallSiteStressGcChance())) {
+    return nullptr;
+  }
+  return mk::ExprStmt(b.tree(), mk::Call(b.tree(), mk::Id(b.tree(), "gc"), {}));
+}
+
+bool ApplyReentrantPattern(Builder& b, const CallSite& site,
+                           const std::vector<ObjectTarget>& targets,
+                           std::string_view forbidden_key,
+                           MutationContext& ctx) {
+  if (targets.empty()) {
+    return false;
+  }
+  Tree* t = b.tree();
+  Random& r = b.rng();
+  const ObjectTarget& target = targets[r.Index(targets.size())];
+  auto clone_target = [&]() -> Expression* {
+    if (target.expr != nullptr) {
+      return static_cast<Expression*>(t->Clone(target.expr));
+    }
+    return mk::Id(t, target.var_name);
+  };
+  bool do_accessor =
+      CanRunInSyncArrow(site.call) && r.Chance(kCallSiteStressAccessorChance());
+
+  std::vector<Statement*> try_body;
+  if (do_accessor) {
+    std::string_view key = PickTargetPropertyKey(b, target, forbidden_key,
+                                                 /*prefer_existing=*/true);
+    std::string_view entry_var = b.FreshName("d");
+    std::string_view val_var = b.FreshName("v");
+    std::string_view new_var = b.FreshName("nv");
+    int entry_budget = kCallSiteStressReentrantDepth.AsInt();
+
+    auto build_entry_guard = [&]() -> Statement* {
+      return mk::If(t,
+                    mk::Binary(t, BinaryOp::kLessThan,
+                               mk::Update(t, UpdateOp::kIncrement, false,
+                                          mk::Id(t, entry_var)),
+                               mk::Num(t, static_cast<double>(entry_budget))),
+                    mk::Block(t, {CloneCallStmt(t, site.call)}));
+    };
+    Expression* getter = mk::Arrow(
+        t, {}, {build_entry_guard(), mk::Return(t, mk::Id(t, val_var))});
+    Expression* setter = mk::Arrow(
+        t, {new_var},
+        {mk::ExprStmt(t, mk::Assign(t, mk::Id(t, val_var), mk::Id(t, new_var))),
+         build_entry_guard()});
+    Expression* desc =
+        mk::Object(t, {mk::Prop(t, "configurable", mk::Bool(t, true)),
+                       mk::Prop(t, "get", getter), mk::Prop(t, "set", setter)});
+    Expression* define_prop =
+        mk::Call(t, mk::Member(t, mk::Id(t, "Object"), "defineProperty"),
+                 {clone_target(), mk::Str(t, key), desc});
+
+    try_body.push_back(mk::Let(t, entry_var, mk::Num(t, 0)));
+    try_body.push_back(
+        mk::Let(t, val_var, mk::Index(t, clone_target(), mk::Str(t, key))));
+    try_body.push_back(mk::ExprStmt(t, define_prop));
+  } else {
+    // Adds and optionally deletes a property to transition the object shape.
+    std::string_view key = b.FreshName("p");
+    if (key == forbidden_key) {
+      key = b.FreshName("q");
+    }
+    try_body.push_back(mk::ExprStmt(
+        t, mk::Assign(t, mk::Index(t, clone_target(), mk::Str(t, key)),
+                      mk::Num(t, 1.5))));
+    if (r.Coin()) {
+      try_body.push_back(mk::ExprStmt(
+          t, mk::Unary(t, UnaryOp::kDelete,
+                       mk::Index(t, clone_target(), mk::Str(t, key)))));
+    }
+  }
+  if (Statement* gc_stmt = OptionalGcStatement(b)) {
+    try_body.push_back(gc_stmt);
+  }
+  Statement* guarded = mk::Try(t, std::move(try_body), b.FreshName("e"), {});
+  Builder::Slot slot = ObtainStmtSlot(b, site.stmt);
+  if (!slot.valid()) {
+    return false;
+  }
+  b.Insert(slot, guarded);
+  ctx.detail = do_accessor ? "call-site re-entrant accessor"
+                           : "call-site shape perturbation";
+  return true;
+}
+
+class CallSiteStressMutator final : public Mutator {
+ public:
+  // Uses weight 0 by default.
+  explicit CallSiteStressMutator(bool natives = true)
+      : Mutator("CallSiteStress",
+                "applies JIT, GC, stack-limit, or re-entrant stress at call "
+                "sites",
+                0, false),
+        natives_(natives) {}
+
+  void SetNatives(bool natives) override { natives_ = natives; }
+
+  bool Mutate(Builder& b, MutationContext& ctx) override {
+    std::vector<CallSite> sites = CollectCallSites(b);
+    if (sites.empty()) {
+      return false;
+    }
+    Random& r = b.rng();
+    std::vector<double> weights;
+    weights.reserve(sites.size());
+    for (const CallSite& site : sites) {
+      weights.push_back(site.score);
+    }
+    int attempts = std::min(kCallSiteStressMaxAttempts.AsInt(),
+                            static_cast<int>(sites.size()));
+    for (int i = 0; i < attempts; i++) {
+      size_t idx = r.Weighted(weights);
+      if (idx >= sites.size() || weights[idx] <= 0.0) {
+        break;
+      }
+      weights[idx] = 0.0;
+      if (ApplyAtSite(b, sites[idx], ctx)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+ private:
+  enum class Pattern {
+    kTierUp,
+    kAllocTimeout,
+    kDeoptRetier,
+    kStackLimit,
+    kReentrant,
+  };
+
+  static bool HasIntermediateBoundary(Builder& b, Node* call, Statement* stmt) {
+    Node* cur = b.ParentOf(call);
+    while (cur != nullptr && cur != stmt) {
+      if (cur->IsFunction() || cur->IsClass()) {
+        return true;
+      }
+      cur = b.ParentOf(cur);
+    }
+    return cur != stmt;
+  }
+
+  static bool CheckEnclosingLoops(Builder& b, Node* call, int* depth_out) {
+    int depth = 0;
+    double max_bound = kCallSiteStressMaxLoopBound();
+    int max_depth = kCallSiteStressMaxLoopDepth.AsInt();
+    Node* cur = b.ParentOf(call);
+    while (cur != nullptr) {
+      if (cur->IsFunction() || cur->IsClass()) {
+        break;
+      }
+      if (IsLoopNode(cur)) {
+        if (IsHugeOrInfiniteLoop(cur, max_bound)) {
+          return false;
+        }
+        depth++;
+        if (depth > max_depth) {
+          return false;
+        }
+      }
+      cur = b.ParentOf(cur);
+    }
+    *depth_out = depth;
+    return true;
+  }
+
+  static bool IsEligibleStatement(Builder& b, Statement* stmt) {
+    if (stmt == nullptr || IsDirective(stmt)) {
+      return false;
+    }
+    if (!IsInsideFocus(b, b.ParentOf(stmt))) {
+      return false;
+    }
+    bool kind_ok = false;
+    if (auto* expr = stmt->As<ExpressionStatement>()) {
+      kind_ok = !expr->is_directive;
+    } else if (auto* decl = stmt->As<VariableDeclaration>()) {
+      kind_ok = decl->declaration_kind != VariableKind::kUsing &&
+                decl->declaration_kind != VariableKind::kAwaitUsing &&
+                decl->declarations.size() == 1 &&
+                decl->declarations[0]->init != nullptr;
+    } else if (auto* ret = stmt->As<ReturnStatement>()) {
+      kind_ok = ret->argument != nullptr;
+    }
+    if (!kind_ok) {
+      return false;
+    }
+    return b.SlotOf(stmt).valid() || IsSingleStatementControlBody(b, stmt);
+  }
+
+  std::vector<CallSite> CollectCallSites(Builder& b) const {
+    std::vector<CallSite> sites;
+    std::vector<Node*> calls =
+        b.Collect([&](Node* n) { return n->Is<CallExpression>(); });
+    for (Node* node : calls) {
+      auto* call = node->Cast<CallExpression>();
+      if (call->optional || !IsSimpleCallee(b, call->callee) ||
+          IsInsideNearStackHelper(b, call)) {
+        continue;
+      }
+      Node* call_parent = b.ParentOf(call);
+      if (call_parent != nullptr && call_parent->Is<ChainExpression>()) {
+        continue;
+      }
+      if (IsSelfRecursiveCall(b, call)) {
+        continue;
+      }
+      Statement* stmt = b.EnclosingStatement(call);
+      if (!IsEligibleStatement(b, stmt) ||
+          HasIntermediateBoundary(b, call, stmt)) {
+        continue;
+      }
+      int loop_depth = 0;
+      if (!CheckEnclosingLoops(b, call, &loop_depth)) {
+        continue;
+      }
+      CallSite site;
+      site.call = call;
+      site.stmt = stmt;
+      site.loop_depth = loop_depth;
+      site.in_function = b.EnclosingFunction(call) != nullptr;
+
+      std::string_view unused_forbidden;
+      std::vector<ObjectTarget> obj_targets =
+          CollectObjectTargets(b, call, &unused_forbidden);
+      std::vector<Pattern> unused_patterns;
+      std::vector<double> unused_weights;
+      CollectEligiblePatterns(b, site, !obj_targets.empty(), &unused_patterns,
+                              &unused_weights);
+      if (unused_patterns.empty()) {
+        continue;
+      }
+
+      double score = 1.0;
+      if (site.in_function) {
+        score *= 2.0;
+      }
+      if (auto* id = call->callee->As<Identifier>()) {
+        const Binding* binding = b.scopes().BindingOf(id);
+        if (binding != nullptr) {
+          JsType ty = b.GuessType(binding);
+          site.known_function_binding = (ty == JsType::kFunction);
+          score *= site.known_function_binding ? 4.0 : 2.0;
+        }
+      } else {
+        score *= 2.0;
+      }
+      site.score = score;
+      sites.push_back(site);
+    }
+    return sites;
+  }
+
+  void CollectEligiblePatterns(Builder& b, const CallSite& site,
+                               bool has_object_target,
+                               std::vector<Pattern>* patterns,
+                               std::vector<double>* pweights) const {
+    auto push = [&](Pattern p, double w) {
+      if (w > 0.0) {
+        patterns->push_back(p);
+        pweights->push_back(w);
+      }
+    };
+    if (natives_) {
+      push(Pattern::kTierUp, kCallSiteStressTierUpWeight());
+      if (CanWrapInFinallyBlock(b, site.stmt)) {
+        push(Pattern::kAllocTimeout, kCallSiteStressAllocTimeoutWeight());
+      }
+      push(Pattern::kDeoptRetier, kCallSiteStressDeoptRetierWeight());
+    }
+    const bool focus_allows_helper = b.focus_subtree() == nullptr ||
+                                     b.focus_subtree() == b.root() ||
+                                     HasTopLevelNearStackHelper(b);
+    if (focus_allows_helper && !b.root()->body.empty() &&
+        b.scopes().root()->Lookup("RangeError") == nullptr &&
+        !IsInsideWorkerCallback(b, site.call) && CanRunInSyncArrow(site.call)) {
+      push(Pattern::kStackLimit, kCallSiteStressStackLimitWeight());
+    }
+    if (has_object_target) {
+      push(Pattern::kReentrant, kCallSiteStressReentrantWeight());
+    }
+  }
+
+  bool ApplyAtSite(Builder& b, const CallSite& site,
+                   MutationContext& ctx) const {
+    std::string_view forbidden_key;
+    std::vector<ObjectTarget> obj_targets =
+        CollectObjectTargets(b, site.call, &forbidden_key);
+
+    std::vector<Pattern> patterns;
+    std::vector<double> pweights;
+    CollectEligiblePatterns(b, site, !obj_targets.empty(), &patterns,
+                            &pweights);
+    if (patterns.empty()) {
+      return false;
+    }
+
+    Random& r = b.rng();
+    Pattern picked = patterns[r.Weighted(pweights)];
+    bool guard = ShouldGuardCallPrefix(b, site);
+    Tree* t = b.tree();
+
+    switch (picked) {
+      case Pattern::kTierUp: {
+        bool used_maglev = false;
+        std::vector<Statement*> prefix =
+            BuildTierUpPrefix(b, site, guard, &used_maglev);
+        Builder::Slot slot = ObtainStmtSlot(b, site.stmt);
+        if (!slot.valid()) {
+          return false;
+        }
+        b.InsertAll(slot, prefix);
+        ctx.detail = used_maglev ? "call-site tier-up (Maglev)"
+                                 : "call-site tier-up (TurboFan)";
+        return true;
+      }
+      case Pattern::kAllocTimeout: {
+        bool used_maglev = false;
+        std::vector<Statement*> prefix =
+            BuildTierUpPrefix(b, site, guard, &used_maglev);
+        Builder::Slot slot = ObtainStmtSlot(b, site.stmt);
+        if (!slot.valid()) {
+          return false;
+        }
+        Statement* inner_stmt = site.stmt;
+        if (!b.EscapingBindings({site.stmt}, /*block_scoped_only=*/true)
+                 .empty()) {
+          auto* decl = site.stmt->Cast<VariableDeclaration>();
+          std::string_view name =
+              decl->declarations[0]->target->Cast<Identifier>()->name;
+          VariableDeclaration* decl_only = mk::Let(t, name, nullptr);
+          prefix.push_back(decl_only);
+          inner_stmt = mk::ExprStmt(
+              t, mk::Assign(t, mk::Id(t, name), decl->declarations[0]->init));
+        }
+        int64_t countdown = r.Range(
+            1, std::max<int64_t>(1, kCallSiteStressAllocTimeoutMax.AsInt()));
+        TryStatement* try_stmt =
+            BuildAllocTimeoutTry(b, inner_stmt, countdown, r.Coin());
+        prefix.push_back(try_stmt);
+        slot.list->erase(slot.list->begin() +
+                         static_cast<std::ptrdiff_t>(slot.index));
+        b.Invalidate();
+        b.InsertAll(slot, prefix);
+        ctx.detail = StringPrintf("call-site alloc timeout (%lld)",
+                                  static_cast<long long>(countdown));
+        return true;
+      }
+      case Pattern::kDeoptRetier: {
+        bool used_baseline = false;
+        std::vector<Statement*> prefix =
+            BuildDeoptRetierPrefix(b, site, guard, &used_baseline);
+        Builder::Slot slot = ObtainStmtSlot(b, site.stmt);
+        if (!slot.valid()) {
+          return false;
+        }
+        b.InsertAll(slot, prefix);
+        ctx.detail = used_baseline ? "call-site %CompileBaseline"
+                                   : "call-site %DeoptimizeFunction";
+        return true;
+      }
+      case Pattern::kStackLimit: {
+        CallExpression* call_clone =
+            static_cast<CallExpression*>(t->Clone(site.call));
+        Expression* thunk = mk::ArrowExpr(t, {}, call_clone);
+        double depth = kCallSiteStressStackDepth();
+        bool already_exists = false;
+        std::string_view helper = ChooseNearStackHelperName(b, &already_exists);
+        CallExpression* wrapped =
+            mk::Call(t, mk::Id(t, helper), {thunk, mk::Num(t, depth)});
+        if (!b.Replace(site.call, wrapped)) {
+          return false;
+        }
+        if (!already_exists) {
+          InsertNearStackHelper(b, helper);
+        }
+        ctx.detail = !already_exists
+                         ? "call-site near-stack-limit (inserted helper)"
+                         : "call-site near-stack-limit";
+        return true;
+      }
+      case Pattern::kReentrant:
+        return ApplyReentrantPattern(b, site, obj_targets, forbidden_key, ctx);
+    }
+    return false;
+  }
+
+  bool natives_ = true;
+};
+
 }  // namespace
 
 // --- MutatorSet
@@ -3352,6 +4610,7 @@ std::unique_ptr<MutatorSet> MutatorSet::CreateDefault() {
                                "ShapeChange"},
       true));
   add(std::make_unique<JitCompoundMutator>());
+  add(std::make_unique<CallSiteStressMutator>());
   std::string error;
   if (!set->SetSelector(
           std::make_unique<WeightedSelector<Mutator>>(

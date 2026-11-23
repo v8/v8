@@ -4710,6 +4710,540 @@ void CheckEs2025Closures(Checker* checker) {
   reg.Reset();
 }
 
+void CheckCallSiteStress(Checker* checker) {
+  std::unique_ptr<MutatorSet> mutators = MutatorSet::CreateDefault();
+  std::unique_ptr<GeneratorSet> generators = GeneratorSet::CreateDefault();
+  const Environment& env = Environment::Default();
+  Mutator* mutator = mutators->Find("CallSiteStress");
+  const bool registered = mutator != nullptr && mutator->weight() == 0.0 &&
+                          !mutator->needs_partner();
+  checker->Check(
+      "call_site_stress: registered with weight 0 and needs_partner false",
+      registered);
+  if (mutator == nullptr) {
+    return;
+  }
+
+  auto isolate_pattern = [](const char* active_weight) {
+    TunableRegistry& reg = TunableRegistry::Instance();
+    reg.Reset();
+    std::string err;
+    const char* weights[] = {
+        "mutators.CallSiteStress.tier_up_weight",
+        "mutators.CallSiteStress.alloc_timeout_weight",
+        "mutators.CallSiteStress.deopt_retier_weight",
+        "mutators.CallSiteStress.stack_limit_weight",
+        "mutators.CallSiteStress.reentrant_weight",
+    };
+    bool ok = true;
+    for (const char* w : weights) {
+      ok = ok && reg.Set(w, std::string(w) == active_weight ? 10.0 : 0.0, &err);
+    }
+    return ok;
+  };
+  std::string v8_err;
+  const bool v8_ok = InitializeV8(FuzzConfig().v8_flags, &v8_err);
+  std::unique_ptr<SyntaxChecker> syntax;
+  if (v8_ok) {
+    syntax = std::make_unique<SyntaxChecker>();
+  }
+
+  auto run_once = [&](const std::string& src, uint64_t seed,
+                      std::string* printed, std::string* detail) -> bool {
+    printed->clear();
+    ProgramPtr prog = ParseOrDie(src, "call-site-stress");
+    Random rng(seed);
+    std::unique_ptr<fast::Tree> out = ApplyMutation(
+        *mutator, *prog, nullptr, rng, env, *generators, 1, detail);
+    if (out == nullptr) {
+      return false;
+    }
+    absl::flat_hash_set<const fast::Node*> seen_nodes;
+    bool unique_tree = true;
+    fast::Walk(out->root(), [&](fast::Node* n) {
+      if (!seen_nodes.insert(n).second) {
+        unique_tree = false;
+        return false;
+      }
+      return true;
+    });
+    if (!unique_tree) {
+      return false;
+    }
+    *printed = fast::Print(out->root());
+    fast::ParseError parse_err;
+    if (fast::Parser::ParseScript(*printed, fast::ParseOptions(), &parse_err) ==
+        nullptr) {
+      return false;
+    }
+    if (syntax != nullptr) {
+      std::string serr;
+      if (!syntax->Accepts(*printed, &serr)) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  // Exercises each CallSiteStress pattern under isolated tunable weights.
+  {
+    const std::string src = R"(let obj = {a: 1};
+function foo(x) { return x.a; }
+const r = foo(obj);
+let unused = r;
+)";
+    bool ok = isolate_pattern("mutators.CallSiteStress.tier_up_weight");
+    std::string out, detail;
+    ok =
+        ok && run_once(src, 1, &out, &detail) &&
+        out.find("%PrepareFunctionForOptimization(foo)") != std::string::npos &&
+        (out.find("%OptimizeFunctionOnNextCall(foo)") != std::string::npos ||
+         out.find("%OptimizeMaglevOnNextCall(foo)") != std::string::npos);
+    checker->Check("call_site_stress: tier-up pattern prepares and optimizes",
+                   ok, out);
+  }
+  {
+    const std::string src = R"(function foo(x) { return x + 1; }
+const y = foo(1);
+let z = y + 2;
+)";
+    bool ok = isolate_pattern("mutators.CallSiteStress.alloc_timeout_weight");
+    std::string out, detail;
+    ok = ok && run_once(src, 2, &out, &detail) &&
+         out.find("let y;") != std::string::npos &&
+         out.find("%SetAllocationTimeout(-1, ") != std::string::npos &&
+         out.find("finally") != std::string::npos &&
+         out.find("%SetAllocationTimeout(-1, -1, true)") != std::string::npos &&
+         out.find("catch") == std::string::npos;
+    checker->Check(
+        "call_site_stress: alloc-timeout splits escaping const and uses "
+        "try/finally",
+        ok, out);
+  }
+  {
+    const std::string src = R"(function foo(x) { return x + 1; }
+let y = foo(1);
+)";
+    bool ok = isolate_pattern("mutators.CallSiteStress.deopt_retier_weight");
+    std::string out, detail;
+    ok = ok && run_once(src, 3, &out, &detail) &&
+         (out.find("%DeoptimizeFunction(foo)") != std::string::npos ||
+          out.find("%CompileBaseline(foo)") != std::string::npos);
+    checker->Check(
+        "call_site_stress: deopt/retier pattern emits deopt or baseline "
+        "native",
+        ok, out);
+  }
+  {
+    const std::string src = R"(function foo(x) { return x + 1; }
+let a = foo(1);
+let b = foo(2);
+)";
+    bool ok = isolate_pattern("mutators.CallSiteStress.stack_limit_weight");
+    std::string out1, out2, detail;
+    bool ran1 = ok && run_once(src, 4, &out1, &detail);
+    bool has1 =
+        ran1 &&
+        out1.find("function __redline_near_stack") != std::string::npos &&
+        out1.find("RangeError") != std::string::npos &&
+        out1.find("__redline_near_stack(() => foo(") != std::string::npos;
+    bool reused = false;
+    if (has1) {
+      ProgramPtr p1 = ParseOrDie(out1, "call-site-stress-2");
+      Random rng(5);
+      std::unique_ptr<fast::Tree> t2 = ApplyMutation(
+          *mutator, *p1, nullptr, rng, env, *generators, 1, &detail);
+      if (t2 != nullptr) {
+        out2 = fast::Print(t2->root());
+        size_t first = out2.find("function __redline_near_stack");
+        size_t second =
+            first == std::string::npos
+                ? std::string::npos
+                : out2.find("function __redline_near_stack", first + 1);
+        fast::ParseError parse_err;
+        reused = first != std::string::npos && second == std::string::npos &&
+                 fast::Parser::ParseScript(out2, fast::ParseOptions(),
+                                           &parse_err) != nullptr;
+      }
+    }
+    checker->Check(
+        "call_site_stress: stack-limit inserts helper once and reuses it",
+        reused, !has1 ? ("run1: " + out1) : ("run2: " + out2));
+
+    // Skips `stack_limit` when `await` sits inside call arguments.
+    const std::string inner_await_src =
+        "async function g(h, p) { h(await p); }\n";
+    std::string async_out;
+    bool skipped_await =
+        isolate_pattern("mutators.CallSiteStress.stack_limit_weight") &&
+        !run_once(inner_await_src, 6, &async_out, &detail);
+    checker->Check(
+        "call_site_stress: skips stack-limit wrapper around inner await arg",
+        skipped_await, async_out);
+
+    // Wraps `await h()` cleanly outside the synchronous arrow thunk.
+    const std::string outer_await_src = "async function g(h) { await h(); }\n";
+    std::string outer_out;
+    bool ok_outer =
+        isolate_pattern("mutators.CallSiteStress.stack_limit_weight") &&
+        run_once(outer_await_src, 6, &outer_out, &detail) &&
+        outer_out.find("await __redline_near_stack(() => h(), ") !=
+            std::string::npos;
+    checker->Check(
+        "call_site_stress: preserves outer await around stack-limit call",
+        ok_outer, outer_out);
+  }
+  {
+    const std::string src = R"(let obj = {a: 1};
+function foo(o) { return o.a; }
+foo(obj);
+)";
+    std::string err;
+    bool ok = isolate_pattern("mutators.CallSiteStress.reentrant_weight") &&
+              TunableRegistry::Instance().Set(
+                  "mutators.CallSiteStress.accessor_chance", 1.0, &err);
+    std::string out_acc, detail;
+    ok = ok && run_once(src, 7, &out_acc, &detail) &&
+         out_acc.find("Object.defineProperty") != std::string::npos &&
+         out_acc.find("get: () =>") != std::string::npos;
+    checker->Check(
+        "call_site_stress: reentrant pattern installs entry-budgeted accessor",
+        ok, out_acc);
+
+    bool ok_shape =
+        isolate_pattern("mutators.CallSiteStress.reentrant_weight") &&
+        TunableRegistry::Instance().Set(
+            "mutators.CallSiteStress.accessor_chance", 0.0, &err);
+    std::string out_shape;
+    ok_shape = ok_shape && run_once(src, 7, &out_shape, &detail) &&
+               out_shape.find("1.5") != std::string::npos;
+    checker->Check(
+        "call_site_stress: reentrant shape perturbation mutates property",
+        ok_shape, out_shape);
+  }
+
+  // Checks filtering of unsafe call sites, control-flow guards, and edge cases.
+  {
+    TunableRegistry::Instance().Reset();
+    std::string out, detail;
+    bool rejected =
+        !run_once("for (let i = 0; i < 1000; i++) f(i);\n", 1, &out, &detail) &&
+        !run_once("function rec(n) { return rec(n - 1); }\n", 1, &out,
+                  &detail) &&
+        !run_once("class C { m(n) { return this.m(n - 1); } }\n", 1, &out,
+                  &detail) &&
+        !run_once("let o = { m(n) { return this.m(n - 1); } };\n", 1, &out,
+                  &detail) &&
+        !run_once("for (let i = init(); i < 3; i++) {}\n", 1, &out, &detail) &&
+        !run_once("let xs = [1].map(x => inc(x));\n", 1, &out, &detail) &&
+        !run_once("let f = null;\nf?.();\n", 1, &out, &detail) &&
+        !run_once("let o = {m() { return 1; }};\no?.m();\n", 1, &out,
+                  &detail) &&
+        !run_once("let o = {a: {m() { return 1; }}};\no?.a.m();\n", 1, &out,
+                  &detail) &&
+        !run_once("d8.file.execute('a.js');\n", 1, &out, &detail) &&
+        !run_once("Realm.create();\n", 1, &out, &detail) &&
+        !run_once("os.system('true');\n", 1, &out, &detail) &&
+        !run_once("globalThis.quit();\n", 1, &out, &detail) &&
+        !run_once("this.print(1);\n", 1, &out, &detail) &&
+        !run_once("globalThis.d8.file.execute('a.js');\n", 1, &out, &detail);
+    checker->Check(
+        "call_site_stress: rejects large loops, self-recursion, for-init, "
+        "arrow calls, ChainExpression, and shell globals",
+        rejected, out);
+
+    bool member_ok =
+        isolate_pattern("mutators.CallSiteStress.tier_up_weight") &&
+        run_once("let obj = {m(x) { return x; }};\nobj.m(1);\n", 8, &out,
+                 &detail) &&
+        out.find("try {") != std::string::npos &&
+        out.find("%PrepareFunctionForOptimization(obj.m)") != std::string::npos;
+    checker->Check(
+        "call_site_stress: guards member callee tier-up in try/catch",
+        member_ok, out);
+
+    // Skips escaping destructuring for alloc-timeout and wraps `var`.
+    bool destruct_skipped =
+        isolate_pattern("mutators.CallSiteStress.alloc_timeout_weight") &&
+        !run_once(
+            "function foo() { return {a: 1, b: 2}; }\n"
+            "const {a, b} = foo();\nlet z = a + b;\n",
+            2, &out, &detail);
+    checker->Check(
+        "call_site_stress: alloc-timeout skips escaping destructuring",
+        destruct_skipped, out);
+
+    bool var_wrapped =
+        isolate_pattern("mutators.CallSiteStress.alloc_timeout_weight") &&
+        run_once(
+            "function foo(x) { return x + 1; }\n"
+            "var y = foo(1);\nlet z = y + 2;\n",
+            2, &out, &detail) &&
+        out.find("var y = foo(1);") != std::string::npos &&
+        out.find("let y;") == std::string::npos &&
+        out.find("%SetAllocationTimeout(-1, ") != std::string::npos &&
+        out.find("finally") != std::string::npos;
+    checker->Check(
+        "call_site_stress: alloc-timeout wraps escaping var in try/finally",
+        var_wrapped, out);
+
+    // Blockifies and guards single-statement control bodies.
+    bool blockified =
+        isolate_pattern("mutators.CallSiteStress.tier_up_weight") &&
+        run_once(
+            "function foo(v) { return v + 1; }\n"
+            "let c = true;\nlet x = 0;\nif (c) x = foo(1);\n",
+            1, &out, &detail) &&
+        out.find("if (c) {") != std::string::npos &&
+        out.find("try {") != std::string::npos &&
+        out.find("%PrepareFunctionForOptimization(foo)") != std::string::npos;
+    checker->Check(
+        "call_site_stress: blockifies and guards single-statement if body",
+        blockified, out);
+
+    // Short-circuit and ternary call ancestors guard warm-up clones.
+    bool logical_guarded =
+        isolate_pattern("mutators.CallSiteStress.tier_up_weight") &&
+        run_once(
+            "function foo(v) { return v.y; }\nlet x = null;\nx && foo(x);\n", 1,
+            &out, &detail) &&
+        out.find("try {") != std::string::npos &&
+        out.find("%PrepareFunctionForOptimization(foo)") != std::string::npos;
+    checker->Check(
+        "call_site_stress: guards short-circuit logical call warm-up",
+        logical_guarded, out);
+
+    bool cond_guarded =
+        isolate_pattern("mutators.CallSiteStress.tier_up_weight") &&
+        run_once(
+            "function foo(v) { return v + 1; }\n"
+            "let c = false;\nlet r = c ? foo(1) : 0;\n",
+            1, &out, &detail) &&
+        out.find("try {") != std::string::npos &&
+        out.find("%PrepareFunctionForOptimization(foo)") != std::string::npos;
+    checker->Check("call_site_stress: guards ternary call warm-up",
+                   cond_guarded, out);
+
+    // A destructuring default runs only for an undefined value.
+    bool default_guarded =
+        isolate_pattern("mutators.CallSiteStress.tier_up_weight") &&
+        run_once(
+            "function foo(v) { return v.y; }\n"
+            "let o = {a: 1};\nlet {a = foo(null)} = o;\n",
+            1, &out, &detail) &&
+        out.find("try {") != std::string::npos &&
+        out.find("%PrepareFunctionForOptimization(foo)") != std::string::npos;
+    checker->Check("call_site_stress: guards destructuring default warm-up",
+                   default_guarded, out);
+
+    // A call site in a function gets one warm-up clone only.
+    bool fn_warmup_capped =
+        isolate_pattern("mutators.CallSiteStress.tier_up_weight") &&
+        run_once(
+            "function foo(v) { return v + 1; }\n"
+            "function g() { let r = foo(7); return r; }\n",
+            1, &out, &detail);
+    if (fn_warmup_capped) {
+      size_t calls = 0;
+      for (size_t pos = out.find("foo(7)"); pos != std::string::npos;
+           pos = out.find("foo(7)", pos + 1)) {
+        calls++;
+      }
+      fn_warmup_capped =
+          calls == 2 &&
+          out.find("%PrepareFunctionForOptimization(foo)") != std::string::npos;
+    }
+    checker->Check("call_site_stress: caps warm-up clones in a function at 1",
+                   fn_warmup_capped, out);
+
+    // `yield` inside call arguments excludes stack-limit and arrow accessor.
+    std::string err;
+    bool yield_stack_skipped =
+        isolate_pattern("mutators.CallSiteStress.stack_limit_weight") &&
+        !run_once("function* g(h) { return h(yield 1); }\n", 6, &out, &detail);
+    bool yield_acc_fallback =
+        isolate_pattern("mutators.CallSiteStress.reentrant_weight") &&
+        TunableRegistry::Instance().Set(
+            "mutators.CallSiteStress.accessor_chance", 1.0, &err) &&
+        run_once("function* g(h, obj) { return h(yield 1, obj); }\n", 7, &out,
+                 &detail) &&
+        out.find("Object.defineProperty") == std::string::npos &&
+        out.find("get: () =>") == std::string::npos &&
+        out.find("1.5") != std::string::npos;
+    checker->Check(
+        "call_site_stress: excludes yield args from stack-limit and accessor",
+        yield_stack_skipped && yield_acc_fallback, out);
+
+    // Skip implicit `arguments` inside a class `static {}` block, and allocate
+    // zero arena nodes when `Mutate` returns false.
+    {
+      const std::string static_src =
+          "function g() { arguments; class C { static { foo(); } } }\n";
+      bool static_ok =
+          isolate_pattern("mutators.CallSiteStress.reentrant_weight");
+      for (uint64_t seed = 11; seed < 31 && static_ok; seed++) {
+        if (!run_once(static_src, seed, &out, &detail) ||
+            out.find("arguments[") != std::string::npos ||
+            out.find("defineProperty(arguments") != std::string::npos) {
+          static_ok = false;
+        }
+      }
+      // Visible object + disabled patterns still runs candidate collection
+      // and must leave `id_limit()` unchanged when `Mutate` returns false.
+      const std::string noop_src = "let obj = {a: 1};\nfoo(1);\n";
+      ProgramPtr noop_prog = ParseOrDie(noop_src, "call-site-noop");
+      std::unique_ptr<fast::Tree> noop_tree = noop_prog->CopyTree();
+      const uint32_t before_ids = noop_tree->id_limit();
+      bool zero_ok = isolate_pattern("none");
+      Random noop_rng(11);
+      Builder noop_builder(noop_tree.get(), &noop_rng, &env);
+      MutationContext noop_ctx;
+      noop_ctx.env = &env;
+      noop_ctx.generators = generators.get();
+      const bool noop_returned_false = !mutator->Mutate(noop_builder, noop_ctx);
+      const bool no_orphan_allocs = noop_tree->id_limit() == before_ids;
+      checker->Check(
+          "call_site_stress: skips implicit arguments in static block and "
+          "keeps tree unchanged on no-op",
+          static_ok && zero_ok && noop_returned_false && no_orphan_allocs, out);
+    }
+
+    // Skip shell-global member-expression arguments and Worker stack-limit.
+    {
+      bool harness_arg_skipped =
+          isolate_pattern("mutators.CallSiteStress.reentrant_weight") &&
+          !run_once("foo(d8.file);\n", 12, &out, &detail);
+      bool worker_stack_skipped =
+          isolate_pattern("mutators.CallSiteStress.stack_limit_weight") &&
+          !run_once("new Worker(() => { foo(); }, {type: 'function'});\n", 12,
+                    &out, &detail);
+      checker->Check(
+          "call_site_stress: skips harness member arg and Worker stack-limit",
+          harness_arg_skipped && worker_stack_skipped, out);
+    }
+
+    // `SetFocusSubtree` keeps all edits inside the focused subtree.
+    {
+      const std::string focus_src = R"(function other(x) { return x + 1; }
+function target(a) {
+  return other(a);
+}
+other(1);
+target(2);
+)";
+      ProgramPtr prog = ParseOrDie(focus_src, "call-site-focus");
+      fast::FunctionDeclaration* orig_target = nullptr;
+      std::vector<std::string> orig_outside;
+      for (fast::Statement* s : prog->tree().root()->body) {
+        if (auto* fn = s->As<fast::FunctionDeclaration>();
+            fn != nullptr && fn->name != nullptr &&
+            fn->name->name == "target") {
+          orig_target = fn;
+        } else {
+          orig_outside.push_back(fast::Print(s));
+        }
+      }
+      const uint32_t target_body_id = orig_target->body->id;
+      bool stack_blocked_in_focus =
+          isolate_pattern("mutators.CallSiteStress.stack_limit_weight");
+      if (stack_blocked_in_focus) {
+        std::unique_ptr<fast::Tree> focus_tree = prog->CopyTree();
+        fast::FunctionDeclaration* focus_target =
+            focus_tree->root()->body[1]->Cast<fast::FunctionDeclaration>();
+        Random rng(20);
+        Builder focus_builder(focus_tree.get(), &rng, &env);
+        focus_builder.SetFocusSubtree(focus_target->body);
+        MutationContext focus_ctx;
+        focus_ctx.env = &env;
+        focus_ctx.generators = generators.get();
+        stack_blocked_in_focus = !mutator->Mutate(focus_builder, focus_ctx);
+      }
+      bool tier_confined =
+          isolate_pattern("mutators.CallSiteStress.tier_up_weight");
+      if (tier_confined) {
+        Random rng(21);
+        std::unique_ptr<fast::Tree> tree =
+            ApplyMutation(*mutator, *prog, nullptr, rng, env, *generators, 1,
+                          &detail, nullptr, target_body_id);
+        tier_confined = (tree != nullptr);
+        if (tier_confined) {
+          std::vector<std::string> new_outside;
+          for (fast::Statement* s : tree->root()->body) {
+            if (auto* fn = s->As<fast::FunctionDeclaration>();
+                fn == nullptr || fn->name == nullptr ||
+                fn->name->name != "target") {
+              new_outside.push_back(fast::Print(s));
+            }
+          }
+          tier_confined = (new_outside == orig_outside);
+        }
+      }
+      // Focusing a single leaf statement must not edit its enclosing list.
+      TunableRegistry::Instance().Reset();
+      std::unique_ptr<fast::Tree> leaf_tree = prog->CopyTree();
+      Random leaf_rng(22);
+      Builder leaf_builder(leaf_tree.get(), &leaf_rng, &env);
+      leaf_builder.SetFocusSubtree(leaf_tree->root()->body[2]);
+      MutationContext leaf_ctx;
+      leaf_ctx.env = &env;
+      leaf_ctx.generators = generators.get();
+      const bool leaf_noop = !mutator->Mutate(leaf_builder, leaf_ctx);
+      checker->Check(
+          "call_site_stress: SetFocusSubtree isolates edits and blocks "
+          "top-level helper insertion",
+          stack_blocked_in_focus && tier_confined && leaf_noop);
+    }
+
+    // `SetNatives(false)` emits zero `%` native calls and keeps pure-JS paths.
+    {
+      TunableRegistry::Instance().Reset();
+      mutator->SetNatives(false);
+      const std::string src = R"(let obj = {a: 1};
+function foo(o) { return o.a; }
+foo(obj);
+)";
+      bool no_natives_ok = true;
+      for (int i = 0; i < 10 && no_natives_ok; i++) {
+        ProgramPtr prog = ParseOrDie(src, "call-site-nonat");
+        Random rng(100 + static_cast<uint64_t>(i));
+        std::unique_ptr<fast::Tree> tree = ApplyMutation(
+            *mutator, *prog, nullptr, rng, env, *generators, 1, &detail);
+        if (tree == nullptr) {
+          no_natives_ok = false;
+          break;
+        }
+        bool has_native = false;
+        fast::Walk(tree->root(), [&](fast::Node* n) {
+          if (n->Is<fast::NativeCallExpression>()) {
+            has_native = true;
+          }
+          return true;
+        });
+        const std::string text = fast::Print(tree->root());
+        fast::ParseOptions no_nat_opts;
+        no_nat_opts.allow_natives_syntax = false;
+        fast::ParseError perr;
+        if (has_native || text.find('%') != std::string::npos ||
+            fast::Parser::ParseScript(text, no_nat_opts, &perr) == nullptr) {
+          no_natives_ok = false;
+          out = text;
+          break;
+        }
+      }
+      const bool tier_disabled =
+          isolate_pattern("mutators.CallSiteStress.tier_up_weight") &&
+          !run_once(src, 120, &out, &detail);
+      mutator->SetNatives(true);
+      checker->Check(
+          "call_site_stress: SetNatives(false) emits zero natives and disables "
+          "native patterns",
+          no_natives_ok && tier_disabled, out);
+    }
+  }
+
+  TunableRegistry::Instance().Reset();
+}
+
 }  // namespace
 
 void RunSelectionChecks(Checker* checker, const std::string& testdata_dir,
@@ -4773,6 +5307,7 @@ void RunSelectionChecks(Checker* checker, const std::string& testdata_dir,
   CheckReceiverJit(checker);
   CheckOperationAndCallParity(checker);
   CheckJitCompound(checker);
+  CheckCallSiteStress(checker);
   CheckEdgeCases(checker);
   CheckBuiltinsAndWorkers(checker);
   CheckEnvTyper(checker);

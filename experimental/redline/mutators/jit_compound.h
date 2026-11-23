@@ -28,6 +28,7 @@ class JitCompoundMutator final : public Mutator {
 
   bool natives() const { return natives_; }
   void set_natives(bool natives) { natives_ = natives; }
+  void SetNatives(bool natives) override { natives_ = natives; }
 
   std::optional<JitCompoundPattern> forced_pattern() const {
     return forced_pattern_;

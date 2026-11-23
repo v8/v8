@@ -189,7 +189,7 @@ A new function gets parameter types that enough visible variables have, as in Fu
 `JitOptimize`, `JitBaseline` and `HotLoop` can also compile a method, a getter, a setter or a class constructor of a visible variable.
 The calls then use the receiver (`o.m()`, `get.call(o)`, `new C()`). Thus `this` and the home object have their usual values in the compiled code.
 
-A **mutator** changes a program. Mutators insert generated code (`CodeGen`, `JitStress`) or change code in place (`Input`, `Operation`, `Expression`, `PropertyAccessor`, `Call`).
+A **mutator** changes a program. Mutators insert generated code (`CodeGen`, `JitStress`) or change code in place (`Input`, `Operation`, `Expression`, `PropertyAccessor`, `Call`, `CallSiteStress`).
 Other mutators copy code from a partner (`Splice`, `Combine`), change the structure (`Remove`, `Wrap`, `Duplicate`, `Reorder`), or ask the target (`Explore`, `Probing`, `Fixup`).
 `redline mutate --list` shows the mutators and generators with their weights. A weight of 0 disables a mutator or a generator.
 
