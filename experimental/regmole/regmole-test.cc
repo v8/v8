@@ -329,16 +329,37 @@ void TestRdOnlyParamSavedRestoredGood(MacroAssembler* masm,
 
 // Regression test modeled on crbug.com/466701290 (Maglev CheckJSDataViewBounds
 // mutating a UseRegister input without UseAndClobberRegister):
-struct FakeInput {};
+struct FakeValueLocation {
+  enum ExtendedPolicy { MUST_HAVE_REGISTER, SAME_AS_INPUT };
+  enum Lifetime { USED_AT_START, USED_AT_END };
+  template <typename... Args>
+  void SetUnallocated(Args&&...) {}
+};
+struct FakeInput {
+  FakeValueLocation loc_;
+  FakeValueLocation* location() { return &loc_; }
+};
+struct FakeNodeBase {
+  FakeInput input(int) { return {}; }
+  FakeValueLocation result() { return {}; }
+};
 Register ToRegister(FakeInput);
-void UseRegister(FakeInput);
-void UseAndClobberRegister(FakeInput);
+inline void UseRegister(FakeInput input) {
+  input.location()->SetUnallocated(FakeValueLocation::MUST_HAVE_REGISTER,
+                                   FakeValueLocation::USED_AT_END, -1);
+}
+inline void UseAndClobberRegister(FakeInput input) {
+  input.location()->SetUnallocated(FakeValueLocation::MUST_HAVE_REGISTER,
+                                   FakeValueLocation::USED_AT_START, -1);
+}
 template <typename T>
-void DefineSameAsFirst(T*);
+inline void DefineSameAsFirst(T* node) {
+  node->result().SetUnallocated(-1, 0);
+}
 
-struct FakeDataViewBoundsBuggy {
-  FakeInput IndexInput() { return {}; }
-  FakeInput ByteLengthInput() { return {}; }
+struct FakeDataViewBoundsBuggy : FakeNodeBase {
+  FakeInput IndexInput() { return input(0); }
+  FakeInput ByteLengthInput() { return input(1); }
 
   void SetValueLocationConstraints() {
     UseRegister(IndexInput());
@@ -358,9 +379,9 @@ struct FakeDataViewBoundsBuggy {
   }
 };
 
-struct FakeDataViewBoundsFixed {
-  FakeInput IndexInput() { return {}; }
-  FakeInput ByteLengthInput() { return {}; }
+struct FakeDataViewBoundsFixed : FakeNodeBase {
+  FakeInput IndexInput() { return input(0); }
+  FakeInput ByteLengthInput() { return input(1); }
   int element_size_ = 4;
 
   void SetValueLocationConstraints() {
@@ -383,9 +404,9 @@ struct FakeDataViewBoundsFixed {
   }
 };
 
-struct FakeBinopDefineSameAsFirstGood {
-  FakeInput LeftInput() { return {}; }
-  FakeInput RightInput() { return {}; }
+struct FakeBinopDefineSameAsFirstGood : FakeNodeBase {
+  FakeInput LeftInput() { return input(0); }
+  FakeInput RightInput() { return input(1); }
 
   void SetValueLocationConstraints() {
     UseRegister(LeftInput());
@@ -476,17 +497,36 @@ inline std::optional<int32_t> TryGetInt32Const(const ValueNode* node) {
   }
 }
 
-struct Input {
-  bool IsRegister() const { return false; }
-  bool IsDoubleRegister() const { return false; }
-  bool IsConstant() const { return false; }
-  ValueNode* node() const { return nullptr; }
+struct FakeUnallocatedOperand {
+  enum BasicPolicy { FIXED_SLOT, EXTENDED_POLICY };
+  enum ExtendedPolicy {
+    NONE,
+    REGISTER_OR_SLOT,
+    REGISTER_OR_SLOT_OR_CONSTANT,
+    FIXED_REGISTER,
+    FIXED_FP_REGISTER,
+    MUST_HAVE_REGISTER,
+    MUST_HAVE_SLOT,
+    SAME_AS_INPUT
+  };
+  enum Lifetime { USED_AT_START, USED_AT_END };
 };
 
 struct ValueLocation {
   bool IsRegister() const { return false; }
   bool IsDoubleRegister() const { return false; }
   bool IsConstant() const { return false; }
+  template <typename... Args>
+  void SetUnallocated(Args&&...) {}
+};
+
+struct Input {
+  ValueLocation loc_;
+  ValueLocation* location() { return &loc_; }
+  bool IsRegister() const { return false; }
+  bool IsDoubleRegister() const { return false; }
+  bool IsConstant() const { return false; }
+  ValueNode* node() const { return nullptr; }
 };
 
 struct OpProperties {
@@ -551,19 +591,63 @@ Register ToRegister(ValueLocation);
 DoubleRegister ToDoubleRegister(Input);
 DoubleRegister ToDoubleRegister(ValueLocation);
 
-void UseRegister(Input);
-void UseAndClobberRegister(Input);
-void UseAny(Input);
-void UseFixed(Input, Register);
-void UseAndClobberFixed(Input, Register);
+static constexpr int kNoVreg = -1;
+
+inline void UseRegister(Input input) {
+  input.location()->SetUnallocated(FakeUnallocatedOperand::MUST_HAVE_REGISTER,
+                                   FakeUnallocatedOperand::USED_AT_END,
+                                   kNoVreg);
+}
+inline void UseAndClobberRegister(Input input) {
+  input.location()->SetUnallocated(FakeUnallocatedOperand::MUST_HAVE_REGISTER,
+                                   FakeUnallocatedOperand::USED_AT_START,
+                                   kNoVreg);
+}
+inline void UseAny(Input input) {
+  input.location()->SetUnallocated(
+      FakeUnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT,
+      FakeUnallocatedOperand::USED_AT_END, kNoVreg);
+}
+inline void UseFixed(Input input, Register reg) {
+  input.location()->SetUnallocated(FakeUnallocatedOperand::FIXED_REGISTER,
+                                   reg.code(), kNoVreg);
+}
+inline void UseFixed(Input input, DoubleRegister reg) {
+  input.location()->SetUnallocated(FakeUnallocatedOperand::FIXED_FP_REGISTER,
+                                   reg.code(), kNoVreg);
+}
+inline void UseAndClobberFixed(Input input, Register reg) {
+  input.location()->SetUnallocated(
+      FakeUnallocatedOperand::FIXED_REGISTER, reg.code(),
+      FakeUnallocatedOperand::USED_AT_START, kNoVreg);
+}
 template <typename T>
-void DefineAsRegister(T*);
+inline void DefineAsRegister(T* node) {
+  node->result().SetUnallocated(FakeUnallocatedOperand::MUST_HAVE_REGISTER,
+                                kNoVreg);
+}
 template <typename T>
-void DefineSameAsFirst(T*);
+inline void DefineSameAsFirst(T* node) {
+  node->result().SetUnallocated(kNoVreg, 0);
+}
 template <typename T>
-void DefineAsFixed(T*, Register);
+inline void DefineSameAs(T* node, int input_index) {
+  node->result().SetUnallocated(kNoVreg, input_index);
+}
 template <typename T>
-void DefineAsConstant(T*);
+inline void DefineAsFixed(T* node, Register reg) {
+  node->result().SetUnallocated(FakeUnallocatedOperand::FIXED_REGISTER,
+                                reg.code(), kNoVreg);
+}
+template <typename T>
+inline void DefineAsFixed(T* node, DoubleRegister reg) {
+  node->result().SetUnallocated(FakeUnallocatedOperand::FIXED_FP_REGISTER,
+                                reg.code(), kNoVreg);
+}
+template <typename T>
+inline void DefineAsConstant(T* node) {
+  node->result().SetUnallocated(FakeUnallocatedOperand::NONE, kNoVreg);
+}
 
 struct NodeBase {
   Input input(int) { return {}; }
@@ -1224,6 +1308,148 @@ struct MaglevOffIsolateExternalRefBad : NodeBase {
     // EXPECT-WARNING: Use of Operand 'op' after its underlying scratch register
     __ movq(op, in_reg);
     __ movq(out_reg, scratch);
+  }
+};
+
+// DefineSameAsFirst always binds result() to input(0), even when
+// SetValueLocationConstraints constrains input(1) before input(0).
+struct MaglevDefineSameAsFirstOutOfOrderGood : NodeBase {
+  static constexpr std::array<ValueRepresentation, 2> kInputRepresentations = {
+      ValueRepresentation::kInt32, ValueRepresentation::kInt32};
+
+  Input FirstInput() { return input(0); }
+  Input SecondInput() { return input(1); }
+
+  void SetValueLocationConstraints() {
+    UseRegister(SecondInput());
+    UseAndClobberRegister(FirstInput());
+    DefineSameAsFirst(this);
+  }
+
+  void GenerateCode(FakeMaglevAssembler* masm) {
+    Register res = ToRegister(result());
+    Register second = ToRegister(SecondInput());
+    __ movq(res, Immediate(0));
+    __ addq(res, second);
+  }
+};
+
+struct MaglevDefineSameAsFirstOutOfOrderBad : NodeBase {
+  static constexpr std::array<ValueRepresentation, 2> kInputRepresentations = {
+      ValueRepresentation::kInt32, ValueRepresentation::kInt32};
+
+  Input FirstInput() { return input(0); }
+  Input SecondInput() { return input(1); }
+
+  void SetValueLocationConstraints() {
+    UseRegister(SecondInput());
+    UseRegister(FirstInput());
+    DefineSameAsFirst(this);
+  }
+
+  void GenerateCode(FakeMaglevAssembler* masm) {
+    Register res = ToRegister(result());
+    Register second = ToRegister(SecondInput());
+    __ movq(res, Immediate(0));
+    // EXPECT-WARNING: Maglev input 'SecondInput' is read
+    __ addq(res, second);
+  }
+};
+
+// DefineSameAsFirst with UseAndClobberFixed on input(0) prevents aliasing
+// with arbitrary UseRegister inputs.
+struct MaglevDefineSameAsFirstClobberFixedGood : NodeBase {
+  static constexpr std::array<ValueRepresentation, 2> kInputRepresentations = {
+      ValueRepresentation::kInt32, ValueRepresentation::kInt32};
+
+  Input FirstInput() { return input(0); }
+  Input SecondInput() { return input(1); }
+
+  void SetValueLocationConstraints() {
+    UseAndClobberFixed(FirstInput(), rax);
+    UseRegister(SecondInput());
+    DefineSameAsFirst(this);
+  }
+
+  void GenerateCode(FakeMaglevAssembler* masm) {
+    Register res = ToRegister(result());
+    Register second = ToRegister(SecondInput());
+    __ movq(res, Immediate(0));
+    __ addq(res, second);
+  }
+};
+
+// Pre-deferred CHECK_NE(first, second) is preserved across MakeDeferredCode.
+struct MaglevDeferredDcheckNeGood : NodeBase {
+  static constexpr OpProperties kProperties = OpProperties::DeferredCall();
+  static constexpr std::array<ValueRepresentation, 2> kInputRepresentations = {
+      ValueRepresentation::kTagged, ValueRepresentation::kTagged};
+
+  Input FirstInput() { return input(0); }
+  Input SecondInput() { return input(1); }
+
+  void SetValueLocationConstraints() {
+    UseRegister(FirstInput());
+    UseRegister(SecondInput());
+    DefineSameAsFirst(this);
+  }
+
+  void GenerateCode(FakeMaglevAssembler* masm) {
+    Register first = ToRegister(FirstInput());
+    Register second = ToRegister(SecondInput());
+    DCHECK_EQ(first, ToRegister(result()));
+    CHECK_NE(first, second);
+    __ MakeDeferredCode(
+        [](FakeMaglevAssembler* masm, Register obj, Register res_reg) {
+          __ movq(res_reg, Immediate(0));
+          __ cmpq(obj, res_reg);
+        },
+        second, first);
+  }
+};
+
+// Generic SAME_AS_INPUT with non-zero input index (`SetUnallocated(kNoVreg,
+// 1)`) binds result() to SecondInput() (`input(1)`) rather than FirstInput().
+struct MaglevDefineSameAsSecondInputTests : NodeBase {
+  static constexpr std::array<ValueRepresentation, 2> kInputRepresentations = {
+      ValueRepresentation::kTagged, ValueRepresentation::kInt32};
+
+  Input FirstInput() { return input(0); }
+  Input SecondInput() { return input(1); }
+
+  void SetValueLocationConstraints() {
+    UseRegister(FirstInput());
+    UseRegister(SecondInput());
+    DefineSameAs(this, 1);
+  }
+
+  void GenerateCode(FakeMaglevAssembler* masm) {
+    Register first = ToRegister(FirstInput());
+    Register second = ToRegister(SecondInput());
+    __ addq(second, Immediate(1));
+    // EXPECT-WARNING: Cannot modify/clobber Maglev input register 'FirstInput'
+    __ movq(first, Immediate(1));
+  }
+};
+
+struct MaglevDefineSameAsSecondClobberGood : NodeBase {
+  static constexpr std::array<ValueRepresentation, 2> kInputRepresentations = {
+      ValueRepresentation::kInt32, ValueRepresentation::kInt32};
+
+  Input FirstInput() { return input(0); }
+  Input SecondInput() { return input(1); }
+
+  void SetValueLocationConstraints() {
+    UseRegister(FirstInput());
+    UseAndClobberRegister(SecondInput());
+    DefineSameAs(this, 1);
+  }
+
+  void GenerateCode(FakeMaglevAssembler* masm) {
+    Register res = ToRegister(result());
+    Register first = ToRegister(FirstInput());
+    __ movq(res, Immediate(0));
+    __ addq(res, first);
   }
 };
 

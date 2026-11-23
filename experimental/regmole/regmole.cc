@@ -299,7 +299,7 @@ bool IsMaglevTrackableRegType(clang::QualType qt) {
 
 bool IsMaglevInputType(clang::QualType qt) {
   return IsTypeNamed(qt, "Input") || IsTypeNamed(qt, "ConstInput") ||
-         IsTypeNamed(qt, "ValueLocation");
+         IsTypeNamed(qt, "ValueLocation") || IsTypeNamed(qt, "InputLocation");
 }
 
 bool IsSaveRegisterStateForCallType(clang::QualType qt) {
@@ -759,7 +759,7 @@ const char* MaglevInputKindToString(MaglevInputKind kind) {
 enum class MaglevResultKind {
   kNone = 0,
   kDefineAsRegister = 1,
-  kDefineSameAsFirst = 2,
+  kDefineSameAsInput = 2,
   kDefineAsFixed = 3,
   kDefineAsConstant = 4,
   kCustomUnallocated = 5,
@@ -789,12 +789,12 @@ struct MaglevResultConstraint {
   MaglevResultKind kind = MaglevResultKind::kNone;
   int fixed_reg = -1;
   bool is_double_fixed = false;
+  int same_as_input_index = -1;
 };
 
 struct MaglevConstraintPath {
   std::vector<MaglevCondAtom> conds;
   std::map<std::string, MaglevInputConstraint> inputs;
-  std::string first_input_key;
   MaglevResultConstraint result;
   int gpr_temps = 0;
   int double_temps = 0;
@@ -912,13 +912,26 @@ bool CondAtomListsCompatible(const std::vector<MaglevCondAtom>& a,
   return true;
 }
 
-bool MatchesFirstMaglevInput(const std::string& key,
-                             const MaglevConstraintPath& path) {
-  if (key.empty()) return false;
+int ResolveInputKeyIndex(const MaglevNodeSpec& spec, const std::string& key) {
+  if (key.empty()) return -1;
   if (key.rfind("idx:", 0) == 0) {
-    return key == "idx:0";
+    char* endp = nullptr;
+    long v = std::strtol(key.c_str() + 4, &endp, 10);
+    if (endp && *endp == '\0' && v >= 0) return static_cast<int>(v);
+    return -1;
   }
-  return !path.first_input_key.empty() && key == path.first_input_key;
+  auto it = spec.input_key_indices.find(key);
+  if (it != spec.input_key_indices.end()) return it->second;
+  return -1;
+}
+
+bool MatchesSameAsInput(const MaglevNodeSpec& spec, const std::string& key,
+                        const MaglevConstraintPath& path) {
+  if (path.result.kind != MaglevResultKind::kDefineSameAsInput ||
+      path.result.same_as_input_index < 0) {
+    return false;
+  }
+  return ResolveInputKeyIndex(spec, key) == path.result.same_as_input_index;
 }
 
 const MaglevInputConstraint* LookupInputConstraint(
@@ -934,6 +947,22 @@ const MaglevInputConstraint* LookupInputConstraint(
     if (var_in != path.inputs.end()) return &var_in->second;
   }
   return nullptr;
+}
+
+const MaglevInputConstraint* LookupSameAsInputConstraint(
+    const MaglevNodeSpec& spec, const MaglevConstraintPath& path) {
+  if (path.result.kind != MaglevResultKind::kDefineSameAsInput ||
+      path.result.same_as_input_index < 0) {
+    return nullptr;
+  }
+  int target = path.result.same_as_input_index;
+  std::string idx_key = "idx:" + std::to_string(target);
+  auto it = path.inputs.find(idx_key);
+  if (it != path.inputs.end()) return &it->second;
+  for (const auto& [k, ic] : path.inputs) {
+    if (ResolveInputKeyIndex(spec, k) == target) return &ic;
+  }
+  return LookupInputConstraint(path, idx_key);
 }
 
 // Collects all declarations to inspect for attributes (redecls + template
@@ -1831,14 +1860,11 @@ class RegmoleAnalyzer {
             p.inputs[UnescapeToken(ktok)] = {static_cast<MaglevInputKind>(ik),
                                              fr, idf != 0, oco != 0};
           }
-          std::string first_tok;
-          int rk = 0, rfr = -1, ridf = 0;
+          int rk = 0, rfr = -1, ridf = 0, rsai = -1;
           int gu = 0, du = 0, hdg = 0;
-          iss >> first_tok >> rk >> rfr >> ridf >> p.gpr_temps >>
-              p.double_temps >> gu >> du >> p.fixed_gpr_temps >>
-              p.fixed_double_temps >> hdg;
-          p.first_input_key = UnescapeToken(first_tok);
-          p.result = {static_cast<MaglevResultKind>(rk), rfr, ridf != 0};
+          iss >> rk >> rfr >> ridf >> rsai >> p.gpr_temps >> p.double_temps >>
+              gu >> du >> p.fixed_gpr_temps >> p.fixed_double_temps >> hdg;
+          p.result = {static_cast<MaglevResultKind>(rk), rfr, ridf != 0, rsai};
           p.gpr_temps_unknown = (gu != 0);
           p.double_temps_unknown = (du != 0);
           p.has_dynamic_fixed_gpr = (hdg != 0);
@@ -1937,12 +1963,12 @@ class RegmoleAnalyzer {
               << " " << ic.fixed_reg << " " << (ic.is_double_fixed ? 1 : 0)
               << " " << (ic.only_constant_or_reg ? 1 : 0);
         }
-        out << " " << EscapeToken(p.first_input_key) << " "
-            << static_cast<int>(p.result.kind) << " " << p.result.fixed_reg
-            << " " << (p.result.is_double_fixed ? 1 : 0) << " " << p.gpr_temps
-            << " " << p.double_temps << " " << (p.gpr_temps_unknown ? 1 : 0)
-            << " " << (p.double_temps_unknown ? 1 : 0) << " "
-            << p.fixed_gpr_temps << " " << p.fixed_double_temps << " "
+        out << " " << static_cast<int>(p.result.kind) << " "
+            << p.result.fixed_reg << " " << (p.result.is_double_fixed ? 1 : 0)
+            << " " << p.result.same_as_input_index << " " << p.gpr_temps << " "
+            << p.double_temps << " " << (p.gpr_temps_unknown ? 1 : 0) << " "
+            << (p.double_temps_unknown ? 1 : 0) << " " << p.fixed_gpr_temps
+            << " " << p.fixed_double_temps << " "
             << (p.has_dynamic_fixed_gpr ? 1 : 0);
       }
       out << " " << spec.input_reprs.size();
@@ -2301,9 +2327,53 @@ class RegmoleAnalyzer {
     return std::nullopt;
   }
 
-  bool IsMaglevResultExpr(const clang::Expr* expr) {
+  std::string ResolveEnumConstantName(const clang::Expr* expr,
+                                      const ExprSubMap& subs) {
+    if (!expr) return "";
+    const clang::Expr* cur = UnwrapExpr(expr);
+    for (int hop = 0; cur && hop < 6; ++hop) {
+      if (const auto* dre = llvm::dyn_cast<clang::DeclRefExpr>(cur)) {
+        if (const auto* ecd =
+                llvm::dyn_cast<clang::EnumConstantDecl>(dre->getDecl())) {
+          return SafeDeclName(ecd).str();
+        }
+        auto it = subs.find(CanonValueDecl(dre->getDecl()));
+        if (it != subs.end() && it->second && it->second != cur) {
+          cur = UnwrapExpr(it->second);
+          continue;
+        }
+      }
+      break;
+    }
+    if (!cur) return "";
+    clang::QualType qt = cur->getType().getNonReferenceType();
+    if (!qt.isNull() && qt->isEnumeralType()) {
+      if (auto iv = TryEvalConstInt(cur, subs)) {
+        if (const auto* et = qt->getAs<clang::EnumType>()) {
+          if (const clang::EnumDecl* ed = et->getDecl()) {
+            for (const clang::EnumConstantDecl* ecd : ed->enumerators()) {
+              if (ecd->getInitVal().getExtValue() == *iv) {
+                return SafeDeclName(ecd).str();
+              }
+            }
+          }
+        }
+      }
+    }
+    return "";
+  }
+
+  bool IsMaglevResultExpr(const clang::Expr* expr,
+                          const ExprSubMap& subs = {}) {
     expr = UnwrapExpr(expr);
-    while (expr) {
+    for (int hop = 0; expr && hop < 8; ++hop) {
+      if (const auto* dre = llvm::dyn_cast<clang::DeclRefExpr>(expr)) {
+        auto it = subs.find(CanonValueDecl(dre->getDecl()));
+        if (it != subs.end() && it->second && it->second != expr) {
+          expr = UnwrapExpr(it->second);
+          continue;
+        }
+      }
       if (const auto* construct =
               llvm::dyn_cast<clang::CXXConstructExpr>(expr)) {
         if (construct->getNumArgs() == 1) {
@@ -2322,6 +2392,16 @@ class RegmoleAnalyzer {
           if (mce->getNumArgs() == 0 && mname == "result") {
             const clang::Expr* obj =
                 UnwrapExpr(mce->getImplicitObjectArgument());
+            for (int ohop = 0; obj && ohop < 6; ++ohop) {
+              if (const auto* odre = llvm::dyn_cast<clang::DeclRefExpr>(obj)) {
+                auto oit = subs.find(CanonValueDecl(odre->getDecl()));
+                if (oit != subs.end() && oit->second && oit->second != obj) {
+                  obj = UnwrapExpr(oit->second);
+                  continue;
+                }
+              }
+              break;
+            }
             if (const auto* inner_mce =
                     llvm::dyn_cast_or_null<clang::CXXMemberCallExpr>(obj)) {
               if (const auto* inner_md = inner_mce->getMethodDecl()) {
@@ -2364,7 +2444,7 @@ class RegmoleAnalyzer {
       break;
     }
     if (!expr) return {"", ""};
-    if (IsMaglevResultExpr(expr)) return {"", ""};
+    if (IsMaglevResultExpr(expr, subs)) return {"", ""};
 
     if (const auto* dre = llvm::dyn_cast<clang::DeclRefExpr>(expr)) {
       const clang::ValueDecl* d = CanonValueDecl(dre->getDecl());
@@ -3006,15 +3086,7 @@ class RegmoleAnalyzer {
   static int LookupInputRepr(const MaglevNodeSpec& spec,
                              const std::string& key) {
     if (spec.input_reprs.empty() || key.empty()) return -1;
-    int idx = -1;
-    if (key.rfind("idx:", 0) == 0) {
-      char* endp = nullptr;
-      long v = std::strtol(key.c_str() + 4, &endp, 10);
-      if (endp && *endp == '\0' && v >= 0) idx = static_cast<int>(v);
-    } else {
-      auto it = spec.input_key_indices.find(key);
-      if (it != spec.input_key_indices.end()) idx = it->second;
-    }
+    int idx = ResolveInputKeyIndex(spec, key);
     if (idx >= 0 && static_cast<size_t>(idx) < spec.input_reprs.size()) {
       return spec.input_reprs[idx];
     }
@@ -3365,44 +3437,66 @@ class RegmoleAnalyzer {
     }
   }
 
-  bool StmtAffectsMaglevConstraints(const clang::Stmt* stmt) {
-    if (!stmt) return false;
+  bool FuncAffectsMaglevConstraints(const clang::FunctionDecl* fn,
+                                    int depth = 0) {
+    if (!fn || depth > 5) return false;
+    const clang::FunctionDecl* body_decl = nullptr;
+    if (!fn->hasBody(body_decl) || !body_decl->getBody()) return false;
+    const clang::FunctionDecl* canon = body_decl->getCanonicalDecl();
+    auto cit = constraint_fn_cache_.find(canon);
+    if (cit != constraint_fn_cache_.end()) return cit->second;
+    if (!active_constraint_fns_.insert(canon).second) return false;
+    bool res = StmtAffectsMaglevConstraints(body_decl->getBody(), depth + 1);
+    active_constraint_fns_.erase(canon);
+    if (active_constraint_fns_.empty()) {
+      constraint_fn_cache_[canon] = res;
+    }
+    return res;
+  }
+
+  bool StmtAffectsMaglevConstraints(const clang::Stmt* stmt, int depth = 0) {
+    if (!stmt || depth > 6) return false;
     class Finder : public clang::RecursiveASTVisitor<Finder> {
      public:
+      RegmoleAnalyzer& self;
+      int cur_depth;
       bool found = false;
+      Finder(RegmoleAnalyzer& s, int d) : self(s), cur_depth(d) {}
       bool VisitCallExpr(const clang::CallExpr* ce) {
+        if (const auto* oce = llvm::dyn_cast<clang::CXXOperatorCallExpr>(ce)) {
+          if (oce->getOperator() == clang::OO_Call) {
+            found = true;
+            return false;
+          }
+        }
         if (const clang::FunctionDecl* fd = ce->getDirectCallee()) {
           llvm::StringRef n = SafeDeclName(fd);
-          if (n == "UseRegister" || n == "UseAndClobberRegister" ||
-              n == "UseAny" || n == "UseFixed" || n == "UseAndClobberFixed" ||
-              n == "DefineAsRegister" || n == "DefineSameAsFirst" ||
-              n == "DefineAsFixed" || n == "DefineAsConstant" ||
-              n == "SetUnallocated" || n == "set_temporaries_needed" ||
+          if (n == "SetUnallocated" || n == "set_temporaries_needed" ||
               n == "set_double_temporaries_needed" ||
               n == "RequireSpecificTemporary" ||
               n == "RequireSpecificDoubleTemporary") {
             found = true;
             return false;
           }
-          // Conservative: local lambda calls or member helpers on `this` may
-          // set constraints.
-          if (llvm::isa<clang::CXXOperatorCallExpr>(ce)) {
-            found = true;
-            return false;
-          }
           if (const auto* mce = llvm::dyn_cast<clang::CXXMemberCallExpr>(ce)) {
-            if (const auto* obj = mce->getImplicitObjectArgument()) {
-              if (llvm::isa<clang::CXXThisExpr>(obj->IgnoreParenImpCasts()) &&
-                  !mce->getMethodDecl()->isConst()) {
-                found = true;
-                return false;
+            if (const clang::Expr* obj = mce->getImplicitObjectArgument()) {
+              if (const auto* inner_mce =
+                      llvm::dyn_cast_or_null<clang::CXXMemberCallExpr>(
+                          UnwrapExpr(obj))) {
+                if (const auto* inner_md = inner_mce->getMethodDecl()) {
+                  if (SafeDeclName(inner_md) == "node") return true;
+                }
               }
             }
+          }
+          if (self.FuncAffectsMaglevConstraints(fd, cur_depth)) {
+            found = true;
+            return false;
           }
         }
         return true;
       }
-    } f;
+    } f(*this, depth);
     f.TraverseStmt(const_cast<clang::Stmt*>(stmt));
     return f.found;
   }
@@ -3836,10 +3930,13 @@ class RegmoleAnalyzer {
 
       auto eval_reg_arg = [&](const clang::Expr* arg, const ExprSubMap& subs,
                               bool* out_is_double) -> int {
-        const clang::Expr* cur = UnwrapExpr(arg);
-        if (const auto* dre = llvm::dyn_cast_or_null<clang::DeclRefExpr>(cur)) {
+        for (int hop = 0; arg && hop < 6; ++hop) {
+          const clang::Expr* cur = UnwrapExpr(arg);
+          const auto* dre = llvm::dyn_cast_or_null<clang::DeclRefExpr>(cur);
+          if (!dre) break;
           auto it = subs.find(CanonValueDecl(dre->getDecl()));
-          if (it != subs.end() && it->second) arg = it->second;
+          if (it == subs.end() || !it->second || it->second == arg) break;
+          arg = it->second;
         }
         if (IsDoubleRegType(arg->getType())) {
           if (out_is_double) *out_is_double = true;
@@ -3855,86 +3952,142 @@ class RegmoleAnalyzer {
         return -1;
       };
 
-      if (cname == "UseRegister" || cname == "UseAndClobberRegister" ||
-          cname == "UseAny" || cname == "UseFixed" ||
-          cname == "UseAndClobberFixed") {
-        if (ce->getNumArgs() >= 1) {
-          MaglevInputKind kind = MaglevInputKind::kUseRegister;
-          if (cname == "UseAndClobberRegister")
-            kind = MaglevInputKind::kUseAndClobberRegister;
-          else if (cname == "UseAny")
-            kind = MaglevInputKind::kUseAny;
-          else if (cname == "UseFixed")
-            kind = MaglevInputKind::kUseFixed;
-          else if (cname == "UseAndClobberFixed")
-            kind = MaglevInputKind::kUseAndClobberFixed;
-
-          for (auto& st : states) {
-            auto [key, label] = ExtractMaglevInputKey(
-                ce->getArg(0), st.input_bindings, st.expr_subs);
-            if (key.empty()) continue;
-            if (st.path.first_input_key.empty()) st.path.first_input_key = key;
-            MaglevInputConstraint ic;
-            ic.kind = kind;
-            if (kind == MaglevInputKind::kUseAny &&
-                st.known_constant_inputs.count(key)) {
-              ic.only_constant_or_reg = true;
-            }
-            if ((kind == MaglevInputKind::kUseFixed ||
-                 kind == MaglevInputKind::kUseAndClobberFixed) &&
-                ce->getNumArgs() >= 2) {
-              ic.fixed_reg = eval_reg_arg(ce->getArg(1), st.expr_subs,
-                                          &ic.is_double_fixed);
-              if (kind == MaglevInputKind::kUseAndClobberFixed &&
-                  !ic.is_double_fixed && ic.fixed_reg < 0) {
-                st.path.has_dynamic_fixed_gpr = true;
-              }
-            }
-            st.path.inputs[key] = ic;
+      auto eval_fixed_reg_index = [&](const clang::Expr* idx_arg, bool is_fp,
+                                      const ExprSubMap& subs) -> int {
+        const clang::Expr* cur = UnwrapExpr(idx_arg);
+        for (int hop = 0; cur && hop < 6; ++hop) {
+          const auto* dre = llvm::dyn_cast<clang::DeclRefExpr>(cur);
+          if (!dre) break;
+          auto it = subs.find(CanonValueDecl(dre->getDecl()));
+          if (it == subs.end() || !it->second || it->second == cur) break;
+          cur = UnwrapExpr(it->second);
+        }
+        if (const auto* code_mce =
+                llvm::dyn_cast_or_null<clang::CXXMemberCallExpr>(cur)) {
+          if (code_mce->getNumArgs() == 0 && code_mce->getMethodDecl() &&
+              SafeDeclName(code_mce->getMethodDecl()) == "code") {
+            bool dummy_is_dbl = is_fp;
+            return eval_reg_arg(code_mce->getImplicitObjectArgument(), subs,
+                                &dummy_is_dbl);
           }
         }
-        return;
-      }
+        if (auto iv = TryEvalConstInt(idx_arg, subs)) {
+          int max_r = is_fp ? arch_.num_fp_regs : arch_.num_gprs;
+          if (*iv >= 0 && *iv < max_r) return static_cast<int>(*iv);
+        }
+        return -1;
+      };
 
-      if (cname == "DefineAsRegister") {
-        for (auto& st : states) {
-          st.path.result.kind = MaglevResultKind::kDefineAsRegister;
-        }
-        return;
-      }
-      if (cname == "DefineSameAsFirst") {
-        for (auto& st : states) {
-          st.path.result.kind = MaglevResultKind::kDefineSameAsFirst;
-        }
-        return;
-      }
-      if (cname == "DefineAsConstant") {
-        for (auto& st : states) {
-          st.path.result.kind = MaglevResultKind::kDefineAsConstant;
-        }
-        return;
-      }
-      if (cname == "DefineAsFixed" && ce->getNumArgs() >= 2) {
-        for (auto& st : states) {
-          st.path.result.kind = MaglevResultKind::kDefineAsFixed;
-          st.path.result.fixed_reg = eval_reg_arg(
-              ce->getArg(1), st.expr_subs, &st.path.result.is_double_fixed);
-          if (!st.path.result.is_double_fixed && st.path.result.fixed_reg < 0) {
-            st.path.has_dynamic_fixed_gpr = true;
-          }
-        }
-        return;
-      }
       if (cname == "SetUnallocated") {
         if (const auto* mce = llvm::dyn_cast<clang::CXXMemberCallExpr>(ce)) {
-          if (IsMaglevResultExpr(mce->getImplicitObjectArgument())) {
-            for (auto& st : states) {
-              if (st.path.result.kind == MaglevResultKind::kNone) {
-                st.path.result.kind = MaglevResultKind::kCustomUnallocated;
+          const clang::Expr* recv = mce->getImplicitObjectArgument();
+          unsigned nargs = mce->getNumArgs();
+          for (auto& st : states) {
+            bool is_res = IsMaglevResultExpr(recv, st.expr_subs);
+            std::string in_key;
+            if (!is_res) {
+              in_key =
+                  ExtractMaglevInputKey(recv, st.input_bindings, st.expr_subs)
+                      .first;
+              if (in_key.empty()) continue;
+            }
+
+            std::string pol = nargs >= 1 ? ResolveEnumConstantName(
+                                               mce->getArg(0), st.expr_subs)
+                                         : "";
+            bool arg0_is_enum =
+                nargs >= 1 &&
+                !mce->getArg(0)->getType().getNonReferenceType().isNull() &&
+                mce->getArg(0)
+                    ->getType()
+                    .getNonReferenceType()
+                    ->isEnumeralType();
+
+            if (is_res) {
+              MaglevResultConstraint rc;
+              if (nargs == 2 && !arg0_is_enum) {
+                // UnallocatedOperand(int virtual_register, int input_index)
+                // -> SAME_AS_INPUT
+                rc.kind = MaglevResultKind::kDefineSameAsInput;
+                if (auto idx = TryEvalConstInt(mce->getArg(1), st.expr_subs)) {
+                  rc.same_as_input_index = static_cast<int>(*idx);
+                }
+              } else if (pol == "MUST_HAVE_REGISTER") {
+                rc.kind = MaglevResultKind::kDefineAsRegister;
+              } else if (pol == "NONE") {
+                rc.kind = MaglevResultKind::kDefineAsConstant;
+              } else if ((pol == "FIXED_REGISTER" ||
+                          pol == "FIXED_FP_REGISTER") &&
+                         nargs >= 3) {
+                bool is_fp = (pol == "FIXED_FP_REGISTER");
+                rc.kind = MaglevResultKind::kDefineAsFixed;
+                rc.is_double_fixed = is_fp;
+                rc.fixed_reg =
+                    eval_fixed_reg_index(mce->getArg(1), is_fp, st.expr_subs);
+                if (!is_fp && rc.fixed_reg < 0) {
+                  st.path.has_dynamic_fixed_gpr = true;
+                }
+              } else if (nargs == 3 && !arg0_is_enum) {
+                // UnallocatedOperand(int reg_id, int slot_id, int vreg)
+                rc.kind = MaglevResultKind::kDefineAsFixed;
+                rc.is_double_fixed = false;
+                rc.fixed_reg =
+                    eval_fixed_reg_index(mce->getArg(0), false, st.expr_subs);
+                if (rc.fixed_reg < 0) {
+                  st.path.has_dynamic_fixed_gpr = true;
+                }
+              } else {
+                rc.kind = MaglevResultKind::kCustomUnallocated;
+              }
+              st.path.result = rc;
+            } else {
+              MaglevInputConstraint ic;
+              if (pol == "MUST_HAVE_REGISTER") {
+                std::string life =
+                    nargs == 3
+                        ? ResolveEnumConstantName(mce->getArg(1), st.expr_subs)
+                        : "";
+                ic.kind = (life == "USED_AT_START")
+                              ? MaglevInputKind::kUseAndClobberRegister
+                              : MaglevInputKind::kUseRegister;
+              } else if (pol == "REGISTER_OR_SLOT_OR_CONSTANT" ||
+                         pol == "REGISTER_OR_SLOT" || pol == "MUST_HAVE_SLOT" ||
+                         pol == "FIXED_SLOT") {
+                ic.kind = MaglevInputKind::kUseAny;
+                if (pol == "REGISTER_OR_SLOT_OR_CONSTANT" &&
+                    st.known_constant_inputs.count(in_key)) {
+                  ic.only_constant_or_reg = true;
+                }
+              } else if ((pol == "FIXED_REGISTER" ||
+                          pol == "FIXED_FP_REGISTER") &&
+                         nargs >= 3) {
+                bool is_fp = (pol == "FIXED_FP_REGISTER");
+                std::string life =
+                    nargs >= 4
+                        ? ResolveEnumConstantName(mce->getArg(2), st.expr_subs)
+                        : "";
+                ic.kind = (life == "USED_AT_START")
+                              ? MaglevInputKind::kUseAndClobberFixed
+                              : MaglevInputKind::kUseFixed;
+                ic.is_double_fixed = is_fp;
+                ic.fixed_reg =
+                    eval_fixed_reg_index(mce->getArg(1), is_fp, st.expr_subs);
+                if (ic.kind == MaglevInputKind::kUseAndClobberFixed && !is_fp &&
+                    ic.fixed_reg < 0) {
+                  st.path.has_dynamic_fixed_gpr = true;
+                }
+              } else if (nargs == 3 && !arg0_is_enum) {
+                ic.kind = MaglevInputKind::kUseFixed;
+                ic.is_double_fixed = false;
+                ic.fixed_reg =
+                    eval_fixed_reg_index(mce->getArg(0), false, st.expr_subs);
+              }
+              if (ic.kind != MaglevInputKind::kNone) {
+                st.path.inputs[in_key] = ic;
               }
             }
-            return;
           }
+          return;
         }
       }
       if ((cname == "set_temporaries_needed" ||
@@ -3999,13 +4152,41 @@ class RegmoleAnalyzer {
         return;
       }
 
-      // Inline helper methods called from SetValueLocationConstraints (e.g.
-      // `SetValueLocationConstraintsImpl()` or base class calls).
+      // Inline helper functions and member helpers called from
+      // SetValueLocationConstraints (including Use*/Define* wrappers and
+      // SetValueLocationConstraintsImpl()).
       const clang::FunctionDecl* helper_body = nullptr;
-      if (depth < 3 && callee->hasBody(helper_body) &&
-          StmtAffectsMaglevConstraints(helper_body->getBody())) {
+      if (depth < 5 && callee->hasBody(helper_body) &&
+          FuncAffectsMaglevConstraints(helper_body, depth)) {
+        const auto* mce = llvm::dyn_cast<clang::CXXMemberCallExpr>(ce);
         std::vector<ConstraintExecState> next_states;
         for (auto& st : states) {
+          if (mce) {
+            bool recv_is_this = false;
+            const clang::Expr* obj =
+                UnwrapExpr(mce->getImplicitObjectArgument());
+            for (int hop = 0; obj && hop < 6; ++hop) {
+              if (llvm::isa<clang::CXXThisExpr>(obj)) {
+                recv_is_this = true;
+                break;
+              }
+              if (const auto* dre = llvm::dyn_cast<clang::DeclRefExpr>(obj)) {
+                auto it = st.expr_subs.find(CanonValueDecl(dre->getDecl()));
+                if (it != st.expr_subs.end() && it->second &&
+                    it->second != obj) {
+                  obj = UnwrapExpr(it->second);
+                  continue;
+                }
+              }
+              break;
+            }
+            if (!recv_is_this) {
+              if (next_states.size() < kMaxConstraintPaths) {
+                next_states.push_back(std::move(st));
+              }
+              continue;
+            }
+          }
           std::vector<ConstraintExecState> sub_states;
           std::vector<ConstraintExecState> sub_done;
           ConstraintExecState child = st;
@@ -4157,7 +4338,7 @@ class RegmoleAnalyzer {
     }
     if (ce->getNumArgs() != 1) return std::nullopt;
     const clang::Expr* arg0 = ce->getArg(0);
-    if (IsMaglevResultExpr(arg0)) {
+    if (IsMaglevResultExpr(arg0, env.local_expr_bindings)) {
       MaglevToRegMatch m;
       m.is_result = true;
       m.is_double = is_double;
@@ -4385,8 +4566,7 @@ class RegmoleAnalyzer {
           ic->kind == MaglevInputKind::kUseAndClobberFixed) {
         continue;
       }
-      if (p->result.kind == MaglevResultKind::kDefineSameAsFirst &&
-          MatchesFirstMaglevInput(input_key, *p)) {
+      if (MatchesSameAsInput(spec, input_key, *p)) {
         continue;
       }
       if (ic->kind == MaglevInputKind::kUseFixed &&
@@ -4484,37 +4664,40 @@ class RegmoleAnalyzer {
           continue;
         }
       }
-      if (p->result.kind == MaglevResultKind::kDefineSameAsFirst) {
-        // Under DefineSameAsFirst, result() == input(0). If input(0) was
-        // requested with UseAndClobberRegister, Maglev's regalloc chooses an
-        // unblocked register distinct from other inputs.
-        const MaglevInputConstraint* first_ic =
-            p->first_input_key.empty()
-                ? nullptr
-                : LookupInputConstraint(*p, p->first_input_key);
-        if (first_ic &&
-            first_ic->kind == MaglevInputKind::kUseAndClobberRegister &&
-            !MatchesFirstMaglevInput(input_key, *p)) {
+      if (p->result.kind == MaglevResultKind::kDefineSameAsInput) {
+        // Under SAME_AS_INPUT, result() == input(idx). If input(idx) was
+        // requested with UseAndClobberRegister or UseAndClobberFixed, Maglev's
+        // regalloc chooses an unblocked register distinct from other inputs
+        // (aside from an explicit UseFixed on that same register).
+        const MaglevInputConstraint* same_ic =
+            LookupSameAsInputConstraint(spec, *p);
+        if (same_ic &&
+            (same_ic->kind == MaglevInputKind::kUseAndClobberRegister ||
+             same_ic->kind == MaglevInputKind::kUseAndClobberFixed) &&
+            !MatchesSameAsInput(spec, input_key, *p)) {
           continue;
         }
-        if (first_ic && ic &&
-            (first_ic->kind == MaglevInputKind::kUseFixed ||
-             first_ic->kind == MaglevInputKind::kUseAndClobberFixed) &&
+        if (same_ic && ic &&
+            (same_ic->kind == MaglevInputKind::kUseFixed ||
+             same_ic->kind == MaglevInputKind::kUseAndClobberFixed) &&
             (ic->kind == MaglevInputKind::kUseFixed ||
              ic->kind == MaglevInputKind::kUseAndClobberFixed) &&
-            first_ic->is_double_fixed == ic->is_double_fixed &&
-            first_ic->fixed_reg >= 0 && ic->fixed_reg >= 0 &&
-            first_ic->fixed_reg != ic->fixed_reg) {
+            same_ic->is_double_fixed == ic->is_double_fixed &&
+            same_ic->fixed_reg >= 0 && ic->fixed_reg >= 0 &&
+            same_ic->fixed_reg != ic->fixed_reg) {
           continue;
         }
-        // Under DefineSameAsFirst, input(0) can only alias input(k) when both
+        // Under SAME_AS_INPUT, input(idx) can only alias input(k) when both
         // refer to the same ValueNode, which is impossible if their declared
         // ValueRepresentations differ.
-        if (!p->first_input_key.empty() &&
-            !MatchesFirstMaglevInput(input_key, *p)) {
-          int first_repr = LookupInputRepr(spec, p->first_input_key);
+        if (!MatchesSameAsInput(spec, input_key, *p)) {
+          int target_idx = p->result.same_as_input_index;
+          int same_repr = (target_idx >= 0 && static_cast<size_t>(target_idx) <
+                                                  spec.input_reprs.size())
+                              ? spec.input_reprs[target_idx]
+                              : -1;
           int in_repr = LookupInputRepr(spec, input_key);
-          if (first_repr >= 0 && in_repr >= 0 && first_repr != in_repr) {
+          if (same_repr >= 0 && in_repr >= 0 && same_repr != in_repr) {
             continue;
           }
         }
@@ -4728,8 +4911,7 @@ class RegmoleAnalyzer {
           allowed_by_input = true;
           break;
         }
-        if (p->result.kind == MaglevResultKind::kDefineSameAsFirst &&
-            MatchesFirstMaglevInput(k, *p) &&
+        if (MatchesSameAsInput(spec, k, *p) &&
             ic.kind == MaglevInputKind::kUseFixed &&
             (ic.fixed_reg == r || ic.fixed_reg < 0)) {
           allowed_by_input = true;
@@ -5078,6 +5260,38 @@ class RegmoleAnalyzer {
           resolved = bit->second;
         }
         deferred_env.local_expr_bindings[cp] = resolved;
+      }
+    }
+
+    // Remap caller `known_not_equal` and `maglev_result_sym` onto the bound
+    // callback parameter decls so pre-deferred `DCHECK_NE(a, b)` guards stay
+    // active inside MakeDeferredCode / JumpToDeferredIf callbacks.
+    if (!bound_reg_params.empty()) {
+      std::map<const clang::ValueDecl*, const clang::ValueDecl*> caller_to_cb;
+      for (const auto& [cb_d, caller_d] : bound_reg_params) {
+        caller_to_cb.try_emplace(caller_d, cb_d);
+      }
+      if (deferred_env.maglev_result_sym) {
+        auto mit = caller_to_cb.find(deferred_env.maglev_result_sym);
+        if (mit != caller_to_cb.end()) {
+          deferred_env.maglev_result_sym = mit->second;
+        }
+      }
+      std::set<std::pair<const clang::ValueDecl*, const clang::ValueDecl*>>
+          extra_ne;
+      for (const auto& [d1, d2] : caller_env.known_not_equal) {
+        auto it1 = caller_to_cb.find(d1);
+        auto it2 = caller_to_cb.find(d2);
+        const clang::ValueDecl* nd1 =
+            (it1 != caller_to_cb.end()) ? it1->second : d1;
+        const clang::ValueDecl* nd2 =
+            (it2 != caller_to_cb.end()) ? it2->second : d2;
+        if (nd1 != d1 || nd2 != d2) {
+          extra_ne.insert({nd1, nd2});
+        }
+      }
+      for (const auto& pair : extra_ne) {
+        deferred_env.known_not_equal.insert(pair);
       }
     }
 
@@ -6329,8 +6543,7 @@ class RegmoleAnalyzer {
         if (spec.has_constraints_body) {
           auto paths = GetCompatibleMaglevPaths(spec, env);
           for (const MaglevConstraintPath* p : paths) {
-            if (p->result.kind == MaglevResultKind::kDefineSameAsFirst &&
-                MatchesFirstMaglevInput(s.maglev_input_key, *p)) {
+            if (MatchesSameAsInput(spec, s.maglev_input_key, *p)) {
               RecordMaglevResultWrite(sym, &s, s.is_double_reg, loc, env);
               break;
             }
@@ -6954,9 +7167,7 @@ class RegmoleAnalyzer {
                 if (spec.has_constraints_body) {
                   auto paths = GetCompatibleMaglevPaths(spec, env);
                   for (const MaglevConstraintPath* p : paths) {
-                    if (p->result.kind ==
-                            MaglevResultKind::kDefineSameAsFirst &&
-                        MatchesFirstMaglevInput(m->input_key, *p)) {
+                    if (MatchesSameAsInput(spec, m->input_key, *p)) {
                       RecordMaglevResultWrite(nullptr, nullptr, m->is_double,
                                               call_loc, env);
                       break;
@@ -7677,7 +7888,8 @@ class RegmoleAnalyzer {
     if (!cond || depth > 4) return;
 
     if (const auto* dre = llvm::dyn_cast<clang::DeclRefExpr>(cond)) {
-      if (cond->getType()->isBooleanType()) {
+      if (cond->getType()->isBooleanType() ||
+          cond->getType()->isPointerType()) {
         auto bit =
             then_env.local_expr_bindings.find(CanonValueDecl(dre->getDecl()));
         if (bit != then_env.local_expr_bindings.end() && bit->second &&
@@ -7996,6 +8208,25 @@ class RegmoleAnalyzer {
         is_ne = true;
         lhs = bo->getLHS();
         rhs = bo->getRHS();
+      }
+    } else if (const auto* call = llvm::dyn_cast<clang::CallExpr>(cond)) {
+      if (const clang::FunctionDecl* fd = call->getDirectCallee()) {
+        llvm::StringRef fname = SafeDeclName(fd);
+        // `DCHECK_EQ`/`DCHECK_NE` branch on `CheckEQImpl`/`CheckNEImpl`
+        // (returning nullptr when true, i.e. `else_env`), while release
+        // `CHECK_EQ`/`CHECK_NE` branch on `CmpEQImpl`/`CmpNEImpl` (returning
+        // true when the assertion holds, i.e. `then_env`).
+        if (call->getNumArgs() >= 2 &&
+            (fname == "CheckNEImpl" || fname == "CmpEQImpl")) {
+          is_eq = true;
+          lhs = call->getArg(0);
+          rhs = call->getArg(1);
+        } else if (call->getNumArgs() >= 2 &&
+                   (fname == "CheckEQImpl" || fname == "CmpNEImpl")) {
+          is_ne = true;
+          lhs = call->getArg(0);
+          rhs = call->getArg(1);
+        }
       }
     }
 
@@ -9386,6 +9617,8 @@ class RegmoleAnalyzer {
   std::map<const clang::CXXRecordDecl*, MaglevNodeSpec> maglev_spec_cache_;
   std::map<std::pair<const clang::FunctionDecl*, unsigned>, bool>
       const_pred_cache_;
+  std::map<const clang::FunctionDecl*, bool> constraint_fn_cache_;
+  llvm::SmallPtrSet<const clang::FunctionDecl*, 8> active_constraint_fns_;
   std::map<std::string, FuncSummary> imported_summaries_;
   std::map<std::string, MaglevNodeSpec> imported_maglev_specs_;
   llvm::SmallPtrSet<const clang::FunctionDecl*, 16> active_inferences_;

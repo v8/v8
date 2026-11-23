@@ -211,8 +211,20 @@ void TestArm64CalleeScratchClobbersPhysIp0Bad(MacroAssembler* masm,
 
 namespace maglev_test {
 
-struct Input {};
-struct ValueLocation {};
+struct FakeUnallocatedOperand {
+  enum ExtendedPolicy { MUST_HAVE_REGISTER };
+  enum Lifetime { USED_AT_START, USED_AT_END };
+};
+
+struct ValueLocation {
+  template <typename... Args>
+  void SetUnallocated(Args&&...) {}
+};
+
+struct Input {
+  ValueLocation loc_;
+  ValueLocation* location() { return &loc_; }
+};
 
 struct TemporaryRegisterScope {
   explicit TemporaryRegisterScope(MacroAssembler*) {}
@@ -222,9 +234,14 @@ struct TemporaryRegisterScope {
 
 Register ToRegister(Input);
 Register ToRegister(ValueLocation);
-void UseRegister(Input);
+inline void UseRegister(Input input) {
+  input.location()->SetUnallocated(FakeUnallocatedOperand::MUST_HAVE_REGISTER,
+                                   FakeUnallocatedOperand::USED_AT_END, -1);
+}
 template <typename T>
-void DefineAsRegister(T*);
+inline void DefineAsRegister(T* node) {
+  node->result().SetUnallocated(FakeUnallocatedOperand::MUST_HAVE_REGISTER, -1);
+}
 
 struct NodeBase {
   Input input(int) { return {}; }
