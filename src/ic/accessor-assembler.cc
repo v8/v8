@@ -1563,48 +1563,58 @@ void AccessorAssembler::HandleStoreICHandlerCase(
 
     TVARIABLE(IntPtrT, var_name_index);
     Label dictionary_found(this, &var_name_index);
-    if (p->IsAnyDefineOwn()) {
+    if (p->IsAnyDefineOwn() && !p->IsDefineNamedOwnInLiteral()) {
+      // When dealing with class fields defined with DefineKeyedOwnIC or
+      // DefineNamedOwnIC, use the slow path to check the existing property.
       NameDictionaryLookup<PropertyDictionary>(properties, CAST(p->name()),
                                                &if_slow, nullptr, miss);
     } else {
       NameDictionaryLookup<PropertyDictionary>(properties, CAST(p->name()),
                                                &dictionary_found,
                                                &var_name_index, miss);
-    }
-
-    // When dealing with class fields defined with DefineKeyedOwnIC or
-    // DefineNamedOwnIC, use the slow path to check the existing property.
-    if (!p->IsAnyDefineOwn()) {
       BIND(&dictionary_found);
       {
         Label done(this);
         TNode<Uint32T> details =
             LoadDetailsByKeyIndex(properties, var_name_index.value());
-        // Check that the property is a writable data property (no accessor).
-        const int kTypeAndReadOnlyMask =
-            PropertyDetails::KindField::kMask |
-            PropertyDetails::kAttributesReadOnlyMask;
-        static_assert(static_cast<int>(PropertyKind::kData) == 0);
-        GotoIf(IsSetWord32(details, kTypeAndReadOnlyMask), miss);
+        if (p->IsDefineNamedOwnInLiteral()) {
+          // The receiver is a fresh, unescaped object literal, so
+          // PropertyConstness::kConst is preserved. Its entries are expected
+          // to be NONE data properties; anything else takes the slow path.
+          const int kTypeAndAttributesMask =
+              PropertyDetails::KindField::kMask |
+              PropertyDetails::AttributesField::kMask;
+          static_assert(static_cast<int>(PropertyKind::kData) == 0);
+          static_assert(PropertyAttributes::NONE == 0);
+          GotoIf(IsSetWord32(details, kTypeAndAttributesMask), &if_slow);
+        } else {
+          DCHECK_EQ(p->mode(), StoreICMode::kDefault);
+          // Check that the property is a writable data property (no accessor).
+          const int kTypeAndReadOnlyMask =
+              PropertyDetails::KindField::kMask |
+              PropertyDetails::kAttributesReadOnlyMask;
+          static_assert(static_cast<int>(PropertyKind::kData) == 0);
+          GotoIf(IsSetWord32(details, kTypeAndReadOnlyMask), miss);
 
-        if constexpr (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
-          Label overwrite(this);
-          GotoIfNot(IsPropertyDetailsConst(details), &overwrite);
-          TNode<Object> prev_value =
-              LoadValueByKeyIndex(properties, var_name_index.value());
-          GotoIf(TaggedEqual(prev_value, p->value()), &done);
-          if constexpr (V8_DICT_PROTOTYPES_BOOL) {
-            Goto(miss);
-          } else {
-            TNode<Smi> new_details = SmiFromInt32(
-                Signed(UpdateWord32<PropertyDetails::ConstnessField>(
-                    details, Uint32Constant(static_cast<uint32_t>(
-                                 PropertyConstness::kMutable)))));
-            StoreDetailsByKeyIndex<PropertyDictionary>(
-                properties, var_name_index.value(), new_details);
-            Goto(&overwrite);
+          if constexpr (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
+            Label overwrite(this);
+            GotoIfNot(IsPropertyDetailsConst(details), &overwrite);
+            TNode<Object> prev_value =
+                LoadValueByKeyIndex(properties, var_name_index.value());
+            GotoIf(TaggedEqual(prev_value, p->value()), &done);
+            if constexpr (V8_DICT_PROTOTYPES_BOOL) {
+              Goto(miss);
+            } else {
+              TNode<Smi> new_details = SmiFromInt32(
+                  Signed(UpdateWord32<PropertyDetails::ConstnessField>(
+                      details, Uint32Constant(static_cast<uint32_t>(
+                                   PropertyConstness::kMutable)))));
+              StoreDetailsByKeyIndex<PropertyDictionary>(
+                  properties, var_name_index.value(), new_details);
+              Goto(&overwrite);
+            }
+            BIND(&overwrite);
           }
-          BIND(&overwrite);
         }
         StoreValueByKeyIndex<PropertyDictionary>(
             properties, var_name_index.value(), p->value());

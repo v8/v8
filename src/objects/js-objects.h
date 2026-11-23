@@ -959,8 +959,6 @@ V8_OBJECT class JSObject : public JSReceiver {
   // kMaxInstanceSize in words must fit in one byte.
   static_assert((kMaxInstanceSize >> kTaggedSizeLog2) <= kMaxUInt8);
 
-  static const int kMapCacheSize = 128;
-
   // When extending the backing storage for property values, we increase
   // its size by more than the 1 entry necessary, so sequentially adding fields
   // to the same object requires fewer allocations and copies.
@@ -969,6 +967,7 @@ V8_OBJECT class JSObject : public JSReceiver {
                 PropertyArray::kMaxLength);
 
   static const int kMaxInObjectProperties;
+  static const int kMapCacheSize;
   static const int kMaxFirstInobjectPropertyOffset =
       (1 << kFirstInobjectPropertyOffsetBitCount) - 1;
   static const int kMaxEmbedderFields;
@@ -1022,6 +1021,8 @@ inline constexpr int JSObject::kHeaderSize = sizeof(JSObject);
 
 inline constexpr int JSObject::kMaxInObjectProperties =
     (JSObject::kMaxInstanceSize - JSObject::kHeaderSize) >> kTaggedSizeLog2;
+inline constexpr int JSObject::kMapCacheSize =
+    JSObject::kMaxInObjectProperties + 1;
 inline constexpr int JSObject::kMaxEmbedderFields =
     (JSObject::kMaxFirstInobjectPropertyOffset - JSObject::kHeaderSize) /
     kEmbedderDataSlotSize;

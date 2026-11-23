@@ -155,25 +155,26 @@ function assertNullProtoRecord(o, keys) {
 })();
 
 (function TestLargeLiteral() {
-  // Literals with too many properties for the object literal map cache are
-  // created in dictionary mode, like a large literal without a null
-  // prototype, using the cached null-prototype dictionary map.
-  const kSize = 200;
-  let source = '({__proto__: null';
-  for (let i = 0; i < kSize; i++) source += `, p${i}: ${i}`;
-  source += '})';
-  const create = new Function('return ' + source);
-  const o1 = create();
-  const o2 = create();
-  assertFalse(%HasFastProperties(o1));
-  assertEquals(null, Object.getPrototypeOf(o1));
-  assertEquals(kSize, Object.keys(o1).length);
-  for (let i = 0; i < kSize; i++) assertEquals(i, o1[`p${i}`]);
-  assertTrue(%HaveSameMap(o1, o2));
-  o1.p0 = 42;
-  assertEquals(0, o2.p0);
-  assertEquals(0, create().p0);
-  %HeapObjectVerify(o1);
+  // Literals up to JSObject::kMaxInObjectProperties (252) fit in the object
+  // literal map cache and stay in fast mode; larger literals fall back to the
+  // cached null-prototype dictionary map.
+  for (const [kSize, expectFast] of [[200, true], [252, true], [253, false]]) {
+    let source = '({__proto__: null';
+    for (let i = 0; i < kSize; i++) source += `, p${i}: ${i}`;
+    source += '})';
+    const create = new Function('return ' + source);
+    const o1 = create();
+    const o2 = create();
+    assertEquals(expectFast, %HasFastProperties(o1));
+    assertEquals(null, Object.getPrototypeOf(o1));
+    assertEquals(kSize, Object.keys(o1).length);
+    for (let i = 0; i < kSize; i++) assertEquals(i, o1[`p${i}`]);
+    assertTrue(%HaveSameMap(o1, o2));
+    o1.p0 = 42;
+    assertEquals(0, o2.p0);
+    assertEquals(0, create().p0);
+    %HeapObjectVerify(o1);
+  }
 })();
 
 (function TestEmptyLiteralStaysDictionary() {
