@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <map>
 #include <set>
+#include <utility>
 
 #include "experimental/redline/base/json_parser.h"
 #include "experimental/redline/base/log.h"
@@ -27,6 +28,7 @@ constexpr char kProbeRuntime[] = R"js(const __redline_probe = (function() {
   const ReflectGet = Reflect.get;
   const ReflectSet = Reflect.set;
   const ReflectHas = Reflect.has;
+  const ReflectApply = Reflect.apply;
   const ObjectGetPrototypeOf = Object.getPrototypeOf;
   const ObjectSetPrototypeOf = Object.setPrototypeOf;
   const ProxyConstructor = Proxy;
@@ -62,8 +64,14 @@ constexpr char kProbeRuntime[] = R"js(const __redline_probe = (function() {
       reporting = false;
     }
   }
+  // A probe in a loop body runs again for the same object: one proxy only.
+  const probed = new WeakMap();
+  const WeakMapHas = WeakMap.prototype.has;
+  const WeakMapSet = WeakMap.prototype.set;
   function probe(id, v) {
     if (v === null || (typeof v !== 'object' && typeof v !== 'function')) return;
+    if (ReflectApply(WeakMapHas, probed, [v])) return;
+    ReflectApply(WeakMapSet, probed, [v, true]);
     let proto, newProto;
     const handler = {
       get(target, key, receiver) {
@@ -112,24 +120,13 @@ struct Hit {
   std::string key;
 };
 
-// `v.key = value`, `v["key"] = value`, or `v[Symbol.name] = value`.
+// `v.key`, `v[0]`, `v["key"]` or `v[Symbol.name]`.
 Expression* Target(Tree* t, std::string_view variable, const std::string& key) {
-  Expression* object = mk::Id(t, variable);
-  if (key.starts_with("Symbol.")) {
-    return mk::Index(t, object,
-                     mk::Member(t, mk::Id(t, "Symbol"), key.substr(7)));
-  }
-  if (IsIdentifierName(key)) {
-    return mk::Member(t, object, key);
-  }
-  return mk::Index(t, object, mk::Str(t, key));
+  return RuntimeAssistedMutator::MemberAccess(t, mk::Id(t, variable), key);
 }
 
 Expression* KeyExpression(Tree* t, const std::string& key) {
-  if (key.starts_with("Symbol.")) {
-    return mk::Member(t, mk::Id(t, "Symbol"), key.substr(7));
-  }
-  return mk::Str(t, key);
+  return RuntimeAssistedMutator::KeyLiteral(t, key);
 }
 
 // A function suitable as the value of a well-known symbol property.
@@ -174,10 +171,13 @@ ProbingMutator::ProbingMutator()
 
 std::string_view ProbingMutator::runtime() const { return kProbeRuntime; }
 
-REDLINE_TUNABLE(kProbingMaxProbes, "mutators.Probing.max_probes", 3, 1, 16,
+REDLINE_TUNABLE(kProbingMaxProbes, "mutators.Probing.max_probes", 10, 1, 32,
                 "most variables probed per application");
-REDLINE_TUNABLE(kProbingAttemptsPerProbe, "mutators.Probing.attempts_per_probe",
-                4, 1, 16, "slot draws per wanted probe before giving up");
+REDLINE_TUNABLE(kProbingMaxLoopProbes, "mutators.Probing.max_loop_probes", 4, 0,
+                32, "most probes in loop bodies per application");
+REDLINE_TUNABLE(kProbingChance, "mutators.Probing.chance", 0.25, 0, 1,
+                "probability that a variable the program references is probed "
+                "at its definition");
 REDLINE_TUNABLE(kProbingUnreferencedCandidateChance,
                 "mutators.Probing.unreferenced_candidate_chance", 0.1, 0, 1,
                 "probability that a variable the program never references is "
@@ -186,74 +186,35 @@ REDLINE_TUNABLE(kProbingUnreferencedCandidateChance,
 bool ProbingMutator::Mutate(Builder& b, MutationContext& ctx) {
   Random& r = b.rng();
   ctx.probes.clear();
-  std::vector<Builder::Slot> slots = b.InsertionSlots();
-  if (slots.empty()) {
+  // A probe only learns something if the program goes on to use the
+  // object. It sits right after the definition, before the uses.
+  std::vector<DefinitionSite> sites = DefinitionSites(b);
+  std::vector<double> chances;
+  chances.reserve(sites.size());
+  for (const DefinitionSite& site : sites) {
+    const bool used = !site.variable.binding->references.empty() ||
+                      r.Chance(kProbingUnreferencedCandidateChance());
+    chances.push_back(ProbeWorthy(site.variable) && used ? kProbingChance()
+                                                         : 0.0);
+  }
+  std::vector<size_t> picked =
+      PickSites(r, sites, chances, kProbingMaxProbes.AsInt(),
+                kProbingMaxLoopProbes.AsInt());
+  if (picked.empty()) {
     return false;
   }
-  // A probe only learns something if the program goes on to use the
-  // object: weight candidates by how often they are referenced.
-  std::map<std::string_view, int> references;
-  {
-    ScopeAnalysis& scopes = b.scopes();
-    for (Node* n : b.Collect([&](Node* n) {
-           auto* id = n->As<Identifier>();
-           return id != nullptr && scopes.IsReference(id);
-         })) {
-      references[n->Cast<Identifier>()->name]++;
-    }
-  }
-  int wanted = 1 + r.SmallCount(kProbingMaxProbes.AsInt() - 1);
+  const unsigned first_id = static_cast<unsigned>(r.Next() % 100000);
   std::vector<std::pair<Builder::Slot, Statement*>> insertions;
-  std::vector<std::string> probed;
-  for (int attempt = 0; attempt < kProbingAttemptsPerProbe.AsInt() * wanted &&
-                        static_cast<int>(ctx.probes.size()) < wanted;
-       attempt++) {
-    const Builder::Slot& slot = slots[r.Index(slots.size())];
-    Builder::Context syntax = b.ContextAtSlot(slot);
-    if (syntax.in_class_field) {
-      continue;
-    }
-    std::vector<Variable> visible = b.VisibleAtSlot(slot);
-    std::vector<const Variable*> candidates;
-    std::vector<double> weights;
-    for (const Variable& v : visible) {
-      if (!ProbeWorthy(v)) {
-        continue;
-      }
-      if (std::find(probed.begin(), probed.end(), std::string(v.name)) !=
-          probed.end()) {
-        continue;
-      }
-      auto it = references.find(v.name);
-      int uses = it == references.end() ? 0 : it->second;
-      if (uses == 0 && !r.Chance(kProbingUnreferencedCandidateChance())) {
-        continue;
-      }
-      candidates.push_back(&v);
-      weights.push_back(1.0 + uses);
-    }
-    if (candidates.empty()) {
-      continue;
-    }
-    const Variable& target = *candidates[r.Weighted(weights)];
+  for (size_t index : picked) {
     ExploreProbe probe;
-    probe.id = StringPrintf("p%u", static_cast<unsigned>(r.Next() % 100000));
-    probe.variable = std::string(target.name);
-    insertions.emplace_back(slot,
+    probe.id = StringPrintf(
+        "p%u", first_id + static_cast<unsigned>(ctx.probes.size()));
+    probe.variable = std::string(sites[index].variable.name);
+    insertions.emplace_back(sites[index].slot,
                             MakeProbe(b.tree(), kProbeFunction, probe, {}));
-    probed.push_back(probe.variable);
     ctx.probes.push_back(std::move(probe));
   }
-  if (ctx.probes.empty()) {
-    return false;
-  }
-  std::stable_sort(insertions.begin(), insertions.end(),
-                   [](const auto& x, const auto& y) {
-                     return x.first.index > y.first.index;
-                   });
-  for (auto& [slot, statement] : insertions) {
-    b.Insert(slot, statement);
-  }
+  InsertProbes(b, &insertions);
   ctx.detail = "probing";
   for (const ExploreProbe& p : ctx.probes) {
     ctx.detail += " " + p.variable;

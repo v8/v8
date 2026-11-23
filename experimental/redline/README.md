@@ -107,7 +107,7 @@ out/redline/redline fuzz --d8=out/fuzzbuild/d8 --preset=maglev --jobs=4 --durati
 | `fast/` | FAST: the syntax tree, the arena, the lexer, the parser, the printer and the scope analysis. |
 | `generators/` | The code generators, the expression synthesis that they share (`CodeGen`), and the Wasm module generator. |
 | `minimizer/` | The minimizer and its reducers. |
-| `mutators/` | The mutators. `Explore` and `Probing` run the program in the target before they choose a change. |
+| `mutators/` | The mutators. `Explore`, `Probing` and `Fixup` run the program in the target before they choose a change. |
 | `presets/` | The built-in presets: one JSON configuration for each area of V8. |
 | `skills/` | The skills for AI agents: the presubmit checks, the A/B tests, the known bugs, change-based fuzzing, the generators and ASD-STE100. [AGENTS.md](AGENTS.md) lists them. |
 | `testdata/` | The golden traces of `redline selftest --offline`. [testdata/README.md](testdata/README.md) describes them. |

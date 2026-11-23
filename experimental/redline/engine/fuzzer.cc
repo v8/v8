@@ -1638,8 +1638,9 @@ class Worker {
       mutator.stats().invalid++;
       return false;
     }
+    // Fuzzilli runs the instrumented program at 4 times the timeout.
     Execution execution;
-    if (!Execute(instrumented, &execution)) {
+    if (!Execute(instrumented, &execution, 4 * config().target.timeout_us)) {
       return false;
     }
     stats().explore_executions++;

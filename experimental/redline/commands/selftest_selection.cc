@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <functional>
 #include <limits>
+#include <map>
 #include <memory>
 #include <set>
 #include <string>
@@ -38,7 +39,10 @@
 #include "experimental/redline/generators/codegen.h"
 #include "experimental/redline/generators/generator.h"
 #include "experimental/redline/generators/values_generators.h"
+#include "experimental/redline/mutators/explore.h"
+#include "experimental/redline/mutators/fixup.h"
 #include "experimental/redline/mutators/mutator.h"
+#include "experimental/redline/mutators/probing.h"
 
 namespace redline {
 
@@ -2684,6 +2688,548 @@ void CheckBuiltinsAndWorkers(Checker* checker) {
       depth_safe, depth_safe ? "" : "null expression at max_expr_depth");
 }
 
+// The probe calls of `function` in the tree of `b`: the probed variable
+// for each probe id.
+std::map<std::string, std::string> ProbeCalls(Builder& b,
+                                              std::string_view function) {
+  std::map<std::string, std::string> calls;
+  for (fast::Node* n : b.Collect([&](fast::Node* n) {
+         auto* call = n->As<fast::CallExpression>();
+         auto* callee =
+             call != nullptr ? call->callee->As<fast::Identifier>() : nullptr;
+         return callee != nullptr && callee->name == function &&
+                call->arguments.size() >= 2 &&
+                call->arguments[0]->Is<fast::StringLiteral>() &&
+                call->arguments[1]->Is<fast::Identifier>();
+       })) {
+    auto* call = n->Cast<fast::CallExpression>();
+    calls[std::string(call->arguments[0]->Cast<fast::StringLiteral>()->value)] =
+        std::string(call->arguments[1]->Cast<fast::Identifier>()->name);
+  }
+  return calls;
+}
+
+// Checks that each probe of `function` is right after the definition of
+// its variable, or at the start of the body for a parameter. Other probes
+// can be between them. Returns an error, or "".
+std::string CheckProbePlacement(Builder& b, std::string_view function) {
+  for (const Builder::Slot& slot : b.StatementSlots()) {
+    auto* probe = slot.statement()->As<fast::TryStatement>();
+    if (probe == nullptr || probe->block->body.size() != 1) {
+      continue;
+    }
+    auto* stmt = probe->block->body[0]->As<fast::ExpressionStatement>();
+    auto* call = stmt != nullptr ? stmt->expression->As<fast::CallExpression>()
+                                 : nullptr;
+    auto* callee =
+        call != nullptr ? call->callee->As<fast::Identifier>() : nullptr;
+    if (callee == nullptr || callee->name != function) {
+      continue;
+    }
+    auto* variable = call->arguments[1]->As<fast::Identifier>();
+    fast::Binding* binding =
+        variable != nullptr ? b.scopes().BindingOf(variable) : nullptr;
+    if (binding == nullptr) {
+      return "a probe of an unknown variable";
+    }
+    // Skip the other probes inserted at the same place.
+    size_t index = slot.index;
+    auto is_probe = [&](fast::Statement* s) {
+      auto* t = s->As<fast::TryStatement>();
+      return t != nullptr && t->block->body.size() == 1 &&
+             fast::Print(t).find(function) != std::string::npos;
+    };
+    while (index > 0 && is_probe((*slot.list)[index - 1])) {
+      index--;
+    }
+    if (binding->kind == fast::BindingKind::kParameter) {
+      auto* fn = fast::AsFunctionData(b.EnclosingFunction(binding->identifier));
+      bool directives_only = true;
+      for (size_t i = 0; i < index; i++) {
+        auto* e = (*slot.list)[i]->As<fast::ExpressionStatement>();
+        directives_only = directives_only && e != nullptr && e->is_directive;
+      }
+      if (fn == nullptr || slot.list != &fn->body->body || !directives_only) {
+        return "a parameter probe of " + std::string(variable->name) +
+               " is not at the start of the body";
+      }
+    } else if (index == 0 || (*slot.list)[index - 1] !=
+                                 b.EnclosingStatement(binding->identifier)) {
+      return "the probe of " + std::string(variable->name) +
+             " is not right after its definition";
+    }
+  }
+  return "";
+}
+
+// Offline checks of the runtime-assisted mutators (Explore, Probing,
+// Fixup) and of the PropertyAccessor mutator. The answers of the target are
+// written by hand.
+void CheckRuntimeAssisted(Checker* checker) {
+  std::unique_ptr<GeneratorSet> generators = GeneratorSet::CreateDefault();
+  std::unique_ptr<MutatorSet> mutators = MutatorSet::CreateDefault();
+  const Environment& env = Environment::Default();
+  TunableRegistry& reg = TunableRegistry::Instance();
+  const char* kProbed = R"(let a = {x: 1};
+let b = [1, 2, 3];
+function f(p, q) {
+  "use strict";
+  let inner = p + q;
+  return inner;
+}
+for (let i = 0; i < 3; i++) {
+  let l0 = {}; let l1 = {}; let l2 = {}; let l3 = {}; let l4 = {}; let l5 = {};
+  f(l0, l1);
+}
+let w = new Worker(function() { let hidden = {}; hidden.x = 1; }, {type: 'function'});
+function g(o) { let hidden2 = o; return hidden2; }
+let w2 = new Worker(g, {type: 'function'});
+const wf = function() { let hidden3 = {}; return hidden3; };
+let w3 = new Worker(wf, {type: 'function'});
+let y = b[0] + a.x;
+)";
+  ProgramPtr program = ParseOrDie(kProbed, "selftest");
+  auto loop_probes = [](Builder& b, std::string_view function) {
+    int n = 0;
+    for (fast::Node* loop :
+         b.Collect([](fast::Node* n) { return n->Is<fast::ForStatement>(); })) {
+      std::string text = fast::Print(loop);
+      for (size_t at = text.find(function); at != std::string::npos;
+           at = text.find(function, at + 1)) {
+        n++;
+      }
+    }
+    return n;
+  };
+
+  // Explore and Probing at chance 1: every eligible definition gets a probe,
+  // up to the caps.
+  for (const char* name : {"Explore", "Probing"}) {
+    auto* m = static_cast<RuntimeAssistedMutator*>(mutators->Find(name));
+    const std::string prefix = std::string("mutators.") + name + ".";
+    const std::string_view function = std::string_view(name) == "Explore"
+                                          ? ExploreMutator::kProbeFunction
+                                          : ProbingMutator::kProbeFunction;
+    std::string err;
+    bool ok = m != nullptr;
+    for (int max_probes : {32, 5}) {
+      for (int seed = 0; ok && seed < 10; seed++) {
+        reg.Reset();
+        ok = reg.Set(prefix + "max_probes", max_probes, &err) &&
+             (std::string_view(name) == "Explore"
+                  ? reg.Set(prefix + "untyped_chance", 1, &err) &&
+                        reg.Set(prefix + "typed_chance", 1, &err)
+                  : reg.Set(prefix + "chance", 1, &err) &&
+                        reg.Set(prefix + "unreferenced_candidate_chance", 1,
+                                &err));
+        std::unique_ptr<fast::Tree> tree = program->CopyTree();
+        Random rng(kSeed + 900 + static_cast<uint64_t>(seed));
+        Builder b(tree.get(), &rng);
+        MutationContext ctx;
+        ctx.env = &env;
+        ctx.generators = generators.get();
+        if (!ok || !m->Mutate(b, ctx)) {
+          ok = false;
+          err = err.empty() ? "no probe" : err;
+          break;
+        }
+        std::map<std::string, std::string> calls = ProbeCalls(b, function);
+        const int loops = loop_probes(b, function);
+        std::string placement = CheckProbePlacement(b, function);
+        if (calls.size() != ctx.probes.size() ||
+            static_cast<int>(calls.size()) > max_probes) {
+          err = StringPrintf("%zu probes, %zu calls, max %d", ctx.probes.size(),
+                             calls.size(), max_probes);
+        } else if (loops > 4) {
+          err = StringPrintf("%d probes in the loop body", loops);
+        } else if (max_probes == 32 && loops != 4) {
+          err = StringPrintf("%d probes in the loop body, not 4", loops);
+        }
+        for (const auto& [id, variable] : calls) {
+          if (variable == "hidden" || variable == "hidden2" ||
+              variable == "hidden3" || variable == "o") {
+            err = "a probe in a Worker function: " + variable;
+          }
+        }
+        if (err.empty() && !placement.empty()) {
+          err = placement;
+        }
+        ok = err.empty();
+      }
+    }
+    reg.Reset();
+    checker->Check(
+        StringPrintf("%s: probes right after definitions, at most 4 in loop "
+                     "bodies, none in Worker functions, within the cap",
+                     name)
+            .c_str(),
+        ok, err);
+  }
+
+  // Default tunables: at most 10 probes, at least one.
+  {
+    reg.Reset();
+    bool ok = true;
+    std::string err;
+    for (const char* name : {"Explore", "Probing"}) {
+      Mutator* m = mutators->Find(name);
+      for (int seed = 0; ok && seed < 20; seed++) {
+        Random rng(kSeed + 950 + static_cast<uint64_t>(seed));
+        std::vector<ExploreProbe> probes;
+        std::string detail;
+        std::unique_ptr<fast::Tree> tree = ApplyMutation(
+            *m, *program, nullptr, rng, env, *generators, 1, &detail, &probes);
+        if (tree == nullptr || probes.empty() || probes.size() > 10) {
+          ok = false;
+          err = StringPrintf("%s: %zu probes", name, probes.size());
+        }
+      }
+    }
+    checker->Check("Explore/Probing: 1 to 10 probes with the default tunables",
+                   ok, err);
+  }
+
+  // Keys: an array index gives a numeric element access.
+  {
+    auto tree = std::make_unique<fast::Tree>();
+    fast::Tree* t = tree.get();
+    auto access = [&](const std::string& key) {
+      return fast::Print(
+          RuntimeAssistedMutator::MemberAccess(t, mk::Id(t, "v"), key));
+    };
+    const std::string got = access("0") + " " + access("17") + " " +
+                            access("01") + " " + access("4294967295") + " " +
+                            access("foo") + " " + access("Symbol.iterator") +
+                            " " + access("a b");
+    const std::string want =
+        "v[0] v[17] v[\"01\"] v[\"4294967295\"] v.foo v[Symbol.iterator] "
+        "v[\"a b\"]";
+    checker->Check("runtime-assisted: array index keys are numeric",
+                   got == want, got);
+  }
+
+  // Probing: the probe comes before the first use, and a hit on "0" installs
+  // `arr[0]`.
+  {
+    reg.Reset();
+    std::string err;
+    bool ok = reg.Set("mutators.Probing.chance", 1, &err) &&
+              reg.Set("mutators.Probing.accessor_chance", 0, &err);
+    ProgramPtr small = ParseOrDie(
+        "let arr = [1, 2];\nlet y = arr[0] + arr.length;\n", "selftest");
+    std::unique_ptr<fast::Tree> tree = small->CopyTree();
+    Random rng(kSeed + 970);
+    Builder b(tree.get(), &rng);
+    MutationContext ctx;
+    ctx.env = &env;
+    ctx.generators = generators.get();
+    ProbingMutator* m = static_cast<ProbingMutator*>(mutators->Find("Probing"));
+    ok = ok && m->Mutate(b, ctx) && ctx.probes.size() == 1;
+    std::string text = fast::Print(tree->root());
+    ok = ok && text.find("__redline_probe") < text.find("let y");
+    if (ok) {
+      const std::string fuzzout = "PROBE_HIT: {\"id\":\"" + ctx.probes[0].id +
+                                  "\",\"kind\":\"get\",\"key\":\"0\"}\n";
+      std::string detail;
+      ok = m->Apply(b, ctx.probes, fuzzout, ctx, &detail) == 1;
+      text = fast::Print(tree->root());
+      ok = ok && text.find("arr[0] = ") != std::string::npos &&
+           text.find("__redline_probe") == std::string::npos;
+    }
+    reg.Reset();
+    checker->Check(
+        "Probing: the probe precedes the uses and a hit on \"0\" installs "
+        "arr[0]",
+        ok, text);
+  }
+
+  // Explore: an action that fails on a later visit is not applied.
+  {
+    reg.Reset();
+    bool ok = true;
+    std::string err;
+    for (bool later_failure : {false, true}) {
+      ProgramPtr small = ParseOrDie("let o = {k: 1};\n", "selftest");
+      std::unique_ptr<fast::Tree> tree = small->CopyTree();
+      Random rng(kSeed + 980);
+      Builder b(tree.get(), &rng);
+      MutationContext ctx;
+      ctx.env = &env;
+      ctx.generators = generators.get();
+      Mutator* m = mutators->Find("Explore");
+      if (!m->Mutate(b, ctx) || ctx.probes.size() != 1) {
+        ok = false;
+        err = "no probe";
+        break;
+      }
+      const std::string& id = ctx.probes[0].id;
+      std::string fuzzout =
+          "EXPLORE_ACTION: {\"op\":\"getProp\",\"name\":\"k\","
+          "\"id\":\"" +
+          id + "\"}\n";
+      if (later_failure) {
+        fuzzout += "EXPLORE_FAILURE: " + id + "\n";
+      }
+      std::string detail;
+      const int applied = ApplyExploreActions(b, ctx.probes, fuzzout, &detail);
+      const std::string text = fast::Print(tree->root());
+      if (applied != (later_failure ? 0 : 1) ||
+          text.find("__redline_explore") != std::string::npos ||
+          (text.find("o.k") != std::string::npos) == later_failure) {
+        ok = false;
+        err = text;
+      }
+    }
+    checker->Check("Explore: an action that throws on a later visit is dropped",
+                   ok, err);
+  }
+
+  // Fixup: unwraps the guards whose body ran and whose handler did not run,
+  // with a block for lexical declarations. Other try statements stay. The
+  // seeds give other orders of the nested guards.
+  {
+    const char* kGuards = R"(try { let x = 1; x++; } catch {}
+try { var v = 2; v++; } catch (e) {}
+try { class K {} } catch {}
+try { const c = 3; } catch {}
+try { function h() {} } catch {}
+try { throw 1; } catch {}
+try { v--; } catch (e) { v++; }
+try { v--; } finally {}
+if (v) try { v++; } catch {}
+try { "use strict"; } catch {}
+function never() { try { v++; } catch {} }
+try { try { v--; } catch {} v++; } catch {}
+new Worker(function() { try { v++; } catch {} }, {type: 'function'});
+)";
+    ProgramPtr guards = ParseOrDie(kGuards, "selftest");
+    auto* m = static_cast<FixupMutator*>(mutators->Find("Fixup"));
+    std::string err;
+    bool ok = m != nullptr;
+    for (int seed = 0; ok && seed < 8; seed++) {
+      reg.Reset();
+      ok = reg.Set("mutators.Fixup.max_guards", 64, &err);
+      std::unique_ptr<fast::Tree> tree = guards->CopyTree();
+      Random rng(kSeed + 990 + static_cast<uint64_t>(seed));
+      Builder b(tree.get(), &rng);
+      MutationContext ctx;
+      ctx.env = &env;
+      ctx.generators = generators.get();
+      if (!ok || !m->Mutate(b, ctx) || ctx.probes.size() != 11) {
+        ok = false;
+        err =
+            StringPrintf("%zu guards instrumented, want 11", ctx.probes.size());
+        break;
+      }
+      // The answers of the target: each body ran except the one in
+      // never(), and the handler of `throw 1` ran.
+      std::string fuzzout;
+      for (fast::Node* n : b.Collect(
+               [](fast::Node* n) { return n->Is<fast::TryStatement>(); })) {
+        auto* guard = n->Cast<fast::TryStatement>();
+        std::string text = fast::Print(guard->block);
+        size_t at = text.find("__redline_fixup(\"");
+        if (at == std::string::npos || at > 8) {
+          continue;
+        }
+        const std::string id =
+            text.substr(at + 17, text.find('"', at + 17) - at - 17);
+        if (b.EnclosingFunction(guard) == nullptr) {
+          fuzzout += "FIXUP_RAN: " + id + "\n";
+        }
+        if (guard->block->body.size() > 1 &&
+            guard->block->body[1]->Is<fast::ThrowStatement>()) {
+          fuzzout += "FIXUP_THREW: " + id + "\n";
+        }
+      }
+      std::string detail;
+      const int applied = m->Apply(b, ctx.probes, fuzzout, ctx, &detail);
+      const std::string text = fast::Print(tree->root());
+      const std::vector<fast::Statement*>& body = tree->root()->body;
+      using K = fast::NodeKind;
+      const K kWant[] = {
+          K::kBlockStatement,       // let
+          K::kVariableDeclaration,  // var
+          K::kExpressionStatement,  // v++
+          K::kBlockStatement,       // class
+          K::kBlockStatement,       // const
+          K::kBlockStatement,       // function
+          K::kTryStatement,         // throw
+          K::kTryStatement,         // a handler that is not empty
+          K::kTryStatement,         // finally
+          K::kIfStatement,
+          K::kBlockStatement,        // a string that can become a directive
+          K::kFunctionDeclaration,   // never(), its guard stays
+          K::kExpressionStatement,   // v-- of the inner nested guard
+          K::kExpressionStatement,   // v++ of the outer nested guard
+          K::kExpressionStatement};  // the Worker
+      bool shape = applied == 9 && body.size() == std::size(kWant);
+      for (size_t i = 0; shape && i < body.size(); i++) {
+        shape = body[i]->kind == kWant[i];
+      }
+      std::string parse_error;
+      Lineage lineage;
+      if (!shape ||
+          !body[9]
+               ->Cast<fast::IfStatement>()
+               ->consequent->Is<fast::BlockStatement>() ||
+          !body[11]
+               ->Cast<fast::FunctionDeclaration>()
+               ->body->body[0]
+               ->Is<fast::TryStatement>() ||
+          text.find("throw 1;\n} catch {}") == std::string::npos ||
+          text.find("__redline_fixup") != std::string::npos ||
+          Program::Parse(text, lineage, &parse_error) == nullptr) {
+        ok = false;
+        err = StringPrintf("seed %d, applied %d: ", seed, applied) + text +
+              parse_error;
+      }
+    }
+    reg.Reset();
+    checker->Check(
+        "Fixup: unwraps guards that ran clean, nested too, keeps a block for "
+        "let/const/class/function, keeps other guards and skips Worker "
+        "functions",
+        ok, err);
+  }
+
+  // PropertyAccessor: its own mutator of weight 1. Expression makes no
+  // accessors.
+  {
+    reg.Reset();
+    const char* kAccessors = R"(let o = {a: 1, m() { return 1; }};
+class C {
+  f = 2;
+  meth() { return 3; }
+}
+o.b = 5;
+)";
+    ProgramPtr accessors = ParseOrDie(kAccessors, "selftest");
+    Mutator* pa = mutators->Find("PropertyAccessor");
+    Mutator* expression = mutators->Find("Expression");
+    bool ok = pa != nullptr && expression != nullptr && pa->weight() == 1;
+    std::string err = ok ? "" : "no PropertyAccessor mutator of weight 1";
+    for (int i = 0; ok && i < 40; i++) {
+      Random rng(kSeed + 1000 + static_cast<uint64_t>(i));
+      std::string detail;
+      std::unique_ptr<fast::Tree> tree = ApplyMutation(
+          *pa, *accessors, nullptr, rng, env, *generators, 1, &detail);
+      const std::string text = tree != nullptr ? fast::Print(tree->root()) : "";
+      std::string parse_error;
+      Lineage lineage;
+      if (tree == nullptr ||
+          (text.find("get ") == std::string::npos &&
+           text.find("set ") == std::string::npos &&
+           text.find("defineProperty") == std::string::npos) ||
+          Program::Parse(text, lineage, &parse_error) == nullptr) {
+        ok = false;
+        err = detail + ": " + text + parse_error;
+      }
+      Random rng2(kSeed + 1000 + static_cast<uint64_t>(i));
+      tree = ApplyMutation(*expression, *accessors, nullptr, rng2, env,
+                           *generators, 1, &detail);
+      if (detail.find("getter") != std::string::npos ||
+          detail.find("setter") != std::string::npos ||
+          detail.find("accessor") != std::string::npos) {
+        ok = false;
+        err = "Expression: " + detail;
+      }
+    }
+    checker->Check(
+        "PropertyAccessor: weight 1, makes valid getters and setters; "
+        "Expression makes none",
+        ok, err);
+  }
+}
+
+// Receiver-targeted JIT: with the receiver chance at 1, JitOptimize,
+// JitBaseline and HotLoop compile methods, accessors and constructors, and
+// call them with their receiver.
+void CheckReceiverJit(Checker* checker) {
+  std::unique_ptr<GeneratorSet> generators = GeneratorSet::CreateDefault();
+  const Environment& env = Environment::Default();
+  TunableRegistry& reg = TunableRegistry::Instance();
+  const char* kReceivers = R"(class A {
+  constructor(x) { this.x = x; }
+  m(a) { return a + 1; }
+  get g() { return 1; }
+  set s(v) { this.x = v; }
+  static sm() { return 2; }
+  static get sg() { return 3; }
+}
+let inst = new A(1);
+let o = {k(v) { return v; }, get og() { return 4; }};
+)";
+  ProgramPtr program = ParseOrDie(kReceivers, "selftest");
+  reg.Reset();
+  std::string err;
+  bool ok = reg.Set("generators.JitOptimize.receiver_chance", 1, &err) &&
+            reg.Set("generators.HotLoop.receiver_chance", 1, &err);
+  // What the outputs must contain, over all samples.
+  const std::vector<std::string> kWanted = {
+      "inst.m(",
+      "o.k(",
+      "A.sm(",
+      "new A(",
+      "Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inst), \"g\").get",
+      "Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inst), \"s\").set",
+      "Object.getOwnPropertyDescriptor(A, \"sg\").get",
+      "Object.getOwnPropertyDescriptor(o, \"og\").get",
+      ".call(inst",
+      ".call(o",
+      "%PrepareFunctionForOptimization(jit",
+      "%CompileBaseline(jit",
+      "OnNextCall(A)",
+  };
+  std::set<std::string> seen;
+  for (const char* name : {"JitOptimize", "JitBaseline", "HotLoop"}) {
+    Generator* gen = generators->Find(name);
+    if (gen == nullptr) {
+      ok = false;
+      err = std::string("no generator ") + name;
+      break;
+    }
+    for (int i = 0; ok && i < 150; i++) {
+      std::unique_ptr<fast::Tree> tree = program->CopyTree();
+      Random rng(kSeed + 1100 + static_cast<uint64_t>(i));
+      Builder b(tree.get(), &rng);
+      Builder::Slot slot{&tree->root()->body, tree->root()->body.size(),
+                         tree->root()};
+      GenContext ctx = MakeGenContext(b, slot, *generators, env);
+      std::vector<fast::Statement*> out;
+      ctx.out = &out;
+      if (!gen->Generate(ctx, &out) || out.empty()) {
+        continue;
+      }
+      b.InsertAll(slot, out);
+      const std::string text = fast::Print(tree->root());
+      std::string parse_error;
+      Lineage lineage;
+      if (Program::Parse(text, lineage, &parse_error) == nullptr) {
+        ok = false;
+        err = std::string(name) + ": " + parse_error + "\n" + text;
+        break;
+      }
+      for (const std::string& wanted : kWanted) {
+        if (text.find(wanted) != std::string::npos) {
+          seen.insert(wanted);
+        }
+      }
+    }
+  }
+  for (const std::string& wanted : kWanted) {
+    if (ok && seen.count(wanted) == 0) {
+      ok = false;
+      err = "never generated: " + wanted;
+    }
+  }
+  reg.Reset();
+  checker->Check(
+      "JIT generators: methods, getters, setters and constructors are "
+      "compiled and called with their receiver",
+      ok, err);
+}
+
 }  // namespace
 
 void RunSelectionChecks(Checker* checker, const std::string& testdata_dir,
@@ -2743,6 +3289,8 @@ void RunSelectionChecks(Checker* checker, const std::string& testdata_dir,
   CheckOsrLoopTrigger(checker);
   CheckFocusChain(checker);
   CheckRarityOverhaul(checker);
+  CheckRuntimeAssisted(checker);
+  CheckReceiverJit(checker);
   CheckEdgeCases(checker);
   CheckBuiltinsAndWorkers(checker);
 }

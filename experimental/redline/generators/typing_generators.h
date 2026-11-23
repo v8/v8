@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <string_view>
 #include <vector>
 
 #include "experimental/redline/generators/codegen.h"
@@ -43,6 +44,32 @@ class ArgumentLists {
 // The type of an argument expression: the type of the visible variable
 // that it names, or the guess for the expression.
 JsType ArgumentType(const GenContext& ctx, const fast::Expression* argument);
+
+// A function for the JIT natives, and how the warm-up calls call it. The
+// call of a plain function is `name(...)`. The call of a method of a
+// visible object or class is `receiver.method(...)`. The call of a getter
+// or a setter is `name.call(receiver, ...)`. A class gets `new`. Thus
+// `this`, the home object and the brand checks are valid in the compiled
+// code.
+struct JitTarget {
+  std::string_view name;      // the function that the natives get
+  std::string_view receiver;  // `this` of the calls, empty for a plain call
+  std::string_view method;    // the key of a method of `receiver`
+  bool construct = false;     // the calls are `new name(...)`
+  bool is_generator = false;  // a new generator function: calls need next()
+  int max_args = -1;          // most arguments of a call, -1: no limit
+
+  // A call of the function with `args`.
+  fast::Expression* Call(fast::Tree* tree,
+                         std::vector<fast::Expression*> args) const;
+};
+
+// Picks a method, getter or setter of a visible object or class, or a
+// visible class constructor, from the program text. Appends to `out` the
+// declaration `const jitN = ...` of the function if it is not a variable.
+// Returns false if no visible variable has one.
+bool ReceiverJitTarget(GenContext& ctx, std::vector<fast::Statement*>* out,
+                       JitTarget* target);
 
 // An iterable of any kind. It is a visible array, string, Map, Set or typed
 // array, or an iterator over one of them. It can also be a new Map or Set,

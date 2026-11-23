@@ -186,9 +186,11 @@ Like Fuzzilli's `CodeGenMutator`, `CodeGen` also inserts into existing class bod
 Generators record the facts for the variables that they declare. For variables of earlier mutations, the `Builder` derives them from the tree, for example from the arguments of the first call of a function.
 A new function gets parameter types that enough visible variables have, as in Fuzzilli. Calls then pass values of these types, so that the function gets stable feedback.
 `JitOptimize` and `LazyDeopt` reuse at most two argument lists for the warm-up calls and the optimized call. `HotLoop` calls a function 100 times with the same arguments.
+`JitOptimize`, `JitBaseline` and `HotLoop` can also compile a method, a getter, a setter or a class constructor of a visible variable.
+The calls then use the receiver (`o.m()`, `get.call(o)`, `new C()`). Thus `this` and the home object have their usual values in the compiled code.
 
-A **mutator** changes a program. Mutators insert generated code (`CodeGen`, `JitStress`), change code in place (`Input`, `Operation`, `Expression`, `Call`),
-copy code from a partner (`Splice`, `Combine`), change the structure (`Remove`, `Wrap`, `Duplicate`, `Reorder`), or ask the target (`Explore`, `Probing`).
+A **mutator** changes a program. Mutators insert generated code (`CodeGen`, `JitStress`) or change code in place (`Input`, `Operation`, `Expression`, `PropertyAccessor`, `Call`).
+Other mutators copy code from a partner (`Splice`, `Combine`), change the structure (`Remove`, `Wrap`, `Duplicate`, `Reorder`), or ask the target (`Explore`, `Probing`, `Fixup`).
 `redline mutate --list` shows the mutators and generators with their weights. A weight of 0 disables a mutator or a generator.
 
 One link of the chain works like this:
@@ -216,9 +218,12 @@ The prefix values are primitives, arrays, objects, regexps, symbols, typed array
 It also adds resizable buffers and special values such as `%GetHoleNaN()`.
 
 **Runtime-assisted mutators.** A type guess from the source does not tell which properties a value has. `Explore` and `Probing` ask the target instead.
-They insert probes, and the worker runs the instrumented program once with a helper script in front.
+They insert probes, and the worker runs the instrumented program once with a helper script in front, at 4 times the timeout.
 The helper writes its findings to the fuzzout channel. The mutator turns the findings into ordinary code and removes the probes.
 `Explore` examines a variable and does an action that fits its value. `Probing` installs properties that the program asks an object for but the object does not have.
+As in Fuzzilli, the probes of `Explore` and `Probing` go right after the definitions of some variables. A cap and a lower cap in loop bodies limit their number.
+There are no probes in a function that the program gives to `new Worker(...)`, because the helper does not exist in the worker.
+`Fixup` removes the `try/catch` guards of exception salvage whose handler does not run. A body that declares `let`, `const`, `class` or a function stays in a block.
 
 **Environment.** Generators use a hand-written model of the globals, methods and runtime functions of d8 (`core/environment.h`).
 The typed part of the model (`core/environment_typed.cc`, after Fuzzilli's JavaScriptEnvironment) gives a builtin its full parameter list.

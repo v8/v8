@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "experimental/redline/core/ast_builder.h"
+#include "experimental/redline/core/known_keys.h"
 #include "experimental/redline/core/tunable.h"
 #include "experimental/redline/fast/printer.h"
 
@@ -75,6 +76,187 @@ JsType ArgumentType(const GenContext& ctx, const Expression* argument) {
     }
   }
   return Builder::GuessType(argument);
+}
+
+Expression* JitTarget::Call(Tree* t, std::vector<Expression*> args) const {
+  if (max_args >= 0 && args.size() > static_cast<size_t>(max_args)) {
+    args.resize(static_cast<size_t>(max_args));
+  }
+  if (construct) {
+    return mk::New(t, mk::Id(t, name), std::move(args));
+  }
+  if (!method.empty()) {
+    Expression* object = mk::Id(t, receiver);
+    Expression* callee =
+        IsIdentifierName(method)
+            ? static_cast<Expression*>(mk::Member(t, object, method))
+            : mk::Index(t, object, mk::Str(t, method));
+    return mk::Call(t, callee, std::move(args));
+  }
+  if (!receiver.empty()) {
+    args.insert(args.begin(), mk::Id(t, receiver));
+    return mk::CallMethod(t, mk::Id(t, name), "call", std::move(args));
+  }
+  return mk::Call(t, mk::Id(t, name), std::move(args));
+}
+
+namespace {
+
+// A function with a receiver that ReceiverJitTarget can pick.
+struct ReceiverCandidate {
+  enum class Kind { kMethod, kGetter, kSetter, kConstructor };
+  std::string_view object;
+  std::string_view key;  // empty for a constructor
+  Kind kind = Kind::kMethod;
+  bool on_prototype = false;  // an accessor of the prototype of `object`
+};
+
+// The class that `binding` names, or nullptr.
+const ClassData* ClassOf(const Binding* binding) {
+  Node* declaration = binding->declaration;
+  if (declaration == nullptr) {
+    return nullptr;
+  }
+  if (auto* cls = declaration->As<ClassDeclaration>()) {
+    return cls;
+  }
+  if (auto* cls = declaration->As<ClassExpression>()) {
+    return cls;
+  }
+  if (auto* declarator = declaration->As<VariableDeclarator>();
+      declarator != nullptr && declarator->target == binding->identifier &&
+      declarator->init != nullptr) {
+    return declarator->init->As<ClassExpression>();
+  }
+  return nullptr;
+}
+
+// Adds the getters and setters among `members` (Property or
+// MethodDefinition nodes) with a known key. For a class, only the static
+// ones or only the ones of the instances.
+void AddAccessors(Tree* t, std::string_view object,
+                  const std::vector<Node*>& members, bool is_static,
+                  bool on_prototype, std::vector<ReceiverCandidate>* out) {
+  using Kind = ReceiverCandidate::Kind;
+  for (const Node* member : members) {
+    std::string_view key;
+    Kind kind = Kind::kMethod;
+    if (const auto* m = member->As<MethodDefinition>()) {
+      if (m->is_static != is_static || (m->method_kind != MethodKind::kGet &&
+                                        m->method_kind != MethodKind::kSet)) {
+        continue;
+      }
+      key = KeyName(t, m->key, m->computed);
+      kind = m->method_kind == MethodKind::kGet ? Kind::kGetter : Kind::kSetter;
+    } else if (const auto* p = member->As<Property>()) {
+      if (p->property_kind == PropertyKind::kInit) {
+        continue;
+      }
+      key = KeyName(t, p->key, p->computed);
+      kind = p->property_kind == PropertyKind::kGet ? Kind::kGetter
+                                                    : Kind::kSetter;
+    }
+    if (!key.empty() && kind != Kind::kMethod) {
+      out->push_back({object, key, kind, on_prototype});
+    }
+  }
+}
+
+}  // namespace
+
+bool ReceiverJitTarget(GenContext& ctx, std::vector<Statement*>* out,
+                       JitTarget* target) {
+  using Kind = ReceiverCandidate::Kind;
+  Tree* t = ctx.tree();
+  Builder& b = ctx.builder;
+  std::vector<ReceiverCandidate> candidates;
+  for (const Variable& v : ctx.visible) {
+    // The value of an assigned variable may have none of these functions.
+    if (v.name == "arguments" || v.name == "eval" ||
+        (v.binding != nullptr && v.binding->assigned)) {
+      continue;
+    }
+    if (v.type == JsType::kClass) {
+      candidates.push_back({v.name, {}, Kind::kConstructor, false});
+    }
+    // Methods: of an object literal, static methods of a class, methods of
+    // an instance of a known class.
+    if (const BindingInfo* info = b.InfoOf(v.name)) {
+      for (const KnownKey& key : info->keys) {
+        if (!key.on_instance && key.arity >= 0) {
+          candidates.push_back({v.name, key.name, Kind::kMethod, false});
+        }
+      }
+    }
+    if (v.binding == nullptr) {
+      continue;
+    }
+    if (const ClassData* cls = ClassOf(v.binding)) {
+      AddAccessors(t, v.name, cls->body->members, /*is_static=*/true, false,
+                   &candidates);
+      continue;
+    }
+    const auto* declarator =
+        v.binding->declaration != nullptr
+            ? v.binding->declaration->As<VariableDeclarator>()
+            : nullptr;
+    const Expression* init =
+        declarator != nullptr && declarator->target == v.binding->identifier
+            ? declarator->init
+            : nullptr;
+    if (init == nullptr) {
+      continue;
+    }
+    if (const auto* object = init->As<ObjectExpression>()) {
+      AddAccessors(t, v.name, object->properties, false, false, &candidates);
+    } else if (const auto* construct = init->As<NewExpression>()) {
+      const auto* callee = construct->callee->As<Identifier>();
+      const Binding* binding =
+          callee != nullptr ? b.scopes().BindingOf(callee) : nullptr;
+      if (const ClassData* cls =
+              binding != nullptr ? ClassOf(binding) : nullptr) {
+        AddAccessors(t, v.name, cls->body->members, /*is_static=*/false,
+                     /*on_prototype=*/true, &candidates);
+      }
+    }
+  }
+  if (candidates.empty()) {
+    return false;
+  }
+  const ReceiverCandidate& c = candidates[ctx.rng().Index(candidates.size())];
+  *target = JitTarget();
+  if (c.kind == Kind::kConstructor) {
+    target->name = c.object;
+    target->construct = true;
+    return true;
+  }
+  Expression* object = mk::Id(t, c.object);
+  Expression* function = nullptr;
+  if (c.kind == Kind::kMethod) {
+    function = IsIdentifierName(c.key)
+                   ? static_cast<Expression*>(mk::Member(t, object, c.key))
+                   : mk::Index(t, object, mk::Str(t, c.key));
+    target->method = c.key;
+  } else {
+    // Object.getOwnPropertyDescriptor(o, "k").get, with the prototype of o
+    // for an accessor of a class instance.
+    Expression* holder =
+        c.on_prototype
+            ? mk::CallMethod(t, mk::Id(t, "Object"), "getPrototypeOf", {object})
+            : object;
+    function = mk::Member(
+        t,
+        mk::CallMethod(t, mk::Id(t, "Object"), "getOwnPropertyDescriptor",
+                       {holder, mk::Str(t, c.key)}),
+        c.kind == Kind::kGetter ? "get" : "set");
+    target->max_args = c.kind == Kind::kGetter ? 0 : 1;
+  }
+  target->name = b.FreshName("jit");
+  target->receiver = c.object;
+  out->push_back(mk::Const(t, target->name, function));
+  // Not a plain function: a call without the receiver can throw.
+  ctx.Declare(target->name, JsType::kUnknown, /*is_constant=*/true);
+  return true;
 }
 
 REDLINE_TUNABLE(kIterableMaxLength, "generators.Iterable.max_length", 4, 1, 64,
@@ -210,6 +392,10 @@ REDLINE_TUNABLE(kHotLoopGuardChance, "generators.HotLoop.guard_chance", 0.5, 0,
                 1,
                 "probability that the call is in a try block whose handler "
                 "ends the loop, so that an exception does not end the program");
+REDLINE_TUNABLE(kHotLoopReceiverChance, "generators.HotLoop.receiver_chance",
+                0.3, 0, 1,
+                "probability that the loop calls a method, accessor or class "
+                "constructor of a visible variable rather than a function");
 
 // Fuzzilli's ForceJITCompilationThroughLoopGenerator
 // (V8CommonProfile.swift:142-151). A loop calls an existing function many
@@ -218,18 +404,23 @@ REDLINE_TUNABLE(kHotLoopGuardChance, "generators.HotLoop.guard_chance", 0.5, 0,
 GEN(HotLoop) {
   Random& r = ctx.rng();
   Tree* t = T(ctx);
-  bool is_generator = false;
-  Identifier* f = ExistingOrNewFunction(ctx, cg, out, &is_generator);
-  if (f == nullptr) {
-    return false;
+  JitTarget jit;
+  if (!r.Chance(kHotLoopReceiverChance()) ||
+      !ReceiverJitTarget(ctx, out, &jit)) {
+    Identifier* f = ExistingOrNewFunction(ctx, cg, out, &jit.is_generator);
+    if (f == nullptr) {
+      return false;
+    }
+    jit.name = f->name;
   }
   std::string_view counter = ctx.builder.FreshName("i");
   GenContext loop = ctx.Inner(true, false);
   loop.Declare(counter, JsType::kNumber, true);
   CodeGen lcg(loop);
   // One call expression: each iteration evaluates the same arguments.
-  Expression* call = lcg.CallWithArguments(mk::Id(t, f->name));
-  if (is_generator) {
+  Expression* call =
+      jit.Call(t, lcg.CallWithArguments(mk::Id(t, jit.name))->arguments);
+  if (jit.is_generator) {
     // The call only makes the generator object. next() runs the body.
     call = mk::CallMethod(t, call, "next", {});
   }

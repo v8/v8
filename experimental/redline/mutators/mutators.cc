@@ -20,6 +20,7 @@
 #include "experimental/redline/generators/codegen.h"
 #include "experimental/redline/generators/values_generators.h"
 #include "experimental/redline/mutators/explore.h"
+#include "experimental/redline/mutators/fixup.h"
 #include "experimental/redline/mutators/mutator.h"
 #include "experimental/redline/mutators/probing.h"
 
@@ -993,22 +994,22 @@ REDLINE_TUNABLE(kExpressionComplexCandidateChance,
                 "mutators.Expression.complex_candidate_chance", 0.2, 0, 1,
                 "probability that a spread, template, function or class "
                 "expression is kept as a candidate");
-REDLINE_TUNABLE(kExpressionAccessorChance,
-                "mutators.Expression.accessor_chance", 0.35, 0, 1,
-                "probability that Expression converts a property or method "
-                "into a getter or setter");
-REDLINE_TUNABLE(kExpressionAccessorBothChance,
-                "mutators.Expression.accessor_both_chance", 0.5, 0, 1,
+REDLINE_TUNABLE(kPropertyAccessorBothChance,
+                "mutators.PropertyAccessor.both_chance", 0.5, 0, 1,
                 "probability that an Object.defineProperty accessor defines "
                 "both get and set");
-REDLINE_TUNABLE(kExpressionAccessorGetterChance,
-                "mutators.Expression.accessor_getter_chance", 0.75, 0, 1,
+REDLINE_TUNABLE(kPropertyAccessorGetterChance,
+                "mutators.PropertyAccessor.getter_chance", 0.75, 0, 1,
                 "probability that a single accessor is a getter rather than a "
                 "setter");
-REDLINE_TUNABLE(kExpressionAccessorMaxStatements,
-                "mutators.Expression.accessor_max_statements", 2, 0, 16,
+REDLINE_TUNABLE(kPropertyAccessorMaxStatements,
+                "mutators.PropertyAccessor.max_statements", 2, 0, 16,
                 "most generated statements in an accessor body before "
                 "returning");
+REDLINE_TUNABLE(kPropertyAccessorMaxAttempts,
+                "mutators.PropertyAccessor.max_attempts", 8, 1, 16,
+                "candidates the PropertyAccessor mutator tries before giving "
+                "up");
 
 bool CanMoveIntoAccessor(Expression* expr) {
   if (expr == nullptr) {
@@ -1091,8 +1092,8 @@ bool IsInPatternOrAssignmentTarget(Builder& b, Node* node) {
 
 class ExpressionMutator final : public Mutator {
  public:
-  // Closest Fuzzilli counterpart: PropertyAccessorMutator (weight 1, shared
-  // with Call), up to 3 simultaneous.
+  // No direct Fuzzilli counterpart. The closest are the expression edits of
+  // OperationMutator. Up to 3 simultaneous.
   ExpressionMutator()
       : Mutator("Expression",
                 "replaces or wraps an expression in value position", 0.5, false,
@@ -1100,9 +1101,6 @@ class ExpressionMutator final : public Mutator {
 
   bool Mutate(Builder& b, MutationContext& ctx) override {
     Random& r = b.rng();
-    if (r.Chance(kExpressionAccessorChance()) && MutateAccessor(b, ctx)) {
-      return true;
-    }
     std::vector<Expression*> candidates = b.ValueExpressions();
     for (int attempt = 0;
          attempt < kExpressionMaxAttempts.AsInt() && !candidates.empty();
@@ -1245,6 +1243,20 @@ class ExpressionMutator final : public Mutator {
       }
     }
   }
+};
+
+// --- PropertyAccessor mutator
+// ---------------------------------------------------------
+
+// Fuzzilli's PropertyAccessorMutator (weight 1, up to 3 simultaneous).
+// Changes a property store, an object literal property, a class method or
+// a class field into a getter, a setter or both.
+class PropertyAccessorMutator final : public Mutator {
+ public:
+  PropertyAccessorMutator()
+      : Mutator("PropertyAccessor",
+                "turns a property, method or field into a getter or setter", 1,
+                false, 3) {}
 
   static bool IsAccessorCandidate(Builder& b, Node* n) {
     if (IsInPatternOrAssignmentTarget(b, n)) {
@@ -1307,12 +1319,12 @@ class ExpressionMutator final : public Mutator {
     }
   }
 
-  bool MutateAccessor(Builder& b, MutationContext& ctx) {
+  bool Mutate(Builder& b, MutationContext& ctx) override {
     Random& r = b.rng();
     std::vector<Node*> candidates =
         b.Collect([&](Node* n) { return IsAccessorCandidate(b, n); });
     for (int attempt = 0;
-         attempt < kExpressionMaxAttempts.AsInt() && !candidates.empty();
+         attempt < kPropertyAccessorMaxAttempts.AsInt() && !candidates.empty();
          attempt++) {
       Node* node = candidates[r.Index(candidates.size())];
       if (ConvertToAccessor(b, node, ctx)) {
@@ -1326,7 +1338,7 @@ class ExpressionMutator final : public Mutator {
     Random& r = b.rng();
     Tree* t = b.tree();
     GenContext gen = ContextForNode(b, node, ctx);
-    const int max_stmts = kExpressionAccessorMaxStatements.AsInt();
+    const int max_stmts = kPropertyAccessorMaxStatements.AsInt();
     switch (node->kind) {
       case NodeKind::kAssignmentExpression: {
         auto* e = node->Cast<AssignmentExpression>();
@@ -1334,8 +1346,8 @@ class ExpressionMutator final : public Mutator {
         Expression* key_expr =
             m->computed ? m->property
                         : mk::Str(t, m->property->Cast<Identifier>()->name);
-        bool both = r.Chance(kExpressionAccessorBothChance());
-        bool has_get = both || r.Chance(kExpressionAccessorGetterChance());
+        bool both = r.Chance(kPropertyAccessorBothChance());
+        bool has_get = both || r.Chance(kPropertyAccessorGetterChance());
         bool has_set = both || !has_get;
         std::vector<Node*> desc_props;
         if (has_get) {
@@ -1397,7 +1409,7 @@ class ExpressionMutator final : public Mutator {
           prop->key = mk::Id(t, prop->key->Cast<Identifier>()->name);
         }
         Expression* old_val = prop->value;
-        bool is_get = r.Chance(kExpressionAccessorGetterChance());
+        bool is_get = r.Chance(kPropertyAccessorGetterChance());
         FunctionExpression* acc_fn = nullptr;
         if (is_get) {
           GenContext g_ctx = gen.Nested(true, false, false, false);
@@ -1451,7 +1463,7 @@ class ExpressionMutator final : public Mutator {
       case NodeKind::kPropertyDefinition: {
         auto* f = node->Cast<PropertyDefinition>();
         std::string old = Describe(f);
-        bool is_get = r.Chance(kExpressionAccessorGetterChance());
+        bool is_get = r.Chance(kPropertyAccessorGetterChance());
         FunctionExpression* acc_fn = nullptr;
         if (is_get) {
           GenContext g_ctx = gen.Nested(true, false, false, false);
@@ -2339,6 +2351,7 @@ std::unique_ptr<MutatorSet> MutatorSet::CreateDefault() {
                                       /*max_simultaneous=*/3));
   add(std::make_unique<ExploreMutator>());
   add(std::make_unique<ProbingMutator>());
+  add(std::make_unique<FixupMutator>());
   // Weight 0: never picked at random; the worker applies it to the parent of
   // every mutation chain so that the mutators have fresh values to work with
   // (10-15 values, like Fuzzilli's buildPrefix()). Only generators that
@@ -2365,6 +2378,7 @@ std::unique_ptr<MutatorSet> MutatorSet::CreateDefault() {
   add(std::make_unique<InputMutator>());
   add(std::make_unique<OperationMutator>());
   add(std::make_unique<ExpressionMutator>());
+  add(std::make_unique<PropertyAccessorMutator>());
   add(std::make_unique<CallMutator>());
   add(std::make_unique<RemoveMutator>());
   add(std::make_unique<WrapMutator>());

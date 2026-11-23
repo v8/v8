@@ -1902,31 +1902,41 @@ GEN(BreakContinue) {
 // --- JIT
 // ------------------------------------------------------------------------
 
-// Picks a function to compile: a visible function variable, or a fresh one.
-// `*is_generator` tells if the function is a fresh generator function.
-Identifier* FunctionForJit(GenContext& ctx, CodeGen& cg, Statements* out,
-                           bool* is_generator = nullptr) {
-  if (is_generator != nullptr) {
-    *is_generator = false;
+REDLINE_TUNABLE(
+    kJitReceiverChance, "generators.JitOptimize.receiver_chance", 0.3, 0, 1,
+    "probability that JitOptimize or JitBaseline compiles a method, "
+    "accessor or class constructor of a visible variable rather "
+    "than a function");
+
+// Picks a function to compile: sometimes a method, accessor or constructor
+// of a visible variable (ReceiverJitTarget), else a visible function
+// variable, or a fresh one. False if there is none.
+bool FunctionForJit(GenContext& ctx, CodeGen& cg, Statements* out,
+                    JitTarget* target) {
+  *target = JitTarget();
+  if (ctx.rng().Chance(kJitReceiverChance()) &&
+      ReceiverJitTarget(ctx, out, target)) {
+    return true;
   }
   if (Identifier* f = cg.Variable(JsType::kFunction)) {
-    return f;
+    target->name = f->name;
+    return true;
   }
   Statements decl;
   if (!GenFunctionDecl(ctx, cg, &decl)) {
-    return nullptr;
+    return false;
   }
   out->insert(out->end(), decl.begin(), decl.end());
-  if (is_generator != nullptr) {
-    *is_generator = decl.front()->Cast<FunctionDeclaration>()->is_generator;
-  }
+  target->is_generator =
+      decl.front()->Cast<FunctionDeclaration>()->is_generator;
   // The declaration registered the name as the newest visible function.
   for (const Variable& v : ctx.visible) {
     if (v.type == JsType::kFunction) {
-      return mk::Id(T(ctx), v.name);
+      target->name = v.name;
+      return true;
     }
   }
-  return nullptr;
+  return false;
 }
 
 REDLINE_TUNABLE(kJitOptimizeMaxWarmupCalls,
@@ -1995,20 +2005,20 @@ REDLINE_TUNABLE(kJitOptimizeOtherTypesChance,
 GEN(JitOptimize) {
   Random& r = ctx.rng();
   Tree* t = T(ctx);
-  bool is_generator = false;
-  Identifier* f = FunctionForJit(ctx, cg, out, &is_generator);
-  if (f == nullptr) {
+  JitTarget jit;
+  if (!FunctionForJit(ctx, cg, out, &jit)) {
     return false;
   }
+  const bool is_generator = jit.is_generator;
   if (!out->empty()) {
     // A function that FunctionForJit just declared: maybe a GC inside it.
     auto* decl = out->back()->As<FunctionDeclaration>();
     if (decl != nullptr && decl->name != nullptr &&
-        decl->name->name == f->name && decl->body != nullptr) {
+        decl->name->name == jit.name && decl->body != nullptr) {
       MaybeInsertGcNative(ctx, cg, &decl->body->body);
     }
   }
-  std::string_view name = f->name;
+  std::string_view name = jit.name;
   std::string_view target_name = name;
 
   const bool constant_caller = r.Chance(kJitOptimizeConstantCallerChance());
@@ -2034,12 +2044,13 @@ GEN(JitOptimize) {
       for (JsType type : types) {
         args.push_back(cg.Literal(type));
       }
-      inner_call = mk::Call(t, mk::Id(t, name), std::move(args));
+      inner_call = jit.Call(t, std::move(args));
     } else {
       caller_body = caller_cg.Body(
           caller_ctx,
           1 + r.SmallCount(kJitOptimizeCallerMaxStatements.AsInt() - 1));
-      inner_call = caller_cg.CallWithArguments(mk::Id(t, name));
+      inner_call =
+          jit.Call(t, caller_cg.CallWithArguments(mk::Id(t, name))->arguments);
     }
     if (is_generator) {
       // Without next(), the body of the generator does not run.
@@ -2125,10 +2136,10 @@ GEN(JitOptimize) {
     if (!warmup && args.empty()) {
       args = lists.Next(kJitOptimizeOptimizedReuseChance());
     }
-    CallExpression* call = mk::Call(t, mk::Id(t, name), std::move(args));
     if (warmup && array_warmup) {
-      call->arguments.insert(call->arguments.begin(), cg.ArrayLiteral(1));
+      args.insert(args.begin(), cg.ArrayLiteral(1));
     }
+    Expression* call = jit.Call(t, std::move(args));
     if (is_generator) {
       return cg.Stmt(mk::CallMethod(t, call, "next", {}));
     }
@@ -2157,12 +2168,13 @@ GEN(JitOptimize) {
 
 GEN(JitBaseline) {
   Tree* t = T(ctx);
-  Identifier* f = FunctionForJit(ctx, cg, out);
-  if (f == nullptr) {
+  JitTarget jit;
+  if (!FunctionForJit(ctx, cg, out, &jit)) {
     return false;
   }
-  Push(out, cg.Stmt(mk::Native(t, "CompileBaseline", {f})));
-  Push(out, cg.Stmt(cg.CallWithArguments(mk::Id(t, f->name))));
+  Push(out, cg.Stmt(mk::Native(t, "CompileBaseline", {mk::Id(t, jit.name)})));
+  Push(out, cg.Stmt(jit.Call(
+                t, cg.CallWithArguments(mk::Id(t, jit.name))->arguments)));
   return true;
 }
 
