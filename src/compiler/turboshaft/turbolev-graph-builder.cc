@@ -4980,7 +4980,7 @@ class GraphBuildingNodeProcessor {
         V<Float64> rounded = __ Float64RoundTiesEven(input);
         V<Word32> is_tie_down =
             __ Float64Equal(__ Float64Sub(input, rounded), 0.5);
-        if (SupportedOperations::float64_select()) {
+        if (SupportedOperations::float64_cmove()) {
           SetMap(node, __ Float64CMove(is_tie_down, __ Float64Add(rounded, 1.0),
                                        rounded));
         } else {

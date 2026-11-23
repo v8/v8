@@ -49,13 +49,13 @@ bool SelectIsSupported(SelectOperator op) {
 
   switch (op) {
     case SelectOperator::kWord32:
-      return SupportedOperations::word32_select();
+      return SupportedOperations::word32_cmove();
     case SelectOperator::kWord64:
-      return SupportedOperations::word64_select();
+      return SupportedOperations::word64_cmove();
     case SelectOperator::kFloat32:
-      return SupportedOperations::float32_select();
+      return SupportedOperations::float32_cmove();
     case SelectOperator::kFloat64:
-      return SupportedOperations::float64_select();
+      return SupportedOperations::float64_cmove();
   }
   UNREACHABLE();
 }

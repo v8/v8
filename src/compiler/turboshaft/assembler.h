@@ -3604,7 +3604,7 @@ class AssemblerOpInterface : public Next {
 #define DEF_CMOVE(Rep, rep)                                              \
   V<Rep> Rep##CMove(ConstOrV<Word32> cond, ConstOrV<Rep> vtrue,          \
                     ConstOrV<Rep> vfalse) {                              \
-    DCHECK(SupportedOperations::rep##_select());                         \
+    DCHECK(SupportedOperations::rep##_cmove());                          \
     return Select<Rep>(resolve(cond), resolve(vtrue), resolve(vfalse),   \
                        RegisterRepresentation::Rep(), BranchHint::kNone, \
                        SelectOp::Implementation::kForceCMove);           \

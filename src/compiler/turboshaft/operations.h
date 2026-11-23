@@ -1444,8 +1444,8 @@ struct FixedArityOperationT : OperationT<Derived> {
   V(word64_popcnt, Word64Popcnt)                           \
   V(word32_reverse_bits, Word32ReverseBits)                \
   V(word64_reverse_bits, Word64ReverseBits)                \
-  V(float32_select, Float32Select)                         \
-  V(float64_select, Float64Select)                         \
+  V(float32_cmove, Float32Select)                          \
+  V(float64_cmove, Float64Select)                          \
   V(float64_min_max, Float64MinMax)                        \
   V(int32_abs_with_overflow, Int32AbsWithOverflow)         \
   V(int64_abs_with_overflow, Int64AbsWithOverflow)         \
@@ -1453,8 +1453,8 @@ struct FixedArityOperationT : OperationT<Derived> {
   V(word64_rol, Word64Rol)                                 \
   V(word64_rol_lowerable, Word64RolLowerable)              \
   V(sat_conversion_is_safe, SatConversionIsSafe)           \
-  V(word32_select, Word32Select)                           \
-  V(word64_select, Word64Select)                           \
+  V(word32_cmove, Word32Select)                            \
+  V(word64_cmove, Word64Select)                            \
   V(float16_mem_access, Float16MemAccess)                  \
   V(float16_raw_bits_conversion, Float16RawBitsConversion) \
   V(float16_arithmetic, Float16Arithmetic)
@@ -2743,16 +2743,16 @@ struct SelectOp : FixedArityOperationT<3, SelectOp> {
     if (implem == Implementation::kForceCMove) {
       switch (rep.value()) {
         case RegisterRepresentation::Enum::kWord32:
-          DCHECK(SupportedOperations::word32_select());
+          DCHECK(SupportedOperations::word32_cmove());
           break;
         case RegisterRepresentation::Enum::kWord64:
-          DCHECK(SupportedOperations::word64_select());
+          DCHECK(SupportedOperations::word64_cmove());
           break;
         case RegisterRepresentation::Enum::kFloat32:
-          DCHECK(SupportedOperations::float32_select());
+          DCHECK(SupportedOperations::float32_cmove());
           break;
         case RegisterRepresentation::Enum::kFloat64:
-          DCHECK(SupportedOperations::float64_select());
+          DCHECK(SupportedOperations::float64_cmove());
           break;
 
         case RegisterRepresentation::Enum::kCompressed:
