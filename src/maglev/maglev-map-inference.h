@@ -7,6 +7,7 @@
 
 #include <iostream>
 
+#include "src/compiler/compilation-dependencies.h"
 #include "src/maglev/maglev-known-node-aspects.h"
 #include "src/maglev/maglev-reducer.h"
 
@@ -43,7 +44,7 @@ class MapInference {
   MapInference(ReducerT* reducer, ValueNode* object, Variant variant)
       : reducer_(reducer),
         object_(object),
-        node_info_(reducer->known_node_aspects().TryGetInfoFor(object)),
+        node_info_(GetNodeInfo(reducer, object)),
         variant_(variant) {}
 
   bool HaveMaps() const {
@@ -112,6 +113,39 @@ class MapInference {
   }
 
  private:
+  // If no maps are known for a constant with a stable map, records that map
+  // together with a stability dependency (like TurboFan's
+  // NodeProperties::InferMapsUnsafe).
+  static const NodeInfo* GetNodeInfo(ReducerT* reducer, ValueNode* object) {
+    KnownNodeAspects& known_node_aspects = reducer->known_node_aspects();
+    const NodeInfo* info = known_node_aspects.TryGetInfoFor(object);
+    if (info && info->possible_maps_are_known()) return info;
+
+    compiler::JSHeapBroker* broker = reducer->broker();
+    // Not TryGetConstant<HeapObject>: value-checked nodes may have other maps.
+    compiler::OptionalHeapObjectRef constant = object->TryGetConstant(broker);
+    // The map of a hole must not be accessed.
+    if (!constant.has_value() || constant->IsAnyHole()) return info;
+    compiler::MapRef map = constant->map(broker);
+    if (!map.is_stable()) return info;
+    // Element stores to Array.prototype and Object.prototype must go through
+    // the runtime since they invalidate the NoElements protector.
+    if (map.IsJSObjectMap() &&
+        constant->AsJSObject().IsArrayOrObjectPrototype(broker)) {
+      return info;
+    }
+    NodeType type = StaticTypeForMap(map, broker);
+    // The known type contradicts the constant, so this code is dead.
+    if (info && IsEmptyNodeType(IntersectType(info->type(), type))) return info;
+
+    broker->dependencies()->DependOnStableMap(map);
+    NodeInfo* mutable_info =
+        known_node_aspects.GetOrCreateInfoFor(broker, object);
+    CHECK(mutable_info->SetPossibleMaps(PossibleMaps{map}, false, type, broker,
+                                        known_node_aspects));
+    return mutable_info;
+  }
+
   ReducerT* const reducer_;
   ValueNode* const object_;
   const NodeInfo* node_info_;
