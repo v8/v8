@@ -70,12 +70,13 @@ Map Layout (src/objects/map.h)
 | [4B padding on 64-bit uncompressed builds]                       |
 | prototype_                 (TaggedMember<JSPrototype>)           |
 | constructor_or_back_pointer_or_native_context_ (TaggedMember)    |
-| instance_descriptors_      (TaggedMember<DescriptorArray>)       |
-| dependent_code_            (TaggedMember<DependentCode>)         |
+| instance_descriptors_      (DescriptorArray | WasmStruct)*       |
+| dependent_code_            (DependentCode | Map)*                |
 | prototype_validity_cell_   (TaggedMember<Smi|Cell>)              |
 | transitions_or_prototype_info_ (TaggedMember<MaybeWeak<...>>)    |
 +------------------------------------------------------------------+
 ```
+*\* On Wasm builds (`V8_ENABLE_WEBASSEMBLY`), `WasmStruct` maps with custom descriptors reuse `instance_descriptors_` to store their `custom_descriptor` (`WasmStruct`) and `dependent_code_` to store their `immediate_supertype_map` (`Map`). Code loading `instance_descriptors_` (C++ `Map::instance_descriptors()` or CSA `LoadMapDescriptors`) must therefore verify the map is not a `WasmStruct` map first (e.g., via map identity, `IsJSObjectMap`, or `!IsSpecialReceiverMap`).*
 
 ### Key `Map` Fields
 1. **`instance_size_in_words_` (`uint8_t`)**:

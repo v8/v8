@@ -1415,7 +1415,7 @@ LookupIterator::State LookupIterator::LookupInRegularHolder(
 // property.
 // static
 bool LookupIterator::HasInternalMarkerProperty(
-    Isolate* isolate, Tagged<JSReceiver> const holder,
+    Isolate* isolate, Tagged<JSObject> const holder,
     DirectHandle<Symbol> const marker) {
   DisallowGarbageCollection no_gc;
   Tagged<Map> map = holder->map();

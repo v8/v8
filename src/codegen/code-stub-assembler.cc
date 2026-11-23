@@ -20936,7 +20936,6 @@ void PrototypeCheckAssembler::CheckAndBranch(TNode<HeapObject> prototype,
                                              Label* if_unmodified,
                                              Label* if_modified) {
   TNode<Map> prototype_map = LoadMap(prototype);
-  TNode<DescriptorArray> descriptors = LoadMapDescriptors(prototype_map);
 
   // The continuation of a failed fast check: if property identity checks are
   // enabled, we continue there (since they may still classify the prototype as
@@ -20958,6 +20957,7 @@ void PrototypeCheckAssembler::CheckAndBranch(TNode<HeapObject> prototype,
     // We need to make sure that relevant properties in the prototype have
     // not been tampered with. We do this by checking that their slots
     // in the prototype's descriptor array are still marked as const.
+    TNode<DescriptorArray> descriptors = LoadMapDescriptors(prototype_map);
 
     TNode<Uint32T> combined_details;
     for (int i = 0; i < properties_.length(); i++) {
@@ -21002,6 +21002,11 @@ void PrototypeCheckAssembler::CheckAndBranch(TNode<HeapObject> prototype,
 
     BIND(&property_identity_check);
 
+    // Logic below only handles maps with fast properties.
+    GotoIfMapHasSlowProperties(prototype_map, if_modified);
+
+    TNode<DescriptorArray> descriptors = LoadMapDescriptors(prototype_map);
+
     int max_descriptor_index = -1;
     for (int i = 0; i < properties_.length(); i++) {
       max_descriptor_index =
@@ -21013,9 +21018,6 @@ void PrototypeCheckAssembler::CheckAndBranch(TNode<HeapObject> prototype,
     GotoIfNot(Int32LessThan(Int32Constant(max_descriptor_index),
                             LoadNumberOfDescriptors(descriptors)),
               if_modified);
-
-    // Logic below only handles maps with fast properties.
-    GotoIfMapHasSlowProperties(prototype_map, if_modified);
 
     for (int i = 0; i < properties_.length(); i++) {
       const DescriptorIndexNameValue& p = properties_[i];

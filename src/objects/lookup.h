@@ -276,7 +276,7 @@ class V8_EXPORT_PRIVATE LookupIterator final {
 
   // Test whether the object has an internal marker property.
   static bool HasInternalMarkerProperty(Isolate* isolate,
-                                        Tagged<JSReceiver> object,
+                                        Tagged<JSObject> object,
                                         DirectHandle<Symbol> marker);
 
  private:

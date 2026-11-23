@@ -4819,6 +4819,9 @@ void Symbol::SymbolShortPrint(std::ostream& os) {
 void Map::PrintMapDetails(std::ostream& os) {
   DisallowGarbageCollection no_gc;
   this->MapPrint(os);
+#if V8_ENABLE_WEBASSEMBLY
+  if (IsAnyWasmObjectMap(this)) return;
+#endif  // V8_ENABLE_WEBASSEMBLY
   instance_descriptors()->PrintDescriptors(os);
 }
 
