@@ -2822,15 +2822,19 @@ Tagged<Object> Isolate::Throw(Tagged<Object> raw_exception,
 
   // Determine whether a message needs to be created for the given exception
   // depending on the following criteria:
-  // 1) External v8::TryCatch missing: Always create a message because any
+  // 1) Uncatchable termination exceptions: No message is ever reported or
+  //    propagated to v8::TryCatch, so skip message creation (and stack
+  //    walking).
+  // 2) External v8::TryCatch missing: Always create a message because any
   //    JavaScript handler for a finally-block might re-throw to top-level.
-  // 2) External v8::TryCatch exists: Only create a message if the handler
+  // 3) External v8::TryCatch exists: Only create a message if the handler
   //    captures messages or is verbose (which reports despite the catch).
-  // 3) ReThrow from v8::TryCatch: The message from a previous throw still
+  // 4) ReThrow from v8::TryCatch: The message from a previous throw still
   //    exists and we preserve it instead of creating a new message.
-  bool requires_message = try_catch_handler() == nullptr ||
-                          try_catch_handler()->IsVerbose() ||
-                          try_catch_handler()->capture_message();
+  bool requires_message =
+      is_catchable_by_javascript(*exception) &&
+      (try_catch_handler() == nullptr || try_catch_handler()->IsVerbose() ||
+       try_catch_handler()->capture_message());
   bool rethrowing_message = thread_local_top()->rethrowing_message_;
 
   thread_local_top()->rethrowing_message_ = false;

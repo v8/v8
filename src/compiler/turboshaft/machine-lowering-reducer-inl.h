@@ -2542,15 +2542,8 @@ class MachineLoweringReducer : public Next {
         // Check for exception sentinel: Smi 1 is returned to signal
         // TerminationRequested.
         IF (UNLIKELY(__ TaggedEqual(result, __ TagSmi(1)))) {
-          // This FrameState will only be used for stack walking (to print the
-          // stack trace or during interrupts) and we never resume execution
-          // here, so only the Function and Receiver fields matter. It is
-          // therefore safe to cast the EagerFrameState to a LazyFrameState.
-          auto lazy_fs = V<LazyFrameState>::Cast(OpIndex(frame_state));
           __ template CallRuntime<runtime::TerminateExecution>(
-              lazy_fs,
-              __ HeapConstant(broker_->target_native_context().object()), {},
-              LazyDeoptOnThrow{false});
+              __ HeapConstant(broker_->target_native_context().object()), {});
           __ Unreachable();
         }
 
