@@ -4577,6 +4577,33 @@ BranchResult MaglevReducer<BaseT>::BuildBranchIfJSReceiver(BranchBuilderT& b,
 
 template <typename BaseT>
 template <typename BranchBuilderT>
+BranchResult MaglevReducer<BaseT>::BuildBranchIfUndefined(BranchBuilderT& b,
+                                                          ValueNode* node) {
+  typename BranchBuilderT::PatchAccumulatorInBranchScope scope(
+      b, node, RootIndex::kUndefinedValue);
+  if (!node->is_tagged() && !node->is_holey_float64()) {
+    return b.AlwaysFalse();
+  }
+  if (CheckType(node, NodeType::kUndefined)) {
+    return b.AlwaysTrue();
+  }
+  if (HasDisjointType(node, NodeType::kUndefined)) {
+    return b.AlwaysFalse();
+  }
+  if (node->is_holey_float64()) {
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+    return BuildBranchIfFloat64IsUndefinedOrHole(b, node);
+#else
+    return BuildBranchIfFloat64IsHole(b, node);
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
+  }
+  DCHECK(node->is_tagged());
+  return b.template Build<BranchIfRootConstant>({node},
+                                                RootIndex::kUndefinedValue);
+}
+
+template <typename BaseT>
+template <typename BranchBuilderT>
 BranchResult MaglevReducer<BaseT>::BuildBranchIfUndefinedOrNull(
     BranchBuilderT& b, ValueNode* node) {
   compiler::OptionalHeapObjectRef maybe_constant =
@@ -7289,6 +7316,97 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceStringPrototypeSlice(
   }
 
   return AddNewNode<StringSlice>({receiver, start_index, end_index});
+}
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceStringPrototypeSubstr(
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
+  if (!CanSpeculateCall()) return {};
+
+  ValueNode* receiver = GetValueOrUndefined(args.receiver());
+  RETURN_IF_ABORT(BuildCheckString(receiver));
+
+  ValueNode* start_arg = GetValueOrUndefined(args[0]);
+  ValueNode* length_arg = GetValueOrUndefined(args[1]);
+  if (CheckType(start_arg, NodeType::kUndefined) &&
+      CheckType(length_arg, NodeType::kUndefined)) {
+    return receiver;
+  }
+
+  ValueNode* length;
+  GET_VALUE_OR_ABORT(length, BuildLoadStringLength(receiver));
+  ValueNode* zero = GetInt32Constant(0);
+
+  // Select, BuildInt32Max and BuildInt32Min produce tagged Phis that may hold
+  // non-Smi int32 values.
+  auto to_int32 = [&](ValueNode* v) -> ReduceResult {
+    return GetInt32(v, /*can_be_heap_number=*/true);
+  };
+
+  // Compute init_start in [0, length]. A negative start counts from the end.
+  ValueNode* init_start;
+  GET_VALUE_OR_ABORT(
+      init_start,
+      Select(
+          [&](BranchBuilder& b) {
+            return BuildBranchIfUndefined(b, start_arg);
+          },
+          [&]() -> ReduceResult { return zero; },
+          [&]() -> ReduceResult {
+            ValueNode* start_index;
+            GET_VALUE_OR_ABORT(start_index, GetInt32(start_arg));
+            if (auto c = TryGetInt32Constant(start_index); c && *c == 0) {
+              return zero;
+            }
+            auto is_negative = [&](BranchBuilder& b) {
+              return BuildBranchIfInt32Compare(b, Operation::kLessThan,
+                                               start_index, zero);
+            };
+            auto from_end = [&]() -> ReduceResult {
+              ValueNode* adjusted;
+              GET_VALUE_OR_ABORT(adjusted,
+                                 AddNewNode<Int32Add>({length, start_index}));
+              return BuildInt32Max(adjusted, zero);
+            };
+            auto from_start = [&]() -> ReduceResult {
+              return BuildInt32Min(start_index, length);
+            };
+            return Select(is_negative, from_end, from_start);
+          }));
+  GET_VALUE_OR_ABORT(init_start, to_int32(init_start));
+
+  // Compute `to` in [init_start, length]. An undefined length selects the
+  // rest of the string.
+  ValueNode* to;
+  GET_VALUE_OR_ABORT(
+      to, Select(
+              [&](BranchBuilder& b) {
+                return BuildBranchIfUndefined(b, length_arg);
+              },
+              [&]() -> ReduceResult { return length; },
+              [&]() -> ReduceResult {
+                ValueNode* sub_length;
+                GET_VALUE_OR_ABORT(sub_length, GetInt32(length_arg));
+                ValueNode* clamped_len;
+                GET_VALUE_OR_ABORT(clamped_len,
+                                   BuildInt32Max(sub_length, zero));
+                GET_VALUE_OR_ABORT(clamped_len, to_int32(clamped_len));
+                if (clamped_len == zero) return init_start;
+                if (init_start == zero) {
+                  return BuildInt32Min(clamped_len, length);
+                }
+                ValueNode* remaining;
+                GET_VALUE_OR_ABORT(
+                    remaining, AddNewNode<Int32Subtract>({length, init_start}));
+                ValueNode* result_len;
+                GET_VALUE_OR_ABORT(result_len,
+                                   BuildInt32Min(clamped_len, remaining));
+                GET_VALUE_OR_ABORT(result_len, to_int32(result_len));
+                return AddNewNode<Int32Add>({init_start, result_len});
+              }));
+  GET_VALUE_OR_ABORT(to, to_int32(to));
+
+  return AddNewNode<StringSubstring>({receiver, init_start, to});
 }
 
 template <typename BaseT>

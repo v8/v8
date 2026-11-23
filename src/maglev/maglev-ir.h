@@ -5398,8 +5398,9 @@ class RootConstant : public FixedInputValueNodeT<0, RootConstant> {
       case RootIndex::kFalseValue:
         return NodeType::kBoolean;
       case RootIndex::kUndefinedValue:
+        return NodeType::kUndefined;
       case RootIndex::kNullValue:
-        return NodeType::kOddball;
+        return NodeType::kNull;
       default:
         compiler::HeapObjectRef ref = TryGetConstant(broker).value();
         return StaticTypeForConstant(broker, ref);

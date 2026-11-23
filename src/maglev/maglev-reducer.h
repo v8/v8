@@ -1362,6 +1362,7 @@ class MaglevReducer {
   V(StringPrototypeCharCodeAt)                 \
   V(StringPrototypeCodePointAt)                \
   V(StringPrototypeSlice)                      \
+  V(StringPrototypeSubstr)                     \
   V(StringPrototypeSubstring)                  \
   V(StringPrototypeIndexOf)                    \
   V(StringPrototypeIncludes)                   \
@@ -1547,6 +1548,8 @@ class MaglevReducer {
                                            ValueNode* rhs);
   template <typename BranchBuilderT>
   BranchResult BuildBranchIfJSReceiver(BranchBuilderT& b, ValueNode* value);
+  template <typename BranchBuilderT>
+  BranchResult BuildBranchIfUndefined(BranchBuilderT& b, ValueNode* node);
   template <typename BranchBuilderT>
   BranchResult BuildBranchIfUndefinedOrNull(BranchBuilderT& b, ValueNode* node);
 

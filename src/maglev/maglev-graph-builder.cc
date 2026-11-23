@@ -15189,7 +15189,7 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfNull(
 template <typename BranchBuilderT>
 MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfUndefined(
     BranchBuilderT& builder, ValueNode* node) {
-  return BuildBranchIfRootConstant(builder, node, RootIndex::kUndefinedValue);
+  return reducer_.BuildBranchIfUndefined(builder, node);
 }
 
 template <typename BranchBuilderT>
