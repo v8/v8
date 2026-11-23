@@ -6719,6 +6719,12 @@ struct AccessCheckData {
   bool result;
 };
 
+bool AccessCheckFromData(Local<v8::Context> accessing_context,
+                         Local<v8::Object> accessed_object,
+                         Local<v8::Value> data) {
+  return GetWrappedObject<AccessCheckData>(data)->result;
+}
+
 struct ShouldInterceptData {
   int value;
   bool should_intercept;
@@ -7079,6 +7085,86 @@ THREADED_TEST(ApiInterceptorsTest, NonMaskingIndexedInterceptorOwnProperty) {
 
   // The non-masking interceptor still serves the value via a regular lookup.
   ExpectInt32("obj[0]", 239);
+}
+
+THREADED_TEST(ApiInterceptorsTest,
+              NonMaskingInterceptorWithPrototypeInterceptor) {
+  LocalContext context;
+  auto isolate = context.isolate();
+  v8::HandleScope handle_scope(isolate);
+
+  ShouldInterceptData obj_data;
+  obj_data.value = 239;
+  obj_data.should_intercept = true;
+
+  ShouldInterceptData proto_data;
+  proto_data.value = 153;
+  proto_data.should_intercept = false;
+
+  auto proto_templ = v8::ObjectTemplate::New(isolate);
+  {
+    v8::NamedPropertyHandlerConfiguration conf(ShouldNamedGetterInterceptor);
+    conf.data = BuildWrappedObject<ShouldInterceptData>(isolate, &proto_data);
+    proto_templ->SetHandler(conf);
+  }
+  auto proto = proto_templ->NewInstance(context.local()).ToLocalChecked();
+
+  auto obj_templ = v8::ObjectTemplate::New(isolate);
+  {
+    v8::NamedPropertyHandlerConfiguration conf(ShouldNamedGetterInterceptor);
+    conf.flags = v8::PropertyHandlerFlags::kNonMasking;
+    conf.data = BuildWrappedObject<ShouldInterceptData>(isolate, &obj_data);
+    obj_templ->SetHandler(conf);
+  }
+  auto obj = obj_templ->NewInstance(context.local()).ToLocalChecked();
+  obj->SetPrototype(context.local(), proto).FromJust();
+
+  proto->Set(context.local(), v8_str("prop"), v8_num(42)).FromJust();
+  context->Global()->Set(context.local(), v8_str("obj"), obj).FromJust();
+
+  CHECK(!v8_run_bool("Object.hasOwn(obj, 'prop');"));
+  CHECK(v8_run_bool("Object.hasOwn(obj, 'other');"));
+}
+
+THREADED_TEST(ApiInterceptorsTest,
+              NonMaskingInterceptorWithAccessCheckedPrototype) {
+  LocalContext context;
+  auto isolate = context.isolate();
+  v8::HandleScope handle_scope(isolate);
+
+  ShouldInterceptData obj_data;
+  obj_data.value = 239;
+  obj_data.should_intercept = true;
+
+  AccessCheckData proto_access_data;
+  proto_access_data.count = 0;
+  proto_access_data.result = false;
+
+  auto proto_templ = v8::ObjectTemplate::New(isolate);
+  proto_templ->SetAccessCheckCallback(
+      AccessCheckFromData,
+      BuildWrappedObject<AccessCheckData>(isolate, &proto_access_data));
+  auto proto = proto_templ->NewInstance(context.local()).ToLocalChecked();
+
+  auto obj_templ = v8::ObjectTemplate::New(isolate);
+  {
+    v8::NamedPropertyHandlerConfiguration conf(ShouldNamedGetterInterceptor);
+    conf.flags = v8::PropertyHandlerFlags::kNonMasking;
+    conf.data = BuildWrappedObject<ShouldInterceptData>(isolate, &obj_data);
+    obj_templ->SetHandler(conf);
+  }
+  auto obj = obj_templ->NewInstance(context.local()).ToLocalChecked();
+  obj->SetPrototype(context.local(), proto).FromJust();
+
+  context->Global()->Set(context.local(), v8_str("obj"), obj).FromJust();
+
+  CHECK(!v8_run_bool("Object.hasOwn(obj, 'prop');"));
+
+  proto_access_data.result = true;
+  CHECK(v8_run_bool("Object.hasOwn(obj, 'prop');"));
+
+  proto->Set(context.local(), v8_str("prop"), v8_num(42)).FromJust();
+  CHECK(!v8_run_bool("Object.hasOwn(obj, 'prop');"));
 }
 
 namespace {

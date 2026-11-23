@@ -131,27 +131,32 @@ void LookupIterator::NextInternal(Tagged<Map> orig_map,
     holder = maybe_holder;
     map = holder->map();
     state_ = LookupInHolder<is_element>(map, holder);
-    if (interceptor_state_ == InterceptorState::kSkipNonMaskingOwnProperty &&
-        IsFound()) {
-      // In theory we also need to check JSPROXY but since the iterator doesn't
-      // know which question to ask, we assume the lookup succeeds.
-      switch (state_) {
-        // https://webidl.spec.whatwg.org/#dfn-named-property-visibility says a
-        // second named interceptor on the prototype chain is invisible. This
-        // only applies to named interceptors, not indexed ones.
-        case INTERCEPTOR:
-          if (!is_element) continue;
-          break;
-        case ACCESS_CHECK: {
+    if (interceptor_state_ == InterceptorState::kSkipNonMaskingOwnProperty) {
+      // We're only checking whether |holder| shadows the receiver's
+      // non-masking interceptor. Step past the special states that don't
+      // answer that question and keep looking in the same |holder|.
+      while (true) {
+        if (state_ == INTERCEPTOR) {
+          // https://webidl.spec.whatwg.org/#dfn-named-property-visibility says
+          // a second named interceptor on the prototype chain is invisible.
+          // This only applies to named interceptors, not indexed ones.
+          if (is_element) break;
+        } else if (state_ == ACCESS_CHECK) {
           // If an access check fails, we assume the lookup succeeds.
-          if (HasAccess()) {
-            continue;
+          if (!isolate_->MayAccess(
+                  isolate_->native_context(),
+                  direct_handle(Cast<JSObject>(holder), isolate_))) {
+            break;
           }
+        } else {
           break;
         }
-        default:
-          break;
+        state_ = LookupInSpecialHolder<is_element>(map, holder);
       }
+      // Nothing on |holder|, so move on to the next one.
+      if (!IsFound()) continue;
+      // In theory we also need to check JSPROXY but since the iterator doesn't
+      // know which question to ask, we assume the lookup succeeds.
       // We need fully reset state, since this is not a true hit.
       number_ = InternalIndex::NotFound();
       property_details_ = PropertyDetails::Empty();
