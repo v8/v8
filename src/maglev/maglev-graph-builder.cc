@@ -8609,8 +8609,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
 
   if (iterated_object->Is<InlinedAllocation>()) {
     VirtualObject* array = iterated_object->Cast<InlinedAllocation>()->object();
-    auto map = *array->map();
-    if (!process_map(map)) {
+    if (!array->map()) {
+      MAGLEV_FAIL("iterated object has no static map");
+    }
+    if (!process_map(*array->map())) {
       return {};
     }
   } else {
