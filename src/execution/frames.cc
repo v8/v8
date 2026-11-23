@@ -4319,6 +4319,13 @@ void JavaScriptFrame::Print(StringStream* accumulator, PrintMode mode,
       context = context->previous();
       DCHECK(!context.is_null());
     }
+    // If the frame is printed before the function allocates its own context
+    // (e.g. on a stack overflow in the prologue), this->context() can still be
+    // the enclosing NativeContext, which holds no local variables and stores
+    // untagged inline EmbedderDataSlots.
+    if (IsNativeContext(context)) {
+      context = Tagged<Context>();
+    }
   }
 
   // Print heap-allocated local variables.
