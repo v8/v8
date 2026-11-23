@@ -814,8 +814,9 @@ class FastCApiObject {
       if (upper_bound > internal::kMaxSafeInteger) {
         upper_bound = static_cast<IntegerT>(internal::kMaxSafeInteger);
       }
-      CHECK(!std::isnan(real_arg));
-      if (real_arg < static_cast<double>(lower_bound)) {
+      if (std::isnan(real_arg)) {
+        CHECK_EQ(0, checked_arg);
+      } else if (real_arg < static_cast<double>(lower_bound)) {
         CHECK_EQ(lower_bound, checked_arg);
       } else if (real_arg > static_cast<double>(upper_bound)) {
         CHECK_EQ(upper_bound, checked_arg);

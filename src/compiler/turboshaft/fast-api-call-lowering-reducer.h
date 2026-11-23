@@ -314,16 +314,16 @@ class FastApiCallLoweringReducer : public Next {
         UNREACHABLE();
     }
 
+    Label<Float64> done(this);
+    GOTO_IF(UNLIKELY(__ Float64IsNaN(argument)), done, 0.0);
+
     V<Float64> clamped =
         __ Conditional(__ Float64LessThan(min, argument),
                        __ Conditional(__ Float64LessThan(argument, max),
                                       argument, __ Float64Constant(max)),
                        __ Float64Constant(min));
 
-    Label<Float64> done(this);
-    V<Float64> rounded = __ Float64RoundTiesEven(clamped);
-    GOTO_IF(__ Float64IsNaN(rounded), done, 0.0);
-    GOTO(done, rounded);
+    GOTO(done, __ Float64RoundTiesEven(clamped));
 
     BIND(done, rounded_result);
     switch (scalar_type) {
