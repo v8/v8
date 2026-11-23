@@ -148,7 +148,8 @@ class V8_EXPORT_PRIVATE INSTRUCTION_OPERAND_ALIGN InstructionOperand {
     return this->GetCanonicalizedValue() < that.GetCanonicalizedValue();
   }
 
-  bool InterferesWith(const InstructionOperand& other) const;
+  inline bool HasComplexAliasing() const;
+  inline bool InterferesWith(const InstructionOperand& other) const;
 
   // APIs to aid debugging. For general-stream APIs, use operator<<.
   void Print() const;
@@ -168,6 +169,9 @@ class V8_EXPORT_PRIVATE INSTRUCTION_OPERAND_ALIGN InstructionOperand {
   using KindField = base::BitField64<Kind, 0, 3>;
 
   uint64_t value_;
+
+ private:
+  bool InterferesWithSlow(const InstructionOperand& other) const;
 };
 
 using InstructionOperandVector = ZoneVector<InstructionOperand>;
@@ -574,6 +578,11 @@ class LocationOperand : public InstructionOperand {
     return RepresentationField::decode(value_);
   }
 
+  int NumStackSlots() const {
+    DCHECK(IsAnyStackSlot());
+    return ElementSizeInPointers(representation());
+  }
+
   static bool IsSupportedRepresentation(MachineRepresentation rep) {
     switch (rep) {
       case MachineRepresentation::kWord32:
@@ -794,6 +803,18 @@ uint64_t InstructionOperand::GetCanonicalizedValue() const {
         LocationOperand::ALLOCATED);
   }
   return this->value_;
+}
+
+bool InstructionOperand::HasComplexAliasing() const {
+  return (kFPAliasing == AliasingKind::kCombine && IsFPRegister()) ||
+         (IsAnyStackSlot() && LocationOperand::cast(*this).NumStackSlots() > 1);
+}
+
+bool InstructionOperand::InterferesWith(const InstructionOperand& other) const {
+  if (V8_LIKELY(!HasComplexAliasing() && !other.HasComplexAliasing())) {
+    return EqualsCanonicalized(other);
+  }
+  return InterferesWithSlow(other);
 }
 
 // Returns whether a general-purpose {LocationOperand} (register or stack slot)
@@ -1867,10 +1888,10 @@ class V8_EXPORT_PRIVATE InstructionBlock final
   uint64_t pgo_execution_count_ = 0;
 #endif
   RpoNumber dominator_;
-  int32_t code_start_;       // start index of arch-specific code.
-  int32_t code_end_ = -1;    // end index of arch-specific code.
-  const bool deferred_ : 1;  // Block contains deferred code.
-  bool handler_ : 1;         // Block is a handler entry point.
+  int32_t code_start_;            // start index of arch-specific code.
+  int32_t code_end_ = -1;         // end index of arch-specific code.
+  const bool deferred_ : 1;       // Block contains deferred code.
+  bool handler_ : 1;              // Block is a handler entry point.
   bool table_switch_target_ : 1;  // Block is a table switch target, implying an
                                   //  indirect jump.
   bool align_switch_targets_ : 1;  // insert switch target alignment before

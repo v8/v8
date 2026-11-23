@@ -62,7 +62,16 @@ TEST_F(InstructionTest, OperandInterference) {
     }
   }
 
-  // 128 bit slots can interfere with other slots at a different index.
+  // 128 bit slots can interfere with other slots at a different index, but
+  // never with registers or non-location operands.
+  AllocatedOperand wide_slot(LocationOperand::STACK_SLOT,
+                             MachineRepresentation::kSimd128, 1);
+  EXPECT_FALSE(wide_slot.InterferesWith(ConstantOperand(0)));
+  EXPECT_FALSE(ConstantOperand(0).InterferesWith(wide_slot));
+  EXPECT_FALSE(wide_slot.InterferesWith(
+      ImmediateOperand(ImmediateOperand::INLINE_INT32, 0)));
+  EXPECT_FALSE(wide_slot.InterferesWith(
+      AllocatedOperand(LocationOperand::REGISTER, kWord, 1)));
   for (int i = 0; i < 10; ++i) {
     for (int j = 0; j < 128 / kBitsPerByte / kSystemPointerSize; ++j) {
       EXPECT_TRUE(Interfere(LocationOperand::STACK_SLOT,
@@ -184,6 +193,66 @@ TEST_F(InstructionTest, PrepareInsertAfter) {
       pm->PrepareInsertAfter(&m1, &to_eliminate);
       CHECK(Contains(&to_eliminate, s0, s2));
       CHECK(Contains(&to_eliminate, s1, s2));
+    }
+  }
+
+  {
+    // Multi-slot stack destinations (such as kSimd128) must eliminate all
+    // narrower interfering stack moves, even when source replacement is also
+    // found in the same ParallelMove.
+    const int kSimd128Slots =
+        ElementSizeInPointers(MachineRepresentation::kSimd128);
+    CHECK_GE(kSimd128Slots, 1);
+
+    InstructionOperand q0 = AllocatedOperand(
+        LocationOperand::REGISTER, MachineRepresentation::kSimd128, 0);
+    InstructionOperand q1 = AllocatedOperand(
+        LocationOperand::REGISTER, MachineRepresentation::kSimd128, 1);
+    InstructionOperand s128_top =
+        AllocatedOperand(LocationOperand::STACK_SLOT,
+                         MachineRepresentation::kSimd128, kSimd128Slots - 1);
+
+    ZoneVector<MoveOperands*> to_eliminate(zone());
+    std::vector<InstructionOperand> moves = {q1, q0};  // q1 <- q0
+    for (int i = 0; i < kSimd128Slots; ++i) {
+      InstructionOperand narrow_slot = AllocatedOperand(
+          LocationOperand::STACK_SLOT, MachineRepresentation::kWord32, i);
+      moves.push_back(narrow_slot);
+      moves.push_back(r0);
+    }
+
+    ParallelMove* pm = CreateParallelMove(moves);
+    MoveOperands m_wide(q1, s128_top);  // [stack:top|s128] <- q1
+    pm->PrepareInsertAfter(&m_wide, &to_eliminate);
+    CHECK(m_wide.source().Equals(q0));
+    for (int i = 0; i < kSimd128Slots; ++i) {
+      InstructionOperand narrow_slot = AllocatedOperand(
+          LocationOperand::STACK_SLOT, MachineRepresentation::kWord32, i);
+      CHECK(Contains(&to_eliminate, narrow_slot, r0));
+    }
+
+    // A redundant multi-slot stack move must not eliminate earlier narrower
+    // moves.
+    ZoneVector<MoveOperands*> redundant_eliminated(zone());
+    MoveOperands m_redundant(s128_top, s128_top);
+    pm->PrepareInsertAfter(&m_redundant, &redundant_eliminated);
+    CHECK(redundant_eliminated.empty());
+
+    if (kSimd128Slots > 1) {
+      // A shifted multi-slot stack move whose source matches an earlier move's
+      // destination AND whose destination partially overlaps that same earlier
+      // move's destination must both forward the source and eliminate the
+      // overwritten move.
+      InstructionOperand s128_shifted =
+          AllocatedOperand(LocationOperand::STACK_SLOT,
+                           MachineRepresentation::kSimd128, kSimd128Slots);
+      ZoneVector<MoveOperands*> shifted_eliminated(zone());
+      std::vector<InstructionOperand> prev_moves = {s128_top, q0};
+      ParallelMove* pm_shifted = CreateParallelMove(prev_moves);
+      MoveOperands m_shifted(s128_top, s128_shifted);
+      pm_shifted->PrepareInsertAfter(&m_shifted, &shifted_eliminated);
+      CHECK(m_shifted.source().Equals(q0));
+      CHECK(Contains(&shifted_eliminated, s128_top, q0));
     }
   }
 }
