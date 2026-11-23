@@ -874,14 +874,16 @@ void DeclarationScope::DeclareArguments(AstValueFactory* ast_value_factory) {
   arguments_ =
       Declare(zone(), ast_value_factory->arguments_string(), VariableMode::kVar,
               NORMAL_VARIABLE, kCreatedInitialized, kNotAssigned, &was_added);
-  // According to https://tc39.es/ecma262/#sec-functiondeclarationinstantiation
-  // step 18 we should set argumentsObjectNeeded to false if has lexical
-  // declared arguments only when hasParameterExpressions is false
+  // According to https://tc39.es/ecma262/#sec-functiondeclarationinstantiation,
+  // argumentsObjectNeeded is false if "arguments" is an element of
+  // parameterNames or (when hasParameterExpressions is false) an element of
+  // lexicalNames. In those cases, clear `arguments_` to avoid creating an
+  // arguments object or marking a shadowing parameter/lexical binding as
+  // maybe-assigned. Check `is_parameter()` explicitly because PreParser does
+  // not convert non-simple parameters to lexical mode.
   if (!was_added) {
-    if (IsLexicalVariableMode(arguments_->mode()) && has_simple_parameters()) {
-      // Check if there's lexically declared variable named arguments to avoid
-      // redeclaration. See
-      // https://tc39.es/ecma262/#sec-functiondeclarationinstantiation, step 20.
+    if (IsLexicalVariableMode(arguments_->mode()) ||
+        arguments_->is_parameter()) {
       arguments_ = nullptr;
     } else {
       arguments_->SetMaybeAssigned();

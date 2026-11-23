@@ -334,6 +334,7 @@
   # Test relies on TurboFan being enabled.
   'debugger/breakpoint-after-side-effect-check-optimized': [SKIP],
   'debugger/debug-optimize': [SKIP],
+  'debugger/evaluate-on-call-frame-nonsimple-arguments-param': [SKIP],
   'debugger/restart-frame/restart-inlined-frame': [SKIP],
   'debugger/value-unavailable-scopes': [SKIP],
   'debugger/wasm-inlined-breakpoints': [SKIP],
