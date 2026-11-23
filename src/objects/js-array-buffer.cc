@@ -102,18 +102,25 @@ void JSArrayBuffer::Setup(SharedFlag shared, ResizableFlag resizable,
   DCHECK_IMPLIES(V8_ENABLE_SANDBOX_BOOL, backing_store_buffer != nullptr);
   set_backing_store(isolate, backing_store_buffer);
 
+  // For shared backing stores (such as shared Wasm memories), read the byte
+  // length once with seq_cst so concurrent growth cannot cause byte_length
+  // and max_byte_length to disagree.
+  size_t backing_store_byte_length =
+      shared ? backing_store->byte_length(std::memory_order_seq_cst)
+             : backing_store->byte_length();
+
   // GSABs need to read their byte_length from the BackingStore. Maintain the
   // invariant that their byte_length field is always 0.
-  auto byte_len = (shared && resizable) ? 0 : backing_store->byte_length();
-  CHECK_LE(backing_store->byte_length(), kMaxByteLength);
+  auto byte_len = (shared && resizable) ? 0 : backing_store_byte_length;
+  CHECK_LE(backing_store_byte_length, kMaxByteLength);
   set_byte_length(byte_len);
 
   // For Wasm memories, it is possible for the backing store maximum to be
   // different from the JSArrayBuffer maximum. The maximum pages allowed on a
   // Wasm memory are tracked on the Wasm memory object, and not the
   // JSArrayBuffer associated with it.
-  auto max_byte_len = resizable ? backing_store->max_byte_length()
-                                : backing_store->byte_length();
+  auto max_byte_len =
+      resizable ? backing_store->max_byte_length() : backing_store_byte_length;
   set_max_byte_length(max_byte_len);
 
   if (backing_store->is_wasm_memory()) {

@@ -2302,6 +2302,7 @@
   'wasm/futex': [SKIP],
   'wasm/grow-shared-memory': [SKIP],
   'wasm/regress-576453351': [SKIP],
+  'wasm/shared-memory-buffer-refresh': [SKIP],
   'wasm/shared-memory-size-atomic': [SKIP],
   'wasm/shared-memory-worker-stress': [SKIP],
   'wasm/drumbrake/drumbrake': [SKIP],

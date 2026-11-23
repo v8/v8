@@ -1146,11 +1146,22 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
 // static
 DirectHandle<JSArrayBuffer> WasmMemoryObject::GetArrayBuffer(
     Isolate* isolate, DirectHandle<WasmMemoryObject> memory_object) {
-  DirectHandle<JSArrayBuffer> buffer =
-      IsUndefined(memory_object->array_buffer())
-          ? i::WasmMemoryObject::RefreshBuffer(isolate, memory_object,
-                                               memory_object->backing_store())
-          : handle(Cast<JSArrayBuffer>(memory_object->array_buffer()), isolate);
+  DirectHandle<JSArrayBuffer> buffer;
+  if (!TryCast(direct_handle(memory_object->array_buffer(), isolate),
+               &buffer)) {
+    buffer =
+        RefreshBuffer(isolate, memory_object, memory_object->backing_store());
+  } else if (buffer->is_shared() && !buffer->is_resizable_by_js()) {
+    // Shared memories may grow on another thread before this isolate handles
+    // the GROW_SHARED_MEMORY interrupt. Check the backing store's atomic byte
+    // length directly so we never return a stale fixed-length buffer.
+    CppGCManaged<BackingStore>::Ptr backing_store =
+        memory_object->backing_store();
+    if (buffer->byte_length() !=
+        backing_store->byte_length(std::memory_order_seq_cst)) {
+      buffer = RefreshBuffer(isolate, memory_object, std::move(backing_store));
+    }
+  }
 
   DCHECK_EQ(memory_object->backing_store(), buffer->GetBackingStore());
   DCHECK_EQ(memory_object->backing_store()->is_shared(), buffer->is_shared());
@@ -1166,8 +1177,12 @@ DirectHandle<JSArrayBuffer> WasmMemoryObject::ChangeArrayBufferResizability(
   i::DirectHandle<i::JSArrayBuffer> buffer;
   if (TryCast(direct_handle(memory_object->array_buffer(), isolate), &buffer) &&
       buffer->is_resizable_by_js() == new_resizability) {
-    // The existing AB meets the requirement.
-    return buffer;
+    if (!buffer->is_shared() || buffer->is_resizable_by_js() ||
+        buffer->byte_length() == memory_object->backing_store()->byte_length(
+                                     std::memory_order_seq_cst)) {
+      // The existing AB meets the requirement.
+      return buffer;
+    }
   }
 
   CppGCManaged<BackingStore>::Ptr backing_store =
