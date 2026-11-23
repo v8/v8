@@ -3757,6 +3757,16 @@ void CompilationStateImpl::InitializeCompilationProgress(
         module->num_defined_functions, default_progress);
     if (default_tiers.blocking_tier != ExecutionTier::kNone) {
       outstanding_blocking_units_ += module->num_defined_functions;
+      // All functions will be compiled eagerly, and Liftoff will store type
+      // feedback (call targets) for (most of) them. Reserve the space upfront
+      // to avoid repeated rehashing during compilation.
+      if (default_tiers.blocking_tier == ExecutionTier::kLiftoff &&
+          v8_flags.wasm_inlining && module->num_defined_functions > 0) {
+        TypeFeedbackStorage& type_feedback = module->type_feedback;
+        base::MutexGuard feedback_guard(&type_feedback.mutex);
+        type_feedback.feedback_for_function.reserve(
+            module->num_defined_functions);
+      }
     }
 
     if (native_module_->enabled_features().has_compilation_hints()) {
