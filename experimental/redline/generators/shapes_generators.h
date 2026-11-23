@@ -24,9 +24,11 @@ struct ShapesGenerator {
   bool (*fn)(GenContext& ctx, CodeGen& cg, std::vector<fast::Statement*>* out);
 };
 
-// Generators for program shapes that Fuzzilli makes and the other generators
-// do not make. They make imitations of values, literal factories, number
-// chains, control flow shapes, well-known symbol hooks and iterator chains.
+// Generators for program shapes that the other generators do not make. Most
+// of these shapes come from Fuzzilli. They make imitations of values, literal
+// factories, number chains, control flow shapes, well-known symbol hooks and
+// iterator chains. ObjectFlow is not from Fuzzilli. It makes object flows in
+// an optimized function.
 std::vector<ShapesGenerator> ShapesGenerators();
 
 // Fuzzilli's program templates (V8CommonProfile.swift, ProgramTemplates.swift)

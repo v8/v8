@@ -1,7 +1,7 @@
-CodeGen	0	526b993a964cd7d4	inserted FunctionDecl+BuiltinInstanceDecl	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+CodeGen	0	8b31cd348cbc5b33	inserted FunctionDecl+PropertyStore	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 CodeGen	1	4655841d4b2fb34b	inserted Deopt	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-CodeGen	2	f0610171a91c4b7a	inserted UnaryOp+ConstructorFunctionDecl+MethodCall	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-CodeGen	3	a9784195088d4ec2	inserted NativeCall	let n = 42; let s = "text"; let a = [1, 2, 3]; %PrepareFunctionForOpti
+CodeGen	2	0ed51a08d7f2f0ae	inserted UnaryOp+IterableDecl+JitOptimize	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+CodeGen	3	bf95e7974bbba132	inserted PrototypeSet	let n = 42; let s = "text"; let a = [1, 2, 3]; f.__proto__ = f; let o
 CodeGen	4	1ad9130d842be4a2	inserted JitOptimize	%PrepareFunctionForOptimization(f); f(23702, 46356); f(23702, 46356);
 Explore	0	229b8b1e75c3c53f	probing r f	let n = 42; let s = "text"; try {   __redline_explore("e8834", f, [s,
 Explore	1	be4a2707f13ec60b	probing f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
@@ -13,11 +13,11 @@ Probing	1	278ead283dba57af	probing r C	let n = 42; let s = "text"; let a = [1, 2
 Probing	2	cf920d9572ee7281	probing f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Probing	3	6a1c72a883a17202	probing a	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Probing	4	30aa747d96df02e3	probing f t a	let n = 42; let s = "text"; try {   __redline_probe("p74410", f); } ca
-Prefix	0	1af5fb2886e6e2b7	inserted BooleanDecl+ResizableBufferDecl+DisposableDecl+ArrowDecl+ArrowDecl+TemplateDecl+ResizableBufferDecl+BuiltinInstanceDecl+ResizableBufferDecl+RegExpDecl+DisposableDecl+BuiltinInstanceDecl	let b0 = false; let rab0 = new ArrayBuffer(264, {maxByteLength: 274});
+Prefix	0	5c34e0ef3c08d25a	inserted BooleanDecl+ResizableBufferDecl+DisposableDecl+ArrowDecl+BooleanDecl+TemplateDecl+TemplateDecl+ArrayDecl+IntegerDecl+FloatDecl+TypedArrayDecl+IterableDecl	let b0 = false; let rab0 = new ArrayBuffer(264, {maxByteLength: 274});
 Prefix	1	992905de6380abc4	inserted IntegerDecl+TemplateDecl+ObjectDecl+SpecialValueDecl+AsyncDisposableDecl+TypedArrayDecl+ArrayDecl+TemplateDecl+StringDecl+StringDecl	let v0 = 24096; let s0 = String.raw`, ${null}foo${9007199254740993n}x=
-Prefix	2	8aba6763d254edca	inserted ArrowDecl+BooleanDecl+StringDecl+FloatDecl+ConstructorFunctionDecl+ArrowDecl+TypedArrayDecl+BigIntDecl+ArrayDecl+BuiltinInstanceDecl	let f0 = function(a0, a1, a2) {   const e = a1.b;   let a = new Int16A
-Prefix	3	cea32d9f449fc3c4	inserted BigIntDecl+BooleanDecl+StringDecl+StringDecl+TemplateDecl+TemplateDecl+ArrowDecl+AsyncDisposableDecl+TypedArrayDecl+TemplateDecl+IntegerDecl+ObjectDecl	let n0 = 701096n; let b0 = false; const s0 = "-1"; const s1 = "h"; con
-Prefix	4	76efb107cca5fb87	inserted ObjectDecl+ArrayDecl+BooleanDecl+ArrayDecl+ObjectDecl+FloatDecl+ResizableBufferDecl+TemplateDecl+ArrayDecl+ArrowDecl+DisposableDecl	let obj0 = {f: null}; let arr0 = [61133, , ,]; var b0 = false; const a
+Prefix	2	8c25c10021027cd6	inserted ArrowDecl+BooleanDecl+StringDecl+FloatDecl+ConstructorFunctionDecl+ArrowDecl+ConstructorFunctionDecl+BigIntDecl+ArrayDecl+BuiltinInstanceDecl	let f0 = function(a0, a1, a2) {   const e = a1.b;   let a = new Int16A
+Prefix	3	2db69e31b83c4252	inserted BigIntDecl+BooleanDecl+StringDecl+StringDecl+TemplateDecl+TemplateDecl+ArrowDecl+AsyncDisposableDecl+TypedArrayDecl+TemplateDecl+IntegerDecl+ObjectDecl	let n0 = 701096n; let b0 = false; const s0 = "-1"; const s1 = "h"; con
+Prefix	4	5a52ec73dbdbed1f	inserted ObjectDecl+ArrayDecl+BooleanDecl+ArrayDecl+ObjectDecl+FloatDecl+ResizableBufferDecl+TemplateDecl+ArrayDecl+ArrowDecl+SpecialValueDecl	let obj0 = {f: null}; let arr0 = [61133, , ,]; var b0 = false; const a
 Splice	0	19ac12882fc55628	spliced VariableDeclaration (2 stmts, 18 nodes; 2 renamed, 0 rewired, 0 declared)	let n = 42; let s = "text"; function g(x0) {   return x0 * 2; } let q0
 Splice	1	e6d6dbd8ae131135	spliced VariableDeclaration (1 stmts, 9 nodes; 0 renamed, 0 rewired, 0 declared)	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Splice	2	2dd1ce2e1198085b	spliced VariableDeclaration (1 stmts, 9 nodes; 0 renamed, 0 rewired, 0 declared)	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"

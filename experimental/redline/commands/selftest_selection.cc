@@ -1057,6 +1057,128 @@ std::vector<bool> GeneratedKinds() {
   return seen;
 }
 
+// True if the code of `root` reads or writes the variable `name`. A
+// property name is not a use of a variable.
+bool UsesVariable(fast::Node* root, std::string_view name) {
+  bool found = false;
+  fast::Walk(root, [&](fast::Node* node) {
+    if (auto* member = node->As<fast::MemberExpression>();
+        member != nullptr && !member->computed) {
+      found = found || UsesVariable(member->object, name);
+      return false;
+    }
+    if (auto* property = node->As<fast::Property>();
+        property != nullptr && !property->computed) {
+      found = found || UsesVariable(property->value, name);
+      return false;
+    }
+    if (auto* field = node->As<fast::PropertyDefinition>();
+        field != nullptr && !field->computed) {
+      found = found || UsesVariable(field->value, name);
+      return false;
+    }
+    if (auto* id = node->As<fast::Identifier>()) {
+      found = found || id->name == name;
+    }
+    return true;
+  });
+  return found;
+}
+
+// True if an if statement or a for statement in `root` contains another if
+// statement or for statement.
+bool HasNestedBlock(fast::Node* root) {
+  auto is_block = [](fast::Node* node) {
+    return node->As<fast::IfStatement>() != nullptr ||
+           node->As<fast::ForStatement>() != nullptr;
+  };
+  bool found = false;
+  fast::Walk(root, [&](fast::Node* node) {
+    if (!is_block(node)) {
+      return true;
+    }
+    fast::ForEachChild(node, [&](fast::Node* child) {
+      fast::Walk(child, [&](fast::Node* inner) {
+        found = found || is_block(inner);
+        return !found;
+      });
+    });
+    return false;
+  });
+  return found;
+}
+
+// Runs ObjectFlow `samples` times and parses each program. A block of the
+// program must not contain a block. At the top level, the program is the
+// output of ObjectFlow. In a function, the program is `function g(u) {...}`.
+// The generator then sees u, a variable of unknown type, and in half of the
+// samples `arguments` with the type object. The initializer of a new object
+// must not use u. No code can use `arguments`: in the function of
+// ObjectFlow, it is a different object.
+bool CheckObjectFlowSamples(const GeneratorSet& generators, bool in_function,
+                            int samples, std::string* error) {
+  Generator* object_flow = generators.Find("ObjectFlow");
+  if (object_flow == nullptr) {
+    *error = "no generator ObjectFlow";
+    return false;
+  }
+  const Environment& env = Environment::Default();
+  Random rng(kSeed);
+  for (int i = 0; i < samples; i++) {
+    auto tree = std::make_unique<fast::Tree>();
+    tree->set_root(tree->New<fast::Program>());
+    Builder builder(tree.get(), &rng);
+    GenContext ctx(builder, generators, env);
+    if (in_function) {
+      ctx.syntax.in_function = true;
+      ctx.syntax.has_arguments = true;
+      ctx.Declare("u", JsType::kUnknown);
+      if (i % 2 == 0) {
+        ctx.Declare("arguments", JsType::kObject);
+      }
+    }
+    std::vector<fast::Statement*> out;
+    ctx.out = &out;
+    if (!object_flow->Applicable(ctx) || !object_flow->Generate(ctx, &out)) {
+      *error = StringPrintf("sample %d: ObjectFlow made no code", i);
+      return false;
+    }
+    for (fast::Statement* statement : out) {
+      auto* declaration = statement->As<fast::VariableDeclaration>();
+      if (in_function && declaration != nullptr &&
+          declaration->declaration_kind == fast::VariableKind::kConst &&
+          UsesVariable(declaration, "u")) {
+        *error = StringPrintf("sample %d: a new object uses u: %s", i,
+                              fast::Print(statement).c_str());
+        return false;
+      }
+      if (UsesVariable(statement, "arguments")) {
+        *error = StringPrintf("sample %d: the code uses arguments: %s", i,
+                              fast::Print(statement).c_str());
+        return false;
+      }
+      if (HasNestedBlock(statement)) {
+        *error = StringPrintf("sample %d: a block contains a block: %s", i,
+                              fast::Print(statement).c_str());
+        return false;
+      }
+      tree->root()->body.push_back(statement);
+    }
+    std::string source = fast::Print(tree->root());
+    if (in_function) {
+      source = "function g(u) {\n" + source + "}\n";
+    }
+    fast::ParseError parse_error;
+    if (fast::Parser::ParseScript(source, fast::ParseOptions(), &parse_error) ==
+        nullptr) {
+      *error = StringPrintf("sample %d does not parse: %s", i,
+                            parse_error.message.c_str());
+      return false;
+    }
+  }
+  return true;
+}
+
 void CheckEdgeCases(Checker* checker) {
   // Lexer & Parser edge cases: invalid UTF-8, invalid numeric literals,
   // `for (await using of ...)` disambiguation, and deep expression chains.
@@ -1185,6 +1307,40 @@ void CheckEdgeCases(Checker* checker) {
     reg.Reset();
     checker->Check("codegen: expression recursion depth stays bounded",
                    depth_ok, err);
+  }
+  // ObjectFlow with the weight 0 for each step that is not a block. The
+  // blocks then contain loads, not more blocks.
+  {
+    TunableRegistry& reg = TunableRegistry::Instance();
+    std::string err;
+    bool ok = true;
+    for (const char* step :
+         {"store", "load", "update", "rebind", "accessor", "escape"}) {
+      ok = ok && reg.Set(StringPrintf("generators.ObjectFlow.%s_weight", step),
+                         0.0, &err);
+    }
+    std::unique_ptr<GeneratorSet> generators = GeneratorSet::CreateDefault();
+    ok = ok &&
+         CheckObjectFlowSamples(*generators, /*in_function=*/false, 200, &err);
+    reg.Reset();
+    checker->Check("ObjectFlow: steps of weight 0 do not make nested blocks",
+                   ok, err);
+  }
+  // ObjectFlow in a function with visible variables that are not objects of
+  // ObjectFlow.
+  {
+    TunableRegistry& reg = TunableRegistry::Instance();
+    std::string err;
+    bool ok = reg.Set("generators.ObjectFlow.max_outer_objects", 8.0, &err) &&
+              reg.Set("generators.ObjectFlow.visible_object_chance", 0.5, &err);
+    std::unique_ptr<GeneratorSet> generators = GeneratorSet::CreateDefault();
+    ok = ok &&
+         CheckObjectFlowSamples(*generators, /*in_function=*/true, 200, &err);
+    reg.Reset();
+    checker->Check(
+        "ObjectFlow: new objects do not use visible variables, and no code "
+        "uses arguments",
+        ok, err);
   }
 }
 
