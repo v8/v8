@@ -173,6 +173,13 @@ class CodeGen {
   static fast::AssignOp RandomCompoundAssignOp(Random& rng);
   static fast::LogicalOp RandomLogicalOp(Random& rng);
 
+  // Valid-by-construction regular expression helpers shared with mutators.
+  static std::string RandomRegExpFlags(Random& rng);
+  static std::string RandomRegExpPattern(Random& rng, bool unicode, bool sets);
+  // A short pattern piece without capturing groups or backreferences, safe to
+  // combine with an existing pattern of the same `unicode` and `sets` mode.
+  static std::string RandomRegExpPiece(Random& rng, bool unicode, bool sets);
+
  private:
   struct ExprDepthGuard {
     explicit ExprDepthGuard(GenContext& c) : depth(c.expr_depth) { ++depth; }

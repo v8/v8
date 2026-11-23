@@ -21,6 +21,7 @@
 #include "experimental/redline/base/flags.h"
 #include "experimental/redline/base/json.h"
 #include "experimental/redline/base/log.h"
+#include "experimental/redline/base/v8_runtime.h"
 #include "experimental/redline/core/adaptive_selector.h"
 #include "experimental/redline/core/builder.h"
 #include "experimental/redline/core/environment.h"
@@ -3598,6 +3599,359 @@ function f() {
   }
 }
 
+// Offline checks for `Operation` and `Call` mutator parity: RegExp flags and
+// pattern edits, BigInt edits, member keys, spread toggles, and optional
+// chaining guards.
+void CheckOperationAndCallParity(Checker* checker) {
+  std::unique_ptr<GeneratorSet> generators = GeneratorSet::CreateDefault();
+  std::unique_ptr<MutatorSet> mutators = MutatorSet::CreateDefault();
+  const Environment& env = Environment::Default();
+  TunableRegistry& reg = TunableRegistry::Instance();
+  Mutator* op_mut = mutators->Find("Operation");
+  Mutator* call_mut = mutators->Find("Call");
+  std::string v8_err;
+  const bool v8_ok = InitializeV8(FuzzConfig().v8_flags, &v8_err);
+  std::unique_ptr<SyntaxChecker> syntax;
+  if (v8_ok) {
+    syntax = std::make_unique<SyntaxChecker>();
+  }
+  auto accepts = [&](const std::string& src, std::string* err) {
+    fast::ParseError perr;
+    if (fast::Parser::ParseScript(src, fast::ParseOptions(), &perr) ==
+        nullptr) {
+      *err = "FAST: " + perr.message + "\n" + src;
+      return false;
+    }
+    if (syntax != nullptr && !syntax->Accepts(src, err)) {
+      *err = "V8: " + *err + "\n" + src;
+      return false;
+    }
+    return true;
+  };
+
+  // 1. RegExp literal mutations: neutral flags, `u` <-> `v` mutual exclusion,
+  // and safe in-place pattern piece edits.
+  {
+    const char* kRegexps = R"(let r0 = /abc/u;
+let r1 = /[\p{L}--[a-z]]/v;
+let r2 = /a\q/;
+let r3 = /[a-z]+/gi;
+let r4 = /(?:foo)+/m;
+let r5 = /^bar$/s;
+let r6 = /\d+/;
+)";
+    ProgramPtr prog = ParseOrDie(kRegexps, "selftest");
+    bool ok = op_mut != nullptr && v8_ok;
+    std::string err = ok ? "" : "missing Operation mutator or V8";
+    bool saw_flag = false;
+    bool saw_mode = false;
+    bool saw_piece = false;
+    bool saw_replace = false;
+    for (int i = 0; ok && i < 200; i++) {
+      Random rng(kSeed + 1200 + static_cast<uint64_t>(i));
+      std::string detail;
+      std::unique_ptr<fast::Tree> tree = ApplyMutation(
+          *op_mut, *prog, nullptr, rng, env, *generators, 2, &detail);
+      if (tree == nullptr) {
+        continue;
+      }
+      if (detail.find("regexp flags") != std::string::npos) saw_flag = true;
+      if (detail.find("regexp mode") != std::string::npos) saw_mode = true;
+      if (detail.find("regexp pattern:") != std::string::npos) saw_piece = true;
+      if (detail.find("regexp replaced") != std::string::npos ||
+          detail.find("regexp pattern replaced") != std::string::npos) {
+        saw_replace = true;
+      }
+      fast::Walk(tree->root(), [&](fast::Node* n) {
+        if (auto* re = n->As<fast::RegExpLiteral>()) {
+          bool has_u = re->regexp_flags.find('u') != std::string_view::npos;
+          bool has_v = re->regexp_flags.find('v') != std::string_view::npos;
+          if (re->pattern.empty() || (has_u && has_v)) {
+            ok = false;
+            err = "invalid regexp /" + std::string(re->pattern) + "/" +
+                  std::string(re->regexp_flags);
+          }
+        }
+        return ok;
+      });
+      if (ok && !accepts(fast::Print(tree->root()), &err)) {
+        ok = false;
+      }
+    }
+    checker->Check(
+        "Operation: RegExp flag, mode (`u`/`v` exclusive), and pattern edits "
+        "stay valid",
+        ok && saw_flag && saw_mode && saw_piece && saw_replace,
+        err.empty() ? StringPrintf("flag=%d mode=%d piece=%d replace=%d",
+                                   saw_flag, saw_mode, saw_piece, saw_replace)
+                    : err);
+  }
+
+  // 2. BigInt literal mutations: boundaries, bit/shift edits, safe sign
+  // toggles (never `--1n`, `-1n ** 2n`, or negative non-computed keys).
+  {
+    const char* kBigInts = R"(let a = 1n;
+let b = -42n;
+let c = 1n ** 2n;
+let d = 0x10n;
+let e = 340282366920938463463374607431768211456n;
+let o = {1n: 1};
+class C { 2n() {} 3n = 4; }
+)";
+    ProgramPtr prog = ParseOrDie(kBigInts, "selftest");
+    bool ok = op_mut != nullptr && v8_ok;
+    std::string err;
+    bool saw_value = false;
+    bool saw_neg = false;
+    bool saw_pos = false;
+    for (int mode = 0; ok && mode < 2; mode++) {
+      reg.Reset();
+      if (mode == 1) {
+        ok = reg.Set("mutators.Operation.bigint_sign_chance", 1, &err);
+      }
+      for (int i = 0; ok && i < 120; i++) {
+        Random rng(kSeed + 1400 + static_cast<uint64_t>(mode * 200 + i));
+        std::string detail;
+        std::unique_ptr<fast::Tree> tree = ApplyMutation(
+            *op_mut, *prog, nullptr, rng, env, *generators, 2, &detail);
+        if (tree == nullptr) {
+          continue;
+        }
+        if (detail.find("bigint ") != std::string::npos &&
+            detail.find("bigint sign") == std::string::npos) {
+          saw_value = true;
+        }
+        if (detail.find("-> -") != std::string::npos) saw_neg = true;
+        if (detail.find("bigint sign -") != std::string::npos) saw_pos = true;
+        std::string src = fast::Print(tree->root());
+        if (!accepts(src, &err)) {
+          ok = false;
+        }
+      }
+    }
+    reg.Reset();
+    checker->Check(
+        "Operation: BigInt value and sign edits stay valid in all contexts",
+        ok && saw_value && saw_neg && saw_pos,
+        err.empty() ? StringPrintf("value=%d neg=%d pos=%d", saw_value, saw_neg,
+                                   saw_pos)
+                    : err);
+  }
+
+  // 3. Member property key edits: known keys, env names, numeric indices,
+  // well-known symbols, and `let.x` statement or `for-in` safety.
+  {
+    const char* kMembers = R"(let o = {alpha: 1, beta: 2};
+let a = [1, 2];
+let r = o.alpha + a[0] + o[Symbol.iterator];
+let.x = 1;
+for (let.x in a) {}
+)";
+    ProgramPtr prog = ParseOrDie(kMembers, "selftest");
+    reg.Reset();
+    std::string err;
+    bool ok = op_mut != nullptr && v8_ok &&
+              reg.Set("mutators.Operation.optional_chain_chance", 0, &err);
+    bool saw_known = false;
+    bool saw_index = false;
+    bool saw_symbol = false;
+    bool saw_dot_from_computed = false;
+    for (int i = 0; ok && i < 200; i++) {
+      Random rng(kSeed + 1800 + static_cast<uint64_t>(i));
+      std::string detail;
+      std::unique_ptr<fast::Tree> tree = ApplyMutation(
+          *op_mut, *prog, nullptr, rng, env, *generators, 1, &detail);
+      if (tree == nullptr) {
+        continue;
+      }
+      if (detail.find(".alpha -> .beta") != std::string::npos) saw_known = true;
+      if (detail.find("-> [Symbol.") != std::string::npos) saw_symbol = true;
+      if (detail.find("-> [") != std::string::npos &&
+          detail.find("Symbol.") == std::string::npos) {
+        saw_index = true;
+      }
+      if (detail.find("[0] -> .") != std::string::npos ||
+          detail.find("[Symbol.iterator] -> .") != std::string::npos) {
+        saw_dot_from_computed = true;
+      }
+      if (!accepts(fast::Print(tree->root()), &err)) {
+        ok = false;
+      }
+    }
+    reg.Reset();
+    checker->Check(
+        "Operation: member key edits cover known keys, indices, and symbols",
+        ok && saw_known && saw_index && saw_symbol && saw_dot_from_computed,
+        err.empty()
+            ? StringPrintf("known=%d index=%d symbol=%d dot=%d", saw_known,
+                           saw_index, saw_symbol, saw_dot_from_computed)
+            : err);
+  }
+
+  // 4. Optional chaining toggles on members: valid positions toggle both ways,
+  // forbidden positions never turn into `?.`.
+  {
+    const char* kValidOpt = R"(let r = o.a.b + o[0] + o?.c + delete o.d;
+class C { #p = 1; m() { return this.#p; } }
+)";
+    const char* kForbiddenOpt = R"(o.a = 1;
+o.a.b += 2;
+o.a++;
+++o.b.c;
+for (o.a in x) {}
+for (o.a.b of x) {}
+[o.a] = [1];
+({k: o.a.b} = x);
+new o.a();
+new o.a.b();
+o.a`hi`;
+o.a.b`hi`;
+class D extends B { m() { return super.x + super[0]; } }
+)";
+    ProgramPtr valid_prog = ParseOrDie(kValidOpt, "selftest");
+    ProgramPtr forbid_prog = ParseOrDie(kForbiddenOpt, "selftest");
+    reg.Reset();
+    std::string err;
+    bool ok = op_mut != nullptr && v8_ok &&
+              reg.Set("mutators.Operation.optional_chain_chance", 1, &err);
+    bool saw_on = false;
+    bool saw_off = false;
+    for (int i = 0; ok && i < 150; i++) {
+      Random rng(kSeed + 2000 + static_cast<uint64_t>(i));
+      std::string detail;
+      std::unique_ptr<fast::Tree> tree = ApplyMutation(
+          *op_mut, *valid_prog, nullptr, rng, env, *generators, 1, &detail);
+      if (tree == nullptr) {
+        continue;
+      }
+      if (detail.find("member -> optional member") != std::string::npos) {
+        saw_on = true;
+      }
+      if (detail.find("optional member -> member") != std::string::npos) {
+        saw_off = true;
+      }
+      if (!accepts(fast::Print(tree->root()), &err)) {
+        ok = false;
+      }
+    }
+    for (int i = 0; ok && i < 150; i++) {
+      Random rng(kSeed + 2200 + static_cast<uint64_t>(i));
+      std::string detail;
+      std::unique_ptr<fast::Tree> tree = ApplyMutation(
+          *op_mut, *forbid_prog, nullptr, rng, env, *generators, 1, &detail);
+      if (tree == nullptr) {
+        continue;
+      }
+      std::string src = fast::Print(tree->root());
+      if (src.find("?.") != std::string::npos) {
+        ok = false;
+        err = "forbidden optional member created: " + detail + "\n" + src;
+      } else if (!accepts(src, &err)) {
+        ok = false;
+      }
+    }
+    reg.Reset();
+    checker->Check(
+        "Operation: optional member toggles work and skip forbidden LHS/new/"
+        "super/tag positions",
+        ok && saw_on && saw_off,
+        err.empty() ? StringPrintf("on=%d off=%d", saw_on, saw_off) : err);
+  }
+
+  // 5. Call mutator: spread toggles on call and new, and optional call toggles
+  // with negative guards for `super(...)`, `new`, LHS chains, and tags.
+  {
+    const char* kCalls = R"(let a = [1, 2];
+let r = f(a, 1) + f(...a) + new C(a, 2) + new C(...a) + g?.(a);
+)";
+    const char* kForbiddenCalls = R"(class D extends B {
+  constructor() { super(1); }
+}
+new C(1);
+new (f())(1);
+f().x = 1;
+f().x++;
+for (f().x in o) {}
+for (f().x of o) {}
+f()`tag`;
+)";
+    ProgramPtr calls_prog = ParseOrDie(kCalls, "selftest");
+    ProgramPtr forbid_prog = ParseOrDie(kForbiddenCalls, "selftest");
+    reg.Reset();
+    std::string err;
+    bool ok = call_mut != nullptr && v8_ok &&
+              reg.Set("mutators.Call.spread_toggle_chance", 1, &err) &&
+              reg.Set("mutators.Call.optional_call_chance", 0, &err);
+    bool saw_spread = false;
+    bool saw_unwrap = false;
+    for (int i = 0; ok && i < 120; i++) {
+      Random rng(kSeed + 2400 + static_cast<uint64_t>(i));
+      std::string detail;
+      std::unique_ptr<fast::Tree> tree = ApplyMutation(
+          *call_mut, *calls_prog, nullptr, rng, env, *generators, 1, &detail);
+      if (tree == nullptr) {
+        continue;
+      }
+      if (detail.find("unwrapped spread argument") != std::string::npos) {
+        saw_unwrap = true;
+      } else if (detail.find("spread argument") != std::string::npos) {
+        saw_spread = true;
+      }
+      if (!accepts(fast::Print(tree->root()), &err)) {
+        ok = false;
+      }
+    }
+    reg.Reset();
+    ok = ok && reg.Set("mutators.Call.optional_call_chance", 1, &err) &&
+         reg.Set("mutators.Call.spread_toggle_chance", 0, &err);
+    bool saw_opt_on = false;
+    bool saw_opt_off = false;
+    for (int i = 0; ok && i < 120; i++) {
+      Random rng(kSeed + 2600 + static_cast<uint64_t>(i));
+      std::string detail;
+      std::unique_ptr<fast::Tree> tree = ApplyMutation(
+          *call_mut, *calls_prog, nullptr, rng, env, *generators, 1, &detail);
+      if (tree == nullptr) {
+        continue;
+      }
+      if (detail.find("call -> optional call") != std::string::npos) {
+        saw_opt_on = true;
+      }
+      if (detail.find("optional call -> call") != std::string::npos) {
+        saw_opt_off = true;
+      }
+      if (!accepts(fast::Print(tree->root()), &err)) {
+        ok = false;
+      }
+    }
+    for (int i = 0; ok && i < 120; i++) {
+      Random rng(kSeed + 2800 + static_cast<uint64_t>(i));
+      std::string detail;
+      std::unique_ptr<fast::Tree> tree = ApplyMutation(
+          *call_mut, *forbid_prog, nullptr, rng, env, *generators, 1, &detail);
+      if (tree == nullptr) {
+        continue;
+      }
+      std::string src = fast::Print(tree->root());
+      if (src.find("?.") != std::string::npos) {
+        ok = false;
+        err = "forbidden optional call created: " + detail + "\n" + src;
+      } else if (!accepts(src, &err)) {
+        ok = false;
+      }
+    }
+    reg.Reset();
+    checker->Check(
+        "Call: spread toggles and optional call toggles stay valid and respect "
+        "grammar guards",
+        ok && saw_spread && saw_unwrap && saw_opt_on && saw_opt_off,
+        err.empty()
+            ? StringPrintf("spread=%d unwrap=%d on=%d off=%d", saw_spread,
+                           saw_unwrap, saw_opt_on, saw_opt_off)
+            : err);
+  }
+}
+
 }  // namespace
 
 void RunSelectionChecks(Checker* checker, const std::string& testdata_dir,
@@ -3659,6 +4013,7 @@ void RunSelectionChecks(Checker* checker, const std::string& testdata_dir,
   CheckRarityOverhaul(checker);
   CheckRuntimeAssisted(checker);
   CheckReceiverJit(checker);
+  CheckOperationAndCallParity(checker);
   CheckEdgeCases(checker);
   CheckBuiltinsAndWorkers(checker);
   CheckEnvTyper(checker);

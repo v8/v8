@@ -273,8 +273,15 @@ namespace {
 // (`unicode`: the u or v flag, `sets`: the v flag).
 class RegExpPatternBuilder {
  public:
-  RegExpPatternBuilder(Random& r, bool unicode, bool sets)
-      : r_(r), unicode_(unicode), sets_(sets) {}
+  RegExpPatternBuilder(Random& r, bool unicode, bool sets,
+                       bool allow_groups = true, int max_terms = -1,
+                       int max_depth = -1)
+      : r_(r),
+        unicode_(unicode),
+        sets_(sets),
+        allow_groups_(allow_groups),
+        max_terms_(max_terms > 0 ? max_terms : kRegExpMaxTerms.AsInt()),
+        max_depth_(max_depth >= 0 ? max_depth : kRegExpMaxDepth.AsInt()) {}
 
   std::string Build() {
     std::string out;
@@ -289,8 +296,8 @@ class RegExpPatternBuilder {
       if (i > 0) {
         *out += '|';
       }
-      int terms = 1 + static_cast<int>(r_.Index(
-                          static_cast<size_t>(kRegExpMaxTerms.AsInt())));
+      int terms =
+          1 + static_cast<int>(r_.Index(static_cast<size_t>(max_terms_)));
       for (int k = 0; k < terms; k++) {
         Term(depth, out);
       }
@@ -298,7 +305,7 @@ class RegExpPatternBuilder {
   }
 
   void Term(int depth, std::string* out) {
-    bool nest = depth < kRegExpMaxDepth.AsInt();
+    bool nest = depth < max_depth_;
     switch (r_.Index(nest ? 9 : 6)) {
       case 0:
       case 1:
@@ -381,6 +388,12 @@ class RegExpPatternBuilder {
   }
 
   void Group(int depth, std::string* out) {
+    if (!allow_groups_) {
+      *out += "(?:";
+      Disjunction(depth + 1, out);
+      *out += ')';
+      return;
+    }
     switch (r_.Index(3)) {
       case 0:
         *out += '(';
@@ -431,6 +444,9 @@ class RegExpPatternBuilder {
   Random& r_;
   bool unicode_;
   bool sets_;
+  bool allow_groups_;
+  int max_terms_;
+  int max_depth_;
   int groups_ = 0;
   int names_ = 0;
 };
@@ -442,32 +458,51 @@ REDLINE_TUNABLE(kRegExpAnnexBChance, "codegen.regexp.annex_b_chance", 0.25, 0,
                 "probability that a non-unicode RegExp literal uses an Annex B "
                 "pattern");
 
-fast::Expression* CodeGen::RegExp() {
-  Random& r = rng();
-  if (!r.Chance(kRegExpGeneratedChance())) {
-    const auto& re = r.Pick(env().regexps());
-    return mk::RegExp(tree(), re.first, re.second);
-  }
+// static
+std::string CodeGen::RandomRegExpFlags(Random& r) {
   std::string flags;
   for (char flag : {'d', 'g', 'i', 'm', 's', 'y'}) {
     if (r.Chance(kRegExpFlagChance())) {
       flags += flag;
     }
   }
-  bool unicode = r.Chance(kRegExpFlagChance());
-  bool sets = unicode && r.Coin();
+  const bool unicode = r.Chance(kRegExpFlagChance());
+  const bool sets = unicode && r.Coin();
   if (unicode) {
     flags += sets ? 'v' : 'u';
   }
+  return flags;
+}
+
+// static
+std::string CodeGen::RandomRegExpPattern(Random& r, bool unicode, bool sets) {
   if (!unicode && r.Chance(kRegExpAnnexBChance())) {
     static const char* const kAnnexB[] = {
         "a\\q", "a{z}",   "{12,3b", "[z-\\d]", "(x)(x)(x)\\4", "(?=a){1,10}a",
         "\\c!", "[-123]", "\\8",    "\\9",     "\\011",        "[\\w-a]"};
-    return mk::RegExp(
-        tree(), kAnnexB[r.Index(sizeof(kAnnexB) / sizeof(kAnnexB[0]))], flags);
+    return kAnnexB[r.Index(sizeof(kAnnexB) / sizeof(kAnnexB[0]))];
   }
   RegExpPatternBuilder builder(r, unicode, sets);
-  return mk::RegExp(tree(), builder.Build(), flags);
+  return builder.Build();
+}
+
+// static
+std::string CodeGen::RandomRegExpPiece(Random& r, bool unicode, bool sets) {
+  RegExpPatternBuilder builder(r, unicode, sets, /*allow_groups=*/false,
+                               /*max_terms=*/2, /*max_depth=*/1);
+  return builder.Build();
+}
+
+fast::Expression* CodeGen::RegExp() {
+  Random& r = rng();
+  if (!r.Chance(kRegExpGeneratedChance())) {
+    const auto& re = r.Pick(env().regexps());
+    return mk::RegExp(tree(), re.first, re.second);
+  }
+  const std::string flags = RandomRegExpFlags(r);
+  const bool sets = flags.find('v') != std::string::npos;
+  const bool unicode = sets || flags.find('u') != std::string::npos;
+  return mk::RegExp(tree(), RandomRegExpPattern(r, unicode, sets), flags);
 }
 
 fast::Expression* CodeGen::Nullish() {

@@ -4,6 +4,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
+#include <cstdlib>
+#include <limits>
 #include <string>
 
 #include "absl/container/flat_hash_map.h"
@@ -224,10 +227,695 @@ REDLINE_TUNABLE(kOperationCharEditChance, "mutators.Operation.char_edit_chance",
                 0.4, 0, 1,
                 "probability that a string literal gets a one-character edit "
                 "(add, remove or replace) rather than a new value");
+REDLINE_TUNABLE(kOperationOptionalChainChance,
+                "mutators.Operation.optional_chain_chance", 0.2, 0, 1,
+                "probability that a member expression toggles optional "
+                "chaining instead of changing its property key");
+REDLINE_TUNABLE(kOperationMemberKnownKeyChance,
+                "mutators.Operation.member_known_key_chance", 0.4, 0, 1,
+                "probability that a member key edit picks a known key of the "
+                "object variable");
+REDLINE_TUNABLE(kOperationMemberComputedKeyChance,
+                "mutators.Operation.member_computed_key_chance", 0.25, 0, 1,
+                "probability that a member key edit picks a numeric index or a "
+                "well-known symbol");
+REDLINE_TUNABLE(kOperationRegExpFlagChance,
+                "mutators.Operation.regexp_flag_chance", 0.35, 0, 1,
+                "probability that a RegExp edit changes flags instead of the "
+                "pattern");
+REDLINE_TUNABLE(kOperationRegExpPieceEditChance,
+                "mutators.Operation.regexp_piece_edit_chance", 0.5, 0, 1,
+                "probability that a RegExp pattern edit mutates the existing "
+                "pattern in place rather than generating a fresh pattern");
+REDLINE_TUNABLE(kOperationRegExpMaxPatternLength,
+                "mutators.Operation.regexp_max_pattern_length", 128, 16, 1024,
+                "largest RegExp pattern length that in-place wrapping or "
+                "concatenation extends");
+REDLINE_TUNABLE(kOperationBigIntSignChance,
+                "mutators.Operation.bigint_sign_chance", 0.2, 0, 1,
+                "probability that a BigInt literal edit toggles its sign when "
+                "safe");
 
-// The regular expression flags that do not change the syntax of the
-// pattern. The `u` and `v` flags do, so the mutator never toggles them.
+// Regular expression flags that do not change pattern syntax.
 constexpr std::string_view kSyntaxNeutralRegExpFlags = "dgimsy";
+
+// Walks up the member and call spine to the outermost chain expression.
+Expression* ChainTop(Builder& b, Expression* node) {
+  Expression* cur = node;
+  while (true) {
+    Node* up = b.ParentOf(cur);
+    if (up == nullptr) {
+      break;
+    }
+    if (auto* m = up->As<MemberExpression>();
+        m != nullptr && m->object == cur) {
+      cur = m;
+      continue;
+    }
+    if (auto* c = up->As<CallExpression>(); c != nullptr && c->callee == cur) {
+      cur = c;
+      continue;
+    }
+    if (auto* ch = up->As<ChainExpression>();
+        ch != nullptr && ch->expression == cur) {
+      return ch;
+    }
+    break;
+  }
+  return cur;
+}
+
+// Returns true if any member or call on the spine of `expr` is optional.
+bool SpineHasOptional(const Expression* expr) {
+  const Expression* cur = expr;
+  while (cur != nullptr) {
+    if (const auto* m = cur->As<MemberExpression>()) {
+      if (m->optional) {
+        return true;
+      }
+      cur = m->object;
+    } else if (const auto* c = cur->As<CallExpression>()) {
+      if (c->optional) {
+        return true;
+      }
+      cur = c->callee;
+    } else {
+      break;
+    }
+  }
+  return false;
+}
+
+// Removes `chain` when no optional link remains on its spine.
+void UnwrapEmptyChain(Builder& b, ChainExpression* chain) {
+  if (chain != nullptr && chain->expression != nullptr &&
+      !SpineHasOptional(chain->expression)) {
+    ReplaceAnchored(b, chain, chain->expression);
+  }
+}
+
+// Returns true when `node` can safely toggle `?.` on or off.
+bool CanToggleOptionalChain(Builder& b, Expression* node) {
+  bool currently_optional = false;
+  bool is_private = false;
+  if (auto* m = node->As<MemberExpression>()) {
+    if (m->object->Is<Super>()) {
+      return false;
+    }
+    currently_optional = m->optional;
+    is_private = m->property->Is<PrivateIdentifier>();
+  } else if (auto* c = node->As<CallExpression>()) {
+    if (c->callee->Is<Super>()) {
+      return false;
+    }
+    currently_optional = c->optional;
+  } else {
+    return false;
+  }
+  Expression* top = ChainTop(b, node);
+  Node* owner = b.ParentOf(top);
+  if (owner == nullptr) {
+    return false;
+  }
+  if (currently_optional) {
+    return true;
+  }
+  if (owner->Is<AssignmentExpression>() &&
+      owner->Cast<AssignmentExpression>()->left == top) {
+    return false;
+  }
+  if (owner->Is<UpdateExpression>()) {
+    return false;
+  }
+  if (owner->Is<ForInStatement>() &&
+      owner->Cast<ForInStatement>()->left == top) {
+    return false;
+  }
+  if (owner->Is<ForOfStatement>() &&
+      owner->Cast<ForOfStatement>()->left == top) {
+    return false;
+  }
+  if (owner->Is<NewExpression>() &&
+      owner->Cast<NewExpression>()->callee == top) {
+    return false;
+  }
+  if (owner->Is<TaggedTemplateExpression>() &&
+      owner->Cast<TaggedTemplateExpression>()->tag == top) {
+    return false;
+  }
+  if (owner->Is<ObjectPattern>() || owner->Is<ArrayPattern>() ||
+      owner->Is<RestElement>()) {
+    return false;
+  }
+  if (owner->Is<AssignmentPattern>() &&
+      owner->Cast<AssignmentPattern>()->left == top) {
+    return false;
+  }
+  if (owner->Is<Property>() && owner->Cast<Property>()->value == top) {
+    Node* container = b.ParentOf(owner);
+    if (container != nullptr && container->Is<ObjectPattern>()) {
+      return false;
+    }
+  }
+  if (is_private && owner->Is<UnaryExpression>() &&
+      owner->Cast<UnaryExpression>()->op == UnaryOp::kDelete) {
+    return false;
+  }
+  return true;
+}
+
+// Toggles optional chaining on a `MemberExpression` or `CallExpression`.
+bool ToggleOptionalChain(Builder& b, Expression* node, MutationContext& ctx) {
+  if (!CanToggleOptionalChain(b, node)) {
+    return false;
+  }
+  Expression* top = ChainTop(b, node);
+  auto* m = node->As<MemberExpression>();
+  auto* c = node->As<CallExpression>();
+  const bool was_optional = m != nullptr ? m->optional : c->optional;
+  if (!was_optional && !top->Is<ChainExpression>() &&
+      ReplaceAnchored(b, top, mk::Chain(b.tree(), top)) == nullptr) {
+    return false;
+  }
+  if (m != nullptr) {
+    m->optional = !was_optional;
+    ctx.detail = was_optional ? "optional member -> member"
+                              : "member -> optional member";
+  } else {
+    c->optional = !was_optional;
+    ctx.detail =
+        was_optional ? "optional call -> call" : "call -> optional call";
+  }
+  if (was_optional) {
+    if (auto* chain = top->As<ChainExpression>()) {
+      UnwrapEmptyChain(b, chain);
+    }
+  }
+  b.Invalidate();
+  return true;
+}
+
+// Parses an unsigned `BigIntLiteral` raw string into `out` when it fits in
+// 64 bits.
+bool ParseBigIntUint64(std::string_view raw, uint64_t* out) {
+  if (raw.size() < 2 || raw.back() != 'n') {
+    return false;
+  }
+  std::string_view digits = raw.substr(0, raw.size() - 1);
+  uint64_t base = 10;
+  if (digits.size() >= 2 && digits[0] == '0') {
+    char p = digits[1];
+    if (p == 'x' || p == 'X') {
+      base = 16;
+      digits = digits.substr(2);
+    } else if (p == 'b' || p == 'B') {
+      base = 2;
+      digits = digits.substr(2);
+    } else if (p == 'o' || p == 'O') {
+      base = 8;
+      digits = digits.substr(2);
+    }
+  }
+  if (digits.empty()) {
+    return false;
+  }
+  uint64_t val = 0;
+  bool any_digit = false;
+  for (char c : digits) {
+    if (c == '_') {
+      continue;
+    }
+    uint64_t d = 0;
+    if (c >= '0' && c <= '9') {
+      d = static_cast<uint64_t>(c - '0');
+    } else if (c >= 'a' && c <= 'f') {
+      d = static_cast<uint64_t>(10 + (c - 'a'));
+    } else if (c >= 'A' && c <= 'F') {
+      d = static_cast<uint64_t>(10 + (c - 'A'));
+    } else {
+      return false;
+    }
+    if (d >= base) {
+      return false;
+    }
+    if (val > (std::numeric_limits<uint64_t>::max() - d) / base) {
+      return false;
+    }
+    val = val * base + d;
+    any_digit = true;
+  }
+  if (!any_digit) {
+    return false;
+  }
+  *out = val;
+  return true;
+}
+
+// Returns true when `node` sits in a non-computed property key slot.
+bool IsNonComputedPropertyKey(Builder& b, Node* node) {
+  Node* parent = b.ParentOf(node);
+  if (parent == nullptr) {
+    return false;
+  }
+  if (auto* p = parent->As<Property>()) {
+    return p->key == node && !p->computed;
+  }
+  if (auto* m = parent->As<MethodDefinition>()) {
+    return m->key == node && !m->computed;
+  }
+  if (auto* f = parent->As<PropertyDefinition>()) {
+    return f->key == node && !f->computed;
+  }
+  return false;
+}
+
+// Returns true when `pattern` is valid in non-unicode, `u`, and `v` modes.
+bool IsModeNeutralRegExpPattern(std::string_view pattern) {
+  if (pattern.empty()) {
+    return false;
+  }
+  char prev = '\0';
+  for (size_t i = 0; i < pattern.size(); i++) {
+    char c = pattern[i];
+    if (c == '\\') {
+      if (i + 1 >= pattern.size()) {
+        return false;
+      }
+      char next = pattern[++i];
+      if (next != 'd' && next != 'D' && next != 'w' && next != 'W' &&
+          next != 's' && next != 'S') {
+        return false;
+      }
+      prev = next;
+      continue;
+    }
+    if ((c == '*' || c == '+' || c == '?') && (prev == '^' || prev == '$')) {
+      return false;
+    }
+    bool ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+              (c >= '0' && c <= '9') || c == '_' || c == ' ' || c == '.' ||
+              c == '|' || c == '*' || c == '+' || c == '?' || c == '^' ||
+              c == '$' || c == ',' || c == ':' || c == ';' || c == '!' ||
+              c == '@' || c == '#' || c == '%' || c == '=' || c == '<' ||
+              c == '>' || c == '~' || c == '\'' || c == '"';
+    if (!ok) {
+      return false;
+    }
+    prev = c;
+  }
+  return true;
+}
+
+// Returns true when `suffix` is empty or a single RegExp quantifier.
+bool IsRegExpQuantifierSuffix(std::string_view suffix) {
+  if (suffix.empty() || suffix == "*" || suffix == "+" || suffix == "?" ||
+      suffix == "*?" || suffix == "+?" || suffix == "??") {
+    return true;
+  }
+  if (suffix.size() < 3 || suffix.front() != '{') {
+    return false;
+  }
+  size_t end = suffix.back() == '?' ? suffix.size() - 1 : suffix.size();
+  if (end < 3 || suffix[end - 1] != '}') {
+    return false;
+  }
+  std::string_view body = suffix.substr(1, end - 2);
+  size_t comma = body.find(',');
+  auto all_digits = [](std::string_view s) {
+    if (s.empty()) {
+      return false;
+    }
+    for (char c : s) {
+      if (c < '0' || c > '9') {
+        return false;
+      }
+    }
+    return true;
+  };
+  if (comma == std::string_view::npos) {
+    return all_digits(body);
+  }
+  std::string_view lo = body.substr(0, comma);
+  std::string_view hi = body.substr(comma + 1);
+  return all_digits(lo) && (hi.empty() || all_digits(hi));
+}
+
+// Unwraps an outer `(?:...)` group with an optional trailing quantifier.
+bool UnwrapOuterNonCapturingGroup(std::string_view pattern, bool sets,
+                                  std::string* inner, std::string* suffix) {
+  if (pattern.size() < 4 || pattern.substr(0, 3) != "(?:") {
+    return false;
+  }
+  int paren_depth = 0;
+  int class_depth = 0;
+  size_t close_pos = std::string_view::npos;
+  for (size_t i = 0; i < pattern.size(); i++) {
+    char c = pattern[i];
+    if (c == '\\') {
+      i++;
+      continue;
+    }
+    if (class_depth > 0) {
+      if (sets && c == '[') {
+        class_depth++;
+      } else if (c == ']') {
+        class_depth--;
+      }
+      continue;
+    }
+    if (c == '[') {
+      class_depth = 1;
+    } else if (c == '(') {
+      paren_depth++;
+    } else if (c == ')') {
+      paren_depth--;
+      if (paren_depth == 0) {
+        close_pos = i;
+        break;
+      }
+    }
+  }
+  if (close_pos == std::string_view::npos) {
+    return false;
+  }
+  std::string_view body = pattern.substr(3, close_pos - 3);
+  std::string_view rest = pattern.substr(close_pos + 1);
+  if (body.empty() || !IsRegExpQuantifierSuffix(rest)) {
+    return false;
+  }
+  *inner = std::string(body);
+  *suffix = std::string(rest);
+  return true;
+}
+
+bool HasUnescapedTrailingDollar(std::string_view pattern) {
+  if (pattern.size() <= 1 || pattern.back() != '$') {
+    return false;
+  }
+  size_t slashes = 0;
+  for (size_t i = pattern.size() - 1; i > 0 && pattern[i - 1] == '\\'; i--) {
+    slashes++;
+  }
+  return (slashes % 2) == 0;
+}
+
+// Toggles one safe literal letter case, shorthand escape, or character class
+// negation inside `pattern`.
+bool ToggleRegExpCaseOrClass(Random& r, std::string_view pattern, bool sets,
+                             std::string* out) {
+  enum class EditKind { kFlipCase, kToggleClassNegation };
+  struct Edit {
+    EditKind kind;
+    size_t pos;
+  };
+  std::vector<Edit> edits;
+  int class_depth = 0;
+  size_t class_start = 0;
+  bool class_simple = false;
+  bool class_has_body = false;
+  for (size_t i = 0; i < pattern.size(); i++) {
+    char c = pattern[i];
+    if (c == '\\') {
+      if (i + 1 >= pattern.size()) {
+        break;
+      }
+      char next = pattern[i + 1];
+      if (class_depth > 0) {
+        class_has_body = true;
+        if (next == 'q' || next == 'p' || next == 'P') {
+          class_simple = false;
+        }
+        if (next == 'd' || next == 'D' || next == 'w' || next == 'W' ||
+            next == 's' || next == 'S') {
+          edits.push_back({EditKind::kFlipCase, i + 1});
+          i++;
+          continue;
+        }
+        if ((next == 'p' || next == 'P' || next == 'u' || next == 'q') &&
+            i + 2 < pattern.size() && pattern[i + 2] == '{') {
+          size_t close = pattern.find('}', i + 3);
+          i = close == std::string_view::npos ? pattern.size() - 1 : close;
+          continue;
+        }
+        i++;
+        continue;
+      }
+      if (next == 'd' || next == 'D' || next == 'w' || next == 'W' ||
+          next == 's' || next == 'S' || next == 'b' || next == 'B') {
+        edits.push_back({EditKind::kFlipCase, i + 1});
+        i++;
+        continue;
+      }
+      if (next == 'p' || next == 'P' || next == 'u' || next == 'q') {
+        if (i + 2 < pattern.size() && pattern[i + 2] == '{') {
+          size_t close = pattern.find('}', i + 3);
+          i = close == std::string_view::npos ? pattern.size() - 1 : close;
+          continue;
+        }
+        if (next == 'u') {
+          i = std::min(i + 5, pattern.size() - 1);
+          continue;
+        }
+      } else if (next == 'k') {
+        if (i + 2 < pattern.size() && pattern[i + 2] == '<') {
+          size_t close = pattern.find('>', i + 3);
+          i = close == std::string_view::npos ? pattern.size() - 1 : close;
+          continue;
+        }
+      } else if (next == 'x') {
+        i = std::min(i + 3, pattern.size() - 1);
+        continue;
+      } else if (next == 'c') {
+        i = std::min(i + 2, pattern.size() - 1);
+        continue;
+      }
+      i++;
+      continue;
+    }
+    if (class_depth > 0) {
+      if (sets && c == '[') {
+        class_depth++;
+        class_simple = false;
+        continue;
+      }
+      if (c == ']') {
+        class_depth--;
+        if (class_depth == 0 && class_simple && class_has_body) {
+          edits.push_back({EditKind::kToggleClassNegation, class_start});
+        }
+        continue;
+      }
+      if (i == class_start + 1 && c == '^') {
+        continue;
+      }
+      class_has_body = true;
+      continue;
+    }
+    if (c == '[') {
+      class_depth = 1;
+      class_start = i;
+      class_simple = true;
+      class_has_body = false;
+      continue;
+    }
+    if (c == '(' && i + 1 < pattern.size() && pattern[i + 1] == '?') {
+      size_t j = i + 2;
+      if (j < pattern.size() && pattern[j] == '<') {
+        j++;
+        if (j < pattern.size() && (pattern[j] == '=' || pattern[j] == '!')) {
+          i = j;
+        } else {
+          size_t close = pattern.find('>', j);
+          i = close == std::string_view::npos ? pattern.size() - 1 : close;
+        }
+        continue;
+      }
+      while (j < pattern.size() && pattern[j] != ':' && pattern[j] != '=' &&
+             pattern[j] != '!' && pattern[j] != ')') {
+        j++;
+      }
+      i = j < pattern.size() ? j : pattern.size() - 1;
+      continue;
+    }
+    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
+      edits.push_back({EditKind::kFlipCase, i});
+    }
+  }
+  if (edits.empty()) {
+    return false;
+  }
+  const Edit edit = r.Pick(edits);
+  *out = std::string(pattern);
+  if (edit.kind == EditKind::kFlipCase) {
+    (*out)[edit.pos] = static_cast<char>((*out)[edit.pos] ^ 0x20);
+  } else {
+    if (edit.pos + 1 < out->size() && (*out)[edit.pos + 1] == '^') {
+      out->erase(edit.pos + 1, 1);
+    } else {
+      out->insert(edit.pos + 1, 1, '^');
+    }
+  }
+  return true;
+}
+
+// Applies a valid-by-construction in-place edit to a RegExp pattern.
+bool MutateRegExpPatternInPlace(Random& r, std::string_view pattern,
+                                bool unicode, bool sets, std::string* out,
+                                std::string* what) {
+  if (pattern.empty()) {
+    return false;
+  }
+  const size_t max_len =
+      static_cast<size_t>(kOperationRegExpMaxPatternLength.AsInt());
+  switch (r.Index(4)) {
+    case 0: {
+      // Wrap or unwrap a non-capturing group and quantifier.
+      std::string inner, suffix;
+      if (UnwrapOuterNonCapturingGroup(pattern, sets, &inner, &suffix) &&
+          r.Coin()) {
+        if (suffix.empty() || r.Coin()) {
+          *out = std::move(inner);
+          *what = "unwrapped group";
+        } else {
+          std::string_view q =
+              r.Pick({"*", "+", "?", "{1,2}", "*?", "+?", "??", "{1,2}?"});
+          *out = "(?:" + inner + ")" + std::string(q);
+          *what = "changed quantifier";
+        }
+        return *out != pattern;
+      }
+      if (pattern.size() <= max_len) {
+        if (r.Index(5) == 0) {
+          std::string_view mod = r.Pick({"(?i:", "(?-i:", "(?m:", "(?s:"});
+          *out = std::string(mod) + std::string(pattern) + ")";
+          *what = "wrapped modifier group";
+        } else {
+          std::string_view q =
+              r.Pick({"*", "+", "?", "{1,2}", "*?", "+?", "??", "{1,2}?"});
+          *out = "(?:" + std::string(pattern) + ")" + std::string(q);
+          *what = "wrapped quantifier";
+        }
+        return true;
+      }
+      break;
+    }
+    case 1: {
+      // Toggle leading `^` or trailing `$` anchor.
+      bool has_start = pattern.size() > 1 && pattern.front() == '^' &&
+                       pattern[1] != '*' && pattern[1] != '+' &&
+                       pattern[1] != '?' && pattern[1] != '{';
+      bool has_end = HasUnescapedTrailingDollar(pattern);
+      if ((has_start || has_end) && r.Coin()) {
+        if (has_start && (!has_end || r.Coin())) {
+          *out = std::string(pattern.substr(1));
+        } else {
+          *out = std::string(pattern.substr(0, pattern.size() - 1));
+        }
+        *what = "removed anchor";
+        return !out->empty();
+      }
+      if (pattern.size() <= max_len) {
+        switch (r.Index(3)) {
+          case 0:
+            *out = "^(?:" + std::string(pattern) + ")";
+            break;
+          case 1:
+            *out = "(?:" + std::string(pattern) + ")$";
+            break;
+          default:
+            *out = "^(?:" + std::string(pattern) + ")$";
+            break;
+        }
+        *what = "added anchor";
+        return true;
+      }
+      break;
+    }
+    case 2:
+      if (ToggleRegExpCaseOrClass(r, pattern, sets, out)) {
+        *what = "toggled case or class";
+        return true;
+      }
+      break;
+    default:
+      break;
+  }
+  std::string piece = CodeGen::RandomRegExpPiece(r, unicode, sets);
+  if (pattern.size() <= max_len && r.Index(3) != 0) {
+    switch (r.Index(3)) {
+      case 0:
+        *out = "(?:" + std::string(pattern) + ")|(?:" + piece + ")";
+        *what = "added alternative";
+        break;
+      case 1:
+        *out = "(?:" + std::string(pattern) + ")(?:" + piece + ")";
+        *what = "appended piece";
+        break;
+      default:
+        *out = "(?:" + piece + ")(?:" + std::string(pattern) + ")";
+        *what = "prepended piece";
+        break;
+    }
+    return true;
+  }
+  *out = std::move(piece);
+  *what = "substituted piece";
+  return !out->empty() && *out != pattern;
+}
+
+// Converts a property name into a valid member key expression and `computed`
+// flag. Returns nullptr when the name needs brackets and `allow_computed` is
+// false.
+Expression* MakeMemberProperty(Tree* t, std::string_view name,
+                               bool allow_computed, bool* computed) {
+  if (IsIdentifierName(name)) {
+    *computed = false;
+    return mk::Id(t, name);
+  }
+  if (!allow_computed) {
+    return nullptr;
+  }
+  *computed = true;
+  if (name.starts_with("Symbol.") && IsIdentifierName(name.substr(7))) {
+    return mk::Member(t, mk::Id(t, "Symbol"), name.substr(7));
+  }
+  bool numeric = !name.empty();
+  for (char c : name) {
+    if (!((c >= '0' && c <= '9') || c == '.' || c == '-')) {
+      numeric = false;
+      break;
+    }
+  }
+  if (numeric) {
+    std::string text(name);
+    char* end = nullptr;
+    double value = std::strtod(text.c_str(), &end);
+    if (end == text.c_str() + text.size() && std::isfinite(value)) {
+      return mk::Num(t, value);
+    }
+  }
+  return mk::Str(t, name);
+}
+
+// Returns true when `expr` has an iterable or unknown guessed type.
+bool IsSpreadPreferredArg(Builder& b, const Expression* expr) {
+  if (expr->Is<SpreadElement>()) {
+    return true;
+  }
+  JsType type = b.GuessExpressionType(expr);
+  switch (type) {
+    case JsType::kArray:
+    case JsType::kString:
+    case JsType::kTypedArray:
+    case JsType::kMap:
+    case JsType::kSet:
+    case JsType::kIterator:
+    case JsType::kUnknown:
+      return true;
+    default:
+      return false;
+  }
+}
 
 // A printable ASCII character for a one-character string edit.
 char RandomStringChar(Random& r) {
@@ -259,6 +947,7 @@ class OperationMutator final : public Mutator {
         case NodeKind::kUpdateExpression:
         case NodeKind::kAssignmentExpression:
         case NodeKind::kNumericLiteral:
+        case NodeKind::kBigIntLiteral:
         case NodeKind::kBooleanLiteral:
         case NodeKind::kMemberExpression:
         case NodeKind::kRegExpLiteral:
@@ -401,19 +1090,9 @@ class OperationMutator final : public Mutator {
         if (v == old) {
           return false;
         }
-        // Negative numbers as object keys or member names are not literals.
-        Node* parent = b.ParentOf(node);
-        bool is_key =
-            parent != nullptr &&
-            ((parent->Is<Property>() && parent->Cast<Property>()->key == node &&
-              !parent->Cast<Property>()->computed) ||
-             (parent->Is<MethodDefinition>() &&
-              parent->Cast<MethodDefinition>()->key == node &&
-              !parent->Cast<MethodDefinition>()->computed) ||
-             (parent->Is<PropertyDefinition>() &&
-              parent->Cast<PropertyDefinition>()->key == node &&
-              !parent->Cast<PropertyDefinition>()->computed));
-        if (is_key && (v < 0 || v != v || std::isinf(v))) {
+        // Negative numbers (including `-0`) as property keys are not literals.
+        const bool is_key = IsNonComputedPropertyKey(b, node);
+        if (is_key && (v < 0 || std::signbit(v) || v != v || std::isinf(v))) {
           v = std::abs(v == v ? v : 1);
         }
         if (is_key && std::isinf(v)) {
@@ -422,6 +1101,114 @@ class OperationMutator final : public Mutator {
         n->value = v;
         n->raw = {};
         ctx.detail = StringPrintf("number %g -> %g", old, v);
+        return true;
+      }
+      case NodeKind::kBigIntLiteral: {
+        static constexpr std::string_view kBoundaries[] = {
+            "0n",
+            "1n",
+            "2n",
+            "3n",
+            "8n",
+            "16n",
+            "31n",
+            "32n",
+            "63n",
+            "64n",
+            "255n",
+            "256n",
+            "65535n",
+            "65536n",
+            "1073741823n",
+            "1073741824n",
+            "2147483647n",
+            "2147483648n",
+            "4294967295n",
+            "4294967296n",
+            "9007199254740991n",
+            "9007199254740992n",
+            "9007199254740993n",
+            "9223372036854775807n",
+            "9223372036854775808n",
+            "18446744073709551615n",
+            "18446744073709551616n",
+            "340282366920938463463374607431768211456n",
+        };
+        auto* lit = node->Cast<BigIntLiteral>();
+        Node* parent = b.ParentOf(node);
+        const bool is_key = IsNonComputedPropertyKey(b, node);
+        if (r.Chance(kOperationBigIntSignChance())) {
+          if (parent != nullptr && parent->Is<UnaryExpression>() &&
+              parent->Cast<UnaryExpression>()->op == UnaryOp::kMinus &&
+              b.ParentOf(parent) != nullptr &&
+              b.RoleOf(parent) == ExpressionRole::kValue) {
+            std::string raw(lit->raw);
+            if (ReplaceAnchored(b, parent, lit) != nullptr) {
+              ctx.detail = "bigint sign -" + raw + " -> " + raw;
+              return true;
+            }
+          } else if (!is_key && lit->raw != "0n" &&
+                     b.RoleOf(node) == ExpressionRole::kValue &&
+                     (parent == nullptr || !parent->Is<UnaryExpression>()) &&
+                     !(parent != nullptr && parent->Is<BinaryExpression>() &&
+                       parent->Cast<BinaryExpression>()->op == BinaryOp::kExp &&
+                       parent->Cast<BinaryExpression>()->left == node)) {
+            std::string raw(lit->raw);
+            if (ReplaceAnchored(b, lit, mk::Unary(t, UnaryOp::kMinus, lit)) !=
+                nullptr) {
+              ctx.detail = "bigint sign " + raw + " -> -" + raw;
+              return true;
+            }
+          }
+        }
+        uint64_t val = 0;
+        const bool fits_u64 = ParseBigIntUint64(lit->raw, &val);
+        std::string next;
+        if (!fits_u64) {
+          next = r.Coin() ? std::string(kBoundaries[r.Index(
+                                sizeof(kBoundaries) / sizeof(kBoundaries[0]))])
+                          : std::to_string(r.Next()) + "n";
+        } else {
+          switch (r.Index(7)) {
+            case 0:
+            case 1:
+              next = std::string(kBoundaries[r.Index(sizeof(kBoundaries) /
+                                                     sizeof(kBoundaries[0]))]);
+              break;
+            case 2:
+              next = val == std::numeric_limits<uint64_t>::max()
+                         ? "18446744073709551616n"
+                         : std::to_string(val + 1) + "n";
+              break;
+            case 3:
+              next = std::to_string(val > 0 ? val - 1 : 1) + "n";
+              break;
+            case 4:
+              next = std::to_string(val ^ (uint64_t{1} << r.Index(64))) + "n";
+              break;
+            case 5: {
+              const unsigned shift = static_cast<unsigned>(r.Range(1, 16));
+              const uint64_t shifted =
+                  r.Coin() ? (val == 0 ? (uint64_t{1} << r.Index(64))
+                                       : (val << shift))
+                           : (val >> shift);
+              next = std::to_string(shifted) + "n";
+              break;
+            }
+            default:
+              next = std::to_string(
+                         r.Coin() ? static_cast<uint64_t>(r.Range(
+                                        0, kOperationRandomNumberMax.AsInt()))
+                                  : r.Next()) +
+                     "n";
+              break;
+          }
+        }
+        if (next == lit->raw) {
+          return false;
+        }
+        ctx.detail = "bigint " + std::string(lit->raw) + " -> " + next;
+        lit->raw = t->Intern(next);
         return true;
       }
       case NodeKind::kBooleanLiteral: {
@@ -492,53 +1279,186 @@ class OperationMutator final : public Mutator {
       }
       case NodeKind::kMemberExpression: {
         auto* m = node->Cast<MemberExpression>();
-        if (m->computed || !m->property->Is<Identifier>() ||
-            m->object->Is<Super>()) {
-          return false;
+        if (m->property->Is<PrivateIdentifier>()) {
+          return ToggleOptionalChain(b, m, ctx);
         }
-        std::string_view old = m->property->Cast<Identifier>()->name;
-        std::string_view name = old;
-        // Type-directed names when the object is a known variable.
+        if (r.Chance(kOperationOptionalChainChance()) &&
+            ToggleOptionalChain(b, m, ctx)) {
+          return true;
+        }
+        const bool allow_computed =
+            !(m->object->Is<Identifier>() &&
+              m->object->Cast<Identifier>()->name == "let");
+        const std::string old_desc = Describe(m->property);
+        const bool old_computed = m->computed;
+        const BindingInfo* info = nullptr;
+        if (auto* obj_id = m->object->As<Identifier>()) {
+          info = b.InfoOf(obj_id->name);
+        }
         JsType type = b.GuessExpressionType(m->object);
         const BuiltinType* bt = ctx.env->ForType(type);
-        for (int i = 0;
-             i < kOperationPropertyNameAttempts.AsInt() && name == old; i++) {
-          if (bt != nullptr && r.Coin()) {
-            if (!bt->methods.empty() && r.Coin()) {
-              name = r.Pick(bt->methods).name;
-            } else if (!bt->properties.empty()) {
-              name = r.Pick(bt->properties);
+        static constexpr std::string_view kWellKnownSymbols[] = {
+            "iterator",
+            "asyncIterator",
+            "toPrimitive",
+            "hasInstance",
+            "species",
+            "toStringTag",
+            "isConcatSpreadable",
+            "match",
+            "replace",
+            "search",
+            "split",
+            "unscopables",
+            "dispose",
+            "asyncDispose"};
+        static constexpr double kInterestingIndices[] = {
+            0, 1, 2, 3, -1, 10, 100, 4294967295};
+        Expression* new_prop = nullptr;
+        bool new_computed = false;
+        for (int i = 0; i < kOperationPropertyNameAttempts.AsInt(); i++) {
+          Expression* cand = nullptr;
+          bool cand_computed = false;
+          if (info != nullptr && !info->keys.empty() &&
+              r.Chance(kOperationMemberKnownKeyChance())) {
+            const KnownKey& key = r.Pick(info->keys);
+            cand =
+                MakeMemberProperty(t, key.name, allow_computed, &cand_computed);
+          } else if (allow_computed &&
+                     r.Chance(kOperationMemberComputedKeyChance())) {
+            cand_computed = true;
+            if (r.Coin()) {
+              double idx = r.Coin() ? kInterestingIndices[r.Index(
+                                          sizeof(kInterestingIndices) /
+                                          sizeof(kInterestingIndices[0]))]
+                                    : static_cast<double>(r.Range(0, 15));
+              cand = mk::Num(t, idx);
+            } else {
+              std::string_view sym = kWellKnownSymbols[r.Index(
+                  sizeof(kWellKnownSymbols) / sizeof(kWellKnownSymbols[0]))];
+              cand = mk::Member(t, mk::Id(t, "Symbol"), sym);
             }
           } else {
-            name = r.Pick(ctx.env->property_names());
+            std::string_view name;
+            if (bt != nullptr && r.Coin()) {
+              if (!bt->methods.empty() && r.Coin()) {
+                name = r.Pick(bt->methods).name;
+              } else if (!bt->properties.empty()) {
+                name = r.Pick(bt->properties);
+              }
+            }
+            if (name.empty()) {
+              name = r.Pick(ctx.env->property_names());
+            }
+            cand = MakeMemberProperty(t, name, allow_computed, &cand_computed);
           }
-          if (!IsIdentifierName(name)) {
-            name = old;
+          if (cand == nullptr) {
+            continue;
+          }
+          if (cand_computed != old_computed || Describe(cand) != old_desc) {
+            new_prop = cand;
+            new_computed = cand_computed;
+            break;
           }
         }
-        if (name == old) {
-          return false;
+        if (new_prop == nullptr) {
+          return ToggleOptionalChain(b, m, ctx);
         }
-        m->property = mk::Id(t, name);
-        ctx.detail =
-            "property ." + std::string(old) + " -> ." + std::string(name);
+        if (m->start >= 0) {
+          mk::Anchor(new_prop, m->start);
+        }
+        m->computed = new_computed;
+        m->property = new_prop;
+        b.Invalidate();
+        ctx.detail = "property " +
+                     (old_computed ? "[" + old_desc + "]" : "." + old_desc) +
+                     " -> " +
+                     (new_computed ? "[" + Describe(new_prop) + "]"
+                                   : "." + Describe(new_prop));
         return true;
       }
       case NodeKind::kRegExpLiteral: {
-        // Toggles one flag that does not change the pattern syntax.
         auto* re = node->Cast<RegExpLiteral>();
-        const char flag = kSyntaxNeutralRegExpFlags[r.Index(
-            kSyntaxNeutralRegExpFlags.size())];
-        std::string flags(re->regexp_flags);
-        const size_t at = flags.find(flag);
-        if (at == std::string::npos) {
-          flags.push_back(flag);
-        } else {
-          flags.erase(at, 1);
+        const bool has_u = re->regexp_flags.find('u') != std::string_view::npos;
+        const bool has_v = re->regexp_flags.find('v') != std::string_view::npos;
+        const bool unicode = has_u || has_v;
+        if (r.Chance(kOperationRegExpFlagChance())) {
+          if (r.Index(3) != 0) {
+            // Toggle one syntax-neutral flag without changing the pattern.
+            const char flag = kSyntaxNeutralRegExpFlags[r.Index(
+                kSyntaxNeutralRegExpFlags.size())];
+            std::string flags(re->regexp_flags);
+            const size_t at = flags.find(flag);
+            if (at == std::string::npos) {
+              flags.push_back(flag);
+            } else {
+              flags.erase(at, 1);
+            }
+            ctx.detail = "regexp flags /" + std::string(re->regexp_flags) +
+                         " -> /" + flags;
+            re->regexp_flags = t->Intern(flags);
+            return true;
+          }
+          // Switch unicode mode (`none`, `u`, or `v`), never setting both `u`
+          // and `v` together.
+          const int cur_mode = has_v ? 2 : (has_u ? 1 : 0);
+          const int target_mode =
+              (cur_mode + 1 + static_cast<int>(r.Coin())) % 3;
+          std::string flags;
+          flags.reserve(re->regexp_flags.size() + 1);
+          for (char c : re->regexp_flags) {
+            if (c != 'u' && c != 'v') {
+              flags.push_back(c);
+            }
+          }
+          if (target_mode == 1) {
+            flags.push_back('u');
+          } else if (target_mode == 2) {
+            flags.push_back('v');
+          }
+          std::string new_pattern(re->pattern);
+          if (!IsModeNeutralRegExpPattern(re->pattern)) {
+            new_pattern = CodeGen::RandomRegExpPattern(r, target_mode != 0,
+                                                       target_mode == 2);
+          }
+          ctx.detail =
+              "regexp mode /" + std::string(re->regexp_flags) + " -> /" + flags;
+          re->pattern = t->Intern(new_pattern);
+          re->regexp_flags = t->Intern(flags);
+          return true;
         }
-        ctx.detail =
-            "regexp flags /" + std::string(re->regexp_flags) + " -> /" + flags;
-        re->regexp_flags = t->Intern(flags);
+        if (r.Chance(kOperationRegExpPieceEditChance())) {
+          std::string new_pattern;
+          std::string what;
+          if (MutateRegExpPatternInPlace(r, re->pattern, unicode, has_v,
+                                         &new_pattern, &what) &&
+              !new_pattern.empty() && new_pattern != re->pattern) {
+            re->pattern = t->Intern(new_pattern);
+            ctx.detail = "regexp pattern: " + what;
+            return true;
+          }
+        }
+        if (r.Coin()) {
+          std::string new_pattern =
+              CodeGen::RandomRegExpPattern(r, unicode, has_v);
+          if (new_pattern.empty() || new_pattern == re->pattern) {
+            return false;
+          }
+          re->pattern = t->Intern(new_pattern);
+          ctx.detail = "regexp pattern replaced";
+          return true;
+        }
+        std::string new_flags = CodeGen::RandomRegExpFlags(r);
+        const bool new_v = new_flags.find('v') != std::string::npos;
+        const bool new_u = new_v || new_flags.find('u') != std::string::npos;
+        std::string new_pattern = CodeGen::RandomRegExpPattern(r, new_u, new_v);
+        if (new_pattern.empty() ||
+            (new_pattern == re->pattern && new_flags == re->regexp_flags)) {
+          return false;
+        }
+        re->pattern = t->Intern(new_pattern);
+        re->regexp_flags = t->Intern(new_flags);
+        ctx.detail = "regexp replaced /" + new_flags;
         return true;
       }
       case NodeKind::kIfStatement: {
@@ -1727,6 +2647,14 @@ class ReorderMutator final : public Mutator {
 
 REDLINE_TUNABLE(kCallMaxAttempts, "mutators.Call.max_attempts", 8, 1, 16,
                 "call/new expressions the Call mutator tries before giving up");
+REDLINE_TUNABLE(kCallSpreadToggleChance, "mutators.Call.spread_toggle_chance",
+                0.2, 0, 1,
+                "probability that a Call mutation toggles spread on an "
+                "argument");
+REDLINE_TUNABLE(kCallOptionalCallChance, "mutators.Call.optional_call_chance",
+                0.15, 0, 1,
+                "probability that a Call mutation toggles optional chaining on "
+                "a call expression");
 
 class CallMutator final : public Mutator {
  public:
@@ -1734,14 +2662,15 @@ class CallMutator final : public Mutator {
   // with Expression), up to 3 simultaneous.
   CallMutator()
       : Mutator("Call",
-                "adds/removes/spreads arguments, swaps callees, call <-> new",
+                "adds/removes/spreads arguments, swaps callees, optional call "
+                "or call <-> new",
                 0.5, false, 3) {}
 
   bool Mutate(Builder& b, MutationContext& ctx) override {
     Random& r = b.rng();
     std::vector<Node*> candidates = b.Collect([&](Node* n) {
       if (auto* c = n->As<CallExpression>()) {
-        return !c->callee->Is<Super>() && !c->optional;
+        return !c->callee->Is<Super>();
       }
       return n->Is<NewExpression>();
     });
@@ -1752,18 +2681,43 @@ class CallMutator final : public Mutator {
       if (parent == nullptr) {
         continue;
       }
-      if (parent->Is<ChainExpression>()) {
-        continue;
+      auto* call_expr = node->As<CallExpression>();
+      Tree* t = b.tree();
+      std::vector<Expression*>* args =
+          call_expr != nullptr ? &call_expr->arguments
+                               : &node->Cast<NewExpression>()->arguments;
+      Expression*& callee = call_expr != nullptr
+                                ? call_expr->callee
+                                : node->Cast<NewExpression>()->callee;
+      if (call_expr != nullptr && r.Chance(kCallOptionalCallChance()) &&
+          ToggleOptionalChain(b, call_expr, ctx)) {
+        return true;
+      }
+      if (!args->empty() && r.Chance(kCallSpreadToggleChance())) {
+        std::vector<size_t> preferred;
+        for (size_t i = 0; i < args->size(); i++) {
+          if (IsSpreadPreferredArg(b, (*args)[i])) {
+            preferred.push_back(i);
+          }
+        }
+        const size_t at =
+            !preferred.empty() ? r.Pick(preferred) : r.Index(args->size());
+        if (auto* spread = (*args)[at]->As<SpreadElement>()) {
+          (*args)[at] = spread->argument;
+          ctx.detail = "unwrapped spread argument";
+        } else {
+          SpreadElement* wrapped = mk::Spread(t, (*args)[at]);
+          if (node->start >= 0) {
+            wrapped->start = wrapped->end = node->start;
+          }
+          (*args)[at] = wrapped;
+          ctx.detail = "spread argument";
+        }
+        b.Invalidate();
+        return true;
       }
       GenContext gen = ContextForNode(b, node, ctx);
       CodeGen cg(gen);
-      Tree* t = b.tree();
-      std::vector<Expression*>* args =
-          node->Is<CallExpression>() ? &node->Cast<CallExpression>()->arguments
-                                     : &node->Cast<NewExpression>()->arguments;
-      Expression*& callee = node->Is<CallExpression>()
-                                ? node->Cast<CallExpression>()->callee
-                                : node->Cast<NewExpression>()->callee;
       switch (r.Index(6)) {
         case 0:
         case 1: {
@@ -1803,16 +2757,18 @@ class CallMutator final : public Mutator {
           }
           ctx.detail = "callee -> " + std::string(f->name);
           callee = f;
+          if (call_expr != nullptr) {
+            if (auto* chain = ChainTop(b, call_expr)->As<ChainExpression>()) {
+              UnwrapEmptyChain(b, chain);
+            }
+          }
           break;
         }
         case 4: {
           // call <-> new
-          if (node->Is<CallExpression>()) {
-            if (callee->Is<MemberExpression>() &&
-                callee->Cast<MemberExpression>()->optional) {
-              continue;
-            }
-            if (callee->Is<ChainExpression>() ||
+          if (call_expr != nullptr) {
+            if (call_expr->optional || parent->Is<ChainExpression>() ||
+                SpineHasOptional(call_expr) || callee->Is<ChainExpression>() ||
                 callee->Is<ArrowFunctionExpression>()) {
               continue;
             }
@@ -1831,10 +2787,11 @@ class CallMutator final : public Mutator {
           return true;
         }
         default: {
-          if (!node->Is<CallExpression>()) {
+          if (call_expr == nullptr || call_expr->optional ||
+              parent->Is<ChainExpression>() || SpineHasOptional(call_expr)) {
             continue;
           }
-          // f(args) -> f.call(thisArg, args) / Reflect.apply
+          // f(args) -> f.call(thisArg, args) / f.bind(thisArg, args)
           std::vector<Expression*> new_args = {cg.ObjectLike()};
           new_args.insert(new_args.end(), args->begin(), args->end());
           CallExpression* c = mk::CallMethod(
