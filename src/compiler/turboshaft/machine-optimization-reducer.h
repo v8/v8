@@ -2335,11 +2335,15 @@ class MachineOptimizationReducer : public Next {
       break;
     }
 
-    if (!index.valid() && matcher_.Is<ConstantOp>(base_idx)) {
-      const ConstantOp& base = matcher_.Cast<ConstantOp>(base_idx);
-      if (base.kind == any_of(ConstantOp::Kind::kHeapObject,
-                              ConstantOp::Kind::kCompressedHeapObject)) {
-        if (offset == offsetof(HeapObject, map_)) {
+    if (kind.tagged_base && !kind.is_atomic && !index.valid()) {
+      if (const ConstantOp* base = matcher_.TryCast<ConstantOp>(base_idx);
+          base != nullptr &&
+          base->kind == any_of(ConstantOp::Kind::kHeapObject,
+                               ConstantOp::Kind::kCompressedHeapObject)) {
+        if (offset == offsetof(HeapObject, map_) &&
+            loaded_rep == any_of(MemoryRepresentation::TaggedPointer(),
+                                 MemoryRepresentation::AnyTagged())) {
+          DCHECK_EQ(result_rep, RegisterRepresentation::Tagged());
           // Only few loads should be loading the map from a ConstantOp
           // HeapObject, so unparking the JSHeapBroker here rather than before
           // the optimization pass itself it probably more efficient.
@@ -2352,7 +2356,7 @@ class MachineOptimizationReducer : public Next {
           if (broker != nullptr) {
             UnparkedScopeIfNeeded scope(broker);
             AllowHandleDereference allow_handle_dereference;
-            OptionalMapRef map = TryMakeRef(broker, base.handle()->map());
+            OptionalMapRef map = TryMakeRef(broker, base->handle()->map());
             if (MapLoadCanBeConstantFolded(map)) {
               return __ HeapConstant(map->object());
             }
@@ -2360,6 +2364,7 @@ class MachineOptimizationReducer : public Next {
         }
         if (offset == offsetof(String, length_) &&
             loaded_rep == MemoryRepresentation::Uint32()) {
+          DCHECK_EQ(result_rep, RegisterRepresentation::Word32());
           TurboshaftPipelineKind pkind = __ data() -> pipeline_kind();
           USE(pkind);
           DCHECK_IMPLIES(pkind != TurboshaftPipelineKind::kCSA &&
@@ -2368,7 +2373,7 @@ class MachineOptimizationReducer : public Next {
           if (broker != nullptr) {
             UnparkedScopeIfNeeded scope(broker);
             AllowHandleDereference allow_handle_dereference;
-            OptionalHeapObjectRef ref = TryMakeRef(broker, base.handle());
+            OptionalHeapObjectRef ref = TryMakeRef(broker, base->handle());
             if (ref.has_value() && ref->IsString()) {
               return __ Word32Constant(ref->AsString().length());
             }
@@ -2376,7 +2381,7 @@ class MachineOptimizationReducer : public Next {
         }
         // TODO(dmercadier): consider constant-folding other accesses, in
         // particular for constant objects (ie, if
-        // base.handle()->InReadOnlySpace() is true). We have to be a bit
+        // base->handle()->InReadOnlySpace() is true). We have to be a bit
         // careful though, because loading could be invalid (since we could
         // be in unreachable code). (all objects have a map, so loading the map
         // should always be safe, regardless of whether we are generating
