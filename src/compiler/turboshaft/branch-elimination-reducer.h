@@ -581,8 +581,7 @@ class BranchEliminationReducer : public Next {
       goto no_change;
     }
 
-    V<Word32> static_condition =
-        __ Word32Constant(condition_value->IsZero() ? 0 : 1);
+    uint32_t static_condition = condition_value->IsZero() ? 0 : 1;
     if (negated) {
       __ TrapIfNot(static_condition, frame_state, trap_id);
     } else {

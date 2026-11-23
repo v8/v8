@@ -346,11 +346,10 @@ class CombineCompares {
       if (branch_pattern() == kDirect) {
         m().Branch(static_cast<V<Word32>>(combine), blocka(), blockb());
       } else if (branch_pattern() == kEqualZero) {
-        m().Branch(m().Word32Equal(combine, m().Word32Constant(0)), blocka(),
-                   blockb());
+        m().Branch(m().Word32Equal(combine, 0), blocka(), blockb());
       } else {
-        auto cond = static_cast<V<Word32>>(
-            MakeNot(m().Word32Equal(combine, m().Word32Constant(0))));
+        auto cond =
+            static_cast<V<Word32>>(MakeNot(m().Word32Equal(combine, 0)));
         m().Branch(cond, blocka(), blockb());
       }
       m().Bind(blocka());
@@ -416,9 +415,7 @@ class CombineCompares {
     }
   }
 
-  V<Word32> MakeNot(V<Word32> node) {
-    return m().Word32Equal(node, m().Word32Constant(0));
-  }
+  V<Word32> MakeNot(V<Word32> node) { return m().Word32Equal(node, 0); }
 
   V<Word32> MakeNotCompare(V<Word32> node) {
     V<Word32> inverted = MakeNot(node);
@@ -1158,11 +1155,9 @@ TEST_F(TurboshaftCompareCombineTest, CombineCompareTwoLogicInputs) {
       MachineType::Uint32(), MachineType::Uint32());
 
   V<Word32> cmp1 = m.Int32LessThan(m.Parameter(0), m.Parameter(1));
-  V<Word32> cmp2 =
-      m.Int32LessThanOrEqual(m.Parameter(0), m.Word32Constant(1024));
+  V<Word32> cmp2 = m.Int32LessThanOrEqual(m.Parameter(0), 1024);
   V<Word32> cmp3 = m.Int32LessThan(m.Parameter(2), m.Parameter(3));
-  V<Word32> cmp4 =
-      m.Int32LessThanOrEqual(m.Parameter(2), m.Word32Constant(4096));
+  V<Word32> cmp4 = m.Int32LessThanOrEqual(m.Parameter(2), 4096);
   V<Word32> cmp5 = m.Uint32LessThan(m.Parameter(0), m.Parameter(3));
   V<Word32> cmp6 = m.Uint32LessThanOrEqual(m.Parameter(1), m.Parameter(2));
 

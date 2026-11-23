@@ -50,8 +50,8 @@ class WasmLoweringReducer : public Next {
   V<Word32> REDUCE(IsRootConstant)(OpIndex object, RootIndex index) {
 #if V8_STATIC_ROOTS_BOOL
     if (RootsTable::IsReadOnly(index)) {
-      V<Object> root = __ BitcastWordPtrToTagged(__ UintPtrConstant(
-          StaticReadOnlyRootsPointerTable[static_cast<size_t>(index)]));
+      V<Object> root = __ BitcastWordPtrToTagged(
+          StaticReadOnlyRootsPointerTable[static_cast<size_t>(index)]);
       return __ TaggedEqual(object, root);
     }
 #endif
@@ -855,8 +855,7 @@ class WasmLoweringReducer : public Next {
         !config.from.is_reference_to(wasm::GenericKind::kAny)) {
       return;
     }
-    GOTO_IF_NOT(LIKELY(ObjectIsUnshared(object)), result_label,
-                __ Word32Constant(0));
+    GOTO_IF_NOT(LIKELY(ObjectIsUnshared(object)), result_label, 0);
   }
 
   V<Word32> ReduceWasmTypeCheckAbstract(V<Object> object,
@@ -890,8 +889,7 @@ class WasmLoweringReducer : public Next {
       if (config.from.is_nullable() && config.to != wasm::kWasmRefI31 &&
           !(only_needs_not_smi_check && config.to.is_nullable())) {
         const int kResult = config.to.is_nullable() ? 1 : 0;
-        GOTO_IF(UNLIKELY(__ IsNull(object, config.from)), end_label,
-                __ Word32Constant(kResult));
+        GOTO_IF(UNLIKELY(__ IsNull(object, config.from)), end_label, kResult);
       }
       // i31 is special in that the Smi check is the last thing to do.
       if (to_kind == wasm::GenericKind::kI31) {

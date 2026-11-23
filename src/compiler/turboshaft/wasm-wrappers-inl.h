@@ -177,8 +177,8 @@ auto WasmWrapperTSGraphBuilder<Assembler>::ToJS(OpIndex ret,
 
   // We have to unshare shared strings before passing them to JS.
   if (can_be_shared_string) {
-    V<Word32> is_string = __ Uint32LessThan(
-        instance_type, __ Word32Constant(FIRST_NONSTRING_TYPE));
+    V<Word32> is_string =
+        __ Uint32LessThan(instance_type, FIRST_NONSTRING_TYPE);
     GOTO_IF(is_string, runtime);
   }
 
@@ -479,8 +479,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmToJSWrapper(
     // before entering the wasm-to-js wrapper, which means that there are JS
     // frames in the current suspender. JS frames cannot be suspended, so
     // trap.
-    OpIndex active_stack_has_js_frames =
-        __ WordPtrEqual(__ IntPtrConstant(0), old_sp);
+    OpIndex active_stack_has_js_frames = __ WordPtrEqual(0, old_sp);
     IF (active_stack_has_js_frames) {
       __ WasmCallRuntime(__ phase_zone(), Runtime::kThrowWasmJSPISuspendError,
                          {}, native_context);
@@ -768,7 +767,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildCapiCallWrapper() {
   OpIndex return_value =
       __ CallC(&host_sig, call_target, {host_data_foreign, values});
 
-  IF_NOT (__ WordPtrEqual(return_value, __ IntPtrConstant(0))) {
+  IF_NOT (__ WordPtrEqual(return_value, 0)) {
     WasmRethrowExplicitContextDescriptor interface_descriptor;
     auto call_descriptor = compiler::Linkage::GetStubCallDescriptor(
         __ graph_zone(), interface_descriptor,

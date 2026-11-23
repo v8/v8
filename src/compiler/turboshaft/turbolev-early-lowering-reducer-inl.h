@@ -373,9 +373,9 @@ class TurbolevEarlyLoweringReducer : public Next {
     // Allocate new PropertyArray.
     int new_length = old_length + JSObject::kFieldsAdded;
     Uninitialized<PropertyArray> new_property_array =
-        __ template Allocate<PropertyArray>(
-            __ IntPtrConstant(PropertyArray::SizeFor(new_length)),
-            AllocationType::kYoung, kTaggedAligned);
+        __ template Allocate<PropertyArray>(PropertyArray::SizeFor(new_length),
+                                            AllocationType::kYoung,
+                                            kTaggedAligned);
     __ InitializeField(new_property_array, AccessBuilder::ForMap(),
                        __ HeapConstant(factory_->property_array_map()));
 
@@ -424,7 +424,7 @@ class TurbolevEarlyLoweringReducer : public Next {
         hash = __ Word32ShiftLeft(__ UntagSmi(V<Smi>::Cast(hash_obj)),
                                   PropertyArray::HashField::kShift);
       } ELSE {
-        hash = __ Word32Constant(PropertyArray::kNoHashSentinel);
+        hash = PropertyArray::kNoHashSentinel;
       }
     } else {
       V<Smi> hash_smi = __ template LoadField<Smi>(

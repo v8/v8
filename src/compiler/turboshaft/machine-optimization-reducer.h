@@ -3074,15 +3074,13 @@ class MachineOptimizationReducer : public Next {
         if (left_shift_amount == right_shift_amount) {
           return left_shift_input;
         } else if (left_shift_amount < right_shift_amount) {
-          V<Word32> shift_amount =
-              __ Word32Constant(right_shift_amount - left_shift_amount);
-          return __ Shift(left_shift_input, shift_amount, right_shift_kind,
-                          value_rep);
+          return __ Shift(left_shift_input,
+                          right_shift_amount - left_shift_amount,
+                          right_shift_kind, value_rep);
         } else if (left_shift_amount > right_shift_amount) {
-          V<Word32> shift_amount =
-              __ Word32Constant(left_shift_amount - right_shift_amount);
-          return __ Shift(left_shift_input, shift_amount,
-                          ShiftOp::Kind::kShiftLeft, value_rep);
+          return __ ShiftLeft(left_shift_input,
+                              left_shift_amount - right_shift_amount,
+                              value_rep);
         }
       }
     }

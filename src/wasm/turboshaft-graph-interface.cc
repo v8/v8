@@ -689,8 +689,7 @@ class TurboshaftGraphBuildingInterface
                   BrTableAnalysis<ValidationTag>::kMaxComparesPerTarget <= 2);
               UNREACHABLE();
             case 1:
-              return __ Word32Equal(key.get<Word32>(),
-                                    __ Word32Constant(cases[0]));
+              return __ Word32Equal(key.get<Word32>(), cases[0]);
             case 2: {
               return __ Word32BitwiseOr(
                   __ Word32Equal(key.get<Word32>(), cases[0]),
@@ -724,8 +723,7 @@ class TurboshaftGraphBuildingInterface
             table_analysis.default_target()) {
           OpIndex lower =
               __ Word32Equal(__ Int32LessThan(key.get<Word32>(), 0), 0);
-          OpIndex upper = __ Int32LessThan(key.get<Word32>(),
-                                           __ Word32Constant(imm.table_count));
+          OpIndex upper = __ Int32LessThan(key.get<Word32>(), imm.table_count);
           OpIndex cond = __ Word32BitwiseAnd(lower, upper);
           insert_cond_branch(cond, table_analysis.primary_target());
         }
@@ -1643,16 +1641,15 @@ class TurboshaftGraphBuildingInterface
     } else {
       Label<Word64> done(&asm_);
 
-      IF (LIKELY(__ Uint64LessThanOrEqual(
-              value.get<Word64>(),
-              __ Word64Constant(static_cast<int64_t>(kMaxInt))))) {
+      IF (LIKELY(__ Uint64LessThanOrEqual(value.get<Word64>(),
+                                          uint64_t{kMaxInt}))) {
         GOTO(done,
              __ ChangeInt32ToInt64(CallBuiltinThroughJumptable<
                                    BuiltinCallDescriptor::WasmMemoryGrow>(
                  decoder, {__ Word32Constant(imm.index),
                            __ TruncateWord64ToWord32(value.get<Word64>())})));
       } ELSE {
-        GOTO(done, __ Word64Constant(int64_t{-1}));
+        GOTO(done, -1);
       }
 
       BIND(done, result_64);
@@ -1692,8 +1689,7 @@ class TurboshaftGraphBuildingInterface
                              V<String> search, V<Word32> start) {
     // Clamp the start index.
     Label<Word32> clamped_start_label(&asm_);
-    GOTO_IF(__ Int32LessThan(start, 0), clamped_start_label,
-            __ Word32Constant(0));
+    GOTO_IF(__ Int32LessThan(start, 0), clamped_start_label, 0);
     V<Word32> length = __ template LoadField<Word32>(
         string, compiler::AccessBuilder::ForStringLength());
     GOTO_IF(__ Int32LessThan(start, length), clamped_start_label, start);
@@ -2182,8 +2178,7 @@ class TurboshaftGraphBuildingInterface
 
     if (callback_sig->return_count() > 0) {
       if (callback_sig->GetReturn() == MachineType::Bool()) {
-        ret_val = __ WordBitwiseAnd(ret_val, __ Word32Constant(0xff),
-                                    WordRepresentation::Word32());
+        ret_val = __ Word32BitwiseAnd(ret_val, 0xff);
       } else if (callback_sig->GetReturn() == MachineType::Int64()) {
         if (sig->GetReturn() == kWasmF64) {
           ret_val = __ ChangeInt64ToFloat64(ret_val);
@@ -4127,9 +4122,7 @@ class TurboshaftGraphBuildingInterface
                 offsetof(WasmContinuationObject, stack_obj_));
     V<WordPtr> stack = __ LoadExternalPointerFromObject(
         stack_obj, offsetof(WasmStackObject, stack_), kWasmStackMemoryTag);
-    __ TrapIf(__ Equal(stack, __ WordPtrConstant(0),
-                       RegisterRepresentation::WordPtr()),
-              TrapId::kTrapResume);
+    __ TrapIf(__ WordPtrEqual(stack, 0), TrapId::kTrapResume);
     // 2. Validity check: only the continuation that was created when this stack
     // was suspended for the last time can be used to resume it.
     V<WasmContinuationObject> stack_cont =
@@ -4175,8 +4168,8 @@ class TurboshaftGraphBuildingInterface
     // Allocate and initialize the new continuation.
     compiler::turboshaft::Uninitialized<WasmContinuationObject>
         uninitialized_cont = __ template Allocate<WasmContinuationObject>(
-            __ WordPtrConstant(WasmContinuationObject::kSize),
-            AllocationType::kYoung, AllocationAlignment::kTaggedAligned);
+            WasmContinuationObject::kSize, AllocationType::kYoung,
+            AllocationAlignment::kTaggedAligned);
     V<WasmStackObject> stack_obj =
         __ Load(input_cont.op, LoadOp::Kind::TaggedBase(),
                 MemoryRepresentation::TaggedPointer(),
@@ -4480,8 +4473,8 @@ class TurboshaftGraphBuildingInterface
   V<WasmContinuationObject> AllocateContinuation(FullDecoder* decoder) {
     compiler::turboshaft::Uninitialized<WasmContinuationObject>
         uninitialized_cont = __ template Allocate<WasmContinuationObject>(
-            __ WordPtrConstant(WasmContinuationObject::kSize),
-            AllocationType::kYoung, AllocationAlignment::kTaggedAligned);
+            WasmContinuationObject::kSize, AllocationType::kYoung,
+            AllocationAlignment::kTaggedAligned);
     V<Map> map = __ RootConstant<RootIndex::kWasmContinuationObjectMap>();
     __ InitializeField(uninitialized_cont,
                        AccessBuilder::ForMap(compiler::kNoWriteBarrier), map);
@@ -5248,7 +5241,7 @@ class TurboshaftGraphBuildingInterface
     } else {
       GOTO_IF(UNLIKELY(__ TruncateWord64ToWord32(
                   __ Word64ShiftRightLogical(delta.get<Word64>(), 32))),
-              end, __ Word32Constant(-1));
+              end, -1);
       delta_wordptr = V<WordPtr>::CastIfNeeded(
           __ TruncateWord64ToWord32(delta.get<Word64>()));
     }
@@ -5544,7 +5537,7 @@ class TurboshaftGraphBuildingInterface
     __ WasmBoundsCheckArray(array_value, index.get<Word32>(), array_obj.type);
     ValueKind kind = expected_value.type.kind();
     V<Word32> offset = __ Word32Add(
-        __ Word32Constant(WasmArray::HeaderSize(array_obj.type.is_shared())),
+        WasmArray::HeaderSize(array_obj.type.is_shared()),
         __ Word32ShiftLeft(index.get<Word32>(), value_kind_size_log2(kind)));
     ManagedObjectWait(decoder, array_obj, offset, waitqueue, expected_value,
                       timeout_ns, result);
@@ -5818,7 +5811,7 @@ class TurboshaftGraphBuildingInterface
           ScopedVar<Word32> src_index_loop(this, src_end_index);
           ScopedVar<Word32> dst_index_loop(this, dst_end_index);
 
-          WHILE(__ Word32Constant(1)) {
+          WHILE(1) {
             V<Any> value =
                 __ ArrayGet(src_array, src_index_loop, src_imm.array_type, true,
                             {}, src.type.is_shared());
@@ -5837,7 +5830,7 @@ class TurboshaftGraphBuildingInterface
           ScopedVar<Word32> src_index_loop(this, src_index.get<Word32>());
           ScopedVar<Word32> dst_index_loop(this, dst_index.get<Word32>());
 
-          WHILE(__ Word32Constant(1)) {
+          WHILE(1) {
             V<Any> value =
                 __ ArrayGet(src_array, src_index_loop, src_imm.array_type, true,
                             {}, src.type.is_shared());
@@ -6269,12 +6262,12 @@ class TurboshaftGraphBuildingInterface
                          ValueType a_type, ValueType b_type) {
     Label<Word32> done(&asm_);
     // Covers "identical string pointer" and "both are null" cases.
-    GOTO_IF(__ TaggedEqual(a, b), done, __ Word32Constant(1));
+    GOTO_IF(__ TaggedEqual(a, b), done, 1);
     if (a_type.is_nullable()) {
-      GOTO_IF(__ IsNull(a, a_type), done, __ Word32Constant(0));
+      GOTO_IF(__ IsNull(a, a_type), done, 0);
     }
     if (b_type.is_nullable()) {
-      GOTO_IF(__ IsNull(b, b_type), done, __ Word32Constant(0));
+      GOTO_IF(__ IsNull(b, b_type), done, 0);
     }
 
     // Strings with unequal lengths can't be equal.
@@ -6282,7 +6275,7 @@ class TurboshaftGraphBuildingInterface
         __ LoadField<Word32>(a, AccessBuilder::ForStringLength());
     V<Word32> b_length =
         __ LoadField<Word32>(b, AccessBuilder::ForStringLength());
-    GOTO_IF_NOT(__ Word32Equal(a_length, b_length), done, __ Word32Constant(0));
+    GOTO_IF_NOT(__ Word32Equal(a_length, b_length), done, 0);
 
     // Comparing the strings' hashes before calling the builtin has been tried,
     // but isn't likely to be useful unless Wasm gains an ability to trigger
@@ -6457,16 +6450,15 @@ class TurboshaftGraphBuildingInterface
     GOTO_IF_NOT(is_lead_surrogate, done, lead);
     V<Word32> trail_offset = __ Word32Add(offset, 1);
     GOTO_IF_NOT(__ Uint32LessThan(trail_offset, length), done, lead);
-    V<Word32> trail = __ Load(
-        base_ptr, __ WordPtrAdd(object_offset, __ IntPtrConstant(2)),
-        LoadOp::Kind::RawAligned().Immutable(), MemoryRepresentation::Uint16());
+    V<Word32> trail = __ Load(base_ptr, __ WordPtrAdd(object_offset, 2),
+                              LoadOp::Kind::RawAligned().Immutable(),
+                              MemoryRepresentation::Uint16());
     V<Word32> is_trail_surrogate =
         __ Word32Equal(__ Word32BitwiseAnd(trail, 0xFC00), 0xDC00);
     GOTO_IF_NOT(is_trail_surrogate, done, lead);
-    V<Word32> surrogate_bias =
-        __ Word32Constant(0x10000 - (0xD800 << 10) - 0xDC00);
+    constexpr uint32_t kSurrogateBias = 0x10000 - (0xD800 << 10) - 0xDC00;
     V<Word32> result = __ Word32Add(__ Word32ShiftLeft(lead, 10),
-                                    __ Word32Add(trail, surrogate_bias));
+                                    __ Word32Add(trail, kSurrogateBias));
     GOTO(done, result);
 
     // One-byte.
@@ -6583,11 +6575,9 @@ class TurboshaftGraphBuildingInterface
 
     V<Word32> raw_hash = __ template LoadField<Word32>(
         string_val, compiler::AccessBuilder::ForNameRawHashField());
-    V<Word32> hash_not_computed_mask =
-        __ Word32Constant(static_cast<int32_t>(Name::kHashNotComputedMask));
     static_assert(Name::HashFieldTypeBits::kShift == 0);
     V<Word32> hash_not_computed =
-        __ Word32BitwiseAnd(raw_hash, hash_not_computed_mask);
+        __ Word32BitwiseAnd(raw_hash, Name::kHashNotComputedMask);
     GOTO_IF(hash_not_computed, runtime_label);
 
     // Fast path if hash is already computed: Decode raw hash value.
@@ -7344,16 +7334,14 @@ class TurboshaftGraphBuildingInterface
             // Not NaN.
             IF (__ Float32LessThan(arg, 0)) {
               // Negative arg.
-              GOTO(done,
-                   __ Word32Constant(std::numeric_limits<int32_t>::min()));
+              GOTO(done, std::numeric_limits<int32_t>::min());
             } ELSE {
               // Positive arg.
-              GOTO(done,
-                   __ Word32Constant(std::numeric_limits<int32_t>::max()));
+              GOTO(done, std::numeric_limits<int32_t>::max());
             }
           } ELSE {
             // NaN.
-            GOTO(done, __ Word32Constant(0));
+            GOTO(done, 0);
           }
         }
         BIND(done, result);
@@ -7376,15 +7364,14 @@ class TurboshaftGraphBuildingInterface
             // Not NaN.
             IF (__ Float32LessThan(arg, 0)) {
               // Negative arg.
-              GOTO(done, __ Word32Constant(0));
+              GOTO(done, 0);
             } ELSE {
               // Positive arg.
-              GOTO(done,
-                   __ Word32Constant(std::numeric_limits<uint32_t>::max()));
+              GOTO(done, std::numeric_limits<uint32_t>::max());
             }
           } ELSE {
             // NaN.
-            GOTO(done, __ Word32Constant(0));
+            GOTO(done, 0);
           }
         }
         BIND(done, result);
@@ -7407,16 +7394,14 @@ class TurboshaftGraphBuildingInterface
             // Not NaN.
             IF (__ Float64LessThan(arg, 0)) {
               // Negative arg.
-              GOTO(done,
-                   __ Word32Constant(std::numeric_limits<int32_t>::min()));
+              GOTO(done, std::numeric_limits<int32_t>::min());
             } ELSE {
               // Positive arg.
-              GOTO(done,
-                   __ Word32Constant(std::numeric_limits<int32_t>::max()));
+              GOTO(done, std::numeric_limits<int32_t>::max());
             }
           } ELSE {
             // NaN.
-            GOTO(done, __ Word32Constant(0));
+            GOTO(done, 0);
           }
         }
         BIND(done, result);
@@ -7439,15 +7424,14 @@ class TurboshaftGraphBuildingInterface
             // Not NaN.
             IF (__ Float64LessThan(arg, 0)) {
               // Negative arg.
-              GOTO(done, __ Word32Constant(0));
+              GOTO(done, 0);
             } ELSE {
               // Positive arg.
-              GOTO(done,
-                   __ Word32Constant(std::numeric_limits<uint32_t>::max()));
+              GOTO(done, std::numeric_limits<uint32_t>::max());
             }
           } ELSE {
             // NaN.
-            GOTO(done, __ Word32Constant(0));
+            GOTO(done, 0);
           }
         }
         BIND(done, result);
@@ -7475,16 +7459,14 @@ class TurboshaftGraphBuildingInterface
             // Not NaN.
             IF (__ Float32LessThan(arg, 0)) {
               // Negative arg.
-              GOTO(done,
-                   __ Word64Constant(std::numeric_limits<int64_t>::min()));
+              GOTO(done, std::numeric_limits<int64_t>::min());
             } ELSE {
               // Positive arg.
-              GOTO(done,
-                   __ Word64Constant(std::numeric_limits<int64_t>::max()));
+              GOTO(done, std::numeric_limits<int64_t>::max());
             }
           } ELSE {
             // NaN.
-            GOTO(done, __ Word64Constant(int64_t{0}));
+            GOTO(done, 0);
           }
         }
         BIND(done, result);
@@ -7513,15 +7495,14 @@ class TurboshaftGraphBuildingInterface
             // Not NaN.
             IF (__ Float32LessThan(arg, 0)) {
               // Negative arg.
-              GOTO(done, __ Word64Constant(int64_t{0}));
+              GOTO(done, 0);
             } ELSE {
               // Positive arg.
-              GOTO(done,
-                   __ Word64Constant(std::numeric_limits<uint64_t>::max()));
+              GOTO(done, std::numeric_limits<uint64_t>::max());
             }
           } ELSE {
             // NaN.
-            GOTO(done, __ Word64Constant(int64_t{0}));
+            GOTO(done, 0);
           }
         }
         BIND(done, result);
@@ -7550,16 +7531,14 @@ class TurboshaftGraphBuildingInterface
             // Not NaN.
             IF (__ Float64LessThan(arg, 0)) {
               // Negative arg.
-              GOTO(done,
-                   __ Word64Constant(std::numeric_limits<int64_t>::min()));
+              GOTO(done, std::numeric_limits<int64_t>::min());
             } ELSE {
               // Positive arg.
-              GOTO(done,
-                   __ Word64Constant(std::numeric_limits<int64_t>::max()));
+              GOTO(done, std::numeric_limits<int64_t>::max());
             }
           } ELSE {
             // NaN.
-            GOTO(done, __ Word64Constant(int64_t{0}));
+            GOTO(done, 0);
           }
         }
         BIND(done, result);
@@ -7588,15 +7567,14 @@ class TurboshaftGraphBuildingInterface
             // Not NaN.
             IF (__ Float64LessThan(arg, 0)) {
               // Negative arg.
-              GOTO(done, __ Word64Constant(int64_t{0}));
+              GOTO(done, 0);
             } ELSE {
               // Positive arg.
-              GOTO(done,
-                   __ Word64Constant(std::numeric_limits<uint64_t>::max()));
+              GOTO(done, std::numeric_limits<uint64_t>::max());
             }
           } ELSE {
             // NaN.
-            GOTO(done, __ Word64Constant(int64_t{0}));
+            GOTO(done, 0);
           }
         }
         BIND(done, result);
@@ -7846,7 +7824,7 @@ class TurboshaftGraphBuildingInterface
         __ TrapIf(__ Word32Equal(rhs, 0), TrapId::kTrapRemByZero);
         Label<Word32> done(&asm_);
         IF (UNLIKELY(__ Word32Equal(rhs, -1))) {
-          GOTO(done, __ Word32Constant(0));
+          GOTO(done, 0);
         } ELSE {
           GOTO(done, __ Int32Mod(lhs, rhs));
         };
@@ -7935,7 +7913,7 @@ class TurboshaftGraphBuildingInterface
         __ TrapIf(__ Word64Equal(rhs, 0), TrapId::kTrapRemByZero);
         Label<Word64> done(&asm_);
         IF (UNLIKELY(__ Word64Equal(rhs, -1))) {
-          GOTO(done, __ Word64Constant(int64_t{0}));
+          GOTO(done, 0);
         } ELSE {
           GOTO(done, __ Int64Mod(lhs, rhs));
         };
@@ -8098,10 +8076,9 @@ class TurboshaftGraphBuildingInterface
       OpIndex effective_offset =
           __ WordPtrAdd(MemBuffer(memory->index, offset), converted_index);
 
-      V<Word32> cond = __ TruncateWordPtrToWord32(__ WordPtrBitwiseAnd(
-          effective_offset, __ IntPtrConstant(align_mask)));
-      __ TrapIfNot(__ Word32Equal(cond, __ Word32Constant(0)),
-                   TrapId::kTrapUnalignedAccess);
+      V<Word32> cond = __ TruncateWordPtrToWord32(
+          __ WordPtrBitwiseAnd(effective_offset, align_mask));
+      __ TrapIfNot(__ Word32Equal(cond, 0), TrapId::kTrapUnalignedAccess);
     }
 
     // If no bounds checks should be performed (for testing), just return the
@@ -8157,9 +8134,8 @@ class TurboshaftGraphBuildingInterface
         }
 #endif  // V8_TARGET_ARCH_ARM64
 
-        V<Word32> cond =
-            __ Uint64LessThan(V<Word64>::CastIfNeeded(converted_index),
-                              __ Word64Constant(effective_size));
+        V<Word32> cond = __ Uint64LessThan(
+            V<Word64>::CastIfNeeded(converted_index), effective_size);
         __ TrapIfNot(cond, TrapId::kTrapMemOutOfBounds);
       }
       return {converted_index, compiler::BoundsCheckResult::kTrapHandler};
@@ -8172,9 +8148,8 @@ class TurboshaftGraphBuildingInterface
     if (end_offset > memory->min_memory_size) {
       // The end offset is larger than the smallest memory.
       // Dynamically check the end offset against the dynamic memory size.
-      __ TrapIfNot(
-          __ UintPtrLessThan(__ UintPtrConstant(end_offset), memory_size),
-          TrapId::kTrapMemOutOfBounds);
+      __ TrapIfNot(__ UintPtrLessThan(end_offset, memory_size),
+                   TrapId::kTrapMemOutOfBounds);
     }
 
     // This produces a positive number since {end_offset <= min_size <=
@@ -9154,8 +9129,7 @@ class TurboshaftGraphBuildingInterface
     // The builtin cannot handle s128 values other than 0.
     if (!(element_type == wasm::kWasmS128 && !IsSimd128ZeroConstant(value))) {
       constexpr uint32_t kArrayNewMinimumSizeForMemSet = 16;
-      IF_NOT (__ Uint32LessThan(
-                  length, __ Word32Constant(kArrayNewMinimumSizeForMemSet))) {
+      IF_NOT (__ Uint32LessThan(length, kArrayNewMinimumSizeForMemSet)) {
         OpIndex stack_slot = StoreInStackSlot(value, element_type);
         MachineType arg_types[]{
             MachineType::TaggedPointer(), MachineType::Uint32(),

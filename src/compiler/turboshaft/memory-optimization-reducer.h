@@ -280,7 +280,7 @@ class MemoryOptimizationReducer : public Next {
       __ StoreOffHeap(top_address, __ GetVariable(top(type)),
                       MemoryRepresentation::UintPtr());
       return __ BitcastWordPtrToHeapObject(
-          __ WordPtrAdd(obj_addr, __ IntPtrConstant(kHeapObjectTag)));
+          __ WordPtrAdd(obj_addr, kHeapObjectTag));
     }
 
     __ SetVariable(top(type), __ LoadOffHeap(top_address,
@@ -342,16 +342,15 @@ class MemoryOptimizationReducer : public Next {
       if (!constant_size) {
         // Check if we can do bump pointer allocation here.
         V<WordPtr> top_value = __ GetVariable(top(type));
-        __ SetVariable(result,
-                       __ BitcastWordPtrToHeapObject(__ WordPtrAdd(
-                           top_value, __ IntPtrConstant(kHeapObjectTag))));
+        __ SetVariable(result, __ BitcastWordPtrToHeapObject(
+                                   __ WordPtrAdd(top_value, kHeapObjectTag)));
         V<WordPtr> new_top = __ WordPtrAdd(top_value, size);
         V<WordPtr> limit =
             __ LoadOffHeap(limit_address, MemoryRepresentation::UintPtr());
         __ GotoIfNot(LIKELY(__ UintPtrLessThan(new_top, limit)), call_runtime);
-        __ GotoIfNot(LIKELY(__ UintPtrLessThan(
-                         size, __ IntPtrConstant(kMaxRegularHeapObjectSize))),
-                     call_runtime);
+        __ GotoIfNot(
+            LIKELY(__ UintPtrLessThan(size, kMaxRegularHeapObjectSize)),
+            call_runtime);
         if (v8_flags.verify_write_barriers) {
           SetLastYoungAllocation(type, top_value);
         }
@@ -379,8 +378,7 @@ class MemoryOptimizationReducer : public Next {
     }
     // Check if we can do bump pointer allocation here.
     bool reachable =
-        __ GotoIfNot(__ UintPtrLessThan(
-                         size, __ IntPtrConstant(kMaxRegularHeapObjectSize)),
+        __ GotoIfNot(__ UintPtrLessThan(size, kMaxRegularHeapObjectSize),
                      call_runtime, BranchHint::kTrue) !=
         ConditionalGotoStatus::kGotoDestination;
     if (reachable) {
@@ -399,7 +397,7 @@ class MemoryOptimizationReducer : public Next {
           OpEffects().CanAllocate());
       __ SetVariable(top(type),
                      __ WordPtrSub(__ BitcastHeapObjectToWordPtr(allocated),
-                                   __ IntPtrConstant(kHeapObjectTag)));
+                                   kHeapObjectTag));
       __ Goto(done);
     }
 
@@ -415,7 +413,7 @@ class MemoryOptimizationReducer : public Next {
     __ StoreOffHeap(top_address, __ GetVariable(top(type)),
                     MemoryRepresentation::UintPtr());
     return __ BitcastWordPtrToHeapObject(
-        __ WordPtrAdd(obj_addr, __ IntPtrConstant(kHeapObjectTag)));
+        __ WordPtrAdd(obj_addr, kHeapObjectTag));
   }
 
 #ifdef V8_COMPRESS_POINTERS

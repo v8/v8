@@ -1993,8 +1993,7 @@ class MachineLoweringReducer : public Next {
 
     // Allocate the resulting ConsString.
     auto string = __ template Allocate<ConsString>(
-        __ IntPtrConstant(sizeof(ConsString)), AllocationType::kYoung,
-        kTaggedAligned);
+        sizeof(ConsString), AllocationType::kYoung, kTaggedAligned);
     __ InitializeField(string, AccessBuilder::ForMap(), map);
     __ InitializeField(string, AccessBuilder::ForNameRawHashField(),
                        __ Word32Constant(Name::kEmptyHashField));
@@ -2877,19 +2876,17 @@ class MachineLoweringReducer : public Next {
       // Calculate the allocation size: Header + Length * 1 (kOneByteSize),
       // aligned to kObjectAlignment.
       V<WordPtr> size = __ WordPtrAdd(
-          __ IntPtrConstant(ObjectTraits<SeqOneByteString>::kHeaderSize),
-          length_ptr);
+          ObjectTraits<SeqOneByteString>::kHeaderSize, length_ptr);
       // Align: (size + kObjectAlignmentMask) & ~kObjectAlignmentMask
-      size = __ WordPtrBitwiseAnd(
-          __ WordPtrAdd(size, __ IntPtrConstant(kObjectAlignment - 1)),
-          __ IntPtrConstant(~(kObjectAlignment - 1)));
+      size = __ WordPtrBitwiseAnd(__ WordPtrAdd(size, kObjectAlignment - 1),
+                                  ~(kObjectAlignment - 1));
 
       auto new_string = __ template Allocate<SeqOneByteString>(
           size, AllocationType::kYoung, kTaggedAligned);
       __ InitializeField(new_string, AccessBuilderTS::ForMap(),
                          __ SeqOneByteStringMapConstant());
       __ InitializeField(new_string, AccessBuilderTS::ForNameRawHashField(),
-                         __ Word32Constant(Name::kEmptyHashField));
+                         Name::kEmptyHashField);
       __ InitializeField(new_string, AccessBuilderTS::ForStringLength(),
                          length);
 
@@ -2907,8 +2904,7 @@ class MachineLoweringReducer : public Next {
       }
 
       // Padding must be zeroed.
-      V<WordPtr> payload_size =
-          __ WordPtrSub(size, __ IntPtrConstant(access.header_size));
+      V<WordPtr> payload_size = __ WordPtrSub(size, access.header_size);
       WHILE(__ UintPtrLessThan(index, payload_size)) {
         __ InitializeElement(new_string, access, index, __ Word32Constant(0));
         index = __ WordPtrAdd(index, 1);
@@ -3772,8 +3768,7 @@ class MachineLoweringReducer : public Next {
     V<WordPtr> map_word = __ BitcastTaggedToWordPtr(map);
     V<WordPtr> cache_index = __ WordPtrBitwiseAnd(
         __ WordPtrShiftRightLogical(map_word, kTaggedSizeLog2),
-        __ WordPtrConstant(
-            static_cast<uint32_t>(v8_flags.homomorphic_ic_count) - 1));
+        static_cast<uint32_t>(v8_flags.homomorphic_ic_count) - 1);
     V<HeapObject> array =
         __ HeapConstant(homomorphic_array.HeapObjectRef::object());
     V<WordPtr> weak_map = __ WordPtrBitwiseOr(map_word, kWeakHeapObjectMask);
@@ -4533,11 +4528,11 @@ class MachineLoweringReducer : public Next {
         break;
       case UnicodeEncoding::UTF32: {
         // Convert UTF32 to UTF16 code units and store as a 32 bit word.
-        V<Word32> lead_offset = __ Word32Constant(0xD800 - (0x10000 >> 10));
+        constexpr uint32_t kLeadOffset = 0xD800 - (0x10000 >> 10);
 
         // lead = (codepoint >> 10) + LEAD_OFFSET
         V<Word32> lead = __ Word32Add(__ Word32ShiftRightLogical(codepoint, 10),
-                                      lead_offset);
+                                      kLeadOffset);
 
         // trail = (codepoint & 0x3FF) + 0xDC00
         V<Word32> trail =
@@ -4649,8 +4644,8 @@ class MachineLoweringReducer : public Next {
 
     V<Map> map = __ HeapConstant(factory_->bigint_map());
     auto bigint = __ template Allocate<FreshlyAllocatedBigInt>(
-        __ IntPtrConstant(BigInt::SizeFor(digit.valid() ? 1 : 0)),
-        AllocationType::kYoung, kTaggedAligned);
+        BigInt::SizeFor(digit.valid() ? 1 : 0), AllocationType::kYoung,
+        kTaggedAligned);
     __ InitializeField(bigint, AccessBuilder::ForMap(), map);
     __ InitializeField(
         bigint, AccessBuilder::ForBigIntBitfield(),
@@ -4940,10 +4935,8 @@ class MachineLoweringReducer : public Next {
     // integer instruction selection, so we keep Wang's 32-bit mixer.
 #if V8_TARGET_ARCH_64_BIT
     V<Word64> key = __ ChangeUint32ToUint64(value);
-    V<Word64> a =
-        __ Word64BitwiseXor(key, __ Word64Constant(base::kRapidhashSecret1));
-    V<Word64> b =
-        __ Word64BitwiseXor(key, __ Word64Constant(base::kRapidhashSecret2));
+    V<Word64> a = __ Word64BitwiseXor(key, base::kRapidhashSecret1);
+    V<Word64> b = __ Word64BitwiseXor(key, base::kRapidhashSecret2);
     V<Word64> lo = __ Word64Mul(a, b);
     V<Word64> hi = __ Uint64MulOverflownBits(a, b);
     V<Word32> hash = __ TruncateWord64ToWord32(__ Word64BitwiseXor(lo, hi));

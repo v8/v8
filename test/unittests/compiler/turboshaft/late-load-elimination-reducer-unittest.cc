@@ -582,7 +582,7 @@ TEST_F(LateLoadEliminationReducerTest,
     V<String> first1 = V<String>::Cast(Asm.GetParameter(2));
 
     auto escaped_alloc = __ template Allocate<ConsString>(
-        __ WordPtrConstant(sizeof(ConsString)), AllocationType::kYoung,
+        sizeof(ConsString), AllocationType::kYoung,
         AllocationAlignment::kTaggedAligned);
     __ InitializeField(escaped_alloc, AccessBuilder::ForConsStringFirst(),
                        first0);
@@ -590,7 +590,7 @@ TEST_F(LateLoadEliminationReducerTest,
         __ FinishInitialization(std::move(escaped_alloc));
 
     auto local_alloc = __ template Allocate<ConsString>(
-        __ WordPtrConstant(sizeof(ConsString)), AllocationType::kYoung,
+        sizeof(ConsString), AllocationType::kYoung,
         AllocationAlignment::kTaggedAligned);
     __ InitializeField(local_alloc, AccessBuilder::ForConsStringFirst(),
                        first1);
@@ -799,7 +799,7 @@ TEST_F(LateLoadEliminationReducerTest,
                       MemoryRepresentation::AnyTagged(), kFieldOffset);
 
           auto local_alloc = __ template Allocate<ConsString>(
-              __ WordPtrConstant(sizeof(ConsString)), AllocationType::kYoung,
+              sizeof(ConsString), AllocationType::kYoung,
               AllocationAlignment::kTaggedAligned);
           __ InitializeField(local_alloc, AccessBuilder::ForConsStringFirst(),
                              init_val);
@@ -1137,7 +1137,7 @@ TEST_F(WasmLateLoadEliminationReducerTest, WasmInterveningNonAtomicStore) {
         V<Word32> load0 = MakeLoad();
 
         V<HeapObject> fresh = __ FinishInitialization(
-            __ Allocate(__ WordPtrConstant(16), AllocationType::kSharedOld,
+            __ Allocate(16, AllocationType::kSharedOld,
                         AllocationAlignment::kTaggedAligned));
 
         __ Store(fresh, {}, __ Word32Constant(1), StoreOp::Kind::TaggedBase(),
@@ -1169,7 +1169,7 @@ TEST_F(WasmLateLoadEliminationReducerTest, WasmInterveningAtomicStore) {
         V<Word32> load0 = MakeLoad();
 
         V<HeapObject> fresh = __ FinishInitialization(
-            __ Allocate(__ WordPtrConstant(16), AllocationType::kSharedOld,
+            __ Allocate(16, AllocationType::kSharedOld,
                         AllocationAlignment::kTaggedAligned));
 
         __ Store(fresh, {}, __ Word32Constant(1),
@@ -1204,7 +1204,7 @@ TEST_F(WasmLateLoadEliminationReducerTest, WasmInterveningAtomicLoad) {
         V<Word32> load0 = MakeLoad();
 
         V<HeapObject> fresh = __ FinishInitialization(
-            __ Allocate(__ WordPtrConstant(16), AllocationType::kSharedOld,
+            __ Allocate(16, AllocationType::kSharedOld,
                         AllocationAlignment::kTaggedAligned));
 
         V<Word32> intervening = __ Load(

@@ -1093,7 +1093,7 @@ TEST_F(TurboshaftInstructionSelectorTest,
   // Lwu (and carry the source position of the original load).
   StreamBuilder m(this, MachineType::Uint64(), MachineType::Pointer(),
                   MachineType::Int64(), MachineType::Int64());
-  OpIndex shifted = m.Word64ShiftLeft(m.Parameter(2), m.Word32Constant(3));
+  OpIndex shifted = m.Word64ShiftLeft(m.Parameter(2), 3);
   OpIndex addr = m.Word64Add(m.Parameter(1), shifted);
   OpIndex load =
       m.Load(m.Parameter(0), addr, LoadOp::Kind::Trapping(),

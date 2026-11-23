@@ -228,8 +228,8 @@ WasmGraphBuilderBase<Assembler>::BuildSwitchToTheCentralStackIfNeeded()
   V<Word32> is_on_central_stack_flag =
       __ Load(is_on_central_stack_flag_address, LoadOp::Kind::RawAligned(),
               MemoryRepresentation::Uint8());
-  ScopedVar<WordPtr> old_sp_var(this, __ IntPtrConstant(0));
-  ScopedVar<WordPtr> old_limit_var(this, __ IntPtrConstant(0));
+  ScopedVar<WordPtr> old_sp_var(this, 0);
+  ScopedVar<WordPtr> old_limit_var(this, 0);
   IF_NOT (LIKELY(is_on_central_stack_flag)) {
     V<WordPtr> real_jslimit_address =
         __ IsolateField(IsolateFieldId::kRealJsLimit);
@@ -252,12 +252,12 @@ void WasmGraphBuilderBase<Assembler>::BuildSwitchBackFromCentralStack(
   // generated code yet.
 #if defined(V8_ENABLE_SANDBOX_HARDWARE_SUPPORT) || V8_TARGET_OS_WIN
   auto sig = FixedSizeSignature<MachineType>::Params(MachineType::Pointer());
-  IF_NOT (LIKELY(__ WordPtrEqual(old_sp, __ IntPtrConstant(0)))) {
+  IF_NOT (LIKELY(__ WordPtrEqual(old_sp, 0))) {
     __ CallC(&sig,
              ExternalReference::wasm_switch_from_the_central_stack_for_js(),
              {__ IsolateField(IsolateFieldId::kIsolateAddress)});
 #else
-  IF_NOT (LIKELY(__ WordPtrEqual(old_sp, __ IntPtrConstant(0)))) {
+  IF_NOT (LIKELY(__ WordPtrEqual(old_sp, 0))) {
     // Reset is_on_central_stack flag.
     V<WordPtr> is_on_central_stack_flag_address =
         __ IsolateField(IsolateFieldId::kIsOnCentralStackFlag);

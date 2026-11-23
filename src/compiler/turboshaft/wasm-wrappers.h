@@ -192,10 +192,9 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
     // Bail out for read-only objects.
     V<Word32> lower32 =
         __ TruncateWordPtrToWord32(__ BitcastTaggedToWordPtr(input));
-    GOTO_IF(
-        __ Uint32LessThan(lower32, __ Word32Constant(static_cast<uint32_t>(
-                                       kContiguousReadOnlyReservationSize))),
-        done, input);
+    GOTO_IF(__ Uint32LessThan(lower32, static_cast<uint32_t>(
+                                           kContiguousReadOnlyReservationSize)),
+            done, input);
     // Bail out for already-shared objects.
     V<WordPtr> flags = __ LoadPageFlags(input);
     V<WordPtr> page_flags = __ WordPtrBitwiseAnd(
@@ -233,8 +232,7 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
         TSA_DCHECK(
             this,
             __ Uint32LessThanOrEqual(
-                __ Word32Constant(
-                    static_cast<uint32_t>(kContiguousReadOnlyReservationSize)),
+                static_cast<uint32_t>(kContiguousReadOnlyReservationSize),
                 __ TruncateWordPtrToWord32(__ BitcastTaggedToWordPtr(input))));
       }
 #endif  // CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL

@@ -856,10 +856,8 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
             __ output_graph().Get(add_op.right()).template Cast<ConstantOp>();
 
         if (offset0 != offset1) {
-          V<WordPtr> og_offset0 = __ WordPtrConstant(offset0.word64());
-          base = V<WordPtr>::Cast(__ WordBinop(add_op.left(), og_offset0,
-                                               WordBinopOp::Kind::kAdd,
-                                               WordRepresentation::Word64()));
+          static_assert(Is64());
+          base = __ Word64Add(add_op.left<Word64>(), offset0.word64());
         }
       }
 
@@ -900,8 +898,7 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
             (shuffle_pnode->info().splat_index() & lane_mask) * bytes_per_lane;
         const int64_t offset = splat_offset + load.offset;
 
-        V<WordPtr> base = __ WordPtrAdd(__ MapToNewGraph(load.base()),
-                                        __ IntPtrConstant(offset));
+        V<WordPtr> base = __ WordPtrAdd(__ MapToNewGraph(load.base()), offset);
         V<WordPtr> index = load.index().has_value()
                                ? __ MapToNewGraph(load.index().value())
                                : __ IntPtrConstant(0);
