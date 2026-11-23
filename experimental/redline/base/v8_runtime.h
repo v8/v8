@@ -39,8 +39,10 @@ class SyntaxChecker {
   bool Accepts(std::string_view source, std::string* message);
 
   // Checks WebAssembly module bytes with V8. Writes the error text to
-  // `message` when the check fails.
-  bool ValidateWasm(const uint8_t* data, size_t size, std::string* message);
+  // `message` when the check fails. Set `js_string_builtins` to pass the
+  // `js-string` compile-time builtin and `"s"` imported string options.
+  bool ValidateWasm(const uint8_t* data, size_t size, std::string* message,
+                    bool js_string_builtins = false);
 
  private:
   struct Impl;

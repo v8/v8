@@ -170,7 +170,8 @@ bool SyntaxChecker::Accepts(std::string_view source, std::string* message) {
 }
 
 bool SyntaxChecker::ValidateWasm(const uint8_t* data, size_t size,
-                                 std::string* message) {
+                                 std::string* message,
+                                 bool js_string_builtins) {
   v8::Isolate* isolate = impl_->isolate;
   v8::Isolate::Scope isolate_scope(isolate);
   if (++impl_->checks % 4096 == 0) {
@@ -183,9 +184,18 @@ bool SyntaxChecker::ValidateWasm(const uint8_t* data, size_t size,
   try_catch.SetVerbose(false);
 
   v8::Local<v8::WasmModuleObject> module;
-  if (v8::WasmModuleObject::Compile(isolate,
-                                    std::span<const uint8_t>(data, size))
-          .ToLocal(&module)) {
+  v8::MaybeLocal<v8::WasmModuleObject> compiled;
+  if (js_string_builtins) {
+    v8::WasmModuleObject::CompileOptions opts;
+    opts.builtins = v8::WasmModuleObject::CompileOptions::Builtins::kJsString;
+    opts.imported_string_constants_module = "s";
+    compiled = v8::WasmModuleObject::Compile(
+        isolate, std::span<const uint8_t>(data, size), opts);
+  } else {
+    compiled = v8::WasmModuleObject::Compile(
+        isolate, std::span<const uint8_t>(data, size));
+  }
+  if (compiled.ToLocal(&module)) {
     return true;
   }
   if (message != nullptr) {

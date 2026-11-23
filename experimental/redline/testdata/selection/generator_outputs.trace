@@ -233,11 +233,11 @@ TemporalOps	1	b1d5843e7c6d8ba3	let n = 42; let s = "text"; let a = [1, 2, 3]; le
 TemporalOps	2	040a07d67033b8d6	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 TemporalOps	3	76ac5152acf005e0	let temp0 = new Temporal.Instant(123456789n); let r0; try {   r0 = tem
 TemporalOps	4	218c966c6840350f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-WasmModule	0	6d13c2a69edd3bd6	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-WasmModule	1	efab6515aa3bdd2f	const bytes0 = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 19, 4,
-WasmModule	2	d50bd35d0290e12e	const bytes0 = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 32, 6,
-WasmModule	3	8a22f584fac82a26	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-WasmModule	4	15c62cf5fb9b726e	let n = 42; let s = "text"; let a = [1, 2, 3]; const bytes0 = new Uint
+WasmModule	0	af639824879b9024	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+WasmModule	1	50f3c6634a6c32a2	const bytes0 = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 87, 7,
+WasmModule	2	7b7f06c165ca46d4	const bytes0 = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 89, 8,
+WasmModule	3	e59a2dedd98bb7fd	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+WasmModule	4	52b208ce793d2cc0	let n = 42; let s = "text"; let a = [1, 2, 3]; const bytes0 = new Uint
 Iteration	0	0f3ea094c59baa52	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Iteration	1	9e1dd231acc56644	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Iteration	2	c41a99bccef415ca	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"

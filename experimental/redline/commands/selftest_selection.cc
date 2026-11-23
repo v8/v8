@@ -4257,6 +4257,42 @@ bool ReadWasmU32(const std::vector<uint8_t>& bytes, size_t* pos,
   return false;
 }
 
+// Returns the canonical order rank of a WebAssembly section id, or -1 if
+// unknown. Section 13 (`Tag`) sits between Memory (5) and Global (6), and
+// section 12 (`DataCount`) sits between Element (9) and Code (10).
+int WasmSectionRank(uint8_t id) {
+  switch (id) {
+    case 1:
+      return 1;
+    case 2:
+      return 2;
+    case 3:
+      return 3;
+    case 4:
+      return 4;
+    case 5:
+      return 5;
+    case 13:
+      return 6;
+    case 6:
+      return 7;
+    case 7:
+      return 8;
+    case 8:
+      return 9;
+    case 9:
+      return 10;
+    case 12:
+      return 11;
+    case 10:
+      return 12;
+    case 11:
+      return 13;
+    default:
+      return -1;
+  }
+}
+
 // Parses top-level section headers of a WebAssembly binary. Records every seen
 // section id in `sections` and copies section 10 (Code) payload to `code_sec`.
 bool ParseWasmSections(const std::vector<uint8_t>& bytes,
@@ -4273,14 +4309,15 @@ bool ParseWasmSections(const std::vector<uint8_t>& bytes,
     }
   }
   size_t pos = 8;
-  uint8_t prev_id = 0;
+  int prev_rank = 0;
   while (pos < bytes.size()) {
     const uint8_t id = bytes[pos++];
-    if (id != 0 && id <= prev_id) {
-      return false;
-    }
     if (id != 0) {
-      prev_id = id;
+      const int rank = WasmSectionRank(id);
+      if (rank <= prev_rank) {
+        return false;
+      }
+      prev_rank = rank;
     }
     uint32_t sec_size = 0;
     if (!ReadWasmU32(bytes, &pos, &sec_size) || pos + sec_size > bytes.size()) {
@@ -4355,7 +4392,8 @@ void CheckWasmModule(Checker* checker) {
     }
     std::string wasm_err;
     if (syntax != nullptr &&
-        !syntax->ValidateWasm(m.bytes.data(), m.bytes.size(), &wasm_err)) {
+        !syntax->ValidateWasm(m.bytes.data(), m.bytes.size(), &wasm_err,
+                              m.has_js_string_builtins)) {
       all_valid = false;
       first_err = StringPrintf("module %d invalid: %s", i, wasm_err.c_str());
       break;
@@ -4396,7 +4434,8 @@ void CheckWasmModule(Checker* checker) {
       std::set<uint8_t> secs;
       std::vector<uint8_t> code;
       body_valid = ParseWasmSections(m.bytes, &secs, &code) &&
-                   syntax->ValidateWasm(m.bytes.data(), m.bytes.size(), &terr);
+                   syntax->ValidateWasm(m.bytes.data(), m.bytes.size(), &terr,
+                                        m.has_js_string_builtins);
       small_code_bytes += code.size();
     }
     body_valid =
@@ -4407,7 +4446,8 @@ void CheckWasmModule(Checker* checker) {
       std::set<uint8_t> secs;
       std::vector<uint8_t> code;
       body_valid = ParseWasmSections(m.bytes, &secs, &code) &&
-                   syntax->ValidateWasm(m.bytes.data(), m.bytes.size(), &terr);
+                   syntax->ValidateWasm(m.bytes.data(), m.bytes.size(), &terr,
+                                        m.has_js_string_builtins);
       large_code_bytes += code.size();
     }
   }
@@ -4518,6 +4558,259 @@ void CheckWasmModule(Checker* checker) {
   reg.Reset();
   checker->Check("WasmModule: emits zero `%` natives when natives is false",
                  no_natives_ok, nn_err);
+
+  // 5. Check Stage 2 feature families individually with `ValidateWasm`:
+  // Memory64/Multi-memory/Atomics, WasmGC, SIMD, EH (`try_table`), JSPI, and
+  // JS string builtins.
+  auto validate_family =
+      [&](const char* label,
+          const std::vector<std::pair<const char*, double>>& overrides,
+          uint8_t required_opcode, uint8_t required_section, bool require_mem64,
+          bool require_multi_mem, bool require_shared, bool require_jspi,
+          bool require_js_string) {
+        reg.Reset();
+        std::string ferr;
+        bool ok = v8_ok;
+        for (const auto& [k, v] : overrides) {
+          ok = ok && reg.Set(k, v, &ferr);
+        }
+        bool saw_op = (required_opcode == 0);
+        bool saw_sec = (required_section == 0);
+        bool saw_mem64 = !require_mem64;
+        bool saw_multi_mem = !require_multi_mem;
+        bool saw_shared = !require_shared;
+        bool saw_jspi = !require_jspi;
+        bool saw_js_string = !require_js_string;
+        Random frng(kSeed + 9401 + static_cast<uint64_t>(required_opcode) * 31);
+        for (int i = 0; ok && i < 80; ++i) {
+          WasmModule m = RandomWasmModule(frng);
+          std::set<uint8_t> secs;
+          std::vector<uint8_t> code;
+          if (!ParseWasmSections(m.bytes, &secs, &code)) {
+            ok = false;
+            ferr = StringPrintf("module %d: bad framing", i);
+            break;
+          }
+          if (!syntax->ValidateWasm(m.bytes.data(), m.bytes.size(), &ferr,
+                                    m.has_js_string_builtins)) {
+            ok = false;
+            ferr = StringPrintf("module %d invalid: %s", i, ferr.c_str());
+            break;
+          }
+          if (m.jspi_export >= 0 &&
+              (m.jspi_export < static_cast<int>(m.table_callees) ||
+               m.jspi_export == m.indirect_caller ||
+               m.jspi_export != static_cast<int>(m.functions.size()) - 1)) {
+            ok = false;
+            ferr = StringPrintf(
+                "module %d: bad jspi_export=%d callees=%u "
+                "indirect=%d funcs=%zu",
+                i, m.jspi_export, m.table_callees, m.indirect_caller,
+                m.functions.size());
+            break;
+          }
+          if (required_section != 0 && secs.count(required_section)) {
+            saw_sec = true;
+          }
+          if (required_opcode != 0) {
+            for (uint8_t b : code) {
+              if (b == required_opcode) {
+                saw_op = true;
+                break;
+              }
+            }
+          }
+          if (m.memories.size() >= 2) {
+            saw_multi_mem = true;
+          }
+          for (const WasmMemoryInfo& mi : m.memories) {
+            if (mi.is_memory64) {
+              saw_mem64 = true;
+            }
+            if (mi.is_shared) {
+              saw_shared = true;
+            }
+          }
+          if (m.jspi_import >= 0 && m.jspi_export >= 0) {
+            saw_jspi = true;
+          }
+          if (m.has_js_string_builtins) {
+            saw_js_string = true;
+          }
+        }
+        reg.Reset();
+        const bool all_seen = saw_op && saw_sec && saw_mem64 && saw_multi_mem &&
+                              saw_shared && saw_jspi && saw_js_string;
+        checker->Check(
+            label, ok && all_seen,
+            !ok ? ferr
+                : StringPrintf("op=%d sec=%d m64=%d multi=%d sh=%d jspi=%d "
+                               "str=%d",
+                               saw_op, saw_sec, saw_mem64, saw_multi_mem,
+                               saw_shared, saw_jspi, saw_js_string));
+      };
+
+  validate_family(
+      "WasmModule: Stage 2 Memory64, multi-memory, shared atomics validate",
+      {{"generators.WasmModule.memory_probability", 1.0},
+       {"generators.WasmModule.memory64_probability", 1.0},
+       {"generators.WasmModule.shared_memory_probability", 1.0},
+       {"generators.WasmModule.multi_memory_probability", 1.0},
+       {"generators.WasmModule.atomic_op_probability", 1.0},
+       {"generators.WasmModule.bulk_memory_probability", 1.0}},
+      0xFE, 12, true, true, true, false, false);
+  validate_family(
+      "WasmModule: Stage 2 WasmGC rec groups, structs, arrays, casts validate",
+      {{"generators.WasmModule.gc_probability", 1.0},
+       {"generators.WasmModule.js_string_builtins_probability", 1.0}},
+      0xFB, 12, false, false, false, false, true);
+  validate_family("WasmModule: Stage 2 SIMD v128 and relaxed SIMD validate",
+                  {{"generators.WasmModule.simd_probability", 1.0},
+                   {"generators.WasmModule.memory_probability", 1.0}},
+                  0xFD, 0, false, false, false, false, false);
+  validate_family("WasmModule: Stage 2 EH try_table, tag, and JSPI validate",
+                  {{"generators.WasmModule.eh_probability", 1.0},
+                   {"generators.WasmModule.jspi_probability", 1.0},
+                   {"generators.WasmModule.table_probability", 1.0}},
+                  0x1F, 13, false, false, false, true, false);
+
+  // 6. Check AST node uniqueness and Stage 2 JS harness emission.
+  reg.Reset();
+  bool uniq_ok = wasm_gen != nullptr && v8_ok;
+  std::string uniq_err;
+  bool saw_suspending = false;
+  bool saw_promising = false;
+  bool saw_jstag = false;
+  bool saw_resizable = false;
+  bool saw_guarded_tierup = false;
+  for (int i = 0; uniq_ok && i < 80; ++i) {
+    std::unique_ptr<fast::Tree> tree = base->CopyTree();
+    Random grng(kSeed + 9601 + static_cast<uint64_t>(i));
+    Builder b(tree.get(), &grng);
+    Builder::Slot slot{&tree->root()->body, tree->root()->body.size(),
+                       tree->root()};
+    GenContext ctx = MakeGenContext(b, slot, *generators, env);
+    std::vector<fast::Statement*> out;
+    ctx.out = &out;
+    if (!wasm_gen->Generate(ctx, &out) || out.empty()) {
+      uniq_ok = false;
+      uniq_err = "WasmModule generated nothing";
+      break;
+    }
+    b.InsertAll(slot, out);
+    std::set<const fast::Node*> seen_nodes;
+    fast::Walk(tree->root(), [&](fast::Node* n) {
+      if (!seen_nodes.insert(n).second) {
+        uniq_ok = false;
+        uniq_err = StringPrintf("duplicate AST node %p at seed %d",
+                                static_cast<const void*>(n), i);
+        return false;
+      }
+      return true;
+    });
+    if (!uniq_ok) {
+      break;
+    }
+    const std::string src = fast::Print(tree->root());
+    if (!syntax->Accepts(src, &uniq_err)) {
+      uniq_ok = false;
+      break;
+    }
+    if (src.find("WebAssembly.Suspending") != std::string::npos) {
+      saw_suspending = true;
+    }
+    if (src.find("WebAssembly.promising") != std::string::npos) {
+      saw_promising = true;
+    }
+    if (src.find("WebAssembly.JSTag") != std::string::npos) {
+      saw_jstag = true;
+    }
+    if (src.find("toResizableBuffer") != std::string::npos) {
+      saw_resizable = true;
+    }
+    if (src.find("typeof ") != std::string::npos &&
+        src.find("%WasmTierUpFunction(") != std::string::npos) {
+      saw_guarded_tierup = true;
+    }
+  }
+  checker->Check(
+      "WasmModule: Stage 2 AST nodes are unique and JS harness emits hooks",
+      uniq_ok && saw_suspending && saw_promising && saw_jstag &&
+          saw_resizable && saw_guarded_tierup,
+      !uniq_ok ? uniq_err
+               : StringPrintf("sus=%d prom=%d jstag=%d rab=%d tier=%d",
+                              saw_suspending, saw_promising, saw_jstag,
+                              saw_resizable, saw_guarded_tierup));
+
+  // 7. Check empty-file generation and extreme tunable bounds.
+  ProgramPtr empty_base = ParseOrDie("", "selftest_empty");
+  bool edge_ok = wasm_gen != nullptr && v8_ok;
+  std::string edge_err;
+  reg.Reset();
+  edge_ok =
+      edge_ok && reg.Set("generators.WasmModule.max_params", 0, &edge_err) &&
+      reg.Set("generators.WasmModule.max_locals", 0, &edge_err) &&
+      reg.Set("generators.WasmModule.max_expr_depth", 1, &edge_err) &&
+      reg.Set("generators.WasmModule.max_functions", 1, &edge_err) &&
+      reg.Set("generators.WasmModule.max_imports", 0, &edge_err) &&
+      reg.Set("generators.WasmModule.memory_probability", 1.0, &edge_err) &&
+      reg.Set("generators.WasmModule.table_probability", 1.0, &edge_err) &&
+      reg.Set("generators.WasmModule.gc_probability", 1.0, &edge_err) &&
+      reg.Set("generators.WasmModule.simd_probability", 1.0, &edge_err) &&
+      reg.Set("generators.WasmModule.eh_probability", 1.0, &edge_err) &&
+      reg.Set("generators.WasmModule.jspi_probability", 1.0, &edge_err) &&
+      reg.Set("generators.WasmModule.js_string_builtins_probability", 1.0,
+              &edge_err) &&
+      reg.Set("generators.WasmModule.start_function_probability", 1.0,
+              &edge_err);
+  Random erng(kSeed + 9801);
+  for (int i = 0; edge_ok && i < 40; ++i) {
+    WasmModule m = RandomWasmModule(erng);
+    std::set<uint8_t> secs;
+    std::vector<uint8_t> code;
+    if (!ParseWasmSections(m.bytes, &secs, &code) ||
+        !syntax->ValidateWasm(m.bytes.data(), m.bytes.size(), &edge_err,
+                              m.has_js_string_builtins)) {
+      edge_ok = false;
+      break;
+    }
+    std::unique_ptr<fast::Tree> tree = empty_base->CopyTree();
+    Random grng(kSeed + 9901 + static_cast<uint64_t>(i));
+    Builder b(tree.get(), &grng);
+    Builder::Slot slot{&tree->root()->body, tree->root()->body.size(),
+                       tree->root()};
+    GenContext ctx = MakeGenContext(b, slot, *generators, env);
+    std::vector<fast::Statement*> out;
+    ctx.out = &out;
+    if (!wasm_gen->Generate(ctx, &out) || out.empty()) {
+      edge_ok = false;
+      edge_err = "empty-file generation returned empty";
+      break;
+    }
+    b.InsertAll(slot, out);
+    std::set<const fast::Node*> seen_nodes;
+    fast::Walk(tree->root(), [&](fast::Node* n) {
+      if (!seen_nodes.insert(n).second) {
+        edge_ok = false;
+        edge_err = StringPrintf("duplicate AST node %p on empty file",
+                                static_cast<const void*>(n));
+        return false;
+      }
+      return true;
+    });
+    if (!edge_ok) {
+      break;
+    }
+    const std::string src = fast::Print(tree->root());
+    if (!syntax->Accepts(src, &edge_err)) {
+      edge_ok = false;
+      break;
+    }
+  }
+  reg.Reset();
+  checker->Check(
+      "WasmModule: empty-file generation and extreme tunable bounds pass",
+      edge_ok, edge_err);
 }
 
 // Checks ES2025 Set/Map methods, Iterator chunking/padding/stepping,
