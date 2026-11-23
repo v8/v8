@@ -5926,6 +5926,8 @@ void Shell::WriteLcovData(v8::Isolate* isolate, const char* file) {
 
 void Shell::OnExit(v8::Isolate* isolate, bool dispose) {
 #ifdef V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
+  // Also reset watchpoints here to cover early exits via `quit()`. This is a
+  // no-op on non-main threads (e.g. Worker or `--isolate` threads).
   if (v8::Shell::options.memory_corruption_via_watchpoints) {
     ResetAllHardwareWatchpoints();
   }
@@ -6295,6 +6297,14 @@ void Shell::RunShell(Isolate* isolate) {
     }
   }
   printf("\n");
+#ifdef V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
+  // Reset any watchpoints armed during the interactive shell session before
+  // post-shell teardown (e.g. `cpu_profiler->StopProfiling` and the final
+  // shutdown `CollectGarbage`).
+  if (options.memory_corruption_via_watchpoints) {
+    ResetAllHardwareWatchpoints();
+  }
+#endif  // V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
 }
 
 
@@ -7929,6 +7939,16 @@ bool Shell::RunMainIsolate(v8::Isolate* isolate, bool keep_context_alive,
     global_context.Get(isolate)->Exit();
   }
   if (!FinishExecuting(isolate, global_context)) success = false;
+#ifdef V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
+  // Reset watchpoints and release watched objects once script execution
+  // finishes so post-execution harness steps (e.g. `WriteLcovData`,
+  // `CollectGarbage` with `--invoke-weak-callbacks`, `--stress-snapshot`),
+  // subsequent REPRL/stress iterations, and `--cache=code` temporary isolate
+  // disposal do not run with active watchpoints or stale global handles.
+  if (options.memory_corruption_via_watchpoints) {
+    ResetAllHardwareWatchpoints();
+  }
+#endif  // V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
   WriteLcovData(isolate, options.lcov_file);
   return success;
 }
@@ -8873,11 +8893,6 @@ int Shell::Main(int argc, char* argv[]) {
               // Isolate to avoid retaining stray tasks with v8::Global pointing
               // into a reclaimed Isolate.
               platform::NotifyIsolateShutdown(g_default_platform, isolate2);
-#ifdef V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
-              if (Shell::options.memory_corruption_via_watchpoints) {
-                ResetAllHardwareWatchpoints();
-              }
-#endif  // V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
               isolate2->Dispose();
             });
 

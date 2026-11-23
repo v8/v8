@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --memory-corruption-via-watchpoints
+// Flags: --memory-corruption-via-watchpoints --invoke-weak-callbacks
 
 let arr = new Array(200).fill(1);
 let elements = Sandbox.dereferenceTaggedPointerField(arr, 'elements');

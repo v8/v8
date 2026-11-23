@@ -76,6 +76,8 @@ struct HardwareWatchpointSupport {
   }* shared = nullptr;
 } g_support;
 
+thread_local bool is_main_thread = false;
+
 // Print trace output if `--trace-in-sandbox-manipulation-via-watchpoints` was
 // specified.
 // Note that the processes cannot really be debugged via gdb because they use
@@ -713,6 +715,17 @@ HowToContinueAfterWatchpoint WaitForD8ToStopThenReact() {
   }
 }
 
+bool IsWatchedObject(i::Tagged<i::HeapObject> object) {
+  // Only the main thread can register watched objects, and fast JSArray backing
+  // stores are isolate-local. Skip reading the unsynchronized `kept_alive`
+  // vector on non-main threads (e.g. Worker or `--isolate` threads).
+  if (!is_main_thread) return false;
+  for (const v8::Global<v8::Value>& handle : g_support.kept_alive) {
+    if (*Utils::OpenPersistent(handle) == object) return true;
+  }
+  return false;
+}
+
 }  // namespace
 
 void SetupForHardwareWatchpoints(bool enable_tracing) {
@@ -760,6 +773,11 @@ void SetupForHardwareWatchpoints(bool enable_tracing) {
       YIELD_PROCESSOR;
     }
     TRACE("[d8] debugger is attached; continuing d8 execution.\n");
+    is_main_thread = true;
+    // Register once before any worker or `--isolate` threads exist so
+    // `SandboxTesting::is_watched_object_callback_` is never mutated
+    // concurrently.
+    i::SandboxTesting::SetIsWatchedObjectCallback(&IsWatchedObject);
     // Continue standard d8 execution.
     return;
   }
@@ -817,8 +835,11 @@ void SetupForHardwareWatchpoints(bool enable_tracing) {
   UNREACHABLE();
 }
 
-// Called from d8 on exit to reset all watchpoints.
+// Called from d8 to reset all watchpoints (e.g. after script execution or on
+// exit).
 void ResetAllHardwareWatchpoints() {
+  if (!is_main_thread) return;
+
   WatchpointInfo* watchpoints = g_support.shared->watchpoints;
   bool has_hardware_watchpoint = false;
   for (int i = 0; i < kNumWatchpoints; ++i) {
@@ -832,7 +853,6 @@ void ResetAllHardwareWatchpoints() {
   TRACE("[d8] resetting all hardware watchpoints.\n");
   for (int i = 0; i < kNumWatchpoints; ++i) watchpoints[i].address = 0;
   g_support.kept_alive.clear();
-  i::SandboxTesting::SetIsWatchedObjectCallback(nullptr);
   CHECK(!g_support.shared->has_changed_watchpoints.exchange(true));
   // Signal the debugger process; this pauses execution until that process
   // continues us.
@@ -841,13 +861,6 @@ void ResetAllHardwareWatchpoints() {
 }
 
 namespace {
-bool IsWatchedObject(i::Tagged<i::HeapObject> object) {
-  for (const auto& handle : g_support.kept_alive) {
-    if (*Utils::OpenPersistent(handle) == object) return true;
-  }
-  return false;
-}
-
 void ThrowTypeError(v8::Isolate* isolate, std::string_view message) {
   isolate->ThrowException(v8::Exception::TypeError(
       v8::String::NewFromUtf8(isolate, message.data(), NewStringType::kNormal,
@@ -882,6 +895,12 @@ bool ValidateWatchedObject(v8::Isolate* isolate, v8::Local<v8::Value> value,
 void SetHardwareWatchpointCallback(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   Isolate* isolate = info.GetIsolate();
+  if (!is_main_thread) {
+    ThrowTypeError(isolate,
+                   "Hardware watchpoints are only supported on the main "
+                   "thread");
+    return;
+  }
   Local<v8::Context> context = isolate->GetCurrentContext();
 
   if (info.Length() < 2) {
@@ -977,9 +996,6 @@ void SetHardwareWatchpointCallback(
   g_support.shared->watchpoints[watchpoint_idx].address = watch_addr;
 
   // Keep the object alive, using the original `info[0]` Local handle.
-  if (g_support.kept_alive.empty()) {
-    i::SandboxTesting::SetIsWatchedObjectCallback(&IsWatchedObject);
-  }
   g_support.kept_alive.emplace_back(isolate, info[0]);
 
   uint32_t current_content = *reinterpret_cast<uint32_t*>(watch_addr);
