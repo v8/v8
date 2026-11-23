@@ -339,7 +339,9 @@ class Fuzzer {
   // The flag affinity of normal mode with randomize_d8_flags. An imported
   // test gives its `// Flags:` set. A target process gives its random flags,
   // the new edges that the workers found with them and its executions.
-  void RecordImportedFlags(const std::vector<std::string>& flags);
+  void RecordImportedFlags(const std::vector<std::string>& flags,
+                           double score = 1.0);
+  void RecordMaterialFlags(const MaterialBank& bank);
   void RecordProductiveFlags(const std::vector<std::string>& flags,
                              uint64_t new_edges, uint64_t executions);
   // Records a start of a target process with the random flags `args`
@@ -371,6 +373,7 @@ class Fuzzer {
   void WriteStatsEvent();
   bool ShouldStop() const;
   void CollectImports();
+  void FinishImportWorker();
   // Builds the feature weights after the workers started (coverage counters
   // only). `targets_code_edges` is the code edge count of the targets file.
   bool InitializeFeatureWeights(uint32_t targets_code_edges,
@@ -478,6 +481,7 @@ class Fuzzer {
   std::vector<std::string> import_files_;
   std::atomic<size_t> next_import_{0};
   std::atomic<int> workers_importing_{0};
+  std::atomic<int> import_workers_pending_{0};
 
   // Crash bookkeeping, by signature.
   struct SignatureInfo {

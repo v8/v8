@@ -65,17 +65,27 @@ bool HasDiscouragedFlags(std::string_view source);
 // statements. Returns true when `tree` changed.
 bool UnwrapTopLevelIIFEs(fast::Tree* tree);
 
+// Extracts a self-contained statement window of at most `max_nodes` AST nodes
+// from `tree` in place. Keeps trees within budget intact. Returns `false` if
+// `tree` is empty or cannot fit in `max_nodes`.
+bool ExtractCompactWindow(fast::Tree* tree, size_t max_nodes, Random& rng);
+
 // Merges 2 or more donors into 1 isolated top-level script with `lineage`.
-// Unwraps safe top-level IIFEs, renames colliding top-level bindings, keeps
-// declarations in top-level scope, and wraps executable statements per donor in
-// `try {} catch {}`. Returns `nullptr` when the result has no statements.
+// Compacts oversized donors, caps total AST size, renames colliding bindings,
+// wraps executable statements per donor in `try {} catch {}`, and adds
+// cross-donor glue statements. Returns `nullptr` when empty.
 std::shared_ptr<Program> FusePrograms(const std::vector<ProgramPtr>& donors,
-                                      Lineage lineage);
+                                      Lineage lineage, Random* rng = nullptr);
 std::shared_ptr<Program> FusePrograms(const std::vector<ProgramPtr>& donors,
-                                      const std::string& detail);
+                                      const std::string& detail,
+                                      Random* rng = nullptr);
 
 double MaterialPartnerChance();
 double MaterialFuseChance();
+size_t MaterialMaxDonorNodes();
+size_t MaterialMaxFuseNodes();
+size_t MaterialMaxCombineNodes();
+int MaterialGlueStatements();
 
 }  // namespace redline
 

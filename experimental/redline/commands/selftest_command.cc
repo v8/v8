@@ -64,6 +64,7 @@
 #include "experimental/redline/fast/parser.h"
 #include "experimental/redline/fast/printer.h"
 #include "experimental/redline/minimizer/minimizer.h"
+#include "experimental/redline/mutators/mutator.h"
 
 namespace redline {
 
@@ -3726,6 +3727,283 @@ void RunTestFlagChecks(Checker* checker) {
       pinned_ok, StringPrintf("%zu spawn results", results.size()));
 }
 
+// Tests the compact donor window, the limits of Fuse and Combine and the
+// partner cache. `syntax` is nullptr if V8 did not initialize.
+void RunMaterialCompactChecks(Checker* checker, SyntaxChecker* syntax) {
+  auto v8_accepts = [&](const std::string& source, std::string* message) {
+    return syntax != nullptr && syntax->Accepts(source, message);
+  };
+
+  // 7. `ExtractCompactWindow` keeps large donors below `max_donor_nodes`.
+  {
+    std::string large_src = "function helper_used(v) { return v + 1; }\n";
+    for (int i = 0; i < 160; i++) {
+      large_src += StringPrintf("let unused_%d = %d + %d;\n", i, i, i + 1);
+    }
+    large_src += "let out_val = helper_used(41);\n";
+    std::string iife_src = "(function() { \"use strict\";\n";
+    for (int i = 0; i < 150; i++) {
+      iife_src += StringPrintf("let inner_%d = %d + 1;\n", i, i);
+    }
+    iife_src += "return inner_0; })();\n";
+
+    std::string parse_err;
+    ProgramPtr large_prog = Program::Parse(large_src, Lineage{}, &parse_err);
+    ProgramPtr iife_prog = Program::Parse(iife_src, Lineage{}, &parse_err);
+    Random window_rng(17);
+    std::unique_ptr<fast::Tree> copy1 =
+        large_prog != nullptr ? large_prog->CopyTree() : nullptr;
+    std::unique_ptr<fast::Tree> copy2 =
+        iife_prog != nullptr ? iife_prog->CopyTree() : nullptr;
+    const bool ok1 =
+        copy1 != nullptr &&
+        ExtractCompactWindow(copy1.get(), MaterialMaxDonorNodes(), window_rng);
+    const bool ok2 =
+        copy2 != nullptr &&
+        ExtractCompactWindow(copy2.get(), MaterialMaxDonorNodes(), window_rng);
+    const size_t n1 = copy1 != nullptr ? fast::CountNodes(copy1->root()) : 0;
+    const size_t n2 = copy2 != nullptr ? fast::CountNodes(copy2->root()) : 0;
+    std::string printed1 = ok1 ? fast::Print(copy1->root()) : "";
+    std::string printed2 = ok2 ? fast::Print(copy2->root()) : "";
+    fast::ParseError re1, re2;
+    std::string msg1, msg2;
+    const bool valid1 = ok1 && n1 <= MaterialMaxDonorNodes() &&
+                        fast::Parser::ParseScript(
+                            printed1, fast::ParseOptions(), &re1) != nullptr &&
+                        v8_accepts(printed1, &msg1);
+    const bool valid2 = ok2 && n2 <= MaterialMaxDonorNodes() &&
+                        fast::Parser::ParseScript(
+                            printed2, fast::ParseOptions(), &re2) != nullptr &&
+                        v8_accepts(printed2, &msg2);
+    checker->Check(
+        "material: ExtractCompactWindow extracts a valid bounded window",
+        large_prog != nullptr && large_prog->node_count() > 600 &&
+            iife_prog != nullptr && iife_prog->node_count() > 600 && valid1 &&
+            valid2,
+        StringPrintf("n1=%zu valid1=%d (%s) n2=%zu valid2=%d (%s)", n1, valid1,
+                     msg1.c_str(), n2, valid2, msg2.c_str()));
+
+    ProgramPtr small_prog =
+        Program::Parse("let ok = 1;\n", Lineage{}, &parse_err);
+    ProgramPtr cycle_prog = Program::Parse(
+        "function cyc_a() { return cyc_b(); }\n"
+        "function cyc_b() { return cyc_a(); }\n"
+        "let big_a = cyc_a();\n"
+        "let extra_0 = 1;\nlet extra_1 = 2;\nlet extra_2 = 3;\n",
+        Lineage{}, &parse_err);
+    ProgramPtr dir_only =
+        Program::Parse("\"use strict\";\n", Lineage{}, &parse_err);
+    auto small_copy = small_prog->CopyTree();
+    auto cycle_copy = cycle_prog->CopyTree();
+    auto dir_copy = dir_only->CopyTree();
+    const bool small_kept =
+        ExtractCompactWindow(small_copy.get(), 300, window_rng) &&
+        fast::CountNodes(small_copy->root()) == small_prog->node_count();
+    const bool cycle_ok =
+        ExtractCompactWindow(cycle_copy.get(), 30, window_rng) &&
+        fast::CountNodes(cycle_copy->root()) <= 30;
+    const bool dir_empty = !ExtractCompactWindow(dir_copy.get(), 5, window_rng);
+    checker->Check(
+        "material: ExtractCompactWindow handles small, cyclic and "
+        "directive-only trees",
+        small_kept && cycle_ok && dir_empty,
+        StringPrintf("small=%d cycle=%d dir_empty=%d", small_kept, cycle_ok,
+                     dir_empty));
+  }
+
+  // 8. `FusePrograms` respects `max_fuse_nodes` and emits cross-donor glue.
+  {
+    std::string big_a = "function alpha_fn(x) { return x + 1; }\n";
+    std::string big_b = "class BetaCls { compute(y) { return y * 2; } }\n";
+    for (int i = 0; i < 180; i++) {
+      big_a += StringPrintf("let fill_a_%d = %d + 2;\n", i, i);
+      big_b += StringPrintf("let fill_b_%d = %d + 3;\n", i, i);
+    }
+    big_a += "let res_a = alpha_fn(5);\n";
+    big_b += "let res_b = new BetaCls();\n";
+    std::string parse_err;
+    ProgramPtr pa = Program::Parse(big_a, Lineage{}, &parse_err);
+    ProgramPtr pb = Program::Parse(big_b, Lineage{}, &parse_err);
+    std::shared_ptr<Program> mut_pb =
+        Program::Parse(big_b, Lineage{}, &parse_err);
+    if (mut_pb != nullptr) {
+      mut_pb->flags = {"--maglev"};
+    }
+    Random fuse_rng(23);
+    ProgramPtr big_fused = FusePrograms({pa, pb}, "cap_check", &fuse_rng);
+    std::string v8_big_msg;
+    const bool cap_ok = big_fused != nullptr &&
+                        big_fused->node_count() <= MaterialMaxFuseNodes() &&
+                        v8_accepts(big_fused->source(), &v8_big_msg);
+
+    // Lexical splits expand nodes by more than 2x. Verify that the first
+    // donor obeys `max_fuse_nodes` and excluded donors drop their flags.
+    std::string split_decls;
+    for (int i = 0; i < 32; i++) {
+      split_decls += StringPrintf("let [a_%d, b_%d, c_%d] = x;\n", i, i, i);
+    }
+    std::string multi_decl = "let m0 = 0";
+    for (int i = 1; i < 96; i++) {
+      multi_decl += StringPrintf(", m%d = %d", i, i);
+    }
+    multi_decl += ";\n";
+    ProgramPtr split_prog = Program::Parse(split_decls, Lineage{}, &parse_err);
+    ProgramPtr multi_prog = Program::Parse(multi_decl, Lineage{}, &parse_err);
+    ProgramPtr split_fused =
+        FusePrograms({split_prog, mut_pb}, "split_cap", &fuse_rng);
+    ProgramPtr multi_fused = FusePrograms({multi_prog}, "multi_cap", &fuse_rng);
+    std::string split_v8_msg, multi_v8_msg;
+    const bool split_ok = split_prog != nullptr &&
+                          split_prog->node_count() <= 300 &&
+                          split_fused != nullptr &&
+                          split_fused->node_count() <= MaterialMaxFuseNodes() &&
+                          v8_accepts(split_fused->source(), &split_v8_msg);
+    const bool multi_ok = multi_prog != nullptr &&
+                          multi_prog->node_count() <= 300 &&
+                          multi_fused != nullptr &&
+                          multi_fused->node_count() <= MaterialMaxFuseNodes() &&
+                          v8_accepts(multi_fused->source(), &multi_v8_msg);
+
+    TunableRegistry& tun_reg = TunableRegistry::Instance();
+    std::string tun_err;
+    tun_reg.Set("material.max_fuse_nodes", 200, &tun_err);
+    std::string tight_a;
+    for (int i = 0; i < 45; i++) {
+      tight_a += StringPrintf("let ta_%d = %d;\n", i, i);
+    }
+    std::shared_ptr<Program> tight_pa =
+        Program::Parse(tight_a, Lineage{}, &parse_err);
+    if (tight_pa != nullptr) {
+      tight_pa->flags = {"--turbofan"};
+    }
+    ProgramPtr tight_fused =
+        FusePrograms({tight_pa, mut_pb}, "tight_cap", &fuse_rng);
+    const bool tight_ok =
+        tight_fused != nullptr && tight_fused->node_count() <= 200 &&
+        tight_fused->flags == std::vector<std::string>{"--turbofan"};
+    tun_reg.Reset();
+
+    ProgramPtr ga = Program::Parse("const donor_alpha = x => x + 1;\n",
+                                   Lineage{}, &parse_err);
+    ProgramPtr gb = Program::Parse(
+        "function donor_beta(y) { return y * 2; }\n"
+        "let val_beta = {tag: 7};\n",
+        Lineage{}, &parse_err);
+    Random glue_rng(31);
+    ProgramPtr glue_fused = FusePrograms({ga, gb}, "glue_check", &glue_rng);
+    bool has_cross_try = false;
+    if (glue_fused != nullptr) {
+      for (const fast::Statement* s : glue_fused->tree().root()->body) {
+        if (!s->Is<fast::TryStatement>()) {
+          continue;
+        }
+        bool sees_a = false;
+        bool sees_b = false;
+        fast::Walk(const_cast<fast::Statement*>(s), [&](fast::Node* n) {
+          if (auto* id = n->As<fast::Identifier>()) {
+            if (id->name == "donor_alpha") {
+              sees_a = true;
+            }
+            if (id->name == "donor_beta" || id->name == "val_beta") {
+              sees_b = true;
+            }
+          }
+          return true;
+        });
+        if (sees_a && sees_b) {
+          has_cross_try = true;
+          break;
+        }
+      }
+    }
+    std::string v8_glue_msg;
+    const bool glue_ok = glue_fused != nullptr && has_cross_try &&
+                         v8_accepts(glue_fused->source(), &v8_glue_msg);
+    checker->Check(
+        "material: FusePrograms caps AST nodes and emits cross-donor glue",
+        cap_ok && split_ok && multi_ok && tight_ok && glue_ok,
+        !cap_ok ? v8_big_msg
+                : (!split_ok
+                       ? split_v8_msg
+                       : (!multi_ok
+                              ? multi_v8_msg
+                              : (!tight_ok ? "tight max_fuse_nodes failed"
+                                           : (has_cross_try
+                                                  ? v8_glue_msg
+                                                  : (glue_fused != nullptr
+                                                         ? glue_fused->source()
+                                                         : parse_err))))));
+  }
+
+  // 9. `Combine` caps oversized partner pasting and `Splice` caches partners.
+  {
+    std::string parse_err;
+    ProgramPtr parent =
+        Program::Parse("function host(v) { return v + 1; }\nlet h = host(2);\n",
+                       Lineage{}, &parse_err);
+    std::string partner_src = "function pfn(x) { return x * 2; }\n";
+    for (int i = 0; i < 160; i++) {
+      partner_src += StringPrintf("let pvar_%d = %d + 1;\n", i, i);
+    }
+    partner_src += "let pres = pfn(3);\n";
+    ProgramPtr partner = Program::Parse(partner_src, Lineage{}, &parse_err);
+    auto mutators = MutatorSet::CreateDefault();
+    auto generators = GeneratorSet::CreateDefault();
+    Mutator* combine = mutators->Find("Combine");
+    Mutator* splice = mutators->Find("Splice");
+    Random mut_rng(99);
+    std::string detail;
+    std::unique_ptr<fast::Tree> combined =
+        (parent != nullptr && partner != nullptr && combine != nullptr)
+            ? ApplyMutation(*combine, *parent, partner, mut_rng,
+                            Environment::Default(), *generators, 1, &detail)
+            : nullptr;
+    std::unique_ptr<fast::Tree> spliced =
+        (parent != nullptr && partner != nullptr && splice != nullptr)
+            ? ApplyMutation(*splice, *parent, partner, mut_rng,
+                            Environment::Default(), *generators, 7, &detail)
+            : nullptr;
+    const size_t comb_nodes =
+        combined != nullptr ? fast::CountNodes(combined->root()) : 0;
+    const size_t comb_limit = MaterialMaxCombineNodes() +
+                              (parent != nullptr ? parent->node_count() : 0) +
+                              16;
+    std::string comb_msg, spl_msg;
+    const bool comb_ok = combined != nullptr && comb_nodes <= comb_limit &&
+                         v8_accepts(fast::Print(combined->root()), &comb_msg);
+    const bool spl_ok = spliced != nullptr &&
+                        v8_accepts(fast::Print(spliced->root()), &spl_msg);
+    bool cache_ok = false;
+    if (parent != nullptr && partner != nullptr && splice != nullptr) {
+      auto parent_copy = parent->CopyTree();
+      Random cache_rng(13);
+      Builder b(parent_copy.get(), &cache_rng);
+      MutationContext ctx;
+      ctx.partner = partner;
+      ctx.env = &Environment::Default();
+      ctx.generators = generators.get();
+      splice->Mutate(b, ctx);
+      const void* first_cache = ctx.partner_cache.get();
+      splice->Mutate(b, ctx);
+      const bool reused =
+          first_cache != nullptr && ctx.partner_cache.get() == first_cache;
+      ctx.partner = parent;
+      splice->Mutate(b, ctx);
+      const bool invalidated = ctx.partner_cache != nullptr &&
+                               ctx.partner_cache.get() != first_cache;
+      cache_ok = reused && invalidated;
+    }
+    checker->Check(
+        "material: Combine caps large partners and multi-round Splice succeeds",
+        partner != nullptr && partner->node_count() > 600 && comb_ok &&
+            spl_ok && cache_ok,
+        StringPrintf("comb=%zu/%zu (%s) spl=%s (%zu nodes) cache=%d",
+                     comb_nodes, comb_limit, comb_msg.c_str(), spl_msg.c_str(),
+                     spliced != nullptr ? fast::CountNodes(spliced->root()) : 0,
+                     cache_ok));
+  }
+}
+
 void RunMaterialChecks(Checker* checker) {
   std::string v8_err;
   // V8 initializes only once per process. Use the default fuzz flags so that
@@ -4195,6 +4473,56 @@ void RunMaterialChecks(Checker* checker) {
                    fused == nullptr
                        ? parse_err
                        : StringPrintf("%zu flags", fused->flags.size()));
+  }
+
+  RunMaterialCompactChecks(checker, syntax.get());
+
+  // 10. `RecordMaterialFlags` fills free pool slots without evicting seeds.
+  {
+    files_ok = files_ok && MakeDirectories(dir + "/pool_flags", &err);
+    write_file("/pool_flags/m1.js", "// Flags: --mat-flag-one\nlet m1 = 1;\n");
+    write_file("/pool_flags/m2.js", "// Flags: --mat-flag-two\nlet m2 = 2;\n");
+    MaterialBank pool_bank;
+    MaterialBank::Options pool_opts;
+    pool_opts.paths = {dir + "/pool_flags"};
+    pool_opts.max_programs = 10;
+    pool_opts.seed = 7;
+    pool_bank.Load(pool_opts);
+
+    FuzzConfig cfg_partial;
+    cfg_partial.randomize_d8_flags = true;
+    Fuzzer fuzzer_partial(std::move(cfg_partial));
+    fuzzer_partial.RecordImportedFlags({"--seed-flag-0"});
+    fuzzer_partial.RecordMaterialFlags(pool_bank);
+    const bool added_to_pool = fuzzer_partial.imported_flag_sets() == 3;
+
+    FuzzConfig cfg_full;
+    cfg_full.randomize_d8_flags = true;
+    Fuzzer fuzzer_full(std::move(cfg_full));
+    for (int i = 0; i < 2048; i++) {
+      fuzzer_full.RecordImportedFlags({StringPrintf("--seed-slot-%d", i)});
+    }
+    fuzzer_full.RecordMaterialFlags(pool_bank);
+    TunableRegistry& reg = TunableRegistry::Instance();
+    std::string reg_err;
+    reg.Set("flags.imported_chance", 1.0, &reg_err);
+    Random draw_rng(5);
+    bool saw_material = false;
+    for (int i = 0; i < 20; i++) {
+      for (const std::string& f : fuzzer_full.DrawD8Flags(draw_rng)) {
+        if (f == "--mat-flag-one" || f == "--mat-flag-two") {
+          saw_material = true;
+        }
+      }
+    }
+    reg.Reset();
+    checker->Check(
+        "material: RecordMaterialFlags fills free slots without evicting seeds",
+        files_ok && added_to_pool && fuzzer_full.imported_flag_sets() == 2048 &&
+            !saw_material,
+        StringPrintf("partial=%zu full=%zu saw_mat=%d",
+                     fuzzer_partial.imported_flag_sets(),
+                     fuzzer_full.imported_flag_sets(), saw_material));
   }
 
   RemoveTree(dir);

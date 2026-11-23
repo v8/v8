@@ -13,6 +13,7 @@
 #include "experimental/redline/core/ast_builder.h"
 #include "experimental/redline/core/tunable.h"
 #include "experimental/redline/core/weighted_selector.h"
+#include "experimental/redline/corpus/material.h"
 #include "experimental/redline/fast/printer.h"
 #include "experimental/redline/fast/requirements.h"
 #include "experimental/redline/generators/codegen.h"
@@ -24,6 +25,17 @@
 namespace redline {
 
 using namespace fast;  // NOLINT(build/namespaces)
+
+struct MutationContext::PartnerCache {
+  ProgramPtr partner;
+  std::unique_ptr<Tree> donor_tree;
+  std::unique_ptr<Random> donor_rng;
+  std::unique_ptr<Builder> donor;
+  std::vector<Node*> candidates;
+};
+
+MutationContext::MutationContext() = default;
+MutationContext::~MutationContext() = default;
 
 namespace {
 
@@ -1875,41 +1887,50 @@ class SpliceMutator final : public Mutator {
       return false;
     }
     Random& r = b.rng();
-    std::unique_ptr<Tree> donor_tree = ctx.partner->CopyTree();
-    Random donor_rng = r.Fork();
-    Builder donor(donor_tree.get(), &donor_rng);
-    std::vector<Node*> candidates = donor.Collect([&](Node* n) {
-      if (!n->IsStatement()) {
-        return false;
-      }
-      auto* s = n->Cast<Statement>();
-      if (IsDirective(s) || s->Is<EmptyStatement>() ||
-          s->Is<BreakStatement>() || s->Is<ContinueStatement>() ||
-          s->Is<ReturnStatement>() || s->Is<DebuggerStatement>()) {
-        return false;
-      }
-      // Loop heads (`for (const e of ...)`) are declarations without
-      // initializers: not statements on their own.
-      if (s->Is<VariableDeclaration>()) {
-        Node* parent = donor.ParentOf(n);
-        if (parent != nullptr &&
-            (parent->Is<ForStatement>() || parent->Is<ForInStatement>() ||
-             parent->Is<ForOfStatement>())) {
+    if (ctx.partner_cache == nullptr ||
+        ctx.partner_cache->partner.get() != ctx.partner.get()) {
+      auto cache = std::make_unique<MutationContext::PartnerCache>();
+      cache->partner = ctx.partner;
+      cache->donor_tree = ctx.partner->CopyTree();
+      cache->donor_rng = std::make_unique<Random>(r.Fork());
+      cache->donor = std::make_unique<Builder>(cache->donor_tree.get(),
+                                               cache->donor_rng.get());
+      cache->candidates = cache->donor->Collect([&](Node* n) {
+        if (!n->IsStatement()) {
           return false;
         }
-      }
-      // Code using a private name of its class cannot leave it.
-      if (UsesPrivateNameOfEnclosingClass(n)) {
-        return false;
-      }
-      size_t size = CountNodes(n);
-      size_t min_nodes = static_cast<size_t>(kSpliceMinDonorNodes.AsInt());
-      size_t max_nodes = static_cast<size_t>(kSpliceMaxDonorNodes.AsInt());
-      return size >= min_nodes && size <= max_nodes;
-    });
-    if (candidates.empty()) {
+        auto* s = n->Cast<Statement>();
+        if (IsDirective(s) || s->Is<EmptyStatement>() ||
+            s->Is<BreakStatement>() || s->Is<ContinueStatement>() ||
+            s->Is<ReturnStatement>() || s->Is<DebuggerStatement>()) {
+          return false;
+        }
+        // Loop heads (`for (const e of ...)`) are declarations without
+        // initializers: not statements on their own.
+        if (s->Is<VariableDeclaration>()) {
+          Node* parent = cache->donor->ParentOf(n);
+          if (parent != nullptr &&
+              (parent->Is<ForStatement>() || parent->Is<ForInStatement>() ||
+               parent->Is<ForOfStatement>())) {
+            return false;
+          }
+        }
+        // Code using a private name of its class cannot leave it.
+        if (UsesPrivateNameOfEnclosingClass(n)) {
+          return false;
+        }
+        size_t size = CountNodes(n);
+        size_t min_nodes = static_cast<size_t>(kSpliceMinDonorNodes.AsInt());
+        size_t max_nodes = static_cast<size_t>(kSpliceMaxDonorNodes.AsInt());
+        return size >= min_nodes && size <= max_nodes;
+      });
+      ctx.partner_cache = std::move(cache);
+    }
+    if (ctx.partner_cache->candidates.empty()) {
       return false;
     }
+    Builder& donor = *ctx.partner_cache->donor;
+    const std::vector<Node*>& candidates = ctx.partner_cache->candidates;
     for (int attempt = 0; attempt < kSpliceMaxAttempts.AsInt(); attempt++) {
       Node* donor_node = candidates[r.Index(candidates.size())];
       Requirements req = AnalyzeRequirements(donor_node);
@@ -2196,6 +2217,15 @@ class CombineMutator final : public Mutator {
     Random& r = b.rng();
     std::unique_ptr<Tree> donor_tree = ctx.partner->CopyTree();
     Random donor_rng = r.Fork();
+    const size_t max_combine_nodes = MaterialMaxCombineNodes();
+    if (ctx.partner->node_count() > max_combine_nodes) {
+      UnwrapTopLevelIIFEs(donor_tree.get());
+      if (CountNodes(donor_tree->root()) > max_combine_nodes &&
+          !ExtractCompactWindow(donor_tree.get(), max_combine_nodes,
+                                donor_rng)) {
+        return false;
+      }
+    }
     Builder donor(donor_tree.get(), &donor_rng);
     fast::Program* donor_root = donor.root();
     if (donor_root->body.empty()) {
@@ -2448,9 +2478,6 @@ std::vector<const Component*> MutatorSet::Components() const {
   }
   return components;
 }
-
-MutationContext::MutationContext() = default;
-MutationContext::~MutationContext() = default;
 
 std::unique_ptr<fast::Tree> ApplyMutation(
     Mutator& mutator, const redline::Program& parent, const ProgramPtr& partner,

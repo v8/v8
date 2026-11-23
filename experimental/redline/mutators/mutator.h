@@ -22,6 +22,8 @@ namespace redline {
 struct ExploreProbe;
 
 struct MutationContext {
+  struct PartnerCache;
+
   // The program being mutated (its tree is NOT the one in the Builder; the
   // Builder works on a copy). May be null for ad-hoc trees.
   ProgramPtr parent;
@@ -35,6 +37,8 @@ struct MutationContext {
   // worker executes the instrumented program and completes the mutation
   // from the target's answers (see mutators/explore.h).
   std::vector<ExploreProbe> probes;
+  // Cached analysis of `partner` reused across rounds in `ApplyMutation`.
+  std::unique_ptr<PartnerCache> partner_cache;
 
   MutationContext();
   ~MutationContext();

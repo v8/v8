@@ -139,6 +139,7 @@ class FlagSetPool {
   bool Pick(Random& rng, int tournament, std::vector<std::string>* flags) const;
   bool empty() const { return size() == 0; }
   size_t size() const { return size_.load(std::memory_order_acquire); }
+  size_t capacity() const { return capacity_; }
 
  private:
   struct Entry {

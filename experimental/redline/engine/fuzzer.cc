@@ -736,6 +736,7 @@ class Worker {
       ImportFile(fuzzer_->import_files_[index], options);
     }
     fuzzer_->workers_importing_--;
+    fuzzer_->FinishImportWorker();
   }
 
   void ImportFile(const std::string& path, const ImportOptions& options) {
@@ -937,7 +938,8 @@ class Worker {
       fuse_stats.spent += (executions_ - spent_before) -
                           (finalized_executions_ - finalized_before);
     });
-    std::shared_ptr<Program> fused = FusePrograms(donors, std::move(lineage));
+    std::shared_ptr<Program> fused =
+        FusePrograms(donors, std::move(lineage), &rng_);
     stats().mutation_time_us += mutation_timer.ElapsedUs();
     if (fused == nullptr) {
       stats().noop++;
@@ -1011,11 +1013,12 @@ class Worker {
         if (ancestor_id != 0) {
           corpus.OnResult(*parent, added != nullptr);
         }
-        *parent_out = fused;
         if (added != nullptr) {
+          *parent_out = added;
           *ancestor_out = added;
           *chain_out = 0;
         } else {
+          *parent_out = fused;
           *ancestor_out = std::move(parent);
           *chain_out = ancestor_id != 0 ? 1 : 0;
         }
@@ -3583,12 +3586,9 @@ bool Fuzzer::Initialize(std::string* error) {
         static_cast<size_t>(std::max(0, config_.material_max));
     material_opts.seed = config_.seed;
     material_stats_ = material_->Load(material_opts);
-    if (config_.randomize_d8_flags) {
-      for (const ProgramPtr& prog : material_->programs()) {
-        if (!prog->flags.empty()) {
-          RecordImportedFlags(prog->flags);
-        }
-      }
+    // Record material flags now if no seed imports wait to populate the pool.
+    if (import_files_.empty()) {
+      RecordMaterialFlags(*material_);
     }
     REDLINE_LOG(kLog,
                 "material: %zu loaded, %zu skipped, %zu error(s) in %.1f ms",
@@ -3614,6 +3614,7 @@ bool Fuzzer::Initialize(std::string* error) {
     }
   }
 
+  import_workers_pending_.store(config_.jobs, std::memory_order_release);
   for (int i = 0; i < config_.jobs; i++) {
     auto worker = std::make_unique<Worker>(this, i);
     if (!worker->Start(error)) {
@@ -3736,8 +3737,32 @@ void Fuzzer::RecordTargetChild(bool hit) {
   target_children_completed_.fetch_add(1, std::memory_order_release);
 }
 
-void Fuzzer::RecordImportedFlags(const std::vector<std::string>& flags) {
-  imported_flags_.Record(flags, 1.0);
+void Fuzzer::RecordImportedFlags(const std::vector<std::string>& flags,
+                                 double score) {
+  imported_flags_.Record(flags, score);
+}
+
+void Fuzzer::RecordMaterialFlags(const MaterialBank& bank) {
+  if (!config_.randomize_d8_flags) {
+    return;
+  }
+  const size_t cap = imported_flags_.capacity();
+  for (const ProgramPtr& prog : bank.programs()) {
+    if (imported_flags_.size() >= cap) {
+      break;
+    }
+    if (!prog->flags.empty()) {
+      imported_flags_.Record(prog->flags, 0.5);
+    }
+  }
+}
+
+void Fuzzer::FinishImportWorker() {
+  if (!import_files_.empty() &&
+      import_workers_pending_.fetch_sub(1, std::memory_order_acq_rel) == 1 &&
+      material_ != nullptr) {
+    RecordMaterialFlags(*material_);
+  }
 }
 
 void Fuzzer::RecordProductiveFlags(const std::vector<std::string>& flags,
