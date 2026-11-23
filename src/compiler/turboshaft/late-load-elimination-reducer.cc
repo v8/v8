@@ -246,6 +246,15 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kAtomicRMW:
         ProcessAtomicRMW(op_idx, op.Cast<AtomicRMWOp>());
         break;
+      case Opcode::kAtomicWord32Pair:
+      case Opcode::kMemoryBarrier:
+#if V8_ENABLE_WEBASSEMBLY
+        if (v8_flags.wasm_shared) {
+          TRACE(">> AtomicWord32Pair/MemoryBarrier, invalidating whole memory");
+          memory_.InvalidateEverything();
+        }
+#endif  // V8_ENABLE_WEBASSEMBLY
+        break;
 
       case Opcode::kCatchBlockBegin:
         ProcessCatchBlockBegin(op_idx);
@@ -253,8 +262,6 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kRetain:
       case Opcode::kDidntThrow:
       case Opcode::kCheckException:
-      case Opcode::kAtomicWord32Pair:
-      case Opcode::kMemoryBarrier:
 #ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
       case Opcode::kSwitchSandboxMode:
 #endif

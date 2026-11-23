@@ -133,9 +133,10 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
         break;
       case Opcode::kAtomicRMW:
       case Opcode::kAtomicWord32Pair:
+      case Opcode::kMemoryBarrier:
         // Despite this being unrelated to struct operations, we have to
-        // invalidate the state because linear-memory atomic operations could be
-        // used to sync among threads.
+        // invalidate the state because linear-memory atomic operations and
+        // memory barriers could be used to sync among threads.
         if (v8_flags.wasm_shared) {
           memory_.InvalidateMutableSharedBase();
         }
@@ -155,7 +156,6 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kRetain:
       case Opcode::kDidntThrow:
       case Opcode::kCheckException:
-      case Opcode::kMemoryBarrier:
       case Opcode::kJSStackCheck:
       case Opcode::kWasmStackCheck:
       case Opcode::kSimd128LaneMemory:

@@ -1227,6 +1227,79 @@ TEST_F(WasmLateLoadEliminationReducerTest, WasmInterveningAtomicLoad) {
   ASSERT_NE(load1, nullptr);
 }
 
+TEST_F(WasmLateLoadEliminationReducerTest, WasmInterveningMemoryBarrier) {
+  for (AtomicMemoryOrder order :
+       {AtomicMemoryOrder::kSeqCst, AtomicMemoryOrder::kAcqRel}) {
+    auto test = CreateFromGraph(
+        1,
+        [order](auto& Asm) {
+          auto MakeLoad = [&Asm]() -> V<Word32> {
+            return __ Load(Asm.GetParameter(0), {}, LoadOp::Kind::TaggedBase(),
+                           MemoryRepresentation::Int32(),
+                           RegisterRepresentation::Word32(), 4);
+          };
+
+          V<Word32> load0 = MakeLoad();
+
+          __ MemoryBarrier(order);
+
+          V<Word32> C(load1) = MakeLoad();
+
+          __ Return(__ Word32Constant(0), base::VectorOf({load0, load1}));
+        },
+        /* is_wasm */ true);
+
+    test.Run<LateLoadEliminationReducer>();
+
+    const LoadOp* load1 = test.GetCapturedAs<LoadOp>("load1");
+    // No load elimination across a memory barrier.
+    ASSERT_NE(load1, nullptr);
+  }
+}
+
+TEST_F(WasmLateLoadEliminationReducerTest, WasmInterveningAtomicWord32Pair) {
+  auto test_load = CreateFromGraph(
+      base::VectorOf({RegisterRepresentation::Tagged(),
+                      RegisterRepresentation::WordPtr()}),
+      [](auto& Asm) {
+        auto MakeLoad = [&Asm]() -> V<Word32> {
+          return __ Load(Asm.GetParameter(0), {}, LoadOp::Kind::TaggedBase(),
+                         MemoryRepresentation::Int32(),
+                         RegisterRepresentation::Word32(), 4);
+        };
+
+        V<Word32> load0 = MakeLoad();
+        __ AtomicWord32PairLoad(Asm.template GetParameter<WordPtr>(1), {}, 0);
+        V<Word32> C(load1) = MakeLoad();
+
+        __ Return(__ Word32Constant(0), base::VectorOf({load0, load1}));
+      },
+      /* is_wasm */ true);
+  test_load.Run<LateLoadEliminationReducer>();
+  ASSERT_NE(test_load.GetCapturedAs<LoadOp>("load1"), nullptr);
+
+  auto test_store = CreateFromGraph(
+      base::VectorOf({RegisterRepresentation::Tagged(),
+                      RegisterRepresentation::WordPtr()}),
+      [](auto& Asm) {
+        auto MakeLoad = [&Asm]() -> V<Word32> {
+          return __ Load(Asm.GetParameter(0), {}, LoadOp::Kind::TaggedBase(),
+                         MemoryRepresentation::Int32(),
+                         RegisterRepresentation::Word32(), 4);
+        };
+
+        V<Word32> load0 = MakeLoad();
+        __ AtomicWord32PairStore(Asm.template GetParameter<WordPtr>(1), {},
+                                 __ Word32Constant(1), __ Word32Constant(2), 0);
+        V<Word32> C(load1) = MakeLoad();
+
+        __ Return(__ Word32Constant(0), base::VectorOf({load0, load1}));
+      },
+      /* is_wasm */ true);
+  test_store.Run<LateLoadEliminationReducer>();
+  ASSERT_NE(test_store.GetCapturedAs<LoadOp>("load1"), nullptr);
+}
+
 class WasmLoadEliminationReducerTest : public ReducerTest {
  public:
   WasmLoadEliminationReducerTest()
@@ -1673,6 +1746,59 @@ TEST_F(WasmLoadEliminationReducerTest, WasmCatchBlockBeginPreservesStructGet) {
 
   test.Run<WasmLoadEliminationReducer>();
 
+  if (!LATE_LOAD_ELIM_VERIFY) {
+    ASSERT_TRUE(test.GetCapture("get1").IsEmpty());
+  }
+}
+
+TEST_F(WasmLoadEliminationReducerTest, WasmStructGetInterveningMemoryBarrier) {
+  for (AtomicMemoryOrder order :
+       {AtomicMemoryOrder::kSeqCst, AtomicMemoryOrder::kAcqRel}) {
+    wasm::StructType* struct_type = SetupModule(SharedFlag{true});
+    auto test = CreateFromGraph(
+        1,
+        [struct_type, order](auto& Asm) {
+          V<Any> get0 = MakeStructGet(Asm, struct_type);
+          __ MemoryBarrier(order);
+          V<Any> C(get1) = MakeStructGet(Asm, struct_type);
+
+          __ Return(__ Word32Constant(0), base::VectorOf({get0, get1}));
+        },
+        module_.get(),
+        wasm::FunctionSig::Build(
+            zone(), {wasm::kWasmI32, wasm::kWasmI32},
+            {wasm::ValueType::Ref({0}, SharedFlag{true},
+                                  wasm::RefTypeKind::kStruct)}));
+
+    test.Run<WasmLoadEliminationReducer>();
+
+    const StructGetOp* get1 = test.GetCapturedAs<StructGetOp>("get1");
+    // No load elimination for a shared struct across a memory barrier.
+    ASSERT_NE(get1, nullptr);
+  }
+}
+
+TEST_F(WasmLoadEliminationReducerTest,
+       WasmStructGetOnNonSharedStructInterveningMemoryBarrier) {
+  wasm::StructType* struct_type = SetupModule(SharedFlag{false});
+  auto test = CreateFromGraph(
+      1,
+      [struct_type](auto& Asm) {
+        V<Any> get0 = MakeStructGet(Asm, struct_type);
+        __ MemoryBarrier(AtomicMemoryOrder::kSeqCst);
+        V<Any> C(get1) = MakeStructGet(Asm, struct_type);
+
+        __ Return(__ Word32Constant(0), base::VectorOf({get0, get1}));
+      },
+      module_.get(),
+      wasm::FunctionSig::Build(
+          zone(), {wasm::kWasmI32, wasm::kWasmI32},
+          {wasm::ValueType::Ref({0}, SharedFlag{false},
+                                wasm::RefTypeKind::kStruct)}));
+
+  test.Run<WasmLoadEliminationReducer>();
+
+  // Non-shared struct loads can still be eliminated across a memory barrier.
   if (!LATE_LOAD_ELIM_VERIFY) {
     ASSERT_TRUE(test.GetCapture("get1").IsEmpty());
   }
