@@ -21,14 +21,16 @@ REDLINE_TUNABLE(kKnownKeysMaxClassDepth, "codegen.known_keys.max_class_depth",
 
 namespace {
 
-// The number of parameters before a rest parameter.
+// The number of parameters before a rest parameter, capped at
+// `Builder::kMaxRecordedParameters`.
 int Arity(const FunctionData* fn) {
   if (fn == nullptr) {
     return -1;
   }
   int n = 0;
   for (const Expression* param : fn->params) {
-    if (param->Is<RestElement>()) {
+    if (param->Is<RestElement>() ||
+        static_cast<size_t>(n) >= Builder::kMaxRecordedParameters) {
       break;
     }
     n++;

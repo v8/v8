@@ -1587,6 +1587,10 @@ fast::CallExpression* CodeGen::CallMethod(fast::Expression* object,
   return mk::Call(tree(), callee, std::move(args));
 }
 
+REDLINE_TUNABLE(kCallMaxTypedArguments, "codegen.call.max_typed_arguments", 16,
+                0, 64,
+                "most arguments a generated call passes from recorded "
+                "parameter types or method arity");
 REDLINE_TUNABLE(kMethodCallKnownMethodChance,
                 "codegen.method_call.known_method_chance", 0.5, 0, 1,
                 "probability that a method call on a variable with known "
@@ -1602,8 +1606,9 @@ fast::Expression* CodeGen::MethodCall(fast::Expression* object, JsType type) {
   // its parameters. Fuzzilli: MethodCallGenerator, CodeGenerators.swift:2262.
   if (r.Chance(kMethodCallKnownMethodChance())) {
     if (std::optional<KnownKey> method = RandomKnownKey(ctx_, object, true)) {
+      const int arity = std::min(method->arity, kCallMaxTypedArguments.AsInt());
       std::vector<fast::Expression*> args;
-      for (int i = 0; i < method->arity; i++) {
+      for (int i = 0; i < arity; i++) {
         args.push_back(Value(JsType::kUnknown, 1));
       }
       return mk::Call(tree(), Property(object, method->name), std::move(args));
@@ -2172,10 +2177,15 @@ REDLINE_TUNABLE(kCallTypedArgumentChance, "codegen.call.typed_argument_chance",
 
 std::vector<fast::Expression*> CodeGen::ArgumentsFor(
     const std::vector<JsType>& types) {
+  ExprDepthGuard guard(ctx_);
   Random& r = rng();
+  const size_t limit = std::min(
+      types.size(),
+      static_cast<size_t>(std::max(0, kCallMaxTypedArguments.AsInt())));
   std::vector<fast::Expression*> args;
-  args.reserve(types.size());
-  for (JsType type : types) {
+  args.reserve(limit);
+  for (size_t i = 0; i < limit; i++) {
+    JsType type = types[i];
     if (type != JsType::kUnknown && r.Chance(kCallTypedArgumentChance())) {
       // A visible variable of the type first: it gives the same value (and
       // the same map) to each call.

@@ -270,6 +270,10 @@ class Builder {
   // --- facts about variables
   // --------------------------------------------------
 
+  // Most parameters that `InfoOf()` records for one function or constructor.
+  // Derived method arity uses the same bound.
+  static constexpr size_t kMaxRecordedParameters = 16;
+
   // The facts about the variable `name`. A generator records here what it
   // knows about a variable that it declares. If nothing is recorded for
   // `name` yet, the facts derived from the tree come first (see InfoOf).

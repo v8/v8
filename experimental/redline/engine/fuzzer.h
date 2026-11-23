@@ -338,6 +338,9 @@ class ChainCommits {
 // coverage bits (atomics) and the counters.
 class Fuzzer {
  public:
+  // Most AST nodes that a prefix result or mutant can hold before printing.
+  static constexpr size_t kMaxMutantNodes = 100000;
+
   explicit Fuzzer(FuzzConfig config);
   ~Fuzzer();
   Fuzzer(const Fuzzer&) = delete;
@@ -582,6 +585,10 @@ class Fuzzer {
 
   std::vector<std::unique_ptr<Worker>> workers_;
 };
+
+// True if `tree` has more than `max_nodes` AST nodes.
+bool ExceedsMutantNodeLimit(const fast::Tree& tree,
+                            size_t max_nodes = Fuzzer::kMaxMutantNodes);
 
 }  // namespace redline
 

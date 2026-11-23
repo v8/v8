@@ -287,7 +287,7 @@ For each execution, Redline writes the script, sends a command and waits for a s
   A mutant gets the flags of its parents (`Program::flags`, at most 6). A worker prefers a seed that shares a flag with its process (`flags.seed_affinity_tries`).
   Redline saves `Program::flags` in the `// redline-flags:` comment of a corpus file (5.7). A program that Redline reads again from `DIR/corpus` gets these flags back.
   If a process with new random flags stops before its handshake, Redline starts it again without them. `D8FlagBlacklist` then blocks the flag that stopped it for the rest of the session. A pinned process keeps its flags.
-- After an infrastructure failure, Redline tries the execution again once with a fresh target. Ten such failures in a row stop the session.
+- After an infrastructure failure, Redline tries the execution again once with a fresh target. A script larger than the REPRL channel limit fails at once without a retry. Ten such failures in a row stop the session.
 - At the start, `redline fuzz` makes the target fail a CHECK and a DCHECK on purpose (`Fuzzer::CheckTargetCrashes`), like the startup tests of Fuzzilli.
   If the CHECK does not crash the target, the session does not start. If the DCHECK does not crash it, the session also does not start.
   With `--allow-no-dcheck`, Redline only writes a warning for the DCHECK.

@@ -1716,7 +1716,10 @@ void DeriveParameters(Builder& builder, const Binding* binding,
     if (args == nullptr) {
       continue;
     }
-    for (size_t i = 0; i < params->size(); i++) {
+    const size_t limit =
+        std::min(params->size(), Builder::kMaxRecordedParameters);
+    info->parameters.reserve(limit);
+    for (size_t i = 0; i < limit; i++) {
       JsType type = JsType::kUnknown;
       if (i < args->size() && !(*args)[i]->Is<SpreadElement>()) {
         const Expression* arg = (*args)[i];

@@ -144,6 +144,11 @@ bool FiltersCrashProbes(const std::vector<std::string>& args) {
   });
 }
 
+bool ExceedsMutantNodeLimit(const fast::Tree& tree, size_t max_nodes) {
+  return tree.root() != nullptr &&
+         fast::CountNodesUpTo(tree.root(), max_nodes) > max_nodes;
+}
+
 uint64_t MinimizerProbeTimeout(const FuzzConfig& config,
                                uint64_t exec_time_us) {
   auto probe = static_cast<uint64_t>(config.probe_timeout_factor *
@@ -522,6 +527,11 @@ class Worker {
     script.reserve(prelude.size() + 1 + source.size());
     script.append(prelude).append("\n").append(source);
     return script;
+  }
+
+  size_t ScriptSize(const std::string& source) const {
+    const std::string& prelude = config().prelude;
+    return prelude.empty() ? source.size() : prelude.size() + 1 + source.size();
   }
 
   // Runs `source` behind the prelude without touching per-runner coverage
@@ -1190,13 +1200,34 @@ class Worker {
         StageStats& st = stage(Stage::kPrefix);
         st.invocations++;
         st.time_us += prefix_time.ElapsedUs();
+        bool applied = false;
+        if (prefixed != nullptr && ExceedsMutantNodeLimit(*prefixed)) {
+          REDLINE_WARN(kLog,
+                       "worker %d: dropped oversized prefix for program #%u "
+                       "(> %zu nodes): %s",
+                       id_, ancestor->id, Fuzzer::kMaxMutantNodes,
+                       detail.c_str());
+          prefixed.reset();
+        }
         if (prefixed != nullptr) {
-          st.successes++;
-          std::shared_ptr<Program> with_prefix =
-              Program::FromTree(std::move(prefixed), parent->lineage());
-          with_prefix->flags = parent->flags;
-          parent = std::move(with_prefix);
-        } else {
+          std::string source = fast::Print(prefixed->root());
+          const size_t script_size = ScriptSize(source);
+          if (script_size > ReprlChild::kMaxDataSize) {
+            REDLINE_WARN(kLog,
+                         "worker %d: dropped oversized prefix for program #%u "
+                         "(%zu bytes): %s",
+                         id_, ancestor->id, script_size, detail.c_str());
+            prefixed.reset();
+          } else {
+            applied = true;
+            st.successes++;
+            std::shared_ptr<Program> with_prefix = Program::FromTree(
+                std::move(prefixed), parent->lineage(), std::move(source));
+            with_prefix->flags = parent->flags;
+            parent = std::move(with_prefix);
+          }
+        }
+        if (!applied) {
           Capture(Stage::kPrefix, CaptureTrigger::kNoop, "Prefix", parent.get(),
                   "", JsonObject());
         }
@@ -1205,7 +1236,7 @@ class Worker {
           event.Add("event", "prefix")
               .Add("worker", id_)
               .Add("program", ancestor->id);
-          event.Add("applied", prefixed != nullptr).Add("detail", detail);
+          event.Add("applied", applied).Add("detail", detail);
           fuzzer_->LogEvent(event);
         }
       }
@@ -1349,7 +1380,31 @@ class Worker {
           continue;
         }
       }
+      size_t nodes =
+          fast::CountNodesUpTo(tree->root(), Fuzzer::kMaxMutantNodes);
+      if (nodes > Fuzzer::kMaxMutantNodes) {
+        REDLINE_WARN(kLog,
+                     "worker %d: dropped oversized mutant from %s "
+                     "(> %zu nodes): %s",
+                     id_, mutator->name().c_str(), Fuzzer::kMaxMutantNodes,
+                     detail.c_str());
+        stats().noop++;
+        mutate_stage.time_us += stage_time.ElapsedUs();
+        LogMutant(*mutator, detail, ancestor->id, "oversized", nullptr, 0);
+        continue;
+      }
       std::string source = fast::Print(tree->root());
+      const size_t script_size = ScriptSize(source);
+      if (script_size > ReprlChild::kMaxDataSize) {
+        REDLINE_WARN(kLog,
+                     "worker %d: dropped oversized mutant from %s "
+                     "(%zu bytes): %s",
+                     id_, mutator->name().c_str(), script_size, detail.c_str());
+        stats().noop++;
+        mutate_stage.time_us += stage_time.ElapsedUs();
+        LogMutant(*mutator, detail, ancestor->id, "oversized", nullptr, 0);
+        continue;
+      }
       std::string message;
       if (config().syntax_check && !checker_->Accepts(source, &message)) {
         CountInvalid(*mutator, detail, ancestor->id, parent.get(), source,
@@ -1394,8 +1449,9 @@ class Worker {
             std::string salvaged_source = fast::Print(salvaged_tree->root());
             std::string salvaged_error;
             const bool syntax_ok =
-                !config().syntax_check ||
-                checker_->Accepts(salvaged_source, &salvaged_error);
+                ScriptSize(salvaged_source) <= ReprlChild::kMaxDataSize &&
+                (!config().syntax_check ||
+                 checker_->Accepts(salvaged_source, &salvaged_error));
             if (syntax_ok) {
               stats().salvage_attempted++;
               Execution salvaged_exec;
@@ -1417,6 +1473,7 @@ class Worker {
                   tree = std::move(salvaged_tree);
                   source = std::move(salvaged_source);
                   execution = std::move(salvaged_exec);
+                  nodes = fast::CountNodes(tree->root());
                   detail += " [salvaged]";
                 }
               }
@@ -1430,7 +1487,7 @@ class Worker {
       }
       AccountFuzzExecution(execution);
       ReportToSelector(*mutator, execution);
-      stats().fuzz_nodes += fast::CountNodes(tree->root());
+      stats().fuzz_nodes += nodes;
       mutate_stage.time_us += stage_time.ElapsedUs();
       if (execution.outcome == Outcome::kTimedOut) {
         mutate_stage.timeouts++;
@@ -1630,9 +1687,23 @@ class Worker {
     if (probes.empty()) {
       return false;
     }
+    if (ExceedsMutantNodeLimit(*tree)) {
+      REDLINE_WARN(kLog,
+                   "worker %d: dropped oversized runtime-assisted tree "
+                   "(> %zu nodes)",
+                   id_, Fuzzer::kMaxMutantNodes);
+      return false;
+    }
     auto& mutator = static_cast<RuntimeAssistedMutator&>(base);
     std::string instrumented =
         std::string(mutator.runtime()) + fast::Print(tree->root());
+    if (ScriptSize(instrumented) > ReprlChild::kMaxDataSize) {
+      REDLINE_WARN(kLog,
+                   "worker %d: dropped oversized runtime-assisted script "
+                   "(%zu bytes)",
+                   id_, ScriptSize(instrumented));
+      return false;
+    }
     std::string message;
     if (config().syntax_check && !checker_->Accepts(instrumented, &message)) {
       mutator.stats().invalid++;

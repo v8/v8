@@ -42,6 +42,10 @@ class DataChannel;
 // Instances are not thread-safe: use one per worker thread.
 class ReprlChild {
  public:
+  // Maximum size of one data channel, script or captured output.
+  // Matches `REPRL_MAX_DATA_SIZE` in Fuzzilli.
+  static constexpr size_t kMaxDataSize = size_t{16} << 20;
+
   struct Options {
     std::string executable;
     std::vector<std::string> args;  // without argv[0]

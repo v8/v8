@@ -32,9 +32,8 @@ constexpr int kChildCtrlOut = 101;
 constexpr int kChildDataIn = 102;
 constexpr int kChildDataOut = 103;
 
-// Maximum size of a data channel (and thus of a script / of captured
-// output). Same value as Fuzzilli's REPRL_MAX_DATA_SIZE.
-constexpr size_t kMaxDataSize = size_t{16} << 20;
+// Maximum size of a data channel, script or captured output.
+constexpr size_t kMaxDataSize = ReprlChild::kMaxDataSize;
 
 // poll(2) takes an int number of milliseconds.
 constexpr uint64_t kMaxTimeoutUs = uint64_t{INT32_MAX} * 1000;

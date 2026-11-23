@@ -5571,6 +5571,127 @@ foo(obj);
   TunableRegistry::Instance().Reset();
 }
 
+void CheckBoundedCallArguments(Checker* checker) {
+  std::string params;
+  for (int i = 0; i < 512; i++) {
+    if (i > 0) {
+      params += ", ";
+    }
+    params += "p" + std::to_string(i);
+  }
+  const std::string source = "function foo(" + params +
+                             ") {}\n"
+                             "foo();\n"
+                             "foo();\n"
+                             "class C { m(" +
+                             params +
+                             ") {} }\n"
+                             "let c = new C();\n";
+  ProgramPtr program = ParseOrDie(source, "selftest");
+
+  // 1. `Builder::InfoOf` caps derived function parameters and method arity.
+  {
+    std::unique_ptr<fast::Tree> tree = program->CopyTree();
+    Random rng(1);
+    Builder builder(tree.get(), &rng);
+    const BindingInfo* fn_info = builder.InfoOf("foo");
+    const BindingInfo* obj_info = builder.InfoOf("c");
+    int method_arity = -1;
+    if (obj_info != nullptr) {
+      for (const KnownKey& key : obj_info->keys) {
+        if (key.name == "m") {
+          method_arity = key.arity;
+          break;
+        }
+      }
+    }
+    checker->Check(
+        "codegen: Builder::InfoOf caps derived parameters and method arity",
+        fn_info != nullptr &&
+            fn_info->parameters.size() == Builder::kMaxRecordedParameters &&
+            method_arity == static_cast<int>(Builder::kMaxRecordedParameters),
+        StringPrintf("fn=%zu method=%d cap=%zu",
+                     fn_info != nullptr ? fn_info->parameters.size() : 0,
+                     method_arity, Builder::kMaxRecordedParameters));
+  }
+
+  // 2. `CodeGen::ArgumentsFor` caps explicit parameter vectors and obeys its
+  // tunable.
+  {
+    TunableRegistry& registry = TunableRegistry::Instance();
+    registry.Reset();
+    std::unique_ptr<fast::Tree> tree = program->CopyTree();
+    Random rng(7);
+    Builder builder(tree.get(), &rng);
+    std::unique_ptr<GeneratorSet> generators = GeneratorSet::CreateDefault();
+    Builder::Slot slot{&builder.root()->body, builder.root()->body.size(),
+                       builder.root()};
+    GenContext ctx =
+        MakeGenContext(builder, slot, *generators, Environment::Default());
+    CodeGen cg(ctx);
+    std::vector<JsType> huge(512, JsType::kNumber);
+    const size_t default_count = cg.ArgumentsFor(huge).size();
+    std::string err;
+    const bool set_ok =
+        registry.Set("codegen.call.max_typed_arguments", 5, &err);
+    const size_t tuned_count = cg.ArgumentsFor(huge).size();
+    registry.Reset();
+    checker->Check(
+        "codegen: ArgumentsFor caps huge parameter lists and obeys its tunable",
+        set_ok && default_count == Builder::kMaxRecordedParameters &&
+            tuned_count == 5,
+        StringPrintf("default=%zu tuned=%zu err=%s", default_count, tuned_count,
+                     err.c_str()));
+  }
+
+  // 3. `Prefix` on a 512-parameter function stays bounded across 50 seeds.
+  {
+    std::unique_ptr<MutatorSet> mutators = MutatorSet::CreateDefault();
+    std::unique_ptr<GeneratorSet> generators = GeneratorSet::CreateDefault();
+    Mutator* prefix = mutators->Find("Prefix");
+    size_t max_nodes = 0;
+    size_t max_bytes = 0;
+    bool all_ok = prefix != nullptr;
+    for (uint64_t seed = 1; seed <= 50 && all_ok; seed++) {
+      Random rng(seed);
+      std::string detail;
+      std::unique_ptr<fast::Tree> mutated = ApplyMutation(
+          *prefix, *program, nullptr, rng, Environment::Default(), *generators,
+          /*rounds=*/1, &detail);
+      if (mutated == nullptr) {
+        continue;
+      }
+      const size_t nodes = fast::CountNodes(mutated->root());
+      const size_t bytes = fast::Print(mutated->root()).size();
+      max_nodes = std::max(max_nodes, nodes);
+      max_bytes = std::max(max_bytes, bytes);
+      if (nodes > 4000 || bytes > 65536) {
+        all_ok = false;
+      }
+    }
+    checker->Check(
+        "codegen: Prefix stays bounded on a 512-parameter function", all_ok,
+        StringPrintf("max %zu nodes, %zu bytes", max_nodes, max_bytes));
+  }
+
+  // 4. `CountNodesUpTo` and `ExceedsMutantNodeLimit` detect oversized trees.
+  {
+    const size_t exact = program->node_count();
+    const size_t exact_up_to =
+        fast::CountNodesUpTo(program->tree().root(), exact);
+    const size_t capped_up_to =
+        fast::CountNodesUpTo(program->tree().root(), 10);
+    const bool at_limit = ExceedsMutantNodeLimit(program->tree(), exact);
+    const bool below_limit = ExceedsMutantNodeLimit(program->tree(), exact - 1);
+    checker->Check(
+        "engine: CountNodesUpTo and ExceedsMutantNodeLimit bound tree size",
+        exact > 500 && exact_up_to == exact && capped_up_to == 11 &&
+            !at_limit && below_limit,
+        StringPrintf("exact=%zu up_to=%zu capped=%zu", exact, exact_up_to,
+                     capped_up_to));
+  }
+}
+
 }  // namespace
 
 void RunSelectionChecks(Checker* checker, const std::string& testdata_dir,
@@ -5640,6 +5761,7 @@ void RunSelectionChecks(Checker* checker, const std::string& testdata_dir,
   CheckEnvTyper(checker);
   CheckWasmModule(checker);
   CheckEs2025Closures(checker);
+  CheckBoundedCallArguments(checker);
 }
 
 void RunNodeKindChecks(Checker* checker) {

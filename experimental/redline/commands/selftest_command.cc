@@ -4548,6 +4548,28 @@ void RunTestFlagChecks(Checker* checker) {
   checker->Check(
       "test flags: a pinned target keeps its random flags after a failed start",
       pinned_ok, StringPrintf("%zu spawn results", results.size()));
+
+  // A script above `ReprlChild::kMaxDataSize` fails before spawning a child.
+  {
+    ReprlChild::Options oversized_opt;
+    oversized_opt.executable = "/bin/sh";
+    oversized_opt.args = {"-c", "exit 99"};
+    oversized_opt.capture_stdout = false;
+    oversized_opt.capture_stderr = false;
+    std::string oversized_err;
+    std::unique_ptr<ReprlChild> oversized_child =
+        ReprlChild::Create(std::move(oversized_opt), &oversized_err);
+    Execution oversized_exec;
+    std::string huge_script(ReprlChild::kMaxDataSize + 1, ' ');
+    const bool rejected =
+        oversized_child != nullptr &&
+        !oversized_child->Execute(huge_script, 1000 * 1000, &oversized_exec,
+                                  &oversized_err) &&
+        oversized_err.find("Script too large") != std::string::npos &&
+        oversized_child->total_spawns() == 0;
+    checker->Check("reprl: oversized script fails without spawning a child",
+                   rejected, oversized_err);
+  }
 }
 
 // Tests the compact donor window, the limits of Fuse and Combine and the
@@ -5539,6 +5561,29 @@ int RunSelftest(const Flags& flags) {
         result.execution.stdout_output.find("hello") == std::string::npos &&
             result.execution.fuzzout.empty(),
         "stdout=\"" + result.execution.stdout_output + "\"");
+  }
+
+  // Oversized script fails at once without killing or respawning the target.
+  {
+    const pid_t pid_before = runner->child().pid();
+    const uint64_t spawns_before = runner->child().total_spawns();
+    const uint64_t failures_before = runner->stats().infrastructure_failures;
+    std::string huge_script(ReprlChild::kMaxDataSize + 1, ' ');
+    Execution oversized_exec;
+    std::string oversized_err;
+    const bool rejected = !runner->RunWithoutEvaluation(
+        huge_script, target.timeout_us, &oversized_exec, &oversized_err);
+    const bool healthy =
+        runner->Run("1 + 1", &result, &error) && result.execution.succeeded();
+    checker.Check(
+        "runner: oversized script fails without killing or respawning target",
+        rejected &&
+            oversized_err.find("Script too large") != std::string::npos &&
+            runner->child().pid() == pid_before &&
+            runner->child().total_spawns() == spawns_before &&
+            runner->stats().infrastructure_failures == failures_before + 1 &&
+            healthy,
+        oversized_err);
   }
 
   // Timeouts.

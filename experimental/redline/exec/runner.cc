@@ -101,6 +101,14 @@ void ScriptRunner::Account(const Execution& execution) {
 bool ScriptRunner::ExecuteWithRetry(std::string_view script,
                                     uint64_t timeout_us, Execution* execution,
                                     std::string* error) {
+  if (script.size() > ReprlChild::kMaxDataSize) {
+    // A script above the channel limit fails on every target. Keep the current
+    // target alive and return at once without a retry.
+    *execution = Execution();
+    *error = StringPrintf("Script too large (%zu bytes)", script.size());
+    stats_.infrastructure_failures++;
+    return false;
+  }
   const uint64_t spawns_before = child_->total_spawns();
   if (child_->Execute(script, timeout_us, execution, error)) {
     // A new process (after a crash, a timeout or a respawn) publishes its
