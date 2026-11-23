@@ -128,7 +128,9 @@ class AstFunctionLiteralIdReindexChecker final
 
 void AstFunctionLiteralIdReindexer::CheckVisited(Expression* expr) {
   DCHECK(!HasStackOverflow());
-  AstFunctionLiteralIdReindexChecker(stack_limit(), &visited_).Visit(expr);
+  AstFunctionLiteralIdReindexChecker checker(stack_limit(), &visited_);
+  checker.Visit(expr);
+  checker.ClearStackOverflow();
 }
 #endif
 
