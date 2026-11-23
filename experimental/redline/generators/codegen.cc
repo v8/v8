@@ -64,6 +64,7 @@ GenContext GenContext::Nested(bool is_function, bool is_arrow, bool is_async,
   nested.depth = depth + 1;
   nested.max_depth = max_depth;
   nested.expr_depth = expr_depth;
+  nested.natives = natives;
   nested.out = nullptr;
   if (is_function) {
     nested.syntax.in_function = true;
@@ -96,6 +97,7 @@ GenContext GenContext::Inner(bool in_loop, bool in_switch) const {
   inner.depth = depth + 1;
   inner.max_depth = max_depth;
   inner.expr_depth = expr_depth;
+  inner.natives = natives;
   inner.out = nullptr;
   inner.cannot_throw = cannot_throw;  // the inner block runs here too
   if (in_loop) {

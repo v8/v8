@@ -156,154 +156,388 @@ GenContext ClassMethodContext(const GenContext& ctx) {
 // --- value declarations
 // ---------------------------------------------------------
 
-GEN(WasmModule) {
-  WasmModule m = RandomWasmModule(ctx.rng());
+REDLINE_TUNABLE(kWasmThrowingImportProb,
+                "generators.WasmModule.throwing_import_probability", 0.35, 0, 1,
+                "probability that a Wasm JS import throws on a countdown");
+REDLINE_TUNABLE(kWasmTierUpProb, "generators.WasmModule.tier_up_probability",
+                0.9, 0, 1,
+                "probability of calling `%WasmTierUpFunction` on an export");
+REDLINE_TUNABLE(kWasmJsInlineProb,
+                "generators.WasmModule.js_inline_probability", 0.75, 0, 1,
+                "probability of emitting an optimized JS-to-Wasm wrapper");
 
-  // Create Uint8Array with the bytes
+Expression* WasmJsArg(GenContext& ctx, WasmType type) {
+  Tree* t = T(ctx);
+  Random& r = ctx.rng();
+  if (type == WasmType::kI64) {
+    if (r.Chance(0.3)) {
+      static constexpr const char* kPos[] = {
+          "0", "1", "42", "2147483647", "4294967296", "9007199254740992"};
+      static constexpr const char* kNeg[] = {"1", "42", "2147483648",
+                                             "9007199254740992"};
+      if (r.Coin()) {
+        return mk::BigInt(t, kPos[r.Index(6)]);
+      }
+      return mk::Unary(t, UnaryOp::kMinus, mk::BigInt(t, kNeg[r.Index(4)]));
+    }
+    const int64_t val = r.Range(-100, 100);
+    if (val < 0) {
+      return mk::Unary(t, UnaryOp::kMinus, mk::BigInt(t, std::to_string(-val)));
+    }
+    return mk::BigInt(t, std::to_string(val));
+  }
+  if (type == WasmType::kI32) {
+    if (r.Chance(0.3)) {
+      static constexpr double kEdges[] = {0,  1,     -1,         7,
+                                          16, 65535, 2147483647, -2147483648.0};
+      return mk::Num(t, kEdges[r.Index(8)]);
+    }
+    return mk::Num(t, static_cast<double>(r.Range(-100, 100)));
+  }
+  if (r.Chance(0.25)) {
+    const size_t k = r.Index(5);
+    if (k == 0) {
+      return mk::Id(t, "NaN");
+    }
+    if (k == 1) {
+      return mk::Id(t, "Infinity");
+    }
+    if (k == 2) {
+      return mk::Unary(t, UnaryOp::kMinus, mk::Id(t, "Infinity"));
+    }
+    if (k == 3) {
+      return mk::Unary(t, UnaryOp::kMinus, mk::Num(t, 0));
+    }
+    return mk::Num(t, 1.5);
+  }
+  return mk::Num(t, r.Double() * 100.0);
+}
+
+Statement* GuardedStmt(GenContext& ctx, std::vector<Statement*> body) {
+  return mk::Try(T(ctx), std::move(body), ctx.builder.FreshName("e"), {});
+}
+
+Statement* GuardedCall(GenContext& ctx, std::string_view func_name,
+                       std::vector<Expression*> args) {
+  Tree* t = T(ctx);
+  Expression* call = mk::Call(t, mk::Id(t, func_name), std::move(args));
+  return GuardedStmt(ctx, {mk::ExprStmt(t, call)});
+}
+
+Expression* BuildWasmImportFn(GenContext& ctx, const WasmSignature& sig,
+                              std::string_view state_name) {
+  Tree* t = T(ctx);
+  Random& r = ctx.rng();
+  std::vector<std::string_view> params;
+  params.reserve(sig.params.size());
+  for (size_t p = 0; p < sig.params.size(); ++p) {
+    params.push_back(ctx.builder.FreshName("p"));
+  }
+  std::vector<Statement*> body;
+  // Mutate shared JS state so the callback has visible side effects.
+  Expression* inc = mk::Binary(
+      t, BinaryOp::kBitOr,
+      mk::Binary(t, BinaryOp::kAdd, mk::Id(t, state_name), mk::Num(t, 1)),
+      mk::Num(t, 0));
+  body.push_back(mk::ExprStmt(t, mk::Assign(t, mk::Id(t, state_name), inc)));
+
+  // Throw on one countdown hit so Wasm-to-JS-to-JS unwinding executes.
+  if (r.Chance(kWasmThrowingImportProb())) {
+    const double limit = static_cast<double>(2 + r.Index(4));
+    Expression* cond = mk::Binary(t, BinaryOp::kStrictEq, mk::Id(t, state_name),
+                                  mk::Num(t, limit));
+    Expression* err = mk::New(t, mk::Id(t, "Error"), {mk::Str(t, "wasm")});
+    body.push_back(mk::If(t, cond, mk::Block(t, {mk::Throw(t, err)})));
+  }
+
+  if (!sig.results.empty()) {
+    const WasmType res = sig.results[0];
+    Expression* ret_val = nullptr;
+    if (res == WasmType::kI64) {
+      Expression* state_bi =
+          mk::Call(t, mk::Id(t, "BigInt"), {mk::Id(t, state_name)});
+      for (size_t p = 0; p < sig.params.size(); ++p) {
+        if (sig.params[p] == WasmType::kI64) {
+          ret_val =
+              mk::Binary(t, BinaryOp::kAdd, mk::Id(t, params[p]), state_bi);
+          break;
+        }
+      }
+      if (ret_val == nullptr) {
+        ret_val = state_bi;
+      }
+    } else {
+      for (size_t p = 0; p < sig.params.size(); ++p) {
+        if (sig.params[p] != WasmType::kI64) {
+          Expression* base =
+              res == WasmType::kI32
+                  ? static_cast<Expression*>(mk::Binary(t, BinaryOp::kBitOr,
+                                                        mk::Id(t, params[p]),
+                                                        mk::Num(t, 0)))
+                  : static_cast<Expression*>(mk::Id(t, params[p]));
+          ret_val = mk::Binary(t, BinaryOp::kAdd, base, mk::Id(t, state_name));
+          break;
+        }
+      }
+      if (ret_val == nullptr) {
+        ret_val = res == WasmType::kI32
+                      ? static_cast<Expression*>(mk::Id(t, state_name))
+                      : static_cast<Expression*>(
+                            mk::Binary(t, BinaryOp::kAdd, mk::Id(t, state_name),
+                                       mk::Num(t, 0.5)));
+      }
+    }
+    body.push_back(mk::Return(t, ret_val));
+  }
+  return mk::Arrow(t, std::move(params), std::move(body));
+}
+
+GEN(WasmModule) {
+  Tree* t = T(ctx);
+  Random& r = ctx.rng();
+  WasmModule m = RandomWasmModule(r);
+
+  // Build `Uint8Array` with the WebAssembly module bytes.
   std::vector<Expression*> byte_exprs;
   byte_exprs.reserve(m.bytes.size());
   for (uint8_t b : m.bytes) {
-    byte_exprs.push_back(mk::Num(T(ctx), b));
+    byte_exprs.push_back(mk::Num(t, b));
   }
-  Expression* arr = mk::Array(T(ctx), byte_exprs);
-  Expression* typed_arr = mk::New(T(ctx), mk::Id(T(ctx), "Uint8Array"), {arr});
+  Expression* arr = mk::Array(t, std::move(byte_exprs));
+  Expression* typed_arr = mk::New(t, mk::Id(t, "Uint8Array"), {arr});
 
   std::string_view bytes_name = ctx.builder.FreshName("bytes");
-  Statement* bytes_decl = mk::Const(T(ctx), bytes_name, typed_arr);
-  Push(out, bytes_decl);
+  Push(out, mk::Const(t, bytes_name, typed_arr));
   ctx.Declare(bytes_name, JsType::kObject, true);
 
-  // Create import object {m: {f0: ..., f1: ...}}
+  // Build clean JS import functions with optional stateful throws.
   std::vector<Node*> m_props;
-  for (size_t i = 0; i < m.imports.size(); i++) {
-    Expression* func_expr = cg.Callable();
-    if (!func_expr) {
-      func_expr = mk::ArrowExpr(T(ctx), {}, mk::Num(T(ctx), 0));
+  if (!m.imports.empty()) {
+    std::string_view state_name = ctx.builder.FreshName("ws");
+    Push(out, mk::Let(t, state_name, mk::Num(t, 0)));
+    ctx.Declare(state_name, JsType::kNumber, false);
+    for (size_t i = 0; i < m.imports.size(); ++i) {
+      Expression* fn = BuildWasmImportFn(ctx, m.imports[i], state_name);
+      m_props.push_back(mk::Prop(t, "f" + std::to_string(i), fn));
     }
-    std::string fname = "f" + std::to_string(i);
-    m_props.push_back(mk::Prop(T(ctx), fname, func_expr));
   }
-  Expression* m_obj = mk::Object(T(ctx), m_props);
-  Expression* import_obj = mk::Object(T(ctx), {mk::Prop(T(ctx), "m", m_obj)});
+  Expression* m_obj = mk::Object(t, std::move(m_props));
+  Expression* import_obj = mk::Object(t, {mk::Prop(t, "m", m_obj)});
 
-  // new WebAssembly.Module(bytes)
-  Expression* module_expr = mk::New(
-      T(ctx), mk::Member(T(ctx), mk::Id(T(ctx), "WebAssembly"), "Module"),
-      {mk::Id(T(ctx), bytes_name)});
-
-  std::string_view module_name = ctx.builder.FreshName("module");
-  Statement* module_decl = mk::Const(T(ctx), module_name, module_expr);
-  Push(out, module_decl);
-  ctx.Declare(module_name, JsType::kObject, true);
-
-  // new WebAssembly.Instance(module, import_obj)
-  Expression* instance_expr = mk::New(
-      T(ctx), mk::Member(T(ctx), mk::Id(T(ctx), "WebAssembly"), "Instance"),
-      {mk::Id(T(ctx), module_name), import_obj});
-  std::string_view instance_name = ctx.builder.FreshName("instance");
-  Statement* instance_decl = mk::Const(T(ctx), instance_name, instance_expr);
-  Push(out, instance_decl);
-  ctx.Declare(instance_name, JsType::kObject, true);
-
-  // exports = instance.exports
-  Expression* exports_expr =
-      mk::Member(T(ctx), mk::Id(T(ctx), instance_name), "exports");
+  // Guard module compilation and instantiation cleanly.
   std::string_view exports_name = ctx.builder.FreshName("exports");
-  Statement* exports_decl = mk::Const(T(ctx), exports_name, exports_expr);
-  Push(out, exports_decl);
-  ctx.Declare(exports_name, JsType::kObject, true);
+  Push(out, mk::Let(t, exports_name, mk::Object(t, {})));
+  ctx.Declare(exports_name, JsType::kObject, false);
+  {
+    std::string_view module_name = ctx.builder.FreshName("module");
+    std::string_view instance_name = ctx.builder.FreshName("instance");
+    Expression* module_expr =
+        mk::New(t, mk::Member(t, mk::Id(t, "WebAssembly"), "Module"),
+                {mk::Id(t, bytes_name)});
+    Expression* instance_expr =
+        mk::New(t, mk::Member(t, mk::Id(t, "WebAssembly"), "Instance"),
+                {mk::Id(t, module_name), import_obj});
+    Expression* assign_exports =
+        mk::Assign(t, mk::Id(t, exports_name),
+                   mk::Member(t, mk::Id(t, instance_name), "exports"));
+    Push(out, GuardedStmt(ctx, {mk::Const(t, module_name, module_expr),
+                                mk::Const(t, instance_name, instance_expr),
+                                mk::ExprStmt(t, assign_exports)}));
+  }
 
-  // exported functions
-  for (size_t i = 0; i < m.functions.size(); i++) {
+  // Bind exported functions, warm them up, tier them up, and invoke again.
+  std::vector<std::string_view> func_names;
+  func_names.reserve(m.functions.size());
+  for (size_t i = 0; i < m.functions.size(); ++i) {
+    const WasmSignature& sig = m.functions[i];
     std::string ename = "e" + std::to_string(i);
-    Expression* func_load =
-        mk::Member(T(ctx), mk::Id(T(ctx), exports_name), ename);
+    Expression* func_load = mk::Member(t, mk::Id(t, exports_name), ename);
     std::string_view func_name = ctx.builder.FreshName("f");
-    Statement* func_decl = mk::Const(T(ctx), func_name, func_load);
-    Push(out, func_decl);
+    Push(out, mk::Const(t, func_name, func_load));
     ctx.Declare(func_name, JsType::kFunction, true);
+    func_names.push_back(func_name);
 
-    // Call it 1-3 times
-    int calls = 1 + static_cast<int>(ctx.rng().Index(3));
-    for (int c = 0; c < calls; ++c) {
+    BindingInfo& info = ctx.builder.RecordInfo(func_name);
+    info.parameters.clear();
+    for (WasmType p : sig.params) {
+      info.parameters.push_back(p == WasmType::kI64 ? JsType::kBigInt
+                                                    : JsType::kNumber);
+    }
+
+    auto make_args = [&](int override_slot) {
       std::vector<Expression*> args;
-      for (auto t : m.functions[i].params) {
-        if (t == WasmType::kI64) {
-          args.push_back(
-              mk::BigInt(T(ctx), std::to_string(ctx.rng().Range(0, 100))));
+      args.reserve(sig.params.size());
+      for (size_t p = 0; p < sig.params.size(); ++p) {
+        if (p == 0 && override_slot >= 0 && sig.params[p] == WasmType::kI32) {
+          args.push_back(mk::Num(t, static_cast<double>(override_slot)));
         } else {
-          args.push_back(mk::Num(T(ctx), ctx.rng().Double() * 100));
+          args.push_back(WasmJsArg(ctx, sig.params[p]));
         }
       }
-      Expression* call_expr = mk::Call(T(ctx), mk::Id(T(ctx), func_name), args);
-      Push(out, cg.Stmt(call_expr));
+      return args;
+    };
+
+    const bool is_deopt_caller = static_cast<int>(i) == m.indirect_caller &&
+                                 m.table_callees >= 2 && !sig.params.empty() &&
+                                 sig.params[0] == WasmType::kI32;
+
+    if (is_deopt_caller) {
+      // Warm up slot 0, force tier-up, then call other table slots to trigger
+      // speculative `call_indirect` deoptimization.
+      Push(out, GuardedCall(ctx, func_name, make_args(0)));
+      if (ctx.natives && r.Chance(kWasmTierUpProb())) {
+        Push(out, cg.Stmt(mk::Native(t, "WasmTierUpFunction",
+                                     {mk::Id(t, func_name)})));
+      }
+      for (uint32_t slot = 1; slot < m.table_callees; ++slot) {
+        Push(out,
+             GuardedCall(ctx, func_name, make_args(static_cast<int>(slot))));
+        if (ctx.natives && slot == 1 && m.table_callees >= 3 && r.Coin()) {
+          Push(out, cg.Stmt(mk::Native(t, "WasmTierUpFunction",
+                                       {mk::Id(t, func_name)})));
+        }
+      }
+    } else {
+      const int warmup = 1 + static_cast<int>(r.Index(2));
+      for (int c = 0; c < warmup; ++c) {
+        Push(out, GuardedCall(ctx, func_name, make_args(-1)));
+      }
+      if (ctx.natives && r.Chance(kWasmTierUpProb())) {
+        Push(out, cg.Stmt(mk::Native(t, "WasmTierUpFunction",
+                                     {mk::Id(t, func_name)})));
+        const int after = 1 + static_cast<int>(r.Index(2));
+        for (int c = 0; c < after; ++c) {
+          Push(out, GuardedCall(ctx, func_name, make_args(-1)));
+        }
+      }
+    }
+  }
+
+  // Emit a small JS wrapper calling one Wasm export in a short loop so
+  // TurboFan and Turboshaft exercise JS-to-Wasm inlining.
+  if (!func_names.empty() && r.Chance(kWasmJsInlineProb())) {
+    const size_t target_idx = r.Index(func_names.size());
+    const std::string_view target_fn = func_names[target_idx];
+    const WasmSignature& sig = m.functions[target_idx];
+    std::string_view wrap_name = ctx.builder.FreshName("w");
+    std::string_view arg_name = ctx.builder.FreshName("x");
+    std::string_view acc_name = ctx.builder.FreshName("acc");
+    std::string_view iter_name = ctx.builder.FreshName("i");
+
+    std::vector<Expression*> inner_args;
+    inner_args.reserve(sig.params.size());
+    bool uses_num_param = false;
+    for (size_t p = 0; p < sig.params.size(); ++p) {
+      if (sig.params[p] == WasmType::kI64) {
+        inner_args.push_back(
+            mk::Call(t, mk::Id(t, "BigInt"), {mk::Id(t, iter_name)}));
+      } else if (!uses_num_param) {
+        inner_args.push_back(mk::Id(t, arg_name));
+        uses_num_param = true;
+      } else {
+        inner_args.push_back(mk::Id(t, iter_name));
+      }
+    }
+    Expression* inner_call =
+        mk::Call(t, mk::Id(t, target_fn), std::move(inner_args));
+    Statement* assign_acc =
+        mk::ExprStmt(t, mk::Assign(t, mk::Id(t, acc_name), inner_call));
+    Statement* loop_step =
+        r.Coin() ? GuardedStmt(ctx, {assign_acc}) : assign_acc;
+    Statement* loop =
+        mk::CountedLoop(t, iter_name, mk::Num(t, 5), mk::Block(t, {loop_step}));
+    std::vector<Statement*> wrap_body = {
+        mk::Let(t, acc_name, mk::Num(t, 0)),
+        loop,
+        mk::Return(t, mk::Id(t, acc_name)),
+    };
+    Expression* wrap_fn = mk::Function(t, "", {arg_name}, std::move(wrap_body));
+    Push(out, mk::Const(t, wrap_name, wrap_fn));
+    ctx.Declare(wrap_name, JsType::kFunction, true);
+
+    if (ctx.natives) {
+      Push(out, cg.Stmt(mk::Native(t, "PrepareFunctionForOptimization",
+                                   {mk::Id(t, wrap_name)})));
+      Push(out, GuardedCall(ctx, wrap_name, {mk::Num(t, 1)}));
+      Push(out, GuardedCall(ctx, wrap_name, {mk::Num(t, 2)}));
+      Push(out, cg.Stmt(mk::Native(t, "OptimizeFunctionOnNextCall",
+                                   {mk::Id(t, wrap_name)})));
+      Push(out, GuardedCall(ctx, wrap_name, {mk::Num(t, 3)}));
+      if (uses_num_param && r.Coin()) {
+        // Trigger a lazy deopt during JS-to-Wasm numeric conversion.
+        std::vector<Statement*> vo_body = {
+            mk::ExprStmt(
+                t, mk::Native(t, "DeoptimizeFunction", {mk::Id(t, wrap_name)})),
+            mk::Return(t, mk::Num(t, 4)),
+        };
+        Expression* trigger = mk::Object(
+            t, {mk::Method(t, "valueOf",
+                           mk::Function(t, "", {}, std::move(vo_body)))});
+        Push(out, GuardedCall(ctx, wrap_name, {trigger}));
+      }
+    } else {
+      Push(out, GuardedCall(ctx, wrap_name, {mk::Num(t, 1)}));
+      Push(out, GuardedCall(ctx, wrap_name, {mk::Num(t, 2)}));
     }
   }
 
   if (m.memory) {
-    Expression* mem_load =
-        mk::Member(T(ctx), mk::Id(T(ctx), exports_name), "mem");
+    Expression* mem_load = mk::Member(t, mk::Id(t, exports_name), "mem");
     std::string_view mem_name = ctx.builder.FreshName("mem");
-    Statement* mem_decl = mk::Const(T(ctx), mem_name, mem_load);
-    Push(out, mem_decl);
+    Push(out, mk::Const(t, mem_name, mem_load));
     ctx.Declare(mem_name, JsType::kObject, true);
 
-    if (ctx.rng().Coin()) {
-      Expression* buf_load =
-          mk::Member(T(ctx), mk::Id(T(ctx), mem_name), "buffer");
-      Expression* view_expr =
-          mk::New(T(ctx), mk::Id(T(ctx), "Uint8Array"), {buf_load});
+    if (r.Coin()) {
       std::string_view view_name = ctx.builder.FreshName("view");
-      Statement* view_decl = mk::Const(T(ctx), view_name, view_expr);
-      Push(out, view_decl);
-      ctx.Declare(view_name, JsType::kTypedArray, true);
+      Push(out, mk::Let(t, view_name, mk::Null(t)));
+      ctx.Declare(view_name, JsType::kTypedArray, false);
+      Expression* buf_load = mk::Member(t, mk::Id(t, mem_name), "buffer");
+      Expression* view_expr = mk::New(t, mk::Id(t, "Uint8Array"), {buf_load});
+      Push(out,
+           GuardedStmt(ctx, {mk::ExprStmt(t, mk::Assign(t, mk::Id(t, view_name),
+                                                        view_expr))}));
     } else {
-      Expression* grow_call = mk::CallMethod(T(ctx), mk::Id(T(ctx), mem_name),
-                                             "grow", {mk::Num(T(ctx), 1)});
-      Push(out, cg.Stmt(grow_call));
+      Expression* grow_call =
+          mk::CallMethod(t, mk::Id(t, mem_name), "grow", {mk::Num(t, 1)});
+      Push(out, GuardedStmt(ctx, {mk::ExprStmt(t, grow_call)}));
     }
   }
 
   if (m.table) {
-    Expression* tab_load =
-        mk::Member(T(ctx), mk::Id(T(ctx), exports_name), "tab");
+    Expression* tab_load = mk::Member(t, mk::Id(t, exports_name), "tab");
     std::string_view tab_name = ctx.builder.FreshName("tab");
-    Statement* tab_decl = mk::Const(T(ctx), tab_name, tab_load);
-    Push(out, tab_decl);
+    Push(out, mk::Const(t, tab_name, tab_load));
     ctx.Declare(tab_name, JsType::kObject, true);
 
-    if (ctx.rng().Coin()) {
-      Expression* get_call = mk::CallMethod(T(ctx), mk::Id(T(ctx), tab_name),
-                                            "get", {mk::Num(T(ctx), 0)});
-      Push(out, cg.Stmt(get_call));
+    if (r.Coin()) {
+      const uint32_t slot =
+          m.table_size > 0 ? static_cast<uint32_t>(r.Index(m.table_size)) : 0;
+      Expression* get_call =
+          mk::CallMethod(t, mk::Id(t, tab_name), "get",
+                         {mk::Num(t, static_cast<double>(slot))});
+      Push(out, GuardedStmt(ctx, {mk::ExprStmt(t, get_call)}));
     } else {
-      Expression* len_load =
-          mk::Member(T(ctx), mk::Id(T(ctx), tab_name), "length");
-      Push(out, cg.Stmt(len_load));
+      Expression* len_load = mk::Member(t, mk::Id(t, tab_name), "length");
+      Push(out, GuardedStmt(ctx, {mk::ExprStmt(t, len_load)}));
     }
   }
 
   int g_idx = 0;
-  for (auto t : m.globals) {
+  for (WasmType gtype : m.globals) {
     std::string gname = "g" + std::to_string(g_idx++);
-    Expression* glob_load =
-        mk::Member(T(ctx), mk::Id(T(ctx), exports_name), gname);
+    Expression* glob_load = mk::Member(t, mk::Id(t, exports_name), gname);
     std::string_view glob_name = ctx.builder.FreshName("g");
-    Statement* glob_decl = mk::Const(T(ctx), glob_name, glob_load);
-    Push(out, glob_decl);
+    Push(out, mk::Const(t, glob_name, glob_load));
     ctx.Declare(glob_name, JsType::kObject, true);
 
-    if (ctx.rng().Coin()) {
-      Expression* val_load =
-          mk::Member(T(ctx), mk::Id(T(ctx), glob_name), "value");
-      Push(out, cg.Stmt(val_load));
+    if (r.Coin()) {
+      Expression* val_load = mk::Member(t, mk::Id(t, glob_name), "value");
+      Push(out, GuardedStmt(ctx, {mk::ExprStmt(t, val_load)}));
     } else {
-      Expression* val_store = mk::Assign(
-          T(ctx), mk::Member(T(ctx), mk::Id(T(ctx), glob_name), "value"),
-          (t == WasmType::kI64)
-              ? static_cast<Expression*>(mk::BigInt(T(ctx), "42"))
-              : static_cast<Expression*>(mk::Num(T(ctx), 42)));
-      Push(out, cg.Stmt(val_store));
+      Expression* val_store =
+          mk::Assign(t, mk::Member(t, mk::Id(t, glob_name), "value"),
+                     WasmJsArg(ctx, gtype));
+      Push(out, GuardedStmt(ctx, {mk::ExprStmt(t, val_store)}));
     }
   }
 

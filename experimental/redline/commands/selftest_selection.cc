@@ -40,6 +40,7 @@
 #include "experimental/redline/generators/codegen.h"
 #include "experimental/redline/generators/generator.h"
 #include "experimental/redline/generators/values_generators.h"
+#include "experimental/redline/generators/wasm_module.h"
 #include "experimental/redline/mutators/explore.h"
 #include "experimental/redline/mutators/fixup.h"
 #include "experimental/redline/mutators/jit_compound.h"
@@ -4238,6 +4239,287 @@ target(g0, 2);
   }
 }
 
+// Decodes an unsigned LEB128 integer from `bytes` at `*pos`. Returns false if
+// the encoding runs past the end of `bytes`.
+bool ReadWasmU32(const std::vector<uint8_t>& bytes, size_t* pos,
+                 uint32_t* out) {
+  uint32_t result = 0;
+  uint32_t shift = 0;
+  while (*pos < bytes.size() && shift < 35) {
+    uint8_t byte = bytes[(*pos)++];
+    result |= static_cast<uint32_t>(byte & 0x7F) << shift;
+    if ((byte & 0x80) == 0) {
+      *out = result;
+      return true;
+    }
+    shift += 7;
+  }
+  return false;
+}
+
+// Parses top-level section headers of a WebAssembly binary. Records every seen
+// section id in `sections` and copies section 10 (Code) payload to `code_sec`.
+bool ParseWasmSections(const std::vector<uint8_t>& bytes,
+                       std::set<uint8_t>* sections,
+                       std::vector<uint8_t>* code_sec) {
+  if (bytes.size() < 8) {
+    return false;
+  }
+  static constexpr uint8_t kHeader[8] = {0x00, 0x61, 0x73, 0x6D,
+                                         0x01, 0x00, 0x00, 0x00};
+  for (size_t i = 0; i < 8; ++i) {
+    if (bytes[i] != kHeader[i]) {
+      return false;
+    }
+  }
+  size_t pos = 8;
+  uint8_t prev_id = 0;
+  while (pos < bytes.size()) {
+    const uint8_t id = bytes[pos++];
+    if (id != 0 && id <= prev_id) {
+      return false;
+    }
+    if (id != 0) {
+      prev_id = id;
+    }
+    uint32_t sec_size = 0;
+    if (!ReadWasmU32(bytes, &pos, &sec_size) || pos + sec_size > bytes.size()) {
+      return false;
+    }
+    sections->insert(id);
+    if (id == 10 && code_sec != nullptr) {
+      code_sec->assign(bytes.begin() + static_cast<ptrdiff_t>(pos),
+                       bytes.begin() + static_cast<ptrdiff_t>(pos + sec_size));
+    }
+    pos += sec_size;
+  }
+  return pos == bytes.size();
+}
+
+// Checks WebAssembly MVP binary emission, `max_body_size`, JS interop, clean
+// imports, tier-up, and `natives = false` gating.
+void CheckWasmModule(Checker* checker) {
+  TunableRegistry& reg = TunableRegistry::Instance();
+  reg.Reset();
+
+  std::string v8_err;
+  const bool v8_ok = InitializeV8(FuzzConfig().v8_flags, &v8_err);
+  std::unique_ptr<SyntaxChecker> syntax;
+  if (v8_ok) {
+    syntax = std::make_unique<SyntaxChecker>();
+  }
+
+  // 1. Check 200 generated modules with V8 and their MVP sections.
+  Random rng(kSeed + 9001);
+  std::set<uint8_t> seen_sections;
+  bool all_valid = v8_ok;
+  std::string first_err = v8_err;
+  bool saw_loop = false;
+  bool saw_select = false;
+  bool saw_br_if = false;
+  bool saw_global_set = false;
+  bool saw_store = false;
+  bool saw_call_indirect = false;
+  bool saw_trunc_sat = false;
+  bool saw_indirect_caller = false;
+  for (int i = 0; i < 200; ++i) {
+    WasmModule m = RandomWasmModule(rng);
+    std::set<uint8_t> mod_sections;
+    std::vector<uint8_t> code_sec;
+    if (!ParseWasmSections(m.bytes, &mod_sections, &code_sec)) {
+      all_valid = false;
+      first_err = StringPrintf("module %d: bad Wasm binary framing", i);
+      break;
+    }
+    seen_sections.insert(mod_sections.begin(), mod_sections.end());
+    if (m.indirect_caller >= 0 && m.table_callees >= 2) {
+      saw_indirect_caller = true;
+    }
+    for (size_t k = 0; k < code_sec.size(); ++k) {
+      const uint8_t op = code_sec[k];
+      if (op == 0x03 && k + 1 < code_sec.size() && code_sec[k + 1] == 0x40) {
+        saw_loop = true;
+      } else if (op == 0x1B) {
+        saw_select = true;
+      } else if (op == 0x0D) {
+        saw_br_if = true;
+      } else if (op == 0x24) {
+        saw_global_set = true;
+      } else if (op >= 0x36 && op <= 0x3E) {
+        saw_store = true;
+      } else if (op == 0x11) {
+        saw_call_indirect = true;
+      } else if (op == 0xFC) {
+        saw_trunc_sat = true;
+      }
+    }
+    std::string wasm_err;
+    if (syntax != nullptr &&
+        !syntax->ValidateWasm(m.bytes.data(), m.bytes.size(), &wasm_err)) {
+      all_valid = false;
+      first_err = StringPrintf("module %d invalid: %s", i, wasm_err.c_str());
+      break;
+    }
+  }
+  const bool sections_ok = seen_sections.count(1) && seen_sections.count(2) &&
+                           seen_sections.count(3) && seen_sections.count(4) &&
+                           seen_sections.count(5) && seen_sections.count(6) &&
+                           seen_sections.count(7) && seen_sections.count(9) &&
+                           seen_sections.count(10) && seen_sections.count(11);
+  const bool ops_ok = saw_loop && saw_select && saw_br_if && saw_global_set &&
+                      saw_store && saw_call_indirect && saw_trunc_sat &&
+                      saw_indirect_caller;
+  checker->Check(
+      "WasmModule: 200 modules pass V8 validation with all MVP sections",
+      all_valid && sections_ok && ops_ok,
+      !all_valid     ? first_err
+      : !sections_ok ? "missing Wasm section"
+                     : (ops_ok ? "200/200 valid" : "missing MVP opcode"));
+
+  // 2. Check that `max_body_size` bounds and scales generated code size.
+  std::string terr;
+  bool body_set_ok =
+      reg.Set("generators.WasmModule.max_imports", 0, &terr) &&
+      reg.Set("generators.WasmModule.max_functions", 2, &terr) &&
+      reg.Set("generators.WasmModule.max_globals", 0, &terr) &&
+      reg.Set("generators.WasmModule.memory_probability", 0, &terr) &&
+      reg.Set("generators.WasmModule.table_probability", 0, &terr) &&
+      reg.Set("generators.WasmModule.max_locals", 2, &terr);
+  size_t small_code_bytes = 0;
+  size_t large_code_bytes = 0;
+  bool body_valid = body_set_ok && v8_ok;
+  if (body_valid) {
+    body_valid = reg.Set("generators.WasmModule.max_body_size", 1, &terr);
+    Random small_rng(kSeed + 9101);
+    for (int i = 0; body_valid && i < 40; ++i) {
+      WasmModule m = RandomWasmModule(small_rng);
+      std::set<uint8_t> secs;
+      std::vector<uint8_t> code;
+      body_valid = ParseWasmSections(m.bytes, &secs, &code) &&
+                   syntax->ValidateWasm(m.bytes.data(), m.bytes.size(), &terr);
+      small_code_bytes += code.size();
+    }
+    body_valid =
+        body_valid && reg.Set("generators.WasmModule.max_body_size", 60, &terr);
+    Random large_rng(kSeed + 9101);
+    for (int i = 0; body_valid && i < 40; ++i) {
+      WasmModule m = RandomWasmModule(large_rng);
+      std::set<uint8_t> secs;
+      std::vector<uint8_t> code;
+      body_valid = ParseWasmSections(m.bytes, &secs, &code) &&
+                   syntax->ValidateWasm(m.bytes.data(), m.bytes.size(), &terr);
+      large_code_bytes += code.size();
+    }
+  }
+  reg.Reset();
+  checker->Check("WasmModule: max_body_size scales function body size cleanly",
+                 body_valid && large_code_bytes > small_code_bytes * 3,
+                 StringPrintf("small=%zu large=%zu %s", small_code_bytes,
+                              large_code_bytes, terr.c_str()));
+
+  // 3. Check `GenWasmModule` default weight, clean imports, tier-up, and the
+  // JS-to-Wasm wrapper.
+  std::unique_ptr<GeneratorSet> generators = GeneratorSet::CreateDefault();
+  const Environment& env = Environment::Default();
+  Generator* wasm_gen = generators->Find("WasmModule");
+  const bool weight_zero =
+      wasm_gen != nullptr && generators->WeightOf(wasm_gen) == 0.0;
+
+  ProgramPtr base = ParseOrDie(kProgram, "selftest");
+  bool js_ok = weight_zero && v8_ok;
+  std::string js_err;
+  bool saw_tier_up = false;
+  bool saw_js_wrapper = false;
+  bool saw_throwing_import = false;
+  bool saw_clean_import = false;
+  bool saw_bad_import = false;
+  for (int i = 0; js_ok && i < 60; ++i) {
+    std::unique_ptr<fast::Tree> tree = base->CopyTree();
+    Random grng(kSeed + 9201 + static_cast<uint64_t>(i));
+    Builder b(tree.get(), &grng);
+    Builder::Slot slot{&tree->root()->body, tree->root()->body.size(),
+                       tree->root()};
+    GenContext ctx = MakeGenContext(b, slot, *generators, env);
+    std::vector<fast::Statement*> out;
+    ctx.out = &out;
+    if (!wasm_gen->Generate(ctx, &out) || out.empty()) {
+      js_ok = false;
+      js_err = "WasmModule generated nothing";
+      break;
+    }
+    b.InsertAll(slot, out);
+    const std::string src = fast::Print(tree->root());
+    if (!syntax->Accepts(src, &js_err)) {
+      js_ok = false;
+      break;
+    }
+    if (src.find("%WasmTierUpFunction(") != std::string::npos) {
+      saw_tier_up = true;
+    }
+    if (src.find("%PrepareFunctionForOptimization(") != std::string::npos &&
+        src.find("%OptimizeFunctionOnNextCall(") != std::string::npos) {
+      saw_js_wrapper = true;
+    }
+    if (src.find("throw new Error(\"wasm\")") != std::string::npos) {
+      saw_throwing_import = true;
+    }
+    if (src.find("f0: (") != std::string::npos) {
+      saw_clean_import = true;
+    }
+    if (src.find("f0: C") != std::string::npos ||
+        src.find("f1: C") != std::string::npos) {
+      saw_bad_import = true;
+    }
+  }
+  checker->Check(
+      "WasmModule: emits valid JS with tier-up, wrapper, and clean imports",
+      js_ok && saw_tier_up && saw_js_wrapper && saw_throwing_import &&
+          saw_clean_import && !saw_bad_import,
+      !js_ok ? js_err
+             : StringPrintf("weight0=%d tier=%d wrap=%d throw=%d clean=%d "
+                            "bad=%d",
+                            weight_zero, saw_tier_up, saw_js_wrapper,
+                            saw_throwing_import, saw_clean_import,
+                            saw_bad_import));
+
+  // 4. Check that `ctx.natives = false` emits zero `%` native calls.
+  bool no_natives_ok =
+      wasm_gen != nullptr && v8_ok &&
+      reg.Set("generators.WasmModule.tier_up_probability", 1.0, &terr) &&
+      reg.Set("generators.WasmModule.js_inline_probability", 1.0, &terr);
+  std::string nn_err = terr;
+  for (int i = 0; no_natives_ok && i < 40; ++i) {
+    std::unique_ptr<fast::Tree> tree = base->CopyTree();
+    Random grng(kSeed + 9301 + static_cast<uint64_t>(i));
+    Builder b(tree.get(), &grng);
+    Builder::Slot slot{&tree->root()->body, tree->root()->body.size(),
+                       tree->root()};
+    GenContext ctx = MakeGenContext(b, slot, *generators, env);
+    ctx.natives = false;
+    std::vector<fast::Statement*> out;
+    ctx.out = &out;
+    if (!wasm_gen->Generate(ctx, &out) || out.empty()) {
+      no_natives_ok = false;
+      nn_err = "WasmModule generated nothing with natives=false";
+      break;
+    }
+    b.InsertAll(slot, out);
+    const std::string src = fast::Print(tree->root());
+    if (!syntax->Accepts(src, &nn_err)) {
+      no_natives_ok = false;
+      break;
+    }
+    if (src.find('%') != std::string::npos) {
+      no_natives_ok = false;
+      nn_err = "found `%` native call with natives=false";
+      break;
+    }
+  }
+  reg.Reset();
+  checker->Check("WasmModule: emits zero `%` natives when natives is false",
+                 no_natives_ok, nn_err);
+}
+
 }  // namespace
 
 void RunSelectionChecks(Checker* checker, const std::string& testdata_dir,
@@ -4304,6 +4586,7 @@ void RunSelectionChecks(Checker* checker, const std::string& testdata_dir,
   CheckEdgeCases(checker);
   CheckBuiltinsAndWorkers(checker);
   CheckEnvTyper(checker);
+  CheckWasmModule(checker);
 }
 
 void RunNodeKindChecks(Checker* checker) {

@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 #include <mutex>
+#include <span>
 
 #include "experimental/redline/base/log.h"
 #include "include/libplatform/libplatform.h"
@@ -18,6 +19,7 @@
 #include "include/v8-message.h"
 #include "include/v8-primitive.h"
 #include "include/v8-script.h"
+#include "include/v8-wasm.h"
 
 namespace redline {
 
@@ -163,6 +165,33 @@ bool SyntaxChecker::Accepts(std::string_view source, std::string* message) {
       }
     }
     *message = text_message;
+  }
+  return false;
+}
+
+bool SyntaxChecker::ValidateWasm(const uint8_t* data, size_t size,
+                                 std::string* message) {
+  v8::Isolate* isolate = impl_->isolate;
+  v8::Isolate::Scope isolate_scope(isolate);
+  if (++impl_->checks % 4096 == 0) {
+    isolate->LowMemoryNotification();
+  }
+  v8::HandleScope handle_scope(isolate);
+  v8::Local<v8::Context> context = impl_->context.Get(isolate);
+  v8::Context::Scope context_scope(context);
+  v8::TryCatch try_catch(isolate);
+  try_catch.SetVerbose(false);
+
+  v8::Local<v8::WasmModuleObject> module;
+  if (v8::WasmModuleObject::Compile(isolate,
+                                    std::span<const uint8_t>(data, size))
+          .ToLocal(&module)) {
+    return true;
+  }
+  if (message != nullptr) {
+    *message = try_catch.HasCaught()
+                   ? ToStdString(isolate, try_catch.Exception())
+                   : "WebAssembly compile error";
   }
   return false;
 }

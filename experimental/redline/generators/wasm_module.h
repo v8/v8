@@ -13,7 +13,7 @@
 
 namespace redline {
 
-// Value types of the generated modules (their binary encoding).
+// Value types of the generated modules with their binary encodings.
 enum class WasmType : uint8_t {
   kI32 = 0x7F,
   kI64 = 0x7E,
@@ -23,30 +23,34 @@ enum class WasmType : uint8_t {
 
 struct WasmSignature {
   std::vector<WasmType> params;
-  std::vector<WasmType> results;  // empty or one value
+  std::vector<WasmType> results;  // Empty or one value.
 };
 
-// A random WebAssembly module, valid by construction, and what the JavaScript
-// side needs to use it.
+// Random WebAssembly module that is valid by construction, plus metadata that
+// the JavaScript caller needs.
 struct WasmModule {
   std::vector<uint8_t> bytes;
-  // Imported functions "m"."f0", "m"."f1", ... with their signatures.
+  // Imported functions `m.f0`, `m.f1`, ... with their signatures.
   std::vector<WasmSignature> imports;
-  // Exported functions "e0", "e1", ... with their signatures.
+  // Exported functions `e0`, `e1`, ... with their signatures.
   std::vector<WasmSignature> functions;
-  // Exported mutable globals "g0", "g1", ... with their types.
+  // Exported mutable globals `g0`, `g1`, ... with their types.
   std::vector<WasmType> globals;
-  bool memory = false;  // exported as "mem"
-  bool table = false;   // exported as "tab"
+  bool memory = false;  // Exported as `mem`.
+  bool table = false;   // Exported as `tab`.
+  // Number of `funcref` slots in `tab`.
+  uint32_t table_size = 0;
+  // Number of callees in `tab` that share the `call_indirect` signature.
+  uint32_t table_callees = 0;
+  // Index in `functions` of an export that executes `call_indirect` with
+  // parameter 0 as table slot, or -1 if none exists.
+  int indirect_caller = -1;
 };
 
-// Builds a module from general building blocks: function types, imports,
-// a memory with data, a function table with an element segment, globals and
-// functions whose bodies are typed expression trees (arithmetic,
-// comparisons, conversions, loads and stores, calls, call_indirect, select,
-// blocks, ifs and bounded loops). Calls only go to lower function indices,
-// loops are counted, and memory addresses are masked, so most executions
-// terminate without a trap.
+// Builds a spec-valid WebAssembly MVP module with types, imports, globals,
+// memory, and a function table. Function bodies use masked loads and stores,
+// `call_indirect`, conversions, `select`, `br_if`, `if`/`else`, and counted
+// `loop` blocks.
 WasmModule RandomWasmModule(Random& r);
 
 }  // namespace redline
