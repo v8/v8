@@ -1673,9 +1673,8 @@ class PrototypesSetup : public wasm::Decoder {
             isolate()->factory()->constructor_string()));
         return ReadOnlyRoots(isolate()).exception();
       }
-      base::Vector<const uint8_t> last_name;
-      DirectHandle<JSFunction> getter;
-      DirectHandle<JSFunction> setter;
+      base::Vector<const uint8_t> last_accessor_name;
+      DirectHandle<AccessorPair> last_accessor_pair;
       for (uint32_t i = 0; i < num_methods; i++) {
         Method method = NextMethod(false);
         if (!ok()) break;
@@ -1704,24 +1703,8 @@ class PrototypesSetup : public wasm::Decoder {
         // for storing their names.
 
         if (fast_path) {
-          bool bailout = MayBeArrayIndex(method.name);
-          // If we have pending accessors, and we're moving on to something
-          // else, install them now.
-          if ((!getter.is_null() || !setter.is_null()) &&
-              (method.name != last_name || method.kind == Method::kMethod ||
-               bailout)) {
-            if (!FastPath_AddAccessorProperty(prototype, dictionary, last_name,
-                                              getter, setter)
-                     .ToHandle(&dictionary)) {
-              DCHECK(isolate()->has_exception());
-              return ReadOnlyRoots(isolate()).exception();
-            }
-            getter = {};
-            setter = {};
-          }
-          if (bailout) {
+          if (MayBeArrayIndex(method.name)) {
             fast_path = false;
-            prototype->SetProperties(*dictionary);
             if (!InstallMethod(prototype, method, function)) {
               DCHECK(isolate()->has_exception());
               return ReadOnlyRoots(isolate()).exception();
@@ -1729,18 +1712,38 @@ class PrototypesSetup : public wasm::Decoder {
             continue;
           }
           if (method.kind == Method::kMethod) {
+            last_accessor_pair = {};
             if (!FastPath_AddDataProperty(prototype, dictionary, method.name,
                                           function)
                      .ToHandle(&dictionary)) {
               DCHECK(isolate()->has_exception());
               return ReadOnlyRoots(isolate()).exception();
             }
-          } else if (method.kind == Method::kGetter) {
-            getter = function;
-            last_name = method.name;
-          } else if (method.kind == Method::kSetter) {
-            setter = function;
-            last_name = method.name;
+          } else {
+            DCHECK(method.kind == Method::kGetter ||
+                   method.kind == Method::kSetter);
+            AccessorComponent component = method.kind == Method::kGetter
+                                              ? ACCESSOR_GETTER
+                                              : ACCESSOR_SETTER;
+            // Consecutive getter/setter entries for the same property can
+            // update the already-installed AccessorPair in place:
+            // {last_accessor_name} points into the immovable decoder buffer
+            // and was already UTF-8 validated when {last_accessor_pair} was
+            // installed (and cleared if a data property could have overwritten
+            // it).
+            if (!last_accessor_pair.is_null() &&
+                method.name == last_accessor_name) {
+              last_accessor_pair->set(component, *function, kReleaseStore);
+            } else {
+              if (!FastPath_AddAccessorProperty(prototype, dictionary,
+                                                method.name, component,
+                                                function, &last_accessor_pair)
+                       .ToHandle(&dictionary)) {
+                DCHECK(isolate()->has_exception());
+                return ReadOnlyRoots(isolate()).exception();
+              }
+              last_accessor_name = method.name;
+            }
           }
         } else {
           if (!InstallMethod(prototype, method, function)) {
@@ -1748,19 +1751,6 @@ class PrototypesSetup : public wasm::Decoder {
             return ReadOnlyRoots(isolate()).exception();
           }
         }
-      }
-      // If we used the fast path, then the extended property dictionary
-      // hasn't been installed yet, and we may still have pending accessors.
-      if (fast_path) {
-        if (!getter.is_null() || !setter.is_null()) {
-          if (!FastPath_AddAccessorProperty(prototype, dictionary, last_name,
-                                            getter, setter)
-                   .ToHandle(&dictionary)) {
-            DCHECK(isolate()->has_exception());
-            return ReadOnlyRoots(isolate()).exception();
-          }
-        }
-        prototype->SetProperties(*dictionary);
       }
 
       if (!ok()) break;
@@ -1950,6 +1940,7 @@ class PrototypesSetup : public wasm::Decoder {
       DirectHandle<JSReceiver> receiver,
       DirectHandle<NameDictionary> property_dictionary,
       base::Vector<const uint8_t> name_vec, DirectHandle<Object> value) {
+    DCHECK_EQ(receiver->property_dictionary(), *property_dictionary);
     DirectHandle<String> name;
     if (!ReadUtf8String(name_vec).To(&name)) return {};
     PropertyDetails details(PropertyKind::kData, DONT_ENUM,
@@ -1967,16 +1958,20 @@ class PrototypesSetup : public wasm::Decoder {
       return property_dictionary;
     }
     DCHECK(entry.is_not_found());
+    DirectHandle<NameDictionary> new_dictionary;
     if (!NameDictionary::Add(isolate_, property_dictionary, name, value,
                              details)
-             .ToHandle(&property_dictionary)) {
+             .ToHandle(&new_dictionary)) {
       return {};
     }
-    LookupIterator::UpdateProtector(isolate_, receiver, name, value);
     if (name->IsInteresting(isolate_)) {
-      property_dictionary->set_may_have_interesting_properties(true);
+      new_dictionary->set_may_have_interesting_properties(true);
     }
-    return property_dictionary;
+    if (!new_dictionary.is_identical_to(property_dictionary)) {
+      receiver->SetProperties(*new_dictionary);
+    }
+    LookupIterator::UpdateProtector(isolate_, receiver, name, value);
+    return new_dictionary;
   }
 
   // This is not fully generic: it doesn't need to handle overwriting arbitrary
@@ -1984,49 +1979,58 @@ class PrototypesSetup : public wasm::Decoder {
   MaybeDirectHandle<NameDictionary> FastPath_AddAccessorProperty(
       DirectHandle<JSReceiver> receiver,
       DirectHandle<NameDictionary> property_dictionary,
-      base::Vector<const uint8_t> name_vec, DirectHandle<JSFunction> getter,
-      DirectHandle<JSFunction> setter) {
+      base::Vector<const uint8_t> name_vec, AccessorComponent component,
+      DirectHandle<JSFunction> function, DirectHandle<AccessorPair>* out_pair) {
+    DCHECK_EQ(receiver->property_dictionary(), *property_dictionary);
     DirectHandle<String> name;
     if (!ReadUtf8String(name_vec).To(&name)) return {};
-    PropertyDetails details(PropertyKind::kAccessor, DONT_ENUM,
-                            PropertyCellType::kMutable);
-    DirectHandle<AccessorPair> pair = isolate_->factory()->NewAccessorPair();
-    if (!getter.is_null()) pair->set_getter(*getter);
-    if (!setter.is_null()) pair->set_setter(*setter);
     InternalIndex entry = property_dictionary->FindEntry(isolate_, name);
     if (entry.is_found()) [[unlikely]] {
       // This isn't expected to happen in practice, so from a performance
       // perspective it'd be fine to just bail out of the fast path; but the
       // code ends up being simpler if we just handle this and carry on.
-      PropertyDetails old_details = property_dictionary->DetailsAt(entry);
-      details = details.set_index(old_details.dictionary_index());
-      // When setting only one accessor, keep the other if it's already present.
-      if (getter.is_null() || setter.is_null()) {
-        Tagged<Object> old_value = property_dictionary->ValueAt(entry);
-        if (IsAccessorPair(old_value)) {
-          Tagged<AccessorPair> old_pair = Cast<AccessorPair>(old_value);
-          if (getter.is_null() && !IsNull(old_pair->getter())) {
-            pair->set_getter(old_pair->getter());
-          }
-          if (setter.is_null() && !IsNull(old_pair->setter())) {
-            pair->set_setter(old_pair->setter());
-          }
-        }
+      Tagged<Object> old_value = property_dictionary->ValueAt(entry);
+      if (IsAccessorPair(old_value)) {
+        DCHECK_EQ(property_dictionary->DetailsAt(entry).kind(),
+                  PropertyKind::kAccessor);
+        DCHECK_EQ(property_dictionary->DetailsAt(entry).attributes(),
+                  DONT_ENUM);
+        DirectHandle<AccessorPair> pair(Cast<AccessorPair>(old_value),
+                                        isolate_);
+        pair->set(component, *function, kReleaseStore);
+        *out_pair = pair;
+        return property_dictionary;
       }
+    }
+    DirectHandle<AccessorPair> pair = isolate_->factory()->NewAccessorPair();
+    pair->set(component, *function);
+    if (entry.is_found()) [[unlikely]] {
+      PropertyDetails old_details = property_dictionary->DetailsAt(entry);
+      PropertyDetails details(PropertyKind::kAccessor, DONT_ENUM,
+                              PropertyCellType::kMutable,
+                              old_details.dictionary_index());
       property_dictionary->DetailsAtPut(entry, details);
       property_dictionary->ValueAtPut(entry, *pair);
+      *out_pair = pair;
       return property_dictionary;
     }
     DCHECK(entry.is_not_found());
+    PropertyDetails details(PropertyKind::kAccessor, DONT_ENUM,
+                            PropertyCellType::kMutable);
+    DirectHandle<NameDictionary> new_dictionary;
     if (!NameDictionary::Add(isolate_, property_dictionary, name, pair, details)
-             .ToHandle(&property_dictionary)) {
+             .ToHandle(&new_dictionary)) {
       return {};
     }
-    LookupIterator::UpdateProtector(isolate_, receiver, name, pair);
     if (name->IsInteresting(isolate_)) {
-      property_dictionary->set_may_have_interesting_properties(true);
+      new_dictionary->set_may_have_interesting_properties(true);
     }
-    return property_dictionary;
+    if (!new_dictionary.is_identical_to(property_dictionary)) {
+      receiver->SetProperties(*new_dictionary);
+    }
+    LookupIterator::UpdateProtector(isolate_, receiver, name, pair);
+    *out_pair = pair;
+    return new_dictionary;
   }
 
  protected:

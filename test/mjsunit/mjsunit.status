@@ -1315,6 +1315,7 @@
   'regress/wasm/regress-498818401': [SKIP],
   'regress/wasm/regress-500113958': [SKIP],
   'regress/wasm/regress-555812363': [SKIP],
+  'regress/wasm/regress-582479998': [SKIP],
 
   # The interpreter call stack contains an additional top frame if we throw a
   # type-mismatch exception before executing the Wasm function.
