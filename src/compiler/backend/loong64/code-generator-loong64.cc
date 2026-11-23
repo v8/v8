@@ -1660,7 +1660,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kLoong64Mov:
+    case kLoong64Mov64:
       // TODO(LOONG_dev): Should we combine mov/li, or use separate instr?
       //    - Also see x64 ASSEMBLE_BINOP & RegisterOrOperandType
       if (HasRegisterInput(instr, 0)) {
@@ -1669,7 +1669,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ li(i.OutputRegister(), i.InputOperand(0));
       }
       break;
-
+    case kLoong64Mov32:
+      if (instr->InputAt(0)->IsRegister()) {
+        __ slli_w(i.OutputRegister(), i.InputRegister(0), 0);
+      } else {
+        __ Ld_w(i.OutputRegister(), i.ToMemOperand(instr->InputAt(0)));
+      }
+      break;
     case kLoong64Float32Cmp: {
       FPURegister left = i.InputOrZeroSingleRegister(0);
       FPURegister right = i.InputOrZeroSingleRegister(1);
@@ -2079,8 +2085,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, trap_pc);
       break;
     case kLoong64LoadDecompressTagged:
-      __ DecompressTagged(i.OutputRegister(), i.MemoryOperand(), &trap_pc);
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, trap_pc);
+      if (AddressingModeField::decode(instr->opcode()) != kMode_None) {
+        __ DecompressTagged(i.OutputRegister(), i.MemoryOperand(), &trap_pc);
+        RecordTrapInfoIfNeeded(zone(), this, opcode, instr, trap_pc);
+      } else if (instr->InputAt(0)->IsRegister()) {
+        __ DecompressTagged(i.OutputRegister(), i.InputRegister(0));
+      } else {
+        __ DecompressTagged(i.OutputRegister(),
+                            i.ToMemOperand(instr->InputAt(0)));
+      }
       break;
     case kLoong64LoadDecompressProtected:
       __ DecompressProtected(i.OutputRegister(), i.MemoryOperand(), &trap_pc);

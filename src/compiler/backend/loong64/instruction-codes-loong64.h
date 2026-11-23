@@ -108,7 +108,8 @@ namespace compiler {
   V(Loong64Ctz_w)                                    \
   V(Loong64Popcnt_d)                                 \
   V(Loong64Popcnt_w)                                 \
-  V(Loong64Mov)                                      \
+  V(Loong64Mov64)                                    \
+  V(Loong64Mov32)                                    \
   V(Loong64Tst)                                      \
   V(Loong64Cmp32)                                    \
   V(Loong64Cmp32Eq)                                  \
