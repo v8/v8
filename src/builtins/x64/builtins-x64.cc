@@ -3730,7 +3730,7 @@ void Generate_WasmDebugBreakOrTrap(MacroAssembler* masm, DebugBreakKind kind) {
       offset -= kSimd128Size;
       __ movdqu(Operand(rsp, offset), reg);
     }
-    // 1 frame marker + 10 GP registers + 16 FP slots = 27 slots (odd); pad to
+    // 1 frame marker + 10 GP registers + 28 FP slots = 39 slots (odd); pad to
     // keep rsp 16-byte aligned for the runtime call below without shifting
     // FP-relative register offsets in WasmDebugBreakFrameConstants.
     constexpr int kSavedSlots =

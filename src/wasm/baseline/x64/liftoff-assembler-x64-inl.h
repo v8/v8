@@ -17,6 +17,7 @@
 #include "src/codegen/x64/register-x64.h"
 #include "src/compiler/backend/simd-shuffle.h"
 #include "src/compiler/linkage.h"
+#include "src/execution/x64/frame-constants-x64.h"
 #include "src/flags/flags.h"
 #include "src/heap/mutable-page.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
@@ -46,6 +47,10 @@ static_assert((kLiftoffAssemblerFpCacheRegs &
                DoubleRegList{kScratchDoubleReg, kScratchDoubleReg2})
                   .is_empty(),
               "scratch registers must not be used as cache registers");
+static_assert(kLiftoffAssemblerGpCacheRegs ==
+              WasmDebugBreakFrameConstants::kPushedGpRegs);
+static_assert(kLiftoffAssemblerFpCacheRegs ==
+              WasmDebugBreakFrameConstants::kPushedFpRegs);
 
 inline constexpr Operand GetStackSlot(int offset) {
   return Operand(rbp, -offset);

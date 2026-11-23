@@ -118,8 +118,9 @@ class WasmDebugBreakFrameConstants : public TypedFrameConstants {
   static constexpr RegList kPushedGpRegs = {rax, rcx, rdx, rbx, rsi,
                                             rdi, r8,  r9,  r12, r15};
 
-  static constexpr DoubleRegList kPushedFpRegs = {xmm0, xmm1, xmm2, xmm3,
-                                                  xmm4, xmm5, xmm6, xmm7};
+  static constexpr DoubleRegList kPushedFpRegs = {
+      xmm0, xmm1, xmm2, xmm3,  xmm4,  xmm5,  xmm6,
+      xmm7, xmm8, xmm9, xmm10, xmm11, xmm12, xmm13};
 
   static constexpr int kNumPushedGpRegisters = kPushedGpRegs.Count();
   static constexpr int kNumPushedFpRegisters = kPushedFpRegs.Count();
