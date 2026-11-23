@@ -16,6 +16,7 @@
 #include "experimental/redline/base/time_util.h"
 #include "experimental/redline/core/ast_builder.h"
 #include "experimental/redline/core/tunable.h"
+#include "experimental/redline/engine/d8_flags.h"
 #include "experimental/redline/engine/importer.h"
 #include "experimental/redline/fast/ast.h"
 #include "experimental/redline/fast/requirements.h"
@@ -526,7 +527,9 @@ MaterialBank::LoadStats MaterialBank::Load(const Options& options) {
     Lineage lineage;
     lineage.origin = "material";
     lineage.detail = file;
-    ProgramPtr prog = Program::FromTree(std::move(tree), std::move(lineage));
+    std::shared_ptr<Program> prog =
+        Program::FromTree(std::move(tree), std::move(lineage));
+    prog->flags = SanitizeTestFlags(import_info.flags);
     accepted++;
     if (programs_.size() < options.max_programs) {
       programs_.push_back(std::move(prog));
@@ -696,7 +699,16 @@ std::shared_ptr<Program> FusePrograms(const std::vector<ProgramPtr>& donors,
   if (lineage.origin.empty()) {
     lineage.origin = "Fuse";
   }
-  return Program::FromTree(std::move(fused), std::move(lineage));
+  std::shared_ptr<Program> result =
+      Program::FromTree(std::move(fused), std::move(lineage));
+  std::vector<std::string> merged_flags;
+  for (const ProgramPtr& donor : donors) {
+    if (donor != nullptr && !donor->flags.empty()) {
+      merged_flags = MergeProgramFlags(merged_flags, donor->flags);
+    }
+  }
+  result->flags = std::move(merged_flags);
+  return result;
 }
 
 std::shared_ptr<Program> FusePrograms(const std::vector<ProgramPtr>& donors,

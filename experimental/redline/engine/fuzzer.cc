@@ -3306,6 +3306,13 @@ bool Fuzzer::Initialize(std::string* error) {
         static_cast<size_t>(std::max(0, config_.material_max));
     material_opts.seed = config_.seed;
     material_stats_ = material_->Load(material_opts);
+    if (config_.randomize_d8_flags) {
+      for (const ProgramPtr& prog : material_->programs()) {
+        if (!prog->flags.empty()) {
+          RecordImportedFlags(prog->flags);
+        }
+      }
+    }
     REDLINE_LOG(kLog,
                 "material: %zu loaded, %zu skipped, %zu error(s) in %.1f ms",
                 material_stats_.loaded, material_stats_.skipped,

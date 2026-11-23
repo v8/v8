@@ -3823,6 +3823,66 @@ void RunMaterialChecks(Checker* checker) {
         ok, detail);
   }
 
+  // 6. `MaterialBank` keeps the allowed `// Flags:` of a file in
+  // `Program::flags`. `FusePrograms` merges the flags of its donors.
+  {
+    files_ok = files_ok && MakeDirectories(dir + "/flags", &err);
+    write_file("/flags/flagged.js",
+               "// Flags: --turbofan --no-lazy_feedback_allocation\n"
+               "// Flags: --allow-natives-syntax --print-bytecode\n"
+               "var material_flagged = 1;\n");
+    write_file("/flags/plain.js", "var material_plain = 1;\n");
+    MaterialBank flag_bank;
+    MaterialBank::Options flag_opts;
+    flag_opts.paths = {dir + "/flags"};
+    flag_opts.max_programs = 10;
+    flag_opts.seed = 42;
+    flag_bank.Load(flag_opts);
+    std::vector<std::string> flagged_flags;
+    std::vector<std::string> plain_flags = {"--not-loaded"};
+    for (const ProgramPtr& p : flag_bank.programs()) {
+      if (p->source().find("material_flagged") != std::string::npos) {
+        flagged_flags = p->flags;
+      } else if (p->source().find("material_plain") != std::string::npos) {
+        plain_flags = p->flags;
+      }
+    }
+    checker->Check(
+        "material: MaterialBank keeps the allowed `// Flags:` in "
+        "Program::flags",
+        files_ok && flag_bank.size() == 2 &&
+            flagged_flags ==
+                std::vector<std::string>{"--turbofan",
+                                         "--no-lazy-feedback-allocation"} &&
+            plain_flags.empty(),
+        StringPrintf("%zu programs, %zu and %zu flags", flag_bank.size(),
+                     flagged_flags.size(), plain_flags.size()));
+
+    std::string parse_err;
+    std::shared_ptr<Program> donor_a =
+        Program::Parse("var fuse_a = 1;\n", Lineage{}, &parse_err);
+    std::shared_ptr<Program> donor_b =
+        Program::Parse("var fuse_b = 2;\n", Lineage{}, &parse_err);
+    std::shared_ptr<Program> donor_c =
+        Program::Parse("var fuse_c = 3;\n", Lineage{}, &parse_err);
+    ProgramPtr fused;
+    ProgramPtr fused_plain;
+    if (donor_a != nullptr && donor_b != nullptr && donor_c != nullptr) {
+      donor_a->flags = {"--turbofan", "--interrupt-budget=1000"};
+      donor_b->flags = {"--no-turbofan", "--interrupt-budget=50", "--maglev"};
+      fused = FusePrograms({donor_a, donor_b, donor_c}, "flags");
+      fused_plain = FusePrograms({donor_c}, "plain");
+    }
+    const std::vector<std::string> expected_flags = {
+        "--turbofan", "--interrupt-budget=1000", "--maglev"};
+    checker->Check("material: FusePrograms merges the flags of its donors",
+                   fused != nullptr && fused->flags == expected_flags &&
+                       fused_plain != nullptr && fused_plain->flags.empty(),
+                   fused == nullptr
+                       ? parse_err
+                       : StringPrintf("%zu flags", fused->flags.size()));
+  }
+
   RemoveTree(dir);
 }
 
