@@ -2962,9 +2962,10 @@ DEFINE_BOOL_READONLY(trap_on_abort, true, "")
 DEFINE_BOOL_READONLY(slow_debug_code, false, "")
 #endif
 #ifdef V8_CODE_COMMENTS
-DEFINE_BOOL(code_comments, false,
-            "emit comments in code disassembly; for more readable source "
-            "positions you should add --no-concurrent_recompilation")
+DEFINE_DEVELOPER_FLAG(
+    code_comments,
+    "emit comments in code disassembly; for more readable source "
+    "positions you should add --no-concurrent_recompilation")
 #else
 DEFINE_BOOL_READONLY(code_comments, false, "")
 #endif

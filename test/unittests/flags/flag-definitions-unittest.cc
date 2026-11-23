@@ -645,4 +645,14 @@ TEST_F(FlagDefinitionsTest, CorrectnessFuzzerSuppressionsIsDeveloperOnly) {
   CHECK(v8_flags.developer_only_features);
 }
 
+#ifdef V8_CODE_COMMENTS
+TEST_F(FlagDefinitionsTest, CodeCommentsIsDeveloperOnly) {
+  SaveFlags save_flags;
+  v8_flags.code_comments.Set(true);
+  FlagList::EnforceFlagImplications();
+  CHECK(v8_flags.code_comments);
+  CHECK(v8_flags.developer_only_features);
+}
+#endif  // V8_CODE_COMMENTS
+
 }  // namespace v8::internal
