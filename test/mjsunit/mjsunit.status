@@ -2073,6 +2073,7 @@
   # https://crbug.com/539796962
   'compiler/concurrent-string-ext-seq': [SKIP],
   'compiler/regress-519664497': [SKIP],
+  'maglev/regress-588321630': [SKIP],
   'sandbox/regress/regress-575053489': [SKIP],
   'turboshaft/regress-539984773': [SKIP],
   'turboshaft/regress-587014652': [SKIP],

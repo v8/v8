@@ -2100,7 +2100,7 @@ ElementsKind JSTypedArrayRef::elements_kind(JSHeapBroker* broker) const {
 HeapObjectRef JSTypedArrayRef::buffer(JSHeapBroker* broker) const {
   CHECK(!is_on_heap());
   // Immutable after initialization.
-  return MakeRef<HeapObject>(broker, object()->buffer());
+  return MakeRefAssumeMemoryFence<HeapObject>(broker, object()->buffer());
 }
 
 void* JSTypedArrayRef::data_ptr() const {
