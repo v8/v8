@@ -13,9 +13,12 @@
 #include <utility>
 #include <vector>
 
+#include "absl/container/flat_hash_set.h"
 #include "src/api/api-inl.h"
 #include "src/base/compiler-specific.h"
+#include "src/base/lazy-instance.h"
 #include "src/base/logging.h"
+#include "src/base/platform/mutex.h"
 #include "src/base/strings.h"
 #include "src/common/globals.h"
 #include "src/date/date.h"
@@ -1380,6 +1383,21 @@ bool CollatorAllowsFastComparison(const icu::Collator& icu_collator) {
   ucol_getRules(icu_collator.toUCollator(), &rules_length);
   if (rules_length != 0) return false;
 
+  // The tailored set and contractions/expansions depend only on the immutable
+  // ICU collation data for this valid locale (since collation keyword and
+  // rules are empty). Cache verified locale names so we don't re-enumerate the
+  // entire ICU collation trie on every comparison.
+  static base::LazyMutex verified_locales_mutex = LAZY_MUTEX_INITIALIZER;
+  static base::LeakyObject<absl::flat_hash_set<std::string>> verified_locales;
+  const bool can_cache_locale = !icu_locale.isBogus();
+  const std::string_view locale_name =
+      can_cache_locale ? std::string_view(icu_locale.getName())
+                       : std::string_view{};
+  if (can_cache_locale) {
+    base::MutexGuard guard(verified_locales_mutex.Pointer());
+    if (verified_locales.get()->contains(locale_name)) return true;
+  }
+
   USet* tailored_set = ucol_getTailoredSet(icu_collator.toUCollator(), &status);
   DCHECK(U_SUCCESS(status));
   if (USetContainsAllAsciiItem(tailored_set)) return false;
@@ -1395,6 +1413,11 @@ bool CollatorAllowsFastComparison(const icu::Collator& icu_collator) {
   DCHECK(U_SUCCESS(status));
   uset_close(contractions);
   uset_close(expansions);
+
+  if (can_cache_locale) {
+    base::MutexGuard guard(verified_locales_mutex.Pointer());
+    verified_locales.get()->emplace(locale_name);
+  }
 
   return true;
 }
