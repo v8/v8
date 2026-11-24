@@ -1057,17 +1057,62 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
               Operand(interrupt_limit));
   }
 
+  // Reduce interrupt budget.
+  Label budget_interrupt;
+  {
+    ASM_CODE_COMMENT_STRING(masm, "Update Interrupt Budget");
+    UseScratchRegisterScope temps(masm);
+    Register interrupt_budget = temps.Acquire();
+    Register bytecode_length = temps.Acquire();
+    Register bytecode_array = descriptor.GetRegisterParameter(
+        BaselineOutOfLinePrologueDescriptor::kInterpreterBytecodeArray);
+    __ Ld_w(interrupt_budget,
+            FieldMemOperand(feedback_cell,
+                            offsetof(FeedbackCell, interrupt_budget_)));
+    __ SmiUntagField(bytecode_length,
+                     FieldMemOperand(bytecode_array,
+                                     offsetof(BytecodeArray, length_)));
+    __ Sub_w(interrupt_budget, interrupt_budget, bytecode_length);
+    __ St_w(interrupt_budget,
+            FieldMemOperand(feedback_cell,
+                            offsetof(FeedbackCell, interrupt_budget_)));
+    __ Branch(&budget_interrupt, lt, interrupt_budget, Operand(zero_reg));
+  }
+
   // Do "fast" return to the caller pc in ra.
   // TODO(v8:11429): Document this frame setup better.
   __ Ret();
 
+  __ bind(&budget_interrupt);
+  {
+    ASM_CODE_COMMENT_STRING(masm, "Budget interrupt call");
+    Register new_target = descriptor.GetRegisterParameter(
+        BaselineOutOfLinePrologueDescriptor::kJavaScriptCallNewTarget);
+    FrameScope frame_scope(masm, StackFrame::INTERNAL);
+    // Save incoming new target or generator
+    __ Push(new_target);
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
+    __ PushDispatchHandle(kJavaScriptCallDispatchHandleRegister, feedback_cell,
+                          feedback_vector);
+#endif
+    __ Push(closure);
+    __ CallRuntime(Runtime::kBytecodeBudgetInterrupt_Sparkplug, 1);
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
+    __ PopDispatchHandle(kJavaScriptCallDispatchHandleRegister, feedback_cell,
+                         feedback_vector);
+#endif
+    __ Pop(new_target);
+  }
+  __ Ret();
 
   __ bind(&call_stack_guard);
   {
     ASM_CODE_COMMENT_STRING(masm, "Stack/interrupt call");
+    Register new_target = descriptor.GetRegisterParameter(
+        BaselineOutOfLinePrologueDescriptor::kJavaScriptCallNewTarget);
     FrameScope frame_scope(masm, StackFrame::INTERNAL);
     // Save incoming new target or generator
-    __ Push(kJavaScriptCallNewTargetRegister);
+    __ Push(new_target);
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
     __ PushDispatchHandle(kJavaScriptCallDispatchHandleRegister, feedback_cell,
                           feedback_vector);
@@ -1079,7 +1124,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     __ PopDispatchHandle(kJavaScriptCallDispatchHandleRegister, feedback_cell,
                          feedback_vector);
 #endif
-    __ Pop(kJavaScriptCallNewTargetRegister);
+    __ Pop(new_target);
   }
   __ Ret();
   temps.Exclude({s1, s2, s3});
