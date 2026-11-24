@@ -299,6 +299,8 @@ enum class CheckBoundsFlag : uint8_t {
   kConvertStringAndMinusZero = 1 << 0,  // instead of deopting on such inputs
   kAbortOnOutOfBounds = 1 << 1,         // instead of deopting if input is OOB
   kAllow64BitBounds = 1 << 2,           // the bounds may exceed 32 bit range
+  // Deopt with kSpeculativeBoundsCheckFailed instead of kOutOfBounds.
+  kSpeculativeBoundsCheck = 1 << 3,
 };
 using CheckBoundsFlags = base::Flags<CheckBoundsFlag>;
 DEFINE_OPERATORS_FOR_FLAGS(CheckBoundsFlags)

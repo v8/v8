@@ -7272,7 +7272,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceStringPrototypeCharAt(
   DCHECK_EQ(current_speculation_mode_, SpeculationMode::kAllowSpeculation);
   RETURN_IF_ABORT(TryBuildCheckInt32Condition(
       index, length, AssertCondition::kUnsignedLessThan,
-      DeoptimizeReason::kOutOfBounds));
+      DeoptimizeReason::kSpeculativeBoundsCheckFailed));
   return GetCharAt();
 }
 
@@ -7326,9 +7326,10 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceStringPrototypeCharCodeAt(
         });
   }
 
+  DCHECK_EQ(current_speculation_mode_, SpeculationMode::kAllowSpeculation);
   RETURN_IF_ABORT(TryBuildCheckInt32Condition(
       index, length, AssertCondition::kUnsignedLessThan,
-      DeoptimizeReason::kOutOfBounds));
+      DeoptimizeReason::kSpeculativeBoundsCheckFailed));
   return BuildGetCharCodeAt(receiver, index);
 }
 
@@ -7375,9 +7376,10 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceStringPrototypeCodePointAt(
         });
   }
 
+  DCHECK_EQ(current_speculation_mode_, SpeculationMode::kAllowSpeculation);
   RETURN_IF_ABORT(TryBuildCheckInt32Condition(
       index, length, AssertCondition::kUnsignedLessThan,
-      DeoptimizeReason::kOutOfBounds));
+      DeoptimizeReason::kSpeculativeBoundsCheckFailed));
   return GetCodePointAt();
 }
 

@@ -1115,6 +1115,10 @@ void FeedbackNexus::SetSpeculationMode(SpeculationMode mode) {
 
 void FeedbackNexus::NextSpeculationMode(SpeculationMode mode) {
   SpeculationMode cur = GetSpeculationMode();
+  // Code compiled with {mode} does not deopt for this reason. A repeated deopt
+  // comes from code compiled before the first one (e.g. another function that
+  // inlined the same call site), so keep the current mode.
+  if (cur == mode) return;
   if (cur == SpeculationMode::kAllowSpeculation) {
     SetSpeculationMode(mode);
   } else {

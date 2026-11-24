@@ -1266,7 +1266,8 @@ TNode<String> JSCallReducerAssembler::ReduceStringPrototypeCharAt(
   }
 
   DCHECK_EQ(speculation_mode, SpeculationMode::kAllowSpeculation);
-  TNode<Number> bounded_index = CheckBounds(index, length);
+  TNode<Number> bounded_index =
+      CheckBounds(index, length, CheckBoundsFlag::kSpeculativeBoundsCheck);
   return StringFromSingleCharCode(TNode<Number>::UncheckedCast(
       StringCharCodeAt(receiver_string, bounded_index)));
 }
@@ -1298,7 +1299,8 @@ TNode<Number> JSCallReducerAssembler::ReduceStringPrototypeCharCodeAt(
   }
   DCHECK_EQ(speculation_mode, SpeculationMode::kAllowSpeculation);
 
-  TNode<Number> bounded_index = CheckBounds(index, length);
+  TNode<Number> bounded_index =
+      CheckBounds(index, length, CheckBoundsFlag::kSpeculativeBoundsCheck);
   return TNode<Number>::UncheckedCast(
       (StringCharCodeAt(receiver_string, bounded_index)));
 }
@@ -7752,8 +7754,10 @@ Reduction JSCallReducer::ReduceStringPrototypeStringCodePointAt(Node* node) {
 
   // TODO(olivf): Support SpeculationMode::kOutOfBands.
   // Check that the {index} is within range.
-  index = effect = graph()->NewNode(simplified()->CheckBounds(p.feedback()),
-                                    index, receiver_length, effect, control);
+  index = effect = graph()->NewNode(
+      simplified()->CheckBounds(p.feedback(),
+                                CheckBoundsFlag::kSpeculativeBoundsCheck),
+      index, receiver_length, effect, control);
 
   // Return the character from the {receiver} as single character string.
   Node* value = effect = graph()->NewNode(simplified()->StringCodePointAt(),

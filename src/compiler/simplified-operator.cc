@@ -2450,6 +2450,7 @@ std::ostream& operator<<(std::ostream& os, CheckBoundsFlags flags) {
        "ConvertStringAndMinusZero"},
       {CheckBoundsFlag::kAbortOnOutOfBounds, "AbortOnOutOfBounds"},
       {CheckBoundsFlag::kAllow64BitBounds, "Allow64BitBounds"},
+      {CheckBoundsFlag::kSpeculativeBoundsCheck, "SpeculativeBoundsCheck"},
   };
   const char* separator = "";
   for (const auto& [flag, name] : kFlagNames) {

@@ -2230,8 +2230,11 @@ OpIndex GraphBuilder::Process(
 
       } else {
         DCHECK(dominating_frame_state.valid());
-        __ DeoptimizeIfNot(check, dominating_frame_state,
-                           DeoptimizeReason::kOutOfBounds,
+        DeoptimizeReason reason =
+            (params.flags() & CheckBoundsFlag::kSpeculativeBoundsCheck)
+                ? DeoptimizeReason::kSpeculativeBoundsCheckFailed
+                : DeoptimizeReason::kOutOfBounds;
+        __ DeoptimizeIfNot(check, dominating_frame_state, reason,
                            params.check_parameters().feedback());
       }
       return index;
