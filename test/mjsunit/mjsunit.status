@@ -183,6 +183,7 @@
   'array-functions-prototype-misc': [PASS, SLOW],
   'array-tostring-stack-overflow': [PASS, SLOW, ['arch != x64', SKIP]],
   'compiler/regress-461531853': [PASS, SLOW],
+  'compiler/regress-588533894': [PASS, SLOW],
   'compiler/regress-9017': [PASS, SLOW],
   'compiler/regress-crbug-11564': [PASS, SLOW],
   'copy-on-write-assert': [PASS, SLOW],

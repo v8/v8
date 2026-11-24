@@ -232,8 +232,8 @@ class CallForwardVarargsParameters final {
     return p.bit_field_;
   }
 
-  using ArityField = base::BitField<size_t, 0, 15>;
-  using StartIndexField = base::BitField<uint32_t, 15, 15>;
+  using ArityField = base::BitField<size_t, 0, 16>;
+  using StartIndexField = base::BitField<uint32_t, 16, 16>;
 
   uint32_t const bit_field_;
 };
