@@ -1104,7 +1104,7 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
   // requestedLocales, opt,  %NumberFormat%.[[RelevantExtensionKeys]],
   // localeData).
   Intl::ResolvedLocale r;
-  if (!Intl::ResolveLocale(isolate, JSNumberFormat::GetAvailableLocales(),
+  if (!Intl::ResolveLocale(isolate, JSNumberFormat::GetAvailableLocales,
                            requested_locales, matcher, {"nu"})
            .To(&r)) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));

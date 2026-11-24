@@ -2691,7 +2691,7 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
   //     localeData).
   //
   Intl::ResolvedLocale r;
-  if (!Intl::ResolveLocale(isolate, JSDateTimeFormat::GetAvailableLocales(),
+  if (!Intl::ResolveLocale(isolate, JSDateTimeFormat::GetAvailableLocales,
                            requested_locales, locale_matcher,
                            {"nu", "ca", "hc"})
            .To(&r)) {

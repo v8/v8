@@ -2658,15 +2658,20 @@ std::string LookupMatcher(Isolate* isolate,
 //
 // https://tc39.es/ecma402/#sec-resolvelocale
 Maybe<Intl::ResolvedLocale> Intl::ResolveLocale(
-    Isolate* isolate, const std::set<std::string>& available_locales,
+    Isolate* isolate, AvailableLocalesGetter get_available_locales,
     const std::vector<std::string>& requested_locales, MatcherOption matcher,
     const std::set<std::string>& relevant_extension_keys) {
+  DCHECK_NOT_NULL(get_available_locales);
   std::string locale;
   if (matcher == Intl::MatcherOption::kBestFit &&
       v8_flags.harmony_intl_best_fit_matcher) {
-    locale = BestFitMatcher(isolate, available_locales, requested_locales);
+    locale =
+        BestFitMatcher(isolate, get_available_locales(), requested_locales);
+  } else if (requested_locales.empty()) {
+    // LookupMatcher returns DefaultLocale() for an empty list.
+    locale = isolate->DefaultLocale();
   } else {
-    locale = LookupMatcher(isolate, available_locales, requested_locales);
+    locale = LookupMatcher(isolate, get_available_locales(), requested_locales);
   }
 
   Maybe<icu::Locale> maybe_icu_locale = CreateICULocale(locale);
