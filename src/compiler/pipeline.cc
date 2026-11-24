@@ -756,7 +756,20 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
   state_->linkage = compilation_info()->zone()->New<Linkage>(
       Linkage::ComputeIncoming(compilation_info()->zone(), compilation_info()));
 
-  if (compilation_info()->is_osr()) state_->data.InitializeOsrHelper();
+  if (compilation_info()->is_osr()) {
+    state_->data.InitializeOsrHelper();
+    // The OSR frame subsumes the unoptimized frame, so if the latter is already
+    // too large, the frame size bailout after register allocation is
+    // inevitable. Bail out early, since Linkage::GetOsrValueLocation can only
+    // encode stack slots below LinkageLocation::MAX_STACK_SLOT.
+    static_assert(Frame::kMaxOptimizedJSFrameSlots +
+                      StandardFrameConstants::kFixedSlotCount <
+                  LinkageLocation::MAX_STACK_SLOT);
+    if (state_->data.osr_helper()->UnoptimizedFrameSlots() >
+        static_cast<size_t>(Frame::kMaxOptimizedJSFrameSlots)) {
+      return AbortOptimization(BailoutReason::kFunctionTooBig);
+    }
+  }
 
   // InitializeHeapBroker() and CreateGraph() may already use
   // IsPendingAllocation.

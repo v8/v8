@@ -94,9 +94,9 @@ bool Pipeline::AllocateRegisters(const RegisterConfiguration* config,
   // unchecked stack pointer jump of arbitrary size.
   // When replacing this bailout with a different strategy, consider doing the
   // same in Maglev as well.
-  constexpr int kMaxStackSlots = 4 * KB / kSystemPointerSize;
   if (data_->info()->IsOptimizing() &&
-      data_->frame()->GetTotalFrameSlotCount() > kMaxStackSlots) {
+      data_->frame()->GetTotalFrameSlotCount() >
+          Frame::kMaxOptimizedJSFrameSlots) {
     data_->info()->AbortOptimization(BailoutReason::kFunctionTooBig);
     return false;
   }
