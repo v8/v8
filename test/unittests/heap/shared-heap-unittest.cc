@@ -1012,6 +1012,57 @@ TEST_F(SharedHeapTest, WriteBarrierForRange_SharedHeapMarking) {
   InvokeMajorGC(isolate);
 }
 
+TEST_F(SharedHeapTest, FlushBytecodeWithSharedTrustedPointers) {
+  SaveFlags save_flags;
+  v8_flags.flush_bytecode.Set(true);
+
+  i_isolate()->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
+      [](const ParkedScope&) {
+        IsolateWithContextWrapper isolate_wrapper;
+        v8::Isolate* client_isolate = isolate_wrapper.v8_isolate();
+        Isolate* i_client_isolate = isolate_wrapper.isolate();
+        Factory* factory = i_client_isolate->factory();
+        HandleScope scope(i_client_isolate);
+        IndirectHandle<SharedFunctionInfo> sfi;
+        {
+          HandleScope nested_scope(i_client_isolate);
+          v8::Local<v8::Context> context = client_isolate->GetCurrentContext();
+          v8::Local<v8::Value> fn =
+              v8::Script::Compile(
+                  context,
+                  v8::String::NewFromUtf8Literal(
+                      client_isolate,
+                      "(function() { var f = function() { var x = 1; var y = "
+                      "2; return x + y;  }; f(); return f; })()"))
+                  .ToLocalChecked()
+                  ->Run(context)
+                  .ToLocalChecked();
+          IndirectHandle<SharedFunctionInfo> inner_sfi(
+              Cast<JSFunction>(*v8::Utils::OpenDirectHandle(*fn))->shared(),
+              i_client_isolate);
+          DirectHandle<BytecodeArray> bc(
+              inner_sfi->GetBytecodeArray(i_client_isolate), i_client_isolate);
+          DirectHandle<TrustedByteArray> shared_table =
+              factory->NewTrustedByteArray(3, AllocationType::kSharedTrusted);
+          bc->set_source_position_table(*shared_table, kReleaseStore);
+          bc->set_handler_table(*shared_table);
+          SharedFunctionInfo::EnsureOldForTesting(*inner_sfi);
+          sfi = nested_scope.CloseAndEscape(inner_sfi);
+        }
+
+        {
+          DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+              i_client_isolate->heap());
+          i::InvokeMajorGC(i_client_isolate);
+        }
+        EXPECT_FALSE(sfi->is_compiled());
+
+        i_client_isolate->heap()->CollectGarbageShared(
+            i_client_isolate->main_thread_local_heap(),
+            GarbageCollectionReason::kTesting);
+      });
+}
+
 #if V8_ENABLE_WEBASSEMBLY
 namespace {
 

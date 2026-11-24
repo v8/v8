@@ -3358,6 +3358,9 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
   RememberedSet<TRUSTED_TO_TRUSTED>::RemoveRange(
       chunk, compiled_data_start, compiled_data_start + compiled_data_size,
       SlotSet::FREE_EMPTY_BUCKETS);
+  RememberedSet<TRUSTED_TO_SHARED_TRUSTED>::RemoveRange(
+      chunk, compiled_data_start, compiled_data_start + compiled_data_size,
+      SlotSet::FREE_EMPTY_BUCKETS);
 
   // Swap the map, using set_map_after_allocation to avoid verify heap checks
   // which are not necessary since we are doing this during the GC atomic pause.
@@ -5792,6 +5795,10 @@ void ReRecordPage(Heap* heap, Address failed_start, NormalPage* page) {
       page, page->area_start(), failed_start, SlotSet::FREE_EMPTY_BUCKETS);
   RememberedSet<OLD_TO_SHARED>::RemoveRangeTyped(page, page->area_start(),
                                                  failed_start);
+
+  RememberedSet<TRUSTED_TO_SHARED_TRUSTED>::RemoveRange(
+      page, page->area_start(), failed_start, SlotSet::FREE_EMPTY_BUCKETS);
+  DCHECK_NULL(page->typed_slot_set<TRUSTED_TO_SHARED_TRUSTED>());
 
   // Re-record slots and recompute live bytes.
   EvacuateRecordOnlyVisitor visitor(heap);

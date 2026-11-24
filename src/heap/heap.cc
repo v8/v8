@@ -6620,6 +6620,7 @@ void Heap::VerifySlotRangeHasNoRecordedSlots(Address start, Address end) {
   RememberedSet<OLD_TO_NEW>::CheckNoneInRange(page, start, end);
   RememberedSet<OLD_TO_NEW_BACKGROUND>::CheckNoneInRange(page, start, end);
   RememberedSet<OLD_TO_SHARED>::CheckNoneInRange(page, start, end);
+  RememberedSet<TRUSTED_TO_SHARED_TRUSTED>::CheckNoneInRange(page, start, end);
 #endif
 }
 #endif
@@ -6679,6 +6680,15 @@ void Heap::ClearRecordedSlotRange(Address start, Address end,
       RememberedSet<OLD_TO_SHARED>::RemoveRange(page, start, end,
                                                 SlotSet::KEEP_EMPTY_BUCKETS);
     }
+#ifdef DEBUG
+    // Currently no trusted object with ProtectedPointerSlots is trimmed here
+    // (only UncompiledDataWithPreparseData, whose trimmed slot is untrusted).
+    // If this ever changes, trusted remembered sets must be cleared
+    // unconditionally because filler maps at `start` use the main cage.
+    RememberedSet<TRUSTED_TO_TRUSTED>::CheckNoneInRange(page, start, end);
+    RememberedSet<TRUSTED_TO_SHARED_TRUSTED>::CheckNoneInRange(page, start,
+                                                               end);
+#endif
   }
 #endif
 }
