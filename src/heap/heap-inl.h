@@ -38,6 +38,7 @@
 #include "src/objects/map-word-inl.h"
 #include "src/objects/object-predicates-inl.h"
 #include "src/objects/slots-inl.h"
+#include "src/objects/string.h"
 #include "src/objects/templates.h"
 #include "src/objects/visitors-inl.h"
 #include "src/roots/static-roots.h"
@@ -340,7 +341,7 @@ void Heap::ExternalStringTable::AddString(Tagged<String> string) {
   DCHECK(!HeapLayout::InYoungGeneration(string));
 
   old_strings_.push_back(string);
-  bytes_ += string->length();
+  bytes_ += Cast<ExternalString>(string)->ExternalPayloadSize();
 }
 
 Tagged<Boolean> Heap::ToBoolean(bool condition) {

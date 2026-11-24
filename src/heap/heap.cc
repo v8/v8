@@ -6907,7 +6907,7 @@ void Heap::ExternalStringTable::CleanUp() {
     DCHECK(IsExternalString(o));
     DCHECK(!HeapLayout::InYoungGeneration(o));
     old_strings_[last++] = o;
-    bytes += Cast<ExternalString>(o)->length();
+    bytes += Cast<ExternalString>(o)->ExternalPayloadSize();
   }
   old_strings_.resize(last);
   bytes_ = bytes;

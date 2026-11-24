@@ -1326,7 +1326,7 @@ V8_OBJECT class ExternalString : public UncachedExternalString {
   // Return whether the external string data pointer is not cached.
   inline bool is_uncached() const;
   // Size in bytes of the external payload.
-  int ExternalPayloadSize() const;
+  V8_EXPORT_PRIVATE int ExternalPayloadSize() const;
 
   // Used in the serializer/deserializer.
   inline void InitResourceDataAfterDeserialization(Isolate* isolate);
