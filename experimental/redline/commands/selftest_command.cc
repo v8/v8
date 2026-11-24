@@ -4479,14 +4479,16 @@ void RunTestFlagChecks(Checker* checker) {
                    imported, blocked, productive_first,
                    fuzzer.productive_flag_sets(), productive));
 
-  // A fake target: /bin/sh does the REPRL handshake and answers each
-  // execution with the status 0. An unknown option stops /bin/sh before the
-  // handshake. The file `fail_file` also stops it.
+  // A fake target: /bin/bash does the REPRL handshake and answers each
+  // execution with the status 0. Use /bin/bash instead of /bin/sh because
+  // dash rejects multi-digit file descriptor redirections (>&101, <&100).
+  // An unknown option stops /bin/bash before the handshake. The file
+  // `fail_file` also stops it.
   const std::string fail_file =
       StringPrintf("/tmp/redline-spawn-fail.%d", static_cast<int>(getpid()));
   unlink(fail_file.c_str());
   ReprlChild::Options reprl;
-  reprl.executable = "/bin/sh";
+  reprl.executable = "/bin/bash";
   reprl.args = {"-c",
                 "[ -e \"$FAIL_FILE\" ] && exit 3; "
                 "printf HELO >&101; head -c 4 <&100 >/dev/null; "
