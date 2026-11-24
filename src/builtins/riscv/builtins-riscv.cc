@@ -1216,10 +1216,54 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
               Operand(interrupt_limit));
   }
 
+  // Reduce interrupt budget.
+  Label budget_interrupt;
+  {
+    ASM_CODE_COMMENT_STRING(masm, "Update Interrupt Budget");
+    UseScratchRegisterScope temps(masm);
+    Register interrupt_budget = temps.Acquire();
+    Register bytecode_length = temps.Acquire();
+    Register bytecode_array = descriptor.GetRegisterParameter(
+        BaselineOutOfLinePrologueDescriptor::kInterpreterBytecodeArray);
+    __ Lw(interrupt_budget,
+          FieldMemOperand(feedback_cell,
+                          offsetof(FeedbackCell, interrupt_budget_)));
+    __ SmiUntagField(
+        bytecode_length,
+        FieldMemOperand(bytecode_array, offsetof(BytecodeArray, length_)));
+    __ Sub32(interrupt_budget, interrupt_budget, Operand(bytecode_length));
+    __ Sw(interrupt_budget,
+          FieldMemOperand(feedback_cell,
+                          offsetof(FeedbackCell, interrupt_budget_)));
+    __ Branch(&budget_interrupt, lt, interrupt_budget, Operand(zero_reg));
+  }
+
   // Do "fast" return to the caller pc in ra.
   // TODO(v8:11429): Document this frame setup better.
   __ Ret();
 
+  __ bind(&budget_interrupt);
+  {
+    ASM_CODE_COMMENT_STRING(masm, "Budget interrupt call");
+    FrameScope frame_scope(masm, StackFrame::INTERNAL);
+    // Save incoming new target or generator
+    __ Push(kJavaScriptCallNewTargetRegister);
+#if defined(V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE) && \
+    defined(V8_TARGET_ARCH_RISCV64)
+    __ PushDispatchHandle(kJavaScriptCallDispatchHandleRegister, feedback_cell,
+                          feedback_vector);
+#endif
+    __ Push(closure);
+    __ CallRuntime(Runtime::kBytecodeBudgetInterrupt_Sparkplug, 1);
+#if defined(V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE) && \
+    defined(V8_TARGET_ARCH_RISCV64)
+    __ PopDispatchHandle(kJavaScriptCallDispatchHandleRegister, feedback_cell,
+                         feedback_vector);
+#endif
+    __ Pop(kJavaScriptCallNewTargetRegister);
+  }
+  __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
+  __ Ret();
 
   __ bind(&call_stack_guard);
   {
