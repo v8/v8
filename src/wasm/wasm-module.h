@@ -1079,19 +1079,6 @@ V8_EXPORT_PRIVATE bool IsWasmCodegenAllowed(
 V8_EXPORT_PRIVATE DirectHandle<String> ErrorStringForCodegen(
     Isolate* isolate, DirectHandle<Context> context);
 
-DirectHandle<JSObject> GetTypeForFunction(Isolate* isolate,
-                                          const FunctionSig* sig,
-                                          bool for_exception = false);
-DirectHandle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
-                                        ValueType type);
-DirectHandle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
-                                        std::optional<uint64_t> max_size,
-                                        SharedFlag shared,
-                                        AddressType address_type);
-DirectHandle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
-                                       uint32_t min_size,
-                                       std::optional<uint64_t> max_size,
-                                       AddressType address_type);
 V8_EXPORT_PRIVATE DirectHandle<JSArray> GetImports(
     Isolate* isolate, DirectHandle<WasmModuleObject> module);
 DirectHandle<JSArray> GetExports(Isolate* isolate,
