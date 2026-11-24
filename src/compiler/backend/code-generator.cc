@@ -1510,11 +1510,9 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
   if (op->IsStackSlot()) {
     if (type.representation() == MachineRepresentation::kBit) {
       translations_.StoreBoolStackSlot(LocationOperand::cast(op)->index());
-    } else if (type == MachineType::Int8() || type == MachineType::Int16() ||
-               type == MachineType::Int32()) {
+    } else if (type == MachineType::Int32()) {
       translations_.StoreInt32StackSlot(LocationOperand::cast(op)->index());
-    } else if (type == MachineType::Uint8() || type == MachineType::Uint16() ||
-               type == MachineType::Uint32()) {
+    } else if (type == MachineType::Uint32()) {
       translations_.StoreUint32StackSlot(LocationOperand::cast(op)->index());
     } else if (type == MachineType::Int64()) {
       translations_.StoreInt64StackSlot(LocationOperand::cast(op)->index());
@@ -1557,11 +1555,9 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
     InstructionOperandConverter converter(this, instr);
     if (type.representation() == MachineRepresentation::kBit) {
       translations_.StoreBoolRegister(converter.ToRegister(op));
-    } else if (type == MachineType::Int8() || type == MachineType::Int16() ||
-               type == MachineType::Int32()) {
+    } else if (type == MachineType::Int32()) {
       translations_.StoreInt32Register(converter.ToRegister(op));
-    } else if (type == MachineType::Uint8() || type == MachineType::Uint16() ||
-               type == MachineType::Uint32()) {
+    } else if (type == MachineType::Uint32()) {
       translations_.StoreUint32Register(converter.ToRegister(op));
     } else if (type == MachineType::Int64()) {
       translations_.StoreInt64Register(converter.ToRegister(op));

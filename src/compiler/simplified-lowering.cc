@@ -1420,6 +1420,12 @@ class RepresentationSelector {
       DCHECK(type.Is(TypeCache::Get()->kSafeInteger));
       return MachineType(rep, MachineSemantic::kInt64);
     }
+    if (rep == MachineRepresentation::kWord8 ||
+        rep == MachineRepresentation::kWord16) {
+      // Sub-word loads always sign- or zero-extend to 32 bits in registers,
+      // and Turboshaft has no Word8/Word16 RegisterRepresentation.
+      rep = MachineRepresentation::kWord32;
+    }
     MachineType machine_type(rep, DeoptValueSemanticOf(type));
     DCHECK_IMPLIES(
         machine_type.representation() == MachineRepresentation::kWord32,
