@@ -60,30 +60,6 @@ bool IsCompressed(InstructionSelector* selector, OpIndex node) {
   return false;
 }
 
-#ifdef DEBUG
-// {left_idx} and {right_idx} are assumed to be the inputs of a commutative
-// binop. This function checks that {left_idx} is not the only constant input of
-// this binop (since the graph should have been normalized before, putting
-// constants on the right input of binops when possible).
-bool LhsIsNotOnlyConstant(Graph* graph, OpIndex left_idx, OpIndex right_idx) {
-  const Operation& left = graph->Get(left_idx);
-  const Operation& right = graph->Get(right_idx);
-
-  if (right.Is<ConstantOp>()) {
-    // There is a constant on the right.
-    return true;
-  }
-  if (left.Is<ConstantOp>()) {
-    // Constant on the left but not on the right.
-    return false;
-  }
-
-  // Left is not a constant
-  return true;
-}
-
-#endif
-
 }  // namespace
 
 // TODO(dmercadier): consider taking a DisplacementMode as input so that we can
@@ -520,6 +496,11 @@ TryMatchBaseWithScaledIndexAndDisplacement64ForWordBinop(
   // Check (B + D)
   if (selector->MatchSignedIntegralConstant(right, &result.displacement)) {
     result.base = left;
+    return result;
+  }
+  if (is_commutative &&
+      selector->MatchSignedIntegralConstant(left, &result.displacement)) {
+    result.base = right;
     return result;
   }
 
@@ -2187,12 +2168,7 @@ void InstructionSelector::VisitSimd128ReverseBytes(OpIndex node) {
 }
 
 void InstructionSelector::VisitInt32Add(OpIndex node) {
-  X64OperandGenerator g(this);
-
-  std::optional<BaseWithScaledIndexAndDisplacementMatch> m;
-  const WordBinopOp& add = Cast<WordBinopOp>(node);
-  OpIndex left = add.left();
-  OpIndex right = add.right();
+  auto [left, right] = Inputs<WordBinopOp>(node);
   // No need to truncate the values before Int32Add.
   if (V<Word64> left64; MatchTruncateWord64ToWord32(left, &left64)) {
     left = left64;
@@ -2201,13 +2177,9 @@ void InstructionSelector::VisitInt32Add(OpIndex node) {
     right = right64;
   }
 
-  DCHECK(LhsIsNotOnlyConstant(this->turboshaft_graph(), left, right));
-
   // Try to match the Add to a leal pattern
-  m = TryMatchBaseWithScaledIndexAndDisplacement64ForWordBinop(this, left,
-                                                               right, true);
-
-  if (m.has_value()) {
+  if (auto m = TryMatchBaseWithScaledIndexAndDisplacement64ForWordBinop(
+          this, left, right, true)) {
     if (ValueFitsIntoImmediate(m->displacement)) {
       EmitLea(this, kX64Lea32, node, m->index, m->scale, m->base,
               m->displacement, m->displacement_mode);

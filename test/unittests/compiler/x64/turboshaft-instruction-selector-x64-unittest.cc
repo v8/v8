@@ -511,6 +511,21 @@ TEST_F(TurboshaftInstructionSelectorTest, Int32AddConstantAsLeaSingle) {
   EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
 }
 
+TEST_F(TurboshaftInstructionSelectorTest,
+       Int32AddTruncatedConstantAndBitcastConstantAsLea) {
+  StreamBuilder m(this, MachineType::Int32());
+  OpIndex const lhs = m.TruncateWord64ToWord32(m.Int64Constant(42));
+  OpIndex const rhs = m.BitcastFloat32ToWord32(m.Float32Constant(1.5f));
+  m.Return(m.Word32Add(lhs, rhs));
+  Stream s = m.Build();
+  ASSERT_EQ(2U, s.size());
+  EXPECT_EQ(kX64Lea32, s[1]->arch_opcode());
+  EXPECT_EQ(kMode_MRI, s[1]->addressing_mode());
+  ASSERT_EQ(2U, s[1]->InputCount());
+  EXPECT_EQ(s.ToVreg(rhs), s.ToVreg(s[1]->InputAt(0)));
+  EXPECT_EQ(42, s.ToInt32(s[1]->InputAt(1)));
+}
+
 TEST_F(TurboshaftInstructionSelectorTest, Int32AddConstantAsAdd) {
   StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
   OpIndex const p0 = m.Parameter(0);

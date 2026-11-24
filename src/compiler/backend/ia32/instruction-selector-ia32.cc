@@ -1185,6 +1185,11 @@ void VisitBinop(InstructionSelector* selector, OpIndex node,
   IA32OperandGenerator g(selector);
 
   auto [left, right] = selector->Inputs<2>(node);
+  if (selector->IsCommutative(node)) {
+    if (selector->Is<ConstantOp>(left) && !selector->Is<ConstantOp>(right)) {
+      std::swap(left, right);
+    }
+  }
   InstructionOperand inputs[6];
   size_t input_count = 0;
   InstructionOperand outputs[1];
