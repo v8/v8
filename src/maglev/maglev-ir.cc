@@ -288,8 +288,10 @@ ValueNode* ValueNode::UnwrapIdentitiesReturnedValuesAndPhisSlow() {
   });
 }
 
-ValueNode* ValueNode::UnwrapForDeopt() {
-  return UnwrapSinglePhis(this, [](ValueNode* node) { return node->Unwrap(); });
+ValueNode* ValueNode::UnwrapSlow() {
+  return UnwrapSinglePhis(this, [](ValueNode* node) {
+    return node->UnwrapIdentitiesReturnedValuesAndConversions();
+  });
 }
 
 bool Phi::is_unmerged_loop_phi() const {

@@ -2838,12 +2838,9 @@ class ValueNode : public Node {
   ValueNode* UnwrapIdentitiesAndPhis();
   ValueNode* UnwrapIdentitiesReturnedValuesAndPhis();
 
-  // Unwrap identities and conversions.
+  // Unwrap identities, returned values, conversions, and single-input non-loop
+  // phis (cf. UnwrapIdentitiesAndPhis).
   ValueNode* Unwrap();
-
-  // Like Unwrap, but also unwraps single-input phis (cf.
-  // UnwrapIdentitiesAndPhis).
-  V8_EXPORT_PRIVATE ValueNode* UnwrapForDeopt();
 
   ValueNode* UnwrapIdentitiesAndUpdateUseCountForDeopt();
   ValueNode* UnwrapAndUpdateUseCountForDeopt();
@@ -2862,7 +2859,9 @@ class ValueNode : public Node {
   int use_count_;
 
  private:
+  inline ValueNode* UnwrapIdentitiesReturnedValuesAndConversions();
   V8_EXPORT_PRIVATE ValueNode* UnwrapIdentitiesReturnedValuesAndPhisSlow();
+  V8_EXPORT_PRIVATE ValueNode* UnwrapSlow();
 };
 
 inline void NodeBase::initialize_input_null(int index) {
@@ -2940,11 +2939,19 @@ inline ValueNode* ValueNode::UnwrapIdentitiesReturnedValuesAndPhis() {
   return node;
 }
 
-inline ValueNode* ValueNode::Unwrap() {
+inline ValueNode* ValueNode::UnwrapIdentitiesReturnedValuesAndConversions() {
   ValueNode* node = this;
   while (node->Is<Identity>() || node->Is<ReturnedValue>() ||
          node->is_conversion()) {
     node = node->input(0).node();
+  }
+  return node;
+}
+
+inline ValueNode* ValueNode::Unwrap() {
+  ValueNode* node = UnwrapIdentitiesReturnedValuesAndConversions();
+  if (V8_UNLIKELY(node->Is<Phi>() && node->input_count() == 1)) {
+    return node->UnwrapSlow();
   }
   return node;
 }
@@ -2966,7 +2973,7 @@ inline ValueNode* ValueNode::UnwrapIdentitiesAndUpdateUseCountForDeopt() {
 // Unwraps the current node and, if unwrapping succeeds, decrements its
 // use-count and increments the use-count of the unwrapped node.
 inline ValueNode* ValueNode::UnwrapAndUpdateUseCountForDeopt() {
-  ValueNode* unwrapped = UnwrapForDeopt();
+  ValueNode* unwrapped = Unwrap();
   if (unwrapped != this) {
     // TODO(dmercadier): instead of a simple `remove_use` here, we could instead
     // recursively remove uses in VirtualObjects (basically doing the oppositve
