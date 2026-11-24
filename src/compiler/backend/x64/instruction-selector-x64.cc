@@ -3101,34 +3101,26 @@ void InstructionSelector::VisitTruncateInt64ToInt32(OpIndex node) {
   X64OperandGenerator g(this);
   const ChangeOp& op = Cast<ChangeOp>(node);
   OpIndex value = op.input();
-  bool can_cover = false;
-  if (const TaggedBitcastOp* value_op =
-          TryCast<Opmask::kBitcastTaggedToWordPtrForTagAndSmiBits>(value)) {
-    can_cover = CanCover(node, value) && CanCover(node, value_op->input());
-    value = value_op->input();
-  } else {
-    can_cover = CanCover(node, value);
-  }
-    if (can_cover) {
-      const Operation& value_op = Get(value);
-      if (const ShiftOp * shift;
-          (shift = value_op.TryCast<Opmask::kWord64ShiftRightArithmetic>()) ||
-          (shift = value_op.TryCast<Opmask::kWord64ShiftRightLogical>())) {
-        if (this->MatchIntegralWord32Constant(shift->right(), 32)) {
-          if (CanCover(value, shift->left()) &&
-              TryEmitLoadForLoadWord64AndShiftRight(this, value, kX64Movl)) {
-            // We just defined and emitted a 32-bit Load for {value} (the upper
-            // 32 bits only since it was getting shifted by 32 bits to the right
-            // afterwards); we now define {node} as a rename of {value} without
-            // needing to do a truncation.
-            return EmitIdentity(node);
-          }
-          Emit(kX64Shr, g.DefineSameAsFirst(node), g.UseRegister(shift->left()),
-               g.TempImmediate(32));
-          return;
+  if (CanCover(node, value)) {
+    const Operation& value_op = Get(value);
+    if (const ShiftOp* shift;
+        (shift = value_op.TryCast<Opmask::kWord64ShiftRightArithmetic>()) ||
+        (shift = value_op.TryCast<Opmask::kWord64ShiftRightLogical>())) {
+      if (this->MatchIntegralWord32Constant(shift->right(), 32)) {
+        if (CanCover(value, shift->left()) &&
+            TryEmitLoadForLoadWord64AndShiftRight(this, value, kX64Movl)) {
+          // We just defined and emitted a 32-bit Load for {value} (the upper
+          // 32 bits only since it was getting shifted by 32 bits to the right
+          // afterwards); we now define {node} as a rename of {value} without
+          // needing to do a truncation.
+          return EmitIdentity(node);
         }
+        Emit(kX64Shr, g.DefineSameAsFirst(node), g.UseRegister(shift->left()),
+             g.TempImmediate(32));
+        return;
       }
     }
+  }
   Emit(kX64Movl, g.DefineAsRegister(node), g.Use(value));
 }
 

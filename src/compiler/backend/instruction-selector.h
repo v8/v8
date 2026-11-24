@@ -1599,6 +1599,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   BitVector used_;
   IntVector effect_level_;
   int current_effect_level_;
+  bool seen_call_in_block_ = false;
   IntVector virtual_registers_;
   IntVector virtual_register_rename_;
   InstructionScheduler* scheduler_;

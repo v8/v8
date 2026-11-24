@@ -1560,6 +1560,7 @@ bool increment_effect_level_for_node(InstructionSelector* selector,
 void InstructionSelector::VisitBlock(const Block* block) {
   DCHECK(!current_block_);
   current_block_ = block;
+  seen_call_in_block_ = false;
   auto current_num_instructions = [&] {
     DCHECK_GE(kMaxInt, instructions_.size());
     return static_cast<int>(instructions_.size());
@@ -1586,6 +1587,14 @@ void InstructionSelector::VisitBlock(const Block* block) {
     if (current_num_instructions() == instruction_start) return true;
     std::reverse(instructions_.begin() + instruction_start,
                  instructions_.end());
+    if (!seen_call_in_block_) {
+      for (int i = instruction_start; i < current_num_instructions(); ++i) {
+        if (instructions_[i]->IsCall()) {
+          seen_call_in_block_ = true;
+          break;
+        }
+      }
+    }
     if (!node.valid()) return true;
     if (!source_positions_) return true;
 
@@ -1979,25 +1988,28 @@ bool InstructionSelector::CanEmitIdentityForTaggedBitcast(OpIndex node) {
       TaggedBitcastOp::Kind::kHeapObject) {
     return true;
   }
-  // Because instructions are selected bottom-up within {current_block_}, all
-  // same-block uses of {node} have already been visited. EmitIdentity is safe
-  // if all uses are in {current_block_} (and not Phis) at the same effect
-  // level, ensuring no call or allocation can intervene between {node} and its
-  // uses.
-  const int node_vreg = GetVirtualRegister(node);
+  // Because instructions are selected bottom-up within {current_block_},
+  // EmitIdentity is safe if no call has been emitted later in {current_block_}
+  // and nothing in {node}'s forward IR slice escapes {current_block_} (so no
+  // successor block, Phi, or look-through matcher can consume {node} across a
+  // safepoint).
+  //
+  // This is intentionally conservative in two ways:
+  //  - We bail out whenever any call has already been seen in {current_block_},
+  //    rather than tracking exact per-register safepoint lifetimes; this is
+  //    acceptable because calls are relatively rare and throwing calls already
+  //    terminate the block.
+  //  - We bail out if any transitive IR use escapes {current_block_} (or
+  //    exceeds the small visit budget), even if the escaping value no longer
+  //    depends on {node}'s register; this is acceptable because the main cases
+  //    where EmitIdentity matters for code size (e.g., TaggedIsSmi / map
+  //    checks feeding a Branch or DeoptimizeIf) terminate within the current
+  //    block.
+  if (seen_call_in_block_) return false;
+  int budget = 16;  // Cap the transitive walk to 16.
   auto CheckUse = [&](auto& self, OpIndex use) -> bool {
+    if (--budget < 0) return false;
     if (!InCurrentBlock(use) || Is<PhiOp>(use)) return false;
-    int use_vreg = virtual_registers_[use.id()];
-    if (IsUsed(use) &&
-        (use_vreg == InstructionOperand::kInvalidVirtualRegister ||
-         GetRename(use_vreg) != node_vreg)) {
-      // {use} emitted an instruction consuming {node_vreg}; verify that no
-      // effectful operation (such as a call) lies between {node} and {use}.
-      return GetEffectLevel(use) == current_effect_level_;
-    }
-    // {use} was either covered by a downstream instruction (!IsUsed(use)) or
-    // itself emitted identity (GetRename(use_vreg) == node_vreg), so check its
-    // transitive uses instead.
     for (OpIndex transitive_use : turboshaft_uses(use)) {
       if (!self(self, transitive_use)) return false;
     }

@@ -846,6 +846,7 @@
   'sandbox/regress/regress-581560002': [SKIP],
   'sandbox/regress/regress-581855680-1': [SKIP],
   'sandbox/regress/regress-581855680-2': [SKIP],
+  'sandbox/regress/regress-585680021': [SKIP],
   'sandbox/regress-537948358': [SKIP],
   'sandbox/regress-558640961': [SKIP],
   'sandbox/wasm-inlining-sigcheck': [SKIP],
