@@ -8,13 +8,35 @@ load("//lib/gclient.star", "gclient_vars_properties")
 load("//lib/lib.star", "BARRIER", "CQ", "add_barrier_properties", "bq_exports", "branch_descriptors", "fix_args", "resolve_parent_triggering", "skip_builder")
 load("//lib/siso.star", "SISO")
 
-def default_location_filters():
+# Paths that no CQ builder compiles or tests. The presubmit builders still
+# check them.
+NO_BUILD_PATHS = [
+    "agents/.+",
+    "docs/.+",
+    "experimental/[^/]+",
+    "experimental/(d8|dataflow|merge_concurrency_model_checker|regmole)/.+",
+    "tools/(bigsleep|dev|jj|profiling|release|turbolizer)/.+",
+    "tools/debug_helper/plugins/.+",
+    # Sources of the gcmole plugin. Bots use the prebuilt plugin pinned in
+    # tools/gcmole/gcmole-tools.tar.gz.sha1.
+    "tools/gcmole/(Makefile|README|bootstrap\\.sh|gcmole\\.cc|package\\.sh)",
+]
+
+# Redline is compiled as part of gn_all on Linux, but not tested. Only a single
+# compile-only builder verifies changes touching only Redline.
+REDLINE_PATHS = ["experimental/redline/.+"]
+
+def _exclude(path_regexps):
     return [
-        cq.location_filter(
-            path_regexp = "{}/.+".format(lucicfg.main_package().repo_path),
-            exclude = True,
-        ),
+        cq.location_filter(path_regexp = p, exclude = True)
+        for p in path_regexps
     ]
+
+def infra_location_filters():
+    return _exclude(["{}/.+".format(lucicfg.main_package().repo_path)])
+
+def default_location_filters():
+    return infra_location_filters() + _exclude(NO_BUILD_PATHS + REDLINE_PATHS)
 
 def with_cancel(cq_properties):
     if not cq_properties:

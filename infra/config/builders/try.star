@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/builders.star", "presubmit_builder", "try_builder", "v8_builder")
+load("//lib/builders.star", "infra_location_filters", "presubmit_builder", "try_builder", "v8_builder")
 load("//lib/gclient.star", "GCLIENT_VARS")
 load("//lib/lib.star", "CQ")
 load("//lib/siso.star", "SISO")
@@ -52,10 +52,13 @@ try_builder(
     properties = {"target_platform": "fuchsia"},
 )
 
+# Runs whole-tree checks, e.g. Python tests in tools/ and markdown links. Hence
+# only infra changes skip it.
 try_builder(
     name = "v8_full_presubmit",
-    cq_properties = CQ.BLOCK,
-    cq_branch_properties = CQ.BLOCK,
+    cq_properties = dict(CQ.BLOCK, location_filters = infra_location_filters()),
+    cq_branch_properties = dict(CQ.BLOCK, location_filters = infra_location_filters()),
+    add_default_filters = False,
     executable = "recipe:v8/presubmit",
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
 )

@@ -3,7 +3,7 @@
 # found in the LICENSE file.
 
 load("//lib/bucket-defaults.star", "bucket_defaults")
-load("//lib/builders.star", "v8_builder")
+load("//lib/builders.star", "REDLINE_PATHS", "v8_builder")
 load("//lib/gclient.star", "GCLIENT_VARS")
 load("//lib/lib.star", "CQ")
 load("//lib/siso.star", "SISO")
@@ -308,6 +308,10 @@ trybot_pair(
     name = "v8_linux64_rel",
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.OPTIONAL,
+    # The compilator verifies changes touching Redline, which all other
+    # default CQ builders skip. It applies only to the compilator.
+    cq_compile_only_properties = CQ.on_files(*REDLINE_PATHS),
+    add_default_filters = False,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     gclient_vars = [GCLIENT_VARS.GCMOLE],
 )
