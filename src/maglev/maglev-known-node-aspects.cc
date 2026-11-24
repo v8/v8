@@ -11,6 +11,7 @@
 #include "include/v8-internal.h"
 #include "src/base/logging.h"
 #include "src/handles/handles-inl.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-graph-printer.h"
@@ -956,6 +957,24 @@ V8_EXPORT_PRIVATE bool IsStringRootIndex(RootIndex index) {
   ReadOnlyRoots roots = GetReadOnlyRoots();
   Tagged<Object> obj = roots.object_at(index);
   return IsInternalizedString(obj);
+}
+
+V8_EXPORT_PRIVATE bool CouldHaveBeenNonInternalizedStringConstant(
+    ValueNode* node) {
+  auto constant = node->TryCast<HeapConstant>();
+  if (!constant || !constant->ref().IsString()) {
+    // RootConstants that are strings are always internalized strings in
+    // ReadOnlySpace.
+    return false;
+  }
+  if (!constant->ref().IsInternalizedString()) return true;
+  // `String` is `NEVER_SERIALIZED` in `JSHeapBroker`, so a string
+  // `HeapConstant` observed as non-internalized earlier can spontaneously
+  // transition to internalized in-place on another thread.
+  if (!v8_flags.concurrent_recompilation) {
+    return false;
+  }
+  return !HeapLayout::InReadOnlySpace(*constant->ref().object());
 }
 #endif
 

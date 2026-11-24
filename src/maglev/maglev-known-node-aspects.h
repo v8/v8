@@ -38,6 +38,8 @@ using PossibleMaps = compiler::ZoneRefSet<Map>;
 
 #ifdef DEBUG
 V8_EXPORT_PRIVATE bool IsStringRootIndex(RootIndex index);
+V8_EXPORT_PRIVATE bool CouldHaveBeenNonInternalizedStringConstant(
+    ValueNode* node);
 
 inline bool IsInternalizedStringConstant(ValueNode* node) {
   if (auto constant = node->TryCast<HeapConstant>()) {
@@ -46,16 +48,6 @@ inline bool IsInternalizedStringConstant(ValueNode* node) {
   if (auto root_constant = node->TryCast<RootConstant>()) {
     return IsStringRootIndex(root_constant->index());
   }
-  return false;
-}
-
-inline bool IsNonInternalizedStringConstant(ValueNode* node) {
-  if (auto constant = node->TryCast<HeapConstant>()) {
-    return constant->ref().IsString() &&
-           !constant->ref().IsInternalizedString();
-  }
-  // We don't need to check RootConstants because they are always internalized
-  // strings.
   return false;
 }
 #endif  // DEBUG
@@ -126,10 +118,12 @@ class NodeInfo {
         // emit a third one, and the only allowed transition from this point is
         // to an internalized string constant (which will also prevent future
         // CheckedInternalizedStrings from being emitted).
-        if (IsNonInternalizedStringConstant(old_alt)) {
+        if (CouldHaveBeenNonInternalizedStringConstant(old_alt)) {
           DCHECK_EQ(new_alt->opcode(), Opcode::kCheckedInternalizedString);
+          DCHECK_EQ(new_alt->input_node(0)->UnwrapIdentities(), old_alt);
         } else if (old_alt->opcode() == Opcode::kCheckedInternalizedString) {
-          if (IsConstantNode(old_alt->input_node(0)->opcode())) {
+          if (IsConstantNode(
+                  old_alt->input_node(0)->UnwrapIdentities()->opcode())) {
             DCHECK(IsInternalizedStringConstant(new_alt));
           }
         } else {
