@@ -225,13 +225,26 @@ void ProxiesCodeStubAssembler::CheckGetSetTrapResult(
   TVARIABLE(Object, var_raw_value);
 
   Label if_found_value(this), check_in_runtime(this, Label::kDeferred),
-      check_passed(this);
+      check_passed(this), if_not_unique_name(this);
 
-  GotoIfNot(IsUniqueNameNoIndex(name), &check_in_runtime);
   TNode<Uint16T> instance_type = LoadInstanceType(target);
+  GotoIfNot(IsUniqueNameNoIndex(name), &if_not_unique_name);
   TryGetOwnProperty(context, target, target, map, instance_type, name,
                     &if_found_value, &var_value, &var_details, &var_raw_value,
                     &check_passed, &check_in_runtime, kReturnAccessorPair);
+
+  BIND(&if_not_unique_name);
+  {
+    // Array index properties of ordinary objects with fast elements are
+    // either absent or configurable, so the invariants hold trivially.
+    GotoIf(IsCustomElementsReceiverInstanceType(instance_type),
+           &check_in_runtime);
+    GotoIfNot(IsClearWord32(LoadNameRawHashField(name),
+                            Name::kDoesNotContainCachedArrayIndexMask),
+              &check_in_runtime);
+    Branch(IsFastElementsKind(LoadMapElementsKind(map)), &check_passed,
+           &check_in_runtime);
+  }
 
   BIND(&if_found_value);
   {

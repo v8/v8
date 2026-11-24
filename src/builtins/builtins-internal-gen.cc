@@ -1681,9 +1681,36 @@ TF_BUILTIN(GetPropertyWithReceiver, CodeStubAssembler) {
       [=, this](TNode<JSAnyNotSmi> receiver, TNode<JSAnyNotSmi> holder,
                 TNode<Map> holder_map, TNode<Int32T> holder_instance_type,
                 TNode<IntPtrT> index, Label* next_holder, Label* if_bailout) {
-        // Not supported yet.
-        Use(next_holder);
-        Goto(if_bailout);
+        GotoIf(IsCustomElementsReceiverInstanceType(holder_instance_type),
+               if_bailout);
+        // Fast, nonextensible, sealed and frozen elements are plain data
+        // properties, so the receiver is irrelevant.
+        TNode<Int32T> elements_kind = LoadMapElementsKind(holder_map);
+        GotoIfNot(IsElementsKindLessThanOrEqual(
+                      elements_kind, LAST_ANY_NONEXTENSIBLE_ELEMENTS_KIND),
+                  if_bailout);
+        TNode<FixedArrayBase> elements = LoadElements(CAST(holder));
+        TVARIABLE(IntPtrT, var_length, LoadFixedArrayBaseLength(elements));
+        Label if_inbounds(this), if_outofbounds(this), length_loaded(this);
+        GotoIfNot(IsJSArrayInstanceType(holder_instance_type), &length_loaded);
+        var_length = PositiveSmiUntag(LoadFastJSArrayLength(CAST(holder)));
+        Goto(&length_loaded);
+        BIND(&length_loaded);
+        Branch(UintPtrLessThan(index, var_length.value()), &if_inbounds,
+               &if_outofbounds);
+        BIND(&if_outofbounds);
+        // Negative and too-large keys are named properties.
+        if (Is64()) {
+          Branch(UintPtrLessThanOrEqual(
+                     index, UintPtrConstant(JSObject::kMaxElementIndex)),
+                 next_holder, if_bailout);
+        } else {
+          Branch(IntPtrLessThan(index, IntPtrConstant(0)), if_bailout,
+                 next_holder);
+        }
+        BIND(&if_inbounds);
+        Return(LoadFixedArrayBaseElementAsTagged(elements, index, elements_kind,
+                                                 if_bailout, next_holder));
       };
 
   TryPrototypeChainLookup(receiver, object, key, lookup_property_in_holder,
