@@ -10894,12 +10894,14 @@ MaybeReduceResult MaglevGraphBuilder::BuildCallSelf(
 
 bool MaglevGraphBuilder::TargetIsCurrentCompilingUnit(
     compiler::JSFunctionRef target) {
-  if (compilation_unit_->info()->specialize_to_function_context()) {
-    return target.object().equals(
-        compilation_unit_->info()->toplevel_function());
+  if (compilation_unit_->info()->specialize_to_function_context() &&
+      !target.object().equals(compilation_unit_->info()->toplevel_function())) {
+    return false;
   }
-  return target.object()->shared() ==
-         compilation_unit_->info()->toplevel_function()->shared();
+  MaglevCompilationUnit* toplevel =
+      compilation_unit_->info()->toplevel_compilation_unit();
+  return target.raw_feedback_cell(broker()).equals(toplevel->feedback_cell()) &&
+         target.shared(broker()).equals(toplevel->shared_function_info());
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceCallForApiFunction(

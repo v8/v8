@@ -440,6 +440,134 @@ TEST_F(MaglevGraphBuilderTest, ConsStringMapCanonicalizesInputs) {
   EXPECT_FALSE(map_node->RightInput().node()->Is<RootConstant>());
 }
 
+TEST_F(MaglevGraphBuilderTest, CallSelfRequiresMatchingFeedbackCell) {
+  FlagScope<bool> allow_natives_syntax(&v8_flags.allow_natives_syntax, true);
+  FlagScope<bool> maglev(&v8_flags.maglev, true);
+  FlagScope<bool> turbofan(&v8_flags.turbofan, false);
+  FlagScope<bool> non_eager_inlining(&v8_flags.maglev_non_eager_inlining,
+                                     false);
+
+  auto BuildGraphFor = [&](const char* script) {
+    Handle<JSFunction> function = RunJS<JSFunction>(script);
+    std::unique_ptr<MaglevCompilationInfo> info =
+        MaglevCompilationInfo::New(isolate(), function, BytecodeOffset::None());
+    info->broker()->AttachLocalIsolateForMaglev(info.get(),
+                                                isolate()->AsLocalIsolate());
+    Graph* graph = Graph::New(info.get());
+    compiler::CurrentHeapBrokerScope current_broker(info->broker());
+    MaglevGraphBuilder graph_builder(isolate()->AsLocalIsolate(),
+                                     info->toplevel_compilation_unit(), graph);
+    CHECK(graph_builder.Build());
+    info->broker()->DetachLocalIsolateForMaglev(info.get());
+    return std::make_pair(std::move(info), graph);
+  };
+
+  // Distinct FeedbackCells sharing a SharedFunctionInfo (!context-specialized)
+  // must emit CallKnownJSFunction rather than CallSelf.
+  {
+    HandleScope scope(isolate());
+    auto [info, graph] = BuildGraphFor(R"(
+      (() => {
+        class DerivedFunction extends Function {}
+        const body = `return function rec(call_other, x) {
+          if (call_other) return target(false, x);
+          return x + 1;
+        };`;
+        const make1 = new DerivedFunction("target", body);
+        const make2 = new DerivedFunction("target", body);
+        const unused2 = make2(null);
+        const f2 = make2(null);
+        const unused1 = make1(null);
+        const f1 = make1(f2);
+        %PrepareFunctionForOptimization(f1);
+        f1(true, 0);
+        f1(false, 1);
+        return f1;
+      })()
+    )");
+    EXPECT_FALSE(info->specialize_to_function_context());
+    EXPECT_EQ(0, countNodes<CallSelf>(graph));
+    EXPECT_EQ(1, countNodes<CallKnownJSFunction>(graph));
+  }
+
+  // Sibling closures sharing the same FeedbackCell (!context-specialized)
+  // continue to emit CallSelf.
+  {
+    HandleScope scope(isolate());
+    auto [info, graph] = BuildGraphFor(R"(
+      (() => {
+        class DerivedFunction extends Function {}
+        const body = `return function rec(call_other, x) {
+          if (call_other) return target(false, x);
+          return x + 1;
+        };`;
+        const make1 = new DerivedFunction("target", body);
+        const sibling = make1(null);
+        const f1 = make1(sibling);
+        %PrepareFunctionForOptimization(f1);
+        f1(true, 0);
+        f1(false, 1);
+        return f1;
+      })()
+    )");
+    EXPECT_FALSE(info->specialize_to_function_context());
+    EXPECT_EQ(1, countNodes<CallSelf>(graph));
+    EXPECT_EQ(0, countNodes<CallKnownJSFunction>(graph));
+  }
+
+  // Context-specialized single-closure self-recursion emits CallSelf, whereas
+  // calling a distinct closure sharing SharedFunctionInfo emits
+  // CallKnownJSFunction.
+  {
+    HandleScope scope(isolate());
+    auto [info, graph] = BuildGraphFor(R"(
+      (() => {
+        function makeSelf(base) {
+          return function selfRec(n) {
+            if (n > 0) return selfRec(n - 1);
+            return base + 1;
+          };
+        }
+        const f1 = makeSelf(10);
+        %PrepareFunctionForOptimization(f1);
+        f1(1);
+        return f1;
+      })()
+    )");
+    if (v8_flags.maglev_function_context_specialization) {
+      EXPECT_TRUE(info->specialize_to_function_context());
+    }
+    EXPECT_EQ(1, countNodes<CallSelf>(graph));
+    EXPECT_EQ(0, countNodes<CallKnownJSFunction>(graph));
+  }
+
+  {
+    HandleScope scope(isolate());
+    auto [info, graph] = BuildGraphFor(R"(
+      (() => {
+        class DerivedFunction extends Function {}
+        const body = `return function rec(call_other, x) {
+          if (call_other) return target(false, x);
+          return x + 1;
+        };`;
+        const make1 = new DerivedFunction("target", body);
+        const make2 = new DerivedFunction("target", body);
+        const f2 = make2(null);
+        const f1 = make1(f2);
+        %PrepareFunctionForOptimization(f1);
+        f1(true, 0);
+        f1(false, 1);
+        return f1;
+      })()
+    )");
+    if (v8_flags.maglev_function_context_specialization) {
+      EXPECT_TRUE(info->specialize_to_function_context());
+    }
+    EXPECT_EQ(0, countNodes<CallSelf>(graph));
+    EXPECT_EQ(1, countNodes<CallKnownJSFunction>(graph));
+  }
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8
