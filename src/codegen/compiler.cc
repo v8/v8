@@ -2187,7 +2187,9 @@ class ConstantPoolPointerForwarder {
   bool InstallOwnScopeInfo(Tagged<SharedFunctionInfo> sfi) {
     auto it = scope_infos_to_update_.find(sfi->UniqueIdInScript());
     if (it == scope_infos_to_update_.end()) return false;
-    sfi->SetScopeInfo(*it->second);
+    if (sfi->scope_info() != *it->second) {
+      sfi->SetScopeInfo(*it->second);
+    }
     return true;
   }
 
@@ -2295,7 +2297,7 @@ class ConstantPoolPointerForwarder {
           TryCast<SharedFunctionInfo>(maybe_sfi, &new_sfi)) {
         // The same SFI on the old script by function_literal_id
         Tagged<MaybeObject> maybe_old_sfi = old_script_->infos()->get(
-            new_sfi->function_literal_id(kRelaxedLoad));
+            new_sfi->function_literal_id(kRelaxedLoad), kAcquireLoad);
         if (maybe_old_sfi.IsWeak()) {
           boilerplate->set_value(idx,
                                  Cast<SharedFunctionInfo>(
@@ -2308,8 +2310,8 @@ class ConstantPoolPointerForwarder {
   template <typename TArray>
   void VisitSharedFunctionInfo(Tagged<TArray> constant_pool, uint32_t i,
                                Tagged<SharedFunctionInfo> sfi) {
-    Tagged<MaybeObject> maybe_old_sfi =
-        old_script_->infos()->get(sfi->function_literal_id(kRelaxedLoad));
+    Tagged<MaybeObject> maybe_old_sfi = old_script_->infos()->get(
+        sfi->function_literal_id(kRelaxedLoad), kAcquireLoad);
     if (maybe_old_sfi.IsWeak()) {
       constant_pool->set(
           i, Cast<SharedFunctionInfo>(maybe_old_sfi.GetHeapObjectAssumeWeak()));
@@ -2544,7 +2546,7 @@ void BackgroundMergeTask::BeginMergeInBackground(
   {
     DisallowGarbageCollection no_gc;
     Tagged<MaybeObject> maybe_old_toplevel_sfi =
-        old_script->infos()->get(kFunctionLiteralIdTopLevel);
+        old_script->infos()->get(kFunctionLiteralIdTopLevel, kAcquireLoad);
     if (maybe_old_toplevel_sfi.IsWeak()) {
       Tagged<SharedFunctionInfo> old_toplevel_sfi = Cast<SharedFunctionInfo>(
           maybe_old_toplevel_sfi.GetHeapObjectAssumeWeak());
@@ -2658,7 +2660,7 @@ void BackgroundMergeTask::BeginMergeInBackground(
       // new_compiled_data.new_sfi does not have a reused scope info yet, and
       // we'll have found it when we visited the inner function. Try to pick it
       // up here.
-      forwarder.InstallOwnScopeInfo(*new_compiled_data.new_sfi);
+      forwarder.UpdateScopeInfo(*new_compiled_data.new_sfi);
     }
     forwarder.IterateAndForwardPointers();
   }
@@ -2686,9 +2688,19 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
     DisallowGarbageCollection no_gc;
     Tagged<MaybeObject> maybe_old_info = old_script->infos()->get(i);
     Tagged<MaybeObject> maybe_new_info = new_script->infos()->get(i);
+    if (maybe_new_info == maybe_old_info) {
+      if (sfis_without_scope_info_.contains(i) && maybe_old_info.IsWeak()) {
+        Tagged<SharedFunctionInfo> sfi =
+            Cast<SharedFunctionInfo>(maybe_old_info.GetHeapObjectAssumeWeak());
+        if (sfi->HasScopeInfo()) {
+          MERGE_MODEL_STEP(FG_DETECT_CONCURRENT_SFI);
+          forwarder.RecordScopeInfos(sfi);
+        }
+      }
+      continue;
+    }
     if (maybe_old_info.IsWeak()) {
-      if (maybe_new_info != maybe_old_info &&
-          Is<SharedFunctionInfo>(maybe_old_info.GetHeapObjectAssumeWeak())) {
+      if (Is<SharedFunctionInfo>(maybe_old_info.GetHeapObjectAssumeWeak())) {
         MERGE_MODEL_STEP(FG_DETECT_CONCURRENT_SFI);
         forwarder.set_has_shared_function_info_to_forward();
       }

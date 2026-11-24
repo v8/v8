@@ -1116,6 +1116,7 @@
   # Requires test-only sync points.
   'BackgroundMergeTest.GCDuringMerge': [SKIP],
   'ConcurrentMarkingTest.WeakTableOnStackDuringConcurrentMarkingIsStrongified': [SKIP],
+  'MergeDeserializedCodeTest.ConcurrentLazyCompileDuringTryGetScopeInfoForMerge': [SKIP],
 }],  # not test_only_sync_points
 
 ]

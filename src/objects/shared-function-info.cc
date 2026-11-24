@@ -227,8 +227,8 @@ void SharedFunctionInfo::CopyFrom(Tagged<SharedFunctionInfo> other,
   set_name_or_scope_info(other->name_or_scope_info(kAcquireLoad),
                          kReleaseStore);
 
-  set_outer_scope_info_or_feedback_metadata(
-      other->outer_scope_info_or_feedback_metadata());
+  outer_scope_info_or_feedback_metadata_.Release_Store(
+      this, other->raw_outer_scope_info_or_feedback_metadata(kAcquireLoad));
   set_script(other->script(kAcquireLoad), kReleaseStore);
 
   set_length(other->length());
@@ -241,6 +241,7 @@ void SharedFunctionInfo::CopyFrom(Tagged<SharedFunctionInfo> other,
                           kRelaxedStore);
   set_unique_id(other->unique_id());
   set_age(0);
+  set_feedback_slot(other->feedback_slot());
 
   // Install code last to ensure that the entire SFI is properly initialized if
   // it's compiled.
@@ -250,8 +251,6 @@ void SharedFunctionInfo::CopyFrom(Tagged<SharedFunctionInfo> other,
   } else {
     SetUntrustedData(other->GetUntrustedData());
   }
-
-  set_feedback_slot(other->feedback_slot());
 #if DEBUG
   // This should now be byte-for-byte identical to the input except for the age
   // field (could be reset concurrently). Compare content before age field now:

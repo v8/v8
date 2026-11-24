@@ -772,10 +772,21 @@ Tagged<ScopeInfo> SharedFunctionInfo::TryGetScopeInfoForMerge() const {
   if (IsScopeInfo(maybe_scope_info)) {
     return Cast<ScopeInfo>(maybe_scope_info);
   }
+  SYNCHRONIZATION_POINT_TEST_ONLY("BeforeGetScopeInfoForMerge");
   Tagged<Object> maybe_outer_scope_info_or_feedback =
       raw_outer_scope_info_or_feedback_metadata(kAcquireLoad);
   if (IsScopeInfo(maybe_outer_scope_info_or_feedback)) {
     return Cast<ScopeInfo>(maybe_outer_scope_info_or_feedback);
+  }
+  // If `raw_outer_scope_info_or_feedback_metadata` transitioned to
+  // `FeedbackMetadata` due to concurrent compilation on the main thread,
+  // `SetScopeInfo(kReleaseStore)` has already completed before
+  // `set_feedback_metadata(kReleaseStore)`. Re-reading `name_or_scope_info`
+  // with `kAcquireLoad` is therefore guaranteed to observe the installed
+  // `ScopeInfo`.
+  maybe_scope_info = name_or_scope_info(kAcquireLoad);
+  if (IsScopeInfo(maybe_scope_info)) {
+    return Cast<ScopeInfo>(maybe_scope_info);
   }
   return GetReadOnlyRoots().empty_scope_info();
 }
@@ -793,6 +804,12 @@ Tagged<ScopeInfo> SharedFunctionInfo::TryGetOuterScopeInfo() const {
       TryCast(raw_outer_scope_info_or_feedback_metadata(kAcquireLoad),
               &outer_scope_info)) {
     return outer_scope_info;
+  }
+  if (Tagged<ScopeInfo> scope_info;
+      TryCast(name_or_scope_info(kAcquireLoad), &scope_info)) {
+    if (scope_info->HasOuterScopeInfo()) {
+      return scope_info->OuterScopeInfo();
+    }
   }
   return GetReadOnlyRoots().empty_scope_info();
 }
