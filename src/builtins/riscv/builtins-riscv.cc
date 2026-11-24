@@ -3231,8 +3231,8 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   __ bind(&done);
 
   // Increment the total invocation count of the function.
-  __ LoadTaggedField(scratch,
-                     FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)));
+  __ LoadTaggedSignedField(
+      scratch, FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)));
   if (SmiValuesAre31Bits()) {
     __ Add32(scratch, scratch, Operand(Smi::FromInt(1)));
   } else {
