@@ -762,6 +762,9 @@
 
   # GC stress sets --concurrent-recompilation-delay itself.
   'compiler/regress-542923494': [SKIP],
+
+  # Stack headroom can change if concurrent tier-up happens mid-recursion.
+  'wasm/regress-535877252-2': [SKIP],
 }],  # 'gc_stress'
 
 ##############################################################################
