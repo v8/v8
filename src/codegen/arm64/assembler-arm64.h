@@ -3366,19 +3366,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Used by veneer checks below - returns the max (= overapproximated) pc
   // offset after the veneer pool, if the veneer pool were to be emitted
   // immediately.
-  int64_t MaxPCOffsetAfterVeneerPoolIfEmittedNow(size_t margin) const {
-    // Account for the branch and guard around the veneers.
-    static constexpr int kBranchSizeInBytes = kInstrSize;
-    static constexpr int kGuardSizeInBytes = kInstrSize;
-    const size_t max_veneer_size_in_bytes =
-        unresolved_branches_.size() * kVeneerCodeSize;
-    return static_cast<int64_t>(pc_offset() + kBranchSizeInBytes +
-                                kGuardSizeInBytes + max_veneer_size_in_bytes +
-                                margin);
-  }
+  intptr_t MaxPCOffsetAfterVeneerPoolIfEmittedNow(size_t margin);
   // Returns true if we should emit a veneer as soon as possible for a branch
   // which can at most reach to specified pc.
-  bool ShouldEmitVeneer(int64_t max_reachable_pc, size_t margin) const {
+  bool ShouldEmitVeneer(int max_reachable_pc, size_t margin) {
     return max_reachable_pc < MaxPCOffsetAfterVeneerPoolIfEmittedNow(margin);
   }
   bool ShouldEmitVeneers(size_t margin = kVeneerDistanceMargin) {
@@ -3401,17 +3392,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Checks whether veneers need to be emitted at this point.
   // If force_emit is set, a veneer is generated for *all* unresolved branches.
   void CheckVeneerPool(bool force_emit, bool require_jump,
-                       size_t margin = kVeneerDistanceMargin) {
-    if (!require_jump) {
-      // Prefer emitting veneers protected by an existing instruction.
-      margin *= kVeneerNoProtectionFactor;
-    }
-    if (V8_UNLIKELY(force_emit ||
-                    ShouldEmitVeneer(UnresolvedBranchesFirstLimitLowerBound(),
-                                     margin))) {
-      CheckVeneerPoolImpl(force_emit, require_jump, margin);
-    }
-  }
+                       size_t margin = kVeneerDistanceMargin);
 
   using BlockConstPoolScope = ConstantPool::BlockScope;
 
@@ -3651,8 +3632,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void CheckBuffer() {
     CheckBufferSpace();
-    if (V8_UNLIKELY(pc_offset() >= next_veneer_pool_check_)) {
-      CheckVeneerPoolImpl(false, true, kVeneerDistanceMargin);
+    if (pc_offset() >= next_veneer_pool_check_) {
+      CheckVeneerPool(false, true);
     }
     constpool_.MaybeCheck();
   }
@@ -3762,11 +3743,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     // Mask branch type tag bit.
     return unresolved_branches_.begin()->first & ~1;
   }
-  // A lower bound for unresolved_branches_first_limit(), also valid if there
-  // are no unresolved branches.
-  int64_t UnresolvedBranchesFirstLimitLowerBound() const {
-    return int64_t{next_veneer_pool_check_} + kVeneerDistanceCheckMargin;
-  }
 
   // This PC-offset of the next veneer pool check helps reduce the overhead
   // of checking for veneer pools.
@@ -3796,11 +3772,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Deletes the pending unresolved information for a branch, if its type is
   // handled by veneers.
   void DeleteUnresolvedBranchInfoForBranch(Instruction* branch);
-
-  // Slow path of CheckVeneerPool. {margin} already includes
-  // kVeneerNoProtectionFactor.
-  void CheckVeneerPoolImpl(bool force_emit, bool require_jump, size_t margin);
-  void UpdateNextVeneerPoolCheck();
 
   void PatchInHeapNumberRequest(Address pc, Handle<HeapNumber> object) override;
 

@@ -920,7 +920,12 @@ void Assembler::DeleteUnresolvedBranchInfoForLabel(Label* label) {
     // just after all the associated info has been deleted.
     DeleteUnresolvedBranchInfoForLabelTraverse(label);
   }
-  UpdateNextVeneerPoolCheck();
+  if (unresolved_branches_.empty()) {
+    next_veneer_pool_check_ = kMaxInt;
+  } else {
+    next_veneer_pool_check_ =
+        unresolved_branches_first_limit() - kVeneerDistanceCheckMargin;
+  }
 }
 
 bool Assembler::IsConstantPoolAt(const Instruction* instr) {
@@ -5002,6 +5007,17 @@ const size_t ConstantPool::kOpportunityDistToPool32 = 64 * KB;
 const size_t ConstantPool::kOpportunityDistToPool64 = 64 * KB;
 const size_t ConstantPool::kApproxMaxEntryCount = 512;
 
+intptr_t Assembler::MaxPCOffsetAfterVeneerPoolIfEmittedNow(size_t margin) {
+  // Account for the branch and guard around the veneers.
+  static constexpr int kBranchSizeInBytes = kInstrSize;
+  static constexpr int kGuardSizeInBytes = kInstrSize;
+  const size_t max_veneer_size_in_bytes =
+      unresolved_branches_.size() * kVeneerCodeSize;
+  return static_cast<intptr_t>(pc_offset() + kBranchSizeInBytes +
+                               kGuardSizeInBytes + max_veneer_size_in_bytes +
+                               margin);
+}
+
 void Assembler::RecordVeneerPool(int location_offset, int size) {
   Assembler::BlockPoolsScope block_pools(this, PoolEmissionCheck::kSkip);
   RelocInfo rinfo(reinterpret_cast<Address>(buffer_start_) + location_offset,
@@ -5081,7 +5097,12 @@ void Assembler::EmitVeneers(bool force_emit, bool need_protection,
   // Update next_veneer_pool_check_ (tightly coupled with unresolved_branches_).
   // This must happen after the calls to {RemoveBranchFromLabelLinkChain},
   // because that function can resolve additional branches.
-  UpdateNextVeneerPoolCheck();
+  if (unresolved_branches_.empty()) {
+    next_veneer_pool_check_ = kMaxInt;
+  } else {
+    next_veneer_pool_check_ =
+        unresolved_branches_first_limit() - kVeneerDistanceCheckMargin;
+  }
 
   // Record the veneer pool size.
   int pool_size = static_cast<int>(SizeOfCodeGeneratedSince(&size_check));
@@ -5090,16 +5111,14 @@ void Assembler::EmitVeneers(bool force_emit, bool need_protection,
   bind(&end);
 }
 
-void Assembler::CheckVeneerPoolImpl(bool force_emit, bool require_jump,
-                                    size_t margin) {
+void Assembler::CheckVeneerPool(bool force_emit, bool require_jump,
+                                size_t margin) {
   // There is nothing to do if there are no pending veneer pool entries.
   if (unresolved_branches_.empty()) {
     DCHECK_EQ(next_veneer_pool_check_, kMaxInt);
     return;
   }
 
-  DCHECK_LE(UnresolvedBranchesFirstLimitLowerBound(),
-            unresolved_branches_first_limit());
   DCHECK(pc_offset() < unresolved_branches_first_limit());
 
   // Some short sequence of instruction mustn't be broken up by veneer pool
@@ -5110,18 +5129,16 @@ void Assembler::CheckVeneerPoolImpl(bool force_emit, bool require_jump,
     return;
   }
 
+  if (!require_jump) {
+    // Prefer emitting veneers protected by an existing instruction.
+    margin *= kVeneerNoProtectionFactor;
+  }
   if (force_emit || ShouldEmitVeneers(margin)) {
     EmitVeneers(force_emit, require_jump, margin);
   } else {
-    UpdateNextVeneerPoolCheck();
+    next_veneer_pool_check_ =
+        unresolved_branches_first_limit() - kVeneerDistanceCheckMargin;
   }
-}
-
-void Assembler::UpdateNextVeneerPoolCheck() {
-  next_veneer_pool_check_ =
-      unresolved_branches_.empty()
-          ? kMaxInt
-          : unresolved_branches_first_limit() - kVeneerDistanceCheckMargin;
 }
 
 int Assembler::buffer_space() const {
