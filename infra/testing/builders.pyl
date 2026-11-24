@@ -933,6 +933,24 @@
     ],
   },
   ##############################################################################
+  # Linux with IBM simulators
+  'v8_linux64_ppc64_rel': {
+    'swarming_dimensions': {
+      'os': 'Ubuntu-22.04',
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 4},
+    ],
+  },
+  'v8_linux64_s390x_rel': {
+    'swarming_dimensions': {
+      'os': 'Ubuntu-22.04',
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 4},
+    ],
+  },
+  ##############################################################################
   # Win32
   'v8_win_dbg': {
     'swarming_dimensions' : {
