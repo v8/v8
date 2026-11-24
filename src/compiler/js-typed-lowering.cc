@@ -2276,28 +2276,26 @@ Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
           graph()->NewNode(simplified()->CheckIf(DeoptimizeReason::kWrongMap),
                            check, effect, control);
 
-      // Since the change to LoadElement() below is effectful, we connect
-      // node to all effect uses.
-      ReplaceWithValue(node, node, node, control);
-
-      // Morph the {node} into a LoadElement.
-      node->ReplaceInput(0, cache_array);
-      node->ReplaceInput(1, index);
-      node->ReplaceInput(2, effect);
-      node->ReplaceInput(3, control);
-      node->TrimInputCount(4);
-      ElementAccess access =
-          AccessBuilder::ForJSForInCacheArrayElement(n.Parameters().mode());
-      NodeProperties::ChangeOp(node, simplified()->LoadElement(access));
-      NodeProperties::SetType(node, access.type);
-      break;
-    }
-    case ForInMode::kGeneric: {
-      // Load the next {key} from the {cache_array}.
+      // Load the next {key} from the {cache_array}, keeping the enumerator map
+      // alive so that a GC before the load cannot right-trim the shared enum
+      // cache.
       Node* key = effect = graph()->NewNode(
           simplified()->LoadElement(AccessBuilder::ForJSForInCacheArrayElement(
               n.Parameters().mode())),
           cache_array, index, effect, control);
+      effect = graph()->NewNode(common()->Retain(), cache_type, effect);
+
+      ReplaceWithValue(node, key, effect, control);
+      return Replace(key);
+    }
+    case ForInMode::kGeneric: {
+      // Load the next {key} from the {cache_array}, keeping {cache_type} alive
+      // in case it is an enumerator map owning a shared enum cache.
+      Node* key = effect = graph()->NewNode(
+          simplified()->LoadElement(AccessBuilder::ForJSForInCacheArrayElement(
+              n.Parameters().mode())),
+          cache_array, index, effect, control);
+      effect = graph()->NewNode(common()->Retain(), cache_type, effect);
 
       // Check if the expected map still matches that of the {receiver}.
       Node* check = graph()->NewNode(simplified()->ReferenceEqual(),

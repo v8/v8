@@ -2842,11 +2842,13 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadPropertyWithEnumeratedKey(
       simplified()->CheckIf(DeoptimizeReason::kWrongEnumIndices), check, effect,
       control);
 
-  // Determine the key from the {enum_indices}.
+  // Determine the key from the {enum_indices}, keeping the enumerator map alive
+  // so that a GC before the load cannot right-trim the shared index array.
   Node* key = effect = graph()->NewNode(
       simplified()->LoadElement(
           AccessBuilder::ForFixedArrayElement(PACKED_SMI_ELEMENTS)),
       enum_indices, index, effect, control);
+  effect = graph()->NewNode(common()->Retain(), cache_type, effect);
 
   // Load the actual field value.
   Node* value = effect = graph()->NewNode(simplified()->LoadFieldByIndex(),

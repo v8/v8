@@ -5033,6 +5033,9 @@ class RepresentationSelector {
       case IrOpcode::kMajorGCForCompilerTesting:
         ProcessRemainingInputs<T>(node, 0);
         return SetOutput<T>(node, MachineRepresentation::kTagged);
+      case IrOpcode::kRetain:
+        return VisitUnop<T>(node, UseInfo::AnyTagged(),
+                            MachineRepresentation::kNone);
       case IrOpcode::kStaticAssert:
         DCHECK(TypeOf(node->InputAt(0)).Is(Type::Boolean()));
         return VisitUnop<T>(node, UseInfo::Bool(),
