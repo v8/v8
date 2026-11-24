@@ -383,7 +383,7 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitWithReusableClosures(
         BIND(&closures_ready);
         return std::make_pair(var_on_resolve.value(), var_on_reject.value());
       },
-      AwaitBehavior::kNormal);
+      AwaitBehavior::kResumeOnly);
 }
 
 TNode<JSFunction> AsyncBuiltinsAssembler::CreateUnwrapClosure(
