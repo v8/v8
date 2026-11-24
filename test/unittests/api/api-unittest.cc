@@ -13629,13 +13629,14 @@ class CustomInSandboxAllocator : public v8::Allocator {
   explicit CustomInSandboxAllocator(v8::IsolateGroup& group)
       : address_space_(group.GetSandboxAddressSpace()) {}
 
-  void* Allocate(size_t size) override { return AllocateUninitialized(size); }
+  void* Allocate(size_t size) override {
+    ++allocate_count_;
+    return AllocatePages();
+  }
 
   void* AllocateUninitialized(size_t size) override {
-    uintptr_t result = address_space_->AllocatePages(
-        0, kSIZE, kALIGN, v8::PagePermissions::kReadWrite);
-    allocated_address_ = reinterpret_cast<void*>(result);
-    return allocated_address_;
+    ++allocate_uninitialized_count_;
+    return AllocatePages();
   }
 
   void* AllocateUninitializedOrCrash(size_t size) override {
@@ -13650,12 +13651,25 @@ class CustomInSandboxAllocator : public v8::Allocator {
   }
 
   void* allocated_address() const { return allocated_address_; }
+  int allocate_count() const { return allocate_count_; }
+  int allocate_uninitialized_count() const {
+    return allocate_uninitialized_count_;
+  }
 
  private:
+  void* AllocatePages() {
+    uintptr_t result = address_space_->AllocatePages(
+        0, kSIZE, kALIGN, v8::PagePermissions::kReadWrite);
+    allocated_address_ = reinterpret_cast<void*>(result);
+    return allocated_address_;
+  }
+
   static constexpr int kSIZE = 1 << 20;
   static constexpr int kALIGN = 64 << 10;
   v8::VirtualAddressSpace* address_space_;
   void* allocated_address_ = nullptr;
+  int allocate_count_ = 0;
+  int allocate_uninitialized_count_ = 0;
 };
 
 TEST_F(ApiUninitializedTest, SetInSandboxAllocator) {
@@ -13672,8 +13686,18 @@ TEST_F(ApiUninitializedTest, SetInSandboxAllocator) {
   std::unique_ptr<v8::BackingStore> backing_store =
       v8::ArrayBuffer::NewBackingStore(isolate, 200);
   CHECK_EQ(backing_store->Data(), allocator->allocated_address());
-
+  CHECK_EQ(allocator->allocate_count(), 1);
+  CHECK_EQ(allocator->allocate_uninitialized_count(), 0);
   backing_store.reset();
+
+  std::unique_ptr<v8::BackingStore> uninitialized_backing_store =
+      v8::ArrayBuffer::NewBackingStore(
+          isolate, 200, v8::BackingStoreInitializationMode::kUninitialized);
+  CHECK_EQ(uninitialized_backing_store->Data(), allocator->allocated_address());
+  CHECK_EQ(allocator->allocate_count(), 1);
+  CHECK_EQ(allocator->allocate_uninitialized_count(), 1);
+  uninitialized_backing_store.reset();
+
   isolate->Dispose();
 }
 

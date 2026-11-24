@@ -350,7 +350,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
   }
 
   void* AllocateUninitialized(size_t length) override {
-    return Allocate(length);
+    return allocator_->AllocateUninitialized(length);
   }
 
   void Free(void* data, size_t length) override {
