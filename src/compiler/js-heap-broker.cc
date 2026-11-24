@@ -54,6 +54,8 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
       root_index_map_(isolate),
       tracing_enabled_(tracing_enabled),
       code_kind_(code_kind),
+      is_context_slot_not_assigned_unreliable_(
+          isolate->is_context_slot_not_assigned_unreliable()),
       feedback_(zone()),
       property_access_infos_(zone()) {
   TRACE(this, "Constructing heap broker");
@@ -680,7 +682,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForGlobalAccess(
 
     // Lexical script-context const slots can be mutated via the debugger.
     bool immutable = FeedbackNexus::ImmutabilityBit::decode(number) &&
-                     !isolate()->is_context_slot_not_assigned_unreliable();
+                     !is_context_slot_not_assigned_unreliable();
     return *zone()->New<GlobalAccessFeedback>(context, context_slot_index,
                                               immutable, nexus.kind());
   }

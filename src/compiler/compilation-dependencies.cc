@@ -1453,6 +1453,9 @@ V8_INLINE void TraceInvalidCompilationDependency(
 }
 
 bool CompilationDependencies::Commit(Handle<Code> code) {
+  DCHECK_IMPLIES(
+      !broker_->is_context_slot_not_assigned_unreliable(),
+      !broker_->isolate()->is_context_slot_not_assigned_unreliable());
   if (!PrepareInstall()) return false;
 
   {

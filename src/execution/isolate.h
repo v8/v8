@@ -2489,8 +2489,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // kNotAssigned in ScopeInfo, making the kNotAssigned flag unreliable for
   // constant-folding optimizations in this isolate.
   bool is_context_slot_not_assigned_unreliable() const {
-    return context_slot_not_assigned_is_unreliable_.load(
-        std::memory_order_relaxed);
+    DCHECK_EQ(base::ThreadId::Current(), thread_id());
+    return is_context_slot_not_assigned_unreliable_;
   }
 
   void MarkContextSlotNotAssignedIsUnreliable();
@@ -2712,7 +2712,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   std::atomic<bool> battery_saver_mode_enabled_ = false;
   std::atomic<bool> memory_saver_mode_enabled_ = false;
-  std::atomic<bool> context_slot_not_assigned_is_unreliable_ = false;
+  bool is_context_slot_not_assigned_unreliable_ = false;
 
   // Helper function for RunHostImportModuleDynamicallyCallback.
   // Unpacks import attributes, if present, from the second argument to dynamic

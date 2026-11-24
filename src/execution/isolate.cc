@@ -8767,8 +8767,7 @@ void Isolate::PrintNumberStringCacheStats(const char* comment,
 
 void Isolate::MarkContextSlotNotAssignedIsUnreliable() {
   if (is_context_slot_not_assigned_unreliable()) return;
-  context_slot_not_assigned_is_unreliable_.store(true,
-                                                 std::memory_order_relaxed);
+  is_context_slot_not_assigned_unreliable_ = true;
   // Abort any in-flight concurrent compilations that may have relied on
   // kNotAssigned and deoptimize existing optimized code.
   AbortConcurrentOptimization(BlockingBehavior::kBlock);
