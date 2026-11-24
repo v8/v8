@@ -1312,7 +1312,11 @@ bool AstNodeClassCheck::IsInstanceOf(AstNode* node) {
 
 inline bool IsDeferred(Statement* stmt) {
   if (auto* block = BlockStatement::DynamicCast(stmt)) {
-    return block->deferred;
+    return block->deferred ||
+           (block->statements.size() == 1 && IsDeferred(block->statements[0]));
+  }
+  if (auto* debug = DebugStatement::DynamicCast(stmt)) {
+    return debug->kind == DebugStatement::Kind::kUnreachable;
   }
   return false;
 }
