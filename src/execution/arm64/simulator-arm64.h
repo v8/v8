@@ -946,9 +946,10 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   }
 
   void CheckBType() {
+    DCHECK(btype() != DefaultBType);
     // On guarded pages, if BType is not zero, take an exception on any
     // instruction other than BTI, PACI[AB]SP, HLT or BRK.
-    if (PcIsInGuardedPage() && (btype() != DefaultBType)) {
+    if (PcIsInGuardedPage()) {
       if (pc_->IsPAuth()) {
         CheckBTypeForPAuth();
       } else if (pc_->IsBti()) {
@@ -1021,14 +1022,17 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
       }
     }
 #endif  // V8_USE_ADDRESS_SANITIZER
-    CheckBType();
-    ResetBType();
-    CheckBreakNext();
+    // Only an indirect branch leaves BTYPE set.
+    if (V8_UNLIKELY(btype() != DefaultBType)) {
+      CheckBType();
+      ResetBType();
+    }
+    if (V8_UNLIKELY(break_on_next_)) CheckBreakNext();
     Decode(pc_);
     last_instr_ = pc_;
     increment_pc();
     LogAllWrittenRegisters();
-    CheckBreakpoints();
+    if (V8_UNLIKELY(!breakpoints_.empty())) CheckBreakpoints();
   }
 
 // Declare all Visitor functions.
@@ -1294,7 +1298,7 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   // instruction it meets.
   bool break_on_next_;
   // Check if the Simulator should insert a break after the current instruction
-  // for the 'next' command.
+  // for the 'next' command. Only called when break_on_next_ is set.
   void CheckBreakNext();
 
   // Disassemble instruction at the given address.

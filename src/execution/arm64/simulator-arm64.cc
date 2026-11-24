@@ -1624,8 +1624,9 @@ void Simulator::CheckBreakpoints() {
 }
 
 void Simulator::CheckBreakNext() {
+  DCHECK(break_on_next_);
   // If the current instruction is a BL, insert a breakpoint just after it.
-  if (break_on_next_ && pc_->IsBranchAndLinkToRegister()) {
+  if (pc_->IsBranchAndLinkToRegister()) {
     SetBreakpoint(pc_->following());
     break_on_next_ = false;
   }
