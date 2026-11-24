@@ -61,22 +61,31 @@ constexpr Operand kInstanceDataOperand =
 
 constexpr Operand kOSRTargetSlot = GetStackSlot(kOSRTargetOffset);
 
+// Cold path of {GetMemOp} for offsets that do not fit in 31 bits. Materializes
+// the offset in {kScratchRegister2}. V8_NOINLINE keeps it out of the fast path,
+// V8_PRESERVE_MOST avoids caller-saved spills when {GetMemOp} is inlined into
+// callers, and inline allows multiple definitions across translation units.
+V8_NOINLINE V8_PRESERVE_MOST inline Operand GetMemOp_Slow(
+    LiftoffAssembler* assm, Register addr, Register offset_reg,
+    uintptr_t offset_imm, ScaleFactor scale_factor) {
+  Register scratch = kScratchRegister2;
+  assm->MacroAssembler::Move(scratch, offset_imm);
+  if (offset_reg != no_reg) assm->addq(scratch, offset_reg);
+  return Operand(addr, scratch, scale_factor, 0);
+}
+
 // Note: The returned Operand might contain {kScratchRegister2}; make sure not
 // to clobber that until after the last use of the Operand.
 inline Operand GetMemOp(LiftoffAssembler* assm, Register addr,
                         Register offset_reg, uintptr_t offset_imm,
                         ScaleFactor scale_factor = times_1) {
-  if (is_uint31(offset_imm)) {
+  if (V8_LIKELY(is_uint31(offset_imm))) {
     int32_t offset_imm32 = static_cast<int32_t>(offset_imm);
     return offset_reg == no_reg
                ? Operand(addr, offset_imm32)
                : Operand(addr, offset_reg, scale_factor, offset_imm32);
   }
-  // Offset immediate does not fit in 31 bits.
-  Register scratch = kScratchRegister2;
-  assm->MacroAssembler::Move(scratch, offset_imm);
-  if (offset_reg != no_reg) assm->addq(scratch, offset_reg);
-  return Operand(addr, scratch, scale_factor, 0);
+  return GetMemOp_Slow(assm, addr, offset_reg, offset_imm, scale_factor);
 }
 
 inline void LoadFromStack(LiftoffAssembler* assm, LiftoffRegister dst,
