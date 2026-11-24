@@ -2270,8 +2270,17 @@ Maybe<bool> DefineOwnDataProperty(LookupIterator* it,
                                         it->GetName(), &new_desc, should_throw);
     }
     case LookupIterator::WASM_OBJECT:
+#if V8_ENABLE_WEBASSEMBLY
+      if (v8_flags.wasm_custom_descriptors) {
+        RETURN_FAILURE(
+            it->isolate(), GetShouldThrow(it->isolate(), should_throw),
+            NewTypeError(MessageTemplate::kDefineDisallowed, it->GetName()));
+      }
       RETURN_FAILURE(it->isolate(), kThrowOnError,
                      NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
+#else
+      UNREACHABLE();
+#endif  // V8_ENABLE_WEBASSEMBLY
     // When lazy feedback is disabled, the original state could be different
     // while the object is already prepared for TRANSITION.
     case LookupIterator::TRANSITION: {

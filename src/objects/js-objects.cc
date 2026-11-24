@@ -406,8 +406,27 @@ Maybe<bool> JSReceiver::CheckPrivateNameStore(LookupIterator* it,
         }
         continue;
       case LookupIterator::WASM_OBJECT:
+#if V8_ENABLE_WEBASSEMBLY
+        if (v8_flags.wasm_custom_descriptors) {
+          if (is_define) {
+            MessageTemplate disallowed_message =
+                it->GetName()->IsPrivateBrand()
+                    ? MessageTemplate::kDefineDisallowedPrivateMethod
+                    : MessageTemplate::kDefineDisallowed;
+            RETURN_FAILURE(isolate,
+                           GetShouldThrow(isolate, Nothing<ShouldThrow>()),
+                           NewTypeError(disallowed_message, it->GetName()));
+          }
+          RETURN_FAILURE(
+              isolate, GetShouldThrow(isolate, Nothing<ShouldThrow>()),
+              NewTypeError(MessageTemplate::kInvalidPrivateMemberWrite,
+                           name_string));
+        }
         RETURN_FAILURE(isolate, kThrowOnError,
                        NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
+#else
+        UNREACHABLE();
+#endif  // V8_ENABLE_WEBASSEMBLY
       case LookupIterator::DATA:
       case LookupIterator::NOT_FOUND:
         if (is_define) {
@@ -930,7 +949,12 @@ Maybe<PropertyAttributes> JSReceiver::GetPropertyAttributes(
       case LookupIterator::JSPROXY:
         return JSProxy::GetPropertyAttributes(it);
       case LookupIterator::WASM_OBJECT:
+#if V8_ENABLE_WEBASSEMBLY
+        if (v8_flags.wasm_custom_descriptors) continue;
         return Just(ABSENT);
+#else
+        UNREACHABLE();
+#endif  // V8_ENABLE_WEBASSEMBLY
       case LookupIterator::INTERCEPTOR: {
         Maybe<PropertyAttributes> result =
             JSObject::GetPropertyAttributesWithInterceptor(it);
@@ -1175,8 +1199,13 @@ Maybe<bool> JSReceiver::DeleteProperty(LookupIterator* it,
       case LookupIterator::STRING_LOOKUP_START_OBJECT:
         UNREACHABLE();
       case LookupIterator::WASM_OBJECT:
+#if V8_ENABLE_WEBASSEMBLY
+        if (v8_flags.wasm_custom_descriptors) return Just(true);
         RETURN_FAILURE(isolate, kThrowOnError,
                        NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
+#else
+        UNREACHABLE();
+#endif  // V8_ENABLE_WEBASSEMBLY
       case LookupIterator::ACCESS_CHECK:
         if (it->HasAccess()) continue;
         RETURN_ON_EXCEPTION_VALUE(
@@ -1413,10 +1442,16 @@ Maybe<bool> JSReceiver::DefineOwnProperty(Isolate* isolate,
     return JSModuleNamespace::DefineOwnProperty(
         isolate, Cast<JSModuleNamespace>(object), key, desc, should_throw);
   }
+#if V8_ENABLE_WEBASSEMBLY
   if (IsWasmObject(*object)) {
+    if (v8_flags.wasm_custom_descriptors) {
+      RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
+                     NewTypeError(MessageTemplate::kDefineDisallowed, key));
+    }
     RETURN_FAILURE(isolate, kThrowOnError,
                    NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // OrdinaryDefineOwnProperty, by virtue of calling
   // DefineOwnPropertyIgnoreAttributes, can handle arguments
@@ -2028,8 +2063,6 @@ Maybe<bool> JSReceiver::AddPrivateField(LookupIterator* it,
   for (;; it->Next()) {
     switch (it->state()) {
       case LookupIterator::WASM_OBJECT:
-        RETURN_FAILURE(isolate, kThrowOnError,
-                       NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
       case LookupIterator::JSPROXY:
       case LookupIterator::MODULE_NAMESPACE:
       case LookupIterator::DATA:
@@ -2043,7 +2076,7 @@ Maybe<bool> JSReceiver::AddPrivateField(LookupIterator* it,
         if (!it->HasAccess()) {
           RETURN_ON_EXCEPTION_VALUE(
               isolate,
-              it->isolate()->ReportFailedAccessCheck(it->GetHolder<JSObject>()),
+              isolate->ReportFailedAccessCheck(it->GetHolder<JSObject>()),
               Nothing<bool>());
           UNREACHABLE();
         }
@@ -2315,10 +2348,13 @@ Maybe<bool> JSReceiver::PreventExtensions(Isolate* isolate,
   if (IsJSProxy(*object)) {
     return JSProxy::PreventExtensions(Cast<JSProxy>(object), should_throw);
   }
+#if V8_ENABLE_WEBASSEMBLY
   if (IsWasmObject(*object)) {
+    if (v8_flags.wasm_custom_descriptors) return Just(true);
     RETURN_FAILURE(isolate, kThrowOnError,
                    NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
   DCHECK(IsJSObject(*object));
   return JSObject::PreventExtensions(isolate, Cast<JSObject>(object),
                                      should_throw);
@@ -2577,10 +2613,19 @@ Maybe<bool> JSReceiver::SetPrototype(Isolate* isolate,
                                      DirectHandle<Object> value,
                                      bool from_javascript,
                                      ShouldThrow should_throw) {
+#if V8_ENABLE_WEBASSEMBLY
   if (IsWasmObject(*object)) {
+    if (v8_flags.wasm_custom_descriptors) {
+      if (!IsJSReceiver(*value) && !IsNull(*value)) return Just(true);
+      if (object->map()->prototype() == *value) return Just(true);
+      RETURN_FAILURE(
+          isolate, should_throw,
+          NewTypeError(MessageTemplate::kNonExtensibleProto, object));
+    }
     RETURN_FAILURE(isolate, should_throw,
                    NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   if (IsJSProxy(*object)) {
     if (!IsJSReceiver(*value) && !IsNull(*value)) {

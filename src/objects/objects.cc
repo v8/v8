@@ -2705,8 +2705,13 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it,
                                store_origin);
 
       case LookupIterator::WASM_OBJECT:
+#if V8_ENABLE_WEBASSEMBLY
+        if (v8_flags.wasm_custom_descriptors) continue;
         RETURN_FAILURE(it->isolate(), kThrowOnError,
                        NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
+#else
+        UNREACHABLE();
+#endif  // V8_ENABLE_WEBASSEMBLY
 
       case LookupIterator::MODULE_NAMESPACE: {
         PropertyDescriptor desc;
@@ -2879,10 +2884,12 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it,
 
   if (it->ExtendingNonExtensible(receiver)) {
     DCHECK(!it->GetName()->IsPrivateBrand());
-    if (IsWasmObject(*receiver)) {
+#if V8_ENABLE_WEBASSEMBLY
+    if (IsWasmObject(*receiver) && !v8_flags.wasm_custom_descriptors) {
       RETURN_FAILURE(it->isolate(), kThrowOnError,
                      NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
     }
+#endif  // V8_ENABLE_WEBASSEMBLY
     RETURN_FAILURE(isolate, GetShouldThrow(it->isolate(), should_throw),
                    NewTypeError(semantics == EnforceDefineSemantics::kDefine
                                     ? MessageTemplate::kDefineDisallowed

@@ -1082,10 +1082,34 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<JSAny> object,
     case HOLE_TYPE:
       UNREACHABLE();
 #if V8_ENABLE_WEBASSEMBLY
-    case WASM_STRUCT_TYPE:
     case WASM_CUSTOM_MAP_TYPE:
+      // WasmCustomMaps always switch to their wrapper before being exposed to
+      // JS.
+      UNREACHABLE();
+    case WASM_STRUCT_TYPE:
     case WASM_ARRAY_TYPE:
-      return UNCHANGED;
+      if (!v8_flags.wasm_custom_descriptors) return UNCHANGED;
+      if (property_list_.is_null() ||
+          IsNull(Cast<HeapObject>(*object)->map()->prototype())) {
+        if (deferred_string_key) SerializeDeferredKey(comma, key);
+        AppendCStringLiteral("{}");
+        return SUCCESS;
+      }
+      // A replacer array queries properties via [[Get]], which walks the
+      // prototype chain and may invoke getters or encounter cycles.
+      if (!need_stack_) {
+        need_stack_ = true;
+        return NEED_STACK;
+      }
+      if (deferred_string_key) SerializeDeferredKey(comma, key);
+      {
+        Result stack_push = StackPush(object, key);
+        if (stack_push != SUCCESS) return stack_push;
+        Result result = SerializeJSReceiverSlow(Cast<JSReceiver>(object));
+        if (result != SUCCESS) return result;
+        StackPop();
+        return SUCCESS;
+      }
 #endif
     default:
       if (InstanceTypeChecker::IsString(instance_type)) {
@@ -2668,6 +2692,22 @@ FastJsonStringifierResult FastJsonStringifier<Char>::TrySerializeSimpleObject(
       return JS_OBJECT;
     case JS_ARRAY_TYPE:
       return JS_ARRAY;
+#if V8_ENABLE_WEBASSEMBLY
+    case WASM_ARRAY_TYPE:
+      if (!v8_flags.wasm_custom_descriptors) return SLOW_PATH;
+      DCHECK(IsNull(map->prototype()));
+      AppendCStringLiteral("{}");
+      return SUCCESS;
+    case WASM_STRUCT_TYPE:
+      if (!v8_flags.wasm_custom_descriptors) return SLOW_PATH;
+      if (!IsNull(map->prototype()) &&
+          V8_UNLIKELY(MayHaveInterestingProperties(
+              isolate_, Cast<JSReceiver>(map->prototype())))) {
+        return SLOW_PATH;
+      }
+      AppendCStringLiteral("{}");
+      return SUCCESS;
+#endif
     default:
       return SLOW_PATH;
   }

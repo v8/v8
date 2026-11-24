@@ -747,4 +747,48 @@ TEST_F(ApiWasmTest, OwnedBufferSpanAndMoveSemantics) {
   EXPECT_TRUE(std::ranges::equal(expected_bytes, move_assigned.as_span()));
 }
 
+TEST_F(ApiWasmTest, WasmObjectSetPrototype) {
+  using namespace internal::wasm;  // NOLINT(build/namespaces)
+  HandleScope scope(isolate());
+  Local<Context> context = Context::New(isolate());
+  Context::Scope context_scope(context);
+
+  constexpr uint8_t kModuleBytes[] = {
+      WASM_MODULE_HEADER,
+      SECTION(Type, ENTRY_COUNT(2), kWasmStructTypeCode, 0,
+              SIG_ENTRY_x(kExternRefCode)),
+      SECTION(Function, ENTRY_COUNT(1), SIG_INDEX(1)),
+      SECTION(Export, ENTRY_COUNT(1), ADD_COUNT('m'), kExternalFunction,
+              FUNC_INDEX(0)),
+      SECTION(Code, ENTRY_COUNT(1),
+              ADD_COUNT(0, WASM_GC_OP(kExprStructNewDefault), 0,
+                        WASM_GC_OP(kExprExternConvertAny), WASM_END))};
+  Local<WasmModuleObject> module =
+      WasmModuleObject::Compile(isolate(), kModuleBytes).ToLocalChecked();
+  context->Global()->Set(context, NewString("mod"), module).Check();
+  Local<Object> wasm_obj =
+      RunJS("new WebAssembly.Instance(mod).exports.m()").As<Object>();
+  Local<Object> sealed_js_obj =
+      RunJS("Object.seal({__proto__: null})").As<Object>();
+  Local<Object> other_proto = Object::New(isolate());
+
+  {
+    i::FlagScope<bool> flag_descriptors(&i::v8_flags.wasm_custom_descriptors,
+                                        false);
+    EXPECT_TRUE(wasm_obj->SetPrototype(context, Null(isolate())).IsNothing());
+    EXPECT_TRUE(wasm_obj->SetPrototype(context, other_proto).IsNothing());
+  }
+
+  {
+    i::FlagScope<bool> flag_descriptors(&i::v8_flags.wasm_custom_descriptors,
+                                        true);
+    for (Local<Object> obj : {wasm_obj, sealed_js_obj}) {
+      EXPECT_EQ(Just(true), obj->SetPrototype(context, Null(isolate())));
+      EXPECT_EQ(Just(true),
+                obj->SetPrototype(context, Integer::New(isolate(), 42)));
+      EXPECT_TRUE(obj->SetPrototype(context, other_proto).IsNothing());
+    }
+  }
+}
+
 }  // namespace v8
