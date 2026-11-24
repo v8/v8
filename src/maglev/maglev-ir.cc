@@ -31,6 +31,7 @@
 #include "src/heap/parked-scope.h"
 #include "src/interpreter/bytecode-flags-and-tokens.h"
 #include "src/maglev/maglev-node-type.h"
+#include "src/objects/contexts.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/fixed-array.h"
@@ -5233,6 +5234,7 @@ int Abort::MaxCallStackArgs() const {
 void Abort::SetValueLocationConstraints() {}
 void Abort::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   __ Push(Smi::FromInt(static_cast<int>(reason())));
+  __ Move(kContextRegister, Context::kNoContext);
   __ CallRuntime(Runtime::kAbort, 1);
   __ Trap();
 }
