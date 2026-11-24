@@ -1580,7 +1580,7 @@ Reduction JSTypedLowering::ReduceJSHasContextExtension(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   TNode<Context> context =
       TNode<Context>::UncheckedCast(NodeProperties::GetContextInput(node));
-  Node* control = graph()->start();
+  Node* control = NodeProperties::GetControlInput(node);
 
   JSGraphAssembler gasm(broker(), jsgraph_, jsgraph_->zone(),
                         BranchSemantics::kJS);
@@ -1615,7 +1615,7 @@ Reduction JSTypedLowering::ReduceJSLoadContextNoCell(Node* node) {
   ContextAccess const& access = ContextAccessOf(node->op());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* context = NodeProperties::GetContextInput(node);
-  Node* control = graph()->start();
+  Node* control = NodeProperties::GetControlInput(node);
   for (size_t i = 0; i < access.depth(); ++i) {
     context = effect = graph()->NewNode(
         simplified()->LoadField(
@@ -1624,7 +1624,6 @@ Reduction JSTypedLowering::ReduceJSLoadContextNoCell(Node* node) {
   }
   node->ReplaceInput(0, context);
   node->ReplaceInput(1, effect);
-  node->AppendInput(jsgraph()->zone(), control);
   NodeProperties::ChangeOp(
       node,
       simplified()->LoadField(AccessBuilder::ForContextSlot(access.index())));
@@ -1705,7 +1704,7 @@ Reduction JSTypedLowering::ReduceJSStoreContextNoCell(Node* node) {
   ContextAccess const& access = ContextAccessOf(node->op());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* context = NodeProperties::GetContextInput(node);
-  Node* control = graph()->start();
+  Node* control = NodeProperties::GetControlInput(node);
   Node* value = NodeProperties::GetValueInput(node, 0);
   for (size_t i = 0; i < access.depth(); ++i) {
     context = effect = graph()->NewNode(

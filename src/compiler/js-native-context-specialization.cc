@@ -1235,7 +1235,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadGlobal(Node* node) {
       value = effect =
           graph()->NewNode(javascript()->LoadContextNoCell(
                                0, feedback.slot_index(), feedback.immutable()),
-                           script_context, effect);
+                           script_context, effect, control);
     }
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);
