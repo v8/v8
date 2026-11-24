@@ -5126,14 +5126,15 @@ class TurboshaftGraphBuildingInterface
          __ Word32Constant(imm.index)});
   }
 
-  void TableGet(FullDecoder* decoder, const Value& index, Value* result,
-                const TableIndexImmediate& imm) {
+  std::pair<V<FixedArray>, V<WordPtr>> CheckTableBoundsAndLoadEntries(
+      FullDecoder* decoder, const Value& index,
+      const TableIndexImmediate& imm) {
+    V<WordPtr> index_wordptr = TableAddressToUintPtrOrOOBTrap(
+        imm.table->address_type, index.get<Word>());
     V<WasmTableObject> table = LoadTable(decoder, imm);
     V<Smi> size_smi = __ Load(table, LoadOp::Kind::TaggedBase(),
                               MemoryRepresentation::TaggedSigned(),
                               offsetof(WasmTableObject, current_length_));
-    V<WordPtr> index_wordptr = TableAddressToUintPtrOrOOBTrap(
-        imm.table->address_type, index.get<Word>());
     DCHECK_GE(kSmiMaxValue, wasm::max_table_size());
     V<Word32> in_bounds = __ UintPtrLessThan(
         index_wordptr, __ ChangeUint32ToUintPtr(__ UntagSmi(size_smi)));
@@ -5141,6 +5142,13 @@ class TurboshaftGraphBuildingInterface
     V<FixedArray> entries = __ Load(table, LoadOp::Kind::TaggedBase(),
                                     MemoryRepresentation::TaggedPointer(),
                                     offsetof(WasmTableObject, entries_));
+    return {entries, index_wordptr};
+  }
+
+  void TableGet(FullDecoder* decoder, const Value& index, Value* result,
+                const TableIndexImmediate& imm) {
+    auto [entries, index_wordptr] =
+        CheckTableBoundsAndLoadEntries(decoder, index, imm);
     OpIndex entry = __ LoadFixedArrayElement(entries, index_wordptr);
 
     if (imm.table->type.ref_type_kind() == RefTypeKind::kFunction) {
@@ -5177,16 +5185,28 @@ class TurboshaftGraphBuildingInterface
 
   void TableSet(FullDecoder* decoder, const Value& index, const Value& value,
                 const TableIndexImmediate& imm) {
-    V<WordPtr> index_wordptr = TableAddressToUintPtrOrOOBTrap(
-        imm.table->address_type, index.get<Word>());
-
     if (imm.table->type.ref_type_kind() == RefTypeKind::kFunction) {
+      V<WordPtr> index_wordptr = TableAddressToUintPtrOrOOBTrap(
+          imm.table->address_type, index.get<Word>());
       CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmTableSetFuncRef>(
           decoder, {__ IntPtrConstant(imm.index), index_wordptr, value.op});
-    } else {
-      CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmTableSet>(
-          decoder, {__ IntPtrConstant(imm.index), index_wordptr, value.op});
+      return;
     }
+    // Non-function tables do not have any dispatch table or other side data
+    // to update, so we can inline the bounds check and the store (mirroring
+    // the {WasmTableSet} builtin). This avoids the builtin call and allows
+    // the table, length and entries loads to be optimized.
+    auto [entries, index_wordptr] =
+        CheckTableBoundsAndLoadEntries(decoder, index, imm);
+    // {kStruct}, {kArray}, and {kCont} values (including {WasmNull}) are
+    // always HeapObjects and never Smis, whereas {kOther} includes Smi-capable
+    // types such as {i31ref}, {anyref}, {eqref}, and {externref}.
+    compiler::WriteBarrierKind write_barrier =
+        imm.table->type.ref_type_kind() == RefTypeKind::kOther
+            ? compiler::kFullWriteBarrier
+            : compiler::kPointerWriteBarrier;
+    __ StoreFixedArrayElement(entries, index_wordptr, value.get<Object>(),
+                              write_barrier);
   }
 
   void TableInit(FullDecoder* decoder, const TableInitImmediate& imm,

@@ -1012,6 +1012,7 @@
   'wasm/regress-wasmfx-exact-types': [SKIP],
   'wasm/resume-throw': [SKIP],
   'wasm/stack-switching*': [SKIP],
+  'wasm/table-set-non-function': [SKIP],
   'wasm/wasmfx*': [SKIP],
 
   # --wasm-stringref

@@ -1447,18 +1447,6 @@ struct BuiltinCallDescriptor {
         base_effects.CanWriteMemory().CanThrowOrTrap();
   };
 
-  struct WasmTableSet : public Descriptor<WasmTableSet> {
-    static constexpr auto kFunction = Builtin::kWasmTableSet;
-    using arguments_t = std::tuple<V<WordPtr>, V<WordPtr>, V<Object>>;
-    using results_t = std::tuple<V<Object>>;
-
-    static constexpr bool kNeedsFrameState = false;
-    static constexpr bool kNeedsContext = false;
-    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
-    static constexpr OpEffects kEffects =
-        base_effects.CanWriteMemory().CanThrowOrTrap();
-  };
-
   struct WasmTableInit : public Descriptor<WasmTableInit> {
     static constexpr auto kFunction = Builtin::kWasmTableInit;
     using arguments_t =
