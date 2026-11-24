@@ -2313,7 +2313,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
 #if V8_TARGET_ARCH_RISCV64
     case kRiscvLwu:
-      __ Lwu(i.OutputRegister(), i.MemoryOperand(), trapper);
+      if (AddressingModeField::decode(instr->opcode()) != kMode_None) {
+        __ Lwu(i.OutputRegister(), i.MemoryOperand(), trapper);
+      } else {
+        DCHECK(instr->InputAt(0)->IsStackSlot() ||
+               instr->InputAt(0)->IsFPStackSlot());
+        __ Lwu(i.OutputRegister(), i.ToMemOperand(instr->InputAt(0)));
+      }
       break;
     case kRiscvLd:
       __ Ld(i.OutputRegister(), i.MemoryOperand(), trapper);
@@ -2866,8 +2872,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvLoadDecompressTagged: {
       CHECK(instr->HasOutput());
       Register result = i.OutputRegister();
-      MemOperand operand = i.MemoryOperand();
-      __ DecompressTagged(result, operand, trapper);
+      if (AddressingModeField::decode(instr->opcode()) != kMode_None) {
+        MemOperand operand = i.MemoryOperand();
+        __ DecompressTagged(result, operand, trapper);
+      } else if (instr->InputAt(0)->IsRegister()) {
+        __ DecompressTagged(result, i.InputRegister(0));
+      } else {
+        __ DecompressTagged(result, i.ToMemOperand(instr->InputAt(0)));
+      }
       break;
     }
     case kRiscvLoadDecodeSandboxedPointer: {

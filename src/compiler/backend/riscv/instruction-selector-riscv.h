@@ -736,7 +736,21 @@ void InstructionSelector::EmitPrepareResults(
   RiscvOperandGenerator g(this);
 
   for (PushParameter output : *results) {
+#if V8_ENABLE_WEBASSEMBLY && V8_ENABLE_SANDBOX
+    if (!output.location.IsCallerFrameSlot()) {
+      if (!output.op.IsInvalid()) {
+        DCHECK(output.node.valid());
+        InstructionOperand result_op = g.DefineAsRegister(output.node);
+        InstructionCode opcode = output.needs_decompression
+                                     ? kRiscvLoadDecompressTagged
+                                     : kRiscvZeroExtendWord;
+        Emit(opcode, 1, &result_op, 1, &output.op);
+      }
+      continue;
+    }
+#else
     if (!output.location.IsCallerFrameSlot()) continue;
+#endif  // V8_ENABLE_WEBASSEMBLY && V8_ENABLE_SANDBOX
     // Skip any alignment holes in nodes.
     if (output.node.valid()) {
       DCHECK(!call_descriptor->IsCFunctionCall());
@@ -749,6 +763,21 @@ void InstructionSelector::EmitPrepareResults(
       }
       int offset = call_descriptor->GetOffsetToReturns();
       int reverse_slot = -output.location.GetLocation() - offset;
+#if V8_ENABLE_WEBASSEMBLY && V8_ENABLE_SANDBOX
+      if (call_descriptor->IsAnyWasmFunctionCall() &&
+          output.location.GetType() == MachineType::AnyTagged() &&
+          IsReallyUsed(output.node)) {
+        InstructionOperand temp = g.TempRegister();
+        MarkAsRepresentation(MachineRepresentation::kTagged, temp);
+        Emit(kRiscvPeek, temp, g.UseImmediate(reverse_slot));
+        InstructionOperand result_op = g.DefineAsRegister(output.node);
+        InstructionCode opcode = output.needs_decompression
+                                     ? kRiscvLoadDecompressTagged
+                                     : kRiscvZeroExtendWord;
+        Emit(opcode, 1, &result_op, 1, &temp);
+        continue;
+      }
+#endif  // V8_ENABLE_WEBASSEMBLY && V8_ENABLE_SANDBOX
       Emit(kRiscvPeek, g.DefineAsRegister(output.node),
            g.UseImmediate(reverse_slot));
     }
@@ -1848,7 +1877,21 @@ void InstructionSelector::AddOutputToSelectContinuation(OperandGenerator* g,
 
 void InstructionSelector::EmitDecompressTaggedParam(
     OpIndex node, InstructionOperand temp_op) {
+#if V8_ENABLE_WEBASSEMBLY && V8_ENABLE_SANDBOX
+  RiscvOperandGenerator g(this);
+  InstructionOperand result_op = g.DefineAsRegister(node);
+  InstructionCode opcode = kRiscvLoadDecompressTagged;
+  if (Cast<ParameterOp>(node).rep == RegisterRepresentation::Compressed()) {
+    // Compressed values in a stack slot can be loaded with a zero-extending
+    // 32-bit load; in a register they must be zero-extended explicitly.
+    opcode = UnallocatedOperand::cast(temp_op).HasFixedSlotPolicy()
+                 ? kRiscvLwu
+                 : kRiscvZeroExtendWord;
+  }
+  Emit(opcode, 1, &result_op, 1, &temp_op);
+#else
   UNREACHABLE();
+#endif  // V8_ENABLE_WEBASSEMBLY && V8_ENABLE_SANDBOX
 }
 
 #if V8_ENABLE_WEBASSEMBLY
