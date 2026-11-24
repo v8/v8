@@ -161,7 +161,7 @@ TEST_F(TurboshaftBranchCombineTest, BranchCombineInt32GreaterThanZero_1) {
   OpIndex p0 = m.Parameter(0);
 
   Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
-  m.Branch(m.Int32GreaterThan(p0, m.Word32Constant(0)), blocka, blockb);
+  m.Branch(m.Int32GreaterThan(p0, 0), blocka, blockb);
   m.Bind(blocka);
   m.Return(m.Word32Constant(eq_constant));
   m.Bind(blockb);
@@ -206,12 +206,11 @@ TEST_F(TurboshaftBranchCombineTest, BranchCombineWord32EqualI) {
       RawMachineAssemblerTester<int32_t> m(i_isolate(), zone(),
                                            MachineType::Int32());
 
-      OpIndex p0 = m.Word32Constant(a);
       OpIndex p1 = m.Parameter(0);
 
       Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
-      if (left == 1) m.Branch(m.Word32Equal(p0, p1), blocka, blockb);
-      if (left == 0) m.Branch(m.Word32Equal(p1, p0), blocka, blockb);
+      if (left == 1) m.Branch(m.Word32Equal(a, p1), blocka, blockb);
+      if (left == 0) m.Branch(m.Word32Equal(p1, a), blocka, blockb);
       m.Bind(blocka);
       m.Return(m.Word32Constant(eq_constant));
       m.Bind(blockb);
@@ -262,12 +261,11 @@ TEST_F(TurboshaftBranchCombineTest, BranchCombineInt32CmpI) {
     FOR_INT32_INPUTS(a) {
       RawMachineAssemblerTester<int32_t> m(i_isolate(), zone(),
                                            MachineType::Int32());
-      OpIndex p0 = m.Word32Constant(a);
       OpIndex p1 = m.Parameter(0);
 
       Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
-      if (op == 0) m.Branch(m.Int32LessThan(p0, p1), blocka, blockb);
-      if (op == 1) m.Branch(m.Int32LessThanOrEqual(p0, p1), blocka, blockb);
+      if (op == 0) m.Branch(m.Int32LessThan(a, p1), blocka, blockb);
+      if (op == 1) m.Branch(m.Int32LessThanOrEqual(a, p1), blocka, blockb);
       m.Bind(blocka);
       m.Return(m.Word32Constant(eq_constant));
       m.Bind(blockb);
@@ -501,7 +499,7 @@ TEST_F(TurboshaftBranchCombineTest,
   OpIndex p0 = m.Parameter(0);
   OpIndex p1 = m.Parameter(1);
   OpIndex add = m.Word32Add(p0, p1);
-  V<Word32> compare = m.Int32GreaterThanOrEqual(add, m.Word32Constant(0));
+  V<Word32> compare = m.Int32GreaterThanOrEqual(add, 0);
 
   Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
   m.Branch(compare, blocka, blockb);
@@ -528,7 +526,7 @@ TEST_F(TurboshaftBranchCombineTest, BranchCombineInt32ZeroGreaterThanAdd) {
   OpIndex p0 = m.Parameter(0);
   OpIndex p1 = m.Parameter(1);
   OpIndex add = m.Word32Add(p0, p1);
-  V<Word32> compare = m.Int32GreaterThan(m.Word32Constant(0), add);
+  V<Word32> compare = m.Int32GreaterThan(0, add);
 
   Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
   m.Branch(compare, blocka, blockb);
@@ -609,7 +607,7 @@ TEST_F(TurboshaftBranchCombineTest, BranchCombineUWord32AddGreaterThanZero) {
   OpIndex p0 = m.Parameter(0);
   OpIndex p1 = m.Parameter(1);
   OpIndex add = m.Word32Add(p0, p1);
-  V<Word32> compare = m.Uint32GreaterThan(add, m.Word32Constant(0));
+  V<Word32> compare = m.Uint32GreaterThan(add, 0);
 
   Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
   m.Branch(compare, blocka, blockb);
@@ -636,7 +634,7 @@ TEST_F(TurboshaftBranchCombineTest,
   OpIndex p0 = m.Parameter(0);
   OpIndex p1 = m.Parameter(1);
   OpIndex add = m.Word32Add(p0, p1);
-  V<Word32> compare = m.Uint32GreaterThanOrEqual(m.Word32Constant(0), add);
+  V<Word32> compare = m.Uint32GreaterThanOrEqual(0, add);
 
   Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
   m.Branch(compare, blocka, blockb);
@@ -715,7 +713,7 @@ TEST_F(TurboshaftBranchCombineTest,
   OpIndex p0 = m.Parameter(0);
   OpIndex p1 = m.Parameter(1);
   OpIndex add = m.Word32BitwiseAnd(p0, p1);
-  V<Word32> compare = m.Int32GreaterThanOrEqual(add, m.Word32Constant(0));
+  V<Word32> compare = m.Int32GreaterThanOrEqual(add, 0);
 
   Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
   m.Branch(compare, blocka, blockb);
@@ -741,7 +739,7 @@ TEST_F(TurboshaftBranchCombineTest, BranchCombineInt32ZeroGreaterThanAnd) {
   OpIndex p0 = m.Parameter(0);
   OpIndex p1 = m.Parameter(1);
   OpIndex add = m.Word32BitwiseAnd(p0, p1);
-  V<Word32> compare = m.Int32GreaterThan(m.Word32Constant(0), add);
+  V<Word32> compare = m.Int32GreaterThan(0, add);
 
   Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
   m.Branch(compare, blocka, blockb);
@@ -819,7 +817,7 @@ TEST_F(TurboshaftBranchCombineTest, BranchCombineUint32AndGreaterThanZero) {
   OpIndex p0 = m.Parameter(0);
   OpIndex p1 = m.Parameter(1);
   OpIndex add = m.Word32BitwiseAnd(p0, p1);
-  V<Word32> compare = m.Uint32GreaterThan(add, m.Word32Constant(0));
+  V<Word32> compare = m.Uint32GreaterThan(add, 0);
 
   Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
   m.Branch(compare, blocka, blockb);
@@ -846,7 +844,7 @@ TEST_F(TurboshaftBranchCombineTest,
   OpIndex p0 = m.Parameter(0);
   OpIndex p1 = m.Parameter(1);
   OpIndex add = m.Word32BitwiseAnd(p0, p1);
-  V<Word32> compare = m.Uint32GreaterThanOrEqual(m.Word32Constant(0), add);
+  V<Word32> compare = m.Uint32GreaterThanOrEqual(0, add);
 
   Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
   m.Branch(compare, blocka, blockb);

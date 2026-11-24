@@ -1788,13 +1788,13 @@ TEST_F(TurboshaftInstructionSelectorTest, ConditionalTraps) {
     OpIndex src = m.Parameter(0);
     OpIndex dst = m.Parameter(1);
     OpIndex size = m.Parameter(2);
-    OpIndex max_size = m.IntPtrConstant(16);
-    OpIndex limit = m.IntPtrConstant(4096);
+    constexpr int kMaxSize = 16;
+    constexpr int kLimit = 4096;
 
     m.TrapIfNot(m.Word32BitwiseAnd(
-                    m.Word32BitwiseAnd(m.UintPtrLessThanOrEqual(src, limit),
-                                       m.UintPtrLessThanOrEqual(dst, limit)),
-                    m.UintPtrLessThanOrEqual(size, max_size)),
+                    m.Word32BitwiseAnd(m.UintPtrLessThanOrEqual(src, kLimit),
+                                       m.UintPtrLessThanOrEqual(dst, kLimit)),
+                    m.UintPtrLessThanOrEqual(size, kMaxSize)),
                 TrapId::kTrapMemOutOfBounds);
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
@@ -1808,10 +1808,10 @@ TEST_F(TurboshaftInstructionSelectorTest, ConditionalTraps) {
     OpIndex mem_size = m.Parameter(0);
     OpIndex offset_limit = m.Parameter(1);
     OpIndex offset = m.Parameter(2);
-    OpIndex size = m.IntPtrConstant(100);
+    constexpr int kSize = 100;
     m.TrapIfNot(
         m.Word32BitwiseAnd(m.UintPtrLessThanOrEqual(offset, offset_limit),
-                           m.UintPtrLessThanOrEqual(size, mem_size)),
+                           m.UintPtrLessThanOrEqual(kSize, mem_size)),
         TrapId::kTrapMemOutOfBounds);
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();

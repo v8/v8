@@ -155,16 +155,16 @@ class RawMachineAssemblerTester : public CallHelper<ReturnType>,
     Store(base, value, StoreOp::Kind::RawAligned(), mem_rep, write_barrier);
   }
 
-  V<Word32> Int32GreaterThan(V<Word32> a, V<Word32> b) {
+  V<Word32> Int32GreaterThan(ConstOrV<Word32> a, ConstOrV<Word32> b) {
     return Int32LessThan(b, a);
   }
-  V<Word32> Int32GreaterThanOrEqual(V<Word32> a, V<Word32> b) {
+  V<Word32> Int32GreaterThanOrEqual(ConstOrV<Word32> a, ConstOrV<Word32> b) {
     return Int32LessThanOrEqual(b, a);
   }
-  V<Word32> Uint32GreaterThan(V<Word32> a, V<Word32> b) {
+  V<Word32> Uint32GreaterThan(ConstOrV<Word32> a, ConstOrV<Word32> b) {
     return Uint32LessThan(b, a);
   }
-  V<Word32> Uint32GreaterThanOrEqual(V<Word32> a, V<Word32> b) {
+  V<Word32> Uint32GreaterThanOrEqual(ConstOrV<Word32> a, ConstOrV<Word32> b) {
     return Uint32LessThanOrEqual(b, a);
   }
 
