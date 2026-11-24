@@ -1720,6 +1720,23 @@ TEST_F(AssemblerArm64Test, adr) {
   CHECK_EQUAL_64(0x0, x1);
 }
 
+TEST_F(AssemblerArm64Test, adr_unaligned) {
+  SETUP();
+
+  START();
+  __ adr(x0, 0);
+  __ adr(x1, -3);
+  __ adr(x2, 2);
+  __ Sub(x1, x1, x0);
+  __ Sub(x2, x2, x0);
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_64(1, x1);
+  CHECK_EQUAL_64(10, x2);
+}
+
 TEST_F(AssemblerArm64Test, adr_far) {
   int max_range = 1 << (Instruction::ImmPCRelRangeBitwidth - 1);
   SETUP_SIZE(max_range + 1000 * kInstrSize);

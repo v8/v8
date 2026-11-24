@@ -1972,7 +1972,9 @@ void Simulator::VisitUnallocated(Instruction* instr) {
 void Simulator::VisitPCRelAddressing(Instruction* instr) {
   switch (instr->Mask(PCRelAddressingMask)) {
     case ADR:
-      set_reg(instr->Rd(), instr->ImmPCOffsetTarget());
+      // Unlike a branch, adr may target any byte.
+      set_reg(instr->Rd(), instr->InstructionAtOffset(instr->ImmPCOffset(),
+                                                      Instruction::NO_CHECK));
       break;
     case ADRP:  // Not implemented in the assembler.
       UNIMPLEMENTED();
