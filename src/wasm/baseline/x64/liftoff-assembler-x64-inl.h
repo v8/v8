@@ -5331,6 +5331,7 @@ void LiftoffAssembler::TailCallIndirect(
 }
 
 void LiftoffAssembler::CallBuiltin(Builtin builtin) {
+  DCHECK(!Builtins::BypassesReturnAddressPrediction(builtin));
   if (builtin != Builtin::kWasmLiftoffFrameSetup) {
     // {kWasmLiftoffFrameSetup} is called at function entry before {rbp} is
     // pushed, while {rsp} still points to the caller's return address

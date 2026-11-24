@@ -759,7 +759,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         Constant constant = i.ToConstant(instr->InputAt(0));
         Address wasm_code = static_cast<Address>(constant.ToInt32());
         if (DetermineStubCallMode() == StubCallMode::kCallWasmRuntimeStub) {
-          __ wasm_call(wasm_code, constant.rmode());
+          if (RelocInfo::IsWasmStubCall(constant.rmode()) &&
+              Builtins::BypassesReturnAddressPrediction(
+                  static_cast<Builtin>(wasm_code))) {
+            // Push the return address without pushing onto the return stack
+            // buffer (`PushPC` emits `call +0`, which modern x86 CPUs treat as
+            // a get-PC idiom), and adjust [esp] in place to avoid clobbering
+            // any GP register (all GP registers may be live at WasmFXSwitch).
+            __ PushPC();
+            int before_add = masm()->pc_offset();
+            constexpr int kAddAndJmpBytes = 4 + 5;
+            __ add(Operand(esp, 0), Immediate(kAddAndJmpBytes));
+            __ jmp(wasm_code, constant.rmode());
+            CHECK_EQ(masm()->pc_offset() - before_add, kAddAndJmpBytes);
+          } else {
+            __ wasm_call(wasm_code, constant.rmode());
+          }
         } else {
           __ call(wasm_code, constant.rmode());
         }

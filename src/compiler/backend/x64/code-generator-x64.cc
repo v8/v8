@@ -1853,7 +1853,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         Constant constant = i.ToConstant(instr->InputAt(0));
         Address wasm_code = static_cast<Address>(constant.ToInt64());
         if (DetermineStubCallMode() == StubCallMode::kCallWasmRuntimeStub) {
-          __ near_call(wasm_code, constant.rmode());
+          if (RelocInfo::IsWasmStubCall(constant.rmode()) &&
+              Builtins::BypassesReturnAddressPrediction(
+                  static_cast<Builtin>(wasm_code))) {
+            // Push the return address manually and jump, so that the
+            // builtin's (indirect) return after switching stacks does not
+            // desynchronize the return address predictor.
+            Label return_location;
+            __ leaq(kScratchRegister, Operand(&return_location, 0));
+            __ pushq(kScratchRegister);
+            __ near_jmp(wasm_code, constant.rmode());
+            __ bind(&return_location);
+          } else {
+            __ near_call(wasm_code, constant.rmode());
+          }
         } else {
           __ Call(wasm_code, constant.rmode());
         }

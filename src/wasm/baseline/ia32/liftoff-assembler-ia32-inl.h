@@ -5301,6 +5301,7 @@ void LiftoffAssembler::TailCallIndirect(
 }
 
 void LiftoffAssembler::CallBuiltin(Builtin builtin) {
+  DCHECK(!Builtins::BypassesReturnAddressPrediction(builtin));
   // A direct call to a builtin. Just encode the builtin index. This will be
   // patched at relocation.
   wasm_call(static_cast<Address>(builtin), RelocInfo::WASM_STUB_CALL);

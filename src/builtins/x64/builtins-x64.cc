@@ -3847,6 +3847,21 @@ void LoadJumpBuffer(MacroAssembler* masm, Register stack, bool load_pc) {
   // The stack limit is set separately under the ExecutionAccess lock.
 }
 
+// Returns from the frameless tail of a stack-switching WasmFX builtin (see
+// {Builtins::BypassesReturnAddressPrediction}).
+void ReturnFromStackSwitchingBuiltin(MacroAssembler* masm, Builtin builtin,
+                                     int bytes_to_drop) {
+  if (Builtins::BypassesReturnAddressPrediction(builtin)) {
+    // The caller did not push a return address prediction, so do not consume
+    // one: return via an indirect jump instead of a {ret}.
+    __ PopReturnAddressTo(kScratchRegister);
+    if (bytes_to_drop != 0) __ addq(rsp, Immediate(bytes_to_drop));
+    __ jmp(kScratchRegister);
+  } else {
+    __ ret(bytes_to_drop);
+  }
+}
+
 // The sp saved in a stack's jump buffer is always 16-byte aligned: SwitchStacks
 // and WasmFXSuspend record rsp right after PrepareCallCFunction aligned it.
 // Code that pads pushes after LoadJumpBuffer(..., false) relies on this.
@@ -4582,7 +4597,7 @@ void Builtins::Generate_WasmFXResume(MacroAssembler* masm) {
   // Return the arg buffer.
   __ movq(kReturnRegister0, WasmFXReturnDescriptor::GetRegisterParameter(0));
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
-  __ ret(0);
+  ReturnFromStackSwitchingBuiltin(masm, Builtin::kWasmFXResume, 0);
 }
 
 void Builtins::Generate_WasmFXResumeThrow(MacroAssembler* masm) {
@@ -4641,7 +4656,8 @@ void Builtins::Generate_WasmFXResumeThrow(MacroAssembler* masm) {
   // Return the arg buffer.
   __ Move(kReturnRegister0, WasmFXReturnDescriptor::GetRegisterParameter(0));
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
-  __ ret(0);
+  static_assert(WasmFXResumeThrowDescriptor::GetStackParameterCount() == 0);
+  ReturnFromStackSwitchingBuiltin(masm, Builtin::kWasmFXResumeThrow, 0);
 }
 
 void Builtins::Generate_WasmFXResumeThrowRef(MacroAssembler* masm) {
@@ -4688,7 +4704,8 @@ void Builtins::Generate_WasmFXResumeThrowRef(MacroAssembler* masm) {
   // Return the arg buffer.
   __ Move(kReturnRegister0, WasmFXReturnDescriptor::GetRegisterParameter(0));
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
-  __ ret(0);
+  static_assert(WasmFXResumeThrowRefDescriptor::GetStackParameterCount() == 0);
+  ReturnFromStackSwitchingBuiltin(masm, Builtin::kWasmFXResumeThrowRef, 0);
 }
 
 void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
@@ -4746,9 +4763,11 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ endbr64();
   __ Move(kReturnRegister0, WasmFXResumeDescriptor::GetRegisterParameter(1));
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
-  __ ret(AddArgumentPaddingSlots(
-             WasmFXSuspendDescriptor::GetStackParameterCount()) *
-         kSystemPointerSize);
+  ReturnFromStackSwitchingBuiltin(
+      masm, Builtin::kWasmFXSuspend,
+      AddArgumentPaddingSlots(
+          WasmFXSuspendDescriptor::GetStackParameterCount()) *
+          kSystemPointerSize);
 }
 
 void Builtins::Generate_WasmFXSwitch(MacroAssembler* masm) {
@@ -4813,9 +4832,11 @@ void Builtins::Generate_WasmFXSwitch(MacroAssembler* masm) {
   __ endbr64();
   __ Move(kReturnRegister0, WasmFXResumeDescriptor::GetRegisterParameter(1));
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
-  __ ret(AddArgumentPaddingSlots(
-             WasmFXSwitchDescriptor::GetStackParameterCount()) *
-         kSystemPointerSize);
+  ReturnFromStackSwitchingBuiltin(
+      masm, Builtin::kWasmFXSwitch,
+      AddArgumentPaddingSlots(
+          WasmFXSwitchDescriptor::GetStackParameterCount()) *
+          kSystemPointerSize);
 }
 
 void Builtins::Generate_WasmFXReturn(MacroAssembler* masm) {
