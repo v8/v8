@@ -409,19 +409,6 @@ void LookupIterator::InternalUpdateProtector(
         IsJSPromisePrototype(*receiver)) {
       Protectors::InvalidatePromiseThenLookupChain(isolate);
     }
-  } else if (*name == roots.match_all_symbol() ||
-             *name == roots.replace_symbol() || *name == roots.split_symbol()) {
-    if (!Protectors::IsNumberStringNotRegexpLikeIntact(isolate)) return;
-    // We need to protect the prototype chains of `Number.prototype` and
-    // `String.prototype`: that `Symbol.{matchAll|replace|split}` is not added
-    // as a property on any object on these prototype chains. We detect
-    // `Number.prototype` and `String.prototype` by checking for a prototype
-    // that is a JSPrimitiveWrapper. This is a safe approximation. Using
-    // JSPrimitiveWrapper as prototype should be sufficiently rare.
-    if (receiver->map()->is_prototype_map() &&
-        (IsJSPrimitiveWrapper(*receiver) || IsJSObjectPrototype(*receiver))) {
-      Protectors::InvalidateNumberStringNotRegexpLike(isolate);
-    }
   } else if (*name == roots.to_primitive_symbol()) {
     if (!Protectors::IsStringWrapperToPrimitiveIntact(isolate)) return;
     if (isolate->IsInCreationContext(*receiver,

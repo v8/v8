@@ -8525,16 +8525,6 @@ TNode<BoolT> CodeStubAssembler::IsPromiseSpeciesProtectorCellInvalid() {
   return TaggedEqual(cell_value, invalid);
 }
 
-// TODO(petamoriken): delete this unused function
-TNode<BoolT>
-CodeStubAssembler::IsNumberStringNotRegexpLikeProtectorCellInvalid() {
-  TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
-  TNode<PropertyCell> cell = NumberStringNotRegexpLikeProtectorConstant();
-  TNode<Object> cell_value =
-      LoadObjectField(cell, offsetof(PropertyCell, value_));
-  return TaggedEqual(cell_value, invalid);
-}
-
 TNode<BoolT> CodeStubAssembler::IsSetIteratorProtectorCellInvalid() {
   TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = SetIteratorProtectorConstant();

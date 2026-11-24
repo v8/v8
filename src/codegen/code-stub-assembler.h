@@ -3116,7 +3116,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsTypedArraySpeciesProtectorCellInvalid();
   TNode<BoolT> IsRegExpSpeciesProtectorCellInvalid();
   TNode<BoolT> IsPromiseSpeciesProtectorCellInvalid();
-  TNode<BoolT> IsNumberStringNotRegexpLikeProtectorCellInvalid();
   TNode<BoolT> IsSetIteratorProtectorCellInvalid();
   TNode<BoolT> IsMapIteratorProtectorCellInvalid();
   TNode<BoolT> IsStringWrapperToPrimitiveProtectorCellInvalid();

@@ -610,7 +610,8 @@ class V8_EXPORT Isolate {
     kTurboFanOsrCompileStarted = 115,
     kAsyncStackTaggingCreateTaskCall = 116,
     kDurationFormat = 117,
-    kInvalidatedNumberStringNotRegexpLikeProtector = 118,
+    kInvalidatedNumberStringNotRegexpLikeProtector V8_DEPRECATE_SOON(
+        "The NumberStringNotRegexpLikeProtector has been removed") = 118,
     kOBSOLETE_RegExpUnicodeSetIncompatibilitiesWithUnicodeMode = 119,
     kOBSOLETE_ImportAssertionDeprecatedSyntax = 120,
     kLocaleInfoObsoletedGetters = 121,

@@ -397,8 +397,6 @@ class RootVisitor;
   V(PropertyCell, string_iterator_protector, StringIteratorProtector)          \
   V(PropertyCell, string_wrapper_to_primitive_protector,                       \
     StringWrapperToPrimitiveProtector)                                         \
-  V(PropertyCell, number_string_not_regexp_like_protector,                     \
-    NumberStringNotRegexpLikeProtector)                                        \
   /* Caches */                                                                 \
   V(FixedArray, string_split_cache, StringSplitCache)                          \
   V(FixedArray, regexp_multiple_cache, RegExpMultipleCache)                    \

@@ -7095,7 +7095,6 @@ void Isolate::UpdateProtectorsOnSetPrototype(
     DirectHandle<JSObject> object, DirectHandle<Object> new_prototype) {
   UpdateNoElementsProtectorOnSetPrototype(object);
   UpdateTypedArraySpeciesLookupChainProtectorOnSetPrototype(object);
-  UpdateNumberStringNotRegexpLikeProtectorOnSetPrototype(object);
   UpdateStringWrapperToPrimitiveProtectorOnSetPrototype(object, new_prototype);
 }
 
@@ -7106,24 +7105,6 @@ void Isolate::UpdateTypedArraySpeciesLookupChainProtectorOnSetPrototype(
   if (IsTypedArrayConstructor(*object) &&
       Protectors::IsTypedArraySpeciesLookupChainIntact(this)) {
     Protectors::InvalidateTypedArraySpeciesLookupChain(this);
-  }
-}
-
-void Isolate::UpdateNumberStringNotRegexpLikeProtectorOnSetPrototype(
-    DirectHandle<JSObject> object) {
-  if (!Protectors::IsNumberStringNotRegexpLikeIntact(this)) {
-    return;
-  }
-  // We need to protect the prototype chain of `Number.prototype` and
-  // `String.prototype`.
-  // Since `Object.prototype.__proto__` is not writable, we can assume it
-  // doesn't occur here. We detect `Number.prototype` and `String.prototype` by
-  // checking for a prototype that is a JSPrimitiveWrapper. This is a safe
-  // approximation. Using JSPrimitiveWrapper as prototype should be
-  // sufficiently rare.
-  DCHECK(!IsJSObjectPrototype(*object));
-  if (object->map()->is_prototype_map() && (IsJSPrimitiveWrapper(*object))) {
-    Protectors::InvalidateNumberStringNotRegexpLike(this);
   }
 }
 

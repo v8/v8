@@ -76,7 +76,6 @@ constexpr bool ShouldResetProtectorForReprl(ProtectorId id) {
     case ProtectorId::kIsConcatSpreadableLookupChain:
     case ProtectorId::kMapIteratorLookupChain:
     case ProtectorId::kNoElements:
-    case ProtectorId::kNumberStringNotRegexpLike:
     case ProtectorId::kPromiseResolveLookupChain:
     case ProtectorId::kPromiseSpeciesLookupChain:
     case ProtectorId::kPromiseThenLookupChain:
