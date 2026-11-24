@@ -4232,17 +4232,21 @@ void BytecodeGenerator::BuildInstanceMemberInitialization(Register constructor,
   FeedbackSlot slot = feedback_spec()->AddLoadICSlot();
   BytecodeLabel done;
 
+  builder()->LoadClassFieldsInitializer(constructor, feedback_index(slot));
+  // A class constructor only gets here if its class has instance members, and
+  // the class definition installs the initializer before the constructor
+  // becomes reachable. Arrow functions and eval calling super() can't know
+  // statically whether there is one.
+  const bool may_be_undefined = !IsClassConstructor(info()->literal()->kind());
+  DCHECK_IMPLIES(!may_be_undefined,
+                 info()->literal()->requires_instance_members_initializer());
+  if (may_be_undefined) builder()->JumpIfUndefined(&done);
   builder()
-      ->LoadClassFieldsInitializer(constructor, feedback_index(slot))
-      // TODO(gsathya): This jump can be elided for the base
-      // constructor and derived constructor. This is only required
-      // when called from an arrow function.
-      .JumpIfUndefined(&done)
-      .StoreAccumulatorInRegister(initializer)
+      ->StoreAccumulatorInRegister(initializer)
       .MoveRegister(instance, args[0])
       .CallProperty(initializer, args,
-                    feedback_index(feedback_spec()->AddCallICSlot()))
-      .Bind(&done);
+                    feedback_index(feedback_spec()->AddCallICSlot()));
+  if (may_be_undefined) builder()->Bind(&done);
 }
 
 void BytecodeGenerator::VisitNativeFunctionLiteral(
