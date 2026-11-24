@@ -2841,7 +2841,7 @@ class ValueNode : public Node {
 
   // Like Unwrap, but also unwraps single-input phis (cf.
   // UnwrapIdentitiesAndPhis).
-  ValueNode* UnwrapForDeopt();
+  V8_EXPORT_PRIVATE ValueNode* UnwrapForDeopt();
 
   ValueNode* UnwrapIdentitiesAndUpdateUseCountForDeopt();
   ValueNode* UnwrapAndUpdateUseCountForDeopt();

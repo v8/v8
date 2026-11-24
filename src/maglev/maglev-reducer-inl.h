@@ -579,6 +579,12 @@ void MaglevReducer<BaseT>::UpdateRange(NodeT* node) {
 template <typename BaseT>
 std::optional<ValueNode*> MaglevReducer<BaseT>::TryGetConstantAlternative(
     ValueNode* node) {
+  // Constants already carry their value and must not return themselves as an
+  // alternative (callers recurse on the returned constant).
+  // TODO(victorgomes): Fold UnwrapForDeopt into Unwrap in a follow-up (today
+  // Unwrap unwraps identities, returned values, and conversions, but not
+  // single-input phis).
+  if (IsConstantNode(node->UnwrapForDeopt()->opcode())) return {};
   const NodeInfo* info = known_node_aspects().TryGetInfoFor(node);
   if (info) {
     if (auto c = info->alternative().checked_value()) {
@@ -2471,6 +2477,11 @@ void MaglevReducer<BaseT>::SetKnownValue(ValueNode* node,
                                          NodeType new_node_type) {
   DCHECK(!node->Is<HeapConstant>());
   DCHECK(!node->Is<RootConstant>());
+  // Constants already carry their value and must not attach a checked_value
+  // alternative (TryGetConstantAlternative ignores constants, so repeated
+  // checks would otherwise overwrite checked_value).
+  // TODO(victorgomes): Fold UnwrapForDeopt into Unwrap in a follow-up.
+  if (IsConstantNode(node->UnwrapForDeopt()->opcode())) return;
   NodeInfo* known_info = GetOrCreateInfoFor(node);
   // ref type should be compatible with type.
   DCHECK(NodeTypeIs(StaticTypeForConstant(broker(), ref), new_node_type));
