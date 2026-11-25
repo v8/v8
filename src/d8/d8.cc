@@ -14,6 +14,7 @@
 #include <iomanip>
 #include <iterator>
 #include <limits>
+#include <memory>
 #include <span>
 #include <string>
 #include <string_view>
@@ -41,7 +42,9 @@
 #include "include/v8-profiler.h"
 #include "include/v8-wasm.h"
 #include "src/api/api-inl.h"
+#include "src/base/atomicops.h"
 #include "src/base/cpu/cpu.h"
+#include "src/base/free_deleter.h"
 #include "src/base/hashing.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
@@ -3494,9 +3497,31 @@ void Shell::SerializerDeserialize(
   }
   std::shared_ptr<BackingStore> backing_store =
       info[0].As<ArrayBuffer>()->GetBackingStore();
-  ValueDeserializer deserializer(
-      isolate, static_cast<const uint8_t*>(backing_store->Data()),
-      backing_store->ByteLength());
+  const size_t byte_length = backing_store->ByteLength();
+  const uint8_t* data = static_cast<const uint8_t*>(backing_store->Data());
+  bool using_mock_allocator = i::v8_flags.mock_arraybuffer_allocator;
+#ifdef V8_OS_LINUX
+  using_mock_allocator |= i::v8_flags.multi_mapped_mock_allocator;
+#endif
+  std::unique_ptr<uint8_t, base::FreeDeleter> data_copy;
+  if (byte_length > 0 && !using_mock_allocator) {
+    // ValueDeserializer requires input buffers outside the sandbox so
+    // concurrent in-sandbox writes cannot mutate wire bytes mid-decode.
+    constexpr size_t kMaxDeserializeBytes = size_t{1} * i::GB;
+    uint8_t* raw_copy = byte_length <= kMaxDeserializeBytes
+                            ? static_cast<uint8_t*>(base::Malloc(byte_length))
+                            : nullptr;
+    if (raw_copy == nullptr) {
+      ThrowError(isolate, "Buffer is too large to deserialize");
+      return;
+    }
+    data_copy.reset(raw_copy);
+    base::Relaxed_Memcpy(reinterpret_cast<base::Atomic8*>(raw_copy),
+                         reinterpret_cast<const base::Atomic8*>(data),
+                         byte_length);
+    data = raw_copy;
+  }
+  ValueDeserializer deserializer(isolate, data, byte_length);
   bool ok;
   if (!deserializer.ReadHeader(context).To(&ok)) return;
   Local<Value> result;
