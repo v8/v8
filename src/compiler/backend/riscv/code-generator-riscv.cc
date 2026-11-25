@@ -2899,7 +2899,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ AtomicStoreTaggedField(i.InputOrZeroRegister(0), mem, trapper);
       break;
     }
-    case kRiscvLoadDecompressTrapping: {
+    case kRiscvLoadDecompressProtected: {
       __ DecompressProtected(i.OutputRegister(), i.MemoryOperand(), trapper);
       break;
     }

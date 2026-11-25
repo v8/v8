@@ -36,6 +36,7 @@ namespace compiler {
   V(RiscvStoreCompressTagged)                              \
   V(RiscvLoadDecompressTaggedSigned)                       \
   V(RiscvLoadDecompressTagged)                             \
+  V(RiscvLoadDecompressProtected)                          \
   V(RiscvS128LoadSplat)                                    \
   V(RiscvS128Load64ExtendS)                                \
   V(RiscvS128Load64ExtendU)                                \
@@ -98,7 +99,6 @@ namespace compiler {
   V(RiscvStoreTrustedPointer)                        \
   V(RiscvAtomicLoadDecompressTaggedSigned)           \
   V(RiscvAtomicLoadDecompressTagged)                 \
-  V(RiscvLoadDecompressTrapping)                     \
   V(RiscvAtomicStoreCompressTagged)                  \
   V(RiscvWord64AtomicCompareExchangeUint64)          \
   V(RiscvCmp32)                                      \

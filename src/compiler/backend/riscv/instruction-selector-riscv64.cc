@@ -648,7 +648,7 @@ ArchOpcode GetLoadOpcode(MemoryRepresentation loaded_rep,
       return kRiscvLd;
     case MemoryRepresentation::ProtectedPointer():
       CHECK(V8_ENABLE_SANDBOX_BOOL);
-      return kRiscvLoadDecompressTrapping;
+      return kRiscvLoadDecompressProtected;
     case MemoryRepresentation::TrustedPointer():
       // Only LoadTrustedPointer uses this representation.
       UNREACHABLE();
