@@ -4,7 +4,7 @@
 
 load("//lib/builders.star", "v8_builder")
 load("//lib/gclient.star", "GCLIENT_VARS")
-load("//lib/lib.star", "BARRIER", "ci_pair_factory", "in_console", "parallel_3_greedy_batching_of_1")
+load("//lib/lib.star", "BARRIER", "TRIGGER", "ci_pair_factory", "in_console", "parallel_3_greedy_batching_of_1")
 load("//lib/siso.star", "SISO")
 
 builder_pair = ci_pair_factory(v8_builder)
@@ -17,7 +17,7 @@ def clusterfuzz_builder(properties = None, barrier = BARRIER.TREE_CLOSER, defaul
         bucket = "ci",
         barrier = barrier,
         properties = properties,
-        triggered_by = ["v8-trigger"],
+        triggered_by = [TRIGGER.ALL],
         triggering_policy = parallel_3_greedy_batching_of_1,
         use_siso = SISO.CHROMIUM_TRUSTED,
         experiments = {"v8.resultdb": 100},
@@ -203,7 +203,7 @@ in_category(
     builder_pair(
         name = "V8 Linux64 - Fuzzilli",
         bucket = "ci",
-        triggered_by = ["v8-trigger"],
+        triggered_by = [TRIGGER.FILTERED],
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
         disable_resultdb_exports = True,
@@ -237,7 +237,7 @@ in_category(
     v8_builder(
         name = "V8 Linux64 - big sleep",
         bucket = "ci",
-        triggered_by = ["v8-trigger"],
+        triggered_by = [TRIGGER.FILTERED],
         executable = "recipe:v8/bigsleep",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},

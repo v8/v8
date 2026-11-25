@@ -16,7 +16,18 @@ def branch_descriptor(
         version_tag = None,
         priority = None,
         has_console_name_prefix = True,
-        version = None):
+        version = None,
+        filtered_poller_name = None,
+        path_regexps_exclude = None):
+    """Describes a branch and the gitiles pollers triggering its builders.
+
+    Args:
+      poller_name: Poller triggering builders that opt out of path filtering.
+      filtered_poller_name: Poller triggering all other builders. Defaults to
+        poller_name.
+      path_regexps_exclude: Commits touching only these paths don't trigger
+        the poller named poller_name.
+    """
     if version_tag:
         version = _to_int_tuple(version_tag)
         version_str = "%s\\.%s" % (version[0], version[1])
@@ -25,6 +36,8 @@ def branch_descriptor(
         bucket = bucket,
         version = version,
         poller_name = poller_name,
+        filtered_poller_name = filtered_poller_name or poller_name,
+        path_regexps_exclude = path_regexps_exclude or [],
         create_consoles = branch_console_factory(bucket, version_tag, refs) if has_console_name_prefix else main_console_factory(),
         refs = refs,
         priority = priority,
@@ -67,13 +80,26 @@ def console_id_resolver(bucket, has_console_name_prefix):
 
     return resolver
 
+TRIGGER = struct(
+    # Triggers on every commit to main.
+    ALL = "v8-trigger",
+    # Skips commits to main that only touch paths exempted from default CQ
+    # builders (see default_excluded_paths in builders.star).
+    FILTERED = "v8-trigger-filtered",
+)
+
+# Release branches skip commits only bumping the version, which are pushed
+# after merges and give no useful signal.
+BRANCH_EXCLUDED_PATHS = ["include/v8-version\\.h"]
+
 branch_descriptors = [
     branch_descriptor(
         "ci",
-        "v8-trigger",
+        TRIGGER.ALL,
         ["refs/heads/main"],
         priority = 30,  # default
         has_console_name_prefix = False,
+        filtered_poller_name = TRIGGER.FILTERED,
     ),  # main
 ] + [
     branch_descriptor(
@@ -82,6 +108,7 @@ branch_descriptors = [
         ["refs/branch-heads/%s"],
         version_tag = version,
         priority = 50,
+        path_regexps_exclude = BRANCH_EXCLUDED_PATHS,
     )
     for version in ACTIVE_BRANCHES
 ]

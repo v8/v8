@@ -55,6 +55,7 @@ in_category(
     main_multibranch_builder(
         name = "V8 Linux64 - builder",
         release_branches = True,
+        unfiltered_trigger = True,
         triggering_policy = parallel_3_greedy_batching_of_1,
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"track_build_dependencies": True, "binary_size_tracking": {"category": "linux64", "binary": "d8"}},
@@ -70,6 +71,7 @@ in_category(
     main_multibranch_builder(
         name = "V8 Linux64 - debug builder",
         release_branches = True,
+        unfiltered_trigger = True,
         triggering_policy = parallel_3_greedy_batching_of_1,
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         barrier = BARRIER.LKGR_TREE_CLOSER,
@@ -323,6 +325,7 @@ in_category(
     main_multibranch_builder(
         name = "V8 Presubmit",
         release_branches = True,
+        unfiltered_trigger = True,
         triggering_policy = parallel_3_greedy_batching_of_1,
         executable = "recipe:v8/presubmit",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},

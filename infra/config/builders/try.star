@@ -88,7 +88,10 @@ try_builder(
 
 try_builder(
     name = "v8_linux64_bigsleep",
-    cq_properties = CQ.OPTIONAL,
+    # tools/bigsleep is skipped by all default CQ builders and by the
+    # filtered CI trigger of the big sleep builder.
+    cq_properties = CQ.on_files("tools/bigsleep/.+"),
+    add_default_filters = False,
     executable = "recipe:v8/bigsleep",
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     gclient_vars = [GCLIENT_VARS.NO_BENCHMARKS],

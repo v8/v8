@@ -3,7 +3,7 @@
 # found in the LICENSE file.
 
 load("//lib/builders.star", "v8_builder")
-load("//lib/lib.star", "ci_pair_factory", "in_console", "v8_failure_notifier")
+load("//lib/lib.star", "TRIGGER", "ci_pair_factory", "in_console", "v8_failure_notifier")
 load("//lib/gclient.star", "GCLIENT_VARS")
 load("//lib/siso.star", "SISO")
 
@@ -43,28 +43,28 @@ in_category(
     "Features",
     experiment_builder_pair(
         name = "V8 Linux64 - cppgc-non-default - debug",
-        triggered_by = ["v8-trigger"],
+        triggered_by = [TRIGGER.FILTERED],
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         notify_owners = ["mlippautz@chromium.org"],
         notifies = ["blamelist"],
     ),
     experiment_builder_pair(
         name = "V8 Linux64 - debug - perfetto",
-        triggered_by = ["v8-trigger"],
+        triggered_by = [TRIGGER.FILTERED],
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         notify_owners = ["skyostil@google.com"],
         notifies = ["blamelist"],
     ),
     experiment_builder_pair(
         name = "V8 Linux64 - no metagen - debug",
-        triggered_by = ["v8-trigger"],
+        triggered_by = [TRIGGER.FILTERED],
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         notify_owners = ["jgruber@chromium.org"],
         notifies = ["blamelist"],
     ),
     experiment_builder_pair(
         name = "V8 Linux64 - runtime call stats",
-        triggered_by = ["v8-trigger"],
+        triggered_by = [TRIGGER.FILTERED],
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         notify_owners = ["cbruni@chromium.org"],
         notifies = ["blamelist"],
@@ -77,14 +77,14 @@ in_category(
     ),
     experiment_builder_pair(
         name = "V8 Linux64 - undefined double - debug",
-        triggered_by = ["v8-trigger"],
+        triggered_by = [TRIGGER.FILTERED],
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         notify_owners = ["nicohartmann@chromium.org"],
         notifies = ["blamelist"],
     ),
     experiment_builder_pair(
         name = "V8 Win64 - CET shadow stack",
-        triggered_by = ["v8-trigger"],
+        triggered_by = [TRIGGER.FILTERED],
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         notify_owners = ["choongwoo.han@microsoft.com"],
     ),
@@ -94,7 +94,7 @@ in_category(
     "Coverage",
     experiment_builder(
         name = "V8 Linux64 - coverage",
-        triggered_by = ["v8-trigger"],
+        triggered_by = [TRIGGER.FILTERED],
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         gclient_vars = [GCLIENT_VARS.COVERAGE],
         properties = {
@@ -105,7 +105,7 @@ in_category(
     ),
     experiment_builder(
         name = "V8 Linux64 - coverage - debug",
-        triggered_by = ["v8-trigger"],
+        triggered_by = [TRIGGER.FILTERED],
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         gclient_vars = [GCLIENT_VARS.COVERAGE],
         properties = {
@@ -121,7 +121,7 @@ in_category(
     "FYI",
     experiment_builder_pair(
         name = "Linux64 - icu4x - debug",
-        triggered_by = ["v8-trigger"],
+        triggered_by = [TRIGGER.FILTERED],
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     ),
     experiment_builder(
@@ -134,7 +134,7 @@ in_category(
     ),
     experiment_builder_pair(
         name = "V8 Linux64 - no shared cage - debug",
-        triggered_by = ["v8-trigger"],
+        triggered_by = [TRIGGER.FILTERED],
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         execution_timeout = 19800,
         notify_owners = ["jgruber@chromium.org"],
@@ -150,14 +150,14 @@ in_category(
     ),
     experiment_builder_pair(
         name = "V8 Linux64 - predictable",
-        triggered_by = ["v8-trigger"],
+        triggered_by = [TRIGGER.FILTERED],
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
         notifies = ["sheriffs on new failure", "blamelist"],
     ),
     experiment_builder_pair(
         name = "V8 Linux64 - lower limits",
-        triggered_by = ["v8-trigger"],
+        triggered_by = [TRIGGER.FILTERED],
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         notifies = ["blamelist"],
     ),
@@ -168,7 +168,7 @@ in_category(
     ),
     experiment_builder_pair(
         name = "V8 Linux - full debug",
-        triggered_by = ["v8-trigger"],
+        triggered_by = [TRIGGER.FILTERED],
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     ),
 )
@@ -178,7 +178,7 @@ in_category(
     experiment_builder_pair(
         name = "V8 Win64 - drumbrake - debug",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-        triggered_by = ["v8-trigger"],
+        triggered_by = [TRIGGER.FILTERED],
         notify_owners = ["choongwoo.han@microsoft.com", "emromero@microsoft.com", "paolosev@microsoft.com"],
     ),
 )
@@ -188,12 +188,12 @@ in_category(
     experiment_builder_pair(
         name = "V8 Linux64 - no sandbox",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        triggered_by = ["v8-trigger"],
+        triggered_by = [TRIGGER.FILTERED],
     ),
     experiment_builder_pair(
         name = "V8 Linux64 - no sandbox - debug",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        triggered_by = ["v8-trigger"],
+        triggered_by = [TRIGGER.FILTERED],
     ),
 )
 
@@ -201,7 +201,7 @@ in_category(
     "Mac",
     experiment_builder(
         name = "V8 iOS - sim - builder",
-        triggered_by = ["v8-trigger"],
+        triggered_by = [TRIGGER.FILTERED],
         dimensions = {"os": "Mac", "cpu": "x86-64"},
         properties = {"$depot_tools/osx_sdk": {"sdk_version": "16c5032a"}, "target_platform": "ios"},
         caches = [
@@ -214,7 +214,7 @@ in_category(
     ),
     experiment_builder(
         name = "V8 Mac64 - full debug builder",
-        triggered_by = ["v8-trigger"],
+        triggered_by = [TRIGGER.FILTERED],
         dimensions = {"os": "Mac", "cpu": "x86-64"},
         notifies = ["sheriffs on new failure", "blamelist"],
     ),

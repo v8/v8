@@ -32,11 +32,18 @@ def _exclude(path_regexps):
         for p in path_regexps
     ]
 
+def _infra_paths():
+    return ["{}/.+".format(lucicfg.main_package().repo_path)]
+
+def default_excluded_paths():
+    """Paths skipped by default CQ builders and by the filtered CI poller."""
+    return _infra_paths() + NO_BUILD_PATHS + REDLINE_PATHS
+
 def infra_location_filters():
-    return _exclude(["{}/.+".format(lucicfg.main_package().repo_path)])
+    return _exclude(_infra_paths())
 
 def default_location_filters():
-    return infra_location_filters() + _exclude(NO_BUILD_PATHS + REDLINE_PATHS)
+    return _exclude(default_excluded_paths())
 
 def with_cancel(cq_properties):
     if not cq_properties:
@@ -145,12 +152,16 @@ def v8_builder(defaults = None, **kwargs):
         )
     return kwargs["name"]
 
-def multibranch_builder(release_branches = False, **kwargs):
+def multibranch_builder(release_branches = False, unfiltered_trigger = False, **kwargs):
     """Defines a builder on main and optionally twins on release branches.
 
     Args:
       release_branches: Opt-in switch for also creating twin builders in the
         release-branch buckets (and consoles). Off by default.
+      unfiltered_trigger: On main, trigger on every commit instead of skipping
+        commits that only touch paths exempted from default CQ builders.
+        Release branches only have a single poller, so this has no effect
+        there.
       **kwargs: Arguments passed through to the builder definition. The
         optional first_branch_version restricts the release-branch twins to
         branches of at least that version and requires release_branches.
@@ -171,7 +182,8 @@ def multibranch_builder(release_branches = False, **kwargs):
             resolve_parent_triggering(args, branch.bucket, parent_builder)
         triggered_by_gitiles = args.pop("triggered_by_gitiles", True)
         if triggered_by_gitiles:
-            args.setdefault("triggered_by", []).append(branch.poller_name)
+            poller = branch.poller_name if unfiltered_trigger else branch.filtered_poller_name
+            args["triggered_by"] = args.get("triggered_by", []) + [poller]
             args["use_siso"] = args.get("use_siso", SISO.CHROMIUM_TRUSTED)
         args["priority"] = branch.priority
 
