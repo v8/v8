@@ -6,6 +6,7 @@
 
 #include <optional>
 
+#include "include/v8-fast-api-calls.h"
 #include "src/base/logging.h"
 #include "src/base/sanitizer/tsan.h"
 #include "src/common/globals.h"
@@ -22,7 +23,6 @@
 #include <algorithm>
 #endif
 
-#include "src/api/api-inl.h"
 #include "src/codegen/pending-optimization-table.h"
 #include "src/common/assert-scope.h"
 #include "src/compiler/compilation-dependencies.h"

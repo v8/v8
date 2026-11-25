@@ -46,7 +46,6 @@
 #include "src/objects/name.h"
 #include "src/objects/string.h"
 #include "src/roots/roots.h"
-#include "src/tracing/trace-event.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/code-space-access.h"
 #include "src/wasm/compilation-environment-inl.h"
@@ -520,8 +519,7 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
   DCHECK_NE(wasm::ImportCallKind::kReexportedJSFunction, kind);
   DCHECK_NE(wasm::ImportCallKind::kWasmToJSFastApi, kind);
 
-  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
-              "wasm.CompileWasmImportCallWrapper");
+  WasmDetailedTraceScope trace_scope("wasm.CompileWasmImportCallWrapper");
   base::TimeTicks start_time;
   if (V8_UNLIKELY(v8_flags.trace_wasm_compilation_times)) {
     start_time = base::TimeTicks::Now();
@@ -554,8 +552,7 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
 
 wasm::WasmCompilationResult CompileWasmStackEntryWrapper(
     const wasm::CanonicalSig* sig) {
-  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
-              "wasm.CompileWasmStackEntryWrapper");
+  WasmDetailedTraceScope trace_scope("wasm.CompileWasmStackEntryWrapper");
   base::TimeTicks start_time;
   if (V8_UNLIKELY(v8_flags.trace_wasm_compilation_times)) {
     start_time = base::TimeTicks::Now();
@@ -585,8 +582,7 @@ wasm::WasmCompilationResult CompileWasmStackEntryWrapper(
 
 wasm::WasmCompilationResult CompileWasmCapiCallWrapper(
     const wasm::CanonicalSig* sig) {
-  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
-              "wasm.CompileWasmCapiFunction");
+  WasmDetailedTraceScope trace_scope("wasm.CompileWasmCapiFunction");
 
   return Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
       sig, wasm::WrapperCompilationInfo{CodeKind::WASM_TO_CAPI_FUNCTION},
@@ -595,8 +591,7 @@ wasm::WasmCompilationResult CompileWasmCapiCallWrapper(
 
 wasm::WasmCompilationResult CompileWasmJSFastCallWrapper(
     const wasm::CanonicalSig* sig, DirectHandle<JSReceiver> callable) {
-  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
-              "wasm.CompileWasmJSFastCallWrapper");
+  WasmDetailedTraceScope trace_scope("wasm.CompileWasmJSFastCallWrapper");
 
   return Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
       sig,

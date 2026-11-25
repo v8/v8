@@ -108,7 +108,6 @@
 #include "src/objects/code-kind.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/string-inl.h"
-#include "src/tracing/trace-event.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/utils.h"
 
@@ -379,8 +378,8 @@ void TraceScheduleAndVerify(OptimizedCompilationInfo* info,
   RCS_SCOPE(data->runtime_call_stats(),
             RuntimeCallCounterId::kOptimizeTraceScheduleAndVerify,
             RuntimeCallStats::kThreadSpecific);
-  TRACE_EVENT(TurbofanPipelineStatistics::kTraceCategory,
-              "V8.TraceScheduleAndVerify");
+  TurbofanPipelineStatistics::TraceScheduleAndVerifyScope trace_scope(
+      data->pipeline_statistics());
 
   TraceSchedule(info, data, schedule, phase_name);
 
@@ -410,8 +409,7 @@ TurbofanPipelineStatistics* CreatePipelineStatistics(
     Isolate* isolate, ZoneStats* zone_stats) {
   TurbofanPipelineStatistics* pipeline_statistics = nullptr;
 
-  bool tracing_enabled =
-      TRACE_EVENT_CATEGORY_ENABLED(TRACE_DISABLED_BY_DEFAULT("v8.turbofan"));
+  bool tracing_enabled = TurbofanPipelineStatistics::IsJsTracingEnabled();
   if (tracing_enabled || v8_flags.turbo_stats || v8_flags.turbo_stats_nvp) {
     pipeline_statistics = new TurbofanPipelineStatistics(
         info, isolate->GetTurboStatistics(), zone_stats);
@@ -435,8 +433,7 @@ TurbofanPipelineStatistics* CreatePipelineStatistics(
     OptimizedCompilationInfo* info, ZoneStats* zone_stats) {
   TurbofanPipelineStatistics* pipeline_statistics = nullptr;
 
-  bool tracing_enabled = TRACE_EVENT_CATEGORY_ENABLED(
-      TRACE_DISABLED_BY_DEFAULT("v8.wasm.turbofan"));
+  bool tracing_enabled = TurbofanPipelineStatistics::IsWasmTracingEnabled();
   if (tracing_enabled || v8_flags.turbo_stats_wasm) {
     pipeline_statistics = new TurbofanPipelineStatistics(
         info, wasm::GetWasmEngine()->GetOrCreateTurboStatistics(), zone_stats);
