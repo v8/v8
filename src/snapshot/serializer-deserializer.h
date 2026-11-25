@@ -194,6 +194,7 @@ class SerializerDeserializer : public RootVisitor {
       case kSandboxedApiReference:
       case kSandboxedExternalReference:
       case kSandboxedRawExternalReference:
+      case kTrustedPointerPrefix:
       case kInitializeSelfTrustedPointer:
       case kAllocateJSDispatchEntry:
       case kJSDispatchEntry:
@@ -222,7 +223,6 @@ class SerializerDeserializer : public RootVisitor {
       case kNewContextlessMetaMap:
       case kNewContextfulMetaMap:
       case kExtendedMapBitFieldEx:
-      case kTrustedPointerPrefix:
       case kTrustedExportRef:
       case kUntrustedRef:
       case kTrustedExternalRef:

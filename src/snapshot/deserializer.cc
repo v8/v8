@@ -105,20 +105,14 @@ class SlotAccessorForHeapObject {
     return Write(*value, ref_type, slot_offset, mode);
   }
 
-  int WriteTrustedPointerTo(Tagged<HeapObject> value, WriteBarrierMode mode) {
-    // Only ExposedTrustedObjects can be referenced via indirect pointers, so
-    // we must have one of these objects here. See the comments in
-    // trusted-object.h for more details.
-    DCHECK(IsExposedTrustedObject(value));
-    Tagged<ExposedTrustedObject> object =
-        TrustedCast<ExposedTrustedObject>(value);
-
+  int WriteTrustedPointerTo(Tagged<ExposedTrustedObject> value,
+                            WriteBarrierMode mode) {
     InstanceType instance_type = value->map()->instance_type();
     SharedFlag shared = SharedFlag(HeapLayout::InAnySharedSpace(value));
     TrustedPointerTag tag =
         TrustedPointerTagFromInstanceType(instance_type, shared);
     TrustedPointerSlot dest = object_->RawTrustedPointerField(offset_, tag);
-    dest.store(object);
+    dest.store(value);
 
     WriteBarrier::ForTrustedPointer(*object_, dest, value, mode);
     return 1;
@@ -170,7 +164,8 @@ class SlotAccessorForRootSlots {
             int slot_offset, WriteBarrierMode mode) {
     return Write(*value, ref_type, slot_offset, mode);
   }
-  int WriteTrustedPointerTo(Tagged<HeapObject> value, WriteBarrierMode mode) {
+  int WriteTrustedPointerTo(Tagged<ExposedTrustedObject> value,
+                            WriteBarrierMode mode) {
     UNREACHABLE();
   }
   int WriteProtectedPointerTo(Tagged<TrustedObject> value,
@@ -214,7 +209,8 @@ class SlotAccessorForHandle {
     *handle_ = value;
     return 1;
   }
-  int WriteTrustedPointerTo(Tagged<HeapObject> value, WriteBarrierMode mode) {
+  int WriteTrustedPointerTo(Tagged<ExposedTrustedObject> value,
+                            WriteBarrierMode mode) {
     UNREACHABLE();
   }
   int WriteProtectedPointerTo(Tagged<TrustedObject> value,
@@ -234,7 +230,10 @@ int Deserializer<IsolateT>::WriteHeapPointer(SlotAccessor slot_accessor,
                                              ReferenceDescriptor descr,
                                              WriteBarrierMode mode) {
   if (descr.is_trusted_pointer) {
-    return slot_accessor.WriteTrustedPointerTo(heap_object, mode);
+    DCHECK(InTrustedSection());
+    DCHECK(IsExposedTrustedObject(heap_object));
+    return slot_accessor.WriteTrustedPointerTo(
+        TrustedCast<ExposedTrustedObject>(heap_object), mode);
   } else {
     return slot_accessor.Write(heap_object, descr.type, 0, mode);
   }
@@ -246,8 +245,12 @@ int Deserializer<IsolateT>::WriteHeapPointer(
     SlotAccessor slot_accessor, DirectHandle<HeapObject> heap_object,
     ReferenceDescriptor descr, WriteBarrierMode mode) {
   if (descr.is_trusted_pointer) {
-    return slot_accessor.WriteTrustedPointerTo(*heap_object, mode);
+    DCHECK(InTrustedSection());
+    DCHECK(IsExposedTrustedObject(*heap_object));
+    return slot_accessor.WriteTrustedPointerTo(
+        TrustedCast<ExposedTrustedObject>(*heap_object), mode);
   } else if (descr.is_protected_pointer) {
+    DCHECK(InTrustedSection());
     DCHECK(IsTrustedObject(*heap_object));
     return slot_accessor.WriteProtectedPointerTo(
         TrustedCast<TrustedObject>(*heap_object), mode);
@@ -478,15 +481,15 @@ void Deserializer<IsolateT>::DeserializeTrustedSection() {
   section_ = Section::kTrusted;
   untrusted_back_refs_ = std::exchange(back_refs_, {});
   num_fixed_back_refs_ = 0;
-  DirectHandleVector<HeapObject> trusted_exports(isolate());
+  DirectHandleVector<ExposedTrustedObject> trusted_exports(isolate());
   while (source_.Peek() != kSynchronize) {
-    trusted_exports.push_back(ReadObject());
+    trusted_exports.push_back(TrustedCast<ExposedTrustedObject>(ReadObject()));
   }
   DCHECK_EQ(kSynchronize, source_.Get());
-  for (const auto& [index, ref] : trusted_export_refs_) {
-    WriteHeapPointer(
-        SlotAccessorForHeapObject::ForSlotOffset(ref.object, ref.offset),
-        *trusted_exports[index], ref.descr);
+  for (const TrustedExportRef& ref : trusted_export_refs_) {
+    SlotAccessorForHeapObject::ForSlotOffset(ref.object, ref.offset)
+        .WriteTrustedPointerTo(*trusted_exports[ref.index],
+                               UPDATE_WRITE_BARRIER);
   }
 }
 
@@ -717,15 +720,12 @@ void Deserializer<IsolateT>::PostProcessNewObject(DirectHandle<Map> map,
   }
 
   if (InstanceTypeChecker::IsInstructionStream(instance_type)) {
-    // We flush all code pages after deserializing the startup snapshot.
-    // Hence we only remember each individual code object when deserializing
-    // user code.
-    if (deserializing_user_code()) {
-      new_instruction_stream_objects_.push_back(
-          TrustedCast<InstructionStream>(obj));
-    }
+    // InstructionStream objects are never serialized.
+    UNREACHABLE();
   } else if (InstanceTypeChecker::IsCode(instance_type)) {
-    Tagged<Code> code = TrustedCast<Code>(raw_obj);
+    // TODO(564863360): Replace with SBXCHECK(InTrustedSection()) + TrustedCast
+    // once all deserializers have a trusted/untrusted split.
+    Tagged<Code> code = OutsideSandboxCast<Code>(raw_obj);
     if (!code->has_instruction_stream()) {
       code->SetInstructionStartForOffHeapBuiltin(
           main_thread_isolate(), EmbeddedData::FromBlob(main_thread_isolate())
@@ -1622,6 +1622,7 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadTrustedPointerPrefix(
     uint8_t data, SlotAccessor slot_accessor) {
+  SBXCHECK(InTrustedSection());
   if (v8_flags.trace_deserialization) {
     PrintF("%*sTrustedPointerPrefix\n", depth_, "");
   }
@@ -1727,15 +1728,14 @@ template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadTrustedExportRef(uint8_t data,
                                                  SlotAccessor slot_accessor) {
   DCHECK(InUntrustedSection());
+  DCHECK(!next_reference_is_weak_ && !next_reference_is_trusted_pointer_ &&
+         !next_reference_is_protected_pointer);
   uint32_t index = source_.GetUint30();
   if (v8_flags.trace_deserialization) {
     PrintF("%*sTrustedExportRef [%u]\n", depth_, "", index);
   }
-  ReferenceDescriptor descr = GetAndResetNextReferenceDescriptor();
-  DCHECK(descr.is_trusted_pointer);
-  trusted_export_refs_.emplace_back(
-      index, UnresolvedForwardRef(slot_accessor.object(),
-                                  slot_accessor.offset(), descr));
+  trusted_export_refs_.push_back(
+      {index, slot_accessor.object(), slot_accessor.offset()});
   return 1;
 }
 

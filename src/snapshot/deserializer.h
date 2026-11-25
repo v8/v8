@@ -326,7 +326,12 @@ class Deserializer : public SerializerDeserializer {
   std::vector<EncodedExternalReference> external_references_;
   std::vector<JSDispatchHandle> trusted_dispatch_handles_;
   std::vector<IndirectHandle<HeapObject>> untrusted_back_refs_;
-  std::vector<std::pair<uint32_t, UnresolvedForwardRef>> trusted_export_refs_;
+  struct TrustedExportRef {
+    uint32_t index;
+    IndirectHandle<HeapObject> object;
+    int offset;
+  };
+  std::vector<TrustedExportRef> trusted_export_refs_;
 
   // With the sandbox, the SnapshotTrustLevel decides which sections a snapshot
   // has. Without the sandbox, every snapshot has a single section that combines

@@ -1407,7 +1407,11 @@ void Serializer::ObjectSerializer::VisitTrustedPointer(
   // Currently we cannot see pending objects here, but we may need to support
   // them in the future. They should already be supported by the deserializer.
   CHECK(!serializer_->SerializePendingObject(*slot_value));
-  sink_->Put(kTrustedPointerPrefix, "TrustedPointer");
+  // Split snapshots serialize exposed trusted objects in the trusted section
+  // and reference them with kTrustedExportRef.
+  if (serializer_->trusted_serializer() == nullptr) {
+    sink_->Put(kTrustedPointerPrefix, "TrustedPointer");
+  }
   serializer_->SerializeObject(slot_value, SlotType::kAnySlot);
 #else
   UNREACHABLE();
