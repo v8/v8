@@ -24,7 +24,6 @@ branch_consoles()
 console_view("experiments")
 console_view("integration", add_headless = True)
 console_view("clusterfuzz")
-console_view("chromium", repo = "https://chromium.googlesource.com/chromium/src")
 console_view("builder-tester")
 console_view("wip")
 

@@ -5,13 +5,6 @@
 load("//lib/builders.star", "default_excluded_paths")
 load("//lib/lib.star", "TRIGGER", "branch_descriptors")
 
-luci.gitiles_poller(
-    name = "chromium-trigger",
-    bucket = "ci",
-    repo = "https://chromium.googlesource.com/chromium/src",
-    refs = ["refs/heads/main"],
-)
-
 def _path_filters(path_regexps_exclude):
     if not path_regexps_exclude:
         return {}

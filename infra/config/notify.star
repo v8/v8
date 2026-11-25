@@ -134,19 +134,6 @@ luci.tree_closer(
 )
 
 v8_notifier(
-    name = "api stability notifier",
-    on_new_status = ["FAILURE"],
-    notify_emails = [
-        "machenbach@chromium.org",
-        "hablich@chromium.org",
-        "v8-infra-alerts-cc@google.com",
-    ],
-    notified_by = [
-        "Linux V8 API Stability",
-    ],
-)
-
-v8_notifier(
     name = "vtunejit notifier",
     on_occurrence = ["FAILURE"],
     failed_step_regexp = [

@@ -29,7 +29,6 @@ def define_all_recipes():
     )
 
     build_recipes = [
-        "chromium",
         "chromium_integration",
         "chromium_trybot",
         "lkgr_finder",

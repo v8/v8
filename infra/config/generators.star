@@ -22,7 +22,6 @@ def add_branch_headers(ctx):
         dict(text = "integration", url = "/p/v8/g/integration", alt = "V8 Integration Console"),
         dict(text = "experiments", url = "/p/v8/g/experiments", alt = "Experiments V8 Console"),
         dict(text = "clusterfuzz", url = "/p/v8/g/clusterfuzz", alt = "Clusterfuzz V8 Console"),
-        dict(text = "chromium", url = "/p/v8/g/chromium", alt = "Chromium V8 Console"),
     ]
     controls_links = [
         dict(text = "tree status", url = "https://v8-status.appspot.com/"),

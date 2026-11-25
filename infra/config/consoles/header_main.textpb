@@ -32,11 +32,6 @@ links {
     url: "/p/v8/g/clusterfuzz"
     alt: "Clusterfuzz V8 Console"
   }
-  links {
-    text: "chromium"
-    url: "/p/v8/g/chromium"
-    alt: "Chromium V8 Console"
-  }
 }
 
 links {

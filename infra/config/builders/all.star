@@ -5,7 +5,6 @@
 exec("/multibranch/main.star")
 exec("/multibranch/memory.star")
 exec("/multibranch/ports.star")
-exec("/chromium.star")
 exec("/clusterfuzz.star")
 exec("/experiments.star")
 exec("/integration.star")
