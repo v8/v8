@@ -3,19 +3,11 @@
 # found in the LICENSE file.
 
 load("//lib/builders.star", "v8_builder")
-load("//lib/service-accounts.star", "V8_PGO_ACCOUNT")
 load("//lib/siso.star", "SISO")
 
-v8_builder(
-    name = "PGO Builder",
-    bucket = "ci-hp",
-    service_account = V8_PGO_ACCOUNT,
-    executable = "recipe:v8/pgo_builder",
-    in_list = "pgo",
-    execution_timeout = 3600,
-    notifies = ["infra-failure", "infra"],
-)
-
+# The compilators are triggered by the PGO Builder in the internal project
+# (v8-internal/ci-hp), which creates the builtins PGO profiles for new V8
+# versions. The Linux64 compilator is also triggered by V8 Builtins PGO.
 def pgo_compilator(name, os):
     v8_builder(
         name = name,

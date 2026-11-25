@@ -195,16 +195,24 @@ def pool(*, name, users = None, groups = None, projects = None, bucket_realms = 
 pool(
     name = "@root",
     bucket_realms = ["@root"],
-    users = [V8_CI_ACCOUNT, V8_PGO_ACCOUNT],
+    users = [V8_CI_ACCOUNT],
     groups = "google/v8-infra-users-highly-privileged@twosync.google.com",
 )
 
 pool(
     name = "pools/ci",
     bucket_realms = ["ci", "ci.experimental"] + ["ci." + v for v in ACTIVE_BRANCHES],
-    users = [V8_CI_ACCOUNT, V8_PGO_ACCOUNT],
+    users = [V8_CI_ACCOUNT],
     groups = LED_GROUPS,
     projects = "emscripten-releases",
+)
+
+# The PGO account runs the PGO Builder in the internal project, which schedules
+# the PGO compilators in the ci bucket.
+luci.binding(
+    realm = "ci",
+    roles = "role/buildbucket.triggerer",
+    users = [V8_PGO_ACCOUNT],
 )
 
 pool(
@@ -240,7 +248,6 @@ def grantInvocationCreator(realms, users):
         ])
 
 grantInvocationCreator(["try", "try.triggered", "crossbench.try"], [V8_TRY_ACCOUNT])
-grantInvocationCreator(["ci-hp"], [V8_PGO_ACCOUNT])
 grantInvocationCreator(["ci", "ci.experimental"], [V8_CI_ACCOUNT])
 
 luci.logdog(gs_bucket = "chromium-luci-logdog")
