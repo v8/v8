@@ -1284,6 +1284,11 @@ ProcessResult MaglevGraphOptimizer::VisitAssumeType(AssumeType*,
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitRetain(Retain*,
+                                                const ProcessingState&) {
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitTurbofanStaticAssert(
     TurbofanStaticAssert*, const ProcessingState&) {
   return ProcessResult::kContinue;

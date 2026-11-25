@@ -5209,6 +5209,19 @@ void DebugBreak::GenerateCode(MaglevAssembler* masm,
   __ DebugBreak();
 }
 
+void Retain::SetValueLocationConstraints() {
+  // For non-constant values, UseAny extends the input's live range up to this
+  // node so safepoints keep it alive across GC without emitting code here.
+  UseAny(ValueInput());
+}
+void Retain::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
+  // UseAny does not keep constants alive (they have no register/stack-slot
+  // safepoint entries), so retain HeapConstants on the code object directly.
+  if (HeapConstant* constant = ValueInput().node()->TryCast<HeapConstant>()) {
+    masm->code_gen_state()->Retain(constant->object().object());
+  }
+}
+
 int Abort::MaxCallStackArgs() const {
   DCHECK_EQ(Runtime::FunctionForId(Runtime::kAbort)->nargs, 1);
   return 1;
