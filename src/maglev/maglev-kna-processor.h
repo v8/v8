@@ -495,6 +495,21 @@ class RecomputeKnownNodeAspectsProcessor {
     return ProcessResult::kContinue;
   }
 
+  ProcessResult ProcessNode(EnsureWritableFastElements* node) {
+    compiler::MapRef fixed_array_map = broker()->fixed_array_map();
+    DCHECK(fixed_array_map.is_stable());
+    if (!GetOrCreateInfoFor(node)->SetPossibleMaps(
+            PossibleMaps{fixed_array_map}, false,
+            StaticTypeForMap(fixed_array_map, broker()), broker(),
+            known_node_aspects())) {
+      return OnContradiction();
+    }
+    auto& props_for_key = known_node_aspects().GetLoadedPropertiesForKey(
+        PropertyConstness::kMutable, PropertyKey::Elements());
+    props_for_key[node->ObjectInput().node()] = node;
+    return ProcessResult::kContinue;
+  }
+
   ProcessResult ProcessNode(LoadTaggedField* node) {
     // Re-establish the static type recorded at graph building time (field
     // representation / stable field map derived).

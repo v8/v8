@@ -4235,6 +4235,9 @@ class MachineLoweringReducer : public Next {
     GOTO(done, copy);
 
     BIND(done, result);
+    // The copy is never COW, so {result} has the FixedArray map either way.
+    __ AssumeMap(V<HeapObject>::Cast(result),
+                 ZoneRefSet<Map>(broker_->fixed_array_map()));
     return result;
   }
 

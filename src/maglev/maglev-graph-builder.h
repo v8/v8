@@ -1497,6 +1497,8 @@ class MaglevGraphBuilder {
       ValueNode* object, ValueNode* index,
       base::Vector<const compiler::MapRef> maps, ElementsKind kind,
       KeyedAccessLoadMode load_mode);
+  ReduceResult BuildEnsureWritableFastElements(ValueNode* object,
+                                               ValueNode* elements);
   MaybeReduceResult TryBuildElementStoreOnJSArrayOrJSObject(
       ValueNode* object, ValueNode* index_object, ValueNode* value,
       base::Vector<const compiler::MapRef> maps, ElementsKind kind,

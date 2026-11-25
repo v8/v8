@@ -5444,6 +5444,30 @@ std::optional<int32_t> MaglevGraphBuilder::CanElideBoundCheckAndResizing(
   return int32_index;
 }
 
+ReduceResult MaglevGraphBuilder::BuildEnsureWritableFastElements(
+    ValueNode* object, ValueNode* elements) {
+  compiler::MapRef fixed_array_map = broker()->fixed_array_map();
+  // {elements} are already writable if they are known to be a non-COW
+  // FixedArray.
+  if (std::optional<PossibleMaps> maps =
+          known_node_aspects().TryGetPossibleMaps(elements);
+      maps.has_value() && maps->size() == 1 && maps->at(0) == fixed_array_map) {
+    return elements;
+  }
+  ValueNode* writable_elements;
+  GET_VALUE_OR_ABORT(writable_elements, AddNewNode<EnsureWritableFastElements>(
+                                            {elements, object}));
+  reducer_.RecordKnownProperty(object, PropertyKey::Elements(),
+                               writable_elements, PropertyConstness::kMutable,
+                               compiler::AccessMode::kStore);
+  DCHECK(fixed_array_map.is_stable());
+  CHECK(GetOrCreateInfoFor(writable_elements)
+            ->SetPossibleMaps(PossibleMaps{fixed_array_map}, false,
+                              StaticTypeForMap(fixed_array_map, broker()),
+                              broker(), known_node_aspects()));
+  return writable_elements;
+}
+
 MaybeReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
     ValueNode* object, ValueNode* index_object, ValueNode* value,
     base::Vector<const compiler::MapRef> maps, ElementsKind elements_kind,
@@ -5518,9 +5542,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
       if (IsSmiOrObjectElementsKind(elements_kind)) {
         DCHECK_EQ(keyed_mode.store_mode(),
                   KeyedAccessStoreMode::kGrowAndHandleCOW);
-        GET_VALUE_OR_ABORT(
-            elements_array,
-            AddNewNode<EnsureWritableFastElements>({elements_array, object}));
+        GET_VALUE_OR_ABORT(elements_array, BuildEnsureWritableFastElements(
+                                               object, elements_array));
       }
 
       // Update length if necessary.
@@ -5540,9 +5563,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
       // Handle COW if needed.
       if (IsSmiOrObjectElementsKind(elements_kind)) {
         if (keyed_mode.store_mode() == KeyedAccessStoreMode::kHandleCOW) {
-          GET_VALUE_OR_ABORT(
-              elements_array,
-              AddNewNode<EnsureWritableFastElements>({elements_array, object}));
+          GET_VALUE_OR_ABORT(elements_array, BuildEnsureWritableFastElements(
+                                                 object, elements_array));
         } else {
           // Ensure that this is not a COW FixedArray.
           RETURN_IF_ABORT(BuildCheckMaps(
@@ -10073,9 +10095,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeSort(
         // elements_kind is always PACKED_SMI or PACKED_ELEMENTS here
         // (PACKED_DOUBLE bailed out above).
         DCHECK(IsSmiOrObjectElementsKind(elements_kind));
-        GET_VALUE_OR_ABORT(writable_elements,
-                           AddNewNode<EnsureWritableFastElements>(
-                               {writable_elements, receiver}));
+        GET_VALUE_OR_ABORT(writable_elements, BuildEnsureWritableFastElements(
+                                                  receiver, writable_elements));
 
         // Copy-back: elements[k] = temp_array[k] for k in [0, length).
         // temp_array was already filtered on copy-in, so no undefined check.
@@ -10402,9 +10423,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
           // Handle COW if needed.
           ValueNode* writable_elements_array;
           if (IsSmiOrObjectElementsKind(kind)) {
-            GET_VALUE_OR_ABORT(writable_elements_array,
-                               AddNewNode<EnsureWritableFastElements>(
-                                   {elements_array, receiver}));
+            GET_VALUE_OR_ABORT(
+                writable_elements_array,
+                BuildEnsureWritableFastElements(receiver, elements_array));
           } else {
             writable_elements_array = elements_array;
           }
