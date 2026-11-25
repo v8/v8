@@ -210,7 +210,11 @@ class Evaluator {
  public:
   Evaluator(const Options& options, SyntaxChecker* checker,
             ScriptRunner* runner)
-      : options_(options), checker_(checker), runner_(runner) {}
+      : options_(options),
+        checker_(checker),
+        runner_(runner),
+        on_demand_(runner_ != nullptr ? MakeOnDemandPrelude(options.prelude)
+                                      : nullptr) {}
 
   void Evaluate(Component* component, const std::string& name, int index,
                 const std::string& source, const std::string& detail) {
@@ -250,7 +254,7 @@ class Evaluator {
     // The prelude is an execution-time detail (test harness shims); it is
     // never part of the program itself, so it is not printed or saved.
     std::string exec_source =
-        options_.prelude.empty() ? source : options_.prelude + "\n" + source;
+        ScriptWithPrelude(options_.prelude, on_demand_.get(), source);
     if (!runner_->Run(exec_source, &result, &error)) {
       REDLINE_WARN(kLog, "execution failed: %s", error.c_str());
       return;
@@ -346,6 +350,9 @@ class Evaluator {
   const Options& options_;
   SyntaxChecker* checker_;
   ScriptRunner* runner_;
+  // With the tunable `prelude.on_demand`: the part of the prelude for each
+  // program, as in a session.
+  std::unique_ptr<OnDemandPrelude> on_demand_;
   size_t input_index_ = 0;
   uint64_t total_ = 0;
   uint64_t invalid_ = 0;

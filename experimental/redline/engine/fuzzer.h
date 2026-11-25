@@ -27,6 +27,7 @@
 #include "experimental/redline/engine/config.h"
 #include "experimental/redline/engine/crash.h"
 #include "experimental/redline/engine/d8_flags.h"
+#include "experimental/redline/engine/prelude.h"
 #include "experimental/redline/engine/shared_coverage.h"
 #include "experimental/redline/engine/stages.h"
 #include "experimental/redline/generators/generator.h"
@@ -110,6 +111,13 @@ struct FuzzerStats {
   std::atomic<uint64_t> mutation_time_us{0};
   std::atomic<uint64_t> infrastructure_failures{0};
   std::atomic<uint64_t> swarm_epochs{0};  // swarm masks drawn by the workers
+  // With the tunable `prelude.on_demand` (engine/prelude.h): the executions
+  // behind a part of the prelude, and the prelude statements of their
+  // scripts. For each PreludeFallback, the executions that got the whole
+  // prelude because of this rule.
+  std::atomic<uint64_t> prelude_scripts{0};
+  std::atomic<uint64_t> prelude_statements{0};
+  std::atomic<uint64_t> prelude_fallbacks[kNumPreludeFallbacks] = {};
 };
 
 // The timeout of a minimizer probe for a program that runs in
@@ -523,6 +531,10 @@ class Fuzzer {
   Component fuse_component_{"Fuse"};
   std::unique_ptr<MutatorSet> mutators_;
   std::unique_ptr<GeneratorSet> generators_;
+  // The prelude as a list of statements, if the tunable `prelude.on_demand`
+  // is on (engine/prelude.h). Else nullptr: each program gets the whole
+  // prelude. Set in Initialize(), read-only after it.
+  std::unique_ptr<OnDemandPrelude> on_demand_prelude_;
   std::unique_ptr<Minimizer> minimizer_;
   // The configured reducer order (stages.minimize.reducers); empty: the
   // default order.

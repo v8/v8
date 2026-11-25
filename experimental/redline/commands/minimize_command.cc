@@ -163,6 +163,12 @@ int Run(const Flags& flags) {
     REDLINE_ERROR(kLog, "%s", error.c_str());
     return kExitFailure;
   }
+  // With the tunable `prelude.on_demand`, a candidate gets the same part of
+  // the prelude as in a session. The command runs the printed program. The
+  // printed runtime of an instrumented program is not the text of a helper,
+  // so the fallback rules apply to this runtime here.
+  const std::unique_ptr<OnDemandPrelude> on_demand =
+      MakeOnDemandPrelude(prelude);
 
   if (!InitializeV8(flags.GetString(
                         "v8-flags",
@@ -185,8 +191,7 @@ int Run(const Flags& flags) {
   }
   auto execute = [&](const std::string& candidate, Execution* execution,
                      uint64_t timeout_us) {
-    std::string script =
-        prelude.empty() ? candidate : prelude + "\n" + candidate;
+    std::string script = ScriptWithPrelude(prelude, on_demand.get(), candidate);
     std::string exec_error;
     if (!runner->RunWithoutEvaluation(script, timeout_us, execution,
                                       &exec_error)) {

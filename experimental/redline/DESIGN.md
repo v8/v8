@@ -296,6 +296,30 @@ For each execution, Redline writes the script, sends a command and waits for a s
 - By default, the target decides if a program is valid: an uncaught SyntaxError without a stack frame marks it invalid.
   With `syntax_check`, the V8 parser in the Redline process checks each mutant first.
 - The default prelude defines the mjsunit assertion functions so that they do not throw.
+- With the tunable `prelude.on_demand`, a program gets only the statements of the default prelude that it can use (`OnDemandPrelude` in `engine/prelude.h`).
+  Then the target compiles and runs less code in front of each program.
+  On demand works only with the default prelude (white space at the start and at the end does not count).
+  Each other prelude stays whole for each program, with a warning.
+  Redline splits the default prelude into its top-level statements.
+  A program gets the statements that declare a name of its text, the statements that extend that function, and the statements that they use.
+  It also gets the statements that declare no name, because they can change global state.
+  The declarations for `promiseTestChain` and `$262` call functions that change no state that a program reads without the name, so they go only with their names.
+  If you change the default prelude, run the whole-against-on-demand comparison on a corpus again.
+  The search reads the text of the program, so a name in a string also counts.
+  A program can also compute the name of a global when it runs.
+  Thus a program gets the whole prelude if its text has `eval`, `Function`, `globalThis`, `Realm`, or `this` as a value (not `this.name`).
+  The value 2 of the tunable turns off this rule.
+  The rule does not find each way to a global.
+  Known limits are `$262.global[name]`, `$262.evalScript(text)`, and `assertThrows(text)` or `assert.throws(error, text)` with a computed text.
+  More limits are `f.constructor(text)` for a function `f`, `this.valueOf()[name]`, and `Error.prepareStackTrace` with `getThis()`.
+  A program that gets a prelude name only in one of these ways does not get the statement of the name.
+  The same program always gets the same script, also in the crash steps.
+  `redline exec`, `redline minimize` and `redline mutate` use the tunable. For the same text, they make the same script as a session.
+  The runtime of a runtime-assisted mutator stands in front of its instrumented program. The fallback rules do not apply to the text of this runtime.
+  `redline minimize` runs the printed program. There the printed runtime is not this text, so the rules apply to it and the program can get the whole prelude.
+  `redline exec` runs the text of the file. The names in the comment lines at the start of a crash file count, so the file can get more statements than in the session.
+  `redline shell` and `redline amplify` do not use the tunable. They put the whole prelude.
+  The stats event has the counters `prelude_scripts`, `prelude_statements` and `prelude_whole_<rule>`.
 
 **Coverage.** Each target has its own coverage map: POSIX shared memory with a header and one bit per edge (`d8/cov.h`).
 The header has the mode of the instrumentation, the number of edges, the regions and the build ID of d8.
@@ -424,6 +448,7 @@ The def-use graph only proposes a cut. The oracle decides, because globals, prot
 
 **Crashes.** For a crash that reproduces alone, the minimizer reduces one tree of the prelude and the program.
 Redline parses the prelude, a new line and the program into this tree.
+With `prelude.on_demand`, the tree has the part of the prelude that the program got.
 The tree prints to a script that is equivalent to the script of the target, but not always the same text.
 The tests run the printed script without the prelude in front.
 Thus the minimizer also removes the prelude statements that the crash does not need.
@@ -432,7 +457,7 @@ A crash uses all reducers, `dataflow` first: `dataflow`, `statements`, `unwrap`,
 With one test, `dataflow` can remove a group of prelude statements that the program does not use.
 
 - Before the minimization, the printed tree must crash with the same signature in one of `verify_attempts` runs.
-- The minimizer reduces the program alone, behind the exact prelude, if one of these conditions is true:
+- The minimizer reduces the program alone, behind the exact prelude that each candidate gets, if one of these conditions is true:
   - The prelude is empty.
   - The prelude or the program does not parse.
   - The prelude continues into the program, for example `var a = f` and `(1);`.
@@ -454,7 +479,7 @@ With one test, `dataflow` can remove a group of prelude statements that the prog
   If this count is complete with a miss and the search removed flags, Redline also counts all flags of the target.
   `NAME.repro.js` always stays. The report and the crash event give the last count in `repro_rate` and `repro_rate_note`.
   The check runs at most two counts. Each process takes at most the timeout of the target plus 10 s. After a stop request, the check starts no new process.
-- `NAME.js` keeps its meaning: the program alone, without the prelude statements. Redline uses the minimized program for `NAME.js` only if it also crashes with the same signature behind the full prelude (`min_program_verified`).
+- `NAME.js` keeps its meaning: the program alone, without the prelude statements. Redline uses the minimized program for `NAME.js` only if it also crashes with the same signature behind its prelude (`min_program_verified`). With `prelude.on_demand`, this prelude is the part for the minimized program.
 - The node counts of `minimized:`, `min_nodes_before` and `min_nodes_after` are the counts of the program alone, as in `NAME.js`.
   `min_script_nodes` and `min_prelude_statements` give the nodes of the whole tree and its top-level prelude statements.
   If the last check rejects a result, the count after the minimization is equal to the count before.

@@ -122,7 +122,7 @@ const int calls = 1 + r.SmallCount(kAtomicsOpsMaxCalls.AsInt() - 1);
 Rules:
 
 - Every probability, count and limit in a component is a tunable. Do not write a number in the code.
-- The name starts with the owner: `generators.<Generator>.`, `mutators.<Mutator>.`, `codegen.<helper>.`, `minimizer.<reducer>.`, `salvage.` or `flags.` (the random d8 flags of `maglev` and `turbolev`). The `fuzzilli` profile keeps the fixed numbers of Fuzzilli.
+- The name starts with the owner: `generators.<Generator>.`, `mutators.<Mutator>.`, `codegen.<helper>.`, `minimizer.<reducer>.`, `salvage.`, `prelude.` or `flags.` (the random d8 flags of `maglev` and `turbolev`). The `fuzzilli` profile keeps the fixed numbers of Fuzzilli.
 - When you replace a number in existing code, the default is the old number. Then the behavior does not change.
 - `redline fuzz --help-tunables` lists all tunables. The flag `--tunable=NAME=VALUE` and the `tunables` block set them. The flag also works with `mutate` and `audit`.
 
@@ -1009,4 +1009,5 @@ checklist into commands and a report.
 - [ ] `--run`: the share of failures and timeouts is known and explained in the CL description.
 - [ ] Audit: no crash signature above 0.5% for a new or changed generator.
 - [ ] A/B: a change of a weight, a strategy or a default has a measured result in the CL description.
+- [ ] If you change the default prelude (`engine/prelude.cc`), run the whole-against-on-demand comparison on a corpus again. `prelude.on_demand` works only with the default prelude. Another prelude stays whole with a warning.
 - [ ] [TUTORIAL.md](TUTORIAL.md), [DESIGN.md](DESIGN.md) and this guide are still correct.

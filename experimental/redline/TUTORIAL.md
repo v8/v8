@@ -745,9 +745,14 @@ Reproduce the crash without Redline, with the d8 command line of the header:
 $(sed -n 's|^// d8 ||p' "$CRASH") "$CRASH"
 ```
 
-The `.js` and `.orig.js` files do not contain the prelude, and `exec`, `replay` and d8 do not add it.
+The `.js` and `.orig.js` files do not contain the prelude, and `replay`, d8 and `exec` without `--prelude` do not add it.
 If the program calls an mjsunit assertion function, it fails in these commands before it gets to the crash.
 `redline minimize` adds the prelude, so use it for these programs.
+If the session ran with the tunable `prelude.on_demand`, give the same value to `redline minimize`, for example `--tunable=prelude.on_demand=1`.
+`prelude.on_demand` works only with the default prelude. Another prelude stays whole for each program, with a warning.
+The report of such a crash has the line `prelude: on demand`. The line gives the value of the tunable and the number of prelude statements of the original program.
+A minimized program can get fewer statements.
+`redline exec --prelude=default` also adds the prelude.
 
 The `.repro.js` file has the prelude statements that the crash needs. Its first line is the signature, and its second line is the d8 command that runs it.
 The command has absolute paths, so it works in each directory:
@@ -782,7 +787,8 @@ repro_rate_note: the bar is 5 of 5
   For the program alone, there is no `.repro.js` file.
 - The node counts of the `minimized:` line are the counts of the program alone, as in the `.js` file.
   `min_script_nodes` gives the nodes of the prelude and the program together, and `min_prelude_statements` gives the top-level statements of the prelude, before and after the minimization.
-- `min_program_verified: yes` tells that the minimized program also crashes behind the full prelude. Then the `.js` file has this program.
+- `min_program_verified: yes` tells that the minimized program also crashes behind its prelude. Then the `.js` file has this program.
+  With `prelude.on_demand`, this prelude is the part for the minimized program.
   If the value is `no`, the `.js` file has the original program, and the report says `minimized: no`.
   But `signatures.txt` counts the crash as minimized, because its `.repro.js` file has the minimized script.
 - `repro_flags` gives the d8 flags of the `run:` line: the flags of the target that the crash needs.

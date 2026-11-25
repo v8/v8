@@ -66,6 +66,7 @@
 #include "experimental/redline/fast/parser.h"
 #include "experimental/redline/fast/printer.h"
 #include "experimental/redline/minimizer/minimizer.h"
+#include "experimental/redline/mutators/explore.h"
 #include "experimental/redline/mutators/mutator.h"
 
 namespace redline {
@@ -2728,6 +2729,74 @@ void RunCrashReproCheck(Checker* checker, const TargetOptions& target,
                    session.error.c_str()));
 }
 
+// The crash steps behind an on-demand prelude (`prelude.on_demand`), in a
+// short session. The tree of the minimizer has the part of the prelude that
+// the program got, not the whole prelude. NAME.repro.js must crash a plain
+// d8 process alone, and NAME.js must crash again behind its part of the
+// prelude. The report names the on-demand prelude.
+void RunCrashOnDemandCheck(Checker* checker, const TargetOptions& target,
+                           bool fuzzilli_target) {
+  const char* name =
+      "crash minimizer: a crash behind an on-demand prelude gives "
+      "NAME.repro.js that crashes alone";
+  const char* crash_call =
+      fuzzilli_target ? "fuzzilli('FUZZILLI_CRASH'" : "redline('REDLINE_CRASH'";
+  const std::string program =
+      StringPrintf("assertThrows(() => %s, 1));\n", crash_call);
+  const CrashSession session =
+      RunCrashSession(target, {"--tunable=prelude.on_demand=1"}, {program});
+  // The session set the tunable of this process.
+  TunableRegistry::Instance().Reset();
+  // The prelude statements that the program gets. The crash needs 2 of
+  // them: `assertThrows` and the helper that it calls.
+  std::string build_error;
+  const std::unique_ptr<OnDemandPrelude> on_demand = OnDemandPrelude::Build(
+      DefaultPrelude(), /*fallback_rules=*/true, &build_error);
+  const size_t part =
+      on_demand != nullptr ? on_demand->Select(program).count : 0;
+  const std::string& repro = session.repro;
+  const size_t first_line = repro.find('\n');
+  const size_t second_line = first_line == std::string::npos
+                                 ? first_line
+                                 : repro.find('\n', first_line + 1);
+  const bool header =
+      repro.starts_with("// signature: ") && second_line != std::string::npos;
+  std::unique_ptr<fast::Tree> tree =
+      header ? fast::Parser::ParseScript(repro.substr(second_line + 1),
+                                         fast::ParseOptions(), nullptr)
+             : nullptr;
+  const std::string helpers = tree != nullptr ? TopLevelVars(*tree) : "";
+  const std::string& report = session.report;
+  const std::string signature = ReportValue(report, "signature");
+  const std::string plain = header ? RunReproLine(repro, target) : "";
+  RemoveTree(session.dir);
+  const std::string min_tree = ReportValue(report, "min_tree");
+  const std::string statements = ReportValue(report, "min_prelude_statements");
+  const std::string verified = ReportValue(report, "min_program_verified");
+  const std::string prelude_line = ReportValue(report, "prelude");
+  const std::string rate = ReportValue(report, "repro_rate");
+  checker->Check(
+      name,
+      tree != nullptr && helpers == "__redline_call assertThrows" &&
+          min_tree == "prelude and program" && part > 2 &&
+          part < on_demand->statements() &&
+          statements == StringPrintf("%zu -> 2", part) && verified == "yes" &&
+          prelude_line ==
+              StringPrintf("on demand (prelude.on_demand=1), %zu of %zu "
+                           "statements",
+                           part, on_demand->statements()) &&
+          rate == "5/5" && !signature.empty() && plain == signature,
+      StringPrintf("%s, %.0f s, helpers \"%s\", min_tree %s, "
+                   "min_prelude_statements %s, min_program_verified %s, "
+                   "prelude \"%s\", repro_rate %s, plain d8 run \"%s\", "
+                   "signature \"%s\"%s%s",
+                   session.stop.c_str(), session.seconds, helpers.c_str(),
+                   min_tree.c_str(), statements.c_str(), verified.c_str(),
+                   prelude_line.c_str(), rate.c_str(), plain.c_str(),
+                   signature.c_str(), session.error.empty() ? "" : ", ",
+                   session.error.c_str()));
+}
+
 // A crash behind a prelude whose text matters: the program reads the text
 // of a prelude function. The printer removes the comment in the function,
 // so the printed tree of the prelude and the program does not crash. Then the
@@ -4242,6 +4311,520 @@ void RunSalvageTargetCheck(Checker* checker, ScriptRunner* runner) {
   }
 }
 
+// Offline: the on-demand prelude (engine/prelude.h). The checks cover the
+// statements that a program gets and the search for names in its text. They
+// also cover the fallback rules and the preludes that Build() does not split.
+void RunOnDemandPreludeChecks(Checker* checker) {
+  const std::string prelude(DefaultPrelude());
+  std::string error;
+  const std::unique_ptr<OnDemandPrelude> on_demand =
+      OnDemandPrelude::Build(prelude, /*fallback_rules=*/true, &error);
+  if (!checker->Check("prelude: Build splits the default prelude",
+                      on_demand != nullptr, error)) {
+    return;
+  }
+  // Pin the split of the default prelude. A change of the default prelude
+  // makes this check fail. After such a change, run the
+  // whole-against-on-demand comparison on a corpus again.
+  {
+    const std::string trimmed = prelude.substr(prelude.find_first_not_of('\n'));
+    const std::string padded = " \n" + trimmed + " \n";
+    std::string trimmed_error;
+    std::string padded_error;
+    const std::unique_ptr<OnDemandPrelude> from_bundle = OnDemandPrelude::Build(
+        trimmed, /*fallback_rules=*/true, &trimmed_error);
+    const std::unique_ptr<OnDemandPrelude> from_padded =
+        OnDemandPrelude::Build(padded, /*fallback_rules=*/true, &padded_error);
+    checker->Check(
+        "prelude: the default prelude splits into 79 statements with 2 in "
+        "front of each program",
+        on_demand->statements() == 79 && on_demand->always_kept() == 2 &&
+            trimmed != prelude && from_bundle != nullptr &&
+            from_bundle->statements() == 79 &&
+            from_bundle->always_kept() == 2 && from_padded != nullptr &&
+            from_padded->statements() == 79 && from_padded->always_kept() == 2,
+        StringPrintf(
+            "%zu statements, %zu always kept%s%s%s%s", on_demand->statements(),
+            on_demand->always_kept(),
+            trimmed_error.empty() ? "" : ", bundle: ", trimmed_error.c_str(),
+            padded_error.empty() ? "" : ", padded: ", padded_error.c_str()));
+  }
+  auto text_for = [&](std::string_view program) {
+    return on_demand->Text(on_demand->Select(program));
+  };
+  auto has = [](const std::string& text, std::string_view needle) {
+    return text.find(needle) != std::string::npos;
+  };
+
+  // 1. The statements for a program.
+  {
+    const OnDemandPrelude::Selection none =
+        on_demand->Select("let v = 1;\nprint(v);\n");
+    const std::string text = on_demand->Text(none);
+    checker->Check(
+        "prelude: a program without a prelude name gets only the statements "
+        "that declare no name, and their names",
+        none.fallback == PreludeFallback::kNone &&
+            none.count == on_demand->always_kept() &&
+            none.count < on_demand->statements() &&
+            has(text, "var __redline_noop =") && has(text, "d8.file.execute") &&
+            !has(text, "assert") && !has(text, "Test262Error") &&
+            !has(text, "promiseTestChain") && !has(text, "$262") &&
+            none.bytes == text.size() && none.lines == PreludeLineCount(text),
+        StringPrintf("%zu of %zu statements, %zu bytes, %d lines", none.count,
+                     on_demand->statements(), none.bytes, none.lines));
+
+    const std::string throws = text_for("assertThrows(() => { null.x; });\n");
+    checker->Check(
+        "prelude: a name gets its statement and the statements that it uses, "
+        "in the order of the prelude",
+        has(throws, "var assertThrows =") &&
+            has(throws, "var __redline_call") &&
+            throws.find("var __redline_call") <
+                throws.find("var assertThrows =") &&
+            !has(throws, "var assertEquals ") &&
+            !has(throws, "var assertThrowsEquals"),
+        StringPrintf("%zu bytes", throws.size()));
+
+    const std::string assert_text = text_for("assert.sameValue(1, 1);\n");
+    const std::string compare = text_for("compareArray([1], [1]);\n");
+    checker->Check(
+        "prelude: a statement that extends a function of the prelude belongs "
+        "to the name of the function",
+        has(assert_text, "var assert = ") &&
+            has(assert_text, "assert.sameValue = ") &&
+            has(assert_text, "assert.compareArray = compareArray;") &&
+            has(assert_text, "var compareArray = ") &&
+            has(assert_text, "compareArray.format = prettyPrinted;") &&
+            has(assert_text, "var prettyPrinted = ") &&
+            has(assert_text, "var formatIdentityFreeValue = ") &&
+            has(assert_text, "var isPrimitive = ") &&
+            has(assert_text, "var __redline_call = ") &&
+            !has(assert_text, "Test262Error") &&
+            !has(assert_text, "var assertEquals ") &&
+            has(compare, "var compareArray = ") &&
+            has(compare, "compareArray.isSameValue = Object.is;") &&
+            !has(compare, "var assert = ") && !has(compare, "assert."),
+        StringPrintf("assert %zu bytes, compareArray %zu bytes",
+                     assert_text.size(), compare.size()));
+
+    const std::string realm = text_for("$262.createRealm();\n");
+    const std::string error_text = text_for("throw new Test262Error('x');\n");
+    const std::string chain = text_for("promiseTestChain.then(() => {});\n");
+    checker->Check(
+        "prelude: `$262`, `promiseTestChain` and `Test262Error` get their "
+        "statements",
+        has(realm, "var $262 = ") && has(realm, "var __redline_realm = ") &&
+            has(realm, "var __redline_call = ") &&
+            has(chain, "var promiseTestChain = ") && !has(chain, "var $262") &&
+            has(error_text, "var Test262Error = ") &&
+            has(error_text, "Test262Error.prototype.toString = ") &&
+            has(error_text, "Test262Error.thrower = __redline_noop;") &&
+            !has(error_text, "var $262"),
+        StringPrintf("$262 %zu bytes, Test262Error %zu bytes", realm.size(),
+                     error_text.size()));
+  }
+
+  // 2. The search for names in the text.
+  {
+    auto gets_fail = [&](std::string_view program) {
+      return has(text_for(program), "var fail = ");
+    };
+    const bool in_string = gets_fail("f(\"fail\");\n");
+    const bool in_comment = gets_fail("// fail\nlet v = 1;\n");
+    const bool identifier_escape = gets_fail("f\\u0061il();\n");
+    const bool braces_escape = gets_fail("f(\"\\u{66}ail()\");\n");
+    const bool hex_escape = gets_fail("f(\"\\x66ail()\");\n");
+    const bool octal_escape = gets_fail("f(\"\\146ail()\");\n");
+    const bool after_new_line = gets_fail("f(\"g();\\nfail()\");\n");
+    const bool continued_line = gets_fail("f(\"fa\\\nil()\");\n");
+    const bool same_character = gets_fail("f(\"\\fail \\quit\");\n");
+    const bool other_names =
+        gets_fail("failed(); xfail(); fail2(); f(\"\\x66ailed\");\n");
+    // A backslash at the end of a line comment does not continue the line.
+    // The next line is code.
+    auto gets_equals = [&](std::string_view program) {
+      return has(text_for(program), "var assertEquals = ");
+    };
+    const bool after_comment =
+        gets_equals("// C:\\temp\\\nassertEquals(1, 2);\n") &&
+        gets_equals("// C:\\temp\\\r\nassertEquals(1, 2);\r\n") &&
+        gets_equals("<!-- foo\\\nassertEquals(1, 2);\n") &&
+        gets_equals("// x\\\n// y\\\nassertEquals(1, 2);\n") &&
+        on_demand->Select("// x\\\neval('1');\n").fallback ==
+            PreludeFallback::kEval;
+    checker->Check(
+        "prelude: the search finds a name in a string and in a comment, and "
+        "decodes escape sequences",
+        in_string && in_comment && identifier_escape && braces_escape &&
+            hex_escape && octal_escape && after_new_line && continued_line &&
+            !same_character && !other_names && after_comment &&
+            has(text_for("f(\"\\fail \\quit\");\n"), "var quit = "),
+        StringPrintf("string %d, comment %d, \\u %d, \\u{} %d, \\x %d, octal "
+                     "%d, after \\n %d, continued line %d, \\f %d, other "
+                     "names %d, after a comment %d",
+                     in_string, in_comment, identifier_escape, braces_escape,
+                     hex_escape, octal_escape, after_new_line, continued_line,
+                     same_character, other_names, after_comment));
+  }
+
+  // 3. The fallback rules.
+  {
+    auto rule = [&](std::string_view program) {
+      return on_demand->Select(program).fallback;
+    };
+    const OnDemandPrelude::Selection whole = on_demand->Select("eval('1');\n");
+    const bool whole_text = whole.fallback == PreludeFallback::kEval &&
+                            on_demand->Text(whole) == prelude &&
+                            whole.count == on_demand->statements() &&
+                            whole.bytes == prelude.size() &&
+                            whole.lines == PreludeLineCount(prelude);
+    const bool tokens =
+        rule("new Function('return 1')();\n") == PreludeFallback::kFunction &&
+        rule("globalThis.v = 1;\n") == PreludeFallback::kGlobalThis &&
+        rule("Realm.create();\n") == PreludeFallback::kRealm &&
+        rule("f(\"ev\\x61l\");\n") == PreludeFallback::kEval;
+    const bool this_value =
+        rule("var g = this;\n") == PreludeFallback::kThis &&
+        rule("this[k] = 1;\n") == PreludeFallback::kThis &&
+        rule("for (var k in this) {}\n") == PreludeFallback::kThis &&
+        rule("Object.keys(this);\n") == PreludeFallback::kThis &&
+        rule("f(\"return this\");\n") == PreludeFallback::kThis &&
+        rule("this?.[k];\n") == PreludeFallback::kThis &&
+        rule("this ?.5 : 1;\n") == PreludeFallback::kThis;
+    const bool this_property =
+        rule("this.v = 1;\nfunction C() { this\n  .w = this.v; }\n") ==
+            PreludeFallback::kNone &&
+        rule("(this?.constructor || Object); this ?. v; this?.#p;\n") ==
+            PreludeFallback::kNone &&
+        rule("let thisValue = 1; evaluate(); Functions();\n") ==
+            PreludeFallback::kNone;
+    std::string no_rules_error;
+    const std::unique_ptr<OnDemandPrelude> no_rules = OnDemandPrelude::Build(
+        prelude, /*fallback_rules=*/false, &no_rules_error);
+    const bool rules_off =
+        no_rules != nullptr &&
+        no_rules->Select("eval('1'); var g = this;\n").fallback ==
+            PreludeFallback::kNone &&
+        no_rules->Select("eval('1'); var g = this;\n").count ==
+            no_rules->always_kept();
+    // The text of the prelude has each name of the prelude.
+    const bool all_names = no_rules != nullptr &&
+                           no_rules->Text(no_rules->Select(prelude)) == prelude;
+    checker->Check(
+        "prelude: the fallback rules give the whole prelude to a program "
+        "with `eval`, `Function`, `globalThis`, `Realm` or `this` as a value",
+        whole_text && tokens && this_value && this_property && rules_off &&
+            all_names,
+        StringPrintf("whole text %d, tokens %d, this as a value %d, "
+                     "this.name %d, rules off %d, all names %d",
+                     whole_text, tokens, this_value, this_property, rules_off,
+                     all_names));
+  }
+
+  // 4. Each selection parses as the prelude of ScriptTree, and
+  // ScriptWithPrelude builds the expected scripts.
+  {
+    bool trees = true;
+    for (const char* program : {"let v = 1;\n", "\"use strict\";\nlet v = 1;\n",
+                                "assertEquals(1, 2);\nfail();\n",
+                                "assert.throws(TypeError, () => {});\n",
+                                "$262.gc();\n", "eval('1');\n"}) {
+      const OnDemandPrelude::Selection selection = on_demand->Select(program);
+      std::string parse_error;
+      const std::unique_ptr<ScriptTree> script =
+          ScriptTree::Parse(on_demand->Text(selection), program, &parse_error);
+      trees = trees && script != nullptr &&
+              script->prelude_statements() == selection.count;
+    }
+    const std::string strict = "\"use strict\";\nlet v = 1;\n";
+    OnDemandPrelude::Selection strict_selection;
+    const std::string with_part =
+        ScriptWithPrelude(prelude, on_demand.get(), strict, &strict_selection);
+    const bool scripts =
+        strict_selection.count == on_demand->always_kept() &&
+        with_part == on_demand->Text(strict_selection) + "\n" + strict &&
+        ScriptWithPrelude(prelude, nullptr, strict) ==
+            prelude + "\n" + strict &&
+        ScriptWithPrelude("", nullptr, strict) == strict;
+    checker->Check(
+        "prelude: each selection parses in front of its program and "
+        "ScriptWithPrelude puts the selected part",
+        trees && scripts,
+        StringPrintf("trees %d, scripts %d, count %zu", trees, scripts,
+                     strict_selection.count));
+  }
+
+  // 5. Each prelude other than the default prelude fails Build() and stays
+  // whole for each program.
+  {
+    const std::vector<std::string> custom_preludes = {
+        "var a = 1;\nvar b = 2;\n",
+        "var a = 1;\nvar b = (a = 5);\n",
+        "function install() { Array.prototype.last = function() { return "
+        "this[this.length - 1]; }; return true; }\nvar installed = "
+        "install();\n",
+        "class C { static { globalThis.inst = new this(); } }\n"
+        "C.prototype.hello = function() { return 42; };\n",
+        "var C = class { static { globalThis.inst = new this(); } };\n"
+        "C.prototype.hello = function() { return 42; };\n",
+        "var C = class Inner { static { globalThis.inst = new Inner(); } };\n"
+        "C.prototype.hello = function() { return 42; };\n",
+        "function make() { globalThis.getA = function() { return "
+        "globalThis.a; }; return 1; }\nvar a = make();\nvar a = 42;\n",
+        "var o = { set a(v) { globalThis.ran = v; } };\no.a = 42;\n",
+        "var proto = { set a(v) { globalThis.ran = v; } };\n"
+        "var o = { __proto__: proto };\no.a = 42;\n",
+        "class C { static set a(v) { globalThis.ran = v; } }\nC.a = 42;\n",
+        "class C { set a(v) { globalThis.ran = v; } }\n"
+        "C.prototype.a = 42;\n",
+        "async function af() {}\naf.prototype.x = 1;\n",
+        "var af = async function() {};\naf.prototype.x = 1;\n",
+        "'not a directive';\nvar a = 1;\n",
+        "var d = { [Symbol.dispose]() {} };\nusing x = d;\n",
+        "'use strict';\ng = 5;\n",
+        "Object.defineProperty(globalThis, 'x', { set(v) { globalThis.ran = "
+        "v; } });\nx = 42;\n",
+        "Object.defineProperty(Object.prototype, 'a', { set(v) { "
+        "globalThis.ran = v; } });\nvar o = {};\no.a = 42;\n",
+        prelude + "var extra = 1;\n",
+        prelude + "// extra\n",
+        "var a = ;\n",
+        "// nothing\n",
+        "",
+    };
+    TunableRegistry& registry = TunableRegistry::Instance();
+    std::string tunable_error;
+    const LogLevel saved_level = GetLogLevel();
+    SetLogLevel(LogLevel::kError);
+    size_t refused = 0;
+    std::string first_failed;
+    const std::string program = "print(1);\n";
+    bool set_mode = true;
+    for (int mode : {1, 2}) {
+      set_mode =
+          registry.Set("prelude.on_demand", mode, &tunable_error) && set_mode;
+      for (const std::string& custom : custom_preludes) {
+        std::string why;
+        const std::unique_ptr<OnDemandPrelude> built =
+            OnDemandPrelude::Build(custom, /*fallback_rules=*/mode == 1, &why);
+        const std::unique_ptr<OnDemandPrelude> made =
+            MakeOnDemandPrelude(custom);
+        const std::string script =
+            ScriptWithPrelude(custom, made.get(), program);
+        const std::string expected =
+            custom.empty() ? program : custom + "\n" + program;
+        if (built == nullptr && !why.empty() && made == nullptr &&
+            script == expected) {
+          refused++;
+        } else if (first_failed.empty()) {
+          first_failed = custom.substr(0, 40);
+        }
+      }
+    }
+    SetLogLevel(saved_level);
+    registry.Reset();
+    const size_t total_checks = custom_preludes.size() * 2;
+    checker->Check(
+        "prelude: Build and MakeOnDemandPrelude refuse each custom prelude "
+        "and keep it whole",
+        set_mode && refused == total_checks,
+        StringPrintf("%zu of %zu refused%s%s", refused, total_checks,
+                     first_failed.empty() ? "" : ", first failed: ",
+                     first_failed.c_str()));
+  }
+
+  // The time of Select() for one program. A session calls it for each
+  // execution.
+  {
+    std::string program;
+    for (int i = 0; i < 100; i++) {
+      program += StringPrintf(
+          "function f%d(a, b) { return a.x + b[%d] * this.y; }\n"
+          "let v%d = f%d({x: %d}, [1, 2, 3]);\n",
+          i, i % 3, i, i, i);
+    }
+    const std::string with_names = program + "assertEquals(v1, v2);\n";
+    const int rounds = 2000;
+    size_t statements = 0;
+    const Stopwatch clock;
+    for (int i = 0; i < rounds; i++) {
+      statements += on_demand->Select(i % 2 == 0 ? program : with_names).count;
+    }
+    checker->Info(
+        "prelude: time of Select",
+        StringPrintf("%.2f us for a program of %zu bytes (%zu statements in "
+                     "%d calls)",
+                     static_cast<double>(clock.ElapsedUs()) / rounds,
+                     program.size(), statements, rounds));
+  }
+
+  // 6. The text of a helper in front of a program, and the tunable.
+  {
+    std::string helper_error;
+    const std::unique_ptr<OnDemandPrelude> with_helper =
+        OnDemandPrelude::Build(prelude, /*fallback_rules=*/true, &helper_error);
+    const std::string helper =
+        "const helper = (function() { return Function.prototype; })();\n"
+        "// quit\n";
+    bool helpers = with_helper != nullptr;
+    if (helpers) {
+      with_helper->AddHelper(helper);
+      const OnDemandPrelude::Selection plain =
+          with_helper->Select(helper + "let v = 1;\n");
+      helpers = plain.fallback == PreludeFallback::kNone &&
+                plain.count == with_helper->always_kept() + 1 &&
+                has(with_helper->Text(plain), "var quit = ") &&
+                with_helper->Select(helper + "eval('1');\n").fallback ==
+                    PreludeFallback::kEval &&
+                with_helper->Select("let v = 1;\n" + helper).fallback ==
+                    PreludeFallback::kFunction;
+    }
+    TunableRegistry& registry = TunableRegistry::Instance();
+    const Tunable* tunable = registry.Find("prelude.on_demand");
+    std::string tunable_error;
+    bool tunables = tunable != nullptr && tunable->is_default() &&
+                    (*tunable)() == 0 &&
+                    MakeOnDemandPrelude(prelude) == nullptr;
+    // The runtimes of the runtime-assisted mutators, the runtimes that
+    // MakeOnDemandPrelude() registered, and the runtimes that get the whole
+    // prelude without the registration.
+    int runtimes = 0;
+    int registered = 0;
+    int with_rule = 0;
+    if (tunables) {
+      std::string bound_error;
+      const bool rejects_bounds =
+          !registry.Set("prelude.on_demand", -1, &bound_error) &&
+          !registry.Set("prelude.on_demand", 3, &bound_error);
+      tunables = rejects_bounds &&
+                 registry.Set("prelude.on_demand", 2, &tunable_error);
+      const std::unique_ptr<OnDemandPrelude> mode2 =
+          MakeOnDemandPrelude(prelude);
+      tunables =
+          tunables && mode2 != nullptr &&
+          mode2->Select("eval('1');\n").fallback == PreludeFallback::kNone &&
+          MakeOnDemandPrelude("") == nullptr;
+      tunables =
+          registry.Set("prelude.on_demand", 1, &tunable_error) && tunables;
+      const std::unique_ptr<OnDemandPrelude> mode1 =
+          MakeOnDemandPrelude(prelude);
+      tunables =
+          tunables && mode1 != nullptr &&
+          mode1->Select("eval('1');\n").fallback == PreludeFallback::kEval &&
+          mode1->fallback_rules() && !mode2->fallback_rules();
+      const std::unique_ptr<MutatorSet> mutators = MutatorSet::CreateDefault();
+      for (const std::unique_ptr<Mutator>& mutator : mutators->all()) {
+        if (!mutator->runtime_assisted() || mode1 == nullptr) {
+          continue;
+        }
+        const std::string instrumented =
+            std::string(static_cast<const RuntimeAssistedMutator&>(*mutator)
+                            .runtime()) +
+            "let v = 1;\n";
+        runtimes++;
+        if (mode1->Select(instrumented).fallback == PreludeFallback::kNone) {
+          registered++;
+        }
+        if (on_demand->Select(instrumented).fallback !=
+            PreludeFallback::kNone) {
+          with_rule++;
+        }
+      }
+      registry.Reset();
+      tunables = tunables && (*tunable)() == 0;
+    }
+    checker->Check(
+        "prelude: the fallback rules skip a helper in front of the program, "
+        "and `prelude.on_demand` is off by default",
+        helpers && tunables,
+        StringPrintf("helpers %d, tunables %d%s%s", helpers, tunables,
+                     tunable_error.empty() ? "" : ": ", tunable_error.c_str()));
+    checker->Check(
+        "prelude: MakeOnDemandPrelude registers the runtime of each "
+        "runtime-assisted mutator",
+        runtimes > 0 && registered == runtimes && with_rule > 0,
+        StringPrintf("%d runtimes, %d registered, %d with a fallback rule "
+                     "without the registration",
+                     runtimes, registered, with_rule));
+  }
+}
+
+// Online: a program behind its part of the prelude gives the same result as
+// behind the whole prelude. The line of an exception maps to the program.
+void RunOnDemandPreludeTargetCheck(Checker* checker, ScriptRunner* runner) {
+  const std::string prelude(DefaultPrelude());
+  std::string error;
+  const std::unique_ptr<OnDemandPrelude> on_demand =
+      OnDemandPrelude::Build(prelude, /*fallback_rules=*/true, &error);
+  if (on_demand == nullptr) {
+    checker->Check("prelude: on-demand scripts run like whole scripts on d8",
+                   false, error);
+    return;
+  }
+  int same = 0;
+  int total = 0;
+  std::string differs;
+  for (const char* program :
+       {"print(typeof assertEquals, typeof fail, typeof $262);\n",
+        "assertEquals(1, 2);\nassertThrows(() => { null.x; });\n"
+        "assertThrows('null.x');\nprint('ran');\n",
+        "print(assert.sameValue(1, 1), assert.compareArray([1], [1]));\n"
+        "assert.throws(TypeError, () => { null.x; });\n",
+        "print(String(new Test262Error('m')), typeof Test262Error.thrower);\n",
+        "print(typeof $262.global, typeof $262.createRealm().evalScript);\n",
+        "\"use strict\";\nundeclared = 1;\nprint(typeof undeclared);\n",
+        "load('x.js');\nquit();\nprint(typeof d8.file.execute('x.js'));\n",
+        "print(isNeverOptimize(), prettyPrinted(1), deepEquals(1, 1));\n",
+        "let unknown = null;\nunknown.x;\n"}) {
+    const std::string whole = ScriptWithPrelude(prelude, nullptr, program);
+    const std::string part =
+        ScriptWithPrelude(prelude, on_demand.get(), program);
+    ScriptRunner::Result first, second;
+    if (!RunOrFail(checker, runner, "on-demand prelude target", whole,
+                   &first) ||
+        !RunOrFail(checker, runner, "on-demand prelude target", part,
+                   &second)) {
+      return;
+    }
+    total++;
+    if (first.execution.outcome == second.execution.outcome &&
+        first.execution.ExceptionSignature() ==
+            second.execution.ExceptionSignature() &&
+        (first.execution.outcome != Outcome::kSucceeded ||
+         first.execution.stdout_output == second.execution.stdout_output) &&
+        part.size() < whole.size()) {
+      same++;
+    } else if (differs.empty()) {
+      differs = program;
+    }
+  }
+  checker->Check(
+      "prelude: on-demand scripts run like whole scripts on d8", same == total,
+      StringPrintf(
+          "%d of %d programs%s%s", same, total,
+          differs.empty() ? "" : ", first difference: ", differs.c_str()));
+
+  const std::string throws = "let a = 1;\nnull.x;\n";
+  OnDemandPrelude::Selection selection;
+  const std::string script =
+      ScriptWithPrelude(prelude, on_demand.get(), throws, &selection);
+  ScriptRunner::Result result;
+  if (RunOrFail(checker, runner, "on-demand prelude target", script, &result)) {
+    const ExceptionLines lines =
+        ExtractExceptionLines(result.execution, selection.lines);
+    checker->Check(
+        "prelude: the line of an exception maps to the program behind an "
+        "on-demand prelude",
+        result.execution.outcome == Outcome::kFailed &&
+            selection.lines < PreludeLineCount(prelude) &&
+            lines.innermost == 2 && lines.outermost == 2,
+        StringPrintf("%s, %d prelude lines, lines %d/%d",
+                     OutcomeName(result.execution.outcome), selection.lines,
+                     lines.innermost, lines.outermost));
+  }
+}
+
 // Offline: the `// Flags:` lines of imported tests and the denylist of the
 // js_fuzzer of V8. Also the d8 trials, the flag pools and the flag blacklist.
 // Also the second start of a target process without its random flags.
@@ -5397,6 +5980,7 @@ int RunSelftest(const Flags& flags) {
   RunFlagMinimizerChecks(&checker);
   RunImportChecks(&checker);
   RunSalvageChecks(&checker);
+  RunOnDemandPreludeChecks(&checker);
   RunTestFlagChecks(&checker);
   RunMaterialChecks(&checker);
   RunAmplifiedTestChecks(&checker);
@@ -5504,6 +6088,7 @@ int RunSelftest(const Flags& flags) {
                   Describe(result.execution));
   }
   RunSalvageTargetCheck(&checker, runner.get());
+  RunOnDemandPreludeTargetCheck(&checker, runner.get());
 
   // Output channels.
   {
@@ -5847,6 +6432,7 @@ int RunSelftest(const Flags& flags) {
   // has the same name as the map of `runner`, so stop `runner` first.
   runner.reset();
   RunCrashReproCheck(&checker, target, fuzzilli_target);
+  RunCrashOnDemandCheck(&checker, target, fuzzilli_target);
   RunCrashFallbackCheck(&checker, target, fuzzilli_target);
   RunCrashFlagsCheck(&checker, target, fuzzilli_target);
   RunCrashAmplifiedCheck(&checker, target, fuzzilli_target);
