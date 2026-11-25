@@ -15492,6 +15492,9 @@ ReduceResult MaglevGraphBuilder::VisitForInNext() {
       GET_VALUE_OR_ABORT(
           key, BuildLoadFixedArrayElement(cache_array, index,
                                           LoadType::kInternalizedString));
+      // Keep the enumerator map alive so that a GC before the load cannot
+      // right-trim the shared enum cache if the map check above is eliminated.
+      RETURN_IF_ABORT(AddNewNode<Retain>({cache_type}));
       SetAccumulator(key);
 
       current_for_in_state.receiver = receiver;
