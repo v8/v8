@@ -6549,6 +6549,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildGetKeyedPropertyWithEnumeratedKey(
     ValueNode* object, const compiler::FeedbackSource& feedback_source,
     const compiler::ProcessedFeedback& processed_feedback) {
   if (current_for_in_state.index != nullptr &&
+      current_for_in_state.enum_cache_indices != nullptr &&
       current_for_in_state.key == current_interpreter_frame_.accumulator()) {
     bool speculating_receiver_map_matches = false;
     if (current_for_in_state.receiver != object) {
@@ -6577,24 +6578,11 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildGetKeyedPropertyWithEnumeratedKey(
         current_for_in_state.receiver_needs_map_check = false;
       }
     }
-    ValueNode* enum_cache_indices = current_for_in_state.enum_cache_indices;
-    if (enum_cache_indices == nullptr) {
-      // ForInPrepare wasn't visited (e.g. on OSR into the loop), so load the
-      // indices from the {cache_type} map, which ForInNext has checked.
-      ValueNode* enum_cache;
-      GET_VALUE_OR_ABORT(enum_cache,
-                         BuildLoadEnumCache(current_for_in_state.cache_type));
-      ValueNode* cache_length;
-      GET_VALUE_OR_ABORT(cache_length, AddNewNode<LoadEnumCacheLength>(
-                                           {current_for_in_state.cache_type}));
-      GET_VALUE_OR_ABORT(enum_cache_indices,
-                         BuildLoadEnumCacheIndices(enum_cache, cache_length));
-    }
     // TODO(leszeks): Cache the field index per iteration.
     ValueNode* field_index;
-    GET_VALUE_OR_ABORT(field_index,
-                       BuildLoadFixedArrayElement(enum_cache_indices,
-                                                  current_for_in_state.index));
+    GET_VALUE_OR_ABORT(field_index, BuildLoadFixedArrayElement(
+                                        current_for_in_state.enum_cache_indices,
+                                        current_for_in_state.index));
     return SetAccumulator(
         AddNewNode<LoadTaggedFieldByFieldIndex>({object, field_index}));
   }
@@ -15473,28 +15461,6 @@ ReduceResult MaglevGraphBuilder::VisitForInEnumerate() {
       BuildCallBuiltinWithTaggedInputs<Builtin::kForInEnumerate>({receiver}));
 }
 
-ReduceResult MaglevGraphBuilder::BuildLoadEnumCache(ValueNode* map) {
-  ValueNode* descriptor_array;
-  GET_VALUE_OR_ABORT(
-      descriptor_array,
-      BuildLoadTaggedField(map, offsetof(Map, instance_descriptors_),
-                           NodeType::kAnyHeapObject));
-  return BuildLoadTaggedField(descriptor_array,
-                              offsetof(DescriptorArray, enum_cache_),
-                              NodeType::kAnyHeapObject);
-}
-
-ReduceResult MaglevGraphBuilder::BuildLoadEnumCacheIndices(
-    ValueNode* enum_cache, ValueNode* cache_length) {
-  ValueNode* cache_indices;
-  GET_VALUE(cache_indices,
-            BuildLoadTaggedField(enum_cache, offsetof(EnumCache, indices_),
-                                 NodeType::kAnyHeapObject));
-  RETURN_IF_ABORT(
-      AddNewNode<CheckCacheIndicesNotCleared>({cache_indices, cache_length}));
-  return cache_indices;
-}
-
 ReduceResult MaglevGraphBuilder::VisitForInPrepare() {
   // ForInPrepare <cache_info_triple>
   ValueNode* enumerator = GetAccumulator();
@@ -15525,8 +15491,16 @@ ReduceResult MaglevGraphBuilder::VisitForInPrepare() {
       RETURN_IF_ABORT(AddNewNode<CheckDynamicValue>(
           {receiver_map, enumerator}, DeoptimizeReason::kWrongMapDynamic));
 
+      ValueNode* descriptor_array;
+      GET_VALUE_OR_ABORT(
+          descriptor_array,
+          BuildLoadTaggedField(enumerator, offsetof(Map, instance_descriptors_),
+                               NodeType::kAnyHeapObject));
       ValueNode* enum_cache;
-      GET_VALUE_OR_ABORT(enum_cache, BuildLoadEnumCache(enumerator));
+      GET_VALUE(enum_cache,
+                BuildLoadTaggedField(descriptor_array,
+                                     offsetof(DescriptorArray, enum_cache_),
+                                     NodeType::kAnyHeapObject));
       ValueNode* cache_array;
       GET_VALUE(cache_array,
                 BuildLoadTaggedField(enum_cache, offsetof(EnumCache, keys_),
@@ -15536,9 +15510,16 @@ ReduceResult MaglevGraphBuilder::VisitForInPrepare() {
       GET_VALUE_OR_ABORT(cache_length,
                          AddNewNode<LoadEnumCacheLength>({enumerator}));
 
-      if (hint != ForInHint::kEnumCacheKeys) {
-        GET_VALUE_OR_ABORT(current_for_in_state.enum_cache_indices,
-                           BuildLoadEnumCacheIndices(enum_cache, cache_length));
+      if (hint == ForInHint::kEnumCacheKeysAndIndices) {
+        ValueNode* cache_indices;
+        GET_VALUE(cache_indices, BuildLoadTaggedField(
+                                     enum_cache, offsetof(EnumCache, indices_),
+                                     NodeType::kAnyHeapObject));
+        current_for_in_state.enum_cache_indices = cache_indices;
+        RETURN_IF_ABORT(AddNewNode<CheckCacheIndicesNotCleared>(
+            {cache_indices, cache_length}));
+      } else {
+        current_for_in_state.enum_cache_indices = nullptr;
       }
 
       MoveNodeBetweenRegisters(interpreter::Register::virtual_accumulator(),
@@ -15610,7 +15591,7 @@ ReduceResult MaglevGraphBuilder::VisitForInNext() {
       current_for_in_state.receiver_needs_map_check = false;
       current_for_in_state.cache_type = cache_type;
       current_for_in_state.key = key;
-      if (hint != ForInHint::kEnumCacheKeys) {
+      if (hint == ForInHint::kEnumCacheKeysAndIndices) {
         current_for_in_state.index = index;
       }
       // We know that the enum cache entry is not undefined, so skip over the

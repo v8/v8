@@ -1282,9 +1282,6 @@ class MaglevGraphBuilder {
   }
 
   ReduceResult BuildLoadMap(ValueNode* object);
-  ReduceResult BuildLoadEnumCache(ValueNode* map);
-  ReduceResult BuildLoadEnumCacheIndices(ValueNode* enum_cache,
-                                         ValueNode* cache_length);
 
   std::optional<ValueNode*> TryBuildLoadTaggedFieldFromAllocation(
       ValueNode* object, int offset);
