@@ -91,6 +91,7 @@ How V8 executes functions, caches property accesses, walks the call stack, unwin
   - [Startup Snapshot Serialization & Deserialization](snapshot/architecture.md)
 - **WebAssembly, RegExp, and Security (`docs/wasm/`, `docs/regexp/`, `docs/security/`)**:
   - [WebAssembly Compilation & Runtime Architecture](wasm/architecture.md)
+  - [Liftoff WebAssembly Baseline Compiler](wasm/liftoff.md)
   - [Irregexp Regular Expression Engine Architecture](regexp/architecture.md)
   - [V8 Security Bug Triaging Guide](security/triaging.md)
   - [Reproducing Security Bugs](security/reproducing-bugs.md)

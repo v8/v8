@@ -39,6 +39,8 @@ Tier 2: Turboshaft Optimizing Tier   (src/wasm/turboshaft-graph-interface.cc)
         and publishes optimized WasmCode into NativeModule.
 ```
 
+For a detailed guide to Liftoff's single-pass decoder interface, `CacheState` register allocation, control-flow merges, stack frame layout, GC safepoints, and debugging/deoptimization invariants, see [liftoff.md](liftoff.md).
+
 > **Note on Naming (`ExecutionTier::kTurbofan`)**: The optimizing compiler for WebAssembly is now **100% Turboshaft** (`compiler::turboshaft::BuildTSGraph` in `src/wasm/turboshaft-graph-interface.cc` and `GenerateWasmCodeFromTurboshaftGraph` in `src/compiler/pipeline.cc`). However, for historical reasons, the C++ enum value in `src/wasm/wasm-tier.h` is still named `ExecutionTier::kTurbofan`.
 
 ### Debugging Tier (`WasmEngine::EnterDebuggingForIsolate`)
@@ -76,7 +78,7 @@ When a function's `tiering_budget_array` entry reaches zero (`TriggerTierUp` in 
 ### 3. Wasm Deoptimization (`--wasm-deopt` & `LiftoffFrameDescriptionForDeopt`)
 When an inlined speculative `call_ref` or `call_indirect` encounters a target not seen during profiling:
 - **Deopt Metadata (`WasmDeoptData` and `WasmDeoptView` in `src/wasm/wasm-deopt-data.h`)**: Stored on the optimized `WasmCode`. Each `WasmDeoptEntry` records the `bytecode_offset` in the Wasm wire bytes and a `translation_index` into the shared `FrameTranslations` array describing how to reconstruct the unoptimized frame(s) (including inlined frames).
-- **Reconstructing Liftoff Frames (`LiftoffFrameDescriptionForDeopt`)**: When the deoptimizer (`Deoptimizer::ComputeOutputFrames` in `src/deoptimizer/deoptimizer.cc`) triggers a Wasm deopt, it invokes Liftoff (`GenerateLiftoffCodeForDeopt`) on each frame in the inlining stack to obtain a `LiftoffFrameDescriptionForDeopt` containing the exact `pc_offset` at the `wire_bytes_offset`, `total_frame_size`, `trusted_instance` register, and `std::vector<LiftoffVarState> var_state` (describing which physical register or stack slot Liftoff expects each local and operand stack value to inhabit at that deopt point).
+- **Reconstructing Liftoff Frames (`LiftoffFrameDescriptionForDeopt`)**: When the deoptimizer (`Deoptimizer::ComputeOutputFrames` in `src/deoptimizer/deoptimizer.cc`) triggers a Wasm deopt, it invokes Liftoff (`CompileWithLiftoffAndGetDeoptInfo`) on each frame in the inlining stack to obtain a `LiftoffFrameDescriptionForDeopt` containing the exact `pc_offset` at the `wire_bytes_offset`, `total_frame_size`, `trusted_instance` register, and `std::vector<LiftoffVarState> var_state` (describing which physical register or stack slot Liftoff expects each local and operand stack value to inhabit at that deopt point).
 - The deoptimizer materializes the new Liftoff frames on the stack, updates the function's feedback, and resumes execution in Liftoff right at the failing `call_ref` / `call_indirect`.
 
 ---
