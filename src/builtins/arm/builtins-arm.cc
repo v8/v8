@@ -4857,9 +4857,11 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   // Pass four arguments in r0 to r3 and fifth argument on stack.
   __ PrepareCallCFunction(5);
   __ mov(r0, Operand(0));
-  __ ldr(r1, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
-  __ cmp(r1, Operand(StackFrame::TypeToMarker(StackFrame::JAVASCRIPT)));
-  __ ldr(r0, MemOperand(fp, StandardFrameConstants::kFunctionOffset), eq);
+  Label context_check;
+  __ ldr(r1, MemOperand(fp, CommonFrameConstants::kContextOrFrameTypeOffset));
+  __ JumpIfSmi(r1, &context_check);
+  __ ldr(r0, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
+  __ bind(&context_check);
   __ mov(r1, Operand(static_cast<int>(deopt_kind)));
   // r2: code address or 0 already loaded.
   // r3: Fp-to-sp delta already loaded.

@@ -576,7 +576,7 @@ TEST_F(DisasmX64Test, DisasmX64CheckOutput) {
   COMPARE("68a05b0000           push 0x5ba0", pushq(Immediate(23456)));
   COMPARE("51                   push rcx", pushq(rcx));
   COMPARE("56                   push rsi", pushq(rsi));
-  COMPARE("ff75e8               push [rbp-0x18]",
+  COMPARE("ff75f0               push [rbp-0x10]",
           pushq(Operand(rbp, StandardFrameConstants::kFunctionOffset)));
   COMPARE("ff348b               push [rbx+rcx*4]",
           pushq(Operand(rbx, rcx, times_4, 0)));

@@ -6,7 +6,6 @@
 #define V8_BASELINE_ARM64_BASELINE_COMPILER_ARM64_INL_H_
 
 #include "src/baseline/baseline-compiler.h"
-#include "src/execution/frame-constants.h"
 
 namespace v8 {
 namespace internal {
@@ -37,25 +36,41 @@ void BaselineCompiler::Prologue() {
 void BaselineCompiler::PrologueFillFrame() {
   ASM_CODE_COMMENT(&masm_);
   // Inlined register frame fill
+  interpreter::Register new_target_or_generator_register =
+      bytecode_->incoming_new_target_or_generator_register();
   if (v8_flags.debug_code) {
     __ masm()->CompareRoot(kInterpreterAccumulatorRegister,
                            RootIndex::kUndefinedValue);
     __ masm()->Assert(eq, AbortReason::kUnexpectedValue);
   }
-  // BaselineOutOfLinePrologue already pushed one undefined slot (r0, or
-  // alignment padding when register_count == 0) to keep SP 16-byte aligned.
-  static_assert(InterpreterFrameConstants::kFixedSlotCountFromFp % 2 == 1);
-  int remaining_slots = UnoptimizedFrameConstants::RegisterStackSlotCount(
-                            bytecode_->register_count()) -
-                        1;
-  DCHECK_GE(remaining_slots, 0);
-  DCHECK_EQ(remaining_slots % 2, 0);
-
+  int register_count = bytecode_->register_count();
   // Magic value
   const int kLoopUnrollSize = 8;
-  if (remaining_slots < 2 * kLoopUnrollSize) {
+  const int new_target_index = new_target_or_generator_register.index();
+  const bool has_new_target = new_target_index != kMaxInt;
+  if (has_new_target) {
+      DCHECK_LE(new_target_index, register_count);
+      int before_new_target_count = 0;
+      for (; before_new_target_count + 2 <= new_target_index;
+           before_new_target_count += 2) {
+        __ masm()->Push(kInterpreterAccumulatorRegister,
+                        kInterpreterAccumulatorRegister);
+      }
+      if (before_new_target_count == new_target_index) {
+        __ masm()->Push(kJavaScriptCallNewTargetRegister,
+                        kInterpreterAccumulatorRegister);
+      } else {
+        DCHECK_EQ(before_new_target_count + 1, new_target_index);
+        __ masm()->Push(kInterpreterAccumulatorRegister,
+                        kJavaScriptCallNewTargetRegister);
+      }
+      // We pushed before_new_target_count registers, plus the two registers
+      // that included new_target.
+      register_count -= (before_new_target_count + 2);
+  }
+  if (register_count < 2 * kLoopUnrollSize) {
     // If the frame is small enough, just unroll the frame fill completely.
-    for (int i = 0; i < remaining_slots; i += 2) {
+    for (int i = 0; i < register_count; i += 2) {
       __ masm()->Push(kInterpreterAccumulatorRegister,
                       kInterpreterAccumulatorRegister);
     }
@@ -64,15 +79,15 @@ void BaselineCompiler::PrologueFillFrame() {
     Register scratch = temps.AcquireScratch();
 
     // Extract the first few registers to round to the unroll size.
-    int first_registers = remaining_slots % kLoopUnrollSize;
+    int first_registers = register_count % kLoopUnrollSize;
     for (int i = 0; i < first_registers; i += 2) {
       __ masm()->Push(kInterpreterAccumulatorRegister,
                       kInterpreterAccumulatorRegister);
     }
-    __ Move(scratch, remaining_slots / kLoopUnrollSize);
+    __ Move(scratch, register_count / kLoopUnrollSize);
     // We enter the loop unconditionally, so make sure we need to loop at least
     // once.
-    DCHECK_GT(remaining_slots / kLoopUnrollSize, 0);
+    DCHECK_GT(register_count / kLoopUnrollSize, 0);
     Label loop;
     __ Bind(&loop);
     for (int i = 0; i < kLoopUnrollSize; i += 2) {
@@ -81,15 +96,6 @@ void BaselineCompiler::PrologueFillFrame() {
     }
     __ masm()->Subs(scratch, scratch, 1);
     __ masm()->B(gt, &loop);
-  }
-
-  interpreter::Register new_target_or_generator_register =
-      bytecode_->incoming_new_target_or_generator_register();
-  if (new_target_or_generator_register.is_valid()) {
-    DCHECK_LT(new_target_or_generator_register.index(),
-              bytecode_->register_count());
-    __ StoreRegister(new_target_or_generator_register,
-                     kJavaScriptCallNewTargetRegister);
   }
 }
 

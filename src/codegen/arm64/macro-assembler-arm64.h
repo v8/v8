@@ -233,10 +233,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   static bool IsNearCallOffset(int64_t offset);
 
   // Activation support.
-  // Note: on arm64 (for 16-byte stack alignment), EnterFrame also pushes `cp`
-  // for JavaScript/CONSTRUCT/FAST_CONSTRUCT frames (and
-  // `kWasmImplicitArgRegister` for WASM/WASM_LIFTOFF_SETUP/WASM_EXIT frames),
-  // unlike other architectures where the caller pushes `cp`.
   V8_REG_CLOBBERS(lr) void EnterFrame(StackFrame::Type type);
   V8_ASM_NO_FALLTHROUGH void EnterFrame(StackFrame::Type type,
                                         bool load_constant_pool_pointer_reg) {
@@ -1660,6 +1656,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   inline void Mrs(V8_REG_OUT const Register& rt, SystemRegister sysreg);
   inline void Msr(SystemRegister sysreg, const Register& rt);
 
+  // Prologue claims an extra slot due to arm64's alignement constraints.
+  static constexpr int kExtraSlotClaimedByPrologue = 1;
   // Generates function prologue code.
   V8_REG_CLOBBERS(lr) void Prologue();
 

@@ -20,10 +20,9 @@ Register JavaScriptFrame::context_register() { return cp; }
 Register JavaScriptFrame::constant_pool_pointer_register() { UNREACHABLE(); }
 
 int UnoptimizedFrameConstants::RegisterStackSlotCount(int register_count) {
-  static_assert(InterpreterFrameConstants::kFixedFrameSize % 16 == 8);
-  // Round up so that kFixedSlotCount + result is a multiple of two, making the
-  // frame a multiple of 16 bytes.
-  return RoundUp(kFixedSlotCount + register_count, 2) - kFixedSlotCount;
+  static_assert(InterpreterFrameConstants::kFixedFrameSize % 16 == 0);
+  // Round up to a multiple of two, to make the frame a multiple of 16 bytes.
+  return RoundUp(register_count, 2);
 }
 
 int BuiltinContinuationFrameConstants::PaddingSlotCount(int register_count) {

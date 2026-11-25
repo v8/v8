@@ -556,11 +556,11 @@ void MaglevAssembler::OSRPrologue(Graph* graph) {
       graph->min_maglev_stackslots_for_unoptimized_frame_size();
 
 #if V8_X64_16BYTE_STACK_ALIGNMENT_BOOL
-  static_assert(StandardFrameConstants::kFixedSlotCount % 2 == 0);
-  // When source_frame_size is odd, the incoming unoptimized frame has an extra
+  static_assert(StandardFrameConstants::kFixedSlotCount % 2 == 1);
+  // When source_frame_size is even, the incoming unoptimized frame has an extra
   // alignment padding slot (already initialized to undefined), so include it in
   // source_frame_size.
-  if (source_frame_size % 2 == 1) source_frame_size++;
+  if (source_frame_size % 2 == 0) source_frame_size++;
 #endif
 
   if (V8_ENABLE_SANDBOX_BOOL || v8_flags.debug_code) {
@@ -575,9 +575,9 @@ void MaglevAssembler::OSRPrologue(Graph* graph) {
   uint32_t target_frame_size =
       graph->tagged_stack_slots() + graph->untagged_stack_slots();
 #if V8_X64_16BYTE_STACK_ALIGNMENT_BOOL
-  // The register allocator makes the frame body even so that, together with
-  // the even fixed header, the frame is 16-byte aligned.
-  CHECK_EQ(target_frame_size % 2, 0);
+  // The register allocator makes the frame body odd so that, together with
+  // the odd fixed header, the frame is 16-byte aligned.
+  CHECK_EQ(target_frame_size % 2, 1);
 #endif
   CHECK_LE(source_frame_size, target_frame_size);
 

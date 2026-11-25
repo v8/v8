@@ -1027,7 +1027,6 @@ void MacroAssembler::Prologue() {
   ASM_CODE_COMMENT(this);
   push(ebp);  // Caller's frame pointer.
   mov(ebp, esp);
-  Push(Immediate(StackFrame::TypeToMarker(StackFrame::JAVASCRIPT)));
   push(kContextRegister);                 // Callee's context.
   push(kJSFunctionRegister);              // Callee's JS function.
   push(kJavaScriptCallArgCountRegister);  // Actual argument count.
@@ -1069,9 +1068,9 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
   ASM_CODE_COMMENT(this);
   push(ebp);
   mov(ebp, esp);
-  StackFrame::Type marker_type =
-      StackFrame::IsJavaScript(type) ? StackFrame::JAVASCRIPT : type;
-  Push(Immediate(StackFrame::TypeToMarker(marker_type)));
+  if (!StackFrame::IsJavaScript(type)) {
+    Push(Immediate(StackFrame::TypeToMarker(type)));
+  }
 #if V8_ENABLE_WEBASSEMBLY
   if (type == StackFrame::WASM) Push(kWasmImplicitArgRegister);
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1079,12 +1078,10 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
 
 void MacroAssembler::LeaveFrame(StackFrame::Type type) {
   ASM_CODE_COMMENT(this);
-  if (v8_flags.debug_code) {
+  if (v8_flags.debug_code && !StackFrame::IsJavaScript(type)) {
     Label ok;
-    StackFrame::Type expected_type =
-        StackFrame::IsJavaScript(type) ? StackFrame::JAVASCRIPT : type;
     cmp(Operand(ebp, CommonFrameConstants::kContextOrFrameTypeOffset),
-        Immediate(StackFrame::TypeToMarker(expected_type)));
+        Immediate(StackFrame::TypeToMarker(type)));
     j(equal, &ok, Label::kNear);
     Abort(AbortReason::kStackFrameTypesMustMatch);
     bind(&ok);

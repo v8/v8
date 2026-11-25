@@ -41,20 +41,22 @@ WasmBuiltinsAssembler::LoadTrustedDataFromInstance(
 }
 
 TNode<NativeContext> WasmBuiltinsAssembler::LoadContextFromWasmOrJsFrame() {
+  static_assert(BuiltinFrameConstants::kFunctionOffset ==
+                WasmFrameConstants::kWasmInstanceDataOffset);
   TVARIABLE(NativeContext, context_result);
-  TNode<Object> frame_type =
-      LoadFromParentFrame(TypedFrameConstants::kFrameTypeOffset);
-  TNode<IntPtrT> marker = BitcastTaggedToWord(frame_type);
+  TNode<Object> marker_or_context =
+      LoadFromParentFrame(CommonFrameConstants::kContextOrFrameTypeOffset);
 
   Label is_js_function(this);
   Label done(this);
 
-  GotoIf(WordEqual(marker, IntPtrConstant(StackFrame::TypeToMarker(
-                               StackFrame::JAVASCRIPT))),
-         &is_js_function);
+  // The marker is not really a Smi (see `StackFrame::TypeToMarker`, but it
+  // has a Smi tag, so the check does the right thing).
+  GotoIf(TaggedIsNotSmi(marker_or_context), &is_js_function);
 
   // Otherwise this must be a proper `WASM` frame, holding a
   // `WasmTrustedInstanceData` in the slot.
+  TNode<IntPtrT> marker = BitcastTaggedToWord(marker_or_context);
   CSA_CHECK(this, WordEqual(marker, IntPtrConstant(StackFrame::TypeToMarker(
                                         StackFrame::WASM))));
   TNode<HeapObject> instance_data =
@@ -65,10 +67,8 @@ TNode<NativeContext> WasmBuiltinsAssembler::LoadContextFromWasmOrJsFrame() {
   Goto(&done);
 
   BIND(&is_js_function);
-  TNode<Object> raw_context =
-      LoadFromParentFrame(StandardFrameConstants::kContextOffset);
-  CSA_DCHECK(this, IsContext(CAST(raw_context)));
-  TNode<Context> context = CAST(raw_context);
+  CSA_DCHECK(this, IsContext(CAST(marker_or_context)));
+  TNode<Context> context = CAST(marker_or_context);
   context_result = LoadNativeContext(context);
   Goto(&done);
 

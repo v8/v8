@@ -1017,16 +1017,12 @@ void MacroAssembler::PushCommonFrame(Register marker_reg) {
 
 void MacroAssembler::PushStandardFrame(Register function_reg) {
   ASM_CODE_COMMENT(this);
-  DCHECK(function_reg.is_valid() &&
-         function_reg.code() > kJavaScriptCallArgCountRegister.code() &&
-         function_reg.code() < cp.code());
-  UseScratchRegisterScope temps(this);
-  Register marker = temps.Acquire();
-  DCHECK(
-      !AreAliased(marker, kJavaScriptCallArgCountRegister, function_reg, cp));
-  mov(marker, Operand(StackFrame::TypeToMarker(StackFrame::JAVASCRIPT)));
-  PushCommonFrame(marker);
-  stm(db_w, sp, {kJavaScriptCallArgCountRegister, function_reg, cp});
+  DCHECK(!function_reg.is_valid() || function_reg.code() < cp.code());
+  stm(db_w, sp, {function_reg, cp, fp, lr});
+  int offset = -StandardFrameConstants::kContextOffset;
+  offset += function_reg.is_valid() ? kPointerSize : 0;
+  add(fp, sp, Operand(offset));
+  Push(kJavaScriptCallArgCountRegister);
 }
 
 void MacroAssembler::VFPCanonicalizeNaN(const DwVfpRegister dst,
@@ -1506,10 +1502,11 @@ void MacroAssembler::EnterFrame(StackFrame::Type type,
   ASM_CODE_COMMENT(this);
   // r0-r3: preserved
   UseScratchRegisterScope temps(this);
-  StackFrame::Type marker_type =
-      StackFrame::IsJavaScript(type) ? StackFrame::JAVASCRIPT : type;
-  Register scratch = temps.Acquire();
-  mov(scratch, Operand(StackFrame::TypeToMarker(marker_type)));
+  Register scratch = no_reg;
+  if (!StackFrame::IsJavaScript(type)) {
+    scratch = temps.Acquire();
+    mov(scratch, Operand(StackFrame::TypeToMarker(type)));
+  }
   PushCommonFrame(scratch);
 #if V8_ENABLE_WEBASSEMBLY
   if (type == StackFrame::WASM) Push(kWasmImplicitArgRegister);

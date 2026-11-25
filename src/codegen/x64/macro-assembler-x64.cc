@@ -4938,7 +4938,6 @@ void MacroAssembler::Prologue() {
   ASM_CODE_COMMENT(this);
   pushq(rbp);  // Caller's frame pointer.
   movq(rbp, rsp);
-  Push(Immediate(StackFrame::TypeToMarker(StackFrame::JAVASCRIPT)));
   Push(kContextRegister);                 // Callee's context.
   Push(kJSFunctionRegister);              // Callee's JS function.
   Push(kJavaScriptCallArgCountRegister);  // Actual argument count.
@@ -4948,11 +4947,11 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
   ASM_CODE_COMMENT(this);
   pushq(rbp);
   movq(rbp, rsp);
-  static_assert(CommonFrameConstants::kContextOrFrameTypeOffset ==
-                -kSystemPointerSize);
-  StackFrame::Type marker_type =
-      StackFrame::IsJavaScript(type) ? StackFrame::JAVASCRIPT : type;
-  Push(Immediate(StackFrame::TypeToMarker(marker_type)));
+  if (!StackFrame::IsJavaScript(type)) {
+    static_assert(CommonFrameConstants::kContextOrFrameTypeOffset ==
+                  -kSystemPointerSize);
+    Push(Immediate(StackFrame::TypeToMarker(type)));
+  }
   if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
     if (type == StackFrame::INTERNAL) {
       // 16-byte stack alignment: an INTERNAL frame header consists of just the
@@ -4970,12 +4969,13 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
 
 void MacroAssembler::LeaveFrame(StackFrame::Type type) {
   ASM_CODE_COMMENT(this);
-  if (v8_flags.debug_code) {
+  // TODO(v8:11429): Consider passing BASELINE instead, and checking for
+  // IsJSFrame or similar. Could then unify with manual frame leaves in the
+  // interpreter too.
+  if (v8_flags.debug_code && !StackFrame::IsJavaScript(type)) {
     Label ok;
-    StackFrame::Type expected_type =
-        StackFrame::IsJavaScript(type) ? StackFrame::JAVASCRIPT : type;
     cmpq(Operand(rbp, CommonFrameConstants::kContextOrFrameTypeOffset),
-         Immediate(StackFrame::TypeToMarker(expected_type)));
+         Immediate(StackFrame::TypeToMarker(type)));
     j(equal, &ok, Label::kNear);
     Abort(AbortReason::kStackFrameTypesMustMatch);
     bind(&ok);

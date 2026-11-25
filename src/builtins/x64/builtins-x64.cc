@@ -1231,7 +1231,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ pushq(rbp);  // Caller's frame pointer.
   __ movq(rbp, rsp);
-  __ Push(Immediate(StackFrame::TypeToMarker(StackFrame::JAVASCRIPT)));
   __ Push(kContextRegister);                 // Callee's context.
   __ Push(kJavaScriptCallTargetRegister);    // Callee's JS function.
   __ Push(kJavaScriptCallArgCountRegister);  // Actual argument count.
@@ -1255,11 +1254,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     __ movl(rcx, FieldOperand(kInterpreterBytecodeArrayRegister,
                               offsetof(BytecodeArray, frame_size_)));
     if (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
-      // The fixed header below rbp has an odd number of slots, so round up the
-      // register file size to an odd number of slots so the total frame is
-      // 16-byte aligned.
-      static_assert(InterpreterFrameConstants::kFixedSlotCountFromFp % 2 == 1);
-      __ orl(rcx, Immediate(kSystemPointerSize));
+      // Round up the frame size to a multiple of 2 * kSystemPointerSize.
+      __ addl(rcx, Immediate(kSystemPointerSize));
+      __ andl(rcx, Immediate(~(2 * kSystemPointerSize - 1)));
     }
 
     __ movzxwl(r11, FieldOperand(kInterpreterBytecodeArrayRegister,
@@ -1426,12 +1423,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 #endif  // !V8_JITLESS
 
   __ bind(&stack_overflow);
-  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
-    // The fixed header below rbp has an odd number of slots, and the register
-    // file was not pushed yet.
-    static_assert(InterpreterFrameConstants::kFixedSlotCountFromFp % 2 == 1);
-    __ PushTaggedStackPadding();
-  }
   __ CallRuntime(Runtime::kThrowStackOverflow);
   __ int3();  // Should not return.
 }
@@ -2117,19 +2108,19 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
       __ PushDispatchHandle(kJavaScriptCallDispatchHandleRegister, rcx);
 #endif
-      // 16-byte stack alignment: as in the stack guard path below, pad
-      // (kFixedSlotCountFromFp + kSavedSlots) to an even number; PushArgument
-      // pads the single runtime argument. We can't eliminate the double padding
-      // when that sum is odd because the callee (CEntry) will always drop one
-      // padding slot alongside the single argument.
+      // 16-byte stack alignment: as in the stack guard path below, pad the
+      // saved slots to an even number; PushArgument pads the single runtime
+      // argument. We can't eliminate the double padding when kSavedSlots is odd
+      // because the callee (CEntry) will always drop one padding slot alongside
+      // the single argument.
       constexpr int kSavedSlots =
           1 + (V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL ? 1 : 0);
-      constexpr bool kPadSavedSlots = ShouldPadArguments(
-          BaselineFrameConstants::kFixedSlotCountFromFp + kSavedSlots);
-      if constexpr (kPadSavedSlots) __ PushTaggedStackPadding();
+      if constexpr (ShouldPadArguments(kSavedSlots)) {
+        __ PushTaggedStackPadding();
+      }
       __ PushArgument(closure);
       __ CallRuntime(Runtime::kBytecodeBudgetInterrupt_Sparkplug, 1);
-      if constexpr (kPadSavedSlots) __ DropStackPadding();
+      if constexpr (ShouldPadArguments(kSavedSlots)) __ DropStackPadding();
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
       __ PopDispatchHandle(kJavaScriptCallDispatchHandleRegister, rcx);
 #endif
@@ -2154,22 +2145,22 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
       __ PushDispatchHandle(kJavaScriptCallDispatchHandleRegister, rcx);
 #endif
-      // 16-byte stack alignment: the baseline frame header (rbp plus seven
-      // slots), the re-pushed return address (1 slot), and the INTERNAL frame
-      // header (3 slots) leave rsp at 8 mod 16 before saved slots. Pad
-      // (kFixedSlotCountFromFp + kSavedSlots) to an even number; PushArgument
-      // pads the single runtime argument. We can't eliminate the double padding
-      // when that sum is odd because the callee (CEntry) will always drop one
+      // 16-byte stack alignment: the baseline frame header (rbp plus six
+      // slots) and the re-pushed return address leave rsp at 8 mod 16 here,
+      // just like on entry of a regular call, so the INTERNAL frame starts
+      // aligned. Pad the saved slots to an even number; PushArgument pads the
+      // single runtime argument. We can't eliminate the double padding when
+      // kSavedSlots is odd because the callee (CEntry) will always drop one
       // padding slot alongside the single argument.
       constexpr int kSavedSlots =
           1 + (V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL ? 1 : 0);
-      constexpr bool kPadSavedSlots = ShouldPadArguments(
-          BaselineFrameConstants::kFixedSlotCountFromFp + kSavedSlots);
-      if constexpr (kPadSavedSlots) __ PushTaggedStackPadding();
+      if constexpr (ShouldPadArguments(kSavedSlots)) {
+        __ PushTaggedStackPadding();
+      }
       __ SmiTag(frame_size);
       __ PushArgument(frame_size);
       __ CallRuntime(Runtime::kStackGuardWithGap, 1);
-      if constexpr (kPadSavedSlots) __ DropStackPadding();
+      if constexpr (ShouldPadArguments(kSavedSlots)) __ DropStackPadding();
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
       __ PopDispatchHandle(kJavaScriptCallDispatchHandleRegister, rcx);
 #endif
@@ -5747,12 +5738,11 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   // Allocate a new deoptimizer object.
   __ PrepareCallCFunction(5);
   __ Move(rax, 0);
-  Label frame_type_check;
-  __ cmpq(Operand(rbp, TypedFrameConstants::kFrameTypeOffset),
-          Immediate(StackFrame::TypeToMarker(StackFrame::JAVASCRIPT)));
-  __ j(not_equal, &frame_type_check, Label::kNear);
+  Label context_check;
+  __ movq(rdi, Operand(rbp, CommonFrameConstants::kContextOrFrameTypeOffset));
+  __ JumpIfSmi(rdi, &context_check);
   __ movq(rax, Operand(rbp, StandardFrameConstants::kFunctionOffset));
-  __ bind(&frame_type_check);
+  __ bind(&context_check);
   __ movq(kCArgRegs[0], rax);
   __ Move(kCArgRegs[1], static_cast<int>(deopt_kind));
   // Args 3 and 4 are already in the right registers.
@@ -6028,13 +6018,11 @@ void Builtins::Generate_DumpFrame(MacroAssembler* masm) {
   __ negq(kCArgRegs[3]);
   __ PrepareCallCFunction(5);
 
-  __ Move(rax, 0);
-  Label frame_type_check;
-  __ cmpq(Operand(rbp, TypedFrameConstants::kFrameTypeOffset),
-          Immediate(StackFrame::TypeToMarker(StackFrame::JAVASCRIPT)));
-  __ j(not_equal, &frame_type_check, Label::kNear);
+  Label context_check;
+  __ movq(rdi, Operand(rbp, CommonFrameConstants::kContextOrFrameTypeOffset));
+  __ JumpIfSmi(rdi, &context_check);
   __ movq(rax, Operand(rbp, StandardFrameConstants::kFunctionOffset));
-  __ bind(&frame_type_check);
+  __ bind(&context_check);
   __ movq(kCArgRegs[0], rax);
 
   __ Move(kCArgRegs[1], static_cast<int>(DeoptimizeKind::kEager));

@@ -391,10 +391,6 @@ consts_misc = [
         'value': 'CommonFrameConstants::kContextOrFrameTypeOffset'
     },
     {
-        'name': 'off_fp_frame_type',
-        'value': 'TypedFrameConstants::kFrameTypeOffset'
-    },
-    {
         'name': 'off_fp_context',
         'value': 'StandardFrameConstants::kContextOffset'
     },
@@ -601,7 +597,6 @@ extern "C" {
     V8_EXPORT int v8dbg_frametype_##klass = StackFrame::value;
 
 STACK_FRAME_TYPE_LIST(FRAME_CONST)
-V8_EXPORT int v8dbg_frametype_JavaScriptFrame = StackFrame::JAVASCRIPT;
 
 #undef FRAME_CONST
 

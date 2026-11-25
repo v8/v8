@@ -25,29 +25,24 @@ Higher Memory Addresses (Caller Frames)
 +=======================================================================+
 | Saved Caller Frame Pointer (prev FP)            [ fp + 0 ]            | <-- Current FP
 +-----------------------------------------------------------------------+
-| Frame Type Marker (Smi: JAVASCRIPT, EXIT, ...)  [ fp - kPointerSize ] |
+| Context OR Frame Type Marker (Smi)              [ fp - kPointerSize ] |
 +-----------------------------------------------------------------------+
-| Context (JS frames) / Typed-Frame Slot 0        [ fp - 2*kPointerSize]|
+| JSFunction (or Frame Type Marker for Stubs)     [ fp - 2*kPointerSize]|
 +-----------------------------------------------------------------------+
-| JSFunction (JS frames) / Typed-Frame Slot 1     [ fp - 3*kPointerSize]|
-+-----------------------------------------------------------------------+
-| Actual Arg Count (JS frames) / Frame Slots      [ fp - 4*kPointerSize]|
+| Frame-Specific Header & Local Slots / Registers                       |
 +-----------------------------------------------------------------------+
 Lower Memory Addresses (Current Stack Pointer SP)
 ```
 
 ### How V8 Distinguishes JavaScript Frames from Internal/Stub Frames
 How does `StackFrame::ComputeType` know what kind of frame sits at a given `fp`?
-- **Explicit Frame Type Marker at `[fp + TypedFrameConstants::kFrameTypeOffset]`**:
-  - Every V8 frame with a standard or typed frame header (i.e. excluding frameless/native frames) stores an explicit `StackFrame::Type` marker (`StackFrame::TypeToMarker(type)`, encoded with a low tag bit of `0`) at `[fp + TypedFrameConstants::kFrameTypeOffset]` (`[fp - kSystemPointerSize]` without an embedded constant pool).
-- **Standard JavaScript Frames (`INTERPRETED`, `BASELINE`, `MAGLEV`, `TURBOFAN_JS`, plus JS-linkage builtins and compiled JS-to-Wasm `TURBOFAN_STUB_WITH_CONTEXT` wrappers)**:
-  - All JavaScript tiers share the single marker **`StackFrame::JAVASCRIPT`** at `[fp + StandardFrameConstants::kFrameTypeOffset]`, followed by a dedicated `Tagged<Context>` slot at `[fp + StandardFrameConstants::kContextOffset]`, `Tagged<JSFunction>` at `[fp + StandardFrameConstants::kFunctionOffset]`, and `argc` at `[fp + StandardFrameConstants::kArgCOffset]`.
-  - Sharing `StackFrame::JAVASCRIPT` across all JS tiers means in-place On-Stack Replacement (Ignition -> Sparkplug/Maglev/TurboFan and Sparkplug -> Maglev/TurboFan) and `DiscardBaselineCodeVisitor` never need to rewrite the frame type marker slot.
-  - Once `marker == TypeToMarker(StackFrame::JAVASCRIPT)` confirms a Standard JavaScript frame, V8 distinguishes the concrete JS tier via the PC / `CodeKind`:
-    - **`INTERPRETED` (`InterpretedFrame`)**: Identified because the return `pc` (or current PC) lies inside an Ignition bytecode handler builtin (`Isolate::builtins()->IsBytecodeHandlerPc(pc)`) or `InterpreterEntryTrampoline`. It adds `[fp + UnoptimizedFrameConstants::kBytecodeArrayFromFp]`, `[fp + kBytecodeOffsetOrFeedbackCellFromFp]`, and `[fp + kFeedbackVectorFromFp]`.
-    - **`BASELINE` / `MAGLEV` / `TURBOFAN_JS` / `BUILTIN` / `TURBOFAN_STUB_WITH_CONTEXT`**: Identified by looking up the `Code` object for `pc` and checking `code->kind()` (`CodeKind::BASELINE`, `CodeKind::MAGLEV`, `CodeKind::TURBOFAN_JS`, JS-linkage `CodeKind::BUILTIN`, or `CodeKind::JS_TO_WASM_FUNCTION`).
-- **Non-JS Typed Frames (`ENTRY`, `CONSTRUCT`, `EXIT`, `INTERNAL`, `BUILTIN_CONTINUATION`, `WASM`, etc.)**:
-  - Store their concrete `StackFrame::TypeToMarker(type)` (`!= JAVASCRIPT`) directly in `[fp + TypedFrameConstants::kFrameTypeOffset]`, so `ComputeStackFrameType` can classify them without ever confusing a corrupted or unboxed slot in a JS frame with a TypedFrame marker (or vice versa).
+- **Standard JavaScript Frames (`INTERPRETED`, `BASELINE`, `MAGLEV`, `TURBOFAN_JS`)**:
+  - Store a valid `Tagged<Context>` heap pointer at `[fp + StandardFrameConstants::kContextOffset]` and the `Tagged<JSFunction>` at `[fp + StandardFrameConstants::kFunctionOffset]`.
+  - To distinguish which tier a JS frame belongs to without adding extra words to every JS frame:
+    - **`INTERPRETED` (`InterpretedFrame`)**: Identified because the return `pc` (or current PC) lies inside an Ignition bytecode handler builtin (`Isolate::builtins()->IsBytecodeHandlerPc(pc)`) or `InterpreterEntryTrampoline`! It adds `[fp + UnoptimizedFrameConstants::kBytecodeArrayFromFp]` and `[fp + kBytecodeOffsetOrFeedbackCellFromFp]`.
+    - **`BASELINE` / `MAGLEV` / `TURBOFAN_JS`**: Identified by looking up the `Code` object for `pc` (or reading the `Code` / marker slot) and checking `code->kind()` (`CodeKind::BASELINE`, `CodeKind::MAGLEV`, `CodeKind::TURBOFAN_JS`).
+- **Typed / Marker Frames (`ENTRY`, `CONSTRUCT`, `EXIT`, `BUILTIN_CONTINUATION`, `WASM`, etc.)**:
+  - Store a **tagged `Smi` encoding `StackFrame::Type`** (`StackFrame::TypeToMarker(type)`) in the context/marker slot (`[fp + TypedFrameConstants::kFrameTypeOffset]`)! Because every `HeapObject` (like a `Context`) has a low tag bit of `1` while every `Smi` has a low tag bit of `0`, a single bit test tells the stack walker whether the slot holds a `Context` or a `StackFrame::Type` marker!
 
 ---
 

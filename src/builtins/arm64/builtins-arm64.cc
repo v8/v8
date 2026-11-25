@@ -1189,18 +1189,19 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   {
     ASM_CODE_COMMENT_STRING(masm, "Frame Setup");
-    // EnterFrame(StackFrame::BASELINE) in BaselineCompiler::Prologue already
-    // pushed lr, fp, the JAVASCRIPT frame type marker, and cp.
-    DCHECK_EQ(descriptor.GetRegisterParameter(
-                  BaselineOutOfLinePrologueDescriptor::kCalleeContext),
-              cp);
+    // Normally the first thing we'd do here is Push(lr, fp), but we already
+    // entered the frame in BaselineCompiler::Prologue, as we had to use the
+    // value lr before the call to this BaselineOutOfLinePrologue builtin.
 
+    Register callee_context = descriptor.GetRegisterParameter(
+        BaselineOutOfLinePrologueDescriptor::kCalleeContext);
     Register callee_js_function = descriptor.GetRegisterParameter(
         BaselineOutOfLinePrologueDescriptor::kClosure);
     {
       UseScratchRegisterScope temps(masm);
       ResetJSFunctionAge(masm, callee_js_function, temps.AcquireX());
     }
+    __ Push(callee_context, callee_js_function);
     DCHECK_EQ(callee_js_function, kJavaScriptCallTargetRegister);
     DCHECK_EQ(callee_js_function, kJSFunctionRegister);
 
@@ -1210,12 +1211,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     // the frame, so load it into a register.
     Register bytecode_array = descriptor.GetRegisterParameter(
         BaselineOutOfLinePrologueDescriptor::kInterpreterBytecodeArray);
-    __ Push(callee_js_function, argc, bytecode_array, feedback_cell);
-    // Push the feedback vector together with the first register slot (or
-    // alignment padding when register_count == 0) initialized to undefined to
-    // keep SP 16-byte aligned.
-    __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
-    __ Push(feedback_vector, kInterpreterAccumulatorRegister);
+    __ Push(argc, bytecode_array, feedback_cell, feedback_vector);
     __ AssertFeedbackVector(feedback_vector, scratch);
   }
 
@@ -1261,8 +1257,8 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     __ B(lt, &budget_interrupt);
   }
 
-  // Do "fast" return to the caller pc in lr (kInterpreterAccumulatorRegister
-  // still holds undefined from frame setup above).
+  // Do "fast" return to the caller pc in lr.
+  __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
   __ Ret();
 
   __ Bind(&budget_interrupt);
@@ -1307,13 +1303,13 @@ void Builtins::Generate_BaselineOutOfLinePrologueDeopt(MacroAssembler* masm) {
   // We're here because we got deopted during BaselineOutOfLinePrologue's stack
   // check. Undo all its frame creation and call into the interpreter instead.
 
-  // Drop the first register/padding slot, feedback vector, bytecode offset
-  // (was the feedback cell but got replaced during deopt), and bytecode array.
-  __ Drop(4);
+  // Drop the feedback vector and the bytecode offset (was the feedback vector
+  // but got replaced during deopt).
+  __ Drop(2);
 
-  // argc, Closure, Context, and frame type marker.
-  __ Pop(kJavaScriptCallArgCountRegister, kJavaScriptCallTargetRegister,
-         kContextRegister, padreg);
+  // Bytecode array, argc, Closure, Context.
+  __ Pop(padreg, kJavaScriptCallArgCountRegister, kJavaScriptCallTargetRegister,
+         kContextRegister);
 
   // Drop frame pointer
   __ LeaveFrame(StackFrame::BASELINE);
@@ -1409,20 +1405,19 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
   __ Bind(&push_stack_frame);
   FrameScope frame_scope(masm, StackFrame::MANUAL);
-  DCHECK_EQ(closure, kJSFunctionRegister);
-  __ Prologue();
+  __ Push<MacroAssembler::kSignLR>(lr, fp);
+  __ mov(fp, sp);
+  __ Push(cp, closure);
 
   // Load the initial bytecode offset.
   __ Mov(kInterpreterBytecodeOffsetRegister,
          Operand(BytecodeArray::kHeaderSize - kHeapObjectTag));
 
-  // Push bytecode array, Smi tagged bytecode array offset, the feedback vector,
-  // and the first register slot (or alignment padding when register_count == 0)
-  // initialized to undefined to keep SP 16-byte aligned.
+  // Push actual argument count, bytecode array, Smi tagged bytecode array
+  // offset and the feedback vector.
   __ SmiTag(x6, kInterpreterBytecodeOffsetRegister);
-  __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
-  __ Push(kInterpreterBytecodeArrayRegister, x6, feedback_vector,
-          kInterpreterAccumulatorRegister);
+  __ Push(kJavaScriptCallArgCountRegister, kInterpreterBytecodeArrayRegister);
+  __ Push(x6, feedback_vector);
 
   // Allocate the local and temporary register file on the stack.
   Label stack_overflow;
@@ -1444,13 +1439,16 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     }
     __ B(lo, &stack_overflow);
 
-    // If ok, push undefined as the initial value for the remaining register
-    // file entries. One register/padding slot was already pushed above, so
-    // push (register_count & ~1) additional slots so total register slots is
-    // (register_count | 1), keeping SP 16-byte aligned.
+    // If ok, push undefined as the initial value for all register file entries.
+    // Note: there should always be at least one stack slot for the return
+    // register in the register file.
     Label loop_header;
     __ Lsr(x11, x11, kSystemPointerSizeLog2);
+    // Round up the number of registers to a multiple of 2, to align the stack
+    // to 16 bytes.
+    __ Add(x11, x11, 1);
     __ Bic(x11, x11, 1);
+    __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
     __ PushMultipleTimes(kInterpreterAccumulatorRegister, x11);
     __ Bind(&loop_header);
   }
@@ -5571,15 +5569,15 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ Sub(fp_to_sp, fp, fp_to_sp);
 
   // Allocate a new deoptimizer object.
-  __ Ldr(x1, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
+  __ Ldr(x1, MemOperand(fp, CommonFrameConstants::kContextOrFrameTypeOffset));
 
   // Ensure we can safely load from below fp.
   DCHECK_GT(kSavedRegistersAreaSize, -StandardFrameConstants::kFunctionOffset);
   __ Ldr(x0, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
 
-  // If the frame is not a JavaScript frame, zero x0.
-  __ Cmp(x1, Immediate(StackFrame::TypeToMarker(StackFrame::JAVASCRIPT)));
-  __ CzeroX(x0, ne);
+  // If x1 is a smi, zero x0.
+  __ Tst(x1, kSmiTagMask);
+  __ CzeroX(x0, eq);
 
   __ Mov(x1, static_cast<int>(deopt_kind));
   // Following arguments are already loaded:

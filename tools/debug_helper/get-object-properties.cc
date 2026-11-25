@@ -865,17 +865,16 @@ std::unique_ptr<ObjectPropertiesResult> GetObjectProperties(
 
 std::unique_ptr<StackFrameResult> GetStackFrame(
     uintptr_t frame_pointer, d::MemoryAccessor memory_accessor) {
-  // Read the frame type marker at frame_pointer + kFrameTypeOffset.
-  intptr_t frame_type_marker = 0;
+  // Read the data at frame_pointer + kContextOrFrameTypeOffset.
+  intptr_t context_or_frame_type = 0;
   d::MemoryAccessResult validity = memory_accessor(
-      frame_pointer + TypedFrameConstants::kFrameTypeOffset,
-      reinterpret_cast<void*>(&frame_type_marker), sizeof(intptr_t));
+      frame_pointer + CommonFrameConstants::kContextOrFrameTypeOffset,
+      reinterpret_cast<void*>(&context_or_frame_type), sizeof(intptr_t));
   auto props = std::vector<std::unique_ptr<ObjectProperty>>();
   if (validity == d::MemoryAccessResult::kOk) {
-    // If it is a JavaScript frame marker then add new property
-    // "currently_executing_jsfunction".
-    if (StackFrame::IsTypeMarker(frame_type_marker) &&
-        StackFrame::MarkerToType(frame_type_marker) == StackFrame::JAVASCRIPT) {
+    // If it is context, not frame marker then add new property
+    // "currently_executing_function".
+    if (!StackFrame::IsTypeMarker(context_or_frame_type)) {
       props.push_back(std::make_unique<ObjectProperty>(
           "currently_executing_jsfunction",
           CheckTypeName<v8::internal::Tagged<v8::internal::JSFunction>>(

@@ -149,16 +149,15 @@ High Addresses (Caller Frame)
 | Return Address (saved PC)         |  fp + kCallerPCOffset
 | Saved Frame Pointer (caller FP)   |  fp  <-- Frame Pointer (kInterpreterRegisterFileRegister)
 +-----------------------------------+
-| Frame Type Marker (JAVASCRIPT)    |  fp - 1 * kSystemPointerSize  (StandardFrameConstants::kFrameTypeOffset)
-| Context (current_context)         |  fp - 2 * kSystemPointerSize  (Register::current_context())
-| Closure (function_closure)        |  fp - 3 * kSystemPointerSize  (Register::function_closure())
-| Argument Count (argc)             |  fp - 4 * kSystemPointerSize  (StandardFrameConstants::kArgCOffset, Register::argument_count())
-| BytecodeArray (bytecode_array)    |  fp - 5 * kSystemPointerSize  (UnoptimizedFrameConstants::kBytecodeArrayFromFp, Register::bytecode_array())
-| BytecodeOffset / FeedbackCell     |  fp - 6 * kSystemPointerSize  (UnoptimizedFrameConstants::kBytecodeOffsetOrFeedbackCellFromFp, Register::bytecode_offset())
-| FeedbackVector (feedback_vector)  |  fp - 7 * kSystemPointerSize  (UnoptimizedFrameConstants::kFeedbackVectorFromFp, Register::feedback_vector())
+| Context (current_context)         |  fp - 1 * kSystemPointerSize  (Register::current_context())
+| Closure (function_closure)        |  fp - 2 * kSystemPointerSize  (Register::function_closure())
+| Argument Count (argc)             |  fp - 3 * kSystemPointerSize  (StandardFrameConstants::kArgCOffset, Register::argument_count())
+| BytecodeArray (bytecode_array)    |  fp - 4 * kSystemPointerSize  (UnoptimizedFrameConstants::kBytecodeArrayFromFp, Register::bytecode_array())
+| BytecodeOffset / FeedbackCell     |  fp - 5 * kSystemPointerSize  (UnoptimizedFrameConstants::kBytecodeOffsetOrFeedbackCellFromFp, Register::bytecode_offset())
+| FeedbackVector (feedback_vector)  |  fp - 6 * kSystemPointerSize  (UnoptimizedFrameConstants::kFeedbackVectorFromFp, Register::feedback_vector())
 +-----------------------------------+
-| Register r0 (fixed local 0)       |  fp - 8 * kSystemPointerSize  (UnoptimizedFrameConstants::kRegisterFileFromFp)
-| Register r1 (fixed local 1)       |  fp - 9 * kSystemPointerSize
+| Register r0 (fixed local 0)       |  fp - 7 * kSystemPointerSize  (UnoptimizedFrameConstants::kRegisterFileFromFp)
+| Register r1 (fixed local 1)       |  fp - 8 * kSystemPointerSize
 | ...                               |
 | Register r_{fixed-1}              |
 | Register r_{fixed} (temporary 0)  |

@@ -104,8 +104,8 @@ void MaglevAssembler::OSRPrologue(Graph* graph) {
   uint32_t source_frame_size =
       graph->min_maglev_stackslots_for_unoptimized_frame_size();
 
-  static_assert(StandardFrameConstants::kFixedSlotCount % 2 == 0);
-  if (source_frame_size % 2 == 1) source_frame_size++;
+  static_assert(StandardFrameConstants::kFixedSlotCount % 2 == 1);
+  if (source_frame_size % 2 == 0) source_frame_size++;
 
   if (V8_ENABLE_SANDBOX_BOOL || v8_flags.debug_code) {
     TemporaryRegisterScope temps(this);
@@ -119,7 +119,7 @@ void MaglevAssembler::OSRPrologue(Graph* graph) {
 
   uint32_t target_frame_size =
       graph->tagged_stack_slots() + graph->untagged_stack_slots();
-  CHECK_EQ(target_frame_size % 2, 0);
+  CHECK_EQ(target_frame_size % 2, 1);
   CHECK_LE(source_frame_size, target_frame_size);
   if (source_frame_size < target_frame_size) {
     ASM_CODE_COMMENT_STRING(this, "Growing frame for OSR");
@@ -169,21 +169,22 @@ void MaglevAssembler::Prologue(Graph* graph) {
   // Save arguments in frame.
   // TODO(leszeks): Consider eliding this frame if we don't make any calls
   // that could clobber these registers.
-  // EnterFrame pushed the frame type marker and the context. Push the
-  // JSFunction and the actual argument count.
-  Push(kJSFunctionRegister, kJavaScriptCallArgCountRegister);
-  int remaining_stack_slots = code_gen_state()->stack_slots();
-  DCHECK_EQ(remaining_stack_slots % 2, 0);
+  // Push the context and the JSFunction.
+  Push(kContextRegister, kJSFunctionRegister);
+  // Push the actual argument count and a _possible_ stack slot.
+  Push(kJavaScriptCallArgCountRegister, xzr);
+  int remaining_stack_slots = code_gen_state()->stack_slots() - 1;
+  DCHECK_GE(remaining_stack_slots, 0);
 
   // Initialize stack slots.
   if (graph->tagged_stack_slots() > 0) {
     ASM_CODE_COMMENT_STRING(this, "Initializing stack slots");
 
-    // If tagged_stack_slots is odd, we overshoot and allocate one extra stack
-    // slot (which is covered by the even total stack_slots()).
-    int tagged_two_slots_count = RoundUp(graph->tagged_stack_slots(), 2) / 2;
+    // If tagged_stack_slots is divisible by 2, we overshoot and allocate one
+    // extra stack slot, otherwise we allocate exactly the right amount, since
+    // one stack has already been allocated.
+    int tagged_two_slots_count = graph->tagged_stack_slots() / 2;
     remaining_stack_slots -= 2 * tagged_two_slots_count;
-    DCHECK_GE(remaining_stack_slots, 0);
 
     // Magic value. Experimentally, an unroll size of 8 doesn't seem any
     // worse than fully unrolled pushes.
@@ -214,7 +215,8 @@ void MaglevAssembler::Prologue(Graph* graph) {
     }
   }
   if (remaining_stack_slots > 0) {
-    DCHECK_EQ(remaining_stack_slots % 2, 0);
+    // Round up.
+    remaining_stack_slots += (remaining_stack_slots % 2);
     // Extend sp by the size of the remaining untagged part of the frame,
     // no need to initialise these.
     Sub(sp, sp, Immediate(remaining_stack_slots * kSystemPointerSize));

@@ -190,7 +190,8 @@ class FrameWriter {
 
   void PushTranslatedContext(const TranslatedFrame::iterator& iterator) {
     Tagged<Object> obj = PushTranslatedValue(iterator, "context");
-    // The context slot of a StandardFrame must always contain a HeapObject.
+    // The context slot of a StandardFrame shares its offset with the frame
+    // type marker of a TypedFrame, so it must never contain a Smi marker.
     SBXCHECK(IsHeapObject(obj));
   }
 
@@ -2225,10 +2226,6 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
     frame_writer.PushCallerConstantPool(caller_cp);
   }
 
-  // Push the shared JavaScript frame type marker.
-  frame_writer.PushRawValue(StackFrame::TypeToMarker(StackFrame::JAVASCRIPT),
-                            "frame type marker\n");
-
   // For the bottommost output frame the context can be gotten from the input
   // frame. For all subsequent output frames it can be gotten from the function
   // so long as we don't inline functions that need local contexts.
@@ -3109,8 +3106,8 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   frame_writer.PushRawObject(Smi::FromInt(output_frame_size_above_fp),
                              "frame height at deoptimization\n");
 
-  // The context slot of the BuiltinContinuationFrame (pushed below the frame
-  // height slot rather than immediately after the frame marker).
+  // The context even if this is a stub continuation frame. We can't use the
+  // usual context slot, because we must store the frame marker there.
   frame_writer.PushTranslatedValue(context_register_value,
                                    "builtin JavaScript context\n");
 

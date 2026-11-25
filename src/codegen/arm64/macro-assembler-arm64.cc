@@ -3128,38 +3128,41 @@ void MacroAssembler::Prologue() {
   ASM_CODE_COMMENT(this);
   Push<MacroAssembler::kSignLR>(lr, fp);
   mov(fp, sp);
-  UseScratchRegisterScope temps(this);
-  Register marker = temps.AcquireX();
-  Mov(marker, StackFrame::TypeToMarker(StackFrame::JAVASCRIPT));
-  Push(marker, cp);
-  Push(kJSFunctionRegister, kJavaScriptCallArgCountRegister);
+  static_assert(kExtraSlotClaimedByPrologue == 1);
+  Push(cp, kJSFunctionRegister, kJavaScriptCallArgCountRegister, padreg);
 }
 
 void MacroAssembler::EnterFrame(StackFrame::Type type) {
   UseScratchRegisterScope temps(this);
 
-  StackFrame::Type marker_type =
-      StackFrame::IsJavaScript(type) ? StackFrame::JAVASCRIPT : type;
-  Register type_reg = temps.AcquireX();
-  Register fourth_reg = padreg;
-  if (marker_type == StackFrame::JAVASCRIPT || type == StackFrame::CONSTRUCT ||
-      type == StackFrame::FAST_CONSTRUCT) {
-    fourth_reg = cp;
-  }
+  if (StackFrame::IsJavaScript(type)) {
+    // Just push a minimal "machine frame", saving the frame pointer and return
+    // address, without any markers.
+    Push<MacroAssembler::kSignLR>(lr, fp);
+    Mov(fp, sp);
+    // sp[1] : lr
+    // sp[0] : fp
+  } else {
+      Register type_reg = temps.AcquireX();
+      Mov(type_reg, StackFrame::TypeToMarker(type));
+      Register fourth_reg = padreg;
+      if (type == StackFrame::CONSTRUCT || type == StackFrame::FAST_CONSTRUCT) {
+        fourth_reg = cp;
+      }
 #if V8_ENABLE_WEBASSEMBLY
-  if (type == StackFrame::WASM || type == StackFrame::WASM_LIFTOFF_SETUP ||
-      type == StackFrame::WASM_EXIT) {
-    fourth_reg = kWasmImplicitArgRegister;
-  }
+      if (type == StackFrame::WASM || type == StackFrame::WASM_LIFTOFF_SETUP ||
+          type == StackFrame::WASM_EXIT) {
+        fourth_reg = kWasmImplicitArgRegister;
+      }
 #endif  // V8_ENABLE_WEBASSEMBLY
-  Push<MacroAssembler::kSignLR>(lr, fp);
-  Mov(fp, sp);
-  Mov(type_reg, StackFrame::TypeToMarker(marker_type));
-  Push(type_reg, fourth_reg);
-  // sp[3] : lr
-  // sp[2] : fp
-  // sp[1] : type
-  // sp[0] : cp | wasm instance | for alignment
+      Push<MacroAssembler::kSignLR>(lr, fp, type_reg, fourth_reg);
+      static constexpr int kSPToFPDelta  = 2 * kSystemPointerSize;
+      Add(fp, sp, kSPToFPDelta);
+      // sp[3] : lr
+      // sp[2] : fp
+      // sp[1] : type
+      // sp[0] : cp | wasm instance | for alignment
+  }
 }
 
 void MacroAssembler::LeaveFrame(StackFrame::Type type) {

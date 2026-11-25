@@ -121,8 +121,6 @@ class V8_NODISCARD FrameScope {
     return "Frame: " #type;
         STACK_FRAME_TYPE_LIST(FRAME_TYPE_CASE)
 #undef FRAME_TYPE_CASE
-      case StackFrame::JAVASCRIPT:
-        return "Frame: JAVASCRIPT";
       case StackFrame::NUMBER_OF_TYPES:
         break;
     }

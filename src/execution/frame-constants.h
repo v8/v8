@@ -16,9 +16,10 @@ namespace internal {
 //
 // Stack slot indices >= 0 access the callee stack with slot 0 corresponding to
 // the callee's saved return address and 1 corresponding to the saved frame
-// pointer. All frames store a frame type marker at slot 2+cp; JSFunctions
-// additionally store the current function context at slot 3+cp, the JSFunction
-// at slot 4+cp, and the actual argument count at slot 5+cp.
+// pointer. Some frames have additional information stored in the fixed header,
+// for example JSFunctions store the function context and marker in the fixed
+// header, with slot index 2 corresponding to the current function context and 3
+// corresponding to the frame marker/JSFunction.
 //
 //  slot      JS frame
 //       +-----------------+--------------------------------
@@ -36,7 +37,7 @@ namespace internal {
 //       |- - - - - - - - -| Header <-- frame ptr       |
 //   2   | [Constant Pool] |   |                        |
 //       |- - - - - - - - -|   |                        |
-// 2+cp  |Frame Type Marker|   v   if a constant pool   |
+// 2+cp  |Context/Frm. Type|   v   if a constant pool   |
 //       |-----------------+----    is used, cp = 1,    |
 // 3+cp  |                 |   ^   otherwise, cp = 0    |
 //       |- - - - - - - - -|   |                        |
@@ -54,9 +55,9 @@ class CommonFrameConstants : public AllStatic {
   static constexpr int kCallerSPOffset = kCallerPCOffset + 1 * kPCOnStackSize;
 
   // Fixed part of the frame consists of return address, caller fp,
-  // constant pool (if V8_EMBEDDED_CONSTANT_POOL_BOOL), and frame type marker.
-  // CommonFrame::IterateExpressions assumes that kLastObjectOffset is the
-  // last object pointer (below the frame type marker).
+  // constant pool (if V8_EMBEDDED_CONSTANT_POOL_BOOL), context, and
+  // function. CommonFrame::IterateExpressions assumes that kLastObjectOffset
+  // is the last object pointer.
   static constexpr int kFixedFrameSizeAboveFp = kPCOnStackSize + kFPOnStackSize;
   static constexpr int kFixedSlotCountAboveFp =
       kFixedFrameSizeAboveFp / kSystemPointerSize;
@@ -71,10 +72,10 @@ class CommonFrameConstants : public AllStatic {
 };
 
 // StandardFrames are used for both unoptimized and optimized JavaScript
-// frames. They always have the shared StackFrame::JAVASCRIPT frame type marker
-// below the saved fp/constant pool, followed by the context, the JSFunction of
-// the executing function, and an integer (not a Smi) containing the actual
-// number of arguments passed to the JavaScript code.
+// frames. They always have a context below the saved fp/constant
+// pool, below that the JSFunction of the executing function and below that an
+// integer (not a Smi) containing the actual number of arguments passed to the
+// JavaScript code.
 //
 //  slot      JS frame
 //       +-----------------+--------------------------------
@@ -92,15 +93,13 @@ class CommonFrameConstants : public AllStatic {
 //       |- - - - - - - - -| Header <-- frame ptr       |
 //   2   | [Constant Pool] |   |                        |
 //       |- - - - - - - - -|   |                        |
-// 2+cp  |Frame Type Marker|   |   if a constant pool   |
+// 2+cp  |     Context     |   |   if a constant pool   |
 //       |- - - - - - - - -|   |    is used, cp = 1,    |
-// 3+cp  |     Context     |   |   otherwise, cp = 0    |
+// 3+cp  |    JSFunction   |   |   otherwise, cp = 0    |
 //       |- - - - - - - - -|   |                        |
-// 4+cp  |    JSFunction   |   |                        |
-//       |- - - - - - - - -|   |                        |
-// 5+cp  |      argc       |   v                        |
+// 4+cp  |      argc       |   v                        |
 //       +-----------------+----                        |
-// 6+cp  |  expressions or |   ^                      Callee
+// 5+cp  |  expressions or |   ^                      Callee
 //       |- - - - - - - - -|   |                   frame slots
 //  ...  |  pushed values  | Frame slots           (slot >= 0)
 //       |- - - - - - - - -|   |                        |
@@ -110,29 +109,24 @@ class CommonFrameConstants : public AllStatic {
 class StandardFrameConstants : public CommonFrameConstants {
  public:
   static constexpr int kFixedFrameSizeFromFp =
-      4 * kSystemPointerSize + kCPSlotSize;
+      3 * kSystemPointerSize + kCPSlotSize;
   static constexpr int kFixedFrameSize =
       kFixedFrameSizeAboveFp + kFixedFrameSizeFromFp;
   static constexpr int kFixedSlotCountFromFp =
       kFixedFrameSizeFromFp / kSystemPointerSize;
   static constexpr int kFixedSlotCount = kFixedFrameSize / kSystemPointerSize;
-  static constexpr int kFrameTypeOffset = kContextOrFrameTypeOffset;
-  // TODO(victorgomes): Consider placing argc right after kFrameTypeOffset
-  // (before kContextOffset and kFunctionOffset) so both non-GC header slots are
-  // adjacent and GC can skip them in one go while visiting Context, JSFunction,
-  // and frame expressions/tagged slots in a single contiguous range.
-  static constexpr int kContextOffset = -2 * kSystemPointerSize - kCPSlotSize;
-  static constexpr int kFunctionOffset = -3 * kSystemPointerSize - kCPSlotSize;
-  static constexpr int kArgCOffset = -4 * kSystemPointerSize - kCPSlotSize;
+  static constexpr int kContextOffset = kContextOrFrameTypeOffset;
+  static constexpr int kFunctionOffset = -2 * kSystemPointerSize - kCPSlotSize;
+  static constexpr int kArgCOffset = -3 * kSystemPointerSize - kCPSlotSize;
   static constexpr int kExpressionsOffset =
-      -5 * kSystemPointerSize - kCPSlotSize;
+      -4 * kSystemPointerSize - kCPSlotSize;
   static constexpr int kFirstPushedFrameValueOffset = kExpressionsOffset;
   static constexpr int kLastObjectOffset = kContextOffset;
 };
 
-// TypedFrames have a type marker value below the saved FP/constant pool to
-// identify their concrete StackFrame::Type (as opposed to StandardFrames, which
-// store StackFrame::JAVASCRIPT in that slot and distinguish JS tiers by PC).
+// TypedFrames have a type maker value below the saved FP/constant pool to
+// distinguish them from StandardFrames, which have a context in that position
+// instead.
 //
 //  slot      JS frame
 //       +-----------------+--------------------------------
@@ -215,14 +209,9 @@ class TypedFrameConstants : public CommonFrameConstants {
 class BuiltinFrameConstants : public TypedFrameConstants {
  public:
   // FP-relative.
-  static constexpr int kContextOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
-  static constexpr int kFunctionOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
-  static constexpr int kLengthOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
-  DEFINE_TYPED_FRAME_SIZES(3);
-  static constexpr int kLastObjectOffset = kContextOffset;
-  static_assert(kContextOffset == StandardFrameConstants::kContextOffset);
-  static_assert(kFunctionOffset == StandardFrameConstants::kFunctionOffset);
-  static_assert(kLengthOffset == StandardFrameConstants::kArgCOffset);
+  static constexpr int kFunctionOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
+  static constexpr int kLengthOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
+  DEFINE_TYPED_FRAME_SIZES(2);
 };
 
 class ConstructFrameConstants : public TypedFrameConstants {
@@ -773,27 +762,25 @@ class ApiAccessorExitFrameConstants : public ExitFrameConstants {
 //       |- - - - - - - - -| Header <-- frame ptr       |
 //   2   | [Constant Pool] |   |                        |
 //       |- - - - - - - - -|   |                        |
-// 2+cp  |Frame Type Marker|   |   if a constant pool   |
+// 2+cp  |     Context     |   |   if a constant pool   |
 //       |- - - - - - - - -|   |    is used, cp = 1,    |
-// 3+cp  |     Context     |   |   otherwise, cp = 0    |
+// 3+cp  |    JSFunction   |   |   otherwise, cp = 0    |
 //       |- - - - - - - - -|   |                        |
-// 4+cp  |    JSFunction   |   |                        |
-//       |- - - - - - - - -|   |                        |
-// 5+cp  |      argc       |   v                        |
+// 4+cp  |      argc       |   v                        |
 //       +-----------------+----                        |
-// 6+cp  |  BytecodeArray  |   ^                        |
+// 5+cp  |  BytecodeArray  |   ^                        |
 //       |- - - - - - - - -|   |                        |
-// 7+cp  |  offset / cell  | Unoptimized code header    |
+// 6+cp  |  offset / cell  | Unoptimized code header    |
 //       |- - - - - - - - -|   |                        |
-// 8+cp  |      FBV        |   v                        |
+// 7+cp  |      FBV        |   v                        |
 //       +-----------------+----                        |
-// 9+cp  |   register 0    |   ^                     Callee
+// 8+cp  |   register 0    |   ^                     Callee
 //       |- - - - - - - - -|   |                   frame slots
-// 10+cp |   register 1    | Register file         (slot >= 0)
+// 9+cp  |   register 1    | Register file         (slot >= 0)
 //  ...  |       ...       |   |                        |
 //       |  register n-1   |   |                        |
 //       |- - - - - - - - -|   |                        |
-// 10+cp+n|   register n    |   v                        v
+// 9+cp+n|   register n    |   v                        v
 //  -----+-----------------+----- <-- stack ptr -------------
 //
 class UnoptimizedFrameConstants : public StandardFrameConstants {
@@ -849,12 +836,12 @@ class BaselineFrameConstants : public UnoptimizedFrameConstants {
       kBytecodeOffsetOrFeedbackCellFromFp;
 };
 
-inline constexpr int FPOffsetToFrameSlot(int frame_offset) {
+inline static int FPOffsetToFrameSlot(int frame_offset) {
   return StandardFrameConstants::kFixedSlotCountAboveFp - 1 -
          frame_offset / kSystemPointerSize;
 }
 
-inline constexpr int FrameSlotToFPOffset(int slot) {
+inline static int FrameSlotToFPOffset(int slot) {
   return (StandardFrameConstants::kFixedSlotCountAboveFp - 1 - slot) *
          kSystemPointerSize;
 }
