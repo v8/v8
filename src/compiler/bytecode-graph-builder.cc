@@ -3754,7 +3754,7 @@ void BytecodeGraphBuilder::VisitToName() {
 }
 
 void BytecodeGraphBuilder::VisitToObject() {
-  BuildCastOperator(javascript()->ToObject());
+  BuildCastOperator(javascript()->ToObject(ToObjectMode::kForInOrWith));
 }
 
 void BytecodeGraphBuilder::VisitToString() {

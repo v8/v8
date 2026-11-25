@@ -749,6 +749,23 @@ size_t hash_value(ForOfNextParameters const& p) {
   return FeedbackSource::Hash()(p.callFeedback());
 }
 
+size_t hash_value(ToObjectMode mode) { return static_cast<uint8_t>(mode); }
+
+std::ostream& operator<<(std::ostream& os, ToObjectMode mode) {
+  switch (mode) {
+    case ToObjectMode::kExplicit:
+      return os << "Explicit";
+    case ToObjectMode::kForInOrWith:
+      return os << "ForInOrWith";
+  }
+  UNREACHABLE();
+}
+
+ToObjectMode ToObjectModeOf(const Operator* op) {
+  DCHECK_EQ(IrOpcode::kJSToObject, op->opcode());
+  return OpParameter<ToObjectMode>(op);
+}
+
 size_t hash_value(ForInMode const& mode) { return static_cast<uint8_t>(mode); }
 
 std::ostream& operator<<(std::ostream& os, ForInMode const& mode) {
@@ -863,7 +880,6 @@ Type JSWasmCallNode::TypeForWasmReturnKind(wasm::ValueKind kind) {
   V(ToBigInt, Operator::kNoProperties, 1, 1)                             \
   V(ToBigIntConvertNumber, Operator::kNoProperties, 1, 1)                \
   V(ToNumeric, Operator::kNoProperties, 1, 1)                            \
-  V(ToObject, Operator::kFoldable, 1, 1)                                 \
   V(ToString, Operator::kNoProperties, 1, 1)                             \
   V(Create, Operator::kNoProperties, 2, 1)                               \
   V(CreateIterResultObject, Operator::kEliminatable, 2, 1)               \
@@ -910,6 +926,14 @@ struct JSOperatorGlobalCache final {
   Name##Operator k##Name##Operator;
   CACHED_OP_LIST(CACHED_OP)
 #undef CACHED_OP
+
+  struct ToObjectOperator final : public Operator1<ToObjectMode> {
+    explicit ToObjectOperator(ToObjectMode mode)
+        : Operator1<ToObjectMode>(IrOpcode::kJSToObject, Operator::kFoldable,
+                                  "JSToObject", 1, 1, 1, 1, 1, 2, mode) {}
+  };
+  ToObjectOperator kToObjectExplicitOperator{ToObjectMode::kExplicit};
+  ToObjectOperator kToObjectForInOrWithOperator{ToObjectMode::kForInOrWith};
 };
 
 namespace {
@@ -925,6 +949,16 @@ JSOperatorBuilder::JSOperatorBuilder(Zone* zone)
   }
 CACHED_OP_LIST(CACHED_OP)
 #undef CACHED_OP
+
+const Operator* JSOperatorBuilder::ToObject(ToObjectMode mode) {
+  switch (mode) {
+    case ToObjectMode::kExplicit:
+      return &cache_.kToObjectExplicitOperator;
+    case ToObjectMode::kForInOrWith:
+      return &cache_.kToObjectForInOrWithOperator;
+  }
+  UNREACHABLE();
+}
 
 #define UNOP_WITH_EMBEDDED_FEEDBACK(JSName, Name)                             \
   const Operator* JSOperatorBuilder::Name(BinaryOperationHint hint) {         \

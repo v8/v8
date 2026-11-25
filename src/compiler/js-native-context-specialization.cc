@@ -2764,9 +2764,8 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadPropertyWithEnumeratedKey(
   //       |  |
   //   JSLoadProperty (insufficient feedback)
 
-  // Also note that it's safe to look through the {JSToObject}, since the
-  // [[Get]] operation does an implicit ToObject anyway, and these operations
-  // are not observable.
+  // Looking through {JSToObject(receiver)} is only valid when {receiver} is a
+  // JSReceiver; for primitives, {JSToObject} allocates a distinct wrapper.
 
   DCHECK_EQ(IrOpcode::kJSLoadProperty, node->opcode());
   Node* receiver = NodeProperties::GetValueInput(node, 0);
@@ -2781,11 +2780,23 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadPropertyWithEnumeratedKey(
   Node* object = name.receiver();
   Node* cache_type = name.cache_type();
   Node* index = name.index();
-  if (object->opcode() == IrOpcode::kJSToObject) {
-    object = NodeProperties::GetValueInput(object, 0);
+  bool check_receiver = false;
+  if (object->opcode() == IrOpcode::kJSToObject &&
+      NodeProperties::GetValueInput(object, 0) == receiver) {
+    if (!NodeProperties::CanBePrimitive(broker(), receiver, Effect{effect})) {
+      object = receiver;
+    } else if (ToObjectModeOf(object->op()) == ToObjectMode::kForInOrWith) {
+      object = receiver;
+      check_receiver = true;
+    }
   }
   bool speculating_object_is_receiver = false;
-  if (object != receiver) {
+  if (object == receiver) {
+    if (check_receiver) {
+      receiver = effect = graph()->NewNode(simplified()->CheckReceiver(),
+                                           receiver, effect, control);
+    }
+  } else {
     JSLoadPropertyNode n(node);
     PropertyAccess const& p = n.Parameters();
 
@@ -2793,9 +2804,10 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadPropertyWithEnumeratedKey(
         FeedbackSource(p.feedback()), AccessMode::kLoad, std::nullopt,
         v8_flags.homomorphic_ic);
     // When the feedback is uninitialized, it is either a load from a
-    // {GetEnumeratedKeyedProperty} which always hits the enum cache, or a keyed
-    // load that had never been reached. In either case, we can check the map
-    // of the receiver and use the enum cache if the map match the {cache_type}.
+    // {GetEnumeratedKeyedProperty} which always hits the enum cache, or a
+    // keyed load that had never been reached. In either case, we can check
+    // the map of the receiver and use the enum cache if the map match the
+    // {cache_type}.
     if (feedback.kind() != ProcessedFeedback::kInsufficient) {
       return NoChange();
     }

@@ -903,6 +903,18 @@ std::ostream& operator<<(std::ostream&, ForOfNextParameters const&);
 
 const ForOfNextParameters& ForOfNextParametersOf(const Operator* op);
 
+// Distinguishes explicit ToObject conversions (e.g. Object(x), where a boxed
+// primitive wrapper can escape and acquire own properties) from implicit
+// Bytecode::kToObject conversions emitted for for..in / with statements.
+enum class ToObjectMode : uint8_t {
+  kExplicit,
+  kForInOrWith,
+};
+size_t hash_value(ToObjectMode);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, ToObjectMode);
+V8_EXPORT_PRIVATE ToObjectMode ToObjectModeOf(const Operator* op)
+    V8_WARN_UNUSED_RESULT;
+
 enum class ForInMode : uint8_t {
   kUseEnumCacheKeysAndIndices,
   kUseEnumCacheKeys,
@@ -1039,7 +1051,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* ToBigInt();
   const Operator* ToBigIntConvertNumber();
   const Operator* ToNumeric();
-  const Operator* ToObject();
+  const Operator* ToObject() { return ToObject(ToObjectMode::kExplicit); }
+  const Operator* ToObject(ToObjectMode mode);
   const Operator* ToString();
 
   const Operator* Create();
