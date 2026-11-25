@@ -472,6 +472,7 @@ class ExceptionHandlerInfo;
   V(CheckInstanceType)                        \
   V(Dead)                                     \
   V(DebugBreak)                               \
+  V(Retain)                                   \
   V(MajorGCForCompilerTesting)                \
   V(FunctionEntryStackCheck)                  \
   V(GeneratorStore)                           \
@@ -7749,6 +7750,25 @@ class AssumeType : public NodeT<AssumeType> {
 
  private:
   const NodeType asserted_type_;
+};
+
+class Retain : public FixedInputNodeT<1, Retain> {
+ public:
+  explicit Retain(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::NotIdempotent();
+
+  DECLARE_INPUTS(Value)
+  DECLARE_INPUT_TYPES(Tagged)
+
+#ifdef V8_COMPRESS_POINTERS
+  void MarkTaggedInputsAsDecompressing() {
+    // Don't need to decompress just to keep the object alive.
+  }
+#endif
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
 };
 
 class TurbofanStaticAssert : public FixedInputNodeT<1, TurbofanStaticAssert> {
