@@ -151,6 +151,11 @@ better:
 
 - Propose a V8 change to improve performance (e.g., specialized builtin,
   improved optimization pass).
+- **Tests**: Add or update concise tests (preferring `mjsunit`, including `%`
+  runtime functions) only when the optimization's effect is cleanly testable or
+  touched/added paths (e.g., a fast/slow-path split) lack coverage; do not add
+  redundant tests when existing tests already cover the affected paths, and
+  avoid bloated C++ `unittests` scaffolding or brittle change-detector checks.
 - **Check & Update Documentation (`docs/`)**: Before committing or uploading an
   optimization CL, search `docs/` (`git --no-pager grep` across `docs/`) to
   check whether the change adds or modifies compiler passes, IR nodes,

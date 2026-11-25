@@ -70,12 +70,17 @@ wrapping CL descriptions, refer to the **`cl-description`** skill
 
 ## Safeguards & Code Quality
 
-- **Mandatory Reproducer Rule**: Before running `git cl upload`, you MUST verify
-  that the diff contains a valid, working regression test (typically under
-  `test/mjsunit/` or its component-specific subfolders like `compiler/`,
-  `turboshaft/`, `maglev/`, etc.). Uploading code-modifying CLs without an
-  accompanying regression test is strictly forbidden (unless explicitly waived
-  by the user or if it's a process-only/documentation change).
+- **Regression Tests & Coverage**: Before `git cl upload`, verify the diff
+  includes tests (`test/mjsunit/` or `test/unittests/`) for any bug fix (crash,
+  correctness, or security, failing without the fix), new feature, effect
+  concisely testable via `mjsunit` (including `%` runtime functions), or
+  touched/added path that lacks coverage and can be tested, unless waived by the
+  user. Do NOT add new tests (or bloated C++ `unittests` / brittle
+  change-detector checks) for refactorings or optimizations without such
+  testable effects when existing tests already cover the affected paths; if such
+  a CL has a `Fixed:` footer and modifies `src/` without `test/`, add
+  single-line `No-Regression-Test: <reason>` to the `Fixed:`/`Change-Id:` footer
+  block (required by `PRESUBMIT.py`; use only for such CLs or user waivers).
 - **No Trailing Whitespace**: NEVER add trailing whitespace in any file you
   create or modify.
 - **Always Test Before Upload**: Always run tests (using `release` or `optdebug`

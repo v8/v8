@@ -56,10 +56,12 @@ description: Reviews a V8 CL, commit, or local diff using targeted parallel suba
      hot builtins) or adding/modifying data structures, containers, and loops.
      Skip for cold error paths, small localized fixes with no container/loop
      changes, or test-only diffs.
-   - `tests`: Select when `test/` files are added/modified **or** when reviewing
-     a bug fix (to verify the mandatory regression test is present and
-     effective). Skip for pure refactorings, comments, or build changes that
-     neither touch `test/` nor fix a bug.
+   - `tests`: Select when `test/` files are added/modified, or when the CL fixes
+     a bug (crash, correctness, or security), has an effect concisely testable
+     via `mjsunit` (including `%` runtime functions), or touches/adds paths that
+     appear to lack existing coverage. Skip for comments, build changes, or
+     refactorings and optimizations without such testable effects on
+     already-covered paths when `test/` is untouched.
    - `style-comments`: Select when adding/modifying C++ (`.cc`, `.h`, `-inl.h`),
      Torque (`.tq`), or Markdown documentation (`docs/*.md`) files. Skip for
      test-only `.js`/`.mjs` diffs or tiny 1–2 line changes where the main agent
@@ -229,12 +231,19 @@ instructions below:
 
 7. `tests`:
 
-   - **Mandatory reproducer & fidelity**: Flag a `bug` if a bug fix omits a
-     regression test. Verify tests (`test/mjsunit/`, `test/unittests/`) exercise
-     the modified path and fail without the fix (watch for early errors in
-     helper closures before target code, or missing
-     `%PrepareFunctionForOptimization` + warmup call before
-     `%OptimizeFunctionOnNextCall`).
+   - **Mandatory reproducer & fidelity**: Flag a `bug` if a bug fix (crash,
+     correctness, or security) omits a regression test, and verify bug-fix
+     regression tests (`test/mjsunit/`, `test/unittests/`) exercise the modified
+     path and fail without the fix (watch for early errors in helper closures
+     before target code, or missing `%PrepareFunctionForOptimization` + warmup
+     call before `%OptimizeFunctionOnNextCall`). Refactorings and optimizations
+     need tests only when their effect is concisely testable via `mjsunit`
+     (including `%` runtime functions) or when touched/added paths genuinely
+     lack coverage and can be tested (do not ask for tests on already-covered
+     refactorings/optimizations, heavy new C++ `unittests` fixtures, or brittle
+     assembly/change-detector checks): flag missing coverage as `design`, and
+     suggest dropping added tests that pass without the CL and only re-exercise
+     covered paths (or rely on brittle/bloated checks).
    - **Boundary coverage**: Edge cases (`0`, `-0`, `NaN`, `INT32_MIN`,
      `INT32_MAX`, `UINT32_MAX`, `Smi` range, empty/max-size buffers or Wasm
      modules).
@@ -300,8 +309,10 @@ Instructions for every subagent:
    at \<= 72 chars, explaining *why* and high-level *what*), CL references as
    `https://crrev.com/c/<number>` (not git hashes), and footers (`Bug: <id>` or
    `Fixed: <id>` with plain numeric ID for Chromium or `b:<id>` for Buganizer,
-   never `BUG=`; plus `TAG=agy` and `CONV=<id>` in a paragraph above the
-   `Bug:`/`Fixed:` and `Change-Id:` footer block for agent-authored CLs).
+   never `BUG=`; single-line `No-Regression-Test: <reason>` only when a
+   test-exempt or waived `Fixed:` CL modifies `src/` without `test/`; plus
+   `TAG=agy` and `CONV=<id>` in a paragraph above the `Bug:`/`Fixed:` and
+   `Change-Id:` footer block for agent-authored CLs).
 3. **Deduplicate**: Merge overlapping comments on the same `file:line` (within 2
    lines) or the same root cause repeated across architectures/files. Keep \<=
    25 comments ordered by `security` > `bug` > `design` > `question` > `nit`.

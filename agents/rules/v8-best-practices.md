@@ -38,14 +38,17 @@ When proposing a fix, ensure the code adheres to V8 standards:
   caught immediately by debug builds and fuzzers rather than masked.
 - **Encapsulation**: Encapsulate data-structure mutations as methods on the
   owning class rather than duplicating low-level steps across callers.
-- **Mandatory Reproducer Rule**: Unless explicitly specified otherwise by the
-  user, **every single bug fix in V8 MUST be uploaded with a working reproducer
-  (regression test)**. Uploading just the fix alone is NEVER acceptable. Always
-  verify that every regression test (and every test case within it) a) actually
-  exercises the specific code path/fix being tested and b) fails without the fix
-  (for `%OptimizeFunctionOnNextCall` tests targeting Maglev, omit
-  `--optimize-on-next-call-optimizes-to-maglev` from `// Flags:` in the test
-  file and verify failure under `--variants=stress_maglev`).
+- **Mandatory Reproducer Rule**: Unless waived by the user, every bug fix
+  (crash, correctness, or security) MUST include a regression test where every
+  test case exercises the modified path and fails without the fix (for Maglev
+  `%OptimizeFunctionOnNextCall` tests, omit
+  `--optimize-on-next-call-optimizes-to-maglev` from `// Flags:` and verify
+  failure under `--variants=stress_maglev`). Also add concise tests (preferring
+  `mjsunit`, including `%` runtime functions) for new features, cleanly testable
+  behavior/optimization effects, or touched/added paths that lack existing
+  coverage and can be tested. Do NOT add new tests (or bloated C++ `unittests` /
+  brittle change-detector checks) for refactorings or optimizations without such
+  testable effects when existing tests already cover the affected paths.
 - **Documentation Sync Requirement**: Whenever a CL changes V8 architecture,
   data structures, object layouts, pipeline passes, bytecodes/IR nodes, flags,
   or cross-tier invariants (or adds a feature or bug fix that invalidates or
