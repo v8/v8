@@ -13683,19 +13683,25 @@ TEST_F(ApiUninitializedTest, SetInSandboxAllocator) {
   create_params.array_buffer_allocator = array_buffer_allocator.get();
 
   v8::Isolate* isolate = v8::Isolate::New(group, create_params);
+  const int baseline_allocate_count = allocator->allocate_count();
+  const int baseline_allocate_uninitialized_count =
+      allocator->allocate_uninitialized_count();
+
   std::unique_ptr<v8::BackingStore> backing_store =
       v8::ArrayBuffer::NewBackingStore(isolate, 200);
   CHECK_EQ(backing_store->Data(), allocator->allocated_address());
-  CHECK_EQ(allocator->allocate_count(), 1);
-  CHECK_EQ(allocator->allocate_uninitialized_count(), 0);
+  CHECK_EQ(allocator->allocate_count(), baseline_allocate_count + 1);
+  CHECK_EQ(allocator->allocate_uninitialized_count(),
+           baseline_allocate_uninitialized_count);
   backing_store.reset();
 
   std::unique_ptr<v8::BackingStore> uninitialized_backing_store =
       v8::ArrayBuffer::NewBackingStore(
           isolate, 200, v8::BackingStoreInitializationMode::kUninitialized);
   CHECK_EQ(uninitialized_backing_store->Data(), allocator->allocated_address());
-  CHECK_EQ(allocator->allocate_count(), 1);
-  CHECK_EQ(allocator->allocate_uninitialized_count(), 1);
+  CHECK_EQ(allocator->allocate_count(), baseline_allocate_count + 1);
+  CHECK_EQ(allocator->allocate_uninitialized_count(),
+           baseline_allocate_uninitialized_count + 1);
   uninitialized_backing_store.reset();
 
   isolate->Dispose();
