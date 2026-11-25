@@ -854,7 +854,7 @@ void Debug::Break(JavaScriptFrame* frame,
     }
     // If it's a debugger statement, add the reason and then mute the location
     // so we don't stop a second time.
-    bool is_debugger_statement = IsBreakOnDebuggerStatement(shared, location);
+    bool is_debugger_statement = location.IsDebuggerStatement();
     if (is_debugger_statement) {
       break_reasons.Add(debug::BreakReason::kDebuggerStatement);
     }
@@ -963,7 +963,7 @@ void Debug::Break(JavaScriptFrame* frame,
     // If it's a debugger statement, add the reason and then mute the location
     // so we don't stop a second time.
     debug::BreakReasons break_reasons;
-    bool is_debugger_statement = IsBreakOnDebuggerStatement(shared, location);
+    bool is_debugger_statement = location.IsDebuggerStatement();
     if (is_debugger_statement) {
       break_reasons.Add(debug::BreakReason::kDebuggerStatement);
     } else if (ContinueSteppingIfSkipped(lastStepAction)) {
@@ -1008,18 +1008,6 @@ bool Debug::IsBreakOnInstrumentation(Handle<DebugInfo> debug_info,
     }
   }
   return false;
-}
-
-bool Debug::IsBreakOnDebuggerStatement(
-    DirectHandle<SharedFunctionInfo> function, const BreakLocation& location) {
-  if (!function->HasBytecodeArray()) {
-    return false;
-  }
-  Tagged<BytecodeArray> original_bytecode =
-      function->GetBytecodeArray(isolate_);
-  interpreter::Bytecode bytecode = interpreter::Bytecodes::FromByte(
-      original_bytecode->get(location.code_offset()));
-  return bytecode == interpreter::Bytecode::kDebugger;
 }
 
 // Find break point objects for this location, if any, and evaluate them.

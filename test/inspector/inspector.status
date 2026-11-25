@@ -70,6 +70,7 @@
   'regress/regress-568338771': [PASS, ['not memory_corruption_api', SKIP]],
   'regress/regress-570558888': [PASS, ['not memory_corruption_api', SKIP]],
   'regress/regress-576575667': [PASS, ['not memory_corruption_api', SKIP]],
+  'regress/regress-590064409': [PASS, ['not memory_corruption_api', SKIP]],
   'regress/regress-api-function-with-user-script': [PASS, ['not memory_corruption_api', SKIP]],
   'regress/regress-crbug-568986689': [PASS, ['not memory_corruption_api', SKIP]],
 }],  # ALWAYS

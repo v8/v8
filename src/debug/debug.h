@@ -92,7 +92,6 @@ class BreakLocation {
 
   int generator_suspend_id() { return generator_suspend_id_; }
   int position() const { return position_; }
-  int code_offset() const { return code_offset_; }
 
   debug::BreakLocationType type() const;
 
@@ -605,8 +604,6 @@ class V8_EXPORT_PRIVATE Debug {
   void ActivateStepOut(StackFrame* frame);
   bool IsBreakOnInstrumentation(Handle<DebugInfo> debug_info,
                                 const BreakLocation& location);
-  bool IsBreakOnDebuggerStatement(DirectHandle<SharedFunctionInfo> function,
-                                  const BreakLocation& location);
   MaybeHandle<FixedArray> CheckBreakPoints(Handle<DebugInfo> debug_info,
                                            BreakLocation* location,
                                            bool* has_break_points);
