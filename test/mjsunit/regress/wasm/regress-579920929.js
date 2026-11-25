@@ -80,7 +80,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
           kExprI32Const, 1,
           kExprI32Add,
           kExprLocalTee, 1,
-          ...wasmI32Const(1000000),
+          ...wasmI32Const(100000000),
           kExprI32LtS,
           kExprBrIf, 0,
         kExprEnd,
