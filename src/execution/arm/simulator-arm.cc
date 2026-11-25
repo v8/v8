@@ -14,6 +14,7 @@
 #include <array>
 #include <bit>
 #include <cmath>
+#include <functional>
 
 #include "src/base/bits.h"
 #include "src/base/lazy-instance.h"
@@ -2084,6 +2085,28 @@ Float64 Simulator::canonicalizeNaN(Float64 value) {
   return FPSCR_default_NaN_mode_ && value.is_nan() ? kDefaultNaN : value;
 }
 
+namespace {
+
+// Computes a two-operand VFP arithmetic instruction the way the hardware does
+// with Default NaN mode off (see FPProcessNaNs and FPDefaultNaN in the ARM
+// Architecture Reference Manual). A signalling NaN operand takes precedence
+// over a quiet NaN and is made quiet. Otherwise the first quiet NaN operand is
+// returned. An invalid operation such as 0 / 0 returns the default NaN. The
+// host's own arithmetic differs from this, e.g. on x86 the first NaN operand
+// wins and invalid operations return a negative NaN.
+template <typename Boxed, typename Op>
+Boxed VFPBinop(Boxed n, Boxed m, Op op) {
+  if (n.is_nan() && !n.is_quiet_nan()) return n.to_quiet_nan();
+  if (m.is_nan() && !m.is_quiet_nan()) return m.to_quiet_nan();
+  if (n.is_nan()) return n;
+  if (m.is_nan()) return m;
+  auto result = op(n.get_scalar(), m.get_scalar());
+  if (std::isnan(result)) return Boxed::quiet_nan();
+  return Boxed::FromBits(base::bit_cast<decltype(n.get_bits())>(result));
+}
+
+}  // namespace
+
 // Stop helper functions.
 bool Simulator::isWatchedStop(uint32_t code) {
   DCHECK_LE(code, kMaxStopCode);
@@ -3406,48 +3429,42 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
       if (instr->Opc3Value() & 0x1) {
         // vsub
         if (instr->SzValue() == 0x1) {
-          double dn_value = get_double_from_d_register(vn).get_scalar();
-          double dm_value = get_double_from_d_register(vm).get_scalar();
-          double dd_value = dn_value - dm_value;
-          dd_value = canonicalizeNaN(dd_value);
-          set_d_register_from_double(vd, dd_value);
+          set_d_register_from_double(
+              vd, canonicalizeNaN(VFPBinop(get_double_from_d_register(vn),
+                                           get_double_from_d_register(vm),
+                                           std::minus<double>())));
         } else {
-          float sn_value = get_float_from_s_register(n).get_scalar();
-          float sm_value = get_float_from_s_register(m).get_scalar();
-          float sd_value = sn_value - sm_value;
-          sd_value = canonicalizeNaN(sd_value);
-          set_s_register_from_float(d, sd_value);
+          set_s_register_from_float(
+              d, canonicalizeNaN(VFPBinop(get_float_from_s_register(n),
+                                          get_float_from_s_register(m),
+                                          std::minus<float>())));
         }
       } else {
         // vadd
         if (instr->SzValue() == 0x1) {
-          double dn_value = get_double_from_d_register(vn).get_scalar();
-          double dm_value = get_double_from_d_register(vm).get_scalar();
-          double dd_value = dn_value + dm_value;
-          dd_value = canonicalizeNaN(dd_value);
-          set_d_register_from_double(vd, dd_value);
+          set_d_register_from_double(
+              vd, canonicalizeNaN(VFPBinop(get_double_from_d_register(vn),
+                                           get_double_from_d_register(vm),
+                                           std::plus<double>())));
         } else {
-          float sn_value = get_float_from_s_register(n).get_scalar();
-          float sm_value = get_float_from_s_register(m).get_scalar();
-          float sd_value = sn_value + sm_value;
-          sd_value = canonicalizeNaN(sd_value);
-          set_s_register_from_float(d, sd_value);
+          set_s_register_from_float(
+              d, canonicalizeNaN(VFPBinop(get_float_from_s_register(n),
+                                          get_float_from_s_register(m),
+                                          std::plus<float>())));
         }
       }
     } else if ((instr->Opc1Value() == 0x2) && !(instr->Opc3Value() & 0x1)) {
       // vmul
       if (instr->SzValue() == 0x1) {
-        double dn_value = get_double_from_d_register(vn).get_scalar();
-        double dm_value = get_double_from_d_register(vm).get_scalar();
-        double dd_value = dn_value * dm_value;
-        dd_value = canonicalizeNaN(dd_value);
-        set_d_register_from_double(vd, dd_value);
+        set_d_register_from_double(
+            vd, canonicalizeNaN(VFPBinop(get_double_from_d_register(vn),
+                                         get_double_from_d_register(vm),
+                                         std::multiplies<double>())));
       } else {
-        float sn_value = get_float_from_s_register(n).get_scalar();
-        float sm_value = get_float_from_s_register(m).get_scalar();
-        float sd_value = sn_value * sm_value;
-        sd_value = canonicalizeNaN(sd_value);
-        set_s_register_from_float(d, sd_value);
+        set_s_register_from_float(
+            d, canonicalizeNaN(VFPBinop(get_float_from_s_register(n),
+                                        get_float_from_s_register(m),
+                                        std::multiplies<float>())));
       }
     } else if ((instr->Opc1Value() == 0x0)) {
       // vmla, vmls
@@ -3484,19 +3501,17 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
     } else if ((instr->Opc1Value() == 0x4) && !(instr->Opc3Value() & 0x1)) {
       // vdiv
       if (instr->SzValue() == 0x1) {
-        double dn_value = get_double_from_d_register(vn).get_scalar();
-        double dm_value = get_double_from_d_register(vm).get_scalar();
-        double dd_value = base::Divide(dn_value, dm_value);
-        div_zero_vfp_flag_ = (dm_value == 0);
-        dd_value = canonicalizeNaN(dd_value);
-        set_d_register_from_double(vd, dd_value);
+        Float64 dm_value = get_double_from_d_register(vm);
+        div_zero_vfp_flag_ = (dm_value.get_scalar() == 0);
+        set_d_register_from_double(
+            vd, canonicalizeNaN(VFPBinop(get_double_from_d_register(vn),
+                                         dm_value, base::Divide<double>)));
       } else {
-        float sn_value = get_float_from_s_register(n).get_scalar();
-        float sm_value = get_float_from_s_register(m).get_scalar();
-        float sd_value = base::Divide(sn_value, sm_value);
-        div_zero_vfp_flag_ = (sm_value == 0);
-        sd_value = canonicalizeNaN(sd_value);
-        set_s_register_from_float(d, sd_value);
+        Float32 sm_value = get_float_from_s_register(m);
+        div_zero_vfp_flag_ = (sm_value.get_scalar() == 0);
+        set_s_register_from_float(
+            d, canonicalizeNaN(VFPBinop(get_float_from_s_register(n), sm_value,
+                                        base::Divide<float>)));
       }
     } else {
       UNIMPLEMENTED();  // Not used by V8.
