@@ -114,8 +114,8 @@ uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, uint32_t length) {
   DCHECK(TenToThe(String::kMaxCachedArrayIndexLength) <
          (1 << String::kArrayIndexValueBits));
 
-  value <<= String::ArrayIndexValueBits::kShift;
-  value |= length << String::ArrayIndexLengthBits::kShift;
+  value <<= Name::Hash::ArrayIndexValueBits::kShift;
+  value |= length << Name::Hash::ArrayIndexLengthBits::kShift;
 
   DCHECK(String::IsIntegerIndex(value));
   DCHECK_EQ(length <= String::kMaxCachedArrayIndexLength,
@@ -126,7 +126,7 @@ uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, uint32_t length) {
 uint32_t StringHasher::DecodeArrayIndexFromHashField(uint32_t raw_hash_field) {
   DCHECK(String::ContainsCachedArrayIndex(raw_hash_field) ||
          String::IsIntegerIndex(raw_hash_field));
-  return String::ArrayIndexValueBits::decode(raw_hash_field);
+  return Name::Hash::ArrayIndexValueBits::decode(raw_hash_field);
 }
 
 #ifdef V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
@@ -339,7 +339,7 @@ uint32_t StringHasher::HashSequentialString(
                 // setting a bit that looks like a longer-than-cacheable string
                 // length.
                 hash |= (String::kMaxCachedArrayIndexLength + 1)
-                        << String::ArrayIndexLengthBits::kShift;
+                        << Name::Hash::ArrayIndexLengthBits::kShift;
               }
               DCHECK(!Name::ContainsCachedArrayIndex(hash));
               return hash;

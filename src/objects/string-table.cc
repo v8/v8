@@ -779,9 +779,9 @@ Address StringTable::TryStringToIndexOrLookupExisting(Isolate* isolate,
   // Valid array indices are >= 0, so they cannot be mixed up with any of
   // the result sentinels, which are negative.
   static_assert(
-      !String::ArrayIndexValueBits::is_valid(ResultSentinel::kUnsupported));
+      !Name::Hash::ArrayIndexValueBits::is_valid(ResultSentinel::kUnsupported));
   static_assert(
-      !String::ArrayIndexValueBits::is_valid(ResultSentinel::kNotFound));
+      !Name::Hash::ArrayIndexValueBits::is_valid(ResultSentinel::kNotFound));
 
   size_t start = 0;
   Tagged<String> source = string;

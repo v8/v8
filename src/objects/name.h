@@ -212,8 +212,6 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
   // TODO(jgruber): Remove these aliases after migrating callers to Hash.
   using HashFieldTypeBits = Hash::HashFieldTypeBits;
   using HashBits = Hash::HashBits;
-  using ArrayIndexValueBits = Hash::ArrayIndexValueBits;
-  using ArrayIndexLengthBits = Hash::ArrayIndexLengthBits;
 
   static constexpr int kHashNotComputedMask = 1;
   // Value of empty hash field indicating that the hash is not computed.
@@ -240,7 +238,7 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
   static_assert(HashFieldTypeBits::encode(HashFieldType::kIntegerIndex) == 0);
   static const unsigned int kDoesNotContainCachedArrayIndexMask =
       (~static_cast<unsigned>(kMaxCachedArrayIndexLength)
-       << ArrayIndexLengthBits::kShift) |
+       << Hash::ArrayIndexLengthBits::kShift) |
       HashFieldTypeBits::kMask;
 
   // Returns a hash value used for the property table. Ensures that the hash
