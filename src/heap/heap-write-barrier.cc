@@ -201,7 +201,11 @@ void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
   Isolate* isolate = marking_barrier->heap()->isolate();
   const bool is_shared_external_pointer =
       IsSharedExternalPointerType(slot.tag_range());
-  if (is_shared_external_pointer) {
+  if (is_shared_external_pointer) [[unlikely]] {
+    if (!isolate->owns_shareable_data() &&
+        !HeapLayout::InWritableSharedSpace(host)) {
+      return;
+    }
     if (marking_barrier->is_not_major() &&
         !isolate->isolate_data()->is_shared_marking()) {
       return;

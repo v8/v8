@@ -227,6 +227,13 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitExternalPointer(
   ExternalPointerTable* table;
   ExternalPointerTable::Space* space;
   if (IsSharedExternalPointerType(slot.tag_range())) {
+    // Client isolates do not sweep `shared_external_pointer_space()`. Live
+    // client `ExternalString` entries are marked during the shared GC atomic
+    // pause via `external_string_table_` while client heaps are stopped.
+    if (!heap_->isolate()->owns_shareable_data()) {
+      DCHECK(!HeapLayout::InWritableSharedSpace(host));
+      return;
+    }
     table = shared_external_pointer_table_;
     space = shared_external_pointer_space_;
   } else {

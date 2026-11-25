@@ -3778,6 +3778,12 @@ class ExternalPointerSlotInvalidator final
   void VisitExternalPointer(Tagged<HeapObject> host,
                             ExternalPointerSlot slot) override {
     DCHECK_EQ(target_, host);
+    if (IsSharedExternalPointerType(slot.tag_range())) [[unlikely]] {
+      if (!isolate_->owns_shareable_data() &&
+          !HeapLayout::InWritableSharedSpace(host)) {
+        return;
+      }
+    }
     ExternalPointerTable::Space* space =
         IsolateForSandbox(isolate_).GetExternalPointerTableSpaceFor(
             slot.tag_range(), host.address());

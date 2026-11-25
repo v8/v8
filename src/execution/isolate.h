@@ -2402,7 +2402,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 #endif  // V8_ENABLE_DRUMBRAKE
 
-  bool owns_shareable_data() { return owns_shareable_data_; }
+  bool owns_shareable_data() const {
+    DCHECK_EQ(owns_shareable_data_, !isolate_data_.uses_shared_heap_flag_ ||
+                                        is_shared_space_isolate());
+    return owns_shareable_data_;
+  }
 
   bool log_object_relocation() const { return log_object_relocation_; }
 
