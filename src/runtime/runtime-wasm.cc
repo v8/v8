@@ -1409,31 +1409,19 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
 
 namespace {
 int GetWasmFrameCount(Isolate* isolate, Tagged<WasmSuspenderObject> suspender) {
+  Tagged<WasmSuspenderObject> parent = suspender->parent();
+  wasm::StackMemory* end_stack = parent->stack();
+  DCHECK_NOT_NULL(end_stack);
   int count = 0;
-  for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
+  for (StackFrameIterator it(isolate);
+       !it.done() && it.wasm_stack() != end_stack; it.Advance()) {
     StackFrame* frame = it.frame();
-#ifdef DEBUG
-    Tagged<WasmSuspenderObject> parent = suspender->parent();
-    wasm::StackMemory* end_stack = parent->stack();
-    DCHECK_NOT_NULL(end_stack);
-    bool suspender_contains_frame = false;
-    for (wasm::StackMemory* stack = isolate->isolate_data()->active_stack();
-         stack != end_stack; stack = stack->jmpbuf()->parent) {
-      if (stack->Contains(frame->fp())) {
-        suspender_contains_frame = true;
-        break;
-      }
-    }
-#endif
     if (frame->is_wasm()) {
       WasmFrame* wasm_frame = WasmFrame::cast(frame);
       count += wasm_frame->Summarize().size();
-      DCHECK(suspender_contains_frame);
-    } else if (frame->is_javascript()) {
-      // By construction, the first JS frame must be the JSPI entry point and is
-      // outside of the captured stack. Stop the count.
-      DCHECK(!suspender_contains_frame);
-      break;
+      DCHECK(it.wasm_stack()->Contains(frame->fp()));
+    } else {
+      DCHECK(!frame->is_javascript());
     }
   }
   return count;
