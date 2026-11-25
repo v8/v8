@@ -84,21 +84,22 @@ Sparkplug frames and Ignition interpreter frames share the exact same layout def
   +--------------------------------------------------+
   |  Saved Frame Pointer (caller FP)                 |  fp + 0
   +--------------------------------------------------+
-  |  Context (kContextOffset)                        |  fp - 8   (StandardFrameConstants)
-  |  JSFunction (kFunctionOffset)                    |  fp - 16
-  |  Actual Argument Count (kArgCOffset)             |  fp - 24
+  |  Frame Type Marker (StackFrame::JAVASCRIPT)      |  fp - 8   (StandardFrameConstants)
+  |  Context (kContextOffset)                        |  fp - 16
+  |  JSFunction (kFunctionOffset)                    |  fp - 24
+  |  Actual Argument Count (kArgCOffset)             |  fp - 32
   +--------------------------------------------------+
-  |  BytecodeArray (kBytecodeArrayFromFp)            |  fp - 32  (UnoptimizedFrameConstants)
-  |  BytecodeOffset OR FeedbackCell                  |  fp - 40  <-- THE ONLY DIFFERENCE
-  |  FeedbackVector (kFeedbackVectorFromFp)          |  fp - 48
+  |  BytecodeArray (kBytecodeArrayFromFp)            |  fp - 40  (UnoptimizedFrameConstants)
+  |  BytecodeOffset OR FeedbackCell                  |  fp - 48  <-- THE ONLY DIFFERENCE
+  |  FeedbackVector (kFeedbackVectorFromFp)          |  fp - 56
   +--------------------------------------------------+
-  |  Register 0 (r0)                                 |  fp - 56  (kRegisterFileFromFp)
-  |  Register 1 (r1)                                 |  fp - 64
+  |  Register 0 (r0)                                 |  fp - 64  (kRegisterFileFromFp)
+  |  Register 1 (r1)                                 |  fp - 72
   |  ...                                             |  ...
   +--------------------------------------------------+
 ```
 
-The **only structural difference** between `InterpreterFrameConstants` and `BaselineFrameConstants` is extra slot 1 (`kBytecodeOffsetOrFeedbackCellFromFp`, at `fp - 40` on 64-bit platforms):
+The **only structural difference** between `InterpreterFrameConstants` and `BaselineFrameConstants` is extra slot 1 (`kBytecodeOffsetOrFeedbackCellFromFp`, at `fp - 48` on 64-bit platforms):
 * In **Ignition** (`InterpreterFrameConstants::kBytecodeOffsetFromFp`), this slot stores the current bytecode offset as a Smi, updated as the interpreter steps through bytecode.
 * In **Sparkplug** (`BaselineFrameConstants::kFeedbackCellFromFp`), native execution tracks position via the hardware instruction pointer (`PC`), so storing a bytecode offset on the stack after every instruction would waste CPU cycles. Instead, Sparkplug repurposes this exact stack slot to cache the `JSFunction`'s **`FeedbackCell`** (used for tier-up budget interrupts and lazy feedback vector allocation).
 

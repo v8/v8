@@ -4333,12 +4333,9 @@ void CodeGenerator::AssembleConstructFrame() {
 
   // Link the frame
   if (call_descriptor->IsJSFunctionCall()) {
-    static_assert(StandardFrameConstants::kFixedFrameSize % 16 == 8);
-    DCHECK_EQ(required_slots % 2, 1);
+    static_assert(StandardFrameConstants::kFixedFrameSize % 16 == 0);
+    DCHECK_EQ(required_slots % 2, 0);
     __ Prologue();
-    // Update required_slots count since we have just claimed one extra slot.
-    static_assert(MacroAssembler::kExtraSlotClaimedByPrologue == 1);
-    required_slots -= MacroAssembler::kExtraSlotClaimedByPrologue;
 #if V8_ENABLE_WEBASSEMBLY
   } else if (call_descriptor->IsAnyWasmFunctionCall() ||
              call_descriptor->IsWasmCapiFunction() ||
@@ -4410,11 +4407,8 @@ void CodeGenerator::AssembleConstructFrame() {
 #endif  // V8_ENABLE_SANDBOX_BOOL
 
     DCHECK(call_descriptor->IsJSFunctionCall());
-    DCHECK_EQ(unoptimized_frame_slots % 2, 1);
-    // One unoptimized frame slot has already been claimed when the actual
-    // arguments count was pushed.
-    required_slots -=
-        unoptimized_frame_slots - MacroAssembler::kExtraSlotClaimedByPrologue;
+    DCHECK_EQ(unoptimized_frame_slots % 2, 0);
+    required_slots -= unoptimized_frame_slots;
   }
 
 #if V8_ENABLE_WEBASSEMBLY

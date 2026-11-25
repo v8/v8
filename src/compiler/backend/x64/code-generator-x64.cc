@@ -8682,9 +8682,8 @@ void CodeGenerator::AssembleConstructFrame() {
     }
 
     // rsp is only aligned here if the fixed frame header below rbp
-    // that the prologue pushed above has an even number of slots. That is the
-    // case for wasm frames,  but not for JS-to-wasm wrappers, which use the JS
-    // frame header. Push a padding slot for the calls below in that case.
+    // that the prologue pushed above has an even number of slots. Push a
+    // padding slot for the calls below if it is odd.
     const bool pad_for_stack_check_call =
         V8_X64_16BYTE_STACK_ALIGNMENT_BOOL &&
         (frame()->GetFixedSlotCount() -

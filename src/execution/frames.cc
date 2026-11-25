@@ -345,9 +345,10 @@ void StackFrameIteratorBase::SetNewFrame(StackFrame::Type type) {
 #undef FRAME_TYPE_CASE
 
     case StackFrame::NO_FRAME_TYPE:
-    // We don't expect to see NUMBER_OF_TYPES or MANUAL, but stay robust against
-    // them rather than being UNREACHABLE in case stack frame iteration gets
-    // wonky.
+    // We don't expect to see JAVASCRIPT, NUMBER_OF_TYPES or MANUAL, but stay
+    // robust against them rather than being UNREACHABLE in case stack frame
+    // iteration gets wonky.
+    case StackFrame::JAVASCRIPT:
     case StackFrame::NUMBER_OF_TYPES:
     case StackFrame::MANUAL:
       break;
@@ -458,16 +459,23 @@ std::optional<bool> IsInterpreterFramePc(Isolate* isolate, Address pc,
        builtin == Builtin::kInterpreterEnterAtNextBytecode)) {
     return true;
   } else if (isolate->interpreted_frames_native_stack()) {
-    intptr_t marker = Memory<intptr_t>(
-        state->fp + CommonFrameConstants::kContextOrFrameTypeOffset);
+    MSAN_MEMORY_IS_INITIALIZED(
+        state->fp + TypedFrameConstants::kFrameTypeOffset, kSystemPointerSize);
+    intptr_t marker =
+        Memory<intptr_t>(state->fp + TypedFrameConstants::kFrameTypeOffset);
+    // There's no need to run a full ContainsSlow if we know the frame can't be
+    // an InterpretedFrame, so we do these fast checks first. Check the marker
+    // before reading kFunctionOffset since non-JS frames may have fewer slots
+    // below fp.
+    if (marker != StackFrame::TypeToMarker(StackFrame::JAVASCRIPT)) {
+      return false;
+    }
     MSAN_MEMORY_IS_INITIALIZED(
         state->fp + StandardFrameConstants::kFunctionOffset,
         kSystemPointerSize);
     Tagged<Object> maybe_function = Tagged<Object>(
         Memory<Address>(state->fp + StandardFrameConstants::kFunctionOffset));
-    // There's no need to run a full ContainsSlow if we know the frame can't be
-    // an InterpretedFrame,  so we do these fast checks first
-    if (StackFrame::IsTypeMarker(marker) || IsSmi(maybe_function)) {
+    if (IsSmi(maybe_function)) {
       return false;
     } else if (!isolate->heap()->InSpaceSlow(pc, CODE_SPACE)) {
       return false;
@@ -559,15 +567,10 @@ StackFrameIteratorForProfiler::StackFrameIteratorForProfiler(
     state.pc_address = reinterpret_cast<Address*>(
         isolate->isolate_data()->fast_c_call_caller_pc_address());
 
-    // ComputeStackFrameType will read both kContextOffset and
-    // kFunctionOffset, we check only that kFunctionOffset is within the stack
-    // bounds and do a compile time check that kContextOffset slot is pushed on
-    // the stack before kFunctionOffset.
-    static_assert(StandardFrameConstants::kFunctionOffset <
-                  StandardFrameConstants::kContextOffset);
+    // ComputeStackFrameType validates kFrameTypeOffset (and kFunctionOffset if
+    // the frame is a JavaScript frame).
     if (IsValidFramePointer(state.fp) &&
-        IsValidStackAddress(state.fp +
-                            StandardFrameConstants::kFunctionOffset)) {
+        IsValidStackAddress(state.fp + TypedFrameConstants::kFrameTypeOffset)) {
       type = ComputeStackFrameType(&state);
       if (IsValidFrameType(type)) {
         top_frame_type_ = type;
@@ -601,7 +604,10 @@ StackFrameIteratorForProfiler::StackFrameIteratorForProfiler(
     // in a bytecode handler with elided frame. In that case, set the PC
     // properly and make sure we do not drop the frame.
     bool is_no_frame_bytecode_handler = false;
-    if (can_lookup_frame_type && IsNoFrameBytecodeHandlerPc(isolate, pc, fp)) {
+    if (can_lookup_frame_type &&
+        IsValidStackAddress(fp +
+                            InterpreterFrameConstants::kBytecodeOffsetFromFp) &&
+        IsNoFrameBytecodeHandlerPc(isolate, pc, fp)) {
       Address* top_location = nullptr;
       if (top_link_register_) {
         top_location = &top_link_register_;
@@ -625,25 +631,18 @@ StackFrameIteratorForProfiler::StackFrameIteratorForProfiler(
       }
     }
 
-    // ComputeStackFrameType will read both kContextOffset and
-    // kFunctionOffset, we check only that kFunctionOffset is within the stack
-    // bounds and do a compile time check that kContextOffset slot is pushed on
-    // the stack before kFunctionOffset.
-    static_assert(StandardFrameConstants::kFunctionOffset <
-                  StandardFrameConstants::kContextOffset);
-    Address function_slot = fp + StandardFrameConstants::kFunctionOffset;
+    // ComputeStackFrameType validates kFrameTypeOffset and (only when the
+    // marker is StackFrame::JAVASCRIPT) kFunctionOffset, so non-JS TypedFrames
+    // with 1-2 slots below fp are still classified accurately.
     if (!can_lookup_frame_type) {
       type = StackFrame::NO_FRAME_TYPE;
-    } else if (IsValidStackAddress(function_slot)) {
+    } else {
       if (is_no_frame_bytecode_handler) {
         type = StackFrame::INTERPRETED;
       } else {
         type = ComputeStackFrameType(&state);
       }
       top_frame_type_ = type;
-    } else {
-      // Cannot determine the actual type; the frame will be skipped below.
-      type = kTypeForAdvance;
     }
   } else {
     // Not iterable.
@@ -867,9 +866,13 @@ namespace {
 
 StackFrame::Type ComputeBuiltinFrameType(Tagged<GcSafeCode> code) {
   if (code->is_interpreter_trampoline_builtin() ||
-      code->is_baseline_trampoline_builtin()) {
-    // Frames for baseline entry trampolines on the stack are still interpreted
-    // frames.
+      code->is_baseline_trampoline_builtin() ||
+      code->builtin_id() == Builtin::kRestartFrameTrampoline) {
+    // Frames for baseline entry and restart-frame trampolines on the stack are
+    // still interpreted frames (RestartFrameTrampoline runs directly on the
+    // existing interpreted frame, reading kBytecodeArrayFromFp and leaving via
+    // LeaveFrame(INTERPRETED), e.g. if walked during CET shadow-stack
+    // adaptation).
     return StackFrame::INTERPRETED;
   } else if (code->is_baseline_leave_frame_builtin()) {
     return StackFrame::BASELINE;
@@ -921,8 +924,9 @@ StackFrame::Type SafeStackFrameType(StackFrame::Type candidate) {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     // Any other marker value is likely to be a bogus stack frame when being
-    // called from the profiler (in particular, JavaScript frames, including
-    // interpreted frames, should never have a StackFrame::Type marker).
+    // called from the profiler (in particular, JAVASCRIPT frames must be
+    // resolved via PC / CodeKind into a concrete JS tier, and concrete JS tier
+    // markers should never appear directly on the stack).
     // Consider these frames "native".
     // TODO(jgruber): For the StackFrameIterator, I'm not sure this fallback
     // makes sense. Shouldn't we know how to handle all frames we encounter
@@ -930,6 +934,7 @@ StackFrame::Type SafeStackFrameType(StackFrame::Type candidate) {
     case StackFrame::BASELINE:
     case StackFrame::BUILTIN:
     case StackFrame::INTERPRETED:
+    case StackFrame::JAVASCRIPT:
     case StackFrame::MAGLEV:
     case StackFrame::MANUAL:
     case StackFrame::NATIVE:
@@ -989,19 +994,19 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
       GetContainingCode(isolate(), pc);
   if (!lookup_result.has_value()) return StackFrame::NATIVE;
 
-  MSAN_MEMORY_IS_INITIALIZED(
-      state->fp + CommonFrameConstants::kContextOrFrameTypeOffset,
-      kSystemPointerSize);
-  const intptr_t marker = Memory<intptr_t>(
-      state->fp + CommonFrameConstants::kContextOrFrameTypeOffset);
+  MSAN_MEMORY_IS_INITIALIZED(state->fp + TypedFrameConstants::kFrameTypeOffset,
+                             kSystemPointerSize);
+  const intptr_t marker =
+      Memory<intptr_t>(state->fp + TypedFrameConstants::kFrameTypeOffset);
   switch (lookup_result.value()->kind()) {
     case CodeKind::BUILTIN:
     case CodeKind::FOR_TESTING:
     case CodeKind::FOR_TESTING_JS: {
-      if (StackFrame::IsTypeMarker(marker)) {
+      if (marker != StackFrame::TypeToMarker(StackFrame::JAVASCRIPT)) {
         // An INTERNAL frame can be set up with an associated interpreter or
         // baseline entry trampoline code object when calling into runtime to
         // handle tiering or stack checks.
+        DCHECK(StackFrame::IsTypeMarker(marker));
         DCHECK_IMPLIES(
             lookup_result.value()->is_interpreter_trampoline_builtin() ||
                 lookup_result.value()->is_baseline_trampoline_builtin(),
@@ -1012,24 +1017,17 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
       return ComputeBuiltinFrameType(lookup_result.value());
     }
     case CodeKind::BASELINE:
-      DCHECK(!StackFrame::IsTypeMarker(marker));
+      CHECK_EQ(marker, StackFrame::TypeToMarker(StackFrame::JAVASCRIPT));
       // Baseline code can be deoptimized by DiscardBaselineCodeVisitor.
       if (lookup_result.value()->marked_for_deoptimization()) {
         return StackFrame::INTERPRETED;
       }
       return StackFrame::BASELINE;
     case CodeKind::MAGLEV:
-      if (StackFrame::IsTypeMarker(marker)) {
-        // An INTERNAL frame can be set up with an associated Maglev code
-        // object when calling into runtime to handle tiering. In this case,
-        // all stack slots are tagged pointers and should be visited through
-        // the usual logic.
-        DCHECK_EQ(StackFrame::MarkerToType(marker), StackFrame::INTERNAL);
-        return StackFrame::INTERNAL;
-      }
+      CHECK_EQ(marker, StackFrame::TypeToMarker(StackFrame::JAVASCRIPT));
       return StackFrame::MAGLEV;
     case CodeKind::TURBOFAN_JS:
-      DCHECK(!StackFrame::IsTypeMarker(marker));
+      CHECK_EQ(marker, StackFrame::TypeToMarker(StackFrame::JAVASCRIPT));
       return StackFrame::TURBOFAN_JS;
 #if V8_ENABLE_WEBASSEMBLY
     case CodeKind::JS_TO_WASM_FUNCTION:
@@ -1044,6 +1042,7 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
         return StackFrame::JS_TO_WASM;
       }
 #endif  // V8_ENABLE_DRUMBRAKE
+      CHECK_EQ(marker, StackFrame::TypeToMarker(StackFrame::JAVASCRIPT));
       return StackFrame::TURBOFAN_STUB_WITH_CONTEXT;
     case CodeKind::C_WASM_ENTRY:
       return StackFrame::C_WASM_ENTRY;
@@ -1093,19 +1092,27 @@ StackFrame::Type StackFrameIteratorForProfiler::ComputeStackFrameType(
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  MSAN_MEMORY_IS_INITIALIZED(
-      state->fp + CommonFrameConstants::kContextOrFrameTypeOffset,
-      kSystemPointerSize);
-  const intptr_t marker = Memory<intptr_t>(
-      state->fp + CommonFrameConstants::kContextOrFrameTypeOffset);
-  if (StackFrame::IsTypeMarker(marker)) {
-    return SafeStackFrameType(StackFrame::MarkerToType(marker));
+  Address frame_type_addr = state->fp + TypedFrameConstants::kFrameTypeOffset;
+  if (!IsValidStackAddress(frame_type_addr)) {
+    return StackFrame::NATIVE;
+  }
+  MSAN_MEMORY_IS_INITIALIZED(frame_type_addr, kSystemPointerSize);
+  const intptr_t marker = Memory<intptr_t>(frame_type_addr);
+  if (!StackFrame::IsTypeMarker(marker)) {
+    return StackFrame::NATIVE;
+  }
+  const StackFrame::Type marker_type = StackFrame::MarkerToType(marker);
+  if (marker_type != StackFrame::JAVASCRIPT) {
+    return SafeStackFrameType(marker_type);
   }
 
-  MSAN_MEMORY_IS_INITIALIZED(
-      state->fp + StandardFrameConstants::kFunctionOffset, kSystemPointerSize);
-  Tagged<Object> maybe_function = Tagged<Object>(
-      Memory<Address>(state->fp + StandardFrameConstants::kFunctionOffset));
+  Address function_addr = state->fp + StandardFrameConstants::kFunctionOffset;
+  if (!IsValidStackAddress(function_addr)) {
+    return StackFrame::NATIVE;
+  }
+  MSAN_MEMORY_IS_INITIALIZED(function_addr, kSystemPointerSize);
+  Tagged<Object> maybe_function =
+      Tagged<Object>(Memory<Address>(function_addr));
   if (IsSmi(maybe_function)) {
     return StackFrame::NATIVE;
   }
@@ -1922,10 +1929,10 @@ void WasmFrame::Iterate(RootVisitor* v) const {
   int spill_slot_space =
       wasm_code->stack_slots() * kSystemPointerSize -
       (frame_header_size + StandardFrameConstants::kFixedFrameSizeAboveFp);
-  // Fixed frame slots.
+  // Fixed frame slots (excluding the frame type marker).
   FullObjectSlot frame_header_base(&Memory<Address>(fp() - frame_header_size));
   FullObjectSlot frame_header_limit(
-      &Memory<Address>(fp() - StandardFrameConstants::kCPSlotSize));
+      &Memory<Address>(fp() + WasmFrameConstants::kWasmInstanceDataOffset) + 1);
 
   // Visit parameters passed to the callee.
   // Frame layout without stack switching (stack grows upwards):
@@ -2193,8 +2200,6 @@ void TypedFrame::Iterate(RootVisitor* v) const {
 
   // Fixed frame slots.
   FullObjectSlot frame_header_base(&Memory<Address>(fp() - frame_header_size));
-  FullObjectSlot frame_header_limit(
-      &Memory<Address>(fp() - StandardFrameConstants::kCPSlotSize));
   FullObjectSlot spill_slots_end(frame_header_base.address() -
                                  spill_slots_size);
 
@@ -2256,9 +2261,8 @@ void TypedFrame::Iterate(RootVisitor* v) const {
   VisitSpillSlots(isolate(), v, spill_slots_end,
                   safepoint_entry.tagged_slots());
 
-  // Visit fixed header region.
-  v->VisitRootPointers(Root::kStackRoots, nullptr, frame_header_base,
-                       frame_header_limit);
+  // The fixed header only contains the frame type marker, which does not need
+  // to be visited.
 
   // Visit the return address in the callee and incoming arguments.
   IteratePc(v, constant_pool_address(), code);
@@ -2294,7 +2298,9 @@ void MaglevFrame::Iterate(RootVisitor* v) const {
   //  |   JSFunction    |                                |
   //  |- - - - - - - - -|                                |
   //  |    Context      |                                |
-  //  |- - - - - - - - -|                          kFixedSlotCount
+  //  |- - - - - - - - -|                                |
+  //  |   Type Marker   |  <-- frame_header_limit   kFixedSlotCount
+  //  |- - - - - - - - -|                                |
   //  | [Constant Pool] |                                |
   //  |- - - - - - - - -|                                |
   //  | saved frame ptr |  <-- fp                        |
@@ -2313,17 +2319,17 @@ void MaglevFrame::Iterate(RootVisitor* v) const {
       GetMaglevSafepointEntryFromCodeCache(isolate(), inner_pointer, entry);
 
 #ifdef DEBUG
-  // Assert that it is a JS frame and it has a context.
+  // Assert that it has the shared JS frame marker.
   intptr_t marker =
-      Memory<intptr_t>(fp() + CommonFrameConstants::kContextOrFrameTypeOffset);
-  DCHECK(!StackFrame::IsTypeMarker(marker));
+      Memory<intptr_t>(fp() + TypedFrameConstants::kFrameTypeOffset);
+  DCHECK_EQ(marker, StackFrame::TypeToMarker(StackFrame::JAVASCRIPT));
 #endif  // DEBUG
 
   // Fixed frame slots.
   FullObjectSlot frame_header_base(
       &Memory<Address>(fp() - StandardFrameConstants::kFixedFrameSizeFromFp));
   FullObjectSlot frame_header_limit(
-      &Memory<Address>(fp() - StandardFrameConstants::kCPSlotSize));
+      &Memory<Address>(fp() + StandardFrameConstants::kLastObjectOffset) + 1);
 
   // Determine spill slot area count.
   uint32_t tagged_slot_count = maglev_safepoint_entry.num_tagged_slots();
@@ -2454,7 +2460,9 @@ void CommonFrame::IterateTurbofanJSOptimizedFrame(RootVisitor* v) const {
   //  |   JSFunction    |                                |
   //  |- - - - - - - - -|                                |
   //  |    Context      |                                |
-  //  |- - - - - - - - -|                           kFixedSlotCount
+  //  |- - - - - - - - -|                                |
+  //  |   Type Marker   |  <-- frame_header_limit   kFixedSlotCount
+  //  |- - - - - - - - -|                                |
   //  | [Constant Pool] |                                |
   //  |- - - - - - - - -|                                |
   //  | saved frame ptr |  <-- fp                        |
@@ -2473,10 +2481,10 @@ void CommonFrame::IterateTurbofanJSOptimizedFrame(RootVisitor* v) const {
       GetSafepointEntryFromCodeCache(isolate(), inner_pointer, entry);
 
 #ifdef DEBUG
-  // Assert that it is a JS frame and it has a context.
+  // Assert that it has the shared JS frame marker.
   intptr_t marker =
-      Memory<intptr_t>(fp() + CommonFrameConstants::kContextOrFrameTypeOffset);
-  DCHECK(!StackFrame::IsTypeMarker(marker));
+      Memory<intptr_t>(fp() + TypedFrameConstants::kFrameTypeOffset);
+  DCHECK_EQ(marker, StackFrame::TypeToMarker(StackFrame::JAVASCRIPT));
 #endif  // DEBUG
 
   // Determine the fixed header and spill slot area size.
@@ -2487,7 +2495,7 @@ void CommonFrame::IterateTurbofanJSOptimizedFrame(RootVisitor* v) const {
   // Fixed frame slots.
   FullObjectSlot frame_header_base(&Memory<Address>(fp() - frame_header_size));
   FullObjectSlot frame_header_limit(
-      &Memory<Address>(fp() - StandardFrameConstants::kCPSlotSize));
+      &Memory<Address>(fp() + StandardFrameConstants::kLastObjectOffset) + 1);
 
   FullObjectSlot parameters_limit = frame_header_base - spill_slot_count;
 
@@ -3705,9 +3713,22 @@ Tagged<JSFunction> BuiltinFrame::function() const {
 
 uint32_t BuiltinFrame::ComputeParametersCount() const {
   const int offset = BuiltinFrameConstants::kLengthOffset;
-  uint32_t argc = Smi::ToUInt(Tagged<Object>(Memory<Address>(fp() + offset)));
+  intptr_t argc = Memory<intptr_t>(fp() + offset);
   DCHECK_GE(argc, kJSArgcReceiverSlots);
-  return argc - kJSArgcReceiverSlots;
+  return static_cast<uint32_t>(argc - kJSArgcReceiverSlots);
+}
+
+void BuiltinFrame::Iterate(RootVisitor* v) const {
+  // BuiltinFrame overlays a JS StandardFrame and contains the untagged actual
+  // argument count (intptr) at kLengthOffset that should not be visited.
+  FullObjectSlot argc(
+      &Memory<Address>(fp() + BuiltinFrameConstants::kLengthOffset));
+  const int last_object_offset = BuiltinFrameConstants::kLastObjectOffset;
+  FullObjectSlot base(&Memory<Address>(sp()));
+  FullObjectSlot limit(&Memory<Address>(fp() + last_object_offset) + 1);
+  v->VisitRootPointers(Root::kStackRoots, nullptr, base, argc);
+  v->VisitRootPointers(Root::kStackRoots, nullptr, argc + 1, limit);
+  IteratePc(v, constant_pool_address(), GcSafeLookupCode());
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -4378,16 +4399,21 @@ void EntryFrame::Iterate(RootVisitor* v) const {
 }
 
 void CommonFrame::IterateExpressions(RootVisitor* v) const {
+  static_assert(StandardFrameConstants::kLastObjectOffset ==
+                TYPED_FRAME_PUSHED_VALUE_OFFSET(0));
   const int last_object_offset = StandardFrameConstants::kLastObjectOffset;
   intptr_t marker =
-      Memory<intptr_t>(fp() + CommonFrameConstants::kContextOrFrameTypeOffset);
+      Memory<intptr_t>(fp() + TypedFrameConstants::kFrameTypeOffset);
   FullObjectSlot base(&Memory<Address>(sp()));
   FullObjectSlot limit(&Memory<Address>(fp() + last_object_offset) + 1);
   CHECK(StackFrame::IsTypeMarker(marker));
+  CHECK_NE(marker, StackFrame::TypeToMarker(StackFrame::JAVASCRIPT));
   v->VisitRootPointers(Root::kStackRoots, nullptr, base, limit);
 }
 
 void JavaScriptFrame::Iterate(RootVisitor* v) const {
+  DCHECK_EQ(Memory<intptr_t>(fp() + TypedFrameConstants::kFrameTypeOffset),
+            StackFrame::TypeToMarker(StackFrame::JAVASCRIPT));
   // The frame contains the actual argument count (intptr) that should not be
   // visited.
   FullObjectSlot argc(

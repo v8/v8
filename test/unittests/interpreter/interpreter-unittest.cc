@@ -4956,9 +4956,13 @@ TEST_F(InterpreterTest, UnoptimizedFrameSlotAlignment) {
 #else
         constexpr bool kAlignRegisterSlots = false;
 #endif
-        int expected_register_slots = kAlignRegisterSlots
-                                          ? RoundUp(expected_register_count, 2)
-                                          : expected_register_count;
+        int expected_register_slots =
+            kAlignRegisterSlots
+                ? RoundUp(InterpreterFrameConstants::kFixedSlotCountFromFp +
+                              expected_register_count,
+                          2) -
+                      InterpreterFrameConstants::kFixedSlotCountFromFp
+                : expected_register_count;
         CHECK_EQ(fixed_and_register_slots_below_fp,
                  InterpreterFrameConstants::kFixedSlotCountFromFp +
                      expected_register_slots);
@@ -4968,7 +4972,7 @@ TEST_F(InterpreterTest, UnoptimizedFrameSlotAlignment) {
                        2,
                    0);
           CHECK_EQ(fixed_and_register_slots_below_fp % 2, 0);
-          if (expected_register_count % 2 == 1) {
+          if (expected_register_slots > expected_register_count) {
             // Verify the register-file padding slot is initialized to
             // undefined.
             Address padding_addr =

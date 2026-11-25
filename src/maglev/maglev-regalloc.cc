@@ -246,8 +246,8 @@ StraightForwardRegisterAllocator::StraightForwardRegisterAllocator(
 #if defined(V8_TARGET_ARCH_ARM64) || V8_X64_16BYTE_STACK_ALIGNMENT_BOOL
   // Due to alignment constraints, we add one untagged slot if
   // stack_slots + fixed_slot_count is odd.
-  static_assert(StandardFrameConstants::kFixedSlotCount % 2 == 1);
-  if ((tagged_stack_slots + untagged_stack_slots) % 2 == 0) {
+  static_assert(StandardFrameConstants::kFixedSlotCount % 2 == 0);
+  if ((tagged_stack_slots + untagged_stack_slots) % 2 == 1) {
     untagged_stack_slots++;
   }
 #endif

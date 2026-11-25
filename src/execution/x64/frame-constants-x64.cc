@@ -18,8 +18,9 @@ Register JavaScriptFrame::context_register() { return rsi; }
 Register JavaScriptFrame::constant_pool_pointer_register() { UNREACHABLE(); }
 
 int UnoptimizedFrameConstants::RegisterStackSlotCount(int register_count) {
-  return V8_X64_16BYTE_STACK_ALIGNMENT_BOOL ? RoundUp(register_count, 2)
-                                            : register_count;
+  return V8_X64_16BYTE_STACK_ALIGNMENT_BOOL
+             ? (RoundUp(kFixedSlotCount + register_count, 2) - kFixedSlotCount)
+             : register_count;
 }
 
 int BuiltinContinuationFrameConstants::PaddingSlotCount(int register_count) {

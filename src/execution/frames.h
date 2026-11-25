@@ -24,6 +24,12 @@
 #include "src/wasm/wasm-code-manager.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+// TODO(victorgomes): Now that StandardFrames also store an explicit frame type
+// marker (StackFrame::JAVASCRIPT) at kFrameTypeOffset, unify CommonFrame /
+// TypedFrame / TypedFrameWithJSLinkage (moving NativeFrame out from under
+// TypedFrame), fold TypedFrameConstants into CommonFrameConstants (renaming
+// kContextOrFrameTypeOffset -> kFrameTypeOffset), and drop ContextOrFrameType
+// in frames.tq once all architecture ports have migrated.
 //
 // Frame inheritance hierarchy (please keep in sync with frame-constants.h):
 // - CommonFrame
@@ -160,7 +166,16 @@ class StackFrame {
 #define DECLARE_TYPE(type, ignore) type,
   enum Type {
     NO_FRAME_TYPE = 0,
-    STACK_FRAME_TYPE_LIST(DECLARE_TYPE) NUMBER_OF_TYPES,
+    STACK_FRAME_TYPE_LIST(DECLARE_TYPE)
+    // Shared frame type marker stored at
+    // [fp + TypedFrameConstants::kFrameTypeOffset] for all JavaScript frames
+    // (INTERPRETED, BASELINE, MAGLEV, TURBOFAN_JS, and JS-linkage builtins).
+    // ComputeStackFrameType determines the specific JS tier from PC / CodeKind
+    // so in-place OSR and DiscardBaselineCodeVisitor never need to update the
+    // marker slot. This is only an on-stack marker, never a resolved frame
+    // type, so IsJavaScript(JAVASCRIPT) is intentionally false.
+    JAVASCRIPT,
+    NUMBER_OF_TYPES,
     // Used by FrameScope to indicate that the stack frame is constructed
     // manually and the FrameScope does not need to emit code.
     MANUAL
@@ -295,7 +310,7 @@ class StackFrame {
   bool is_api_construct_exit() const { return type() == API_CONSTRUCT_EXIT; }
   bool is_irregexp() const { return type() == IRREGEXP; }
 
-  static bool IsJavaScript(Type t) {
+  static constexpr bool IsJavaScript(Type t) {
     static_assert(INTERPRETED + 1 == BASELINE);
     static_assert(BASELINE + 1 == MAGLEV);
     static_assert(MAGLEV + 1 == TURBOFAN_JS);
@@ -420,6 +435,7 @@ class StackFrame {
   friend class StackHandlerIterator;
   friend class StackFrameIteratorForProfiler;
 };
+static_assert(!StackFrame::IsJavaScript(StackFrame::JAVASCRIPT));
 
 class CommonFrame;
 
@@ -695,8 +711,9 @@ class CommonFrame : public StackFrame {
   virtual Address GetExpressionAddress(int n) const;
 };
 
-// This frame is used for TF-optimized code without JS linkage, but
-// contains the context instead of a type marker.
+// This frame is used for TF-optimized JS-to-Wasm wrapper code that uses
+// JS-style StandardFrame layout (with the JAVASCRIPT frame type marker and
+// context slot).
 class TurbofanStubWithContextFrame : public CommonFrame {
  public:
   Type type() const override { return TURBOFAN_STUB_WITH_CONTEXT; }
@@ -1377,6 +1394,7 @@ class BuiltinFrame final : public TypedFrameWithJSLinkage {
 
   Tagged<JSFunction> function() const override;
   uint32_t ComputeParametersCount() const override;
+  void Iterate(RootVisitor* v) const override;
 
  protected:
   inline explicit BuiltinFrame(StackFrameIteratorBase* iterator);

@@ -1731,9 +1731,9 @@ TEST_F(CodeGeneratorTest, TurboFanFrameSlotAlignment) {
   Isolate* isolate = env.main_isolate();
   Linkage linkage(env.test_descriptor());
 
-  // Test both odd fixed headers (JSFunction = 5 slots, Stub = 3 slots)
-  // and even fixed headers (CFunction = 2 slots, Wasm = 4 slots).
-  for (int fixed_slots : {2, 3, 4, 5}) {
+  // Test both odd fixed headers (Stub = 3 slots) and even fixed headers
+  // (CFunction = 2 slots, Wasm = 4 slots, JSFunction = 6 slots).
+  for (int fixed_slots : {2, 3, 4, 5, 6}) {
     for (int spill_slots : {0, 1, 2, 3, 4}) {
       for (int return_slots : {0, 1, 2, 3}) {
         Zone local_zone(isolate->allocator(), ZONE_NAME);

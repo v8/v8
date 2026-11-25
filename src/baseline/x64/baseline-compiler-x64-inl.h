@@ -85,7 +85,8 @@ void BaselineCompiler::PrologueFillFrame() {
     __ masm()->j(greater, &loop);
   }
   if (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL &&
-      (bytecode_->register_count() & 1) != 0) {
+      (bytecode_->register_count() & 1) == 0) {
+    static_assert(InterpreterFrameConstants::kFixedSlotCountFromFp % 2 == 1);
     __ PushUnpadded(kInterpreterAccumulatorRegister);
   }
 }

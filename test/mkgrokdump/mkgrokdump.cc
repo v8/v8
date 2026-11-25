@@ -224,6 +224,7 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
 #define DUMP_MARKER(T, class) i::PrintF(out, "  \"%s\",\n", #T);
     i::PrintF(out, "FRAME_MARKERS = (\n");
     STACK_FRAME_TYPE_LIST(DUMP_MARKER)
+    i::PrintF(out, "  \"JAVASCRIPT\",\n");
     i::PrintF(out, ")\n");
 #undef DUMP_MARKER
   }

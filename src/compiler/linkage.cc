@@ -819,20 +819,20 @@ bool Linkage::ParameterHasSecondaryLocation(int index) const {
 }
 
 LinkageLocation Linkage::GetParameterSecondaryLocation(int index) const {
-  // TODO(titzer): these constants are necessary due to offset/slot# mismatch
-  static const int kJSContextSlot = 2 + StandardFrameConstants::kCPSlotCount;
-  static const int kJSFunctionSlot = 3 + StandardFrameConstants::kCPSlotCount;
-
   DCHECK(ParameterHasSecondaryLocation(index));
   LinkageLocation loc = GetParameterLocation(index);
 
   // TODO(titzer): this should be configurable, not call-type specific.
   if (incoming_->IsJSFunctionCall()) {
     if (IsTaggedReg(loc, kJSFunctionRegister)) {
+      static constexpr int kJSFunctionSlot =
+          FPOffsetToFrameSlot(StandardFrameConstants::kFunctionOffset);
       return LinkageLocation::ForCalleeFrameSlot(kJSFunctionSlot,
                                                  MachineType::AnyTagged());
     } else {
       DCHECK(IsTaggedReg(loc, kContextRegister));
+      static constexpr int kJSContextSlot =
+          FPOffsetToFrameSlot(StandardFrameConstants::kContextOffset);
       return LinkageLocation::ForCalleeFrameSlot(kJSContextSlot,
                                                  MachineType::AnyTagged());
     }

@@ -933,6 +933,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ push(ebp);  // Caller's frame pointer.
   __ mov(ebp, esp);
+  __ Push(Immediate(StackFrame::TypeToMarker(StackFrame::JAVASCRIPT)));
   __ push(kContextRegister);               // Callee's context.
   __ push(kJavaScriptCallTargetRegister);  // Callee's JS function.
   __ movd(kJavaScriptCallArgCountRegister, xmm0);
@@ -5117,11 +5118,12 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   // Allocate a new deoptimizer object.
   __ PrepareCallCFunction(5, eax);
   __ mov(eax, Immediate(0));
-  Label context_check;
-  __ mov(edi, Operand(ebp, CommonFrameConstants::kContextOrFrameTypeOffset));
-  __ JumpIfSmi(edi, &context_check);
+  Label frame_type_check;
+  __ cmp(Operand(ebp, TypedFrameConstants::kFrameTypeOffset),
+         Immediate(StackFrame::TypeToMarker(StackFrame::JAVASCRIPT)));
+  __ j(not_equal, &frame_type_check, Label::kNear);
   __ mov(eax, Operand(ebp, StandardFrameConstants::kFunctionOffset));
-  __ bind(&context_check);
+  __ bind(&frame_type_check);
   __ mov(Operand(esp, 0 * kSystemPointerSize), eax);  // Function.
   __ mov(Operand(esp, 1 * kSystemPointerSize),
          Immediate(static_cast<int>(deopt_kind)));

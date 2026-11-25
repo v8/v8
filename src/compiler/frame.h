@@ -41,8 +41,8 @@ class CallDescriptor;
 //   the stack frame of a callee to store to.
 //
 // The frame region immediately below the fixed header contains spill slots
-// starting at slot 4 for JSFunctions.  The callee-saved frame region below that
-// starts at 4+spill_slot_count_.  Callee stack slots correspond to
+// starting at slot 6 for JSFunctions.  The callee-saved frame region below that
+// starts at 6+spill_slot_count_.  Callee stack slots correspond to
 // parameters that are accessible through negative slot ids.
 //
 // Every slot of a caller or callee frame is accessible by the register
@@ -65,23 +65,27 @@ class CallDescriptor;
 //       |- - - - - - - - -|   |                        |
 //   1   | saved frame ptr | Fixed                      |
 //       |- - - - - - - - -| Header <-- frame ptr       |
-//   2   |Context/Frm. Type|   |                        |
+//   2   |Frame Type Marker|   |                        |
 //       |- - - - - - - - -|   |                        |
-//   3   |   [JSFunction]  |   v                        |
+//   3   |     Context     |   |                        |
+//       |- - - - - - - - -|   |                        |
+//   4   |   [JSFunction]  |   |                        |
+//       |- - - - - - - - -|   |                        |
+//   5   |      argc       |   v                        |
 //       +-----------------+----                        |
-//   4   |    spill 1      |   ^                      Callee
+//   6   |    spill 1      |   ^                      Callee
 //       |- - - - - - - - -|   |                   frame slots
 //  ...  |      ...        | Spill slots           (slot >= 0)
 //       |- - - - - - - - -|   |                        |
-//  m+3  |    spill m      |   v                        |
+//  m+5  |    spill m      |   v                        |
 //       +-----------------+----                        |
-//  m+4  |  callee-saved 1 |   ^                        |
+//  m+6  |  callee-saved 1 |   ^                        |
 //       |- - - - - - - - -|   |                        |
 //       |      ...        | Callee-saved               |
 //       |- - - - - - - - -|   |                        |
-// m+r+3 |  callee-saved r |   v                        |
+// m+r+5 |  callee-saved r |   v                        |
 //       +-----------------+----                        |
-// m+r+4 |    return 0     |   ^                        |
+// m+r+6 |    return 0     |   ^                        |
 //       |- - - - - - - - -|   |                        |
 //       |      ...        | Return                     |
 //       |- - - - - - - - -|   |                        |
