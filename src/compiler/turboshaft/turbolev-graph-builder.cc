@@ -5456,6 +5456,18 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
+  template <
+      Either<maglev::CheckedFloat64ToIndex, maglev::CheckedHoleyFloat64ToIndex>
+          T>
+  maglev::ProcessResult Process(T* node, const maglev::ProcessingState& state) {
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
+    SetMap(node, __ ChangeFloat64ToInt32OrDeopt(
+                     Map(node->ValueInput()), frame_state,
+                     CheckForMinusZeroMode::kDontCheckForMinusZero,
+                     node->eager_deopt_info()->feedback_to_update()));
+    return maglev::ProcessResult::kContinue;
+  }
+
   template <Either<maglev::CheckedFloat64ToUint32,
                    maglev::CheckedHoleyFloat64ToUint32>
                 T>

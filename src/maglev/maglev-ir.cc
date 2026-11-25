@@ -7126,6 +7126,32 @@ void CheckedFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
       __ GetDeoptLabel(this, DeoptimizeReason::kNotInt32));
 }
 
+void CheckedFloat64ToIndex::SetValueLocationConstraints() {
+  UseRegister(ValueInput());
+  DefineAsRegister(this);
+}
+void CheckedFloat64ToIndex::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  Label done;
+  __ TryChangeFloat64ToIndex(
+      ToRegister(result()), ToDoubleRegister(ValueInput()), &done,
+      __ GetDeoptLabel(this, DeoptimizeReason::kNotInt32));
+  __ bind(&done);
+}
+
+void CheckedHoleyFloat64ToIndex::SetValueLocationConstraints() {
+  UseRegister(ValueInput());
+  DefineAsRegister(this);
+}
+void CheckedHoleyFloat64ToIndex::GenerateCode(MaglevAssembler* masm,
+                                              const ProcessingState& state) {
+  Label done;
+  __ TryChangeFloat64ToIndex(
+      ToRegister(result()), ToDoubleRegister(ValueInput()), &done,
+      __ GetDeoptLabel(this, DeoptimizeReason::kNotInt32));
+  __ bind(&done);
+}
+
 void CheckedFloat64ToUint32::SetValueLocationConstraints() {
   UseRegister(ValueInput());
   DefineAsRegister(this);

@@ -2498,6 +2498,14 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedInternalizedString(
 
 ProcessResult MaglevGraphOptimizer::VisitCheckedObjectToIndex(
     CheckedObjectToIndex* node, const ProcessingState& state) {
+  // A Float64 index converts without a -0 check, unlike a generic Int32 use.
+  ValueNode* input = node->input_node(0)->UnwrapIdentitiesAndReturnedValues();
+  if (input->is_tagged() && input->is_conversion()) {
+    input = input->input_node(0)->UnwrapIdentitiesAndReturnedValues();
+  }
+  if (!input->is_tagged()) {
+    REPLACE_AND_RETURN_IF_DONE(reducer_.GetInt32ElementIndex(input));
+  }
   REPLACE_AND_RETURN_IF_DONE(GetUntaggedValueWithRepresentation(
       node->input_node(0), UseRepresentation::kInt32, {}));
   return ProcessResult::kContinue;
@@ -2583,6 +2591,18 @@ ProcessResult MaglevGraphOptimizer::VisitChangeIntPtrToFloat64(
 
 ProcessResult MaglevGraphOptimizer::VisitCheckedFloat64ToInt32(
     CheckedFloat64ToInt32* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitCheckedFloat64ToIndex(
+    CheckedFloat64ToIndex* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitCheckedHoleyFloat64ToIndex(
+    CheckedHoleyFloat64ToIndex* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }

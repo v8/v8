@@ -5308,9 +5308,19 @@ ReduceResult MaglevReducer<BaseT>::GetInt32ElementIndex(ValueNode* object) {
       // Already good.
       return object;
     case ValueRepresentation::kUint32:
-    case ValueRepresentation::kFloat64:
-    case ValueRepresentation::kHoleyFloat64:
       return GetInt32(object);
+    case ValueRepresentation::kFloat64:
+    case ValueRepresentation::kHoleyFloat64: {
+      if (ValueNode* int32_value = TryGetInt32(object)) {
+        return int32_value;
+      }
+      // Element indices treat -0 like +0, so the -0 check of GetInt32 is not
+      // needed.
+      if (object->is_float64()) {
+        return AddNewNodeNoInputConversion<CheckedFloat64ToIndex>({object});
+      }
+      return AddNewNodeNoInputConversion<CheckedHoleyFloat64ToIndex>({object});
+    }
     case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
       UNREACHABLE();

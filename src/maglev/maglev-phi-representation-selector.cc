@@ -1273,6 +1273,15 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
     }
   }
 
+  if (old_untagging->Is<CheckedObjectToIndex>()) {
+    // Keep accepting -0, unlike the generic Float64 to Int32 conversions.
+    if (needed_conversion == Opcode::kCheckedFloat64ToInt32) {
+      needed_conversion = Opcode::kCheckedFloat64ToIndex;
+    } else if (needed_conversion == Opcode::kCheckedHoleyFloat64ToInt32) {
+      needed_conversion = Opcode::kCheckedHoleyFloat64ToIndex;
+    }
+  }
+
   if (needed_conversion != old_untagging->opcode()) {
     old_untagging->OverwriteWith(needed_conversion);
   }
