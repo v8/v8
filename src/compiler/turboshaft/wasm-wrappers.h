@@ -899,8 +899,8 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
     __ Store(base, value, store_kind, rep, compiler::kNoWriteBarrier, offset);
   }
 
-  V<WordPtr> BuildLoadCallTargetFromExportedFunctionData(
-      V<WasmFunctionData> function_data) {
+  V<WordPtr> BuildLoadCallTargetFromCapiFunctionData(
+      V<WasmCapiFunctionData> function_data) {
     // TODO(sroettger): this code should do a signature check, but it's only
     // used for CAPI.
     V<WasmInternalFunction> internal =

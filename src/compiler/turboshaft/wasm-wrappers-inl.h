@@ -744,8 +744,8 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildCapiCallWrapper() {
   V<Object> function_node = __ LoadTaggedField(
       incoming_params[0], offsetof(WasmImportData, callable_));
   V<HeapObject> shared = LoadSharedFunctionInfo(function_node);
-  V<WasmFunctionData> function_data =
-      V<WasmFunctionData>::Cast(__ LoadTrustedPointer(
+  V<WasmCapiFunctionData> function_data =
+      V<WasmCapiFunctionData>::Cast(__ LoadTrustedPointer(
           shared, LoadOp::Kind::TaggedBase(),
           kWasmCapiFunctionDataTrustedPointerTag,
           offsetof(SharedFunctionInfo, trusted_function_data_)));
@@ -758,7 +758,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildCapiCallWrapper() {
            MemoryRepresentation::UintPtr(), compiler::kNoWriteBarrier);
 
   V<WordPtr> call_target =
-      BuildLoadCallTargetFromExportedFunctionData(function_data);
+      BuildLoadCallTargetFromCapiFunctionData(function_data);
 
   // Parameters: Address host_data_foreign, Address arguments.
   auto host_sig =
