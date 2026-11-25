@@ -468,6 +468,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   // Returns the number of instructions required to load the immediate
   void GeneralLi(Register rd, int64_t imm);
   static int GeneralLiCount(int64_t imm, bool is_get_temp_reg = false);
+  // Left shift of rd by shamt (rd == rs at all call sites), emitted as the
+  // 2-byte c.slli form when RVC is available. These RV_li constant sequences
+  // are never reloc-tracked, so shrinking them cannot break a patch point.
+  void TryCSlli(Register rd, uint8_t shamt);
   // Loads an immediate, always using 8 instructions, regardless of the value,
   // so that it can be modified later.
   void li_constant(Register rd, int64_t imm);

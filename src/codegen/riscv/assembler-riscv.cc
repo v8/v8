@@ -930,6 +930,18 @@ int Assembler::RV_li_count(int64_t imm, bool is_get_temp_reg) {
   }
 }
 
+// Shift emitted inside RV_li constant materialization. rd == rs always holds
+// at the call sites. These sequences are never reloc-tracked (see the li()
+// dispatch in MacroAssembler), so shrinking them cannot break a patch point.
+void Assembler::TryCSlli(Register rd, uint8_t shamt) {
+  if (CpuFeatures::IsSupported(RVC) && rd != zero_reg && shamt != 0 &&
+      is_uint6(shamt)) {
+    c_slli(rd, shamt);
+  } else {
+    slli(rd, rd, shamt);
+  }
+}
+
 void Assembler::GeneralLi(Register rd, int64_t imm) {
   // 64-bit imm is put in the register rd.
   // In most cases the imm is 32 bit and 2 instructions are generated. If a
@@ -994,7 +1006,7 @@ void Assembler::GeneralLi(Register rd, int64_t imm) {
         // Bit 31 is 1. Either an overflow or a negative 64 bit
         if (up_32 == 0) {
           // Positive number, but overflow because of the add 0x800
-          slli(rd, rd, 32);
+          TryCSlli(rd, 32);
           srli(rd, rd, 32);
           return;
         }
@@ -1022,7 +1034,7 @@ void Assembler::GeneralLi(Register rd, int64_t imm) {
         addi(temp_reg, zero_reg, low_12);
       }
       // Put it at the bgining of register
-      slli(temp_reg, temp_reg, 32);
+      TryCSlli(temp_reg, 32);
       if (low_32 != 0) {
         add(rd, rd, temp_reg);
       }
@@ -1057,7 +1069,7 @@ void Assembler::GeneralLi(Register rd, int64_t imm) {
         shift_val++;
         if (i == 31) {
           // rest is zero
-          slli(rd, rd, shift_val);
+          TryCSlli(rd, static_cast<uint8_t>(shift_val));
         }
         continue;
       }
@@ -1066,13 +1078,13 @@ void Assembler::GeneralLi(Register rd, int64_t imm) {
       if ((i + 11) < 32) {
         // Pick 11 bits
         part = (static_cast<uint32_t>(low_32 << i) >> i) >> (32 - (i + 11));
-        slli(rd, rd, shift_val + 11);
+        TryCSlli(rd, static_cast<uint8_t>(shift_val + 11));
         ori(rd, rd, part);
         i += 10;
         mask >>= 11;
       } else {
         part = static_cast<uint32_t>(low_32 << i) >> i;
-        slli(rd, rd, shift_val + (32 - i));
+        TryCSlli(rd, static_cast<uint8_t>(shift_val + (32 - i)));
         ori(rd, rd, part);
         break;
       }
@@ -2001,7 +2013,7 @@ void Assembler::RecursiveLiImpl(Register rd, int64_t Val) {
 
   if (Unsigned) {
   } else {
-    slli(rd, rd, ShiftAmount);
+    TryCSlli(rd, static_cast<uint8_t>(ShiftAmount));
   }
   if (Lo12) {
     addi(rd, rd, Lo12);
