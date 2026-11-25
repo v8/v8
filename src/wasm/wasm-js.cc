@@ -74,7 +74,7 @@ class WasmStreaming::WasmStreamingImpl {
     // Finish can only be called on the main thread of the isolate.
     CHECK_EQ(i_isolate_->thread_id(), base::ThreadId::Current());
     // Hold a local reference in case the embedder destroys `WasmStreaming`
-    // inside `caching_callback` or `OnCompilationSucceeded`.
+    // inside `caching_callback`.
     std::shared_ptr<i::wasm::StreamingDecoder> streaming_decoder =
         streaming_decoder_;
     streaming_decoder->Finish(caching_callback);
@@ -211,7 +211,12 @@ class WasmModuleCompilation::Impl {
         streaming_decoder_;
     streaming_decoder->InitializeIsolateSpecificInfo(
         reinterpret_cast<i::Isolate*>(isolate));
-    streaming_decoder->Finish(caching_callback);
+    // `WasmModuleCompilation` invokes a C++ callback with the compiled
+    // `WasmModuleObject` without resolving JS promises or instantiating the
+    // module, and Node.js (`DeserializeWasmModule`) relies on synchronous
+    // completion when cached module bytes are accepted.
+    streaming_decoder->Finish(caching_callback,
+                              /*can_finish_synchronously=*/true);
   }
 
   void Abort() {

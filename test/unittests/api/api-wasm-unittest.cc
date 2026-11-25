@@ -190,6 +190,132 @@ TEST_F(ApiWasmTest, WasmStreamingAbortWithoutReject) {
   TestWasmStreaming(WasmStreamingCallbackTestAbortNoReject, Promise::kPending);
 }
 
+namespace {
+std::shared_ptr<WasmStreaming>* g_captured_streaming = nullptr;
+
+void CaptureWasmStreamingCallback(const FunctionCallbackInfo<Value>& info) {
+  CHECK_NOT_NULL(g_captured_streaming);
+  CHECK_NULL(*g_captured_streaming);
+  *g_captured_streaming = WasmStreaming::Unpack(info.GetIsolate(), info.Data());
+}
+}  // namespace
+
+// Regression test for crbug.com/590127500: v8::WasmStreaming::Finish must
+// always defer completion (and any user JS callbacks such as import getters or
+// WebAssembly.Module.prototype.then getters) to a foreground task, even when
+// called with JavaScript execution allowed on the Isolate (e.g. inside Blink's
+// ScriptForbiddenScope).
+TEST_F(ApiWasmTest, WasmStreamingFinishDefersJsCallbacks) {
+  using namespace internal::wasm;  // NOLINT(build/namespaces)
+  i::FlagScope<bool> no_cache(&i::v8_flags.wasm_native_module_cache, false);
+  isolate()->SetWasmStreamingCallback(CaptureWasmStreamingCallback);
+
+  HandleScope scope(isolate());
+  Local<Context> context = Context::New(isolate());
+  Context::Scope context_scope(context);
+
+  auto start_streaming = [&](const char* js)
+      -> std::pair<Local<v8::Promise>, std::shared_ptr<WasmStreaming>> {
+    std::shared_ptr<WasmStreaming> captured;
+    g_captured_streaming = &captured;
+    Local<v8::Promise> promise = Local<v8::Promise>::Cast(RunJS(js));
+    isolate()->PerformMicrotaskCheckpoint();
+    g_captured_streaming = nullptr;
+    CHECK_NOT_NULL(captured);
+    return {promise, std::move(captured)};
+  };
+
+  // 1. WebAssembly.instantiateStreaming (OnFinishedStream): import getter must
+  // not run synchronously inside WasmStreaming::Finish.
+  {
+    const uint8_t codeless_module_with_import_bytes[] = {
+        WASM_MODULE_HEADER, SECTION(Type, ENTRY_COUNT(1), SIG_ENTRY_v_v),
+        SECTION(Import, ENTRY_COUNT(1), ADD_COUNT('a'), ADD_COUNT('x'),
+                kExternalFunction, 0)};
+    RunJS("globalThis.ranImportGetter = false;");
+    auto [promise, streaming] = start_streaming(
+        "WebAssembly.instantiateStreaming(null, "
+        "{a: {get x() { globalThis.ranImportGetter = true; return () => {}; "
+        "}}})");
+    streaming->OnBytesReceived(codeless_module_with_import_bytes,
+                               sizeof(codeless_module_with_import_bytes));
+    streaming->Finish({});
+    EXPECT_FALSE(RunJS("globalThis.ranImportGetter")->BooleanValue(isolate()));
+    EXPECT_EQ(v8::Promise::kPending, promise->State());
+
+    EmptyMessageQueues();
+    EXPECT_TRUE(RunJS("globalThis.ranImportGetter")->BooleanValue(isolate()));
+    EXPECT_EQ(v8::Promise::kFulfilled, promise->State());
+  }
+
+  // 2. WebAssembly.instantiateStreaming (Deserialize): import getter must not
+  // run synchronously inside WasmStreaming::Finish on a cached module hit.
+  if (!i::v8_flags.wasm_jitless) {
+    i::FlagScope<bool> no_liftoff(&i::v8_flags.liftoff, false);
+    i::FlagScope<bool> no_lazy_compilation(&i::v8_flags.wasm_lazy_compilation,
+                                           false);
+    const uint8_t module_with_code_and_import_bytes[] = {
+        WASM_MODULE_HEADER, SECTION(Type, ENTRY_COUNT(1), SIG_ENTRY_v_v),
+        SECTION(Import, ENTRY_COUNT(1), ADD_COUNT('a'), ADD_COUNT('x'),
+                kExternalFunction, 0),
+        SECTION(Function, ENTRY_COUNT(1), SIG_INDEX(0)),
+        SECTION(Code, ENTRY_COUNT(1), ADD_COUNT(0, WASM_END))};
+    Local<WasmModuleObject> precompiled_module =
+        WasmModuleObject::Compile(isolate(), module_with_code_and_import_bytes)
+            .ToLocalChecked();
+    OwnedBuffer serialized_module =
+        precompiled_module->GetCompiledModule().Serialize();
+    ASSERT_FALSE(serialized_module.empty());
+
+    RunJS("globalThis.ranCachedImportGetter = false;");
+    auto [promise, streaming] = start_streaming(
+        "WebAssembly.instantiateStreaming(null, "
+        "{a: {get x() { globalThis.ranCachedImportGetter = true; "
+        "return () => {}; }}})");
+    streaming->SetHasCompiledModuleBytes();
+    streaming->OnBytesReceived(module_with_code_and_import_bytes,
+                               sizeof(module_with_code_and_import_bytes));
+    bool accepted_cache = false;
+    streaming->Finish(
+        [&](WasmStreaming::ModuleCachingInterface& caching_interface) {
+          accepted_cache = caching_interface.SetCachedCompiledModuleBytes(
+              serialized_module.as_span());
+        });
+    EXPECT_TRUE(accepted_cache);
+    EXPECT_FALSE(
+        RunJS("globalThis.ranCachedImportGetter")->BooleanValue(isolate()));
+    EXPECT_EQ(v8::Promise::kPending, promise->State());
+
+    EmptyMessageQueues();
+    EXPECT_TRUE(
+        RunJS("globalThis.ranCachedImportGetter")->BooleanValue(isolate()));
+    EXPECT_EQ(v8::Promise::kFulfilled, promise->State());
+  }
+
+  // 3. WebAssembly.compileStreaming: WebAssembly.Module.prototype.then getter
+  // must not run synchronously inside WasmStreaming::Finish.
+  {
+    RunJS(
+        "globalThis.ranThenGetter = false;"
+        "Object.defineProperty(WebAssembly.Module.prototype, 'then', {"
+        "  configurable: true,"
+        "  get() { globalThis.ranThenGetter = true; return undefined; }"
+        "});");
+    auto [promise, streaming] =
+        start_streaming("WebAssembly.compileStreaming(null)");
+    streaming->OnBytesReceived(kMinimalWasmModuleBytes,
+                               sizeof(kMinimalWasmModuleBytes));
+    streaming->Finish({});
+    EXPECT_FALSE(RunJS("globalThis.ranThenGetter")->BooleanValue(isolate()));
+    EXPECT_EQ(v8::Promise::kPending, promise->State());
+
+    EmptyMessageQueues();
+    EXPECT_TRUE(RunJS("globalThis.ranThenGetter")->BooleanValue(isolate()));
+    EXPECT_EQ(v8::Promise::kFulfilled, promise->State());
+    RunJS("delete WebAssembly.Module.prototype.then;");
+  }
+}
+
 TEST_F(ApiWasmTest, WasmCompileToWasmModuleObject) {
   Local<Context> context = Context::New(isolate());
   Context::Scope context_scope(context);

@@ -349,7 +349,8 @@ size_t StreamingDecoder::DecodingState::ReadBytes(
 }
 
 void StreamingDecoder::Finish(
-    const WasmStreaming::ModuleCachingCallback& caching_callback) {
+    const WasmStreaming::ModuleCachingCallback& caching_callback,
+    bool can_finish_synchronously) {
   TRACE_STREAMING("Finish\n");
   // {Finish} should not be called after {Finish} or {Abort}.
   // We check for those explicitly to understand failures like
@@ -410,12 +411,16 @@ void StreamingDecoder::Finish(
     struct CachingInterface : public WasmStreaming::ModuleCachingInterface {
       StreamingDecoder* const decoder;
       base::UniqueArray<const uint8_t>& wire_bytes;
+      const bool can_finish_synchronously;
       bool did_try_deserialization = false;
       bool did_deserialize = false;
 
       CachingInterface(StreamingDecoder* decoder,
-                       base::UniqueArray<const uint8_t>& wire_bytes)
-          : decoder(decoder), wire_bytes(wire_bytes) {}
+                       base::UniqueArray<const uint8_t>& wire_bytes,
+                       bool can_finish_synchronously)
+          : decoder(decoder),
+            wire_bytes(wire_bytes),
+            can_finish_synchronously(can_finish_synchronously) {}
 
       // Public API:
       std::span<const uint8_t> GetWireBytes() const override {
@@ -430,15 +435,16 @@ void StreamingDecoder::Finish(
         did_try_deserialization = true;
         CHECK_EQ(StreamState::kReceivingBytes, decoder->stream_state_);
         // Move {processor_} to a local variable and mark the stream as
-        // {kFinished} before calling {Deserialize}. {Deserialize} can
-        // synchronously finish compilation, invoke embedder/JS callbacks (which
-        // may destroy the embedder's {StreamingDecoder} reference), and destroy
-        // the {AsyncCompileJob} (dropping its {StreamingDecoder} reference).
+        // {kFinished} before calling {Deserialize}. When
+        // {can_finish_synchronously} is true, {Deserialize} can synchronously
+        // finish compilation, invoke embedder callbacks (which may destroy the
+        // embedder's {StreamingDecoder} reference), and destroy the
+        // {AsyncCompileJob} (dropping its {StreamingDecoder} reference).
         decoder->stream_state_ = StreamState::kFinished;
         std::unique_ptr<StreamingProcessor> processor =
             std::move(decoder->processor_);
-        did_deserialize =
-            processor->Deserialize(base::VectorOf(module_bytes), wire_bytes);
+        did_deserialize = processor->Deserialize(
+            base::VectorOf(module_bytes), wire_bytes, can_finish_synchronously);
         if (!did_deserialize) {
           // Deserialization failed; restore {processor_} and {stream_state_}
           // so {Finish} can fall back to decoding and compiling the wire bytes.
@@ -448,7 +454,7 @@ void StreamingDecoder::Finish(
         }
         return did_deserialize;
       }
-    } caching_interface{this, bytes_copy};
+    } caching_interface{this, bytes_copy, can_finish_synchronously};
 
     // Call the embedder.
     caching_callback(caching_interface);
@@ -477,9 +483,9 @@ void StreamingDecoder::Finish(
     Fail();
   }
 
-  // Calling {OnFinishedStream} calls out to JS. Avoid further callbacks (by
-  // aborting the stream) by resetting the processor field before calling
-  // {OnFinishedStream}.
+  // Reset the processor field before calling {OnFinishedStream} so any
+  // subsequent {Abort} while the foreground completion task is pending is a
+  // no-op.
   const bool failed = !ok();
   std::unique_ptr<StreamingProcessor> processor =
       failed ? std::move(failed_processor_) : std::move(processor_);

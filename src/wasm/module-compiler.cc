@@ -2568,7 +2568,8 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
   void OnAbort() override;
 
   bool Deserialize(base::Vector<const uint8_t> module_bytes,
-                   base::UniqueArray<const uint8_t>& wire_bytes) override;
+                   base::UniqueArray<const uint8_t>& wire_bytes,
+                   bool can_finish_synchronously) override;
 
  private:
   void CommitCompilationUnits();
@@ -2938,26 +2939,6 @@ template <typename Step, typename... Args>
 void AsyncCompileJob::DoSync(Args&&... args) {
   NextStep<Step>(std::forward<Args>(args)...);
   StartForegroundTask();
-}
-
-template <typename Step, typename... Args>
-void AsyncCompileJob::DoImmediatelyOrDefer(Args&&... args) {
-  NextStep<Step>(std::forward<Args>(args)...);
-  Isolate* isolate = isolate_specific_info_.isolate_;
-  DCHECK_EQ(isolate, Isolate::Current());
-  // We cannot unconditionally spawn a non-nestable foreground task here
-  // because Node.js relies on synchronous completion of
-  // WasmModuleCompilation::Finish (e.g. in DeserializeWasmModule). Only defer
-  // to a non-nestable foreground task when inside an API interrupt or when
-  // JavaScript execution is disallowed (such as Blink's ScriptForbiddenScope
-  // during BFCache freeze, see crbug.com/580857997).
-  if (!isolate->is_executing_api_interrupt() &&
-      isolate->is_javascript_execution_allowed()) {
-    std::unique_ptr<CompileStep> step = std::move(step_);
-    step->Run(this, true);
-  } else {
-    StartForegroundTask();
-  }
 }
 
 template <typename Step, typename... Args>
@@ -3416,8 +3397,7 @@ void AsyncStreamingProcessor::OnFinishedStream(
                                                   job_->compile_imports_);
       owns_cache_entry_ = false;
     }
-    job_->DoImmediatelyOrDefer<AsyncCompileJob::Fail>(
-        std::move(failure_reason));
+    job_->DoSync<AsyncCompileJob::Fail>(std::move(failure_reason));
     return;
   }
 
@@ -3500,14 +3480,20 @@ void AsyncStreamingProcessor::OnFinishedStream(
         failed, job_->new_native_module_, isolate);
     owns_cache_entry_ = false;
     if (failed) {
-      job_->DoImmediatelyOrDefer<AsyncCompileJob::Fail>(
-          "CompilationState failed");
+      job_->DoSync<AsyncCompileJob::Fail>("CompilationState failed");
       return;
     }
   }
 
   if (needs_finish) {
-    job_->DoImmediatelyOrDefer<AsyncCompileJob::FinishCompilation>(
+    // Always defer completion to a non-nestable foreground task. Embedders
+    // such as Blink can call `WasmStreaming::Finish` inside an API interrupt
+    // (crbug.com/580857997) or while author script is forbidden via
+    // `blink::ScriptForbiddenScope` (which does not set V8's
+    // `DisallowJavascriptExecutionScope`, see crbug.com/590127500), where
+    // resolving compilation promises or running instantiation JS synchronously
+    // on the `Finish` call stack is unsafe.
+    job_->DoSync<AsyncCompileJob::FinishCompilation>(
         std::move(final_native_module));
   }
 }
@@ -3530,7 +3516,8 @@ void AsyncStreamingProcessor::OnAbort() {
 
 bool AsyncStreamingProcessor::Deserialize(
     base::Vector<const uint8_t> module_bytes,
-    base::UniqueArray<const uint8_t>& wire_bytes) {
+    base::UniqueArray<const uint8_t>& wire_bytes,
+    bool can_finish_synchronously) {
   TRACE_EVENT("v8.wasm", "wasm.Deserialize");
   Isolate* isolate = job_->isolate_specific_info_.isolate_;
   if (V8_UNLIKELY(isolate->is_execution_terminating())) {
@@ -3562,11 +3549,28 @@ bool AsyncStreamingProcessor::Deserialize(
   CppGCManaged<NativeModule>::Ptr deserialized_native_module =
       module_object->native_module();
   job_->wire_bytes_ = ModuleWireBytes(deserialized_native_module->wire_bytes());
-  IndirectHandle<WasmModuleObject> global_module_object =
-      isolate->global_handles()->Create(*module_object);
-  job_->DoImmediatelyOrDefer<AsyncCompileJob::FinishCompilation>(
-      std::move(deserialized_native_module).as_shared_ptr(),
-      global_module_object);
+  // Only `WasmModuleCompilation::Finish` sets `can_finish_synchronously`
+  // because Node.js (`DeserializeWasmModule`) relies on synchronous completion
+  // when cached bytes are accepted, and `WasmModuleCompilation` invokes a C++
+  // callback without resolving JS promises or instantiating the module.
+  // `WasmStreaming::Finish` (`can_finish_synchronously == false`) must always
+  // defer to a non-nestable foreground task because embedders like Blink can
+  // call `Finish` inside `blink::ScriptForbiddenScope` without setting V8's
+  // `DisallowJavascriptExecutionScope` (crbug.com/590127500), and even
+  // `WasmModuleCompilation` must defer inside an API interrupt or
+  // `DisallowJavascriptExecutionScope` (crbug.com/580857997).
+  if (can_finish_synchronously && !isolate->is_executing_api_interrupt() &&
+      isolate->is_javascript_execution_allowed()) {
+    std::move(*job_).FinishCompile(
+        std::move(deserialized_native_module).as_shared_ptr(), module_object,
+        /*cache_hit=*/false);
+  } else {
+    IndirectHandle<WasmModuleObject> global_module_object =
+        isolate->global_handles()->Create(*module_object);
+    job_->DoSync<AsyncCompileJob::FinishCompilation>(
+        std::move(deserialized_native_module).as_shared_ptr(),
+        global_module_object);
+  }
   return true;
 }
 

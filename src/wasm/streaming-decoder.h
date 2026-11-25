@@ -79,7 +79,8 @@ class V8_EXPORT_PRIVATE StreamingProcessor {
   // taken over by the deserialized module (the parameter will be reset to an
   // empty vector); otherwise ownership stays with the caller.
   virtual bool Deserialize(base::Vector<const uint8_t> module_bytes,
-                           base::UniqueArray<const uint8_t>& wire_bytes) = 0;
+                           base::UniqueArray<const uint8_t>& wire_bytes,
+                           bool can_finish_synchronously) = 0;
 };
 
 // The StreamingDecoder takes a sequence of byte arrays, each received by a call
@@ -99,7 +100,12 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
   // The buffer passed into OnBytesReceived is owned by the caller.
   void OnBytesReceived(base::Vector<const uint8_t> bytes);
 
-  void Finish(const WasmStreaming::ModuleCachingCallback& caching_callback);
+  // If `can_finish_synchronously` is true, successful cached-module
+  // deserialization via `caching_callback` may invoke the completion callback
+  // synchronously on the current stack (when allowed on the Isolate);
+  // otherwise completion is always deferred to a foreground task.
+  void Finish(const WasmStreaming::ModuleCachingCallback& caching_callback,
+              bool can_finish_synchronously = false);
 
   void Abort();
 

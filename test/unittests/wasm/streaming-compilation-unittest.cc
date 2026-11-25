@@ -2063,6 +2063,7 @@ STREAM_TEST(TestProfilingMidStreaming) {
 
   // Finalize stream, stop profiler and clean up.
   tester.FinishStream();
+  tester.RunCompilerTasks();
   CHECK(tester.IsPromiseFulfilled());
   v8::CpuProfile* profile =
       cpu_profiler->StopProfiling(v8::String::Empty(isolate));
@@ -2325,6 +2326,9 @@ STREAM_TEST(FinishStreamInApiInterruptIsDeferred) {
   StreamTester cached_tester(isolate);
   cached_tester.SetHasCompiledModuleBytes();
 
+  auto interrupt_compilation = std::make_unique<v8::WasmModuleCompilation>();
+  interrupt_compilation->SetHasCompiledModuleBytes();
+
   struct InterruptData {
     MockPlatform* platform;
     ZoneBuffer* valid_bytes;
@@ -2334,9 +2338,12 @@ STREAM_TEST(FinishStreamInApiInterruptIsDeferred) {
     StreamTester* compile_error_tester;
     StreamTester* error_tester;
     StreamTester* cached_tester;
+    v8::WasmModuleCompilation* interrupt_compilation;
+    bool interrupt_compilation_resolved = false;
     bool interrupt_ran = false;
-  } data{platform,        &valid_bytes,          &cached_bytes, &invalid_bytes,
-         &success_tester, &compile_error_tester, &error_tester, &cached_tester};
+  } data{platform,       &valid_bytes,    &cached_bytes,
+         &invalid_bytes, &success_tester, &compile_error_tester,
+         &error_tester,  &cached_tester,  interrupt_compilation.get()};
 
   isolate->RequestInterrupt(
       [](v8::Isolate* isolate, void* raw_data) {
@@ -2364,6 +2371,22 @@ STREAM_TEST(FinishStreamInApiInterruptIsDeferred) {
         d->cached_tester->stream()->Abort();
         CHECK(d->cached_tester->IsPromisePending());
 
+        d->interrupt_compilation->OnBytesReceived(d->valid_bytes->begin(),
+                                                  d->valid_bytes->size());
+        d->interrupt_compilation->Finish(
+            isolate,
+            [&](WasmStreaming::ModuleCachingInterface& caching_interface) {
+              CHECK(caching_interface.SetCachedCompiledModuleBytes(
+                  base::VectorOf(*d->cached_bytes)));
+            },
+            [d](std::variant<Local<v8::WasmModuleObject>, Local<v8::Value>>
+                    module_or_error) {
+              CHECK(std::holds_alternative<Local<v8::WasmModuleObject>>(
+                  module_or_error));
+              d->interrupt_compilation_resolved = true;
+            });
+        CHECK(!d->interrupt_compilation_resolved);
+
         // Pumping nestable tasks inside the interrupt must not execute the
         // non-nestable foreground completion tasks.
         d->platform->ExecuteNestedTasks();
@@ -2371,6 +2394,7 @@ STREAM_TEST(FinishStreamInApiInterruptIsDeferred) {
         CHECK(d->compile_error_tester->IsPromisePending());
         CHECK(d->error_tester->IsPromisePending());
         CHECK(d->cached_tester->IsPromisePending());
+        CHECK(!d->interrupt_compilation_resolved);
 
         d->interrupt_ran = true;
       },
@@ -2382,38 +2406,87 @@ STREAM_TEST(FinishStreamInApiInterruptIsDeferred) {
   CHECK(compile_error_tester.IsPromisePending());
   CHECK(error_tester.IsPromisePending());
   CHECK(cached_tester.IsPromisePending());
+  CHECK(!data.interrupt_compilation_resolved);
 
   success_tester.RunCompilerTasks();
   CHECK(success_tester.IsPromiseFulfilled());
   CHECK(compile_error_tester.IsPromiseRejected());
   CHECK(error_tester.IsPromiseRejected());
   CHECK(cached_tester.IsPromiseFulfilled());
+  CHECK(data.interrupt_compilation_resolved);
 
-  // Also verify deferral when JavaScript execution is disallowed outside an API
-  // interrupt (e.g. Blink's ScriptForbiddenScope during BFCache freeze).
-  StreamTester no_js_success_tester(isolate);
-  no_js_success_tester.OnBytesReceived(valid_bytes.begin(), valid_bytes.size());
-  no_js_success_tester.RunCompilerTasks();
-  CHECK(no_js_success_tester.IsPromisePending());
+  // Also verify that StreamTester (like v8::WasmStreaming::Finish) always
+  // defers completion and failure to a foreground task even when JavaScript
+  // execution is allowed on the Isolate (e.g. inside Blink's
+  // ScriptForbiddenScope, which does not set DisallowJavascriptExecutionScope;
+  // see crbug.com/590127500).
+  StreamTester normal_success_tester(isolate);
+  normal_success_tester.OnBytesReceived(valid_bytes.begin(),
+                                        valid_bytes.size());
+  normal_success_tester.RunCompilerTasks();
+  CHECK(normal_success_tester.IsPromisePending());
 
-  StreamTester no_js_cached_tester(isolate);
-  no_js_cached_tester.SetHasCompiledModuleBytes();
-  no_js_cached_tester.OnBytesReceived(valid_bytes.begin(), valid_bytes.size());
+  StreamTester normal_compile_error_tester(isolate);
+  {
+    FlagScope<bool> eager_compile(&v8_flags.wasm_lazy_compilation, false);
+    normal_compile_error_tester.OnBytesReceived(invalid_code_bytes.begin(),
+                                                invalid_code_bytes.size());
+    normal_compile_error_tester.RunCompilerTasks();
+    CHECK(normal_compile_error_tester.IsPromisePending());
+  }
 
+  StreamTester normal_error_tester(isolate);
+  normal_error_tester.OnBytesReceived(invalid_bytes.begin(),
+                                      invalid_bytes.size());
+
+  StreamTester normal_cached_tester(isolate);
+  normal_cached_tester.SetHasCompiledModuleBytes();
+  normal_cached_tester.OnBytesReceived(valid_bytes.begin(), valid_bytes.size());
+
+  normal_success_tester.FinishStream();
+  CHECK(normal_success_tester.IsPromisePending());
+  normal_compile_error_tester.FinishStream();
+  CHECK(normal_compile_error_tester.IsPromisePending());
+  normal_error_tester.FinishStream();
+  CHECK(normal_error_tester.IsPromisePending());
+  normal_cached_tester.FinishStreamWithCachedModuleBytes(
+      base::VectorOf(cached_bytes));
+  CHECK(normal_cached_tester.IsPromisePending());
+
+  normal_success_tester.RunCompilerTasks();
+  CHECK(normal_success_tester.IsPromiseFulfilled());
+  CHECK(normal_compile_error_tester.IsPromiseRejected());
+  CHECK(normal_error_tester.IsPromiseRejected());
+  CHECK(normal_cached_tester.IsPromiseFulfilled());
+
+  // Conversely, WasmModuleCompilation::Finish (which finishes cached-module
+  // deserialization synchronously by default, see
+  // TestDestroyDuringDeserializationFinish below) must still defer when
+  // JavaScript execution is disallowed or inside an API interrupt.
+  auto no_js_compilation = std::make_unique<v8::WasmModuleCompilation>();
+  no_js_compilation->SetHasCompiledModuleBytes();
+  no_js_compilation->OnBytesReceived(valid_bytes.begin(), valid_bytes.size());
+  bool no_js_resolved = false;
   {
     v8::Isolate::DisallowJavascriptExecutionScope no_js(
         isolate,
         v8::Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
-    no_js_success_tester.FinishStream();
-    CHECK(no_js_success_tester.IsPromisePending());
-    no_js_cached_tester.FinishStreamWithCachedModuleBytes(
-        base::VectorOf(cached_bytes));
-    CHECK(no_js_cached_tester.IsPromisePending());
+    no_js_compilation->Finish(
+        isolate,
+        [&](WasmStreaming::ModuleCachingInterface& caching_interface) {
+          CHECK(caching_interface.SetCachedCompiledModuleBytes(
+              base::VectorOf(cached_bytes)));
+        },
+        [&](std::variant<Local<v8::WasmModuleObject>, Local<v8::Value>>
+                module_or_error) {
+          CHECK(std::holds_alternative<Local<v8::WasmModuleObject>>(
+              module_or_error));
+          no_js_resolved = true;
+        });
+    CHECK(!no_js_resolved);
   }
-
-  no_js_success_tester.RunCompilerTasks();
-  CHECK(no_js_success_tester.IsPromiseFulfilled());
-  CHECK(no_js_cached_tester.IsPromiseFulfilled());
+  platform->ExecuteTasks();
+  CHECK(no_js_resolved);
 }
 
 STREAM_TEST(TestDestroyDuringDeserializationFinish) {
