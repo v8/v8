@@ -149,6 +149,15 @@ void TieringManager::Optimize(Tagged<JSFunction> function,
   function->RequestOptimization(isolate_, d.code_kind, d.concurrency_mode);
 }
 
+void TieringManager::MarkForMaglevOptimization(Tagged<JSFunction> function) {
+  Tagged<SharedFunctionInfo> shared = function->shared();
+  if (V8_UNLIKELY(shared->optimization_disabled(CodeKind::MAGLEV) ||
+                  shared->maglev_compilation_failed())) {
+    return;
+  }
+  Optimize(function, OptimizationDecision::Maglev());
+}
+
 void TieringManager::MarkForTurboFanOptimization(Tagged<JSFunction> function) {
   if (V8_UNLIKELY(
           function->shared()->optimization_disabled(CodeKind::TURBOFAN_JS))) {

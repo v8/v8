@@ -925,6 +925,8 @@ const char* CodeValidityToString(Deoptimizer::CodeValidity code_validity) {
       return "invalidated";
     case Deoptimizer::CodeValidity::kInvalidatedOsr:
       return "invalidated-osr";
+    case Deoptimizer::CodeValidity::kUnaffectedOsr:
+      return "unaffected-osr";
     case Deoptimizer::CodeValidity::kUnknown:
       return "unknown";
   }
@@ -1928,12 +1930,15 @@ void Deoptimizer::DoComputeOutputFrames() {
             // TODO(olivf): We should also check if this osr code is actually
             // the active one.
             code_validity_ = CodeValidity::kInvalidatedOsr;
+          } else {
+            code_validity_ = CodeValidity::kUnaffectedOsr;
           }
         }
       }
 
       // Only invalidated code affects tiering decisions.
-      if (code_validity_ != CodeValidity::kUnaffected) {
+      if (code_validity_ == CodeValidity::kInvalidated ||
+          code_validity_ == CodeValidity::kInvalidatedOsr) {
         if (v8_flags.profile_guided_optimization &&
             function_->shared()->cached_tiering_decision() !=
                 CachedTieringDecision::kDelayMaglev) {

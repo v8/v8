@@ -40,7 +40,9 @@ class Deoptimizer : public Malloced {
     kUnknown,
     kInvalidated,
     kInvalidatedOsr,
-    kUnaffected
+    kUnaffected,
+    // OSR code that deopted outside of its loop and remains cached.
+    kUnaffectedOsr
   };
 
   struct DeoptInfo {
