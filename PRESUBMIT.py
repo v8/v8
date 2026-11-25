@@ -672,6 +672,47 @@ def _CheckDepsGitignored(input_api, output_api):
   ])
 
 
+def _CheckSecurityTriagingDocSync(input_api, output_api):
+  """Checks hotlist/component IDs match docs/security/triaging.md."""
+  triaging_doc = 'docs/security/triaging.md'
+  triage_script = 'agents/skills/v8-security-triaging/scripts/triage_report.py'
+  affected = {
+      f.UnixLocalPath() for f in input_api.AffectedFiles(include_deletes=False)
+  }
+  if affected.isdisjoint({triaging_doc, triage_script}):
+    return []
+
+  root = input_api.PresubmitLocalPath()
+  doc_path = input_api.os_path.join(root, 'docs', 'security', 'triaging.md')
+  script_path = input_api.os_path.join(root, 'agents', 'skills',
+                                       'v8-security-triaging', 'scripts',
+                                       'triage_report.py')
+  if not (input_api.os_path.isfile(doc_path) and
+          input_api.os_path.isfile(script_path)):
+    return []
+
+  import importlib.util
+  module_name = '_v8_security_triage_report_presubmit'
+  spec = importlib.util.spec_from_file_location(module_name, script_path)
+  module = importlib.util.module_from_spec(spec)
+  sys.modules[module_name] = module
+  try:
+    spec.loader.exec_module(module)
+  finally:
+    sys.modules.pop(module_name, None)
+
+  with open(doc_path, encoding='utf-8') as f:
+    missing = module.find_missing_triaging_doc_ids(f.read())
+  if not missing:
+    return []
+  return [
+      output_api.PresubmitError(
+          f'{triage_script} IDs are out of sync with {triaging_doc}:',
+          missing,
+      )
+  ]
+
+
 def _CommonChecks(input_api, output_api):
   """Checks common to both upload and commit."""
   # TODO(machenbach): Replace some of those checks, e.g. owners and copyright,
@@ -704,6 +745,7 @@ def _CommonChecks(input_api, output_api):
       _CheckMultiLineIfBraces,
       _CheckDepsGitignored,
       _CheckMarkdown,
+      _CheckSecurityTriagingDocSync,
   ]
 
   return sum([check(input_api, output_api) for check in checks], [])

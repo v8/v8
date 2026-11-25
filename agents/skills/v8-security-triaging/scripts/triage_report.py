@@ -86,9 +86,17 @@ class ExecutionScope(StrEnum):
 class Classification(StrEnum):
   """Buganizer issue type / triage classification."""
   VULNERABILITY = "Vulnerability"
+  TENTATIVE_VULNERABILITY = "Tentative Vulnerability"
   BUG = "Bug"
   INTENDED_BEHAVIOR = "Not a Bug (Intended Behavior)"
   FAILED_TO_REPRODUCE = "Failed to Reproduce"
+
+
+_IMPACT_NONE_PRIORITY_FOR_SEVERITY = {
+    "S1": "P2",
+    "S2": "P3",
+    "S3": "P3",
+}
 
 
 class SecurityImpact(StrEnum):
@@ -307,6 +315,10 @@ _SYMPTOM_SPECS: dict[Symptom, SymptomSpec] = {
         ),
 }
 
+_VULN_SYMPTOMS = frozenset(
+    s for s, spec in _SYMPTOM_SPECS.items()
+    if spec.regular.classification == Classification.VULNERABILITY)
+
 SYMPTOM_RULES: dict[tuple[Symptom, ExecutionScope], SymptomRule] = {}
 for _s, _spec in _SYMPTOM_SPECS.items():
   SYMPTOM_RULES[(_s, ExecutionScope.REGULAR)] = _spec.regular
@@ -337,6 +349,25 @@ RELEASE_CHANNEL_IMPACT_HOTLISTS = (
 CUSTOM_FIELD_RELEASE_BLOCK = "1223086"
 DEVTOOLS_COMPONENT_PATH = "Platform > DevTools"
 DEVTOOLS_COMPONENT_ID = "1457055"
+
+_TRIAGING_DOC_REQUIRED_IDS = (
+    ("HOTLIST_SECURITY_IMPACT_HEAD", HOTLIST_SECURITY_IMPACT_HEAD),
+    ("HOTLIST_SECURITY_IMPACT_BETA", HOTLIST_SECURITY_IMPACT_BETA),
+    ("HOTLIST_SECURITY_IMPACT_STABLE", HOTLIST_SECURITY_IMPACT_STABLE),
+    ("HOTLIST_SECURITY_IMPACT_EXTENDED", HOTLIST_SECURITY_IMPACT_EXTENDED),
+    ("HOTLIST_SECURITY_IMPACT_NONE", HOTLIST_SECURITY_IMPACT_NONE),
+    ("HOTLIST_V8_SANDBOX", HOTLIST_V8_SANDBOX),
+    ("HOTLIST_V8_UNSUPPORTED_CHROME", HOTLIST_V8_UNSUPPORTED_CHROME),
+    ("DEVTOOLS_COMPONENT_ID", DEVTOOLS_COMPONENT_ID),
+)
+
+
+def find_missing_triaging_doc_ids(doc_text: str) -> list[str]:
+  """Returns constants missing from `docs/security/triaging.md`."""
+  return [
+      f"{name} ({constant})" for name, constant in _TRIAGING_DOC_REQUIRED_IDS
+      if constant not in doc_text
+  ]
 
 
 def _norm_comp_key(text: str) -> str:
@@ -460,6 +491,7 @@ def resolve_component(
     raw_comp = str(raw_comp)
   if isinstance(raw_comp, str) and raw_comp.strip():
     token = raw_comp.strip()
+    by_dir: tuple[str, str] | None = None
     if not token.isdigit():
       by_dir = _lookup_path_in_dir_metadata(token, repo_root)
       if by_dir is not None and by_dir[0]:
@@ -521,12 +553,11 @@ def _detect_env_session_id() -> str | None:
 
 
 def _detect_default_repo_root() -> Path:
-  for p in [Path.cwd().resolve(), *Path.cwd().resolve().parents]:
+  cwd = Path.cwd().resolve()
+  for p in (cwd, *cwd.parents, *Path(__file__).resolve().parents):
     if (p / "include" / "v8-version.h").is_file():
       return p
-  p = Path(__file__).resolve().parents[4]
-  return p if (p / "include" /
-               "v8-version.h").is_file() else Path.cwd().resolve()
+  return cwd
 
 
 DEFAULT_REPO_ROOT = _detect_default_repo_root()
@@ -568,6 +599,13 @@ def _canonical_flag(flag: str) -> str:
   return "--no-experimental" if name == "--noexperimental" else name
 
 
+# Exact diagnostic markers emitted by V8 / `src/sandbox/testing.cc`.
+_SANDBOX_VIOLATION_MARKER = "V8 sandbox violation detected"
+_SANDBOX_READ_ONLY_MARKER = "The sandbox violation was a *read* access"
+_SANDBOX_HARMLESS_MARKER = "Caught harmless "
+_SANDBOX_FILTER_EXIT_MARKER = " Exiting process..."
+_SANDBOX_UNDEFINED_MARKER = "ReferenceError: Sandbox is not defined"
+
 # ==============================================================================
 # 2. EMPIRICAL SECURITY POC RUNNER (`EmpiricalPocRunner` — 2 RUNS, NO ALLOWLIST)
 # ==============================================================================
@@ -581,6 +619,9 @@ class PocStageRun:
   timed_out: bool
   reproduced: bool
   output_excerpt: str
+  sandbox_read_only: bool = False
+  sandbox_harmless_catch: bool = False
+  sandbox_undefined_error: bool = False
 
   def to_dict(self) -> dict[str, Any]:
     return asdict(self)
@@ -594,6 +635,9 @@ class EmpiricalPocResult:
   effective_d8_flags: list[str]
   summary: str
   stages: list[PocStageRun]
+  sandbox_read_only: bool = False
+  sandbox_harmless_catch: bool = False
+  flag_rejected: bool = False
 
   def to_dict(self) -> dict[str, Any]:
     return asdict(self)
@@ -612,10 +656,18 @@ class EmpiricalPocRunner:
 
   def resolve_path(self, raw_path: str) -> Path:
     p = Path(raw_path)
-    if p.is_absolute() or p.exists():
+    if p.is_absolute():
       return p.resolve()
-    return (self.repo_root / p).resolve() if self.repo_root is not None and (
-        self.repo_root / p).exists() else p.resolve()
+    if self.repo_root is not None:
+      root = self.repo_root.resolve()
+      repo_rel = root / p
+      if repo_rel.exists():
+        return repo_rel.resolve()
+      cwd_rel = p.resolve()
+      if cwd_rel.is_relative_to(root):
+        return cwd_rel
+      return repo_rel.resolve()
+    return p.resolve()
 
   @staticmethod
   def has_crashed(returncode: int | None) -> bool:
@@ -627,12 +679,16 @@ class EmpiricalPocRunner:
 
   @staticmethod
   def _build_env() -> dict[str, str]:
-    """Ensures sanitizers abort (`SIGABRT`) instead of exiting with code 1."""
+    """Ensures sanitizers abort (`SIGABRT`) instead of exiting cleanly."""
     env = os.environ.copy()
     for var in ("ASAN_OPTIONS", "UBSAN_OPTIONS", "MSAN_OPTIONS"):
       cur = env.get(var, "").strip()
+      opts = [cur] if cur else []
       if "abort_on_error" not in cur:
-        env[var] = f"{cur}:abort_on_error=1" if cur else "abort_on_error=1"
+        opts.append("abort_on_error=1")
+      if var == "UBSAN_OPTIONS" and "halt_on_error" not in cur:
+        opts.append("halt_on_error=1")
+      env[var] = ":".join(opts)
     return env
 
   def _run_stage(
@@ -642,6 +698,7 @@ class EmpiricalPocRunner:
       stage_flags: list[str],
       poc_exec: Path,
       poc_basename: str,
+      sandbox_mode: bool = False,
   ) -> PocStageRun:
     cmd = [str(d8_exec), *stage_flags, str(poc_exec)]
     display_cmd = ["d8", *stage_flags, poc_basename]
@@ -658,8 +715,19 @@ class EmpiricalPocRunner:
           errors="replace",
           timeout=self.timeout_sec,
           check=False)
-      combined = f"{proc.stdout or ''}\n{proc.stderr or ''}".strip()
+      stderr = proc.stderr or ""
+      combined = f"{proc.stdout or ''}\n{stderr}".strip()
       reproduced = self.has_crashed(proc.returncode)
+      if sandbox_mode and sys.platform.startswith("linux"):
+        reproduced = reproduced and (_SANDBOX_VIOLATION_MARKER in stderr)
+      sandbox_read_only = (
+          sandbox_mode and reproduced and _SANDBOX_READ_ONLY_MARKER in stderr)
+      sandbox_harmless = (
+          sandbox_mode and proc.returncode == 0 and
+          (_SANDBOX_HARMLESS_MARKER in stderr or
+           _SANDBOX_FILTER_EXIT_MARKER in stderr))
+      sandbox_undef = (not sandbox_mode and proc.returncode == 1 and
+                       _SANDBOX_UNDEFINED_MARKER in combined)
       lines = [l.strip() for l in combined.splitlines() if l.strip()]
       excerpt = " | ".join(lines[:3])[:240] if lines else ""
       return PocStageRun(
@@ -669,6 +737,9 @@ class EmpiricalPocRunner:
           timed_out=False,
           reproduced=reproduced,
           output_excerpt=excerpt,
+          sandbox_read_only=sandbox_read_only,
+          sandbox_harmless_catch=sandbox_harmless,
+          sandbox_undefined_error=sandbox_undef,
       )
     except subprocess.TimeoutExpired:
       return PocStageRun(
@@ -680,11 +751,14 @@ class EmpiricalPocRunner:
           output_excerpt=f"Timed out after {self.timeout_sec}s",
       )
 
-  def run(self,
-          d8_binary: str,
-          poc_path: str,
-          d8_flags: list[str],
-          sandbox_mode: bool = False) -> EmpiricalPocResult:
+  def run(
+      self,
+      d8_binary: str,
+      poc_path: str,
+      d8_flags: list[str],
+      sandbox_mode: bool = False,
+      skip_on_sandbox_undefined: bool = False,
+  ) -> EmpiricalPocResult:
     """Executes flagless Run 1a, POC-helper Run 1b (`enabled_by_default=True`), and feature-flag Run 2 (`enabled_by_default=False`)."""
     d8_exec = self.resolve_path(d8_binary)
     poc_exec = self.resolve_path(poc_path)
@@ -703,8 +777,13 @@ class EmpiricalPocRunner:
         f for f in extra_flags if _canonical_flag(f) not in _POC_HELPER_FLAGS
     ]
     run1_flags = [sec_flag]
-    r1 = self._run_stage("run1_flagless", d8_exec, run1_flags, poc_exec,
-                         poc_basename)
+    r1 = self._run_stage(
+        "run1_flagless",
+        d8_exec,
+        run1_flags,
+        poc_exec,
+        poc_basename,
+        sandbox_mode=sandbox_mode)
     stages = [r1]
     if r1.reproduced:
       return EmpiricalPocResult(
@@ -715,11 +794,28 @@ class EmpiricalPocRunner:
           summary=(f"Reproduced in Run 1 with `{sec_flag}` and no extra flags"
                    " (default production configuration)."),
           stages=stages,
+          sandbox_read_only=r1.sandbox_read_only,
+          sandbox_harmless_catch=r1.sandbox_harmless_catch,
+      )
+    if skip_on_sandbox_undefined and r1.sandbox_undefined_error:
+      return EmpiricalPocResult(
+          reproduces_with_security_poc=False,
+          enabled_by_default=False,
+          matched_stage=None,
+          effective_d8_flags=extra_flags,
+          summary=(f"Did not reproduce under `{sec_flag}`"
+                   " (`Sandbox` API required)."),
+          stages=stages,
       )
     if helper_flags:
       run1b_flags = [sec_flag, *helper_flags]
-      r1b = self._run_stage("run1_with_poc_helpers", d8_exec, run1b_flags,
-                            poc_exec, poc_basename)
+      r1b = self._run_stage(
+          "run1_with_poc_helpers",
+          d8_exec,
+          run1b_flags,
+          poc_exec,
+          poc_basename,
+          sandbox_mode=sandbox_mode)
       stages.append(r1b)
       if r1b.reproduced:
         return EmpiricalPocResult(
@@ -732,11 +828,18 @@ class EmpiricalPocRunner:
                 f" configuration with POC helper flag(s):"
                 f" `{' '.join(helper_flags)}`)."),
             stages=stages,
+            sandbox_read_only=r1b.sandbox_read_only,
+            sandbox_harmless_catch=r1b.sandbox_harmless_catch,
         )
     if non_helper_flags:
       run2_flags = [sec_flag, *extra_flags]
-      r2 = self._run_stage("run2_with_flags", d8_exec, run2_flags, poc_exec,
-                           poc_basename)
+      r2 = self._run_stage(
+          "run2_with_flags",
+          d8_exec,
+          run2_flags,
+          poc_exec,
+          poc_basename,
+          sandbox_mode=sandbox_mode)
       stages.append(r2)
       if r2.reproduced:
         return EmpiricalPocResult(
@@ -748,14 +851,28 @@ class EmpiricalPocRunner:
                 f"Reproduced in Run 2 with `{' '.join(run2_flags)}` (requires"
                 f" non-default flag(s): `{' '.join(non_helper_flags)}`)."),
             stages=stages,
+            sandbox_read_only=r2.sandbox_read_only,
+            sandbox_harmless_catch=r2.sandbox_harmless_catch,
         )
+    final_stage = stages[-1]
+    flag_rejected = (
+        final_stage.returncode in _MINUS_ONE_EXIT_CODES and bool(extra_flags))
+    if sandbox_mode:
+      fallback_flags = [
+          "--sandbox-testing" if flag_rejected else sec_flag,
+          *extra_flags,
+      ]
+    else:
+      fallback_flags = extra_flags
     return EmpiricalPocResult(
         reproduces_with_security_poc=False,
         enabled_by_default=False,
         matched_stage=None,
-        effective_d8_flags=extra_flags,
+        effective_d8_flags=fallback_flags,
         summary=f"Did not reproduce under `{sec_flag}`.",
         stages=stages,
+        sandbox_harmless_catch=final_stage.sandbox_harmless_catch,
+        flag_rejected=flag_rejected,
     )
 
 
@@ -846,26 +963,20 @@ class GitVersionResolver:
     return self._run_git(["log", "-n", "1", "--format=%ae", commit_ref])
 
   def get_commit_fixed_bugs(self, commit_ref: str) -> list[str]:
+    """Returns bug IDs from `Fixed:` trailers only (`Bug:` often points to umbrella tracking bugs)."""
     full_hash = self._run_git(
         ["rev-parse", "--verify", "--quiet", f"{commit_ref}^{{commit}}"])
     if not full_hash:
       return []
     body = self._run_git(["log", "-n", "1", "--format=%B", commit_ref]) or ""
     fixed_ids: list[str] = []
-    bug_ids: list[str] = []
     for line in body.splitlines():
       m_fixed = re.match(r"^\s*Fixed\s*:\s*(.+)$", line, re.IGNORECASE)
       if m_fixed:
         for b_id in re.findall(r"\b(\d{6,})\b", m_fixed.group(1)):
           if b_id not in fixed_ids:
             fixed_ids.append(b_id)
-        continue
-      m_bug = re.match(r"^\s*Bug\s*:\s*(.+)$", line, re.IGNORECASE)
-      if m_bug:
-        for b_id in re.findall(r"\b(\d{6,})\b", m_bug.group(1)):
-          if b_id not in bug_ids:
-            bug_ids.append(b_id)
-    return fixed_ids if fixed_ids else bug_ids
+    return fixed_ids
 
   def resolve_duplicate_of(self, data: dict[str, Any]) -> str | None:
     raw_dup = data.get("duplicate_of")
@@ -934,6 +1045,7 @@ _ALLOWED_TOP_KEYS = {
     "introduced_in_commit",
     "fixed_in_commit",
     "duplicate_of",
+    "blocked_steps",
     "rationale",
     "proposed_owner",
     "proposed_component",
@@ -946,6 +1058,8 @@ _ALLOWED_REPRO_KEYS = {
     "poc_path",
     "d8_flags",
     "unsupported_port",
+    "d8_only_or_embedder_mock",
+    "unconfirmed_vulnerability",
     "build_variants",
     "build_commit",
     "result",
@@ -1079,6 +1193,20 @@ def validate_triage_input(
       errors.append(
           "`reproduction.unsupported_port` must be a boolean (`true` or `false`)."
       )
+    if repro.get("d8_only_or_embedder_mock") is not None and not isinstance(
+        repro.get("d8_only_or_embedder_mock"), bool):
+      errors.append(
+          "`reproduction.d8_only_or_embedder_mock` must be a boolean (`true` or `false`)."
+      )
+    raw_unconfirmed = repro.get("unconfirmed_vulnerability")
+    if raw_unconfirmed is not None and not isinstance(raw_unconfirmed, bool):
+      errors.append(
+          "`reproduction.unconfirmed_vulnerability` must be a boolean (`true` or `false`)."
+      )
+    elif raw_unconfirmed is True and symptom is not None and symptom not in _VULN_SYMPTOMS:
+      errors.append(
+          "`reproduction.unconfirmed_vulnerability` may only be `true` for a vulnerability-class `symptom`."
+      )
     build_variants = repro.get("build_variants")
     if not isinstance(build_variants, list) or not build_variants or not all(
         isinstance(b, str) and b.strip() for b in build_variants):
@@ -1142,6 +1270,22 @@ def validate_triage_input(
   raw_dup = data.get("duplicate_of")
   if raw_dup is not None and not isinstance(raw_dup, (str, int)):
     errors.append("`duplicate_of` must be a bug ID string/integer or null.")
+  raw_blocked = data.get("blocked_steps")
+  if raw_blocked is not None:
+    if not isinstance(raw_blocked, list) or not all(
+        isinstance(b, str) and b.strip() for b in raw_blocked):
+      errors.append(
+          "`blocked_steps` must be a list of non-empty single-line strings or null."
+      )
+    else:
+      for step in raw_blocked:
+        if "\n" in step.strip():
+          errors.append("Each entry in `blocked_steps` must be a single line.")
+        if len(step.strip()) > _MAX_LINE_FIELD_CHARS:
+          errors.append(
+              f"Each `blocked_steps` entry must be concise (at most {_MAX_LINE_FIELD_CHARS} characters)."
+          )
+        check_no_local_paths("blocked_steps", step, errors)
   rationale = data.get("rationale")
   if not isinstance(rationale, str) or not rationale.strip():
     errors.append("`rationale` is required and must be a non-empty string.")
@@ -1205,6 +1349,8 @@ class TriageDecision:
   hotlists_to_add: list[tuple[str, str]] = field(default_factory=list)
   hotlists_to_remove: list[tuple[str, str]] = field(default_factory=list)
   clear_release_block: bool = False
+  blocked_steps: list[str] = field(default_factory=list)
+  unconfirmed_crash: bool = False
 
 
 def _has_enable_inspector(d8_flags: list[str]) -> bool:
@@ -1222,6 +1368,12 @@ def compute_triage_decision(
   raw_d8_flags = [f.strip() for f in repro.get("d8_flags", []) if f.strip()]
   sandbox_mode = bool(data.get("sandbox_mode", False))
   affects_oos = bool(data.get("affects_out_of_sandbox_state", False))
+  blocked_steps = [
+      s.strip() for s in (data.get("blocked_steps") or []) if s and s.strip()
+  ]
+  d8_only_or_mock = bool(repro.get("d8_only_or_embedder_mock", False))
+  unconfirmed_vuln = bool(repro.get("unconfirmed_vulnerability", False))
+  emp_obj: EmpiricalPocResult | None = None
 
   if symptom == Symptom.NOT_REPRODUCED:
     reproduces_with_security_poc = False
@@ -1243,20 +1395,25 @@ def compute_triage_decision(
     # does not expose the `Sandbox.*` memory corruption API). If the POC
     # already crashes without sandbox testing, treat it as a regular bug/vuln.
     regular_result = runner.run(
-        raw_d8_binary, raw_poc_path, raw_d8_flags, sandbox_mode=False)
+        raw_d8_binary,
+        raw_poc_path,
+        raw_d8_flags,
+        sandbox_mode=False,
+        skip_on_sandbox_undefined=sandbox_mode,
+    )
     if sandbox_mode and regular_result.reproduces_with_security_poc:
       sandbox_mode = False
       affects_oos = False
-      emp_result = regular_result
+      emp_obj = regular_result
     elif sandbox_mode:
-      emp_result = runner.run(
+      emp_obj = runner.run(
           raw_d8_binary, raw_poc_path, raw_d8_flags, sandbox_mode=True)
     else:
-      emp_result = regular_result
-    empirical_run = emp_result.to_dict()
-    reproduces_with_security_poc = emp_result.reproduces_with_security_poc
-    enabled_by_default = emp_result.enabled_by_default
-    effective_d8_flags = list(emp_result.effective_d8_flags)
+      emp_obj = regular_result
+    empirical_run = emp_obj.to_dict()
+    reproduces_with_security_poc = emp_obj.reproduces_with_security_poc
+    enabled_by_default = emp_obj.enabled_by_default
+    effective_d8_flags = list(emp_obj.effective_d8_flags)
 
   scope = ExecutionScope.REGULAR if not sandbox_mode else (
       ExecutionScope.SANDBOX_OUT_OF_SANDBOX
@@ -1268,16 +1425,18 @@ def compute_triage_decision(
   priority = base_rule.default_priority
   impact_reasons: list[str] = []
   current_issue = data.get("current_issue") or {}
+  cur_comp_id = str(current_issue.get("component_id") or "").strip()
   resolved_comp = resolve_component(
       data.get("proposed_component"), current_issue, repo_root=repo_root)
   if resolved_comp is None:
     raise ValueError("Invalid `proposed_component`.")
   component_path, component_id, component_already_set = resolved_comp
-  hotlists_to_add = []
-  hotlists_to_remove = []
+  hotlists_to_add: list[tuple[str, str]] = []
+  hotlists_to_remove: list[tuple[str, str]] = []
   current_hotlists = {str(h) for h in current_issue.get("hotlists", [])}
   has_release_block = bool(current_issue.get("has_release_block", False))
   unsupported_port = bool(repro.get("unsupported_port", False))
+  unconfirmed_crash = False
 
   if symptom != Symptom.NOT_REPRODUCED:
     if _has_enable_inspector(effective_d8_flags):
@@ -1294,18 +1453,104 @@ def compute_triage_decision(
       if component_id != DEVTOOLS_COMPONENT_ID:
         component_path = DEVTOOLS_COMPONENT_PATH
         component_id = DEVTOOLS_COMPONENT_ID
-        component_already_set = False
+        component_already_set = bool(cur_comp_id and
+                                     cur_comp_id == DEVTOOLS_COMPONENT_ID)
       impact_reasons.append(
-          "requires `--enable-inspector` (not representative of production DevTools; use `inspector-test`)"
+          "requires removed `--enable-inspector` flag (removed from d8 in https://crbug.com/573042262; use `inspector-test` instead)"
+      )
+    elif d8_only_or_mock:
+      is_flag_rejected = emp_obj is not None and emp_obj.flag_rejected
+      is_harmless_sandbox = (
+          sandbox_mode and not reproduces_with_security_poc and
+          not is_flag_rejected)
+      if (base_rule.classification == Classification.INTENDED_BEHAVIOR or
+          is_harmless_sandbox):
+        classification = Classification.INTENDED_BEHAVIOR
+        priority = "P3"
+      else:
+        classification = Classification.BUG
+        priority = "P2"
+      severity = None
+      security_impact = SecurityImpact.NONE
+      enabled_by_default = False
+      if is_harmless_sandbox:
+        if emp_obj is not None and emp_obj.sandbox_harmless_catch:
+          impact_reasons.append(
+              "caught harmless by V8 Sandbox crash filter under `--run-as-sandbox-security-poc`"
+          )
+        else:
+          impact_reasons.append(
+              "did not reproduce with `--run-as-sandbox-security-poc`")
+      elif sandbox_mode and is_flag_rejected:
+        impact_reasons.append(
+            "flag rejected under `--run-as-sandbox-security-poc`")
+      impact_reasons.append(
+          "depends on `d8`/extension-only flag or mock embedder resource not reachable in production Chromium/Blink"
+      )
+    elif sandbox_mode and emp_obj is not None and emp_obj.sandbox_read_only:
+      classification = Classification.BUG
+      severity = None
+      security_impact = SecurityImpact.NONE
+      priority = "P2"
+      impact_reasons.append(
+          "read-only V8 Sandbox violation (`d8` crash filter reported a `*read*` access; tracked as a regular bug)"
       )
     elif not reproduces_with_security_poc:
-      if sandbox_mode:
-        classification = Classification.INTENDED_BEHAVIOR
-        severity = None
-        security_impact = SecurityImpact.NONE
-        priority = "P3"
+      is_harmless_catch = (
+          sandbox_mode and emp_obj is not None and
+          emp_obj.sandbox_harmless_catch)
+      is_flag_rejected = emp_obj is not None and emp_obj.flag_rejected
+      clean_exit = (
+          emp_obj is not None and bool(emp_obj.stages) and
+          emp_obj.stages[-1].returncode == 0)
+      if (unconfirmed_vuln and
+          base_rule.classification == Classification.VULNERABILITY and
+          clean_exit and not is_flag_rejected and not is_harmless_catch):
+        classification = Classification.TENTATIVE_VULNERABILITY
+        unconfirmed_crash = True
+        sec_flag = ("--run-as-sandbox-security-poc"
+                    if sandbox_mode else "--run-as-security-poc")
+        non_helper_flags = [
+            f for f in effective_d8_flags
+            if _canonical_flag(f) not in _POC_HELPER_FLAGS and
+            _canonical_flag(f) not in _SECURITY_POC_FLAGS and
+            _canonical_flag(f) not in _SANDBOX_TESTING_FLAGS
+        ]
+        if non_helper_flags and severity is not None:
+          security_impact = SecurityImpact.NONE
+          priority = _IMPACT_NONE_PRIORITY_FOR_SEVERITY[severity]
+          impact_reasons.append("requires feature flag not enabled by default")
+        if unsupported_port and severity is not None:
+          security_impact = SecurityImpact.NONE
+          priority = _IMPACT_NONE_PRIORITY_FOR_SEVERITY[severity]
+          impact_reasons.append("targets unsupported Chromium port/project")
+          if HOTLIST_V8_UNSUPPORTED_CHROME not in current_hotlists:
+            hotlists_to_add.append(
+                (HOTLIST_V8_UNSUPPORTED_CHROME, "v8-unsupported-chrome"))
         impact_reasons.append(
-            "did not reproduce with `--run-as-sandbox-security-poc`")
+            f"unconfirmed: did not crash or trigger a write sandbox violation under `{sec_flag}`"
+        )
+      elif sandbox_mode:
+        if is_flag_rejected and base_rule.classification == Classification.VULNERABILITY:
+          classification = Classification.BUG
+          priority = "P2"
+          severity = None
+          security_impact = SecurityImpact.NONE
+          impact_reasons.append(
+              "did not reproduce with `--run-as-sandbox-security-poc`; requires experimental, developer-only, unsafe, or d8-only configuration"
+          )
+        else:
+          classification = Classification.INTENDED_BEHAVIOR
+          severity = None
+          security_impact = SecurityImpact.NONE
+          priority = "P3"
+          if is_harmless_catch:
+            impact_reasons.append(
+                "caught harmless by V8 Sandbox crash filter under `--run-as-sandbox-security-poc`"
+            )
+          else:
+            impact_reasons.append(
+                "did not reproduce with `--run-as-sandbox-security-poc`")
       else:
         if classification == Classification.VULNERABILITY:
           classification = Classification.BUG
@@ -1320,17 +1565,28 @@ def compute_triage_decision(
     elif classification == Classification.VULNERABILITY:
       if not enabled_by_default:
         security_impact = SecurityImpact.NONE
-        priority = "P2" if severity == "S1" else "P3"
+        priority = _IMPACT_NONE_PRIORITY_FOR_SEVERITY.get(
+            severity or "S1", "P3")
         impact_reasons.append("requires feature flag not enabled by default")
       if unsupported_port:
         security_impact = SecurityImpact.NONE
-        priority = "P2" if severity == "S1" else "P3"
+        priority = _IMPACT_NONE_PRIORITY_FOR_SEVERITY.get(
+            severity or "S1", "P3")
         impact_reasons.append("targets unsupported Chromium port/project")
         if HOTLIST_V8_UNSUPPORTED_CHROME not in current_hotlists:
           hotlists_to_add.append(
               (HOTLIST_V8_UNSUPPORTED_CHROME, "v8-unsupported-chrome"))
 
-  if sandbox_mode and classification == Classification.VULNERABILITY and HOTLIST_V8_SANDBOX not in current_hotlists:
+  if blocked_steps and classification in (
+      Classification.VULNERABILITY, Classification.TENTATIVE_VULNERABILITY):
+    classification = Classification.TENTATIVE_VULNERABILITY
+    if not impact_reasons:
+      impact_reasons.append(base_rule.default_impact_reason)
+    impact_reasons.append("verification incomplete due to blocked step(s)")
+
+  if sandbox_mode and classification in (
+      Classification.VULNERABILITY, Classification.TENTATIVE_VULNERABILITY
+  ) and HOTLIST_V8_SANDBOX not in current_hotlists:
     hotlists_to_add.append((HOTLIST_V8_SANDBOX, "v8-sandbox"))
   if not impact_reasons:
     impact_reasons.append(base_rule.default_impact_reason)
@@ -1366,6 +1622,8 @@ def compute_triage_decision(
       hotlists_to_add=hotlists_to_add,
       hotlists_to_remove=hotlists_to_remove,
       clear_release_block=clear_release_block,
+      blocked_steps=blocked_steps,
+      unconfirmed_crash=unconfirmed_crash,
   )
 
 
@@ -1374,13 +1632,20 @@ def render_triage_report(
     decision: TriageDecision,
     git_resolver: GitVersionResolver,
     env_session_id: str | None = None,
+    output_mode: str = "interactive",
 ) -> str:
-  """Renders the Buganizer comment and the `(User Only)` action plan."""
+  """Renders the Buganizer comment and (in interactive mode) the `(User Only)` action plan."""
+  if output_mode not in ("interactive", "bap"):
+    raise ValueError(
+        f"Unsupported output_mode {output_mode!r}; expected 'interactive' or 'bap'."
+    )
   session_id = _resolve_session_id(data, env_session_id)
   repro = data["reproduction"]
   symptom = Symptom(data["symptom"])
   reproduced = symptom != Symptom.NOT_REPRODUCED
-  classification_line = f"- **Classification**: `{decision.classification.value}`"
+  duplicate_of = git_resolver.resolve_duplicate_of(data)
+  dup_suffix = f" (Duplicate of https://crbug.com/{duplicate_of})" if duplicate_of else ""
+  classification_line = f"- **Classification**: `{decision.classification.value}`{dup_suffix}"
   impact_line = f"- **Security Impact**: **{decision.security_impact.value}** ({decision.security_impact_rationale})"
   current_issue = data.get("current_issue") or {}
   cur_prio = current_issue.get("priority")
@@ -1397,7 +1662,7 @@ def render_triage_report(
     prio_part = f"Priority: `{decision.priority}`"
     if cur_prio and cur_prio != decision.priority:
       prio_part += f", {'lower from' if str(cur_prio) < str(decision.priority) else 'adjust from'} `{cur_prio}`"
-    severity_line = f"- **Proposed Severity**: None — `{decision.classification.value}` ({prio_part})"
+    severity_line = f"- **Proposed Severity**: None ({decision.classification.value}; {prio_part})"
 
   intro_raw = str(data.get("introduced_in_commit") or "").strip()
   fixed_raw = str(data.get("fixed_in_commit") or "").strip()
@@ -1405,15 +1670,10 @@ def render_triage_report(
                                                             "n/a")
   has_fixed = bool(fixed_raw) and fixed_raw.lower() not in ("unknown", "none",
                                                             "n/a")
-  duplicate_of = git_resolver.resolve_duplicate_of(data)
   intro_str = git_resolver.format_change_commit(intro_raw) if has_intro else (
       "N/A (not reproduced)" if not reproduced else "Unknown")
   if has_fixed:
     intro_str += f"; fixed in {git_resolver.format_change_commit(fixed_raw)}"
-    if duplicate_of and f"b/{duplicate_of}" not in intro_str:
-      intro_str += f" (duplicate of b/{duplicate_of})"
-  elif duplicate_of:
-    intro_str += f" (duplicate of b/{duplicate_of})"
   introduced_line = f"- **Introduced In**: {intro_str}"
   rationale_line = f"- **Rationale**: {data['rationale'].strip()}"
 
@@ -1451,6 +1711,17 @@ def render_triage_report(
   if decision.empirical_run and decision.empirical_run.get("summary"):
     finding_lines.append(
         f"    - `Security POC Check`: {decision.empirical_run['summary']}")
+  limitations: list[str] = []
+  if decision.unconfirmed_crash:
+    sec_flag = ("--run-as-sandbox-security-poc" if decision.execution_scope
+                != ExecutionScope.REGULAR else "--run-as-security-poc")
+    limitations.append(
+        f"Unconfirmed crash: `{sec_flag}` exited cleanly without crashing or reporting a write sandbox violation."
+    )
+  limitations.extend(decision.blocked_steps)
+  if limitations:
+    finding_lines.append(
+        f"    - `Verification Limitations`: {'; '.join(limitations)}")
   finding_lines.append(gdb_sub_bullet)
 
   owner_email, owner_reason = git_resolver.resolve_proposed_owner(data) or (
@@ -1472,7 +1743,7 @@ def render_triage_report(
       prop_title == cur_title or
       prop_title.lower() == "keep current") else prop_title
   title_line = f"- **Proposed Title**: {title_str}"
-  header = f"This analysis is AI-generated using the `v8-deterministic-security-triage` skill (Conversation ID: `{session_id}`)."
+  header = f"This analysis is AI-generated using the `v8-security-triaging` skill (Conversation ID: `{session_id}`)."
   buganizer_comment = "\n\n".join([
       header,
       classification_line,
@@ -1486,6 +1757,9 @@ def render_triage_report(
       title_line,
   ])
 
+  if output_mode == "bap":
+    return buganizer_comment + "\n"
+
   user_only_lines = ["--- (User Only: Do Not Post to Buganizer) ---"]
   if decision.empirical_run:
     er = decision.empirical_run
@@ -1498,8 +1772,13 @@ def render_triage_report(
         f"- Summary: {er.get('summary')}",
     ])
     for st in er.get("stages", []):
-      meta = [f"returncode={st.get('returncode')}"
-             ] + (["timed_out=True"] if st.get("timed_out") else [])
+      meta = [f"returncode={st.get('returncode')}"]
+      if st.get("timed_out"):
+        meta.append("timed_out=True")
+      if st.get("sandbox_read_only"):
+        meta.append("sandbox_read_only=True")
+      if st.get("sandbox_harmless_catch"):
+        meta.append("sandbox_harmless_catch=True")
       user_only_lines.append(
           f"- `{st.get('stage')}`: `{' '.join(st.get('command', []))}` -> `reproduced={st.get('reproduced')}` ({', '.join(meta)})"
       )
@@ -1524,10 +1803,15 @@ def render_triage_report(
           f"- **Step {step_idx}**: `edit_title`: `{prop_title}`")
       step_idx += 1
     user_only_lines.append(
-        f'- **Step {step_idx}**: `mark_issue_as_duplicate`: Mark as duplicate of `b/{duplicate_of}` (`targetIssueId="{duplicate_of}"`)'
+        f'- **Step {step_idx}**: `mark_issue_as_duplicate`: Mark as duplicate of https://crbug.com/{duplicate_of} (`targetIssueId="{duplicate_of}"`). If https://crbug.com/{duplicate_of} was prematurely auto-closed (e.g., by ClusterFuzz), reopen it to `ASSIGNED` and attach the minimized POC.'
     )
   else:
-    type_action = f"- **Step {step_idx}**: `update_issue_type`: `{decision.classification.value}`" if is_open_type else f"- **Step {step_idx}**: Issue resolution: `{decision.classification.value}`"
+    if decision.classification == Classification.TENTATIVE_VULNERABILITY:
+      type_action = f"- **Step {step_idx}**: Confirm tentative classification (`Tentative Vulnerability`): verify blocked/unconfirmed findings before mutating issue type to `Vulnerability` or `Bug`."
+    elif is_open_type:
+      type_action = f"- **Step {step_idx}**: `update_issue_type`: `{decision.classification.value}`"
+    else:
+      type_action = f"- **Step {step_idx}**: Issue resolution: `{decision.classification.value}`"
     user_only_lines.append(type_action)
     step_idx += 1
     if decision.severity:
@@ -1587,6 +1871,10 @@ JSON_TEMPLATE = """\
     "poc_path": "tmp/poc.js",
     "d8_flags": [],
     "unsupported_port": false,
+    // Set true when the crash/violation depends on src/d8/ or src/extensions/ shell flags or mock embedder resources (e.g. --use-external-strings)
+    "d8_only_or_embedder_mock": false,
+    // Set true only if GDB/analysis shows a potential vulnerability but d8 exited 0 cleanly under --run-as-[sandbox]-security-poc without crashing
+    "unconfirmed_vulnerability": false,
     "build_variants": ["x64.release", "x64.asan"],
     "build_commit": "HEAD",
     "result": "SIGSEGV writing out-of-bounds to JSArray elements backing store.",
@@ -1598,8 +1886,10 @@ JSON_TEMPLATE = """\
   },
   "introduced_in_commit": "HEAD",
   "fixed_in_commit": null,
-  // Optional: auto-derived from fixed_in_commit's Fixed:/Bug: trailer when omitted
+  // Optional: auto-derived from fixed_in_commit's Fixed: trailer when omitted (Bug: trailers are NOT auto-marked as duplicates)
   "duplicate_of": null,
+  // Optional: list of verification steps blocked by internal safety filters or time/hook limits (marks vulnerabilities tentative)
+  "blocked_steps": null,
   "rationale": "Maglev bounds check elimination elides the check across a side-effecting call. An attacker can shrink the array inside the callback to trigger an out-of-bounds write in production release builds.",
   // Optional when introduced_in_commit or fixed_in_commit author is in git; otherwise pass email string or {"email": "...", "reason": "..."}
   "proposed_owner": {"email": "owner@chromium.org", "reason": "author of introducing commit and subsystem maintainer"},
@@ -1637,8 +1927,17 @@ def format_help_epilog() -> str:
       "Empirical `reproduction.d8_binary` Selection Guide:",
       "  - Pass the `d8` binary that deterministically reproduces the crash under `--run-as-security-poc` (or `--run-as-sandbox-security-poc`):",
       '    - Standard crash / corruption: `"out/x64.release/d8"`',
-      '    - `symptom` is `"dcheck_corrupts_state"` or `"dcheck_benign"` and the unmodified POC only crashes a dcheck-enabled build: `"out/x64.debug/d8"` (per `docs/security/reproducing-bugs.md`, reproducing a `DCHECK` failure in a debugging build with `--run-as-security-poc` is sufficient).',
+      '    - `symptom` is `"dcheck_corrupts_state"` or `"dcheck_benign"` and the unmodified POC only crashes a dcheck-enabled build (regular mode only; under `--run-as-sandbox-security-poc`, `src/sandbox/testing.cc` intercepts `SIGABRT`/`SIGTRAP` as harmless `_exit(0)`, so sandbox escapes must reproduce on a Release/ASan build): `"out/x64.debug/d8"` (per `docs/security/reproducing-bugs.md`, reproducing a `DCHECK` failure in a debugging build with `--run-as-security-poc` is sufficient).',
       '    - Silent out-of-bounds access or use-after-free that only crashes with sanitizer instrumentation: `"out/x64.asan/d8"` (while listing all verified build configurations in `reproduction.build_variants`).',
+      "",
+      "Special Scope & Limitation Flags:",
+      "  - `reproduction.d8_only_or_embedder_mock`: Set `true` if the crash or sandbox violation requires a `src/d8/` or `src/extensions/` shell/test-only flag (e.g., `--use-external-strings`) or mock embedder resource not reachable in production Chromium/Blink.",
+      "  - `reproduction.unconfirmed_vulnerability`: Set `true` when GDB/analysis shows potential memory corruption or state corruption, but `d8` with `--run-as-[sandbox]-security-poc` exits `0` without crashing or triggering a write `V8 sandbox violation detected` (marks the result tentative instead of hard-downgrading; ignored if a flag was rejected with exit `255` or caught as harmless by the sandbox crash filter).",
+      "  - `blocked_steps`: List of single-line notes describing any verification/escalation steps blocked by internal safety filters or time limits (causes vulnerabilities to be marked tentative and surfaced in `Verification Limitations`).",
+      "",
+      "Output Modes (`--output-mode`):",
+      "  - `interactive` (default): Prints the Buganizer comment plus the `--- (User Only: Do Not Post to Buganizer) ---` empirical stage summary and Buganizer MCP Action Plan.",
+      "  - `bap`: Prints only the clean Buganizer Markdown comment for automated Bug Agent Platform (`MarinaBridgeService.SubmitResponse`) submission.",
       "",
       "Dynamic `proposed_component` Resolution (`DIR_METADATA` / Component ID):",
       '  - Pass a V8 source path containing `DIR_METADATA` (e.g. `"src/maglev"`), a numeric Buganizer component ID (e.g. `"1456177"`), or `{"path": "...", "id": "..."}` (from `DIR_METADATA` or Buganizer MCP `list_components`).',
@@ -1667,18 +1966,43 @@ def main(argv: list[str] | None = None) -> int:
       "--repo-root",
       default=None,
       help="Path to the V8 repository root (defaults to auto-detected root).")
+  parser.add_argument(
+      "--output-mode",
+      choices=("interactive", "bap"),
+      default="interactive",
+      help=("Output layout: 'interactive' (default) appends the User Only"
+            " verification summary and Buganizer MCP Action Plan; 'bap' prints"
+            " only the Buganizer Markdown comment for automated callback"
+            " submission."),
+  )
   args = parser.parse_args(argv)
+  if args.repo_root:
+    repo_root = Path(args.repo_root).resolve()
+    if not repo_root.is_dir():
+      print(
+          f"INVALID --repo-root: {args.repo_root!r} ({repo_root}) is not an existing directory.",
+          file=sys.stderr,
+      )
+      return 1
+  else:
+    repo_root = _detect_default_repo_root()
 
   try:
-    raw_text = sys.stdin.read() if args.input_json == "-" else Path(
-        args.input_json).read_text(encoding="utf-8")
+    if args.input_json == "-":
+      raw_text = sys.stdin.read()
+    else:
+      input_path = EmpiricalPocRunner(repo_root=repo_root).resolve_path(
+          args.input_json)
+      if not args.repo_root and not input_path.exists():
+        cwd_path = Path(args.input_json).resolve()
+        if cwd_path.exists():
+          input_path = cwd_path
+      raw_text = input_path.read_text(encoding="utf-8")
     data = load_lenient_json(raw_text)
   except Exception as exc:  # pylint: disable=broad-except
     print(f"JSON PARSE ERROR: {exc}", file=sys.stderr)
     return 1
 
-  repo_root = Path(args.repo_root).resolve(
-  ) if args.repo_root else _detect_default_repo_root()
   env_session_id = _detect_env_session_id()
   errors = validate_triage_input(
       data, env_session_id=env_session_id, repo_root=repo_root)
@@ -1693,7 +2017,12 @@ def main(argv: list[str] | None = None) -> int:
   git_resolver = GitVersionResolver(repo_root)
   print(
       render_triage_report(
-          data, decision, git_resolver, env_session_id=env_session_id),
+          data,
+          decision,
+          git_resolver,
+          env_session_id=env_session_id,
+          output_mode=args.output_mode,
+      ),
       end="",
   )
   return 0

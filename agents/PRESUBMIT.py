@@ -122,7 +122,7 @@ def _CommonChecks(input_api, output_api):
       'skills/doc-invalidation-checker/scripts',
       'skills/fuzzing-cls-with-redline/scripts',
       'skills/minimize-reproducer/scripts',
-      'skills/v8-deterministic-security-triage/scripts',
+      'skills/v8-security-triaging/scripts',
   ):
     tests.extend(
         input_api.canned_checks.GetUnitTestsInDirectory(
