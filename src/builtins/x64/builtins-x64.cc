@@ -840,9 +840,14 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
       FieldOperand(rdx, offsetof(JSGeneratorObject, input_or_debug_pos_)), rax);
   Register object = WriteBarrierDescriptor::ObjectRegister();
   __ Move(object, rdx);
+  // 16-byte stack alignment: this builtin is frameless and callers call it with
+  // an aligned rsp, so the single return address slot leaves rsp at 8 mod 16.
+  // Pad it for the RecordWrite builtin call.
+  if constexpr (ShouldPadArguments(1)) __ PushTaggedStackPadding();
   __ RecordWriteField(object, offsetof(JSGeneratorObject, input_or_debug_pos_),
                       rax, WriteBarrierDescriptor::SlotAddressRegister(),
                       SaveFPRegsMode::kIgnore);
+  if constexpr (ShouldPadArguments(1)) __ DropStackPadding();
   // Check that rdx is still valid, RecordWrite might have clobbered it.
   __ AssertGeneratorObject(rdx);
 
@@ -903,9 +908,16 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ cmpl(argc, Immediate(JSParameterCount(0)));
     __ j(kGreaterThan, &push_arguments, Label::kNear);
     __ movl(argc, Immediate(JSParameterCount(0)));
+    // 16-byte stack alignment: only the receiver is pushed, so pad it.
+    if constexpr (ShouldPadArguments(JSParameterCount(0))) {
+      __ PushTaggedStackPadding();
+    }
     __ jmp(&done_loop, Label::kNear);
 
     __ bind(&push_arguments);
+    // 16-byte stack alignment: the parameters plus the receiver are {argc}
+    // slots in total, so pad them to an even number of slots.
+    PushArgumentPaddingForArgc(masm, argc);
     __ LoadTaggedField(params_array,
                        FieldOperand(rdx, offsetof(JSGeneratorObject,
                                                   parameters_and_registers_)));
@@ -965,10 +977,14 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ Push(rdx);
+    // 16-byte stack alignment: pad the single saved slot. The two runtime
+    // arguments below need no padding.
+    if constexpr (ShouldPadArguments(1)) __ PushTaggedStackPadding();
     __ Push(rdi);
     // Push hole as receiver since we do not use it for stepping.
     __ PushRoot(RootIndex::kTheHoleValue);
     __ CallRuntime(Runtime::kDebugOnFunctionCall);
+    if constexpr (ShouldPadArguments(1)) __ DropStackPadding();
     __ Pop(rdx);
     __ LoadTaggedField(
         rdi, FieldOperand(rdx, offsetof(JSGeneratorObject, function_)));
@@ -979,7 +995,10 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ Push(rdx);
+    // 16-byte stack alignment: pad the single saved slot.
+    if constexpr (ShouldPadArguments(1)) __ PushTaggedStackPadding();
     __ CallRuntime(Runtime::kDebugPrepareStepInSuspendedGenerator);
+    if constexpr (ShouldPadArguments(1)) __ DropStackPadding();
     __ Pop(rdx);
     __ LoadTaggedField(
         rdi, FieldOperand(rdx, offsetof(JSGeneratorObject, function_)));
@@ -2089,8 +2108,19 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
       __ PushDispatchHandle(kJavaScriptCallDispatchHandleRegister, rcx);
 #endif
-      __ Push(closure);
+      // 16-byte stack alignment: as in the stack guard path below, pad the
+      // saved slots to an even number; PushArgument pads the single runtime
+      // argument. We can't eliminate the double padding when kSavedSlots is odd
+      // because the callee (CEntry) will always drop one padding slot alongside
+      // the single argument.
+      constexpr int kSavedSlots =
+          1 + (V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL ? 1 : 0);
+      if constexpr (ShouldPadArguments(kSavedSlots)) {
+        __ PushTaggedStackPadding();
+      }
+      __ PushArgument(closure);
       __ CallRuntime(Runtime::kBytecodeBudgetInterrupt_Sparkplug, 1);
+      if constexpr (ShouldPadArguments(kSavedSlots)) __ DropStackPadding();
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
       __ PopDispatchHandle(kJavaScriptCallDispatchHandleRegister, rcx);
 #endif
@@ -2115,9 +2145,22 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
       __ PushDispatchHandle(kJavaScriptCallDispatchHandleRegister, rcx);
 #endif
+      // 16-byte stack alignment: the baseline frame header (rbp plus six
+      // slots) and the re-pushed return address leave rsp at 8 mod 16 here,
+      // just like on entry of a regular call, so the INTERNAL frame starts
+      // aligned. Pad the saved slots to an even number; PushArgument pads the
+      // single runtime argument. We can't eliminate the double padding when
+      // kSavedSlots is odd because the callee (CEntry) will always drop one
+      // padding slot alongside the single argument.
+      constexpr int kSavedSlots =
+          1 + (V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL ? 1 : 0);
+      if constexpr (ShouldPadArguments(kSavedSlots)) {
+        __ PushTaggedStackPadding();
+      }
       __ SmiTag(frame_size);
-      __ Push(frame_size);
+      __ PushArgument(frame_size);
       __ CallRuntime(Runtime::kStackGuardWithGap, 1);
+      if constexpr (ShouldPadArguments(kSavedSlots)) __ DropStackPadding();
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
       __ PopDispatchHandle(kJavaScriptCallDispatchHandleRegister, rcx);
 #endif
@@ -2168,6 +2211,16 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
   ASM_CODE_COMMENT(masm);
   const RegisterConfiguration* config(RegisterConfiguration::Default());
   int allocatable_register_count = config->num_allocatable_general_registers();
+  // The deoptimizer pushes padding slots below the saved registers to keep the
+  // frame 16-byte aligned (16-byte stack alignment only, and only when the
+  // number of allocatable registers makes the frame odd). Drop them first so
+  // that rsp points at the saved registers.
+  const int padding_slot_count =
+      BuiltinContinuationFrameConstants::PaddingSlotCount(
+          allocatable_register_count);
+  if (padding_slot_count > 0) {
+    __ leaq(rsp, Operand(rsp, padding_slot_count * kSystemPointerSize));
+  }
   if (with_result) {
     if (javascript_builtin) {
       // kScratchRegister is not included in the allocateable registers.
@@ -2796,7 +2849,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
     {
       FrameScope scope(masm, StackFrame::MANUAL);
       __ EnterFrame(StackFrame::INTERNAL);
-      __ Push(rdx);
+      __ PushArgument(rdx);
       __ CallRuntime(Runtime::kThrowNotConstructor);
     }
     __ bind(&new_target_constructor);
@@ -3280,8 +3333,11 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
     FrameScope scope(masm, StackFrame::INTERNAL);
     // Preserve arguments
     __ Push(expected_param_count);
+    // 16-byte stack alignment: pad the single saved slot.
+    if constexpr (ShouldPadArguments(1)) __ PushTaggedStackPadding();
     __ CallRuntime(Runtime::kCompileOptimizedOSR);
     DCHECK_EQ(maybe_target_code, rax);
+    if constexpr (ShouldPadArguments(1)) __ DropStackPadding();
     __ Pop(expected_param_count);
   }
 
@@ -3402,10 +3458,13 @@ void Builtins::Generate_MaglevFunctionEntryStackCheck(MacroAssembler* masm,
             kJavaScriptCallNewTargetRegister);
       }
       __ Push(kJavaScriptCallNewTargetRegister);
+      if constexpr (ShouldPadArguments(1)) __ PushTaggedStackPadding();
     }
-    __ Push(rax);
+    // PushArgument pads the single runtime argument.
+    __ PushArgument(rax);
     __ CallRuntime(Runtime::kStackGuardWithGap, 1);
     if (save_new_target) {
+      if constexpr (ShouldPadArguments(1)) __ DropStackPadding();
       __ Pop(kJavaScriptCallNewTargetRegister);
     }
   }
@@ -6217,8 +6276,14 @@ void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ pushq(kInterpreterAccumulatorRegister);
-    __ Push(closure);
+    // 16-byte stack alignment: pad the single saved slot, and push the single
+    // runtime argument with PushArgument so that it is padded too. CEntry
+    // drops the argument together with its padding slot; without it, CEntry
+    // would drop the saved accumulator instead.
+    if constexpr (ShouldPadArguments(1)) __ PushTaggedStackPadding();
+    __ PushArgument(closure);
     __ CallRuntime(Runtime::kInstallBaselineCode, 1);
+    if constexpr (ShouldPadArguments(1)) __ DropStackPadding();
     __ popq(kInterpreterAccumulatorRegister);
   }
   // Retry from the start after installing baseline code.

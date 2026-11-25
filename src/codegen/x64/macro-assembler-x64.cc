@@ -1368,6 +1368,12 @@ void MacroAssembler::Abort(AbortReason reason) {
 
   Move(rdx, Smi::FromInt(static_cast<int>(reason)));
 
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    // 16-byte stack alignment: Abort can be reached from any stack state and
+    // control never returns here, so simply align rsp for the call.
+    andq(rsp, Immediate(-2 * kSystemPointerSize));
+  }
+
   {
     // We don't actually want to generate a pile of code for this, so just
     // claim there is a stack frame, without generating one.
