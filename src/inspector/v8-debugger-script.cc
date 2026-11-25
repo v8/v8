@@ -33,7 +33,7 @@ String16 calculateHash(v8::Isolate* isolate, v8::Local<v8::String> source) {
   data = reinterpret_cast<const uint8_t*>(buffer.get());
 
   uint8_t hash[kSizeOfSha256Digest];
-  v8::internal::SHA256_hash(data, sizeInBytes, hash);
+  v8::internal::Sha256Hash(data, sizeInBytes, hash);
 
   String16Builder formatted_hash;
   for (size_t i = 0; i < kSizeOfSha256Digest; i++) {

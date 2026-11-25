@@ -4,14 +4,6 @@
 
 #include "src/snapshot/code-serializer.h"
 
-#if V8_USE_OPENSSL
-// OpenSSL 3.0+ deprecates the low-level SHA256_Init/Update/Final API, which
-// remains the standard streaming SHA-256 interface in BoringSSL. Suppress the
-// deprecation warning when building against OpenSSL (e.g. in Node.js).
-#define OPENSSL_SUPPRESS_DEPRECATED
-#include <openssl/sha.h>
-#endif
-
 #include <algorithm>
 #include <memory>
 
@@ -891,7 +883,7 @@ SerializedCodeData::SourceHash SerializedCodeData::GetHeaderSourceHash() const {
 
 namespace {
 
-void HashString(SHA256_CTX* ctx, Isolate* isolate,
+void HashString(Sha256Stream* sha256, Isolate* isolate,
                 DirectHandle<String> string) {
   string = String::Flatten(isolate, string);
   DisallowGarbageCollection no_gc;
@@ -902,14 +894,14 @@ void HashString(SHA256_CTX* ctx, Isolate* isolate,
   using IsOneByteField = LengthField::Next<bool, 1>;
   uint32_t header = LengthField::encode(string->length()) |
                     IsOneByteField::encode(flat.IsOneByte());
-  SHA256_Update(ctx, &header, sizeof(header));
+  sha256->Update(&header, sizeof(header));
   if (flat.IsOneByte()) {
     base::Vector<const uint8_t> chars = flat.ToOneByteVector();
-    SHA256_Update(ctx, chars.begin(), chars.length());
+    sha256->Update(chars.begin(), chars.length());
   } else {
     DCHECK(flat.IsTwoByte());
     base::Vector<const base::uc16> chars = flat.ToUC16Vector();
-    SHA256_Update(ctx, chars.begin(), chars.length() * sizeof(base::uc16));
+    sha256->Update(chars.begin(), chars.length() * sizeof(base::uc16));
   }
 }
 
@@ -921,8 +913,7 @@ SerializedCodeData::SourceHash::SourceHash(
     uint32_t context_extension_count) {
   DCHECK_IMPLIES(wrapped_arguments.is_null(), context_extension_count == 0);
   if (v8_flags.code_cache_source_hash_sha256) {
-    SHA256_CTX ctx;
-    SHA256_Init(&ctx);
+    Sha256Stream sha256;
 
     // Hash compilation-affecting metadata bits into the SHA-256 context.
     // Only IsModule() in ScriptOriginOptions affects how JS source text is
@@ -930,7 +921,7 @@ SerializedCodeData::SourceHash::SourceHash(
     uint8_t flags = 0;
     if (!wrapped_arguments.is_null()) flags |= 1;
     if (origin_options.IsModule()) flags |= 2;
-    SHA256_Update(&ctx, &flags, sizeof(flags));
+    sha256.Update(&flags, sizeof(flags));
 
     // For CompileFunction, wrapped_arguments holds the parameter names (while
     // source only holds the function body) and context_extension_count holds
@@ -938,20 +929,19 @@ SerializedCodeData::SourceHash::SourceHash(
     // count, argument count, and each length-prefixed parameter string so
     // parameter or extension count changes invalidate the cache.
     if (!wrapped_arguments.is_null()) {
-      SHA256_Update(&ctx, &context_extension_count,
-                    sizeof(context_extension_count));
+      sha256.Update(&context_extension_count, sizeof(context_extension_count));
       uint32_t argc = wrapped_arguments->ulength().value();
-      SHA256_Update(&ctx, &argc, sizeof(argc));
+      sha256.Update(&argc, sizeof(argc));
       for (uint32_t i = 0; i < argc; ++i) {
         DirectHandle<String> arg(Cast<String>(wrapped_arguments->get(i)),
                                  isolate);
-        HashString(&ctx, isolate, arg);
+        HashString(&sha256, isolate, arg);
       }
     }
 
-    HashString(&ctx, isolate, source);
+    HashString(&sha256, isolate, source);
 
-    SHA256_Final(data_.data(), &ctx);
+    sha256.Final(data_.data());
   } else {
     data_.fill(0);
     using LengthField = base::BitField<uint32_t, 0, 29>;

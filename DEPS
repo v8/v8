@@ -7,6 +7,7 @@ use_relative_paths = True
 gclient_gn_args_file = 'build/config/gclient_args.gni'
 gclient_gn_args = [
   'android_ndk_version',
+  'checkout_boringssl',
   'checkout_src_internal',
 ]
 
@@ -91,6 +92,9 @@ vars = {
 
   # This variable is overrided in Chromium's DEPS file.
   'build_with_chromium': False,
+
+  # Checkout BoringSSL for standalone builds.
+  'checkout_boringssl': True,
 
   # Repository URL
   'chromium_jetstream_git': 'https://chromium.googlesource.com/external/github.com/WebKit/JetStream.git',
@@ -699,11 +703,11 @@ deps = {
   },
   'third_party/boringssl/src': {
     'url': Var('boringssl_url') + '/boringssl.git' + '@' + '2e33b24cdb5b021c07990dc6d0191ae4a1480cfb',
-    'condition': 'not build_with_chromium',
+    'condition': 'checkout_boringssl and not build_with_chromium',
   },
   'third_party/nasm': {
     'url': Var('chromium_url') + '/chromium/deps/nasm.git' + '@' + '54b1dcf7995006337c54f6862fd6f77a01e23e4e',
-    'condition': 'not build_with_chromium',
+    'condition': 'checkout_boringssl and not build_with_chromium',
   },
   'third_party/fadec/src': {
     'url': Var('chromium_url') + '/external/github.com/aengelke/fadec.git' + '@' + 'c9f78f532b9004de278489019ab2c6c28ae9746e',
@@ -730,7 +734,6 @@ include_rules = [
   '+third_party/v8/codegen',
   '+third_party/vtune',
   '+hwy/highway.h',
-  '+openssl',
   '+simdutf.h',
   # Abseil features are allow-listed. Please use your best judgement when adding
   # to this set -- if in doubt, email v8-dev@. For general guidance, refer to

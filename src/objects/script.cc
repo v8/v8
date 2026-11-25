@@ -652,7 +652,7 @@ DirectHandle<String> Script::GetScriptHash(Isolate* isolate,
   std::unique_ptr<char[]> string_val = src_text->ToCString();
   size_t len = strlen(string_val.get());
   uint8_t hash[kSizeOfSha256Digest];
-  SHA256_hash(string_val.get(), len, hash);
+  Sha256Hash(string_val.get(), len, hash);
   FormatBytesToHex(formatted_hash, kSizeOfFormattedSha256Digest, hash,
                    kSizeOfSha256Digest);
   formatted_hash[kSizeOfSha256Digest * 2] = '\0';

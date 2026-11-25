@@ -600,6 +600,7 @@ v8_cluster_source_set("v8_unittests_sources") {
     "utils/detachable-vector-unittest.cc",
     "utils/identity-map-unittest.cc",
     "utils/locked-queue-unittest.cc",
+    "utils/sha-256-unittest.cc",
     "utils/sparse-bit-vector-unittest.cc",
     "utils/utils-unittest.cc",
     "utils/version-unittest.cc",

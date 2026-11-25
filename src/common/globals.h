@@ -140,6 +140,10 @@ namespace internal {
 #define V8_CAN_CREATE_SHARED_HEAP_BOOL false
 #endif
 
+#ifndef V8_USE_OPENSSL
+#define V8_USE_OPENSSL 0
+#endif
+
 #ifdef V8_LOWER_LIMITS_MODE
 #define V8_LOWER_LIMITS_MODE_BOOL true
 #else

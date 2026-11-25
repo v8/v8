@@ -8,18 +8,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "include/v8config.h"
-
-// Embedders can define V8_USE_OPENSSL to 0 to use the Omaha SHA-256
-// implementation.
-#if !defined(V8_USE_OPENSSL)
-#if !defined(V8_HOST_ARCH_PPC64) && !defined(V8_HOST_ARCH_S390X) && \
-    !defined(V8_HOST_ARCH_LOONG64)
-#define V8_USE_OPENSSL 1
-#else
-#define V8_USE_OPENSSL 0
-#endif
-#endif
+#include "src/base/macros.h"
 
 const size_t kSizeOfSha256Digest = 32;
 const size_t kSizeOfFormattedSha256Digest = (kSizeOfSha256Digest * 2) + 1;
@@ -27,65 +16,30 @@ const size_t kSizeOfFormattedSha256Digest = (kSizeOfSha256Digest * 2) + 1;
 namespace v8 {
 namespace internal {
 
+class V8_EXPORT_PRIVATE Sha256Stream {
+ public:
+  Sha256Stream();
+  ~Sha256Stream() = default;
+  Sha256Stream(const Sha256Stream&) = delete;
+  Sha256Stream& operator=(const Sha256Stream&) = delete;
+
+  void Update(const void* data, size_t len);
+  void Final(uint8_t digest[kSizeOfSha256Digest]);
+
+ private:
+  struct Impl;
+  Impl* impl() { return reinterpret_cast<Impl*>(storage_); }
+
+  static constexpr size_t kStorageAlignment = alignof(uint64_t);
+  alignas(kStorageAlignment) char storage_[112];
+#ifdef DEBUG
+  bool finalized_ = false;
+#endif
+};
+
 // Convenience method. Returns digest address.
-const uint8_t* SHA256_hash(const void* data, size_t len, uint8_t* digest);
-
-#if !V8_USE_OPENSSL
-
-// Copyright 2013 Google Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-// ========================================================================
-//
-// This code originates from the Omaha installer for Windows:
-//   https://github.com/google/omaha
-// The following changes were made:
-//  - Combined the hash-internal.h and sha256.h headers together to form
-//    this one.
-//  - Eliminated conditional definitions related to LITE_EMULATED_64BIT_OPS
-//  - Eliminated `extern "C"` definitions as these aren't exported
-//  - Eliminated `SHA512_SUPPORT` as we only support SHA256
-//  - Eliminated generic `HASH_` definitions as unnecessary
-//  - Moved the hashing functions into `namespace v8::internal`
-//
-// This is intended simply to provide a minimal-impact SHA256 hash utility
-// to support the stack trace source hash functionality.
-
-#define LITE_LShiftU64(a, b) ((a) << (b))
-#define LITE_RShiftU64(a, b) ((a) >> (b))
-
-typedef struct HASH_VTAB {
-  void (*const init)(struct HASH_CTX*);
-  void (*const update)(struct HASH_CTX*, const void*, size_t);
-  void (*const final)(uint8_t*, struct HASH_CTX*);
-  const uint8_t* (*const hash)(const void*, size_t, uint8_t*);
-  unsigned int size;
-} HASH_VTAB;
-
-typedef struct HASH_CTX {
-  const HASH_VTAB* f;
-  uint64_t count;
-  uint8_t buf[64];
-  uint32_t state[8];  // upto SHA2-256
-} HASH_CTX;
-
-typedef HASH_CTX SHA256_CTX;
-
-void SHA256_Init(SHA256_CTX* ctx);
-void SHA256_Update(SHA256_CTX* ctx, const void* data, size_t len);
-void SHA256_Final(uint8_t* digest, SHA256_CTX* ctx);
-
-#endif  // !V8_USE_OPENSSL
+V8_EXPORT_PRIVATE const uint8_t* Sha256Hash(const void* data, size_t len,
+                                            uint8_t* digest);
 
 }  // namespace internal
 }  // namespace v8

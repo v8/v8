@@ -314,6 +314,15 @@ declare_args() {
   # Currently disabled by default during experimentation to limit binary size
   # impact (see b/571708639), and enabled on the icu4x CI builder.
   v8_enable_ecma402_icu4x = false
+
+  # Compile V8 using OpenSSL/BoringSSL for SHA-256. Embedders can set this to
+  # false to use fallback software implementation and avoid depending on
+  # //third_party/boringssl.
+  v8_use_openssl =
+      (build_with_chromium || (defined(build_with_node) && build_with_node) ||
+       (defined(checkout_boringssl) && checkout_boringssl)) &&
+      current_cpu != "ppc64" && current_cpu != "s390x" &&
+      current_cpu != "loong64"
 }
 
 assert(!v8_enable_debugging_features || v8_enable_verification_features,

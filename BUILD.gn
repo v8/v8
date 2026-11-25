@@ -1715,6 +1715,9 @@ config("features") {
   if (v8_use_zlib) {
     defines += [ "V8_USE_ZLIB" ]
   }
+  if (v8_use_openssl) {
+    defines += [ "V8_USE_OPENSSL" ]
+  }
   if (v8_value_deserializer_hard_fail) {
     defines += [ "V8_VALUE_DESERIALIZER_HARD_FAIL" ]
   }
@@ -7425,8 +7428,7 @@ v8_cluster_source_set("v8_base_without_compiler") {
     "//third_party/highway:libhwy",
   ]
 
-  if (current_cpu != "ppc64" && current_cpu != "s390x" &&
-      current_cpu != "loong64") {
+  if (v8_use_openssl) {
     if (defined(build_with_node) && build_with_node) {
       deps += [ "$node_openssl_path" ]
     } else {

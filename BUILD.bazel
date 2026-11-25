@@ -307,6 +307,30 @@ v8_flag(
     default = False,
 )
 
+v8_flag(
+    name = "v8_use_openssl",
+    default = True,
+)
+
+selects.config_setting_group(
+    name = "boringssl_supported_cpu",
+    match_any = [
+        "@v8//bazel/config:is_x64",
+        "@v8//bazel/config:is_ia32",
+        "@v8//bazel/config:is_arm64",
+        "@v8//bazel/config:is_arm",
+        "@v8//bazel/config:is_riscv64",
+    ],
+)
+
+selects.config_setting_group(
+    name = "enable_openssl",
+    match_all = [
+        ":is_v8_use_openssl",
+        ":boringssl_supported_cpu",
+    ],
+)
+
 selects.config_setting_group(
     name = "enable_drumbrake_x64",
     match_all = [
@@ -644,6 +668,11 @@ v8_config(
     }) + select({
         ":is_not_v8_use_metagen": [
             "V8_USE_METAGEN=0",
+        ],
+        "//conditions:default": [],
+    }) + select({
+        ":enable_openssl": [
+            "V8_USE_OPENSSL",
         ],
         "//conditions:default": [],
     }) + select({
@@ -5033,9 +5062,11 @@ v8_library(
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/container:flat_hash_set",
         "@abseil-cpp//absl/functional:overload",
-        "@boringssl//:crypto",
         "@highway//:hwy",
-    ],
+    ] + select({
+        ":enable_openssl": ["@boringssl//:crypto"],
+        "//conditions:default": [],
+    }),
 )
 
 v8_library(
