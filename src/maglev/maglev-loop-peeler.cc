@@ -736,7 +736,7 @@ void MaglevLoopPeeler::CloneBodySubgraph(PeelContext& ctx) {
       if (node->Is<Identity>()) {
         ValueNode* identity = node->Cast<ValueNode>();
         ctx.value_map[identity] =
-            Remap(ctx.value_map, identity->UnwrapIdentities());
+            Remap(ctx.value_map, identity->UnwrapAliases());
         continue;
       }
       Node* cloned = CloneNodeWithRemap(node, ctx.value_map, zone());

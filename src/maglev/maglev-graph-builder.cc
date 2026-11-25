@@ -1823,7 +1823,7 @@ bool IsConsString(ValueNode* string) {
 
 uint32_t MaglevGraphBuilder::StringLengthStaticLowerBound(ValueNode* string,
                                                           int max_depth) {
-  string = string->UnwrapIdentities();
+  string = string->UnwrapAliases();
   // Only use static constant nodes, not path-sensitive KnownNodeAspects
   // `checked_value` alternatives (`TryGetConstant<String>`), as the bound is
   // cached on `StringConcat` nodes across control-flow merges.

@@ -15,7 +15,7 @@ void TruncationProcessor::UnwrapInputs(NodeBase* node) {
   for (int i = 0; i < node->input_count(); i++) {
     ValueNode* input = node->input(i).node();
     if (!input) continue;
-    ValueNode* unwrapped = input->UnwrapIdentities();
+    ValueNode* unwrapped = input->UnwrapAliases();
     if (unwrapped != input) {
       TRACE_TRUNCATION("unwrapping input " << i << " of "
                                            << PrintNodeBrief{node} << " from "

@@ -544,7 +544,7 @@ void PrintVirtualObject(std::ostream& os, const VirtualObject* vobj,
   bool is_first = true;
   vobj->ForEachSlot(
       [&](maglev::ValueNode* value_node, maglev::vobj::Field desc) -> bool {
-        value_node = value_node->UnwrapIdentities();
+        value_node = value_node->UnwrapAliases();
         switch (desc.type) {
           case maglev::vobj::FieldType::kTagged:
           case maglev::vobj::FieldType::kTrustedPointer:

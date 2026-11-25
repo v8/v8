@@ -120,10 +120,10 @@ class NodeInfo {
         // CheckedInternalizedStrings from being emitted).
         if (CouldHaveBeenNonInternalizedStringConstant(old_alt)) {
           DCHECK_EQ(new_alt->opcode(), Opcode::kCheckedInternalizedString);
-          DCHECK_EQ(new_alt->input_node(0)->UnwrapIdentities(), old_alt);
+          DCHECK_EQ(new_alt->input_node(0)->UnwrapAliases(), old_alt);
         } else if (old_alt->opcode() == Opcode::kCheckedInternalizedString) {
           if (IsConstantNode(
-                  old_alt->input_node(0)->UnwrapIdentities()->opcode())) {
+                  old_alt->input_node(0)->UnwrapAliases()->opcode())) {
             DCHECK(IsInternalizedStringConstant(new_alt));
           }
         } else {
@@ -142,7 +142,7 @@ class NodeInfo {
 #define API(name, Name, repr)                                             \
   ValueNode* name() const {                                               \
     if (!store_[Kind::k##Name]) return nullptr;                           \
-    return store_[Kind::k##Name]->UnwrapIdentities();                     \
+    return store_[Kind::k##Name]->UnwrapAliases();                        \
   }                                                                       \
   ValueNode* set_##name(ValueNode* val) {                                 \
     DCHECK_EQ(val->value_representation(), ValueRepresentation::k##repr); \
@@ -637,14 +637,14 @@ class KnownNodeAspects {
   LoadFixedArrayElement* TryFindTaggedKeyedProperty(ValueNode* elements,
                                                     ValueNode* index) const {
     auto it = loaded_tagged_keyed_properties_.find(
-        {elements->UnwrapIdentities(), index->UnwrapIdentities()});
+        {elements->UnwrapAliases(), index->UnwrapAliases()});
     if (it == loaded_tagged_keyed_properties_.end()) return nullptr;
-    return it->second->UnwrapIdentities()->TryCast<LoadFixedArrayElement>();
+    return it->second->UnwrapAliases()->TryCast<LoadFixedArrayElement>();
   }
   void RecordTaggedKeyedProperty(ValueNode* elements, ValueNode* index,
                                  LoadFixedArrayElement* load) {
-    std::pair<ValueNode*, ValueNode*> key{elements->UnwrapIdentities(),
-                                          index->UnwrapIdentities()};
+    std::pair<ValueNode*, ValueNode*> key{elements->UnwrapAliases(),
+                                          index->UnwrapAliases()};
     auto it = loaded_tagged_keyed_properties_.find(key);
     if (it != loaded_tagged_keyed_properties_.end()) {
       it->second = load;
@@ -690,8 +690,8 @@ class KnownNodeAspects {
           std::forward_as_tuple(std::forward<Args>(args)...)) {
         int i = 0;
         for (const auto& inp : inputs) {
-          if (inp->UnwrapIdentities() !=
-              candidate->input(i).node()->UnwrapIdentities()) {
+          if (inp->UnwrapAliases() !=
+              candidate->input(i).node()->UnwrapAliases()) {
             break;
           }
           i++;
@@ -759,7 +759,7 @@ class KnownNodeAspects {
     if (it == map.end()) return nullptr;
     ValueNode* value = it->second;
     if (value) {
-      ValueNode* unwrapped = value->UnwrapIdentities();
+      ValueNode* unwrapped = value->UnwrapAliases();
       if (unwrapped != value) [[unlikely]] {
         map.find({context, offset})->second = unwrapped;
         return unwrapped;
@@ -777,7 +777,7 @@ class KnownNodeAspects {
             ? loaded_context_slots_[{context, offset}]
             : loaded_context_constants_[{context, offset}];
     if (cached_value) {
-      cached_value = cached_value->UnwrapIdentities();
+      cached_value = cached_value->UnwrapAliases();
     }
     return cached_value;
   }
@@ -1025,7 +1025,7 @@ class KnownNodeAspects {
     auto it = props_for_name->second.find(lookup_start_object);
     if (it == props_for_name->second.end()) return nullptr;
 
-    return it->second->UnwrapIdentities();
+    return it->second->UnwrapAliases();
   }
 
   // GetCanonical is used to ensure that nodes in the same conversion chain (eg,

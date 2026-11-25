@@ -253,12 +253,12 @@ struct EscapeAnalysisData {
   // track additional load opcodes in loaded_values.
   ValueNode* GetFieldValue(Key key) {
     ValueNode* value = field_values.Get(key);
-    return value ? value->UnwrapIdentities() : nullptr;
+    return value ? value->UnwrapAliases() : nullptr;
   }
   ValueNode* GetPredecessorFieldValue(Key key, int predecessor_index) {
     DCHECK_GE(predecessor_index, 0);
     ValueNode* value = field_values.GetPredecessorValue(key, predecessor_index);
-    return value ? value->UnwrapIdentities() : nullptr;
+    return value ? value->UnwrapAliases() : nullptr;
   }
 
   ValueNode* Get(InlinedAllocation* base, int field);

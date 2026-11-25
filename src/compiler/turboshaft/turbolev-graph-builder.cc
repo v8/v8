@@ -6401,7 +6401,7 @@ class GraphBuildingNodeProcessor {
 
   void AddDeoptInput(FrameStateData::Builder& builder,
                      const maglev::ValueNode* node) {
-    node = node->UnwrapIdentities();
+    node = node->UnwrapAliases();
     if (const maglev::VirtualObject* vobj =
             node->TryCast<maglev::VirtualObject>()) {
       DCHECK(v8_flags.turbolev_escape_analysis);
@@ -7217,7 +7217,7 @@ class GraphBuildingNodeProcessor {
                 compact_frame->GetValueOf(owner, maglev_unit);
             DCHECK_NOT_NULL(maglev_value);
 
-            maglev_value = maglev_value->UnwrapIdentities();
+            maglev_value = maglev_value->UnwrapAliases();
 
             if (const maglev::VirtualObject* vobj =
                     maglev_value->TryCast<maglev::VirtualObject>()) {

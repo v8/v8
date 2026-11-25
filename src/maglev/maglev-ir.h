@@ -2768,7 +2768,7 @@ class ValueNode : public Node {
         input.node()->SetTaggedResultNeedsDecompress();
       }
     } else if (Is<Identity>()) {
-      DCHECK_EQ(input_count(), 0);
+      DCHECK_EQ(input_count(), 1);
       input(0).node()->SetTaggedResultNeedsDecompress();
     }
   }
@@ -2826,20 +2826,16 @@ class ValueNode : public Node {
   inline void MaybeRecordUseReprHint(UseRepresentationSet repr);
   inline void MaybeRecordUseReprHint(UseRepresentation repr);
 
-  ValueNode* UnwrapIdentities();
-  const ValueNode* UnwrapIdentities() const;
+  // Unwraps identities and single-input non-loop phis (aliases).
+  ValueNode* UnwrapAliases();
+  const ValueNode* UnwrapAliases() const;
 
   ValueNode* UnwrapIdentitiesAndReturnedValues();
 
-  // Like UnwrapIdentities, but also unwraps phis with a single input (which are
-  // not exception phis or resumable loop phis), since the optimizer replaces
-  // those with their input.
-  // TODO(dmercadier): Remove this if https://crrev.com/c/7117478 ever lands.
-  ValueNode* UnwrapIdentitiesAndPhis();
   ValueNode* UnwrapIdentitiesReturnedValuesAndPhis();
 
   // Unwrap identities, returned values, conversions, and single-input non-loop
-  // phis (cf. UnwrapIdentitiesAndPhis).
+  // phis.
   ValueNode* Unwrap();
 
   ValueNode* UnwrapIdentitiesAndUpdateUseCountForDeopt();
@@ -2860,6 +2856,7 @@ class ValueNode : public Node {
 
  private:
   inline ValueNode* UnwrapIdentitiesReturnedValuesAndConversions();
+  V8_EXPORT_PRIVATE ValueNode* UnwrapAliasesSlow();
   V8_EXPORT_PRIVATE ValueNode* UnwrapIdentitiesReturnedValuesAndPhisSlow();
   V8_EXPORT_PRIVATE ValueNode* UnwrapSlow();
 };
@@ -2911,16 +2908,17 @@ ValueLocation& Node::result() {
   return Cast<ValueNode>()->regalloc_info()->result();
 }
 
-inline ValueNode* ValueNode::UnwrapIdentities() {
+inline ValueNode* ValueNode::UnwrapAliases() {
   ValueNode* node = this;
   while (node->Is<Identity>()) node = node->input(0).node();
+  if (V8_UNLIKELY(node->Is<Phi>() && node->input_count() == 1)) {
+    return node->UnwrapAliasesSlow();
+  }
   return node;
 }
 
-inline const ValueNode* ValueNode::UnwrapIdentities() const {
-  const ValueNode* node = this;
-  while (node->Is<Identity>()) node = node->input(0).node();
-  return node;
+inline const ValueNode* ValueNode::UnwrapAliases() const {
+  return const_cast<ValueNode*>(this)->UnwrapAliases();
 }
 
 inline ValueNode* ValueNode::UnwrapIdentitiesAndReturnedValues() {
@@ -2956,10 +2954,10 @@ inline ValueNode* ValueNode::Unwrap() {
   return node;
 }
 
-// Unwraps identities on the current node and, if unwrapping succeeds,
+// Unwraps aliases on the current node and, if unwrapping succeeds,
 // decrements its use-count and increments the use-count of the unwrapped node.
 inline ValueNode* ValueNode::UnwrapIdentitiesAndUpdateUseCountForDeopt() {
-  ValueNode* unwrapped = UnwrapIdentities();
+  ValueNode* unwrapped = UnwrapAliases();
   if (unwrapped != this) {
     // TODO(dmercadier): instead of a simple `remove_use` here, we could instead
     // recursively remove uses in VirtualObjects (basically doing the oppositve
@@ -5877,7 +5875,7 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
 
   ValueNode* get_by_index(uint32_t i) const {
     SBXCHECK_LT(i, slot_count());
-    return slots_[i] ? slots_[i]->UnwrapIdentities() : nullptr;
+    return slots_[i] ? slots_[i]->UnwrapAliases() : nullptr;
   }
 
   ValueNode* get(uint32_t offset) const {
@@ -6531,7 +6529,7 @@ void ValueNode::remove_use() {
 // VirtualObject snapshot inserted by TurbolevEscapeAnalysis, or an
 // InlinedAllocation marked as elided by Maglev's escape analysis.
 inline VirtualObject* ValueNode::TryGetVirtualObject() {
-  ValueNode* unwrapped = UnwrapIdentities();
+  ValueNode* unwrapped = UnwrapAliases();
   if (VirtualObject* vo = unwrapped->TryCast<VirtualObject>()) {
     return vo;
   }
@@ -6548,7 +6546,7 @@ inline VirtualObject* ValueNode::TryGetVirtualObject() {
 // visitors must conservatively descend into every InlinedAllocation's
 // VirtualObject in case the allocation is later elided.
 inline VirtualObject* ValueNode::TryGetDeoptVirtualObject() {
-  ValueNode* unwrapped = UnwrapIdentities();
+  ValueNode* unwrapped = UnwrapAliases();
   if (VirtualObject* vo = unwrapped->TryCast<VirtualObject>()) {
     return vo;
   }
@@ -6568,7 +6566,7 @@ inline void VirtualObject::ForEachNestedRuntimeInput(
   if (ancestors == nullptr) ancestors = &root_ancestors;
   ForEachSlot(
       [&](ValueNode* value, const vobj::Field& desc) -> bool {
-        value = value->UnwrapIdentities();
+        value = value->UnwrapAliases();
         if (IsConstantNode(value->opcode())) {
           // No location assigned to constants.
           return true;

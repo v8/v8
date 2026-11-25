@@ -579,7 +579,7 @@ class CommonSubexpressionEliminationProcessor {
     std::array<ValueNode*, NodeT::kInputCount> inputs;
     int i = 0;
     for (ValueNode*& input : inputs) {
-      input = node->input_node(i++)->UnwrapIdentities();
+      input = node->input_node(i++)->UnwrapAliases();
     }
     cse::CanonicalizeCommutative<NodeT>(inputs);
     uint32_t hash = cse::HashNode(node, inputs);
@@ -805,17 +805,17 @@ class BoundsCheckEliminationProcessor {
   void RecordIfSmiSafeIndex(CheckInt32Condition* node) {
     if (node->condition() != AssertCondition::kUnsignedLessThan) return;
     if (!IsSmiBoundedLength(node->input_node(1))) return;
-    current_block_smi_safe_.insert(node->input_node(0)->UnwrapIdentities());
+    current_block_smi_safe_.insert(node->input_node(0)->UnwrapAliases());
   }
 
   bool IsKnownSmiSafe(ValueNode* node) {
-    return current_block_smi_safe_.contains(node->UnwrapIdentities());
+    return current_block_smi_safe_.contains(node->UnwrapAliases());
   }
 
   bool IsSmiBoundedLength(ValueNode* length) {
-    length = length->UnwrapIdentities();
+    length = length->UnwrapAliases();
     while (length->Is<CheckedSmiUntag>() || length->Is<UnsafeSmiUntag>()) {
-      length = length->input_node(0)->UnwrapIdentities();
+      length = length->input_node(0)->UnwrapAliases();
     }
     if (auto* load = length->TryCast<LoadTaggedField>()) {
       return load->is_array_length() == IsArrayLength::kYes &&

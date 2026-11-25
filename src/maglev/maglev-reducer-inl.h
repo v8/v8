@@ -747,13 +747,13 @@ MaybeAssignedFlag MaglevReducer<BaseT>::GetContextMaybeAssigned(
 template <typename BaseT>
 ValueNode* MaglevReducer<BaseT>::TryGetParentContext(ValueNode* node) {
   if (CreateFunctionContext* n = node->TryCast<CreateFunctionContext>()) {
-    return n->ContextInput().node()->UnwrapIdentitiesAndPhis();
+    return n->ContextInput().node()->UnwrapAliases();
   }
 
   if (InlinedAllocation* alloc = node->TryCast<InlinedAllocation>()) {
     return alloc->object()
         ->get(Context::OffsetOfElementAt(Context::PREVIOUS_INDEX))
-        ->UnwrapIdentitiesAndPhis();
+        ->UnwrapAliases();
   }
 
   if (CallRuntime* n = node->TryCast<CallRuntime>()) {
@@ -761,7 +761,7 @@ ValueNode* MaglevReducer<BaseT>::TryGetParentContext(ValueNode* node) {
       case Runtime::kPushBlockContext:
       case Runtime::kPushCatchContext:
       case Runtime::kNewFunctionContext:
-        return n->ContextInput().node()->UnwrapIdentitiesAndPhis();
+        return n->ContextInput().node()->UnwrapAliases();
       default:
         break;
     }
@@ -6800,7 +6800,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReducePromisePrototypeCatch(
   ValueNode* undefined_value = GetRootConstant(RootIndex::kUndefinedValue);
   ValueNode* on_fulfilled = undefined_value;
   ValueNode* on_rejected =
-      args.count() > 0 ? args[0]->UnwrapIdentities() : undefined_value;
+      args.count() > 0 ? args[0]->UnwrapAliases() : undefined_value;
   return TryReducePromiseThenImpl("Promise.prototype.catch", args, on_fulfilled,
                                   on_rejected, /*needs_then_protector=*/true);
 }
@@ -6811,9 +6811,9 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReducePromisePrototypeThen(
   if (args.mode() != CallArguments::kDefault) return {};
   ValueNode* undefined_value = GetRootConstant(RootIndex::kUndefinedValue);
   ValueNode* on_fulfilled =
-      args.count() > 0 ? args[0]->UnwrapIdentities() : undefined_value;
+      args.count() > 0 ? args[0]->UnwrapAliases() : undefined_value;
   ValueNode* on_rejected =
-      args.count() > 1 ? args[1]->UnwrapIdentities() : undefined_value;
+      args.count() > 1 ? args[1]->UnwrapAliases() : undefined_value;
   return TryReducePromiseThenImpl("Promise.prototype.then", args, on_fulfilled,
                                   on_rejected, /*needs_then_protector=*/false);
 }

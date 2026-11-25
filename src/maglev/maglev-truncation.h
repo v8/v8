@@ -41,7 +41,7 @@ constexpr int64_t kMaxExactlyRepresentableValue =
 constexpr int64_t kMaxSaturatedValue = kMaxExactlyRepresentableValue + 1;
 
 inline Range RefinedInputRange(ValueNode* node) {
-  node = node->UnwrapIdentities();
+  node = node->UnwrapAliases();
   Range refined = Range::All();
   switch (node->opcode()) {
     case Opcode::kInt32BitwiseAnd:
@@ -231,9 +231,9 @@ class PropagateTruncationProcessor {
   ZoneAbslFlatHashMap<ValueNode*, int64_t> max_exact_value_;
 
   static ValueNode* UnwrapForTruncation(ValueNode* node) {
-    node = node->UnwrapIdentities();
+    node = node->UnwrapAliases();
     if (node->Is<ChangeInt32ToFloat64>()) {
-      return node->input_node(0)->UnwrapIdentities();
+      return node->input_node(0)->UnwrapAliases();
     }
     return node;
   }

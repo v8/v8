@@ -269,7 +269,7 @@ ValueNode* GetUpdatedValueAndAddDeoptUse(
     ValueNode* value,
     const std::unordered_map<ValueNode*, VirtualObject*>& vobj_map,
     EscapeAnalysisData& data) {
-  ValueNode* resolved = data.ResolveBase(value)->UnwrapIdentities();
+  ValueNode* resolved = data.ResolveBase(value)->UnwrapAliases();
 
   // If {resolved} is an elided allocation, replace it directly with its
   // snapshot VirtualObject and add uses to its inputs.
@@ -666,7 +666,7 @@ class CandidateAnalyzer {
       // is mutated, the owning allocation cannot be elided.
       LoadTaggedField* elements_load = node->ElementsInput()
                                            .node()
-                                           ->UnwrapIdentities()
+                                           ->UnwrapAliases()
                                            ->template Cast<LoadTaggedField>();
       data_.MarkAsEscapedIfCandidate(elements_load->ValueInput().node());
     }

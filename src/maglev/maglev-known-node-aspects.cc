@@ -227,7 +227,7 @@ bool NodeInfoTypeIs(const NodeInfo& before, const NodeInfo& after) {
 bool SameValue(ValueNode* before, ValueNode* after) {
   // Nodes from loop headers can contain identities since the KnownNodeAspects
   // constructor used in CloneForLoopHeader does not unwrap them.
-  return before == after || (before && before->UnwrapIdentities() == after);
+  return before == after || (before && before->UnwrapAliases() == after);
 }
 
 }  // namespace
@@ -345,8 +345,7 @@ void KnownNodeAspects::MergeForLoop(const KnownNodeAspects& backedge,
       loop_effects != nullptr && !loop_effects->unstable_aspects_cleared;
   auto same_load = [](ValueNode* lhs, ValueNode* rhs) {
     return lhs != nullptr && rhs != nullptr &&
-           lhs->UnwrapIdentities()->IsStructurallyEqualTo(
-               rhs->UnwrapIdentities());
+           lhs->UnwrapAliases()->IsStructurallyEqualTo(rhs->UnwrapAliases());
   };
   auto merge_constant_properties = [&](PropertyKey key, PropertyObjectMap& lhs,
                                        const PropertyObjectMap& rhs) {
@@ -364,12 +363,12 @@ void KnownNodeAspects::MergeForLoop(const KnownNodeAspects& backedge,
     return filter.has_value() && filter->ObjectInvariant(obj);
   };
   auto keep_forward_fact = [&](ValueNode* obj, ValueNode*& l) {
-    if (l) l = l->UnwrapIdentities();
+    if (l) l = l->UnwrapAliases();
     return l != nullptr && entry_invariant(obj);
   };
   auto merge_object_fact = [&](ValueNode* obj, ValueNode*& l, ValueNode* r) {
-    if (l) l = l->UnwrapIdentities();
-    if (r) r = r->UnwrapIdentities();
+    if (l) l = l->UnwrapAliases();
+    if (r) r = r->UnwrapAliases();
     if (!r) return l != nullptr && entry_invariant(obj);
     return l == r || (entry_invariant(obj) && same_load(l, r));
   };
@@ -470,7 +469,7 @@ KnownNodeAspects::Ptr KnownNodeAspects::CloneForLoopBackedge() const {
 
 void KnownNodeAspects::UnwrapIdentitiesAndPhisInKeys() {
   auto unwrap = [](ValueNode* node) -> ValueNode* {
-    return node == nullptr ? nullptr : node->UnwrapIdentitiesAndPhis();
+    return node == nullptr ? nullptr : node->UnwrapAliases();
   };
 
   // The saved backedge KNA only keeps the property and context maps (see
@@ -484,7 +483,7 @@ void KnownNodeAspects::RemapLoopHeaderPhis(
   if (replacements.empty()) return;
   auto remap = [&](ValueNode* node) -> ValueNode* {
     if (node == nullptr) return nullptr;
-    ValueNode* unwrapped = node->UnwrapIdentitiesAndPhis();
+    ValueNode* unwrapped = node->UnwrapAliases();
     if (Phi* phi = unwrapped->TryCast<Phi>()) {
       auto it = replacements.find(phi);
       if (it != replacements.end()) return it->second;
@@ -732,7 +731,7 @@ KnownNodeAspects::KnownNodeAspects(const KnownNodeAspects& other,
           loop_effects->context_slot_written);
       for (auto loaded : other.loaded_context_slots_) {
         if (!loaded.second) continue;
-        loaded.second = loaded.second->UnwrapIdentities();
+        loaded.second = loaded.second->UnwrapAliases();
         if (!slot_written.Contains(loaded.first)) {
           loaded_context_slots_.emplace(loaded);
         }
@@ -889,7 +888,7 @@ KnownNodeAspects::ClearAliasedContextSlotsFor(Graph* graph, ValueNode* context,
 bool KnownNodeAspects::SetContextCachedValue(ValueNode* context, int offset,
                                              ValueNode* value,
                                              MaybeAssignedFlag assigned) {
-  value = value->UnwrapIdentities();
+  value = value->UnwrapAliases();
   if (assigned == kNotAssigned) {
     if (auto* root_const = value->TryCast<RootConstant>()) {
 #ifdef V8_ENABLE_TDZ_HOLE

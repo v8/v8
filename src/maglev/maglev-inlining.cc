@@ -485,7 +485,7 @@ ProcessResult ReturnedValueRepresentationSelector::Process(
     return ProcessResult::kRemove;
   }
   // TODO(victorgomes): Use KNA to create better conversion nodes?
-  ValueNode* input = node->input(0).node()->UnwrapIdentities();
+  ValueNode* input = node->input(0).node()->UnwrapAliases();
   switch (input->value_representation()) {
     case ValueRepresentation::kInt32:
       node->OverwriteWith<Int32ToNumber>()->SetMode(

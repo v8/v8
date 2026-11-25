@@ -513,7 +513,7 @@ class KnaMap {
   // - Keys in both maps: `merge(const Key&, Value& lhs, const Value& rhs)` may
   //   mutate `lhs` and returns true to keep the entry, or false to erase it.
   //   For `Value == ValueNode*`, if `merge` returns false and either value is
-  //   an Identity wrapper, `lhs` is updated to `lhs->UnwrapIdentities()` and
+  //   an alias wrapper, `lhs` is updated to `lhs->UnwrapAliases()` and
   //   `merge` is retried with the unwrapped values. When `KeepLhsOnlyFunc` is
   //   `NeverKeepLhsOnly`, `CanSkipSharedRange` skips shared roots and leaves
   //   once value-type-specific survival and side-effect invariants are met.
@@ -553,8 +553,8 @@ class KnaMap {
       bool keep_value = merge(k, lhs_val, rhs_val);
       if constexpr (std::is_same_v<Value, ValueNode*>) {
         if (!keep_value && lhs_val && rhs_val) {
-          auto l = lhs_val->UnwrapIdentities();
-          auto r = rhs_val->UnwrapIdentities();
+          auto l = lhs_val->UnwrapAliases();
+          auto r = rhs_val->UnwrapAliases();
           if (l != lhs_val || r != rhs_val) {
             lhs_val = l;
             keep_value = merge(k, lhs_val, r);
@@ -1524,7 +1524,7 @@ class KnaMap {
   // - Keys in both maps: `merge(const Key&, Value& lhs, const Value& rhs)` may
   //   mutate `lhs` and returns true to keep the entry, or false to erase it.
   //   For `Value == ValueNode*`, if `merge` returns false and either value is
-  //   an Identity wrapper, `lhs` is updated to `lhs->UnwrapIdentities()` and
+  //   an alias wrapper, `lhs` is updated to `lhs->UnwrapAliases()` and
   //   `merge` is retried with the unwrapped values.
   // - Keys only in `*this`: `keep_lhs_only(const Key&, Value& lhs)` may mutate
   //   `lhs` and returns true to keep the entry, or false to erase it.
@@ -1548,8 +1548,8 @@ class KnaMap {
         bool keep_value = merge(lhs_it->first, lhs_it->second, rhs_it->second);
         if constexpr (std::is_same_v<Value, ValueNode*>) {
           if (!keep_value && lhs_it->second && rhs_it->second) {
-            auto l = lhs_it->second->UnwrapIdentities();
-            auto r = rhs_it->second->UnwrapIdentities();
+            auto l = lhs_it->second->UnwrapAliases();
+            auto r = rhs_it->second->UnwrapAliases();
             if (l != lhs_it->second || r != rhs_it->second) {
               lhs_it->second = l;
               keep_value = merge(lhs_it->first, lhs_it->second, r);

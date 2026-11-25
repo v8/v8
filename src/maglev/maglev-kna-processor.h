@@ -154,7 +154,7 @@ class RecomputeKnownNodeAspectsProcessor {
         DCHECK_GE(phi->input_count(), 1);
         NodeType new_type = NodeType::kNone;
         for (int i = 0; i < phi->input_count(); ++i) {
-          ValueNode* input = phi->input_node(i)->UnwrapIdentities();
+          ValueNode* input = phi->input_node(i)->UnwrapAliases();
           NodeType input_type =
               known_node_aspects_->GetTypeUnchecked(broker(), input);
           new_type = UnionType(new_type, input_type);

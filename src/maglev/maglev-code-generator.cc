@@ -1622,7 +1622,7 @@ class MaglevFrameTranslationBuilder {
 
   void BuildDeoptFrameSingleValue(const ValueNode* value,
                                   const InputLocation*& input_location) {
-    value = value->UnwrapIdentities();
+    value = value->UnwrapAliases();
     DCHECK(!value->Is<VirtualObject>());
     if (const InlinedAllocation* alloc = value->TryCast<InlinedAllocation>()) {
       if (alloc->HasBeenElided()) {

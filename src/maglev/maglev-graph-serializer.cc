@@ -519,7 +519,7 @@ class JSONMaglevGraphWriter {
             types_data.emplace_back(id, os.str());
           }
         } else {
-          const ValueNode* unwrapped = val->UnwrapIdentities();
+          const ValueNode* unwrapped = val->UnwrapAliases();
           if (!unwrapped->Is<Phi>() &&
               unwrapped->value_representation() !=
                   ValueRepresentation::kRawPtr &&
@@ -968,7 +968,7 @@ class JSONMaglevGraphWriter {
       DCHECK(it != virtual_object_ids_.end());
       return it->second;
     }
-    val = val->UnwrapIdentities();
+    val = val->UnwrapAliases();
     return labeller_->NodeId(val);
   }
 
