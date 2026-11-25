@@ -8892,10 +8892,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeStartsWith(
   // min(max(start, 0), receiver_length)
   ValueNode* max_value;
   GET_VALUE_OR_ABORT(max_value, BuildInt32Max(start, GetInt32Constant(0)));
-  ValueNode* min_value;
-  GET_VALUE_OR_ABORT(min_value, BuildInt32Min(max_value, receiver_length));
   ValueNode* clamped_start;
-  GET_VALUE_OR_ABORT(clamped_start, GetInt32(min_value));
+  GET_VALUE_OR_ABORT(clamped_start, BuildInt32Min(max_value, receiver_length));
 
   ValueNode* search_length;
   GET_VALUE_OR_ABORT(search_length, BuildLoadStringLength(search_element));

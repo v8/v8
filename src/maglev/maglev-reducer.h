@@ -1578,6 +1578,12 @@ class MaglevReducer {
   ReduceResult Select(CondFn cond, base::FunctionRef<ReduceResult()> if_true,
                       base::FunctionRef<ReduceResult()> if_false);
 
+  // Like Select, but returns the result as an Int32.
+  template <typename CondFn>
+  ReduceResult SelectInt32(CondFn cond,
+                           base::FunctionRef<ReduceResult()> if_true,
+                           base::FunctionRef<ReduceResult()> if_false);
+
   struct PendingSplice {
     BasicBlock* entry;
     BasicBlock* exit;
@@ -1972,6 +1978,16 @@ class MaglevReducer {
   template <typename NodeT, typename... Args>
   ReduceResult EmitAbruptBlockEnd(std::initializer_list<ValueNode*> inputs,
                                   Args&&... args);
+
+  // Converts {lhs} and {rhs} to Int32 in place and branches on lhs < rhs.
+  BranchResult BuildBranchIfInt32LessThan(BranchBuilder& b, ValueNode** lhs,
+                                          ValueNode** rhs);
+
+  template <typename CondFn, typename FinishFn>
+  ReduceResult SelectImpl(CondFn cond,
+                          base::FunctionRef<ReduceResult()> if_true,
+                          base::FunctionRef<ReduceResult()> if_false,
+                          FinishFn finish);
 
   // Use TryGetConstant instead.
   compiler::OptionalHeapObjectRef TryGetHeapObjectConstant(
