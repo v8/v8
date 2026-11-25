@@ -799,10 +799,11 @@ void ArrayLiteralBoilerplateBuilder::BuildBoilerplateDescription(
   }
 
   // Fill in the literals.
-  int array_index = 0;
-  for (; array_index < constants_length; array_index++) {
+  bool has_non_hole_element = false;
+  for (int array_index = 0; array_index < constants_length; array_index++) {
     Expression* element = values_->at(array_index);
     DCHECK(!element->IsSpread());
+    if (!element->IsTheHoleLiteral()) has_non_hole_element = true;
     if (use_doubles) {
       Literal* literal = element->AsLiteral();
 
@@ -862,9 +863,19 @@ void ArrayLiteralBoilerplateBuilder::BuildBoilerplateDescription(
   }  // namespace internal
 
   // Simple and shallow arrays can be lazily copied, we transform the
-  // elements array to a copy-on-write array.
-  if (is_simple() && depth() == kShallow && array_index > 0 &&
-      IsSmiOrObjectElementsKind(kind)) {
+  // elements array to a copy-on-write array. Short arrays that contain only
+  // holes (for example `[,,]`) are an exception: they have no constants to
+  // share, and the first store to them would copy the elements. For these
+  // arrays, optimized code allocates the elements together with the array,
+  // like for `new Array(n)`. Longer hole-only arrays stay copy-on-write,
+  // because the cost for arrays that are never written grows with the
+  // length.
+  static constexpr int kMaxLengthOfHoleOnlyArrayWithoutCow = 8;
+  const bool is_short_hole_only_array =
+      !has_non_hole_element &&
+      constants_length <= kMaxLengthOfHoleOnlyArrayWithoutCow;
+  if (is_simple() && depth() == kShallow && constants_length > 0 &&
+      !is_short_hole_only_array && IsSmiOrObjectElementsKind(kind)) {
     elements->set_map_safe_transition(
         isolate, ReadOnlyRoots(isolate).fixed_cow_array_map(), kReleaseStore);
   }

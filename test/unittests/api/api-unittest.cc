@@ -21228,6 +21228,10 @@ TEST_F(ApiTest, CheckCOWArraysCreatedRuntimeCounter) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   AssertCowElements(true, "[1, 2, 3]");
+  AssertCowElements(true, "[1, , ]");
+  AssertCowElements(false, "[, , ]");
+  // Hole-only literals longer than 8 elements keep COW elements.
+  AssertCowElements(true, "[,,,,,,,,,]");
   AssertCowElements(false, "[[1], 2, 3]");
   AssertCowElements(true, "[[1], 2, 3][0]");
   AssertCowElements(true, "({foo: [4, 5, 6], bar: [3, 0]}.foo)");
