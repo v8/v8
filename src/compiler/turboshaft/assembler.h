@@ -5686,8 +5686,8 @@ class AssemblerOpInterface : public Next {
   //   compile-time constant instance from the PipelineData and embed it.
   V<WasmTrustedInstanceData> WasmInstanceData() {
     if (Asm().data()->is_wasm()) {
-      return Parameter(wasm::kWasmInstanceDataParameterIndex,
-                       RegisterRepresentation::Tagged());
+      return Parameter<WasmTrustedInstanceData>(
+          wasm::kWasmInstanceDataParameterIndex);
     } else {
       DCHECK(!Asm().data()->wasm_instance().is_null());
       return HeapConstant(Asm().data()->wasm_instance());

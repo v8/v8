@@ -633,8 +633,7 @@ class GraphBuildingNodeProcessor {
       // Parameters are defined late in the graph.
       int new_target_index = Linkage::GetJSCallNewTargetParamIndex(
           maglev_compilation_unit_->parameter_count());
-      new_target_param_ = __ Parameter(
-          new_target_index, RegisterRepresentation::Tagged(), "%new.target");
+      new_target_param_ = __ Parameter<Object>(new_target_index, "%new.target");
     }
 
     if (graph->has_resumable_generator()) {
@@ -1255,8 +1254,8 @@ class GraphBuildingNodeProcessor {
     if (source.is_function_closure()) {
       // The function closure is a Parameter rather than an OsrValue even when
       // OSR-compiling.
-      value = __ Parameter(Linkage::kJSCallClosureParamIndex,
-                           RegisterRepresentation::Tagged(), debug_name);
+      value =
+          __ Parameter<Object>(Linkage::kJSCallClosureParamIndex, debug_name);
     } else if (maglev_compilation_unit_->is_osr()) {
       int index;
       if (source.is_current_context()) {
@@ -1280,7 +1279,7 @@ class GraphBuildingNodeProcessor {
       } else {
         index = source.ToParameterIndex();
       }
-      value = __ Parameter(index, RegisterRepresentation::Tagged(), debug_name);
+      value = __ Parameter<Object>(index, debug_name);
     }
     SetMap(node, value);
     return maglev::ProcessResult::kContinue;

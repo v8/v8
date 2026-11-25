@@ -313,16 +313,14 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapper(
     }
   } else {
     // Create the js_closure and js_context parameters.
-    js_closure = __ Parameter(compiler::Linkage::kJSCallClosureParamIndex,
-                              RegisterRepresentation::Tagged());
-    js_context = __ Parameter(
-        compiler::Linkage::GetJSCallContextParamIndex(wasm_param_count + 1),
-        RegisterRepresentation::Tagged());
+    js_closure = __ template Parameter<JSFunction>(
+        compiler::Linkage::kJSCallClosureParamIndex);
+    js_context = __ template Parameter<Context>(
+        compiler::Linkage::GetJSCallContextParamIndex(wasm_param_count + 1));
 
     // Prepare Param() nodes.
     for (int i = 0; i < wasm_param_count; ++i) {
-      params[i] =
-          __ Parameter(i + param_offset, RegisterRepresentation::Tagged());
+      params[i] = __ template Parameter<Object>(i + param_offset);
     }
   }
 
@@ -436,7 +434,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmToJSWrapper(
 
   __ Bind(__ NewBlock());
   base::SmallVector<OpIndex, 16> wasm_params(wasm_count);
-  OpIndex ref = __ Parameter(0, RegisterRepresentation::Tagged());
+  V<WasmImportData> ref = __ template Parameter<WasmImportData>(0);
   for (int i = 0; i < wasm_count; ++i) {
     RegisterRepresentation rep = this->RepresentationFor(sig_->GetParam(i));
     wasm_params[i] = (__ Parameter(1 + i, rep));
@@ -650,9 +648,8 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmToJSWrapper(
 template <typename Assembler>
 void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmStackEntryWrapper() {
   __ Bind(__ NewBlock());
-  V<WordPtr> stack_metadata =
-      __ Parameter(0, RegisterRepresentation::WordPtr());
-  V<WordPtr> arg_buffer = __ Parameter(1, RegisterRepresentation::WordPtr());
+  V<WordPtr> stack_metadata = __ template Parameter<WordPtr>(0);
+  V<WordPtr> arg_buffer = __ template Parameter<WordPtr>(1);
   V<WasmFuncRef> func_ref =
       __ Load(stack_metadata, LoadOp::Kind::RawAligned(),
               MemoryRepresentation::UncompressedTaggedPointer(),
@@ -709,12 +706,11 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmStackEntryWrapper() {
 template <typename Assembler>
 void WasmWrapperTSGraphBuilder<Assembler>::BuildCapiCallWrapper() {
   __ Bind(__ NewBlock());
-  base::SmallVector<OpIndex, 8> incoming_params;
-  // Instance.
-  incoming_params.push_back(__ Parameter(0, RegisterRepresentation::Tagged()));
+  V<WasmImportData> import_data = __ template Parameter<WasmImportData>(0);
   // Wasm parameters.
+  base::SmallVector<OpIndex, 8> wasm_params;
   for (int i = 0; i < static_cast<int>(sig_->parameter_count()); ++i) {
-    incoming_params.push_back(
+    wasm_params.push_back(
         __ Parameter(i + 1, this->RepresentationFor(sig_->GetParam(i))));
   }
   // Store arguments on our stack, then align the stack for calling to C.
@@ -735,13 +731,12 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildCapiCallWrapper() {
   int offset = 0;
   for (size_t i = 0; i < sig_->parameter_count(); ++i) {
     CanonicalValueType type = sig_->GetParam(i);
-    // Start from the parameter with index 1 to drop the instance_node.
-    SafeStore(offset, type, values, incoming_params[i + 1]);
+    SafeStore(offset, type, values, wasm_params[i]);
     offset += type.value_kind_full_size();
   }
 
-  V<Object> function_node = __ LoadTaggedField(
-      incoming_params[0], offsetof(WasmImportData, callable_));
+  V<Object> function_node =
+      __ LoadTaggedField(import_data, offsetof(WasmImportData, callable_));
   V<HeapObject> shared = LoadSharedFunctionInfo(function_node);
   V<WasmCapiFunctionData> function_data =
       __ template LoadTrustedPointer<kWasmCapiFunctionDataTrustedPointerTag>(
@@ -777,7 +772,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildCapiCallWrapper() {
         compiler::LazyDeoptOnThrow{false}, __ graph_zone());
     OpIndex rethrow_call_target =
         GetTargetForBuiltinCall(Builtin::kWasmRethrowExplicitContext);
-    V<Context> context = __ Load(incoming_params[0], LoadOp::Kind::TaggedBase(),
+    V<Context> context = __ Load(import_data, LoadOp::Kind::TaggedBase(),
                                  MemoryRepresentation::TaggedPointer(),
                                  offsetof(WasmImportData, native_context_));
     __ Call(rethrow_call_target, {return_value, context}, ts_call_descriptor);
@@ -805,15 +800,14 @@ template <typename Assembler>
 void WasmWrapperTSGraphBuilder<Assembler>::BuildCWasmEntryWrapper() {
   __ Bind(__ NewBlock());
 
-  V<Word32> code_entry = __ Parameter(wasm::CWasmEntryParameters::kCodeEntry,
-                                      RegisterRepresentation::Word32());
-  V<Object> object_ref = __ Parameter(wasm::CWasmEntryParameters::kObjectRef,
-                                      RegisterRepresentation::Tagged());
-  V<WordPtr> arg_buffer =
-      __ Parameter(wasm::CWasmEntryParameters::kArgumentsBuffer,
-                   RegisterRepresentation::WordPtr());
-  V<WordPtr> c_entry_fp = __ Parameter(wasm::CWasmEntryParameters::kCEntryFp,
-                                       RegisterRepresentation::WordPtr());
+  V<Word32> code_entry =
+      __ template Parameter<Word32>(wasm::CWasmEntryParameters::kCodeEntry);
+  V<WasmInstanceObject> object_ref = __ template Parameter<WasmInstanceObject>(
+      wasm::CWasmEntryParameters::kObjectRef);
+  V<WordPtr> arg_buffer = __ template Parameter<WordPtr>(
+      wasm::CWasmEntryParameters::kArgumentsBuffer);
+  V<WordPtr> c_entry_fp =
+      __ template Parameter<WordPtr>(wasm::CWasmEntryParameters::kCEntryFp);
 
   V<WordPtr> fp_value = __ FramePointer();
   __ Store(fp_value, c_entry_fp, StoreOp::Kind::RawAligned(),
@@ -826,8 +820,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildCWasmEntryWrapper() {
   size_t pos = 0;
   V<WasmTrustedInstanceData> instance_data =
       __ template LoadTrustedPointer<kWasmTrustedInstanceDataTrustedPointerTag>(
-          V<HeapObject>::Cast(object_ref),
-          LoadOp::Kind::TaggedBase().Immutable(),
+          object_ref, LoadOp::Kind::TaggedBase().Immutable(),
           offsetof(WasmInstanceObject, trusted_data_));
   args[pos++] = instance_data;
 
@@ -879,8 +872,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildJSFastApiCallWrapper(
     DirectHandle<JSReceiver> callable) {
   __ Bind(__ NewBlock());
 
-  V<WasmImportData> import_data =
-      __ Parameter(0, RegisterRepresentation::Tagged());
+  V<WasmImportData> import_data = __ template Parameter<WasmImportData>(0);
   base::SmallVector<OpIndex, 16> wasm_params;
   for (size_t i = 0; i < sig_->parameter_count(); ++i) {
     wasm_params.push_back(__ Parameter(
