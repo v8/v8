@@ -1764,13 +1764,28 @@ class MachineOptimizationReducer : public Next {
           UNREACHABLE();
       }
     }
-    if (rep == RegisterRepresentation::Float64() &&
-        IsFloat32ConvertedToFloat64(left) &&
-        IsFloat32ConvertedToFloat64(right)) {
-      return __ Comparison(
-          UndoFloat32ToFloat64Conversion(V<Float64>::Cast(left)),
-          UndoFloat32ToFloat64Conversion(V<Float64>::Cast(right)), kind,
-          RegisterRepresentation::Float32());
+    if (rep == RegisterRepresentation::Float64()) {
+      if (IsFloat32ConvertedToFloat64(left) &&
+          IsFloat32ConvertedToFloat64(right)) {
+        return __ Comparison(
+            UndoFloat32ToFloat64Conversion(V<Float64>::Cast(left)),
+            UndoFloat32ToFloat64Conversion(V<Float64>::Cast(right)), kind,
+            RegisterRepresentation::Float32());
+      }
+      if (bool is_signed;
+          AreWord32ConvertedToFloat64(left, right, &is_signed)) {
+        V<Word32> left_w32 =
+            UndoWord32ToFloat64Conversion(V<Float64>::Cast(left));
+        V<Word32> right_w32 =
+            UndoWord32ToFloat64Conversion(V<Float64>::Cast(right));
+        if (kind == ComparisonOp::Kind::kSignedLessThan) {
+          return is_signed ? __ Int32LessThan(left_w32, right_w32)
+                           : __ Uint32LessThan(left_w32, right_w32);
+        }
+        DCHECK_EQ(kind, ComparisonOp::Kind::kSignedLessThanOrEqual);
+        return is_signed ? __ Int32LessThanOrEqual(left_w32, right_w32)
+                         : __ Uint32LessThanOrEqual(left_w32, right_w32);
+      }
     }
     if (rep.IsWord()) {
       WordRepresentation rep_w{rep};
@@ -2829,6 +2844,14 @@ class MachineOptimizationReducer : public Next {
         }
       }
     }
+    if (bool is_signed; rep == RegisterRepresentation::Float64() &&
+                        AreWord32ConvertedToFloat64(left, right, &is_signed)) {
+      V<Word32> left_w32 =
+          UndoWord32ToFloat64Conversion(V<Float64>::Cast(left));
+      V<Word32> right_w32 =
+          UndoWord32ToFloat64Conversion(V<Float64>::Cast(right));
+      return __ Word32Equal(left_w32, right_w32);
+    }
     return Next::ReduceComparison(left, right, ComparisonOp::Kind::kEqual, rep);
   }
 
@@ -2963,6 +2986,65 @@ class MachineOptimizationReducer : public Next {
       return __ Float32Constant(DoubleToFloat32(c));
     }
     UNREACHABLE();
+  }
+
+  // How a Word32 value converted to Float64 has to be compared. kEither is
+  // for constants that are both an int32 and a uint32.
+  enum class Word32Signedness { kSigned, kUnsigned, kEither };
+
+  bool IsWord32ConvertedToFloat64(V<Any> value,
+                                  Word32Signedness* signedness = nullptr) {
+    if (const ChangeOp* change_op = matcher_.TryCast<ChangeOp>(value)) {
+      if (change_op->from == RegisterRepresentation::Word32() &&
+          change_op->to == RegisterRepresentation::Float64()) {
+        if (change_op->kind == ChangeOp::Kind::kSignedToFloat) {
+          if (signedness) *signedness = Word32Signedness::kSigned;
+          return true;
+        } else if (change_op->kind == ChangeOp::Kind::kUnsignedToFloat) {
+          if (signedness) *signedness = Word32Signedness::kUnsigned;
+          return true;
+        }
+      }
+      return false;
+    }
+    if (double c; matcher_.MatchFloat64Constant(value, &c) && c >= kMinInt &&
+                  c <= kMaxUInt32 &&
+                  static_cast<double>(static_cast<int64_t>(c)) == c) {
+      if (signedness) {
+        *signedness = c < 0          ? Word32Signedness::kSigned
+                      : c <= kMaxInt ? Word32Signedness::kEither
+                                     : Word32Signedness::kUnsigned;
+      }
+      return true;
+    }
+    return false;
+  }
+
+  // Returns false if {left} and {right} need different comparisons.
+  bool AreWord32ConvertedToFloat64(V<Any> left, V<Any> right, bool* is_signed) {
+    Word32Signedness left_signedness, right_signedness;
+    if (!IsWord32ConvertedToFloat64(left, &left_signedness) ||
+        !IsWord32ConvertedToFloat64(right, &right_signedness)) {
+      return false;
+    }
+    Word32Signedness signedness = left_signedness == Word32Signedness::kEither
+                                      ? right_signedness
+                                      : left_signedness;
+    if (right_signedness != Word32Signedness::kEither &&
+        right_signedness != signedness) {
+      return false;
+    }
+    *is_signed = signedness != Word32Signedness::kUnsigned;
+    return true;
+  }
+
+  V<Word32> UndoWord32ToFloat64Conversion(V<Float64> value) {
+    DCHECK(IsWord32ConvertedToFloat64(value));
+    if (const ChangeOp* change_op = matcher_.TryCast<ChangeOp>(value)) {
+      return change_op->input<Word32>();
+    }
+    double c = matcher_.Cast<ConstantOp>(value).float64().get_scalar();
+    return __ Word32Constant(static_cast<uint32_t>(static_cast<int64_t>(c)));
   }
 
   bool IsBit(V<Word> value) { return matcher_.Is<ComparisonOp>(value); }
