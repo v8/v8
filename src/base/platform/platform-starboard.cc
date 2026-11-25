@@ -406,7 +406,10 @@ bool Thread::Start() {
   return SbThreadIsValid(data_->thread_);
 }
 
-void Thread::Join() { SbThreadJoin(data_->thread_, nullptr); }
+void Thread::Join() {
+  DCHECK(SbThreadIsValid(data_->thread_));
+  SbThreadJoin(data_->thread_, nullptr);
+}
 
 Thread::LocalStorageKey Thread::CreateThreadLocalKey() {
   return SbThreadCreateLocalKey(nullptr);

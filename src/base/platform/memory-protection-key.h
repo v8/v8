@@ -9,6 +9,9 @@
 
 #if V8_HAS_PKU_SUPPORT
 
+#include <cstdint>
+#include <optional>
+
 #include "include/v8-platform.h"
 #include "src/base/address-region.h"
 
@@ -144,6 +147,19 @@ class V8_BASE_EXPORT MemoryProtectionKey {
   // specified, only the pages up to and including that address will be tagged.
   static bool SetKeyForCurrentThreadsStack(int key,
                                            void* limit_address = nullptr);
+
+  // Opaque snapshot of a thread's hardware protection-key register (e.g., PKRU
+  // on x64).
+  using ThreadKeyRegister = uint32_t;
+
+  // Returns the current thread's hardware protection-key register if OS-enabled
+  // hardware support is active (e.g., OSPKE on x64), or std::nullopt
+  // otherwise.
+  static std::optional<ThreadKeyRegister> ReadThreadKeyRegister();
+
+  // Restores a protection-key register value previously returned by
+  // ReadThreadKeyRegister() if it differs from the current thread's value.
+  static void RestoreThreadKeyRegister(ThreadKeyRegister value);
 };
 
 }  // namespace base

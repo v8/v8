@@ -1296,18 +1296,9 @@ static void* ThreadEntry(void* arg) {
       break;
   }
 #elif V8_OS_LINUX || V8_OS_ZOS
-  switch (thread->priority()) {
-    case Thread::Priority::kBestEffort:
-      setpriority(PRIO_PROCESS, 0, 10);
-      break;
-    case Thread::Priority::kUserVisible:
-      setpriority(PRIO_PROCESS, 0, 1);
-      break;
-    case Thread::Priority::kUserBlocking:
-      setpriority(PRIO_PROCESS, 0, 0);
-      break;
-    case Thread::Priority::kDefault:
-      break;
+  if (std::optional<int> nice_value =
+          Thread::PriorityToNiceValue(thread->priority())) {
+    setpriority(PRIO_PROCESS, 0, *nice_value);
   }
 #endif
   DCHECK_NE(thread->data()->thread_, kNoThread);
@@ -1344,15 +1335,20 @@ bool Thread::Start() {
   {
     MutexGuard lock_guard(&data_->thread_creation_mutex_);
     result = pthread_create(&data_->thread_, &attr, ThreadEntry, this);
-    if (result != 0 || data_->thread_ == kNoThread) {
+    if (result != 0) {
+      data_->thread_ = kNoThread;
       return pthread_attr_destroy(&attr), false;
     }
+    DCHECK_NE(data_->thread_, kNoThread);
   }
-  result = pthread_attr_destroy(&attr);
-  return result == 0;
+  CHECK_EQ(0, pthread_attr_destroy(&attr));
+  return true;
 }
 
-void Thread::Join() { pthread_join(data_->thread_, nullptr); }
+void Thread::Join() {
+  DCHECK_NE(data_->thread_, kNoThread);
+  pthread_join(data_->thread_, nullptr);
+}
 
 static Thread::LocalStorageKey PthreadKeyToLocalKey(pthread_key_t pthread_key) {
 #if V8_OS_CYGWIN

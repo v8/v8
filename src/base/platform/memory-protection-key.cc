@@ -10,6 +10,10 @@
 #include <sys/mman.h>  // For {mprotect()} protection macros.
 #include <unistd.h>    // For sysconf.
 
+#if defined(V8_HOST_ARCH_X64)
+#include <cpuid.h>
+#endif
+
 #include <cerrno>
 #undef MAP_TYPE  // Conflicts with MAP_TYPE in Torque-generated instance-types.h
 
@@ -36,6 +40,43 @@ int GetProtectionFromMemoryPermission(PagePermissions permission) {
   static_assert(static_cast<int>(PagePermissions::kExecute) == PROT_EXEC);
   return static_cast<int>(permission);
 }
+
+#if defined(V8_HOST_ARCH_X64)
+bool CpuSupportsPkru() {
+  static const bool kSupported = []() {
+    unsigned int eax = 0;
+    unsigned int ebx = 0;
+    unsigned int ecx = 0;
+    unsigned int edx = 0;
+    if (!__get_cpuid(0, &eax, &ebx, &ecx, &edx) || eax < 7) {
+      return false;
+    }
+    if (!__get_cpuid_count(7, 0, &eax, &ebx, &ecx, &edx)) {
+      return false;
+    }
+    // CPUID.(EAX=7,ECX=0):ECX[bit 4] is OSPKE (OS enabled CR4.PKE), meaning
+    // RDPKRU/WRPKRU execute without #UD.
+    return (ecx & (1u << 4)) != 0;
+  }();
+  return kSupported;
+}
+
+uint32_t ReadPkru() {
+  uint32_t pkru;
+  // Raw encoding for `rdpkru` so this compiles without -mpku.
+  // `rdpkru` requires ecx == 0 and writes eax = PKRU, edx = 0.
+  __asm__ volatile(".byte 0x0f,0x01,0xee\n" : "=a"(pkru) : "c"(0) : "edx");
+  return pkru;
+}
+
+void WritePkru(uint32_t pkru) {
+  // Raw encoding for `wrpkru` so this compiles without -mpku.
+  __asm__ volatile(".byte 0x0f,0x01,0xef\n"
+                   :
+                   : "a"(pkru), "c"(0), "d"(0)
+                   : "memory");
+}
+#endif  // defined(V8_HOST_ARCH_X64)
 
 }  // namespace
 
@@ -203,6 +244,30 @@ bool MemoryProtectionKey::SetKeyForCurrentThreadsStack(int key,
     success = pkey_mprotect(stackaddr, stacksize, flags, key) == 0;
   }
   return success;
+}
+
+// static
+std::optional<MemoryProtectionKey::ThreadKeyRegister>
+MemoryProtectionKey::ReadThreadKeyRegister() {
+#if defined(V8_HOST_ARCH_X64)
+  if (!CpuSupportsPkru()) return std::nullopt;
+  return ReadPkru();
+#else
+  return std::nullopt;
+#endif
+}
+
+// static
+void MemoryProtectionKey::RestoreThreadKeyRegister(ThreadKeyRegister value) {
+#if defined(V8_HOST_ARCH_X64)
+  DCHECK(CpuSupportsPkru());
+  if (ReadPkru() != value) {
+    WritePkru(value);
+  }
+#else
+  USE(value);
+  UNREACHABLE();
+#endif
 }
 
 }  // namespace base

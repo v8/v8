@@ -25,17 +25,16 @@ double DelayedTaskQueue::MonotonicallyIncreasingTime() {
 
 void DelayedTaskQueue::Append(std::unique_ptr<Task> task) {
   DCHECK(!terminated_);
-  task_queue_.push(std::move(task));
+  task_queue_.push({std::move(task), false});
 }
 
-void DelayedTaskQueue::AppendDelayed(std::unique_ptr<Task> task,
+bool DelayedTaskQueue::AppendDelayed(std::unique_ptr<Task> task,
                                      double delay_in_seconds) {
   DCHECK_GE(delay_in_seconds, 0.0);
   double deadline = MonotonicallyIncreasingTime() + delay_in_seconds;
-  {
-    DCHECK(!terminated_);
-    delayed_task_queue_.emplace(deadline, std::move(task));
-  }
+  DCHECK(!terminated_);
+  auto it = delayed_task_queue_.emplace(deadline, std::move(task));
+  return it == delayed_task_queue_.begin();
 }
 
 DelayedTaskQueue::MaybeNextTask DelayedTaskQueue::TryGetNext() {
@@ -45,12 +44,17 @@ DelayedTaskQueue::MaybeNextTask DelayedTaskQueue::TryGetNext() {
     for (;;) {
       std::unique_ptr<Task> task = PopTaskFromDelayedQueue(now);
       if (!task) break;
-      task_queue_.push(std::move(task));
+      task_queue_.push({std::move(task), true});
+      ++delayed_tasks_in_immediate_queue_;
     }
     if (!task_queue_.empty()) {
-      std::unique_ptr<Task> task = std::move(task_queue_.front());
+      QueuedTask entry = std::move(task_queue_.front());
       task_queue_.pop();
-      return {MaybeNextTask::kTask, std::move(task), {}};
+      if (entry.from_delayed) {
+        DCHECK_GT(delayed_tasks_in_immediate_queue_, 0u);
+        --delayed_tasks_in_immediate_queue_;
+      }
+      return {MaybeNextTask::kTask, std::move(entry.task), {}};
     }
 
     if (terminated_) {

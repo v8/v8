@@ -42,8 +42,21 @@ class V8_PLATFORM_EXPORT DelayedTaskQueue {
 
   // Appends a delayed task to the queue. There is no ordering guarantee
   // provided regarding delayed tasks, both with respect to other delayed tasks
-  // and non-delayed tasks that were appended using Append().
-  void AppendDelayed(std::unique_ptr<Task> task, double delay_in_seconds);
+  // and non-delayed tasks that were appended using Append(). Returns true iff
+  // the appended task now has the earliest deadline in the delayed queue.
+  bool AppendDelayed(std::unique_ptr<Task> task, double delay_in_seconds);
+
+  size_t immediate_size() const { return task_queue_.size(); }
+  // Returns true iff there are un-expired delayed tasks in
+  // |delayed_task_queue_| requiring a timed waiter.
+  bool has_delayed_tasks() const { return !delayed_task_queue_.empty(); }
+  // Returns true iff any delayed task is still pending: either waiting for its
+  // deadline in |delayed_task_queue_| or already moved into |task_queue_| and
+  // waiting behind earlier tasks.
+  bool has_pending_delayed_tasks() const {
+    return !delayed_task_queue_.empty() ||
+           delayed_tasks_in_immediate_queue_ > 0;
+  }
 
   struct MaybeNextTask {
     enum { kTask, kWaitIndefinite, kWaitDelayed, kTerminated } state;
@@ -61,10 +74,16 @@ class V8_PLATFORM_EXPORT DelayedTaskQueue {
   void Terminate();
 
  private:
+  struct QueuedTask {
+    std::unique_ptr<Task> task;
+    bool from_delayed;
+  };
+
   std::unique_ptr<Task> PopTaskFromDelayedQueue(double now);
 
-  std::queue<std::unique_ptr<Task>> task_queue_;
+  std::queue<QueuedTask> task_queue_;
   std::multimap<double, std::unique_ptr<Task>> delayed_task_queue_;
+  size_t delayed_tasks_in_immediate_queue_ = 0;
   bool terminated_ = false;
   TimeFunction time_function_;
 };

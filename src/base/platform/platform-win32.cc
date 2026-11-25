@@ -1756,7 +1756,7 @@ class Thread::PlatformData {
  public:
   explicit PlatformData(HANDLE thread) : thread_(thread) {}
   HANDLE thread_;
-  unsigned thread_id_;
+  unsigned thread_id_ = 0;
 };
 
 
@@ -1789,12 +1789,15 @@ Thread::~Thread() {
 bool Thread::Start() {
   uintptr_t result = _beginthreadex(nullptr, static_cast<unsigned>(stack_size_),
                                     ThreadEntry, this, 0, &data_->thread_id_);
-  data_->thread_ = reinterpret_cast<HANDLE>(result);
+  if (result != 0) {
+    data_->thread_ = reinterpret_cast<HANDLE>(result);
+  }
   return result != 0;
 }
 
 // Wait for thread to terminate.
 void Thread::Join() {
+  DCHECK_NE(data_->thread_, kNoThread);
   if (data_->thread_id_ != GetCurrentThreadId()) {
     WaitForSingleObject(data_->thread_, INFINITE);
   }

@@ -586,6 +586,24 @@ class V8_BASE_EXPORT Thread {
   // unchanged.
   enum class Priority { kBestEffort, kUserVisible, kUserBlocking, kDefault };
 
+#if V8_OS_LINUX || V8_OS_ZOS
+  // Maps a Thread::Priority to its target Linux/z/OS nice value, or
+  // std::nullopt for kDefault (keep the priority unchanged).
+  static constexpr std::optional<int> PriorityToNiceValue(Priority priority) {
+    switch (priority) {
+      case Priority::kBestEffort:
+        return 10;
+      case Priority::kUserVisible:
+        return 1;
+      case Priority::kUserBlocking:
+        return 0;
+      case Priority::kDefault:
+        return std::nullopt;
+    }
+    CONSTEXPR_UNREACHABLE();
+  }
+#endif
+
   class Options {
    public:
     Options() : Options("v8:<unknown>") {}
@@ -610,13 +628,19 @@ class V8_BASE_EXPORT Thread {
   Thread& operator=(const Thread&) = delete;
   virtual ~Thread();
 
-  // Start new thread by calling the Run() method on the new thread.
+  // Start new thread by calling the Run() method on the new thread. Returns
+  // false if the OS thread could not be created; in that case Run() is never
+  // called and Join() must not be called.
   V8_WARN_UNUSED_RESULT bool Start();
 
   // Start new thread and wait until Run() method is called on the new thread.
   bool StartSynchronously() {
     start_semaphore_ = new Semaphore(0);
-    if (!Start()) return false;
+    if (!Start()) {
+      delete start_semaphore_;
+      start_semaphore_ = nullptr;
+      return false;
+    }
     start_semaphore_->Wait();
     delete start_semaphore_;
     start_semaphore_ = nullptr;
