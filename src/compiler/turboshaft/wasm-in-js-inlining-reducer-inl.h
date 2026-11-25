@@ -1149,6 +1149,12 @@ WasmBodyInliningResult WasmInJSInliningReducer<Next>::TryInlineWasmBody(
     return WasmBodyInliningResult::Failed();
   }
 
+  if (__ data()->info()->HasReachedMaxInliningId()) {
+    TRACE("- not inlining: maximum inlining id has been reached");
+    __ data()->info()->set_could_not_inline_all_candidates();
+    return WasmBodyInliningResult::Failed();
+  }
+
   base::Vector<const uint8_t> module_bytes = native_module->wire_bytes();
   const uint8_t* start = module_bytes.begin() + func.code.offset();
   const uint8_t* end = module_bytes.begin() + func.code.end_offset();

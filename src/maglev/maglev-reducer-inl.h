@@ -2282,8 +2282,7 @@ bool MaglevReducer<BaseT>::CanInlineCall(
     TRACE_CANNOT_INLINE("stack overflow");
     return false;
   }
-  if (static_cast<int>(graph()->inlined_functions().size()) >=
-      SourcePosition::MaxInliningId()) {
+  if (graph()->HasReachedMaxInliningId()) {
     graph()->compilation_info()->set_could_not_inline_all_candidates();
     TRACE_CANNOT_INLINE("maximum inlining ids");
     return false;

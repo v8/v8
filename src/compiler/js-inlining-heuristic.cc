@@ -796,6 +796,11 @@ void JSInliningHeuristic::CreateOrReuseDispatch(
 
 Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate,
                                                bool small_function) {
+  if (info_->HasReachedMaxInliningId()) {
+    info_->set_could_not_inline_all_candidates();
+    return NoChange();
+  }
+
   int num_calls = candidate.num_functions;
   Node* const node = candidate.node;
 

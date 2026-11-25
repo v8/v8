@@ -457,6 +457,11 @@ JSInliner::WasmInlineResult JSInliner::TryWasmInlining(
   SourcePosition call_pos = source_positions_->GetSourcePosition(call_node);
   // Calculate hypothetical inlining id, so if we can't inline, we do not add
   // the wasm function to the list of inlined functions.
+  if (info_->HasReachedMaxInliningId()) {
+    TRACE("- not inlining: maximum inlining id has been reached");
+    info_->set_could_not_inline_all_candidates();
+    return {};
+  }
   int inlining_id = static_cast<int>(info_->inlined_functions().size());
   bool can_inline_body = compiler::TryWasmInlining(
       fct_index, native_module, inlining_id, jsgraph(), source_positions_);
@@ -761,6 +766,13 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     // In that case, we simply don't inline.
     TRACE("Not inlining " << *shared_info << " into " << outer_shared_info
                           << " because source positions are missing.");
+    return NoChange();
+  }
+
+  if (info_->HasReachedMaxInliningId()) {
+    TRACE("Not inlining " << *shared_info << " into " << outer_shared_info
+                          << " because maximum inlining id has been reached.");
+    info_->set_could_not_inline_all_candidates();
     return NoChange();
   }
 

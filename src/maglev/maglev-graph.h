@@ -257,6 +257,10 @@ class Graph final : public ZoneObject {
   inlined_functions() {
     return inlined_functions_;
   }
+  bool HasReachedMaxInliningId() const {
+    return static_cast<int>(inlined_functions_.size()) >
+           SourcePosition::MaxInliningId();
+  }
   InliningTreeDebugInfo* inlining_tree_debug_info() const {
     return inlining_tree_debug_info_;
   }

@@ -266,6 +266,12 @@ MaglevInliner::InliningResult MaglevInliner::BuildInlineFunction(
     return InliningResult::kDone;
   }
 
+  if (graph_->HasReachedMaxInliningId()) {
+    graph_->compilation_info()->set_could_not_inline_all_candidates();
+    TRACE_INLINING(TraceSkip(shared) << "Maximum inlining ids reached.");
+    return InliningResult::kFail;
+  }
+
   TRACE_INLINING(TraceInline(shared));
 
   // Check if the catch block might become unreachable, ie, the call is the

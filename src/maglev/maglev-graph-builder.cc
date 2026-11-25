@@ -7510,6 +7510,7 @@ ReduceResult MaglevGraphBuilder::BuildInlineFunction(
     }
   }
 
+  DCHECK(!graph()->HasReachedMaxInliningId());
   graph()->inlined_functions().push_back(
       OptimizedCompilationInfo::InlinedFunctionHolder(
           shared.object(), bytecode.object(), call_site_position));

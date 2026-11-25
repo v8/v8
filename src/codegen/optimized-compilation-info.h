@@ -243,6 +243,11 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   using InlinedFunctionList = std::vector<InlinedFunctionHolder>;
   InlinedFunctionList& inlined_functions() { return inlined_functions_; }
 
+  bool HasReachedMaxInliningId() const {
+    return static_cast<int>(inlined_functions_.size()) >
+           SourcePosition::MaxInliningId();
+  }
+
   // Returns the inlining id for source position tracking.
   int AddInlinedFunction(IndirectHandle<SharedFunctionInfo> inlined_function,
                          IndirectHandle<BytecodeArray> inlined_bytecode,
