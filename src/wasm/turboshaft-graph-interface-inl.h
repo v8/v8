@@ -85,9 +85,8 @@ template <typename Assembler>
 inline auto WasmGraphBuilderBase<Assembler>::LoadInternalFunctionFromFuncRef(
     V<WasmFuncRef> func_ref, LoadOp::Kind load_kind)
     -> V<WasmInternalFunction> {
-  return V<WasmInternalFunction>::Cast(__ LoadTrustedPointer(
-      func_ref, load_kind, kWasmInternalFunctionTrustedPointerTag,
-      offsetof(WasmFuncRef, trusted_internal_)));
+  return __ template LoadTrustedPointer<kWasmInternalFunctionTrustedPointerTag>(
+      func_ref, load_kind, offsetof(WasmFuncRef, trusted_internal_));
 }
 
 template <typename Assembler>

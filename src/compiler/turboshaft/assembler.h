@@ -67,7 +67,9 @@
 #include "src/objects/scope-info.h"
 #include "src/objects/swiss-name-dictionary.h"
 #include "src/objects/tagged.h"
+#include "src/objects/trusted-object.h"
 #include "src/objects/turbofan-types.h"
+#include "src/sandbox/trusted-pointer.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/utils.h"
 
@@ -2979,9 +2981,13 @@ class AssemblerOpInterface : public Next {
     return LoadProtectedPointerField(base, OpIndex::Invalid(), kind, offset);
   }
 
-  // Load a trusted (indirect) pointer. Returns Smi or ExposedTrustedObject.
-  V<Object> LoadTrustedPointer(V<HeapObject> base, LoadOp::Kind kind,
-                               TrustedPointerTagRange tag_range, int offset) {
+  // Load a trusted (indirect) pointer. Returns an ExposedTrustedObject.
+  // TODO(dmercadier): Remove this non-templated overload (moving its body into
+  // the templated overload below) once TurboFan is removed.
+  V<ExposedTrustedObject> LoadTrustedPointer(V<HeapObject> base,
+                                             LoadOp::Kind kind,
+                                             TrustedPointerTagRange tag_range,
+                                             int offset) {
 #if V8_ENABLE_SANDBOX
     static_assert(COMPRESS_POINTERS_BOOL);
     V<WordPtr> table_address =
@@ -2990,21 +2996,20 @@ class AssemblerOpInterface : public Next {
         Load(table_address, LoadOp::Kind::RawAligned().Immutable(),
              MemoryRepresentation::UintPtr(),
              Internals::kExternalEntityTableBasePointerOffset);
-    return LoadTrustedPointer(base, table, kind, tag_range, offset);
+    return ReduceIfReachableLoadTrustedPointer(base, table, kind, tag_range,
+                                               offset);
 #else
     return Load(base, kind, MemoryRepresentation::TaggedPointer(), offset);
 #endif  // V8_ENABLE_SANDBOX
   }
 
-#if V8_ENABLE_SANDBOX
-  V<Object> LoadTrustedPointer(V<HeapObject> base, V<WordPtr> table,
-                               LoadOp::Kind kind,
-                               TrustedPointerTagRange tag_range,
-                               int32_t offset) {
-    return ReduceIfReachableLoadTrustedPointer(base, table, kind, tag_range,
-                                               offset);
+  template <TrustedPointerTagRange tag_range>
+  V<TrustedTypeFor<tag_range>> LoadTrustedPointer(V<HeapObject> base,
+                                                  LoadOp::Kind kind,
+                                                  int offset) {
+    return V<TrustedTypeFor<tag_range>>::CastIfNeeded(
+        LoadTrustedPointer(base, kind, tag_range, offset));
   }
-#endif
 
   V<WordPtr> LoadExternalPointerFromObject(V<Object> object, int offset,
                                            ExternalPointerTag tag) {

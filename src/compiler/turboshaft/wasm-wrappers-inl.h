@@ -350,11 +350,10 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapper(
   if (!is_inlining_into_js_) {
     DCHECK(js_closure.valid());
     V<SharedFunctionInfo> sfi = LoadSharedFunctionInfo(js_closure);
-    V<WasmFunctionData> function_data =
-        V<WasmFunctionData>::Cast(__ LoadTrustedPointer(
-            sfi, LoadOp::Kind::TaggedBase().Immutable(),
-            kWasmExportedFunctionDataTrustedPointerTag,
-            offsetof(SharedFunctionInfo, trusted_function_data_)));
+    V<WasmFunctionData> function_data = __ template LoadTrustedPointer<
+        kWasmExportedFunctionDataTrustedPointerTag>(
+        sfi, LoadOp::Kind::TaggedBase().Immutable(),
+        offsetof(SharedFunctionInfo, trusted_function_data_));
     internal = V<WasmInternalFunction>::Cast(__ LoadProtectedPointerField(
         function_data, LoadOp::Kind::TaggedBase().Immutable(),
         offsetof(WasmFunctionData, protected_internal_)));
@@ -745,10 +744,9 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildCapiCallWrapper() {
       incoming_params[0], offsetof(WasmImportData, callable_));
   V<HeapObject> shared = LoadSharedFunctionInfo(function_node);
   V<WasmCapiFunctionData> function_data =
-      V<WasmCapiFunctionData>::Cast(__ LoadTrustedPointer(
+      __ template LoadTrustedPointer<kWasmCapiFunctionDataTrustedPointerTag>(
           shared, LoadOp::Kind::TaggedBase(),
-          kWasmCapiFunctionDataTrustedPointerTag,
-          offsetof(SharedFunctionInfo, trusted_function_data_)));
+          offsetof(SharedFunctionInfo, trusted_function_data_));
   V<Object> host_data_foreign = __ LoadTaggedField(
       function_data, offsetof(WasmCapiFunctionData, embedder_data_));
 
@@ -826,11 +824,11 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildCWasmEntryWrapper() {
   base::SmallVector<OpIndex, 16> args(wasm_arg_count + 1);  // +1 for instance.
 
   size_t pos = 0;
-  V<WasmTrustedInstanceData> instance_data = V<WasmTrustedInstanceData>::Cast(
-      __ LoadTrustedPointer(V<HeapObject>::Cast(object_ref),
-                            LoadOp::Kind::TaggedBase().Immutable(),
-                            kWasmTrustedInstanceDataTrustedPointerTag,
-                            offsetof(WasmInstanceObject, trusted_data_)));
+  V<WasmTrustedInstanceData> instance_data =
+      __ template LoadTrustedPointer<kWasmTrustedInstanceDataTrustedPointerTag>(
+          V<HeapObject>::Cast(object_ref),
+          LoadOp::Kind::TaggedBase().Immutable(),
+          offsetof(WasmInstanceObject, trusted_data_));
   args[pos++] = instance_data;
 
   int offset = 0;
