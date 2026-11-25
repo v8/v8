@@ -3169,7 +3169,7 @@ class LiftoffCompiler {
                             &LiftoffAssembler::emit_i64_shri);
       case kExprI64Rol:
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_LOONG64 || \
-    V8_TARGET_ARCH_MIPS64
+    V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_S390X
         return EmitI64Shift(&LiftoffAssembler::emit_i64_rol,
                             &LiftoffAssembler::emit_i64_roli);
 #else
@@ -3177,7 +3177,7 @@ class LiftoffCompiler {
 #endif
       case kExprI64Ror:
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_LOONG64 || \
-    V8_TARGET_ARCH_MIPS64
+    V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_S390X
         return EmitI64Shift(&LiftoffAssembler::emit_i64_ror,
                             &LiftoffAssembler::emit_i64_rori);
 #else

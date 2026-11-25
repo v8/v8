@@ -542,6 +542,35 @@ void MacroAssembler::RotateInsertSelectBits(Register dst, Register src,
     risbg(dst, src, startBit, endBit, shiftAmt);
 }
 
+void MacroAssembler::RotateLeft(Register dst, Register src, Register shiftReg,
+                                const Operand& shiftAmt) {
+  rllg(dst, src, shiftReg, shiftAmt);
+}
+
+void MacroAssembler::RotateLeft(Register dst, Register src,
+                                const Operand& shiftAmt) {
+  RotateLeft(dst, src, r0, shiftAmt);
+}
+
+void MacroAssembler::RotateRight(Register dst, Register src, Register shiftReg,
+                                 const Operand& shiftAmt) {
+  if (shiftReg == r0) {
+    RotateLeft(dst, src, r0, Operand(64 - shiftAmt.immediate()));
+    return;
+  }
+
+  // Rotate right by (reg + imm) = rotate left by (-reg - imm).
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  lcgr(scratch, shiftReg);
+  RotateLeft(dst, src, scratch, Operand(-shiftAmt.immediate()));
+}
+
+void MacroAssembler::RotateRight(Register dst, Register src,
+                                 const Operand& shiftAmt) {
+  RotateRight(dst, src, r0, shiftAmt);
+}
+
 void MacroAssembler::BranchRelativeOnIdxHighP(Register dst, Register inc,
                                               Label* L) {
   brxhg(dst, inc, L);

@@ -215,6 +215,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                               const Operand& startBit, const Operand& endBit,
                               const Operand& shiftAmt, bool zeroBits);
 
+  void RotateLeft(Register dst, Register src, Register shiftReg,
+                  const Operand& shiftAmt = Operand::Zero());
+  void RotateLeft(Register dst, Register src, const Operand& shiftAmt);
+
+  void RotateRight(Register dst, Register src, Register shiftReg,
+                   const Operand& shiftAmt = Operand::Zero());
+  void RotateRight(Register dst, Register src, const Operand& shiftAmt);
+
   void BranchRelativeOnIdxHighP(Register dst, Register inc, Label* L);
 
   void MaybeSaveRegisters(RegList registers);

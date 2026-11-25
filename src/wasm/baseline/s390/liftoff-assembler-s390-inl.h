@@ -1972,6 +1972,14 @@ UNOP_LIST(EMIT_UNOP_FUNCTION)
   V(i64_sari, ShiftRightS64, LiftoffRegister, LiftoffRegister, int32_t,        \
     LFR_TO_REG, LFR_TO_REG, INT32_AND_WITH_3F, USE, , void)                    \
   V(i64_shri, ShiftRightU64, LiftoffRegister, LiftoffRegister, int32_t,        \
+    LFR_TO_REG, LFR_TO_REG, INT32_AND_WITH_3F, USE, , void)                    \
+  V(i64_rol, RotateLeft, LiftoffRegister, LiftoffRegister, Register,           \
+    LFR_TO_REG, LFR_TO_REG, , USE, , void)                                     \
+  V(i64_ror, RotateRight, LiftoffRegister, LiftoffRegister, Register,          \
+    LFR_TO_REG, LFR_TO_REG, , USE, , void)                                     \
+  V(i64_roli, RotateLeft, LiftoffRegister, LiftoffRegister, int32_t,           \
+    LFR_TO_REG, LFR_TO_REG, INT32_AND_WITH_3F, USE, , void)                    \
+  V(i64_rori, RotateRight, LiftoffRegister, LiftoffRegister, int32_t,          \
     LFR_TO_REG, LFR_TO_REG, INT32_AND_WITH_3F, USE, , void)
 
 #define EMIT_BINOP_FUNCTION(name, instr, dtype, stype1, stype2, dcast, scast1, \
