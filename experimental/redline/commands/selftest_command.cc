@@ -3577,6 +3577,33 @@ void RunRetentionChecks(Checker* checker) {
             !defaults.allow_no_dcheck,
         error);
   }
+  {
+    // The timeout of an instrumented run: `explore.timeout_factor` times
+    // the target timeout. The default factor is 4.
+    const char* argv[] = {"redline", "fuzz", "--timeout-ms=500",
+                          "--allow-no-dcheck"};
+    Flags flags = Flags::Parse(4, argv, 2);
+    FuzzConfig config;
+    bool ok = FuzzConfig::Load(flags, &config, &error, /*for_run=*/false);
+    TunableRegistry& registry = TunableRegistry::Instance();
+    const Tunable* factor = registry.Find("explore.timeout_factor");
+    ok = ok && factor != nullptr && factor->is_default() && (*factor)() == 4 &&
+         InstrumentedRunTimeout(config) == 2000 * 1000;
+    std::string tunable_error;
+    ok = registry.Set("explore.timeout_factor", 1.5, &tunable_error) && ok &&
+         InstrumentedRunTimeout(config) == 750 * 1000;
+    ok = registry.Set("explore.timeout_factor", 1, &tunable_error) && ok &&
+         InstrumentedRunTimeout(config) == config.target.timeout_us;
+    const bool rejects =
+        !registry.Set("explore.timeout_factor", 0.5, &tunable_error) &&
+        !registry.Set("explore.timeout_factor", 16.5, &tunable_error);
+    registry.Reset();
+    checker->Check(
+        "explore: the timeout of an instrumented run is "
+        "`explore.timeout_factor` times the target timeout",
+        ok && rejects && InstrumentedRunTimeout(config) == 2000 * 1000,
+        ok && rejects ? "" : error + " " + tunable_error);
+  }
   checker->Check(
       "retention: the startup crash probes use the d8 builtin",
       CrashProbeScript(true, 2) == "fuzzilli('FUZZILLI_CRASH', 2)" &&

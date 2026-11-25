@@ -218,7 +218,7 @@ The prefix values are primitives, arrays, objects, regexps, symbols, typed array
 It also adds resizable buffers and special values such as `%GetHoleNaN()`.
 
 **Runtime-assisted mutators.** A type guess from the source does not tell which properties a value has. `Explore` and `Probing` ask the target instead.
-They insert probes, and the worker runs the instrumented program once with a helper script in front, at 4 times the timeout.
+They insert probes, and the worker runs the instrumented program once with a helper script in front, at 4 times the timeout (`explore.timeout_factor`).
 The helper writes its findings to the fuzzout channel. The mutator turns the findings into ordinary code and removes the probes.
 `Explore` examines a variable and does an action that fits its value. `Probing` installs properties that the program asks an object for but the object does not have.
 As in Fuzzilli, the probes of `Explore` and `Probing` go right after the definitions of some variables. A cap and a lower cap in loop bodies limit their number.

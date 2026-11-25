@@ -21,6 +21,7 @@
 #include "experimental/redline/base/time_util.h"
 #include "experimental/redline/base/v8_runtime.h"
 #include "experimental/redline/core/environment.h"
+#include "experimental/redline/core/tunable.h"
 #include "experimental/redline/engine/d8_flags.h"
 #include "experimental/redline/engine/flag_minimizer.h"
 #include "experimental/redline/engine/importer.h"
@@ -33,6 +34,10 @@
 #include "experimental/redline/mutators/explore.h"
 
 namespace redline {
+
+REDLINE_TUNABLE(kExploreTimeoutFactor, "explore.timeout_factor", 4, 1, 16,
+                "timeout of the instrumented run of a runtime-assisted "
+                "mutator, as a multiple of the target timeout");
 
 namespace {
 
@@ -119,6 +124,11 @@ std::string AbsolutePath(const std::string& path) {
 
 uint64_t CrashRerunTimeout(const FuzzConfig& config) {
   return static_cast<uint64_t>(config.crash_rerun_timeout_factor *
+                               static_cast<double>(config.target.timeout_us));
+}
+
+uint64_t InstrumentedRunTimeout(const FuzzConfig& config) {
+  return static_cast<uint64_t>(kExploreTimeoutFactor() *
                                static_cast<double>(config.target.timeout_us));
 }
 
@@ -1744,12 +1754,14 @@ class Worker {
       mutator.stats().invalid++;
       return false;
     }
-    // Fuzzilli runs the instrumented program at 4 times the timeout.
+    // Fuzzilli runs the instrumented program at 4 times the timeout. This is
+    // the default of the tunable `explore.timeout_factor`.
     Execution execution;
-    if (!Execute(instrumented, &execution, 4 * config().target.timeout_us)) {
+    if (!Execute(instrumented, &execution, InstrumentedRunTimeout(config()))) {
       return false;
     }
     stats().explore_executions++;
+    stats().explore_exec_time_us += execution.exec_time_us;
     stage(Stage::kMutate).executions++;
     stage(Stage::kMutate).exec_time_us += execution.exec_time_us;
     if (execution.crashed()) {
@@ -4643,6 +4655,7 @@ void Fuzzer::WriteStatsEvent() {
   event.Add("explore_applied", stats_.explore_applied.load());
   event.Add("noop_retries", stats_.noop_retries.load());
   event.Add("explore_timeouts", stats_.explore_timeouts.load());
+  event.Add("explore_exec_time_us", stats_.explore_exec_time_us.load());
   uint64_t salvage_ok = stats_.salvage_succeeded.load();
   uint64_t salvage_att = stats_.salvage_attempted.load();
   event.Add("salvage_attempted", salvage_att);

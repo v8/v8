@@ -92,6 +92,7 @@ struct FuzzerStats {
   std::atomic<uint64_t> explore_executions{0};  // instrumented runs
   std::atomic<uint64_t> explore_applied{0};     // ... that produced a mutation
   std::atomic<uint64_t> explore_timeouts{0};
+  std::atomic<uint64_t> explore_exec_time_us{0};  // target time of these runs
   std::atomic<uint64_t> salvage_attempted{0};  // reruns after wrapping a throw
   std::atomic<uint64_t> salvage_succeeded{0};  // salvage reruns that succeeded
   // Failed mutants without new edges whose throw was in the last top-level
@@ -134,6 +135,11 @@ uint64_t TightenedProbeTimeout(const FuzzConfig& config,
 // The timeout of a crash rerun: crash_rerun_timeout_factor times the target
 // timeout. A crash that occurs near the timeout then reproduces.
 uint64_t CrashRerunTimeout(const FuzzConfig& config);
+
+// The timeout of the instrumented run of a runtime-assisted mutator: the
+// tunable `explore.timeout_factor` times the target timeout. The default
+// factor is 4, as in Fuzzilli.
+uint64_t InstrumentedRunTimeout(const FuzzConfig& config);
 
 // The number of workers that admit a program for new optimized code
 // features alone (coverage.opt_admit_workers_fraction of `jobs`, rounded
