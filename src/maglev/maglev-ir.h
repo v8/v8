@@ -261,6 +261,7 @@ class ExceptionHandlerInfo;
   V(HoleyFloat64ToTagged)               \
   V(Int32ToNumber)                      \
   V(IntPtrToNumber)                     \
+  V(ReturnedValue)                      \
   V(Uint32ToNumber)                     \
   V(UnsafeFloat64ToInt32)               \
   V(UnsafeHoleyFloat64ToInt32)          \
@@ -416,7 +417,6 @@ class ExceptionHandlerInfo;
   V(UpdateJSArrayLength)                      \
   V(VirtualObject)                            \
   V(GetContinuationPreservedEmbedderData)     \
-  V(ReturnedValue)                            \
   V(StringSlice)                              \
   V(StringSubstring)                          \
   CONSTANT_VALUE_NODE_LIST(V)                 \
@@ -2827,16 +2827,12 @@ class ValueNode : public Node {
   inline void MaybeRecordUseReprHint(UseRepresentationSet repr);
   inline void MaybeRecordUseReprHint(UseRepresentation repr);
 
+  inline bool IsAlias() const;
   // Unwraps identities and single-input non-loop phis (aliases).
   ValueNode* UnwrapAliases();
   const ValueNode* UnwrapAliases() const;
 
-  ValueNode* UnwrapIdentitiesAndReturnedValues();
-
-  ValueNode* UnwrapIdentitiesReturnedValuesAndPhis();
-
-  // Unwrap identities, returned values, conversions, and single-input non-loop
-  // phis.
+  // Unwrap identities, conversions, and single-input non-loop phis.
   ValueNode* Unwrap();
 
   ValueNode* UnwrapIdentitiesAndUpdateUseCountForDeopt();
@@ -2856,9 +2852,7 @@ class ValueNode : public Node {
   int use_count_;
 
  private:
-  inline ValueNode* UnwrapIdentitiesReturnedValuesAndConversions();
   V8_EXPORT_PRIVATE ValueNode* UnwrapAliasesSlow();
-  V8_EXPORT_PRIVATE ValueNode* UnwrapIdentitiesReturnedValuesAndPhisSlow();
   V8_EXPORT_PRIVATE ValueNode* UnwrapSlow();
 };
 
@@ -2922,33 +2916,11 @@ inline const ValueNode* ValueNode::UnwrapAliases() const {
   return const_cast<ValueNode*>(this)->UnwrapAliases();
 }
 
-inline ValueNode* ValueNode::UnwrapIdentitiesAndReturnedValues() {
-  ValueNode* node = this;
-  while (node->Is<Identity>() || node->Is<ReturnedValue>()) {
-    node = node->input(0).node();
-  }
-  return node;
-}
-
-inline ValueNode* ValueNode::UnwrapIdentitiesReturnedValuesAndPhis() {
-  ValueNode* node = UnwrapIdentitiesAndReturnedValues();
-  if (V8_UNLIKELY(node->Is<Phi>() && node->input_count() == 1)) {
-    return node->UnwrapIdentitiesReturnedValuesAndPhisSlow();
-  }
-  return node;
-}
-
-inline ValueNode* ValueNode::UnwrapIdentitiesReturnedValuesAndConversions() {
-  ValueNode* node = this;
-  while (node->Is<Identity>() || node->Is<ReturnedValue>() ||
-         node->is_conversion()) {
-    node = node->input(0).node();
-  }
-  return node;
-}
-
 inline ValueNode* ValueNode::Unwrap() {
-  ValueNode* node = UnwrapIdentitiesReturnedValuesAndConversions();
+  ValueNode* node = this;
+  while (node->Is<Identity>() || node->is_conversion()) {
+    node = node->input(0).node();
+  }
   if (V8_UNLIKELY(node->Is<Phi>() && node->input_count() == 1)) {
     return node->UnwrapSlow();
   }
@@ -10422,7 +10394,7 @@ class Phi : public ValueNodeT<Phi> {
 
   bool is_exception_phi() const { return input_count() == 0; }
   bool is_loop_phi() const;
-  bool is_unwrappable_single_input() const;
+  V8_EXPORT_PRIVATE bool is_unwrappable_single_input() const;
 
   bool is_backedge_offset(int i) const {
     return is_loop_phi() && i == backedge_index();
@@ -10517,6 +10489,14 @@ class Phi : public ValueNodeT<Phi> {
   friend base::ThreadedListTraits<Phi>;
   friend MergePointInterpreterFrameState;
 };
+
+inline bool ValueNode::IsAlias() const {
+  if (Is<Identity>()) return true;
+  if (V8_UNLIKELY(Is<Phi>() && input_count() == 1)) {
+    return Cast<Phi>()->is_unwrappable_single_input();
+  }
+  return false;
+}
 
 class Call : public VarargsValueNodeT<2, Call> {
  public:
@@ -11088,8 +11068,9 @@ class ReturnedValue : public ValueNodeT<ReturnedValue> {
  public:
   static_assert(CallKnownJSFunction::kFixedInputCount > 1);
   explicit ReturnedValue(uint64_t bitfield) : Base(bitfield) {}
-  static constexpr OpProperties kProperties =
-      OpProperties::CanAllocate() | OpProperties::DeferredCall();
+  static constexpr OpProperties kProperties = OpProperties::CanAllocate() |
+                                              OpProperties::DeferredCall() |
+                                              OpProperties::ConversionNode();
   Range range() const { return input_node(0)->GetStaticRange(); }
   void VerifyInputs() const {
     // It doesn't make sense if the input is already tagged. Otherwise it can be
