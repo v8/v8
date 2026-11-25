@@ -79,6 +79,9 @@
   'turbolev/regress-540717862': [PASS, SLOW],
   'turboshaft/regress-554421904': [PASS, SLOW],
 
+  # https://crbug.com/590044654
+  'string-localecompare-inline': [PASS, SLOW],
+
   # https://crbug.com/1129854
   'tools/log': ['arch == arm or arch == arm64', SKIP],
 
