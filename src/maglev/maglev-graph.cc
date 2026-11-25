@@ -157,7 +157,7 @@ ValueNode* Graph::GetConstant(compiler::ObjectRef ref) {
     }
   }
 
-  return GetOrAddNewConstantNode(heap_constants_, ref.AsHeapObject());
+  return GetOrAddNewConstantNode(heap_constants_, constant);
 }
 
 #ifdef DEBUG

@@ -3294,6 +3294,12 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyCellStore(
     case PropertyCellType::kUndefined:
       return {};
     case PropertyCellType::kConstant: {
+      if (property_cell_value.IsString() &&
+          !property_cell_value.IsInternalizedString()) {
+        // We cannot guarantee that a non-internalized string's canonical
+        // identity stays the same due to internalization and ThinStrings.
+        return {};
+      }
       RETURN_IF_ABORT(check_maps());
       // Record a code dependency on the cell, and just deoptimize if the new
       // value doesn't match the previous value stored inside the cell.

@@ -1059,6 +1059,13 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
       return NoChange();
     } else if (property_cell_type == PropertyCellType::kUndefined) {
       return NoChange();
+    } else if (property_cell_type == PropertyCellType::kConstant) {
+      if (property_cell_value.IsString() &&
+          !property_cell_value.IsInternalizedString()) {
+        // We cannot guarantee that a non-internalized string's canonical
+        // identity stays the same due to internalization and ThinStrings.
+        return NoChange();
+      }
     } else if (property_cell_type == PropertyCellType::kConstantType) {
       // We rely on stability further below.
       if (property_cell_value.IsHeapObject() &&

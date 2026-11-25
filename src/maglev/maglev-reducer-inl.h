@@ -2456,6 +2456,9 @@ ReduceResult MaglevReducer<BaseT>::BuildCheckValueByReference(
     DeoptimizeReason reason) {
   DCHECK(!ref.IsSmi());
   DCHECK(!ref.IsHeapNumber());
+  // We cannot guarantee that a non-internalized string's canonical identity
+  // stays the same due to internalization and ThinStrings.
+  DCHECK(!ref.IsString() || ref.IsInternalizedString());
 
   if (!IsInstanceOfNodeType(ref.map(broker()), GetType(node), broker())) {
     return EmitUnconditionalDeopt(reason);
@@ -2479,6 +2482,7 @@ void MaglevReducer<BaseT>::SetKnownValue(ValueNode* node,
                                          NodeType new_node_type) {
   DCHECK(!node->Is<HeapConstant>());
   DCHECK(!node->Is<RootConstant>());
+  DCHECK(!ref.IsString() || ref.IsInternalizedString());
   // Constants already carry their value and must not attach a checked_value
   // alternative (TryGetConstantAlternative ignores constants, so repeated
   // checks would otherwise overwrite checked_value).
