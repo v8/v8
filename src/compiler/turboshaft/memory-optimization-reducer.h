@@ -16,6 +16,7 @@
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/utils.h"
 #include "src/compiler/write-barrier-kind.h"
+#include "src/execution/isolate-data.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -44,6 +45,33 @@ inline bool ValueNeedsWriteBarrier(const Graph* graph, const Operation& value,
       }
     } else if (constant->kind == ConstantOp::Kind::kSmi) {
       return false;
+    }
+  } else if (const LoadOp* load = value.TryCast<LoadOp>()) {
+    // WasmLoweringReducer (RootConstant/Null) and Assembler::LoadRoot lower
+    // roots to immutable uncompressed-tagged loads off LoadRootRegister.
+    // Objects in ReadOnlyHeap are never in young space or marked by GC, so
+    // stores of read-only roots never require a write barrier.
+    if (!load->kind.tagged_base && !load->index().valid() &&
+        load->kind.is_immutable &&
+        load->loaded_rep ==
+            any_of(MemoryRepresentation::AnyUncompressedTagged(),
+                   MemoryRepresentation::UncompressedTaggedPointer()) &&
+        graph->Get(load->base()).Is<LoadRootRegisterOp>()) {
+      constexpr int32_t kReadOnlyRootsStart =
+          IsolateData::root_slot_offset(RootIndex::kFirstReadOnlyRoot);
+      constexpr int32_t kReadOnlyRootsEnd =
+          IsolateData::root_slot_offset(RootIndex::kLastReadOnlyRoot);
+      // Verify read-only root slots are contiguous and pointer-sized so the
+      // range check below identifies a read-only root load.
+      static_assert(kReadOnlyRootsEnd - kReadOnlyRootsStart ==
+                    (static_cast<int>(RootIndex::kLastReadOnlyRoot) -
+                     static_cast<int>(RootIndex::kFirstReadOnlyRoot)) *
+                        kSystemPointerSize);
+      if (load->offset >= kReadOnlyRootsStart &&
+          load->offset <= kReadOnlyRootsEnd) {
+        DCHECK_EQ((load->offset - kReadOnlyRootsStart) % kSystemPointerSize, 0);
+        return false;
+      }
     }
   } else if (const PhiOp* phi = value.TryCast<PhiOp>()) {
     if (phi->rep == RegisterRepresentation::Tagged()) {
