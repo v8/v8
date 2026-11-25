@@ -2266,10 +2266,17 @@ class AsyncCompileJob::CompileStep {
 
   void Run(AsyncCompileJob* job, bool on_foreground) {
     if (on_foreground) {
-      HandleScope scope(job->isolate_specific_info_.isolate_);
+      Isolate* isolate = job->isolate_specific_info_.isolate_;
+      // Embedders may continue pumping foreground tasks or finish streaming
+      // while execution is terminating. Abort cleanly rather than running
+      // FinishCompilation/Fail with a pending termination exception.
+      if (V8_UNLIKELY(isolate->is_execution_terminating())) {
+        job->Abort();
+        return;
+      }
+      HandleScope scope(isolate);
       SaveAndSwitchContext saved_context(
-          job->isolate_specific_info_.isolate_,
-          *job->isolate_specific_info_.native_context_);
+          isolate, *job->isolate_specific_info_.native_context_);
       RunInForeground(job);
     } else {
       RunInBackground(job);
@@ -2300,7 +2307,10 @@ class AsyncCompileJob::CompileTask : public CancelableTask {
   void RunInternal() final {
     if (!job_) return;
     if (on_foreground_) ResetPendingForegroundTask();
-    job_->step_->Run(job_, on_foreground_);
+    // Keep the step alive on the stack because {Run} may destroy {job_} or
+    // replace {job_->step_}.
+    std::unique_ptr<CompileStep> step = std::move(job_->step_);
+    step->Run(job_, on_foreground_);
     // After execution, reset {job_} such that we don't try to reset the pending
     // foreground task when the task is deleted.
     job_ = nullptr;
@@ -3326,6 +3336,11 @@ void AsyncStreamingProcessor::OnFinishedChunk() {
 void AsyncStreamingProcessor::OnFinishedStream(
     base::UniqueArray<const uint8_t> bytes, bool after_error) {
   TRACE_STREAMING("Finish stream...\n");
+  if (V8_UNLIKELY(
+          job_->isolate_specific_info_.isolate_->is_execution_terminating())) {
+    OnAbort();
+    return;
+  }
   std::string failure_reason;
   ModuleResult module_result = decoder_.FinishDecoding();
   if (module_result.failed()) {
@@ -3509,6 +3524,15 @@ bool AsyncStreamingProcessor::Deserialize(
     base::UniqueArray<const uint8_t>& wire_bytes) {
   TRACE_EVENT("v8.wasm", "wasm.Deserialize");
   Isolate* isolate = job_->isolate_specific_info_.isolate_;
+  if (V8_UNLIKELY(isolate->is_execution_terminating())) {
+    DCHECK(!owns_cache_entry_);
+    DCHECK(!validate_functions_job_handle_);
+    wire_bytes = base::UniqueArray<const uint8_t>{};
+    job_->Abort();
+    // Return true so StreamingDecoder::Finish does not restore processor_ and
+    // fall back to compiling wire bytes on the now-aborted job.
+    return true;
+  }
   // DeserializeNativeModule assumes that it is executed in a HandleScope, and
   // that a context is set on the isolate.
   HandleScope scope(isolate);

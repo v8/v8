@@ -26,10 +26,12 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "include/cppgc/allocation.h"
+#include "include/libplatform/libplatform.h"
 #include "include/v8-data.h"
 #include "include/v8-external.h"
 #include "include/v8-function.h"
 #include "include/v8-locker.h"
+#include "include/v8-promise.h"
 #include "src/api/api-inl.h"
 #include "src/base/platform/platform.h"
 #include "src/debug/debug-interface.h"
@@ -981,6 +983,99 @@ TEST_F(ThreadTerminationTest, TerminateInApiMicrotask) {
     CHECK(isolate()->IsExecutionTerminating());
   }
   CHECK(!isolate()->IsExecutionTerminating());
+}
+
+TEST_F(ThreadTerminationTest, AtomicsWaitAsyncTasksWhileTerminating) {
+  HandleScope scope(isolate());
+  Local<Context> context = Context::New(isolate());
+  Context::Scope context_scope(context);
+
+  static bool g_resolve_hook_called = false;
+  auto resolve_hook = [](PromiseHookType type, Local<Promise>, Local<Value>) {
+    if (type == PromiseHookType::kResolve) {
+      g_resolve_hook_called = true;
+    }
+  };
+
+  // 1. ResolveAsyncWaiterPromisesTask entered while execution is already
+  // terminating must cancel the associated timeout task and leave the promise
+  // pending (regression coverage for crbug.com/583152241).
+  {
+    Local<Promise> promise =
+        RunJS(
+            "const ia1 = new Int32Array(new SharedArrayBuffer(4));"
+            "const p1 = Atomics.waitAsync(ia1, 0, 0, 1).value;"
+            "Atomics.notify(ia1, 0);"
+            "p1;")
+            .As<Promise>();
+    ASSERT_EQ(1, i_isolate()
+                     ->native_context()
+                     ->atomics_waitasync_promises()
+                     ->NumberOfElements());
+
+    {
+      TryCatch try_catch(isolate());
+      g_resolve_hook_called = false;
+      isolate()->SetPromiseHook(resolve_hook);
+      i_isolate()->TerminateExecution();
+      ASSERT_TRUE(i_isolate()->is_execution_terminating());
+      // Pump ResolveAsyncWaiterPromisesTask (and wait past the 1ms timeout so
+      // any uncancelled AsyncWaiterTimeoutTask would fire).
+      EmptyMessageQueues();
+      EXPECT_EQ(0, i_isolate()
+                       ->native_context()
+                       ->atomics_waitasync_promises()
+                       ->NumberOfElements());
+      v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(5));
+      EmptyMessageQueues();
+      isolate()->SetPromiseHook(nullptr);
+      EXPECT_FALSE(g_resolve_hook_called);
+      EXPECT_EQ(Promise::kPending, promise->State());
+      EXPECT_TRUE(i_isolate()->is_execution_terminating());
+      EXPECT_TRUE(try_catch.HasTerminated());
+    }
+    EXPECT_FALSE(i_isolate()->has_exception());
+  }
+
+  // 2. AsyncWaiterTimeoutTask (HandleAsyncWaiterTimeout) entered while
+  // execution is already terminating must clean up without resolving the
+  // promise or clearing termination.
+  {
+    Local<Promise> promise =
+        RunJS(
+            "const ia2 = new Int32Array(new SharedArrayBuffer(4));"
+            "Atomics.waitAsync(ia2, 0, 0, 1).value;")
+            .As<Promise>();
+    ASSERT_EQ(1, i_isolate()
+                     ->native_context()
+                     ->atomics_waitasync_promises()
+                     ->NumberOfElements());
+
+    {
+      TryCatch try_catch(isolate());
+      g_resolve_hook_called = false;
+      isolate()->SetPromiseHook(resolve_hook);
+      i_isolate()->TerminateExecution();
+      ASSERT_TRUE(i_isolate()->is_execution_terminating());
+      // Pump until the 1ms AsyncWaiterTimeoutTask expires and cleans up the
+      // waiter promise (looping in case an unrelated foreground task runs
+      // first).
+      while (i_isolate()
+                 ->native_context()
+                 ->atomics_waitasync_promises()
+                 ->NumberOfElements() > 0) {
+        ASSERT_TRUE(v8::platform::PumpMessageLoop(
+            i::V8::GetCurrentPlatform(), isolate(),
+            platform::MessageLoopBehavior::kWaitForWork));
+      }
+      isolate()->SetPromiseHook(nullptr);
+      EXPECT_FALSE(g_resolve_hook_called);
+      EXPECT_EQ(Promise::kPending, promise->State());
+      EXPECT_TRUE(i_isolate()->is_execution_terminating());
+      EXPECT_TRUE(try_catch.HasTerminated());
+    }
+    EXPECT_FALSE(i_isolate()->has_exception());
+  }
 }
 
 }  // namespace v8

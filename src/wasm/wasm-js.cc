@@ -84,10 +84,11 @@ class WasmStreaming::WasmStreamingImpl {
     i::HandleScope scope(i_isolate_);
     streaming_decoder_->Abort();
 
-    // If no exception value is provided, we do not reject the promise. This can
-    // happen when streaming compilation gets aborted when no script execution
-    // is allowed anymore, e.g. when a browser tab gets refreshed.
-    if (exception.is_null()) return;
+    // If no exception value is provided, or if execution is already
+    // terminating, we do not reject the promise. This can happen when
+    // streaming compilation gets aborted when no script execution is allowed
+    // anymore, e.g. when a browser tab gets refreshed.
+    if (exception.is_null() || i_isolate_->is_execution_terminating()) return;
 
     resolver_->OnCompilationFailed(exception.ToHandleChecked());
   }

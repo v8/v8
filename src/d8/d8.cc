@@ -2479,10 +2479,25 @@ void PerIsolateData::AddUnhandledPromise(Local<Promise> promise,
                                    v8::Global<v8::Value>(isolate_, exception));
 }
 
+namespace {
+
+// Returns true if a termination exception is currently pending OR if
+// `isolate->TerminateExecution()` was re-requested on the stack guard before
+// a TryCatch cleared the termination exception on exit (see ExecuteSource,
+// ExecuteModule, and ProcessMessages).
+bool IsExecutionTerminatingOrRequested(Isolate* isolate) {
+  return isolate->IsExecutionTerminating() ||
+         reinterpret_cast<i::Isolate*>(isolate)
+             ->stack_guard()
+             ->CheckTerminateExecution();
+}
+
+}  // namespace
+
 int PerIsolateData::HandleUnhandledPromiseRejections() {
   // Avoid recursive calls to HandleUnhandledPromiseRejections.
   if (ignore_unhandled_promises_) return 0;
-  if (isolate_->IsExecutionTerminating()) return 0;
+  if (IsExecutionTerminatingOrRequested(isolate_)) return 0;
   ignore_unhandled_promises_ = true;
   v8::HandleScope scope(isolate_);
   // Ignore promises that get added during error reporting.
@@ -6277,6 +6292,7 @@ void Shell::RunShell(Isolate* isolate) {
       CHECK_EQ(success, !global_result.IsEmpty());
     }
     if (!FinishExecuting(isolate, context)) success = false;
+    if (IsExecutionTerminatingOrRequested(isolate)) break;
     if (success) {
       HandleScope scope(isolate);
       Context::Scope context_scope(context.Get(isolate));
@@ -6974,19 +6990,20 @@ void Worker::ProcessMessages() {
   i::SaveAndSwitchContext saved_context(i_isolate, {});
   SealHandleScope shs(isolate_);
 
+  DCHECK(!isolate_->IsExecutionTerminating());
   TryCatch try_catch(isolate_);
   try_catch.SetVerbose(true);
 
   while (is_running() && v8::platform::PumpMessageLoop(
                              g_default_platform, isolate_,
                              platform::MessageLoopBehavior::kWaitForWork)) {
-    if (try_catch.HasCaught()) return;
+    if (try_catch.HasCaught() || isolate_->IsExecutionTerminating()) return;
     if (is_running()) {
       MicrotasksScope::PerformCheckpoint(isolate_);
       // A microtask can also terminate execution (e.g. by handling a
       // termination interrupt scheduled by the previous task). Do not run
       // further tasks in that case; they would enter V8 while terminating.
-      if (try_catch.HasCaught()) return;
+      if (try_catch.HasCaught() || isolate_->IsExecutionTerminating()) return;
     }
   }
 }
@@ -7112,7 +7129,7 @@ void Worker::ExecuteInThread() {
                                    file_name, Shell::kReportExceptions);
         }
         if (!Shell::FinishExecuting(isolate_, context_)) success = false;
-        if (success) {
+        if (success && !IsExecutionTerminatingOrRequested(isolate_)) {
           bool handler_present;
           {
             HandleScope scope(isolate_);
@@ -8014,16 +8031,25 @@ bool ProcessMessages(
   try_catch.SetVerbose(true);
   bool exit_with_success = true;
 
+  auto handle_termination = [&]() {
+    if (!isolate->IsExecutionTerminating()) return false;
+    // Re-request termination before `try_catch` clears the termination
+    // exception on exit so callers such as Worker::ExecuteInThread observe that
+    // execution was terminated.
+    isolate->TerminateExecution();
+    return true;
+  };
+
   while (true) {
     bool ran_a_task =
         v8::platform::PumpMessageLoop(g_default_platform, isolate, behavior());
-    if (isolate->IsExecutionTerminating()) return exit_with_success;
+    if (handle_termination()) return exit_with_success;
     if (try_catch.HasCaught()) {
       exit_with_success = false;
       try_catch.Reset();
     }
     if (ran_a_task) MicrotasksScope::PerformCheckpoint(isolate);
-    if (isolate->IsExecutionTerminating()) return exit_with_success;
+    if (handle_termination()) return exit_with_success;
 
     // In predictable mode we push all background tasks into the foreground
     // task queue of the {kProcessGlobalPredictablePlatformWorkerTaskQueue}
@@ -8036,15 +8062,15 @@ bool ProcessMessages(
           g_default_platform, kProcessGlobalPredictablePlatformWorkerTaskQueue,
           platform::MessageLoopBehavior::kDoNotWait)) {
         ran_a_task = true;
+        if (handle_termination()) return exit_with_success;
         if (inner_try_catch.HasCaught()) return false;
-        if (isolate->IsExecutionTerminating()) return exit_with_success;
       }
     }
 
     if (!ran_a_task) {
       if (!wait_for_background_tasks) break;
       if (!FinalizeBackgroundCompilationJobs(i_isolate)) break;
-      if (isolate->IsExecutionTerminating()) {
+      if (handle_termination()) {
         return exit_with_success;
       }
       DCHECK(!try_catch.HasCaught());
@@ -8053,8 +8079,8 @@ bool ProcessMessages(
   if (g_default_platform->IdleTasksEnabled(isolate)) {
     v8::platform::RunIdleTasks(g_default_platform, isolate,
                                50.0 / base::Time::kMillisecondsPerSecond);
+    if (handle_termination()) return exit_with_success;
     if (try_catch.HasCaught()) return false;
-    if (isolate->IsExecutionTerminating()) return exit_with_success;
   }
   return exit_with_success;
 }
