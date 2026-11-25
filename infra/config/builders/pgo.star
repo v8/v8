@@ -11,7 +11,6 @@ v8_builder(
     bucket = "ci-hp",
     service_account = V8_PGO_ACCOUNT,
     executable = "recipe:v8/pgo_builder",
-    schedule = "*/10 * * * *",
     in_list = "pgo",
     execution_timeout = 3600,
     notifies = ["infra-failure", "infra"],
