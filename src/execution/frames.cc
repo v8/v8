@@ -4242,6 +4242,16 @@ void PrintFunctionSource(StringStream* accumulator,
 
 void JavaScriptFrame::Print(StringStream* accumulator, PrintMode mode,
                             int index, AllowAllocation allow_allocation) const {
+  if (!IsJSFunction(unchecked_function())) [[unlikely]] {
+    // During deoptimization, inlined escape-analyzed closures may still hold
+    // `arguments_marker` until Deoptimizer::MaterializeHeapObjects finishes.
+    DisallowGarbageCollection no_gc;
+    PrintIndex(accumulator, mode, index);
+    PrintFrameKind(accumulator);
+    accumulator->Add("<unmaterialized function> [pc: %p]\n",
+                     reinterpret_cast<void*>(maybe_unauthenticated_pc()));
+    return;
+  }
   DirectHandle<SharedFunctionInfo> shared(function()->shared(), isolate());
   if (allow_allocation) {
     SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate(), shared);

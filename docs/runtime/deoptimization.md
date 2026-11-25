@@ -124,7 +124,7 @@ sequenceDiagram
     Stub->>Stub: Pop input_ frame, copy output_ FrameDescriptions onto physical stack
     Stub->>Notify: Jump to Builtin::kNotifyDeoptimized
     Notify->>Cpp: Runtime_NotifyDeoptimized (GC allowed!)
-    Cpp->>Cpp: 3. TranslatedState::MaterializeHeapObjects() (box numbers, allocate CAPTURED_OBJECTs)
+    Cpp->>Cpp: 3. Deoptimizer::MaterializeHeapObjects() (box numbers, allocate CAPTURED_OBJECTs)
     Notify->>Ign: 4. Resume in InterpreterEntryTrampoline (or Builtin Continuation)
 ```
 
@@ -138,7 +138,7 @@ What if the deoptimized frame contains unboxed `int32`/`float64` values that nee
    - The assembly stub copies these GC-safe output frames onto the physical CPU stack and calls `Builtin::kNotifyDeoptimized` -> `Runtime_NotifyDeoptimized`.
 2. **Stage 2 (`Runtime_NotifyDeoptimized`, GC Allowed)**:
    - Now that the physical CPU stack consists of valid, walkable `InterpretedFrame`s (with `arguments_marker` in unmaterialized slots), GC is safe!
-   - `TranslatedState::DoMaterializeHeapObjects` allocates all `HeapNumber`s, `BigInt`s, `arguments` objects, and `CAPTURED_OBJECT` graphs on the V8 heap (carefully handling cycles and nested `Representation::Double()` fields) and patches their addresses directly into the reconstructed stack frame slots (`FrameSlotPointer`).
+   - `Deoptimizer::MaterializeHeapObjects()` allocates all `HeapNumber`s, `BigInt`s, `arguments` objects, and `CAPTURED_OBJECT` graphs on the V8 heap (carefully handling cycles and nested `Representation::Double()` fields) and patches their addresses directly into the reconstructed stack frame slots (`output_slot_address_`).
 
 ---
 
