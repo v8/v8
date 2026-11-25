@@ -5774,6 +5774,12 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::Retain* node,
+                                const maglev::ProcessingState&) {
+    __ Retain(Map(node->ValueInput()));
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::TurbofanStaticAssert* node,
                                 const maglev::ProcessingState&) {
     V<Word32> condition = __ TaggedEqual(
