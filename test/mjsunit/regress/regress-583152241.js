@@ -5,8 +5,10 @@
 // Flags: --expose-async-hooks --strict-termination-checks
 
 if (typeof Worker !== 'undefined') {
-  // 1. ResolveAsyncWaiterPromises entered while execution is already
-  // terminating.
+  // 1. Worker termination during an Atomics.waitAsync reaction microtask with a
+  // second notified waiter queued (direct coverage of entering
+  // ResolveAsyncWaiterPromises while terminating is in
+  // ThreadTerminationTest.AtomicsWaitAsyncTasksWhileTerminating).
   const w1 = new Worker(`
     let first = true;
     onmessage = () => {
@@ -48,7 +50,10 @@ if (typeof Worker !== 'undefined') {
   `, {type: 'string'});
   w2.getMessage();
 
-  // 3. HandleAsyncWaiterTimeout entered while execution is already terminating.
+  // 3. Worker termination during an Atomics.waitAsync reaction microtask with a
+  // pending waiter timeout (direct coverage of entering
+  // HandleAsyncWaiterTimeout while terminating is in
+  // ThreadTerminationTest.AtomicsWaitAsyncTasksWhileTerminating).
   const w3 = new Worker(`
     let first = true;
     onmessage = () => {
