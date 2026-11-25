@@ -18,12 +18,15 @@
 #include "include/v8-profiler.h"
 #include "include/v8-script.h"
 #include "src/api/api-inl.h"
+#include "src/base/platform/semaphore.h"
 #include "src/base/synchronization-point-support.h"
 #include "src/codegen/compilation-cache.h"
 #if defined(V8_ENABLE_ETW_STACK_WALKING)
 #include "src/diagnostics/etw-isolate-load-script-data-win.h"
 #endif  // defined(V8_ENABLE_ETW_STACK_WALKING)
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap-verifier.h"
+#include "src/objects/scope-info-inl.h"
 #include "src/objects/script-inl.h"
 #include "src/objects/string-inl.h"
 #include "test/common/flag-utils.h"
@@ -2013,6 +2016,293 @@ TEST_F(MergeDeserializedCodeTest, ModuleCacheClassicScriptMismatch) {
                         NewString("for (const f of globalThis.__keep) f();"))
             .ToLocalChecked();
     CHECK(!run_kept->Run(context()).IsEmpty());
+  }
+}
+
+// Regression test for crbug.com/589815794:
+// Serializer::ObjectSerializer::VisitPointers must not coalesce ReadOnlySpace
+// slots into OutputRawData runs, because BackgroundMergeTask can concurrently
+// overwrite ScopeInfo::inferred_function_name with a mutable heap string
+// between VisitPointers and OutputRawData's PutRaw, leaving a raw dangling
+// compressed heap pointer in the serialized code cache.
+TEST_F(MergeDeserializedCodeTest,
+       ConcurrentScopeInfoMutationDuringCodeCacheSerialization) {
+  i::FlagScope<bool> merge_scope(
+      &i::v8_flags.merge_background_deserialized_script_with_compilation_cache,
+      true);
+  i::FlagScope<bool> lazy_scope(&i::v8_flags.lazy, true);
+  i::FlagScope<bool> flush_scope(&i::v8_flags.flush_bytecode, true);
+  constexpr char kSource[] =
+      "var G;\n"
+      "(function setG(fn) { G = fn; })(\n"
+      "  (function G() {\n"
+      "    return {\n"
+      "      copyWithin: function() {\n"
+      "        eval('');\n"
+      "        return new Error().stack;\n"
+      "      }\n"
+      "    }.copyWithin;\n"
+      "  })\n"
+      ");\n";
+
+  std::unique_ptr<v8::ScriptCompiler::CachedData> raced_cache;
+
+  {
+    IsolateAndContextScope scope(this);
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
+    PersistentScriptOrigin default_origin(
+        isolate(), NewString("http://example.com/race.js"));
+
+    std::unique_ptr<v8::ScriptCompiler::CachedData> heap_name_cache;
+    // 1. Flush G's eagerly-compiled bytecode and recompile G lazily so
+    // Parser::DoParseFunction pushes "G" as enclosing name, giving copyWithin a
+    // mutable heap-allocated inferred name ("G.copyWithin") in the code cache.
+    {
+      v8::HandleScope handle_scope(isolate());
+      ScriptOrigin origin = default_origin.AsScriptOrigin();
+      Local<Script> script =
+          Script::Compile(context(), NewString(kSource), &origin)
+              .ToLocalChecked();
+      CHECK(!script->Run(context()).IsEmpty());
+
+      Local<Value> g_val =
+          context()->Global()->Get(context(), NewString("G")).ToLocalChecked();
+      CHECK(g_val->IsFunction());
+      i::SharedFunctionInfo::EnsureOldForTesting(
+          GetSharedFunctionInfo(g_val.As<Function>()));
+
+      {
+        i::DisableConservativeStackScanningScopeForTesting no_css(
+            i_isolate->heap());
+        InvokeMajorGC(i_isolate);
+        InvokeMajorGC(i_isolate);
+      }
+
+      Local<Value> inner_val = RunGlobalFunc("G");
+      CHECK(inner_val->IsFunction());
+      Local<Function> inner_fn = inner_val.As<Function>();
+      CHECK(!inner_fn->Call(context(), Undefined(isolate()), 0, nullptr)
+                 .IsEmpty());
+
+      i::Tagged<i::SharedFunctionInfo> inner_sfi =
+          GetSharedFunctionInfo(inner_fn);
+      CHECK(inner_sfi->HasScopeInfo());
+      CHECK(inner_sfi->scope_info()->HasInferredFunctionName());
+      i::Tagged<i::Object> inferred =
+          inner_sfi->scope_info()->inferred_function_name();
+      CHECK(i::IsString(inferred));
+      CHECK(!i::HeapLayout::InReadOnlySpace(i::Cast<i::HeapObject>(inferred)));
+
+      heap_name_cache.reset(
+          ScriptCompiler::CreateCodeCache(script->GetUnboundScript()));
+    }
+
+    i_isolate->compilation_cache()->Clear();
+
+    // 2. Compile the same script fresh so G is eagerly parsed without pushing
+    // "G" as enclosing name, leaving copyWithin's
+    // ScopeInfo::inferred_function_name as the non-root ReadOnlySpace string
+    // "copyWithin".
+    v8::Global<v8::Function> kept_inner_fn;
+    {
+      v8::HandleScope handle_scope(isolate());
+      ScriptOrigin origin = default_origin.AsScriptOrigin();
+      Local<Script> script =
+          Script::Compile(context(), NewString(kSource), &origin)
+              .ToLocalChecked();
+      CHECK(!script->Run(context()).IsEmpty());
+      Local<Value> inner_val = RunGlobalFunc("G");
+      CHECK(inner_val->IsFunction());
+      Local<Function> inner_fn = inner_val.As<Function>();
+      CHECK(!inner_fn->Call(context(), Undefined(isolate()), 0, nullptr)
+                 .IsEmpty());
+      kept_inner_fn.Reset(isolate(), inner_fn);
+
+      i::Tagged<i::SharedFunctionInfo> inner_sfi =
+          GetSharedFunctionInfo(inner_fn);
+      CHECK(inner_sfi->HasScopeInfo());
+      CHECK(inner_sfi->scope_info()->HasInferredFunctionName());
+      i::Tagged<i::Object> inferred =
+          inner_sfi->scope_info()->inferred_function_name();
+      CHECK(i::IsString(inferred));
+#if V8_STATIC_ROOTS_BOOL
+      CHECK(i::HeapLayout::InReadOnlySpace(i::Cast<i::HeapObject>(inferred)));
+#endif
+
+      // Age all compiled SFIs so top-level and o.copyWithin flush bytecode
+      // while o.copyWithin retains its ScopeInfo (and old_script stays in the
+      // compilation cache).
+      i::Tagged<i::Script> old_script =
+          i::Cast<i::Script>(GetSharedFunctionInfo(script)->script());
+      for (uint32_t k = 0; k < old_script->infos()->ulength().value(); ++k) {
+        i::Tagged<i::HeapObject> ho;
+        if (old_script->infos()->get(k).GetHeapObjectIfWeak(&ho) &&
+            i::Is<i::SharedFunctionInfo>(ho)) {
+          i::Tagged<i::SharedFunctionInfo> sfi =
+              i::Cast<i::SharedFunctionInfo>(ho);
+          if (sfi->is_compiled()) {
+            i::SharedFunctionInfo::EnsureOldForTesting(sfi);
+          }
+        }
+      }
+    }
+
+    {
+      i::DisableConservativeStackScanningScopeForTesting no_css(
+          i_isolate->heap());
+      InvokeMajorGC(i_isolate);
+      InvokeMajorGC(i_isolate);
+    }
+
+    // 3. Start background code-cache deserialization and set up the merge task
+    // against old_script (whose top-level SFI is flushed).
+    DeserializeThread deserialize_thread(
+        ScriptCompiler::StartConsumingCodeCache(
+            isolate(), std::make_unique<ScriptCompiler::CachedData>(
+                           heap_name_cache->data, heap_name_cache->length,
+                           ScriptCompiler::CachedData::BufferNotOwned)));
+    CHECK(deserialize_thread.Start());
+    deserialize_thread.Join();
+
+    std::unique_ptr<ScriptCompiler::ConsumeCodeCacheTask> task =
+        deserialize_thread.TakeTask();
+    task->SourceTextAvailable(isolate(), NewString(kSource),
+                              default_origin.AsScriptOrigin());
+    CHECK(task->ShouldMergeWithExistingScript());
+
+    // 4. Recompile top-level and G on old_script so CreateCodeCache will
+    // serialize old_script -> G -> o.copyWithin's SFI -> ScopeInfo, while
+    // o.copyWithin itself remains uncompiled with its ReadOnlySpace
+    // inferred_function_name.
+    v8::Global<v8::UnboundScript> script_for_cache;
+    {
+      v8::HandleScope handle_scope(isolate());
+      ScriptOrigin origin = default_origin.AsScriptOrigin();
+      Local<Script> script =
+          Script::Compile(context(), NewString(kSource), &origin)
+              .ToLocalChecked();
+      CHECK(!script->Run(context()).IsEmpty());
+      Local<Value> inner_val = RunGlobalFunc("G");
+      CHECK(inner_val->IsFunction());
+      script_for_cache.Reset(isolate(), script->GetUnboundScript());
+
+      i::Tagged<i::SharedFunctionInfo> inner_sfi =
+          GetSharedFunctionInfo(kept_inner_fn.Get(isolate()));
+      CHECK(!inner_sfi->HasBytecodeArray());
+      CHECK(inner_sfi->HasScopeInfo());
+#if V8_STATIC_ROOTS_BOOL
+      CHECK(i::HeapLayout::InReadOnlySpace(i::Cast<i::HeapObject>(
+          inner_sfi->scope_info()->inferred_function_name())));
+#endif
+    }
+
+    // 5. Run CreateCodeCache on the main thread while pausing right before
+    // OutputRawData copies ScopeInfo raw bytes, and execute the background
+    // merge (which mutates ScopeInfo::inferred_function_name to the heap string
+    // "G.copyWithin") during that pause.
+    class RaceMergeThread : public base::Thread {
+     public:
+      RaceMergeThread(ScriptCompiler::ConsumeCodeCacheTask* task,
+                      base::Semaphore* armed)
+          : Thread(base::Thread::Options("RaceMergeThread")),
+            task_(task),
+            armed_(armed) {}
+
+      void Run() override {
+        base::SynchronizationPointSupport::Get()->RequestBlockAt(
+            "SerializerOutputRawDataScopeInfo",
+            base::TimeDelta::FromSeconds(10));
+        armed_->Signal();
+        CHECK(base::SynchronizationPointSupport::Get()->WaitUntilBlocked(
+            "SerializerOutputRawDataScopeInfo",
+            base::TimeDelta::FromSeconds(10)));
+        task_->MergeWithExistingScript();
+        CHECK(base::SynchronizationPointSupport::Get()->Resume(
+            "SerializerOutputRawDataScopeInfo"));
+      }
+
+     private:
+      ScriptCompiler::ConsumeCodeCacheTask* task_;
+      base::Semaphore* armed_;
+    };
+
+    {
+      i::ManualGCScope manual_gc_scope(i_isolate);
+      base::Semaphore armed(0);
+      RaceMergeThread merge_thread(task.get(), &armed);
+      CHECK(merge_thread.Start());
+      armed.Wait();
+
+      {
+        v8::HandleScope handle_scope(isolate());
+        raced_cache.reset(
+            ScriptCompiler::CreateCodeCache(script_for_cache.Get(isolate())));
+      }
+
+      merge_thread.Join();
+    }
+
+    // Verify the background merge actually overwrote inferred_function_name
+    // with the mutable heap string "G.copyWithin".
+    {
+      v8::HandleScope handle_scope(isolate());
+      i::Tagged<i::SharedFunctionInfo> inner_sfi =
+          GetSharedFunctionInfo(kept_inner_fn.Get(isolate()));
+      i::Tagged<i::Object> inferred =
+          inner_sfi->scope_info()->inferred_function_name();
+      CHECK(i::IsString(inferred));
+      CHECK(!i::HeapLayout::InReadOnlySpace(i::Cast<i::HeapObject>(inferred)));
+    }
+
+    CHECK_NOT_NULL(raced_cache.get());
+  }
+
+  // 6. Isolate 1 (and its heap string "G.copyWithin") is now disposed.
+  // Deserialize raced_cache in a fresh Isolate 2 and verify ScopeInfo is
+  // valid and passes heap verification.
+  {
+    IsolateAndContextScope scope(this);
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
+    // Match the GC flags active during CreateCodeCache so the code-cache flag
+    // hash check succeeds.
+    i::ManualGCScope manual_gc_scope(i_isolate);
+    PersistentScriptOrigin default_origin(
+        isolate(), NewString("http://example.com/race.js"));
+
+    v8::HandleScope handle_scope(isolate());
+    ScriptCompiler::Source source(NewString(kSource),
+                                  default_origin.AsScriptOrigin(),
+                                  raced_cache.release());
+    Local<Script> script =
+        ScriptCompiler::Compile(context(), &source,
+                                ScriptCompiler::kConsumeCodeCache)
+            .ToLocalChecked();
+    CHECK(!source.GetCachedData()->rejected);
+    CHECK(!script->Run(context()).IsEmpty());
+
+    Local<Value> inner_val = RunGlobalFunc("G");
+    CHECK(inner_val->IsFunction());
+    Local<Function> inner_fn = inner_val.As<Function>();
+    i::Tagged<i::SharedFunctionInfo> inner_sfi =
+        GetSharedFunctionInfo(inner_fn);
+    CHECK(inner_sfi->HasScopeInfo());
+    CHECK(inner_sfi->scope_info()->HasInferredFunctionName());
+    i::Tagged<i::Object> inferred =
+        inner_sfi->scope_info()->inferred_function_name();
+    CHECK(i::IsString(inferred));
+    std::unique_ptr<char[]> name_cstr =
+        i::Cast<i::String>(inferred)->ToCString();
+    std::string_view name_view(name_cstr.get());
+    CHECK(name_view == "G.copyWithin" || name_view == "copyWithin");
+
+    Local<Value> stack_val =
+        inner_fn->Call(context(), Undefined(isolate()), 0, nullptr)
+            .ToLocalChecked();
+    CHECK(stack_val->IsString());
+
+#ifdef VERIFY_HEAP
+    i::HeapVerifier::VerifyHeap(i_isolate->heap());
+#endif
   }
 }
 
