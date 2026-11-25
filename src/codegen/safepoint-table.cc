@@ -458,6 +458,11 @@ void SafepointTableBuilder::Commit(Safepoint* safepoint) {
   // There's no differing suffix if all bits were identical.
   DCHECK_IMPLIES(stack_indexes == nullptr, common_bits == kMaxUInt32);
 
+  if (!may_have_lazy_deopts() && stack_indexes == nullptr &&
+      current_entry_->register_indexes == previous_entry_->register_indexes) {
+    return;
+  }
+
   entries_.emplace_back(current_entry_->pc, current_entry_->register_indexes,
                         common_bits, stack_indexes);
 }
@@ -465,6 +470,7 @@ void SafepointTableBuilder::Commit(Safepoint* safepoint) {
 int SafepointTableBuilder::UpdateDeoptimizationInfo(int pc, int trampoline,
                                                     int start,
                                                     int deopt_index) {
+  DCHECK(may_have_lazy_deopts());
   DCHECK_NE(SafepointEntry::kNoTrampolinePC, trampoline);
   DCHECK_NE(SafepointEntry::kNoDeoptIndex, deopt_index);
   has_deopt_data_ = true;

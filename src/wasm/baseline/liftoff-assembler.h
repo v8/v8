@@ -1680,6 +1680,16 @@ class LiftoffAssembler : public MacroAssembler {
   void set_num_locals(uint32_t num_locals);
   void RecordTaggedLocalSlots();
   void DropLocals();
+  bool has_ref_values() const {
+#ifdef ENABLE_SLOW_DCHECKS
+    if (!has_ref_values_) {
+      for (const VarState& slot : cache_state_.stack_state) {
+        DCHECK(!is_reference(slot.kind()));
+      }
+    }
+#endif
+    return has_ref_values_;
+  }
   void DefineSafepoint(SafepointTableBuilder::Safepoint& safepoint);
 
   int GetTotalFrameSlotCountForGC() const;
@@ -1732,6 +1742,13 @@ class LiftoffAssembler : public MacroAssembler {
   // [0, num_locals_)). All registers are spilled before {DefineSafepoint}, so
   // these stack slots are always tagged during the function body.
   GrowableBitVector tagged_locals_slots_;
+  // Monotonically set to true if any reference-typed local or operand has ever
+  // been pushed onto {cache_state_.stack_state} in this function. When false,
+  // all safepoints are guaranteed to have zero tagged stack slots. Every push
+  // introducing a new {ValueKind} must go through {PushRegister}, {PushStack},
+  // or {PushException}; copies of existing slots ({LocalGet}, merges) are
+  // exempt because their kind was already recorded on the source slot.
+  bool has_ref_values_ = false;
   // The maximum spill offset for slots in the value stack.
   int max_used_spill_offset_ = StaticStackFrameSize();
   // The amount of memory needed for register spills in OOL code.

@@ -111,8 +111,8 @@ Liftoff frames use `StackFrame::WASM` (`WasmLiftoffFrameConstants` in `src/execu
 
 ### 1. Precise Root Tracking & `SafepointTableBuilder`
 - **`tagged_locals_slots_`**: Liftoff tracks GC roots precisely for all `is_reference(kind)` slots. After initializing locals in `StartFunctionBody`, `RecordTaggedLocalSlots()` precomputes a `GrowableBitVector tagged_locals_slots_` of safepoint slot indices for reference-typed locals in `[0, num_locals_)`.
-- **`SafepointTableBuilder` (`src/codegen/safepoint-table.h`)**: `LiftoffCompiler` owns `SafepointTableBuilder safepoint_table_builder_(zone)` and emits the XOR-delta-compressed safepoint table in `FinishFunction`:
-  - **`DefineSafepoint`**: Used after normal calls where `SpillAllRegisters()` has spilled all live values. Marks `is_reference` operand-stack slots (`[num_locals_, stack_height())`) via `DefineTaggedStackSlot` and bulk-merges `tagged_locals_slots_` via `DefineTaggedStackSlots`.
+- **`SafepointTableBuilder` (`src/codegen/safepoint-table.h`)**: `LiftoffCompiler` owns `SafepointTableBuilder safepoint_table_builder_(zone, SafepointTableBuilder::LazyDeoptSupport::kNo)` (dropping duplicate entries at commit time) and emits the XOR-delta-compressed safepoint table in `FinishFunction`:
+  - **`DefineSafepoint`**: Used after normal calls where `SpillAllRegisters()` has spilled all live values. Functions that never hold a reference on `stack_state` (`!has_ref_values()`) take `DefineEmptySafepoint()` directly; otherwise Liftoff marks `is_reference` operand-stack slots (`[num_locals_, stack_height())`) via `DefineTaggedStackSlot` and bulk-merges `tagged_locals_slots_` via `DefineTaggedStackSlots`.
   - **`DefineSafepointWithCalleeSavedRegisters`**: Used at `Builtin::kWasmDebugBreak` and debug trap sites where the callee pushes all Liftoff cache registers (`WasmDebugBreakFrameConstants`); records both `kStack` and `kRegister` reference slots (plus `cached_instance_data`) via `DefineTaggedRegister`.
 
 ### 2. Exception Landing Pads, `OutOfLineCode` & Hardware Trap Metadata

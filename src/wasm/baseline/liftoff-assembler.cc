@@ -319,6 +319,7 @@ void LiftoffAssembler::CacheState::GetTaggedSlotsForOOLCode(
 void LiftoffAssembler::RecordTaggedLocalSlots() {
   DCHECK_EQ(num_locals_, cache_state_.stack_height());
   DCHECK(tagged_locals_slots_.IsEmpty());
+  if (!has_ref_values()) return;
   // Go in reversed order to set the higher bits first; this avoids cost for
   // growing the underlying bitvector.
   for (const VarState& slot : base::Reversed(cache_state_.stack_state)) {

@@ -4,6 +4,9 @@
 
 #include "src/codegen/safepoint-table.h"
 
+#include <cstring>
+#include <tuple>
+
 #include "src/base/unique-array.h"
 #include "src/codegen/macro-assembler.h"
 #include "test/unittests/fuzztest.h"
@@ -129,7 +132,8 @@ bool Contains(base::Vector<const uint8_t> bit_vector, int bit) {
 }  // namespace
 
 TEST_F(SafepointTableTest, NoTaggedSlots) {
-  SafepointTableBuilder builder(zone());
+  SafepointTableBuilder builder(zone(),
+                                SafepointTableBuilder::LazyDeoptSupport::kNo);
 #if V8_TARGET_ARCH_ARM64
   Assembler assembler(zone(), AssemblerOptions{});
 #else
@@ -157,7 +161,8 @@ TEST_F(SafepointTableTest, NoTaggedSlots) {
 }
 
 TEST_F(SafepointTableTest, Basic) {
-  SafepointTableBuilder builder(zone());
+  SafepointTableBuilder builder(zone(),
+                                SafepointTableBuilder::LazyDeoptSupport::kNo);
 #if V8_TARGET_ARCH_ARM64
   Assembler assembler(zone(), AssemblerOptions{});
 #else
@@ -210,7 +215,8 @@ TEST_F(SafepointTableTest, Basic) {
 }
 
 TEST_F(SafepointTableTest, Bigger) {
-  SafepointTableBuilder builder(zone());
+  SafepointTableBuilder builder(zone(),
+                                SafepointTableBuilder::LazyDeoptSupport::kYes);
 #if V8_TARGET_ARCH_ARM64
   Assembler assembler(zone(), AssemblerOptions{});
 #else
@@ -396,6 +402,148 @@ TEST_F(SafepointTableTest, EncodeSafepointEntry) {
   Test(10, 0, 1, {0}, {0b0'00010'11, 0b0'00001'01}, zone());
   // Two bytes to skip 53 bits (encoded as 46), two bytes xor mask.
   Test(60, 1, 6, {0, 5}, {0b1'01110'11, 0b0'1, 0b1'00001'01, 0b0'1}, zone());
+}
+
+TEST_F(SafepointTableTest, LazyDeoptSupportNoFastPathsAndParity) {
+  static constexpr int kStackSlotCount = 16;
+
+  auto build_table =
+      [&](SafepointTableBuilder::LazyDeoptSupport lazy_deopt_support,
+          bool use_empty_fast_path, bool all_empty) {
+        SafepointTableBuilder builder(zone(), lazy_deopt_support);
+#if V8_TARGET_ARCH_ARM64
+        Assembler assembler(zone(), AssemblerOptions{});
+#else
+        Assembler assembler(AssemblerOptions{});
+#endif  // V8_TARGET_ARCH_ARM64
+
+        auto define_empty = [&](int pc) {
+          if (use_empty_fast_path) {
+            builder.DefineEmptySafepoint(&assembler, pc);
+          } else {
+            builder.DefineSafepoint(&assembler, pc);
+          }
+        };
+
+        // Leading and repeated empty safepoints.
+        define_empty(10);
+        define_empty(20);
+        define_empty(30);
+
+        if (!all_empty) {
+          // Empty -> non-empty tagged stack slots.
+          {
+            SafepointTableBuilder::Safepoint sp =
+                builder.DefineSafepoint(&assembler, 40);
+            sp.DefineTaggedStackSlot(1);
+            sp.DefineTaggedStackSlot(5);
+          }
+          // Consecutive identical non-empty entry (deduplicated).
+          {
+            SafepointTableBuilder::Safepoint sp =
+                builder.DefineSafepoint(&assembler, 50);
+            sp.DefineTaggedStackSlot(1);
+            sp.DefineTaggedStackSlot(5);
+          }
+          // Non-empty stack slots -> empty transition, then repeated empty.
+          define_empty(60);
+          define_empty(70);
+
+          // Empty -> tagged register transition, then back to empty, then
+          // empty.
+          {
+            SafepointTableBuilder::Safepoint sp =
+                builder.DefineSafepoint(&assembler, 80);
+            sp.DefineTaggedRegister(2);
+          }
+          define_empty(90);
+          define_empty(100);
+
+          // Cleared non-zero-length GrowableBitVector passed to
+          // DefineTaggedStackSlots must preserve emptiness.
+          {
+            GrowableBitVector cleared(64, zone());
+            cleared.Add(3, zone());
+            cleared.Clear();
+            EXPECT_TRUE(cleared.IsEmpty());
+            SafepointTableBuilder::Safepoint sp =
+                builder.DefineSafepoint(&assembler, 110);
+            sp.DefineTaggedStackSlots(cleared);
+          }
+          define_empty(115);
+
+          // >4 distinct non-empty entries to exercise SmallZoneVector
+          // inline->heap growth.
+          for (int i = 0; i < 6; ++i) {
+            SafepointTableBuilder::Safepoint sp =
+                builder.DefineSafepoint(&assembler, 120 + i * 20);
+            sp.DefineTaggedStackSlot(i);
+            if ((i & 1) != 0) sp.DefineTaggedRegister(i);
+          }
+          define_empty(250);
+        }
+
+        builder.Emit(&assembler, kStackSlotCount);
+        int table_offset = builder.safepoint_table_offset();
+        int total_size = assembler.pc_offset();
+        std::unique_ptr<AssemblerBuffer> buffer = assembler.ReleaseBuffer();
+        return std::tuple{std::move(buffer), table_offset, total_size};
+      };
+
+  for (bool all_empty : {true, false}) {
+    auto [ref_buf, ref_offset, ref_size] =
+        build_table(SafepointTableBuilder::LazyDeoptSupport::kYes,
+                    /*use_empty_fast_path=*/false, all_empty);
+    if (all_empty) {
+      // Header-only table (stack_slot_count + config, 2 * kIntSize bytes).
+      EXPECT_EQ(2 * kIntSize, ref_size - ref_offset);
+    }
+
+    for (SafepointTableBuilder::LazyDeoptSupport lazy_deopt_support :
+         {SafepointTableBuilder::LazyDeoptSupport::kNo,
+          SafepointTableBuilder::LazyDeoptSupport::kYes}) {
+      for (bool use_empty_fast_path : {false, true}) {
+        if (lazy_deopt_support ==
+                SafepointTableBuilder::LazyDeoptSupport::kYes &&
+            !use_empty_fast_path) {
+          continue;
+        }
+        auto [fast_buf, fast_offset, fast_size] =
+            build_table(lazy_deopt_support, use_empty_fast_path, all_empty);
+
+        // Byte-for-byte parity with canonical LazyDeoptSupport::kYes +
+        // DefineSafepoint.
+        EXPECT_EQ(ref_offset, fast_offset);
+        EXPECT_EQ(ref_size, fast_size);
+        ASSERT_GT(fast_size, fast_offset);
+        EXPECT_EQ(0, memcmp(ref_buf->start() + ref_offset,
+                            fast_buf->start() + fast_offset,
+                            fast_size - fast_offset));
+
+        // Verify decoded entries match across all PCs including intermediate
+        // ones.
+        Address fast_start = reinterpret_cast<Address>(fast_buf->start());
+        Address ref_start = reinterpret_cast<Address>(ref_buf->start());
+        for (int pc : {10,  25,  40,  45,  50,  60,  75,  80,  90,  105,
+                       110, 115, 120, 140, 160, 180, 200, 220, 250, 300}) {
+          SafepointTable fast_table =
+              SafepointTable::ForTest(fast_start, fast_start + fast_offset);
+          SafepointTable ref_table =
+              SafepointTable::ForTest(ref_start, ref_start + ref_offset);
+          SafepointEntry& fast_entry = fast_table.FindEntry(fast_start + pc);
+          SafepointEntry& ref_entry = ref_table.FindEntry(ref_start + pc);
+          EXPECT_EQ(ref_entry.tagged_register_indexes(),
+                    fast_entry.tagged_register_indexes());
+          EXPECT_EQ(ref_entry.tagged_slots().size(),
+                    fast_entry.tagged_slots().size());
+          for (int slot = 0; slot < kStackSlotCount; ++slot) {
+            EXPECT_EQ(Contains(ref_entry.tagged_slots(), slot),
+                      Contains(fast_entry.tagged_slots(), slot));
+          }
+        }
+      }
+    }
+  }
 }
 
 }  // namespace v8::internal

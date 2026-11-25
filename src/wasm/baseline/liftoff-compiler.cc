@@ -903,7 +903,8 @@ class LiftoffCompiler {
         source_position_table_builder_(zone),
         trapping_instructions_(zone),
         zone_(zone),
-        safepoint_table_builder_(zone_),
+        safepoint_table_builder_(zone_,
+                                 SafepointTableBuilder::LazyDeoptSupport::kNo),
         next_breakpoint_ptr_(options.breakpoints.begin()),
         next_breakpoint_end_(options.breakpoints.end()),
         next_dead_breakpoint_ptr_(options.dead_breakpoints.begin()),
@@ -1506,9 +1507,10 @@ class LiftoffCompiler {
         __ pc_offset(), SourcePosition(ool->position), true);
     __ CallBuiltin(builtin);
     auto pc_offset_after_call = __ pc_offset_for_safepoint();
-    auto safepoint = safepoint_table_builder_.DefineSafepoint(&asm_);
     if (ool->safepoint_info) {
-      for (auto index : ool->safepoint_info->slots) {
+      SafepointTableBuilder::Safepoint safepoint =
+          safepoint_table_builder_.DefineSafepoint(&asm_);
+      for (int index : ool->safepoint_info->slots) {
         safepoint.DefineTaggedStackSlot(index);
       }
 
@@ -1518,7 +1520,7 @@ class LiftoffCompiler {
       // `DefineSafepointWithCalleeSavedRegisters` in `EmitBreakpoint`, used for
       // the WasmDebugBreak builtin).
       if (builtin == Builtin::kWasmTrapHandlerThrowTrap) {
-        for (auto reg : ool->safepoint_info->spills.GetGpList()) {
+        for (Register reg : ool->safepoint_info->spills.GetGpList()) {
           safepoint.DefineTaggedRegister(reg.code());
         }
       }
@@ -1534,6 +1536,12 @@ class LiftoffCompiler {
 
       __ RecordSpillsInSafepoint(safepoint, ool->regs_to_save,
                                  ool->safepoint_info->spills, index);
+    } else {
+      // Allocating the trap exception can trigger GC, and SafepointTable
+      // resolves the greatest entry.pc <= pc, so reset to an empty entry after
+      // any preceding non-empty safepoint (no-op on subsequent traps).
+      DCHECK(ool->regs_to_save.is_empty());
+      safepoint_table_builder_.DefineEmptySafepoint(&asm_);
     }
 
     DCHECK_EQ(!debug_sidetable_builder_, !ool->debug_sidetable_entry_builder);
@@ -3663,6 +3671,8 @@ class LiftoffCompiler {
   void LocalGet(FullDecoder* decoder, Value* result,
                 const IndexImmediate& imm) {
     auto local_slot = __ cache_state()->stack_state[imm.index];
+    // Copying an existing local preserves its kind, so {has_ref_values_} was
+    // already updated when the local was initialized.
     __ cache_state()->stack_state.emplace_back(
         local_slot.kind(), __ NextSpillOffset(local_slot.kind()));
     auto* slot = &__ cache_state()->stack_state.back();
@@ -11462,6 +11472,10 @@ class LiftoffCompiler {
   }
 
   void DefineSafepoint(int pc_offset = 0) {
+    if (!__ has_ref_values()) {
+      safepoint_table_builder_.DefineEmptySafepoint(&asm_, pc_offset);
+      return;
+    }
     SafepointTableBuilder::Safepoint safepoint =
         safepoint_table_builder_.DefineSafepoint(&asm_, pc_offset);
     __ DefineSafepoint(safepoint);

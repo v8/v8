@@ -87,7 +87,8 @@ TEST_F(LiftoffFrameAlignmentTest, AlignFrameSizeAndPatchPrepareStackFrame) {
     auto buffer = AllocateAssemblerBuffer();
     LiftoffAssembler assm(zone(), buffer->CreateView());
     assm.set_root_array_available(false);
-    SafepointTableBuilder safepoint_table_builder(zone());
+    SafepointTableBuilder safepoint_table_builder(
+        zone(), SafepointTableBuilder::LazyDeoptSupport::kNo);
 
     // Set up the fixed header slots below rbp the same way Liftoff does:
     // - Without feedback_vector_slot: EnterFrame(StackFrame::WASM) pushes 2
@@ -156,7 +157,8 @@ TEST_F(LiftoffFrameAlignmentTest, PushAndPopRegistersAlignment) {
     auto buffer = AllocateAssemblerBuffer();
     LiftoffAssembler assm(zone(), buffer->CreateView());
     assm.set_root_array_available(false);
-    SafepointTableBuilder safepoint_table_builder(zone());
+    SafepointTableBuilder safepoint_table_builder(
+        zone(), SafepointTableBuilder::LazyDeoptSupport::kNo);
 
     assm.EnterFrame(StackFrame::WASM);
     assm.movq(r8, rsp);

@@ -54,6 +54,23 @@ class CodeGenerator::JumpTable final : public ZoneObject {
   base::Vector<Label*> const targets_;
 };
 
+namespace {
+
+SafepointTableBuilder::LazyDeoptSupport GetLazyDeoptSupport(
+    InstructionSequence* instructions) {
+  for (int i = 0, count = instructions->GetDeoptimizationEntryCount();
+       i < count; ++i) {
+    DeoptimizeKind kind = instructions->GetDeoptimizationEntry(i).kind();
+    if (kind == DeoptimizeKind::kLazy ||
+        kind == DeoptimizeKind::kLazyAfterFastCall) {
+      return SafepointTableBuilder::LazyDeoptSupport::kYes;
+    }
+  }
+  return SafepointTableBuilder::LazyDeoptSupport::kNo;
+}
+
+}  // namespace
+
 CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
                              InstructionSequence* instructions,
                              OptimizedCompilationInfo* info, Isolate* isolate,
@@ -79,7 +96,7 @@ CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
       masm_(isolate, codegen_zone, options, CodeObjectRequired{false},
             std::unique_ptr<AssemblerBuffer>{}),
       resolver_(this),
-      safepoints_(codegen_zone),
+      safepoints_(codegen_zone, GetLazyDeoptSupport(instructions)),
       handlers_(codegen_zone),
       deoptimization_exits_(codegen_zone),
       protected_deoptimization_literals_(codegen_zone),
@@ -614,6 +631,12 @@ bool CodeGenerator::IsNextInAssemblyOrder(RpoNumber block) const {
 }
 
 void CodeGenerator::RecordSafepoint(ReferenceMap* references, int pc_offset) {
+  if (frame()->tagged_slots().IsEmpty() &&
+      references->reference_operands().empty()) {
+    safepoints()->DefineEmptySafepoint(masm(), pc_offset);
+    return;
+  }
+
   auto safepoint = safepoints()->DefineSafepoint(masm(), pc_offset);
 
   safepoint.DefineTaggedStackSlots(frame()->tagged_slots());
@@ -635,7 +658,7 @@ void CodeGenerator::RecordSafepoint(ReferenceMap* references, int pc_offset) {
 }
 
 void CodeGenerator::RecordSafepointWithoutTaggedSlots() {
-  safepoints()->DefineSafepoint(masm());
+  safepoints()->DefineEmptySafepoint(masm());
 }
 
 bool CodeGenerator::IsMaterializableFromRoot(Handle<HeapObject> object,

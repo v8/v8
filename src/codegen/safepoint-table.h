@@ -193,7 +193,10 @@ class SafepointTable {
 // safepoint's vector (in the other {EntryBuilder} instance), determines
 // their identical prefix, makes a copy of the differing tail, and commits
 // that to the {SafepointTableBuilder}'s list of {entries_} as a
-// {CompressedEntry}.
+// {CompressedEntry}. With {LazyDeoptSupport::kNo}, entries identical to the
+// previous entry are dropped immediately at commit time rather than buffered
+// until {Emit()}; {LazyDeoptSupport::kYes} keeps every entry because
+// {UpdateDeoptimizationInfo()} looks entries up by pc.
 // Example: Assume the following complete vectors, where we start with an
 //          implicit all-zero vector:
 //     implicit start: 0000000
@@ -267,8 +270,8 @@ class V8_EXPORT_PRIVATE SafepointTableBuilder
     : public SafepointTableBuilderBase {
  private:
   struct EntryBuilder {
-    int pc;
-    uint32_t register_indexes;
+    int pc = 0;
+    uint32_t register_indexes = 0;
     GrowableBitVector stack_indexes;
 
     EntryBuilder() = default;
@@ -296,7 +299,16 @@ class V8_EXPORT_PRIVATE SafepointTableBuilder
   };
 
  public:
-  explicit SafepointTableBuilder(Zone* zone) : entries_(zone), zone_(zone) {}
+  // Whether {UpdateDeoptimizationInfo()} may later attach lazy-deopt metadata
+  // to safepoints by PC (only needed by JS TurboFan/Turboshaft functions that
+  // have lazy deopts; never needed by Liftoff, Wasm Turboshaft, builtins, or
+  // lazy-deopt-free JS functions). When {kNo}, entries identical to their
+  // predecessor are dropped immediately at commit time instead of buffered
+  // until {Emit()}.
+  enum class LazyDeoptSupport : bool { kNo, kYes };
+
+  SafepointTableBuilder(Zone* zone, LazyDeoptSupport lazy_deopt_support)
+      : entries_(zone), lazy_deopt_support_(lazy_deopt_support), zone_(zone) {}
 
   SafepointTableBuilder(const SafepointTableBuilder&) = delete;
   SafepointTableBuilder& operator=(const SafepointTableBuilder&) = delete;
@@ -336,6 +348,19 @@ class V8_EXPORT_PRIVATE SafepointTableBuilder
   // pc_offset.
   Safepoint DefineSafepoint(Assembler* assembler, int pc_offset = 0);
 
+  // Fast path for defining a safepoint with no tagged stack slots and no
+  // tagged registers. When {!may_have_lazy_deopts()} and the previous safepoint
+  // was already empty, this is a no-op because {Emit()} deduplicates identical
+  // consecutive entries.
+  V8_INLINE void DefineEmptySafepoint(Assembler* assembler, int pc_offset = 0) {
+    if (V8_LIKELY(!may_have_lazy_deopts() &&
+                  current_entry_->register_indexes == 0 &&
+                  current_entry_->stack_indexes.IsEmpty())) {
+      return;
+    }
+    DefineSafepoint(assembler, pc_offset);
+  }
+
   // Emit the safepoint table after the body.
   void Emit(Assembler* assembler, int stack_slot_count);
 
@@ -347,13 +372,17 @@ class V8_EXPORT_PRIVATE SafepointTableBuilder
                                int deopt_index);
 
  private:
+  bool may_have_lazy_deopts() const {
+    return lazy_deopt_support_ == LazyDeoptSupport::kYes;
+  }
   void Commit(Safepoint* safepoint);
 
   EntryBuilder scratch_entry1_;
   EntryBuilder scratch_entry2_;
   EntryBuilder* current_entry_{&scratch_entry1_};
   EntryBuilder* previous_entry_{&scratch_entry2_};
-  ZoneDeque<CompressedEntry> entries_;
+  SmallZoneVector<CompressedEntry, 4> entries_;
+  const LazyDeoptSupport lazy_deopt_support_;
   bool has_deopt_data_{false};
   bool has_tagged_registers_{false};
   Zone* zone_;

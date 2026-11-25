@@ -56,6 +56,7 @@ int LiftoffAssembler::TopSpillOffset() const {
 
 void LiftoffAssembler::PushRegister(ValueKind kind, LiftoffRegister reg) {
   DCHECK_EQ(reg_class_for(kind), reg.reg_class());
+  if (is_reference(kind)) has_ref_values_ = true;
   cache_state_.inc_used(reg);
   cache_state_.stack_state.emplace_back(kind, reg, NextSpillOffset(kind));
 }
@@ -66,6 +67,7 @@ void LiftoffAssembler::PushException() {
   LiftoffRegister reg{kReturnRegister0};
   // This is used after a call, so {kReturnRegister0} is not used yet.
   DCHECK(cache_state_.is_free(reg));
+  has_ref_values_ = true;
   cache_state_.inc_used(reg);
   cache_state_.stack_state.emplace_back(kRef, reg, NextSpillOffset(kRef));
 }
@@ -76,6 +78,7 @@ void LiftoffAssembler::PushConstant(ValueKind kind, int32_t i32_const) {
 }
 
 void LiftoffAssembler::PushStack(ValueKind kind) {
+  if (is_reference(kind)) has_ref_values_ = true;
   cache_state_.stack_state.emplace_back(kind, NextSpillOffset(kind));
 }
 

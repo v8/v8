@@ -454,7 +454,7 @@ class GrowableBitVector {
   }
 
   void Add(const GrowableBitVector& other, Zone* zone) {
-    if (V8_UNLIKELY(other.length() == 0)) return;
+    if (other.IsEmpty()) return;
     int max = other.length() - 1;
     if (V8_UNLIKELY(!InBitsRange(max))) Grow(max, zone);
     bits_.Union(other.bits_);
