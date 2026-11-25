@@ -460,6 +460,11 @@ class GrowableBitVector {
     bits_.Union(other.bits_);
   }
 
+  void Remove(int value) {
+    if (!InBitsRange(value)) return;
+    bits_.Remove(value);
+  }
+
   bool IsEmpty() const { return bits_.IsEmpty(); }
 
   void Clear() { bits_.Clear(); }

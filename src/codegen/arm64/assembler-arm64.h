@@ -18,6 +18,7 @@
 #include "src/codegen/constant-pool.h"
 #include "src/codegen/jump-table-info.h"
 #include "src/common/globals.h"
+#include "src/utils/bit-vector.h"
 #include "src/utils/utils.h"
 #include "src/zone/zone-containers.h"
 
@@ -189,6 +190,96 @@ class AssemblerZone {
 // -----------------------------------------------------------------------------
 // Assembler.
 
+// Tracks forward branches to unbound labels that may need a veneer: TB[N]Z,
+// and B.cond/BC.cond/CB[N]Z which share a range.
+//
+// Each range class has a vector of branches in emission order, which is also
+// ascending max_reachable_pc order. Resolving a branch only clears its bit;
+// resolved entries are skipped lazily and compacted away once they outnumber
+// the unresolved ones.
+class UnresolvedBranches final {
+ public:
+  struct Info {
+    int max_reachable_pc;
+    int pc_offset;
+    Label* label;
+  };
+
+  explicit UnresolvedBranches(Zone* zone) : test_(zone), cond_(zone) {}
+
+  size_t size() const {
+    return test_.entries.size() + cond_.entries.size() - resolved_count_;
+  }
+  bool empty() const { return size() == 0; }
+
+  template <ImmBranchType branch_type>
+  V8_INLINE void Record(int pc_offset, int max_reachable_pc, Label* label) {
+    if (V8_UNLIKELY(resolved_count_ >= kMinCompactThreshold &&
+                    resolved_count_ > size())) {
+      Compact();
+    }
+    Queue& queue = branch_type == TestBranchType ? test_ : cond_;
+    DCHECK(queue.entries.empty() ||
+           queue.entries.back().max_reachable_pc < max_reachable_pc);
+    queue.entries.push_back({max_reachable_pc, pc_offset, label});
+    unresolved_bits_.Add(BitIndex(pc_offset), queue.entries.zone());
+  }
+
+  // Marks the branch at {pc_offset} resolved if it is tracked.
+  V8_INLINE void Resolve(int pc_offset) {
+    const int index = BitIndex(pc_offset);
+    if (!unresolved_bits_.Contains(index)) return;
+    unresolved_bits_.Remove(index);
+    ++resolved_count_;
+  }
+
+  // Returns the unresolved branch with the lowest max_reachable_pc, or nullptr
+  // if there is none. The result is invalidated by Record.
+  V8_INLINE const Info* First() const {
+    const Info* test = FirstIn(test_);
+    const Info* cond = FirstIn(cond_);
+    if (test == nullptr) return cond;
+    if (cond == nullptr) return test;
+    return cond->max_reachable_pc <= test->max_reachable_pc ? cond : test;
+  }
+
+  V8_EXPORT_PRIVATE void Clear();
+
+ private:
+  struct Queue {
+    explicit Queue(Zone* zone) : entries(zone) {}
+
+    ZoneVector<Info> entries;
+    // All entries before {head} are resolved.
+    mutable size_t head = 0;
+  };
+
+  static int BitIndex(int pc_offset) { return pc_offset >> kInstrSizeLog2; }
+
+  bool IsResolved(const Info& info) const {
+    return !unresolved_bits_.Contains(BitIndex(info.pc_offset));
+  }
+
+  V8_INLINE const Info* FirstIn(const Queue& queue) const {
+    const size_t size = queue.entries.size();
+    size_t head = queue.head;
+    while (head < size && IsResolved(queue.entries[head])) ++head;
+    queue.head = head;
+    return head < size ? &queue.entries[head] : nullptr;
+  }
+
+  V8_EXPORT_PRIVATE V8_NOINLINE void Compact();
+
+  static constexpr size_t kMinCompactThreshold = 64;
+
+  Queue test_;
+  Queue cond_;
+  // One bit per instruction, set while the branch there is unresolved.
+  GrowableBitVector unresolved_bits_;
+  // The number of resolved entries in {test_} and {cond_}.
+  size_t resolved_count_ = 0;
+};
+
 class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
  public:
   // Create an assembler. Instructions and relocation information are emitted
@@ -209,7 +300,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   Zone* zone() const { return zone_.get(); }
 
-  void AbortedCodeGeneration() override;
+  void AbortedCodeGeneration() override { ClearInternalState(); }
 
   // System functions ---------------------------------------------------------
   // Start generating code from the beginning of the buffer, discarding any code
@@ -3345,7 +3436,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Clear any internal state to avoid check failures if we drop
   // the assembly code.
-  void ClearInternalState() { constpool_.Clear(); }
+  void ClearInternalState();
 
   // Unused on this architecture.
   void MaybeEmitOutOfLineConstantPool() {}
@@ -3720,27 +3811,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
  protected:
   const AssemblerZone zone_;
 
-  // Information about unresolved (forward) branches.
-  // The Assembler is only allowed to delete out-of-date information from here
-  // after a label is bound. The MacroAssembler uses this information to
-  // generate veneers.
-  //
-  // The first member of the pair (max_pc) is the maximum offset that the branch
-  // can reach in the buffer, with the bottom bit set to indicate a
-  // test-and-branch instruction. This bit is used to help in calculating the
-  // address of the branch, ie.
-  //
-  //   branch_addr = { max_pc - 2^21,     if max_pc<0> == 0 (B.cond, CB[N]Z)
-  //                 { max_pc - 2^16 - 1, if max_pc<0> == 1 (TB[N]Z)
-  //
-  // The second member is a pointer to the Label targetted by the branch.
-  //
-  // The map is sorted according to the reachable offset, max_pc, allowing to
-  // check easily when veneers need to be emitted.
-  // Note that the maximum reachable offset (first member of the pairs) should
-  // always be positive but has the same type as the return value for
-  // pc_offset() for convenience.
-  ZoneAbslBTreeMap<int, Label*> unresolved_branches_;
+  // Unresolved (forward) branches that may need a veneer. Branches are
+  // resolved when their label is bound or when a veneer is emitted for them.
+  UnresolvedBranches unresolved_branches_;
 
   // Back edge offsets for the link chain - the forward edge is stored in the
   // generated code. This is used to accelerate removing branches from the
@@ -3758,20 +3831,18 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
       kVeneerNoProtectionFactor * kVeneerDistanceMargin;
   int unresolved_branches_first_limit() const {
     DCHECK(!unresolved_branches_.empty());
-
-    // Mask branch type tag bit.
-    return unresolved_branches_.begin()->first & ~1;
+    return unresolved_branches_.First()->max_reachable_pc;
   }
-  // A lower bound for unresolved_branches_first_limit(), also valid if there
-  // are no unresolved branches.
+  // Binding a label does not update next_veneer_pool_check_, so this may be
+  // lower than unresolved_branches_first_limit().
   int64_t UnresolvedBranchesFirstLimitLowerBound() const {
     return int64_t{next_veneer_pool_check_} + kVeneerDistanceCheckMargin;
   }
 
   // This PC-offset of the next veneer pool check helps reduce the overhead
-  // of checking for veneer pools.
-  // It is maintained to the closest unresolved branch limit minus the maximum
-  // veneer margin (or kMaxInt if there are no unresolved branches).
+  // of checking for veneer pools. Binding a label does not update it, so the
+  // check may happen earlier than needed, even with no unresolved branches
+  // left. CheckVeneerPoolImpl recomputes it.
   int next_veneer_pool_check_;
 
   // Record jump table locations, this is only used when the disassembler is
@@ -3783,24 +3854,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 #endif
 
  private:
-  // If a veneer is emitted for a branch instruction, that instruction must be
-  // removed from the associated label's link chain so that the assembler does
-  // not later attempt (likely unsuccessfully) to patch it to branch directly to
-  // the label.
-  void DeleteUnresolvedBranchInfoForLabel(Label* label);
-  // This function deletes the information related to the label by traversing
-  // the label chain, and for each PC-relative instruction in the chain checking
-  // if pending unresolved information exists. Its complexity is proportional to
-  // the length of the label chain.
-  void DeleteUnresolvedBranchInfoForLabelTraverse(Label* label);
-  // Deletes the pending unresolved information for a branch, if its type is
-  // handled by veneers.
-  void DeleteUnresolvedBranchInfoForBranch(Instruction* branch);
-
   // Slow path of CheckVeneerPool. {margin} already includes
   // kVeneerNoProtectionFactor.
   void CheckVeneerPoolImpl(bool force_emit, bool require_jump, size_t margin);
   void UpdateNextVeneerPoolCheck();
+  void ClearUnresolvedBranches();
 
   void PatchInHeapNumberRequest(Address pc, Handle<HeapNumber> object) override;
 

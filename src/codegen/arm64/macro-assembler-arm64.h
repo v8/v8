@@ -2601,17 +2601,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
           branch_type, label->pos() - pc_offset());
     }
     if (!need_longer_range && !label->is_bound()) {
-      int max_reachable_pc =
+      const int max_reachable_pc =
           pc_offset() + Instruction::ImmBranchRange(branch_type);
-
-      // Use the LSB of the max_reachable_pc (always four-byte aligned) to
-      // encode the branch type. We need only distinguish between TB[N]Z and
-      // CB[N]Z/conditional branch, as the ranges for the latter are the same.
-      int branch_type_tag = (branch_type == TestBranchType) ? 1 : 0;
-
-      unresolved_branches_.insert(
-          std::pair<int, Label*>(max_reachable_pc + branch_type_tag, label));
-      // Also maintain the next pool check.
+      static_assert(Instruction::ImmBranchRange(CondBranchType) ==
+                    Instruction::ImmBranchRange(CompareBranchType));
+      unresolved_branches_.Record<branch_type>(pc_offset(), max_reachable_pc,
+                                               label);
       next_veneer_pool_check_ =
           std::min(next_veneer_pool_check_,
                    max_reachable_pc - kVeneerDistanceCheckMargin);

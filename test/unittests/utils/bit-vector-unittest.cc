@@ -350,6 +350,20 @@ TEST_F(BitVectorTest, BoundedAddRemoveAndCopyFrom) {
   }
 }
 
+TEST_F(BitVectorTest, GrowableBitVectorRemove) {
+  GrowableBitVector v;
+  // Removing a value beyond the current length is a no-op.
+  v.Remove(5000);
+  EXPECT_TRUE(v.IsEmpty());
+  v.Add(5, zone());
+  v.Add(5000, zone());
+  v.Remove(5);
+  EXPECT_FALSE(v.Contains(5));
+  EXPECT_TRUE(v.Contains(5000));
+  v.Remove(5000);
+  EXPECT_TRUE(v.IsEmpty());
+}
+
 TEST_F(BitVectorTest, GrowableBitVectorInline) {
   const size_t allocated = zone()->allocation_size();
   GrowableBitVector v;

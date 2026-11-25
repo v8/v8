@@ -29,6 +29,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <optional>
@@ -2632,6 +2633,113 @@ TEST_F(AssemblerArm64Test, far_branch_veneer_broken_link_chain) {
 
   CHECK_EQUAL_64(0x3, x0);
   CHECK_EQUAL_64(0x1, x1);
+}
+
+TEST_F(AssemblerArm64Test, far_branch_veneer_same_label) {
+  // Several branches to the same label that all need a veneer in the same
+  // pool. The TBZs are removed from the label's link chain one after another,
+  // some from the middle of the chain (between CBZs) and some after a veneer
+  // for an earlier TBZ has been linked into the chain.
+  constexpr int kBranchCount = 6;
+  int max_range = Instruction::ImmBranchRange(TestBranchType);
+
+  SETUP_SIZE(max_range + 1000 * kInstrSize);
+
+  START();
+
+  Label fail, done, far_target;
+  Label tests[kBranchCount];
+
+  __ Mov(x0, 0);
+  __ Mov(x1, 1);
+  __ Mov(x10, 0);
+
+  for (int i = 0; i < kBranchCount; ++i) {
+    __ Bind(&tests[i]);
+    __ Mov(x0, i + 1);
+    if (i % 2 == 0) {
+      __ Tbz(x10, 7, &far_target);
+    } else {
+      __ Cbz(x10, &far_target);
+    }
+  }
+
+  GenerateLandingNops(&masm, max_range / kInstrSize + 1, &fail);
+  __ B(&fail);
+
+  __ Bind(&far_target);
+  for (int i = 1; i < kBranchCount; ++i) {
+    __ Cmp(x0, i);
+    __ B(eq, &tests[i]);
+  }
+
+  __ B(&done);
+  __ Bind(&fail);
+  __ Mov(x1, 0);
+  __ Bind(&done);
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_64(kBranchCount, x0);
+  CHECK_EQUAL_64(0x1, x1);
+}
+
+TEST_F(AssemblerArm64Test, unresolved_branches_compact) {
+  Zone zone(isolate()->allocator(), ZONE_NAME);
+  UnresolvedBranches branches(&zone);
+  Label label;
+  std::vector<int> unresolved;
+
+  auto record = [&](int index) {
+    const int pc_offset = index * kInstrSize;
+    if (index % 2 == 0) {
+      branches.Record<TestBranchType>(
+          pc_offset, pc_offset + Instruction::ImmBranchRange(TestBranchType),
+          &label);
+    } else {
+      branches.Record<CondBranchType>(
+          pc_offset, pc_offset + Instruction::ImmBranchRange(CondBranchType),
+          &label);
+    }
+    unresolved.push_back(pc_offset);
+  };
+  auto resolve = [&](int index) {
+    const int pc_offset = index * kInstrSize;
+    branches.Resolve(pc_offset);
+    unresolved.erase(
+        std::find(unresolved.begin(), unresolved.end(), pc_offset));
+  };
+
+  // Interleave TB[N]Z and B.cond entries, then advance both queue heads past
+  // a resolved prefix.
+  constexpr int kCount = 200;
+  for (int i = 0; i < kCount; ++i) record(i);
+  for (int i = 0; i < 10; ++i) resolve(i);
+  CHECK_EQ(10 * kInstrSize, branches.First()->pc_offset);
+
+  // Resolve enough entries to trigger compaction on the next Record.
+  for (int i = 10; i < kCount; ++i) {
+    if (i % 3 != 0) resolve(i);
+  }
+  CHECK_EQ(unresolved.size(), branches.size());
+  record(kCount);
+  record(kCount + 1);
+  CHECK_EQ(unresolved.size(), branches.size());
+
+  // All TB[N]Z entries have a lower limit than all B.cond entries.
+  std::stable_partition(unresolved.begin(), unresolved.end(),
+                        [](int pc_offset) { return pc_offset % 8 == 0; });
+  for (int pc_offset : unresolved) {
+    const UnresolvedBranches::Info* first = branches.First();
+    CHECK_NOT_NULL(first);
+    CHECK_EQ(pc_offset, first->pc_offset);
+    CHECK_EQ(&label, first->label);
+    branches.Resolve(pc_offset);
+  }
+  CHECK(branches.empty());
+  CHECK_NULL(branches.First());
 }
 
 TEST_F(AssemblerArm64Test, branch_type) {
