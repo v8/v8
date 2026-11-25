@@ -2733,6 +2733,8 @@ void MacroAssembler::StackOverflowCheck(Register num_args,
   B(le, stack_overflow);
 }
 
+// Must preserve x20: InvokeFunctionCode loads the code entry point into it
+// before calling this.
 void MacroAssembler::InvokePrologue(Register formal_parameter_count,
                                     Register actual_argument_count,
                                     InvokeType type) {
@@ -2923,19 +2925,28 @@ void MacroAssembler::InvokeFunctionCode(
     LoadRoot(x3, RootIndex::kUndefinedValue);
   }
 
-  Register scratch = x20;
-  if (argument_adaption_mode == ArgumentAdaptionMode::kAdapt) {
-    Register expected_parameter_count = x2;
-    LoadParameterCountFromJSDispatchTable(expected_parameter_count,
-                                          dispatch_handle, scratch);
-    InvokePrologue(expected_parameter_count, actual_parameter_count, type);
-  }
-
   // We call indirectly through the code field in the function to
   // allow recompilation to take effect without changing any of the
   // call sites.
-  LoadEntrypointFromJSDispatchTable(kJavaScriptCallCodeStartRegister,
-                                    dispatch_handle, scratch);
+  if (argument_adaption_mode == ArgumentAdaptionMode::kAdapt) {
+    // InvokePrologue clobbers x2 but preserves x20.
+    Register expected_parameter_count = x2;
+    Register entrypoint = x20;
+    LoadEntrypointAndParameterCountFromJSDispatchTable(
+        entrypoint, expected_parameter_count, dispatch_handle, x5);
+    InvokePrologue(expected_parameter_count, actual_parameter_count, type);
+    if (v8_flags.debug_code) {
+      Register reloaded_entrypoint = expected_parameter_count;
+      LoadEntrypointFromJSDispatchTable(reloaded_entrypoint, dispatch_handle,
+                                        x5);
+      Cmp(entrypoint, reloaded_entrypoint);
+      Check(eq, AbortReason::kWrongFunctionCodeStart);
+    }
+    Mov(kJavaScriptCallCodeStartRegister, entrypoint);
+  } else {
+    LoadEntrypointFromJSDispatchTable(kJavaScriptCallCodeStartRegister,
+                                      dispatch_handle, x20);
+  }
   Label done;
   switch (type) {
     case InvokeType::kCall:

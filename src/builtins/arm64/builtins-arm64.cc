@@ -2989,17 +2989,25 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   // -----------------------------------
   __ AssertCallableFunction(x1);
 
-  __ LoadTaggedField(
-      x2, FieldMemOperand(x1, offsetof(JSFunction, shared_function_info_)));
-
   // Enter the context of the function; ToObject has to run in the function
   // context, and we also need to take the global proxy from the function
   // context in case of conversion.
   __ LoadTaggedField(cp, FieldMemOperand(x1, offsetof(JSFunction, context_)));
-  // We need to convert the receiver for non-native sloppy mode functions.
   Label done_convert;
-  __ Ldr(w3, FieldMemOperand(x2, offsetof(SharedFunctionInfo, flags_)));
-  __ TestAndBranchIfAnySet(w3,
+  if (mode != ConvertReceiverMode::kNullOrUndefined) {
+    // JSReceivers never need conversion, so only look at the callee's
+    // language mode for primitive receivers.
+    Label receiver_is_primitive;
+    __ Peek(x3, __ ReceiverOperand());
+    __ JumpIfSmi(x3, &receiver_is_primitive);
+    __ JumpIfJSAnyIsNotPrimitive(x3, x4, &done_convert);
+    __ Bind(&receiver_is_primitive);
+  }
+  // We need to convert the receiver for non-native sloppy mode functions.
+  __ LoadTaggedField(
+      x2, FieldMemOperand(x1, offsetof(JSFunction, shared_function_info_)));
+  __ Ldr(w4, FieldMemOperand(x2, offsetof(SharedFunctionInfo, flags_)));
+  __ TestAndBranchIfAnySet(w4,
                            SharedFunctionInfo::Flags::IsNativeBit::kMask |
                                SharedFunctionInfo::Flags::IsStrictBit::kMask,
                            &done_convert);
@@ -3007,7 +3015,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
     // ----------- S t a t e -------------
     //  -- x0 : the number of arguments
     //  -- x1 : the function to call (checked to be a JSFunction)
-    //  -- x2 : the shared function info.
+    //  -- x3 : the receiver (a primitive, unless mode is kNullOrUndefined).
     //  -- cp : the function context.
     // -----------------------------------
 
@@ -3016,9 +3024,6 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
       __ LoadGlobalProxy(x3);
     } else {
       Label convert_to_object, convert_receiver;
-      __ Peek(x3, __ ReceiverOperand());
-      __ JumpIfSmi(x3, &convert_to_object);
-      __ JumpIfJSAnyIsNotPrimitive(x3, x4, &done_convert);
       if (mode != ConvertReceiverMode::kNotNullOrUndefined) {
         Label convert_global_proxy;
         __ JumpIfRoot(x3, RootIndex::kUndefinedValue, &convert_global_proxy);
@@ -3044,8 +3049,6 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
         __ Pop(cp, x1, x0, padreg);
         __ SmiUntag(x0);
       }
-      __ LoadTaggedField(
-          x2, FieldMemOperand(x1, offsetof(JSFunction, shared_function_info_)));
       __ Bind(&convert_receiver);
     }
     __ Poke(x3, __ ReceiverOperand());
@@ -3055,7 +3058,6 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   // ----------- S t a t e -------------
   //  -- x0 : the number of arguments
   //  -- x1 : the function to call (checked to be a JSFunction)
-  //  -- x2 : the shared function info.
   //  -- cp : the function context.
   // -----------------------------------
 
