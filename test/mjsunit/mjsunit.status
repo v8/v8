@@ -1169,6 +1169,7 @@
   'wasm/fp16-load-mul': [SKIP],
   'wasm/fp16-oob-trap': [SKIP],
   'wasm/fp16-store': [SKIP],
+  'wasm/simd-revec-f16-qfma-extract': [SKIP],
   'wasm/simd-fp16': [SKIP],
 
   # --wasm-rab-integration

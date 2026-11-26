@@ -4853,7 +4853,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (UseAvx10_1()) {
         CpuFeatureScope avx10_scope(masm(), AVX10_1);
         DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-        if (instr->InputAt(2)->IsSimd128Register()) {
+        if (instr->InputAt(2)->CanBeSimd128Register()) {
           __ vfmadd213ph(i.OutputSimd128Register(), i.InputSimd128Register(1),
                          i.InputSimd128Register(2));
         } else {
@@ -4873,7 +4873,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (UseAvx10_1()) {
         CpuFeatureScope avx10_scope(masm(), AVX10_1);
         DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-        if (instr->InputAt(2)->IsSimd128Register()) {
+        if (instr->InputAt(2)->CanBeSimd128Register()) {
           __ vfnmadd213ph(i.OutputSimd128Register(), i.InputSimd128Register(1),
                           i.InputSimd128Register(2));
         } else {
