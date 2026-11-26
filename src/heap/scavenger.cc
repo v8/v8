@@ -188,13 +188,9 @@ class ScavengerWeakObjectsProcessor final {
         // old-to-new remembered set.
         DCHECK(!HeapLayout::InWritableSharedSpace(new_object));
         slot.store(new_object);
-        if (HeapObjectWillBeOld(heap, host)) {
-          if (V8_UNLIKELY(!HeapObjectWillBeOld(heap, new_object))) {
-            AddToRememberedSet<OLD_TO_NEW>(heap, host, slot.address());
-          } else if (V8_UNLIKELY(
-                         HeapLayout::InWritableSharedSpace(new_object))) {
-            AddToRememberedSet<OLD_TO_SHARED>(heap, host, slot.address());
-          }
+        if (HeapObjectWillBeOld(heap, host) &&
+            V8_UNLIKELY(!HeapObjectWillBeOld(heap, new_object))) {
+          AddToRememberedSet<OLD_TO_NEW>(heap, host, slot.address());
         }
       }
     }
@@ -326,7 +322,6 @@ class Scavenger {
   bool promote_all_young_objects() const { return promote_all_young_objects_; }
 
  private:
-  enum PromotionHeapChoice { kPromoteIntoLocalHeap, kPromoteIntoSharedHeap };
   enum class AllowShortcutCandidate { kYes, kNo };
 
   // Number of objects to process before interrupting for potentially waking
@@ -379,8 +374,7 @@ class Scavenger {
                                      SafeHeapObjectSize object_size,
                                      ObjectFields object_fields);
 
-  template <typename THeapObjectSlot,
-            PromotionHeapChoice promotion_heap_choice = kPromoteIntoLocalHeap>
+  template <typename THeapObjectSlot>
   V8_INLINE bool PromoteObject(Tagged<Map> map, THeapObjectSlot slot,
                                Tagged<HeapObject> object,
                                SafeHeapObjectSize object_size,
@@ -398,8 +392,7 @@ class Scavenger {
                                    ObjectFields object_fields);
 
   // Different cases for object evacuation.
-  template <typename THeapObjectSlot,
-            PromotionHeapChoice promotion_heap_choice = kPromoteIntoLocalHeap>
+  template <typename THeapObjectSlot>
   V8_INLINE SlotCallbackResult EvacuateObjectDefault(
       Tagged<Map> map, THeapObjectSlot slot, Tagged<HeapObject> object,
       SafeHeapObjectSize object_size, ObjectFields object_fields);
@@ -414,11 +407,6 @@ class Scavenger {
   inline SlotCallbackResult EvacuateShortcutCandidate(
       Tagged<Map> map, THeapObjectSlot slot, Tagged<ConsString> object,
       SafeHeapObjectSize object_size);
-
-  template <typename THeapObjectSlot>
-  inline SlotCallbackResult EvacuateInPlaceInternalizableString(
-      Tagged<Map> map, THeapObjectSlot slot, Tagged<String> string,
-      SafeHeapObjectSize object_size, ObjectFields object_fields);
 
   void RememberPromotedEphemeron(Tagged<EphemeronHashTable> table, int index);
 
@@ -457,8 +445,6 @@ class Scavenger {
   std::optional<base::RandomNumberGenerator> rng_;
 
   const bool is_logging_;
-  const bool shared_string_table_;
-  const bool mark_shared_heap_;
   const bool shortcut_strings_;
   const bool should_handle_weak_objects_weakly_;
   const bool promote_all_young_objects_;
@@ -1914,9 +1900,6 @@ Scavenger::Scavenger(
       local_weak_cells_list_(*weak_cells_list),
       allocator_(heap, CompactionSpaceKind::kCompactionSpaceForScavenge),
       is_logging_(is_logging),
-      shared_string_table_(v8_flags.shared_string_table &&
-                           heap->isolate()->has_shared_space()),
-      mark_shared_heap_(heap->isolate()->is_shared_space_isolate()),
       shortcut_strings_(
           heap->CanShortcutStringsDuringGC(GarbageCollector::SCAVENGER)),
       should_handle_weak_objects_weakly_(should_handle_weak_objects_weakly),
@@ -2022,8 +2005,7 @@ bool Scavenger::SemiSpaceCopyObject(Tagged<Map> map, THeapObjectSlot slot,
       });
 }
 
-template <typename THeapObjectSlot,
-          Scavenger::PromotionHeapChoice promotion_heap_choice>
+template <typename THeapObjectSlot>
 bool Scavenger::PromoteObject(Tagged<Map> map, THeapObjectSlot slot,
                               Tagged<HeapObject> object,
                               SafeHeapObjectSize object_size,
@@ -2033,10 +2015,8 @@ bool Scavenger::PromoteObject(Tagged<Map> map, THeapObjectSlot slot,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
   DCHECK_GE(object_size.value(),
             Heap::kMinObjectSizeInTaggedWords * kTaggedSize);
-  AllocationSpace target_space =
-      promotion_heap_choice == kPromoteIntoLocalHeap ? OLD_SPACE : SHARED_SPACE;
   return TryMigrateObject(
-      map, slot, object, object_size, target_space,
+      map, slot, object, object_size, OLD_SPACE,
       [this, map, object_fields, object_size](Tagged<HeapObject> target) {
         promoted_size_ += object_size.value();
         if (object_fields == ObjectFields::kMaybePointers) {
@@ -2104,8 +2084,7 @@ SlotCallbackResult RememberedSetEntryNeeded(Heap* heap, THeapObjectSlot slot) {
 }
 }  // namespace
 
-template <typename THeapObjectSlot,
-          Scavenger::PromotionHeapChoice promotion_heap_choice>
+template <typename THeapObjectSlot>
 SlotCallbackResult Scavenger::EvacuateObjectDefault(
     Tagged<Map> map, THeapObjectSlot slot, Tagged<HeapObject> object,
     SafeHeapObjectSize object_size, ObjectFields object_fields) {
@@ -2132,8 +2111,7 @@ SlotCallbackResult Scavenger::EvacuateObjectDefault(
   // We may want to promote this object if the object was already semi-space
   // copied in a previous young generation GC or if the semi-space copy above
   // failed.
-  if (PromoteObject<THeapObjectSlot, promotion_heap_choice>(
-          map, slot, object, object_size, object_fields)) [[likely]] {
+  if (PromoteObject(map, slot, object, object_size, object_fields)) [[likely]] {
     return RememberedSetEntryNeeded(heap_, slot);
   }
 
@@ -2204,19 +2182,6 @@ SlotCallbackResult Scavenger::EvacuateShortcutCandidate(
                                ObjectFields::kMaybePointers);
 }
 
-template <typename THeapObjectSlot>
-SlotCallbackResult Scavenger::EvacuateInPlaceInternalizableString(
-    Tagged<Map> map, THeapObjectSlot slot, Tagged<String> object,
-    SafeHeapObjectSize object_size, ObjectFields object_fields) {
-  DCHECK(String::IsInPlaceInternalizable(map->instance_type()));
-  DCHECK_EQ(object_fields, Map::ObjectFieldsFrom(map->visitor_id()));
-  if (shared_string_table_) {
-    return EvacuateObjectDefault<THeapObjectSlot, kPromoteIntoSharedHeap>(
-        map, slot, object, object_size, object_fields);
-  }
-  return EvacuateObjectDefault(map, slot, object, object_size, object_fields);
-}
-
 template <typename THeapObjectSlot,
           Scavenger::AllowShortcutCandidate allow_shortcut_candidate>
 SlotCallbackResult Scavenger::EvacuateObject(THeapObjectSlot slot,
@@ -2246,14 +2211,6 @@ SlotCallbackResult Scavenger::EvacuateObject(THeapObjectSlot slot,
       }
       return EvacuateObjectDefault(map, slot, source, size,
                                    Map::ObjectFieldsFrom(visitor_id));
-    case kVisitSeqOneByteString:
-    case kVisitSeqTwoByteString:
-      DCHECK(String::IsInPlaceInternalizable(map->instance_type()));
-      static_assert(Map::ObjectFieldsFrom(kVisitSeqOneByteString) ==
-                    Map::ObjectFieldsFrom(kVisitSeqTwoByteString));
-      return EvacuateInPlaceInternalizableString(
-          map, slot, UncheckedCast<String>(source), size,
-          Map::ObjectFieldsFrom(kVisitSeqOneByteString));
     default:
       return EvacuateObjectDefault(map, slot, source, size,
                                    Map::ObjectFieldsFrom(visitor_id));
@@ -2447,8 +2404,8 @@ void Scavenger::ScavengePage(MutablePage* page) {
         page,
         [this, chunk, page, record_old_to_shared_slots](MaybeObjectSlot slot) {
           SlotCallbackResult result = CheckAndScavengeObject(heap_, slot);
-          // A new space string might have been promoted into the shared heap
-          // during GC.
+          // A ConsString might have been shortcutted to a shared string during
+          // GC.
           DCHECK_IMPLIES(IsObjectInSlotShared(slot), result == REMOVE_SLOT);
           if (result == REMOVE_SLOT && record_old_to_shared_slots) {
             CheckOldToNewSlotForSharedUntyped(chunk, page, slot);
@@ -2516,8 +2473,8 @@ void Scavenger::ScavengePage(MutablePage* page) {
         page,
         [this, chunk, page, record_old_to_shared_slots](MaybeObjectSlot slot) {
           SlotCallbackResult result = CheckAndScavengeObject(heap_, slot);
-          // A new space string might have been promoted into the shared heap
-          // during GC.
+          // A ConsString might have been shortcutted to a shared string during
+          // GC.
           DCHECK_IMPLIES(IsObjectInSlotShared(slot), result == REMOVE_SLOT);
           if (result == REMOVE_SLOT && record_old_to_shared_slots) {
             CheckOldToNewSlotForSharedUntyped(chunk, page, slot);

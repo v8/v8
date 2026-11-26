@@ -23,7 +23,9 @@ EvacuationAllocator::EvacuationAllocator(
                                MainAllocator::kInGC);
   code_space_allocator_.emplace(heap, compaction_spaces_.Get(CODE_SPACE),
                                 MainAllocator::kInGC);
-  if (Isolate::FromHeap(heap_)->has_shared_space()) {
+  if (compaction_space_kind !=
+          CompactionSpaceKind::kCompactionSpaceForScavenge &&
+      Isolate::FromHeap(heap_)->has_shared_space()) {
     shared_space_allocator_.emplace(heap, compaction_spaces_.Get(SHARED_SPACE),
                                     MainAllocator::kInGC);
   }
@@ -34,7 +36,6 @@ EvacuationAllocator::EvacuationAllocator(
 void EvacuationAllocator::FreeLast(AllocationSpace space,
                                    Tagged<HeapObject> object,
                                    SafeHeapObjectSize object_size) {
-  DCHECK_IMPLIES(!shared_space_allocator_, space != SHARED_SPACE);
   // TODO(425150995): We should have uint versions for allocation to avoid
   // introducing OOBs via sign-extended ints along the way.
   int unsafe_object_size = ALIGN_TO_ALLOCATION_ALIGNMENT(object_size.value());
@@ -45,10 +46,6 @@ void EvacuationAllocator::FreeLast(AllocationSpace space,
       return;
     case OLD_SPACE:
       FreeLastInMainAllocator(old_space_allocator(), object,
-                              unsafe_object_size);
-      return;
-    case SHARED_SPACE:
-      FreeLastInMainAllocator(shared_space_allocator(), object,
                               unsafe_object_size);
       return;
     default:

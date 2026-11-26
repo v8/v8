@@ -559,7 +559,9 @@ CompactionSpaceCollection::CompactionSpaceCollection(
       trusted_space_(heap, TRUSTED_SPACE, Executability::NOT_EXECUTABLE,
                      compaction_space_kind,
                      CompactionSpace::DestinationHeap::kSameHeap) {
-  if (heap->isolate()->has_shared_space()) {
+  if (compaction_space_kind !=
+          CompactionSpaceKind::kCompactionSpaceForScavenge &&
+      heap->isolate()->has_shared_space()) {
     const CompactionSpace::DestinationHeap dest_heap =
         heap->isolate()->is_shared_space_isolate()
             ? CompactionSpace::DestinationHeap::kSameHeap
