@@ -12759,7 +12759,7 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessorAndBailoutOnLazyClosures(
     Label* if_bailout, GetOwnPropertyMode mode) {
   TVARIABLE(Object, var_value, value);
   Label done(this), if_accessor_info(this, Label::kDeferred), if_data(this),
-      if_not_data(this);
+      if_not_data(this, Label::kDeferred);
 
   TNode<Uint32T> kind = DecodeWord32<PropertyDetails::KindField>(details);
   Branch(
@@ -19583,7 +19583,7 @@ TNode<UintPtrT>
 CodeStubAssembler::LoadVariableLengthJSArrayBufferViewByteLength(
     TNode<JSArrayBufferView> array, TNode<JSArrayBuffer> buffer,
     TypedArrayAccessMode mode, Label* fail) {
-  Label is_gsab(this), is_rab(this), end(this);
+  Label is_gsab(this, Label::kDeferred), is_rab(this), end(this);
   TVARIABLE(UintPtrT, result);
   TNode<UintPtrT> array_byte_offset = LoadJSArrayBufferViewByteOffset(array);
 

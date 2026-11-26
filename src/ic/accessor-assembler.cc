@@ -605,9 +605,10 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
       DecodeWord32<LoadHandler::KindBits>(handler_word);
 
   if (support_elements == kSupportElements) {
-    Label if_element(this), if_transition(this), if_indexed_string(this),
-        if_property(this), if_hole(this), unimplemented_elements_kind(this),
-        if_oob(this, Label::kDeferred), try_string_to_array_index(this),
+    Label if_element(this), if_transition(this, Label::kDeferred),
+        if_indexed_string(this), if_property(this), if_hole(this),
+        unimplemented_elements_kind(this), if_oob(this, Label::kDeferred),
+        try_string_to_array_index(this, Label::kDeferred),
         emit_element_load(this);
     TVARIABLE(IntPtrT, var_intptr_index);
     GotoIf(Word32Equal(handler_kind, LOAD_KIND(kElement)), &if_element);
@@ -2631,7 +2632,8 @@ void AccessorAssembler::EmitElementLoad(
     ExitPoint* exit_point, LoadAccessMode access_mode) {
   Label if_rab_gsab_typed_array(this), if_typed_array(this), if_fast(this),
       if_fast_packed(this), if_fast_holey(this), if_fast_double(this),
-      if_fast_holey_double(this), if_nonfast(this), if_dictionary(this);
+      if_fast_holey_double(this), if_nonfast(this),
+      if_dictionary(this, Label::kDeferred);
   Branch(Int32GreaterThan(elements_kind,
                           Int32Constant(LAST_ANY_NONEXTENSIBLE_ELEMENTS_KIND)),
          &if_nonfast, &if_fast);
@@ -3116,13 +3118,9 @@ void AccessorAssembler::GenericPropertyLoad(
     ExpectedReceiverMode expected_receiver_mode =
         p->IsLoadSuperIC() ? kExpectingAnyReceiver : kExpectingJSReceiver;
 
-    TNode<JSAnyOrSharedFunctionInfo> value =
-        CAST(CallGetterIfAccessorAndBailoutOnLazyClosures(
-            var_value.value(), CAST(lookup_start_object), var_details.value(),
-            p->context(), p->receiver(), expected_receiver_mode, p->name(),
-            slow));
-
-    GotoIfLazyClosure(value, slow);
+    TNode<Object> value = CallGetterIfAccessorAndBailoutOnLazyClosures(
+        var_value.value(), CAST(lookup_start_object), var_details.value(),
+        p->context(), p->receiver(), expected_receiver_mode, p->name(), slow);
 
     Return(value);
   }
@@ -3150,7 +3148,8 @@ void AccessorAssembler::GenericPropertyLoad(
       TNode<Uint16T> proto_instance_type = LoadMapInstanceType(proto_map);
       var_holder_map = proto_map;
       var_holder_instance_type = proto_instance_type;
-      Label next_proto(this), return_value(this, &var_value), goto_slow(this);
+      Label next_proto(this), return_value(this, &var_value),
+          goto_slow(this, Label::kDeferred);
       TryGetOwnProperty(p->context(), p->receiver(), CAST(proto), proto_map,
                         proto_instance_type, name, &return_value, &var_value,
                         &next_proto, &goto_slow);
@@ -3164,8 +3163,6 @@ void AccessorAssembler::GenericPropertyLoad(
       Goto(slow);
 
       BIND(&return_value);
-
-      GotoIfLazyClosure(CAST(var_value.value()), slow);
       Return(var_value.value());
     }
 
@@ -3671,7 +3668,10 @@ void AccessorAssembler::LoadIC_NoFeedback(const LoadICParameters* p,
   {
     // Special case for Function.prototype load, because it's very common
     // for ICs that are only executed once (MyFunc.prototype.foo = ...).
-    Label not_function_prototype(this, Label::kDeferred);
+    // Do not mark |not_function_prototype| deferred, otherwise FrameElider
+    // cannot prevent deferred calls inside GenericPropertyLoad from bleeding
+    // frame construction into the common own-property load path.
+    Label not_function_prototype(this);
     GotoIfNot(IsPrototypeString(p->name()), &not_function_prototype);
 
     GotoIfPrototypeRequiresRuntimeLookup(CAST(lookup_start_object),
@@ -4028,8 +4028,8 @@ void AccessorAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
   {
     TVARIABLE(IntPtrT, var_index);
     TVARIABLE(Name, var_unique);
-    Label if_index(this), if_unique_name(this, &var_name), if_notunique(this),
-        if_other(this, Label::kDeferred);
+    Label if_index(this), if_unique_name(this, &var_name),
+        if_notunique(this, Label::kDeferred), if_other(this, Label::kDeferred);
 
     TryToName(var_name.value(), &if_index, &var_index, &if_unique_name,
               &var_unique, &if_other, &if_notunique);
