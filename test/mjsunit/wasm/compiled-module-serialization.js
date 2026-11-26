@@ -507,3 +507,41 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(2, instance.exports.resume(instance.exports.suspend_tag0));
   assertEquals(3, instance.exports.resume(instance.exports.suspend_tag1));
 })();
+
+(function SwitchEffectHandlersAfterSerialization() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  let tag0 = builder.addTag(kSig_i_v);
+  let sig_i_v = builder.addType(kSig_i_v);
+  let cont_i_v = builder.addCont(sig_i_v);
+  let sig_i_c =
+      builder.addType(makeSig([wasmRefNullType(cont_i_v)], [kWasmI32]));
+  let cont_i_c = builder.addCont(sig_i_c);
+
+  let target = builder.addFunction("target", sig_i_c)
+      .addBody([...wasmI32Const(42)]);
+  let switcher = builder.addFunction("switcher", sig_i_v)
+      .addBody([
+        kExprRefFunc, target.index,
+        kExprContNew, cont_i_c,
+        kExprSwitch, cont_i_c, tag0,
+        kExprUnreachable,
+      ]);
+  builder.addDeclarativeElementSegment([target.index, switcher.index]);
+  builder.addFunction("resume", kSig_i_v)
+      .addBody([
+        kExprRefFunc, switcher.index,
+        kExprContNew, cont_i_v,
+        kExprResume, cont_i_v, 1,
+          kOnSwitch, tag0,
+      ]).exportFunc();
+
+  var wire_bytes = builder.toBuffer();
+  var module = new WebAssembly.Module(wire_bytes);
+  var buffer = d8.wasm.serializeModule(module);
+  module = null;
+  gc();
+  module = d8.wasm.deserializeModule(buffer, wire_bytes);
+  var instance = new WebAssembly.Instance(module);
+  assertEquals(42, instance.exports.resume());
+})();

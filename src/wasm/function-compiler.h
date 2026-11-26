@@ -17,6 +17,7 @@
 #include "src/codegen/compiler.h"
 #include "src/wasm/baseline/liftoff-bailout-reasons.h"
 #include "src/wasm/compilation-environment.h"
+#include "src/wasm/effect-handler.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-deopt-data.h"
@@ -86,7 +87,7 @@ struct WasmCompilationResult {
   base::UniqueArray<uint8_t> inlining_positions = {};
   base::UniqueArray<uint8_t> trapping_instructions_data = {};
   base::UniqueArray<uint8_t> deopt_data = {};
-  base::UniqueArray<uint8_t> effect_handlers = {};
+  base::UniqueArray<EffectHandlerEntry> effect_handlers = {};
   std::unique_ptr<AssumptionsJournal> assumptions = nullptr;
   std::unique_ptr<LiftoffFrameDescriptionForDeopt> liftoff_frame_descriptions =
       nullptr;

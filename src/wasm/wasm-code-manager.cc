@@ -629,9 +629,9 @@ size_t WasmCode::EstimateCurrentMemoryConsumption() const {
   UPDATE_WHEN_CLASS_CHANGES(WasmCode, 112);
   size_t result = sizeof(WasmCode);
   // For meta_data_.
-  result += trapping_instructions_size_ + reloc_info_size_ +
-            source_positions_size_ + inlining_positions_size_ +
-            deopt_data_size_;
+  result += size_t{effect_handlers_size_} + trapping_instructions_size_ +
+            reloc_info_size_ + source_positions_size_ +
+            inlining_positions_size_ + deopt_data_size_;
   return result;
 }
 
@@ -1338,8 +1338,9 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
     base::Vector<const uint8_t> inlining_positions,
     base::Vector<const uint8_t> deopt_data, WasmCode::Kind kind,
     ExecutionTier tier, ForDebugging for_debugging,
-    base::Vector<const uint8_t> effect_handlers, bool frame_has_feedback_slot,
-    base::Vector<uint8_t> dst_code_bytes, const JumpTablesRef& jump_tables) {
+    base::Vector<const EffectHandlerEntry> effect_handlers,
+    bool frame_has_feedback_slot, base::Vector<uint8_t> dst_code_bytes,
+    const JumpTablesRef& jump_tables) {
   base::Vector<const uint8_t> reloc_info{
       desc.buffer + desc.buffer_size - desc.reloc_size,
       static_cast<size_t>(desc.reloc_size)};
@@ -1630,7 +1631,8 @@ std::unique_ptr<WasmCode> NativeModule::AddDeserializedCode(
     base::Vector<const uint8_t> source_position_table,
     base::Vector<const uint8_t> inlining_positions,
     base::Vector<const uint8_t> deopt_data, WasmCode::Kind kind,
-    ExecutionTier tier, base::Vector<const uint8_t> effect_handlers) {
+    ExecutionTier tier,
+    base::Vector<const EffectHandlerEntry> effect_handlers) {
   uint64_t signature_hash =
       module_->signature_hash(GetTypeCanonicalizer(), index);
 

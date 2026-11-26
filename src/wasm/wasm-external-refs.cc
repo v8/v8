@@ -26,7 +26,7 @@
 #include "src/roots/roots-inl.h"
 #include "src/utils/memcopy.h"
 #include "src/wasm/canonical-types.h"
-#include "src/wasm/leb-helper.h"
+#include "src/wasm/effect-handler.h"
 #include "src/wasm/signature-hashing.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine-globals.h"
@@ -1133,15 +1133,13 @@ void resume_wasmfx_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
 }
 
 namespace {
-wasm::StackMemory* find_wasmfx_handler_stack(Isolate* isolate,
+wasm::StackMemory* find_wasmfx_handler_stack(wasm::StackMemory* from,
                                              Address wanted_tag_raw,
-                                             bool is_switch, Address& target_sp,
-                                             Address& target_fp,
-                                             Address& target_pc,
+                                             bool is_switch,
                                              CanonicalTypeIndex* sig) {
+  DCHECK_EQ(is_switch, sig == nullptr);
   Tagged<Object> tag_obj(wanted_tag_raw);
-  auto wanted_tag = Cast<WasmExceptionTag>(tag_obj);
-  wasm::StackMemory* from = isolate->isolate_data()->active_stack();
+  Tagged<WasmExceptionTag> wanted_tag = Cast<WasmExceptionTag>(tag_obj);
   wasm::StackMemory* to = from->jmpbuf()->parent;
   // Search the innermost effect handler with a matching tag.
   // Unlike exception handling, we don't need to look at each frame. Only the
@@ -1149,10 +1147,10 @@ wasm::StackMemory* find_wasmfx_handler_stack(Isolate* isolate,
   while (true) {
     // The first frame must be the WasmFXResume, WasmFXResumeThrow or
     // WasmFXResumeThrowRef builtin with type WASM_STACK_EXIT.
-    target_fp = to->jmpbuf()->fp;
+    Address exit_fp = to->jmpbuf()->fp;
     StackFrame::Type type = StackFrame::MarkerToType(base::Memory<intptr_t>(
-        target_fp + CommonFrameConstants::kContextOrFrameTypeOffset));
-    if (type != StackFrame::WASM_STACK_EXIT) {
+        exit_fp + CommonFrameConstants::kContextOrFrameTypeOffset));
+    if (V8_UNLIKELY(type != StackFrame::WASM_STACK_EXIT)) {
       // Only a WasmFX or JSPI builtin frame can appear at the top of a stack.
       // If this is a JSPI frame, we are about to suspend past JS frames which
       // is not allowed, stop the search.
@@ -1161,11 +1159,11 @@ wasm::StackMemory* find_wasmfx_handler_stack(Isolate* isolate,
     }
 
     // The caller frame is the WASM frame that contains the handler table.
-    target_pc = StackFrame::ReadPC(reinterpret_cast<Address*>(
-        target_fp + CommonFrameConstants::kCallerPCOffset));
-    target_sp = target_fp + CommonFrameConstants::kCallerSPOffset;
-    target_fp = base::Memory<Address>(target_fp +
-                                      CommonFrameConstants::kCallerFPOffset);
+    Address target_pc = StackFrame::ReadPC(reinterpret_cast<Address*>(
+        exit_fp + CommonFrameConstants::kCallerPCOffset));
+    Address target_sp = exit_fp + CommonFrameConstants::kCallerSPOffset;
+    Address target_fp =
+        base::Memory<Address>(exit_fp + CommonFrameConstants::kCallerFPOffset);
     type = StackFrame::MarkerToType(base::Memory<intptr_t>(
         target_fp + CommonFrameConstants::kContextOrFrameTypeOffset));
     CHECK_EQ(type, StackFrame::WASM);
@@ -1180,33 +1178,31 @@ wasm::StackMemory* find_wasmfx_handler_stack(Isolate* isolate,
     // understand this JIT-to-C++ data flow and report a false positive data
     // race.
     TSAN_ACQUIRE(wasm_code);
-    base::Vector<const uint8_t> effect_handlers = wasm_code->effect_handlers();
-    Tagged<Object> trusted_instance_data_obj(base::Memory<Address>(
-        target_fp + WasmFrameConstants::kWasmInstanceDataOffset));
-    auto trusted_instance_data =
-        TrustedCast<WasmTrustedInstanceData>(trusted_instance_data_obj);
-    const uint8_t* effect_handlers_ptr = effect_handlers.data();
-    while (effect_handlers_ptr != effect_handlers.end()) {
-      uint32_t call_offset = LEBHelper::read_u32v(&effect_handlers_ptr);
-      EffectHandlerTagIndex tag_index{
-          LEBHelper::read_u32v(&effect_handlers_ptr)};
-      if (!tag_index.is_switch()) {
-        uint32_t handler_offset = LEBHelper::read_u32v(&effect_handlers_ptr);
-        CanonicalTypeIndex sig_index{
-            LEBHelper::read_u32v(&effect_handlers_ptr)};
-        auto tag = trusted_instance_data->tags_table()->get(tag_index.index());
-        if (wasm_code->instruction_start() + call_offset == target_pc &&
-            tag == wanted_tag && !is_switch) {
-          to->jmpbuf()->pc = wasm_code->instruction_start() + handler_offset;
-          to->jmpbuf()->sp = target_sp;
-          to->jmpbuf()->fp = target_fp;
-          *sig = sig_index;
-          return to;
-        }
-      } else if (tag_index.is_switch() && is_switch) {
-        auto tag = trusted_instance_data->tags_table()->get(tag_index.index());
-        if (wasm_code->instruction_start() + call_offset == target_pc &&
-            tag == wanted_tag) {
+    base::Vector<const wasm::EffectHandlerEntry> effect_handlers =
+        wasm_code->effect_handlers();
+    if (!effect_handlers.empty()) {
+      Address instruction_start = wasm_code->instruction_start();
+      DCHECK_GE(target_pc, instruction_start);
+      uintptr_t target_pc_offset = target_pc - instruction_start;
+      DCHECK_LE(target_pc_offset, wasm_code->instructions_size());
+
+      // Load {tags_table} outside the loop so the trusted-instance load chain
+      // overlaps with reading {effect_handlers}.
+      Tagged<Object> trusted_instance_data_obj(base::Memory<Address>(
+          target_fp + WasmFrameConstants::kWasmInstanceDataOffset));
+      Tagged<TrustedFixedArray> tags_table =
+          TrustedCast<WasmTrustedInstanceData>(trusted_instance_data_obj)
+              ->tags_table();
+      for (const wasm::EffectHandlerEntry& entry : effect_handlers) {
+        if (entry.pc_offset != target_pc_offset) continue;
+        if (entry.tag_and_kind.is_switch() != is_switch) continue;
+        if (tags_table->get(entry.tag_and_kind.index()) == wanted_tag) {
+          if (!is_switch) {
+            to->jmpbuf()->pc = instruction_start + entry.handler_offset;
+            to->jmpbuf()->sp = target_sp;
+            to->jmpbuf()->fp = target_fp;
+            *sig = entry.sig;
+          }
           return to;
         }
       }
@@ -1225,15 +1221,13 @@ Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
                              Address pc, Address wanted_tag_raw,
                              Address cont_raw, Address arg_buffer,
                              const uint32_t tag_sig_index) {
-  Address target_sp, target_fp, target_pc;
   Tagged<Object> cont_obj(cont_raw);
   auto cont = Cast<WasmContinuationObject>(cont_obj);
   wasm::StackMemory* from = isolate->isolate_data()->active_stack();
   cont->set_stack_obj(from->stack_obj());
   CanonicalTypeIndex cont_sig_index;
   wasm::StackMemory* to =
-      find_wasmfx_handler_stack(isolate, wanted_tag_raw, false, target_sp,
-                                target_fp, target_pc, &cont_sig_index);
+      find_wasmfx_handler_stack(from, wanted_tag_raw, false, &cont_sig_index);
   if (to == nullptr) return kNullAddress;
 
   DCHECK(from->Contains(arg_buffer));
@@ -1267,14 +1261,13 @@ Address switch_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
                             Address pc, Address wanted_tag_raw,
                             Address cont_raw, wasm::StackMemory* target_stack,
                             Address arg_buffer, const uint32_t sig_index) {
-  Address target_sp, target_fp, target_pc;
   Tagged<Object> cont_obj(cont_raw);
   auto cont = Cast<WasmContinuationObject>(cont_obj);
   wasm::StackMemory* from = isolate->isolate_data()->active_stack();
 
   cont->set_stack_obj(from->stack_obj());
-  wasm::StackMemory* parent = find_wasmfx_handler_stack(
-      isolate, wanted_tag_raw, true, target_sp, target_fp, target_pc, nullptr);
+  wasm::StackMemory* parent =
+      find_wasmfx_handler_stack(from, wanted_tag_raw, true, nullptr);
   if (!parent) return kNullAddress;
 
   if (v8_flags.trace_wasm_stack_switching) {

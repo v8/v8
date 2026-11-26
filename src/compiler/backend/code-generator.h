@@ -103,7 +103,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
 
 #if V8_ENABLE_WEBASSEMBLY
   base::UniqueArray<uint8_t> GenerateWasmDeoptimizationData();
-  base::UniqueArray<uint8_t> GenerateWasmEffectHandlers();
+  base::UniqueArray<wasm::EffectHandlerEntry> GenerateWasmEffectHandlers();
 #endif
 
   base::UniqueArray<uint8_t> GetSourcePositionTable();

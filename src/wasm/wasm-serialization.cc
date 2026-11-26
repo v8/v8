@@ -4,6 +4,7 @@
 
 #include "src/wasm/wasm-serialization.h"
 
+#include "src/base/small-vector.h"
 #include "src/base/unique-array.h"
 #include "src/codegen/assembler-arch.h"
 #include "src/codegen/assembler-inl.h"
@@ -16,7 +17,6 @@
 #include "src/wasm/code-space-access.h"
 #include "src/wasm/effect-handler.h"
 #include "src/wasm/function-compiler.h"
-#include "src/wasm/leb-helper.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-code-manager.h"
@@ -259,7 +259,7 @@ constexpr size_t kCodeHeaderSize = sizeof(uint8_t) +  // code kind
                                    sizeof(int) +  // inlining positions size
                                    sizeof(int) +  // deopt data size
                                    sizeof(int) +  // trapping instructions size
-                                   sizeof(int) +  // effect handler count
+                                   sizeof(int) +  // effect handler table size
                                    sizeof(WasmCode::Kind) +  // code kind
                                    sizeof(ExecutionTier);    // tier
 
@@ -330,52 +330,6 @@ class ExternalReferenceList {
 static_assert(std::is_trivially_destructible_v<ExternalReferenceList>,
               "static destructors not allowed");
 
-// Translate the signature IDs in the effect handler table from canonical to
-// module-relative or vice-versa.
-template <typename TranslateSigIdCallback>
-base::UniqueArray<uint8_t> TranslateEffectHandlersTable(
-    base::Vector<const uint8_t> effect_handlers,
-    TranslateSigIdCallback translate_sig_id) {
-  if (effect_handlers.empty()) return {};
-
-  const uint8_t* src = effect_handlers.begin();
-  const uint8_t* end = effect_handlers.end();
-
-  std::vector<uint8_t> result;
-  result.reserve(effect_handlers.size());
-
-  while (src < end) {
-    uint32_t pc_offset = LEBHelper::read_u32v(&src);
-    uint32_t tag_and_kind_val = LEBHelper::read_u32v(&src);
-    EffectHandlerTagIndex tag_index{tag_and_kind_val};
-
-    uint8_t buf[kMaxVarInt32Size];
-    uint8_t* ptr = buf;
-    LEBHelper::write_u32v(&ptr, pc_offset);
-    result.insert(result.end(), buf, ptr);
-
-    ptr = buf;
-    LEBHelper::write_u32v(&ptr, tag_and_kind_val);
-    result.insert(result.end(), buf, ptr);
-
-    if (!tag_index.is_switch()) {
-      uint32_t handler_pos = LEBHelper::read_u32v(&src);
-      uint32_t old_sig_id = LEBHelper::read_u32v(&src);
-      uint32_t new_sig_id = translate_sig_id(old_sig_id);
-
-      ptr = buf;
-      LEBHelper::write_u32v(&ptr, handler_pos);
-      result.insert(result.end(), buf, ptr);
-
-      ptr = buf;
-      LEBHelper::write_u32v(&ptr, new_sig_id);
-      result.insert(result.end(), buf, ptr);
-    }
-  }
-
-  return base::UniqueArray<uint8_t>::CopiedFrom(result);
-}
-
 }  // namespace
 
 class V8_EXPORT_PRIVATE NativeModuleSerializer {
@@ -396,18 +350,12 @@ class V8_EXPORT_PRIVATE NativeModuleSerializer {
   void WriteTieringBudget(Writer* writer);
 
   uint32_t CanonicalSigIdToModuleLocalTypeId(uint32_t canonical_sig_id);
-  base::UniqueArray<uint8_t> TranslateEffectHandlersToModuleRelative(
-      base::Vector<const uint8_t> effect_handlers);
 
   const NativeModule* const native_module_;
   const base::Vector<WasmCode* const> code_table_;
   const base::Vector<WellKnownImport const> import_statuses_;
   // Map back canonical signature IDs to module-local IDs. Initialized lazily.
   std::unordered_map<uint32_t, uint32_t> canonical_sig_ids_to_module_local_ids_;
-  // Effect handler tables with canonical signature indices translated to
-  // module-relative indices.
-  std::unordered_map<const WasmCode*, base::UniqueArray<uint8_t>>
-      translated_effect_handlers_;
   bool write_called_ = false;
   size_t total_written_code_ = 0;
   int num_turbofan_functions_ = 0;
@@ -440,10 +388,8 @@ size_t NativeModuleSerializer::MeasureCode(const WasmCode* code) {
     return sizeof(uint8_t);
   }
 
-  base::UniqueArray<uint8_t> effect_handlers =
-      TranslateEffectHandlersToModuleRelative(code->effect_handlers());
-  size_t effect_handlers_size = effect_handlers.size();
-  translated_effect_handlers_.emplace(code, std::move(effect_handlers));
+  size_t effect_handlers_size =
+      code->effect_handlers().size() * sizeof(EffectHandlerEntry);
 
   return kCodeHeaderSize + code->instructions().size() +
          code->reloc_info().size() + code->source_positions().size() +
@@ -542,12 +488,10 @@ void NativeModuleSerializer::WriteCode(
   writer->Write(static_cast<uint32_t>(code->deopt_data().size()));
   writer->Write(
       static_cast<uint32_t>(code->trapping_instructions_data().size()));
-  auto it = translated_effect_handlers_.find(code);
-  // We always call Measure() before serializing the module, so the map should
-  // already be filled.
-  DCHECK_NE(it, translated_effect_handlers_.end());
-  base::Vector<const uint8_t> effect_handlers = it->second.as_span();
-  writer->Write(static_cast<uint32_t>(effect_handlers.size()));
+  base::Vector<const EffectHandlerEntry> effect_handlers =
+      code->effect_handlers();
+  writer->Write(static_cast<uint32_t>(effect_handlers.size() *
+                                      sizeof(EffectHandlerEntry)));
   writer->Write(code->kind());
   writer->Write(code->tier());
 
@@ -563,7 +507,18 @@ void NativeModuleSerializer::WriteCode(
   writer->WriteVector(code->inlining_positions());
   writer->WriteVector(code->deopt_data());
   writer->WriteVector(code->trapping_instructions_data());
-  writer->WriteVector(effect_handlers);
+  if (!effect_handlers.empty()) {
+    base::SmallVector<EffectHandlerEntry, 8> translated;
+    translated.resize_no_init(effect_handlers.size());
+    for (size_t i = 0; i < effect_handlers.size(); ++i) {
+      EffectHandlerEntry entry = effect_handlers[i];
+      if (!entry.tag_and_kind.is_switch()) {
+        entry.sig.index = CanonicalSigIdToModuleLocalTypeId(entry.sig.index);
+      }
+      translated[i] = entry;
+    }
+    writer->WriteVector(base::VectorOf(translated));
+  }
 #if V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_PPC64 || \
     V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64
   // On platforms that don't support misaligned word stores, copy to an aligned
@@ -685,14 +640,6 @@ uint32_t NativeModuleSerializer::CanonicalSigIdToModuleLocalTypeId(
   auto it = canonical_sig_ids_to_module_local_ids_.find(canonical_sig_id);
   DCHECK_NE(canonical_sig_ids_to_module_local_ids_.end(), it);
   return it->second;
-}
-
-base::UniqueArray<uint8_t>
-NativeModuleSerializer::TranslateEffectHandlersToModuleRelative(
-    base::Vector<const uint8_t> effect_handlers) {
-  return TranslateEffectHandlersTable(effect_handlers, [this](uint32_t sig) {
-    return CanonicalSigIdToModuleLocalTypeId(sig);
-  });
 }
 
 bool NativeModuleSerializer::Write(Writer* writer) {
@@ -823,7 +770,7 @@ class V8_EXPORT_PRIVATE NativeModuleDeserializer {
   void CopyAndRelocate(const DeserializationUnit& unit);
   void Publish(std::vector<DeserializationUnit> batch);
 
-  base::UniqueArray<uint8_t> TranslateEffectHandlersToCanonical(
+  base::SmallVector<EffectHandlerEntry, 8> TranslateEffectHandlersToCanonical(
       base::Vector<const uint8_t> effect_handlers);
 
   NativeModule* const native_module_;
@@ -1011,8 +958,9 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
   uint32_t source_position_size = reader->Read<uint32_t>();
   uint32_t inlining_position_size = reader->Read<uint32_t>();
   uint32_t deopt_data_size = reader->Read<uint32_t>();
-  // TODO(mliedtke): trapping_instructions_data is the first part of the
-  // meta_data_ array. Ideally the sizes would be in the same order...
+  // TODO(mliedtke): effect_handlers and trapping_instructions_data are at the
+  // start of the meta_data_ array. Ideally the sizes would be in the same
+  // order...
   uint32_t trapping_instructions_size = reader->Read<uint32_t>();
   uint32_t effect_handlers_size = reader->Read<uint32_t>();
   WasmCode::Kind kind = reader->Read<WasmCode::Kind>();
@@ -1042,8 +990,9 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
   auto deopt_data = reader->ReadVector<uint8_t>(deopt_data_size);
   auto trapping_instructions =
       reader->ReadVector<uint8_t>(trapping_instructions_size);
-  auto raw_effect_handlers = reader->ReadVector<uint8_t>(effect_handlers_size);
-  base::UniqueArray<uint8_t> effect_handlers =
+  base::Vector<const uint8_t> raw_effect_handlers =
+      reader->ReadVector<uint8_t>(effect_handlers_size);
+  base::SmallVector<EffectHandlerEntry, 8> effect_handlers =
       TranslateEffectHandlersToCanonical(raw_effect_handlers);
 
   base::Vector<uint8_t> instructions =
@@ -1056,19 +1005,29 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
       tagged_parameter_slots, safepoint_table_offset, handler_table_offset,
       constant_pool_offset, code_comment_offset, jump_table_info_offset,
       unpadded_binary_size, trapping_instructions, reloc_info, source_pos,
-      inlining_pos, deopt_data, kind, tier, effect_handlers.as_span());
+      inlining_pos, deopt_data, kind, tier, base::VectorOf(effect_handlers));
   unit.jump_tables = current_jump_tables_;
   return unit;
 }
 
-base::UniqueArray<uint8_t>
+base::SmallVector<EffectHandlerEntry, 8>
 NativeModuleDeserializer::TranslateEffectHandlersToCanonical(
-    base::Vector<const uint8_t> effect_handlers) {
-  return TranslateEffectHandlersTable(effect_handlers, [this](uint32_t sig) {
-    return native_module_->module()
-        ->canonical_sig_id(ModuleTypeIndex{sig})
-        .index;
-  });
+    base::Vector<const uint8_t> raw_effect_handlers) {
+  CHECK_EQ(raw_effect_handlers.size() % sizeof(EffectHandlerEntry), 0);
+  if (raw_effect_handlers.empty()) return {};
+
+  size_t count = raw_effect_handlers.size() / sizeof(EffectHandlerEntry);
+  base::SmallVector<EffectHandlerEntry, 8> result;
+  result.resize_no_init(count);
+  std::memcpy(result.data(), raw_effect_handlers.data(),
+              raw_effect_handlers.size());
+  const WasmModule* module = native_module_->module();
+  for (EffectHandlerEntry& entry : result) {
+    if (!entry.tag_and_kind.is_switch()) {
+      entry.sig = module->canonical_sig_id(ModuleTypeIndex{entry.sig.index});
+    }
+  }
+  return result;
 }
 
 void NativeModuleDeserializer::CopyAndRelocate(

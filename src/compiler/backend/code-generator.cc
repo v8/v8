@@ -31,7 +31,6 @@
 #include "src/wasm/effect-handler.h"
 
 #if V8_ENABLE_WEBASSEMBLY
-#include "src/wasm/leb-helper.h"
 #include "src/wasm/wasm-deopt-data.h"
 #endif
 
@@ -1268,30 +1267,26 @@ base::UniqueArray<uint8_t> CodeGenerator::GenerateWasmDeoptimizationData() {
   return result;
 }
 
-base::UniqueArray<uint8_t> CodeGenerator::GenerateWasmEffectHandlers() {
-  size_t size = 0;
+base::UniqueArray<wasm::EffectHandlerEntry>
+CodeGenerator::GenerateWasmEffectHandlers() {
+  if (effect_handlers_.empty()) return {};
+  // Preserve source order within each call site (first matching tag wins).
+  base::UniqueArray<wasm::EffectHandlerEntry> entries =
+      base::UniqueArray<wasm::EffectHandlerEntry>::NewForOverwrite(
+          effect_handlers_.size());
   for (size_t i = 0; i < effect_handlers_.size(); ++i) {
-    size += wasm::LEBHelper::sizeof_u32v(effect_handlers_[i].pc_offset);
-    size += wasm::LEBHelper::sizeof_u32v(
-        effect_handlers_[i].tag_and_kind.raw_value());
-    if (!effect_handlers_[i].tag_and_kind.is_switch()) {
-      size += wasm::LEBHelper::sizeof_u32v(effect_handlers_[i].handler->pos());
-      size += wasm::LEBHelper::sizeof_u32v(effect_handlers_[i].sig.index);
+    const EffectHandlerInfo& info = effect_handlers_[i];
+    DCHECK_GE(info.pc_offset, 0);
+    uint32_t handler_offset = 0;
+    if (!info.tag_and_kind.is_switch()) {
+      DCHECK(info.handler->is_bound());
+      DCHECK_GE(info.handler->pos(), 0);
+      handler_offset = static_cast<uint32_t>(info.handler->pos());
     }
+    entries[i] = {static_cast<uint32_t>(info.pc_offset), info.tag_and_kind,
+                  handler_offset, info.sig};
   }
-  auto bytes = base::UniqueArray<uint8_t>::New(size);
-  uint8_t* ptr = bytes.data();
-  for (size_t i = 0; i < effect_handlers_.size(); ++i) {
-    wasm::LEBHelper::write_u32v(&ptr, effect_handlers_[i].pc_offset);
-    wasm::LEBHelper::write_u32v(&ptr,
-                                effect_handlers_[i].tag_and_kind.raw_value());
-    if (!effect_handlers_[i].tag_and_kind.is_switch()) {
-      wasm::LEBHelper::write_u32v(&ptr, effect_handlers_[i].handler->pos());
-      wasm::LEBHelper::write_u32v(&ptr, effect_handlers_[i].sig.index);
-    }
-  }
-  DCHECK_EQ(ptr, bytes.end());
-  return bytes;
+  return entries;
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

@@ -268,19 +268,26 @@ class V8_EXPORT_PRIVATE WasmCode final {
   // (otherwise debug side table positions would not match up).
   bool is_inspectable() const { return is_liftoff() && for_debugging(); }
 
+  base::Vector<const EffectHandlerEntry> effect_handlers() const
+      V8_LIFETIME_BOUND {
+    if (effect_handlers_size_ == 0) return {};
+    return base::Vector<const EffectHandlerEntry>::cast(
+        base::VectorOf(meta_data_.get(), effect_handlers_size_));
+  }
+
   base::Vector<const uint8_t> trapping_instructions_data() const
       V8_LIFETIME_BOUND {
-    return {meta_data_.get(), trapping_instructions_size_};
+    static_assert(sizeof(EffectHandlerEntry) %
+                      alignof(trap_handler::TrappingInstructionData) ==
+                  0);
+    return {meta_data_.get() + effect_handlers_size_,
+            trapping_instructions_size_};
   }
 
   base::Vector<const trap_handler::TrappingInstructionData>
   trapping_instructions() const V8_LIFETIME_BOUND {
     return base::Vector<const trap_handler::TrappingInstructionData>::cast(
         trapping_instructions_data());
-  }
-
-  base::Vector<const uint8_t> effect_handlers() const V8_LIFETIME_BOUND {
-    return {deopt_data().end(), effect_handlers_size_};
   }
 
   bool IsTrappingInstruction(Address pc);
@@ -430,14 +437,16 @@ class V8_EXPORT_PRIVATE WasmCode final {
            base::Vector<const uint8_t> inlining_positions,
            base::Vector<const uint8_t> deopt_data, Kind kind,
            ExecutionTier tier, ForDebugging for_debugging,
-           uint64_t signature_hash, base::Vector<const uint8_t> effect_handlers,
+           uint64_t signature_hash,
+           base::Vector<const EffectHandlerEntry> effect_handlers,
            bool frame_has_feedback_slot = false)
       : native_module_(native_module),
         instructions_(instructions.begin()),
         signature_hash_(signature_hash),
-        meta_data_(ConcatenateBytes({trapping_instructions_data, reloc_info,
-                                     source_position_table, inlining_positions,
-                                     deopt_data, effect_handlers})),
+        meta_data_(ConcatenateBytes(
+            {base::Vector<const uint8_t>::cast(effect_handlers),
+             trapping_instructions_data, reloc_info, source_position_table,
+             inlining_positions, deopt_data})),
         instructions_size_(static_cast<uint32_t>(instructions.size())),
         reloc_info_size_(static_cast<uint32_t>(reloc_info.size())),
         source_positions_size_(
@@ -457,7 +466,8 @@ class V8_EXPORT_PRIVATE WasmCode final {
         code_comments_offset_(code_comments_offset),
         jump_table_info_offset_(jump_table_info_offset),
         unpadded_binary_size_(unpadded_binary_size),
-        effect_handlers_size_(static_cast<uint32_t>(effect_handlers.size())),
+        effect_handlers_size_(static_cast<uint32_t>(
+            effect_handlers.size() * sizeof(EffectHandlerEntry))),
         flags_(KindField::encode(kind) | ExecutionTierField::encode(tier) |
                ForDebuggingField::encode(for_debugging) |
                FrameHasFeedbackSlotField::encode(frame_has_feedback_slot)) {
@@ -466,6 +476,12 @@ class V8_EXPORT_PRIVATE WasmCode final {
     DCHECK_LE(code_comments_offset, unpadded_binary_size);
     DCHECK_LE(constant_pool_offset, unpadded_binary_size);
     DCHECK_LE(jump_table_info_offset, unpadded_binary_size);
+    DCHECK_IMPLIES(effect_handlers_size_ > 0,
+                   reinterpret_cast<uintptr_t>(meta_data_.get()) %
+                           alignof(EffectHandlerEntry) ==
+                       0);
+    DCHECK_EQ(effect_handlers_size_ / sizeof(EffectHandlerEntry),
+              effect_handlers.size());
   }
 
   std::unique_ptr<const uint8_t[]> ConcatenateBytes(
@@ -496,11 +512,14 @@ class V8_EXPORT_PRIVATE WasmCode final {
   uint8_t* const instructions_;
   const uint64_t signature_hash_;
   // {meta_data_} contains several byte vectors concatenated into one:
+  //  - effect handlers of size {effect_handlers_size_}
   //  - trapping instructions data of size {trapping_instructions_size_}
   //  - relocation info of size {reloc_info_size_}
   //  - source positions of size {source_positions_size_}
+  //  - inlining positions of size {inlining_positions_size_}
   //  - deopt data of size {deopt_data_size_}
-  // Note that the trapping instructions come first to ensure alignment.
+  // Note that effect handlers and trapping instructions come first to ensure
+  // alignment.
   std::unique_ptr<const uint8_t[]> meta_data_;
   const uint32_t instructions_size_;
   const uint32_t reloc_info_size_;
@@ -702,7 +721,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
       base::Vector<const uint8_t> source_position_table,
       base::Vector<const uint8_t> inlining_positions,
       base::Vector<const uint8_t> deopt_data, WasmCode::Kind kind,
-      ExecutionTier tier, base::Vector<const uint8_t> effect_handlers);
+      ExecutionTier tier,
+      base::Vector<const EffectHandlerEntry> effect_handlers);
 
   // Adds anonymous code for testing purposes. Requires an active
   // {WasmCodeRefScope} and a successful {result} without assumptions.
@@ -986,8 +1006,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
       base::Vector<const uint8_t> inlining_positions,
       base::Vector<const uint8_t> deopt_data, WasmCode::Kind kind,
       ExecutionTier tier, ForDebugging for_debugging,
-      base::Vector<const uint8_t> effect_handlers, bool frame_has_feedback_slot,
-      base::Vector<uint8_t> code_space, const JumpTablesRef& jump_tables_ref);
+      base::Vector<const EffectHandlerEntry> effect_handlers,
+      bool frame_has_feedback_slot, base::Vector<uint8_t> code_space,
+      const JumpTablesRef& jump_tables_ref);
 
   WasmCode* CreateEmptyJumpTableLocked(int jump_table_size, JumpTableType type);
 
