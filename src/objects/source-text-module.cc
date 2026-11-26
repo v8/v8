@@ -684,7 +684,7 @@ void SourceTextModule::TransitionComponentAfterEvaluation(
         // viii. Assert: requiredModule.[[CycleRoot]] is empty.
         DCHECK(IsTheHole(ancestor->cycle_root()));
         // ix. Set requiredModule.[[CycleRoot]] to module.
-        ancestor->set_cycle_root(*module);
+        ancestor->set_cycle_root(*module, kReleaseStore);
         // v. If requiredModule.[[AsyncEvaluation]] is false, set
         //    requiredModule.[[Status]] to EVALUATED.
         // vi. Else, set requiredModule.[[Status]] to EVALUATING-ASYNC.

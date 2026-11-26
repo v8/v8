@@ -804,15 +804,26 @@ PropertyAccessInfo AccessorAccessInfoHelper(
     }
     OptionalModuleRef module = holder_map.GetNamespaceModule(broker);
     if (!module.has_value()) return PropertyAccessInfo::Invalid(zone);
-    // Only fold accesses to namespaces of evaluated modules. A deferred
-    // namespace evaluates its module on the first non-symbol property access,
-    // so before then the load must take the slow path. Ordinary namespaces are
-    // restricted the same way for simplicity; they are only reachable before
-    // evaluation completes from within the module graph itself. The evaluated
-    // state is monotonic (a module never leaves kEvaluated), so this remains
-    // valid for the lifetime of the optimized code without an extra
-    // compilation dependency.
-    if (module->status() != Module::kEvaluated) {
+    if (holder_instance_type == JS_DEFERRED_MODULE_NAMESPACE_TYPE) {
+      // Every non-symbol property access on a deferred namespace runs
+      // EvaluateModuleSync, which evaluates the module and throws unless its
+      // whole strongly connected component evaluated successfully. Only then
+      // can the access be folded; before, the load must take the slow path.
+      // The module's own status is not enough: with top-level await in a
+      // cycle, a module is kEvaluated while its cycle root is still
+      // evaluating, and it stays kEvaluated if the root fails. The state is
+      // final, so this remains valid for the lifetime of the optimized code
+      // without an extra compilation dependency.
+      if (!module->IsSCCEvaluatedSuccessfully()) {
+        return PropertyAccessInfo::Invalid(zone);
+      }
+    } else if (module->status() != Module::kEvaluated) {
+      // An ordinary namespace never evaluates its module, so the state of the
+      // module's strongly connected component does not matter for it. Only
+      // accesses to namespaces of evaluated modules are folded for simplicity;
+      // before that they are only reachable from within the module graph
+      // itself. The evaluated state is monotonic (a module never leaves
+      // kEvaluated), so no compilation dependency is needed either.
       return PropertyAccessInfo::Invalid(zone);
     }
     OptionalCellRef cell = module->LookupExportCell(broker, name);
@@ -1205,9 +1216,10 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
       if (IsAnyStore(access_mode)) return Invalid();
 
       // "Loads" and "has" checks of absent names on a deferred namespace
-      // trigger evaluation of its module (or throw if evaluation failed). They
-      // can only be folded once the module is evaluated; that state is
-      // monotonic, so no compilation dependency is needed.
+      // trigger evaluation of its module (or throw if evaluation failed or is
+      // not possible yet). They can only be folded once the module's whole
+      // strongly connected component evaluated successfully; that state is
+      // final, so no compilation dependency is needed.
       //
       // Namespace objects are optimized as prototypes on creation, so their
       // map is never shared and its PrototypeInfo points back to the
@@ -1215,7 +1227,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
       // receiver (and there is no {holder} yet).
       if (instance_type == JS_DEFERRED_MODULE_NAMESPACE_TYPE) {
         OptionalModuleRef module = map.GetNamespaceModule(broker());
-        if (!module.has_value() || module->status() != Module::kEvaluated) {
+        if (!module.has_value() || !module->IsSCCEvaluatedSuccessfully()) {
           return Invalid();
         }
       }

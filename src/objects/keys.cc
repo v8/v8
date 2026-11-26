@@ -1246,7 +1246,7 @@ Maybe<bool> KeyAccumulator::CollectOwnKeys(DirectHandle<JSObject> object) {
   if (IsJSDeferredModuleNamespace(*object)) [[unlikely]] {
     DirectHandle<JSDeferredModuleNamespace> ns =
         Cast<JSDeferredModuleNamespace>(object);
-    if (ns->module()->status() != Module::kEvaluated) {
+    if (!ns->module()->IsSCCEvaluatedSuccessfully()) {
       JSDeferredModuleNamespace::EvaluateModuleSync(isolate_, ns);
       RETURN_EXCEPTION_IF_EXCEPTION(isolate_);
     }

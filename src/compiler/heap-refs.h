@@ -1380,6 +1380,10 @@ class V8_EXPORT_PRIVATE ModuleRef : public HeapObjectRef {
 
   Module::Status status() const;
 
+  // See Module::IsSCCEvaluatedSuccessfully. Once this returns true it holds
+  // forever, so optimized code relying on it needs no compilation dependency.
+  bool IsSCCEvaluatedSuccessfully() const;
+
   // Returns the cell for the export [name], or nullopt if there is no such
   // export, it is not resolved to a cell, or the module's exports are not
   // finalized yet (no namespace has been created for it).

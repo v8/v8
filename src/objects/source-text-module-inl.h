@@ -134,9 +134,14 @@ Tagged<UnionOf<SourceTextModule, TheHole>> SourceTextModule::cycle_root()
     const {
   return cycle_root_.load();
 }
+Tagged<UnionOf<SourceTextModule, TheHole>> SourceTextModule::cycle_root(
+    AcquireLoadTag) const {
+  return cycle_root_.Acquire_Load();
+}
 void SourceTextModule::set_cycle_root(
-    Tagged<UnionOf<SourceTextModule, TheHole>> value, WriteBarrierMode mode) {
-  cycle_root_.store(this, value, mode);
+    Tagged<UnionOf<SourceTextModule, TheHole>> value, ReleaseStoreTag,
+    WriteBarrierMode mode) {
+  cycle_root_.Release_Store(this, value, mode);
 }
 
 Tagged<ArrayList> SourceTextModule::async_parent_modules() const {

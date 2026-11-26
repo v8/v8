@@ -202,8 +202,9 @@ bool DebugPropertyIterator::FillKeysForCurrentPrototypeAndStage() {
     return true;
   }
   if (IsJSDeferredModuleNamespace(*receiver) &&
-      Cast<JSDeferredModuleNamespace>(receiver)->module()->status() !=
-          Module::kEvaluated) [[unlikely]] {
+      !Cast<JSDeferredModuleNamespace>(receiver)
+           ->module()
+           ->IsSCCEvaluatedSuccessfully()) [[unlikely]] {
     return true;
   }
   PropertyFilter filter =

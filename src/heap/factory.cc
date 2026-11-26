@@ -3899,7 +3899,8 @@ DirectHandle<SourceTextModule> Factory::NewSourceTextModule(
   module->set_flags(0);
   module->set_has_toplevel_await(IsModuleWithTopLevelAwait(sfi->kind()));
   module->set_async_evaluation_ordinal(SourceTextModule::kNotAsyncEvaluated);
-  module->set_cycle_root(roots.the_hole_value(), SKIP_WRITE_BARRIER);
+  module->set_cycle_root(roots.the_hole_value(), kReleaseStore,
+                         SKIP_WRITE_BARRIER);
   module->set_async_parent_modules(roots.empty_array_list());
   module->set_pending_async_dependencies(0);
   return direct_handle(module, isolate());

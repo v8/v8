@@ -249,9 +249,10 @@ static void LookupForRead(LookupIterator* it, bool is_has_property) {
           return;
         }
         JSModuleNamespace::MaybeCountMissingDefaultWithStarExport(it);
-        // Once a deferred module is evaluated, we will fallback to perform IC
-        // as an ordinary module namespace. This way it can be either ACCESSOR
-        // or NOT_FOUND state.
+        // Once a deferred module and its whole strongly connected component
+        // are evaluated successfully, we will fallback to perform IC as an
+        // ordinary module namespace. This way it can be either ACCESSOR or
+        // NOT_FOUND state. That state is final, so the handlers stay valid.
         continue;
       }
       case LookupIterator::ACCESSOR:
@@ -1027,15 +1028,18 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
     // handle this case.
     handler = MaybeObjectHandle(LoadHandler::LoadSlow(isolate()));
   } else if (lookup->state() == LookupIterator::MODULE_NAMESPACE) {
-    // We only hit this state for a non-evaluated deferred module state and we
-    // keep trying to cache later. Once this deferred module gets evaluated
-    // (likely this call), the access for this namespace object can be NOT_FOUND
-    // or ACCESSOR, which will allow them to be cached as ordinary module
-    // namespace access.
+    // We only hit this state for a deferred module whose strongly connected
+    // component is not evaluated successfully (yet), and we keep trying to
+    // cache later. Once it is (likely by this call), the access for this
+    // namespace object can be NOT_FOUND or ACCESSOR, which will allow them to
+    // be cached as ordinary module namespace access. A handler must not be
+    // cached before, even if the module itself is already kEvaluated: the
+    // access has to throw while its cycle root is still evaluating
+    // asynchronously, and forever if the root failed.
 #ifdef DEBUG
     DirectHandle<JSModuleNamespace> ns = lookup->GetHolder<JSModuleNamespace>();
     DCHECK(IsJSDeferredModuleNamespace(*ns));
-    DCHECK_NE(ns->module()->status(), Module::kEvaluated);
+    DCHECK(!ns->module()->IsSCCEvaluatedSuccessfully());
 #endif
     return;
   } else {

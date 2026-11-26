@@ -152,8 +152,14 @@ V8_OBJECT class SourceTextModule : public Module {
   // when the component transitions out of kEvaluating. It stays TheHole if the
   // component fails synchronously; a module that fails asynchronously keeps
   // it, and its cycle root fails as well.
+  //
+  // Background compiler threads read it with an acquire load, which pairs with
+  // the release store that sets the cycle root.
   inline Tagged<UnionOf<SourceTextModule, TheHole>> cycle_root() const;
+  inline Tagged<UnionOf<SourceTextModule, TheHole>> cycle_root(
+      AcquireLoadTag) const;
   inline void set_cycle_root(Tagged<UnionOf<SourceTextModule, TheHole>> value,
+                             ReleaseStoreTag,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<ArrayList> async_parent_modules() const;

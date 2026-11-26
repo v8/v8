@@ -721,7 +721,11 @@ bool JSDeferredModuleNamespace::TriggersEvaluation(LookupIterator* it) {
     if (*name == ReadOnlyRoots(isolate).then_string() || IsSymbol(*name)) {
       return false;
     }
-    return ns->module()->status() != Module::kEvaluated;
+    // Evaluation can only be skipped once the module's whole strongly
+    // connected component evaluated successfully. Until then
+    // EvaluateModuleSync has to run, as it throws if the cycle root of an
+    // already evaluated module is still evaluating asynchronously or failed.
+    return !ns->module()->IsSCCEvaluatedSuccessfully();
   }
 
   return false;
@@ -766,6 +770,31 @@ Maybe<bool> JSModuleNamespace::DefineOwnProperty(
   }
 
   return Just(true);
+}
+
+bool Module::IsSCCEvaluatedSuccessfully() const {
+  DisallowGarbageCollection no_gc;
+  if (status(kRelaxedLoad) != kEvaluated) return false;
+  // A synthetic module has no dependencies, so it is its own cycle root.
+  Tagged<SourceTextModule> source_text_module;
+  if (!TryCast(Tagged<Module>(this), &source_text_module)) return true;
+  // On the main thread an evaluated module always has a cycle root. A
+  // background thread can still observe the hole here, as the relaxed status
+  // load above is not ordered with the store to the cycle root.
+  Tagged<SourceTextModule> cycle_root;
+  if (!TryCast(source_text_module->cycle_root(kAcquireLoad), &cycle_root)) {
+    return false;
+  }
+  return cycle_root->status(kRelaxedLoad) == kEvaluated;
+}
+
+Module::Status Module::GetCycleRootStatus() const {
+  DisallowGarbageCollection no_gc;
+  Tagged<SourceTextModule> source_text_module;
+  if (!TryCast(Tagged<Module>(this), &source_text_module)) return status();
+  Tagged<SourceTextModule> cycle_root;
+  if (!TryCast(source_text_module->cycle_root(), &cycle_root)) return status();
+  return cycle_root->status();
 }
 
 bool Module::IsGraphAsync(Isolate* isolate) const {

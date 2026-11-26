@@ -353,8 +353,11 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(
   } else if (IsJSDeferredModuleNamespace(*object)) {
     auto ns = Cast<JSDeferredModuleNamespace>(object);
 
+    // Report the status of the module's cycle root: a module that is already
+    // evaluated cannot be accessed through its deferred namespace while its
+    // cycle root is still evaluating asynchronously, or if the root failed.
     const char* status = nullptr;
-    switch (ns->module()->status()) {
+    switch (ns->module()->GetCycleRootStatus()) {
       case Module::kUnlinked:
         status = "unlinked";
         break;

@@ -2484,6 +2484,13 @@ Module::Status ModuleRef::status() const {
   return object()->status(kRelaxedLoad);
 }
 
+bool ModuleRef::IsSCCEvaluatedSuccessfully() const {
+  // This reads the module's and its cycle root's status concurrently to the
+  // main thread. That is fine: the state is final, and a stale read only makes
+  // the compiler more conservative.
+  return object()->IsSCCEvaluatedSuccessfully();
+}
+
 OptionalCellRef ModuleRef::LookupExportCell(JSHeapBroker* broker,
                                             NameRef name) const {
   // Until the module's first namespace is created, the main thread may still
