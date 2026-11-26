@@ -853,6 +853,7 @@ bool IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
     }
 
     UpdateSharedFunctionFlagsAfterCompilation(literal);
+    SYNCHRONIZATION_POINT_TEST_ONLY("AfterUpdateSharedFunctionFlags");
 
     auto finalization_status = FinalizeSingleUnoptimizedCompilationJob(
         job.get(), shared_info, isolate,
@@ -2112,6 +2113,11 @@ void BackgroundCompileTask::Run(
 // SharedFunctionInfos and updates any pointers which need updating.
 class ConstantPoolPointerForwarder {
  public:
+  enum class RecordResult {
+    kRecordedOwnScopeInfo,
+    kMissingOwnScopeInfo,
+  };
+
   explicit ConstantPoolPointerForwarder(LocalHeap* local_heap,
                                         DirectHandle<Script> old_script)
       : local_heap_(local_heap), old_script_(old_script) {}
@@ -2121,20 +2127,30 @@ class ConstantPoolPointerForwarder {
     bytecode_arrays_to_update_.emplace_back(bytecode_array, local_heap_);
   }
 
-  void RecordScopeInfos(Tagged<MaybeObject> maybe_old_info) {
-    RecordScopeInfos(maybe_old_info.GetHeapObjectAssumeWeak());
+  RecordResult RecordScopeInfos(Tagged<MaybeObject> maybe_old_info) {
+    return RecordScopeInfos(maybe_old_info.GetHeapObjectAssumeWeak());
   }
 
   // Record all scope infos relevant for a shared function info or scope info
-  // (recorded for eval).
-  void RecordScopeInfos(Tagged<HeapObject> info) {
+  // (recorded for eval). Returns kRecordedOwnScopeInfo if the entry's own
+  // ScopeInfo was recorded, or kMissingOwnScopeInfo if `info` is an uncompiled
+  // SharedFunctionInfo whose own ScopeInfo was not yet present when sampled.
+  RecordResult RecordScopeInfos(Tagged<HeapObject> info) {
     Tagged<ScopeInfo> scope_info;
+    RecordResult result = RecordResult::kRecordedOwnScopeInfo;
     if (Is<SharedFunctionInfo>(info)) {
-      // We can get an empty scope info here for a function that is racily
-      // getting compiled, which is ok because we will revisit it during
+      // We can get an empty scope info (or only the outer scope info) here for
+      // a function that is racily getting compiled, which is ok because
+      // returning kMissingOwnScopeInfo ensures we will revisit it during
       // foreground merging.
       scope_info = Cast<SharedFunctionInfo>(info)->TryGetScopeInfoForMerge();
-      if (scope_info->IsEmpty()) return;
+      if (scope_info->IsEmpty()) {
+        return RecordResult::kMissingOwnScopeInfo;
+      }
+      if (scope_info->UniqueIdInScript() !=
+          Cast<SharedFunctionInfo>(info)->UniqueIdInScript()) {
+        result = RecordResult::kMissingOwnScopeInfo;
+      }
     } else {
       scope_info = Cast<ScopeInfo>(info);
     }
@@ -2150,13 +2166,14 @@ class ConstantPoolPointerForwarder {
           Print(scope_info);
           UNREACHABLE();
         }
-        return;
+        return result;
       }
       scope_infos_to_update_[scope_info->UniqueIdInScript()] =
           handle(scope_info, local_heap_);
       if (!scope_info->HasOuterScopeInfo()) break;
       scope_info = scope_info->OuterScopeInfo();
     }
+    return result;
   }
 
   // Runs the update after the setup functions above specified the work to do.
@@ -2290,7 +2307,8 @@ class ConstantPoolPointerForwarder {
                               Cast<SharedFunctionInfo>(heap_obj));
     } else if (!scope_infos_to_update_.empty() && IsScopeInfo(heap_obj)) {
       VisitScopeInfo(constant_pool, i, Cast<ScopeInfo>(heap_obj));
-    } else if (IsObjectBoilerplateDescription(heap_obj)) {
+    } else if (has_shared_function_info_to_forward_ &&
+               IsObjectBoilerplateDescription(heap_obj)) {
       VisitObjectBoilerplateDescription(
           Cast<ObjectBoilerplateDescription>(heap_obj));
     }
@@ -2309,9 +2327,11 @@ class ConstantPoolPointerForwarder {
         Tagged<MaybeObject> maybe_old_sfi = old_script_->infos()->get(
             new_sfi->function_literal_id(kRelaxedLoad), kAcquireLoad);
         if (maybe_old_sfi.IsWeak()) {
-          boilerplate->set_value(idx,
-                                 Cast<SharedFunctionInfo>(
-                                     maybe_old_sfi.GetHeapObjectAssumeWeak()));
+          Tagged<SharedFunctionInfo> old_sfi =
+              Cast<SharedFunctionInfo>(maybe_old_sfi.GetHeapObjectAssumeWeak());
+          if (old_sfi != new_sfi) {
+            boilerplate->set_value(idx, old_sfi);
+          }
         }
       }
     }
@@ -2323,8 +2343,11 @@ class ConstantPoolPointerForwarder {
     Tagged<MaybeObject> maybe_old_sfi = old_script_->infos()->get(
         sfi->function_literal_id(kRelaxedLoad), kAcquireLoad);
     if (maybe_old_sfi.IsWeak()) {
-      constant_pool->set(
-          i, Cast<SharedFunctionInfo>(maybe_old_sfi.GetHeapObjectAssumeWeak()));
+      Tagged<SharedFunctionInfo> old_sfi =
+          Cast<SharedFunctionInfo>(maybe_old_sfi.GetHeapObjectAssumeWeak());
+      if (old_sfi != sfi) {
+        constant_pool->set(i, old_sfi);
+      }
     }
   }
 
@@ -2583,6 +2606,7 @@ void BackgroundMergeTask::BeginMergeInBackground(
         old_script->infos()->get(i, kAcquireLoad);
     // We might have scope infos in the table if it's deserialized from a code
     // cache.
+    bool pinned_old_sfi = false;
     if (maybe_new_sfi.IsWeak() &&
         Is<SharedFunctionInfo>(maybe_new_sfi.GetHeapObjectAssumeWeak())) {
       Tagged<SharedFunctionInfo> new_sfi =
@@ -2600,6 +2624,7 @@ void BackgroundMergeTask::BeginMergeInBackground(
         // the new sfi are redirected to the old sfi.
         Handle<SharedFunctionInfo> old_sfi_handle =
             local_heap->NewPersistentHandle(old_sfi);
+        pinned_old_sfi = true;
         if (old_sfi->HasBytecodeArray()) {
           // Reset the old SFI's bytecode age so that it won't likely get
           // flushed right away. This operation might be racing against
@@ -2642,19 +2667,27 @@ void BackgroundMergeTask::BeginMergeInBackground(
     }
 
     if (maybe_old_info.IsWeak()) {
-      Tagged<SharedFunctionInfo> sfi;
-      if (TryCast<SharedFunctionInfo>(maybe_old_info.GetHeapObjectAssumeWeak(),
-                                      &sfi)) {
-        if (!sfi->HasScopeInfo()) {
-          sfis_without_scope_info_.insert(i);
-        }
-      }
       MERGE_MODEL_STEP(BG_RECORD_OLD_SCOPE_INFO);
-      forwarder.RecordScopeInfos(maybe_old_info);
-      // If the old script has a SFI, point to it from the new script to
-      // indicate we've already seen it and we'll reuse it if necessary (if
-      // newly compiled bytecode points to it).
-      new_script->infos()->set(i, maybe_old_info);
+      ConstantPoolPointerForwarder::RecordResult record_result =
+          forwarder.RecordScopeInfos(maybe_old_info);
+      SYNCHRONIZATION_POINT_TEST_ONLY("BackgroundMerge_AfterRecordScopeInfos");
+      if (record_result ==
+          ConstantPoolPointerForwarder::RecordResult::kMissingOwnScopeInfo) {
+        // Keep the cached SFI alive until CompleteMergeInForeground so
+        // Smi::zero() in new_script->infos() unambiguously refers to the same
+        // SFI.
+        if (!pinned_old_sfi) {
+          local_heap->NewPersistentHandle(
+              maybe_old_info.GetHeapObjectAssumeWeak());
+        }
+        // Store Smi::zero() in new_script->infos() to mark that this cached SFI
+        // had no ScopeInfo during the background pass without allocating a set.
+        new_script->infos()->set(i, Smi::zero());
+      } else {
+        // If the old script has a SFI or ScopeInfo with ScopeInfo attached,
+        // point to it from the new script to indicate we've already seen it.
+        new_script->infos()->set(i, maybe_old_info);
+      }
     }
   }
 
@@ -2714,16 +2747,14 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
     DisallowGarbageCollection no_gc;
     Tagged<MaybeObject> maybe_old_info = old_script->infos()->get(i);
     Tagged<MaybeObject> maybe_new_info = new_script->infos()->get(i);
-    if (maybe_new_info == maybe_old_info) {
-      if (sfis_without_scope_info_.contains(i) && maybe_old_info.IsWeak()) {
-        Tagged<SharedFunctionInfo> sfi =
-            Cast<SharedFunctionInfo>(maybe_old_info.GetHeapObjectAssumeWeak());
-        if (sfi->HasScopeInfo()) {
-          MERGE_MODEL_STEP(FG_DETECT_CONCURRENT_SFI);
-          forwarder.RecordScopeInfos(sfi);
-        }
+    if (maybe_new_info == maybe_old_info) continue;
+    if (maybe_new_info.IsSmi()) {
+      DCHECK(maybe_old_info.IsWeak());
+      new_script->infos()->set(i, maybe_old_info);
+      if (!Cast<SharedFunctionInfo>(maybe_old_info.GetHeapObjectAssumeWeak())
+               ->HasScopeInfo()) {
+        continue;
       }
-      continue;
     }
     if (maybe_old_info.IsWeak()) {
       if (Is<SharedFunctionInfo>(maybe_old_info.GetHeapObjectAssumeWeak())) {

@@ -2815,6 +2815,10 @@ class NewCompiledDataForCachedSfi:
 class ConstantPoolPointerForwarder:
   """Data container for C++ ``ConstantPoolPointerForwarder``."""
 
+  class RecordResult:
+    kRecordedOwnScopeInfo = 0
+    kMissingOwnScopeInfo = 1
+
   def __init__(self, local_heap: LocalHeap, old_script: HandleBox):
     self.local_heap_ = local_heap
     self.old_script_ = old_script

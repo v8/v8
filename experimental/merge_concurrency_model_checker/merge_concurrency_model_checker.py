@@ -994,7 +994,12 @@ def _build_fault_catalog(
   or Python runtime error fails ``TEST 6`` immediately.
   """
   rx = _replace_exact
-  rec_ret = "return false;" if "bool RecordScopeInfos(" in c_orig else "return;"
+  if "RecordResult RecordScopeInfos(" in c_orig:
+    rec_ret = "return RecordResult::kMissingOwnScopeInfo;"
+  elif "bool RecordScopeInfos(" in c_orig:
+    rec_ret = "return false;"
+  else:
+    rec_ret = "return;"
   is_cl3_smi = "new_script->infos()->set(i, Smi::zero());" in c_orig
 
   faults: List[Tuple[str, str, str, str, Tuple[Type[ModelCheckFailure], ...], bool]] = [
@@ -1689,12 +1694,18 @@ def _build_fault_catalog(
 
   # CL 3-only S4 mutant: reintroducing double-sample HasScopeInfo() race after
   # BackgroundMerge_AfterRecordScopeInfos.
-  if "if (!recorded_own_scope_info) {" in c_orig:
+  s4_target = (
+      "      if (record_result ==\n"
+      "          ConstantPoolPointerForwarder::RecordResult::kMissingOwnScopeInfo) {"
+  )
+  if s4_target not in c_orig and "if (!recorded_own_scope_info) {" in c_orig:
+    s4_target = "      if (!recorded_own_scope_info) {"
+  if s4_target in c_orig:
     faults.append((
         "Audit S4 (Double-sample HasScopeInfo() after RecordScopeInfos)",
         rx(
             c_orig,
-            "      if (!recorded_own_scope_info) {",
+            s4_target,
             "      if (Is<SharedFunctionInfo>(maybe_old_info.GetHeapObjectAssumeWeak()) &&\n"
             "          !Cast<SharedFunctionInfo>(maybe_old_info.GetHeapObjectAssumeWeak())->HasScopeInfo()) {",
             label="S4",

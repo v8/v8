@@ -643,6 +643,10 @@ def _make_runtime_registry(
           SharedFunctionInfo,
       "BackgroundMergeTask":
           BackgroundMergeTask,
+      "ConstantPoolPointerForwarder":
+          ConstantPoolPointerForwarder,
+      "RecordResult":
+          ConstantPoolPointerForwarder.RecordResult,
       "std":
           StdMemoryOrder,
       # Flags & legacy static var for --git-rev origin/main
