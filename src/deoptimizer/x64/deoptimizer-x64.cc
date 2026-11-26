@@ -4,6 +4,8 @@
 
 #if V8_TARGET_ARCH_X64
 
+#include <type_traits>
+
 #include "src/codegen/flush-instruction-cache.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/reloc-info-inl.h"
@@ -94,7 +96,7 @@ Float32 RegisterValues::GetFloatRegister(unsigned n) const {
 }
 
 Float64 RegisterValues::GetDoubleRegister(unsigned n) const {
-  V8_ASSUME(n < arraysize(simd128_registers_));
+  V8_ASSUME(n < std::extent_v<decltype(simd128_registers_)>);
   return base::ReadUnalignedValue<Float64>(
       reinterpret_cast<Address>(simd128_registers_ + n));
 }

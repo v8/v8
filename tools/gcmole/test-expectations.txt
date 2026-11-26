@@ -1,6 +1,6 @@
 In file included from tools/gcmole/gcmole-test.cc:7:
 In file included from ./src/execution/isolate.h:37:
-In file included from ./src/execution/isolate-data.h:14:
+In file included from ./src/execution/isolate-data.h:16:
 In file included from ./src/execution/thread-local-top.h:14:
 In file included from ./src/objects/contexts.h:10:
 In file included from ./src/execution/frames.h:23:

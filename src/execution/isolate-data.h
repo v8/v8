@@ -5,6 +5,8 @@
 #ifndef V8_EXECUTION_ISOLATE_DATA_H_
 #define V8_EXECUTION_ISOLATE_DATA_H_
 
+#include <type_traits>
+
 #include "include/cppgc/macros.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/constants-arch.h"
@@ -240,7 +242,7 @@ class IsolateData final {
     return *reinterpret_cast<const T*>(&raw_arguments_[index].storage_);
   }
   static constexpr uint32_t GetRawArgumentCount() {
-    return arraysize(raw_arguments_);
+    return std::extent_v<decltype(raw_arguments_)>;
   }
 
   AllocationSiteCache* allocation_site_cache() const {

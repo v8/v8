@@ -12,12 +12,14 @@
 #include <cstdint>
 #include <cstdio>
 #include <fstream>
+#include <iterator>
 #include <limits>
 #include <memory>
 #include <optional>
 #include <span>
 #include <sstream>
 #include <string>
+#include <type_traits>
 #include <unordered_map>
 #include <utility>
 
@@ -841,7 +843,7 @@ void Isolate::PushParamsAndContinue(void* ptr1, void* ptr2, void* ptr3,
 void StackTraceFailureMessage::Print() volatile {
   // Print the details of this failure message object, including its own address
   // to force stack allocation.
-  static_assert(arraysize(ptrs_) >= 6);
+  static_assert(std::extent_v<decltype(ptrs_)> >= 6);
   base::OS::PrintError(
       "Stacktrace:\n    ptr0=%p\n    ptr1=%p\n    ptr2=%p\n    ptr3=%p\n    "
       "ptr4=%p\n    ptr5=%p\n    failure_message_object=%p\n%s",
@@ -855,19 +857,19 @@ StackTraceFailureMessage::StackTraceFailureMessage(
     Isolate* isolate, StackTraceFailureMessage::StackTraceMode mode,
     const Address* ptrs, size_t ptrs_count)
     : isolate_(isolate) {
-  size_t ptrs_size = std::min(arraysize(ptrs_), ptrs_count);
+  size_t ptrs_size = std::min(std::size(ptrs_), ptrs_count);
   std::copy(ptrs, ptrs + ptrs_size, &ptrs_[0]);
 
   if (mode == kIncludeStackTrace) {
     // Write a stracktrace into the {js_stack_trace_} buffer.
-    const size_t buffer_length = arraysize(js_stack_trace_);
+    constexpr size_t buffer_length = std::extent_v<decltype(js_stack_trace_)>;
     FixedStringAllocator fixed(&js_stack_trace_[0], buffer_length - 1);
     StringStream accumulator(&fixed, StringStream::kPrintObjectConcise);
     isolate_->PrintStack(&accumulator, Isolate::kPrintStackVerbose,
                          AllowAllocation{false});
     // Keeping a reference to the last code objects to increase likelihood that
     // they get included in the minidump.
-    const size_t code_objects_length = arraysize(code_objects_);
+    const size_t code_objects_length = std::size(code_objects_);
     size_t i = 0;
     StackFrameIterator it(isolate_);
     for (; !it.done() && i < code_objects_length; it.Advance()) {

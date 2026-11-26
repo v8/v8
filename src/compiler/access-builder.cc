@@ -4,6 +4,8 @@
 
 #include "src/compiler/access-builder.h"
 
+#include <type_traits>
+
 #include "src/codegen/machine-type.h"
 #include "src/compiler/property-access-builder.h"
 #include "src/compiler/type-cache.h"
@@ -125,7 +127,7 @@ FieldAccess AccessBuilder::ForBigIntBitfield() {
 #ifdef BIGINT_NEEDS_PADDING
 // static
 FieldAccess AccessBuilder::ForBigIntOptionalPadding() {
-  static_assert(arraysize(BigInt::padding_) == sizeof(uint32_t));
+  static_assert(std::extent_v<decltype(BigInt::padding_)> == sizeof(uint32_t));
   FieldAccess access = {
       kTaggedBase,      offsetof(BigInt, padding_), MaybeHandle<Name>(),
       OptionalMapRef(), TypeCache::Get()->kInt32,   MachineType::Uint32(),

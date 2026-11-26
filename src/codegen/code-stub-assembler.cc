@@ -9,6 +9,7 @@
 #include <array>
 #include <functional>
 #include <optional>
+#include <type_traits>
 
 #include "include/v8-internal.h"
 #include "src/base/iterator.h"
@@ -4882,7 +4883,7 @@ TNode<BigInt> CodeStubAssembler::AllocateRawBigInt(TNode<IntPtrT> length) {
   TNode<HeapObject> raw_result = Allocate(size);
   StoreMapNoWriteBarrier(raw_result, RootIndex::kBigIntMap);
 #ifdef BIGINT_NEEDS_PADDING
-  static_assert(arraysize(BigInt::padding_) == sizeof(int32_t));
+  static_assert(std::extent_v<decltype(BigInt::padding_)> == sizeof(int32_t));
   StoreObjectFieldNoWriteBarrier(raw_result, offsetof(BigInt, padding_),
                                  Int32Constant(0));
 #endif

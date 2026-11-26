@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <type_traits>
+
 #include "src/api/api.h"
 #include "src/codegen/flush-instruction-cache.h"
 #include "src/codegen/macro-assembler.h"
@@ -42,19 +44,19 @@ void Deoptimizer::PatchToJump(Address pc, Address new_pc) {
 }
 
 Float32 RegisterValues::GetFloatRegister(unsigned n) const {
-  V8_ASSUME(n < arraysize(simd128_registers_));
+  V8_ASSUME(n < std::extent_v<decltype(simd128_registers_)>);
   return base::ReadUnalignedValue<Float32>(
       reinterpret_cast<Address>(simd128_registers_ + n));
 }
 
 Float64 RegisterValues::GetDoubleRegister(unsigned n) const {
-  V8_ASSUME(n < arraysize(simd128_registers_));
+  V8_ASSUME(n < std::extent_v<decltype(simd128_registers_)>);
   return base::ReadUnalignedValue<Float64>(
       reinterpret_cast<Address>(simd128_registers_ + n));
 }
 
 void RegisterValues::SetDoubleRegister(unsigned n, Float64 value) {
-  V8_ASSUME(n < arraysize(simd128_registers_));
+  V8_ASSUME(n < std::extent_v<decltype(simd128_registers_)>);
   base::WriteUnalignedValue(reinterpret_cast<Address>(simd128_registers_ + n),
                             value);
 }
