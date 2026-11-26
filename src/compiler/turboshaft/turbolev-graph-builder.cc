@@ -518,13 +518,13 @@ class GeneratorAnalyzer {
   ZoneVector<const maglev::BasicBlock*> visit_queue_;
 };
 
-#define GET_FRAME_STATE_MAYBE_ABORT(name, deopt_info)    \
-  auto _maybe_frame_state = BuildFrameState(deopt_info); \
-  if (!_maybe_frame_state.has_value()) {                 \
-    DCHECK(bailout_->has_value());                       \
-    return maglev::ProcessResult::kAbort;                \
-  }                                                      \
-  auto name = _maybe_frame_state.value();
+#define GET_FRAME_STATE_MAYBE_ABORT(name, deopt_info)           \
+  auto _maybe_frame_state_##name = BuildFrameState(deopt_info); \
+  if (!_maybe_frame_state_##name.has_value()) {                 \
+    DCHECK(bailout_->has_value());                              \
+    return maglev::ProcessResult::kAbort;                       \
+  }                                                             \
+  auto name = _maybe_frame_state_##name.value();
 
 constexpr bool TooManyArgumentsForCall(size_t arguments_count) {
   constexpr int kCalleeCount = 1;
@@ -4164,7 +4164,7 @@ class GraphBuildingNodeProcessor {
   }
   maglev::ProcessResult Process(maglev::BigIntBinaryOperation* node,
                                 const maglev::ProcessingState& state) {
-    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
+    GET_FRAME_STATE_MAYBE_ABORT(eager_frame_state, node->eager_deopt_info());
     BigIntBinopOp::Kind kind;
     switch (node->operation()) {
       case ::Operation::kAdd:
@@ -4200,9 +4200,14 @@ class GraphBuildingNodeProcessor {
       default:
         UNREACHABLE();
     }
-    SetMap(node,
-           __ BigIntBinop(Map<BigInt>(node->LeftInput()),
-                          Map<BigInt>(node->RightInput()), frame_state, kind));
+    OptionalV<LazyFrameState> lazy_frame_state;
+    if (BigIntBinopOp::CanTerminate(kind)) {
+      GET_FRAME_STATE_MAYBE_ABORT(lazy_fs, node->lazy_deopt_info());
+      lazy_frame_state = lazy_fs;
+    }
+    SetMap(node, __ BigIntBinop(Map<BigInt>(node->LeftInput()),
+                                Map<BigInt>(node->RightInput()),
+                                eager_frame_state, lazy_frame_state, kind));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::BigIntCompare* node,

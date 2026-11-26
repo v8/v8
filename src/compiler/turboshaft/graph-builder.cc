@@ -2013,12 +2013,17 @@ OpIndex GraphBuilder::Process(
           Map(node->InputAt(0)), Map(node->InputAt(1)), dominating_frame_state,
           FeedbackSource{});
 
-#define BIGINT_BINOP_CASE(op, kind)                                     \
-  case IrOpcode::kBigInt##op:                                           \
-    DCHECK(dominating_frame_state.valid());                             \
-    return __ BigIntBinop(Map(node->InputAt(0)), Map(node->InputAt(1)), \
-                          dominating_frame_state,                       \
-                          BigIntBinopOp::Kind::k##kind);
+#define BIGINT_BINOP_CASE(opcode, kind)                                     \
+  case IrOpcode::kBigInt##opcode: {                                         \
+    DCHECK(dominating_frame_state.valid());                                 \
+    OptionalV<LazyFrameState> lazy_frame_state =                            \
+        OperatorProperties::HasFrameStateInput(node->op())                  \
+            ? Map<LazyFrameState>(NodeProperties::GetFrameStateInput(node)) \
+            : OptionalV<LazyFrameState>::Nullopt();                         \
+    return __ BigIntBinop(Map(node->InputAt(0)), Map(node->InputAt(1)),     \
+                          dominating_frame_state, lazy_frame_state,         \
+                          BigIntBinopOp::Kind::k##kind);                    \
+  }
       BIGINT_BINOP_CASE(Add, Add)
       BIGINT_BINOP_CASE(Subtract, Sub)
       BIGINT_BINOP_CASE(Multiply, Mul)

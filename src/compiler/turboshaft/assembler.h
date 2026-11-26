@@ -4813,27 +4813,37 @@ class AssemblerOpInterface : public Next {
   }
 
   V<BigInt> BigIntBinop(V<BigInt> left, V<BigInt> right,
-                        V<EagerFrameState> frame_state,
+                        V<EagerFrameState> eager_frame_state,
+                        OptionalV<LazyFrameState> lazy_frame_state,
                         BigIntBinopOp::Kind kind) {
-    return ReduceIfReachableBigIntBinop(left, right, frame_state, kind);
+    return ReduceIfReachableBigIntBinop(left, right, eager_frame_state,
+                                        lazy_frame_state, kind);
   }
-#define BIGINT_BINOP(kind)                                 \
-  V<BigInt> BigInt##kind(V<BigInt> left, V<BigInt> right,  \
-                         V<EagerFrameState> frame_state) { \
-    return BigIntBinop(left, right, frame_state,           \
-                       BigIntBinopOp::Kind::k##kind);      \
+#define BIGINT_BINOP(kind)                                       \
+  V<BigInt> BigInt##kind(V<BigInt> left, V<BigInt> right,        \
+                         V<EagerFrameState> eager_frame_state) { \
+    return BigIntBinop(left, right, eager_frame_state, {},       \
+                       BigIntBinopOp::Kind::k##kind);            \
+  }
+#define TERMINATING_BIGINT_BINOP(kind)                                   \
+  V<BigInt> BigInt##kind(V<BigInt> left, V<BigInt> right,                \
+                         V<EagerFrameState> eager_frame_state,           \
+                         V<LazyFrameState> lazy_frame_state) {           \
+    return BigIntBinop(left, right, eager_frame_state, lazy_frame_state, \
+                       BigIntBinopOp::Kind::k##kind);                    \
   }
   BIGINT_BINOP(Add)
   BIGINT_BINOP(Sub)
-  BIGINT_BINOP(Mul)
-  BIGINT_BINOP(Div)
-  BIGINT_BINOP(Mod)
+  TERMINATING_BIGINT_BINOP(Mul)
+  TERMINATING_BIGINT_BINOP(Div)
+  TERMINATING_BIGINT_BINOP(Mod)
   BIGINT_BINOP(BitwiseAnd)
   BIGINT_BINOP(BitwiseOr)
   BIGINT_BINOP(BitwiseXor)
   BIGINT_BINOP(ShiftLeft)
   BIGINT_BINOP(ShiftRightArithmetic)
 #undef BIGINT_BINOP
+#undef TERMINATING_BIGINT_BINOP
 
   V<Boolean> BigIntComparison(V<BigInt> left, V<BigInt> right,
                               BigIntComparisonOp::Kind kind) {

@@ -148,6 +148,12 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
       return true;
     case IrOpcode::kCheckpoint:
     case IrOpcode::kFrameState:
+    case IrOpcode::kSpeculativeBigIntMultiply:
+    case IrOpcode::kSpeculativeBigIntDivide:
+    case IrOpcode::kSpeculativeBigIntModulus:
+    case IrOpcode::kBigIntMultiply:
+    case IrOpcode::kBigIntDivide:
+    case IrOpcode::kBigIntModulus:
       return true;
     case IrOpcode::kJSCallRuntime: {
       const CallRuntimeParameters& p = CallRuntimeParametersOf(op);

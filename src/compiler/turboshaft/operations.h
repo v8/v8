@@ -6049,7 +6049,7 @@ struct DebugPrintOp : OperationT<DebugPrintOp> {
   }
 };
 
-struct BigIntBinopOp : FixedArityOperationT<3, BigIntBinopOp> {
+struct BigIntBinopOp : OperationT<BigIntBinopOp> {
   enum class Kind : uint8_t {
     kAdd,
     kSub,
@@ -6063,6 +6063,10 @@ struct BigIntBinopOp : FixedArityOperationT<3, BigIntBinopOp> {
     kShiftRightArithmetic,
   };
   Kind kind;
+
+  static bool CanTerminate(Kind kind) {
+    return kind == any_of(Kind::kMul, Kind::kDiv, Kind::kMod);
+  }
 
   // These operations can deopt (abort), allocate and read immutable data.
   static constexpr OpEffects effects =
@@ -6082,15 +6086,46 @@ struct BigIntBinopOp : FixedArityOperationT<3, BigIntBinopOp> {
 
   V<BigInt> left() const { return Base::input<BigInt>(0); }
   V<BigInt> right() const { return Base::input<BigInt>(1); }
-  V<EagerFrameState> frame_state() const {
+  V<EagerFrameState> eager_frame_state() const {
     return Base::input<EagerFrameState>(2);
   }
+  OptionalV<LazyFrameState> lazy_frame_state() const {
+    return input_count > 3 ? Base::input<LazyFrameState>(3)
+                           : OptionalV<LazyFrameState>::Nullopt();
+  }
 
-  BigIntBinopOp(V<BigInt> left, V<BigInt> right, V<EagerFrameState> frame_state,
-                Kind kind)
-      : Base(left, right, frame_state), kind(kind) {}
+  BigIntBinopOp(V<BigInt> left, V<BigInt> right,
+                V<EagerFrameState> eager_frame_state,
+                OptionalV<LazyFrameState> lazy_frame_state, Kind kind)
+      : Base(3 + lazy_frame_state.has_value()), kind(kind) {
+    input(0) = left;
+    input(1) = right;
+    input(2) = eager_frame_state;
+    if (lazy_frame_state.has_value()) {
+      input(3) = lazy_frame_state.value();
+    }
+  }
+
+  static BigIntBinopOp& New(Graph* graph, V<BigInt> left, V<BigInt> right,
+                            V<EagerFrameState> eager_frame_state,
+                            OptionalV<LazyFrameState> lazy_frame_state,
+                            Kind kind) {
+    return Base::New(graph, 3 + lazy_frame_state.has_value(), left, right,
+                     eager_frame_state, lazy_frame_state, kind);
+  }
+
+  template <typename Fn, typename Mapper>
+  V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
+    return fn(mapper.Map(left()), mapper.Map(right()),
+              mapper.Map(eager_frame_state()), mapper.Map(lazy_frame_state()),
+              kind);
+  }
+
   void Validate(const Graph& graph) const {
-    DCHECK(Get(graph, frame_state()).Is<FrameStateOp>());
+    DCHECK(Get(graph, eager_frame_state()).Is<FrameStateOp>());
+    DCHECK_EQ(lazy_frame_state().has_value(), CanTerminate(kind));
+    DCHECK_IMPLIES(lazy_frame_state().has_value(),
+                   Get(graph, lazy_frame_state().value()).Is<FrameStateOp>());
   }
 
   auto options() const { return std::tuple{kind}; }
