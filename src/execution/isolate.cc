@@ -5440,13 +5440,6 @@ void Isolate::SetIsolateThreadLocals(Isolate* isolate,
   Sandbox::set_current(isolate ? isolate->isolate_group()->sandbox() : nullptr);
 #endif
 #endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
-
-  if (isolate && isolate->main_thread_local_isolate()) {
-    WriteBarrier::SetForThread(
-        isolate->main_thread_local_heap()->marking_barrier());
-  } else {
-    WriteBarrier::SetForThread(nullptr);
-  }
 }
 
 Isolate::~Isolate() {
@@ -6400,20 +6393,13 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 #endif  // V8_ENABLE_SANDBOX
   }
 
-  {
-    // LocalHeap initialization requires the TLS variable to be set already.
-    // However, we can't move SetIsolateThreadLocals here because the marking
-    // barrier isn't setup yet.
-    SetCurrentLocalHeapScope local_heap_scope(this);
-    isolate_group()->SetupReadOnlyHeap(this, read_only_snapshot_data,
-                                       can_rehash);
-    heap_.SetUpSpaces();
-  }
-
   DCHECK_EQ(this, Isolate::Current());
   PerIsolateThreadData* const current_data = CurrentPerIsolateThreadData();
   DCHECK_EQ(current_data->isolate(), this);
   SetIsolateThreadLocals(this, current_data);
+
+  isolate_group()->SetupReadOnlyHeap(this, read_only_snapshot_data, can_rehash);
+  heap_.SetUpSpaces();
 
   // The main thread's marking barrier is now set up and installed, so write
   // barriers may observe shared marking from here on.

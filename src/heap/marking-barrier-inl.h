@@ -21,8 +21,8 @@ namespace internal {
 template <typename TSlot, RecordYoungSlot kRecordYoung>
 void MarkingBarrier::Write(Tagged<HeapObject> host, TSlot slot,
                            Tagged<HeapObject> value) {
-  DCHECK(IsCurrentMarkingBarrier(host));
-  DCHECK(is_activated_ || shared_heap_worklists_.has_value());
+  DCHECK(IsCurrentMarkingBarrier());
+  DCHECK(is_activated() || shared_heap_worklists_.has_value());
   DCHECK(WriteBarrier::IsMarking(isolate(), host));
 
   MarkValue(host, value);
@@ -41,8 +41,8 @@ void MarkingBarrier::MarkValue(Tagged<HeapObject> host,
                                Tagged<HeapObject> value) {
   if (HeapLayout::InReadOnlySpace(value)) return;
 
-  DCHECK(IsCurrentMarkingBarrier(host));
-  DCHECK(is_activated_ || shared_heap_worklists_.has_value());
+  DCHECK(IsCurrentMarkingBarrier());
+  DCHECK(is_activated() || shared_heap_worklists_.has_value());
 
   // When shared heap isn't enabled all objects are local, we can just run the
   // local marking barrier. Also from the point-of-view of the shared space
@@ -57,7 +57,7 @@ void MarkingBarrier::MarkValue(Tagged<HeapObject> host,
       MarkValueShared(value);
       return;
     }
-    if (!is_activated_ || value_chunk->IsBlackAllocated() ||
+    if (!is_activated() || value_chunk->IsBlackAllocated() ||
         value_chunk->InWritableSharedSpace()) {
       // No marking needed when local marking is off or when storing shared
       // objects in local objects.
@@ -70,7 +70,7 @@ void MarkingBarrier::MarkValue(Tagged<HeapObject> host,
   DCHECK_IMPLIES(HeapLayout::InWritableSharedSpace(value),
                  is_shared_space_isolate_);
 
-  DCHECK(is_activated_);
+  DCHECK(is_activated());
   MarkValueLocal(value);
 }
 
@@ -83,13 +83,14 @@ void MarkingBarrier::MarkValueShared(Tagged<HeapObject> value) {
   DCHECK(shared_heap_worklists_.has_value());
 
   // Mark shared object and push it onto shared heap worklist.
-  if (marking_state_.TryMark(value)) {
+  if (MarkingState(heap_->isolate()).TryMark(value)) {
     shared_heap_worklists_->Push(value);
   }
 }
 
 void MarkingBarrier::MarkValueLocal(Tagged<HeapObject> value) {
   DCHECK(!HeapLayout::InReadOnlySpace(value));
+  MarkingState marking_state(heap_->isolate());
   if (is_minor()) {
     // We do not need to insert into RememberedSet<OLD_TO_NEW> here because the
     // C++ marking barrier already does this for us.
@@ -98,7 +99,7 @@ void MarkingBarrier::MarkValueLocal(Tagged<HeapObject> value) {
     // page flags and make the following branch a DCHECK.
     if (HeapLayout::InYoungGeneration(value)) {
       MarkingHelper::TryMarkAndPush(
-          heap_, current_worklists_.get(), &marking_state_,
+          heap_, current_worklists_.get(), &marking_state,
           MarkingHelper::WorklistTarget::kRegular, value);
     }
   } else {
@@ -108,7 +109,7 @@ void MarkingBarrier::MarkValueLocal(Tagged<HeapObject> value) {
     const auto target_worklist = MarkingHelper::ShouldMarkObject(heap_, value);
     if (!target_worklist) return;
     MarkingHelper::TryMarkAndPush(heap_, current_worklists_.get(),
-                                  &marking_state_, target_worklist.value(),
+                                  &marking_state, target_worklist.value(),
                                   value);
   }
 }

@@ -19,7 +19,6 @@ namespace v8 {
 namespace internal {
 
 class Heap;
-class IncrementalMarking;
 class LocalHeap;
 class PagedSpace;
 class NewSpace;
@@ -47,7 +46,8 @@ class MarkingBarrier {
 
   template <typename TSlot, RecordYoungSlot kRecordYoung = RecordYoungSlot::kNo>
   void Write(Tagged<HeapObject> host, TSlot slot, Tagged<HeapObject> value);
-  void Write(Tagged<HeapObject> host, TrustedPointerSlot slot);
+  void Write(Isolate* isolate, Tagged<HeapObject> host,
+             TrustedPointerSlot slot);
   void Write(Tagged<InstructionStream> host, RelocInfo*,
              Tagged<HeapObject> value);
   void Write(Tagged<JSArrayBuffer> host, ArrayBufferExtension*);
@@ -57,7 +57,7 @@ class MarkingBarrier {
 
   inline void MarkValue(Tagged<HeapObject> host, Tagged<HeapObject> value);
 
-  bool is_activated() const { return is_activated_; }
+  bool is_activated() const { return current_worklists_ != nullptr; }
 
   // True for client isolates iff incremental marking is enabled on the main isolate.
   bool is_shared() const { return shared_heap_worklists_.has_value(); }
@@ -93,7 +93,7 @@ class MarkingBarrier {
   void RecordRelocSlot(Tagged<InstructionStream> host, RelocInfo* rinfo,
                        Tagged<HeapObject> target);
 
-  bool IsCurrentMarkingBarrier(Tagged<HeapObject> verification_candidate);
+  bool IsCurrentMarkingBarrier();
 
   template <typename TSlot>
   inline void MarkRange(Tagged<HeapObject> value, TSlot start, TSlot end);
@@ -105,17 +105,12 @@ class MarkingBarrier {
   Isolate* isolate() const;
 
   Heap* heap_;
-  MarkCompactCollector* major_collector_;
-  MinorMarkSweepCollector* minor_collector_;
-  IncrementalMarking* incremental_marking_;
   std::unique_ptr<MarkingWorklists::Local> current_worklists_;
   std::optional<MarkingWorklists::Local> shared_heap_worklists_;
-  MarkingState marking_state_;
   std::unordered_map<MutablePage*, std::unique_ptr<TypedSlots>,
                      base::hash<MutablePage*>>
       typed_slots_map_;
   bool is_compacting_ = false;
-  bool is_activated_ = false;
   const bool is_main_thread_barrier_;
   const bool uses_shared_heap_;
   const bool is_shared_space_isolate_;

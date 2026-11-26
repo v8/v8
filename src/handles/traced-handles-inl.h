@@ -135,7 +135,7 @@ FullObjectSlot TracedHandles::Create(
     num_young_blocks_++;
   }
   if (needs_black_allocation) {
-    WriteBarrier::MarkingFromTracedHandle(object);
+    WriteBarrier::MarkingFromTracedHandle(isolate_, object);
   }
 #ifdef VERIFY_HEAP
   if (i::v8_flags.verify_heap) {

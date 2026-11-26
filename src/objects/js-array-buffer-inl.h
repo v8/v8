@@ -133,8 +133,7 @@ ArrayBufferExtension* JSArrayBuffer::extension() const {
 #endif  // V8_COMPRESS_POINTERS
 }
 
-template <typename IsolateT>
-void JSArrayBuffer::set_extension(IsolateT* isolate,
+void JSArrayBuffer::set_extension(Isolate* isolate,
                                   ArrayBufferExtension* extension) {
   DCHECK_NOT_NULL(extension);
 #if V8_COMPRESS_POINTERS

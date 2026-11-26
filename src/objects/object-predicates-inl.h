@@ -12,6 +12,7 @@
 #include "src/heap/heap-layout-inl.h"
 #include "src/objects/casting.h"
 #include "src/objects/heap-object-inl.h"
+#include "src/objects/shared-function-info.h"
 #include "src/objects/smi.h"
 #include "src/objects/tagged-index.h"
 #include "src/roots/roots.h"

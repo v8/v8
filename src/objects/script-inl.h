@@ -11,6 +11,7 @@
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/managed-inl.h"
 #include "src/objects/scope-info.h"
+#include "src/objects/shared-function-info.h"
 #include "src/objects/smi-inl.h"
 #include "src/objects/struct-inl.h"
 #include "src/objects/tagged-field-inl.h"

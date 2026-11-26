@@ -455,8 +455,6 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   HeapAllocator heap_allocator_;
 
-  MarkingBarrier* saved_marking_barrier_ = nullptr;
-
   // Stack information for the thread using this local heap.
   ::heap::base::Stack stack_;
   CPPGC_STACK_ALLOCATED_IGNORE(

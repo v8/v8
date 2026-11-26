@@ -256,20 +256,11 @@ class IsolateData final {
     DCHECK(stack_is_iterable_ == 0 || stack_is_iterable_ == 1);
     return stack_is_iterable_ != 0;
   }
-  bool is_marking() const { return is_any_marking_active(); }
-  bool is_local_marking() const {
-    return (is_marking_flag_ & (IsolateMarkingFlag::kLocalMajorMarking |
-                                IsolateMarkingFlag::kLocalMinorMarking)) !=
-           IsolateMarkingFlag::kNoMarking;
-  }
-  bool is_minor_marking() const {
-    return is_marking_flag_.contains(IsolateMarkingFlag::kLocalMinorMarking);
+  bool is_marking() const {
+    return is_marking_flag_ != IsolateMarkingFlag::kNoMarking;
   }
   bool is_shared_marking() const {
     return is_marking_flag_.contains(IsolateMarkingFlag::kSharedMarking);
-  }
-  bool is_any_marking_active() const {
-    return is_marking_flag_ != IsolateMarkingFlag::kNoMarking;
   }
   IsolateMarkingFlags is_marking_flag() const { return is_marking_flag_; }
   void set_marking_flag(IsolateMarkingFlag flag, bool value) {

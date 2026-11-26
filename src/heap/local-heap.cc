@@ -19,7 +19,6 @@
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/heap-write-barrier.h"
 #include "src/heap/heap.h"
 #include "src/heap/local-heap-inl.h"
 #include "src/heap/main-allocator.h"
@@ -74,8 +73,6 @@ LocalHeap::LocalHeap(Heap* heap, ThreadKind kind,
 
   heap_->safepoint()->AddLocalHeap(this, [this] {
     if (!is_main_thread()) {
-      saved_marking_barrier_ =
-          WriteBarrier::SetForThread(marking_barrier_.get());
       if (heap_->incremental_marking()->IsMarking()) {
         marking_barrier_->Activate(
             heap_->incremental_marking()->IsCompacting(),
@@ -120,10 +117,6 @@ LocalHeap::~LocalHeap() {
     if (!is_main_thread()) {
       marking_barrier_->PublishIfNeeded();
       marking_barrier_->PublishSharedIfNeeded();
-      MarkingBarrier* overwritten =
-          WriteBarrier::SetForThread(saved_marking_barrier_);
-      DCHECK_EQ(overwritten, marking_barrier_.get());
-      USE(overwritten);
     }
   });
 
@@ -195,8 +188,8 @@ void LocalHeap::SetUpSharedMarking() {
             ->IsMajorMarking()) {
       marking_barrier_->ActivateShared();
       // For the main thread, Isolate::Init() sets the isolate-level shared
-      // marking flag right after SetIsolateThreadLocals(). For background
-      // threads, it must already be set.
+      // marking flag right after SetUpSpaces(). For background threads, it must
+      // already be set.
       DCHECK_EQ(isolate->isolate_data()->is_shared_marking(),
                 !is_main_thread());
     }
