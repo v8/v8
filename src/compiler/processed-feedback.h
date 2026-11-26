@@ -22,7 +22,6 @@ class HomomorphicPropertyAccessFeedback;
 class InstanceOfFeedback;
 class JumpLoopFeedback;
 class LiteralFeedback;
-class MegaDOMPropertyAccessFeedback;
 class NamedAccessFeedback;
 class ProxyFeedback;
 class RegExpLiteralFeedback;
@@ -43,7 +42,6 @@ class ProcessedFeedback : public ZoneObject {
     kTypeOf,
     kLiteral,
     kHomomorphicPropertyAccess,
-    kMegaDOMPropertyAccess,
     kNamedAccess,
     kProxy,
     kRegExpLiteral,
@@ -66,7 +64,6 @@ class ProcessedFeedback : public ZoneObject {
   NamedAccessFeedback const& AsNamedAccess() const;
   ProxyFeedback const& AsProxy() const;
   HomomorphicPropertyAccessFeedback const& AsHomomorphicPropertyAccess() const;
-  MegaDOMPropertyAccessFeedback const& AsMegaDOMPropertyAccess() const;
   LiteralFeedback const& AsLiteral() const;
   RegExpLiteralFeedback const& AsRegExpLiteral() const;
   TemplateObjectFeedback const& AsTemplateObject() const;
@@ -223,17 +220,6 @@ class HomomorphicPropertyAccessFeedback : public ProcessedFeedback {
   NameRef const name_;
   WeakHomomorphicFixedArrayRef const homomorphic_array_;
   Tagged<Smi> const handler_;
-};
-
-class MegaDOMPropertyAccessFeedback : public ProcessedFeedback {
- public:
-  MegaDOMPropertyAccessFeedback(FunctionTemplateInfoRef info_ref,
-                                FeedbackSlotKind slot_kind);
-
-  FunctionTemplateInfoRef info() const { return info_; }
-
- private:
-  FunctionTemplateInfoRef const info_;
 };
 
 class CallFeedback : public ProcessedFeedback {

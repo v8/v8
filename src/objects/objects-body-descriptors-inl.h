@@ -38,7 +38,6 @@
 #include "src/objects/js-proxy.h"
 #include "src/objects/js-weak-refs.h"
 #include "src/objects/literal-objects.h"
-#include "src/objects/megadom-handler-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/property-descriptor-object.h"
 #include "src/objects/scope-info-inl.h"

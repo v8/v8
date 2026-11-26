@@ -2944,7 +2944,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // JSProxy or an object with interceptors.
   TNode<BoolT> InstanceTypeEqual(TNode<Int32T> instance_type, int type);
   TNode<BoolT> IsNoElementsProtectorCellInvalid();
-  TNode<BoolT> IsMegaDOMProtectorCellInvalid();
   TNode<BoolT> IsArrayIteratorProtectorCellInvalid();
   TNode<BoolT> IsBigIntInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsBigInt(TNode<HeapObject> object);

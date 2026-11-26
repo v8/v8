@@ -47,7 +47,6 @@ static bool IsPropertyNameFeedback(Tagged<MaybeObject> feedback) {
   Tagged<Symbol> symbol = Cast<Symbol>(heap_object);
   ReadOnlyRoots roots = GetReadOnlyRoots();
   return symbol != roots.uninitialized_symbol() &&
-         symbol != roots.mega_dom_symbol() &&
          symbol != roots.megamorphic_symbol();
 }
 
@@ -685,13 +684,6 @@ void FeedbackNexus::ConfigureHomomorphic(
   SetFeedback(*maps, UPDATE_WRITE_BARRIER, *handler, UPDATE_WRITE_BARRIER);
 }
 
-void FeedbackNexus::ConfigureMegaDOM(const MaybeObjectDirectHandle& handler) {
-  DisallowGarbageCollection no_gc;
-  Tagged<MaybeObject> sentinel = MegaDOMSentinel();
-
-  SetFeedback(sentinel, SKIP_WRITE_BARRIER, *handler, UPDATE_WRITE_BARRIER);
-}
-
 bool FeedbackNexus::ConfigureMegamorphic(IcCheckType property_type) {
   DisallowGarbageCollection no_gc;
   Tagged<MaybeObject> sentinel = MegamorphicSentinel();
@@ -754,10 +746,6 @@ InlineCacheState FeedbackNexus::ic_state() const {
       }
       if (feedback == MegamorphicSentinel()) {
         return InlineCacheState::MEGAMORPHIC;
-      }
-      if (feedback == MegaDOMSentinel()) {
-        DCHECK(IsLoadICKind(kind()));
-        return InlineCacheState::MEGADOM;
       }
       if (feedback.IsWeakOrCleared()) {
         // Don't check if the map is cleared.
@@ -1230,20 +1218,6 @@ int FeedbackNexus::ExtractMaps(MapHandles* maps) const {
   }
 
   return found;
-}
-
-MaybeObjectHandle FeedbackNexus::ExtractMegaDOMHandler() {
-  DCHECK(ic_state() == InlineCacheState::MEGADOM);
-  DisallowGarbageCollection no_gc;
-
-  auto pair = GetFeedbackPair();
-  Tagged<MaybeObject> maybe_handler = pair.second;
-  if (!maybe_handler.IsCleared()) {
-    MaybeObjectHandle handler = config()->NewHandle(maybe_handler);
-    return handler;
-  }
-
-  return MaybeObjectHandle();
 }
 
 MaybeObjectDirectHandle FeedbackNexus::ExtractHomomorphicHandler() {

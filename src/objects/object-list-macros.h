@@ -216,7 +216,6 @@ namespace internal {
   V(JSWrappedFunction)                          \
   V(LoadHandler)                                \
   V(Map)                                        \
-  V(MegaDomHandler)                             \
   V(Module)                                     \
   V(Microtask)                                  \
   V(Name)                                       \

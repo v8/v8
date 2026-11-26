@@ -105,10 +105,6 @@ constexpr bool ShouldResetProtectorForReprl(ProtectorId id) {
     case ProtectorId::kPromiseHook:
       return false;
 
-    // Embedder DOM IC protector, conservatively kept unreset.
-    case ProtectorId::kMegaDOM:
-      return false;
-
     // Once invalidated, detaching stops updating views in place; resetting
     // causes UAF in lingering callbacks and --verify-heap crashes before GC.
     case ProtectorId::kArrayBufferDetaching:

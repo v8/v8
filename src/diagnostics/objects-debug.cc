@@ -87,7 +87,6 @@
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/maybe-object.h"
-#include "src/objects/megadom-handler-inl.h"
 #include "src/objects/microtask-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/oddball-inl.h"
@@ -1957,12 +1956,6 @@ void TrustedForeign::TrustedForeignVerify(Isolate* isolate) {
 void Cell::CellVerify(Isolate* isolate) {
   CHECK(Is<Cell>(this));
   Object::VerifyMaybeObjectPointer(isolate, maybe_value());
-}
-
-void MegaDomHandler::MegaDomHandlerVerify(Isolate* isolate) {
-  CHECK(Is<MegaDomHandler>(this));
-  Object::VerifyMaybeObjectPointer(isolate, accessor());
-  Object::VerifyMaybeObjectPointer(isolate, context());
 }
 
 void PropertyCell::PropertyCellVerify(Isolate* isolate) {

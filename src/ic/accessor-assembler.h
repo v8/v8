@@ -537,13 +537,6 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                           TNode<Object> vector, TNode<TaggedIndex> slot,
                           Label* miss, ExitPoint* exit_point);
 
-  void TryMegaDOMCase(TNode<Context> caller_context,
-                      TNode<Object> lookup_start_object,
-                      TNode<Map> lookup_start_object_map,
-                      TVariable<MaybeObject>* var_handler, TNode<Object> vector,
-                      TNode<TaggedIndex> slot, Label* miss,
-                      ExitPoint* exit_point);
-
   void TryEnumeratedKeyedLoad(const LoadICParameters* p,
                               TNode<Map> lookup_start_object_map,
                               ExitPoint* exit_point);

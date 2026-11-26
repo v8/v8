@@ -895,8 +895,7 @@
   V(_, not_mapped_symbol)                             \
   V(_, uninitialized_symbol)                          \
   V(_, megamorphic_symbol)                            \
-  V(_, elements_transition_symbol)                    \
-  V(_, mega_dom_symbol)
+  V(_, elements_transition_symbol)
 
 #define NOT_IMPORTANT_PRIVATE_SYMBOL_LIST_GENERATOR(V, _) \
   V(_, array_buffer_wasm_memory_symbol)                   \

@@ -1321,11 +1321,6 @@ bool CompilationDependencies::DependOnProtector(PropertyCellRef cell) {
   return true;
 }
 
-bool CompilationDependencies::DependOnMegaDOMProtector() {
-  return DependOnProtector(
-      MakeRef(broker_, broker_->isolate()->factory()->mega_dom_protector()));
-}
-
 bool CompilationDependencies::DependOnNoProfilingProtector() {
   // A shortcut in case profiling was already enabled but the interrupt
   // request to invalidate NoProfilingProtector wasn't processed yet.

@@ -126,7 +126,6 @@ void CallOptimization::Initialize(
         handle(Cast<FunctionTemplateInfo>(signature), isolate);
   }
   is_simple_api_call_ = true;
-  accept_any_receiver_ = function_template_info->accept_any_receiver();
 }
 
 template <class IsolateT>

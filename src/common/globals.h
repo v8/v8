@@ -1966,8 +1966,6 @@ enum class InlineCacheState {
   RECOMPUTE_HANDLER,
   // Multiple receiver types have been seen.
   POLYMORPHIC,
-  // Many DOM receiver types have been seen for the same accessor.
-  MEGADOM,
   // Many receiver types have been seen with the same handler.
   HOMOMORPHIC,
   // Many receiver types have been seen.
@@ -1997,8 +1995,6 @@ inline const char* InlineCacheState2String(InlineCacheState state) {
       return "HOMOMORPHIC";
     case InlineCacheState::MEGAMORPHIC:
       return "MEGAMORPHIC";
-    case InlineCacheState::MEGADOM:
-      return "MEGADOM";
     case InlineCacheState::GENERIC:
       return "GENERIC";
   }

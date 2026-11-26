@@ -1145,8 +1145,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<LoadHandler> NewLoadHandler(
       int data_count, AllocationType allocation = AllocationType::kOld);
   Handle<StoreHandler> NewStoreHandler(int data_count);
-  DirectHandle<MegaDomHandler> NewMegaDomHandler(
-      MaybeObjectDirectHandle accessor, MaybeObjectDirectHandle context);
 
   // Creates a new FixedArray that holds the data associated with the
   // atom regexp and stores it in the regexp.

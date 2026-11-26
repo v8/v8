@@ -114,9 +114,6 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
       Node* node, Node* value,
       HomomorphicPropertyAccessFeedback const& feedback, AccessMode access_mode,
       Node* key = nullptr);
-  Reduction ReduceMegaDOMPropertyAccess(
-      Node* node, Node* value, MegaDOMPropertyAccessFeedback const& feedback,
-      FeedbackSource const& source);
   Reduction ReduceGlobalAccess(Node* node, Node* lookup_start_object,
                                Node* receiver, Node* value, NameRef name,
                                AccessMode access_mode, Node* key,

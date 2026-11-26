@@ -29,7 +29,6 @@ class Protectors : public AllStatic {
     no_date_time_configuration_change_protector)                              \
   V(NoElements, NoElementsProtector, no_elements_protector)                   \
                                                                               \
-  V(MegaDOM, MegaDOMProtector, mega_dom_protector)                            \
   V(NoProfiling, NoProfilingProtector, no_profiling_protector)                \
   V(NoUndetectableObjects, NoUndetectableObjectsProtector,                    \
     no_undetectable_objects_protector)                                        \

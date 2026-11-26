@@ -514,10 +514,6 @@ Handle<Symbol> FeedbackVector::MegamorphicSentinel(Isolate* isolate) {
   return isolate->factory()->megamorphic_symbol();
 }
 
-DirectHandle<Symbol> FeedbackVector::MegaDOMSentinel(Isolate* isolate) {
-  return isolate->factory()->mega_dom_symbol();
-}
-
 Tagged<Symbol> FeedbackVector::RawUninitializedSentinel(Isolate* isolate) {
   return ReadOnlyRoots(isolate).uninitialized_symbol();
 }
@@ -565,10 +561,6 @@ Tagged<MaybeObject> FeedbackNexus::UninitializedSentinel() const {
 
 Tagged<MaybeObject> FeedbackNexus::MegamorphicSentinel() const {
   return *FeedbackVector::MegamorphicSentinel(config()->isolate());
-}
-
-Tagged<MaybeObject> FeedbackNexus::MegaDOMSentinel() const {
-  return *FeedbackVector::MegaDOMSentinel(config()->isolate());
 }
 
 Tagged<MaybeObject> FeedbackNexus::FromHandle(

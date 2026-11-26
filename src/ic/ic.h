@@ -117,8 +117,6 @@ class IC {
 
   void UpdateMonomorphicIC(const MaybeObjectDirectHandle& handler,
                            DirectHandle<Name> name);
-  bool UpdateMegaDOMIC(const MaybeObjectDirectHandle& handler,
-                       DirectHandle<Name> name);
   bool UpdateHomomorphicIC(const MaybeObjectDirectHandle& handler,
                            DirectHandle<Name> name);
   bool UpdateOneMapManyNamesIC(DirectHandle<Name> new_name);

@@ -80,7 +80,6 @@
 #include "src/objects/managed.h"
 #include "src/objects/map.h"
 #include "src/objects/maybe-object.h"
-#include "src/objects/megadom-handler.h"
 #include "src/objects/microtask.h"
 #include "src/objects/module.h"
 #include "src/objects/name.h"

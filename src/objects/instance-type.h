@@ -323,7 +323,6 @@ V8_EXPORT_PRIVATE std::string ToString(InstanceType instance_type);
   V(_, FunctionTemplateInfoMap, function_template_info_map,                    \
     FunctionTemplateInfo)                                                      \
   V(_, InterpreterDataMap, interpreter_data_map, InterpreterData)              \
-  V(_, MegaDomHandlerMap, mega_dom_handler_map, MegaDomHandler)                \
   V(_, ObjectTemplateInfoMap, object_template_info_map, ObjectTemplateInfo)    \
   V(_, PreparseDataMap, preparse_data_map, PreparseData)                       \
   V(_, PropertyArrayMap, property_array_map, PropertyArray)                    \

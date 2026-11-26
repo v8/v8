@@ -3354,8 +3354,6 @@ DEFINE_IMPLICATION(sparkplug_plus, short_builtin_calls)
 
 DEFINE_BOOL(super_ic, true, "use an IC for super property loads")
 
-DEFINE_EXPERIMENTAL_FEATURE(mega_dom_ic, "use MegaDOM IC state for API objects")
-
 DEFINE_UINT(homomorphic_ic_count, 8, "local cache size in homomorphic ICs")
 DEFINE_REQUIREMENT(base::bits::IsPowerOfTwo(homomorphic_ic_count.value()))
 

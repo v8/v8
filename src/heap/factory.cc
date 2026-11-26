@@ -75,7 +75,6 @@
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/managed-inl.h"
-#include "src/objects/megadom-handler-inl.h"
 #include "src/objects/microtask-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/name.h"
@@ -4624,17 +4623,6 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(
   DCHECK(!map->is_dictionary_map());
   cache->set(number_of_properties, MakeWeak(*map));
   return map;
-}
-
-DirectHandle<MegaDomHandler> Factory::NewMegaDomHandler(
-    MaybeObjectDirectHandle accessor, MaybeObjectDirectHandle context) {
-  DirectHandle<Map> map = mega_dom_handler_map();
-  Tagged<MegaDomHandler> handler =
-      Cast<MegaDomHandler>(New(map, AllocationType::kOld));
-  DisallowGarbageCollection no_gc;
-  handler->set_accessor(*accessor, kReleaseStore);
-  handler->set_context(*context);
-  return direct_handle(handler, isolate());
 }
 
 Handle<LoadHandler> Factory::NewLoadHandler(int data_count,

@@ -22,7 +22,6 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/map-updater.h"
-#include "src/objects/megadom-handler-inl.h"
 #include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property-cell.h"
@@ -424,12 +423,6 @@ HomomorphicPropertyAccessFeedback::HomomorphicPropertyAccessFeedback(
   DCHECK(IsLoadICKind(slot_kind));
 }
 
-MegaDOMPropertyAccessFeedback::MegaDOMPropertyAccessFeedback(
-    FunctionTemplateInfoRef info_ref, FeedbackSlotKind slot_kind)
-    : ProcessedFeedback(kMegaDOMPropertyAccess, slot_kind), info_(info_ref) {
-  DCHECK(IsLoadICKind(slot_kind));
-}
-
 NamedAccessFeedback::NamedAccessFeedback(
     JSHeapBroker* broker, NameRef name, ZoneVector<MapRef> const& maps,
     FeedbackSlotKind slot_kind,
@@ -545,23 +538,6 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
 
   OptionalNameRef name =
       static_name.has_value() ? static_name : GetNameFeedback(nexus);
-
-  if (nexus.ic_state() == InlineCacheState::MEGADOM) {
-    DCHECK(maps.empty());
-    MaybeObjectHandle maybe_handler = nexus.ExtractMegaDOMHandler();
-    if (maybe_handler.is_null()) return NewInsufficientFeedback(kind);
-
-    DirectHandle<MegaDomHandler> handler =
-        Cast<MegaDomHandler>(maybe_handler.object());
-    if (handler->accessor(kAcquireLoad).IsCleared()) {
-      return NewInsufficientFeedback(kind);
-    }
-
-    FunctionTemplateInfoRef info = MakeRefAssumeMemoryFence(
-        this, Cast<FunctionTemplateInfo>(
-                  handler->accessor(kAcquireLoad).GetHeapObject()));
-    return *zone()->New<MegaDOMPropertyAccessFeedback>(info, kind);
-  }
 
   if (allow_homomorphic && nexus.ic_state() == InlineCacheState::HOMOMORPHIC) {
     DCHECK(maps.empty());
@@ -1160,12 +1136,6 @@ HomomorphicPropertyAccessFeedback const&
 ProcessedFeedback::AsHomomorphicPropertyAccess() const {
   CHECK_EQ(kHomomorphicPropertyAccess, kind());
   return *static_cast<HomomorphicPropertyAccessFeedback const*>(this);
-}
-
-MegaDOMPropertyAccessFeedback const&
-ProcessedFeedback::AsMegaDOMPropertyAccess() const {
-  CHECK_EQ(kMegaDOMPropertyAccess, kind());
-  return *static_cast<MegaDOMPropertyAccessFeedback const*>(this);
 }
 
 LiteralFeedback const& ProcessedFeedback::AsLiteral() const {

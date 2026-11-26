@@ -166,7 +166,6 @@ class JSWeakSet;
 class JSWrappedFunction;
 class LoadHandler;
 class Map;
-class MegaDomHandler;
 class Microtask;
 class Module;
 class ModuleRequest;

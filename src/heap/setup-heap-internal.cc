@@ -35,7 +35,6 @@
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/lookup-cache.h"
 #include "src/objects/map.h"
-#include "src/objects/megadom-handler.h"
 #include "src/objects/microtask.h"
 #include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
@@ -648,8 +647,6 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
     ALLOCATE_MAP(TRUSTED_FOREIGN_TYPE, sizeof(TrustedForeign), trusted_foreign)
     ALLOCATE_MAP(HASH_SEED_WRAPPER_TYPE, sizeof(HashSeedWrapper),
                  hash_seed_wrapper)
-    ALLOCATE_MAP(MEGA_DOM_HANDLER_TYPE, sizeof(MegaDomHandler),
-                 mega_dom_handler)
 
     ALLOCATE_VARSIZE_MAP(FIXED_DOUBLE_ARRAY_TYPE, fixed_double_array)
     roots.fixed_double_array_map()->set_elements_kind(HOLEY_DOUBLE_ELEMENTS);
@@ -1475,7 +1472,6 @@ void Heap::CreateInitialMutableObjects() {
   set_is_concat_spreadable_protector(*factory->NewProtector());
   set_map_iterator_protector(*factory->NewProtector());
   set_no_elements_protector(*factory->NewProtector());
-  set_mega_dom_protector(*factory->NewProtector());
   set_no_profiling_protector(*factory->NewProtector());
   set_no_undetectable_objects_protector(*factory->NewProtector());
   set_promise_hook_protector(*factory->NewProtector());

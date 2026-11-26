@@ -179,9 +179,6 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case PROPERTY_CELL_TYPE:
       return kVisitPropertyCell;
 
-    case MEGA_DOM_HANDLER_TYPE:
-      return kVisitMegaDomHandler;
-
     case ON_HEAP_BASIC_BLOCK_PROFILER_DATA_TYPE:
       return kVisitOnHeapBasicBlockProfilerData;
 

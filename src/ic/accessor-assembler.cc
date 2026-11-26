@@ -26,7 +26,6 @@
 #include "src/objects/foreign.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/heap-object-inl.h"
-#include "src/objects/megadom-handler.h"
 #include "src/objects/module.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property-details.h"
@@ -304,56 +303,6 @@ void AccessorAssembler::TryHomomorphicCase(TNode<Object> lookup_start_object,
     GotoIfNot(IsJSArrayMap(lookup_start_object_map), miss);
     exit_point->Return(LoadJSArrayLength(CAST(lookup_start_object)));
   }
-}
-
-void AccessorAssembler::TryMegaDOMCase(TNode<Context> caller_context,
-                                       TNode<Object> lookup_start_object,
-                                       TNode<Map> lookup_start_object_map,
-                                       TVariable<MaybeObject>* var_handler,
-                                       TNode<Object> vector,
-                                       TNode<TaggedIndex> slot, Label* miss,
-                                       ExitPoint* exit_point) {
-  // Check if the receiver is a JS_API_OBJECT
-  GotoIfNot(IsJSApiObjectMap(lookup_start_object_map), miss);
-
-  // Check if receiver requires access check
-  GotoIf(IsSetWord32<Map::Bits1::IsAccessCheckNeededBit>(
-             LoadMapBitField(lookup_start_object_map)),
-         miss);
-
-  CSA_DCHECK(this, TaggedEqual(LoadFeedbackVectorSlot(CAST(vector), slot),
-                               MegaDOMSymbolConstant()));
-
-  // In some cases, we load the
-  TNode<MegaDomHandler> handler;
-  if (var_handler->IsBound()) {
-    handler = CAST(var_handler->value());
-  } else {
-    TNode<MaybeObject> maybe_handler =
-        LoadFeedbackVectorSlot(CAST(vector), slot, kTaggedSize);
-    CSA_DCHECK(this, IsStrong(maybe_handler));
-    handler = CAST(maybe_handler);
-  }
-
-  // Check if dom protector cell is still valid
-  GotoIf(IsMegaDOMProtectorCellInvalid(), miss);
-
-  // Load the getter
-  TNode<MaybeObject> maybe_getter = LoadMegaDomHandlerAccessor(handler);
-  CSA_DCHECK(this, IsWeakOrCleared(maybe_getter));
-  TNode<FunctionTemplateInfo> getter =
-      CAST(GetHeapObjectAssumeWeak(maybe_getter, miss));
-
-  // Load the accessor context
-  TNode<MaybeObject> maybe_context = LoadMegaDomHandlerContext(handler);
-  CSA_DCHECK(this, IsWeakOrCleared(maybe_context));
-  TNode<Context> context = CAST(GetHeapObjectAssumeWeak(maybe_context, miss));
-
-  // TODO(gsathya): This builtin throws an exception on interface check fail but
-  // we should miss to the runtime.
-  exit_point->Return(CallBuiltin(Builtin::kCallFunctionTemplate_Generic,
-                                 context, getter, Int32Constant(1),
-                                 caller_context, lookup_start_object));
 }
 
 void AccessorAssembler::TryEnumeratedKeyedLoad(
@@ -3689,11 +3638,10 @@ void AccessorAssembler::LoadIC_Noninlined(const LoadICParameters* p,
   DCHECK_EQ(MachineRepresentation::kTagged, var_handler->rep());
 
   {
-    Label try_megamorphic(this), try_homomorphic(this), try_megadom(this);
+    Label try_megamorphic(this), try_homomorphic(this);
     GotoIf(TaggedEqual(feedback, MegamorphicSymbolConstant()),
            &try_megamorphic);
     GotoIf(IsWeakHomomorphicFixedArrayMap(LoadMap(feedback)), &try_homomorphic);
-    GotoIf(TaggedEqual(feedback, MegaDOMSymbolConstant()), &try_megadom);
     Goto(miss);
 
     BIND(&try_megamorphic);
@@ -3708,13 +3656,6 @@ void AccessorAssembler::LoadIC_Noninlined(const LoadICParameters* p,
       TryHomomorphicCase(p->lookup_start_object(), lookup_start_object_map,
                          CAST(p->name()), p->vector(), p->slot(), miss,
                          exit_point);
-    }
-
-    BIND(&try_megadom);
-    {
-      TryMegaDOMCase(p->context(), p->lookup_start_object(),
-                     lookup_start_object_map, var_handler, p->vector(),
-                     p->slot(), miss, exit_point);
     }
   }
 }

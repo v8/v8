@@ -8454,14 +8454,6 @@ TNode<BoolT> CodeStubAssembler::IsNoElementsProtectorCellInvalid() {
   return TaggedEqual(cell_value, invalid);
 }
 
-TNode<BoolT> CodeStubAssembler::IsMegaDOMProtectorCellInvalid() {
-  TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
-  TNode<PropertyCell> cell = MegaDOMProtectorConstant();
-  TNode<Object> cell_value =
-      LoadObjectField(cell, offsetof(PropertyCell, value_));
-  return TaggedEqual(cell_value, invalid);
-}
-
 TNode<BoolT> CodeStubAssembler::IsArrayIteratorProtectorCellInvalid() {
   TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = ArrayIteratorProtectorConstant();

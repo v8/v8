@@ -604,7 +604,8 @@ class V8_EXPORT Isolate {
     kWasmBulkMemory = 109,
     kWasmMultiValue = 110,
     kWasmExceptionHandling = 111,
-    kInvalidatedMegaDOMProtector = 112,
+    kInvalidatedMegaDOMProtector V8_DEPRECATE_SOON(
+        "The MegaDOMProtector has been removed") = 112,
     kFunctionPrototypeArguments = 113,
     kFunctionPrototypeCaller = 114,
     kTurboFanOsrCompileStarted = 115,

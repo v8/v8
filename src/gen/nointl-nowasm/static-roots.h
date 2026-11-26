@@ -110,8 +110,7 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kForeignMap = kFeedbackVectorMap + 40;
   static constexpr Tagged_t kTrustedForeignMap = kForeignMap + 40;
   static constexpr Tagged_t kHashSeedWrapperMap = kTrustedForeignMap + 40;
-  static constexpr Tagged_t kMegaDomHandlerMap = kHashSeedWrapperMap + 40;
-  static constexpr Tagged_t kFixedDoubleArrayMap = kMegaDomHandlerMap + 40;
+  static constexpr Tagged_t kFixedDoubleArrayMap = kHashSeedWrapperMap + 40;
   static constexpr Tagged_t kFeedbackMetadataArrayMap =
       kFixedDoubleArrayMap + 40;
   static constexpr Tagged_t kByteArrayMap = kFeedbackMetadataArrayMap + 40;
@@ -161,8 +160,8 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kmegamorphic_symbol = kuninitialized_symbol + 16;
   static constexpr Tagged_t kelements_transition_symbol =
       kmegamorphic_symbol + 16;
-  static constexpr Tagged_t kmega_dom_symbol = kelements_transition_symbol + 16;
-  static constexpr Tagged_t kEmptyPropertyDictionary = kmega_dom_symbol + 16;
+  static constexpr Tagged_t kEmptyPropertyDictionary =
+      kelements_transition_symbol + 16;
   static constexpr Tagged_t kEmptyOrderedPropertyDictionary =
       kEmptyPropertyDictionary + 44;
   static constexpr Tagged_t kEmptyByteArray =
@@ -178,9 +177,9 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kMinusInfinityValue = kInfinityValue + 12;
   static constexpr Tagged_t kPromiseFulfillReactionJobTaskMap =
       kMinusInfinityValue + 12;
-  // -- End of values that fit in arm64 add/sub immediates --
   static constexpr Tagged_t kPromiseRejectReactionJobTaskMap =
       kPromiseFulfillReactionJobTaskMap + 40;
+  // -- End of values that fit in arm64 add/sub immediates --
   static constexpr Tagged_t kAsyncResumeTaskMap =
       kPromiseRejectReactionJobTaskMap + 40;
   static constexpr Tagged_t kCallableTaskMap = kAsyncResumeTaskMap + 40;
@@ -275,8 +274,7 @@ struct StaticReadOnlyRoot {
       kSimpleNameDictionaryMap + 40;
   static constexpr Tagged_t kDoubleStringCacheMap =
       kNameToIndexHashTableMap + 40;
-  static constexpr Tagged_t kEphemeronHashTableMap =
-      kDoubleStringCacheMap + 40;
+  static constexpr Tagged_t kEphemeronHashTableMap = kDoubleStringCacheMap + 40;
   static constexpr Tagged_t kScriptContextTableMap =
       kEphemeronHashTableMap + 40;
   static constexpr Tagged_t kSloppyArgumentsElementsMap =
@@ -1058,7 +1056,7 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kLastAllocatedRoot = 0x1a00f5;
 };
 
-static constexpr std::array<Tagged_t, 871> StaticReadOnlyRootsPointerTable = {
+static constexpr std::array<Tagged_t, 869> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kUndefinedValue,
     StaticReadOnlyRoot::kTheHoleValue,
     StaticReadOnlyRoot::kNullValue,
@@ -1127,7 +1125,6 @@ static constexpr std::array<Tagged_t, 871> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kGlobalDictionaryMap,
     StaticReadOnlyRoot::kInterceptorInfoMap,
     StaticReadOnlyRoot::kManyClosuresCellMap,
-    StaticReadOnlyRoot::kMegaDomHandlerMap,
     StaticReadOnlyRoot::kModuleInfoMap,
     StaticReadOnlyRoot::kNameDictionaryMap,
     StaticReadOnlyRoot::kNameToIndexHashTableMap,
@@ -1832,7 +1829,6 @@ static constexpr std::array<Tagged_t, 871> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kuninitialized_symbol,
     StaticReadOnlyRoot::kmegamorphic_symbol,
     StaticReadOnlyRoot::kelements_transition_symbol,
-    StaticReadOnlyRoot::kmega_dom_symbol,
     StaticReadOnlyRoot::karray_buffer_wasm_memory_symbol,
     StaticReadOnlyRoot::kcall_site_info_symbol,
     StaticReadOnlyRoot::kclass_fields_symbol,

@@ -518,9 +518,6 @@ V8_OBJECT class FeedbackVector : public HeapObject {
   // The object that indicates a megamorphic state.
   static inline Handle<Symbol> MegamorphicSentinel(Isolate* isolate);
 
-  // The object that indicates a MegaDOM state.
-  static inline DirectHandle<Symbol> MegaDOMSentinel(Isolate* isolate);
-
   // A raw version of the uninitialized sentinel that's safe to read during
   // garbage collection (e.g., for patching the cache).
   static inline Tagged<Symbol> RawUninitializedSentinel(Isolate* isolate);
@@ -1075,9 +1072,6 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
                             const MaybeObjectDirectHandle& handler);
   MaybeObjectDirectHandle ExtractHomomorphicHandler();
 
-  void ConfigureMegaDOM(const MaybeObjectDirectHandle& handler);
-  MaybeObjectHandle ExtractMegaDOMHandler();
-
   BinaryOperationHint GetBinaryOperationFeedback() const;
   CompareOperationHint GetCompareOperationFeedback() const;
   TypeOfFeedback::Result GetTypeOfFeedback() const;
@@ -1159,7 +1153,6 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
 
   inline Tagged<MaybeObject> UninitializedSentinel() const;
   inline Tagged<MaybeObject> MegamorphicSentinel() const;
-  inline Tagged<MaybeObject> MegaDOMSentinel() const;
 
   // Create an array. The caller must install it in a feedback vector slot.
   DirectHandle<WeakFixedArray> CreateArrayOfSize(uint32_t length);

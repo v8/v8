@@ -19,7 +19,6 @@
     IsConcatSpreadableProtector)                                              \
   V(MapIteratorProtector, map_iterator_protector, MapIteratorProtector)       \
   V(NoElementsProtector, no_elements_protector, NoElementsProtector)          \
-  V(MegaDOMProtector, mega_dom_protector, MegaDOMProtector)                   \
   V(PromiseResolveProtector, promise_resolve_protector,                       \
     PromiseResolveProtector)                                                  \
   V(PromiseSpeciesProtector, promise_species_protector,                       \
@@ -90,7 +89,6 @@
   V(ManyClosuresCellMap, many_closures_cell_map, ManyClosuresCellMap)        \
   V(match_symbol, match_symbol, MatchSymbol)                                 \
   V(megamorphic_symbol, megamorphic_symbol, MegamorphicSymbol)               \
-  V(mega_dom_symbol, mega_dom_symbol, MegaDOMSymbol)                         \
   V(message_string, message_string, MessageString)                           \
   V(minus_Infinity_string, minus_Infinity_string, MinusInfinityString)       \
   V(MinusZeroValue, minus_zero_value, MinusZero)                             \
