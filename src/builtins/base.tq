@@ -483,7 +483,7 @@ extern enum MessageTemplate {
   kPromiseNonCallable,
   kPromiseNewTargetUndefined,
   kResolverNotAFunction,
-  kTooManyElementsInPromiseCombinator,
+  kTooManyElements,
   kToRadixFormatRange,
   kCalledOnNonObject,
   kRegExpGlobalInvokedOnNonGlobal,

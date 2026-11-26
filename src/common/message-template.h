@@ -666,8 +666,7 @@ namespace internal {
     "Literal containing too many nested spreads (up to 65534 allowed)")        \
   T(TooManyVariables, "Too many variables declared (only 4194303 allowed)")    \
   T(TooManyEvals, "Too many eval calls in script")                             \
-  T(TooManyElementsInPromiseCombinator,                                        \
-    "Too many elements passed to Promise.%")                                   \
+  T(TooManyElements, "Too many elements passed to %")                          \
   T(TypedArrayTooShort,                                                        \
     "Derived TypedArray constructor created an array which was too small")     \
   T(UnexpectedEOS, "Unexpected end of input")                                  \

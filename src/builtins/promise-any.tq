@@ -227,8 +227,7 @@ Reject(JSAny) {
         // doesn't seem likely that we need this, and it's unclear how
         // the rest of the system deals with 2**21 live Promises
         // anyway.
-        ThrowRangeError(
-            MessageTemplate::kTooManyElementsInPromiseCombinator, 'any');
+        ThrowRangeError(MessageTemplate::kTooManyElements, 'Promise.any');
       }
 
       // h. Append undefined to errors. (Do nothing: errors is initialized

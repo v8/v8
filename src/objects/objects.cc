@@ -5082,8 +5082,8 @@ MaybeHandle<JSPromise> JSPromise::PerformPromiseAll(
 
   if (length >= static_cast<int>(PropertyArray::HashField::kMax)) {
     DirectHandle<Object> error = factory->NewRangeError(
-        MessageTemplate::kTooManyElementsInPromiseCombinator,
-        factory->NewStringFromAsciiChecked("all"));
+        MessageTemplate::kTooManyElements,
+        factory->NewStringFromAsciiChecked("Promise.all"));
     RETURN_ON_EXCEPTION(isolate, Execution::Call(isolate, capability_reject,
                                                  factory->undefined_value(),
                                                  base::VectorOf(&error, 1)));
