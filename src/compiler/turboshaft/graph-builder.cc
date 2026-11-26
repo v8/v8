@@ -243,6 +243,19 @@ struct GraphBuilder {
   TurnTaggedSignedInputIntoSmi(OpIndex value, MemoryRepresentation rep,
                                WriteBarrierKind write_barrier);
 
+  void FinalizeLoopIfBackedge(BasicBlock* block) {
+    // If this used to be a backedge, we need to turn the loop header into a
+    // regular block.
+    if (block->control() == BasicBlock::Control::kGoto) {
+      Block* target = Map(block->SuccessorAt(0));
+      if (target->IsLoop() && target->IsBound()) {
+        DCHECK(block->SuccessorAt(0)->IsLoopHeader());
+        DCHECK_GE(block->rpo_number(), block->SuccessorAt(0)->rpo_number());
+        __ FinalizeLoop(target);
+      }
+    }
+  }
+
   OpIndex Process(Node* node, BasicBlock* block,
                   const base::SmallVector<int, 16>& predecessor_permutation,
                   V<EagerFrameState>& dominating_frame_state,
@@ -259,16 +272,7 @@ std::optional<BailoutReason> GraphBuilder::Run() {
   for (BasicBlock* block : *schedule.rpo_order()) {
     Block* target_block = Map(block);
     if (!__ Bind(target_block)) {
-      // If this used to be a backedge, we need to turn the loop header into a
-      // regular block.
-      if (block->control() == BasicBlock::Control::kGoto) {
-        Block* target = Map(block->SuccessorAt(0));
-        if (target->IsLoop() && target->IsBound()) {
-          DCHECK(block->SuccessorAt(0)->IsLoopHeader());
-          DCHECK_GT(block->rpo_number(), block->SuccessorAt(0)->rpo_number());
-          __ FinalizeLoop(target);
-        }
-      }
+      FinalizeLoopIfBackedge(block);
       continue;
     }
 
@@ -334,7 +338,10 @@ std::optional<BailoutReason> GraphBuilder::Run() {
     }
     // We have terminated this block with `Unreachable`, so we stop generation
     // here and continue with the next block.
-    if (!__ current_block()) continue;
+    if (!__ current_block()) {
+      FinalizeLoopIfBackedge(block);
+      continue;
+    }
 
     if (Node* node = block->control_input()) {
       if (V8_UNLIKELY(node->InputCount() >=
@@ -493,10 +500,16 @@ OpIndex GraphBuilder::Process(
     }
 
     case IrOpcode::kPhi: {
+      MachineRepresentation machine_rep = PhiRepresentationOf(op);
+      if (machine_rep == MachineRepresentation::kNone) {
+        // A Phi with MachineRepresentation::kNone has Type::None() and is
+        // therefore unreachable.
+        __ Unreachable();
+        return OpIndex::Invalid();
+      }
       int input_count = op->ValueInputCount();
       RegisterRepresentation rep =
-          RegisterRepresentation::FromMachineRepresentation(
-              PhiRepresentationOf(op));
+          RegisterRepresentation::FromMachineRepresentation(machine_rep);
       if (__ current_block()->IsLoop()) {
         DCHECK_EQ(input_count, 2);
         return __ PendingLoopPhi(Map(node->InputAt(0)), rep);
