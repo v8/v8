@@ -23,6 +23,7 @@
 //! *not* do is check for updates on its own — this runs only when asked.
 
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -77,6 +78,12 @@ fn fetch(url: &str) -> Result<String> {
     Ok(String::from_utf8_lossy(&out.stdout).into_owned())
 }
 
+fn random_u64() -> u64 {
+    use std::collections::hash_map::RandomState;
+    use std::hash::{BuildHasher, Hasher};
+    RandomState::new().build_hasher().finish()
+}
+
 /// Refuses early, with the path in hand, rather than after a download.
 ///
 /// The installer checks this too; doing it here first means the error names
@@ -84,23 +91,46 @@ fn fetch(url: &str) -> Result<String> {
 /// Never escalates: where someone keeps a binary is their decision.
 fn check_writable(target: &Path) -> Result<()> {
     let dir = target.parent().unwrap_or_else(|| Path::new("."));
-    let probe = dir.join(format!(".garage-update-probe.{}", std::process::id()));
-    match fs::File::create(&probe) {
-        Ok(_) => {
-            let _ = fs::remove_file(&probe);
-            Ok(())
+    let mut last_err = None;
+    for attempt in 0..16u32 {
+        let probe = dir.join(format!(
+            ".garage-update-probe.{}.{attempt}.{:x}",
+            std::process::id(),
+            random_u64()
+        ));
+        match fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&probe)
+        {
+            Ok(_) => {
+                let _ = fs::remove_file(&probe);
+                return Ok(());
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+                last_err = Some(e);
+            }
+            Err(e) => {
+                return Err(e).with_context(|| {
+                    format!(
+                        "cannot write to {} — re-run with enough privileges to replace {}",
+                        dir.display(),
+                        target.display()
+                    )
+                });
+            }
         }
-        Err(e) => Err(e).with_context(|| {
-            format!(
-                "cannot write to {} — re-run with enough privileges to replace {}",
-                dir.display(),
-                target.display()
-            )
-        }),
     }
+    Err(last_err.unwrap_or_else(|| std::io::Error::other("probe collision"))).with_context(|| {
+        format!(
+            "cannot write to {} — re-run with enough privileges to replace {}",
+            dir.display(),
+            target.display()
+        )
+    })
 }
 
-/// A temp directory that removes itself.
+/// A securely created temp directory (`0700` on Unix) that removes itself.
 struct Scratch(PathBuf);
 
 impl Drop for Scratch {
@@ -111,14 +141,57 @@ impl Drop for Scratch {
 
 impl Scratch {
     fn new() -> Result<Self> {
-        let dir = std::env::temp_dir().join(format!("garage-update.{}", std::process::id()));
-        fs::create_dir_all(&dir).with_context(|| format!("cannot create {}", dir.display()))?;
+        let base = std::env::temp_dir();
+        let dir = create_temp_dir(&base)?;
         Ok(Self(dir))
     }
 
     fn path(&self) -> &Path {
         &self.0
     }
+}
+
+#[cfg(unix)]
+fn create_temp_dir(base: &Path) -> Result<PathBuf> {
+    use std::ffi::{CString, OsString};
+    use std::os::unix::ffi::{OsStrExt, OsStringExt};
+
+    let template = base.join("garage-update.XXXXXX");
+    let raw = CString::new(template.as_os_str().as_bytes())
+        .context("temp directory path contains an interior NUL byte")?;
+    let mut bytes = raw.into_bytes_with_nul();
+    let ptr = unsafe { libc::mkdtemp(bytes.as_mut_ptr().cast()) };
+    if ptr.is_null() {
+        return Err(std::io::Error::last_os_error())
+            .with_context(|| format!("cannot create temp directory in {}", base.display()));
+    }
+    bytes.pop();
+    Ok(PathBuf::from(OsString::from_vec(bytes)))
+}
+
+#[cfg(not(unix))]
+fn create_temp_dir(base: &Path) -> Result<PathBuf> {
+    let mut last_err = None;
+    for attempt in 0..64u32 {
+        let candidate = base.join(format!(
+            "garage-update.{}.{attempt}.{:016x}",
+            std::process::id(),
+            random_u64()
+        ));
+        match fs::create_dir(&candidate) {
+            Ok(()) => return Ok(candidate),
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+                last_err = Some(e);
+            }
+            Err(e) => {
+                return Err(e).with_context(|| {
+                    format!("cannot create temp directory in {}", base.display())
+                });
+            }
+        }
+    }
+    Err(last_err.unwrap_or_else(|| std::io::Error::other("temp directory collision")))
+        .with_context(|| format!("cannot create temp directory in {}", base.display()))
 }
 
 pub fn run() -> Result<()> {
@@ -162,7 +235,16 @@ pub fn run() -> Result<()> {
     if !body.starts_with("#!") {
         bail!("the installer at {script_url} does not look like a shell script");
     }
-    fs::write(&script, body).context("cannot write the installer to a temp file")?;
+    let mut opts = fs::OpenOptions::new();
+    opts.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        opts.mode(0o700);
+    }
+    opts.open(&script)
+        .and_then(|mut f| f.write_all(body.as_bytes()))
+        .context("cannot write the installer to a temp file")?;
 
     // --bin-dir pins the installer to *this* binary's directory rather than
     // letting it search PATH, which could resolve to a different copy.
@@ -256,5 +338,42 @@ mod tests {
             !url.contains("/main/"),
             "a moving branch would desync script and release"
         );
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn scratch_dir_is_fresh_and_private_when_predictable_path_is_precreated() {
+        use std::os::unix::fs::{PermissionsExt, symlink};
+
+        let predictable =
+            std::env::temp_dir().join(format!("garage-update.{}", std::process::id()));
+        let _ = fs::remove_dir_all(&predictable);
+        fs::create_dir_all(&predictable).unwrap();
+        fs::set_permissions(&predictable, fs::Permissions::from_mode(0o777)).unwrap();
+        symlink("/dev/null", predictable.join("install.sh")).unwrap();
+
+        let scratch = Scratch::new().expect("Scratch::new() should succeed");
+        let scratch_path = scratch.path().to_path_buf();
+        assert_ne!(
+            scratch_path, predictable,
+            "Scratch::new() must not use a predictable PID path"
+        );
+        assert!(
+            scratch_path.join("install.sh").symlink_metadata().is_err(),
+            "Scratch::new() must create an empty directory"
+        );
+        let mode = fs::symlink_metadata(&scratch_path)
+            .unwrap()
+            .permissions()
+            .mode()
+            & 0o777;
+        assert_eq!(
+            mode & 0o077,
+            0,
+            "Scratch::new() created directory with non-private mode {mode:04o}"
+        );
+        drop(scratch);
+        assert!(!scratch_path.exists(), "Scratch must remove itself on drop");
+        let _ = fs::remove_dir_all(&predictable);
     }
 }

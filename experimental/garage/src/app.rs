@@ -1505,7 +1505,8 @@ impl App {
             if len == 0 {
                 return;
             }
-            let buffer = &self.sources[self.active].buffer;
+            let left_buffer = &self.sources[model.left.source].buffer;
+            let right_buffer = &self.sources[model.right.source].buffer;
             let mut at = self.cursor as isize;
             for _ in 0..len {
                 at += direction;
@@ -1515,14 +1516,15 @@ impl App {
                     at = 0;
                 }
                 let row = &model.rows[at as usize];
-                let hit = [
-                    row.left.and_then(|i| model.left.rows.get(i)),
-                    row.right.and_then(|i| model.right.rows.get(i)),
-                ]
-                .iter()
-                .flatten()
-                .any(|r| line_matches(buffer, r.line, &re));
-                if hit {
+                let left_hit = row
+                    .left
+                    .and_then(|i| model.left.rows.get(i))
+                    .is_some_and(|r| line_matches(left_buffer, r.line, &re));
+                let right_hit = row
+                    .right
+                    .and_then(|i| model.right.rows.get(i))
+                    .is_some_and(|r| line_matches(right_buffer, r.line, &re));
+                if left_hit || right_hit {
                     self.cursor = at as usize;
                     self.cycle = None;
                     self.status = format!("match at diff row {}", at + 1);
@@ -3344,31 +3346,27 @@ impl App {
             .collect()
     }
 
-    fn yank_line(&mut self) {
+    fn yank_line_text(&mut self) -> Option<String> {
         if self.diff {
-            if let Some(model) = self.diff_model()
-                && let Some(row) = model.rows.get(self.cursor)
-            {
-                let side = if self.active_pane == 0 {
-                    (&model.left, row.left)
-                } else {
-                    (&model.right, row.right)
-                };
-                if let Some(r) = side.1.and_then(|i| side.0.rows.get(i)) {
-                    let text = line_text(&self.sources[self.active].buffer, r.line);
-                    match crate::clipboard::copy(&text) {
-                        Ok(how) => self.status = format!("line {how}"),
-                        Err(e) => self.status = e.to_string(),
-                    }
-                }
-            }
-            return;
+            let model = self.diff_model()?;
+            let row = model.rows.get(self.cursor)?;
+            let (side, idx) = if self.active_pane == 0 {
+                (&model.left, row.left?)
+            } else {
+                (&model.right, row.right?)
+            };
+            let r = side.rows.get(idx)?;
+            return Some(line_text(&self.sources[side.source].buffer, r.line));
         }
         let vm = self.view_model();
-        let Some(line) = vm.line_at(self.cursor) else {
+        let line = vm.line_at(self.cursor)?;
+        Some(line_text(&self.sources[self.active].buffer, line))
+    }
+
+    fn yank_line(&mut self) {
+        let Some(text) = self.yank_line_text() else {
             return;
         };
-        let text = line_text(&self.sources[self.active].buffer, line);
         match crate::clipboard::copy(&text) {
             Ok(how) => self.status = format!("line {how}"),
             Err(e) => self.status = e.to_string(),
@@ -4043,6 +4041,71 @@ Compiling 0x9 <JSFunction f (sfi = 0x90)> with Maglev
         // `d` (or `D` again) drops back out.
         key(&mut app, KeyCode::Char('d'));
         assert!(!app.diff);
+    }
+
+    #[test]
+    fn dual_diff_search_and_yank_use_each_pane_buffer() {
+        let run_a = "\
+raw preamble 0
+raw preamble 1
+raw preamble 2
+raw preamble 3
+OnlyInRunARaw
+Compiling 0x1 <JSFunction f (sfi = 0x10)> with Maglev
+----- Maglev graph building -----
+ Block b0
+   1: Foo
+";
+        let run_b = "\
+Compiling 0x9 <JSFunction f (sfi = 0x90)> with Maglev
+----- Maglev graph building -----
+ Block b0
+   1: Foo
+   2: Bar [n1]
+";
+        let sources = vec![LogSource::Stdin, LogSource::Stdin];
+        let keys = Keymap::build(&std::collections::HashMap::new()).unwrap();
+        let mut app = App::new(&sources, None, keys);
+        for (i, trace) in [run_a, run_b].iter().enumerate() {
+            app.handle(Event::Source(SourceEvent::Chunk {
+                source: i,
+                bytes: trace.as_bytes().to_vec(),
+            }));
+            app.handle(Event::Source(SourceEvent::Eof { source: i }));
+        }
+        app.follow = false;
+        app.active = 0;
+        // Row 0 is the raw preamble section in `run_a`; row 1 is `f`.
+        app.selected = 1;
+        app.focus = Pane::Viewport;
+
+        key(&mut app, KeyCode::Char('D'));
+        assert!(app.diff, "{}", app.status);
+
+        key(&mut app, KeyCode::Char('/'));
+        for c in "Bar".chars() {
+            key(&mut app, KeyCode::Char(c));
+        }
+        key(&mut app, KeyCode::Enter);
+        assert_eq!(app.cursor, 3, "{}", app.status);
+        assert_eq!(app.status, "match at diff row 4");
+
+        // Left pane (`active_pane == 0`) belongs to `run_b` (`source 1`), where line 4 is `Bar`,
+        // not `run_a` (`source 0`), where line 4 is `OnlyInRunARaw`.
+        app.active_pane = 0;
+        assert_eq!(app.yank_line_text().as_deref(), Some("   2: Bar [n1]"));
+        // Right pane (`active_pane == 1`) has no line on this deleted row, and reads `run_a` on row 2.
+        app.active_pane = 1;
+        assert_eq!(app.yank_line_text(), None);
+        app.cursor = 2;
+        assert_eq!(app.yank_line_text().as_deref(), Some("   1: Foo"));
+
+        key(&mut app, KeyCode::Char('/'));
+        for c in "OnlyInRunARaw".chars() {
+            key(&mut app, KeyCode::Char(c));
+        }
+        key(&mut app, KeyCode::Enter);
+        assert_eq!(app.status, "no match for OnlyInRunARaw");
     }
 
     #[test]

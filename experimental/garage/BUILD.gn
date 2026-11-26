@@ -156,8 +156,8 @@ if (_garage_has_rust) {
     deps = [
       ":garage_lib",
       "//build/rust/std:test_support",
-      "//third_party/rust/serde_json/v1:lib",
     ]
+    data_deps = [ "//:d8" ]
     rustenv = _garage_rustenv
   }
 

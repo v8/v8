@@ -25,38 +25,32 @@ The MSRV is **1.88**, and it is not a guess: edition 2024 alone would only need
 parsers use let-chains. CI builds with exactly the `rust-version` in
 `Cargo.toml`, so if that number is wrong the build says so.
 
-## The fixture corpus is the point
+## The fixture corpus is generated on demand
 
-Real `d8` output is checked into [`fixtures/`](../fixtures) — three builds, two
-V8 versions × two architectures, ~9 MB. Every parser change runs against all of
-it. This is what makes it safe to change a parser at all.
+`garage_golden_tests` ([`tests/golden.rs`](../tests/golden.rs)) generates the
+trace corpus on the fly in memory from the sibling `d8` binary (or `$GARAGE_D8`)
+against [`fixtures/workloads/`](../fixtures/workloads), so multi-megabyte `.log`
+files are never checked into the V8 repository.
 
 ```sh
-cargo test --test golden                     # goldens + fuzz + partition checks
-UPDATE_GOLDENS=1 cargo test --test golden    # after an *intentional* change
-git diff tests/golden/                       # read exactly what moved
+./out/x64.optdebug/garage_golden_tests       # generates traces from out/x64.optdebug/d8
+GARAGE_D8=../../out/x64.release/d8 cargo test --test golden
 ```
 
-A golden is a canonicalized structural summary — line counts, section
-boundaries, parsed identities — not raw output, so byte-level reproducibility is
-not required, but *stable structure* is. Regenerating them without reading the
-diff defeats the entire mechanism.
-
-Two invariants hold for every fixture, enforced on every run:
+Three invariants hold for every generated trace, enforced on every run:
 
 - the indexer's sections **tile the file** — no gaps, no overlaps, nothing
   orphaned;
+- every graph phase banner is recognised in `assets/markers.toml` (no format
+  drift);
 - indexing and parsing **never panic**, including on 200 seeded rounds of byte
   flips, truncations, boundary splices and slice duplications.
 
-To regenerate the corpus itself from a local d8:
+To save a local corpus to disk for manual inspection:
 
 ```sh
-tools/gen-fixtures.sh /path/to/out/arm64.release/d8
+tools/gen-fixtures.sh /path/to/out/x64.release/d8
 ```
-
-It records the command line, sha256 and *measured* reproducibility of every file
-in a `manifest.json`, rather than assuming any of them.
 
 ## What CI checks
 

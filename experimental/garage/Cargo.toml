@@ -18,15 +18,6 @@ regex = { package = "regex-lite", path = "../../third_party/rust/chromium_crates
 [target.'cfg(unix)'.dependencies]
 libc = { path = "../../third_party/rust/chromium_crates_io/vendor/libc-v0_2" }
 
-[dev-dependencies]
-serde_json = { path = "../../third_party/rust/chromium_crates_io/vendor/serde_json-v1" }
-
-[patch.crates-io]
-itoa = { path = "../../third_party/rust/chromium_crates_io/vendor/itoa-v1" }
-memchr = { path = "../../third_party/rust/chromium_crates_io/vendor/memchr-v2" }
-serde_core = { path = "../../third_party/rust/chromium_crates_io/vendor/serde_core-v1" }
-zmij = { path = "../../third_party/rust/chromium_crates_io/vendor/zmij-v1" }
-
 [profile.release]
 lto = "fat"
 codegen-units = 1

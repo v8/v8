@@ -353,46 +353,81 @@ fn backtrack(trace: &[Vec<isize>], mut x: isize, mut y: isize, offset: isize) ->
     rev
 }
 
+/// Steps one edit onto diagonal `k` at edit distance `d`, staying strictly
+/// within the `[0..=n] x [0..=m]` edit graph.
+fn step_on_grid(
+    v: &[Option<usize>],
+    k: isize,
+    d: isize,
+    offset: isize,
+    n: usize,
+    m: usize,
+) -> Option<(usize, usize)> {
+    if d == 0 {
+        return Some((0, 0));
+    }
+    let ins = (k < d)
+        .then(|| v[(k + 1 + offset) as usize])
+        .flatten()
+        .and_then(|x| {
+            let y_prev = x as isize - (k + 1);
+            (y_prev >= 0 && (y_prev as usize) < m).then_some((x, y_prev as usize + 1))
+        });
+    let del = (k > -d)
+        .then(|| v[(k - 1 + offset) as usize])
+        .flatten()
+        .and_then(|x_prev| {
+            let y = x_prev as isize - (k - 1);
+            (x_prev < n && y >= 0 && (y as usize) <= m).then_some((x_prev + 1, y as usize))
+        });
+    match (ins, del) {
+        (Some(i), Some(dl)) => Some(if dl.0 >= i.0 { dl } else { i }),
+        (Some(i), None) => Some(i),
+        (None, Some(dl)) => Some(dl),
+        (None, None) => None,
+    }
+}
+
 /// Myers 1986 §4b middle-snake finder in `O(N + M)` space for large `D`.
 fn find_middle_snake<T: PartialEq>(old: &[T], new: &[T]) -> Option<(usize, usize, usize, usize)> {
-    let n = old.len() as isize;
-    let m = new.len() as isize;
+    let n = old.len();
+    let m = new.len();
     let max = n + m;
     if max == 0 {
         return None;
     }
-    let delta = n - m;
+    let delta = n as isize - m as isize;
     let odd = delta.rem_euclid(2) == 1;
-    let half = (max + 1) / 2;
+    let half = (max as isize + 1) / 2;
     let offset = half + 2;
     let size = (2 * offset + 2) as usize;
-    let mut vf = vec![0isize; size];
-    let mut vb = vec![0isize; size];
+    let mut vf: Vec<Option<usize>> = vec![None; size];
+    let mut vb: Vec<Option<usize>> = vec![None; size];
 
     for d in 0..=half {
         let mut k = -d;
         while k <= d {
             let idx = (k + offset) as usize;
-            let mut x = if k == -d
-                || (k != d && vf[(k - 1 + offset) as usize] < vf[(k + 1 + offset) as usize])
-            {
-                vf[(k + 1 + offset) as usize]
-            } else {
-                vf[(k - 1 + offset) as usize] + 1
+            let Some((x0, y0)) = step_on_grid(&vf, k, d, offset, n, m) else {
+                vf[idx] = None;
+                k += 2;
+                continue;
             };
-            let mut y = x - k;
-            let x0 = x;
-            let y0 = y;
-            while x < n && y < m && old[x as usize] == new[y as usize] {
+            let mut x = x0;
+            let mut y = y0;
+            while x < n && y < m && old[x] == new[y] {
                 x += 1;
                 y += 1;
             }
-            vf[idx] = x;
-            if odd && (k - delta).abs() <= d - 1 {
-                let b_idx = (-(k - delta) + offset) as usize;
-                if x + vb[b_idx] >= n {
-                    return Some((x0 as usize, y0 as usize, x as usize, y as usize));
-                }
+            vf[idx] = Some(x);
+
+            let kb = delta - k;
+            if odd
+                && kb.abs() < d
+                && let Some(xb) = vb[(kb + offset) as usize]
+                && x + xb >= n
+            {
+                return Some((x0, y0, x, y));
             }
             k += 2;
         }
@@ -400,30 +435,30 @@ fn find_middle_snake<T: PartialEq>(old: &[T], new: &[T]) -> Option<(usize, usize
         let mut k = -d;
         while k <= d {
             let idx = (k + offset) as usize;
-            let mut x = if k == -d
-                || (k != d && vb[(k - 1 + offset) as usize] < vb[(k + 1 + offset) as usize])
-            {
-                vb[(k + 1 + offset) as usize]
-            } else {
-                vb[(k - 1 + offset) as usize] + 1
+            let Some((xb0, yb0)) = step_on_grid(&vb, k, d, offset, n, m) else {
+                vb[idx] = None;
+                k += 2;
+                continue;
             };
-            let mut y = x - k;
-            let mut u = n - x;
-            let mut v = m - y;
-            while x < n && y < m && old[(n - 1 - x) as usize] == new[(m - 1 - y) as usize] {
-                x += 1;
-                y += 1;
+            let u = n - xb0;
+            let v = m - yb0;
+            let mut xb = xb0;
+            let mut yb = yb0;
+            while xb < n && yb < m && old[n - 1 - xb] == new[m - 1 - yb] {
+                xb += 1;
+                yb += 1;
             }
-            vb[idx] = x;
-            if !odd && (k - (-delta)).abs() <= d {
-                let f_idx = (-(k + delta) + offset) as usize;
-                if vf[f_idx] + x >= n {
-                    let x0 = (n - x) as usize;
-                    let y0 = (m - y) as usize;
-                    u = u.max(x0 as isize);
-                    v = v.max(y0 as isize);
-                    return Some((x0, y0, u as usize, v as usize));
-                }
+            vb[idx] = Some(xb);
+
+            let kf = delta - k;
+            if !odd
+                && kf.abs() <= d
+                && let Some(xf) = vf[(kf + offset) as usize]
+                && xf + xb >= n
+            {
+                let x0 = n - xb;
+                let y0 = m - yb;
+                return Some((x0, y0, u, v));
             }
             k += 2;
         }
@@ -435,9 +470,10 @@ fn find_middle_snake<T: PartialEq>(old: &[T], new: &[T]) -> Option<(usize, usize
 mod tests {
     use super::*;
 
-    fn reconstruct(old: &[i32], new: &[i32], ops: &[DiffOp]) -> (Vec<i32>, Vec<i32>) {
+    fn reconstruct(old: &[i32], new: &[i32], ops: &[DiffOp]) -> (Vec<i32>, Vec<i32>, usize) {
         let mut lo = Vec::new();
         let mut ro = Vec::new();
+        let mut equal_len = 0usize;
         for op in ops {
             match *op {
                 DiffOp::Equal {
@@ -451,6 +487,7 @@ mod tests {
                     );
                     lo.extend_from_slice(&old[old_index..old_index + len]);
                     ro.extend_from_slice(&new[new_index..new_index + len]);
+                    equal_len += len;
                 }
                 DiffOp::Delete {
                     old_index, old_len, ..
@@ -473,20 +510,74 @@ mod tests {
                 }
             }
         }
-        (lo, ro)
+        (lo, ro, equal_len)
+    }
+
+    fn verify(old: &[i32], new: &[i32], expected_equal: usize) {
+        let ops = capture_diff_slices(Algorithm::Myers, old, new);
+        let (lo, ro, eq) = reconstruct(old, new, &ops);
+        assert_eq!(lo, old);
+        assert_eq!(ro, new);
+        assert_eq!(eq, expected_equal);
     }
 
     #[test]
     fn small_and_large_diffs_round_trip() {
         let a = [1, 2, 3, 4, 5];
         let b = [1, 9, 3, 5, 6];
-        let ops = capture_diff_slices(Algorithm::Myers, &a, &b);
-        assert_eq!(reconstruct(&a, &b, &ops), (a.to_vec(), b.to_vec()));
+        verify(&a, &b, 3);
 
         // Exercise the Hirschberg fallback (`D > 512`).
         let big_a: Vec<i32> = (0..700).collect();
         let big_b: Vec<i32> = (350..1050).collect();
-        let ops = capture_diff_slices(Algorithm::Myers, &big_a, &big_b);
-        assert_eq!(reconstruct(&big_a, &big_b, &ops), (big_a, big_b));
+        verify(&big_a, &big_b, 350);
+    }
+
+    #[test]
+    fn large_uneven_diffs_in_hirschberg_fallback_round_trip() {
+        // Disjoint uneven inputs with D > 512 (even and odd delta, n < m and n > m).
+        let short: Vec<i32> = (0..100).collect();
+        let long_even: Vec<i32> = (1000..1450).collect();
+        let long_odd: Vec<i32> = (1000..1451).collect();
+        verify(&short, &long_even, 0);
+        verify(&long_even, &short, 0);
+        verify(&short, &long_odd, 0);
+        verify(&long_odd, &short, 0);
+
+        // Uneven inputs with a shared interior block and D > 512.
+        let mut mid_short = vec![-1];
+        mid_short.extend(0..80);
+        mid_short.push(-2);
+
+        let mut mid_long_front = vec![1000];
+        mid_long_front.extend(0..80);
+        mid_long_front.extend(2000..2600);
+        verify(&mid_short, &mid_long_front, 80);
+        verify(&mid_long_front, &mid_short, 80);
+
+        let mut mid_long_back: Vec<i32> = (1000..1600).collect();
+        mid_long_back.extend(0..80);
+        mid_long_back.push(2000);
+        verify(&mid_short, &mid_long_back, 80);
+        verify(&mid_long_back, &mid_short, 80);
+
+        // Overlapping uneven ranges with D > 512.
+        let overlap_a: Vec<i32> = (0..400).collect();
+        let overlap_b: Vec<i32> = (200..900).collect();
+        verify(&overlap_a, &overlap_b, 200);
+        verify(&overlap_b, &overlap_a, 200);
+
+        // Interior matches near both ends separated by > 512 insertions.
+        let mut split_short = vec![-1];
+        split_short.extend(1..99);
+        split_short.push(-2);
+
+        let mut split_long = vec![-3];
+        split_long.extend(1..90);
+        split_long.extend(1000..1600);
+        split_long.extend(90..99);
+        split_long.push(-4);
+        verify(&split_short, &split_long, 98);
+        verify(&split_long, &split_short, 98);
     }
 }

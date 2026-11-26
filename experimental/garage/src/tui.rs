@@ -327,20 +327,24 @@ pub mod term {
             })
         }
 
-        struct ReaderState {
+        pub(crate) struct ReaderState {
             buf: Vec<u8>,
             queued: std::collections::VecDeque<Event>,
+        }
+
+        impl ReaderState {
+            pub(crate) fn new() -> Self {
+                Self {
+                    buf: Vec::with_capacity(256),
+                    queued: std::collections::VecDeque::new(),
+                }
+            }
         }
 
         static READER: OnceLock<Mutex<ReaderState>> = OnceLock::new();
 
         fn state() -> &'static Mutex<ReaderState> {
-            READER.get_or_init(|| {
-                Mutex::new(ReaderState {
-                    buf: Vec::with_capacity(256),
-                    queued: std::collections::VecDeque::new(),
-                })
-            })
+            READER.get_or_init(|| Mutex::new(ReaderState::new()))
         }
 
         #[cfg(unix)]
@@ -367,7 +371,8 @@ pub mod term {
             }
             drop(guard);
 
-            poll_fds(Some(timeout)).map(|(stdin_ready, winch_ready)| stdin_ready || winch_ready)
+            poll_fds(libc::STDIN_FILENO, Some(timeout))
+                .map(|(stdin_ready, winch_ready)| stdin_ready || winch_ready)
         }
 
         #[cfg(target_os = "macos")]
@@ -407,8 +412,12 @@ pub mod term {
         }
 
         #[cfg(unix)]
-        fn poll_fds(timeout: Option<Duration>) -> io::Result<(bool, bool)> {
-            let winch = winch_read_fd();
+        fn poll_fds(stdin_fd: libc::c_int, timeout: Option<Duration>) -> io::Result<(bool, bool)> {
+            let winch = if stdin_fd == libc::STDIN_FILENO {
+                winch_read_fd()
+            } else {
+                None
+            };
             let deadline = timeout.map(|d| Instant::now() + d);
 
             loop {
@@ -421,7 +430,7 @@ pub mod term {
                 };
                 let mut pfds = [
                     libc::pollfd {
-                        fd: libc::STDIN_FILENO,
+                        fd: stdin_fd,
                         events: libc::POLLIN,
                         revents: 0,
                     },
@@ -455,29 +464,45 @@ pub mod term {
 
         #[cfg(unix)]
         pub fn read() -> io::Result<Event> {
+            read_from(libc::STDIN_FILENO, state())
+        }
+
+        #[cfg(unix)]
+        pub(crate) fn read_from(
+            stdin_fd: libc::c_int,
+            reader: &Mutex<ReaderState>,
+        ) -> io::Result<Event> {
             loop {
                 {
-                    let mut guard = state().lock().unwrap_or_else(|e| e.into_inner());
+                    let mut guard = reader.lock().unwrap_or_else(|e| e.into_inner());
                     if let Some(ev) = guard.queued.pop_front() {
                         return Ok(ev);
                     }
                     if !guard.buf.is_empty() {
                         // Wait briefly if we have an incomplete escape prefix.
                         drop(guard);
-                        let (more, _) = poll_fds(Some(Duration::from_millis(25)))?;
-                        let mut guard = state().lock().unwrap_or_else(|e| e.into_inner());
-                        if more {
-                            read_available_into(&mut guard.buf)?;
-                        }
+                        let (more, _) = poll_fds(stdin_fd, Some(Duration::from_millis(25)))?;
+                        let mut guard = reader.lock().unwrap_or_else(|e| e.into_inner());
+                        let eof = if more {
+                            read_available_into(stdin_fd, &mut guard.buf)? == 0
+                        } else {
+                            false
+                        };
                         let st = &mut *guard;
-                        decode_events(&mut st.buf, &mut st.queued, !more);
+                        decode_events(&mut st.buf, &mut st.queued, !more || eof);
                         if let Some(ev) = st.queued.pop_front() {
                             return Ok(ev);
+                        }
+                        if eof {
+                            return Err(io::Error::new(
+                                io::ErrorKind::UnexpectedEof,
+                                "terminal closed",
+                            ));
                         }
                     }
                 }
 
-                let (stdin_ready, winch_ready) = poll_fds(None)?;
+                let (stdin_ready, winch_ready) = poll_fds(stdin_fd, None)?;
                 if winch_ready && let Some(wfd) = winch_read_fd() {
                     let mut sink = [0u8; 64];
                     while unsafe { libc::read(wfd, sink.as_mut_ptr().cast(), sink.len()) } > 0 {}
@@ -485,18 +510,18 @@ pub mod term {
                     return Ok(Event::Resize(cols, rows));
                 }
                 if stdin_ready {
-                    let mut guard = state().lock().unwrap_or_else(|e| e.into_inner());
-                    let n = read_available_into(&mut guard.buf)?;
-                    if n == 0 && guard.buf.is_empty() {
+                    let mut guard = reader.lock().unwrap_or_else(|e| e.into_inner());
+                    let eof = read_available_into(stdin_fd, &mut guard.buf)? == 0;
+                    let st = &mut *guard;
+                    decode_events(&mut st.buf, &mut st.queued, eof);
+                    if let Some(ev) = st.queued.pop_front() {
+                        return Ok(ev);
+                    }
+                    if eof {
                         return Err(io::Error::new(
                             io::ErrorKind::UnexpectedEof,
                             "terminal closed",
                         ));
-                    }
-                    let st = &mut *guard;
-                    decode_events(&mut st.buf, &mut st.queued, false);
-                    if let Some(ev) = st.queued.pop_front() {
-                        return Ok(ev);
                     }
                 }
             }
@@ -511,11 +536,10 @@ pub mod term {
         }
 
         #[cfg(unix)]
-        fn read_available_into(buf: &mut Vec<u8>) -> io::Result<usize> {
+        fn read_available_into(fd: libc::c_int, buf: &mut Vec<u8>) -> io::Result<usize> {
             let mut tmp = [0u8; 256];
             loop {
-                let rc =
-                    unsafe { libc::read(libc::STDIN_FILENO, tmp.as_mut_ptr().cast(), tmp.len()) };
+                let rc = unsafe { libc::read(fd, tmp.as_mut_ptr().cast(), tmp.len()) };
                 if rc < 0 {
                     let err = io::Error::last_os_error();
                     if err.kind() == io::ErrorKind::Interrupted {
@@ -2040,5 +2064,59 @@ mod tests {
         ])
         .areas(Rect::new(0, 0, 40, 1));
         assert_eq!(top.height + mid.height + bot.height, 1);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn read_eof_with_incomplete_escape_does_not_spin() {
+        use super::term::event::{ReaderState, read_from};
+        use std::io;
+        use std::sync::{Mutex, mpsc};
+        use std::time::Duration;
+
+        fn run_pipe(bytes: &[u8]) -> (io::Result<Event>, io::Result<Event>) {
+            let mut fds = [0i32; 2];
+            assert_eq!(unsafe { libc::pipe(fds.as_mut_ptr()) }, 0);
+            assert_eq!(
+                unsafe { libc::write(fds[1], bytes.as_ptr().cast(), bytes.len()) },
+                bytes.len() as isize
+            );
+            unsafe {
+                libc::close(fds[1]);
+            }
+
+            let read_fd = fds[0];
+            let (tx, rx) = mpsc::channel();
+            let handle = std::thread::spawn(move || {
+                let reader = Mutex::new(ReaderState::new());
+                let first = read_from(read_fd, &reader);
+                let second = read_from(read_fd, &reader);
+                let _ = tx.send((first, second));
+            });
+
+            let result = rx.recv_timeout(Duration::from_millis(500));
+            unsafe {
+                libc::close(read_fd);
+            }
+            let _ = handle.join();
+            result.expect("term::event::read spun on EOF with buffered incomplete escape sequence")
+        }
+
+        let (first, second) = run_pipe(b"\x1b");
+        let ev = first.expect("buffered bare ESC should flush before EOF");
+        assert!(matches!(
+            ev,
+            Event::Key(k) if k.code == KeyCode::Esc && k.modifiers == KeyModifiers::NONE
+        ));
+        let err = second.expect_err("subsequent read at EOF should return UnexpectedEof");
+        assert_eq!(err.kind(), io::ErrorKind::UnexpectedEof);
+
+        let (first_csi, _) = run_pipe(b"\x1b[");
+        let err_csi = first_csi.expect_err("incomplete CSI at EOF should return UnexpectedEof");
+        assert_eq!(err_csi.kind(), io::ErrorKind::UnexpectedEof);
+
+        let (first_utf8, _) = run_pipe(b"\xe2\x82");
+        let err_utf8 = first_utf8.expect_err("incomplete UTF-8 at EOF should return UnexpectedEof");
+        assert_eq!(err_utf8.kind(), io::ErrorKind::UnexpectedEof);
     }
 }
