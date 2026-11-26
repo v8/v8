@@ -517,6 +517,7 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   void SerializeJSTypedArray();
   void SerializeJSArrayBuffer();
   void SerializeNativeContext();
+  void SerializeScript();
   void SerializeExternalString();
   void SerializeExternalStringAsSequentialString();
   void SerializeSlicedStringAsSequentialString();

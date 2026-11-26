@@ -26,6 +26,7 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/map.h"
 #include "src/objects/objects-body-descriptors-inl.h"
+#include "src/objects/script-inl.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
@@ -1018,10 +1019,8 @@ void Serializer::ObjectSerializer::Serialize(SlotType slot_type) {
     return;
   }
   if (InstanceTypeChecker::IsScript(instance_type)) {
-    // Clear cached line ends & compiled lazy function positions.
-    Cast<Script>(object_)->set_line_ends(Smi::zero());
-    Cast<Script>(object_)->set_compiled_lazy_function_positions(
-        ReadOnlyRoots(isolate()).undefined_value());
+    SerializeScript();
+    return;
   }
 
   DCHECK(!IsFreeSpaceOrFiller(*object_));
@@ -1094,6 +1093,57 @@ void Serializer::ObjectSerializer::SerializeContent(Tagged<Map> map, int size) {
   VisitObjectBody(isolate(), map, raw, this);
   // Then output data payload, if any.
   OutputRawData(raw.address() + size);
+}
+
+void Serializer::ObjectSerializer::SerializeScript() {
+  static_assert(std::is_same_v<Script::BodyDescriptor, StructBodyDescriptor>);
+  static_assert(sizeof(Struct) == kTaggedSize);
+  static_assert(sizeof(Tagged_t) == kTaggedSize);
+  static_assert(offsetof(Script, line_ends_) <
+                offsetof(Script, compiled_lazy_function_positions_));
+
+  DisallowGarbageCollection no_gc;
+  Tagged<Script> script = Cast<Script>(*object_);
+  Tagged<Map> map = script->map();
+  int size = script->SizeFromMap(map);
+
+  SnapshotSpace space = GetSnapshotSpace(isolate(), script);
+  SerializePrologue(space, size, map);
+
+  // Serialize the rest of the object, skipping cached line_ends (for non-Wasm
+  // scripts) and compiled_lazy_function_positions without mutating the live
+  // Script.
+  CHECK_EQ(0, bytes_processed_so_far_);
+  bytes_processed_so_far_ = kTaggedSize;
+
+  Address object_start = script.address();
+  ObjectSlot start(object_start + sizeof(Struct));
+  ObjectSlot line_ends_slot(object_start + offsetof(Script, line_ends_));
+  ObjectSlot compile_hints_slot(
+      object_start + offsetof(Script, compiled_lazy_function_positions_));
+  ObjectSlot end(object_start + size);
+
+  if (script->CanHaveLineEnds()) {
+    VisitPointers(script, start, line_ends_slot);
+    OutputRawData(line_ends_slot.address());
+    static constexpr Tagged_t kSmiZero =
+        static_cast<Tagged_t>(Smi::zero().ptr());
+    sink_->Put(FixedRawDataWithSize::Encode(1), "FixedRawData");
+    sink_->PutRaw(reinterpret_cast<const uint8_t*>(&kSmiZero), kTaggedSize,
+                  "ClearedLineEnds");
+    bytes_processed_so_far_ += kTaggedSize;
+    VisitPointers(script, line_ends_slot + 1, compile_hints_slot);
+  } else {
+    VisitPointers(script, start, compile_hints_slot);
+  }
+
+  OutputRawData(compile_hints_slot.address());
+  serializer_->PutRoot(RootIndex::kUndefinedValue);
+  bytes_processed_so_far_ += kTaggedSize;
+
+  VisitPointers(script, compile_hints_slot + 1, end);
+  OutputRawData(end.address());
+  DCHECK_EQ(bytes_processed_so_far_, size);
 }
 
 void Serializer::ObjectSerializer::VisitPointers(Tagged<HeapObject> host,

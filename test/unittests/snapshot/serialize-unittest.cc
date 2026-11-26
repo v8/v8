@@ -2102,6 +2102,86 @@ TEST_F(SerializeTest, CodeSerializerWithProfiler) {
   delete cache;
 }
 
+TEST_F(SerializeTest, CodeSerializerSkipsScriptCachedFields) {
+  FlagScope<bool> lazy(&v8_flags.lazy, true);
+  FlagScope<bool> stress_lazy(&v8_flags.stress_lazy, false);
+
+  Isolate* isolate = i_isolate();
+  isolate->compilation_cache()->DisableScriptAndEval();
+
+  v8::HandleScope scope(v8_isolate());
+
+  const char* source = "function inner() {\n  return 42;\n}\ninner();\n";
+  Handle<String> orig_source =
+      isolate->factory()->NewStringFromUtf8(source).ToHandleChecked();
+  Handle<String> copy_source =
+      isolate->factory()->NewStringFromUtf8(source).ToHandleChecked();
+
+  ScriptDetails default_script_details;
+  ScriptCompiler::CompilationDetails details;
+  DirectHandle<SharedFunctionInfo> sfi =
+      Compiler::GetSharedFunctionInfoForScript(
+          isolate, orig_source, default_script_details,
+          v8::ScriptCompiler::kProduceCompileHints,
+          ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE, &details)
+          .ToHandleChecked();
+  DirectHandle<Script> script(Cast<Script>(sfi->script()), isolate);
+  Script::InitLineEnds(isolate, script);
+  ASSERT_TRUE(script->has_line_ends());
+
+  DirectHandle<JSFunction> top_level =
+      Factory::JSFunctionBuilder{isolate, sfi, isolate->native_context()}
+          .Build();
+  DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);
+  DirectHandle<Object> orig_result =
+      Execution::CallScript(isolate, top_level, global,
+                            isolate->factory()->empty_fixed_array())
+          .ToHandleChecked();
+  ASSERT_EQ(42, Cast<Smi>(*orig_result).value());
+  ASSERT_TRUE(IsArrayList(script->compiled_lazy_function_positions()));
+
+  DirectHandle<UnionOf<FixedArray, Smi>> line_ends_before(script->line_ends(),
+                                                          isolate);
+  DirectHandle<UnionOf<ArrayList, Undefined>> compile_hints_before(
+      script->compiled_lazy_function_positions(), isolate);
+
+  std::unique_ptr<ScriptCompiler::CachedData> cached_data(
+      ScriptCompiler::CreateCodeCache(ToApiHandle<UnboundScript>(sfi)));
+  ASSERT_NE(cached_data, nullptr);
+
+  // Serialization must leave cached fields untouched on the live Script.
+  EXPECT_EQ(script->line_ends(), *line_ends_before);
+  EXPECT_EQ(script->compiled_lazy_function_positions(), *compile_hints_before);
+
+  // The serialized payload itself must still omit line_ends and compile hints,
+  // while keeping all surrounding Script fields intact.
+  uint8_t* buffer = NewArray<uint8_t>(cached_data->length);
+  MemCopy(buffer, cached_data->data, cached_data->length);
+  AlignedCachedData aligned_cache(buffer, cached_data->length);
+  aligned_cache.AcquireDataOwnership();
+  DirectHandle<SharedFunctionInfo> deserialized =
+      CompileScript(isolate, copy_source, default_script_details,
+                    &aligned_cache, v8::ScriptCompiler::kConsumeCodeCache);
+  DirectHandle<Script> deserialized_script(Cast<Script>(deserialized->script()),
+                                           isolate);
+  EXPECT_NE(*deserialized_script, *script);
+  if (!isolate->NeedsSourcePositions()) {
+    EXPECT_FALSE(deserialized_script->has_line_ends());
+  }
+  EXPECT_TRUE(
+      IsUndefined(deserialized_script->compiled_lazy_function_positions()));
+
+  DirectHandle<JSFunction> deserialized_fun =
+      Factory::JSFunctionBuilder{isolate, deserialized,
+                                 isolate->native_context()}
+          .Build();
+  DirectHandle<Object> deserialized_result =
+      Execution::CallScript(isolate, deserialized_fun, global,
+                            isolate->factory()->empty_fixed_array())
+          .ToHandleChecked();
+  EXPECT_EQ(42, Cast<Smi>(*deserialized_result).value());
+}
+
 void TestCodeSerializerOnePlusOneImpl(Isolate* isolate,
                                       bool verify_builtins_count = true) {
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
