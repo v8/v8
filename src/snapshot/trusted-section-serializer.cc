@@ -21,6 +21,7 @@ TrustedSectionSerializer::TrustedSectionSerializer(
       export_queue_(isolate->heap()) {}
 
 uint32_t TrustedSectionSerializer::Export(Tagged<HeapObject> obj) {
+  DCHECK(!exports_serialized_);
   SBXCHECK(OutsideSandbox(obj.address()));
   int index;
   if (!exports_.LookupOrInsert(obj, &index)) export_queue_.Enqueue(obj);
@@ -60,6 +61,7 @@ uint32_t TrustedSectionSerializer::AddJSDispatchEntry(JSDispatchHandle handle) {
 }
 
 void TrustedSectionSerializer::SerializeExports() {
+  DCHECK(!exports_serialized_);
   if (v8_flags.trace_serializer) {
     PrintF("Serializing trusted exports\n");
   }
@@ -71,12 +73,19 @@ void TrustedSectionSerializer::SerializeExports() {
     Handle<HeapObject> obj = handle(export_queue_.Dequeue(), isolate());
     SerializeObject(obj, SlotType::kAnySlot);
   }
-  DCHECK(deferred_objects_empty());
+  CHECK(deferred_objects_empty());
+  sink_.Put(kSynchronize, "EndOfTrustedExports");
+  OptimizeBackReferences();
+#ifdef DEBUG
+  exports_serialized_ = true;
+#endif
 }
 
-void TrustedSectionSerializer::FinishSection() {
+void TrustedSectionSerializer::FinishSection(
+    const SnapshotByteSink& trailing_data) {
+  DCHECK(exports_serialized_);
   DCHECK(export_queue_.empty());
-  sink_.Put(kSynchronize, "EndOfTrustedSection");
+  sink_.Append(trailing_data);
   // The external references are read before the untrusted section, so they
   // precede Payload() in the trusted section, which is padded as a whole.
   external_references_sink_.PutUint30(
@@ -86,7 +95,6 @@ void TrustedSectionSerializer::FinishSection() {
       reinterpret_cast<const uint8_t*>(external_references_.data()),
       external_references_.size() * sizeof(EncodedExternalReference),
       "ExternalReferences");
-  OptimizeBackReferences();
   Pad(base::checked_cast<int>(external_references_sink_.Position()));
 }
 
@@ -121,11 +129,13 @@ void TrustedSectionSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     Tagged<HeapObject> raw = *obj;
     if (SerializeRoot(raw)) return;
     if (SerializeReadOnlyObjectReference(raw, &sink_)) return;
+    if (untrusted_serializer_->SerializeUsingObjectCache(&sink_, obj)) return;
     if (SerializeUntrustedReference(obj)) return;
     if (SerializeBackReference(raw)) return;
 #ifdef DEBUG
     DCHECK(!untrusted_serializer_->ReferenceMapContains(obj));
-    if (IsExposedTrustedObject(raw)) {
+    if (IsExposedTrustedObject(raw) &&
+        !allow_serializing_all_trusted_objects()) {
       int index;
       DCHECK(exports_.Lookup(raw, &index));
       DCHECK_GE(index, 0);

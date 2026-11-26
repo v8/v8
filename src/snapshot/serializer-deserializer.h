@@ -36,8 +36,8 @@ class SerializerDeserializer : public RootVisitor {
 
   // clang-format off
 #define UNUSED_SERIALIZER_BYTE_CODES(V)                           \
-  /* Free range 0x28..0x2f */                                     \
-  V(0x28) V(0x29) V(0x2a) V(0x2b) V(0x2c) V(0x2d) V(0x2e) V(0x2f)
+  /* Free range 0x29..0x2f */                                     \
+  V(0x29) V(0x2a) V(0x2b) V(0x2c) V(0x2d) V(0x2e) V(0x2f)
   // clang-format on
 
   // The static assert below will trigger when the number of preallocated spaces
@@ -58,7 +58,7 @@ class SerializerDeserializer : public RootVisitor {
 
   enum Bytecode : uint8_t {
     //
-    // ---------- byte code range 0x00..0x27 ----------
+    // ---------- byte code range 0x00..0x28 ----------
     //
 
     // 0x00..0x03  Allocate new object, in specified space.
@@ -162,6 +162,9 @@ class SerializerDeserializer : public RootVisitor {
     // it. Trusted sections only; an untrusted section refers to the resource
     // through the trusted section's table instead (kTrustedExternalRef).
     kExternalStringResource,
+    // Starts a record of the context's embedder data in a kEmbedderFieldsData
+    // section, whose other records start with kNewObject.
+    kContextDataHolder,
 
     //
     // ---------- byte code range 0x30..0x7f ----------
@@ -215,6 +218,7 @@ class SerializerDeserializer : public RootVisitor {
       case kOffHeapResizableBackingStore:
       case kEmbedderFieldsData:
       case kApiWrapperFieldsData:
+      case kContextDataHolder:
       case kVariableRawData:
       case kClearedWeakReference:
       case kWeakPrefix:

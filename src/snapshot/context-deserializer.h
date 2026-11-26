@@ -30,7 +30,7 @@ class V8_EXPORT_PRIVATE ContextDeserializer final
       : Deserializer(isolate, data->UntrustedPayload(), data->TrustedPayload(),
                      data->GetMagicNumber(),
                      /* deserializing_user_code */ false, can_rehash,
-                     SnapshotTrustLevel::kTrusted) {}
+                     SnapshotTrustLevel::kUntrustedWithTrustedSection) {}
 
   // Deserialize a single object and the objects reachable from it.
   MaybeDirectHandle<Object> Deserialize(

@@ -485,7 +485,7 @@ void Deserializer<IsolateT>::DeserializeTrustedSection() {
   while (source_.Peek() != kSynchronize) {
     trusted_exports.push_back(TrustedCast<ExposedTrustedObject>(ReadObject()));
   }
-  DCHECK_EQ(kSynchronize, source_.Get());
+  CHECK_EQ(kSynchronize, source_.Get());
   for (const TrustedExportRef& ref : trusted_export_refs_) {
     SlotAccessorForHeapObject::ForSlotOffset(ref.object, ref.offset)
         .WriteTrustedPointerTo(*trusted_exports[ref.index],
@@ -783,11 +783,6 @@ Deserializer<IsolateT>::GetAndResetNextReferenceDescriptor() {
   desc.is_protected_pointer = next_reference_is_protected_pointer;
   next_reference_is_protected_pointer = false;
   return desc;
-}
-
-template <typename IsolateT>
-Handle<HeapObject> Deserializer<IsolateT>::GetBackReferencedObject() {
-  return GetBackReferencedObject(source_.GetUint30());
 }
 
 template <typename IsolateT>
@@ -1373,13 +1368,16 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadRawExternalReference(
     uint8_t data, SlotAccessor slot_accessor) {
-  SBXCHECK(InTrustedSection());
+  // Snapshots for testing, but not code caches, can have raw external
+  // references in untrusted sections.
+  SBXCHECK(InTrustedSection() || (!deserializing_user_code() &&
+                                  main_thread_isolate()->serializer_enabled()));
   DCHECK_IMPLIES(data == kSandboxedExternalReference, COMPRESS_POINTERS_BOOL);
   Address address;
   source_.CopyRaw(&address, kSystemPointerSize);
   ExternalPointerTag tag = kExternalPointerNullTag;
   if (data == kSandboxedRawExternalReference) {
-    tag = ReadExternalPointerTag();
+    tag = static_cast<ExternalPointerTag>(source_.GetUint30());
   }
   if (v8_flags.trace_deserialization) {
     PrintF("%*sRawExternalReference [%" PRIxPTR ", %i]\n", depth_, "", address,
@@ -1743,12 +1741,12 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadUntrustedRef(uint8_t data,
                                              SlotAccessor slot_accessor) {
-  DCHECK(InTrustedSection());
   uint32_t index = source_.GetUint30();
   if (v8_flags.trace_deserialization) {
     PrintF("%*sUntrustedRef [%u]\n", depth_, "", index);
   }
-  return WriteHeapPointer(slot_accessor, *untrusted_back_refs_[index],
+  return WriteHeapPointer(slot_accessor,
+                          *GetUntrustedBackReferencedObject(index),
                           GetAndResetNextReferenceDescriptor());
 }
 

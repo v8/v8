@@ -294,6 +294,17 @@ class Serializer : public SerializerDeserializer {
   // trusted section.
   bool SerializeTrustedExport(Tagged<HeapObject> obj);
 
+  // Returns true if the JS dispatch entry was serialized as a reference into
+  // the trusted section.
+  bool SerializeTrustedJSDispatchEntry(JSDispatchHandle handle);
+
+  // Returns whether a reference to |obj| through an object cache was put into
+  // |sink|.
+  virtual bool SerializeUsingObjectCache(SnapshotByteSink* sink,
+                                         Handle<HeapObject> obj) {
+    return false;
+  }
+
   bool SerializeReadOnlyObjectReference(Tagged<HeapObject> obj,
                                         SnapshotByteSink* sink);
 

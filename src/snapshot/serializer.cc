@@ -87,6 +87,9 @@ int Serializer::TotalAllocationSize() const {
   for (int space = 0; space < kNumberOfSnapshotSpaces; space++) {
     sum += allocation_size_[space];
   }
+  if (const TrustedSectionSerializer* trusted = trusted_serializer()) {
+    sum += trusted->TotalAllocationSize();
+  }
   return sum;
 }
 
@@ -455,6 +458,15 @@ bool Serializer::SerializeTrustedExport(Tagged<HeapObject> obj) {
   }
   sink_.Put(kTrustedExportRef, "TrustedExportRef");
   sink_.PutUint30(trusted->Export(obj), "TrustedExportIndex");
+  return true;
+}
+
+bool Serializer::SerializeTrustedJSDispatchEntry(JSDispatchHandle handle) {
+  TrustedSectionSerializer* trusted = trusted_serializer();
+  if (!V8_ENABLE_SANDBOX_BOOL || trusted == nullptr) return false;
+  sink_.Put(kTrustedExternalRef, "TrustedExternalRef");
+  sink_.PutUint30(trusted->AddJSDispatchEntry(handle),
+                  "TrustedExternalRefIndex");
   return true;
 }
 
@@ -1470,6 +1482,8 @@ void Serializer::ObjectSerializer::VisitJSDispatchTableEntry(
                 kSystemPointerSize);
 #endif  // COMPRESS_POINTERS
   bytes_processed_so_far_ += RoundUp(kJSDispatchHandleSize, kTaggedSize);
+
+  if (serializer_->SerializeTrustedJSDispatchEntry(handle)) return;
 
   auto it = serializer_->dispatch_handle_map_.find(handle);
   if (it == serializer_->dispatch_handle_map_.end()) {

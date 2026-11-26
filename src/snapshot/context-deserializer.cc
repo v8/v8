@@ -60,9 +60,9 @@ MaybeDirectHandle<Object> ContextDeserializer::Deserialize(
     // the new code, which also has to be flushed from instruction cache.
     DisallowCodeAllocation no_code_allocation;
 
-    result = ReadObject();
+    result = DeserializeUntrustedSection();
     DCHECK(IsNativeContext(*result));
-    DeserializeDeferredObjects();
+    DeserializeTrustedSection();
     DeserializeEmbedderFields(Cast<NativeContext>(result),
                               embedder_fields_deserializer);
     DeserializeApiWrapperFields(
@@ -111,12 +111,12 @@ void ContextDeserializer::DeserializeEmbedderFields(
        code = source()->Get()) {
     HandleScope scope(isolate());
     DirectHandle<HeapObject> heap_object =
-        Cast<HeapObject>(GetBackReferencedObject());
+        GetUntrustedBackReferencedObject(source()->GetUint30());
     const int index = source()->GetUint30();
     const int size = source()->GetUint30();
     buffer.EnsureCapacity(size);
     source()->CopyRaw(buffer.data(), size);
-    if (IsJSObject(*heap_object)) {
+    if (code == kNewObject) {
       DirectHandle<JSObject> obj = Cast<JSObject>(heap_object);
       v8::DeserializeInternalFieldsCallback callback =
           embedder_fields_deserializer.js_object_callback;
@@ -124,6 +124,7 @@ void ContextDeserializer::DeserializeEmbedderFields(
       callback.callback(v8::Utils::ToLocal(obj), index, {buffer.data(), size},
                         callback.data);
     } else {
+      DCHECK_EQ(code, kContextDataHolder);
       DCHECK(IsNativeContext(*heap_object));
       v8::DeserializeContextDataCallback callback =
           embedder_fields_deserializer.context_callback;
@@ -153,7 +154,7 @@ void ContextDeserializer::DeserializeApiWrapperFields(
        code = source()->Get()) {
     HandleScope scope(isolate());
     DirectHandle<JSObject> js_object =
-        Cast<JSObject>(GetBackReferencedObject());
+        Cast<JSObject>(GetUntrustedBackReferencedObject(source()->GetUint30()));
     const int size = source()->GetUint30();
     buffer.EnsureCapacity(size);
     source()->CopyRaw(buffer.data(), size);

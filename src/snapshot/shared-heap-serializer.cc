@@ -64,6 +64,7 @@ void SharedHeapSerializer::FinalizeSerialization() {
   // internalizable-in-place strings are in the shared heap.
   SerializeStringTable(isolate()->string_table());
   SerializeDeferredObjects();
+  trusted_serializer_.SerializeExports();
   trusted_serializer_.FinishSection();
   FinishUntrustedSection();
 

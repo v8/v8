@@ -41,7 +41,7 @@ class TrustedSectionSerializer final : public Serializer {
   uint32_t AddJSDispatchEntry(JSDispatchHandle handle);
 
   void SerializeExports();
-  void FinishSection();
+  void FinishSection(const SnapshotByteSink& trailing_data = {});
   const std::vector<uint8_t>* ExternalReferencesPayload() const {
     return external_references_sink_.data();
   }
@@ -57,6 +57,9 @@ class TrustedSectionSerializer final : public Serializer {
   std::vector<EncodedExternalReference> external_references_;
   std::unordered_map<JSDispatchHandle, uint32_t> dispatch_entry_indices_;
   SnapshotByteSink external_references_sink_;
+#ifdef DEBUG
+  bool exports_serialized_ = false;
+#endif
 };
 
 }  // namespace internal

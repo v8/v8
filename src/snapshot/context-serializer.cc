@@ -28,7 +28,8 @@ ContextSerializer::ContextSerializer(Isolate* isolate,
     : Serializer(isolate, flags),
       startup_serializer_(startup_serializer),
       serialize_embedder_fields_(callback),
-      can_be_rehashed_(true) {
+      can_be_rehashed_(true),
+      trusted_serializer_(isolate, this) {
   InitializeCodeAddressMap();
 }
 
@@ -64,23 +65,24 @@ void ContextSerializer::Serialize(Tagged<Context>* o,
 
   VisitRootPointer(Root::kStartupObjectCache, nullptr, FullObjectSlot(o));
   SerializeDeferredObjects();
+  trusted_serializer_.SerializeExports();
 
+  SnapshotByteSink embedder_data;
   // Add section for embedder-serialized embedder fields.
   if (!embedder_fields_sink_.data()->empty()) {
-    sink_.Put(kEmbedderFieldsData, "embedder fields data");
-    sink_.Append(embedder_fields_sink_);
-    sink_.Put(kSynchronize, "Finished with embedder fields data");
+    embedder_data.Put(kEmbedderFieldsData, "embedder fields data");
+    embedder_data.Append(embedder_fields_sink_);
+    embedder_data.Put(kSynchronize, "Finished with embedder fields data");
   }
 
   // Add section for embedder-serializer API wrappers.
   if (!api_wrapper_sink_.data()->empty()) {
-    sink_.Put(kApiWrapperFieldsData, "api wrapper fields data");
-    sink_.Append(api_wrapper_sink_);
-    sink_.Put(kSynchronize, "Finished with api wrapper fields data");
+    embedder_data.Put(kApiWrapperFieldsData, "api wrapper fields data");
+    embedder_data.Append(api_wrapper_sink_);
+    embedder_data.Put(kSynchronize, "Finished with api wrapper fields data");
   }
-
-  OptimizeBackReferences();
-  Pad();
+  trusted_serializer_.FinishSection(embedder_data);
+  FinishUntrustedSection();
 }
 
 v8::StartupData InternalFieldSerializeWrapper(
@@ -128,19 +130,13 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   {
     DisallowGarbageCollection no_gc;
     Tagged<HeapObject> raw = *obj;
+    if (SerializeTrustedExport(raw)) return;
     if (SerializeRoot(raw)) return;
     if (SerializeReadOnlyObjectReference(raw, &sink_)) return;
     if (SerializeBackReference(raw)) return;
   }
 
-  if (startup_serializer_->SerializeUsingSharedHeapObjectCache(&sink_, obj)) {
-    return;
-  }
-
-  if (ShouldBeInTheStartupObjectCache(*obj)) {
-    startup_serializer_->SerializeUsingStartupObjectCache(&sink_, obj);
-    return;
-  }
+  if (SerializeUsingObjectCache(&sink_, obj)) return;
 
   // Pointers from the context snapshot to the objects in the startup snapshot
   // should go through the root array or through the startup object cache.
@@ -226,6 +222,16 @@ bool ContextSerializer::ShouldBeInTheStartupObjectCache(Tagged<HeapObject> o) {
          IsScopeInfo(o) || IsAccessorInfo(o) || IsInterceptorInfo(o) ||
          IsTemplateInfo(o) || IsClassPositions(o) ||
          o->map() == ReadOnlyRoots(isolate()).fixed_cow_array_map();
+}
+
+bool ContextSerializer::SerializeUsingObjectCache(SnapshotByteSink* sink,
+                                                  Handle<HeapObject> obj) {
+  if (startup_serializer_->SerializeUsingSharedHeapObjectCache(sink, obj)) {
+    return true;
+  }
+  if (!ShouldBeInTheStartupObjectCache(*obj)) return false;
+  startup_serializer_->SerializeUsingStartupObjectCache(sink, obj);
+  return true;
 }
 
 namespace {
@@ -332,7 +338,9 @@ void ContextSerializer::SerializeObjectWithEmbedderFields(
     EmbedderDataSlot(raw_obj, i)
         .store_raw(isolate(), original_embedder_values[i], no_gc);
     if (DataIsEmpty(data)) continue;
-    embedder_fields_sink_.Put(kNewObject, "embedder field holder");
+    embedder_fields_sink_.Put(
+        IsNativeContext(raw_obj) ? kContextDataHolder : kNewObject,
+        "embedder field holder");
     embedder_fields_sink_.PutUint30(reference->back_ref_index(),
                                     "BackRefIndex");
     embedder_fields_sink_.PutUint30(i, "embedder field index");
@@ -342,10 +350,10 @@ void ContextSerializer::SerializeObjectWithEmbedderFields(
     delete[] data.data;
   }
 
-  // 6) The content of the separate sink is appended eventually to the default
-  //    sink. The ensures that during deserialization, we call the deserializer
-  //    callback at the end, and can guarantee that the deserialized objects are
-  //    in a consistent state. See ContextSerializer::Serialize.
+  // 6) The content of the separate sink is appended eventually to the trusted
+  //    section, so that the deserializer calls the callbacks at the end, when
+  //    the deserialized objects are in a consistent state. See
+  //    ContextSerializer::Serialize.
 }
 
 void ContextSerializer::CheckRehashability(Tagged<HeapObject> obj) {
