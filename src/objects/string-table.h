@@ -102,10 +102,6 @@ class V8_EXPORT_PRIVATE StringTable {
   void IterateElements(RootVisitor* visitor);
   void IterateElementsRange(RootVisitor* visitor, int start, int end);
   void DropOldData();
-
-  // Must be called in a Heap safepoint (without holding the write lock).
-  // Updates element counts after sweeping and may also shrink the table when
-  // --shrink-string-table is enabled.
   void NotifyElementsRemoved(int count);
 
   void VerifyIfOwnedBy(Isolate* isolate);

@@ -4,16 +4,9 @@
 
 #include "src/objects/string-table.h"
 
-#include <algorithm>
-#include <string>
-#include <string_view>
-#include <vector>
-
 #include "src/handles/handles-inl.h"
-#include "src/heap/heap-inl.h"
 #include "src/objects/internal-index.h"
 #include "src/objects/string-inl.h"
-#include "test/common/flag-utils.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
@@ -217,134 +210,6 @@ TEST_F(StringTableTest, InternalizePreHashedTwoByteWithTwoByteContent) {
   DirectHandle<String> internalized = factory()->InternalizeString(str);
   EXPECT_TRUE(IsInternalizedString(*internalized));
   EXPECT_TRUE(internalized->IsTwoByteRepresentation());
-}
-
-TEST_F(StringTableTest, DoesNotShrinkByDefaultWhenFlagDisabled) {
-  const Flag* flag = FindFlagByPointer(&v8_flags.shrink_string_table);
-  if (flag->set_by_ == Flag::SetBy::kDefault) {
-    ASSERT_FALSE(v8_flags.shrink_string_table);
-  } else if (v8_flags.shrink_string_table) {
-    return;
-  }
-
-  DisableConservativeStackScanningScopeForTesting no_css(isolate()->heap());
-  StringTable* string_table = isolate()->string_table();
-  InvokeMajorGC();
-
-  const int initial_capacity = string_table->Capacity();
-  const int target_grown_capacity = initial_capacity * 4;
-
-  {
-    HandleScope temp_scope(isolate());
-    for (int i = 0; string_table->Capacity() < target_grown_capacity; ++i) {
-      std::string s = "ephemeral_disabled_flag_string_" + std::to_string(i);
-      factory()->InternalizeUtf8String(std::string_view(s));
-    }
-  }
-
-  const int grown_capacity = string_table->Capacity();
-  ASSERT_GE(grown_capacity, target_grown_capacity);
-
-  InvokeMajorGC();
-  EXPECT_EQ(string_table->Capacity(), grown_capacity);
-
-  isolate()->heap()->CollectAllAvailableGarbage(
-      GarbageCollectionReason::kMemoryPressure);
-  EXPECT_EQ(string_table->Capacity(), grown_capacity);
-}
-
-TEST_F(StringTableTest, ShrinksAndFreesPreviousDataOnMajorGC) {
-  FLAG_SCOPE(shrink_string_table);
-  DisableConservativeStackScanningScopeForTesting no_css(isolate()->heap());
-  StringTable* string_table = isolate()->string_table();
-
-  // Drop any previous_data_ retained from isolate snapshot deserialization
-  // (e.g. on builds without pointer compression / shared read-only strings)
-  // before measuring steady-state capacity and memory usage.
-  InvokeMajorGC();
-
-  const int initial_capacity = string_table->Capacity();
-  const size_t initial_memory = string_table->GetCurrentMemoryUsage();
-  const int target_grown_capacity = initial_capacity * 4;
-
-  Handle<String> survivor =
-      factory()->InternalizeUtf8String("survivor_internalized_string");
-
-  {
-    HandleScope temp_scope(isolate());
-    for (int i = 0; string_table->Capacity() < target_grown_capacity; ++i) {
-      std::string s = "ephemeral_internalized_string_" + std::to_string(i);
-      factory()->InternalizeUtf8String(std::string_view(s));
-    }
-  }
-
-  EXPECT_GE(string_table->Capacity(), target_grown_capacity);
-  EXPECT_GT(string_table->GetCurrentMemoryUsage(), initial_memory);
-
-  // A single Mark-Compact GC should sweep the dead strings, shrink the table
-  // back to its initial capacity, and immediately release previous_data_ at the
-  // safepoint without requiring a second GC.
-  InvokeMajorGC();
-
-  EXPECT_EQ(string_table->Capacity(), initial_capacity);
-  EXPECT_EQ(string_table->GetCurrentMemoryUsage(), initial_memory);
-  EXPECT_TRUE(string_table->HasString(isolate(), survivor));
-  EXPECT_EQ(*factory()->InternalizeUtf8String("survivor_internalized_string"),
-            *survivor);
-}
-
-TEST_F(StringTableTest, AdaptiveShrinkThresholdOnMemoryReducingGC) {
-  FLAG_SCOPE(shrink_string_table);
-  DisableConservativeStackScanningScopeForTesting no_css(isolate()->heap());
-  StringTable* string_table = isolate()->string_table();
-  InvokeMajorGC();
-
-  const int target_grown_capacity =
-      std::max(8192, string_table->Capacity() * 4);
-  const int target_shrunk_capacity = target_grown_capacity / 2;
-  // Target ~28.1% occupancy of `target_grown_capacity`: strictly above the 25%
-  // normal-GC shrink threshold (kMaxEmptyFactor = 4), while still fitting with
-  // 50% slack inside `target_shrunk_capacity`.
-  const int target_survivor_total =
-      (target_grown_capacity / 4) + (target_grown_capacity / 32);
-  const int survivors_to_add =
-      target_survivor_total - string_table->NumberOfElements();
-  ASSERT_GT(survivors_to_add, 0);
-
-  std::vector<Handle<String>> survivors;
-  survivors.reserve(survivors_to_add);
-  for (int i = 0; i < survivors_to_add; ++i) {
-    std::string s = "retained_internalized_string_" + std::to_string(i);
-    survivors.push_back(factory()->InternalizeUtf8String(std::string_view(s)));
-  }
-  {
-    HandleScope temp_scope(isolate());
-    for (int i = 0; string_table->Capacity() < target_grown_capacity; ++i) {
-      std::string s = "transient_internalized_string_" + std::to_string(i);
-      factory()->InternalizeUtf8String(std::string_view(s));
-    }
-  }
-  ASSERT_EQ(string_table->Capacity(), target_grown_capacity);
-  const size_t grown_memory = string_table->GetCurrentMemoryUsage();
-
-  // Standard Mark-Compact GC does not shrink when occupancy is > 25%
-  // (kMaxEmptyFactor = 4), avoiding resize churn during active execution.
-  InvokeMajorGC();
-  EXPECT_EQ(string_table->Capacity(), target_grown_capacity);
-
-  // A subsequent memory-reducing GC (even with 0 newly removed strings) shrinks
-  // the table to `target_shrunk_capacity` (preserving >= 50% slack) and
-  // immediately frees the larger buffer.
-  isolate()->heap()->CollectAllAvailableGarbage(
-      GarbageCollectionReason::kMemoryPressure);
-  EXPECT_EQ(string_table->Capacity(), target_shrunk_capacity);
-  EXPECT_LT(string_table->GetCurrentMemoryUsage(), grown_memory);
-
-  for (int i = 0; i < survivors_to_add; i += 197) {
-    std::string s = "retained_internalized_string_" + std::to_string(i);
-    EXPECT_EQ(*factory()->InternalizeUtf8String(std::string_view(s)),
-              *survivors[i]);
-  }
 }
 
 }  // namespace internal
