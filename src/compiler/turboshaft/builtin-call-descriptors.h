@@ -1506,8 +1506,12 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadHeapMemory().CanAllocate().CanThrowOrTrap();
+    // Needs CanWriteHeapMemory because array.new_elem can lazily initialize
+    // the instance's element_segments and populate func_refs.
+    static constexpr OpEffects kEffects = base_effects.CanWriteHeapMemory()
+                                              .CanReadHeapMemory()
+                                              .CanAllocate()
+                                              .CanThrowOrTrap();
   };
 
   struct WasmArrayInitSegment : public Descriptor<WasmArrayInitSegment> {
