@@ -21,6 +21,7 @@ class RegExpData;
 class IrRegExpData;
 class AtomRegExpData;
 class RegExpMatchInfo;
+class SlicedString;
 class TrustedFixedArray;
 
 namespace regexp {
@@ -310,14 +311,21 @@ class ResultsCache final : public AllStatic {
 //
 // The second call hits the cache for the slice [0, 100[ and only has to search
 // the slice [100, 200].
+//
+// Slices shorter than the cached one also hit the cache, in which case the
+// result is derived from the cached one where possible, e.g. by dropping the
+// matches past the end of the shorter slice.
 class ResultsCache_MatchGlobalAtom final : public AllStatic {
  public:
   static void TryInsert(Isolate* isolate, Tagged<String> subject,
                         Tagged<String> pattern, uint32_t number_of_matches,
                         int last_match_index);
+  // On a hit, {cached_subject_out} is a slice of the same string at the same
+  // offset as {subject}, but possibly longer than {subject}.
   static bool TryGet(Isolate* isolate, Tagged<String> subject,
                      Tagged<String> pattern, uint32_t* number_of_matches_out,
-                     int* last_match_index_out);
+                     int* last_match_index_out,
+                     Tagged<SlicedString>* cached_subject_out);
   static void Clear(Heap* heap);
 
  private:

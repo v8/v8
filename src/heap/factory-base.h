@@ -169,6 +169,12 @@ class FactoryBase {
       DirectHandle<Map> map, uint32_t length,
       AllocationType allocation = AllocationType::kYoung);
 
+  // Allocates a fixed array-like object with given map, with all elements
+  // set to {filler}, which must be in read-only space. {length} must be > 0.
+  Handle<FixedArray> NewFixedArrayWithFiller(
+      DirectHandle<Map> map, uint32_t length, DirectHandle<HeapObject> filler,
+      AllocationType allocation = AllocationType::kYoung);
+
   // Allocate a new fixed array with non-existing entries (the hole).
   Handle<FixedArray> NewFixedArrayWithHoles(
       uint32_t length, AllocationType allocation = AllocationType::kYoung);
@@ -467,11 +473,6 @@ class FactoryBase {
       AllocationHint hint = AllocationHint());
   Tagged<HeapObject> NewWithImmortalMap(Tagged<Map> map,
                                         AllocationType allocation);
-
-  Handle<FixedArray> NewFixedArrayWithFiller(DirectHandle<Map> map,
-                                             uint32_t length,
-                                             DirectHandle<HeapObject> filler,
-                                             AllocationType allocation);
 
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(AllocationType allocation);
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(

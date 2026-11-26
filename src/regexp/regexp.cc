@@ -1864,11 +1864,10 @@ void ResultsCache_MatchGlobalAtom::TryInsert(Isolate* isolate,
 }
 
 // static
-bool ResultsCache_MatchGlobalAtom::TryGet(Isolate* isolate,
-                                          Tagged<String> subject,
-                                          Tagged<String> pattern,
-                                          uint32_t* number_of_matches_out,
-                                          int* last_match_index_out) {
+bool ResultsCache_MatchGlobalAtom::TryGet(
+    Isolate* isolate, Tagged<String> subject, Tagged<String> pattern,
+    uint32_t* number_of_matches_out, int* last_match_index_out,
+    Tagged<SlicedString>* cached_subject_out) {
   DisallowGarbageCollection no_gc;
   Tagged<FixedArray> cache = isolate->heap()->regexp_match_global_atom_cache();
   DCHECK_EQ(cache->ulength().value(), kSize);
@@ -1876,8 +1875,8 @@ bool ResultsCache_MatchGlobalAtom::TryGet(Isolate* isolate,
   if (!IsSlicedString(subject)) return false;
   if (pattern != cache->get(kPatternIndex)) return false;
 
-  // Here we are looking for a subject slice that 1. starts at the same point
-  // and 2. is of equal length or longer than the cached subject slice.
+  // Here we are looking for a subject slice that starts at the same point as
+  // the cached subject slice.
   Tagged<SlicedString> sliced_subject = Cast<SlicedString>(subject);
   Tagged<Object> cached_subject_object = cache->get(kSubjectIndex);
   if (!Is<SlicedString>(cached_subject_object)) {
@@ -1889,8 +1888,8 @@ bool ResultsCache_MatchGlobalAtom::TryGet(Isolate* isolate,
   auto cached_subject = Cast<SlicedString>(cached_subject_object);
   if (cached_subject->parent() != sliced_subject->parent()) return false;
   if (cached_subject->offset() != sliced_subject->offset()) return false;
-  if (cached_subject->length() > sliced_subject->length()) return false;
 
+  *cached_subject_out = cached_subject;
   *number_of_matches_out = Smi::ToUInt(cache->get(kNumberOfMatchesIndex));
   *last_match_index_out = Smi::ToInt(cache->get(kLastMatchIndexIndex));
   return true;

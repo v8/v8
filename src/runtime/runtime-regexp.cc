@@ -2249,103 +2249,94 @@ RUNTIME_FUNCTION(Runtime_RegExpStringFromFlags) {
 
 namespace {
 
-template <typename SChar, typename PChar>
-inline void RegExpMatchGlobalAtom_OneCharPattern(
-    Isolate* isolate, base::Vector<const SChar> subject, const PChar pattern,
-    int start_index, uint32_t* number_of_matches, int* last_match_index,
-    const DisallowGarbageCollection& no_gc) {
+// Returns the index of the last occurrence of {c} in {slice}, or -1 if there
+// is none.
+template <typename SChar>
+int RegExpMatchGlobalAtom_FindLastOneChar(base::Vector<const SChar> slice,
+                                          SChar c) {
+  namespace hw = hwy::HWY_NAMESPACE;
+  hw::ScalableTag<SChar> tag;
+  const size_t stride = hw::Lanes(tag);
+  const auto mask = hw::Set(tag, c);
+  const SChar* const begin = slice.data();
+  const SChar* p = begin + slice.length();
+  while (static_cast<size_t>(p - begin) >= stride) {
+    p -= stride;
+    const intptr_t i = hw::FindLastTrue(tag, hw::Eq(hw::LoadU(tag, p), mask));
+    if (i >= 0) return static_cast<int>(p + i - begin);
+  }
+  while (p > begin) {
+    --p;
+    if (*p == c) return static_cast<int>(p - begin);
+  }
+  return -1;
+}
+
+// Returns the number of occurrences of {c} in {slice}.
+template <typename SChar>
+uint32_t RegExpMatchGlobalAtom_CountOneChar(base::Vector<const SChar> slice,
+                                            SChar c) {
   static_assert(std::is_unsigned_v<SChar>);
-  static_assert(std::is_unsigned_v<PChar>);
-  // We can utilize SIMD to check multiple characters at once.
-  // Since the pattern is a single char, we create a mask setting each lane in
-  // the vector to the pattern char.
-  // Since reductions from a vector to a general purpose register (i.e.
-  // ReduceSum in this algorithm) are expensive, we keep a count for each lane
-  // in a vector until the count could potentially overflow and only reduce to
-  // a general purpose register then. I.e. if SChar is uint8_t, we have a
-  // 16xuint8_t vector to count matches, which we reduce to an int every 255
-  // blocks.
+  // Count matches per lane with SIMD, reducing only before a lane could
+  // overflow. The loop doesn't track match positions (a per-block mask test
+  // serializes it).
   namespace hw = hwy::HWY_NAMESPACE;
   hw::ScalableTag<SChar> tag;
   // We need a wider tag to avoid overflows on lanes when summing up submatches.
   using WidenedTag = hw::RepartitionToWide<decltype(tag)>;
   WidenedTag sum_tag;
-  static const size_t stride = hw::Lanes(tag);
-  // Subtle: the valid variants are {SChar,PChar} in:
-  // {uint8_t,uint8_t}, {uc16,uc16}, {uc16,uint8_t}. In the latter case,
-  // we cast the uint8_t pattern to uc16 for the comparison.
-  const auto mask = hw::Set(tag, static_cast<const SChar>(pattern));
+  const size_t stride = hw::Lanes(tag);
+  const auto mask = hw::Set(tag, c);
 
-  int matches = 0;
-  auto submatches = hw::Zero(tag);
-  const SChar* last_match_block = nullptr;
-  hw::Mask<decltype(tag)> last_match_vec;
+  const SChar* const end = slice.data() + slice.length();
+  const SChar* block = slice.data();
 
-  const SChar* block = subject.data() + start_index;
-  const SChar* end = subject.data() + subject.length();
-
-  // ReduceSum is expensive, so we gather matches into a vector. max_count is
-  // the maximum number of matches we can count in the vector before it
-  // overflows.
-  int max_count = std::numeric_limits<SChar>::max();
-  while (stride * max_count <= static_cast<size_t>(end - block)) {
-    for (int i = 0; i < max_count; i++, block += stride) {
-      const auto input = hw::LoadU(tag, block);
+  // The maximum number of blocks that can be counted in {submatches} before a
+  // lane could overflow.
+  constexpr size_t kMaxBlocks = std::numeric_limits<SChar>::max();
+  uint32_t matches = 0;
+  for (size_t blocks = static_cast<size_t>(end - block) / stride; blocks > 0;) {
+    const size_t n = std::min(blocks, kMaxBlocks);
+    blocks -= n;
+    auto submatches = hw::Zero(tag);
+    for (size_t i = 0; i < n; i++, block += stride) {
       // TODO(floitsch): use an operator for the comparison when it is available
       // on RISC-V.
-      const auto match = hw::Eq(input, mask);
+      const auto match = hw::Eq(hw::LoadU(tag, block), mask);
       // Lanes with matches have all bits set, so we subtract to increase the
       // count by 1.
       submatches = hw::Sub(submatches, hw::VecFromMask(tag, match));
-      if (!hw::AllFalse(tag, match)) {
-        last_match_block = block;
-        last_match_vec = match;
-      }
     }
-    // SumsOf2 promotes the sum of 2 consecutive lanes into a wider lane.
-    auto promoted_submatches = hw::SumsOf2(submatches);
-    // Wider lane sums can be reduces without overflows.
-    matches += hw::ReduceSum(sum_tag, promoted_submatches);
-    submatches = hw::Zero(tag);
+    // SumsOf2 promotes the sum of 2 consecutive lanes into a wider lane, which
+    // can be reduced without overflow.
+    matches += hw::ReduceSum(sum_tag, hw::SumsOf2(submatches));
   }
-
-  // For blocks shorter than stride * max_count, lanes in submatches can't
-  // overflow.
-  DCHECK_LT(end - block, stride * max_count);
-  for (; stride <= static_cast<size_t>(end - block); block += stride) {
-    const auto input = hw::LoadU(tag, block);
-    // TODO(floitsch): use an operator for the comparison when it is available
-    // on RISC-V.
-    const auto match = hw::Eq(input, mask);
-    submatches = hw::Sub(submatches, hw::VecFromMask(tag, match));
-    if (!hw::AllFalse(tag, match)) {
-      last_match_block = block;
-      last_match_vec = match;
-    }
-  }
-  auto promoted_submatches = hw::SumsOf2(submatches);
-  matches += hw::ReduceSum(sum_tag, promoted_submatches);
-
-  // Handle remaining chars.
-  // last_match_block already contains the last match position, so use a special
-  // vector with lane 0 set to extract the last_match_index later.
-  const auto scalar_last_match_vec = hw::FirstN(tag, 1);
   for (; block < end; ++block) {
-    SChar c = *block;
-    if (c != static_cast<const SChar>(pattern)) continue;
-    matches++;
-    last_match_block = block;
-    last_match_vec = scalar_last_match_vec;
+    if (*block == c) matches++;
   }
+  return matches;
+}
 
-  // Store results.
+template <typename SChar, typename PChar>
+inline void RegExpMatchGlobalAtom_OneCharPattern(
+    Isolate* isolate, base::Vector<const SChar> subject, const PChar pattern,
+    int start_index, uint32_t* number_of_matches, int* last_match_index,
+    const DisallowGarbageCollection& no_gc) {
+  static_assert(std::is_unsigned_v<PChar>);
+  // Subtle: the valid variants are {SChar,PChar} in:
+  // {uint8_t,uint8_t}, {uc16,uc16}, {uc16,uint8_t}. In the latter case,
+  // we cast the uint8_t pattern to uc16 for the comparison.
+  const SChar c = static_cast<SChar>(pattern);
+  const base::Vector<const SChar> slice = subject.SubVectorFrom(start_index);
+  const uint32_t matches = RegExpMatchGlobalAtom_CountOneChar(slice, c);
+  if (matches == 0) return;
   *number_of_matches += matches;
-  if (last_match_block != nullptr) {
-    DCHECK(!hw::AllFalse(tag, last_match_vec));
-    *last_match_index = static_cast<int>(
-        last_match_block + hw::FindKnownLastTrue(tag, last_match_vec) -
-        subject.data());
-  }
+
+  // The last match is found by a backward scan.
+  const int last_match_in_slice =
+      RegExpMatchGlobalAtom_FindLastOneChar(slice, c);
+  DCHECK_NE(last_match_in_slice, -1);
+  *last_match_index = start_index + last_match_in_slice;
 }
 
 // Unimplemented.
@@ -2446,6 +2437,46 @@ inline void RegExpMatchGlobalAtom_Dispatch(
 #undef CALL_Generic
 }
 
+// Given the result of a search for the one-char pattern {c} in
+// {cached_subject}, computes the result for its prefix of length {length}.
+// The cached last match must be past the end of the prefix.
+template <typename SChar>
+inline void RegExpMatchGlobalAtom_TruncateOneCharResult(
+    Isolate* isolate, base::Vector<const SChar> cached_subject, SChar c,
+    uint32_t length, uint32_t* number_of_matches, int* last_match_index,
+    const DisallowGarbageCollection& no_gc) {
+  // There are no matches past the cached last match.
+  const uint32_t trailing_matches = RegExpMatchGlobalAtom_CountOneChar(
+      cached_subject.SubVector(length, *last_match_index + 1), c);
+  DCHECK_GE(trailing_matches, 1);
+  DCHECK_LE(trailing_matches, *number_of_matches);
+  *number_of_matches -= trailing_matches;
+  if (*number_of_matches == 0) {
+    *last_match_index = -1;
+    return;
+  }
+  *last_match_index = RegExpMatchGlobalAtom_FindLastOneChar(
+      cached_subject.SubVector(0, length), c);
+  DCHECK_NE(*last_match_index, -1);
+}
+
+inline void RegExpMatchGlobalAtom_TruncateOneCharResult(
+    Isolate* isolate, const String::FlatContent& cached_subject, base::uc16 c,
+    uint32_t length, uint32_t* number_of_matches, int* last_match_index,
+    const DisallowGarbageCollection& no_gc) {
+  if (cached_subject.IsOneByte()) {
+    // There are cached matches, so {c} must be a one-byte char.
+    DCHECK_LE(c, String::kMaxOneByteCharCode);
+    RegExpMatchGlobalAtom_TruncateOneCharResult(
+        isolate, cached_subject.ToOneByteVector(), static_cast<uint8_t>(c),
+        length, number_of_matches, last_match_index, no_gc);
+  } else {
+    RegExpMatchGlobalAtom_TruncateOneCharResult(
+        isolate, cached_subject.ToUC16Vector(), c, length, number_of_matches,
+        last_match_index, no_gc);
+  }
+}
+
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_RegExpMatchGlobalAtom) {
@@ -2483,21 +2514,56 @@ RUNTIME_FUNCTION(Runtime_RegExpMatchGlobalAtom) {
     // Reset lastIndex (the final state after this call is always 0).
     regexp->set_last_index(Smi::zero(), SKIP_WRITE_BARRIER);
 
-    // Caching.
-    int start_index = 0;  // Start matching at the beginning.
-    if (regexp::ResultsCache_MatchGlobalAtom::TryGet(
-            isolate, subject, pattern, &number_of_matches, &last_match_index)) {
-      DCHECK_GT(number_of_matches, 0);
-      DCHECK_NE(last_match_index, -1);
-      start_index = last_match_index + pattern_length;
-    }
-
     const bool is_unicode = (regexp->flags() & JSRegExp::kUnicode) != 0;
     String::FlatContent subject_content = subject->GetFlatContent(no_gc);
     String::FlatContent pattern_content = pattern->GetFlatContent(no_gc);
-    RegExpMatchGlobalAtom_Dispatch(isolate, subject_content, pattern_content,
-                                   is_unicode, start_index, &number_of_matches,
-                                   &last_match_index, no_gc);
+
+    // Caching.
+    int start_index = 0;  // Start matching at the beginning.
+    bool needs_search = true;
+    bool needs_cache_update = true;
+    Tagged<SlicedString> cached_subject;
+    if (regexp::ResultsCache_MatchGlobalAtom::TryGet(
+            isolate, subject, pattern, &number_of_matches, &last_match_index,
+            &cached_subject)) {
+      DCHECK_GT(number_of_matches, 0);
+      DCHECK_NE(last_match_index, -1);
+      // Read each length once; the checks below must hold for the contents
+      // that are scanned.
+      String::FlatContent cached_content =
+          cached_subject->GetFlatContent(no_gc);
+      const uint32_t subject_length = subject_content.length();
+      const uint32_t cached_length = cached_content.length();
+      const uint32_t cached_match_end =
+          static_cast<uint32_t>(last_match_index + pattern_length);
+      if (cached_length < subject_length) {
+        // Only the part after the last cached match remains to be searched.
+        start_index = last_match_index + pattern_length;
+      } else if (cached_match_end <= subject_length) {
+        // {subject} is the cached subject, or a prefix of it that contains all
+        // of its matches. The result is the cached one; keep the cache entry
+        // since it covers the longer slice.
+        needs_search = false;
+        needs_cache_update = false;
+      } else if (pattern_length == 1 && cached_match_end <= cached_length &&
+                 cached_match_end - subject_length <= subject_length) {
+        // {subject} is a prefix of the cached subject; drop the cached matches
+        // past its end.
+        RegExpMatchGlobalAtom_TruncateOneCharResult(
+            isolate, cached_content, pattern_content.Get(0), subject_length,
+            &number_of_matches, &last_match_index, no_gc);
+        needs_search = false;
+      } else {
+        number_of_matches = 0;
+        last_match_index = -1;
+      }
+    }
+
+    if (needs_search) {
+      RegExpMatchGlobalAtom_Dispatch(
+          isolate, subject_content, pattern_content, is_unicode, start_index,
+          &number_of_matches, &last_match_index, no_gc);
+    }
 
     if (last_match_index == -1) {
       // Not matched.
@@ -2507,9 +2573,10 @@ RUNTIME_FUNCTION(Runtime_RegExpMatchGlobalAtom) {
     // Successfully matched at least once:
     DCHECK_GE(last_match_index, 0);
 
-    // Caching.
-    regexp::ResultsCache_MatchGlobalAtom::TryInsert(
-        isolate, subject, pattern, number_of_matches, last_match_index);
+    if (needs_cache_update) {
+      regexp::ResultsCache_MatchGlobalAtom::TryInsert(
+          isolate, subject, pattern, number_of_matches, last_match_index);
+    }
   }
 
   // Update the LastMatchInfo.
@@ -2522,10 +2589,17 @@ RUNTIME_FUNCTION(Runtime_RegExpMatchGlobalAtom) {
                            kNumberOfCaptures, match_indices);
 
   // Create the result array.
-  auto elems = isolate->factory()->NewFixedArray(number_of_matches);
-  ObjectSlot dst_slot = elems->RawFieldOfFirstElement();
-  MemsetTagged(dst_slot, *pattern_handle, number_of_matches);
-  if (!HeapLayout::InReadOnlySpace(*pattern_handle)) {
+  DirectHandle<FixedArray> elems;
+  if (HeapLayout::InReadOnlySpace(*pattern_handle)) {
+    // Common for single-char patterns. Initialize the elements in a single
+    // pass; no write barrier is needed.
+    elems = isolate->factory()->NewFixedArrayWithFiller(
+        isolate->factory()->fixed_array_map(), number_of_matches,
+        pattern_handle);
+  } else {
+    elems = isolate->factory()->NewFixedArray(number_of_matches);
+    ObjectSlot dst_slot = elems->RawFieldOfFirstElement();
+    MemsetTagged(dst_slot, *pattern_handle, number_of_matches);
     WriteBarrier::ForRange(isolate->heap(), *elems, dst_slot,
                            dst_slot + number_of_matches);
   }
