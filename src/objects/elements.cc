@@ -5721,9 +5721,8 @@ class StringWrapperElementsAccessor
       MAYBE_RETURN(GrowCapacityAndConvertImpl(isolate, object, new_capacity),
                    Nothing<bool>());
     }
-    BackingStoreAccessor::AddImpl(isolate, object, index, value, attributes,
-                                  new_capacity);
-    return Just(true);
+    return BackingStoreAccessor::AddImpl(isolate, object, index, value,
+                                         attributes, new_capacity);
   }
 
   static void ReconfigureImpl(Isolate* isolate, DirectHandle<JSObject> object,
