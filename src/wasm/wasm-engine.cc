@@ -2111,13 +2111,15 @@ namespace {
 
 struct GlobalWasmState {
   // Note: The order of fields is important here, as the WasmEngine's destructor
-  // must run first. It contains a barrier which ensures that background threads
-  // finished, and that has to happen before the WasmCodeManager gets destroyed.
+  // must run first (so `engine` must be declared last). It contains a barrier
+  // which ensures that background threads finished before the WasmCodeManager
+  // gets destroyed, and its destructor may access other global state (such as
+  // `type_names_provider` for off-heap memory estimation).
   WasmCodeManager code_manager;
   WasmImportWrapperCache import_wrapper_cache;
   WasmStackEntryWrapperCache stack_wrapper_cache;
-  WasmEngine engine;
   CanonicalTypeNamesProvider type_names_provider;
+  WasmEngine engine;
 };
 
 GlobalWasmState* global_wasm_state = nullptr;

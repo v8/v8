@@ -456,7 +456,7 @@ size_t NamesProvider::EstimateCurrentMemoryConsumption() const {
 
 size_t CanonicalTypeNamesProvider::EstimateCurrentMemoryConsumption() const {
   base::MutexGuard lock(&mutex_);
-  size_t result = sizeof(this) + payload_size_estimate_;
+  size_t result = sizeof(CanonicalTypeNamesProvider) + payload_size_estimate_;
   result += type_names_.capacity() * sizeof(StringT);
   result += ContentSize(field_names_);
   for (const auto& entry : field_names_) {
