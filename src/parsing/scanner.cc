@@ -12,8 +12,11 @@
 #include <limits>
 #include <optional>
 
+#include "hwy/highway.h"
 #include "src/ast/ast-value-factory.h"
+#include "src/base/bits.h"
 #include "src/base/logging.h"
+#include "src/base/memory.h"
 #include "src/base/strings.h"
 #include "src/base/vlq-base64.h"
 #include "src/numbers/conversions-inl.h"
@@ -25,6 +28,141 @@
 #include "src/zone/zone.h"
 
 namespace v8::internal {
+
+namespace {
+
+// Returns {mask} lanes as bytes of a uint64_t (lane 0 in LSB). Avoids the arm64
+// narrowing shift emitted by AllFalse/FindFirstTrue before the loop exit.
+template <class D>
+V8_INLINE uint64_t MaskToBytes(D d, hwy::HWY_NAMESPACE::MFromD<D> mask) {
+  namespace hw = hwy::HWY_NAMESPACE;
+  static_assert(HWY_MAX_LANES_D(D) * sizeof(hw::TFromD<D>) <= sizeof(uint64_t));
+  uint8_t bytes[sizeof(uint64_t)] = {};
+  hw::StoreU(hw::VecFromMask(d, mask), d, bytes);
+  return base::ReadLittleEndianValue<uint64_t>(
+      reinterpret_cast<Address>(bytes));
+}
+
+// Commits {length} narrowed bytes to {literal}. In debug builds, checks that
+// they match the source code units at {src}.
+V8_INLINE void CommitNarrowed(LiteralBuffer* literal, const uint16_t* src,
+                              size_t length) {
+#ifdef DEBUG
+  const uint8_t* dst = literal->one_byte_cursor();
+  for (size_t i = 0; i < length; i++) DCHECK_EQ(dst[i], src[i]);
+#endif
+  literal->AdvancePosition(length);
+}
+
+}  // namespace
+
+template <typename FunctionType>
+base::uc32 Utf16CharacterStream::AdvanceUntilNarrowing(
+    LiteralBuffer* literal, FunctionType is_terminator) {
+  namespace hw = hwy::HWY_NAMESPACE;
+  DCHECK(literal->is_one_byte());
+  const hw::CappedTag<uint16_t, 8> d16;
+  const hw::Rebind<uint8_t, decltype(d16)> d8;
+  const size_t stride = hw::Lanes(d16);
+  const uint16_t* cursor = buffer_cursor_;
+  const uint16_t* const end = buffer_end_;
+  DCHECK_LE(cursor, end);
+  const size_t available = static_cast<size_t>(end - cursor);
+  const size_t free_cap = literal->one_byte_free_capacity();
+  size_t limit = std::min(available, free_cap);
+  uint8_t* const dst_start = literal->one_byte_cursor();
+  uint8_t* dst = dst_start;
+  // Speculatively write full chunks within min(available, free_cap); only bytes
+  // before the first terminator are committed via AdvancePosition.
+  for (; limit >= stride; cursor += stride, dst += stride, limit -= stride) {
+    const auto chars = hw::DemoteTo(d8, hw::LoadU(d16, cursor));
+    hw::StoreU(chars, d8, dst);
+    hw::Mask<decltype(d8)> terminators_mask;
+    V8_INLINE_STATEMENT terminators_mask = is_terminator(d8, chars);
+    const uint64_t terminators = MaskToBytes(d8, terminators_mask);
+    if (terminators != 0) {
+      const size_t length =
+          base::bits::CountTrailingZerosNonZero(terminators) / kBitsPerByte;
+      CommitNarrowed(literal, buffer_cursor_,
+                     static_cast<size_t>(dst - dst_start) + length);
+      cursor += length;
+      buffer_cursor_ = cursor + 1;
+      return static_cast<base::uc32>(*cursor);
+    }
+  }
+  CommitNarrowed(literal, buffer_cursor_, static_cast<size_t>(dst - dst_start));
+  buffer_cursor_ = cursor;
+  return AdvanceUntilNarrowingSlow(literal, is_terminator);
+}
+
+template <typename FunctionType>
+V8_NOINLINE base::uc32 Utf16CharacterStream::AdvanceUntilNarrowingSlow(
+    LiteralBuffer* literal, FunctionType is_terminator) {
+  namespace hw = hwy::HWY_NAMESPACE;
+  DCHECK(literal->is_one_byte());
+  const hw::CappedTag<uint16_t, 8> d16;
+  const hw::Rebind<uint8_t, decltype(d16)> d8;
+  const size_t stride = hw::Lanes(d16);
+  // Narrows {chunk} into the literal buffer without committing it, and returns
+  // its terminators.
+  auto append = [&](hw::Vec<decltype(d16)> chunk) {
+    const auto chars = hw::DemoteTo(d8, chunk);
+    hw::StoreU(chars, d8, literal->EnsureOneByteCapacity(stride));
+    hw::Mask<decltype(d8)> terminators;
+    V8_INLINE_STATEMENT terminators = is_terminator(d8, chars);
+    return MaskToBytes(d8, terminators);
+  };
+  while (true) {
+    const uint16_t* cursor = buffer_cursor_;
+    const uint16_t* const end = buffer_end_;
+    uint64_t terminators = 0;
+    for (; static_cast<size_t>(end - cursor) >= stride; cursor += stride) {
+      V8_INLINE_STATEMENT terminators = append(hw::LoadU(d16, cursor));
+      if (terminators != 0) break;
+      CommitNarrowed(literal, cursor, stride);
+    }
+    const size_t available = end - cursor;
+    if (terminators == 0 && available != 0) {
+      // Load the partial tail (1..stride-1) and pad unused lanes with 0xFFFF so
+      // saturation forces a terminator at lane {available}.
+      V8_INLINE_STATEMENT terminators =
+          append(hw::LoadNOr(hw::Set(d16, 0xFFFF), d16, cursor, available));
+    }
+    if (terminators != 0) {
+      const size_t length =
+          base::bits::CountTrailingZerosNonZero(terminators) / kBitsPerByte;
+      CommitNarrowed(literal, cursor, length);
+      cursor += length;
+      if (V8_LIKELY(length < available)) {
+        buffer_cursor_ = cursor + 1;
+        return static_cast<base::uc32>(*cursor);
+      }
+      // Hit the 0xFFFF padding (end of block).
+      DCHECK_EQ(length, available);
+    }
+    buffer_cursor_ = end;
+    if (!ReadBlockChecked(pos())) {
+      buffer_cursor_++;
+      return kEndOfInput;
+    }
+  }
+}
+
+template <class D, class V>
+auto AsciiIdentifierTerminator::operator()(D d, V chars) const {
+  namespace hw = hwy::HWY_NAMESPACE;
+  // Unsigned wrap-around range checks match ASCII [A-Za-z0-9_$] only;
+  // non-ASCII lanes (>= 0x80) keep bit 7 set and always terminate.
+  const auto lowercased = hw::Or(chars, hw::Set(d, 0x20));
+  const auto is_letter =
+      hw::Le(hw::Sub(lowercased, hw::Set(d, 'a')), hw::Set(d, 'z' - 'a'));
+  const auto is_digit =
+      hw::Le(hw::Sub(chars, hw::Set(d, '0')), hw::Set(d, '9' - '0'));
+  const auto is_identifier = hw::Or(
+      hw::Or(is_letter, is_digit),
+      hw::Or(hw::Eq(chars, hw::Set(d, '_')), hw::Eq(chars, hw::Set(d, '$'))));
+  return hw::Not(is_identifier);
+}
 
 class Scanner::ErrorState {
  public:
@@ -623,20 +761,23 @@ Token::Value Scanner::ScanString() {
   base::uc32 quote = c0_;
 
   next().literal_chars.Start();
-  while (true) {
-    // Consumed ASCII characters are bulk-appended to the literal buffer via
-    // the range callback. Non-ASCII characters terminate the range scan and
-    // are handled by the outer loop below (via the final AddLiteralChar),
-    // which keeps the common all-ASCII scan fast.
-    AdvanceUntilRange(
-        [](base::uc32 c0) {
-          if (V8_UNLIKELY(static_cast<uint32_t>(c0) > kMaxAscii)) return true;
-          return MayTerminateString(character_scan_flags[c0]);
-        },
-        [this](const uint16_t* start, const uint16_t* end) {
-          next().literal_chars.AddRangeFromUtf16(start, end);
-        });
+  auto is_string_terminator = [quote](auto d, auto chars) {
+    namespace hw = hwy::HWY_NAMESPACE;
+    return hw::Or(
+        hw::Or(hw::Gt(chars, hw::Set(d, kMaxAscii)),
+               hw::Eq(chars, hw::Set(d, static_cast<uint8_t>(quote)))),
+        hw::Or(hw::Eq(chars, hw::Set(d, '\\')),
+               hw::Or(hw::Eq(chars, hw::Set(d, '\n')),
+                      hw::Eq(chars, hw::Set(d, '\r')))));
+  };
+  V8_INLINE_STATEMENT c0_ = source_->AdvanceUntilNarrowing(
+      &next().literal_chars, is_string_terminator);
+  if (V8_LIKELY(c0_ == quote)) {
+    Advance();
+    return Token::kString;
+  }
 
+  while (true) {
     while (c0_ == '\\') {
       Advance();
       // TODO(verwaest): Check whether we can remove the additional check.
@@ -656,6 +797,25 @@ Token::Value Scanner::ScanString() {
     }
 
     AddLiteralChar(c0_);
+
+    // Consumed ASCII characters are bulk-appended to the literal buffer.
+    // Non-ASCII characters terminate the scan and are handled by the outer
+    // loop above (via AddLiteralChar), which keeps the common all-ASCII scan
+    // fast.
+    if (V8_LIKELY(next().literal_chars.is_one_byte())) {
+      V8_INLINE_STATEMENT c0_ = source_->AdvanceUntilNarrowing(
+          &next().literal_chars, is_string_terminator);
+    } else {
+      // A prior escape or non-ASCII char widened the buffer to two-byte.
+      AdvanceUntilRange(
+          [](base::uc32 c0) {
+            if (V8_UNLIKELY(static_cast<uint32_t>(c0) > kMaxAscii)) return true;
+            return MayTerminateString(character_scan_flags[c0]);
+          },
+          [this](const uint16_t* start, const uint16_t* end) {
+            next().literal_chars.AddRangeFromUtf16(start, end);
+          });
+    }
   }
 }
 

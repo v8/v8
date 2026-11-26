@@ -192,39 +192,24 @@ V8_INLINE Token::Value Scanner::ScanIdentifierOrKeyword() {
 
 // Character flags for the fast path of scanning a keyword or identifier token.
 enum class ScanFlags : uint8_t {
-  kTerminatesLiteral = 1 << 0,
-  // "Cannot" rather than "can" so that this flag can be ORed together across
-  // multiple characters.
-  kCannotBeKeyword = 1 << 1,
-  kCannotBeKeywordStart = 1 << 2,
-  kStringTerminator = 1 << 3,
-  kIdentifierNeedsSlowPath = 1 << 4,
-  kMultilineCommentCharacterNeedsSlowPath = 1 << 5,
+  kCannotBeKeyword = 1 << 0,
+  kCannotBeKeywordStart = 1 << 1,
+  kStringTerminator = 1 << 2,
+  kMultilineCommentCharacterNeedsSlowPath = 1 << 3,
 };
 constexpr uint8_t GetScanFlags(char c) {
   return
       // Keywords are all lowercase and only contain letters.
-      // Note that non-identifier characters do not set this flag, so
-      // that it plays well with kTerminatesLiteral.
       (IsAsciiIdentifier(c) && !CanBeKeywordCharacter(c)
            ? static_cast<uint8_t>(ScanFlags::kCannotBeKeyword)
            : 0) |
       (IsKeywordStart(c)
            ? 0
            : static_cast<uint8_t>(ScanFlags::kCannotBeKeywordStart)) |
-      // Anything that isn't an identifier character will terminate the
-      // literal, or at least terminates the literal fast path processing
-      // (like an escape).
-      (!IsAsciiIdentifier(c)
-           ? static_cast<uint8_t>(ScanFlags::kTerminatesLiteral)
-           : 0) |
       // Possible string termination characters.
       ((c == '\'' || c == '"' || c == '\n' || c == '\r' || c == '\\')
            ? static_cast<uint8_t>(ScanFlags::kStringTerminator)
            : 0) |
-      // Escapes are processed on the slow path.
-      (c == '\\' ? static_cast<uint8_t>(ScanFlags::kIdentifierNeedsSlowPath)
-                 : 0) |
       // Newlines and * are interesting characters for multiline comment
       // scanning.
       (c == '\n' || c == '\r' || c == '*'
@@ -232,15 +217,11 @@ constexpr uint8_t GetScanFlags(char c) {
                  ScanFlags::kMultilineCommentCharacterNeedsSlowPath)
            : 0);
 }
-inline bool TerminatesLiteral(uint8_t scan_flags) {
-  return (scan_flags & static_cast<uint8_t>(ScanFlags::kTerminatesLiteral));
-}
 inline bool CanBeKeyword(uint8_t scan_flags) {
   return !(scan_flags & static_cast<uint8_t>(ScanFlags::kCannotBeKeyword));
 }
-inline bool IdentifierNeedsSlowPath(uint8_t scan_flags) {
-  return (scan_flags &
-          static_cast<uint8_t>(ScanFlags::kIdentifierNeedsSlowPath));
+inline bool CanBeKeywordStart(uint8_t scan_flags) {
+  return !(scan_flags & static_cast<uint8_t>(ScanFlags::kCannotBeKeywordStart));
 }
 inline bool MultilineCommentCharacterNeedsSlowPath(uint8_t scan_flags) {
   return (scan_flags & static_cast<uint8_t>(
@@ -262,6 +243,13 @@ inline bool CharCanBeKeyword(base::uc32 c) {
          CanBeKeyword(character_scan_flags[c]);
 }
 
+// AdvanceUntilNarrowing terminator matching all but ASCII identifier parts.
+// Defined in scanner.cc.
+struct AsciiIdentifierTerminator {
+  template <class D, class V>
+  V8_INLINE auto operator()(D d, V chars) const;
+};
+
 V8_INLINE Token::Value Scanner::ScanIdentifierOrKeywordInner() {
   DCHECK(IsIdentifierStart(c0_));
   bool escaped = false;
@@ -270,46 +258,20 @@ V8_INLINE Token::Value Scanner::ScanIdentifierOrKeywordInner() {
   static_assert(arraysize(character_scan_flags) == kMaxAscii + 1);
   if (V8_LIKELY(static_cast<uint32_t>(c0_) <= kMaxAscii)) {
     if (V8_LIKELY(c0_ != '\\')) {
-      uint8_t scan_flags = character_scan_flags[c0_];
-      DCHECK(!TerminatesLiteral(scan_flags));
-      static_assert(static_cast<uint8_t>(ScanFlags::kCannotBeKeywordStart) ==
-                    static_cast<uint8_t>(ScanFlags::kCannotBeKeyword) << 1);
-      scan_flags >>= 1;
-      // Make sure the shifting above doesn't set IdentifierNeedsSlowPath.
-      // Otherwise we'll fall into the slow path after scanning the identifier.
-      DCHECK(!IdentifierNeedsSlowPath(scan_flags));
+      can_be_keyword = CanBeKeywordStart(character_scan_flags[c0_]);
       AddLiteralChar(static_cast<char>(c0_));
-      // Characters consumed by the scan are bulk-appended to the literal
-      // buffer via the range callback, which is considerably faster than
-      // adding them one by one inside the per-character check.
-      AdvanceUntilRange(
-          [&scan_flags](base::uc32 c0) {
-            if (V8_UNLIKELY(static_cast<uint32_t>(c0) > kMaxAscii)) {
-              // A non-ascii character means we need to drop through to the
-              // slow path.
-              // TODO(leszeks): This would be most efficient as a goto to the
-              // slow path, check codegen and maybe use a bool instead.
-              scan_flags |=
-                  static_cast<uint8_t>(ScanFlags::kIdentifierNeedsSlowPath);
-              return true;
-            }
-            uint8_t char_flags = character_scan_flags[c0];
-            scan_flags |= char_flags;
-            return TerminatesLiteral(char_flags);
-          },
-          [this](const uint16_t* start, const uint16_t* end) {
-            next().literal_chars.AddRangeFromUtf16(start, end);
-          });
-
-      if (V8_LIKELY(!IdentifierNeedsSlowPath(scan_flags))) {
-        if (!CanBeKeyword(scan_flags)) return Token::kIdentifier;
+      V8_INLINE_STATEMENT c0_ = source_->AdvanceUntilNarrowing(
+          &next().literal_chars, AsciiIdentifierTerminator());
+      // Non-ASCII characters and escapes take the slow path; exclude
+      // kEndOfInput (uint32_t(-1)), which is also > kMaxAscii.
+      if (V8_LIKELY(c0_ != '\\' && (static_cast<uint32_t>(c0_) <= kMaxAscii ||
+                                    c0_ == kEndOfInput))) {
+        if (!can_be_keyword) return Token::kIdentifier;
         // Could be a keyword or identifier.
         base::Vector<const uint8_t> chars =
             next().literal_chars.one_byte_literal();
         return KeywordOrIdentifierToken(chars.begin(), chars.length());
       }
-
-      can_be_keyword = CanBeKeyword(scan_flags);
     } else {
       // Special case for escapes at the start of an identifier.
       escaped = true;

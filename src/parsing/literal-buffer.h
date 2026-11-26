@@ -40,30 +40,42 @@ class LiteralBuffer final {
     AddTwoByteChar(code_unit);
   }
 
-  // Adds a range of UTF-16 code units. In one-byte mode all code units in
-  // the range must fit into one byte (callers batch only ASCII ranges); the
-  // narrowing copy below vectorizes well. In two-byte mode the range is
-  // copied as-is.
+  // Adds a range of UTF-16 code units. The buffer must be in two-byte mode.
   V8_INLINE void AddRangeFromUtf16(const uint16_t* begin, const uint16_t* end) {
-    size_t length = static_cast<size_t>(end - begin);
-    if (V8_LIKELY(is_one_byte())) {
-      if (V8_UNLIKELY(position_ + length > backing_store_.size())) {
-        ExpandBufferTo(position_ + length);
-      }
-      uint8_t* dst = backing_store_.begin() + position_;
-      for (size_t i = 0; i < length; i++) {
-        DCHECK_LE(begin[i], unibrow::Latin1::kMaxChar);
-        dst[i] = static_cast<uint8_t>(begin[i]);
-      }
-      position_ += length;
-    } else {
-      size_t size = length * base::kUC16Size;
-      if (V8_UNLIKELY(position_ + size > backing_store_.size())) {
-        ExpandBufferTo(position_ + size);
-      }
-      MemCopy(backing_store_.begin() + position_, begin, size);
-      position_ += size;
+    DCHECK(!is_one_byte());
+    size_t size = static_cast<size_t>(end - begin) * base::kUC16Size;
+    if (V8_UNLIKELY(position_ + size > backing_store_.size())) {
+      ExpandBufferTo(position_ + size);
     }
+    MemCopy(backing_store_.begin() + position_, begin, size);
+    position_ += size;
+  }
+
+  // Ensures at least {min_extra} bytes of free space are available in one-byte
+  // mode and returns a pointer to the current write position. Callers must
+  // commit the number of bytes actually written via AdvancePosition.
+  V8_INLINE uint8_t* EnsureOneByteCapacity(size_t min_extra) {
+    DCHECK(is_one_byte());
+    if (V8_UNLIKELY(position_ + min_extra > backing_store_.size())) {
+      ExpandBufferTo(position_ + min_extra);
+    }
+    return backing_store_.begin() + position_;
+  }
+
+  V8_INLINE uint8_t* one_byte_cursor() {
+    DCHECK(is_one_byte());
+    return backing_store_.begin() + position_;
+  }
+
+  V8_INLINE size_t one_byte_free_capacity() const {
+    DCHECK(is_one_byte());
+    return backing_store_.size() - position_;
+  }
+
+  V8_INLINE void AdvancePosition(size_t delta) {
+    DCHECK(is_one_byte());
+    DCHECK_LE(position_ + delta, backing_store_.size());
+    position_ += delta;
   }
 
   bool is_one_byte() const { return is_one_byte_; }

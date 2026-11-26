@@ -145,6 +145,19 @@ class Utf16CharacterStream {
     return *resume;
   }
 
+  // Advances past code units up to the first terminator and appends them to
+  // {literal}, which must be one-byte. Returns the terminator, or kEndOfInput.
+  //
+  // {is_terminator}(d, chars) receives a Highway vector of code units narrowed
+  // with saturation to uint8_t and returns the terminator mask. Non-ASCII lanes
+  // (> 0x7F) must terminate: saturation maps >= 0x100 to 0xFF, and the slow
+  // path pads partial tails with 0xFFFF.
+  //
+  // Defined in scanner.cc; callers force inlining with V8_INLINE_STATEMENT.
+  template <typename FunctionType>
+  base::uc32 AdvanceUntilNarrowing(LiteralBuffer* literal,
+                                   FunctionType is_terminator);
+
   // Go back one by one character in the input stream.
   // This undoes the most recent Advance().
   inline void Back() {
@@ -257,6 +270,11 @@ class Utf16CharacterStream {
   size_t buffer_pos_;
   RuntimeCallStats* runtime_call_stats_ = nullptr;
   bool has_parser_error_ = false;
+
+ private:
+  template <typename FunctionType>
+  V8_NOINLINE base::uc32 AdvanceUntilNarrowingSlow(LiteralBuffer* literal,
+                                                   FunctionType is_terminator);
 };
 
 // ----------------------------------------------------------------------------
