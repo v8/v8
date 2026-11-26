@@ -39,6 +39,7 @@
 #include "src/sandbox/bytecode-verifier.h"
 #include "src/sandbox/check.h"
 #include "src/sandbox/js-dispatch-table-inl.h"
+#include "src/sandbox/sandbox.h"
 #include "src/snapshot/embedded/embedded-data-inl.h"
 #include "src/snapshot/references.h"
 #include "src/snapshot/serializer-deserializer.h"
@@ -347,6 +348,7 @@ Deserializer<IsolateT>::Deserializer(
       new_scripts_(isolate),
       new_exposed_trusted_objects_(isolate),
       trusted_payload_(trusted_payload),
+      payload_length_(untrusted_payload.size() + trusted_payload.size()),
       // Without the sandbox, trusted objects are part of the untrusted section.
       section_(V8_ENABLE_SANDBOX_BOOL && HasUntrustedSection(trust_level)
                    ? Section::kUntrusted
@@ -371,6 +373,9 @@ Deserializer<IsolateT>::Deserializer(
   num_api_references_ = GetNumApiReferences(isolate);
 #endif  // DEBUG
   CHECK_EQ(magic_number_, SerializedData::kMagicNumber);
+  if (HasUntrustedSection(trust_level)) {
+    DeserializeFixedTrustedSection();
+  }
 }
 
 template <typename IsolateT>
@@ -440,6 +445,7 @@ void Deserializer<IsolateT>::DeserializeDeferredObjects() {
 
 template <typename IsolateT>
 void Deserializer<IsolateT>::DeserializeFixedTrustedSection() {
+  CHECK(!trusted_payload_.empty());
   // The trusted section starts with the external references that the untrusted
   // section refers to by index.
   SnapshotByteSource table(trusted_payload_);
@@ -456,14 +462,13 @@ void Deserializer<IsolateT>::DeserializeFixedTrustedSection() {
 
 template <typename IsolateT>
 DirectHandle<HeapObject> Deserializer<IsolateT>::DeserializeUntrustedSection() {
-  DeserializeFixedTrustedSection();
   DirectHandle<HeapObject> result = ReadObject();
   DeserializeDeferredObjects();
   return result;
 }
 
 template <typename IsolateT>
-void Deserializer<IsolateT>::DeserializeTrustedSection() {
+void Deserializer<IsolateT>::SwitchToTrustedSection() {
   while (source_.Peek() != kSynchronize) {
     ReadObject();
     DeserializeDeferredObjects();
@@ -481,6 +486,10 @@ void Deserializer<IsolateT>::DeserializeTrustedSection() {
   section_ = Section::kTrusted;
   untrusted_back_refs_ = std::exchange(back_refs_, {});
   num_fixed_back_refs_ = 0;
+}
+
+template <typename IsolateT>
+void Deserializer<IsolateT>::DeserializeTrustedExports() {
   DirectHandleVector<ExposedTrustedObject> trusted_exports(isolate());
   while (source_.Peek() != kSynchronize) {
     trusted_exports.push_back(TrustedCast<ExposedTrustedObject>(ReadObject()));
@@ -491,6 +500,12 @@ void Deserializer<IsolateT>::DeserializeTrustedSection() {
         .WriteTrustedPointerTo(*trusted_exports[ref.index],
                                UPDATE_WRITE_BARRIER);
   }
+}
+
+template <typename IsolateT>
+void Deserializer<IsolateT>::DeserializeTrustedSection() {
+  SwitchToTrustedSection();
+  DeserializeTrustedExports();
 }
 
 template <typename IsolateT>
@@ -723,9 +738,8 @@ void Deserializer<IsolateT>::PostProcessNewObject(DirectHandle<Map> map,
     // InstructionStream objects are never serialized.
     UNREACHABLE();
   } else if (InstanceTypeChecker::IsCode(instance_type)) {
-    // TODO(564863360): Replace with SBXCHECK(InTrustedSection()) + TrustedCast
-    // once all deserializers have a trusted/untrusted split.
-    Tagged<Code> code = OutsideSandboxCast<Code>(raw_obj);
+    SBXCHECK(InTrustedSection());
+    Tagged<Code> code = TrustedCast<Code>(raw_obj);
     if (!code->has_instruction_stream()) {
       code->SetInstructionStartForOffHeapBuiltin(
           main_thread_isolate(), EmbeddedData::FromBlob(main_thread_isolate())
@@ -1061,6 +1075,7 @@ void Deserializer<IsolateT>::ReadData(Handle<HeapObject> object,
 template <typename IsolateT>
 void Deserializer<IsolateT>::ReadData(FullMaybeObjectSlot start,
                                       FullMaybeObjectSlot end) {
+  SBXCHECK(InTrustedSection());
   FullMaybeObjectSlot current = start;
   while (current < end) {
     uint8_t data = source_.Get();
@@ -1276,8 +1291,11 @@ int Deserializer<IsolateT>::ReadRootArray(uint8_t data,
   uint32_t id = source_.GetUint30();
   SBXCHECK_LT(id, RootsTable::kEntriesCount);
   RootIndex root_index = static_cast<RootIndex>(id);
-  DirectHandle<HeapObject> heap_object =
-      Cast<HeapObject>(isolate()->root_handle(root_index));
+  DirectHandle<Object> root = isolate()->root_handle(root_index);
+  SBXCHECK(InTrustedSection() ||
+           (IsHeapObject(*root) &&
+            !OutsideSandbox(Cast<HeapObject>(*root).address())));
+  DirectHandle<HeapObject> heap_object = Cast<HeapObject>(root);
 
   if (v8_flags.trace_deserialization) {
     PrintF("%*sRootArray [%u] : %s\n", depth_, "", id,
@@ -1300,6 +1318,7 @@ int Deserializer<IsolateT>::ReadStartupObjectCache(uint8_t data,
   // entry as a Handle backing?
   Tagged<HeapObject> heap_object = Cast<HeapObject>(
       main_thread_isolate()->startup_object_cache()->at(cache_index));
+  SBXCHECK(InTrustedSection() || !OutsideSandbox(heap_object.address()));
   if (v8_flags.trace_deserialization) {
     PrintF("%*sStartupObjectCache [%u] : ", depth_, "", cache_index);
     ShortPrint(heap_object);

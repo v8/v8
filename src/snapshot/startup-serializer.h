@@ -9,6 +9,7 @@
 
 #include "src/handles/global-handles.h"
 #include "src/snapshot/roots-serializer.h"
+#include "src/snapshot/trusted-section-serializer.h"
 
 namespace v8 {
 namespace internal {
@@ -30,6 +31,7 @@ class V8_EXPORT_PRIVATE StartupSerializer : public RootsSerializer {
   // 2) Builtins and bytecode handlers
   // 3) Startup object cache
   // 4) Weak references (e.g. the string table)
+  // 5) The trusted section
   void SerializeStrongReferences(const DisallowGarbageCollection& no_gc);
   void SerializeWeakReferencesAndDeferred();
 
@@ -49,13 +51,21 @@ class V8_EXPORT_PRIVATE StartupSerializer : public RootsSerializer {
   // JSFinalizationRegistries should be used during startup.
   void CheckNoDirtyFinalizationRegistries();
 
+  TrustedSectionSerializer* trusted_serializer() override {
+    return &trusted_serializer_;
+  }
+
  private:
   void SerializeObjectImpl(Handle<HeapObject> o, SlotType slot_type) override;
+  void SerializeObjectInObjectCache(Handle<HeapObject> obj) override;
+  bool SerializeUsingObjectCache(SnapshotByteSink* sink,
+                                 Handle<HeapObject> obj) override;
 
   SharedHeapSerializer* const shared_heap_serializer_;
   GlobalHandleVector<AccessorInfo> accessor_infos_;
   GlobalHandleVector<InterceptorInfo> interceptor_infos_;
   GlobalHandleVector<FunctionTemplateInfo> function_template_infos_;
+  TrustedSectionSerializer trusted_serializer_;
 };
 
 class SerializedHandleChecker : public RootVisitor {

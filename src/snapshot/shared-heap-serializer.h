@@ -47,6 +47,7 @@ class V8_EXPORT_PRIVATE SharedHeapSerializer : public RootsSerializer {
   void SerializeStringTable(StringTable* string_table);
 
   void SerializeObjectImpl(Handle<HeapObject> obj, SlotType slot_type) override;
+  void SerializeObjectInObjectCache(Handle<HeapObject> obj) override;
   TrustedSectionSerializer* trusted_serializer() override {
     return &trusted_serializer_;
   }

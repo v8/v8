@@ -577,6 +577,7 @@ v8_cluster_source_set("v8_unittests_sources") {
     "sandbox/sandbox-unittest.cc",
     "sandbox/sandbox-violation-unittest.cc",
     "sandbox/segmented-table-unittest.cc",
+    "sandbox/startup-snapshot-unittest.cc",
     "sandbox/trap-fuzzer-unittest.cc",
     "strings/char-predicates-unittest.cc",
     "strings/shared-strings-unittest.cc",

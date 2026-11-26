@@ -20,6 +20,17 @@
 namespace v8 {
 namespace internal {
 
+StartupDeserializer::StartupDeserializer(Isolate* isolate,
+                                         const SnapshotData* startup_data,
+                                         bool can_rehash)
+    : Deserializer(isolate, startup_data->UntrustedPayload(),
+                   startup_data->TrustedPayload(),
+                   startup_data->GetMagicNumber(),
+                   /* deserializing_user_code */ false, can_rehash,
+                   SnapshotTrustLevel::kUntrustedWithTrustedSection) {}
+
+StartupDeserializer::~StartupDeserializer() = default;
+
 void StartupDeserializer::DeserializeIntoIsolate() {
   TRACE_EVENT0("v8", "V8.DeserializeIsolate");
   RCS_SCOPE(isolate(), RuntimeCallCounterId::kDeserializeIsolate);
@@ -40,8 +51,8 @@ void StartupDeserializer::DeserializeIntoIsolate() {
             Builtins::kCodeObjectsAreInROSpace);
 
   {
+    SwitchToTrustedSection();
     DeserializeAndCheckExternalReferenceTable();
-
     isolate()->heap()->IterateSmiRoots(this);
     isolate()->heap()->IterateRoots(
         this, base::EnumSet<SkipRoot>{SkipRoot::kUnserializable,
@@ -51,7 +62,7 @@ void StartupDeserializer::DeserializeIntoIsolate() {
 
     isolate()->heap()->IterateWeakRoots(
         this, base::EnumSet<SkipRoot>{SkipRoot::kUnserializable});
-    DeserializeDeferredObjects();
+    DeserializeTrustedExports();
     PostProcessExposedTrustedObjects();
     if (USE_SIMULATOR_BOOL) {
       for (DirectHandle<AccessorInfo> info : accessor_infos()) {
@@ -91,7 +102,7 @@ void StartupDeserializer::DeserializeIntoIsolate() {
   if (V8_UNLIKELY(v8_flags.profile_deserialization)) {
     // ATTENTION: The Memory.json benchmark greps for this exact output. Do not
     // change it without also updating Memory.json.
-    const size_t bytes = source()->length();
+    const size_t bytes = payload_length();
     const double ms = timer.Elapsed().InMillisecondsF();
     PrintF("[Deserializing isolate (%zu bytes) took %0.3f ms]\n", bytes, ms);
   }

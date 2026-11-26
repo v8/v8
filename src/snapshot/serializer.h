@@ -194,6 +194,13 @@ class Serializer : public SerializerDeserializer {
     return reference_map()->LookupReference(o) != nullptr;
   }
 
+  // Whether |obj| is a root that the deserializer has at this point of the
+  // snapshot.
+  virtual bool IsRootAndHasBeenSerialized(Tagged<HeapObject> obj) const {
+    RootIndex root_index;
+    return root_index_map()->Lookup(obj, &root_index);
+  }
+
   Isolate* isolate() const { return isolate_; }
 
   int TotalAllocationSize() const;

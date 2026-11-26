@@ -67,24 +67,26 @@ StartupSerializer::StartupSerializer(
       shared_heap_serializer_(shared_heap_serializer),
       accessor_infos_(isolate->heap()),
       interceptor_infos_(isolate->heap()),
-      function_template_infos_(isolate->heap()) {
+      function_template_infos_(isolate->heap()),
+      trusted_serializer_(isolate, this) {
   InitializeCodeAddressMap();
 
   // This serializes any external reference which don't encode to their own
   // index. This is so that the deserializer can verify that any entries that
   // were deduplicated during serialization are also deduplicated in the
   // deserializing binary.
+  SnapshotByteSink* sink = trusted_serializer_.sink();
   ExternalReferenceTable* table = isolate->external_reference_table();
   for (uint32_t i = 0; i < ExternalReferenceTable::kSizeIsolateIndependent;
        ++i) {
     ExternalReferenceEncoder::Value encoded_reference =
         EncodeExternalReference(table->address(i));
     if (encoded_reference.index() != i) {
-      sink_.PutUint30(i, "expected reference index");
-      sink_.PutUint30(encoded_reference.index(), "actual reference index");
+      sink->PutUint30(i, "expected reference index");
+      sink->PutUint30(encoded_reference.index(), "actual reference index");
     }
   }
-  sink_.PutUint30(ExternalReferenceTable::kSizeIsolateIndependent,
+  sink->PutUint30(ExternalReferenceTable::kSizeIsolateIndependent,
                   "end of deduplicated reference indices");
 }
 
@@ -120,6 +122,7 @@ void StartupSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     DisallowGarbageCollection no_gc;
     Tagged<HeapObject> raw = *obj;
     DCHECK(!IsInstructionStream(raw));
+    if (SerializeTrustedExport(raw)) return;
     if (IsRootAndHasBeenSerialized(raw) && SerializeRoot(raw)) return;
   }
 
@@ -166,14 +169,15 @@ void StartupSerializer::SerializeWeakReferencesAndDeferred() {
   // add entries to the startup object cache of the startup snapshot. Add
   // one entry with 'undefined' to terminate the startup object cache.
   Tagged<Object> undefined = ReadOnlyRoots(isolate()).undefined_value();
-  VisitRootPointer(Root::kStartupObjectCache, nullptr,
-                   FullObjectSlot(&undefined));
+  trusted_serializer_.VisitRootPointer(Root::kStartupObjectCache, nullptr,
+                                       FullObjectSlot(&undefined));
 
   isolate()->heap()->IterateWeakRoots(
-      this, base::EnumSet<SkipRoot>{SkipRoot::kUnserializable});
-  SerializeDeferredObjects();
-  OptimizeBackReferences();
-  Pad();
+      &trusted_serializer_, base::EnumSet<SkipRoot>{SkipRoot::kUnserializable});
+  DCHECK(deferred_objects_empty());
+  trusted_serializer_.SerializeExports();
+  trusted_serializer_.FinishSection();
+  FinishUntrustedSection();
 }
 
 void StartupSerializer::SerializeStrongReferences(
@@ -187,11 +191,12 @@ void StartupSerializer::SerializeStrongReferences(
 
   // Visit smi roots and immortal immovables first to make sure they end up in
   // the first page.
-  isolate->heap()->IterateSmiRoots(this);
+  isolate->heap()->IterateSmiRoots(&trusted_serializer_);
   isolate->heap()->IterateRoots(
-      this, base::EnumSet<SkipRoot>{SkipRoot::kUnserializable, SkipRoot::kWeak,
-                                    SkipRoot::kTracedHandles,
-                                    SkipRoot::kReadOnlyBuiltins});
+      &trusted_serializer_,
+      base::EnumSet<SkipRoot>{SkipRoot::kUnserializable, SkipRoot::kWeak,
+                              SkipRoot::kTracedHandles,
+                              SkipRoot::kReadOnlyBuiltins});
 }
 
 SerializedHandleChecker::SerializedHandleChecker(
@@ -214,6 +219,16 @@ void StartupSerializer::SerializeUsingStartupObjectCache(
   int cache_index = SerializeInObjectCache(obj);
   sink->Put(kStartupObjectCache, "StartupObjectCache");
   sink->PutUint30(cache_index, "startup_object_cache_index");
+}
+
+void StartupSerializer::SerializeObjectInObjectCache(Handle<HeapObject> obj) {
+  trusted_serializer_.VisitRootPointer(Root::kStartupObjectCache, nullptr,
+                                       FullObjectSlot(obj.location()));
+}
+
+bool StartupSerializer::SerializeUsingObjectCache(SnapshotByteSink* sink,
+                                                  Handle<HeapObject> obj) {
+  return SerializeUsingSharedHeapObjectCache(sink, obj);
 }
 
 void StartupSerializer::CheckNoDirtyFinalizationRegistries() {

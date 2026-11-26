@@ -100,7 +100,7 @@ void TrustedSectionSerializer::FinishSection(
 
 bool TrustedSectionSerializer::SerializeUntrustedReference(
     Handle<HeapObject> obj) {
-  if (OutsideSandbox(obj->address())) return false;
+  if (V8_ENABLE_SANDBOX_BOOL && OutsideSandbox(obj->address())) return false;
   if (!untrusted_serializer_->ReferenceMapContains(obj)) {
     untrusted_serializer_->SerializeObject(obj, SlotType::kAnySlot);
     untrusted_serializer_->SerializeDeferredObjects();
@@ -127,7 +127,10 @@ void TrustedSectionSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   {
     DisallowGarbageCollection no_gc;
     Tagged<HeapObject> raw = *obj;
-    if (SerializeRoot(raw)) return;
+    if (untrusted_serializer_->IsRootAndHasBeenSerialized(raw) &&
+        SerializeRoot(raw)) {
+      return;
+    }
     if (SerializeReadOnlyObjectReference(raw, &sink_)) return;
     if (untrusted_serializer_->SerializeUsingObjectCache(&sink_, obj)) return;
     if (SerializeUntrustedReference(obj)) return;

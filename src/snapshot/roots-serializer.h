@@ -5,9 +5,6 @@
 #ifndef V8_SNAPSHOT_ROOTS_SERIALIZER_H_
 #define V8_SNAPSHOT_ROOTS_SERIALIZER_H_
 
-#include <bitset>
-
-#include "src/objects/visitors.h"
 #include "src/snapshot/serializer.h"
 
 namespace v8 {
@@ -31,10 +28,10 @@ class RootsSerializer : public Serializer {
 
   bool can_be_rehashed() const { return can_be_rehashed_; }
   bool root_has_been_serialized(RootIndex root_index) const {
-    return root_has_been_serialized_.test(static_cast<size_t>(root_index));
+    return root_index < first_root_to_be_serialized_;
   }
 
-  bool IsRootAndHasBeenSerialized(Tagged<HeapObject> obj) const {
+  bool IsRootAndHasBeenSerialized(Tagged<HeapObject> obj) const override {
     RootIndex root_index;
     return root_index_map()->Lookup(obj, &root_index) &&
            root_has_been_serialized(root_index);
@@ -45,16 +42,14 @@ class RootsSerializer : public Serializer {
 
   // Serializes |object| if not previously seen and returns its cache index.
   int SerializeInObjectCache(Handle<HeapObject> object);
+  virtual void SerializeObjectInObjectCache(Handle<HeapObject> object) {
+    SerializeObject(object, SlotType::kAnySlot);
+  }
 
   bool object_cache_empty() { return object_cache_index_map_.size() == 0; }
 
  private:
-  void VisitRootPointers(Root root, const char* description,
-                         FullObjectSlot start, FullObjectSlot end) override;
-  void Synchronize(VisitorSynchronization::SyncTag tag) override;
-
   const RootIndex first_root_to_be_serialized_;
-  std::bitset<RootsTable::kEntriesCount> root_has_been_serialized_;
   ObjectCacheIndexMap object_cache_index_map_;
   // Indicates whether we only serialized hash tables that we can rehash.
   // TODO(yangguo): generalize rehashing, and remove this flag.

@@ -66,8 +66,9 @@ class Deserializer : public SerializerDeserializer {
                bool can_rehash, SnapshotTrustLevel trust_level);
 
   void DeserializeDeferredObjects();
-  void DeserializeFixedTrustedSection();
   DirectHandle<HeapObject> DeserializeUntrustedSection();
+  void SwitchToTrustedSection();
+  void DeserializeTrustedExports();
   void DeserializeTrustedSection();
 
   // Create Log events for newly deserialized objects.
@@ -132,6 +133,7 @@ class Deserializer : public SerializerDeserializer {
 
   bool deserializing_user_code() const { return deserializing_user_code_; }
   bool should_rehash() const { return should_rehash_; }
+  size_t payload_length() const { return payload_length_; }
 
   void PushObjectToRehash(DirectHandle<HeapObject> object) {
     to_rehash_.push_back(object);
@@ -151,6 +153,7 @@ class Deserializer : public SerializerDeserializer {
                          FullObjectSlot start, FullObjectSlot end) override;
 
   void Synchronize(VisitorSynchronization::SyncTag tag) override;
+  void DeserializeFixedTrustedSection();
 
   template <typename SlotAccessor>
   int WriteHeapPointer(SlotAccessor slot_accessor,
@@ -326,6 +329,7 @@ class Deserializer : public SerializerDeserializer {
   int num_unresolved_forward_refs_ = 0;
 
   base::Vector<const uint8_t> trusted_payload_;
+  const size_t payload_length_;
   std::vector<EncodedExternalReference> external_references_;
   std::vector<JSDispatchHandle> trusted_dispatch_handles_;
   std::vector<IndirectHandle<HeapObject>> untrusted_back_refs_;

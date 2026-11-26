@@ -42,12 +42,16 @@ class TrustedSectionSerializer final : public Serializer {
 
   void SerializeExports();
   void FinishSection(const SnapshotByteSink& trailing_data = {});
+  SnapshotByteSink* sink() { return &sink_; }
   const std::vector<uint8_t>* ExternalReferencesPayload() const {
     return external_references_sink_.data();
   }
 
  private:
   void SerializeObjectImpl(Handle<HeapObject> o, SlotType slot_type) override;
+  void Synchronize(VisitorSynchronization::SyncTag tag) override {
+    sink_.Put(kSynchronize, "Synchronize");
+  }
   // Puts in-sandbox objects into the untrusted section and refers to them.
   bool SerializeUntrustedReference(Handle<HeapObject> obj);
 

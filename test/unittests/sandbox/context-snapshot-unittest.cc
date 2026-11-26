@@ -9,6 +9,7 @@
 #include "src/base/numerics/safe_conversions.h"
 #include "src/base/vector.h"
 #include "src/heap/factory.h"
+#include "src/objects/code.h"
 #include "src/objects/js-objects-inl.h"
 #include "src/roots/roots.h"
 #include "src/snapshot/context-deserializer.h"
@@ -127,6 +128,49 @@ TEST_F(ContextSnapshotUntrustedSectionTest, DisallowedSpaces) {
   meta_map.PutUint30(MAP_TYPE, "");
   ASSERT_DEATH_IF_SUPPORTED(Deserialize(&meta_map),
                             EXPECTED_CHECK_WITH_MSG("AllocationType::kOld"));
+}
+
+TEST_F(ContextSnapshotUntrustedSectionTest, TrustedAndSmiRoots) {
+  for (RootIndex root : {
+           RootIndex::kEmptyTrustedByteArray,
+#if V8_ENABLE_WEBASSEMBLY
+           RootIndex::kJSToWasmWrappers,
+#endif  // V8_ENABLE_WEBASSEMBLY
+           RootIndex::kLastScriptId,
+       }) {
+    SnapshotByteSink untrusted;
+    untrusted.Put(SnapshotBytecodes::kRootArray, "");
+    untrusted.PutUint30(static_cast<uint32_t>(root), "");
+    ASSERT_DEATH_IF_SUPPORTED(Deserialize(&untrusted),
+                              EXPECTED_CHECK_WITH_MSG("OutsideSandbox"));
+  }
+}
+
+TEST_F(ContextSnapshotUntrustedSectionTest, TrustedStartupObjectCache) {
+  ASSERT_DEATH_IF_SUPPORTED(
+      {
+        auto* cache = i_isolate()->startup_object_cache();
+        uint32_t index = base::checked_cast<uint32_t>(cache->size());
+        cache->push_back(*i_isolate()->factory()->empty_trusted_byte_array());
+        SnapshotByteSink untrusted;
+        untrusted.Put(SnapshotBytecodes::kStartupObjectCache, "");
+        untrusted.PutUint30(index, "");
+        Deserialize(&untrusted);
+      },
+      EXPECTED_CHECK_WITH_MSG("OutsideSandbox"));
+}
+
+TEST_F(ContextSnapshotUntrustedSectionTest, CodeInOldSpace) {
+  constexpr uint32_t kCodePayloadSlots = Code::kSize / kTaggedSize - 1;
+  SnapshotByteSink untrusted;
+  untrusted.Put(SnapshotBytecodes::NewObject::Encode(SnapshotSpace::kOld), "");
+  untrusted.Put(SnapshotBytecodes::kRootArray, "");
+  untrusted.PutUint30(static_cast<uint32_t>(RootIndex::kCodeMap), "");
+  untrusted.Put(SnapshotBytecodes::kVariableRawData, "");
+  untrusted.PutUint30(kCodePayloadSlots, "");
+  untrusted.PutN(kCodePayloadSlots * kTaggedSize, 0, "");
+  ASSERT_DEATH_IF_SUPPORTED(Deserialize(&untrusted),
+                            EXPECTED_CHECK_WITH_MSG("InTrustedSection"));
 }
 
 }  // namespace v8::internal
