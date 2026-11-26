@@ -790,7 +790,7 @@ void MacroAssembler::MoveObjectAndSlot(Register dst_object, Register dst_slot,
   // overwrite it.
   if (dst_slot != object) {
     Add_d(dst_slot, object, offset);
-    mov(dst_object, object);
+    Move(dst_object, object);
     return;
   }
 
