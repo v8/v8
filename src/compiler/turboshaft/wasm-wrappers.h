@@ -840,12 +840,18 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
         isolate, LoadOp::Kind::RawAligned().NotLoadEliminable(),
         MemoryRepresentation::Uint32(), Isolate::promise_hook_flags_offset());
     // LINT.IfChange(PromiseHookFlags)
+#ifdef V8_ENABLE_PROMISE_HOOKS
     constexpr uint32_t kHookMask =
         Isolate::PromiseHookFields::HasIsolatePromiseHook::kMask |
         Isolate::PromiseHookFields::HasAsyncEventDelegate::kMask |
         Isolate::PromiseHookFields::IsDebugActive::kMask;
-    // LINT.ThenChange(../../codegen/code-stub-assembler.cc:PromiseHookFlags)
     V<Word32> needs_hook = __ Word32BitwiseAnd(promise_hook_flags, kHookMask);
+#else
+    // Without V8_ENABLE_PROMISE_HOOKS, only HasAsyncEventDelegate and
+    // IsDebugActive can ever be set in promise_hook_flags_.
+    V<Word32> needs_hook = promise_hook_flags;
+#endif  // V8_ENABLE_PROMISE_HOOKS
+    // LINT.ThenChange(../../codegen/code-stub-assembler.cc:PromiseHookFlags)
 
     ScopedVar<Object> var_throwaway(this, __ UndefinedConstant());
     IF (UNLIKELY(needs_hook)) {

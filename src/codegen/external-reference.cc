@@ -1491,10 +1491,6 @@ ExternalReference ExternalReference::binary_operation_feedback_encode_table() {
       BinaryOperationFeedback::GetFeedbackEncodeTableAddress());
 }
 
-ExternalReference ExternalReference::promise_hook_address(Isolate* isolate) {
-  return ExternalReference(isolate->promise_hook_address());
-}
-
 ExternalReference ExternalReference::async_event_delegate_address(
     Isolate* isolate) {
   return ExternalReference(isolate->async_event_delegate_address());

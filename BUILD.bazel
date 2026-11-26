@@ -134,6 +134,11 @@ v8_flag(
 
 v8_flag(name = "v8_enable_object_print")
 
+v8_flag(
+    name = "v8_enable_promise_hooks",
+    default = True,
+)
+
 v8_flag(name = "v8_enable_slow_dchecks")
 
 v8_flag(name = "v8_enable_snapshot_code_comments")
@@ -624,6 +629,7 @@ v8_config(
         "v8_enable_future": "V8_ENABLE_FUTURE",
         "v8_enable_lazy_source_positions": "V8_ENABLE_LAZY_SOURCE_POSITIONS",
         "v8_enable_object_print": "OBJECT_PRINT",
+        "v8_enable_promise_hooks": "V8_ENABLE_PROMISE_HOOKS",
         "v8_enable_slow_dchecks": "ENABLE_SLOW_DCHECKS",
         "v8_enable_runtime_call_stats": "V8_RUNTIME_CALL_STATS",
         "v8_enable_snapshot_native_code_counters": "V8_SNAPSHOT_NATIVE_CODE_COUNTERS",

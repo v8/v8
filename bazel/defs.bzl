@@ -533,6 +533,7 @@ def build_config_content(cpu, icu):
         ("official_build", "false"),
         ("pointer_compression_shared_cage", "false"),
         ("pointer_compression", "true"),
+        ("promise_hooks", "true"),
         ("runtime_call_stats", "false"),
         ("sandbox", "false"),
         ("sandbox_hardware_support", "false"),

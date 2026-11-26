@@ -50,7 +50,6 @@ enum class IsolateFieldId : uint8_t;
   V(exception_address, "Isolate::exception")                                   \
   V(address_of_pending_message, "address_of_pending_message")                  \
   V(promise_hook_flags_address, "Isolate::promise_hook_flags_address()")       \
-  V(promise_hook_address, "Isolate::promise_hook_address()")                   \
   V(async_event_delegate_address, "Isolate::async_event_delegate_address()")   \
   V(debug_is_active_address, "Debug::is_active_address()")                     \
   V(debug_hook_on_function_call_address,                                       \

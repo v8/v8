@@ -3565,4 +3565,22 @@
   'sandbox/regress/regress-571204561': [SKIP],
   'sandbox/regress/regress-580248117': [SKIP],
 }],  # not test_only_sync_points
+
+##############################################################################
+['not promise_hooks', {
+  # Requires --expose-async-hooks / C++ PromiseHook:
+  'async-hooks/*': [SKIP],
+  'regress/regress-1115354': [SKIP],
+  'regress/regress-578383284-resolve-hook': [SKIP],
+  'regress/regress-crbug-1015945': [SKIP],
+  'regress/regress-crbug-1238467': [SKIP],
+  'regress/regress-crbug-1239907': [SKIP],
+  'regress/regress-crbug-1424699': [SKIP],
+  'regress/regress-crbug-1443001': [SKIP],
+  'regress/regress-crbug-860788': [SKIP],
+  'regress/regress-crbug-865892': [SKIP],
+  'regress/regress-crbug-866315': [SKIP],
+  'regress/regress-crbug-896700': [SKIP],
+  'regress/regress-crbug-897406': [SKIP],
+}],  # not promise_hooks
 ]

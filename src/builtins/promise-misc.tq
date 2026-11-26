@@ -250,16 +250,21 @@ transitioning macro RunContextPromiseHook(
 
 transitioning macro RunAnyPromiseHookInit(
     implicit context: Context)(promise: JSPromise, parent: Object): void {
-  const promiseHookFlags = PromiseHookFlags();
-  // Fast return if no hooks are set.
-  if (promiseHookFlags == 0) return;
-  @if(V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS) {
-    if (IsContextPromiseHookEnabled(promiseHookFlags)) {
-      RunContextPromiseHookInit(promise, parent);
+  // Use potentially unused variables.
+  const _unusedPromise = promise;
+  const _unusedParent = parent;
+  @if(V8_ENABLE_PROMISE_HOOKS) {
+    const promiseHookFlags = PromiseHookFlags();
+    // Fast return if no hooks are set.
+    if (promiseHookFlags == 0) return;
+    @if(V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS) {
+      if (IsContextPromiseHookEnabled(promiseHookFlags)) {
+        RunContextPromiseHookInit(promise, parent);
+      }
     }
-  }
-  if (IsIsolatePromiseHookEnabled(promiseHookFlags)) {
-    runtime::PromiseHookInit(promise, parent);
+    if (IsIsolatePromiseHookEnabled(promiseHookFlags)) {
+      runtime::PromiseHookInit(promise, parent);
+    }
   }
 }
 

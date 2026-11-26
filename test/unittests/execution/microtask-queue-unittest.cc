@@ -13,6 +13,7 @@
 #include "include/v8-data.h"
 #include "include/v8-external.h"
 #include "include/v8-function.h"
+#include "src/debug/debug-interface.h"
 #include "src/heap/factory.h"
 #include "src/objects/foreign.h"
 #include "src/objects/js-array-inl.h"
@@ -88,8 +89,11 @@ using TestWithNativeContextAndFinalizationRegistry =  //
 
 namespace {
 
-void DummyPromiseHook(PromiseHookType type, Local<Promise> promise,
-                      Local<Value> parent) {}
+class DummyAsyncEventDelegate : public debug::AsyncEventDelegate {
+ public:
+  void AsyncEventOccurred(debug::DebugAsyncActionType type, int id,
+                          bool is_blackboxed, int skip_frame_count) override {}
+};
 
 }  // namespace
 
@@ -141,9 +145,9 @@ class MicrotaskQueueTest
     native_context()->set_microtask_queue(isolate(), microtask_queue());
 
     if (GetParam().runtime_promise_hook) {
-      // Use a PromiseHook to switch the implementation to ResolvePromise
-      // runtime, instead of ResolvePromise builtin.
-      v8_isolate()->SetPromiseHook(&DummyPromiseHook);
+      // Use an AsyncEventDelegate to switch the implementation to
+      // ResolvePromise runtime, instead of ResolvePromise builtin.
+      isolate()->set_async_event_delegate(&async_event_delegate_);
     }
   }
 
@@ -151,6 +155,9 @@ class MicrotaskQueueTest
     if (microtask_queue()) {
       microtask_queue()->RunMicrotasks(isolate());
       context()->DetachGlobal();
+    }
+    if (GetParam().runtime_promise_hook) {
+      isolate()->set_async_event_delegate(nullptr);
     }
   }
 
@@ -167,6 +174,7 @@ class MicrotaskQueueTest
   }
 
  private:
+  DummyAsyncEventDelegate async_event_delegate_;
   cppgc::Persistent<MicrotaskQueue> microtask_queue_;
 };
 

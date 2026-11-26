@@ -34,21 +34,28 @@ if (typeof Worker !== 'undefined') {
   w1.getMessage();
   w1.terminate();
 
-  // 2. Termination triggered by promiseResolve hook on the first waiter node
-  // while a second waiter node with a timeout task is queued in the same
-  // ResolveAsyncWaiterPromises batch.
-  const w2 = new Worker(`
-    const ia = new Int32Array(new SharedArrayBuffer(4));
-    async_hooks.createHook({
-      promiseResolve() {
-        d8.terminateNow();
-      }
-    }).enable();
-    Atomics.waitAsync(ia, 0, 0, 1);
-    Atomics.waitAsync(ia, 0, 0, 1);
-    Atomics.notify(ia, 0);
-  `, {type: 'string'});
-  w2.getMessage();
+  let hasAsyncHooks = false;
+  try {
+    async_hooks.createHook({});
+    hasAsyncHooks = true;
+  } catch {}
+  if (hasAsyncHooks) {
+    // 2. Termination triggered by promiseResolve hook on the first waiter node
+    // while a second waiter node with a timeout task is queued in the same
+    // ResolveAsyncWaiterPromises batch.
+    const w2 = new Worker(`
+      const ia = new Int32Array(new SharedArrayBuffer(4));
+      async_hooks.createHook({
+        promiseResolve() {
+          d8.terminateNow();
+        }
+      }).enable();
+      Atomics.waitAsync(ia, 0, 0, 1);
+      Atomics.waitAsync(ia, 0, 0, 1);
+      Atomics.notify(ia, 0);
+    `, {type: 'string'});
+    w2.getMessage();
+  }
 
   // 3. Worker termination during an Atomics.waitAsync reaction microtask with a
   // pending waiter timeout (direct coverage of entering

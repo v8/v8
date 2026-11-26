@@ -990,12 +990,14 @@ TEST_F(ThreadTerminationTest, AtomicsWaitAsyncTasksWhileTerminating) {
   Local<Context> context = Context::New(isolate());
   Context::Scope context_scope(context);
 
+#ifdef V8_ENABLE_PROMISE_HOOKS
   static bool g_resolve_hook_called = false;
   auto resolve_hook = [](PromiseHookType type, Local<Promise>, Local<Value>) {
     if (type == PromiseHookType::kResolve) {
       g_resolve_hook_called = true;
     }
   };
+#endif  // V8_ENABLE_PROMISE_HOOKS
 
   // 1. ResolveAsyncWaiterPromisesTask entered while execution is already
   // terminating must cancel the associated timeout task and leave the promise
@@ -1015,8 +1017,12 @@ TEST_F(ThreadTerminationTest, AtomicsWaitAsyncTasksWhileTerminating) {
 
     {
       TryCatch try_catch(isolate());
+#ifdef V8_ENABLE_PROMISE_HOOKS
       g_resolve_hook_called = false;
+      START_ALLOW_USE_DEPRECATED()
       isolate()->SetPromiseHook(resolve_hook);
+      END_ALLOW_USE_DEPRECATED()
+#endif  // V8_ENABLE_PROMISE_HOOKS
       i_isolate()->TerminateExecution();
       ASSERT_TRUE(i_isolate()->is_execution_terminating());
       // Pump ResolveAsyncWaiterPromisesTask (and wait past the 1ms timeout so
@@ -1028,8 +1034,12 @@ TEST_F(ThreadTerminationTest, AtomicsWaitAsyncTasksWhileTerminating) {
                        ->NumberOfElements());
       v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(5));
       EmptyMessageQueues();
+#ifdef V8_ENABLE_PROMISE_HOOKS
+      START_ALLOW_USE_DEPRECATED()
       isolate()->SetPromiseHook(nullptr);
+      END_ALLOW_USE_DEPRECATED()
       EXPECT_FALSE(g_resolve_hook_called);
+#endif  // V8_ENABLE_PROMISE_HOOKS
       EXPECT_EQ(Promise::kPending, promise->State());
       EXPECT_TRUE(i_isolate()->is_execution_terminating());
       EXPECT_TRUE(try_catch.HasTerminated());
@@ -1053,8 +1063,12 @@ TEST_F(ThreadTerminationTest, AtomicsWaitAsyncTasksWhileTerminating) {
 
     {
       TryCatch try_catch(isolate());
+#ifdef V8_ENABLE_PROMISE_HOOKS
       g_resolve_hook_called = false;
+      START_ALLOW_USE_DEPRECATED()
       isolate()->SetPromiseHook(resolve_hook);
+      END_ALLOW_USE_DEPRECATED()
+#endif  // V8_ENABLE_PROMISE_HOOKS
       i_isolate()->TerminateExecution();
       ASSERT_TRUE(i_isolate()->is_execution_terminating());
       // Pump until the 1ms AsyncWaiterTimeoutTask expires and cleans up the
@@ -1068,8 +1082,12 @@ TEST_F(ThreadTerminationTest, AtomicsWaitAsyncTasksWhileTerminating) {
             i::V8::GetCurrentPlatform(), isolate(),
             platform::MessageLoopBehavior::kWaitForWork));
       }
+#ifdef V8_ENABLE_PROMISE_HOOKS
+      START_ALLOW_USE_DEPRECATED()
       isolate()->SetPromiseHook(nullptr);
+      END_ALLOW_USE_DEPRECATED()
       EXPECT_FALSE(g_resolve_hook_called);
+#endif  // V8_ENABLE_PROMISE_HOOKS
       EXPECT_EQ(Promise::kPending, promise->State());
       EXPECT_TRUE(i_isolate()->is_execution_terminating());
       EXPECT_TRUE(try_catch.HasTerminated());

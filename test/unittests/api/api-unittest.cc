@@ -16780,6 +16780,8 @@ void SetPromise(const char* name, v8::Local<v8::Promise> promise) {
       .FromJust();
 }
 
+#ifdef V8_ENABLE_PROMISE_HOOKS
+
 class PromiseHookData {
  public:
   int before_hook_count = 0;
@@ -16862,7 +16864,9 @@ TEST_F(ApiTest, PromiseHook) {
   v8::Local<v8::Context> context = v8_isolate()->GetCurrentContext();
 
   promise_hook_data = new PromiseHookData();
+  START_ALLOW_USE_DEPRECATED()
   isolate->SetPromiseHook(CustomPromiseHook);
+  END_ALLOW_USE_DEPRECATED()
 
   // Test that an initialized promise is passed to init. Other hooks
   // can not have un initialized promise.
@@ -17164,7 +17168,9 @@ TEST_F(ApiTest, PromiseHook) {
 
   delete promise_hook_data;
   promise_hook_data = nullptr;
+  START_ALLOW_USE_DEPRECATED()
   isolate->SetPromiseHook(nullptr);
+  END_ALLOW_USE_DEPRECATED()
 }
 
 struct ChainParentHookData {
@@ -17195,7 +17201,9 @@ TEST_F(ApiTest, PromiseHookChainParent) {
   v8::Local<v8::Context> context = env.local();
 
   chain_parent_hook_data = new ChainParentHookData();
+  START_ALLOW_USE_DEPRECATED()
   isolate->SetPromiseHook(ChainParentPromiseHook);
+  END_ALLOW_USE_DEPRECATED()
 
   // A root promise has no parent.
   v8::Local<v8::Promise::Resolver> resolver =
@@ -17232,12 +17240,44 @@ TEST_F(ApiTest, PromiseHookChainParent) {
   CHECK(chain_parent_hook_data->last_promise.Get(isolate) == then2_promise);
   CHECK(chain_parent_hook_data->last_parent.Get(isolate) == root);
 
+  START_ALLOW_USE_DEPRECATED()
   isolate->SetPromiseHook(nullptr);
+  END_ALLOW_USE_DEPRECATED()
   chain_parent_hook_data->last_promise.Reset();
   chain_parent_hook_data->last_parent.Reset();
   delete chain_parent_hook_data;
   chain_parent_hook_data = nullptr;
 }
+
+#else
+
+TEST_F(ApiTest, PromiseHookDisabled) {
+  v8::Isolate::CreateParams create_params = CreateTestParams();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    isolate->SetFatalErrorHandler(StoringErrorCallback);
+    last_location = last_message = nullptr;
+
+    START_ALLOW_USE_DEPRECATED()
+    isolate->SetPromiseHook(nullptr);
+    CHECK_NULL(last_location);
+    CHECK_NULL(last_message);
+
+    v8::PromiseHook dummy_hook = [](v8::PromiseHookType, v8::Local<v8::Promise>,
+                                    v8::Local<v8::Value>) {};
+    isolate->SetPromiseHook(dummy_hook);
+    END_ALLOW_USE_DEPRECATED()
+    CHECK_NOT_NULL(last_location);
+    CHECK_NOT_NULL(last_message);
+    CHECK_EQ(0, strcmp(last_location, "v8::Isolate::SetPromiseHook"));
+    CHECK_NOT_NULL(
+        strstr(last_message, "V8 was compiled without Promise hooks"));
+  }
+  isolate->Dispose();
+}
+
+#endif  // V8_ENABLE_PROMISE_HOOKS
 
 TEST_F(ApiTest, EvalWithSourceURLInMessageScriptResourceNameOrSourceURL) {
   LocalContext context;

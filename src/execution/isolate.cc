@@ -7294,11 +7294,17 @@ void Isolate::UpdatePromiseHookProtector() {
 }
 
 void Isolate::PromiseHookStateUpdated() {
+#ifdef V8_ENABLE_PROMISE_HOOKS
   promise_hook_flags_ =
       (promise_hook_flags_ & PromiseHookFields::HasContextPromiseHook::kMask) |
       PromiseHookFields::HasIsolatePromiseHook::encode(promise_hook_) |
       PromiseHookFields::HasAsyncEventDelegate::encode(async_event_delegate_) |
       PromiseHookFields::IsDebugActive::encode(debug()->is_active());
+#else
+  promise_hook_flags_ =
+      PromiseHookFields::HasAsyncEventDelegate::encode(async_event_delegate_) |
+      PromiseHookFields::IsDebugActive::encode(debug()->is_active());
+#endif  // V8_ENABLE_PROMISE_HOOKS
 
   if (promise_hook_flags_ != 0) {
     UpdatePromiseHookProtector();
@@ -7751,6 +7757,7 @@ std::shared_ptr<bool> Isolate::cpp_heap_isolate_alive_token() const {
   return CppHeap::From(heap_.cpp_heap())->isolate_alive_token();
 }
 
+#ifdef V8_ENABLE_PROMISE_HOOKS
 void Isolate::SetPromiseHook(PromiseHook hook) {
   promise_hook_ = hook;
   PromiseHookStateUpdated();
@@ -7776,6 +7783,7 @@ void Isolate::RunPromiseHook(PromiseHookType type,
   DCHECK(promise_hook_ != nullptr);
   promise_hook_(type, v8::Utils::ToLocal(promise), v8::Utils::ToLocal(parent));
 }
+#endif  // V8_ENABLE_PROMISE_HOOKS
 
 void Isolate::OnAsyncFunctionSuspended(DirectHandle<JSPromise> promise,
                                        DirectHandle<JSPromise> parent,

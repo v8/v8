@@ -30,7 +30,9 @@
 #include "src/base/platform/time.h"
 #include "src/base/platform/wrappers.h"
 #include "src/base/unique-array.h"
+#ifdef V8_ENABLE_PROMISE_HOOKS
 #include "src/d8/async-hooks-wrapper.h"
+#endif
 // For V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT.
 #include "src/d8/hardware-watchpoints.h"
 #include "src/handles/global-handles.h"
@@ -436,7 +438,9 @@ class PerIsolateData {
     int previous_index_;
   };
 
+#ifdef V8_ENABLE_PROMISE_HOOKS
   AsyncHooks* GetAsyncHooks() { return async_hooks_wrapper_; }
+#endif
 
   void RemoveUnhandledPromise(Local<Promise> promise);
   void AddUnhandledPromise(Local<Promise> promise, Local<Message> message,
@@ -487,7 +491,9 @@ class PerIsolateData {
   std::vector<std::tuple<Global<Promise>, Global<Message>, Global<Value>>>
       unhandled_promises_;
   std::vector<int> realm_stack_;
+#ifdef V8_ENABLE_PROMISE_HOOKS
   AsyncHooks* async_hooks_wrapper_;
+#endif
   std::unordered_set<DynamicImportData*> import_data_;
   Global<FunctionTemplate> test_api_object_ctor_;
   Global<FunctionTemplate> dom_node_ctor_;

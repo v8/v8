@@ -57,6 +57,11 @@ class BuildFlags : public base::ContextualClass<BuildFlags> {
         V8_ADD_DESCRIPTOR_ARRAY_LOOKUP_TABLE_BOOL;
     build_flags_["V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE"] =
         V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE_BOOL;
+#ifdef V8_ENABLE_PROMISE_HOOKS
+    build_flags_["V8_ENABLE_PROMISE_HOOKS"] = true;
+#else
+    build_flags_["V8_ENABLE_PROMISE_HOOKS"] = false;
+#endif
 #ifdef V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
     build_flags_["V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS"] = true;
 #else

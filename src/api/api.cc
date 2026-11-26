@@ -10717,8 +10717,13 @@ void Isolate::RemoveCallCompletedCallback(CallCompletedCallback callback) {
 }
 
 void Isolate::SetPromiseHook(PromiseHook hook) {
+#ifdef V8_ENABLE_PROMISE_HOOKS
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   i_isolate->SetPromiseHook(hook);
+#else
+  Utils::ApiCheck(hook == nullptr, "v8::Isolate::SetPromiseHook",
+                  "V8 was compiled without Promise hooks");
+#endif
 }
 
 void Isolate::SetPromiseRejectCallback(PromiseRejectCallback callback) {

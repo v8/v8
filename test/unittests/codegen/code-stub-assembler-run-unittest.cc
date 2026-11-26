@@ -16,6 +16,7 @@
 #include "src/codegen/code-stub-assembler-inl.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/compiler/node.h"
+#include "src/debug/debug-interface.h"
 #include "src/debug/debug.h"
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
@@ -2871,8 +2872,16 @@ void Recompile(Args... args) {
   stub.GetCode();
 }
 
+#ifdef V8_ENABLE_PROMISE_HOOKS
 void CustomPromiseHook(v8::PromiseHookType type, v8::Local<v8::Promise> promise,
                        v8::Local<v8::Value> parentPromise) {}
+#endif  // V8_ENABLE_PROMISE_HOOKS
+
+class DummyAsyncEventDelegate : public debug::AsyncEventDelegate {
+ public:
+  void AsyncEventOccurred(debug::DebugAsyncActionType type, int id,
+                          bool is_blackboxed, int skip_frame_count) override {}
+};
 
 TEST_F(CodeStubAssemblerRunTest, IsPromiseHookEnabled) {
   Isolate* isolate(i_isolate());
@@ -2889,11 +2898,22 @@ TEST_F(CodeStubAssemblerRunTest, IsPromiseHookEnabled) {
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
   CHECK_EQ(ReadOnlyRoots(isolate).false_value(), *result);
 
+#ifdef V8_ENABLE_PROMISE_HOOKS
   isolate->SetPromiseHook(CustomPromiseHook);
   result = ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
   CHECK_EQ(ReadOnlyRoots(isolate).true_value(), *result);
 
   isolate->SetPromiseHook(nullptr);
+  result = ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
+  CHECK_EQ(ReadOnlyRoots(isolate).false_value(), *result);
+#endif  // V8_ENABLE_PROMISE_HOOKS
+
+  DummyAsyncEventDelegate delegate;
+  isolate->set_async_event_delegate(&delegate);
+  result = ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
+  CHECK_EQ(ReadOnlyRoots(isolate).true_value(), *result);
+
+  isolate->set_async_event_delegate(nullptr);
   result = ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
   CHECK_EQ(ReadOnlyRoots(isolate).false_value(), *result);
 }

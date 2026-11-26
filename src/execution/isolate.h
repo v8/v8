@@ -1908,8 +1908,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #endif  // V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
 
   bool HasContextPromiseHooks() const {
+#ifdef V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
     return PromiseHookFields::HasContextPromiseHook::decode(
         promise_hook_flags_);
+#else
+    return false;
+#endif  // V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
   }
 
   Address promise_hook_flags_address() {
@@ -1918,10 +1922,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   static constexpr int promise_hook_flags_offset() {
     return offsetof(Isolate, promise_hook_flags_);
-  }
-
-  Address promise_hook_address() {
-    return reinterpret_cast<Address>(&promise_hook_);
   }
 
   Address async_event_delegate_address() {
@@ -1941,11 +1941,18 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void RunReleaseCppHeapCallback(std::unique_ptr<v8::CppHeap> cpp_heap);
   std::shared_ptr<bool> cpp_heap_isolate_alive_token() const;
 
+#ifdef V8_ENABLE_PROMISE_HOOKS
   void SetPromiseHook(PromiseHook hook);
   void RunPromiseHook(PromiseHookType type, DirectHandle<JSPromise> promise,
                       DirectHandle<Object> parent);
   void RunAllPromiseHooks(PromiseHookType type, DirectHandle<JSPromise> promise,
                           DirectHandle<Object> parent);
+#else
+  void RunPromiseHook(PromiseHookType type, DirectHandle<JSPromise> promise,
+                      DirectHandle<Object> parent) {}
+  void RunAllPromiseHooks(PromiseHookType type, DirectHandle<JSPromise> promise,
+                          DirectHandle<Object> parent) {}
+#endif  // V8_ENABLE_PROMISE_HOOKS
   void UpdatePromiseHookProtector();
   void PromiseHookStateUpdated();
 
@@ -2622,8 +2629,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void NotifyExceptionPropagationCallback();
 
   bool HasIsolatePromiseHooks() const {
+#ifdef V8_ENABLE_PROMISE_HOOKS
     return PromiseHookFields::HasIsolatePromiseHook::decode(
         promise_hook_flags_);
+#else
+    return false;
+#endif  // V8_ENABLE_PROMISE_HOOKS
   }
 
   bool HasAsyncEventDelegate() const {
@@ -2708,7 +2719,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   base::RandomNumberGenerator* random_number_generator_ = nullptr;
   base::RandomNumberGenerator* fuzzer_rng_ = nullptr;
   v8::Isolate::ReleaseCppHeapCallback release_cpp_heap_callback_ = nullptr;
+#ifdef V8_ENABLE_PROMISE_HOOKS
   PromiseHook promise_hook_ = nullptr;
+#endif  // V8_ENABLE_PROMISE_HOOKS
   HostImportModuleDynamicallyCallback host_import_module_dynamically_callback_ =
       nullptr;
   HostImportModuleWithPhaseDynamicallyCallback

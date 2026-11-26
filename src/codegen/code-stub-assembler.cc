@@ -20068,15 +20068,13 @@ TNode<Uint32T> CodeStubAssembler::PromiseHookFlags() {
     ExternalReference::promise_hook_flags_address(isolate())));
 }
 
-TNode<BoolT> CodeStubAssembler::IsAnyPromiseHookEnabled(TNode<Uint32T> flags) {
-  uint32_t mask = Isolate::PromiseHookFields::HasContextPromiseHook::kMask |
-                  Isolate::PromiseHookFields::HasIsolatePromiseHook::kMask;
-  return IsSetWord32(flags, mask);
-}
-
 TNode<BoolT> CodeStubAssembler::IsIsolatePromiseHookEnabled(
     TNode<Uint32T> flags) {
+#ifdef V8_ENABLE_PROMISE_HOOKS
   return IsSetWord32<Isolate::PromiseHookFields::HasIsolatePromiseHook>(flags);
+#else
+  return Int32FalseConstant();
+#endif  // V8_ENABLE_PROMISE_HOOKS
 }
 
 #ifdef V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
@@ -20089,19 +20087,29 @@ TNode<BoolT> CodeStubAssembler::IsContextPromiseHookEnabled(
 TNode<BoolT>
 CodeStubAssembler::IsIsolatePromiseHookEnabledOrHasAsyncEventDelegate(
     TNode<Uint32T> flags) {
+#ifdef V8_ENABLE_PROMISE_HOOKS
   uint32_t mask = Isolate::PromiseHookFields::HasIsolatePromiseHook::kMask |
                   Isolate::PromiseHookFields::HasAsyncEventDelegate::kMask;
   return IsSetWord32(flags, mask);
+#else
+  return IsSetWord32<Isolate::PromiseHookFields::HasAsyncEventDelegate>(flags);
+#endif  // V8_ENABLE_PROMISE_HOOKS
 }
 
 // LINT.IfChange(PromiseHookFlags)
 TNode<BoolT> CodeStubAssembler::
     IsIsolatePromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(
         TNode<Uint32T> flags) {
+#ifdef V8_ENABLE_PROMISE_HOOKS
   uint32_t mask = Isolate::PromiseHookFields::HasIsolatePromiseHook::kMask |
                   Isolate::PromiseHookFields::HasAsyncEventDelegate::kMask |
                   Isolate::PromiseHookFields::IsDebugActive::kMask;
   return IsSetWord32(flags, mask);
+#else
+  // Without V8_ENABLE_PROMISE_HOOKS, only HasAsyncEventDelegate and
+  // IsDebugActive can ever be set in promise_hook_flags_.
+  return NeedsAnyPromiseHooks(flags);
+#endif  // V8_ENABLE_PROMISE_HOOKS
 }
 // LINT.ThenChange(../compiler/turboshaft/wasm-wrappers.h:PromiseHookFlags)
 

@@ -4621,10 +4621,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsContextPromiseHookEnabled(TNode<Uint32T> flags);
 #endif
   TNode<BoolT> IsIsolatePromiseHookEnabled(TNode<Uint32T> flags);
-  TNode<BoolT> IsAnyPromiseHookEnabled(TNode<Uint32T> flags);
-  TNode<BoolT> IsAnyPromiseHookEnabled() {
-    return IsAnyPromiseHookEnabled(PromiseHookFlags());
-  }
   TNode<BoolT> IsIsolatePromiseHookEnabledOrHasAsyncEventDelegate(
       TNode<Uint32T> flags);
   TNode<BoolT> IsIsolatePromiseHookEnabledOrHasAsyncEventDelegate() {

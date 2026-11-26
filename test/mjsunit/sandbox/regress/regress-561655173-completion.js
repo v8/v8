@@ -110,16 +110,23 @@ function testReentry(reject, installHook) {
   }
 }
 
-// RejectPromise invokes the embedder hook on all d8 configurations.
-testReentry(true, resolve => {
-  const promises = new Map();
-  const hook = async_hooks.createHook({
-    init(id, type, triggerId, promise) { promises.set(id, promise); },
-    promiseResolve(id) { resolve(promises.get(id)); }
+// RejectPromise invokes the embedder hook when C++ promise hooks are enabled.
+let hasAsyncHooks = false;
+try {
+  async_hooks.createHook({});
+  hasAsyncHooks = true;
+} catch {}
+if (hasAsyncHooks) {
+  testReentry(true, resolve => {
+    const promises = new Map();
+    const hook = async_hooks.createHook({
+      init(id, type, triggerId, promise) { promises.set(id, promise); },
+      promiseResolve(id) { resolve(promises.get(id)); }
+    });
+    hook.enable();
+    return () => hook.disable();
   });
-  hook.enable();
-  return () => hook.disable();
-});
+}
 
 // Direct fulfillment invokes the optional JavaScript context hook.
 let hasContextHooks = false;

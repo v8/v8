@@ -433,6 +433,13 @@ static_assert(!V8_DICT_PROTOTYPES_BOOL || V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
 #define V8_X64_16BYTE_STACK_ALIGNMENT_BOOL false
 #endif
 
+// JavaScript Promise hooks require C++ Promise hooks support.
+#if defined(V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS) && \
+    !defined(V8_ENABLE_PROMISE_HOOKS)
+#error Inconsistent build configuration: To build V8 with JavaScript Promise \
+hooks, set V8_ENABLE_PROMISE_HOOKS as well.
+#endif
+
 #ifdef V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA
 #ifndef V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
 #error "tq-to-tsa is not supported without tsa builtins"

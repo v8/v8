@@ -2448,17 +2448,21 @@ bool Shell::LoadJSON(Isolate* isolate, const char* file_name) {
 
 PerIsolateData::PerIsolateData(Isolate* isolate) : isolate_(isolate) {
   isolate->SetData(0, this);
+#ifdef V8_ENABLE_PROMISE_HOOKS
   if (i::v8_flags.expose_async_hooks) {
     async_hooks_wrapper_ = new AsyncHooks(isolate);
   }
+#endif
   ignore_unhandled_promises_ = false;
 }
 
 PerIsolateData::~PerIsolateData() {
   isolate_->SetData(0, nullptr);  // Not really needed, just to be sure...
+#ifdef V8_ENABLE_PROMISE_HOOKS
   if (i::v8_flags.expose_async_hooks) {
     delete async_hooks_wrapper_;  // This uses the isolate
   }
+#endif
   for (DynamicImportData* data : import_data_) {
     delete data;
   }
@@ -3411,29 +3415,41 @@ void Shell::InstallConditionalFeatures(
 // lifetime events of each async operation.
 void Shell::AsyncHooksCreateHook(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+#ifdef V8_ENABLE_PROMISE_HOOKS
   Local<Object> wrap =
       PerIsolateData::Get(info.GetIsolate())->GetAsyncHooks()->CreateHook(info);
   info.GetReturnValue().Set(wrap);
+#else
+  ThrowError(info.GetIsolate(), "async_hooks requires v8_enable_promise_hooks");
+#endif
 }
 
 // async_hooks.executionAsyncId() returns the asyncId of the current execution
 // context.
 void Shell::AsyncHooksExecutionAsyncId(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+#ifdef V8_ENABLE_PROMISE_HOOKS
   Isolate* isolate = info.GetIsolate();
   HandleScope handle_scope(isolate);
   info.GetReturnValue().Set(v8::Number::New(
       isolate,
       PerIsolateData::Get(isolate)->GetAsyncHooks()->GetExecutionAsyncId()));
+#else
+  ThrowError(info.GetIsolate(), "async_hooks requires v8_enable_promise_hooks");
+#endif
 }
 
 void Shell::AsyncHooksTriggerAsyncId(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+#ifdef V8_ENABLE_PROMISE_HOOKS
   Isolate* isolate = info.GetIsolate();
   HandleScope handle_scope(isolate);
   info.GetReturnValue().Set(v8::Number::New(
       isolate,
       PerIsolateData::Get(isolate)->GetAsyncHooks()->GetTriggerAsyncId()));
+#else
+  ThrowError(info.GetIsolate(), "async_hooks requires v8_enable_promise_hooks");
+#endif
 }
 
 static v8::debug::DebugDelegate dummy_delegate;

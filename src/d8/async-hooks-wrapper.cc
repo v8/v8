@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "include/v8config.h"
+
+#ifdef V8_ENABLE_PROMISE_HOOKS
+
 #include "src/d8/async-hooks-wrapper.h"
 
 #include "include/v8-function.h"
@@ -77,11 +81,15 @@ AsyncHooks::AsyncHooks(v8::Isolate* v8_isolate) : v8_isolate_(v8_isolate) {
   async_id_symbol.Reset(v8_isolate_, Private::New(v8_isolate_));
   trigger_id_symbol.Reset(v8_isolate_, Private::New(v8_isolate_));
 
+  START_ALLOW_USE_DEPRECATED()
   v8_isolate_->SetPromiseHook(ShellPromiseHook);
+  END_ALLOW_USE_DEPRECATED()
 }
 
 AsyncHooks::~AsyncHooks() {
+  START_ALLOW_USE_DEPRECATED()
   v8_isolate_->SetPromiseHook(nullptr);
+  END_ALLOW_USE_DEPRECATED()
   async_wraps_.clear();
 }
 
@@ -307,3 +315,5 @@ void AsyncHooks::PromiseHookDispatch(PromiseHookType type,
 }
 
 }  // namespace v8
+
+#endif  // V8_ENABLE_PROMISE_HOOKS
