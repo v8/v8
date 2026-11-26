@@ -14753,6 +14753,13 @@ void MaglevGraphBuilder::BuildLoopForPeeling() {
   decremented_predecessor_offsets_.clear();
 
   DCHECK(current_block());
+  // Finish tracking the peeled iteration's effects before creating the loop
+  // header merge state so `EndLoopEffects` does not attach them to the loop.
+  LoopEffects* peeled_effects = nullptr;
+  if (track_peeled_effects) {
+    peeled_effects = loop_effects_;
+    EndLoopEffects(loop_header);
+  }
   // After resetting, the actual loop header always has exactly 2
   // predecessors: the two copies of `JumpLoop`.
   InitializePredecessorCount(loop_header, 2);
@@ -14770,11 +14777,8 @@ void MaglevGraphBuilder::BuildLoopForPeeling() {
                  v8_flags.maglev_optimistic_peeled_loops);
   merge_states_[loop_header]->InitializeLoop(
       graph(), is_tracing(), *compilation_unit_, current_interpreter_frame_,
-      block, GetCurrentScopeInfo(), in_peeled_iteration(), loop_effects_);
+      block, GetCurrentScopeInfo(), in_peeled_iteration(), peeled_effects);
 
-  if (track_peeled_effects) {
-    EndLoopEffects(loop_header);
-  }
   DCHECK_NE(iterator_.current_offset(), loop_header);
   iterator_.SetOffset(loop_header);
 }
@@ -14790,6 +14794,7 @@ void MaglevGraphBuilder::EndLoopEffects(int loop_header) {
   // TODO(olivf): Update merge states dominated by the loop header with
   // information we know to be unaffected by the loop.
   if (merge_states_[loop_header] && merge_states_[loop_header]->is_loop()) {
+    DCHECK(is_loop_effect_tracking_enabled());
     merge_states_[loop_header]->AsLoopHeader()->set_loop_effects(loop_effects_);
   }
   if (loop_effects_stack_.size() > 1) {

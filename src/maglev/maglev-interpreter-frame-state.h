@@ -627,6 +627,7 @@ class LoopMergePointInterpreterFrameState final
                     DeoptFrame* backedge_deopt_frame);
 
   void set_loop_effects(LoopEffects* loop_effects) {
+    DCHECK_NULL(loop_effects_);
     loop_effects_ = loop_effects;
   }
   const LoopEffects* loop_effects() const { return loop_effects_; }
