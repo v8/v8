@@ -31,6 +31,7 @@
 #include "src/objects/scope-info-inl.h"
 #include "src/objects/script-inl.h"
 #include "src/objects/string-inl.h"
+#include "src/snapshot/code-serializer.h"
 #include "src/utils/utils.h"
 #include "test/common/flag-utils.h"
 #include "test/unittests/heap/heap-utils.h"
@@ -3168,6 +3169,109 @@ TEST_F(MergeDeserializedCodeTest,
     CHECK_NE(old_script_id, script->GetUnboundScript()->ScriptId());
     CHECK(!script->Run(context()).IsEmpty());
     CHECK_EQ(12, RunGlobalFunc("outer")->Int32Value(context()).FromJust());
+  }
+}
+
+// Regression test: bytecode compiled while coverage is enabled survives after
+// toggling coverage back off, so CodeSerializer must not serialize it into a
+// code cache that a fresh isolate could later merge into a flushed SFI.
+TEST_F(MergeDeserializedCodeTest, NoCodeCacheAfterCoverageModeChange) {
+  i::v8_flags.merge_background_deserialized_script_with_compilation_cache.Set(
+      true);
+  i::v8_flags.flush_bytecode.Set(true);
+
+  constexpr char kSrc[] =
+      "function mk() {"
+      "  return function outer() {"
+      "    'use strict';"
+      "    function unused() { return 1; }"
+      "    return 12;"
+      "  };"
+      "}"
+      "globalThis.mk = mk;";
+  constexpr char kUrl[] = "http://example.com/coverage_code_cache.js";
+
+  // Produce a code cache after toggling precise coverage ON, compiling `outer`
+  // (which emits CreateClosure for `unused`), and toggling coverage back OFF.
+  std::unique_ptr<ScriptCompiler::CachedData> cached_data;
+  {
+    IsolateAndContextScope scope(this);
+    v8::HandleScope hs(isolate());
+    debug::Coverage::SelectMode(isolate(), debug::CoverageMode::kPreciseCount);
+    ScriptOrigin origin(NewString(kUrl));
+    Local<Script> script =
+        Script::Compile(context(), NewString(kSrc), &origin).ToLocalChecked();
+    CHECK(!script->Run(context()).IsEmpty());
+    CHECK_EQ(12, Eval("mk()()")->Int32Value(context()).FromJust());
+    debug::Coverage::SelectMode(isolate(), debug::CoverageMode::kBestEffort);
+    cached_data.reset(
+        ScriptCompiler::CreateCodeCache(script->GetUnboundScript()));
+    CHECK_NOT_NULL(cached_data);
+    CHECK_EQ(i::SerializedCodeData::kHeaderSize,
+             static_cast<uint32_t>(cached_data->length));
+  }
+
+  // Consume the cache in a fresh isolate where `outer` has a live closure with
+  // a 0-length ClosureFeedbackCellArray and its SFI has been flushed.
+  {
+    IsolateAndContextScope scope(this);
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
+    PersistentScriptOrigin origin(isolate(), NewString(kUrl));
+    int old_script_id = -1;
+    {
+      v8::HandleScope hs(isolate());
+      ScriptOrigin script_origin = origin.AsScriptOrigin();
+      Local<Script> script =
+          Script::Compile(context(), NewString(kSrc), &script_origin)
+              .ToLocalChecked();
+      old_script_id = script->GetUnboundScript()->ScriptId();
+      CHECK(!script->Run(context()).IsEmpty());
+      CHECK_EQ(
+          12,
+          Eval("globalThis.o = mk(); o();")->Int32Value(context()).FromJust());
+      i::SharedFunctionInfo::EnsureOldForTesting(GetSharedFunctionInfo(script));
+      Local<Function> o = context()
+                              ->Global()
+                              ->Get(context(), NewString("o"))
+                              .ToLocalChecked()
+                              .As<Function>();
+      i::SharedFunctionInfo::EnsureOldForTesting(GetSharedFunctionInfo(o));
+    }
+    FlushWithMajorGC(i_isolate);
+
+    {
+      v8::HandleScope hs(isolate());
+      Local<Function> o = context()
+                              ->Global()
+                              ->Get(context(), NewString("o"))
+                              .ToLocalChecked()
+                              .As<Function>();
+      CHECK(!GetSharedFunctionInfo(o)->is_compiled());
+    }
+
+    ScriptCompiler::Source source(NewString(kSrc), origin.AsScriptOrigin(),
+                                  cached_data.release());
+    Local<Script> script =
+        ScriptCompiler::Compile(context(), &source,
+                                ScriptCompiler::kConsumeCodeCache)
+            .ToLocalChecked();
+    CHECK(!source.GetCachedData()->rejected);
+    CHECK_EQ(ScriptCompiler::InMemoryCacheResult::kPartial,
+             source.GetCompilationDetails().in_memory_cache_result);
+    CHECK_EQ(old_script_id, script->GetUnboundScript()->ScriptId());
+    // Coverage-compiled bytecode must not have been serialized and merged into
+    // `o`; `o` should remain uncompiled and compile lazily under best-effort.
+    {
+      v8::HandleScope hs(isolate());
+      Local<Function> o = context()
+                              ->Global()
+                              ->Get(context(), NewString("o"))
+                              .ToLocalChecked()
+                              .As<Function>();
+      CHECK(!GetSharedFunctionInfo(o)->is_compiled());
+    }
+    CHECK(!script->Run(context()).IsEmpty());
+    CHECK_EQ(12, RunGlobalFunc("o")->Int32Value(context()).FromJust());
   }
 }
 

@@ -283,6 +283,19 @@ RUNTIME_FUNCTION(Runtime_InstallSFICode) {
     DisallowGarbageCollection no_gc;
     Tagged<SharedFunctionInfo> sfi = function->shared();
     DCHECK(sfi->is_compiled());
+    if (function->has_feedback_vector()) {
+      Tagged<FeedbackVector> feedback_vector = function->feedback_vector();
+      CHECK_EQ(feedback_vector->length().value(),
+               sfi->feedback_metadata()->slot_count());
+      CHECK_EQ(
+          feedback_vector->closure_feedback_cell_array()->ulength().value(),
+          static_cast<uint32_t>(
+              sfi->feedback_metadata()->create_closure_slot_count()));
+    } else if (function->has_closure_feedback_cell_array()) {
+      CHECK_EQ(function->closure_feedback_cell_array()->ulength().value(),
+               static_cast<uint32_t>(
+                   sfi->feedback_metadata()->create_closure_slot_count()));
+    }
     Tagged<Code> sfi_code = sfi->GetCode(isolate);
     if (V8_LIKELY(sfi_code->kind() != CodeKind::BASELINE ||
                   function->has_feedback_vector())) {

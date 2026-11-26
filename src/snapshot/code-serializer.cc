@@ -142,7 +142,11 @@ AlignedCachedData* CodeSerializer::SerializeSharedFunctionInfo(
     Handle<SharedFunctionInfo> info) {
   DisallowGarbageCollection no_gc;
 
-  if (!isolate()->requires_bytecode_for_code_coverage()) {
+  // Do not serialize bytecode if code coverage is active or was toggled in this
+  // isolate (indicated by disable_bytecode_flushing), since existing bytecode
+  // on the heap may have been compiled under non-best-effort coverage settings.
+  if (!isolate()->requires_bytecode_for_code_coverage() &&
+      !isolate()->disable_bytecode_flushing()) {
     VisitRootPointer(Root::kHandleScope, nullptr,
                      FullObjectSlot(info.location()));
     SerializeDeferredObjects();

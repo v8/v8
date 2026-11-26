@@ -701,6 +701,9 @@ void JSFunction::CreateAndAttachFeedbackVector(
   EnsureClosureFeedbackCellArray(isolate, function);
   DirectHandle<ClosureFeedbackCellArray> closure_feedback_cell_array(
       function->closure_feedback_cell_array(), isolate);
+  CHECK_EQ(closure_feedback_cell_array->ulength().value(),
+           static_cast<uint32_t>(
+               shared->feedback_metadata()->create_closure_slot_count()));
   DirectHandle<FeedbackVector> feedback_vector = FeedbackVector::New(
       isolate, shared, closure_feedback_cell_array,
       direct_handle(function->raw_feedback_cell(), isolate), compiled_scope);
