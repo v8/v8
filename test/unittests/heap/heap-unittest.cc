@@ -7537,5 +7537,70 @@ TEST_F(HeapTest, ClearLeftTrimmedSlotPreservesCageBase) {
 #endif
 }
 
+TEST_F(HeapTest, ScavengerShortcutFlatConsToThinString) {
+  if (v8_flags.single_generation || v8_flags.gc_global) return;
+  FLAG_VALUE_SCOPE(shortcut_strings_with_stack, true);
+  ManualGCScope manual_gc_scope(i_isolate());
+  Isolate* isolate = i_isolate();
+  Factory* factory = isolate->factory();
+  HandleScope outer_scope(isolate);
+
+  IndirectHandle<String> canonical =
+      factory->InternalizeUtf8String("sample_prefix_0123456789_sample_suffix");
+  ASSERT_TRUE(IsInternalizedString(*canonical));
+  ASSERT_FALSE(HeapLayout::InYoungGeneration(*canonical));
+
+  IndirectHandle<FixedArray> slots =
+      factory->NewFixedArray(3, AllocationType::kOld);
+
+  {
+    HandleScope inner_scope(isolate);
+
+    DirectHandle<String> prefix =
+        factory->NewStringFromAsciiChecked("sample_prefix_");
+    DirectHandle<String> suffix =
+        factory->NewStringFromAsciiChecked("0123456789_sample_suffix");
+    DirectHandle<ConsString> parent = Cast<ConsString>(
+        factory->NewConsString(prefix, suffix, AllocationType::kYoung)
+            .ToHandleChecked());
+    // Flatten allocates a young SeqString with the same content as `canonical`
+    // and rewrites `parent` into a flat ConsString pointing to it.
+    DirectHandle<String> child =
+        String::Flatten(isolate, parent, AllocationType::kYoung);
+    ASSERT_TRUE(parent->IsFlat());
+    ASSERT_EQ(parent->first(), *child);
+    ASSERT_TRUE(HeapLayout::InYoungGeneration(*parent));
+    ASSERT_TRUE(HeapLayout::InYoungGeneration(*child));
+
+    // Internalizing `child` hits `canonical` in the StringTable and converts
+    // `child` in-place into a young ThinString while `parent->first()` still
+    // points to it.
+    ASSERT_EQ(*factory->InternalizeString(child), *canonical);
+    ASSERT_TRUE(IsThinString(*child));
+    ASSERT_EQ(parent->first(), *child);
+
+    // Visit [child, parent, child] in order during minor GC.
+    slots->set(0, *child);
+    slots->set(1, *parent);
+    slots->set(2, *child);
+  }
+
+  {
+    DisableConservativeStackScanningScopeForTesting no_css(heap());
+    InvokeAtomicMinorGC();
+  }
+
+  // Identical pre-GC references must always relocate to the same HeapObject.
+  EXPECT_EQ(slots->get(0), slots->get(2));
+
+  if (!v8_flags.minor_ms && !v8_flags.sticky_mark_bits &&
+      !v8_flags.stress_scavenger_conservative_object_pinning) {
+    for (int i = 0; i < 3; ++i) {
+      EXPECT_EQ(slots->get(i), *canonical);
+      EXPECT_FALSE(IsThinString(slots->get(i)));
+    }
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

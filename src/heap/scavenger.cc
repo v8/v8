@@ -327,6 +327,7 @@ class Scavenger {
 
  private:
   enum PromotionHeapChoice { kPromoteIntoLocalHeap, kPromoteIntoSharedHeap };
+  enum class AllowShortcutCandidate { kYes, kNo };
 
   // Number of objects to process before interrupting for potentially waking
   // up other tasks.
@@ -354,7 +355,9 @@ class Scavenger {
 
   // Scavenges an object |object| referenced from slot |p|. |object| is required
   // to be in from space.
-  template <typename THeapObjectSlot>
+  template <typename THeapObjectSlot,
+            AllowShortcutCandidate allow_shortcut_candidate =
+                AllowShortcutCandidate::kYes>
   inline SlotCallbackResult ScavengeObject(THeapObjectSlot p,
                                            Tagged<HeapObject> object);
 
@@ -383,7 +386,9 @@ class Scavenger {
                                SafeHeapObjectSize object_size,
                                ObjectFields object_fields);
 
-  template <typename THeapObjectSlot>
+  template <typename THeapObjectSlot,
+            AllowShortcutCandidate allow_shortcut_candidate =
+                AllowShortcutCandidate::kYes>
   V8_INLINE SlotCallbackResult EvacuateObject(THeapObjectSlot slot,
                                               Tagged<Map> map,
                                               Tagged<HeapObject> source);
@@ -2149,14 +2154,12 @@ SlotCallbackResult Scavenger::EvacuateThinString(
                     std::is_same_v<THeapObjectSlot, HeapObjectSlot>,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
   if (shortcut_strings_) {
-    // The ThinString should die after Scavenge, so avoid writing the proper
-    // forwarding pointer and instead just signal the actual object as forwarded
-    // reference.
     Tagged<String> actual = object->actual();
     // ThinStrings always refer to internalized strings, which are always in old
     // space.
     DCHECK(!HeapLayout::InYoungGeneration(actual));
     UpdateHeapObjectReferenceSlot(slot, actual);
+    object->set_map_word_forwarded(actual, kRelaxedStore);
     return REMOVE_SLOT;
   }
 
@@ -2186,19 +2189,12 @@ SlotCallbackResult Scavenger::EvacuateShortcutCandidate(
       return REMOVE_SLOT;
     }
 
-    MapWord first_word = first->map_word(kRelaxedLoad);
-    if (first_word.IsForwardingAddress()) {
-      Tagged<HeapObject> target = first_word.ToForwardingAddress(first);
-
-      UpdateHeapObjectReferenceSlot(slot, target);
-      SynchronizePageAccess(target);
-      object->set_map_word_forwarded(target, kRelaxedStore);
-      return HeapLayout::InYoungGeneration(target) ? KEEP_SLOT : REMOVE_SLOT;
-    }
-    Tagged<Map> first_map = first_word.ToMap();
-    SlotCallbackResult result = EvacuateObjectDefault(
-        first_map, slot, first, first->SafeSizeFromMap(first_map),
-        Map::ObjectFieldsFrom(first_map->visitor_id()));
+    // Use ScavengeObject to properly handle special string types like
+    // ThinStrings, while disallowing ConsString shortcutting to avoid
+    // recursion.
+    SlotCallbackResult result =
+        ScavengeObject<THeapObjectSlot, AllowShortcutCandidate::kNo>(slot,
+                                                                     first);
     object->set_map_word_forwarded(slot.ToHeapObject(), kRelaxedStore);
     return result;
   }
@@ -2221,7 +2217,8 @@ SlotCallbackResult Scavenger::EvacuateInPlaceInternalizableString(
   return EvacuateObjectDefault(map, slot, object, object_size, object_fields);
 }
 
-template <typename THeapObjectSlot>
+template <typename THeapObjectSlot,
+          Scavenger::AllowShortcutCandidate allow_shortcut_candidate>
 SlotCallbackResult Scavenger::EvacuateObject(THeapObjectSlot slot,
                                              Tagged<Map> map,
                                              Tagged<HeapObject> source) {
@@ -2241,10 +2238,14 @@ SlotCallbackResult Scavenger::EvacuateObject(THeapObjectSlot slot,
       return EvacuateThinString(map, slot, UncheckedCast<ThinString>(source),
                                 size);
     case kVisitShortcutCandidate:
-      DCHECK(!(*slot).IsWeak());
-      // At the moment we don't allow weak pointers to cons strings.
-      return EvacuateShortcutCandidate(map, slot,
-                                       UncheckedCast<ConsString>(source), size);
+      if constexpr (allow_shortcut_candidate == AllowShortcutCandidate::kYes) {
+        DCHECK(!(*slot).IsWeak());
+        // At the moment we don't allow weak pointers to cons strings.
+        return EvacuateShortcutCandidate(
+            map, slot, UncheckedCast<ConsString>(source), size);
+      }
+      return EvacuateObjectDefault(map, slot, source, size,
+                                   Map::ObjectFieldsFrom(visitor_id));
     case kVisitSeqOneByteString:
     case kVisitSeqTwoByteString:
       DCHECK(String::IsInPlaceInternalizable(map->instance_type()));
@@ -2259,7 +2260,8 @@ SlotCallbackResult Scavenger::EvacuateObject(THeapObjectSlot slot,
   }
 }
 
-template <typename THeapObjectSlot>
+template <typename THeapObjectSlot,
+          Scavenger::AllowShortcutCandidate allow_shortcut_candidate>
 SlotCallbackResult Scavenger::ScavengeObject(THeapObjectSlot p,
                                              Tagged<HeapObject> object) {
   static_assert(std::is_same_v<THeapObjectSlot, FullHeapObjectSlot> ||
@@ -2310,7 +2312,8 @@ SlotCallbackResult Scavenger::ScavengeObject(THeapObjectSlot p,
 
   Tagged<Map> map = first_word.ToMap();
   // Call the slow part of scavenge object.
-  return EvacuateObject(p, map, object);
+  return EvacuateObject<THeapObjectSlot, allow_shortcut_candidate>(p, map,
+                                                                   object);
 }
 
 template <typename TSlot>
