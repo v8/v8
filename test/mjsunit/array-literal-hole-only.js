@@ -12,8 +12,11 @@
 // kMaxLengthOfHoleOnlyArrayWithoutCow in src/ast/ast.cc.
 const kMaxLengthWithoutCow = 8;
 
+let nextId = 0;
 function holeOnlyLiteral(length) {
-  return new Function(`return [${','.repeat(length)}];`);
+  // Give each generated function a distinct source so `new Function` doesn't
+  // hit the eval compilation cache and share a FeedbackCell / AllocationSite.
+  return new Function(`return [${','.repeat(length)}];  // ${nextId++}`);
 }
 
 function assertHoles(array, length) {

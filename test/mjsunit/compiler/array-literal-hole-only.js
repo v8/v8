@@ -10,9 +10,13 @@
 // literals (here 9 and 16) have copy-on-write elements, so the first store
 // copies the elements.
 
+let nextId = 0;
 function makeFill(length) {
+  // Give each generated function a distinct source so `new Function` doesn't
+  // hit the eval compilation cache and share a FeedbackCell / AllocationSite
+  // across iterations.
   return new Function('x', `
-    const a = [${','.repeat(length)}];
+    const a = [${','.repeat(length)}];  // ${nextId++}
     for (let i = 0; i < ${length}; i++) a[i] = x;
     return a;`);
 }
@@ -26,13 +30,28 @@ for (const length of [1, 2, 4, 8, 9, 16]) {
   for (const value of [1, {}, 1.5]) {
     const f = makeFill(length);
     %PrepareFunctionForOptimization(f);
-    assertFilled(f(value), length, value);
-    assertFilled(f(value), length, value);
+    // Defer assertFilled until after optimization: its polymorphic KeyedLoadIC
+    // can transition a warmup array's elements kind (and, via the
+    // AllocationSiteCache, the literal's AllocationSite) out from under `f`.
+    const w1 = f(value);
+    const w2 = f(value);
     %OptimizeFunctionOnNextCall(f);
     const a = f(value);
     const b = f(value);
     assertOptimized(f);
     assertNotSame(a, b);
+    if (value === 1) {
+      assertTrue(%HasSmiElements(a));
+      assertTrue(%HasSmiElements(b));
+    } else if (value === 1.5) {
+      assertTrue(%HasDoubleElements(a));
+      assertTrue(%HasDoubleElements(b));
+    } else {
+      assertTrue(%HasObjectElements(a));
+      assertTrue(%HasObjectElements(b));
+    }
+    assertFilled(w1, length, value);
+    assertFilled(w2, length, value);
     assertFilled(a, length, value);
     assertFilled(b, length, value);
     a[0] = 'other';
