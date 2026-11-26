@@ -2601,4 +2601,115 @@ TEST_F(MergeDeserializedCodeTest, MergeWithDebugInfoOnUncompiledCachedSfi) {
   }
 }
 
+// Regression test: if coverage mode is toggled while an off-thread merge task
+// is in flight (even if toggled back to kBestEffort before Compile finishes),
+// FinishOffThreadDeserialize must abort the merge rather than merging scripts
+// compiled under different coverage settings.
+TEST_F(MergeDeserializedCodeTest, AbortOffThreadMergeWhenCoverageModeChanges) {
+  i::v8_flags.merge_background_deserialized_script_with_compilation_cache.Set(
+      true);
+  i::v8_flags.flush_bytecode.Set(true);
+
+  constexpr char kSrc[] =
+      "function outer() { { let y = 12; try {} catch { return () => y; } "
+      "return y; } } globalThis.outer = outer;";
+  constexpr char kUrl[] = "http://example.com/coverage_merge.js";
+  auto cached_data = MakeCodeCache(kSrc, kUrl, "outer()");
+
+  {
+    IsolateAndContextScope scope(this);
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
+    PersistentScriptOrigin origin(isolate(), NewString(kUrl));
+    int old_script_id = 0;
+    {
+      v8::HandleScope hs(isolate());
+      ScriptOrigin script_origin = origin.AsScriptOrigin();
+      Local<Script> script =
+          Script::Compile(context(), NewString(kSrc), &script_origin)
+              .ToLocalChecked();
+      old_script_id = script->GetUnboundScript()->ScriptId();
+      CHECK(!script->Run(context()).IsEmpty());
+      i::SharedFunctionInfo::EnsureOldForTesting(GetSharedFunctionInfo(script));
+    }
+    FlushWithMajorGC(i_isolate);
+
+    auto task =
+        StartMergeTask(kSrc, origin.AsScriptOrigin(), cached_data.get());
+
+    // Toggle block coverage ON, compile `outer` with block coverage, then
+    // toggle coverage back OFF before finishing the in-flight merge task.
+    debug::Coverage::SelectMode(isolate(), debug::CoverageMode::kBlockCount);
+    CHECK_EQ(12, RunGlobalFunc("outer")->Int32Value(context()).FromJust());
+    debug::Coverage::SelectMode(isolate(), debug::CoverageMode::kBestEffort);
+
+    ScriptCompiler::Source source(NewString(kSrc), origin.AsScriptOrigin(),
+                                  cached_data.release(), task.release());
+    Local<Script> script =
+        ScriptCompiler::Compile(context(), &source,
+                                ScriptCompiler::kConsumeCodeCache)
+            .ToLocalChecked();
+    CHECK_NE(old_script_id, script->GetUnboundScript()->ScriptId());
+    CHECK(!script->Run(context()).IsEmpty());
+    CHECK_EQ(12, RunGlobalFunc("outer")->Int32Value(context()).FromJust());
+  }
+}
+
+// Regression test: coverage mode changes and lazy compiles on old_script
+// between SourceTextAvailable and MergeWithExistingScript (before BG merge
+// runs) must also safely abort in FinishOffThreadDeserialize.
+TEST_F(MergeDeserializedCodeTest,
+       AbortOffThreadMergeWhenCoverageModeChangesBeforeMerge) {
+  i::v8_flags.merge_background_deserialized_script_with_compilation_cache.Set(
+      true);
+  i::v8_flags.flush_bytecode.Set(true);
+
+  constexpr char kSrc[] =
+      "function outer() { { let y = 12; try {} catch { return () => y; } "
+      "return y; } } globalThis.outer = outer;";
+  constexpr char kUrl[] = "http://example.com/coverage_merge_before_bg.js";
+  auto cached_data = MakeCodeCache(kSrc, kUrl, "outer()");
+
+  {
+    IsolateAndContextScope scope(this);
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
+    PersistentScriptOrigin origin(isolate(), NewString(kUrl));
+    int old_script_id = 0;
+    {
+      v8::HandleScope hs(isolate());
+      ScriptOrigin script_origin = origin.AsScriptOrigin();
+      Local<Script> script =
+          Script::Compile(context(), NewString(kSrc), &script_origin)
+              .ToLocalChecked();
+      old_script_id = script->GetUnboundScript()->ScriptId();
+      CHECK(!script->Run(context()).IsEmpty());
+      i::SharedFunctionInfo::EnsureOldForTesting(GetSharedFunctionInfo(script));
+    }
+    FlushWithMajorGC(i_isolate);
+
+    auto task = StartDeserializeBeforeMerge(kSrc, origin.AsScriptOrigin(),
+                                            cached_data.get());
+
+    // Toggle block coverage ON and compile `outer` BEFORE
+    // MergeWithExistingScript runs on the background thread, then toggle back
+    // to kBestEffort.
+    debug::Coverage::SelectMode(isolate(), debug::CoverageMode::kBlockCount);
+    CHECK_EQ(12, RunGlobalFunc("outer")->Int32Value(context()).FromJust());
+    debug::Coverage::SelectMode(isolate(), debug::CoverageMode::kBestEffort);
+
+    MergeThread merge_thread(task.get());
+    CHECK(merge_thread.Start());
+    merge_thread.Join();
+
+    ScriptCompiler::Source source(NewString(kSrc), origin.AsScriptOrigin(),
+                                  cached_data.release(), task.release());
+    Local<Script> script =
+        ScriptCompiler::Compile(context(), &source,
+                                ScriptCompiler::kConsumeCodeCache)
+            .ToLocalChecked();
+    CHECK_NE(old_script_id, script->GetUnboundScript()->ScriptId());
+    CHECK(!script->Run(context()).IsEmpty());
+    CHECK_EQ(12, RunGlobalFunc("outer")->Int32Value(context()).FromJust());
+  }
+}
+
 }  // namespace v8

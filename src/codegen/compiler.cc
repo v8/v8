@@ -2500,6 +2500,7 @@ void VerifyCodeMerge(Isolate* isolate, DirectHandle<Script> script) {
 
 void BackgroundMergeTask::SetUpOnMainThread(
     Isolate* isolate, DirectHandle<Script> cached_script) {
+  CHECK(!isolate->disable_bytecode_flushing());
   // Any data sent to the background thread will need to be a persistent handle.
 #ifdef DEBUG
   VerifyCodeMerge(isolate, cached_script);
@@ -2695,6 +2696,7 @@ void BackgroundMergeTask::BeginMergeInBackground(
 Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
     Isolate* isolate, DirectHandle<Script> new_script) {
   DCHECK_EQ(state_, kPendingForegroundWork);
+  CHECK(!isolate->disable_bytecode_flushing());
 
   HandleScope handle_scope(isolate);
   DirectHandle<Script> old_script = cached_script_.ToHandleChecked();

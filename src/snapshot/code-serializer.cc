@@ -712,6 +712,11 @@ CodeSerializer::FinishOffThreadDeserialize(
 
   if (background_merge_task &&
       background_merge_task->HasPendingForegroundWork()) {
+    if (isolate->disable_bytecode_flushing()) {
+      // Coverage mode changed while this merge was in flight; abort and fall
+      // back to compiling a fresh script.
+      return MaybeDirectHandle<SharedFunctionInfo>();
+    }
     DCHECK_EQ(data.scripts.size(), 1);
     DirectHandle<Script> new_script = data.scripts[0];
     result =
