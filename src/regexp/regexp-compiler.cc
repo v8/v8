@@ -473,45 +473,6 @@ bool Trace::GetStoredPosition(int reg, int* cp_offset) const {
   return false;
 }
 
-// A (dynamically-sized) set of unsigned integers that behaves especially well
-// on small integers (< kFirstLimit). May do zone-allocation.
-class DynamicBitSet : public ZoneObject {
- public:
-  V8_EXPORT_PRIVATE bool Get(unsigned value) const {
-    if (value < kFirstLimit) {
-      return (first_ & (1 << value)) != 0;
-    } else if (remaining_ == nullptr) {
-      return false;
-    } else {
-      return remaining_->Contains(value);
-    }
-  }
-
-  bool IsEmpty() const {
-    return first_ == 0 && (remaining_ == nullptr || remaining_->is_empty());
-  }
-
-  // Destructively set a value in this set.
-  void Set(unsigned value, Zone* zone) {
-    if (value < kFirstLimit) {
-      first_ |= (1 << value);
-    } else {
-      if (remaining_ == nullptr) {
-        remaining_ = zone->New<ZoneList<unsigned>>(1, zone);
-      }
-      if (remaining_->is_empty() || !remaining_->Contains(value)) {
-        remaining_->Add(value, zone);
-      }
-    }
-  }
-
- private:
-  static constexpr unsigned kFirstLimit = 32;
-
-  uint32_t first_ = 0;
-  ZoneList<unsigned>* remaining_ = nullptr;
-};
-
 void Trace::add_action(ActionNode* new_action) {
   DCHECK(action_ == nullptr);  // Otherwise we lose an action.
   action_ = new_action;
@@ -525,31 +486,14 @@ void Trace::add_action(ActionNode* new_action) {
   }
 }
 
-int Trace::FindAffectedRegisters(DynamicBitSet* affected_registers,
-                                 Zone* zone) {
-  int max_register = Compiler::kNoRegister;
-  for (auto trace : *this) {
-    if (ActionNode* action = trace->action_) {
-      int to = action->register_to();
-      for (int i = action->register_from(); i <= to; i++) {
-        affected_registers->Set(i, zone);
-      }
-      if (to > max_register) max_register = to;
-    }
-  }
-  return max_register;
-}
-
 void Trace::RestoreAffectedRegisters(RegExpMacroAssembler* assembler,
-                                     int max_register,
-                                     const DynamicBitSet& registers_to_pop,
-                                     const DynamicBitSet& registers_to_clear) {
-  for (int reg = max_register; reg >= 0; reg--) {
-    if (registers_to_pop.Get(reg)) {
+                                     const RegisterFlushInfos& infos) {
+  for (int reg = static_cast<int>(infos.size()) - 1; reg >= 0; reg--) {
+    if (infos[reg].undo_action == RESTORE) {
       assembler->PopRegister(reg);
-    } else if (registers_to_clear.Get(reg)) {
+    } else if (infos[reg].undo_action == CLEAR) {
       int clear_to = reg;
-      while (reg > 0 && registers_to_clear.Get(reg - 1)) {
+      while (reg > 0 && infos[reg - 1].undo_action == CLEAR) {
         reg--;
       }
       assembler->ClearRegisters(reg, clear_to);
@@ -557,20 +501,25 @@ void Trace::RestoreAffectedRegisters(RegExpMacroAssembler* assembler,
   }
 }
 
-// Scans back through the deferred actions to find, for a given register, what
+// Scans back through the deferred actions to find, for each register, what
 // needs to be done to effectuate the deferred actions.  Also tells us what
-// needs to be undone on backtrack.
-void Trace::ScanDeferredActions(Trace* top, int reg, RegisterFlushInfo* info) {
+// needs to be undone on backtrack.  On return, `infos` covers all registers
+// up to the highest one mentioned by any action.
+void Trace::ScanDeferredActions(RegisterFlushInfos* infos) const {
+  DCHECK(infos->empty());
   // The chronologically first deferred action in the trace
   // is used to infer the action needed to restore a register
   // to its previous state (or not, if it's safe to ignore it).
 
   // This is a little tricky because we are scanning the actions in reverse
   // historical order (newest first).
-  for (auto trace : *top) {
+  for (auto trace : *this) {
     ActionNode* action = trace->action_;
     if (!action) continue;
-    if (action->Mentions(reg)) {
+    const int to = action->register_to();
+    if (to >= static_cast<int>(infos->size())) infos->resize(to + 1);
+    for (int reg = action->register_from(); reg <= to; reg++) {
+      RegisterFlushInfo* info = &(*infos)[reg];
       switch (action->action_type()) {
         case ActionNode::SET_REGISTER_FOR_LOOP: {
           if (!info->absolute) {
@@ -641,19 +590,12 @@ void Trace::ScanDeferredActions(Trace* top, int reg, RegisterFlushInfo* info) {
 }
 
 void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
-                                   int max_register,
-                                   const DynamicBitSet& affected_registers,
-                                   DynamicBitSet* registers_to_pop,
-                                   DynamicBitSet* registers_to_clear,
-                                   Zone* zone) {
+                                   const RegisterFlushInfos& infos) {
   // Count pushes performed to force a stack limit check occasionally.
   int pushes = 0;
 
-  for (int reg = 0; reg <= max_register; reg++) {
-    if (!affected_registers.Get(reg)) continue;
-
-    RegisterFlushInfo info;
-    ScanDeferredActions(this, reg, &info);
+  for (int reg = 0; reg < static_cast<int>(infos.size()); reg++) {
+    const RegisterFlushInfo& info = infos[reg];
 
     // Prepare for the undo-action (e.g., push if it's going to be popped).
     if (info.undo_action == RESTORE) {
@@ -667,9 +609,6 @@ void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
       }
 
       assembler->PushRegister(reg, stack_check);
-      registers_to_pop->Set(reg, zone);
-    } else if (info.undo_action == CLEAR) {
-      registers_to_clear->Set(reg, zone);
     }
     // Perform the chronologically last action (or accumulated increment)
     // for the register.
@@ -777,9 +716,6 @@ EmitResult Trace::Flush(Compiler* compiler, Node* successor,
     return successor->Emit(compiler, &new_state);
   }
 
-  // Generate deferred actions here along with code to undo them again.
-  DynamicBitSet affected_registers;
-
   // Skip the per-flush bt-stack frame when the successor is an atomic
   // LoopChoice (see AtomicLoopKind): retreating before re-entering
   // the outer scan cannot turn a failed continuation into a match, and the
@@ -836,8 +772,9 @@ EmitResult Trace::Flush(Compiler* compiler, Node* successor,
     assembler->PushCurrentPosition();
   }
 
-  int max_register =
-      FindAffectedRegisters(&affected_registers, compiler->zone());
+  // Generate deferred actions here along with code to undo them again.
+  RegisterFlushInfos infos;
+  ScanDeferredActions(&infos);
 
   // Decide whether the entire undo frame can be skipped.  Only IGNORE-only
   // undo qualifies: a RESTORE or CLEAR would need a pop or ClearRegisters in
@@ -846,23 +783,13 @@ EmitResult Trace::Flush(Compiler* compiler, Node* successor,
   bool skip_undo_frame = false;
   if (drain_useless_loop != nullptr &&
       drain_useless_loop->KeepRecursing(compiler)) {
-    skip_undo_frame = true;
-    for (int reg = 0; reg <= max_register; ++reg) {
-      if (!affected_registers.Get(reg)) continue;
-      RegisterFlushInfo info;
-      ScanDeferredActions(this, reg, &info);
-      if (info.undo_action != IGNORE) {
-        skip_undo_frame = false;
-        break;
-      }
-    }
+    skip_undo_frame = std::all_of(infos.begin(), infos.end(),
+                                  [](const RegisterFlushInfo& info) {
+                                    return info.undo_action == IGNORE;
+                                  });
   }
 
-  DynamicBitSet registers_to_pop;
-  DynamicBitSet registers_to_clear;
-  PerformDeferredActions(assembler, max_register, affected_registers,
-                         &registers_to_pop, &registers_to_clear,
-                         compiler->zone());
+  PerformDeferredActions(assembler, infos);
   if (update_current_position) assembler->AdvanceCurrentPosition(cp_offset_);
 
   if (mode == kFlushSuccess) {
@@ -876,8 +803,6 @@ EmitResult Trace::Flush(Compiler* compiler, Node* successor,
     // the undo body; the body's failures GoTo the outer backtrack directly.
     // Call ChoiceNode::Emit to bypass LoopChoiceNode::Emit's
     // non-trivial-trace Flush check (no second frame around this body).
-    DCHECK(registers_to_pop.IsEmpty());
-    DCHECK(registers_to_clear.IsEmpty());
     Trace new_state;
     new_state.set_backtrack(backtrack());
     // Same target, so our grant transfers.  Materializing a nonempty prefix
@@ -905,8 +830,7 @@ EmitResult Trace::Flush(Compiler* compiler, Node* successor,
 
   // On backtrack we need to restore state.
   assembler->BindJumpTarget(&undo);
-  RestoreAffectedRegisters(assembler, max_register, registers_to_pop,
-                           registers_to_clear);
+  RestoreAffectedRegisters(assembler, infos);
   if (backtrack() == nullptr) {
     assembler->Backtrack();
   } else {

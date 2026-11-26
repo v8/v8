@@ -23,7 +23,6 @@ class Isolate;
 namespace regexp {
 
 class Diagnostics;
-class DynamicBitSet;
 class SpecialLoopState;
 
 class NonAssertingLabel : public Label {
@@ -475,15 +474,14 @@ class Trace {
         kNoStore;  // Store current position plus value to register.
   };
 
-  int FindAffectedRegisters(DynamicBitSet* affected_registers, Zone* zone);
-  void PerformDeferredActions(RegExpMacroAssembler* macro, int max_register,
-                              const DynamicBitSet& affected_registers,
-                              DynamicBitSet* registers_to_pop,
-                              DynamicBitSet* registers_to_clear, Zone* zone);
-  void RestoreAffectedRegisters(RegExpMacroAssembler* macro, int max_register,
-                                const DynamicBitSet& registers_to_pop,
-                                const DynamicBitSet& registers_to_clear);
-  void ScanDeferredActions(Trace* top, int reg, RegisterFlushInfo* info);
+  // Indexed by register.
+  using RegisterFlushInfos = base::SmallVector<RegisterFlushInfo, 16>;
+
+  void ScanDeferredActions(RegisterFlushInfos* infos) const;
+  void PerformDeferredActions(RegExpMacroAssembler* macro,
+                              const RegisterFlushInfos& infos);
+  void RestoreAffectedRegisters(RegExpMacroAssembler* macro,
+                                const RegisterFlushInfos& infos);
 
   // Whether we are at the start of the string.
   using AtStartField = base::BitField<TriBool, 0, 2>;
