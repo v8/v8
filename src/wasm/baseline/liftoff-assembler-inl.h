@@ -147,16 +147,6 @@ void LiftoffAssembler::emit_ptrsize_sub(Register dst, Register lhs,
   }
 }
 
-void LiftoffAssembler::emit_ptrsize_and(Register dst, Register lhs,
-                                        Register rhs) {
-  if constexpr (kSystemPointerSize == 8) {
-    emit_i64_and(LiftoffRegister(dst), LiftoffRegister(lhs),
-                 LiftoffRegister(rhs));
-  } else {
-    emit_i32_and(dst, lhs, rhs);
-  }
-}
-
 void LiftoffAssembler::emit_ptrsize_shri(Register dst, Register src,
                                          int amount) {
   if constexpr (kSystemPointerSize == 8) {

@@ -512,10 +512,6 @@ class LiftoffAssembler : public MacroAssembler {
 
   V8_NOINLINE V8_PRESERVE_MOST void SpillRegister(LiftoffRegister);
 
-  uint32_t GetNumUses(LiftoffRegister reg) const {
-    return cache_state_.get_use_count(reg);
-  }
-
   // Get an unused register for class {rc}, reusing one of {try_first} if
   // possible. May return a register from {pinned}.
   LiftoffRegister GetUnusedRegister(
@@ -1000,7 +996,6 @@ class LiftoffAssembler : public MacroAssembler {
 
   inline void emit_ptrsize_add(Register dst, Register lhs, Register rhs);
   inline void emit_ptrsize_sub(Register dst, Register lhs, Register rhs);
-  inline void emit_ptrsize_and(Register dst, Register lhs, Register rhs);
   inline void emit_ptrsize_shri(Register dst, Register src, int amount);
   inline void emit_ptrsize_addi(Register dst, Register lhs, intptr_t imm);
   inline void emit_ptrsize_muli(Register dst, Register lhs, int32_t imm);
