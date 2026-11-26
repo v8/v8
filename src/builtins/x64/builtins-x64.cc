@@ -3993,7 +3993,7 @@ void SwitchToAllocatedStack(MacroAssembler* masm, Register wasm_instance,
   __ LoadRootRelative(stack, IsolateData::active_suspender_offset());
   __ movq(stack, FieldOperand(stack, offsetof(WasmSuspenderObject, stack_)));
   SwitchStacks(masm, ExternalReference::wasm_start_stack(), stack, suspend,
-               no_reg, {kWasmImplicitArgRegister, wrapper_buffer});
+               no_reg, {wasm_instance, wrapper_buffer});
   Register target_stack = scratch;
   __ LoadRootRelative(target_stack, IsolateData::active_stack_offset());
   // Save the old stack's rbp in r9, and use it to access the parameters in
