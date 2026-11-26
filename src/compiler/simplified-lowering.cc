@@ -1155,11 +1155,7 @@ class RepresentationSelector {
     DCHECK_EQ(2, node->op()->ValueInputCount());
     ProcessInput<T>(node, 0, left_use);
     ProcessInput<T>(node, 1, right_use);
-    int first_effect_index = NodeProperties::FirstEffectIndex(node);
-    for (int i = 2; i < first_effect_index; i++) {
-      ProcessInput<T>(node, i, UseInfo::AnyTagged());
-    }
-    for (int i = first_effect_index; i < node->InputCount(); i++) {
+    for (int i = 2; i < node->InputCount(); i++) {
       EnqueueInput<T>(node, i);
     }
     SetOutput<T>(node, output, restriction_type);
@@ -3831,9 +3827,6 @@ class RepresentationSelector {
                 node, UseInfo::CheckedBigInt64AsWord64(FeedbackSource{}),
                 MachineRepresentation::kWord64, Type::SignedBigInt64());
             if (lower<T>()) {
-              if (OperatorProperties::HasFrameStateInput(node->op())) {
-                node->RemoveInput(NodeProperties::FirstFrameStateIndex(node));
-              }
               ChangeOp(node, Int64OverflowOp(node));
             }
             return;
@@ -3862,9 +3855,6 @@ class RepresentationSelector {
                 node, UseInfo::CheckedBigInt64AsWord64(FeedbackSource{}),
                 MachineRepresentation::kWord64, Type::SignedBigInt64());
             if (lower<T>()) {
-              if (OperatorProperties::HasFrameStateInput(node->op())) {
-                node->RemoveInput(NodeProperties::FirstFrameStateIndex(node));
-              }
               ChangeOp(node, Int64OverflowOp(node));
             }
             return;
