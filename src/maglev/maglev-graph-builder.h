@@ -85,7 +85,8 @@ struct MaglevCallerDetails {
   void CheckArgumentsAreUnwrapped() const {
 #ifdef DEBUG
     for (ValueNode* arg : arguments) {
-      DCHECK(!arg->is_conversion() && !arg->Is<Identity>());
+      DCHECK(!arg->is_conversion() && !arg->Is<Identity>() &&
+             !arg->Is<ReturnedValue>());
     }
 #endif
   }

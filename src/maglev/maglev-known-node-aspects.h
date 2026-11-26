@@ -1028,17 +1028,6 @@ class KnownNodeAspects {
     return it->second->UnwrapAliases();
   }
 
-  static bool IsCanonical(const ValueNode* node) {
-    if (node->IsAlias()) return false;
-    // Only tagging and untagging conversions can be canonical; untagged-to-
-    // untagged conversions are always unwrapped by GetCanonical.
-    if (node->is_conversion()) {
-      return node->is_tagged() !=
-             node->input_node(0)->UnwrapAliases()->is_tagged();
-    }
-    return true;
-  }
-
   // GetCanonical is used to ensure that nodes in the same conversion chain (eg,
   // a `NumberToInt32` flowing into a `Int32ToFloat64` for instance) share the
   // same NodeInfo. To do so, GetCanonical Unwraps identities and conversions.
@@ -1056,15 +1045,23 @@ class KnownNodeAspects {
   // TODO(496266449): Simply use `Unwrap` once `kTagged` is split into
   // `kTaggedSigned` and `kTaggedPointer` representations.
   static ValueNode* GetCanonical(ValueNode* node) {
-    node = node->UnwrapAliases();
+    node = node->UnwrapIdentitiesReturnedValuesAndPhis();
     if (!node->is_tagged()) {
       while (node->is_conversion()) {
-        ValueNode* input = node->input_node(0)->UnwrapAliases();
+        ValueNode* input =
+            node->input_node(0)->UnwrapIdentitiesReturnedValuesAndPhis();
         if (input->is_tagged()) break;
         node = input;
       }
     }
-    DCHECK(IsCanonical(node));
+    DCHECK(!node->Is<Identity>() && !node->Is<ReturnedValue>());
+    // Only tagging and untagging conversions can be canonical; untagged-to-
+    // untagged conversions are always unwrapped above.
+    DCHECK_IMPLIES(
+        node->is_conversion(),
+        node->is_tagged() != node->input_node(0)
+                                 ->UnwrapIdentitiesReturnedValuesAndPhis()
+                                 ->is_tagged());
     return node;
   }
 

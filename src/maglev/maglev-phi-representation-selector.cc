@@ -201,7 +201,7 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
       input_reprs.Add(ValueRepresentation::kHoleyFloat64);
       untagging_kinds[i] = UntaggingKind::kUndefinedConstant;
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
-    } else if (input->is_conversion()) {
+    } else if (input->is_conversion() || input->Is<ReturnedValue>()) {
       DCHECK_EQ(input->input_count(), 1);
       // The graph builder tags all Phi inputs, so this conversion should
       // produce a tagged value.
@@ -516,7 +516,8 @@ void MaglevPhiRepresentationSelector::TrySinkInputTaggingToEdgeSplitBlock(
   // Sink non-deopting tagging conversions and ReturnedValue from non-eager
   // inlining, leaving deopting conversions like CheckedSmiTag* in place so
   // sinking cannot skip or reorder an eager deopt check.
-  if (!tagging->is_conversion() || tagging->properties().can_deopt()) {
+  if ((!tagging->is_conversion() || tagging->properties().can_deopt()) &&
+      !tagging->Is<ReturnedValue>()) {
     return;
   }
   // If the tagging has other uses, it has to stay where it is, since sinking
@@ -807,7 +808,7 @@ void MaglevPhiRepresentationSelector::UntagConstantInput(
 void MaglevPhiRepresentationSelector::UntagConversionInput(
     Phi* phi, ValueRepresentation repr, bool truncating, int input_index,
     ValueNode* input) {
-  DCHECK(input->is_conversion());
+  DCHECK(input->is_conversion() || input->Is<ReturnedValue>());
   // Unwrapping the conversion.
   DCHECK_EQ(input->value_representation(), ValueRepresentation::kTagged);
   // Needs to insert a new conversion.
@@ -1065,7 +1066,7 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
         UNREACHABLE();
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
       case UntaggingKind::kConversion:
-        DCHECK(input->is_conversion());
+        DCHECK(input->is_conversion() || input->Is<ReturnedValue>());
         UntagConversionInput(phi, repr, truncating, input_index, input);
         break;
       case UntaggingKind::kUntaggedPhi:
@@ -1550,7 +1551,8 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInputForToBoolean(
 // for {node}.
 ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
     NodeBase* node, Phi* phi, int input_index, const ProcessingState* state) {
-  if (node->is_conversion() || IsTruncatingToInt32(node->opcode())) {
+  if (node->is_conversion() || IsTruncatingToInt32(node->opcode()) ||
+      node->Is<ReturnedValue>()) {
     // {node} can't be an Untagging if we reached this point (because
     // UpdateNodePhiInput is not called on untagging nodes).
     DCHECK(!IsUntagging(node->opcode()));
