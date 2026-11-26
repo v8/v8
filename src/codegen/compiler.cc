@@ -2224,28 +2224,38 @@ class ConstantPoolPointerForwarder {
     }
   }
 
-  bool HasScopeInfoToUpdate(Tagged<ScopeInfo> scope_info) const {
-    return scope_infos_to_update_.find(scope_info->UniqueIdInScript()) !=
-           scope_infos_to_update_.end();
-  }
+  // Canonicalizes `scope_info` and its outer ScopeInfo chain against
+  // `scope_infos_to_update_`. Returns the canonical replacement if `scope_info`
+  // itself was recorded; otherwise reattaches the first recorded ancestor in
+  // place and returns `scope_info`.
+  V8_WARN_UNUSED_RESULT Tagged<ScopeInfo> UpdateStandaloneScopeInfo(
+      Tagged<ScopeInfo> scope_info) {
+    if (scope_infos_to_update_.empty()) return scope_info;
 
-  void UpdateStandaloneScopeInfo(Tagged<ScopeInfo> scope_info) {
-    if (!scope_info->HasOuterScopeInfo()) return;
+    auto it = scope_infos_to_update_.find(scope_info->UniqueIdInScript());
+    if (it != scope_infos_to_update_.end()) {
+      if (scope_info != *it->second) {
+        VerifyScopeInfo(scope_info, *it->second);
+      }
+      return *it->second;
+    }
+    if (!scope_info->HasOuterScopeInfo()) return scope_info;
 
     Tagged<ScopeInfo> parent = scope_info;
     Tagged<ScopeInfo> outer_info = scope_info->OuterScopeInfo();
 
-    auto it = scope_infos_to_update_.find(outer_info->UniqueIdInScript());
+    it = scope_infos_to_update_.find(outer_info->UniqueIdInScript());
     while (it == scope_infos_to_update_.end()) {
-      if (!outer_info->HasOuterScopeInfo()) return;
+      if (!outer_info->HasOuterScopeInfo()) return scope_info;
       parent = outer_info;
       outer_info = outer_info->OuterScopeInfo();
       it = scope_infos_to_update_.find(outer_info->UniqueIdInScript());
     }
-    if (outer_info == *it->second) return;
+    if (outer_info == *it->second) return scope_info;
 
     VerifyScopeInfo(outer_info, *it->second);
     parent->set_outer_scope_info(*it->second);
+    return scope_info;
   }
 
  private:
@@ -2541,6 +2551,7 @@ void BackgroundMergeTask::BeginMergeInBackground(
   LocalHandleScope handle_scope(local_heap);
   DirectHandle<Script> old_script = cached_script_.ToHandleChecked();
   ConstantPoolPointerForwarder forwarder(local_heap, old_script);
+  std::vector<std::pair<uint32_t, IndirectHandle<ScopeInfo>>> new_scope_infos;
 
   MERGE_MODEL_STEP_WITH_SAFEPOINT(BG_INIT_TOPLEVEL);
   {
@@ -2623,8 +2634,9 @@ void BackgroundMergeTask::BeginMergeInBackground(
                Is<ScopeInfo>(maybe_new_sfi.GetHeapObjectAssumeWeak())) {
       MERGE_MODEL_STEP(BG_STANDALONE_SCOPE);
       if (!maybe_old_info.IsWeak()) {
-        used_new_scope_infos_.push_back(local_heap->NewPersistentHandle(
-            Cast<ScopeInfo>(maybe_new_sfi.GetHeapObjectAssumeWeak())));
+        new_scope_infos.emplace_back(
+            i, handle(Cast<ScopeInfo>(maybe_new_sfi.GetHeapObjectAssumeWeak()),
+                      local_heap));
       }
     }
 
@@ -2648,10 +2660,21 @@ void BackgroundMergeTask::BeginMergeInBackground(
   if (forwarder.HasAnythingToForward()) {
     MERGE_MODEL_STEP_WITH_SAFEPOINT(BG_FORWARD_POINTERS);
     for (DirectHandle<SharedFunctionInfo> new_sfi : used_new_sfis_) {
+      DisallowGarbageCollection no_gc;
       forwarder.UpdateScopeInfo(*new_sfi);
     }
-    for (DirectHandle<ScopeInfo> new_scope : used_new_scope_infos_) {
-      forwarder.UpdateStandaloneScopeInfo(*new_scope);
+    for (const auto& [index, scope_handle] : new_scope_infos) {
+      DisallowGarbageCollection no_gc;
+      Tagged<ScopeInfo> scope_info = *scope_handle;
+      Tagged<ScopeInfo> updated =
+          forwarder.UpdateStandaloneScopeInfo(scope_info);
+      if (updated != scope_info) {
+        // Redirect new_script->infos()[index] to the canonical ScopeInfo
+        // immediately: once UpdateScopeInfo / IterateAndForwardPointers drop
+        // references to the duplicate scope_info, a GC before
+        // CompleteMergeInForeground would otherwise clear this weak slot.
+        new_script->infos()->set(index, MakeWeak(updated));
+      }
     }
     for (const auto& new_compiled_data : new_compiled_data_for_cached_sfis_) {
       // It's possible that new_compiled_data.cached_sfi had
@@ -2660,6 +2683,7 @@ void BackgroundMergeTask::BeginMergeInBackground(
       // new_compiled_data.new_sfi does not have a reused scope info yet, and
       // we'll have found it when we visited the inner function. Try to pick it
       // up here.
+      DisallowGarbageCollection no_gc;
       forwarder.UpdateScopeInfo(*new_compiled_data.new_sfi);
     }
     forwarder.IterateAndForwardPointers();
@@ -2718,9 +2742,6 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
         forwarder.AddBytecodeArray(new_sfi->GetBytecodeArray(isolate));
       }
     }
-    for (DirectHandle<ScopeInfo> new_scope : used_new_scope_infos_) {
-      forwarder.UpdateStandaloneScopeInfo(*new_scope);
-    }
     for (const auto& new_compiled_data : new_compiled_data_for_cached_sfis_) {
       // Unconditionally track the new_compiled_data for updating, even if we
       // might not use it because old_sfi is already compiled. It's possible
@@ -2774,14 +2795,14 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
         compiled_data_it++;
       }
     } else if (!maybe_old_info.IsWeak()) {
-      // Standalone eval ScopeInfos are only recorded for scopes within their
-      // owning closure, so if the slot in old_script was cleared, the ScopeInfo
-      // itself cannot still be alive in old_script.
-      DCHECK_IMPLIES(
-          maybe_new_info.IsWeak() &&
-              Is<ScopeInfo>(maybe_new_info.GetHeapObjectAssumeWeak()),
-          !forwarder.HasScopeInfoToUpdate(
-              Cast<ScopeInfo>(maybe_new_info.GetHeapObjectAssumeWeak())));
+      if (maybe_new_info.IsWeak() &&
+          Is<ScopeInfo>(maybe_new_info.GetHeapObjectAssumeWeak())) {
+        // Canonicalize standalone ScopeInfos in case old_script concurrently
+        // allocated a matching ScopeInfo (e.g. via partial eager compile) while
+        // old_script->infos()[i] remained empty.
+        maybe_new_info = MakeWeak(forwarder.UpdateStandaloneScopeInfo(
+            Cast<ScopeInfo>(maybe_new_info.GetHeapObjectAssumeWeak())));
+      }
       MERGE_MODEL_STEP(FG_PUBLISH_NEW_SFI);
       old_script->infos()->set(i, maybe_new_info, kReleaseStore);
     }
