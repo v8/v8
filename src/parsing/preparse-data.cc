@@ -89,9 +89,9 @@ static_assert(LanguageModeSize <= LanguageField::kNumValues);
 
  */
 
-PreparseDataBuilder::PreparseDataBuilder(Zone* zone,
-                                         PreparseDataBuilder* parent_builder,
-                                         std::vector<void*>* children_buffer)
+PreparseDataBuilder::PreparseDataBuilder(
+    Zone* zone, PreparseDataBuilder* parent_builder,
+    ScopedListBuffer<void*>* children_buffer)
     : parent_(parent_builder),
       byte_data_(),
       children_buffer_(children_buffer),

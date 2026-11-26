@@ -99,14 +99,8 @@ void VariableMap::Add(Variable* var) {
 }
 
 Variable* VariableMap::Lookup(const AstRawString* name) {
-  if (!MayContain(name)) return nullptr;
-  Entry* p = ZoneHashMap::Lookup(const_cast<AstRawString*>(name), name->Hash());
-  if (p != nullptr) {
-    DCHECK(reinterpret_cast<const AstRawString*>(p->key) == name);
-    DCHECK_NOT_NULL(p->value);
-    return reinterpret_cast<Variable*>(p->value);
-  }
-  return nullptr;
+  uint32_t hash = name->Hash();
+  return Lookup(name, hash, FilterMask(hash));
 }
 
 // ----------------------------------------------------------------------------
@@ -1771,10 +1765,10 @@ void Scope::AnalyzePartially(DeclarationScope* max_outer_scope,
          proxy != nullptr; proxy = proxy->next_unresolved()) {
       if (proxy->is_removed_from_unresolved()) continue;
       DCHECK(!proxy->is_resolved());
-      int access_position = proxy->position();
-      Variable* var = Lookup<kParsedScope>(proxy, lookup_scope,
-                                           max_outer_scope->outer_scope(),
-                                           &access_position);
+      const AstRawString* name = proxy->raw_name();
+      Variable* var =
+          Lookup<kParsedScope, false>(proxy, name, name->Hash(), lookup_scope,
+                                      max_outer_scope->outer_scope(), nullptr);
       if (var == nullptr) {
         // Don't copy unresolved references to the script scope, unless it's a
         // reference to a private name or method. In that case keep it so we
@@ -2235,15 +2229,24 @@ void Scope::ForceDynamicLookup(VariableProxy* proxy) {
   proxy->BindTo(dynamic);
 }
 
-template <Scope::ScopeLookupMode mode>
-Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
-                        Scope* outer_scope_end, int* access_position,
-                        Scope* cache_scope, bool force_context_allocation) {
+template <Scope::ScopeLookupMode mode, bool track_access_position>
+Variable* Scope::Lookup(VariableProxy* proxy, const AstRawString* name,
+                        uint32_t hash, Scope* scope, Scope* outer_scope_end,
+                        int* access_position, Scope* cache_scope,
+                        bool force_context_allocation) {
+  // Only AnalyzePartially skips access position tracking, and it only walks
+  // freshly preparsed scopes.
+  static_assert(mode == kParsedScope || track_access_position);
+  DCHECK_EQ(track_access_position, access_position != nullptr);
+  DCHECK_EQ(name, proxy->raw_name());
+  DCHECK_EQ(hash, name->Hash());
+  const uint64_t filter_mask = VariableMap::FilterMask(hash);
+
   // If we have already passed the cache scope in earlier recursions, we should
   // first quickly check if the current scope uses the cache scope before
   // continuing.
-  if (mode == kDeserializedScope) {
-    Variable* var = cache_scope->variables_.Lookup(proxy->raw_name());
+  if constexpr (mode == kDeserializedScope) {
+    Variable* var = cache_scope->variables_.Lookup(name, hash, filter_mask);
     if (var != nullptr) return var;
   }
 
@@ -2251,10 +2254,10 @@ Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
     // Try to find the variable in this scope.
     Variable* var;
     if constexpr (mode == kParsedScope) {
-      var = scope->LookupLocal(proxy->raw_name());
+      var = scope->LookupLocal(name, hash, filter_mask);
     } else {
       static_assert(mode == kDeserializedScope);
-      var = scope->LookupInScopeInfo(proxy->raw_name(), cache_scope);
+      var = scope->LookupInScopeInfo(name, cache_scope);
     }
 
     // We found a variable and we are done. (Even if there is an 'eval' in this
@@ -2270,70 +2273,93 @@ Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
     }
 
     if (scope->outer_scope_ == outer_scope_end) break;
-    if (scope->is_hoisted_in_context()) {
-      *access_position = scope->outer_scope()->start_position();
-    } else if (scope->is_eval_scope()) {
-      *access_position = scope->AsDeclarationScope()->eval_position();
+    if constexpr (track_access_position) {
+      if (scope->is_hoisted_in_context()) {
+        *access_position = scope->outer_scope()->start_position();
+      } else if (scope->is_eval_scope()) {
+        *access_position = scope->AsDeclarationScope()->eval_position();
+      }
     }
 
     if (V8_UNLIKELY(scope->is_dynamic_scope())) {
       DCHECK(!scope->is_script_scope());
       if (scope->is_declaration_scope() &&
           scope->AsDeclarationScope()->sloppy_eval_can_extend_vars()) {
-        return LookupSloppyEval(proxy, scope, outer_scope_end, access_position,
-                                cache_scope, force_context_allocation);
+        return LookupSloppyEval<track_access_position>(
+            proxy, name, hash, scope, outer_scope_end, access_position,
+            cache_scope, force_context_allocation);
       }
       if (scope->is_with_scope()) {
-        return LookupWith(proxy, scope, outer_scope_end, access_position,
-                          cache_scope, force_context_allocation);
+        return LookupWith<track_access_position>(
+            proxy, name, hash, scope, outer_scope_end, access_position,
+            cache_scope, force_context_allocation);
       }
       CHECK_EQ(mode, kDeserializedScope);
       CHECK(scope->is_debug_evaluate_scope());
-      return cache_scope->NonLocal(proxy->raw_name(), VariableMode::kDynamic);
+      return cache_scope->NonLocal(name, VariableMode::kDynamic);
     }
     force_context_allocation |= scope->is_function_scope();
     scope = scope->outer_scope_;
 
     // TODO(verwaest): Separate through AnalyzePartially.
-    if (mode == kParsedScope && !scope->scope_info_.is_null()) {
-      DCHECK_NULL(cache_scope);
-      return Lookup<kDeserializedScope>(proxy, scope, outer_scope_end,
-                                        access_position, scope, false);
+    if constexpr (mode == kParsedScope) {
+      if constexpr (track_access_position) {
+        if (!scope->scope_info_.is_null()) {
+          DCHECK_NULL(cache_scope);
+          return Lookup<kDeserializedScope, true>(
+              proxy, name, hash, scope, outer_scope_end, access_position, scope,
+              false);
+        }
+      } else {
+        DCHECK(scope->scope_info_.is_null());
+      }
     }
   }
 
   // We may just be trying to find all free variables. In that case, don't
   // declare them in the outer scope.
   // TODO(marja): Separate Lookup for preparsed scopes better.
-  if (mode == kParsedScope && !scope->is_script_scope()) {
-    return nullptr;
+  if constexpr (mode == kParsedScope) {
+    if (!scope->is_script_scope()) {
+      return nullptr;
+    }
   }
 
   // No binding has been found. Declare a variable on the global object.
   return scope->AsDeclarationScope()->DeclareDynamicGlobal(
-      proxy->raw_name(), NORMAL_VARIABLE,
-      mode == kDeserializedScope ? cache_scope : scope);
+      name, NORMAL_VARIABLE, mode == kDeserializedScope ? cache_scope : scope);
 }
 
-template Variable* Scope::Lookup<Scope::kParsedScope>(
-    VariableProxy* proxy, Scope* scope, Scope* outer_scope_end,
-    int* access_position, Scope* cache_scope, bool force_context_allocation);
-template Variable* Scope::Lookup<Scope::kDeserializedScope>(
-    VariableProxy* proxy, Scope* scope, Scope* outer_scope_end,
-    int* access_position, Scope* cache_scope, bool force_context_allocation);
+template Variable* Scope::Lookup<Scope::kParsedScope, true>(
+    VariableProxy* proxy, const AstRawString* name, uint32_t hash, Scope* scope,
+    Scope* outer_scope_end, int* access_position, Scope* cache_scope,
+    bool force_context_allocation);
+template Variable* Scope::Lookup<Scope::kParsedScope, false>(
+    VariableProxy* proxy, const AstRawString* name, uint32_t hash, Scope* scope,
+    Scope* outer_scope_end, int* access_position, Scope* cache_scope,
+    bool force_context_allocation);
+template Variable* Scope::Lookup<Scope::kDeserializedScope, true>(
+    VariableProxy* proxy, const AstRawString* name, uint32_t hash, Scope* scope,
+    Scope* outer_scope_end, int* access_position, Scope* cache_scope,
+    bool force_context_allocation);
 
-Variable* Scope::LookupWith(VariableProxy* proxy, Scope* scope,
-                            Scope* outer_scope_end, int* access_position,
-                            Scope* cache_scope, bool force_context_allocation) {
+template <bool track_access_position>
+Variable* Scope::LookupWith(VariableProxy* proxy, const AstRawString* name,
+                            uint32_t hash, Scope* scope, Scope* outer_scope_end,
+                            int* access_position, Scope* cache_scope,
+                            bool force_context_allocation) {
   DCHECK(scope->is_with_scope());
 
-  Variable* var = scope->outer_scope_->scope_info_.is_null()
-                      ? Lookup<kParsedScope>(proxy, scope->outer_scope_,
-                                             outer_scope_end, access_position,
-                                             nullptr, force_context_allocation)
-                      : Lookup<kDeserializedScope>(
-                            proxy, scope->outer_scope_, outer_scope_end,
-                            access_position, cache_scope, false);
+  Variable* var;
+  if (track_access_position && !scope->outer_scope_->scope_info_.is_null()) {
+    var = Lookup<kDeserializedScope, true>(proxy, name, hash,
+                                           scope->outer_scope_, outer_scope_end,
+                                           access_position, cache_scope, false);
+  } else {
+    var = Lookup<kParsedScope, track_access_position>(
+        proxy, name, hash, scope->outer_scope_, outer_scope_end,
+        access_position, nullptr, force_context_allocation);
+  }
 
   if (var == nullptr) return var;
 
@@ -2351,15 +2377,16 @@ Variable* Scope::LookupWith(VariableProxy* proxy, Scope* scope,
   }
   if (cache_scope) cache_scope->variables_.Remove(var);
   Scope* target = cache_scope == nullptr ? scope : cache_scope;
-  Variable* dynamic =
-      target->NonLocal(proxy->raw_name(), VariableMode::kDynamic);
+  Variable* dynamic = target->NonLocal(name, VariableMode::kDynamic);
   dynamic->set_local_if_not_shadowed(var);
   return dynamic;
 }
 
-Variable* Scope::LookupSloppyEval(VariableProxy* proxy, Scope* scope,
-                                  Scope* outer_scope_end, int* access_position,
-                                  Scope* cache_scope,
+template <bool track_access_position>
+Variable* Scope::LookupSloppyEval(VariableProxy* proxy,
+                                  const AstRawString* name, uint32_t hash,
+                                  Scope* scope, Scope* outer_scope_end,
+                                  int* access_position, Scope* cache_scope,
                                   bool force_context_allocation) {
   DCHECK(scope->is_declaration_scope() &&
          scope->AsDeclarationScope()->sloppy_eval_can_extend_vars());
@@ -2370,13 +2397,16 @@ Variable* Scope::LookupSloppyEval(VariableProxy* proxy, Scope* scope,
   // conflict detection through catch scopes in the eval.
   Scope* entry_cache =
       cache_scope == nullptr ? scope->outer_scope() : cache_scope;
-  Variable* var = scope->outer_scope_->scope_info_.is_null()
-                      ? Lookup<kParsedScope>(proxy, scope->outer_scope_,
-                                             outer_scope_end, access_position,
-                                             nullptr, force_context_allocation)
-                      : Lookup<kDeserializedScope>(
-                            proxy, scope->outer_scope_, outer_scope_end,
-                            access_position, entry_cache, false);
+  Variable* var;
+  if (track_access_position && !scope->outer_scope_->scope_info_.is_null()) {
+    var = Lookup<kDeserializedScope, true>(proxy, name, hash,
+                                           scope->outer_scope_, outer_scope_end,
+                                           access_position, entry_cache, false);
+  } else {
+    var = Lookup<kParsedScope, track_access_position>(
+        proxy, name, hash, scope->outer_scope_, outer_scope_end,
+        access_position, nullptr, force_context_allocation);
+  }
   if (var == nullptr) return var;
 
   // A variable binding may have been found in an outer scope, but the current
@@ -2388,7 +2418,7 @@ Variable* Scope::LookupSloppyEval(VariableProxy* proxy, Scope* scope,
   // script scope are always dynamic.
   if (var->IsGlobalObjectProperty()) {
     Scope* target = cache_scope == nullptr ? scope : cache_scope;
-    var = target->NonLocal(proxy->raw_name(), VariableMode::kDynamicGlobal);
+    var = target->NonLocal(name, VariableMode::kDynamicGlobal);
   }
 
   if (var->is_dynamic()) return var;
@@ -2401,9 +2431,9 @@ Variable* Scope::LookupSloppyEval(VariableProxy* proxy, Scope* scope,
     // Top-level lexical variables in REPL mode can be redeclared across
     // scripts and are looked up globally via the ScriptContextTable rather
     // than at a fixed context slot index, so treat them as kDynamicGlobal.
-    return target->NonLocal(proxy->raw_name(), VariableMode::kDynamicGlobal);
+    return target->NonLocal(name, VariableMode::kDynamicGlobal);
   }
-  var = target->NonLocal(proxy->raw_name(), VariableMode::kDynamicLocal);
+  var = target->NonLocal(name, VariableMode::kDynamicLocal);
   var->set_local_if_not_shadowed(invalidated);
 
   return var;
@@ -2412,6 +2442,8 @@ Variable* Scope::LookupSloppyEval(VariableProxy* proxy, Scope* scope,
 void Scope::ResolveVariable(VariableProxy* proxy) {
   DCHECK(!proxy->is_resolved());
   int access_position = proxy->position();
+  const AstRawString* name = proxy->raw_name();
+  uint32_t hash = name->Hash();
   Variable* var;
   if (V8_UNLIKELY(proxy->is_home_object())) {
     // VariableProxies of the home object cannot be resolved like a normal
@@ -2429,13 +2461,15 @@ void Scope::ResolveVariable(VariableProxy* proxy) {
     Scope* scope = GetHomeObjectScope();
     DCHECK_NOT_NULL(scope);
     if (scope->scope_info_.is_null()) {
-      var = Lookup<kParsedScope>(proxy, scope, nullptr, &access_position);
+      var = Lookup<kParsedScope, true>(proxy, name, hash, scope, nullptr,
+                                       &access_position);
     } else {
-      var = Lookup<kDeserializedScope>(proxy, scope, nullptr, &access_position,
-                                       scope);
+      var = Lookup<kDeserializedScope, true>(proxy, name, hash, scope, nullptr,
+                                             &access_position, scope);
     }
   } else {
-    var = Lookup<kParsedScope>(proxy, this, nullptr, &access_position);
+    var = Lookup<kParsedScope, true>(proxy, name, hash, this, nullptr,
+                                     &access_position);
   }
   DCHECK_NOT_NULL(var);
   ResolveTo(proxy, var, access_position);
@@ -2567,9 +2601,12 @@ void Scope::ResolveTo(VariableProxy* proxy, Variable* var,
 
 void Scope::ResolvePreparsedVariable(VariableProxy* proxy, Scope* scope,
                                      Scope* end) {
+  const AstRawString* name = proxy->raw_name();
+  uint32_t hash = name->Hash();
+  uint64_t filter_mask = VariableMap::FilterMask(hash);
   // Resolve the variable in all parsed scopes to force context allocation.
   for (Scope* s = scope->outer_scope_; s != end; s = s->outer_scope_) {
-    Variable* var = s->LookupLocal(proxy->raw_name());
+    Variable* var = s->LookupLocal(name, hash, filter_mask);
     if (var != nullptr) {
       var->set_is_used();
       if (!var->is_dynamic()) {

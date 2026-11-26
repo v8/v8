@@ -283,6 +283,14 @@ class alignas(std::max(alignof(T), alignof(T*))) SmallVector {
 
   T* erase(T* pos) V8_LIFETIME_BOUND { return erase(pos, pos + 1); }
 
+  // Truncates the SmallVector to `new_size` (which must be <= current size).
+  V8_INLINE void truncate(size_t new_size) {
+    DCHECK_LE(new_size, size());
+    T* new_end = begin_ + new_size;
+    DestroyRange(new_end, end_);
+    end_ = new_end;
+  }
+
   // Resizes the SmallVector to the provided `new_size`. If `new_size` is larger
   // than the current size, the new elements will not be default-initialized,
   // (meaning the objects will only be allocated, not constructed.)

@@ -6,9 +6,9 @@
 #define V8_UTILS_SCOPED_LIST_H_
 
 #include <type_traits>
-#include <vector>
 
 #include "src/base/logging.h"
+#include "src/base/small-vector.h"
 
 namespace v8 {
 
@@ -22,7 +22,10 @@ namespace internal {
 template <typename T>
 class ZoneList;
 
-// ScopedList is a scope-lifetime list with a std::vector backing that can be
+template <typename TBacking>
+using ScopedListBuffer = base::SmallVector<TBacking, 32>;
+
+// ScopedList is a scope-lifetime list with a SmallVector backing that can be
 // reused between ScopedLists. Note that a ScopedList in an outer scope cannot
 // add any entries if there is a ScopedList with the same backing in an inner
 // scope.
@@ -33,19 +36,21 @@ class V8_NODISCARD ScopedList final {
   static_assert((std::is_same_v<TBacking, T>) ||
                     (std::is_same_v<TBacking, void*> && std::is_pointer_v<T>),
                 "Incompatible combination of T and TBacking types");
+  static_assert(std::is_trivially_destructible_v<TBacking>,
+                "ScopedList backing type must be trivially destructible");
 
  public:
-  explicit ScopedList(std::vector<TBacking>* buffer)
+  explicit ScopedList(ScopedListBuffer<TBacking>* buffer)
       : buffer_(*buffer), start_(buffer->size()), end_(buffer->size()) {}
 
   ~ScopedList() { Rewind(); }
 
-  void Rewind(int length = 0) {
+  V8_INLINE void Rewind(int length = 0) {
     DCHECK_EQ(buffer_.size(), end_);
     DCHECK_LE(0, length);
     DCHECK_LE(start_ + length, end_);
     end_ = start_ + length;
-    buffer_.resize(end_);
+    buffer_.truncate(end_);
   }
 
   void MergeInto(ScopedList* parent) {
@@ -114,7 +119,7 @@ class V8_NODISCARD ScopedList final {
   }
 
  private:
-  std::vector<TBacking>& buffer_;
+  ScopedListBuffer<TBacking>& buffer_;
   size_t start_;
   size_t end_;
 };

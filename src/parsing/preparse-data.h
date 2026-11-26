@@ -102,7 +102,7 @@ class V8_EXPORT_PRIVATE PreparseDataBuilder : public ZoneObject,
   // Create a PreparseDataBuilder object which will collect data as we
   // parse.
   explicit PreparseDataBuilder(Zone* zone, PreparseDataBuilder* parent_builder,
-                               std::vector<void*>* children_buffer);
+                               ScopedListBuffer<void*>* children_buffer);
   ~PreparseDataBuilder() {}
   PreparseDataBuilder(const PreparseDataBuilder&) = delete;
   PreparseDataBuilder& operator=(const PreparseDataBuilder&) = delete;

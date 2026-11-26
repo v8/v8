@@ -31,6 +31,7 @@
 #include "src/parsing/scanner.h"
 #include "src/parsing/token.h"
 #include "src/regexp/regexp.h"
+#include "src/utils/scoped-list.h"
 
 namespace v8::internal {
 
@@ -271,10 +272,7 @@ class ParserBase {
         default_eager_compile_hint_(FunctionLiteral::kShouldLazyCompile),
         compile_hints_magic_enabled_(compile_hints_magic_enabled),
         compile_hints_per_function_magic_enabled_(
-            compile_hints_per_function_magic_enabled) {
-    pointer_buffer_.reserve(32);
-    variable_buffer_.reserve(32);
-  }
+            compile_hints_per_function_magic_enabled) {}
 
   const UnoptimizedCompileFlags& flags() const { return flags_; }
   bool has_module_in_scope_chain() const { return has_module_in_scope_chain_; }
@@ -1726,8 +1724,8 @@ class ParserBase {
     ExpressionScope* expression_scope_;
   };
 
-  std::vector<void*>* pointer_buffer() { return &pointer_buffer_; }
-  std::vector<std::pair<VariableProxy*, int>>* variable_buffer() {
+  ScopedListBuffer<void*>* pointer_buffer() { return &pointer_buffer_; }
+  ScopedListBuffer<std::pair<VariableProxy*, int>>* variable_buffer() {
     return &variable_buffer_;
   }
 
@@ -1754,9 +1752,6 @@ class ParserBase {
  private:
   Zone* zone_;
   ExpressionScope* expression_scope_;
-
-  std::vector<void*> pointer_buffer_;
-  std::vector<std::pair<VariableProxy*, int>> variable_buffer_;
 
   Scanner* scanner_;
 
@@ -1814,6 +1809,9 @@ class ParserBase {
 
   bool accept_IN_ = true;
   bool allow_eval_cache_ = true;
+
+  ScopedListBuffer<void*> pointer_buffer_;
+  ScopedListBuffer<std::pair<VariableProxy*, int>> variable_buffer_;
 };
 
 template <typename Impl>

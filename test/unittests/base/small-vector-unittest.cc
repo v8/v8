@@ -966,6 +966,34 @@ TEST(SmallVectorTest, ClearTrivial) {
   TestClearTrivial<0, 7>();
 }
 
+namespace {
+template <size_t capacity, size_t size, size_t new_size>
+void TestTruncateTrivial() {
+  static_assert(new_size <= size);
+  constexpr int new_isize = static_cast<int>(new_size);
+  SmallVector<int, capacity> v{make_int_list<size, 1>()};
+  const size_t real_capacity = v.capacity();
+
+  v.truncate(new_size);
+  EXPECT_EQ(new_size, v.size());
+  EXPECT_EQ(real_capacity, v.capacity());
+  for (int i = 0; i < new_isize; ++i) EXPECT_EQ(i + 1, v[i]);
+}
+}  // anonymous namespace
+
+TEST(SmallVectorTest, TruncateTrivial) {
+  TestTruncateTrivial<10, 7, 0>();
+  TestTruncateTrivial<10, 7, 4>();
+  TestTruncateTrivial<10, 7, 7>();
+  TestTruncateTrivial<10, 17, 0>();
+  TestTruncateTrivial<10, 17, 7>();
+  TestTruncateTrivial<10, 17, 17>();
+  TestTruncateTrivial<0, 0, 0>();
+  TestTruncateTrivial<0, 7, 0>();
+  TestTruncateTrivial<0, 7, 4>();
+  TestTruncateTrivial<0, 7, 7>();
+}
+
 // Tests with vector elements that are non-trivially constructible/destructible.
 
 namespace {
@@ -2322,6 +2350,43 @@ TEST(SmallVectorTest, ClearNonTrivial) {
   TestClearNonTrivial<10, 17>();
   TestClearNonTrivial<0, 0>();
   TestClearNonTrivial<0, 7>();
+}
+
+namespace {
+template <size_t capacity, size_t size, size_t new_size>
+void TestTruncateNonTrivial() {
+  static_assert(new_size <= size);
+  constexpr int isize = static_cast<int>(size);
+  constexpr int new_isize = static_cast<int>(new_size);
+  using ElementType = NonTrivial<int>;
+  auto arr = make_non_trivial_array<size, 1>();
+  SmallVector<ElementType, capacity> v{base::VectorOf(arr)};
+  const size_t real_capacity = v.capacity();
+  ElementType::ResetCounters();
+
+  {
+    v.truncate(new_size);
+    EXPECT_EQ(new_size, v.size());
+    EXPECT_EQ(real_capacity, v.capacity());
+    for (int i = 0; i < new_isize; ++i) EXPECT_EQ(i + 1, v[i].value());
+  }
+  EXPECT_EQ(isize - new_isize, ElementType::GetCounter(kDestructor));
+  EXPECT_EQ(isize - new_isize, ElementType::GetCounter(kAll));
+  ElementType::ResetCounters();
+}
+}  // anonymous namespace
+
+TEST(SmallVectorTest, TruncateNonTrivial) {
+  TestTruncateNonTrivial<10, 7, 0>();
+  TestTruncateNonTrivial<10, 7, 4>();
+  TestTruncateNonTrivial<10, 7, 7>();
+  TestTruncateNonTrivial<10, 17, 0>();
+  TestTruncateNonTrivial<10, 17, 7>();
+  TestTruncateNonTrivial<10, 17, 17>();
+  TestTruncateNonTrivial<0, 0, 0>();
+  TestTruncateNonTrivial<0, 7, 0>();
+  TestTruncateNonTrivial<0, 7, 4>();
+  TestTruncateNonTrivial<0, 7, 7>();
 }
 
 namespace {

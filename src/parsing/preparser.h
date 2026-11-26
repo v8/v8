@@ -344,7 +344,7 @@ class PreParserStatementList {
 
 class PreParserScopedStatementList {
  public:
-  explicit PreParserScopedStatementList(std::vector<void*>* buffer) {}
+  explicit PreParserScopedStatementList(ScopedListBuffer<void*>* buffer) {}
   void Rewind() {}
   void MergeInto(const PreParserScopedStatementList* other) {}
   void Add(const PreParserStatement& element) {}
@@ -356,7 +356,8 @@ class PreParserScopedStatementList {
 // build lists of variables though.
 class PreParserExpressionList {
  public:
-  explicit PreParserExpressionList(std::vector<void*>* buffer) : length_(0) {}
+  explicit PreParserExpressionList(ScopedListBuffer<void*>* buffer)
+      : length_(0) {}
 
   int length() const { return length_; }
 
@@ -892,9 +893,7 @@ class PreParser : public ParserBase<PreParser> {
             /*compile_hints_per_function_magic_enabled=*/false),
         use_counts_(nullptr),
         preparse_data_builder_(nullptr),
-        preparse_data_builder_buffer_() {
-    preparse_data_builder_buffer_.reserve(16);
-  }
+        preparse_data_builder_buffer_() {}
 
   static bool IsPreParser() { return true; }
 
@@ -928,7 +927,7 @@ class PreParser : public ParserBase<PreParser> {
     preparse_data_builder_ = preparse_data_builder;
   }
 
-  std::vector<void*>* preparse_data_builder_buffer() {
+  ScopedListBuffer<void*>* preparse_data_builder_buffer() {
     return &preparse_data_builder_buffer_;
   }
 
@@ -1682,7 +1681,7 @@ class PreParser : public ParserBase<PreParser> {
   PreParserLogger log_;
 
   PreparseDataBuilder* preparse_data_builder_;
-  std::vector<void*> preparse_data_builder_buffer_;
+  ScopedListBuffer<void*> preparse_data_builder_buffer_;
 };
 
 }  // namespace internal

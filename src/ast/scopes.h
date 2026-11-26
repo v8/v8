@@ -70,6 +70,18 @@ class VariableMap : public ZoneHashMap {
                     IsStaticFlag is_static_flag, bool* was_added);
 
   V8_EXPORT_PRIVATE Variable* Lookup(const AstRawString* name);
+  V8_INLINE Variable* Lookup(const AstRawString* name, uint32_t hash,
+                             uint64_t filter_mask) {
+    DCHECK_EQ(filter_mask, FilterMask(hash));
+    if (!MayContain(filter_mask)) return nullptr;
+    return LookupWithoutFilter(name, hash);
+  }
+  // Bloom filter over the names in the map, letting lookups of absent names
+  // (frequent when walking the scope chain) skip the probe. Removal does not
+  // clear bits.
+  static V8_INLINE uint64_t FilterMask(uint32_t hash) {
+    return (uint64_t{1} << (hash & 63)) | (uint64_t{1} << ((hash >> 6) & 63));
+  }
   void Remove(Variable* var);
   void RemoveDynamic();
   void Add(Variable* var);
@@ -77,18 +89,24 @@ class VariableMap : public ZoneHashMap {
   Zone* zone() const { return allocator().zone(); }
 
  private:
-  // Bloom filter over the names in the map, letting lookups of absent names
-  // (frequent when walking the scope chain) skip the probe. Removal does not
-  // clear bits.
+  V8_INLINE bool MayContain(uint64_t filter_mask) const {
+    return (filter_ & filter_mask) == filter_mask;
+  }
+  V8_INLINE Variable* LookupWithoutFilter(const AstRawString* name,
+                                          uint32_t hash) {
+    DCHECK_EQ(hash, name->Hash());
+    Entry* p = ZoneHashMap::Lookup(const_cast<AstRawString*>(name), hash);
+    if (p != nullptr) {
+      DCHECK(reinterpret_cast<const AstRawString*>(p->key) == name);
+      DCHECK_NOT_NULL(p->value);
+      return reinterpret_cast<Variable*>(p->value);
+    }
+    return nullptr;
+  }
   static uint64_t FilterMask(const AstRawString* name) {
-    uint32_t hash = name->Hash();
-    return (uint64_t{1} << (hash & 63)) | (uint64_t{1} << ((hash >> 6) & 63));
+    return FilterMask(name->Hash());
   }
   void AddToFilter(const AstRawString* name) { filter_ |= FilterMask(name); }
-  bool MayContain(const AstRawString* name) const {
-    uint64_t mask = FilterMask(name);
-    return (filter_ & mask) == mask;
-  }
 
   uint64_t filter_ = 0;
 };
@@ -225,6 +243,11 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   Variable* LookupLocal(const AstRawString* name) {
     DCHECK(scope_info_.is_null());
     return variables_.Lookup(name);
+  }
+  V8_INLINE Variable* LookupLocal(const AstRawString* name, uint32_t hash,
+                                  uint64_t filter_mask) {
+    DCHECK(scope_info_.is_null());
+    return variables_.Lookup(name, hash, filter_mask);
   }
 
   Variable* LookupInScopeInfo(const AstRawString* name, Scope* cache);
@@ -812,20 +835,23 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // stopping when reaching the outer_scope_end scope. If the code is executed
   // because of a call to 'eval', the context parameter should be set to the
   // calling context of 'eval'.
-  template <ScopeLookupMode mode>
-  static Variable* Lookup(VariableProxy* proxy, Scope* scope,
-                          Scope* outer_scope_end, int* access_position,
-                          Scope* cache_scope = nullptr,
+  template <ScopeLookupMode mode, bool track_access_position = true>
+  static Variable* Lookup(VariableProxy* proxy, const AstRawString* name,
+                          uint32_t hash, Scope* scope, Scope* outer_scope_end,
+                          int* access_position, Scope* cache_scope = nullptr,
                           bool force_context_allocation = false);
-  static Variable* LookupWith(VariableProxy* proxy, Scope* scope,
+  template <bool track_access_position>
+  static Variable* LookupWith(VariableProxy* proxy, const AstRawString* name,
+                              uint32_t hash, Scope* scope,
                               Scope* outer_scope_end, int* access_position,
-                              Scope* cache_scope = nullptr,
-                              bool force_context_allocation = false);
-  static Variable* LookupSloppyEval(VariableProxy* proxy, Scope* scope,
-                                    Scope* outer_scope_end,
-                                    int* access_position,
-                                    Scope* cache_scope = nullptr,
-                                    bool force_context_allocation = false);
+                              Scope* cache_scope,
+                              bool force_context_allocation);
+  template <bool track_access_position>
+  static Variable* LookupSloppyEval(VariableProxy* proxy,
+                                    const AstRawString* name, uint32_t hash,
+                                    Scope* scope, Scope* outer_scope_end,
+                                    int* access_position, Scope* cache_scope,
+                                    bool force_context_allocation);
   static void ResolvePreparsedVariable(VariableProxy* proxy, Scope* scope,
                                        Scope* end);
   void ResolveTo(VariableProxy* proxy, Variable* var, int access_position);
