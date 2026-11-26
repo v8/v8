@@ -766,11 +766,6 @@ MaybeReduceResult MaglevGraphOptimizer::GetUntaggedValueWithRepresentation(
       CanReuseAlternative(node, node, use_repr, assumed_input_type)) {
     return node;
   }
-  if (node->Is<ReturnedValue>()) {
-    ValueNode* input = node->input_node(0);
-    return GetUntaggedValueWithRepresentation(input, use_repr,
-                                              assumed_input_type);
-  }
   // We try getting constant before bailing out and/or calling the reducer,
   // since it does not emit a conversion node.
   if (ValueNode* cst =
@@ -788,8 +783,7 @@ MaybeReduceResult MaglevGraphOptimizer::GetUntaggedValueWithRepresentation(
     // If `node` is itself tagging an untagged value, reuse or convert that
     // value directly instead of untagging the tagged result.
     if (node->is_conversion()) {
-      ValueNode* input =
-          node->input_node(0)->UnwrapIdentitiesAndReturnedValues();
+      ValueNode* input = node->input_node(0)->UnwrapAliases();
       if (input->value_representation() ==
               ValueRepresentationFromUse(use_repr) &&
           CanReuseAlternative(node, input, use_repr, assumed_input_type)) {
@@ -2503,9 +2497,9 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedInternalizedString(
 ProcessResult MaglevGraphOptimizer::VisitCheckedObjectToIndex(
     CheckedObjectToIndex* node, const ProcessingState& state) {
   // A Float64 index converts without a -0 check, unlike a generic Int32 use.
-  ValueNode* input = node->input_node(0)->UnwrapIdentitiesAndReturnedValues();
+  ValueNode* input = node->input_node(0)->UnwrapAliases();
   if (input->is_tagged() && input->is_conversion()) {
-    input = input->input_node(0)->UnwrapIdentitiesAndReturnedValues();
+    input = input->input_node(0)->UnwrapAliases();
   }
   if (!input->is_tagged()) {
     REPLACE_AND_RETURN_IF_DONE(reducer_.GetInt32ElementIndex(input));

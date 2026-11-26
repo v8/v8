@@ -172,11 +172,11 @@ class RecomputePhiUseHintsProcessor {
       if (!input.node()) continue;
       if (Phi* phi = input.node()->TryCast<Phi>()) {
         UseRepresentation use_repr = UseRepresentation::kTagged;
-        if (node->is_conversion()) {
+        if (node->Is<ReturnedValue>()) {
+          use_repr = UseRepresentationFromValue(phi->value_representation());
+        } else if (node->is_conversion()) {
           use_repr = UseRepresentationFromValue(
               node->Cast<ValueNode>()->value_representation());
-        } else if (node->Is<ReturnedValue>()) {
-          use_repr = UseRepresentationFromValue(phi->value_representation());
         } else if (IsTruncatingToInt32(node->opcode())) {
           use_repr = UseRepresentation::kTruncatedInt32;
         } else if (node->Is<NumberToString>()) {

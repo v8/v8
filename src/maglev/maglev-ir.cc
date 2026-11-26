@@ -284,15 +284,12 @@ ValueNode* ValueNode::UnwrapAliasesSlow() {
   });
 }
 
-ValueNode* ValueNode::UnwrapIdentitiesReturnedValuesAndPhisSlow() {
-  return UnwrapSinglePhis(this, [](ValueNode* node) {
-    return node->UnwrapIdentitiesAndReturnedValues();
-  });
-}
-
 ValueNode* ValueNode::UnwrapSlow() {
   return UnwrapSinglePhis(this, [](ValueNode* node) {
-    return node->UnwrapIdentitiesReturnedValuesAndConversions();
+    while (node->Is<Identity>() || node->is_conversion()) {
+      node = node->input(0).node();
+    }
+    return node;
   });
 }
 

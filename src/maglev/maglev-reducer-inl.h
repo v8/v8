@@ -694,7 +694,7 @@ bool MaglevReducer<BaseT>::CanElideWriteBarrier(ValueNode* object,
   // a Smi when tagged.
   if (ValueNode* tagged_alt = known_node_aspects().TryGetAlternativeFor(
           value, UseRepresentation::kTagged)) {
-    DCHECK(tagged_alt->is_conversion() || tagged_alt->Is<ReturnedValue>());
+    DCHECK(tagged_alt->is_conversion());
     return CheckType(tagged_alt, NodeType::kSmi);
   }
   return false;
@@ -7818,8 +7818,7 @@ inline bool IsSmallFunction(int bytecode_length,
   const bool has_heapnumber_input_output =
       use_repr_hints.contains_any(kHeapNumRepresentations) ||
       std::ranges::any_of(arguments, [](ValueNode* input) {
-        DCHECK(!input->is_conversion() && !input->Is<Identity>() &&
-               !input->Is<ReturnedValue>());
+        DCHECK(!input->is_conversion() && !input->Is<Identity>());
         return IsFloat64OrHeapNumberConstant(input);
       });
 
