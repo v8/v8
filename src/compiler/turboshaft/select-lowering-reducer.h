@@ -85,7 +85,7 @@ class SelectLoweringReducer : public Next {
     }
 
     Variable result = __ NewLoopInvariantVariable(rep);
-    IF (cond) {
+    IF (ConditionWithHint(cond, hint)) {
       __ SetVariable(result, vtrue);
     } ELSE {
       __ SetVariable(result, vfalse);

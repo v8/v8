@@ -5645,7 +5645,7 @@ class GraphBuildingNodeProcessor {
     V<Word32> cond = RootEqual(node->ObjectInput(), RootIndex::kTheHoleValue);
     SetMap(node,
            __ Select(cond, undefined_value_, Map<Object>(node->ObjectInput()),
-                     RegisterRepresentation::Tagged(), BranchHint::kNone,
+                     RegisterRepresentation::Tagged(), BranchHint::kFalse,
                      SelectOp::Implementation::kForceBranch));
     return maglev::ProcessResult::kContinue;
   }

@@ -623,6 +623,31 @@ TEST_F(ControlFlowTest, BranchEliminationRespectsReturnMergePredecessorLimit) {
   ASSERT_EQ(test.CountOp(Opcode::kPhi), 1u);
 }
 
+TEST_F(ControlFlowTest, SelectLoweringPreservesBranchHint) {
+  for (BranchHint hint :
+       {BranchHint::kNone, BranchHint::kTrue, BranchHint::kFalse}) {
+    constexpr std::array kReps = {RegisterRepresentation::Word32(),
+                                  RegisterRepresentation::Word32(),
+                                  RegisterRepresentation::Word32()};
+    auto test = CreateFromGraph(base::VectorOf(kReps), [hint](
+                                                           TestInstance& Asm) {
+      V<Word32> cond = Asm.GetParameter<Word32>(0);
+      V<Word32> vtrue = Asm.GetParameter<Word32>(1);
+      V<Word32> vfalse = Asm.GetParameter<Word32>(2);
+      __ Return(__ Select(cond, vtrue, vfalse, RegisterRepresentation::Word32(),
+                          hint, SelectOp::Implementation::kForceBranch));
+    });
+
+    test.Run<SelectLoweringReducer>();
+    ASSERT_EQ(test.CountOp(Opcode::kBranch), 1u);
+    for (const Operation& op : test.graph().AllOperations()) {
+      if (const BranchOp* branch = op.TryCast<BranchOp>()) {
+        ASSERT_EQ(branch->hint, hint);
+      }
+    }
+  }
+}
+
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"
 
 }  // namespace v8::internal::compiler::turboshaft
