@@ -766,7 +766,11 @@ class BranchEliminationReducer : public Next {
     return has_phi;
   }
 
-  static constexpr int kMaxPredecessorsForCloning = 8;
+  // Limit cloning to small merges to avoid duplicating too much code (even when
+  // all paths clone) and because bypassing larger merges from only a few
+  // predecessors leaves the merge alive and can cause the register allocator to
+  // duplicate spills on the other paths.
+  static constexpr int kMaxPredecessorsForCloning = 5;
   static constexpr int kMaxDestinationPredecessorsForCloning = 32;
 
   bool DestinationHasTooManyPredecessors(const Block* destination) {

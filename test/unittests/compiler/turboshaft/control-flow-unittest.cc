@@ -347,7 +347,7 @@ void ReturnPreventingTailDuplication(TestInstance& Asm, V<Word32> result) {
 TEST_F(ControlFlowTest, BranchEliminationRespectsInnerMergePredecessorLimit) {
   constexpr std::array kReps = {RegisterRepresentation::Word32(),
                                 RegisterRepresentation::Word32()};
-  constexpr int kInnerPreds = 9;
+  constexpr int kInnerPreds = 6;
   auto test = CreateFromGraph(base::VectorOf(kReps), [](TestInstance& Asm) {
     V<Word32> c1 = Asm.GetParameter<Word32>(0);
     V<Word32> c2 = Asm.GetParameter<Word32>(1);
@@ -520,7 +520,7 @@ TEST_F(ControlFlowTest, BranchEliminationFoldsSmallEmptyForwardingMerge) {
 // ending with a Branch on a Phi (Optimization 2bis).
 TEST_F(ControlFlowTest, BranchEliminationRespectsBranchMergePredecessorLimit) {
   constexpr std::array kReps = {RegisterRepresentation::Word32()};
-  constexpr int kPreds = 9;
+  constexpr int kPreds = 6;
   auto test = CreateFromGraph(base::VectorOf(kReps), [](TestInstance& Asm) {
     V<Word32> c1 = Asm.GetParameter<Word32>(0);
     Label<Word32> branch_merge(&Asm);
@@ -552,33 +552,44 @@ TEST_F(ControlFlowTest, BranchEliminationRespectsBranchMergePredecessorLimit) {
 TEST_F(ControlFlowTest,
        BranchEliminationStopsCloningWhenBranchDestinationsGrow) {
   constexpr std::array kReps = {RegisterRepresentation::Word32(),
+                                RegisterRepresentation::Word32(),
                                 RegisterRepresentation::Word32()};
-  constexpr int kOuterCases = 6;
-  constexpr int kInnerPreds = 6;
+  constexpr int kOuterCases = 5;
+  constexpr int kMidPreds = 3;
+  constexpr int kInnerPreds = 3;
   auto test = CreateFromGraph(base::VectorOf(kReps), [](TestInstance& Asm) {
     V<Word32> c1 = Asm.GetParameter<Word32>(0);
     V<Word32> c2 = Asm.GetParameter<Word32>(1);
+    V<Word32> c3 = Asm.GetParameter<Word32>(2);
     Label<Word32> branch_merge(&Asm);
 
     std::vector<Block*> outer_cases =
         EmitSwitchToNewBlocks(Asm, c1, kOuterCases);
     for (int k = 0; k < kOuterCases; k++) {
       __ Bind(outer_cases[k]);
-      Label<Word32> inner_merge(&Asm);
-      std::vector<Block*> inner_cases =
-          EmitSwitchToNewBlocks(Asm, c2, kInnerPreds);
-      for (int i = 0; i < kInnerPreds; i++) {
-        __ Bind(inner_cases[i]);
-        // Keep distinct values per inner merge so Label::Bind keeps a PhiOp,
-        // and send 35 truthy edges plus a final 0 edge so the branch cannot
-        // fold once cloning stops after 33 predecessors on if_true.
-        int val = (k == kOuterCases - 1 && i == kInnerPreds - 1)
-                      ? 0
-                      : (i == 0 ? 2 : 1);
-        GOTO(inner_merge, val);
+      Label<Word32> mid_merge(&Asm);
+      std::vector<Block*> mid_cases = EmitSwitchToNewBlocks(Asm, c2, kMidPreds);
+      for (int j = 0; j < kMidPreds; j++) {
+        __ Bind(mid_cases[j]);
+        Label<Word32> inner_merge(&Asm);
+        std::vector<Block*> inner_cases =
+            EmitSwitchToNewBlocks(Asm, c3, kInnerPreds);
+        for (int i = 0; i < kInnerPreds; i++) {
+          __ Bind(inner_cases[i]);
+          // Keep distinct values per inner merge so Label::Bind keeps a PhiOp,
+          // and send 44 truthy edges plus a final 0 edge so the branch cannot
+          // fold once cloning stops after 33 predecessors on if_true.
+          int val = (k == kOuterCases - 1 && j == kMidPreds - 1 &&
+                     i == kInnerPreds - 1)
+                        ? 0
+                        : (i == 0 ? 2 : 1);
+          GOTO(inner_merge, val);
+        }
+        BIND(inner_merge, inner_val);
+        GOTO(mid_merge, inner_val);
       }
-      BIND(inner_merge, inner_val);
-      GOTO(branch_merge, inner_val);
+      BIND(mid_merge, mid_val);
+      GOTO(branch_merge, mid_val);
     }
 
     BIND(branch_merge, cond_phi);
@@ -600,7 +611,7 @@ TEST_F(ControlFlowTest,
 // Switch split-edge blocks.
 TEST_F(ControlFlowTest, BranchEliminationRespectsReturnMergePredecessorLimit) {
   constexpr std::array kReps = {RegisterRepresentation::Word32()};
-  constexpr int kPreds = 9;
+  constexpr int kPreds = 6;
   auto test = CreateFromGraph(base::VectorOf(kReps), [](TestInstance& Asm) {
     V<Word32> c1 = Asm.GetParameter<Word32>(0);
     Label<Word32> return_merge(&Asm);
