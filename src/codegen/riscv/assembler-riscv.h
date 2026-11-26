@@ -490,9 +490,18 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     return pc_offset() - label->pos();
   }
 
-  // Check the number of instructions generated from label to here.
+  // Check the number of instructions generated from label to here. Walk the
+  // emitted bytes because RVC instructions are 2 bytes wide, so dividing the
+  // byte size by kInstrSize would undercount them (e.g. a single c.lui or
+  // c.slli would report 0 instructions).
   int InstructionsGeneratedSince(Label* label) {
-    return SizeOfCodeGeneratedSince(label) / kInstrSize;
+    int count = 0;
+    int offset = label->pos();
+    while (offset < pc_offset()) {
+      offset += InstructionAt(offset)->InstructionSize();
+      ++count;
+    }
+    return count;
   }
 
   // Blocks the trampoline pool and constant pools emissions. Emits pools if

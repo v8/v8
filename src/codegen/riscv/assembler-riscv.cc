@@ -904,6 +904,16 @@ inline int64_t SignExtend(uint64_t V, int N) {
 
 #if V8_TARGET_ARCH_RISCV64
 void Assembler::RV_li(Register rd, int64_t imm) {
+  // A non-zero multiple of 4KiB whose page index fits the signed 6-bit
+  // immediate of c.lui (values within +/-128KiB) is materialized with a single
+  // compressed instruction instead of a full-width lui. Handle it here, before
+  // the GeneralLi/RecursiveLi dispatch, so the choice does not depend on which
+  // of the two (equal instruction count) paths would be selected.
+  if (CpuFeatures::IsSupported(RVC) && rd != zero_reg && rd != sp && imm != 0 &&
+      (imm & 0xfff) == 0 && is_int6(imm >> 12)) {
+    c_lui(rd, static_cast<int8_t>(imm >> 12));
+    return;
+  }
   UseScratchRegisterScope temps(this);
   if (RecursiveLiCount(imm) > GeneralLiCount(imm, temps.CanAcquire())) {
     GeneralLi(rd, imm);
@@ -1245,14 +1255,26 @@ void Assembler::AdjustBaseAndOffset(MemOperand* src, Register scratch,
              src->offset() < 0) {
     addi(scratch, src->rm(), -kMinOffsetForSimpleAdjustment);
     src->offset_ += kMinOffsetForSimpleAdjustment;
-  } else if (access_type == OffsetAccessType::SINGLE_ACCESS) {
-    RV_li(scratch, (static_cast<intptr_t>(src->offset()) + 0x800) >> 12 << 12);
-    add(scratch, scratch, src->rm());
-    src->offset_ = src->offset() << 20 >> 20;
   } else {
-    RV_li(scratch, src->offset());
-    add(scratch, scratch, src->rm());
-    src->offset_ = 0;
+    if (access_type == OffsetAccessType::SINGLE_ACCESS) {
+      intptr_t page_offset =
+          (static_cast<intptr_t>(src->offset()) + 0x800) >> 12 << 12;
+      // The rounded offset is a non-zero multiple of 4KiB; RV_li emits c.lui
+      // for it when the page index fits the compressed immediate.
+      RV_li(scratch, page_offset);
+      src->offset_ = src->offset() << 20 >> 20;
+    } else {
+      RV_li(scratch, src->offset());
+      src->offset_ = 0;
+    }
+    // The destination equals the first source operand, so c.add (CR format,
+    // any non-zero register pair) can replace the full-width add.
+    if (CpuFeatures::IsSupported(RVC) && scratch != zero_reg &&
+        src->rm() != zero_reg) {
+      c_add(scratch, src->rm());
+    } else {
+      add(scratch, scratch, src->rm());
+    }
   }
   src->rm_ = scratch;
 }
