@@ -5817,6 +5817,20 @@ ScriptOrigin Function::GetScriptOrigin() const {
   return v8::ScriptOrigin(Local<Value>());
 }
 
+Local<Value> Function::GetScriptName() const {
+  auto self = Utils::OpenDirectHandle(this);
+  i::Isolate* i_isolate = i::Isolate::Current();
+  if (!IsJSFunction(*self)) {
+    return ToApiHandle<Primitive>(i_isolate->factory()->undefined_value());
+  }
+  auto func = i::Cast<i::JSFunction>(self);
+  if (i::Tagged<i::Script> script;
+      i::TryCast<i::Script>(func->shared()->script(), &script)) {
+    return Utils::ToLocal(i::direct_handle(script->name(), i_isolate));
+  }
+  return ToApiHandle<Primitive>(i_isolate->factory()->undefined_value());
+}
+
 const int Function::kLineOffsetNotFound = -1;
 
 int Function::GetScriptLineNumber() const {

@@ -18346,6 +18346,50 @@ THREADED_TEST(ApiTest, FunctionGetBoundFunction) {
            original_function->GetScriptColumnNumber());
 }
 
+THREADED_TEST(ApiTest, FunctionGetScriptName) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  v8::ScriptOrigin origin =
+      v8::ScriptOrigin(v8_str("https://example.com/a.js"));
+  v8::Local<v8::String> script = v8_str(
+      "function f() {}\n"
+      "var bound = f.bind(null);\n"
+      "var eval_fn = eval('(function e() {})\\n//# "
+      "sourceURL=https://leaked.example/eval.js');\n"
+      "//# sourceURL=https://leaked.example/secret.js");
+  v8::Script::Compile(env.local(), script, &origin)
+      .ToLocalChecked()
+      ->Run(env.local())
+      .ToLocalChecked();
+
+  v8::Local<v8::Function> f = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(env.local(), v8_str("f")).ToLocalChecked());
+  CHECK_EQ(v8::String::Utf8Value(isolate, f->GetScriptOrigin().ResourceName())
+               .as_view(),
+           "https://leaked.example/secret.js");
+  CHECK_EQ(v8::String::Utf8Value(isolate, f->GetScriptName()).as_view(),
+           "https://example.com/a.js");
+
+  v8::Local<v8::Function> bound = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(env.local(), v8_str("bound")).ToLocalChecked());
+  CHECK(bound->GetScriptName()->IsUndefined());
+
+  v8::Local<v8::Function> eval_fn = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(env.local(), v8_str("eval_fn")).ToLocalChecked());
+  CHECK_EQ(
+      v8::String::Utf8Value(isolate, eval_fn->GetScriptOrigin().ResourceName())
+          .as_view(),
+      "https://leaked.example/eval.js");
+  CHECK(eval_fn->GetScriptName()->IsUndefined());
+
+  v8::Local<v8::Function> api_fn =
+      v8::Function::New(env.local(),
+                        [](const v8::FunctionCallbackInfo<v8::Value>&) {})
+          .ToLocalChecked();
+  CHECK(api_fn->GetScriptName()->IsUndefined());
+}
+
 THREADED_TEST(ApiTest, FunctionProtoToString) {
   LocalContext context;
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
