@@ -53,7 +53,7 @@ const kMaxCachedArrayIndexLength: constexpr uint32
 const kMaxArrayIndexSize: constexpr uint32
     generates 'Name::kMaxArrayIndexSize';
 const kNofHashBitFields: constexpr int31
-    generates 'Name::HashFieldTypeBits::kSize';
+    generates 'Name::Hash::HashFieldTypeBits::kSize';
 const kArrayIndexValueBits: constexpr int31
     generates 'Name::kArrayIndexValueBits';
 const kDoesNotContainCachedArrayIndexMask: constexpr uint32

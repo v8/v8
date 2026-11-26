@@ -210,19 +210,18 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
     BIT_FIELD_GROUP_ACCESSORS(array_index_length, ArrayIndexLengthBits)
   };
   // TODO(jgruber): Remove these aliases after migrating callers to Hash.
-  using HashFieldTypeBits = Hash::HashFieldTypeBits;
   using HashBits = Hash::HashBits;
 
   static constexpr int kHashNotComputedMask = 1;
   // Value of empty hash field indicating that the hash is not computed.
   static constexpr int kEmptyHashField =
-      HashFieldTypeBits::encode(HashFieldType::kEmpty);
+      Hash::HashFieldTypeBits::encode(HashFieldType::kEmpty);
 
   // Empty hash can not be used as hash.
   static_assert((kEmptyHashField & kHashNotComputedMask) != 0);
 
   static const int kArrayIndexLengthBits =
-      kBitsPerInt - kArrayIndexValueBits - HashFieldTypeBits::kSize;
+      kBitsPerInt - kArrayIndexValueBits - Hash::HashFieldTypeBits::kSize;
 
   static_assert(kArrayIndexLengthBits > 0);
   static_assert(kMaxArrayIndexSize < (1 << kArrayIndexLengthBits));
@@ -235,11 +234,12 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
 
   // When any of these bits is set then the hash field does not contain a cached
   // array index.
-  static_assert(HashFieldTypeBits::encode(HashFieldType::kIntegerIndex) == 0);
+  static_assert(Hash::HashFieldTypeBits::encode(HashFieldType::kIntegerIndex) ==
+                0);
   static const unsigned int kDoesNotContainCachedArrayIndexMask =
       (~static_cast<unsigned>(kMaxCachedArrayIndexLength)
        << Hash::ArrayIndexLengthBits::kShift) |
-      HashFieldTypeBits::kMask;
+      Hash::HashFieldTypeBits::kMask;
 
   // Returns a hash value used for the property table. Ensures that the hash
   // value is computed.

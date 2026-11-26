@@ -109,7 +109,7 @@ When an existing heap string (for example, a dynamically computed string stored 
 
 ## 3. Name Hash Field and `StringForwardingTable` (`src/objects/name.h`)
 
-Every `Name` (`String` or `Symbol`) carries a 32-bit `raw_hash_field_` (`std::atomic<uint32_t>`). The lowest 2 bits (`Name::HashFieldTypeBits`) encode a 4-state tag (`Name::HashFieldType`) that serves three completely different roles depending on the string's content and concurrency state:
+Every `Name` (`String` or `Symbol`) carries a 32-bit `raw_hash_field_` (`std::atomic<uint32_t>`). The lowest 2 bits (`Name::Hash::HashFieldTypeBits`) encode a 4-state tag (`Name::HashFieldType`) that serves three completely different roles depending on the string's content and concurrency state:
 
 ```text
 31                                                           2  1  0

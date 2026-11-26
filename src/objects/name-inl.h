@@ -112,12 +112,13 @@ bool Name::IsHashFieldComputed(uint32_t raw_hash_field) {
 
 // static
 bool Name::IsHash(uint32_t raw_hash_field) {
-  return HashFieldTypeBits::decode(raw_hash_field) == HashFieldType::kHash;
+  return Hash::HashFieldTypeBits::decode(raw_hash_field) ==
+         HashFieldType::kHash;
 }
 
 // static
 bool Name::IsIntegerIndex(uint32_t raw_hash_field) {
-  return HashFieldTypeBits::decode(raw_hash_field) ==
+  return Hash::HashFieldTypeBits::decode(raw_hash_field) ==
          HashFieldType::kIntegerIndex;
 }
 
@@ -125,7 +126,7 @@ bool Name::IsIntegerIndex(uint32_t raw_hash_field) {
 uint32_t Name::CreateHashFieldValue(uint32_t hash, HashFieldType type) {
   DCHECK_NE(type, HashFieldType::kEmpty);
   return HashBits::encode(hash & HashBits::kMax) |
-         HashFieldTypeBits::encode(type);
+         Hash::HashFieldTypeBits::encode(type);
 }
 
 bool Name::HasHashCode() const {

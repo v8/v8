@@ -9211,7 +9211,7 @@ TNode<BoolT> CodeStubAssembler::IsUniqueNameNoIndex(TNode<HeapObject> object) {
   return Select<BoolT>(
       IsInternalizedStringInstanceType(instance_type),
       [=, this] {
-        return IsNotEqualInWord32<Name::HashFieldTypeBits>(
+        return IsNotEqualInWord32<Name::Hash::HashFieldTypeBits>(
             LoadNameRawHashField(CAST(object)),
             Name::HashFieldType::kIntegerIndex);
       },
@@ -10986,7 +10986,7 @@ void CodeStubAssembler::TryToName(TNode<Object> key, Label* if_keyisindex,
       // No cached array index. If the string knows that it contains an index,
       // then it must be an uncacheable index. Handle this case in the
       // runtime.
-      GotoIf(IsEqualInWord32<Name::HashFieldTypeBits>(
+      GotoIf(IsEqualInWord32<Name::Hash::HashFieldTypeBits>(
                  raw_hash_field, Name::HashFieldType::kIntegerIndex),
              if_bailout);
 

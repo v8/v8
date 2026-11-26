@@ -6595,7 +6595,7 @@ class TurboshaftGraphBuildingInterface
 
     V<Word32> raw_hash = __ template LoadField<Word32>(
         string_val, compiler::AccessBuilder::ForNameRawHashField());
-    static_assert(Name::HashFieldTypeBits::kShift == 0);
+    static_assert(Name::Hash::HashFieldTypeBits::kShift == 0);
     V<Word32> hash_not_computed =
         __ Word32BitwiseAnd(raw_hash, Name::kHashNotComputedMask);
     GOTO_IF(hash_not_computed, runtime_label);

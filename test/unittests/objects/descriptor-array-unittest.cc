@@ -264,7 +264,7 @@ TEST_F(DescriptorArrayTest, DescriptorArrayHashCollisionMassive) {
   Isolate* isolate = i_isolate();
   HandleScope handle_scope(isolate);
 
-  static_assert(Name::HashFieldTypeBits::kSize == 2,
+  static_assert(Name::Hash::HashFieldTypeBits::kSize == 2,
                 "This test might require updating if more HashFieldType values "
                 "are introduced");
 
@@ -299,7 +299,7 @@ TEST_F(DescriptorArrayTest, DescriptorArrayHashCollision) {
   Isolate* isolate = i_isolate();
   HandleScope handle_scope(isolate);
 
-  static_assert(Name::HashFieldTypeBits::kSize == 2,
+  static_assert(Name::Hash::HashFieldTypeBits::kSize == 2,
                 "This test might require updating if more HashFieldType values "
                 "are introduced");
 
@@ -337,7 +337,7 @@ TEST_F(DescriptorArrayTest, TransitionArrayHashCollisionMassive) {
   Isolate* isolate = i_isolate();
   HandleScope handle_scope(isolate);
 
-  static_assert(Name::HashFieldTypeBits::kSize == 2,
+  static_assert(Name::Hash::HashFieldTypeBits::kSize == 2,
                 "This test might require updating if more HashFieldType values "
                 "are introduced");
 
@@ -389,7 +389,7 @@ TEST_F(DescriptorArrayTest, TransitionArrayHashCollision) {
   Isolate* isolate = i_isolate();
   HandleScope handle_scope(isolate);
 
-  static_assert(Name::HashFieldTypeBits::kSize == 2,
+  static_assert(Name::Hash::HashFieldTypeBits::kSize == 2,
                 "This test might require updating if more HashFieldType values "
                 "are introduced");
 
