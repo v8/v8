@@ -7,9 +7,11 @@
 #include <atomic>
 #include <memory>
 #include <optional>
+#include <utility>
 
 #include "src/base/logging.h"
 #include "src/base/platform/mutex.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/handles/local-handles.h"
@@ -391,6 +393,27 @@ void LocalHeap::SafepointSlowPath() {
     SleepInSafepoint();
   }
 }
+
+#ifdef V8_ENABLE_TEST_ONLY_SYNC_POINTS
+void LocalHeap::DeferSynchronizationPointToNextSafepoint(
+    std::string_view synchronization_point) {
+  // Blocking the main thread inside a safepoint is not supported.
+  DCHECK(!is_main_thread());
+  DCHECK(pending_synchronization_point_.empty() ||
+         pending_synchronization_point_ == synchronization_point);
+  pending_synchronization_point_ = synchronization_point;
+}
+
+void LocalHeap::BlockAtPendingSynchronizationPoint() {
+  DCHECK_EQ(this, LocalHeap::TryGetCurrent());
+  std::string_view synchronization_point =
+      std::exchange(pending_synchronization_point_, {});
+  // SYNCHRONIZATION_POINT_WITH_SAFEPOINT invokes the wait wrapper, which parks
+  // this LocalHeap only if it is currently running (Safepoint() can also be
+  // called while already parked).
+  SYNCHRONIZATION_POINT_WITH_SAFEPOINT(synchronization_point);
+}
+#endif  // V8_ENABLE_TEST_ONLY_SYNC_POINTS
 
 void LocalHeap::SleepInSafepoint() {
   GCTracer::Scope::ScopeId scope_id;

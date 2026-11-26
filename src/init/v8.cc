@@ -185,6 +185,11 @@ void ParkLocalHeapDuringSyncPointWait(void (*callback)(void*), void* data) {
     callback(data);
   }
 }
+#ifdef V8_ENABLE_TEST_ONLY_SYNC_POINTS
+void DeferSyncPointToNextSafepoint(std::string_view sync_point) {
+  LocalHeap::Current()->DeferSynchronizationPointToNextSafepoint(sync_point);
+}
+#endif  // V8_ENABLE_TEST_ONLY_SYNC_POINTS
 }  // namespace
 
 void V8::Initialize() {
@@ -194,6 +199,10 @@ void V8::Initialize() {
   base::SynchronizationPointSupport::Initialize();
   base::SynchronizationPointSupport::Get()->SetWaitWrapper(
       ParkLocalHeapDuringSyncPointWait);
+#ifdef V8_ENABLE_TEST_ONLY_SYNC_POINTS
+  base::SynchronizationPointSupport::Get()->SetDeferToSafepointCallback(
+      DeferSyncPointToNextSafepoint);
+#endif  // V8_ENABLE_TEST_ONLY_SYNC_POINTS
 
   // Setting `g_abort_mode` needs to happen before `EnforceFlagImplications` so
   // it can apply to flag contradictions.

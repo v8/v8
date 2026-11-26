@@ -35,6 +35,8 @@ class V8_BASE_EXPORT SynchronizationPointSupport {
  public:
   using AllowSafepoint = StrongAlias<struct AllowSafepointTag, bool>;
   using WaitWrapper = void (*)(void (*callback)(void*), void* data);
+  using DeferToSafepointCallback =
+      void (*)(std::string_view synchronization_point);
 
   static void Initialize();
   static V8_INLINE SynchronizationPointSupport* Get() { return instance_; }
@@ -46,9 +48,26 @@ class V8_BASE_EXPORT SynchronizationPointSupport {
     wait_wrapper_.store(wrapper, std::memory_order_release);
   }
 
+  // Registers a callback invoked when a synchronization point armed with
+  // RequestBlockAtNextSafepoint is reached, so the caller's LocalHeap can
+  // defer the actual block until its next Safepoint() call. The passed
+  // string_view remains valid for the lifetime of the process.
+  void SetDeferToSafepointCallback(DeferToSafepointCallback callback) {
+    defer_to_safepoint_callback_.store(callback, std::memory_order_release);
+  }
+
   // Requests a block at the given synchronization point. When a thread reaches
   // it, it will block for the specified timeout (or less, if it is resumed).
   void RequestBlockAt(std::string synchronization_point, TimeDelta timeout);
+
+  // Like RequestBlockAt, but when a thread reaches a synchronization point that
+  // does not allow safepoints, it keeps running and instead blocks (parked) at
+  // its next LocalHeap::Safepoint() call. If the synchronization point already
+  // allows safepoints (e.g. SYNCHRONIZATION_POINT_WITH_SAFEPOINT), it blocks
+  // there directly. Requires V8_ENABLE_TEST_ONLY_SYNC_POINTS so
+  // LocalHeap::Safepoint() checks for deferred sync points.
+  void RequestBlockAtNextSafepoint(std::string synchronization_point,
+                                   TimeDelta timeout);
 
   // Resumes a thread currently blocked at the given synchronization point.
   // Returns false if a block wasn't requested or already timed out.
@@ -75,11 +94,17 @@ class V8_BASE_EXPORT SynchronizationPointSupport {
   }
 
  private:
+  using DeferToSafepoint = StrongAlias<struct DeferToSafepointTag, bool>;
+
   struct SyncPointState {
     ConditionVariable cv;
     // Set to true to signal that any thread that reaches this point should
     // block.
     bool block_requested = false;
+    // If true, reaching a non-safepoint sync point defers blocking to the
+    // thread's next LocalHeap::Safepoint() call via
+    // `defer_to_safepoint_callback_`.
+    bool defer_to_safepoint = false;
     // Number of threads that have reached the point and are currently blocked.
     int blocked_threads = 0;
     // The identity of the thread that set the `block_requested` flag.
@@ -88,6 +113,8 @@ class V8_BASE_EXPORT SynchronizationPointSupport {
     TimeDelta block_timeout;
   };
 
+  void RequestBlockImpl(std::string synchronization_point, TimeDelta timeout,
+                        DeferToSafepoint defer_to_safepoint);
   void ClearBlockRequestLocked(SyncPointState* state);
   V8_NOINLINE V8_PRESERVE_MOST void BlockIfRequestedSlow(
       std::string_view synchronization_point, AllowSafepoint allow_safepoint);
@@ -96,6 +123,7 @@ class V8_BASE_EXPORT SynchronizationPointSupport {
 
   std::atomic<bool> any_requested_{false};
   std::atomic<WaitWrapper> wait_wrapper_{nullptr};
+  std::atomic<DeferToSafepointCallback> defer_to_safepoint_callback_{nullptr};
   Mutex mutex_;
   int active_requests_ = 0;
   std::map<std::string, std::unique_ptr<SyncPointState>, std::less<>> states_;

@@ -8,6 +8,7 @@
 #include <atomic>
 #include <memory>
 #include <optional>
+#include <string_view>
 #include <vector>
 
 #if V8_OS_DARWIN
@@ -80,7 +81,21 @@ class V8_EXPORT_PRIVATE LocalHeap {
     if (V8_UNLIKELY(current.IsRunningWithSlowPathFlag())) {
       SafepointSlowPath();
     }
+
+#ifdef V8_ENABLE_TEST_ONLY_SYNC_POINTS
+    if (V8_UNLIKELY(!pending_synchronization_point_.empty())) {
+      BlockAtPendingSynchronizationPoint();
+    }
+#endif  // V8_ENABLE_TEST_ONLY_SYNC_POINTS
   }
+
+#ifdef V8_ENABLE_TEST_ONLY_SYNC_POINTS
+  // Defers `synchronization_point` so this thread blocks there, parked, on its
+  // next call to Safepoint(). `synchronization_point` must remain valid until
+  // that Safepoint() call.
+  void DeferSynchronizationPointToNextSafepoint(
+      std::string_view synchronization_point);
+#endif  // V8_ENABLE_TEST_ONLY_SYNC_POINTS
 
   LocalHandles* handles() { return handles_.get(); }
 
@@ -416,6 +431,13 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   bool allocation_failed_;
   int nested_parked_scopes_;
+
+#ifdef V8_ENABLE_TEST_ONLY_SYNC_POINTS
+  void BlockAtPendingSynchronizationPoint();
+
+  // Set by DeferSynchronizationPointToNextSafepoint, empty if there is none.
+  std::string_view pending_synchronization_point_;
+#endif  // V8_ENABLE_TEST_ONLY_SYNC_POINTS
 
   LocalHeap* saved_current_local_heap_ = nullptr;
   Isolate* saved_current_isolate_ = nullptr;

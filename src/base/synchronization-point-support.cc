@@ -43,6 +43,20 @@ void SynchronizationPointSupport::Initialize() {
 
 void SynchronizationPointSupport::RequestBlockAt(
     std::string synchronization_point, TimeDelta timeout) {
+  RequestBlockImpl(std::move(synchronization_point), timeout,
+                   DeferToSafepoint{false});
+}
+
+void SynchronizationPointSupport::RequestBlockAtNextSafepoint(
+    std::string synchronization_point, TimeDelta timeout) {
+  CHECK_NOT_NULL(defer_to_safepoint_callback_.load(std::memory_order_acquire));
+  RequestBlockImpl(std::move(synchronization_point), timeout,
+                   DeferToSafepoint{true});
+}
+
+void SynchronizationPointSupport::RequestBlockImpl(
+    std::string synchronization_point, TimeDelta timeout,
+    DeferToSafepoint defer_to_safepoint) {
   MutexGuard lock(&mutex_);
   std::unique_ptr<SyncPointState>& state =
       states_[std::move(synchronization_point)];
@@ -52,6 +66,7 @@ void SynchronizationPointSupport::RequestBlockAt(
     ++active_requests_;
     any_requested_.store(true, std::memory_order_release);
   }
+  state->defer_to_safepoint = defer_to_safepoint.value();
   state->block_requester_thread = ThreadId::Current();
   state->block_timeout = timeout;
 }
@@ -120,8 +135,11 @@ bool SynchronizationPointSupport::WaitUntilBlocked(
 
 void SynchronizationPointSupport::BlockIfRequestedSlow(
     std::string_view synchronization_point, AllowSafepoint allow_safepoint) {
-  // Safe: map elements are never removed, so the pointer is stable.
+  // Safe: map elements are never removed, so both the SyncPointState pointer
+  // and the map key's character buffer are stable.
   SyncPointState* state = nullptr;
+  std::string_view stable_name;
+  bool should_defer = false;
   {
     MutexGuard lock(&mutex_);
     auto it = states_.find(synchronization_point);
@@ -135,6 +153,18 @@ void SynchronizationPointSupport::BlockIfRequestedSlow(
           synchronization_point.data());
       return;
     }
+    if (state->defer_to_safepoint && !allow_safepoint.value()) {
+      stable_name = it->first;
+      should_defer = true;
+    }
+  }
+
+  if (should_defer) {
+    DeferToSafepointCallback callback =
+        defer_to_safepoint_callback_.load(std::memory_order_acquire);
+    CHECK_NOT_NULL(callback);
+    callback(stable_name);
+    return;
   }
 
   bool timed_out = false;
