@@ -660,7 +660,7 @@ V8_OBJECT class SharedFunctionInfo : public HeapObject {
 
   // All DebugInfo accessors forward to the Debug object which stores DebugInfo
   // objects in a sidetable.
-  bool HasDebugInfo(Isolate* isolate) const;
+  V8_EXPORT_PRIVATE bool HasDebugInfo(Isolate* isolate) const;
   V8_EXPORT_PRIVATE Tagged<DebugInfo> GetDebugInfo(Isolate* isolate) const;
   V8_EXPORT_PRIVATE std::optional<Tagged<DebugInfo>> TryGetDebugInfo(
       Isolate* isolate) const;

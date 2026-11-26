@@ -595,7 +595,7 @@ V8_EXPORT_PRIVATE v8::MaybeLocal<v8::Value> EvaluateGlobal(
     v8::Isolate* isolate, v8::Local<v8::String> source, EvaluateGlobalMode mode,
     bool repl_mode = false);
 
-int GetDebuggingId(v8::Local<v8::Function> function);
+V8_EXPORT_PRIVATE int GetDebuggingId(v8::Local<v8::Function> function);
 
 V8_EXPORT_PRIVATE bool SetFunctionBreakpoint(v8::Local<v8::Function> function,
                                              v8::Local<v8::String> condition,

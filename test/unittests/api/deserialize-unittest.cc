@@ -22,6 +22,7 @@
 #include "src/base/synchronization-point-support.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
+#include "src/debug/debug-interface.h"
 #if defined(V8_ENABLE_ETW_STACK_WALKING)
 #include "src/diagnostics/etw-isolate-load-script-data-win.h"
 #endif  // defined(V8_ENABLE_ETW_STACK_WALKING)
@@ -2491,6 +2492,112 @@ TEST_F(MergeDeserializedCodeTest, ForegroundStandaloneEvalScopeInfo) {
 
     CHECK(!merged->Run(context()).IsEmpty());
     CHECK_EQ(2, Eval("makeOuter()()")->Int32Value(context()).FromJust());
+  }
+}
+
+// Regression test: an uncompiled cached SFI can acquire a DebugInfo (e.g. via
+// v8::debug::GetDebuggingId) between BeginMergeInBackground and
+// CompleteMergeInForeground.
+TEST_F(MergeDeserializedCodeTest, MergeWithDebugInfoOnUncompiledCachedSfi) {
+  i::v8_flags.merge_background_deserialized_script_with_compilation_cache.Set(
+      true);
+  i::v8_flags.flush_bytecode.Set(true);
+
+  constexpr char kSrc[] = "function f() { return 42; } globalThis.f = f;";
+  constexpr char kUrl[] = "http://example.com/debug_info_merge.js";
+  auto cached_data = MakeCodeCache(kSrc, kUrl, "f()");
+
+  {
+    IsolateAndContextScope scope(this);
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
+    PersistentScriptOrigin origin(isolate(), NewString(kUrl));
+    int old_script_id = 0;
+    {
+      v8::HandleScope hs(isolate());
+      ScriptOrigin script_origin = origin.AsScriptOrigin();
+      Local<Script> script =
+          Script::Compile(context(), NewString(kSrc), &script_origin)
+              .ToLocalChecked();
+      old_script_id = script->GetUnboundScript()->ScriptId();
+      CHECK(!script->Run(context()).IsEmpty());
+      i::SharedFunctionInfo::EnsureOldForTesting(GetSharedFunctionInfo(script));
+    }
+    FlushWithMajorGC(i_isolate);
+
+    auto task =
+        StartMergeTask(kSrc, origin.AsScriptOrigin(), cached_data.get());
+
+    // Attach a DebugDelegate and a DebugInfo to uncompiled `f` before
+    // CompleteMergeInForeground (matching DevTools attach mid-merge).
+    v8::debug::DebugDelegate debug_delegate;
+    v8::debug::SetDebugDelegate(isolate(), &debug_delegate);
+    int debugging_id = 0;
+    int32_t unique_id = 0;
+    {
+      v8::HandleScope hs(isolate());
+      Local<Function> f = context()
+                              ->Global()
+                              ->Get(context(), NewString("f"))
+                              .ToLocalChecked()
+                              .As<Function>();
+      CHECK(!GetSharedFunctionInfo(f)->is_compiled());
+      debugging_id = v8::debug::GetDebuggingId(f);
+      CHECK_NE(0, debugging_id);
+      unique_id = GetSharedFunctionInfo(f)->unique_id();
+      CHECK(GetSharedFunctionInfo(f)->HasDebugInfo(i_isolate));
+      CHECK(!GetSharedFunctionInfo(f)->is_compiled());
+    }
+
+    ScriptCompiler::Source source(NewString(kSrc), origin.AsScriptOrigin(),
+                                  cached_data.release(), task.release());
+    Local<Script> merged =
+        ScriptCompiler::Compile(context(), &source,
+                                ScriptCompiler::kConsumeCodeCache)
+            .ToLocalChecked();
+    CHECK(!source.GetCachedData()->rejected);
+    CHECK_EQ(old_script_id, merged->GetUnboundScript()->ScriptId());
+
+    {
+      v8::HandleScope hs(isolate());
+      Local<Function> f = context()
+                              ->Global()
+                              ->Get(context(), NewString("f"))
+                              .ToLocalChecked()
+                              .As<Function>();
+      CHECK(!GetSharedFunctionInfo(f)->is_compiled());
+      CHECK(GetSharedFunctionInfo(f)->HasDebugInfo(i_isolate));
+      CHECK_EQ(debugging_id, v8::debug::GetDebuggingId(f));
+      CHECK_EQ(unique_id, GetSharedFunctionInfo(f)->unique_id());
+    }
+
+    CHECK(!merged->Run(context()).IsEmpty());
+    CHECK_EQ(42, RunGlobalFunc("f")->Int32Value(context()).FromJust());
+
+    {
+      v8::HandleScope hs(isolate());
+      Local<Function> f = context()
+                              ->Global()
+                              ->Get(context(), NewString("f"))
+                              .ToLocalChecked()
+                              .As<Function>();
+      CHECK(GetSharedFunctionInfo(f)->HasDebugInfo(i_isolate));
+      CHECK_EQ(debugging_id, v8::debug::GetDebuggingId(f));
+      CHECK_EQ(unique_id, GetSharedFunctionInfo(f)->unique_id());
+    }
+
+    // Detaching the debugger runs Debug::Unload() and must cleanly delete
+    // `f`'s DebugInfo from DebugInfoCollection without hitting
+    // SBXCHECK(it != map_.end()) from a clobbered unique_id.
+    v8::debug::SetDebugDelegate(isolate(), nullptr);
+    {
+      v8::HandleScope hs(isolate());
+      Local<Function> f = context()
+                              ->Global()
+                              ->Get(context(), NewString("f"))
+                              .ToLocalChecked()
+                              .As<Function>();
+      CHECK(!GetSharedFunctionInfo(f)->HasDebugInfo(i_isolate));
+    }
   }
 }
 

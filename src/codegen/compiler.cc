@@ -2779,10 +2779,11 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
         CHECK_EQ(
             compiled_data_it->cached_sfi->function_literal_id(kRelaxedLoad), i);
         Tagged<SharedFunctionInfo> sfi = *compiled_data_it->cached_sfi;
-        if (!sfi->is_compiled() && compiled_data_it->new_sfi->is_compiled()) {
-          // Updating existing DebugInfos is not supported, but we don't expect
-          // uncompiled SharedFunctionInfos to contain DebugInfos.
-          DCHECK(!compiled_data_it->cached_sfi->HasDebugInfo(isolate));
+        if (!sfi->is_compiled() && !sfi->HasDebugInfo(isolate) &&
+            compiled_data_it->new_sfi->is_compiled()) {
+          // Updating existing DebugInfos is not supported; skip merging
+          // compiled data when an uncompiled SFI already has DebugInfo.
+          //
           // The goal here is to copy every field except script from
           // new_sfi to cached_sfi. The safest way to do so (including a DCHECK
           // that no fields were skipped) is to first copy the script from
