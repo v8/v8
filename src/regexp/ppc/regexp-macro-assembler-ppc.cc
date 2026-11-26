@@ -166,8 +166,7 @@ void RegExpMacroAssemblerPPC::Backtrack() {
     __ LoadU64(r3, MemOperand(frame_pointer(), kBacktrackCountOffset));
     __ addi(r3, r3, Operand(1));
     __ StoreU64(r3, MemOperand(frame_pointer(), kBacktrackCountOffset));
-    __ mov(r0, Operand(backtrack_limit()));
-    __ CmpS64(r3, r0);
+    __ CmpS64(r3, Operand(backtrack_limit()));
     __ bne(&next);
 
     // Backtrack limit exceeded.
