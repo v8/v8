@@ -31,6 +31,7 @@
 #include "src/heap/combined-heap.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-layout-inl.h"
+#include "src/heap/safepoint.h"
 #include "src/init/bootstrapper.h"
 #include "src/interpreter/interpreter.h"
 #include "src/libsampler/sampler.h"
@@ -2237,15 +2238,21 @@ EnumerateCompiledFunctions(Heap* heap) {
 #if defined(V8_ENABLE_ETW_STACK_WALKING)
 static std::vector<Handle<SharedFunctionInfo>> EnumerateInterpretedFunctions(
     Heap* heap) {
-  HeapObjectIterator iterator(heap);
-  DisallowGarbageCollection no_gc;
   std::vector<Handle<SharedFunctionInfo>> interpreted_funcs;
   Isolate* isolate = heap->isolate();
 
-  for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
-       obj = iterator.Next()) {
-    if (IsSharedFunctionInfo(obj)) {
-      Tagged<SharedFunctionInfo> sfi = Cast<SharedFunctionInfo>(obj);
+  // Walk script_list() rather than the heap, so that SFIs of Scripts that are
+  // still being deserialized off-thread are skipped. Like the heap walk, hold
+  // a safepoint so that no background thread changes SFIs under us.
+  SafepointScope safepoint(isolate, kGlobalSafepointForSharedSpaceIsolate);
+  Script::Iterator script_iterator(isolate);
+  for (Tagged<Script> script = script_iterator.Next(); !script.is_null();
+       script = script_iterator.Next()) {
+    if (!script->HasValidSource()) continue;
+
+    SharedFunctionInfo::ScriptIterator sfi_iterator(isolate, script);
+    for (Tagged<SharedFunctionInfo> sfi = sfi_iterator.Next(); !sfi.is_null();
+         sfi = sfi_iterator.Next()) {
       if (sfi->HasBytecodeArray()) {
         interpreted_funcs.push_back(handle(sfi, isolate));
       }

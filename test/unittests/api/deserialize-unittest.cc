@@ -8,9 +8,11 @@
 #include <utility>
 
 #include "include/v8-context.h"
+#include "include/v8-exception.h"
 #include "include/v8-function.h"
 #include "include/v8-isolate.h"
 #include "include/v8-local-handle.h"
+#include "include/v8-message.h"
 #include "include/v8-platform.h"
 #include "include/v8-primitive.h"
 #include "include/v8-profiler.h"
@@ -24,8 +26,10 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-verifier.h"
 #include "src/heap/local-heap-inl.h"
+#include "src/objects/js-function-inl.h"
 #include "src/objects/scope-info-inl.h"
 #include "src/objects/script-inl.h"
+#include "src/objects/shared-function-info-inl.h"
 #include "src/objects/string-inl.h"
 #include "src/snapshot/code-serializer.h"
 #include "src/utils/utils.h"
@@ -88,9 +92,19 @@ class DeserializeTest : public TestWithPlatform {
   }
 
 #ifdef V8_ENABLE_TEST_ONLY_SYNC_POINTS
-  // Deserializes a code cache on a background thread, and runs `action` on
-  // the main thread while that thread is paused at the first allocation of
-  // the trusted section.
+  i::DirectHandle<i::JSFunction> GetGlobalJSFunction(const char* name) {
+    return i::Cast<i::JSFunction>(
+        Utils::OpenDirectHandle(*context()
+                                     ->Global()
+                                     ->Get(context(), NewString(name))
+                                     .ToLocalChecked()));
+  }
+
+  // Deserializes a code cache for a script defining `foo` on a background
+  // thread and runs `action` on the main thread twice while that script is not
+  // yet finalized: once paused at the first allocation of the trusted section,
+  // and once after the background thread is done. A finalized script defining
+  // `bar` exists throughout, so `action` also has something to enumerate.
   template <typename Action>
   void RunDuringOffThreadDeserialize(const Action& action);
 #endif  // V8_ENABLE_TEST_ONLY_SYNC_POINTS
@@ -239,7 +253,8 @@ void DeserializeTest::RunDuringOffThreadDeserialize(const Action& action) {
 
   static constexpr const char* kSyncPoint =
       "OffThreadDeserializeInTrustedSection";
-  static constexpr const char* kSource = "function foo() { return 42; } foo();";
+  static constexpr const char* kSource =
+      "function foo(t) { if (t) throw new Error(); return 42; } foo(false);";
 
   std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data;
   {
@@ -253,6 +268,12 @@ void DeserializeTest::RunDuringOffThreadDeserialize(const Action& action) {
   }
 
   IsolateAndContextScope scope(this);
+  CHECK(!Script::Compile(context(),
+                         NewString("function bar() { return 1; } bar();"))
+             .ToLocalChecked()
+             ->Run(context())
+             .IsEmpty());
+
   base::SynchronizationPointSupport::Get()->RequestBlockAtNextSafepoint(
       kSyncPoint, base::TimeDelta::FromSeconds(10));
 
@@ -263,8 +284,8 @@ void DeserializeTest::RunDuringOffThreadDeserialize(const Action& action) {
   CHECK(deserialize_thread.Start());
   // Park while waiting, so that the background thread is never stuck waiting
   // for the main thread to reach a safepoint.
-  i::LocalHeap* local_heap =
-      reinterpret_cast<i::Isolate*>(isolate())->main_thread_local_heap();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
+  i::LocalHeap* local_heap = i_isolate->main_thread_local_heap();
   local_heap->ExecuteWhileParked([&]() {
     CHECK(base::SynchronizationPointSupport::Get()->WaitUntilBlocked(
         kSyncPoint, base::TimeDelta::FromSeconds(10)));
@@ -275,6 +296,10 @@ void DeserializeTest::RunDuringOffThreadDeserialize(const Action& action) {
   CHECK(base::SynchronizationPointSupport::Get()->Resume(kSyncPoint));
   local_heap->ExecuteWhileParked([&]() { deserialize_thread.Join(); });
 
+  // Run `action` again now that the off-thread SFIs have bytecode, while
+  // their Script is still unfinalized.
+  action(isolate());
+
   ScriptCompiler::Source source(NewString(kSource), cached_data.release(),
                                 deserialize_thread.TakeTask().release());
   Local<Script> script =
@@ -284,12 +309,37 @@ void DeserializeTest::RunDuringOffThreadDeserialize(const Action& action) {
   CHECK(!source.GetCachedData()->rejected);
   CHECK(!script->Run(context()).IsEmpty());
   CHECK_EQ(RunGlobalFunc("foo"), v8::Integer::New(isolate(), 42));
+
+  // Check that `action` left the then-unfinalized script untouched: no line
+  // ends and no source positions were computed for it early.
+  i::DirectHandle<i::JSFunction> foo = GetGlobalJSFunction("foo");
+  if (!i_isolate->NeedsSourcePositions() &&
+      !i_isolate->IsLoggingCodeCreation()) {
+    CHECK(!i::Cast<i::Script>(foo->shared()->script())->has_line_ends());
+    if (i::v8_flags.enable_lazy_source_positions &&
+        !i::v8_flags.stress_lazy_source_positions) {
+      CHECK(!foo->shared()->AreSourcePositionsAvailable(i_isolate));
+    }
+  }
+
+  // Verify lazy source position collection still succeeds once finalized; 25
+  // is the column of `throw` in kSource.
+  v8::TryCatch try_catch(isolate());
+  Local<Script> throw_script =
+      Script::Compile(context(), NewString("foo(true);")).ToLocalChecked();
+  CHECK(throw_script->Run(context()).IsEmpty());
+  CHECK(try_catch.HasCaught());
+  CHECK_EQ(try_catch.Message()->GetStartColumn(context()).FromJust(), 25);
 }
 
 TEST_F(DeserializeTest, OffThreadDeserializeWithCpuProfiler) {
-  RunDuringOffThreadDeserialize([](Isolate* isolate) {
+  RunDuringOffThreadDeserialize([this](Isolate* isolate) {
     v8::CpuProfiler* profiler =
         v8::CpuProfiler::New(isolate, v8::kDebugNaming, v8::kEagerLogging);
+    // Creating an eager-logging profiler collects source positions for
+    // finalized scripts.
+    CHECK(GetGlobalJSFunction("bar")->shared()->AreSourcePositionsAvailable(
+        reinterpret_cast<i::Isolate*>(isolate)));
     profiler->Dispose();
   });
 }
@@ -307,6 +357,11 @@ TEST_F(DeserializeTest, OffThreadDeserializeWithEtwEnableLog) {
   i::FlagScope<bool> enable_etw(&i::v8_flags.enable_etw_stack_walking, true);
   RunDuringOffThreadDeserialize([](Isolate* isolate) {
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    // Interpreted-frame tracing copies the interpreter entry trampoline per
+    // function, which allocates Code and is incompatible with --jitless.
+    if (!i::v8_flags.jitless) {
+      i_isolate->set_etw_trace_interpreted_frames();
+    }
     i::ETWJITInterface::IsolateLoadScriptData::EnableLog(
         i_isolate, 0,
         std::weak_ptr<i::ETWJITInterface::EtwIsolateCaptureStateMonitor>(),

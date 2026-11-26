@@ -946,11 +946,7 @@ bool SharedFunctionInfo::has_simple_parameters() const {
 }
 
 bool SharedFunctionInfo::CanCollectSourcePosition(Isolate* isolate) {
-  // This function is called during heap iteration and so might see
-  // dead-but-inconsistent SFIs, e.g. those referencing an unpublished trusted
-  // object, so we need to check for that here.
-  return v8_flags.enable_lazy_source_positions &&
-         !HasUnpublishedTrustedData(isolate) && HasBytecodeArray() &&
+  return v8_flags.enable_lazy_source_positions && HasBytecodeArray() &&
          !GetBytecodeArray(isolate)->HasSourcePositionTable();
 }
 

@@ -106,6 +106,8 @@
 #include "src/objects/objects.h"
 #include "src/objects/promise-inl.h"
 #include "src/objects/property-descriptor.h"
+#include "src/objects/script-inl.h"
+#include "src/objects/shared-function-info-inl.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
 #include "src/objects/source-text-module-inl.h"
@@ -6990,7 +6992,7 @@ bool Isolate::NeedsSourcePositions() const {
       v8_flags.log_ic || v8_flags.log_function_events ||
       v8_flags.heap_snapshot_on_oom ||
       // Dynamic conditions; changing any of these conditions triggers source
-      // position collection for the entire heap
+      // position collection for all finalized scripts
       // (CollectSourcePositionsForAllBytecodeArrays).
       is_profiling() || debug_->is_active() || v8_file_logger_->is_logging();
 }
@@ -8143,20 +8145,22 @@ void Isolate::CollectSourcePositionsForAllBytecodeArrays() {
   HandleScope scope(this);
   std::vector<Handle<SharedFunctionInfo>> sfis;
   {
-    HeapObjectIterator iterator(heap());
-    for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
-         obj = iterator.Next()) {
-      if (!IsSharedFunctionInfo(obj)) continue;
-      Tagged<SharedFunctionInfo> sfi = Cast<SharedFunctionInfo>(obj);
-      // If the script is a Smi, then the SharedFunctionInfo is in
-      // the process of being deserialized.
-      Tagged<Object> script = sfi->raw_script(kAcquireLoad);
-      if (IsSmi(script)) {
-        DCHECK_EQ(script, Smi::uninitialized_deserialization_value());
-        continue;
+    // Walk script_list() rather than the heap, so that SFIs of Scripts that are
+    // still being deserialized off-thread are skipped. Like the heap walk, hold
+    // a safepoint so that no background thread changes SFIs under us.
+    SafepointScope safepoint(this, kGlobalSafepointForSharedSpaceIsolate);
+    Script::Iterator script_iterator(this);
+    for (Tagged<Script> script = script_iterator.Next(); !script.is_null();
+         script = script_iterator.Next()) {
+      // Scripts without a valid source cannot be reparsed.
+      if (!script->HasValidSource()) continue;
+
+      SharedFunctionInfo::ScriptIterator sfi_iterator(this, script);
+      for (Tagged<SharedFunctionInfo> sfi = sfi_iterator.Next(); !sfi.is_null();
+           sfi = sfi_iterator.Next()) {
+        if (!sfi->CanCollectSourcePosition(this)) continue;
+        sfis.push_back(Handle<SharedFunctionInfo>(sfi, this));
       }
-      if (!sfi->CanCollectSourcePosition(this)) continue;
-      sfis.push_back(Handle<SharedFunctionInfo>(sfi, this));
     }
   }
   for (auto sfi : sfis) {
