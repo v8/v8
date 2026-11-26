@@ -2510,6 +2510,11 @@ class MachineOptimizationReducer : public Next {
         break;
     }
 
+    // The extract instruction must use the same lane type as every add,
+    // otherwise we'll generate a mis-matched reduce.
+    MachineRepresentation rep = Simd128ExtractLaneOp::element_rep(kind);
+    if (binop->input_element_rep() != rep) goto no_change;
+
     auto MatchShuffle =
         [this](V<Simd128> maybe_shuffle) -> const Simd128ShuffleOp* {
       if (const Simd128ShuffleOp* shuffle =
@@ -2583,7 +2588,6 @@ class MachineOptimizationReducer : public Next {
     // Reverse so that they're in execution order, just for readability.
     std::reverse(shuffles.begin(), shuffles.end());
     V<Simd128> reduce_input = shuffles.front()->left();
-    MachineRepresentation rep = Simd128ExtractLaneOp::element_rep(kind);
     switch (rep) {
       default:
         goto no_change;
