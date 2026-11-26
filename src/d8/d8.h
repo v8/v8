@@ -730,8 +730,9 @@ class Shell : public i::AllStatic {
   static void ReportException(Isolate* isolate, const TryCatch& try_catch);
   static MaybeLocal<String> ReadFile(Isolate* isolate, const char* name,
                                      bool should_throw = true);
-  static std::unique_ptr<base::OS::MemoryMappedFile> ReadFileData(
-      Isolate* isolate, const char* name, bool should_throw = true);
+  static std::optional<std::string> ReadFileData(
+      Isolate* isolate, const char* name, bool should_throw = true,
+      std::optional<size_t> max_size = std::nullopt);
   // Returns std::nullopt if the file cannot be read.
   static std::optional<std::string> ReadFileToString(const char* name);
   static Local<String> WasmLoadSourceMapCallback(Isolate* isolate,

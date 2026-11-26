@@ -1533,7 +1533,8 @@ MaybeLocal<Object> Shell::FetchModuleSource(Local<Module> referrer,
     return MaybeLocal<Object>();
   }
 
-  auto file = ReadFileData(isolate, module_specifier.c_str());
+  std::optional<std::string> file =
+      ReadFileData(isolate, module_specifier.c_str());
   if (!file) {
     std::ostringstream msg;
     msg << "d8: Error reading module from "
@@ -1551,9 +1552,9 @@ MaybeLocal<Object> Shell::FetchModuleSource(Local<Module> referrer,
   switch (module_type) {
     case ModuleType::kWebAssembly: {
       if (!v8::WasmModuleObject::Compile(
-               isolate,
-               std::span<const uint8_t>(static_cast<uint8_t*>(file->memory()),
-                                        file->size()))
+               isolate, std::span<const uint8_t>(
+                            reinterpret_cast<const uint8_t*>(file->data()),
+                            file->size()))
                .ToLocal(&module_source)) {
         return MaybeLocal<Object>();
       }
@@ -1594,7 +1595,7 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
       GetModuleDataFromContext(context);
   DCHECK_IMPLIES(referrer.IsEmpty(), module_data->inserted_modules.empty());
   MaybeLocal<String> source_text;
-  std::unique_ptr<base::OS::MemoryMappedFile> raw_file;
+  std::optional<std::string> raw_file;
 
   bool found_in_bundle = false;
   if (options.bundle) {
@@ -1706,11 +1707,11 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
         isolate, resource_name, export_names, Shell::TextModuleEvaluationSteps,
         source_text.ToLocalChecked());
   } else if (module_type == ModuleType::kBytes) {
-    CHECK(raw_file);
+    CHECK(raw_file.has_value());
     Local<v8::ArrayBuffer> buffer =
         v8::ArrayBuffer::New(isolate, raw_file->size());
-    if (raw_file->size() > 0) {
-      memcpy(buffer->GetBackingStore()->Data(), raw_file->memory(),
+    if (!raw_file->empty()) {
+      memcpy(buffer->GetBackingStore()->Data(), raw_file->data(),
              raw_file->size());
     }
     i::DirectHandle<i::JSArrayBuffer> i_buffer =
@@ -6154,27 +6155,73 @@ V8_NOINLINE void FuzzerMonitor::UseOfUninitializedValue() {
 #endif
 }
 
+namespace {
+
+std::optional<std::string> ReadFileFromDisk(
+    const char* name, std::optional<size_t> max_size = std::nullopt) {
+  FILE* file = base::OS::FOpen(name, "rb");
+  if (file == nullptr) return std::nullopt;
+
+  constexpr size_t kDefaultChunkSize = 4 * i::KB;
+  constexpr size_t kMaxChunkSize = 1 * i::MB;
+  size_t next_chunk_size = kDefaultChunkSize;
+
+  if (fseek(file, 0, SEEK_END) == 0) {
+    long size_hint = ftell(file);  // NOLINT(runtime/int)
+    rewind(file);
+    if (size_hint > 0) {
+      size_t unsigned_hint = static_cast<size_t>(size_hint);
+      if (max_size && unsigned_hint > *max_size) {
+        base::Fclose(file);
+        FATAL("Input file too large (%zu bytes)", unsigned_hint);
+      }
+      // Read `unsigned_hint + 1` (capped) so unmodified regular files hit
+      // EOF in a single fread() without a second read syscall.
+      next_chunk_size =
+          std::clamp(unsigned_hint + 1, kDefaultChunkSize, kMaxChunkSize);
+    }
+  } else {
+    clearerr(file);
+  }
+
+  std::string result;
+  while (true) {
+    size_t offset = result.size();
+    if (max_size) {
+      next_chunk_size = std::min(next_chunk_size, *max_size - offset + 1);
+    }
+    result.resize(offset + next_chunk_size);
+    size_t bytes_read = fread(result.data() + offset, 1, next_chunk_size, file);
+    result.resize(offset + bytes_read);
+    if (max_size && result.size() > *max_size) {
+      base::Fclose(file);
+      FATAL("Input file too large (> %zu bytes)", *max_size);
+    }
+    if (bytes_read < next_chunk_size) {
+      if (ferror(file)) {
+        base::Fclose(file);
+        return std::nullopt;
+      }
+      break;
+    }
+    next_chunk_size = kMaxChunkSize;
+  }
+  base::Fclose(file);
+  return result;
+}
+
+}  // namespace
+
 std::optional<base::UniqueArray<char>> Shell::ReadChars(const char* name) {
   if (options.read_from_tcp_port >= 0) {
     return ReadCharsFromTcpPort(name);
   }
-
-  FILE* file = base::OS::FOpen(name, "rb");
-  if (file == nullptr) return std::nullopt;
-
-  fseek(file, 0, SEEK_END);
-  size_t size = ftell(file);
-  rewind(file);
-
-  auto chars = base::UniqueArray<char>::NewForOverwrite(size);
-  for (size_t i = 0; i < size;) {
-    i += fread(&chars[i], 1, size - i, file);
-    if (ferror(file)) {
-      base::Fclose(file);
-      return std::nullopt;
-    }
+  std::optional<std::string> content = ReadFileFromDisk(name);
+  if (!content) return std::nullopt;
+  auto chars = base::UniqueArray<char>::NewForOverwrite(content->size());
+  if (!content->empty()) {
+    base::MemCopy(chars.data(), content->data(), content->size());
   }
-  base::Fclose(file);
   return chars;
 }
 
@@ -6244,47 +6291,37 @@ void Shell::ReadLine(const v8::FunctionCallbackInfo<v8::Value>& info) {
 }
 
 // Reads a file into a memory blob.
-std::unique_ptr<base::OS::MemoryMappedFile> Shell::ReadFileData(
-    Isolate* isolate, const char* name, bool should_throw) {
-  std::unique_ptr<base::OS::MemoryMappedFile> file(
-      base::OS::MemoryMappedFile::open(
-          name, base::OS::MemoryMappedFile::FileMode::kReadOnly));
-  if (!file) {
+std::optional<std::string> Shell::ReadFileData(Isolate* isolate,
+                                               const char* name,
+                                               bool should_throw,
+                                               std::optional<size_t> max_size) {
+  std::optional<std::string> data = ReadFileFromDisk(name, max_size);
+  if (!data) {
     if (should_throw) {
       std::ostringstream oss;
       oss << "Error loading file: " << TruncateForError(name);
       ThrowError(isolate, oss.view());
     }
-    return nullptr;
+    return std::nullopt;
   }
-  return file;
+  return data;
 }
 
 // Reads a file into a v8 string.
 MaybeLocal<String> Shell::ReadFile(Isolate* isolate, const char* name,
                                    bool should_throw) {
-  auto file = ReadFileData(isolate, name, should_throw);
+  std::optional<std::string> file =
+      ReadFileData(isolate, name, should_throw, size_t{String::kMaxLength});
   if (!file) {
     return MaybeLocal<String>();
   }
-  size_t full_file_size = file->size();
-  if (full_file_size > size_t{String::kMaxLength}) {
-    FATAL("Input file too large (%zu bytes)", full_file_size);
-  }
   static_assert(String::kMaxLength <= i::kMaxInt);
-  int size = static_cast<int>(full_file_size);
-  char* chars = static_cast<char*>(file->memory());
-  return CreateStringFromExternalData(isolate, std::string_view(chars, size));
+  return CreateStringFromExternalData(isolate, *file);
 }
 
 // Reads a file into a std::string.
 std::optional<std::string> Shell::ReadFileToString(const char* name) {
-  std::unique_ptr<base::OS::MemoryMappedFile> file(
-      base::OS::MemoryMappedFile::open(
-          name, base::OS::MemoryMappedFile::FileMode::kReadOnly));
-  if (!file) return std::nullopt;
-  if (file->size() == 0) return std::string();
-  return std::string(static_cast<const char*>(file->memory()), file->size());
+  return ReadFileFromDisk(name);
 }
 
 void Shell::WriteChars(const char* name, uint8_t* buffer, size_t buffer_size) {
