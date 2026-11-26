@@ -812,6 +812,65 @@ RpoNumber CodeGenerator::ComputeBranchInfo(BranchInfo* branch,
   return RpoNumber::Invalid();
 }
 
+namespace {
+
+// Returns the number of inputs of a compare {instr} that are operands of the
+// compare itself rather than of its flags continuation.
+size_t CompareOperandCount(Instruction* instr) {
+  switch (instr->flags_mode()) {
+    case kFlags_branch:
+      return instr->InputCount() - kBranchEndOffsetOfTrueBlock;
+    case kFlags_deoptimize:
+      return DeoptFrameStateOffsetField::decode(instr->opcode());
+    case kFlags_select:
+      // The inputs end with the two values to select from.
+      return instr->InputCount() - 2;
+    case kFlags_trap:
+      // The inputs end with the trap id.
+      return instr->InputCount() - 1;
+    default:
+      return 0;
+  }
+}
+
+}  // namespace
+
+bool CodeGenerator::FlagsAlreadySet(Instruction* instr) {
+  // A branch leaves the flags alone, so a compare that starts a block whose
+  // only predecessor ends with the same compare would recompute the flags it
+  // already has. This requires that nothing, such as a gap move that reloads
+  // an operand, has been emitted in the block yet.
+  const InstructionBlock* block =
+      instructions()->InstructionBlockAt(current_block_);
+  size_t count = CompareOperandCount(instr);
+  if (count == 0 || block->PredecessorCount() != 1 ||
+      GetLabel(current_block_)->pos() != masm()->pc_offset()) {
+    return false;
+  }
+  DCHECK_EQ(instr->OutputCount(), instr->flags_mode() == kFlags_select ? 1 : 0);
+  const InstructionBlock* pred =
+      instructions()->InstructionBlockAt(block->predecessors()[0]);
+  Instruction* prev =
+      instructions()->InstructionAt(pred->last_instruction_index());
+  if (prev->arch_opcode() != instr->arch_opcode() ||
+      prev->addressing_mode() != instr->addressing_mode() ||
+      prev->flags_mode() != kFlags_branch ||
+      CompareOperandCount(prev) != count) {
+    return false;
+  }
+  for (size_t k = 0; k < count; ++k) {
+    InstructionOperand* a = prev->InputAt(k);
+    InstructionOperand* b = instr->InputAt(k);
+    if (a->EqualsCanonicalized(*b)) continue;
+    if (!a->IsImmediate() || !b->IsImmediate() ||
+        instructions()->GetImmediate(ImmediateOperand::cast(a)) !=
+            instructions()->GetImmediate(ImmediateOperand::cast(b))) {
+      return false;
+    }
+  }
+  return true;
+}
+
 CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
     int instruction_index, const InstructionBlock* block) {
   Instruction* instr = instructions()->InstructionAt(instruction_index);

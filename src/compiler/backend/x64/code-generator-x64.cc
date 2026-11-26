@@ -1781,6 +1781,22 @@ std::optional<SharedBaseTsanArgument> MakeSharedBaseTsanArgument(
                                  instr->addressing_mode() == kMode_MCRI;
   return {{i.InputRegister(0), must_decompress_pointer}};
 }
+
+bool IsFlagSettingCompare(ArchOpcode opcode) {
+  switch (opcode) {
+    case kX64Cmp8:
+    case kX64Cmp16:
+    case kX64Cmp32:
+    case kX64Cmp:
+    case kX64Test8:
+    case kX64Test16:
+    case kX64Test32:
+    case kX64Test:
+      return true;
+    default:
+      return false;
+  }
+}
 }  // namespace
 
 // Assembles an instruction after register allocation, producing machine code.
@@ -1789,6 +1805,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   X64OperandConverter i(this, instr);
   InstructionCode opcode = instr->opcode();
   ArchOpcode arch_opcode = ArchOpcodeField::decode(opcode);
+  if (IsFlagSettingCompare(arch_opcode) && FlagsAlreadySet(instr)) {
+    // A kFlags_set compare would need its output register cleared below.
+    DCHECK_NE(instr->flags_mode(), kFlags_set);
+    return kSuccess;
+  }
   if (!UseApxSetzucc()) {
     if (ShouldClearOutputRegisterBeforeInstruction(this, instr)) {
       // Transform setcc + movzxbl into xorl + setcc to avoid register stall and

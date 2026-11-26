@@ -1302,7 +1302,7 @@ class V8_EXPORT_PRIVATE Constant final {
   explicit Constant(int32_t v);
   explicit Constant(int64_t v) : type_(kInt64), value_(v) {}
   explicit Constant(float v)
-      : type_(kFloat32), value_(base::bit_cast<int32_t>(v)) {}
+      : type_(kFloat32), value_(base::bit_cast<uint32_t>(v)) {}
   explicit Constant(Float32 v) : type_(kFloat32), value_(v.get_bits()) {}
   explicit Constant(double v)
       : type_(kFloat64), value_(base::bit_cast<int64_t>(v)) {}
@@ -1377,6 +1377,8 @@ class V8_EXPORT_PRIVATE Constant final {
 
   IndirectHandle<HeapObject> ToHeapObject() const;
   IndirectHandle<Code> ToCode() const;
+
+  bool operator==(const Constant&) const = default;
 
  private:
   Type type_;

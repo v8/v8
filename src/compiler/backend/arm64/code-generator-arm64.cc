@@ -891,12 +891,33 @@ void CodeGenerator::AssembleDispatchHandleRegisterCheck() {
 
 void CodeGenerator::AssertNotDeoptimized() { __ AssertNotDeoptimized(); }
 
+namespace {
+
+bool IsFlagSettingCompare(ArchOpcode opcode) {
+  switch (opcode) {
+    case kArm64Cmp:
+    case kArm64Cmp32:
+    case kArm64Cmn:
+    case kArm64Cmn32:
+    case kArm64Tst:
+    case kArm64Tst32:
+      return true;
+    default:
+      return false;
+  }
+}
+
+}  // namespace
+
 // Assembles an instruction after register allocation, producing machine code.
 CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     Instruction* instr) {
   Arm64OperandConverter i(this, instr);
   InstructionCode opcode = instr->opcode();
   ArchOpcode arch_opcode = ArchOpcodeField::decode(opcode);
+  if (IsFlagSettingCompare(arch_opcode) && FlagsAlreadySet(instr)) {
+    return kSuccess;
+  }
   switch (arch_opcode) {
     case kArchCallCodeObject: {
       CodeEntrypointTag tag =
