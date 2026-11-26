@@ -4991,6 +4991,59 @@ TEST_F(DebugTest, DebugEvaluateNoSideEffect) {
   DisableDebugger(env.isolate());
 }
 
+TEST_F(DebugTest, OsrWithInstrumentedDebugBytecode) {
+  i::v8_flags.allow_natives_syntax.Set(true);
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  EnableDebugger(isolate);
+
+  CompileRun(
+      "let holder = {x: 0};\n"
+      "function hot(n, mutate) {\n"
+      "  let s = 0;\n"
+      "  if (mutate) holder.x = n;\n"
+      "  for (let i = 0; i < n; i++) {\n"
+      "    if (i === 50) %OptimizeOsr();\n"
+      "    s += i;\n"
+      "  }\n"
+      "  return s;\n"
+      "}\n"
+      "%PrepareFunctionForOptimization(hot);\n"
+      "hot(1, false);\n");
+
+  // Side-effect-free evaluation leaves `hot` in kRequiresRuntimeChecks with an
+  // instrumented DebugBytecodeArray installed even though HasBreakInfo() is
+  // false.
+  v8::MaybeLocal<v8::Value> eval_res = v8::debug::EvaluateGlobal(
+      isolate, v8_str(isolate, "hot(1, false)"),
+      v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect);
+  CHECK(!eval_res.IsEmpty());
+
+  i::DirectHandle<i::JSFunction> hot =
+      i::Cast<i::JSFunction>(v8::Utils::OpenDirectHandle(*CompileRun("hot")));
+  std::optional<i::Tagged<i::DebugInfo>> debug_info =
+      hot->shared()->TryGetDebugInfo(i_isolate());
+  CHECK(debug_info.has_value());
+  CHECK(!hot->shared()->HasBreakInfo(i_isolate()));
+  CHECK(debug_info.value()->HasInstrumentedBytecodeArray());
+
+  // Triggering OSR (both concurrently and synchronously) while the frame runs
+  // the instrumented debug bytecode must skip OSR instead of failing the
+  // BytecodeArray check in OnStackReplacement.
+  v8::Local<v8::Value> res = CompileRun("hot(100, false)");
+  CHECK_EQ(4950, res->Int32Value(env.local()).FromJust());
+  {
+    bool prev_concurrent_osr = i::v8_flags.concurrent_osr;
+    i::v8_flags.concurrent_osr.Set(false);
+    v8::Local<v8::Value> sync_res = CompileRun("hot(100, false)");
+    CHECK_EQ(4950, sync_res->Int32Value(env.local()).FromJust());
+    i::v8_flags.concurrent_osr.Set(prev_concurrent_osr);
+  }
+
+  DisableDebugger(isolate);
+}
+
 TEST_F(DebugTest, DebugEvaluateGlobalSharedCrossOrigin) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();

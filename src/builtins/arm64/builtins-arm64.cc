@@ -2266,7 +2266,7 @@ enum class OsrSourceTier {
 
 void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
                         Register maybe_target_code,
-                        Register expected_param_count) {
+                        Register expected_osr_offset) {
   Label jump_to_optimized_code;
   {
     // If maybe_target_code is not null, no need to call into runtime. A
@@ -2280,10 +2280,10 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   ASM_CODE_COMMENT(masm);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    __ Push(expected_param_count, padreg);
+    __ Push(expected_osr_offset, padreg);
     __ CallRuntime(Runtime::kCompileOptimizedOSR);
     DCHECK_EQ(maybe_target_code, x0);
-    __ Pop(padreg, expected_param_count);
+    __ Pop(padreg, expected_osr_offset);
   }
 
   // If the code object is null, just return to the caller.
@@ -2294,7 +2294,7 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   __ Bind(&jump_to_optimized_code);
 
   const Register scratch(x2);
-  CHECK(!AreAliased(maybe_target_code, expected_param_count, scratch));
+  CHECK(!AreAliased(maybe_target_code, expected_osr_offset, scratch));
 
   // OSR entry tracing.
   {
@@ -2307,9 +2307,9 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
     {
       FrameScope scope(masm, StackFrame::INTERNAL);
       // Preserve arguments.
-      __ Push(maybe_target_code, expected_param_count);
+      __ Push(maybe_target_code, expected_osr_offset);
       __ CallRuntime(Runtime::kLogOrTraceOptimizedOSREntry, 0);
-      __ Pop(expected_param_count, maybe_target_code);
+      __ Pop(expected_osr_offset, maybe_target_code);
     }
 
     __ Bind(&next);
@@ -2321,20 +2321,15 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
     __ LeaveFrame(StackFrame::STUB);
   }
 
-  // Check we are actually jumping to an OSR code object. This among other
-  // things ensures that the object contains deoptimization data below.
+  // Check we are jumping to an OSR code object compiled for this exact
+  // JumpLoop bytecode offset. Since expected_osr_offset >= 0, this also
+  // guarantees osr_offset != BytecodeOffset::None() (-1), ensuring
+  // deoptimization data is present below.
   __ Ldr(scratch.W(),
          FieldMemOperand(maybe_target_code, Code::kOsrOffsetOffset));
-  __ Cmp(scratch.W(), BytecodeOffset::None().ToInt());
-  __ SbxCheck(Condition::kNotEqual, AbortReason::kExpectedOsrCode);
-
-  // Check the target has a matching parameter count. This ensures that the OSR
-  // code will correctly tear down our frame when leaving.
-  __ Ldrh(scratch.W(),
-          FieldMemOperand(maybe_target_code, Code::kParameterCountOffset));
-  __ SmiUntag(expected_param_count);
-  __ Cmp(scratch.W(), expected_param_count.W());
-  __ SbxCheck(Condition::kEqual, AbortReason::kOsrUnexpectedStackSize);
+  __ SmiUntag(expected_osr_offset);
+  __ Cmp(scratch.W(), expected_osr_offset.W());
+  __ SbxCheck(Condition::kEqual, AbortReason::kExpectedOsrCode);
 
   // Load deoptimization data from the code object.
   // <deopt_data> = <code>[#deoptimization_data_offset]
@@ -2342,6 +2337,24 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
       scratch,
       FieldMemOperand(maybe_target_code,
                       Code::kDeoptimizationDataOrInterpreterDataOffset));
+
+  // Check the target OSR code object was compiled for the same BytecodeArray
+  // currently executing on the unoptimized frame. This also guarantees matching
+  // parameter count and frame layout.
+  {
+    UseScratchRegisterScope temps(masm);
+    Register frame_bytecode = temps.AcquireX();
+    const Register osr_bytecode = expected_osr_offset;
+    __ LoadProtectedPointerField(
+        osr_bytecode,
+        FieldMemOperand(scratch,
+                        TrustedFixedArray::OffsetOfElementAt(
+                            DeoptimizationData::kOsrBytecodeArrayIndex)));
+    __ Ldr(frame_bytecode,
+           MemOperand(fp, UnoptimizedFrameConstants::kBytecodeArrayFromFp));
+    __ Cmp(osr_bytecode, frame_bytecode);
+    __ SbxCheck(Condition::kEqual, AbortReason::kOsrUnexpectedBytecodeArray);
+  }
 
   // Load the OSR entrypoint offset from the deoptimization data.
   // <osr_offset> = <deopt_data>[#header_size + #osr_pc_offset]
@@ -2365,7 +2378,7 @@ void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
   static_assert(D::kParameterCount == 2);
   OnStackReplacement(masm, OsrSourceTier::kInterpreter,
                      D::MaybeTargetCodeRegister(),
-                     D::ExpectedParameterCountRegister());
+                     D::ExpectedOsrOffsetRegister());
 }
 
 void Builtins::Generate_BaselineOnStackReplacement(MacroAssembler* masm) {
@@ -2376,7 +2389,7 @@ void Builtins::Generate_BaselineOnStackReplacement(MacroAssembler* masm) {
          MemOperand(fp, BaselineFrameConstants::kContextOffset));
   OnStackReplacement(masm, OsrSourceTier::kBaseline,
                      D::MaybeTargetCodeRegister(),
-                     D::ExpectedParameterCountRegister());
+                     D::ExpectedOsrOffsetRegister());
 }
 
 #ifdef V8_ENABLE_MAGLEV

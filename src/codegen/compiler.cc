@@ -929,6 +929,15 @@ bool FinalizeDeferredUnoptimizedCompilationJobs(
   return true;
 }
 
+bool HasInstrumentedBytecodeArray(Isolate* isolate,
+                                  Tagged<SharedFunctionInfo> shared) {
+  if (std::optional<Tagged<DebugInfo>> debug_info =
+          shared->TryGetDebugInfo(isolate)) {
+    return debug_info.value()->HasInstrumentedBytecodeArray();
+  }
+  return false;
+}
+
 // A wrapper to access the optimized code cache slots on the feedback vector.
 class OptimizedOSRCodeCache : public AllStatic {
  public:
@@ -1357,6 +1366,14 @@ MaybeHandle<Code> GetOrCompileOptimized(
 
   // Do not optimize if we need to be able to set break points.
   if (shared->HasBreakInfo(isolate)) return {};
+
+  // Do not OSR-compile while the function runs instrumented debug bytecode
+  // (e.g., kRequiresRuntimeChecks kept after a side-effect-free debug
+  // evaluate), because OSR compiles the original BytecodeArray while active
+  // frames hold the debug copy.
+  if (IsOSR(osr_offset) && HasInstrumentedBytecodeArray(isolate, *shared)) {
+    return {};
+  }
 
   // Do not optimize if optimization is disabled or function doesn't pass
   // turbo_filter.
@@ -4795,7 +4812,8 @@ void Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
   const bool use_result = !compilation_info->discard_result_for_testing();
   const BytecodeOffset osr_offset = compilation_info->osr_offset();
 
-  if (shared->HasBreakInfo(isolate)) {
+  if (shared->HasBreakInfo(isolate) ||
+      (IsOSR(osr_offset) && HasInstrumentedBytecodeArray(isolate, *shared))) {
     DisposeTurbofanCompilationJob(isolate, job);
     return;
   }
@@ -4893,7 +4911,8 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
 
   if (status == CompilationJob::SUCCEEDED) {
     DirectHandle<SharedFunctionInfo> shared(function->shared(), isolate);
-    if (shared->HasBreakInfo(isolate)) {
+    if (shared->HasBreakInfo(isolate) ||
+        (IsOSR(osr_offset) && HasInstrumentedBytecodeArray(isolate, *shared))) {
       DisposeMaglevCompilationJob(job, isolate);
       return;
     }

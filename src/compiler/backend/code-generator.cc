@@ -1187,11 +1187,11 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData(
 
   if (info->is_osr()) {
     DCHECK_LE(0, osr_pc_offset_);
-    data->SetOsrBytecodeOffset(Smi::FromInt(info_->osr_offset().ToInt()));
+    DCHECK(info->has_bytecode_array());
+    data->SetOsrBytecodeArray(*info->bytecode_array());
     data->SetOsrPcOffset(Smi::FromInt(osr_pc_offset_));
   } else {
-    BytecodeOffset osr_offset = BytecodeOffset::None();
-    data->SetOsrBytecodeOffset(Smi::FromInt(osr_offset.ToInt()));
+    data->SetOsrBytecodeArray(Smi::zero());
     data->SetOsrPcOffset(Smi::FromInt(-1));
   }
 

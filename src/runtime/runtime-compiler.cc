@@ -529,7 +529,13 @@ void GetOsrOffsetAndFunctionForOSR(Isolate* isolate, BytecodeOffset* osr_offset,
   *function = handle(frame->function(), isolate);
 
   DCHECK(!osr_offset->IsNone());
-  DCHECK((*function)->shared()->HasBytecodeArray());
+  Tagged<SharedFunctionInfo> shared = (*function)->shared();
+  bool has_bytecode_array = shared->HasBytecodeArray();
+  SBXCHECK(has_bytecode_array);
+  Tagged<BytecodeArray> active_bytecode =
+      shared->GetActiveBytecodeArray(isolate);
+  Tagged<BytecodeArray> frame_bytecode = frame->GetBytecodeArray();
+  SBXCHECK_EQ(active_bytecode, frame_bytecode);
 }
 
 Tagged<Object> CompileOptimizedOSR(Isolate* isolate,
@@ -567,7 +573,7 @@ Tagged<Object> CompileOptimizedOSR(Isolate* isolate,
 
 #ifdef DEBUG
   Tagged<DeoptimizationData> data = result->deoptimization_data();
-  DCHECK_EQ(BytecodeOffset(data->OsrBytecodeOffset().value()), osr_offset);
+  DCHECK_EQ(result->osr_offset(), osr_offset);
   DCHECK_GE(data->OsrPcOffset().value(), 0);
 #endif  // DEBUG
 

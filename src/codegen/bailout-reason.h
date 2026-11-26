@@ -72,6 +72,7 @@ namespace internal {
   V(kShouldNotDirectlyEnterOsrFunction,                                        \
     "Should not directly enter OSR-compiled function")                         \
   V(kStackAccessBelowStackPointer, "Stack access below stack pointer")         \
+  V(kOsrUnexpectedBytecodeArray, "Unexpected bytecode array on OSR entry")     \
   V(kOsrUnexpectedStackSize, "Unexpected stack size on OSR entry")             \
   V(kStackFrameTypesMustMatch, "Stack frame types must match")                 \
   V(kTaggedSignedNotSmi, "TaggedSigned is not a smi")                          \

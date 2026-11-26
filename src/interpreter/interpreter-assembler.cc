@@ -1591,10 +1591,19 @@ void InterpreterAssembler::OnStackReplacement(
     TNode<Uint32T> weight =
         Uint32Mul(length, Uint32Constant(v8_flags.osr_to_tierup));
     DecreaseInterruptBudget(Signed(weight), kDisableStackCheck);
-    TNode<Smi> expected_param_count =
-        SmiFromInt32(LoadBytecodeArrayParameterCount(bytecode));
+    TNode<IntPtrT> bytecode_offset = BytecodeOffset();
+    if (operand_scale() != OperandScale::kSingle) {
+      // Point to the Wide / ExtraWide prefix byte, matching
+      // SaveBytecodeOffset() and InterpretedFrame::GetBytecodeOffset().
+      bytecode_offset = IntPtrSub(bytecode_offset, IntPtrConstant(1));
+    }
+    TNode<IntPtrT> osr_offset =
+        IntPtrSub(bytecode_offset,
+                  IntPtrConstant(BytecodeArray::kHeaderSize - kHeapObjectTag));
+    CSA_DCHECK(this, IntPtrGreaterThanOrEqual(osr_offset, IntPtrConstant(0)));
+    TNode<Smi> expected_osr_offset = SmiTag(osr_offset);
     CallBuiltin(Builtin::kInterpreterOnStackReplacement, context,
-                maybe_target_code.value(), expected_param_count);
+                maybe_target_code.value(), expected_osr_offset);
     UpdateInterruptBudget(Int32Mul(Signed(weight), Int32Constant(-1)));
     JumpBackward(relative_jump);
   }

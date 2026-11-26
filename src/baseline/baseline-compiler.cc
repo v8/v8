@@ -2706,11 +2706,11 @@ void BaselineCompiler::VisitJumpLoop() {
     UpdateInterruptBudgetAndJumpToLabel(-weight, nullptr, &do_osr,
                                         kDisableStackCheck);
     __ Bind(&do_osr);
-    Register expected_param_count = D::ExpectedParameterCountRegister();
-    __ Move(expected_param_count, Smi::FromInt(bytecode_->parameter_count()));
+    Register expected_osr_offset = D::ExpectedOsrOffsetRegister();
+    __ Move(expected_osr_offset, Smi::FromInt(iterator().current_offset()));
     __ Pop(maybe_target_code);
     CallBuiltin<Builtin::kBaselineOnStackReplacement>(maybe_target_code,
-                                                      expected_param_count);
+                                                      expected_osr_offset);
     __ AddToInterruptBudgetAndJumpIfNotExceeded(weight, nullptr);
     __ Jump(&osr_not_armed, Label::kNear);
 

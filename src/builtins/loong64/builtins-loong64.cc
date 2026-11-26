@@ -2007,7 +2007,7 @@ enum class OsrSourceTier {
 
 void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
                         Register maybe_target_code,
-                        Register expected_param_count) {
+                        Register expected_osr_offset) {
   Label jump_to_optimized_code;
   {
     // If maybe_target_code is not null, no need to call into runtime. A
@@ -2021,9 +2021,9 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   ASM_CODE_COMMENT(masm);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    __ Push(expected_param_count);
+    __ Push(expected_osr_offset);
     __ CallRuntime(Runtime::kCompileOptimizedOSR);
-    __ Pop(expected_param_count);
+    __ Pop(expected_osr_offset);
   }
 
   // If the code object is null, just return to the caller.
@@ -2034,7 +2034,7 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   __ bind(&jump_to_optimized_code);
 
   const Register scratch(a2);
-  CHECK(!AreAliased(maybe_target_code, expected_param_count, scratch));
+  CHECK(!AreAliased(maybe_target_code, expected_osr_offset, scratch));
 
   // OSR entry tracing.
   {
@@ -2046,9 +2046,9 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
     {
       FrameScope scope(masm, StackFrame::INTERNAL);
       // Preserve arguments.
-      __ Push(maybe_target_code, expected_param_count);
+      __ Push(maybe_target_code, expected_osr_offset);
       __ CallRuntime(Runtime::kLogOrTraceOptimizedOSREntry, 0);
-      __ Pop(maybe_target_code, expected_param_count);
+      __ Pop(maybe_target_code, expected_osr_offset);
     }
 
     __ bind(&next);
@@ -2060,20 +2060,12 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
     __ LeaveFrame(StackFrame::STUB);
   }
 
-  // Check we are actually jumping to an OSR code object. This among other
-  // things ensures that the object contains deoptimization data below.
-  // Keep scratch's sign-extension same with another operand.
+  // Check we are jumping to an OSR code object compiled for this exact
+  // JumpLoop bytecode offset.
   __ Ld_w(scratch, FieldMemOperand(maybe_target_code, Code::kOsrOffsetOffset));
-  __ SbxCheck(Condition::kNotEqual, AbortReason::kExpectedOsrCode, scratch,
-              Operand(BytecodeOffset::None().ToInt()));
-
-  // Check the target has a matching parameter count. This ensures that the OSR
-  // code will correctly tear down our frame when leaving.
-  __ Ld_hu(scratch,
-           FieldMemOperand(maybe_target_code, Code::kParameterCountOffset));
-  __ SmiUntag(expected_param_count);
-  __ SbxCheck(Condition::kEqual, AbortReason::kOsrUnexpectedStackSize, scratch,
-              Operand(expected_param_count));
+  __ SmiUntag(expected_osr_offset);
+  __ SbxCheck(Condition::kEqual, AbortReason::kExpectedOsrCode, scratch,
+              Operand(expected_osr_offset));
 
   // Load deoptimization data from the code object.
   // <deopt_data> = <code>[#deoptimization_data_offset]
@@ -2081,6 +2073,21 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
       scratch, MemOperand(maybe_target_code,
                           Code::kDeoptimizationDataOrInterpreterDataOffset -
                               kHeapObjectTag));
+
+  const Register osr_bytecode = expected_osr_offset;
+  __ LoadProtectedPointerField(
+      osr_bytecode,
+      MemOperand(scratch, TrustedFixedArray::OffsetOfElementAt(
+                              DeoptimizationData::kOsrBytecodeArrayIndex) -
+                              kHeapObjectTag));
+  {
+    UseScratchRegisterScope temps(masm);
+    Register frame_bytecode = temps.Acquire();
+    __ Ld_d(frame_bytecode,
+            MemOperand(fp, UnoptimizedFrameConstants::kBytecodeArrayFromFp));
+    __ SbxCheck(Condition::kEqual, AbortReason::kOsrUnexpectedBytecodeArray,
+                osr_bytecode, Operand(frame_bytecode));
+  }
 
   // Load the OSR entrypoint offset from the deoptimization data.
   // <osr_offset> = <deopt_data>[#header_size + #osr_pc_offset]
@@ -2103,7 +2110,7 @@ void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
   static_assert(D::kParameterCount == 2);
   OnStackReplacement(masm, OsrSourceTier::kInterpreter,
                      D::MaybeTargetCodeRegister(),
-                     D::ExpectedParameterCountRegister());
+                     D::ExpectedOsrOffsetRegister());
 }
 
 void Builtins::Generate_BaselineOnStackReplacement(MacroAssembler* masm) {
@@ -2114,7 +2121,7 @@ void Builtins::Generate_BaselineOnStackReplacement(MacroAssembler* masm) {
           MemOperand(fp, BaselineFrameConstants::kContextOffset));
   OnStackReplacement(masm, OsrSourceTier::kBaseline,
                      D::MaybeTargetCodeRegister(),
-                     D::ExpectedParameterCountRegister());
+                     D::ExpectedOsrOffsetRegister());
 }
 
 static void GenerateCall(MacroAssembler* masm, Register argc, Register target,

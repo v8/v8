@@ -2648,14 +2648,13 @@ class OnStackReplacementDescriptor
  public:
   INTERNAL_DESCRIPTOR()
   SANDBOXING_MODE(kSandboxed)
-  DEFINE_PARAMETERS(kMaybeTargetCode, kExpectedParameterCount)
-  DEFINE_PARAMETER_TYPES(
-      MachineType::AnyTagged(),     // kMaybeTargetCode
-      MachineType::TaggedSigned())  // kExpectedParameterCount
+  DEFINE_PARAMETERS(kMaybeTargetCode, kExpectedOsrOffset)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kMaybeTargetCode
+                         MachineType::TaggedSigned())  // kExpectedOsrOffset
   DECLARE_DESCRIPTOR(OnStackReplacementDescriptor)
 
   static constexpr inline Register MaybeTargetCodeRegister();
-  static constexpr inline Register ExpectedParameterCountRegister();
+  static constexpr inline Register ExpectedOsrOffsetRegister();
 
   static constexpr inline auto registers();
 };

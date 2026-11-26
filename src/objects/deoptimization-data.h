@@ -263,13 +263,14 @@ class DeoptimizationData : public ProtectedFixedArray {
  public:
   using SharedFunctionInfoWrapperOrSmi =
       UnionOf<Smi, SharedFunctionInfoWrapper>;
+  using BytecodeArrayOrSmi = UnionOf<Smi, BytecodeArray>;
 
   // Layout description.  Indices in the array.
   static const int kFrameTranslationIndex = 0;
   static const int kInlinedFunctionCountIndex = 1;
   static const int kProtectedLiteralArrayIndex = 2;
   static const int kLiteralArrayIndex = 3;
-  static const int kOsrBytecodeOffsetIndex = 4;
+  static const int kOsrBytecodeArrayIndex = 4;
   static const int kOsrPcOffsetIndex = 5;
   static const int kOptimizationIdIndex = 6;
   static const int kWrappedSharedFunctionInfoIndex = 7;
@@ -301,7 +302,7 @@ class DeoptimizationData : public ProtectedFixedArray {
   DECL_ELEMENT_ACCESSORS(ProtectedLiteralArray,
                          Tagged<ProtectedDeoptimizationLiteralArray>)
   DECL_ELEMENT_ACCESSORS(LiteralArray, Tagged<DeoptimizationLiteralArray>)
-  DECL_ELEMENT_ACCESSORS(OsrBytecodeOffset, Tagged<Smi>)
+  DECL_ELEMENT_ACCESSORS(OsrBytecodeArray, Tagged<BytecodeArrayOrSmi>)
   DECL_ELEMENT_ACCESSORS(OsrPcOffset, Tagged<Smi>)
   DECL_ELEMENT_ACCESSORS(OptimizationId, Tagged<Smi>)
   DECL_ELEMENT_ACCESSORS(WrappedSharedFunctionInfo,

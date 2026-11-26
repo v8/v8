@@ -2182,12 +2182,13 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
   raw_data->SetLiteralArray(raw_literals);
   raw_data->SetInliningPositions(*inlining_positions);
 
-  auto info = code_gen_state_.compilation_info();
-  raw_data->SetOsrBytecodeOffset(
-      Smi::FromInt(info->toplevel_osr_offset().ToInt()));
   if (graph_->is_osr()) {
+    auto info = code_gen_state_.compilation_info();
+    raw_data->SetOsrBytecodeArray(
+        *info->toplevel_compilation_unit()->bytecode().object());
     raw_data->SetOsrPcOffset(Smi::FromInt(code_gen_state_.osr_entry()->pos()));
   } else {
+    raw_data->SetOsrBytecodeArray(Smi::zero());
     raw_data->SetOsrPcOffset(Smi::FromInt(-1));
   }
 

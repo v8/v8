@@ -522,8 +522,7 @@ constexpr Register OnStackReplacementDescriptor::MaybeTargetCodeRegister() {
 }
 
 // static
-constexpr Register
-OnStackReplacementDescriptor::ExpectedParameterCountRegister() {
+constexpr Register OnStackReplacementDescriptor::ExpectedOsrOffsetRegister() {
   return registers()[1];
 }
 
