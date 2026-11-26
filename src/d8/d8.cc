@@ -6353,7 +6353,17 @@ void Shell::RunShell(Isolate* isolate) {
   Global<Context> context;
   {
     HandleScope scope(isolate);
-    context.Reset(isolate, Local<Context>::New(isolate, evaluation_context_));
+    Local<Context> local_context =
+        Local<Context>::New(isolate, evaluation_context_);
+    if (local_context.IsEmpty()) {
+      if (!CreateEvaluationContext(isolate).ToLocal(&local_context)) {
+        DCHECK(isolate->IsExecutionTerminating());
+        return;
+      }
+      evaluation_context_.Reset(isolate, local_context);
+      stringify_function_.Reset();
+    }
+    context.Reset(isolate, local_context);
   }
   PerIsolateData::RealmScope realm_scope(isolate, context);
   printf("V8 version %s\n", V8::GetVersion());
@@ -7721,6 +7731,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
   handle_unsafe_d8_flag(options.enable_os_system);
   handle_unsafe_d8_flag(options.snapshot_blob);
   handle_unsafe_d8_flag(options.icu_data_file);
+  handle_unsafe_d8_flag(options.interactive_shell);
 #ifdef V8_OS_LINUX
   handle_unsafe_d8_flag(options.perf_ctl_fd);
   handle_unsafe_d8_flag(options.perf_ack_fd);

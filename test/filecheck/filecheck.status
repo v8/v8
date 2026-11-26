@@ -7,6 +7,9 @@
   # These are negative test cases that make sure that certain scenarios are
   # reported as failures.
   'fail/*': [FAIL],
+
+  # Tests for d8 CLI flags where compiler variants do not apply.
+  'd8-disallow-shell': [PASS, NO_VARIANTS],
 }],
 
 ['variant == code_serializer', {

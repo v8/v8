@@ -112,6 +112,7 @@
   # Tests where variants make no sense.
   'd8/enable-tracing': [PASS, NO_VARIANTS],
   'd8/regress-506689382': [PASS, NO_VARIANTS],
+  'd8/regress-586576754': [PASS, NO_VARIANTS, ['simulator_run', SKIP]],
   'd8/d8-os': [PASS, NO_VARIANTS],
   'd8/d8-performance-now': [PASS, NO_VARIANTS, ['mode != release or simulator_run', SKIP]],
   'regexp-global': [PASS, NO_VARIANTS],
@@ -2296,6 +2297,7 @@
   # Skip tests that are known to be non-deterministic.
   'd8/d8-worker-sharedarraybuffer': [SKIP],
   'd8/d8-os': [SKIP],
+  'd8/regress-586576754': [SKIP],
   'd8/d8-worker-shutdown': [SKIP],
   'd8/d8-worker-shutdown-gc': [SKIP],
   'd8/d8-worker-onmessage-ping-pong': [SKIP],
