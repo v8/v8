@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "src/base/enum-set.h"
+#include "src/base/sanitizer/msan.h"
 #include "src/base/unique-array.h"
 #include "src/codegen/assembler-inl.h"
 // TODO(clemensb): Remove dependences on compiler stuff.
@@ -11621,16 +11622,16 @@ constexpr WasmOpcode LiftoffCompiler::kNoOutstandingOp;
 // static
 constexpr base::EnumSet<ValueKind> LiftoffCompiler::kUnconditionallySupported;
 
-std::unique_ptr<AssemblerBuffer> NewLiftoffAssemblerBuffer(int func_body_size) {
+constexpr char kLiftoffZoneName[] = "LiftoffCompilationZone";
+
+int LiftoffAssemblerBufferSize(int func_body_size) {
   size_t code_size_estimate =
       WasmCodeManager::EstimateLiftoffCodeSize(func_body_size);
-  // Allocate the initial buffer a bit bigger to avoid reallocation during code
-  // generation. Overflows when casting to int are fine, as we will allocate at
-  // least {AssemblerBase::kMinimalBufferSize} anyway, so in the worst case we
-  // have to grow more often.
-  int initial_buffer_size = static_cast<int>(128 + code_size_estimate * 4 / 3);
-
-  return NewAssemblerBuffer(initial_buffer_size);
+  // Request a bit more than the estimate to avoid reallocation during code
+  // generation. Overflows when casting to int are fine, as both
+  // {NewAssemblerBuffer} and {LiftoffCompilationContext::NewAssemblerBuffer}
+  // enforce a minimum size, so in the worst case we have to grow more often.
+  return static_cast<int>(128 + code_size_estimate * 4 / 3);
 }
 
 }  // namespace
@@ -11647,7 +11648,21 @@ WasmCompilationResult ExecuteLiftoffCompilation(
               "wasm.CompileBaseline", "funcIndex", compiler_options.func_index,
               "bodySize", func_body_size);
 
-  Zone zone(GetWasmEngine()->allocator(), "LiftoffCompilationZone");
+  LiftoffCompilationContext* context = compiler_options.context;
+  std::optional<Zone> owned_zone;
+  Zone* zone_ptr = context ? context->zone()
+                           : &owned_zone.emplace(GetWasmEngine()->allocator(),
+                                                 kLiftoffZoneName);
+  // Reset the reused zone when compilation exits (after {decoder} and any other
+  // zone-backed objects are destroyed) so idle memory stays bounded across
+  // publishing, lock waits, and subsequent TurboFan units.
+  struct ZoneResetScope {
+    LiftoffCompilationContext* const context;
+    ~ZoneResetScope() {
+      if (context) context->ResetZone();
+    }
+  } zone_reset_scope{context};
+  Zone& zone = *zone_ptr;
   auto call_descriptor = compiler::GetWasmCallDescriptor(&zone, func_body.sig);
 
   std::unique_ptr<DebugSideTableBuilder> debug_sidetable_builder;
@@ -11682,8 +11697,10 @@ WasmCompilationResult ExecuteLiftoffCompilation(
       compiler_options.detected_features ? compiler_options.detected_features
                                          : &unused_detected_features,
       func_body, call_descriptor, env, &zone,
-      NewLiftoffAssemblerBuffer(func_body_size), debug_sidetable_builder.get(),
-      compiler_options, function_coverage_data);
+      context ? context->NewAssemblerBuffer(
+                    LiftoffAssemblerBufferSize(func_body_size))
+              : NewAssemblerBuffer(LiftoffAssemblerBufferSize(func_body_size)),
+      debug_sidetable_builder.get(), compiler_options, function_coverage_data);
   decoder.Decode();
   LiftoffCompiler* compiler = &decoder.interface();
   if (decoder.failed()) compiler->OnFirstError(&decoder);
@@ -11718,7 +11735,13 @@ WasmCompilationResult ExecuteLiftoffCompilation(
 
   WasmCompilationResult result;
   compiler->GetCode(&result.code_desc);
-  result.instr_buffer = compiler->ReleaseBuffer();
+  if (context) {
+    // The code lives in the arena of the context (or a standalone grown
+    // buffer retained by the context until {ReleaseCode}).
+    context->CommitCode(compiler->ReleaseBuffer(), &result.code_desc);
+  } else {
+    result.instr_buffer = compiler->ReleaseBuffer();
+  }
   result.source_positions = compiler->GetSourcePositionTable();
   result.trapping_instructions_data = compiler->GetTrappingInstructionsData();
   result.frame_slot_count = compiler->GetTotalFrameSlotCountForGC();
@@ -11748,6 +11771,149 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   DCHECK(result.succeeded());
 
   return result;
+}
+
+// An assembler buffer which lives in the code arena of a
+// {LiftoffCompilationContext}, or temporarily owns a standalone grown chunk
+// until it is superseded by another {Grow()} or transferred to the context in
+// {CommitCode()}.
+class LiftoffCompilationContext::ArenaAssemblerBuffer final
+    : public AssemblerBuffer {
+ public:
+  ArenaAssemblerBuffer(uint8_t* start, int size,
+                       base::UniqueArray<uint8_t> owned_chunk = {})
+      : owned_chunk_(std::move(owned_chunk)), start_(start), size_(size) {}
+
+  bool owns_chunk() const { return owned_chunk_ != nullptr; }
+  base::UniqueArray<uint8_t> ReleaseOwnedChunk() {
+    return std::move(owned_chunk_);
+  }
+
+  uint8_t* start() const override { return start_; }
+
+  int size() const override { return size_; }
+
+  std::unique_ptr<AssemblerBuffer> Grow(int new_size) override {
+    DCHECK_LT(size(), new_size);
+    // Allocate a standalone chunk rather than appending to the context's chunks
+    // so repeated linear growths (such as kDoubleCapped1MB on non-x64) free
+    // superseded intermediate buffers immediately instead of retaining O(N^2)
+    // memory until {ReleaseCode}.
+    base::UniqueArray<uint8_t> chunk =
+        base::UniqueArray<uint8_t>::NewForOverwrite(
+            static_cast<size_t>(new_size));
+    uint8_t* ptr = chunk.begin();
+#ifdef DEBUG
+    ZapCode(reinterpret_cast<Address>(ptr), new_size);
+#endif
+    MSAN_ALLOCATED_UNINITIALIZED_MEMORY(ptr, new_size);
+    return std::make_unique<ArenaAssemblerBuffer>(ptr, new_size,
+                                                  std::move(chunk));
+  }
+
+ private:
+  base::UniqueArray<uint8_t> owned_chunk_;
+  uint8_t* const start_;
+  const int size_;
+};
+
+LiftoffCompilationContext::LiftoffCompilationContext() = default;
+
+LiftoffCompilationContext::~LiftoffCompilationContext() = default;
+
+Zone* LiftoffCompilationContext::zone() {
+  if (!zone_.has_value()) {
+    zone_.emplace(GetWasmEngine()->allocator(), kLiftoffZoneName);
+  }
+  return &zone_.value();
+}
+
+void LiftoffCompilationContext::ResetZone() {
+  if (!zone_.has_value()) return;
+  zone_->Reset();
+  if (zone_->segment_bytes_allocated() > kMaxRetainedZoneSize) {
+    zone_.reset();
+  }
+}
+
+void LiftoffCompilationContext::AddChunk(size_t min_size) {
+  size_t size = std::max(kChunkSize, min_size);
+  base::UniqueArray<uint8_t> chunk =
+      base::UniqueArray<uint8_t>::NewForOverwrite(size);
+#ifdef DEBUG
+  ZapCode(reinterpret_cast<Address>(chunk.begin()), size);
+#endif
+  chunks_.push_back(std::move(chunk));
+  committed_pos_ = 0;
+}
+
+std::unique_ptr<AssemblerBuffer> LiftoffCompilationContext::NewAssemblerBuffer(
+    int min_size) {
+  size_t needed = static_cast<size_t>(
+      std::max(AssemblerBase::kDefaultBufferSize, min_size));
+  if (chunks_.empty() || chunks_.back().size() - committed_pos_ < needed) {
+    AddChunk(needed);
+  }
+  base::UniqueArray<uint8_t>& chunk = chunks_.back();
+  // Hand out all remaining memory of the chunk. {CommitCode} will later only
+  // mark as used what was actually needed.
+  size_t available = chunk.size() - committed_pos_;
+  CHECK_GE(kMaxInt, available);
+  uint8_t* start = chunk.begin() + committed_pos_;
+  MSAN_ALLOCATED_UNINITIALIZED_MEMORY(start, available);
+  return std::make_unique<ArenaAssemblerBuffer>(start,
+                                                static_cast<int>(available));
+}
+
+void LiftoffCompilationContext::CommitCode(
+    std::unique_ptr<AssemblerBuffer> buffer, CodeDesc* desc) {
+  ArenaAssemblerBuffer* arena_buffer =
+      static_cast<ArenaAssemblerBuffer*>(buffer.get());
+  if (arena_buffer->owns_chunk()) {
+    chunks_.push_back(arena_buffer->ReleaseOwnedChunk());
+    committed_pos_ = 0;
+  }
+  DCHECK(!chunks_.empty());
+  base::UniqueArray<uint8_t>& chunk = chunks_.back();
+  DCHECK_LE(chunk.begin(), desc->buffer);
+  DCHECK_LE(desc->buffer + desc->buffer_size, chunk.begin() + chunk.size());
+  // The relocation info was written backwards from the end of the buffer. Move
+  // it right behind the instructions, such that the memory behind can be
+  // reused for the next function.
+  DCHECK_EQ(desc->reloc_offset, desc->buffer_size - desc->reloc_size);
+  DCHECK_LE(desc->instr_size, desc->reloc_offset);
+  if (desc->reloc_size > 0) {
+    memmove(desc->buffer + desc->instr_size, desc->buffer + desc->reloc_offset,
+            static_cast<size_t>(desc->reloc_size));
+  }
+  desc->reloc_offset = desc->instr_size;
+  desc->buffer_size = desc->instr_size + desc->reloc_size;
+  size_t end_offset = static_cast<size_t>(desc->buffer - chunk.begin()) +
+                      static_cast<size_t>(desc->buffer_size);
+  committed_pos_ = RoundUp<kSystemPointerSize>(end_offset);
+  // Rounding up can exceed the chunk by a few bytes, which only means that the
+  // next function needs a new chunk.
+  if (committed_pos_ > chunk.size()) committed_pos_ = chunk.size();
+}
+
+void LiftoffCompilationContext::ReleaseCode() {
+  committed_pos_ = 0;
+  if (chunks_.empty()) return;
+  // Keep one chunk within {kMaxRetainedChunkSize} alive for reuse.
+  for (auto it = chunks_.rbegin(); it != chunks_.rend(); ++it) {
+    if (it->size() <= kMaxRetainedChunkSize) {
+      if (&*it != &chunks_.front()) {
+        std::swap(chunks_.front(), *it);
+      }
+      chunks_.resize(1);
+#ifdef DEBUG
+      ZapCode(reinterpret_cast<Address>(chunks_.front().begin()),
+              chunks_.front().size());
+#endif
+      return;
+    }
+  }
+  chunks_.clear();
 }
 
 std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(

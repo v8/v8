@@ -27,7 +27,8 @@ namespace v8::internal::wasm {
 
 WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
     CompilationEnv* env, const WireBytesStorage* wire_bytes_storage,
-    DelayedCounterUpdates* counter_updates, WasmDetectedFeatures* detected) {
+    DelayedCounterUpdates* counter_updates, WasmDetectedFeatures* detected,
+    LiftoffCompilationContext* liftoff_context) {
   DCHECK_GE(func_index_, static_cast<int>(env->module->num_imported_functions));
   const WasmFunction* func = &env->module->functions[func_index_];
   base::Vector<const uint8_t> code = wire_bytes_storage->GetCode(func->code);
@@ -88,7 +89,8 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
         LiftoffOptions options{.func_index = func_index_,
                                .for_debugging = for_debugging_,
                                .counter_updates = counter_updates,
-                               .detected_features = detected};
+                               .detected_features = detected,
+                               .context = liftoff_context};
         // We do not use the debug side table, we only (optionally) pass it to
         // cover different code paths in Liftoff for testing.
         std::unique_ptr<DebugSideTable> unused_debug_sidetable;

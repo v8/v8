@@ -2774,7 +2774,12 @@ std::vector<UnpublishedWasmCode> NativeModule::AddCompiledCode(
 
   // Now copy the generated code into the code space and relocate it.
   for (auto& result : results) {
-    DCHECK_EQ(result.code_desc.buffer, result.instr_buffer->start());
+    // Liftoff code compiled with a {LiftoffCompilationContext} does not own
+    // its buffer.
+    DCHECK_IMPLIES(result.instr_buffer == nullptr,
+                   result.result_tier == ExecutionTier::kLiftoff);
+    DCHECK_IMPLIES(result.instr_buffer != nullptr,
+                   result.code_desc.buffer == result.instr_buffer->start());
     size_t code_size = RoundUp<kCodeAlignment>(result.code_desc.instr_size);
     base::Vector<uint8_t> this_code_space = code_space.SubVector(0, code_size);
     code_space += code_size;

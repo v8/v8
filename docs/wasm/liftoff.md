@@ -144,9 +144,9 @@ Four invariants span separate Liftoff compilations of the same function:
 
 ## 6. Compilation Memory Lifecycle & Publishing
 
-- **Per-Function `Zone` and `AssemblerBuffer`**: `ExecuteLiftoffCompilation` allocates a temporary per-function `Zone` (on `GetWasmEngine()->allocator()`) holding `CacheState`, decoder control blocks, `OutOfLineCode` lists, `SafepointTableBuilder`, `SourcePositionTableBuilder`, and `trapping_instructions_`; this `Zone` is destroyed when `ExecuteLiftoffCompilation` returns. Machine code is emitted into a heap-allocated `AssemblerBuffer` (`NewLiftoffAssemblerBuffer`, sized via `WasmCodeManager::EstimateLiftoffCodeSize`).
-- **`WasmCompilationResult` (`src/wasm/function-compiler.h`)**: Packages `code_desc`, ownership of `instr_buffer`, serialized `source_positions`, `trapping_instructions_data`, frame/GC slot counts, and optional `liftoff_frame_descriptions`.
-- **`NativeModule::AddCompiledCode` & `PublishCode` (`src/wasm/wasm-code-manager.cc`)**: Copies `instr_buffer` and metadata into executable `NativeModule` code space, patches `RelocInfo` (`WASM_CALL`, `WASM_STUB_CALL`), flushes the instruction cache, drops `reloc_info` (Liftoff code is neither relocated nor serialized by `WasmSerializer`), and publishes the resulting `WasmCode` into the module's code and jump tables (see [architecture.md](architecture.md)).
+- **`LiftoffCompilationContext` vs. Standalone Allocation (`src/wasm/baseline/liftoff-compiler.h`)**: During batched compilation (`ExecuteCompilationUnits` in `src/wasm/module-compiler.cc`), each worker task reuses a `LiftoffCompilationContext` across Liftoff units: `context->zone()` holds `CacheState`, decoder control blocks, `OutOfLineCode` lists, `SafepointTableBuilder`, `SourcePositionTableBuilder`, and `trapping_instructions_` and is reset on exit of `ExecuteLiftoffCompilation` (`ResetZone()`, retaining up to `512 KB`), while `NewAssemblerBuffer` / `CommitCode` bump-allocate instructions and `memmove`d relocation info into `64 KB` arena chunks. Standalone callers without a context (such as lazy compilation, debugging, or deopt recompiles) fall back to a per-function `Zone` and `NewLiftoffAssemblerBuffer` (`WasmCodeManager::EstimateLiftoffCodeSize`).
+- **`WasmCompilationResult` (`src/wasm/function-compiler.h`)**: Packages `code_desc`, `instr_buffer` (`nullptr` when backed by `LiftoffCompilationContext`), serialized `source_positions`, `trapping_instructions_data`, frame/GC slot counts, and optional `liftoff_frame_descriptions`.
+- **`NativeModule::AddCompiledCode` & `PublishCode` (`src/wasm/wasm-code-manager.cc`)**: Copies `code_desc` instructions and metadata into executable `NativeModule` code space (allowing `LiftoffCompilationContext::ReleaseCode()` to recycle up to `256 KB` of arena memory once the batch is copied), patches `RelocInfo` (`WASM_CALL`, `WASM_STUB_CALL`), flushes the instruction cache, drops `reloc_info` (Liftoff code is neither relocated nor serialized by `WasmSerializer`), and publishes the resulting `WasmCode` into the module's code and jump tables (see [architecture.md](architecture.md)).
 
 ---
 
@@ -154,7 +154,7 @@ Four invariants span separate Liftoff compilations of the same function:
 
 | File | Purpose |
 |---|---|
-| `src/wasm/baseline/liftoff-compiler.{h,cc}` | `LiftoffCompiler` decoder callbacks, `OutOfLineCode`, `FinishCall`, `ExecuteLiftoffCompilation`, and `GenerateLiftoffDebugSideTable`. |
+| `src/wasm/baseline/liftoff-compiler.{h,cc}` | `LiftoffCompiler` decoder callbacks, `LiftoffCompilationContext`, `OutOfLineCode`, `FinishCall`, `ExecuteLiftoffCompilation`, and `GenerateLiftoffDebugSideTable`. |
 | `src/wasm/baseline/liftoff-assembler.{h,cc}`, `-inl.h` | `LiftoffAssembler`, `CacheState`, spill/merge algorithms (`MergeIntoNewState`, `MergeStackWith`), and `PrepareCall`. |
 | `src/wasm/baseline/<arch>/liftoff-assembler-<arch>-inl.h` | Platform-specific `LiftoffAssembler` implementations (`x64`, `arm64`, `ia32`, `arm`, plus community ports). |
 | `src/wasm/baseline/liftoff-varstate.h` | `LiftoffVarState` (`kStack`, `kRegister`, `kIntConst`, spill offset). |

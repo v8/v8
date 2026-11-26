@@ -26,6 +26,7 @@
 
 namespace v8::internal::wasm {
 
+class LiftoffCompilationContext;
 class NativeModule;
 struct WasmFunction;
 
@@ -74,6 +75,9 @@ struct WasmCompilationResult {
   explicit operator bool() const { return succeeded(); }
 
   CodeDesc code_desc = {};
+  // Owns the memory {code_desc.buffer} points to. Is nullptr for Liftoff code
+  // compiled with a {LiftoffCompilationContext}; that code lives in the context
+  // until {LiftoffCompilationContext::ReleaseCode}.
   std::unique_ptr<AssemblerBuffer> instr_buffer = nullptr;
   uint32_t frame_slot_count = 0;
   uint32_t ool_spill_count = 0;
@@ -103,10 +107,12 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
         for_debugging_(for_debugging),
         validation_(validation) {}
 
-  WasmCompilationResult ExecuteCompilation(CompilationEnv*,
-                                           const WireBytesStorage*,
-                                           DelayedCounterUpdates*,
-                                           WasmDetectedFeatures*);
+  // {liftoff_context} is optional. If passed, Liftoff reuses memory across
+  // functions, and the code of the returned result lives in that context.
+  WasmCompilationResult ExecuteCompilation(
+      CompilationEnv*, const WireBytesStorage*, DelayedCounterUpdates*,
+      WasmDetectedFeatures*,
+      LiftoffCompilationContext* liftoff_context = nullptr);
 
   ExecutionTier tier() const { return tier_; }
   ForDebugging for_debugging() const { return for_debugging_; }
