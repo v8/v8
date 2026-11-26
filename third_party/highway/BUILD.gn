@@ -19,10 +19,14 @@ config("libhwy_external_config") {
     # requirement for absl::uint128 is 16.
     defines += [ "HWY_BROKEN_TARGETS=HWY_ALL_SVE" ]
   }
-  if (current_cpu == "s390x") {
-    # z13 relies only on emulation.
-    # Start using `-march=z14 -mzvector` once ready.
-    defines += [ "HWY_BROKEN_EMU128=0" ]
+  if (current_cpu == "s390x" && current_os != "zos") {
+    cflags = [
+      "-march=z14",
+      "-mzvector",
+    ]
+  }
+  if (current_cpu == "ppc64" && current_os != "aix") {
+    cflags = [ "-mcpu=pwr9" ]
   }
   if (current_os == "aix") {
     # enable emulation until highway aix support is ready.
