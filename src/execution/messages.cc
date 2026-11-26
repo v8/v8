@@ -703,9 +703,8 @@ Handle<JSObject> ErrorUtils::MakeGenericError(
 }
 
 // static
-DirectHandle<JSObject> ErrorUtils::ShadowRealmConstructTypeErrorCopy(
-    Isolate* isolate, DirectHandle<Object> original, MessageTemplate index,
-    base::Vector<const DirectHandle<Object>> args) {
+Tagged<Object> ErrorUtils::ThrowShadowRealmTypeErrorCopy(
+    Isolate* isolate, DirectHandle<Object> original, MessageTemplate index) {
   if (v8_flags.clear_exceptions_on_js_entry) {
     // This function used to be implemented in JavaScript, and JSEntry
     // clears any exceptions - so whenever we'd call this from C++,
@@ -713,7 +712,8 @@ DirectHandle<JSObject> ErrorUtils::ShadowRealmConstructTypeErrorCopy(
     isolate->clear_exception();
     isolate->clear_pending_message();
   }
-  DirectHandle<String> msg = MessageFormatter::Format(isolate, index, args);
+  DirectHandle<String> msg =
+      MessageFormatter::Format(isolate, index, base::VectorOf({original}));
   DirectHandle<Object> options = isolate->factory()->undefined_value();
 
   DirectHandle<JSObject> maybe_error_object;
@@ -721,17 +721,21 @@ DirectHandle<JSObject> ErrorUtils::ShadowRealmConstructTypeErrorCopy(
   StackTraceCollection collection = StackTraceCollection::kEnabled;
   if (IsJSObject(*original)) {
     maybe_error_object = Cast<JSObject>(original);
+    // This can call Error.prepareStackTrace, which can terminate execution.
     if (!ErrorUtils::GetFormattedStack(isolate, maybe_error_object)
              .ToHandle(&error_stack)) {
       DCHECK(isolate->has_exception());
+      // Don't swallow the termination exception.
+      if (isolate->is_execution_terminating()) {
+        return ReadOnlyRoots(isolate).exception();
+      }
       DirectHandle<Object> exception =
           direct_handle(isolate->exception(), isolate);
       isolate->clear_exception();
-      // Return a new side-effect-free TypeError to be loud about inner error.
-      DirectHandle<String> string =
-          Object::NoSideEffectsToString(isolate, exception);
-      return isolate->factory()->NewTypeError(
-          MessageTemplate::kShadowRealmErrorStackThrows, string);
+      // Throw a new side-effect-free TypeError to be loud about inner error.
+      THROW_NEW_ERROR_RETURN_FAILURE(
+          isolate, NewTypeError(MessageTemplate::kShadowRealmErrorStackThrows,
+                                exception));
     } else if (IsNullOrUndefined(*error_stack)) {
       // If the error stack property is null or undefined, create a new error.
       collection = StackTraceCollection::kEnabled;
@@ -742,12 +746,12 @@ DirectHandle<JSObject> ErrorUtils::ShadowRealmConstructTypeErrorCopy(
       // use it as the stack as well.
       collection = StackTraceCollection::kDisabled;
     } else {
-      // The error stack property is an arbitrary value. Return a new TypeError
+      // The error stack property is an arbitrary value. Throw a new TypeError
       // about the non-string value.
-      DirectHandle<String> string =
-          Object::NoSideEffectsToString(isolate, error_stack);
-      return isolate->factory()->NewTypeError(
-          MessageTemplate::kShadowRealmErrorStackNonString, string);
+      THROW_NEW_ERROR_RETURN_FAILURE(
+          isolate,
+          NewTypeError(MessageTemplate::kShadowRealmErrorStackNonString,
+                       error_stack));
     }
   }
 
@@ -769,7 +773,7 @@ DirectHandle<JSObject> ErrorUtils::ShadowRealmConstructTypeErrorCopy(
         .Check();
   }
 
-  return new_error;
+  return isolate->Throw(*new_error);
 }
 
 namespace {

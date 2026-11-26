@@ -101,9 +101,12 @@ class ErrorUtils : public AllStatic {
       MessageTemplate index, base::Vector<const DirectHandle<Object>> args,
       FrameSkipMode mode);
 
-  static DirectHandle<JSObject> ShadowRealmConstructTypeErrorCopy(
-      Isolate* isolate, DirectHandle<Object> original, MessageTemplate index,
-      base::Vector<const DirectHandle<Object>> args);
+  // Throws a TypeError copy of an exception crossing a ShadowRealm boundary,
+  // using the stringified {original} as the message argument.
+  // https://tc39.es/proposal-shadowrealm/#sec-create-type-error-copy
+  // Returns the Exception sentinel.
+  static Tagged<Object> ThrowShadowRealmTypeErrorCopy(
+      Isolate* isolate, DirectHandle<Object> original, MessageTemplate index);
 
   // Formats a textual stack trace from the given structured stack trace.
   // Note that this can call arbitrary JS code through Error.prepareStackTrace.

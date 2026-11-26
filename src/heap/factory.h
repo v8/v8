@@ -1072,23 +1072,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                     base::VectorOf<DirectHandle<Object>>({args...}));
   }
 
-  // https://tc39.es/proposal-shadowrealm/#sec-create-type-error-copy
-  DirectHandle<JSObject> ShadowRealmNewTypeErrorCopy(
-      DirectHandle<Object> original, MessageTemplate template_index,
-      base::Vector<const DirectHandle<Object>> args);
-
-  template <typename... Args>
-  DirectHandle<JSObject> ShadowRealmNewTypeErrorCopy(
-      DirectHandle<Object> original, MessageTemplate template_index,
-      Args... args)
-    requires(
-        std::conjunction_v<std::is_convertible<Args, DirectHandle<Object>>...>)
-  {
-    return ShadowRealmNewTypeErrorCopy(
-        original, template_index,
-        base::VectorOf<DirectHandle<Object>>({args...}));
-  }
-
 #define DECLARE_ERROR(NAME)                                                  \
   Handle<JSObject> New##NAME(MessageTemplate template_index,                 \
                              base::Vector<const DirectHandle<Object>> args); \

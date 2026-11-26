@@ -19,7 +19,8 @@ V8's `Isolate` tracks two distinct exception slots in `ThreadLocalTop` (`src/exe
 
 ### Uncatchable Termination (`TerminationException`)
 When an embedder calls `v8::Isolate::TerminateExecution()` (for example, to stop a runaway worker or script timeout), V8 throws `ReadOnlyRoots(isolate).termination_exception()` (`TerminationException`).
-- Unlike normal JS exceptions (`IsTheHole` / `IsException`), `TerminationException` is **uncatchable** by user JavaScript: `Isolate::Throw` ignores user `try`/`catch` and `finally` blocks, unwinding all JavaScript frames back to the outermost C++ entry point (`Invoke`).
+- Unlike normal JS exceptions (`IsTheHole` / `IsException`), `TerminationException` is **uncatchable** by user JavaScript: `Isolate::Throw` ignores user `try`/`catch`, `finally`, and `StubFrame` handlers, unwinding all frames up to the nearest C++ `JSEntry` boundary (`Execution::Invoke`).
+- Because unwinding stops at the nearest `JSEntry` frame, any C++ runtime or builtin path that invokes nested JavaScript (`Execution::Call`) and clears or wraps a resulting exception (for example, `ErrorUtils::ThrowShadowRealmTypeErrorCopy` or `IteratorClose`) must check `isolate->is_execution_terminating()` (or `!isolate->is_catchable_by_javascript(exception)`) before calling `isolate->clear_exception()` so termination continues unwinding outer JS frames.
 
 ---
 
