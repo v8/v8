@@ -2184,39 +2184,23 @@ EnumerateCompiledFunctions(Heap* heap) {
     }
   };
 
-  // Iterate the heap to find JSFunctions and record their optimized code.
+  // Iterate the heap to find API functions, optimized JSFunctions, and exported
+  // Wasm functions. The heap walk can see SFIs whose trusted data cannot be
+  // read yet: not yet written (off-thread deserialization in progress) or
+  // unpublished (failed Wasm instantiation, crbug.com/385341243). So, for SFIs
+  // found directly by the walk, only untrusted fields (IsApiFunction) may be
+  // read. Script-backed functions are found via Script::Iterator below:
+  // off-thread Scripts only enter script_list() on finalization, once their
+  // SFIs are fully deserialized.
   for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     if (IsSharedFunctionInfo(obj)) {
       Tagged<SharedFunctionInfo> sfi = Cast<SharedFunctionInfo>(obj);
-      // Skip partially deserialized SFIs whose script field has not been
-      // initialized yet.
-      if (IsSmi(sfi->raw_script(kAcquireLoad))) continue;
-      // Bytecode, baseline, and Wasm SFIs store function data in
-      // trusted_function_data_ and are recorded via Script::Iterator or
-      // JSFunction below. Skipping SFIs with trusted data (published or
-      // unpublished) also avoids reading unpublished trusted data
-      // (crbug.com/385341243), while checking the untrusted compiled cases
-      // directly skips off-thread deserialized SFIs whose deferred
-      // trusted_function_data_ has not been populated yet
-      // (untrusted_function_data_ == -1).
-      if (sfi->HasUnpublishedTrustedData(isolate) ||
-          !IsSmi(sfi->GetTrustedData(isolate))) {
-        continue;
-      }
-
-      bool has_untrusted_code =
-          (sfi->HasBuiltinId() && sfi->builtin_id() != Builtin::kCompileLazy) ||
-          sfi->IsApiFunction();
-#if V8_ENABLE_WEBASSEMBLY
-      has_untrusted_code = has_untrusted_code || sfi->HasWasmResumeData();
-#endif  // V8_ENABLE_WEBASSEMBLY
-      if (has_untrusted_code) {
-        record(sfi, Cast<AbstractCode>(sfi->GetCode(isolate)));
+      if (sfi->IsApiFunction()) {
+        record(sfi, Cast<AbstractCode>(isolate->builtins()->code(
+                        Builtin::kHandleApiCallOrConstruct)));
       }
     } else if (IsJSFunction(obj)) {
-      // Given that we no longer iterate over all optimized JSFunctions, we need
-      // to take care of this here.
       Tagged<JSFunction> function = Cast<JSFunction>(obj);
       Tagged<SharedFunctionInfo> sfi = function->shared();
       // TODO(jarin) This leaves out deoptimized code that might still be on the
@@ -2701,14 +2685,10 @@ void ExistingCodeLogger::LogCompiledFunctions(
   // GetScriptLineNumber call.
   for (auto& pair : compiled_funcs) {
     DirectHandle<SharedFunctionInfo> shared = pair.first;
-
-    // If the script is a Smi, then the SharedFunctionInfo is in
-    // the process of being deserialized.
-    Tagged<Object> script = shared->raw_script(kAcquireLoad);
-    if (IsSmi(script)) {
-      DCHECK_EQ(script, Smi::uninitialized_deserialization_value());
-      continue;
-    }
+    // EnumerateCompiledFunctions only returns API functions and SFIs reachable
+    // from a JSFunction or script_list(), none of which can still be mid
+    // off-thread deserialization (Smi script).
+    DCHECK(!IsSmi(shared->raw_script(kAcquireLoad)));
 
     if (ensure_source_positions_available) {
       SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate_, shared);

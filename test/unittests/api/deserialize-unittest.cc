@@ -2,11 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <atomic>
 #include <format>
 #include <string>
 #include <string_view>
-#include <thread>
 #include <utility>
 
 #include "include/v8-context.h"
@@ -23,11 +21,9 @@
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
 #include "src/debug/debug-interface.h"
-#if defined(V8_ENABLE_ETW_STACK_WALKING)
-#include "src/diagnostics/etw-isolate-load-script-data-win.h"
-#endif  // defined(V8_ENABLE_ETW_STACK_WALKING)
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-verifier.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/objects/scope-info-inl.h"
 #include "src/objects/script-inl.h"
 #include "src/objects/string-inl.h"
@@ -36,6 +32,10 @@
 #include "test/common/flag-utils.h"
 #include "test/unittests/heap/heap-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+#include "src/diagnostics/etw-isolate-load-script-data-win.h"
+#endif  // defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
 
 namespace v8 {
 
@@ -87,9 +87,13 @@ class DeserializeTest : public TestWithPlatform {
     return context_.Get(isolate_);
   }
 
+#ifdef V8_ENABLE_TEST_ONLY_SYNC_POINTS
+  // Deserializes a code cache on a background thread, and runs `action` on
+  // the main thread while that thread is paused at the first allocation of
+  // the trusted section.
   template <typename Action>
-  void RunConcurrentOffThreadDeserialize(int iterations,
-                                         Action&& concurrent_action);
+  void RunDuringOffThreadDeserialize(const Action& action);
+#endif  // V8_ENABLE_TEST_ONLY_SYNC_POINTS
 
  private:
   Isolate* isolate_ = nullptr;
@@ -225,101 +229,83 @@ TEST_F(DeserializeTest, OffThreadDeserialize) {
   }
 }
 
-class SignalingDeserializeThread : public base::Thread {
- public:
-  SignalingDeserializeThread(
-      std::unique_ptr<ScriptCompiler::ConsumeCodeCacheTask> task,
-      std::atomic<bool>* done)
-      : Thread(base::Thread::Options("SignalingDeserializeThread")),
-        task_(std::move(task)),
-        done_(done) {}
-
-  void Run() override {
-    task_->Run();
-    done_->store(true, std::memory_order_release);
-  }
-
-  std::unique_ptr<ScriptCompiler::ConsumeCodeCacheTask> TakeTask() {
-    return std::move(task_);
-  }
-
- private:
-  std::unique_ptr<ScriptCompiler::ConsumeCodeCacheTask> task_;
-  std::atomic<bool>* done_;
-};
-
+#ifdef V8_ENABLE_TEST_ONLY_SYNC_POINTS
 template <typename Action>
-void DeserializeTest::RunConcurrentOffThreadDeserialize(
-    int iterations, Action&& concurrent_action) {
+void DeserializeTest::RunDuringOffThreadDeserialize(const Action& action) {
   if (!i::v8_flags.concurrent_cache_deserialization) GTEST_SKIP();
+  // Without the sandbox there is no separate trusted section, so the
+  // deserializer does not allocate after the sync point and never pauses.
+  if (!V8_ENABLE_SANDBOX_BOOL) GTEST_SKIP();
 
-  std::string source_str;
-  for (int i = 0; i < 2000; ++i) {
-    source_str += std::format("function f{0}() {{ return {0}; }} f{0}();\n", i);
-  }
+  static constexpr const char* kSyncPoint =
+      "OffThreadDeserializeInTrustedSection";
+  static constexpr const char* kSource = "function foo() { return 42; } foo();";
 
   std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data;
   {
     IsolateAndContextScope scope(this);
-    Local<String> source_code = NewString(source_str.c_str());
     Local<Script> script =
-        Script::Compile(context(), source_code).ToLocalChecked();
+        Script::Compile(context(), NewString(kSource)).ToLocalChecked();
     CHECK(!script->Run(context()).IsEmpty());
     cached_data.reset(
         ScriptCompiler::CreateCodeCache(script->GetUnboundScript()));
     CHECK_NOT_NULL(cached_data);
   }
 
-  {
-    IsolateAndContextScope scope(this);
-    for (int iter = 0; iter < iterations; ++iter) {
-      std::atomic<bool> done{false};
-      std::unique_ptr<ScriptCompiler::ConsumeCodeCacheTask> task(
-          ScriptCompiler::StartConsumingCodeCache(
-              isolate(), std::make_unique<ScriptCompiler::CachedData>(
-                             cached_data->data, cached_data->length,
-                             ScriptCompiler::CachedData::BufferNotOwned)));
-      CHECK_NOT_NULL(task);
-      SignalingDeserializeThread deserialize_thread(std::move(task), &done);
-      CHECK(deserialize_thread.Start());
-      while (!done.load(std::memory_order_acquire)) {
-        concurrent_action(isolate());
-        std::this_thread::yield();
-      }
-      deserialize_thread.Join();
+  IsolateAndContextScope scope(this);
+  base::SynchronizationPointSupport::Get()->RequestBlockAtNextSafepoint(
+      kSyncPoint, base::TimeDelta::FromSeconds(10));
 
-      if (iter == 0) {
-        Local<String> source_code = NewString(source_str.c_str());
-        ScriptCompiler::Source source(
-            source_code,
-            new ScriptCompiler::CachedData(
-                cached_data->data, cached_data->length,
-                ScriptCompiler::CachedData::BufferNotOwned),
-            deserialize_thread.TakeTask().release());
-        Local<Script> script =
-            ScriptCompiler::Compile(context(), &source,
-                                    ScriptCompiler::kConsumeCodeCache)
-                .ToLocalChecked();
-        CHECK(!source.GetCachedData()->rejected);
-        CHECK(!script->Run(context()).IsEmpty());
-        CHECK_EQ(RunGlobalFunc("f1999"), v8::Integer::New(isolate(), 1999));
-      }
-    }
-  }
+  DeserializeThread deserialize_thread(ScriptCompiler::StartConsumingCodeCache(
+      isolate(), std::make_unique<ScriptCompiler::CachedData>(
+                     cached_data->data, cached_data->length,
+                     ScriptCompiler::CachedData::BufferNotOwned)));
+  CHECK(deserialize_thread.Start());
+  // Park while waiting, so that the background thread is never stuck waiting
+  // for the main thread to reach a safepoint.
+  i::LocalHeap* local_heap =
+      reinterpret_cast<i::Isolate*>(isolate())->main_thread_local_heap();
+  local_heap->ExecuteWhileParked([&]() {
+    CHECK(base::SynchronizationPointSupport::Get()->WaitUntilBlocked(
+        kSyncPoint, base::TimeDelta::FromSeconds(10)));
+  });
+
+  action(isolate());
+
+  CHECK(base::SynchronizationPointSupport::Get()->Resume(kSyncPoint));
+  local_heap->ExecuteWhileParked([&]() { deserialize_thread.Join(); });
+
+  ScriptCompiler::Source source(NewString(kSource), cached_data.release(),
+                                deserialize_thread.TakeTask().release());
+  Local<Script> script =
+      ScriptCompiler::Compile(context(), &source,
+                              ScriptCompiler::kConsumeCodeCache)
+          .ToLocalChecked();
+  CHECK(!source.GetCachedData()->rejected);
+  CHECK(!script->Run(context()).IsEmpty());
+  CHECK_EQ(RunGlobalFunc("foo"), v8::Integer::New(isolate(), 42));
 }
 
 TEST_F(DeserializeTest, OffThreadDeserializeWithCpuProfiler) {
-  RunConcurrentOffThreadDeserialize(20, [](Isolate* isolate) {
+  RunDuringOffThreadDeserialize([](Isolate* isolate) {
     v8::CpuProfiler* profiler =
         v8::CpuProfiler::New(isolate, v8::kDebugNaming, v8::kEagerLogging);
     profiler->Dispose();
   });
 }
 
-#if defined(V8_ENABLE_ETW_STACK_WALKING)
+TEST_F(DeserializeTest, OffThreadDeserializeWithJitCodeEventHandler) {
+  RunDuringOffThreadDeserialize([](Isolate* isolate) {
+    isolate->SetJitCodeEventHandler(v8::kJitCodeEventEnumExisting,
+                                    [](const v8::JitCodeEvent*) {});
+    isolate->SetJitCodeEventHandler(v8::kJitCodeEventDefault, nullptr);
+  });
+}
+
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
 TEST_F(DeserializeTest, OffThreadDeserializeWithEtwEnableLog) {
   i::FlagScope<bool> enable_etw(&i::v8_flags.enable_etw_stack_walking, true);
-  RunConcurrentOffThreadDeserialize(15, [](Isolate* isolate) {
+  RunDuringOffThreadDeserialize([](Isolate* isolate) {
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
     i::ETWJITInterface::IsolateLoadScriptData::EnableLog(
         i_isolate, 0,
@@ -328,7 +314,8 @@ TEST_F(DeserializeTest, OffThreadDeserializeWithEtwEnableLog) {
     i::ETWJITInterface::IsolateLoadScriptData::DisableLog(i_isolate, 0);
   });
 }
-#endif  // defined(V8_ENABLE_ETW_STACK_WALKING)
+#endif  // defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+#endif  // V8_ENABLE_TEST_ONLY_SYNC_POINTS
 
 namespace {
 

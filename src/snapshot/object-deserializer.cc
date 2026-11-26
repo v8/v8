@@ -4,6 +4,7 @@
 
 #include "src/snapshot/object-deserializer.h"
 
+#include "src/base/synchronization-point-support.h"
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/local-factory-inl.h"
@@ -100,6 +101,10 @@ MaybeDirectHandle<HeapObject> OffThreadObjectDeserializer::Deserialize(
   DirectHandle<HeapObject> result;
   {
     result = DeserializeUntrustedSection();
+    // Lets tests pause (via RequestBlockAtNextSafepoint) at the first
+    // allocation of the trusted section, where the deserialized SFIs are
+    // visible to heap walks but their trusted data is not yet populated.
+    SYNCHRONIZATION_POINT_TEST_ONLY("OffThreadDeserializeInTrustedSection");
     DeserializeTrustedSection();
     CHECK(new_instruction_stream_objects().empty());
     CHECK(new_maps().empty());
