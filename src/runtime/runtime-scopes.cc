@@ -884,9 +884,17 @@ MaybeDirectHandle<Object> LoadLookupSlot(
 
   if (!holder.is_null() && IsSourceTextModule(*holder)) {
     Handle<Object> receiver = isolate->factory()->undefined_value();
-    if (receiver_return) *receiver_return = receiver;
-    return SourceTextModule::LoadVariable(
+    Handle<Object> value = SourceTextModule::LoadVariable(
         isolate, Cast<SourceTextModule>(holder), index);
+    // Check for uninitialized bindings. This looks at the value rather than
+    // at {flag}, so that it also covers imports, whose cell belongs to the
+    // exporting module. The hole must never escape as a value.
+    if (IsTdzHole(*value)) {
+      THROW_NEW_ERROR(isolate,
+                      NewReferenceError(MessageTemplate::kNotDefined, name));
+    }
+    if (receiver_return) *receiver_return = receiver;
+    return value;
   }
   if (index != Context::kNotFound) {
     DCHECK(IsContext(*holder));
@@ -1004,9 +1012,14 @@ MaybeDirectHandle<Object> StoreLookupSlot(
     // In case of JSProxy, an exception might have been thrown.
     if (isolate->has_exception()) return MaybeDirectHandle<Object>();
   } else if (IsSourceTextModule(*holder)) {
+    DirectHandle<SourceTextModule> module = Cast<SourceTextModule>(holder);
+    // Check for uninitialized bindings, see LoadLookupSlot.
+    if (IsTdzHole(*SourceTextModule::LoadVariable(isolate, module, index))) {
+      THROW_NEW_ERROR(isolate,
+                      NewReferenceError(MessageTemplate::kNotDefined, name));
+    }
     if ((attributes & READ_ONLY) == 0) {
-      SourceTextModule::StoreVariable(Cast<SourceTextModule>(holder), index,
-                                      value);
+      SourceTextModule::StoreVariable(module, index, value);
     } else {
       THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kConstAssign));
     }
