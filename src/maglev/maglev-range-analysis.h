@@ -48,8 +48,9 @@ class LessEqualConstraint {
   friend base::ThreadedListTraits<LessEqualConstraint>;
 };
 
-// Stores flow insensitive ranges in global_ and per block branch narrowings
-// in blocks_, which is reset on every fixpoint pass.
+// Stores flow insensitive ranges in global_ and per block narrowings by
+// branches and deopting checks in blocks_, which is reset on every fixpoint
+// pass.
 class NodeRanges {
  public:
   using RangeMap = HAMT<ValueNode*, Range>;
@@ -62,15 +63,15 @@ class NodeRanges {
   Range Get(BasicBlock* block, ValueNode* node) const {
     if (!IsBlockTracked(block)) return node->GetStaticRange();
     DCHECK(IsInitialized(block));
-    if (IsConstantNode(node->opcode())) return node->GetStaticRange();
+    return Lookup(blocks_[block->id()].overrides, node);
+  }
 
-    if (const Range* narrowed = blocks_[block->id()].overrides.find(node)) {
-      return *narrowed;
-    }
-
-    const auto it = global_.find(node);
-    if (it == global_.end()) return node->GetStaticRange();
-    return it->second;
+  // Returns the range of `node` at the current position in `block` while the
+  // block is being processed, and at its exit afterwards.
+  Range GetExit(BasicBlock* block, ValueNode* node) const {
+    if (!IsBlockTracked(block)) return node->GetStaticRange();
+    DCHECK(IsProcessed(block));
+    return Lookup(blocks_[block->id()].exit_overrides, node);
   }
 
   RangeMap overrides(BasicBlock* block) const {
@@ -126,6 +127,12 @@ class NodeRanges {
       std::cout << "  " << PrintNodeBrief(node) << ": " << range
                 << " (narrowed)" << std::endl;
     }
+    for (auto [node, range] : state.exit_overrides) {
+      const Range* entry = state.overrides.find(node);
+      if (entry && *entry == range) continue;
+      std::cout << "  " << PrintNodeBrief(node) << ": " << range
+                << " (narrowed at exit)" << std::endl;
+    }
   }
 
   void Print() const {
@@ -148,13 +155,15 @@ class NodeRanges {
   }
 
   void MarkBlockProcessed(BasicBlock* block) {
-    blocks_[block->id()].status = BlockState::Status::kProcessed;
+    BlockState& state = blocks_[block->id()];
+    state.exit_overrides = state.overrides;
+    state.status = BlockState::Status::kProcessed;
   }
 
   void Join(BasicBlock* block, BasicBlock* pred) {
-    DCHECK(IsInitialized(pred));
+    DCHECK(IsProcessed(pred));
 
-    const RangeMap& pred_map = blocks_[pred->id()].overrides;
+    const RangeMap& pred_map = blocks_[pred->id()].exit_overrides;
 
     BlockState& state = blocks_[block->id()];
     switch (state.status) {
@@ -190,29 +199,18 @@ class NodeRanges {
     }
   }
 
+  // Narrows `node` for the whole of `block`, which must not be processed yet.
   void NarrowUpdate(BasicBlock* block, ValueNode* node, Range narrowed_range) {
-    if (IsConstantNode(node->opcode())) {
-      // Don't narrow update constants.
-      return;
-    }
     DCHECK(IsInitialized(block));
-    if (narrowed_range.is_empty()) {
-      // An empty narrowing means the guarded edge is unreachable. Keep the
-      // wider range, since consumers would treat an empty one as below every
-      // bound.
-      TRACE_RANGE("Failed narrowing update in Block b"
-                  << block->id() << ": " << PrintNodeBrief(node)
-                  << ", to: " << narrowed_range);
-      return;
-    }
+    DCHECK(!IsProcessed(block));
+    Narrow(block, &blocks_[block->id()].overrides, node, narrowed_range);
+  }
 
-    if (narrowed_range == Get(block, node)) return;
-
-    RangeMap& map = blocks_[block->id()].overrides;
-    TRACE_RANGE("Narrow update in Block b" << block->id() << ": "
-                                           << PrintNodeBrief(node) << ": "
-                                           << narrowed_range);
-    map = map.insert(zone(), node, narrowed_range);
+  // Narrows `node` from the current position in `block` onwards.
+  void NarrowExitUpdate(BasicBlock* block, ValueNode* node,
+                        Range narrowed_range) {
+    DCHECK(IsProcessed(block));
+    Narrow(block, &blocks_[block->id()].exit_overrides, node, narrowed_range);
   }
 
   void AddLessEqualConstraint(BasicBlock* block, ValueNode* lhs,
@@ -242,11 +240,13 @@ class NodeRanges {
     // BranchIfInt32Compare(LessThan).
     LessEqualConstraint::List less_equals;
     RangeMap overrides;
+    RangeMap exit_overrides;
     Status status = Status::kUninitialized;
 
     void Reset() {
       less_equals.Clear();
       overrides = RangeMap();
+      exit_overrides = RangeMap();
       status = Status::kUninitialized;
     }
   };
@@ -270,6 +270,38 @@ class NodeRanges {
   // nodes.
   bool IsBlockTracked(BasicBlock* block) const {
     return block->id() < static_cast<BasicBlock::Id>(blocks_.size());
+  }
+
+  Range Lookup(const RangeMap& overrides, ValueNode* node) const {
+    if (IsConstantNode(node->opcode())) return node->GetStaticRange();
+    if (const Range* narrowed = overrides.find(node)) return *narrowed;
+    const auto it = global_.find(node);
+    if (it == global_.end()) return node->GetStaticRange();
+    return it->second;
+  }
+
+  void Narrow(BasicBlock* block, RangeMap* overrides, ValueNode* node,
+              Range narrowed_range) {
+    if (IsConstantNode(node->opcode())) {
+      // Don't narrow update constants.
+      return;
+    }
+    if (narrowed_range.is_empty()) {
+      // An empty narrowing means the guarded edge is unreachable or the check
+      // always deopts. Keep the wider range, since consumers would treat an
+      // empty one as below every bound.
+      TRACE_RANGE("Failed narrowing update in Block b"
+                  << block->id() << ": " << PrintNodeBrief(node)
+                  << ", to: " << narrowed_range);
+      return;
+    }
+
+    if (narrowed_range == Lookup(*overrides, node)) return;
+
+    TRACE_RANGE("Narrow update in Block b" << block->id() << ": "
+                                           << PrintNodeBrief(node) << ": "
+                                           << narrowed_range);
+    *overrides = overrides->insert(zone(), node, narrowed_range);
   }
 
   Zone* zone() const { return graph_->zone(); }
@@ -335,6 +367,41 @@ class RangeProcessor {
   }
   ProcessResult Process(CheckedSmiSizedInt32* node, const ProcessingState&) {
     UnionUpdate(node, Range::Intersect(Get(node->input_node(0)), Range::Smi()));
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(CheckInt32Condition* node, const ProcessingState&) {
+    NarrowForCondition(
+        node->condition(), node->input_node(0), node->input_node(1),
+        [this](ValueNode* n, Range range) { NarrowAfterCheck(n, range); });
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(CheckTypedArrayBounds* node, const ProcessingState&) {
+    ValueNode* index = node->IndexInput().node();
+    ValueNode* length = node->LengthInput().node();
+    // The length is never negative, so the index is not negative either.
+    Range index_range = Range::Intersect(Get(index), Range(0, INT32_MAX));
+    NarrowForLess(
+        index, index_range, length, Get(length), false,
+        [this](ValueNode* n, Range range) { NarrowAfterCheck(n, range); });
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(CheckInt32IsSmi* node, const ProcessingState&) {
+    NarrowAfterSmiCheck(node->input_node(0));
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(CheckUint32IsSmi* node, const ProcessingState&) {
+    ValueNode* input = node->input_node(0);
+    NarrowAfterCheck(input,
+                     Range::Intersect(Get(input), Range::NonNegativeSmi()));
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(CheckIntPtrIsSmi* node, const ProcessingState&) {
+    NarrowAfterSmiCheck(node->input_node(0));
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(CheckValueEqualsInt32* node, const ProcessingState&) {
+    ValueNode* input = node->input_node(0);
+    NarrowAfterCheck(input, Range::Intersect(Get(input), Range(node->value())));
     return ProcessResult::kContinue;
   }
   ProcessResult Process(TruncateCheckedNumberOrOddballToInt32* node) {
@@ -508,41 +575,13 @@ class RangeProcessor {
     DCHECK_EQ(succ->predecessor_count(), 1);
     ValueNode* lhs = node->input_node(0);
     ValueNode* rhs = node->input_node(1);
-    Range lhs_range = Get(lhs);
-    Range rhs_range = Get(rhs);
-    switch (node->operation()) {
-#define CASE(Op, InvOp, NegOp, NegInvOp)                                      \
-  case Operation::k##Op:                                                      \
-    if (node->if_true() == succ) {                                            \
-      ranges_.NarrowUpdate(succ, lhs,                                         \
-                           lhs_range.Constrain##Op(lhs_range, rhs_range));    \
-      ranges_.NarrowUpdate(succ, rhs,                                         \
-                           rhs_range.Constrain##InvOp(rhs_range, lhs_range)); \
-    } else {                                                                  \
-      DCHECK_EQ(node->if_false(), succ);                                      \
-      ranges_.NarrowUpdate(succ, lhs,                                         \
-                           lhs_range.Constrain##NegOp(lhs_range, rhs_range)); \
-      ranges_.NarrowUpdate(                                                   \
-          succ, rhs, rhs_range.Constrain##NegInvOp(rhs_range, lhs_range));    \
-    }                                                                         \
-    break;
-      CASE(LessThan, GreaterThan, GreaterThanOrEqual, LessThanOrEqual)
-      CASE(LessThanOrEqual, GreaterThanOrEqual, GreaterThan, LessThan)
-      CASE(GreaterThan, LessThan, LessThanOrEqual, GreaterThanOrEqual)
-      CASE(GreaterThanOrEqual, LessThanOrEqual, LessThan, GreaterThan)
-#undef CASE
-      case Operation::kEqual:
-      case Operation::kStrictEqual:
-        if (node->if_true() == succ) {
-          Range eq = Range::Intersect(lhs_range, rhs_range);
-          ranges_.NarrowUpdate(succ, lhs, eq);
-          ranges_.NarrowUpdate(succ, rhs, eq);
-        }
-        break;
-      default:
-        UNREACHABLE();
-    }
-    if (node->operation() == Operation::kLessThan && node->if_true() == succ) {
+    const bool is_true = node->if_true() == succ;
+    DCHECK_IMPLIES(!is_true, node->if_false() == succ);
+    NarrowForCondition(BranchCondition(node->operation(), is_true), lhs, rhs,
+                       [this, succ](ValueNode* n, Range range) {
+                         ranges_.NarrowUpdate(succ, n, range);
+                       });
+    if (node->operation() == Operation::kLessThan && is_true) {
       ranges_.AddLessEqualConstraint(succ, lhs, rhs);
     }
   }
@@ -571,7 +610,108 @@ class RangeProcessor {
 
   Range Get(ValueNode* node) {
     DCHECK_NOT_NULL(current_block_);
-    return ranges_.Get(current_block_, node);
+    return ranges_.GetExit(current_block_, node);
+  }
+
+  // Narrows `node` after a deopting check.
+  void NarrowAfterCheck(ValueNode* node, Range range) {
+    DCHECK_NOT_NULL(current_block_);
+    ranges_.NarrowExitUpdate(current_block_, node, range);
+  }
+
+  void NarrowAfterSmiCheck(ValueNode* node) {
+    NarrowAfterCheck(node, Range::Intersect(Get(node), Range::Smi()));
+  }
+
+  // Returns the condition that holds on the true or false edge of a branch on
+  // `operation`.
+  static AssertCondition BranchCondition(Operation operation, bool is_true) {
+    switch (operation) {
+      case Operation::kEqual:
+      case Operation::kStrictEqual:
+        return is_true ? AssertCondition::kEqual : AssertCondition::kNotEqual;
+      case Operation::kLessThan:
+        return is_true ? AssertCondition::kLessThan
+                       : AssertCondition::kGreaterThanEqual;
+      case Operation::kLessThanOrEqual:
+        return is_true ? AssertCondition::kLessThanEqual
+                       : AssertCondition::kGreaterThan;
+      case Operation::kGreaterThan:
+        return is_true ? AssertCondition::kGreaterThan
+                       : AssertCondition::kLessThanEqual;
+      case Operation::kGreaterThanOrEqual:
+        return is_true ? AssertCondition::kGreaterThanEqual
+                       : AssertCondition::kLessThan;
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  // Passes the ranges of `lhs` and `rhs` to `narrow`, given that `condition`
+  // holds for them.
+  template <typename Function>
+  void NarrowForCondition(AssertCondition condition, ValueNode* lhs,
+                          ValueNode* rhs, Function&& narrow) {
+    Range lhs_range = Get(lhs);
+    Range rhs_range = Get(rhs);
+    switch (condition) {
+      case AssertCondition::kEqual: {
+        Range eq = Range::Intersect(lhs_range, rhs_range);
+        narrow(lhs, eq);
+        narrow(rhs, eq);
+        break;
+      }
+      case AssertCondition::kNotEqual:
+        break;
+      case AssertCondition::kLessThan:
+        NarrowForLess(lhs, lhs_range, rhs, rhs_range, false, narrow);
+        break;
+      case AssertCondition::kLessThanEqual:
+        NarrowForLess(lhs, lhs_range, rhs, rhs_range, true, narrow);
+        break;
+      case AssertCondition::kGreaterThan:
+        NarrowForLess(rhs, rhs_range, lhs, lhs_range, false, narrow);
+        break;
+      case AssertCondition::kGreaterThanEqual:
+        NarrowForLess(rhs, rhs_range, lhs, lhs_range, true, narrow);
+        break;
+      case AssertCondition::kUnsignedLessThan:
+        NarrowForUnsignedLess(lhs, lhs_range, rhs, rhs_range, false, narrow);
+        break;
+      case AssertCondition::kUnsignedLessThanEqual:
+        NarrowForUnsignedLess(lhs, lhs_range, rhs, rhs_range, true, narrow);
+        break;
+      case AssertCondition::kUnsignedGreaterThan:
+        NarrowForUnsignedLess(rhs, rhs_range, lhs, lhs_range, false, narrow);
+        break;
+      case AssertCondition::kUnsignedGreaterThanEqual:
+        NarrowForUnsignedLess(rhs, rhs_range, lhs, lhs_range, true, narrow);
+        break;
+    }
+  }
+
+  // Narrows for `lhs < rhs`, or `lhs <= rhs` if `or_equal`.
+  template <typename Function>
+  void NarrowForLess(ValueNode* lhs, Range lhs_range, ValueNode* rhs,
+                     Range rhs_range, bool or_equal, Function&& narrow) {
+    if (or_equal) {
+      narrow(lhs, Range::ConstrainLessThanOrEqual(lhs_range, rhs_range));
+      narrow(rhs, Range::ConstrainGreaterThanOrEqual(rhs_range, lhs_range));
+    } else {
+      narrow(lhs, Range::ConstrainLessThan(lhs_range, rhs_range));
+      narrow(rhs, Range::ConstrainGreaterThan(rhs_range, lhs_range));
+    }
+  }
+
+  // Narrows for an unsigned `lhs < rhs`, or `lhs <= rhs` if `or_equal`.
+  template <typename Function>
+  void NarrowForUnsignedLess(ValueNode* lhs, Range lhs_range, ValueNode* rhs,
+                             Range rhs_range, bool or_equal,
+                             Function&& narrow) {
+    // With rhs >= 0, the unsigned check is a signed check plus lhs >= 0.
+    if (!rhs_range.IsInt32() || *rhs_range.min() < 0) return;
+    lhs_range = Range::Intersect(lhs_range, Range(0, INT32_MAX));
+    NarrowForLess(lhs, lhs_range, rhs, rhs_range, or_equal, narrow);
   }
 
   void UnionUpdate(ValueNode* node, Range range) {
@@ -629,7 +769,7 @@ class RangeProcessor {
           DCHECK(pred->is_dead());
           continue;
         }
-        Range input_range = ranges_.Get(pred, phi->input_node(i));
+        Range input_range = ranges_.GetExit(pred, phi->input_node(i));
         if (phi->is_int32()) {
           // Since phi representation selector promoted this phi to Int32,
           // take its range into consideration.
@@ -659,7 +799,7 @@ class RangeProcessor {
     bool is_done = true;
     for (Phi* phi : *block->phis()) {
       Range range = ranges_.Get(block, phi);
-      Range backedge = ranges_.Get(backedge_pred, phi->backedge());
+      Range backedge = ranges_.GetExit(backedge_pred, phi->backedge());
       Range widened = Range::Widen(range, backedge);
       if (phi->is_int32()) {
         // Since phi representation selector promoted this phi to Int32,

@@ -121,9 +121,9 @@ class V8_EXPORT_PRIVATE MaglevGraphOptimizer {
   NodeRanges* ranges_;
   int loop_depth_ = 0;
 
-  // Range analysis doesn't support changing/updating a range in the middle of
-  // the block, it only records entry/exit block ranges. We use a separate map
-  // for refinements done in the middle of the block.
+  // Ranges from range analysis are valid for the whole block. A check in the
+  // middle of a block only narrows them for successor blocks. This map tracks
+  // the narrowed ranges for the rest of the current block.
   ZoneMap<ValueNode*, Range> block_range_refinements_;
 
   // Identities removed from the graph, whose forwarding use is dropped in

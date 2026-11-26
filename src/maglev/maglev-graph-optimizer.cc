@@ -499,8 +499,7 @@ BlockProcessResult MaglevGraphOptimizer::PreProcessBasicBlock(
   // TODO(olivf): Support allocation folding across control flow.
   reducer_.ClearCurrentAllocationBlock();
   reducer_.set_current_block(block);
-  // TODO(victorgomes): Consider propagating refinements downstream the control
-  // flow graph.
+  // Range analysis propagates these refinements to successor blocks.
   block_range_refinements_.clear();
   TRACE(TraceColor::kYellow << "Entering block b" << block->id());
   if (block->is_loop()) {
