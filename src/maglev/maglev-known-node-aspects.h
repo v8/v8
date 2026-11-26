@@ -10,6 +10,7 @@
 
 #include "src/base/logging.h"
 #include "src/base/sanitizer/asan.h"
+#include "src/base/vector.h"
 #include "src/common/globals.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-kna-map.h"
@@ -665,44 +666,13 @@ class KnownNodeAspects {
   NodeT* FindExpression(uint32_t hash,
                         std::array<ValueNode*, NodeT::kInputCount>& inputs,
                         Args&&... args) {
-    auto it = std::as_const(available_expressions_).find(hash);
-    if (it == available_expressions_.end()) return nullptr;
-
     static constexpr Opcode op = Node::opcode_of<NodeT>;
-    auto candidate = it->second.node;
-
-    if (candidate->Is<Identity>()) {
-      // This expression was removed from the graph. Do not reuse it.
-      available_expressions_.erase(hash);
-      return nullptr;
-    }
-
-    const bool sanity_check =
-        candidate->template Is<NodeT>() &&
-        static_cast<size_t>(candidate->input_count()) == inputs.size();
-    DCHECK_IMPLIES(sanity_check,
-                   (StaticPropertiesForOpcode(op) & candidate->properties()) ==
-                       candidate->properties());
-    const bool epoch_check = !Node::needs_epoch_check(op) ||
-                             effect_epoch_ <= it->second.effect_epoch;
-    if (sanity_check && epoch_check) {
-      if (static_cast<NodeT*>(candidate)->options() ==
-          std::forward_as_tuple(std::forward<Args>(args)...)) {
-        int i = 0;
-        for (const auto& inp : inputs) {
-          if (inp->UnwrapAliases() !=
-              candidate->input(i).node()->UnwrapAliases()) {
-            break;
-          }
-          i++;
-        }
-        if (static_cast<size_t>(i) == inputs.size()) {
-          return static_cast<NodeT*>(candidate);
-        }
-      }
-    }
-    if (!epoch_check) {
-      available_expressions_.erase(hash);
+    NodeBase* candidate = FindCandidateExpression(
+        hash, op, Node::needs_epoch_check(op), base::VectorOf(inputs));
+    if (candidate != nullptr &&
+        static_cast<NodeT*>(candidate)->options() ==
+            std::forward_as_tuple(std::forward<Args>(args)...)) {
+      return static_cast<NodeT*>(candidate);
     }
     return nullptr;
   }
@@ -933,6 +903,10 @@ class KnownNodeAspects {
 
   bool SetContextCachedValue(ValueNode* context, int offset, ValueNode* value,
                              MaybeAssignedFlag assigned);
+
+  V8_EXPORT_PRIVATE NodeBase* FindCandidateExpression(
+      uint32_t hash, Opcode op, bool needs_epoch_check,
+      base::Vector<ValueNode* const> inputs);
 
   SmallZoneVector<LoadedContextSlotsKey, 8> ClearAliasedContextSlotsFor(
       Graph* graph, ValueNode* context, int offset, ValueNode* value);

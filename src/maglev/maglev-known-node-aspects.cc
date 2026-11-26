@@ -1067,6 +1067,42 @@ void KnownNodeAspects::Print(std::ostream& os) const {
   }
 }
 
+NodeBase* KnownNodeAspects::FindCandidateExpression(
+    uint32_t hash, Opcode op, bool needs_epoch_check,
+    base::Vector<ValueNode* const> inputs) {
+  auto it = std::as_const(available_expressions_).find(hash);
+  if (it == available_expressions_.end()) return nullptr;
+
+  NodeBase* candidate = it->second.node;
+  if (candidate->Is<Identity>()) {
+    // This expression was removed from the graph. Do not reuse it.
+    available_expressions_.erase(hash);
+    return nullptr;
+  }
+
+  const bool sanity_check =
+      candidate->opcode() == op &&
+      static_cast<size_t>(candidate->input_count()) == inputs.size();
+  DCHECK_IMPLIES(sanity_check,
+                 (StaticPropertiesForOpcode(op) & candidate->properties()) ==
+                     candidate->properties());
+  const bool epoch_check =
+      !needs_epoch_check || effect_epoch_ <= it->second.effect_epoch;
+  if (!epoch_check) {
+    available_expressions_.erase(hash);
+    return nullptr;
+  }
+  if (!sanity_check) return nullptr;
+
+  for (size_t i = 0; i < inputs.size(); ++i) {
+    if (inputs[i]->UnwrapAliases() !=
+        candidate->input(static_cast<int>(i)).node()->UnwrapAliases()) {
+      return nullptr;
+    }
+  }
+  return candidate;
+}
+
 std::ostream& operator<<(std::ostream& os, const KnownNodeAspects& aspects) {
   aspects.Print(os);
   return os;
