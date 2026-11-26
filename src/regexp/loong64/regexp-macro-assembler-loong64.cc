@@ -1109,12 +1109,7 @@ void RegExpMacroAssemblerLOONG64::PushBacktrack(Label* label) {
     __ nop();
     masm_->label_at_put(label, offset);
     __ bind(&after_constant);
-    if (is_int12(cp_offset)) {
-      __ Ld_wu(a0, MemOperand(code_pointer(), cp_offset));
-    } else {
-      __ Add_d(a0, code_pointer(), cp_offset);
-      __ Ld_wu(a0, MemOperand(a0, 0));
-    }
+    __ Ld_wu(a0, MemOperand(code_pointer(), cp_offset));
   }
   Push(a0);
   CheckStackLimit();
