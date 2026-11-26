@@ -387,6 +387,9 @@ std::optional<Tagged<Object>> GetOwnFastConstantDataPropertyFromHeap(
         return {};
       }
     }
+    // {constant} needs to pass the gc predicate before we can introspect on it.
+    if (broker->ObjectMayBeUninitialized(constant.value())) return {};
+
     // We might read the uninitialized sentinel, if we race with the main
     // thread adding a new property to the object (having set the map, but not
     // yet initialised the property value). Since this is a tight race, it won't
@@ -399,9 +402,6 @@ std::optional<Tagged<Object>> GetOwnFastConstantDataPropertyFromHeap(
       TRACE_BROKER_MISSING(broker, "Read uninitialized property.");
       return {};
     }
-
-    // {constant} needs to pass the gc predicate before we can introspect on it.
-    if (broker->ObjectMayBeUninitialized(constant.value())) return {};
 
     // Ensure that {constant} matches the {representation} we expect for the
     // field.

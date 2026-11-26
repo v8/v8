@@ -662,7 +662,7 @@ class JSObjectRef : public JSReceiverRef {
   //
   // This is *not* allowed to be a double representation field. Those should use
   // GetOwnFastDoubleProperty, to avoid unnecessary HeapNumber allocation.
-  OptionalObjectRef GetOwnFastConstantDataProperty(
+  V8_EXPORT_PRIVATE OptionalObjectRef GetOwnFastConstantDataProperty(
       JSHeapBroker* broker, Representation field_representation,
       FieldIndex index, CompilationDependencies* dependencies) const;
 

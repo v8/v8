@@ -695,6 +695,7 @@ v8_cluster_source_set("v8_unittests_sources") {
       "compiler/graph-unittest.cc",
       "compiler/graph-unittest.h",
       "compiler/graph-visualizer-unittest.cc",
+      "compiler/heap-refs-unittest.cc",
       "compiler/instruction-scheduler-unittest.cc",
       "compiler/js-call-reducer-unittest.cc",
       "compiler/js-constant-cache-unittest.cc",
