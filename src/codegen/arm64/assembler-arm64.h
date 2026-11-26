@@ -385,7 +385,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void BranchTargetAlign();
   void LoopHeaderAlign();
 
-  inline void Unreachable();
+  V8_ASM_NO_FALLTHROUGH inline void Unreachable();
 
   // Label --------------------------------------------------------------------
   // Bind a label to the current pc. Note that labels can only be bound once,

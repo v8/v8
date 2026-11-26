@@ -1256,7 +1256,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                          DoubleRegister double_input, StubCallMode stub_mode,
                          LinkRegisterStatus lr_status);
 
-  void Float64Mod(VRegister out, VRegister left, VRegister right);
+  V8_REG_CLOBBERS_CALLER_SAVED void Float64Mod(VRegister out, VRegister left,
+                                               VRegister right);
 
   inline void Mul(V8_REG_OUT const Register& rd, const Register& rn,
                   const Register& rm);
@@ -2298,7 +2299,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // 'actual' must use an immediate or x0.
   // 'expected' must use an immediate or x2.
   // 'call_kind' must be x5.
-  void InvokePrologue(Register expected_parameter_count,
+  V8_REG_CLOBBERS(x5, x6, x7, x8, x11)
+  void InvokePrologue(V8_REG_IN_CLOBBER Register expected_parameter_count,
                       Register actual_parameter_count, InvokeType type);
 
   // On function call, call into the debugger.
