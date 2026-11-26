@@ -674,8 +674,10 @@ class V8_EXPORT_PRIVATE MacroAssembler
   V8_REG_CLOBBERS_CALLER_SAVED void CallWasmCodePointer(
       V8_REG_IN_CLOBBER Register target, uint64_t signature_hash,
       CallJumpMode call_jump_mode = CallJumpMode::kCall);
-  V8_REG_CLOBBERS_CALLER_SAVED void CallWasmCodePointerNoSignatureCheck(
-      V8_REG_IN_CLOBBER Register target);
+  // Wasm functions can return values in both GP return registers.
+  V8_REG_CLOBBERS_CALLER_SAVED
+  V8_REG_IMPLICIT_OUT(kReturnRegister0, kReturnRegister1)
+  void CallWasmCodePointerNoSignatureCheck(V8_REG_IN_CLOBBER Register target);
   void LoadWasmCodePointer(V8_REG_OUT Register dst, Operand src);
 #endif
 
