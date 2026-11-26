@@ -470,7 +470,8 @@ class BranchEliminationReducer : public Next {
           if (__ input_graph().Get(branch->condition()).template Is<PhiOp>()) {
             __ CloneBlockAndGoto(destination_origin);
             return {};
-          } else if (CanBeConstantFolded(branch->condition(),
+          } else if (!IsUnlikelyBranchTarget(__ current_block()) &&
+                     CanBeConstantFolded(branch->condition(),
                                          destination_origin)) {
             // If the {cond} only uses constant Phis that come from the current
             // block, it's probably worth it to clone the block in order to
@@ -719,32 +720,47 @@ class BranchEliminationReducer : public Next {
     }
   }
 
+  bool IsUnlikelyBranchTarget(const Block* block) {
+    if (!block->IsBranchTarget()) return false;
+    const Block* pred = block->LastPredecessor();
+    return pred && IsUnlikelySuccessor(pred, block, __ output_graph());
+  }
+
   // Checks that {idx} only depends on only on Constants or on Phi whose input
   // from the current block is a Constant, and on a least one Phi (whose input
   // from the current block is a Constant). If it is the case and {idx} is used
   // in a Branch, then the Branch's block could be cloned in the current block,
   // and {idx} could then be constant-folded away such that the Branch becomes a
   // Goto.
-  bool CanBeConstantFolded(OpIndex idx, const Block* cond_input_block,
-                           bool has_phi = false, int depth = 0) {
+  bool CanBeConstantFolded(OpIndex idx, const Block* cond_input_block) {
+    bool has_phi = false;
+    return CanBeConstantFoldedImpl(idx, cond_input_block, &has_phi, 0) &&
+           has_phi;
+  }
+
+  bool CanBeConstantFoldedImpl(OpIndex idx, const Block* cond_input_block,
+                               bool* has_phi, int depth) {
     // We limit the depth of the search to {kMaxDepth} in order to avoid
     // potentially visiting a lot of nodes.
     static constexpr int kMaxDepth = 4;
     if (depth > kMaxDepth) return false;
     const Operation& op = __ input_graph().Get(idx);
     if (!cond_input_block->Contains(idx)) {
-      // If we reach a ConstantOp without having gone through a Phi, then the
-      // condition can be constant-folded without performing block cloning.
-      return has_phi && op.Is<ConstantOp>();
+      if (op.Is<ConstantOp>()) return true;
+      OpIndex mapped = __ template MapToNewGraph<true>(idx);
+      return mapped.valid() &&
+             __ output_graph().Get(mapped).template Is<ConstantOp>();
     }
     if (op.Is<PhiOp>()) {
       int curr_block_pred_idx = cond_input_block->GetPredecessorIndex(
           __ current_block()->OriginForBlockEnd());
+      DCHECK_NE(curr_block_pred_idx, Block::kInvalidPredecessorIndex);
+      *has_phi = true;
       // There is no need to increment {depth} on this recursive call, because
       // it will anyways exit early because {idx} won't be in
       // {cond_input_block}.
-      return CanBeConstantFolded(op.input(curr_block_pred_idx),
-                                 cond_input_block, /*has_phi*/ true, depth);
+      return CanBeConstantFoldedImpl(op.input(curr_block_pred_idx),
+                                     cond_input_block, has_phi, depth);
     } else if (op.Is<ConstantOp>()) {
       return true;
     } else if (op.input_count == 0) {
@@ -757,13 +773,13 @@ class BranchEliminationReducer : public Next {
     }
 
     for (int i = 0; i < op.input_count; i++) {
-      if (!CanBeConstantFolded(op.input(i), cond_input_block, has_phi,
-                               depth + 1)) {
+      if (!CanBeConstantFoldedImpl(op.input(i), cond_input_block, has_phi,
+                                   depth + 1)) {
         return false;
       }
     }
 
-    return has_phi;
+    return true;
   }
 
   // Limit cloning to small merges to avoid duplicating too much code (even when

@@ -11324,8 +11324,9 @@ inline base::Vector<const MaybeRegisterRepresentation> Operation::inputs_rep(
   UNREACHABLE();
 }
 
-bool IsUnlikelySuccessor(const Block* block, const Block* successor,
-                         const Graph& graph);
+V8_EXPORT_PRIVATE bool IsUnlikelySuccessor(const Block* block,
+                                           const Block* successor,
+                                           const Graph& graph);
 
 // Analyzers should skip (= ignore) operations for which ShouldSkipOperation
 // returns true. This happens for:

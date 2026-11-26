@@ -659,6 +659,202 @@ TEST_F(ControlFlowTest, SelectLoweringPreservesBranchHint) {
   }
 }
 
+// Checks that BranchElimination clones a merge block whose Branch condition
+// is a Comparison over a Phi of constants (Optimization 2bis /
+// CanBeConstantFolded), so MachineOptimizationReducer constant-folds the
+// Branch away.
+TEST_F(ControlFlowTest, BranchEliminationFoldsComparisonOnConstantPhi) {
+  constexpr std::array kReps = {RegisterRepresentation::Word32()};
+  auto test = CreateFromGraph(base::VectorOf(kReps), [](TestInstance& Asm) {
+    V<Word32> c = Asm.GetParameter<Word32>(0);
+    Label<Word32> merge(&Asm);
+
+    IF (c) {
+      GOTO(merge, 10);
+    } ELSE {
+      GOTO(merge, 20);
+    }
+
+    BIND(merge, val);
+    IF (__ Word32Equal(val, 10)) {
+      __ Return(__ Word32Constant(1));
+    } ELSE {
+      __ Return(__ Word32Constant(2));
+    }
+  });
+
+  ASSERT_EQ(test.CountOp(Opcode::kBranch), 2u);
+  ASSERT_EQ(test.CountOp(Opcode::kComparison), 1u);
+  ASSERT_EQ(test.CountOp(Opcode::kPhi), 1u);
+
+  test.Run<MachineOptimizationReducer, BranchEliminationReducer>();
+  ASSERT_EQ(test.CountOp(Opcode::kBranch), 1u);
+  ASSERT_EQ(test.CountOp(Opcode::kComparison), 0u);
+  ASSERT_EQ(test.CountOp(Opcode::kPhi), 0u);
+}
+
+// Checks that when SelectLowering lowers a Select feeding into a merge Phi
+// whose value is compared against a constant in a Branch, BranchElimination
+// inlines the inner Phi+Goto merge and folds the outer comparison Branch away
+// in a single pass.
+TEST_F(ControlFlowTest, SelectLoweringBranchOnComparisonFolding) {
+  constexpr std::array kReps = {RegisterRepresentation::Word32(),
+                                RegisterRepresentation::Word32()};
+  auto test = CreateFromGraph(base::VectorOf(kReps), [](TestInstance& Asm) {
+    V<Word32> c1 = Asm.GetParameter<Word32>(0);
+    V<Word32> c2 = Asm.GetParameter<Word32>(1);
+    Label<Word32> merge(&Asm);
+
+    IF (c1) {
+      GOTO(merge, 1);
+    } ELSE {
+      GOTO(merge,
+           __ Conditional(c2, __ Word32Constant(1), __ Word32Constant(0)));
+    }
+
+    BIND(merge, val);
+    IF (__ Word32Equal(val, 1)) {
+      __ Return(__ Word32Constant(10));
+    } ELSE {
+      __ Return(__ Word32Constant(20));
+    }
+  });
+
+  test.Run<SelectLoweringReducer>();
+  ASSERT_EQ(test.CountOp(Opcode::kBranch), 3u);
+  ASSERT_EQ(test.CountOp(Opcode::kComparison), 1u);
+  ASSERT_EQ(test.CountOp(Opcode::kPhi), 2u);
+
+  test.Run<MachineOptimizationReducer, BranchEliminationReducer>();
+  ASSERT_EQ(test.CountOp(Opcode::kBranch), 2u);
+  ASSERT_EQ(test.CountOp(Opcode::kComparison), 0u);
+  ASSERT_EQ(test.CountOp(Opcode::kPhi), 0u);
+}
+
+// Checks that BranchElimination does not clone a merge block when its Branch
+// condition only depends on constants without going through a Phi.
+TEST_F(ControlFlowTest, BranchEliminationDoesNotCloneConstantOnlyComparison) {
+  constexpr std::array kReps = {RegisterRepresentation::Word32()};
+  auto test = CreateFromGraph(base::VectorOf(kReps), [](TestInstance& Asm) {
+    V<Word32> p = Asm.GetParameter<Word32>(0);
+    V<Word32> c1 = __ Word32Constant(42);
+    Label<Word32> merge(&Asm);
+
+    IF (p) {
+      GOTO(merge, 1);
+    } ELSE {
+      GOTO(merge, 2);
+    }
+
+    BIND(merge, unrelated_phi);
+    V<Word32> c2 = __ Word32Constant(18);
+    IF (__ Word32Equal(c1, c2)) {
+      ReturnPreventingTailDuplication(Asm, unrelated_phi);
+    } ELSE {
+      __ Return(__ Word32Add(unrelated_phi, 1));
+    }
+  });
+
+  ASSERT_EQ(test.CountOp(Opcode::kBranch), 2u);
+  ASSERT_EQ(test.CountOp(Opcode::kComparison), 1u);
+
+  test.Run<BranchEliminationReducer>();
+  ASSERT_EQ(test.CountOp(Opcode::kBranch), 2u);
+  ASSERT_EQ(test.CountOp(Opcode::kComparison), 1u);
+}
+
+TEST_F(ControlFlowTest, BranchEliminationDoesNotCloneSingleConstantBranch) {
+  constexpr std::array kReps = {RegisterRepresentation::Word32()};
+  auto test = CreateFromGraph(base::VectorOf(kReps), [](TestInstance& Asm) {
+    V<Word32> p = Asm.GetParameter<Word32>(0);
+    Label<Word32> merge(&Asm);
+
+    IF (p) {
+      GOTO(merge, 1);
+    } ELSE {
+      GOTO(merge, 2);
+    }
+
+    BIND(merge, unrelated_phi);
+    V<Word32> cst = __ Word32Constant(1);
+    IF (cst) {
+      ReturnPreventingTailDuplication(Asm, unrelated_phi);
+    } ELSE {
+      __ Return(__ Word32Add(unrelated_phi, 1));
+    }
+  });
+
+  ASSERT_EQ(test.CountOp(Opcode::kBranch), 2u);
+
+  test.Run<BranchEliminationReducer>();
+  ASSERT_EQ(test.CountOp(Opcode::kBranch), 2u);
+}
+
+TEST_F(ControlFlowTest,
+       BranchEliminationDoesNotConstantFoldInUnlikelyBranchTarget) {
+  constexpr std::array kReps = {RegisterRepresentation::Word32(),
+                                RegisterRepresentation::Word32()};
+  auto test = CreateFromGraph(base::VectorOf(kReps), [](TestInstance& Asm) {
+    V<Word32> c = Asm.GetParameter<Word32>(0);
+    V<Word32> v = Asm.GetParameter<Word32>(1);
+    Label<Word32> merge(&Asm);
+
+    IF (UNLIKELY(c)) {
+      GOTO(merge, 10);
+    } ELSE {
+      GOTO(merge, v);
+    }
+
+    BIND(merge, val);
+    IF (__ Word32Equal(val, 10)) {
+      ReturnPreventingTailDuplication(Asm, val);
+    } ELSE {
+      __ Return(__ Word32Add(val, 1));
+    }
+  });
+
+  ASSERT_EQ(test.CountOp(Opcode::kBranch), 2u);
+  ASSERT_EQ(test.CountOp(Opcode::kComparison), 1u);
+  ASSERT_EQ(test.CountOp(Opcode::kPhi), 1u);
+
+  test.Run<MachineOptimizationReducer, BranchEliminationReducer>();
+  ASSERT_EQ(test.CountOp(Opcode::kBranch), 2u);
+  ASSERT_EQ(test.CountOp(Opcode::kComparison), 1u);
+  ASSERT_EQ(test.CountOp(Opcode::kPhi), 1u);
+}
+
+TEST_F(ControlFlowTest,
+       BranchEliminationRespectsConstantFoldMergePredecessorLimit) {
+  constexpr std::array kReps = {RegisterRepresentation::Word32()};
+  constexpr int kPreds = 6;
+  auto test = CreateFromGraph(base::VectorOf(kReps), [](TestInstance& Asm) {
+    V<Word32> c = Asm.GetParameter<Word32>(0);
+    Label<Word32> merge(&Asm);
+
+    std::vector<Block*> destinations = EmitSwitchToNewBlocks(Asm, c, kPreds);
+    for (int i = 0; i < kPreds; i++) {
+      __ Bind(destinations[i]);
+      GOTO(merge, i == 0 ? 10 : 20);
+    }
+
+    BIND(merge, val);
+    IF (__ Word32Equal(val, 10)) {
+      __ Return(__ Word32Constant(1));
+    } ELSE {
+      __ Return(__ Word32Constant(2));
+    }
+  });
+
+  ASSERT_EQ(test.CountOp(Opcode::kBranch), 1u);
+  ASSERT_EQ(test.CountOp(Opcode::kComparison), 1u);
+  ASSERT_EQ(test.CountOp(Opcode::kPhi), 1u);
+
+  test.Run<MachineOptimizationReducer, BranchEliminationReducer>();
+  ASSERT_EQ(test.CountOp(Opcode::kBranch), 1u);
+  ASSERT_EQ(test.CountOp(Opcode::kComparison), 1u);
+  ASSERT_EQ(test.CountOp(Opcode::kPhi), 1u);
+}
+
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"
 
 }  // namespace v8::internal::compiler::turboshaft
