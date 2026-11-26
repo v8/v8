@@ -1129,6 +1129,9 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
     if (v8_flags.stress_marking > 0) {
       stress_marking_percentage_ = NextStressMarkingLimit();
     }
+#if V8_ENABLE_WEBASSEMBLY
+    isolate_->ReleaseWasmLiftoffContext();
+#endif
     // Discard memory if the GC was requested to reduce memory.
     if (ShouldReduceMemory()) {
       memory_allocator_->ReleasePooledChunksImmediately();

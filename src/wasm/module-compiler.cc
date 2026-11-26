@@ -1174,9 +1174,13 @@ void CompileLazy(Isolate* isolate, NativeModule* native_module,
       is_in_debug_state ? kForDebugging : kNotForDebugging, kAlreadyValidated};
   CompilationEnv env = CompilationEnv::ForModule(native_module);
   WasmDetectedFeatures detected_features;
+  LiftoffCompilationContext* liftoff_context =
+      tiers.blocking_tier == ExecutionTier::kLiftoff
+          ? isolate->wasm_liftoff_context()
+          : nullptr;
   WasmCompilationResult result = blocking_unit.ExecuteCompilation(
       &env, compilation_state->GetWireBytesStorage().get(),
-      native_module->counter_updates(), &detected_features);
+      native_module->counter_updates(), &detected_features, liftoff_context);
   if (!result.succeeded()) {
     DCHECK_EQ(ExecutionTier::kLiftoff, tiers.blocking_tier);
     DCHECK(!v8_flags.liftoff_only);
@@ -1194,9 +1198,10 @@ void CompileLazy(Isolate* isolate, NativeModule* native_module,
   // compilation cannot fail.
   CHECK(result.succeeded());
 
+  UnpublishedWasmCode unpublished_code = native_module->AddCompiledCode(result);
+  if (liftoff_context) liftoff_context->ReleaseCode();
   WasmCodeRefScope code_ref_scope;
-  WasmCode* code =
-      native_module->PublishCode(native_module->AddCompiledCode(result));
+  WasmCode* code = native_module->PublishCode(std::move(unpublished_code));
   if (code == nullptr) {
     // Publishing only fails when well-known import assumptions in TurboFan code
     // were invalidated concurrently. Simply return; jumping to the jump table

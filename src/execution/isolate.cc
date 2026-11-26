@@ -154,6 +154,7 @@
 #include "src/builtins/builtins-inl.h"
 #include "src/debug/debug-wasm-objects.h"
 #include "src/trap-handler/trap-handler.h"
+#include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/stacks.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-code-pointer-table-inl.h"
@@ -5340,6 +5341,7 @@ void Isolate::Deinit() {
 #endif  // defined(V8_ENABLE_ETW_STACK_WALKING)
 
 #if V8_ENABLE_WEBASSEMBLY
+  ReleaseWasmLiftoffContext();
   wasm::GetWasmEngine()->RemoveIsolate(this);
 
   delete wasm_code_look_up_cache_;
@@ -8499,6 +8501,22 @@ void Isolate::RemoveCodeMemoryChunk(MutablePage* chunk) {
   SetCodePages(new_code_pages);
 #endif  // !defined(V8_TARGET_ARCH_ARM)
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+wasm::LiftoffCompilationContext* Isolate::wasm_liftoff_context() {
+  DCHECK_EQ(thread_id(), base::ThreadId::Current());
+  if (!wasm_liftoff_context_) {
+    wasm_liftoff_context_ = std::make_unique<wasm::LiftoffCompilationContext>();
+  }
+  return wasm_liftoff_context_.get();
+}
+
+void Isolate::ReleaseWasmLiftoffContext() {
+  // Only called during Isolate teardown or in a Mark-Compact GC safepoint
+  // (CompileLazy runs under DisallowGarbageCollection on the Isolate thread).
+  wasm_liftoff_context_.reset();
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 #if V8_ENABLE_DRUMBRAKE
 void Isolate::initialize_wasm_execution_timer() {
