@@ -169,17 +169,10 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
       input_reprs.Add(ValueRepresentation::kInt32);
       untagging_kinds[i] = UntaggingKind::kSmiConstant;
     } else if (HeapConstant* constant = input->TryCast<HeapConstant>()) {
+      DCHECK(!constant->object().IsUndefined());
       if (constant->object().IsHeapNumber()) {
         input_reprs.Add(ValueRepresentation::kFloat64);
         untagging_kinds[i] = UntaggingKind::kHeapNumberConstant;
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-      } else if (constant->object().IsUndefined()) {
-        // 'undefined' can flow into a HoleyFloat64 phi as the undefined NaN
-        // pattern, which retagging and deopt materialization convert back to
-        // 'undefined'.
-        input_reprs.Add(ValueRepresentation::kHoleyFloat64);
-        untagging_kinds[i] = UntaggingKind::kUndefinedConstant;
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
       } else {
         // Not a HeapConstant that we can untag.
         input_reprs.RemoveAll();
@@ -189,7 +182,9 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
     } else if (input->Is<RootConstant>() &&
                input->Cast<RootConstant>()->index() ==
                    RootIndex::kUndefinedValue) {
-      // Same as HeapConstant 'undefined' above.
+      // 'undefined' can flow into a HoleyFloat64 phi as the undefined NaN
+      // pattern, which retagging and deopt materialization convert back to
+      // 'undefined'.
       input_reprs.Add(ValueRepresentation::kHoleyFloat64);
       untagging_kinds[i] = UntaggingKind::kUndefinedConstant;
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE

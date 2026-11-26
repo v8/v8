@@ -5321,6 +5321,7 @@ class HeapConstant : public FixedInputValueNodeT<0, HeapConstant> {
   explicit HeapConstant(uint64_t bitfield, compiler::HeapObjectRef object)
       : Base(bitfield), object_(object) {
     DCHECK(!object_.IsAnyHole());
+    DCHECK(!object_.IsUndefined());
   }
 
   bool ToBoolean(LocalIsolate* local_isolate) const {
