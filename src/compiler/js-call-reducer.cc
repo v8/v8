@@ -4908,8 +4908,15 @@ JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpreadOfCreateArguments(
   // we can only optimize this in case the {node} was already inlined into
   // some other function (and same for the {arguments_list}).
   CreateArgumentsType const type = CreateArgumentsTypeOf(arguments_list->op());
-  FrameState frame_state =
-      FrameState{NodeProperties::GetFrameStateInput(arguments_list)};
+  Node* const frame_state_node =
+      NodeProperties::GetFrameStateInput(arguments_list);
+  if (frame_state_node->opcode() == IrOpcode::kDeadValue) {
+    // {arguments_list} may still be on the GraphReducer stack while its
+    // FrameState input has already been replaced with DeadValue by
+    // DeadCodeElimination.
+    return NoChange();
+  }
+  FrameState frame_state{frame_state_node};
 
   int formal_parameter_count;
   {
