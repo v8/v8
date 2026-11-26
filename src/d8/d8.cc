@@ -7788,6 +7788,12 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     FATAL("Flag --expose-fast-api is incompatible with --stress-snapshot.");
   }
 
+  if (!i::v8_flags.turbo_fast_api_calls && options.expose_fast_api &&
+      check_d8_flag_contradictions) {
+    ReportFlagError("Flag --%s is incompatible with --no-turbo-fast-api-calls.",
+                    options.expose_fast_api.name());
+  }
+
   if (options.trace_enabled && i::v8_flags.predictable) {
     if (check_d8_flag_contradictions) {
       FATAL("Flag --enable-tracing is incompatible with --predictable.");

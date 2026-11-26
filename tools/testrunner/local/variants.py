@@ -424,6 +424,7 @@ INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG = {
     ],
     "--wasm-generate-compilation-hints": ["--single-threaded"],
     "--trace-wasm-generate-compilation-hints": ["--single-threaded"],
+    "--no-turbo-fast-api-calls": ["--expose-fast-api"],
 }
 
 SLOW_VARIANTS = set([
