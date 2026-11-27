@@ -400,7 +400,9 @@ void Int32MultiplyWithOverflow::SetValueLocationConstraints() {
   UseRegister(LeftInput());
   UseRegister(RightInput());
   DefineSameAsFirst(this);
-  set_temporaries_needed(1);
+  if (LeftInput().node() != RightInput().node()) {
+    set_temporaries_needed(1);
+  }
 }
 
 void Int32MultiplyWithOverflow::GenerateCode(MaglevAssembler* masm,
@@ -408,6 +410,20 @@ void Int32MultiplyWithOverflow::GenerateCode(MaglevAssembler* masm,
   Register result = ToRegister(this->result());
   Register right = ToRegister(RightInput());
   DCHECK_EQ(result, ToRegister(LeftInput()));
+
+  if (LeftInput().node() == RightInput().node()) {
+    DCHECK_EQ(result, right);
+    // Squaring an int32 cannot produce -0, so only the overflow check is
+    // needed.
+    __ imull(result, right);
+    // None of the mutated input registers should be a register input into the
+    // eager deopt info.
+    DCHECK_REGLIST_EMPTY(RegList{result} &
+                         GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
+    __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kOverflow, this);
+    return;
+  }
+  DCHECK_NE(result, right);
 
   MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register saved_left = temps.Acquire();
