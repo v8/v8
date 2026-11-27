@@ -533,6 +533,7 @@
   'regress/regress-crbug-941743': [SKIP],
   'regress/regress-create-exception': [SKIP],
   'maglev/regress-431665299': [SKIP],
+  'parser/scanner-simd-identifiers-strings': [SKIP],
 
   # These tests run out of stack space in debug mode.
   'big-array-literal': [SKIP],

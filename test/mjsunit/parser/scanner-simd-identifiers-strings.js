@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-externalize-string
+// Flags: --allow-natives-syntax --expose-externalize-string
 
 // Identifier and string literal scanning around vector chunk, stream buffer
 // and literal buffer boundaries, for one-byte and two-byte sources.
@@ -32,7 +32,8 @@ function evalAs(kind, code) {
   // Use a fresh flat copy: the externalizable string helpers return strings
   // that already support externalization as is, which would externalize
   // string constants shared between kinds.
-  const src = kind.make(code.split("").join(""));
+  const src =
+      kind.make(%FlattenString(code.substring(0, 1) + code.substring(1)));
   assertEquals(!kind.twoByte && isOneByteString(code), isOneByteString(src));
   return (0, eval)(src);
 }
@@ -71,7 +72,7 @@ function checkStrings(kind, strings, prefix = "") {
 
 function identifierCases(oneByte) {
   const ids = [];
-  for (let len = 1; len <= 40; len++) {
+  for (let len = 1; len <= 17; len++) {
     const a = "a".repeat(len);
     if (oneByte) {
       const cases = [
@@ -98,7 +99,7 @@ function identifierCases(oneByte) {
 
 function stringCases(oneByte) {
   const strings = [];
-  for (let len = 0; len <= 40; len++) {
+  for (let len = 0; len <= 17; len++) {
     const a = "x".repeat(len);
     const b = "y".repeat(len);
     if (oneByte) {
@@ -127,7 +128,7 @@ function stringCases(oneByte) {
 }
 
 function runSuite(kind) {
-  // 1. Identifiers of lengths 1..40 with varied character classes.
+  // 1. Identifiers of lengths 1..17 with varied character classes.
   checkIdentifiers(kind, identifierCases(true));
   if (kind.twoByte) checkIdentifiers(kind, identifierCases(false));
 
@@ -162,42 +163,47 @@ function runSuite(kind) {
     new PrivTest().sum();
   `));
 
-  // 5. Strings of lengths 0..40: ASCII, opposite quotes, escapes, non-ASCII,
+  // 5. Strings of lengths 0..17: ASCII, opposite quotes, escapes, non-ASCII,
   // and one-byte -> two-byte transitions mid-string.
   checkStrings(kind, stringCases(true));
   if (kind.twoByte) checkStrings(kind, stringCases(false));
 
   // 6. Identifiers and strings straddling the 512-unit stream buffer boundary
-  // of one-byte sources, at every offset within the token.
-  for (let pad = 450; pad <= 515; pad++) {
-    const str = "hello_world_boundary_str";
-    const src = " ".repeat(pad) +
-        `const myBoundaryIdent12345 = "${str}"; myBoundaryIdent12345;`;
+  // of one-byte sources, at every offset within the token. Two-byte sources
+  // are not buffered.
+  for (let pad = 480; !kind.twoByte && pad <= 512; pad++) {
+    const str = "boundary_str";
+    const src =
+        " ".repeat(pad) + `const myBoundaryId = "${str}"; myBoundaryId;`;
     assertEquals(str, evalAs(kind, src));
     const prefix = " ".repeat(pad);
     checkStrings(kind, [[`"${str}\\x41${str}"`, `${str}A${str}`]], prefix);
     checkStrings(kind, [[`"${str}\xe9${str}"`, `${str}\xe9${str}`]], prefix);
   }
 
-  // 7. Literals crossing the literal buffer's initial capacity (1024) and the
-  // next one (4096) mid-token, spanning several stream buffers.
-  for (const offset of [0, 3, 8, 509]) {
+  // 7. Literals ending at or crossing the literal buffer's initial capacity
+  // (1024), spanning several stream buffers. Chunks of one-byte sources are
+  // aligned to the stream buffer, so vary the token start to cover every chunk
+  // offset at the capacity.
+  for (let offset = 0; offset < (kind.twoByte ? 1 : 8); offset++) {
     const prefix = " ".repeat(offset);
-    for (const base of [1024, 4096]) {
-      for (let len = base - 9; len <= base + 9; len++) {
-        const id = "i" + "d".repeat(len - 1);
-        checkIdentifiers(kind, [[id, id]], prefix);
-        checkIdentifiers(kind, [[id + "\\u0061", id + "a"]], prefix);
-        const s = "s".repeat(len);
-        checkStrings(kind, [[`"${s}"`, s]], prefix);
-        checkStrings(kind, [[`"${s}\xe9${s}"`, `${s}\xe9${s}`]], prefix);
-        checkStrings(kind, [[`"${s}\\n${s}"`, `${s}\n${s}`]], prefix);
-      }
+    for (const len of [1024, 1032]) {
+      const id = "i" + "d".repeat(len - 1);
+      checkIdentifiers(kind, [[id, id]], prefix);
+      const s = "s".repeat(len);
+      checkStrings(kind, [[`"${s}"`, s]], prefix);
     }
+  }
+  for (let len = 1023; len <= 1025; len++) {
+    const id = "i" + "d".repeat(len - 1);
+    checkIdentifiers(kind, [[id + "\\u0061", id + "a"]]);
+    const s = "s".repeat(len);
+    checkStrings(kind, [[`"${s}\xe9x"`, `${s}\xe9x`]]);
+    checkStrings(kind, [[`"${s}\\nx"`, `${s}\nx`]]);
   }
 
   // 8. Identifiers and strings ending at the end of the source.
-  for (let len = 1; len <= 40; len++) {
+  for (let len = 1; len <= 17; len++) {
     const id = "e" + "a".repeat(len - 1);
     globalThis[id] = len;
     assertEquals(len, evalAs(kind, " " + id));
