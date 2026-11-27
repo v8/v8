@@ -136,7 +136,9 @@ class V8_EXPORT_PRIVATE Pipeline {
       static_assert(std::is_same_v<result_t, std::optional<BailoutReason>>);
       auto result = phase.Run(data_, temp_zone, std::forward<Args>(args)...);
       if constexpr (produces_printable_graph<Phase>::value) {
-        PrintGraph(Phase::phase_name());
+        if (!result.has_value()) {
+          PrintGraph(Phase::phase_name());
+        }
       }
       return data_->info()->was_cancelled() ? BailoutReason::kCancelled
                                             : result;

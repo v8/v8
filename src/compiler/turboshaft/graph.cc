@@ -88,8 +88,12 @@ std::ostream& operator<<(std::ostream& os, const Graph& graph) {
 #else
     os << "\n" << PrintAsBlockHeader{block} << "\n";
 #endif
-    for (const Operation& op : graph.operations(block)) {
-      os << std::setw(5) << graph.Index(op).id() << ": " << op << "\n";
+    if (block.IsComplete()) {
+      for (const Operation& op : graph.operations(block)) {
+        os << std::setw(5) << graph.Index(op).id() << ": " << op << "\n";
+      }
+    } else {
+      os << "  <incomplete block>\n";
     }
   }
   return os;
