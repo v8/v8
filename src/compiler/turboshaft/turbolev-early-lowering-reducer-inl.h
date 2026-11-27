@@ -12,18 +12,21 @@
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/representations.h"
+#include "src/compiler/turboshaft/string-map-checks-reducer-inl.h"
 #include "src/deoptimizer/deoptimize-reason.h"
+#include "src/maglev/maglev-ir.h"
 #include "src/objects/contexts.h"
 #include "src/objects/descriptor-array-inl.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/instance-type.h"
+#include "src/objects/js-regexp.h"
 
 namespace v8::internal::compiler::turboshaft {
 
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
 template <class Next>
-class TurbolevEarlyLoweringReducer : public Next {
+class TurbolevEarlyLoweringReducer : public StringMapChecksReducer<Next> {
   // This Reducer provides some helpers that are used during
   // TurbolevGraphBuildingPhase to lower some Maglev operators. Depending on
   // what we decide going forward (regarding SimplifiedLowering for instance),
@@ -66,17 +69,9 @@ class TurbolevEarlyLoweringReducer : public Next {
                   first_instance_type, last_instance_type)) {
         V<Word32> compressed_map =
             __ TruncateWordPtrToWord32(__ BitcastHeapObjectToWordPtr(map));
-        V<Word32> map_check;
-        if (map_range->first == 0) {
-          map_check =
-              __ Uint32LessThanOrEqual(compressed_map, map_range->second);
-        } else {
-          map_check = __ Uint32LessThanOrEqual(
-              __ Word32Sub(compressed_map, map_range->first),
-              map_range->second - map_range->first);
-        }
-        __ DeoptimizeIfNot(map_check, frame_state,
-                           DeoptimizeReason::kWrongInstanceType, feedback);
+        __ DeoptimizeIfNot(__ IsMapInRange(compressed_map, *map_range),
+                           frame_state, DeoptimizeReason::kWrongInstanceType,
+                           feedback);
         return;
       }
 #endif  // V8_STATIC_ROOTS_BOOL
@@ -514,7 +509,188 @@ class TurbolevEarlyLoweringReducer : public Next {
     return result;
   }
 
+  // Lowers maglev::RegExpDataQuickCheckRejects. {data} is a constant
+  // RegExpData.
+  V<Word32> RegExpDataQuickCheckRejects(OpIndex data, V<String> subject) {
+    // With the sandbox, a trusted constant has WordPtr rather than Tagged
+    // representation, so it is not compressed. It still carries kHeapObjectTag.
+    return QuickCheckRejects(data,
+                             V8_ENABLE_SANDBOX_BOOL
+                                 ? LoadOp::Kind::RawAligned()
+                                 : LoadOp::Kind::TaggedBase(),
+                             subject, 0);
+  }
+
+  // Lowers maglev::RegExpExecQuickCheckRejects. Mirrors
+  // RegExpPrototypeExecBodyWithoutResult and RegExpExecInternal, and for a
+  // global match RegExpExecInternal_Batched.
+  V<Word32> RegExpExecQuickCheckRejects(
+      V<JSRegExp> regexp, V<String> subject, V<Word32> last_index,
+      maglev::RegExpExecQuickCheckRejects::Mode mode) {
+    Label<Word32> done(this);
+    Label<> reject(this);
+
+    // The flags are a Smi once the regexp is initialized, which it is before
+    // script can reach it.
+    V<Word32> global_or_sticky = __ Word32BitwiseAnd(
+        __ UntagSmi(__ template LoadField<Smi>(
+            regexp, AccessBuilder::ForJSRegExpFlags())),
+        JSRegExp::GlobalBit::kMask | JSRegExp::StickyBit::kMask);
+    V<Word32> starts_at_last_index;
+    switch (mode) {
+      case maglev::RegExpExecQuickCheckRejects::Mode::kExec:
+        starts_at_last_index = global_or_sticky;
+        break;
+      case maglev::RegExpExecQuickCheckRejects::Mode::kMatch:
+        starts_at_last_index =
+            __ Word32Equal(global_or_sticky, JSRegExp::StickyBit::kMask);
+        break;
+    }
+
+    ScopedVar<Word32> index(this, 0);
+    IF (starts_at_last_index) {
+      GOTO_IF(__ Uint32LessThan(__ StringLength(subject), last_index), reject);
+      index = last_index;
+    }
+    V<RegExpData> data =
+        __ template LoadTrustedPointer<kRegExpDataTrustedPointerTag>(
+            regexp, LoadOp::Kind::TaggedBase(), offsetof(JSRegExp, data_));
+    GOTO_IF(QuickCheckRejects(data, LoadOp::Kind::TaggedBase(), subject, index),
+            reject);
+    GOTO(done, 0);
+
+    BIND(reject);
+    IF (global_or_sticky) {
+      __ Store(regexp, __ SmiConstant(Smi::zero()), StoreOp::Kind::TaggedBase(),
+               MemoryRepresentation::TaggedSigned(),
+               WriteBarrierKind::kNoWriteBarrier, JSRegExp::kLastIndexOffset);
+    }
+    GOTO(done, 1);
+
+    BIND(done, rejects);
+    return rejects;
+  }
+
  private:
+  // RegExpData::QuickCheckRejects: whether the filters in {data} prove that a
+  // match cannot start at {index} of {subject}. {index} is at most the length
+  // of {subject}.
+  V<Word32> QuickCheckRejects(V<UntaggedUnion<WordPtr, RegExpData>> data,
+                              LoadOp::Kind data_kind, V<String> subject,
+                              ConstOrV<Word32> index) {
+    Label<Word32> done(this);
+
+    const int data_tag = data_kind.tagged_base ? 0 : kHeapObjectTag;
+    // The filters are written when the regexp is compiled, which can happen
+    // in any call.
+    data_kind = data_kind.NotLoadEliminable();
+    auto LoadDataUint32 = [&](int offset) -> V<Word32> {
+      return __ Load(data, data_kind, MemoryRepresentation::Uint32(),
+                     offset - data_tag);
+    };
+
+    // Most regexps have neither filter.
+    GOTO_IF_NOT(__ Word32BitwiseAnd(
+                    LoadDataUint32(offsetof(RegExpData, internal_flags_)),
+                    RegExpData::kHasQuickCheck),
+                done, 0);
+
+    V<Word32> remaining = __ Word32Sub(__ StringLength(subject), index);
+    GOTO_IF(__ Word32Equal(remaining, 0), done, 0);
+
+    // The filters only hold for the one-byte code, which runs if the string
+    // that holds the characters is one-byte. That string is sequential or
+    // cached external (e.g. Blink script sources), and is the subject itself,
+    // a slice's parent, or what a ThinString forwards to. Other subjects are
+    // left to the builtin.
+    Label<String, Map, Word32> unsliced(this), direct(this);
+    V<Map> subject_map = __ LoadMapField(subject);
+    IF (__ IsSlicedStringMap(subject_map)) {
+      V<String> parent = __ template LoadField<String>(
+          subject, AccessBuilder::ForSlicedStringParent());
+      GOTO(unsliced, parent, __ LoadMapField(parent),
+           __ UntagSmi(__ template LoadField<Smi>(
+               subject, AccessBuilder::ForSlicedStringOffset())));
+    } ELSE {
+      GOTO(unsliced, subject, subject_map, 0);
+    }
+
+    // Internalizing a string can turn it into a ThinString in place, also
+    // while it is the parent of a slice.
+    BIND(unsliced, unsliced_string, unsliced_map, unsliced_offset);
+    IF (UNLIKELY(__ IsThinStringMap(unsliced_map))) {
+      V<String> actual = __ template LoadField<String>(
+          unsliced_string, AccessBuilder::ForThinStringActual());
+      GOTO(direct, actual, __ LoadMapField(actual), unsliced_offset);
+    } ELSE {
+      GOTO(direct, unsliced_string, unsliced_map, unsliced_offset);
+    }
+
+    BIND(direct, string, string_map, offset_32);
+    Label<WordPtr> have_chars(this);
+    IF (__ IsSeqOneByteStringMap(string_map)) {
+      GOTO(have_chars, __ WordPtrAdd(__ BitcastTaggedToWordPtr(string),
+                                     OFFSET_OF_DATA_START(SeqOneByteString) -
+                                         kHeapObjectTag));
+    } ELSE IF (__ IsCachedExternalOneByteStringMap(string_map)) {
+      GOTO(have_chars,
+           __ template LoadField<WordPtr>(
+               string, AccessBuilder::ForExternalStringResourceData()));
+    } ELSE {
+      GOTO(done, 0);
+    }
+
+    BIND(have_chars, chars_base);
+    // The index is zero-extended, so that a corrupted one cannot reach
+    // outside of the sandbox from a sequential string. External characters are
+    // off-heap, as for any other read of an external string.
+    V<WordPtr> char_index =
+        __ ChangeUint32ToUintPtr(__ Word32Add(offset_32, index));
+
+#ifdef V8_TARGET_LITTLE_ENDIAN
+    // The mask covers four characters. A shorter tail only gets the bitset.
+    if (SupportedOperations::IsUnalignedLoadSupported(
+            MemoryRepresentation::Uint32())) {
+      Label<> try_bitset(this);
+      V<Word32> mask = LoadDataUint32(offsetof(RegExpData, quick_check_mask_));
+      GOTO_IF(__ Word32Equal(mask, 0), try_bitset);
+      GOTO_IF(__ Uint32LessThan(remaining, kUInt32Size), try_bitset);
+      V<Word32> expected =
+          LoadDataUint32(offsetof(RegExpData, quick_check_value_));
+      V<Word32> chars =
+          __ Load(chars_base, char_index, LoadOp::Kind::RawAligned(),
+                  MemoryRepresentation::Uint32());
+      GOTO_IF_NOT(__ Word32Equal(__ Word32BitwiseAnd(chars, mask), expected),
+                  done, 1);
+      GOTO(try_bitset);
+      BIND(try_bitset);
+    }
+#endif  // V8_TARGET_LITTLE_ENDIAN
+
+    // The word index comes from string contents and {data} is a trusted
+    // object, so {c} has to stay within the bitset. It does: it is a byte.
+    static_assert(RegExpData::kQuickCheckBitsetChars ==
+                  1 << (kUInt8Size * kBitsPerByte));
+    V<Word32> c = __ Load(chars_base, char_index, LoadOp::Kind::RawAligned(),
+                          MemoryRepresentation::Uint8());
+    V<Word32> word =
+        __ Load(data,
+                __ ChangeUint32ToUintPtr(__ Word32ShiftRightLogical(
+                    c, RegExpData::kQuickCheckBitsetBitsPerWordLog2)),
+                data_kind, MemoryRepresentation::Uint32(),
+                offsetof(RegExpData, quick_check_reject_bitset_) - data_tag,
+                MemoryRepresentation::Uint32().SizeInBytesLog2());
+    GOTO(done,
+         __ Word32BitwiseAnd(
+             __ Word32ShiftRightLogical(
+                 word, __ Word32BitwiseAnd(
+                           c, RegExpData::kQuickCheckBitsetBitsPerWord - 1)),
+             1));
+
+    BIND(done, rejects);
+    return rejects;
+  }
+
   V<Word32> CheckInstanceTypeIsInRange(V<Map> map,
                                        InstanceType first_instance_type,
                                        InstanceType last_instance_type) {

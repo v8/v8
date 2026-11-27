@@ -219,6 +219,8 @@ class ExceptionHandlerInfo;
   V(SetPrototypeHas)                \
   V(WeakMapPrototypeGet)            \
   V(ObjectIsArray)                  \
+  V(RegExpDataQuickCheckRejects)    \
+  V(RegExpExecQuickCheckRejects)    \
   V(ProcessWasmArgument)
 
 #define TURBOLEV_NON_VALUE_NODE_LIST(V) \
@@ -10035,6 +10037,59 @@ class StringLength : public FixedInputValueNodeT<1, StringLength> {
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
+};
+
+// Whether the quick-check filters in a RegExpData prove that its regexp cannot
+// match at index 0 of the subject string. Mirrors
+// RegExpData::QuickCheckRejects, and like it never rejects when in doubt.
+class RegExpDataQuickCheckRejects
+    : public FixedInputValueNodeT<2, RegExpDataQuickCheckRejects> {
+ public:
+  explicit RegExpDataQuickCheckRejects(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::CanRead() | OpProperties::Int32();
+  DECLARE_INPUTS(Data, Subject)
+  DECLARE_INPUT_TYPES(Tagged, Tagged)
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+};
+
+// Whether the quick-check filters prove that a fast regexp builtin finds no
+// match of the regexp in the subject, given that the regexp's lastIndex is
+// {LastIndex}. On a reject, it resets the lastIndex of a global or sticky
+// regexp, as the builtin would.
+class RegExpExecQuickCheckRejects
+    : public FixedInputValueNodeT<3, RegExpExecQuickCheckRejects> {
+ public:
+  enum class Mode {
+    // RegExpBuiltinExec: starts at {LastIndex} for a global or sticky regexp
+    // and at 0 otherwise.
+    kExec,
+    // RegExpMatchFast: as kExec, except that a global regexp starts at 0.
+    kMatch,
+  };
+
+  explicit RegExpExecQuickCheckRejects(uint64_t bitfield, Mode mode)
+      : Base(bitfield | ModeField::encode(mode)) {}
+
+  static constexpr OpProperties kProperties = OpProperties::CanRead() |
+                                              OpProperties::CanWrite() |
+                                              OpProperties::Int32();
+  DECLARE_INPUTS(RegExp, Subject, LastIndex)
+  DECLARE_INPUT_TYPES(Tagged, Tagged, Int32)
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const;
+
+  auto options() const { return std::tuple{mode()}; }
+
+  Mode mode() const { return ModeField::decode(bitfield()); }
+
+ private:
+  using ModeField = NextBitField<Mode, 1>;
 };
 
 class StringIndexOf : public FixedInputValueNodeT<3, StringIndexOf> {

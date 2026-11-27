@@ -3321,6 +3321,22 @@ class GraphBuildingNodeProcessor {
     SetMap(node, __ StringLength(Map(node->StringInput())));
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::RegExpDataQuickCheckRejects* node,
+                                const maglev::ProcessingState& state) {
+    DCHECK_IMPLIES(V8_ENABLE_SANDBOX_BOOL,
+                   node->DataInput().node()->Is<maglev::TrustedConstant>());
+    SetMap(node, __ RegExpDataQuickCheckRejects(Map(node->DataInput()),
+                                                Map(node->SubjectInput())));
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::RegExpExecQuickCheckRejects* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ RegExpExecQuickCheckRejects(
+                     Map(node->RegExpInput()), Map(node->SubjectInput()),
+                     Map(node->LastIndexInput()), node->mode()));
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::StringIndexOf* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ StringIndexOf(Map(node->StringInput()),

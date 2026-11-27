@@ -11905,24 +11905,25 @@ MaglevGraphBuilder::TryReduceConstructWithSpreadForArgumentsObject(
   return BuildConstruct(target, new_target, new_args, feedback_source);
 }
 
+InlinedAllocation* MaglevGraphBuilder::TryGetNonEscapingAllocation(
+    ValueNode* node) {
+  if (!node->Is<InlinedAllocation>()) {
+    return nullptr;
+  }
+  InlinedAllocation* alloc = node->Cast<InlinedAllocation>();
+  if (IsInsideLoop() && (!is_loop_effect_tracking() ||
+                         !loop_effects_->allocations.contains(alloc))) {
+    return nullptr;
+  }
+  if (IsEscaping(alloc)) {
+    return nullptr;
+  }
+  return alloc;
+}
+
 std::optional<VirtualObject*>
 MaglevGraphBuilder::TryGetNonEscapingArgumentsOrArray(ValueNode* value) {
-  auto try_get_non_escaping_alloc = [&](ValueNode* node) -> InlinedAllocation* {
-    if (!node->Is<InlinedAllocation>()) {
-      return nullptr;
-    }
-    InlinedAllocation* alloc = node->Cast<InlinedAllocation>();
-    if (IsInsideLoop() && (!is_loop_effect_tracking() ||
-                           !loop_effects_->allocations.contains(alloc))) {
-      return nullptr;
-    }
-    if (IsEscaping(alloc)) {
-      return nullptr;
-    }
-    return alloc;
-  };
-
-  InlinedAllocation* alloc = try_get_non_escaping_alloc(value);
+  InlinedAllocation* alloc = TryGetNonEscapingAllocation(value);
   if (!alloc) {
     return {};
   }
@@ -11958,7 +11959,7 @@ MaglevGraphBuilder::TryGetNonEscapingArgumentsOrArray(ValueNode* value) {
   if (elements->Is<ArgumentsElements>()) {
     return object;
   }
-  if (try_get_non_escaping_alloc(elements)) {
+  if (TryGetNonEscapingAllocation(elements)) {
     return object;
   }
   if (elements->Is<RootConstant>() || elements->Is<HeapConstant>()) {

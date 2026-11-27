@@ -1798,6 +1798,10 @@ DEFINE_BOOL(turbolev, false,
 DEFINE_WEAK_IMPLICATION(array_destructure_bytecode, turbolev)
 DEFINE_NEG_IMPLICATION(turbofan && !turbolev, array_destructure_bytecode)
 
+DEFINE_BOOL(turbolev_regexp_quick_check, false,
+            "reject regexp mismatches with an inline quick check in front of "
+            "calls to the fast regexp builtins")
+
 DEFINE_DEVELOPER_FLAG(print_turbolev_frontend,
                       "print Turbolev frontend (Maglev graphs)")
 DEFINE_STRING(turbolev_phase_filter, "*",
@@ -1810,6 +1814,7 @@ DEFINE_EXPERIMENTAL_FEATURE(
     turbolev_future,
     "enable Turbolev features that we want to ship in the not-too-far future")
 DEFINE_IMPLICATION(turbolev_future, turbolev)
+DEFINE_WEAK_IMPLICATION(turbolev_future, turbolev_regexp_quick_check)
 DEFINE_NEG_IMPLICATION(turbofan && !turbolev, forin_enumerator_holder)
 
 #if TAGGED_SIZE_8_BYTES

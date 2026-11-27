@@ -6930,10 +6930,68 @@ ReduceResult MaglevReducer<BaseT>::BuildCheckRegExpLastIndex(
 }
 
 template <typename BaseT>
+ValueNode* MaglevReducer<BaseT>::TryGetFreshRegExpLiteralData(
+    ValueNode* regexp) {
+  if constexpr (ReducerBaseWithAllocationTracking<BaseT>) {
+    InlinedAllocation* alloc = base_->TryGetNonEscapingAllocation(regexp);
+    if (alloc == nullptr) return nullptr;
+    VirtualObject* object = alloc->object();
+    if (object->object_layout() != &VirtualJSRegExpShape::kObjectLayout) {
+      return nullptr;
+    }
+    // Any write to the regexp would be an escaping use, so it still has the
+    // fields of the literal.
+    ValueNode* data = object->get(offsetof(JSRegExp, data_));
+    DCHECK(V8_ENABLE_SANDBOX_BOOL ? data->Is<TrustedConstant>()
+                                  : data->Is<HeapConstant>());
+    DCHECK_EQ(
+        object->get(JSRegExp::kLastIndexOffset)->Cast<Int32Constant>()->value(),
+        JSRegExp::kInitialLastIndexValue);
+    return data;
+  }
+  return nullptr;
+}
+
+template <typename BaseT>
+template <typename CallExec>
+ReduceResult MaglevReducer<BaseT>::BuildRegExpExecUnlessQuickCheckRejects(
+    ValueNode* regexp, ValueNode* literal_data, ValueNode* subject,
+    RegExpExecQuickCheckRejects::Mode mode, RootIndex no_match_result,
+    CallExec&& call_exec) {
+  ValueNode* last_index = nullptr;
+  if (literal_data == nullptr) {
+    GET_VALUE_OR_ABORT(last_index, BuildCheckRegExpLastIndex(regexp));
+  }
+  // Only Turbolev lowers the quick check. In Maglev code the builtin applies
+  // the same filters.
+  if (!is_turbolev() || !v8_flags.turbolev_regexp_quick_check) {
+    return call_exec();
+  }
+
+  ValueNode* rejects;
+  if (literal_data != nullptr) {
+    // The literal starts at index 0 and its lastIndex is 0 already, so there
+    // is nothing to reset on a reject.
+    GET_VALUE_OR_ABORT(rejects, AddNewNode<RegExpDataQuickCheckRejects>(
+                                    {literal_data, subject}));
+  } else {
+    GET_VALUE_OR_ABORT(rejects, AddNewNode<RegExpExecQuickCheckRejects>(
+                                    {regexp, subject, last_index}, mode));
+  }
+  return Select(
+      [&](BranchBuilder& builder) {
+        return BuildBranchIfInt32ToBooleanTrue(builder, rejects);
+      },
+      [&]() -> ReduceResult { return GetRootConstant(no_match_result); },
+      call_exec);
+}
+
+template <typename BaseT>
 template <typename CallBuiltin>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceFastRegExpPrototypeMethod(
     CallArguments& args, std::string_view method_name,
-    compiler::OptionalJSFunctionRef original_exec, CallBuiltin&& call_builtin) {
+    compiler::OptionalJSFunctionRef original_exec, RootIndex no_match_result,
+    CallBuiltin&& call_builtin) {
   if (!CanSpeculateCall()) return {};
   if (v8_flags.force_slow_path) return {};
 
@@ -6981,13 +7039,19 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceFastRegExpPrototypeMethod(
     return {};
   }
 
+  // Check for a fresh literal before the map check can add an escaping use.
+  ValueNode* literal_data = TryGetFreshRegExpLiteralData(receiver);
+
   RETURN_IF_ABORT(inference.InsertMapChecks(zone()));
 
   ValueNode* string = args[0];
   RETURN_IF_ABORT(BuildCheckString(string));
-  RETURN_IF_ABORT(BuildCheckRegExpLastIndex(receiver));
 
-  return call_builtin(GetConstant(native_context), receiver, string);
+  return BuildRegExpExecUnlessQuickCheckRejects(
+      receiver, literal_data, string, RegExpExecQuickCheckRejects::Mode::kExec,
+      no_match_result, [&]() -> ReduceResult {
+        return call_builtin(GetConstant(native_context), receiver, string);
+      });
 }
 
 template <typename BaseT>
@@ -6996,6 +7060,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceRegExpPrototypeTest(
   return TryReduceFastRegExpPrototypeMethod(
       args, "RegExp.prototype.test",
       broker()->target_native_context().regexp_exec_function(broker()),
+      RootIndex::kFalseValue,
       [&](ValueNode* native_context, ValueNode* regexp, ValueNode* string) {
         return BuildCallBuiltin<Builtin::kRegExpPrototypeTestFast>(
             native_context, {regexp, string});
@@ -7006,7 +7071,7 @@ template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceRegExpPrototypeExec(
     ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   return TryReduceFastRegExpPrototypeMethod(
-      args, "RegExp.prototype.exec", {},
+      args, "RegExp.prototype.exec", {}, RootIndex::kNullValue,
       [&](ValueNode* native_context, ValueNode* regexp, ValueNode* string) {
         return BuildCallBuiltin<Builtin::kRegExpPrototypeExecFast>(
             native_context, {regexp, string});
@@ -7095,14 +7160,20 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceStringPrototypeMatch(
     return {};
   }
 
+  // Check for a fresh literal before the map check can add an escaping use.
+  ValueNode* literal_data = TryGetFreshRegExpLiteralData(regexp);
+
   RETURN_IF_ABORT(BuildCheckMaps(regexp, base::VectorOf({regexp_initial_map})));
 
   ValueNode* receiver = args.receiver();
   RETURN_IF_ABORT(BuildCheckString(receiver));
-  RETURN_IF_ABORT(BuildCheckRegExpLastIndex(regexp));
 
-  return BuildCallBuiltin<Builtin::kRegExpMatchFast>(
-      GetConstant(native_context), {regexp, receiver});
+  return BuildRegExpExecUnlessQuickCheckRejects(
+      regexp, literal_data, receiver, RegExpExecQuickCheckRejects::Mode::kMatch,
+      RootIndex::kNullValue, [&]() -> ReduceResult {
+        return BuildCallBuiltin<Builtin::kRegExpMatchFast>(
+            GetConstant(native_context), {regexp, receiver});
+      });
 }
 
 template <typename BaseT>

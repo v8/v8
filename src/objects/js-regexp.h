@@ -202,6 +202,9 @@ V8_OBJECT class RegExpData : public ExposedTrustedObject {
   // The first-character bitset covers the latin-1 range, one bit per character.
   static constexpr int kQuickCheckBitsetChars = 256;
   static constexpr int kQuickCheckBitsetBitsPerWord = 32;
+  static constexpr int kQuickCheckBitsetBitsPerWordLog2 = 5;
+  static_assert(1 << kQuickCheckBitsetBitsPerWordLog2 ==
+                kQuickCheckBitsetBitsPerWord);
   static constexpr int kQuickCheckBitsetWords =
       kQuickCheckBitsetChars / kQuickCheckBitsetBitsPerWord;
 

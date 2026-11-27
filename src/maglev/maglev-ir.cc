@@ -9499,6 +9499,10 @@ void LoadUint32::PrintParams(std::ostream& os) const {
   os << "(0x" << std::hex << offset() << std::dec << ")";
 }
 
+void RegExpExecQuickCheckRejects::PrintParams(std::ostream& os) const {
+  os << (mode() == Mode::kExec ? "(exec)" : "(match)");
+}
+
 void LoadFixedArrayElement::PrintParams(std::ostream& os) const {
   // TODO(victorgomes): Print compression status only after the result is
   // allocated, since that's when we do decompression marking.

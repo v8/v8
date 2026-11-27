@@ -2949,6 +2949,17 @@ ProcessResult MaglevGraphOptimizer::VisitStringLength(
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitRegExpDataQuickCheckRejects(
+    RegExpDataQuickCheckRejects* node, const ProcessingState& state) {
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitRegExpExecQuickCheckRejects(
+    RegExpExecQuickCheckRejects* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitStringIndexOf(
     StringIndexOf* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.

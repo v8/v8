@@ -29,6 +29,7 @@
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/reducer-traits.h"
 #include "src/compiler/turboshaft/representations.h"
+#include "src/compiler/turboshaft/string-map-checks-reducer-inl.h"
 #include "src/compiler/write-barrier-kind.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/execution/frame-constants.h"
@@ -58,7 +59,7 @@ namespace v8::internal::compiler::turboshaft {
 // MachineLoweringReducer, formerly known as EffectControlLinearizer, lowers
 // simplified operations to machine operations.
 template <typename Next>
-class MachineLoweringReducer : public Next {
+class MachineLoweringReducer : public StringMapChecksReducer<Next> {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE(MachineLowering)
 
@@ -2702,11 +2703,8 @@ class MachineLoweringReducer : public Next {
           // We need to bailout to the runtime for uncached external
           // strings.
 #if V8_STATIC_ROOTS_BOOL
-          V<Word32> is_uncached_external_string = __ Uint32LessThanOrEqual(
-              __ Word32Sub(map_bits,
-                           StringTypeRange::kUncachedExternalString.first),
-              StringTypeRange::kUncachedExternalString.second -
-                  StringTypeRange::kUncachedExternalString.first);
+          V<Word32> is_uncached_external_string = __ IsMapInRange(
+              map_bits, StringTypeRange::kUncachedExternalString);
 #else
           V<Word32> is_uncached_external_string = __ Word32Equal(
               __ Word32BitwiseAnd(instance_type, kUncachedExternalStringMask),
@@ -3055,7 +3053,7 @@ class MachineLoweringReducer : public Next {
 
     // If {other} is not a SeqOneByteString, fall through to the StringEqual
     // builtin call in the caller.
-    IF (LIKELY(IsSeqOneByteStringMap(__ LoadMapField(other)))) {
+    IF (LIKELY(__ IsSeqOneByteStringMap(__ LoadMapField(other)))) {
       uint32_t chunk_size =
           std::min<uint32_t>(kSystemPointerSize, std::bit_floor(length));
       MemoryRepresentation mem_rep;
@@ -3215,7 +3213,7 @@ class MachineLoweringReducer : public Next {
     // first two shrink the object while String::length keeps its old value.
     auto check_seq_1byte = [&](V<Object> value) {
       GOTO_IF(__ ObjectIsSmi(value), bailout);
-      GOTO_IF_NOT(IsSeqOneByteStringMap(__ LoadMapField(value)), bailout);
+      GOTO_IF_NOT(__ IsSeqOneByteStringMap(__ LoadMapField(value)), bailout);
     };
     check_seq_1byte(receiver);
     check_seq_1byte(compare_str);
@@ -4778,32 +4776,6 @@ class MachineLoweringReducer : public Next {
     }
     return __ template LoadField<Float64>(
         heap_object, AccessBuilder::ForHeapNumberOrOddballValue());
-  }
-
-  // Accepts the sequential, internalized and shared one-byte string maps
-  // alike, matching InstanceTypeChecker::IsSeqOneByteString(Tagged<Map>).
-  // Guards on a string constant's map need the whole set: the string can be
-  // internalized or shared in place afterwards, which stores one of the other
-  // maps without changing the layout the guarded code reads.
-  V<Word32> IsSeqOneByteStringMap(V<Map> map) {
-#if V8_STATIC_ROOTS_BOOL
-    using StringTypeRange = InstanceTypeChecker::kUniqueMapRangeOfStringType;
-    static_assert(StringTypeRange::kSeqString.first == 0);
-    V<Word32> map_bits =
-        __ TruncateWordPtrToWord32(__ BitcastTaggedToWordPtr(map));
-    return __ Word32BitwiseAnd(
-        __ Uint32LessThanOrEqual(map_bits, StringTypeRange::kSeqString.second),
-        __ Word32Equal(
-            __ Word32BitwiseAnd(map_bits,
-                                InstanceTypeChecker::kStringMapEncodingMask),
-            InstanceTypeChecker::kOneByteStringMapBit));
-#else
-    return __ Word32Equal(
-        __ Word32BitwiseAnd(
-            __ LoadInstanceTypeField(map),
-            kIsNotStringMask | kStringRepresentationAndEncodingMask),
-        kStringTag | kSeqOneByteStringTag);
-#endif  // V8_STATIC_ROOTS_BOOL
   }
 
   V<Word32> LoadFromSeqOneByteString(V<Object> receiver, V<WordPtr> position) {

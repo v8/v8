@@ -1287,6 +1287,9 @@ class MaglevGraphBuilder {
 
   std::optional<ValueNode*> TryBuildLoadTaggedFieldFromAllocation(
       ValueNode* object, int offset);
+  // Returns {node} as an allocation of this graph that nothing else can have
+  // observed or modified yet, or nullptr.
+  InlinedAllocation* TryGetNonEscapingAllocation(ValueNode* node);
   V8_EXPORT_PRIVATE bool TryElideWriteBarrierForAllocation(ValueNode* object,
                                                            ValueNode* value);
   V8_EXPORT_PRIVATE VirtualObject* CreateJSObject(compiler::MapRef map);

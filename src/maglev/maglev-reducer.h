@@ -403,6 +403,7 @@ template <typename BaseT>
 concept ReducerBaseWithAllocationTracking = requires(BaseT* b) {
   b->TryBuildLoadTaggedFieldFromAllocation(std::declval<ValueNode*>(),
                                            std::declval<int>());
+  b->TryGetNonEscapingAllocation(std::declval<ValueNode*>());
   b->TryElideWriteBarrierForAllocation(std::declval<ValueNode*>(),
                                        std::declval<ValueNode*>());
 };
@@ -1391,6 +1392,21 @@ class MaglevReducer {
   // Deopts unless {regexp}.lastIndex is a non-negative Smi, which the fast
   // regexp builtins require, and returns it as an Int32.
   ReduceResult BuildCheckRegExpLastIndex(ValueNode* regexp);
+  // Returns the RegExpData of {regexp} if it is a regexp literal that nothing
+  // has used yet. Such a regexp still has its initial data and a lastIndex of
+  // 0, so it execs from index 0 whatever its flags.
+  ValueNode* TryGetFreshRegExpLiteralData(ValueNode* regexp);
+  // Calls a fast regexp builtin through {call_exec}, unless the quick check of
+  // {regexp} shows that it cannot match {subject}; the result is then
+  // {no_match_result}. {literal_data} is the result of
+  // TryGetFreshRegExpLiteralData for {regexp}. {mode} names the builtin's start
+  // index. Beyond the lastIndex reset that the quick check does, a failing call
+  // must have no side effects.
+  template <typename CallExec>
+  ReduceResult BuildRegExpExecUnlessQuickCheckRejects(
+      ValueNode* regexp, ValueNode* literal_data, ValueNode* subject,
+      RegExpExecQuickCheckRejects::Mode mode, RootIndex no_match_result,
+      CallExec&& call_exec);
   // Reduces a call to a RegExp.prototype method on a receiver with the initial
   // RegExp map to a fast builtin. {call_builtin} emits that call, given the
   // native context, the regexp and the string argument. Pass {original_exec}
@@ -1398,7 +1414,7 @@ class MaglevReducer {
   template <typename CallBuiltin>
   MaybeReduceResult TryReduceFastRegExpPrototypeMethod(
       CallArguments& args, std::string_view method_name,
-      compiler::OptionalJSFunctionRef original_exec,
+      compiler::OptionalJSFunctionRef original_exec, RootIndex no_match_result,
       CallBuiltin&& call_builtin);
 
   MaybeReduceResult TryBuildLoadJSCollectionTable(CallArguments& args,
