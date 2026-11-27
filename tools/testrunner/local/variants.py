@@ -277,8 +277,9 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--stress-concurrent-inlining",
     ],
     "stress_maglev_tests_with_turbofan": ["--jitless"],
-    "turbolev_future": ["--no-turbolev",],
-    "stress_turbolev_future": ["--no-turbolev",],
+    "turbolev": ["--jitless"],
+    "turbolev_future": ["--jitless", "--no-turbolev"],
+    "stress_turbolev_future": ["--jitless", "--no-turbolev"],
     "always_sparkplug": ["--jitless"],
     "always_sparkplug_and_stress_regexp_jit": ["--jitless"],
     "code_serializer": [

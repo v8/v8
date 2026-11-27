@@ -1212,4 +1212,62 @@ TEST_F(ApiWasmTest, WasmStreamingDeserializeAbortsWhenExecutionTerminating) {
 }
 #endif  // V8_ENABLE_TURBOFAN
 
+TEST_F(ApiWasmTest, WasmCompileDisallowedInJitless) {
+  if (i::v8_flags.wasm_jitless) return;
+  using namespace internal::wasm;  // NOLINT(build/namespaces)
+  Isolate::Scope iscope(isolate());
+  HandleScope scope(isolate());
+  Local<Context> context = Context::New(isolate());
+  Context::Scope context_scope(context);
+#ifndef V8_JITLESS
+  FLAG_VALUE_SCOPE(jitless, true);
+#endif
+
+  constexpr uint8_t kModuleWithFunctionBytes[] = {
+      WASM_MODULE_HEADER, SECTION(Type, ENTRY_COUNT(1), SIG_ENTRY_v_v),
+      SECTION(Function, ENTRY_COUNT(1), 0),
+      SECTION(Code, ENTRY_COUNT(1), ADD_COUNT(0, WASM_END))};
+
+  // WasmModuleObject::Compile() fails with a CompileError.
+  {
+    TryCatch try_catch(isolate());
+    MaybeLocal<WasmModuleObject> maybe_module =
+        WasmModuleObject::Compile(isolate(), kModuleWithFunctionBytes);
+    CHECK(maybe_module.IsEmpty());
+    CHECK(try_catch.HasCaught());
+    CHECK(try_catch.Exception()->IsNativeError());
+  }
+
+  // WasmModuleCompilation delivers a CompileError to its callback.
+  {
+    TryCatch try_catch(isolate());
+    WasmModuleCompilation compilation;
+    compilation.OnBytesReceived(kModuleWithFunctionBytes,
+                                sizeof(kModuleWithFunctionBytes));
+    WasmModuleCompilation::ModuleCachingCallback no_caching_callback;
+    Global<Value> error;
+    compilation.Finish(
+        isolate(), no_caching_callback,
+        [this, &error](std::variant<Local<WasmModuleObject>, Local<Value>>
+                           module_or_error) {
+          CHECK(std::holds_alternative<Local<Value>>(module_or_error));
+          CHECK(error.IsEmpty());
+          error.Reset(isolate(), std::get<Local<Value>>(module_or_error));
+        });
+    EmptyMessageQueues();
+    CHECK(!error.IsEmpty());
+    CHECK(error.Get(isolate())->IsNativeError());
+    CHECK(!try_catch.HasCaught());
+    CHECK(!isolate()->HasPendingException());
+  }
+
+  // WasmModuleCompilation::Abort() is a safe no-op in jitless mode.
+  {
+    WasmModuleCompilation compilation;
+    compilation.OnBytesReceived(kModuleWithFunctionBytes,
+                                sizeof(kModuleWithFunctionBytes));
+    compilation.Abort();
+  }
+}
+
 }  // namespace v8

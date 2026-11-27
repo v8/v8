@@ -653,6 +653,10 @@ MaybeDirectHandle<WasmModuleObject> WasmEngine::SyncCompile(
     CompileTimeImports compile_imports, ErrorThrower* thrower,
     base::UniqueArray<const uint8_t> bytes, std::string_view source_url,
     MaybeDirectHandle<Map> maybe_map) {
+  if (v8_flags.jitless && !v8_flags.wasm_jitless) {
+    thrower->CompileError("Wasm code generation disallowed in jitless mode");
+    return {};
+  }
   int compilation_id = next_compilation_id_.fetch_add(1);
   TRACE_EVENT("v8.wasm", "wasm.SyncCompile", "id", compilation_id);
   v8::metrics::Recorder::ContextId context_id =

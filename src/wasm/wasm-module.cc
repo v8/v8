@@ -196,6 +196,7 @@ uint64_t WasmModule::signature_hash(const TypeCanonicalizer* type_canonicalizer,
 
 bool IsWasmCodegenAllowed(Isolate* isolate,
                           DirectHandle<NativeContext> context) {
+  if (v8_flags.jitless && !v8_flags.wasm_jitless) return false;
   // TODO(wasm): Once wasm has its own CSP policy, we should introduce a
   // separate callback that includes information about the module about to be
   // compiled. For the time being, pass an empty string as placeholder for the
@@ -210,6 +211,10 @@ bool IsWasmCodegenAllowed(Isolate* isolate,
 
 DirectHandle<String> ErrorStringForCodegen(Isolate* isolate,
                                            DirectHandle<Context> context) {
+  if (v8_flags.jitless && !v8_flags.wasm_jitless) {
+    return isolate->factory()->NewStringFromStaticChars(
+        "Wasm code generation disallowed in jitless mode");
+  }
   DirectHandle<Object> error = context->ErrorMessageForWasmCodeGeneration();
   DCHECK(!error.is_null());
   return Object::NoSideEffectsToString(isolate, error);

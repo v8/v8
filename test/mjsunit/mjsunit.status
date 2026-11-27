@@ -1363,6 +1363,12 @@
   # Wasm-to-JS type incompatibility in jitless mode with shadow realms.
   'harmony/regress/regress-511329274': [SKIP],
 
+  # Tests that Wasm compilation is disallowed under --jitless without
+  # --wasm-jitless; the jitless variant enables --wasm-jitless when DrumBrake
+  # is available.
+  'regress/wasm/regress-590583446': [SKIP],
+  'wasm/esm/module-import-source-jitless': [SKIP],
+
  }],  # has_wasm_interpreter and variant == jitless
 
 ['has_wasm_interpreter and variant == jitless and arch == arm64', {
