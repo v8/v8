@@ -101,9 +101,8 @@ ModuleResult DecodeWasmModule(
     DelayedCounterUpdates* delayed_counters,
     std::optional<v8::metrics::WasmModuleDecoded>* metrics_event,
     DecodingMethod decoding_method, WasmDetectedFeatures* detected_features) {
-  auto module_size_histogram = &Counters::wasm_wasm_module_size_bytes;
   static_assert(kV8MaxWasmModuleSize < kMaxInt);
-  delayed_counters->AddSample(module_size_histogram,
+  delayed_counters->AddSample(&Counters::wasm_module_size_bytes,
                               static_cast<int>(wire_bytes.size()));
 
   base::TimeTicks start;
@@ -112,9 +111,9 @@ ModuleResult DecodeWasmModule(
   ModuleResult result = DecodeWasmModule(enabled_features, wire_bytes,
                                          validate_functions, detected_features);
   if (result.ok()) {
-    auto histogram = &Counters::wasm_functions_per_wasm_module;
     delayed_counters->AddSample(
-        histogram, static_cast<int>(result.value()->num_defined_functions));
+        &Counters::wasm_functions_per_module,
+        static_cast<int>(result.value()->num_defined_functions));
   }
 
   // Record event metrics.

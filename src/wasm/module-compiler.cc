@@ -3453,12 +3453,10 @@ void AsyncStreamingProcessor::OnFinishedStream(
   // Record the size of the wire bytes and the number of functions. In
   // synchronous and asynchronous (non-streaming) compilation, this happens in
   // {DecodeWasmModule}.
-  auto* module_size_histogram =
-      isolate->counters()->wasm_wasm_module_size_bytes();
-  module_size_histogram->AddSample(job_->wire_bytes_.module_bytes().length());
-  auto* num_functions_histogram =
-      isolate->counters()->wasm_functions_per_wasm_module();
-  num_functions_histogram->AddSample(static_cast<int>(num_functions_));
+  isolate->counters()->wasm_module_size_bytes()->AddSample(
+      job_->wire_bytes_.module_bytes().length());
+  isolate->counters()->wasm_functions_per_module()->AddSample(
+      static_cast<int>(num_functions_));
 
   std::shared_ptr<NativeModule> final_native_module = job_->new_native_module_;
   bool cache_hit = false;

@@ -144,17 +144,14 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
   if (compile_timer.IsStarted()) {
     base::TimeDelta compile_time = compile_timer.Elapsed();
     if (func_body.end - func_body.start >= 100 * KB) {
-      DelayedCounterUpdates::GetHistogramFn huge_size_histogram =
-          &Counters::wasm_wasm_huge_function_size_bytes;
       counter_updates->AddSample(
-          huge_size_histogram,
+          &Counters::wasm_huge_function_size_bytes,
           static_cast<int>(func_body.end - func_body.start));
       counter_updates->AddTimedSample(
           &Counters::wasm_compile_huge_function_time, compile_time);
     }
-    DelayedCounterUpdates::GetTimedHistogramFn compile_time_histogram =
-        &Counters::wasm_compile_wasm_function_time;
-    counter_updates->AddTimedSample(compile_time_histogram, compile_time);
+    counter_updates->AddTimedSample(&Counters::wasm_compile_wasm_function_time,
+                                    compile_time);
   }
   return result;
 }

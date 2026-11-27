@@ -28,21 +28,18 @@ namespace internal {
   HR(gc_finalize_sweep, V8.GCFinalizeMC.Sweep, 0, 10000, 101)                  \
   HR(gc_scavenger_scavenge_main, V8.GCScavenger.ScavengeMain, 0, 10000, 101)   \
   HR(gc_scavenger_scavenge_roots, V8.GCScavenger.ScavengeRoots, 0, 10000, 101) \
-  /* Asm/Wasm. */                                                              \
-  HR(wasm_functions_per_asm_module, V8.WasmFunctionsPerModule.asm, 1, 1000000, \
+  /* Wasm. */                                                                  \
+  HR(wasm_functions_per_module, V8.WasmFunctionsPerModule.wasm, 1, 1000000,    \
      51)                                                                       \
-  HR(wasm_functions_per_wasm_module, V8.WasmFunctionsPerModule.wasm, 1,        \
-     1000000, 51)                                                              \
   HR(array_buffer_big_allocations, V8.ArrayBufferLargeAllocations, 0, 4096,    \
      13)                                                                       \
   HR(array_buffer_new_size_failures, V8.ArrayBufferNewSizeFailures, 0, 4096,   \
      13)                                                                       \
-  HR(wasm_wasm_huge_function_size_bytes, V8.WasmHugeFunctionSizeBytes.wasm,    \
+  HR(wasm_huge_function_size_bytes, V8.WasmHugeFunctionSizeBytes.wasm,         \
      100 * KB, GB, 51)                                                         \
-  HR(wasm_wasm_module_size_bytes, V8.WasmModuleSizeBytes.wasm, 1, GB, 51)      \
+  HR(wasm_module_size_bytes, V8.WasmModuleSizeBytes.wasm, 1, GB, 51)           \
   HR(wasm_compile_huge_function_peak_memory_bytes,                             \
      V8.WasmCompileHugeFunctionPeakMemoryBytes, 1, GB, 51)                     \
-  HR(asm_module_size_bytes, V8.AsmModuleSizeBytes, 1, GB, 51)                  \
   HR(compile_script_cache_behaviour, V8.CompileScript.CacheBehaviour, 0, 22,   \
      23)                                                                       \
   HR(wasm_memory_allocation_result, V8.WasmMemoryAllocationResult, 0, 3, 4)    \
@@ -281,8 +278,6 @@ namespace internal {
   HT(turbofan_osr_total_time,                                                  \
      V8.TurboFanOptimizeForOnStackReplacementTotalTime, 10000000, MICROSECOND) \
   /* Wasm timers. */                                                           \
-  HT(wasm_compile_asm_module_time, V8.WasmCompileModuleMicroSeconds.asm,       \
-     10000000, MICROSECOND)                                                    \
   HT(wasm_compile_wasm_module_time, V8.WasmCompileModuleMicroSeconds.wasm,     \
      10000000, MICROSECOND)                                                    \
   HT(wasm_async_compile_wasm_module_time,                                      \
@@ -291,16 +286,12 @@ namespace internal {
      V8.WasmCompileModuleStreamingMicroSeconds, 100000000, MICROSECOND)        \
   HT(wasm_streaming_finish_wasm_module_time,                                   \
      V8.WasmFinishModuleStreamingMicroSeconds, 100000000, MICROSECOND)         \
-  HT(wasm_compile_asm_function_time, V8.WasmCompileFunctionMicroSeconds.asm,   \
-     1000000, MICROSECOND)                                                     \
   HT(wasm_compile_wasm_function_time, V8.WasmCompileFunctionMicroSeconds.wasm, \
      1000000, MICROSECOND)                                                     \
   HT(wasm_compile_huge_function_time, V8.WasmCompileHugeFunctionMilliSeconds,  \
      100000, MILLISECOND)                                                      \
   HT(wasm_instantiate_wasm_module_time,                                        \
      V8.WasmInstantiateModuleMicroSeconds.wasm, 10000000, MICROSECOND)         \
-  HT(wasm_instantiate_asm_module_time,                                         \
-     V8.WasmInstantiateModuleMicroSeconds.asm, 10000000, MICROSECOND)          \
   HT(wasm_lazy_compile_time, V8.WasmLazyCompileTimeMicroSeconds, 100000000,    \
      MICROSECOND)                                                              \
   /* Total compilation time incl. caching/parsing for various cache states. */ \
