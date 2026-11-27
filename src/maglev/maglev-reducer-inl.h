@@ -2950,10 +2950,17 @@ MaybeReduceResult MaglevReducer<BaseT>::TryBuildFastInstanceOf(
         callable_node, base::VectorOf(access_info.lookup_start_object_maps())));
 
     if (has_instance_field->IsJSFunction()) {
+      compiler::JSFunctionRef has_instance_function =
+          has_instance_field->AsJSFunction();
       compiler::SharedFunctionInfoRef shared =
-          has_instance_field->AsJSFunction().shared(broker());
+          has_instance_function.shared(broker());
+      // Only fold Function.prototype[@@hasInstance] within the target native
+      // context so that OrdinaryHasInstance errors and prototype-chain access
+      // checks use the builtin's realm rather than the caller's.
       if (shared.HasBuiltinId() &&
-          shared.builtin_id() == Builtin::kFunctionPrototypeHasInstance) {
+          shared.builtin_id() == Builtin::kFunctionPrototypeHasInstance &&
+          has_instance_function.native_context(broker()) ==
+              broker()->target_native_context()) {
         // The CheckValueByReference above pinned {callable_node} to
         // {callable}, so we can treat the callable as a compile-time constant
         // from here on, which lets BuildOrdinaryHasInstance take its fast
