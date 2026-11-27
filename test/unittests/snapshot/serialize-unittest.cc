@@ -42,6 +42,8 @@
 #include "include/v8-sandbox.h"
 #include "include/v8-snapshot.h"
 #include "src/api/api-inl.h"
+#include "src/base/memory.h"
+#include "src/base/numerics/safe_conversions.h"
 #include "src/base/platform/platform.h"
 #include "src/base/unique-array.h"
 #include "src/codegen/compilation-cache.h"
@@ -8268,6 +8270,120 @@ TEST_F(UninitializedSerializeTest, SerializeWeakRootArrayConstantsLeak) {
   }
   delete[] blob.data;
   FreeCurrentEmbeddedBlob();
+}
+
+TEST_F(SerializeTest, DeserializeProtectedPointerFromStartupObjectCache) {
+  struct SnapshotBytecodes : public SerializerDeserializer {
+    using SerializerDeserializer::FixedRawDataWithSize;
+    using SerializerDeserializer::kInitializeSelfTrustedPointer;
+    using SerializerDeserializer::kNop;
+    using SerializerDeserializer::kProtectedPointerPrefix;
+    using SerializerDeserializer::kRootArray;
+    using SerializerDeserializer::kStartupObjectCache;
+    using SerializerDeserializer::kSynchronize;
+    using SerializerDeserializer::NewObject;
+  };
+
+  auto pad = [](SnapshotByteSink* sink) {
+    for (int i = 0; i < 3; i++) sink->Put(SnapshotBytecodes::kNop, "padding");
+    while (!IsAligned(sink->Position(), kPointerAlignment)) {
+      sink->Put(SnapshotBytecodes::kNop, "padding");
+    }
+  };
+
+  HandleScope scope(i_isolate());
+  DirectHandle<Context> default_context =
+      v8::Utils::OpenDirectHandle(*v8_context());
+  v8::Local<v8::Value> fun_val = CompileRun(
+      v8_isolate(),
+      "(function() { function f() { return 1; } f(); return f; })()");
+  DirectHandle<JSFunction> fun =
+      Cast<JSFunction>(v8::Utils::OpenDirectHandle(*fun_val));
+  DirectHandle<BytecodeArray> bytecode =
+      i_isolate()->factory()->CopyBytecodeArray(direct_handle(
+          fun->shared()->GetBytecodeArray(i_isolate()), i_isolate()));
+
+  std::vector<Tagged<Object>>* cache = i_isolate()->startup_object_cache();
+  CHECK(!cache->empty());
+  Tagged<Object> undefined = ReadOnlyRoots(i_isolate()).undefined_value();
+  CHECK(cache->back().SafeEquals(undefined));
+  uint32_t context_idx = base::checked_cast<uint32_t>(cache->size() - 1);
+  uint32_t bytecode_idx = context_idx + 1;
+  (*cache)[context_idx] = *default_context;
+  cache->push_back(*bytecode);
+  cache->push_back(undefined);
+
+  SnapshotByteSink untrusted;
+  untrusted.Put(SnapshotBytecodes::kStartupObjectCache, "context");
+  untrusted.PutUint30(context_idx, "context_idx");
+  untrusted.Put(SnapshotBytecodes::kSynchronize, "end_deferred");
+  untrusted.Put(SnapshotBytecodes::kSynchronize, "end_untrusted");
+  pad(&untrusted);
+
+  uint8_t zero_slot[kTaggedSize] = {};
+  SnapshotByteSink trusted;
+  trusted.PutUint30(0, "external_ref_count");
+  trusted.Put(SnapshotBytecodes::NewObject::Encode(SnapshotSpace::kTrusted),
+              "InterpreterData");
+  trusted.Put(SnapshotBytecodes::kRootArray, "InterpreterDataMap");
+  trusted.PutUint30(static_cast<uint32_t>(RootIndex::kInterpreterDataMap),
+                    "map");
+#ifdef V8_ENABLE_SANDBOX
+  trusted.Put(SnapshotBytecodes::kInitializeSelfTrustedPointer, "self");
+#endif
+  trusted.Put(SnapshotBytecodes::kProtectedPointerPrefix, "protected");
+  trusted.Put(SnapshotBytecodes::kStartupObjectCache, "bytecode");
+  trusted.PutUint30(bytecode_idx, "bytecode_idx");
+  trusted.Put(SnapshotBytecodes::FixedRawDataWithSize::Encode(1), "trampoline");
+  trusted.PutRaw(zero_slot, sizeof(zero_slot), "trampoline");
+  trusted.Put(SnapshotBytecodes::kSynchronize, "end_trusted");
+  pad(&trusted);
+
+  constexpr uint32_t kHeaderSize =
+      SnapshotData::kTrustedPayloadLengthOffset + kUInt32Size;
+  uint32_t trusted_len = base::checked_cast<uint32_t>(trusted.data()->size());
+  uint32_t payload_len =
+      trusted_len + base::checked_cast<uint32_t>(untrusted.data()->size());
+  std::vector<uint8_t> bytes(kHeaderSize + payload_len);
+  auto set_u32 = [&](uint32_t off, uint32_t val) {
+    base::WriteLittleEndianValue<uint32_t>(
+        reinterpret_cast<Address>(bytes.data() + off), val);
+  };
+  set_u32(SnapshotData::kMagicNumberOffset, SnapshotData::kMagicNumber);
+  set_u32(SnapshotData::kPayloadLengthOffset, payload_len);
+  set_u32(SnapshotData::kTrustedPayloadLengthOffset, trusted_len);
+  std::copy(trusted.data()->begin(), trusted.data()->end(),
+            bytes.begin() + kHeaderSize);
+  std::copy(untrusted.data()->begin(), untrusted.data()->end(),
+            bytes.begin() + kHeaderSize + trusted_len);
+
+  SnapshotData snapshot(base::VectorOf(bytes));
+  DirectHandle<JSGlobalProxy> global_proxy =
+      i_isolate()->factory()->NewUninitializedJSGlobalProxy(
+          JSGlobalProxy::SizeWithEmbedderFields(0));
+  DirectHandle<Context> result =
+      ContextDeserializer::DeserializeContext(
+          i_isolate(), &snapshot, 0, false, global_proxy,
+          DeserializeEmbedderFieldsCallback())
+          .ToHandleChecked();
+  CHECK_EQ(*result, *default_context);
+
+  cache->resize(context_idx + 1);
+  (*cache)[context_idx] = undefined;
+
+  HeapObjectIterator it(i_isolate()->heap());
+  DisallowGarbageCollection no_gc;
+  bool found = false;
+  for (Tagged<HeapObject> obj = it.Next(); !obj.is_null(); obj = it.Next()) {
+    if (!IsInterpreterData(obj)) continue;
+    Tagged<InterpreterData> data = TrustedCast<InterpreterData>(obj);
+    if (data->bytecode_array() == *bytecode) {
+      CHECK(!data->has_interpreter_trampoline());
+      found = true;
+      break;
+    }
+  }
+  CHECK(found);
 }
 
 }  // namespace serialize_unittest

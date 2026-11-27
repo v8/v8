@@ -235,6 +235,11 @@ int Deserializer<IsolateT>::WriteHeapPointer(SlotAccessor slot_accessor,
     DCHECK(IsExposedTrustedObject(heap_object));
     return slot_accessor.WriteTrustedPointerTo(
         TrustedCast<ExposedTrustedObject>(heap_object), mode);
+  } else if (descr.is_protected_pointer) {
+    DCHECK(InTrustedSection());
+    DCHECK(IsTrustedObject(heap_object));
+    return slot_accessor.WriteProtectedPointerTo(
+        TrustedCast<TrustedObject>(heap_object), mode);
   } else {
     return slot_accessor.Write(heap_object, descr.type, 0, mode);
   }
@@ -245,19 +250,10 @@ template <typename SlotAccessor>
 int Deserializer<IsolateT>::WriteHeapPointer(
     SlotAccessor slot_accessor, DirectHandle<HeapObject> heap_object,
     ReferenceDescriptor descr, WriteBarrierMode mode) {
-  if (descr.is_trusted_pointer) {
-    DCHECK(InTrustedSection());
-    DCHECK(IsExposedTrustedObject(*heap_object));
-    return slot_accessor.WriteTrustedPointerTo(
-        TrustedCast<ExposedTrustedObject>(*heap_object), mode);
-  } else if (descr.is_protected_pointer) {
-    DCHECK(InTrustedSection());
-    DCHECK(IsTrustedObject(*heap_object));
-    return slot_accessor.WriteProtectedPointerTo(
-        TrustedCast<TrustedObject>(*heap_object), mode);
-  } else {
+  if (!descr.is_trusted_pointer && !descr.is_protected_pointer) {
     return slot_accessor.Write(heap_object, descr.type, 0, mode);
   }
+  return WriteHeapPointer(slot_accessor, *heap_object, descr, mode);
 }
 
 template <typename IsolateT>
