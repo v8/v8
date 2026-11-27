@@ -64,10 +64,11 @@ SharedFunctionInfo::SharedFunctionInfo(const AllocationWitness& witness,
 
 SharedFunctionInfo::SharedFunctionInfo(const AllocationWitness& witness,
                                        Tagged<SharedFunctionInfo> other,
-                                       IsolateForSandbox isolate)
+                                       int unique_id, IsolateForSandbox isolate)
     : HeapObject(witness.roots().shared_function_info_map()),
       untrusted_function_data_(Smi::FromEnum(Builtin::kIllegal)),
-      name_or_scope_info_(kNoSharedNameSentinel) {
+      name_or_scope_info_(kNoSharedNameSentinel),
+      unique_id_(unique_id) {
   CopyFrom(other, isolate);
 }
 
@@ -239,7 +240,6 @@ void SharedFunctionInfo::CopyFrom(Tagged<SharedFunctionInfo> other,
   set_flags(other->flags(kRelaxedLoad), kRelaxedStore);
   set_function_literal_id(other->function_literal_id(kRelaxedLoad),
                           kRelaxedStore);
-  set_unique_id(other->unique_id());
   set_age(0);
   set_feedback_slot(other->feedback_slot());
 
@@ -252,13 +252,14 @@ void SharedFunctionInfo::CopyFrom(Tagged<SharedFunctionInfo> other,
     SetUntrustedData(other->GetUntrustedData());
   }
 #if DEBUG
-  // This should now be byte-for-byte identical to the input except for the age
-  // field (could be reset concurrently). Compare content before age field now:
+  // This should now be byte-for-byte identical to the input except for the
+  // unique id (never copied) and the age (could be reset concurrently).
+  static_assert(offsetof(SharedFunctionInfo, unique_id_) + sizeof(unique_id_) ==
+                offsetof(SharedFunctionInfo, age_));
   DCHECK_EQ(memcmp(reinterpret_cast<void*>(address()),
                    reinterpret_cast<void*>(other.address()),
-                   offsetof(SharedFunctionInfo, age_)),
+                   offsetof(SharedFunctionInfo, unique_id_)),
             0);
-  // Compare content after age field.
   constexpr Address kPastAgeOffset =
       offsetof(SharedFunctionInfo, age_) + SharedFunctionInfo::kAgeSize;
   DCHECK_EQ(memcmp(reinterpret_cast<void*>(address() + kPastAgeOffset),

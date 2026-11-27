@@ -428,7 +428,8 @@ template <typename Impl>
 Handle<SharedFunctionInfo> FactoryBase<Impl>::CloneSharedFunctionInfo(
     DirectHandle<SharedFunctionInfo> other) {
   return indirect_handle(
-      New<SharedFunctionInfo, AllocationType::kOld>(other, isolate()),
+      New<SharedFunctionInfo, AllocationType::kOld>(
+          other, isolate()->GetAndIncNextUniqueSfiId(), isolate()),
       isolate());
 }
 

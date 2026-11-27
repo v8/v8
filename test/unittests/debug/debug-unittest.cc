@@ -341,6 +341,31 @@ TEST_F(DebugTest, DebugInfo) {
   CHECK(!HasBreakInfo(bar));
 }
 
+// DebugInfos are looked up by SharedFunctionInfo::unique_id. Copying a
+// SharedFunctionInfo must not copy the id.
+TEST_F(DebugTest, DebugInfoOfCopiedSharedFunctionInfo) {
+  LocalContext env;
+  v8::HandleScope scope(env.isolate());
+  v8::Local<v8::Function> foo =
+      CompileFunction(&env, "function foo(){}", "foo");
+  i::DirectHandle<i::SharedFunctionInfo> shared(
+      i::Cast<i::JSFunction>(v8::Utils::OpenDirectHandle(*foo))->shared(),
+      i_isolate());
+
+  i::DirectHandle<i::SharedFunctionInfo> clone =
+      i_isolate()->factory()->CloneSharedFunctionInfo(shared);
+  i::DirectHandle<i::SharedFunctionInfo> other =
+      i_isolate()->factory()->CloneSharedFunctionInfo(shared);
+  i_isolate()->debug()->GetOrCreateDebugInfo(shared);
+  CHECK(shared->HasDebugInfo(i_isolate()));
+  CHECK(!clone->HasDebugInfo(i_isolate()));
+
+  other->CopyFrom(*shared, i_isolate());
+  CHECK(!other->HasDebugInfo(i_isolate()));
+  shared->CopyFrom(*clone, i_isolate());
+  CHECK(shared->HasDebugInfo(i_isolate()));
+}
+
 // Test that a break point can be set at an IC store location.
 TEST_F(DebugTest, BreakPointICStore) {
   break_point_hit_count = 0;
