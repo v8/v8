@@ -33,9 +33,13 @@ When proposing a fix, ensure the code adheres to V8 standards:
 - **Fail Fast Over Defensive Workarounds**: Never introduce defensive
   programming patterns to paper over unexpected compiler states or invariant
   violations (e.g., silent early returns, fallback dummy values, defensive
-  clamping, or non-exhaustive switch `default: break;`). If an invariant is
-  expected to hold, assert it via `DCHECK` or `CHECK` so that violations are
-  caught immediately by debug builds and fuzzers rather than masked.
+  clamping, or non-exhaustive switch `default: break;`). Assert expected
+  invariants: default to `DCHECK` (also for trusted inputs, accesses confined to
+  the sandbox, and invariants release-checked downstream); reserve `SBXCHECK`
+  (`src/sandbox/check.h`) for out-of-sandbox memory-safety invariants on
+  untrusted in-sandbox data (rarely as defense in depth); use `CHECK` for other
+  invariants that must hold in release builds. Apply the same criteria when
+  choosing casts (`src/objects/casting.h`).
 - **Encapsulation**: Encapsulate data-structure mutations as methods on the
   owning class rather than duplicating low-level steps across callers.
 - **Mandatory Reproducer Rule**: Unless waived by the user, every bug fix

@@ -125,6 +125,12 @@ Run all selected reviewers concurrently, passing each reviewer only its own
      checks) and coupled state updates inside `TrustedObject` and trust-boundary
      helpers rather than relying on callers to pre-validate inputs or finish
      multi-step initialization.
+   - **Check scope**: Reserve `SBXCHECK*` (`src/sandbox/check.h`) for
+     out-of-sandbox memory-safety invariants on untrusted in-sandbox data
+     (rarely defense in depth). Flag `SBXCHECK*`, `CHECK*`, or release-time
+     casts (`src/objects/casting.h`) where `DCHECK*`, `Cast<T>`, or
+     `TrustedCast<T>` suffices (trusted inputs, accesses confined to the
+     sandbox, or invariants release-checked downstream).
 
 2. `correctness-gc`:
 
