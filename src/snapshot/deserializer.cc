@@ -479,6 +479,12 @@ void Deserializer<IsolateT>::SwitchToTrustedSection() {
   DCHECK_EQ(num_unresolved_forward_refs_, 0);
   DCHECK(unresolved_forward_refs_.empty());
 #endif
+  // A corrupted untrusted section can leave pending reference state behind
+  // (e.g. a weak prefix without a following reference), so reset it rather
+  // than let it change how the trusted section is interpreted.
+  next_reference_is_weak_ = false;
+  unresolved_forward_refs_.clear();
+  num_unresolved_forward_refs_ = 0;
   if (v8_flags.trace_deserialization) {
     PrintF("-- Trusted section\n");
   }

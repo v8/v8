@@ -8,6 +8,7 @@
 #include "src/base/memory.h"
 #include "src/base/numerics/safe_conversions.h"
 #include "src/base/vector.h"
+#include "src/codegen/external-reference-table.h"
 #include "src/execution/isolate.h"
 #include "src/roots/roots.h"
 #include "src/snapshot/serializer-deserializer.h"
@@ -34,6 +35,8 @@ namespace {
 struct SnapshotBytecodes : public SerializerDeserializer {
   using SerializerDeserializer::Bytecode;
   using enum Bytecode;
+  using SerializerDeserializer::FixedRawDataWithSize;
+  using SerializerDeserializer::FixedRepeatRootWithCount;
   using SerializerDeserializer::IsTrustedBytecode;
   using SerializerDeserializer::NewObject;
 };
@@ -45,9 +48,11 @@ void Pad(SnapshotByteSink* sink) {
   }
 }
 
-std::vector<uint8_t> MakeStartupSnapshot(SnapshotByteSink* untrusted) {
+std::vector<uint8_t> MakeStartupSnapshot(SnapshotByteSink* untrusted,
+                                         const SnapshotByteSink& roots) {
   SnapshotByteSink trusted;
   trusted.PutUint30(0, "ExternalReferenceCount");
+  trusted.Append(roots);
   trusted.Put(SnapshotBytecodes::kSynchronize, "EndOfTrustedExports");
   Pad(&trusted);
   Pad(untrusted);
@@ -84,8 +89,10 @@ class StartupSnapshotUntrustedSectionTest
     return reinterpret_cast<Isolate*>(v8_isolate());
   }
 
-  void Deserialize(SnapshotByteSink* untrusted) {
-    std::vector<uint8_t> bytes = MakeStartupSnapshot(untrusted);
+  // |roots| is the start of the trusted section, which deserializes the roots.
+  void Deserialize(SnapshotByteSink* untrusted,
+                   const SnapshotByteSink& roots = {}) {
+    std::vector<uint8_t> bytes = MakeStartupSnapshot(untrusted, roots);
     SnapshotData snapshot(base::VectorOf(bytes));
     v8::Isolate::Scope isolate_scope(v8_isolate());
     i_isolate()->startup_object_cache()->clear();
@@ -133,6 +140,50 @@ TEST_F(StartupSnapshotUntrustedSectionTest, TrustedAndSmiRoots) {
     ASSERT_DEATH_IF_SUPPORTED(Deserialize(&untrusted),
                               EXPECTED_CHECK_WITH_MSG("OutsideSandbox"));
   }
+}
+
+TEST_F(StartupSnapshotUntrustedSectionTest, PendingWeakPrefix) {
+  // The untrusted section ends with a weak prefix that no reference consumes:
+  // a FixedArray whose only element is a weak prefix followed by raw data.
+  constexpr int kSizeInTagged = FixedArray::SizeFor(1) / kTaggedSize;
+  static_assert(kSizeInTagged == 3);
+  Tagged_t length = static_cast<Tagged_t>(Smi::FromInt(1).ptr());
+  Tagged_t element = static_cast<Tagged_t>(Smi::zero().ptr());
+  SnapshotByteSink untrusted;
+  untrusted.Put(SnapshotBytecodes::NewObject::Encode(SnapshotSpace::kOld), "");
+  untrusted.Put(SnapshotBytecodes::kRootArray, "");
+  untrusted.PutUint30(static_cast<uint32_t>(RootIndex::kFixedArrayMap), "");
+  untrusted.PutUint30(kSizeInTagged, "");
+  untrusted.Put(SnapshotBytecodes::FixedRawDataWithSize::Encode(1), "");
+  untrusted.PutRaw(reinterpret_cast<const uint8_t*>(&length), kTaggedSize, "");
+  untrusted.Put(SnapshotBytecodes::kWeakPrefix, "");
+  untrusted.Put(SnapshotBytecodes::FixedRawDataWithSize::Encode(1), "");
+  untrusted.PutRaw(reinterpret_cast<const uint8_t*>(&element), kTaggedSize, "");
+  untrusted.Put(SnapshotBytecodes::kSynchronize, "EndOfDeferredObjects");
+  untrusted.Put(SnapshotBytecodes::kSynchronize, "EndOfUntrustedSection");
+
+  // The trusted section then starts deserializing the roots, keeping the Smi
+  // roots as they are and writing undefined into the first strong roots.
+  SnapshotByteSink roots;
+  roots.PutUint30(ExternalReferenceTable::kSizeIsolateIndependent, "");
+  for (size_t i = static_cast<size_t>(RootIndex::kFirstSmiRoot);
+       i <= static_cast<size_t>(RootIndex::kLastSmiRoot); ++i) {
+    Address smi = i_isolate()->root(static_cast<RootIndex>(i)).ptr();
+    roots.Put(SnapshotBytecodes::FixedRawDataWithSize::Encode(
+                  kSystemPointerSize / kTaggedSize),
+              "");
+    roots.PutRaw(reinterpret_cast<const uint8_t*>(&smi), kSystemPointerSize,
+                 "");
+  }
+  roots.Put(SnapshotBytecodes::kSynchronize, "EndOfSmiRoots");
+  // Repeated roots are always strong, and must not see a pending weak prefix.
+  roots.Put(SnapshotBytecodes::FixedRepeatRootWithCount::Encode(2), "");
+  roots.Put(static_cast<uint8_t>(RootIndex::kUndefinedValue), "");
+  // Stop deserializing here with a known crash.
+  roots.Put(SnapshotBytecodes::kSynchronize, "");
+
+  ASSERT_DEATH_IF_SUPPORTED(Deserialize(&untrusted, roots),
+                            EXPECTED_CHECK_WITH_MSG("unreachable code"));
 }
 
 }  // namespace v8::internal
