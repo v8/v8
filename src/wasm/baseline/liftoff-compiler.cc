@@ -704,6 +704,7 @@ class PrototypeSetupSequenceDetector : public Decoder {
   std::array<uint32_t, kNumRecordedConstants> recorded_constants_;
 };
 
+// See docs/wasm/liftoff.md for design decisions and invariants.
 class LiftoffCompiler {
  public:
   using ValidationTag = Decoder::NoValidationTag;

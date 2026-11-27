@@ -40,6 +40,7 @@ tests:
               present:
                 - 'kTierUpCostForTailCall'
               absent:
+                - 'returns and tail calls also add `kTierUpCostForFunctionEntry`'
                 - '425'
                 - 'JetStream3'
                 - 'wasmpspdfkit'

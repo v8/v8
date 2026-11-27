@@ -24,10 +24,11 @@ Tier 1: Liftoff Baseline Compiler    (src/wasm/baseline/liftoff-compiler.cc)
    │  Single-pass structured-control-flow code generator using an abstract
    │  register/stack value state (LiftoffAssembler::CacheState).
    │  - Emits fast machine code in a single pass (~10-20 MB/s).
-   │  - Decrements per-function tiering_budget_array on calls and loops.
+   │  - Decrements per-function tiering_budget_array at loop back-edges,
+   │    returns, and tail calls.
    │  - Collects call-site type feedback (direct, call_ref, call_indirect)
    │    into WasmTrustedInstanceData::feedback_vectors.
-   ▼  (When tiering_budget reaches 0 -> TriggerTierUp)
+   ▼  (When tiering_budget drops below 0 -> TriggerTierUp)
 Tier 2: Turboshaft Optimizing Tier   (src/wasm/turboshaft-graph-interface.cc)
       (Represented in C++ by ExecutionTier::kTurbofan in src/wasm/wasm-tier.h)
       - TransitiveTypeFeedbackProcessor processes collected feedback.
@@ -68,7 +69,7 @@ When `--wasm-inlining` is enabled, Liftoff instruments every `call`, `return_cal
   - **`call_ref` / `call_indirect`**: Transitions from **uninitialized** `(Smi(0), Smi(0))` -> **monomorphic** `(WasmFuncRef / Smi(target), Smi(count))` -> **polymorphic** `(FixedArray of up to kMaxPolymorphism = 4 target/count pairs, Undefined)` -> **megamorphic** `(megamorphic_symbol, Undefined)`.
 
 ### 2. `TransitiveTypeFeedbackProcessor` and `InliningTree`
-When a function's `tiering_budget_array` entry reaches zero (`TriggerTierUp` in `src/wasm/module-compiler.cc`):
+When a function's `tiering_budget_array` entry drops below zero (`TriggerTierUp` in `src/wasm/module-compiler.cc`):
 1. `TransitiveTypeFeedbackProcessor::Process(isolate, trusted_instance_data, func_index)` (`src/wasm/module-compiler.cc`) reads the on-heap `feedback_vectors` (validating bounds with `SBXCHECK` because `feedback_vectors` reside in the untrusted main heap) and converts them into off-heap `CallSiteFeedback` arrays stored in `WasmModule::type_feedback.feedback_for_function`, transitively processing any newly discovered callees. To prevent deopt loops across multiple instances, when `--wasm-deopt` is enabled, new feedback is merged with any previously recorded `CallSiteFeedback` for that function.
 2. Before Turboshaft graph building starts, `InliningTree::CreateRoot` (`src/wasm/inlining-tree.h`) runs `FullyExpand()` using a priority queue ordered by `score() = relative_call_count_ / wire_byte_size_`, greedily marking call sites as `is_inlined()` until `kMaxInlinedCount` (`60`), `kMaxInliningNestingDepth` (`7`), or the wire-byte budget (`SmallEnoughToInline`) is reached.
 3. During `BuildTSGraph`, `TurboshaftGraphBuildingInterface` (`src/wasm/turboshaft-graph-interface.cc`) consults the `InliningTree`:
