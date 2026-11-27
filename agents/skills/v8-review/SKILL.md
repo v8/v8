@@ -69,10 +69,26 @@ description: Reviews a V8 CL, commit, or local diff using targeted parallel suba
 
 ## Step 2: Parallel Subagents
 
-Call `invoke_subagent` for each selected subagent in parallel in a single turn
-(`TypeName: "self"`, `Model: "inherit"`), passing each subagent only its own
-**verbatim** checklist (do not paraphrase or narrow) and the shared subagent
-instructions below:
+Run all selected reviewers concurrently, passing each reviewer only its own
+**verbatim** checklist (do not paraphrase or narrow), the patch path from Step
+1, and the shared instructions below:
+
+- **When `run_workflow` is available (preferred)**: Launch a single background
+  `run_workflow` call using built-in `parallel()` so the main agent wakes up
+  once with all results instead of once per reviewer. Inside `parallel()`, wrap
+  each
+  `agent(prompt, schema=FINDING_SCHEMA, role=name, type_name="self", workspace="inherit", model="inherit")`
+  in an `async def` helper with `try`/`except Exception as e` returning
+  `{"reviewer": name, "error": str(e), "findings": []}` so a single failure does
+  not cancel sibling reviewers. Define `FINDING_SCHEMA` to match the JSON array
+  below (`required: ["file", "line", "type", "comment"]`, optional
+  `"suggestion"`), stick to built-in workflow primitives (`parallel`, `agent`)
+  for portability, and `print(json.dumps(results))` so all findings appear in
+  `Output:`.
+- **Fallback (if `run_workflow` is unavailable or denied)**: Call
+  `invoke_subagent` (or the harness's parallel subagent tool) for each selected
+  reviewer in parallel in a single turn (`TypeName: "self"`,
+  `Model: "inherit"`).
 
 1. `sandbox-security`:
 
@@ -302,7 +318,7 @@ Instructions for every subagent:
   (`tools/run-tests.py` runs one test per process/fork); only flag static,
   global, or `v8_flags` state issues in those suites if they cause a bug within
   a single test execution.
-- Send ONLY a JSON array (`[]` if clean):
+- Return ONLY a JSON array (`[]` if clean):
   `[{"file": "src/...", "line": 123, "type": "security|bug|design|question|nit", "comment": "Issue, impact, and suggested fix.", "suggestion": "..."}]`
 
 ## Step 3: Filter, Merge & Format (Main Agent)
@@ -310,7 +326,8 @@ Instructions for every subagent:
 1. **Verify**: Check every candidate comment against the source files; drop
    false positives, speculative issues without a concrete mechanism, and
    comments on unmodified lines (unless flagging a newly exposed bug or missed
-   variant anchored to the diff).
+   variant anchored to the diff). If any reviewer errored in Step 2, cover its
+   checklist directly (or re-run it) before finalizing.
 2. **Commit Message** (if reviewing a commit/CL): Verify factual accuracy
    against the diff. Check `[subsystem] Imperative subject` (\<= 72 chars,
    aiming for < 50, no period), concise body (\<= 10 lines when needed, wrapped
