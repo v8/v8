@@ -443,7 +443,12 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
     ConvertTaggedPhiTo(node, ValueRepresentation::kInt32, untagging_kinds);
     return ProcessPhiResult::kChanged;
   } else if (enable_truncated_int32_phis_ && !has_ignored_tagged_use &&
+             NodeTypeCanBe(node->type(), NodeType::kNumber) &&
              use_reprs.contains_only(UseRepresentation::kTruncatedInt32)) {
+    // Require that the Phi's static type can be a Number so untagging to Int32
+    // (and any subsequent EnsurePhiTagged -> Int32ToNumber) stays compatible
+    // with the recorded type (e.g. an undefined-only Phi has static type
+    // Oddball/Undefined and should untag to HoleyFloat64 instead).
     TRACE_UNTAGGING("  => Untagging to TruncatedInt32");
     ConvertTaggedPhiTo(node, ValueRepresentation::kInt32, untagging_kinds,
                        /*truncating=*/true);
