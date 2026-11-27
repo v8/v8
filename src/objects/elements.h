@@ -83,18 +83,18 @@ class ElementsAccessor {
   V8_WARN_UNUSED_RESULT inline ExceptionStatus CollectElementIndices(
       DirectHandle<JSObject> object, KeyAccumulator* keys);
 
-  virtual Maybe<bool> CollectValuesOrEntries(
+  V8_WARN_UNUSED_RESULT virtual Maybe<bool> CollectValuesOrEntries(
       Isolate* isolate, DirectHandle<JSObject> object,
       DirectHandle<FixedArray> values_or_entries, uint32_t max_nof_items,
       bool get_entries, uint32_t* nof_items,
       PropertyFilter filter = ALL_PROPERTIES) = 0;
 
-  virtual MaybeHandle<FixedArray> PrependElementIndices(
+  V8_WARN_UNUSED_RESULT virtual MaybeHandle<FixedArray> PrependElementIndices(
       Isolate* isolate, DirectHandle<JSObject> object,
       DirectHandle<FixedArrayBase> backing_store, DirectHandle<FixedArray> keys,
       GetKeysConversion convert, PropertyFilter filter = ALL_PROPERTIES) = 0;
 
-  inline MaybeHandle<FixedArray> PrependElementIndices(
+  V8_WARN_UNUSED_RESULT inline MaybeHandle<FixedArray> PrependElementIndices(
       Isolate* isolate, DirectHandle<JSObject> object,
       DirectHandle<FixedArray> keys, GetKeysConversion convert,
       PropertyFilter filter = ALL_PROPERTIES);
@@ -156,21 +156,19 @@ class ElementsAccessor {
 
   // Check an Object's own elements for an element (using SameValueZero
   // semantics)
-  virtual Maybe<bool> IncludesValue(Isolate* isolate,
-                                    DirectHandle<JSObject> receiver,
-                                    DirectHandle<Object> value, size_t start,
-                                    size_t length) = 0;
+  V8_WARN_UNUSED_RESULT virtual Maybe<bool> IncludesValue(
+      Isolate* isolate, DirectHandle<JSObject> receiver,
+      DirectHandle<Object> value, size_t start, size_t length) = 0;
 
   // Check an Object's own elements for the index of an element (using SameValue
   // semantics)
-  virtual Maybe<int64_t> IndexOfValue(Isolate* isolate,
-                                      DirectHandle<JSObject> receiver,
-                                      DirectHandle<Object> value, size_t start,
-                                      size_t length) = 0;
+  V8_WARN_UNUSED_RESULT virtual Maybe<int64_t> IndexOfValue(
+      Isolate* isolate, DirectHandle<JSObject> receiver,
+      DirectHandle<Object> value, size_t start, size_t length) = 0;
 
-  virtual Maybe<int64_t> LastIndexOfValue(DirectHandle<JSObject> receiver,
-                                          DirectHandle<Object> value,
-                                          size_t start) = 0;
+  V8_WARN_UNUSED_RESULT virtual Maybe<int64_t> LastIndexOfValue(
+      DirectHandle<JSObject> receiver, DirectHandle<Object> value,
+      size_t start) = 0;
 
   virtual void Reverse(Tagged<JSObject> receiver) = 0;
 

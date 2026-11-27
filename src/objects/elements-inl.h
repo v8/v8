@@ -22,10 +22,12 @@ ElementsAccessor::CollectElementIndices(DirectHandle<JSObject> object,
       object, direct_handle(object->elements(), keys->isolate()), keys);
 }
 
-inline MaybeHandle<FixedArray> ElementsAccessor::PrependElementIndices(
-    Isolate* isolate, DirectHandle<JSObject> object,
-    DirectHandle<FixedArray> keys, GetKeysConversion convert,
-    PropertyFilter filter) {
+V8_WARN_UNUSED_RESULT inline MaybeHandle<FixedArray>
+ElementsAccessor::PrependElementIndices(Isolate* isolate,
+                                        DirectHandle<JSObject> object,
+                                        DirectHandle<FixedArray> keys,
+                                        GetKeysConversion convert,
+                                        PropertyFilter filter) {
   return PrependElementIndices(isolate, object,
                                direct_handle(object->elements(), isolate), keys,
                                convert, filter);
