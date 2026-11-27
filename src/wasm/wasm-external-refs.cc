@@ -1219,8 +1219,7 @@ wasm::StackMemory* find_wasmfx_handler_stack(wasm::StackMemory* from,
 
 Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
                              Address pc, Address wanted_tag_raw,
-                             Address cont_raw, Address arg_buffer,
-                             const uint32_t tag_sig_index) {
+                             Address cont_raw, Address arg_buffer) {
   Tagged<Object> cont_obj(cont_raw);
   auto cont = Cast<WasmContinuationObject>(cont_obj);
   wasm::StackMemory* from = isolate->isolate_data()->active_stack();
@@ -1231,22 +1230,10 @@ Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
   if (to == nullptr) return kNullAddress;
 
   DCHECK(from->Contains(arg_buffer));
+  DCHECK_EQ(from->num_bound_args(), 0);
+  DCHECK(from->param_types().empty());
   from->set_arg_buffer(arg_buffer);
   from->set_current_continuation(cont);
-
-  const CanonicalSig* tag_sig = GetTypeCanonicalizer()->LookupFunctionSignature(
-      CanonicalTypeIndex{tag_sig_index});
-
-  from->set_param_types(tag_sig->returns());
-#ifdef DEBUG
-  const CanonicalSig* cont_sig =
-      GetTypeCanonicalizer()->LookupFunctionSignature(
-          CanonicalTypeIndex{cont_sig_index});
-  DCHECK_EQ(tag_sig->return_count(), cont_sig->parameter_count());
-  for (size_t i = 0; i < tag_sig->return_count(); ++i) {
-    DCHECK(IsSubtypeOf(cont_sig->GetParam(i), tag_sig->GetReturn(i)));
-  }
-#endif
   from->set_signature_id(cont_sig_index);
   to->set_wasm_code(nullptr);
 
@@ -1275,17 +1262,14 @@ Address switch_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
            target_stack->id(), parent->id());
   }
 
-  const CanonicalSig* return_sig =
-      GetTypeCanonicalizer()->LookupFunctionSignature(
-          CanonicalTypeIndex{sig_index});
-
   target_stack->set_current_continuation({});
   target_stack->clear_bound_args();
 
+  DCHECK_EQ(from->num_bound_args(), 0);
+  DCHECK(from->param_types().empty());
   from->set_arg_buffer(arg_buffer);
   from->set_current_continuation(cont);
-  from->set_param_types(return_sig->parameters());
-  from->set_signature_id(return_sig->index());
+  from->set_signature_id(CanonicalTypeIndex{sig_index});
   SuspendStack(isolate, from, parent, sp, fp, pc);
   ResumeStack(isolate, parent, target_stack, parent->jmpbuf()->sp,
               parent->jmpbuf()->fp, parent->jmpbuf()->pc);
@@ -1326,6 +1310,11 @@ void wasmfx_set_wasm_code(wasm::StackMemory* stack, WasmCode* code) {
 void cont_bind(Address cont_raw, wasm::StackMemory* stack, int num_args,
                uint32_t new_sig) {
   auto cont = Cast<WasmContinuationObject>(Tagged<Object>(cont_raw));
+  if (num_args > 0 && stack->param_types().empty()) {
+    const CanonicalSig* orig_sig =
+        GetTypeCanonicalizer()->LookupFunctionSignature(stack->signature_id());
+    stack->set_param_types(orig_sig->parameters());
+  }
   stack->bind_arguments(num_args);
   stack->set_signature_id(CanonicalTypeIndex{new_sig});
   stack->set_current_continuation(cont);

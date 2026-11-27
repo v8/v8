@@ -4518,10 +4518,6 @@ class TurboshaftGraphBuildingInterface
         __ StackSlot(std::max(arg_size, return_size),
                      std::max(arg_alignment, return_alignment));
 
-    ModuleTypeIndex sig_index = decoder->module_->tags[imm.index].sig_index;
-    CanonicalTypeIndex csig_index =
-        decoder->module_->canonical_type_id(sig_index);
-
     IterateWasmFXArgBuffer(sig->parameters(), [&](size_t index, int offset) {
       DCHECK(IsSubtypeOf(args[index].type, sig->GetParam(index),
                          decoder->module_));
@@ -4529,9 +4525,7 @@ class TurboshaftGraphBuildingInterface
                       MemoryRepresentationOffHeap(args[index].type), offset);
     });
     CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmFXSuspend>(
-        decoder, native_context,
-        {wanted_tag, cont, arg_buffer,
-         __ RelocatableWasmCanonicalSignatureId(csig_index.index)},
+        decoder, native_context, {wanted_tag, cont, arg_buffer},
         CheckForException::kCatchInThisFrame);
 
     // Unpack tag returns.

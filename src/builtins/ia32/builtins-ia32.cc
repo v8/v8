@@ -4188,7 +4188,6 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   Register tag = WasmFXSuspendDescriptor::GetRegisterParameter(0);
   Register cont = WasmFXSuspendDescriptor::GetRegisterParameter(1);
   Register arg_buffer = WasmFXSuspendDescriptor::GetRegisterParameter(2);
-  MemOperand sig(ebp, 2 * kSystemPointerSize);
   Label resume;
   __ Push(arg_buffer);
   __ Push(cont);
@@ -4197,7 +4196,7 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
     FrameScope scope(masm, StackFrame::MANUAL);
     DCHECK(!AreAliased(edi, tag, cont, arg_buffer));
     Register scratch = edi;
-    __ PrepareCallCFunction(8, scratch);
+    __ PrepareCallCFunction(7, scratch);
     __ Move(Operand(esp, 0 * kSystemPointerSize),
             Immediate(ExternalReference::isolate_address()));
     __ mov(MemOperand(esp, 1 * kSystemPointerSize), esp);
@@ -4207,9 +4206,7 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
     __ mov(MemOperand(esp, 4 * kSystemPointerSize), tag);
     __ mov(MemOperand(esp, 5 * kSystemPointerSize), cont);
     __ mov(MemOperand(esp, 6 * kSystemPointerSize), arg_buffer);
-    __ mov(scratch, sig);
-    __ mov(MemOperand(esp, 7 * kSystemPointerSize), scratch);
-    __ CallCFunction(ExternalReference::wasm_suspend_wasmfx_stack(), 8);
+    __ CallCFunction(ExternalReference::wasm_suspend_wasmfx_stack(), 7);
   }
   Register target_stack = edi;
   __ mov(target_stack, kReturnRegister0);
@@ -4231,9 +4228,8 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ bind(&resume);
   __ mov(kReturnRegister0, WasmFXResumeDescriptor::GetRegisterParameter(1));
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
-  ReturnFromStackSwitchingBuiltin(
-      masm, Builtin::kWasmFXSuspend,
-      WasmFXSuspendDescriptor::GetStackParameterCount() * kSystemPointerSize);
+  static_assert(WasmFXSuspendDescriptor::GetStackParameterCount() == 0);
+  ReturnFromStackSwitchingBuiltin(masm, Builtin::kWasmFXSuspend, 0);
 }
 
 void Builtins::Generate_WasmFXSwitch(MacroAssembler* masm) {

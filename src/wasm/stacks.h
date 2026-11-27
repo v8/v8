@@ -312,8 +312,9 @@ class V8_EXPORT_PRIVATE StackMemory
   Tagged<WasmContinuationObject> current_cont_ = {};
   Tagged<WasmFuncRef> func_ref_ = {};
   Tagged<WasmStackObject> stack_obj_ = {};
-  // Param type vector, to know which bound arguments are references and need to
-  // be visited by the GC. The memory is owned by the type canonicalizer.
+  // Param type vector, populated lazily on first {cont.bind} with >0 args
+  // (or {cont.new}) to know which bound arguments are references and need to be
+  // visited by the GC. The memory is owned by the type canonicalizer.
   base::Vector<const CanonicalValueType> param_types_;
   Address arg_buffer_ = kNullAddress;
   int num_bound_args_ = 0;

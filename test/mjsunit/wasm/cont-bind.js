@@ -303,3 +303,140 @@ let instance = builder.instantiate({m: {gc}});
   instance.exports.test_gc_after_suspend();
   assertEquals(ref, instance.exports.g_ref.value);
 })();
+
+// Check lazy param_types_ initialization when cont.bind is called on a
+// continuation suspended by `switch` (with a young WasmGC struct ref + GC).
+(function TestSwitchThenContBindWithGC() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let struct_type = builder.addStruct([makeField(kWasmI32, false)]);
+  let struct_ref = wasmRefNullType(struct_type);
+  builder.startRecGroup();
+  let dummy_sig = builder.addType(kSig_v_v);
+  let dummy_cont = builder.addCont(dummy_sig);
+  let ret_sig = builder.addType(
+      makeSig([kWasmI32, struct_ref, wasmRefNullType(dummy_cont)],
+              [kWasmI32]));
+  let ret_cont = builder.addCont(ret_sig);
+  let bound_ret_sig = builder.addType(
+      makeSig([wasmRefNullType(dummy_cont)], [kWasmI32]));
+  let bound_ret_cont = builder.addCont(bound_ret_sig);
+  let target_sig = builder.addType(
+      makeSig([wasmRefNullType(ret_cont)], [kWasmI32]));
+  let target_cont = builder.addCont(target_sig);
+  builder.endRecGroup();
+  let main_cont = builder.addCont(kSig_i_v);
+
+  let tag0 = builder.addTag(makeSig([], [kWasmI32]));
+  let gc_idx = builder.addImport("m", "gc", kSig_v_v);
+  let g_ret_cont = builder.addGlobal(wasmRefNullType(ret_cont), true);
+
+  let target = builder.addFunction("target", target_sig)
+      .addBody([
+        kExprLocalGet, 0,
+        kExprGlobalSet, g_ret_cont.index,
+        ...wasmI32Const(7),
+      ]);
+
+  let switcher = builder.addFunction("switcher", kSig_i_v)
+      .addBody([
+        kExprRefFunc, target.index,
+        kExprContNew, target_cont,
+        kExprSwitch, target_cont, tag0,
+        kExprDrop,
+        kGCPrefix, kExprStructGet, struct_type, 0,
+        kExprI32Add,
+      ]);
+
+  builder.addFunction("run", kSig_i_ii)
+      .addLocals(wasmRefNullType(bound_ret_cont), 1)
+      .addBody([
+        kExprRefFunc, switcher.index,
+        kExprContNew, main_cont,
+        kExprResume, main_cont, 1,
+          kOnSwitch, tag0,
+        kExprDrop,
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kGCPrefix, kExprStructNew, struct_type,
+        kExprGlobalGet, g_ret_cont.index,
+        kExprContBind, ret_cont, bound_ret_cont,
+        kExprLocalSet, 2,
+        kExprRefNull, ret_cont,
+        kExprGlobalSet, g_ret_cont.index,
+        kExprCallFunction, gc_idx,
+        kExprRefNull, dummy_cont,
+        kExprLocalGet, 2,
+        kExprResume, bound_ret_cont, 0,
+      ]).exportFunc();
+
+  builder.addDeclarativeElementSegment([target.index, switcher.index]);
+  let instance = builder.instantiate(
+      {m: {gc: () => { gc({type: 'minor'}); gc(); }}});
+  assertEquals(141, instance.exports.run(99, 42));
+})();
+
+// Check zero-arg cont.bind (narrowing ref type) followed by ref-arg
+// cont.bind + GC, plus on_suspend with subtyping between tag returns and
+// continuation params.
+(function TestZeroArgContBindThenBindWithGC() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let struct_type = builder.addStruct([makeField(kWasmI32, false)]);
+  let struct_ref = wasmRefType(struct_type);
+  let sig_eq_i = builder.addType(makeSig([kWasmEqRef, kWasmI32], [kWasmI32]));
+  let cont_eq_i = builder.addCont(sig_eq_i);
+  let sig_struct_i =
+      builder.addType(makeSig([struct_ref, kWasmI32], [kWasmI32]));
+  let cont_struct_i = builder.addCont(sig_struct_i);
+  let sig_i_i_b = builder.addType(kSig_i_i);
+  let cont_i_i_b = builder.addCont(sig_i_i_b);
+  let sig_i_v_b = builder.addType(kSig_i_v);
+  let cont_i_v_b = builder.addCont(sig_i_v_b);
+  let tag_any_i = builder.addTag(makeSig([], [kWasmAnyRef, kWasmI32]));
+  let gc_idx = builder.addImport("m", "gc", kSig_v_v);
+
+  let block_sig = builder.addType(makeSig([], [wasmRefType(cont_eq_i)]));
+  let suspender = builder.addFunction("suspender", sig_i_v_b)
+      .addLocals(kWasmI32, 1)
+      .addBody([
+        kExprSuspend, tag_any_i,
+        kExprLocalSet, 0,
+        kGCPrefix, kExprRefCast, struct_type,
+        kGCPrefix, kExprStructGet, struct_type, 0,
+        kExprLocalGet, 0,
+        kExprI32Add,
+      ]);
+
+  builder.addFunction("run", kSig_i_ii)
+      .addLocals(wasmRefNullType(cont_struct_i), 1)
+      .addLocals(wasmRefNullType(cont_i_i_b), 1)
+      .addBody([
+        kExprBlock, block_sig,
+          kExprRefFunc, suspender.index,
+          kExprContNew, cont_i_v_b,
+          kExprResume, cont_i_v_b, 1, kOnSuspend, tag_any_i, 0,
+          kExprUnreachable,
+        kExprEnd,
+        // Zero-arg cont.bind narrowing eqref -> struct_ref.
+        kExprContBind, cont_eq_i, cont_struct_i,
+        kExprLocalSet, 2,
+        // Bind a young struct_ref, then GC before resuming with remaining i32.
+        kExprLocalGet, 0,
+        kGCPrefix, kExprStructNew, struct_type,
+        kExprLocalGet, 2,
+        kExprContBind, cont_struct_i, cont_i_i_b,
+        kExprLocalSet, 3,
+        kExprRefNull, cont_struct_i,
+        kExprLocalSet, 2,
+        kExprCallFunction, gc_idx,
+        kExprLocalGet, 1,
+        kExprLocalGet, 3,
+        kExprResume, cont_i_i_b, 0,
+      ]).exportFunc();
+
+  builder.addDeclarativeElementSegment([suspender.index]);
+  let instance = builder.instantiate(
+      {m: {gc: () => { gc({type: 'minor'}); gc(); }}});
+  assertEquals(141, instance.exports.run(99, 42));
+})();

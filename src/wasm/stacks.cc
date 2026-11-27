@@ -181,6 +181,8 @@ void StackMemory::IterateWasmFXRoots(v8::internal::RootVisitor* v) {
                       FullObjectSlot(reinterpret_cast<Address>(&func_ref_)));
   v->VisitRootPointer(Root::kStackRoots, nullptr,
                       FullObjectSlot(reinterpret_cast<Address>(&stack_obj_)));
+  if (num_bound_args_ == 0) return;
+  DCHECK(!param_types_.empty());
   IterateWasmFXArgBuffer(param_types_, [this, v](size_t index, int offset) {
     if (static_cast<int>(index) < num_bound_args_ &&
         param_types_[index].is_ref()) {
