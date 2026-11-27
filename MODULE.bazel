@@ -9,7 +9,7 @@ bazel_dep(name = "rules_python", version = "1.7.0")
 bazel_dep(name = "platforms", version = "1.0.0")
 bazel_dep(name = "abseil-cpp", version = "20250814.1")
 bazel_dep(name = "boringssl", version = "0.20260929.0")
-bazel_dep(name = "highway", version = "1.2.0")
+bazel_dep(name = "highway", version = "1.4.0")
 
 pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
 pip.parse(
@@ -191,12 +191,6 @@ libcxx_repository = use_repo_rule("//bazel/toolchain:libcxx_repository.bzl", "li
 
 libcxx_repository(
     name = "libcxx",
-)
-
-single_version_override(
-    module_name = "highway",
-    patches = ["//bazel/patches:highway_rules_cc.patch"],
-    patch_strip = 1,
 )
 
 local_path_override(
