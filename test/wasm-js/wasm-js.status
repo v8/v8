@@ -97,6 +97,7 @@
 
 ['simulator_run', {
   # Very slow.
+  'js-string/constants': [SKIP],
   'wpt/js-string/constants': [SKIP],
 }],  # simulator_run
 
@@ -131,4 +132,5 @@
   'limits': [SKIP],
   'proposals/threads/limits': [SKIP],
 }],
+
 ]

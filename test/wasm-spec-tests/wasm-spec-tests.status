@@ -163,4 +163,22 @@
   'simd/simd_f*': [PASS, SLOW],
 }],  # 'clang_coverage and mode == debug'
 
+##############################################################################
+# Tests that are too slow in particular slow configurations, based on test
+# durations in ResultDB (median >= 300s, or >= 120s for jitless and
+# nooptimization on arm64 simulator debug).
+['arch == arm64 and mode == debug and simulator_run and variant == nooptimization', {
+  'f32': [SKIP],
+  'f32_cmp': [SKIP],
+  'f64': [SKIP],
+  'f64_cmp': [SKIP],
+  'return_call_ref': [SKIP],
+  'simd/simd_f32x4_arith': [SKIP],
+  'simd/simd_f32x4_cmp': [SKIP],
+  'simd/simd_f32x4_pmin_pmax': [SKIP],
+  'simd/simd_f64x2_arith': [SKIP],
+  'simd/simd_f64x2_cmp': [SKIP],
+  'simd/simd_f64x2_pmin_pmax': [SKIP],
+}],  # 'arch == arm64 and mode == debug and simulator_run and variant == nooptimization'
+
 ]

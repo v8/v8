@@ -777,16 +777,37 @@
 ##############################################################################
 ['gc_stress and arch == arm64 and simulator_run', {
   # Too slow tests.
+  'array-reduce': [SKIP],
+  'frozen-array-reduce': [SKIP],
+  'harmony/regexp-match-indices': [SKIP],
+  'harmony/regress/regress-369652654': [SKIP],
+  'harmony/sharedarraybuffer-worker-gc-stress': [SKIP],
+  'maglev/regress-563882510': [SKIP],
   'messages': [SKIP],
+  'non-extensible-array-reduce': [SKIP],
+  'regress/regress-1110001': [SKIP],
   'regress/regress-353058': [SKIP],
   'regress/regress-447613219': [SKIP],
+  'regress/regress-581619768': [SKIP],
+  'regress/regress-631050': [SKIP],
   'regress/regress-677685': [SKIP],
   'regress/regress-904275': [SKIP],
+  'regress/regress-923723': [SKIP],
+  'regress/regress-class-reindex-stack-overflow': [SKIP],
   'regress/regress-crbug-1239907': [SKIP],
   'regress/regress-crbug-1406774': [SKIP],
+  'regress/regress-crbug-1417495': [SKIP],
+  'regress/regress-v8-9534': [SKIP],
   'regress/wasm/regress-355493919': [SKIP],
+  'sealed-array-reduce': [SKIP],
   'stackoverflow-underapplication': [SKIP],
+  'tools/processor': [SKIP],
+  'tools/processor-bigint': [SKIP],
+  'typedarray-resizablearraybuffer': [SKIP],
   'wasm/drumbrake/drumbrake': [SKIP],
+  'wasm/regress-535877252': [SKIP],
+  'wasm/simd-narrow-interleave': [SKIP],
+  'wasm/simd-shift-left-long': [SKIP],
 }],  # 'gc_stress and arch == arm64 and simulator_run'
 
 ##############################################################################
@@ -1470,24 +1491,35 @@
 ##############################################################################
 ['full_debug', {
   # Tests too slow in non-optimized debug mode.
+  'compiler/array-subclass': [SKIP],
   'compiler/inlining-exponential': [SKIP],
   'compiler/module-namespace-export-folding': [SKIP],
+  'es6/block-conflicts-sloppy': [SKIP],
   'es6/super-ic': [SKIP],
   'es6/typedarray-of': [SKIP],
+  'ignition/regress-672027': [SKIP],
+  'json2': [SKIP],
   'regress/regress-1122': [SKIP],
   'regress/regress-2790': [SKIP],
+  'regress/regress-574988821': [SKIP],
+  'regress/regress-579023000': [SKIP],
   'regress/regress-599414-array-concat-fast-path': [SKIP],
   'regress/regress-740784': [SKIP],
   'regress/regress-7558019': [SKIP],
   'regress/regress-992389': [SKIP],
   'regress/regress-crbug-1191886': [SKIP],
   'regress/regress-crbug-1276923': [SKIP],
+  'regress/regress-crbug-540324230': [SKIP],
   'regress/regress-crbug-854299': [SKIP],
+  'wasm/memory-resizable-buffer-array-concat': [SKIP],
   'wasm/memory-resizable-buffer-array-flat-flatmap-from': [SKIP],
+  'wasm/memory-resizable-buffer-array-flat-grows-detaches': [SKIP],
+  'wasm/memory-resizable-buffer-array-flatmap-grows-detaches': [SKIP],
   'wasm/memory-resizable-buffer-array-from-grows-detaches': [SKIP],
   'wasm/memory-resizable-buffer-array-slice': [SKIP],
   'wasm/shared-memory-resizable-buffer-array-concat': [SKIP],
   'wasm/shared-memory-resizable-buffer-array-flat-flatmap-from': [SKIP],
+  'wasm/shared-memory-resizable-buffer-array-flatmap-grows': [SKIP],
   'wasm/shared-memory-resizable-buffer-array-from-grows': [SKIP],
   'wasm/shared-memory-worker-gc': [SKIP],
 }],  # 'full_debug'
@@ -1631,6 +1663,14 @@
   'unicodelctest-no-optimization': [PASS, SLOW],
   # Issue 3219:
   'getters-on-elements': [PASS, ['gc_stress == True', FAIL]],
+
+  # Too slow based on test durations in ResultDB.
+  'array-reduce': [SKIP],
+  'frozen-array-reduce': [SKIP],
+  'non-extensible-array-reduce': [SKIP],
+  'sealed-array-reduce': [SKIP],
+  'typedarray-resizablearraybuffer': [PASS, NO_VARIANTS],
+  'unicode-test': [SKIP],
 }],  # 'arch == arm64 and mode == debug and simulator_run'
 
 ##############################################################################
@@ -3588,4 +3628,196 @@
   'regress/regress-crbug-896700': [SKIP],
   'regress/regress-crbug-897406': [SKIP],
 }],  # not promise_hooks
+
+##############################################################################
+# Tests that are too slow in particular slow configurations, based on test
+# durations in ResultDB (median >= 300s, or >= 120s for jitless and
+# nooptimization on arm64 simulator debug).
+['arch == arm and mode == debug and simulator_run and lite_mode', {
+  'compiler/regress-crbug-1520697': [SKIP],
+  'regress/regress-1449567': [SKIP],
+  'regress/regress-4255-4': [SKIP],
+  'regress/regress-crbug-1191886': [SKIP],
+  'string-indexof-2': [SKIP],
+  'unicodelctest': [SKIP],
+  'unicodelctest-no-optimization': [SKIP],
+}],  # 'arch == arm and mode == debug and simulator_run and lite_mode'
+
+##############################################################################
+['arch == arm64 and mode == debug and simulator_run and variant in (jitless, nooptimization)', {
+  'allocation-folding': [SKIP],
+  'apply-arguments-gc-safepoint': [SKIP],
+  'array-copywithin-fast': [SKIP],
+  'array-indexing': [SKIP],
+  'array-isarray': [SKIP],
+  'array-push11': [SKIP],
+  'array-push14': [SKIP],
+  'compiler/array-access': [SKIP],
+  'compiler/conditional-chain': [SKIP],
+  'compiler/division-by-constant': [SKIP],
+  'compiler/osr-big': [SKIP],
+  'compiler/osr-follow': [SKIP],
+  'compiler/osr-forin': [SKIP],
+  'compiler/osr-forof': [SKIP],
+  'compiler/osr-function': [SKIP],
+  'compiler/osr-function-id': [SKIP],
+  'compiler/osr-with-args': [SKIP],
+  'compiler/regress-356183775': [SKIP],
+  'compiler/regress-902608': [SKIP],
+  'compiler/regress-crbug-1399627': [SKIP],
+  'compiler/regress-deopt-call-as-function': [SKIP],
+  'compiler/uint32': [SKIP],
+  'deep-recursion': [SKIP],
+  'delete': [SKIP],
+  'div-mod': [SKIP],
+  'elements-transition': [SKIP],
+  'empirical_max_arraybuffer': [SKIP],
+  'es6/array-concat-typedarray': [SKIP],
+  'es6/math-fround': [SKIP],
+  'es6/math-log1p': [SKIP],
+  'es6/spread-array-misc': [SKIP],
+  'es6/typedarray-copywithin': [SKIP],
+  'harmony/object-groupby': [SKIP],
+  'harmony/regexp-property-lu-ui*': [SKIP],
+  'harmony/sharedarraybuffer-worker-gc-stress': [SKIP],
+  'ignition/regress-672027': [SKIP],
+  'json': [SKIP],
+  'large-object-literal-slow-elements': [SKIP],
+  'math-exp-precision': [SKIP],
+  'measure-memory-multiple-realms': [SKIP],
+  'readonly': [SKIP],
+  'regress-418396718': [SKIP],
+  'regress/regress-1122': [SKIP],
+  'regress/regress-1125': [SKIP],
+  'regress/regress-1167': [SKIP],
+  'regress/regress-1207679': [SKIP],
+  'regress/regress-1208805': [SKIP],
+  'regress/regress-1432470': [SKIP],
+  'regress/regress-1439135': [SKIP],
+  'regress/regress-423633': [SKIP],
+  'regress/regress-4255-1': [SKIP],
+  'regress/regress-4255-2': [SKIP],
+  'regress/regress-4255-3': [SKIP],
+  'regress/regress-4255-4': [SKIP],
+  'regress/regress-475705': [SKIP],
+  'regress/regress-491': [SKIP],
+  'regress/regress-494388373': [SKIP],
+  'regress/regress-500176': [SKIP],
+  'regress/regress-559580852': [SKIP],
+  'regress/regress-564625827': [SKIP],
+  'regress/regress-655573': [SKIP],
+  'regress/regress-670671': [SKIP],
+  'regress/regress-672041': [SKIP],
+  'regress/regress-678917': [SKIP],
+  'regress/regress-7558019': [SKIP],
+  'regress/regress-7716': [SKIP],
+  'regress/regress-784862': [SKIP],
+  'regress/regress-862433': [SKIP],
+  'regress/regress-913844': [SKIP],
+  'regress/regress-crbug-1137586': [SKIP],
+  'regress/regress-crbug-1276923': [SKIP],
+  'regress/regress-crbug-260345': [SKIP],
+  'regress/regress-crbug-319835': [SKIP],
+  'regress/regress-crbug-502944996-b': [SKIP],
+  'regress/regress-crbug-503557995': [SKIP],
+  'regress/regress-crbug-664469': [SKIP],
+  'regress/regress-crbug-813427': [SKIP],
+  'regress/regress-crbug-820312': [SKIP],
+  'regress/regress-crbug-984344': [SKIP],
+  'regress/regress-crbug-997057': [SKIP],
+  'regress/regress-map-invalidation-1': [SKIP],
+  'regress/regress-memory-pool-release-task': [SKIP],
+  'regress/wasm/regress-387055479': [SKIP],
+  'regress/wasm/regress-568629618': [SKIP],
+  'resizablearraybuffer-growablesharedarraybuffer': [SKIP],
+  'spread-large-map': [SKIP],
+  'spread-large-set': [SKIP],
+  'string-indexof-1': [SKIP],
+  'string-indexof-2': [SKIP],
+  'string-replace-one-char': [SKIP],
+  'try': [SKIP],
+  'typedarray-growablesharedarraybuffer': [SKIP],
+  'unbox-double-arrays': [SKIP],
+  'wasm/growable-stacks': [SKIP],
+  'wasm/import-memory': [SKIP],
+  'wasm/interleaved-loads': [SKIP],
+  'wasm/memory-control': [SKIP],
+  'wasm/shared-memory-worker-gc': [SKIP],
+  'wasm/simd-shift-left-long': [SKIP],
+  'wasm/stringrefs-exec': [SKIP],
+  'wasm/turboshaft/reduction-shuffle': [SKIP],
+  'whitespaces*': [SKIP],
+}],  # 'arch == arm64 and mode == debug and simulator_run and variant in (jitless, nooptimization)'
+
+##############################################################################
+['arch == arm64 and mode == debug and simulator_run and variant in (nooptimization, stress_incremental_marking)', {
+  'wasm/simd-narrow-interleave': [SKIP],
+}],  # 'arch == arm64 and mode == debug and simulator_run and variant in (nooptimization, stress_incremental_marking)'
+
+##############################################################################
+['arch == arm64 and simulator_run and not pointer_compression', {
+  'frozen-array-reduce': [SKIP],
+  'non-extensible-array-reduce': [SKIP],
+  'sealed-array-reduce': [SKIP],
+  'unicode-test': [SKIP],
+}],  # 'arch == arm64 and simulator_run and not pointer_compression'
+
+##############################################################################
+['arch == arm64 and simulator_run and not pointer_compression and variant == stress_incremental_marking', {
+  'array-reduce': [SKIP],
+  'wasm/simd-narrow-interleave': [SKIP],
+}],  # 'arch == arm64 and simulator_run and not pointer_compression and variant == stress_incremental_marking'
+
+##############################################################################
+['gc_stress and arch == arm64 and simulator_run and variant == stress', {
+  'regress/wasm/regress-561660149': [SKIP],
+}],  # 'gc_stress and arch == arm64 and simulator_run and variant == stress'
+
+##############################################################################
+['gc_stress and arch == arm64 and simulator_run and variant == stress_incremental_marking', {
+  'large-object-literal-slow-elements': [SKIP],
+}],  # 'gc_stress and arch == arm64 and simulator_run and variant == stress_incremental_marking'
+
+##############################################################################
+['gc_stress and arch == ia32', {
+  'large-object-literal-slow-elements': [SKIP],
+}],  # 'gc_stress and arch == ia32'
+
+##############################################################################
+['gc_stress and arch == x64', {
+  'regress/regress-904275': [SKIP],
+}],  # 'gc_stress and arch == x64'
+
+##############################################################################
+['gc_stress and arch == x64 and variant == stress_incremental_marking', {
+  'large-object-literal-slow-elements': [SKIP],
+}],  # 'gc_stress and arch == x64 and variant == stress_incremental_marking'
+
+##############################################################################
+['msan and arch == arm64 and simulator_run', {
+  'regress/regress-7558019': [SKIP],
+}],  # 'msan and arch == arm64 and simulator_run'
+
+##############################################################################
+['tsan and mode == debug', {
+  'regress/regress-7558019': [SKIP],
+}],  # 'tsan and mode == debug'
+
+##############################################################################
+['tsan and mode == debug and variant == instruction_scheduling', {
+  'compiler/regress-588533894': [SKIP],
+}],  # 'tsan and mode == debug and variant == instruction_scheduling'
+
+##############################################################################
+['tsan and mode == debug and variant == stress_incremental_marking', {
+  'wasm/shared-memory-worker-gc': [SKIP],
+}],  # 'tsan and mode == debug and variant == stress_incremental_marking'
+
+##############################################################################
+['tsan and mode == debug and variant in (jitless, nooptimization)', {
+  'es6/big-weakmap': [SKIP],
+  'regress/regress-381390367': [SKIP],
+  'regress/regress-499721612': [SKIP],
+}],  # 'tsan and mode == debug and variant in (jitless, nooptimization)'
+
 ]

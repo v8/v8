@@ -178,4 +178,12 @@
   'octane/crypto': [SKIP],
 }], # 'variant == jitless and mode == debug and tsan'
 
+##############################################################################
+# Tests that are too slow in particular slow configurations, based on test
+# durations in ResultDB (median >= 300s, or >= 120s for jitless and
+# nooptimization on arm64 simulator debug).
+['arch == arm64 and mode == debug and simulator_run', {
+  'octane/box2d': [SKIP],
+}],  # 'arch == arm64 and mode == debug and simulator_run'
+
 ]

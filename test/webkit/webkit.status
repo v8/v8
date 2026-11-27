@@ -145,6 +145,22 @@
 ['full_debug', {
   # https://crbug.com/447172713
   'run-json-stringify': [SKIP],
+
+  # Too slow based on test durations in ResultDB.
+  'fast/js/nested-object-gc': [SKIP],
 }],  # 'full_debug'
+
+##############################################################################
+# Tests that are too slow in particular slow configurations, based on test
+# durations in ResultDB (median >= 300s, or >= 120s for jitless and
+# nooptimization on arm64 simulator debug).
+['arch == arm64 and mode == debug and simulator_run and variant in (jitless, nooptimization)', {
+  'fast/js/nested-object-gc': [SKIP],
+}],  # 'arch == arm64 and mode == debug and simulator_run and variant in (jitless, nooptimization)'
+
+##############################################################################
+['tsan and mode == release and variant in (jitless, nooptimization)', {
+  'dfg-int-overflow-in-loop': [SKIP],
+}],  # 'tsan and mode == release and variant in (jitless, nooptimization)'
 
 ]
