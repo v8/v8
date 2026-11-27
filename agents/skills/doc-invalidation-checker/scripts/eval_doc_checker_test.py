@@ -109,6 +109,12 @@ class EvalDocCheckerTest(unittest.TestCase):
          "                - '1024'\n"
          "              absent:\n"
          "                - '4 * KB / kSystemPointerSize'\n"
+         "      - type: python\n"
+         "        value: 'file://eval_doc_checker.py:check_max_added_lines'\n"
+         "        config:\n"
+         "          files:\n"
+         "            - docs/compiler/maglev/compiler-maglev.md\n"
+         "          max_added_lines: 3\n"
          "    metadata:\n"
          "      category: positive-constant-invariant\n"),
     )
@@ -163,7 +169,7 @@ class EvalDocCheckerTest(unittest.TestCase):
     self._write(patch_rel, diff)
 
   def test_all_promptfoo_yaml_and_patch_refs_valid(self):
-    self.assertEqual(5, len(eval_doc_checker.EVAL_CASES))
+    self.assertEqual(7, len(eval_doc_checker.EVAL_CASES))
     yaml_files = [
         str(REPO_ROOT / case.yaml_path)
         for case in eval_doc_checker.EVAL_CASES.values()
@@ -294,6 +300,151 @@ class EvalDocCheckerTest(unittest.TestCase):
           "docs/compiler/maglev/compiler-maglev.md",
           "\n".join(grade_churn["failures"]),
       )
+    finally:
+      eval_doc_checker.cleanup_case(
+          case.case_id, self.worktree_root, repo_root=self.repo_dir)
+
+  def test_check_max_added_lines_enforces_budget(self):
+    # Bad configs must fail closed.
+    for bad_config in (
+        {},
+        {
+            "config": {}
+        },
+        {
+            "config": {
+                "files": []
+            }
+        },
+        {
+            "config": {
+                "files": ["docs/a.md"]
+            }
+        },
+        {
+            "config": {
+                "files": ["docs/a.md"],
+                "max_added_lines": True
+            }
+        },
+        {
+            "config": {
+                "files": ["docs/a.md"],
+                "max_added_lines": -1
+            }
+        },
+        {
+            "config": {
+                "files": ["docs/a.md"],
+                "max_added_lines": "3"
+            }
+        },
+        {
+            "config": {
+                "files": [""],
+                "max_added_lines": 3
+            }
+        },
+    ):
+      res = eval_doc_checker.check_max_added_lines("", bad_config)
+      self.assertFalse(res["pass"], f"Expected failure for {bad_config!r}")
+
+    # Git errors (outside a git repository) must fail closed.
+    non_git_dir = self.root / "not_a_repo"
+    non_git_dir.mkdir()
+    with eval_doc_checker._chdir(non_git_dir):
+      err_res = eval_doc_checker.check_max_added_lines(
+          "",
+          {"config": {
+              "files": ["docs/a.md"],
+              "max_added_lines": 3
+          }},
+      )
+      self.assertFalse(err_res["pass"])
+      self.assertIn("failed", err_res["reason"])
+
+    case = self.eval_cases["positive-case"]
+    meta = eval_doc_checker.setup_case(
+        case,
+        self.worktree_root,
+        repo_root=self.repo_dir,
+        mode="explicit",
+        diff_kind="committed",
+    )
+    wt_dir = Path(meta["worktree_dir"])
+    try:
+      # End-to-end grade_case enforces check_max_added_lines on tracked edits
+      # (and after commit --amend).
+      self._write(
+          "docs/compiler/maglev/compiler-maglev.md",
+          ("Here `constexpr uint32_t kMaxStackSlots = 8 * KB / "
+           "kSystemPointerSize` (1024 slots on 64-bit).\n"
+           "Line 2\nLine 3\nLine 4\n"),
+          base=wt_dir,
+      )
+      over_grade = eval_doc_checker.grade_case(case, wt_dir)
+      self.assertFalse(over_grade["passed"])
+      self.assertIn("added 4 lines (max 3)", "\n".join(over_grade["failures"]))
+
+      self._git(wt_dir, "add", "docs/compiler/maglev/compiler-maglev.md")
+      self._git(wt_dir, "commit", "--amend", "--no-edit")
+      amended_over_grade = eval_doc_checker.grade_case(case, wt_dir)
+      self.assertFalse(amended_over_grade["passed"])
+      self.assertIn("added 4 lines (max 3)",
+                    "\n".join(amended_over_grade["failures"]))
+
+      # Untracked newly created files are counted directly from disk.
+      with eval_doc_checker._chdir(wt_dir):
+        self._write("docs/new_doc.md", "A\nB\nC\n", base=wt_dir)
+        ok_untracked = eval_doc_checker.check_max_added_lines(
+            "",
+            {"config": {
+                "files": ["docs/new_doc.md"],
+                "max_added_lines": 3
+            }},
+        )
+        self.assertTrue(ok_untracked["pass"], ok_untracked["reason"])
+
+        self._write("docs/new_doc.md", "A\nB\nC\nD\n", base=wt_dir)
+        fail_untracked = eval_doc_checker.check_max_added_lines(
+            "",
+            {"config": {
+                "files": ["docs/new_doc.md"],
+                "max_added_lines": 3
+            }},
+        )
+        self.assertFalse(fail_untracked["pass"])
+        self.assertIn("added 4 lines (max 3)", fail_untracked["reason"])
+
+        # Directories containing both untracked files and modified tracked
+        # files accumulate both into the added-line total (2 untracked +
+        # 2 tracked added lines = 4).
+        self._write("docs/new_doc.md", "A\nB\n", base=wt_dir)
+        self._write(
+            "docs/compiler/maglev/compiler-maglev.md",
+            ("Here `constexpr uint32_t kMaxStackSlots = 8 * KB / "
+             "kSystemPointerSize` (1024 slots on 64-bit).\n"
+             "Line 2\n"),
+            base=wt_dir,
+        )
+        ok_mixed = eval_doc_checker.check_max_added_lines(
+            "",
+            {"config": {
+                "files": ["docs/"],
+                "max_added_lines": 4
+            }},
+        )
+        self.assertTrue(ok_mixed["pass"], ok_mixed["reason"])
+
+        fail_mixed = eval_doc_checker.check_max_added_lines(
+            "",
+            {"config": {
+                "files": ["docs/"],
+                "max_added_lines": 3
+            }},
+        )
+        self.assertFalse(fail_mixed["pass"])
+        self.assertIn("docs/ added 4 lines (max 3)", fail_mixed["reason"])
     finally:
       eval_doc_checker.cleanup_case(
           case.case_id, self.worktree_root, repo_root=self.repo_dir)

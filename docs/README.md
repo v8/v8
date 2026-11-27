@@ -1,8 +1,19 @@
 # V8 Architecture and Engineering Documentation
 
-Welcome to the V8 codebase architecture documentation. These guides are designed for **both human engineers onboarding to V8** (providing a clear conceptual model at the top of each document) and **experienced V8 developers and AI coding agents** (providing exact C++ class names, bitfield layouts, cross-tier invariants, and sharp edges verified against `src/`).
+Welcome to the V8 codebase architecture documentation. These guides are designed for **both human engineers onboarding to V8** (providing a clear conceptual model at the top of each document) and **experienced V8 developers and AI coding agents** (documenting design decisions, trade-offs, cross-component invariants, and key entry points into `src/`).
 
 *(Note: The top-level `.md` files directly inside `docs/` are legacy copies of historical [v8.dev/docs](https://v8.dev/docs) articles. The structured subsystem and cross-component documentation lives in the subdirectories indexed below.)*
+
+## Writing Guidelines
+
+1. **Docs explain design; code explains mechanics.** Focus on *why* a component is built or tuned this way, what was traded away, which invariants span components, and which alternatives were tried and rejected (when someone is likely to retry them).
+2. **One home per fact.** Record local decisions (tuned constants, fast-path vs. slow-path splits, local caps and invariants) in a brief code comment at the implementation site. Put cross-file or architectural rationale in `docs/`. A code comment may point to `See docs/<path>.md` (file path only, omitting heading anchors) when deeper rationale lives there; docs refer to code by key entry-point symbol.
+3. **Describe the current design in present tense.** Put change history, benchmark results, and bug narratives in the commit message rather than `docs/`.
+4. **Name constants and flags; leave mutable numeric values in code.** Naming the identifier lets readers find the current value in `src/` without churning `docs/` on every retune.
+5. **Name a symbol only when it is a useful entry point into `src/`.** Leave routine helper chains and internal plumbing to the code.
+6. **State only traceable rationale.** Cite only reasons backed by a code comment, the introducing commit message, or the author; omit the reason or ask if it is unknown.
+7. **Keep `docs/` diffs small and proportional.** A design change is usually a few lines, so reading the `docs/` diff alongside the code gives reviewers a high-level picture of the overall design change. Most refactorings and bug fixes need no `docs/` change; during ordinary code CLs, update existing docs rather than creating brand-new `docs/` files unprompted.
+8. **Keep each doc concise and readable in one sitting.** Trim redundant mechanics before adding new prose so each document stays focused and scannable.
 
 ---
 

@@ -1,0 +1,41 @@
+description: >-
+  Verify doc-invalidation-checker makes zero edits to docs/ when a CL only
+  retunes the numeric value of kTierUpCostForFunctionEntry in
+  src/wasm/baseline/liftoff-compiler.cc without changing the tier-up cost model.
+owner: clemensb@chromium.org
+prompts:
+  - 'file://prompt.md'
+providers:
+  - id: python:../../../testing/gemini_provider.py
+    config:
+      timeoutSeconds: 600
+      skills:
+        - doc-invalidation-checker
+      changes:
+        - apply: >-
+            agents/prompts/eval/doc-invalidation-checker/liftoff_tierup_retune.patch
+tests:
+  - assert:
+      - type: python
+        value: >-
+          file://../../../skills/doc-invalidation-checker/scripts/eval_doc_checker.py:check_files_unchanged
+        config:
+          files:
+            - docs/
+    metadata:
+      category: negative-retune-no-churn
+      commit_message: |
+        [wasm][liftoff] Retune kTierUpCostForFunctionEntry from 1000 to 800
+
+        Slightly lowers kTierUpCostForFunctionEntry to reduce background
+        Turboshaft compilation on warm WasmGC apps without changing the
+        tier-up cost model.
+
+        Reduces background compile CPU time on wasmpspdfkit by 6.3% with
+        neutral JetStream3 score (+0.1%).
+
+        Bug: 422088888
+      tags:
+        - docs
+        - wasm
+        - liftoff

@@ -86,7 +86,11 @@ class GetRecentCommitsTest(unittest.TestCase):
     self._git("checkout", "-b", "feature", "main")
     self._write("src/maglev/maglev-compiler.cc", "int x = 2;\n")
     self._git("add", ".")
-    self._git("commit", "-m", "[maglev] Update x")
+    self._git(
+        "commit",
+        "-m",
+        "[maglev] Update x\n\nRationale: keep stack slots aligned.",
+    )
 
     with mock.patch("sys.stdout", new_callable=io.StringIO) as stdout:
       self.assertEqual(0, get_recent_commits.main(["--branch", "--base=main"]))
@@ -94,6 +98,7 @@ class GetRecentCommitsTest(unittest.TestCase):
     output = stdout.getvalue()
     self.assertIn("BRANCH DIFF AGAINST: main", output)
     self.assertIn("[maglev] Update x", output)
+    self.assertIn("Rationale: keep stack slots aligned.", output)
     self.assertIn("src/maglev/maglev-compiler.cc", output)
     self.assertIn("docs/compiler/maglev/", output)
     self.assertIn("+int x = 2;", output)

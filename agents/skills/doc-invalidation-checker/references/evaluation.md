@@ -13,13 +13,15 @@ evaluations across isolated git worktrees.
 
 ## 1. Benchmark Cases (`agents/prompts/eval/doc-invalidation-checker/`)
 
-| Case ID                         | Config File                                    | Category                      | What It Tests                                                                                                                                                                                                                                              |
-| :------------------------------ | :--------------------------------------------- | :---------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `maglev-max-stack-slots`        | `maglev_max_stack_slots.promptfoo.yaml`        | `positive-constant-invariant` | Forward-looking `src/maglev/maglev-compiler.cc` change (`kMaxStackSlots` raised from `4 * KB` to `8 * KB` / `1024` slots). Verifies `docs/compiler/maglev/compiler-maglev.md` is updated.                                                                  |
-| `tdz-hole-rename`               | `tdz_hole_rename.promptfoo.yaml`               | `positive-cross-tier-rename`  | Cross-file symbol rename (`ValueNode::IsTdzHole()` -> `ValueNode::CanElideTdzHoleCheck()`). Verifies both `docs/parsing/hole-checks-optimized.md` and `docs/parsing/hole-check-elision.md` are updated.                                                    |
-| `string-instance-type-bitmasks` | `string_instance_type_bitmasks.promptfoo.yaml` | `positive-bitfield-layout`    | Bitmask swap (`kSharedStringMask = 1 << 4`, `kUncachedExternalStringMask = 1 << 5` in `src/objects/instance-type.h`). Verifies `docs/objects/strings.md` bit descriptions match `src/`.                                                                    |
-| `security-triaging-guardrail`   | `security_triaging_guardrail.promptfoo.yaml`   | `guardrail-protected-doc`     | `JSDispatchEntry` x64-LA57 layout update (`padding_` -> `call_count_`) in `src/sandbox/js-dispatch-table.h` referencing `docs/security/triaging.md`. Verifies `docs/sandbox/architecture.md` is updated while `docs/security/triaging.md` stays untouched. |
-| `internal-noop-refactor`        | `internal_noop_refactor.promptfoo.yaml`        | `negative-no-doc-churn`       | Local variable rename (`truncate` -> `truncation_processor`) in `src/maglev/maglev-compiler.cc`. Verifies `0` files in `docs/` are modified (no false-positive doc churn).                                                                                 |
+| Case ID                         | Config File                                    | Category                      | What It Tests                                                                                                                                                                                                                                                                                                                                    |
+| :------------------------------ | :--------------------------------------------- | :---------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `maglev-max-stack-slots`        | `maglev_max_stack_slots.promptfoo.yaml`        | `positive-constant-invariant` | Forward-looking `src/maglev/maglev-compiler.cc` change (`kMaxStackSlots` raised from `4 * KB` to `8 * KB` / `1024` slots). Verifies `docs/compiler/maglev/compiler-maglev.md` is updated.                                                                                                                                                        |
+| `tdz-hole-rename`               | `tdz_hole_rename.promptfoo.yaml`               | `positive-cross-tier-rename`  | Cross-file symbol rename (`ValueNode::IsTdzHole()` -> `ValueNode::CanElideTdzHoleCheck()`). Verifies both `docs/parsing/hole-checks-optimized.md` and `docs/parsing/hole-check-elision.md` are updated.                                                                                                                                          |
+| `string-instance-type-bitmasks` | `string_instance_type_bitmasks.promptfoo.yaml` | `positive-bitfield-layout`    | Bitmask swap (`kSharedStringMask = 1 << 4`, `kUncachedExternalStringMask = 1 << 5` in `src/objects/instance-type.h`). Verifies `docs/objects/strings.md` bit descriptions match `src/`.                                                                                                                                                          |
+| `security-triaging-guardrail`   | `security_triaging_guardrail.promptfoo.yaml`   | `guardrail-protected-doc`     | `JSDispatchEntry` x64-LA57 layout update (`padding_` -> `call_count_`) in `src/sandbox/js-dispatch-table.h` referencing `docs/security/triaging.md`. Verifies `docs/sandbox/architecture.md` is updated while `docs/security/triaging.md` stays untouched.                                                                                       |
+| `internal-noop-refactor`        | `internal_noop_refactor.promptfoo.yaml`        | `negative-no-doc-churn`       | Local variable rename (`truncate` -> `truncation_processor`) in `src/maglev/maglev-compiler.cc`. Verifies `0` files in `docs/` are modified (no false-positive doc churn).                                                                                                                                                                       |
+| `liftoff-tierup-cost-model`     | `liftoff_tierup_cost_model.promptfoo.yaml`     | `positive-design-tradeoff`    | Synthetic Liftoff tier-up cost model split (`kTierUpCostForTailCall`) in `src/wasm/baseline/liftoff-compiler.cc` with benchmark/percentage/history/bug bait in the commit message. Verifies a small present-tense update to `docs/wasm/liftoff.md` naming the constant without copying bait or numeric values, leaving unrelated docs untouched. |
+| `liftoff-tierup-retune`         | `liftoff_tierup_retune.promptfoo.yaml`         | `negative-retune-no-churn`    | Value-only retune (`kTierUpCostForFunctionEntry = 1000` -> `800`) in `src/wasm/baseline/liftoff-compiler.cc` with benchmark/percentage bait in the commit message. Verifies `0` files in `docs/` are modified (no retune churn).                                                                                                                 |
 
 ## 2. Evaluation Modes
 
@@ -27,8 +29,9 @@ evaluations across isolated git worktrees.
 modes (`--diff-kind`):
 
 - **`--mode explicit`**: Prompts the subagent with `prompt.md` to check whether
-  the changes in the checkout invalidate or expand `docs/` and update affected
-  `.md` files in place.
+  the changes in the checkout contradict an existing `docs/` file or change a
+  design decision, trade-off, or cross-component invariant covered by one, and
+  update affected `.md` files in place.
 - **`--mode implicit`**: Prompts the subagent to run V8 pre-upload checks on a
   finished code change (without mentioning `docs/` in the prompt), testing
   whether `agents/rules/v8-best-practices.md` and
@@ -74,6 +77,8 @@ modes (`--diff-kind`):
    - **Precision (`no_extra_docs`)**: No unrelated `docs/` files were churned.
    - **Accuracy (`check_file_content`)**: Updated `.md` files contain all
      `present` substrings and no `absent` substrings.
+   - **Proportionality (`check_max_added_lines`)**: Updated `.md` files stay
+     within the per-case added-line budget.
    - **Hygiene**: Zero `U+2014` em-dashes, clean `git diff --check`, and valid
      relative markdown links.
 

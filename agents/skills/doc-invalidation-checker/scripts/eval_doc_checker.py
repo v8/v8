@@ -317,6 +317,110 @@ def check_files_unchanged(_: str, context: dict) -> dict[str, object]:
   }
 
 
+def check_max_added_lines(_: str, context: dict) -> dict[str, object]:
+  """Checks that added lines in each specified file stay within a cap."""
+  config = context.get("config")
+  if not isinstance(config, dict):
+    return {
+        "pass": False,
+        "reason": "Invalid config for check_max_added_lines: expected dict.",
+        "score": 0,
+    }
+
+  raw_max = config.get("max_added_lines")
+  if isinstance(raw_max, bool) or not isinstance(raw_max, int) or raw_max < 0:
+    return {
+        "pass": False,
+        "reason": (
+            "Invalid `max_added_lines` config: expected a non-negative integer,"
+            f" got {raw_max!r}."),
+        "score": 0,
+    }
+  max_added = raw_max
+
+  files = config.get("files")
+  if (not isinstance(files, list) or not files or
+      any(not isinstance(f, str) or not f.strip() for f in files)):
+    return {
+        "pass": False,
+        "reason":
+            ("Invalid `files` config for check_max_added_lines: expected a "
+             "non-empty list of file paths."),
+        "score": 0,
+    }
+
+  exceeded: list[str] = []
+  cwd = Path.cwd()
+  for rel_path in files:
+    untracked_res = _run_git(
+        cwd,
+        ["ls-files", "--others", "--exclude-standard", "--", rel_path],
+        check=False,
+    )
+    if untracked_res.returncode != 0:
+      exceeded.append(
+          f"{rel_path}: git ls-files failed ({untracked_res.stderr.strip()})")
+      continue
+
+    added = 0
+    untracked_files = [
+        line.strip()
+        for line in untracked_res.stdout.splitlines()
+        if line.strip()
+    ]
+    read_failed = False
+    for untracked_rel in untracked_files:
+      file_path = cwd / untracked_rel
+      try:
+        added += len(
+            file_path.read_text(encoding="utf-8",
+                                errors="replace").splitlines())
+      except OSError as exc:
+        exceeded.append(f"{untracked_rel}: failed to read file ({exc})")
+        read_failed = True
+        break
+    if read_failed:
+      continue
+
+    res = _run_git(
+        cwd,
+        ["diff", "--numstat", "HEAD", "--", rel_path],
+        check=False,
+    )
+    if res.returncode != 0:
+      exceeded.append(f"{rel_path}: git diff failed ({res.stderr.strip()})")
+      continue
+    binary_seen = False
+    for line in res.stdout.splitlines():
+      parts = line.split("\t")
+      if len(parts) >= 3:
+        if parts[0].isdigit():
+          added += int(parts[0])
+        elif parts[0] == "-":
+          exceeded.append(
+              f"{rel_path}: binary diff cannot be checked for added lines")
+          binary_seen = True
+          break
+    if binary_seen:
+      continue
+
+    if added > max_added:
+      exceeded.append(f"{rel_path} added {added} lines (max {max_added})")
+
+  if exceeded:
+    details = "\n".join(exceeded)
+    return {
+        "pass": False,
+        "reason": f"Docs diff exceeded added-line budget:\n{details}",
+        "score": 0,
+    }
+  return {
+      "pass": True,
+      "reason": f"All specified files added at most {max_added} lines.",
+      "score": 1,
+  }
+
+
 def _run_promptfoo_assertions(
     case: EvalCase,
     worktree_dir: Path,

@@ -85,13 +85,13 @@ general debugging approach for tracked issues.
 - **Root-Cause Verification**: Trace upstream in the relevant C++ code and
   verify why the failing line exists and what invariant it protects.
 - **Check & Update Documentation (`docs/`)**: Search `docs/`
-  (`git --no-pager grep` across `docs/`) to check whether the bug fix or newly
-  uncovered invariant changes, expands, or corrects any V8 architecture, data
-  structure, pipeline pass, bytecode/IR node, flag, or cross-tier contract
-  documented in `docs/` (or whether any `docs/` file read during triage had
-  stale symbols or invariants). Update the relevant `.md` file(s) in `docs/` as
-  part of the fix (keep `docs/security/triaging.md` unchanged unless explicitly
-  requested by the user).
+  (`git --no-pager grep` across `docs/`) to check whether the fix contradicts an
+  existing `docs/` file, changes a design-level trade-off or cross-component
+  invariant covered by one, or exposes a factually wrong or stale statement in a
+  `docs/` file read during triage. Most bug fixes need no `docs/` change; when
+  an update is warranted, apply a small, proportional edit following "Writing
+  Guidelines" in `docs/README.md` (keep `docs/security/triaging.md` unchanged
+  unless explicitly requested by the user).
 - **Verify**: Confirm with tests and `d8` flags. Run tests on both debug and
   release builds if possible to ensure no assertions are violated and
   performance is not regressed.

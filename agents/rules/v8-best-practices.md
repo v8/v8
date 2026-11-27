@@ -49,14 +49,17 @@ When proposing a fix, ensure the code adheres to V8 standards:
   coverage and can be tested. Do NOT add new tests (or bloated C++ `unittests` /
   brittle change-detector checks) for refactorings or optimizations without such
   testable effects when existing tests already cover the affected paths.
-- **Documentation Sync Requirement**: Whenever a CL changes V8 architecture,
-  data structures, object layouts, pipeline passes, bytecodes/IR nodes, flags,
-  or cross-tier invariants (or adds a feature or bug fix that invalidates or
-  expands a concept covered in `docs/`), search `docs/` (`git --no-pager grep`
-  across `docs/` or run the `doc-invalidation-checker` skill) and update the
-  relevant `.md` file(s) in the same CL. Keep `docs/security/triaging.md`
-  unchanged unless explicitly requested by the user, as it is maintained
-  manually.
+- **Documentation and Comments Explain Why**: In code you add or change, add a
+  brief rationale comment for local decisions (tuned constants, fast-path vs.
+  slow-path splits, non-obvious caps and invariants), linking
+  `See docs/<path>.md` (file path only) when deeper rationale lives there. When
+  a CL changes a design decision, trade-off, or cross-component invariant
+  covered by an existing `docs/` file, or contradicts one (search with
+  `git --no-pager grep` or run `doc-invalidation-checker`), update that file in
+  the same CL with the smallest diff describing the new design per "Writing
+  Guidelines" in `docs/README.md`. Most refactorings and bug fixes need no
+  `docs/` change. Keep `docs/security/triaging.md` unchanged unless explicitly
+  requested.
 
 ## Technical Guardrails & Guidelines
 
@@ -71,8 +74,9 @@ When proposing a fix, ensure the code adheres to V8 standards:
   `namespace {}` in the `.cc` file rather than as private class methods.
 - **Pre-Upload Diff Self-Review**: Inspect `git diff` before uploading to ensure
   minimal diff noise, tight local variable scopes (declaring variables at first
-  use), clean regression tests, and synchronized `docs/` updates for any
-  modified invariants, classes, passes, or flags.
+  use), clean regression tests, brief "why" comments on local trade-offs, and
+  focused `docs/` updates when a design decision, invariant, or documented claim
+  changed.
 - **Cleanup Constraint**: Keep diffs small by changing only the code and `docs/`
   documentation intended for the task. Propose cleanups to nearby unrelated code
   as a separate patch to keep the current change focused.

@@ -205,14 +205,19 @@ instructions below:
      production `.cc` code calling `*ForTest*` helpers, new `V8_OBJECT`/`V8_IT_`
      headers missing from `src/objects/all-objects.h`.
    - **Documentation sync (`docs/`)**: Search `docs/` (`git --no-pager grep` on
-     `docs/`) for classes, methods, enums, bitmasks, pipeline passes,
-     bytecodes/IR nodes, flags, or cross-tier invariants modified by the CL.
-     Flag a `design` (or `bug`) comment anchored on the relevant modified line
-     in `src/` if the CL invalidates or makes incomplete any design document in
-     `docs/` without updating it (excluding `docs/security/triaging.md`, which
-     is maintained manually). When the CL modifies `.md` files in `docs/`,
-     verify every C++ class/method/enum name, bitmask, register, flag, pipeline
-     step, and invariant against `src/` and flag any factual mismatch.
+     `docs/`) for symbols, flags, passes, or cross-component invariants modified
+     by the CL. Flag a `design` (or `bug`) comment anchored on the relevant
+     modified line in `src/` if the CL contradicts an existing `docs/` file or
+     changes a design-level trade-off, cost model, or cross-component invariant
+     covered by one without a concise update per `docs/README.md` (excluding
+     `docs/security/triaging.md`, which is maintained manually). When the CL
+     modifies `.md` files in `docs/`, verify every C++ symbol, bitmask,
+     register, flag, pipeline step, and invariant against `src/`: flag factual
+     mismatches as `bug`s, flag documented rationale not backed by `src/`, code
+     comments, or the commit message as a `question` for the author to confirm,
+     and ensure the `docs/` diff stays small and proportional, focusing on
+     present-tense design rationale rather than mechanical code restatement, CL
+     history, or benchmark numbers.
 
 6. `performance-containers`:
 
@@ -270,10 +275,13 @@ instructions below:
      constructors and assignment operators; `{}` braces on all multi-line `if`
      statements; copyright header on new files.
    - **Comments, `docs/` & readability**: Documenting class invariants and
-     non-obvious rationale; updating stale adjacent comments or `docs/*.md`
-     sections contradicted by the diff; checking modified `docs/*.md` files for
-     broken relative links or Unicode em-dashes (`U+2014`); identifying pure
-     code moves.
+     non-obvious rationale, including flagging new tuned constants, caps, or
+     fast-path vs. slow-path splits that lack a brief "why" comment; verifying
+     `See docs/...` comments resolve to existing files (without heading
+     anchors); updating stale adjacent comments or `docs/*.md` sections
+     contradicted by the diff; checking modified `docs/*.md` files for broken
+     relative links or Unicode em-dashes (`U+2014`); identifying pure code
+     moves.
 
 Instructions for every subagent:
 

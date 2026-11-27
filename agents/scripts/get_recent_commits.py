@@ -94,7 +94,8 @@ def check_branch_diff(base_ref: str | None = None) -> None:
   print("=" * 80)
   print(f"BRANCH DIFF AGAINST: {base_ref}")
 
-  log_res = _run_git(["log", "--oneline", f"{base_ref}..HEAD"], check=False)
+  log_res = _run_git(["log", "--format=%h %B", f"{base_ref}..HEAD"],
+                     check=False)
   if log_res.returncode == 0 and log_res.stdout.strip():
     print("BRANCH COMMITS:")
     print(log_res.stdout.strip())

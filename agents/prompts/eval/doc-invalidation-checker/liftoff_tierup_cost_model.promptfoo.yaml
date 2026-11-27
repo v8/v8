@@ -1,0 +1,75 @@
+description: >-
+  Verify doc-invalidation-checker adds a small, present-tense design update to
+  docs/wasm/liftoff.md when Liftoff's tier-up cost model introduces
+  kTierUpCostForTailCall, without copying benchmark numbers, percentages,
+  change history, bug links, or mutable numeric values from the commit message.
+owner: clemensb@chromium.org
+prompts:
+  - 'file://prompt.md'
+providers:
+  - id: python:../../../testing/gemini_provider.py
+    config:
+      timeoutSeconds: 600
+      skills:
+        - doc-invalidation-checker
+      changes:
+        - apply: >-
+            agents/prompts/eval/doc-invalidation-checker/liftoff_tierup_cost_model.patch
+tests:
+  - assert:
+      - type: python
+        value: >-
+          file://../../../testing/asserts/check_changes.py:check_files_changed
+        config:
+          files:
+            - docs/wasm/liftoff.md
+      - type: python
+        value: >-
+          file://../../../skills/doc-invalidation-checker/scripts/eval_doc_checker.py:check_files_unchanged
+        config:
+          files:
+            - docs/README.md
+            - docs/wasm/architecture.md
+            - docs/security/triaging.md
+      - type: python
+        value: >-
+          file://../../../testing/asserts/check_changes.py:check_file_content
+        config:
+          files:
+            - path: docs/wasm/liftoff.md
+              present:
+                - 'kTierUpCostForTailCall'
+              absent:
+                - '425'
+                - 'JetStream3'
+                - 'wasmpspdfkit'
+                - '4.7%'
+                - '11.2%'
+                - 'Previously'
+                - 'previously'
+                - '422099999'
+      - type: python
+        value: >-
+          file://../../../skills/doc-invalidation-checker/scripts/eval_doc_checker.py:check_max_added_lines
+        config:
+          files:
+            - docs/wasm/liftoff.md
+          max_added_lines: 4
+    metadata:
+      category: positive-design-tradeoff
+      commit_message: |
+        [wasm][liftoff] Separate tail-call tier-up cost from function entry cost
+
+        Previously TierupCheckOnTailCall charged kTierUpCostForFunctionEntry,
+        which over-tiered trampoline-style tail-call dispatchers. Introduce
+        kTierUpCostForTailCall (425) because tail calls reuse the current frame
+        and skip epilogue teardown.
+
+        Improves JetStream3 wasm-gc tail-call dispatch by 4.7% and reduces
+        background compile time on wasmpspdfkit by 11.2%.
+
+        Bug: 422099999
+      tags:
+        - docs
+        - wasm
+        - liftoff

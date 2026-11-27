@@ -156,12 +156,16 @@ better:
   touched/added paths (e.g., a fast/slow-path split) lack coverage; do not add
   redundant tests when existing tests already cover the affected paths, and
   avoid bloated C++ `unittests` scaffolding or brittle change-detector checks.
-- **Check & Update Documentation (`docs/`)**: Before committing or uploading an
-  optimization CL, search `docs/` (`git --no-pager grep` across `docs/`) to
-  check whether the change adds or modifies compiler passes, IR nodes,
-  bytecodes, object layouts, IC/tiering heuristics, flags, or cross-tier
-  invariants covered in `docs/`. Update the relevant `.md` file(s) in the same
-  CL so `docs/` stays synchronized with `src/`.
+- **Document Trade-offs (Comments & `docs/`)**: Record local optimization
+  trade-offs (tuned constants, fast-path vs. slow-path splits, non-obvious caps)
+  as brief "why" comments at the code site, linking `See docs/<path>.md` (file
+  path only) when deeper rationale lives there. Before committing or uploading,
+  search `docs/` (`git --no-pager grep` across `docs/`) and update affected
+  `.md` files in the same CL only when the CL contradicts an existing `docs/`
+  file or changes a design-level trade-off, cost model, or cross-component
+  invariant covered by one (following "Writing Guidelines" in `docs/README.md`).
+  Put benchmark scores and percentages in the commit message, keeping `docs/` in
+  present tense.
 - **Verification on Pinpoint (Preferred)**:
   - Commit changes to a local branch.
   - Use the automation script to upload a CL and start a Pinpoint job:

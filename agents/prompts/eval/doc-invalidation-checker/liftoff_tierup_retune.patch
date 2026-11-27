@@ -1,0 +1,12 @@
+diff --git a/src/wasm/baseline/liftoff-compiler.cc b/src/wasm/baseline/liftoff-compiler.cc
+--- a/src/wasm/baseline/liftoff-compiler.cc
++++ b/src/wasm/baseline/liftoff-compiler.cc
+@@ -724,7 +724,7 @@ class LiftoffCompiler {
+   //   without requiring excessive call counts, while leaving loop backedge
+   //   tiering unaffected.
+   static constexpr int kTierUpCostForCheck = 20;
+-  static constexpr int kTierUpCostForFunctionEntry = 1000;
++  static constexpr int kTierUpCostForFunctionEntry = 800;
+
+   struct ElseState {
+     explicit ElseState(Zone* zone) : label(zone), state(zone) {}

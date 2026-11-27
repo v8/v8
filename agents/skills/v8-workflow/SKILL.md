@@ -52,11 +52,12 @@ development:
 Before committing or uploading any changes from your branch or worktree, verify
 the following:
 
-- **Documentation Sync (`docs/`)**: Check whether your changes modify V8
-  architecture, data structures, object layouts, pipeline passes, bytecodes/IR
-  nodes, flags, or cross-tier invariants (or invalidate/expand any concept
-  documented in `docs/`). Search `docs/` (`git --no-pager grep` across `docs/`)
-  and update all affected `.md` files in the same CL (keep
+- **Documentation Sync (`docs/`)**: Search `docs/` (`git --no-pager grep` across
+  `docs/`) to check whether your changes contradict an existing `docs/` file or
+  change a design decision, trade-off, or cross-component invariant covered by
+  one. Most refactorings, bug fixes, and value-only constant retunes need no
+  `docs/` change; when an update is needed, apply a small, proportional edit in
+  the same CL following "Writing Guidelines" in `docs/README.md` (keep
   `docs/security/triaging.md` unchanged unless explicitly requested by the
   user).
 - **Formatting & Tests**: Run `git cl format` and verify that the regression

@@ -52,13 +52,13 @@ crashes, hangs, or unexpected behavior where no specific issue ID is provided.
   regression test. Verify it fails on the unfixed code and passes cleanly on the
   fixed code.
 - **Check & Update Documentation (`docs/`)**: Search `docs/`
-  (`git --no-pager grep` across `docs/`) to check whether the fix or newly
-  uncovered invariant changes, expands, or corrects any V8 architecture, data
-  structure, pipeline pass, bytecode/IR node, flag, or cross-tier contract
-  documented in `docs/` (or whether any `docs/` file read during debugging had
-  stale symbols or invariants). Update the relevant `.md` file(s) in `docs/` as
-  part of the fix (keep `docs/security/triaging.md` unchanged unless explicitly
-  requested by the user).
+  (`git --no-pager grep` across `docs/`) to check whether the fix contradicts an
+  existing `docs/` file, changes a design-level trade-off or cross-component
+  invariant covered by one, or exposes a factually wrong or stale statement in a
+  `docs/` file read during debugging. Most bug fixes need no `docs/` change;
+  when an update is warranted, apply a small, proportional edit following
+  "Writing Guidelines" in `docs/README.md` (keep `docs/security/triaging.md`
+  unchanged unless explicitly requested by the user).
 - Verify the fix against the repro or by running relevant unit tests.
 - Ensure no new failures are introduced in related areas.
 

@@ -1,0 +1,26 @@
+diff --git a/src/wasm/baseline/liftoff-compiler.cc b/src/wasm/baseline/liftoff-compiler.cc
+--- a/src/wasm/baseline/liftoff-compiler.cc
++++ b/src/wasm/baseline/liftoff-compiler.cc
+@@ -723,8 +723,13 @@ class LiftoffCompiler {
+   //   ensures frequently-called small functions (common in WasmGC) tier up
+   //   without requiring excessive call counts, while leaving loop backedge
+   //   tiering unaffected.
++  // - {kTierUpCostForTailCall} charges tail calls separately from regular
++  //   returns because tail-call chains reuse the current frame and skip
++  //   epilogue teardown; charging the full entry cost would over-tier
++  //   trampoline-style tail-call dispatchers.
+   static constexpr int kTierUpCostForCheck = 20;
+   static constexpr int kTierUpCostForFunctionEntry = 1000;
++  static constexpr int kTierUpCostForTailCall = 425;
+
+   struct ElseState {
+     explicit ElseState(Zone* zone) : label(zone), state(zone) {}
+@@ -3620,7 +3625,7 @@ class LiftoffCompiler {
+   void TierupCheckOnTailCall(FullDecoder* decoder) {
+     if (!dynamic_tiering()) return;
+     TierupCheck(decoder, decoder->position(),
+-                __ pc_offset() + kTierUpCostForFunctionEntry);
++                __ pc_offset() + kTierUpCostForTailCall);
+   }
+
+   void DoReturn(FullDecoder* decoder, uint32_t /* drop values */) {
