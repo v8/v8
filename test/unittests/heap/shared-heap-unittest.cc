@@ -1014,6 +1014,7 @@ TEST_F(SharedHeapTest, WriteBarrierForRange_SharedHeapMarking) {
 
 TEST_F(SharedHeapTest, FlushBytecodeWithSharedTrustedPointers) {
   SaveFlags save_flags;
+  ManualGCScope manual_gc_scope(i_isolate());
   v8_flags.flush_bytecode.Set(true);
 
   i_isolate()->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
