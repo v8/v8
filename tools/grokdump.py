@@ -2150,21 +2150,20 @@ class InspectionPadawan(object):
     if is_weak:
       tagged_address &= ~2
     if self.heap.IsPointerCompressed():
-      # Interpret the first page as the read-only space in pointer-compression.
-      page = self.GetPageAddress(tagged_address)
-      tagged_page = page & 0xFFFFFFFF
-      if tagged_page == 0:
-        offset = self.GetPageOffset(tagged_address)
-        if offset == 1 and is_weak:
-          return "<cleared>"
-        lookup_key = ("read_only_space", offset)
-        known_obj_name = KNOWN_OBJECTS.get(lookup_key)
-        if known_obj_name:
-          return KnownObject(self, known_obj_name)
-        known_map_info = KNOWN_MAPS.get(lookup_key)
-        if known_map_info:
-          known_map_type, known_map_name = known_map_info
-          return KnownObject(self, known_map_name)
+      # In pointer-compressed builds, read-only space occupies a contiguous
+      # region starting at offset 0 of the cage, and KNOWN_OBJECTS / KNOWN_MAPS
+      # key read_only_space entries by their full offset from cage base.
+      tagged_offset = tagged_address & 0xFFFFFFFF
+      if tagged_offset == 1 and is_weak:
+        return "<cleared>"
+      lookup_key = ("read_only_space", tagged_offset)
+      known_obj_name = KNOWN_OBJECTS.get(lookup_key)
+      if known_obj_name:
+        return KnownObject(self, known_obj_name)
+      known_map_info = KNOWN_MAPS.get(lookup_key)
+      if known_map_info:
+        known_map_type, known_map_name = known_map_info
+        return KnownObject(self, known_map_name)
 
     if self.IsInKnownOldSpace(tagged_address):
       offset = self.GetPageOffset(tagged_address)
@@ -2200,16 +2199,13 @@ class InspectionPadawan(object):
 
   def SenseMap(self, tagged_address):
     if self.heap.IsPointerCompressed():
-      # Interpret the first page as the read-only space in pointer-compression.
-      page = self.GetPageAddress(tagged_address)
-      tagged_page = page & 0xFFFFFFFF
-      if tagged_page == 0:
-        offset = self.GetPageOffset(tagged_address)
-        lookup_key = ("read_only_space", offset)
-        known_map_info = KNOWN_MAPS.get(lookup_key)
-        if known_map_info:
-          known_map_type, known_map_name = known_map_info
-          return KnownMap(self, known_map_name, known_map_type)
+      # Read-only space entries are keyed by full offset from cage base.
+      tagged_offset = tagged_address & 0xFFFFFFFF
+      lookup_key = ("read_only_space", tagged_offset)
+      known_map_info = KNOWN_MAPS.get(lookup_key)
+      if known_map_info:
+        known_map_type, known_map_name = known_map_info
+        return KnownMap(self, known_map_name, known_map_type)
     if self.IsInKnownMapSpace(tagged_address):
       offset = self.GetPageOffset(tagged_address)
       lookup_key = ("old_space", offset)

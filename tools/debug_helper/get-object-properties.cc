@@ -758,7 +758,7 @@ uintptr_t FirstPageFromRoot(uintptr_t isolate_address,
     return 0;
   }
   if (lookup(MemoryChunk::AddressToOffset(address)) != name) return 0;
-  return MemoryChunk::FromAddress(address)->address();
+  return MemoryChunk::BaseAddress(address);
 }
 
 // Fill heap_addresses with info about first pages using the roots table
@@ -808,6 +808,19 @@ std::unique_ptr<ObjectPropertiesResult> GetHeapObjectPropertiesMaybeCompressed(
   if (any_uncompressed_ptr == 0) {
     any_uncompressed_ptr = heap_addresses.read_only_space_first_page;
   }
+  if (any_uncompressed_ptr == 0 && heap_addresses.isolate != 0) {
+    FillHeapAddressesWithIsolate(&heap_addresses, memory_accessor);
+    any_uncompressed_ptr = heap_addresses.read_only_space_first_page != 0
+                               ? heap_addresses.read_only_space_first_page
+                               : heap_addresses.old_space_first_page;
+  }
+  if (any_uncompressed_ptr == 0) {
+    // We can't figure out the heap range. Just check for known objects.
+    std::string brief = FindKnownObject(address, heap_addresses);
+    brief = AppendAddressAndType(brief, address, kTaggedValue);
+    return std::make_unique<ObjectPropertiesResult>(
+        d::TypeCheckResult::kUnableToDecompress, brief, kTaggedValue);
+  }
 #ifdef V8_COMPRESS_POINTERS
   Address base =
       V8HeapCompressionScheme::GetPtrComprCageBaseAddress(any_uncompressed_ptr);
@@ -818,13 +831,6 @@ std::unique_ptr<ObjectPropertiesResult> GetHeapObjectPropertiesMaybeCompressed(
   FillInUnknownHeapAddresses(&heap_addresses, any_uncompressed_ptr);
   if (heap_addresses.isolate != 0) {
     FillHeapAddressesWithIsolate(&heap_addresses, memory_accessor);
-  }
-  if (any_uncompressed_ptr == 0) {
-    // We can't figure out the heap range. Just check for known objects.
-    std::string brief = FindKnownObject(address, heap_addresses);
-    brief = AppendAddressAndType(brief, address, kTaggedValue);
-    return std::make_unique<ObjectPropertiesResult>(
-        d::TypeCheckResult::kUnableToDecompress, brief, kTaggedValue);
   }
 
   address = EnsureDecompressed(address, any_uncompressed_ptr);

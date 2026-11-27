@@ -4,14 +4,19 @@
 
 #include <stdio.h>
 
+#include <set>
+#include <utility>
+
 #include "include/libplatform/libplatform.h"
 #include "include/v8-array-buffer.h"
 #include "include/v8-initialization.h"
+#include "src/common/globals.h"
 #include "src/execution/frames.h"
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/paged-spaces-inl.h"
 #include "src/heap/read-only-heap.h"
+#include "src/heap/read-only-spaces.h"
 #include "src/heap/safepoint.h"
 #include "src/heap/spaces.h"
 #include "src/objects/objects-inl.h"
@@ -44,8 +49,28 @@ class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
   void Free(void* p, size_t) override {}
 };
 
-static void DumpKnownMap(FILE* out, i::Heap* heap, const char* space_name,
-                         i::Tagged<i::HeapObject> object) {
+using EmittedKeySet = std::set<std::pair<i::AllocationSpace, uintptr_t>>;
+
+static uintptr_t OffsetInFirstPage(i::Tagged<i::HeapObject> object) {
+  return object.ptr() & (i::NormalPage::kPageSize - 1);
+}
+
+static uintptr_t OffsetInReadOnlySpace(const i::ReadOnlySpace* read_only_space,
+                                       i::Tagged<i::HeapObject> object) {
+#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+  i::Address first_page = read_only_space->FirstPageAddress();
+  CHECK_GE(object.ptr(), first_page);
+  uintptr_t offset = object.ptr() - first_page;
+  CHECK_LT(offset, i::kContiguousReadOnlyReservationSize);
+  return offset;
+#else
+  return OffsetInFirstPage(object);
+#endif
+}
+
+static void DumpKnownMap(FILE* out, i::Heap* heap, i::AllocationSpace space,
+                         uintptr_t offset, i::Tagged<i::HeapObject> object,
+                         EmittedKeySet* emitted_keys) {
 #define RO_ROOT_LIST_CASE(type, name, CamelName) \
   if (root_name == nullptr && object == roots.name()) root_name = #CamelName;
 #define MUTABLE_ROOT_LIST_CASE(type, name, CamelName) \
@@ -54,22 +79,22 @@ static void DumpKnownMap(FILE* out, i::Heap* heap, const char* space_name,
   i::ReadOnlyRoots roots(heap);
   const char* root_name = nullptr;
   i::Tagged<i::Map> map = i::Cast<i::Map>(object);
-  intptr_t root_ptr =
-      static_cast<intptr_t>(map.ptr()) & (i::NormalPage::kPageSize - 1);
 
   READ_ONLY_ROOT_LIST(RO_ROOT_LIST_CASE)
   MUTABLE_ROOT_LIST(MUTABLE_ROOT_LIST_CASE)
 
   if (root_name == nullptr) return;
+  CHECK(emitted_keys->emplace(space, offset).second);
   i::PrintF(out, "    (\"%s\", 0x%05" V8PRIxPTR "): (%d, \"%s\"),\n",
-            space_name, root_ptr, map->instance_type(), root_name);
+            i::ToString(space), offset, map->instance_type(), root_name);
 
 #undef MUTABLE_ROOT_LIST_CASE
 #undef RO_ROOT_LIST_CASE
 }
 
-static void DumpKnownObject(FILE* out, i::Heap* heap, const char* space_name,
-                            i::Tagged<i::HeapObject> object) {
+static void DumpKnownObject(FILE* out, i::Heap* heap, i::AllocationSpace space,
+                            uintptr_t offset, i::Tagged<i::HeapObject> object,
+                            EmittedKeySet* emitted_keys) {
 #define RO_ROOT_LIST_CASE(type, name, CamelName)                 \
   if (root_name == nullptr && object.SafeEquals(roots.name())) { \
     root_name = #CamelName;                                      \
@@ -84,7 +109,6 @@ static void DumpKnownObject(FILE* out, i::Heap* heap, const char* space_name,
   i::ReadOnlyRoots roots(heap);
   const char* root_name = nullptr;
   i::RootIndex root_index = i::RootIndex::kFirstSmiRoot;
-  intptr_t root_ptr = object.ptr() & (i::NormalPage::kPageSize - 1);
 
   STRONG_READ_ONLY_ROOT_LIST(RO_ROOT_LIST_CASE)
   MUTABLE_ROOT_LIST(ROOT_LIST_CASE)
@@ -92,8 +116,9 @@ static void DumpKnownObject(FILE* out, i::Heap* heap, const char* space_name,
   if (root_name == nullptr) return;
   if (!i::RootsTable::IsImmortalImmovable(root_index)) return;
 
-  i::PrintF(out, "  (\"%s\", 0x%05" V8PRIxPTR "): \"%s\",\n", space_name,
-            root_ptr, root_name);
+  CHECK(emitted_keys->emplace(space, offset).second);
+  i::PrintF(out, "  (\"%s\", 0x%05" V8PRIxPTR "): \"%s\",\n",
+            i::ToString(space), offset, root_name);
 
 #undef ROOT_LIST_CASE
 #undef RO_ROOT_LIST_CASE
@@ -130,8 +155,17 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
     i::Heap* heap = i_isolate->heap();
     i::SafepointScope safepoint_scope(i_isolate,
                                       i::kGlobalSafepointForSharedSpaceIsolate);
-    i::ReadOnlyHeap* read_only_heap =
-        reinterpret_cast<i::Isolate*>(isolate)->read_only_heap();
+    i::ReadOnlySpace* read_only_space =
+        i_isolate->read_only_heap()->read_only_space();
+    CHECK(!read_only_space->pages().empty());
+#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+    CHECK_EQ(i::V8HeapCompressionScheme::CompressObject(
+                 read_only_space->FirstPageAddress()),
+             0u);
+#else
+    i::ReadOnlyPage* first_ro_page = read_only_space->pages().front();
+#endif
+    heap->MakeHeapIterable(i::CompleteSweepingReason::kHeapObjectIterator);
     i::PrintF(out, "%s", kHeader);
 #define DUMP_TYPE(T) i::PrintF(out, "  %d: \"%s\",\n", i::T, #T);
     i::PrintF(out, "INSTANCE_TYPES = {\n");
@@ -139,51 +173,71 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
     i::PrintF(out, "}\n");
 #undef DUMP_TYPE
 
+    EmittedKeySet emitted_keys;
     {
       // Dump the KNOWN_MAP table to the console.
+      // When read-only space lives in a contiguous compressed reservation,
+      // emit full offsets from its first page so consumers can resolve objects
+      // on any read-only page. For non-contiguous read-only space and mutable
+      // paged spaces, only iterate the first page because consumers can only
+      // match within-page offsets against each space's first page.
       i::PrintF(out, "\n# List of known V8 maps.\n");
       i::PrintF(out, "KNOWN_MAPS = {\n");
-      i::ReadOnlyHeapObjectIterator ro_iterator(read_only_heap);
+#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+      i::ReadOnlyHeapObjectIterator ro_iterator(read_only_space);
+#else
+      i::ReadOnlyPageObjectIterator ro_iterator(first_ro_page);
+#endif
       for (i::Tagged<i::HeapObject> object = ro_iterator.Next();
            !object.is_null(); object = ro_iterator.Next()) {
         if (IsInaccessible(object)) continue;
         if (!IsMap(object)) continue;
-        DumpKnownMap(out, heap, i::ToString(i::RO_SPACE), object);
+        DumpKnownMap(out, heap, i::RO_SPACE,
+                     OffsetInReadOnlySpace(read_only_space, object), object,
+                     &emitted_keys);
       }
 
-      i::PagedSpaceObjectIterator iterator(heap, heap->old_space());
-      for (i::Tagged<i::HeapObject> object = iterator.Next(); !object.is_null();
-           object = iterator.Next()) {
-        if (!IsMap(object)) continue;
-        DumpKnownMap(out, heap, i::ToString(heap->old_space()->identity()),
-                     object);
+      if (i::NormalPage* first_old_page = heap->old_space()->first_page()) {
+        for (i::Tagged<i::HeapObject> object :
+             i::HeapObjectRange(first_old_page)) {
+          if (!IsMap(object)) continue;
+          DumpKnownMap(out, heap, heap->old_space()->identity(),
+                       OffsetInFirstPage(object), object, &emitted_keys);
+        }
       }
       i::PrintF(out, "}\n");
     }
 
     {
-      // Dump the KNOWN_OBJECTS table to the console.
+      // Dump the KNOWN_OBJECTS table to the console (same page scope as
+      // KNOWN_MAPS above).
       i::PrintF(out, "\n# List of known V8 objects.\n");
       i::PrintF(out, "KNOWN_OBJECTS = {\n");
-      i::ReadOnlyHeapObjectIterator ro_iterator(read_only_heap);
+#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+      i::ReadOnlyHeapObjectIterator ro_iterator(read_only_space);
+#else
+      i::ReadOnlyPageObjectIterator ro_iterator(first_ro_page);
+#endif
       for (i::Tagged<i::HeapObject> object = ro_iterator.Next();
            !object.is_null(); object = ro_iterator.Next()) {
         // Skip read-only heap maps, they will be reported elsewhere.
         if (!IsInaccessible(object) && IsMap(object)) {
           continue;
         }
-        DumpKnownObject(out, heap, i::ToString(i::RO_SPACE), object);
+        DumpKnownObject(out, heap, i::RO_SPACE,
+                        OffsetInReadOnlySpace(read_only_space, object), object,
+                        &emitted_keys);
       }
 
       i::PagedSpaceIterator spit(heap);
       for (i::PagedSpace* s = spit.Next(); s != nullptr; s = spit.Next()) {
-        i::PagedSpaceObjectIterator it(heap, s);
         // Code objects are generally platform-dependent.
         if (s->identity() == i::CODE_SPACE) continue;
-        const char* sname = i::ToString(s->identity());
-        for (i::Tagged<i::HeapObject> o = it.Next(); !o.is_null();
-             o = it.Next()) {
-          DumpKnownObject(out, heap, sname, o);
+        i::NormalPage* first_page = s->first_page();
+        if (first_page == nullptr) continue;
+        for (i::Tagged<i::HeapObject> o : i::HeapObjectRange(first_page)) {
+          DumpKnownObject(out, heap, s->identity(), OffsetInFirstPage(o), o,
+                          &emitted_keys);
         }
       }
       i::PrintF(out, "}\n");
@@ -215,7 +269,7 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
           DumpSpaceFirstPageAddress(out, s);
         }
       }
-      DumpSpaceFirstPageAddress(out, read_only_heap->read_only_space());
+      DumpSpaceFirstPageAddress(out, read_only_space);
       i::PrintF(out, "}\n");
     }
 

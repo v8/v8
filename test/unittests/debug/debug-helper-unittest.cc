@@ -6,6 +6,7 @@
 
 #include <sstream>
 
+#include "include/v8-external.h"
 #include "include/v8-template.h"
 #include "src/api/api-inl.h"
 #include "src/debug/debug.h"
@@ -547,6 +548,117 @@ TEST_F(DebugHelperTest, GetObjectPropertiesWithOnlyIsolate) {
   expected << "\"test string\" (0x" << std::hex << string.ptr()
            << " <v8::internal::SeqOneByteString>)";
   CHECK(expected.str() == props->brief);
+
+  // Verify that read-only roots on later pages do not shadow page-0 roots at
+  // the same within-page offset (e.g. later-page holes at 0x0fffd shadowing
+  // TheHoleValue) or leak into page-0 lookups, and that contiguous compressed
+  // read-only space builds resolve known objects and maps on later pages.
+  ReadOnlySpace* ro_space = heap->read_only_space();
+  ReadOnlyPage* first_ro_page = ro_space->pages().front();
+  d::HeapAddresses ro_only{0, 0, first_ro_page->ChunkAddress(), 0, 0, 0, 0};
+  ReadOnlyRoots ro_roots(i_isolate);
+  Tagged<HeapObject> the_hole = ro_roots.the_hole_value();
+  CHECK(first_ro_page->Contains(the_hole.address()));
+  {
+    MemoryFailureRegion failure(0, UINTPTR_MAX);
+    props = d::GetObjectProperties(the_hole.ptr(), &ReadMemory, ro_only);
+    CHECK(StartsWith(props->brief, "TheHoleValue"));
+
+#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+    // Bare compressed pointers without a cage base resolve known RO and mutable
+    // objects with low confidence ("maybe"), while respecting the contiguous RO
+    // reservation boundary.
+    d::HeapAddresses unknown{0, 0, 0, 0, 0, 0, 0};
+    props = d::GetObjectProperties(static_cast<i::Tagged_t>(true_value.ptr()),
+                                   &ReadMemory, unknown);
+    CHECK_EQ(props->type_check_result, d::TypeCheckResult::kUnableToDecompress);
+    CHECK(StartsWith(props->brief, "maybe TrueValue"));
+
+    props = d::GetObjectProperties(static_cast<i::Tagged_t>(empty_script.ptr()),
+                                   &ReadMemory, unknown);
+    CHECK_EQ(props->type_check_result, d::TypeCheckResult::kUnableToDecompress);
+    CHECK(StartsWith(props->brief, "maybe EmptyScript"));
+
+    // An RO-range compressed pointer at empty_script's within-page offset must
+    // not match old_space's EmptyScript.
+    props = d::GetObjectProperties(
+        MemoryChunk::AddressToOffset(empty_script.ptr()), &ReadMemory, unknown);
+    CHECK_EQ(props->type_check_result, d::TypeCheckResult::kUnableToDecompress);
+    CHECK(!Contains(props->brief, "EmptyScript"));
+
+    // An address past the contiguous RO reservation must not match RO roots in
+    // either the known-page or unknown-page lookup path.
+    Address past_ro_reservation =
+        first_ro_page->ChunkAddress() + kContiguousReadOnlyReservationSize +
+        (true_value.ptr() - first_ro_page->ChunkAddress());
+    props = d::GetObjectProperties(past_ro_reservation, &ReadMemory, ro_only);
+    CHECK(!Contains(props->brief, "TrueValue"));
+    props = d::GetObjectProperties(
+        static_cast<i::Tagged_t>(past_ro_reservation), &ReadMemory, unknown);
+    CHECK(!Contains(props->brief, "TrueValue"));
+#endif
+  }
+
+  if (ro_space->pages().size() > 1) {
+    Tagged<HeapObject> later_root = ro_roots.noop_named_interceptor_info();
+    Tagged<Map> external_map = ro_roots.external_map();
+    CHECK(!first_ro_page->Contains(later_root.address()));
+    CHECK(!first_ro_page->Contains(external_map.address()));
+    Address synthetic_page0_obj =
+        first_ro_page->ChunkAddress() +
+        MemoryChunk::AddressToOffset(later_root.ptr());
+    Address synthetic_page0_map =
+        first_ro_page->ChunkAddress() +
+        MemoryChunk::AddressToOffset(external_map.ptr());
+    {
+      MemoryFailureRegion failure(0, UINTPTR_MAX);
+      props = d::GetObjectProperties(synthetic_page0_obj, &ReadMemory, ro_only);
+      CHECK(!Contains(props->brief, "NoOpNamedInterceptorInfo"));
+      props = d::GetObjectProperties(synthetic_page0_map, &ReadMemory, ro_only);
+      CHECK(!Contains(props->brief, "ExternalMap"));
+#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+      // Contiguous compressed read-only space supports resolving objects on
+      // any read-only page from read_only_space_first_page alone, or as bare
+      // compressed pointers without a cage base.
+      props = d::GetObjectProperties(later_root.ptr(), &ReadMemory, ro_only);
+      CHECK(StartsWith(props->brief, "NoOpNamedInterceptorInfo"));
+
+      Tagged<HeapObject> later_hole = ro_roots.basic_block_counters_marker();
+      CHECK(!first_ro_page->Contains(later_hole.address()));
+      props = d::GetObjectProperties(later_hole.ptr(), &ReadMemory, ro_only);
+      CHECK(StartsWith(props->brief, "BasicBlockCountersMarker"));
+
+      d::HeapAddresses unknown{0, 0, 0, 0, 0, 0, 0};
+      props = d::GetObjectProperties(static_cast<i::Tagged_t>(later_root.ptr()),
+                                     &ReadMemory, unknown);
+      CHECK_EQ(props->type_check_result,
+               d::TypeCheckResult::kUnableToDecompress);
+      CHECK(StartsWith(props->brief, "maybe NoOpNamedInterceptorInfo"));
+#endif
+    }
+#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+    // Also verify isolate-only lookup resolves later-page read-only objects
+    // (both uncompressed and compressed).
+    props =
+        d::GetObjectProperties(later_root.ptr(), &ReadMemory, heap_addresses);
+    CHECK(StartsWith(props->brief, "NoOpNamedInterceptorInfo"));
+    props = d::GetObjectProperties(static_cast<i::Tagged_t>(later_root.ptr()),
+                                   &ReadMemory, heap_addresses);
+    CHECK(StartsWith(props->brief, "NoOpNamedInterceptorInfo"));
+
+    // Verify that known maps on later read-only pages resolve when the map
+    // itself is inaccessible (exercising FindKnownMapInstanceTypes).
+    int dummy = 0;
+    v8::Local<v8::External> external =
+        v8::External::New(isolate, &dummy, v8::kExternalPointerTypeTagDefault);
+    DirectHandle<Object> external_obj = v8::Utils::OpenDirectHandle(*external);
+    MemoryFailureRegion failure(external_map.address(),
+                                external_map.address() + i::Map::kSize);
+    props = d::GetObjectProperties((*external_obj).ptr(), &ReadMemory, ro_only);
+    CHECK_EQ(props->type_check_result, d::TypeCheckResult::kKnownMapPointer);
+    CHECK_EQ(props->type, std::string("v8::internal::JSExternalObject"));
+#endif
+  }
 }
 
 static void FrameIterationCheck(
