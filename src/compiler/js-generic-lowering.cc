@@ -217,15 +217,19 @@ bool ShouldUseMegamorphicAccessBuiltin(FeedbackSource const& source,
   ProcessedFeedback const& feedback =
       broker->GetFeedbackForPropertyAccess(source, mode, name);
 
-  if (feedback.kind() == ProcessedFeedback::kElementAccess) {
-    return feedback.AsElementAccess().transition_groups().empty();
-  } else if (feedback.kind() == ProcessedFeedback::kNamedAccess) {
-    return feedback.AsNamedAccess().maps().empty();
-  } else if (feedback.kind() == ProcessedFeedback::kInsufficient ||
-             feedback.kind() == ProcessedFeedback::kProxy) {
-    return false;
+  switch (feedback.kind()) {
+    case ProcessedFeedback::kElementAccess:
+      return feedback.AsElementAccess().transition_groups().empty();
+    case ProcessedFeedback::kNamedAccess:
+      return feedback.AsNamedAccess().maps().empty();
+    case ProcessedFeedback::kHomomorphicPropertyAccess:
+      return true;
+    case ProcessedFeedback::kInsufficient:
+    case ProcessedFeedback::kProxy:
+      return false;
+    default:
+      UNREACHABLE();
   }
-  UNREACHABLE();
 }
 
 }  // namespace
