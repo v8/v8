@@ -5873,8 +5873,9 @@ Location Function::GetScriptLocation() const {
   if (i::IsScript(shared->script())) {
     i::DirectHandle<i::Script> script(i::Cast<i::Script>(shared->script()),
                                       i::Isolate::Current());
-    return {i::Script::GetLineNumber(script, shared->StartPosition()),
-            i::Script::GetColumnNumber(script, shared->StartPosition())};
+    i::Script::PositionInfo info;
+    i::Script::GetPositionInfo(script, shared->StartPosition(), &info);
+    return {info.line, info.column};
   }
   return {-1, -1};
 }
