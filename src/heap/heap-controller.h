@@ -115,14 +115,10 @@ class V8_EXPORT_PRIVATE HeapLimits {
                               const HeapLimitBounds& boundaries,
                               const char* caller = __builtin_FUNCTION());
 
-  void ShrinkAllocationLimitIfNotConfigured(size_t old_generation_consumed,
-                                            size_t global_consumed);
-
   // Sets allocation limits for both old generation and the global heap.
   void SetAllocationLimit(size_t new_old_generation_allocation_limit,
                           size_t new_global_allocation_limit,
                           const char* reason = __builtin_FUNCTION());
-  void ResetAllocationLimit();
 
   // Sets max/min old generation size and computes the new global heap limit
   // from it.
@@ -194,9 +190,6 @@ class V8_EXPORT_PRIVATE HeapLimits {
   size_t initial_max_old_generation_size() const {
     return initial_max_old_generation_size_;
   }
-  size_t initial_old_generation_size() const {
-    return initial_old_generation_size_;
-  }
 
   size_t min_old_generation_size() const { return min_old_generation_size_; }
   size_t max_old_generation_size() const {
@@ -211,10 +204,6 @@ class V8_EXPORT_PRIVATE HeapLimits {
     return external_memory_limit_for_interrupt_.load(std::memory_order_relaxed);
   }
 
-  void set_using_initial_limit(bool value) {
-    using_initial_limit_.store(value, std::memory_order_relaxed);
-  }
-
  private:
   static constexpr size_t kExternalAllocationLimitForInterrupt = 128 * KB;
 
@@ -226,16 +215,10 @@ class V8_EXPORT_PRIVATE HeapLimits {
   Heap* const heap_;
 
   size_t initial_max_old_generation_size_ = 0;
-  size_t initial_old_generation_size_ = 0;
 
-  // Before the first full GC the old generation allocation limit is considered
-  // to be *not* configured (unless initial limits were provided by the
-  // embedder, see below). In this mode V8 starts with a very large old
-  // generation allocation limit initially. Minor GCs may then shrink this
-  // initial limit down until the first full GC computes a proper old generation
-  // allocation limit in Heap::RecomputeLimits. The old generation allocation
-  // limit is then considered to be configured for all subsequent GCs. After the
-  // first full GC this field is only ever reset for top context disposals.
+  // True before the first full GC while using the initial allocation limit.
+  // Cleared after the first full GC once allocation limits are computed from
+  // GC statistics.
   std::atomic<bool> using_initial_limit_ = true;
 
   // Full garbage collections can be skipped if the old generation size

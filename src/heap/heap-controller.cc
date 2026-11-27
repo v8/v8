@@ -231,11 +231,11 @@ HeapLimits::HeapLimits(Heap* heap, const ResourceConstraints& constraints,
                        size_t max_old_generation_size,
                        size_t initial_old_generation_size)
     : heap_(heap) {
-  initial_old_generation_size_ = initial_old_generation_size;
   initial_max_old_generation_size_ = max_old_generation_size;
   SetMaximumSizes(max_old_generation_size,
                   constraints.physical_memory_size_in_bytes());
-  ResetAllocationLimit();
+  SetAllocationLimit(initial_old_generation_size,
+                     GlobalMemorySizeFromV8Size(initial_old_generation_size));
 }
 
 void HeapLimits::UpdateAllocationLimits(Heap::HeapGrowingMode mode,
@@ -391,31 +391,6 @@ void HeapLimits::UpdateAllocationLimits(Heap::HeapGrowingMode mode,
                      next_global_allocation_limit);
 }
 
-// When old generation allocation limit is not configured (before the first full
-// GC), this method shrinks the initial very large old generation size. This
-// method can only shrink allocation limits but not increase it again.
-void HeapLimits::ShrinkAllocationLimitIfNotConfigured(
-    size_t old_generation_consumed, size_t global_consumed) {
-  if (!using_initial_limit()) {
-    return;
-  }
-  size_t new_old_generation_allocation_limit = std::max(
-      old_generation_consumed + V8HeapTrait::kMinimumAllocationLimitGrowingStep,
-      static_cast<size_t>(
-          static_cast<double>(old_generation_allocation_limit()) *
-          (tracer()->AverageSurvivalRatio() / 100)));
-  new_old_generation_allocation_limit = std::min(
-      new_old_generation_allocation_limit, old_generation_allocation_limit());
-  size_t new_global_allocation_limit = std::max(
-      global_consumed + GlobalMemoryTrait::kMinimumAllocationLimitGrowingStep,
-      static_cast<size_t>(static_cast<double>(global_allocation_limit()) *
-                          (tracer()->AverageSurvivalRatio() / 100)));
-  new_global_allocation_limit =
-      std::min(new_global_allocation_limit, global_allocation_limit());
-  SetAllocationLimit(new_old_generation_allocation_limit,
-                     new_global_allocation_limit);
-}
-
 void HeapLimits::SetAllocationLimit(size_t new_old_generation_allocation_limit,
                                     size_t new_global_allocation_limit,
                                     const char* reason) {
@@ -433,12 +408,6 @@ void HeapLimits::SetAllocationLimit(size_t new_old_generation_allocation_limit,
                                          std::memory_order_relaxed);
   global_allocation_limit_.store(new_global_allocation_limit,
                                  std::memory_order_relaxed);
-}
-
-void HeapLimits::ResetAllocationLimit() {
-  SetAllocationLimit(initial_old_generation_size_,
-                     GlobalMemorySizeFromV8Size(initial_old_generation_size_));
-  set_using_initial_limit(true);
 }
 
 void HeapLimits::SetMaximumSizes(size_t max_old_generation_size,
@@ -476,7 +445,7 @@ void HeapLimits::UpdateConsumedAfterGC() {
   uint64_t external_memory_total = heap_->external_memory();
   UpdateExternalMemoryLowSinceLastGC(external_memory_total);
   // Limits can now be computed based on estimate from MARK_COMPACT.
-  set_using_initial_limit(false);
+  using_initial_limit_.store(false, std::memory_order_relaxed);
 }
 
 void HeapLimits::UpdateExternalMemoryLowSinceLastGC(uint64_t value) {

@@ -228,6 +228,99 @@ TEST_F(HeapTest, LimitsComputationBoundariesConstruction) {
   EXPECT_EQ(0u, at_most.minimum_global_allocation_limit);
 }
 
+TEST_F(HeapTest, InitialOldGenerationAllocationLimit) {
+  if (v8_flags.initial_old_space_size != 0 || v8_flags.initial_heap_size != 0 ||
+      v8_flags.preconfigured_old_space_size != 0 ||
+      v8_flags.max_old_space_size != 0 || v8_flags.max_heap_size != 0) {
+    return;
+  }
+
+  std::unique_ptr<v8::ArrayBuffer::Allocator> array_buffer_allocator(
+      v8::ArrayBuffer::Allocator::NewDefaultAllocator());
+
+  // Default: uses 32 MB without setting a minimum.
+  {
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = array_buffer_allocator.get();
+    create_params.constraints.set_max_old_generation_size_in_bytes(256 * MB);
+    v8::Isolate* isolate = v8::Isolate::New(create_params);
+    Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
+    if (heap->limits()->using_initial_limit()) {
+      EXPECT_EQ(32u * MB, heap->OldGenerationAllocationLimitForTesting());
+    }
+    EXPECT_EQ(0u, heap->limits()->min_old_generation_size());
+    isolate->Dispose();
+  }
+
+  // Embedder ResourceConstraints::initial_old_generation_size_in_bytes()
+  // overrides the 32 MB default without setting a minimum, and tiny values are
+  // clamped to MinOldGenerationSize().
+  {
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = array_buffer_allocator.get();
+    create_params.constraints.set_max_old_generation_size_in_bytes(256 * MB);
+    create_params.constraints.set_initial_old_generation_size_in_bytes(48 * MB);
+    v8::Isolate* isolate = v8::Isolate::New(create_params);
+    Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
+    if (heap->limits()->using_initial_limit()) {
+      EXPECT_EQ(48u * MB, heap->OldGenerationAllocationLimitForTesting());
+    }
+    EXPECT_EQ(0u, heap->limits()->min_old_generation_size());
+    isolate->Dispose();
+  }
+  {
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = array_buffer_allocator.get();
+    create_params.constraints.set_max_old_generation_size_in_bytes(256 * MB);
+    create_params.constraints.set_initial_old_generation_size_in_bytes(1);
+    v8::Isolate* isolate = v8::Isolate::New(create_params);
+    Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
+    if (heap->limits()->using_initial_limit()) {
+      EXPECT_EQ(Heap::MinOldGenerationSize(),
+                heap->OldGenerationAllocationLimitForTesting());
+    }
+    EXPECT_EQ(0u, heap->limits()->min_old_generation_size());
+    isolate->Dispose();
+  }
+
+  // Explicit --preconfigured-old-space-size overrides constraints without
+  // setting a minimum.
+  {
+    FlagScope<size_t> preconfigured_old_space(
+        &v8_flags.preconfigured_old_space_size, 20);
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = array_buffer_allocator.get();
+    create_params.constraints.set_max_old_generation_size_in_bytes(256 * MB);
+    create_params.constraints.set_initial_old_generation_size_in_bytes(48 * MB);
+    v8::Isolate* isolate = v8::Isolate::New(create_params);
+    Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
+    if (heap->limits()->using_initial_limit()) {
+      EXPECT_EQ(20u * MB, heap->OldGenerationAllocationLimitForTesting());
+    }
+    EXPECT_EQ(0u, heap->limits()->min_old_generation_size());
+    isolate->Dispose();
+  }
+
+  // Explicit --initial-old-space-size overrides both --preconfigured-old-space-
+  // size and constraints, and sets minimum.
+  {
+    FlagScope<size_t> preconfigured_old_space(
+        &v8_flags.preconfigured_old_space_size, 20);
+    FlagScope<size_t> initial_old_space(&v8_flags.initial_old_space_size, 64);
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = array_buffer_allocator.get();
+    create_params.constraints.set_max_old_generation_size_in_bytes(256 * MB);
+    create_params.constraints.set_initial_old_generation_size_in_bytes(48 * MB);
+    v8::Isolate* isolate = v8::Isolate::New(create_params);
+    Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
+    if (heap->limits()->using_initial_limit()) {
+      EXPECT_EQ(64u * MB, heap->OldGenerationAllocationLimitForTesting());
+    }
+    EXPECT_EQ(64u * MB, heap->limits()->min_old_generation_size());
+    isolate->Dispose();
+  }
+}
+
 namespace {
 std::pair<size_t, size_t> HeapLimitsForPhysicalMemory(
     uint64_t physical_memory) {

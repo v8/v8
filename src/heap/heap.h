@@ -356,9 +356,6 @@ class Heap final {
   // The minimum size of a HeapObject on the heap.
   static const int kMinObjectSizeInTaggedWords = 2;
 
-  V8_EXPORT_PRIVATE static size_t DefaultInitialOldGenerationSize(
-      uint64_t physical_memory);
-
 #if V8_OS_ANDROID
   V8_EXPORT_PRIVATE static bool IsHighEndAndroid(uint64_t physical_memory);
 #endif
@@ -2123,14 +2120,6 @@ class Heap final {
   size_t initial_semispace_size_ = 0;
 
   size_t initial_max_old_generation_size_threshold_ = 0;
-
-  // True if initial heap size was provided by the embedder.
-  bool initial_size_overwritten_ = false;
-
-  // True if the old space size was preconfigured. This is different from
-  // initial_size_overwritten_ because it is not also minimum and because of
-  // different behavior in NotifyContextDisposed().
-  bool preconfigured_old_generation_size_ = false;
 
   // See HasHighYoungGenerationSurvivalRate().
   bool high_young_generation_survival_rate_ = false;

@@ -1798,11 +1798,6 @@ int Heap::NotifyContextDisposed(bool has_dependent_context) {
   // survival rate of the next one.
   high_young_generation_survival_rate_ = false;
   if (!has_dependent_context) {
-    tracer()->ResetSurvivalEvents();
-    if (!initial_size_overwritten_) {
-      DCHECK_IMPLIES(initial_size_overwritten_, !configured_);
-      limits()->ResetAllocationLimit();
-    }
     if (memory_reducer_) {
       memory_reducer_->NotifyPossibleGarbage();
     }
@@ -2185,9 +2180,6 @@ void Heap::UpdateSurvivalStatistics(int start_new_space_size) {
   new_space_surviving_rate_ =
       (static_cast<double>(new_space_surviving_object_size_) /
        static_cast<double>(start_new_space_size) * 100);
-
-  double survival_rate = promotion_ratio_ + new_space_surviving_rate_;
-  tracer()->AddSurvivalRatio(survival_rate);
 }
 
 void Heap::UpdateHighYoungGenerationSurvivalRate(size_t survived_bytes) {
@@ -2324,11 +2316,6 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
   }
 
   UpdateSurvivalStatistics(static_cast<int>(start_young_generation_size));
-  if (!initial_size_overwritten_ && tracer()->SurvivalEventsRecorded()) {
-    base::MutexGuard guard(old_space()->mutex());
-    limits()->ShrinkAllocationLimitIfNotConfigured(OldGenerationConsumedBytes(),
-                                                   GlobalConsumedBytes());
-  }
 
   isolate_->counters()->objs_since_last_young()->Set(0);
 
@@ -4764,11 +4751,6 @@ size_t Heap::HeapLimitMultiplier(uint64_t physical_memory) {
 }
 
 // static
-size_t Heap::DefaultInitialOldGenerationSize(uint64_t physical_memory) {
-  return 256 * MB * HeapLimitMultiplier(physical_memory);
-}
-
-// static
 size_t Heap::DefaultMinSemiSpaceSize() {
   return RoundUp(512 * KB, NormalPage::kPageSize);
 }
@@ -4947,8 +4929,8 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
     max_old_generation_size =
         RoundDown<NormalPage::kPageSize>(max_old_generation_size);
 
-    // Initialize initial_old_space_size_.
-    std::optional<size_t> initial_old_generation_size =
+    // Initialize initial_old_generation_size.
+    const std::optional<size_t> configured_initial_old_generation_size =
         [&]() -> std::optional<size_t> {
       if (v8_flags.initial_old_space_size > 0) {
         return static_cast<size_t>(v8_flags.initial_old_space_size) * MB;
@@ -4965,32 +4947,32 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
       return std::nullopt;
     }();
 
-    if (initial_old_generation_size.has_value()) {
-      initial_size_overwritten_ = true;
+    size_t initial_old_generation_size;
+    if (configured_initial_old_generation_size.has_value()) {
+      initial_old_generation_size = *configured_initial_old_generation_size;
     } else if (v8_flags.preconfigured_old_space_size > 0) {
-      initial_size_overwritten_ = true;
       initial_old_generation_size =
           static_cast<size_t>(v8_flags.preconfigured_old_space_size) * MB;
-      preconfigured_old_generation_size_ = true;
+    } else if (constraints.initial_old_generation_size_in_bytes() > 0) {
+      initial_old_generation_size =
+          constraints.initial_old_generation_size_in_bytes();
     } else {
-      initial_old_generation_size = Heap::DefaultInitialOldGenerationSize(
-          constraints.physical_memory_size_in_bytes());
-      if (constraints.initial_old_generation_size_in_bytes() > 0) {
-        initial_old_generation_size =
-            constraints.initial_old_generation_size_in_bytes();
-      }
+      constexpr size_t kDefaultInitialOldGenerationSize = 32 * MB;
+      initial_old_generation_size = kDefaultInitialOldGenerationSize;
     }
     initial_old_generation_size =
-        std::min(*initial_old_generation_size, max_old_generation_size / 2);
+        std::max(initial_old_generation_size, MinOldGenerationSize());
     initial_old_generation_size =
-        RoundDown<NormalPage::kPageSize>(*initial_old_generation_size);
+        std::min(initial_old_generation_size, max_old_generation_size / 2);
+    initial_old_generation_size =
+        RoundDown<NormalPage::kPageSize>(initial_old_generation_size);
 
     limits_.reset(new HeapLimits(this, constraints, max_old_generation_size,
-                                 *initial_old_generation_size));
-    if (initial_size_overwritten_ && !preconfigured_old_generation_size_) {
-      // If the embedder pre-configures the initial old generation size,
+                                 initial_old_generation_size));
+    if (configured_initial_old_generation_size.has_value()) {
+      // If the initial old generation size is explicitly configured via flags,
       // then allow V8 to skip full GCs below that threshold.
-      limits()->SetMinimumSizes(*initial_old_generation_size,
+      limits()->SetMinimumSizes(initial_old_generation_size,
                                 constraints.physical_memory_size_in_bytes());
     }
   }

@@ -13,6 +13,7 @@
 #include "src/base/atomicops.h"
 #include "src/base/logging.h"
 #include "src/base/platform/time.h"
+#include "src/base/ring-buffer.h"
 #include "src/base/strings.h"
 #include "src/base/thread-id.h"
 #include "src/common/globals.h"
@@ -825,10 +826,6 @@ void GCTracer::AddCompactionEvent(double duration,
       live_bytes_compacted, base::TimeDelta::FromMillisecondsD(duration)));
 }
 
-void GCTracer::AddSurvivalRatio(double promotion_ratio) {
-  recorded_survival_ratios_.Push(promotion_ratio);
-}
-
 void GCTracer::AddIncrementalMarkingStep(double duration, size_t bytes) {
   if (bytes > 0) {
     current_.incremental_marking_bytes += bytes;
@@ -981,7 +978,6 @@ void GCTracer::PrintNVP() const {
       .p("nodes_copied_in_new", heap_->nodes_copied_in_new_space_)
       .p("nodes_promoted", heap_->nodes_promoted_)
       .p("promotion_ratio", heap_->promotion_ratio_)
-      .p("average_survival_ratio", AverageSurvivalRatio())
       .p("promotion_rate", heap_->promotion_rate_);
 
   switch (current_.type) {
@@ -1382,19 +1378,6 @@ double GCTracer::AllocationThroughputInBytesPerMillisecond() const {
   return NewSpaceAllocationThroughputInBytesPerMillisecond() +
          OldGenerationAllocationThroughputInBytesPerMillisecond();
 }
-
-double GCTracer::AverageSurvivalRatio() const {
-  if (recorded_survival_ratios_.Empty()) return 0.0;
-  double sum = recorded_survival_ratios_.Reduce(
-      [](double a, double b) { return a + b; }, 0.0);
-  return sum / recorded_survival_ratios_.Size();
-}
-
-bool GCTracer::SurvivalEventsRecorded() const {
-  return !recorded_survival_ratios_.Empty();
-}
-
-void GCTracer::ResetSurvivalEvents() { recorded_survival_ratios_.Clear(); }
 
 void GCTracer::NotifyIncrementalMarkingStart() {
   current_.incremental_marking_start_time = base::TimeTicks::Now();

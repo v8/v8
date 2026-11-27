@@ -11,7 +11,6 @@
 #include "include/v8-metrics.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/macros.h"
-#include "src/base/ring-buffer.h"
 #include "src/common/globals.h"
 #include "src/heap/base/bytes.h"
 #include "src/init/heap-symbols.h"
@@ -400,8 +399,6 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   void AddCompactionEvent(double duration, size_t live_bytes_compacted);
 
-  void AddSurvivalRatio(double survival_ratio);
-
   void SampleConcurrencyEsimate(size_t concurrency);
 
   // Log an incremental marking step.
@@ -467,17 +464,6 @@ class V8_EXPORT_PRIVATE GCTracer {
   // milliseconds.
   // Returns 0 if no allocation events have been recorded.
   double AllocationThroughputInBytesPerMillisecond() const;
-
-  // Computes the average survival ratio based on the last recorded survival
-  // events.
-  // Returns 0 if no events have been recorded.
-  double AverageSurvivalRatio() const;
-
-  // Returns true if at least one survival event was recorded.
-  bool SurvivalEventsRecorded() const;
-
-  // Discard all recorded survival events.
-  void ResetSurvivalEvents();
 
   void NotifyIncrementalMarkingStart();
 
@@ -647,7 +633,6 @@ class V8_EXPORT_PRIVATE GCTracer {
   // estimates.
   BytesAndDurationBuffer recorded_minor_gc_per_thread_;
   BytesAndDurationBuffer recorded_minor_gc_atomic_pause_;
-  base::RingBuffer<double> recorded_survival_ratios_;
 
   // A full GC cycle stops only when both v8 and cppgc (if available) GCs have
   // finished sweeping.
