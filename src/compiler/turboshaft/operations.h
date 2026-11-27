@@ -8702,7 +8702,14 @@ struct WasmAllocateStructOp : FixedArityOperationT<1, WasmAllocateStructOp> {
 };
 
 struct WasmRefFuncOp : FixedArityOperationT<1, WasmRefFuncOp> {
-  static constexpr OpEffects effects = OpEffects().CanAllocate();
+  // Reads `trusted_instance_data->func_refs()[function_index]` and, if
+  // uninitialized, lazily allocates and caches the WasmFuncRef in `func_refs`.
+  // The cache write is unobservable if the result is unused.
+  static constexpr OpEffects effects = OpEffects()
+                                           .CanDependOnChecks()
+                                           .CanReadHeapMemory()
+                                           .CanWriteHeapMemoryIfUsed()
+                                           .CanAllocate();
   uint32_t function_index;
 
   explicit WasmRefFuncOp(V<WasmTrustedInstanceData> wasm_instance,
