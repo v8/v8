@@ -2445,8 +2445,12 @@ void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor,
 
 void MarkCompactCollector::RecordObjectStats() {
   if (V8_LIKELY(!TracingFlags::is_gc_stats_enabled())) return;
-  // Cannot run during bootstrapping due to incomplete objects.
-  if (heap_->isolate()->bootstrapper()->IsActive()) return;
+  // Cannot run during bootstrapping or deserialization due to incomplete
+  // objects.
+  if (heap_->isolate()->bootstrapper()->IsActive() ||
+      heap_->isolate()->has_active_deserializer()) {
+    return;
+  }
   TRACE_EVENT(TRACE_GC_CATEGORIES, "V8.GC_OBJECT_DUMP_STATISTICS");
   heap_->CreateObjectStats();
   ObjectStatsCollector collector(heap_, heap_->live_object_stats_.get(),

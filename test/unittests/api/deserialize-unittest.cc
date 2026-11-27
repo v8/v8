@@ -26,12 +26,14 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-verifier.h"
 #include "src/heap/local-heap-inl.h"
+#include "src/logging/tracing-flags.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/scope-info-inl.h"
 #include "src/objects/script-inl.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/objects/string-inl.h"
 #include "src/snapshot/code-serializer.h"
+#include "src/tracing/tracing-category-observer.h"
 #include "src/utils/utils.h"
 #include "test/common/flag-utils.h"
 #include "test/unittests/heap/heap-utils.h"
@@ -3316,5 +3318,49 @@ TEST_F(MergeDeserializedCodeTest, NoCodeCacheAfterCoverageModeChange) {
     CHECK_EQ(12, RunGlobalFunc("o")->Int32Value(context()).FromJust());
   }
 }
+
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+TEST_F(DeserializeTest, ObjectStatsDuringDeserialization) {
+  IsolateAndContextScope scope(this);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
+  i::FlagScope<bool> no_cache(&i::v8_flags.compilation_cache, false);
+  i::FlagScope<bool> no_stress_bg(&i::v8_flags.stress_background_compile,
+                                  false);
+  i::FlagScope<int> no_random_gc(&i::v8_flags.random_gc_interval, 0);
+
+  Local<String> source_code =
+      NewString("function f() { return [1, 2, [3, 4]]; } f();");
+  Local<Script> script =
+      Script::Compile(context(), source_code).ToLocalChecked();
+  CHECK(!script->Run(context()).IsEmpty());
+  std::unique_ptr<ScriptCompiler::CachedData> cached_data(
+      ScriptCompiler::CreateCodeCache(script->GetUnboundScript()));
+
+  // Re-enable gc_stats in the GC prologue to simulate TracingCategoryObserver
+  // or a concurrent Deserializer restoring TracingFlags::gc_stats.
+  const unsigned int prev_gc_stats = i::TracingFlags::gc_stats.load();
+  isolate()->AddGCPrologueCallback(
+      [](v8::Isolate*, v8::GCType, v8::GCCallbackFlags) {
+        i::TracingFlags::gc_stats.store(
+            v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE,
+            std::memory_order_relaxed);
+      },
+      v8::kGCTypeMarkSweepCompact);
+
+  i::HeapAllocator::SetAllocationGcInterval(1);
+  i_isolate->heap()->set_allocation_timeout(1);
+
+  ScriptCompiler::Source source(source_code, cached_data.release());
+  Local<Script> deserialized =
+      ScriptCompiler::Compile(context(), &source,
+                              ScriptCompiler::kConsumeCodeCache)
+          .ToLocalChecked();
+  i_isolate->heap()->ResetAllocationTimeouts();
+
+  CHECK(!source.GetCachedData()->rejected);
+  CHECK(!deserialized->Run(context()).IsEmpty());
+  i::TracingFlags::gc_stats.store(prev_gc_stats);
+}
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
 }  // namespace v8

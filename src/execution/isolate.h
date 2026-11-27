@@ -893,6 +893,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   //   objects which are partially deserialized.
   // - The snapshot generator being invoked on GC can trigger DCHECKs where the
   //   graph is not yet consistent.
+  // - ObjectStatsCollector cannot walk partially deserialized objects.
   //
   // TODO(leszeks): Make the verifier a bit more deserialization compatible.
   void RegisterDeserializerStarted() { ++num_active_deserializers_; }

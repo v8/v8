@@ -367,21 +367,6 @@ class Deserializer : public SerializerDeserializer {
   const bool should_rehash_;
   DirectHandleVector<HeapObject> to_rehash_;
 
-  // Do not collect any gc stats during deserialization since objects might
-  // be in an invalid state
-  class V8_NODISCARD DisableGCStats {
-   public:
-    DisableGCStats() {
-      original_gc_stats_ = TracingFlags::gc_stats;
-      TracingFlags::gc_stats = 0;
-    }
-    ~DisableGCStats() { TracingFlags::gc_stats = original_gc_stats_; }
-
-   private:
-    unsigned int original_gc_stats_;
-  };
-  DisableGCStats no_gc_stats_;
-
   int depth_ = 0;
 
 #ifdef DEBUG
