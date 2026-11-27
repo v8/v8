@@ -1944,8 +1944,7 @@ void RunCompilationCacheCachingBehaviorTest(HeapTest* test,
   // The script should be in the cache now.
   {
     v8::HandleScope scope(test->v8_isolate());
-    ScriptDetails script_details(Handle<Object>(),
-                                 v8::ScriptOriginOptions(true, false));
+    ScriptDetails script_details{Handle<Object>(), v8::ScriptOriginOptions()};
     auto lookup_result =
         compilation_cache->LookupScript(source, script_details, language_mode);
     EXPECT_FALSE(lookup_result.toplevel_sfi().is_null());
@@ -1961,8 +1960,7 @@ void RunCompilationCacheCachingBehaviorTest(HeapTest* test,
   }
   {
     v8::HandleScope scope(test->v8_isolate());
-    ScriptDetails script_details(Handle<Object>(),
-                                 v8::ScriptOriginOptions(true, false));
+    ScriptDetails script_details{Handle<Object>(), v8::ScriptOriginOptions()};
     auto lookup_result =
         compilation_cache->LookupScript(source, script_details, language_mode);
     EXPECT_FALSE(lookup_result.toplevel_sfi().is_null());
@@ -1986,8 +1984,7 @@ void RunCompilationCacheCachingBehaviorTest(HeapTest* test,
   {
     v8::HandleScope scope(test->v8_isolate());
     // Ensure code aging cleared the entry from the cache.
-    ScriptDetails script_details(Handle<Object>(),
-                                 v8::ScriptOriginOptions(true, false));
+    ScriptDetails script_details{Handle<Object>(), v8::ScriptOriginOptions()};
     auto lookup_result =
         compilation_cache->LookupScript(source, script_details, language_mode);
     EXPECT_TRUE(lookup_result.toplevel_sfi().is_null());

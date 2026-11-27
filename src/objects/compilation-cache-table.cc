@@ -201,13 +201,13 @@ Tagged<Smi> ScriptHash(Tagged<String> source,
                        v8::ScriptOriginOptions origin_options,
                        Isolate* isolate) {
   DisallowGarbageCollection no_gc;
-  size_t hash = base::hash_combine(source->EnsureHash());
   // LINT.IfChange(ScriptHashOrigin)
+  size_t hash =
+      base::hash_combine(source->EnsureHash(), origin_options.Flags());
   if (DirectHandle<Object> name;
       maybe_name.ToHandle(&name) && IsString(*name)) {
-    hash =
-        base::hash_combine(hash, Cast<String>(*name)->EnsureHash(), line_offset,
-                           column_offset, origin_options.Flags());
+    hash = base::hash_combine(hash, Cast<String>(*name)->EnsureHash(),
+                              line_offset, column_offset);
   }
   // LINT.ThenChange(/src/objects/compilation-cache-table.cc:ScriptCacheKeyMatchesOrigin)
   // The upper bits of the hash are discarded so that the value fits in a Smi.
@@ -223,6 +223,10 @@ bool ScriptCacheKey::MatchesScript(Tagged<Script> script) {
   DisallowGarbageCollection no_gc;
 
   // LINT.IfChange(ScriptCacheKeyMatchesOrigin)
+  // Are the origin_options same?
+  if (origin_options_.Flags() != script->origin_options().Flags()) {
+    return false;
+  }
   Handle<Object> name;
   if (name_.ToHandle(&name)) {
     // Do the fast bailout checks first.
@@ -230,22 +234,18 @@ bool ScriptCacheKey::MatchesScript(Tagged<Script> script) {
     if (column_offset_ != script->column_offset()) return false;
     // Check that both names are strings. If not, no match.
     if (!IsString(*name) || !IsString(script->name())) return false;
-    // Are the origin_options same?
-    if (origin_options_.Flags() != script->origin_options().Flags()) {
-      return false;
-    }
     // Compare the two name strings for equality.
     if (!Cast<String>(*name)->Equals(Cast<String>(script->name()))) {
       return false;
     }
   } else {
     // If the script name isn't set, the boilerplate script should have an
-    // undefined name to have the same origin. Ignore line_offset_,
-    // column_offset_, and origin_options_ when no script name is provided:
+    // undefined name to have the same origin. Ignore line_offset_ and
+    // column_offset_ when no script name is provided:
     // SetScriptFieldsFromDetails only sets line_offset and column_offset on
     // the Script when name_obj is present (leaving them at 0 while an unnamed
     // ScriptCompiler::Source defaults them to -1), and ScriptHash only hashes
-    // line_offset, column_offset, and origin_options when a name is present.
+    // line_offset and column_offset when a name is present.
     if (!IsUndefined(script->name())) return false;
   }
   // LINT.ThenChange(

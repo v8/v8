@@ -22,6 +22,7 @@
 #include "src/base/synchronization-point-support.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
+#include "src/codegen/script-details.h"
 #include "src/debug/debug-interface.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-verifier.h"
@@ -3362,5 +3363,213 @@ TEST_F(DeserializeTest, ObjectStatsDuringDeserialization) {
   i::TracingFlags::gc_stats.store(prev_gc_stats);
 }
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
+
+TEST_F(DeserializeTest, DeserializeAppliesConsumerOriginOptions) {
+  constexpr char kSource[] =
+      "function trigger() { return UNDEFINED_SECRET_TOKEN; }\n"
+      "trigger();\n";
+
+  for (bool producer_shared_cross_origin : {true, false}) {
+    bool producer_opaque = !producer_shared_cross_origin;
+    bool consumer_shared_cross_origin = !producer_shared_cross_origin;
+    bool consumer_opaque = !consumer_shared_cross_origin;
+
+    std::unique_ptr<ScriptCompiler::CachedData> cached_data;
+    {
+      IsolateAndContextScope scope(this);
+      ScriptOrigin producer_origin(NewString("http://example.com/script.js"), 0,
+                                   0, producer_shared_cross_origin, -1,
+                                   Local<Value>(), producer_opaque);
+      ScriptCompiler::Source source(NewString(kSource), producer_origin);
+      Local<Script> script =
+          ScriptCompiler::Compile(context(), &source).ToLocalChecked();
+      cached_data.reset(
+          ScriptCompiler::CreateCodeCache(script->GetUnboundScript()));
+    }
+
+    for (bool off_thread : {false, true}) {
+      IsolateAndContextScope scope(this);
+      i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
+
+      auto data = std::make_unique<ScriptCompiler::CachedData>(
+          cached_data->data, cached_data->length,
+          ScriptCompiler::CachedData::BufferNotOwned);
+      std::unique_ptr<ScriptCompiler::ConsumeCodeCacheTask> task;
+      if (off_thread) {
+        DeserializeThread deserialize_thread(
+            ScriptCompiler::StartConsumingCodeCache(
+                isolate(), std::make_unique<ScriptCompiler::CachedData>(
+                               cached_data->data, cached_data->length,
+                               ScriptCompiler::CachedData::BufferNotOwned)));
+        CHECK(deserialize_thread.Start());
+        deserialize_thread.Join();
+        task = deserialize_thread.TakeTask();
+      }
+
+      ScriptOrigin consumer_origin(NewString("http://example.com/script.js"), 0,
+                                   0, consumer_shared_cross_origin, -1,
+                                   Local<Value>(), consumer_opaque);
+      ScriptCompiler::Source source(NewString(kSource), consumer_origin,
+                                    data.release(), task.release());
+      Local<Script> script =
+          ScriptCompiler::Compile(context(), &source,
+                                  ScriptCompiler::kConsumeCodeCache)
+              .ToLocalChecked();
+      EXPECT_FALSE(source.GetCachedData()->rejected);
+
+      i::DirectHandle<i::Script> i_script(
+          i::Cast<i::Script>(
+              Utils::OpenDirectHandle(*script->GetUnboundScript())->script()),
+          i_isolate);
+      EXPECT_EQ(consumer_shared_cross_origin,
+                i_script->origin_options().IsSharedCrossOrigin());
+      EXPECT_EQ(consumer_opaque, i_script->origin_options().IsOpaque());
+
+      EXPECT_FALSE(
+          v8::Script::Compile(
+              context(),
+              NewString(
+                  "Error.prepareStackTrace = (e, s) => s[0].getScriptHash();"))
+              .ToLocalChecked()
+              ->Run(context())
+              .IsEmpty());
+
+      v8::TryCatch try_catch(isolate());
+      EXPECT_TRUE(script->Run(context()).IsEmpty());
+      ASSERT_TRUE(try_catch.HasCaught());
+      Local<Message> message = try_catch.Message();
+      ASSERT_FALSE(message.IsEmpty());
+      EXPECT_EQ(consumer_shared_cross_origin, message->IsSharedCrossOrigin());
+      EXPECT_EQ(consumer_opaque, message->IsOpaque());
+
+      Local<Value> script_hash = try_catch.Exception()
+                                     .As<v8::Object>()
+                                     ->Get(context(), NewString("stack"))
+                                     .ToLocalChecked();
+      ASSERT_TRUE(script_hash->IsString());
+      EXPECT_EQ(consumer_opaque, script_hash.As<v8::String>()->Length() == 0);
+
+      if (!i::v8_flags.use_strict && !i::v8_flags.stress_flush_code) {
+        i::Handle<i::String> i_source = Utils::OpenHandle(*NewString(kSource));
+        i::Handle<i::Object> i_name =
+            Utils::OpenHandle(*NewString("http://example.com/script.js"));
+        i::ScriptDetails producer_details(
+            i_name,
+            ScriptOriginOptions(producer_shared_cross_origin, producer_opaque));
+        EXPECT_TRUE(i_isolate->compilation_cache()
+                        ->LookupScript(i_source, producer_details,
+                                       i::LanguageMode::kSloppy)
+                        .script()
+                        .is_null());
+
+        i::ScriptDetails consumer_details(
+            i_name,
+            ScriptOriginOptions(consumer_shared_cross_origin, consumer_opaque));
+        EXPECT_FALSE(i_isolate->compilation_cache()
+                         ->LookupScript(i_source, consumer_details,
+                                        i::LanguageMode::kSloppy)
+                         .toplevel_sfi()
+                         .is_null());
+      }
+    }
+  }
+}
+
+TEST_F(DeserializeTest,
+       DeserializeCompileFunctionAppliesConsumerOriginOptions) {
+  constexpr char kSource[] = "return UNDEFINED_SECRET_TOKEN;";
+
+  std::unique_ptr<ScriptCompiler::CachedData> cached_data;
+  {
+    IsolateAndContextScope scope(this);
+    ScriptOrigin producer_origin(NewString("http://example.com/fn.js"), 0, 0,
+                                 /*resource_is_shared_cross_origin=*/true, -1,
+                                 Local<Value>(),
+                                 /*resource_is_opaque=*/false);
+    ScriptCompiler::Source source(NewString(kSource), producer_origin);
+    Local<Function> fn = ScriptCompiler::CompileFunction(context(), &source, 0,
+                                                         nullptr, 0, nullptr)
+                             .ToLocalChecked();
+    cached_data.reset(ScriptCompiler::CreateCodeCacheForFunction(fn));
+  }
+
+  {
+    IsolateAndContextScope scope(this);
+    ScriptOrigin consumer_origin(NewString("http://example.com/fn.js"), 0, 0,
+                                 /*resource_is_shared_cross_origin=*/false, -1,
+                                 Local<Value>(),
+                                 /*resource_is_opaque=*/true);
+    ScriptCompiler::Source source(NewString(kSource), consumer_origin,
+                                  cached_data.release());
+    Local<Function> fn = ScriptCompiler::CompileFunction(
+                             context(), &source, 0, nullptr, 0, nullptr,
+                             ScriptCompiler::kConsumeCodeCache)
+                             .ToLocalChecked();
+    EXPECT_FALSE(source.GetCachedData()->rejected);
+
+    v8::TryCatch try_catch(isolate());
+    EXPECT_TRUE(
+        fn->Call(context(), Undefined(isolate()), 0, nullptr).IsEmpty());
+    ASSERT_TRUE(try_catch.HasCaught());
+    Local<Message> message = try_catch.Message();
+    ASSERT_FALSE(message.IsEmpty());
+    EXPECT_FALSE(message->IsSharedCrossOrigin());
+    EXPECT_TRUE(message->IsOpaque());
+  }
+}
+
+TEST_F(DeserializeTest,
+       CompilationCacheSeparatesUnnamedScriptsByOriginOptions) {
+  if (i::v8_flags.use_strict || i::v8_flags.stress_flush_code) return;
+
+  IsolateAndContextScope scope(this);
+  constexpr char kErrorSource[] = "UNDEFINED_SECRET_TOKEN;";
+
+  ScriptOrigin shared_origin(Local<Value>(), 0, 0,
+                             /*resource_is_shared_cross_origin=*/true, -1,
+                             Local<Value>(),
+                             /*resource_is_opaque=*/false);
+  ScriptCompiler::Source shared_source(NewString(kErrorSource), shared_origin);
+  Local<Script> shared_script =
+      ScriptCompiler::Compile(context(), &shared_source).ToLocalChecked();
+
+  ScriptOrigin opaque_origin(Local<Value>(), 0, 0,
+                             /*resource_is_shared_cross_origin=*/false, -1,
+                             Local<Value>(),
+                             /*resource_is_opaque=*/true);
+  ScriptCompiler::Source opaque_source(NewString(kErrorSource), opaque_origin);
+  Local<Script> opaque_script =
+      ScriptCompiler::Compile(context(), &opaque_source).ToLocalChecked();
+
+  EXPECT_NE(shared_script->GetUnboundScript()->ScriptId(),
+            opaque_script->GetUnboundScript()->ScriptId());
+  {
+    v8::TryCatch try_catch(isolate());
+    EXPECT_TRUE(opaque_script->Run(context()).IsEmpty());
+    ASSERT_TRUE(try_catch.HasCaught());
+    Local<Message> message = try_catch.Message();
+    ASSERT_FALSE(message.IsEmpty());
+    EXPECT_FALSE(message->IsSharedCrossOrigin());
+    EXPECT_TRUE(message->IsOpaque());
+  }
+
+  // Unnamed classic script vs. unnamed module with identical source must not
+  // collide in the per-isolate compilation cache.
+  constexpr char kPolyglot[] = "1 + 1;";
+  ScriptOrigin classic_origin(Local<Value>(), 0, 0, false, -1, Local<Value>(),
+                              false, false, /*is_module=*/false);
+  ScriptCompiler::Source classic_source(NewString(kPolyglot), classic_origin);
+  Local<Script> classic_script =
+      ScriptCompiler::Compile(context(), &classic_source).ToLocalChecked();
+  EXPECT_FALSE(classic_script.IsEmpty());
+
+  ScriptOrigin module_origin(Local<Value>(), 0, 0, false, -1, Local<Value>(),
+                             false, false, /*is_module=*/true);
+  ScriptCompiler::Source module_source(NewString(kPolyglot), module_origin);
+  Local<Module> module =
+      ScriptCompiler::CompileModule(isolate(), &module_source).ToLocalChecked();
+  EXPECT_FALSE(module.IsEmpty());
+  EXPECT_NE(classic_script->GetUnboundScript()->ScriptId(), module->ScriptId());
+}
 
 }  // namespace v8

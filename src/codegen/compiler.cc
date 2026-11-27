@@ -1787,6 +1787,7 @@ void SetScriptFieldsFromDetails(Isolate* isolate, Tagged<Script> script,
     script->set_line_offset(script_details.line_offset);
     script->set_column_offset(script_details.column_offset);
   }
+  script->set_origin_options(script_details.origin_options);
   // LINT.ThenChange(/src/objects/compilation-cache-table.cc:ScriptCacheKeyMatchesOrigin)
   // The API can provide a source map URL, but a source map URL could also have
   // been inferred by the parser from a magic comment. The API source map URL
@@ -2886,10 +2887,8 @@ MaybeHandle<SharedFunctionInfo> BackgroundCompileTask::FinalizeScript(
     Isolate* isolate, DirectHandle<String> source,
     const ScriptDetails& script_details,
     MaybeDirectHandle<Script> maybe_cached_script) {
-  ScriptOriginOptions origin_options = script_details.origin_options;
-
   DCHECK(flags_.is_toplevel());
-  DCHECK_EQ(flags_.is_module(), origin_options.IsModule());
+  DCHECK_EQ(flags_.is_module(), script_details.origin_options.IsModule());
 
   MaybeDirectHandle<SharedFunctionInfo> maybe_result;
   Handle<Script> script = script_;
@@ -2949,7 +2948,6 @@ MaybeHandle<SharedFunctionInfo> BackgroundCompileTask::FinalizeScript(
     DCHECK(isolate->factory()->script_list()->Contains(MakeWeak(*script)));
   } else {
     Script::SetSource(isolate, script, source);
-    script->set_origin_options(origin_options);
 
     // The one post-hoc fix-up: Add the script to the script list.
     DirectHandle<WeakArrayList> scripts = isolate->factory()->script_list();

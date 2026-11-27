@@ -600,11 +600,8 @@ void JsonParser<Char>::ReportUnexpectedToken(
   DCHECK_IMPLIES(isolate_->NeedsSourcePositions(), script->has_line_ends());
   if (script_details_.has_value()) {
     const ScriptDetails& details = script_details_.value();
-    script->set_origin_options(details.origin_options);
-    {
-      DisallowGarbageCollection no_gc;
-      SetScriptFieldsFromDetails(isolate_, *script, details, &no_gc);
-    }
+    DisallowGarbageCollection no_gc;
+    SetScriptFieldsFromDetails(isolate_, *script, details, &no_gc);
   } else {
     DebuggableStackFrameIterator it(isolate_);
     if (!it.done() && it.is_javascript()) {

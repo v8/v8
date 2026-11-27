@@ -423,18 +423,19 @@ void FinalizeDeserialization(Isolate* isolate,
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.FinalizeDeserialization");
 
+  DirectHandle<Script> script(Cast<Script>(result->script()), isolate);
+  // Reset the script details, including origin options and host-defined
+  // options, before any logging/profiling hooks inspect the script.
+  {
+    DisallowGarbageCollection no_gc;
+    SetScriptFieldsFromDetails(isolate, *script, script_details, &no_gc);
+  }
+
   const bool log_code_creation = isolate->IsLoggingCodeCreation();
 
   if (V8_UNLIKELY(isolate->interpreted_frames_native_stack())) {
     CreateInterpreterDataForDeserializedCode(isolate, result,
                                              log_code_creation);
-  }
-
-  DirectHandle<Script> script(Cast<Script>(result->script()), isolate);
-  // Reset the script details, including host-defined options.
-  {
-    DisallowGarbageCollection no_gc;
-    SetScriptFieldsFromDetails(isolate, *script, script_details, &no_gc);
   }
 
   bool needs_source_positions = isolate->NeedsSourcePositions();
