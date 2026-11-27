@@ -8,7 +8,10 @@
 #include <vector>
 
 #include "src/execution/isolate.h"
+#include "src/execution/local-isolate-inl.h"
 #include "src/heap/factory.h"
+#include "src/heap/local-heap-inl.h"
+#include "src/heap/parked-scope.h"
 #include "src/init/v8.h"
 #include "src/objects/contexts.h"
 #include "src/objects/fixed-array.h"
@@ -98,6 +101,62 @@ TEST_F(BytecodeDecoderTest, DecodeBytecodeAndOperands) {
     // Compare.
     CHECK_EQ(actual_ss.str(), expected_ss.str());
   }
+}
+
+namespace {
+
+class BackgroundDecodeThread final : public base::Thread {
+ public:
+  BackgroundDecodeThread(Isolate* isolate, const uint8_t* bytecode,
+                         std::unique_ptr<PersistentHandles> ph,
+                         IndirectHandle<TrustedFixedArray> constant_pool,
+                         std::string* output)
+      : base::Thread(Options("BackgroundDecodeThread")),
+        isolate_(isolate),
+        bytecode_(bytecode),
+        ph_(std::move(ph)),
+        constant_pool_(constant_pool),
+        output_(output) {}
+
+  void Run() override {
+    LocalIsolate local_isolate(isolate_, ThreadKind::kBackground);
+    local_isolate.heap()->AttachPersistentHandles(std::move(ph_));
+    UnparkedScope unparked_scope(&local_isolate);
+    std::stringstream ss;
+    BytecodeDecoder::Decode(ss, bytecode_, *constant_pool_, false);
+    *output_ = ss.str();
+  }
+
+ private:
+  Isolate* isolate_;
+  const uint8_t* bytecode_;
+  std::unique_ptr<PersistentHandles> ph_;
+  IndirectHandle<TrustedFixedArray> constant_pool_;
+  std::string* output_;
+};
+
+}  // namespace
+
+TEST_F(BytecodeDecoderTest, OmitConstantPoolDetailsOffMainThread) {
+  const uint8_t bytecode[] = {B(LdaConstant), U8(0)};
+  Handle<TrustedFixedArray> constant_pool = factory()->NewTrustedFixedArray(1);
+  Handle<String> str = factory()->NewStringFromAsciiChecked("hello");
+  constant_pool->set(0, *str);
+
+  std::stringstream main_ss;
+  BytecodeDecoder::Decode(main_ss, bytecode, *constant_pool, false);
+  CHECK_EQ(main_ss.str(), "LdaConstant [0:\"hello\"]");
+
+  auto ph = i_isolate()->NewPersistentHandles();
+  IndirectHandle<TrustedFixedArray> persistent_cp =
+      ph->NewHandle(*constant_pool);
+  std::string bg_output;
+  BackgroundDecodeThread thread(i_isolate(), bytecode, std::move(ph),
+                                persistent_cp, &bg_output);
+  CHECK(thread.Start());
+  i_isolate()->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
+      [&]() { thread.Join(); });
+  CHECK_EQ(bg_output, "LdaConstant [0]");
 }
 
 #undef B

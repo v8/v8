@@ -8,6 +8,7 @@
 
 #include "src/base/sanitizer/tsan.h"
 #include "src/codegen/bailout-reason.h"
+#include "src/heap/local-heap.h"
 #include "src/interpreter/interpreter-intrinsics.h"
 #include "src/objects/contexts.h"
 #include "src/objects/fixed-array.h"
@@ -154,20 +155,29 @@ std::ostream& BytecodeDecoder::Decode(std::ostream& os,
       case interpreter::OperandType::kConstantPoolIndex: {
         uint32_t idx =
             DecodeUnsignedOperand(operand_start, op_type, operand_scale);
-        Tagged<Object> obj = constant_pool->get(idx);
-
-        os << "[" << idx << ":";
-        if (Tagged<String> string; TryCast(obj, &string)) {
-          os << '"';
-          if (string->length() > String::kMaxShortPrintLength) {
-            string->PrintUC16(os, 0, String::kMaxShortPrintLength - 3);
-            os << "...";
+        os << "[" << idx;
+        // Constant pool entries reference mutable in-sandbox heap objects (such
+        // as SharedFunctionInfo with non-internalized ConsString inferred
+        // names) whose printers are not safe to run concurrently with main-
+        // thread mutations like in-place string externalization or flattening.
+        const LocalHeap* current_heap = LocalHeap::TryGetCurrent();
+        if (!constant_pool.is_null() &&
+            (current_heap == nullptr ||
+             (current_heap->is_main_thread() && !current_heap->IsParked()))) {
+          Tagged<Object> obj = constant_pool->get(idx);
+          os << ":";
+          if (Tagged<String> string; TryCast(obj, &string)) {
+            os << '"';
+            if (string->length() > String::kMaxShortPrintLength) {
+              string->PrintUC16(os, 0, String::kMaxShortPrintLength - 3);
+              os << "...";
+            } else {
+              string->PrintUC16(os);
+            }
+            os << '"';
           } else {
-            string->PrintUC16(os);
+            os << Brief(obj);
           }
-          os << '"';
-        } else {
-          os << Brief(obj);
         }
         os << "]";
         break;
