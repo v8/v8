@@ -86,6 +86,36 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       Error, /Trying to deserialize manipulated bytes/);
 })();
 
+(function DeserializeManipulatedBytes() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  builder.addFunction('main', kSig_i_v)
+      .addBody([kExprI32Const, 42])
+      .exportFunc();
+
+  const wire_bytes = builder.toBuffer();
+  const module = new WebAssembly.Module(wire_bytes);
+  const serialized = d8.wasm.serializeModule(module);
+
+  // Mutating the serialized bytes must be rejected.
+  const mutated = serialized.slice(0);
+  assertTrue(mutated.byteLength > 0);
+  new Uint8Array(mutated)[0] ^= 1;
+  assertThrows(
+      () => d8.wasm.deserializeModule(mutated, wire_bytes), Error,
+      /Trying to deserialize manipulated bytes/);
+
+  // Shifting the boundary between wire_bytes and serialized bytes while keeping
+  // their concatenation identical must be rejected.
+  const shifted_wire = wire_bytes.subarray(0, wire_bytes.length - 1);
+  const shifted_serialized = new Uint8Array(serialized.byteLength + 1);
+  shifted_serialized[0] = wire_bytes[wire_bytes.length - 1];
+  shifted_serialized.set(new Uint8Array(serialized), 1);
+  assertThrows(
+      () => d8.wasm.deserializeModule(shifted_serialized.buffer, shifted_wire),
+      Error, /Trying to deserialize manipulated bytes/);
+})();
+
 (function RelationBetweenModuleAndClone() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();

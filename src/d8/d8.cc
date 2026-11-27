@@ -147,7 +147,10 @@
 #endif  // defined(V8_OS_WIN)
 
 #if V8_ENABLE_WEBASSEMBLY
+#include <set>
+
 #include "src/trap-handler/trap-handler.h"
+#include "src/utils/sha-256.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-js.h"
@@ -653,11 +656,6 @@ base::LazyMutex Shell::cached_code_mutex_;
 Shell::CodeCacheMap Shell::cached_code_map_;
 std::atomic<int> Shell::unhandled_promise_rejections_{0};
 bool Shell::fuzzilli_reprl_failed_ = false;
-
-#if V8_ENABLE_WEBASSEMBLY
-base::LazyMutex Shell::wasm_serialized_bytes_mutex_;
-std::unordered_set<size_t> Shell::wasm_serialized_bytes_hashes_;
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 Global<Context> Shell::evaluation_context_;
 ArrayBuffer::Allocator* Shell::array_buffer_allocator;
@@ -3563,6 +3561,35 @@ void Shell::SerializerDeserialize(
 
 #if V8_ENABLE_WEBASSEMBLY
 
+namespace {
+
+using WasmSerializedBytesHash = std::array<uint8_t, kSizeOfSha256Digest>;
+
+// The `d8.wasm.serializeModule` and `d8.wasm.deserializeModule` APIs are
+// constrained to only allow deserializing bytes that were previously produced
+// via serialization. This is how embedders will use the API as well, and
+// deserialization cannot safely handle manipulated bytes.
+// Use SHA-256 instead of a non-cryptographic hash so neither fuzzers nor
+// automated tools can forge second preimages to feed manipulated bytes into
+// deserialization.
+base::LazyMutex wasm_serialized_bytes_mutex = LAZY_MUTEX_INITIALIZER;
+std::set<WasmSerializedBytesHash> wasm_serialized_bytes_hashes;
+
+WasmSerializedBytesHash ComputeWasmSerializedBytesHash(
+    std::span<const uint8_t> wire_bytes,
+    std::span<const uint8_t> serialized_bytes) {
+  i::Sha256Stream sha256;
+  uint64_t wire_bytes_size = wire_bytes.size();
+  sha256.Update(&wire_bytes_size, sizeof(wire_bytes_size));
+  sha256.Update(wire_bytes.data(), wire_bytes.size());
+  sha256.Update(serialized_bytes.data(), serialized_bytes.size());
+  WasmSerializedBytesHash digest;
+  sha256.Final(digest.data());
+  return digest;
+}
+
+}  // namespace
+
 void Shell::WasmSerializeModule(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   Isolate* isolate = info.GetIsolate();
@@ -3599,16 +3626,14 @@ void Shell::WasmSerializeModule(
     return;
   }
 
-  // Remember a hash of the serialized bytes. This will be used to check that
-  // only serialized bytes are accepted when deserializing.
+  // Remember a SHA-256 hash of the wire bytes and serialized bytes. This will
+  // be used to check that only previously serialized bytes are accepted when
+  // deserializing.
   {
-    size_t hash = base::Hasher{}
-                      .Add(native_module->wire_bytes().size())
-                      .AddRange(native_module->wire_bytes())
-                      .AddRange(byte_buffer.as_span())
-                      .hash();
-    base::MutexGuard mutex_guard(Shell::wasm_serialized_bytes_mutex_.Pointer());
-    Shell::wasm_serialized_bytes_hashes_.insert(hash);
+    WasmSerializedBytesHash hash = ComputeWasmSerializedBytesHash(
+        native_module->wire_bytes(), byte_buffer.as_span());
+    base::MutexGuard mutex_guard(wasm_serialized_bytes_mutex.Pointer());
+    wasm_serialized_bytes_hashes.insert(hash);
   }
 
   Local<ArrayBuffer> array_buffer = ArrayBuffer::New(isolate, byte_length);
@@ -3677,21 +3702,17 @@ void Shell::WasmDeserializeModule(
       serialized_bytes_buffer->ByteLength());
 
   // Check that we only try to deserialize bytes that we previously produced via
-  // serialization.
-  // This is prone to hash collisions, but this check sufficiently prevents
-  // fuzzers from passing manipulated bytes (or bytes that do not match the wire
-  // bytes) in regular fuzzing.
+  // serialization (matching the exact wire bytes).
+  bool is_known_hash = false;
   {
-    size_t hash = base::Hasher{}
-                      .Add(wire_bytes_vec.size())
-                      .AddRange(wire_bytes_vec.as_span())
-                      .AddRange(serialized_bytes_vec.as_span())
-                      .hash();
-    base::MutexGuard mutex_guard(Shell::wasm_serialized_bytes_mutex_.Pointer());
-    if (!Shell::wasm_serialized_bytes_hashes_.count(hash)) {
-      ThrowError(isolate, "Trying to deserialize manipulated bytes");
-      return;
-    }
+    WasmSerializedBytesHash hash = ComputeWasmSerializedBytesHash(
+        wire_bytes_vec.as_span(), serialized_bytes_vec.as_span());
+    base::MutexGuard mutex_guard(wasm_serialized_bytes_mutex.Pointer());
+    is_known_hash = wasm_serialized_bytes_hashes.contains(hash);
+  }
+  if (!is_known_hash) {
+    ThrowError(isolate, "Trying to deserialize manipulated bytes");
+    return;
   }
 
   i::DirectHandle<i::WasmModuleObject> module_object;
