@@ -347,8 +347,7 @@ class V8_EXPORT_PRIVATE Debug {
   void DiscardAllBaselineCode();
 
   void DeoptimizeFunction(DirectHandle<SharedFunctionInfo> shared);
-  void PrepareFunctionForDebugExecution(
-      DirectHandle<SharedFunctionInfo> shared);
+  void PrepareFunctionForDebugExecution(DirectHandle<DebugInfo> debug_info);
   void InstallDebugBreakTrampoline();
   bool GetPossibleBreakpoints(Handle<Script> script, int start_position,
                               int end_position, bool restrict_to_function,
@@ -364,9 +363,11 @@ class V8_EXPORT_PRIVATE Debug {
 
   void SetDebugDelegate(debug::DebugDelegate* delegate);
 
-  // Returns whether the operation succeeded.
-  bool EnsureBreakInfo(Handle<SharedFunctionInfo> shared);
-  bool CreateBreakInfo(DirectHandle<SharedFunctionInfo> shared);
+  // Returns whether the operation succeeded and returns the debug info.
+  MaybeHandle<DebugInfo> EnsureBreakInfo(Handle<SharedFunctionInfo> shared);
+  MaybeHandle<DebugInfo> CreateBreakInfo(
+      DirectHandle<SharedFunctionInfo> shared,
+      MaybeHandle<DebugInfo> maybe_debug_info = {});
   Handle<DebugInfo> GetOrCreateDebugInfo(
       DirectHandle<SharedFunctionInfo> shared);
 
@@ -380,7 +381,8 @@ class V8_EXPORT_PRIVATE Debug {
 
   Handle<SharedFunctionInfo> FindClosestSharedFunctionInfoFromPosition(
       int position, Handle<Script> script,
-      Handle<SharedFunctionInfo> outer_shared);
+      Handle<SharedFunctionInfo> outer_shared,
+      Handle<DebugInfo> outer_debug_info);
 
   bool FindSharedFunctionInfosIntersectingRange(
       Handle<Script> script, int start_position, int end_position,

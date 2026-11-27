@@ -18,6 +18,7 @@ namespace internal {
 class JavaScriptFrame;
 class CommonFrame;
 class WasmFrame;
+class DebugInfo;
 
 class V8_EXPORT_PRIVATE FrameInspector {
  public:
@@ -77,13 +78,13 @@ class RedirectActiveFunctions : public ThreadVisitor {
     kUseDebugBytecode,
   };
 
-  RedirectActiveFunctions(Isolate* isolate, Tagged<SharedFunctionInfo> shared,
+  RedirectActiveFunctions(Isolate* isolate, Tagged<DebugInfo> debug_info,
                           Mode mode);
 
   void VisitThread(Isolate* isolate, ThreadLocalTop* top) override;
 
  private:
-  Tagged<SharedFunctionInfo> shared_;
+  Tagged<DebugInfo> debug_info_;
   Mode mode_;
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
 };

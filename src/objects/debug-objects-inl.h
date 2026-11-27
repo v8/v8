@@ -161,10 +161,7 @@ Tagged<BytecodeArray> DebugInfo::OriginalBytecodeArray(Isolate* isolate) {
 
 Tagged<BytecodeArray> DebugInfo::DebugBytecodeArray(Isolate* isolate) {
   DCHECK(HasInstrumentedBytecodeArray());
-  Tagged<BytecodeArray> result = debug_bytecode_array(kAcquireLoad);
-  DCHECK_WITH_SANDBOX_ACCESS(shared()->GetActiveBytecodeArray(isolate) ==
-                             result);
-  return result;
+  return debug_bytecode_array(kAcquireLoad);
 }
 
 StackFrameInfo::StackFrameInfo(

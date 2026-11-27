@@ -144,20 +144,20 @@ bool FrameInspector::ParameterIsShadowedByContextLocal(
   return info->ContextSlotIndex(*parameter_name) != -1;
 }
 
-RedirectActiveFunctions::RedirectActiveFunctions(
-    Isolate* isolate, Tagged<SharedFunctionInfo> shared, Mode mode)
-    : shared_(shared), mode_(mode) {
-  DCHECK(shared->HasBytecodeArray());
-  DCHECK(shared->HasDebugInfo(isolate));
+RedirectActiveFunctions::RedirectActiveFunctions(Isolate* isolate,
+                                                 Tagged<DebugInfo> debug_info,
+                                                 Mode mode)
+    : debug_info_(debug_info), mode_(mode) {
+  DCHECK(debug_info->HasInstrumentedBytecodeArray());
 }
 
 void RedirectActiveFunctions::VisitThread(Isolate* isolate,
                                           ThreadLocalTop* top) {
-  Tagged<DebugInfo> debug_info = shared_->GetDebugInfo(isolate);
   Tagged<BytecodeArray> original_bytecode =
-      debug_info->OriginalBytecodeArray(isolate);
+      debug_info_->OriginalBytecodeArray(isolate);
   Tagged<BytecodeArray> debug_bytecode =
-      debug_info->DebugBytecodeArray(isolate);
+      debug_info_->DebugBytecodeArray(isolate);
+  Tagged<SharedFunctionInfo> shared = debug_info_->shared();
 
   for (JavaScriptStackFrameIterator it(isolate, top); !it.done();
        it.Advance()) {
@@ -166,7 +166,7 @@ void RedirectActiveFunctions::VisitThread(Isolate* isolate,
     if (isolate->debug()->ShouldRestartFrame(frame->id())) continue;
     Tagged<JSFunction> function = frame->function();
     if (!frame->is_interpreted()) continue;
-    if (function->shared() != shared_) continue;
+    if (function->shared() != shared) continue;
     InterpretedFrame* interpreted_frame =
         reinterpret_cast<InterpretedFrame*>(frame);
 

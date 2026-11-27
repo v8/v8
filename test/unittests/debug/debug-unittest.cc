@@ -4666,10 +4666,9 @@ TEST_F(DebugTest, BreakLocationIterator) {
   Handle<i::SharedFunctionInfo> shared(function->shared(), i_isolate);
 
   EnableDebugger(isolate);
-  CHECK(i_isolate->debug()->EnsureBreakInfo(shared));
-  i_isolate->debug()->PrepareFunctionForDebugExecution(shared);
-
-  Handle<i::DebugInfo> debug_info(shared->GetDebugInfo(i_isolate), i_isolate);
+  Handle<i::DebugInfo> debug_info;
+  CHECK(i_isolate->debug()->EnsureBreakInfo(shared).ToHandle(&debug_info));
+  i_isolate->debug()->PrepareFunctionForDebugExecution(debug_info);
 
   {
     i::BreakIterator iterator(debug_info);
@@ -4721,7 +4720,7 @@ TEST_F(DebugTest, EnsureBreakInfoFailedSourcePositions) {
   EnableDebugger(isolate);
   // EnsureBreakInfo fails because source position collection fails due to
   // exhausted stack.
-  CHECK(!i_isolate->debug()->EnsureBreakInfo(shared));
+  CHECK(i_isolate->debug()->EnsureBreakInfo(shared).is_null());
   CHECK(!shared->HasBreakInfo(i_isolate));
 
   // Verify SetBreakpoint also fails gracefully when stack is exhausted.
@@ -4734,7 +4733,7 @@ TEST_F(DebugTest, EnsureBreakInfoFailedSourcePositions) {
   i_isolate->stack_guard()->SetStackLimit(original_limit);
 
   // When conditions are right, EnsureBreakInfo can be retried successfully.
-  CHECK(i_isolate->debug()->EnsureBreakInfo(shared));
+  CHECK(!i_isolate->debug()->EnsureBreakInfo(shared).is_null());
   CHECK(shared->HasBreakInfo(i_isolate));
   CHECK(shared->GetBytecodeArray(i_isolate)->HasSourcePositionTable());
 

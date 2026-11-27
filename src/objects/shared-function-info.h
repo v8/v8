@@ -978,14 +978,14 @@ V8_OBJECT class SharedFunctionInfo : public HeapObject {
   static_assert(Flags::FunctionSyntaxKindBits::is_valid(
       FunctionSyntaxKind::kLastFunctionSyntaxKind));
 
-  // Sets the bytecode in {shared}'s DebugInfo as the bytecode to
+  // Sets the bytecode in {debug_info} as the bytecode to
   // be returned by following calls to GetActiveBytecodeArray. Stores a
   // reference to the original bytecode in the DebugInfo.
-  static void InstallDebugBytecode(DirectHandle<SharedFunctionInfo> shared,
+  static void InstallDebugBytecode(DirectHandle<DebugInfo> debug_info,
                                    Isolate* isolate);
   // Removes the debug bytecode and restores the original bytecode to be
   // returned by following calls to GetActiveBytecodeArray.
-  static void UninstallDebugBytecode(Tagged<SharedFunctionInfo> shared,
+  static void UninstallDebugBytecode(Tagged<DebugInfo> debug_info,
                                      Isolate* isolate);
 
 #ifdef DEBUG

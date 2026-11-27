@@ -42,6 +42,9 @@
   # loop instead of properly reporting a RangeError for a stack overflow.
   'regress/regress-crbug-1080638': [SKIP],
 
+  # https://crbug.com/580790013
+  'regress/regress-580790013-*': [PASS, ['not memory_corruption_api', SKIP]],
+
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'runtime/console-messages-limits': [PASS, SLOW, HEAVY],
   'debugger/debug-stepout-scope-part1': [PASS, HEAVY],

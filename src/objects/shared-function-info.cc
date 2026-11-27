@@ -17,6 +17,7 @@
 #include "src/heap/combined-heap.h"
 #include "src/objects/abstract-code-inl.h"
 #include "src/objects/shared-function-info-inl.h"
+#include "src/sandbox/check.h"
 #include "src/strings/string-builder-inl.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -832,17 +833,26 @@ void SharedFunctionInfo::EnsureSourcePositionsAvailable(
 
 // static
 void SharedFunctionInfo::InstallDebugBytecode(
-    DirectHandle<SharedFunctionInfo> shared, Isolate* isolate) {
-  DCHECK(shared->HasBytecodeArray());
+    DirectHandle<DebugInfo> debug_info, Isolate* isolate) {
+  DCHECK(!debug_info->HasInstrumentedBytecodeArray());
+  DirectHandle<SharedFunctionInfo> shared(debug_info->shared(), isolate);
+  const bool has_bytecode =
+      shared->HasBytecodeArray() && !shared->HasBaselineCode();
+  SBXCHECK(has_bytecode);
   DirectHandle<BytecodeArray> original_bytecode_array(
-      shared->GetBytecodeArray(isolate), isolate);
+      shared->GetActiveBytecodeArray(isolate), isolate);
   DirectHandle<BytecodeArray> debug_bytecode_array =
       isolate->factory()->CopyBytecodeArray(original_bytecode_array);
 
   {
     DisallowGarbageCollection no_gc;
     base::MutexGuard guard(isolate->shared_function_info_access());
-    Tagged<DebugInfo> debug_info = shared->GetDebugInfo(isolate);
+    const bool valid_data =
+        shared->HasBytecodeArray() && !shared->HasBaselineCode();
+    SBXCHECK(valid_data);
+    Tagged<BytecodeArray> active_bytecode =
+        shared->GetActiveBytecodeArray(isolate);
+    SBXCHECK_EQ(active_bytecode, *original_bytecode_array);
     debug_info->set_original_bytecode_array(*original_bytecode_array,
                                             kReleaseStore);
     debug_info->set_debug_bytecode_array(*debug_bytecode_array, kReleaseStore);
@@ -851,14 +861,21 @@ void SharedFunctionInfo::InstallDebugBytecode(
 }
 
 // static
-void SharedFunctionInfo::UninstallDebugBytecode(
-    Tagged<SharedFunctionInfo> shared, Isolate* isolate) {
+void SharedFunctionInfo::UninstallDebugBytecode(Tagged<DebugInfo> debug_info,
+                                                Isolate* isolate) {
   DisallowGarbageCollection no_gc;
   base::MutexGuard guard(isolate->shared_function_info_access());
-  Tagged<DebugInfo> debug_info = shared->GetDebugInfo(isolate);
+  Tagged<SharedFunctionInfo> shared = debug_info->shared();
   Tagged<BytecodeArray> original_bytecode_array =
       debug_info->OriginalBytecodeArray(isolate);
-  DCHECK(!shared->HasBaselineCode());
+  Tagged<BytecodeArray> debug_bytecode_array =
+      debug_info->DebugBytecodeArray(isolate);
+  const bool valid_data =
+      shared->HasBytecodeArray() && !shared->HasBaselineCode();
+  SBXCHECK(valid_data);
+  Tagged<BytecodeArray> active_bytecode =
+      shared->GetActiveBytecodeArray(isolate);
+  SBXCHECK_EQ(active_bytecode, debug_bytecode_array);
   shared->SetActiveBytecodeArray(original_bytecode_array, isolate);
   debug_info->clear_original_bytecode_array();
   debug_info->clear_debug_bytecode_array();

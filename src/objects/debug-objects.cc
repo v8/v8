@@ -45,13 +45,12 @@ void DebugInfo::ClearBreakInfo(Isolate* isolate) {
     // Otherwise, it could be flushed and cause problems on resume. See v8:9067.
     {
       RedirectActiveFunctions redirect_visitor(
-          isolate, shared(),
-          RedirectActiveFunctions::Mode::kUseOriginalBytecode);
+          isolate, this, RedirectActiveFunctions::Mode::kUseOriginalBytecode);
       redirect_visitor.VisitThread(isolate, isolate->thread_local_top());
       isolate->thread_manager()->IterateArchivedThreads(&redirect_visitor);
     }
 
-    SharedFunctionInfo::UninstallDebugBytecode(shared(), isolate);
+    SharedFunctionInfo::UninstallDebugBytecode(this, isolate);
   }
   set_break_points(ReadOnlyRoots(isolate).empty_fixed_array());
 
