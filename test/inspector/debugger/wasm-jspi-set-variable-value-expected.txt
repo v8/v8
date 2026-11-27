@@ -1,0 +1,4 @@
+Tests mutating locals and parameters on inactive JSPI stacks via the debugger followed by minor GC (crbug.com/590988412).
+Case 1 (setVariableValue): young_local_1:young_param_1
+Case 2 (evaluateOnCallFrame): young_local_2:young_param_2
+Case 3 (nested JSPI): young_mid_local:young_mid_param

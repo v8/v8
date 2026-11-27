@@ -302,10 +302,6 @@ inline Tagged<Object> CommonFrame::GetExpression(int index) const {
   return Tagged<Object>(base::Memory<Address>(GetExpressionAddress(index)));
 }
 
-inline void CommonFrame::SetExpression(int index, Tagged<Object> value) {
-  base::Memory<Address>(GetExpressionAddress(index)) = value.ptr();
-}
-
 inline Address CommonFrame::caller_fp() const {
   return base::Memory<Address>(fp() + StandardFrameConstants::kCallerFPOffset);
 }
@@ -336,16 +332,6 @@ Address CommonFrameWithJSLinkage::GetParameterSlot(int index) const {
 
 inline uint32_t CommonFrameWithJSLinkage::GetActualArgumentCount() const {
   return 0;
-}
-
-inline void JavaScriptFrame::set_receiver(Tagged<Object> value) {
-  base::Memory<Address>(GetParameterSlot(-1)) = value.ptr();
-}
-
-inline void UnoptimizedJSFrame::SetFeedbackVector(
-    Tagged<FeedbackVector> feedback_vector) {
-  const int offset = InterpreterFrameConstants::kFeedbackVectorFromFp;
-  base::Memory<Address>(fp() + offset) = feedback_vector.ptr();
 }
 
 inline Tagged<Object> JavaScriptFrame::function_slot_object() const {

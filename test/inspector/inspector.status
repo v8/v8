@@ -368,6 +368,7 @@
 ['((arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != ppc64 and arch != s390x) or (simulator_run and direct_handle))', {
   # Stack switching is only supported on x64/arm64/ia32/arm.
   'debugger/wasm-jspi-async-stack': [SKIP],
+  'debugger/wasm-jspi-set-variable-value': [SKIP],
 }],  # (arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != ppc64 and arch != s390x)
 
 ##############################################################################

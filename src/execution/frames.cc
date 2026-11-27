@@ -1131,6 +1131,15 @@ StackFrame::Type StackFrame::GetCallerState(State* state) const {
   return iterator_->ComputeStackFrameType(state);
 }
 
+void StackFrame::NotifyStackSlotWritten(Tagged<Object> value) const {
+#if V8_ENABLE_WEBASSEMBLY
+  if (!IsSmi(value) && iterator_ != nullptr &&
+      iterator_->wasm_stack() != nullptr) {
+    iterator_->wasm_stack()->set_contains_only_old_pointers(false);
+  }
+#endif
+}
+
 Address CommonFrame::GetCallerStackPointer() const {
   return fp() + CommonFrameConstants::kCallerSPOffset;
 }
@@ -1587,6 +1596,11 @@ void ApiIndexedAccessorExitFrame::Print(
 Address CommonFrame::GetExpressionAddress(int n) const {
   const int offset = StandardFrameConstants::kExpressionsOffset;
   return fp() + offset - n * kSystemPointerSize;
+}
+
+void CommonFrame::SetExpression(int index, Tagged<Object> value) {
+  Memory<Address>(GetExpressionAddress(index)) = value.ptr();
+  NotifyStackSlotWritten(value);
 }
 
 Address UnoptimizedJSFrame::GetExpressionAddress(int n) const {
@@ -2552,12 +2566,18 @@ FrameSummaries StubFrame::Summarize(AllowAllocation allow_allocation) const {
   return summaries;
 }
 
+void JavaScriptFrame::set_receiver(Tagged<Object> value) {
+  Memory<Address>(GetParameterSlot(-1)) = value.ptr();
+  NotifyStackSlotWritten(value);
+}
+
 void JavaScriptFrame::SetParameterValue(int index, Tagged<Object> value) const {
   CHECK_LE(-1, index);
   CHECK(index == -1 ||
         static_cast<uint32_t>(index) <
             std::max(GetActualArgumentCount(), ComputeParametersCount()));
   Memory<Address>(GetParameterSlot(index)) = value.ptr();
+  NotifyStackSlotWritten(value);
 }
 
 bool JavaScriptFrame::IsConstructor() const {
@@ -2839,6 +2859,7 @@ void JavaScriptBuiltinContinuationWithCatchFrame::SetException(
   CHECK_EQ(ReadOnlyRoots(isolate()).the_hole_value(),
            Tagged<Object>(Memory<Address>(exception_argument_slot)));
   Memory<Address>(exception_argument_slot) = exception.ptr();
+  NotifyStackSlotWritten(exception);
 }
 
 FrameSummary::JavaScriptFrameSummary::JavaScriptFrameSummary(
@@ -3619,6 +3640,13 @@ Tagged<Object> UnoptimizedJSFrame::ReadInterpreterRegister(
   return GetExpression(index + register_index);
 }
 
+void UnoptimizedJSFrame::SetFeedbackVector(
+    Tagged<FeedbackVector> feedback_vector) {
+  const int offset = InterpreterFrameConstants::kFeedbackVectorFromFp;
+  Memory<Address>(fp() + offset) = feedback_vector.ptr();
+  NotifyStackSlotWritten(feedback_vector);
+}
+
 FrameSummaries UnoptimizedJSFrame::Summarize(
     AllowAllocation allow_allocation) const {
   Tagged<JSFunction> function;
@@ -3676,6 +3704,7 @@ intptr_t BaselineFrame::GetPCForBytecodeOffset(int bytecode_offset) const {
 
 void BaselineFrame::PatchContext(Tagged<Context> value) {
   Memory<Address>(fp() + BaselineFrameConstants::kContextOffset) = value.ptr();
+  NotifyStackSlotWritten(value);
 }
 
 Tagged<JSFunction> BuiltinFrame::function() const {
