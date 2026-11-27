@@ -799,6 +799,10 @@ class MinidumpReader(object):
     location = self.FindLocation(address)
     return ctypes.c_uint8.from_buffer(self.minidump, location).value
 
+  def ReadU16(self, address):
+    location = self.FindLocation(address)
+    return ctypes.c_uint16.from_buffer(self.minidump, location).value
+
   def ReadU32(self, address):
     location = self.FindLocation(address)
     return ctypes.c_uint32.from_buffer(self.minidump, location).value
@@ -1219,7 +1223,7 @@ class HeapObject(object):
   def __str__(self):
     instance_type = "???"
     if self.map is not None:
-      instance_type = INSTANCE_TYPES[self.map.instance_type]
+      instance_type = INSTANCE_TYPES.get(self.map.instance_type, "???")
     return "%s(%s, %s)" % (self.__class__.__name__,
                            self.heap.reader.FormatIntPtr(self.address),
                            instance_type)
@@ -1272,13 +1276,10 @@ class Map(HeapObject):
     return self.InstanceAttributesOffset()
 
   def BitFieldOffset(self):
-    return self.InstanceTypeOffset() + 1
+    return self.InstanceTypeOffset() + 2
 
   def BitField2Offset(self):
     return self.BitFieldOffset() + 1
-
-  def UnusedPropertyFieldsOffset(self):
-    return self.BitField2Offset() + 1
 
   # Other fields
   def BitField3Offset(self):
@@ -1290,53 +1291,45 @@ class Map(HeapObject):
   def ConstructorOrBackPointerOffset(self):
     return self.PrototypeOffset() + self.heap.TaggedPointerSize()
 
-  def TransitionsOrPrototypeInfoOffset(self):
+  def DescriptorsOffset(self):
     return self.ConstructorOrBackPointerOffset() + self.heap.TaggedPointerSize()
 
-  def DescriptorsOffset(self):
-    return (self.TransitionsOrPrototypeInfoOffset() +
-            self.heap.TaggedPointerSize())
-
-  def CodeCacheOffset(self):
+  def DependentCodeOffset(self):
     return self.DescriptorsOffset() + self.heap.TaggedPointerSize()
 
-  def DependentCodeOffset(self):
-    return self.CodeCacheOffset() + self.heap.TaggedPointerSize()
+  def PrototypeValidityCellOffset(self):
+    return self.DependentCodeOffset() + self.heap.TaggedPointerSize()
+
+  def TransitionsOrPrototypeInfoOffset(self):
+    return self.PrototypeValidityCellOffset() + self.heap.TaggedPointerSize()
 
   def ReadByte(self, offset):
     return self.heap.reader.ReadU8(self.address + offset)
 
-  def ReadSlot(self, offset):
-    return self.heap.reader.ReadTagged(self.address + offset)
-
   def Print(self, p):
     p.Print("Map(%08x)" % (self.address))
-    p.Print("  - size: %d, inobject: %d, (unused: %d), visitor: %d" % (
-        self.ReadByte(self.InstanceSizeOffset()),
-        self.ReadByte(self.InObjectProperties()),
-        self.ReadByte(self.UnusedByte()),
-        self.VisitorId()))
+    p.Print("  - size: %d, inobject: %d, (unused: %d), visitor: %d" %
+            (self.ReadByte(self.InstanceSizeOffset()),
+             self.ReadByte(self.InObjectProperties()),
+             self.ReadByte(self.UnusedByte()), self.ReadByte(self.VisitorId())))
 
-    instance_type = INSTANCE_TYPES[self.ReadByte(self.InstanceTypeOffset())]
+    instance_type = INSTANCE_TYPES.get(self.instance_type, "???")
     bitfield = self.ReadByte(self.BitFieldOffset())
     bitfield2 = self.ReadByte(self.BitField2Offset())
-    unused = self.ReadByte(self.UnusedPropertyFieldsOffset())
-    p.Print("  - %s, bf: %d, bf2: %d, unused: %d" % (
-        instance_type, bitfield, bitfield2, unused))
+    p.Print("  - %s, bf: %d, bf2: %d" % (instance_type, bitfield, bitfield2))
 
-    p.Print("  - kind: %s" % (self.Decode(3, 5, bitfield2)))
+    p.Print("  - kind: %s" % (self.Decode(2, 6, bitfield2)))
 
-    bitfield3 = self.ReadSlot(self.BitField3Offset())
+    bitfield3 = self.Uint32Field(self.BitField3Offset())
 
     p.Print(
-        "  - EnumLength: %d NumberOfOwnDescriptors: %d OwnsDescriptors: %s" % (
-            self.Decode(0, 10, bitfield3),
-            self.Decode(10, 10, bitfield3),
-            self.Decode(21, 1, bitfield3)))
-    p.Print("  - DictionaryMap: %s" % (self.Decode(20, 1, bitfield3)))
-    p.Print("  - Deprecated: %s" % (self.Decode(23, 1, bitfield3)))
-    p.Print("  - IsUnstable: %s" % (self.Decode(24, 1, bitfield3)))
-    p.Print("  - NewTargetIsBase: %s" % (self.Decode(27, 1, bitfield3)))
+        "  - EnumLength: %d NumberOfOwnDescriptors: %d OwnsDescriptors: %s" %
+        (self.Decode(0, 10, bitfield3), self.Decode(
+            10, 10, bitfield3), self.Decode(22, 1, bitfield3)))
+    p.Print("  - DictionaryMap: %s" % (self.Decode(21, 1, bitfield3)))
+    p.Print("  - Deprecated: %s" % (self.Decode(24, 1, bitfield3)))
+    p.Print("  - IsUnstable: %s" % (self.Decode(25, 1, bitfield3)))
+    p.Print("  - NewTargetIsBase: %s" % (self.Decode(0, 1, bitfield2)))
 
     descriptors = self.ObjectField(self.DescriptorsOffset())
     if descriptors.__class__ == FixedArray:
@@ -1354,8 +1347,12 @@ class Map(HeapObject):
 
   def __init__(self, heap, map, address):
     HeapObject.__init__(self, heap, map, address)
-    self.instance_type = \
-        heap.reader.ReadU8(self.address + self.InstanceTypeOffset())
+    type_addr = self.address + self.InstanceTypeOffset()
+    if (heap.reader.IsValidAddress(type_addr) and
+        heap.reader.IsValidAddress(type_addr + 1)):
+      self.instance_type = heap.reader.ReadU16(type_addr)
+    else:
+      self.instance_type = None
 
 
 class String(HeapObject):
@@ -1495,15 +1492,14 @@ class FixedArray(HeapObject):
 
   def __init__(self, heap, map, address):
     HeapObject.__init__(self, heap, map, address)
-    self.length = self.SmiField(self.LengthOffset())
+    self.length = self.Uint32Field(self.LengthOffset())
 
   def Print(self, p):
     p.Print("FixedArray(%s) {" % self.heap.reader.FormatIntPtr(self.address))
     p.Indent()
     p.Print("length: %d" % self.length)
-    base_offset = self.ElementsOffset()
     for i in range(self.length):
-      offset = base_offset + 4 * i
+      offset = self.MemberOffset(i)
       try:
         p.Print("[%08d] = %s" % (i, self.ObjectField(offset)))
       except TypeError:
@@ -1624,53 +1620,44 @@ class TransitionArray(object):
 
 
 class JSFunction(HeapObject):
-  def CodeEntryOffset(self):
+
+  def DispatchHandleOffset(self):
     return 3 * self.heap.TaggedPointerSize()
 
   def SharedOffset(self):
+    return 4 * self.heap.TaggedPointerSize()
+
+  def ContextOffset(self):
     return 5 * self.heap.TaggedPointerSize()
+
+  def FeedbackCellOffset(self):
+    return 6 * self.heap.TaggedPointerSize()
 
   def __init__(self, heap, map, address):
     HeapObject.__init__(self, heap, map, address)
-    code_entry = \
-        heap.reader.ReadU32(self.address + self.CodeEntryOffset())
-    self.code = heap.FindObject(code_entry - Code.HeaderSize(heap) + 1)
+    self.dispatch_handle = self.Uint32Field(self.DispatchHandleOffset())
     self.shared = self.ObjectField(self.SharedOffset())
+    self.context = self.ObjectField(self.ContextOffset())
+    self.feedback_cell = self.ObjectField(self.FeedbackCellOffset())
 
   def Print(self, p):
-    source = "\n".join("  %s" % line for line in self._GetSource().split("\n"))
     p.Print("JSFunction(%s) {" % self.heap.reader.FormatIntPtr(self.address))
     p.Indent()
-    p.Print("inferred name: %s" % self.shared.inferred_name)
-    if self.shared.script.Is(Script) and self.shared.script.name.Is(String):
-      p.Print("script name: %s" % self.shared.script.name)
-    p.Print("source:")
-    p.Print(source)
-    p.Print("code:")
-    self.code.Print(p)
-    if self.code != self.shared.code:
-      p.Print("unoptimized code:")
-      self.shared.code.Print(p)
+    if self.dispatch_handle is not None:
+      p.Print("dispatch handle: 0x%08x" % self.dispatch_handle)
+    p.Print("shared: %s" % self.shared)
+    p.Print("context: %s" % self.context)
+    p.Print("feedback cell: %s" % self.feedback_cell)
     p.Dedent()
     p.Print("}")
 
   def __str__(self):
     inferred_name = ""
-    if self.shared is not None and self.shared.Is(SharedFunctionInfo):
+    if (self.shared is not None and self.shared.Is(SharedFunctionInfo) and
+        getattr(self.shared, "inferred_name", None) is not None):
       inferred_name = self.shared.inferred_name
-    return "JSFunction(%s, %s) " % \
-          (self.heap.reader.FormatIntPtr(self.address), inferred_name)
-
-  def _GetSource(self):
-    source = "?source?"
-    start = self.shared.start_position
-    end = self.shared.end_position
-    if not self.shared.script.Is(Script): return source
-    script_source = self.shared.script.source
-    if not script_source.Is(String): return source
-    if start and end:
-      source = script_source.GetChars()[start:end]
-    return source
+    return "JSFunction(%s, %s)" % (self.heap.reader.FormatIntPtr(
+        self.address), inferred_name)
 
 
 class SharedFunctionInfo(HeapObject):
@@ -1728,27 +1715,6 @@ class Script(HeapObject):
     self.name = self.ObjectField(self.NameOffset())
 
 
-class CodeCache(HeapObject):
-  def DefaultCacheOffset(self):
-    return self.heap.TaggedPointerSize()
-
-  def NormalTypeCacheOffset(self):
-    return self.DefaultCacheOffset() + self.heap.TaggedPointerSize()
-
-  def __init__(self, heap, map, address):
-    HeapObject.__init__(self, heap, map, address)
-    self.default_cache = self.ObjectField(self.DefaultCacheOffset())
-    self.normal_type_cache = self.ObjectField(self.NormalTypeCacheOffset())
-
-  def Print(self, p):
-    p.Print("CodeCache(%s) {" % self.heap.reader.FormatIntPtr(self.address))
-    p.Indent()
-    p.Print("default cache: %s" % self.default_cache)
-    p.Print("normal type cache: %s" % self.normal_type_cache)
-    p.Dedent()
-    p.Print("}")
-
-
 class Code(HeapObject):
   CODE_ALIGNMENT_MASK = (1 << 5) - 1
 
@@ -1798,11 +1764,11 @@ class V8Heap(object):
       "FIXED_ARRAY_TYPE": FixedArray,
       "HASH_TABLE_TYPE": FixedArray,
       "OBJECT_BOILERPLATE_DESCRIPTION_TYPE": FixedArray,
-      "SCOPE_INFO_TYPE": FixedArray,
-      "JS_FUNCTION_TYPE": JSFunction,
+      "JS_FUNCTION_WITHOUT_PROTOTYPE_TYPE": JSFunction,
+      "JS_FUNCTION_WITH_PROTOTYPE_TYPE": JSFunction,
+      "JS_CLASS_CONSTRUCTOR_TYPE": JSFunction,
       "SHARED_FUNCTION_INFO_TYPE": SharedFunctionInfo,
       "SCRIPT_TYPE": Script,
-      "CODE_CACHE_TYPE": CodeCache,
       "CODE_TYPE": Code,
   }
 
@@ -1874,23 +1840,18 @@ class V8Heap(object):
 
   def IsValidTaggedObjectAddress(self, address):
     if not self.IsTaggedObjectAddress(address): return False
-    return self.reader.IsValidAddress(address)
+    return (self.reader.IsValidAddress(address - 1) and
+            self.reader.IsValidAddress(address - 1 + self.TaggedPointerSize() -
+                                       1))
 
   def IsTaggedMapAddress(self, address):
     return (address & self.MapAlignmentMask()) == 1
 
   def MapAlignmentMask(self):
-    if self.reader.arch == MD_CPU_ARCHITECTURE_AMD64:
-      return (1 << 4) - 1
-    elif self.reader.arch == MD_CPU_ARCHITECTURE_ARM:
-      return (1 << 4) - 1
-    elif self.reader.arch == MD_CPU_ARCHITECTURE_ARM64:
-      return (1 << 4) - 1
-    elif self.reader.arch == MD_CPU_ARCHITECTURE_X86:
-      return (1 << 5) - 1
+    return self.ObjectAlignmentMask()
 
   def PageAlignmentMask(self):
-    return (1 << 19) - 1
+    return (1 << 18) - 1
 
   def IsTaggedAddress(self, address):
     return (address & self.ObjectAlignmentMask()) == 1
@@ -1946,12 +1907,26 @@ class V8Heap(object):
 
   def FindObjectPointers(self, start=0, end=0):
     objects = set()
+    has_exception = self.reader.exception is not None
     def find_object_in_region(reader, start, size, location):
-      for slot in range(start, start + size, self.reader.TaggedPointerSize()):
-        if not self.reader.IsValidAddress(slot): break
+      is_stack = (
+          has_exception and start < self.reader.StackBottom() and
+          start + size > self.reader.StackTop())
+      step = (
+          self.reader.MachinePointerSize()
+          if is_stack else self.reader.TaggedPointerSize())
+      for slot in range(start, start + size - step + 1, step):
+        if (not self.reader.IsValidAddress(slot) or
+            not self.reader.IsValidAddress(slot + step - 1)):
+          break
         # Collect only tagged pointers (object) to tagged pointers (map)
-        tagged_address = self.reader.ReadTagged(slot)
+        tagged_address = (
+            self.reader.ReadUIntPtr(slot)
+            if is_stack else self.reader.ReadTagged(slot))
         if not self.IsValidTaggedObjectAddress(tagged_address): continue
+        if has_exception and self.reader.IsAnyExceptionStackAddress(
+            tagged_address):
+          continue
         map_address = self.reader.ReadTagged(tagged_address - 1)
         if not self.IsTaggedMapAddress(map_address): continue
         objects.add(tagged_address)
@@ -1967,7 +1942,7 @@ class V8Heap(object):
 for instance_type in V8Heap.CLASS_MAP.keys():
   if instance_type not in set(INSTANCE_TYPES.values()):
     print(
-        f"Warning: No instance type {instance_type} in"
+        f"Warning: No instance type {instance_type} in "
         "v8heapconst.INSTANCE_TYPES, you may need to regenerate v8heapconst.py")
 
 
@@ -3791,11 +3766,12 @@ class InspectionShell(cmd.Cmd):
     return address
 
   def do_help(self, cmd=None):
-    if len(cmd) == 0:
+    """List available commands with "help" or detailed help with "help cmd"."""
+    if not cmd:
       print("Available commands")
       print("=" * 79)
       prefix = "do_"
-      methods = inspect.getmembers(InspectionShell, predicate=inspect.ismethod)
+      methods = inspect.getmembers(self, predicate=inspect.ismethod)
       for name,method in methods:
         if not name.startswith(prefix): continue
         doc = inspect.getdoc(method)
@@ -3816,7 +3792,11 @@ class InspectionShell(cmd.Cmd):
     Evaluate an arbitrary python command.
     """
     try:
-      print(self.EvalExpression(cmd))
+      result = self.EvalExpression(cmd)
+      if isinstance(result, int) and not isinstance(result, bool):
+        print(f"{result:#x} ({result})")
+      else:
+        print(result)
     except:
       pass
 
@@ -3857,7 +3837,7 @@ class InspectionShell(cmd.Cmd):
      Interpret memory in the given region [address, address + num * word_size)
 
      (if available) as a sequence of words. Automatic alignment is not performed.
-     If the num is not specified, a default value of 16 words is usif not self.Is
+     If the num is not specified, a default value of 16 words is used.
      If no address is given, dd continues printing at the next word.
 
      Synopsis: dd 0x<address>|$register [0x<num>]
@@ -4134,9 +4114,7 @@ def GetVersionString(ms, ls):
 
 def GetModuleName(reader, module):
   name = reader.ReadMinidumpString(module.module_name_rva)
-  # simplify for path manipulation
-  name = name.encode('utf-8')
-  return str(os.path.basename(str(name).replace("\\", "/")))
+  return os.path.basename(name.replace("\\", "/"))
 
 
 def PrintModuleDetails(reader, module):

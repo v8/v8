@@ -38,10 +38,9 @@ OBJDUMP_BIN = "/usr/bin/objdump"
 if not os.path.exists(OBJDUMP_BIN):
   OBJDUMP_BIN = "objdump"
 
-# -M intel-mnemonic selects Intel syntax.
 # -C demangles.
 # -z disables skipping over sections of zeroes.
-_COMMON_DISASM_OPTIONS = ["-M", "intel-mnemonic", "-C", "-z"]
+_COMMON_DISASM_OPTIONS = ["-C", "-z"]
 
 _DISASM_HEADER_RE = re.compile(r"[a-f0-9]+\s+<.*:$")
 _DISASM_LINE_RE = re.compile(r"\s*([a-f0-9]+):\s*(\S.*)")
@@ -56,6 +55,9 @@ _ARCH_MAP = {
 
 
 def GetDisasmLines(filename, offset, size, arch, inplace, arch_flags=""):
+  options = list(_COMMON_DISASM_OPTIONS)
+  if arch in ("ia32", "x64"):
+    options += ["-M", "intel"]
   tmp_name = None
   if not inplace:
     # Create a temporary file containing a copy of the code.
@@ -67,14 +69,12 @@ def GetDisasmLines(filename, offset, size, arch, inplace, arch_flags=""):
     command = "dd if=%s of=%s bs=1 count=%d skip=%d && " \
               "%s %s -D -b binary %s %s" % (
       filename, tmp_name, size, offset,
-      OBJDUMP_BIN, ' '.join(_COMMON_DISASM_OPTIONS), arch_flags,
+      OBJDUMP_BIN, ' '.join(options), arch_flags,
       tmp_name)
   else:
     command = "%s %s %s --start-address=%d --stop-address=%d -d %s " % (
-      OBJDUMP_BIN, ' '.join(_COMMON_DISASM_OPTIONS), arch_flags,
-      offset,
-      offset + size,
-      filename)
+        OBJDUMP_BIN, ' '.join(options), arch_flags, offset, offset + size,
+        filename)
   process = subprocess.Popen(command,
                              shell=True,
                              stdout=subprocess.PIPE,
