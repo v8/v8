@@ -1276,6 +1276,38 @@ TEST_F(SharedHeapTest,
 
   InvokeMajorGC(isolate);
 }
+
+TEST_F(SharedHeapTest,
+       SharedUntrustedToSharedTrustedWriteBarrierBlackAllocated) {
+  if (!v8_flags.incremental_marking || !v8_flags.black_allocated_pages) return;
+  Isolate* isolate = i_isolate();
+  ManualGCScope manual_gc_scope(isolate);
+  HandleScope scope(isolate);
+
+  DirectHandle<FixedArray> shared_host =
+      isolate->factory()->NewFixedArray(2, AllocationType::kSharedOld);
+
+  isolate->heap()->StartIncrementalMarking(GCFlag::kNoFlags,
+                                           GarbageCollectionReason::kTesting);
+  DirectHandle<WasmDispatchTable> trusted_handle =
+      NewSharedWasmDispatchTableForTesting(isolate);
+
+  SetupClientIsolateAndRunCallback(
+      [raw_host = *shared_host, raw_trusted = *trusted_handle](
+          v8::Isolate* client_isolate, Isolate* i_client_isolate) {
+        Address slot_addr = raw_host->RawFieldOfFirstElement().address();
+        TrustedPointerSlot slot(slot_addr,
+                                kSharedWasmDispatchTableTrustedPointerTag);
+        slot.Release_Store(raw_trusted);
+        WriteBarrier::ForTrustedPointer(raw_host, slot, raw_trusted,
+                                        UPDATE_WRITE_BARRIER);
+        EXPECT_TRUE(
+            i_client_isolate->heap()->marking_state()->IsUnmarked(raw_trusted));
+        raw_host->set(0, Smi::zero());
+      });
+
+  InvokeMajorGC(isolate);
+}
 #endif  // V8_ENABLE_SANDBOX
 
 #endif  // V8_ENABLE_WEBASSEMBLY

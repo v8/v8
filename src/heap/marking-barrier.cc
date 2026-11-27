@@ -75,7 +75,9 @@ void MarkingBarrier::Write(Isolate* isolate, Tagged<HeapObject> host,
       CHECK(TrustedHeapLayout::InWritableSharedSpace(isolate, host));
       DCHECK(
           MemoryChunk::FromHeapObject(value)->Metadata(isolate)->is_trusted());
-      MarkValueShared(value);
+      if (!TrustedHeapLayout::InBlackAllocatedPage(value)) {
+        MarkValueShared(value);
+      }
     } else {
       if (is_not_major()) return;
       MarkValueLocal(value);

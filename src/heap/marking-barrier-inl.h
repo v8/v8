@@ -81,6 +81,7 @@ void MarkingBarrier::MarkValueShared(Tagged<HeapObject> value) {
   // We should only reach this on client isolates (= worker isolates).
   DCHECK(!is_shared_space_isolate_);
   DCHECK(shared_heap_worklists_.has_value());
+  DCHECK(!MemoryChunk::FromHeapObject(value)->IsBlackAllocated());
 
   // Mark shared object and push it onto shared heap worklist.
   if (MarkingState(heap_->isolate()).TryMark(value)) {
