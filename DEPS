@@ -78,7 +78,7 @@ vars = {
   'checkout_agents_internal': False,
 
   # CPython 3 CIPD package version for Siso hermetic toolchain.
-  'cpython3_version': 'version:3@3.11.9.chromium.38',
+  'cpython3_version': 'version:3@3.11.9.chromium.39',
 
   # Fetch configuration files required for the 'use_remoteexec' gn arg
   'download_remoteexec_cfg': False,
@@ -118,7 +118,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': '995cd4d846d874d387d2fa916f8b4a4834712e86',
+  'partition_alloc_version': '5d7705e01bf850a2567aa9d7286d87bc4b45525f',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -189,9 +189,9 @@ deps = {
     'condition': 'checkout_agents_internal',
   },
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '5e4c4d9449e41d7c8682ef83baf3ab32c6c17c49',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '2b122b1db8c7794bffd4690a0b19c32c038bd7ac',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '12617342e24aa09b1bac98a898cdab7643192a93',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '0ccd87e325bf0709758fbdfce5e6f180daad649e',
   'buildtools/linux64': {
     'packages': [
       {
@@ -563,7 +563,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '7e55ff6fc1da3184bc06ed90a00a27cb55d8ce41',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'f344ac7551794778a7fb87788836a0a5f74524a5',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '3813fd5b3029807583e5d2549a40d78fa499c3e8',
   'third_party/re2/src':
