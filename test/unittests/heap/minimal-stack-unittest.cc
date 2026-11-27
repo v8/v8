@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "include/v8-script.h"
+#include "src/execution/frames-inl.h"
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
 #include "src/heap/local-heap.h"
@@ -89,6 +90,115 @@ TEST_F(MinimalStackTest, MinimalStackInTurbofanAllocate) {
 
   // Assert that the run() method is reported on the stack trace.
   EXPECT_TRUE(crash_key_store.HasKey("v8-oom-stack"));
+  std::string output = crash_key_store.ValueForKey("v8-oom-stack");
+  const char* expected_output =
+      "run in test_part1.js\n"
+      "<none> in test_part2.js\n"
+      "$\n";
+  EXPECT_EQ(output, expected_output);
+}
+
+TEST_F(MinimalStackTest, MinimalStackInDeoptMaterialize) {
+  // The test relies on the optimizing tier inlining and escape-analyzing the
+  // closure. Maglev and Turbolev use Maglev's escape analysis.
+  bool escape_analysis_enabled;
+  if (v8_flags.optimize_on_next_call_optimizes_to_maglev) {
+    escape_analysis_enabled =
+        v8_flags.maglev && v8_flags.maglev_escape_analysis;
+  } else if (v8_flags.turbolev) {
+    escape_analysis_enabled =
+        v8_flags.turbofan && v8_flags.maglev_escape_analysis;
+  } else {
+    escape_analysis_enabled = v8_flags.turbofan && v8_flags.turbo_escape;
+  }
+  if (!escape_analysis_enabled) GTEST_SKIP();
+
+  CrashKeyStore crash_key_store;
+  v8::HandleScope handle_scope(v8_isolate());
+  v8_flags.allow_natives_syntax.Set(true);
+  v8_flags.lazy_feedback_allocation.Set(false);
+  v8_flags.stress_concurrent_allocation.Set(false);
+  v8_flags.enable_lazy_source_positions.Set(true);
+
+  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
+  v8::Context::Scope context_scope(context);
+
+  // The escape-analyzed `closure` is inlined into the loop. Deopting inside it
+  // leaves `arguments_marker` in the reconstructed interpreted frame's function
+  // slot until Deoptimizer::MaterializeHeapObjects() has allocated the closure.
+  const char* script_src_part1 =
+      "function run(x) {\n"
+      "  let closure = (v) => v + x;\n"
+      "  let sum = 0;\n"
+      "  for (let i = 0; i < 2; i++) sum += closure(x);\n"
+      "  return sum;\n"
+      "}\n"
+      "%PrepareFunctionForOptimization(run);\n"
+      "run(1);\n"
+      "run(2);\n"
+      "%OptimizeFunctionOnNextCall(run);\n"
+      "run(3);\n";
+
+  // Deopts inside the inlined closure.
+  const char* script_src_part2 = "run('deopt');\n";
+
+  v8::Local<v8::String> source_part1 =
+      v8::String::NewFromUtf8(v8_isolate(), script_src_part1).ToLocalChecked();
+  v8::ScriptOrigin origin_part1(
+      v8::String::NewFromUtf8(v8_isolate(), "test_part1.js").ToLocalChecked());
+  v8::Local<v8::Script> script_part1 =
+      v8::Script::Compile(context, source_part1, &origin_part1)
+          .ToLocalChecked();
+  script_part1->Run(context).ToLocalChecked();
+
+  v8::Local<v8::String> source_part2 =
+      v8::String::NewFromUtf8(v8_isolate(), script_src_part2).ToLocalChecked();
+  v8::ScriptOrigin origin_part2(
+      v8::String::NewFromUtf8(v8_isolate(), "test_part2.js").ToLocalChecked());
+  v8::Local<v8::Script> script_part2 =
+      v8::Script::Compile(context, source_part2, &origin_part2)
+          .ToLocalChecked();
+
+  // Walk the stack from a GC epilogue callback via Isolate::BuildMinimalStack()
+  // (which summarizes frames). Only do this once, and only while an
+  // unmaterialized closure is on the stack, so that other GCs don't overwrite
+  // the reported stack.
+  struct CallbackData {
+    Isolate* isolate;
+    bool saw_unmaterialized_closure = false;
+  } callback_data{i_isolate()};
+  auto gc_epilogue_callback = [](void* data) {
+    auto* callback_data = static_cast<CallbackData*>(data);
+    if (callback_data->saw_unmaterialized_closure) return;
+    Isolate* isolate = callback_data->isolate;
+    for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
+      if (!it.frame()->is_unoptimized_js()) continue;
+      if (!IsArgumentsMarker(
+              JavaScriptFrame::cast(it.frame())->unchecked_function())) {
+        continue;
+      }
+      callback_data->saw_unmaterialized_closure = true;
+      isolate->ReportStackAsCrashKey();
+      return;
+    }
+  };
+  auto* local_heap = i_isolate()->heap()->main_thread_local_heap();
+  local_heap->AddGCEpilogueCallback(gc_epilogue_callback, &callback_data);
+
+  // With --deopt-every-n-times, MaterializeHeapObjects() performs a GC before
+  // materializing escape-analyzed objects. The already optimized code of
+  // run() is unaffected by the flag.
+  v8_flags.deopt_every_n_times.Set(1);
+  v8::Local<v8::Value> result = script_part2->Run(context).ToLocalChecked();
+  v8_flags.deopt_every_n_times.Set(0);
+  local_heap->RemoveGCEpilogueCallback(gc_epilogue_callback, &callback_data);
+
+  // Just for sanity.
+  ASSERT_TRUE(result->IsString());
+  ASSERT_TRUE(callback_data.saw_unmaterialized_closure);
+
+  // The unmaterialized closure frame is skipped.
+  ASSERT_TRUE(crash_key_store.HasKey("v8-oom-stack"));
   std::string output = crash_key_store.ValueForKey("v8-oom-stack");
   const char* expected_output =
       "run in test_part1.js\n"

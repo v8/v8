@@ -777,7 +777,8 @@ class JavaScriptFrame : public CommonFrameWithJSLinkage {
 
   // Accessors.
   Tagged<JSFunction> function() const override;
-  Tagged<Object> unchecked_function() const;
+  V8_EXPORT_PRIVATE Tagged<UnionOf<JSFunction, ArgumentsMarker>>
+  unchecked_function() const;
   Tagged<Script> script() const;
   Tagged<Object> context() const override;
   uint32_t GetActualArgumentCount() const override;

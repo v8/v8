@@ -2671,13 +2671,12 @@ Tagged<JSFunction> JavaScriptFrame::function() const {
   return Cast<JSFunction>(function_slot_object());
 }
 
-Tagged<Object> JavaScriptFrame::unchecked_function() const {
+Tagged<UnionOf<JSFunction, ArgumentsMarker>>
+JavaScriptFrame::unchecked_function() const {
   // During deoptimization of an optimized function, we may have yet to
   // materialize some closures on the stack. The arguments marker object
   // marks this case.
-  DCHECK(IsJSFunction(function_slot_object()) ||
-         ReadOnlyRoots(isolate()).arguments_marker() == function_slot_object());
-  return function_slot_object();
+  return Cast<UnionOf<JSFunction, ArgumentsMarker>>(function_slot_object());
 }
 
 Tagged<Object> CommonFrameWithJSLinkage::receiver() const {
@@ -3642,10 +3641,17 @@ Tagged<Object> UnoptimizedJSFrame::ReadInterpreterRegister(
 
 FrameSummaries UnoptimizedJSFrame::Summarize(
     AllowAllocation allow_allocation) const {
+  Tagged<JSFunction> function;
+  if (!TryCast(unchecked_function(), &function)) [[unlikely]] {
+    // During deoptimization, inlined escape-analyzed closures may still hold
+    // `arguments_marker` until Deoptimizer::MaterializeHeapObjects finishes.
+    // Such frames have no meaningful summary yet, so skip them.
+    return FrameSummaries{};
+  }
   DirectHandle<AbstractCode> abstract_code(
       Cast<AbstractCode>(GetBytecodeArray()), isolate());
   FrameSummary::JavaScriptFrameSummary summary(
-      isolate(), receiver(), function(), *abstract_code, GetBytecodeOffset(),
+      isolate(), receiver(), function, *abstract_code, GetBytecodeOffset(),
       IsConstructor());
   return FrameSummaries(summary);
 }
