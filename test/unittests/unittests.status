@@ -573,6 +573,9 @@
   'ApiTest.InternalFieldsSubclassing': [PASS, ['mode == debug and arch == ia32', SKIP]],
   'HeapProfilerTest.SamplingHeapProfiler': [SKIP],
 
+  # BUG(590940690): Times out.
+  'StartupSnapshotUntrustedSectionTest.PendingWeakPrefix': [PASS, ['tsan', SKIP]],
+
   # BUG(v8:11820): the test adjusts GC flags, which does not work
   # if GC starts before the test.
   'RuntimeCallStatsTest.GarbageCollection': [SKIP],
