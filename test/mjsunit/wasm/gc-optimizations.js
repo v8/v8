@@ -1371,3 +1371,302 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(123, wasm.i31OrNull(123));
   assertEquals(1, wasm.i31OrNull(null));
 })();
+
+(function DiamondMergePhiRefTestFolding() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let boxI32 = builder.addStruct({
+    fields: [makeField(kWasmI32, false)],
+    is_final: false,
+  });
+  let subBox = builder.addStruct({
+    fields: [makeField(kWasmI32, false), makeField(kWasmI32, false)],
+    supertype: boxI32,
+    is_final: true,
+  });
+  let otherBox = builder.addStruct({
+    fields: [makeField(kWasmI64, false)],
+    is_final: true,
+  });
+  let intArr = builder.addArray(kWasmI32, {mutable: false});
+
+  builder.addFunction('makeBox', makeSig([kWasmI32], [wasmRefType(boxI32)]))
+    .addBody([kExprLocalGet, 0, kGCPrefix, kExprStructNew, boxI32])
+    .exportFunc();
+
+  // 1. Non-boolean diamond condition (`param0 & 4`) with both direct and
+  // inverted `ref.test` outcomes (must normalize to canonical {0, 1}).
+  builder.addFunction('diamondRefTestNormalizedBool',
+                      makeSig([kWasmI32, kWasmI32], [kWasmI32]))
+    .addLocals(kWasmEqRef, 1)
+    .addBody([
+      kExprLocalGet, 0, kExprI32Const, 4, kExprI32And,
+      kExprIf, kEqRefCode,
+        kExprLocalGet, 1, kGCPrefix, kExprRefI31,
+      kExprElse,
+        kExprLocalGet, 1, kGCPrefix, kExprStructNew, boxI32,
+      kExprEnd,
+      kExprLocalTee, 2,
+      kGCPrefix, kExprRefTest, kI31RefCode,
+      kExprI32Const, 10, kExprI32Mul,
+      kExprLocalGet, 2,
+      kGCPrefix, kExprRefTest, boxI32,
+      kExprI32Add,
+    ])
+    .exportFunc();
+
+  // 2. Loop-revisit invalidation: on pass 1 of the loop, `a` is `(ref i31)`
+  // and `b` is `(ref exact $boxI32)`, so `Phi(a, b)` is recorded in
+  // `diamond_phis_`. Swapping `a` and `b` before the backedge widens both to
+  // `(ref exact $boxI32)|i31` on pass 2 (`input0_type == input1_type`), skipping
+  // `TryRecordDiamondPhi` and verifying that `diamond_phis_.erase` clears the
+  // stale pass-1 entry.
+  builder.addFunction('diamondRefTestLoopRevisit',
+                      makeSig([kWasmI32, kWasmI32], [kWasmI32]))
+    .addLocals(kWasmEqRef, 3)  // 2: a, 3: b, 4: tmp
+    .addLocals(kWasmI32, 2)    // 5: i, 6: sum
+    .addBody([
+      kExprI32Const, 0, kGCPrefix, kExprRefI31,
+      kExprLocalSet, 2,
+      kExprI32Const, 1, kGCPrefix, kExprStructNew, boxI32,
+      kExprLocalSet, 3,
+      kExprLoop, kWasmVoid,
+        kExprLocalGet, 0,
+        kExprIf, kEqRefCode,
+          kExprLocalGet, 2,
+        kExprElse,
+          kExprLocalGet, 3,
+        kExprEnd,
+        kGCPrefix, kExprRefTest, kI31RefCode,
+        kExprLocalGet, 6, kExprI32Add,
+        kExprLocalSet, 6,
+        kExprLocalGet, 2, kExprLocalSet, 4,
+        kExprLocalGet, 3, kExprLocalSet, 2,
+        kExprLocalGet, 4, kExprLocalSet, 3,
+        kExprLocalGet, 5, kExprI32Const, 1, kExprI32Add,
+        kExprLocalTee, 5,
+        kExprLocalGet, 1, kExprI32LtS,
+        kExprBrIf, 0,
+      kExprEnd,
+      kExprLocalGet, 6,
+    ])
+    .exportFunc();
+
+  // 3. Negative test: arm is non-final `$boxI32` while check tests `$subBox`.
+  // Outcome on the `$boxI32` arm is unknown at compile time (must NOT fold).
+  builder.addFunction('diamondRefTestSubtypeNegative',
+                      makeSig([kWasmI32, kWasmI32], [kWasmI32]))
+    .addLocals(kWasmEqRef, 1)
+    .addBody([
+      kExprLocalGet, 1,
+      kExprIf, kEqRefCode,
+        kExprI32Const, 1, kExprI32Const, 2, kGCPrefix, kExprStructNew, subBox,
+      kExprElse,
+        kExprI32Const, 1, kGCPrefix, kExprStructNew, boxI32,
+      kExprEnd,
+      kExprLocalSet, 2,
+      kExprLocalGet, 0,
+      kExprIf, kEqRefCode,
+        kExprLocalGet, 2,
+      kExprElse,
+        kExprI32Const, 0, kGCPrefix, kExprRefI31,
+      kExprEnd,
+      kGCPrefix, kExprRefTest, subBox,
+    ])
+    .exportFunc();
+
+  // 4. `ResolveAliases` + post-merge `current_type` narrowing:
+  // `Phi((ref null $boxI32), (ref i31))` -> `ref.as_non_null` -> `ref.test $boxI32`.
+  builder.addFunction('diamondResolveAliasesAndNarrowing',
+                      makeSig([kWasmI32, wasmRefNullType(boxI32)], [kWasmI32]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprIf, kEqRefCode,
+        kExprLocalGet, 1,
+      kExprElse,
+        kExprI32Const, 0, kGCPrefix, kExprRefI31,
+      kExprEnd,
+      kExprRefAsNonNull,
+      kGCPrefix, kExprRefTest, boxI32,
+    ])
+    .exportFunc();
+
+  // 5. Nullable target negative case: `Phi((ref null $boxI32), (ref i31))`
+  // tested with `ref.test (ref null i31)` must NOT fold to `!p0` because `null`
+  // from arm 0 also satisfies `(ref null i31)`.
+  builder.addFunction('diamondNullableTargetNegative',
+                      makeSig([kWasmI32, wasmRefNullType(boxI32)], [kWasmI32]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprIf, kEqRefCode,
+        kExprLocalGet, 1,
+      kExprElse,
+        kExprI32Const, 0, kGCPrefix, kExprRefI31,
+      kExprEnd,
+      kGCPrefix, kExprRefTestNull, kI31RefCode,
+    ])
+    .exportFunc();
+
+  // 6. Nullable diamond (`Phi((ref exact $boxI32), nullref)`): `ref.test
+  // $boxI32` folds to `p0 != 0` before the `IsNull` fallback.
+  builder.addFunction('diamondNullableRefTest',
+                      makeSig([kWasmI32, kWasmI32], [kWasmI32]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprIf, kEqRefCode,
+        kExprLocalGet, 1, kGCPrefix, kExprStructNew, boxI32,
+      kExprElse,
+        kExprRefNull, boxI32,
+      kExprEnd,
+      kGCPrefix, kExprRefTest, boxI32,
+    ])
+    .exportFunc();
+
+  // 7. Non-diamond 2-predecessor merge dominated by `Branch(p0)` where the
+  // second predecessor is reachable from both `p0 && !p1` and `!p0`. Must NOT
+  // fold `ref.test i31` to `p0 != 0` (exercises `IsDominatedBy`).
+  builder.addFunction('nonDiamondTwoPredMerge',
+                      makeSig([kWasmI32, kWasmI32], [kWasmI32]))
+    .addBody([
+      kExprBlock, kEqRefCode,
+        kExprLocalGet, 0,
+        kExprIf, kWasmVoid,
+          kExprLocalGet, 1,
+          kExprIf, kWasmVoid,
+            kExprI32Const, 0, kGCPrefix, kExprRefI31,
+            kExprBr, 2,
+          kExprEnd,
+        kExprEnd,
+        kExprI32Const, 1, kGCPrefix, kExprStructNew, boxI32,
+      kExprEnd,
+      kGCPrefix, kExprRefTest, kI31RefCode,
+    ])
+    .exportFunc();
+
+  // 8. Disjoint struct diamond (`Phi($boxI32, $otherBox)`) with `else`-arm
+  // cast to `$otherBox` (exercises `RefineDiamondPhiOnBranch`).
+  builder.addFunction('diamondBranchRefineElseCast',
+                      makeSig([kWasmI32, kWasmI32], [kWasmI32]))
+    .addLocals(kWasmStructRef, 1)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprIf, kStructRefCode,
+        kExprLocalGet, 1, kGCPrefix, kExprStructNew, boxI32,
+      kExprElse,
+        kExprI64Const, 7, kGCPrefix, kExprStructNew, otherBox,
+      kExprEnd,
+      kExprLocalTee, 2,
+      kGCPrefix, kExprRefTest, boxI32,
+      kExprIf, kWasmI32,
+        kExprLocalGet, 2, kGCPrefix, kExprRefCast, boxI32,
+        kGCPrefix, kExprStructGet, boxI32, 0,
+      kExprElse,
+        kExprLocalGet, 2, kGCPrefix, kExprRefCast, otherBox,
+        kGCPrefix, kExprStructGet, otherBox, 0,
+        kExprI32ConvertI64,
+      kExprEnd,
+    ])
+    .exportFunc();
+
+  // 9. Post-merge narrowing makes one arm uninhabited (`$intArr` after
+  // `ref.cast structref`), folding `ref.test $boxI32` directly to constant 1.
+  builder.addFunction('diamondSingleSurvivingArm',
+                      makeSig([kWasmI32], [kWasmI32]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprIf, kEqRefCode,
+        kExprI32Const, 1, kGCPrefix, kExprStructNew, boxI32,
+      kExprElse,
+        kExprI32Const, 2, kGCPrefix, kExprArrayNewDefault, intArr,
+      kExprEnd,
+      kGCPrefix, kExprRefCast, kStructRefCode,
+      kGCPrefix, kExprRefTest, boxI32,
+    ])
+    .exportFunc();
+
+  // 10. Diamond inside a loop whose condition (`i & 1`) changes with every
+  // iteration: the folded `ref.test i31` must follow the condition of the
+  // current iteration.
+  builder.addFunction('diamondInLoopVariantCondition',
+                      makeSig([kWasmI32], [kWasmI32]))
+    .addLocals(kWasmI32, 2)  // 1: i, 2: number of i31 values
+    .addBody([
+      kExprLoop, kWasmVoid,
+        kExprLocalGet, 1, kExprI32Const, 1, kExprI32And,
+        kExprIf, kEqRefCode,
+          kExprI32Const, 0, kGCPrefix, kExprRefI31,
+        kExprElse,
+          kExprLocalGet, 1, kGCPrefix, kExprStructNew, boxI32,
+        kExprEnd,
+        kGCPrefix, kExprRefTest, kI31RefCode,
+        kExprLocalGet, 2, kExprI32Add, kExprLocalSet, 2,
+        kExprLocalGet, 1, kExprI32Const, 1, kExprI32Add, kExprLocalTee, 1,
+        kExprLocalGet, 0, kExprI32LtS,
+        kExprBrIf, 0,
+      kExprEnd,
+      kExprLocalGet, 2,
+    ])
+    .exportFunc();
+
+  // 11. Nullable diamond (`Phi((ref exact $boxI32), nullref)`) tested against
+  // a type that only null satisfies: `ref.test nullref` folds to `p0 == 0`
+  // before the `IsNull` fallback.
+  builder.addFunction('diamondNullableRefTestNull',
+                      makeSig([kWasmI32, kWasmI32], [kWasmI32]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprIf, kEqRefCode,
+        kExprLocalGet, 1, kGCPrefix, kExprStructNew, boxI32,
+      kExprElse,
+        kExprRefNull, boxI32,
+      kExprEnd,
+      kGCPrefix, kExprRefTestNull, kNullRefCode,
+    ])
+    .exportFunc();
+
+  let wasm = builder.instantiate({}).exports;
+  let box = wasm.makeBox(5);
+  assertEquals(10, wasm.diamondRefTestNormalizedBool(4, 99));
+  assertEquals(10, wasm.diamondRefTestNormalizedBool(0xff, 99));
+  assertEquals(1, wasm.diamondRefTestNormalizedBool(0, 99));
+  assertEquals(1, wasm.diamondRefTestNormalizedBool(3, 99));
+
+  // Alternating i31 and $boxI32 over 4 iterations yields 2 for either branch.
+  assertEquals(2, wasm.diamondRefTestLoopRevisit(1, 4));
+  assertEquals(2, wasm.diamondRefTestLoopRevisit(0, 4));
+
+  assertEquals(1, wasm.diamondRefTestSubtypeNegative(1, 1));
+  assertEquals(0, wasm.diamondRefTestSubtypeNegative(1, 0));
+  assertEquals(0, wasm.diamondRefTestSubtypeNegative(0, 1));
+
+  assertEquals(1, wasm.diamondResolveAliasesAndNarrowing(1, box));
+  assertEquals(0, wasm.diamondResolveAliasesAndNarrowing(0, null));
+  assertTraps(kTrapNullDereference,
+              () => wasm.diamondResolveAliasesAndNarrowing(1, null));
+
+  assertEquals(1, wasm.diamondNullableTargetNegative(1, null));
+  assertEquals(0, wasm.diamondNullableTargetNegative(1, box));
+  assertEquals(1, wasm.diamondNullableTargetNegative(0, box));
+
+  assertEquals(1, wasm.diamondNullableRefTest(1, 42));
+  assertEquals(0, wasm.diamondNullableRefTest(0, 42));
+
+  assertEquals(1, wasm.nonDiamondTwoPredMerge(1, 1));
+  assertEquals(0, wasm.nonDiamondTwoPredMerge(1, 0));
+  assertEquals(0, wasm.nonDiamondTwoPredMerge(0, 1));
+  assertEquals(0, wasm.nonDiamondTwoPredMerge(0, 0));
+
+  assertEquals(42, wasm.diamondBranchRefineElseCast(1, 42));
+  assertEquals(7, wasm.diamondBranchRefineElseCast(0, 42));
+
+  assertEquals(1, wasm.diamondSingleSurvivingArm(1));
+  assertTraps(kTrapIllegalCast, () => wasm.diamondSingleSurvivingArm(0));
+
+  assertEquals(0, wasm.diamondInLoopVariantCondition(1));
+  assertEquals(1, wasm.diamondInLoopVariantCondition(2));
+  assertEquals(5, wasm.diamondInLoopVariantCondition(10));
+  assertEquals(5, wasm.diamondInLoopVariantCondition(11));
+
+  assertEquals(0, wasm.diamondNullableRefTestNull(1, 42));
+  assertEquals(1, wasm.diamondNullableRefTestNull(0, 42));
+})();

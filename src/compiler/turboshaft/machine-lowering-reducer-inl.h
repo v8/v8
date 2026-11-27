@@ -1833,8 +1833,8 @@ class MachineLoweringReducer : public StringMapChecksReducer<Next> {
                 __ TaggedEqual(map, __ HeapConstant(factory_->bigint_map())))) {
           V<Word32> bitfield = __ template LoadField<Word32>(
               object, AccessBuilder::ForBigIntBitfield());
-          GOTO(done, IsNonZero(__ Word32BitwiseAnd(bitfield,
-                                                   BigInt::LengthBits::kMask)));
+          GOTO(done, __ IsNonZero(__ Word32BitwiseAnd(
+                         bitfield, BigInt::LengthBits::kMask)));
         }
 
         // All other values that reach here are true.
@@ -4668,11 +4668,6 @@ class MachineLoweringReducer : public StringMapChecksReducer<Next> {
     V<Word32> check = __ template Projection<1>(add);
     GOTO_IF(UNLIKELY(check), *overflow);
     GOTO(*done, __ BitcastWord32ToSmi(__ template Projection<0>(add)));
-  }
-
-  // `IsNonZero` converts any non-0 value into 1.
-  V<Word32> IsNonZero(V<Word32> value) {
-    return __ Word32Equal(__ Word32Equal(value, 0), 0);
   }
 
   V<HeapNumber> AllocateHeapNumber(V<Float64> value) {

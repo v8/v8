@@ -2791,6 +2791,14 @@ class MachineOptimizationReducer : public Next {
       }
       if (rep.IsWord()) {
         WordRepresentation rep_w{rep};
+        // (x == 0) == 0  =>  x  if x is 0 or 1
+        if (rep_w == WordRepresentation::Word32() &&
+            matcher_.MatchZero(right)) {
+          if (V<Word32> x, zero; matcher_.MatchEqual(left, &x, &zero) &&
+                                 matcher_.MatchZero(zero) && IsBit(x)) {
+            return x;
+          }
+        }
         // x - y == 0  =>  x == y
         if (V<Word> x, y; matcher_.MatchWordSub(left, &x, &y, rep_w) &&
                           matcher_.MatchZero(right)) {
@@ -3051,7 +3059,15 @@ class MachineOptimizationReducer : public Next {
     return __ Word32Constant(static_cast<uint32_t>(static_cast<int64_t>(c)));
   }
 
-  bool IsBit(V<Word> value) { return matcher_.Is<ComparisonOp>(value); }
+  bool IsBit(V<Word> value) {
+    if (matcher_.Is<ComparisonOp>(value)) return true;
+#if V8_ENABLE_WEBASSEMBLY
+    if (matcher_.Is<WasmTypeCheckOp>(value) || matcher_.Is<IsNullOp>(value)) {
+      return true;
+    }
+#endif
+    return false;
+  }
 
   bool IsInt8(V<Word> value) {
     if (auto* op = matcher_.TryCast<LoadOp>(value)) {

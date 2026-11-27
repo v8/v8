@@ -9,12 +9,15 @@
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
+#include <optional>
+
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/snapshot-table-opindex.h"
 #include "src/compiler/wasm-graph-assembler.h"
 #include "src/wasm/wasm-subtyping.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -67,15 +70,55 @@ class WasmGCTypeAnalyzer {
     return iter->second;
   }
 
+  // The outcome of a type check on a diamond Phi (see {DiamondPhi}) for each
+  // direction of the Branch. If both outcomes are equal, the check is a
+  // constant. Otherwise {condition} decides it.
+  struct DiamondTypeCheck {
+    V<Word32> condition;
+    bool if_true;
+    bool if_false;
+  };
+
+  // If {type_check} tests a diamond Phi and the type of each arm decides the
+  // check statically, returns the outcome per arm. {current_type} is the type
+  // of the Phi at {type_check}. An arm that {current_type} rules out cannot
+  // have produced the value, so the outcome of the other arm is used for it.
+  std::optional<DiamondTypeCheck> TryFoldDiamondTypeCheck(
+      const WasmTypeCheckOp& type_check, wasm::ValueType current_type) const;
+
  private:
   using TypeSnapshotTable = SparseOpIndexSnapshotTable<wasm::ValueType>;
   using Snapshot = TypeSnapshotTable::Snapshot;
   using MaybeSnapshot = TypeSnapshotTable::MaybeSnapshot;
 
+  // A Phi that merges the two arms of a Branch:
+  //
+  //                 dom: Branch(condition)
+  //            if_true /            \ if_false
+  //    v1: if_true_type              v2: if_false_type
+  //                    \            /
+  //                  phi = Phi(v1, v2)
+  //
+  // Each arm may contain further control flow. The type of the Phi is the
+  // union of the types of the arms, which is often too coarse to decide a type
+  // check on the Phi. The types of the arms may decide it per arm, and
+  // {condition} then tells which arm the value came from.
+  struct DiamondPhi {
+    V<Word32> condition;
+    wasm::ValueType if_true_type;
+    wasm::ValueType if_false_type;
+  };
+
   void StartNewSnapshotFor(const Block& block);
   void ProcessOperations(const Block& block);
   void ProcessBlock(const Block& block);
   void ProcessBranchOnTarget(const BranchOp& branch, const Block& target);
+  // Refines the type of the object of {check} on the given edge of {branch}
+  // if the object is a diamond Phi: narrowing the type of each arm separately
+  // is more precise than narrowing their union. Returns false if it did not
+  // refine the type, so that the caller has to.
+  bool RefineDiamondPhiOnBranch(const WasmTypeCheckOp& check,
+                                const BranchOp& branch, bool is_true_branch);
 
   void ProcessTypeCast(const WasmTypeCastOp& type_cast);
   void ProcessTypeCheck(const WasmTypeCheckOp& type_check);
@@ -97,6 +140,8 @@ class WasmGCTypeAnalyzer {
   void ProcessAllocateArray(const WasmAllocateArrayOp& allocate_array);
   void ProcessAllocateStruct(const WasmAllocateStructOp& allocate_struct);
   void ProcessPhi(const PhiOp& phi);
+  void TryRecordDiamondPhi(OpIndex phi_idx, wasm::ValueType input0_type,
+                           wasm::ValueType input1_type);
   void ProcessTypeAnnotation(const WasmTypeAnnotationOp& type_annotation);
 
   wasm::ValueType GetTypeForPhiInput(const PhiOp& phi, int input_index);
@@ -118,6 +163,7 @@ class WasmGCTypeAnalyzer {
 
   OpIndex ResolveAliases(OpIndex object) const;
   wasm::ValueType GetResolvedType(OpIndex object) const;
+  const DiamondPhi* FindDiamondPhi(OpIndex object) const;
 
   // Returns the reachability status of a block. For any predecessor, this marks
   // whether the *end* of the block is reachable, for the current block it marks
@@ -149,6 +195,9 @@ class WasmGCTypeAnalyzer {
   // For any operation that could potentially refined, this map stores an entry
   // to the inferred input type based on the analysis.
   ZoneUnorderedMap<OpIndex, wasm::ValueType> input_type_map_{phase_zone_};
+  // The diamond Phis (see {DiamondPhi}) whose arms have different reference
+  // types.
+  ZoneAbslFlatHashMap<OpIndex, DiamondPhi> diamond_phis_{phase_zone_};
   // Marker wheteher it is the first time visiting a loop header. In that case,
   // loop phis can only use type information based on the forward edge of the
   // loop. The value is false outside of loop headers.
@@ -352,33 +401,16 @@ class WasmGCTypedOptimizationReducer : public Next {
       CHECK(wasm::IsSameTypeHierarchy(type.heap_type(),
                                       type_check.config.to.heap_type()));
       bool to_nullable = type_check.config.to.is_nullable();
-      if (wasm::IsHeapSubtypeOf(type.heap_type(),
+      // Whether every non-null value of {type} passes the check. When checking
+      // for a particular custom descriptor, static types cannot guarantee
+      // success.
+      bool non_null_passes =
+          wasm::IsHeapSubtypeOf(type.heap_type(),
                                 type_check.config.to.heap_type(), module_) &&
-          // When checking for a particular custom descriptor, static types
-          // cannot guarantee success.
-          !(IsCastToCustomDescriptor(module_, type_check.config))) {
-        if (to_nullable || type.is_non_nullable()) {
-          // The inferred type is guaranteed to be a subtype of the checked
-          // type.
-          return __ Word32Constant(1);
-        } else if (type.is_none_type()) {
-          // The value is known to be null, and {to_nullable} is false here, so
-          // the type check always fails.
-          return __ Word32Constant(0);
-        } else {
-          // The inferred type is guaranteed to be a subtype of the checked
-          // type if it is not null.
-          return __ Word32Equal(
-              __ IsNull(__ MapToNewGraph(type_check.object()), type), 0);
-        }
-      }
-      if (wasm::HeapTypesUnrelated(type.heap_type(),
-                                   type_check.config.to.heap_type(), module_)) {
-        if (to_nullable && type.is_nullable()) {
-          return __ IsNull(__ MapToNewGraph(type_check.object()), type);
-        } else {
-          return __ Word32Constant(0);
-        }
+          !IsCastToCustomDescriptor(module_, type_check.config);
+      if (non_null_passes && (to_nullable || type.is_non_nullable())) {
+        // The inferred type is guaranteed to be a subtype of the checked type.
+        return __ Word32Constant(1);
       }
 
       // If there isn't a type that matches our known input type and the
@@ -387,6 +419,45 @@ class WasmGCTypedOptimizationReducer : public Next {
           wasm::Intersection(type, type_check.config.to, module_).type;
       if (true_type.is_uninhabited()) {
         return __ Word32Constant(0);
+      }
+
+      // Prefer the condition of a diamond over a null check on its Phi: this
+      // drops a use of the Phi and lets BranchElimination merge the branches.
+      if (auto folded = analyzer_.TryFoldDiamondTypeCheck(type_check, type)) {
+        V<Word32> result;
+        if (folded->if_true == folded->if_false) {
+          result = __ Word32Constant(folded->if_true);
+        } else {
+          // A Branch tells zero from non-zero; a type check produces 0 or 1.
+          // We could avoid these comparisons more often, e.g. by checking
+          // {cond}'s operation here or by teaching
+          // {MachineOptimizationReducer::IsBit} about Phis of bits.
+          V<Word32> cond = __ MapToNewGraph(folded->condition);
+          result =
+              folded->if_true ? __ IsNonZero(cond) : __ Word32Equal(cond, 0);
+        }
+        if (v8_flags.wasm_assert_types) [[unlikely]] {
+          V<Word32> actual = __ WasmTypeCheck(
+              __ MapToNewGraph(type_check.object()),
+              __ MapToNewGraph(type_check.rtt()), type_check.config);
+          IF_NOT (LIKELY(__ Word32Equal(result, actual))) {
+            __ template CallWasmBuiltin<builtin::WasmTypeAssertionFailed>({});
+            __ Unreachable();
+          }
+        }
+        return result;
+      }
+
+      if (non_null_passes) {
+        // The inferred type is guaranteed to be a subtype of the checked type
+        // if it is not null.
+        return __ Word32Equal(
+            __ IsNull(__ MapToNewGraph(type_check.object()), type), 0);
+      }
+      if (true_type.is_none_type()) {
+        // The only value matching both {type} and {to} is null.
+        DCHECK(to_nullable && type.is_nullable());
+        return __ IsNull(__ MapToNewGraph(type_check.object()), type);
       }
 
       // The check cannot be replaced. Still, we can refine the source type, so

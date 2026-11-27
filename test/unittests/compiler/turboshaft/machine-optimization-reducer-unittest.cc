@@ -587,4 +587,50 @@ TEST_F(MachineOptimizationReducerTest, Float64ToInt64ToFloat64Reversibility) {
   }
 }
 
+TEST_F(MachineOptimizationReducerTest, DoubleEqualZeroOnBit) {
+  const RegisterRepresentation rep32 = RegisterRepresentation::Word32();
+
+  // (cmp == 0) == 0 => cmp when `cmp` is a ComparisonOp (IsBit).
+  {
+    base::SmallVector<RegisterRepresentation, 2> reps = {rep32, rep32};
+    auto test = CreateFromGraph(base::VectorOf(reps), [](auto& t) {
+      auto x = t.template GetParameter<Word32>(0);
+      auto y = t.template GetParameter<Word32>(1);
+      auto cmp = t.Asm().Comparison(x, y, ComparisonOp::Kind::kSignedLessThan,
+                                    RegisterRepresentation::Word32());
+      t.Asm().Return(t.Asm().IsNonZero(cmp));
+    });
+
+    test.Run<MachineOptimizationReducer>();
+    const ReturnOp* ret =
+        test.graph().Get(test.graph().LastOperation()).TryCast<ReturnOp>();
+    ASSERT_NE(ret, nullptr);
+    ASSERT_EQ(ret->return_values().size(), 1u);
+    const ComparisonOp* cmp =
+        test.graph().Get(ret->return_values()[0]).TryCast<ComparisonOp>();
+    ASSERT_NE(cmp, nullptr);
+    EXPECT_EQ(cmp->kind, ComparisonOp::Kind::kSignedLessThan);
+  }
+
+  // (x == 0) == 0 must not fold to `x` for an arbitrary non-bit Word32 input.
+  {
+    base::SmallVector<RegisterRepresentation, 1> reps = {rep32};
+    auto test = CreateFromGraph(base::VectorOf(reps), [](auto& t) {
+      auto x = t.template GetParameter<Word32>(0);
+      t.Asm().Return(t.Asm().IsNonZero(x));
+    });
+
+    test.Run<MachineOptimizationReducer>();
+    const ReturnOp* ret =
+        test.graph().Get(test.graph().LastOperation()).TryCast<ReturnOp>();
+    ASSERT_NE(ret, nullptr);
+    ASSERT_EQ(ret->return_values().size(), 1u);
+    const ComparisonOp* cmp =
+        test.graph().Get(ret->return_values()[0]).TryCast<ComparisonOp>();
+    ASSERT_NE(cmp, nullptr);
+    EXPECT_EQ(cmp->kind, ComparisonOp::Kind::kEqual);
+    EXPECT_EQ(test.CountOp(Opcode::kComparison), 2u);
+  }
+}
+
 }  // namespace v8::internal::compiler::turboshaft

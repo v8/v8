@@ -245,7 +245,7 @@ class RandomAccessStackDominatorNode
 
   // Returns the lowest common dominator of {this} and {other}.
   Derived* GetCommonDominator(
-      RandomAccessStackDominatorNode<Derived>* other) const;
+      const RandomAccessStackDominatorNode<Derived>* other) const;
 
   bool IsDominatedBy(const Derived* other) const {
     // TODO(dmercadier): we don't have to call GetCommonDominator and could
@@ -1410,7 +1410,7 @@ inline void RandomAccessStackDominatorNode<Derived>::SetDominator(
 
 template <class Derived>
 inline Derived* RandomAccessStackDominatorNode<Derived>::GetCommonDominator(
-    RandomAccessStackDominatorNode<Derived>* other) const {
+    const RandomAccessStackDominatorNode<Derived>* other) const {
   const RandomAccessStackDominatorNode* a = this;
   const RandomAccessStackDominatorNode* b = other;
   if (b->len_ > a->len_) {

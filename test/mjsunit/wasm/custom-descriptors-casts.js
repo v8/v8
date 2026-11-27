@@ -113,6 +113,29 @@ MakeBranchFunc("brfail_always_not", kExprBrOnCastDescEqFail,
 MakeBranchFunc("brfail_never", kExprBrOnCastDescEqFail,
                $glob_s0.index, $glob_desc2.index, $s0, $s2);
 
+// Diamond negative test for IsCastToCustomDescriptor: the true arm produces
+// `$s0` with `$glob_desc0_other`, so checking against `$glob_desc0` must fail
+// at runtime and must not fold to `p0 != 0`.
+builder.addFunction("diamond_desc_eq_mismatch", kSig_i_i)
+    .exportFunc()
+    .addBody([
+      kExprBlock, kAnyRefCode,
+        kExprLocalGet, 0,
+        kExprIf, kAnyRefCode,
+          kExprGlobalGet, $glob_desc0_other.index,
+          kGCPrefix, kExprStructNewDesc, $s0,
+        kExprElse,
+          kExprI32Const, 0, kGCPrefix, kExprRefI31,
+        kExprEnd,
+        kExprGlobalGet, $glob_desc0.index,
+        kGCPrefix, kExprBrOnCastDescEq, 0b01, 0, kAnyRefCode, $s0,
+        kExprI32Const, 0,
+        kExprReturn,
+      kExprEnd,
+      kExprDrop,
+      kExprI32Const, 1,
+    ]);
+
 let instance = builder.instantiate();
 
 instance.exports.cast_exact();  // Should not trap.
@@ -134,3 +157,5 @@ assertEquals(0, instance.exports.br_never());
 assertEquals(0, instance.exports.brfail_always());
 assertEquals(1, instance.exports.brfail_always_not());
 assertEquals(1, instance.exports.brfail_never());
+assertEquals(0, instance.exports.diamond_desc_eq_mismatch(1));
+assertEquals(0, instance.exports.diamond_desc_eq_mismatch(0));

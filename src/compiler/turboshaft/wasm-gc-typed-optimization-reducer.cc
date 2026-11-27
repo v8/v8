@@ -10,6 +10,34 @@
 
 namespace v8::internal::compiler::turboshaft {
 
+namespace {
+
+// Returns what is left of {type} for a value that failed the type check
+// {config}.
+wasm::ValueType NarrowTypeAfterFailedCheck(wasm::ValueType type,
+                                           WasmTypeCheckConfig config,
+                                           const wasm::WasmModule* module) {
+  if (config.to.is_nullable()) {
+    type = type.AsNonNull();
+  }
+  if (config.to.can_be_i31()) {
+    type = type.AsNonI31();
+  }
+  if (type.is_uninhabited()) return wasm::kWasmBottom;
+  // If every heap object of {type} passes the check, a value that failed it
+  // can only be null or an i31.
+  if (!IsCastToCustomDescriptor(module, config) &&
+      wasm::IsHeapSubtypeOf(type.AsNonI31().heap_type(), config.to.heap_type(),
+                            module)) {
+    type = wasm::ToNullSentinel({type, module})
+               .AsNullable(type.nullability())
+               .AsCanBeI31(type.can_be_i31());
+  }
+  return type.is_uninhabited() ? wasm::kWasmBottom : type;
+}
+
+}  // namespace
+
 #define TRACE(...)                                      \
   do {                                                  \
     if (v8_flags.trace_wasm_typer) PrintF(__VA_ARGS__); \
@@ -80,6 +108,40 @@ void WasmGCTypeAnalyzer::Run() {
       }
     }
   }
+}
+
+std::optional<WasmGCTypeAnalyzer::DiamondTypeCheck>
+WasmGCTypeAnalyzer::TryFoldDiamondTypeCheck(
+    const WasmTypeCheckOp& type_check, wasm::ValueType current_type) const {
+  const DiamondPhi* diamond = FindDiamondPhi(type_check.object());
+  if (!diamond || IsCastToCustomDescriptor(module_, type_check.config)) {
+    return std::nullopt;
+  }
+
+  // Narrow the arm types with any refinements on the Phi since the merge.
+  wasm::ValueType true_type =
+      wasm::Intersection(diamond->if_true_type, current_type, module_).type;
+  wasm::ValueType false_type =
+      wasm::Intersection(diamond->if_false_type, current_type, module_).type;
+  // An arm that the refinements rule out cannot have produced the value, so
+  // the check behaves as it does on the other arm.
+  if (true_type.is_uninhabited()) true_type = false_type;
+  if (false_type.is_uninhabited()) false_type = true_type;
+  // If the refinements rule out both arms, the check cannot be reached.
+  if (true_type.is_uninhabited()) return std::nullopt;
+
+  wasm::ValueType to = type_check.config.to;
+  auto passes = [&](wasm::ValueType type) -> std::optional<bool> {
+    if (wasm::IsSubtypeOf(type, to, module_)) return true;
+    if (wasm::Intersection(type, to, module_).type.is_uninhabited()) {
+      return false;
+    }
+    return std::nullopt;
+  };
+  std::optional<bool> if_true = passes(true_type);
+  std::optional<bool> if_false = passes(false_type);
+  if (!if_true || !if_false) return std::nullopt;
+  return DiamondTypeCheck{diamond->condition, *if_true, *if_false};
 }
 
 void WasmGCTypeAnalyzer::ProcessBlock(const Block& block) {
@@ -453,19 +515,31 @@ void WasmGCTypeAnalyzer::ProcessPhi(const PhiOp& phi) {
   // If any of the inputs is the default value ValueType(), there isn't any type
   // knowledge inferrable.
   DCHECK_GT(phi.input_count, 0);
+  OpIndex phi_idx = graph_.Index(phi);
   if (is_first_loop_header_evaluation_) {
     // We don't know anything about the backedge yet, so we only use the
     // forward edge. We will revisit the loop header again once the block with
     // the back edge is evaluated.
-    RefineTypeKnowledge(graph_.Index(phi), GetResolvedType((phi.input(0))),
-                        phi);
+    RefineTypeKnowledge(phi_idx, GetResolvedType((phi.input(0))), phi);
     return;
+  }
+  const bool maybe_diamond_phi = current_block_->IsMerge() &&
+                                 phi.input_count == 2 &&
+                                 phi.rep == RegisterRepresentation::Tagged();
+  if (maybe_diamond_phi && !diamond_phis_.empty() &&
+      block_to_snapshot_[current_block_->index()].has_value()) {
+    // On loop revisits (snapshot already sealed), clear any stale entry before
+    // re-evaluating.
+    diamond_phis_.erase(phi_idx);
   }
   wasm::ValueType union_type = GetTypeForPhiInput(phi, 0);
   if (union_type == wasm::ValueType()) return;
+  wasm::ValueType input0_type = union_type;
+  wasm::ValueType input1_type;
   for (int i = 1; i < phi.input_count; ++i) {
     wasm::ValueType input_type = GetTypeForPhiInput(phi, i);
     if (input_type == wasm::ValueType()) return;
+    if (maybe_diamond_phi) input1_type = input_type;
     // <bottom> types have to be skipped as an unreachable predecessor doesn't
     // change our type knowledge.
     // TODO(mliedtke): Ideally, we'd skip unreachable predecessors here
@@ -478,7 +552,11 @@ void WasmGCTypeAnalyzer::ProcessPhi(const PhiOp& phi) {
       union_type = wasm::Union(union_type, input_type, module_).type;
     }
   }
-  RefineTypeKnowledge(graph_.Index(phi), union_type, phi);
+  RefineTypeKnowledge(phi_idx, union_type, phi);
+  if (maybe_diamond_phi && union_type.is_ref() && input0_type != input1_type &&
+      !input0_type.is_uninhabited() && !input1_type.is_uninhabited()) {
+    TryRecordDiamondPhi(phi_idx, input0_type, input1_type);
+  }
   if (v8_flags.trace_wasm_typer) {
     for (int i = 0; i < phi.input_count; ++i) {
       OpIndex input = phi.input(i);
@@ -486,6 +564,44 @@ void WasmGCTypeAnalyzer::ProcessPhi(const PhiOp& phi) {
       TRACE("- phi input %d: #%u(%s) -> %s\n", i, input.id(),
             OpcodeName(graph_.Get(input).opcode), type.name().c_str());
     }
+  }
+}
+
+void WasmGCTypeAnalyzer::TryRecordDiamondPhi(OpIndex phi_idx,
+                                             wasm::ValueType input0_type,
+                                             wasm::ValueType input1_type) {
+  DCHECK(current_block_->IsMerge());
+  DCHECK_EQ(current_block_->PredecessorCount(), 2);
+
+  const Block* dom = current_block_->GetDominator();
+  DCHECK_NOT_NULL(dom);
+  const BranchOp* dom_branch = dom->LastOperation(graph_).TryCast<BranchOp>();
+  if (!dom_branch) return;
+  const Block* if_true = dom_branch->if_true;
+  const Block* if_false = dom_branch->if_false;
+  DCHECK(if_true->IsBranchTarget());
+  DCHECK(if_false->IsBranchTarget());
+  DCHECK_NE(if_true, if_false);
+
+  const Block* pred1 = current_block_->LastPredecessor();
+  const Block* pred0 = pred1->NeighboringPredecessor();
+
+  // Turboshaft splits critical edges, so each branch target has {dom} as its
+  // sole predecessor and is only entered from {dom_branch}. Hence, if a merge
+  // predecessor is dominated by {if_true}, the last execution of {dom_branch}
+  // before the merge was entered from that predecessor took the true edge.
+  // The condition cannot have been re-evaluated since, as its definition
+  // dominates {dom}; this also holds if the diamond is inside a loop. So the
+  // condition tells at every use of the Phi which arm its value came from,
+  // provided that each merge predecessor is dominated by a distinct arm.
+  if (pred0->IsDominatedBy(if_true)) {
+    if (pred1->IsDominatedBy(if_false)) {
+      diamond_phis_[phi_idx] = {dom_branch->condition(), input0_type,
+                                input1_type};
+    }
+  } else if (pred0->IsDominatedBy(if_false) && pred1->IsDominatedBy(if_true)) {
+    diamond_phis_[phi_idx] = {dom_branch->condition(), input1_type,
+                              input0_type};
   }
 }
 
@@ -503,8 +619,10 @@ void WasmGCTypeAnalyzer::ProcessBranchOnTarget(const BranchOp& branch,
     case Opcode::kWasmTypeCheck: {
       const WasmTypeCheckOp& check = condition.Cast<WasmTypeCheckOp>();
       if (branch.if_true == &target) {
-        // It is known from now on that the type is at least the checked one.
-        RefineTypeKnowledge(check.object(), check.config.to, branch);
+        if (!RefineDiamondPhiOnBranch(check, branch, /*is_true_branch=*/true)) {
+          // It is known from now on that the type is at least the checked one.
+          RefineTypeKnowledge(check.object(), check.config.to, branch);
+        }
       } else {
         DCHECK_EQ(branch.if_false, &target);
         wasm::ValueType type = GetResolvedType(check.object());
@@ -526,20 +644,13 @@ void WasmGCTypeAnalyzer::ProcessBranchOnTarget(const BranchOp& branch,
           return;
         }
         if (type != wasm::ValueType() && !type.is_uninhabited()) {
-          if (check.config.to.is_nullable()) {
-            type = type.AsNonNull();
+          if (!RefineDiamondPhiOnBranch(check, branch,
+                                        /*is_true_branch=*/false)) {
+            RefineTypeKnowledge(
+                check.object(),
+                NarrowTypeAfterFailedCheck(type, check.config, module_),
+                branch);
           }
-          if (check.config.to.can_be_i31()) {
-            type = type.AsNonI31();
-          }
-          if (!IsCastToCustomDescriptor(module_, check.config) &&
-              wasm::IsHeapSubtypeOf(type.AsNonI31().heap_type(),
-                                    check.config.to.heap_type(), module_)) {
-            type = wasm::ToNullSentinel({type, module_})
-                       .AsNullable(type.nullability())
-                       .AsCanBeI31(type.can_be_i31());
-          }
-          RefineTypeKnowledge(check.object(), type, branch);
         }
       }
     } break;
@@ -570,6 +681,32 @@ void WasmGCTypeAnalyzer::ProcessBranchOnTarget(const BranchOp& branch,
     default:
       break;
   }
+}
+
+bool WasmGCTypeAnalyzer::RefineDiamondPhiOnBranch(const WasmTypeCheckOp& check,
+                                                  const BranchOp& branch,
+                                                  bool is_true_branch) {
+  const DiamondPhi* diamond = FindDiamondPhi(check.object());
+  if (!diamond) return false;
+
+  wasm::ValueType current_type = GetResolvedType(check.object());
+  if (current_type == wasm::ValueType() || current_type.is_uninhabited()) {
+    return false;
+  }
+
+  auto refine_arm = [&](wasm::ValueType arm_type) -> wasm::ValueType {
+    arm_type = wasm::Intersection(arm_type, current_type, module_).type;
+    if (arm_type.is_uninhabited()) return wasm::kWasmBottom;
+    return is_true_branch
+               ? wasm::Intersection(arm_type, check.config.to, module_).type
+               : NarrowTypeAfterFailedCheck(arm_type, check.config, module_);
+  };
+  wasm::ValueType refined =
+      wasm::Union(refine_arm(diamond->if_true_type),
+                  refine_arm(diamond->if_false_type), module_)
+          .type;
+  RefineTypeKnowledge(check.object(), refined, branch);
+  return true;
 }
 
 void WasmGCTypeAnalyzer::ProcessNull(const NullOp& null) {
@@ -740,6 +877,16 @@ bool WasmGCTypeAnalyzer::IsReachable(const Block& block) const {
 
 wasm::ValueType WasmGCTypeAnalyzer::GetResolvedType(OpIndex object) const {
   return types_table_.Get(ResolveAliases(object));
+}
+
+const WasmGCTypeAnalyzer::DiamondPhi* WasmGCTypeAnalyzer::FindDiamondPhi(
+    OpIndex object) const {
+  if (diamond_phis_.empty()) return nullptr;
+  OpIndex resolved = ResolveAliases(object);
+  const PhiOp* phi = graph_.Get(resolved).TryCast<PhiOp>();
+  if (!phi || phi->input_count != 2) return nullptr;
+  auto it = diamond_phis_.find(resolved);
+  return it == diamond_phis_.end() ? nullptr : &it->second;
 }
 
 #undef TRACE

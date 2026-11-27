@@ -3092,8 +3092,13 @@ class AssemblerOpInterface : public Next {
     return DecodeWord32(word32, BitField::kShift, BitField::kMask);
   }
 
+  // `IsNonZero` converts any non-0 value into 1.
+  V<Word32> IsNonZero(V<Word32> value) {
+    return Word32Equal(Word32Equal(value, 0), 0);
+  }
+
   V<Word32> IsSetWord32(V<Word32> word32, uint32_t mask) {
-    return Word32Equal(Word32Equal(Word32BitwiseAnd(word32, mask), 0), 0);
+    return IsNonZero(Word32BitwiseAnd(word32, mask));
   }
 
   template <typename BitField>
