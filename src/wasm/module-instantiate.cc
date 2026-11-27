@@ -447,7 +447,14 @@ WellKnownImport CheckForWellKnownImport(
   if (trusted_instance_data.is_null()) return kGeneric;
   // Check for plain JS functions.
   if (IsJSFunction(*callable)) {
-    Tagged<SharedFunctionInfo> sfi = Cast<JSFunction>(*callable)->shared();
+    Tagged<JSFunction> func = Cast<JSFunction>(*callable);
+    if (func->native_context() != trusted_instance_data->native_context()) {
+      // Inlined well-known imports execute and throw errors in the Wasm
+      // instance's native context, so do not inline functions from other
+      // realms.
+      return kGeneric;
+    }
+    Tagged<SharedFunctionInfo> sfi = func->shared();
     if (!sfi->HasBuiltinId()) return kGeneric;
     // This needs to be a separate switch because it allows other cases than
     // the one below. Merging them would be invalid, because we would then
@@ -513,7 +520,14 @@ WellKnownImport CheckForWellKnownImport(
   // we have special-cased support.
   Tagged<Object> bound_this = bound->bound_this();
   if (!IsJSFunction(bound_this)) return kGeneric;
-  sfi = Cast<JSFunction>(bound_this)->shared();
+  Tagged<JSFunction> bound_this_func = Cast<JSFunction>(bound_this);
+  if (bound_this_func->native_context() !=
+      trusted_instance_data->native_context()) {
+    // Inlined well-known imports execute and throw errors in the Wasm
+    // instance's native context, so do not inline functions from other realms.
+    return kGeneric;
+  }
+  sfi = bound_this_func->shared();
   Isolate* isolate = Isolate::Current();
   if (v8_flags.wasm_fast_api && sfi->IsApiFunction()) {
     Tagged<FunctionTemplateInfo> api_func_data = sfi->api_func_data();
