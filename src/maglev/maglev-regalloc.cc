@@ -1872,7 +1872,7 @@ void StraightForwardRegisterAllocator::EnsureFreeRegisterAtEnd(
     return;
   }
   // Only search in the used-blocked list, since we don't want to assign the
-  // result register to a temporary (free + blocked).
+  // result register to a temporary or clobbered input (free + blocked).
   for (RegisterT reg : (registers.blocked() - registers.free())) {
     if (IsCurrentNodeLastUseOf(registers.GetValue(reg))) {
       DropRegisterValueAtEnd(reg);
@@ -1880,10 +1880,12 @@ void StraightForwardRegisterAllocator::EnsureFreeRegisterAtEnd(
     }
   }
 
-  // Pick any input-blocked register based on regular heuristics.
-  RegisterT reg = hint.IsInvalid()
-                      ? PickRegisterToFree<RegisterT>(registers.empty())
-                      : GetRegisterHint<RegisterT>(hint);
+  // Pick any used register based on regular heuristics, avoiding free + blocked
+  // registers (temporaries and clobbered inputs).
+  RegisterT reg = registers.used().has(hint_reg)
+                      ? hint_reg
+                      : PickRegisterToFree<RegisterT>(registers.empty());
+  DCHECK(registers.used().has(reg));
   DropRegisterValueAtEnd(reg);
 }
 
@@ -1891,11 +1893,25 @@ compiler::AllocatedOperand
 StraightForwardRegisterAllocator::AllocateRegisterAtEnd(ValueNode* node) {
   auto hint = node->regalloc_info()->hint();
   if (node->use_double_register()) {
+#ifdef DEBUG
+    DoubleRegList blocked_free =
+        double_registers_.free() & double_registers_.blocked();
+#endif
     EnsureFreeRegisterAtEnd<DoubleRegister>(hint);
-    return double_registers_.AllocateRegister(node, hint);
+    compiler::AllocatedOperand res =
+        double_registers_.AllocateRegister(node, hint);
+    DCHECK(!blocked_free.has(res.GetDoubleRegister()));
+    return res;
   } else {
+#ifdef DEBUG
+    RegList blocked_free =
+        general_registers_.free() & general_registers_.blocked();
+#endif
     EnsureFreeRegisterAtEnd<Register>(hint);
-    return general_registers_.AllocateRegister(node, hint);
+    compiler::AllocatedOperand res =
+        general_registers_.AllocateRegister(node, hint);
+    DCHECK(!blocked_free.has(res.GetRegister()));
+    return res;
   }
 }
 
