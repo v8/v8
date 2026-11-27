@@ -121,7 +121,6 @@ class LocalHeap;
 class YoungPendingAllocations;
 class SpaceWithLinearArea;
 class MemoryAllocator;
-class MemoryBalancer;
 class MutablePage;
 class MemoryMeasurement;
 class MemoryReducer;
@@ -2022,11 +2021,6 @@ class Heap final {
 
   void RecomputeLimits(GarbageCollector collector);
 
-  struct LimitsComputationResult {
-    size_t old_generation_allocation_limit;
-    size_t global_allocation_limit;
-  };
-
   // ===========================================================================
   // GC Tasks. =================================================================
   // ===========================================================================
@@ -2420,8 +2414,6 @@ class Heap final {
   // This field is used only when not running with MinorMS.
   ResizeNewSpaceMode resize_new_space_mode_ = ResizeNewSpaceMode::kNone;
 
-  std::unique_ptr<MemoryBalancer> mb_;
-
   class GCHintState {
    public:
     GCHintState(const double max_time_ms, const char* track_name,
@@ -2499,7 +2491,6 @@ class Heap final {
   template <typename ConcreteVisitor>
   friend class MarkingVisitorBase;
   friend class MarkCompactCollector;
-  friend class MemoryBalancer;
   friend class MinorGCJob;
   friend class MinorGCTaskObserver;
   friend class MinorMarkSweepCollector;

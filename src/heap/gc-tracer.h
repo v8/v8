@@ -295,10 +295,6 @@ class V8_EXPORT_PRIVATE GCTracer {
 
     base::TimeTicks incremental_marking_start_time;
 
-    // Start/end of atomic/safepoint pause.
-    base::TimeTicks start_atomic_pause_time;
-    base::TimeTicks end_atomic_pause_time;
-
     // Amounts of time spent in different scopes during GC.
     base::TimeDelta scopes[Scope::NUMBER_OF_SCOPES];
 
@@ -361,13 +357,11 @@ class V8_EXPORT_PRIVATE GCTracer {
   void StopYoungCycleIfFinished();
   void StopFullCycleIfFinished();
 
-  void UpdateMemoryBalancerGCSpeed();
-
   // Start and stop a cycle's atomic pause.
   void StartAtomicPause();
   void StopAtomicPause();
 
-  void StartInSafepoint(base::TimeTicks time);
+  void StartInSafepoint();
   void StopInSafepoint(base::TimeTicks time);
 
   // Notify the GC tracer that full/young sweeping is completed. A cycle cannot

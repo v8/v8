@@ -111,9 +111,9 @@ class V8_EXPORT_PRIVATE HeapLimits {
   HeapLimitBounds AtLeastCurrentLimits() const;
   HeapLimitBounds AtMostCurrentLimits() const;
 
-  Heap::LimitsComputationResult UpdateAllocationLimits(
-      Heap::HeapGrowingMode mode, const HeapLimitBounds& boundaries,
-      const char* caller = __builtin_FUNCTION());
+  void UpdateAllocationLimits(Heap::HeapGrowingMode mode,
+                              const HeapLimitBounds& boundaries,
+                              const char* caller = __builtin_FUNCTION());
 
   void ShrinkAllocationLimitIfNotConfigured(size_t old_generation_consumed,
                                             size_t global_consumed);

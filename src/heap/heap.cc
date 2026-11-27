@@ -84,7 +84,6 @@
 #include "src/heap/marking-barrier.h"
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/marking-state.h"
-#include "src/heap/memory-balancer.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-measurement.h"
 #include "src/heap/memory-pool.h"
@@ -2261,8 +2260,6 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
     CompleteSweepingFull(CompleteSweepingReason::kMajorGC);
   }
 
-  const base::TimeTicks atomic_pause_start_time = base::TimeTicks::Now();
-
   std::optional<SafepointScope> safepoint_scope;
   {
     AllowGarbageCollection allow_shared_gc;
@@ -2301,7 +2298,7 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
     young_pending_allocations_->ResetVersion();
   }
 
-  tracer()->StartInSafepoint(atomic_pause_start_time);
+  tracer()->StartInSafepoint();
 
   GarbageCollectionPrologueInSafepoint(collector);
 
@@ -2523,15 +2520,8 @@ void Heap::EnsureSweepingCompletedForObject(Tagged<HeapObject> object) {
 
 void Heap::RecomputeLimits(GarbageCollector collector) {
   if (collector == GarbageCollector::MARK_COMPACTOR) {
-    const LimitsComputationResult new_limits = limits()->UpdateAllocationLimits(
-        CurrentHeapGrowingMode(), {}, "RecomputeLimitsAfterMajorGC");
-
-    if (v8_flags.memory_balancer) {
-      // Now recompute the new allocation limit.
-      mb_->RecomputeLimits(new_limits.global_allocation_limit -
-                               new_limits.old_generation_allocation_limit,
-                           base::TimeTicks::Now());
-    }
+    limits()->UpdateAllocationLimits(CurrentHeapGrowingMode(), {},
+                                     "RecomputeLimitsAfterMajorGC");
   } else if (v8_flags.scavenger_updates_allocation_limit &&
              IsYoungGenerationCollector(collector) &&
              HasLowYoungGenerationAllocationRate() &&
@@ -6016,9 +6006,7 @@ void Heap::SetUpSpaces() {
 
   main_thread_local_heap()->SetUpMainThread();
 
-  base::TimeTicks startup_time = base::TimeTicks::Now();
-
-  tracer_.reset(new GCTracer(this, startup_time));
+  tracer_.reset(new GCTracer(this, base::TimeTicks::Now()));
   array_buffer_sweeper_.reset(new ArrayBufferSweeper(this));
   memory_measurement_.reset(new MemoryMeasurement(isolate()));
   if (v8_flags.memory_reducer) memory_reducer_ = MemoryReducer::Create(this);
@@ -6047,10 +6035,6 @@ void Heap::SetUpSpaces() {
     stress_scavenge_observer_ = new StressScavengeObserver(this);
     allocator()->new_space_allocator()->AddAllocationObserver(
         stress_scavenge_observer_);
-  }
-
-  if (v8_flags.memory_balancer) {
-    mb_.reset(new MemoryBalancer(this, startup_time));
   }
 }
 

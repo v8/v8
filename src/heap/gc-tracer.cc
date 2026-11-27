@@ -24,7 +24,6 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking.h"
-#include "src/heap/memory-balancer.h"
 #include "src/heap/spaces.h"
 #include "src/logging/counters.h"
 #include "src/logging/metrics.h"
@@ -398,7 +397,7 @@ void GCTracer::StartAtomicPause() {
                     named_tracks_->state_track);
 }
 
-void GCTracer::StartInSafepoint(base::TimeTicks time) {
+void GCTracer::StartInSafepoint() {
   SampleAllocation(current_.start_time, heap_->NewSpaceAllocationCounter(),
                    heap_->OldGenerationAllocationCounter(),
                    heap_->EmbedderAllocationCounter(),
@@ -414,7 +413,6 @@ void GCTracer::StartInSafepoint(base::TimeTicks time) {
       (heap_->new_lo_space() ? heap_->new_lo_space()->SizeOfObjects() : 0);
   current_.young_object_size = new_space_size + new_lo_space_size;
   current_.gc_with_stack = heap_->IsGCWithStack();
-  current_.start_atomic_pause_time = time;
 }
 
 void GCTracer::StopInSafepoint(base::TimeTicks time) {
@@ -425,15 +423,10 @@ void GCTracer::StopInSafepoint(base::TimeTicks time) {
       heap_->OldGenerationConsumedBytes();
   current_.end_global_consumed_size = heap_->GlobalConsumedBytes();
   current_.survived_young_object_size = heap_->SurvivedYoungObjectSize();
-  current_.end_atomic_pause_time = time;
 
   // Do not include the GC pause for calculating the allocation rate. GC pause
   // with heap verification can decrease the allocation rate significantly.
   allocation_time_ = time;
-
-  if (v8_flags.memory_balancer) {
-    UpdateMemoryBalancerGCSpeed();
-  }
 }
 
 void GCTracer::StopObservablePause(GarbageCollector collector,
@@ -517,32 +510,6 @@ void GCTracer::StopObservablePause(GarbageCollector collector,
     TRACE_EVENT_INSTANT(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GC_Heap_Stats",
                         "stats", heap_stats.str().c_str());
   }
-}
-
-void GCTracer::UpdateMemoryBalancerGCSpeed() {
-  DCHECK(v8_flags.memory_balancer);
-  size_t major_gc_bytes = current_.start_object_size;
-  const base::TimeDelta atomic_pause_duration =
-      current_.end_atomic_pause_time - current_.start_atomic_pause_time;
-  const base::TimeDelta blocked_time_taken =
-      atomic_pause_duration + current_.incremental_marking_duration;
-  base::TimeDelta concurrent_gc_time;
-  {
-    base::MutexGuard guard(&background_scopes_mutex_);
-    concurrent_gc_time =
-        background_scopes_[Scope::MC_BACKGROUND_EVACUATE_COPY] +
-        background_scopes_[Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS] +
-        background_scopes_[Scope::MC_BACKGROUND_MARKING] +
-        background_scopes_[Scope::MC_BACKGROUND_SWEEPING];
-  }
-  const base::TimeDelta major_gc_duration =
-      blocked_time_taken + concurrent_gc_time;
-  const base::TimeDelta major_allocation_duration =
-      (current_.end_atomic_pause_time - previous_mark_compact_end_time_) -
-      blocked_time_taken;
-  CHECK_GE(major_allocation_duration, base::TimeDelta());
-
-  heap_->mb_->UpdateGCSpeed(major_gc_bytes, major_gc_duration);
 }
 
 void GCTracer::StopAtomicPause() {
@@ -786,11 +753,6 @@ void GCTracer::SampleAllocation(base::TimeTicks current,
       BytesAndDuration(embedder_allocated_bytes, allocation_duration));
   external_allocations_.Update(
       BytesAndDuration(external_allocated_bytes, allocation_duration));
-
-  if (v8_flags.memory_balancer) {
-    heap_->mb_->UpdateAllocationRate(old_generation_allocated_bytes,
-                                     allocation_duration);
-  }
 
   TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                 perfetto::CounterTrack("OldGenerationAllocationThroughput",

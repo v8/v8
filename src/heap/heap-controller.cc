@@ -238,9 +238,9 @@ HeapLimits::HeapLimits(Heap* heap, const ResourceConstraints& constraints,
   ResetAllocationLimit();
 }
 
-Heap::LimitsComputationResult HeapLimits::UpdateAllocationLimits(
-    Heap::HeapGrowingMode mode, const HeapLimitBounds& boundaries,
-    const char* caller) {
+void HeapLimits::UpdateAllocationLimits(Heap::HeapGrowingMode mode,
+                                        const HeapLimitBounds& boundaries,
+                                        const char* caller) {
   DCHECK(!using_initial_limit());
   tracer()->RecordGCSizeCounters();
   const std::optional<double> v8_gc_speed =
@@ -389,8 +389,6 @@ Heap::LimitsComputationResult HeapLimits::UpdateAllocationLimits(
 
   SetAllocationLimit(next_old_generation_allocation_limit,
                      next_global_allocation_limit);
-
-  return {next_old_generation_allocation_limit, next_global_allocation_limit};
 }
 
 // When old generation allocation limit is not configured (before the first full

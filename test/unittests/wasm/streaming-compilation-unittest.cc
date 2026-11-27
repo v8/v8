@@ -379,12 +379,10 @@ using StreamingCompilationTest = WithIsolateScopeMixin<WithIsolateMixin<
 #define STREAM_TEST(name)                                                  \
   void RunStream_##name(MockPlatform*, v8::Isolate*);                      \
   TEST_F(StreamingCompilationTest, Async##name) {                          \
-    if (i::v8_flags.memory_balancer) return;                               \
     RUN_STREAM(name);                                                      \
   }                                                                        \
                                                                            \
   TEST_F(StreamingCompilationTest, SingleThreaded##name) {                 \
-    if (i::v8_flags.memory_balancer) return;                               \
     i::FlagScope<bool> single_threaded_scope(&i::v8_flags.single_threaded, \
                                              true);                        \
     RUN_STREAM(name);                                                      \

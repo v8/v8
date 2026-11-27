@@ -2046,8 +2046,6 @@ filegroup(
         "src/heap/marking-worklist-inl.h",
         "src/heap/memory-allocator.cc",
         "src/heap/memory-allocator.h",
-        "src/heap/memory-balancer.cc",
-        "src/heap/memory-balancer.h",
         "src/heap/mutable-page.cc",
         "src/heap/mutable-page.h",
         "src/heap/mutable-page-inl.h",
