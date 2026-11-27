@@ -1052,6 +1052,15 @@ MaybeAssignedFlag ScopeInfo::ContextLocalMaybeAssignedFlag(int var) const {
   return MaybeAssignedFlagBit::decode(value);
 }
 
+bool ScopeInfo::ContextSlotMayHaveContextCell(int slot_index) const {
+  if (!HasContextCells()) return false;
+  // The header slots and the function name variable never have a cell.
+  int var = slot_index - ContextHeaderLength();
+  if (var < 0 || var >= ContextLocalCount()) return false;
+  // This has to match BytecodeArrayBuilder::StoreContextSlot.
+  return ContextLocalMaybeAssignedFlag(var) == kMaybeAssigned;
+}
+
 // LINT.IfChange(VariableIsSynthetic)
 // static
 bool ScopeInfo::VariableIsSynthetic(Tagged<String> name) {

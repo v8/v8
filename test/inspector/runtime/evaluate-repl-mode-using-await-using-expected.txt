@@ -37,3 +37,23 @@ Tests if `using` and `await using` works in REPL mode.
         }
     }
 }
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 3
+            type : number
+            value : 3
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 4
+            type : number
+            value : 4
+        }
+    }
+}

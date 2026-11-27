@@ -15,5 +15,17 @@ const {Protocol} = InspectorTest.start(
     InspectorTest.logMessage(await Protocol.Runtime.evaluate({ expression: 'await using y = { value: 2, [Symbol.asyncDispose]() {throw new Error("fail");}};', replMode: true }));
     InspectorTest.logMessage(await Protocol.Runtime.evaluate({ expression: 'y', replMode: true }));
 
+    // Read the bindings through sloppy eval inside the declaring REPL script.
+    InspectorTest.logMessage(await Protocol.Runtime.evaluate({
+      expression:
+          'using u = { value: 3, [Symbol.dispose]() {} }; eval("u").value',
+      replMode: true
+    }));
+    InspectorTest.logMessage(await Protocol.Runtime.evaluate({
+      expression: 'await using v = { value: 4, [Symbol.asyncDispose]() {} }; ' +
+          'eval("v").value',
+      replMode: true
+    }));
+
     InspectorTest.completeTest();
   })();

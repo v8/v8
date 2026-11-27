@@ -621,17 +621,26 @@ DirectHandle<Object> Context::Get(DirectHandle<Context> context, int index,
 // static
 void Context::Set(DirectHandle<Context> context, int index,
                   DirectHandle<Object> new_value, Isolate* isolate) {
+  // Holes are internal sentinels and never values to store. In particular, a
+  // stored TdzHole would make the next store mistake the slot for an
+  // uninitialized one.
+  CHECK(!IsAnyHole(*new_value));
   DirectHandle<Object> old_value(context->get(index, kRelaxedLoad), isolate);
 #ifdef V8_ENABLE_TDZ_HOLE
   DCHECK(!IsTheHole(*old_value));
-  DCHECK(!IsTheHole(*new_value));
 #endif
   if (!context->HasContextCells()) {
     context->set(index, *new_value);
     return;
   }
 
-  if (IsTdzHole(*old_value)) {
+  // Whether a slot is backed by a cell is decided statically. Compiled code
+  // reads all other slots without expecting a ContextCell, so the content of
+  // the slot alone must never make us install one.
+  const bool may_have_cell =
+      context->scope_info()->ContextSlotMayHaveContextCell(index);
+
+  if (IsTdzHole(*old_value) && may_have_cell) {
     // Setting the initial value.
     DirectHandle<ContextCell> cell =
         isolate->factory()->NewContextCell(Cast<JSAny>(new_value));
@@ -643,14 +652,10 @@ void Context::Set(DirectHandle<Context> context, int index,
     context->set(index, *new_value);
     return;
   }
+  DCHECK(may_have_cell);
 
   if (IsUndefinedContextCell(*old_value)) {
     if (IsUndefined(*new_value)) return;
-    if (IsTdzHole(*new_value)) {
-      // This can happened in let-variable in function contexts.
-      context->set(index, *new_value);
-      return;
-    }
     DirectHandle<ContextCell> cell =
         isolate->factory()->NewContextCell(Cast<JSAny>(new_value));
     context->set(index, *cell);

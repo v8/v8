@@ -1125,11 +1125,7 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalNoHoleCheckForReplLetOrConst) {
   CHECK(found);
   DirectHandle<Context> script_context(
       script_contexts->get(lookup_result.context_index), isolate);
-  if (lookup_result.mode == VariableMode::kConst) {
-    script_context->SetNoCell(lookup_result.slot_index, *value);
-  } else {
-    Context::Set(script_context, lookup_result.slot_index, value, isolate);
-  }
+  Context::Set(script_context, lookup_result.slot_index, value, isolate);
   return *value;
 }
 

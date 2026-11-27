@@ -277,6 +277,12 @@ V8_OBJECT class ScopeInfo : public HeapObject {
   // Return the initialization flag of the given context local.
   MaybeAssignedFlag ContextLocalMaybeAssignedFlag(int var) const;
 
+  // Returns true if compiled code accesses the given context slot through
+  // context cell aware loads and stores, which means the slot may hold a
+  // ContextCell. All other slots must never hold one. Note that this takes a
+  // context slot index, not the index of a context local.
+  bool ContextSlotMayHaveContextCell(int slot_index) const;
+
   // Return true if this local was introduced by the compiler, and should not be
   // exposed to the user in a debugger.
   static bool VariableIsSynthetic(Tagged<String> name);

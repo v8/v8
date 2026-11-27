@@ -1,0 +1,2 @@
+Tests that a debug-evaluate store over a leaked TdzHole does not install a ContextCell in a context slot without a cell.
+readParam() === 42: true

@@ -138,6 +138,10 @@ stateDiagram-v2
 | **`kFloat64 = 3`** | `double_value_` (64-bit IEEE-754 `double`, `tagged_value_ = Smi::zero()`) | **Unboxed 64-bit Float!** Compilers load and store raw `double` values in-place inside `double_value_` with **zero `HeapNumber` allocations**! |
 | **`kDetached = 4`** | Detached (`tagged_value_ = Smi::zero()`) | Once a variable holds varied non-numeric `HeapObject`s (or transitions out of tracked states), the `ContextCell` is **detached**: V8 replaces the `ContextCell` pointer inside the `Context` slot directly with the raw `Tagged<Object>` value, and future accesses read/write the `Context` slot directly! |
 
+### Which Slots May Hold a `ContextCell`
+
+Whether a slot is backed by a `ContextCell` is decided statically per variable, not by the slot's content. In a scope with context cells, only variables with `MaybeAssignedFlag::kMaybeAssigned` use the cell-aware bytecodes (`LdaContextSlot` / `StaContextSlot`). All other slots (`kNotAssigned` variables, the context header, and the function name variable) are accessed with `Lda*ContextSlotNoCell` / `LdaImmutable*ContextSlot` / `Sta*ContextSlotNoCell`, which expect to find the value itself, so these slots must never hold a `ContextCell`. `ScopeInfo::ContextSlotMayHaveContextCell(slot_index)` answers this question at runtime. `Context::Set`, the runtime store used by ICs, lookup slots, and the debugger, consults it before installing a new `ContextCell`, and never stores a hole as a value.
+
 Whenever a write (`LdaContextSlot` / `StaContextSlot` or `ScriptContext` IC/runtime helper) causes a `ContextCell` to transition from one `State` to another (e.g., `kConst -> kSmi` or `kInt32 -> kFloat64`), V8 triggers `DependentCode::DeoptimizeDependencyGroups(..., DependentCode::kContextCellGroup)` (`LazyDeoptimizeReason::kContextCellChange`), safely deoptimizing any Maglev/TurboFan code that specialized on the narrower state.
 
 ---
