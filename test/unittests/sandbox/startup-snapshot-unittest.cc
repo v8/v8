@@ -10,6 +10,7 @@
 #include "src/base/vector.h"
 #include "src/codegen/external-reference-table.h"
 #include "src/execution/isolate.h"
+#include "src/heap/heap-inl.h"
 #include "src/roots/roots.h"
 #include "src/snapshot/serializer-deserializer.h"
 #include "src/snapshot/snapshot-data.h"
@@ -95,6 +96,9 @@ class StartupSnapshotUntrustedSectionTest
     std::vector<uint8_t> bytes = MakeStartupSnapshot(untrusted, roots);
     SnapshotData snapshot(base::VectorOf(bytes));
     v8::Isolate::Scope isolate_scope(v8_isolate());
+    // Match Isolate::Init so allocations while startup_object_cache() is empty
+    // cannot start incremental marking and loop forever iterating the cache.
+    AlwaysAllocateScopeForTesting always_allocate(i_isolate()->heap());
     i_isolate()->startup_object_cache()->clear();
     StartupDeserializer deserializer(i_isolate(), &snapshot,
                                      /*can_rehash=*/false);
