@@ -124,11 +124,11 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag,
 
     bool is_baseline = abstract_code->kind() == CodeKind::BASELINE;
     Handle<TrustedByteArray> source_position_table(
-        abstract_code->SourcePositionTable(isolate_, *shared), isolate_);
+        abstract_code->SourcePositionTable(isolate_), isolate_);
     std::unique_ptr<baseline::BytecodeOffsetIterator> baseline_iterator;
     if (is_baseline) {
-      Handle<BytecodeArray> bytecodes(shared->GetBytecodeArray(isolate_),
-                                      isolate_);
+      Handle<BytecodeArray> bytecodes(
+          abstract_code->GetCode()->GetBaselineBytecodeArray(), isolate_);
       Handle<TrustedByteArray> bytecode_offsets(
           abstract_code->GetCode()->bytecode_offset_table(), isolate_);
       baseline_iterator = std::make_unique<baseline::BytecodeOffsetIterator>(

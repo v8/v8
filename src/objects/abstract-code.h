@@ -34,9 +34,7 @@ class AbstractCode : public HeapObject {
   inline int InstructionSize();
 
   // Return the source position table for interpreter code.
-  inline Tagged<TrustedByteArray> SourcePositionTable(
-      Isolate* isolate, Tagged<SharedFunctionInfo> sfi);
-
+  inline Tagged<TrustedByteArray> SourcePositionTable(Isolate* isolate);
 
   // Returns the size of instructions and the metadata.
   inline int SizeIncludingMetadata();

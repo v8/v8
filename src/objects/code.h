@@ -251,8 +251,7 @@ V8_OBJECT class Code : public ExposedTrustedObject {
   // reserved in the code prologue; otherwise 0.
   inline uint32_t stack_slots() const;
 
-  inline Tagged<TrustedByteArray> SourcePositionTable(
-      Isolate* isolate, Tagged<SharedFunctionInfo> sfi) const;
+  inline Tagged<TrustedByteArray> SourcePositionTable(Isolate* isolate) const;
   int SourcePosition(int offset) const;
   int SourceStatementPosition(int offset) const;
 

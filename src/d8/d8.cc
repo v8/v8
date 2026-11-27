@@ -5414,8 +5414,10 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
   {
     Local<ObjectTemplate> test_template = ObjectTemplate::New(isolate);
     // For different runs of correctness fuzzing the bytecode of a function
-    // might get flushed, resulting in spurious errors.
-    if (!i::v8_flags.correctness_fuzzer_suppressions) {
+    // might get flushed, resulting in spurious errors. With the memory
+    // corruption API, in-sandbox state can't be expected to be consistent.
+    if (!i::v8_flags.correctness_fuzzer_suppressions &&
+        !i::v8_flags.expose_memory_corruption_api) {
       test_template->Set(
           isolate, "verifySourcePositions",
           FunctionTemplate::New(isolate, TestVerifySourcePositions));

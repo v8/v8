@@ -1425,14 +1425,14 @@ void V8FileLogger::LogSourceCodeInformation(
   bool isBaseline = code->kind() == CodeKind::BASELINE;
   std::optional<baseline::BytecodeOffsetIterator> baseline_iterator;
   if (isBaseline) {
-    Handle<BytecodeArray> bytecodes(shared->GetBytecodeArray(isolate_),
+    Handle<BytecodeArray> bytecodes(code->GetCode()->GetBaselineBytecodeArray(),
                                     isolate_);
     Handle<TrustedByteArray> bytecode_offsets(
         code->GetCode()->bytecode_offset_table(), isolate_);
     baseline_iterator.emplace(bytecode_offsets, bytecodes);
   }
   Handle<TrustedByteArray> source_position_table(
-      code->SourcePositionTable(isolate_, *shared), isolate_);
+      code->SourcePositionTable(isolate_), isolate_);
   SourcePositionTableIterator iterator(source_position_table);
   for (; !iterator.done(); iterator.Advance()) {
     SourcePosition pos = iterator.source_position();

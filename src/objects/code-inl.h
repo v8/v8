@@ -214,12 +214,11 @@ void Code::clear_source_position_table_and_bytecode_offset_table() {
 
 ACCESSORS(Code, wrapper, Tagged<CodeWrapper>, kWrapperOffset)
 
-Tagged<TrustedByteArray> Code::SourcePositionTable(
-    Isolate* isolate, Tagged<SharedFunctionInfo> sfi) const {
+Tagged<TrustedByteArray> Code::SourcePositionTable(Isolate* isolate) const {
   DisallowGarbageCollection no_gc;
 
   if (kind() == CodeKind::BASELINE) {
-    return sfi->GetBytecodeArray(isolate)->SourcePositionTable();
+    return GetBaselineBytecodeArray()->SourcePositionTable();
   }
 
   if (!has_source_position_table()) {
@@ -406,8 +405,7 @@ uintptr_t Code::GetBaselinePCForNextExecutedBytecode(
     int bytecode_offset, Tagged<BytecodeArray> bytecodes) {
   DisallowGarbageCollection no_gc;
   CHECK_EQ(kind(), CodeKind::BASELINE);
-  baseline::BytecodeOffsetIterator offset_iterator(bytecode_offset_table(),
-                                                   bytecodes);
+  SBXCHECK_EQ(bytecodes, GetBaselineBytecodeArray());
   Handle<BytecodeArray> bytecodes_handle(
       reinterpret_cast<Address*>(&bytecodes));
   interpreter::BytecodeArrayIterator bytecode_iterator(bytecodes_handle,

@@ -344,16 +344,28 @@ void CreateInterpreterDataForDeserializedCode(
     DCHECK(shared_info->HasBytecodeArray());
     DirectHandle<SharedFunctionInfo> sfi(shared_info, isolate);
 
-    DirectHandle<BytecodeArray> bytecode(sfi->GetBytecodeArray(isolate),
-                                         isolate);
+    // Read the trusted data once, so that the InterpreterData is installed on
+    // the same baseline Code (if any) whose bytecode it wraps.
+    DirectHandle<Code> baseline_code;
+    DirectHandle<BytecodeArray> bytecode;
+    {
+      DisallowGarbageCollection no_gc;
+      Tagged<Code> raw_baseline_code;
+      if (TryCast<Code>(sfi->GetTrustedData(isolate), &raw_baseline_code)) {
+        baseline_code = direct_handle(raw_baseline_code, isolate);
+        bytecode = direct_handle(raw_baseline_code->GetBaselineBytecodeArray(),
+                                 isolate);
+      } else {
+        bytecode = direct_handle(sfi->GetBytecodeArray(isolate), isolate);
+      }
+    }
     DirectHandle<Code> code =
         Builtins::CreateInterpreterEntryTrampolineForProfiling(isolate);
     DirectHandle<InterpreterData> interpreter_data =
         isolate->factory()->NewInterpreterData(bytecode, code);
 
-    if (sfi->HasBaselineCode()) {
-      sfi->baseline_code(kAcquireLoad)
-          ->set_bytecode_or_interpreter_data(*interpreter_data);
+    if (!baseline_code.is_null()) {
+      baseline_code->set_bytecode_or_interpreter_data(*interpreter_data);
     } else {
       sfi->set_interpreter_data(isolate, *interpreter_data);
     }

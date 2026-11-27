@@ -28,11 +28,10 @@ int AbstractCode::InstructionSize() {
   }
 }
 
-Tagged<TrustedByteArray> AbstractCode::SourcePositionTable(
-    Isolate* isolate, Tagged<SharedFunctionInfo> sfi) {
+Tagged<TrustedByteArray> AbstractCode::SourcePositionTable(Isolate* isolate) {
   Tagged<Map> map_object = map();
   if (InstanceTypeChecker::IsCode(map_object)) {
-    return GetCode()->SourcePositionTable(isolate, sfi);
+    return GetCode()->SourcePositionTable(isolate);
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(map_object));
     return GetBytecodeArray()->SourcePositionTable();

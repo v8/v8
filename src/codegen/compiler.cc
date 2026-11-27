@@ -679,13 +679,8 @@ void Compiler::InstallInterpreterTrampolineCopy(
   DirectHandle<InterpreterData> interpreter_data =
       isolate->factory()->NewInterpreterData(bytecode_array, code);
 
-  if (shared_info->HasBaselineCode()) {
-    shared_info->baseline_code(kAcquireLoad)
-        ->set_bytecode_or_interpreter_data(*interpreter_data);
-  } else {
-    // IsBytecodeArray
-    shared_info->set_interpreter_data(isolate, *interpreter_data);
-  }
+  // Baseline code was excluded by the early return above.
+  shared_info->set_interpreter_data(isolate, *interpreter_data);
 
   DirectHandle<Script> script(Cast<Script>(shared_info->script()), isolate);
   DirectHandle<AbstractCode> abstract_code = Cast<AbstractCode>(code);

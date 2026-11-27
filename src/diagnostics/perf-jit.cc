@@ -354,7 +354,7 @@ void PerfJitLogger::LogWriteDebugInfo(Tagged<Code> code,
   uint32_t size = sizeof(debug_info);
 
   Tagged<TrustedByteArray> source_position_table =
-      code->SourcePositionTable(isolate_, raw_shared);
+      code->SourcePositionTable(isolate_);
   // Compute the entry count and get the names of all scripts.
   // Avoid additional work if the script name is repeated. Multiple script
   // names only occur for cross-script inlining.
