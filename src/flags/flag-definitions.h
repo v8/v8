@@ -1469,7 +1469,7 @@ DEFINE_BOOL(
     trace_turbo_stack_accesses, false,
     "trace stack load/store counters for optimized code in run-time (x64 only)")
 
-// When fuzzing and concurrent compilation is enabled, disable Turbofan
+// When fuzzing and concurrent compilation is enabled, disable Turbofan/Maglev
 // tracing flags since reading/printing heap state is not thread-safe and
 // leads to false positives on TSAN bots.
 // TODO(chromium:1205289): Teach relevant fuzzers to not pass TF tracing
@@ -1507,6 +1507,8 @@ DEFINE_DISABLE_FLAG_IMPLICATION(fuzzing_and_concurrent_recompilation,
 #endif
 DEFINE_DISABLE_FLAG_IMPLICATION(fuzzing_and_concurrent_recompilation,
                                 trace_turbo_stack_accesses)
+DEFINE_DISABLE_FLAG_IMPLICATION(fuzzing_and_concurrent_recompilation,
+                                trace_maglev)
 
 DEFINE_BOOL(turbo_verify, DEBUG_BOOL, "verify TurboFan graphs at each phase")
 DEFINE_STRING(turbo_verify_machine_graph, nullptr,
