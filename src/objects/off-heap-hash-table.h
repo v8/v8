@@ -134,6 +134,7 @@ class OffHeapHashTableBase {
 
   inline bool ShouldResizeToAdd(int number_of_additional_elements,
                                 int* new_capacity);
+  inline bool ShouldShrink(bool reduce_memory, int* new_capacity) const;
 
   inline void RehashInto(PtrComprCageBase cage_base, Derived* new_table);
 
@@ -178,6 +179,9 @@ class OffHeapHashTableBase {
   // static layout checks.
   template <typename Container, size_t OffsetOfElementsInContainer>
   static inline void* Allocate(int capacity);
+
+  template <typename Container, size_t OffsetOfElementsInContainer>
+  static inline void* TryAllocate(int capacity);
 
   static inline void Free(void* container);
 

@@ -5,6 +5,7 @@
 #include "src/objects/string-table.h"
 
 #include <atomic>
+#include <new>
 #include <span>
 
 #include "src/base/atomicops.h"
@@ -13,6 +14,7 @@
 #include "src/common/globals.h"
 #include "src/common/ptr-compr-inl.h"
 #include "src/execution/isolate-utils-inl.h"
+#include "src/flags/flags.h"
 #include "src/handles/maybe-handles-inl.h"
 #include "src/heap/factory-inl.h"
 #include "src/heap/heap-layout-inl.h"
@@ -89,8 +91,11 @@ class StringTable::Data {
   static std::unique_ptr<Data> New(int capacity);
   static std::unique_ptr<Data> Resize(PtrComprCageBase cage_base,
                                       std::unique_ptr<Data> data, int capacity);
+  static std::unique_ptr<Data> TryResize(PtrComprCageBase cage_base, Data* data,
+                                         int capacity);
 
   void* operator new(size_t size, int capacity);
+  void* operator new(size_t size, int capacity, const std::nothrow_t&) noexcept;
   void* operator new(size_t size) = delete;
   void operator delete(void* description);
 
@@ -132,6 +137,15 @@ void* StringTable::Data::operator new(size_t size, int capacity) {
       capacity);
 }
 
+void* StringTable::Data::operator new(size_t size, int capacity,
+                                      const std::nothrow_t&) noexcept {
+  // Make sure the size given is the size of the Data structure.
+  DCHECK_EQ(size, sizeof(StringTable::Data));
+  return OffHeapStringHashSet::TryAllocate<Data,
+                                           offsetof(Data, table_.elements_)>(
+      capacity);
+}
+
 void StringTable::Data::operator delete(void* table) {
   OffHeapStringHashSet::Free(table);
 }
@@ -153,6 +167,15 @@ std::unique_ptr<StringTable::Data> StringTable::Data::Resize(
   std::unique_ptr<Data> new_data(new (capacity) Data(capacity));
   data->table_.RehashInto(cage_base, &new_data->table_);
   new_data->previous_data_ = std::move(data);
+  return new_data;
+}
+
+std::unique_ptr<StringTable::Data> StringTable::Data::TryResize(
+    PtrComprCageBase cage_base, Data* data, int capacity) {
+  std::unique_ptr<Data> new_data(new (capacity, std::nothrow) Data(capacity));
+  if (!new_data) return nullptr;
+  data->table_.RehashInto(cage_base, &new_data->table_);
+  new_data->previous_data_.reset(data);
   return new_data;
 }
 
@@ -862,7 +885,24 @@ void StringTable::NotifyElementsRemoved(int count) {
   // are paused, so the load can be relaxed.
   isolate_->heap()->safepoint()->AssertActive();
   DCHECK_NE(isolate_->heap()->gc_state(), Heap::NOT_IN_GC);
-  data_.load(std::memory_order_relaxed)->table().ElementsRemoved(count);
+  Data* data = data_.load(std::memory_order_relaxed);
+  data->table().ElementsRemoved(count);
+  if (!v8_flags.shrink_string_table) return;
+
+  base::MutexGuard table_write_guard(&write_mutex_);
+  int new_capacity;
+  if (data->table().ShouldShrink(isolate_->heap()->ShouldReduceMemory(),
+                                 &new_capacity)) {
+    if (std::unique_ptr<Data> new_data =
+            Data::TryResize(PtrComprCageBase(isolate_), data, new_capacity)) {
+      data = new_data.release();
+      data_.store(data, std::memory_order_release);
+      // All threads that can read the string table are paused at the GC
+      // safepoint, so the old backing store can be freed immediately rather
+      // than retaining it until the next Mark-Compact GC.
+      data->DropPreviousData();
+    }
+  }
 }
 
 }  // namespace internal
