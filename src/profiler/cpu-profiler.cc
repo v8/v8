@@ -183,9 +183,22 @@ void ProfilerEventsProcessor::AddCurrentStack(
   StackFrameIterator it(isolate_, isolate_->thread_local_top());
   if (!it.done()) {
     StackFrame* frame = it.frame();
-    regs.sp = reinterpret_cast<void*>(frame->sp());
+    Address sp;
+    if (frame->InFastCCall()) {
+      // Fast C calls do not push an ExitFrame, so sp() is unavailable.
+      // Synthesize a lower bound at kFunctionOffset below fp(): unwinding only
+      // uses fp(), and StackFrameIteratorForProfiler only requires sp to be a
+      // valid mapped stack address at or below fp() + kFunctionOffset so it can
+      // validate and retain the caller frame.
+      DCHECK_NE(frame->fp(), kNullAddress);
+      DCHECK_EQ(frame->fp(), isolate_->isolate_data()->fast_c_call_caller_fp());
+      sp = frame->fp() + StandardFrameConstants::kFunctionOffset;
+    } else {
+      sp = frame->sp();
+    }
+    regs.sp = reinterpret_cast<void*>(sp);
     regs.fp = reinterpret_cast<void*>(frame->fp());
-    regs.pc = reinterpret_cast<void*>(frame->pc());
+    regs.pc = reinterpret_cast<void*>(frame->maybe_unauthenticated_pc());
   }
   record.sample.Init(isolate_, regs, TickSample::kSkipCEntryFrame, update_stats,
                      /* use_simulator_reg_state */ false, base::TimeDelta(),

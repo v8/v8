@@ -2348,6 +2348,7 @@
   # These tests trigger profiling, which can trigger non-deterministic
   # allocations.
   'regress/regress-1394663': [SKIP],
+  'regress/regress-590419631': [SKIP],
   'regress/wasm/regress-crbug-1502180': [SKIP],
   'regress/wasm/regress-574704749': [SKIP],
   'wasm/log-wasm-to-js-wrapper-callref': [SKIP],
@@ -3357,6 +3358,7 @@
   'regress-332570754': [SKIP],
   'regress/regress-490446682': [SKIP],
   'regress/regress-1394663': [SKIP],
+  'regress/regress-590419631': [SKIP],
   'regress/wasm/regress-crbug-1502180': [SKIP],
   'regress/wasm/regress-392928805': [SKIP],
   'regress/wasm/regress-406043349': [SKIP],
