@@ -387,7 +387,7 @@ class Range {
       // [kInfMin, kMinSafeInteger].
       return Range::Empty();
     }
-    if (lhs.min_ >= rhs.max_) return lhs;
+    if (lhs.min_ >= rhs.max_) return Range::Empty();
     lhs.max_ = std::min(lhs.max_, rhs.max_ - 1);
     DCHECK_LE(lhs.min_, lhs.max_);
     return lhs;
@@ -398,7 +398,7 @@ class Range {
       return Range::Empty();
     }
     if (rhs.is_all()) return lhs;
-    if (lhs.min_ >= rhs.max_) return lhs;
+    if (lhs.min_ > rhs.max_) return Range::Empty();
     lhs.max_ = std::min(lhs.max_, rhs.max_);
     DCHECK_LE(lhs.min_, lhs.max_);
     return lhs;
@@ -414,7 +414,7 @@ class Range {
       // [kMaxSafeInteger, kInfMax].
       return Range::Empty();
     }
-    if (lhs.max_ <= rhs.min_) return lhs;
+    if (lhs.max_ <= rhs.min_) return Range::Empty();
     lhs.min_ = std::max(lhs.min_, rhs.min_ + 1);
     DCHECK_LE(lhs.min_, lhs.max_);
     return lhs;
@@ -425,7 +425,7 @@ class Range {
       return Range::Empty();
     }
     if (rhs.is_all()) return lhs;
-    if (lhs.max_ <= rhs.min_) return lhs;
+    if (lhs.max_ < rhs.min_) return Range::Empty();
     lhs.min_ = std::max(lhs.min_, rhs.min_);
     DCHECK_LE(lhs.min_, lhs.max_);
     return lhs;
