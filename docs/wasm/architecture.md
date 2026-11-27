@@ -135,17 +135,16 @@ To prevent an attacker who corrupts the in-sandbox JS heap from hijacking linear
 
 ### 1. JS-to-Wasm and Wasm-to-JS Wrappers & Inlining (`--wasm-in-js-inlining-body`)
 Calls across the JS/Wasm boundary require ABI adaptation (unboxing/boxing JS values, converting numbers/BigInts/WasmGC references, switching the context/instance register (`rsi` on x64 is `kContextRegister` in JS and `kWasmImplicitArgRegister` in Wasm), and managing `CentralStack` transitions):
-- **`JSToWasmWrapper` (`WasmExportedFunction`)**: Starts with the generic `JSToWasmWrapper` builtin (interpreting the signature via `packed_args_size`) and tiers up (`wrapper_budget_`) to a signature-specialized Turboshaft wrapper (`CompileJSToWasmWrapper` in `src/wasm/wrappers.cc`, cached per `CanonicalTypeIndex` on the Isolate).
-- **`WasmToJSWrapper` (`WasmImportData`)**: Adapts Wasm calls to imported JS callables (`CompileWasmToJSWrapper`).
+- **`JSToWasmWrapper` (`WasmExportedFunction`)**: Starts with the generic `JSToWasmWrapper` builtin (interpreting the signature via `packed_args_size`) and tiers up (`wrapper_budget_`) to a signature-specialized Turboshaft wrapper (`WasmWrapperTSGraphBuilder` in `src/compiler/turboshaft/wasm-wrappers.{h,-inl.h,cc}`, cached per `CanonicalTypeIndex` on the Isolate).
+- **`WasmToJSWrapper` (`WasmImportData`)**: Adapts Wasm calls to imported JS callables (`src/compiler/turboshaft/wasm-wrappers-inl.h`).
 - **JS-to-Wasm Inlining (`--wasm-in-js-inlining` and `--wasm-in-js-inlining-body`)**: When Turboshaft compiles a hot JavaScript function that calls a `WasmExportedFunction`:
   1. `JSInliningHeuristic` inlines the `JSToWasmWrapper` directly into the JS caller (`WasmInJSInliningPhase`).
   2. With `--wasm-in-js-inlining-body` enabled (`src/compiler/turboshaft/wasm-in-js-inlining-phase.cc`), Turboshaft further inlines the **actual Wasm function body** (including small WasmGC struct/array operations and numeric computations) directly into the surrounding JavaScript Turboshaft graph, eliminating the JS-to-Wasm call frame entirely.
 
 ### 2. JavaScript Promise Integration (JSPI) & Stack Switching
-JSPI (`WebAssembly.Suspending` and `WebAssembly.promising`, plus the core Stack Switching `cont` proposal) allows synchronous Wasm code to suspend when calling an asynchronous JS import that returns a `Promise`, and resume when that `Promise` resolves:
-- **Secondary Stacks (`wasm::StackMemory` and `JumpBuffer` in `src/wasm/stacks.h`)**: When a `promising` export is invoked, `WasmSuspend` / stack-switching builtins allocate or reuse an off-heap `StackMemory` (composed of dynamically growable `StackSegment`s when `--wasm-growable-stacks` is enabled) and save the parent stack's `sp`, `fp`, `pc`, and `stack_limit` in `JumpBuffer` (tracking `StackState`: `Active`, `Suspended`, `Inactive`, `Retired` for sandbox safety).
-- **`WasmSuspenderObject` (`ExposedTrustedObject` in `src/wasm/wasm-objects.h`)**: Lives in `TrustedSpace` and tracks the active `StackMemory*`, parent `WasmSuspenderObject`, `promise_`, and `resume_`/`reject_` callbacks (`WasmResumeData`).
-- **Central Stack Switching for JS/Runtime Calls**: While executing on a secondary `StackMemory`, any Wasm-to-JS import call or C++ runtime call switches `sp` back to the Isolate's main OS stack (`CentralStack`, recorded in `StackMemory::StackSwitchInfo`) so JavaScript and C++ code always run on the central stack. On Windows native builds, `StackMemory` also saves and restores the central stack's dynamically committed `TEB->StackLimit` (`SwitchStackBoundsFromCentral` / `RestoreCentralStackBounds` / `SetCurrentThreadStackBounds`) across all stack switches, segment growth/shrinking, and exception unwinding.
+V8 shares a single off-heap stack-switching engine (`wasm::StackMemory`, `StackPool`, and `JumpBuffer` in `src/wasm/stacks.h`) across two WebAssembly proposals: **JSPI** (`WebAssembly.Suspending` and `WebAssembly.promising`, enabled by default for suspending synchronous Wasm across asynchronous JS `Promise`s) and **WasmFX / Core Stack Switching** (`--wasm-wasmfx`, pure-Wasm typed delimited continuations and effect handlers, compiled by Turboshaft). Suspendable Wasm computations run on pooled, guard-paged secondary stacks (optionally segmented under `--wasm-growable-stacks`), switching `sp` back to the Isolate's main OS stack (`CentralStack`) for any JS or C++ runtime call and synchronizing Windows TEB bounds on native Windows builds.
+
+For the full design, sandbox trade-offs (`WasmSuspenderObject` vs. `WasmContinuationObject`/`WasmStackObject`), frame layouts, and GC/unwinding invariants, see [stack-switching.md](stack-switching.md).
 
 ### 3. Hardware Bounds-Check Trap Handling (`src/trap-handler/`)
 On 64-bit platforms (`x64`, `arm64`, `riscv64`), V8 eliminates explicit bounds-check branches for 32-bit Wasm linear memories (`memory32`):
@@ -173,7 +172,7 @@ On 64-bit platforms (`x64`, `arm64`, `riscv64`), V8 eliminates explicit bounds-c
 | `src/wasm/wasm-objects.{h,cc}` | `WasmInstanceObject`, `WasmTrustedInstanceData`, `WasmDispatchTable`, `WasmStruct`, `WasmArray`, `WasmFuncRef`, `WasmNull`, and `WasmSuspenderObject`. |
 | `src/wasm/wasm-code-manager.{h,cc}` | Off-heap `NativeModule`, `WasmCode`, and `WasmCodeManager`. |
 | `src/wasm/wasm-code-pointer-table.{h,cc}` | Write-protected `WasmCodePointerTable` enforcing forward-edge CFI for indirect Wasm calls. |
-| `src/wasm/wrappers.{h,cc}` | Turboshaft `JSToWasmWrapper` and `WasmToJSWrapper` compilers. |
+| `src/compiler/turboshaft/wasm-wrappers.{h,-inl.h,cc}` | Turboshaft `JSToWasmWrapper`, `WasmToJSWrapper`, and `WasmStackEntryWrapper` compilers. |
 | `src/compiler/turboshaft/wasm-in-js-inlining-phase.{h,cc}` | `WasmInJSInliningPhase` inlining Wasm function bodies directly into JS callers (`--wasm-in-js-inlining-body`). |
-| `src/wasm/stacks.{h,cc}` | `StackMemory`, `StackSegment`, and `JumpBuffer` for JSPI and Wasm stack switching. |
+| `src/wasm/stacks.{h,cc}` | `StackMemory`, `StackSegment`, `StackPool`, and `JumpBuffer` for JSPI and WasmFX stack switching (see [stack-switching.md](stack-switching.md)). |
 | `src/trap-handler/trap-handler.h` | Hardware bounds-check and implicit-null-check trap handler (`RegisterHandlerData`, `RegisterCoveredMemory`, `SetLandingPad`). |

@@ -71,6 +71,7 @@ V8 enables any C++ application to expose its own objects and functions to JavaSc
     - [Maps, aka "Hidden Classes"](/docs/runtime/hidden-classes-and-ics)
     - [Slack Tracking - what is it?](/blog/slack-tracking)
     - [WebAssembly compilation pipeline](/docs/wasm/architecture)
+    - [WebAssembly stack switching (JSPI & WasmFX)](/docs/wasm/stack-switching)
 - Writing optimizable JavaScript
     - [Using V8’s sample-based profiler](/docs/profile)
     - [Profiling Chromium with V8](/docs/profile-chromium)
