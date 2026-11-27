@@ -354,13 +354,6 @@ class StackFrame {
   // Get the type of this frame.
   virtual Type type() const = 0;
 
-  // Get the code associated with this frame. The result might be a Code object
-  // or an empty value.
-  // This method is used by Isolate::PushStackTraceAndDie() for collecting a
-  // stack trace on fatal error and thus it might be called in the middle of GC
-  // and should be as safe as possible.
-  virtual Tagged<HeapObject> unchecked_code() const = 0;
-
   // Search for the code associated with this frame.
   V8_EXPORT_PRIVATE Tagged<Code> LookupCode() const;
   V8_EXPORT_PRIVATE std::pair<Tagged<Code>, int> LookupCodeAndOffset() const;
@@ -701,7 +694,6 @@ class TurbofanStubWithContextFrame : public CommonFrame {
  public:
   Type type() const override { return TURBOFAN_STUB_WITH_CONTEXT; }
 
-  Tagged<HeapObject> unchecked_code() const override;
   void Iterate(RootVisitor* v) const override;
 
  protected:
@@ -714,7 +706,6 @@ class TurbofanStubWithContextFrame : public CommonFrame {
 
 class TypedFrame : public CommonFrame {
  public:
-  Tagged<HeapObject> unchecked_code() const override { return {}; }
   void Iterate(RootVisitor* v) const override;
 
   void IterateParamsOfGenericWasmToJSWrapper(RootVisitor* v) const;
@@ -737,8 +728,6 @@ class CommonFrameWithJSLinkage : public CommonFrame {
   virtual Tagged<Object> GetParameter(int index) const;
   virtual uint32_t ComputeParametersCount() const;
   virtual uint32_t GetActualArgumentCount() const;
-
-  Tagged<HeapObject> unchecked_code() const override;
 
   // Lookup exception handler for current {pc}, returns -1 if none found. Also
   // returns data associated with the handler site specific to the frame type:
@@ -869,8 +858,6 @@ class EntryFrame : public TypedFrame {
  public:
   Type type() const override { return ENTRY; }
 
-  Tagged<HeapObject> unchecked_code() const override;
-
   // Garbage collection support.
   void Iterate(RootVisitor* v) const override;
 
@@ -897,8 +884,6 @@ class EntryFrame : public TypedFrame {
 class ConstructEntryFrame : public EntryFrame {
  public:
   Type type() const override { return CONSTRUCT_ENTRY; }
-
-  Tagged<HeapObject> unchecked_code() const override;
 
   static ConstructEntryFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_construct_entry());
@@ -1155,8 +1140,6 @@ class ApiIndexedAccessorExitFrame : public ApiAccessorExitFrame {
 class StubFrame : public TypedFrame {
  public:
   Type type() const override { return STUB; }
-
-  Tagged<HeapObject> unchecked_code() const override;
 
   // Lookup exception handler for current {pc}, returns -1 if none found. Only
   // TurboFan stub frames are supported.
@@ -1469,9 +1452,6 @@ class WasmInterpreterEntryFrame final : public WasmFrame {
 
   FrameSummaries Summarize(AllowAllocation allow_allocation = AllowAllocation{
                                true}) const override;
-
-  // Determine the code for the frame.
-  Tagged<HeapObject> unchecked_code() const override;
 
   // Accessors.
   V8_EXPORT_PRIVATE Tagged<WasmInstanceObject> wasm_instance() const override;

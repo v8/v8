@@ -867,13 +867,17 @@ StackTraceFailureMessage::StackTraceFailureMessage(
     StringStream accumulator(&fixed, StringStream::kPrintObjectConcise);
     isolate_->PrintStack(&accumulator, Isolate::kPrintStackVerbose,
                          AllowAllocation{false});
-    // Keeping a reference to the last code objects to increase likelihood that
-    // they get included in the minidump.
+    // Keeping a reference to the code objects of the topmost frames to increase
+    // likelihood that they get included in the minidump.
     const size_t code_objects_length = std::size(code_objects_);
     size_t i = 0;
     StackFrameIterator it(isolate_);
     for (; !it.done() && i < code_objects_length; it.Advance()) {
-      code_objects_[i++] = it.frame()->unchecked_code().ptr();
+      std::optional<Tagged<GcSafeCode>> code =
+          isolate_->heap()->GcSafeTryFindCodeForInnerPointer(
+              it.frame()->maybe_unauthenticated_pc());
+      if (!code.has_value()) continue;
+      code_objects_[i++] = code->ptr();
     }
   }
 }

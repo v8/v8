@@ -1144,10 +1144,6 @@ void NativeFrame::ComputeCallerState(State* state) const {
   state->constant_pool_address = nullptr;
 }
 
-Tagged<HeapObject> EntryFrame::unchecked_code() const {
-  return isolate()->builtins()->code(Builtin::kJSEntry);
-}
-
 void EntryFrame::ComputeCallerState(State* state) const {
   GetCallerState(state);
 }
@@ -1182,10 +1178,6 @@ void CWasmEntryFrame::Iterate(RootVisitor* v) const {
 #endif  // V8_ENABLE_DRUMBRAKE
 
 #endif  // V8_ENABLE_WEBASSEMBLY
-
-Tagged<HeapObject> ConstructEntryFrame::unchecked_code() const {
-  return isolate()->builtins()->code(Builtin::kJSConstructEntry);
-}
 
 void ExitFrame::ComputeCallerState(State* state) const {
   // Set up the caller state.
@@ -2429,13 +2421,6 @@ bool CommonFrame::HasTaggedOutgoingParams(
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
 
-Tagged<HeapObject> TurbofanStubWithContextFrame::unchecked_code() const {
-  std::optional<Tagged<GcSafeCode>> code_lookup =
-      isolate()->heap()->GcSafeTryFindCodeForInnerPointer(pc());
-  if (!code_lookup.has_value()) return {};
-  return code_lookup.value();
-}
-
 void CommonFrame::IterateTurbofanJSOptimizedFrame(RootVisitor* v) const {
   DCHECK(!iterator_->IsStackFrameIteratorForProfiler());
 
@@ -2528,13 +2513,6 @@ void TurbofanJSFrame::Iterate(RootVisitor* v) const {
   return IterateTurbofanJSOptimizedFrame(v);
 }
 
-Tagged<HeapObject> StubFrame::unchecked_code() const {
-  std::optional<Tagged<GcSafeCode>> code_lookup =
-      isolate()->heap()->GcSafeTryFindCodeForInnerPointer(pc());
-  if (!code_lookup.has_value()) return {};
-  return code_lookup.value();
-}
-
 int StubFrame::LookupExceptionHandlerInTable() {
   Tagged<Code> code;
   int pc_offset = -1;
@@ -2584,10 +2562,6 @@ void JavaScriptFrame::SetParameterValue(int index, Tagged<Object> value) const {
 
 bool JavaScriptFrame::IsConstructor() const {
   return IsConstructFrame(caller_fp());
-}
-
-Tagged<HeapObject> CommonFrameWithJSLinkage::unchecked_code() const {
-  return function()->code(isolate());
 }
 
 uint32_t TurbofanJSFrame::ComputeParametersCount() const {
@@ -4073,10 +4047,6 @@ FrameSummaries WasmInterpreterEntryFrame::Summarize(
     summaries.frames.push_back(summary);
   }
   return summaries;
-}
-
-Tagged<HeapObject> WasmInterpreterEntryFrame::unchecked_code() const {
-  return {};
 }
 
 Tagged<WasmInstanceObject> WasmInterpreterEntryFrame::wasm_instance() const {

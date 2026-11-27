@@ -159,10 +159,11 @@ TEST_F(MinimalStackTest, MinimalStackInDeoptMaterialize) {
       v8::Script::Compile(context, source_part2, &origin_part2)
           .ToLocalChecked();
 
-  // Walk the stack from a GC epilogue callback via Isolate::BuildMinimalStack()
-  // (which summarizes frames). Only do this once, and only while an
-  // unmaterialized closure is on the stack, so that other GCs don't overwrite
-  // the reported stack.
+  // Walk the stack from a GC epilogue callback, both via
+  // Isolate::BuildMinimalStack() (which summarizes frames) and via
+  // StackTraceFailureMessage (which prints frames and looks up their code).
+  // Only do this once, and only while an unmaterialized closure is on the
+  // stack, so that other GCs don't overwrite the reported stack.
   struct CallbackData {
     Isolate* isolate;
     bool saw_unmaterialized_closure = false;
@@ -179,6 +180,7 @@ TEST_F(MinimalStackTest, MinimalStackInDeoptMaterialize) {
       }
       callback_data->saw_unmaterialized_closure = true;
       isolate->ReportStackAsCrashKey();
+      isolate->PushStackTraceAndContinue();
       return;
     }
   };
