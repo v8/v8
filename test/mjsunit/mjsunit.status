@@ -2595,6 +2595,9 @@
   'wasm/multi-memory64': [SKIP],
   'wasm/drumbrake/drumbrake': [SKIP],
   'unicode-test': [SKIP],
+
+  # https://crbug.com/591035666
+  'regexp-match-global-atom': [SKIP],
 }],  # variant in (nooptimization, jitless) and (arch == arm or arch == arm64) and simulator_run
 
 ##############################################################################
@@ -3641,6 +3644,10 @@
   'string-indexof-2': [SKIP],
   'unicodelctest': [SKIP],
   'unicodelctest-no-optimization': [SKIP],
+
+  # Lite mode implies jitless, but runs with the default variant:
+  # https://crbug.com/591035666
+  'regexp-match-global-atom': [SKIP],
 }],  # 'arch == arm and mode == debug and simulator_run and lite_mode'
 
 ##############################################################################
