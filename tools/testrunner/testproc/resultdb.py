@@ -59,7 +59,12 @@ class ResultDBIndicator(ProgressIndicator):
     record.update(
         processor=test.processor_name,
         subtest_id=test.subtest_id,
-        path=test.path)
+        path=test.path,
+        # Status-file modifiers aren't part of the expected outcomes. Export
+        # them to allow analysing test durations based on ResultDB data.
+        # Only exported if true, as falsy values are skipped below.
+        marked_slow=test.is_slow,
+        marked_heavy=test.is_heavy)
 
     rdb_result.update(tags=extract_tags(record))
 

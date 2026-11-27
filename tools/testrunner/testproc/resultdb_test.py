@@ -23,11 +23,12 @@ from testrunner.local.command import BaseCommand
 from testrunner.objects.output import Output
 
 
-def mock_test262(is_fail, rdb_test_id):
+def mock_test262(is_fail, rdb_test_id, is_slow=False, is_heavy=False):
   Test = namedtuple('Test', [
       'is_fail', 'rdb_test_id', 'expected_outcomes', 'framework_name',
       'full_name', 'random_seed', 'shard_id', 'shard_count', 'shell', 'variant',
-      'variant_flags', 'processor_name', 'subtest_id', 'path', 'skip_rdb'
+      'variant_flags', 'processor_name', 'subtest_id', 'path', 'skip_rdb',
+      'is_slow', 'is_heavy'
   ])
 
   def skip_if_expected(result):
@@ -35,7 +36,7 @@ def mock_test262(is_fail, rdb_test_id):
 
   return Test(is_fail, rdb_test_id, [], 'unittest', 'test-123', 0, 1, 2, '',
               'default', [], 'none', None, '/tmp/test/some_test.js',
-              skip_if_expected)
+              skip_if_expected, is_slow, is_heavy)
 
 
 def mock_result(is_fail, duration=0):
@@ -91,6 +92,31 @@ class TestResultDBIndicator(unittest.TestCase):
     assert_testid_at_index('expected2fail-pass', 0)
     assert_testid_at_index('expected2pass-fail', 1)
     assert_duration_at_index('0.000010s', 2)
+
+  def test_status_file_modifier_tags(self):
+    server = RDBMockServer()
+    rdb = ResultDBIndicator(
+        context=None,
+        options=None,
+        test_count=0,
+        sink=dict(auth_token='none', address=server.address))
+
+    def tags_at_index(idx):
+      data = json.loads(server.post_data[idx])
+      return {t['key']: t['value'] for t in data['testResults'][0]['tags']}
+
+    rdb.send_result(mock_test262(False, 'plain'), mock_result(True), 0)
+    rdb.send_result(
+        mock_test262(False, 'slow', is_slow=True), mock_result(True), 0)
+    rdb.send_result(
+        mock_test262(False, 'heavy', is_heavy=True), mock_result(True), 0)
+
+    self.assertNotIn('marked_slow', tags_at_index(0))
+    self.assertNotIn('marked_heavy', tags_at_index(0))
+    self.assertEqual('True', tags_at_index(1)['marked_slow'])
+    self.assertNotIn('marked_heavy', tags_at_index(1))
+    self.assertNotIn('marked_slow', tags_at_index(2))
+    self.assertEqual('True', tags_at_index(2)['marked_heavy'])
 
 
 class TestFileOutput(fake_filesystem_unittest.TestCase):
