@@ -1257,7 +1257,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadGlobal(Node* node) {
     Control control = n.control();
     ContextRef script_context_ref = feedback.script_context();
     Node* script_context =
-        jsgraph()->ConstantNoHole(script_context_ref, broker());
+        jsgraph()->HeapConstantNoHole(script_context_ref.object());
     Node* value;
     if (script_context_ref.scope_info(broker()).HasContextCells() &&
         !feedback.immutable()) {
@@ -1301,7 +1301,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
     Node* frame_state = n.frame_state();
     ContextRef script_context_ref = feedback.script_context();
     Node* script_context =
-        jsgraph()->ConstantNoHole(script_context_ref, broker());
+        jsgraph()->HeapConstantNoHole(script_context_ref.object());
     if (script_context_ref.scope_info(broker()).HasContextCells()) {
       effect = control =
           graph()->NewNode(javascript()->StoreContext(0, feedback.slot_index()),
@@ -2947,7 +2947,7 @@ CallDescriptor* PushRegularApiCallInputs(
 
   // Add CallApiCallbackStub's register argument as well.
   Node* context =
-      jsgraph->ConstantNoHole(broker->target_native_context(), broker);
+      jsgraph->HeapConstantNoHole(broker->target_native_context().object());
   inputs[cursor++] = code;
   inputs[cursor++] = function_reference;
   inputs[cursor++] = jsgraph->ConstantNoHole(argc);

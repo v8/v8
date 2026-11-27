@@ -391,7 +391,7 @@ FeedbackCellRef JSInliner::DetermineCallContext(Node* node,
 
     // The inlinee specializes to the context from the JSFunction object.
     *context_out =
-        jsgraph()->ConstantNoHole(function.context(broker()), broker());
+        jsgraph()->HeapConstantNoHole(function.context(broker()).object());
     return function.raw_feedback_cell(broker());
   }
 
@@ -952,8 +952,8 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
           broker());
       Node* receiver = effect = graph()->NewNode(
           simplified()->ConvertReceiver(p.convert_mode()), call.receiver(),
-          jsgraph()->ConstantNoHole(broker()->target_native_context(),
-                                    broker()),
+          jsgraph()->HeapConstantNoHole(
+              broker()->target_native_context().object()),
           global_proxy, effect, start);
       NodeProperties::ReplaceValueInput(node, receiver,
                                         JSCallNode::ReceiverIndex());

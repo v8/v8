@@ -179,10 +179,8 @@ TEST_F(JSContextSpecializationTest, ReduceJSLoadContextNoCell0) {
   const int slot = Context::ALLOW_CODE_GEN_FROM_STRINGS_INDEX;
   native->SetNoCell(slot, *expected);
 
-  Node* const_context =
-      t.jsgraph()->ConstantNoHole(MakeRef(t.broker(), native), t.broker());
-  Node* deep_const_context =
-      t.jsgraph()->ConstantNoHole(MakeRef(t.broker(), subcontext2), t.broker());
+  Node* const_context = t.jsgraph()->HeapConstantNoHole(native);
+  Node* deep_const_context = t.jsgraph()->HeapConstantNoHole(subcontext2);
   Node* param_context = t.graph()->NewNode(t.common()->Parameter(0), start);
   Node* branch = t.graph()->NewNode(t.common()->Branch(), param_context, start);
   Node* control = t.graph()->NewNode(t.common()->IfTrue(), branch);
@@ -348,8 +346,7 @@ TEST_F(JSContextSpecializationTest, ReduceJSLoadContextNoCell2) {
   context_object0->set_extension(*slot_value0);
   context_object1->set_extension(*slot_value1);
 
-  Node* context0 = t.jsgraph()->ConstantNoHole(
-      MakeRef(t.broker(), context_object1), t.broker());
+  Node* context0 = t.jsgraph()->HeapConstantNoHole(context_object1);
   Node* context1 =
       t.graph()->NewNode(create_function_context, context0, start, start);
   Node* context2 =
@@ -525,10 +522,8 @@ TEST_F(JSContextSpecializationTest, ReduceJSStoreContextNoCell0) {
   const int slot = Context::ALLOW_CODE_GEN_FROM_STRINGS_INDEX;
   native->SetNoCell(slot, *expected);
 
-  Node* const_context =
-      t.jsgraph()->ConstantNoHole(MakeRef(t.broker(), native), t.broker());
-  Node* deep_const_context =
-      t.jsgraph()->ConstantNoHole(MakeRef(t.broker(), subcontext2), t.broker());
+  Node* const_context = t.jsgraph()->HeapConstantNoHole(native);
+  Node* deep_const_context = t.jsgraph()->HeapConstantNoHole(subcontext2);
   Node* param_context = t.graph()->NewNode(t.common()->Parameter(0), start);
 
   {
@@ -641,8 +636,7 @@ TEST_F(JSContextSpecializationTest, ReduceJSStoreContextNoCell2) {
   context_object0->set_extension(*slot_value0);
   context_object1->set_extension(*slot_value1);
 
-  Node* context0 = t.jsgraph()->ConstantNoHole(
-      MakeRef(t.broker(), context_object1), t.broker());
+  Node* context0 = t.jsgraph()->HeapConstantNoHole(context_object1);
   Node* context1 =
       t.graph()->NewNode(create_function_context, context0, start, start);
   Node* context2 =

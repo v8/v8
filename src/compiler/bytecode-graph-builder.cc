@@ -1157,7 +1157,8 @@ Node* BytecodeGraphBuilder::BuildLoadFeedbackCell(int index) {
 
 void BytecodeGraphBuilder::CreateNativeContextNode() {
   DCHECK_NULL(native_context_node_);
-  native_context_node_ = jsgraph()->ConstantNoHole(native_context(), broker());
+  native_context_node_ =
+      jsgraph()->HeapConstantNoHole(native_context().object());
 }
 
 Node* BytecodeGraphBuilder::BuildLoadNativeContextField(int index) {

@@ -79,6 +79,12 @@ class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
   // Use this if you really need to emit Hole values.
   Node* ConstantMaybeHole(ObjectRef ref, JSHeapBroker* broker);
 
+  // Contexts are never serialized; use HeapConstantNoHole(ref.object()) so a
+  // concurrent in-sandbox map mutation to HeapNumber cannot unbox a ContextRef
+  // into a NumberConstant.
+  Node* ConstantNoHole(ContextRef ref, JSHeapBroker* broker) = delete;
+  Node* ConstantMaybeHole(ContextRef ref, JSHeapBroker* broker) = delete;
+
   // Creates a NumberConstant node, usually canonicalized.
   Node* ConstantNoHole(double value);
   Node* ConstantNoHole(Float64 value);

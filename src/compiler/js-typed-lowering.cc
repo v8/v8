@@ -2115,7 +2115,7 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
           native_context.global_proxy_object(broker()), broker());
       receiver = effect = graph()->NewNode(
           simplified()->ConvertReceiver(convert_mode), receiver,
-          jsgraph()->ConstantNoHole(native_context, broker()), global_proxy,
+          jsgraph()->HeapConstantNoHole(native_context.object()), global_proxy,
           effect, control);
       NodeProperties::ReplaceValueInput(node, receiver, 1);
     }
@@ -2124,7 +2124,7 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     if (function) {
       NodeProperties::ReplaceContextInput(
           node,
-          jsgraph()->ConstantNoHole(function->context(broker()), broker()));
+          jsgraph()->HeapConstantNoHole(function->context(broker()).object()));
     } else {
       Node* context = effect = graph()->NewNode(
           simplified()->LoadField(AccessBuilder::ForJSFunctionContext()),
