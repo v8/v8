@@ -101,7 +101,7 @@ vars = {
   'chromium_speedometer_git': 'https://chromium.googlesource.com/external/github.com/WebKit/Speedometer.git',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:e533b5925fb64725220b7fcb25f226733ce2424f',
+  'gn_version': 'git_revision:5471d5170db5af2d4254ee982a969a06a460aedb',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -118,7 +118,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': 'd74c139ba315c5982905f3916d00c89e01eaec11',
+  'partition_alloc_version': 'f8286b00b488509d0805dad98e8d0cacf83af009',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -189,7 +189,7 @@ deps = {
     'condition': 'checkout_agents_internal',
   },
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f0af8264dc8a4444840c3a0658a9c63cecd6709e',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '16d42015e68e44f3d1f2b3a8c35cfa461e59a225',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '9810deffc0b8f7e8b275fe337231faa810b9358c',
   'buildtools/linux64': {
@@ -292,7 +292,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '79450e441f94d1a976bb83f7e043fd89afacd5f3',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'a93a68f704ca422b2c5e8fd2f4fe36397b71c270',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -563,7 +563,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '76ca491635d294515637aa9a7ea84bcbd3c84a5b',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'f98fd37411f2096b4eb382922511c485926db6e4',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '3813fd5b3029807583e5d2549a40d78fa499c3e8',
   'third_party/re2/src':
